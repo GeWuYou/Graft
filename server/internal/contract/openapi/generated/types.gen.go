@@ -2049,10 +2049,12 @@ type AnnouncementDeliveryMode string
 
 // AnnouncementItem defines model for announcement-item.
 type AnnouncementItem struct {
-	Content   string    `json:"content"`
-	CreatedAt time.Time `json:"created_at"`
-	CreatedBy *int64    `json:"created_by,omitempty"`
-	DeletedBy *int64    `json:"deleted_by,omitempty"`
+	// ArchivedAt Time when the current archived state started. Meaningful only when status is archived and cleared on re-publish.
+	ArchivedAt *time.Time `json:"archived_at,omitempty"`
+	Content    string     `json:"content"`
+	CreatedAt  time.Time  `json:"created_at"`
+	CreatedBy  *int64     `json:"created_by,omitempty"`
+	DeletedBy  *int64     `json:"deleted_by,omitempty"`
 
 	// DeliveryMode Announcement delivery presentation mode.
 	DeliveryMode AnnouncementDeliveryMode `json:"delivery_mode"`
@@ -2060,9 +2062,14 @@ type AnnouncementItem struct {
 	Id           int64                    `json:"id"`
 
 	// Level Announcement presentation level.
-	Level     AnnouncementLevel `json:"level"`
-	Pinned    bool              `json:"pinned"`
-	PublishAt *time.Time        `json:"publish_at,omitempty"`
+	Level  AnnouncementLevel `json:"level"`
+	Pinned bool              `json:"pinned"`
+
+	// PublishAt Announcement visibility start time. Re-publishing an archived announcement updates this value.
+	PublishAt *time.Time `json:"publish_at,omitempty"`
+
+	// PublishedBy User id that performed the latest publish or re-publish action. Existing rows may remain null.
+	PublishedBy *int64 `json:"published_by,omitempty"`
 
 	// ReadAt Current user's read time when returned by current-user endpoints.
 	ReadAt *time.Time `json:"read_at,omitempty"`

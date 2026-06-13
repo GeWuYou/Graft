@@ -1438,7 +1438,7 @@ export interface paths {
     put?: never;
     /**
      * Publish an announcement
-     * @description Publishes an announcement, using the supplied publish time or the current server time.
+     * @description Publishes a draft announcement or re-publishes an archived announcement. If publish_at is omitted, the server uses the current UTC time for archived re-publish and otherwise keeps an existing publish_at when present.
      */
     post: operations['postAnnouncementPublish'];
     delete?: never;
@@ -3384,8 +3384,21 @@ export interface components {
       status: components['schemas']['announcement-status'];
       delivery_mode: components['schemas']['announcement-delivery-mode'];
       pinned: boolean;
-      /** Format: date-time */
+      /**
+       * Format: date-time
+       * @description Announcement visibility start time. Re-publishing an archived announcement updates this value.
+       */
       publish_at?: string | null;
+      /**
+       * Format: int64
+       * @description User id that performed the latest publish or re-publish action. Existing rows may remain null.
+       */
+      published_by?: number | null;
+      /**
+       * Format: date-time
+       * @description Time when the current archived state started. Meaningful only when status is archived and cleared on re-publish.
+       */
+      archived_at?: string | null;
       /** Format: date-time */
       expire_at?: string | null;
       /** Format: int64 */

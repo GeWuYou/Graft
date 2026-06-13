@@ -115,6 +115,7 @@ const translations = vi.hoisted(
     'announcement.management.more': 'More',
     'announcement.management.publishNow': 'Publish Now',
     'announcement.management.publishSuccess': 'Announcement Published',
+    'announcement.management.republish': 'Republish',
     'announcement.management.refresh': 'Refresh',
     'announcement.management.reset': 'Clear Filters',
     'announcement.management.search': 'Search',
@@ -179,11 +180,13 @@ const TTableStub = defineComponent({
       h(
         'div',
         { 'data-testid': 'announcement-table' },
-        props.data.flatMap((row: Record<string, unknown>) => [
-          slots.title?.({ row }),
-          slots.delivery_mode?.({ row }),
-          slots.operation?.({ row }),
-        ]),
+        props.data.map((row: Record<string, unknown>) =>
+          h('section', { 'data-testid': 'announcement-row' }, [
+            slots.title?.({ row }),
+            slots.delivery_mode?.({ row }),
+            slots.operation?.({ row }),
+          ]),
+        ),
       );
   },
 });
@@ -259,13 +262,22 @@ function mountPage() {
           name: 'TableActionMenuStub',
           props: ['actions'],
           emits: ['action'],
-          setup(_props, { emit }) {
+          setup(props, { emit }) {
             return () =>
-              h('div', [
-                h('button', { 'data-testid': 'publish-action', onClick: () => emit('action', 'publish') }, 'publish'),
-                h('button', { 'data-testid': 'detail-action', onClick: () => emit('action', 'detail') }, 'detail'),
-                h('button', { 'data-testid': 'delete-action', onClick: () => emit('action', 'delete') }, 'delete'),
-              ]);
+              h(
+                'div',
+                (props.actions as Array<{ disabled?: boolean; label: string; value: string }>).map((action) =>
+                  h(
+                    'button',
+                    {
+                      disabled: Boolean(action.disabled),
+                      'data-testid': `${action.value}-action`,
+                      onClick: () => emit('action', action.value),
+                    },
+                    translations[action.label] ?? action.label,
+                  ),
+                ),
+              );
           },
         }),
         't-button': TButtonStub,
@@ -277,11 +289,12 @@ function mountPage() {
         }),
         't-date-picker': defineComponent({
           name: 'TDatePickerStub',
-          props: ['modelValue'],
+          props: ['defaultTime', 'modelValue'],
           emits: ['update:modelValue'],
           setup(props, { emit }) {
             return () =>
               h('input', {
+                'data-default-time': props.defaultTime,
                 value: props.modelValue,
                 onInput: (event: Event) => emit('update:modelValue', (event.target as HTMLInputElement).value),
               });
@@ -408,6 +421,7 @@ function mountPage() {
 
 describe('announcement management page', () => {
   beforeEach(() => {
+    vi.useRealTimers();
     vi.clearAllMocks();
     dispatchSpy.mockClear();
     apiMocks.getAnnouncements.mockResolvedValue({
@@ -422,6 +436,44 @@ describe('announcement management page', () => {
     apiMocks.deleteAnnouncement.mockResolvedValue({});
   });
 
+  it('renders status-specific row actions', async () => {
+    apiMocks.getAnnouncements.mockResolvedValue({
+      items: [
+        announcement({ id: 1, status: 'draft' }),
+        announcement({ id: 2, status: 'published' }),
+        announcement({ id: 3, status: 'archived' }),
+      ],
+      page: 1,
+      page_size: 20,
+      total: 3,
+    });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const rows = wrapper.findAll('[data-testid="announcement-row"]');
+    expect(rows[0].text()).toContain('Details');
+    expect(rows[0].text()).toContain('Edit');
+    expect(rows[0].text()).toContain('Publish Now');
+    expect(rows[0].text()).toContain('Delete');
+    expect(rows[0].text()).not.toContain('Archive');
+    expect(rows[0].text()).not.toContain('Republish');
+
+    expect(rows[1].text()).toContain('Details');
+    expect(rows[1].text()).toContain('Edit');
+    expect(rows[1].text()).toContain('Archive');
+    expect(rows[1].text()).not.toContain('Delete');
+    expect(rows[1].text()).not.toContain('Publish Now');
+    expect(rows[1].text()).not.toContain('Republish');
+
+    expect(rows[2].text()).toContain('Details');
+    expect(rows[2].text()).toContain('Edit');
+    expect(rows[2].text()).toContain('Republish');
+    expect(rows[2].text()).toContain('Delete');
+    expect(rows[2].text()).not.toContain('Archive');
+    expect(rows[2].find('[data-testid="edit-action"]').attributes('disabled')).toBeDefined();
+  });
+
   it('refreshes the list after a publish action succeeds', async () => {
     const wrapper = mountPage();
     await flushPromises();
@@ -431,6 +483,28 @@ describe('announcement management page', () => {
 
     expect(apiMocks.publishAnnouncement).toHaveBeenCalledWith(1);
     expect(apiMocks.getAnnouncements).toHaveBeenCalledTimes(2);
+  });
+
+  it('republishes an archived announcement with the current publish time', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-13T08:09:10.000Z'));
+    apiMocks.getAnnouncements.mockResolvedValue({
+      items: [announcement({ status: 'archived' })],
+      page: 1,
+      page_size: 20,
+      total: 1,
+    });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="publish-action"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('Republish');
+    expect(apiMocks.publishAnnouncement).toHaveBeenCalledWith(1, { publish_at: '2026-06-13T08:09:10.000Z' });
+
+    vi.useRealTimers();
   });
 
   it('opens a TDesign confirmation dialog before deleting a draft announcement', async () => {
@@ -454,23 +528,25 @@ describe('announcement management page', () => {
     expect(window.dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({ type: 'graft:announcement-changed' }));
   });
 
-  it('warns instead of calling delete API for published announcements', async () => {
+  it('archives a published announcement instead of exposing delete', async () => {
     apiMocks.getAnnouncements.mockResolvedValue({
       items: [announcement({ status: 'published' })],
       page: 1,
       page_size: 20,
       total: 1,
     });
+    apiMocks.archiveAnnouncement.mockResolvedValue(announcement({ status: 'archived' }));
     const wrapper = mountPage();
     await flushPromises();
 
-    await wrapper.get('[data-testid="delete-action"]').trigger('click');
+    expect(wrapper.find('[data-testid="delete-action"]').exists()).toBe(false);
+
+    await wrapper.get('[data-testid="archive-action"]').trigger('click');
     await flushPromises();
 
-    const { MessagePlugin } = await import('tdesign-vue-next/es/message');
-    expect(MessagePlugin.warning).toHaveBeenCalledWith('Archive before deleting');
+    expect(apiMocks.archiveAnnouncement).toHaveBeenCalledWith(1);
     expect(apiMocks.deleteAnnouncement).not.toHaveBeenCalled();
-    expect(wrapper.find('[data-testid="delete-confirm-dialog"]').exists()).toBe(false);
+    expect(apiMocks.getAnnouncements).toHaveBeenCalledTimes(2);
   });
 
   it('searches through a single fetch chain when the current page resets', async () => {
@@ -510,6 +586,43 @@ describe('announcement management page', () => {
     expect(apiMocks.createAnnouncement).not.toHaveBeenCalled();
     const { MessagePlugin } = await import('tdesign-vue-next/es/message');
     expect(MessagePlugin.error).toHaveBeenCalledWith('Expire time must be later than publish time');
+  });
+
+  it('keeps DatePicker state as local display strings and converts to UTC only on submit', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 5, 13, 16, 17, 18));
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="announcement-create"]').trigger('click');
+    await nextTick();
+    const titleInput = wrapper
+      .findAll('input')
+      .find(
+        (input) => input.attributes('value') === '' && input.attributes('placeholder') !== 'Search title or content',
+      );
+    expect(titleInput).toBeTruthy();
+    await titleInput!.setValue('Title');
+    await wrapper.get('textarea').setValue('Body');
+    const inputs = wrapper.findAll('input');
+    const publishInput = inputs.at(-2)!;
+    const expireInput = inputs.at(-1)!;
+    expect(publishInput.attributes('data-default-time')).toBe('16:17:18');
+
+    await publishInput.setValue('2026-06-13 16:17:18');
+    await expireInput.setValue('2026-06-13 17:17:18');
+    expect(publishInput.element.value).toBe('2026-06-13 16:17:18');
+    await wrapper.get('form').trigger('submit');
+    await flushPromises();
+
+    expect(apiMocks.createAnnouncement).toHaveBeenCalledWith(
+      expect.objectContaining({
+        expire_at: new Date(2026, 5, 13, 17, 17, 18).toISOString(),
+        publish_at: new Date(2026, 5, 13, 16, 17, 18).toISOString(),
+      }),
+    );
+
+    vi.useRealTimers();
   });
 
   it('submits create payload with the selected delivery mode', async () => {

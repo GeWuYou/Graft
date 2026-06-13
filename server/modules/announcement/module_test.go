@@ -235,6 +235,8 @@ func TestAnnouncementManagementServiceLifecycle(t *testing.T) {
 	if published.PublishAt == nil || !published.PublishAt.Equal(publishAt.UTC()) {
 		t.Fatalf("expected publish_at to keep UTC input, got %#v", published.PublishAt)
 	}
+	assertAnnouncementPublishedBy(t, published, actorID)
+	assertAnnouncementArchivedAtCleared(t, published)
 	if err := service.Delete(ctx, created.ID, actorID); !errors.Is(err, errAnnouncementPublishedDelete) {
 		t.Fatalf("expected published delete guard, got %v", err)
 	}
@@ -246,6 +248,7 @@ func TestAnnouncementManagementServiceLifecycle(t *testing.T) {
 	if archived.Status != announcementcontract.AnnouncementStatusArchived.String() {
 		t.Fatalf("expected archived status, got %q", archived.Status)
 	}
+	assertAnnouncementArchivedAtSet(t, archived)
 	if _, err := service.Update(ctx, created.ID, announcementstore.UpdateInput{
 		Title:   "New",
 		Content: "New",
@@ -258,6 +261,51 @@ func TestAnnouncementManagementServiceLifecycle(t *testing.T) {
 	}
 	if _, err := service.GetAdmin(ctx, created.ID); !errors.Is(err, errAnnouncementNotFound) {
 		t.Fatalf("expected deleted announcement not found, got %v", err)
+	}
+}
+
+func TestAnnouncementRepublishArchivedUsesServerTimeAndPreservesReadState(t *testing.T) {
+	repository := newMemoryAnnouncementRepository()
+	service, err := NewService(repository)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	ctx := context.Background()
+	actorID := uint64(7)
+	userID := uint64(42)
+	publishAt := time.Now().UTC().Add(-2 * time.Hour)
+	created := createAnnouncementForUserTest(t, service, "Republish", publishAt, nil, actorID)
+	if _, err := service.MarkRead(ctx, userID, created.ID); err != nil {
+		t.Fatalf("mark read before archive: %v", err)
+	}
+	archived, err := service.Archive(ctx, created.ID, &actorID)
+	if err != nil {
+		t.Fatalf("archive announcement: %v", err)
+	}
+	if archived.ArchivedAt == nil {
+		t.Fatal("expected archived_at before republish")
+	}
+
+	beforeRepublish := time.Now().UTC()
+	republished, err := service.Publish(ctx, created.ID, nil, &actorID)
+	if err != nil {
+		t.Fatalf("republish archived announcement: %v", err)
+	}
+	if republished.Status != announcementcontract.AnnouncementStatusPublished.String() {
+		t.Fatalf("expected republished status, got %q", republished.Status)
+	}
+	assertAnnouncementArchivedAtCleared(t, republished)
+	assertAnnouncementPublishedBy(t, republished, actorID)
+	if republished.PublishAt == nil || republished.PublishAt.Before(beforeRepublish) {
+		t.Fatalf("expected republish without publish_at to use current server time, got %#v before=%s", republished.PublishAt, beforeRepublish)
+	}
+
+	result, err := service.ListCurrentUser(ctx, UserListQuery{UserID: userID, Page: 1, PageSize: 20})
+	if err != nil {
+		t.Fatalf("list current user after republish: %v", err)
+	}
+	if result.Total != 1 || len(result.Items) != 1 || result.Items[0].ReadAt == nil {
+		t.Fatalf("expected republished announcement to preserve read state, got total=%d items=%#v", result.Total, result.Items)
 	}
 }
 
@@ -784,6 +832,27 @@ func createDraftForUserTest(
 		t.Fatalf("create draft %s: %v", title, err)
 	}
 	return item
+}
+
+func assertAnnouncementPublishedBy(t *testing.T, item announcementstore.Announcement, actorID uint64) {
+	t.Helper()
+	if item.PublishedBy == nil || *item.PublishedBy != actorID {
+		t.Fatalf("expected published_by actor %d, got %#v", actorID, item.PublishedBy)
+	}
+}
+
+func assertAnnouncementArchivedAtSet(t *testing.T, item announcementstore.Announcement) {
+	t.Helper()
+	if item.ArchivedAt == nil {
+		t.Fatal("expected archived_at to be set")
+	}
+}
+
+func assertAnnouncementArchivedAtCleared(t *testing.T, item announcementstore.Announcement) {
+	t.Helper()
+	if item.ArchivedAt != nil {
+		t.Fatalf("expected archived_at to be empty, got %#v", item.ArchivedAt)
+	}
 }
 
 type testAnnouncementRepository struct{}

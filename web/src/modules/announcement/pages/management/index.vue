@@ -309,6 +309,7 @@
               v-model="formState.publish_at"
               clearable
               enable-time-picker
+              :default-time="currentTimeDefault"
               value-type="YYYY-MM-DD HH:mm:ss"
               :placeholder="t('announcement.management.form.publishAtPlaceholder')"
             />
@@ -318,6 +319,7 @@
               v-model="formState.expire_at"
               clearable
               enable-time-picker
+              :default-time="currentTimeDefault"
               value-type="YYYY-MM-DD HH:mm:ss"
               :placeholder="t('announcement.management.form.expireAtPlaceholder')"
             />
@@ -532,6 +534,7 @@ const detailDrawerVisible = ref(false);
 const detailRecord = ref<AnnouncementViewModel | null>(null);
 const deleteDialogVisible = ref(false);
 const deleteTarget = ref<AnnouncementRowViewModel | null>(null);
+const currentTimeDefault = formatTimePart(new Date());
 
 const statusValues: AnnouncementStatus[] = ['draft', 'published', 'archived'];
 const levelValues: AnnouncementLevel[] = ['info', 'warning', 'success', 'error'];
@@ -791,7 +794,7 @@ async function handleFormSubmit(context: SubmitContext) {
 }
 
 function rowActions(row: AnnouncementRowViewModel) {
-  return [
+  const actions = [
     {
       label: 'announcement.management.detail',
       value: 'detail',
@@ -801,24 +804,49 @@ function rowActions(row: AnnouncementRowViewModel) {
       label: 'announcement.management.edit',
       value: 'edit',
     },
-    {
-      disabled: row.status === 'published',
-      label: 'announcement.management.publishNow',
-      value: 'publish',
-    },
-    {
-      disabled: row.status !== 'published',
+  ];
+
+  if (row.status === 'draft') {
+    actions.push(
+      {
+        label: 'announcement.management.publishNow',
+        value: 'publish',
+      },
+      {
+        label: 'announcement.management.delete',
+        value: 'delete',
+      },
+    );
+  }
+
+  if (row.status === 'published') {
+    actions.push({
       label: 'announcement.management.archive',
       value: 'archive',
-    },
-    {
-      label: 'announcement.management.delete',
-      value: 'delete',
-    },
-  ];
+    });
+  }
+
+  if (row.status === 'archived') {
+    actions.push(
+      {
+        label: 'announcement.management.republish',
+        value: 'publish',
+      },
+      {
+        label: 'announcement.management.delete',
+        value: 'delete',
+      },
+    );
+  }
+
+  return actions;
 }
 
 function handleRowAction(action: string, row: AnnouncementRowViewModel) {
+  if (action === 'edit' && row.status === 'archived') {
+    return;
+  }
+
   switch (action as RowAction) {
     case 'detail':
       void openDetailDrawer(row);
@@ -842,7 +870,11 @@ function handleRowAction(action: string, row: AnnouncementRowViewModel) {
 
 async function publishRow(row: AnnouncementRowViewModel) {
   try {
-    await publishAnnouncement(row.id);
+    if (row.status === 'archived') {
+      await publishAnnouncement(row.id, { publish_at: new Date().toISOString() });
+    } else {
+      await publishAnnouncement(row.id);
+    }
     MessagePlugin.success(t('announcement.management.publishSuccess'));
     await fetchAnnouncements();
     emitAnnouncementChanged();
@@ -964,16 +996,26 @@ function isTimeWindowValid(state: AnnouncementFormState) {
     return true;
   }
 
-  return new Date(state.expire_at).getTime() > new Date(state.publish_at).getTime();
+  const expireAt = parseDatePickerValue(state.expire_at);
+  const publishAt = parseDatePickerValue(state.publish_at);
+  if (!expireAt || !publishAt) {
+    return true;
+  }
+
+  return expireAt.getTime() > publishAt.getTime();
 }
 
 function toDatePickerValue(value?: string | null) {
-  return value
-    ? value
-        .replace('T', ' ')
-        .replace(/\.\d+Z$/u, '')
-        .replace(/Z$/u, '')
-    : '';
+  if (!value) {
+    return '';
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+
+  return formatDatePickerValue(date);
 }
 
 function toApiDateTime(value: string) {
@@ -981,13 +1023,37 @@ function toApiDateTime(value: string) {
     return null;
   }
 
-  const normalized = value.includes('T') ? value : value.replace(' ', 'T');
-  const date = new Date(normalized);
-  if (Number.isNaN(date.getTime())) {
+  const date = parseDatePickerValue(value);
+  if (!date) {
     return null;
   }
 
   return date.toISOString();
+}
+
+function parseDatePickerValue(value: string) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})$/u.exec(value.trim());
+  if (!match) {
+    const fallback = new Date(value);
+    return Number.isNaN(fallback.getTime()) ? null : fallback;
+  }
+
+  const [, year, month, day, hour, minute, second] = match;
+  return new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute), Number(second));
+}
+
+function formatDatePickerValue(date: Date) {
+  return `${date.getFullYear()}-${padDatePart(date.getMonth() + 1)}-${padDatePart(date.getDate())} ${formatTimePart(
+    date,
+  )}`;
+}
+
+function formatTimePart(date: Date) {
+  return `${padDatePart(date.getHours())}:${padDatePart(date.getMinutes())}:${padDatePart(date.getSeconds())}`;
+}
+
+function padDatePart(value: number) {
+  return String(value).padStart(2, '0');
 }
 
 function readableError(error: unknown, fallback: string) {

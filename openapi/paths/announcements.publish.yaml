@@ -2,7 +2,7 @@ post:
   tags: [announcements]
   summary: Publish an announcement
   operationId: postAnnouncementPublish
-  description: Publishes an announcement, using the supplied publish time or the current server time.
+  description: Publishes a draft announcement or re-publishes an archived announcement. If publish_at is omitted, the server uses the current UTC time for archived re-publish and otherwise keeps an existing publish_at when present.
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml

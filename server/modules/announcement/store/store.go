@@ -27,6 +27,8 @@ type Announcement struct {
 	DeliveryMode string
 	Pinned       bool
 	PublishAt    *time.Time
+	PublishedBy  *uint64
+	ArchivedAt   *time.Time
 	ExpireAt     *time.Time
 	CreatedBy    *uint64
 	UpdatedBy    *uint64

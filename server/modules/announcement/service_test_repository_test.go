@@ -139,6 +139,8 @@ func (r *memoryAnnouncementRepository) Create(_ context.Context, input announcem
 		DeliveryMode: strings.TrimSpace(input.DeliveryMode),
 		Pinned:       input.Pinned,
 		PublishAt:    cloneTime(input.PublishAt),
+		PublishedBy:  nil,
+		ArchivedAt:   nil,
 		ExpireAt:     cloneTime(input.ExpireAt),
 		CreatedBy:    cloneUint64(input.ActorID),
 		UpdatedBy:    cloneUint64(input.ActorID),
@@ -190,6 +192,8 @@ func (r *memoryAnnouncementRepository) Publish(_ context.Context, id uint64, pub
 	item.Status = "published"
 	publishAt = publishAt.UTC()
 	item.PublishAt = &publishAt
+	item.PublishedBy = cloneUint64(actorID)
+	item.ArchivedAt = nil
 	item.UpdatedBy = cloneUint64(actorID)
 	item.UpdatedAt = time.Now().UTC()
 	r.items[id] = item
@@ -204,6 +208,8 @@ func (r *memoryAnnouncementRepository) Archive(_ context.Context, id uint64, act
 		return announcementstore.Announcement{}, announcementstore.ErrAnnouncementNotFound
 	}
 	item.Status = "archived"
+	archivedAt := time.Now().UTC()
+	item.ArchivedAt = &archivedAt
 	item.UpdatedBy = cloneUint64(actorID)
 	item.UpdatedAt = time.Now().UTC()
 	r.items[id] = item

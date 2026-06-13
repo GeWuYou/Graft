@@ -153,7 +153,7 @@ func (s *Service) Update(ctx context.Context, id uint64, input announcementstore
 	return item, mapStoreError(err)
 }
 
-// Publish marks a draft or already-published announcement published.
+// Publish marks a draft, published, or archived announcement published.
 func (s *Service) Publish(ctx context.Context, id uint64, publishAt *time.Time, actorID *uint64) (announcementstore.Announcement, error) {
 	if err := s.ensureReady(); err != nil {
 		return announcementstore.Announcement{}, err
@@ -162,13 +162,10 @@ func (s *Service) Publish(ctx context.Context, id uint64, publishAt *time.Time, 
 	if err != nil {
 		return announcementstore.Announcement{}, mapStoreError(err)
 	}
-	if current.Status == announcementcontract.AnnouncementStatusArchived.String() {
-		return announcementstore.Announcement{}, errAnnouncementInvalidTransition
-	}
 	effectivePublishAt := time.Now().UTC()
 	if publishAt != nil {
 		effectivePublishAt = publishAt.UTC()
-	} else if current.PublishAt != nil {
+	} else if current.Status != announcementcontract.AnnouncementStatusArchived.String() && current.PublishAt != nil {
 		effectivePublishAt = current.PublishAt.UTC()
 	}
 	if current.ExpireAt != nil && !current.ExpireAt.After(effectivePublishAt) {

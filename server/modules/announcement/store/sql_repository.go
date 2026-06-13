@@ -254,11 +254,12 @@ func (r *SQLRepository) Publish(ctx context.Context, id uint64, publishAt time.T
 		return Announcement{}, ErrInvalidInput
 	}
 	item, err := scanAnnouncement(r.db.QueryRowContext(ctx, r.placeholder.rebind(`UPDATE announcements
-		SET status = ?, publish_at = ?, updated_by = ?, updated_at = ?
+		SET status = ?, publish_at = ?, published_by = ?, archived_at = NULL, updated_by = ?, updated_at = ?
 		WHERE id = ? AND deleted_at = 0
 		RETURNING `+announcementColumns()),
 		statusPublished,
 		publishAt.UTC(),
+		actorID,
 		actorID,
 		time.Now().UTC(),
 		targetID,
@@ -282,10 +283,11 @@ func (r *SQLRepository) Archive(ctx context.Context, id uint64, actorID *uint64)
 		return Announcement{}, err
 	}
 	item, err := scanAnnouncement(r.db.QueryRowContext(ctx, r.placeholder.rebind(`UPDATE announcements
-		SET status = ?, updated_by = ?, updated_at = ?
+		SET status = ?, archived_at = ?, updated_by = ?, updated_at = ?
 		WHERE id = ? AND deleted_at = 0
 		RETURNING `+announcementColumns()),
 		statusArchived,
+		time.Now().UTC(),
 		actorID,
 		time.Now().UTC(),
 		targetID,
@@ -549,7 +551,7 @@ func adminOrderBy(sort string) string {
 }
 
 func announcementColumns() string {
-	return `id, title, content, level, status, delivery_mode, pinned, publish_at, expire_at,
+	return `id, title, content, level, status, delivery_mode, pinned, publish_at, published_by, archived_at, expire_at,
 		created_by, updated_by, deleted_by, created_at, updated_at, deleted_at`
 }
 
@@ -564,7 +566,9 @@ func prefixedAnnouncementColumns(prefix string) string {
 func scanAnnouncement(scanner interface{ Scan(dest ...any) error }) (Announcement, error) {
 	var item Announcement
 	var publishAt sql.NullTime
+	var archivedAt sql.NullTime
 	var expireAt sql.NullTime
+	var publishedBy sql.NullInt64
 	var createdBy sql.NullInt64
 	var updatedBy sql.NullInt64
 	var deletedBy sql.NullInt64
@@ -577,6 +581,8 @@ func scanAnnouncement(scanner interface{ Scan(dest ...any) error }) (Announcemen
 		&item.DeliveryMode,
 		&item.Pinned,
 		&publishAt,
+		&publishedBy,
+		&archivedAt,
 		&expireAt,
 		&createdBy,
 		&updatedBy,
@@ -590,31 +596,41 @@ func scanAnnouncement(scanner interface{ Scan(dest ...any) error }) (Announcemen
 	if publishAt.Valid {
 		item.PublishAt = &publishAt.Time
 	}
+	var err error
+	item.PublishedBy, err = optionalUint64FromDBID(publishedBy)
+	if err != nil {
+		return Announcement{}, err
+	}
+	if archivedAt.Valid {
+		item.ArchivedAt = &archivedAt.Time
+	}
 	if expireAt.Valid {
 		item.ExpireAt = &expireAt.Time
 	}
-	if createdBy.Valid {
-		value, err := uint64FromDBID(createdBy.Int64)
-		if err != nil {
-			return Announcement{}, err
-		}
-		item.CreatedBy = &value
+	item.CreatedBy, err = optionalUint64FromDBID(createdBy)
+	if err != nil {
+		return Announcement{}, err
 	}
-	if updatedBy.Valid {
-		value, err := uint64FromDBID(updatedBy.Int64)
-		if err != nil {
-			return Announcement{}, err
-		}
-		item.UpdatedBy = &value
+	item.UpdatedBy, err = optionalUint64FromDBID(updatedBy)
+	if err != nil {
+		return Announcement{}, err
 	}
-	if deletedBy.Valid {
-		value, err := uint64FromDBID(deletedBy.Int64)
-		if err != nil {
-			return Announcement{}, err
-		}
-		item.DeletedBy = &value
+	item.DeletedBy, err = optionalUint64FromDBID(deletedBy)
+	if err != nil {
+		return Announcement{}, err
 	}
 	return item, nil
+}
+
+func optionalUint64FromDBID(value sql.NullInt64) (*uint64, error) {
+	if !value.Valid {
+		return nil, nil
+	}
+	converted, err := uint64FromDBID(value.Int64)
+	if err != nil {
+		return nil, err
+	}
+	return &converted, nil
 }
 
 func scanAnnouncements(rows *sql.Rows) ([]Announcement, error) {
