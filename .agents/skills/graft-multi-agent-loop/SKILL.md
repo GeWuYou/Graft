@@ -61,6 +61,9 @@ Typical triggers:
    - `max_runtime_minutes`
    - `allowed_scopes`
    - validation failure policy
+     - validation commands remain behavioral constraints for the delegated worker; ordinary fixable lint, type, style,
+       or test failures normally stay with that same worker for diagnosis, in-scope repair, rerun validation, and then
+       closeout or scoped commit
    - `checkpoint_budget` with default `1`
    - checkpoint cooldown
    - `soft_timeout_minutes`
@@ -138,7 +141,7 @@ Typical triggers:
      - `blocked`
      - architecture decision required
      - unsafe worktree
-     - validation failed
+     - validation failed after reasonable worker self-repair attempts, or repair is unsafe/out of scope
      - retry exhausted
      - explicit user intervention required
    - checkpoint requests are health checks only and must not change the task goal, broaden scope, or append new
@@ -206,9 +209,11 @@ Typical triggers:
    - the topic reaches `archive-ready`
    - the loop becomes `blocked`
    - a user-defined hard limit is exhausted
-   - validation fails under a stop-on-failure policy
+   - the worker reports a non-recoverable validation failure after reasonable in-scope self-repair attempts, or explains
+     that repair is unsafe or out of scope
    - a worker closeout fails twice under the retry-once policy
    - the delegated round expands scope or reports high risk
+   - the worktree becomes unsafe for scoped worker continuation
    - the user explicitly stops the loop
    - a reference metric overrun combines with a substantive safety, validation, scope, closeout, retry, risk, or
      user-stop reason
