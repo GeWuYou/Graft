@@ -89,7 +89,7 @@ defineEmits<{
 }>();
 
 const { t, locale } = useI18n();
-const activeTab = ref<'fields' | 'raw'>('fields');
+const activeTab = ref<'fields' | 'raw'>(props.initialTab ?? 'fields');
 const sanitizedFields = computed(() => sanitizeTraceFieldsForDisplay(props.record?.fields ?? {}));
 const sanitizedRecord = computed(() => sanitizeTraceFieldsForDisplay(props.record ?? {}));
 
@@ -109,6 +109,7 @@ watch(
       activeTab.value = props.initialTab ?? 'fields';
     }
   },
+  { immediate: true },
 );
 
 async function copyValue(value: string) {

@@ -4,6 +4,7 @@
 package logger
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -57,7 +58,7 @@ const (
 	// AppLogReadPermission constrains read-only App Log Explorer access.
 	AppLogReadPermission = "app_log.read"
 	// AppLogDeletePermission constrains explicit manual deletion of retained App Log rows.
-	AppLogDeletePermission = "app-log:delete"
+	AppLogDeletePermission = "app_log.delete"
 	// AppLogDashboardQuickLinkID identifies the app-log dashboard quick entry.
 	AppLogDashboardQuickLinkID = "core.logger.app-log"
 	// AppLogDashboardQuickLinkOrder places the app-log entry with log-center quick links.
@@ -307,7 +308,10 @@ func handleDeleteAppLog(localizer *i18n.Service, repo AppLogRepository, bus even
 			return
 		}
 
-		publishAppLogDeleteAudit(ctx, bus, []uint64{id}, 1)
+		if err := publishAppLogDeleteAudit(ctx, bus, []uint64{id}, 1); err != nil {
+			httpx.AbortLocalizedError(ctx, localizer, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+			return
+		}
 		httpx.WriteSuccess(ctx, http.StatusOK, map[string]any{})
 	}
 }
@@ -330,7 +334,7 @@ func handleBatchDeleteAppLogs(localizer *i18n.Service, repo AppLogRepository, bu
 			return
 		}
 
-		deleted, err := repo.DeleteAppLogsByIDs(ctx.Request.Context(), ids)
+		deleted, err := deleteNormalizedAppLogsByIDs(ctx.Request.Context(), repo, ids)
 		if err != nil {
 			httpx.AbortLocalizedError(ctx, localizer, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
 			return
@@ -342,9 +346,19 @@ func handleBatchDeleteAppLogs(localizer *i18n.Service, repo AppLogRepository, bu
 			return
 		}
 
-		publishAppLogDeleteAudit(ctx, bus, ids, deleted)
+		if err := publishAppLogDeleteAudit(ctx, bus, ids, deleted); err != nil {
+			httpx.AbortLocalizedError(ctx, localizer, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+			return
+		}
 		httpx.WriteSuccess(ctx, http.StatusOK, map[string]any{})
 	}
+}
+
+func deleteNormalizedAppLogsByIDs(ctx context.Context, repo AppLogRepository, ids []uint64) (int64, error) {
+	if storageRepo, ok := repo.(*appLogRepository); ok {
+		return storageRepo.deleteAppLogsByNormalizedIDs(ctx, ids)
+	}
+	return repo.DeleteAppLogsByIDs(ctx, ids)
 }
 
 func bindAppLogID(ctx *gin.Context, localizer *i18n.Service) (uint64, bool) {
@@ -360,9 +374,9 @@ func bindAppLogID(ctx *gin.Context, localizer *i18n.Service) (uint64, bool) {
 	return id, true
 }
 
-func publishAppLogDeleteAudit(ctx *gin.Context, bus eventbus.Bus, ids []uint64, deletedCount int64) {
+func publishAppLogDeleteAudit(ctx *gin.Context, bus eventbus.Bus, ids []uint64, deletedCount int64) error {
 	if bus == nil || ctx == nil || ctx.Request == nil {
-		return
+		return nil
 	}
 
 	event := moduleapi.AuditEvent{
@@ -391,7 +405,7 @@ func publishAppLogDeleteAudit(ctx *gin.Context, bus eventbus.Bus, ids []uint64, 
 		event.Operator = &user
 	}
 
-	_ = bus.Publish(ctx.Request.Context(), eventbus.Event{
+	return bus.Publish(ctx.Request.Context(), eventbus.Event{
 		Name:    string(moduleapi.AuditRecordEventName),
 		Source:  appLogModuleOwner,
 		Payload: event,

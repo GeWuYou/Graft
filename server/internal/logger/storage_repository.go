@@ -118,7 +118,7 @@ func (r *appLogRepository) deleteAppLogsByNormalizedIDs(ctx context.Context, ids
 		return 0, fmt.Errorf("count app logs before batch delete: %w", err)
 	}
 	if existingCount != int64(len(ids)) {
-		return existingCount, nil
+		return 0, nil
 	}
 
 	//nolint:gosec // Query shape is fixed; placeholders come from normalized ID count and all ID values stay parameterized.
@@ -134,7 +134,7 @@ func (r *appLogRepository) deleteAppLogsByNormalizedIDs(ctx context.Context, ids
 	}
 
 	if rowsAffected != int64(len(ids)) {
-		return rowsAffected, nil
+		return 0, fmt.Errorf("batch delete expected %d rows but affected %d; transaction rolled back", len(ids), rowsAffected)
 	}
 	if err := tx.Commit(); err != nil {
 		return 0, fmt.Errorf("commit app log batch delete transaction: %w", err)

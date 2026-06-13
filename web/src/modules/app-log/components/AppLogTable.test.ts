@@ -11,7 +11,7 @@ import AppLogTable from './AppLogTable.vue';
 
 vi.mock('@/store', () => ({
   usePermissionStore: () => ({
-    hasPermission: (code: string) => code === 'app-log:delete',
+    hasPermission: (code: string) => code === 'app_log.delete',
   }),
 }));
 

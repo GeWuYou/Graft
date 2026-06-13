@@ -3,7 +3,7 @@
 
 import { shallowMount } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
-import { defineComponent, h } from 'vue';
+import { computed, type ComputedRef, defineComponent, h, inject, provide } from 'vue';
 import { createI18n } from 'vue-i18n';
 
 import type { AppLogItem } from '../types/app-log';
@@ -23,6 +23,50 @@ const LogJsonPanelStub = defineComponent({
   ],
   setup(props) {
     return () => h('pre', { 'data-testid': `json-panel-${props.title}` }, JSON.stringify(props.value));
+  },
+});
+
+const activeTabKey = Symbol('activeTab');
+
+const TTabsStub = defineComponent({
+  name: 'TTabsStub',
+  props: {
+    modelValue: {
+      type: [String, Number],
+      default: undefined,
+    },
+    value: {
+      type: [String, Number],
+      default: undefined,
+    },
+  },
+  setup(props, { slots }) {
+    provide(
+      activeTabKey,
+      computed(() => props.modelValue ?? props.value),
+    );
+
+    return () => h('div', slots.default?.());
+  },
+});
+
+const TTabPanelStub = defineComponent({
+  name: 'TTabPanelStub',
+  props: {
+    value: {
+      type: [String, Number],
+      required: true,
+    },
+  },
+  setup(props, { slots }) {
+    const activeTab = inject<ComputedRef<string | number | undefined>>(activeTabKey);
+
+    return () => {
+      if (activeTab?.value !== props.value) {
+        return null;
+      }
+      return h('div', { 'data-testid': `tab-panel-${props.value}` }, slots.default?.());
+    };
   },
 });
 
@@ -87,7 +131,34 @@ function appLogRecord(): AppLogItem {
 }
 
 describe('AppLogDetailDrawer', () => {
-  it('renders structured fields and full raw JSON panels inside the drawer', () => {
+  it('renders structured fields panel by default inside the drawer', () => {
+    const record = appLogRecord();
+    const wrapper = shallowMount(AppLogDetailDrawer, {
+      props: {
+        record,
+        visible: true,
+      },
+      global: {
+        plugins: [i18n],
+        stubs: {
+          LogJsonPanel: LogJsonPanelStub,
+          TButton: true,
+          TDescriptions: { template: '<section><slot /></section>' },
+          TDescriptionsItem: { template: '<div><slot /></div>' },
+          TDrawer: { template: '<aside><slot /></aside>' },
+          TTag: { template: '<span><slot /></span>' },
+          TTabPanel: TTabPanelStub,
+          TTabs: TTabsStub,
+        },
+      },
+    });
+
+    expect(wrapper.text()).toContain('dashboard widget loaded');
+    expect(wrapper.get('[data-testid="json-panel-结构化字段"]').text()).toContain('"widget":"summary"');
+    expect(wrapper.find('[data-testid="json-panel-原始 JSON"]').exists()).toBe(false);
+  });
+
+  it('renders the initial raw JSON panel when first mounted open', () => {
     const record = appLogRecord();
     const wrapper = shallowMount(AppLogDetailDrawer, {
       props: {
@@ -104,14 +175,14 @@ describe('AppLogDetailDrawer', () => {
           TDescriptionsItem: { template: '<div><slot /></div>' },
           TDrawer: { template: '<aside><slot /></aside>' },
           TTag: { template: '<span><slot /></span>' },
-          TTabPanel: { template: '<div><slot /></div>' },
-          TTabs: { template: '<div><slot /></div>' },
+          TTabPanel: TTabPanelStub,
+          TTabs: TTabsStub,
         },
       },
     });
 
     expect(wrapper.text()).toContain('dashboard widget loaded');
-    expect(wrapper.get('[data-testid="json-panel-结构化字段"]').text()).toContain('"widget":"summary"');
+    expect(wrapper.find('[data-testid="json-panel-结构化字段"]').exists()).toBe(false);
     expect(wrapper.get('[data-testid="json-panel-原始 JSON"]').text()).toContain('"id":7');
     expect(wrapper.get('[data-testid="json-panel-原始 JSON"]').text()).toContain('"request_id":"req-7"');
     expect(wrapper.text()).not.toContain('trace-7');

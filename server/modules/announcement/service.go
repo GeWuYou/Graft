@@ -163,14 +163,17 @@ func (s *Service) Publish(ctx context.Context, id uint64, publishAt *time.Time, 
 		return announcementstore.Announcement{}, mapStoreError(err)
 	}
 	var effectivePublishAt *time.Time
+	publishedAt := time.Now().UTC()
+	publicationInstant := publishedAt
 	if publishAt != nil {
 		normalized := publishAt.UTC()
 		effectivePublishAt = &normalized
+		publicationInstant = normalized
 	}
-	if current.ExpireAt != nil && effectivePublishAt != nil && !current.ExpireAt.After(*effectivePublishAt) {
+	if current.ExpireAt != nil && !current.ExpireAt.After(publicationInstant) {
 		return announcementstore.Announcement{}, errAnnouncementInvalidInput
 	}
-	item, err := s.repository.Publish(ctx, id, effectivePublishAt, time.Now().UTC(), actorID)
+	item, err := s.repository.Publish(ctx, id, effectivePublishAt, publishedAt, actorID)
 	return item, mapStoreError(err)
 }
 

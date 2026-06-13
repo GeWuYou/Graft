@@ -169,7 +169,16 @@ defineOptions({
 const logger = createLogger('audit.logs');
 const securityEventPresetResults: AuditResult[] = ['DENIED', 'FAILED', 'ERROR'];
 const DEFAULT_VISIBLE_COLUMNS = ['action', 'actor', 'resource', 'correlation', 'result', 'risk', 'created_at'];
-const TROUBLESHOOTING_VISIBLE_COLUMNS = ['action', 'actor', 'resource', 'correlation', 'result', 'risk', 'created_at'];
+const TROUBLESHOOTING_VISIBLE_COLUMNS = [
+  'action',
+  'actor',
+  'resource',
+  'correlation',
+  'session_id',
+  'result',
+  'risk',
+  'created_at',
+];
 const TECHNICAL_VISIBLE_COLUMNS = [
   'action',
   'actor',

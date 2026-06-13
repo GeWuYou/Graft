@@ -6,6 +6,7 @@ package logger
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -229,8 +230,8 @@ func TestAppLogRepositoryBatchDeleteDoesNotPartiallyDeleteMissingIDs(t *testing.
 	if err != nil {
 		t.Fatalf("batch delete app logs with missing id: %v", err)
 	}
-	if deleted != 1 {
-		t.Fatalf("expected one existing row to be reported, got %d", deleted)
+	if deleted != 0 {
+		t.Fatalf("expected rolled-back missing-id batch delete to report zero rows, got %d", deleted)
 	}
 
 	result, err := repo.ListAppLogs(ctx, AppLogListQuery{})
@@ -239,6 +240,58 @@ func TestAppLogRepositoryBatchDeleteDoesNotPartiallyDeleteMissingIDs(t *testing.
 	}
 	if result.Total != 1 {
 		t.Fatalf("expected no partial delete, got total=%d", result.Total)
+	}
+}
+
+func TestAppLogRepositoryBatchDeleteReportsRollbackWhenAffectedRowsMismatch(t *testing.T) {
+	repo := newSQLiteAppLogRepository(t)
+	storageRepo, ok := repo.(*appLogRepository)
+	if !ok {
+		t.Fatalf("expected sqlite test repository to use appLogRepository, got %T", repo)
+	}
+	ctx := context.Background()
+	base := time.Date(2026, 6, 4, 8, 0, 0, 0, time.UTC)
+
+	first, err := repo.CreateAppLog(ctx, CreateAppLogInput{
+		OccurredAt: base,
+		Severity:   AppLogSeverityInfo,
+		Component:  "core.app",
+		Message:    "first",
+	})
+	if err != nil {
+		t.Fatalf("seed first app log: %v", err)
+	}
+	second, err := repo.CreateAppLog(ctx, CreateAppLogInput{
+		OccurredAt: base.Add(time.Minute),
+		Severity:   AppLogSeverityInfo,
+		Component:  "core.app",
+		Message:    "second",
+	})
+	if err != nil {
+		t.Fatalf("seed second app log: %v", err)
+	}
+	if _, err := storageRepo.db.ExecContext(ctx, fmt.Sprintf(`CREATE TRIGGER app_logs_skip_second_delete BEFORE DELETE ON app_logs
+		WHEN OLD.id = %d
+		BEGIN
+			SELECT RAISE(IGNORE);
+		END`, second.ID)); err != nil {
+		t.Fatalf("create delete skip trigger: %v", err)
+	}
+
+	deleted, err := repo.DeleteAppLogsByIDs(ctx, []uint64{first.ID, second.ID})
+	if err == nil {
+		t.Fatal("expected affected-row mismatch to fail")
+	}
+	if deleted != 0 {
+		t.Fatalf("expected rolled-back mismatch to report zero rows, got %d", deleted)
+	}
+
+	result, err := repo.ListAppLogs(ctx, AppLogListQuery{})
+	if err != nil {
+		t.Fatalf("list app logs after mismatch batch delete: %v", err)
+	}
+	if result.Total != 2 {
+		t.Fatalf("expected rolled-back mismatch to keep both rows, got total=%d", result.Total)
 	}
 }
 

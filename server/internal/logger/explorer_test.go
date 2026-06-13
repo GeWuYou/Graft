@@ -6,6 +6,7 @@ package logger
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -128,6 +129,31 @@ func TestHandleDeleteAppLogPublishesAuditEvent(t *testing.T) {
 	}
 }
 
+func TestHandleDeleteAppLogReturnsErrorWhenAuditPublishFails(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	repo := &explorerDeleteRepoRecorder{}
+	bus := eventbus.New(zap.NewNop())
+	publishErr := errors.New("persist audit failed")
+	if err := bus.Subscribe(string(moduleapi.AuditRecordEventName), func(context.Context, eventbus.Event) error {
+		return publishErr
+	}); err != nil {
+		t.Fatalf("subscribe audit event: %v", err)
+	}
+
+	router := gin.New()
+	router.DELETE("/app-log/:id", handleDeleteAppLog(nil, repo, bus))
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodDelete, "/app-log/42", nil)
+	router.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusInternalServerError {
+		t.Fatalf("expected status 500, got %d body=%s", recorder.Code, recorder.Body.String())
+	}
+	if len(repo.deletedIDs) != 1 || repo.deletedIDs[0] != 42 {
+		t.Fatalf("expected app log 42 to be deleted before audit failure, got %#v", repo.deletedIDs)
+	}
+}
+
 func TestHandleBatchDeleteAppLogsValidatesIDs(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	repo := &explorerDeleteRepoRecorder{}
@@ -154,5 +180,31 @@ func TestHandleBatchDeleteAppLogsValidatesIDs(t *testing.T) {
 	}
 	if !response.Success {
 		t.Fatalf("expected success response, got %s", recorder.Body.String())
+	}
+}
+
+func TestHandleBatchDeleteAppLogsReturnsErrorWhenAuditPublishFails(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	repo := &explorerDeleteRepoRecorder{}
+	bus := eventbus.New(zap.NewNop())
+	publishErr := errors.New("persist audit failed")
+	if err := bus.Subscribe(string(moduleapi.AuditRecordEventName), func(context.Context, eventbus.Event) error {
+		return publishErr
+	}); err != nil {
+		t.Fatalf("subscribe audit event: %v", err)
+	}
+
+	router := gin.New()
+	router.POST("/app-log/batch-delete", handleBatchDeleteAppLogs(nil, repo, bus))
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/app-log/batch-delete", strings.NewReader(`{"ids":[3,4,3]}`))
+	request.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusInternalServerError {
+		t.Fatalf("expected status 500, got %d body=%s", recorder.Code, recorder.Body.String())
+	}
+	if len(repo.deletedIDs) != 2 || repo.deletedIDs[0] != 3 || repo.deletedIDs[1] != 4 {
+		t.Fatalf("expected normalized batch ids to be deleted before audit failure, got %#v", repo.deletedIDs)
 	}
 }
