@@ -27,7 +27,7 @@ describe('table column width policy', () => {
     expect(calculateTableContentWidth(columns)).toBe('max(100%, 1080px)');
   });
 
-  it('keeps fixed visible columns from being rebalanced after the main column is hidden', () => {
+  it('keeps fixed visible columns full-width until they need internal scroll', () => {
     const columns = [
       createTimeColumn('发生时间', 'occurred_at', 176),
       createStatusColumn('级别', 'severity', 104),
@@ -35,7 +35,7 @@ describe('table column width policy', () => {
       createTechnicalColumn('关联字段', 'correlation', 260),
     ];
 
-    expect(calculateTableContentWidth(columns)).toBe('736px');
+    expect(calculateTableContentWidth(columns)).toBe('max(100%, 736px)');
   });
 
   it('uses fill mode when visible columns fit the current table body', () => {

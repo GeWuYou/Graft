@@ -64,10 +64,14 @@ const hasHead = computed(() => Boolean(slots.head || slots.toolbar || props.titl
   gap: var(--graft-density-gap-12);
   justify-content: space-between;
   padding: var(--graft-density-gap-16) var(--graft-density-gap-20);
+  width: 100%;
 }
 
 .management-table-card__head-main,
-.management-table-card__toolbar {
+.management-table-card__toolbar,
+.management-table-card__batch,
+.management-table-card__body,
+.management-table-card__footer {
   min-width: 0;
 }
 
@@ -109,8 +113,10 @@ const hasHead = computed(() => Boolean(slots.head || slots.toolbar || props.titl
 .management-table-card__body {
   --td-comp-paddingTB-m: 11px;
 
+  display: block;
   min-width: 0;
   padding: 0 var(--graft-density-gap-20) var(--graft-density-gap-16);
+  width: 100%;
 }
 
 .management-table-card__footer {
@@ -118,7 +124,18 @@ const hasHead = computed(() => Boolean(slots.head || slots.toolbar || props.titl
   border-top: 1px solid var(--td-component-stroke);
 }
 
-.management-table-card__body :deep(.t-table) {
+.management-table-card__body :deep(.t-table),
+.management-table-card__body :deep(.t-table__content) {
+  max-width: 100%;
+  width: 100%;
+}
+
+.management-table-card__body :deep(.t-table__content) {
+  min-width: 0;
+}
+
+.management-table-card__body :deep(.t-table__content table) {
+  min-width: 100%;
   width: 100%;
 }
 

@@ -15,9 +15,6 @@ type ColumnConfig = {
 };
 
 type TableColumn = NonNullable<TdBaseTableProps['columns']>[number];
-type ManagedTableColumn = TableColumn & {
-  __graftFlexible?: boolean;
-};
 
 export type ManagedTableWidthPolicy = {
   contentWidth: number;
@@ -159,12 +156,9 @@ export function resolveManagedColumns(
 }
 
 export function calculateTableContentWidth(columns: TdBaseTableProps['columns']) {
-  const hasFlexibleColumn = (columns ?? []).some(
-    (column) => (column as ManagedTableColumn | undefined)?.__graftFlexible,
-  );
   const totalWidth = calculateVisibleColumnWidth(columns);
 
-  return hasFlexibleColumn ? `max(100%, ${totalWidth}px)` : `${totalWidth}px`;
+  return `max(100%, ${totalWidth}px)`;
 }
 
 function calculateVisibleColumnWidth(columns: TdBaseTableProps['columns']) {

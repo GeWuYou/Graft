@@ -53,13 +53,14 @@ defineProps<{
   gap: var(--graft-density-gap-14);
   justify-content: flex-end;
   margin-left: auto;
-  width: auto;
+  min-width: 0;
+  width: 100%;
 }
 
 .management-table-pagination__controls :deep(.t-pagination__total),
-.management-table-pagination__controls :deep(.t-pagination__page-size),
-.management-table-pagination__controls :deep(.t-pagination__list),
-.management-table-pagination__controls :deep(.t-pagination__jumper),
+.management-table-pagination__controls :deep(.t-pagination__select),
+.management-table-pagination__controls :deep(.t-pagination__pager),
+.management-table-pagination__controls :deep(.t-pagination__jump),
 .management-table-pagination__controls :deep(.t-pagination__btn),
 .management-table-pagination__controls :deep(.t-select) {
   align-items: center;
@@ -68,7 +69,11 @@ defineProps<{
   white-space: nowrap;
 }
 
-.management-table-pagination__controls :deep(.t-pagination__list) {
+.management-table-pagination__controls :deep(.t-pagination__total) {
+  margin-left: auto;
+}
+
+.management-table-pagination__controls :deep(.t-pagination__pager) {
   align-items: center;
   display: inline-flex;
 }
@@ -88,6 +93,10 @@ defineProps<{
   .management-table-pagination__controls :deep(.t-pagination) {
     flex-wrap: wrap;
     justify-content: flex-start;
+  }
+
+  .management-table-pagination__controls :deep(.t-pagination__total) {
+    margin-left: 0;
   }
 }
 </style>
