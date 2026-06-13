@@ -85,6 +85,14 @@
     <template #occurred_at="{ row }">
       <span>{{ Management.formatCompactDateTime(accessRow(row).occurred_at, locale) }}</span>
     </template>
+    <template #operation="{ row }">
+      <table-action-menu
+        :actions="rowActions(accessRow(row))"
+        :more-label="t('accessLog.actions.more')"
+        :more-label-fallback="t('accessLog.actions.more')"
+        @action="(action) => handleRowAction(action, accessRow(row))"
+      />
+    </template>
   </advanced-query-paged-table>
 </template>
 <script setup lang="ts">
@@ -96,8 +104,16 @@ import * as Management from '@/shared/components/management';
 import { AdvancedQueryPagedTable } from '@/shared/components/query-list';
 import { LogIdText } from '@/shared/observability';
 
+import { copyAccessLogValue } from '../shared/clipboard';
 import { accessLogPathSecondary, accessLogUserPrimary, accessLogUserSecondary } from '../shared/presentation';
 import type { AccessLogItem } from '../types/access-log';
+
+type AccessLogRowAction = {
+  fallbackLabel: string;
+  label: string;
+  testId?: string;
+  value: 'copy-path' | 'copy-request-id' | 'detail' | 'view-app-log' | 'view-audit';
+};
 
 const props = defineProps<{
   description: string;
@@ -110,15 +126,18 @@ const props = defineProps<{
   visibleColumnKeys?: string[];
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
   (e: 'detail', row: AccessLogItem): void;
   (e: 'page-change'): void;
+  (e: 'view-app-log', row: AccessLogItem): void;
+  (e: 'view-audit', row: AccessLogItem): void;
 }>();
 
 const current = defineModel<number>('current', { required: true });
 const pageSize = defineModel<number>('pageSize', { required: true });
 
 const { t, locale } = useI18n();
+const TableActionMenu = Management.TableActionMenu;
 const technicalCopyLabels = computed(() => ({
   copyable: true,
   copyLabel: t('accessLog.actions.copy'),
@@ -137,6 +156,7 @@ const cellSlotNames = [
   'user_agent',
   'started_at',
   'occurred_at',
+  'operation',
 ];
 
 const columns = computed<TdBaseTableProps['columns']>(() => {
@@ -144,18 +164,19 @@ const columns = computed<TdBaseTableProps['columns']>(() => {
   const allColumns: TdBaseTableProps['columns'] = [
     Management.createTimeColumn(t('accessLog.columns.startedAt'), 'started_at', 176),
     Management.createStatusColumn(t('accessLog.columns.method'), 'method', 96),
-    Management.createMainTextColumn(t('accessLog.columns.path'), 'path', 420),
+    Management.createMainTextColumn(t('accessLog.columns.path'), 'path', 360),
     Management.createStatusColumn(t('accessLog.columns.statusCode'), 'status_code', 112),
-    Management.createCountColumn(t('accessLog.columns.durationMs'), 'duration_ms', 120),
-    Management.createIdentifierColumn(t('accessLog.columns.user'), 'user', 190),
+    Management.createCountColumn(t('accessLog.columns.durationMs'), 'duration_ms', 112),
+    Management.createIdentifierColumn(t('accessLog.columns.user'), 'user', 170),
     Management.createTechnicalColumn(t('accessLog.columns.requestId'), 'request_id', 260),
     Management.createTechnicalColumn(t('accessLog.columns.traceId'), 'trace_id', 260),
     Management.createIdentifierColumn(t('accessLog.columns.clientIp'), 'client_ip', 160),
     Management.createTechnicalColumn(t('accessLog.columns.userAgent'), 'user_agent', 280),
     Management.createTimeColumn(t('accessLog.columns.occurredAt'), 'occurred_at', 176),
+    Management.createActionColumn(t('accessLog.columns.operation'), 148, 'center', 'operation'),
   ];
 
-  return Management.resolveManagedColumns(allColumns, props.visibleColumnKeys);
+  return Management.resolveManagedColumns(allColumns, props.visibleColumnKeys, ['operation']);
 });
 
 function statusTheme(statusCode: number) {
@@ -172,7 +193,62 @@ function accessRow(row: unknown) {
   return row as AccessLogItem;
 }
 
+function rowActions(row: AccessLogItem): AccessLogRowAction[] {
+  return [
+    {
+      fallbackLabel: t('accessLog.actions.detail'),
+      label: t('accessLog.actions.detail'),
+      testId: `access-log-detail-${row.id}`,
+      value: 'detail',
+    },
+    {
+      fallbackLabel: t('accessLog.actions.copyRequestId'),
+      label: t('accessLog.actions.copyRequestId'),
+      value: 'copy-request-id',
+    },
+    {
+      fallbackLabel: t('accessLog.actions.copyPath'),
+      label: t('accessLog.actions.copyPath'),
+      value: 'copy-path',
+    },
+    {
+      fallbackLabel: t('accessLog.actions.viewRelatedAppLogs'),
+      label: t('accessLog.actions.viewRelatedAppLogs'),
+      value: 'view-app-log',
+    },
+    {
+      fallbackLabel: t('accessLog.actions.viewRelatedAuditEvents'),
+      label: t('accessLog.actions.viewRelatedAuditEvents'),
+      value: 'view-audit',
+    },
+  ];
+}
+
+function handleRowAction(action: string, row: AccessLogItem) {
+  if (action === 'detail') {
+    emit('detail', row);
+    return;
+  }
+  if (action === 'copy-request-id') {
+    void copyAccessLogValue(row.request_id, t);
+    return;
+  }
+  if (action === 'copy-path') {
+    void copyAccessLogValue(row.path, t);
+    return;
+  }
+  if (action === 'view-app-log') {
+    emit('view-app-log', row);
+    return;
+  }
+  if (action === 'view-audit') {
+    emit('view-audit', row);
+  }
+}
+
 void LogIdText;
+void TableActionMenu;
+void emit;
 </script>
 <style scoped lang="less">
 @import '@/shared/observability/log-table-cells.less';

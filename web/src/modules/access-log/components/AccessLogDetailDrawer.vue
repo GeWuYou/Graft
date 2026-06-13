@@ -14,95 +14,74 @@
     @update:visible="$emit('update:visible', $event)"
   >
     <div v-if="record" class="access-log-detail">
-      <section class="access-log-detail__section">
-        <h4>{{ t('accessLog.detail.basic') }}</h4>
-        <div class="access-log-detail__grid">
-          <div class="access-log-detail__item">
-            <span>{{ t('accessLog.columns.startedAt') }}</span
-            ><strong>{{ formatCompactDateTime(record.started_at, locale) }}</strong>
-          </div>
-          <div class="access-log-detail__item">
-            <span>{{ t('accessLog.columns.occurredAt') }}</span
-            ><strong>{{ formatCompactDateTime(record.occurred_at, locale) }}</strong>
-          </div>
-          <div class="access-log-detail__item">
-            <span>{{ t('accessLog.columns.method') }}</span
-            ><strong>{{ record.method }}</strong>
-          </div>
-          <div class="access-log-detail__item">
-            <span>{{ t('accessLog.columns.statusCode') }}</span
-            ><strong>{{ record.status_code }}</strong>
-          </div>
-          <div class="access-log-detail__item">
-            <span>{{ t('accessLog.columns.durationMs') }}</span
-            ><strong>{{ record.duration_ms }} ms</strong>
-          </div>
-          <div class="access-log-detail__item access-log-detail__item--full">
-            <span>{{ t('accessLog.columns.path') }}</span
-            ><strong>{{ record.path }}</strong>
-          </div>
-          <div v-if="accessLogPathSecondary(record)" class="access-log-detail__item access-log-detail__item--full">
-            <span>{{ t('accessLog.detail.route') }}</span
-            ><strong>{{ accessLogPathSecondary(record) }}</strong>
-          </div>
-          <div class="access-log-detail__item access-log-detail__item--full">
-            <span>{{ t('accessLog.detail.requestId') }}</span>
-            <div class="access-log-detail__copy-line">
-              <strong class="access-log-detail__mono">{{ record.request_id }}</strong>
-              <t-button size="small" theme="default" variant="text" @click="copyValue(record.request_id)">
-                {{ t('accessLog.actions.copy') }}
-              </t-button>
-            </div>
-          </div>
-          <div class="access-log-detail__item">
-            <span>{{ t('accessLog.detail.userId') }}</span
-            ><strong>{{ accessLogUserSecondary(record, t) }}</strong>
-          </div>
-          <div class="access-log-detail__item">
-            <span>{{ t('accessLog.detail.user') }}</span
-            ><strong>{{ accessLogUserPrimary(record, t) }}</strong>
-          </div>
-        </div>
-      </section>
+      <t-descriptions :title="t('accessLog.detail.basic')" bordered :column="2" size="medium">
+        <t-descriptions-item :label="t('accessLog.columns.startedAt')">
+          {{ formatCompactDateTime(record.started_at, locale) }}
+        </t-descriptions-item>
+        <t-descriptions-item :label="t('accessLog.columns.occurredAt')">
+          {{ formatCompactDateTime(record.occurred_at, locale) }}
+        </t-descriptions-item>
+        <t-descriptions-item :label="t('accessLog.detail.occurredAtRaw')" :span="2">
+          <span class="access-log-detail__mono">{{ record.occurred_at }}</span>
+        </t-descriptions-item>
+        <t-descriptions-item :label="t('accessLog.columns.method')">{{ record.method }}</t-descriptions-item>
+        <t-descriptions-item :label="t('accessLog.columns.statusCode')">
+          {{ record.status_code }}
+        </t-descriptions-item>
+        <t-descriptions-item :label="t('accessLog.columns.durationMs')">
+          {{ record.duration_ms }} ms
+        </t-descriptions-item>
+        <t-descriptions-item :label="t('accessLog.columns.path')" :span="2">{{ record.path }}</t-descriptions-item>
+        <t-descriptions-item :label="t('accessLog.detail.route')" :span="2">
+          {{ accessLogPathSecondary(record) || '-' }}
+        </t-descriptions-item>
+      </t-descriptions>
 
-      <section class="access-log-detail__section">
-        <h4>{{ t('accessLog.detail.network') }}</h4>
-        <div class="access-log-detail__grid">
-          <div class="access-log-detail__item">
-            <span>{{ t('accessLog.detail.clientIp') }}</span
-            ><strong>{{ record.client_ip || '-' }}</strong>
+      <t-descriptions :title="t('accessLog.detail.correlation')" bordered :column="2" size="medium">
+        <t-descriptions-item :label="t('accessLog.detail.requestId')" :span="2">
+          <div class="access-log-detail__copy-line">
+            <strong class="access-log-detail__mono">{{ record.request_id }}</strong>
+            <t-button size="small" theme="default" variant="text" @click="copyValue(record.request_id)">
+              {{ t('accessLog.actions.copy') }}
+            </t-button>
           </div>
-          <div class="access-log-detail__item access-log-detail__item--full">
-            <span>{{ t('accessLog.detail.userAgent') }}</span
-            ><strong>{{ record.user_agent || '-' }}</strong>
+        </t-descriptions-item>
+        <t-descriptions-item :label="t('accessLog.detail.traceId')" :span="2">
+          <div class="access-log-detail__copy-line">
+            <strong class="access-log-detail__mono">{{ record.trace_id }}</strong>
+            <t-button size="small" theme="default" variant="text" @click="copyValue(record.trace_id)">
+              {{ t('accessLog.actions.copy') }}
+            </t-button>
           </div>
-        </div>
-      </section>
+        </t-descriptions-item>
+        <t-descriptions-item :label="t('accessLog.detail.userId')">
+          {{ accessLogUserSecondary(record, t) }}
+        </t-descriptions-item>
+        <t-descriptions-item :label="t('accessLog.detail.user')">
+          {{ accessLogUserPrimary(record, t) }}
+        </t-descriptions-item>
+      </t-descriptions>
 
-      <section class="access-log-detail__section">
-        <h4>{{ t('accessLog.detail.size') }}</h4>
-        <div class="access-log-detail__grid">
-          <div class="access-log-detail__item">
-            <span>{{ t('accessLog.detail.requestSize') }}</span
-            ><strong>{{ record.request_size ?? '-' }}</strong>
-          </div>
-          <div class="access-log-detail__item">
-            <span>{{ t('accessLog.detail.responseSize') }}</span
-            ><strong>{{ record.response_size ?? '-' }}</strong>
-          </div>
-        </div>
-      </section>
+      <t-descriptions :title="t('accessLog.detail.network')" bordered :column="2" size="medium">
+        <t-descriptions-item :label="t('accessLog.detail.clientIp')">
+          {{ record.client_ip || '-' }}
+        </t-descriptions-item>
+        <t-descriptions-item :label="t('accessLog.detail.userAgent')" :span="2">
+          {{ record.user_agent || '-' }}
+        </t-descriptions-item>
+        <t-descriptions-item :label="t('accessLog.detail.requestSize')">
+          {{ record.request_size ?? '-' }}
+        </t-descriptions-item>
+        <t-descriptions-item :label="t('accessLog.detail.responseSize')">
+          {{ record.response_size ?? '-' }}
+        </t-descriptions-item>
+      </t-descriptions>
 
-      <log-json-panel
-        :title="t('accessLog.detail.context')"
-        :expand-label="t('accessLog.detail.expandContext')"
-        :collapse-label="t('accessLog.detail.collapseContext')"
-        :copy-label="t('accessLog.detail.copyContext')"
-        :copy-success-label="t('accessLog.detail.copyContextSuccess')"
-        :copy-fail-label="t('accessLog.detail.copyContextFail')"
-        :empty-text="t('accessLog.detail.contextEmpty')"
-        :value="record"
-      />
+      <t-tabs v-model="activeTab">
+        <t-tab-panel value="raw" :label="t('accessLog.detail.rawJson')">
+          <log-json-panel v-bind="jsonPanelBindings" :title="t('accessLog.detail.rawJson')" :value="record" />
+        </t-tab-panel>
+      </t-tabs>
 
       <section v-if="relatedActions.length" class="access-log-detail__section">
         <h4>{{ t('accessLog.detail.relatedAudit') }}</h4>
@@ -123,15 +102,15 @@
   </t-drawer>
 </template>
 <script setup lang="ts">
-import { MessagePlugin } from 'tdesign-vue-next/es/message';
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
 import { buildAuditRequestLocation } from '@/modules/audit/contract/deep-link';
 import { formatCompactDateTime } from '@/shared/components/management';
-import { copyText, LogJsonPanel } from '@/shared/observability';
+import { LogJsonPanel } from '@/shared/observability';
 
+import { copyAccessLogValue } from '../shared/clipboard';
 import { accessLogPathSecondary, accessLogUserPrimary, accessLogUserSecondary } from '../shared/presentation';
 import type { AccessLogItem } from '../types/access-log';
 
@@ -146,6 +125,16 @@ defineEmits<{
 
 const { t, locale } = useI18n();
 const router = useRouter();
+const activeTab = ref<'raw'>('raw');
+
+const jsonPanelBindings = computed(() => ({
+  expandLabel: t('accessLog.detail.expandContext'),
+  collapseLabel: t('accessLog.detail.collapseContext'),
+  copyLabel: t('accessLog.detail.copyContext'),
+  copySuccessLabel: t('accessLog.detail.copyContextSuccess'),
+  copyFailLabel: t('accessLog.detail.copyContextFail'),
+  emptyText: t('accessLog.detail.contextEmpty'),
+}));
 
 const relatedActions = computed(() => {
   const record = props.record;
@@ -164,17 +153,17 @@ const relatedActions = computed(() => {
   return actions;
 });
 
-async function copyValue(value: string) {
-  try {
-    const copied = await copyText(value);
-    if (!copied) {
-      MessagePlugin.error(t('accessLog.actions.copyFail'));
-      return;
+watch(
+  () => props.visible,
+  (visible) => {
+    if (visible) {
+      activeTab.value = 'raw';
     }
-    MessagePlugin.success(t('accessLog.actions.copySuccess'));
-  } catch {
-    MessagePlugin.error(t('accessLog.actions.copyFail'));
-  }
+  },
+);
+
+function copyValue(value: string) {
+  void copyAccessLogValue(value, t);
 }
 </script>
 <style scoped lang="less">
@@ -184,35 +173,15 @@ async function copyValue(value: string) {
   gap: var(--graft-density-gap-24);
 }
 
-.access-log-detail__section h4 {
-  margin: 0 0 var(--graft-density-gap-12);
-}
-
-.access-log-detail__grid {
-  display: grid;
-  gap: var(--graft-density-gap-12);
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.access-log-detail__item {
-  background: var(--td-bg-color-container);
-  border: 1px solid var(--td-component-border);
-  border-radius: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: var(--graft-density-gap-6);
-  padding: var(--graft-density-gap-12);
-}
-
-.access-log-detail__item--full {
-  grid-column: 1 / -1;
+.access-log-detail :deep(.t-descriptions__content) {
+  overflow-wrap: anywhere;
 }
 
 .access-log-detail__copy-line {
   align-items: center;
   display: flex;
   gap: var(--graft-density-gap-8);
-  justify-content: space-between;
+  min-width: 0;
 }
 
 .access-log-detail__actions {
@@ -222,12 +191,6 @@ async function copyValue(value: string) {
 }
 
 .access-log-detail__mono {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-}
-
-@media (width <= 768px) {
-  .access-log-detail__grid {
-    grid-template-columns: 1fr;
-  }
+  font-family: var(--td-font-family-mono, monospace);
 }
 </style>

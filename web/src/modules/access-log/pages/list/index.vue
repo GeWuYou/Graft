@@ -44,6 +44,8 @@
         :visible-column-keys="visibleColumnKeys"
         @detail="openDetail"
         @page-change="fetchAccessLogs"
+        @view-app-log="viewRelatedAppLogs"
+        @view-audit="viewRelatedAuditEvents"
       >
         <template #toolbar>
           <table-view-toolbar
@@ -76,6 +78,8 @@ import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
+import { buildAppLogLocation } from '@/modules/app-log/contract/deep-link';
+import { buildAuditRequestLocation } from '@/modules/audit/contract/deep-link';
 import { useAuthSessionStore } from '@/modules/auth/store';
 import { TableViewToolbar } from '@/shared/components/management';
 import { AdvancedQueryColumnDrawer, AdvancedQueryListPage } from '@/shared/components/query-list';
@@ -290,6 +294,18 @@ async function fetchAccessLogs() {
 
 async function openDetail(row: AccessLogItem) {
   await openLogDetailRow(row, getAccessLogDetail, detailRecord, detailVisible, reportDetailLoadError);
+}
+
+function viewRelatedAppLogs(row: AccessLogItem) {
+  void router.push(
+    buildAppLogLocation({
+      request_id: row.request_id,
+    }),
+  );
+}
+
+function viewRelatedAuditEvents(row: AccessLogItem) {
+  void router.push(buildAuditRequestLocation(row.request_id));
 }
 
 function resetFilters() {
