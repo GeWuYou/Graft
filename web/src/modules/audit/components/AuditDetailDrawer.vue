@@ -198,28 +198,42 @@
         </div>
       </section>
 
-      <log-json-panel
-        :title="t('audit.logList.drawer.sections.metadata')"
-        :expand-label="t('audit.logList.drawer.actions.expandMetadata')"
-        :collapse-label="t('audit.logList.drawer.actions.collapseMetadata')"
-        :copy-label="t('audit.logList.drawer.actions.copyMetadata')"
-        :copy-success-label="t('audit.logList.drawer.actions.copyMetadataSuccess')"
-        :copy-fail-label="t('audit.logList.drawer.actions.copyMetadataFail')"
-        :empty-text="t('audit.logList.drawer.metadataEmpty')"
-        :value="record.metadata"
-      />
+      <t-tabs v-model="activeTab">
+        <t-tab-panel value="context" :label="t('audit.logList.drawer.sections.context')">
+          <log-json-panel
+            v-bind="jsonPanelBindings"
+            :title="t('audit.logList.drawer.sections.context')"
+            :value="structuredAuditContext"
+          />
+        </t-tab-panel>
+        <t-tab-panel value="metadata" :label="t('audit.logList.drawer.sections.metadata')">
+          <log-json-panel
+            v-bind="jsonPanelBindings"
+            :title="t('audit.logList.drawer.sections.metadata')"
+            :empty-text="t('audit.logList.drawer.metadataEmpty')"
+            :value="record.metadata"
+          />
+        </t-tab-panel>
+        <t-tab-panel value="raw" :label="t('audit.logList.drawer.sections.rawJson')">
+          <log-json-panel
+            v-bind="jsonPanelBindings"
+            :title="t('audit.logList.drawer.sections.rawJson')"
+            :empty-text="t('audit.logList.drawer.rawJsonEmpty')"
+            :value="record"
+          />
+        </t-tab-panel>
+      </t-tabs>
     </div>
   </t-drawer>
 </template>
 <script setup lang="ts">
-import { MessagePlugin } from 'tdesign-vue-next/es/message';
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
 import type { MonitorOriginContext } from '@/modules/monitor/contract/navigation';
 import { buildMonitorLocationFromOrigin } from '@/modules/monitor/contract/navigation';
-import { copyText, LogJsonPanel } from '@/shared/observability';
+import { LogJsonPanel } from '@/shared/observability';
 
 import {
   buildAccessLogRequestLocationWithOrigin,
@@ -247,9 +261,11 @@ import {
   sourceLabel,
   traceIdForRecord,
 } from '../shared/presentation';
+import { copyAuditRequestId } from '../shared/request-id-copy';
 import type { AuditLogListItem } from '../types/audit';
 
 const props = defineProps<{
+  initialTab?: 'context' | 'metadata' | 'raw';
   record: AuditLogListItem | null;
   rows: AuditLogListItem[];
   visible: boolean;
@@ -262,6 +278,16 @@ defineEmits<{
 
 const { t, locale } = useI18n();
 const router = useRouter();
+const activeTab = ref<'context' | 'metadata' | 'raw'>('context');
+
+const jsonPanelBindings = computed(() => ({
+  expandLabel: t('audit.logList.drawer.actions.expandJson'),
+  collapseLabel: t('audit.logList.drawer.actions.collapseJson'),
+  copyLabel: t('audit.logList.drawer.actions.copyJson'),
+  copySuccessLabel: t('audit.logList.drawer.actions.copyJsonSuccess'),
+  copyFailLabel: t('audit.logList.drawer.actions.copyJsonFail'),
+  emptyText: t('audit.logList.drawer.contextEmpty'),
+}));
 
 const heroDescription = computed(() => {
   const record = props.record;
@@ -278,21 +304,7 @@ const heroDescription = computed(() => {
 });
 
 async function copyRequestId(record: AuditLogListItem) {
-  const requestId = requestIdForRecord(record);
-  if (!requestId || requestId === '-') {
-    return;
-  }
-
-  try {
-    const copied = await copyText(requestId);
-    if (!copied) {
-      MessagePlugin.error(t('audit.logList.drawer.actions.copyRequestIdFail'));
-      return;
-    }
-    MessagePlugin.success(t('audit.logList.drawer.actions.copyRequestIdSuccess'));
-  } catch {
-    MessagePlugin.error(t('audit.logList.drawer.actions.copyRequestIdFail'));
-  }
+  await copyAuditRequestId(requestIdForRecord(record), t);
 }
 
 const monitorReturnLocation = computed(() =>
@@ -303,6 +315,86 @@ const relatedRequestActionLabel = computed(() =>
   isSecurityEvent.value
     ? t('audit.logList.drawer.actions.viewAccessLogRequest')
     : t('audit.logList.drawer.actions.viewRelatedRequest'),
+);
+const structuredAuditContext = computed(() => {
+  const record = props.record;
+  if (!record) {
+    return {};
+  }
+  const requestId = requestIdForRecord(record);
+  const traceId = traceIdForRecord(record);
+  const target = record.target ?? null;
+
+  return {
+    eventOverview: {
+      name: actionTitle(record, t),
+      key: record.action,
+      category: sourceLabel(record, t),
+      type: eventTypeForRecord(record),
+      result: resultLabel(record, t),
+      riskLevel: record.risk_level ?? null,
+      occurredAt: record.created_at,
+    },
+    operator: {
+      userId: record.actor_user_id ?? null,
+      username: record.actor_username || null,
+      anonymous: !record.actor_user_id && !record.actor_username,
+      ip: record.ip || null,
+      userAgent: record.user_agent || null,
+    },
+    auditTarget: {
+      targetType: record.target_type || target?.type || metadataValue(record, 'targetType', 'target_type') || null,
+      targetId: target?.id || metadataValue(record, 'targetId', 'target_id') || null,
+      targetName: record.target_label || target?.label || metadataValue(record, 'targetName', 'target_name') || null,
+      resourceType: record.resource_type || null,
+      resourceId: record.resource_id || null,
+      resourceName: record.resource_name || null,
+    },
+    requestContext: {
+      requestId: requestId === '-' ? null : requestId,
+      traceId: traceId === '-' ? null : traceId,
+      method: record.request_method || metadataLookup(record, 'request_method') || null,
+      path: record.request_path || metadataLookup(record, 'request_path') || metadataLookup(record, 'path') || null,
+      route: metadataValue(record, 'route', 'route_ref') || target?.route_ref || null,
+    },
+    evidenceChain: {
+      accessLog: requestId === '-' ? null : { requestId },
+      appLog:
+        requestId === '-' && traceId === '-' ? null : { requestId: requestId === '-' ? null : requestId, traceId },
+      securityEvent: isSecurityEvent.value ? { eventId: record.id, type: eventTypeForRecord(record) } : null,
+      incident: metadataValue(record, 'incident', 'incident_id', 'incidentId') || null,
+      evidenceLinks: metadataValue(record, 'evidence_links', 'evidenceLinks') || [],
+    },
+    changes: {
+      before: metadataValue(record, 'before', 'old_value', 'oldValue') || null,
+      after: metadataValue(record, 'after', 'new_value', 'newValue') || null,
+      diff: metadataValue(record, 'diff', 'changes') || null,
+      metadata: record.metadata ?? {},
+    },
+  };
+});
+
+function metadataValue(record: AuditLogListItem, ...keys: string[]) {
+  const metadata = record.metadata;
+  if (!metadata || typeof metadata !== 'object') {
+    return undefined;
+  }
+
+  for (const key of keys) {
+    if (Object.prototype.hasOwnProperty.call(metadata, key)) {
+      return metadata[key];
+    }
+  }
+  return undefined;
+}
+
+watch(
+  () => props.visible,
+  (visible) => {
+    if (visible) {
+      activeTab.value = props.initialTab ?? 'context';
+    }
+  },
 );
 
 function openMonitorContext() {

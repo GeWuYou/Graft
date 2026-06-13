@@ -15,6 +15,7 @@ func registerAuditRoutes(ctx *module.Context, moduleName string, reader auditRea
 	group.Use(httpx.RequestIDMiddleware())
 	group.GET(auditcontract.AuditOverviewCollection, guard.read, handleReadAuditOverview(ctx, moduleName, reader))
 	group.GET(auditcontract.AuditCollection, guard.read, handleListAuditLogs(ctx, moduleName, reader))
+	group.GET(auditcontract.AuditItem, guard.read, handleReadAuditLog(ctx, moduleName, reader))
 	group.GET(auditcontract.AuditIncidentItem, guard.read, handleReadAuditIncident(ctx, moduleName, reader))
 }
 

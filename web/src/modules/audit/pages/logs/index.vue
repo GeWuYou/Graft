@@ -69,6 +69,9 @@
         :visible-column-keys="visibleColumnKeys"
         @detail="openDetailDrawer"
         @page-change="fetchAuditLogs"
+        @view-access-log="openAccessLog"
+        @view-app-log="openAppLog"
+        @view-security-event="openSecurityEvent"
       >
         <template #toolbar>
           <table-view-toolbar
@@ -94,6 +97,7 @@
       />
       <audit-detail-drawer
         v-model:visible="detailDrawerVisible"
+        :initial-tab="detailInitialTab"
         :record="detailRecord"
         :rows="rows"
         :monitor-origin="navigationContext.monitorOrigin"
@@ -107,6 +111,8 @@ import { computed, onActivated, onDeactivated, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
+import { buildAccessLogRequestLocation } from '@/modules/access-log/contract/deep-link';
+import { buildAppLogLocation } from '@/modules/app-log/contract/deep-link';
 import { TableViewToolbar } from '@/shared/components/management';
 import { AdvancedQueryColumnDrawer, AdvancedQueryListPage } from '@/shared/components/query-list';
 import { describeCorrelationId, formatMessageWithCorrelation } from '@/shared/correlation';
@@ -120,16 +126,18 @@ import {
   normalizePageStateRangeForRoute,
   normalizeRouteRangeForPageState,
   normalizeSorters,
+  openLogDetailRow,
 } from '@/shared/observability';
 import { createLogger } from '@/utils/logger';
 
-import { getAuditLogs } from '../../api/audit';
+import { getAuditLogDetail, getAuditLogs } from '../../api/audit';
 import AuditDetailDrawer from '../../components/AuditDetailDrawer.vue';
 import AuditFilters from '../../components/AuditFilters.vue';
 import AuditTable from '../../components/AuditTable.vue';
 import { AUDIT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import { buildAuditLogsLocation, parseAuditLogsRouteQuery } from '../../contract/deep-link';
 import {
+  buildAuditRelatedRecordLocation,
   buildMonitorReturnLocation,
   resolveAuditNavigationContext,
   withMonitorOrigin,
@@ -193,6 +201,7 @@ const rows = ref<AuditLogListItem[]>([]);
 const total = ref(0);
 const detailDrawerVisible = ref(false);
 const detailRecord = ref<AuditLogListItem | null>(null);
+const detailInitialTab = ref<'context' | 'metadata' | 'raw'>('context');
 const latestRequestSeq = ref(0);
 const columnDrawerVisible = ref(false);
 const visibleColumnKeys = ref([...DEFAULT_VISIBLE_COLUMNS]);
@@ -281,6 +290,9 @@ const footerSummary = computed(() =>
     ? t('audit.logList.footerFiltered', { count: displayRows.value.length })
     : t('audit.logList.footerTotal', { count: total.value }),
 );
+const reportDetailLoadError = (error: unknown) => {
+  MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('audit.logList.loadFailed')));
+};
 
 const isCurrentAuditLogsRoute = computed(
   () => route.path === buildAuditLogsLocation({}).path || route.name === AUDIT_BOOTSTRAP_ROUTE.LOG_LIST.routeName,
@@ -500,9 +512,37 @@ function createDefaultFilters(): AuditClientFilterState {
   };
 }
 
-function openDetailDrawer(row: AuditLogListItem) {
-  detailRecord.value = row;
-  detailDrawerVisible.value = true;
+async function openDetailDrawer(row: AuditLogListItem) {
+  detailInitialTab.value = 'context';
+  await openLogDetailRow(row, getAuditLogDetail, detailRecord, detailDrawerVisible, reportDetailLoadError);
+}
+
+function auditRequestId(row: AuditLogListItem) {
+  return row.request_id || '';
+}
+
+function openAccessLog(row: AuditLogListItem) {
+  const requestId = auditRequestId(row);
+  if (!requestId) {
+    return;
+  }
+
+  void router.push(withMonitorOrigin(buildAccessLogRequestLocation(requestId), navigationContext.value.monitorOrigin));
+}
+
+function openAppLog(row: AuditLogListItem) {
+  const requestId = auditRequestId(row);
+  if (!requestId) {
+    return;
+  }
+
+  void router.push(
+    withMonitorOrigin(buildAppLogLocation({ request_id: requestId }), navigationContext.value.monitorOrigin),
+  );
+}
+
+function openSecurityEvent(row: AuditLogListItem) {
+  void router.push(buildAuditRelatedRecordLocation(row, navigationContext.value.monitorOrigin));
 }
 
 function applyRouteFilters() {

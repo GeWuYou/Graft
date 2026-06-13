@@ -272,7 +272,10 @@
         "addSorter": "添加排序项",
         "removeSorter": "移除排序项",
         "moveSorterUp": "上移",
-        "moveSorterDown": "下移"
+        "moveSorterDown": "下移",
+        "viewAccessLog": "查看访问日志",
+        "viewAppLog": "查看应用日志",
+        "viewSecurityEvent": "查看安全事件"
       },
       "scope": {
         "drilldownTag": "钻取：{name}",
@@ -381,7 +384,8 @@
         "ip": "IP",
         "result": "结果",
         "risk": "风险等级",
-        "createdAt": "时间"
+        "createdAt": "时间",
+        "operation": "操作"
       },
       "drawer": {
         "messageFallback": "无补充说明",
@@ -391,7 +395,9 @@
           "security": "安全事件上下文",
           "correlation": "关联上下文",
           "risk": "风险分析",
-          "metadata": "元数据"
+          "context": "审计上下文",
+          "metadata": "元数据",
+          "rawJson": "原始 JSON"
         },
         "fields": {
           "target": "审计目标",
@@ -419,6 +425,11 @@
           "copyMetadata": "复制 JSON",
           "copyMetadataSuccess": "元数据 JSON 已复制",
           "copyMetadataFail": "复制元数据 JSON 失败",
+          "expandJson": "展开 JSON",
+          "collapseJson": "收起 JSON",
+          "copyJson": "复制 JSON",
+          "copyJsonSuccess": "JSON 已复制",
+          "copyJsonFail": "复制 JSON 失败",
           "backToMonitor": "返回监控",
           "viewRelatedRequest": "查看关联请求",
           "viewAccessLogRequest": "查看访问日志",
@@ -436,7 +447,9 @@
           "requestTrace": "可关联请求",
           "securityEvent": "安全事件"
         },
-        "metadataEmpty": "当前事件没有可展示的元数据。"
+        "contextEmpty": "当前事件没有可展示的审计上下文。",
+        "metadataEmpty": "当前事件没有可展示的元数据。",
+        "rawJsonEmpty": "当前事件没有可展示的原始 JSON。"
       }
     },
     "correlation": {

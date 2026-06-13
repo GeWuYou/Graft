@@ -42,6 +42,10 @@ func toAuditLogListResponse(result auditListResult) (map[string]any, error) {
 	return response, nil
 }
 
+func toAuditLogDetailResponse(result auditDetailResult) (generated.AuditLogListItem, error) {
+	return toAuditLogListItem(result)
+}
+
 func toAppliedScopeMap(scope *drilldown.AppliedScope) map[string]any {
 	if scope == nil {
 		return nil

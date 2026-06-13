@@ -66,6 +66,15 @@ func (r *memoryAuditRepository) ListAuditLogs(_ context.Context, _ store.ListAud
 	return store.ListAuditLogsResult{Items: append([]store.AuditLog(nil), r.items...), Total: len(r.items)}, nil
 }
 
+func (r *memoryAuditRepository) ReadAuditLog(_ context.Context, id uint64) (store.AuditLog, error) {
+	for _, item := range r.items {
+		if item.ID == id {
+			return item, nil
+		}
+	}
+	return store.AuditLog{}, store.ErrAuditLogNotFound
+}
+
 func (r *memoryAuditRepository) ReadAuditOverview(_ context.Context, window store.AuditTimePreset) (store.AuditOverview, error) {
 	return store.AuditOverview{
 		TimePreset: window,
@@ -180,6 +189,10 @@ func (failingAuditRepository) CreateAuditLog(context.Context, store.CreateAuditL
 
 func (failingAuditRepository) ListAuditLogs(context.Context, store.ListAuditLogsQuery) (store.ListAuditLogsResult, error) {
 	return store.ListAuditLogsResult{}, nil
+}
+
+func (failingAuditRepository) ReadAuditLog(context.Context, uint64) (store.AuditLog, error) {
+	return store.AuditLog{}, errors.New("detail failed")
 }
 
 func (failingAuditRepository) ReadAuditOverview(context.Context, store.AuditTimePreset) (store.AuditOverview, error) {
@@ -617,6 +630,63 @@ func TestAuditLogsRouteRejectsUnknownQueryKeys(t *testing.T) {
 
 	if recorder.Code != http.StatusBadRequest {
 		t.Fatalf("expected status 400, got %d", recorder.Code)
+	}
+}
+
+func TestAuditLogDetailRouteReturnsEvidenceRecord(t *testing.T) {
+	actorID := uint64(7)
+	repo := &memoryAuditRepository{
+		items: []store.AuditLog{
+			{
+				ID:               42,
+				ActorUserID:      &actorID,
+				ActorUsername:    "alice",
+				ActorDisplayName: "Alice",
+				Action:           "auth.token.expired",
+				ResourceType:     "auth",
+				ResourceID:       "token",
+				ResourceName:     "access token",
+				Success:          false,
+				RequestID:        "req-42",
+				IP:               "127.0.0.1",
+				UserAgent:        "vitest",
+				Message:          "Token expired",
+				Metadata:         json.RawMessage(`{"traceId":"trace-42","route":"/api/auth/bootstrap"}`),
+				CreatedAt:        time.Date(2026, 6, 13, 12, 0, 0, 0, time.UTC),
+			},
+		},
+	}
+	_, engine, _ := newModuleTestContext(t, repo)
+
+	request := httptest.NewRequest(http.MethodGet, "/api/audit/logs/42", nil)
+	request.Header.Set("Authorization", "Bearer token")
+	recorder := httptest.NewRecorder()
+	engine.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d body=%s", recorder.Code, recorder.Body.String())
+	}
+	data := testassert.DecodeSuccessData[map[string]any](t, recorder)
+	if data["id"] != float64(42) || data["request_id"] != "req-42" || data["action"] != "auth.token.expired" {
+		t.Fatalf("expected audit detail record, got %#v", data)
+	}
+}
+
+func TestAuditLogDetailRouteReturnsNotFound(t *testing.T) {
+	repo := &memoryAuditRepository{}
+	_, engine, _ := newModuleTestContext(t, repo)
+
+	request := httptest.NewRequest(http.MethodGet, "/api/audit/logs/404", nil)
+	request.Header.Set("Authorization", "Bearer token")
+	recorder := httptest.NewRecorder()
+	engine.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusNotFound {
+		t.Fatalf("expected status 404, got %d body=%s", recorder.Code, recorder.Body.String())
+	}
+	response := testassert.DecodeErrorResponse(t, recorder)
+	if field := response.Details["field"]; field != "id" {
+		t.Fatalf("expected invalid detail field id, got %#v", field)
 	}
 }
 

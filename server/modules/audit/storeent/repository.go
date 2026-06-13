@@ -214,6 +214,22 @@ func (r *repository) ListAuditLogs(ctx context.Context, query auditstore.ListAud
 	return auditstore.ListAuditLogsResult{Items: items, Total: total}, nil
 }
 
+// ReadAuditLog returns one immutable audit evidence record by id.
+func (r *repository) ReadAuditLog(ctx context.Context, id uint64) (auditstore.AuditLog, error) {
+	if r == nil || r.db == nil {
+		return auditstore.AuditLog{}, errors.New("audit repository is unavailable")
+	}
+	if id == 0 {
+		return auditstore.AuditLog{}, auditstore.ErrAuditLogNotFound
+	}
+
+	record, err := r.readAuditLogByID(ctx, id)
+	if err != nil {
+		return auditstore.AuditLog{}, err
+	}
+	return record, nil
+}
+
 // DeleteAuditLogsBefore deletes audit records older than the caller-owned retention cutoff.
 func (r *repository) DeleteAuditLogsBefore(ctx context.Context, createdBefore time.Time) (int64, error) {
 	if r == nil || r.db == nil {
@@ -308,6 +324,9 @@ func (r *repository) ReadIncident(ctx context.Context, eventID uint64) (auditsto
 
 	seed, err := r.readAuditLogByID(ctx, eventID)
 	if err != nil {
+		if errors.Is(err, auditstore.ErrAuditLogNotFound) {
+			return auditstore.AuditIncident{}, auditstore.ErrIncidentNotFound
+		}
 		return auditstore.AuditIncident{}, err
 	}
 
@@ -1019,9 +1038,9 @@ func (r *repository) readAuditLogByID(ctx context.Context, eventID uint64) (audi
 	record, err := scanAuditLog(row)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return auditstore.AuditLog{}, auditstore.ErrIncidentNotFound
+			return auditstore.AuditLog{}, auditstore.ErrAuditLogNotFound
 		}
-		return auditstore.AuditLog{}, fmt.Errorf("read audit incident seed: %w", err)
+		return auditstore.AuditLog{}, fmt.Errorf("read audit log: %w", err)
 	}
 	return record, nil
 }

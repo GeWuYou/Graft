@@ -2326,6 +2326,9 @@ type AuditLogConvertibleFiltersRiskLevels string
 // AuditLogConvertibleFiltersSource defines model for AuditLogConvertibleFilters.Source.
 type AuditLogConvertibleFiltersSource string
 
+// AuditLogDetailResponse defines model for audit-log-detail-response.
+type AuditLogDetailResponse = AuditLogListItem
+
 // AuditLogListItem defines model for audit-log-list-item.
 type AuditLogListItem struct {
 	Action           string                     `json:"action"`
@@ -2880,6 +2883,26 @@ type EnvelopedAuditIncidentResponse struct {
 	// Code Existing canonical response code.
 	Code string                `json:"code"`
 	Data AuditIncidentResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedAuditLogDetailResponse defines model for enveloped-audit-log-detail-response.
+type EnvelopedAuditLogDetailResponse struct {
+	// Code Existing canonical response code.
+	Code string                 `json:"code"`
+	Data AuditLogDetailResponse `json:"data"`
 
 	// Locale Present on localized error flows and omitted on normal success.
 	Locale *string `json:"locale,omitempty"`
@@ -4886,6 +4909,16 @@ type GetAuditLogsParamsRiskLevel string
 
 // GetAuditLogsParamsRiskLevels defines parameters for GetAuditLogs.
 type GetAuditLogsParamsRiskLevels string
+
+// GetAuditLogDetailParams defines parameters for GetAuditLogDetail.
+type GetAuditLogDetailParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
 
 // GetAuditOverviewParams defines parameters for GetAuditOverview.
 type GetAuditOverviewParams struct {

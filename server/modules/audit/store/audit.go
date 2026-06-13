@@ -12,6 +12,8 @@ import (
 )
 
 var (
+	// ErrAuditLogNotFound indicates that the requested audit evidence record does not exist.
+	ErrAuditLogNotFound = errors.New("audit log not found")
 	// ErrIncidentNotFound indicates that the requested audit-owned incident seed does not exist.
 	ErrIncidentNotFound = errors.New("audit incident not found")
 )
@@ -449,6 +451,7 @@ type AuditIncident struct {
 type AuditRepository interface {
 	CreateAuditLog(ctx context.Context, input CreateAuditLogInput) (AuditLog, error)
 	ListAuditLogs(ctx context.Context, query ListAuditLogsQuery) (ListAuditLogsResult, error)
+	ReadAuditLog(ctx context.Context, id uint64) (AuditLog, error)
 	ReadAuditOverview(ctx context.Context, preset AuditTimePreset) (AuditOverview, error)
 	ReadIncident(ctx context.Context, eventID uint64) (AuditIncident, error)
 	ListAuditPolicyRules(ctx context.Context) ([]AuditPolicyRule, error)

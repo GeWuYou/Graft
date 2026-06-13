@@ -785,6 +785,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/audit/logs/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get audit log detail
+     * @description Returns one immutable audit-log evidence record for drawer-based inspection.
+     */
+    get: operations['getAuditLogDetail'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/audit/overview': {
     parameters: {
       query?: never;
@@ -1619,7 +1639,9 @@ export interface components {
     AuditDrilldownScope: components['schemas']['audit-drilldown-scope'];
     AuditBusinessCategory: components['schemas']['audit-business-category'];
     AuditLogListResponse: components['schemas']['audit-log-list-response'];
+    AuditLogDetailResponse: components['schemas']['audit-log-detail-response'];
     EnvelopedAuditLogListResponse: components['schemas']['enveloped-audit-log-list-response'];
+    EnvelopedAuditLogDetailResponse: components['schemas']['enveloped-audit-log-detail-response'];
     AuditOverviewItem: components['schemas']['audit-overview-item'];
     AuditOverviewSummary: components['schemas']['audit-overview-summary'];
     AuditEvidenceContext: components['schemas']['audit-evidence-context'];
@@ -2142,6 +2164,10 @@ export interface components {
     };
     'enveloped-audit-log-list-response': components['schemas']['api-envelope'] & {
       data?: components['schemas']['audit-log-list-response'];
+    };
+    'audit-log-detail-response': components['schemas']['audit-log-list-item'];
+    'enveloped-audit-log-detail-response': components['schemas']['api-envelope'] & {
+      data?: components['schemas']['audit-log-detail-response'];
     };
     'audit-overview-summary': {
       total_logs: number;
@@ -5811,6 +5837,60 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getAuditLogDetail: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Audit log detail. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-audit-log-detail-response'];
+        };
+      };
+      /** @description Invalid audit log id. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Audit log not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
       500: components['responses']['internal-server-error'];
     };
   };

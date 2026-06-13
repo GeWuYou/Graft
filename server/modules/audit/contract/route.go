@@ -15,8 +15,14 @@ const (
 	// AuditIncidentParam identifies the canonical audit incident route parameter name.
 	AuditIncidentParam = "event_id"
 
+	// AuditLogParam identifies the canonical audit log route parameter name.
+	AuditLogParam = "id"
+
 	// AuditCollection identifies the audit-log collection route fragment.
 	AuditCollection = "/logs"
+
+	// AuditItem identifies the audit-log detail route fragment.
+	AuditItem = AuditCollection + "/:" + AuditLogParam
 
 	// AuditOverviewCollection identifies the audit overview route fragment.
 	AuditOverviewCollection = "/overview"
@@ -32,6 +38,9 @@ const (
 
 	// AuditLogsMenuPath identifies the canonical audit logs menu path.
 	AuditLogsMenuPath = AuditGroup + AuditCollection
+
+	// AuditLogDetailAPIPath identifies the canonical audit log detail API path template.
+	AuditLogDetailAPIPath = AuditGroup + AuditCollection + "/{" + AuditLogParam + "}"
 
 	// AuditOverviewAPIPath identifies the canonical audit overview API path.
 	AuditOverviewAPIPath = AuditGroup + AuditOverviewCollection

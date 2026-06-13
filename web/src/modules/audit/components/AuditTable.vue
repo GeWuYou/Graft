@@ -97,6 +97,15 @@
           <span>{{ formatAuditTimestamp(row.created_at, locale) }}</span>
         </template>
 
+        <template #operation="{ row }">
+          <table-action-menu
+            :actions="rowActions(row)"
+            :more-label="t('audit.logList.more')"
+            :more-label-fallback="t('audit.logList.more')"
+            @action="(action) => handleRowAction(action, row)"
+          />
+        </template>
+
         <template #empty>
           <div class="table-empty-state">
             <t-empty :title="t('audit.logList.emptyTitle')" :description="t('audit.logList.emptyDescription')" />
@@ -124,6 +133,7 @@ import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import {
+  createActionColumn,
   createIdentifierColumn,
   createMainTextColumn,
   createStatusColumn,
@@ -133,6 +143,7 @@ import {
   ManagementTablePagination,
   resolveManagedColumns,
   resolveTableWidthPolicy,
+  TableActionMenu,
   useTableHostWidth,
 } from '@/shared/components/management';
 import { LogIdText } from '@/shared/observability';
@@ -152,7 +163,15 @@ import {
   riskTone,
   traceIdForRecord,
 } from '../shared/presentation';
+import { copyAuditRequestId } from '../shared/request-id-copy';
 import type { AuditLogListItem } from '../types/audit';
+
+type AuditRowAction = {
+  fallbackLabel: string;
+  label: string;
+  testId?: string;
+  value: 'copy-request-id' | 'detail' | 'view-access-log' | 'view-app-log' | 'view-security-event';
+};
 
 const props = defineProps<{
   description?: string;
@@ -170,6 +189,9 @@ const emit = defineEmits<{
   (e: 'update:current', value: number): void;
   (e: 'update:pageSize', value: number): void;
   (e: 'page-change'): void;
+  (e: 'view-access-log', row: AuditLogListItem): void;
+  (e: 'view-app-log', row: AuditLogListItem): void;
+  (e: 'view-security-event', row: AuditLogListItem): void;
 }>();
 
 const { t, locale } = useI18n();
@@ -197,9 +219,10 @@ const columns = computed<TdBaseTableProps['columns']>(() => {
     createStatusColumn(t('audit.logList.columns.result'), 'result', 132),
     createStatusColumn(t('audit.logList.columns.risk'), 'risk', 120),
     createTimeColumn(t('audit.logList.columns.createdAt'), 'created_at', 200),
+    createActionColumn(t('audit.logList.columns.operation'), 156, 'center', 'operation'),
   ];
 
-  return resolveManagedColumns(allColumns, props.visibleColumnKeys);
+  return resolveManagedColumns(allColumns, props.visibleColumnKeys, ['operation']);
 });
 
 const { tableHostRef, tableHostWidth } = useTableHostWidth(() => columns.value);
@@ -213,6 +236,65 @@ function emitPageChange() {
 function handleRowClick(context: { row: unknown }) {
   emit('detail', context.row as AuditLogListItem);
 }
+
+function rowActions(row: AuditLogListItem): AuditRowAction[] {
+  return [
+    {
+      fallbackLabel: t('audit.logList.detail'),
+      label: t('audit.logList.detail'),
+      testId: `audit-log-detail-${row.id}`,
+      value: 'detail',
+    },
+    {
+      fallbackLabel: t('audit.logList.drawer.actions.copyRequestId'),
+      label: t('audit.logList.drawer.actions.copyRequestId'),
+      value: 'copy-request-id',
+    },
+    {
+      fallbackLabel: t('audit.logList.actions.viewAccessLog'),
+      label: t('audit.logList.actions.viewAccessLog'),
+      value: 'view-access-log',
+    },
+    {
+      fallbackLabel: t('audit.logList.actions.viewAppLog'),
+      label: t('audit.logList.actions.viewAppLog'),
+      value: 'view-app-log',
+    },
+    {
+      fallbackLabel: t('audit.logList.actions.viewSecurityEvent'),
+      label: t('audit.logList.actions.viewSecurityEvent'),
+      value: 'view-security-event',
+    },
+  ];
+}
+
+async function copyRequestId(row: AuditLogListItem) {
+  await copyAuditRequestId(requestIdForRecord(row), t, { warnWhenMissing: true });
+}
+
+function handleRowAction(action: string, row: AuditLogListItem) {
+  if (action === 'detail') {
+    emit('detail', row);
+    return;
+  }
+  if (action === 'copy-request-id') {
+    void copyRequestId(row);
+    return;
+  }
+  if (action === 'view-access-log') {
+    emit('view-access-log', row);
+    return;
+  }
+  if (action === 'view-app-log') {
+    emit('view-app-log', row);
+    return;
+  }
+  if (action === 'view-security-event') {
+    emit('view-security-event', row);
+  }
+}
+
+void TableActionMenu;
 </script>
 <style scoped lang="less">
 @import '@/shared/observability/log-table-cells.less';

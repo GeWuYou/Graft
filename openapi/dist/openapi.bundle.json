@@ -4620,6 +4620,95 @@
         }
       }
     },
+    "/api/audit/logs/{id}": {
+      "get": {
+        "tags": [
+          "audit"
+        ],
+        "summary": "Get audit log detail",
+        "operationId": "getAuditLogDetail",
+        "description": "Returns one immutable audit-log evidence record for drawer-based inspection.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Audit log detail.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-audit-log-detail-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid audit log id.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Audit log not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
     "/api/audit/overview": {
       "get": {
         "tags": [
@@ -8605,8 +8694,14 @@
       "AuditLogListResponse": {
         "$ref": "#/components/schemas/audit-log-list-response"
       },
+      "AuditLogDetailResponse": {
+        "$ref": "#/components/schemas/audit-log-detail-response"
+      },
       "EnvelopedAuditLogListResponse": {
         "$ref": "#/components/schemas/enveloped-audit-log-list-response"
+      },
+      "EnvelopedAuditLogDetailResponse": {
+        "$ref": "#/components/schemas/enveloped-audit-log-detail-response"
       },
       "AuditOverviewItem": {
         "$ref": "#/components/schemas/audit-overview-item"
@@ -10336,6 +10431,28 @@
             "properties": {
               "data": {
                 "$ref": "#/components/schemas/audit-log-list-response"
+              }
+            }
+          }
+        ]
+      },
+      "audit-log-detail-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/audit-log-list-item"
+          }
+        ]
+      },
+      "enveloped-audit-log-detail-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/audit-log-detail-response"
               }
             }
           }

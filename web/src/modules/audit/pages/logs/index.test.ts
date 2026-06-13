@@ -12,7 +12,8 @@ import { localDateTimeToUtcIso, normalizeRouteRangeForPageState } from '@/shared
 import type { AuditLogListResponse } from '../../types/audit';
 import AuditLogsPage from './index.vue';
 
-const { getAuditLogsMock } = vi.hoisted(() => ({
+const { getAuditLogDetailMock, getAuditLogsMock } = vi.hoisted(() => ({
+  getAuditLogDetailMock: vi.fn(),
   getAuditLogsMock: vi.fn(),
 }));
 
@@ -66,6 +67,7 @@ function createAuditLogsResponse(overrides: Partial<AuditLogListResponse> = {}):
 }
 
 vi.mock('../../api/audit', () => ({
+  getAuditLogDetail: getAuditLogDetailMock,
   getAuditLogs: getAuditLogsMock,
 }));
 
@@ -133,7 +135,15 @@ vi.mock('../../components/AuditTable.vue', () => ({
   default: defineComponent({
     name: 'AuditTableStub',
     props: ['rows', 'summary', 'footerSummary'],
-    emits: ['detail', 'update:current', 'update:pageSize', 'page-change'],
+    emits: [
+      'detail',
+      'update:current',
+      'update:pageSize',
+      'page-change',
+      'view-access-log',
+      'view-app-log',
+      'view-security-event',
+    ],
     setup(props, { emit }) {
       return () =>
         h('div', [
@@ -141,6 +151,24 @@ vi.mock('../../components/AuditTable.vue', () => ({
           props.footerSummary,
           h('span', JSON.stringify(props.rows)),
           h('button', { 'data-testid': 'audit-detail', onClick: () => emit('detail', props.rows?.[0]) }, 'detail'),
+          h(
+            'button',
+            { 'data-testid': 'audit-view-access-log', onClick: () => emit('view-access-log', props.rows?.[0]) },
+            'access-log',
+          ),
+          h(
+            'button',
+            { 'data-testid': 'audit-view-app-log', onClick: () => emit('view-app-log', props.rows?.[0]) },
+            'app-log',
+          ),
+          h(
+            'button',
+            {
+              'data-testid': 'audit-view-security-event',
+              onClick: () => emit('view-security-event', props.rows?.[0]),
+            },
+            'security-event',
+          ),
         ]);
     },
   }),
@@ -149,9 +177,15 @@ vi.mock('../../components/AuditTable.vue', () => ({
 vi.mock('../../components/AuditDetailDrawer.vue', () => ({
   default: defineComponent({
     name: 'AuditDetailDrawerStub',
-    props: ['visible', 'record', 'monitorOrigin'],
+    props: ['initialTab', 'visible', 'record', 'monitorOrigin'],
     setup(props) {
-      return () => h('div', [String(props.visible), props.record?.request_id, JSON.stringify(props.monitorOrigin)]);
+      return () =>
+        h('div', [
+          String(props.visible),
+          props.initialTab,
+          props.record?.request_id,
+          JSON.stringify(props.monitorOrigin),
+        ]);
     },
   }),
 }));
@@ -261,6 +295,9 @@ const i18n = createI18n({
             addFilter: 'Add filter',
             showAdvanced: 'Advanced Filters',
             hideAdvanced: 'Hide Advanced',
+            viewAccessLog: 'View Access Log',
+            viewAppLog: 'View App Log',
+            viewSecurityEvent: 'View Security Event',
           },
           scope: {
             drilldownTag: 'Drilldown: {name}',
@@ -352,6 +389,7 @@ const i18n = createI18n({
             result: 'Result',
             risk: 'Risk',
             createdAt: 'Time',
+            operation: 'Operation',
           },
           drawer: {
             messageFallback: 'No additional message',
@@ -361,7 +399,9 @@ const i18n = createI18n({
               security: 'Security Event Context',
               correlation: 'Related Context',
               risk: 'Risk',
+              context: 'Audit Context',
               metadata: 'Metadata',
+              rawJson: 'Raw JSON',
             },
             fields: {
               target: 'Audit Target',
@@ -393,12 +433,19 @@ const i18n = createI18n({
             actions: {
               viewRelatedRequest: 'View Related Request',
               viewAccessLogRequest: 'View Access Log',
+              expandJson: 'Expand JSON',
+              collapseJson: 'Collapse JSON',
+              copyJson: 'Copy JSON',
+              copyJsonSuccess: 'JSON copied',
+              copyJsonFail: 'Failed to copy JSON',
               copyMetadata: 'Copy JSON',
               copyMetadataSuccess: 'Metadata JSON copied',
               copyMetadataFail: 'Failed to copy metadata JSON',
               toggleMetadata: 'Show raw metadata',
             },
+            contextEmpty: 'No audit context is available for this event.',
             metadataEmpty: 'No metadata is available for this event.',
+            rawJsonEmpty: 'No raw JSON is available for this event.',
           },
         },
       },
@@ -409,7 +456,16 @@ const i18n = createI18n({
 describe('AuditLogsPage', () => {
   beforeEach(() => {
     getAuditLogsMock.mockReset();
+    getAuditLogDetailMock.mockReset();
     getAuditLogsMock.mockResolvedValue(createAuditLogsResponse());
+    getAuditLogDetailMock.mockImplementation(async (id: number) => ({
+      ...createAuditLogsResponse().items[0],
+      id,
+      metadata: {
+        detail: true,
+        trace_id: 'trace-1',
+      },
+    }));
   });
 
   afterEach(() => {
@@ -1014,5 +1070,40 @@ describe('AuditLogsPage', () => {
       resource_id: '1',
       sort: ['created_at:desc'],
     });
+  });
+
+  it('routes audit table row actions to related logs and opens fetched detail', async () => {
+    const { router, wrapper } = await mountPage();
+
+    await wrapper.get('[data-testid="audit-view-access-log"]').trigger('click');
+    await flushPromises();
+
+    expect(router.currentRoute.value.path).toBe('/logs/access');
+    expect(router.currentRoute.value.query).toMatchObject({ request_id: 'req-1' });
+
+    await router.push('/audit/logs');
+    await flushPromises();
+
+    await wrapper.get('[data-testid="audit-view-app-log"]').trigger('click');
+    await flushPromises();
+
+    expect(router.currentRoute.value.path).toBe('/logs/app');
+    expect(router.currentRoute.value.query).toMatchObject({ request_id: 'req-1' });
+
+    await router.push('/audit/logs');
+    await flushPromises();
+
+    await wrapper.get('[data-testid="audit-view-security-event"]').trigger('click');
+    await flushPromises();
+
+    expect(router.currentRoute.value.path).toBe('/audit/logs');
+    expect(router.currentRoute.value.query).toMatchObject({ request_id: 'req-1' });
+
+    await wrapper.get('[data-testid="audit-detail"]').trigger('click');
+    await flushPromises();
+
+    expect(getAuditLogDetailMock).toHaveBeenCalledWith(1);
+    expect(wrapper.text()).toContain('context');
+    expect(wrapper.text()).toContain('req-1');
   });
 });

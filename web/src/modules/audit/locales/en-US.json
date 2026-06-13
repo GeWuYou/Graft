@@ -272,7 +272,10 @@
         "addSorter": "Add Sort Item",
         "removeSorter": "Remove Sort Item",
         "moveSorterUp": "Move Up",
-        "moveSorterDown": "Move Down"
+        "moveSorterDown": "Move Down",
+        "viewAccessLog": "View Access Log",
+        "viewAppLog": "View App Log",
+        "viewSecurityEvent": "View Security Event"
       },
       "scope": {
         "drilldownTag": "Drilldown: {name}",
@@ -381,7 +384,8 @@
         "ip": "IP",
         "result": "Result",
         "risk": "Risk",
-        "createdAt": "Time"
+        "createdAt": "Time",
+        "operation": "Operation"
       },
       "drawer": {
         "messageFallback": "No additional message",
@@ -391,7 +395,9 @@
           "security": "Security Event Context",
           "correlation": "Related Context",
           "risk": "Risk Analysis",
-          "metadata": "Metadata"
+          "context": "Audit Context",
+          "metadata": "Metadata",
+          "rawJson": "Raw JSON"
         },
         "fields": {
           "target": "Audit Target",
@@ -419,6 +425,11 @@
           "copyMetadata": "Copy JSON",
           "copyMetadataSuccess": "Metadata JSON copied",
           "copyMetadataFail": "Failed to copy metadata JSON",
+          "expandJson": "Expand JSON",
+          "collapseJson": "Collapse JSON",
+          "copyJson": "Copy JSON",
+          "copyJsonSuccess": "JSON copied",
+          "copyJsonFail": "Failed to copy JSON",
           "backToMonitor": "Back to monitor",
           "viewRelatedRequest": "View Related Request",
           "viewAccessLogRequest": "View Access Log",
@@ -436,7 +447,9 @@
           "requestTrace": "Request available",
           "securityEvent": "Security Event"
         },
-        "metadataEmpty": "No metadata is available for this event."
+        "contextEmpty": "No audit context is available for this event.",
+        "metadataEmpty": "No metadata is available for this event.",
+        "rawJsonEmpty": "No raw JSON is available for this event."
       }
     },
     "correlation": {
