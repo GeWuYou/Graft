@@ -40,13 +40,18 @@ Typical triggers:
    - keep the ownership boundary explicit
    - keep the main agent responsible for integration, validation planning, and acceptance
 5. When the active slice reaches an end state or may need a future-session handoff, route closeout through `graft-task-closeout`.
-6. If closeout determines that the validated owned scope should be committed before handoff, execute that commit through `graft-commit`.
-7. Emit the explicit next-session startup prompt required by root `AGENTS.md` whenever work is being handed to a future turn.
-8. Ensure reusable-lesson evaluation is not skipped:
+6. After successful validation of an implementation Phase or loop batch, run `$graft-commit` for the confirmed owned
+   scope before starting or authorizing the next Phase or batch:
+   - if validation, ownership, mixed-worktree, or scoped-staging rules block the commit, report that blocker in
+     closeout and do not present the next Phase or batch as implementation-ready
+   - do not use this requirement to stage unrelated files, skip validation, or weaken root `AGENTS.md` handoff rules
+7. If closeout determines that the validated owned scope should be committed before handoff, execute that commit through `graft-commit`.
+8. Emit the explicit next-session startup prompt required by root `AGENTS.md` whenever work is being handed to a future turn.
+9. Ensure reusable-lesson evaluation is not skipped:
    - prefer letting `graft-task-closeout` run the Experience Capture Check
    - if this wrapper is ever forced to produce a bounded closeout without normal closeout delegation, it must still
      delegate lesson evaluation to `graft-lessons-learned`
-9. When the current task is being orchestrated by `graft-multi-agent-loop`, treat the current slice as one delegated
+10. When the current task is being orchestrated by `graft-multi-agent-loop`, treat the current slice as one delegated
    round and end the closeout with one fenced ` ```json ` block containing the machine-readable closeout result:
    - in the default `topic-completion-loop` mode, ordinary batch success must not emit `Next-session startup prompt:`
    - in `topic-completion-loop`, return updated batch-state fields so the outer main agent can continue in the same
@@ -59,7 +64,7 @@ Typical triggers:
    - do not return a final blocked closeout for ordinary fixable validation failures until self-repair has been
      attempted, or until the worker can clearly explain why repair is unsafe, out of scope, or blocked by an authority
      conflict
-10. When the current task is being orchestrated by `graft-multi-agent-loop`, it may receive bounded checkpoint requests
+11. When the current task is being orchestrated by `graft-multi-agent-loop`, it may receive bounded checkpoint requests
     from the outer main agent:
 
 - treat checkpoint interrupts as health checks only
@@ -72,9 +77,9 @@ Typical triggers:
 - after replying to a checkpoint with `can_continue=true`, expect the same round to continue under the current worker;
   do not treat the checkpoint reply as permission to stop before emitting the required final closeout
 
-11. If a delegated round cannot safely emit the required closeout, stop and return a clearly blocked state to the main
+12. If a delegated round cannot safely emit the required closeout, stop and return a clearly blocked state to the main
     agent instead of silently continuing outside the loop contract.
-12. When this wrapper is running under `graft-multi-agent-loop`, it owns only the delegated round:
+13. When this wrapper is running under `graft-multi-agent-loop`, it owns only the delegated round:
 
 - it must not assume the outer loop orchestrator will finish the implementation locally
 - it must return a usable closeout or an explicit blocked state for the current round

@@ -87,6 +87,8 @@ Typical triggers:
      batch-state expectations, allowed scopes, validation expectations, health-check rules, and required closeout
      format
    - require the worker round to run the slice through `$graft-multi-agent-task`
+   - require each implementation Phase or batch to run `$graft-commit` after successful validation and before the next
+     Phase or batch starts, unless validation, ownership, mixed-worktree, or scoped-staging rules block the commit
    - use an `explorer` subagent instead of a `worker` only when the round is genuinely read-only
    - allow `graft-multi-agent-batch` only inside the delegated round when that round itself benefits from parallel
      subagent work; inside loop rounds, default sidecars to read-only `explorer` subagents unless a bounded write
@@ -103,6 +105,8 @@ Typical triggers:
    - after an accepted worker closeout, the outer main agent must:
      - verify owned scope stayed bounded
      - verify validation and commit results for the current batch
+     - refuse to dispatch the next implementation batch when a successful validated batch has uncommitted owned
+       changes, unless the worker reported a concrete validation or ownership blocker under `$graft-commit`
      - update `completed_batches`
      - update `pending_batches`
      - update topic recovery materials such as trace and todos when the loop owns them
