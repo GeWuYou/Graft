@@ -197,3 +197,60 @@
   "closeout_status": "active"
 }
 ```
+
+### Phase 5 Polish, Validation, Governance Closeout
+
+- Completed `phase-5-polish-validation-governance-closeout` as the terminal bounded loop round.
+- Startup receipt:
+  - governance source: root `AGENTS.md`
+  - task class: `cross-boundary`
+  - recovery source: `parent topic`
+  - authority summary: `ai-plan/design/容器管理设计.md` + `openapi/**` + `server/modules/container/**` +
+    `web/src/modules/container/**` + shared management table components
+- Final acceptance review:
+  - capability name remains `容器管理`; Docker appears only as runtime adapter/config information
+  - default table columns include status, container, image, ports, IP/network, resources, runtime status/health, created
+    time, and stable actions
+  - `started_at` and `restart_policy` remain optional columns
+  - refresh exists only in the TableCard toolbar
+  - `ManagementTablePagination`, column settings, density, and internal table horizontal scroll policy are applied
+  - Detail and Logs Drawers are user-triggered and do not preload logs or raw inspect
+  - backend/OpenAPI list fields, pagination, action availability, dangerous action gate, audit, system config, and i18n
+    remain aligned
+  - remove/delete and batch operations are explicitly deferred because the design authority excludes delete from MVP
+- Browser evidence:
+  - `.ai/artifacts/browser/container-page-width-check/summary.json`
+  - `.ai/artifacts/browser/container-page-width-check/width-metrics.json`
+  - 1920 viewport metrics show `html.scrollWidth=1920`, `html.clientWidth=1920`, `body.scrollWidth=1920`,
+    `body.clientWidth=1920`, and `hasPageHorizontalScroll=false`
+  - the table host uses internal scroll mode when needed
+- Governance updates:
+  - updated `ai-plan/design/容器管理设计.md` to match the final implementation and deferrals
+  - removed active topic entry from `ai-plan/public/README.md`
+  - deleted `ai-plan/dolist/container-management-console-redesign-plan.md`
+  - archived this topic under `ai-plan/public/archive/container-management-console-redesign/`
+- Final validation:
+  - `git diff --check`
+  - `cd server && go run ./cmd/graft validate backend`
+  - `cd web && bun run check`
+  - browser evidence commands above
+
+## Terminal Loop Batch State
+
+```json
+{
+  "loop_mode": "topic-completion-loop",
+  "completed_batches": [
+    "phase-0-planning-topic-persistence",
+    "phase-1-wide-screen-list-convergence",
+    "phase-2-detail-logs-drawers",
+    "phase-3-backend-openapi-fields-pagination",
+    "phase-4-controlled-operations-closure",
+    "phase-5-polish-validation-governance-closeout"
+  ],
+  "pending_batches": [],
+  "current_batch": "phase-5-polish-validation-governance-closeout",
+  "next_batch": null,
+  "closeout_status": "archive-ready"
+}
+```

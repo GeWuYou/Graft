@@ -3,10 +3,10 @@
 ## Current Status Summary
 
 - Topic goal: reshape the existing container management page into a usable operations-console list experience.
-- Status: `active`.
+- Status: `archive-ready`.
 - Task class: `cross-boundary`.
 - Canonical design authority: `ai-plan/design/容器管理设计.md`.
-- Temporary implementation checklist: `ai-plan/dolist/container-management-console-redesign-plan.md`.
+- Temporary implementation checklist: deleted at final closeout after design authority was updated.
 - This topic starts from the already widened page layout; do not treat page width as the primary solution.
 
 ## Recovery Receipt
@@ -21,8 +21,8 @@
 Allowed scopes:
 
 - `ai-plan/design/容器管理设计.md`
-- `ai-plan/dolist/container-management-console-redesign-plan.md`
-- `ai-plan/public/container-management-console-redesign/**`
+- `ai-plan/dolist/container-management-console-redesign-plan.md` (deleted during final closeout)
+- `ai-plan/public/archive/container-management-console-redesign/**`
 - `ai-plan/public/README.md`
 - `openapi/**`
 - `server/modules/container/**`
@@ -67,7 +67,10 @@ Do not expand into:
   response i18n are aligned across backend, OpenAPI consumer, and web UI.
 - Remove/delete and batch operations remain deferred because deletion is outside the current MVP design authority and
   was not safe to introduce end-to-end in this bounded batch.
-- Next batch: `phase-5-polish-validation-governance-closeout`.
+- Phase 5 final governance closeout is complete.
+- Browser evidence for the 1920-wide no page/body horizontal-scroll check was captured under
+  `.ai/artifacts/browser/container-page-width-check/`.
+- This topic now lives under `ai-plan/public/archive/container-management-console-redesign/`.
 
 ## Acceptance Conditions
 
@@ -81,7 +84,7 @@ Do not expand into:
 - Detail/log entry points remain usable and do not preload logs or raw inspect data.
 - Backend/OpenAPI changes stay authority-first and do not rely on frontend compatibility patches.
 - Permissions, dangerous action gates, audit, system config, and i18n stay aligned with repository governance.
-- Final closeout updates `ai-plan/design/容器管理设计.md`, archives this topic, and deletes the temporary dolist file.
+- Final closeout updated `ai-plan/design/容器管理设计.md`, archived this topic, and deleted the temporary dolist file.
 
 ## Validation Targets
 

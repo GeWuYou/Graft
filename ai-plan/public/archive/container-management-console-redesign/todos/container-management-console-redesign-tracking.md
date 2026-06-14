@@ -48,7 +48,11 @@ experience, then close backend/OpenAPI fields, controlled operations, validation
   OpenAPI action-response message fields, frontend disabled action state, confirmations, and i18n aligned.
 - Remove/delete and batch operations remain deferred because the current design authority excludes delete from MVP and
   a full permission/gate/audit/OpenAPI/UI/test chain would exceed this bounded batch.
-- Next batch: `phase-5-polish-validation-governance-closeout`.
+- Phase 5 final governance closeout is complete.
+- Browser evidence for the 1920-wide no body/page horizontal-scroll check was captured under
+  `.ai/artifacts/browser/container-page-width-check/`.
+- `ai-plan/design/容器管理设计.md` now reflects the final implementation and defers remove / batch operations.
+- The active topic is ready for archive under `ai-plan/public/archive/container-management-console-redesign/`.
 
 ## Task Checklist
 
@@ -83,16 +87,16 @@ experience, then close backend/OpenAPI fields, controlled operations, validation
   - [x] Audit for all write operations.
   - [x] Confirm dialogs; batch operations deferred with remove/delete.
   - [x] Error codes and i18n keys.
-- [ ] Phase 5: experience polish and governance closeout.
-  - [ ] Auto-refresh polish.
-  - [ ] Stats refresh behavior.
-  - [ ] Column preference persistence.
-  - [ ] Runtime extension copy and field names.
-  - [ ] Final validation.
-  - [ ] Browser evidence under `.ai/artifacts/browser/container-page-width-check` or equivalent.
-  - [ ] Update `ai-plan/design/容器管理设计.md`.
-  - [ ] Archive this topic.
-  - [ ] Delete `ai-plan/dolist/container-management-console-redesign-plan.md`.
+- [x] Phase 5: experience polish and governance closeout.
+  - [x] Auto-refresh polish.
+  - [x] Stats refresh behavior documented as unavailable on the list path unless a low-cost runtime source exists.
+  - [x] Column preference persistence.
+  - [x] Runtime extension copy and field names.
+  - [x] Final validation.
+  - [x] Browser evidence under `.ai/artifacts/browser/container-page-width-check`.
+  - [x] Update `ai-plan/design/容器管理设计.md`.
+  - [x] Archive this topic.
+  - [x] Delete `ai-plan/dolist/container-management-console-redesign-plan.md`.
 
 ## Batch State
 
@@ -106,11 +110,9 @@ experience, then close backend/OpenAPI fields, controlled operations, validation
     "phase-3-backend-openapi-fields-pagination",
     "phase-4-controlled-operations-closure"
   ],
-  "pending_batches": [
-    "phase-5-polish-validation-governance-closeout"
-  ],
-  "current_batch": null,
-  "next_batch": "phase-5-polish-validation-governance-closeout",
-  "closeout_status": "active"
+  "pending_batches": [],
+  "current_batch": "phase-5-polish-validation-governance-closeout",
+  "next_batch": null,
+  "closeout_status": "archive-ready"
 }
 ```
