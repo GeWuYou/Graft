@@ -51,6 +51,24 @@
 - Phase 3 验证通过：`cd server && go test ./modules/container/...`、
   `cd server && go test ./internal/contract/openapi/... ./modules/container/...`、
   `cd server && go run ./cmd/graft validate backend --stage lint`、`git diff --check`。
+- Phase 4 新增 `web/src/modules/container` 前端模块，采用 `list-form-detail` 页面类型，注册 bootstrap route 到
+  `/ops/containers`，页面语义保持 `运维管理 -> 容器管理`。
+- Phase 4 API 层从 `@/contracts/openapi/generated/schema` 提取 OpenAPI operation 类型，未手写第二套 DTO 或 runtime client。
+- Phase 4 页面实现容器列表、status/keyword filters、refresh、状态 Tag、详情 Drawer、日志 Drawer（tail/since/timestamps/stdout/stderr、
+  refresh、copy）和 start/stop/restart Popconfirm 高危确认。
+- Phase 4 表格列覆盖 status、name、image、ports、created/started time、restart policy 和 detail/logs/start/stop/restart 操作；
+  未展示 CPU/memory 空列。
+- Phase 4 接入 `v-permission` 语义使用 Phase 2 `ops.container.*` 权限；未新增 `ops.docker` 或前端私有授权语义。
+- Phase 4 补齐 RBAC permission catalog 与 system-config ops/container locale keys；前端可见 copy 位于模块/既有 locale 边界。
+- Phase 4 发现 `web` i18n 完成态校验会扫描 `server/modules/container/config.go`，其本地 helper 字段名
+  `title` / `description` 被识别为 fallback-only copy。已做窄范围 backend authority repair：改为 `fallbackTitle` /
+  `fallbackDescription`，不改变注册的 `TitleKey`、`DescriptionKey`、配置 key 或 runtime API。
+- Phase 4 TDesign MCP preflight 使用 `vue-next` 查询组件列表、Table、Tag、Drawer、Dialog、Popconfirm、InputNumber、Select、Button、
+  Space、Tooltip、Form、Input、Empty、Descriptions、Alert、Loading、Checkbox 文档，并查询 Table、Drawer、Dialog、Form、Select、
+  Popconfirm DOM 结构。
+- Phase 4 验证通过：`cd web && bun run check`、`cd server && go test ./modules/container/...`、
+  `cd server && go run ./cmd/graft validate backend --stage lint`、`git diff --check`。
+- Phase 4 未启动浏览器 dev server 做浏览器 QA；完成态验证以 `bun run check` 的 typecheck/governance/lint/style/test/build 为准。
 
 ## Loop Batch State
 
@@ -61,14 +79,14 @@
     "phase-0-design-topic-persistence",
     "phase-1-openapi-contract-source",
     "phase-2-server-module-foundation",
-    "phase-3-server-runtime-api-audit"
+    "phase-3-server-runtime-api-audit",
+    "phase-4-web-container-management-ui"
   ],
   "pending_batches": [
-    "phase-4-web-container-management-ui",
     "phase-5-validation-governance-closeout"
   ],
-  "current_batch": "phase-3-server-runtime-api-audit",
-  "next_batch": "phase-4-web-container-management-ui",
+  "current_batch": "phase-4-web-container-management-ui",
+  "next_batch": "phase-5-validation-governance-closeout",
   "closeout_status": "active"
 }
 ```

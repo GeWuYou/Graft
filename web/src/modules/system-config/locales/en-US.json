@@ -273,5 +273,14 @@
   "systemConfig.groups.notification.delivery": "Delivery",
   "systemConfig.groups.notification.delivery.description": "Control in-app delivery and fan-out limits.",
   "systemConfig.groups.notification.display": "Display",
-  "systemConfig.groups.notification.display.description": "Control Notification Center display defaults."
+  "systemConfig.groups.notification.display.description": "Control Notification Center display defaults.",
+  "systemConfig.domains.ops": "Operations",
+  "systemConfig.groups.ops.container.general": "Container Management",
+  "systemConfig.groups.ops.container.general.description": "Control the container management baseline.",
+  "systemConfig.groups.ops.container.runtime": "Runtime",
+  "systemConfig.groups.ops.container.runtime.description": "Control the local container runtime adapter.",
+  "systemConfig.groups.ops.container.logs": "Logs",
+  "systemConfig.groups.ops.container.logs.description": "Control bounded container log reads.",
+  "systemConfig.groups.ops.container.actions": "Dangerous Actions",
+  "systemConfig.groups.ops.container.actions.description": "Control container start, stop, and restart actions."
 }

@@ -64,21 +64,21 @@ func registerConfigDefinitions(registry *configregistry.Registry) error {
 func configDefinitions() []configregistry.Definition {
 	return []configregistry.Definition{
 		containerBooleanDefinition(containerDefinitionSpec{
-			key:          containercontract.ContainerEnabledConfig.String(),
-			group:        containerConfigGeneralGroup,
-			title:        "Container management enabled",
-			description:  "Whether container management APIs and UI should be enabled.",
-			defaultValue: mustRawJSON(defaultContainerEnabled),
+			key:                 containercontract.ContainerEnabledConfig.String(),
+			group:               containerConfigGeneralGroup,
+			fallbackTitle:       "Container management enabled",
+			fallbackDescription: "Whether container management APIs and UI should be enabled.",
+			defaultValue:        mustRawJSON(defaultContainerEnabled),
 		}),
 		containerRuntimeDefinition(),
 		containerEndpointDefinition(),
 		containerIntegerDefinition(containerIntegerDefinitionSpec{
 			containerDefinitionSpec: containerDefinitionSpec{
-				key:          containercontract.ContainerLogsDefaultTailConfig.String(),
-				group:        containerConfigLogsGroup,
-				title:        "Default log tail",
-				description:  "Default number of log lines returned by container log reads.",
-				defaultValue: mustRawJSON(defaultContainerLogsDefaultTail),
+				key:                 containercontract.ContainerLogsDefaultTailConfig.String(),
+				group:               containerConfigLogsGroup,
+				fallbackTitle:       "Default log tail",
+				fallbackDescription: "Default number of log lines returned by container log reads.",
+				defaultValue:        mustRawJSON(defaultContainerLogsDefaultTail),
 			},
 			defaultNumber: defaultContainerLogsDefaultTail,
 			minimum:       1,
@@ -86,60 +86,60 @@ func configDefinitions() []configregistry.Definition {
 		}),
 		containerIntegerDefinition(containerIntegerDefinitionSpec{
 			containerDefinitionSpec: containerDefinitionSpec{
-				key:          containercontract.ContainerLogsMaxTailConfig.String(),
-				group:        containerConfigLogsGroup,
-				title:        "Maximum log tail",
-				description:  "Maximum number of log lines allowed for container log reads.",
-				defaultValue: mustRawJSON(defaultContainerLogsMaxTail),
+				key:                 containercontract.ContainerLogsMaxTailConfig.String(),
+				group:               containerConfigLogsGroup,
+				fallbackTitle:       "Maximum log tail",
+				fallbackDescription: "Maximum number of log lines allowed for container log reads.",
+				defaultValue:        mustRawJSON(defaultContainerLogsMaxTail),
 			},
 			defaultNumber: defaultContainerLogsMaxTail,
 			minimum:       defaultContainerLogsDefaultTail,
 			maximum:       defaultContainerLogsMaxTail,
 		}),
 		containerBooleanDefinition(containerDefinitionSpec{
-			key:          containercontract.ContainerDangerousActionsEnabledConfig.String(),
-			group:        containerConfigActionsGroup,
-			title:        "Dangerous actions enabled",
-			description:  "Whether start, stop, and restart actions are enabled.",
-			defaultValue: mustRawJSON(defaultContainerDangerousActionsEnabled),
+			key:                 containercontract.ContainerDangerousActionsEnabledConfig.String(),
+			group:               containerConfigActionsGroup,
+			fallbackTitle:       "Dangerous actions enabled",
+			fallbackDescription: "Whether start, stop, and restart actions are enabled.",
+			defaultValue:        mustRawJSON(defaultContainerDangerousActionsEnabled),
 		}),
 	}
 }
 
 func containerRuntimeDefinition() configregistry.Definition {
 	return baseContainerDefinition(containerDefinitionSpec{
-		key:          containercontract.ContainerRuntimeConfig.String(),
-		group:        containerConfigRuntimeGroup,
-		title:        "Container runtime",
-		description:  "Runtime adapter used by container management.",
-		valueType:    configregistry.ValueTypeString,
-		defaultValue: mustRawJSON(defaultContainerRuntime),
-		schema:       containerRuntimeSchema(),
+		key:                 containercontract.ContainerRuntimeConfig.String(),
+		group:               containerConfigRuntimeGroup,
+		fallbackTitle:       "Container runtime",
+		fallbackDescription: "Runtime adapter used by container management.",
+		valueType:           configregistry.ValueTypeString,
+		defaultValue:        mustRawJSON(defaultContainerRuntime),
+		schema:              containerRuntimeSchema(),
 	})
 }
 
 func containerEndpointDefinition() configregistry.Definition {
 	definition := baseContainerDefinition(containerDefinitionSpec{
-		key:          containercontract.ContainerDockerEndpointConfig.String(),
-		group:        containerConfigRuntimeGroup,
-		title:        "Container runtime endpoint",
-		description:  "Local runtime endpoint used by the first container adapter.",
-		valueType:    configregistry.ValueTypeString,
-		defaultValue: mustRawJSON(defaultContainerDockerEndpoint),
-		schema:       containerStringSchema(containercontract.ContainerDockerEndpointConfig.String(), 1, maxDockerEndpointLength),
+		key:                 containercontract.ContainerDockerEndpointConfig.String(),
+		group:               containerConfigRuntimeGroup,
+		fallbackTitle:       "Container runtime endpoint",
+		fallbackDescription: "Local runtime endpoint used by the first container adapter.",
+		valueType:           configregistry.ValueTypeString,
+		defaultValue:        mustRawJSON(defaultContainerDockerEndpoint),
+		schema:              containerStringSchema(containercontract.ContainerDockerEndpointConfig.String(), 1, maxDockerEndpointLength),
 	})
 	definition.RestartRequired = true
 	return definition
 }
 
 type containerDefinitionSpec struct {
-	key          string
-	group        string
-	title        string
-	description  string
-	valueType    configregistry.ValueType
-	defaultValue json.RawMessage
-	schema       json.RawMessage
+	key                 string
+	group               string
+	fallbackTitle       string
+	fallbackDescription string
+	valueType           configregistry.ValueType
+	defaultValue        json.RawMessage
+	schema              json.RawMessage
 }
 
 type containerIntegerDefinitionSpec struct {
@@ -175,9 +175,9 @@ func baseContainerDefinition(spec containerDefinitionSpec) configregistry.Defini
 		GroupLabel:          metadata.label,
 		GroupDescription:    metadata.description,
 		GroupDescriptionKey: metadata.descriptionKey,
-		Title:               spec.title,
+		Title:               spec.fallbackTitle,
 		TitleKey:            containerConfigTitleKey(spec.key),
-		Description:         spec.description,
+		Description:         spec.fallbackDescription,
 		DescriptionKey:      containerConfigDescriptionKey(spec.key),
 		Tags:                []string{"ops", "container", spec.group},
 		Type:                spec.valueType,

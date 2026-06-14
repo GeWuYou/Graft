@@ -41,9 +41,11 @@ Container Management MVP
   `ops.container.*` 权限、容器错误/message key、六个系统配置定义，并接入 compile-time module registry。
 - Phase 3 已完成：新增后端容器 runtime/service/route API、`DockerRuntime` adapter、权限保护、错误映射、日志 guardrail
   和 start/stop/restart 审计事件。
+- Phase 4 已完成：新增 `web/src/modules/container` 前端模块，接入 `运维管理 -> 容器管理` bootstrap route、OpenAPI
+  schema 类型消费、容器列表筛选、详情 Drawer、日志 Drawer 和 start/stop/restart 高危确认。
 - 当前分支：`feat/container-management-mvp`。
-- 下一批次：Phase 4 前端容器列表、详情 Drawer、日志 Drawer/Dialog、高危确认。
-- 下一批次不得修改后端 runtime/API，除非发现 OpenAPI 或后端 authority 阻断前端消费。
+- 下一批次：Phase 5 测试、i18n、治理收尾、归档准备。
+- 下一批次不得扩展容器业务功能；只做完成态验证、治理核对、恢复文档收口和必要的归档准备。
 
 ## Task Checklist
 
@@ -51,7 +53,7 @@ Container Management MVP
 - [x] Phase 1：OpenAPI 与 contract source
 - [x] Phase 2：后端模块骨架、菜单、权限、i18n、系统配置定义
 - [x] Phase 3：后端 `DockerRuntime` adapter、API、权限、错误映射、审计
-- [ ] Phase 4：前端容器列表、详情 Drawer、日志 Drawer/Dialog、高危确认
+- [x] Phase 4：前端容器列表、详情 Drawer、日志 Drawer/Dialog、高危确认
 - [ ] Phase 5：测试、i18n、治理收尾、归档准备
 
 ## Risks
@@ -70,12 +72,13 @@ Container Management MVP
 
 ## Last Validation
 
-- Phase 3 修改 `server/modules/container/**`、`server/go.mod`、`server/go.sum` 和 public recovery 文档。
+- Phase 4 修改 `web/src/modules/container/**`、必要的 `web` locale catalog、`server/modules/container/config.go` i18n
+  authority lint 命名修复和 public recovery 文档。
 - 直接验证：
+  - `cd web && bun run check`
   - `cd server && go test ./modules/container/...`
-  - `cd server && go test ./internal/contract/openapi/... ./modules/container/...`
   - `cd server && go run ./cmd/graft validate backend --stage lint`
   - `git diff --check`
-- Phase 3 未运行 web 完成态校验；本批次未修改 `web/**` 或 OpenAPI source。
+- Phase 4 未运行浏览器 QA；当前验收以 web 完成态 entrypoint、focused module tests 和 build 为准。
 - 命名约束：产品、权限、菜单、OpenAPI route 常量保持 `container` / `ops.container` 语义；`docker` 仅出现在
   `DockerRuntime` adapter、官方 SDK dependency 和 `ops.container.docker.endpoint` 配置键语义。

@@ -352,6 +352,30 @@
         "display": "读取审计日志",
         "description": "允许查看审计概览与审计日志。"
       },
+      "containerView": {
+        "display": "查看容器",
+        "description": "允许查看容器管理列表。"
+      },
+      "containerDetail": {
+        "display": "查看容器详情",
+        "description": "允许读取容器详情快照。"
+      },
+      "containerLogs": {
+        "display": "查看容器日志",
+        "description": "允许读取有界容器日志。"
+      },
+      "containerStart": {
+        "display": "启动容器",
+        "description": "允许在启用高危操作后启动已停止容器。"
+      },
+      "containerStop": {
+        "display": "停止容器",
+        "description": "允许在启用高危操作后停止运行中容器。"
+      },
+      "containerRestart": {
+        "display": "重启容器",
+        "description": "允许在启用高危操作后重启容器。"
+      },
       "notificationView": {
         "display": "查看通知",
         "description": "允许读取当前用户通知和未读数量。"

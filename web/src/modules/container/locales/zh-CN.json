@@ -1,0 +1,127 @@
+{
+  "menu": {
+    "ops": {
+      "title": "运维管理",
+      "container": {
+        "title": "容器管理"
+      }
+    }
+  },
+  "container": {
+    "route": {
+      "list": {
+        "title": "运维管理 - 容器管理",
+        "breadcrumb": "容器管理"
+      }
+    },
+    "list": {
+      "eyebrow": "运维管理",
+      "title": "容器管理",
+      "description": "查看本机容器运行时中的容器状态、详情和有界日志，并执行受控启停操作。",
+      "refresh": "刷新",
+      "retry": "重试",
+      "loadFailed": "容器列表加载失败。",
+      "runtimeLabel": "运行时",
+      "runtimeStatus": "状态",
+      "runtimeEndpoint": "Endpoint",
+      "runtimeUnavailable": "运行时不可用",
+      "runtimeVersion": "版本",
+      "runtimeContainers": "{running}/{total} 运行中",
+      "tableSummary": "共 {count} 个容器",
+      "tableHint": "数据来自当前配置的容器运行时。",
+      "columnSettings": "列设置",
+      "emptyTitle": "暂无容器",
+      "emptyDescription": "当前容器运行时未返回容器。",
+      "emptyFilteredDescription": "没有符合筛选条件的容器。",
+      "clearFilters": "清除筛选",
+      "copySuccess": "日志已复制。",
+      "copyError": "日志复制失败。",
+      "actionSuccess": "容器操作已提交。",
+      "actionFailed": "容器操作失败。",
+      "filters": {
+        "searchPlaceholder": "搜索名称、镜像、ID 或端口",
+        "status": "容器状态",
+        "allStatuses": "全部状态",
+        "query": "查询",
+        "reset": "重置"
+      },
+      "columns": {
+        "status": "状态",
+        "name": "容器",
+        "image": "镜像",
+        "ports": "端口",
+        "createdAt": "创建时间",
+        "startedAt": "启动时间",
+        "restartPolicy": "重启策略",
+        "operation": "操作"
+      },
+      "states": {
+        "created": "已创建",
+        "running": "运行中",
+        "paused": "已暂停",
+        "restarting": "重启中",
+        "removing": "移除中",
+        "exited": "已退出",
+        "dead": "异常",
+        "unknown": "未知"
+      },
+      "actions": {
+        "detail": "详情",
+        "logs": "日志",
+        "start": "启动",
+        "stop": "停止",
+        "restart": "重启",
+        "confirmStart": "确认启动该容器？",
+        "confirmStop": "确认停止该容器？",
+        "confirmRestart": "确认重启该容器？",
+        "confirm": "确认",
+        "cancel": "取消"
+      },
+      "detail": {
+        "title": "容器详情",
+        "identity": "基础信息",
+        "runtime": "运行时",
+        "mounts": "挂载",
+        "networks": "网络",
+        "command": "命令",
+        "entrypoint": "入口",
+        "workingDir": "工作目录",
+        "inspectUpdatedAt": "详情更新时间",
+        "mountEmpty": "暂无挂载。",
+        "networkEmpty": "暂无网络信息。",
+        "loadFailed": "容器详情加载失败。"
+      },
+      "logs": {
+        "title": "容器日志",
+        "tail": "行数",
+        "since": "起始时间或时长",
+        "sincePlaceholder": "例如 10m、1h 或 RFC3339",
+        "timestamps": "时间戳",
+        "stdout": "stdout",
+        "stderr": "stderr",
+        "refresh": "刷新日志",
+        "copy": "复制",
+        "empty": "暂无日志。",
+        "truncated": "日志已按当前上限截断。",
+        "loadFailed": "容器日志加载失败。"
+      },
+      "fields": {
+        "id": "ID",
+        "name": "名称",
+        "runtime": "运行时",
+        "image": "镜像",
+        "imageId": "镜像 ID",
+        "status": "状态",
+        "state": "状态码",
+        "restartPolicy": "重启策略",
+        "createdAt": "创建时间",
+        "startedAt": "启动时间",
+        "endpoint": "Endpoint",
+        "apiVersion": "API 版本",
+        "serverVersion": "服务端版本",
+        "operatingSystem": "操作系统",
+        "architecture": "架构"
+      }
+    }
+  }
+}

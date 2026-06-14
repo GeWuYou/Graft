@@ -1,0 +1,127 @@
+{
+  "menu": {
+    "ops": {
+      "title": "Operations",
+      "container": {
+        "title": "Container Management"
+      }
+    }
+  },
+  "container": {
+    "route": {
+      "list": {
+        "title": "Operations - Container Management",
+        "breadcrumb": "Container Management"
+      }
+    },
+    "list": {
+      "eyebrow": "Operations",
+      "title": "Container Management",
+      "description": "Review Local Container Runtime State, Details, and Bounded Logs, with Controlled Start and Stop Actions.",
+      "refresh": "Refresh",
+      "retry": "Retry",
+      "loadFailed": "Container List Could Not Be Loaded.",
+      "runtimeLabel": "Runtime",
+      "runtimeStatus": "Status",
+      "runtimeEndpoint": "Endpoint",
+      "runtimeUnavailable": "Runtime Unavailable",
+      "runtimeVersion": "Version",
+      "runtimeContainers": "{running}/{total} Running",
+      "tableSummary": "{count} Containers",
+      "tableHint": "Data Comes from the Configured Container Runtime.",
+      "columnSettings": "Column Settings",
+      "emptyTitle": "No Containers",
+      "emptyDescription": "The Current Container Runtime Returned No Containers.",
+      "emptyFilteredDescription": "No Containers Match the Current Filters.",
+      "clearFilters": "Clear Filters",
+      "copySuccess": "Logs Copied.",
+      "copyError": "Logs Could Not Be Copied.",
+      "actionSuccess": "Container Action Submitted.",
+      "actionFailed": "Container Action Failed.",
+      "filters": {
+        "searchPlaceholder": "Search Name, Image, ID, or Port",
+        "status": "Container Status",
+        "allStatuses": "All Statuses",
+        "query": "Query",
+        "reset": "Reset"
+      },
+      "columns": {
+        "status": "Status",
+        "name": "Container",
+        "image": "Image",
+        "ports": "Ports",
+        "createdAt": "Created At",
+        "startedAt": "Started At",
+        "restartPolicy": "Restart Policy",
+        "operation": "Operation"
+      },
+      "states": {
+        "created": "Created",
+        "running": "Running",
+        "paused": "Paused",
+        "restarting": "Restarting",
+        "removing": "Removing",
+        "exited": "Exited",
+        "dead": "Dead",
+        "unknown": "Unknown"
+      },
+      "actions": {
+        "detail": "Detail",
+        "logs": "Logs",
+        "start": "Start",
+        "stop": "Stop",
+        "restart": "Restart",
+        "confirmStart": "Start This Container?",
+        "confirmStop": "Stop This Container?",
+        "confirmRestart": "Restart This Container?",
+        "confirm": "Confirm",
+        "cancel": "Cancel"
+      },
+      "detail": {
+        "title": "Container Detail",
+        "identity": "Basic Information",
+        "runtime": "Runtime",
+        "mounts": "Mounts",
+        "networks": "Networks",
+        "command": "Command",
+        "entrypoint": "Entrypoint",
+        "workingDir": "Working Directory",
+        "inspectUpdatedAt": "Detail Updated At",
+        "mountEmpty": "No Mounts.",
+        "networkEmpty": "No Network Information.",
+        "loadFailed": "Container Detail Could Not Be Loaded."
+      },
+      "logs": {
+        "title": "Container Logs",
+        "tail": "Lines",
+        "since": "Since",
+        "sincePlaceholder": "For Example 10m, 1h, or RFC3339",
+        "timestamps": "Timestamps",
+        "stdout": "Stdout",
+        "stderr": "Stderr",
+        "refresh": "Refresh Logs",
+        "copy": "Copy",
+        "empty": "No Logs.",
+        "truncated": "Logs Were Truncated by the Current Limit.",
+        "loadFailed": "Container Logs Could Not Be Loaded."
+      },
+      "fields": {
+        "id": "ID",
+        "name": "Name",
+        "runtime": "Runtime",
+        "image": "Image",
+        "imageId": "Image ID",
+        "status": "Status",
+        "state": "State",
+        "restartPolicy": "Restart Policy",
+        "createdAt": "Created At",
+        "startedAt": "Started At",
+        "endpoint": "Endpoint",
+        "apiVersion": "API Version",
+        "serverVersion": "Server Version",
+        "operatingSystem": "Operating System",
+        "architecture": "Architecture"
+      }
+    }
+  }
+}

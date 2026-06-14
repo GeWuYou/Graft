@@ -273,5 +273,14 @@
   "systemConfig.groups.notification.delivery": "投递",
   "systemConfig.groups.notification.delivery.description": "控制站内投递与批量 fan-out 限制。",
   "systemConfig.groups.notification.display": "展示",
-  "systemConfig.groups.notification.display.description": "控制通知中心的展示默认值。"
+  "systemConfig.groups.notification.display.description": "控制通知中心的展示默认值。",
+  "systemConfig.domains.ops": "运维管理",
+  "systemConfig.groups.ops.container.general": "容器管理",
+  "systemConfig.groups.ops.container.general.description": "控制容器管理能力的基础开关。",
+  "systemConfig.groups.ops.container.runtime": "运行时",
+  "systemConfig.groups.ops.container.runtime.description": "控制本地容器运行时适配器。",
+  "systemConfig.groups.ops.container.logs": "日志",
+  "systemConfig.groups.ops.container.logs.description": "控制容器日志读取上限。",
+  "systemConfig.groups.ops.container.actions": "高危操作",
+  "systemConfig.groups.ops.container.actions.description": "控制容器启停和重启操作。"
 }

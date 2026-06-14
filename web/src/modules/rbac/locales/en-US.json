@@ -352,6 +352,30 @@
         "display": "Read Audit Logs",
         "description": "Allows viewing the audit overview and audit logs."
       },
+      "containerView": {
+        "display": "View Containers",
+        "description": "Allows viewing the container management list."
+      },
+      "containerDetail": {
+        "display": "View Container Details",
+        "description": "Allows reading container detail snapshots."
+      },
+      "containerLogs": {
+        "display": "View Container Logs",
+        "description": "Allows reading bounded container logs."
+      },
+      "containerStart": {
+        "display": "Start Containers",
+        "description": "Allows starting stopped containers when dangerous actions are enabled."
+      },
+      "containerStop": {
+        "display": "Stop Containers",
+        "description": "Allows stopping running containers when dangerous actions are enabled."
+      },
+      "containerRestart": {
+        "display": "Restart Containers",
+        "description": "Allows restarting containers when dangerous actions are enabled."
+      },
       "notificationView": {
         "display": "View Notifications",
         "description": "Allows reading current-user notifications and unread counts."
