@@ -191,7 +191,11 @@
       "table": {
         "title": "Runtime Module List",
         "description": "Read-only view of the current process module registry.",
-        "note": "Read-only view. Module write operations are unavailable."
+        "note": "Read-only view. Module write operations are unavailable.",
+        "columnSettings": "Column settings",
+        "resetColumns": "Restore default columns",
+        "compactDensity": "Compact density",
+        "defaultDensity": "Default density"
       },
       "columns": {
         "moduleKey": "Module key",
@@ -199,6 +203,7 @@
         "registered": "Registered",
         "health": "Health",
         "dependencies": "Dependencies",
+        "resourceStatus": "Resource status",
         "migration": "Migrations",
         "schema": "Schema",
         "config": "Config",
@@ -226,7 +231,8 @@
         "config": "Config",
         "configStatus": "Status",
         "configDescription": "Description",
-        "diagnostics": "Diagnostics"
+        "diagnostics": "Diagnostics",
+        "rawJson": "Raw runtime JSON"
       },
       "values": {
         "yes": "Yes",

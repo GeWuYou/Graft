@@ -40,11 +40,16 @@ const translations = vi.hoisted(
     'monitor.moduleRuntime.table.title': 'Runtime Module List',
     'monitor.moduleRuntime.table.description': 'Read-only view of the current process module registry.',
     'monitor.moduleRuntime.table.note': 'Read-only view. Module write operations are unavailable.',
+    'monitor.moduleRuntime.table.columnSettings': 'Column settings',
+    'monitor.moduleRuntime.table.resetColumns': 'Restore default columns',
+    'monitor.moduleRuntime.table.compactDensity': 'Compact density',
+    'monitor.moduleRuntime.table.defaultDensity': 'Default density',
     'monitor.moduleRuntime.columns.moduleKey': 'Module key',
     'monitor.moduleRuntime.columns.enabled': 'Enabled',
     'monitor.moduleRuntime.columns.registered': 'Registered',
     'monitor.moduleRuntime.columns.health': 'Health',
     'monitor.moduleRuntime.columns.dependencies': 'Dependencies',
+    'monitor.moduleRuntime.columns.resourceStatus': 'Resource status',
     'monitor.moduleRuntime.columns.migration': 'Migrations',
     'monitor.moduleRuntime.columns.schema': 'Schema',
     'monitor.moduleRuntime.columns.config': 'Config',
@@ -71,6 +76,7 @@ const translations = vi.hoisted(
     'monitor.moduleRuntime.detail.configStatus': 'Status',
     'monitor.moduleRuntime.detail.configDescription': 'Description',
     'monitor.moduleRuntime.detail.diagnostics': 'Diagnostics',
+    'monitor.moduleRuntime.detail.rawJson': 'Raw runtime JSON',
     'monitor.moduleRuntime.values.yes': 'Yes',
     'monitor.moduleRuntime.values.no': 'No',
     'monitor.moduleRuntime.values.none': 'None',
@@ -225,25 +231,41 @@ const tableStub = defineComponent({
       type: String,
       default: '',
     },
+    size: {
+      type: String,
+      default: 'medium',
+    },
+    tableContentWidth: {
+      type: String,
+      default: '',
+    },
   },
   setup(props, { slots }) {
     return () =>
-      h('div', { 'data-table-columns': JSON.stringify(props.columns) }, [
-        (props.data as Array<Record<string, unknown>>).map((row) =>
-          h(
-            'div',
-            { class: 'table-row' },
-            (props.columns as Array<{ colKey: string }>).map((column) =>
-              h(
-                'div',
-                { class: `table-cell-${column.colKey}` },
-                slots[column.colKey]?.({ row }) ?? String(row[column.colKey] ?? ''),
+      h(
+        'div',
+        {
+          'data-table-columns': JSON.stringify(props.columns),
+          'data-table-content-width': props.tableContentWidth,
+          'data-table-size': props.size,
+        },
+        [
+          (props.data as Array<Record<string, unknown>>).map((row) =>
+            h(
+              'div',
+              { class: 'table-row' },
+              (props.columns as Array<{ colKey: string }>).map((column) =>
+                h(
+                  'div',
+                  { class: `table-cell-${column.colKey}` },
+                  slots[column.colKey]?.({ row }) ?? String(row[column.colKey] ?? ''),
+                ),
               ),
             ),
           ),
-        ),
-        !(props.data as unknown[]).length ? props.empty : '',
-      ]);
+          !(props.data as unknown[]).length ? props.empty : '',
+        ],
+      );
   },
 });
 
@@ -264,22 +286,101 @@ const drawerStub = defineComponent({
   },
 });
 
+const columnDrawerStub = defineComponent({
+  name: 'AdvancedQueryColumnDrawerStub',
+  props: {
+    columns: {
+      type: Array,
+      default: () => [],
+    },
+    defaultSelectedKeys: {
+      type: Array,
+      default: () => [],
+    },
+    disabledKeys: {
+      type: Array,
+      default: () => [],
+    },
+    visible: {
+      type: Boolean,
+      default: false,
+    },
+    title: {
+      type: String,
+      default: '',
+    },
+  },
+  setup(props) {
+    return () =>
+      props.visible
+        ? h(
+            'aside',
+            {
+              'data-column-drawer': 'true',
+              'data-column-options': JSON.stringify(props.columns),
+              'data-default-selected-keys': JSON.stringify(props.defaultSelectedKeys),
+              'data-disabled-keys': JSON.stringify(props.disabledKeys),
+            },
+            props.title,
+          )
+        : null;
+  },
+});
+
+const popupStub = defineComponent({
+  name: 'TPopupStub',
+  setup(_props, { slots }) {
+    return () => h('span', [slots.default?.(), slots.content?.()]);
+  },
+});
+
+const tooltipStub = defineComponent({
+  name: 'TTooltipStub',
+  setup(_props, { slots }) {
+    return () => h('span', slots.default?.());
+  },
+});
+
+const collapseStub = defineComponent({
+  name: 'TCollapseStub',
+  setup(_props, { slots }) {
+    return () => h('div', slots.default?.());
+  },
+});
+
+const collapsePanelStub = defineComponent({
+  name: 'TCollapsePanelStub',
+  props: {
+    header: {
+      type: String,
+      default: '',
+    },
+  },
+  setup(props, { slots }) {
+    return () => h('section', { 'data-collapse-panel': 'true' }, [props.header, slots.default?.()]);
+  },
+});
+
 function mountModulesPage() {
   return mount(ModulesPage, {
     global: {
       stubs: {
         ServerStatusPageShell: shellStub,
+        AdvancedQueryColumnDrawer: columnDrawerStub,
         SectionCard: passthroughStub,
         't-alert': passthroughStub,
         't-button': buttonStub,
+        't-collapse': collapseStub,
+        't-collapse-panel': collapsePanelStub,
         't-descriptions': passthroughStub,
         't-descriptions-item': passthroughStub,
         't-drawer': drawerStub,
         't-empty': passthroughStub,
+        't-popup': popupStub,
         't-statistic': passthroughStub,
         't-table': tableStub,
         't-tag': passthroughStub,
-        RefreshIcon: true,
+        't-tooltip': tooltipStub,
       },
     },
   });
@@ -345,24 +446,32 @@ describe('monitor module runtime page', () => {
     expect(wrapper.text()).toContain('Module Runtime');
     expect(wrapper.text()).toContain('Needs attention');
     expect(wrapper.text()).toContain('Runtime Module List');
+    expect(wrapper.text()).toContain('Column settings');
+    expect(wrapper.find('button[aria-label="Compact density"]').exists()).toBe(true);
     expect(wrapper.text()).toContain('audit');
     expect(wrapper.text()).toContain('scheduler');
     expect(wrapper.text()).toContain('1 / 1 satisfied');
-    expect(wrapper.text()).toContain('1 dirs');
+    expect(wrapper.find('.table-cell-resource_status').text()).toContain('Migrations');
+    expect(wrapper.find('.table-cell-resource_status').text()).toContain('Schema');
+    expect(wrapper.find('.table-cell-resource_status').text()).toContain('Config');
     expect(wrapper.text()).toContain('Not required');
 
-    const columns = JSON.parse(wrapper.find('[data-table-columns]').attributes('data-table-columns') ?? '[]');
+    const table = wrapper.find('[data-table-columns]');
+    const columns = JSON.parse(table.attributes('data-table-columns') ?? '[]');
     expect(columns.map((column: { colKey: string }) => column.colKey)).toEqual([
       'module_key',
       'enabled',
       'registered',
       'health',
       'dependencies',
-      'migration',
-      'schema',
-      'config',
+      'resource_status',
       'operation',
     ]);
+    expect(table.attributes('data-table-size')).toBe('medium');
+    expect(table.attributes('data-table-content-width')).toBe('');
+    expect(columns.find((column: { colKey: string }) => column.colKey === 'module_key').minWidth).toBe(180);
+    expect(columns.find((column: { colKey: string }) => column.colKey === 'resource_status').minWidth).toBe(260);
+    expect(columns.find((column: { colKey: string }) => column.colKey === 'operation').fixed).toBe('right');
 
     await wrapper
       .findAll('button')
@@ -380,7 +489,42 @@ describe('monitor module runtime page', () => {
     expect(wrapper.find('[data-drawer="true"]').text()).toContain('Module-owned');
     expect(wrapper.find('[data-drawer="true"]').text()).toContain('boot');
     expect(wrapper.find('[data-drawer="true"]').text()).toContain('ok');
+    expect(wrapper.find('[data-drawer="true"]').text()).toContain('Raw runtime JSON');
+    expect(wrapper.find('[data-drawer="true"]').text()).toContain('"module_key": "audit"');
     expect(moduleRuntimeApiMocks.getModuleRuntimeDetail).toHaveBeenCalledWith('audit');
+  });
+
+  it('opens column settings with locked critical columns and toggles table density', async () => {
+    moduleRuntimeApiMocks.getModuleRuntimeSnapshot.mockResolvedValue(createSnapshot());
+
+    const wrapper = mountModulesPage();
+    await flushPromises();
+
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('Column settings'))
+      ?.trigger('click');
+
+    const drawer = wrapper.find('[data-column-drawer="true"]');
+    expect(drawer.exists()).toBe(true);
+    expect(JSON.parse(drawer.attributes('data-disabled-keys') ?? '[]')).toEqual(['module_key', 'health', 'operation']);
+    expect(JSON.parse(drawer.attributes('data-default-selected-keys') ?? '[]')).toEqual([
+      'module_key',
+      'enabled',
+      'registered',
+      'health',
+      'dependencies',
+      'resource_status',
+      'operation',
+    ]);
+    expect(JSON.parse(drawer.attributes('data-column-options') ?? '[]')).toEqual(
+      expect.arrayContaining([{ label: 'Resource status', value: 'resource_status' }]),
+    );
+
+    await wrapper.find('button[aria-label="Compact density"]').trigger('click');
+
+    expect(wrapper.find('[data-table-columns]').attributes('data-table-size')).toBe('small');
+    expect(wrapper.find('button[aria-label="Default density"]').exists()).toBe(true);
   });
 
   it('refreshes the snapshot on demand', async () => {
