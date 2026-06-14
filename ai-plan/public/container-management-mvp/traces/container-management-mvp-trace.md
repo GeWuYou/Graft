@@ -37,6 +37,20 @@
 - Phase 2 验证通过：`cd server && go generate ./internal/moduleregistry`、
   `cd server && go test ./modules/container/...`、`cd server && go test ./internal/moduleregistry/... ./modules/container/...`、
   `cd server && go run ./cmd/graft validate backend --stage lint`、`git diff --check`。
+- Phase 3 新增 `server/modules/container` runtime/service/route API，注册六个 `/ops/containers` 后端路由并通过
+  `httpx.RequirePermission` 使用 Phase 2 已注册的 MVP 权限。
+- Phase 3 新增 `DockerRuntime` adapter，使用官方 Docker Go SDK `github.com/docker/docker v28.5.2+incompatible`
+  访问本地 `unix:///var/run/docker.sock`；该依赖为 Apache-2.0 license，兼容仓库授权。
+- Phase 3 对 container id/name path 参数执行 `PathUnescape`，并拒绝空值、斜杠和控制字符。
+- Phase 3 日志读取支持 `tail`、`since`、`timestamps`、`stdout`、`stderr`，默认 tail 为 200，最大 2000。
+- Phase 3 详情和日志响应不暴露环境变量、secret、token、authorization header 或 raw Docker inspect payload。
+- Phase 3 在 service 层为 start/stop/restart 成功和失败发布 `moduleapi.AuditEvent`，复用 audit event path，
+  未新增单独操作日志表。
+- Phase 3 使用 `ops.container.dangerous_actions_enabled` 语义守住 start/stop/restart；当前后端配置读取仍使用模块默认值，
+  因 core 配置快照尚未提供任意系统配置 resolver，API 默认保持 disabled，未在模块内私自读取环境变量或扩展 resolver surface。
+- Phase 3 验证通过：`cd server && go test ./modules/container/...`、
+  `cd server && go test ./internal/contract/openapi/... ./modules/container/...`、
+  `cd server && go run ./cmd/graft validate backend --stage lint`、`git diff --check`。
 
 ## Loop Batch State
 
@@ -46,15 +60,15 @@
   "completed_batches": [
     "phase-0-design-topic-persistence",
     "phase-1-openapi-contract-source",
-    "phase-2-server-module-foundation"
+    "phase-2-server-module-foundation",
+    "phase-3-server-runtime-api-audit"
   ],
   "pending_batches": [
-    "phase-3-server-runtime-api-audit",
     "phase-4-web-container-management-ui",
     "phase-5-validation-governance-closeout"
   ],
-  "current_batch": "phase-2-server-module-foundation",
-  "next_batch": "phase-3-server-runtime-api-audit",
+  "current_batch": "phase-3-server-runtime-api-audit",
+  "next_batch": "phase-4-web-container-management-ui",
   "closeout_status": "active"
 }
 ```
