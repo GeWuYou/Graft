@@ -435,7 +435,8 @@ const handleDragend = (options: { currentIndex: number; targetIndex: number }) =
   flex-direction: column;
   gap: var(--td-comp-margin-xl);
   min-height: 0;
-  padding: var(--td-comp-paddingTB-xl) var(--td-comp-paddingLR-xl) 0;
+  overflow-x: clip;
+  padding: var(--td-comp-paddingTB-xl) var(--graft-page-side-padding) 0;
 }
 
 .t-layout[data-page-type] :deep(.tdesign-starter-content-layout__body) {

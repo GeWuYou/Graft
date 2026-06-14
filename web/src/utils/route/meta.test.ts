@@ -23,9 +23,12 @@ describe('route meta helpers', () => {
 
   it('derives shell surface from meta instead of path prefixes', () => {
     expect(resolvePageSurfaceType({ dashboard: true, pageKind: 'overview' })).toBe('overview-dashboard');
-    expect(resolvePageSurfaceType({ pageKind: 'list' })).toBe('list-form-detail');
-    expect(resolvePageSurfaceType({ pageKind: 'investigation' })).toBe('list-form-detail');
+    expect(resolvePageSurfaceType({ pageKind: 'overview' })).toBe('overview-dashboard');
+    expect(resolvePageSurfaceType({ pageKind: 'list' })).toBe('paged-table');
+    expect(resolvePageSurfaceType({ pageKind: 'detail' })).toBe('form-detail');
+    expect(resolvePageSurfaceType({ pageKind: 'investigation' })).toBe('form-detail');
     expect(resolvePageSurfaceType({ pageKind: 'runtime' })).toBe('shell');
+    expect(resolvePageSurfaceType()).toBe('shell');
   });
 
   it('normalizes string titles to localized payloads and renders locale fallbacks', () => {

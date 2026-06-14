@@ -17,13 +17,14 @@
 import { computed } from 'vue';
 
 import { prefix } from '@/config/global';
+import type { PageSurfaceType } from '@/utils/route/meta';
 
 import LFooter from './Footer.vue';
 
 const props = defineProps<{
   showFooter?: boolean;
   footerText?: string;
-  surface?: 'shell' | 'overview-dashboard' | 'list-form-detail';
+  surface?: PageSurfaceType;
 }>();
 
 const containerClasses = computed(() => [

@@ -21,6 +21,7 @@
   --graft-density-gap-28: 28px;
   --graft-density-gap-32: 32px;
   --graft-density-gap-48: 48px;
+  --graft-page-side-padding-mobile: var(--graft-density-gap-16);
   --graft-density-padding-xs: 8px;
   --graft-density-padding-sm: 10px;
   --graft-density-padding-md: 12px;
@@ -45,6 +46,7 @@
   --graft-page-shell-max-width: 1440px;
   --graft-page-overview-max-width: 1440px;
   --graft-page-management-max-width: 1440px;
+  --graft-page-form-detail-max-width: 1180px;
 }
 
 .app-shell[data-theme-mode='dark'] {
@@ -136,6 +138,7 @@
 
   &-content-layout {
     background: var(--graft-shell-content-bg);
+    overflow-x: clip;
     padding: var(--td-comp-paddingTB-xl) var(--graft-page-side-padding);
 
     &__body {
@@ -209,9 +212,16 @@
       --graft-page-max-width: var(--graft-page-overview-max-width);
     }
 
+    &__main--paged-table {
+      margin-inline: 0;
+      max-width: 100%;
+      width: 100%;
+    }
+
+    &__main--form-detail,
     &__main--list-form-detail {
-      --graft-page-width-ratio: 90vw;
-      --graft-page-max-width: var(--graft-page-management-max-width);
+      --graft-page-width-ratio: 88vw;
+      --graft-page-max-width: var(--graft-page-form-detail-max-width);
     }
   }
 
@@ -304,6 +314,18 @@
       min-width: 72px;
       transition: all 0.3s;
     }
+  }
+}
+
+@media (width <= 768px) {
+  :root {
+    --graft-page-side-padding: var(--graft-page-side-padding-mobile);
+    --graft-page-min-padding: var(--graft-page-side-padding-mobile);
+  }
+
+  .@{starter-prefix}-page-container__main {
+    max-width: 100%;
+    width: 100%;
   }
 }
 
