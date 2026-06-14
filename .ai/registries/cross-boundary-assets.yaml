@@ -1,5 +1,5 @@
 schema_version: 1
-updated_at: "2026-06-11"
+updated_at: "2026-06-14"
 assets:
   - name: "openapi-contracts"
     type: "cross-boundary-contract"
@@ -147,4 +147,24 @@ assets:
     related_assets:
       - "graft-shared-asset-reuse-skill"
     validation_commands:
+      - "python3 scripts/validate_shared_asset_registries.py"
+
+  - name: "graft-frontend-vibe-toolchain-plugin"
+    type: "governance-skill"
+    path: "plugins/graft-frontend-vibe-toolchain/.codex-plugin/plugin.json"
+    owner: "docs/automation + web governance"
+    purpose: "Repo-local Codex plugin that packages Graft frontend AI guidance for translating external UI examples into Vue 3, TDesign Vue Next, token/theme, i18n, and browser QA rules."
+    use_when:
+      - "A frontend task uses article-derived website-building skills, external UI examples, Figma/design inspiration, motion guidance, or browser QA prompts."
+      - "Evaluating whether a frontend AI skill pack should become Graft project-level guidance."
+    do_not_use_when:
+      - "Adding runtime frontend dependencies, changing web package baselines, or replacing DESIGN.md, web/AGENTS.md, TDesign MCP, or bun validation authority."
+    examples:
+      - "plugins/graft-frontend-vibe-toolchain/skills/graft-frontend-page-builder/SKILL.md"
+      - "plugins/graft-frontend-vibe-toolchain/skills/graft-frontend-browser-qa/SKILL.md"
+    related_assets:
+      - "graft-shared-asset-reuse-skill"
+      - "frontend-i18n-governance"
+    validation_commands:
+      - "python3 scripts/validate_ai_governance.py"
       - "python3 scripts/validate_shared_asset_registries.py"

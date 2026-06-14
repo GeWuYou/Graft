@@ -26,6 +26,7 @@
         <template #label>
           <t-dropdown
             trigger="context-menu"
+            :hide-after-item-click="true"
             :min-column-width="128"
             :popup-props="{
               overlayClassName: 'route-tabs-dropdown',
@@ -112,10 +113,12 @@
     </t-content>
     <t-dialog
       v-model:visible="closeAllDialogVisible"
+      attach="body"
       :header="t('layout.tagTabs.closeAll')"
       :body="t('layout.tagTabs.closeAllConfirm')"
       :cancel-btn="t('layout.tagTabs.cancel')"
       :confirm-btn="t('layout.tagTabs.closeAll')"
+      placement="center"
       theme="warning"
       @confirm="handleConfirmCloseAll"
       @cancel="handleCancelCloseAll"
@@ -152,6 +155,7 @@ const tabsRouterStore = useTabsRouterStore();
 const tabRouters = computed(() => tabsRouterStore.tabRouters.filter((route) => route.isAlive || route.isHome));
 const activeTabKeyForMenu = ref<string | null>('');
 const closeAllDialogVisible = ref(false);
+const pendingCloseAllDialog = ref(false);
 const activeTabKey = computed(() => tabsRouterStore.activeTabKey || route.path);
 const canReopenClosedTab = computed(() => tabsRouterStore.canReopenClosedTab);
 const hasClosableTabs = computed(() => tabRouters.value.some((route) => !route.isHome && !route.isPinned));
@@ -252,17 +256,33 @@ const handleCloseOther = (tabKey: string, routeIdx: number) => {
   handleOperationEffect('other', routeIdx);
 };
 
+// Defer until the dropdown has fully cleared; the guards only open the dialog
+// for a pending close-all request when no tab menu remains active.
+const openPendingCloseAllDialog = () => {
+  void nextTick(() => {
+    if (!pendingCloseAllDialog.value || activeTabKeyForMenu.value) {
+      return;
+    }
+
+    pendingCloseAllDialog.value = false;
+    closeAllDialogVisible.value = true;
+  });
+};
+
 const handleCloseAll = () => {
+  pendingCloseAllDialog.value = true;
   activeTabKeyForMenu.value = null;
-  closeAllDialogVisible.value = true;
+  openPendingCloseAllDialog();
 };
 
 const handleCancelCloseAll = () => {
+  pendingCloseAllDialog.value = false;
   closeAllDialogVisible.value = false;
   activeTabKeyForMenu.value = null;
 };
 
 const handleConfirmCloseAll = () => {
+  pendingCloseAllDialog.value = false;
   closeAllDialogVisible.value = false;
   tabsRouterStore.closeAllClosableTabs();
   const nextRoute =
@@ -347,8 +367,18 @@ const handleOperationEffect = (type: 'other' | 'ahead' | 'behind', routeIndex: n
   activeTabKeyForMenu.value = null;
 };
 const handleTabMenuClick = (visible: boolean, ctx: PopupVisibleChangeContext, tabKey: string) => {
-  if (ctx.trigger === 'document') activeTabKeyForMenu.value = null;
-  if (visible) activeTabKeyForMenu.value = tabKey;
+  if (visible) {
+    activeTabKeyForMenu.value = tabKey;
+    return;
+  }
+
+  if (activeTabKeyForMenu.value === tabKey || ctx.trigger === 'document') {
+    activeTabKeyForMenu.value = null;
+  }
+
+  if (pendingCloseAllDialog.value) {
+    openPendingCloseAllDialog();
+  }
 };
 
 const handleDragend = (options: { currentIndex: number; targetIndex: number }) => {

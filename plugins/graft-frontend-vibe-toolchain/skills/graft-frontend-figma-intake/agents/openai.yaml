@@ -1,0 +1,4 @@
+interface:
+  display_name: "Graft Frontend Figma Intake"
+  short_description: "Use Figma references under Graft authority"
+  default_prompt: "Use $graft-frontend-figma-intake to intake this Figma reference for Graft."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Graft Frontend Page Builder"
+  short_description: "Build Graft TDesign Vue pages"
+  default_prompt: "Use $graft-frontend-page-builder to implement this Graft admin page."

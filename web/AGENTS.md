@@ -271,6 +271,9 @@ UI 约束：
 - 新页面优先复用既有后台模式：页头、筛选区、表格、抽屉、弹窗、状态标签、操作列
 - `web/ai-libs/**` 只是 starter/demo 参考源，不是运行时依赖，也不是第二个前端真值
 - `ai-plan/design/graft-design-system/**` 是 Graft 风格参考模板目录，只作为设计参考和 AI 生成约束，不是运行时依赖
+- repo-local frontend plugin / skill pack 只能提供 AI guidance；采用外部 UI 示例时，必须翻译为 Graft 页面类型、
+  Vue SFC + TypeScript、TDesign Vue Next、token/theme、i18n 和浏览器 QA 规则，不得引入 React / shadcn /
+  Tailwind 运行基线、raw DOM widget、package 变更或隐藏验证路径
 - `tdesign-mcp-server` 只允许作为本机 Codex MCP 开发知识源存在，禁止写入 `web/package.json`、仓库脚本、CI、hooks 或任何运行时依赖
 - 只有在 TDesign MCP 当前不可用时，才允许退回官方文档；发生 fallback 时，closeout 必须显式记录 fallback 原因和受影响组件
 - 这里的“必须先查 MCP”属于前端治理和 closeout 审计要求，不要求引入依赖 MCP 实时可用性的 CI、hook 或仓库脚本硬门禁

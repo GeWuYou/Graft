@@ -1,0 +1,4 @@
+interface:
+  display_name: "Graft Frontend Skill Intake"
+  short_description: "Normalize external frontend skill requests"
+  default_prompt: "Use $graft-frontend-skill-intake to classify this frontend skill request for Graft."

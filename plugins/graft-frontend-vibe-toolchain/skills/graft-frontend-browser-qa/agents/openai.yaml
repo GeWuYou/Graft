@@ -1,0 +1,4 @@
+interface:
+  display_name: "Graft Frontend Browser QA"
+  short_description: "Verify Graft UI with browser checks"
+  default_prompt: "Use $graft-frontend-browser-qa to verify this Graft frontend change."

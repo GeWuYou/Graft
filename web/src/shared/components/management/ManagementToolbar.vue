@@ -18,10 +18,12 @@
 .management-toolbar__filters,
 .management-toolbar__actions {
   --graft-list-search-width: clamp(240px, 28vw, 320px);
+  --graft-list-select-width: clamp(160px, 18vw, 220px);
   --graft-query-search-width: clamp(360px, 36vw, 480px);
 
   display: flex;
   gap: var(--graft-density-gap-12);
+  min-width: 0;
 }
 
 .management-toolbar {
@@ -41,6 +43,7 @@
   align-items: center;
   flex: 1 1 auto;
   flex-wrap: wrap;
+  min-width: 0;
 }
 
 .management-toolbar__actions {
@@ -50,12 +53,21 @@
 
 .management-toolbar :deep(.management-list-search) {
   flex: 0 1 var(--graft-list-search-width);
+  min-width: min(100%, 220px);
   width: var(--graft-list-search-width);
 }
 
 .management-toolbar :deep(.management-query-search) {
   flex: 0 1 var(--graft-query-search-width);
+  min-width: min(100%, 280px);
   width: var(--graft-query-search-width);
+}
+
+.management-toolbar :deep(.management-toolbar__select),
+.management-toolbar :deep(.toolbar__select) {
+  flex: 0 1 var(--graft-list-select-width);
+  min-width: min(100%, 150px);
+  width: var(--graft-list-select-width);
 }
 
 @media (width <= 768px) {
@@ -69,7 +81,9 @@
   }
 
   .management-toolbar :deep(.management-list-search),
-  .management-toolbar :deep(.management-query-search) {
+  .management-toolbar :deep(.management-query-search),
+  .management-toolbar :deep(.management-toolbar__select),
+  .management-toolbar :deep(.toolbar__select) {
     flex-basis: 100%;
     max-width: none;
     width: 100%;

@@ -103,9 +103,13 @@ Rules:
 - Do: token-driven colors, compact information density, explicit state labels, reusable page skeletons.
 - Do: keep `web/ai-libs/tdesign-vue-next-starter` as reference only.
 - Do: declare page type before coding and reuse the registered master or extension rules.
+- Do: translate external article or skill-pack examples into Graft page types, Vue SFC + TypeScript, TDesign Vue Next
+  components, token/theme behavior, i18n ownership, and browser QA evidence.
 - Don’t: introduce a second UI baseline, mock/demo routing, or marketing-style layouts.
 - Don’t: turn a backend page header into a marketing hero block.
 - Don’t: guess TDesign DOM structure without checking docs or MCP.
+- Don’t: copy React, shadcn, Tailwind, raw DOM widgets, package changes, or hidden validation paths from external
+  examples into `web`.
 
 ## Agent Prompt Guide
 

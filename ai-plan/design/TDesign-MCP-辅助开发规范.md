@@ -171,6 +171,14 @@ MCP 查询结果必须服从本仓库的前端架构规则：
 - 不因 MCP 示例引入额外 UI 库、React 写法、Vue 2 写法或移动端组件写法。
 - 不把 `tdesign-mcp-server` 写入 `web/package.json`、仓库脚本、CI、hooks 或任何运行时依赖。
 
+外部 UI 文章、repo-local plugin skill 中引用的外部 UI 示例 / 设计资产，或第三方示例进入前端实现前，必须先经过 TDesign / Graft 翻译：
+
+- 示例结构先映射到 `DESIGN.md` 和 `前端视觉设计规范.md` 的页面类型，而不是默认生成营销 landing page。
+- 组件实现必须落到 Vue SFC + TypeScript 和 `TDesign Vue Next` 组件；不得复制 React / shadcn / Tailwind 运行写法。
+- 只允许参考交互意图、信息层级或动效节奏；不得复制 raw DOM widget、全局样式重置或新增 package。
+- 样式覆盖必须以 TDesign MCP DOM / docs 为依据，并保持 token、theme、i18n 和可访问 label 边界。
+- 验证继续回到仓库命令和可复现浏览器 QA；不得把 MCP 查询、外部示例截图或隐藏脚本当作第二套 validation truth。
+
 ## 7. 验证方式
 
 Codex MCP 接入通过下面命令验证：

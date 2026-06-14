@@ -9,15 +9,11 @@ type ColumnConfig = {
   align?: ColumnAlign;
   ellipsis?: boolean;
   fixed?: 'left' | 'right';
-  flexible?: boolean;
   minWidth?: number;
   width?: number;
 };
 
 type TableColumn = NonNullable<TdBaseTableProps['columns']>[number];
-type ManagedTableColumn = TableColumn & {
-  __graftFlexible?: boolean;
-};
 
 export type ManagedTableWidthPolicy = {
   contentWidth: number;
@@ -35,7 +31,6 @@ function withCommonColumnOptions(column: TableColumn, config: ColumnConfig = {})
     ...(config.fixed ? { fixed: config.fixed } : {}),
     ...(config.width ? { width: config.width } : {}),
     ...(config.minWidth ? { minWidth: config.minWidth } : {}),
-    ...(config.flexible ? { __graftFlexible: true } : {}),
   } as TableColumn;
 }
 
@@ -96,7 +91,6 @@ export function createTimeColumn(title: string, colKey: string, width = 168) {
 
 export function createMainTextColumn(title: string, colKey: string, minWidth = 360) {
   return createTextColumn(title, colKey, {
-    flexible: true,
     minWidth,
   });
 }
@@ -159,12 +153,9 @@ export function resolveManagedColumns(
 }
 
 export function calculateTableContentWidth(columns: TdBaseTableProps['columns']) {
-  const hasFlexibleColumn = (columns ?? []).some(
-    (column) => (column as ManagedTableColumn | undefined)?.__graftFlexible,
-  );
   const totalWidth = calculateVisibleColumnWidth(columns);
 
-  return hasFlexibleColumn ? `max(100%, ${totalWidth}px)` : `${totalWidth}px`;
+  return `max(100%, ${totalWidth}px)`;
 }
 
 function calculateVisibleColumnWidth(columns: TdBaseTableProps['columns']) {

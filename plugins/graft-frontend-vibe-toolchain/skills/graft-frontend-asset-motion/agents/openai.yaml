@@ -1,0 +1,4 @@
+interface:
+  display_name: "Graft Frontend Asset Motion"
+  short_description: "Gate assets and motion for Graft UI"
+  default_prompt: "Use $graft-frontend-asset-motion to decide asset or motion treatment for this Graft UI."
