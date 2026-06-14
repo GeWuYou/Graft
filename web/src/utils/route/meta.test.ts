@@ -22,6 +22,9 @@ describe('route meta helpers', () => {
   });
 
   it('derives shell surface from meta instead of path prefixes', () => {
+    expect(resolvePageSurfaceType({ dashboard: true, pageKind: 'overview', pageSurface: 'paged-table' })).toBe(
+      'paged-table',
+    );
     expect(resolvePageSurfaceType({ dashboard: true, pageKind: 'overview' })).toBe('overview-dashboard');
     expect(resolvePageSurfaceType({ pageKind: 'overview' })).toBe('overview-dashboard');
     expect(resolvePageSurfaceType({ pageKind: 'list' })).toBe('paged-table');

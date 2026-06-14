@@ -10,6 +10,7 @@ export type ModeType = 'light' | 'dark';
 export type PageFooterContent = string | LocalizedTitle;
 export type GovernanceDomain = 'rbac' | 'audit' | 'monitor';
 export type AppRoutePageKind = 'overview' | 'list' | 'detail' | 'runtime' | 'investigation';
+export type AppRoutePageSurface = 'shell' | 'overview-dashboard' | 'paged-table' | 'form-detail';
 
 export interface PageFooterMeta {
   visible?: boolean;
@@ -40,6 +41,7 @@ export interface AppRouteMeta {
   tabGroup?: string;
   dashboard?: boolean;
   pageKind?: AppRoutePageKind;
+  pageSurface?: AppRoutePageSurface;
   investigationSurface?: boolean;
   icon?: string | Component | FunctionalComponent | (() => VNodeChild);
   orderNo?: number;

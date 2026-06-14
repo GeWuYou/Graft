@@ -219,7 +219,8 @@ function mountLayoutContent() {
       stubs: {
         LContent: true,
         PageContainer: {
-          template: '<div data-testid="page-container"><slot /></div>',
+          props: ['surface'],
+          template: '<div data-testid="page-container" :data-surface="surface"><slot /></div>',
         },
         TContent: {
           template: '<main><slot /></main>',
@@ -316,6 +317,27 @@ describe('LayoutContent', () => {
     expect(dialog.attributes('data-attach')).toBe('body');
     expect(dialog.attributes('data-placement')).toBe('center');
     expect(storeState.tabsRouterStore.closeAllClosableTabs).not.toHaveBeenCalled();
+  });
+
+  it('keeps the leaving page surface until the entering view reports its surface', async () => {
+    routeState.meta = {
+      pageKind: 'list',
+    };
+    const wrapper = mountLayoutContent();
+
+    expect(wrapper.get('[data-testid="page-container"]').attributes('data-surface')).toBe('paged-table');
+
+    routeState.meta = {
+      pageSurface: 'form-detail',
+    };
+    await nextTick();
+
+    expect(wrapper.get('[data-testid="page-container"]').attributes('data-surface')).toBe('paged-table');
+
+    wrapper.findComponent({ name: 'LContent' }).vm.$emit('page-surface-enter', 'form-detail');
+    await nextTick();
+
+    expect(wrapper.get('[data-testid="page-container"]').attributes('data-surface')).toBe('form-detail');
   });
 
   it('keeps close-all disabled when no tabs can be closed', async () => {

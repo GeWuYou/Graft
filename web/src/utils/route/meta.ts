@@ -3,10 +3,10 @@
 
 import type { LocalizedTitle, SupportedLocale } from '@/contracts/i18n/locales';
 import { LOCALE } from '@/contracts/i18n/locales';
-import type { AppRouteMeta } from '@/utils/types';
+import type { AppRouteMeta, AppRoutePageSurface } from '@/utils/types';
 
 export type RouteTitleSlot = 'page' | 'tab' | 'breadcrumb';
-export type PageSurfaceType = 'shell' | 'overview-dashboard' | 'paged-table' | 'form-detail';
+export type PageSurfaceType = AppRoutePageSurface;
 type RouteMetaTitleInput = Omit<Partial<AppRouteMeta>, 'title' | 'semanticTitle' | 'breadcrumbTitle' | 'tabTitle'> & {
   title?: LocalizedTitle | string;
   semanticTitle?: LocalizedTitle | string;
@@ -59,6 +59,10 @@ export function renderLocalizedTitle(
 }
 
 export function resolvePageSurfaceType(meta?: RouteMetaTitleInput): PageSurfaceType {
+  if (meta?.pageSurface) {
+    return meta.pageSurface;
+  }
+
   if (meta?.dashboard || meta?.pageKind === 'overview') {
     return 'overview-dashboard';
   }

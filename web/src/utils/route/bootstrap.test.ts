@@ -82,6 +82,7 @@ describe('transformBootstrapMenusToRoutes', () => {
     expect(routes[0]?.children?.[1]?.name).toBe('UserListIndex');
     expect(routes[0]?.children?.[1]?.meta?.titleKey).toBe('menu.access_control.users.title');
     expect(routes[0]?.children?.[1]?.meta?.icon).toBe('usergroup');
+    expect(routes[0]?.children?.[1]?.meta?.pageKind).toBe('list');
     expect(routes[0]?.children?.[2]?.path).toBe('roles');
     expect(routes[0]?.children?.[2]?.name).toBe('RoleListIndex');
     expect(routes[0]?.children?.[2]?.meta?.titleKey).toBe('menu.access_control.roles.title');
@@ -233,6 +234,7 @@ describe('transformBootstrapMenusToRoutes', () => {
     expect(routes[0]?.children?.[3]?.meta?.breadcrumbTitle?.['zh-CN']).toBe('模块运行时');
     expect(routes[0]?.children?.[3]?.meta?.tabTitle?.['en-US']).toBe('Service Management - Module Runtime');
     expect(routes[0]?.children?.[3]?.meta?.orderNo).toBe(4);
+    expect(routes[0]?.children?.[3]?.meta?.pageSurface).toBe('paged-table');
   });
 
   it('为日志中心访问日志页保留父级 breadcrumb 标题并使用组合 tab 标题', () => {

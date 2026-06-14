@@ -11,6 +11,10 @@ describe('system config bootstrap route registrations', () => {
     expect(systemConfigBootstrapRouteRegistrations[0]).toMatchObject({
       menuPath: '/server/system-config',
       routeName: 'SystemConfigList',
+      meta: expect.objectContaining({
+        pageKind: 'list',
+        pageSurface: 'form-detail',
+      }),
     });
   });
 });

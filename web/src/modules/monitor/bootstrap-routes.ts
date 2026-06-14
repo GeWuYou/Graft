@@ -67,6 +67,7 @@ export const monitorBootstrapRouteRegistrations: BootstrapRouteRegistration[] = 
       tabGroup: 'monitor',
       dashboard: true,
       pageKind: 'overview',
+      pageSurface: 'paged-table',
       semanticTitle: moduleRuntimeRouteTitle,
       breadcrumbTitle: moduleRuntimeBreadcrumbTitle,
       tabTitle: moduleRuntimeRouteTitle,

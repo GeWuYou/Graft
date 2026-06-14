@@ -9,5 +9,8 @@ export const userBootstrapRouteRegistrations: BootstrapRouteRegistration[] = [
     menuPath: USER_ROUTE_PATH.LIST,
     routeName: 'UserList',
     loadPage: () => import('./pages/index.vue'),
+    meta: {
+      pageKind: 'list',
+    },
   },
 ];

@@ -5,13 +5,13 @@
 
 <template>
   <div v-if="!isRefreshing">
-    <router-view v-if="!isFramePage" v-slot="{ Component }">
-      <transition name="fade" mode="out-in">
-        <keep-alive>
-          <component :is="Component" v-if="shouldKeepActiveViewAlive" :key="activeViewKey" />
+    <router-view v-if="!isFramePage" v-slot="{ Component, route: viewRoute }">
+      <transition name="fade" mode="out-in" @before-enter="() => handleBeforeEnter(viewRoute)">
+        <keep-alive v-if="shouldKeepActiveViewAlive">
+          <component :is="Component" :key="activeViewKey" />
         </keep-alive>
+        <component :is="Component" v-else :key="activeViewKey" />
       </transition>
-      <component :is="Component" v-if="!shouldKeepActiveViewAlive" :key="activeViewKey" />
     </router-view>
     <frame-page v-else />
   </div>
@@ -22,10 +22,16 @@
 import isBoolean from 'lodash/isBoolean';
 import isUndefined from 'lodash/isUndefined';
 import { computed } from 'vue';
+import type { RouteLocationNormalizedLoaded } from 'vue-router';
 import { useRoute } from 'vue-router';
 
 import FramePage from '@/layouts/frame/index.vue';
 import { useTabsRouterStore } from '@/store';
+import { resolvePageSurfaceType } from '@/utils/route/meta';
+
+const emit = defineEmits<{
+  'page-surface-enter': [surface: ReturnType<typeof resolvePageSurfaceType>];
+}>();
 
 // <suspense>标签属于实验性功能，请谨慎使用
 // 如果存在需解决/page/1=> /page/2 刷新数据问题 请修改代码 使用activeRouteFullPath 作为key
@@ -66,6 +72,10 @@ const route = useRoute(); // 这个不能放到computed中，切换页面时会�
 const isFramePage = computed(() => {
   return !!route.meta?.frameSrc;
 });
+
+const handleBeforeEnter = (viewRoute?: RouteLocationNormalizedLoaded) => {
+  emit('page-surface-enter', resolvePageSurfaceType(viewRoute?.meta));
+};
 </script>
 <style lang="less" scoped>
 .fade-leave-active,

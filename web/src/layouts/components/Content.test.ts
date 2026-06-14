@@ -3,7 +3,7 @@
 
 import { mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { markRaw } from 'vue';
+import { defineComponent, h, markRaw } from 'vue';
 
 import Content from './Content.vue';
 
@@ -27,6 +27,27 @@ const tabStoreState = vi.hoisted(() => ({
 const tabStoreProxy = vi.hoisted(() => ({
   value: null as null | typeof tabStoreState,
 }));
+
+const RouteContentProbe = markRaw({
+  name: 'RouteContentProbe',
+  template: '<div data-testid="route-content">content</div>',
+});
+
+const TransitionStub = defineComponent({
+  name: 'Transition',
+  props: {
+    onBeforeEnter: {
+      type: Function,
+      default: undefined,
+    },
+  },
+  setup(props, { slots }) {
+    return () => {
+      props.onBeforeEnter?.();
+      return h('div', slots.default?.());
+    };
+  },
+});
 
 vi.mock('vue-router', () => ({
   useRoute: () => routeState,
@@ -63,19 +84,15 @@ describe('Content', () => {
       global: {
         stubs: {
           RouterView: {
-            template: '<slot :Component="Component" />',
+            template: '<slot :Component="Component" :route="route" />',
             data() {
               return {
-                Component: markRaw({
-                  name: 'RouteContentProbe',
-                  template: '<div data-testid="route-content">content</div>',
-                }),
+                Component: RouteContentProbe,
+                route: routeState,
               };
             },
           },
-          Transition: {
-            template: '<slot />',
-          },
+          transition: TransitionStub,
           KeepAlive: {
             props: ['include'],
             template: '<div data-testid="keep-alive" :data-include="include"><slot /></div>',
@@ -108,19 +125,18 @@ describe('Content', () => {
       global: {
         stubs: {
           RouterView: {
-            template: '<slot :Component="Component" />',
+            template: '<slot :Component="Component" :route="route" />',
             data() {
               return {
                 Component: markRaw({
                   name: 'RolesIndex',
                   template: '<div data-testid="route-content">content</div>',
                 }),
+                route: routeState,
               };
             },
           },
-          Transition: {
-            template: '<slot />',
-          },
+          transition: TransitionStub,
           KeepAlive: {
             props: ['include'],
             template: '<div data-testid="keep-alive" :data-include="include"><slot /></div>',
@@ -133,5 +149,37 @@ describe('Content', () => {
 
     expect(wrapper.find('[data-testid="keep-alive"]').attributes('data-include')).toBeUndefined();
     expect(wrapper.findComponent({ name: 'RolesIndex' }).exists()).toBe(true);
+  });
+
+  it('emits the entering route surface from transition timing', () => {
+    routeState.meta = {
+      dashboard: true,
+      pageSurface: 'paged-table',
+    };
+
+    const wrapper = mount(Content, {
+      global: {
+        stubs: {
+          RouterView: {
+            template: '<slot :Component="Component" :route="route" />',
+            data() {
+              return {
+                Component: RouteContentProbe,
+                route: routeState,
+              };
+            },
+          },
+          transition: TransitionStub,
+          KeepAlive: {
+            props: ['include'],
+            template: '<div data-testid="keep-alive" :data-include="include"><slot /></div>',
+          },
+          FramePage: true,
+          TLoading: true,
+        },
+      },
+    });
+
+    expect(wrapper.emitted('page-surface-enter')).toEqual([['paged-table']]);
   });
 });

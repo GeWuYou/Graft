@@ -107,7 +107,7 @@
     <t-content :class="`${prefix}-content-layout`">
       <div :class="`${prefix}-content-layout__body`">
         <page-container :show-footer="showFooter" :footer-text="footerText" :surface="pageSurfaceType">
-          <l-content />
+          <l-content @page-surface-enter="handlePageSurfaceEnter" />
         </page-container>
       </div>
     </t-content>
@@ -141,7 +141,7 @@ import { t } from '@/locales';
 import { useLocale } from '@/locales/useLocale';
 import { copyText } from '@/shared/observability/copy';
 import { useSettingStore, useTabsRouterStore } from '@/store';
-import { renderLocalizedTitle, resolvePageSurfaceType } from '@/utils/route/meta';
+import { type PageSurfaceType, renderLocalizedTitle, resolvePageSurfaceType } from '@/utils/route/meta';
 import type { TRouterInfo, TTabRemoveOptions } from '@/utils/types';
 
 import LContent from './Content.vue';
@@ -167,7 +167,7 @@ const showFooter = computed(() => {
 
   return settingStore.showFooter;
 });
-const pageSurfaceType = computed(() => resolvePageSurfaceType(route.meta));
+const pageSurfaceType = ref<PageSurfaceType>(resolvePageSurfaceType(route.meta));
 const layoutSurfaceCls = computed(() => [`${prefix}-layout`, `${prefix}-layout--${pageSurfaceType.value}`]);
 const footerText = computed(() => {
   const footer = footerMeta.value;
@@ -232,6 +232,10 @@ const handleRemove = (options: TTabRemoveOptions) => {
 };
 
 const renderTitle = (title?: LocalizedTitle) => renderLocalizedTitle(title, locale.value);
+const handlePageSurfaceEnter = (surface: PageSurfaceType) => {
+  pageSurfaceType.value = surface;
+};
+
 const handleRefresh = (route: TRouterInfo, routeIdx: number) => {
   tabsRouterStore.startTabRefresh(routeIdx);
   nextTick(() => {
