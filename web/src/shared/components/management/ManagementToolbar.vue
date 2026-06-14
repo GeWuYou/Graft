@@ -63,8 +63,8 @@
   width: var(--graft-query-search-width);
 }
 
-.management-toolbar :deep(.toolbar__select),
-.management-toolbar :deep(.scheduled-task-toolbar__select) {
+.management-toolbar :deep(.management-toolbar__select),
+.management-toolbar :deep(.toolbar__select) {
   flex: 0 1 var(--graft-list-select-width);
   min-width: min(100%, 150px);
   width: var(--graft-list-select-width);
@@ -82,8 +82,8 @@
 
   .management-toolbar :deep(.management-list-search),
   .management-toolbar :deep(.management-query-search),
-  .management-toolbar :deep(.toolbar__select),
-  .management-toolbar :deep(.scheduled-task-toolbar__select) {
+  .management-toolbar :deep(.management-toolbar__select),
+  .management-toolbar :deep(.toolbar__select) {
     flex-basis: 100%;
     max-width: none;
     width: 100%;

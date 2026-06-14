@@ -57,6 +57,7 @@ defineProps<{
   width: 100%;
 }
 
+// Verified against tdesign-vue-next 1.20.1 Pagination DOM.
 .management-table-pagination__controls :deep(.t-pagination__total),
 .management-table-pagination__controls :deep(.t-pagination__select),
 .management-table-pagination__controls :deep(.t-pagination__pager),

@@ -246,8 +246,8 @@ function mountLayoutContent() {
   });
 }
 
-async function openRuntimeTabMenu(wrapper: ReturnType<typeof mountLayoutContent>) {
-  const dropdown = wrapper.findAllComponents(TDropdownStub)[1];
+async function openRuntimeTabMenu(wrapper: ReturnType<typeof mountLayoutContent>, tabIndex = 1) {
+  const dropdown = wrapper.findAllComponents(TDropdownStub)[tabIndex];
   const popupProps = dropdown.vm.$props.popupProps as DropdownPopupProps;
 
   popupProps.onVisibleChange(true, { trigger: 'context-menu' });
@@ -315,6 +315,48 @@ describe('LayoutContent', () => {
     const dialog = wrapper.get('[data-testid="close-all-dialog"]');
     expect(dialog.attributes('data-attach')).toBe('body');
     expect(dialog.attributes('data-placement')).toBe('center');
+    expect(storeState.tabsRouterStore.closeAllClosableTabs).not.toHaveBeenCalled();
+  });
+
+  it('keeps close-all disabled when no tabs can be closed', async () => {
+    storeState.tabsRouterStore.tabRouters = [createTab('/', 'RootEntry', true)];
+    const wrapper = mountLayoutContent();
+    await openRuntimeTabMenu(wrapper, 0);
+
+    await clickCloseAll(wrapper);
+    await nextTick();
+
+    expect(wrapper.find('[data-testid="close-all-dialog"]').exists()).toBe(false);
+    expect(storeState.tabsRouterStore.closeAllClosableTabs).not.toHaveBeenCalled();
+  });
+
+  it('does not create duplicate close-all dialogs for rapid consecutive clicks', async () => {
+    const wrapper = mountLayoutContent();
+    await openRuntimeTabMenu(wrapper);
+
+    const closeAllItem = wrapper
+      .findAll('[data-testid="dropdown-item"]')
+      .find((item) => item.text().includes('layout.tagTabs.closeAll'));
+
+    expect(closeAllItem).toBeTruthy();
+    await closeAllItem!.trigger('click');
+    await closeAllItem!.trigger('click');
+    await nextTick();
+    await nextTick();
+
+    expect(wrapper.findAll('[data-testid="close-all-dialog"]')).toHaveLength(1);
+    expect(storeState.tabsRouterStore.closeAllClosableTabs).not.toHaveBeenCalled();
+  });
+
+  it('does not reopen or close the close-all dialog when dropdown closes while the dialog is visible', async () => {
+    const wrapper = mountLayoutContent();
+    const dropdown = await openRuntimeTabMenu(wrapper);
+
+    await clickCloseAll(wrapper);
+    (dropdown.vm.$props.popupProps as DropdownPopupProps).onVisibleChange(false, { trigger: 'document' });
+    await nextTick();
+
+    expect(wrapper.findAll('[data-testid="close-all-dialog"]')).toHaveLength(1);
     expect(storeState.tabsRouterStore.closeAllClosableTabs).not.toHaveBeenCalled();
   });
 

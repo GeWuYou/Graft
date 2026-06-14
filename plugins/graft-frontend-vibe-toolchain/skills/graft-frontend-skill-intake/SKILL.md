@@ -16,7 +16,7 @@ Classify incoming frontend skill requests before implementation. Preserve Graft'
    - **rejected**: React, shadcn, Tailwind runtime baseline, marketing landing-page builders, standalone apps, Figma SDK setup, Playwright test dependency, package changes without authority.
    - **future-only**: broad design-system generation, reusable animation libraries, automated visual regression infrastructure, or shared asset registries outside the allowed task scope.
 3. Route direct page work to `$graft-frontend-page-builder`.
-4. Route browser verification to `$graft-frontend-browser-qa`.
+4. Route browser verification and accessibility-oriented review to `$graft-frontend-browser-qa`.
 5. Route image or motion decisions to `$graft-frontend-asset-motion`.
 6. Route Figma references to `$graft-frontend-figma-intake`.
 

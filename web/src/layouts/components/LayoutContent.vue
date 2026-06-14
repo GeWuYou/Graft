@@ -256,6 +256,8 @@ const handleCloseOther = (tabKey: string, routeIdx: number) => {
   handleOperationEffect('other', routeIdx);
 };
 
+// Defer until the dropdown has fully cleared; the guards only open the dialog
+// for a pending close-all request when no tab menu remains active.
 const openPendingCloseAllDialog = () => {
   void nextTick(() => {
     if (!pendingCloseAllDialog.value || activeTabKeyForMenu.value) {
@@ -374,7 +376,9 @@ const handleTabMenuClick = (visible: boolean, ctx: PopupVisibleChangeContext, ta
     activeTabKeyForMenu.value = null;
   }
 
-  openPendingCloseAllDialog();
+  if (pendingCloseAllDialog.value) {
+    openPendingCloseAllDialog();
+  }
 };
 
 const handleDragend = (options: { currentIndex: number; targetIndex: number }) => {

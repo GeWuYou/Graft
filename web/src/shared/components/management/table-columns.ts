@@ -9,7 +9,6 @@ type ColumnConfig = {
   align?: ColumnAlign;
   ellipsis?: boolean;
   fixed?: 'left' | 'right';
-  flexible?: boolean;
   minWidth?: number;
   width?: number;
 };
@@ -32,7 +31,6 @@ function withCommonColumnOptions(column: TableColumn, config: ColumnConfig = {})
     ...(config.fixed ? { fixed: config.fixed } : {}),
     ...(config.width ? { width: config.width } : {}),
     ...(config.minWidth ? { minWidth: config.minWidth } : {}),
-    ...(config.flexible ? { __graftFlexible: true } : {}),
   } as TableColumn;
 }
 
@@ -93,7 +91,6 @@ export function createTimeColumn(title: string, colKey: string, width = 168) {
 
 export function createMainTextColumn(title: string, colKey: string, minWidth = 360) {
   return createTextColumn(title, colKey, {
-    flexible: true,
     minWidth,
   });
 }
