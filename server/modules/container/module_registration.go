@@ -75,6 +75,9 @@ var containerMessageCopyRows = []containerMessageCopyRow{
 	{key: containercontract.ContainerInvalidLogQuery.String(), copy: [2]string{"日志查询参数不合法", "Invalid container log query parameter"}},
 	{key: containercontract.ContainerTimeout.String(), copy: [2]string{"容器运行时操作超时", "Container runtime operation timed out"}},
 	{key: containercontract.ContainerDangerousActionsDisabled.String(), copy: [2]string{"高危容器操作未启用", "Dangerous container actions are disabled"}},
+	{key: containercontract.ContainerActionStartCompleted.String(), copy: [2]string{"容器启动操作已完成", "Container start action completed"}},
+	{key: containercontract.ContainerActionStopCompleted.String(), copy: [2]string{"容器停止操作已完成", "Container stop action completed"}},
+	{key: containercontract.ContainerActionRestartCompleted.String(), copy: [2]string{"容器重启操作已完成", "Container restart action completed"}},
 }
 
 func registerPermissions(registry *permission.Registry, moduleName string) error {

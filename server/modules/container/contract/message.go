@@ -40,4 +40,10 @@ const (
 	ContainerTimeout MessageKey = "ops.container.error.timeout"
 	// ContainerDangerousActionsDisabled identifies disabled action errors.
 	ContainerDangerousActionsDisabled MessageKey = "ops.container.error.dangerousActionsDisabled"
+	// ContainerActionStartCompleted identifies successful start action responses.
+	ContainerActionStartCompleted MessageKey = "ops.container.action.start.completed"
+	// ContainerActionStopCompleted identifies successful stop action responses.
+	ContainerActionStopCompleted MessageKey = "ops.container.action.stop.completed"
+	// ContainerActionRestartCompleted identifies successful restart action responses.
+	ContainerActionRestartCompleted MessageKey = "ops.container.action.restart.completed"
 )

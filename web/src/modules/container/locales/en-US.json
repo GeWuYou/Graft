@@ -103,9 +103,10 @@
         "restart": "Restart",
         "more": "More",
         "copyId": "Copy ID",
-        "confirmStart": "Start This Container?",
-        "confirmStop": "Stop This Container?",
-        "confirmRestart": "Restart This Container?",
+        "confirmStart": "Start Container {name}?",
+        "confirmStop": "Stop Container {name}?",
+        "confirmRestart": "Restart Container {name}?",
+        "unavailable": "This action is currently unavailable.",
         "confirm": "Confirm",
         "cancel": "Cancel"
       },
@@ -172,6 +173,17 @@
   },
   "ops": {
     "container": {
+      "action": {
+        "start": {
+          "completed": "Container Start Action Completed"
+        },
+        "stop": {
+          "completed": "Container Stop Action Completed"
+        },
+        "restart": {
+          "completed": "Container Restart Action Completed"
+        }
+      },
       "error": {
         "runtimeDisabled": "Container runtime access is not enabled",
         "runtimeUnavailable": "Container runtime connection is unavailable",

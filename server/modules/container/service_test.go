@@ -120,6 +120,83 @@ func TestDangerousActionsDisabledPublishesFailureAudit(t *testing.T) {
 	}
 }
 
+func TestServiceActionResponseCarriesMessageKey(t *testing.T) {
+	t.Parallel()
+
+	service, err := newService(containerServiceOptions{
+		runtime:                 fakeRuntime{},
+		enabled:                 true,
+		dangerousActionsEnabled: true,
+		defaultTail:             defaultContainerLogsDefaultTail,
+		maxTail:                 defaultContainerLogsMaxTail,
+	})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	result, err := service.Restart(context.Background(), Ref{Value: "web"})
+	if err != nil {
+		t.Fatalf("restart: %v", err)
+	}
+	if result.MessageKey != containercontract.ContainerActionRestartCompleted.String() {
+		t.Fatalf("unexpected action message key %q", result.MessageKey)
+	}
+	mapped := toContainerAction(result)
+	if mapped.MessageKey == nil || *mapped.MessageKey != containercontract.ContainerActionRestartCompleted.String() {
+		t.Fatalf("expected mapped message key, got %#v", mapped.MessageKey)
+	}
+	if mapped.Message == nil || *mapped.Message != containercontract.ContainerActionRestartCompleted.String() {
+		t.Fatalf("expected mapped fallback message, got %#v", mapped.Message)
+	}
+}
+
+func TestServiceActionFailurePublishesAuditWithRuntimeContext(t *testing.T) {
+	t.Parallel()
+
+	bus := eventbus.New(zap.NewNop())
+	events := make([]moduleapi.AuditEvent, 0, 1)
+	if err := bus.Subscribe(string(moduleapi.AuditRecordEventName), func(_ context.Context, event eventbus.Event) error {
+		payload, ok := event.Payload.(moduleapi.AuditEvent)
+		if !ok {
+			t.Fatalf("unexpected payload %T", event.Payload)
+		}
+		events = append(events, payload)
+		return nil
+	}); err != nil {
+		t.Fatalf("subscribe audit: %v", err)
+	}
+	service, err := newService(containerServiceOptions{
+		runtime:                 failingRuntime{err: errInvalidContainerState},
+		auditBus:                bus,
+		moduleName:              moduleID,
+		enabled:                 true,
+		dangerousActionsEnabled: true,
+		defaultTail:             defaultContainerLogsDefaultTail,
+		maxTail:                 defaultContainerLogsMaxTail,
+	})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	_, err = service.Stop(context.Background(), Ref{Value: "web"})
+	if !errors.Is(err, errInvalidContainerState) {
+		t.Fatalf("expected invalid state, got %v", err)
+	}
+	if len(events) != 1 {
+		t.Fatalf("expected one audit event, got %#v", events)
+	}
+	event := events[0]
+	if event.Action != "ops.container.stop" || event.Success {
+		t.Fatalf("unexpected audit event %#v", event)
+	}
+	if event.MessageKey != containercontract.ContainerInvalidState.String() {
+		t.Fatalf("unexpected message key %q", event.MessageKey)
+	}
+	if event.Metadata["runtime"] != runtimeNameDocker {
+		t.Fatalf("expected runtime metadata, got %#v", event.Metadata)
+	}
+}
+
 func TestRuntimeAccessDisabledUsesResolverAndDoesNotTouchRuntime(t *testing.T) {
 	t.Parallel()
 

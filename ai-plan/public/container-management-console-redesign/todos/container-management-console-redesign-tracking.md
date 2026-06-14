@@ -43,7 +43,12 @@ experience, then close backend/OpenAPI fields, controlled operations, validation
 - Docker list rows intentionally do not preload raw inspect/log/env/stats. List health and resource stats degrade to
   explicit unavailable semantics unless a low-cost runtime list source exists.
 - The web container page now consumes generated OpenAPI query/response types and server pagination.
-- Next batch: `phase-4-controlled-operations-closure`.
+- Phase 4 controlled operation closure is implemented and validated.
+- Start / stop / restart now keep backend action availability, dangerous-action gating, audit failure metadata,
+  OpenAPI action-response message fields, frontend disabled action state, confirmations, and i18n aligned.
+- Remove/delete and batch operations remain deferred because the current design authority excludes delete from MVP and
+  a full permission/gate/audit/OpenAPI/UI/test chain would exceed this bounded batch.
+- Next batch: `phase-5-polish-validation-governance-closeout`.
 
 ## Task Checklist
 
@@ -71,13 +76,13 @@ experience, then close backend/OpenAPI fields, controlled operations, validation
   - [x] Stats/resource fields with graceful unavailability.
   - [x] Ports/network/Compose summaries.
   - [x] Nullable rules and generated artifacts.
-- [ ] Phase 4: controlled operations closure.
-  - [ ] Operation availability flags.
-  - [ ] Optional remove endpoint and permission if implemented.
-  - [ ] Dangerous action gate.
-  - [ ] Audit for all write operations.
-  - [ ] Confirm dialogs and batch operations.
-  - [ ] Error codes and i18n keys.
+- [x] Phase 4: controlled operations closure.
+  - [x] Operation availability flags.
+  - [x] Optional remove endpoint and permission deferred; design authority still excludes delete from MVP.
+  - [x] Dangerous action gate.
+  - [x] Audit for all write operations.
+  - [x] Confirm dialogs; batch operations deferred with remove/delete.
+  - [x] Error codes and i18n keys.
 - [ ] Phase 5: experience polish and governance closeout.
   - [ ] Auto-refresh polish.
   - [ ] Stats refresh behavior.
@@ -98,14 +103,14 @@ experience, then close backend/OpenAPI fields, controlled operations, validation
     "phase-0-planning-topic-persistence",
     "phase-1-wide-screen-list-convergence",
     "phase-2-detail-logs-drawers",
-    "phase-3-backend-openapi-fields-pagination"
+    "phase-3-backend-openapi-fields-pagination",
+    "phase-4-controlled-operations-closure"
   ],
   "pending_batches": [
-    "phase-4-controlled-operations-closure",
     "phase-5-polish-validation-governance-closeout"
   ],
   "current_batch": null,
-  "next_batch": "phase-4-controlled-operations-closure",
+  "next_batch": "phase-5-polish-validation-governance-closeout",
   "closeout_status": "active"
 }
 ```

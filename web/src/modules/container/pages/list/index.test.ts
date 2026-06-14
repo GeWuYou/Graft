@@ -17,6 +17,7 @@ const apiMocks = vi.hoisted(() => ({
 const messageMocks = vi.hoisted(() => ({
   error: vi.fn(),
   success: vi.fn(),
+  warning: vi.fn(),
 }));
 
 const permissionMocks = vi.hoisted(() => ({
@@ -29,9 +30,9 @@ const translations = vi.hoisted(
     'container.list.actionSuccess': '容器操作已提交。',
     'container.list.actions.cancel': '取消',
     'container.list.actions.confirm': '确认',
-    'container.list.actions.confirmRestart': '确认重启该容器？',
-    'container.list.actions.confirmStart': '确认启动该容器？',
-    'container.list.actions.confirmStop': '确认停止该容器？',
+    'container.list.actions.confirmRestart': '确认重启容器 {name}？',
+    'container.list.actions.confirmStart': '确认启动容器 {name}？',
+    'container.list.actions.confirmStop': '确认停止容器 {name}？',
     'container.list.actions.copyId': '复制 ID',
     'container.list.actions.detail': '详情',
     'container.list.actions.logs': '日志',
@@ -39,6 +40,7 @@ const translations = vi.hoisted(
     'container.list.actions.restart': '重启',
     'container.list.actions.start': '启动',
     'container.list.actions.stop': '停止',
+    'container.list.actions.unavailable': '该操作当前不可用。',
     'container.list.clearFilters': '清除筛选',
     'container.list.columnSettings': '列设置',
     'container.list.columns.imageId': '镜像 ID',
@@ -158,6 +160,7 @@ const translations = vi.hoisted(
     'container.list.title': '容器管理',
     'ops.container.error.runtimeDisabled': '容器运行时访问未启用',
     'ops.container.error.runtimeUnavailable': '容器运行时连接不可用',
+    'ops.container.action.start.completed': '容器启动操作已完成',
   }),
 );
 
@@ -283,6 +286,7 @@ describe('container list page', () => {
     apiMocks.runContainerAction.mockResolvedValue({
       action: 'start',
       id: 'container-2',
+      message_key: 'ops.container.action.start.completed',
       message: 'started',
       runtime: 'first-adapter',
       state: 'running',
@@ -469,8 +473,23 @@ describe('container list page', () => {
     await startAction?.trigger('click');
     await flushPromises();
 
-    expect(window.confirm).toHaveBeenCalledWith('确认启动该容器？');
+    expect(window.confirm).toHaveBeenCalledWith('确认启动容器 graft-extra-2？');
     expect(apiMocks.runContainerAction).toHaveBeenCalledWith('start', 'container-2');
+    expect(messageMocks.success).toHaveBeenCalledWith('容器启动操作已完成');
+  });
+
+  it('does not confirm or call the API when server action availability disables the action', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const disabledStartAction = wrapper.get('[data-testid="container-action-start"]');
+    expect(disabledStartAction.attributes('disabled')).toBeDefined();
+    await disabledStartAction.trigger('click');
+    await flushPromises();
+
+    expect(window.confirm).not.toHaveBeenCalled();
+    expect(apiMocks.runContainerAction).not.toHaveBeenCalled();
+    expect(messageMocks.warning).not.toHaveBeenCalled();
   });
 
   it('renders runtime disabled as an access configuration error with system config hint', async () => {

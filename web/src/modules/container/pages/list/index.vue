@@ -1085,8 +1085,12 @@ function handleRowAction(action: string, row: ContainerSummary) {
   }
 
   if (action === 'start' || action === 'stop' || action === 'restart') {
+    if (rowActionDisabled(action, row)) {
+      MessagePlugin.warning(t('container.list.actions.unavailable'));
+      return;
+    }
     const messageKey = `container.list.actions.confirm${action[0].toUpperCase()}${action.slice(1)}`;
-    const confirmed = window.confirm(t(messageKey));
+    const confirmed = window.confirm(t(messageKey, { name: displayName(row) }));
     if (confirmed) {
       void runAction(action as ContainerAction, row);
     }

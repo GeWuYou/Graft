@@ -62,7 +62,12 @@ Do not expand into:
 - Container list now uses OpenAPI-owned `limit` / `offset` pagination and `keyword` / `state` / `health` filters.
 - List responses expose `items`, `total`, `limit`, `offset`, `summary`, `runtime`, and low-cost list row fields.
 - Docker list rows avoid raw inspect/log/env/stats preloading; resource stats and health degrade to explicit unavailable semantics on the list path.
-- Next batch: `phase-4-controlled-operations-closure`.
+- Phase 4 controlled operation closure is implemented and validated.
+- Start / stop / restart action availability, dangerous-action gate, audit metadata, confirmation copy, and action
+  response i18n are aligned across backend, OpenAPI consumer, and web UI.
+- Remove/delete and batch operations remain deferred because deletion is outside the current MVP design authority and
+  was not safe to introduce end-to-end in this bounded batch.
+- Next batch: `phase-5-polish-validation-governance-closeout`.
 
 ## Acceptance Conditions
 

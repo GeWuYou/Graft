@@ -103,9 +103,10 @@
         "restart": "重启",
         "more": "更多",
         "copyId": "复制 ID",
-        "confirmStart": "确认启动该容器？",
-        "confirmStop": "确认停止该容器？",
-        "confirmRestart": "确认重启该容器？",
+        "confirmStart": "确认启动容器 {name}？",
+        "confirmStop": "确认停止容器 {name}？",
+        "confirmRestart": "确认重启容器 {name}？",
+        "unavailable": "该操作当前不可用。",
         "confirm": "确认",
         "cancel": "取消"
       },
@@ -172,6 +173,17 @@
   },
   "ops": {
     "container": {
+      "action": {
+        "start": {
+          "completed": "容器启动操作已完成"
+        },
+        "stop": {
+          "completed": "容器停止操作已完成"
+        },
+        "restart": {
+          "completed": "容器重启操作已完成"
+        }
+      },
       "error": {
         "runtimeDisabled": "容器运行时访问未启用",
         "runtimeUnavailable": "容器运行时连接不可用",

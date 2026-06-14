@@ -141,6 +141,42 @@
   - `cd web && bun run test:run -- src/modules/container/pages/list/index.test.ts src/modules/container/api/container.test.ts`
   - `cd web && bun run typecheck`
 
+### Phase 4 Controlled Operations Closure
+
+- Completed `phase-4-controlled-operations-closure` as a bounded cross-boundary closure for start / stop / restart.
+- Startup receipt:
+  - governance source: root `AGENTS.md`
+  - task class: `cross-boundary`
+  - recovery source: `parent topic`
+  - authority summary: `ai-plan/design/容器管理设计.md` + `openapi/**` + `server/modules/container/**` +
+    `web/src/modules/container/**` + shared management table components
+- Backend container module updates:
+  - kept dangerous action gating as the server authority for start / stop / restart
+  - populated OpenAPI-owned `message_key` / `message` fields on successful action responses
+  - added module i18n keys for successful start / stop / restart action responses
+  - added focused tests for response message mapping and failed runtime action audit metadata
+- Web container updates:
+  - kept action menu disabled state aligned to server-provided `can_start` / `can_stop` / `can_restart`
+  - added a page-level fail-closed guard for disabled action events
+  - changed confirmations to include the container display name
+  - added frontend locale entries for server-owned action success keys
+- Deferrals:
+  - remove/delete remains deferred because `ai-plan/design/容器管理设计.md` still excludes container deletion from MVP
+  - batch operations remain deferred with remove/delete because no full backend permission, dangerous gate, audit,
+    OpenAPI, UI, and test chain was introduced in this bounded batch
+- TDesign MCP preflight:
+  - framework: `vue-next`
+  - components: Dialog, Button, Dropdown, Tag, Tooltip
+  - queries: get_component_list, get_component_docs
+  - adoption: adopted
+- Validation:
+  - `cd server && go test ./modules/container`
+  - `cd web && bun run test:run -- src/modules/container/pages/list/index.test.ts`
+  - `cd web && bun run openapi:types:check`
+  - `git diff --check`
+  - `cd server && go run ./cmd/graft validate backend`
+  - `cd web && bun run check`
+
 ## Loop Batch State
 
 ```json
@@ -150,14 +186,14 @@
     "phase-0-planning-topic-persistence",
     "phase-1-wide-screen-list-convergence",
     "phase-2-detail-logs-drawers",
-    "phase-3-backend-openapi-fields-pagination"
+    "phase-3-backend-openapi-fields-pagination",
+    "phase-4-controlled-operations-closure"
   ],
   "pending_batches": [
-    "phase-4-controlled-operations-closure",
     "phase-5-polish-validation-governance-closeout"
   ],
   "current_batch": null,
-  "next_batch": "phase-4-controlled-operations-closure",
+  "next_batch": "phase-5-polish-validation-governance-closeout",
   "closeout_status": "active"
 }
 ```

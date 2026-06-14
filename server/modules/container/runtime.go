@@ -226,6 +226,8 @@ type ActionResult struct {
 	Runtime      string
 	StatusBefore string
 	StatusAfter  string
+	MessageKey   string
+	Message      string
 }
 
 func parseRef(raw string) (Ref, error) {

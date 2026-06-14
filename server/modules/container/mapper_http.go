@@ -133,6 +133,8 @@ func toContainerAction(result ActionResult) containergen.ContainerActionResponse
 	return containergen.ContainerActionResponse{
 		Action:       containergen.ContainerActionResponseAction(result.Action),
 		Id:           result.ID,
+		Message:      optionalString(result.Message),
+		MessageKey:   optionalString(result.MessageKey),
 		Name:         optionalString(result.Name),
 		Result:       containergen.ContainerActionResponseResult(result.Result),
 		Runtime:      result.Runtime,

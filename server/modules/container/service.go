@@ -218,6 +218,9 @@ func (s *service) runAction(
 	if result.Action == "" {
 		result.Action = action
 	}
+	if err == nil {
+		result = withActionMessage(result)
+	}
 	s.publishActionAudit(ctx, result, err)
 	if err != nil {
 		return ActionResult{}, err
@@ -240,6 +243,27 @@ func runWithRuntime(ctx context.Context, ref Ref, action string, runtime Runtime
 		return runtime.Stop(ctx, ref)
 	default:
 		return runtime.Restart(ctx, ref)
+	}
+}
+
+func withActionMessage(result ActionResult) ActionResult {
+	if result.MessageKey != "" {
+		return result
+	}
+	key := actionSuccessMessageKey(result.Action)
+	result.MessageKey = key.String()
+	result.Message = key.String()
+	return result
+}
+
+func actionSuccessMessageKey(action string) containercontract.MessageKey {
+	switch action {
+	case containerActionStart:
+		return containercontract.ContainerActionStartCompleted
+	case containerActionStop:
+		return containercontract.ContainerActionStopCompleted
+	default:
+		return containercontract.ContainerActionRestartCompleted
 	}
 }
 
