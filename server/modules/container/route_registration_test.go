@@ -55,6 +55,34 @@ func TestRoutesRequireContainerPermissions(t *testing.T) {
 func TestRoutesRejectInvalidRef(t *testing.T) {
 	t.Parallel()
 
+	_, engine := newRegisteredRouteTestService(t)
+	response := httptest.NewRecorder()
+	engine.ServeHTTP(response, authorizedRequest(http.MethodGet, "/api/ops/containers/bad%00id"))
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", response.Code, response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), containercontract.ContainerInvalidRef.String()) {
+		t.Fatalf("expected invalid ref message key, got %s", response.Body.String())
+	}
+}
+
+func TestRoutesRejectInvalidLogQuery(t *testing.T) {
+	t.Parallel()
+
+	_, engine := newRegisteredRouteTestService(t)
+	response := httptest.NewRecorder()
+	engine.ServeHTTP(response, authorizedRequest(http.MethodGet, "/api/ops/containers/abc123/logs?since=not-a-time"))
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", response.Code, response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), containercontract.ContainerInvalidLogQuery.String()) {
+		t.Fatalf("expected invalid log query message key, got %s", response.Body.String())
+	}
+}
+
+func newRegisteredRouteTestService(t *testing.T) (*module.Context, *gin.Engine) {
+	t.Helper()
+
 	ctx, engine := newRouteTestContext(&recordingAuthorizer{})
 	service, err := newService(containerServiceOptions{
 		runtime:     fakeRuntime{},
@@ -68,15 +96,7 @@ func TestRoutesRejectInvalidRef(t *testing.T) {
 	if err := registerRoutes(ctx, moduleID, service); err != nil {
 		t.Fatalf("register routes: %v", err)
 	}
-
-	response := httptest.NewRecorder()
-	engine.ServeHTTP(response, authorizedRequest(http.MethodGet, "/api/ops/containers/bad%00id"))
-	if response.Code != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d: %s", response.Code, response.Body.String())
-	}
-	if !strings.Contains(response.Body.String(), containercontract.ContainerInvalidRef.String()) {
-		t.Fatalf("expected invalid ref message key, got %s", response.Body.String())
-	}
+	return ctx, engine
 }
 
 func newRouteTestContext(authorizer moduleapi.Authorizer) (*module.Context, *gin.Engine) {
@@ -94,8 +114,15 @@ func newRouteTestContext(authorizer moduleapi.Authorizer) (*module.Context, *gin
 		panic(err)
 	}
 	return &module.Context{
-		Logger:   zap.NewNop(),
-		I18n:     i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}}),
+		Logger: zap.NewNop(),
+		I18n: i18n.MustNew(config.I18nConfig{
+			DefaultLocale:  "zh-CN",
+			FallbackLocale: "zh-CN",
+			SupportedLocales: []string{
+				"zh-CN",
+				"en-US",
+			},
+		}),
 		EventBus: eventbus.New(zap.NewNop()),
 		Router:   engine.Group("/api"),
 		Services: services,

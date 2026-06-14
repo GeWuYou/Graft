@@ -31,7 +31,7 @@
   `ops.container.start`、`ops.container.stop`、`ops.container.restart`；未新增 `ops.docker`。
 - Phase 2 注册容器菜单、错误 key/message、route/config contract 常量和六个系统配置定义：
   `ops.container.enabled`、`ops.container.runtime`、`ops.container.docker.endpoint`、
-  `ops.container.logs.default_tail`、`ops.container.logs.max_tail`、`ops.container.dangerous_actions_enabled`。
+  `ops.container.logs.default_tail`、`ops.container.logs.max_tail`、`ops.container.actions.dangerous_enabled`。
 - Phase 2 将 `ops.container.docker.endpoint` 声明为 `RestartRequired`；系统配置 schema 作为系统配置 UI 渲染 authority。
 - Phase 2 未实现 `DockerRuntime` adapter 业务逻辑、runtime API handlers、审计生产 service 行为或前端页面。
 - Phase 2 验证通过：`cd server && go generate ./internal/moduleregistry`、
@@ -46,7 +46,7 @@
 - Phase 3 详情和日志响应不暴露环境变量、secret、token、authorization header 或 raw Docker inspect payload。
 - Phase 3 在 service 层为 start/stop/restart 成功和失败发布 `moduleapi.AuditEvent`，复用 audit event path，
   未新增单独操作日志表。
-- Phase 3 使用 `ops.container.dangerous_actions_enabled` 语义守住 start/stop/restart；当前后端配置读取仍使用模块默认值，
+- Phase 3 使用 `ops.container.actions.dangerous_enabled` 语义守住 start/stop/restart；当前后端配置读取仍使用模块默认值，
   因 core 配置快照尚未提供任意系统配置 resolver，API 默认保持 disabled，未在模块内私自读取环境变量或扩展 resolver surface。
 - Phase 3 验证通过：`cd server && go test ./modules/container/...`、
   `cd server && go test ./internal/contract/openapi/... ./modules/container/...`、

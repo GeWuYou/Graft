@@ -6,13 +6,17 @@ package container
 import (
 	"context"
 	"errors"
+	"sync"
 	"sync/atomic"
 	"testing"
 
 	"go.uber.org/zap"
 
+	"graft/server/internal/config"
+	"graft/server/internal/configregistry"
 	"graft/server/internal/eventbus"
 	"graft/server/internal/httpx"
+	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
 	containercontract "graft/server/modules/container/contract"
 )
@@ -57,6 +61,10 @@ func TestServiceNormalizesLogQuery(t *testing.T) {
 	_, err = service.Logs(context.Background(), Ref{Value: "web"}, LogQuery{Tail: defaultContainerLogsMaxTail + 1})
 	if !errors.Is(err, errLogsTooLarge) {
 		t.Fatalf("expected logs too large, got %v", err)
+	}
+	_, err = service.Logs(context.Background(), Ref{Value: "web"}, LogQuery{Since: "not-a-time"})
+	if !errors.Is(err, errInvalidLogQuery) {
+		t.Fatalf("expected invalid log query, got %v", err)
 	}
 }
 
@@ -186,6 +194,132 @@ func TestDangerousActionsResolverControlsWriteActionsOnly(t *testing.T) {
 	_, err = service.Start(context.Background(), Ref{Value: "web"})
 	if !errors.Is(err, errDangerousActionsDisabled) {
 		t.Fatalf("expected dangerous actions guard, got %v", err)
+	}
+}
+
+func TestContainerOptionsFromConfigUsesRegisteredDefaults(t *testing.T) {
+	t.Parallel()
+
+	registry := newContainerConfigRegistry(t)
+	options := containerOptionsFromConfig(&module.Context{ConfigRegistry: registry})
+	if !options.enabled {
+		t.Fatalf("expected runtime access enabled from config defaults")
+	}
+	if options.runtime != defaultContainerRuntime {
+		t.Fatalf("expected runtime %q, got %q", defaultContainerRuntime, options.runtime)
+	}
+	if options.endpoint != "unix:///tmp/docker.sock" {
+		t.Fatalf("expected configured endpoint, got %q", options.endpoint)
+	}
+	if options.defaultTail != 50 || options.maxTail != 500 {
+		t.Fatalf("expected configured tail limits, got default=%d max=%d", options.defaultTail, options.maxTail)
+	}
+	if !options.dangerousActionsEnabled {
+		t.Fatalf("expected dangerous actions default from config")
+	}
+}
+
+func TestContainerOptionsFromConfigPrefersProcessConfig(t *testing.T) {
+	t.Parallel()
+
+	options := containerOptionsFromConfig(&module.Context{
+		ConfigRegistry: newContainerConfigRegistry(t),
+		Config: &config.Config{
+			Container: config.ContainerConfig{
+				RuntimeEnabled:          true,
+				Runtime:                 runtimeNameDocker,
+				DockerEndpoint:          "unix:///process/docker.sock",
+				LogsDefaultTail:         25,
+				LogsMaxTail:             250,
+				DangerousActionsEnabled: true,
+			},
+		},
+	})
+
+	if !options.enabled || !options.dangerousActionsEnabled {
+		t.Fatalf("expected process config booleans, got %#v", options)
+	}
+	if options.runtime != runtimeNameDocker || options.endpoint != "unix:///process/docker.sock" {
+		t.Fatalf("expected process runtime config, got %#v", options)
+	}
+	if options.defaultTail != 25 || options.maxTail != 250 {
+		t.Fatalf("expected process tail limits, got %#v", options)
+	}
+}
+
+func newContainerConfigRegistry(t *testing.T) *configregistry.Registry {
+	t.Helper()
+
+	registry := configregistry.NewRegistry()
+	for _, definition := range configDefinitions() {
+		switch definition.Key {
+		case containercontract.ContainerRuntimeEnabledConfig.String():
+			definition.DefaultValue = mustRawJSON(true)
+		case containercontract.ContainerRuntimeConfig.String():
+			definition.DefaultValue = mustRawJSON(defaultContainerRuntime)
+		case containercontract.ContainerDockerEndpointConfig.String():
+			definition.DefaultValue = mustRawJSON("unix:///tmp/docker.sock")
+		case containercontract.ContainerLogsDefaultTailConfig.String():
+			definition.DefaultValue = mustRawJSON(50)
+		case containercontract.ContainerLogsMaxTailConfig.String():
+			definition.DefaultValue = mustRawJSON(500)
+		case containercontract.ContainerDangerousActionsEnabledConfig.String():
+			definition.DefaultValue = mustRawJSON(true)
+		}
+		if err := registry.Register(definition); err != nil {
+			t.Fatalf("register config definition %s: %v", definition.Key, err)
+		}
+	}
+	return registry
+}
+
+func TestRuntimeForRequestInitializesOnceUnderConcurrentAccess(t *testing.T) {
+	t.Parallel()
+
+	var factoryCalls atomic.Int64
+	service, err := newService(containerServiceOptions{
+		runtime: disabledRuntime{},
+		runtimeOptions: containerRuntimeOptions{
+			runtime:  runtimeNameDocker,
+			endpoint: "unix:///tmp/docker.sock",
+		},
+		runtimeFactory: func(options containerRuntimeOptions) (Runtime, error) {
+			factoryCalls.Add(1)
+			if !options.enabled {
+				return nil, errors.New("expected lazy runtime init to enable runtime")
+			}
+			if options.endpoint != "unix:///tmp/docker.sock" {
+				return nil, errRuntimeDaemonUnavailable
+			}
+			return fakeRuntime{}, nil
+		},
+		enabled:     true,
+		defaultTail: defaultContainerLogsDefaultTail,
+		maxTail:     defaultContainerLogsMaxTail,
+	})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	var wg sync.WaitGroup
+	errs := make(chan error, 16)
+	for range 16 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, err := service.runtimeForRequest()
+			errs <- err
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		if err != nil {
+			t.Fatalf("runtime for request: %v", err)
+		}
+	}
+	if calls := factoryCalls.Load(); calls != 1 {
+		t.Fatalf("expected one runtime factory call, got %d", calls)
 	}
 }
 

@@ -87,6 +87,38 @@ func TestLoadReadsDotenv(t *testing.T) {
 	assertEqual(t, "default refresh cookie secure", cfg.Auth.RefreshCookieSecure, false)
 	assertEqual(t, "default refresh cookie same site", cfg.Auth.RefreshCookieSameSite, defaultRefreshCookieSameSite)
 	assertEqual(t, "default refresh cookie path", cfg.Auth.RefreshCookiePath, defaultRefreshCookiePath)
+	assertEqual(t, "default container runtime enabled", cfg.Container.RuntimeEnabled, false)
+	assertEqual(t, "default container runtime", cfg.Container.Runtime, "first-adapter")
+	assertEqual(t, "default container endpoint", cfg.Container.DockerEndpoint, "unix:///var/run/docker.sock")
+	assertEqual(t, "default container logs tail", cfg.Container.LogsDefaultTail, 200)
+	assertEqual(t, "default container logs max tail", cfg.Container.LogsMaxTail, 2000)
+	assertEqual(t, "default container dangerous actions", cfg.Container.DangerousActionsEnabled, false)
+}
+
+func TestLoadReadsContainerRuntimeConfig(t *testing.T) {
+	restoreEnv := clearGraftEnv(t)
+	t.Cleanup(restoreEnv)
+	chdir(t, t.TempDir())
+
+	t.Setenv("GRAFT_AUTH_JWT_SECRET", "container-config-secret")
+	t.Setenv("GRAFT_OPS_CONTAINER_RUNTIME_ENABLED", "true")
+	t.Setenv("GRAFT_OPS_CONTAINER_RUNTIME", "docker")
+	t.Setenv("GRAFT_OPS_CONTAINER_DOCKER_ENDPOINT", "unix:///tmp/docker.sock")
+	t.Setenv("GRAFT_OPS_CONTAINER_LOGS_DEFAULT_TAIL", "50")
+	t.Setenv("GRAFT_OPS_CONTAINER_LOGS_MAX_TAIL", "500")
+	t.Setenv("GRAFT_OPS_CONTAINER_ACTIONS_DANGEROUS_ENABLED", "true")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+
+	assertEqual(t, "container runtime enabled", cfg.Container.RuntimeEnabled, true)
+	assertEqual(t, "container runtime", cfg.Container.Runtime, "docker")
+	assertEqual(t, "container endpoint", cfg.Container.DockerEndpoint, "unix:///tmp/docker.sock")
+	assertEqual(t, "container logs default tail", cfg.Container.LogsDefaultTail, 50)
+	assertEqual(t, "container logs max tail", cfg.Container.LogsMaxTail, 500)
+	assertEqual(t, "container dangerous actions enabled", cfg.Container.DangerousActionsEnabled, true)
 }
 
 // TestLoadReadsServerDotenvFromRepoRoot 验证从仓库根目录启动时会回退读取 server/.env。
@@ -709,6 +741,13 @@ func TestValidateAllowsNonPositiveAppLogRetentionWhenPersistenceDisabled(t *test
 	}
 }
 
+func TestValidateRejectsMissingContainerDockerEndpoint(t *testing.T) {
+	cfg := validConfigForValidateTests()
+	cfg.Container.DockerEndpoint = ""
+
+	assertValidateError(t, cfg, "GRAFT_OPS_CONTAINER_DOCKER_ENDPOINT is required")
+}
+
 func TestResolveLogFormatColorAndGinMode(t *testing.T) {
 	logFormatCases := []struct {
 		name   string
@@ -931,6 +970,14 @@ func validConfigForValidateTests() *Config {
 			RefreshCookieSecure:   true,
 			RefreshCookieSameSite: defaultRefreshCookieSameSite,
 			RefreshCookiePath:     defaultRefreshCookiePath,
+		},
+		Container: ContainerConfig{
+			Runtime:                 "first-adapter",
+			DockerEndpoint:          "unix:///var/run/docker.sock",
+			LogsDefaultTail:         200,
+			LogsMaxTail:             2000,
+			RuntimeEnabled:          false,
+			DangerousActionsEnabled: false,
 		},
 	}
 }

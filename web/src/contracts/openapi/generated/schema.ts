@@ -3740,16 +3740,22 @@ export interface components {
       read_only: boolean;
     };
     'container-network': {
+      /** @description Runtime network name attached to the container. */
       name: string;
+      /** @description Runtime network identifier, such as the Docker network ID. */
       network_id?: string;
+      /** @description Runtime endpoint identifier for this container attachment within the network. */
       endpoint_id?: string;
+      /** @description Container IP address assigned on this network. */
       ip_address?: string;
+      /** @description Gateway address reported for this container network attachment. */
       gateway?: string;
+      /** @description MAC address assigned to the container endpoint on this network. */
       mac_address?: string;
     };
     /** @description Container detail intentionally omits environment variables and raw inspect payload fields that may contain secrets. */
     'container-detail': components['schemas']['container-summary'] & {
-      command?: string;
+      command?: string[];
       entrypoint?: string[];
       working_dir?: string;
       mounts: components['schemas']['container-mount'][];
@@ -3796,6 +3802,23 @@ export interface components {
     };
     'enveloped-container-action-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['container-action-response'];
+    };
+    'container-stop-error-response': {
+      /** @enum {boolean} */
+      success: false;
+      /** @description Existing canonical error response code. */
+      code: string;
+      /** @description Existing runtime fallback text paired with messageKey for compatibility. */
+      message: string;
+      /** @description Stable error localization key. Consumers should prefer this key and use message only as fallback text. */
+      messageKey?: string;
+      /** @description Locale used to resolve the fallback message text in this response. */
+      locale?: string;
+      traceId: string;
+      /** @description Optional structured error details preserved from the current runtime. */
+      data?: {
+        [key: string]: unknown;
+      };
     };
     'dashboard-stat-group-payload': {
       items: {
@@ -8548,7 +8571,16 @@ export interface operations {
           'application/json': components['schemas']['error-response'];
         };
       };
-      500: components['responses']['internal-server-error'];
+      /** @description Internal server error under existing error envelope semantics. */
+      500: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['container-stop-error-response'];
+        };
+      };
     };
   };
   postContainerRestart: {

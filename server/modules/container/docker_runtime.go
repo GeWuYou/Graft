@@ -30,6 +30,8 @@ const (
 	dockerLogScannerMaxSize  = 1024 * 1024
 )
 
+var errInvalidLogQuery = errors.New("invalid log query parameter")
+
 // DockerRuntime adapts the official Docker SDK to the container module runtime boundary.
 type DockerRuntime struct {
 	client   dockerClient
@@ -100,7 +102,7 @@ func (r *DockerRuntime) Detail(ctx context.Context, ref Ref) (Detail, error) {
 func (r *DockerRuntime) Logs(ctx context.Context, ref Ref, query LogQuery) (Logs, error) {
 	since, err := parseLogSince(query.Since)
 	if err != nil {
-		return Logs{}, errInvalidRef
+		return Logs{}, fmt.Errorf("%w: %v", errInvalidLogQuery, err)
 	}
 	reader, err := r.client.ContainerLogs(ctx, ref.Value, container.LogsOptions{
 		ShowStdout: query.Stdout,
@@ -120,12 +122,13 @@ func (r *DockerRuntime) Logs(ctx context.Context, ref Ref, query LogQuery) (Logs
 	if err != nil {
 		return Logs{}, mapDockerError(err)
 	}
-	detail, detailErr := r.Detail(ctx, ref)
 	name := ""
 	id := ref.Value
-	if detailErr == nil {
-		name = firstContainerName(detail.Names)
-		id = detail.ID
+	if inspect, inspectErr := r.client.ContainerInspect(ctx, ref.Value); inspectErr == nil {
+		if trimmedID := strings.TrimSpace(inspect.ID); trimmedID != "" {
+			id = trimmedID
+		}
+		name = firstContainerName([]string{strings.TrimPrefix(strings.TrimSpace(inspect.Name), "/")})
 	}
 	return Logs{
 		ID:         id,
@@ -219,7 +222,7 @@ func dockerDetail(inspect container.InspectResponse, info RuntimeInfo) Detail {
 		InspectUpdatedAt: time.Now().UTC().Format(time.RFC3339),
 	}
 	if inspect.Config != nil {
-		detail.Command = strings.Join(inspect.Config.Cmd, " ")
+		detail.Command = []string(inspect.Config.Cmd)
 		detail.Entrypoint = []string(inspect.Config.Entrypoint)
 		detail.WorkingDir = strings.TrimSpace(inspect.Config.WorkingDir)
 	}
@@ -305,14 +308,24 @@ func readDockerLogLines(reader io.Reader, tail int) ([]string, bool, error) {
 	if _, err := stdcopy.StdCopy(&output, &output, reader); err != nil {
 		return nil, false, err
 	}
+	limit := tail
+	if limit > defaultContainerLogsMaxTail {
+		limit = defaultContainerLogsMaxTail
+	}
 	scanner := bufio.NewScanner(&output)
 	scanner.Buffer(make([]byte, 0, dockerLogScannerInitSize), dockerLogScannerMaxSize)
-	lines := make([]string, 0, tail)
+	lines := make([]string, 0)
+	truncated := false
 	for scanner.Scan() {
 		line := scanner.Text()
-		if len(lines) == tail {
+		if limit <= 0 {
+			truncated = true
+			continue
+		}
+		if len(lines) == limit {
+			truncated = true
 			copy(lines, lines[1:])
-			lines[tail-1] = line
+			lines[limit-1] = line
 			continue
 		}
 		lines = append(lines, line)
@@ -320,7 +333,7 @@ func readDockerLogLines(reader io.Reader, tail int) ([]string, bool, error) {
 	if err := scanner.Err(); err != nil {
 		return nil, false, err
 	}
-	return lines, len(lines) == tail, nil
+	return lines, truncated, nil
 }
 
 func actionResultFromDetail(detail Detail, ref Ref, action string, statusBefore string) ActionResult {

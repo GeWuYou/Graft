@@ -270,7 +270,7 @@
                 {{ formatTime(activeDetail.started_at) }}
               </t-descriptions-item>
               <t-descriptions-item :label="t('container.list.detail.command')">
-                {{ activeDetail.command || '-' }}
+                {{ joinList(activeDetail.command) }}
               </t-descriptions-item>
               <t-descriptions-item :label="t('container.list.detail.entrypoint')">
                 {{ joinList(activeDetail.entrypoint) }}

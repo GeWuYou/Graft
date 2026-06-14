@@ -113,7 +113,7 @@
           />
         </template>
 
-        <div ref="tableHostRef" class="scheduled-task-table-host">
+        <div ref="tableHostRef" class="scheduled-task-table-host" :data-table-mode="tableWidthPolicy.mode">
           <t-table
             row-key="task_key"
             :data="filteredTasks"

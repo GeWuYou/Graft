@@ -71,6 +71,7 @@ var containerMessageCopyRows = []containerMessageCopyRow{
 	{key: containercontract.ContainerInvalidRef.String(), copy: [2]string{"容器标识不合法", "Invalid container reference"}},
 	{key: containercontract.ContainerInvalidState.String(), copy: [2]string{"容器当前状态不允许执行该操作", "The container state does not allow this action"}},
 	{key: containercontract.ContainerLogsTooLarge.String(), copy: [2]string{"日志读取数量超过限制", "Requested log tail exceeds the configured limit"}},
+	{key: containercontract.ContainerInvalidLogQuery.String(), copy: [2]string{"日志查询参数不合法", "Invalid container log query parameter"}},
 	{key: containercontract.ContainerTimeout.String(), copy: [2]string{"容器运行时操作超时", "Container runtime operation timed out"}},
 	{key: containercontract.ContainerDangerousActionsDisabled.String(), copy: [2]string{"高危容器操作未启用", "Dangerous container actions are disabled"}},
 }

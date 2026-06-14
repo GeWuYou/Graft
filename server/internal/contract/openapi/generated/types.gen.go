@@ -801,6 +801,21 @@ func (e ContainerRuntimeInfoStatus) Valid() bool {
 	}
 }
 
+// Defines values for ContainerStopErrorResponseSuccess.
+const (
+	PostContainerStop500JSONResponseBodySuccessFalse ContainerStopErrorResponseSuccess = false
+)
+
+// Valid indicates whether the value is a known member of the ContainerStopErrorResponseSuccess enum.
+func (e ContainerStopErrorResponseSuccess) Valid() bool {
+	switch e {
+	case PostContainerStop500JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ContainerSummaryState.
 const (
 	ContainerSummaryStateCreated    ContainerSummaryState = "created"
@@ -2712,7 +2727,7 @@ type ContainerActionResponseResult string
 
 // ContainerDetail defines model for container-detail.
 type ContainerDetail struct {
-	Command          *string            `json:"command,omitempty"`
+	Command          *[]string          `json:"command,omitempty"`
 	CreatedAt        time.Time          `json:"created_at"`
 	Entrypoint       *[]string          `json:"entrypoint,omitempty"`
 	Id               string             `json:"id"`
@@ -2780,12 +2795,23 @@ type ContainerMount struct {
 
 // ContainerNetwork defines model for container-network.
 type ContainerNetwork struct {
+	// EndpointId Runtime endpoint identifier for this container attachment within the network.
 	EndpointId *string `json:"endpoint_id,omitempty"`
-	Gateway    *string `json:"gateway,omitempty"`
-	IpAddress  *string `json:"ip_address,omitempty"`
+
+	// Gateway Gateway address reported for this container network attachment.
+	Gateway *string `json:"gateway,omitempty"`
+
+	// IpAddress Container IP address assigned on this network.
+	IpAddress *string `json:"ip_address,omitempty"`
+
+	// MacAddress MAC address assigned to the container endpoint on this network.
 	MacAddress *string `json:"mac_address,omitempty"`
-	Name       string  `json:"name"`
-	NetworkId  *string `json:"network_id,omitempty"`
+
+	// Name Runtime network name attached to the container.
+	Name string `json:"name"`
+
+	// NetworkId Runtime network identifier, such as the Docker network ID.
+	NetworkId *string `json:"network_id,omitempty"`
 }
 
 // ContainerPort defines model for container-port.
@@ -2818,6 +2844,29 @@ type ContainerRuntimeInfo struct {
 
 // ContainerRuntimeInfoStatus defines model for ContainerRuntimeInfo.Status.
 type ContainerRuntimeInfoStatus string
+
+// ContainerStopErrorResponse defines model for container-stop-error-response.
+type ContainerStopErrorResponse struct {
+	// Code Existing canonical error response code.
+	Code string `json:"code"`
+
+	// Data Optional structured error details preserved from the current runtime.
+	Data *map[string]interface{} `json:"data,omitempty"`
+
+	// Locale Locale used to resolve the fallback message text in this response.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text paired with messageKey for compatibility.
+	Message string `json:"message"`
+
+	// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+	MessageKey *string                           `json:"messageKey,omitempty"`
+	Success    ContainerStopErrorResponseSuccess `json:"success"`
+	TraceId    string                            `json:"traceId"`
+}
+
+// ContainerStopErrorResponseSuccess defines model for ContainerStopErrorResponse.Success.
+type ContainerStopErrorResponseSuccess bool
 
 // ContainerSummary defines model for container-summary.
 type ContainerSummary struct {

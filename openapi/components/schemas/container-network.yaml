@@ -4,13 +4,19 @@ required:
 properties:
   name:
     type: string
+    description: Runtime network name attached to the container.
   network_id:
     type: string
+    description: Runtime network identifier, such as the Docker network ID.
   endpoint_id:
     type: string
+    description: Runtime endpoint identifier for this container attachment within the network.
   ip_address:
     type: string
+    description: Container IP address assigned on this network.
   gateway:
     type: string
+    description: Gateway address reported for this container network attachment.
   mac_address:
     type: string
+    description: MAC address assigned to the container endpoint on this network.

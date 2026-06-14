@@ -1,0 +1,26 @@
+type: object
+required: [success, code, message, traceId]
+properties:
+  success:
+    type: boolean
+    enum: [false]
+    x-enum-varnames:
+      - PostContainerStop500JSONResponseBodySuccessFalse
+  code:
+    type: string
+    description: Existing canonical error response code.
+  message:
+    type: string
+    description: Existing runtime fallback text paired with messageKey for compatibility.
+  messageKey:
+    type: string
+    description: Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+  locale:
+    type: string
+    description: Locale used to resolve the fallback message text in this response.
+  traceId:
+    type: string
+  data:
+    type: object
+    additionalProperties: true
+    description: Optional structured error details preserved from the current runtime.

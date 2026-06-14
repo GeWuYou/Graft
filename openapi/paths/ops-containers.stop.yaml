@@ -51,4 +51,11 @@ post:
           schema:
             $ref: ../components/schemas/error-response.yaml
     '500':
-      $ref: ../components/responses/internal-server-error.yaml
+      description: Internal server error under existing error envelope semantics.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/container-stop-error-response.yaml

@@ -21,29 +21,33 @@ const (
 	defaultHTTPAddr       = ":8080"
 	defaultDatabaseDriver = "postgres"
 	// #nosec G101 -- 本地开发默认 DSN 只作为示例值，不代表可用分发凭据。
-	defaultDatabaseURL             = "postgres://graft:graft@localhost:5432/graft?sslmode=disable"
-	defaultDatabaseMaxOpenConns    = 25
-	defaultDatabaseMaxIdleConns    = 10
-	defaultDatabaseConnMaxLifetime = time.Hour
-	defaultDatabaseConnMaxIdleTime = 30 * time.Minute
-	defaultRedisAddr               = "localhost:6379"
-	defaultRedisPoolSize           = 0
-	defaultRedisMinIdleConns       = 0
-	defaultRedisMaxIdleConns       = 0
-	defaultRedisMaxActiveConns     = 0
-	defaultRedisPoolTimeout        = 0
-	defaultRedisConnMaxIdleTime    = 0
-	defaultRedisConnMaxLifetime    = 0
-	defaultLogLevel                = "info"
-	defaultAppLogPersistence       = true
-	defaultLocale                  = "zh-CN"
-	defaultSecondaryLocale         = "en-US"
-	defaultSupported               = "zh-CN,en-US"
-	defaultAccessTokenTTL          = 15 * time.Minute
-	defaultRefreshTokenTTL         = 7 * 24 * time.Hour
-	defaultRefreshCookieName       = "graft_refresh_token"
-	defaultRefreshCookiePath       = "/"
-	defaultRefreshCookieSameSite   = "lax"
+	defaultDatabaseURL              = "postgres://graft:graft@localhost:5432/graft?sslmode=disable"
+	defaultDatabaseMaxOpenConns     = 25
+	defaultDatabaseMaxIdleConns     = 10
+	defaultDatabaseConnMaxLifetime  = time.Hour
+	defaultDatabaseConnMaxIdleTime  = 30 * time.Minute
+	defaultRedisAddr                = "localhost:6379"
+	defaultRedisPoolSize            = 0
+	defaultRedisMinIdleConns        = 0
+	defaultRedisMaxIdleConns        = 0
+	defaultRedisMaxActiveConns      = 0
+	defaultRedisPoolTimeout         = 0
+	defaultRedisConnMaxIdleTime     = 0
+	defaultRedisConnMaxLifetime     = 0
+	defaultLogLevel                 = "info"
+	defaultAppLogPersistence        = true
+	defaultLocale                   = "zh-CN"
+	defaultSecondaryLocale          = "en-US"
+	defaultSupported                = "zh-CN,en-US"
+	defaultAccessTokenTTL           = 15 * time.Minute
+	defaultRefreshTokenTTL          = 7 * 24 * time.Hour
+	defaultRefreshCookieName        = "graft_refresh_token"
+	defaultRefreshCookiePath        = "/"
+	defaultRefreshCookieSameSite    = "lax"
+	defaultContainerRuntime         = "first-adapter"
+	defaultContainerDockerEndpoint  = "unix:///var/run/docker.sock"
+	defaultContainerLogsDefaultTail = 200
+	defaultContainerLogsMaxTail     = 2000
 )
 
 const (
@@ -120,18 +124,19 @@ const (
 //
 // core 会把该快照作为只读依赖注入给运行时与模块，避免后续流程再隐式读取环境变量。
 type Config struct {
-	App      AppConfig
-	HTTP     HTTPConfig
-	HTTPX    HTTPXConfig
-	Audit    AuditConfig
-	Docs     DocsConfig
-	Modules  ModulesConfig
-	Database DatabaseConfig
-	Redis    RedisConfig
-	Log      LogConfig
-	Runtime  RuntimeConfig
-	I18n     I18nConfig
-	Auth     AuthConfig
+	App       AppConfig
+	HTTP      HTTPConfig
+	HTTPX     HTTPXConfig
+	Audit     AuditConfig
+	Docs      DocsConfig
+	Modules   ModulesConfig
+	Database  DatabaseConfig
+	Redis     RedisConfig
+	Log       LogConfig
+	Runtime   RuntimeConfig
+	I18n      I18nConfig
+	Auth      AuthConfig
+	Container ContainerConfig
 }
 
 // AppConfig 描述进程级应用标识配置。
@@ -228,6 +233,19 @@ type AuthConfig struct {
 	RefreshCookiePath     string
 }
 
+// ContainerConfig 描述容器管理模块的启动期进程配置。
+//
+// 运行期系统配置仍拥有 feature gate 的有效值；这些字段只提供无法通过当前
+// SystemConfigResolver 表达的 adapter、endpoint 和日志上限启动默认值。
+type ContainerConfig struct {
+	Runtime                 string
+	DockerEndpoint          string
+	LogsDefaultTail         int
+	LogsMaxTail             int
+	RuntimeEnabled          bool
+	DangerousActionsEnabled bool
+}
+
 // Load 按“真实环境变量优先、.env 兜底”的顺序加载配置并返回校验后的快照。
 //
 // 失败语义：
@@ -312,6 +330,14 @@ func Load() (*Config, error) {
 			RefreshCookieSameSite: reader.GetString("auth.refresh_cookie_same_site"),
 			RefreshCookiePath:     reader.GetString("auth.refresh_cookie_path"),
 		},
+		Container: ContainerConfig{
+			Runtime:                 reader.GetString("ops.container.runtime"),
+			DockerEndpoint:          reader.GetString("ops.container.docker.endpoint"),
+			LogsDefaultTail:         reader.GetInt("ops.container.logs.default_tail"),
+			LogsMaxTail:             reader.GetInt("ops.container.logs.max_tail"),
+			RuntimeEnabled:          reader.GetBool("ops.container.runtime.enabled"),
+			DangerousActionsEnabled: reader.GetBool("ops.container.actions.dangerous_enabled"),
+		},
 	}
 
 	if err := cfg.Validate(); err != nil {
@@ -368,6 +394,7 @@ func (c *Config) Validate() error {
 		validateRedisConfig,
 		validateI18nConfig,
 		validateAuthConfig,
+		validateContainerConfig,
 	}
 	for _, validate := range validators {
 		if err := validate(c); err != nil {
@@ -629,6 +656,31 @@ func validateAuthConfig(c *Config) error {
 	return nil
 }
 
+func validateContainerConfig(c *Config) error {
+	c.Container.Runtime = strings.TrimSpace(c.Container.Runtime)
+	if c.Container.Runtime == "" {
+		c.Container.Runtime = defaultContainerRuntime
+	}
+	switch c.Container.Runtime {
+	case defaultContainerRuntime, "docker":
+	default:
+		return fmt.Errorf("unsupported GRAFT_OPS_CONTAINER_RUNTIME value %q", c.Container.Runtime)
+	}
+	if strings.TrimSpace(c.Container.DockerEndpoint) == "" {
+		return errors.New("GRAFT_OPS_CONTAINER_DOCKER_ENDPOINT is required")
+	}
+	if c.Container.LogsDefaultTail <= 0 {
+		return errors.New("GRAFT_OPS_CONTAINER_LOGS_DEFAULT_TAIL must be greater than zero")
+	}
+	if c.Container.LogsMaxTail <= 0 {
+		return errors.New("GRAFT_OPS_CONTAINER_LOGS_MAX_TAIL must be greater than zero")
+	}
+	if c.Container.LogsDefaultTail > c.Container.LogsMaxTail {
+		return errors.New("GRAFT_OPS_CONTAINER_LOGS_DEFAULT_TAIL must be less than or equal to GRAFT_OPS_CONTAINER_LOGS_MAX_TAIL")
+	}
+	return nil
+}
+
 func validateRefreshCookiePolicy(cfg AuthConfig) error {
 	switch strings.ToLower(strings.TrimSpace(cfg.RefreshCookieSameSite)) {
 	case "lax", "strict":
@@ -765,6 +817,12 @@ func setDefaults(reader *viper.Viper) {
 	reader.SetDefault("auth.refresh_cookie_secure", false)
 	reader.SetDefault("auth.refresh_cookie_same_site", defaultRefreshCookieSameSite)
 	reader.SetDefault("auth.refresh_cookie_path", defaultRefreshCookiePath)
+	reader.SetDefault("ops.container.runtime.enabled", false)
+	reader.SetDefault("ops.container.runtime", defaultContainerRuntime)
+	reader.SetDefault("ops.container.docker.endpoint", defaultContainerDockerEndpoint)
+	reader.SetDefault("ops.container.logs.default_tail", defaultContainerLogsDefaultTail)
+	reader.SetDefault("ops.container.logs.max_tail", defaultContainerLogsMaxTail)
+	reader.SetDefault("ops.container.actions.dangerous_enabled", false)
 }
 
 func parseLocaleList(raw string) []string {

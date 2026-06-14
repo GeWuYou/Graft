@@ -17,7 +17,7 @@
     "list": {
       "eyebrow": "Operations",
       "title": "Container Management",
-      "description": "Review Local Container Runtime State, Details, and Bounded Logs, with Controlled Start and Stop Actions.",
+      "description": "Review Local Container Runtime State, Details, and Truncated Logs, with Controlled Start and Stop Actions.",
       "refresh": "Refresh",
       "retry": "Retry",
       "loadFailed": "Container List Could Not Be Loaded.",

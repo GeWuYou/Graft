@@ -7,7 +7,9 @@ allOf:
       - runtime_info
     properties:
       command:
-        type: string
+        type: array
+        items:
+          type: string
       entrypoint:
         type: array
         items:

@@ -741,13 +741,13 @@ func (e PostContainerStop409JSONResponseBodySuccess) Valid() bool {
 
 // Defines values for PostContainerStop500JSONResponseBodySuccess.
 const (
-	False PostContainerStop500JSONResponseBodySuccess = false
+	PostContainerStop500JSONResponseBodySuccessFalse PostContainerStop500JSONResponseBodySuccess = false
 )
 
 // Valid indicates whether the value is a known member of the PostContainerStop500JSONResponseBodySuccess enum.
 func (e PostContainerStop500JSONResponseBodySuccess) Valid() bool {
 	switch e {
-	case False:
+	case PostContainerStop500JSONResponseBodySuccessFalse:
 		return true
 	default:
 		return false

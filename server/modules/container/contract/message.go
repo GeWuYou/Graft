@@ -32,6 +32,8 @@ const (
 	ContainerInvalidState MessageKey = "ops.container.error.invalidState"
 	// ContainerLogsTooLarge identifies log limit errors.
 	ContainerLogsTooLarge MessageKey = "ops.container.error.logsTooLarge"
+	// ContainerInvalidLogQuery identifies invalid log query parameter errors.
+	ContainerInvalidLogQuery MessageKey = "ops.container.error.invalidLogQuery"
 	// ContainerTimeout identifies runtime timeout errors.
 	ContainerTimeout MessageKey = "ops.container.error.timeout"
 	// ContainerDangerousActionsDisabled identifies disabled action errors.

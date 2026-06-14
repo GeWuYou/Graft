@@ -5,10 +5,12 @@ package container
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"go.uber.org/zap"
@@ -26,7 +28,10 @@ const (
 )
 
 type service struct {
+	runtimeMu               sync.Mutex
 	runtime                 Runtime
+	runtimeOptions          containerRuntimeOptions
+	runtimeFactory          func(containerRuntimeOptions) (Runtime, error)
 	systemConfig            moduleapi.SystemConfigResolver
 	auditBus                eventbus.Bus
 	logger                  *zap.Logger
@@ -39,6 +44,8 @@ type service struct {
 
 type containerServiceOptions struct {
 	runtime                 Runtime
+	runtimeOptions          containerRuntimeOptions
+	runtimeFactory          func(containerRuntimeOptions) (Runtime, error)
 	systemConfig            moduleapi.SystemConfigResolver
 	auditBus                eventbus.Bus
 	logger                  *zap.Logger
@@ -54,6 +61,7 @@ func newContainerService(ctx *module.Context, moduleName string) (*service, erro
 	runtime := Runtime(disabledRuntime{})
 	return newService(containerServiceOptions{
 		runtime:                 runtime,
+		runtimeOptions:          options,
 		systemConfig:            resolveSystemConfigResolver(ctx),
 		auditBus:                ctx.EventBus,
 		logger:                  ctx.Logger,
@@ -75,8 +83,24 @@ func newService(options containerServiceOptions) (*service, error) {
 	if options.defaultTail > options.maxTail {
 		options.defaultTail = options.maxTail
 	}
+	runtimeOptions := options.runtimeOptions
+	if strings.TrimSpace(runtimeOptions.runtime) == "" {
+		runtimeOptions.runtime = defaultContainerRuntime
+	}
+	if strings.TrimSpace(runtimeOptions.endpoint) == "" {
+		runtimeOptions.endpoint = defaultContainerDockerEndpoint
+	}
+	runtimeOptions.dangerousActionsEnabled = options.dangerousActionsEnabled
+	runtimeOptions.defaultTail = options.defaultTail
+	runtimeOptions.maxTail = options.maxTail
+	runtimeFactory := options.runtimeFactory
+	if runtimeFactory == nil {
+		runtimeFactory = newContainerRuntime
+	}
 	return &service{
 		runtime:                 options.runtime,
+		runtimeOptions:          runtimeOptions,
+		runtimeFactory:          runtimeFactory,
 		auditBus:                options.auditBus,
 		logger:                  options.logger,
 		moduleName:              firstNonEmpty(options.moduleName, moduleID),
@@ -89,7 +113,12 @@ func newService(options containerServiceOptions) (*service, error) {
 }
 
 func (s *service) Close() error {
-	if s == nil || s.runtime == nil {
+	if s == nil {
+		return nil
+	}
+	s.runtimeMu.Lock()
+	defer s.runtimeMu.Unlock()
+	if s.runtime == nil {
 		return nil
 	}
 	return s.runtime.Close()
@@ -213,7 +242,7 @@ func (s *service) normalizeLogQuery(query LogQuery) (LogQuery, error) {
 	}
 	if query.Since != "" {
 		if _, err := parseLogSince(query.Since); err != nil {
-			return LogQuery{}, errInvalidRef
+			return LogQuery{}, fmt.Errorf("%w: %v", errInvalidLogQuery, err)
 		}
 	}
 	return query, nil
@@ -329,10 +358,77 @@ func containerOptionsFromConfig(ctx *module.Context) containerRuntimeOptions {
 		defaultTail:             defaultContainerLogsDefaultTail,
 		maxTail:                 defaultContainerLogsMaxTail,
 	}
-	if ctx == nil || ctx.Config == nil {
+	if ctx == nil {
 		return options
 	}
+	applyContainerBoolDefault(ctx, containercontract.ContainerRuntimeEnabledConfig.String(), &options.enabled)
+	applyContainerStringDefault(ctx, containercontract.ContainerRuntimeConfig.String(), &options.runtime)
+	applyContainerStringDefault(ctx, containercontract.ContainerDockerEndpointConfig.String(), &options.endpoint)
+	applyContainerIntDefault(ctx, containercontract.ContainerLogsDefaultTailConfig.String(), &options.defaultTail)
+	applyContainerIntDefault(ctx, containercontract.ContainerLogsMaxTailConfig.String(), &options.maxTail)
+	applyContainerBoolDefault(ctx, containercontract.ContainerDangerousActionsEnabledConfig.String(), &options.dangerousActionsEnabled)
+	if ctx.Config != nil {
+		options.enabled = ctx.Config.Container.RuntimeEnabled
+		options.runtime = ctx.Config.Container.Runtime
+		options.endpoint = ctx.Config.Container.DockerEndpoint
+		options.defaultTail = ctx.Config.Container.LogsDefaultTail
+		options.maxTail = ctx.Config.Container.LogsMaxTail
+		options.dangerousActionsEnabled = ctx.Config.Container.DangerousActionsEnabled
+	}
 	return options
+}
+
+func applyContainerBoolDefault(ctx *module.Context, key string, target *bool) {
+	if target == nil {
+		return
+	}
+	raw, ok := containerDefaultValue(ctx, key)
+	if !ok {
+		return
+	}
+	var value bool
+	if err := json.Unmarshal(raw, &value); err == nil {
+		*target = value
+	}
+}
+
+func applyContainerStringDefault(ctx *module.Context, key string, target *string) {
+	if target == nil {
+		return
+	}
+	raw, ok := containerDefaultValue(ctx, key)
+	if !ok {
+		return
+	}
+	var value string
+	if err := json.Unmarshal(raw, &value); err == nil && strings.TrimSpace(value) != "" {
+		*target = strings.TrimSpace(value)
+	}
+}
+
+func applyContainerIntDefault(ctx *module.Context, key string, target *int) {
+	if target == nil {
+		return
+	}
+	raw, ok := containerDefaultValue(ctx, key)
+	if !ok {
+		return
+	}
+	var value int
+	if err := json.Unmarshal(raw, &value); err == nil && value > 0 {
+		*target = value
+	}
+}
+
+func containerDefaultValue(ctx *module.Context, key string) (json.RawMessage, bool) {
+	if ctx == nil || ctx.ConfigRegistry == nil {
+		return nil, false
+	}
+	definition, ok := ctx.ConfigRegistry.Get(key)
+	if !ok || len(definition.DefaultValue) == 0 {
+		return nil, false
+	}
+	return definition.DefaultValue, true
 }
 
 func resolveSystemConfigResolver(ctx *module.Context) moduleapi.SystemConfigResolver {
@@ -388,19 +484,19 @@ func (s *service) runtimeForRequest() (Runtime, error) {
 	if s == nil {
 		return nil, errRuntimeDisabled
 	}
+	s.runtimeMu.Lock()
+	defer s.runtimeMu.Unlock()
 	if s.runtime != nil {
 		if _, disabled := s.runtime.(disabledRuntime); !disabled {
 			return s.runtime, nil
 		}
 	}
-	runtime, err := newContainerRuntime(containerRuntimeOptions{
-		enabled:                 true,
-		runtime:                 defaultContainerRuntime,
-		endpoint:                defaultContainerDockerEndpoint,
-		dangerousActionsEnabled: s.dangerousActionsEnabled,
-		defaultTail:             s.defaultTail,
-		maxTail:                 s.maxTail,
-	})
+	options := s.runtimeOptions
+	options.enabled = true
+	options.dangerousActionsEnabled = s.dangerousActionsEnabled
+	options.defaultTail = s.defaultTail
+	options.maxTail = s.maxTail
+	runtime, err := s.runtimeFactory(options)
 	if err != nil {
 		return nil, err
 	}

@@ -97,7 +97,7 @@ type Summary struct {
 // Detail is a sanitized container inspect view.
 type Detail struct {
 	Summary
-	Command          string
+	Command          []string
 	Entrypoint       []string
 	Mounts           []Mount
 	Networks         []Network

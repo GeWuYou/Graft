@@ -79,6 +79,7 @@ func registerRoutes(ctx *module.Context, moduleName string, service *service) er
 }
 
 func (r routeRuntime) handleList(ginCtx *gin.Context) {
+	// Keep generated binding on routes with OpenAPI header parameters even when the handler does not read them.
 	_ = bindGetContainersParams(ginCtx)
 	runtime, items, err := r.service.List(ginCtx.Request.Context())
 	if err != nil {
@@ -89,6 +90,7 @@ func (r routeRuntime) handleList(ginCtx *gin.Context) {
 }
 
 func (r routeRuntime) handleDetail(ginCtx *gin.Context) {
+	// Keep generated binding on routes with OpenAPI header parameters even when the handler does not read them.
 	_ = bindGetContainerParams(ginCtx)
 	ref, ok := readRef(ginCtx, r)
 	if !ok {

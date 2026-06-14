@@ -39,7 +39,7 @@ func toSummary(item Summary) containergen.ContainerSummary {
 
 func toDetail(detail Detail) containergen.ContainerDetail {
 	return containergen.ContainerDetail{
-		Command:          optionalString(detail.Command),
+		Command:          optionalStringSlice(detail.Command),
 		CreatedAt:        mustTime(detail.CreatedAt),
 		Entrypoint:       optionalStringSlice(detail.Entrypoint),
 		Id:               detail.ID,
@@ -184,7 +184,7 @@ func optionalTime(value string) *time.Time {
 func mustTime(value string) time.Time {
 	parsed, err := time.Parse(time.RFC3339, value)
 	if err != nil {
-		return time.Unix(0, 0).UTC()
+		return time.Time{}
 	}
 	return parsed
 }

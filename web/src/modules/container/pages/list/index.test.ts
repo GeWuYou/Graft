@@ -179,6 +179,8 @@ describe('container list page', () => {
       image: 'graft/web:latest',
       status: 'Up 10 minutes',
       state: 'running',
+      command: ['npm', 'run', 'serve'],
+      entrypoint: ['docker-entrypoint.sh'],
       runtime: 'first-adapter',
       created_at: '2026-06-14T01:00:00Z',
       started_at: '2026-06-14T01:05:00Z',
@@ -229,6 +231,8 @@ describe('container list page', () => {
 
     expect(apiMocks.getContainer).toHaveBeenCalledWith('container-1');
     expect(wrapper.text()).toContain('容器详情');
+    expect(wrapper.text()).toContain('npm run serve');
+    expect(wrapper.text()).toContain('docker-entrypoint.sh');
 
     await wrapper.get('[data-testid="container-action-logs"]').trigger('click');
     await flushPromises();
