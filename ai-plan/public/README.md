@@ -12,8 +12,6 @@ Overlay note:
 
 ## Active Topics
 
-- `container-management-mvp`
-  - Recovery entry: `ai-plan/public/container-management-mvp/README.md`
 - `announcement-center-mvp`
   - Recovery entry: `ai-plan/public/announcement-center-mvp/README.md`
 - `rbac-feature-and-nplusone-hardening`

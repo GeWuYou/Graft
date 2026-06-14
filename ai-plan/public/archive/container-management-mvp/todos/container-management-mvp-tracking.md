@@ -43,9 +43,10 @@ Container Management MVP
   和 start/stop/restart 审计事件。
 - Phase 4 已完成：新增 `web/src/modules/container` 前端模块，接入 `运维管理 -> 容器管理` bootstrap route、OpenAPI
   schema 类型消费、容器列表筛选、详情 Drawer、日志 Drawer 和 start/stop/restart 高危确认。
+- Phase 5 已完成：完成态 validation/governance closeout 已通过，topic 已从 active index 移入
+  `ai-plan/public/archive/container-management-mvp/`。
 - 当前分支：`feat/container-management-mvp`。
-- 下一批次：Phase 5 测试、i18n、治理收尾、归档准备。
-- 下一批次不得扩展容器业务功能；只做完成态验证、治理核对、恢复文档收口和必要的归档准备。
+- 下一批次：无；主题 archive-ready / archived。
 
 ## Task Checklist
 
@@ -54,7 +55,7 @@ Container Management MVP
 - [x] Phase 2：后端模块骨架、菜单、权限、i18n、系统配置定义
 - [x] Phase 3：后端 `DockerRuntime` adapter、API、权限、错误映射、审计
 - [x] Phase 4：前端容器列表、详情 Drawer、日志 Drawer/Dialog、高危确认
-- [ ] Phase 5：测试、i18n、治理收尾、归档准备
+- [x] Phase 5：测试、i18n、治理收尾、归档准备
 
 ## Risks
 
@@ -72,13 +73,31 @@ Container Management MVP
 
 ## Last Validation
 
-- Phase 4 修改 `web/src/modules/container/**`、必要的 `web` locale catalog、`server/modules/container/config.go` i18n
-  authority lint 命名修复和 public recovery 文档。
-- 直接验证：
+- Phase 5 修改范围只包含 recovery/archive governance 文档和 active-topic index；未修改容器 feature code。
+- 完成态验证：
+  - `node scripts/openapi-bundle.mjs`
+  - `cd web && bun run openapi:types:check`
   - `cd web && bun run check`
-  - `cd server && go test ./modules/container/...`
-  - `cd server && go run ./cmd/graft validate backend --stage lint`
+  - `cd server && go test ./internal/contract/openapi/... ./modules/container/...`
+  - `cd server && go run ./cmd/graft validate backend`
   - `git diff --check`
-- Phase 4 未运行浏览器 QA；当前验收以 web 完成态 entrypoint、focused module tests 和 build 为准。
-- 命名约束：产品、权限、菜单、OpenAPI route 常量保持 `container` / `ops.container` 语义；`docker` 仅出现在
-  `DockerRuntime` adapter、官方 SDK dependency 和 `ops.container.docker.endpoint` 配置键语义。
+  - `rg "ops\\.docker|Docker 管理" ai-plan openapi server web --glob '!web/node_modules/**' --glob '!server/.cache/**'`
+  - `rg "服务器管理" ai-plan openapi server web --glob '!web/node_modules/**' --glob '!server/.cache/**'`
+- 结果：
+  - OpenAPI source/generated drift clean；`openapi-bundle` 未产生 tracked diff，web generated schema check 通过。
+  - Backend 完成态验证通过；`graft validate backend` 包含 migration version gate、OpenAPI generated freshness、
+    backend DTO boundary check、Go test/build 路径。命令输出含既有 OpenAPI 3.1 / oapi-codegen warning，但未失败。
+  - Web 完成态验证通过；首次 `bun run check` 在既有 monitor dependency-page Vitest 用例上出现一次未复现失败，
+    focused monitor test 和 container frontend tests 随后通过，完整 `bun run check` rerun 通过 107 test files / 623 tests
+    并完成 release build。
+  - 命名约束通过：产品、权限、菜单、OpenAPI route 常量保持 `container` / `ops.container` 语义；`ops.docker` 仅出现于
+    禁止项说明和测试断言，`docker` 仅作为 `DockerRuntime` adapter、官方 SDK dependency 和
+    `ops.container.docker.endpoint` 配置键语义。
+  - 菜单 IA 保持 `运维管理 -> 容器管理`；`服务器管理` 命中只来自容器设计/恢复文档中的禁止挂载说明、既有 monitor 模块
+    和历史 archive evidence。
+  - 未发现容器 API/UI/docs/code 暴露敏感 env、secret、token、authorization header 或 raw Docker inspect payload。
+  - 未实现 MVP 禁止范围：exec、终端、文件编辑、删除、prune、镜像构建/拉取/推送、容器创建、远程 Docker Host、
+    Kubernetes 或单独操作日志表。
+  - Phase 4 范围扩展已确认是 authority/i18n repair：`server/modules/container/config.go` 本地 helper 字段名从
+    `title` / `description` 调整为 `fallbackTitle` / `fallbackDescription`，并补齐 RBAC/system-config locale keys；
+    该修复未改变配置 key、TitleKey、DescriptionKey 或 runtime API。

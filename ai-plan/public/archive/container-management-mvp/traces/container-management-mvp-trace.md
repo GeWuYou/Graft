@@ -69,6 +69,22 @@
 - Phase 4 验证通过：`cd web && bun run check`、`cd server && go test ./modules/container/...`、
   `cd server && go run ./cmd/graft validate backend --stage lint`、`git diff --check`。
 - Phase 4 未启动浏览器 dev server 做浏览器 QA；完成态验证以 `bun run check` 的 typecheck/governance/lint/style/test/build 为准。
+- Phase 5 执行最终 completion-state validation：`node scripts/openapi-bundle.mjs`、
+  `cd web && bun run openapi:types:check`、`cd web && bun run check`、
+  `cd server && go test ./internal/contract/openapi/... ./modules/container/...`、
+  `cd server && go run ./cmd/graft validate backend`、`git diff --check`。
+- Phase 5 backend 完成态验证通过；`graft validate backend` 输出既有 OpenAPI 3.1 / oapi-codegen warning，但
+  migration version gate、generated freshness、DTO boundary check、Go test/build 路径均通过。
+- Phase 5 web 完成态验证第一次在既有 monitor dependency-page Vitest 用例上出现一次未复现失败；随后 focused monitor
+  test、container frontend tests 和完整 `cd web && bun run check` rerun 均通过，rerun 覆盖 107 test files / 623 tests
+  与 release build。
+- Phase 5 命名扫描确认 `ops.docker` / `Docker 管理` 只出现在禁止项说明或测试断言中；`服务器管理` 命中只来自容器治理
+  禁止说明、既有 monitor module 和历史 archive evidence。容器菜单 IA 保持 `运维管理 -> 容器管理`。
+- Phase 5 安全/范围核对确认未新增 exec、终端、文件编辑、删除、prune、镜像构建/拉取/推送、容器创建、远程 Docker Host、
+  Kubernetes 或单独操作日志表；容器详情和日志响应继续不暴露敏感 env、secret、token、authorization header 或 raw
+  Docker inspect payload。
+- Phase 5 将 topic 从 active index 移入 `ai-plan/public/archive/container-management-mvp/`，不再作为默认 startup recovery
+  入口。
 
 ## Loop Batch State
 
@@ -80,13 +96,12 @@
     "phase-1-openapi-contract-source",
     "phase-2-server-module-foundation",
     "phase-3-server-runtime-api-audit",
-    "phase-4-web-container-management-ui"
-  ],
-  "pending_batches": [
+    "phase-4-web-container-management-ui",
     "phase-5-validation-governance-closeout"
   ],
-  "current_batch": "phase-4-web-container-management-ui",
-  "next_batch": "phase-5-validation-governance-closeout",
-  "closeout_status": "active"
+  "pending_batches": [],
+  "current_batch": "phase-5-validation-governance-closeout",
+  "next_batch": null,
+  "closeout_status": "archive-ready"
 }
 ```

@@ -3,11 +3,12 @@
 ## 当前状态摘要
 
 - 当前主题目标是在 `Graft` 增加“运维管理 -> 容器管理”能力。
-- 状态：`active`。
+- 状态：`archived`。
 - 任务分类为 `cross-boundary`，涉及 OpenAPI、server module、permission/menu/audit/system-config、web module 和 i18n。
 - Canonical design：`ai-plan/design/容器管理设计.md`。
-- 当前已完成 Phase 0 设计与恢复入口、Phase 1 OpenAPI contract source、Phase 2 后端模块骨架。
-- 尚未实现后端运行时 API / `DockerRuntime` adapter 或前端页面。
+- 已完成 Phase 0 设计与恢复入口、Phase 1 OpenAPI contract source、Phase 2 后端模块骨架、Phase 3 后端运行时
+  API / `DockerRuntime` adapter、Phase 4 前端容器管理页面、Phase 5 完成态验证与治理收尾。
+- 本主题已从 active topic index 移入 `ai-plan/public/archive/container-management-mvp/`。
 
 ## Recovery Receipt
 
@@ -16,12 +17,13 @@
 - recovery source：`parent topic`
 - authority summary：`ai-plan/design/容器管理设计.md` + OpenAPI source + `server/modules/container` module contract/descriptor + `web/src/modules/container` bootstrap routes + permission/menu/audit/system-config/i18n governance docs
 
-## Owned Scope
+## Historical Owned Scope
 
-允许修改：
+实现期允许修改：
 
 - `ai-plan/design/容器管理设计.md`
 - `ai-plan/public/container-management-mvp/**`
+- `ai-plan/public/archive/container-management-mvp/**`
 - `ai-plan/public/README.md`
 - `openapi/**`
 - `server/modules/container/**`
@@ -51,10 +53,14 @@
 
 - 分支为 `feat/container-management-mvp`。
 - 设计 authority 已落到 `ai-plan/design/容器管理设计.md`。
-- active topic 已落到 `ai-plan/public/container-management-mvp/`。
+- archived topic 已落到 `ai-plan/public/archive/container-management-mvp/`。
+- Phase 0 已完成：设计文档与 public topic 持久化。
 - Phase 1 已完成：OpenAPI 与 generated contract artifacts。
 - Phase 2 已完成：`server/modules/container` 后端模块骨架、菜单、权限、i18n、系统配置定义和 compile-time registry 接入。
-- 当前下一批次：Phase 3 后端 `DockerRuntime` adapter、API、权限、错误映射、审计。
+- Phase 3 已完成：后端 `DockerRuntime` adapter、API、权限、错误映射、日志 guardrail 和 start/stop/restart 审计。
+- Phase 4 已完成：前端容器列表、详情 Drawer、日志 Drawer 和 start/stop/restart 高危确认。
+- Phase 5 已完成：OpenAPI/generated drift、backend、web、命名、安全边界与 topic archive closeout 均通过最终核对。
+- 当前下一批次：无；主题处于 archive-ready / archived 状态。
 
 ## Validation Targets
 
@@ -62,9 +68,10 @@
 git diff --check
 cd server && go test ./internal/contract/openapi/...
 node scripts/openapi-bundle.mjs
-cd web && bun run openapi:types
+cd web && bun run openapi:types:check
 cd web && bun run check
 cd server && go run ./cmd/graft validate backend
 ```
 
-按阶段选择最小正确验证；Phase 0 只要求文档结构和命名检查，后续实现阶段再运行 server/web 完成态验证。
+最终 Phase 5 已执行完成态验证。`cd web && bun run check` 第一次运行在一个既有 monitor dependency-page Vitest
+用例上出现一次未复现失败；随后 focused monitor test、container frontend tests 和完整 `bun run check` 均通过。
