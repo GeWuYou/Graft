@@ -266,6 +266,8 @@ func TestDockerRuntimeListCollectsStatsWithBoundedConcurrency(t *testing.T) {
 	}
 	if maxConcurrent := client.maxConcurrentStats.Load(); maxConcurrent < 2 {
 		t.Fatalf("expected concurrent stats collection, got max concurrency %d", maxConcurrent)
+	} else if bound := int64(min(len(client.list), dockerStatsListWorkers)); maxConcurrent > bound {
+		t.Fatalf("expected stats concurrency bounded by %d, got max concurrency %d", bound, maxConcurrent)
 	}
 	for index, item := range items {
 		if item.ID != client.list[index].ID {
