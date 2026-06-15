@@ -11,7 +11,7 @@ require (
 	github.com/joho/godotenv v1.5.1
 
 	// go-redis 是 server 核心 Redis client，用于缓存、会话和后续调度基础能力。
-	github.com/redis/go-redis/v9 v9.20.0
+	github.com/redis/go-redis/v9 v9.20.1
 
 	// Viper 负责读取 GRAFT_* 环境变量并提供默认值解析。
 	github.com/spf13/viper v1.21.0
@@ -36,6 +36,7 @@ require (
 require golang.org/x/text v0.38.0
 
 require (
+	github.com/containerd/errdefs v1.0.0
 	github.com/docker/docker v28.5.2+incompatible
 	github.com/mattn/go-sqlite3 v1.14.45
 	github.com/robfig/cron/v3 v3.0.1
@@ -48,7 +49,6 @@ require (
 	github.com/andybalholm/brotli v1.2.0 // indirect
 	github.com/bep/godartsass/v2 v2.5.0 // indirect
 	github.com/bep/golibsass v1.2.0 // indirect
-	github.com/containerd/errdefs v1.0.0 // indirect
 	github.com/containerd/errdefs/pkg v0.3.0 // indirect
 	github.com/containerd/log v0.1.0 // indirect
 	github.com/distribution/reference v0.6.0 // indirect
