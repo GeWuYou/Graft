@@ -4,7 +4,7 @@
 -->
 
 <template>
-  <div class="container-detail-page" data-page-type="list-form-detail">
+  <div class="container-detail-page" data-page-type="operations-detail">
     <management-page-header
       title-key="container.detail.title"
       :title="pageTitle"
@@ -55,17 +55,27 @@
             <div class="container-detail-summary__main">
               <strong>{{ displayName(detail) }}</strong>
               <span>{{ detail.image }}</span>
-              <code>{{ detail.id }}</code>
+              <code>{{ detail.short_id || detail.id }}</code>
+              <t-tag :theme="stateTheme(detail.state)" variant="light-outline">
+                {{ stateLabel(detail.state) }}
+              </t-tag>
             </div>
           </t-card>
           <t-card size="small" :bordered="true" :title="t('container.detail.summary.resources')">
-            <div class="container-detail-metric">
-              <span>{{ t('container.detail.resources.cpu') }}</span>
-              <strong>{{ resourcePercent(detail.resource?.cpu_percent) }}</strong>
-            </div>
-            <div class="container-detail-metric">
-              <span>{{ t('container.detail.resources.memory') }}</span>
-              <strong>{{ resourcePercent(detail.resource?.memory_percent) }}</strong>
+            <div class="container-detail-summary__resource">
+              <metric-card
+                :title="t('container.detail.resources.cpu')"
+                :value="formatPercent(detail.resource?.cpu_percent)"
+                :progress="toProgressPercent(detail.resource?.cpu_percent)"
+                :progress-label="formatPercent(detail.resource?.cpu_percent)"
+              />
+              <metric-card
+                :title="t('container.detail.resources.memory')"
+                :value="formatPercent(detail.resource?.memory_percent)"
+                :description="memorySummary(detail)"
+                :progress="toProgressPercent(detail.resource?.memory_percent)"
+                :progress-label="formatPercent(detail.resource?.memory_percent)"
+              />
             </div>
           </t-card>
           <t-card size="small" :bordered="true" :title="t('container.detail.summary.network')">
@@ -76,6 +86,10 @@
             <div class="container-detail-metric">
               <span>{{ t('container.detail.network.summary') }}</span>
               <strong>{{ detail.network_summary || '-' }}</strong>
+            </div>
+            <div class="container-detail-metric">
+              <span>{{ t('container.detail.network.ports') }}</span>
+              <strong>{{ portSummary(detail) }}</strong>
             </div>
           </t-card>
         </section>
@@ -115,12 +129,36 @@
 
             <t-tab-panel value="resources" :label="t('container.detail.tabs.resources')" :destroy-on-hide="false">
               <section class="container-detail-section">
-                <t-descriptions :column="2" item-layout="vertical" bordered table-layout="fixed">
+                <div class="container-detail-resource-grid">
+                  <metric-card
+                    :title="t('container.detail.resources.cpu')"
+                    :value="formatPercent(detail.resource?.cpu_percent)"
+                    :description="t('container.detail.resources.currentSnapshot')"
+                    :progress="toProgressPercent(detail.resource?.cpu_percent)"
+                    :progress-label="formatPercent(detail.resource?.cpu_percent)"
+                  />
+                  <metric-card
+                    :title="t('container.detail.resources.memory')"
+                    :value="memorySummary(detail)"
+                    :description="formatPercent(detail.resource?.memory_percent)"
+                    :progress="toProgressPercent(detail.resource?.memory_percent)"
+                    :progress-label="formatPercent(detail.resource?.memory_percent)"
+                  />
+                  <metric-card
+                    :title="t('container.detail.resources.status')"
+                    :value="resourceAvailability(detail)"
+                    :description="formatTime(detail.inspect_updated_at)"
+                  />
+                </div>
+                <t-descriptions
+                  class="container-detail-resource-descriptions"
+                  :column="2"
+                  item-layout="vertical"
+                  bordered
+                  table-layout="fixed"
+                >
                   <t-descriptions-item :label="t('container.detail.resources.cpu')">
-                    {{ resourcePercent(detail.resource?.cpu_percent) }}
-                  </t-descriptions-item>
-                  <t-descriptions-item :label="t('container.detail.resources.memory')">
-                    {{ resourcePercent(detail.resource?.memory_percent) }}
+                    {{ formatPercent(detail.resource?.cpu_percent) }}
                   </t-descriptions-item>
                   <t-descriptions-item :label="t('container.detail.resources.memoryUsage')">
                     {{ formatBytes(detail.resource?.memory_usage_bytes) }}
@@ -128,8 +166,14 @@
                   <t-descriptions-item :label="t('container.detail.resources.memoryLimit')">
                     {{ formatBytes(detail.resource?.memory_limit_bytes) }}
                   </t-descriptions-item>
+                  <t-descriptions-item :label="t('container.detail.resources.memoryPercent')">
+                    {{ formatPercent(detail.resource?.memory_percent) }}
+                  </t-descriptions-item>
                   <t-descriptions-item :label="t('container.detail.resources.status')">
                     {{ resourceAvailability(detail) }}
+                  </t-descriptions-item>
+                  <t-descriptions-item :label="t('container.detail.resources.collectedAt')">
+                    {{ formatTime(detail.inspect_updated_at) }}
                   </t-descriptions-item>
                 </t-descriptions>
               </section>
@@ -137,18 +181,23 @@
 
             <t-tab-panel value="logs" :label="t('container.detail.tabs.logs')" :destroy-on-hide="false">
               <section class="container-detail-section">
-                <div class="container-detail-log-toolbar">
-                  <t-button theme="primary" :loading="logsLoading" @click="loadLogs">
-                    {{ t('container.detail.logs.refresh') }}
-                  </t-button>
-                  <t-button theme="default" variant="outline" :disabled="!logs?.lines.length" @click="copyLogs">
-                    {{ t('container.detail.copy') }}
-                  </t-button>
-                </div>
-                <t-alert v-if="logsError" theme="error" :title="logsError" />
-                <t-alert v-if="logs?.truncated" theme="warning" :title="t('container.detail.logs.truncated')" />
-                <pre v-if="logs?.lines.length" class="container-detail-code">{{ logs.lines.join('\n') }}</pre>
-                <t-empty v-else size="small" :description="t('container.detail.logs.empty')" />
+                <log-viewer
+                  v-model:line-limit="logLineLimit"
+                  :lines="logs?.lines ?? []"
+                  :loading="logsLoading"
+                  :error="logsError"
+                  :truncated="logs?.truncated"
+                  :refresh-label="t('container.detail.logs.refresh')"
+                  :copy-label="t('container.detail.copy')"
+                  :search-placeholder="t('container.detail.logs.searchPlaceholder')"
+                  :wrap-label="t('container.detail.logs.wrap')"
+                  :follow-tail-label="t('container.detail.logs.followTail')"
+                  :empty-label="t('container.detail.logs.empty')"
+                  :truncated-label="t('container.detail.logs.truncated')"
+                  :copy-success-label="t('container.detail.copySuccess')"
+                  :copy-error-label="t('container.detail.copyError')"
+                  @refresh="loadLogs"
+                />
               </section>
             </t-tab-panel>
 
@@ -260,12 +309,19 @@
 
             <t-tab-panel value="raw" :label="t('container.detail.tabs.raw')" :destroy-on-hide="false">
               <section class="container-detail-section">
-                <div class="container-detail-log-toolbar">
-                  <t-button theme="default" variant="outline" @click="copyRawJson">
-                    {{ t('container.detail.copy') }}
-                  </t-button>
-                </div>
-                <pre class="container-detail-code">{{ rawJson }}</pre>
+                <json-viewer
+                  :value="detail"
+                  :title="t('container.detail.raw.title')"
+                  :description="t('container.detail.raw.description')"
+                  :root-label="t('container.detail.raw.root')"
+                  :source-label="t('container.detail.raw.source')"
+                  :tree-label="t('container.detail.raw.tree')"
+                  :copy-label="t('container.detail.copy')"
+                  :copy-success-label="t('container.detail.copySuccess')"
+                  :copy-error-label="t('container.detail.copyError')"
+                  :empty-label="t('container.detail.raw.empty')"
+                  :error-label="t('container.detail.raw.error')"
+                />
               </section>
             </t-tab-panel>
           </t-tabs>
@@ -284,8 +340,16 @@ import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
 import { ManagementPageHeader } from '@/shared/components/management';
+import { MetricCard } from '@/shared/components/metrics';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
-import { formatLocaleDateTime } from '@/shared/observability';
+import {
+  formatBytes,
+  formatLocaleDateTime,
+  formatPercent,
+  JsonViewer,
+  LogViewer,
+  toProgressPercent,
+} from '@/shared/observability';
 import { createLogger } from '@/utils/logger';
 
 import { getContainer, getContainerLogs } from '../../api/container';
@@ -313,7 +377,6 @@ const DEFAULT_LOG_QUERY = {
   stdout: true,
   stderr: true,
 };
-const BYTES_PER_MIB = 1024 * 1024;
 
 const { locale, t } = useI18n();
 const route = useRoute();
@@ -326,6 +389,7 @@ const error = ref('');
 const logs = ref<ContainerLogResponse | null>(null);
 const logsLoading = ref(false);
 const logsError = ref('');
+const logLineLimit = ref(DEFAULT_LOG_QUERY.tail);
 const activeTab = ref<DetailTab>(normalizeTab(route.query.tab));
 
 const containerId = computed(() => String(route.params.id ?? '').trim());
@@ -333,7 +397,6 @@ const pageTitle = computed(() => {
   const name = detail.value ? displayName(detail.value) : containerId.value;
   return name ? `${t('container.detail.title')} - ${name}` : t('container.detail.title');
 });
-const rawJson = computed(() => (detail.value ? JSON.stringify(detail.value, null, 2) : ''));
 const environmentRows = computed(() => normalizeEnvironmentRows(detail.value));
 const environmentColumns = computed<TableProps['columns']>(() => [
   { colKey: 'name', title: t('container.detail.config.envName'), minWidth: 220, ellipsis: true },
@@ -380,6 +443,12 @@ watch(
   },
 );
 
+watch(logLineLimit, () => {
+  if (activeTab.value === 'logs') {
+    void loadLogs();
+  }
+});
+
 async function loadDetail() {
   if (!containerId.value) {
     error.value = t('container.detail.missingId');
@@ -403,7 +472,10 @@ async function loadLogs() {
   logsLoading.value = true;
   logsError.value = '';
   try {
-    logs.value = await getContainerLogs(containerId.value, DEFAULT_LOG_QUERY);
+    logs.value = await getContainerLogs(containerId.value, {
+      ...DEFAULT_LOG_QUERY,
+      tail: logLineLimit.value,
+    });
   } catch (loadError) {
     logsError.value = resolveLocalizedErrorMessage(t, loadError, t('container.list.logs.loadFailed'));
     logger.warn('failed to fetch container logs', loadError);
@@ -433,14 +505,6 @@ function goBack() {
     return;
   }
   void router.push({ name: 'ContainerList' });
-}
-
-async function copyLogs() {
-  await copyText(logs.value?.lines.join('\n') ?? '');
-}
-
-async function copyRawJson() {
-  await copyText(rawJson.value);
 }
 
 async function copyEnvironmentValue(row: EnvironmentRow) {
@@ -580,24 +644,31 @@ function joinList(values?: string[]) {
   return values?.length ? values.join(' ') : '-';
 }
 
-function resourcePercent(value?: number) {
-  return value === undefined ? '-' : `${value.toFixed(1)}%`;
-}
-
-function formatBytes(value?: number) {
-  if (value === undefined) {
-    return '-';
-  }
-
-  return `${(value / BYTES_PER_MIB).toFixed(value >= BYTES_PER_MIB ? 1 : 2)} MiB`;
-}
-
 function resourceAvailability(nextDetail: ContainerDetail) {
   const resource = nextDetail.resource;
   if (resource?.stats_available || resource?.available) {
     return t('container.detail.resources.available');
   }
   return resource?.stats_error_message || resource?.stats_error_key || resource?.unavailable_reason || '-';
+}
+
+function memorySummary(nextDetail: ContainerDetail) {
+  const resource = nextDetail.resource;
+  return `${formatBytes(resource?.memory_usage_bytes)} / ${formatBytes(resource?.memory_limit_bytes)}`;
+}
+
+function portSummary(nextDetail: ContainerDetail) {
+  if (!nextDetail.ports.length) {
+    return '-';
+  }
+
+  const firstPorts = nextDetail.ports.slice(0, 2).map((port) => {
+    const privatePort = port.private_port ? `${port.private_port}` : '-';
+    const publicPort = port.public_port ? `${port.public_port}` : '';
+    return publicPort ? `${publicPort}:${privatePort}/${port.type}` : `${privatePort}/${port.type}`;
+  });
+  const restCount = nextDetail.ports.length - firstPorts.length;
+  return restCount > 0 ? `${firstPorts.join(', ')} +${restCount}` : firstPorts.join(', ');
 }
 </script>
 <style scoped lang="less">
@@ -622,6 +693,22 @@ function resourceAvailability(nextDetail: ContainerDetail) {
   flex-direction: column;
   gap: var(--graft-density-gap-8);
   min-width: 0;
+}
+
+.container-detail-summary__resource,
+.container-detail-resource-grid {
+  display: grid;
+  gap: var(--graft-density-gap-10);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  min-width: 0;
+}
+
+.container-detail-resource-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.container-detail-resource-descriptions {
+  margin-top: var(--graft-density-gap-12);
 }
 
 .container-detail-summary__main strong,
@@ -652,51 +739,10 @@ function resourceAvailability(nextDetail: ContainerDetail) {
   padding: var(--graft-density-gap-16) 0 0;
 }
 
-.container-detail-log-toolbar {
-  align-items: center;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--graft-density-gap-8);
-  justify-content: flex-end;
-}
-
-.container-detail-code {
-  background: var(--td-bg-color-page);
-  border: 1px solid var(--td-component-stroke);
-  border-radius: var(--td-radius-medium);
-  color: var(--td-text-color-primary);
-  font-family: var(--td-font-family-monospace);
-  line-height: var(--td-line-height-body-medium);
-  margin: 0;
-  max-height: min(60vh, 640px);
-  overflow: auto;
-  overflow-wrap: anywhere;
-  padding: var(--graft-density-gap-14);
-  scrollbar-color: var(--td-scrollbar-color) transparent;
-  scrollbar-gutter: stable;
-  scrollbar-width: thin;
-  white-space: pre-wrap;
-}
-
-.container-detail-code::-webkit-scrollbar {
-  background: transparent;
-  height: 8px;
-  width: 8px;
-}
-
-.container-detail-code::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.container-detail-code::-webkit-scrollbar-thumb {
-  background-clip: content-box;
-  background-color: var(--td-scrollbar-color);
-  border: 2px solid transparent;
-  border-radius: 6px;
-}
-
 @media (width <= 960px) {
-  .container-detail-summary {
+  .container-detail-summary,
+  .container-detail-summary__resource,
+  .container-detail-resource-grid {
     grid-template-columns: 1fr;
   }
 }

@@ -59,9 +59,9 @@ assets:
     type: "frontend-utility"
     path: "web/src/shared/observability"
     owner: "web/shared"
-    purpose: "Locale-aware log timestamps, log JSON display, deep-link query helpers, copy helpers, list error/interaction helpers, sorters, and trend axis utilities."
+    purpose: "Locale-aware log timestamps, log and JSON viewers, resource formatting, deep-link query helpers, copy helpers, list error/interaction helpers, sorters, and trend axis utilities."
     use_when:
-      - "Building access log, app log, audit, dashboard, or monitor UI that consumes observability contracts."
+      - "Building access log, app log, audit, container, dashboard, or monitor UI that consumes observability contracts or needs read-only log/JSON troubleshooting surfaces."
     do_not_use_when:
       - "The logic is a module-private business presenter with domain-specific labels."
     examples:
@@ -71,6 +71,22 @@ assets:
     related_assets:
       - "openapi-contracts"
       - "management-components"
+    validation_commands:
+      - "cd web && bun run check"
+
+  - name: "metric-components"
+    type: "frontend-component-suite"
+    path: "web/src/shared/components/metrics"
+    owner: "web/shared"
+    purpose: "Reusable compact metric cards for resource snapshots and operational status summaries."
+    use_when:
+      - "Building module pages that need token-driven CPU, memory, status, or other compact operational metric summaries."
+    do_not_use_when:
+      - "The metric carries module-private business semantics that need a local presenter or specialized layout."
+    examples:
+      - "web/src/modules/container/pages/detail/index.vue"
+    related_assets:
+      - "observability-helpers"
     validation_commands:
       - "cd web && bun run check"
 

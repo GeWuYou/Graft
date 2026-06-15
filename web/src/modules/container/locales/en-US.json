@@ -262,13 +262,28 @@
         "memory": "Memory",
         "memoryUsage": "Memory Usage",
         "memoryLimit": "Memory Limit",
+        "memoryPercent": "Memory Percent",
         "status": "Collection Status",
-        "available": "Collected"
+        "available": "Collected",
+        "collectedAt": "Collected At",
+        "currentSnapshot": "Current Snapshot"
       },
       "logs": {
         "refresh": "Refresh Logs",
+        "searchPlaceholder": "Search Logs",
+        "wrap": "Auto Wrap",
+        "followTail": "Follow Tail",
         "empty": "No Logs.",
         "truncated": "Logs Were Truncated by the Current Limit."
+      },
+      "raw": {
+        "title": "Raw JSON",
+        "description": "Sensitive Fields Are Masked for Read-only Troubleshooting.",
+        "root": "Container",
+        "source": "Source View",
+        "tree": "Tree View",
+        "empty": "No Raw JSON.",
+        "error": "Raw JSON Could Not Be Formatted."
       },
       "health": {
         "status": "Health",
@@ -292,6 +307,7 @@
       "network": {
         "primaryIp": "Primary IP",
         "summary": "Network Summary",
+        "ports": "Port Mappings",
         "name": "Network",
         "ipAddress": "IP Address",
         "gateway": "Gateway",

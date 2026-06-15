@@ -56,21 +56,35 @@ const translations = vi.hoisted(
     'container.detail.health.status': '健康状态',
     'container.detail.inspectUpdatedAt': '详情更新时间',
     'container.detail.logs.empty': '暂无日志。',
+    'container.detail.logs.followTail': '跟随尾部',
     'container.detail.logs.refresh': '刷新日志',
+    'container.detail.logs.searchPlaceholder': '搜索日志内容',
     'container.detail.logs.truncated': '日志已按当前上限截断。',
+    'container.detail.logs.wrap': '自动换行',
     'container.detail.missingId': '缺少容器标识。',
     'container.detail.network.gateway': '网关',
     'container.detail.network.ipAddress': 'IP 地址',
     'container.detail.network.macAddress': 'MAC 地址',
     'container.detail.network.name': '网络',
+    'container.detail.network.ports': '端口映射',
     'container.detail.network.primaryIp': '主 IP',
     'container.detail.network.summary': '网络摘要',
     'container.detail.operation': '操作',
+    'container.detail.raw.description': '敏感字段已脱敏，仅用于只读排查。',
+    'container.detail.raw.empty': '暂无原始 JSON。',
+    'container.detail.raw.error': '原始 JSON 无法格式化。',
+    'container.detail.raw.root': 'container',
+    'container.detail.raw.source': '源码视图',
+    'container.detail.raw.title': '原始 JSON',
+    'container.detail.raw.tree': '树形视图',
     'container.detail.refresh': '刷新',
     'container.detail.resources.available': '已采集',
+    'container.detail.resources.collectedAt': '采集时间',
     'container.detail.resources.cpu': 'CPU',
+    'container.detail.resources.currentSnapshot': '当前快照',
     'container.detail.resources.memory': '内存',
     'container.detail.resources.memoryLimit': '内存上限',
+    'container.detail.resources.memoryPercent': '内存百分比',
     'container.detail.resources.memoryUsage': '内存使用',
     'container.detail.resources.status': '采集状态',
     'container.detail.storage.access': '访问',
@@ -178,6 +192,9 @@ describe('container detail page', () => {
     expect(wrapper.text()).toContain('容器详情 - graft-web');
     expect(wrapper.text()).toContain('graft/web:latest');
     expect(wrapper.text()).toContain('172.18.0.2');
+    expect(wrapper.text()).toContain('21.8%');
+    expect(wrapper.text()).toContain('31.25 GiB / 31.25 GiB');
+    expect(wrapper.text()).toContain('8080:80/tcp');
     expect(wrapper.text()).toContain('环境变量');
     expect(wrapper.text()).toContain('APP_MODE');
     expect(wrapper.text()).toContain('production');
@@ -185,7 +202,8 @@ describe('container detail page', () => {
     expect(wrapper.text()).toContain('已脱敏');
     expect(wrapper.text()).toContain('SECRET_KEY');
     expect(wrapper.text()).toContain('已隐藏');
-    expect(wrapper.text()).toContain('"id": "container-1"');
+    expect(wrapper.text()).toContain('敏感字段已脱敏，仅用于只读排查。');
+    expect(wrapper.text()).toContain('container');
   });
 
   it('loads logs when the logs tab is selected and syncs the route query', async () => {
@@ -235,28 +253,12 @@ describe('container detail page', () => {
     expect(routerMocks.push).toHaveBeenCalledWith({ name: 'ContainerList' });
   });
 
-  it('uses TDesign token scrollbars for logs and raw JSON code blocks', () => {
-    expect(cssBlock('.container-detail-code')).toContain('scrollbar-color: var(--td-scrollbar-color) transparent;');
-    expect(cssBlock('.container-detail-code')).toContain('scrollbar-gutter: stable;');
-    expect(cssBlock('.container-detail-code')).toContain('scrollbar-width: thin;');
-    expect(cssBlock('.container-detail-code::-webkit-scrollbar')).toContain('height: 8px;');
-    expect(cssBlock('.container-detail-code::-webkit-scrollbar')).toContain('width: 8px;');
-    expect(cssBlock('.container-detail-code::-webkit-scrollbar-thumb')).toContain(
-      'background-color: var(--td-scrollbar-color);',
-    );
+  it('uses shared log and JSON viewers instead of raw pre blocks', () => {
+    expect(sourceText).toContain('<log-viewer');
+    expect(sourceText).toContain('<json-viewer');
+    expect(sourceText).not.toContain('container-detail-code');
   });
 });
-
-function cssBlock(selector: string) {
-  const selectorStart = selector.endsWith(',') ? selector : `${selector} {`;
-  const start = sourceText.indexOf(selectorStart);
-  if (start < 0) {
-    return '';
-  }
-  const openBrace = sourceText.indexOf('{', start);
-  const closeBrace = sourceText.indexOf('}', openBrace);
-  return sourceText.slice(openBrace + 1, closeBrace);
-}
 
 function createContainerDetail() {
   return {
@@ -320,9 +322,9 @@ function createContainerDetail() {
       available: true,
       stats_available: true,
       cpu_percent: 21.8,
-      memory_limit_bytes: 536870912,
-      memory_percent: 50,
-      memory_usage_bytes: 268435456,
+      memory_limit_bytes: 33557250099.2,
+      memory_percent: 100,
+      memory_usage_bytes: 33557250099.2,
     },
     primary_ip: '172.18.0.2',
     network_summary: 'bridge',
@@ -411,6 +413,17 @@ function mountPage() {
           props: ['description'],
           setup: (props) => () => h('div', String(props.description ?? '')),
         }),
+        't-progress': defineComponent({
+          props: ['percentage'],
+          setup: (props) => () => h('span', `${String(props.percentage)}%`),
+        }),
+        't-statistic': defineComponent({
+          props: ['value', 'unit'],
+          setup: (props) => () => h('strong', `${String(props.value ?? '')}${String(props.unit ?? '')}`),
+        }),
+        't-input': defineComponent({
+          setup: () => () => h('input'),
+        }),
         't-loading': defineComponent({
           setup:
             (_, { slots }) =>
@@ -423,12 +436,33 @@ function mountPage() {
             () =>
               h('div', slots.default?.()),
         }),
+        't-select': defineComponent({
+          inheritAttrs: false,
+          emits: ['change', 'update:value'],
+          setup:
+            (_, { emit }) =>
+            () =>
+              h(
+                'select',
+                {
+                  onChange: (event: Event) => {
+                    const value = Number((event.target as HTMLSelectElement).value);
+                    emit('update:value', value);
+                    emit('change', value);
+                  },
+                },
+                [h('option', { value: 200 }, '200')],
+              ),
+        }),
         't-tab-panel': defineComponent({
           props: ['label', 'value'],
           setup:
             (props, { slots }) =>
             () =>
               h('section', [h('h3', String(props.label ?? props.value ?? '')), slots.default?.()]),
+        }),
+        't-switch': defineComponent({
+          setup: () => () => h('button', 'switch'),
         }),
         't-tabs': defineComponent({
           props: ['value'],

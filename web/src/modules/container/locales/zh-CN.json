@@ -262,13 +262,28 @@
         "memory": "内存",
         "memoryUsage": "内存使用",
         "memoryLimit": "内存上限",
+        "memoryPercent": "内存百分比",
         "status": "采集状态",
-        "available": "已采集"
+        "available": "已采集",
+        "collectedAt": "采集时间",
+        "currentSnapshot": "当前快照"
       },
       "logs": {
         "refresh": "刷新日志",
+        "searchPlaceholder": "搜索日志内容",
+        "wrap": "自动换行",
+        "followTail": "跟随尾部",
         "empty": "暂无日志。",
         "truncated": "日志已按当前上限截断。"
+      },
+      "raw": {
+        "title": "原始 JSON",
+        "description": "敏感字段已脱敏，仅用于只读排查。",
+        "root": "container",
+        "source": "源码视图",
+        "tree": "树形视图",
+        "empty": "暂无原始 JSON。",
+        "error": "原始 JSON 无法格式化。"
       },
       "health": {
         "status": "健康状态",
@@ -292,6 +307,7 @@
       "network": {
         "primaryIp": "主 IP",
         "summary": "网络摘要",
+        "ports": "端口映射",
         "name": "网络",
         "ipAddress": "IP 地址",
         "gateway": "网关",
