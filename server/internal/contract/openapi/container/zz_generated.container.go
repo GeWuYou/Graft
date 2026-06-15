@@ -235,6 +235,114 @@ func (e GetContainers500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
+// Defines values for PostContainerBatchActionsJSONBodyAction.
+const (
+	PostContainerBatchActionsJSONBodyActionRemove  PostContainerBatchActionsJSONBodyAction = "remove"
+	PostContainerBatchActionsJSONBodyActionRestart PostContainerBatchActionsJSONBodyAction = "restart"
+	PostContainerBatchActionsJSONBodyActionStart   PostContainerBatchActionsJSONBodyAction = "start"
+	PostContainerBatchActionsJSONBodyActionStop    PostContainerBatchActionsJSONBodyAction = "stop"
+)
+
+// Valid indicates whether the value is a known member of the PostContainerBatchActionsJSONBodyAction enum.
+func (e PostContainerBatchActionsJSONBodyAction) Valid() bool {
+	switch e {
+	case PostContainerBatchActionsJSONBodyActionRemove:
+		return true
+	case PostContainerBatchActionsJSONBodyActionRestart:
+		return true
+	case PostContainerBatchActionsJSONBodyActionStart:
+		return true
+	case PostContainerBatchActionsJSONBodyActionStop:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostContainerBatchActions200JSONResponseBodyDataItemsAction.
+const (
+	PostContainerBatchActions200JSONResponseBodyDataItemsActionRemove  PostContainerBatchActions200JSONResponseBodyDataItemsAction = "remove"
+	PostContainerBatchActions200JSONResponseBodyDataItemsActionRestart PostContainerBatchActions200JSONResponseBodyDataItemsAction = "restart"
+	PostContainerBatchActions200JSONResponseBodyDataItemsActionStart   PostContainerBatchActions200JSONResponseBodyDataItemsAction = "start"
+	PostContainerBatchActions200JSONResponseBodyDataItemsActionStop    PostContainerBatchActions200JSONResponseBodyDataItemsAction = "stop"
+)
+
+// Valid indicates whether the value is a known member of the PostContainerBatchActions200JSONResponseBodyDataItemsAction enum.
+func (e PostContainerBatchActions200JSONResponseBodyDataItemsAction) Valid() bool {
+	switch e {
+	case PostContainerBatchActions200JSONResponseBodyDataItemsActionRemove:
+		return true
+	case PostContainerBatchActions200JSONResponseBodyDataItemsActionRestart:
+		return true
+	case PostContainerBatchActions200JSONResponseBodyDataItemsActionStart:
+		return true
+	case PostContainerBatchActions200JSONResponseBodyDataItemsActionStop:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostContainerBatchActions400JSONResponseBodySuccess.
+const (
+	PostContainerBatchActions400JSONResponseBodySuccessFalse PostContainerBatchActions400JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostContainerBatchActions400JSONResponseBodySuccess enum.
+func (e PostContainerBatchActions400JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostContainerBatchActions400JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostContainerBatchActions401JSONResponseBodySuccess.
+const (
+	PostContainerBatchActions401JSONResponseBodySuccessFalse PostContainerBatchActions401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostContainerBatchActions401JSONResponseBodySuccess enum.
+func (e PostContainerBatchActions401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostContainerBatchActions401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostContainerBatchActions403JSONResponseBodySuccess.
+const (
+	PostContainerBatchActions403JSONResponseBodySuccessFalse PostContainerBatchActions403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostContainerBatchActions403JSONResponseBodySuccess enum.
+func (e PostContainerBatchActions403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostContainerBatchActions403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostContainerBatchActions500JSONResponseBodySuccess.
+const (
+	PostContainerBatchActions500JSONResponseBodySuccessFalse PostContainerBatchActions500JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostContainerBatchActions500JSONResponseBodySuccess enum.
+func (e PostContainerBatchActions500JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostContainerBatchActions500JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetContainer200JSONResponseBodyDataHealth.
 const (
 	GetContainer200JSONResponseBodyDataHealthHealthy     GetContainer200JSONResponseBodyDataHealth = "healthy"
@@ -490,8 +598,144 @@ func (e GetContainerLogs500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
+// Defines values for PostContainerRemove200JSONResponseBodyDataAction.
+const (
+	PostContainerRemove200JSONResponseBodyDataActionRemove  PostContainerRemove200JSONResponseBodyDataAction = "remove"
+	PostContainerRemove200JSONResponseBodyDataActionRestart PostContainerRemove200JSONResponseBodyDataAction = "restart"
+	PostContainerRemove200JSONResponseBodyDataActionStart   PostContainerRemove200JSONResponseBodyDataAction = "start"
+	PostContainerRemove200JSONResponseBodyDataActionStop    PostContainerRemove200JSONResponseBodyDataAction = "stop"
+)
+
+// Valid indicates whether the value is a known member of the PostContainerRemove200JSONResponseBodyDataAction enum.
+func (e PostContainerRemove200JSONResponseBodyDataAction) Valid() bool {
+	switch e {
+	case PostContainerRemove200JSONResponseBodyDataActionRemove:
+		return true
+	case PostContainerRemove200JSONResponseBodyDataActionRestart:
+		return true
+	case PostContainerRemove200JSONResponseBodyDataActionStart:
+		return true
+	case PostContainerRemove200JSONResponseBodyDataActionStop:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostContainerRemove200JSONResponseBodyDataResult.
+const (
+	PostContainerRemove200JSONResponseBodyDataResultAccepted  PostContainerRemove200JSONResponseBodyDataResult = "accepted"
+	PostContainerRemove200JSONResponseBodyDataResultCompleted PostContainerRemove200JSONResponseBodyDataResult = "completed"
+	PostContainerRemove200JSONResponseBodyDataResultUnchanged PostContainerRemove200JSONResponseBodyDataResult = "unchanged"
+)
+
+// Valid indicates whether the value is a known member of the PostContainerRemove200JSONResponseBodyDataResult enum.
+func (e PostContainerRemove200JSONResponseBodyDataResult) Valid() bool {
+	switch e {
+	case PostContainerRemove200JSONResponseBodyDataResultAccepted:
+		return true
+	case PostContainerRemove200JSONResponseBodyDataResultCompleted:
+		return true
+	case PostContainerRemove200JSONResponseBodyDataResultUnchanged:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostContainerRemove400JSONResponseBodySuccess.
+const (
+	PostContainerRemove400JSONResponseBodySuccessFalse PostContainerRemove400JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostContainerRemove400JSONResponseBodySuccess enum.
+func (e PostContainerRemove400JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostContainerRemove400JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostContainerRemove401JSONResponseBodySuccess.
+const (
+	PostContainerRemove401JSONResponseBodySuccessFalse PostContainerRemove401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostContainerRemove401JSONResponseBodySuccess enum.
+func (e PostContainerRemove401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostContainerRemove401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostContainerRemove403JSONResponseBodySuccess.
+const (
+	PostContainerRemove403JSONResponseBodySuccessFalse PostContainerRemove403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostContainerRemove403JSONResponseBodySuccess enum.
+func (e PostContainerRemove403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostContainerRemove403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostContainerRemove404JSONResponseBodySuccess.
+const (
+	PostContainerRemove404JSONResponseBodySuccessFalse PostContainerRemove404JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostContainerRemove404JSONResponseBodySuccess enum.
+func (e PostContainerRemove404JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostContainerRemove404JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostContainerRemove409JSONResponseBodySuccess.
+const (
+	PostContainerRemove409JSONResponseBodySuccessFalse PostContainerRemove409JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostContainerRemove409JSONResponseBodySuccess enum.
+func (e PostContainerRemove409JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostContainerRemove409JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostContainerRemove500JSONResponseBodySuccess.
+const (
+	PostContainerRemove500JSONResponseBodySuccessFalse PostContainerRemove500JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostContainerRemove500JSONResponseBodySuccess enum.
+func (e PostContainerRemove500JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostContainerRemove500JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PostContainerRestart200JSONResponseBodyDataAction.
 const (
+	PostContainerRestart200JSONResponseBodyDataActionRemove  PostContainerRestart200JSONResponseBodyDataAction = "remove"
 	PostContainerRestart200JSONResponseBodyDataActionRestart PostContainerRestart200JSONResponseBodyDataAction = "restart"
 	PostContainerRestart200JSONResponseBodyDataActionStart   PostContainerRestart200JSONResponseBodyDataAction = "start"
 	PostContainerRestart200JSONResponseBodyDataActionStop    PostContainerRestart200JSONResponseBodyDataAction = "stop"
@@ -500,6 +744,8 @@ const (
 // Valid indicates whether the value is a known member of the PostContainerRestart200JSONResponseBodyDataAction enum.
 func (e PostContainerRestart200JSONResponseBodyDataAction) Valid() bool {
 	switch e {
+	case PostContainerRestart200JSONResponseBodyDataActionRemove:
+		return true
 	case PostContainerRestart200JSONResponseBodyDataActionRestart:
 		return true
 	case PostContainerRestart200JSONResponseBodyDataActionStart:
@@ -624,6 +870,7 @@ func (e PostContainerRestart500JSONResponseBodySuccess) Valid() bool {
 
 // Defines values for PostContainerStart200JSONResponseBodyDataAction.
 const (
+	PostContainerStart200JSONResponseBodyDataActionRemove  PostContainerStart200JSONResponseBodyDataAction = "remove"
 	PostContainerStart200JSONResponseBodyDataActionRestart PostContainerStart200JSONResponseBodyDataAction = "restart"
 	PostContainerStart200JSONResponseBodyDataActionStart   PostContainerStart200JSONResponseBodyDataAction = "start"
 	PostContainerStart200JSONResponseBodyDataActionStop    PostContainerStart200JSONResponseBodyDataAction = "stop"
@@ -632,6 +879,8 @@ const (
 // Valid indicates whether the value is a known member of the PostContainerStart200JSONResponseBodyDataAction enum.
 func (e PostContainerStart200JSONResponseBodyDataAction) Valid() bool {
 	switch e {
+	case PostContainerStart200JSONResponseBodyDataActionRemove:
+		return true
 	case PostContainerStart200JSONResponseBodyDataActionRestart:
 		return true
 	case PostContainerStart200JSONResponseBodyDataActionStart:
@@ -756,19 +1005,22 @@ func (e PostContainerStart500JSONResponseBodySuccess) Valid() bool {
 
 // Defines values for PostContainerStop200JSONResponseBodyDataAction.
 const (
-	Restart PostContainerStop200JSONResponseBodyDataAction = "restart"
-	Start   PostContainerStop200JSONResponseBodyDataAction = "start"
-	Stop    PostContainerStop200JSONResponseBodyDataAction = "stop"
+	PostContainerStop200JSONResponseBodyDataActionRemove  PostContainerStop200JSONResponseBodyDataAction = "remove"
+	PostContainerStop200JSONResponseBodyDataActionRestart PostContainerStop200JSONResponseBodyDataAction = "restart"
+	PostContainerStop200JSONResponseBodyDataActionStart   PostContainerStop200JSONResponseBodyDataAction = "start"
+	PostContainerStop200JSONResponseBodyDataActionStop    PostContainerStop200JSONResponseBodyDataAction = "stop"
 )
 
 // Valid indicates whether the value is a known member of the PostContainerStop200JSONResponseBodyDataAction enum.
 func (e PostContainerStop200JSONResponseBodyDataAction) Valid() bool {
 	switch e {
-	case Restart:
+	case PostContainerStop200JSONResponseBodyDataActionRemove:
 		return true
-	case Start:
+	case PostContainerStop200JSONResponseBodyDataActionRestart:
 		return true
-	case Stop:
+	case PostContainerStop200JSONResponseBodyDataActionStart:
+		return true
+	case PostContainerStop200JSONResponseBodyDataActionStop:
 		return true
 	default:
 		return false
@@ -777,19 +1029,19 @@ func (e PostContainerStop200JSONResponseBodyDataAction) Valid() bool {
 
 // Defines values for PostContainerStop200JSONResponseBodyDataResult.
 const (
-	Accepted  PostContainerStop200JSONResponseBodyDataResult = "accepted"
-	Completed PostContainerStop200JSONResponseBodyDataResult = "completed"
-	Unchanged PostContainerStop200JSONResponseBodyDataResult = "unchanged"
+	PostContainerStop200JSONResponseBodyDataResultAccepted  PostContainerStop200JSONResponseBodyDataResult = "accepted"
+	PostContainerStop200JSONResponseBodyDataResultCompleted PostContainerStop200JSONResponseBodyDataResult = "completed"
+	PostContainerStop200JSONResponseBodyDataResultUnchanged PostContainerStop200JSONResponseBodyDataResult = "unchanged"
 )
 
 // Valid indicates whether the value is a known member of the PostContainerStop200JSONResponseBodyDataResult enum.
 func (e PostContainerStop200JSONResponseBodyDataResult) Valid() bool {
 	switch e {
-	case Accepted:
+	case PostContainerStop200JSONResponseBodyDataResultAccepted:
 		return true
-	case Completed:
+	case PostContainerStop200JSONResponseBodyDataResultCompleted:
 		return true
-	case Unchanged:
+	case PostContainerStop200JSONResponseBodyDataResultUnchanged:
 		return true
 	default:
 		return false
@@ -947,6 +1199,43 @@ type GetContainers403JSONResponseBodySuccess bool
 // GetContainers500JSONResponseBodySuccess defines parameters for GetContainers.
 type GetContainers500JSONResponseBodySuccess bool
 
+// PostContainerBatchActionsJSONBody defines parameters for PostContainerBatchActions.
+type PostContainerBatchActionsJSONBody struct {
+	Action PostContainerBatchActionsJSONBodyAction `json:"action"`
+
+	// Force Applies only to remove. Force remove running containers when true.
+	Force *bool    `json:"force,omitempty"`
+	Ids   []string `json:"ids"`
+}
+
+// PostContainerBatchActionsParams defines parameters for PostContainerBatchActions.
+type PostContainerBatchActionsParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// PostContainerBatchActionsJSONBodyAction defines parameters for PostContainerBatchActions.
+type PostContainerBatchActionsJSONBodyAction string
+
+// PostContainerBatchActions200JSONResponseBodyDataItemsAction defines parameters for PostContainerBatchActions.
+type PostContainerBatchActions200JSONResponseBodyDataItemsAction string
+
+// PostContainerBatchActions400JSONResponseBodySuccess defines parameters for PostContainerBatchActions.
+type PostContainerBatchActions400JSONResponseBodySuccess bool
+
+// PostContainerBatchActions401JSONResponseBodySuccess defines parameters for PostContainerBatchActions.
+type PostContainerBatchActions401JSONResponseBodySuccess bool
+
+// PostContainerBatchActions403JSONResponseBodySuccess defines parameters for PostContainerBatchActions.
+type PostContainerBatchActions403JSONResponseBodySuccess bool
+
+// PostContainerBatchActions500JSONResponseBodySuccess defines parameters for PostContainerBatchActions.
+type PostContainerBatchActions500JSONResponseBodySuccess bool
+
 // GetContainerParams defines parameters for GetContainer.
 type GetContainerParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -1023,6 +1312,46 @@ type GetContainerLogs404JSONResponseBodySuccess bool
 
 // GetContainerLogs500JSONResponseBodySuccess defines parameters for GetContainerLogs.
 type GetContainerLogs500JSONResponseBodySuccess bool
+
+// PostContainerRemoveJSONBody defines parameters for PostContainerRemove.
+type PostContainerRemoveJSONBody struct {
+	// Force Force remove a running container. Defaults to false and must be explicitly enabled by the caller.
+	Force *bool `json:"force,omitempty"`
+}
+
+// PostContainerRemoveParams defines parameters for PostContainerRemove.
+type PostContainerRemoveParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// PostContainerRemove200JSONResponseBodyDataAction defines parameters for PostContainerRemove.
+type PostContainerRemove200JSONResponseBodyDataAction string
+
+// PostContainerRemove200JSONResponseBodyDataResult defines parameters for PostContainerRemove.
+type PostContainerRemove200JSONResponseBodyDataResult string
+
+// PostContainerRemove400JSONResponseBodySuccess defines parameters for PostContainerRemove.
+type PostContainerRemove400JSONResponseBodySuccess bool
+
+// PostContainerRemove401JSONResponseBodySuccess defines parameters for PostContainerRemove.
+type PostContainerRemove401JSONResponseBodySuccess bool
+
+// PostContainerRemove403JSONResponseBodySuccess defines parameters for PostContainerRemove.
+type PostContainerRemove403JSONResponseBodySuccess bool
+
+// PostContainerRemove404JSONResponseBodySuccess defines parameters for PostContainerRemove.
+type PostContainerRemove404JSONResponseBodySuccess bool
+
+// PostContainerRemove409JSONResponseBodySuccess defines parameters for PostContainerRemove.
+type PostContainerRemove409JSONResponseBodySuccess bool
+
+// PostContainerRemove500JSONResponseBodySuccess defines parameters for PostContainerRemove.
+type PostContainerRemove500JSONResponseBodySuccess bool
 
 // PostContainerRestartParams defines parameters for PostContainerRestart.
 type PostContainerRestartParams struct {
@@ -1125,3 +1454,9 @@ type PostContainerStop409JSONResponseBodySuccess bool
 
 // PostContainerStop500JSONResponseBodySuccess defines parameters for PostContainerStop.
 type PostContainerStop500JSONResponseBodySuccess bool
+
+// PostContainerBatchActionsJSONRequestBody defines body for PostContainerBatchActions for application/json ContentType.
+type PostContainerBatchActionsJSONRequestBody PostContainerBatchActionsJSONBody
+
+// PostContainerRemoveJSONRequestBody defines body for PostContainerRemove for application/json ContentType.
+type PostContainerRemoveJSONRequestBody PostContainerRemoveJSONBody

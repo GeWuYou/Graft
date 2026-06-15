@@ -18,12 +18,15 @@ const (
 	containerActionStart   = "start"
 	containerActionStop    = "stop"
 	containerActionRestart = "restart"
+	containerActionRemove  = "remove"
 
 	actionResultCompleted = "completed"
 	actionResultUnchanged = "unchanged"
+	actionStatusRemoved   = "removed"
 
 	defaultContainerListLimit     = 20
 	maxContainerListLimit         = 100
+	maxContainerBatchActionIDs    = 100
 	containerListKeywordMaxLength = 128
 	containerShortIDLength        = 12
 
@@ -66,6 +69,7 @@ type Runtime interface {
 	Start(ctx context.Context, id Ref) (ActionResult, error)
 	Stop(ctx context.Context, id Ref) (ActionResult, error)
 	Restart(ctx context.Context, id Ref) (ActionResult, error)
+	Remove(ctx context.Context, id Ref, options RemoveOptions) (ActionResult, error)
 	Close() error
 }
 
@@ -166,6 +170,7 @@ type Summary struct {
 	CanStart       bool
 	CanStop        bool
 	CanRestart     bool
+	CanRemove      bool
 }
 
 // Detail is a sanitized container inspect view.
@@ -234,6 +239,47 @@ type ActionResult struct {
 	StatusAfter  string
 	MessageKey   string
 	Message      string
+}
+
+// RemoveOptions describes guarded remove behavior passed to runtime adapters.
+type RemoveOptions struct {
+	Force bool
+}
+
+// ActionOptions describes service-layer action behavior shared by single and batch actions.
+type ActionOptions struct {
+	Force bool
+}
+
+// BatchActionCommand describes a bounded batch action request.
+type BatchActionCommand struct {
+	Action string
+	IDs    []string
+	Force  bool
+}
+
+// BatchActionResult aggregates per-container action outcomes without hiding partial failures.
+type BatchActionResult struct {
+	Action       string
+	Total        int
+	SuccessCount int
+	FailedCount  int
+	MessageKey   string
+	Message      string
+	RequestID    string
+	Items        []BatchActionItem
+}
+
+// BatchActionItem carries one container action outcome.
+type BatchActionItem struct {
+	ID         string
+	Name       string
+	Action     string
+	Success    bool
+	ErrorCode  string
+	MessageKey string
+	Message    string
+	Result     ActionResult
 }
 
 func parseRef(raw string) (Ref, error) {

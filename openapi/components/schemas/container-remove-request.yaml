@@ -1,0 +1,7 @@
+type: object
+properties:
+  force:
+    type: boolean
+    default: false
+    description: Force remove a running container. Defaults to false and must be explicitly enabled by the caller.
+additionalProperties: false

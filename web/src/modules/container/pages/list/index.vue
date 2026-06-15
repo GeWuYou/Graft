@@ -95,6 +95,74 @@
           @refresh="refreshContainers"
         />
       </template>
+      <template #batch>
+        <div v-if="selectedRows.length > 0" class="container-batch-bar">
+          <span>{{ t('container.list.batch.selected', { count: selectedRows.length }) }}</span>
+          <div class="container-batch-bar__actions">
+            <t-tooltip :content="batchActionHint('start')" placement="top">
+              <t-button
+                data-testid="container-batch-start"
+                size="small"
+                theme="primary"
+                variant="outline"
+                :disabled="isBatchActionDisabled('start')"
+                :loading="batchActionLoading === 'start'"
+                @click="confirmBatchAction('start')"
+              >
+                {{ t('container.list.batch.start') }}
+              </t-button>
+            </t-tooltip>
+            <t-tooltip :content="batchActionHint('stop')" placement="top">
+              <t-button
+                data-testid="container-batch-stop"
+                size="small"
+                theme="warning"
+                variant="outline"
+                :disabled="isBatchActionDisabled('stop')"
+                :loading="batchActionLoading === 'stop'"
+                @click="confirmBatchAction('stop')"
+              >
+                {{ t('container.list.batch.stop') }}
+              </t-button>
+            </t-tooltip>
+            <t-tooltip :content="batchActionHint('restart')" placement="top">
+              <t-button
+                data-testid="container-batch-restart"
+                size="small"
+                theme="warning"
+                variant="outline"
+                :disabled="isBatchActionDisabled('restart')"
+                :loading="batchActionLoading === 'restart'"
+                @click="confirmBatchAction('restart')"
+              >
+                {{ t('container.list.batch.restart') }}
+              </t-button>
+            </t-tooltip>
+            <t-tooltip :content="batchActionHint('remove')" placement="top">
+              <t-button
+                data-testid="container-batch-remove"
+                size="small"
+                theme="danger"
+                variant="outline"
+                :disabled="isBatchActionDisabled('remove')"
+                :loading="batchActionLoading === 'remove'"
+                @click="confirmBatchAction('remove')"
+              >
+                {{ t('container.list.batch.remove') }}
+              </t-button>
+            </t-tooltip>
+            <t-button
+              data-testid="container-batch-clear"
+              size="small"
+              theme="default"
+              variant="text"
+              @click="clearSelection"
+            >
+              {{ t('container.list.batch.cancelSelection') }}
+            </t-button>
+          </div>
+        </div>
+      </template>
 
       <t-alert v-if="listError.title" class="container-alert" theme="error" :title="listError.title">
         <p v-if="listError.hint" class="container-alert__hint">{{ listError.hint }}</p>
@@ -115,7 +183,9 @@
           :table-content-width="tableWidthPolicy.tableContentWidth"
           cell-empty-content="-"
           table-layout="fixed"
+          :selected-row-keys="selectedRowKeys"
           hover
+          @select-change="handleSelectChange"
         >
           <template #state="{ row }">
             <t-tag :theme="stateTheme(row.state)" variant="light-outline">
@@ -581,9 +651,11 @@
 </template>
 <script setup lang="ts">
 import { SearchIcon } from 'tdesign-icons-vue-next';
-import type { TdBaseTableProps } from 'tdesign-vue-next';
-import { MessagePlugin } from 'tdesign-vue-next';
-import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
+import type { DropdownOption, TdBaseTableProps } from 'tdesign-vue-next';
+import { DialogPlugin } from 'tdesign-vue-next/es/dialog';
+import { MessagePlugin } from 'tdesign-vue-next/es/message';
+import { NotifyPlugin } from 'tdesign-vue-next/es/notification';
+import { computed, h, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import {
@@ -602,15 +674,20 @@ import { formatLocaleDateTime } from '@/shared/observability';
 import { createLogger } from '@/utils/logger';
 
 import {
+  batchContainerActions,
   getContainer,
   getContainerLogs,
   getContainers,
+  removeContainer,
   restartContainer,
   startContainer,
   stopContainer,
 } from '../../api/container';
 import { CONTAINER_PERMISSION_CODE } from '../../contract/permissions';
 import type {
+  ContainerAction,
+  ContainerBatchActionItem,
+  ContainerBatchActionResponse,
   ContainerDetail,
   ContainerFilters,
   ContainerHealth,
@@ -653,6 +730,7 @@ const DEFAULT_LOG_QUERY: Required<ContainerLogQuery> = {
 const CONTAINER_RUNTIME_DISABLED_MESSAGE_KEY = 'ops.container.error.runtimeDisabled';
 const CONTAINER_COLUMN_STORAGE_KEY = 'graft.container.list.visibleColumns';
 const DEFAULT_VISIBLE_COLUMNS = [
+  'row-select',
   'state',
   'name',
   'image',
@@ -664,8 +742,9 @@ const DEFAULT_VISIBLE_COLUMNS = [
   'created_at',
   'operation',
 ];
-const ALWAYS_VISIBLE_COLUMNS = ['state', 'name', 'operation'];
+const ALWAYS_VISIBLE_COLUMNS = ['row-select', 'state', 'name', 'operation'];
 const ALL_COLUMN_KEYS = [
+  'row-select',
   'state',
   'name',
   'image',
@@ -690,7 +769,17 @@ type ListErrorState = {
   title: string;
   hint: string;
 };
-type RowAction = 'copy-id' | 'inspect' | 'restart' | 'start' | 'stop' | 'view-env' | 'view-mounts' | 'view-networks';
+type DangerousContainerAction = Extract<ContainerAction, 'remove' | 'restart' | 'start' | 'stop'>;
+type RowAction =
+  | 'copy-id'
+  | 'inspect'
+  | 'remove'
+  | 'restart'
+  | 'start'
+  | 'stop'
+  | 'view-env'
+  | 'view-mounts'
+  | 'view-networks';
 type ResourceMetric = {
   available: boolean;
   percentage: number;
@@ -723,6 +812,8 @@ const detailCollapseValues = ref<string[]>([]);
 const detailFocusSection = ref('');
 const visibleColumnKeys = ref<string[]>(loadVisibleColumnKeys());
 const tableDensity = ref<'medium' | 'small'>('medium');
+const selectedRowKeys = ref<Array<string | number>>([]);
+const batchActionLoading = ref<DangerousContainerAction | ''>('');
 const filters = reactive<ContainerFilters>({
   keyword: '',
   status: 'all',
@@ -735,6 +826,7 @@ const pagination = reactive({
 });
 
 const allColumns = computed<TdBaseTableProps['columns']>(() => [
+  { colKey: 'row-select', type: 'multiple', width: 48, fixed: 'left', align: 'center' },
   { title: t('container.list.columns.status'), colKey: 'state', width: 104, align: 'center', ellipsis: false },
   {
     title: t('container.list.columns.name'),
@@ -802,7 +894,7 @@ const readOnlyMode = computed(() => {
   }
 
   // The list contract only exposes row-level can_* flags. Treat missing or all-false dangerous action availability as read-only.
-  return rows.value.every((row) => !row.can_start && !row.can_stop && !row.can_restart);
+  return rows.value.every((row) => !row.can_start && !row.can_stop && !row.can_restart && !row.can_remove);
 });
 const readOnlyModeStatus = computed(() =>
   readOnlyMode.value ? t('container.list.readOnlyMode') : t('container.list.actionModeEnabled'),
@@ -821,6 +913,7 @@ const tableDensityLabel = computed(() =>
   tableDensity.value === 'medium' ? t('container.list.compactDensity') : t('container.list.defaultDensity'),
 );
 const columnSettingOptions = computed(() => [
+  { label: t('container.list.columns.selection'), value: 'row-select' },
   { label: t('container.list.columns.status'), value: 'state' },
   { label: t('container.list.columns.name'), value: 'name' },
   { label: t('container.list.columns.image'), value: 'image' },
@@ -865,6 +958,10 @@ const logsRefreshStatus = computed(() => {
 });
 const detailLabelEntries = computed(() => Object.entries(activeDetail.value?.labels ?? {}));
 const detailRawJson = computed(() => (activeDetail.value ? JSON.stringify(activeDetail.value, null, 2) : ''));
+const selectedRows = computed(() => {
+  const selectedKeySet = new Set(selectedRowKeys.value.map(String));
+  return rows.value.filter((row) => selectedKeySet.has(row.id));
+});
 
 let logsAutoRefreshTimer: number | undefined;
 
@@ -922,6 +1019,7 @@ async function refreshContainers() {
     runtime.value = payload.runtime;
     listSummary.value = payload.summary;
     listTotal.value = payload.total;
+    pruneSelectedRows();
   } catch (error) {
     rows.value = [];
     runtime.value = null;
@@ -932,6 +1030,11 @@ async function refreshContainers() {
   } finally {
     loading.value = false;
   }
+}
+
+function pruneSelectedRows() {
+  const availableIds = new Set(rows.value.map((row) => row.id));
+  selectedRowKeys.value = selectedRowKeys.value.filter((key) => availableIds.has(String(key)));
 }
 
 function resolveListError(error: unknown): ListErrorState {
@@ -1159,13 +1262,25 @@ function moreRowActions(row: ContainerSummary) {
     });
   }
 
+  if (!readOnlyMode.value || row.can_remove) {
+    actions.push({
+      disabled: isDangerousActionDisabled(row, 'remove'),
+      fallbackLabel: t('container.list.actions.remove'),
+      label: 'container.list.actions.remove',
+      testId: 'container-action-remove',
+      value: 'remove',
+    });
+  }
+
   return actions;
 }
 
-function moreRowActionOptions(row: ContainerSummary) {
+function moreRowActionOptions(row: ContainerSummary): DropdownOption[] {
   return moreRowActions(row).map((action) => ({
     content: action.fallbackLabel,
     disabled: action.disabled,
+    theme: action.value === 'remove' ? 'error' : 'default',
+    title: action.disabled ? t('container.list.actions.dangerousDisabled') : undefined,
     testId: action.testId,
     value: action.value,
   }));
@@ -1210,43 +1325,248 @@ function handleRowAction(action: string, row: ContainerSummary) {
     return;
   }
 
-  if (action === 'start' || action === 'stop' || action === 'restart') {
+  if (action === 'start' || action === 'stop' || action === 'restart' || action === 'remove') {
     void performDangerousAction(row, action);
   }
 }
 
-async function performDangerousAction(row: ContainerSummary, action: 'restart' | 'start' | 'stop') {
-  const allowedByRow = action === 'start' ? row.can_start : action === 'stop' ? row.can_stop : row.can_restart;
-  if (!allowedByRow) {
-    MessagePlugin.warning(t('container.list.actions.unavailable'));
+async function performDangerousAction(row: ContainerSummary, action: DangerousContainerAction) {
+  if (isDangerousActionDisabled(row, action)) {
+    MessagePlugin.warning(t('container.list.actions.dangerousDisabled'));
     return;
   }
 
-  const name = displayName(row);
-  const confirmKey =
-    action === 'start'
-      ? 'container.list.actions.confirmStart'
-      : action === 'stop'
-        ? 'container.list.actions.confirmStop'
-        : 'container.list.actions.confirmRestart';
-  if (!window.confirm(t(confirmKey, { name }))) {
-    return;
-  }
+  const force = action === 'remove' ? await confirmRemoveAction(row) : await confirmRuntimeAction(row, action);
+  if (force === undefined) return;
 
+  await executeDangerousAction(row, action, force);
+}
+
+function confirmRuntimeAction(row: ContainerSummary, action: Exclude<DangerousContainerAction, 'remove'>) {
+  return new Promise<boolean | undefined>((resolve) => {
+    const dialog = DialogPlugin.confirm({
+      header: t(actionDialogTitleKey(action)),
+      body: t(actionConfirmKey(action), { name: displayName(row) }),
+      theme: action === 'start' ? 'warning' : 'danger',
+      confirmBtn: t('container.list.actions.confirm'),
+      cancelBtn: t('container.list.actions.cancel'),
+      onCancel: () => resolve(undefined),
+      onClose: () => resolve(undefined),
+      onConfirm: () => {
+        dialog.hide();
+        resolve(false);
+      },
+    });
+  });
+}
+
+function confirmRemoveAction(row: ContainerSummary) {
+  return new Promise<boolean | undefined>((resolve) => {
+    const force = ref(false);
+    const running = row.state === 'running';
+    const dialog = DialogPlugin.confirm({
+      header: t('container.list.actions.confirmRemoveTitle'),
+      body: () =>
+        h('div', { class: 'container-remove-confirm' }, [
+          h(
+            'p',
+            running
+              ? t('container.list.actions.confirmRemoveRunning', { name: displayName(row) })
+              : t('container.list.actions.confirmRemove', { name: displayName(row) }),
+          ),
+          running
+            ? h('label', { class: 'container-remove-confirm__force' }, [
+                h('input', {
+                  checked: force.value,
+                  type: 'checkbox',
+                  onInput: (event: Event) => {
+                    force.value = (event.target as HTMLInputElement).checked;
+                  },
+                }),
+                h('span', t('container.list.actions.forceRemove')),
+              ])
+            : null,
+        ]),
+      theme: 'danger',
+      confirmBtn: t('container.list.actions.remove'),
+      cancelBtn: t('container.list.actions.cancel'),
+      onCancel: () => resolve(undefined),
+      onClose: () => resolve(undefined),
+      onConfirm: () => {
+        dialog.hide();
+        resolve(force.value);
+      },
+    });
+  });
+}
+
+async function executeDangerousAction(row: ContainerSummary, action: DangerousContainerAction, force: boolean) {
   try {
     const response =
       action === 'start'
         ? await startContainer(row.id)
         : action === 'stop'
           ? await stopContainer(row.id)
-          : await restartContainer(row.id);
+          : action === 'restart'
+            ? await restartContainer(row.id)
+            : await removeContainer(row.id, { force });
     const messageKey = response.message_key;
     MessagePlugin.success(messageKey ? t(messageKey) : response.message || t('container.list.actionSuccess'));
+    selectedRowKeys.value = selectedRowKeys.value.filter((key) => String(key) !== row.id);
     await refreshContainers();
   } catch (error) {
     logger.warn(`failed to ${action} container`, error);
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('container.list.actionFailed')));
   }
+}
+
+function isDangerousActionDisabled(row: ContainerSummary, action: DangerousContainerAction) {
+  if (!row.id || row.state === 'unknown' || row.state === 'removing') {
+    return true;
+  }
+
+  if (action === 'start') return !row.can_start;
+  if (action === 'stop') return !row.can_stop;
+  if (action === 'restart') return !row.can_restart;
+  return !row.can_remove;
+}
+
+function actionDialogTitleKey(action: DangerousContainerAction) {
+  return `container.list.actions.confirm${capitalizeAction(action)}Title`;
+}
+
+function actionConfirmKey(action: DangerousContainerAction) {
+  return `container.list.actions.confirm${capitalizeAction(action)}`;
+}
+
+function capitalizeAction(action: DangerousContainerAction) {
+  return `${action.charAt(0).toUpperCase()}${action.slice(1)}`;
+}
+
+function batchActionHint(action: DangerousContainerAction) {
+  if (!selectedRows.value.length) {
+    return t('container.list.batch.noSelection');
+  }
+
+  return isBatchActionDisabled(action)
+    ? t('container.list.actions.dangerousDisabled')
+    : t(`container.list.batch.${action}Hint`, { count: selectedRows.value.length });
+}
+
+function isBatchActionDisabled(action: DangerousContainerAction) {
+  return selectedRows.value.length === 0 || selectedRows.value.some((row) => isDangerousActionDisabled(row, action));
+}
+
+function clearSelection() {
+  selectedRowKeys.value = [];
+}
+
+function handleSelectChange(rowKeys: Array<string | number>) {
+  selectedRowKeys.value = rowKeys.filter((key) => rows.value.some((row) => row.id === String(key)));
+}
+
+function confirmBatchAction(action: DangerousContainerAction) {
+  if (isBatchActionDisabled(action)) {
+    MessagePlugin.warning(t('container.list.actions.dangerousDisabled'));
+    return;
+  }
+
+  const force = ref(false);
+  const selectedCount = selectedRows.value.length;
+  const runningCountForRemove =
+    action === 'remove' ? selectedRows.value.filter((row) => row.state === 'running').length : 0;
+  const dialog = DialogPlugin.confirm({
+    header: t(`container.list.batch.confirm${capitalizeAction(action)}Title`),
+    body: () =>
+      h('div', { class: 'container-remove-confirm' }, [
+        h('p', t(`container.list.batch.confirm${capitalizeAction(action)}`, { count: selectedCount })),
+        action === 'remove' && runningCountForRemove > 0
+          ? h('p', t('container.list.batch.confirmRemoveRunning', { count: runningCountForRemove }))
+          : null,
+        action === 'remove' && runningCountForRemove > 0
+          ? h('label', { class: 'container-remove-confirm__force' }, [
+              h('input', {
+                checked: force.value,
+                type: 'checkbox',
+                onInput: (event: Event) => {
+                  force.value = (event.target as HTMLInputElement).checked;
+                },
+              }),
+              h('span', t('container.list.actions.forceRemove')),
+            ])
+          : null,
+      ]),
+    theme: action === 'start' ? 'warning' : 'danger',
+    confirmBtn: t('container.list.actions.confirm'),
+    cancelBtn: t('container.list.actions.cancel'),
+    onConfirm: async () => {
+      dialog.setConfirmLoading(true);
+      try {
+        const completed = await executeBatchAction(action, force.value);
+        if (completed) {
+          dialog.hide();
+        }
+      } finally {
+        dialog.setConfirmLoading(false);
+      }
+    },
+  });
+}
+
+async function executeBatchAction(action: DangerousContainerAction, force: boolean) {
+  const ids = selectedRows.value.map((row) => row.id);
+  if (!ids.length) return false;
+
+  batchActionLoading.value = action;
+  try {
+    const response = await batchContainerActions({ action, ids, force: action === 'remove' ? force : false });
+    handleBatchActionResult(response);
+    await refreshContainers();
+    return true;
+  } catch (error) {
+    logger.warn(`failed to batch ${action} containers`, error);
+    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('container.list.batch.failed')));
+    return false;
+  } finally {
+    batchActionLoading.value = '';
+  }
+}
+
+function handleBatchActionResult(response: ContainerBatchActionResponse) {
+  if (response.failed_count === 0) {
+    MessagePlugin.success(t('container.list.batch.success', { count: response.success_count }));
+    return;
+  }
+
+  if (response.success_count > 0) {
+    void NotifyPlugin.warning({
+      title: t('container.list.batch.partialTitle'),
+      content: batchFailureSummary(response.items),
+      duration: 0,
+      closeBtn: true,
+    });
+    return;
+  }
+
+  MessagePlugin.error(t('container.list.batch.failed'));
+  DialogPlugin.alert({
+    header: t('container.list.batch.failureDetailTitle'),
+    body: batchFailureSummary(response.items),
+    confirmBtn: t('container.list.actions.confirm'),
+    theme: 'danger',
+  });
+}
+
+function batchFailureSummary(items: ContainerBatchActionItem[]) {
+  const failedItems = items.filter((item) => !item.success);
+  if (!failedItems.length) {
+    return t('container.list.batch.noFailureDetail');
+  }
+
+  return failedItems
+    .slice(0, 5)
+    .map((item) => `${item.name || item.id}: ${item.message_key ? t(item.message_key) : item.message || '-'}`)
+    .join('\n');
 }
 
 async function openDetailSection(row: ContainerSummary, section: string) {
@@ -1514,10 +1834,40 @@ function normalizeVisibleColumnKeys(keys: unknown[]) {
 }
 
 .container-port-list,
-.container-actions {
+.container-actions,
+.container-batch-bar,
+.container-batch-bar__actions,
+.container-remove-confirm__force {
   display: flex;
   flex-wrap: wrap;
   gap: var(--graft-density-gap-6);
+}
+
+.container-batch-bar {
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.container-batch-bar > span {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-body-medium);
+}
+
+.container-batch-bar__actions,
+.container-remove-confirm__force {
+  align-items: center;
+}
+
+.container-remove-confirm {
+  color: var(--td-text-color-primary);
+  display: flex;
+  flex-direction: column;
+  gap: var(--graft-density-gap-12);
+}
+
+.container-remove-confirm p {
+  margin: 0;
 }
 
 .container-runtime-status {

@@ -73,6 +73,7 @@
         "reset": "重置"
       },
       "columns": {
+        "selection": "选择",
         "status": "状态",
         "name": "容器",
         "image": "镜像",
@@ -112,18 +113,54 @@
         "start": "启动",
         "stop": "停止",
         "restart": "重启",
+        "remove": "删除",
         "more": "更多",
         "copyId": "复制 ID",
         "inspect": "检查",
         "viewMounts": "查看挂载",
         "viewNetworks": "查看网络",
         "viewEnvironment": "查看环境变量",
+        "confirmStartTitle": "确认启动容器",
         "confirmStart": "确认启动容器 {name}？",
+        "confirmStopTitle": "确认停止容器",
         "confirmStop": "确认停止容器 {name}？",
+        "confirmRestartTitle": "确认重启容器",
         "confirmRestart": "确认重启容器 {name}？",
+        "confirmRemoveTitle": "确认删除容器",
+        "confirmRemove": "确认删除容器 {name}？删除后不可恢复。",
+        "confirmRemoveRunning": "容器 {name} 正在运行。默认删除会被拒绝，如需强制删除必须显式勾选。",
+        "forceRemove": "强制删除运行中容器",
+        "dangerousDisabled": "高危操作已禁用或当前状态不允许。",
         "unavailable": "该操作当前不可用。",
         "confirm": "确认",
         "cancel": "取消"
+      },
+      "batch": {
+        "selected": "已选择 {count} 个容器",
+        "start": "批量启动",
+        "stop": "批量停止",
+        "restart": "批量重启",
+        "remove": "批量删除",
+        "cancelSelection": "取消选择",
+        "noSelection": "请先选择容器。",
+        "startHint": "启动选中的 {count} 个容器。",
+        "stopHint": "停止选中的 {count} 个容器。",
+        "restartHint": "重启选中的 {count} 个容器。",
+        "removeHint": "删除选中的 {count} 个容器。",
+        "confirmStartTitle": "确认批量启动",
+        "confirmStopTitle": "确认批量停止",
+        "confirmRestartTitle": "确认批量重启",
+        "confirmRemoveTitle": "确认批量删除",
+        "confirmStart": "确认启动选中的 {count} 个容器？",
+        "confirmStop": "确认停止选中的 {count} 个容器？",
+        "confirmRestart": "确认重启选中的 {count} 个容器？",
+        "confirmRemove": "确认删除选中的 {count} 个容器？删除后不可恢复。",
+        "confirmRemoveRunning": "其中 {count} 个容器正在运行。默认删除会被拒绝，如需强制删除必须显式勾选。",
+        "success": "批量操作已完成，成功 {count} 个。",
+        "partialTitle": "批量操作部分成功",
+        "failed": "批量操作失败。",
+        "failureDetailTitle": "查看失败明细",
+        "noFailureDetail": "暂无失败明细。"
       },
       "detail": {
         "title": "容器详情",
@@ -199,6 +236,14 @@
         },
         "restart": {
           "completed": "容器重启操作已完成"
+        },
+        "remove": {
+          "completed": "容器删除操作已完成"
+        },
+        "batch": {
+          "completed": "批量容器操作已完成",
+          "partial": "批量容器操作部分成功",
+          "failed": "批量容器操作失败"
         }
       },
       "error": {
@@ -206,6 +251,8 @@
         "runtimeUnavailable": "容器运行时连接不可用",
         "runtimeSocketMissing": "容器运行时套接字不存在",
         "runtimePermissionDenied": "没有权限访问容器运行时",
+        "dangerousActionsDisabled": "高危容器操作未启用",
+        "invalidState": "容器状态不允许执行该操作",
         "invalidListQuery": "容器列表查询参数不合法"
       }
     }

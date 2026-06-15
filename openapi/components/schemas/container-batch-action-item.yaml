@@ -2,9 +2,7 @@ type: object
 required:
   - id
   - action
-  - runtime
-  - result
-  - status_after
+  - success
 properties:
   id:
     type: string
@@ -13,17 +11,12 @@ properties:
   action:
     type: string
     enum: [start, stop, restart, remove]
-  runtime:
-    type: string
-    description: Container runtime adapter key.
-  result:
-    type: string
-    enum: [accepted, completed, unchanged]
-  status_before:
-    type: string
-  status_after:
+  success:
+    type: boolean
+  error_code:
     type: string
   message_key:
     type: string
   message:
     type: string
+additionalProperties: false

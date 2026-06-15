@@ -51,6 +51,7 @@ type dockerClient interface {
 	ContainerStart(context.Context, string, container.StartOptions) error
 	ContainerStop(context.Context, string, container.StopOptions) error
 	ContainerRestart(context.Context, string, container.StopOptions) error
+	ContainerRemove(context.Context, string, container.RemoveOptions) error
 	Close() error
 }
 
@@ -183,6 +184,24 @@ func (r *DockerRuntime) Restart(ctx context.Context, ref Ref) (ActionResult, err
 	return actionResultFromDetail(after, ref, containerActionRestart, before.State), nil
 }
 
+// Remove removes one Docker container by id or name.
+func (r *DockerRuntime) Remove(ctx context.Context, ref Ref, options RemoveOptions) (ActionResult, error) {
+	before, err := r.Detail(ctx, ref)
+	if err != nil {
+		return actionResultFromDetail(before, ref, containerActionRemove, ""), err
+	}
+	if !canRemoveState(before.State) || (!options.Force && !canRemoveWithoutForce(before.State)) {
+		return actionResultFromDetail(before, ref, containerActionRemove, before.State), errInvalidContainerState
+	}
+	if err := r.client.ContainerRemove(ctx, ref.Value, container.RemoveOptions{Force: options.Force}); err != nil {
+		return actionResultFromDetail(before, ref, containerActionRemove, before.State), mapDockerError(err)
+	}
+	result := actionResultFromDetail(before, ref, containerActionRemove, before.State)
+	result.StatusAfter = actionStatusRemoved
+	result.Result = actionResultCompleted
+	return result, nil
+}
+
 // Close releases the Docker SDK client resources.
 func (r *DockerRuntime) Close() error {
 	if r == nil || r.client == nil {
@@ -225,6 +244,7 @@ func dockerSummary(item container.Summary) Summary {
 		CanStart:       canStartState(state),
 		CanStop:        canStopState(state),
 		CanRestart:     canRestartState(state),
+		CanRemove:      canRemoveState(state),
 	}
 }
 
@@ -362,6 +382,7 @@ func dockerDetail(inspect container.InspectResponse, info RuntimeInfo) Detail {
 		CanStart:       canStartState(state),
 		CanStop:        canStopState(state),
 		CanRestart:     canRestartState(state),
+		CanRemove:      canRemoveState(state),
 	}
 	summary.Name = firstNonEmpty(firstContainerName(summary.Names), summary.ShortID, summary.ID)
 	summary.PrimaryIP = primaryNetworkIP(summary.Networks)
@@ -455,6 +476,14 @@ func canStopState(state string) bool {
 
 func canRestartState(state string) bool {
 	return state != "removing" && state != "dead"
+}
+
+func canRemoveState(state string) bool {
+	return state != "" && state != "unknown" && state != "removing"
+}
+
+func canRemoveWithoutForce(state string) bool {
+	return canRemoveState(state) && state != "running" && state != "restarting"
 }
 
 func dockerInfoToRuntimeInfo(info systemInfo, endpoint string) RuntimeInfo {

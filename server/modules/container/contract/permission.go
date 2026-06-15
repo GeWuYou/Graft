@@ -33,4 +33,7 @@ const (
 	// ContainerRestartPermission identifies container restart access.
 	// Lifecycle: stable.
 	ContainerRestartPermission PermissionCode = "ops.container.restart"
+	// ContainerRemovePermission identifies container remove access.
+	// Lifecycle: stable.
+	ContainerRemovePermission PermissionCode = "ops.container.remove"
 )

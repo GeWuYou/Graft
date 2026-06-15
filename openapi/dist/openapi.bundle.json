@@ -8637,6 +8637,80 @@
         }
       }
     },
+    "/api/ops/containers/batch-actions": {
+      "post": {
+        "tags": [
+          "container"
+        ],
+        "summary": "Execute container actions in batch",
+        "operationId": "postContainerBatchActions",
+        "description": "Executes one container action for selected containers and returns per-item success or failure.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/container-batch-action-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Container batch action result.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-container-batch-action-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid batch action request.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
     "/api/ops/containers/{id}": {
       "get": {
         "tags": [
@@ -9064,6 +9138,113 @@
           },
           "400": {
             "description": "Invalid container reference.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Container was not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Container state does not allow this action.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/ops/containers/{id}/remove": {
+      "post": {
+        "tags": [
+          "container"
+        ],
+        "summary": "Remove container",
+        "operationId": "postContainerRemove",
+        "description": "Removes one container when dangerous actions are enabled. Running containers require force=true.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/container-id-path"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/container-remove-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Container action result.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-container-action-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid container reference or remove request.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -9641,6 +9822,18 @@
       "ContainerActionResponse": {
         "$ref": "#/components/schemas/container-action-response"
       },
+      "ContainerRemoveRequest": {
+        "$ref": "#/components/schemas/container-remove-request"
+      },
+      "ContainerBatchActionRequest": {
+        "$ref": "#/components/schemas/container-batch-action-request"
+      },
+      "ContainerBatchActionItem": {
+        "$ref": "#/components/schemas/container-batch-action-item"
+      },
+      "ContainerBatchActionResponse": {
+        "$ref": "#/components/schemas/container-batch-action-response"
+      },
       "ContainerRuntimeInfo": {
         "$ref": "#/components/schemas/container-runtime-info"
       },
@@ -9664,6 +9857,9 @@
       },
       "EnvelopedContainerActionResponse": {
         "$ref": "#/components/schemas/enveloped-container-action-response"
+      },
+      "EnvelopedContainerBatchActionResponse": {
+        "$ref": "#/components/schemas/enveloped-container-batch-action-response"
       },
       "health-response": {
         "type": "object",
@@ -15351,6 +15547,9 @@
           },
           "can_restart": {
             "type": "boolean"
+          },
+          "can_remove": {
+            "type": "boolean"
           }
         }
       },
@@ -15492,6 +15691,128 @@
             "properties": {
               "data": {
                 "$ref": "#/components/schemas/container-list-response"
+              }
+            }
+          }
+        ]
+      },
+      "container-batch-action-request": {
+        "type": "object",
+        "required": [
+          "action",
+          "ids"
+        ],
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "start",
+              "stop",
+              "restart",
+              "remove"
+            ]
+          },
+          "ids": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 100,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "force": {
+            "type": "boolean",
+            "default": false,
+            "description": "Applies only to remove. Force remove running containers when true."
+          }
+        },
+        "additionalProperties": false
+      },
+      "container-batch-action-item": {
+        "type": "object",
+        "required": [
+          "id",
+          "action",
+          "success"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "start",
+              "stop",
+              "restart",
+              "remove"
+            ]
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "error_code": {
+            "type": "string"
+          },
+          "message_key": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "container-batch-action-response": {
+        "type": "object",
+        "required": [
+          "total",
+          "success_count",
+          "failed_count",
+          "items"
+        ],
+        "properties": {
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "success_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "failed_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/container-batch-action-item"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "enveloped-container-batch-action-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/container-batch-action-response"
               }
             }
           }
@@ -15690,7 +16011,8 @@
             "enum": [
               "start",
               "stop",
-              "restart"
+              "restart",
+              "remove"
             ]
           },
           "runtime": {
@@ -15780,6 +16102,17 @@
             "description": "Optional structured error details preserved from the current runtime."
           }
         }
+      },
+      "container-remove-request": {
+        "type": "object",
+        "properties": {
+          "force": {
+            "type": "boolean",
+            "default": false,
+            "description": "Force remove a running container. Defaults to false and must be explicitly enabled by the caller."
+          }
+        },
+        "additionalProperties": false
       },
       "dashboard-stat-group-payload": {
         "type": "object",

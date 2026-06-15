@@ -73,6 +73,7 @@
         "reset": "Reset"
       },
       "columns": {
+        "selection": "Selection",
         "status": "Status",
         "name": "Container",
         "image": "Image",
@@ -112,18 +113,54 @@
         "start": "Start",
         "stop": "Stop",
         "restart": "Restart",
+        "remove": "Delete",
         "more": "More",
         "copyId": "Copy ID",
         "inspect": "Inspect",
         "viewMounts": "View Mounts",
         "viewNetworks": "View Networks",
         "viewEnvironment": "View Environment Variables",
+        "confirmStartTitle": "Confirm Container Start",
         "confirmStart": "Start Container {name}?",
+        "confirmStopTitle": "Confirm Container Stop",
         "confirmStop": "Stop Container {name}?",
+        "confirmRestartTitle": "Confirm Container Restart",
         "confirmRestart": "Restart Container {name}?",
+        "confirmRemoveTitle": "Confirm Container Delete",
+        "confirmRemove": "Delete Container {name}? This Cannot Be Undone.",
+        "confirmRemoveRunning": "Container {name} Is Running. The Default Delete Will Be Rejected; Select Force to Continue.",
+        "forceRemove": "Force Delete Running Container",
+        "dangerousDisabled": "Dangerous Actions Are Disabled or Not Allowed for the Current State.",
         "unavailable": "This action is currently unavailable.",
         "confirm": "Confirm",
         "cancel": "Cancel"
+      },
+      "batch": {
+        "selected": "{count} Containers Selected",
+        "start": "Batch Start",
+        "stop": "Batch Stop",
+        "restart": "Batch Restart",
+        "remove": "Batch Delete",
+        "cancelSelection": "Cancel Selection",
+        "noSelection": "Select Containers First.",
+        "startHint": "Start the Selected {count} Containers.",
+        "stopHint": "Stop the Selected {count} Containers.",
+        "restartHint": "Restart the Selected {count} Containers.",
+        "removeHint": "Delete the Selected {count} Containers.",
+        "confirmStartTitle": "Confirm Batch Start",
+        "confirmStopTitle": "Confirm Batch Stop",
+        "confirmRestartTitle": "Confirm Batch Restart",
+        "confirmRemoveTitle": "Confirm Batch Delete",
+        "confirmStart": "Start the Selected {count} Containers?",
+        "confirmStop": "Stop the Selected {count} Containers?",
+        "confirmRestart": "Restart the Selected {count} Containers?",
+        "confirmRemove": "Delete the Selected {count} Containers? This Cannot Be Undone.",
+        "confirmRemoveRunning": "{count} Selected Containers Are Running. The Default Delete Will Be Rejected; Select Force to Continue.",
+        "success": "Batch Action Completed. {count} Succeeded.",
+        "partialTitle": "Batch Action Partially Succeeded",
+        "failed": "Batch Action Failed.",
+        "failureDetailTitle": "View Failure Details",
+        "noFailureDetail": "No Failure Details."
       },
       "detail": {
         "title": "Container Detail",
@@ -199,6 +236,14 @@
         },
         "restart": {
           "completed": "Container Restart Action Completed"
+        },
+        "remove": {
+          "completed": "Container Delete Action Completed"
+        },
+        "batch": {
+          "completed": "Batch Container Action Completed",
+          "partial": "Batch Container Action Partially Succeeded",
+          "failed": "Batch Container Action Failed"
         }
       },
       "error": {
@@ -206,6 +251,8 @@
         "runtimeUnavailable": "Container runtime connection is unavailable",
         "runtimeSocketMissing": "Container runtime socket is missing",
         "runtimePermissionDenied": "Permission denied for container runtime access",
+        "dangerousActionsDisabled": "Dangerous container actions are not enabled",
+        "invalidState": "Container state does not allow this action",
         "invalidListQuery": "Invalid container list query parameter"
       }
     }

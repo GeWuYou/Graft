@@ -7,6 +7,7 @@ import { request } from '@/utils/request';
 import {
   buildContainerDetailApiPath,
   buildContainerLogsApiPath,
+  buildContainerRemoveApiPath,
   buildContainerRestartApiPath,
   buildContainerStartApiPath,
   buildContainerStopApiPath,
@@ -14,10 +15,13 @@ import {
 } from '../contract/paths';
 import type {
   ContainerActionResponse,
+  ContainerBatchActionRequest,
+  ContainerBatchActionResponse,
   ContainerDetail,
   ContainerListQuery,
   ContainerLogQuery,
   ContainerLogResponse,
+  ContainerRemoveRequest,
 } from '../types/container';
 
 type ContainerListPath = (typeof CONTAINER_API_PATH)['LIST'];
@@ -54,6 +58,24 @@ type PostContainerRestartOperation = paths[ContainerRestartPath]['post'];
 type PostContainerRestartEnvelope = PostContainerRestartOperation['responses'][200]['content']['application/json'];
 type PostContainerRestartData = NonNullable<PostContainerRestartEnvelope['data']>;
 type PostContainerRestartPathParams = PostContainerRestartOperation['parameters']['path'];
+
+type ContainerRemovePath = (typeof CONTAINER_API_PATH)['REMOVE'];
+type PostContainerRemoveOperation = paths[ContainerRemovePath]['post'];
+type PostContainerRemoveEnvelope = PostContainerRemoveOperation['responses'][200]['content']['application/json'];
+type PostContainerRemoveData = NonNullable<PostContainerRemoveEnvelope['data']>;
+type PostContainerRemovePathParams = PostContainerRemoveOperation['parameters']['path'];
+type PostContainerRemoveRequest = NonNullable<
+  PostContainerRemoveOperation['requestBody']
+>['content']['application/json'];
+
+type ContainerBatchActionsPath = (typeof CONTAINER_API_PATH)['BATCH_ACTIONS'];
+type PostContainerBatchActionsOperation = paths[ContainerBatchActionsPath]['post'];
+type PostContainerBatchActionsEnvelope =
+  PostContainerBatchActionsOperation['responses'][200]['content']['application/json'];
+type PostContainerBatchActionsData = NonNullable<PostContainerBatchActionsEnvelope['data']>;
+type PostContainerBatchActionsRequest = NonNullable<
+  PostContainerBatchActionsOperation['requestBody']
+>['content']['application/json'];
 
 export type ContainerListResponse = GetContainersData;
 
@@ -93,4 +115,21 @@ export function restartContainer(containerId: PostContainerRestartPathParams['id
   return request.post<PostContainerRestartData>({
     url: buildContainerRestartApiPath(containerId),
   }) as Promise<ContainerActionResponse>;
+}
+
+export function removeContainer(
+  containerId: PostContainerRemovePathParams['id'],
+  body: ContainerRemoveRequest & PostContainerRemoveRequest,
+) {
+  return request.post<PostContainerRemoveData>({
+    url: buildContainerRemoveApiPath(containerId),
+    data: body,
+  }) as Promise<ContainerActionResponse>;
+}
+
+export function batchContainerActions(body: ContainerBatchActionRequest & PostContainerBatchActionsRequest) {
+  return request.post<PostContainerBatchActionsData>({
+    url: CONTAINER_API_PATH.BATCH_ACTIONS,
+    data: body,
+  }) as Promise<ContainerBatchActionResponse>;
 }

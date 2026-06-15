@@ -46,4 +46,12 @@ const (
 	ContainerActionStopCompleted MessageKey = "ops.container.action.stop.completed"
 	// ContainerActionRestartCompleted identifies successful restart action responses.
 	ContainerActionRestartCompleted MessageKey = "ops.container.action.restart.completed"
+	// ContainerActionRemoveCompleted identifies successful remove action responses.
+	ContainerActionRemoveCompleted MessageKey = "ops.container.action.remove.completed"
+	// ContainerBatchActionCompleted identifies fully successful batch action responses.
+	ContainerBatchActionCompleted MessageKey = "ops.container.action.batch.completed"
+	// ContainerBatchActionPartial identifies partially successful batch action responses.
+	ContainerBatchActionPartial MessageKey = "ops.container.action.batch.partial"
+	// ContainerBatchActionFailed identifies fully failed batch action responses.
+	ContainerBatchActionFailed MessageKey = "ops.container.action.batch.failed"
 )

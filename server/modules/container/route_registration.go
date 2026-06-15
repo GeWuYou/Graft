@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -77,6 +78,16 @@ func registerRoutes(ctx *module.Context, moduleName string, service *service) er
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerRestartPermission.String(), publisher),
 		routes.handleRestart,
 	)
+	group.POST(
+		containercontract.ContainerRemoveRoute,
+		httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerRemovePermission.String(), publisher),
+		routes.handleRemove,
+	)
+	group.POST(
+		containercontract.ContainerBatchActionsRoute,
+		httpx.RequirePermission(ctx.I18n, authService, authorizer, "", publisher),
+		routes.handleBatchAction,
+	)
 	return nil
 }
 
@@ -138,6 +149,89 @@ func (r routeRuntime) handleStop(ginCtx *gin.Context) {
 
 func (r routeRuntime) handleRestart(ginCtx *gin.Context) {
 	r.handleAction(ginCtx, r.service.Restart)
+}
+
+func (r routeRuntime) handleRemove(ginCtx *gin.Context) {
+	_ = bindPostContainerRemoveParams(ginCtx)
+	var request containeropenapi.PostContainerRemoveJSONRequestBody
+	if !bindOptionalJSON(ginCtx, r, &request) {
+		return
+	}
+	ref, ok := readRef(ginCtx, r)
+	if !ok {
+		return
+	}
+	result, err := r.service.Remove(ginCtx.Request.Context(), ref, RemoveOptions{Force: boolPtrValue(request.Force)})
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, toContainerAction(result))
+}
+
+func (r routeRuntime) handleBatchAction(ginCtx *gin.Context) {
+	_ = bindPostContainerBatchActionsParams(ginCtx)
+	var request containeropenapi.PostContainerBatchActionsJSONRequestBody
+	if !bindRequiredJSON(ginCtx, r, &request) {
+		return
+	}
+	if !request.Action.Valid() {
+		r.writeRouteError(ginCtx, errInvalidListQuery)
+		return
+	}
+	if !r.authorizeBatchAction(ginCtx, string(request.Action)) {
+		return
+	}
+	result, err := r.service.BatchAction(ginCtx.Request.Context(), BatchActionCommand{
+		Action: string(request.Action),
+		IDs:    request.Ids,
+		Force:  boolPtrValue(request.Force),
+	})
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, toContainerBatchAction(result))
+}
+
+func (r routeRuntime) authorizeBatchAction(ginCtx *gin.Context, action string) bool {
+	permission := permissionForAction(action)
+	if permission == "" {
+		r.writeRouteError(ginCtx, errInvalidListQuery)
+		return false
+	}
+	authorizer, err := resolveAuthorizer(r.ctx)
+	if err != nil {
+		httpx.WriteLocalizedError(ginCtx, r.ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+		return false
+	}
+	requestAuth, ok := moduleapi.RequestAuthContextFromContext(ginCtx.Request.Context())
+	if !ok {
+		httpx.WriteLocalizedError(ginCtx, r.ctx.I18n, http.StatusUnauthorized, messagecontract.AuthTokenMissing.String(), nil)
+		return false
+	}
+	if err := authorizer.Authorize(ginCtx.Request.Context(), requestAuth, permission); err != nil {
+		httpx.WriteLocalizedError(ginCtx, r.ctx.I18n, http.StatusForbidden, messagecontract.AuthForbidden.String(), map[string]any{
+			"permission": permission,
+		})
+		return false
+	}
+	return true
+}
+
+func permissionForAction(action string) string {
+	switch action {
+	case containerActionStart:
+		return containercontract.ContainerStartPermission.String()
+	case containerActionStop:
+		return containercontract.ContainerStopPermission.String()
+	case containerActionRestart:
+		return containercontract.ContainerRestartPermission.String()
+	case containerActionRemove:
+		return containercontract.ContainerRemovePermission.String()
+	default:
+		return ""
+	}
 }
 
 func (r routeRuntime) handleAction(ginCtx *gin.Context, action func(context.Context, Ref) (ActionResult, error)) {
@@ -253,6 +347,35 @@ func bindGetContainerLogsParams(ginCtx *gin.Context) containeropenapi.GetContain
 		params.Stderr = &value
 	}
 	return params
+}
+
+func bindPostContainerRemoveParams(ginCtx *gin.Context) containeropenapi.PostContainerRemoveParams {
+	locale, requestID := commonHeaders(ginCtx)
+	return containeropenapi.PostContainerRemoveParams{XGraftLocale: locale, XRequestId: requestID}
+}
+
+func bindPostContainerBatchActionsParams(ginCtx *gin.Context) containeropenapi.PostContainerBatchActionsParams {
+	locale, requestID := commonHeaders(ginCtx)
+	return containeropenapi.PostContainerBatchActionsParams{XGraftLocale: locale, XRequestId: requestID}
+}
+
+func bindRequiredJSON(ginCtx *gin.Context, r routeRuntime, target any) bool {
+	if err := ginCtx.ShouldBindJSON(target); err != nil {
+		r.writeRouteError(ginCtx, errInvalidListQuery)
+		return false
+	}
+	return true
+}
+
+func bindOptionalJSON(ginCtx *gin.Context, r routeRuntime, target any) bool {
+	if ginCtx.Request == nil || ginCtx.Request.Body == nil {
+		return true
+	}
+	if err := ginCtx.ShouldBindJSON(target); err != nil && !errors.Is(err, io.EOF) {
+		r.writeRouteError(ginCtx, errInvalidListQuery)
+		return false
+	}
+	return true
 }
 
 func commonHeaders(ginCtx *gin.Context) (*string, *string) {

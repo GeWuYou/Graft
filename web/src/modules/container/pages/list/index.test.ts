@@ -8,17 +8,29 @@ import { defineComponent, h } from 'vue';
 import ContainerListPage from './index.vue';
 
 const apiMocks = vi.hoisted(() => ({
+  batchContainerActions: vi.fn(),
   getContainer: vi.fn(),
   getContainerLogs: vi.fn(),
   getContainers: vi.fn(),
+  removeContainer: vi.fn(),
   restartContainer: vi.fn(),
   startContainer: vi.fn(),
   stopContainer: vi.fn(),
 }));
 
+const dialogMocks = vi.hoisted(() => ({
+  alert: vi.fn(),
+  confirm: vi.fn(),
+  instances: [] as Array<{ hide: ReturnType<typeof vi.fn>; setConfirmLoading: ReturnType<typeof vi.fn> }>,
+}));
+
 const messageMocks = vi.hoisted(() => ({
   error: vi.fn(),
   success: vi.fn(),
+  warning: vi.fn(),
+}));
+
+const notifyMocks = vi.hoisted(() => ({
   warning: vi.fn(),
 }));
 
@@ -29,13 +41,22 @@ const translations = vi.hoisted(
     'container.list.actions.cancel': '取消',
     'container.list.actions.confirm': '确认',
     'container.list.actions.confirmRestart': '确认重启容器 {name}？',
+    'container.list.actions.confirmRestartTitle': '确认重启容器',
+    'container.list.actions.confirmRemove': '确认删除容器 {name}？删除后不可恢复。',
+    'container.list.actions.confirmRemoveRunning': '容器 {name} 正在运行。默认删除会被拒绝，如需强制删除必须显式勾选。',
+    'container.list.actions.confirmRemoveTitle': '确认删除容器',
     'container.list.actions.confirmStart': '确认启动容器 {name}？',
+    'container.list.actions.confirmStartTitle': '确认启动容器',
     'container.list.actions.confirmStop': '确认停止容器 {name}？',
+    'container.list.actions.confirmStopTitle': '确认停止容器',
     'container.list.actions.copyId': '复制 ID',
+    'container.list.actions.dangerousDisabled': '高危操作已禁用或当前状态不允许。',
     'container.list.actions.detail': '详情',
+    'container.list.actions.forceRemove': '强制删除运行中容器',
     'container.list.actions.inspect': '检查',
     'container.list.actions.logs': '日志',
     'container.list.actions.more': '更多',
+    'container.list.actions.remove': '删除',
     'container.list.actions.restart': '重启',
     'container.list.actions.start': '启动',
     'container.list.actions.stop': '停止',
@@ -44,6 +65,32 @@ const translations = vi.hoisted(
     'container.list.actions.viewMounts': '查看挂载',
     'container.list.actions.viewNetworks': '查看网络',
     'container.list.actionModeEnabled': '操作已启用',
+    'container.list.batch.cancelSelection': '取消选择',
+    'container.list.batch.confirmRemove': '确认删除选中的 {count} 个容器？删除后不可恢复。',
+    'container.list.batch.confirmRemoveRunning':
+      '其中 {count} 个容器正在运行。默认删除会被拒绝，如需强制删除必须显式勾选。',
+    'container.list.batch.confirmRemoveTitle': '确认批量删除',
+    'container.list.batch.confirmRestart': '确认重启选中的 {count} 个容器？',
+    'container.list.batch.confirmRestartTitle': '确认批量重启',
+    'container.list.batch.confirmStart': '确认启动选中的 {count} 个容器？',
+    'container.list.batch.confirmStartTitle': '确认批量启动',
+    'container.list.batch.confirmStop': '确认停止选中的 {count} 个容器？',
+    'container.list.batch.confirmStopTitle': '确认批量停止',
+    'container.list.batch.failed': '批量操作失败。',
+    'container.list.batch.failureDetailTitle': '查看失败明细',
+    'container.list.batch.noFailureDetail': '暂无失败明细。',
+    'container.list.batch.noSelection': '请先选择容器。',
+    'container.list.batch.partialTitle': '批量操作部分成功',
+    'container.list.batch.remove': '批量删除',
+    'container.list.batch.removeHint': '删除选中的 {count} 个容器。',
+    'container.list.batch.restart': '批量重启',
+    'container.list.batch.restartHint': '重启选中的 {count} 个容器。',
+    'container.list.batch.selected': '已选择 {count} 个容器',
+    'container.list.batch.start': '批量启动',
+    'container.list.batch.startHint': '启动选中的 {count} 个容器。',
+    'container.list.batch.stop': '批量停止',
+    'container.list.batch.stopHint': '停止选中的 {count} 个容器。',
+    'container.list.batch.success': '批量操作已完成，成功 {count} 个。',
     'container.list.clearFilters': '清除筛选',
     'container.list.columnSettings': '列设置',
     'container.list.columns.cpu': 'CPU',
@@ -59,6 +106,7 @@ const translations = vi.hoisted(
     'container.list.columns.operation': '操作',
     'container.list.columns.ports': '端口',
     'container.list.columns.restartPolicy': '重启策略',
+    'container.list.columns.selection': '选择',
     'container.list.columns.startedAt': '启动时间',
     'container.list.columns.status': '状态',
     'container.list.copyError': '日志复制失败。',
@@ -176,20 +224,31 @@ const translations = vi.hoisted(
     'ops.container.action.start.completed': '容器启动操作已完成',
     'ops.container.action.stop.completed': '容器停止操作已完成',
     'ops.container.action.restart.completed': '容器重启操作已完成',
+    'ops.container.action.remove.completed': '容器删除操作已完成',
   }),
 );
 
 vi.mock('../../api/container', () => ({
+  batchContainerActions: apiMocks.batchContainerActions,
   getContainer: apiMocks.getContainer,
   getContainerLogs: apiMocks.getContainerLogs,
   getContainers: apiMocks.getContainers,
+  removeContainer: apiMocks.removeContainer,
   restartContainer: apiMocks.restartContainer,
   startContainer: apiMocks.startContainer,
   stopContainer: apiMocks.stopContainer,
 }));
 
-vi.mock('tdesign-vue-next', () => ({
+vi.mock('tdesign-vue-next/es/dialog', () => ({
+  DialogPlugin: dialogMocks,
+}));
+
+vi.mock('tdesign-vue-next/es/message', () => ({
   MessagePlugin: messageMocks,
+}));
+
+vi.mock('tdesign-vue-next/es/notification', () => ({
+  NotifyPlugin: notifyMocks,
 }));
 
 vi.mock('tdesign-icons-vue-next', () => ({
@@ -216,8 +275,23 @@ vi.mock('@/shared/observability', async () => {
 describe('container list page', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    dialogMocks.instances = [];
+    dialogMocks.confirm.mockImplementation((_options) => {
+      const instance = {
+        hide: vi.fn(),
+        setConfirmLoading: vi.fn(),
+      };
+      dialogMocks.instances.push(instance);
+      return instance;
+    });
+    dialogMocks.alert.mockImplementation(() => ({
+      destroy: vi.fn(),
+      hide: vi.fn(),
+      setConfirmLoading: vi.fn(),
+      show: vi.fn(),
+      update: vi.fn(),
+    }));
     window.localStorage.clear();
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     apiMocks.getContainers.mockImplementation(async (query) => ({
       items: createContainerRows(query?.offset === 20 ? 5 : 20, query?.offset === 20 ? 21 : 1),
       limit: query?.limit ?? 20,
@@ -286,6 +360,7 @@ describe('container list page', () => {
       can_start: false,
       can_stop: true,
       can_restart: true,
+      can_remove: true,
       runtime_info: {
         runtime: 'first-adapter',
         status: 'enabled',
@@ -305,20 +380,40 @@ describe('container list page', () => {
     apiMocks.startContainer.mockResolvedValue({
       action: 'start',
       id: 'container-2',
+      runtime: 'first-adapter',
       message_key: 'ops.container.action.start.completed',
       result: 'completed',
+      status_after: 'running',
     });
     apiMocks.stopContainer.mockResolvedValue({
       action: 'stop',
       id: 'container-1',
+      runtime: 'first-adapter',
       message_key: 'ops.container.action.stop.completed',
       result: 'completed',
+      status_after: 'exited',
     });
     apiMocks.restartContainer.mockResolvedValue({
       action: 'restart',
       id: 'container-1',
+      runtime: 'first-adapter',
       message_key: 'ops.container.action.restart.completed',
       result: 'completed',
+      status_after: 'running',
+    });
+    apiMocks.removeContainer.mockResolvedValue({
+      action: 'remove',
+      id: 'container-1',
+      runtime: 'first-adapter',
+      message_key: 'ops.container.action.remove.completed',
+      result: 'completed',
+      status_after: 'removed',
+    });
+    apiMocks.batchContainerActions.mockResolvedValue({
+      failed_count: 0,
+      items: [],
+      success_count: 2,
+      total: 2,
     });
   });
 
@@ -357,6 +452,7 @@ describe('container list page', () => {
     expect(wrapper.findAll('[data-testid="container-action-start"]').length).toBeGreaterThan(0);
     expect(wrapper.find('[data-testid="container-action-stop"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="container-action-restart"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="container-action-remove"]').exists()).toBe(true);
     expect(wrapper.text()).toContain('第 1-20 条 / 共 25 条');
     expect(wrapper.text()).not.toContain('graft-extra-21');
   });
@@ -448,6 +544,7 @@ describe('container list page', () => {
     const columnKeys = JSON.parse(table.attributes('data-column-keys') ?? '[]');
 
     expect(columnKeys).toEqual([
+      'row-select',
       'state',
       'name',
       'image',
@@ -465,6 +562,7 @@ describe('container list page', () => {
 
     const drawer = wrapper.get('[data-testid="container-column-drawer"]');
     expect(JSON.parse(drawer.attributes('data-default-selected-keys') ?? '[]')).toEqual([
+      'row-select',
       'state',
       'name',
       'image',
@@ -476,7 +574,12 @@ describe('container list page', () => {
       'created_at',
       'operation',
     ]);
-    expect(JSON.parse(drawer.attributes('data-disabled-keys') ?? '[]')).toEqual(['state', 'name', 'operation']);
+    expect(JSON.parse(drawer.attributes('data-disabled-keys') ?? '[]')).toEqual([
+      'row-select',
+      'state',
+      'name',
+      'operation',
+    ]);
   });
 
   it('supports server pagination and table density controls', async () => {
@@ -517,10 +620,20 @@ describe('container list page', () => {
     await wrapper.get('[data-testid="container-action-stop"]').trigger('click');
     await flushPromises();
 
-    expect(window.confirm).toHaveBeenCalledWith('确认停止容器 graft-web？');
+    expect(dialogMocks.confirm).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: '确认停止容器 graft-web？',
+        header: '确认停止容器',
+        theme: 'danger',
+      }),
+    );
+    await dialogMocks.confirm.mock.calls.at(-1)?.[0].onConfirm();
+    await flushPromises();
+
     expect(apiMocks.stopContainer).toHaveBeenCalledWith('container-1');
     expect(messageMocks.success).toHaveBeenCalledWith('容器停止操作已完成');
     expect(apiMocks.getContainers).toHaveBeenCalledTimes(2);
+    expect(dialogMocks.instances.at(-1)?.hide).toHaveBeenCalled();
   });
 
   it('keeps dangerous action events fail-closed when row flags are false', async () => {
@@ -533,9 +646,90 @@ describe('container list page', () => {
     vm.handleRowAction('start', createContainerRows(1)[0]);
     await flushPromises();
 
-    expect(messageMocks.warning).toHaveBeenCalledWith('该操作当前不可用。');
+    expect(messageMocks.warning).toHaveBeenCalledWith('高危操作已禁用或当前状态不允许。');
     expect(apiMocks.startContainer).not.toHaveBeenCalled();
-    expect(window.confirm).not.toHaveBeenCalled();
+    expect(dialogMocks.confirm).not.toHaveBeenCalled();
+  });
+
+  it('confirms running container removal with force selection defaulting to false', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="container-action-remove"]').trigger('click');
+    await flushPromises();
+
+    expect(dialogMocks.confirm).toHaveBeenCalledWith(
+      expect.objectContaining({
+        confirmBtn: '删除',
+        header: '确认删除容器',
+        theme: 'danger',
+      }),
+    );
+    expect(renderDialogBodyText(dialogMocks.confirm.mock.calls.at(-1)?.[0].body)).toContain('容器 graft-web 正在运行');
+
+    dialogMocks.confirm.mock.calls.at(-1)?.[0].onConfirm();
+    await flushPromises();
+
+    expect(apiMocks.removeContainer).toHaveBeenCalledWith('container-1', { force: false });
+    expect(messageMocks.success).toHaveBeenCalledWith('容器删除操作已完成');
+  });
+
+  it('shows batch bar, filters unsafe batch actions, and reports partial failures', async () => {
+    apiMocks.batchContainerActions.mockResolvedValueOnce({
+      failed_count: 1,
+      items: [
+        {
+          action: 'restart',
+          id: 'container-1',
+          name: 'graft-web',
+          success: true,
+        },
+        {
+          action: 'restart',
+          id: 'container-2',
+          message: 'runtime rejected restart',
+          success: false,
+        },
+      ],
+      success_count: 1,
+      total: 2,
+    });
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="container-table-select-first-two"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('已选择 2 个容器');
+    expect(wrapper.get('[data-testid="container-batch-stop"]').attributes('disabled')).toBeDefined();
+    expect(wrapper.get('[data-testid="container-batch-remove"]').attributes('disabled')).toBeUndefined();
+
+    await wrapper.get('[data-testid="container-batch-restart"]').trigger('click');
+    await flushPromises();
+
+    expect(dialogMocks.confirm).toHaveBeenCalledWith(
+      expect.objectContaining({
+        header: '确认批量重启',
+        theme: 'danger',
+      }),
+    );
+
+    await dialogMocks.confirm.mock.calls.at(-1)?.[0].onConfirm();
+    await flushPromises();
+
+    expect(dialogMocks.instances.at(-1)?.setConfirmLoading).toHaveBeenNthCalledWith(1, true);
+    expect(apiMocks.batchContainerActions).toHaveBeenCalledWith({
+      action: 'restart',
+      force: false,
+      ids: ['container-1', 'container-2'],
+    });
+    expect(notifyMocks.warning).toHaveBeenCalledWith(
+      expect.objectContaining({
+        content: expect.stringContaining('container-2: runtime rejected restart'),
+        title: '批量操作部分成功',
+      }),
+    );
+    expect(dialogMocks.instances.at(-1)?.setConfirmLoading).toHaveBeenLastCalledWith(false);
   });
 
   it('opens sanitized detail sections from safe read-only more actions', async () => {
@@ -593,6 +787,17 @@ function apiError(messageKey: string, message: string) {
     messageKey,
     status: 500,
   };
+}
+
+function renderDialogBodyText(body: unknown) {
+  if (typeof body === 'string') {
+    return body;
+  }
+  if (typeof body === 'function') {
+    const node = body();
+    return JSON.stringify(node);
+  }
+  return String(body ?? '');
 }
 
 function createContainerRows(count: number, startOrdinal = 1) {
@@ -654,6 +859,7 @@ function createContainerRows(count: number, startOrdinal = 1) {
       can_start: ordinal !== 1,
       can_stop: ordinal === 1,
       can_restart: true,
+      can_remove: true,
     };
   });
 }
@@ -687,7 +893,7 @@ function mountPage() {
           setup:
             (_, { slots }) =>
             () =>
-              h('section', [slots.head?.(), slots.toolbar?.(), slots.default?.(), slots.footer?.()]),
+              h('section', [slots.head?.(), slots.toolbar?.(), slots.batch?.(), slots.default?.(), slots.footer?.()]),
         }),
         'advanced-query-column-drawer': defineComponent({
           name: 'AdvancedQueryColumnDrawerStub',
@@ -762,6 +968,7 @@ function mountPage() {
                   h(
                     'button',
                     {
+                      disabled: Boolean((option as { disabled?: boolean }).disabled),
                       'data-testid': option.testId,
                       onClick: (event: MouseEvent) => emit('click', option, { e: event }),
                     },
@@ -963,9 +1170,10 @@ function mountPage() {
               h('div', slots.default?.()),
         }),
         't-table': defineComponent({
-          props: ['columns', 'data', 'size'],
+          props: ['columns', 'data', 'selectedRowKeys', 'size'],
+          emits: ['select-change'],
           setup:
-            (props, { slots }) =>
+            (props, { emit, slots }) =>
             () =>
               h(
                 'div',
@@ -974,29 +1182,40 @@ function mountPage() {
                     (props.columns as Array<{ colKey: string }> | undefined)?.map((column) => column.colKey) ?? [],
                   ),
                   'data-size': props.size,
+                  'data-selected-row-keys': JSON.stringify(props.selectedRowKeys ?? []),
                   'data-testid': 'container-table',
                 },
-                (props.data as Array<Record<string, unknown>>).length
-                  ? (props.data as Array<Record<string, unknown>>).map((row) =>
-                      h('div', { 'data-testid': 'container-table-row', key: String(row.id) }, [
-                        slots.state?.({ row }),
-                        slots.name?.({ row }),
-                        slots.image?.({ row }),
-                        slots.cpu?.({ row }),
-                        slots.memory?.({ row }),
-                        slots.ports?.({ row }),
-                        slots.network?.({ row }),
-                        slots.resource?.({ row }),
-                        slots.runtime_status?.({ row }),
-                        slots.image_id?.({ row }),
-                        slots.labels?.({ row }),
-                        slots.created_at?.({ row }),
-                        slots.started_at?.({ row }),
-                        slots.restart_policy?.({ row }),
-                        slots.operation?.({ row }),
-                      ]),
-                    )
-                  : slots.empty?.(),
+                [
+                  h(
+                    'button',
+                    {
+                      'data-testid': 'container-table-select-first-two',
+                      onClick: () => emit('select-change', ['container-1', 'container-2']),
+                    },
+                    'select',
+                  ),
+                  (props.data as Array<Record<string, unknown>>).length
+                    ? (props.data as Array<Record<string, unknown>>).map((row) =>
+                        h('div', { 'data-testid': 'container-table-row', key: String(row.id) }, [
+                          slots.state?.({ row }),
+                          slots.name?.({ row }),
+                          slots.image?.({ row }),
+                          slots.cpu?.({ row }),
+                          slots.memory?.({ row }),
+                          slots.ports?.({ row }),
+                          slots.network?.({ row }),
+                          slots.resource?.({ row }),
+                          slots.runtime_status?.({ row }),
+                          slots.image_id?.({ row }),
+                          slots.labels?.({ row }),
+                          slots.created_at?.({ row }),
+                          slots.started_at?.({ row }),
+                          slots.restart_policy?.({ row }),
+                          slots.operation?.({ row }),
+                        ]),
+                      )
+                    : slots.empty?.(),
+                ],
               ),
         }),
         't-tag': defineComponent({

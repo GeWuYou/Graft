@@ -18,6 +18,10 @@ const (
 	ContainerStopRoute = "/:id/stop"
 	// ContainerRestartRoute is the restart action route fragment.
 	ContainerRestartRoute = "/:id/restart"
+	// ContainerRemoveRoute is the remove action route fragment.
+	ContainerRemoveRoute = "/:id/remove"
+	// ContainerBatchActionsRoute is the batch action route fragment.
+	ContainerBatchActionsRoute = "/batch-actions"
 	// ContainerMenuRootPath is the web menu root path for operations.
 	ContainerMenuRootPath = "/ops"
 	// ContainerMenuPath is the web menu path for container management.

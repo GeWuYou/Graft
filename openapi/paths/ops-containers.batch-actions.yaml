@@ -1,0 +1,41 @@
+post:
+  tags: [container]
+  summary: Execute container actions in batch
+  operationId: postContainerBatchActions
+  description: Executes one container action for selected containers and returns per-item success or failure.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../components/schemas/container-batch-action-request.yaml
+  responses:
+    '200':
+      description: Container batch action result.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-container-batch-action-response.yaml
+    '400':
+      description: Invalid batch action request.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      $ref: ../components/responses/forbidden.yaml
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml

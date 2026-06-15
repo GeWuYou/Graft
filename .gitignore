@@ -49,6 +49,7 @@ go.work.sum
 web/ai-libs/
 web/ai-libs
 temp/
+ai-plan/dolist/
 
 # Python cache
 __pycache__/

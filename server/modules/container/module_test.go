@@ -113,6 +113,7 @@ func expectedPermissionCodes() []string {
 		containercontract.ContainerStartPermission.String(),
 		containercontract.ContainerStopPermission.String(),
 		containercontract.ContainerRestartPermission.String(),
+		containercontract.ContainerRemovePermission.String(),
 	}
 }
 
@@ -175,6 +176,8 @@ func assertModuleMessages(t *testing.T, localizer *i18n.Service) {
 		containercontract.ContainerMenuTitle.String(),
 		containercontract.ContainerInvalidRef.String(),
 		containercontract.ContainerDangerousActionsDisabled.String(),
+		containercontract.ContainerActionRemoveCompleted.String(),
+		containercontract.ContainerBatchActionPartial.String(),
 	} {
 		assertRegisteredMessage(t, localizer, i18n.LocaleZHCN, key)
 		assertRegisteredMessage(t, localizer, i18n.LocaleENUS, key)

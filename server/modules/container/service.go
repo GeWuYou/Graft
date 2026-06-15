@@ -165,7 +165,15 @@ func (s *service) Detail(ctx context.Context, ref Ref) (Detail, error) {
 	if err != nil {
 		return Detail{}, err
 	}
-	return runtime.Detail(ctx, ref)
+	detail, err := runtime.Detail(ctx, ref)
+	if err != nil {
+		return Detail{}, err
+	}
+	adjusted := applyActionAvailability([]Summary{detail.Summary}, s.dangerousActionsAllowed(ctx))
+	if len(adjusted) == 1 {
+		detail.Summary = adjusted[0]
+	}
+	return detail, nil
 }
 
 func (s *service) Logs(ctx context.Context, ref Ref, query LogQuery) (Logs, error) {
@@ -184,28 +192,76 @@ func (s *service) Logs(ctx context.Context, ref Ref, query LogQuery) (Logs, erro
 }
 
 func (s *service) Start(ctx context.Context, ref Ref) (ActionResult, error) {
-	return s.runAction(ctx, ref, containerActionStart)
+	return s.runAction(ctx, ref, containerActionStart, ActionOptions{})
 }
 
 func (s *service) Stop(ctx context.Context, ref Ref) (ActionResult, error) {
-	return s.runAction(ctx, ref, containerActionStop)
+	return s.runAction(ctx, ref, containerActionStop, ActionOptions{})
 }
 
 func (s *service) Restart(ctx context.Context, ref Ref) (ActionResult, error) {
-	return s.runAction(ctx, ref, containerActionRestart)
+	return s.runAction(ctx, ref, containerActionRestart, ActionOptions{})
+}
+
+func (s *service) Remove(ctx context.Context, ref Ref, options RemoveOptions) (ActionResult, error) {
+	return s.runAction(ctx, ref, containerActionRemove, ActionOptions(options))
+}
+
+func (s *service) BatchAction(ctx context.Context, command BatchActionCommand) (BatchActionResult, error) {
+	normalized, err := normalizeBatchActionCommand(command)
+	if err != nil {
+		return BatchActionResult{}, err
+	}
+	if err := s.requireRuntimeAccess(ctx); err != nil {
+		return BatchActionResult{}, err
+	}
+	if !s.dangerousActionsAllowed(ctx) {
+		for _, ref := range normalized.IDs {
+			result := ActionResult{ID: ref, Action: normalized.Action, Runtime: runtimeNameDocker}
+			s.publishActionAudit(ctx, result, ActionOptions{Force: normalized.Force}, errDangerousActionsDisabled)
+		}
+		return BatchActionResult{}, errDangerousActionsDisabled
+	}
+	result := BatchActionResult{
+		Action:    normalized.Action,
+		Total:     len(normalized.IDs),
+		RequestID: requestIDFromContext(ctx),
+		Items:     make([]BatchActionItem, 0, len(normalized.IDs)),
+	}
+	for _, rawID := range normalized.IDs {
+		ref, parseErr := parseRef(rawID)
+		if parseErr != nil {
+			item := batchActionFailure(rawID, normalized.Action, parseErr)
+			result.Items = append(result.Items, item)
+			result.FailedCount++
+			s.publishActionAudit(ctx, item.Result, ActionOptions{Force: normalized.Force}, parseErr)
+			continue
+		}
+		actionResult, actionErr := s.runAction(ctx, ref, normalized.Action, ActionOptions{Force: normalized.Force})
+		item := batchActionItem(ref.Value, normalized.Action, actionResult, actionErr)
+		result.Items = append(result.Items, item)
+		if actionErr != nil {
+			result.FailedCount++
+			continue
+		}
+		result.SuccessCount++
+	}
+	result = withBatchActionMessage(result)
+	return result, nil
 }
 
 func (s *service) runAction(
 	ctx context.Context,
 	ref Ref,
 	action string,
+	options ActionOptions,
 ) (ActionResult, error) {
 	if err := s.requireRuntimeAccess(ctx); err != nil {
 		return ActionResult{}, err
 	}
 	if !s.dangerousActionsAllowed(ctx) {
 		result := ActionResult{ID: ref.Value, Action: action, Runtime: runtimeNameDocker}
-		s.publishActionAudit(ctx, result, errDangerousActionsDisabled)
+		s.publishActionAudit(ctx, result, options, errDangerousActionsDisabled)
 		return ActionResult{}, errDangerousActionsDisabled
 	}
 	runtime, err := s.runtimeForRequest()
@@ -214,14 +270,14 @@ func (s *service) runAction(
 	}
 	actionCtx, cancel := context.WithTimeout(ctx, containerOperationTTL)
 	defer cancel()
-	result, err := runWithRuntime(actionCtx, ref, action, runtime)
+	result, err := runWithRuntime(actionCtx, ref, action, options, runtime)
 	if result.Action == "" {
 		result.Action = action
 	}
 	if err == nil {
 		result = withActionMessage(result)
 	}
-	s.publishActionAudit(ctx, result, err)
+	s.publishActionAudit(ctx, result, options, err)
 	if err != nil {
 		return ActionResult{}, err
 	}
@@ -235,14 +291,18 @@ func (s *service) requireRuntimeAccess(ctx context.Context) error {
 	return nil
 }
 
-func runWithRuntime(ctx context.Context, ref Ref, action string, runtime Runtime) (ActionResult, error) {
+func runWithRuntime(ctx context.Context, ref Ref, action string, options ActionOptions, runtime Runtime) (ActionResult, error) {
 	switch action {
 	case containerActionStart:
 		return runtime.Start(ctx, ref)
 	case containerActionStop:
 		return runtime.Stop(ctx, ref)
-	default:
+	case containerActionRemove:
+		return runtime.Remove(ctx, ref, RemoveOptions(options))
+	case containerActionRestart:
 		return runtime.Restart(ctx, ref)
+	default:
+		return ActionResult{ID: ref.Value, Action: action, Runtime: runtimeNameDocker}, errInvalidListQuery
 	}
 }
 
@@ -262,9 +322,102 @@ func actionSuccessMessageKey(action string) containercontract.MessageKey {
 		return containercontract.ContainerActionStartCompleted
 	case containerActionStop:
 		return containercontract.ContainerActionStopCompleted
+	case containerActionRemove:
+		return containercontract.ContainerActionRemoveCompleted
 	default:
 		return containercontract.ContainerActionRestartCompleted
 	}
+}
+
+func normalizeBatchActionCommand(command BatchActionCommand) (BatchActionCommand, error) {
+	action := strings.TrimSpace(command.Action)
+	if !isSupportedAction(action) {
+		return BatchActionCommand{}, errInvalidListQuery
+	}
+	if len(command.IDs) == 0 || len(command.IDs) > maxContainerBatchActionIDs {
+		return BatchActionCommand{}, errInvalidListQuery
+	}
+	normalizedIDs := make([]string, 0, len(command.IDs))
+	for _, id := range command.IDs {
+		if strings.TrimSpace(id) == "" {
+			return BatchActionCommand{}, errInvalidListQuery
+		}
+		normalizedIDs = append(normalizedIDs, strings.TrimSpace(id))
+	}
+	return BatchActionCommand{Action: action, IDs: normalizedIDs, Force: command.Force}, nil
+}
+
+func isSupportedAction(action string) bool {
+	switch action {
+	case containerActionStart, containerActionStop, containerActionRestart, containerActionRemove:
+		return true
+	default:
+		return false
+	}
+}
+
+func batchActionFailure(id string, action string, err error) BatchActionItem {
+	messageKey := messageKeyForError(err).String()
+	return BatchActionItem{
+		ID:         id,
+		Action:     action,
+		Success:    false,
+		ErrorCode:  messageKey,
+		MessageKey: messageKey,
+		Message:    fallbackMessageForError(err),
+		Result: ActionResult{
+			ID:      id,
+			Action:  action,
+			Runtime: runtimeNameDocker,
+		},
+	}
+}
+
+func batchActionItem(id string, action string, result ActionResult, err error) BatchActionItem {
+	if err != nil {
+		if result.ID == "" {
+			result.ID = id
+		}
+		if result.Action == "" {
+			result.Action = action
+		}
+		if result.Runtime == "" {
+			result.Runtime = runtimeNameDocker
+		}
+		item := batchActionFailure(firstNonEmpty(result.ID, id), result.Action, err)
+		item.Name = result.Name
+		item.Result = result
+		return item
+	}
+	return BatchActionItem{
+		ID:         firstNonEmpty(result.ID, id),
+		Name:       result.Name,
+		Action:     result.Action,
+		Success:    true,
+		MessageKey: result.MessageKey,
+		Message:    result.Message,
+		Result:     result,
+	}
+}
+
+func withBatchActionMessage(result BatchActionResult) BatchActionResult {
+	key := containercontract.ContainerBatchActionCompleted
+	switch {
+	case result.SuccessCount == 0:
+		key = containercontract.ContainerBatchActionFailed
+	case result.FailedCount > 0:
+		key = containercontract.ContainerBatchActionPartial
+	}
+	result.MessageKey = key.String()
+	result.Message = key.String()
+	return result
+}
+
+func requestIDFromContext(ctx context.Context) string {
+	if requestAudit, ok := httpx.RequestAuditContextFromContext(ctx); ok {
+		return requestAudit.RequestID
+	}
+	return ""
 }
 
 func (s *service) normalizeLogQuery(query LogQuery) (LogQuery, error) {
@@ -339,14 +492,15 @@ func summarizeContainers(items []Summary) ListSummary {
 }
 
 func applyActionAvailability(items []Summary, dangerousAllowed bool) []Summary {
-	if dangerousAllowed {
-		return items
-	}
 	adjusted := make([]Summary, 0, len(items))
 	for _, item := range items {
-		item.CanStart = false
-		item.CanStop = false
-		item.CanRestart = false
+		item.CanRemove = canRemoveState(item.State)
+		if !dangerousAllowed {
+			item.CanStart = false
+			item.CanStop = false
+			item.CanRestart = false
+			item.CanRemove = false
+		}
 		adjusted = append(adjusted, item)
 	}
 	return adjusted
@@ -411,7 +565,7 @@ func parseLogSince(raw string) (string, error) {
 	return strconv.FormatInt(time.Now().UTC().Add(-duration).Unix(), 10), nil
 }
 
-func (s *service) publishActionAudit(ctx context.Context, result ActionResult, err error) {
+func (s *service) publishActionAudit(ctx context.Context, result ActionResult, options ActionOptions, err error) {
 	if s == nil || s.auditBus == nil {
 		return
 	}
@@ -428,6 +582,8 @@ func (s *service) publishActionAudit(ctx context.Context, result ActionResult, e
 		"image":          result.Image,
 		"action":         action,
 		"runtime":        firstNonEmpty(result.Runtime, runtimeNameDocker),
+		"endpoint":       safeEndpointLabel(s.runtimeOptions.endpoint),
+		"force":          options.Force,
 		"result":         auditResult(err),
 		"error":          messageKey,
 		"status_before":  result.StatusBefore,
@@ -673,6 +829,9 @@ func (disabledRuntime) Stop(context.Context, Ref) (ActionResult, error) {
 	return ActionResult{}, errRuntimeDisabled
 }
 func (disabledRuntime) Restart(context.Context, Ref) (ActionResult, error) {
+	return ActionResult{}, errRuntimeDisabled
+}
+func (disabledRuntime) Remove(context.Context, Ref, RemoveOptions) (ActionResult, error) {
 	return ActionResult{}, errRuntimeDisabled
 }
 func (disabledRuntime) Close() error { return nil }

@@ -1611,6 +1611,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/ops/containers/batch-actions': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Execute container actions in batch
+     * @description Executes one container action for selected containers and returns per-item success or failure.
+     */
+    post: operations['postContainerBatchActions'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/ops/containers/{id}': {
     parameters: {
       query?: never;
@@ -1705,6 +1725,26 @@ export interface paths {
      * @description Restarts one container when dangerous actions are enabled.
      */
     post: operations['postContainerRestart'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/containers/{id}/remove': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Remove container
+     * @description Removes one container when dangerous actions are enabled. Running containers require force=true.
+     */
+    post: operations['postContainerRemove'];
     delete?: never;
     options?: never;
     head?: never;
@@ -1888,6 +1928,10 @@ export interface components {
     ContainerNetwork: components['schemas']['container-network'];
     ContainerLogResponse: components['schemas']['container-log-response'];
     ContainerActionResponse: components['schemas']['container-action-response'];
+    ContainerRemoveRequest: components['schemas']['container-remove-request'];
+    ContainerBatchActionRequest: components['schemas']['container-batch-action-request'];
+    ContainerBatchActionItem: components['schemas']['container-batch-action-item'];
+    ContainerBatchActionResponse: components['schemas']['container-batch-action-response'];
     ContainerRuntimeInfo: components['schemas']['container-runtime-info'];
     ContainerResourceSummary: components['schemas']['container-resource-summary'];
     ContainerListSummary: components['schemas']['container-list-summary'];
@@ -1896,6 +1940,7 @@ export interface components {
     EnvelopedContainerDetail: components['schemas']['enveloped-container-detail'];
     EnvelopedContainerLogResponse: components['schemas']['enveloped-container-log-response'];
     EnvelopedContainerActionResponse: components['schemas']['enveloped-container-action-response'];
+    EnvelopedContainerBatchActionResponse: components['schemas']['enveloped-container-batch-action-response'];
     'health-response': {
       /** @enum {string} */
       status: 'ok';
@@ -3768,6 +3813,7 @@ export interface components {
       can_start?: boolean;
       can_stop?: boolean;
       can_restart?: boolean;
+      can_remove?: boolean;
     };
     'container-list-summary': {
       total: number;
@@ -3802,6 +3848,36 @@ export interface components {
     };
     'enveloped-container-list-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['container-list-response'];
+    };
+    'container-batch-action-request': {
+      /** @enum {string} */
+      action: 'start' | 'stop' | 'restart' | 'remove';
+      ids: string[];
+      /**
+       * @description Applies only to remove. Force remove running containers when true.
+       * @default false
+       */
+      force: boolean;
+    };
+    'container-batch-action-item': {
+      id: string;
+      name?: string;
+      /** @enum {string} */
+      action: 'start' | 'stop' | 'restart' | 'remove';
+      success: boolean;
+      error_code?: string;
+      message_key?: string;
+      message?: string;
+    };
+    'container-batch-action-response': {
+      total: number;
+      success_count: number;
+      failed_count: number;
+      request_id?: string;
+      items: components['schemas']['container-batch-action-item'][];
+    };
+    'enveloped-container-batch-action-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['container-batch-action-response'];
     };
     'container-mount': {
       /** @description Runtime mount type such as bind, volume, or tmpfs. */
@@ -3849,7 +3925,7 @@ export interface components {
       id: string;
       name?: string;
       /** @enum {string} */
-      action: 'start' | 'stop' | 'restart';
+      action: 'start' | 'stop' | 'restart' | 'remove';
       /** @description Container runtime adapter key. */
       runtime: string;
       /** @enum {string} */
@@ -3878,6 +3954,13 @@ export interface components {
       data?: {
         [key: string]: unknown;
       };
+    };
+    'container-remove-request': {
+      /**
+       * @description Force remove a running container. Defaults to false and must be explicitly enabled by the caller.
+       * @default false
+       */
+      force: boolean;
     };
     'dashboard-stat-group-payload': {
       items: {
@@ -8420,6 +8503,52 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
+  postContainerBatchActions: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['container-batch-action-request'];
+      };
+    };
+    responses: {
+      /** @description Container batch action result. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-container-batch-action-response'];
+        };
+      };
+      /** @description Invalid batch action request. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
   getContainer: {
     parameters: {
       query?: never;
@@ -8711,6 +8840,75 @@ export interface operations {
         };
       };
       /** @description Invalid container reference. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Container was not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      /** @description Container state does not allow this action. */
+      409: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postContainerRemove: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Container id or name. Clients must call encodeURIComponent before placing this value in the path. The backend must PathUnescape the path parameter and reject empty values, slashes, and control characters with ops.container.error.invalidContainerRef. */
+        id: components['parameters']['container-id-path'];
+      };
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        'application/json': components['schemas']['container-remove-request'];
+      };
+    };
+    responses: {
+      /** @description Container action result. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-container-action-response'];
+        };
+      };
+      /** @description Invalid container reference or remove request. */
       400: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];

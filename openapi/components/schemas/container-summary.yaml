@@ -90,3 +90,5 @@ properties:
     type: boolean
   can_restart:
     type: boolean
+  can_remove:
+    type: boolean

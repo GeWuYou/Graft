@@ -120,6 +120,53 @@ func TestDangerousActionsDisabledPublishesFailureAudit(t *testing.T) {
 	}
 }
 
+func TestRemoveDangerousActionsDisabledPublishesForceAudit(t *testing.T) {
+	t.Parallel()
+
+	bus := eventbus.New(zap.NewNop())
+	events := make([]moduleapi.AuditEvent, 0, 1)
+	if err := bus.Subscribe(string(moduleapi.AuditRecordEventName), func(_ context.Context, event eventbus.Event) error {
+		payload, ok := event.Payload.(moduleapi.AuditEvent)
+		if !ok {
+			t.Fatalf("unexpected payload %T", event.Payload)
+		}
+		events = append(events, payload)
+		return nil
+	}); err != nil {
+		t.Fatalf("subscribe audit: %v", err)
+	}
+	service, err := newService(containerServiceOptions{
+		runtime:                 fakeRuntime{},
+		auditBus:                bus,
+		moduleName:              moduleID,
+		enabled:                 true,
+		dangerousActionsEnabled: false,
+		defaultTail:             defaultContainerLogsDefaultTail,
+		maxTail:                 defaultContainerLogsMaxTail,
+	})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	_, err = service.Remove(context.Background(), Ref{Value: "web"}, RemoveOptions{Force: true})
+	if !errors.Is(err, errDangerousActionsDisabled) {
+		t.Fatalf("expected dangerous action guard, got %v", err)
+	}
+	if len(events) != 1 {
+		t.Fatalf("expected one audit event, got %#v", events)
+	}
+	event := events[0]
+	if event.Action != "ops.container.remove" || event.Success {
+		t.Fatalf("unexpected audit event %#v", event)
+	}
+	if event.Metadata["force"] != true {
+		t.Fatalf("expected force metadata, got %#v", event.Metadata)
+	}
+	if event.Metadata["endpoint"] != "unix:///var/run/docker.sock" {
+		t.Fatalf("expected endpoint metadata, got %#v", event.Metadata)
+	}
+}
+
 func TestServiceActionResponseCarriesMessageKey(t *testing.T) {
 	t.Parallel()
 
@@ -147,6 +194,29 @@ func TestServiceActionResponseCarriesMessageKey(t *testing.T) {
 	}
 	if mapped.Message == nil || *mapped.Message != containercontract.ContainerActionRestartCompleted.String() {
 		t.Fatalf("expected mapped fallback message, got %#v", mapped.Message)
+	}
+}
+
+func TestServiceRemoveResponseCarriesMessageKey(t *testing.T) {
+	t.Parallel()
+
+	service, err := newService(containerServiceOptions{
+		runtime:                 fakeRuntime{},
+		enabled:                 true,
+		dangerousActionsEnabled: true,
+		defaultTail:             defaultContainerLogsDefaultTail,
+		maxTail:                 defaultContainerLogsMaxTail,
+	})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	result, err := service.Remove(context.Background(), Ref{Value: "web"}, RemoveOptions{Force: true})
+	if err != nil {
+		t.Fatalf("remove: %v", err)
+	}
+	if result.MessageKey != containercontract.ContainerActionRemoveCompleted.String() {
+		t.Fatalf("unexpected action message key %q", result.MessageKey)
 	}
 }
 
@@ -295,8 +365,60 @@ func TestServiceListAppliesPaginationFiltersAndActionAvailability(t *testing.T) 
 	if len(result.Items) != 1 || result.Items[0].Name != "graft-worker" {
 		t.Fatalf("unexpected paged items %#v", result.Items)
 	}
-	if result.Items[0].CanStart || result.Items[0].CanStop || result.Items[0].CanRestart {
+	if result.Items[0].CanStart || result.Items[0].CanStop || result.Items[0].CanRestart || result.Items[0].CanRemove {
 		t.Fatalf("expected dangerous action gate to disable row actions, got %#v", result.Items[0])
+	}
+}
+
+func TestServiceBatchActionAllowsPartialSuccess(t *testing.T) {
+	t.Parallel()
+
+	bus := eventbus.New(zap.NewNop())
+	events := make([]moduleapi.AuditEvent, 0, 2)
+	if err := bus.Subscribe(string(moduleapi.AuditRecordEventName), func(_ context.Context, event eventbus.Event) error {
+		payload, ok := event.Payload.(moduleapi.AuditEvent)
+		if !ok {
+			t.Fatalf("unexpected payload %T", event.Payload)
+		}
+		events = append(events, payload)
+		return nil
+	}); err != nil {
+		t.Fatalf("subscribe audit: %v", err)
+	}
+	service, err := newService(containerServiceOptions{
+		runtime:                 selectiveRemoveRuntime{failID: "bad"},
+		auditBus:                bus,
+		enabled:                 true,
+		dangerousActionsEnabled: true,
+		defaultTail:             defaultContainerLogsDefaultTail,
+		maxTail:                 defaultContainerLogsMaxTail,
+	})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	ctx := httpx.WithRequestAuditContext(context.Background(), httpx.RequestAuditContext{RequestID: "req-batch"})
+
+	result, err := service.BatchAction(ctx, BatchActionCommand{
+		Action: containerActionRemove,
+		IDs:    []string{"ok", "bad"},
+		Force:  true,
+	})
+	if err != nil {
+		t.Fatalf("batch action should aggregate partial failures, got %v", err)
+	}
+	if result.SuccessCount != 1 || result.FailedCount != 1 || result.MessageKey != containercontract.ContainerBatchActionPartial.String() {
+		t.Fatalf("unexpected batch result %#v", result)
+	}
+	if len(result.Items) != 2 || !result.Items[0].Success || result.Items[1].Success {
+		t.Fatalf("unexpected batch items %#v", result.Items)
+	}
+	if len(events) != 2 {
+		t.Fatalf("expected one audit per batch item, got %#v", events)
+	}
+	for _, event := range events {
+		if event.Metadata["force"] != true || event.Metadata["requestId"] != "req-batch" {
+			t.Fatalf("expected force/request audit metadata, got %#v", event.Metadata)
+		}
 	}
 }
 
@@ -527,6 +649,11 @@ func (r *countingRuntime) Restart(context.Context, Ref) (ActionResult, error) {
 	return ActionResult{}, nil
 }
 
+func (r *countingRuntime) Remove(context.Context, Ref, RemoveOptions) (ActionResult, error) {
+	r.calls.Add(1)
+	return ActionResult{}, nil
+}
+
 func (r *countingRuntime) Close() error { return nil }
 
 type failingRuntime struct {
@@ -592,7 +719,10 @@ func (listRuntime) Logs(context.Context, Ref, LogQuery) (Logs, error)  { return 
 func (listRuntime) Start(context.Context, Ref) (ActionResult, error)   { return ActionResult{}, nil }
 func (listRuntime) Stop(context.Context, Ref) (ActionResult, error)    { return ActionResult{}, nil }
 func (listRuntime) Restart(context.Context, Ref) (ActionResult, error) { return ActionResult{}, nil }
-func (listRuntime) Close() error                                       { return nil }
+func (listRuntime) Remove(context.Context, Ref, RemoveOptions) (ActionResult, error) {
+	return ActionResult{}, nil
+}
+func (listRuntime) Close() error { return nil }
 
 func (r failingRuntime) Info(context.Context) (RuntimeInfo, error) {
 	return RuntimeInfo{}, r.err
@@ -622,7 +752,49 @@ func (r failingRuntime) Restart(context.Context, Ref) (ActionResult, error) {
 	return ActionResult{}, r.err
 }
 
+func (r failingRuntime) Remove(context.Context, Ref, RemoveOptions) (ActionResult, error) {
+	return ActionResult{}, r.err
+}
+
 func (r failingRuntime) Close() error { return nil }
+
+type selectiveRemoveRuntime struct {
+	failID string
+}
+
+func (r selectiveRemoveRuntime) Info(context.Context) (RuntimeInfo, error) {
+	return fakeRuntime{}.Info(context.Background())
+}
+func (r selectiveRemoveRuntime) List(context.Context, ListQuery) ([]Summary, error) {
+	return fakeRuntime{}.List(context.Background(), ListQuery{})
+}
+func (r selectiveRemoveRuntime) Detail(context.Context, Ref) (Detail, error) {
+	return fakeRuntime{}.Detail(context.Background(), Ref{Value: "web"})
+}
+func (r selectiveRemoveRuntime) Logs(context.Context, Ref, LogQuery) (Logs, error) {
+	return Logs{}, nil
+}
+func (r selectiveRemoveRuntime) Start(context.Context, Ref) (ActionResult, error) {
+	return ActionResult{}, nil
+}
+func (r selectiveRemoveRuntime) Stop(context.Context, Ref) (ActionResult, error) {
+	return ActionResult{}, nil
+}
+func (r selectiveRemoveRuntime) Restart(context.Context, Ref) (ActionResult, error) {
+	return ActionResult{}, nil
+}
+func (r selectiveRemoveRuntime) Remove(_ context.Context, ref Ref, _ RemoveOptions) (ActionResult, error) {
+	if ref.Value == r.failID {
+		result := fakeAction(containerActionRemove)
+		result.ID = ref.Value
+		return result, errInvalidContainerState
+	}
+	result := fakeAction(containerActionRemove)
+	result.ID = ref.Value
+	result.StatusAfter = actionStatusRemoved
+	return result, nil
+}
+func (r selectiveRemoveRuntime) Close() error { return nil }
 
 type fakeRuntime struct{}
 
@@ -662,6 +834,12 @@ func (fakeRuntime) Restart(context.Context, Ref) (ActionResult, error) {
 	return fakeAction(containerActionRestart), nil
 }
 
+func (fakeRuntime) Remove(context.Context, Ref, RemoveOptions) (ActionResult, error) {
+	result := fakeAction(containerActionRemove)
+	result.StatusAfter = actionStatusRemoved
+	return result, nil
+}
+
 func (fakeRuntime) Close() error { return nil }
 
 func fakeSummary() Summary {
@@ -673,6 +851,7 @@ func fakeSummary() Summary {
 		CreatedAt: "2026-06-14T00:00:00Z",
 		State:     "running",
 		Status:    "Up",
+		CanRemove: true,
 	}
 }
 

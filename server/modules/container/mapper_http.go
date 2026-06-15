@@ -26,6 +26,7 @@ func toContainerListResponse(result ListResult) containergen.ContainerListRespon
 
 func toSummary(item Summary) containergen.ContainerSummary {
 	return containergen.ContainerSummary{
+		CanRemove:      optionalBool(item.CanRemove),
 		CanRestart:     optionalBool(item.CanRestart),
 		CanStart:       optionalBool(item.CanStart),
 		CanStop:        optionalBool(item.CanStop),
@@ -56,6 +57,7 @@ func toSummary(item Summary) containergen.ContainerSummary {
 
 func toDetail(detail Detail) containergen.ContainerDetail {
 	return containergen.ContainerDetail{
+		CanRemove:        optionalBool(detail.CanRemove),
 		CanRestart:       optionalBool(detail.CanRestart),
 		CanStart:         optionalBool(detail.CanStart),
 		CanStop:          optionalBool(detail.CanStop),
@@ -145,6 +147,28 @@ func toContainerAction(result ActionResult) containergen.ContainerActionResponse
 		Runtime:      result.Runtime,
 		StatusAfter:  result.StatusAfter,
 		StatusBefore: optionalString(result.StatusBefore),
+	}
+}
+
+func toContainerBatchAction(result BatchActionResult) containergen.ContainerBatchActionResponse {
+	items := make([]containergen.ContainerBatchActionItem, 0, len(result.Items))
+	for _, item := range result.Items {
+		items = append(items, containergen.ContainerBatchActionItem{
+			Id:         item.ID,
+			Name:       optionalString(item.Name),
+			Action:     containergen.ContainerBatchActionItemAction(item.Action),
+			Success:    item.Success,
+			ErrorCode:  optionalString(item.ErrorCode),
+			MessageKey: optionalString(item.MessageKey),
+			Message:    optionalString(item.Message),
+		})
+	}
+	return containergen.ContainerBatchActionResponse{
+		Total:        result.Total,
+		SuccessCount: result.SuccessCount,
+		FailedCount:  result.FailedCount,
+		RequestId:    optionalString(result.RequestID),
+		Items:        items,
 	}
 }
 

@@ -683,19 +683,22 @@ func (e AuditTargetKind) Valid() bool {
 
 // Defines values for ContainerActionResponseAction.
 const (
-	Restart ContainerActionResponseAction = "restart"
-	Start   ContainerActionResponseAction = "start"
-	Stop    ContainerActionResponseAction = "stop"
+	ContainerActionResponseActionRemove  ContainerActionResponseAction = "remove"
+	ContainerActionResponseActionRestart ContainerActionResponseAction = "restart"
+	ContainerActionResponseActionStart   ContainerActionResponseAction = "start"
+	ContainerActionResponseActionStop    ContainerActionResponseAction = "stop"
 )
 
 // Valid indicates whether the value is a known member of the ContainerActionResponseAction enum.
 func (e ContainerActionResponseAction) Valid() bool {
 	switch e {
-	case Restart:
+	case ContainerActionResponseActionRemove:
 		return true
-	case Start:
+	case ContainerActionResponseActionRestart:
 		return true
-	case Stop:
+	case ContainerActionResponseActionStart:
+		return true
+	case ContainerActionResponseActionStop:
 		return true
 	default:
 		return false
@@ -717,6 +720,54 @@ func (e ContainerActionResponseResult) Valid() bool {
 	case Completed:
 		return true
 	case Unchanged:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ContainerBatchActionItemAction.
+const (
+	ContainerBatchActionItemActionRemove  ContainerBatchActionItemAction = "remove"
+	ContainerBatchActionItemActionRestart ContainerBatchActionItemAction = "restart"
+	ContainerBatchActionItemActionStart   ContainerBatchActionItemAction = "start"
+	ContainerBatchActionItemActionStop    ContainerBatchActionItemAction = "stop"
+)
+
+// Valid indicates whether the value is a known member of the ContainerBatchActionItemAction enum.
+func (e ContainerBatchActionItemAction) Valid() bool {
+	switch e {
+	case ContainerBatchActionItemActionRemove:
+		return true
+	case ContainerBatchActionItemActionRestart:
+		return true
+	case ContainerBatchActionItemActionStart:
+		return true
+	case ContainerBatchActionItemActionStop:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ContainerBatchActionRequestAction.
+const (
+	Remove  ContainerBatchActionRequestAction = "remove"
+	Restart ContainerBatchActionRequestAction = "restart"
+	Start   ContainerBatchActionRequestAction = "start"
+	Stop    ContainerBatchActionRequestAction = "stop"
+)
+
+// Valid indicates whether the value is a known member of the ContainerBatchActionRequestAction enum.
+func (e ContainerBatchActionRequestAction) Valid() bool {
+	switch e {
+	case Remove:
+		return true
+	case Restart:
+		return true
+	case Start:
+		return true
+	case Stop:
 		return true
 	default:
 		return false
@@ -2905,8 +2956,44 @@ type ContainerActionResponseAction string
 // ContainerActionResponseResult defines model for ContainerActionResponse.Result.
 type ContainerActionResponseResult string
 
+// ContainerBatchActionItem defines model for container-batch-action-item.
+type ContainerBatchActionItem struct {
+	Action     ContainerBatchActionItemAction `json:"action"`
+	ErrorCode  *string                        `json:"error_code,omitempty"`
+	Id         string                         `json:"id"`
+	Message    *string                        `json:"message,omitempty"`
+	MessageKey *string                        `json:"message_key,omitempty"`
+	Name       *string                        `json:"name,omitempty"`
+	Success    bool                           `json:"success"`
+}
+
+// ContainerBatchActionItemAction defines model for ContainerBatchActionItem.Action.
+type ContainerBatchActionItemAction string
+
+// ContainerBatchActionRequest defines model for container-batch-action-request.
+type ContainerBatchActionRequest struct {
+	Action ContainerBatchActionRequestAction `json:"action"`
+
+	// Force Applies only to remove. Force remove running containers when true.
+	Force *bool    `json:"force,omitempty"`
+	Ids   []string `json:"ids"`
+}
+
+// ContainerBatchActionRequestAction defines model for ContainerBatchActionRequest.Action.
+type ContainerBatchActionRequestAction string
+
+// ContainerBatchActionResponse defines model for container-batch-action-response.
+type ContainerBatchActionResponse struct {
+	FailedCount  int                        `json:"failed_count"`
+	Items        []ContainerBatchActionItem `json:"items"`
+	RequestId    *string                    `json:"request_id,omitempty"`
+	SuccessCount int                        `json:"success_count"`
+	Total        int                        `json:"total"`
+}
+
 // ContainerDetail defines model for container-detail.
 type ContainerDetail struct {
+	CanRemove  *bool     `json:"can_remove,omitempty"`
 	CanRestart *bool     `json:"can_restart,omitempty"`
 	CanStart   *bool     `json:"can_start,omitempty"`
 	CanStop    *bool     `json:"can_stop,omitempty"`
@@ -3049,6 +3136,12 @@ type ContainerPort struct {
 // ContainerPortType defines model for ContainerPort.Type.
 type ContainerPortType string
 
+// ContainerRemoveRequest defines model for container-remove-request.
+type ContainerRemoveRequest struct {
+	// Force Force remove a running container. Defaults to false and must be explicitly enabled by the caller.
+	Force *bool `json:"force,omitempty"`
+}
+
 // ContainerResourceSummary defines model for container-resource-summary.
 type ContainerResourceSummary struct {
 	// Available Compatibility mirror of stats_available for existing clients. New UI code should use stats_available.
@@ -3116,6 +3209,7 @@ type ContainerStopErrorResponseSuccess bool
 
 // ContainerSummary defines model for container-summary.
 type ContainerSummary struct {
+	CanRemove  *bool `json:"can_remove,omitempty"`
 	CanRestart *bool `json:"can_restart,omitempty"`
 	CanStart   *bool `json:"can_start,omitempty"`
 	CanStop    *bool `json:"can_stop,omitempty"`
@@ -3608,6 +3702,26 @@ type EnvelopedContainerActionResponse struct {
 	// Code Existing canonical response code.
 	Code string                  `json:"code"`
 	Data ContainerActionResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedContainerBatchActionResponse defines model for enveloped-container-batch-action-response.
+type EnvelopedContainerBatchActionResponse struct {
+	// Code Existing canonical response code.
+	Code string                       `json:"code"`
+	Data ContainerBatchActionResponse `json:"data"`
 
 	// Locale Present on localized error flows and omitted on normal success.
 	Locale *string `json:"locale,omitempty"`
@@ -5982,6 +6096,16 @@ type GetContainersParamsState string
 // GetContainersParamsHealth defines parameters for GetContainers.
 type GetContainersParamsHealth string
 
+// PostContainerBatchActionsParams defines parameters for PostContainerBatchActions.
+type PostContainerBatchActionsParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
 // GetContainerParams defines parameters for GetContainer.
 type GetContainerParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -6009,6 +6133,16 @@ type GetContainerLogsParams struct {
 	// Stderr Whether stderr stream lines should be included.
 	Stderr *ContainerLogsStderr `form:"stderr,omitempty" json:"stderr,omitempty"`
 
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostContainerRemoveParams defines parameters for PostContainerRemove.
+type PostContainerRemoveParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
@@ -6555,6 +6689,12 @@ type PostAuthLoginJSONRequestBody = LoginRequest
 
 // PostNotificationsReadAllJSONRequestBody defines body for PostNotificationsReadAll for application/json ContentType.
 type PostNotificationsReadAllJSONRequestBody = NotificationReadAllRequest
+
+// PostContainerBatchActionsJSONRequestBody defines body for PostContainerBatchActions for application/json ContentType.
+type PostContainerBatchActionsJSONRequestBody = ContainerBatchActionRequest
+
+// PostContainerRemoveJSONRequestBody defines body for PostContainerRemove for application/json ContentType.
+type PostContainerRemoveJSONRequestBody = ContainerRemoveRequest
 
 // PostRolesJSONRequestBody defines body for PostRoles for application/json ContentType.
 type PostRolesJSONRequestBody = CreateRoleRequest

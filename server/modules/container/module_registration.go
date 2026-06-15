@@ -78,6 +78,10 @@ var containerMessageCopyRows = []containerMessageCopyRow{
 	{key: containercontract.ContainerActionStartCompleted.String(), copy: [2]string{"容器启动操作已完成", "Container start action completed"}},
 	{key: containercontract.ContainerActionStopCompleted.String(), copy: [2]string{"容器停止操作已完成", "Container stop action completed"}},
 	{key: containercontract.ContainerActionRestartCompleted.String(), copy: [2]string{"容器重启操作已完成", "Container restart action completed"}},
+	{key: containercontract.ContainerActionRemoveCompleted.String(), copy: [2]string{"容器删除操作已完成", "Container remove action completed"}},
+	{key: containercontract.ContainerBatchActionCompleted.String(), copy: [2]string{"批量容器操作已完成", "Container batch action completed"}},
+	{key: containercontract.ContainerBatchActionPartial.String(), copy: [2]string{"批量容器操作部分完成", "Container batch action partially completed"}},
+	{key: containercontract.ContainerBatchActionFailed.String(), copy: [2]string{"批量容器操作全部失败", "Container batch action failed"}},
 }
 
 func registerPermissions(registry *permission.Registry, moduleName string) error {
@@ -144,6 +148,15 @@ func permissionItems(moduleName string) []permission.Item {
 			DisplayKey:     "rbac.permissionCatalog.containerRestart.display",
 			Description:    "Allows restarting containers when dangerous actions are enabled.",
 			DescriptionKey: "rbac.permissionCatalog.containerRestart.description",
+			Category:       "api",
+			Module:         moduleName,
+		},
+		{
+			Code:           containercontract.ContainerRemovePermission.String(),
+			Name:           "Remove Containers",
+			DisplayKey:     "rbac.permissionCatalog.containerRemove.display",
+			Description:    "Allows removing containers when dangerous actions are enabled.",
+			DescriptionKey: "rbac.permissionCatalog.containerRemove.description",
 			Category:       "api",
 			Module:         moduleName,
 		},

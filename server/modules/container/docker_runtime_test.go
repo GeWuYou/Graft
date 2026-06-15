@@ -232,6 +232,63 @@ func TestDockerRuntimeListDegradesWhenStatsUnavailable(t *testing.T) {
 	}
 }
 
+func TestDockerRuntimeRemoveRejectsRunningWithoutForce(t *testing.T) {
+	t.Parallel()
+
+	client := &countingDockerClient{
+		inspect: container.InspectResponse{
+			ContainerJSONBase: &container.ContainerJSONBase{
+				ID:    "abc123",
+				Name:  "/web",
+				State: &container.State{Status: container.StateRunning},
+			},
+			Config: &container.Config{Image: "nginx:latest"},
+		},
+	}
+	runtime := &DockerRuntime{client: client, endpoint: "unix:///var/run/docker.sock"}
+
+	result, err := runtime.Remove(context.Background(), Ref{Value: "web"}, RemoveOptions{Force: false})
+	if !errors.Is(err, errInvalidContainerState) {
+		t.Fatalf("expected invalid state, got %v", err)
+	}
+	if result.StatusBefore != "running" || result.StatusAfter != "running" {
+		t.Fatalf("expected running status context, got %#v", result)
+	}
+	if calls := client.removeCalls.Load(); calls != 0 {
+		t.Fatalf("expected remove not to be called, got %d", calls)
+	}
+}
+
+func TestDockerRuntimeRemoveForceCallsDockerRemove(t *testing.T) {
+	t.Parallel()
+
+	client := &countingDockerClient{
+		inspect: container.InspectResponse{
+			ContainerJSONBase: &container.ContainerJSONBase{
+				ID:    "abc123",
+				Name:  "/web",
+				State: &container.State{Status: container.StateRunning},
+			},
+			Config: &container.Config{Image: "nginx:latest"},
+		},
+	}
+	runtime := &DockerRuntime{client: client, endpoint: "unix:///var/run/docker.sock"}
+
+	result, err := runtime.Remove(context.Background(), Ref{Value: "web"}, RemoveOptions{Force: true})
+	if err != nil {
+		t.Fatalf("remove: %v", err)
+	}
+	if !client.removeForce.Load() {
+		t.Fatalf("expected force remove option")
+	}
+	if result.Action != containerActionRemove || result.StatusBefore != "running" || result.StatusAfter != actionStatusRemoved {
+		t.Fatalf("unexpected remove result %#v", result)
+	}
+	if calls := client.removeCalls.Load(); calls != 1 {
+		t.Fatalf("expected one remove call, got %d", calls)
+	}
+}
+
 func dockerLogStream(t *testing.T, chunks ...string) io.Reader {
 	t.Helper()
 
@@ -305,6 +362,8 @@ type countingDockerClient struct {
 	logCalls     atomic.Int64
 	listCalls    atomic.Int64
 	statsCalls   atomic.Int64
+	removeCalls  atomic.Int64
+	removeForce  atomic.Bool
 	logReader    io.ReadCloser
 	inspect      container.InspectResponse
 	list         []container.Summary
@@ -356,6 +415,12 @@ func (c *countingDockerClient) ContainerStop(context.Context, string, container.
 }
 
 func (c *countingDockerClient) ContainerRestart(context.Context, string, container.StopOptions) error {
+	return nil
+}
+
+func (c *countingDockerClient) ContainerRemove(_ context.Context, _ string, options container.RemoveOptions) error {
+	c.removeCalls.Add(1)
+	c.removeForce.Store(options.Force)
 	return nil
 }
 

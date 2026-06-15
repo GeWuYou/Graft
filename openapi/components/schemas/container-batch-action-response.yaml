@@ -1,0 +1,23 @@
+type: object
+required:
+  - total
+  - success_count
+  - failed_count
+  - items
+properties:
+  total:
+    type: integer
+    minimum: 0
+  success_count:
+    type: integer
+    minimum: 0
+  failed_count:
+    type: integer
+    minimum: 0
+  request_id:
+    type: string
+  items:
+    type: array
+    items:
+      $ref: ./container-batch-action-item.yaml
+additionalProperties: false

@@ -4,6 +4,7 @@
 package container
 
 import (
+	"bytes"
 	"context"
 	"net/http"
 	"net/http/httptest"
@@ -30,10 +31,11 @@ func TestRoutesRequireContainerPermissions(t *testing.T) {
 	authorizer := &recordingAuthorizer{}
 	ctx, engine := newRouteTestContext(authorizer)
 	service, err := newService(containerServiceOptions{
-		runtime:     fakeRuntime{},
-		enabled:     true,
-		defaultTail: defaultContainerLogsDefaultTail,
-		maxTail:     defaultContainerLogsMaxTail,
+		runtime:                 fakeRuntime{},
+		enabled:                 true,
+		dangerousActionsEnabled: true,
+		defaultTail:             defaultContainerLogsDefaultTail,
+		maxTail:                 defaultContainerLogsMaxTail,
 	})
 	if err != nil {
 		t.Fatalf("new service: %v", err)
@@ -49,6 +51,33 @@ func TestRoutesRequireContainerPermissions(t *testing.T) {
 	}
 	if !slices.Contains(authorizer.permissions, containercontract.ContainerLogsPermission.String()) {
 		t.Fatalf("expected logs permission, got %#v", authorizer.permissions)
+	}
+
+	response = httptest.NewRecorder()
+	engine.ServeHTTP(response, authorizedJSONRequest(http.MethodPost, "/api/ops/containers/abc123/remove", `{"force":true}`))
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected remove 200, got %d: %s", response.Code, response.Body.String())
+	}
+	if !slices.Contains(authorizer.permissions, containercontract.ContainerRemovePermission.String()) {
+		t.Fatalf("expected remove permission, got %#v", authorizer.permissions)
+	}
+
+	response = httptest.NewRecorder()
+	engine.ServeHTTP(response, authorizedJSONRequest(http.MethodPost, "/api/ops/containers/batch-actions", `{"action":"start","ids":["abc123"]}`))
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected batch start 200, got %d: %s", response.Code, response.Body.String())
+	}
+	if !slices.Contains(authorizer.permissions, containercontract.ContainerStartPermission.String()) {
+		t.Fatalf("expected batch start permission, got %#v", authorizer.permissions)
+	}
+
+	response = httptest.NewRecorder()
+	engine.ServeHTTP(response, authorizedJSONRequest(http.MethodPost, "/api/ops/containers/batch-actions", `{"action":"remove","ids":["abc123"],"force":true}`))
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected batch remove 200, got %d: %s", response.Code, response.Body.String())
+	}
+	if countPermission(authorizer.permissions, containercontract.ContainerRemovePermission.String()) < 2 {
+		t.Fatalf("expected batch remove to require remove permission, got %#v", authorizer.permissions)
 	}
 }
 
@@ -94,15 +123,30 @@ func TestRoutesRejectInvalidListQuery(t *testing.T) {
 	}
 }
 
+func TestRoutesRejectInvalidBatchAction(t *testing.T) {
+	t.Parallel()
+
+	_, engine := newRegisteredRouteTestService(t)
+	response := httptest.NewRecorder()
+	engine.ServeHTTP(response, authorizedJSONRequest(http.MethodPost, "/api/ops/containers/batch-actions", `{"action":"prune","ids":["abc123"]}`))
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", response.Code, response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), containercontract.ContainerInvalidListQuery.String()) {
+		t.Fatalf("expected invalid query message key, got %s", response.Body.String())
+	}
+}
+
 func newRegisteredRouteTestService(t *testing.T) (*module.Context, *gin.Engine) {
 	t.Helper()
 
 	ctx, engine := newRouteTestContext(&recordingAuthorizer{})
 	service, err := newService(containerServiceOptions{
-		runtime:     fakeRuntime{},
-		enabled:     true,
-		defaultTail: defaultContainerLogsDefaultTail,
-		maxTail:     defaultContainerLogsMaxTail,
+		runtime:                 fakeRuntime{},
+		enabled:                 true,
+		dangerousActionsEnabled: true,
+		defaultTail:             defaultContainerLogsDefaultTail,
+		maxTail:                 defaultContainerLogsMaxTail,
 	})
 	if err != nil {
 		t.Fatalf("new service: %v", err)
@@ -147,6 +191,23 @@ func authorizedRequest(method string, path string) *http.Request {
 	request := httptest.NewRequest(method, path, nil)
 	request.Header.Set("Authorization", "Bearer route-test-token")
 	return request
+}
+
+func authorizedJSONRequest(method string, path string, body string) *http.Request {
+	request := httptest.NewRequest(method, path, bytes.NewBufferString(body))
+	request.Header.Set("Authorization", "Bearer route-test-token")
+	request.Header.Set("Content-Type", "application/json")
+	return request
+}
+
+func countPermission(permissions []string, permission string) int {
+	count := 0
+	for _, item := range permissions {
+		if item == permission {
+			count++
+		}
+	}
+	return count
 }
 
 type routeTestAuthService struct{}
