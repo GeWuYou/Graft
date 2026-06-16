@@ -257,6 +257,26 @@
               "title": "启用容器高危操作",
               "description": "是否允许容器启动、停止和重启等高危操作。"
             }
+          },
+          "environment": {
+            "policy": {
+              "title": "环境变量值展示策略",
+              "description": "控制容器详情读取时如何返回环境变量值。",
+              "enum": {
+                "hidden": {
+                  "label": "隐藏",
+                  "description": "仅返回环境变量名称和敏感标记。"
+                },
+                "masked": {
+                  "label": "脱敏",
+                  "description": "敏感环境变量值脱敏，非敏感值正常返回。"
+                },
+                "plain": {
+                  "label": "明文",
+                  "description": "不按策略脱敏，直接返回环境变量值。"
+                }
+              }
+            }
           }
         }
       }

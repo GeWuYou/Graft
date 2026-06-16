@@ -12,12 +12,16 @@
       "list": {
         "title": "运维管理 - 容器管理",
         "breadcrumb": "容器管理"
+      },
+      "detail": {
+        "title": "容器详情",
+        "breadcrumb": "容器详情"
       }
     },
     "list": {
       "eyebrow": "运维管理",
       "title": "容器管理",
-      "description": "查看本机容器运行时中的容器状态、详情和有界日志，并执行受控启停操作。",
+      "description": "查看本机容器运行时中的容器状态、详情和有界日志。",
       "refresh": "刷新",
       "retry": "重试",
       "loadFailed": "容器列表加载失败。",
@@ -28,32 +32,66 @@
       "runtimeDisabledHint": "请在系统配置中启用容器运行时访问后重试。",
       "runtimeVersion": "版本",
       "runtimeContainers": "{running}/{total} 运行中",
+      "totalCount": "总数 {count}",
+      "runningCount": "运行中 {count}",
+      "stoppedCount": "已停止 {count}",
+      "errorCount": "异常 {count}",
+      "unhealthyCount": "不健康 {count}",
+      "readOnlyMode": "只读模式",
+      "actionModeEnabled": "操作已启用",
       "tableSummary": "共 {count} 个容器",
       "tableHint": "数据来自当前配置的容器运行时。",
+      "resourceUnavailable": "不可用",
+      "stats": {
+        "notCollected": "未采集",
+        "cpuTooltip": "CPU 使用率：{percent}",
+        "memoryTooltip": "内存：{usage} / {limit}，{percent}"
+      },
       "columnSettings": "列设置",
+      "resetColumns": "恢复默认列",
+      "compactDensity": "紧凑密度",
+      "defaultDensity": "默认密度",
+      "morePorts": "+{count}",
+      "labelCount": "{count} 个标签",
       "emptyTitle": "暂无容器",
       "emptyDescription": "当前容器运行时未返回容器。",
       "emptyFilteredDescription": "没有符合筛选条件的容器。",
       "clearFilters": "清除筛选",
       "copySuccess": "日志已复制。",
       "copyError": "日志复制失败。",
+      "copyIdSuccess": "容器 ID 已复制。",
+      "copyIdError": "容器 ID 复制失败。",
       "actionSuccess": "容器操作已提交。",
       "actionFailed": "容器操作失败。",
+      "pagination": {
+        "summary": "第 {start}-{end} 条 / 共 {total} 条",
+        "empty": "暂无记录"
+      },
       "filters": {
         "searchPlaceholder": "搜索名称、镜像、ID 或端口",
         "status": "容器状态",
+        "health": "健康状态",
         "allStatuses": "全部状态",
+        "allHealth": "全部健康状态",
         "query": "查询",
         "reset": "重置"
       },
       "columns": {
+        "selection": "选择",
         "status": "状态",
         "name": "容器",
         "image": "镜像",
+        "cpu": "CPU",
+        "memory": "内存",
         "ports": "端口",
+        "network": "网络 / IP",
+        "resource": "资源",
+        "runtimeStatus": "运行时 / 状态",
         "createdAt": "创建时间",
         "startedAt": "启动时间",
         "restartPolicy": "重启策略",
+        "imageId": "镜像 ID",
+        "labels": "标签",
         "operation": "操作"
       },
       "states": {
@@ -66,30 +104,91 @@
         "dead": "异常",
         "unknown": "未知"
       },
+      "health": {
+        "healthy": "健康",
+        "unhealthy": "异常",
+        "starting": "启动中",
+        "none": "无健康检查",
+        "unavailable": "健康未知"
+      },
       "actions": {
         "detail": "详情",
         "logs": "日志",
         "start": "启动",
         "stop": "停止",
         "restart": "重启",
-        "confirmStart": "确认启动该容器？",
-        "confirmStop": "确认停止该容器？",
-        "confirmRestart": "确认重启该容器？",
+        "remove": "删除",
+        "more": "更多",
+        "copyId": "复制 ID",
+        "inspect": "检查",
+        "viewMounts": "查看挂载",
+        "viewNetworks": "查看网络",
+        "viewEnvironment": "查看环境变量",
+        "confirmStartTitle": "确认启动容器",
+        "confirmStart": "确认启动容器 {name}？",
+        "confirmStopTitle": "确认停止容器",
+        "confirmStop": "确认停止容器 {name}？",
+        "confirmRestartTitle": "确认重启容器",
+        "confirmRestart": "确认重启容器 {name}？",
+        "confirmRemoveTitle": "确认删除容器",
+        "confirmRemove": "确认删除容器 {name}？删除后不可恢复。",
+        "confirmRemoveRunning": "容器 {name} 正在运行。默认删除会被拒绝，如需强制删除必须显式勾选。",
+        "forceRemove": "强制删除运行中容器",
+        "dangerousDisabled": "高危操作已禁用或当前状态不允许。",
+        "unavailable": "该操作当前不可用。",
         "confirm": "确认",
         "cancel": "取消"
+      },
+      "batch": {
+        "selected": "已选择 {count} 个容器",
+        "start": "批量启动",
+        "stop": "批量停止",
+        "restart": "批量重启",
+        "remove": "批量删除",
+        "cancelSelection": "取消选择",
+        "noSelection": "请先选择容器。",
+        "startHint": "启动 {count} 个可操作容器。",
+        "stopHint": "停止 {count} 个可操作容器。",
+        "restartHint": "重启 {count} 个可操作容器。",
+        "removeHint": "删除 {count} 个可操作容器。",
+        "confirmStartTitle": "确认批量启动",
+        "confirmStopTitle": "确认批量停止",
+        "confirmRestartTitle": "确认批量重启",
+        "confirmRemoveTitle": "确认批量删除",
+        "confirmStart": "确认启动选中的 {count} 个容器？",
+        "confirmStop": "确认停止选中的 {count} 个容器？",
+        "confirmRestart": "确认重启选中的 {count} 个容器？",
+        "confirmRemove": "确认删除选中的 {count} 个容器？删除后不可恢复。",
+        "confirmScope": "当前已选择 {selectedCount} 个容器，本次将处理 {actionableCount} 个可操作容器，跳过 {skippedCount} 个。",
+        "skipInapplicable": "部分容器因当前状态或权限不适用，将被跳过。",
+        "confirmRemoveRunning": "其中 {count} 个容器正在运行。默认删除会被拒绝，如需强制删除必须显式勾选。",
+        "success": "批量操作已完成，成功 {count} 个。",
+        "partialTitle": "批量操作部分成功",
+        "failed": "批量操作失败。",
+        "failureDetailTitle": "查看失败明细",
+        "noFailureDetail": "暂无失败明细。"
       },
       "detail": {
         "title": "容器详情",
         "identity": "基础信息",
+        "state": "状态与生命周期",
         "runtime": "运行时",
+        "networkPorts": "网络与端口",
+        "ports": "端口",
         "mounts": "挂载",
         "networks": "网络",
+        "metadata": "标签与元数据",
+        "environment": "环境变量",
+        "rawJson": "原始详情 JSON",
         "command": "命令",
         "entrypoint": "入口",
         "workingDir": "工作目录",
         "inspectUpdatedAt": "详情更新时间",
+        "portEmpty": "暂无端口映射。",
         "mountEmpty": "暂无挂载。",
         "networkEmpty": "暂无网络信息。",
+        "metadataEmpty": "暂无标签或元数据。",
+        "environmentUnavailable": "当前容器无法查看环境变量。",
         "loadFailed": "容器详情加载失败。"
       },
       "logs": {
@@ -100,9 +199,16 @@
         "timestamps": "时间戳",
         "stdout": "stdout",
         "stderr": "stderr",
+        "autoRefresh": "自动刷新",
+        "enabled": "启用",
+        "autoRefreshStatus": "每 {seconds} 秒自动刷新",
+        "lastLoadedAt": "上次加载：{time}",
+        "notLoaded": "尚未加载日志",
         "refresh": "刷新日志",
         "copy": "复制",
+        "emptyTitle": "暂无日志",
         "empty": "暂无日志。",
+        "errorEmpty": "修复错误后可重试加载日志。",
         "truncated": "日志已按当前上限截断。",
         "loadFailed": "容器日志加载失败。"
       },
@@ -123,15 +229,145 @@
         "operatingSystem": "操作系统",
         "architecture": "架构"
       }
+    },
+    "detail": {
+      "title": "容器详情",
+      "description": "查看容器运行时详情、资源、日志、配置、网络和挂载信息。",
+      "back": "返回",
+      "refresh": "刷新",
+      "copy": "复制",
+      "copySuccess": "内容已复制。",
+      "copyError": "内容复制失败。",
+      "empty": "暂无容器详情。",
+      "missingId": "缺少容器标识。",
+      "inspectUpdatedAt": "详情更新时间",
+      "operation": "操作",
+      "summary": {
+        "identity": "容器",
+        "resources": "资源",
+        "network": "网络"
+      },
+      "overview": {
+        "basicInfo": "基础信息",
+        "runtimeInfo": "运行信息"
+      },
+      "tabs": {
+        "overview": "概览",
+        "resources": "资源",
+        "logs": "日志",
+        "health": "健康",
+        "config": "配置",
+        "network": "网络",
+        "storage": "挂载",
+        "raw": "原始 JSON"
+      },
+      "resources": {
+        "cpu": "CPU",
+        "memory": "内存",
+        "memoryUsage": "内存使用",
+        "memoryLimit": "内存上限",
+        "memoryPercent": "内存百分比",
+        "status": "采集状态",
+        "available": "已采集",
+        "collectedAt": "采集时间",
+        "currentSnapshot": "当前快照"
+      },
+      "logs": {
+        "refresh": "刷新日志",
+        "searchPlaceholder": "搜索日志内容",
+        "wrap": "自动换行",
+        "followTail": "跟随尾部",
+        "empty": "暂无日志。",
+        "truncated": "日志已按当前上限截断。"
+      },
+      "raw": {
+        "title": "原始 JSON",
+        "description": "敏感字段已脱敏，仅用于只读排查。",
+        "root": "container",
+        "source": "源码视图",
+        "tree": "树形视图",
+        "empty": "暂无原始 JSON。",
+        "error": "原始 JSON 无法格式化。"
+      },
+      "health": {
+        "status": "健康状态",
+        "restartCount": "重启次数"
+      },
+      "config": {
+        "environment": "环境变量",
+        "environmentUnavailable": "当前容器无法查看环境变量。",
+        "envName": "变量名",
+        "envValue": "值",
+        "envPolicy": "策略",
+        "maskedValue": "已脱敏",
+        "hiddenValue": "已隐藏",
+        "policy": {
+          "plain": "明文",
+          "masked": "脱敏",
+          "hidden": "隐藏",
+          "unknown": "未知"
+        }
+      },
+      "network": {
+        "primaryIp": "主 IP",
+        "summary": "网络摘要",
+        "ports": "端口映射",
+        "name": "网络",
+        "ipAddress": "IP 地址",
+        "gateway": "网关",
+        "macAddress": "MAC 地址"
+      },
+      "storage": {
+        "destination": "挂载点",
+        "source": "来源",
+        "type": "类型",
+        "mode": "模式",
+        "access": "访问"
+      }
+    }
+  },
+  "rbac": {
+    "permissionCatalog": {
+      "containerEnvironment": {
+        "display": "读取容器环境变量",
+        "description": "允许读取按策略处理后的容器环境变量。"
+      }
     }
   },
   "ops": {
     "container": {
+      "action": {
+        "start": {
+          "completed": "容器启动操作已完成"
+        },
+        "stop": {
+          "completed": "容器停止操作已完成"
+        },
+        "restart": {
+          "completed": "容器重启操作已完成"
+        },
+        "remove": {
+          "completed": "容器删除操作已完成"
+        },
+        "batch": {
+          "completed": "批量容器操作已完成",
+          "partial": "批量容器操作部分成功",
+          "failed": "批量容器操作失败"
+        }
+      },
       "error": {
         "runtimeDisabled": "容器运行时访问未启用",
         "runtimeUnavailable": "容器运行时连接不可用",
         "runtimeSocketMissing": "容器运行时套接字不存在",
-        "runtimePermissionDenied": "没有权限访问容器运行时"
+        "runtimePermissionDenied": "没有权限访问容器运行时",
+        "containerNotFound": "容器不存在或已被删除",
+        "invalidContainerRef": "容器标识不合法",
+        "dangerousActionsDisabled": "高危容器操作未启用",
+        "invalidState": "容器状态不允许执行该操作",
+        "invalidListQuery": "容器列表查询参数不合法",
+        "invalidLogQuery": "容器日志查询参数不合法",
+        "logsTooLarge": "容器日志请求超过允许上限",
+        "timeout": "容器运行时请求超时"
       }
     }
   }

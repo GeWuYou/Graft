@@ -1,6 +1,8 @@
 type: object
 required:
   - id
+  - short_id
+  - name
   - names
   - image
   - status
@@ -11,6 +13,12 @@ required:
 properties:
   id:
     type: string
+  short_id:
+    type: string
+    description: Runtime id prefix suitable for list display.
+  name:
+    type: string
+    description: Primary display name, falling back to id when the runtime returns no names.
   names:
     type: array
     items:
@@ -25,6 +33,26 @@ properties:
   state:
     type: string
     enum: [created, running, paused, restarting, removing, exited, dead, unknown]
+    x-enum-varnames:
+      - ContainerSummaryStateCreated
+      - ContainerSummaryStateRunning
+      - ContainerSummaryStatePaused
+      - ContainerSummaryStateRestarting
+      - ContainerSummaryStateRemoving
+      - ContainerSummaryStateExited
+      - ContainerSummaryStateDead
+      - ContainerSummaryStateUnknown
+  health:
+    type: string
+    nullable: true
+    enum: [healthy, unhealthy, starting, none, unavailable]
+    x-enum-varnames:
+      - ContainerSummaryHealthHealthy
+      - ContainerSummaryHealthUnhealthy
+      - ContainerSummaryHealthStarting
+      - ContainerSummaryHealthNone
+      - ContainerSummaryHealthUnavailable
+    description: Nullable when the runtime cannot determine health on the list path without row-level inspect.
   runtime:
     type: string
     description: Container runtime adapter key.
@@ -42,5 +70,40 @@ properties:
     type: array
     items:
       $ref: ./container-port.yaml
+  primary_ip:
+    type: string
+    nullable: true
+    description: Primary IP address when the runtime list summary exposes one without raw inspect.
+  networks:
+    type: array
+    description: Low-cost network attachment summary from the runtime list path.
+    items:
+      $ref: ./container-network.yaml
+  network_summary:
+    type: string
+    nullable: true
+  resource:
+    $ref: ./container-resource-summary.yaml
+  restart_count:
+    type: integer
+    minimum: 0
+    nullable: true
+    description: Nullable when the runtime list path does not expose restart count without inspect.
   restart_policy:
     type: string
+  compose_project:
+    type: string
+    nullable: true
+    description: Docker Compose project label when present.
+  compose_service:
+    type: string
+    nullable: true
+    description: Docker Compose service label when present.
+  can_start:
+    type: boolean
+  can_stop:
+    type: boolean
+  can_restart:
+    type: boolean
+  can_remove:
+    type: boolean

@@ -1,11 +1,26 @@
 type: object
 required:
   - items
+  - total
+  - limit
+  - offset
+  - summary
   - runtime
 properties:
   items:
     type: array
     items:
       $ref: ./container-summary.yaml
+  total:
+    type: integer
+    minimum: 0
+  limit:
+    type: integer
+    minimum: 1
+  offset:
+    type: integer
+    minimum: 0
+  summary:
+    $ref: ./container-list-summary.yaml
   runtime:
     $ref: ./container-runtime-info.yaml

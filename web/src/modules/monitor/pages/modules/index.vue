@@ -13,18 +13,6 @@
     <template #toolbar>
       <div class="module-runtime-toolbar">
         <status-tag :label="headerStatusLabel" :status="headerStatus" />
-        <t-button
-          class="module-runtime-toolbar__button"
-          theme="primary"
-          size="small"
-          :loading="loading"
-          @click="refreshSnapshot"
-        >
-          <template #icon>
-            <refresh-icon />
-          </template>
-          {{ t('monitor.moduleRuntime.actions.refresh') }}
-        </t-button>
       </div>
     </template>
 
@@ -44,80 +32,123 @@
       />
     </template>
 
-    <section-card
+    <management-table-card
       :title="t('monitor.moduleRuntime.table.title')"
       :description="t('monitor.moduleRuntime.table.description')"
-      :min-height="420"
     >
-      <template #actions>
-        <p class="module-runtime-table__note">{{ t('monitor.moduleRuntime.table.note') }}</p>
+      <template #toolbar>
+        <table-view-toolbar
+          :column-settings-label="t('monitor.moduleRuntime.table.columnSettings')"
+          :density-label="tableDensityLabel"
+          :refresh-label="t('monitor.moduleRuntime.actions.refresh')"
+          :refresh-loading="loading"
+          @column-settings="columnDrawerVisible = true"
+          @density="toggleTableDensity"
+          @refresh="refreshSnapshot"
+        />
       </template>
 
-      <t-table
-        row-key="module_key"
-        hover
-        :data="items"
-        :columns="columns"
-        :loading="loading"
-        :empty="emptyTableContent"
-        table-layout="fixed"
-        table-content-width="1260px"
-      >
-        <template #module_key="{ row }">
-          <strong class="module-runtime-table__key">{{ row.module_key }}</strong>
-        </template>
+      <p class="module-runtime-table__note">{{ t('monitor.moduleRuntime.table.note') }}</p>
 
-        <template #enabled="{ row }">
-          <status-tag :label="booleanLabel(row.enabled)" :status="row.enabled ? 'healthy' : 'disabled'" />
-        </template>
+      <div ref="tableHostRef" class="module-runtime-table-host" :data-table-mode="tableWidthPolicy.mode">
+        <t-table
+          row-key="module_key"
+          hover
+          :data="items"
+          :columns="visibleColumns"
+          :loading="loading"
+          :empty="emptyTableContent"
+          :size="tableDensity"
+          :table-content-width="tableWidthPolicy.tableContentWidth"
+          table-layout="fixed"
+          cell-empty-content="-"
+        >
+          <template #module_key="{ row }">
+            <div class="module-runtime-table__identity">
+              <strong class="module-runtime-table__key">{{ row.module_key }}</strong>
+              <span>{{ runtimeStatusLabel(row.runtime_status) }}</span>
+            </div>
+          </template>
 
-        <template #registered="{ row }">
-          <status-tag :label="booleanLabel(row.registered)" :status="row.registered ? 'healthy' : 'unknown'" />
-        </template>
+          <template #enabled="{ row }">
+            <status-tag :label="booleanLabel(row.enabled)" :status="row.enabled ? 'healthy' : 'disabled'" />
+          </template>
 
-        <template #health="{ row }">
-          <status-tag :label="healthLabel(row.health)" :status="healthTone(row.health)" />
-        </template>
+          <template #registered="{ row }">
+            <status-tag :label="booleanLabel(row.registered)" :status="row.registered ? 'healthy' : 'unknown'" />
+          </template>
 
-        <template #dependencies="{ row }">
-          <span class="module-runtime-table__muted">
-            {{ dependencySummary(row.dependencies) }}
-          </span>
-        </template>
+          <template #health="{ row }">
+            <status-tag :label="healthLabel(row.health)" :status="healthTone(row.health)" />
+          </template>
 
-        <template #migration="{ row }">
-          <div class="module-runtime-table__stack">
-            <status-tag
-              :label="migrationStatusLabel(row.migration_status.status)"
-              :status="declaredTone(row.migration_status.status)"
-            />
-            <span>{{
-              t('monitor.moduleRuntime.values.migrationDirCount', { count: row.migration_status.declared_dirs.length })
-            }}</span>
-          </div>
-        </template>
+          <template #dependencies="{ row }">
+            <t-popup placement="top-left" :disabled="!row.dependencies.length" show-arrow>
+              <span class="module-runtime-table__dependency-summary">
+                {{ dependencySummary(row.dependencies) }}
+              </span>
+              <template #content>
+                <div class="module-runtime-table__dependency-popover">
+                  <div
+                    v-for="dependency in row.dependencies"
+                    :key="dependency.module_key"
+                    class="module-runtime-table__dependency-line"
+                  >
+                    <strong>{{ dependency.module_key }}</strong>
+                    <status-tag
+                      :label="dependencyStatusLabel(dependency.status)"
+                      :status="dependencyTone(dependency.status)"
+                    />
+                  </div>
+                </div>
+              </template>
+            </t-popup>
+          </template>
 
-        <template #schema="{ row }">
-          <status-tag
-            :label="schemaStatusLabel(row.schema_status.status)"
-            :status="declaredTone(row.schema_status.status)"
-          />
-        </template>
+          <template #resource_status="{ row }">
+            <div class="module-runtime-table__resource-status">
+              <span class="module-runtime-table__resource-status-item">
+                <span>{{ t('monitor.moduleRuntime.columns.migration') }}</span>
+                <status-tag
+                  :label="migrationStatusLabel(row.migration_status.status)"
+                  :status="declaredTone(row.migration_status.status)"
+                />
+              </span>
+              <span class="module-runtime-table__resource-status-item">
+                <span>{{ t('monitor.moduleRuntime.columns.schema') }}</span>
+                <status-tag
+                  :label="schemaStatusLabel(row.schema_status.status)"
+                  :status="declaredTone(row.schema_status.status)"
+                />
+              </span>
+              <span class="module-runtime-table__resource-status-item">
+                <span>{{ t('monitor.moduleRuntime.columns.config') }}</span>
+                <status-tag
+                  :label="configStatusLabel(row.config_status.status)"
+                  :status="configTone(row.config_status.status)"
+                />
+              </span>
+            </div>
+          </template>
 
-        <template #config="{ row }">
-          <status-tag
-            :label="configStatusLabel(row.config_status.status)"
-            :status="configTone(row.config_status.status)"
-          />
-        </template>
+          <template #operation="{ row }">
+            <t-button variant="text" theme="primary" size="small" @click="openDetail(row)">
+              {{ t('monitor.moduleRuntime.actions.detail') }}
+            </t-button>
+          </template>
+        </t-table>
+      </div>
+    </management-table-card>
 
-        <template #operation="{ row }">
-          <t-button variant="text" theme="primary" size="small" @click="openDetail(row)">
-            {{ t('monitor.moduleRuntime.actions.detail') }}
-          </t-button>
-        </template>
-      </t-table>
-    </section-card>
+    <advanced-query-column-drawer
+      v-model:visible="columnDrawerVisible"
+      v-model:selected-keys="visibleColumnKeys"
+      :columns="columnSettingOptions"
+      :default-selected-keys="DEFAULT_VISIBLE_COLUMNS"
+      :disabled-keys="ALWAYS_VISIBLE_COLUMNS"
+      :reset-label="t('monitor.moduleRuntime.table.resetColumns')"
+      :title="t('monitor.moduleRuntime.table.columnSettings')"
+    />
 
     <t-drawer
       v-model:visible="detailVisible"
@@ -265,20 +296,34 @@
           </div>
           <div v-else class="module-runtime-detail__empty">{{ t('monitor.moduleRuntime.values.noDiagnostics') }}</div>
         </section>
+
+        <section class="module-runtime-detail__section">
+          <t-collapse borderless>
+            <t-collapse-panel value="runtime-json" :header="t('monitor.moduleRuntime.detail.rawJson')">
+              <pre class="module-runtime-detail__json">{{ selectedModuleRuntimeJson }}</pre>
+            </t-collapse-panel>
+          </t-collapse>
+        </section>
       </div>
     </t-drawer>
   </server-status-page-shell>
 </template>
 <script setup lang="ts">
-import { RefreshIcon } from 'tdesign-icons-vue-next';
 import type { TdBaseTableProps } from 'tdesign-vue-next';
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import {
+  buildVisibleColumns,
+  ManagementTableCard,
+  resolveTableWidthPolicy,
+  TableViewToolbar,
+  useTableHostWidth,
+} from '@/shared/components/management';
+import { AdvancedQueryColumnDrawer } from '@/shared/components/query-list';
 import { createLogger } from '@/utils/logger';
 
 import { getModuleRuntimeDetail, getModuleRuntimeSnapshot } from '../../api/module-runtime';
-import SectionCard from '../../components/SectionCard.vue';
 import type { ServerStatusTone } from '../../components/server-status-ui';
 import ServerStatusPageShell from '../../components/ServerStatusPageShell.vue';
 import StatusTag from '../../components/StatusTag.vue';
@@ -293,12 +338,25 @@ import type {
 
 const { t } = useI18n();
 const moduleRuntimeLogger = createLogger('monitor.module-runtime.page');
+const DEFAULT_VISIBLE_COLUMNS = [
+  'module_key',
+  'enabled',
+  'registered',
+  'health',
+  'dependencies',
+  'resource_status',
+  'operation',
+];
+const ALWAYS_VISIBLE_COLUMNS = ['module_key', 'health', 'operation'];
 
 const snapshot = ref<ModuleRuntimeSnapshot | null>(null);
 const loading = ref(false);
 const initialized = ref(false);
 const errorMessage = ref('');
 const detailVisible = ref(false);
+const columnDrawerVisible = ref(false);
+const visibleColumnKeys = ref<string[]>([...DEFAULT_VISIBLE_COLUMNS]);
+const tableDensity = ref<'medium' | 'small'>('medium');
 const selectedModule = ref<ModuleRuntimeItem | null>(null);
 
 const items = computed(() => snapshot.value?.items ?? []);
@@ -372,56 +430,79 @@ const detailHeader = computed(() =>
 );
 
 const diagnosticEntries = computed(() => Object.entries(selectedModule.value?.diagnostics ?? {}));
+const selectedModuleRuntimeJson = computed(() => JSON.stringify(selectedModule.value, null, 2));
 
-const columns = computed<TdBaseTableProps['columns']>(() => [
+const tableDensityLabel = computed(() =>
+  tableDensity.value === 'medium'
+    ? t('monitor.moduleRuntime.table.compactDensity')
+    : t('monitor.moduleRuntime.table.defaultDensity'),
+);
+
+const columnSettingOptions = computed(() => [
+  { label: t('monitor.moduleRuntime.columns.moduleKey'), value: 'module_key' },
+  { label: t('monitor.moduleRuntime.columns.enabled'), value: 'enabled' },
+  { label: t('monitor.moduleRuntime.columns.registered'), value: 'registered' },
+  { label: t('monitor.moduleRuntime.columns.health'), value: 'health' },
+  { label: t('monitor.moduleRuntime.columns.dependencies'), value: 'dependencies' },
+  { label: t('monitor.moduleRuntime.columns.resourceStatus'), value: 'resource_status' },
+  { label: t('monitor.moduleRuntime.columns.action'), value: 'operation' },
+]);
+
+const allColumns = computed<TdBaseTableProps['columns']>(() => [
   {
     colKey: 'module_key',
     title: t('monitor.moduleRuntime.columns.moduleKey'),
-    width: 200,
-    fixed: 'left',
+    minWidth: 180,
+    ellipsis: { theme: 'default', placement: 'top-left' },
   },
   {
     colKey: 'enabled',
     title: t('monitor.moduleRuntime.columns.enabled'),
-    width: 110,
+    width: 104,
+    align: 'center',
+    ellipsis: false,
   },
   {
     colKey: 'registered',
     title: t('monitor.moduleRuntime.columns.registered'),
-    width: 120,
+    width: 104,
+    align: 'center',
+    ellipsis: false,
   },
   {
     colKey: 'health',
     title: t('monitor.moduleRuntime.columns.health'),
-    width: 140,
+    width: 112,
+    align: 'center',
+    ellipsis: false,
   },
   {
     colKey: 'dependencies',
     title: t('monitor.moduleRuntime.columns.dependencies'),
-    width: 170,
+    minWidth: 170,
+    ellipsis: { theme: 'default', placement: 'top-left' },
   },
   {
-    colKey: 'migration',
-    title: t('monitor.moduleRuntime.columns.migration'),
-    width: 210,
-  },
-  {
-    colKey: 'schema',
-    title: t('monitor.moduleRuntime.columns.schema'),
-    width: 150,
-  },
-  {
-    colKey: 'config',
-    title: t('monitor.moduleRuntime.columns.config'),
-    width: 160,
+    colKey: 'resource_status',
+    title: t('monitor.moduleRuntime.columns.resourceStatus'),
+    minWidth: 260,
+    ellipsis: false,
   },
   {
     colKey: 'operation',
     title: t('monitor.moduleRuntime.columns.action'),
-    width: 110,
+    width: 104,
     fixed: 'right',
+    align: 'center',
+    ellipsis: false,
   },
 ]);
+
+const visibleColumns = computed<TdBaseTableProps['columns']>(() =>
+  buildVisibleColumns(allColumns.value, visibleColumnKeys.value, ALWAYS_VISIBLE_COLUMNS),
+);
+const { tableHostRef, tableHostWidth } = useTableHostWidth(() => visibleColumns.value);
+const tableWidthPolicy = computed(() => resolveTableWidthPolicy(visibleColumns.value, tableHostWidth.value));
 
 onMounted(() => {
   void refreshSnapshot();
@@ -561,6 +642,10 @@ function configDescriptionLabel(status: ModuleRuntimeConfigStatus['status']) {
     ? t('monitor.moduleRuntime.values.notRequiredConfig')
     : t('monitor.moduleRuntime.values.unknownConfig');
 }
+
+function toggleTableDensity() {
+  tableDensity.value = tableDensity.value === 'medium' ? 'small' : 'medium';
+}
 </script>
 <style scoped lang="less">
 .module-runtime-toolbar {
@@ -569,10 +654,6 @@ function configDescriptionLabel(status: ModuleRuntimeConfigStatus['status']) {
   flex-wrap: wrap;
   gap: var(--graft-density-gap-10);
   justify-content: flex-end;
-}
-
-.module-runtime-toolbar__button {
-  white-space: nowrap;
 }
 
 .module-runtime-summary-card {
@@ -592,9 +673,26 @@ function configDescriptionLabel(status: ModuleRuntimeConfigStatus['status']) {
 .module-runtime-table__note {
   color: var(--td-text-color-secondary);
   font: var(--td-font-body-small);
-  margin: 0;
-  max-width: 360px;
-  text-align: right;
+  margin: 0 0 var(--graft-density-gap-12);
+}
+
+.module-runtime-table-host {
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: hidden;
+  width: 100%;
+}
+
+.module-runtime-table-host[data-table-mode='scroll'] {
+  overflow-x: auto;
+}
+
+.module-runtime-table-host :deep(.t-table__content) {
+  min-width: 0;
+}
+
+.module-runtime-table-host :deep(.t-table__content table) {
+  min-width: 100%;
 }
 
 .module-runtime-table__key {
@@ -603,20 +701,64 @@ function configDescriptionLabel(status: ModuleRuntimeConfigStatus['status']) {
   overflow-wrap: anywhere;
 }
 
-.module-runtime-table__muted {
-  color: var(--td-text-color-secondary);
-}
-
-.module-runtime-table__stack {
-  align-items: flex-start;
+.module-runtime-table__identity {
   display: flex;
   flex-direction: column;
-  gap: var(--graft-density-gap-6);
+  gap: var(--graft-density-gap-4);
+  min-width: 0;
 }
 
-.module-runtime-table__stack span:last-child {
+.module-runtime-table__identity span,
+.module-runtime-table__dependency-summary {
   color: var(--td-text-color-secondary);
   font: var(--td-font-body-small);
+}
+
+.module-runtime-table__dependency-summary {
+  cursor: default;
+}
+
+.module-runtime-table__dependency-popover {
+  display: flex;
+  flex-direction: column;
+  gap: var(--graft-density-gap-8);
+  max-width: 280px;
+  min-width: 180px;
+}
+
+.module-runtime-table__dependency-line {
+  align-items: center;
+  display: flex;
+  gap: var(--graft-density-gap-12);
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.module-runtime-table__dependency-line strong {
+  color: var(--td-text-color-primary);
+  font-weight: 500;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.module-runtime-table__resource-status {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--graft-density-gap-8);
+}
+
+.module-runtime-table__resource-status-item {
+  align-items: center;
+  display: inline-flex;
+  gap: var(--graft-density-gap-4);
+  min-width: 0;
+}
+
+.module-runtime-table__resource-status-item > span:first-child {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+  white-space: nowrap;
 }
 
 .module-runtime-empty {
@@ -729,18 +871,29 @@ function configDescriptionLabel(status: ModuleRuntimeConfigStatus['status']) {
   text-align: right;
 }
 
-.module-runtime-detail__paths code {
+.module-runtime-detail__paths code,
+.module-runtime-detail__json {
   background: var(--td-bg-color-container-hover);
   border: 1px solid var(--td-border-level-1-color);
   border-radius: var(--td-radius-default);
   color: var(--td-text-color-primary);
-  display: block;
+  font: var(--td-font-body-small);
   font-family: var(--td-font-family-monospace, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
-  font-size: 12px;
-  line-height: 20px;
+}
+
+.module-runtime-detail__paths code {
+  display: block;
   overflow-wrap: anywhere;
   padding: var(--graft-density-gap-8) var(--graft-density-gap-10);
   white-space: normal;
+}
+
+.module-runtime-detail__json {
+  margin: 0;
+  max-height: 320px;
+  overflow: auto;
+  padding: var(--graft-density-gap-12);
+  white-space: pre-wrap;
 }
 
 .module-runtime-detail__empty {
@@ -758,8 +911,7 @@ function configDescriptionLabel(status: ModuleRuntimeConfigStatus['status']) {
   }
 
   .module-runtime-table__note {
-    max-width: none;
-    text-align: left;
+    margin-bottom: var(--graft-density-gap-10);
   }
 
   .module-runtime-summary-card {

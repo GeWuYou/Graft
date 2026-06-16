@@ -28,6 +28,10 @@ const (
 	ContainerNotFound MessageKey = "ops.container.error.containerNotFound"
 	// ContainerInvalidRef identifies invalid container reference errors.
 	ContainerInvalidRef MessageKey = "ops.container.error.invalidContainerRef"
+	// ContainerInvalidListQuery identifies invalid list query parameter errors.
+	ContainerInvalidListQuery MessageKey = "ops.container.error.invalidListQuery"
+	// ContainerInvalidBatchAction identifies invalid batch action request errors.
+	ContainerInvalidBatchAction MessageKey = "ops.container.error.invalidBatchAction"
 	// ContainerInvalidState identifies invalid action state errors.
 	ContainerInvalidState MessageKey = "ops.container.error.invalidState"
 	// ContainerLogsTooLarge identifies log limit errors.
@@ -38,4 +42,18 @@ const (
 	ContainerTimeout MessageKey = "ops.container.error.timeout"
 	// ContainerDangerousActionsDisabled identifies disabled action errors.
 	ContainerDangerousActionsDisabled MessageKey = "ops.container.error.dangerousActionsDisabled"
+	// ContainerActionStartCompleted identifies successful start action responses.
+	ContainerActionStartCompleted MessageKey = "ops.container.action.start.completed"
+	// ContainerActionStopCompleted identifies successful stop action responses.
+	ContainerActionStopCompleted MessageKey = "ops.container.action.stop.completed"
+	// ContainerActionRestartCompleted identifies successful restart action responses.
+	ContainerActionRestartCompleted MessageKey = "ops.container.action.restart.completed"
+	// ContainerActionRemoveCompleted identifies successful remove action responses.
+	ContainerActionRemoveCompleted MessageKey = "ops.container.action.remove.completed"
+	// ContainerBatchActionCompleted identifies fully successful batch action responses.
+	ContainerBatchActionCompleted MessageKey = "ops.container.action.batch.completed"
+	// ContainerBatchActionPartial identifies partially successful batch action responses.
+	ContainerBatchActionPartial MessageKey = "ops.container.action.batch.partial"
+	// ContainerBatchActionFailed identifies fully failed batch action responses.
+	ContainerBatchActionFailed MessageKey = "ops.container.action.batch.failed"
 )

@@ -1,0 +1,11 @@
+name: offset
+in: query
+required: false
+description: Optional zero-based offset for containers.
+schema:
+  type: integer
+  minimum: 0
+examples:
+  firstPage:
+    summary: Start from the first container
+    value: 0

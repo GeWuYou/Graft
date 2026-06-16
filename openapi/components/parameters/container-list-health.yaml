@@ -1,0 +1,13 @@
+name: health
+in: query
+required: false
+description: Optional health filter. Containers whose list row cannot cheaply determine health are excluded when a specific health filter is provided.
+schema:
+  type: string
+  enum: [healthy, unhealthy, starting, none, unavailable]
+  x-enum-varnames:
+    - ContainerListHealthHealthy
+    - ContainerListHealthUnhealthy
+    - ContainerListHealthStarting
+    - ContainerListHealthNone
+    - ContainerListHealthUnavailable

@@ -2,6 +2,7 @@ allOf:
   - $ref: ./container-summary.yaml
   - type: object
     required:
+      - environment_policy
       - mounts
       - networks
       - runtime_info
@@ -14,6 +15,18 @@ allOf:
         type: array
         items:
           type: string
+      environment:
+        type: array
+        items:
+          $ref: ./container-environment-entry.yaml
+      environment_policy:
+        type: string
+        enum: [hidden, masked, plain]
+        x-enum-varnames:
+          - ContainerDetailEnvironmentPolicyHidden
+          - ContainerDetailEnvironmentPolicyMasked
+          - ContainerDetailEnvironmentPolicyPlain
+        description: Effective container environment variable display policy applied to this detail response.
       working_dir:
         type: string
       mounts:
@@ -30,4 +43,5 @@ allOf:
         type: string
         format: date-time
 description: >
-  Container detail intentionally omits environment variables and raw inspect payload fields that may contain secrets.
+  Container detail returns environment variables according to the configured display policy and omits raw inspect payload
+  fields that may contain secrets.

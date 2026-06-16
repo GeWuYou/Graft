@@ -7,6 +7,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -15,11 +16,13 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
 )
@@ -28,6 +31,10 @@ const (
 	dockerSocketScheme       = "unix"
 	dockerLogScannerInitSize = 64 * 1024
 	dockerLogScannerMaxSize  = 1024 * 1024
+	dockerStatsListTimeout   = 2 * time.Second
+	dockerStatsListWorkers   = 8
+	dockerStatsPercentScale  = 100.0
+	dockerEnvironmentSource  = "docker"
 )
 
 var errInvalidLogQuery = errors.New("invalid log query parameter")
@@ -43,9 +50,11 @@ type dockerClient interface {
 	ContainerList(context.Context, container.ListOptions) ([]container.Summary, error)
 	ContainerInspect(context.Context, string) (container.InspectResponse, error)
 	ContainerLogs(context.Context, string, container.LogsOptions) (io.ReadCloser, error)
+	ContainerStatsOneShot(context.Context, string) (container.StatsResponseReader, error)
 	ContainerStart(context.Context, string, container.StartOptions) error
 	ContainerStop(context.Context, string, container.StopOptions) error
 	ContainerRestart(context.Context, string, container.StopOptions) error
+	ContainerRemove(context.Context, string, container.RemoveOptions) error
 	Close() error
 }
 
@@ -72,7 +81,7 @@ func (r *DockerRuntime) Info(ctx context.Context) (RuntimeInfo, error) {
 	return dockerInfoToRuntimeInfo(info, safeEndpointLabel(r.endpoint)), nil
 }
 
-// List returns Docker container summaries without raw inspect payloads.
+// List returns Docker container summaries without raw inspect, logs, or env leakage.
 func (r *DockerRuntime) List(ctx context.Context, _ ListQuery) ([]Summary, error) {
 	items, err := r.client.ContainerList(ctx, container.ListOptions{All: true})
 	if err != nil {
@@ -82,6 +91,7 @@ func (r *DockerRuntime) List(ctx context.Context, _ ListQuery) ([]Summary, error
 	for _, item := range items {
 		summaries = append(summaries, dockerSummary(item))
 	}
+	r.collectListResourceSummaries(ctx, summaries)
 	return summaries, nil
 }
 
@@ -95,7 +105,9 @@ func (r *DockerRuntime) Detail(ctx context.Context, ref Ref) (Detail, error) {
 	if err != nil {
 		return Detail{}, err
 	}
-	return dockerDetail(inspect, info), nil
+	detail := dockerDetail(inspect, info)
+	detail.Resource = r.containerResourceSummary(ctx, firstNonEmpty(detail.ID, ref.Value))
+	return detail, nil
 }
 
 // Logs reads bounded Docker logs according to the module log guardrails.
@@ -147,6 +159,9 @@ func (r *DockerRuntime) Logs(ctx context.Context, ref Ref, query LogQuery) (Logs
 // Start starts one Docker container by id or name.
 func (r *DockerRuntime) Start(ctx context.Context, ref Ref) (ActionResult, error) {
 	before, _ := r.Detail(ctx, ref)
+	if before.State != "" && !canStartState(before.State) {
+		return actionResultFromDetail(before, ref, containerActionStart, before.State), errInvalidContainerState
+	}
 	if err := r.client.ContainerStart(ctx, ref.Value, container.StartOptions{}); err != nil {
 		return actionResultFromDetail(before, ref, containerActionStart, ""), mapDockerError(err)
 	}
@@ -156,24 +171,49 @@ func (r *DockerRuntime) Start(ctx context.Context, ref Ref) (ActionResult, error
 
 // Stop stops one Docker container by id or name.
 func (r *DockerRuntime) Stop(ctx context.Context, ref Ref) (ActionResult, error) {
-	before, _ := r.Detail(ctx, ref)
-	timeout := 10
-	if err := r.client.ContainerStop(ctx, ref.Value, container.StopOptions{Timeout: &timeout}); err != nil {
-		return actionResultFromDetail(before, ref, containerActionStop, ""), mapDockerError(err)
-	}
-	after, _ := r.Detail(ctx, ref)
-	return actionResultFromDetail(after, ref, containerActionStop, before.State), nil
+	return r.runTimedStateAction(ctx, ref, containerActionStop, canStopState, r.client.ContainerStop)
 }
 
 // Restart restarts one Docker container by id or name.
 func (r *DockerRuntime) Restart(ctx context.Context, ref Ref) (ActionResult, error) {
+	return r.runTimedStateAction(ctx, ref, containerActionRestart, canRestartState, r.client.ContainerRestart)
+}
+
+func (r *DockerRuntime) runTimedStateAction(
+	ctx context.Context,
+	ref Ref,
+	action string,
+	allowed func(string) bool,
+	run func(context.Context, string, container.StopOptions) error,
+) (ActionResult, error) {
 	before, _ := r.Detail(ctx, ref)
+	if before.State != "" && !allowed(before.State) {
+		return actionResultFromDetail(before, ref, action, before.State), errInvalidContainerState
+	}
 	timeout := 10
-	if err := r.client.ContainerRestart(ctx, ref.Value, container.StopOptions{Timeout: &timeout}); err != nil {
-		return actionResultFromDetail(before, ref, containerActionRestart, ""), mapDockerError(err)
+	if err := run(ctx, ref.Value, container.StopOptions{Timeout: &timeout}); err != nil {
+		return actionResultFromDetail(before, ref, action, ""), mapDockerError(err)
 	}
 	after, _ := r.Detail(ctx, ref)
-	return actionResultFromDetail(after, ref, containerActionRestart, before.State), nil
+	return actionResultFromDetail(after, ref, action, before.State), nil
+}
+
+// Remove removes one Docker container by id or name.
+func (r *DockerRuntime) Remove(ctx context.Context, ref Ref, options RemoveOptions) (ActionResult, error) {
+	before, err := r.Detail(ctx, ref)
+	if err != nil {
+		return actionResultFromDetail(before, ref, containerActionRemove, ""), err
+	}
+	if !canRemoveState(before.State) || (!options.Force && !canRemoveWithoutForce(before.State)) {
+		return actionResultFromDetail(before, ref, containerActionRemove, before.State), errInvalidContainerState
+	}
+	if err := r.client.ContainerRemove(ctx, ref.Value, container.RemoveOptions{Force: options.Force}); err != nil {
+		return actionResultFromDetail(before, ref, containerActionRemove, before.State), mapDockerError(err)
+	}
+	result := actionResultFromDetail(before, ref, containerActionRemove, before.State)
+	result.StatusAfter = actionStatusRemoved
+	result.Result = actionResultCompleted
+	return result, nil
 }
 
 // Close releases the Docker SDK client resources.
@@ -185,34 +225,207 @@ func (r *DockerRuntime) Close() error {
 }
 
 func dockerSummary(item container.Summary) Summary {
+	names := cleanDockerNames(item.Names)
+	networks := dockerSummaryNetworks(item)
+	primaryIP := primaryNetworkIP(networks)
+	state := normalizeContainerState(string(item.State))
 	return Summary{
-		ID:        strings.TrimSpace(item.ID),
-		Names:     cleanDockerNames(item.Names),
-		Image:     strings.TrimSpace(item.Image),
-		ImageID:   strings.TrimSpace(item.ImageID),
-		Labels:    cloneLabels(item.Labels),
-		Ports:     dockerPorts(item.Ports),
-		Runtime:   runtimeNameDocker,
-		CreatedAt: time.Unix(item.Created, 0).UTC().Format(time.RFC3339),
-		State:     normalizeContainerState(string(item.State)),
-		Status:    strings.TrimSpace(item.Status),
+		ID:             strings.TrimSpace(item.ID),
+		ShortID:        shortRuntimeID(item.ID),
+		Name:           firstNonEmpty(firstContainerName(names), shortRuntimeID(item.ID), strings.TrimSpace(item.ID)),
+		Names:          names,
+		Image:          strings.TrimSpace(item.Image),
+		ImageID:        strings.TrimSpace(item.ImageID),
+		Labels:         cloneLabels(item.Labels),
+		Ports:          dockerPorts(item.Ports),
+		PrimaryIP:      primaryIP,
+		Networks:       networks,
+		NetworkSummary: networkSummary(networks),
+		Resource: ResourceSummary{
+			Available:         false,
+			UnavailableReason: containerStatsNotCollectedReason,
+			StatsAvailable:    false,
+			StatsErrorKey:     containerStatsNotCollectedReason,
+			StatsErrorMessage: "Container stats were not collected.",
+		},
+		Runtime:        runtimeNameDocker,
+		CreatedAt:      time.Unix(item.Created, 0).UTC().Format(time.RFC3339),
+		State:          state,
+		Status:         strings.TrimSpace(item.Status),
+		Health:         containerHealthUnavailable,
+		ComposeProject: strings.TrimSpace(item.Labels[composeProjectLabel]),
+		ComposeService: strings.TrimSpace(item.Labels[composeServiceLabel]),
+		CanStart:       canStartState(state),
+		CanStop:        canStopState(state),
+		CanRestart:     canRestartState(state),
+		CanRemove:      canRemoveState(state),
 	}
+}
+
+func (r *DockerRuntime) containerResourceSummary(ctx context.Context, id string) ResourceSummary {
+	ref := strings.TrimSpace(id)
+	if ref == "" {
+		return unavailableResourceSummary(containerStatsIncompleteReason)
+	}
+	statsCtx, cancel := context.WithTimeout(ctx, dockerStatsListTimeout)
+	defer cancel()
+
+	reader, err := r.client.ContainerStatsOneShot(statsCtx, ref)
+	if err != nil {
+		return unavailableResourceSummary(resourceStatsErrorReason(err))
+	}
+	defer func() {
+		if reader.Body != nil {
+			_ = reader.Body.Close()
+		}
+	}()
+	if reader.Body == nil {
+		return unavailableResourceSummary(containerStatsIncompleteReason)
+	}
+
+	var stats container.StatsResponse
+	if err := json.NewDecoder(reader.Body).Decode(&stats); err != nil {
+		return unavailableResourceSummary(resourceStatsErrorReason(err))
+	}
+	return dockerResourceSummary(stats)
+}
+
+func (r *DockerRuntime) collectListResourceSummaries(ctx context.Context, summaries []Summary) {
+	if len(summaries) == 0 {
+		return
+	}
+	workerCount := min(len(summaries), dockerStatsListWorkers)
+	jobs := make(chan int)
+	var wg sync.WaitGroup
+	wg.Add(workerCount)
+	for range workerCount {
+		go func() {
+			defer wg.Done()
+			for index := range jobs {
+				summaries[index].Resource = r.containerResourceSummary(ctx, summaries[index].ID)
+			}
+		}()
+	}
+	for index := range summaries {
+		jobs <- index
+	}
+	close(jobs)
+	wg.Wait()
+}
+
+func dockerResourceSummary(stats container.StatsResponse) ResourceSummary {
+	resource := ResourceSummary{
+		Available:      true,
+		StatsAvailable: true,
+	}
+	if cpuPercent, ok := dockerCPUPercent(stats); ok {
+		resource.CPUPercent = &cpuPercent
+	}
+	if usage, ok := uint64ToInt64(stats.MemoryStats.Usage); ok {
+		resource.MemoryUsageBytes = &usage
+	}
+	if limit, ok := uint64ToInt64(stats.MemoryStats.Limit); ok {
+		resource.MemoryLimitBytes = &limit
+	}
+	if resource.MemoryUsageBytes != nil && resource.MemoryLimitBytes != nil && *resource.MemoryLimitBytes > 0 {
+		memoryPercent := (float64(*resource.MemoryUsageBytes) / float64(*resource.MemoryLimitBytes)) * dockerStatsPercentScale
+		resource.MemoryPercent = &memoryPercent
+	}
+	if resource.CPUPercent == nil && resource.MemoryUsageBytes == nil && resource.MemoryLimitBytes == nil {
+		return unavailableResourceSummary(containerStatsIncompleteReason)
+	}
+	return resource
+}
+
+func dockerCPUPercent(stats container.StatsResponse) (float64, bool) {
+	if stats.CPUStats.CPUUsage.TotalUsage <= stats.PreCPUStats.CPUUsage.TotalUsage ||
+		stats.CPUStats.SystemUsage <= stats.PreCPUStats.SystemUsage {
+		return 0, false
+	}
+	cpuDelta := float64(stats.CPUStats.CPUUsage.TotalUsage - stats.PreCPUStats.CPUUsage.TotalUsage)
+	systemDelta := float64(stats.CPUStats.SystemUsage - stats.PreCPUStats.SystemUsage)
+	onlineCPUs := float64(stats.CPUStats.OnlineCPUs)
+	if onlineCPUs == 0 {
+		onlineCPUs = float64(len(stats.CPUStats.CPUUsage.PercpuUsage))
+	}
+	if onlineCPUs == 0 {
+		return 0, false
+	}
+	return (cpuDelta / systemDelta) * onlineCPUs * dockerStatsPercentScale, true
+}
+
+func unavailableResourceSummary(reason string) ResourceSummary {
+	reason = firstNonEmpty(strings.TrimSpace(reason), containerStatsUnavailableReason)
+	return ResourceSummary{
+		Available:         false,
+		UnavailableReason: reason,
+		StatsAvailable:    false,
+		StatsErrorKey:     reason,
+		StatsErrorMessage: resourceStatsErrorMessage(reason),
+	}
+}
+
+func resourceStatsErrorReason(err error) string {
+	if err == nil {
+		return containerStatsUnavailableReason
+	}
+	mapped := mapDockerError(err)
+	if errors.Is(mapped, errContainerRuntimeTimeout) {
+		return containerStatsTimeoutReason
+	}
+	return containerStatsUnavailableReason
+}
+
+func resourceStatsErrorMessage(reason string) string {
+	switch reason {
+	case containerStatsNotCollectedReason:
+		return "Container stats were not collected."
+	case containerStatsIncompleteReason:
+		return "Container stats did not include CPU or memory data."
+	case containerStatsTimeoutReason:
+		return "Container stats collection timed out."
+	default:
+		return "Container stats are unavailable."
+	}
+}
+
+func uint64ToInt64(value uint64) (int64, bool) {
+	if value > uint64(^uint64(0)>>1) {
+		return 0, false
+	}
+	return int64(value), true
 }
 
 func dockerDetail(inspect container.InspectResponse, info RuntimeInfo) Detail {
 	state, status, startedAt := dockerState(inspect)
 	summary := Summary{
-		ID:        strings.TrimSpace(inspect.ID),
-		Names:     []string{strings.TrimPrefix(strings.TrimSpace(inspect.Name), "/")},
-		Image:     dockerImage(inspect),
-		ImageID:   strings.TrimSpace(inspect.Image),
-		Labels:    dockerLabels(inspect),
-		Ports:     dockerInspectPorts(inspect),
-		Runtime:   runtimeNameDocker,
-		CreatedAt: parseDockerTimeString(inspect.Created),
-		StartedAt: startedAt,
-		State:     state,
-		Status:    status,
+		ID:             strings.TrimSpace(inspect.ID),
+		ShortID:        shortRuntimeID(inspect.ID),
+		Names:          []string{strings.TrimPrefix(strings.TrimSpace(inspect.Name), "/")},
+		Image:          dockerImage(inspect),
+		ImageID:        strings.TrimSpace(inspect.Image),
+		Labels:         dockerLabels(inspect),
+		Ports:          dockerInspectPorts(inspect),
+		Networks:       dockerNetworks(inspect),
+		Resource:       unavailableResourceSummary(containerStatsNotCollectedReason),
+		Runtime:        runtimeNameDocker,
+		CreatedAt:      parseDockerTimeString(inspect.Created),
+		StartedAt:      startedAt,
+		State:          state,
+		Status:         status,
+		Health:         dockerHealth(inspect),
+		ComposeProject: strings.TrimSpace(dockerLabels(inspect)[composeProjectLabel]),
+		ComposeService: strings.TrimSpace(dockerLabels(inspect)[composeServiceLabel]),
+		CanStart:       canStartState(state),
+		CanStop:        canStopState(state),
+		CanRestart:     canRestartState(state),
+		CanRemove:      canRemoveState(state),
+	}
+	summary.Name = firstNonEmpty(firstContainerName(summary.Names), summary.ShortID, summary.ID)
+	summary.PrimaryIP = primaryNetworkIP(summary.Networks)
+	summary.NetworkSummary = networkSummary(summary.Networks)
+	if inspect.ContainerJSONBase != nil {
+		summary.RestartCount = intPtrAllowZero(inspect.RestartCount)
 	}
 	detail := Detail{
 		Summary:          summary,
@@ -224,12 +437,112 @@ func dockerDetail(inspect container.InspectResponse, info RuntimeInfo) Detail {
 	if inspect.Config != nil {
 		detail.Command = []string(inspect.Config.Cmd)
 		detail.Entrypoint = []string(inspect.Config.Entrypoint)
+		detail.Environment = dockerEnvironmentVariables(inspect.Config.Env)
 		detail.WorkingDir = strings.TrimSpace(inspect.Config.WorkingDir)
 	}
 	if inspect.HostConfig != nil {
 		detail.RestartPolicy = string(inspect.HostConfig.RestartPolicy.Name)
 	}
 	return detail
+}
+
+func dockerEnvironmentVariables(values []string) []EnvironmentVariable {
+	if len(values) == 0 {
+		return nil
+	}
+	environment := make([]EnvironmentVariable, 0, len(values))
+	for _, raw := range values {
+		key, value, ok := strings.Cut(raw, "=")
+		key = strings.TrimSpace(key)
+		if !ok || key == "" {
+			continue
+		}
+		environment = append(environment, EnvironmentVariable{
+			Key:       key,
+			Value:     value,
+			Sensitive: isSensitiveEnvironmentKey(key),
+			Source:    dockerEnvironmentSource,
+		})
+	}
+	return environment
+}
+
+func dockerSummaryNetworks(item container.Summary) []Network {
+	if item.NetworkSettings == nil || len(item.NetworkSettings.Networks) == 0 {
+		return nil
+	}
+	networks := make([]Network, 0, len(item.NetworkSettings.Networks))
+	for name, network := range item.NetworkSettings.Networks {
+		if mapped, ok := dockerEndpointNetwork(name, network); ok {
+			networks = append(networks, mapped)
+		}
+	}
+	return networks
+}
+
+func primaryNetworkIP(networks []Network) string {
+	for _, network := range networks {
+		if strings.TrimSpace(network.IPAddress) != "" {
+			return strings.TrimSpace(network.IPAddress)
+		}
+	}
+	return ""
+}
+
+func networkSummary(networks []Network) string {
+	names := make([]string, 0, len(networks))
+	for _, network := range networks {
+		if strings.TrimSpace(network.Name) != "" {
+			names = append(names, strings.TrimSpace(network.Name))
+		}
+	}
+	return strings.Join(names, ", ")
+}
+
+func dockerHealth(inspect container.InspectResponse) string {
+	if inspect.State == nil || inspect.State.Health == nil {
+		return containerHealthNone
+	}
+	switch strings.TrimSpace(inspect.State.Health.Status) {
+	case container.NoHealthcheck:
+		return containerHealthNone
+	case container.Starting:
+		return containerHealthStarting
+	case container.Healthy:
+		return containerHealthHealthy
+	case container.Unhealthy:
+		return containerHealthUnhealthy
+	default:
+		return containerHealthUnavailable
+	}
+}
+
+func shortRuntimeID(id string) string {
+	value := strings.TrimSpace(id)
+	if len(value) <= containerShortIDLength {
+		return value
+	}
+	return value[:containerShortIDLength]
+}
+
+func canStartState(state string) bool {
+	return state != "running" && state != "paused" && state != "removing"
+}
+
+func canStopState(state string) bool {
+	return state == "running"
+}
+
+func canRestartState(state string) bool {
+	return state != "removing" && state != "dead"
+}
+
+func canRemoveState(state string) bool {
+	return state != "" && state != "unknown" && state != "removing"
+}
+
+func canRemoveWithoutForce(state string) bool {
+	return canRemoveState(state) && state != "running" && state != "paused" && state != "restarting"
 }
 
 func dockerInfoToRuntimeInfo(info systemInfo, endpoint string) RuntimeInfo {
@@ -439,19 +752,25 @@ func dockerNetworks(inspect container.InspectResponse) []Network {
 	}
 	networks := make([]Network, 0, len(inspect.NetworkSettings.Networks))
 	for name, network := range inspect.NetworkSettings.Networks {
-		if network == nil {
-			continue
+		if mapped, ok := dockerEndpointNetwork(name, network); ok {
+			networks = append(networks, mapped)
 		}
-		networks = append(networks, Network{
-			Name:       strings.TrimSpace(name),
-			NetworkID:  strings.TrimSpace(network.NetworkID),
-			EndpointID: strings.TrimSpace(network.EndpointID),
-			Gateway:    strings.TrimSpace(network.Gateway),
-			IPAddress:  strings.TrimSpace(network.IPAddress),
-			MacAddress: strings.TrimSpace(network.MacAddress),
-		})
 	}
 	return networks
+}
+
+func dockerEndpointNetwork(name string, network *network.EndpointSettings) (Network, bool) {
+	if network == nil {
+		return Network{}, false
+	}
+	return Network{
+		Name:       strings.TrimSpace(name),
+		NetworkID:  strings.TrimSpace(network.NetworkID),
+		EndpointID: strings.TrimSpace(network.EndpointID),
+		Gateway:    strings.TrimSpace(network.Gateway),
+		IPAddress:  strings.TrimSpace(network.IPAddress),
+		MacAddress: strings.TrimSpace(network.MacAddress),
+	}, true
 }
 
 func cleanDockerNames(names []string) []string {
@@ -520,6 +839,10 @@ func intPtr(value int) *int {
 	if value <= 0 {
 		return nil
 	}
+	return &value
+}
+
+func intPtrAllowZero(value int) *int {
 	return &value
 }
 

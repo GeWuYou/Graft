@@ -1,0 +1,26 @@
+type: object
+required:
+  - key
+  - masked
+  - sensitive
+  - source
+properties:
+  key:
+    type: string
+    description: Environment variable name.
+  value:
+    type: string
+    description: Environment variable value. Omitted when the active policy hides or masks the value.
+  masked:
+    type: boolean
+    description: Whether the value is intentionally omitted by environment display policy.
+  sensitive:
+    type: boolean
+    description: Whether the key matched the container module sensitive-key heuristic.
+  source:
+    type: string
+    enum: [docker]
+    x-enum-varnames:
+      - ContainerEnvironmentEntrySourceDocker
+    description: Runtime source of the environment variable entry.
+description: Container environment variable entry after policy application.

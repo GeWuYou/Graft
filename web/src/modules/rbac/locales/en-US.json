@@ -376,6 +376,10 @@
         "display": "Restart Containers",
         "description": "Allows restarting containers when dangerous actions are enabled."
       },
+      "containerRemove": {
+        "display": "Delete Containers",
+        "description": "Allows deleting containers when dangerous actions are enabled."
+      },
       "notificationView": {
         "display": "View Notifications",
         "description": "Allows reading current-user notifications and unread counts."

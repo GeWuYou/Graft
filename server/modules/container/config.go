@@ -39,6 +39,7 @@ const (
 	defaultContainerLogsDefaultTail         = 200
 	defaultContainerLogsMaxTail             = 2000
 	defaultContainerDangerousActionsEnabled = false
+	defaultContainerEnvironmentPolicy       = containercontract.ContainerEnvironmentPolicyMasked
 )
 
 func registerConfig(localizer *i18n.Service, registry *configregistry.Registry) error {
@@ -103,6 +104,7 @@ func configDefinitions() []configregistry.Definition {
 			fallbackDescription: "Whether start, stop, and restart actions are enabled.",
 			defaultValue:        mustRawJSON(defaultContainerDangerousActionsEnabled),
 		}),
+		containerEnvironmentPolicyDefinition(),
 	}
 }
 
@@ -130,6 +132,18 @@ func containerEndpointDefinition() configregistry.Definition {
 	})
 	definition.RestartRequired = true
 	return definition
+}
+
+func containerEnvironmentPolicyDefinition() configregistry.Definition {
+	return baseContainerDefinition(containerDefinitionSpec{
+		key:                 containercontract.ContainerEnvironmentPolicyConfig.String(),
+		group:               containerConfigGeneralGroup,
+		fallbackTitle:       "Environment value display policy",
+		fallbackDescription: "Controls how container environment variable values are returned by detail reads.",
+		valueType:           configregistry.ValueTypeString,
+		defaultValue:        mustRawJSON(defaultContainerEnvironmentPolicy.String()),
+		schema:              containerEnvironmentPolicySchema(),
+	})
 }
 
 type containerDefinitionSpec struct {
@@ -236,6 +250,30 @@ func containerRuntimeSchema() json.RawMessage {
 	))
 }
 
+func containerEnvironmentPolicySchema() json.RawMessage {
+	key := containercontract.ContainerEnvironmentPolicyConfig.String()
+	hiddenPolicy := containercontract.ContainerEnvironmentPolicyHidden.String()
+	maskedPolicy := containercontract.ContainerEnvironmentPolicyMasked.String()
+	plainPolicy := containercontract.ContainerEnvironmentPolicyPlain.String()
+	return json.RawMessage(fmt.Sprintf(
+		`{"type":"string","enum":[%q,%q,%q],"default":%q,"title":%q,"description":%q,"x-i18n":{"titleKey":%q,"descriptionKey":%q,"enumLabels":{"hidden":{"labelKey":"systemConfig.container.%s.enum.hidden.label","descriptionKey":"systemConfig.container.%s.enum.hidden.description"},"masked":{"labelKey":"systemConfig.container.%s.enum.masked.label","descriptionKey":"systemConfig.container.%s.enum.masked.description"},"plain":{"labelKey":"systemConfig.container.%s.enum.plain.label","descriptionKey":"systemConfig.container.%s.enum.plain.description"}}}}`,
+		hiddenPolicy,
+		maskedPolicy,
+		plainPolicy,
+		defaultContainerEnvironmentPolicy.String(),
+		containerConfigTitleFallback(key),
+		containerConfigDescriptionFallback(key),
+		containerConfigTitleKey(key),
+		containerConfigDescriptionKey(key),
+		key,
+		key,
+		key,
+		key,
+		key,
+		key,
+	))
+}
+
 func containerBooleanSchema(key string) json.RawMessage {
 	return json.RawMessage(fmt.Sprintf(
 		`{"type":"boolean","title":%q,"description":%q,"x-i18n":{"titleKey":%q,"descriptionKey":%q}}`,
@@ -332,7 +370,7 @@ func configMessageRegistrations() []i18n.Registration {
 				containerConfigLogsDescKey:     "控制容器日志读取上限。",
 				containerConfigActionsGroupKey: "高危操作",
 				containerConfigActionsDescKey:  "控制容器启停和重启操作。",
-			}, zhCNContainerConfigCopy()),
+			}, zhCNContainerConfigCopy(), zhCNContainerEnvironmentPolicyEnumCopy()),
 		},
 		{
 			Namespace: "system-config",
@@ -347,13 +385,14 @@ func configMessageRegistrations() []i18n.Registration {
 				containerConfigLogsDescKey:     "Control bounded container log reads.",
 				containerConfigActionsGroupKey: "Dangerous Actions",
 				containerConfigActionsDescKey:  "Control container start, stop, and restart actions.",
-			}, enUSContainerConfigCopy()),
+			}, enUSContainerConfigCopy(), enUSContainerEnvironmentPolicyEnumCopy()),
 		},
 	}
 }
 
-func containerConfigMessages(prefix map[string]string, definitions map[string][2]string) []i18n.MessageResource {
-	messages := make([]i18n.MessageResource, 0, len(prefix)+len(definitions)*2)
+func containerConfigMessages(prefix map[string]string, definitions map[string][2]string, enumDefinitions map[string][2]string) []i18n.MessageResource {
+	enumMessages := containerEnvironmentPolicyEnumMessages(enumDefinitions)
+	messages := make([]i18n.MessageResource, 0, len(prefix)+len(definitions)*2+len(enumMessages))
 	for key, text := range prefix {
 		messages = append(messages, i18n.MessageResource{Key: i18n.MessageKey(key), Text: text})
 	}
@@ -363,7 +402,38 @@ func containerConfigMessages(prefix map[string]string, definitions map[string][2
 			i18n.MessageResource{Key: i18n.MessageKey(containerConfigDescriptionKey(key)), Text: copy[1]},
 		)
 	}
+	messages = append(messages, enumMessages...)
 	return messages
+}
+
+func containerEnvironmentPolicyEnumMessages(definitions map[string][2]string) []i18n.MessageResource {
+	const messagesPerEnvironmentPolicyEnum = 2
+
+	key := containercontract.ContainerEnvironmentPolicyConfig.String()
+	messages := make([]i18n.MessageResource, 0, len(definitions)*messagesPerEnvironmentPolicyEnum)
+	for value, row := range definitions {
+		messages = append(messages,
+			i18n.MessageResource{Key: i18n.MessageKey(fmt.Sprintf("systemConfig.container.%s.enum.%s.label", key, value)), Text: row[0]},
+			i18n.MessageResource{Key: i18n.MessageKey(fmt.Sprintf("systemConfig.container.%s.enum.%s.description", key, value)), Text: row[1]},
+		)
+	}
+	return messages
+}
+
+func zhCNContainerEnvironmentPolicyEnumCopy() map[string][2]string {
+	return map[string][2]string{
+		containercontract.ContainerEnvironmentPolicyHidden.String(): {"隐藏", "仅返回环境变量名称和敏感标记。"},
+		containercontract.ContainerEnvironmentPolicyMasked.String(): {"脱敏", "敏感环境变量值脱敏，非敏感值正常返回。"},
+		containercontract.ContainerEnvironmentPolicyPlain.String():  {"明文", "不按策略脱敏，直接返回环境变量值。"},
+	}
+}
+
+func enUSContainerEnvironmentPolicyEnumCopy() map[string][2]string {
+	return map[string][2]string{
+		containercontract.ContainerEnvironmentPolicyHidden.String(): {"Hidden", "Return only environment variable names and sensitivity metadata."},
+		containercontract.ContainerEnvironmentPolicyMasked.String(): {"Masked", "Mask sensitive environment variable values and show non-sensitive values."},
+		containercontract.ContainerEnvironmentPolicyPlain.String():  {"Plain", "Return environment variable values without policy masking."},
+	}
 }
 
 func zhCNContainerConfigCopy() map[string][2]string {
@@ -374,6 +444,7 @@ func zhCNContainerConfigCopy() map[string][2]string {
 		containercontract.ContainerLogsDefaultTailConfig.String():         {"默认日志行数", "容器日志读取的默认返回行数。"},
 		containercontract.ContainerLogsMaxTailConfig.String():             {"最大日志行数", "容器日志读取允许的最大返回行数。"},
 		containercontract.ContainerDangerousActionsEnabledConfig.String(): {"启用容器高危操作", "是否允许容器启动、停止和重启等高危操作。"},
+		containercontract.ContainerEnvironmentPolicyConfig.String():       {"环境变量值展示策略", "控制容器详情读取时如何返回环境变量值。"},
 	}
 }
 
@@ -385,5 +456,6 @@ func enUSContainerConfigCopy() map[string][2]string {
 		containercontract.ContainerLogsDefaultTailConfig.String():         {"Default Log Tail", "Default number of log lines returned by container log reads."},
 		containercontract.ContainerLogsMaxTailConfig.String():             {"Maximum Log Tail", "Maximum number of log lines allowed for container log reads."},
 		containercontract.ContainerDangerousActionsEnabledConfig.String(): {"Dangerous Container Actions Enabled", "Whether start, stop, restart, and future high-risk actions are enabled."},
+		containercontract.ContainerEnvironmentPolicyConfig.String():       {"Environment Value Display Policy", "Controls how container environment variable values are returned by detail reads."},
 	}
 }

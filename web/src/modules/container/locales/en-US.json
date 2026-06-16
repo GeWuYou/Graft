@@ -12,12 +12,16 @@
       "list": {
         "title": "Operations - Container Management",
         "breadcrumb": "Container Management"
+      },
+      "detail": {
+        "title": "Container Detail",
+        "breadcrumb": "Container Detail"
       }
     },
     "list": {
       "eyebrow": "Operations",
       "title": "Container Management",
-      "description": "Review Local Container Runtime State, Details, and Truncated Logs, with Controlled Start and Stop Actions.",
+      "description": "Review Local Container Runtime State, Details, and Truncated Logs.",
       "refresh": "Refresh",
       "retry": "Retry",
       "loadFailed": "Container List Could Not Be Loaded.",
@@ -28,32 +32,66 @@
       "runtimeDisabledHint": "Enable container runtime access in System Config, then retry.",
       "runtimeVersion": "Version",
       "runtimeContainers": "{running}/{total} Running",
+      "totalCount": "Total {count}",
+      "runningCount": "Running {count}",
+      "stoppedCount": "Stopped {count}",
+      "errorCount": "Attention {count}",
+      "unhealthyCount": "Unhealthy {count}",
+      "readOnlyMode": "Read-only Mode",
+      "actionModeEnabled": "Actions Enabled",
       "tableSummary": "{count} Containers",
       "tableHint": "Data Comes from the Configured Container Runtime.",
+      "resourceUnavailable": "Unavailable",
+      "stats": {
+        "notCollected": "Not Collected",
+        "cpuTooltip": "CPU Usage: {percent}",
+        "memoryTooltip": "Memory: {usage} / {limit}, {percent}"
+      },
       "columnSettings": "Column Settings",
+      "resetColumns": "Reset Columns",
+      "compactDensity": "Compact Density",
+      "defaultDensity": "Default Density",
+      "morePorts": "+{count}",
+      "labelCount": "{count} Labels",
       "emptyTitle": "No Containers",
       "emptyDescription": "The Current Container Runtime Returned No Containers.",
       "emptyFilteredDescription": "No Containers Match the Current Filters.",
       "clearFilters": "Clear Filters",
       "copySuccess": "Logs Copied.",
       "copyError": "Logs Could Not Be Copied.",
+      "copyIdSuccess": "Container ID Copied.",
+      "copyIdError": "Container ID Could Not Be Copied.",
       "actionSuccess": "Container Action Submitted.",
       "actionFailed": "Container Action Failed.",
+      "pagination": {
+        "summary": "{start}-{end} of {total}",
+        "empty": "No Records"
+      },
       "filters": {
         "searchPlaceholder": "Search Name, Image, ID, or Port",
         "status": "Container Status",
+        "health": "Health",
         "allStatuses": "All Statuses",
+        "allHealth": "All Health",
         "query": "Query",
         "reset": "Reset"
       },
       "columns": {
+        "selection": "Selection",
         "status": "Status",
         "name": "Container",
         "image": "Image",
+        "cpu": "CPU",
+        "memory": "Memory",
         "ports": "Ports",
+        "network": "Network / IP",
+        "resource": "Resource",
+        "runtimeStatus": "Runtime / Status",
         "createdAt": "Created At",
         "startedAt": "Started At",
         "restartPolicy": "Restart Policy",
+        "imageId": "Image ID",
+        "labels": "Labels",
         "operation": "Operation"
       },
       "states": {
@@ -66,30 +104,91 @@
         "dead": "Dead",
         "unknown": "Unknown"
       },
+      "health": {
+        "healthy": "Healthy",
+        "unhealthy": "Unhealthy",
+        "starting": "Starting",
+        "none": "No Healthcheck",
+        "unavailable": "Health Unknown"
+      },
       "actions": {
         "detail": "Detail",
         "logs": "Logs",
         "start": "Start",
         "stop": "Stop",
         "restart": "Restart",
-        "confirmStart": "Start This Container?",
-        "confirmStop": "Stop This Container?",
-        "confirmRestart": "Restart This Container?",
+        "remove": "Delete",
+        "more": "More",
+        "copyId": "Copy ID",
+        "inspect": "Inspect",
+        "viewMounts": "View Mounts",
+        "viewNetworks": "View Networks",
+        "viewEnvironment": "View Environment Variables",
+        "confirmStartTitle": "Confirm Container Start",
+        "confirmStart": "Start Container {name}?",
+        "confirmStopTitle": "Confirm Container Stop",
+        "confirmStop": "Stop Container {name}?",
+        "confirmRestartTitle": "Confirm Container Restart",
+        "confirmRestart": "Restart Container {name}?",
+        "confirmRemoveTitle": "Confirm Container Delete",
+        "confirmRemove": "Delete Container {name}? This Cannot Be Undone.",
+        "confirmRemoveRunning": "Container {name} Is Running. The Default Delete Will Be Rejected; Select Force to Continue.",
+        "forceRemove": "Force Delete Running Container",
+        "dangerousDisabled": "Dangerous Actions Are Disabled or Not Allowed for the Current State.",
+        "unavailable": "This action is currently unavailable.",
         "confirm": "Confirm",
         "cancel": "Cancel"
+      },
+      "batch": {
+        "selected": "{count} Containers Selected",
+        "start": "Batch Start",
+        "stop": "Batch Stop",
+        "restart": "Batch Restart",
+        "remove": "Batch Delete",
+        "cancelSelection": "Cancel Selection",
+        "noSelection": "Select Containers First.",
+        "startHint": "Start {count} Eligible Containers.",
+        "stopHint": "Stop {count} Eligible Containers.",
+        "restartHint": "Restart {count} Eligible Containers.",
+        "removeHint": "Delete {count} Eligible Containers.",
+        "confirmStartTitle": "Confirm Batch Start",
+        "confirmStopTitle": "Confirm Batch Stop",
+        "confirmRestartTitle": "Confirm Batch Restart",
+        "confirmRemoveTitle": "Confirm Batch Delete",
+        "confirmStart": "Start the Selected {count} Containers?",
+        "confirmStop": "Stop the Selected {count} Containers?",
+        "confirmRestart": "Restart the Selected {count} Containers?",
+        "confirmRemove": "Delete the Selected {count} Containers? This Cannot Be Undone.",
+        "confirmScope": "{selectedCount} Containers Are Selected. This Action Will Process {actionableCount} Eligible Containers and Skip {skippedCount}.",
+        "skipInapplicable": "Some Containers Are Not Applicable Because of Their Current State or Permissions and Will Be Skipped.",
+        "confirmRemoveRunning": "{count} Selected Containers Are Running. The Default Delete Will Be Rejected; Select Force to Continue.",
+        "success": "Batch Action Completed. {count} Succeeded.",
+        "partialTitle": "Batch Action Partially Succeeded",
+        "failed": "Batch Action Failed.",
+        "failureDetailTitle": "View Failure Details",
+        "noFailureDetail": "No Failure Details."
       },
       "detail": {
         "title": "Container Detail",
         "identity": "Basic Information",
+        "state": "State and Lifecycle",
         "runtime": "Runtime",
+        "networkPorts": "Network and Ports",
+        "ports": "Ports",
         "mounts": "Mounts",
         "networks": "Networks",
+        "metadata": "Labels and Metadata",
+        "environment": "Environment Variables",
+        "rawJson": "Raw Detail JSON",
         "command": "Command",
         "entrypoint": "Entrypoint",
         "workingDir": "Working Directory",
         "inspectUpdatedAt": "Detail Updated At",
+        "portEmpty": "No Port Mappings.",
         "mountEmpty": "No Mounts.",
         "networkEmpty": "No Network Information.",
+        "metadataEmpty": "No Labels or Metadata.",
+        "environmentUnavailable": "Environment Variables Are Not Available For This Container.",
         "loadFailed": "Container Detail Could Not Be Loaded."
       },
       "logs": {
@@ -100,9 +199,16 @@
         "timestamps": "Timestamps",
         "stdout": "Stdout",
         "stderr": "Stderr",
+        "autoRefresh": "Auto Refresh",
+        "enabled": "Enabled",
+        "autoRefreshStatus": "Auto Refresh Every {seconds} Seconds",
+        "lastLoadedAt": "Last Loaded: {time}",
+        "notLoaded": "Logs Not Loaded Yet",
         "refresh": "Refresh Logs",
         "copy": "Copy",
+        "emptyTitle": "No Logs",
         "empty": "No Logs.",
+        "errorEmpty": "Resolve the Error, Then Retry Loading Logs.",
         "truncated": "Logs Were Truncated by the Current Limit.",
         "loadFailed": "Container Logs Could Not Be Loaded."
       },
@@ -123,15 +229,145 @@
         "operatingSystem": "Operating System",
         "architecture": "Architecture"
       }
+    },
+    "detail": {
+      "title": "Container Detail",
+      "description": "Review Container Runtime Details, Resources, Logs, Configuration, Network, and Mounts.",
+      "back": "Back",
+      "refresh": "Refresh",
+      "copy": "Copy",
+      "copySuccess": "Content Copied.",
+      "copyError": "Content Could Not Be Copied.",
+      "empty": "No Container Detail.",
+      "missingId": "Container ID Is Missing.",
+      "inspectUpdatedAt": "Detail Updated At",
+      "operation": "Operation",
+      "summary": {
+        "identity": "Container",
+        "resources": "Resources",
+        "network": "Network"
+      },
+      "overview": {
+        "basicInfo": "Basic Information",
+        "runtimeInfo": "Runtime Information"
+      },
+      "tabs": {
+        "overview": "Overview",
+        "resources": "Resources",
+        "logs": "Logs",
+        "health": "Health",
+        "config": "Config",
+        "network": "Network",
+        "storage": "Storage",
+        "raw": "Raw JSON"
+      },
+      "resources": {
+        "cpu": "CPU",
+        "memory": "Memory",
+        "memoryUsage": "Memory Usage",
+        "memoryLimit": "Memory Limit",
+        "memoryPercent": "Memory Percent",
+        "status": "Collection Status",
+        "available": "Collected",
+        "collectedAt": "Collected At",
+        "currentSnapshot": "Current Snapshot"
+      },
+      "logs": {
+        "refresh": "Refresh Logs",
+        "searchPlaceholder": "Search Logs",
+        "wrap": "Auto Wrap",
+        "followTail": "Follow Tail",
+        "empty": "No Logs.",
+        "truncated": "Logs Were Truncated by the Current Limit."
+      },
+      "raw": {
+        "title": "Raw JSON",
+        "description": "Sensitive Fields Are Masked for Read-only Troubleshooting.",
+        "root": "Container",
+        "source": "Source View",
+        "tree": "Tree View",
+        "empty": "No Raw JSON.",
+        "error": "Raw JSON Could Not Be Formatted."
+      },
+      "health": {
+        "status": "Health",
+        "restartCount": "Restart Count"
+      },
+      "config": {
+        "environment": "Environment Variables",
+        "environmentUnavailable": "Environment Variables Are Not Available For This Container.",
+        "envName": "Name",
+        "envValue": "Value",
+        "envPolicy": "Policy",
+        "maskedValue": "Masked",
+        "hiddenValue": "Hidden",
+        "policy": {
+          "plain": "Plain",
+          "masked": "Masked",
+          "hidden": "Hidden",
+          "unknown": "Unknown"
+        }
+      },
+      "network": {
+        "primaryIp": "Primary IP",
+        "summary": "Network Summary",
+        "ports": "Port Mappings",
+        "name": "Network",
+        "ipAddress": "IP Address",
+        "gateway": "Gateway",
+        "macAddress": "MAC Address"
+      },
+      "storage": {
+        "destination": "Destination",
+        "source": "Source",
+        "type": "Type",
+        "mode": "Mode",
+        "access": "Access"
+      }
+    }
+  },
+  "rbac": {
+    "permissionCatalog": {
+      "containerEnvironment": {
+        "display": "Read Container Environment Variables",
+        "description": "Allows reading container environment variables after policy processing."
+      }
     }
   },
   "ops": {
     "container": {
+      "action": {
+        "start": {
+          "completed": "Container Start Action Completed"
+        },
+        "stop": {
+          "completed": "Container Stop Action Completed"
+        },
+        "restart": {
+          "completed": "Container Restart Action Completed"
+        },
+        "remove": {
+          "completed": "Container Delete Action Completed"
+        },
+        "batch": {
+          "completed": "Batch Container Action Completed",
+          "partial": "Batch Container Action Partially Succeeded",
+          "failed": "Batch Container Action Failed"
+        }
+      },
       "error": {
         "runtimeDisabled": "Container runtime access is not enabled",
         "runtimeUnavailable": "Container runtime connection is unavailable",
         "runtimeSocketMissing": "Container runtime socket is missing",
-        "runtimePermissionDenied": "Permission denied for container runtime access"
+        "runtimePermissionDenied": "Permission denied for container runtime access",
+        "containerNotFound": "Container does not exist or has been removed",
+        "invalidContainerRef": "Invalid container identifier",
+        "dangerousActionsDisabled": "Dangerous container actions are not enabled",
+        "invalidState": "Container state does not allow this action",
+        "invalidListQuery": "Invalid container list query parameter",
+        "invalidLogQuery": "Invalid container log query parameter",
+        "logsTooLarge": "Container log request exceeds the allowed limit",
+        "timeout": "Container runtime request timed out"
       }
     }
   }

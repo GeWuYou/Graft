@@ -1,0 +1,16 @@
+name: state
+in: query
+required: false
+description: Optional normalized container state filter.
+schema:
+  type: string
+  enum: [created, running, paused, restarting, removing, exited, dead, unknown]
+  x-enum-varnames:
+    - ContainerListStateCreated
+    - ContainerListStateRunning
+    - ContainerListStatePaused
+    - ContainerListStateRestarting
+    - ContainerListStateRemoving
+    - ContainerListStateExited
+    - ContainerListStateDead
+    - ContainerListStateUnknown

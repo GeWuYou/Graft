@@ -8,15 +8,18 @@ import { request } from '@/utils/request';
 import {
   buildContainerDetailApiPath,
   buildContainerLogsApiPath,
+  buildContainerRemoveApiPath,
   buildContainerRestartApiPath,
   buildContainerStartApiPath,
   buildContainerStopApiPath,
   CONTAINER_API_PATH,
 } from '../contract/paths';
 import {
+  batchContainerActions,
   getContainer,
   getContainerLogs,
   getContainers,
+  removeContainer,
   restartContainer,
   startContainer,
   stopContainer,
@@ -41,9 +44,10 @@ describe('container api', () => {
       runtime: { runtime: 'first-adapter', status: 'disabled', endpoint: '' },
     } as never);
 
-    await getContainers();
+    await getContainers({ limit: 20, offset: 40, keyword: 'graft', state: 'running', health: 'healthy' });
 
     expect(requestGet).toHaveBeenCalledWith({
+      params: { limit: 20, offset: 40, keyword: 'graft', state: 'running', health: 'healthy' },
       url: CONTAINER_API_PATH.LIST,
     });
   });
@@ -73,10 +77,12 @@ describe('container api', () => {
     await startContainer('web/api');
     await stopContainer('web/api');
     await restartContainer('web/api');
+    await removeContainer('web/api', { force: true });
 
     expect(buildContainerStartApiPath('web/api')).toBe('/api/ops/containers/web%2Fapi/start');
     expect(buildContainerStopApiPath('web/api')).toBe('/api/ops/containers/web%2Fapi/stop');
     expect(buildContainerRestartApiPath('web/api')).toBe('/api/ops/containers/web%2Fapi/restart');
+    expect(buildContainerRemoveApiPath('web/api')).toBe('/api/ops/containers/web%2Fapi/remove');
     expect(requestPost).toHaveBeenNthCalledWith(1, {
       url: buildContainerStartApiPath('web/api'),
     });
@@ -85,6 +91,27 @@ describe('container api', () => {
     });
     expect(requestPost).toHaveBeenNthCalledWith(3, {
       url: buildContainerRestartApiPath('web/api'),
+    });
+    expect(requestPost).toHaveBeenNthCalledWith(4, {
+      url: buildContainerRemoveApiPath('web/api'),
+      data: { force: true },
+    });
+  });
+
+  it('posts batch actions through the canonical collection action path', async () => {
+    const requestPost = vi.mocked(request.post);
+    requestPost.mockResolvedValue({
+      total: 2,
+      success_count: 2,
+      failed_count: 0,
+      items: [],
+    } as never);
+
+    await batchContainerActions({ action: 'remove', ids: ['web/api', 'worker'], force: false });
+
+    expect(requestPost).toHaveBeenCalledWith({
+      url: CONTAINER_API_PATH.BATCH_ACTIONS,
+      data: { action: 'remove', ids: ['web/api', 'worker'], force: false },
     });
   });
 });

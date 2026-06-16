@@ -376,6 +376,10 @@
         "display": "重启容器",
         "description": "允许在启用高危操作后重启容器。"
       },
+      "containerRemove": {
+        "display": "删除容器",
+        "description": "允许在启用高危操作后删除容器。"
+      },
       "notificationView": {
         "display": "查看通知",
         "description": "允许读取当前用户通知和未读数量。"

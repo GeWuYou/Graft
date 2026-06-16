@@ -12,13 +12,22 @@ properties:
     type: string
   action:
     type: string
-    enum: [start, stop, restart]
+    enum: [start, stop, restart, remove]
+    x-enum-varnames:
+      - ContainerActionResponseActionValueStart
+      - ContainerActionResponseActionValueStop
+      - ContainerActionResponseActionValueRestart
+      - ContainerActionResponseActionValueRemove
   runtime:
     type: string
     description: Container runtime adapter key.
   result:
     type: string
     enum: [accepted, completed, unchanged]
+    x-enum-varnames:
+      - ContainerActionResponseResultValueAccepted
+      - ContainerActionResponseResultValueCompleted
+      - ContainerActionResponseResultValueUnchanged
   status_before:
     type: string
   status_after:

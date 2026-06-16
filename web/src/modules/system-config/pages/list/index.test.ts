@@ -74,6 +74,16 @@ const translations = vi.hoisted(
     'systemConfig.container.ops.container.actions.dangerous_enabled.description':
       '是否允许容器启动、停止和重启等高危操作。',
     'systemConfig.container.ops.container.actions.dangerous_enabled.title': '启用容器高危操作',
+    'systemConfig.container.ops.container.environment.policy.description': '控制容器详情读取时如何返回环境变量值。',
+    'systemConfig.container.ops.container.environment.policy.enum.hidden.description': '仅返回环境变量名称和敏感标记。',
+    'systemConfig.container.ops.container.environment.policy.enum.hidden.label': '隐藏',
+    'systemConfig.container.ops.container.environment.policy.enum.masked.description':
+      '敏感环境变量值脱敏，非敏感值正常返回。',
+    'systemConfig.container.ops.container.environment.policy.enum.masked.label': '脱敏',
+    'systemConfig.container.ops.container.environment.policy.enum.plain.description':
+      '不按策略脱敏，直接返回环境变量值。',
+    'systemConfig.container.ops.container.environment.policy.enum.plain.label': '明文',
+    'systemConfig.container.ops.container.environment.policy.title': '环境变量值展示策略',
     'systemConfig.list.boolean.disabled': '已禁用',
     'systemConfig.list.boolean.enabled': '已启用',
     'systemConfig.list.boolean.false': '否',
@@ -424,8 +434,44 @@ describe('system config list page', () => {
           hasOverride: true,
           order: 6200,
         }),
+        containerConfigItem({
+          key: 'ops.container.environment.policy',
+          titleKey: 'systemConfig.container.ops.container.environment.policy.title',
+          title: 'Environment Value Display Policy',
+          descriptionKey: 'systemConfig.container.ops.container.environment.policy.description',
+          description: 'Controls how container environment variable values are returned by detail reads.',
+          type: 'string',
+          configSchema: {
+            type: 'string',
+            enum: ['hidden', 'masked', 'plain'],
+            title: 'Environment Value Display Policy',
+            description: 'Controls how container environment variable values are returned by detail reads.',
+            'x-i18n': {
+              titleKey: 'systemConfig.container.ops.container.environment.policy.title',
+              descriptionKey: 'systemConfig.container.ops.container.environment.policy.description',
+              enumLabels: {
+                hidden: {
+                  labelKey: 'systemConfig.container.ops.container.environment.policy.enum.hidden.label',
+                  descriptionKey: 'systemConfig.container.ops.container.environment.policy.enum.hidden.description',
+                },
+                masked: {
+                  labelKey: 'systemConfig.container.ops.container.environment.policy.enum.masked.label',
+                  descriptionKey: 'systemConfig.container.ops.container.environment.policy.enum.masked.description',
+                },
+                plain: {
+                  labelKey: 'systemConfig.container.ops.container.environment.policy.enum.plain.label',
+                  descriptionKey: 'systemConfig.container.ops.container.environment.policy.enum.plain.description',
+                },
+              },
+            },
+          },
+          defaultValue: '"masked"',
+          effectiveValue: '"masked"',
+          hasOverride: false,
+          order: 6206,
+        }),
       ],
-      total: 1,
+      total: 2,
     });
 
     const wrapper = mountPage();
@@ -436,8 +482,15 @@ describe('system config list page', () => {
     expect(wrapper.text()).toContain('控制容器管理能力的基础开关。');
     expect(wrapper.text()).toContain('启用容器运行时访问');
     expect(wrapper.text()).toContain('是否允许容器管理访问已配置的容器运行时。');
+    expect(wrapper.text()).toContain('环境变量值展示策略');
+    expect(wrapper.text()).toContain('控制容器详情读取时如何返回环境变量值。');
+    expect(wrapper.text()).toContain('脱敏');
     expect(wrapper.text()).not.toContain('Container runtime access enabled');
     expect(wrapper.text()).not.toContain('Whether container management may access the configured runtime.');
+    expect(wrapper.text()).not.toContain('Environment Value Display Policy');
+    expect(wrapper.text()).not.toContain(
+      'Controls how container environment variable values are returned by detail reads.',
+    );
   });
 
   it('uses item type fallback to render notification boolean config without schema as a switch', async () => {

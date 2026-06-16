@@ -3,6 +3,7 @@
 
 export const CONTAINER_ROUTE_PATH = {
   LIST: '/ops/containers',
+  DETAIL: '/ops/containers/:id',
 } as const;
 
 export const CONTAINER_API_PATH = {
@@ -12,6 +13,8 @@ export const CONTAINER_API_PATH = {
   START: '/api/ops/containers/{id}/start',
   STOP: '/api/ops/containers/{id}/stop',
   RESTART: '/api/ops/containers/{id}/restart',
+  REMOVE: '/api/ops/containers/{id}/remove',
+  BATCH_ACTIONS: '/api/ops/containers/batch-actions',
 } as const;
 
 export function buildContainerDetailApiPath(containerId: string) {
@@ -32,6 +35,10 @@ export function buildContainerStopApiPath(containerId: string) {
 
 export function buildContainerRestartApiPath(containerId: string) {
   return CONTAINER_API_PATH.RESTART.replace('{id}', encodeContainerPathParam(containerId));
+}
+
+export function buildContainerRemoveApiPath(containerId: string) {
+  return CONTAINER_API_PATH.REMOVE.replace('{id}', encodeContainerPathParam(containerId));
 }
 
 function encodeContainerPathParam(containerId: string) {

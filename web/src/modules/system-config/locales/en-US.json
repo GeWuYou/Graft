@@ -257,6 +257,26 @@
               "title": "Dangerous Container Actions Enabled",
               "description": "Whether start, stop, restart, and future high-risk actions are enabled."
             }
+          },
+          "environment": {
+            "policy": {
+              "title": "Environment Value Display Policy",
+              "description": "Controls How Container Environment Variable Values Are Returned by Detail Reads.",
+              "enum": {
+                "hidden": {
+                  "label": "Hidden",
+                  "description": "Return Only Environment Variable Names and Sensitivity Metadata."
+                },
+                "masked": {
+                  "label": "Masked",
+                  "description": "Mask Sensitive Environment Variable Values and Show Non-Sensitive Values."
+                },
+                "plain": {
+                  "label": "Plain",
+                  "description": "Return Environment Variable Values Without Policy Masking."
+                }
+              }
+            }
           }
         }
       }

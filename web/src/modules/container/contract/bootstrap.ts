@@ -8,6 +8,11 @@ export const CONTAINER_BOOTSTRAP_ROUTE = {
     menuPath: CONTAINER_ROUTE_PATH.LIST,
     routeName: 'ContainerList',
   },
+  DETAIL: {
+    path: CONTAINER_ROUTE_PATH.DETAIL,
+    pageRouteName: 'ContainerDetailIndex',
+    routeName: 'ContainerDetail',
+  },
 } as const;
 
 export type ContainerBootstrapRouteName =

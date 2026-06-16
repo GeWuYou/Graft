@@ -1,0 +1,31 @@
+type: object
+description: >
+  Batch action result summary. The items array contains exactly one result item for each requested container id and
+  preserves the request id order so callers can correlate each result by position as well as by id.
+required:
+  - total
+  - success_count
+  - failed_count
+  - items
+properties:
+  total:
+    type: integer
+    minimum: 0
+  success_count:
+    type: integer
+    minimum: 0
+  failed_count:
+    type: integer
+    minimum: 0
+  request_id:
+    type: string
+  items:
+    type: array
+    description: >
+      Per-container action results in the same order as the requested container ids, with one response item per
+      requested id. OpenAPI cannot express equality with the request array length, so clients should rely on this
+      contract text plus each item's id for correlation.
+    minItems: 0
+    items:
+      $ref: ./container-batch-action-item.yaml
+additionalProperties: false

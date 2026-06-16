@@ -5,7 +5,7 @@ properties:
     type: boolean
     enum: [false]
     x-enum-varnames:
-      - PostContainerStop500JSONResponseBodySuccessFalse
+      - ContainerStopErrorResponseSuccessFalse
   code:
     type: string
     description: Existing canonical error response code.

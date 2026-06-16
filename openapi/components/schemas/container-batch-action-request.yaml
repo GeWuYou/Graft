@@ -1,0 +1,25 @@
+type: object
+required:
+  - action
+  - ids
+properties:
+  action:
+    type: string
+    enum: [start, stop, restart, remove]
+    x-enum-varnames:
+      - ContainerBatchActionRequestActionValueStart
+      - ContainerBatchActionRequestActionValueStop
+      - ContainerBatchActionRequestActionValueRestart
+      - ContainerBatchActionRequestActionValueRemove
+  ids:
+    type: array
+    minItems: 1
+    maxItems: 100
+    items:
+      type: string
+      minLength: 1
+  force:
+    type: boolean
+    default: false
+    description: Applies only to remove. Force remove running containers when true.
+additionalProperties: false

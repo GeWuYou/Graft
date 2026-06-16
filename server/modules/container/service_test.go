@@ -6,6 +6,7 @@ package container
 import (
 	"context"
 	"errors"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -120,6 +121,271 @@ func TestDangerousActionsDisabledPublishesFailureAudit(t *testing.T) {
 	}
 }
 
+func TestRemoveDangerousActionsDisabledPublishesForceAudit(t *testing.T) {
+	t.Parallel()
+
+	bus := eventbus.New(zap.NewNop())
+	events := make([]moduleapi.AuditEvent, 0, 1)
+	if err := bus.Subscribe(string(moduleapi.AuditRecordEventName), func(_ context.Context, event eventbus.Event) error {
+		payload, ok := event.Payload.(moduleapi.AuditEvent)
+		if !ok {
+			t.Fatalf("unexpected payload %T", event.Payload)
+		}
+		events = append(events, payload)
+		return nil
+	}); err != nil {
+		t.Fatalf("subscribe audit: %v", err)
+	}
+	service, err := newService(containerServiceOptions{
+		runtime:                 fakeRuntime{},
+		auditBus:                bus,
+		moduleName:              moduleID,
+		enabled:                 true,
+		dangerousActionsEnabled: false,
+		defaultTail:             defaultContainerLogsDefaultTail,
+		maxTail:                 defaultContainerLogsMaxTail,
+	})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	_, err = service.Remove(context.Background(), Ref{Value: "web"}, RemoveOptions{Force: true})
+	if !errors.Is(err, errDangerousActionsDisabled) {
+		t.Fatalf("expected dangerous action guard, got %v", err)
+	}
+	if len(events) != 1 {
+		t.Fatalf("expected one audit event, got %#v", events)
+	}
+	event := events[0]
+	if event.Action != "ops.container.remove" || event.Success {
+		t.Fatalf("unexpected audit event %#v", event)
+	}
+	if event.Metadata["force"] != true {
+		t.Fatalf("expected force metadata, got %#v", event.Metadata)
+	}
+	if event.Metadata["endpoint"] != "unix:///var/run/docker.sock" {
+		t.Fatalf("expected endpoint metadata, got %#v", event.Metadata)
+	}
+}
+
+func TestServiceActionResponseCarriesMessageKey(t *testing.T) {
+	t.Parallel()
+
+	service, err := newService(containerServiceOptions{
+		runtime:                 fakeRuntime{},
+		enabled:                 true,
+		dangerousActionsEnabled: true,
+		defaultTail:             defaultContainerLogsDefaultTail,
+		maxTail:                 defaultContainerLogsMaxTail,
+	})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	result, err := service.Restart(context.Background(), Ref{Value: "web"})
+	if err != nil {
+		t.Fatalf("restart: %v", err)
+	}
+	if result.MessageKey != containercontract.ContainerActionRestartCompleted.String() {
+		t.Fatalf("unexpected action message key %q", result.MessageKey)
+	}
+	mapped := toContainerAction(result)
+	if mapped.MessageKey == nil || *mapped.MessageKey != containercontract.ContainerActionRestartCompleted.String() {
+		t.Fatalf("expected mapped message key, got %#v", mapped.MessageKey)
+	}
+	if mapped.Message == nil || *mapped.Message != containercontract.ContainerActionRestartCompleted.String() {
+		t.Fatalf("expected mapped fallback message, got %#v", mapped.Message)
+	}
+}
+
+func TestServiceRemoveResponseCarriesMessageKey(t *testing.T) {
+	t.Parallel()
+
+	service, err := newService(containerServiceOptions{
+		runtime:                 fakeRuntime{},
+		enabled:                 true,
+		dangerousActionsEnabled: true,
+		defaultTail:             defaultContainerLogsDefaultTail,
+		maxTail:                 defaultContainerLogsMaxTail,
+	})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	result, err := service.Remove(context.Background(), Ref{Value: "web"}, RemoveOptions{Force: true})
+	if err != nil {
+		t.Fatalf("remove: %v", err)
+	}
+	if result.MessageKey != containercontract.ContainerActionRemoveCompleted.String() {
+		t.Fatalf("unexpected action message key %q", result.MessageKey)
+	}
+}
+
+func TestServiceAppliesEnvironmentDisplayPolicy(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name     string
+		policy   string
+		expected expectedEnvironmentPolicyResult
+	}{
+		{
+			name:   "hidden",
+			policy: containercontract.ContainerEnvironmentPolicyHidden.String(),
+			expected: expectedEnvironmentPolicyResult{
+				firstMasked:  true,
+				secondMasked: true,
+			},
+		},
+		{
+			name:   "masked",
+			policy: containercontract.ContainerEnvironmentPolicyMasked.String(),
+			expected: expectedEnvironmentPolicyResult{
+				firstValue:   "prod",
+				secondMasked: true,
+			},
+		},
+		{
+			name:   "plain",
+			policy: containercontract.ContainerEnvironmentPolicyPlain.String(),
+			expected: expectedEnvironmentPolicyResult{
+				policy:       containercontract.ContainerEnvironmentPolicyMasked.String(),
+				firstValue:   "prod",
+				secondMasked: true,
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			service := newEnvironmentPolicyTestService(t, tc.policy)
+
+			detail, err := service.Detail(context.Background(), Ref{Value: "web"})
+			if err != nil {
+				t.Fatalf("detail: %v", err)
+			}
+			assertEnvironmentPolicyResult(t, detail, tc.policy, tc.expected)
+		})
+	}
+}
+
+func TestServiceAppliesPlainEnvironmentPolicyWithPermissionContext(t *testing.T) {
+	t.Parallel()
+
+	service := newEnvironmentPolicyTestService(t, containercontract.ContainerEnvironmentPolicyPlain.String())
+	detail, err := service.Detail(withEnvironmentPlainAccess(context.Background()), Ref{Value: "web"})
+	if err != nil {
+		t.Fatalf("detail: %v", err)
+	}
+	assertEnvironmentPolicyResult(t, detail, containercontract.ContainerEnvironmentPolicyPlain.String(), expectedEnvironmentPolicyResult{
+		policy:      containercontract.ContainerEnvironmentPolicyPlain.String(),
+		firstValue:  "prod",
+		secondValue: "secret",
+	})
+}
+
+type expectedEnvironmentPolicyResult struct {
+	policy       string
+	firstValue   string
+	firstMasked  bool
+	secondValue  string
+	secondMasked bool
+}
+
+func newEnvironmentPolicyTestService(t *testing.T, policy string) *service {
+	t.Helper()
+
+	service, err := newService(containerServiceOptions{
+		runtime: fakeRuntime{},
+		systemConfig: serviceTestPolicyConfig{
+			serviceTestSystemConfig: serviceTestSystemConfig{values: map[string]bool{
+				containercontract.ContainerRuntimeEnabledConfig.String(): true,
+			}},
+			policy: policy,
+		},
+		enabled:     true,
+		defaultTail: defaultContainerLogsDefaultTail,
+		maxTail:     defaultContainerLogsMaxTail,
+	})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	return service
+}
+
+func assertEnvironmentPolicyResult(
+	t *testing.T,
+	detail Detail,
+	policy string,
+	expected expectedEnvironmentPolicyResult,
+) {
+	t.Helper()
+
+	expectedPolicy := firstNonEmpty(expected.policy, policy)
+	if detail.EnvironmentPolicy != expectedPolicy {
+		t.Fatalf("expected policy %q, got %#v", expectedPolicy, detail)
+	}
+	if len(detail.Environment) != 2 {
+		t.Fatalf("expected two environment entries, got %#v", detail.Environment)
+	}
+	if detail.Environment[0].Value != expected.firstValue || detail.Environment[0].Masked != expected.firstMasked || detail.Environment[0].Sensitive {
+		t.Fatalf("unexpected first environment entry %#v", detail.Environment[0])
+	}
+	if detail.Environment[1].Value != expected.secondValue || detail.Environment[1].Masked != expected.secondMasked || !detail.Environment[1].Sensitive {
+		t.Fatalf("unexpected second environment entry %#v", detail.Environment[1])
+	}
+}
+
+func TestServiceActionFailurePublishesAuditWithRuntimeContext(t *testing.T) {
+	t.Parallel()
+
+	bus := eventbus.New(zap.NewNop())
+	events := make([]moduleapi.AuditEvent, 0, 1)
+	if err := bus.Subscribe(string(moduleapi.AuditRecordEventName), func(_ context.Context, event eventbus.Event) error {
+		payload, ok := event.Payload.(moduleapi.AuditEvent)
+		if !ok {
+			t.Fatalf("unexpected payload %T", event.Payload)
+		}
+		events = append(events, payload)
+		return nil
+	}); err != nil {
+		t.Fatalf("subscribe audit: %v", err)
+	}
+	service, err := newService(containerServiceOptions{
+		runtime:                 failingRuntime{err: errInvalidContainerState},
+		auditBus:                bus,
+		moduleName:              moduleID,
+		enabled:                 true,
+		dangerousActionsEnabled: true,
+		defaultTail:             defaultContainerLogsDefaultTail,
+		maxTail:                 defaultContainerLogsMaxTail,
+	})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	_, err = service.Stop(context.Background(), Ref{Value: "web"})
+	if !errors.Is(err, errInvalidContainerState) {
+		t.Fatalf("expected invalid state, got %v", err)
+	}
+	if len(events) != 1 {
+		t.Fatalf("expected one audit event, got %#v", events)
+	}
+	event := events[0]
+	if event.Action != "ops.container.stop" || event.Success {
+		t.Fatalf("unexpected audit event %#v", event)
+	}
+	if event.MessageKey != containercontract.ContainerInvalidState.String() {
+		t.Fatalf("unexpected message key %q", event.MessageKey)
+	}
+	if event.Metadata["runtime"] != runtimeNameDocker {
+		t.Fatalf("expected runtime metadata, got %#v", event.Metadata)
+	}
+}
+
 func TestRuntimeAccessDisabledUsesResolverAndDoesNotTouchRuntime(t *testing.T) {
 	t.Parallel()
 
@@ -137,7 +403,7 @@ func TestRuntimeAccessDisabledUsesResolverAndDoesNotTouchRuntime(t *testing.T) {
 		t.Fatalf("new service: %v", err)
 	}
 
-	_, _, err = service.List(context.Background())
+	_, err = service.List(context.Background(), ListQuery{})
 	if !errors.Is(err, errRuntimeDisabled) {
 		t.Fatalf("expected runtime disabled, got %v", err)
 	}
@@ -161,7 +427,7 @@ func TestRuntimeAccessEnabledButRuntimeUnavailableUsesConnectionErrorKey(t *test
 		t.Fatalf("new service: %v", err)
 	}
 
-	_, _, err = service.List(context.Background())
+	_, err = service.List(context.Background(), ListQuery{})
 	if !errors.Is(err, errRuntimeDaemonUnavailable) {
 		t.Fatalf("expected runtime daemon unavailable, got %v", err)
 	}
@@ -188,12 +454,160 @@ func TestDangerousActionsResolverControlsWriteActionsOnly(t *testing.T) {
 		t.Fatalf("new service: %v", err)
 	}
 
-	if _, _, err := service.List(context.Background()); err != nil {
+	if _, err := service.List(context.Background(), ListQuery{}); err != nil {
 		t.Fatalf("expected read path to stay available, got %v", err)
 	}
 	_, err = service.Start(context.Background(), Ref{Value: "web"})
 	if !errors.Is(err, errDangerousActionsDisabled) {
 		t.Fatalf("expected dangerous actions guard, got %v", err)
+	}
+}
+
+func TestServiceListAppliesPaginationFiltersAndActionAvailability(t *testing.T) {
+	t.Parallel()
+
+	service := newListTestService(t, false)
+	result, err := service.List(context.Background(), ListQuery{
+		Limit:   1,
+		Offset:  1,
+		Keyword: "graft",
+	})
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	if result.Total != 2 || result.Limit != 1 || result.Offset != 1 {
+		t.Fatalf("unexpected page metadata %#v", result)
+	}
+	if result.Summary.Total != 2 || result.Summary.Running != 1 || result.Summary.Stopped != 1 {
+		t.Fatalf("unexpected summary %#v", result.Summary)
+	}
+	if len(result.Items) != 1 || result.Items[0].Name != "graft-worker" {
+		t.Fatalf("unexpected paged items %#v", result.Items)
+	}
+	if result.Items[0].CanStart || result.Items[0].CanStop || result.Items[0].CanRestart || result.Items[0].CanRemove {
+		t.Fatalf("expected dangerous action gate to disable row actions, got %#v", result.Items[0])
+	}
+}
+
+func TestServiceBatchActionAllowsPartialSuccess(t *testing.T) {
+	t.Parallel()
+
+	bus := eventbus.New(zap.NewNop())
+	events := make([]moduleapi.AuditEvent, 0, 2)
+	if err := bus.Subscribe(string(moduleapi.AuditRecordEventName), func(_ context.Context, event eventbus.Event) error {
+		payload, ok := event.Payload.(moduleapi.AuditEvent)
+		if !ok {
+			t.Fatalf("unexpected payload %T", event.Payload)
+		}
+		events = append(events, payload)
+		return nil
+	}); err != nil {
+		t.Fatalf("subscribe audit: %v", err)
+	}
+	service, err := newService(containerServiceOptions{
+		runtime:                 selectiveRemoveRuntime{failID: "bad"},
+		auditBus:                bus,
+		enabled:                 true,
+		dangerousActionsEnabled: true,
+		defaultTail:             defaultContainerLogsDefaultTail,
+		maxTail:                 defaultContainerLogsMaxTail,
+	})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	ctx := httpx.WithRequestAuditContext(context.Background(), httpx.RequestAuditContext{RequestID: "req-batch"})
+
+	result, err := service.BatchAction(ctx, BatchActionCommand{
+		Action: containerActionRemove,
+		IDs:    []string{"ok", "bad"},
+		Force:  true,
+	})
+	if err != nil {
+		t.Fatalf("batch action should aggregate partial failures, got %v", err)
+	}
+	if result.SuccessCount != 1 || result.FailedCount != 1 || result.MessageKey != containercontract.ContainerBatchActionPartial.String() {
+		t.Fatalf("unexpected batch result %#v", result)
+	}
+	if len(result.Items) != 2 || !result.Items[0].Success || result.Items[1].Success {
+		t.Fatalf("unexpected batch items %#v", result.Items)
+	}
+	if len(events) != 2 {
+		t.Fatalf("expected one audit per batch item, got %#v", events)
+	}
+	for _, event := range events {
+		if event.Metadata["force"] != true || event.Metadata["requestId"] != "req-batch" {
+			t.Fatalf("expected force/request audit metadata, got %#v", event.Metadata)
+		}
+	}
+}
+
+func TestServiceListFiltersHealth(t *testing.T) {
+	t.Parallel()
+
+	service := newListTestService(t, true)
+	healthResult, err := service.List(context.Background(), ListQuery{Health: containerHealthUnavailable})
+	if err != nil {
+		t.Fatalf("list by health: %v", err)
+	}
+	if healthResult.Total != 1 || healthResult.Items[0].Name != "cache" {
+		t.Fatalf("unexpected health-filtered result %#v", healthResult)
+	}
+}
+
+func TestSummarizeContainersAccountsForKnownRuntimeStates(t *testing.T) {
+	t.Parallel()
+
+	summary := summarizeContainers([]Summary{
+		{State: "running", Health: containerHealthHealthy},
+		{State: "created", Health: containerHealthUnavailable},
+		{State: "exited", Health: containerHealthUnavailable},
+		{State: "paused", Health: containerHealthUnavailable},
+		{State: "restarting", Health: containerHealthUnavailable},
+		{State: "dead", Health: containerHealthUnhealthy},
+		{State: "unknown", Health: containerHealthUnavailable},
+		{State: "removing", Health: containerHealthUnavailable},
+	})
+
+	if summary.Total != 8 || summary.Running != 1 || summary.Stopped != 4 || summary.Error != 3 {
+		t.Fatalf("unexpected state summary %#v", summary)
+	}
+	if summary.Healthy != 1 || summary.Unhealthy != 1 || summary.HealthUnavailable != 6 {
+		t.Fatalf("unexpected health summary %#v", summary)
+	}
+}
+
+func newListTestService(t *testing.T, dangerousActionsEnabled bool) *service {
+	t.Helper()
+
+	service, err := newService(containerServiceOptions{
+		runtime:                 listRuntime{},
+		enabled:                 true,
+		dangerousActionsEnabled: dangerousActionsEnabled,
+		defaultTail:             defaultContainerLogsDefaultTail,
+		maxTail:                 defaultContainerLogsMaxTail,
+	})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	return service
+}
+
+func TestServiceListRejectsInvalidQuery(t *testing.T) {
+	t.Parallel()
+
+	service, err := newService(containerServiceOptions{
+		runtime:     fakeRuntime{},
+		enabled:     true,
+		defaultTail: defaultContainerLogsDefaultTail,
+		maxTail:     defaultContainerLogsMaxTail,
+	})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	_, err = service.List(context.Background(), ListQuery{Limit: maxContainerListLimit + 1})
+	if !errors.Is(err, errInvalidListQuery) {
+		t.Fatalf("expected invalid list query, got %v", err)
 	}
 }
 
@@ -265,6 +679,8 @@ func newContainerConfigRegistry(t *testing.T) *configregistry.Registry {
 			definition.DefaultValue = mustRawJSON(500)
 		case containercontract.ContainerDangerousActionsEnabledConfig.String():
 			definition.DefaultValue = mustRawJSON(true)
+		case containercontract.ContainerEnvironmentPolicyConfig.String():
+			definition.DefaultValue = mustRawJSON(containercontract.ContainerEnvironmentPolicyPlain.String())
 		}
 		if err := registry.Register(definition); err != nil {
 			t.Fatalf("register config definition %s: %v", definition.Key, err)
@@ -337,6 +753,18 @@ func (r serviceTestSystemConfig) IsBooleanConfigEnabled(_ context.Context, key s
 
 var _ moduleapi.SystemConfigResolver = serviceTestSystemConfig{}
 
+type serviceTestPolicyConfig struct {
+	serviceTestSystemConfig
+	policy string
+}
+
+func (r serviceTestPolicyConfig) ResolveDefaultConfig(_ context.Context, key string) (string, error) {
+	if key != containercontract.ContainerEnvironmentPolicyConfig.String() || strings.TrimSpace(r.policy) == "" {
+		return "", errors.New("config unavailable")
+	}
+	return string(mustRawJSON(r.policy)), nil
+}
+
 type countingRuntime struct {
 	calls atomic.Int64
 }
@@ -376,11 +804,80 @@ func (r *countingRuntime) Restart(context.Context, Ref) (ActionResult, error) {
 	return ActionResult{}, nil
 }
 
+func (r *countingRuntime) Remove(context.Context, Ref, RemoveOptions) (ActionResult, error) {
+	r.calls.Add(1)
+	return ActionResult{}, nil
+}
+
 func (r *countingRuntime) Close() error { return nil }
 
 type failingRuntime struct {
 	err error
 }
+
+type listRuntime struct{}
+
+func (listRuntime) Info(context.Context) (RuntimeInfo, error) {
+	return RuntimeInfo{Runtime: runtimeNameDocker, Status: "enabled", Endpoint: "unix:///var/run/docker.sock"}, nil
+}
+
+func (listRuntime) List(context.Context, ListQuery) ([]Summary, error) {
+	return []Summary{
+		{
+			ID:         "111111111111abcdef",
+			ShortID:    "111111111111",
+			Name:       "graft-web",
+			Names:      []string{"graft-web"},
+			Image:      "graft/web:latest",
+			Runtime:    runtimeNameDocker,
+			CreatedAt:  "2026-06-14T00:00:00Z",
+			State:      "running",
+			Status:     "Up",
+			Health:     containerHealthHealthy,
+			Ports:      []Port{{PrivatePort: 80, PublicPort: intPtr(8080), Type: "tcp"}},
+			Labels:     map[string]string{composeProjectLabel: "graft", composeServiceLabel: "web"},
+			CanStop:    true,
+			CanRestart: true,
+		},
+		{
+			ID:         "222222222222abcdef",
+			ShortID:    "222222222222",
+			Name:       "graft-worker",
+			Names:      []string{"graft-worker"},
+			Image:      "graft/worker:latest",
+			Runtime:    runtimeNameDocker,
+			CreatedAt:  "2026-06-14T00:00:00Z",
+			State:      "exited",
+			Status:     "Exited",
+			Health:     containerHealthNone,
+			CanStart:   true,
+			CanRestart: true,
+		},
+		{
+			ID:         "333333333333abcdef",
+			ShortID:    "333333333333",
+			Name:       "cache",
+			Names:      []string{"cache"},
+			Image:      "redis:latest",
+			Runtime:    runtimeNameDocker,
+			CreatedAt:  "2026-06-14T00:00:00Z",
+			State:      "running",
+			Status:     "Up",
+			CanStop:    true,
+			CanRestart: true,
+		},
+	}, nil
+}
+
+func (listRuntime) Detail(context.Context, Ref) (Detail, error)        { return Detail{}, nil }
+func (listRuntime) Logs(context.Context, Ref, LogQuery) (Logs, error)  { return Logs{}, nil }
+func (listRuntime) Start(context.Context, Ref) (ActionResult, error)   { return ActionResult{}, nil }
+func (listRuntime) Stop(context.Context, Ref) (ActionResult, error)    { return ActionResult{}, nil }
+func (listRuntime) Restart(context.Context, Ref) (ActionResult, error) { return ActionResult{}, nil }
+func (listRuntime) Remove(context.Context, Ref, RemoveOptions) (ActionResult, error) {
+	return ActionResult{}, nil
+}
+func (listRuntime) Close() error { return nil }
 
 func (r failingRuntime) Info(context.Context) (RuntimeInfo, error) {
 	return RuntimeInfo{}, r.err
@@ -410,7 +907,49 @@ func (r failingRuntime) Restart(context.Context, Ref) (ActionResult, error) {
 	return ActionResult{}, r.err
 }
 
+func (r failingRuntime) Remove(context.Context, Ref, RemoveOptions) (ActionResult, error) {
+	return ActionResult{}, r.err
+}
+
 func (r failingRuntime) Close() error { return nil }
+
+type selectiveRemoveRuntime struct {
+	failID string
+}
+
+func (r selectiveRemoveRuntime) Info(context.Context) (RuntimeInfo, error) {
+	return fakeRuntime{}.Info(context.Background())
+}
+func (r selectiveRemoveRuntime) List(context.Context, ListQuery) ([]Summary, error) {
+	return fakeRuntime{}.List(context.Background(), ListQuery{})
+}
+func (r selectiveRemoveRuntime) Detail(context.Context, Ref) (Detail, error) {
+	return fakeRuntime{}.Detail(context.Background(), Ref{Value: "web"})
+}
+func (r selectiveRemoveRuntime) Logs(context.Context, Ref, LogQuery) (Logs, error) {
+	return Logs{}, nil
+}
+func (r selectiveRemoveRuntime) Start(context.Context, Ref) (ActionResult, error) {
+	return ActionResult{}, nil
+}
+func (r selectiveRemoveRuntime) Stop(context.Context, Ref) (ActionResult, error) {
+	return ActionResult{}, nil
+}
+func (r selectiveRemoveRuntime) Restart(context.Context, Ref) (ActionResult, error) {
+	return ActionResult{}, nil
+}
+func (r selectiveRemoveRuntime) Remove(_ context.Context, ref Ref, _ RemoveOptions) (ActionResult, error) {
+	if ref.Value == r.failID {
+		result := fakeAction(containerActionRemove)
+		result.ID = ref.Value
+		return result, errInvalidContainerState
+	}
+	result := fakeAction(containerActionRemove)
+	result.ID = ref.Value
+	result.StatusAfter = actionStatusRemoved
+	return result, nil
+}
+func (r selectiveRemoveRuntime) Close() error { return nil }
 
 type fakeRuntime struct{}
 
@@ -423,7 +962,13 @@ func (fakeRuntime) List(context.Context, ListQuery) ([]Summary, error) {
 }
 
 func (fakeRuntime) Detail(context.Context, Ref) (Detail, error) {
-	return Detail{Summary: fakeSummary()}, nil
+	return Detail{
+		Summary: fakeSummary(),
+		Environment: []EnvironmentVariable{
+			{Key: "APP_ENV", Value: "prod", Source: dockerEnvironmentSource},
+			{Key: "API_TOKEN", Value: "secret", Source: dockerEnvironmentSource},
+		},
+	}, nil
 }
 
 func (fakeRuntime) Logs(_ context.Context, ref Ref, query LogQuery) (Logs, error) {
@@ -450,6 +995,12 @@ func (fakeRuntime) Restart(context.Context, Ref) (ActionResult, error) {
 	return fakeAction(containerActionRestart), nil
 }
 
+func (fakeRuntime) Remove(context.Context, Ref, RemoveOptions) (ActionResult, error) {
+	result := fakeAction(containerActionRemove)
+	result.StatusAfter = actionStatusRemoved
+	return result, nil
+}
+
 func (fakeRuntime) Close() error { return nil }
 
 func fakeSummary() Summary {
@@ -461,6 +1012,7 @@ func fakeSummary() Summary {
 		CreatedAt: "2026-06-14T00:00:00Z",
 		State:     "running",
 		Status:    "Up",
+		CanRemove: true,
 	}
 }
 

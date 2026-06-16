@@ -1,0 +1,8 @@
+name: keyword
+in: query
+required: false
+description: Optional case-insensitive keyword matched against id, short id, name, image, status, runtime, ports, labels, compose metadata, and low-cost network fields.
+schema:
+  type: string
+  minLength: 1
+  maxLength: 128

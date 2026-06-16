@@ -16,3 +16,7 @@ properties:
   type:
     type: string
     enum: [tcp, udp, sctp]
+    x-enum-varnames:
+      - ContainerPortTypeValueTCP
+      - ContainerPortTypeValueUDP
+      - ContainerPortTypeValueSCTP

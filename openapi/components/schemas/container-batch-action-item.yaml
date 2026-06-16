@@ -1,0 +1,27 @@
+type: object
+required:
+  - id
+  - action
+  - success
+properties:
+  id:
+    type: string
+  name:
+    type: string
+  action:
+    type: string
+    enum: [start, stop, restart, remove]
+    x-enum-varnames:
+      - ContainerBatchActionItemActionStart
+      - ContainerBatchActionItemActionStop
+      - ContainerBatchActionItemActionRestart
+      - ContainerBatchActionItemActionRemove
+  success:
+    type: boolean
+  error_code:
+    type: string
+  message_key:
+    type: string
+  message:
+    type: string
+additionalProperties: false

@@ -186,6 +186,8 @@ paths:
     $ref: ./paths/my-announcements.unread-count.yaml
   /api/ops/containers:
     $ref: ./paths/ops-containers.collection.yaml
+  /api/ops/containers/batch-actions:
+    $ref: ./paths/ops-containers.batch-actions.yaml
   /api/ops/containers/{id}:
     $ref: ./paths/ops-containers.detail.yaml
   /api/ops/containers/{id}/logs:
@@ -196,6 +198,8 @@ paths:
     $ref: ./paths/ops-containers.stop.yaml
   /api/ops/containers/{id}/restart:
     $ref: ./paths/ops-containers.restart.yaml
+  /api/ops/containers/{id}/remove:
+    $ref: ./paths/ops-containers.remove.yaml
 components:
   schemas:
     ApiEnvelope:
@@ -534,6 +538,8 @@ components:
       $ref: ./components/schemas/container-summary.yaml
     ContainerDetail:
       $ref: ./components/schemas/container-detail.yaml
+    ContainerEnvironmentEntry:
+      $ref: ./components/schemas/container-environment-entry.yaml
     ContainerPort:
       $ref: ./components/schemas/container-port.yaml
     ContainerMount:
@@ -544,8 +550,20 @@ components:
       $ref: ./components/schemas/container-log-response.yaml
     ContainerActionResponse:
       $ref: ./components/schemas/container-action-response.yaml
+    ContainerRemoveRequest:
+      $ref: ./components/schemas/container-remove-request.yaml
+    ContainerBatchActionRequest:
+      $ref: ./components/schemas/container-batch-action-request.yaml
+    ContainerBatchActionItem:
+      $ref: ./components/schemas/container-batch-action-item.yaml
+    ContainerBatchActionResponse:
+      $ref: ./components/schemas/container-batch-action-response.yaml
     ContainerRuntimeInfo:
       $ref: ./components/schemas/container-runtime-info.yaml
+    ContainerResourceSummary:
+      $ref: ./components/schemas/container-resource-summary.yaml
+    ContainerListSummary:
+      $ref: ./components/schemas/container-list-summary.yaml
     ContainerListResponse:
       $ref: ./components/schemas/container-list-response.yaml
     EnvelopedContainerListResponse:
@@ -556,6 +574,8 @@ components:
       $ref: ./components/schemas/enveloped-container-log-response.yaml
     EnvelopedContainerActionResponse:
       $ref: ./components/schemas/enveloped-container-action-response.yaml
+    EnvelopedContainerBatchActionResponse:
+      $ref: ./components/schemas/enveloped-container-batch-action-response.yaml
   securitySchemes:
     bearerAuth:
       $ref: ./components/security/bearer-auth.yaml

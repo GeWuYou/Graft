@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"net/url"
+	"slices"
 	"strings"
 	"unicode"
 )
@@ -17,9 +18,31 @@ const (
 	containerActionStart   = "start"
 	containerActionStop    = "stop"
 	containerActionRestart = "restart"
+	containerActionRemove  = "remove"
 
 	actionResultCompleted = "completed"
 	actionResultUnchanged = "unchanged"
+	actionStatusRemoved   = "removed"
+
+	defaultContainerListLimit     = 20
+	maxContainerListLimit         = 100
+	maxContainerBatchActionIDs    = 100
+	containerListKeywordMaxLength = 128
+	containerShortIDLength        = 12
+
+	containerHealthHealthy     = "healthy"
+	containerHealthUnhealthy   = "unhealthy"
+	containerHealthStarting    = "starting"
+	containerHealthNone        = "none"
+	containerHealthUnavailable = "unavailable"
+
+	containerStatsNotCollectedReason = "stats_not_collected"
+	containerStatsIncompleteReason   = "stats_incomplete"
+	containerStatsTimeoutReason      = "stats_timeout"
+	containerStatsUnavailableReason  = "stats_unavailable"
+
+	composeProjectLabel = "com.docker.compose.project"
+	composeServiceLabel = "com.docker.compose.service"
 )
 
 var (
@@ -29,6 +52,8 @@ var (
 	errRuntimeDaemonUnavailable    = errors.New("container runtime daemon unavailable")
 	errContainerNotFound           = errors.New("container not found")
 	errInvalidRef                  = errors.New("invalid container reference")
+	errInvalidListQuery            = errors.New("invalid container list query")
+	errInvalidBatchAction          = errors.New("invalid container batch action")
 	errInvalidContainerState       = errors.New("invalid container state")
 	errLogsTooLarge                = errors.New("container logs tail exceeds limit")
 	errContainerRuntimeTimeout     = errors.New("container runtime timeout")
@@ -45,6 +70,7 @@ type Runtime interface {
 	Start(ctx context.Context, id Ref) (ActionResult, error)
 	Stop(ctx context.Context, id Ref) (ActionResult, error)
 	Restart(ctx context.Context, id Ref) (ActionResult, error)
+	Remove(ctx context.Context, id Ref, options RemoveOptions) (ActionResult, error)
 	Close() error
 }
 
@@ -53,8 +79,24 @@ type Ref struct {
 	Value string
 }
 
-// ListQuery carries future list filters while keeping the runtime signature stable.
-type ListQuery struct{}
+// ListQuery describes bounded list pagination and low-cost runtime filters.
+type ListQuery struct {
+	Limit   int
+	Offset  int
+	Keyword string
+	State   string
+	Health  string
+}
+
+// ListResult is the service-owned list response model.
+type ListResult struct {
+	Runtime RuntimeInfo
+	Items   []Summary
+	Total   int
+	Limit   int
+	Offset  int
+	Summary ListSummary
+}
 
 // LogQuery describes bounded container log retrieval options.
 type LogQuery struct {
@@ -78,32 +120,72 @@ type RuntimeInfo struct {
 	ContainersRunning int
 }
 
+// ListSummary carries aggregate counts across the filtered list.
+type ListSummary struct {
+	Total             int
+	Running           int
+	Stopped           int
+	Error             int
+	Healthy           int
+	Unhealthy         int
+	HealthUnavailable int
+}
+
+// ResourceSummary is nullable-by-field runtime stats metadata for list rows.
+type ResourceSummary struct {
+	Available         bool
+	UnavailableReason string
+	StatsAvailable    bool
+	StatsErrorKey     string
+	StatsErrorMessage string
+	CPUPercent        *float64
+	MemoryUsageBytes  *int64
+	MemoryLimitBytes  *int64
+	MemoryPercent     *float64
+}
+
 // Summary is a sanitized row for container list responses.
 type Summary struct {
-	ID            string
-	Names         []string
-	Image         string
-	ImageID       string
-	Labels        map[string]string
-	Ports         []Port
-	RestartPolicy string
-	Runtime       string
-	CreatedAt     string
-	StartedAt     string
-	State         string
-	Status        string
+	ID             string
+	ShortID        string
+	Name           string
+	Names          []string
+	Image          string
+	ImageID        string
+	Labels         map[string]string
+	Ports          []Port
+	PrimaryIP      string
+	Networks       []Network
+	NetworkSummary string
+	Resource       ResourceSummary
+	RestartCount   *int
+	RestartPolicy  string
+	Runtime        string
+	CreatedAt      string
+	StartedAt      string
+	State          string
+	Status         string
+	Health         string
+	ComposeProject string
+	ComposeService string
+	CanStart       bool
+	CanStop        bool
+	CanRestart     bool
+	CanRemove      bool
 }
 
 // Detail is a sanitized container inspect view.
 type Detail struct {
 	Summary
-	Command          []string
-	Entrypoint       []string
-	Mounts           []Mount
-	Networks         []Network
-	RuntimeInfo      RuntimeInfo
-	InspectUpdatedAt string
-	WorkingDir       string
+	Command           []string
+	Entrypoint        []string
+	Environment       []EnvironmentVariable
+	EnvironmentPolicy string
+	Mounts            []Mount
+	Networks          []Network
+	RuntimeInfo       RuntimeInfo
+	InspectUpdatedAt  string
+	WorkingDir        string
 }
 
 // Port describes one exposed or published container port.
@@ -122,6 +204,15 @@ type Mount struct {
 	Destination string
 	Mode        string
 	ReadOnly    bool
+}
+
+// EnvironmentVariable describes one container environment entry after policy application.
+type EnvironmentVariable struct {
+	Key       string
+	Value     string
+	Masked    bool
+	Sensitive bool
+	Source    string
 }
 
 // Network describes one network attachment.
@@ -158,6 +249,49 @@ type ActionResult struct {
 	Runtime      string
 	StatusBefore string
 	StatusAfter  string
+	MessageKey   string
+	Message      string
+}
+
+// RemoveOptions describes guarded remove behavior passed to runtime adapters.
+type RemoveOptions struct {
+	Force bool
+}
+
+// ActionOptions describes service-layer action behavior shared by single and batch actions.
+type ActionOptions struct {
+	Force bool
+}
+
+// BatchActionCommand describes a bounded batch action request.
+type BatchActionCommand struct {
+	Action string
+	IDs    []string
+	Force  bool
+}
+
+// BatchActionResult aggregates per-container action outcomes without hiding partial failures.
+type BatchActionResult struct {
+	Action       string
+	Total        int
+	SuccessCount int
+	FailedCount  int
+	MessageKey   string
+	Message      string
+	RequestID    string
+	Items        []BatchActionItem
+}
+
+// BatchActionItem carries one container action outcome.
+type BatchActionItem struct {
+	ID         string
+	Name       string
+	Action     string
+	Success    bool
+	ErrorCode  string
+	MessageKey string
+	Message    string
+	Result     ActionResult
 }
 
 func parseRef(raw string) (Ref, error) {
@@ -175,4 +309,43 @@ func parseRef(raw string) (Ref, error) {
 		}
 	}
 	return Ref{Value: value}, nil
+}
+
+func normalizeListQuery(query ListQuery) (ListQuery, error) {
+	if query.Limit == 0 {
+		query.Limit = defaultContainerListLimit
+	}
+	if query.Limit < 1 || query.Limit > maxContainerListLimit {
+		return ListQuery{}, errInvalidListQuery
+	}
+	if query.Offset < 0 {
+		return ListQuery{}, errInvalidListQuery
+	}
+	query.Keyword = strings.TrimSpace(query.Keyword)
+	if len(query.Keyword) > containerListKeywordMaxLength {
+		return ListQuery{}, errInvalidListQuery
+	}
+	query.State = strings.TrimSpace(strings.ToLower(query.State))
+	if query.State != "" && !isValidContainerState(query.State) {
+		return ListQuery{}, errInvalidListQuery
+	}
+	query.Health = strings.TrimSpace(strings.ToLower(query.Health))
+	if query.Health != "" && !isValidContainerHealth(query.Health) {
+		return ListQuery{}, errInvalidListQuery
+	}
+	return query, nil
+}
+
+func isValidContainerState(state string) bool {
+	return slices.Contains([]string{"created", "running", "paused", "restarting", "removing", "exited", "dead", "unknown"}, state)
+}
+
+func isValidContainerHealth(health string) bool {
+	return slices.Contains([]string{
+		containerHealthHealthy,
+		containerHealthUnhealthy,
+		containerHealthStarting,
+		containerHealthNone,
+		containerHealthUnavailable,
+	}, health)
 }

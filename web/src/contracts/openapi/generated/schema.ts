@@ -1611,6 +1611,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/ops/containers/batch-actions': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Execute container actions in batch
+     * @description Executes one container action for selected containers and returns per-item success or failure.
+     */
+    post: operations['postContainerBatchActions'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/ops/containers/{id}': {
     parameters: {
       query?: never;
@@ -1705,6 +1725,26 @@ export interface paths {
      * @description Restarts one container when dangerous actions are enabled.
      */
     post: operations['postContainerRestart'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/containers/{id}/remove': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Remove container
+     * @description Removes one container when dangerous actions are enabled. Running containers require force=true.
+     */
+    post: operations['postContainerRemove'];
     delete?: never;
     options?: never;
     head?: never;
@@ -1883,17 +1923,25 @@ export interface components {
     EnvelopedAnnouncementReadAllResponse: components['schemas']['enveloped-announcement-read-all-response'];
     ContainerSummary: components['schemas']['container-summary'];
     ContainerDetail: components['schemas']['container-detail'];
+    ContainerEnvironmentEntry: components['schemas']['container-environment-entry'];
     ContainerPort: components['schemas']['container-port'];
     ContainerMount: components['schemas']['container-mount'];
     ContainerNetwork: components['schemas']['container-network'];
     ContainerLogResponse: components['schemas']['container-log-response'];
     ContainerActionResponse: components['schemas']['container-action-response'];
+    ContainerRemoveRequest: components['schemas']['container-remove-request'];
+    ContainerBatchActionRequest: components['schemas']['container-batch-action-request'];
+    ContainerBatchActionItem: components['schemas']['container-batch-action-item'];
+    ContainerBatchActionResponse: components['schemas']['container-batch-action-response'];
     ContainerRuntimeInfo: components['schemas']['container-runtime-info'];
+    ContainerResourceSummary: components['schemas']['container-resource-summary'];
+    ContainerListSummary: components['schemas']['container-list-summary'];
     ContainerListResponse: components['schemas']['container-list-response'];
     EnvelopedContainerListResponse: components['schemas']['enveloped-container-list-response'];
     EnvelopedContainerDetail: components['schemas']['enveloped-container-detail'];
     EnvelopedContainerLogResponse: components['schemas']['enveloped-container-log-response'];
     EnvelopedContainerActionResponse: components['schemas']['enveloped-container-action-response'];
+    EnvelopedContainerBatchActionResponse: components['schemas']['enveloped-container-batch-action-response'];
     'health-response': {
       /** @enum {string} */
       status: 'ok';
@@ -3688,8 +3736,46 @@ export interface components {
       /** @enum {string} */
       type: 'tcp' | 'udp' | 'sctp';
     };
+    'container-network': {
+      /** @description Runtime network name attached to the container. */
+      name: string;
+      /** @description Runtime network identifier, such as the Docker network ID. */
+      network_id?: string;
+      /** @description Runtime endpoint identifier for this container attachment within the network. */
+      endpoint_id?: string;
+      /** @description Container IP address assigned on this network. */
+      ip_address?: string;
+      /** @description Gateway address reported for this container network attachment. */
+      gateway?: string;
+      /** @description MAC address assigned to the container endpoint on this network. */
+      mac_address?: string;
+    };
+    'container-resource-summary': {
+      /** @description Compatibility mirror of stats_available for existing clients. New UI code should use stats_available. */
+      available: boolean;
+      /** @description Compatibility mirror of stats_error_key for existing clients. */
+      unavailable_reason?: string;
+      /** @description True when Docker runtime CPU or memory stats were collected for this row. */
+      stats_available: boolean;
+      /** @description Stable sanitized reason stats are absent, such as stats_timeout, stats_unavailable, or stats_incomplete. */
+      stats_error_key?: string | null;
+      /** @description Sanitized display-safe stats collection message; raw Docker daemon errors are not exposed. */
+      stats_error_message?: string | null;
+      /** Format: double */
+      cpu_percent?: number;
+      /** Format: int64 */
+      memory_usage_bytes?: number;
+      /** Format: int64 */
+      memory_limit_bytes?: number;
+      /** Format: double */
+      memory_percent?: number;
+    };
     'container-summary': {
       id: string;
+      /** @description Runtime id prefix suitable for list display. */
+      short_id: string;
+      /** @description Primary display name, falling back to id when the runtime returns no names. */
+      name: string;
       names: string[];
       image: string;
       image_id?: string;
@@ -3697,6 +3783,11 @@ export interface components {
       status: string;
       /** @enum {string} */
       state: 'created' | 'running' | 'paused' | 'restarting' | 'removing' | 'exited' | 'dead' | 'unknown';
+      /**
+       * @description Nullable when the runtime cannot determine health on the list path without row-level inspect.
+       * @enum {string|null}
+       */
+      health?: 'healthy' | 'unhealthy' | 'starting' | 'none' | 'unavailable' | null;
       /** @description Container runtime adapter key. */
       runtime: string;
       /** Format: date-time */
@@ -3707,7 +3798,32 @@ export interface components {
         [key: string]: string;
       };
       ports: components['schemas']['container-port'][];
+      /** @description Primary IP address when the runtime list summary exposes one without raw inspect. */
+      primary_ip?: string | null;
+      /** @description Low-cost network attachment summary from the runtime list path. */
+      networks?: components['schemas']['container-network'][];
+      network_summary?: string | null;
+      resource?: components['schemas']['container-resource-summary'];
+      /** @description Nullable when the runtime list path does not expose restart count without inspect. */
+      restart_count?: number | null;
       restart_policy?: string;
+      /** @description Docker Compose project label when present. */
+      compose_project?: string | null;
+      /** @description Docker Compose service label when present. */
+      compose_service?: string | null;
+      can_start?: boolean;
+      can_stop?: boolean;
+      can_restart?: boolean;
+      can_remove?: boolean;
+    };
+    'container-list-summary': {
+      total: number;
+      running: number;
+      stopped: number;
+      error: number;
+      healthy: number;
+      unhealthy: number;
+      health_unavailable: number;
     };
     'container-runtime-info': {
       /** @description Container runtime adapter key. */
@@ -3725,10 +3841,62 @@ export interface components {
     };
     'container-list-response': {
       items: components['schemas']['container-summary'][];
+      total: number;
+      limit: number;
+      offset: number;
+      summary: components['schemas']['container-list-summary'];
       runtime: components['schemas']['container-runtime-info'];
     };
     'enveloped-container-list-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['container-list-response'];
+    };
+    'container-batch-action-request': {
+      /** @enum {string} */
+      action: 'start' | 'stop' | 'restart' | 'remove';
+      ids: string[];
+      /**
+       * @description Applies only to remove. Force remove running containers when true.
+       * @default false
+       */
+      force: boolean;
+    };
+    'container-batch-action-item': {
+      id: string;
+      name?: string;
+      /** @enum {string} */
+      action: 'start' | 'stop' | 'restart' | 'remove';
+      success: boolean;
+      error_code?: string;
+      message_key?: string;
+      message?: string;
+    };
+    /** @description Batch action result summary. The items array contains exactly one result item for each requested container id and preserves the request id order so callers can correlate each result by position as well as by id. */
+    'container-batch-action-response': {
+      total: number;
+      success_count: number;
+      failed_count: number;
+      request_id?: string;
+      /** @description Per-container action results in the same order as the requested container ids, with one response item per requested id. OpenAPI cannot express equality with the request array length, so clients should rely on this contract text plus each item's id for correlation. */
+      items: components['schemas']['container-batch-action-item'][];
+    };
+    'enveloped-container-batch-action-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['container-batch-action-response'];
+    };
+    /** @description Container environment variable entry after policy application. */
+    'container-environment-entry': {
+      /** @description Environment variable name. */
+      key: string;
+      /** @description Environment variable value. Omitted when the active policy hides or masks the value. */
+      value?: string;
+      /** @description Whether the value is intentionally omitted by environment display policy. */
+      masked: boolean;
+      /** @description Whether the key matched the container module sensitive-key heuristic. */
+      sensitive: boolean;
+      /**
+       * @description Runtime source of the environment variable entry.
+       * @enum {string}
+       */
+      source: 'docker';
     };
     'container-mount': {
       /** @description Runtime mount type such as bind, volume, or tmpfs. */
@@ -3739,24 +3907,16 @@ export interface components {
       mode: string;
       read_only: boolean;
     };
-    'container-network': {
-      /** @description Runtime network name attached to the container. */
-      name: string;
-      /** @description Runtime network identifier, such as the Docker network ID. */
-      network_id?: string;
-      /** @description Runtime endpoint identifier for this container attachment within the network. */
-      endpoint_id?: string;
-      /** @description Container IP address assigned on this network. */
-      ip_address?: string;
-      /** @description Gateway address reported for this container network attachment. */
-      gateway?: string;
-      /** @description MAC address assigned to the container endpoint on this network. */
-      mac_address?: string;
-    };
-    /** @description Container detail intentionally omits environment variables and raw inspect payload fields that may contain secrets. */
+    /** @description Container detail returns environment variables according to the configured display policy and omits raw inspect payload fields that may contain secrets. */
     'container-detail': components['schemas']['container-summary'] & {
       command?: string[];
       entrypoint?: string[];
+      environment?: components['schemas']['container-environment-entry'][];
+      /**
+       * @description Effective container environment variable display policy applied to this detail response.
+       * @enum {string}
+       */
+      environment_policy: 'hidden' | 'masked' | 'plain';
       working_dir?: string;
       mounts: components['schemas']['container-mount'][];
       networks: components['schemas']['container-network'][];
@@ -3790,7 +3950,7 @@ export interface components {
       id: string;
       name?: string;
       /** @enum {string} */
-      action: 'start' | 'stop' | 'restart';
+      action: 'start' | 'stop' | 'restart' | 'remove';
       /** @description Container runtime adapter key. */
       runtime: string;
       /** @enum {string} */
@@ -3819,6 +3979,13 @@ export interface components {
       data?: {
         [key: string]: unknown;
       };
+    };
+    'container-remove-request': {
+      /**
+       * @description Force remove a running container. Defaults to false and must be explicitly enabled by the caller.
+       * @default false
+       */
+      force: boolean;
     };
     'dashboard-stat-group-payload': {
       items: {
@@ -3977,6 +4144,24 @@ export interface components {
     'scheduled-task-action-key': string;
     /** @description Announcement id. */
     'announcement-id-path': number;
+    /** @description Optional maximum number of containers to return. The runtime accepts values from 1 to 100. */
+    'container-list-limit': number;
+    /** @description Optional zero-based offset for containers. */
+    'container-list-offset': number;
+    /** @description Optional case-insensitive keyword matched against id, short id, name, image, status, runtime, ports, labels, compose metadata, and low-cost network fields. */
+    'container-list-keyword': string;
+    /** @description Optional normalized container state filter. */
+    'container-list-state':
+      | 'created'
+      | 'running'
+      | 'paused'
+      | 'restarting'
+      | 'removing'
+      | 'exited'
+      | 'dead'
+      | 'unknown';
+    /** @description Optional health filter. Containers whose list row cannot cheaply determine health are excluded when a specific health filter is provided. */
+    'container-list-health': 'healthy' | 'unhealthy' | 'starting' | 'none' | 'unavailable';
     /** @description Container id or name. Clients must call encodeURIComponent before placing this value in the path. The backend must PathUnescape the path parameter and reject empty values, slashes, and control characters with ops.container.error.invalidContainerRef. */
     'container-id-path': string;
     /** @description Number of log lines to return from the end of the stream. */
@@ -8293,7 +8478,18 @@ export interface operations {
   };
   getContainers: {
     parameters: {
-      query?: never;
+      query?: {
+        /** @description Optional maximum number of containers to return. The runtime accepts values from 1 to 100. */
+        limit?: components['parameters']['container-list-limit'];
+        /** @description Optional zero-based offset for containers. */
+        offset?: components['parameters']['container-list-offset'];
+        /** @description Optional case-insensitive keyword matched against id, short id, name, image, status, runtime, ports, labels, compose metadata, and low-cost network fields. */
+        keyword?: components['parameters']['container-list-keyword'];
+        /** @description Optional normalized container state filter. */
+        state?: components['parameters']['container-list-state'];
+        /** @description Optional health filter. Containers whose list row cannot cheaply determine health are excluded when a specific health filter is provided. */
+        health?: components['parameters']['container-list-health'];
+      };
       header?: {
         /** @description Explicit locale override header already supported by the runtime. */
         'X-Graft-Locale'?: components['parameters']['locale-header'];
@@ -8316,6 +8512,62 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['enveloped-container-list-response'];
+        };
+      };
+      /** @description Invalid query parameter. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postContainerBatchActions: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['container-batch-action-request'];
+      };
+    };
+    responses: {
+      /** @description Container batch action result. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-container-batch-action-response'];
+        };
+      };
+      /** @description Invalid batch action request. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
         };
       };
       401: components['responses']['unauthorized'];
@@ -8614,6 +8866,75 @@ export interface operations {
         };
       };
       /** @description Invalid container reference. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Container was not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      /** @description Container state does not allow this action. */
+      409: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postContainerRemove: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Container id or name. Clients must call encodeURIComponent before placing this value in the path. The backend must PathUnescape the path parameter and reject empty values, slashes, and control characters with ops.container.error.invalidContainerRef. */
+        id: components['parameters']['container-id-path'];
+      };
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        'application/json': components['schemas']['container-remove-request'];
+      };
+    };
+    responses: {
+      /** @description Container action result. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-container-action-response'];
+        };
+      };
+      /** @description Invalid container reference or remove request. */
       400: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];

@@ -1,0 +1,38 @@
+type: object
+required:
+  - available
+  - stats_available
+properties:
+  available:
+    type: boolean
+    description: Compatibility mirror of stats_available for existing clients. New UI code should use stats_available.
+  unavailable_reason:
+    type: string
+    description: Compatibility mirror of stats_error_key for existing clients.
+  stats_available:
+    type: boolean
+    description: True when Docker runtime CPU or memory stats were collected for this row.
+  stats_error_key:
+    type: string
+    nullable: true
+    description: Stable sanitized reason stats are absent, such as stats_timeout, stats_unavailable, or stats_incomplete.
+  stats_error_message:
+    type: string
+    nullable: true
+    description: Sanitized display-safe stats collection message; raw Docker daemon errors are not exposed.
+  cpu_percent:
+    type: number
+    format: double
+    minimum: 0
+  memory_usage_bytes:
+    type: integer
+    format: int64
+    minimum: 0
+  memory_limit_bytes:
+    type: integer
+    format: int64
+    minimum: 0
+  memory_percent:
+    type: number
+    format: double
+    minimum: 0

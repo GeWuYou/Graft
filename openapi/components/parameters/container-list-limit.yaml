@@ -1,0 +1,15 @@
+name: limit
+in: query
+required: false
+description: Optional maximum number of containers to return. The runtime accepts values from 1 to 100.
+schema:
+  type: integer
+  minimum: 1
+  maximum: 100
+examples:
+  defaultWindow:
+    summary: Fetch the default container list window
+    value: 20
+  maxWindow:
+    summary: Fetch up to the maximum supported window
+    value: 100

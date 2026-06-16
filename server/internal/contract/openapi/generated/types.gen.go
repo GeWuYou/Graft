@@ -683,19 +683,22 @@ func (e AuditTargetKind) Valid() bool {
 
 // Defines values for ContainerActionResponseAction.
 const (
-	Restart ContainerActionResponseAction = "restart"
-	Start   ContainerActionResponseAction = "start"
-	Stop    ContainerActionResponseAction = "stop"
+	ContainerActionResponseActionRemove  ContainerActionResponseAction = "remove"
+	ContainerActionResponseActionRestart ContainerActionResponseAction = "restart"
+	ContainerActionResponseActionStart   ContainerActionResponseAction = "start"
+	ContainerActionResponseActionStop    ContainerActionResponseAction = "stop"
 )
 
 // Valid indicates whether the value is a known member of the ContainerActionResponseAction enum.
 func (e ContainerActionResponseAction) Valid() bool {
 	switch e {
-	case Restart:
+	case ContainerActionResponseActionRemove:
 		return true
-	case Start:
+	case ContainerActionResponseActionRestart:
 		return true
-	case Stop:
+	case ContainerActionResponseActionStart:
+		return true
+	case ContainerActionResponseActionStop:
 		return true
 	default:
 		return false
@@ -717,6 +720,102 @@ func (e ContainerActionResponseResult) Valid() bool {
 	case Completed:
 		return true
 	case Unchanged:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ContainerBatchActionItemAction.
+const (
+	ContainerBatchActionItemActionRemove  ContainerBatchActionItemAction = "remove"
+	ContainerBatchActionItemActionRestart ContainerBatchActionItemAction = "restart"
+	ContainerBatchActionItemActionStart   ContainerBatchActionItemAction = "start"
+	ContainerBatchActionItemActionStop    ContainerBatchActionItemAction = "stop"
+)
+
+// Valid indicates whether the value is a known member of the ContainerBatchActionItemAction enum.
+func (e ContainerBatchActionItemAction) Valid() bool {
+	switch e {
+	case ContainerBatchActionItemActionRemove:
+		return true
+	case ContainerBatchActionItemActionRestart:
+		return true
+	case ContainerBatchActionItemActionStart:
+		return true
+	case ContainerBatchActionItemActionStop:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ContainerBatchActionRequestAction.
+const (
+	Remove  ContainerBatchActionRequestAction = "remove"
+	Restart ContainerBatchActionRequestAction = "restart"
+	Start   ContainerBatchActionRequestAction = "start"
+	Stop    ContainerBatchActionRequestAction = "stop"
+)
+
+// Valid indicates whether the value is a known member of the ContainerBatchActionRequestAction enum.
+func (e ContainerBatchActionRequestAction) Valid() bool {
+	switch e {
+	case Remove:
+		return true
+	case Restart:
+		return true
+	case Start:
+		return true
+	case Stop:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ContainerDetailEnvironmentPolicy.
+const (
+	ContainerDetailEnvironmentPolicyHidden ContainerDetailEnvironmentPolicy = "hidden"
+	ContainerDetailEnvironmentPolicyMasked ContainerDetailEnvironmentPolicy = "masked"
+	ContainerDetailEnvironmentPolicyPlain  ContainerDetailEnvironmentPolicy = "plain"
+)
+
+// Valid indicates whether the value is a known member of the ContainerDetailEnvironmentPolicy enum.
+func (e ContainerDetailEnvironmentPolicy) Valid() bool {
+	switch e {
+	case ContainerDetailEnvironmentPolicyHidden:
+		return true
+	case ContainerDetailEnvironmentPolicyMasked:
+		return true
+	case ContainerDetailEnvironmentPolicyPlain:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ContainerDetailHealth.
+const (
+	ContainerDetailHealthHealthy     ContainerDetailHealth = "healthy"
+	ContainerDetailHealthNone        ContainerDetailHealth = "none"
+	ContainerDetailHealthStarting    ContainerDetailHealth = "starting"
+	ContainerDetailHealthUnavailable ContainerDetailHealth = "unavailable"
+	ContainerDetailHealthUnhealthy   ContainerDetailHealth = "unhealthy"
+)
+
+// Valid indicates whether the value is a known member of the ContainerDetailHealth enum.
+func (e ContainerDetailHealth) Valid() bool {
+	switch e {
+	case ContainerDetailHealthHealthy:
+		return true
+	case ContainerDetailHealthNone:
+		return true
+	case ContainerDetailHealthStarting:
+		return true
+	case ContainerDetailHealthUnavailable:
+		return true
+	case ContainerDetailHealthUnhealthy:
 		return true
 	default:
 		return false
@@ -810,6 +909,33 @@ const (
 func (e ContainerStopErrorResponseSuccess) Valid() bool {
 	switch e {
 	case PostContainerStop500JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ContainerSummaryHealth.
+const (
+	ContainerSummaryHealthHealthy     ContainerSummaryHealth = "healthy"
+	ContainerSummaryHealthNone        ContainerSummaryHealth = "none"
+	ContainerSummaryHealthStarting    ContainerSummaryHealth = "starting"
+	ContainerSummaryHealthUnavailable ContainerSummaryHealth = "unavailable"
+	ContainerSummaryHealthUnhealthy   ContainerSummaryHealth = "unhealthy"
+)
+
+// Valid indicates whether the value is a known member of the ContainerSummaryHealth enum.
+func (e ContainerSummaryHealth) Valid() bool {
+	switch e {
+	case ContainerSummaryHealthHealthy:
+		return true
+	case ContainerSummaryHealthNone:
+		return true
+	case ContainerSummaryHealthStarting:
+		return true
+	case ContainerSummaryHealthUnavailable:
+		return true
+	case ContainerSummaryHealthUnhealthy:
 		return true
 	default:
 		return false
@@ -1028,22 +1154,22 @@ func (e ErrorResponseSuccess) Valid() bool {
 
 // Defines values for EvidenceLinkLinkState.
 const (
-	Available   EvidenceLinkLinkState = "available"
-	Empty       EvidenceLinkLinkState = "empty"
-	Unavailable EvidenceLinkLinkState = "unavailable"
-	Unsupported EvidenceLinkLinkState = "unsupported"
+	EvidenceLinkLinkStateAvailable   EvidenceLinkLinkState = "available"
+	EvidenceLinkLinkStateEmpty       EvidenceLinkLinkState = "empty"
+	EvidenceLinkLinkStateUnavailable EvidenceLinkLinkState = "unavailable"
+	EvidenceLinkLinkStateUnsupported EvidenceLinkLinkState = "unsupported"
 )
 
 // Valid indicates whether the value is a known member of the EvidenceLinkLinkState enum.
 func (e EvidenceLinkLinkState) Valid() bool {
 	switch e {
-	case Available:
+	case EvidenceLinkLinkStateAvailable:
 		return true
-	case Empty:
+	case EvidenceLinkLinkStateEmpty:
 		return true
-	case Unavailable:
+	case EvidenceLinkLinkStateUnavailable:
 		return true
-	case Unsupported:
+	case EvidenceLinkLinkStateUnsupported:
 		return true
 	default:
 		return false
@@ -1190,16 +1316,16 @@ func (e ModuleRuntimeItemRuntimeStatus) Valid() bool {
 
 // Defines values for ModuleRuntimeMigrationStatusStatus.
 const (
-	Declared    ModuleRuntimeMigrationStatusStatus = "declared"
-	NotDeclared ModuleRuntimeMigrationStatusStatus = "not_declared"
+	ModuleRuntimeMigrationStatusStatusDeclared    ModuleRuntimeMigrationStatusStatus = "declared"
+	ModuleRuntimeMigrationStatusStatusNotDeclared ModuleRuntimeMigrationStatusStatus = "not_declared"
 )
 
 // Valid indicates whether the value is a known member of the ModuleRuntimeMigrationStatusStatus enum.
 func (e ModuleRuntimeMigrationStatusStatus) Valid() bool {
 	switch e {
-	case Declared:
+	case ModuleRuntimeMigrationStatusStatusDeclared:
 		return true
-	case NotDeclared:
+	case ModuleRuntimeMigrationStatusStatusNotDeclared:
 		return true
 	default:
 		return false
@@ -1595,19 +1721,19 @@ func (e ScheduledTaskRunItemJobCategory) Valid() bool {
 
 // Defines values for ScheduledTaskRunItemStatus.
 const (
-	Failed  ScheduledTaskRunItemStatus = "failed"
-	Running ScheduledTaskRunItemStatus = "running"
-	Success ScheduledTaskRunItemStatus = "success"
+	ScheduledTaskRunItemStatusFailed  ScheduledTaskRunItemStatus = "failed"
+	ScheduledTaskRunItemStatusRunning ScheduledTaskRunItemStatus = "running"
+	ScheduledTaskRunItemStatusSuccess ScheduledTaskRunItemStatus = "success"
 )
 
 // Valid indicates whether the value is a known member of the ScheduledTaskRunItemStatus enum.
 func (e ScheduledTaskRunItemStatus) Valid() bool {
 	switch e {
-	case Failed:
+	case ScheduledTaskRunItemStatusFailed:
 		return true
-	case Running:
+	case ScheduledTaskRunItemStatusRunning:
 		return true
-	case Success:
+	case ScheduledTaskRunItemStatusSuccess:
 		return true
 	default:
 		return false
@@ -1830,6 +1956,69 @@ func (e UpdateUserStatusRequestStatus) Valid() bool {
 	case UpdateUserStatusRequestStatusDisabled:
 		return true
 	case UpdateUserStatusRequestStatusEnabled:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ContainerListHealth.
+const (
+	ContainerListHealthHealthy     ContainerListHealth = "healthy"
+	ContainerListHealthNone        ContainerListHealth = "none"
+	ContainerListHealthStarting    ContainerListHealth = "starting"
+	ContainerListHealthUnavailable ContainerListHealth = "unavailable"
+	ContainerListHealthUnhealthy   ContainerListHealth = "unhealthy"
+)
+
+// Valid indicates whether the value is a known member of the ContainerListHealth enum.
+func (e ContainerListHealth) Valid() bool {
+	switch e {
+	case ContainerListHealthHealthy:
+		return true
+	case ContainerListHealthNone:
+		return true
+	case ContainerListHealthStarting:
+		return true
+	case ContainerListHealthUnavailable:
+		return true
+	case ContainerListHealthUnhealthy:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ContainerListState.
+const (
+	ContainerListStateCreated    ContainerListState = "created"
+	ContainerListStateDead       ContainerListState = "dead"
+	ContainerListStateExited     ContainerListState = "exited"
+	ContainerListStatePaused     ContainerListState = "paused"
+	ContainerListStateRemoving   ContainerListState = "removing"
+	ContainerListStateRestarting ContainerListState = "restarting"
+	ContainerListStateRunning    ContainerListState = "running"
+	ContainerListStateUnknown    ContainerListState = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the ContainerListState enum.
+func (e ContainerListState) Valid() bool {
+	switch e {
+	case ContainerListStateCreated:
+		return true
+	case ContainerListStateDead:
+		return true
+	case ContainerListStateExited:
+		return true
+	case ContainerListStatePaused:
+		return true
+	case ContainerListStateRemoving:
+		return true
+	case ContainerListStateRestarting:
+		return true
+	case ContainerListStateRunning:
+		return true
+	case ContainerListStateUnknown:
 		return true
 	default:
 		return false
@@ -2163,6 +2352,69 @@ func (e GetNotificationsParamsStatus) Valid() bool {
 	case GetNotificationsParamsStatusRead:
 		return true
 	case GetNotificationsParamsStatusUnread:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetContainersParamsState.
+const (
+	Created    GetContainersParamsState = "created"
+	Dead       GetContainersParamsState = "dead"
+	Exited     GetContainersParamsState = "exited"
+	Paused     GetContainersParamsState = "paused"
+	Removing   GetContainersParamsState = "removing"
+	Restarting GetContainersParamsState = "restarting"
+	Running    GetContainersParamsState = "running"
+	Unknown    GetContainersParamsState = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the GetContainersParamsState enum.
+func (e GetContainersParamsState) Valid() bool {
+	switch e {
+	case Created:
+		return true
+	case Dead:
+		return true
+	case Exited:
+		return true
+	case Paused:
+		return true
+	case Removing:
+		return true
+	case Restarting:
+		return true
+	case Running:
+		return true
+	case Unknown:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetContainersParamsHealth.
+const (
+	Healthy     GetContainersParamsHealth = "healthy"
+	None        GetContainersParamsHealth = "none"
+	Starting    GetContainersParamsHealth = "starting"
+	Unavailable GetContainersParamsHealth = "unavailable"
+	Unhealthy   GetContainersParamsHealth = "unhealthy"
+)
+
+// Valid indicates whether the value is a known member of the GetContainersParamsHealth enum.
+func (e GetContainersParamsHealth) Valid() bool {
+	switch e {
+	case Healthy:
+		return true
+	case None:
+		return true
+	case Starting:
+		return true
+	case Unavailable:
+		return true
+	case Unhealthy:
 		return true
 	default:
 		return false
@@ -2725,40 +2977,145 @@ type ContainerActionResponseAction string
 // ContainerActionResponseResult defines model for ContainerActionResponse.Result.
 type ContainerActionResponseResult string
 
+// ContainerBatchActionItem defines model for container-batch-action-item.
+type ContainerBatchActionItem struct {
+	Action     ContainerBatchActionItemAction `json:"action"`
+	ErrorCode  *string                        `json:"error_code,omitempty"`
+	Id         string                         `json:"id"`
+	Message    *string                        `json:"message,omitempty"`
+	MessageKey *string                        `json:"message_key,omitempty"`
+	Name       *string                        `json:"name,omitempty"`
+	Success    bool                           `json:"success"`
+}
+
+// ContainerBatchActionItemAction defines model for ContainerBatchActionItem.Action.
+type ContainerBatchActionItemAction string
+
+// ContainerBatchActionRequest defines model for container-batch-action-request.
+type ContainerBatchActionRequest struct {
+	Action ContainerBatchActionRequestAction `json:"action"`
+
+	// Force Applies only to remove. Force remove running containers when true.
+	Force *bool    `json:"force,omitempty"`
+	Ids   []string `json:"ids"`
+}
+
+// ContainerBatchActionRequestAction defines model for ContainerBatchActionRequest.Action.
+type ContainerBatchActionRequestAction string
+
+// ContainerBatchActionResponse defines model for container-batch-action-response.
+type ContainerBatchActionResponse struct {
+	FailedCount  int                        `json:"failed_count"`
+	Items        []ContainerBatchActionItem `json:"items"`
+	RequestId    *string                    `json:"request_id,omitempty"`
+	SuccessCount int                        `json:"success_count"`
+	Total        int                        `json:"total"`
+}
+
 // ContainerDetail defines model for container-detail.
 type ContainerDetail struct {
-	Command          *[]string          `json:"command,omitempty"`
-	CreatedAt        time.Time          `json:"created_at"`
-	Entrypoint       *[]string          `json:"entrypoint,omitempty"`
-	Id               string             `json:"id"`
-	Image            string             `json:"image"`
-	ImageId          *string            `json:"image_id,omitempty"`
-	InspectUpdatedAt *time.Time         `json:"inspect_updated_at,omitempty"`
-	Labels           *map[string]string `json:"labels,omitempty"`
-	Mounts           []ContainerMount   `json:"mounts"`
-	Names            []string           `json:"names"`
-	Networks         []ContainerNetwork `json:"networks"`
-	Ports            []ContainerPort    `json:"ports"`
-	RestartPolicy    *string            `json:"restart_policy,omitempty"`
+	CanRemove  *bool     `json:"can_remove,omitempty"`
+	CanRestart *bool     `json:"can_restart,omitempty"`
+	CanStart   *bool     `json:"can_start,omitempty"`
+	CanStop    *bool     `json:"can_stop,omitempty"`
+	Command    *[]string `json:"command,omitempty"`
+
+	// ComposeProject Docker Compose project label when present.
+	ComposeProject *string `json:"compose_project,omitempty"`
+
+	// ComposeService Docker Compose service label when present.
+	ComposeService *string                      `json:"compose_service,omitempty"`
+	CreatedAt      time.Time                    `json:"created_at"`
+	Entrypoint     *[]string                    `json:"entrypoint,omitempty"`
+	Environment    *[]ContainerEnvironmentEntry `json:"environment,omitempty"`
+
+	// EnvironmentPolicy Effective container environment variable display policy applied to this detail response.
+	EnvironmentPolicy *ContainerDetailEnvironmentPolicy `json:"environment_policy,omitempty"`
+
+	// Health Nullable when the runtime cannot determine health on the list path without row-level inspect.
+	Health           *ContainerDetailHealth `json:"health,omitempty"`
+	Id               string                 `json:"id"`
+	Image            string                 `json:"image"`
+	ImageId          *string                `json:"image_id,omitempty"`
+	InspectUpdatedAt *time.Time             `json:"inspect_updated_at,omitempty"`
+	Labels           *map[string]string     `json:"labels,omitempty"`
+	Mounts           []ContainerMount       `json:"mounts"`
+
+	// Name Primary display name, falling back to id when the runtime returns no names.
+	Name           string             `json:"name"`
+	Names          []string           `json:"names"`
+	NetworkSummary *string            `json:"network_summary,omitempty"`
+	Networks       []ContainerNetwork `json:"networks"`
+	Ports          []ContainerPort    `json:"ports"`
+
+	// PrimaryIp Primary IP address when the runtime list summary exposes one without raw inspect.
+	PrimaryIp *string                   `json:"primary_ip,omitempty"`
+	Resource  *ContainerResourceSummary `json:"resource,omitempty"`
+
+	// RestartCount Nullable when the runtime list path does not expose restart count without inspect.
+	RestartCount  *int    `json:"restart_count,omitempty"`
+	RestartPolicy *string `json:"restart_policy,omitempty"`
 
 	// Runtime Container runtime adapter key.
 	Runtime     string               `json:"runtime"`
 	RuntimeInfo ContainerRuntimeInfo `json:"runtime_info"`
-	StartedAt   *time.Time           `json:"started_at,omitempty"`
-	State       ContainerDetailState `json:"state"`
+
+	// ShortId Runtime id prefix suitable for list display.
+	ShortId   string               `json:"short_id"`
+	StartedAt *time.Time           `json:"started_at,omitempty"`
+	State     ContainerDetailState `json:"state"`
 
 	// Status Runtime-provided human-readable status.
 	Status     string  `json:"status"`
 	WorkingDir *string `json:"working_dir,omitempty"`
 }
 
+// ContainerDetailEnvironmentPolicy Effective container environment variable display policy applied to this detail response.
+type ContainerDetailEnvironmentPolicy string
+
+// ContainerDetailHealth Nullable when the runtime cannot determine health on the list path without row-level inspect.
+type ContainerDetailHealth string
+
 // ContainerDetailState defines model for ContainerDetail.State.
 type ContainerDetailState string
+
+// ContainerEnvironmentEntry Container environment variable entry after policy application.
+type ContainerEnvironmentEntry struct {
+	// Key Environment variable name.
+	Key string `json:"key"`
+
+	// Masked Whether the value is intentionally omitted by environment display policy.
+	Masked bool `json:"masked"`
+
+	// Sensitive Whether the key matched the container module sensitive-key heuristic.
+	Sensitive bool `json:"sensitive"`
+
+	// Source Runtime source of the environment variable entry.
+	Source string `json:"source"`
+
+	// Value Environment variable value. Omitted when the active policy hides or masks the value.
+	Value *string `json:"value,omitempty"`
+}
 
 // ContainerListResponse defines model for container-list-response.
 type ContainerListResponse struct {
 	Items   []ContainerSummary   `json:"items"`
+	Limit   int                  `json:"limit"`
+	Offset  int                  `json:"offset"`
 	Runtime ContainerRuntimeInfo `json:"runtime"`
+	Summary ContainerListSummary `json:"summary"`
+	Total   int                  `json:"total"`
+}
+
+// ContainerListSummary defines model for container-list-summary.
+type ContainerListSummary struct {
+	Error             int `json:"error"`
+	HealthUnavailable int `json:"health_unavailable"`
+	Healthy           int `json:"healthy"`
+	Running           int `json:"running"`
+	Stopped           int `json:"stopped"`
+	Total             int `json:"total"`
+	Unhealthy         int `json:"unhealthy"`
 }
 
 // ContainerLogResponse defines model for container-log-response.
@@ -2825,6 +3182,34 @@ type ContainerPort struct {
 // ContainerPortType defines model for ContainerPort.Type.
 type ContainerPortType string
 
+// ContainerRemoveRequest defines model for container-remove-request.
+type ContainerRemoveRequest struct {
+	// Force Force remove a running container. Defaults to false and must be explicitly enabled by the caller.
+	Force *bool `json:"force,omitempty"`
+}
+
+// ContainerResourceSummary defines model for container-resource-summary.
+type ContainerResourceSummary struct {
+	// Available Compatibility mirror of stats_available for existing clients. New UI code should use stats_available.
+	Available        bool     `json:"available"`
+	CpuPercent       *float64 `json:"cpu_percent,omitempty"`
+	MemoryLimitBytes *int64   `json:"memory_limit_bytes,omitempty"`
+	MemoryPercent    *float64 `json:"memory_percent,omitempty"`
+	MemoryUsageBytes *int64   `json:"memory_usage_bytes,omitempty"`
+
+	// StatsAvailable True when Docker runtime CPU or memory stats were collected for this row.
+	StatsAvailable bool `json:"stats_available"`
+
+	// StatsErrorKey Stable sanitized reason stats are absent, such as stats_timeout, stats_unavailable, or stats_incomplete.
+	StatsErrorKey *string `json:"stats_error_key,omitempty"`
+
+	// StatsErrorMessage Sanitized display-safe stats collection message; raw Docker daemon errors are not exposed.
+	StatsErrorMessage *string `json:"stats_error_message,omitempty"`
+
+	// UnavailableReason Compatibility mirror of stats_error_key for existing clients.
+	UnavailableReason *string `json:"unavailable_reason,omitempty"`
+}
+
 // ContainerRuntimeInfo defines model for container-runtime-info.
 type ContainerRuntimeInfo struct {
 	ApiVersion        *string `json:"api_version,omitempty"`
@@ -2870,23 +3255,56 @@ type ContainerStopErrorResponseSuccess bool
 
 // ContainerSummary defines model for container-summary.
 type ContainerSummary struct {
-	CreatedAt     time.Time          `json:"created_at"`
-	Id            string             `json:"id"`
-	Image         string             `json:"image"`
-	ImageId       *string            `json:"image_id,omitempty"`
-	Labels        *map[string]string `json:"labels,omitempty"`
-	Names         []string           `json:"names"`
-	Ports         []ContainerPort    `json:"ports"`
-	RestartPolicy *string            `json:"restart_policy,omitempty"`
+	CanRemove  *bool `json:"can_remove,omitempty"`
+	CanRestart *bool `json:"can_restart,omitempty"`
+	CanStart   *bool `json:"can_start,omitempty"`
+	CanStop    *bool `json:"can_stop,omitempty"`
+
+	// ComposeProject Docker Compose project label when present.
+	ComposeProject *string `json:"compose_project,omitempty"`
+
+	// ComposeService Docker Compose service label when present.
+	ComposeService *string   `json:"compose_service,omitempty"`
+	CreatedAt      time.Time `json:"created_at"`
+
+	// Health Nullable when the runtime cannot determine health on the list path without row-level inspect.
+	Health  *ContainerSummaryHealth `json:"health,omitempty"`
+	Id      string                  `json:"id"`
+	Image   string                  `json:"image"`
+	ImageId *string                 `json:"image_id,omitempty"`
+	Labels  *map[string]string      `json:"labels,omitempty"`
+
+	// Name Primary display name, falling back to id when the runtime returns no names.
+	Name           string   `json:"name"`
+	Names          []string `json:"names"`
+	NetworkSummary *string  `json:"network_summary,omitempty"`
+
+	// Networks Low-cost network attachment summary from the runtime list path.
+	Networks *[]ContainerNetwork `json:"networks,omitempty"`
+	Ports    []ContainerPort     `json:"ports"`
+
+	// PrimaryIp Primary IP address when the runtime list summary exposes one without raw inspect.
+	PrimaryIp *string                   `json:"primary_ip,omitempty"`
+	Resource  *ContainerResourceSummary `json:"resource,omitempty"`
+
+	// RestartCount Nullable when the runtime list path does not expose restart count without inspect.
+	RestartCount  *int    `json:"restart_count,omitempty"`
+	RestartPolicy *string `json:"restart_policy,omitempty"`
 
 	// Runtime Container runtime adapter key.
-	Runtime   string                `json:"runtime"`
+	Runtime string `json:"runtime"`
+
+	// ShortId Runtime id prefix suitable for list display.
+	ShortId   string                `json:"short_id"`
 	StartedAt *time.Time            `json:"started_at,omitempty"`
 	State     ContainerSummaryState `json:"state"`
 
 	// Status Runtime-provided human-readable status.
 	Status string `json:"status"`
 }
+
+// ContainerSummaryHealth Nullable when the runtime cannot determine health on the list path without row-level inspect.
+type ContainerSummaryHealth string
 
 // ContainerSummaryState defines model for ContainerSummary.State.
 type ContainerSummaryState string
@@ -3345,12 +3763,32 @@ type EnvelopedContainerActionResponse struct {
 	TraceId string `json:"traceId"`
 }
 
+// EnvelopedContainerBatchActionResponse defines model for enveloped-container-batch-action-response.
+type EnvelopedContainerBatchActionResponse struct {
+	// Code Existing canonical response code.
+	Code string                       `json:"code"`
+	Data ContainerBatchActionResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
 // EnvelopedContainerDetail defines model for enveloped-container-detail.
 type EnvelopedContainerDetail struct {
 	// Code Existing canonical response code.
 	Code string `json:"code"`
 
-	// Data Container detail intentionally omits environment variables and raw inspect payload fields that may contain secrets.
+	// Data Container detail returns environment variables according to the configured display policy and omits raw inspect payload fields that may contain secrets.
 	Data ContainerDetail `json:"data"`
 
 	// Locale Present on localized error flows and omitted on normal success.
@@ -5016,6 +5454,21 @@ type AnnouncementIdPath = int64
 // ContainerIdPath defines model for container-id-path.
 type ContainerIdPath = string
 
+// ContainerListHealth defines model for container-list-health.
+type ContainerListHealth string
+
+// ContainerListKeyword defines model for container-list-keyword.
+type ContainerListKeyword = string
+
+// ContainerListLimit defines model for container-list-limit.
+type ContainerListLimit = int
+
+// ContainerListOffset defines model for container-list-offset.
+type ContainerListOffset = int
+
+// ContainerListState defines model for container-list-state.
+type ContainerListState string
+
 // ContainerLogsSince defines model for container-logs-since.
 type ContainerLogsSince = string
 
@@ -5660,6 +6113,37 @@ type PostNotificationReadParams struct {
 
 // GetContainersParams defines parameters for GetContainers.
 type GetContainersParams struct {
+	// Limit Optional maximum number of containers to return. The runtime accepts values from 1 to 100.
+	Limit *ContainerListLimit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Offset Optional zero-based offset for containers.
+	Offset *ContainerListOffset `form:"offset,omitempty" json:"offset,omitempty"`
+
+	// Keyword Optional case-insensitive keyword matched against id, short id, name, image, status, runtime, ports, labels, compose metadata, and low-cost network fields.
+	Keyword *ContainerListKeyword `form:"keyword,omitempty" json:"keyword,omitempty"`
+
+	// State Optional normalized container state filter.
+	State *GetContainersParamsState `form:"state,omitempty" json:"state,omitempty"`
+
+	// Health Optional health filter. Containers whose list row cannot cheaply determine health are excluded when a specific health filter is provided.
+	Health *GetContainersParamsHealth `form:"health,omitempty" json:"health,omitempty"`
+
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetContainersParamsState defines parameters for GetContainers.
+type GetContainersParamsState string
+
+// GetContainersParamsHealth defines parameters for GetContainers.
+type GetContainersParamsHealth string
+
+// PostContainerBatchActionsParams defines parameters for PostContainerBatchActions.
+type PostContainerBatchActionsParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
@@ -5695,6 +6179,16 @@ type GetContainerLogsParams struct {
 	// Stderr Whether stderr stream lines should be included.
 	Stderr *ContainerLogsStderr `form:"stderr,omitempty" json:"stderr,omitempty"`
 
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostContainerRemoveParams defines parameters for PostContainerRemove.
+type PostContainerRemoveParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
@@ -6241,6 +6735,12 @@ type PostAuthLoginJSONRequestBody = LoginRequest
 
 // PostNotificationsReadAllJSONRequestBody defines body for PostNotificationsReadAll for application/json ContentType.
 type PostNotificationsReadAllJSONRequestBody = NotificationReadAllRequest
+
+// PostContainerBatchActionsJSONRequestBody defines body for PostContainerBatchActions for application/json ContentType.
+type PostContainerBatchActionsJSONRequestBody = ContainerBatchActionRequest
+
+// PostContainerRemoveJSONRequestBody defines body for PostContainerRemove for application/json ContentType.
+type PostContainerRemoveJSONRequestBody = ContainerRemoveRequest
 
 // PostRolesJSONRequestBody defines body for PostRoles for application/json ContentType.
 type PostRolesJSONRequestBody = CreateRoleRequest

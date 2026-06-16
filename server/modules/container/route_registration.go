@@ -7,12 +7,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
 	"graft/server/internal/contract/httpheader"
+	messagecontract "graft/server/internal/contract/message"
 	containeropenapi "graft/server/internal/contract/openapi/container"
 	"graft/server/internal/httpx"
 	"graft/server/internal/module"
@@ -75,18 +78,31 @@ func registerRoutes(ctx *module.Context, moduleName string, service *service) er
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerRestartPermission.String(), publisher),
 		routes.handleRestart,
 	)
+	group.POST(
+		containercontract.ContainerRemoveRoute,
+		httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerRemovePermission.String(), publisher),
+		routes.handleRemove,
+	)
+	group.POST(
+		containercontract.ContainerBatchActionsRoute,
+		// 批量操作路由先通过认证中间件建立请求身份，再由 handler 按 action 分派精确权限。
+		httpx.RequirePermission(ctx.I18n, authService, authorizer, "", publisher),
+		routes.handleBatchAction,
+	)
 	return nil
 }
 
 func (r routeRuntime) handleList(ginCtx *gin.Context) {
-	// Keep generated binding on routes with OpenAPI header parameters even when the handler does not read them.
-	_ = bindGetContainersParams(ginCtx)
-	runtime, items, err := r.service.List(ginCtx.Request.Context())
+	params, ok := bindGetContainersParams(ginCtx, r.ctx)
+	if !ok {
+		return
+	}
+	result, err := r.service.List(ginCtx.Request.Context(), listQueryFromParams(params))
 	if err != nil {
 		r.writeRouteError(ginCtx, err)
 		return
 	}
-	httpx.WriteSuccess(ginCtx, http.StatusOK, toContainerListResponse(runtime, items))
+	httpx.WriteSuccess(ginCtx, http.StatusOK, toContainerListResponse(result))
 }
 
 func (r routeRuntime) handleDetail(ginCtx *gin.Context) {
@@ -96,7 +112,11 @@ func (r routeRuntime) handleDetail(ginCtx *gin.Context) {
 	if !ok {
 		return
 	}
-	detail, err := r.service.Detail(ginCtx.Request.Context(), ref)
+	requestCtx := ginCtx.Request.Context()
+	if r.authorizeEnvironmentPlainAccess(ginCtx) {
+		requestCtx = withEnvironmentPlainAccess(requestCtx)
+	}
+	detail, err := r.service.Detail(requestCtx, ref)
 	if err != nil {
 		r.writeRouteError(ginCtx, err)
 		return
@@ -134,6 +154,105 @@ func (r routeRuntime) handleStop(ginCtx *gin.Context) {
 
 func (r routeRuntime) handleRestart(ginCtx *gin.Context) {
 	r.handleAction(ginCtx, r.service.Restart)
+}
+
+func (r routeRuntime) handleRemove(ginCtx *gin.Context) {
+	_ = bindPostContainerRemoveParams(ginCtx)
+	var request containeropenapi.PostContainerRemoveJSONRequestBody
+	if !bindOptionalJSON(ginCtx, r, &request) {
+		return
+	}
+	ref, ok := readRef(ginCtx, r)
+	if !ok {
+		return
+	}
+	result, err := r.service.Remove(ginCtx.Request.Context(), ref, RemoveOptions{Force: boolPtrValue(request.Force)})
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, toContainerAction(result))
+}
+
+func (r routeRuntime) handleBatchAction(ginCtx *gin.Context) {
+	_ = bindPostContainerBatchActionsParams(ginCtx)
+	var request containeropenapi.PostContainerBatchActionsJSONRequestBody
+	if !bindRequiredJSON(ginCtx, r, &request) {
+		return
+	}
+	if !request.Action.Valid() {
+		r.writeRouteError(ginCtx, errInvalidBatchAction)
+		return
+	}
+	if !r.authorizeBatchAction(ginCtx, string(request.Action)) {
+		return
+	}
+	result, err := r.service.BatchAction(ginCtx.Request.Context(), BatchActionCommand{
+		Action: string(request.Action),
+		IDs:    request.Ids,
+		Force:  boolPtrValue(request.Force),
+	})
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, toContainerBatchAction(result))
+}
+
+func (r routeRuntime) authorizeBatchAction(ginCtx *gin.Context, action string) bool {
+	permission := permissionForAction(action)
+	if permission == "" {
+		r.writeRouteError(ginCtx, errInvalidBatchAction)
+		return false
+	}
+	authorizer, err := resolveAuthorizer(r.ctx)
+	if err != nil {
+		httpx.WriteLocalizedError(ginCtx, r.ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+		return false
+	}
+	requestAuth, ok := moduleapi.RequestAuthContextFromContext(ginCtx.Request.Context())
+	if !ok {
+		httpx.WriteLocalizedError(ginCtx, r.ctx.I18n, http.StatusUnauthorized, messagecontract.AuthTokenMissing.String(), nil)
+		return false
+	}
+	if err := authorizer.Authorize(ginCtx.Request.Context(), requestAuth, permission); err != nil {
+		httpx.WriteLocalizedError(ginCtx, r.ctx.I18n, http.StatusForbidden, messagecontract.AuthForbidden.String(), map[string]any{
+			"permission": permission,
+		})
+		return false
+	}
+	return true
+}
+
+func (r routeRuntime) authorizeEnvironmentPlainAccess(ginCtx *gin.Context) bool {
+	authorizer, err := resolveAuthorizer(r.ctx)
+	if err != nil {
+		return false
+	}
+	requestAuth, ok := moduleapi.RequestAuthContextFromContext(ginCtx.Request.Context())
+	if !ok {
+		return false
+	}
+	return authorizer.Authorize(
+		ginCtx.Request.Context(),
+		requestAuth,
+		containercontract.ContainerEnvironmentPermission.String(),
+	) == nil
+}
+
+func permissionForAction(action string) string {
+	switch action {
+	case containerActionStart:
+		return containercontract.ContainerStartPermission.String()
+	case containerActionStop:
+		return containercontract.ContainerStopPermission.String()
+	case containerActionRestart:
+		return containercontract.ContainerRestartPermission.String()
+	case containerActionRemove:
+		return containercontract.ContainerRemovePermission.String()
+	default:
+		return ""
+	}
 }
 
 func (r routeRuntime) handleAction(ginCtx *gin.Context, action func(context.Context, Ref) (ActionResult, error)) {
@@ -186,9 +305,43 @@ func resolveAuthorizer(ctx *module.Context) (moduleapi.Authorizer, error) {
 	return authorizer, nil
 }
 
-func bindGetContainersParams(ginCtx *gin.Context) containeropenapi.GetContainersParams {
+func bindGetContainersParams(ginCtx *gin.Context, ctx *module.Context) (containeropenapi.GetContainersParams, bool) {
 	locale, requestID := commonHeaders(ginCtx)
-	return containeropenapi.GetContainersParams{XGraftLocale: locale, XRequestId: requestID}
+	params := containeropenapi.GetContainersParams{XGraftLocale: locale, XRequestId: requestID}
+	limit, ok := queryBoundedInt(ginCtx, ctx, "limit", 1, maxContainerListLimit)
+	if !ok {
+		return containeropenapi.GetContainersParams{}, false
+	}
+	params.Limit = limit
+	offset, ok := queryBoundedInt(ginCtx, ctx, "offset", 0, 0)
+	if !ok {
+		return containeropenapi.GetContainersParams{}, false
+	}
+	params.Offset = offset
+	if value := strings.TrimSpace(ginCtx.Query("keyword")); value != "" {
+		if len(value) > containerListKeywordMaxLength {
+			writeInvalidContainerQuery(ginCtx, ctx, "keyword")
+			return containeropenapi.GetContainersParams{}, false
+		}
+		params.Keyword = &value
+	}
+	if value := strings.TrimSpace(ginCtx.Query("state")); value != "" {
+		if !isValidContainerState(value) {
+			writeInvalidContainerQuery(ginCtx, ctx, "state")
+			return containeropenapi.GetContainersParams{}, false
+		}
+		state := containeropenapi.GetContainersParamsState(value)
+		params.State = &state
+	}
+	if value := strings.TrimSpace(ginCtx.Query("health")); value != "" {
+		if !isValidContainerHealth(value) {
+			writeInvalidContainerQuery(ginCtx, ctx, "health")
+			return containeropenapi.GetContainersParams{}, false
+		}
+		health := containeropenapi.GetContainersParamsHealth(value)
+		params.Health = &health
+	}
+	return params, true
 }
 
 func bindGetContainerParams(ginCtx *gin.Context) containeropenapi.GetContainerParams {
@@ -217,6 +370,35 @@ func bindGetContainerLogsParams(ginCtx *gin.Context) containeropenapi.GetContain
 	return params
 }
 
+func bindPostContainerRemoveParams(ginCtx *gin.Context) containeropenapi.PostContainerRemoveParams {
+	locale, requestID := commonHeaders(ginCtx)
+	return containeropenapi.PostContainerRemoveParams{XGraftLocale: locale, XRequestId: requestID}
+}
+
+func bindPostContainerBatchActionsParams(ginCtx *gin.Context) containeropenapi.PostContainerBatchActionsParams {
+	locale, requestID := commonHeaders(ginCtx)
+	return containeropenapi.PostContainerBatchActionsParams{XGraftLocale: locale, XRequestId: requestID}
+}
+
+func bindRequiredJSON(ginCtx *gin.Context, r routeRuntime, target any) bool {
+	if err := ginCtx.ShouldBindJSON(target); err != nil {
+		r.writeRouteError(ginCtx, errInvalidListQuery)
+		return false
+	}
+	return true
+}
+
+func bindOptionalJSON(ginCtx *gin.Context, r routeRuntime, target any) bool {
+	if ginCtx.Request == nil || ginCtx.Request.Body == nil {
+		return true
+	}
+	if err := ginCtx.ShouldBindJSON(target); err != nil && !errors.Is(err, io.EOF) {
+		r.writeRouteError(ginCtx, errInvalidListQuery)
+		return false
+	}
+	return true
+}
+
 func commonHeaders(ginCtx *gin.Context) (*string, *string) {
 	locale := optionalHeader(ginCtx, string(httpheader.Locale))
 	requestID := optionalHeader(ginCtx, httpx.RequestIDHeader)
@@ -241,6 +423,40 @@ func queryInt(ginCtx *gin.Context, key string) (int, bool) {
 		return 0, false
 	}
 	return parsed, true
+}
+
+func queryBoundedInt(ginCtx *gin.Context, ctx *module.Context, key string, min int, max int) (*int, bool) {
+	raw := strings.TrimSpace(ginCtx.Query(key))
+	if raw == "" {
+		return nil, true
+	}
+	value, err := strconv.Atoi(raw)
+	if err != nil || value < min || (max > 0 && value > max) {
+		writeInvalidContainerQuery(ginCtx, ctx, key)
+		return nil, false
+	}
+	return &value, true
+}
+
+func writeInvalidContainerQuery(ginCtx *gin.Context, ctx *module.Context, field string) {
+	httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), map[string]any{
+		"field": field,
+	})
+}
+
+func listQueryFromParams(params containeropenapi.GetContainersParams) ListQuery {
+	query := ListQuery{
+		Limit:   intValue(params.Limit),
+		Offset:  intValue(params.Offset),
+		Keyword: stringPtrValue(params.Keyword),
+	}
+	if params.State != nil {
+		query.State = string(*params.State)
+	}
+	if params.Health != nil {
+		query.Health = string(*params.Health)
+	}
+	return query
 }
 
 func queryBool(ginCtx *gin.Context, key string) (bool, bool) {

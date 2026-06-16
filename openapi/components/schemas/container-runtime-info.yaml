@@ -10,6 +10,10 @@ properties:
   status:
     type: string
     enum: [enabled, disabled, unavailable]
+    x-enum-varnames:
+      - ContainerRuntimeInfoStatusEnabled
+      - ContainerRuntimeInfoStatusDisabled
+      - ContainerRuntimeInfoStatusUnavailable
   endpoint:
     type: string
     description: Runtime endpoint label. Sensitive credentials must not be included.

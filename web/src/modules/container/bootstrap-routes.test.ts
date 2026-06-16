@@ -13,4 +13,20 @@ describe('container bootstrap route registrations', () => {
       routeName: 'ContainerList',
     });
   });
+
+  it('registers the detail page as a menu-hidden global route', async () => {
+    const { containerGlobalRouteRegistrations } = await import('./bootstrap-routes');
+
+    expect(containerGlobalRouteRegistrations).toHaveLength(1);
+    expect(containerGlobalRouteRegistrations[0]).toMatchObject({
+      path: '/ops/containers/:id',
+      pageRouteName: 'ContainerDetailIndex',
+      routeName: 'ContainerDetail',
+      meta: {
+        hiddenMenu: true,
+        pageKind: 'detail',
+        titleKey: 'container.route.detail.title',
+      },
+    });
+  });
 });

@@ -8577,6 +8577,21 @@
           },
           {
             "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/container-list-limit"
+          },
+          {
+            "$ref": "#/components/parameters/container-list-offset"
+          },
+          {
+            "$ref": "#/components/parameters/container-list-keyword"
+          },
+          {
+            "$ref": "#/components/parameters/container-list-state"
+          },
+          {
+            "$ref": "#/components/parameters/container-list-health"
           }
         ],
         "security": [
@@ -8596,6 +8611,95 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/enveloped-container-list-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid query parameter.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/ops/containers/batch-actions": {
+      "post": {
+        "tags": [
+          "container"
+        ],
+        "summary": "Execute container actions in batch",
+        "operationId": "postContainerBatchActions",
+        "description": "Executes one container action for selected containers and returns per-item success or failure.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/container-batch-action-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Container batch action result.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-container-batch-action-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid batch action request.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
                 }
               }
             }
@@ -9039,6 +9143,113 @@
           },
           "400": {
             "description": "Invalid container reference.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Container was not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Container state does not allow this action.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/ops/containers/{id}/remove": {
+      "post": {
+        "tags": [
+          "container"
+        ],
+        "summary": "Remove container",
+        "operationId": "postContainerRemove",
+        "description": "Removes one container when dangerous actions are enabled. Running containers require force=true.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/container-id-path"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/container-remove-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Container action result.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-container-action-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid container reference or remove request.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -9601,6 +9812,9 @@
       "ContainerDetail": {
         "$ref": "#/components/schemas/container-detail"
       },
+      "ContainerEnvironmentEntry": {
+        "$ref": "#/components/schemas/container-environment-entry"
+      },
       "ContainerPort": {
         "$ref": "#/components/schemas/container-port"
       },
@@ -9616,8 +9830,26 @@
       "ContainerActionResponse": {
         "$ref": "#/components/schemas/container-action-response"
       },
+      "ContainerRemoveRequest": {
+        "$ref": "#/components/schemas/container-remove-request"
+      },
+      "ContainerBatchActionRequest": {
+        "$ref": "#/components/schemas/container-batch-action-request"
+      },
+      "ContainerBatchActionItem": {
+        "$ref": "#/components/schemas/container-batch-action-item"
+      },
+      "ContainerBatchActionResponse": {
+        "$ref": "#/components/schemas/container-batch-action-response"
+      },
       "ContainerRuntimeInfo": {
         "$ref": "#/components/schemas/container-runtime-info"
+      },
+      "ContainerResourceSummary": {
+        "$ref": "#/components/schemas/container-resource-summary"
+      },
+      "ContainerListSummary": {
+        "$ref": "#/components/schemas/container-list-summary"
       },
       "ContainerListResponse": {
         "$ref": "#/components/schemas/container-list-response"
@@ -9633,6 +9865,9 @@
       },
       "EnvelopedContainerActionResponse": {
         "$ref": "#/components/schemas/enveloped-container-action-response"
+      },
+      "EnvelopedContainerBatchActionResponse": {
+        "$ref": "#/components/schemas/enveloped-container-batch-action-response"
       },
       "health-response": {
         "type": "object",
@@ -15096,193 +15331,12 @@
               "tcp",
               "udp",
               "sctp"
-            ]
-          }
-        }
-      },
-      "container-summary": {
-        "type": "object",
-        "required": [
-          "id",
-          "names",
-          "image",
-          "status",
-          "state",
-          "runtime",
-          "created_at",
-          "ports"
-        ],
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "names": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "image": {
-            "type": "string"
-          },
-          "image_id": {
-            "type": "string"
-          },
-          "status": {
-            "type": "string",
-            "description": "Runtime-provided human-readable status."
-          },
-          "state": {
-            "type": "string",
-            "enum": [
-              "created",
-              "running",
-              "paused",
-              "restarting",
-              "removing",
-              "exited",
-              "dead",
-              "unknown"
-            ]
-          },
-          "runtime": {
-            "type": "string",
-            "description": "Container runtime adapter key."
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "started_at": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "labels": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "string"
-            }
-          },
-          "ports": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/container-port"
-            }
-          },
-          "restart_policy": {
-            "type": "string"
-          }
-        }
-      },
-      "container-runtime-info": {
-        "type": "object",
-        "required": [
-          "runtime",
-          "status",
-          "endpoint"
-        ],
-        "properties": {
-          "runtime": {
-            "type": "string",
-            "description": "Container runtime adapter key."
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "enabled",
-              "disabled",
-              "unavailable"
-            ]
-          },
-          "endpoint": {
-            "type": "string",
-            "description": "Runtime endpoint label. Sensitive credentials must not be included."
-          },
-          "api_version": {
-            "type": "string"
-          },
-          "server_version": {
-            "type": "string"
-          },
-          "operating_system": {
-            "type": "string"
-          },
-          "architecture": {
-            "type": "string"
-          },
-          "containers_total": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "containers_running": {
-            "type": "integer",
-            "minimum": 0
-          }
-        }
-      },
-      "container-list-response": {
-        "type": "object",
-        "required": [
-          "items",
-          "runtime"
-        ],
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/container-summary"
-            }
-          },
-          "runtime": {
-            "$ref": "#/components/schemas/container-runtime-info"
-          }
-        }
-      },
-      "enveloped-container-list-response": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/api-envelope"
-          },
-          {
-            "type": "object",
-            "required": [
-              "data"
             ],
-            "properties": {
-              "data": {
-                "$ref": "#/components/schemas/container-list-response"
-              }
-            }
-          }
-        ]
-      },
-      "container-mount": {
-        "type": "object",
-        "required": [
-          "type",
-          "destination",
-          "mode",
-          "read_only"
-        ],
-        "properties": {
-          "type": {
-            "type": "string",
-            "description": "Runtime mount type such as bind, volume, or tmpfs."
-          },
-          "name": {
-            "type": "string"
-          },
-          "source": {
-            "type": "string"
-          },
-          "destination": {
-            "type": "string"
-          },
-          "mode": {
-            "type": "string"
-          },
-          "read_only": {
-            "type": "boolean"
+            "x-enum-varnames": [
+              "ContainerPortTypeValueTCP",
+              "ContainerPortTypeValueUDP",
+              "ContainerPortTypeValueSCTP"
+            ]
           }
         }
       },
@@ -15318,6 +15372,570 @@
           }
         }
       },
+      "container-resource-summary": {
+        "type": "object",
+        "required": [
+          "available",
+          "stats_available"
+        ],
+        "properties": {
+          "available": {
+            "type": "boolean",
+            "description": "Compatibility mirror of stats_available for existing clients. New UI code should use stats_available."
+          },
+          "unavailable_reason": {
+            "type": "string",
+            "description": "Compatibility mirror of stats_error_key for existing clients."
+          },
+          "stats_available": {
+            "type": "boolean",
+            "description": "True when Docker runtime CPU or memory stats were collected for this row."
+          },
+          "stats_error_key": {
+            "type": "string",
+            "nullable": true,
+            "description": "Stable sanitized reason stats are absent, such as stats_timeout, stats_unavailable, or stats_incomplete."
+          },
+          "stats_error_message": {
+            "type": "string",
+            "nullable": true,
+            "description": "Sanitized display-safe stats collection message; raw Docker daemon errors are not exposed."
+          },
+          "cpu_percent": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0
+          },
+          "memory_usage_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "memory_limit_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "memory_percent": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0
+          }
+        }
+      },
+      "container-summary": {
+        "type": "object",
+        "required": [
+          "id",
+          "short_id",
+          "name",
+          "names",
+          "image",
+          "status",
+          "state",
+          "runtime",
+          "created_at",
+          "ports"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "short_id": {
+            "type": "string",
+            "description": "Runtime id prefix suitable for list display."
+          },
+          "name": {
+            "type": "string",
+            "description": "Primary display name, falling back to id when the runtime returns no names."
+          },
+          "names": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "image": {
+            "type": "string"
+          },
+          "image_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "description": "Runtime-provided human-readable status."
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "created",
+              "running",
+              "paused",
+              "restarting",
+              "removing",
+              "exited",
+              "dead",
+              "unknown"
+            ],
+            "x-enum-varnames": [
+              "ContainerSummaryStateCreated",
+              "ContainerSummaryStateRunning",
+              "ContainerSummaryStatePaused",
+              "ContainerSummaryStateRestarting",
+              "ContainerSummaryStateRemoving",
+              "ContainerSummaryStateExited",
+              "ContainerSummaryStateDead",
+              "ContainerSummaryStateUnknown"
+            ]
+          },
+          "health": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "healthy",
+              "unhealthy",
+              "starting",
+              "none",
+              "unavailable"
+            ],
+            "x-enum-varnames": [
+              "ContainerSummaryHealthHealthy",
+              "ContainerSummaryHealthUnhealthy",
+              "ContainerSummaryHealthStarting",
+              "ContainerSummaryHealthNone",
+              "ContainerSummaryHealthUnavailable"
+            ],
+            "description": "Nullable when the runtime cannot determine health on the list path without row-level inspect."
+          },
+          "runtime": {
+            "type": "string",
+            "description": "Container runtime adapter key."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "labels": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "ports": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/container-port"
+            }
+          },
+          "primary_ip": {
+            "type": "string",
+            "nullable": true,
+            "description": "Primary IP address when the runtime list summary exposes one without raw inspect."
+          },
+          "networks": {
+            "type": "array",
+            "description": "Low-cost network attachment summary from the runtime list path.",
+            "items": {
+              "$ref": "#/components/schemas/container-network"
+            }
+          },
+          "network_summary": {
+            "type": "string",
+            "nullable": true
+          },
+          "resource": {
+            "$ref": "#/components/schemas/container-resource-summary"
+          },
+          "restart_count": {
+            "type": "integer",
+            "minimum": 0,
+            "nullable": true,
+            "description": "Nullable when the runtime list path does not expose restart count without inspect."
+          },
+          "restart_policy": {
+            "type": "string"
+          },
+          "compose_project": {
+            "type": "string",
+            "nullable": true,
+            "description": "Docker Compose project label when present."
+          },
+          "compose_service": {
+            "type": "string",
+            "nullable": true,
+            "description": "Docker Compose service label when present."
+          },
+          "can_start": {
+            "type": "boolean"
+          },
+          "can_stop": {
+            "type": "boolean"
+          },
+          "can_restart": {
+            "type": "boolean"
+          },
+          "can_remove": {
+            "type": "boolean"
+          }
+        }
+      },
+      "container-list-summary": {
+        "type": "object",
+        "required": [
+          "total",
+          "running",
+          "stopped",
+          "error",
+          "healthy",
+          "unhealthy",
+          "health_unavailable"
+        ],
+        "properties": {
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "running": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "stopped": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "error": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "healthy": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "unhealthy": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "health_unavailable": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "container-runtime-info": {
+        "type": "object",
+        "required": [
+          "runtime",
+          "status",
+          "endpoint"
+        ],
+        "properties": {
+          "runtime": {
+            "type": "string",
+            "description": "Container runtime adapter key."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "enabled",
+              "disabled",
+              "unavailable"
+            ],
+            "x-enum-varnames": [
+              "ContainerRuntimeInfoStatusEnabled",
+              "ContainerRuntimeInfoStatusDisabled",
+              "ContainerRuntimeInfoStatusUnavailable"
+            ]
+          },
+          "endpoint": {
+            "type": "string",
+            "description": "Runtime endpoint label. Sensitive credentials must not be included."
+          },
+          "api_version": {
+            "type": "string"
+          },
+          "server_version": {
+            "type": "string"
+          },
+          "operating_system": {
+            "type": "string"
+          },
+          "architecture": {
+            "type": "string"
+          },
+          "containers_total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "containers_running": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "container-list-response": {
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset",
+          "summary",
+          "runtime"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/container-summary"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "summary": {
+            "$ref": "#/components/schemas/container-list-summary"
+          },
+          "runtime": {
+            "$ref": "#/components/schemas/container-runtime-info"
+          }
+        }
+      },
+      "enveloped-container-list-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/container-list-response"
+              }
+            }
+          }
+        ]
+      },
+      "container-batch-action-request": {
+        "type": "object",
+        "required": [
+          "action",
+          "ids"
+        ],
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "start",
+              "stop",
+              "restart",
+              "remove"
+            ],
+            "x-enum-varnames": [
+              "ContainerBatchActionRequestActionValueStart",
+              "ContainerBatchActionRequestActionValueStop",
+              "ContainerBatchActionRequestActionValueRestart",
+              "ContainerBatchActionRequestActionValueRemove"
+            ]
+          },
+          "ids": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 100,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "force": {
+            "type": "boolean",
+            "default": false,
+            "description": "Applies only to remove. Force remove running containers when true."
+          }
+        },
+        "additionalProperties": false
+      },
+      "container-batch-action-item": {
+        "type": "object",
+        "required": [
+          "id",
+          "action",
+          "success"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "start",
+              "stop",
+              "restart",
+              "remove"
+            ],
+            "x-enum-varnames": [
+              "ContainerBatchActionItemActionStart",
+              "ContainerBatchActionItemActionStop",
+              "ContainerBatchActionItemActionRestart",
+              "ContainerBatchActionItemActionRemove"
+            ]
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "error_code": {
+            "type": "string"
+          },
+          "message_key": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "container-batch-action-response": {
+        "type": "object",
+        "description": "Batch action result summary. The items array contains exactly one result item for each requested container id and preserves the request id order so callers can correlate each result by position as well as by id.\n",
+        "required": [
+          "total",
+          "success_count",
+          "failed_count",
+          "items"
+        ],
+        "properties": {
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "success_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "failed_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "description": "Per-container action results in the same order as the requested container ids, with one response item per requested id. OpenAPI cannot express equality with the request array length, so clients should rely on this contract text plus each item's id for correlation.\n",
+            "minItems": 0,
+            "items": {
+              "$ref": "#/components/schemas/container-batch-action-item"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "enveloped-container-batch-action-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/container-batch-action-response"
+              }
+            }
+          }
+        ]
+      },
+      "container-environment-entry": {
+        "type": "object",
+        "required": [
+          "key",
+          "masked",
+          "sensitive",
+          "source"
+        ],
+        "properties": {
+          "key": {
+            "type": "string",
+            "description": "Environment variable name."
+          },
+          "value": {
+            "type": "string",
+            "description": "Environment variable value. Omitted when the active policy hides or masks the value."
+          },
+          "masked": {
+            "type": "boolean",
+            "description": "Whether the value is intentionally omitted by environment display policy."
+          },
+          "sensitive": {
+            "type": "boolean",
+            "description": "Whether the key matched the container module sensitive-key heuristic."
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "docker"
+            ],
+            "x-enum-varnames": [
+              "ContainerEnvironmentEntrySourceDocker"
+            ],
+            "description": "Runtime source of the environment variable entry."
+          }
+        },
+        "description": "Container environment variable entry after policy application."
+      },
+      "container-mount": {
+        "type": "object",
+        "required": [
+          "type",
+          "destination",
+          "mode",
+          "read_only"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "Runtime mount type such as bind, volume, or tmpfs."
+          },
+          "name": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "destination": {
+            "type": "string"
+          },
+          "mode": {
+            "type": "string"
+          },
+          "read_only": {
+            "type": "boolean"
+          }
+        }
+      },
       "container-detail": {
         "allOf": [
           {
@@ -15326,6 +15944,7 @@
           {
             "type": "object",
             "required": [
+              "environment_policy",
               "mounts",
               "networks",
               "runtime_info"
@@ -15342,6 +15961,26 @@
                 "items": {
                   "type": "string"
                 }
+              },
+              "environment": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/container-environment-entry"
+                }
+              },
+              "environment_policy": {
+                "type": "string",
+                "enum": [
+                  "hidden",
+                  "masked",
+                  "plain"
+                ],
+                "x-enum-varnames": [
+                  "ContainerDetailEnvironmentPolicyHidden",
+                  "ContainerDetailEnvironmentPolicyMasked",
+                  "ContainerDetailEnvironmentPolicyPlain"
+                ],
+                "description": "Effective container environment variable display policy applied to this detail response."
               },
               "working_dir": {
                 "type": "string"
@@ -15368,7 +16007,7 @@
             }
           }
         ],
-        "description": "Container detail intentionally omits environment variables and raw inspect payload fields that may contain secrets.\n"
+        "description": "Container detail returns environment variables according to the configured display policy and omits raw inspect payload fields that may contain secrets.\n"
       },
       "enveloped-container-detail": {
         "allOf": [
@@ -15481,7 +16120,14 @@
             "enum": [
               "start",
               "stop",
-              "restart"
+              "restart",
+              "remove"
+            ],
+            "x-enum-varnames": [
+              "ContainerActionResponseActionValueStart",
+              "ContainerActionResponseActionValueStop",
+              "ContainerActionResponseActionValueRestart",
+              "ContainerActionResponseActionValueRemove"
             ]
           },
           "runtime": {
@@ -15494,6 +16140,11 @@
               "accepted",
               "completed",
               "unchanged"
+            ],
+            "x-enum-varnames": [
+              "ContainerActionResponseResultValueAccepted",
+              "ContainerActionResponseResultValueCompleted",
+              "ContainerActionResponseResultValueUnchanged"
             ]
           },
           "status_before": {
@@ -15543,7 +16194,7 @@
               false
             ],
             "x-enum-varnames": [
-              "PostContainerStop500JSONResponseBodySuccessFalse"
+              "ContainerStopErrorResponseSuccessFalse"
             ]
           },
           "code": {
@@ -15571,6 +16222,17 @@
             "description": "Optional structured error details preserved from the current runtime."
           }
         }
+      },
+      "container-remove-request": {
+        "type": "object",
+        "properties": {
+          "force": {
+            "type": "boolean",
+            "default": false,
+            "description": "Force remove a running container. Defaults to false and must be explicitly enabled by the caller."
+          }
+        },
+        "additionalProperties": false
       },
       "dashboard-stat-group-payload": {
         "type": "object",
@@ -16120,6 +16782,106 @@
           "type": "integer",
           "format": "int64",
           "minimum": 1
+        }
+      },
+      "container-list-limit": {
+        "name": "limit",
+        "in": "query",
+        "required": false,
+        "description": "Optional maximum number of containers to return. The runtime accepts values from 1 to 100.",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "examples": {
+          "defaultWindow": {
+            "summary": "Fetch the default container list window",
+            "value": 20
+          },
+          "maxWindow": {
+            "summary": "Fetch up to the maximum supported window",
+            "value": 100
+          }
+        }
+      },
+      "container-list-offset": {
+        "name": "offset",
+        "in": "query",
+        "required": false,
+        "description": "Optional zero-based offset for containers.",
+        "schema": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "examples": {
+          "firstPage": {
+            "summary": "Start from the first container",
+            "value": 0
+          }
+        }
+      },
+      "container-list-keyword": {
+        "name": "keyword",
+        "in": "query",
+        "required": false,
+        "description": "Optional case-insensitive keyword matched against id, short id, name, image, status, runtime, ports, labels, compose metadata, and low-cost network fields.",
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      "container-list-state": {
+        "name": "state",
+        "in": "query",
+        "required": false,
+        "description": "Optional normalized container state filter.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "created",
+            "running",
+            "paused",
+            "restarting",
+            "removing",
+            "exited",
+            "dead",
+            "unknown"
+          ],
+          "x-enum-varnames": [
+            "ContainerListStateCreated",
+            "ContainerListStateRunning",
+            "ContainerListStatePaused",
+            "ContainerListStateRestarting",
+            "ContainerListStateRemoving",
+            "ContainerListStateExited",
+            "ContainerListStateDead",
+            "ContainerListStateUnknown"
+          ]
+        }
+      },
+      "container-list-health": {
+        "name": "health",
+        "in": "query",
+        "required": false,
+        "description": "Optional health filter. Containers whose list row cannot cheaply determine health are excluded when a specific health filter is provided.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "healthy",
+            "unhealthy",
+            "starting",
+            "none",
+            "unavailable"
+          ],
+          "x-enum-varnames": [
+            "ContainerListHealthHealthy",
+            "ContainerListHealthUnhealthy",
+            "ContainerListHealthStarting",
+            "ContainerListHealthNone",
+            "ContainerListHealthUnavailable"
+          ]
         }
       },
       "container-id-path": {
