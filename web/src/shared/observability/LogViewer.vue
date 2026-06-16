@@ -70,11 +70,11 @@
           :class="[
             'log-viewer__line',
             `log-viewer__line--${line.tone}`,
-            { 'log-viewer__line--expanded': isExpanded(line.lineNo) },
+            { 'log-viewer__line--active': isActive(line.lineNo) },
           ]"
-          @click="toggleLine(line.lineNo)"
-          @keydown.enter.prevent="toggleLine(line.lineNo)"
-          @keydown.space.prevent="toggleLine(line.lineNo)"
+          @click="openLineDetail(line)"
+          @keydown.enter.prevent="openLineDetail(line)"
+          @keydown.space.prevent="openLineDetail(line)"
         >
           <span class="log-viewer__line-number">{{ line.lineNo }}</span>
           <div class="log-viewer__timestamp-cell">
@@ -120,22 +120,22 @@
                 size="small"
                 theme="default"
                 variant="text"
-                @click="toggleLine(line.lineNo)"
+                @click="openLineDetail(line)"
               >
                 +{{ hiddenMetadataCount(line) }}
               </t-button>
             </div>
           </div>
           <div class="log-viewer__row-actions" @click.stop>
-            <t-tooltip :content="isExpanded(line.lineNo) ? collapseDetailLabel : viewDetailLabel" theme="light">
+            <t-tooltip :content="viewDetailLabel" theme="light">
               <t-button
-                :aria-label="isExpanded(line.lineNo) ? collapseDetailLabel : viewDetailLabel"
+                :aria-label="viewDetailLabel"
                 class="log-viewer__icon-action"
                 shape="square"
                 size="small"
                 theme="default"
                 variant="text"
-                @click="toggleLine(line.lineNo)"
+                @click="openLineDetail(line)"
               >
                 <template #icon>
                   <browse-icon />
@@ -158,47 +158,108 @@
               </t-button>
             </t-tooltip>
           </div>
-
-          <div v-if="isExpanded(line.lineNo)" class="log-viewer__line-detail" @click.stop>
-            <div class="log-viewer__line-detail-actions">
-              <t-button size="small" theme="default" variant="outline" @click.stop="copyMessage(line.message)">
-                {{ copyMessageLabel }}
-              </t-button>
-              <t-button size="small" theme="default" variant="outline" @click.stop="copyLine(line.raw)">
-                {{ copyLineLabel }}
-              </t-button>
-              <t-button
-                v-if="line.metadata"
-                size="small"
-                theme="default"
-                variant="outline"
-                @click.stop="copyJson(line.metadata)"
-              >
-                {{ copyJsonLabel }}
-              </t-button>
-            </div>
-            <section class="log-viewer__detail-section">
-              <strong>{{ messageLabel }}</strong>
-              <pre class="log-viewer__message-full">{{ line.message }}</pre>
-            </section>
-            <section v-if="line.metadata" class="log-viewer__detail-section">
-              <strong>{{ metadataLabel }}</strong>
-              <pre class="log-viewer__json">{{ formatJson(line.metadata) }}</pre>
-            </section>
-            <section class="log-viewer__detail-section">
-              <strong>{{ rawLabel }}</strong>
-              <pre class="log-viewer__raw"><span
-                v-for="(token, tokenIndex) in line.rawTokens"
-                :key="`${line.lineNo}-raw-${tokenIndex}`"
-                :class="tokenClass(token)"
-                >{{ token.text }}</span
-              ></pre>
-            </section>
-          </div>
         </li>
       </ol>
       <t-empty v-else size="small" :description="emptyLabel" />
     </div>
+
+    <t-drawer
+      v-model:visible="detailDrawerVisible"
+      drawer-class-name="log-viewer__drawer"
+      :footer="false"
+      :header="detailTitleLabel"
+      placement="right"
+      size="min(600px, 100vw)"
+      @close="closeLineDetail"
+    >
+      <div v-if="selectedLine" class="log-viewer__detail-drawer">
+        <section class="log-viewer__summary">
+          <t-tag
+            class="log-viewer__summary-level"
+            :theme="levelTheme(selectedLine.level)"
+            size="small"
+            variant="light-outline"
+          >
+            {{ selectedLine.level ?? 'LOG' }}
+          </t-tag>
+          <div class="log-viewer__summary-main">
+            <div class="log-viewer__summary-message">{{ selectedLine.message }}</div>
+            <div class="log-viewer__summary-meta">
+              <span>{{ selectedLine.timestamp || '-' }}</span>
+              <span aria-hidden="true">·</span>
+              <t-tooltip v-if="selectedLine.source" :content="selectedLine.source" placement="top-left" theme="light">
+                <span class="log-viewer__summary-source">{{ selectedLine.source }}</span>
+              </t-tooltip>
+              <span v-else>-</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="log-viewer__drawer-section">
+          <h3>{{ basicInfoLabel }}</h3>
+          <dl class="log-viewer__basic-info">
+            <div>
+              <dt>{{ timeLabel }}</dt>
+              <dd>{{ selectedLine.timestamp || '-' }}</dd>
+            </div>
+            <div>
+              <dt>{{ levelLabel }}</dt>
+              <dd>
+                <t-tag
+                  class="log-viewer__detail-level"
+                  :theme="levelTheme(selectedLine.level)"
+                  size="small"
+                  variant="light-outline"
+                >
+                  {{ selectedLine.level ?? 'LOG' }}
+                </t-tag>
+              </dd>
+            </div>
+            <div>
+              <dt>{{ sourceLabel }}</dt>
+              <dd>{{ selectedLine.source || '-' }}</dd>
+            </div>
+            <div>
+              <dt>{{ messageLabel }}</dt>
+              <dd>{{ selectedLine.message }}</dd>
+            </div>
+          </dl>
+        </section>
+
+        <section class="log-viewer__drawer-section">
+          <div class="log-viewer__drawer-section-header">
+            <h3>{{ metadataLabel }}</h3>
+            <t-button
+              size="small"
+              theme="default"
+              variant="outline"
+              :disabled="!selectedLine.metadata"
+              @click="copySelectedJson"
+            >
+              {{ copyJsonLabel }}
+            </t-button>
+          </div>
+          <pre
+            class="log-viewer__code-block"
+          ><code>{{ selectedLine.metadata ? formatJson(selectedLine.metadata) : '{}' }}</code></pre>
+        </section>
+
+        <section class="log-viewer__drawer-section">
+          <div class="log-viewer__drawer-section-header">
+            <h3>{{ rawLabel }}</h3>
+            <t-button size="small" theme="default" variant="outline" @click="copySelectedLine">
+              {{ copyLineLabel }}
+            </t-button>
+          </div>
+          <pre class="log-viewer__code-block log-viewer__code-block--raw"><code><span
+            v-for="(token, tokenIndex) in selectedLine.rawTokens"
+            :key="`${selectedLine.lineNo}-drawer-raw-${tokenIndex}`"
+            :class="tokenClass(token)"
+            >{{ token.text }}</span
+          ></code></pre>
+        </section>
+      </div>
+    </t-drawer>
   </section>
 </template>
 <script setup lang="ts">
@@ -238,6 +299,11 @@ const props = withDefaults(
     matchCountLabel: string;
     emptyLabel: string;
     truncatedLabel: string;
+    detailTitleLabel: string;
+    basicInfoLabel: string;
+    timeLabel: string;
+    levelLabel: string;
+    sourceLabel: string;
     viewDetailLabel: string;
     collapseDetailLabel: string;
     metadataLabel: string;
@@ -272,7 +338,7 @@ const scrollAfterRefresh = ref(true);
 const selectedLineLimit = ref(props.lineLimit);
 const selectedLevel = ref<LevelFilter>('ALL');
 const viewport = ref<HTMLElement | null>(null);
-const expandedLineNos = ref<Set<number>>(new Set());
+const selectedLineNo = ref<number | null>(null);
 
 const skeletonRows = [
   { height: '22px', width: '96%' },
@@ -301,6 +367,15 @@ const displayLines = computed(() =>
     .map((line) => buildDisplayLogLine(line, normalizedSearchKeyword.value)),
 );
 const searchMatchCount = computed(() => displayLines.value.reduce((total, line) => total + line.searchMatchCount, 0));
+const selectedLine = computed(() => displayLines.value.find((line) => line.lineNo === selectedLineNo.value) ?? null);
+const detailDrawerVisible = computed({
+  get: () => selectedLine.value !== null,
+  set: (visible: boolean) => {
+    if (!visible) {
+      selectedLineNo.value = null;
+    }
+  },
+});
 
 watch(
   () => props.lineLimit,
@@ -332,10 +407,6 @@ async function copyLine(raw: string) {
   await copyTextWithFeedback(raw);
 }
 
-async function copyMessage(message: string) {
-  await copyTextWithFeedback(message);
-}
-
 async function copyJson(metadata: ParsedLogMetadata) {
   await copyTextWithFeedback(formatJson(metadata));
 }
@@ -356,18 +427,28 @@ function scrollToBottom() {
   }
 }
 
-function toggleLine(lineNo: number) {
-  const next = new Set(expandedLineNos.value);
-  if (next.has(lineNo)) {
-    next.delete(lineNo);
-  } else {
-    next.add(lineNo);
-  }
-  expandedLineNos.value = next;
+function openLineDetail(line: DisplayLogLine) {
+  selectedLineNo.value = line.lineNo;
 }
 
-function isExpanded(lineNo: number) {
-  return expandedLineNos.value.has(lineNo);
+function closeLineDetail() {
+  selectedLineNo.value = null;
+}
+
+function isActive(lineNo: number) {
+  return selectedLineNo.value === lineNo;
+}
+
+async function copySelectedLine() {
+  if (selectedLine.value) {
+    await copyLine(selectedLine.value.raw);
+  }
+}
+
+async function copySelectedJson() {
+  if (selectedLine.value?.metadata) {
+    await copyJson(selectedLine.value.metadata);
+  }
 }
 
 function visibleMetadataTags(line: DisplayLogLine) {
@@ -480,7 +561,7 @@ async function copyTextWithFeedback(value: string) {
 }
 
 .log-viewer__viewport {
-  background: color-mix(in srgb, var(--td-bg-color-page) 92%, black 8%);
+  background: color-mix(in srgb, var(--td-bg-color-page) 78%, var(--td-bg-color-container) 22%);
   border: 1px solid var(--td-component-stroke);
   border-radius: var(--td-radius-medium);
   color: var(--td-text-color-primary);
@@ -488,7 +569,7 @@ async function copyTextWithFeedback(value: string) {
   min-height: 360px;
   min-width: 0;
   overflow: auto;
-  padding: var(--graft-density-gap-8) var(--graft-density-gap-12);
+  padding: var(--graft-density-gap-6) var(--graft-density-gap-8);
   scrollbar-color: var(--td-scrollbar-color) transparent;
   scrollbar-gutter: stable;
   scrollbar-width: thin;
@@ -522,23 +603,32 @@ async function copyTextWithFeedback(value: string) {
 .log-viewer__line {
   border-left: var(--graft-density-gap-2) solid transparent;
   border-radius: var(--td-radius-small);
-  column-gap: var(--graft-density-gap-8);
+  column-gap: var(--graft-density-gap-6);
   display: grid;
-  grid-template-columns: 44px 96px 68px minmax(140px, 180px) minmax(0, 1fr) 60px;
-  margin-block: var(--graft-density-gap-2);
-  min-height: 36px;
-  padding: var(--graft-density-gap-6) var(--graft-density-gap-8);
+  grid-template-columns: 44px 96px 58px minmax(140px, 180px) minmax(0, 1fr) 60px;
+  margin-block: var(--graft-density-gap-1);
+  min-height: 30px;
+  padding: var(--graft-density-gap-4) var(--graft-density-gap-6);
 }
 
 .log-viewer__line:hover,
 .log-viewer__line:focus-within {
-  background: color-mix(in srgb, var(--td-bg-color-container-hover) 72%, transparent);
+  background: color-mix(in srgb, var(--td-bg-color-container-hover) 54%, transparent);
   outline: none;
 }
 
-.log-viewer__line--expanded {
+.log-viewer__line--active {
   background: var(--td-bg-color-container);
-  box-shadow: inset 0 0 0 1px var(--td-border-level-1-color);
+  box-shadow: inset 0 0 0 1px var(--td-component-stroke);
+}
+
+.log-viewer__line--active.log-viewer__line--default,
+.log-viewer__line--active.log-viewer__line--info {
+  border-left-color: var(--td-brand-color);
+}
+
+.log-viewer__line--active.log-viewer__line--muted {
+  border-left-color: var(--td-text-color-placeholder);
 }
 
 .log-viewer__line-number {
@@ -574,16 +664,17 @@ async function copyTextWithFeedback(value: string) {
 .log-viewer__level-cell {
   display: flex;
   justify-content: flex-start;
-  width: 68px;
+  width: 58px;
 }
 
 .log-viewer__level {
-  max-width: 64px;
+  max-width: 56px;
   width: auto;
 }
 
 .log-viewer__level :deep(.t-tag) {
-  max-width: 64px;
+  max-width: 56px;
+  padding-inline: var(--graft-density-gap-4);
 }
 
 .log-viewer__message-row {
@@ -626,7 +717,7 @@ async function copyTextWithFeedback(value: string) {
   display: flex;
   flex-wrap: wrap;
   gap: var(--graft-density-gap-4);
-  margin-top: var(--graft-density-gap-6);
+  margin-top: var(--graft-density-gap-4);
   max-width: 100%;
   min-width: 0;
 }
@@ -661,7 +752,7 @@ async function copyTextWithFeedback(value: string) {
 
 .log-viewer__line:hover .log-viewer__row-actions,
 .log-viewer__line:focus-within .log-viewer__row-actions,
-.log-viewer__line--expanded .log-viewer__row-actions {
+.log-viewer__line--active .log-viewer__row-actions {
   opacity: 1;
   pointer-events: auto;
 }
@@ -681,12 +772,6 @@ async function copyTextWithFeedback(value: string) {
   white-space: pre-wrap;
 }
 
-.log-viewer__line--expanded .log-viewer__message {
-  display: block;
-  overflow: visible;
-  text-overflow: unset;
-}
-
 .log-viewer__line--danger {
   background: color-mix(in srgb, var(--td-error-color-5) 4%, transparent);
   border-left-color: var(--td-error-color);
@@ -701,47 +786,141 @@ async function copyTextWithFeedback(value: string) {
   color: var(--td-text-color-secondary);
 }
 
-.log-viewer__line-detail {
-  background: color-mix(in srgb, var(--td-bg-color-container) 82%, transparent);
-  border: 1px solid var(--td-component-stroke);
-  border-radius: var(--td-radius-medium);
-  display: flex;
-  flex-direction: column;
-  gap: var(--graft-density-gap-10);
-  grid-column: 2 / -1;
-  margin: var(--graft-density-gap-8) 0 var(--graft-density-gap-8);
-  max-width: 100%;
-  padding: var(--graft-density-gap-10);
+.log-viewer :deep(.log-viewer__drawer .t-drawer__body) {
+  padding: var(--graft-density-gap-24);
 }
 
-.log-viewer__line-detail-actions {
+.log-viewer__detail-drawer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--graft-density-gap-18);
+  min-width: 0;
+}
+
+.log-viewer__summary {
+  align-items: flex-start;
+  border-bottom: 1px solid var(--td-component-stroke);
+  column-gap: var(--graft-density-gap-12);
+  display: flex;
+  min-width: 0;
+  padding-bottom: var(--graft-density-gap-18);
+}
+
+.log-viewer__summary-level,
+.log-viewer__detail-level {
+  flex: 0 0 auto;
+  width: fit-content;
+}
+
+.log-viewer__summary-main {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--graft-density-gap-6);
+  min-width: 0;
+}
+
+.log-viewer__summary-message {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-title-small);
+  overflow-wrap: anywhere;
+}
+
+.log-viewer__summary-meta {
+  align-items: center;
+  color: var(--td-text-color-secondary);
+  column-gap: var(--graft-density-gap-6);
+  display: flex;
+  flex-wrap: wrap;
+  font: var(--td-font-body-small);
+  min-width: 0;
+}
+
+.log-viewer__summary-source {
+  display: inline-block;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
+  white-space: nowrap;
+}
+
+.log-viewer__drawer-section-header {
+  align-items: center;
   display: flex;
   flex-wrap: wrap;
   gap: var(--graft-density-gap-8);
+  justify-content: space-between;
 }
 
-.log-viewer__detail-section {
+.log-viewer__drawer-section {
   display: flex;
   flex-direction: column;
   gap: var(--graft-density-gap-6);
   min-width: 0;
 }
 
-.log-viewer__detail-section strong {
-  color: var(--td-text-color-secondary);
+.log-viewer__drawer-section h3 {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-title-small);
+  margin: 0;
 }
 
-.log-viewer__json,
-.log-viewer__raw,
-.log-viewer__message-full {
-  background: var(--td-bg-color-container-hover);
-  border: 1px solid var(--td-component-stroke);
-  border-radius: var(--td-radius-small);
+.log-viewer__basic-info {
+  background: color-mix(in srgb, var(--td-bg-color-secondarycontainer) 72%, transparent);
+  border: 1px solid color-mix(in srgb, var(--td-component-stroke) 72%, transparent);
+  border-radius: var(--td-radius-medium);
+  margin: 0;
+  padding: var(--graft-density-gap-12) var(--graft-density-gap-14);
+}
+
+.log-viewer__basic-info div {
+  display: grid;
+  gap: var(--graft-density-gap-4) var(--graft-density-gap-12);
+  grid-template-columns: 72px minmax(0, 1fr);
+  padding-block: var(--graft-density-gap-5);
+}
+
+.log-viewer__basic-info dt {
+  color: var(--td-text-color-secondary);
+  margin: 0;
+}
+
+.log-viewer__basic-info dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.log-viewer__code-block {
+  background: var(--td-bg-color-secondarycontainer);
+  border: 1px solid var(--td-border-level-1-color);
+  border-radius: 6px;
+  font: var(--td-font-body-small);
+  font-family: var(--td-font-family-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
+  line-height: 1.7;
   margin: 0;
   max-height: 260px;
   overflow: auto;
-  padding: var(--graft-density-gap-10);
+  padding: var(--graft-density-gap-12);
+  scrollbar-color: var(--td-scrollbar-color) transparent;
+  scrollbar-width: thin;
+  white-space: pre;
+}
+
+.log-viewer__code-block code {
+  font-family: inherit;
+}
+
+.log-viewer__code-block--raw {
+  overflow-wrap: anywhere;
   white-space: pre-wrap;
+}
+
+.log-viewer__code-block::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
 }
 
 .log-viewer__token--keyword {
@@ -785,11 +964,11 @@ async function copyTextWithFeedback(value: string) {
   }
 
   .log-viewer__line {
-    grid-template-columns: 40px 92px 64px minmax(108px, 132px) minmax(0, 1fr) 56px;
+    grid-template-columns: 40px 92px 56px minmax(108px, 132px) minmax(0, 1fr) 56px;
   }
 
   .log-viewer__level-cell {
-    width: 64px;
+    width: 56px;
   }
 }
 
@@ -799,7 +978,7 @@ async function copyTextWithFeedback(value: string) {
   }
 
   .log-viewer__line {
-    grid-template-columns: 38px 88px 60px 112px minmax(0, 1fr) 52px;
+    grid-template-columns: 38px 88px 54px 112px minmax(0, 1fr) 52px;
   }
 }
 </style>

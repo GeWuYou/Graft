@@ -21,6 +21,7 @@ vi.mock('tdesign-vue-next/es/message', () => ({
 
 const labels = {
   allLevelsLabel: '全部',
+  basicInfoLabel: '基础信息',
   collapseDetailLabel: '收起详情',
   copyErrorLabel: '复制失败',
   copyJsonLabel: '复制 JSON',
@@ -29,6 +30,8 @@ const labels = {
   copySuccessLabel: '复制成功',
   downloadLabel: '下载',
   emptyLabel: '暂无日志',
+  detailTitleLabel: '日志详情',
+  levelLabel: '级别',
   levelFilterLabel: '级别',
   matchCountLabel: '{count} 个匹配',
   metadataLabel: 'Metadata',
@@ -39,6 +42,8 @@ const labels = {
   refreshScrollLabel: '刷新后滚到底部',
   retryLabel: '重试',
   searchPlaceholder: '搜索日志内容',
+  sourceLabel: '来源',
+  timeLabel: '时间',
   truncatedLabel: '日志已截断',
   viewDetailLabel: '查看详情',
   wrapLabel: '自动换行',
@@ -134,7 +139,7 @@ describe('LogViewer', () => {
     expect(wrapper.findAll('.log-viewer__line-number').map((node) => node.text())).toEqual(['1', '2', '3']);
   });
 
-  it('expands a line to show formatted JSON metadata and raw log text', async () => {
+  it('opens a drawer with formatted JSON metadata and raw log text instead of expanding the stream', async () => {
     const wrapper = mount(LogViewer, {
       props: {
         ...labels,
@@ -147,10 +152,16 @@ describe('LogViewer', () => {
 
     await wrapper.find('.log-viewer__icon-action').trigger('click');
 
-    expect(wrapper.find('.log-viewer__message-full').text()).toContain('http request failed');
-    expect(wrapper.find('.log-viewer__json').text()).toContain('"status": 500');
-    expect(wrapper.find('.log-viewer__raw').text()).toContain('http request failed');
+    expect(wrapper.find('.log-viewer__line-detail').exists()).toBe(false);
+    expect(wrapper.text()).toContain('日志详情');
+    expect(wrapper.find('.log-viewer__summary').text()).toContain('http request failed');
+    expect(wrapper.find('.log-viewer__basic-info').text()).toContain('级别');
+    expect(wrapper.find('.log-viewer__detail-drawer').text()).toContain('http request failed');
+    expect(wrapper.findAll('.log-viewer__code-block')[0].text()).toContain('"status": 500');
+    expect(wrapper.findAll('.log-viewer__code-block')[1].text()).toContain('http request failed');
     expect(wrapper.find('.log-viewer__line--danger').exists()).toBe(true);
+    expect(wrapper.find('.log-viewer__line--active').exists()).toBe(true);
+    expect(wrapper.find('.log-viewer__drawer-actions').exists()).toBe(false);
   });
 
   it('keeps row actions visually weak until hover or focus reveals them', () => {
@@ -190,6 +201,14 @@ const tdesignStubs = {
   't-empty': defineComponent({
     props: ['description'],
     setup: (props) => () => h('div', String(props.description ?? '')),
+  }),
+  't-drawer': defineComponent({
+    props: ['header', 'visible'],
+    emits: ['close', 'update:visible'],
+    setup:
+      (props, { slots }) =>
+      () =>
+        props.visible ? h('aside', [h('h2', String(props.header ?? '')), slots.default?.()]) : null,
   }),
   't-input': defineComponent({
     props: ['value'],
