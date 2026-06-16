@@ -77,19 +77,25 @@
           @keydown.space.prevent="toggleLine(line.lineNo)"
         >
           <span class="log-viewer__line-number">{{ line.lineNo }}</span>
-          <div class="log-viewer__line-body">
-            <div class="log-viewer__line-main">
-              <t-tooltip v-if="line.timestamp" :content="line.timestamp" placement="top-left" theme="light">
-                <time class="log-viewer__timestamp">{{ shortTimestamp(line.timestamp) }}</time>
-              </t-tooltip>
-              <span v-else class="log-viewer__timestamp">-</span>
-              <t-tag class="log-viewer__level" :theme="levelTheme(line.level)" size="small" variant="light-outline">
-                {{ line.level ?? 'LOG' }}
-              </t-tag>
-              <t-tooltip v-if="line.source" :content="line.source" placement="top-left" theme="light">
-                <span class="log-viewer__source">{{ line.sourceShort || line.source }}</span>
-              </t-tooltip>
-              <span v-else class="log-viewer__source">-</span>
+          <div class="log-viewer__timestamp-cell">
+            <t-tooltip v-if="line.timestamp" :content="line.timestamp" placement="top-left" theme="light">
+              <time class="log-viewer__timestamp">{{ shortTimestamp(line.timestamp) }}</time>
+            </t-tooltip>
+            <span v-else class="log-viewer__timestamp">-</span>
+          </div>
+          <div class="log-viewer__level-cell">
+            <t-tag class="log-viewer__level" :theme="levelTheme(line.level)" size="small" variant="light-outline">
+              {{ line.level ?? 'LOG' }}
+            </t-tag>
+          </div>
+          <div class="log-viewer__source-cell">
+            <t-tooltip v-if="line.source" :content="line.source" placement="top-left" theme="light">
+              <span class="log-viewer__source">{{ line.sourceShort || line.source }}</span>
+            </t-tooltip>
+            <span v-else class="log-viewer__source">-</span>
+          </div>
+          <div class="log-viewer__content">
+            <div class="log-viewer__message-row">
               <code class="log-viewer__message">
                 <span
                   v-for="(token, tokenIndex) in line.messageTokens"
@@ -98,96 +104,96 @@
                   >{{ token.text }}</span
                 >
               </code>
-              <div v-if="line.metadata" class="log-viewer__metadata-tags" @click.stop>
-                <t-tag
-                  v-for="[key, value] in visibleMetadataTags(line)"
-                  :key="`${line.lineNo}-${key}`"
-                  size="small"
-                  theme="default"
-                  variant="light"
-                >
-                  {{ key }}={{ formatMetadataValue(value) }}
-                </t-tag>
-                <t-button
-                  v-if="hiddenMetadataCount(line)"
-                  size="small"
-                  theme="default"
-                  variant="text"
-                  @click="toggleLine(line.lineNo)"
-                >
-                  +{{ hiddenMetadataCount(line) }}
-                </t-button>
-              </div>
-              <div class="log-viewer__row-actions" @click.stop>
-                <t-tooltip :content="isExpanded(line.lineNo) ? collapseDetailLabel : viewDetailLabel" theme="light">
-                  <t-button
-                    :aria-label="isExpanded(line.lineNo) ? collapseDetailLabel : viewDetailLabel"
-                    class="log-viewer__icon-action"
-                    shape="square"
-                    size="small"
-                    theme="default"
-                    variant="text"
-                    @click="toggleLine(line.lineNo)"
-                  >
-                    <template #icon>
-                      <browse-icon />
-                    </template>
-                  </t-button>
-                </t-tooltip>
-                <t-tooltip :content="copyLineLabel" theme="light">
-                  <t-button
-                    :aria-label="copyLineLabel"
-                    class="log-viewer__icon-action"
-                    shape="square"
-                    size="small"
-                    theme="default"
-                    variant="text"
-                    @click="copyLine(line.raw)"
-                  >
-                    <template #icon>
-                      <copy-icon />
-                    </template>
-                  </t-button>
-                </t-tooltip>
-              </div>
             </div>
+            <div v-if="line.metadata" class="log-viewer__metadata-tags" @click.stop>
+              <t-tag
+                v-for="[key, value] in visibleMetadataTags(line)"
+                :key="`${line.lineNo}-${key}`"
+                size="small"
+                theme="default"
+                variant="light"
+              >
+                {{ key }}={{ formatMetadataValue(value) }}
+              </t-tag>
+              <t-button
+                v-if="hiddenMetadataCount(line)"
+                size="small"
+                theme="default"
+                variant="text"
+                @click="toggleLine(line.lineNo)"
+              >
+                +{{ hiddenMetadataCount(line) }}
+              </t-button>
+            </div>
+          </div>
+          <div class="log-viewer__row-actions" @click.stop>
+            <t-tooltip :content="isExpanded(line.lineNo) ? collapseDetailLabel : viewDetailLabel" theme="light">
+              <t-button
+                :aria-label="isExpanded(line.lineNo) ? collapseDetailLabel : viewDetailLabel"
+                class="log-viewer__icon-action"
+                shape="square"
+                size="small"
+                theme="default"
+                variant="text"
+                @click="toggleLine(line.lineNo)"
+              >
+                <template #icon>
+                  <browse-icon />
+                </template>
+              </t-button>
+            </t-tooltip>
+            <t-tooltip :content="copyLineLabel" theme="light">
+              <t-button
+                :aria-label="copyLineLabel"
+                class="log-viewer__icon-action"
+                shape="square"
+                size="small"
+                theme="default"
+                variant="text"
+                @click="copyLine(line.raw)"
+              >
+                <template #icon>
+                  <copy-icon />
+                </template>
+              </t-button>
+            </t-tooltip>
+          </div>
 
-            <div v-if="isExpanded(line.lineNo)" class="log-viewer__line-detail" @click.stop>
-              <div class="log-viewer__line-detail-actions">
-                <t-button size="small" theme="default" variant="outline" @click.stop="copyMessage(line.message)">
-                  {{ copyMessageLabel }}
-                </t-button>
-                <t-button size="small" theme="default" variant="outline" @click.stop="copyLine(line.raw)">
-                  {{ copyLineLabel }}
-                </t-button>
-                <t-button
-                  v-if="line.metadata"
-                  size="small"
-                  theme="default"
-                  variant="outline"
-                  @click.stop="copyJson(line.metadata)"
-                >
-                  {{ copyJsonLabel }}
-                </t-button>
-              </div>
-              <section class="log-viewer__detail-section">
-                <strong>{{ messageLabel }}</strong>
-                <pre class="log-viewer__message-full">{{ line.message }}</pre>
-              </section>
-              <section v-if="line.metadata" class="log-viewer__detail-section">
-                <strong>{{ metadataLabel }}</strong>
-                <pre class="log-viewer__json">{{ formatJson(line.metadata) }}</pre>
-              </section>
-              <section class="log-viewer__detail-section">
-                <strong>{{ rawLabel }}</strong>
-                <pre class="log-viewer__raw"><span
-                  v-for="(token, tokenIndex) in line.rawTokens"
-                  :key="`${line.lineNo}-raw-${tokenIndex}`"
-                  :class="tokenClass(token)"
-                  >{{ token.text }}</span
-                ></pre>
-              </section>
+          <div v-if="isExpanded(line.lineNo)" class="log-viewer__line-detail" @click.stop>
+            <div class="log-viewer__line-detail-actions">
+              <t-button size="small" theme="default" variant="outline" @click.stop="copyMessage(line.message)">
+                {{ copyMessageLabel }}
+              </t-button>
+              <t-button size="small" theme="default" variant="outline" @click.stop="copyLine(line.raw)">
+                {{ copyLineLabel }}
+              </t-button>
+              <t-button
+                v-if="line.metadata"
+                size="small"
+                theme="default"
+                variant="outline"
+                @click.stop="copyJson(line.metadata)"
+              >
+                {{ copyJsonLabel }}
+              </t-button>
             </div>
+            <section class="log-viewer__detail-section">
+              <strong>{{ messageLabel }}</strong>
+              <pre class="log-viewer__message-full">{{ line.message }}</pre>
+            </section>
+            <section v-if="line.metadata" class="log-viewer__detail-section">
+              <strong>{{ metadataLabel }}</strong>
+              <pre class="log-viewer__json">{{ formatJson(line.metadata) }}</pre>
+            </section>
+            <section class="log-viewer__detail-section">
+              <strong>{{ rawLabel }}</strong>
+              <pre class="log-viewer__raw"><span
+                v-for="(token, tokenIndex) in line.rawTokens"
+                :key="`${line.lineNo}-raw-${tokenIndex}`"
+                :class="tokenClass(token)"
+                >{{ token.text }}</span
+              ></pre>
+            </section>
           </div>
         </li>
       </ol>
@@ -509,17 +515,19 @@ async function copyTextWithFeedback(value: string) {
   counter-reset: none;
   list-style: none;
   margin: 0;
-  min-width: max-content;
+  min-width: max(100%, 760px);
   padding: 0;
 }
 
 .log-viewer__line {
   border-left: var(--graft-density-gap-2) solid transparent;
   border-radius: var(--td-radius-small);
+  column-gap: var(--graft-density-gap-8);
   display: grid;
-  grid-template-columns: 48px minmax(0, 1fr);
+  grid-template-columns: 44px 96px 68px minmax(140px, 180px) minmax(0, 1fr) 60px;
+  margin-block: var(--graft-density-gap-2);
   min-height: 36px;
-  padding: var(--graft-density-gap-4) var(--graft-density-gap-6) var(--graft-density-gap-4) 0;
+  padding: var(--graft-density-gap-6) var(--graft-density-gap-8);
 }
 
 .log-viewer__line:hover,
@@ -528,24 +536,60 @@ async function copyTextWithFeedback(value: string) {
   outline: none;
 }
 
+.log-viewer__line--expanded {
+  background: var(--td-bg-color-container);
+  box-shadow: inset 0 0 0 1px var(--td-border-level-1-color);
+}
+
 .log-viewer__line-number {
+  align-self: start;
   color: var(--td-text-color-placeholder);
   font-family: var(--td-font-family-monospace);
-  padding: var(--graft-density-gap-6) var(--graft-density-gap-8);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--td-line-height-body-medium);
   text-align: right;
   user-select: none;
 }
 
-.log-viewer__line-body {
+.log-viewer__timestamp-cell,
+.log-viewer__level-cell,
+.log-viewer__source-cell,
+.log-viewer__content,
+.log-viewer__row-actions {
+  align-self: start;
+}
+
+.log-viewer__timestamp-cell,
+.log-viewer__level-cell,
+.log-viewer__source-cell,
+.log-viewer__content {
   min-width: 0;
 }
 
-.log-viewer__line-main {
+.log-viewer__timestamp-cell,
+.log-viewer__source-cell {
+  line-height: var(--td-line-height-body-medium);
+}
+
+.log-viewer__level-cell {
+  display: flex;
+  justify-content: flex-start;
+  width: 68px;
+}
+
+.log-viewer__level {
+  max-width: 64px;
+  width: auto;
+}
+
+.log-viewer__level :deep(.t-tag) {
+  max-width: 64px;
+}
+
+.log-viewer__message-row {
   align-items: center;
-  display: grid;
-  gap: var(--graft-density-gap-8);
-  grid-template-columns: 88px 56px 156px minmax(420px, 1fr) minmax(0, 260px) 56px;
-  min-width: max-content;
+  display: flex;
+  min-width: 0;
 }
 
 .log-viewer__timestamp,
@@ -559,10 +603,11 @@ async function copyTextWithFeedback(value: string) {
 .log-viewer__timestamp,
 .log-viewer__source {
   color: var(--td-text-color-placeholder);
-  padding-top: 0;
+  font-variant-numeric: tabular-nums;
 }
 
 .log-viewer__source {
+  display: block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -574,25 +619,34 @@ async function copyTextWithFeedback(value: string) {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: pre;
+  white-space: nowrap;
 }
 
 .log-viewer__metadata-tags {
   display: flex;
-  flex-wrap: nowrap;
-  gap: var(--graft-density-gap-2);
+  flex-wrap: wrap;
+  gap: var(--graft-density-gap-4);
+  margin-top: var(--graft-density-gap-6);
   max-width: 100%;
   min-width: 0;
-  opacity: 0.74;
-  overflow: hidden;
 }
 
 .log-viewer__metadata-tags :deep(.t-tag) {
-  max-width: 148px;
+  background: var(--td-bg-color-secondarycontainer);
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+  line-height: 18px;
+  max-width: 240px;
   overflow: hidden;
   padding: 0 var(--graft-density-gap-6);
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.log-viewer__metadata-tags :deep(.t-button) {
+  color: var(--td-text-color-secondary);
+  min-width: 0;
+  padding-inline: var(--graft-density-gap-4);
 }
 
 .log-viewer__row-actions {
@@ -601,6 +655,7 @@ async function copyTextWithFeedback(value: string) {
   gap: var(--graft-density-gap-2);
   justify-content: flex-end;
   opacity: 0;
+  pointer-events: none;
   transition: opacity 0.16s ease;
 }
 
@@ -608,45 +663,28 @@ async function copyTextWithFeedback(value: string) {
 .log-viewer__line:focus-within .log-viewer__row-actions,
 .log-viewer__line--expanded .log-viewer__row-actions {
   opacity: 1;
+  pointer-events: auto;
 }
 
 .log-viewer__icon-action {
   color: var(--td-text-color-secondary);
 }
 
-.log-viewer__viewport--wrap .log-viewer__lines,
-.log-viewer__viewport--wrap .log-viewer__line-main {
-  min-width: 0;
-}
-
-.log-viewer__viewport--wrap .log-viewer__line-main {
-  grid-template-columns: 76px 56px 148px minmax(0, 1fr) 56px;
+.log-viewer__viewport--wrap .log-viewer__lines {
   min-width: 0;
 }
 
 .log-viewer__viewport--wrap .log-viewer__message {
-  -webkit-box-orient: vertical;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  overflow: hidden;
+  overflow: visible;
   overflow-wrap: anywhere;
+  text-overflow: unset;
   white-space: pre-wrap;
-}
-
-.log-viewer__viewport--wrap .log-viewer__metadata-tags {
-  grid-column: 4 / 5;
-  max-height: 22px;
-}
-
-.log-viewer__viewport--wrap .log-viewer__row-actions {
-  grid-column: 5 / 6;
-  grid-row: 1 / 2;
 }
 
 .log-viewer__line--expanded .log-viewer__message {
   display: block;
-  -webkit-line-clamp: unset;
   overflow: visible;
+  text-overflow: unset;
 }
 
 .log-viewer__line--danger {
@@ -670,6 +708,7 @@ async function copyTextWithFeedback(value: string) {
   display: flex;
   flex-direction: column;
   gap: var(--graft-density-gap-10);
+  grid-column: 2 / -1;
   margin: var(--graft-density-gap-8) 0 var(--graft-density-gap-8);
   max-width: 100%;
   padding: var(--graft-density-gap-10);
@@ -745,14 +784,22 @@ async function copyTextWithFeedback(value: string) {
     justify-content: flex-start;
   }
 
-  .log-viewer__viewport--wrap .log-viewer__line-main {
-    grid-template-columns: 72px 56px minmax(0, 1fr) 56px;
+  .log-viewer__line {
+    grid-template-columns: 40px 92px 64px minmax(108px, 132px) minmax(0, 1fr) 56px;
   }
 
-  .log-viewer__viewport--wrap .log-viewer__source,
-  .log-viewer__viewport--wrap .log-viewer__metadata-tags,
-  .log-viewer__viewport--wrap .log-viewer__row-actions {
-    grid-column: 3 / 4;
+  .log-viewer__level-cell {
+    width: 64px;
+  }
+}
+
+@media (width <= 760px) {
+  .log-viewer__lines {
+    min-width: 680px;
+  }
+
+  .log-viewer__line {
+    grid-template-columns: 38px 88px 60px 112px minmax(0, 1fr) 52px;
   }
 }
 </style>

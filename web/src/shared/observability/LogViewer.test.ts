@@ -69,13 +69,38 @@ describe('LogViewer', () => {
       global: { stubs: tdesignStubs },
     });
 
-    const mainRow = wrapper.find('.log-viewer__line-main').text();
-    expect(mainRow).toContain('request_id=abc');
-    expect(mainRow).toContain('component=http');
-    expect(mainRow).toContain('+2');
-    expect(mainRow).not.toContain('service=sub2api');
-    expect(mainRow).not.toContain('env=production');
-    expect(mainRow).not.toContain('{"service":"sub2api"');
+    const contentColumn = wrapper.find('.log-viewer__content');
+    const metadataTags = wrapper.find('.log-viewer__metadata-tags');
+
+    expect(contentColumn.text()).toContain('request_id=abc');
+    expect(contentColumn.text()).toContain('component=http');
+    expect(contentColumn.text()).toContain('+2');
+    expect(contentColumn.text()).not.toContain('service=sub2api');
+    expect(contentColumn.text()).not.toContain('env=production');
+    expect(contentColumn.text()).not.toContain('{"service":"sub2api"');
+    expect(metadataTags.element.parentElement).toBe(contentColumn.element);
+  });
+
+  it('renders each log row as fixed metadata columns plus one flexible content column', () => {
+    const wrapper = mount(LogViewer, {
+      props: {
+        ...labels,
+        lines: [
+          '2026-06-17T06:31:42.585+0800 INFO service/deep/path/pricing_service.go:461 loaded {"request_id":"abc"}',
+        ],
+      },
+      global: { stubs: tdesignStubs },
+    });
+
+    const line = wrapper.find('.log-viewer__line');
+    expect(line.find(':scope > .log-viewer__line-number').exists()).toBe(true);
+    expect(line.find(':scope > .log-viewer__timestamp-cell').exists()).toBe(true);
+    expect(line.find(':scope > .log-viewer__level-cell').exists()).toBe(true);
+    expect(line.find(':scope > .log-viewer__source-cell').exists()).toBe(true);
+    expect(line.find(':scope > .log-viewer__content').exists()).toBe(true);
+    expect(line.find(':scope > .log-viewer__row-actions').exists()).toBe(true);
+    expect(line.find('.log-viewer__content .log-viewer__metadata-tags').exists()).toBe(true);
+    expect(wrapper.find('.log-viewer__line-main').exists()).toBe(false);
   });
 
   it('shows short source text while keeping the full source in tooltip content', () => {
