@@ -248,11 +248,11 @@
                         </span>
                         <span>
                           {{ t('container.detail.resources.onlineCpus') }}
-                          <strong>{{ readMetricText('online_cpus', 'number') }}</strong>
+                          <strong>{{ readCpuCountText() }}</strong>
                         </span>
                         <span>
                           {{ t('container.detail.resources.systemCpuUsage') }}
-                          <strong>{{ readMetricText('system_cpu_usage', 'number') }}</strong>
+                          <strong>{{ readCpuSystemTimeText() }}</strong>
                         </span>
                       </div>
                     </article>
@@ -302,10 +302,40 @@
                       v-for="group in resourceDetailGroups"
                       :key="group.key"
                       class="container-resource-detail-card"
+                      :class="{
+                        'container-resource-detail-card--cpu': group.key === 'cpu',
+                        'container-resource-detail-card--memory': group.key === 'memory',
+                      }"
                     >
                       <h3>{{ group.title }}</h3>
-                      <div class="container-resource-detail-card__body">
-                        <div v-for="row in group.rows" :key="row.key" class="container-resource-detail-row">
+                      <div v-if="group.key === 'cpu'" class="container-resource-cpu-metric-grid">
+                        <div
+                          v-for="metric in cpuDetailMetrics"
+                          :key="metric.key"
+                          class="container-resource-cpu-metric"
+                          :class="{
+                            'container-resource-cpu-metric--muted': metric.muted,
+                            'container-resource-cpu-metric--warning': metric.emphasized,
+                          }"
+                        >
+                          <span class="container-resource-cpu-metric__label">{{ metric.label }}</span>
+                          <strong class="container-resource-cpu-metric__value">{{ metric.value }}</strong>
+                          <span v-if="metric.hint" class="container-resource-cpu-metric__hint">
+                            {{ metric.hint }}
+                          </span>
+                        </div>
+                      </div>
+                      <div
+                        v-else
+                        class="container-resource-detail-card__body"
+                        :class="{ 'container-resource-detail-card__body--memory': group.key === 'memory' }"
+                      >
+                        <div
+                          v-for="row in group.rows"
+                          :key="row.key"
+                          class="container-resource-detail-row"
+                          :class="{ 'container-resource-detail-row--placeholder': row.type === 'placeholder' }"
+                        >
                           <span class="container-resource-detail-row__label">{{ row.label }}</span>
                           <span class="container-resource-detail-row__value">
                             <t-tag v-if="row.type === 'tag'" :theme="row.theme" variant="light-outline">
@@ -488,6 +518,7 @@ import {
   copyText as copyTextToClipboard,
   formatBytes,
   formatLocaleDateTime,
+  formatNanosecondsAsDuration,
   formatPercent,
   JsonViewer,
   LogViewer,
@@ -501,6 +532,7 @@ import type { ContainerDetail, ContainerHealth, ContainerLogResponse, ContainerS
 import ContainerOverviewPanel from './components/ContainerOverviewPanel.vue';
 import CopyableDetailValue from './components/CopyableDetailValue.vue';
 import type { ContainerOverviewInfoSection } from './components/overview';
+import { buildCpuDetailMetrics, formatCpuCountText } from './components/resource-cpu-presenter';
 
 defineOptions({
   name: 'ContainerDetailIndex',
@@ -554,6 +586,12 @@ type ResourceDetailRow =
       key: string;
       label: string;
       type: 'text';
+      value: string;
+    }
+  | {
+      key: string;
+      label: string;
+      type: 'placeholder';
       value: string;
     }
   | {
@@ -629,6 +667,20 @@ const resourceMetrics = computed(() => {
     status,
   };
 });
+const cpuDetailMetrics = computed(() =>
+  buildCpuDetailMetrics(detail.value?.resource, {
+    cpuLimit: t('container.detail.resources.cpuLimitWithOnline'),
+    cpuPercent: t('container.detail.resources.cpuPercent'),
+    kernelTime: t('container.detail.resources.cpuKernelTime'),
+    systemCpuTime: t('container.detail.resources.systemCpuTime'),
+    throttlingCount: t('container.detail.resources.throttlingCount'),
+    throttlingInactiveHint: t('container.detail.resources.throttlingInactiveHint'),
+    throttlingSignalHint: t('container.detail.resources.throttlingSignalHint'),
+    throttlingTime: t('container.detail.resources.throttlingTime'),
+    totalCpuTime: t('container.detail.resources.totalCpuTime'),
+    userTime: t('container.detail.resources.cpuUserTime'),
+  }),
+);
 const resourceDetailGroups = computed<ResourceDetailGroup[]>(() => {
   const current = detail.value;
   if (!current) {
@@ -640,32 +692,30 @@ const resourceDetailGroups = computed<ResourceDetailGroup[]>(() => {
     {
       key: 'memory',
       title: t('container.detail.resources.memoryDetails'),
-      rows: metricRows([
-        ['memory_usage_bytes', t('container.detail.resources.memoryUsage'), 'bytes'],
-        ['memory_limit_bytes', t('container.detail.resources.memoryLimit'), 'bytes'],
-        ['memory_percent', t('container.detail.resources.memoryPercent'), 'percent'],
-        ['memory_cache', t('container.detail.resources.memoryCache'), 'bytes'],
-        ['memory_rss', t('container.detail.resources.memoryRss'), 'bytes'],
-        ['memory_active_file', t('container.detail.resources.memoryActiveFile'), 'bytes'],
-        ['memory_inactive_file', t('container.detail.resources.memoryInactiveFile'), 'bytes'],
-        ['memory_pgfault', t('container.detail.resources.memoryPgfault'), 'number'],
-        ['memory_pgmajfault', t('container.detail.resources.memoryPgmajfault'), 'number'],
-      ]),
+      rows: [
+        ...metricRows([
+          ['memory_usage_bytes', t('container.detail.resources.memoryUsage'), 'bytes'],
+          ['memory_cache', t('container.detail.resources.memoryCache'), 'bytes'],
+          ['memory_limit_bytes', t('container.detail.resources.memoryLimit'), 'bytes'],
+          ['memory_rss', t('container.detail.resources.memoryRss'), 'bytes'],
+          ['memory_percent', t('container.detail.resources.memoryPercent'), 'percent'],
+          ['memory_active_file', t('container.detail.resources.memoryActiveFile'), 'bytes'],
+          ['memory_inactive_file', t('container.detail.resources.memoryInactiveFile'), 'bytes'],
+          ['memory_pgfault', t('container.detail.resources.memoryPgfault'), 'number'],
+          ['memory_pgmajfault', t('container.detail.resources.memoryPgmajfault'), 'number'],
+        ]),
+        {
+          key: 'memory-placeholder',
+          label: '',
+          type: 'placeholder',
+          value: '—',
+        },
+      ],
     },
     {
       key: 'cpu',
       title: t('container.detail.resources.cpuDetails'),
-      rows: metricRows([
-        ['cpu_percent', t('container.detail.resources.cpuPercent'), 'percent'],
-        ['online_cpus', t('container.detail.resources.onlineCpus'), 'number'],
-        ['system_cpu_usage', t('container.detail.resources.systemCpuUsage'), 'number'],
-        ['total_cpu_usage', t('container.detail.resources.totalCpuUsage'), 'number'],
-        ['cpu_usage_in_usermode', t('container.detail.resources.cpuUsageInUsermode'), 'number'],
-        ['cpu_usage_in_kernelmode', t('container.detail.resources.cpuUsageInKernelmode'), 'number'],
-        ['throttling_periods', t('container.detail.resources.throttlingPeriods'), 'number'],
-        ['throttling_throttled_periods', t('container.detail.resources.throttlingThrottledPeriods'), 'number'],
-        ['throttling_throttled_time', t('container.detail.resources.throttlingThrottledTime'), 'number'],
-      ]),
+      rows: [],
     },
     {
       key: 'network',
@@ -1182,6 +1232,14 @@ function readMetricText(key: ResourceMetricKey, format: ResourceMetricFormat) {
   return formatResourceValue(readRawString(value));
 }
 
+function readCpuSystemTimeText() {
+  return formatResourceValue(formatNanosecondsAsDuration(readResourceMetric('system_cpu_usage')));
+}
+
+function readCpuCountText() {
+  return formatResourceValue(formatCpuCountText(readResourceMetric('online_cpus')));
+}
+
 function readResourceMetric(key: ResourceMetricKey) {
   return detail.value?.resource?.[key];
 }
@@ -1622,6 +1680,11 @@ function portLabel(port: ContainerDetail['ports'][number]) {
   overflow: hidden;
 }
 
+.container-resource-detail-card--cpu,
+.container-resource-detail-card--memory {
+  grid-column: 1 / -1;
+}
+
 .container-resource-detail-card h3 {
   border-bottom: 1px solid color-mix(in srgb, var(--td-component-stroke) 44%, transparent);
   color: var(--td-text-color-primary);
@@ -1639,6 +1702,78 @@ function portLabel(port: ContainerDetail['ports'][number]) {
   padding: var(--graft-density-gap-6) var(--graft-density-gap-12);
 }
 
+.container-resource-detail-card__body--memory {
+  display: grid;
+  gap: 0 var(--graft-density-gap-16);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding: var(--graft-density-gap-6) var(--graft-density-gap-12);
+}
+
+.container-resource-cpu-metric-grid {
+  display: grid;
+  gap: var(--graft-density-gap-10);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  min-width: 0;
+  padding: var(--graft-density-gap-12);
+}
+
+.container-resource-cpu-metric {
+  background: color-mix(in srgb, var(--td-bg-color-container) 94%, var(--td-bg-color-page));
+  border: 1px solid color-mix(in srgb, var(--td-component-stroke) 36%, transparent);
+  border-radius: var(--td-radius-medium);
+  display: grid;
+  gap: var(--graft-density-gap-4);
+  min-height: 78px;
+  min-width: 0;
+  padding: var(--graft-density-gap-10) var(--graft-density-gap-12);
+}
+
+.container-resource-cpu-metric--warning {
+  background: color-mix(in srgb, var(--td-warning-color-1) 42%, var(--td-bg-color-container));
+  border-color: color-mix(in srgb, var(--td-warning-color) 52%, var(--td-component-stroke));
+}
+
+.container-resource-cpu-metric--muted .container-resource-cpu-metric__value,
+.container-resource-cpu-metric--muted .container-resource-cpu-metric__hint {
+  color: var(--td-text-color-placeholder);
+}
+
+.container-resource-cpu-metric__label {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+  line-height: 20px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.container-resource-cpu-metric__value {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-title-small);
+  font-weight: 600;
+  justify-self: end;
+  line-height: 24px;
+  max-width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
+.container-resource-cpu-metric--warning .container-resource-cpu-metric__value {
+  color: var(--td-warning-color);
+}
+
+.container-resource-cpu-metric__hint {
+  color: var(--td-text-color-placeholder);
+  font: var(--td-font-body-small);
+  line-height: 18px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .container-resource-detail-row {
   align-items: center;
   column-gap: var(--graft-density-gap-12);
@@ -1651,6 +1786,24 @@ function portLabel(port: ContainerDetail['ports'][number]) {
 
 .container-resource-detail-row + .container-resource-detail-row {
   border-top: 1px solid color-mix(in srgb, var(--td-component-stroke) 30%, transparent);
+}
+
+.container-resource-detail-card__body--memory .container-resource-detail-row + .container-resource-detail-row {
+  border-top: 0;
+}
+
+.container-resource-detail-card__body--memory .container-resource-detail-row {
+  border-top: 1px solid color-mix(in srgb, var(--td-component-stroke) 30%, transparent);
+  grid-template-columns: minmax(112px, 42%) minmax(0, 1fr);
+}
+
+.container-resource-detail-card__body--memory .container-resource-detail-row:nth-child(-n + 2) {
+  border-top: 0;
+}
+
+.container-resource-detail-row--placeholder .container-resource-detail-row__label,
+.container-resource-detail-row--placeholder .container-resource-detail-row__value {
+  color: var(--td-text-color-placeholder);
 }
 
 .container-resource-detail-row__label {
@@ -1692,7 +1845,9 @@ function portLabel(port: ContainerDetail['ports'][number]) {
 @media (width <= 960px) {
   .container-detail-resource-grid,
   .container-resource-dashboard-grid,
-  .container-resource-detail-grid {
+  .container-resource-detail-grid,
+  .container-resource-detail-card__body--memory,
+  .container-resource-cpu-metric-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -1706,8 +1861,18 @@ function portLabel(port: ContainerDetail['ports'][number]) {
   .container-detail-resource-grid,
   .container-resource-dashboard-grid,
   .container-resource-detail-grid,
+  .container-resource-detail-card__body--memory,
+  .container-resource-cpu-metric-grid,
   .container-resource-dashboard-panel__meta {
     grid-template-columns: 1fr;
+  }
+
+  .container-resource-detail-card__body--memory .container-resource-detail-row:nth-child(-n + 2) {
+    border-top: 1px solid color-mix(in srgb, var(--td-component-stroke) 30%, transparent);
+  }
+
+  .container-resource-detail-card__body--memory .container-resource-detail-row:first-child {
+    border-top: 0;
   }
 
   .container-resource-detail-row {

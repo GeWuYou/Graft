@@ -113,8 +113,11 @@ const translations = vi.hoisted(
     'container.detail.resources.collectedAt': '采集时间',
     'container.detail.resources.cpu': 'CPU',
     'container.detail.resources.cpuDetails': 'CPU 详细信息',
+    'container.detail.resources.cpuKernelTime': '内核态时间',
     'container.detail.resources.cpuLimit': 'CPU 限制',
+    'container.detail.resources.cpuLimitWithOnline': 'CPU 限制 / 在线 CPU',
     'container.detail.resources.cpuPercent': 'CPU 使用率',
+    'container.detail.resources.cpuUserTime': '用户态时间',
     'container.detail.resources.cpuUsageInKernelmode': '内核模式',
     'container.detail.resources.cpuUsageInUsermode': '用户模式',
     'container.detail.resources.cpuUsageRate': 'CPU 使用率',
@@ -147,10 +150,16 @@ const translations = vi.hoisted(
     'container.detail.resources.rxPackets': '接收包',
     'container.detail.resources.status': '采集状态',
     'container.detail.resources.systemCpuUsage': '系统 CPU',
+    'container.detail.resources.systemCpuTime': '系统 CPU 时间',
+    'container.detail.resources.throttlingCount': 'Throttling 次数',
+    'container.detail.resources.throttlingInactiveHint': '未发生 CPU throttling',
     'container.detail.resources.throttlingPeriods': 'CPU throttling 周期',
+    'container.detail.resources.throttlingSignalHint': '存在 CPU throttling，可能受限',
+    'container.detail.resources.throttlingTime': 'Throttling 时间',
     'container.detail.resources.throttlingThrottledPeriods': 'CPU throttling 次数',
     'container.detail.resources.throttlingThrottledTime': 'CPU throttling 时间',
     'container.detail.resources.totalCpuUsage': 'CPU 总用量',
+    'container.detail.resources.totalCpuTime': '累计 CPU 时间',
     'container.detail.resources.txBytes': '发送',
     'container.detail.resources.txDropped': '发送丢包',
     'container.detail.resources.txErrors': '发送错误',
@@ -283,7 +292,18 @@ describe('container detail page', () => {
     expect(wrapper.text()).toContain('CPU 详细信息');
     expect(wrapper.text()).toContain('网络 I/O');
     expect(wrapper.text()).toContain('进程信息');
-    expect(wrapper.text()).toContain('在线 CPU4');
+    expect(wrapper.text()).toContain('在线 CPU 4 CPU');
+    expect(wrapper.text()).toContain('CPU 限制 / 在线 CPU— / 4 CPU');
+    expect(wrapper.text()).toContain('累计 CPU 时间40.4 ms');
+    expect(wrapper.text()).toContain('系统 CPU 时间50,468.37 s');
+    expect(wrapper.text()).toContain('用户态时间10 ms');
+    expect(wrapper.text()).toContain('内核态时间20 ms');
+    expect(wrapper.text()).toContain('Throttling 次数0');
+    expect(wrapper.text()).toContain('Throttling 时间0 ms');
+    expect(wrapper.text()).toContain('未发生 CPU throttling');
+    expect(wrapper.text()).not.toContain('50,468,370,000,000');
+    expect(wrapper.text()).not.toContain('40401700');
+    expect(wrapper.text()).not.toContain('10000000');
     expect(wrapper.text()).toContain('接收0.00 MiB');
     expect(wrapper.text()).toContain('发送0.00 MiB');
     expect(wrapper.text()).toContain('PIDs 当前数14');
@@ -526,13 +546,91 @@ describe('container detail page', () => {
     expect(resourcesSource).toContain('container-resource-dashboard-grid');
     expect(resourcesSource).toContain('container-resource-detail-section');
     expect(resourcesSource).toContain('container-resource-detail-grid');
+    expect(resourcesSource).toContain('container-resource-cpu-metric-grid');
+    expect(resourcesSource).toContain('container-resource-detail-card--memory');
+    expect(resourcesSource).toContain('cpuDetailMetrics');
     expect(resourcesSource).toContain('resourceDetailGroups');
     expect(resourcesSource).toContain('container-resource-detail-row');
     expect(resourcesSource).toContain('container.detail.resources.dashboard');
     expect(resourcesSource).toContain('container.detail.resources.detailedMetrics');
+    expect(resourcesSource).toContain('container-resource-cpu-metric--warning');
     expect(resourcesSource).not.toContain('<t-descriptions');
     expect(resourcesSource).not.toContain('<t-descriptions-item');
     expect(resourcesSource).not.toContain('bordered');
+    expect(resourcesSource).not.toContain("['system_cpu_usage'");
+    expect(resourcesSource).not.toContain("['total_cpu_usage'");
+    expect(resourcesSource).not.toContain("['cpu_usage_in_usermode'");
+    expect(resourcesSource).not.toContain("['cpu_usage_in_kernelmode'");
+  });
+
+  it('keeps detailed metric cards in a full-width memory and CPU flow before the lower two-column cards', () => {
+    const memoryGroupStart = sourceText.indexOf("key: 'memory'");
+    const cpuGroupStart = sourceText.indexOf("key: 'cpu'", memoryGroupStart);
+    const networkGroupStart = sourceText.indexOf("key: 'network'", cpuGroupStart);
+    const processGroupStart = sourceText.indexOf("key: 'process'", networkGroupStart);
+    const styleStart = sourceText.indexOf('<style scoped lang="less">');
+    const styleSource = sourceText.slice(styleStart);
+
+    expect(memoryGroupStart).toBeGreaterThan(-1);
+    expect(cpuGroupStart).toBeGreaterThan(memoryGroupStart);
+    expect(networkGroupStart).toBeGreaterThan(cpuGroupStart);
+    expect(processGroupStart).toBeGreaterThan(networkGroupStart);
+    expect(styleSource).toContain('.container-resource-detail-card--cpu,');
+    expect(styleSource).toContain('.container-resource-detail-card--memory');
+    expect(styleSource).toContain('grid-column: 1 / -1;');
+    expect(styleSource).toContain('.container-resource-detail-card__body--memory');
+    expect(styleSource).toContain('grid-template-columns: repeat(2, minmax(0, 1fr));');
+    expect(styleSource).toContain('.container-resource-detail-grid,');
+    expect(styleSource).toContain('.container-resource-detail-card__body--memory,');
+    expect(styleSource).toContain('.container-resource-cpu-metric-grid,');
+    expect(styleSource).toContain('@media (width <= 720px)');
+    expect(styleSource).toContain('grid-template-columns: 1fr;');
+  });
+
+  it('renders memory and CPU as full-width detail cards before the lower metric cards', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const cards = wrapper.findAll('.container-resource-detail-card');
+    expect(cards).toHaveLength(4);
+    expect(cards[0].classes()).toContain('container-resource-detail-card--memory');
+    expect(cards[0].find('.container-resource-detail-card__body--memory').exists()).toBe(true);
+    expect(cards[1].classes()).toContain('container-resource-detail-card--cpu');
+    expect(cards[1].findAll('.container-resource-cpu-metric')).toHaveLength(8);
+    expect(cards[2].classes()).not.toContain('container-resource-detail-card--memory');
+    expect(cards[2].classes()).not.toContain('container-resource-detail-card--cpu');
+    expect(cards[2].text()).toContain('网络 I/O');
+    expect(cards[3].classes()).not.toContain('container-resource-detail-card--memory');
+    expect(cards[3].classes()).not.toContain('container-resource-detail-card--cpu');
+    expect(cards[3].text()).toContain('进程信息');
+  });
+
+  it('orders memory detail rows as paired two-column metrics with a final placeholder', () => {
+    const memoryGroupStart = sourceText.indexOf("key: 'memory'");
+    const cpuGroupStart = sourceText.indexOf("key: 'cpu'", memoryGroupStart);
+    const memorySource = sourceText.slice(memoryGroupStart, cpuGroupStart);
+
+    const expectedOrder = [
+      'memory_usage_bytes',
+      'memory_cache',
+      'memory_limit_bytes',
+      'memory_rss',
+      'memory_percent',
+      'memory_active_file',
+      'memory_inactive_file',
+      'memory_pgfault',
+      'memory_pgmajfault',
+      'memory-placeholder',
+    ];
+
+    let previousIndex = -1;
+    for (const marker of expectedOrder) {
+      const nextIndex = memorySource.indexOf(marker);
+      expect(nextIndex).toBeGreaterThan(previousIndex);
+      previousIndex = nextIndex;
+    }
+    expect(memorySource).toContain("type: 'placeholder'");
+    expect(memorySource).toContain("value: '—'");
   });
 });
 
@@ -598,8 +696,8 @@ function createContainerDetail() {
       available: true,
       stats_available: true,
       cpu_percent: 21.8,
-      cpu_usage_in_kernelmode: 300000000,
-      cpu_usage_in_usermode: 700000000,
+      cpu_usage_in_kernelmode: 20_000_000,
+      cpu_usage_in_usermode: 10_000_000,
       memory_limit_bytes: 33557250099.2,
       memory_percent: 100,
       memory_usage_bytes: 33557250099.2,
@@ -609,8 +707,10 @@ function createContainerDetail() {
       pids_current: 14,
       rx_bytes: 1536,
       rx_packets: 25,
-      system_cpu_usage: 45563950,
-      total_cpu_usage: 1000000000,
+      system_cpu_usage: 50_468_370_000_000,
+      throttling_throttled_periods: 0,
+      throttling_throttled_time: 0,
+      total_cpu_usage: 40_401_700,
       tx_bytes: 126,
       tx_packets: 3,
     },

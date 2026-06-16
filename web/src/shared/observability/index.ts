@@ -9,7 +9,7 @@ export { openLogDetailRow, restartLogListQuery } from './list-interactions';
 export { default as LogIdText } from './LogIdText.vue';
 export { default as LogJsonPanel } from './LogJsonPanel.vue';
 export { default as LogViewer } from './LogViewer.vue';
-export { formatBytes, formatPercent, toProgressPercent } from './resource-format';
+export { formatBytes, formatNanosecondsAsDuration, formatPercent, toProgressPercent } from './resource-format';
 export { sanitizeTraceFieldsForDisplay } from './sanitize';
 export type { QuerySorter, SortDirection, SorterState } from './sorters';
 export {

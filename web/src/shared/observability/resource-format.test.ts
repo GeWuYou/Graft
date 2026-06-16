@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { formatBytes, formatPercent, toProgressPercent } from './resource-format';
+import { formatBytes, formatNanosecondsAsDuration, formatPercent, toProgressPercent } from './resource-format';
 
 describe('resource-format', () => {
   it('formats bytes as MiB and GiB', () => {
@@ -16,5 +16,12 @@ describe('resource-format', () => {
     expect(formatPercent(undefined)).toBe('-');
     expect(toProgressPercent(120)).toBe(100);
     expect(toProgressPercent(-1)).toBe(0);
+  });
+
+  it('formats nanosecond CPU counters as readable milliseconds or seconds', () => {
+    expect(formatNanosecondsAsDuration(40_401_700)).toBe('40.4 ms');
+    expect(formatNanosecondsAsDuration(10_000_000)).toBe('10 ms');
+    expect(formatNanosecondsAsDuration(50_468_370_000_000)).toBe('50,468.37 s');
+    expect(formatNanosecondsAsDuration(undefined)).toBe('-');
   });
 });
