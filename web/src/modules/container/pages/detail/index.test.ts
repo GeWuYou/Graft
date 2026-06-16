@@ -76,11 +76,30 @@ const translations = vi.hoisted(
     'container.detail.network.ipAddress': 'IP 地址',
     'container.detail.network.macAddress': 'MAC 地址',
     'container.detail.network.name': '网络',
+    'container.detail.network.noPublicPorts': '无公开端口',
     'container.detail.network.ports': '端口映射',
     'container.detail.network.primaryIp': '主 IP',
     'container.detail.network.summary': '网络摘要',
     'container.detail.operation': '操作',
     'container.detail.overview.basicInfo': '基础信息',
+    'container.detail.overview.fullId': '完整 ID',
+    'container.detail.overview.fields.containerId': '容器 ID',
+    'container.detail.overview.fields.createdAt': '创建时间',
+    'container.detail.overview.fields.fullId': '完整 ID',
+    'container.detail.overview.fields.health': '健康检查',
+    'container.detail.overview.fields.image': '镜像',
+    'container.detail.overview.fields.imageId': '镜像 ID',
+    'container.detail.overview.fields.memoryRatio': '内存占比',
+    'container.detail.overview.fields.name': '名称',
+    'container.detail.overview.fields.networkMode': '网络模式',
+    'container.detail.overview.fields.networkName': '网络名称',
+    'container.detail.overview.fields.runtime': '运行时',
+    'container.detail.overview.fields.startedAt': '启动时间',
+    'container.detail.overview.fields.state': '状态码',
+    'container.detail.overview.fields.status': '状态',
+    'container.detail.overview.fields.updatedAt': '更新时间',
+    'container.detail.overview.networkSummary': '网络摘要',
+    'container.detail.overview.resourceSummary': '资源摘要',
     'container.detail.overview.runtimeInfo': '运行信息',
     'container.detail.raw.description': '敏感字段已脱敏，仅用于只读排查。',
     'container.detail.raw.empty': '暂无原始 JSON。',
@@ -104,9 +123,10 @@ const translations = vi.hoisted(
     'container.detail.storage.mode': '模式',
     'container.detail.storage.source': '来源',
     'container.detail.storage.type': '类型',
-    'container.detail.summary.identity': '容器',
-    'container.detail.summary.network': '网络',
-    'container.detail.summary.resources': '资源',
+    'container.detail.summary.identity': '身份信息',
+    'container.detail.summary.network': '网络访问',
+    'container.detail.summary.resources': '资源使用',
+    'container.detail.summary.runtime': '运行状态',
     'container.detail.tabs.config': '配置',
     'container.detail.tabs.health': '健康',
     'container.detail.tabs.logs': '日志',
@@ -129,10 +149,12 @@ const translations = vi.hoisted(
     'container.list.fields.imageId': '镜像 ID',
     'container.list.fields.name': '名称',
     'container.list.fields.restartPolicy': '重启策略',
+    'container.list.fields.runtime': '运行时',
     'container.list.fields.startedAt': '启动时间',
     'container.list.fields.state': '状态码',
     'container.list.fields.status': '状态',
     'container.list.health.healthy': '健康',
+    'container.list.health.none': '未配置健康检查',
     'container.list.health.unavailable': '健康未知',
     'container.list.logs.loadFailed': '容器日志加载失败。',
     'container.list.retry': '重试',
@@ -201,21 +223,34 @@ describe('container detail page', () => {
     });
   });
 
-  it('loads detail from the route id and renders dense tab content', async () => {
+  it('loads detail from the route id and renders the container overview workbench', async () => {
     const wrapper = mountPage();
     await flushPromises();
 
     expect(apiMocks.getContainer).toHaveBeenCalledWith('container-1');
-    expect(wrapper.text()).toContain('容器详情 - graft-web');
+    expect(wrapper.find('h1').text()).toBe('graft-web');
+    expect(wrapper.text()).toContain('graft/web:latest');
+    expect(wrapper.text()).not.toContain('容器详情 - graft-web');
     expect(wrapper.text()).toContain('graft/web:latest');
     expect(wrapper.text()).toContain('172.18.0.2');
     expect(wrapper.text()).toContain('21.8%');
     expect(wrapper.text()).toContain('31.25 GiB / 31.25 GiB');
     expect(wrapper.text()).toContain('8080:80/tcp');
+    expect(wrapper.text()).toContain('身份信息');
+    expect(wrapper.text()).toContain('运行状态');
+    expect(wrapper.text()).toContain('资源使用');
+    expect(wrapper.text()).toContain('网络访问');
     expect(wrapper.text()).toContain('基础信息');
     expect(wrapper.text()).toContain('运行信息');
-    expect(wrapper.text()).toContain('container-1');
-    expect(wrapper.text()).toContain('镜像 IDbbbbbbbbbbbbbbbbbb...bbbbbbbbbb复制');
+    expect(wrapper.text()).toContain('资源摘要');
+    expect(wrapper.text()).toContain('网络摘要');
+    expect(wrapper.text()).toContain('容器 IDcontainer-1');
+    expect(wrapper.text()).toContain('完整 IDff007d095ed9faafdf...9bcc518edb');
+    expect(wrapper.text()).toContain('镜像 IDbbbbbbbbbbbbbbbbbb...bbbbbbbbbb');
+    expect(wrapper.text()).toContain('健康检查健康');
+    expect(wrapper.text()).toContain('内存占比100.0%');
+    expect(wrapper.text()).toContain('网络模式bridge');
+    expect(wrapper.text()).toContain('网络名称bridge');
     expect(wrapper.text()).toContain('环境变量');
     expect(wrapper.text()).toContain('APP_MODE');
     expect(wrapper.text()).toContain('production');
@@ -368,6 +403,31 @@ describe('container detail page', () => {
     expect(messageMocks.success).toHaveBeenCalledWith('内容已复制。');
   });
 
+  it('renders missing healthcheck as not configured and avoids health unknown in overview', async () => {
+    apiMocks.getContainer.mockResolvedValue({
+      ...createContainerDetail(),
+      health: undefined,
+    });
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('未配置健康检查');
+    expect(wrapper.text()).not.toContain('健康未知');
+  });
+
+  it('uses short identifiers and renders an explicit empty port state', async () => {
+    apiMocks.getContainer.mockResolvedValue({
+      ...createContainerDetail(),
+      ports: [],
+      short_id: '',
+    });
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('ff007d095ed9');
+    expect(wrapper.text()).toContain('无公开端口');
+  });
+
   it('falls back to the list route when there is no browser history', async () => {
     const wrapper = mountPage();
     await flushPromises();
@@ -511,7 +571,7 @@ function mountPage() {
                       : undefined),
                   onClick: () => emit('click'),
                 },
-                slots.default?.(),
+                [slots.icon?.(), slots.default?.()],
               ),
         }),
         't-card': defineComponent({

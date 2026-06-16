@@ -6,18 +6,18 @@
 <template>
   <div class="container-detail-page" data-page-type="operations-detail">
     <management-page-header
-      title-key="container.detail.title"
+      :breadcrumb="detailBreadcrumb"
       :title="pageTitle"
-      description-key="container.detail.description"
-      :description="t('container.detail.description')"
+      :description="detail ? detail.image : t('container.detail.description')"
       :source="{ labelKey: 'container.list.eyebrow', fallback: t('container.list.eyebrow') }"
     >
       <template #meta>
-        <t-space break-line size="small">
+        <t-space class="container-detail-header-meta" break-line size="small">
+          <span v-if="detail" class="container-detail-header-id">{{ shortContainerId(detail) }}</span>
           <t-tag v-if="detail" :theme="stateTheme(detail.state)" variant="light-outline">
             {{ stateLabel(detail.state) }}
           </t-tag>
-          <t-tag v-if="detail?.health" :theme="healthTheme(detail.health)" variant="light-outline">
+          <t-tag v-if="detail" :theme="healthTheme(detail.health)" variant="light-outline">
             {{ healthLabel(detail.health) }}
           </t-tag>
           <t-tag v-if="detail?.runtime" theme="default" variant="light-outline">
@@ -57,17 +57,54 @@
             :bordered="false"
             :title="t('container.detail.summary.identity')"
           >
-            <div class="container-detail-summary__main">
-              <strong>{{ displayName(detail) }}</strong>
-              <span>{{ detail.image }}</span>
-              <code>{{ detail.short_id || detail.id }}</code>
-              <div class="container-detail-tag-row">
+            <div class="container-detail-summary-list">
+              <div class="container-detail-kv">
+                <span>{{ t('container.list.fields.name') }}</span>
+                <strong>{{ displayName(detail) }}</strong>
+              </div>
+              <div class="container-detail-kv">
+                <span>{{ t('container.list.fields.image') }}</span>
+                <copyable-detail-value :value="detail.image" :display-value="detail.image" />
+              </div>
+              <div class="container-detail-kv">
+                <span>{{ t('container.list.fields.id') }}</span>
+                <copyable-detail-value
+                  :value="detail.id"
+                  :display-value="shortContainerId(detail)"
+                  code
+                  data-testid="summary-container-id-copy"
+                />
+              </div>
+              <div class="container-detail-kv">
+                <span>{{ t('container.list.fields.runtime') }}</span>
+                <strong>{{ runtimeLabel(detail) }}</strong>
+              </div>
+            </div>
+          </t-card>
+          <t-card
+            class="container-detail-summary-card container-detail-summary-card--runtime"
+            size="small"
+            :bordered="false"
+            :title="t('container.detail.summary.runtime')"
+          >
+            <div class="container-detail-summary-list">
+              <div class="container-detail-kv container-detail-kv--inline">
+                <span>{{ t('container.list.fields.status') }}</span>
                 <t-tag :theme="stateTheme(detail.state)" variant="light-outline">
                   {{ stateLabel(detail.state) }}
                 </t-tag>
-                <t-tag v-if="detail.health" :theme="healthTheme(detail.health)" variant="light-outline">
-                  {{ healthLabel(detail.health) }}
-                </t-tag>
+              </div>
+              <div class="container-detail-kv">
+                <span>{{ t('container.list.fields.state') }}</span>
+                <code>{{ detail.state || '-' }}</code>
+              </div>
+              <div class="container-detail-kv">
+                <span>{{ t('container.list.fields.startedAt') }}</span>
+                <strong>{{ formatTime(detail.started_at) }}</strong>
+              </div>
+              <div class="container-detail-kv">
+                <span>{{ t('container.detail.health.status') }}</span>
+                <strong>{{ healthLabel(detail.health) }}</strong>
               </div>
             </div>
           </t-card>
@@ -81,7 +118,7 @@
               <div class="container-detail-resource-meter container-detail-resource-meter--cpu">
                 <div class="container-detail-resource-meter__content">
                   <span>{{ t('container.detail.resources.cpu') }}</span>
-                  <strong>{{ t('container.detail.resources.currentSnapshot') }}</strong>
+                  <strong>{{ formatPercent(detail.resource?.cpu_percent) }}</strong>
                 </div>
                 <t-progress
                   theme="circle"
@@ -94,6 +131,7 @@
                 <div class="container-detail-resource-meter__content">
                   <span>{{ t('container.detail.resources.memory') }}</span>
                   <strong>{{ memorySummary(detail) }}</strong>
+                  <em>{{ formatPercent(detail.resource?.memory_percent) }}</em>
                 </div>
                 <t-progress
                   theme="line"
@@ -110,28 +148,34 @@
             :bordered="false"
             :title="t('container.detail.summary.network')"
           >
-            <div class="container-detail-metric">
-              <span>{{ t('container.detail.network.primaryIp') }}</span>
-              <strong>{{ detail.primary_ip || '-' }}</strong>
-            </div>
-            <div class="container-detail-metric">
-              <span>{{ t('container.detail.network.summary') }}</span>
-              <strong>{{ detail.network_summary || '-' }}</strong>
-            </div>
-            <div class="container-detail-metric">
-              <span>{{ t('container.detail.network.ports') }}</span>
-              <div v-if="detail.ports.length" class="container-detail-port-list">
-                <t-tag
-                  v-for="port in detail.ports"
-                  :key="portLabel(port)"
-                  class="container-detail-port-chip"
-                  theme="default"
-                  variant="light-outline"
-                >
-                  {{ portLabel(port) }}
-                </t-tag>
+            <div class="container-detail-summary-list">
+              <div class="container-detail-kv">
+                <span>{{ t('container.detail.network.primaryIp') }}</span>
+                <strong>{{ detail.primary_ip || '-' }}</strong>
               </div>
-              <strong v-else>-</strong>
+              <div class="container-detail-kv">
+                <span>{{ t('container.detail.network.summary') }}</span>
+                <strong>{{ networkSummary(detail) }}</strong>
+              </div>
+              <div class="container-detail-kv">
+                <span>{{ t('container.detail.network.name') }}</span>
+                <strong>{{ primaryNetworkName(detail) }}</strong>
+              </div>
+              <div class="container-detail-kv">
+                <span>{{ t('container.detail.network.ports') }}</span>
+                <div v-if="detail.ports.length" class="container-detail-port-list">
+                  <t-tag
+                    v-for="port in detail.ports"
+                    :key="portLabel(port)"
+                    class="container-detail-port-chip"
+                    theme="default"
+                    variant="light-outline"
+                  >
+                    {{ portLabel(port) }}
+                  </t-tag>
+                </div>
+                <strong v-else>{{ t('container.detail.network.noPublicPorts') }}</strong>
+              </div>
             </div>
           </t-card>
         </section>
@@ -140,72 +184,194 @@
           <t-tabs v-model:value="activeTab" theme="card" @change="handleTabChange">
             <t-tab-panel value="overview" :label="t('container.detail.tabs.overview')" :destroy-on-hide="false">
               <section class="container-detail-section">
-                <div class="container-detail-overview-groups">
-                  <section class="container-detail-overview-group">
-                    <h3>{{ t('container.detail.overview.basicInfo') }}</h3>
-                    <t-descriptions :column="2" item-layout="vertical" bordered table-layout="fixed">
-                      <t-descriptions-item :label="t('container.list.fields.name')">
-                        {{ displayName(detail) }}
-                      </t-descriptions-item>
-                      <t-descriptions-item :label="t('container.list.fields.id')">
-                        <span class="container-detail-copyable-value">
-                          <t-tooltip :content="detail.id" placement="top-left">
-                            <code>{{ shortIdentifier(detail.id, detail.short_id) }}</code>
-                          </t-tooltip>
-                          <t-button
-                            v-if="detail.id"
+                <div class="container-detail-overview-grid">
+                  <t-card size="small" :bordered="false" :title="t('container.detail.overview.basicInfo')">
+                    <div class="container-overview-field-list">
+                      <div class="container-overview-field">
+                        <span class="container-overview-field__label">
+                          {{ t('container.detail.overview.fields.name') }}
+                        </span>
+                        <span class="container-overview-field__value">{{ displayName(detail) }}</span>
+                      </div>
+                      <div class="container-overview-field">
+                        <span class="container-overview-field__label">
+                          {{ t('container.detail.overview.fields.containerId') }}
+                        </span>
+                        <span class="container-overview-field__value">
+                          <copyable-detail-value
+                            :value="detail.id"
+                            :display-value="shortContainerId(detail)"
+                            code
                             data-testid="container-id-copy"
-                            size="small"
-                            theme="primary"
-                            variant="text"
-                            @click="copyDetailText(detail.id)"
-                          >
-                            {{ t('container.detail.copy') }}
-                          </t-button>
+                          />
                         </span>
-                      </t-descriptions-item>
-                      <t-descriptions-item :label="t('container.list.fields.image')">
-                        {{ detail.image }}
-                      </t-descriptions-item>
-                      <t-descriptions-item :label="t('container.list.fields.imageId')">
-                        <span class="container-detail-copyable-value">
-                          <t-tooltip :content="readableImageId(detail.image_id)" placement="top-left">
-                            <code>{{ shortIdentifier(readableImageId(detail.image_id)) }}</code>
-                          </t-tooltip>
-                          <t-button
-                            v-if="detail.image_id"
+                      </div>
+                      <div class="container-overview-field">
+                        <span class="container-overview-field__label">
+                          {{ t('container.detail.overview.fields.fullId') }}
+                        </span>
+                        <span class="container-overview-field__value">
+                          <copyable-detail-value
+                            :value="detail.id"
+                            :display-value="shortIdentifier(detail.id)"
+                            code
+                            data-testid="container-full-id-copy"
+                          />
+                        </span>
+                      </div>
+                      <div class="container-overview-field">
+                        <span class="container-overview-field__label">
+                          {{ t('container.detail.overview.fields.image') }}
+                        </span>
+                        <span class="container-overview-field__value">
+                          <copyable-detail-value :value="detail.image" :display-value="detail.image" />
+                        </span>
+                      </div>
+                      <div class="container-overview-field">
+                        <span class="container-overview-field__label">
+                          {{ t('container.detail.overview.fields.imageId') }}
+                        </span>
+                        <span class="container-overview-field__value">
+                          <copyable-detail-value
+                            :value="readableImageId(detail.image_id)"
+                            :display-value="shortIdentifier(readableImageId(detail.image_id))"
+                            code
                             data-testid="image-id-copy"
-                            size="small"
-                            theme="primary"
-                            variant="text"
-                            @click="copyDetailText(readableImageId(detail.image_id))"
-                          >
-                            {{ t('container.detail.copy') }}
-                          </t-button>
+                          />
                         </span>
-                      </t-descriptions-item>
-                    </t-descriptions>
-                  </section>
+                      </div>
+                      <div class="container-overview-field">
+                        <span class="container-overview-field__label">
+                          {{ t('container.detail.overview.fields.runtime') }}
+                        </span>
+                        <span class="container-overview-field__value">{{ runtimeLabel(detail) }}</span>
+                      </div>
+                    </div>
+                  </t-card>
 
-                  <section class="container-detail-overview-group">
-                    <h3>{{ t('container.detail.overview.runtimeInfo') }}</h3>
-                    <t-descriptions :column="2" item-layout="vertical" bordered table-layout="fixed">
-                      <t-descriptions-item :label="t('container.list.fields.state')">
-                        <t-tag :theme="stateTheme(detail.state)" variant="light-outline">
-                          {{ stateLabel(detail.state) }}
-                        </t-tag>
-                      </t-descriptions-item>
-                      <t-descriptions-item :label="t('container.list.fields.status')">
-                        {{ detail.status || '-' }}
-                      </t-descriptions-item>
-                      <t-descriptions-item :label="t('container.list.fields.createdAt')">
-                        {{ formatTime(detail.created_at) }}
-                      </t-descriptions-item>
-                      <t-descriptions-item :label="t('container.list.fields.startedAt')">
-                        {{ formatTime(detail.started_at) }}
-                      </t-descriptions-item>
-                    </t-descriptions>
-                  </section>
+                  <t-card size="small" :bordered="false" :title="t('container.detail.overview.runtimeInfo')">
+                    <div class="container-overview-field-list">
+                      <div class="container-overview-field">
+                        <span class="container-overview-field__label">
+                          {{ t('container.detail.overview.fields.status') }}
+                        </span>
+                        <span class="container-overview-field__value">
+                          <t-tag :theme="stateTheme(detail.state)" variant="light-outline">
+                            {{ stateLabel(detail.state) }}
+                          </t-tag>
+                        </span>
+                      </div>
+                      <div class="container-overview-field">
+                        <span class="container-overview-field__label">
+                          {{ t('container.detail.overview.fields.state') }}
+                        </span>
+                        <span class="container-overview-field__value">{{ detail.state || '-' }}</span>
+                      </div>
+                      <div class="container-overview-field">
+                        <span class="container-overview-field__label">
+                          {{ t('container.detail.overview.fields.health') }}
+                        </span>
+                        <span class="container-overview-field__value">{{ healthLabel(detail.health) }}</span>
+                      </div>
+                      <div class="container-overview-field">
+                        <span class="container-overview-field__label">
+                          {{ t('container.detail.overview.fields.createdAt') }}
+                        </span>
+                        <span class="container-overview-field__value">{{ formatTime(detail.created_at) }}</span>
+                      </div>
+                      <div class="container-overview-field">
+                        <span class="container-overview-field__label">
+                          {{ t('container.detail.overview.fields.startedAt') }}
+                        </span>
+                        <span class="container-overview-field__value">{{ formatTime(detail.started_at) }}</span>
+                      </div>
+                      <div class="container-overview-field">
+                        <span class="container-overview-field__label">
+                          {{ t('container.detail.overview.fields.updatedAt') }}
+                        </span>
+                        <span class="container-overview-field__value">{{ formatTime(detail.inspect_updated_at) }}</span>
+                      </div>
+                    </div>
+                  </t-card>
+
+                  <t-card size="small" :bordered="false" :title="t('container.detail.overview.resourceSummary')">
+                    <div class="container-overview-field-list">
+                      <div class="container-overview-field">
+                        <span class="container-overview-field__label">
+                          {{ t('container.detail.resources.cpu') }}
+                        </span>
+                        <span class="container-overview-field__value">
+                          {{ formatPercent(detail.resource?.cpu_percent) }}
+                        </span>
+                      </div>
+                      <div class="container-overview-field">
+                        <span class="container-overview-field__label">
+                          {{ t('container.detail.resources.memoryUsage') }}
+                        </span>
+                        <span class="container-overview-field__value">
+                          {{ formatBytes(detail.resource?.memory_usage_bytes) }}
+                        </span>
+                      </div>
+                      <div class="container-overview-field">
+                        <span class="container-overview-field__label">
+                          {{ t('container.detail.resources.memoryLimit') }}
+                        </span>
+                        <span class="container-overview-field__value">
+                          {{ formatBytes(detail.resource?.memory_limit_bytes) }}
+                        </span>
+                      </div>
+                      <div class="container-overview-field">
+                        <span class="container-overview-field__label">
+                          {{ t('container.detail.overview.fields.memoryRatio') }}
+                        </span>
+                        <span class="container-overview-field__value">
+                          {{ formatPercent(detail.resource?.memory_percent) }}
+                        </span>
+                      </div>
+                    </div>
+                  </t-card>
+
+                  <t-card size="small" :bordered="false" :title="t('container.detail.overview.networkSummary')">
+                    <div class="container-overview-field-list">
+                      <div class="container-overview-field">
+                        <span class="container-overview-field__label">
+                          {{ t('container.detail.network.primaryIp') }}
+                        </span>
+                        <span class="container-overview-field__value">{{ detail.primary_ip || '-' }}</span>
+                      </div>
+                      <div class="container-overview-field">
+                        <span class="container-overview-field__label">
+                          {{ t('container.detail.overview.fields.networkMode') }}
+                        </span>
+                        <span class="container-overview-field__value">{{ networkSummary(detail) }}</span>
+                      </div>
+                      <div class="container-overview-field">
+                        <span class="container-overview-field__label">
+                          {{ t('container.detail.overview.fields.networkName') }}
+                        </span>
+                        <span class="container-overview-field__value">{{ primaryNetworkName(detail) }}</span>
+                      </div>
+                      <div class="container-overview-field">
+                        <span class="container-overview-field__label">
+                          {{ t('container.detail.network.ports') }}
+                        </span>
+                        <span class="container-overview-field__value">
+                          <span v-if="detail.ports.length" class="container-detail-port-list">
+                            <t-tag
+                              v-for="port in detail.ports"
+                              :key="portLabel(port)"
+                              class="container-detail-port-chip"
+                              theme="default"
+                              variant="light-outline"
+                            >
+                              {{ portLabel(port) }}
+                            </t-tag>
+                          </span>
+                          <span v-else>{{ t('container.detail.network.noPublicPorts') }}</span>
+                        </span>
+                      </div>
+                    </div>
+                  </t-card>
                 </div>
               </section>
             </t-tab-panel>
@@ -416,9 +582,10 @@
   </div>
 </template>
 <script setup lang="ts">
+import { CopyIcon } from 'tdesign-icons-vue-next';
 import type { TableProps } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, defineComponent, h, onMounted, ref, resolveComponent, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
@@ -478,9 +645,15 @@ const logLineLimit = ref(DEFAULT_LOG_QUERY.tail);
 const activeTab = ref<DetailTab>(normalizeTab(route.query.tab));
 
 const containerId = computed(() => String(route.params.id ?? '').trim());
+const detailBreadcrumb = computed(() => [
+  { labelKey: 'container.list.eyebrow', fallback: t('container.list.eyebrow') },
+  { labelKey: 'container.detail.title', fallback: t('container.detail.title') },
+]);
 const pageTitle = computed(() => {
-  const name = detail.value ? displayName(detail.value) : containerId.value;
-  return name ? `${t('container.detail.title')} - ${name}` : t('container.detail.title');
+  if (detail.value) {
+    return displayName(detail.value);
+  }
+  return containerId.value || t('container.detail.title');
 });
 const environmentRows = computed(() => normalizeEnvironmentRows(detail.value));
 const environmentColumns = computed<TableProps['columns']>(() => [
@@ -623,6 +796,80 @@ async function copyDetailText(text: string) {
   MessagePlugin.error(t('container.detail.copyError'));
 }
 
+function copyableDetailValueTestId(attrs: Record<string, unknown>) {
+  const value = attrs['data-testid'];
+  return typeof value === 'string' ? value : undefined;
+}
+
+const CopyableDetailValue = defineComponent({
+  name: 'CopyableDetailValue',
+  inheritAttrs: false,
+  props: {
+    code: Boolean,
+    displayValue: {
+      default: '',
+      type: String,
+    },
+    value: {
+      default: '',
+      type: String,
+    },
+  },
+  setup(props, { attrs }) {
+    const displayValue = computed(() => props.displayValue || props.value || '-');
+    const copyValue = computed(() => {
+      const value = props.value?.trim() || '';
+      return value === '-' ? '' : value;
+    });
+    const testId = computed(() => copyableDetailValueTestId(attrs));
+
+    return () =>
+      h('span', { class: 'container-detail-copyable-value' }, [
+        h(
+          resolveComponent('t-tooltip'),
+          {
+            content: copyValue.value || displayValue.value,
+            placement: 'top-left',
+          },
+          {
+            default: () =>
+              h(props.code ? 'code' : 'span', { class: 'container-detail-copyable-value__text' }, displayValue.value),
+          },
+        ),
+        copyValue.value
+          ? h(
+              resolveComponent('t-tooltip'),
+              {
+                content: t('container.detail.copy'),
+                placement: 'top',
+              },
+              {
+                default: () =>
+                  h(
+                    resolveComponent('t-button'),
+                    {
+                      'aria-label': t('container.detail.copy'),
+                      class: 'container-detail-copyable-value__button',
+                      'data-testid': testId.value,
+                      shape: 'square',
+                      size: 'small',
+                      theme: 'default',
+                      variant: 'text',
+                      onClick: () => {
+                        void copyDetailText(copyValue.value);
+                      },
+                    },
+                    {
+                      icon: () => h(CopyIcon),
+                    },
+                  ),
+              },
+            )
+          : null,
+      ]);
+  },
+});
+
 function normalizeTab(value: unknown): DetailTab {
   const raw = Array.isArray(value) ? value[0] : value;
   return typeof raw === 'string' && DETAIL_TABS.includes(raw as DetailTab) ? (raw as DetailTab) : 'overview';
@@ -716,7 +963,7 @@ function policyTheme(policy: EnvironmentPolicy) {
 }
 
 function displayName(row: ContainerDetail) {
-  return row.name || row.names[0] || row.id;
+  return row.name || row.names[0] || shortContainerId(row);
 }
 
 function stateLabel(state: ContainerState) {
@@ -724,7 +971,7 @@ function stateLabel(state: ContainerState) {
 }
 
 function healthLabel(health?: ContainerHealth | null) {
-  return t(`container.list.health.${health || 'unavailable'}`);
+  return t(`container.list.health.${health || 'none'}`);
 }
 
 function healthTheme(health?: ContainerHealth | null) {
@@ -749,6 +996,22 @@ function joinList(values?: string[]) {
   return values?.length ? values.join(' ') : '-';
 }
 
+function runtimeLabel(nextDetail: ContainerDetail) {
+  return nextDetail.runtime || nextDetail.runtime_info?.runtime || '-';
+}
+
+function shortContainerId(nextDetail: ContainerDetail) {
+  return shortIdentifier(nextDetail.id, nextDetail.short_id, 12);
+}
+
+function networkSummary(nextDetail: ContainerDetail) {
+  return nextDetail.network_summary || primaryNetworkName(nextDetail);
+}
+
+function primaryNetworkName(nextDetail: ContainerDetail) {
+  return nextDetail.networks[0]?.name || '-';
+}
+
 function resourceAvailability(nextDetail: ContainerDetail) {
   const resource = nextDetail.resource;
   if (resource?.stats_available || resource?.available) {
@@ -762,11 +1025,12 @@ function memorySummary(nextDetail: ContainerDetail) {
   return `${formatBytes(resource?.memory_usage_bytes)} / ${formatBytes(resource?.memory_limit_bytes)}`;
 }
 
-function shortIdentifier(value?: string | null, preferred?: string | null) {
+function shortIdentifier(value?: string | null, preferred?: string | null, maxLength = 28) {
   const normalized = value?.trim();
   if (!normalized) return '-';
   if (preferred?.trim()) return preferred.trim();
-  if (normalized.length <= 32) return normalized;
+  if (normalized.length <= maxLength) return normalized;
+  if (maxLength <= 12) return normalized.slice(0, maxLength);
   return `${normalized.slice(0, 18)}...${normalized.slice(-10)}`;
 }
 
@@ -793,7 +1057,7 @@ function portLabel(port: ContainerDetail['ports'][number]) {
 .container-detail-summary {
   display: grid;
   gap: var(--graft-density-gap-12);
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .container-detail-summary-card {
@@ -807,7 +1071,6 @@ function portLabel(port: ContainerDetail['ports'][number]) {
   height: calc(100% - var(--td-comp-size-xxxl));
 }
 
-.container-detail-summary__main,
 .container-detail-metric,
 .container-detail-section,
 .container-detail-subsection {
@@ -815,6 +1078,76 @@ function portLabel(port: ContainerDetail['ports'][number]) {
   flex-direction: column;
   gap: var(--graft-density-gap-8);
   min-width: 0;
+}
+
+.container-detail-summary-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--graft-density-gap-10);
+  height: 100%;
+  min-width: 0;
+}
+
+.container-detail-kv {
+  display: grid;
+  gap: var(--graft-density-gap-4);
+  min-width: 0;
+}
+
+.container-detail-kv--inline {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.container-detail-kv > span {
+  color: var(--td-text-color-placeholder);
+  font: var(--td-font-body-small);
+}
+
+.container-detail-kv strong,
+.container-detail-kv code {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-body-medium);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.container-detail-kv code,
+.container-detail-header-id {
+  font-family: var(
+    --td-font-family-mono,
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    'Liberation Mono',
+    monospace
+  );
+}
+
+.container-detail-header-id {
+  align-items: center;
+  color: var(--td-text-color-secondary);
+  display: inline-flex;
+  font: var(--td-font-body-small);
+  min-height: var(--td-comp-size-xs);
+}
+
+.container-detail-header-meta {
+  max-width: min(100%, 680px);
+  min-width: 0;
+}
+
+.container-detail-header-meta :deep(.t-space-item) {
+  min-width: 0;
+}
+
+.container-detail-header-meta :deep(.t-tag) {
+  max-width: 100%;
 }
 
 .container-detail-summary__resource,
@@ -830,14 +1163,13 @@ function portLabel(port: ContainerDetail['ports'][number]) {
 }
 
 .container-detail-summary__resource {
-  grid-template-columns: minmax(112px, 0.8fr) minmax(0, 1.2fr);
+  grid-template-columns: 1fr;
 }
 
 .container-detail-resource-descriptions {
   margin-top: var(--graft-density-gap-12);
 }
 
-.container-detail-summary__main strong,
 .container-detail-metric strong,
 .container-detail-subsection h3,
 .container-detail-overview-group h3 {
@@ -846,8 +1178,6 @@ function portLabel(port: ContainerDetail['ports'][number]) {
   margin: 0;
 }
 
-.container-detail-summary__main span,
-.container-detail-summary__main code,
 .container-detail-metric span {
   color: var(--td-text-color-secondary);
   font: var(--td-font-body-small);
@@ -899,6 +1229,12 @@ function portLabel(port: ContainerDetail['ports'][number]) {
   overflow-wrap: anywhere;
 }
 
+.container-detail-resource-meter__content em {
+  color: var(--td-text-color-placeholder);
+  font: var(--td-font-body-small);
+  font-style: normal;
+}
+
 .container-detail-resource-meter--memory :deep(.t-progress) {
   width: 100%;
 }
@@ -917,29 +1253,85 @@ function portLabel(port: ContainerDetail['ports'][number]) {
   max-width: 100%;
 }
 
-.container-detail-overview-groups {
-  display: flex;
-  flex-direction: column;
+.container-detail-overview-grid {
+  display: grid;
   gap: var(--graft-density-gap-16);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  min-width: 0;
 }
 
-.container-detail-overview-group {
+.container-detail-overview-grid :deep(.t-card) {
+  background: color-mix(in srgb, var(--td-bg-color-container) 94%, transparent);
+  border: 1px solid color-mix(in srgb, var(--td-component-stroke) 64%, transparent);
+  height: 100%;
+  min-width: 0;
+}
+
+.container-detail-overview-grid :deep(.t-card__header) {
+  padding: var(--graft-density-gap-14) var(--graft-density-gap-20) 0;
+}
+
+.container-detail-overview-grid :deep(.t-card__title) {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-title-small);
+  font-weight: 600;
+}
+
+.container-detail-overview-grid :deep(.t-card__body) {
+  padding: var(--graft-density-gap-12) var(--graft-density-gap-20) var(--graft-density-gap-18);
+}
+
+.container-overview-field-list {
   display: flex;
   flex-direction: column;
   gap: var(--graft-density-gap-8);
   min-width: 0;
+}
+
+.container-overview-field {
+  align-items: center;
+  column-gap: var(--graft-density-gap-16);
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  min-height: 28px;
+  min-width: 0;
+}
+
+.container-overview-field__label {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+  line-height: 20px;
+  min-width: 0;
+}
+
+.container-overview-field__value {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-body-small);
+  font-weight: 500;
+  line-height: 20px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.container-overview-field__value .container-detail-port-list {
+  display: inline-flex;
 }
 
 .container-detail-copyable-value {
   align-items: center;
   display: inline-flex;
-  gap: var(--graft-density-gap-8);
+  gap: var(--graft-density-gap-6);
   max-width: 100%;
   min-width: 0;
+  vertical-align: bottom;
 }
 
+.container-detail-copyable-value__text,
 .container-detail-copyable-value code {
   color: var(--td-text-color-primary);
+  display: inline-block;
   font-family: var(
     --td-font-family-mono,
     ui-monospace,
@@ -950,7 +1342,28 @@ function portLabel(port: ContainerDetail['ports'][number]) {
     'Liberation Mono',
     monospace
   );
-  overflow-wrap: anywhere;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
+  white-space: nowrap;
+}
+
+.container-detail-copyable-value > :first-child {
+  min-width: 0;
+}
+
+.container-detail-copyable-value__button {
+  flex: 0 0 auto;
+}
+
+.container-detail-overview-grid :deep(.t-descriptions__label) {
+  color: var(--td-text-color-placeholder);
+}
+
+.container-detail-overview-grid :deep(.t-descriptions__content) {
+  min-width: 0;
 }
 
 .container-detail-tabs-card {
@@ -961,15 +1374,51 @@ function portLabel(port: ContainerDetail['ports'][number]) {
   padding: 0;
 }
 
-.container-detail-section {
-  padding: var(--graft-density-gap-16) 0 0;
+.container-detail-tabs-card :deep(.t-tabs__content) {
+  padding-top: var(--graft-density-gap-12);
 }
 
-@media (width <= 960px) {
+.container-detail-section {
+  padding: 0;
+}
+
+@media (width <= 1360px) {
+  .container-detail-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (width <= 1024px) {
+  .container-detail-overview-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (width <= 560px) {
+  .container-overview-field {
+    align-items: flex-start;
+    grid-template-columns: 84px minmax(0, 1fr);
+  }
+}
+
+@media (width <= 720px) {
   .container-detail-summary,
   .container-detail-summary__resource,
-  .container-detail-resource-grid {
+  .container-detail-resource-grid,
+  .container-detail-overview-grid {
     grid-template-columns: 1fr;
+  }
+
+  .container-detail-header-meta {
+    max-width: 100%;
+  }
+
+  .container-detail-header-meta :deep(.t-space) {
+    width: 100%;
+  }
+
+  .container-detail-header-meta :deep(.t-space-item) {
+    max-width: 100%;
   }
 }
 </style>

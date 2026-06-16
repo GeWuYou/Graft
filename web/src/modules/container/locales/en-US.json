@@ -108,7 +108,7 @@
         "healthy": "Healthy",
         "unhealthy": "Unhealthy",
         "starting": "Starting",
-        "none": "No Healthcheck",
+        "none": "Healthcheck Not Configured",
         "unavailable": "Health Unknown"
       },
       "actions": {
@@ -243,13 +243,34 @@
       "inspectUpdatedAt": "Detail Updated At",
       "operation": "Operation",
       "summary": {
-        "identity": "Container",
+        "identity": "Identity",
+        "runtime": "Runtime Status",
         "resources": "Resources",
-        "network": "Network"
+        "network": "Network Access"
       },
       "overview": {
         "basicInfo": "Basic Information",
-        "runtimeInfo": "Runtime Information"
+        "runtimeInfo": "Runtime Information",
+        "resourceSummary": "Resource Summary",
+        "networkSummary": "Network Summary",
+        "fullId": "Full ID",
+        "fields": {
+          "containerId": "Container ID",
+          "createdAt": "Created At",
+          "fullId": "Full ID",
+          "health": "Healthcheck",
+          "image": "Image",
+          "imageId": "Image ID",
+          "memoryRatio": "Memory Ratio",
+          "name": "Name",
+          "networkMode": "Network Mode",
+          "networkName": "Network Name",
+          "runtime": "Runtime",
+          "startedAt": "Started At",
+          "state": "State",
+          "status": "Status",
+          "updatedAt": "Updated At"
+        }
       },
       "tabs": {
         "overview": "Overview",
@@ -312,6 +333,7 @@
         "primaryIp": "Primary IP",
         "summary": "Network Summary",
         "ports": "Port Mappings",
+        "noPublicPorts": "No Public Ports",
         "name": "Network",
         "ipAddress": "IP Address",
         "gateway": "Gateway",

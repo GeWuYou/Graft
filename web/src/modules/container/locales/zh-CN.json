@@ -108,7 +108,7 @@
         "healthy": "健康",
         "unhealthy": "异常",
         "starting": "启动中",
-        "none": "无健康检查",
+        "none": "未配置健康检查",
         "unavailable": "健康未知"
       },
       "actions": {
@@ -243,13 +243,34 @@
       "inspectUpdatedAt": "详情更新时间",
       "operation": "操作",
       "summary": {
-        "identity": "容器",
-        "resources": "资源",
-        "network": "网络"
+        "identity": "身份信息",
+        "runtime": "运行状态",
+        "resources": "资源使用",
+        "network": "网络访问"
       },
       "overview": {
         "basicInfo": "基础信息",
-        "runtimeInfo": "运行信息"
+        "runtimeInfo": "运行信息",
+        "resourceSummary": "资源摘要",
+        "networkSummary": "网络摘要",
+        "fullId": "完整 ID",
+        "fields": {
+          "containerId": "容器 ID",
+          "createdAt": "创建时间",
+          "fullId": "完整 ID",
+          "health": "健康检查",
+          "image": "镜像",
+          "imageId": "镜像 ID",
+          "memoryRatio": "内存占比",
+          "name": "名称",
+          "networkMode": "网络模式",
+          "networkName": "网络名称",
+          "runtime": "运行时",
+          "startedAt": "启动时间",
+          "state": "状态码",
+          "status": "状态",
+          "updatedAt": "更新时间"
+        }
       },
       "tabs": {
         "overview": "概览",
@@ -312,6 +333,7 @@
         "primaryIp": "主 IP",
         "summary": "网络摘要",
         "ports": "端口映射",
+        "noPublicPorts": "无公开端口",
         "name": "网络",
         "ipAddress": "IP 地址",
         "gateway": "网关",
