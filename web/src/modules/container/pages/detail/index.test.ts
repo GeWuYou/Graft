@@ -1484,15 +1484,29 @@ describe('container detail page', () => {
     expect(wrapper.text()).toContain('graft-web');
     expect(wrapper.text()).toContain('server started');
 
-    apiMocks.getContainer.mockResolvedValue({
+    const nextDetail = deferred<ReturnType<typeof createContainerDetail>>();
+    const nextLogs = deferred<{
+      id: string;
+      lines: string[];
+      runtime: string;
+      stderr: boolean;
+      stdout: boolean;
+      tail: number;
+      timestamps: boolean;
+      truncated: boolean;
+    }>();
+    apiMocks.getContainer.mockReturnValue(nextDetail.promise);
+    apiMocks.getContainerLogs.mockReturnValue(nextLogs.promise);
+
+    const container2Detail = {
       ...createContainerDetail(),
       id: 'container-2',
       short_id: 'container-2',
       name: 'graft-api',
       names: ['graft-api'],
       image: 'graft/api:latest',
-    });
-    apiMocks.getContainerLogs.mockResolvedValue({
+    };
+    const container2Logs = {
       id: 'container-2',
       lines: ['api started'],
       runtime: 'docker',
@@ -1501,13 +1515,10 @@ describe('container detail page', () => {
       tail: 200,
       timestamps: false,
       truncated: false,
-    });
+    };
 
     routeState.route.params.id = 'container-2';
     await wrapper.vm.$nextTick();
-    expect(wrapper.text()).not.toContain('graft-web');
-    expect(wrapper.text()).not.toContain('server started');
-
     await vi.waitFor(() => {
       expect(apiMocks.getContainer).toHaveBeenLastCalledWith('container-2');
       expect(apiMocks.getContainerLogs).toHaveBeenLastCalledWith('container-2', {
@@ -1518,6 +1529,12 @@ describe('container detail page', () => {
         timestamps: false,
       });
     });
+
+    expect(wrapper.text()).not.toContain('graft-web');
+    expect(wrapper.text()).not.toContain('server started');
+
+    nextDetail.resolve(container2Detail);
+    nextLogs.resolve(container2Logs);
     await flushPromises();
     expect(wrapper.text()).toContain('graft-api');
     expect(wrapper.text()).toContain('api started');
