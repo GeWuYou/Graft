@@ -6,7 +6,7 @@
 <template>
   <section class="log-viewer">
     <div class="log-viewer__toolbar">
-      <div class="log-viewer__toolbar-group log-viewer__toolbar-group--primary">
+      <div class="log-viewer__toolbar-group log-viewer__toolbar-left">
         <t-button theme="primary" :loading="loading" @click="$emit('refresh')">
           {{ refreshLabel }}
         </t-button>
@@ -29,7 +29,7 @@
         <t-select v-model:value="selectedLevel" class="log-viewer__level-filter" :options="levelOptions" size="small" />
       </div>
 
-      <div class="log-viewer__toolbar-group log-viewer__toolbar-group--tools">
+      <div class="log-viewer__toolbar-group log-viewer__toolbar-right">
         <t-input
           v-model:value="searchKeyword"
           class="log-viewer__search"
@@ -46,7 +46,9 @@
         </label>
         <label class="log-viewer__switch">
           <span>{{ refreshScrollLabel }}</span>
-          <t-switch v-model:value="scrollAfterRefresh" size="small" />
+          <t-tooltip :content="refreshScrollTooltipLabel" theme="light">
+            <t-switch v-model:value="scrollAfterRefresh" size="small" />
+          </t-tooltip>
         </label>
       </div>
     </div>
@@ -308,6 +310,7 @@ const props = withDefaults(
     searchPlaceholder: string;
     wrapLabel: string;
     refreshScrollLabel: string;
+    refreshScrollTooltipLabel: string;
     levelFilterLabel: string;
     allLevelsLabel: string;
     matchCountLabel: string;
@@ -551,11 +554,14 @@ async function copyTextWithFeedback(value: string) {
 
 .log-viewer__toolbar {
   align-items: center;
+  background: var(--td-bg-color-container);
+  border-bottom: 1px solid var(--td-border-level-1-color);
   display: flex;
   flex-wrap: wrap;
-  gap: var(--graft-density-gap-8);
+  gap: var(--graft-density-gap-12);
   justify-content: space-between;
   min-width: 0;
+  padding: var(--graft-density-gap-10) var(--graft-density-gap-14);
   position: sticky;
   top: 0;
   z-index: 1;
@@ -566,16 +572,16 @@ async function copyTextWithFeedback(value: string) {
   align-items: center;
   display: flex;
   flex-wrap: wrap;
-  gap: var(--graft-density-gap-6);
+  gap: var(--graft-density-gap-8);
   min-width: 0;
 }
 
-.log-viewer__toolbar-group--primary {
-  flex: 1 1 520px;
+.log-viewer__toolbar-left {
+  flex: 0 0 auto;
 }
 
-.log-viewer__toolbar-group--tools {
-  flex: 1 1 520px;
+.log-viewer__toolbar-right {
+  flex: 1 1 420px;
   justify-content: flex-end;
 }
 
@@ -584,17 +590,24 @@ async function copyTextWithFeedback(value: string) {
 }
 
 .log-viewer__level-filter {
-  width: 128px;
+  width: 140px;
 }
 
 .log-viewer__search {
-  width: min(340px, 100%);
+  flex: 0 0 auto;
+  max-width: 36vw;
+  min-width: 220px;
+  width: 320px;
 }
 
 .log-viewer__match-count,
 .log-viewer__switch {
   color: var(--td-text-color-secondary);
   font: var(--td-font-body-small);
+}
+
+.log-viewer__switch {
+  white-space: nowrap;
 }
 
 .log-viewer__viewport {
@@ -1075,11 +1088,27 @@ async function copyTextWithFeedback(value: string) {
   color: var(--td-text-color-placeholder);
 }
 
-@media (width <= 1024px) {
-  .log-viewer__toolbar-group--tools {
+@media (width <= 1200px) {
+  .log-viewer__toolbar {
+    align-items: flex-start;
+  }
+
+  .log-viewer__toolbar-left,
+  .log-viewer__toolbar-right {
+    width: 100%;
+  }
+
+  .log-viewer__toolbar-right {
     justify-content: flex-start;
   }
 
+  .log-viewer__search {
+    max-width: 100%;
+    width: min(360px, 100%);
+  }
+}
+
+@media (width <= 1024px) {
   .log-viewer__line {
     grid-template-columns: 40px 92px 56px minmax(108px, 132px) minmax(0, 1fr) 56px;
   }

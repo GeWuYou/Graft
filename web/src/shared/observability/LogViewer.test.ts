@@ -40,7 +40,8 @@ const labels = {
   rawLabel: '原始日志',
   copyMessageLabel: '复制消息',
   refreshLabel: '刷新日志',
-  refreshScrollLabel: '刷新后滚到底部',
+  refreshScrollLabel: '跟随底部',
+  refreshScrollTooltipLabel: '刷新日志后自动滚动到底部',
   retryLabel: '重试',
   searchPlaceholder: '搜索日志内容',
   sourceLabel: '来源',
@@ -62,6 +63,23 @@ describe('LogViewer', () => {
 
     expect(wrapper.find('.log-viewer__viewport--wrap').exists()).toBe(true);
     expect(wrapper.find('.log-viewer__viewport').classes()).toContain('log-viewer__viewport--wrap');
+  });
+
+  it('keeps the log toolbar split into balanced action and filter groups', () => {
+    const wrapper = mount(LogViewer, {
+      props: {
+        ...labels,
+        lines: createLines(2),
+      },
+      global: { stubs: tdesignStubs },
+    });
+
+    expect(wrapper.find('.log-viewer__toolbar-left').text()).toContain('刷新日志');
+    expect(wrapper.find('.log-viewer__toolbar-left').text()).toContain('复制全部');
+    expect(wrapper.find('.log-viewer__toolbar-left').text()).toContain('下载');
+    expect(wrapper.find('.log-viewer__toolbar-right').text()).toContain('自动换行');
+    expect(wrapper.find('.log-viewer__toolbar-right').text()).toContain('跟随底部');
+    expect(wrapper.find('[data-tooltip="刷新日志后自动滚动到底部"]').exists()).toBe(true);
   });
 
   it('limits metadata tags and folds repeated low-signal fields out of the main row', () => {

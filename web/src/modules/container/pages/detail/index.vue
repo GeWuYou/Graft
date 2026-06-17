@@ -366,6 +366,7 @@
                   :search-placeholder="t('container.detail.logs.searchPlaceholder')"
                   :wrap-label="t('container.detail.logs.wrap')"
                   :refresh-scroll-label="t('container.detail.logs.refreshScroll')"
+                  :refresh-scroll-tooltip-label="t('container.detail.logs.refreshScrollTooltip')"
                   :level-filter-label="t('container.detail.logs.levelFilter')"
                   :all-levels-label="t('container.detail.logs.allLevels')"
                   :match-count-label="t('container.detail.logs.matchCount')"
