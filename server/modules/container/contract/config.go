@@ -34,6 +34,8 @@ const (
 	ContainerDangerousActionsEnabledConfig ConfigKey = "ops.container.actions.dangerous_enabled"
 	// ContainerEnvironmentPolicyConfig controls container environment variable value display.
 	ContainerEnvironmentPolicyConfig ConfigKey = "ops.container.environment.policy"
+	// ContainerEnvironmentMaskedCopyEnabledConfig controls whether masked environment values expose copy-only raw values.
+	ContainerEnvironmentMaskedCopyEnabledConfig ConfigKey = "ops.container.environment.masked_copy_enabled"
 )
 
 const (

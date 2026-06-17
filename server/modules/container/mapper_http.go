@@ -120,6 +120,7 @@ func optionalEnvironment(environment []EnvironmentVariable) *[]containergen.Cont
 	mapped := make([]containergen.ContainerEnvironmentEntry, 0, len(environment))
 	for _, item := range environment {
 		mapped = append(mapped, containergen.ContainerEnvironmentEntry{
+			CopyValue: item.CopyValue,
 			Key:       item.Key,
 			Masked:    item.Masked,
 			Sensitive: item.Sensitive,

@@ -434,7 +434,12 @@ func (s *service) applyEnvironmentPolicy(ctx context.Context, detail Detail) Det
 		policy = containercontract.ContainerEnvironmentPolicyMasked
 	}
 	detail.EnvironmentPolicy = policy.String()
-	detail.Environment = applyEnvironmentPolicy(detail.Environment, policy)
+	detail.Environment = applyEnvironmentPolicy(detail.Environment, environmentPolicyOptions{
+		maskedCopyEnabled: policy == containercontract.ContainerEnvironmentPolicyMasked &&
+			environmentPlainAccessAllowed(ctx) &&
+			s.maskedEnvironmentCopyEnabled(ctx),
+		policy: policy,
+	})
 	return detail
 }
 
@@ -477,14 +482,20 @@ func (s *service) environmentDisplayPolicy(ctx context.Context) containercontrac
 	return normalizeEnvironmentPolicy(value)
 }
 
-func applyEnvironmentPolicy(environment []EnvironmentVariable, policy containercontract.EnvironmentPolicy) []EnvironmentVariable {
+type environmentPolicyOptions struct {
+	policy            containercontract.EnvironmentPolicy
+	maskedCopyEnabled bool
+}
+
+func applyEnvironmentPolicy(environment []EnvironmentVariable, options environmentPolicyOptions) []EnvironmentVariable {
 	if len(environment) == 0 {
 		return nil
 	}
 	mapped := make([]EnvironmentVariable, 0, len(environment))
 	for _, item := range environment {
 		item.Sensitive = item.Sensitive || isSensitiveEnvironmentKey(item.Key)
-		switch policy {
+		item.CopyValue = nil
+		switch options.policy {
 		case containercontract.ContainerEnvironmentPolicyHidden:
 			item.Value = ""
 			item.Masked = true
@@ -492,6 +503,10 @@ func applyEnvironmentPolicy(environment []EnvironmentVariable, policy containerc
 			item.Masked = false
 		default:
 			if item.Sensitive {
+				if options.maskedCopyEnabled {
+					copyValue := item.Value
+					item.CopyValue = &copyValue
+				}
 				item.Value = ""
 				item.Masked = true
 			} else {
@@ -906,6 +921,17 @@ func (s *service) dangerousActionsAllowed(ctx context.Context) bool {
 		ctx,
 		containercontract.ContainerDangerousActionsEnabledConfig.String(),
 		s.dangerousActionsEnabled,
+	)
+}
+
+func (s *service) maskedEnvironmentCopyEnabled(ctx context.Context) bool {
+	if s == nil || s.systemConfig == nil {
+		return defaultContainerEnvironmentMaskedCopy
+	}
+	return s.systemConfig.IsBooleanConfigEnabled(
+		ctx,
+		containercontract.ContainerEnvironmentMaskedCopyEnabledConfig.String(),
+		defaultContainerEnvironmentMaskedCopy,
 	)
 }
 

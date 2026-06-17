@@ -75,6 +75,9 @@ func TestRouteAndConfigContractsStayCanonical(t *testing.T) {
 	if containercontract.ContainerEnvironmentPolicyConfig.String() != "ops.container.environment.policy" {
 		t.Fatalf("unexpected environment policy config key")
 	}
+	if containercontract.ContainerEnvironmentMaskedCopyEnabledConfig.String() != "ops.container.environment.masked_copy_enabled" {
+		t.Fatalf("unexpected environment masked copy config key")
+	}
 	for _, permissionCode := range expectedPermissionCodes() {
 		if strings.Contains(permissionCode, "ops.docker") {
 			t.Fatalf("permission %s must not use ops.docker", permissionCode)
@@ -290,6 +293,7 @@ func expectedConfigKeys() []string {
 		containercontract.ContainerLogsMaxTailConfig.String(),
 		containercontract.ContainerDangerousActionsEnabledConfig.String(),
 		containercontract.ContainerEnvironmentPolicyConfig.String(),
+		containercontract.ContainerEnvironmentMaskedCopyEnabledConfig.String(),
 	}
 }
 

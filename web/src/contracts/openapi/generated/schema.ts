@@ -3937,6 +3937,8 @@ export interface components {
       key: string;
       /** @description Environment variable value. Omitted when the active policy hides or masks the value. */
       value?: string;
+      /** @description Copy-only raw value for a masked entry. Present only when policy, permission, and system configuration allow copying masked values. */
+      copy_value?: string;
       /** @description Whether the value is intentionally omitted by environment display policy. */
       masked: boolean;
       /** @description Whether the key matched the container module sensitive-key heuristic. */

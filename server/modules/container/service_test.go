@@ -287,6 +287,35 @@ func TestServiceAppliesPlainEnvironmentPolicyWithPermissionContext(t *testing.T)
 	})
 }
 
+func TestServiceExposesMaskedEnvironmentCopyValueOnlyWhenConfigured(t *testing.T) {
+	t.Parallel()
+
+	service := newEnvironmentPolicyTestService(t, containercontract.ContainerEnvironmentPolicyMasked.String())
+	detail, err := service.Detail(withEnvironmentPlainAccess(context.Background()), Ref{Value: "web"})
+	if err != nil {
+		t.Fatalf("detail: %v", err)
+	}
+	if detail.Environment[1].CopyValue != nil {
+		t.Fatalf("expected masked copy value to stay hidden by default, got %#v", detail.Environment[1])
+	}
+
+	enabledService := newEnvironmentPolicyTestServiceWithValues(
+		t,
+		containercontract.ContainerEnvironmentPolicyMasked.String(),
+		map[string]bool{containercontract.ContainerEnvironmentMaskedCopyEnabledConfig.String(): true},
+	)
+	detail, err = enabledService.Detail(withEnvironmentPlainAccess(context.Background()), Ref{Value: "web"})
+	if err != nil {
+		t.Fatalf("detail with copy enabled: %v", err)
+	}
+	if detail.Environment[1].CopyValue == nil || *detail.Environment[1].CopyValue != "secret" {
+		t.Fatalf("expected copy-only raw value for masked sensitive env, got %#v", detail.Environment[1])
+	}
+	if detail.Environment[1].Value != "" || !detail.Environment[1].Masked {
+		t.Fatalf("expected display value to remain masked, got %#v", detail.Environment[1])
+	}
+}
+
 type expectedEnvironmentPolicyResult struct {
 	policy       string
 	firstValue   string
@@ -296,15 +325,24 @@ type expectedEnvironmentPolicyResult struct {
 }
 
 func newEnvironmentPolicyTestService(t *testing.T, policy string) *service {
+	return newEnvironmentPolicyTestServiceWithValues(t, policy, nil)
+}
+
+func newEnvironmentPolicyTestServiceWithValues(t *testing.T, policy string, values map[string]bool) *service {
 	t.Helper()
+
+	configValues := map[string]bool{
+		containercontract.ContainerRuntimeEnabledConfig.String(): true,
+	}
+	for key, value := range values {
+		configValues[key] = value
+	}
 
 	service, err := newService(containerServiceOptions{
 		runtime: fakeRuntime{},
 		systemConfig: serviceTestPolicyConfig{
-			serviceTestSystemConfig: serviceTestSystemConfig{values: map[string]bool{
-				containercontract.ContainerRuntimeEnabledConfig.String(): true,
-			}},
-			policy: policy,
+			serviceTestSystemConfig: serviceTestSystemConfig{values: configValues},
+			policy:                  policy,
 		},
 		enabled:     true,
 		defaultTail: defaultContainerLogsDefaultTail,

@@ -3134,6 +3134,9 @@ type ContainerDetailState string
 
 // ContainerEnvironmentEntry Container environment variable entry after policy application.
 type ContainerEnvironmentEntry struct {
+	// CopyValue Copy-only raw value for a masked entry. Present only when policy, permission, and system configuration allow copying masked values.
+	CopyValue *string `json:"copy_value,omitempty"`
+
 	// Key Environment variable name.
 	Key string `json:"key"`
 

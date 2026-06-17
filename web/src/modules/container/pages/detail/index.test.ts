@@ -501,6 +501,33 @@ describe('container detail page', () => {
     expect(copyText).toHaveBeenCalledWith('  keep surrounding spaces  ');
   });
 
+  it('copies masked environment values only from copy_value', async () => {
+    const { copyText } = await import('@/shared/observability');
+    apiMocks.getContainer.mockResolvedValue({
+      ...createContainerDetail(),
+      environment: [
+        {
+          copy_value: 'real-token-value',
+          key: 'API_TOKEN',
+          masked: true,
+          sensitive: true,
+          source: 'config',
+        },
+      ],
+    });
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('******');
+    expect(wrapper.find('.container-env-table').text()).not.toContain('real-token-value');
+    expect(wrapper.findAll('[data-testid="t-tag"]').filter((tag) => tag.text() === '******')).toHaveLength(0);
+
+    await wrapper.get('[data-testid="env-copy"]').trigger('click');
+    await flushPromises();
+
+    expect(copyText).toHaveBeenCalledWith('real-token-value');
+  });
+
   it('clears stale detail and reloads logs when the route id changes on the logs tab', async () => {
     routeState.route.query.tab = 'logs';
     const wrapper = mountPage();
@@ -862,7 +889,7 @@ describe('container detail page', () => {
     expect(wrapper.text()).toContain('安全策略：全部');
     expect(wrapper.text()).toContain('复制 .env');
     expect(wrapper.text()).toContain('安全策略');
-    expect(wrapper.text()).toContain('[已脱敏]');
+    expect(wrapper.text()).toContain('******');
     expect(wrapper.text()).toContain('[已隐藏]');
     expect(wrapper.text()).not.toContain('API_TOKENundefined');
 
@@ -1269,7 +1296,9 @@ function mountPage() {
                 rows.length === 0 ? slots.empty?.() : undefined,
                 ...rows.map((row) =>
                   h('div', { key: String(row.name ?? row.key ?? row.destination) }, [
-                    Object.values(row).map((value) => h('span', String(value ?? ''))),
+                    (props.columns as Array<{ colKey: string }>).map((column) =>
+                      h('span', String(row[column.colKey] ?? '')),
+                    ),
                     slots.value?.({ row }),
                     slots.policy?.({ row }),
                     slots.operation?.({ row }),
@@ -1282,7 +1311,7 @@ function mountPage() {
           setup:
             (_, { slots }) =>
             () =>
-              h('span', slots.default?.()),
+              h('span', { 'data-testid': 't-tag' }, slots.default?.()),
         }),
         't-tooltip': defineComponent({
           setup:

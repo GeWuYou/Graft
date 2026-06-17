@@ -3,12 +3,26 @@
 
 package container
 
-import "testing"
+import (
+	"testing"
+
+	containergen "graft/server/internal/contract/openapi/generated"
+)
 
 func TestToDetailMapsHealthcheckAndRuntimeStability(t *testing.T) {
 	t.Parallel()
 
-	detail := Detail{
+	mapped := toDetail(detailWithHealthcheckAndRuntimeStability())
+	assertMappedHealthcheck(t, mapped.Healthcheck)
+	assertIntPtr(t, mapped.LastExitCode, 137, "mapped last exit code")
+	if mapped.OomKilled == nil || !*mapped.OomKilled {
+		t.Fatalf("expected mapped oom killed true, got %#v", mapped.OomKilled)
+	}
+	assertMappedEnvironmentCopyValue(t, mapped.Environment)
+}
+
+func detailWithHealthcheckAndRuntimeStability() Detail {
+	return Detail{
 		Summary: Summary{
 			ID:            "abc123",
 			ShortID:       "abc123",
@@ -24,6 +38,16 @@ func TestToDetailMapsHealthcheckAndRuntimeStability(t *testing.T) {
 			RestartPolicy: "unless-stopped",
 		},
 		EnvironmentPolicy: "masked",
+		Environment: []EnvironmentVariable{
+			{
+				Key:       "API_TOKEN",
+				Value:     "",
+				CopyValue: stringPtr("secret"),
+				Masked:    true,
+				Sensitive: true,
+				Source:    dockerEnvironmentSource,
+			},
+		},
 		Healthcheck: &Healthcheck{
 			Configured:     true,
 			Status:         containerHealthUnhealthy,
@@ -41,31 +65,41 @@ func TestToDetailMapsHealthcheckAndRuntimeStability(t *testing.T) {
 		RuntimeInfo:      RuntimeInfo{Runtime: runtimeNameDocker, Status: "enabled", Endpoint: "local"},
 		InspectUpdatedAt: "2026-06-17T01:32:00Z",
 	}
+}
 
-	mapped := toDetail(detail)
-	if mapped.Healthcheck == nil {
+func assertMappedHealthcheck(t *testing.T, healthcheck *containergen.ContainerHealthcheck) {
+	t.Helper()
+
+	if healthcheck == nil {
 		t.Fatalf("expected mapped healthcheck")
 	}
-	if !mapped.Healthcheck.Configured || string(mapped.Healthcheck.Status) != containerHealthUnhealthy {
-		t.Fatalf("unexpected mapped healthcheck %#v", mapped.Healthcheck)
+	if !healthcheck.Configured || string(healthcheck.Status) != containerHealthUnhealthy {
+		t.Fatalf("unexpected mapped healthcheck %#v", healthcheck)
 	}
-	if len(mapped.Healthcheck.Command) != 2 || mapped.Healthcheck.Command[1] != "curl -f http://localhost:8080/health || exit 1" {
-		t.Fatalf("unexpected mapped healthcheck command %#v", mapped.Healthcheck.Command)
+	if len(healthcheck.Command) != 2 || healthcheck.Command[1] != "curl -f http://localhost:8080/health || exit 1" {
+		t.Fatalf("unexpected mapped healthcheck command %#v", healthcheck.Command)
 	}
-	assertIntPtr(t, mapped.Healthcheck.ExitCode, 1, "mapped healthcheck exit code")
-	assertIntPtr(t, mapped.Healthcheck.FailingStreak, 2, "mapped healthcheck failing streak")
-	if mapped.Healthcheck.Output == nil || *mapped.Healthcheck.Output != "curl failed" {
-		t.Fatalf("unexpected mapped healthcheck output %#v", mapped.Healthcheck.Output)
+	assertIntPtr(t, healthcheck.ExitCode, 1, "mapped healthcheck exit code")
+	assertIntPtr(t, healthcheck.FailingStreak, 2, "mapped healthcheck failing streak")
+	if healthcheck.Output == nil || *healthcheck.Output != "curl failed" {
+		t.Fatalf("unexpected mapped healthcheck output %#v", healthcheck.Output)
 	}
-	if mapped.Healthcheck.FailureMessage == nil || *mapped.Healthcheck.FailureMessage != "curl failed" {
-		t.Fatalf("unexpected mapped healthcheck failure message %#v", mapped.Healthcheck.FailureMessage)
+	if healthcheck.FailureMessage == nil || *healthcheck.FailureMessage != "curl failed" {
+		t.Fatalf("unexpected mapped healthcheck failure message %#v", healthcheck.FailureMessage)
 	}
-	if mapped.Healthcheck.CheckedAt == nil || mapped.Healthcheck.CheckedAt.Format("2006-01-02T15:04:05Z07:00") != "2026-06-17T01:31:53Z" {
-		t.Fatalf("unexpected mapped healthcheck checked_at %#v", mapped.Healthcheck.CheckedAt)
+	if healthcheck.CheckedAt == nil || healthcheck.CheckedAt.Format("2006-01-02T15:04:05Z07:00") != "2026-06-17T01:31:53Z" {
+		t.Fatalf("unexpected mapped healthcheck checked_at %#v", healthcheck.CheckedAt)
 	}
-	assertIntPtr(t, mapped.LastExitCode, 137, "mapped last exit code")
-	if mapped.OomKilled == nil || !*mapped.OomKilled {
-		t.Fatalf("expected mapped oom killed true, got %#v", mapped.OomKilled)
+}
+
+func assertMappedEnvironmentCopyValue(t *testing.T, environment *[]containergen.ContainerEnvironmentEntry) {
+	t.Helper()
+
+	if environment == nil || len(*environment) != 1 {
+		t.Fatalf("expected one mapped environment entry, got %#v", environment)
+	}
+	if (*environment)[0].CopyValue == nil || *(*environment)[0].CopyValue != "secret" {
+		t.Fatalf("expected mapped environment copy value, got %#v", environment)
 	}
 }
 
@@ -148,5 +182,9 @@ func float64Ptr(value float64) *float64 {
 }
 
 func boolPtr(value bool) *bool {
+	return &value
+}
+
+func stringPtr(value string) *string {
 	return &value
 }

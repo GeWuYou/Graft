@@ -649,23 +649,18 @@
                       </t-tooltip>
                     </template>
                     <template #value="{ row }">
-                      <t-tag
-                        v-if="row.policy === 'masked' || row.policy === 'hidden'"
-                        :theme="policyTheme(row.policy)"
-                        variant="light-outline"
-                        size="small"
-                      >
+                      <t-tag v-if="row.policy === 'hidden'" theme="danger" variant="light-outline" size="small">
                         {{ row.value }}
                       </t-tag>
                       <t-tag
-                        v-else-if="isBooleanEnvironmentValue(row.value)"
+                        v-else-if="row.policy !== 'masked' && isBooleanEnvironmentValue(row.value)"
                         theme="primary"
                         variant="light-outline"
                         size="small"
                       >
                         {{ row.value }}
                       </t-tag>
-                      <t-tooltip v-else :content="row.value">
+                      <t-tooltip v-else :content="row.rawValue || row.value">
                         <code class="container-env-cell container-env-cell--value">{{ row.value || '-' }}</code>
                       </t-tooltip>
                     </template>
@@ -809,6 +804,7 @@ type DetailTab = 'overview' | 'resources' | 'logs' | 'health' | 'config' | 'netw
 type EnvironmentPolicy = 'plain' | 'masked' | 'hidden' | 'unknown';
 type EnvironmentPolicyFilter = EnvironmentPolicy | 'all' | 'sensitive';
 type EnvironmentRow = {
+  copyValue: string;
   copyable: boolean;
   name: string;
   policy: EnvironmentPolicy;
@@ -1422,7 +1418,10 @@ function goBack() {
 }
 
 async function copyEnvironmentValue(row: EnvironmentRow) {
-  const copied = await copyTextToClipboard(row.rawValue);
+  if (!row.copyable) {
+    return;
+  }
+  const copied = await copyTextToClipboard(row.copyValue);
   if (copied) {
     MessagePlugin.success(t('container.detail.config.copyVariableValueSuccess'));
     return;
@@ -1472,17 +1471,20 @@ function normalizeEnvironmentRows(nextDetail: ContainerDetail | null): Environme
     const rawPolicy = readString(record?.policy ?? record?.visibility ?? record?.state);
     const masked = record?.masked === true;
     const rawValue = readRawString(record?.value);
+    const copyValue = readRawString(record?.copy_value);
     const policy = normalizeEnvironmentPolicy(
       rawPolicy,
       readString(detailRecord?.environment_policy),
       masked,
       rawValue,
     );
-    const value = policy === 'hidden' ? '' : rawValue;
+    const value = policy === 'hidden' ? '' : displayEnvironmentValue(rawValue, policy);
+    const resolvedCopyValue = copyValue || (policy === 'plain' ? rawValue : '');
 
     return [
       {
-        copyable: Boolean(rawValue) && policy !== 'hidden',
+        copyValue: resolvedCopyValue,
+        copyable: Boolean(resolvedCopyValue),
         name,
         policy,
         rawValue,
@@ -1526,9 +1528,24 @@ function normalizeEnvironmentPolicy(
 }
 
 function environmentValueFallback(policy: EnvironmentPolicy) {
-  if (policy === 'masked') return t('container.detail.config.maskedValue');
+  if (policy === 'masked') return '******';
   if (policy === 'hidden') return t('container.detail.config.hiddenValue');
   return '-';
+}
+
+function displayEnvironmentValue(value: string, policy: EnvironmentPolicy) {
+  if (policy === 'masked') {
+    return '******';
+  }
+  return abbreviateMiddle(value);
+}
+
+function abbreviateMiddle(value: string, maxLength = 32) {
+  if (value.length <= maxLength) {
+    return value;
+  }
+  const edgeLength = Math.max(4, Math.floor((maxLength - 3) / 2));
+  return `${value.slice(0, edgeLength)}...${value.slice(-edgeLength)}`;
 }
 
 function policyLabel(policy: EnvironmentPolicy) {

@@ -249,6 +249,7 @@ type Mount struct {
 type EnvironmentVariable struct {
 	Key       string
 	Value     string
+	CopyValue *string
 	Masked    bool
 	Sensitive bool
 	Source    string
