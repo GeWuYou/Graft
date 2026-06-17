@@ -1228,7 +1228,7 @@ describe('MonitorPage', () => {
     wrapper.findAllComponents(radioGroupStub)[0]?.vm.$emit('update:modelValue', 'multi');
     await nextTick();
 
-    await wrapper.find('[data-monitor-refresh-extra-select="true"]').setValue('30m');
+    await wrapper.find('[data-refresh-trend-window-select="true"]').setValue('30m');
     await flushPromises();
     await nextTick();
 
@@ -1263,16 +1263,18 @@ describe('MonitorPage', () => {
     await flushPromises();
     await nextTick();
 
-    expect(wrapper.text()).toContain('Next refresh in 5s');
+    expect(wrapper.get('[data-refresh-countdown="true"]').text()).toContain('下次刷新5s');
+    expect(wrapper.find('.server-status-overview-layout__trend').text()).not.toContain('Next refresh in');
 
     await vi.advanceTimersByTimeAsync(2000);
     await flushPromises();
-    expect(wrapper.text()).toContain('Next refresh in 3s');
+    expect(wrapper.get('[data-refresh-countdown="true"]').text()).toContain('下次刷新3s');
+    expect(wrapper.text()).not.toContain('Next refresh in 3s');
 
     const buttons = wrapper.findAll('button');
     await buttons[1]?.trigger('click');
     await nextTick();
-    expect(wrapper.text()).toContain('Auto refresh paused');
+    expect(wrapper.get('[data-refresh-countdown="true"]').text()).toContain('已暂停');
     expect(sidebarGroupText(wrapper, 'sampling')).toContain('Auto refresh');
     expect(sidebarGroupText(wrapper, 'sampling')).toContain('Paused');
 
@@ -1288,7 +1290,8 @@ describe('MonitorPage', () => {
     setVisibilityState('hidden');
     document.dispatchEvent(new Event('visibilitychange'));
     await nextTick();
-    expect(wrapper.text()).toContain('Next refresh paused while the page is hidden');
+    expect(wrapper.get('[data-refresh-countdown="true"]').text()).toContain('已暂停');
+    expect(wrapper.text()).not.toContain('Next refresh paused while the page is hidden');
   });
 
   it('backs off the retry cadence after a failed auto refresh', async () => {
@@ -1298,7 +1301,8 @@ describe('MonitorPage', () => {
     const wrapper = mountMonitorPage();
     await flushPromises();
 
-    expect(wrapper.text()).toContain('Retry in 10s · base interval Every 5 sec');
+    expect(wrapper.get('[data-refresh-countdown="true"]').text()).toContain('下次刷新10s');
+    expect(wrapper.text()).not.toContain('Retry in 10s · base interval Every 5 sec');
 
     await vi.advanceTimersByTimeAsync(9000);
     await flushPromises();
@@ -1349,7 +1353,7 @@ describe('MonitorPage', () => {
     expect(monitorApiMocks.getServerStatus).toHaveBeenCalledTimes(1);
     expect(monitorApiMocks.getServerStatus).toHaveBeenNthCalledWith(1, '10m');
 
-    await wrapper.find('[data-monitor-refresh-extra-select="true"]').setValue('30m');
+    await wrapper.find('[data-refresh-trend-window-select="true"]').setValue('30m');
     await flushPromises();
 
     resolveFirstRequest(createServerStatusResponse());
@@ -1366,7 +1370,7 @@ describe('MonitorPage', () => {
     await flushPromises();
     await nextTick();
 
-    await overviewWrapper.find('[data-monitor-refresh-interval-select="true"]').setValue('10');
+    await overviewWrapper.find('[data-refresh-interval-select="true"]').setValue('10');
     await nextTick();
 
     const runtimeWrapper = mountRuntimePage();
@@ -1377,14 +1381,14 @@ describe('MonitorPage', () => {
     await flushPromises();
     await nextTick();
 
-    expect(
-      (overviewWrapper.find('[data-monitor-refresh-interval-select="true"]').element as HTMLSelectElement).value,
-    ).toBe('10');
-    expect(
-      (runtimeWrapper.find('[data-monitor-refresh-interval-select="true"]').element as HTMLSelectElement).value,
-    ).toBe('10');
-    expect(
-      (dependenciesWrapper.find('[data-monitor-refresh-interval-select="true"]').element as HTMLSelectElement).value,
-    ).toBe('10');
+    expect((overviewWrapper.find('[data-refresh-interval-select="true"]').element as HTMLSelectElement).value).toBe(
+      '10',
+    );
+    expect((runtimeWrapper.find('[data-refresh-interval-select="true"]').element as HTMLSelectElement).value).toBe(
+      '10',
+    );
+    expect((dependenciesWrapper.find('[data-refresh-interval-select="true"]').element as HTMLSelectElement).value).toBe(
+      '10',
+    );
   });
 });

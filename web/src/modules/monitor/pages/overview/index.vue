@@ -11,25 +11,29 @@
     description-key="monitor.serverStatus.overviewHint"
   >
     <template #toolbar>
-      <monitor-toolbar
-        :auto-refresh-enabled="autoRefreshEnabled"
-        :loading="loading"
-        :pause-auto-refresh-label="t('monitor.serverStatus.pauseRefresh')"
-        :refresh-interval-label="t('monitor.serverStatus.refreshIntervalLabel')"
-        :refresh-interval-options="refreshIntervalOptions"
-        :refresh-interval-value="selectedRefreshInterval"
-        :refresh-now-label="t('monitor.serverStatus.refreshNow')"
-        :resume-auto-refresh-label="t('monitor.serverStatus.resumeRefresh')"
-        :show-trend-range="true"
+      <refresh-control-bar
+        :auto-refresh-enabled="refreshControlAutoRefreshEnabled"
+        :countdown-seconds="remainingRefreshSeconds"
+        :interval="selectedRefreshInterval"
+        :interval-label="t('monitor.serverStatus.refreshIntervalLabel')"
+        :interval-options="refreshIntervalOptions"
+        :paused="refreshControlPaused"
+        :pause-label="t('monitor.serverStatus.pauseRefresh')"
+        :refresh-label="t('monitor.serverStatus.refreshNow')"
+        :refreshing="loading"
+        :resume-label="t('monitor.serverStatus.resumeRefresh')"
+        :show-countdown="true"
+        :show-trend-window="true"
         :status="toolbarStatus"
         :status-label="overallStatusLabel(overallStatus)"
-        :trend-range-label="t('monitor.serverStatus.trendWindowLabel')"
-        :trend-range-options="trendRangeOptions"
-        :trend-range-value="selectedTrendRange"
+        :trend-window="selectedTrendRange"
+        :trend-window-label="t('monitor.serverStatus.trendWindowLabel')"
+        :trend-window-options="trendRangeOptions"
         @refresh="() => fetchServerStatus({ manual: true })"
-        @toggle-auto-refresh="toggleAutoRefresh"
-        @update:refresh-interval-value="handleRefreshIntervalChange"
-        @update:trend-range-value="handleTrendRangeChange"
+        @pause="toggleAutoRefresh"
+        @resume="toggleAutoRefresh"
+        @update:interval="handleRefreshIntervalChange"
+        @update:trend-window="handleTrendRangeChange"
       />
     </template>
 
@@ -61,7 +65,6 @@
       <section-card
         class="server-status-overview-layout__trend"
         :title="t('monitor.serverStatus.trendCardTitle')"
-        :description="refreshCountdownText"
         :min-height="520"
       >
         <template #actions>
@@ -447,12 +450,12 @@ import { useRouter } from 'vue-router';
 import type { TChartColor } from '@/config/color';
 import { buildAuditEvidenceTargetLocation } from '@/modules/audit/contract/deep-link';
 import { openCorrelationErrorNotification, requestIdFromError } from '@/modules/audit/shared/correlation-actions';
+import { RefreshControlBar } from '@/shared/components/refresh';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { useSettingStore } from '@/store';
 
 import { getServerStatus } from '../../api/server-status';
 import MetricUsageBar from '../../components/MetricUsageBar.vue';
-import MonitorToolbar from '../../components/MonitorToolbar.vue';
 import SectionCard from '../../components/SectionCard.vue';
 import type { ServerStatusTone } from '../../components/server-status-ui';
 import ServerStatusPageShell from '../../components/ServerStatusPageShell.vue';
@@ -575,7 +578,6 @@ const {
   autoRefreshEnabled,
   refreshIntervalOptions,
   selectedRefreshInterval,
-  selectedRefreshIntervalLabel,
   toggleAutoRefresh: toggleSharedAutoRefresh,
 } = useMonitorRefreshPreferences();
 const loading = ref(false);
@@ -829,28 +831,6 @@ const overallStatus = computed<MonitorStatus>(() => {
   return normalizeStatus(serverStatus.value?.status);
 });
 
-const refreshCountdownText = computed(() => {
-  if (!autoRefreshEnabled.value) {
-    return t('monitor.serverStatus.nextRefreshPausedByUser');
-  }
-  if (!isPageVisible.value) {
-    return t('monitor.serverStatus.nextRefreshPaused');
-  }
-  if (remainingRefreshSeconds.value === null) {
-    return t('monitor.serverStatus.nextRefreshPending');
-  }
-  if (consecutiveFailures.value > 0) {
-    return t('monitor.serverStatus.nextRefreshRetryIn', {
-      seconds: String(remainingRefreshSeconds.value),
-      interval: selectedRefreshIntervalLabel.value,
-    });
-  }
-
-  return t('monitor.serverStatus.nextRefreshIn', {
-    seconds: String(remainingRefreshSeconds.value),
-  });
-});
-
 const metricCards = computed<MetricCard[]>(() => {
   const response = serverStatus.value;
   if (!response) {
@@ -1089,6 +1069,11 @@ const toolbarStatus = computed<ServerStatusTone>(() => {
       return 'unknown';
   }
 });
+
+const refreshControlAutoRefreshEnabled = computed(() => selectedRefreshInterval.value > 0);
+const refreshControlPaused = computed(
+  () => refreshControlAutoRefreshEnabled.value && (!autoRefreshEnabled.value || !isPageVisible.value),
+);
 
 async function fetchServerStatus(options: { manual?: boolean } = {}) {
   const requestedTrendRange = selectedTrendRange.value;

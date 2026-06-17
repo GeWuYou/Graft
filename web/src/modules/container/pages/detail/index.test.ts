@@ -8,7 +8,6 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h } from 'vue';
 
-import { CONTAINER_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import type { ContainerMountUsage } from '../../types/container';
 import ContainerDetailPage from './index.vue';
 
@@ -28,6 +27,7 @@ const apiMocks = vi.hoisted(() => ({
 const messageMocks = vi.hoisted(() => ({
   error: vi.fn(),
   success: vi.fn(),
+  warning: vi.fn(),
 }));
 
 const routerMocks = vi.hoisted(() => ({
@@ -114,6 +114,9 @@ const translations = vi.hoisted(
     'container.detail.autoRefresh': '自动刷新',
     'container.detail.autoRefreshOff': '关闭',
     'container.detail.autoRefreshSeconds': '{seconds} 秒',
+    'container.detail.pauseAutoRefresh': '暂停自动刷新',
+    'container.detail.refreshSuccess': '容器详情已刷新',
+    'container.detail.resumeAutoRefresh': '恢复自动刷新',
     'container.detail.empty': '暂无容器详情。',
     'container.detail.health.boolean.no': '否',
     'container.detail.health.boolean.yes': '是',
@@ -311,7 +314,9 @@ const translations = vi.hoisted(
     'container.detail.storage.access': '访问',
     'container.detail.storage.accessLabels.readOnly': '只读',
     'container.detail.storage.accessLabels.readWrite': '读写',
+    'container.detail.storage.basicInfo': '基础信息',
     'container.detail.storage.destination': '挂载点',
+    'container.detail.storage.emptyDescription': '该容器未配置额外挂载卷',
     'container.detail.storage.emptyTitle': '暂无挂载',
     'container.detail.storage.errorMessage': '挂载用量无法测量',
     'container.detail.storage.measuredAt': '测量时间 {time}',
@@ -323,8 +328,9 @@ const translations = vi.hoisted(
     'container.detail.storage.refreshMount': '重新统计',
     'container.detail.storage.refreshMountTooltip': '重新统计当前挂载来源路径占用，不刷新整个容器详情。',
     'container.detail.storage.refreshPending': '统计中...',
-    'container.detail.storage.refreshSuccess': '挂载用量已刷新。',
+    'container.detail.storage.refreshSuccess': '挂载用量已统计',
     'container.detail.storage.retryUsage': '重试',
+    'container.detail.storage.syncFailed': '挂载用量同步失败，可稍后重试',
     'container.detail.storage.source': '来源',
     'container.detail.storage.sourceUnavailable': '无来源',
     'container.detail.storage.type': '类型',
@@ -652,7 +658,9 @@ describe('container detail page', () => {
 
     expect(wrapper.text()).toContain('无公开端口');
     expect(wrapper.text()).toContain('暂无网络信息。');
-    expect(wrapper.text()).toContain('暂无挂载。');
+    expect(wrapper.text()).toContain('暂无挂载');
+    expect(wrapper.text()).toContain('该容器未配置额外挂载卷');
+    expect(wrapper.text()).not.toContain('暂无挂载。');
     expect(wrapper.text()).not.toContain('undefined');
   });
 
@@ -664,6 +672,7 @@ describe('container detail page', () => {
 
     expect(wrapper.findAll('.container-mount-card')).toHaveLength(5);
     expect(wrapper.text()).toContain('/app');
+    expect(wrapper.text()).toContain('基础信息');
     expect(wrapper.text()).toContain('/etc/graft');
     expect(wrapper.text()).toContain('/var/lib/graft');
     expect(wrapper.text()).toContain('/run');
@@ -673,15 +682,21 @@ describe('container detail page', () => {
     expect(wrapper.text()).toContain('Tmpfs');
     expect(wrapper.text()).toContain('读写');
     expect(wrapper.text()).toContain('只读');
+    expect(wrapper.text()).toContain('读写 rw');
+    expect(wrapper.text()).toContain('只读 ro');
     expect(wrapper.text()).toContain('1.0 MiB');
     expect(wrapper.text()).toContain('5.0 MiB');
     expect(wrapper.text()).toContain('测量时间');
     expect(wrapper.text()).toContain('暂未测量挂载用量');
     expect(wrapper.text()).toContain('重新统计');
     expect(wrapper.text()).toContain('tmpfs is runtime memory backed');
-    expect(wrapper.find('[data-testid="mount-refresh-unsupported-3"]').exists()).toBe(true);
+    expect(
+      findMountCardByDestination(wrapper, '/run').find('[data-testid="mount-refresh-unsupported-3"]').exists(),
+    ).toBe(true);
     expect(wrapper.text()).toContain('permission denied');
-    expect(wrapper.findAll('[data-testid="mount-refresh-4"]')[0].text()).toContain('重试');
+    expect(findMountCardByDestination(wrapper, '/broken').find('[data-testid="mount-refresh-1"]').text()).toContain(
+      '重试',
+    );
     expect(wrapper.text()).toContain('Shared host path');
     expect(sourceText).not.toContain('const mountColumns');
     expect(sourceText).toContain('container-mount-card-grid');
@@ -699,7 +714,12 @@ describe('container detail page', () => {
 
     expect(wrapper.findAll('.container-mount-card')).toHaveLength(0);
     expect(wrapper.text()).toContain('暂无挂载');
-    expect(wrapper.text()).toContain('暂无挂载。');
+    expect(wrapper.text()).toContain('该容器未配置额外挂载卷');
+    expect(wrapper.text()).not.toContain('暂无挂载。');
+    expect(wrapper.find('.container-mount-empty__icon').exists()).toBe(true);
+    expect(wrapper.find('.container-mount-empty__title').text()).toBe('暂无挂载');
+    expect(wrapper.find('.container-mount-empty__description').text()).toBe('该容器未配置额外挂载卷');
+    expect(wrapper.find('.container-mount-empty .t-empty-stub').exists()).toBe(false);
   });
 
   it('middle-truncates long mount paths while copying full values', async () => {
@@ -739,18 +759,18 @@ describe('container detail page', () => {
     const wrapper = mountPage();
     await flushPromises();
 
-    expect(wrapper.findAll('.container-mount-card')[1].text()).toContain('未测量');
-    await wrapper.get('[data-testid="mount-refresh-1"]').trigger('click');
+    expect(findMountCardByDestination(wrapper, '/etc/graft').text()).toContain('未测量');
+    await findMountCardByDestination(wrapper, '/etc/graft').get('[data-testid="mount-refresh-2"]').trigger('click');
     await flushPromises();
 
     expect(apiMocks.getContainer).toHaveBeenCalledTimes(1);
     expect(apiMocks.getContainerMountUsage).toHaveBeenCalledTimes(1);
     expect(apiMocks.postContainerMountUsageRefresh).toHaveBeenCalledWith('container-1', 'mount-bind-ro');
-    expect(wrapper.findAll('.container-mount-card')[0].text()).toContain('1.0 MiB');
-    expect(wrapper.findAll('.container-mount-card')[1].text()).toContain('2.0 MiB');
-    expect(wrapper.findAll('.container-mount-card')[1].text()).toContain('ro bind refreshed');
-    expect(wrapper.findAll('.container-mount-card')[2].text()).toContain('5.0 MiB');
-    expect(messageMocks.success).toHaveBeenCalledWith('挂载用量已刷新。');
+    expect(findMountCardByDestination(wrapper, '/app').text()).toContain('1.0 MiB');
+    expect(findMountCardByDestination(wrapper, '/etc/graft').text()).toContain('2.0 MiB');
+    expect(findMountCardByDestination(wrapper, '/etc/graft').text()).toContain('ro bind refreshed');
+    expect(findMountCardByDestination(wrapper, '/var/lib/graft').text()).toContain('5.0 MiB');
+    expect(messageMocks.success).toHaveBeenCalledWith('挂载用量已统计');
   });
 
   it('refreshes container detail and cached mount usage without triggering mount usage recompute', async () => {
@@ -777,13 +797,114 @@ describe('container detail page', () => {
       ],
     });
 
-    await wrapper.get('[data-testid="detail-refresh"]').trigger('click');
+    await wrapper.get('[data-refresh-now="true"]').trigger('click');
     await flushPromises();
 
     expect(apiMocks.getContainer).toHaveBeenCalledWith('container-1');
     expect(apiMocks.getContainerMountUsage).toHaveBeenCalledWith('container-1');
     expect(apiMocks.postContainerMountUsageRefresh).not.toHaveBeenCalled();
-    expect(wrapper.findAll('.container-mount-card')[1].text()).toContain('3.0 MiB');
+    expect(findMountCardByDestination(wrapper, '/etc/graft').text()).toContain('3.0 MiB');
+    expect(messageMocks.success).toHaveBeenCalledWith('容器详情已刷新');
+  });
+
+  it('renders manual refresh status through RefreshControlBar when auto refresh is off', async () => {
+    routeState.route.query.tab = 'storage';
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.get('[data-refresh-countdown="true"]').text()).toContain('手动刷新');
+    expect(wrapper.find('[data-refresh-toggle-auto="true"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="detail-back"]').exists()).toBe(false);
+    expect(wrapper.text()).not.toContain('返回');
+  });
+
+  it('sorts mount cards by destination, source, and type instead of API order', async () => {
+    routeState.route.query.tab = 'storage';
+    const detailWithUnstableMountOrder = createContainerDetail();
+    detailWithUnstableMountOrder.mounts = [...detailWithUnstableMountOrder.mounts].reverse();
+    apiMocks.getContainer.mockResolvedValueOnce(detailWithUnstableMountOrder);
+    apiMocks.getContainerMountUsage.mockResolvedValueOnce({ items: [] });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(readMountDestinationOrder(wrapper)).toEqual(['/app', '/broken', '/etc/graft', '/run', '/var/lib/graft']);
+    expect(sourceText).toContain(':key="mount.key"');
+    expect(sourceText).not.toContain(':key="index"');
+    expect(sourceText).toContain('refreshingMountKeys = ref<Set<string>>(new Set())');
+  });
+
+  it('keeps existing mount card order when refreshed inspect data returns mounts in a different order', async () => {
+    routeState.route.query.tab = 'storage';
+    const wrapper = mountPage();
+    await flushPromises();
+    vi.clearAllMocks();
+
+    const reversedDetail = createContainerDetail();
+    reversedDetail.mounts = [...reversedDetail.mounts].reverse();
+    apiMocks.getContainer.mockResolvedValueOnce(reversedDetail);
+    apiMocks.getContainerMountUsage.mockResolvedValueOnce({ items: [] });
+
+    const beforeOrder = wrapper.findAll('.container-mount-card').map((card) => card.find('header').text());
+    await wrapper.get('[data-refresh-now="true"]').trigger('click');
+    await flushPromises();
+    const afterOrder = wrapper.findAll('.container-mount-card').map((card) => card.find('header').text());
+
+    expect(afterOrder).toEqual(beforeOrder);
+  });
+
+  it('keeps card order and reads recomputed usage back from cached top refresh results', async () => {
+    routeState.route.query.tab = 'storage';
+    const wrapper = mountPage();
+    await flushPromises();
+    vi.clearAllMocks();
+
+    apiMocks.postContainerMountUsageRefresh.mockResolvedValueOnce({
+      container_id: 'container-1',
+      destination: '/etc/graft',
+      mount_id: 'mount-bind-ro',
+      source: '/srv/graft/readonly/config',
+      status: 'measured',
+      type: 'bind',
+      size_bytes: 2097152,
+      measured_at: '2026-06-14T01:11:00Z',
+      message: 'cached from recompute',
+    });
+
+    await findMountCardByDestination(wrapper, '/etc/graft').get('[data-testid="mount-refresh-2"]').trigger('click');
+    await flushPromises();
+
+    expect(findMountCardByDestination(wrapper, '/etc/graft').text()).toContain('2.0 MiB');
+
+    const reversedDetail = createContainerDetail();
+    reversedDetail.mounts = [...reversedDetail.mounts].reverse();
+    apiMocks.getContainer.mockResolvedValueOnce(reversedDetail);
+    apiMocks.getContainerMountUsage.mockResolvedValueOnce({
+      items: [
+        {
+          container_id: 'container-1',
+          destination: '/etc/graft',
+          mount_id: 'mount-bind-ro',
+          source: '/srv/graft/readonly/config',
+          status: 'measured',
+          type: 'bind',
+          size_bytes: 2097152,
+          measured_at: '2026-06-14T01:11:00Z',
+          message: 'cached from top refresh',
+        },
+      ],
+    });
+
+    const beforeOrder = wrapper.findAll('.container-mount-card').map((card) => card.find('header').text());
+    await wrapper.get('[data-refresh-now="true"]').trigger('click');
+    await flushPromises();
+    const cards = wrapper.findAll('.container-mount-card');
+    const afterOrder = cards.map((card) => card.find('header').text());
+
+    expect(afterOrder).toEqual(beforeOrder);
+    expect(findMountCardByDestination(wrapper, '/etc/graft').text()).toContain('2.0 MiB');
+    expect(findMountCardByDestination(wrapper, '/etc/graft').text()).toContain('cached from top refresh');
+    expect(apiMocks.postContainerMountUsageRefresh).toHaveBeenCalledTimes(1);
   });
 
   it('keeps top refresh loading independent from mount recompute loading', async () => {
@@ -794,11 +915,15 @@ describe('container detail page', () => {
     const detailRequest = deferred<ReturnType<typeof createContainerDetail>>();
     apiMocks.getContainer.mockReturnValueOnce(detailRequest.promise);
 
-    await wrapper.get('[data-testid="detail-refresh"]').trigger('click');
+    await wrapper.get('[data-refresh-now="true"]').trigger('click');
     await wrapper.vm.$nextTick();
 
-    expect(wrapper.get('[data-testid="detail-refresh"]').attributes('data-loading')).toBe('true');
-    expect(wrapper.get('[data-testid="mount-refresh-1"]').attributes('data-loading')).toBe('false');
+    expect(wrapper.get('[data-refresh-now="true"]').attributes('data-loading')).toBe('true');
+    expect(
+      findMountCardByDestination(wrapper, '/etc/graft')
+        .get('[data-testid="mount-refresh-2"]')
+        .attributes('data-loading'),
+    ).toBe('false');
 
     detailRequest.resolve(createContainerDetail());
     await flushPromises();
@@ -812,12 +937,18 @@ describe('container detail page', () => {
     const usageRequest = deferred<ContainerMountUsage>();
     apiMocks.postContainerMountUsageRefresh.mockReturnValueOnce(usageRequest.promise);
 
-    await wrapper.get('[data-testid="mount-refresh-1"]').trigger('click');
+    await findMountCardByDestination(wrapper, '/etc/graft').get('[data-testid="mount-refresh-2"]').trigger('click');
     await wrapper.vm.$nextTick();
 
-    expect(wrapper.get('[data-testid="mount-refresh-1"]').text()).toContain('统计中...');
-    expect(wrapper.get('[data-testid="mount-refresh-1"]').attributes('data-loading')).toBe('true');
-    expect(wrapper.get('[data-testid="detail-refresh"]').attributes('data-loading')).toBe('false');
+    expect(findMountCardByDestination(wrapper, '/etc/graft').get('[data-testid="mount-refresh-2"]').text()).toContain(
+      '统计中...',
+    );
+    expect(
+      findMountCardByDestination(wrapper, '/etc/graft')
+        .get('[data-testid="mount-refresh-2"]')
+        .attributes('data-loading'),
+    ).toBe('true');
+    expect(wrapper.get('[data-refresh-now="true"]').attributes('data-loading')).toBe('false');
 
     usageRequest.resolve({
       container_id: 'container-1',
@@ -839,7 +970,7 @@ describe('container detail page', () => {
     const usageRequest = deferred<ContainerMountUsage>();
     apiMocks.postContainerMountUsageRefresh.mockReturnValueOnce(usageRequest.promise);
 
-    await wrapper.get('[data-testid="mount-refresh-1"]').trigger('click');
+    await findMountCardByDestination(wrapper, '/etc/graft').get('[data-testid="mount-refresh-2"]').trigger('click');
     await wrapper.vm.$nextTick();
 
     apiMocks.getContainer.mockResolvedValueOnce(createContainerDetail());
@@ -858,11 +989,11 @@ describe('container detail page', () => {
       ],
     });
 
-    await wrapper.get('[data-testid="detail-refresh"]').trigger('click');
+    await wrapper.get('[data-refresh-now="true"]').trigger('click');
     await flushPromises();
 
-    expect(wrapper.findAll('.container-mount-card')[1].text()).toContain('统计中...');
-    expect(wrapper.findAll('.container-mount-card')[1].text()).not.toContain('1.0 KiB');
+    expect(findMountCardByDestination(wrapper, '/etc/graft').text()).toContain('统计中...');
+    expect(findMountCardByDestination(wrapper, '/etc/graft').text()).not.toContain('1.0 KiB');
 
     usageRequest.resolve({
       container_id: 'container-1',
@@ -875,7 +1006,7 @@ describe('container detail page', () => {
     });
     await flushPromises();
 
-    expect(wrapper.findAll('.container-mount-card')[1].text()).toContain('4.0 MiB');
+    expect(findMountCardByDestination(wrapper, '/etc/graft').text()).toContain('4.0 MiB');
   });
 
   it('auto refreshes with cached usage only and cleans up the timer', async () => {
@@ -885,13 +1016,17 @@ describe('container detail page', () => {
     await flushPromises();
     vi.clearAllMocks();
 
-    await wrapper.get('[data-testid="detail-auto-refresh"]').setValue('5');
+    await wrapper.get('[data-refresh-interval-select="true"]').setValue('5');
+    await wrapper.vm.$nextTick();
+    expect(wrapper.get('[data-refresh-countdown="true"]').text()).toContain('下次刷新5s');
+
     await vi.advanceTimersByTimeAsync(5000);
     await flushPromises();
 
     expect(apiMocks.getContainer).toHaveBeenCalledTimes(1);
     expect(apiMocks.getContainerMountUsage).toHaveBeenCalledTimes(1);
     expect(apiMocks.postContainerMountUsageRefresh).not.toHaveBeenCalled();
+    expect(wrapper.get('[data-refresh-countdown="true"]').text()).toContain('下次刷新5s');
 
     await wrapper.get('[data-testid="tab-logs"]').trigger('click');
     await wrapper.get('[data-testid="tab-logs"]').trigger('click');
@@ -914,7 +1049,7 @@ describe('container detail page', () => {
     await flushPromises();
     vi.clearAllMocks();
 
-    await wrapper.get('[data-testid="detail-auto-refresh"]').setValue('5');
+    await wrapper.get('[data-refresh-interval-select="true"]').setValue('5');
     Object.defineProperty(document, 'visibilityState', {
       configurable: true,
       value: 'hidden',
@@ -1603,16 +1738,6 @@ describe('container detail page', () => {
     expect(wrapper.text()).toContain('无公开端口');
   });
 
-  it('falls back to the list route when there is no browser history', async () => {
-    const wrapper = mountPage();
-    await flushPromises();
-
-    await wrapper.get('[data-testid="detail-back"]').trigger('click');
-    await flushPromises();
-
-    expect(routerMocks.push).toHaveBeenCalledWith({ name: CONTAINER_BOOTSTRAP_ROUTE.LIST.routeName });
-  });
-
   it('uses shared log and JSON viewers instead of raw pre blocks', () => {
     expect(sourceText).toContain('<log-viewer');
     expect(sourceText).toContain('<json-viewer');
@@ -2014,9 +2139,7 @@ function mountPage() {
                   ...attrs,
                   disabled: Boolean(props.disabled),
                   'data-loading': String(Boolean(props.loading)),
-                  'data-testid':
-                    attrs['data-testid'] ??
-                    (label === '返回' ? 'detail-back' : label === '立即刷新' ? 'detail-refresh' : undefined),
+                  'data-testid': attrs['data-testid'] ?? (label === '立即刷新' ? 'detail-refresh' : undefined),
                   onClick: () => emit('click'),
                   ...(attrs.onClick ? { onClick: attrs.onClick as () => void } : {}),
                 },
@@ -2050,7 +2173,17 @@ function mountPage() {
         }),
         't-empty': defineComponent({
           props: ['description', 'title'],
-          setup: (props) => () => h('div', [String(props.title ?? ''), String(props.description ?? '')]),
+          setup:
+            (props, { slots }) =>
+            () =>
+              h('div', { class: 't-empty-stub' }, [
+                h('div', { class: 't-empty-stub__title' }, slots.title?.() ?? String(props.title ?? '')),
+                h(
+                  'div',
+                  { class: 't-empty-stub__description' },
+                  slots.description?.() ?? String(props.description ?? ''),
+                ),
+              ]),
         }),
         't-drawer': defineComponent({
           setup:
@@ -2105,11 +2238,7 @@ function mountPage() {
                 'select',
                 {
                   ...attrs,
-                  'data-testid':
-                    attrs['data-testid'] ??
-                    ((attrs.class as string | undefined)?.includes('container-detail-refresh-controls__select')
-                      ? 'detail-auto-refresh'
-                      : undefined),
+                  'data-testid': attrs['data-testid'] ?? undefined,
                   value: String(props.value ?? props.modelValue ?? ''),
                   onChange: (event: Event) => {
                     const rawValue = (event.target as HTMLSelectElement).value;
@@ -2195,4 +2324,23 @@ function mountPage() {
       },
     },
   });
+}
+
+function readMountDestinationOrder(wrapper: ReturnType<typeof mountPage>) {
+  return wrapper
+    .findAll('.container-mount-card')
+    .map((card) =>
+      ['/app', '/broken', '/etc/graft', '/run', '/var/lib/graft'].find((destination) =>
+        card.text().includes(destination),
+      ),
+    )
+    .filter((destination): destination is string => Boolean(destination));
+}
+
+function findMountCardByDestination(wrapper: ReturnType<typeof mountPage>, destination: string) {
+  const card = wrapper.findAll('.container-mount-card').find((item) => item.text().includes(destination));
+  if (!card) {
+    throw new Error(`mount card not found: ${destination}`);
+  }
+  return card;
 }
