@@ -9,6 +9,7 @@ export type ContainerSummary = components['schemas']['ContainerSummary'];
 export type ContainerDetail = components['schemas']['ContainerDetail'];
 export type ContainerPort = components['schemas']['ContainerPort'];
 export type ContainerRuntimeInfo = components['schemas']['ContainerRuntimeInfo'];
+export type ContainerHealthcheck = components['schemas']['ContainerHealthcheck'];
 export type ContainerListSummary = components['schemas']['ContainerListSummary'];
 export type ContainerLogResponse = components['schemas']['ContainerLogResponse'];
 export type ContainerActionResponse = components['schemas']['ContainerActionResponse'];

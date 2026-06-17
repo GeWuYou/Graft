@@ -508,6 +508,91 @@ func TestDockerDetailParsesEnvironmentVariables(t *testing.T) {
 	}
 }
 
+func TestDockerDetailMapsHealthcheckAndRuntimeStability(t *testing.T) {
+	t.Parallel()
+
+	checkedAt := time.Date(2026, 6, 17, 1, 31, 53, 0, time.UTC)
+	inspect := container.InspectResponse{
+		ContainerJSONBase: &container.ContainerJSONBase{
+			ID:   "abc123",
+			Name: "/web",
+			State: &container.State{
+				Status:    container.StateRunning,
+				ExitCode:  137,
+				OOMKilled: true,
+				Health: &container.Health{
+					Status:        container.Unhealthy,
+					FailingStreak: 2,
+					Log: []*container.HealthcheckResult{
+						{
+							End:      checkedAt,
+							ExitCode: 1,
+							Output:   "curl failed\n",
+						},
+					},
+				},
+			},
+			Created: "2026-06-14T00:00:00Z",
+		},
+		Config: &container.Config{
+			Image: "nginx:latest",
+			Healthcheck: &container.HealthConfig{
+				Test: []string{"CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"},
+			},
+		},
+	}
+
+	detail := dockerDetail(inspect, RuntimeInfo{Runtime: runtimeNameDocker, Status: "enabled"})
+
+	if detail.Health != containerHealthUnhealthy {
+		t.Fatalf("expected unhealthy summary health, got %q", detail.Health)
+	}
+	if detail.Healthcheck == nil {
+		t.Fatalf("expected mapped healthcheck")
+	}
+	if !detail.Healthcheck.Configured || detail.Healthcheck.Status != containerHealthUnhealthy {
+		t.Fatalf("unexpected healthcheck status %#v", detail.Healthcheck)
+	}
+	if !reflect.DeepEqual(detail.Healthcheck.Command, []string{"CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"}) {
+		t.Fatalf("unexpected healthcheck command %#v", detail.Healthcheck.Command)
+	}
+	if detail.Healthcheck.CheckedAt != "2026-06-17T01:31:53Z" {
+		t.Fatalf("unexpected healthcheck checked_at %q", detail.Healthcheck.CheckedAt)
+	}
+	if detail.Healthcheck.Output != "curl failed" || detail.Healthcheck.FailureMessage != "curl failed" {
+		t.Fatalf("unexpected healthcheck output %#v", detail.Healthcheck)
+	}
+	assertIntPtr(t, detail.Healthcheck.ExitCode, 1, "healthcheck exit code")
+	assertIntPtr(t, detail.Healthcheck.FailingStreak, 2, "healthcheck failing streak")
+	assertIntPtr(t, detail.LastExitCode, 137, "last exit code")
+	if detail.OOMKilled == nil || !*detail.OOMKilled {
+		t.Fatalf("expected oom killed true, got %#v", detail.OOMKilled)
+	}
+}
+
+func TestDockerDetailOmitsDisabledHealthcheck(t *testing.T) {
+	t.Parallel()
+
+	detail := dockerDetail(container.InspectResponse{
+		ContainerJSONBase: &container.ContainerJSONBase{
+			ID:    "abc123",
+			Name:  "/web",
+			State: &container.State{Status: container.StateRunning},
+		},
+		Config: &container.Config{
+			Image:       "nginx:latest",
+			Healthcheck: &container.HealthConfig{Test: []string{"NONE"}},
+		},
+	}, RuntimeInfo{Runtime: runtimeNameDocker, Status: "enabled"})
+
+	if detail.Healthcheck != nil {
+		t.Fatalf("expected disabled healthcheck to be omitted, got %#v", detail.Healthcheck)
+	}
+	if detail.Health != containerHealthNone {
+		t.Fatalf("expected no healthcheck health, got %q", detail.Health)
+	}
+}
+
 func TestDockerRuntimeRemoveForceCallsDockerRemove(t *testing.T) {
 	t.Parallel()
 
@@ -710,6 +795,14 @@ func assertFloatPtr(t *testing.T, actual *float64, expected float64, label strin
 }
 
 func assertInt64Ptr(t *testing.T, actual *int64, expected int64, label string) {
+	t.Helper()
+
+	if actual == nil || *actual != expected {
+		t.Fatalf("expected %s %v, got %#v", label, expected, actual)
+	}
+}
+
+func assertIntPtr(t *testing.T, actual *int, expected int, label string) {
 	t.Helper()
 
 	if actual == nil || *actual != expected {

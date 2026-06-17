@@ -66,8 +66,52 @@ const translations = vi.hoisted(
     'container.detail.copySuccess': '内容已复制。',
     'container.detail.description': '查看容器运行时详情、资源、日志、配置、网络和挂载信息。',
     'container.detail.empty': '暂无容器详情。',
+    'container.detail.health.boolean.no': '否',
+    'container.detail.health.boolean.yes': '是',
+    'container.detail.health.checkCommand': '检查命令',
+    'container.detail.health.checkResult': '健康检查结果',
+    'container.detail.health.currentStatus': '当前状态',
+    'container.detail.health.description.healthy': '健康检查通过，容器运行中。',
+    'container.detail.health.description.noHealthcheck': '容器运行中，但未配置 Docker Healthcheck。',
+    'container.detail.health.description.notRunning': '容器当前未处于运行状态。',
+    'container.detail.health.description.starting': '健康检查仍在启动观察期。',
+    'container.detail.health.description.unavailable': '健康状态暂不可用。',
+    'container.detail.health.description.unhealthy': '健康检查失败，需要查看最近输出。',
+    'container.detail.health.diagnosis.healthy': '健康',
+    'container.detail.health.diagnosis.noHealthcheck': '未配置健康检查',
+    'container.detail.health.diagnosis.notRunning': '未运行',
+    'container.detail.health.diagnosis.starting': '启动中',
+    'container.detail.health.diagnosis.unhealthy': '异常',
+    'container.detail.health.diagnosisTitle': '健康诊断',
+    'container.detail.health.exitCode': 'Exit Code',
+    'container.detail.health.healthcheck': 'Healthcheck',
+    'container.detail.health.healthcheckStatus.failed': '失败',
+    'container.detail.health.healthcheckStatus.passed': '通过',
+    'container.detail.health.healthcheckStatus.starting': '启动中',
+    'container.detail.health.healthcheckStatus.unavailable': '不可用',
+    'container.detail.health.healthcheckStatus.unconfigured': '未配置',
+    'container.detail.health.healthcheckUnavailableAlert':
+      '当前容器未提供 Docker Healthcheck 明细，仅能根据运行状态判断基础可用性。',
+    'container.detail.health.healthcheckUnavailableEmpty': '未配置 Docker Healthcheck',
+    'container.detail.health.lastCheck': '最近检查',
+    'container.detail.health.lastExitCode': '最近退出码',
+    'container.detail.health.lastOutput': '最近输出',
+    'container.detail.health.noOutput': '无异常输出',
+    'container.detail.health.noRecentCheck': '暂无最近检查时间',
+    'container.detail.health.oomKilled': 'OOMKilled',
+    'container.detail.health.recentCheck': '最近检查',
+    'container.detail.health.restartAbnormal': '已记录 {count} 次重启',
     'container.detail.health.restartCount': '重启次数',
+    'container.detail.health.restartCountValue': '{count} 次',
+    'container.detail.health.restartNormal': '无异常重启',
+    'container.detail.health.restartUnknown': '重启次数未提供',
     'container.detail.health.status': '健康状态',
+    'container.detail.health.stability': '运行稳定性',
+    'container.detail.health.updatedFromHealthcheck': '来自最近健康检查',
+    'container.detail.health.updatedFromInspect': '来自详情更新时间',
+    'container.detail.health.uptime': '已运行',
+    'container.detail.health.uptimeHoursMinutes': '{hours} 小时 {minutes} 分钟',
+    'container.detail.health.uptimeMinutes': '{minutes} 分钟',
     'container.detail.inspectUpdatedAt': '详情更新时间',
     'container.detail.logs.empty': '暂无日志。',
     'container.detail.logs.allLevels': '全部',
@@ -496,12 +540,113 @@ describe('container detail page', () => {
     apiMocks.getContainer.mockResolvedValue({
       ...createContainerDetail(),
       health: undefined,
+      healthcheck: undefined,
     });
     const wrapper = mountPage();
     await flushPromises();
 
     expect(wrapper.text()).toContain('未配置健康检查');
     expect(wrapper.text()).not.toContain('健康未知');
+  });
+
+  it('renders the health tab as diagnostic cards for a healthy container', async () => {
+    routeState.route.query.tab = 'health';
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('健康诊断');
+    expect(wrapper.text()).toContain('当前状态');
+    expect(wrapper.text()).toContain('健康检查通过，容器运行中。');
+    expect(wrapper.text()).toContain('重启次数');
+    expect(wrapper.text()).toContain('2 次');
+    expect(wrapper.text()).toContain('已记录 2 次重启');
+    expect(wrapper.text()).toContain('健康检查结果');
+    expect(wrapper.text()).toContain('Healthcheck');
+    expect(wrapper.text()).toContain('通过');
+    expect(wrapper.text()).toContain('Exit Code');
+    expect(wrapper.text()).toContain('0');
+    expect(wrapper.text()).toContain('CMD-SHELL curl -f http://localhost:8080/health || exit 1');
+    expect(wrapper.text()).toContain('无异常');
+    expect(wrapper.text()).toContain('2026-06-14T01:07:00Z');
+    expect(wrapper.text()).toContain('运行稳定性');
+    expect(wrapper.text()).toContain('最近退出码');
+    expect(wrapper.text()).toContain('OOMKilled');
+    expect(wrapper.text()).toContain('否');
+  });
+
+  it('renders failed healthcheck diagnostics for an unhealthy container', async () => {
+    routeState.route.query.tab = 'health';
+    apiMocks.getContainer.mockResolvedValue({
+      ...createContainerDetail(),
+      health: 'unhealthy',
+      healthcheck: {
+        configured: true,
+        status: 'unhealthy',
+        command: ['CMD', 'curl', '-f', 'http://localhost:8080/health'],
+        exit_code: 1,
+        output: 'connection refused',
+        checked_at: '2026-06-14T01:09:00Z',
+        failing_streak: 3,
+        failure_message: 'connection refused',
+      },
+    });
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('异常');
+    expect(wrapper.text()).toContain('健康检查失败，需要查看最近输出。');
+    expect(wrapper.text()).toContain('失败');
+    expect(wrapper.text()).toContain('connection refused');
+    expect(wrapper.text()).toContain('CMD curl -f http://localhost:8080/health');
+  });
+
+  it('distinguishes a running container without Docker healthcheck details', async () => {
+    routeState.route.query.tab = 'health';
+    apiMocks.getContainer.mockResolvedValue({
+      ...createContainerDetail(),
+      health: 'none',
+      healthcheck: undefined,
+    });
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('未配置健康检查');
+    expect(wrapper.text()).toContain('容器运行中，但未配置 Docker Healthcheck。');
+    expect(wrapper.text()).toContain('当前容器未提供 Docker Healthcheck 明细，仅能根据运行状态判断基础可用性。');
+    expect(wrapper.text()).toContain('未配置 Docker Healthcheck');
+  });
+
+  it('marks exited containers as not running in health diagnostics', async () => {
+    routeState.route.query.tab = 'health';
+    apiMocks.getContainer.mockResolvedValue({
+      ...createContainerDetail(),
+      state: 'exited',
+      status: 'Exited (0) 5 minutes ago',
+      health: 'healthy',
+      last_exit_code: 0,
+    });
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('未运行');
+    expect(wrapper.text()).toContain('容器当前未处于运行状态。');
+    expect(wrapper.text()).toContain('最近退出码');
+    expect(wrapper.text()).toContain('0');
+  });
+
+  it('surfaces non-zero restart counts as runtime stability signal', async () => {
+    routeState.route.query.tab = 'health';
+    apiMocks.getContainer.mockResolvedValue({
+      ...createContainerDetail(),
+      restart_count: 5,
+    });
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('5 次');
+    expect(wrapper.text()).toContain('已记录 5 次重启');
+    expect(wrapper.text()).toContain('重启策略');
+    expect(wrapper.text()).toContain('unless-stopped');
   });
 
   it('uses short identifiers and renders an explicit empty port state', async () => {
@@ -580,6 +725,22 @@ describe('container detail page', () => {
     expect(resourcesSource).not.toContain("['total_cpu_usage'");
     expect(resourcesSource).not.toContain("['cpu_usage_in_usermode'");
     expect(resourcesSource).not.toContain("['cpu_usage_in_kernelmode'");
+  });
+
+  it('renders health diagnostics as cards instead of one bordered descriptions table', () => {
+    const healthStart = sourceText.indexOf('<t-tab-panel value="health"');
+    const healthEnd = sourceText.indexOf('<t-tab-panel value="config"', healthStart);
+    const healthSource = sourceText.slice(healthStart, healthEnd);
+
+    expect(healthSource).toContain('container-health-summary-grid');
+    expect(healthSource).toContain('container-health-info-card');
+    expect(healthSource).toContain('healthcheckDetails');
+    expect(healthSource).toContain('runtimeStability');
+    expect(healthSource).toContain('<t-alert theme="info"');
+    expect(healthSource).toContain('<t-empty');
+    expect(healthSource).not.toContain(
+      '<t-descriptions :column="2" item-layout="vertical" bordered table-layout="fixed">',
+    );
   });
 
   it('keeps detailed metric cards in a full-width memory and CPU flow before the lower two-column cards', () => {
@@ -665,6 +826,15 @@ function createContainerDetail() {
     status: 'Up 10 minutes',
     state: 'running',
     health: 'healthy',
+    healthcheck: {
+      configured: true,
+      status: 'healthy',
+      command: ['CMD-SHELL', 'curl -f http://localhost:8080/health || exit 1'],
+      exit_code: 0,
+      output: '无异常',
+      checked_at: '2026-06-14T01:07:00Z',
+      failing_streak: 0,
+    },
     command: ['npm', 'run', 'serve'],
     entrypoint: ['docker-entrypoint.sh'],
     runtime: 'docker',
@@ -737,6 +907,8 @@ function createContainerDetail() {
     network_summary: 'bridge',
     restart_count: 2,
     restart_policy: 'unless-stopped',
+    last_exit_code: 0,
+    oom_killed: false,
     can_start: false,
     can_stop: true,
     can_restart: true,

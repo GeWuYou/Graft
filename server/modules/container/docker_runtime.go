@@ -526,8 +526,11 @@ func dockerDetail(inspect container.InspectResponse, info RuntimeInfo) Detail {
 	}
 	detail := Detail{
 		Summary:          summary,
+		Healthcheck:      dockerHealthcheck(inspect),
+		LastExitCode:     dockerLastExitCode(inspect),
 		Mounts:           dockerMounts(inspect.Mounts),
 		Networks:         dockerNetworks(inspect),
+		OOMKilled:        dockerOOMKilled(inspect),
 		RuntimeInfo:      info,
 		InspectUpdatedAt: time.Now().UTC().Format(time.RFC3339),
 	}
@@ -612,6 +615,82 @@ func dockerHealth(inspect container.InspectResponse) string {
 	default:
 		return containerHealthUnavailable
 	}
+}
+
+func dockerHealthcheck(inspect container.InspectResponse) *Healthcheck {
+	command := dockerHealthcheckCommand(inspect)
+	if len(command) == 0 {
+		return nil
+	}
+	result := &Healthcheck{
+		Configured: true,
+		Status:     dockerHealth(inspect),
+		Command:    command,
+	}
+	if inspect.State == nil || inspect.State.Health == nil {
+		result.Status = containerHealthUnavailable
+		return result
+	}
+
+	health := inspect.State.Health
+	result.FailingStreak = intPtrAllowZero(health.FailingStreak)
+	if len(health.Log) == 0 {
+		return result
+	}
+	last := health.Log[len(health.Log)-1]
+	if last == nil {
+		return result
+	}
+	result.ExitCode = intPtrAllowZero(last.ExitCode)
+	result.Output = strings.TrimSpace(last.Output)
+	if !last.End.IsZero() {
+		result.CheckedAt = last.End.UTC().Format(time.RFC3339)
+	} else if !last.Start.IsZero() {
+		result.CheckedAt = last.Start.UTC().Format(time.RFC3339)
+	}
+	if last.ExitCode != 0 {
+		result.FailureMessage = result.Output
+	}
+	return result
+}
+
+func dockerHealthcheckCommand(inspect container.InspectResponse) []string {
+	if inspect.Config == nil || inspect.Config.Healthcheck == nil {
+		return nil
+	}
+	test := inspect.Config.Healthcheck.Test
+	if len(test) == 0 {
+		return nil
+	}
+	if strings.EqualFold(strings.TrimSpace(test[0]), "NONE") {
+		return nil
+	}
+	command := make([]string, 0, len(test))
+	for _, item := range test {
+		trimmed := strings.TrimSpace(item)
+		if trimmed != "" {
+			command = append(command, trimmed)
+		}
+	}
+	if len(command) == 0 {
+		return nil
+	}
+	return command
+}
+
+func dockerLastExitCode(inspect container.InspectResponse) *int {
+	if inspect.State == nil {
+		return nil
+	}
+	return intPtrAllowZero(inspect.State.ExitCode)
+}
+
+func dockerOOMKilled(inspect container.InspectResponse) *bool {
+	if inspect.State == nil {
+		return nil
+	}
+	value := inspect.State.OOMKilled
+	return &value
 }
 
 func shortRuntimeID(id string) string {

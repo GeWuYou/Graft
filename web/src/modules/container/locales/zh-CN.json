@@ -374,7 +374,58 @@
       },
       "health": {
         "status": "健康状态",
-        "restartCount": "重启次数"
+        "restartCount": "重启次数",
+        "diagnosisTitle": "健康诊断",
+        "currentStatus": "当前状态",
+        "recentCheck": "最近检查",
+        "checkResult": "健康检查结果",
+        "stability": "运行稳定性",
+        "healthcheck": "Healthcheck",
+        "exitCode": "Exit Code",
+        "checkCommand": "检查命令",
+        "lastOutput": "最近输出",
+        "lastCheck": "最近检查",
+        "uptime": "已运行",
+        "lastExitCode": "最近退出码",
+        "oomKilled": "OOMKilled",
+        "restartCountValue": "{count} 次",
+        "restartNormal": "无异常重启",
+        "restartAbnormal": "已记录 {count} 次重启",
+        "restartUnknown": "重启次数未提供",
+        "updatedFromHealthcheck": "来自最近健康检查",
+        "updatedFromInspect": "来自详情更新时间",
+        "noRecentCheck": "暂无最近检查时间",
+        "noOutput": "无异常输出",
+        "healthcheckUnavailableAlert": "当前容器未提供 Docker Healthcheck 明细，仅能根据运行状态判断基础可用性。",
+        "healthcheckUnavailableEmpty": "未配置 Docker Healthcheck",
+        "uptimeHoursMinutes": "{hours} 小时 {minutes} 分钟",
+        "uptimeMinutes": "{minutes} 分钟",
+        "diagnosis": {
+          "healthy": "健康",
+          "unhealthy": "异常",
+          "noHealthcheck": "未配置健康检查",
+          "notRunning": "未运行",
+          "starting": "启动中"
+        },
+        "description": {
+          "healthy": "健康检查通过，容器运行中。",
+          "unhealthy": "健康检查失败，需要查看最近输出。",
+          "noHealthcheck": "容器运行中，但未配置 Docker Healthcheck。",
+          "notRunning": "容器当前未处于运行状态。",
+          "starting": "健康检查仍在启动观察期。",
+          "unavailable": "健康状态暂不可用。"
+        },
+        "healthcheckStatus": {
+          "passed": "通过",
+          "failed": "失败",
+          "starting": "启动中",
+          "unconfigured": "未配置",
+          "unavailable": "不可用"
+        },
+        "boolean": {
+          "yes": "是",
+          "no": "否"
+        }
       },
       "config": {
         "environment": "环境变量",

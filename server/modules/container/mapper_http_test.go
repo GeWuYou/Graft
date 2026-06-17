@@ -5,6 +5,70 @@ package container
 
 import "testing"
 
+func TestToDetailMapsHealthcheckAndRuntimeStability(t *testing.T) {
+	t.Parallel()
+
+	detail := Detail{
+		Summary: Summary{
+			ID:            "abc123",
+			ShortID:       "abc123",
+			Name:          "web",
+			Names:         []string{"web"},
+			Image:         "nginx:latest",
+			Runtime:       runtimeNameDocker,
+			CreatedAt:     "2026-06-14T00:00:00Z",
+			State:         "running",
+			Status:        "running",
+			Health:        containerHealthUnhealthy,
+			RestartCount:  intPtrAllowZero(3),
+			RestartPolicy: "unless-stopped",
+		},
+		EnvironmentPolicy: "masked",
+		Healthcheck: &Healthcheck{
+			Configured:     true,
+			Status:         containerHealthUnhealthy,
+			Command:        []string{"CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"},
+			ExitCode:       intPtrAllowZero(1),
+			Output:         "curl failed",
+			CheckedAt:      "2026-06-17T01:31:53Z",
+			FailingStreak:  intPtrAllowZero(2),
+			FailureMessage: "curl failed",
+		},
+		LastExitCode:     intPtrAllowZero(137),
+		Mounts:           []Mount{},
+		Networks:         []Network{},
+		OOMKilled:        boolPtr(true),
+		RuntimeInfo:      RuntimeInfo{Runtime: runtimeNameDocker, Status: "enabled", Endpoint: "local"},
+		InspectUpdatedAt: "2026-06-17T01:32:00Z",
+	}
+
+	mapped := toDetail(detail)
+	if mapped.Healthcheck == nil {
+		t.Fatalf("expected mapped healthcheck")
+	}
+	if !mapped.Healthcheck.Configured || string(mapped.Healthcheck.Status) != containerHealthUnhealthy {
+		t.Fatalf("unexpected mapped healthcheck %#v", mapped.Healthcheck)
+	}
+	if len(mapped.Healthcheck.Command) != 2 || mapped.Healthcheck.Command[1] != "curl -f http://localhost:8080/health || exit 1" {
+		t.Fatalf("unexpected mapped healthcheck command %#v", mapped.Healthcheck.Command)
+	}
+	assertIntPtr(t, mapped.Healthcheck.ExitCode, 1, "mapped healthcheck exit code")
+	assertIntPtr(t, mapped.Healthcheck.FailingStreak, 2, "mapped healthcheck failing streak")
+	if mapped.Healthcheck.Output == nil || *mapped.Healthcheck.Output != "curl failed" {
+		t.Fatalf("unexpected mapped healthcheck output %#v", mapped.Healthcheck.Output)
+	}
+	if mapped.Healthcheck.FailureMessage == nil || *mapped.Healthcheck.FailureMessage != "curl failed" {
+		t.Fatalf("unexpected mapped healthcheck failure message %#v", mapped.Healthcheck.FailureMessage)
+	}
+	if mapped.Healthcheck.CheckedAt == nil || mapped.Healthcheck.CheckedAt.Format("2006-01-02T15:04:05Z07:00") != "2026-06-17T01:31:53Z" {
+		t.Fatalf("unexpected mapped healthcheck checked_at %#v", mapped.Healthcheck.CheckedAt)
+	}
+	assertIntPtr(t, mapped.LastExitCode, 137, "mapped last exit code")
+	if mapped.OomKilled == nil || !*mapped.OomKilled {
+		t.Fatalf("expected mapped oom killed true, got %#v", mapped.OomKilled)
+	}
+}
+
 func TestToResourceSummaryMapsDockerStatsFields(t *testing.T) {
 	t.Parallel()
 
@@ -80,5 +144,9 @@ func int64Ptr(value int64) *int64 {
 }
 
 func float64Ptr(value float64) *float64 {
+	return &value
+}
+
+func boolPtr(value bool) *bool {
 	return &value
 }

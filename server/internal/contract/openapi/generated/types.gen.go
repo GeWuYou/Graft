@@ -873,6 +873,33 @@ func (e ContainerEnvironmentEntrySource) Valid() bool {
 	}
 }
 
+// Defines values for ContainerHealthcheckStatus.
+const (
+	ContainerHealthcheckStatusHealthy     ContainerHealthcheckStatus = "healthy"
+	ContainerHealthcheckStatusNone        ContainerHealthcheckStatus = "none"
+	ContainerHealthcheckStatusStarting    ContainerHealthcheckStatus = "starting"
+	ContainerHealthcheckStatusUnavailable ContainerHealthcheckStatus = "unavailable"
+	ContainerHealthcheckStatusUnhealthy   ContainerHealthcheckStatus = "unhealthy"
+)
+
+// Valid indicates whether the value is a known member of the ContainerHealthcheckStatus enum.
+func (e ContainerHealthcheckStatus) Valid() bool {
+	switch e {
+	case ContainerHealthcheckStatusHealthy:
+		return true
+	case ContainerHealthcheckStatusNone:
+		return true
+	case ContainerHealthcheckStatusStarting:
+		return true
+	case ContainerHealthcheckStatusUnavailable:
+		return true
+	case ContainerHealthcheckStatusUnhealthy:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ContainerPortType.
 const (
 	ContainerPortTypeValueSCTP ContainerPortType = "sctp"
@@ -3050,20 +3077,29 @@ type ContainerDetail struct {
 	EnvironmentPolicy ContainerDetailEnvironmentPolicy `json:"environment_policy"`
 
 	// Health Nullable when the runtime cannot determine health on the list path without row-level inspect.
-	Health           *ContainerDetailHealth `json:"health,omitempty"`
-	Id               string                 `json:"id"`
-	Image            string                 `json:"image"`
-	ImageId          *string                `json:"image_id,omitempty"`
-	InspectUpdatedAt *time.Time             `json:"inspect_updated_at,omitempty"`
-	Labels           *map[string]string     `json:"labels,omitempty"`
-	Mounts           []ContainerMount       `json:"mounts"`
+	Health *ContainerDetailHealth `json:"health,omitempty"`
+
+	// Healthcheck Docker Healthcheck diagnostics from container inspect. Omitted when no Healthcheck is configured.
+	Healthcheck      *ContainerHealthcheck `json:"healthcheck,omitempty"`
+	Id               string                `json:"id"`
+	Image            string                `json:"image"`
+	ImageId          *string               `json:"image_id,omitempty"`
+	InspectUpdatedAt *time.Time            `json:"inspect_updated_at,omitempty"`
+	Labels           *map[string]string    `json:"labels,omitempty"`
+
+	// LastExitCode Last container process exit code from Docker inspect state when available.
+	LastExitCode *int             `json:"last_exit_code,omitempty"`
+	Mounts       []ContainerMount `json:"mounts"`
 
 	// Name Primary display name, falling back to id when the runtime returns no names.
 	Name           string             `json:"name"`
 	Names          []string           `json:"names"`
 	NetworkSummary *string            `json:"network_summary,omitempty"`
 	Networks       []ContainerNetwork `json:"networks"`
-	Ports          []ContainerPort    `json:"ports"`
+
+	// OomKilled Whether Docker inspect reports the container was killed by the OOM killer.
+	OomKilled *bool           `json:"oom_killed,omitempty"`
+	Ports     []ContainerPort `json:"ports"`
 
 	// PrimaryIp Primary IP address when the runtime list summary exposes one without raw inspect.
 	PrimaryIp *string                   `json:"primary_ip,omitempty"`
@@ -3116,6 +3152,34 @@ type ContainerEnvironmentEntry struct {
 
 // ContainerEnvironmentEntrySource Runtime source of the environment variable entry.
 type ContainerEnvironmentEntrySource string
+
+// ContainerHealthcheck Docker Healthcheck diagnostics from container inspect.
+type ContainerHealthcheck struct {
+	// CheckedAt Completion time of the most recent Docker Healthcheck result when available.
+	CheckedAt *time.Time `json:"checked_at,omitempty"`
+
+	// Command Docker Healthcheck test command as reported by inspect.
+	Command []string `json:"command"`
+
+	// Configured True when Docker inspect exposes an active Healthcheck command for the container.
+	Configured bool `json:"configured"`
+
+	// ExitCode Exit code from the most recent Docker Healthcheck result when available.
+	ExitCode *int `json:"exit_code,omitempty"`
+
+	// FailingStreak Docker reported consecutive Healthcheck failure count.
+	FailingStreak *int `json:"failing_streak,omitempty"`
+
+	// FailureMessage Recent failure output when the latest Healthcheck result failed.
+	FailureMessage *string `json:"failure_message,omitempty"`
+
+	// Output Output from the most recent Docker Healthcheck result, trimmed for display.
+	Output *string                    `json:"output,omitempty"`
+	Status ContainerHealthcheckStatus `json:"status"`
+}
+
+// ContainerHealthcheckStatus defines model for ContainerHealthcheck.Status.
+type ContainerHealthcheckStatus string
 
 // ContainerListResponse defines model for container-list-response.
 type ContainerListResponse struct {

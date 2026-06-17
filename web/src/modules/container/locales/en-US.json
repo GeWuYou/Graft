@@ -374,7 +374,58 @@
       },
       "health": {
         "status": "Health",
-        "restartCount": "Restart Count"
+        "restartCount": "Restart Count",
+        "diagnosisTitle": "Health Diagnostics",
+        "currentStatus": "Current Status",
+        "recentCheck": "Recent Check",
+        "checkResult": "Healthcheck Result",
+        "stability": "Runtime Stability",
+        "healthcheck": "Healthcheck",
+        "exitCode": "Exit Code",
+        "checkCommand": "Check Command",
+        "lastOutput": "Recent Output",
+        "lastCheck": "Recent Check",
+        "uptime": "Uptime",
+        "lastExitCode": "Last Exit Code",
+        "oomKilled": "OOMKilled",
+        "restartCountValue": "{count} Times",
+        "restartNormal": "No Abnormal Restarts",
+        "restartAbnormal": "{count} Restarts Recorded",
+        "restartUnknown": "Restart Count Is Unavailable",
+        "updatedFromHealthcheck": "From Latest Healthcheck",
+        "updatedFromInspect": "From Detail Update Time",
+        "noRecentCheck": "No Recent Check Time",
+        "noOutput": "No Abnormal Output",
+        "healthcheckUnavailableAlert": "This Container Does Not Provide Docker Healthcheck Details. Basic Availability Is Inferred From Runtime State Only.",
+        "healthcheckUnavailableEmpty": "Docker Healthcheck Is Not Configured",
+        "uptimeHoursMinutes": "{hours} h {minutes} min",
+        "uptimeMinutes": "{minutes} min",
+        "diagnosis": {
+          "healthy": "Healthy",
+          "unhealthy": "Unhealthy",
+          "noHealthcheck": "Healthcheck Not Configured",
+          "notRunning": "Not Running",
+          "starting": "Starting"
+        },
+        "description": {
+          "healthy": "Healthcheck Passed and the Container Is Running.",
+          "unhealthy": "Healthcheck Failed. Review the Recent Output.",
+          "noHealthcheck": "The Container Is Running but Docker Healthcheck Is Not Configured.",
+          "notRunning": "The Container Is Not Running.",
+          "starting": "Healthcheck Is Still in the Start Period.",
+          "unavailable": "Health Status Is Currently Unavailable."
+        },
+        "healthcheckStatus": {
+          "passed": "Passed",
+          "failed": "Failed",
+          "starting": "Starting",
+          "unconfigured": "Not Configured",
+          "unavailable": "Unavailable"
+        },
+        "boolean": {
+          "yes": "Yes",
+          "no": "No"
+        }
       },
       "config": {
         "environment": "Environment Variables",

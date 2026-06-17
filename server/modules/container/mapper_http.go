@@ -69,16 +69,19 @@ func toDetail(detail Detail) containergen.ContainerDetail {
 		Environment:       optionalEnvironment(detail.Environment),
 		EnvironmentPolicy: optionalEnvironmentPolicy(detail.EnvironmentPolicy),
 		Health:            optionalDetailHealth(detail.Health),
+		Healthcheck:       optionalHealthcheck(detail.Healthcheck),
 		Id:                detail.ID,
 		Image:             detail.Image,
 		ImageId:           optionalString(detail.ImageID),
 		InspectUpdatedAt:  optionalTime(detail.InspectUpdatedAt),
 		Labels:            optionalStringMap(detail.Labels),
+		LastExitCode:      detail.LastExitCode,
 		Mounts:            toMounts(detail.Mounts),
 		Name:              detail.Name,
 		Names:             detail.Names,
 		NetworkSummary:    optionalString(detail.NetworkSummary),
 		Networks:          toNetworks(detail.Networks),
+		OomKilled:         detail.OOMKilled,
 		Ports:             toPorts(detail.Ports),
 		PrimaryIp:         optionalString(detail.PrimaryIP),
 		Resource:          toResourceSummary(detail.Resource),
@@ -91,6 +94,22 @@ func toDetail(detail Detail) containergen.ContainerDetail {
 		State:             containergen.ContainerDetailState(detail.State),
 		Status:            detail.Status,
 		WorkingDir:        optionalString(detail.WorkingDir),
+	}
+}
+
+func optionalHealthcheck(healthcheck *Healthcheck) *containergen.ContainerHealthcheck {
+	if healthcheck == nil || !healthcheck.Configured {
+		return nil
+	}
+	return &containergen.ContainerHealthcheck{
+		CheckedAt:      optionalTime(healthcheck.CheckedAt),
+		Command:        append([]string(nil), healthcheck.Command...),
+		Configured:     healthcheck.Configured,
+		ExitCode:       healthcheck.ExitCode,
+		FailingStreak:  healthcheck.FailingStreak,
+		FailureMessage: optionalString(healthcheck.FailureMessage),
+		Output:         optionalString(healthcheck.Output),
+		Status:         containergen.ContainerHealthcheckStatus(healthcheck.Status),
 	}
 }
 

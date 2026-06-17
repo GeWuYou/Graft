@@ -1924,6 +1924,7 @@ export interface components {
     ContainerSummary: components['schemas']['container-summary'];
     ContainerDetail: components['schemas']['container-detail'];
     ContainerEnvironmentEntry: components['schemas']['container-environment-entry'];
+    ContainerHealthcheck: components['schemas']['container-healthcheck'];
     ContainerPort: components['schemas']['container-port'];
     ContainerMount: components['schemas']['container-mount'];
     ContainerNetwork: components['schemas']['container-network'];
@@ -3946,6 +3947,28 @@ export interface components {
        */
       source: 'docker';
     };
+    /** @description Docker Healthcheck diagnostics from container inspect. */
+    'container-healthcheck': {
+      /** @description True when Docker inspect exposes an active Healthcheck command for the container. */
+      configured: boolean;
+      /** @enum {string} */
+      status: 'healthy' | 'unhealthy' | 'starting' | 'none' | 'unavailable';
+      /** @description Docker Healthcheck test command as reported by inspect. */
+      command: string[];
+      /** @description Exit code from the most recent Docker Healthcheck result when available. */
+      exit_code?: number | null;
+      /** @description Output from the most recent Docker Healthcheck result, trimmed for display. */
+      output?: string;
+      /**
+       * Format: date-time
+       * @description Completion time of the most recent Docker Healthcheck result when available.
+       */
+      checked_at?: string;
+      /** @description Docker reported consecutive Healthcheck failure count. */
+      failing_streak?: number | null;
+      /** @description Recent failure output when the latest Healthcheck result failed. */
+      failure_message?: string;
+    };
     'container-mount': {
       /** @description Runtime mount type such as bind, volume, or tmpfs. */
       type: string;
@@ -3965,7 +3988,13 @@ export interface components {
        * @enum {string}
        */
       environment_policy: 'hidden' | 'masked' | 'plain';
+      /** @description Docker Healthcheck diagnostics from container inspect. Omitted when no Healthcheck is configured. */
+      healthcheck?: components['schemas']['container-healthcheck'];
       working_dir?: string;
+      /** @description Last container process exit code from Docker inspect state when available. */
+      last_exit_code?: number | null;
+      /** @description Whether Docker inspect reports the container was killed by the OOM killer. */
+      oom_killed?: boolean | null;
       mounts: components['schemas']['container-mount'][];
       networks: components['schemas']['container-network'][];
       runtime_info: components['schemas']['container-runtime-info'];

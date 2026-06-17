@@ -540,6 +540,8 @@ components:
       $ref: ./components/schemas/container-detail.yaml
     ContainerEnvironmentEntry:
       $ref: ./components/schemas/container-environment-entry.yaml
+    ContainerHealthcheck:
+      $ref: ./components/schemas/container-healthcheck.yaml
     ContainerPort:
       $ref: ./components/schemas/container-port.yaml
     ContainerMount:

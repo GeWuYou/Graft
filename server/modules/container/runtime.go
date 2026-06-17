@@ -205,11 +205,26 @@ type Detail struct {
 	Entrypoint        []string
 	Environment       []EnvironmentVariable
 	EnvironmentPolicy string
+	Healthcheck       *Healthcheck
+	LastExitCode      *int
 	Mounts            []Mount
 	Networks          []Network
+	OOMKilled         *bool
 	RuntimeInfo       RuntimeInfo
 	InspectUpdatedAt  string
 	WorkingDir        string
+}
+
+// Healthcheck describes Docker healthcheck diagnostics from container inspect.
+type Healthcheck struct {
+	Configured     bool
+	Status         string
+	Command        []string
+	ExitCode       *int
+	Output         string
+	CheckedAt      string
+	FailingStreak  *int
+	FailureMessage string
 }
 
 // Port describes one exposed or published container port.

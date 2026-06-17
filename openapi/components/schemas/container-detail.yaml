@@ -27,8 +27,19 @@ allOf:
           - ContainerDetailEnvironmentPolicyMasked
           - ContainerDetailEnvironmentPolicyPlain
         description: Effective container environment variable display policy applied to this detail response.
+      healthcheck:
+        $ref: ./container-healthcheck.yaml
+        description: Docker Healthcheck diagnostics from container inspect. Omitted when no Healthcheck is configured.
       working_dir:
         type: string
+      last_exit_code:
+        type: integer
+        nullable: true
+        description: Last container process exit code from Docker inspect state when available.
+      oom_killed:
+        type: boolean
+        nullable: true
+        description: Whether Docker inspect reports the container was killed by the OOM killer.
       mounts:
         type: array
         items:

@@ -406,6 +406,33 @@ func (e GetContainer200JSONResponseBodyDataHealth) Valid() bool {
 	}
 }
 
+// Defines values for GetContainer200JSONResponseBodyDataHealthcheckStatus.
+const (
+	ContainerHealthcheckStatusHealthy     GetContainer200JSONResponseBodyDataHealthcheckStatus = "healthy"
+	ContainerHealthcheckStatusNone        GetContainer200JSONResponseBodyDataHealthcheckStatus = "none"
+	ContainerHealthcheckStatusStarting    GetContainer200JSONResponseBodyDataHealthcheckStatus = "starting"
+	ContainerHealthcheckStatusUnavailable GetContainer200JSONResponseBodyDataHealthcheckStatus = "unavailable"
+	ContainerHealthcheckStatusUnhealthy   GetContainer200JSONResponseBodyDataHealthcheckStatus = "unhealthy"
+)
+
+// Valid indicates whether the value is a known member of the GetContainer200JSONResponseBodyDataHealthcheckStatus enum.
+func (e GetContainer200JSONResponseBodyDataHealthcheckStatus) Valid() bool {
+	switch e {
+	case ContainerHealthcheckStatusHealthy:
+		return true
+	case ContainerHealthcheckStatusNone:
+		return true
+	case ContainerHealthcheckStatusStarting:
+		return true
+	case ContainerHealthcheckStatusUnavailable:
+		return true
+	case ContainerHealthcheckStatusUnhealthy:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetContainer200JSONResponseBodyDataPortsType.
 const (
 	GetContainer200JSONResponseBodyDataPortsTypeContainerPortTypeValueSCTP GetContainer200JSONResponseBodyDataPortsType = "sctp"
@@ -1290,6 +1317,9 @@ type GetContainer200JSONResponseBodyDataEnvironmentPolicy string
 
 // GetContainer200JSONResponseBodyDataHealth defines parameters for GetContainer.
 type GetContainer200JSONResponseBodyDataHealth string
+
+// GetContainer200JSONResponseBodyDataHealthcheckStatus defines parameters for GetContainer.
+type GetContainer200JSONResponseBodyDataHealthcheckStatus string
 
 // GetContainer200JSONResponseBodyDataPortsType defines parameters for GetContainer.
 type GetContainer200JSONResponseBodyDataPortsType string
