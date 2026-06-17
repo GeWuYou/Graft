@@ -1,7 +1,7 @@
 // Copyright (c) 2025-2026 GeWuYou
 // SPDX-License-Identifier: Apache-2.0
 
-export type LogLevel = 'FATAL' | 'ERROR' | 'WARN' | 'INFO' | 'DEBUG' | 'TRACE';
+export type LogLevel = 'FATAL' | 'ERROR' | 'WARN' | 'INFO' | 'DEBUG' | 'TRACE' | 'LOG' | 'UNKNOWN';
 export type LogTokenType = 'text' | 'keyword' | 'field-key' | 'field-value' | 'level';
 export type LogToken = {
   text: string;
@@ -10,8 +10,8 @@ export type LogToken = {
 };
 
 const FIELD_PATTERN = /\b([A-Za-z_][\w.-]*)=("[^"]*"|'[^']*'|\S*)/g;
-const LEVEL_PATTERN = /\blevel=(?:"|')?(fatal|error|warn|warning|info|debug|trace)(?:"|')?\b/i;
-const STANDALONE_LEVEL_PATTERN = /\b(fatal|error|warn|warning|info|debug|trace)\b/i;
+const LEVEL_PATTERN = /\blevel=(?:"|')?(fatal|error|err|warn|warning|info|debug|trace|log|unknown)(?:"|')?\b/i;
+const STANDALONE_LEVEL_PATTERN = /\b(fatal|error|err|warn|warning|info|debug|trace|log|unknown)\b/i;
 
 export function detectLogLevel(line: string): LogLevel | null {
   const fieldMatch = LEVEL_PATTERN.exec(line);
@@ -23,7 +23,7 @@ export function getLogLevelTone(level: LogLevel | null) {
   if (level === 'FATAL' || level === 'ERROR') return 'danger';
   if (level === 'WARN') return 'warning';
   if (level === 'INFO') return 'info';
-  if (level === 'DEBUG' || level === 'TRACE') return 'muted';
+  if (level === 'DEBUG' || level === 'TRACE' || level === 'LOG' || level === 'UNKNOWN') return 'muted';
   return 'default';
 }
 
@@ -64,6 +64,7 @@ export function tokenizeLogLine(line: string, keyword = ''): LogToken[] {
 export function normalizeLogLevel(value?: string | null): LogLevel | null {
   if (!value) return null;
   const normalized = value.toUpperCase();
+  if (normalized === 'ERR') return 'ERROR';
   if (normalized === 'WARNING') return 'WARN';
   if (
     normalized === 'FATAL' ||
@@ -71,7 +72,9 @@ export function normalizeLogLevel(value?: string | null): LogLevel | null {
     normalized === 'WARN' ||
     normalized === 'INFO' ||
     normalized === 'DEBUG' ||
-    normalized === 'TRACE'
+    normalized === 'TRACE' ||
+    normalized === 'LOG' ||
+    normalized === 'UNKNOWN'
   ) {
     return normalized;
   }

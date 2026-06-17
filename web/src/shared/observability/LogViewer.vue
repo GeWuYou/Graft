@@ -81,7 +81,7 @@
             <t-tooltip v-if="line.timestamp" :content="line.timestamp" placement="top-left" theme="light">
               <time class="log-viewer__timestamp">{{ shortTimestamp(line.timestamp) }}</time>
             </t-tooltip>
-            <span v-else class="log-viewer__timestamp">-</span>
+            <span v-else class="log-viewer__timestamp log-viewer__timestamp--empty"></span>
           </div>
           <div class="log-viewer__level-cell">
             <t-tag class="log-viewer__level" :theme="levelTheme(line.level)" size="small" variant="light-outline">
@@ -92,7 +92,7 @@
             <t-tooltip v-if="line.source" :content="line.source" placement="top-left" theme="light">
               <span class="log-viewer__source">{{ line.sourceShort || line.source }}</span>
             </t-tooltip>
-            <span v-else class="log-viewer__source">-</span>
+            <span v-else class="log-viewer__source log-viewer__source--empty"></span>
           </div>
           <div class="log-viewer__content">
             <div class="log-viewer__message-row">
@@ -105,7 +105,7 @@
                 >
               </code>
             </div>
-            <div v-if="line.metadata" class="log-viewer__metadata-tags" @click.stop>
+            <div v-if="visibleMetadataTags(line).length" class="log-viewer__metadata-tags" @click.stop>
               <t-tag
                 v-for="[key, value] in visibleMetadataTags(line)"
                 :key="`${line.lineNo}-${key}`"
@@ -116,13 +116,13 @@
                 {{ key }}={{ formatMetadataValue(value) }}
               </t-tag>
               <t-button
-                v-if="hiddenMetadataCount(line)"
+                v-if="hiddenRowFieldCount(line)"
                 size="small"
                 theme="default"
                 variant="text"
                 @click="openLineDetail(line)"
               >
-                +{{ hiddenMetadataCount(line) }}
+                +{{ hiddenRowFieldCount(line) }}
               </t-button>
             </div>
           </div>
@@ -178,30 +178,40 @@
             <div class="log-viewer__summary-title">
               <t-tag
                 class="log-viewer__summary-level"
-                :theme="levelTheme(selectedLine.level)"
+                :theme="levelTheme(selectedLine.parsed.display.level)"
                 size="small"
                 variant="light-outline"
               >
-                {{ selectedLine.level ?? 'LOG' }}
+                {{ selectedLine.parsed.display.level ?? 'LOG' }}
               </t-tag>
-              <span class="log-viewer__summary-message">{{ selectedLine.message }}</span>
+              <span class="log-viewer__summary-message">{{ selectedLine.parsed.display.title }}</span>
             </div>
-            <div class="log-viewer__summary-meta">
-              <span>{{ selectedLine.timestamp || '-' }}</span>
-              <span aria-hidden="true">·</span>
-              <t-tooltip v-if="selectedLine.source" :content="selectedLine.source" placement="top-left" theme="light">
-                <span class="log-viewer__summary-source">{{ selectedLine.source }}</span>
-              </t-tooltip>
-              <span v-else>-</span>
+            <div v-if="selectedLine.parsed.display.subtitleParts.length" class="log-viewer__summary-meta">
+              <template
+                v-for="(part, partIndex) in selectedLine.parsed.display.subtitleParts"
+                :key="`${selectedLine.lineNo}-summary-${partIndex}`"
+              >
+                <span v-if="partIndex" aria-hidden="true">·</span>
+                <t-tooltip
+                  v-if="part === selectedLine.source"
+                  :content="selectedLine.source"
+                  placement="top-left"
+                  theme="light"
+                >
+                  <span class="log-viewer__summary-source">{{ part }}</span>
+                </t-tooltip>
+                <span v-else>{{ part }}</span>
+              </template>
             </div>
           </div>
         </section>
 
-        <section v-if="importantFields.length" class="log-viewer__drawer-section">
+        <section v-if="selectedLine.parsed.importantFields.length" class="log-viewer__drawer-section">
           <div class="log-viewer__drawer-section-title">{{ importantFieldsLabel }}</div>
           <div class="log-viewer__field-chips">
-            <span v-for="field in importantFields" :key="field.key" class="log-viewer__field-chip">
+            <span v-for="field in selectedLine.parsed.importantFields" :key="field.key" class="log-viewer__field-chip">
               <span class="log-viewer__field-key">{{ field.key }}</span>
+              <span class="log-viewer__field-equals">=</span>
               <t-tooltip :content="field.value" placement="top-left" theme="light">
                 <span class="log-viewer__field-value">{{ field.value }}</span>
               </t-tooltip>
@@ -213,23 +223,29 @@
           <div class="log-viewer__drawer-section-title">{{ basicInfoLabel }}</div>
           <div class="log-viewer__basic">
             <div class="log-viewer__descriptions">
-              <div class="log-viewer__description-label">{{ timeLabel }}</div>
-              <div class="log-viewer__description-value">{{ selectedLine.timestamp || '-' }}</div>
+              <template v-if="selectedLine.timestamp">
+                <div class="log-viewer__description-label">{{ timeLabel }}</div>
+                <div class="log-viewer__description-value">{{ selectedLine.timestamp }}</div>
+              </template>
 
-              <div class="log-viewer__description-label">{{ levelLabel }}</div>
-              <div class="log-viewer__description-value log-viewer__level-value">
-                <t-tag
-                  class="log-viewer__detail-level"
-                  :theme="levelTheme(selectedLine.level)"
-                  size="small"
-                  variant="light-outline"
-                >
-                  {{ selectedLine.level ?? 'LOG' }}
-                </t-tag>
-              </div>
+              <template v-if="selectedLine.level">
+                <div class="log-viewer__description-label">{{ levelLabel }}</div>
+                <div class="log-viewer__description-value log-viewer__level-value">
+                  <t-tag
+                    class="log-viewer__detail-level"
+                    :theme="levelTheme(selectedLine.level)"
+                    size="small"
+                    variant="light-outline"
+                  >
+                    {{ selectedLine.level }}
+                  </t-tag>
+                </div>
+              </template>
 
-              <div class="log-viewer__description-label">{{ sourceLabel }}</div>
-              <div class="log-viewer__description-value">{{ selectedLine.source || '-' }}</div>
+              <template v-if="selectedLine.source">
+                <div class="log-viewer__description-label">{{ sourceLabel }}</div>
+                <div class="log-viewer__description-value">{{ selectedLine.source }}</div>
+              </template>
 
               <div class="log-viewer__description-label">{{ messageLabel }}</div>
               <div class="log-viewer__description-value">{{ selectedLine.message }}</div>
@@ -237,22 +253,14 @@
           </div>
         </section>
 
-        <section class="log-viewer__drawer-section">
+        <section v-if="selectedLine.metadata" class="log-viewer__drawer-section">
           <div class="log-viewer__drawer-section-header">
             <div class="log-viewer__drawer-section-title">{{ metadataLabel }}</div>
-            <t-button
-              size="small"
-              theme="default"
-              variant="text"
-              :disabled="!selectedLine.metadata"
-              @click="copySelectedJson"
-            >
+            <t-button size="small" theme="default" variant="text" @click="copySelectedJson">
               {{ copyJsonLabel }}
             </t-button>
           </div>
-          <pre
-            class="log-viewer__code-block"
-          ><code>{{ selectedLine.metadata ? formatJson(selectedLine.metadata) : '{}' }}</code></pre>
+          <pre class="log-viewer__code-block"><code>{{ formatJson(selectedLine.metadata) }}</code></pre>
         </section>
 
         <section class="log-viewer__drawer-section">
@@ -338,28 +346,6 @@ const emit = defineEmits<{
 
 type SelectOption = NonNullable<SelectProps['options']>[number];
 type LevelFilter = 'ALL' | LogLevel;
-type ImportantField = {
-  key: string;
-  value: string;
-};
-
-const IMPORTANT_METADATA_KEYS = [
-  'request_id',
-  'client_request_id',
-  'path',
-  'method',
-  'status_code',
-  'latency_ms',
-  'user_id',
-  'api_key_id',
-  'group_id',
-  'group_name',
-  'model',
-  'provider',
-  'endpoint',
-  'protocol',
-  'error',
-] as const;
 
 const searchKeyword = ref('');
 const wrapLines = ref(true);
@@ -383,6 +369,7 @@ const levelOptions = computed<SelectOption[]>(() => [
   { label: 'INFO', value: 'INFO' },
   { label: 'DEBUG', value: 'DEBUG' },
   { label: 'TRACE', value: 'TRACE' },
+  { label: 'LOG', value: 'LOG' },
 ]);
 const lineLimitOptions = computed<SelectOption[]>(() =>
   props.lineLimits.map((value) => ({ label: String(value), value })),
@@ -397,17 +384,6 @@ const displayLines = computed(() =>
 );
 const searchMatchCount = computed(() => displayLines.value.reduce((total, line) => total + line.searchMatchCount, 0));
 const selectedLine = computed(() => displayLines.value.find((line) => line.lineNo === selectedLineNo.value) ?? null);
-const importantFields = computed<ImportantField[]>(() => {
-  const metadata = selectedLine.value?.metadata;
-  if (!metadata) return [];
-
-  return IMPORTANT_METADATA_KEYS.flatMap((key) => {
-    if (!Object.prototype.hasOwnProperty.call(metadata, key)) return [];
-    const value = metadata[key];
-    if (value === undefined || value === null || value === '') return [];
-    return [{ key, value: formatLogMetadataValue(value) }];
-  });
-});
 const detailDrawerVisible = computed({
   get: () => selectedLine.value !== null,
   set: (visible: boolean) => {
@@ -492,6 +468,9 @@ async function copySelectedJson() {
 }
 
 function visibleMetadataTags(line: DisplayLogLine) {
+  if (line.parsed.importantFields.length) {
+    return visibleRowImportantFields(line).map((field) => [field.key, field.value] as [string, unknown]);
+  }
   return summarizeMetadata(line.metadata).tags;
 }
 
@@ -499,8 +478,26 @@ function hiddenMetadataCount(line: DisplayLogLine) {
   return summarizeMetadata(line.metadata).hiddenCount;
 }
 
+function hiddenRowFieldCount(line: DisplayLogLine) {
+  if (!line.parsed.importantFields.length) {
+    return hiddenMetadataCount(line);
+  }
+  if (line.parsed.format === 'logfmt') {
+    return 0;
+  }
+  return Math.max(0, Object.keys(line.parsed.fields).length - visibleRowImportantFields(line).length);
+}
+
 function formatMetadataValue(value: unknown) {
   return formatLogMetadataValue(value);
+}
+
+function visibleRowImportantFields(line: DisplayLogLine) {
+  const hiddenRowKeys = new Set(['level', 'severity', 'msg', 'message', 'event']);
+  return line.parsed.importantFields
+    .filter((field) => !hiddenRowKeys.has(field.key))
+    .filter((field) => field.value !== line.message)
+    .slice(0, 3);
 }
 
 function formatJson(value: unknown) {
@@ -516,7 +513,7 @@ function shortTimestamp(timestamp: string) {
   return timeMatch?.[1] ?? timestamp;
 }
 
-function levelTheme(level: LogLevel | null) {
+function levelTheme(level: LogLevel | null | undefined) {
   if (level === 'ERROR' || level === 'FATAL') return 'danger';
   if (level === 'WARN') return 'warning';
   if (level === 'INFO') return 'primary';

@@ -3,7 +3,13 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { buildDisplayLogLine, type ParsedLogMetadata, parseLogLine, summarizeMetadata } from './log-parser';
+import {
+  buildDisplayLogLine,
+  parseContainerLogLine,
+  type ParsedLogMetadata,
+  parseLogLine,
+  summarizeMetadata,
+} from './log-parser';
 
 describe('log-parser', () => {
   it('parses ordinary INFO logs into structured fields', () => {
@@ -19,6 +25,7 @@ describe('log-parser', () => {
     expect(line.sourceShort).toBe('pricing_service.go:145');
     expect(line.message).toBe('[Pricing] Service initialized');
     expect(line.metadata).toBeNull();
+    expect(line.parsed.format).toBe('structured');
   });
 
   it('parses WARN logs and maps warning tone without strong row coloring', () => {
@@ -45,8 +52,84 @@ describe('log-parser', () => {
     expect(line.message).toBe('http request completed');
     expect(metadata.service).toBe('sub2api');
     expect(metadata.status).toBe(200);
-    expect(summary.tags.map(([key]) => key)).toEqual(['request_id', 'status', 'duration']);
+    expect(summary.tags.map(([key]) => key)).toEqual(['request_id', 'path', 'method']);
     expect(summary.hiddenCount).toBe(5);
+  });
+
+  it('parses a full JSON structured log into normalized display fields', () => {
+    const line = parseContainerLogLine(
+      '{"time":"2026-06-17T08:30:27.324+0800","level":"INFO","msg":"http request completed","path":"/api/v1/auth/me","caller":"middleware/logger.go:61"}',
+    );
+
+    expect(line.format).toBe('json');
+    expect(line.time).toBe('2026-06-17T08:30:27.324+0800');
+    expect(line.level).toBe('INFO');
+    expect(line.source).toBe('middleware/logger.go:61');
+    expect(line.message).toBe('http request completed');
+    expect(line.fields.path).toBe('/api/v1/auth/me');
+    expect(line.display.subtitleParts).toEqual(['2026-06-17T08:30:27.324+0800', 'middleware/logger.go:61']);
+  });
+
+  it('prioritizes HTTP structured metadata in important fields', () => {
+    const line = parseContainerLogLine(
+      '2026-06-17T06:31:42.585+0800 INFO middleware/logger.go:61 http request completed {"service":"sub2api","env":"production","component":"http","request_id":"abc","latency_ms":12,"method":"GET","path":"/health","status_code":200}',
+    );
+
+    expect(line.importantFields.map((field) => field.key)).toEqual([
+      'request_id',
+      'path',
+      'method',
+      'status_code',
+      'latency_ms',
+    ]);
+  });
+
+  it('parses logfmt key value lines with quoted values', () => {
+    const line = parseContainerLogLine(
+      'time=2026-06-16T22:27:57.106Z level=INFO msg="server run start" error="context canceled"',
+    );
+
+    expect(line.format).toBe('logfmt');
+    expect(line.message).toBe('server run start');
+    expect(line.time).toBe('2026-06-16T22:27:57.106Z');
+    expect(line.level).toBe('INFO');
+    expect(line.fields.msg).toBe('server run start');
+    expect(line.fields.error).toBe('context canceled');
+    expect(line.importantFields.map((field) => `${field.key}=${field.value}`)).toEqual([
+      'time=2026-06-16T22:27:57.106Z',
+      'level=INFO',
+      'msg=server run start',
+      'error=context canceled',
+    ]);
+    expect(line.display.subtitleParts).toEqual(['2026-06-16T22:27:57.106Z']);
+  });
+
+  it('falls back to plain text without empty metadata', () => {
+    const line = parseLogLine('GitHub MCP Server running on stdio', 1);
+
+    expect(line.parsed.format).toBe('plain');
+    expect(line.message).toBe('GitHub MCP Server running on stdio');
+    expect(line.metadata).toBeNull();
+    expect(line.parsed.importantFields).toEqual([]);
+    expect(line.parsed.display.subtitleParts).toEqual([]);
+  });
+
+  it('keeps stack trace-like lines from gaining false time or source fields', () => {
+    const line = parseLogLine('github.com/xxx/service.(*PricingService).refresh', 1);
+
+    expect(line.parsed.format).toBe('stack');
+    expect(line.message).toBe('github.com/xxx/service.(*PricingService).refresh');
+    expect(line.timestamp).toBe('');
+    expect(line.source).toBe('');
+  });
+
+  it('maps common level aliases into stable semantics', () => {
+    expect(parseContainerLogLine('level=warning msg="warned"').level).toBe('WARN');
+    expect(parseContainerLogLine('level=WARN msg="warned"').level).toBe('WARN');
+    expect(parseContainerLogLine('level=ERROR msg="failed"').level).toBe('ERROR');
+    expect(parseContainerLogLine('level=FATAL msg="failed"').level).toBe('FATAL');
+    expect(parseContainerLogLine('level=debug msg="debugged"').level).toBe('DEBUG');
+    expect(parseContainerLogLine('level=log msg="ordinary"').level).toBe('LOG');
   });
 
   it('folds repeated low-signal metadata out of the default tag summary', () => {
@@ -56,8 +139,8 @@ describe('log-parser', () => {
     );
     const summary = summarizeMetadata(line.metadata, 3);
 
-    expect(summary.tags.map(([key]) => key)).toEqual(['request_id', 'component']);
-    expect(summary.hiddenCount).toBe(3);
+    expect(summary.tags.map(([key]) => key)).toEqual(['request_id']);
+    expect(summary.hiddenCount).toBe(4);
   });
 
   it('falls back to raw text when trailing JSON parsing fails', () => {

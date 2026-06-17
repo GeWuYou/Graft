@@ -79,8 +79,9 @@ describe('LogViewer', () => {
     const metadataTags = wrapper.find('.log-viewer__metadata-tags');
 
     expect(contentColumn.text()).toContain('request_id=abc');
-    expect(contentColumn.text()).toContain('component=http');
-    expect(contentColumn.text()).toContain('+2');
+    expect(contentColumn.text()).toContain('duration=12ms');
+    expect(contentColumn.text()).toContain('+3');
+    expect(contentColumn.text()).not.toContain('component=http');
     expect(contentColumn.text()).not.toContain('service=sub2api');
     expect(contentColumn.text()).not.toContain('env=production');
     expect(contentColumn.text()).not.toContain('{"service":"sub2api"');
@@ -157,9 +158,9 @@ describe('LogViewer', () => {
     expect(wrapper.text()).toContain('日志详情');
     expect(wrapper.find('.log-viewer__summary').text()).toContain('http request failed');
     expect(wrapper.find('.log-viewer__summary-title').text()).toContain('ERROR');
-    expect(wrapper.find('.log-viewer__field-chips').text()).toContain('request_idabc');
-    expect(wrapper.find('.log-viewer__field-chips').text()).toContain('path/v1/responses');
-    expect(wrapper.find('.log-viewer__field-chips').text()).toContain('modelgpt-5.5');
+    expect(wrapper.find('.log-viewer__field-chips').text()).toContain('request_id=abc');
+    expect(wrapper.find('.log-viewer__field-chips').text()).toContain('path=/v1/responses');
+    expect(wrapper.find('.log-viewer__field-chips').text()).toContain('model=gpt-5.5');
     expect(wrapper.find('.log-viewer__basic').text()).toContain('级别');
     expect(wrapper.find('.log-viewer__level-value').text()).toBe('ERROR');
     expect(wrapper.find('.log-viewer__detail-drawer').text()).toContain('http request failed');
@@ -170,6 +171,60 @@ describe('LogViewer', () => {
     expect(wrapper.find('.log-viewer__line--active').exists()).toBe(true);
     expect(wrapper.find('.log-viewer__drawer-actions').exists()).toBe(false);
     expect(wrapper.text()).not.toContain('复制消息');
+  });
+
+  it('renders logfmt details from parsed message and hides missing placeholders', async () => {
+    const wrapper = mount(LogViewer, {
+      props: {
+        ...labels,
+        lines: ['time=2026-06-16T22:27:57.106Z level=INFO msg="server run start"'],
+      },
+      global: { stubs: tdesignStubs },
+    });
+
+    expect(wrapper.find('.log-viewer__message').text()).toBe('server run start');
+    expect(wrapper.find('.log-viewer__metadata-tags').text()).toContain('time=2026-06-16T22:27:57.106Z');
+    expect(wrapper.find('.log-viewer__metadata-tags').text()).not.toContain('msg=server run start');
+
+    await wrapper.find('.log-viewer__icon-action').trigger('click');
+
+    expect(wrapper.find('.log-viewer__summary-title').text()).toContain('INFO');
+    expect(wrapper.find('.log-viewer__summary-title').text()).toContain('server run start');
+    expect(wrapper.find('.log-viewer__summary-meta').text()).toBe('2026-06-16T22:27:57.106Z');
+    expect(wrapper.find('.log-viewer__field-chips').text()).toContain('time=2026-06-16T22:27:57.106Z');
+    expect(wrapper.find('.log-viewer__field-chips').text()).toContain('level=INFO');
+    expect(wrapper.find('.log-viewer__field-chips').text()).toContain('msg=server run start');
+    expect(wrapper.find('.log-viewer__basic').text()).toContain('时间');
+    expect(wrapper.find('.log-viewer__basic').text()).toContain('级别');
+    expect(wrapper.find('.log-viewer__basic').text()).toContain('完整消息');
+    expect(wrapper.find('.log-viewer__basic').text()).not.toContain('来源');
+    expect(wrapper.text()).not.toContain('- · -');
+    expect(wrapper.findAll('.log-viewer__code-block')[0].text()).toContain('"msg": "server run start"');
+  });
+
+  it('renders plain text details without empty metadata or field sections', async () => {
+    const wrapper = mount(LogViewer, {
+      props: {
+        ...labels,
+        lines: ['GitHub MCP Server running on stdio'],
+      },
+      global: { stubs: tdesignStubs },
+    });
+
+    expect(wrapper.find('.log-viewer__message').text()).toBe('GitHub MCP Server running on stdio');
+    expect(wrapper.find('.log-viewer__metadata-tags').exists()).toBe(false);
+
+    await wrapper.find('.log-viewer__icon-action').trigger('click');
+
+    expect(wrapper.find('.log-viewer__summary-title').text()).toContain('LOG');
+    expect(wrapper.find('.log-viewer__summary-title').text()).toContain('GitHub MCP Server running on stdio');
+    expect(wrapper.find('.log-viewer__summary-meta').exists()).toBe(false);
+    expect(wrapper.find('.log-viewer__field-chips').exists()).toBe(false);
+    expect(wrapper.text()).not.toContain('Metadata');
+    expect(wrapper.text()).not.toContain('{}');
+    expect(wrapper.find('.log-viewer__basic').text()).toContain('完整消息');
+    expect(wrapper.find('.log-viewer__basic').text()).not.toContain('时间');
+    expect(wrapper.find('.log-viewer__basic').text()).not.toContain('来源');
   });
 
   it('keeps row actions visually weak until hover or focus reveals them', () => {
