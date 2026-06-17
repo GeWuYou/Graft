@@ -108,10 +108,24 @@ describe('log-parser', () => {
     const line = parseLogLine('GitHub MCP Server running on stdio', 1);
 
     expect(line.parsed.format).toBe('plain');
+    expect(line.level).toBe('LOG');
     expect(line.message).toBe('GitHub MCP Server running on stdio');
     expect(line.metadata).toBeNull();
     expect(line.parsed.importantFields).toEqual([]);
     expect(line.parsed.display.subtitleParts).toEqual([]);
+  });
+
+  it('detects standalone severities in plain text fallback lines', () => {
+    const errorLine = parseLogLine('ERROR failed to connect upstream service', 1);
+    const warnLine = parseLogLine('warning cache is nearly full', 2);
+    const infoLine = parseLogLine('info background worker started', 3);
+    const unknownLine = parseLogLine('unknown host name after DNS lookup', 4);
+
+    expect(errorLine.parsed.format).toBe('plain');
+    expect(errorLine.level).toBe('ERROR');
+    expect(warnLine.level).toBe('WARN');
+    expect(infoLine.level).toBe('INFO');
+    expect(unknownLine.level).toBe('LOG');
   });
 
   it('keeps stack trace-like lines from gaining false time or source fields', () => {

@@ -310,6 +310,13 @@ vi.mock('@/shared/observability', async () => {
   };
 });
 
+vi.mock('@/utils/route/title', () => ({
+  localizeRouteTitleKey: (titleKey: string) => ({
+    [LOCALE.ZH_CN]: translations[titleKey] ?? titleKey,
+    [LOCALE.EN_US]: titleKey === 'container.detail.title' ? 'Container Detail' : (translations[titleKey] ?? titleKey),
+  }),
+}));
+
 describe('container list page', () => {
   beforeEach(() => {
     vi.clearAllMocks();

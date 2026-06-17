@@ -111,21 +111,40 @@ describe('RefreshControlBar', () => {
     expect(wrapper.emitted('refresh')).toHaveLength(1);
   });
 
-  it('renders the next refresh countdown when auto refresh is active', () => {
-    const wrapper = mountBar({ countdownSeconds: 4, showCountdown: true });
+  it('renders only the countdown value when callers omit localized countdown labels', () => {
+    const wrapper = mountBar({ countdownSeconds: 4, countdownLabel: '', showCountdown: true });
+
+    expect(wrapper.get('[data-refresh-countdown="true"]').text()).toBe('4s');
+  });
+
+  it('renders caller-provided localized countdown labels', () => {
+    const wrapper = mountBar({ countdownLabel: '下次刷新', countdownSeconds: 4, showCountdown: true });
 
     expect(wrapper.get('[data-refresh-countdown="true"]').text()).toContain('下次刷新4s');
   });
 
-  it('renders the paused countdown state', () => {
-    const wrapper = mountBar({ countdownSeconds: 4, paused: true, showCountdown: true });
+  it('renders a locale-neutral paused countdown state when callers omit labels', () => {
+    const wrapper = mountBar({ countdownSeconds: 4, paused: true, pausedLabel: '', showCountdown: true });
+
+    expect(wrapper.get('[data-refresh-countdown="true"]').text()).toBe('');
+  });
+
+  it('renders caller-provided localized paused labels', () => {
+    const wrapper = mountBar({ countdownSeconds: 4, paused: true, pausedLabel: '已暂停', showCountdown: true });
 
     expect(wrapper.get('[data-refresh-countdown="true"]').text()).toContain('已暂停');
     expect(wrapper.text()).toContain('恢复自动刷新');
   });
 
-  it('renders manual refresh when auto refresh is disabled and hides the toggle button', () => {
-    const wrapper = mountBar({ autoRefreshEnabled: false, showCountdown: true });
+  it('renders locale-neutral manual refresh when auto refresh is disabled and callers omit labels', () => {
+    const wrapper = mountBar({ autoRefreshEnabled: false, manualLabel: '', showCountdown: true });
+
+    expect(wrapper.get('[data-refresh-countdown="true"]').text()).toBe('');
+    expect(wrapper.find('[data-refresh-toggle-auto="true"]').exists()).toBe(false);
+  });
+
+  it('renders caller-provided manual refresh when auto refresh is disabled', () => {
+    const wrapper = mountBar({ autoRefreshEnabled: false, manualLabel: '手动刷新', showCountdown: true });
 
     expect(wrapper.get('[data-refresh-countdown="true"]').text()).toContain('手动刷新');
     expect(wrapper.find('[data-refresh-toggle-auto="true"]').exists()).toBe(false);

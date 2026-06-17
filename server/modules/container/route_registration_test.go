@@ -54,6 +54,7 @@ func TestRoutesRequireContainerPermissions(t *testing.T) {
 func assertDetailRoutePermission(t *testing.T, engine *gin.Engine, authorizer *recordingAuthorizer) {
 	t.Helper()
 
+	authorizer.reset()
 	response := httptest.NewRecorder()
 	engine.ServeHTTP(response, authorizedRequest(http.MethodGet, "/api/ops/containers/abc123"))
 	if response.Code != http.StatusOK {
@@ -70,6 +71,7 @@ func assertDetailRoutePermission(t *testing.T, engine *gin.Engine, authorizer *r
 func assertLogsRoutePermission(t *testing.T, engine *gin.Engine, authorizer *recordingAuthorizer) {
 	t.Helper()
 
+	authorizer.reset()
 	response := httptest.NewRecorder()
 	engine.ServeHTTP(response, authorizedRequest(http.MethodGet, "/api/ops/containers/abc123/logs?tail=20&stdout=true"))
 	if response.Code != http.StatusOK {
@@ -83,6 +85,7 @@ func assertLogsRoutePermission(t *testing.T, engine *gin.Engine, authorizer *rec
 func assertMountUsageRoutePermission(t *testing.T, engine *gin.Engine, authorizer *recordingAuthorizer) {
 	t.Helper()
 
+	authorizer.reset()
 	response := httptest.NewRecorder()
 	engine.ServeHTTP(response, authorizedRequest(http.MethodGet, "/api/ops/containers/abc123/mounts/usage"))
 	if response.Code != http.StatusOK {
@@ -95,6 +98,7 @@ func assertMountUsageRoutePermission(t *testing.T, engine *gin.Engine, authorize
 		t.Fatalf("expected mount_id response field, got %s", response.Body.String())
 	}
 
+	authorizer.reset()
 	mountID := fakeMountID()
 	response = httptest.NewRecorder()
 	engine.ServeHTTP(response, authorizedJSONRequest(http.MethodPost, "/api/ops/containers/abc123/mounts/"+mountID+"/usage/refresh", `{}`))
@@ -109,6 +113,7 @@ func assertMountUsageRoutePermission(t *testing.T, engine *gin.Engine, authorize
 func assertRemoveRoutePermission(t *testing.T, engine *gin.Engine, authorizer *recordingAuthorizer) {
 	t.Helper()
 
+	authorizer.reset()
 	response := httptest.NewRecorder()
 	engine.ServeHTTP(response, authorizedJSONRequest(http.MethodPost, "/api/ops/containers/abc123/remove", `{"force":true}`))
 	if response.Code != http.StatusOK {
@@ -122,6 +127,7 @@ func assertRemoveRoutePermission(t *testing.T, engine *gin.Engine, authorizer *r
 func assertBatchActionRoutePermission(t *testing.T, engine *gin.Engine, authorizer *recordingAuthorizer) {
 	t.Helper()
 
+	authorizer.reset()
 	response := httptest.NewRecorder()
 	engine.ServeHTTP(response, authorizedJSONRequest(http.MethodPost, "/api/ops/containers/batch-actions", `{"action":"start","ids":["abc123"]}`))
 	if response.Code != http.StatusOK {
@@ -131,12 +137,13 @@ func assertBatchActionRoutePermission(t *testing.T, engine *gin.Engine, authoriz
 		t.Fatalf("expected batch start permission, got %#v", authorizer.permissions)
 	}
 
+	authorizer.reset()
 	response = httptest.NewRecorder()
 	engine.ServeHTTP(response, authorizedJSONRequest(http.MethodPost, "/api/ops/containers/batch-actions", `{"action":"remove","ids":["abc123"],"force":true}`))
 	if response.Code != http.StatusOK {
 		t.Fatalf("expected batch remove 200, got %d: %s", response.Code, response.Body.String())
 	}
-	if countPermission(authorizer.permissions, containercontract.ContainerRemovePermission.String()) < 2 {
+	if !slices.Contains(authorizer.permissions, containercontract.ContainerRemovePermission.String()) {
 		t.Fatalf("expected batch remove to require remove permission, got %#v", authorizer.permissions)
 	}
 }
@@ -260,16 +267,6 @@ func authorizedJSONRequest(method string, path string, body string) *http.Reques
 	return request
 }
 
-func countPermission(permissions []string, permission string) int {
-	count := 0
-	for _, item := range permissions {
-		if item == permission {
-			count++
-		}
-	}
-	return count
-}
-
 type routeTestAuthService struct{}
 
 func (routeTestAuthService) CurrentUser(context.Context) (*moduleapi.CurrentUser, error) {
@@ -287,4 +284,8 @@ type recordingAuthorizer struct {
 func (a *recordingAuthorizer) Authorize(_ context.Context, _ moduleapi.RequestAuthContext, permission string) error {
 	a.permissions = append(a.permissions, permission)
 	return nil
+}
+
+func (a *recordingAuthorizer) reset() {
+	a.permissions = nil
 }

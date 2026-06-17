@@ -223,8 +223,12 @@ func (s *service) MountUsageList(ctx context.Context, ref Ref) ([]MountUsage, er
 	}
 	items := make([]MountUsage, 0, len(mounts))
 	for _, mount := range mounts {
+		if strings.TrimSpace(mount.ID) == "" {
+			mount.ID = stableMountID(mount)
+		}
 		cacheKey := mountUsageCacheKey(ref, mount.ID)
 		if usage, ok := s.mountUsageCache.get(cacheKey); ok {
+			usage.ContainerID = ref.Value
 			items = append(items, usage)
 			continue
 		}
@@ -246,9 +250,6 @@ func (s *service) RefreshMountUsage(ctx context.Context, ref Ref, mountID string
 		return MountUsage{}, errInvalidRef
 	}
 	cacheKey := mountUsageCacheKey(ref, mountID)
-	if usage, ok := s.mountUsageCache.get(cacheKey); ok {
-		return usage, nil
-	}
 	runtime, err := s.runtimeForRequest()
 	if err != nil {
 		return MountUsage{}, err

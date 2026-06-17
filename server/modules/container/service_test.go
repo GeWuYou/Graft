@@ -597,10 +597,9 @@ func TestServiceMountUsageListDoesNotScanAndUsesCache(t *testing.T) {
 	t.Parallel()
 
 	mount := Mount{Type: "bind", Source: "/host/data", Destination: "/data"}
-	mount.ID = stableMountID(mount)
 	cached := MountUsage{
-		MountID:     mount.ID,
-		ContainerID: "web",
+		MountID:     stableMountID(mount),
+		ContainerID: "docker-inspect-id",
 		Type:        "bind",
 		Source:      "/host/data",
 		Destination: "/data",
@@ -610,7 +609,7 @@ func TestServiceMountUsageListDoesNotScanAndUsesCache(t *testing.T) {
 		MeasuredAt:  "2026-06-17T00:00:00Z",
 	}
 	cache := newMountUsageCache(time.Minute)
-	cache.set(mountUsageCacheKey(Ref{Value: "web"}, mount.ID), cached)
+	cache.set(mountUsageCacheKey(Ref{Value: "web"}, stableMountID(mount)), cached)
 	runtime := &countingRuntime{mounts: []Mount{mount}}
 	service, err := newService(containerServiceOptions{
 		runtime:         runtime,
@@ -629,6 +628,9 @@ func TestServiceMountUsageListDoesNotScanAndUsesCache(t *testing.T) {
 	}
 	if len(items) != 1 || !items[0].Cached || items[0].SizeDisplay != "1 KiB" {
 		t.Fatalf("expected cached mount usage, got %#v", items)
+	}
+	if items[0].ContainerID != "web" {
+		t.Fatalf("expected list cache result to use request ref container id, got %#v", items[0])
 	}
 	if runtime.mountUsageCalls.Load() != 0 {
 		t.Fatalf("expected cache-only list to avoid scan, got %d scans", runtime.mountUsageCalls.Load())
@@ -726,18 +728,20 @@ func TestServiceRefreshMountUsageCachesMeasuredResult(t *testing.T) {
 	if usage.SizeDisplay != "1.5 KiB" || runtime.mountUsageCalls.Load() != 1 {
 		t.Fatalf("unexpected refreshed usage %#v calls=%d", usage, runtime.mountUsageCalls.Load())
 	}
+	runtime.mountUsage.SizeBytes = 2048
+	runtime.mountUsage.SizeDisplay = "2 KiB"
 	usage, err = service.RefreshMountUsage(context.Background(), Ref{Value: "web"}, mount.ID)
 	if err != nil {
-		t.Fatalf("cached refresh mount usage: %v", err)
+		t.Fatalf("second refresh mount usage: %v", err)
 	}
-	if !usage.Cached || runtime.mountUsageCalls.Load() != 1 {
-		t.Fatalf("expected cached refresh to avoid repeated scan, got usage=%#v calls=%d", usage, runtime.mountUsageCalls.Load())
+	if usage.Cached || usage.SizeDisplay != "2 KiB" || runtime.mountUsageCalls.Load() != 2 {
+		t.Fatalf("expected refresh to bypass cache, got usage=%#v calls=%d", usage, runtime.mountUsageCalls.Load())
 	}
 	items, err := service.MountUsageList(context.Background(), Ref{Value: "web"})
 	if err != nil {
 		t.Fatalf("mount usage list: %v", err)
 	}
-	if len(items) != 1 || !items[0].Cached || items[0].SizeBytes != 1536 {
+	if len(items) != 1 || !items[0].Cached || items[0].SizeBytes != 2048 {
 		t.Fatalf("expected cached refreshed usage, got %#v", items)
 	}
 }
@@ -769,6 +773,8 @@ func TestFormatIECBytesUsesExpectedUnits(t *testing.T) {
 	t.Parallel()
 
 	cases := map[int64]string{
+		0:                      "0 B",
+		512:                    "512 B",
 		1024:                   "1 KiB",
 		1536:                   "1.5 KiB",
 		2 * 1024 * 1024:        "2 MiB",

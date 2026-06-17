@@ -31,20 +31,37 @@ func (filesystemMountUsageScanner) ScanUsage(ctx context.Context, root string) (
 	if root == "" {
 		return 0, errMountUsageUnsupported
 	}
+	if _, err := os.Stat(root); err != nil {
+		return 0, mapMountUsageScanError(err)
+	}
+	total, err := scanMountUsageFS(ctx, os.DirFS(root), ".")
+	if err != nil {
+		return 0, mapMountUsageScanError(err)
+	}
+	return total, nil
+}
+
+func scanMountUsageFS(ctx context.Context, fileSystem fs.FS, root string) (int64, error) {
 	var total int64
-	err := filepath.WalkDir(root, func(_ string, entry fs.DirEntry, walkErr error) error {
+	err := fs.WalkDir(fileSystem, root, func(path string, entry fs.DirEntry, walkErr error) error {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
 		if walkErr != nil {
-			return walkErr
+			if path == root {
+				return walkErr
+			}
+			if entry != nil && entry.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
 		}
 		if entry.IsDir() {
 			return nil
 		}
 		info, err := entry.Info()
 		if err != nil {
-			return err
+			return nil
 		}
 		if info.Mode().IsRegular() {
 			total += info.Size()
@@ -52,7 +69,7 @@ func (filesystemMountUsageScanner) ScanUsage(ctx context.Context, root string) (
 		return nil
 	})
 	if err != nil {
-		return 0, mapMountUsageScanError(err)
+		return 0, err
 	}
 	return total, nil
 }
@@ -85,7 +102,7 @@ type mountUsageCacheEntry struct {
 	expiresAt time.Time
 }
 
-newMountUsageCache creates a new mount usage cache with the specified TTL, or the default TTL if the provided value is zero or negative.
+// newMountUsageCache creates a new mount usage cache with the specified TTL, or the default TTL if the provided value is zero or negative.
 func newMountUsageCache(ttl time.Duration) *mountUsageCache {
 	if ttl <= 0 {
 		ttl = containerMountUsageCacheTTL
@@ -129,7 +146,7 @@ func (c *mountUsageCache) set(key string, usage MountUsage) {
 	}
 }
 
-mountUsageCacheKey produces a cache key for mount usage lookup using the given reference and mount ID.
+// mountUsageCacheKey produces a cache key for mount usage lookup using the given reference and mount ID.
 func mountUsageCacheKey(ref Ref, mountID string) string {
 	return strings.TrimSpace(ref.Value) + "\x00" + strings.TrimSpace(mountID)
 }
@@ -141,6 +158,8 @@ func formatIECBytes(size int64) string {
 	}
 	const unit = int64(1024)
 	switch {
+	case size < unit:
+		return fmt.Sprintf("%d B", size)
 	case size < unit*unit:
 		return formatIECValue(float64(size)/float64(unit), "KiB")
 	case size < unit*unit*unit:

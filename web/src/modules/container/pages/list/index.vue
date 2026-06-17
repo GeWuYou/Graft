@@ -418,6 +418,7 @@ import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { formatLocaleDateTime } from '@/shared/observability';
 import { useTabsRouterStore } from '@/store';
 import { createLogger } from '@/utils/logger';
+import { localizeRouteTitleKey } from '@/utils/route/title';
 import type { AppRouteMeta } from '@/utils/types';
 
 import {
@@ -1318,9 +1319,10 @@ function displayName(row: ContainerSummary) {
 }
 
 function buildDetailTabTitle(name: string): LocalizedTitle {
+  const baseTitle = localizeRouteTitleKey('container.detail.title');
   return {
-    [LOCALE.ZH_CN]: `${t('container.detail.title')} - ${name}`,
-    [LOCALE.EN_US]: `Container Detail - ${name}`,
+    [LOCALE.ZH_CN]: `${baseTitle[LOCALE.ZH_CN]} - ${name}`,
+    [LOCALE.EN_US]: `${baseTitle[LOCALE.EN_US]} - ${name}`,
   };
 }
 

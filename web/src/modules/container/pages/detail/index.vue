@@ -33,12 +33,15 @@
           <t-tooltip :content="t('container.detail.refreshTooltip')">
             <refresh-control-bar
               :auto-refresh-enabled="autoRefreshAvailable"
+              :countdown-label="t('container.detail.autoRefresh')"
               :countdown-seconds="remainingAutoRefreshSeconds"
               :interval="selectedAutoRefreshInterval"
               :interval-label="t('container.detail.autoRefresh')"
               :interval-options="autoRefreshOptions"
+              :manual-label="t('container.detail.autoRefreshOff')"
               :paused="autoRefreshPaused"
               :pause-label="t('container.detail.pauseAutoRefresh')"
+              :paused-label="t('container.detail.autoRefreshPaused')"
               :refresh-label="t('container.detail.refreshNow')"
               :refreshing="detailRefreshing"
               :resume-label="t('container.detail.resumeAutoRefresh')"

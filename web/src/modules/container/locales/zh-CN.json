@@ -240,6 +240,7 @@
       "refreshTooltip": "刷新容器详情、资源、网络、挂载列表和挂载用量最近一次统计结果，不重新扫描挂载空间。",
       "autoRefresh": "自动刷新",
       "autoRefreshOff": "关闭",
+      "autoRefreshPaused": "已暂停",
       "autoRefreshSeconds": "{seconds} 秒",
       "pauseAutoRefresh": "暂停自动刷新",
       "resumeAutoRefresh": "恢复自动刷新",

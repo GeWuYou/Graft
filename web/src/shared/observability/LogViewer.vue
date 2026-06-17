@@ -367,12 +367,14 @@ const skeletonRows = [
 ];
 const levelOptions = computed<SelectOption[]>(() => [
   { label: `${props.levelFilterLabel}: ${props.allLevelsLabel}`, value: 'ALL' },
+  { label: 'FATAL', value: 'FATAL' },
   { label: 'ERROR', value: 'ERROR' },
   { label: 'WARN', value: 'WARN' },
   { label: 'INFO', value: 'INFO' },
   { label: 'DEBUG', value: 'DEBUG' },
   { label: 'TRACE', value: 'TRACE' },
   { label: 'LOG', value: 'LOG' },
+  { label: 'UNKNOWN', value: 'UNKNOWN' },
 ]);
 const lineLimitOptions = computed<SelectOption[]>(() =>
   props.lineLimits.map((value) => ({ label: String(value), value })),

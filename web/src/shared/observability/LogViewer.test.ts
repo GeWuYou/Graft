@@ -82,6 +82,23 @@ describe('LogViewer', () => {
     expect(wrapper.find('[data-tooltip="刷新日志后自动滚动到底部"]').exists()).toBe(true);
   });
 
+  it('offers every parsed log level in the level filter', () => {
+    const wrapper = mount(LogViewer, {
+      props: {
+        ...labels,
+        lines: createLines(1),
+      },
+      global: { stubs: tdesignStubs },
+    });
+
+    const filterOptions = wrapper
+      .findAll('select')[1]
+      .findAll('option')
+      .map((option) => option.text());
+
+    expect(filterOptions).toEqual(['级别: 全部', 'FATAL', 'ERROR', 'WARN', 'INFO', 'DEBUG', 'TRACE', 'LOG', 'UNKNOWN']);
+  });
+
   it('limits metadata tags and folds repeated low-signal fields out of the main row', () => {
     const wrapper = mount(LogViewer, {
       props: {

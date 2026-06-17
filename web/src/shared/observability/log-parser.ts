@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { LogLevel, LogToken } from './log-highlight';
-import { getLogLevelTone, normalizeLogLevel, tokenizeLogLine } from './log-highlight';
+import { detectLogLevel, getLogLevelTone, normalizeLogLevel, tokenizeLogLine } from './log-highlight';
 
 export type ParsedLogMetadata = Record<string, unknown>;
 export type ContainerLogFormat = 'json' | 'logfmt' | 'structured' | 'plain' | 'stack' | 'unknown';
@@ -110,7 +110,13 @@ export function parseContainerLogLine(rawLine: string): ParsedContainerLog {
     return buildParsedLog({ raw, level: 'LOG', message: trimmed, format: 'stack', fields: {} });
   }
 
-  return buildParsedLog({ raw, level: 'LOG', message: trimmed, format: 'plain', fields: {} });
+  return buildParsedLog({
+    raw,
+    level: detectLogLevel(trimmed) ?? 'LOG',
+    message: trimmed,
+    format: 'plain',
+    fields: {},
+  });
 }
 
 /**

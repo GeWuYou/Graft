@@ -11,7 +11,7 @@ export type LogToken = {
 
 const FIELD_PATTERN = /\b([A-Za-z_][\w.-]*)=("[^"]*"|'[^']*'|\S*)/g;
 const LEVEL_PATTERN = /\blevel=(?:"|')?(fatal|error|err|warn|warning|info|debug|trace|log|unknown)(?:"|')?\b/i;
-const STANDALONE_LEVEL_PATTERN = /\b(fatal|error|err|warn|warning|info|debug|trace|log|unknown)\b/i;
+const STANDALONE_LEVEL_PATTERN = /\b(fatal|error|err|warn|warning|info|debug|trace)\b/i;
 
 /**
  * Detects the log level in a line of text.

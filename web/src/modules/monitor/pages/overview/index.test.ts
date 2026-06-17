@@ -1263,18 +1263,19 @@ describe('MonitorPage', () => {
     await flushPromises();
     await nextTick();
 
-    expect(wrapper.get('[data-refresh-countdown="true"]').text()).toContain('下次刷新5s');
-    expect(wrapper.find('.server-status-overview-layout__trend').text()).not.toContain('Next refresh in');
+    expect(wrapper.get('[data-refresh-countdown="true"]').text()).toBe('5s');
+    expect(wrapper.text()).not.toContain('下次刷新');
 
     await vi.advanceTimersByTimeAsync(2000);
     await flushPromises();
-    expect(wrapper.get('[data-refresh-countdown="true"]').text()).toContain('下次刷新3s');
-    expect(wrapper.text()).not.toContain('Next refresh in 3s');
+    expect(wrapper.get('[data-refresh-countdown="true"]').text()).toBe('3s');
+    expect(wrapper.text()).not.toContain('下次刷新');
 
     const buttons = wrapper.findAll('button');
     await buttons[1]?.trigger('click');
     await nextTick();
-    expect(wrapper.get('[data-refresh-countdown="true"]').text()).toContain('已暂停');
+    expect(wrapper.get('[data-refresh-countdown="true"]').text()).toBe('');
+    expect(wrapper.text()).not.toContain('已暂停');
     expect(sidebarGroupText(wrapper, 'sampling')).toContain('Auto refresh');
     expect(sidebarGroupText(wrapper, 'sampling')).toContain('Paused');
 
@@ -1290,8 +1291,8 @@ describe('MonitorPage', () => {
     setVisibilityState('hidden');
     document.dispatchEvent(new Event('visibilitychange'));
     await nextTick();
-    expect(wrapper.get('[data-refresh-countdown="true"]').text()).toContain('已暂停');
-    expect(wrapper.text()).not.toContain('Next refresh paused while the page is hidden');
+    expect(wrapper.get('[data-refresh-countdown="true"]').text()).toBe('');
+    expect(wrapper.text()).not.toContain('已暂停');
   });
 
   it('backs off the retry cadence after a failed auto refresh', async () => {
@@ -1301,8 +1302,8 @@ describe('MonitorPage', () => {
     const wrapper = mountMonitorPage();
     await flushPromises();
 
-    expect(wrapper.get('[data-refresh-countdown="true"]').text()).toContain('下次刷新10s');
-    expect(wrapper.text()).not.toContain('Retry in 10s · base interval Every 5 sec');
+    expect(wrapper.get('[data-refresh-countdown="true"]').text()).toBe('10s');
+    expect(wrapper.text()).not.toContain('下次刷新');
 
     await vi.advanceTimersByTimeAsync(9000);
     await flushPromises();

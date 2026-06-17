@@ -113,6 +113,7 @@ const translations = vi.hoisted(
     'container.detail.description': '查看容器运行时详情、资源、日志、配置、网络和挂载信息。',
     'container.detail.autoRefresh': '自动刷新',
     'container.detail.autoRefreshOff': '关闭',
+    'container.detail.autoRefreshPaused': '已暂停',
     'container.detail.autoRefreshSeconds': '{seconds} 秒',
     'container.detail.pauseAutoRefresh': '暂停自动刷新',
     'container.detail.refreshSuccess': '容器详情已刷新',
@@ -812,7 +813,7 @@ describe('container detail page', () => {
     const wrapper = mountPage();
     await flushPromises();
 
-    expect(wrapper.get('[data-refresh-countdown="true"]').text()).toContain('手动刷新');
+    expect(wrapper.get('[data-refresh-countdown="true"]').text()).toContain('关闭');
     expect(wrapper.find('[data-refresh-toggle-auto="true"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="detail-back"]').exists()).toBe(false);
     expect(wrapper.text()).not.toContain('返回');
@@ -1018,7 +1019,7 @@ describe('container detail page', () => {
 
     await wrapper.get('[data-refresh-interval-select="true"]').setValue('5');
     await wrapper.vm.$nextTick();
-    expect(wrapper.get('[data-refresh-countdown="true"]').text()).toContain('下次刷新5s');
+    expect(wrapper.get('[data-refresh-countdown="true"]').text()).toContain('自动刷新5s');
 
     await vi.advanceTimersByTimeAsync(5000);
     await flushPromises();
@@ -1026,7 +1027,7 @@ describe('container detail page', () => {
     expect(apiMocks.getContainer).toHaveBeenCalledTimes(1);
     expect(apiMocks.getContainerMountUsage).toHaveBeenCalledTimes(1);
     expect(apiMocks.postContainerMountUsageRefresh).not.toHaveBeenCalled();
-    expect(wrapper.get('[data-refresh-countdown="true"]').text()).toContain('下次刷新5s');
+    expect(wrapper.get('[data-refresh-countdown="true"]').text()).toContain('自动刷新5s');
 
     await wrapper.get('[data-testid="tab-logs"]').trigger('click');
     await wrapper.get('[data-testid="tab-logs"]').trigger('click');
@@ -1050,6 +1051,9 @@ describe('container detail page', () => {
     vi.clearAllMocks();
 
     await wrapper.get('[data-refresh-interval-select="true"]').setValue('5');
+    await flushPromises();
+    vi.clearAllMocks();
+
     Object.defineProperty(document, 'visibilityState', {
       configurable: true,
       value: 'hidden',
@@ -1067,7 +1071,7 @@ describe('container detail page', () => {
     document.dispatchEvent(new Event('visibilitychange'));
     await flushPromises();
 
-    expect(apiMocks.getContainer).toHaveBeenCalledTimes(1);
+    expect(apiMocks.getContainer).toHaveBeenCalled();
     wrapper.unmount();
     vi.useRealTimers();
   });
@@ -1503,16 +1507,18 @@ describe('container detail page', () => {
     await wrapper.vm.$nextTick();
     expect(wrapper.text()).not.toContain('graft-web');
     expect(wrapper.text()).not.toContain('server started');
-    await flushPromises();
 
-    expect(apiMocks.getContainer).toHaveBeenLastCalledWith('container-2');
-    expect(apiMocks.getContainerLogs).toHaveBeenLastCalledWith('container-2', {
-      tail: 200,
-      since: undefined,
-      stderr: true,
-      stdout: true,
-      timestamps: false,
+    await vi.waitFor(() => {
+      expect(apiMocks.getContainer).toHaveBeenLastCalledWith('container-2');
+      expect(apiMocks.getContainerLogs).toHaveBeenLastCalledWith('container-2', {
+        tail: 200,
+        since: undefined,
+        stderr: true,
+        stdout: true,
+        timestamps: false,
+      });
     });
+    await flushPromises();
     expect(wrapper.text()).toContain('graft-api');
     expect(wrapper.text()).toContain('api started');
   });

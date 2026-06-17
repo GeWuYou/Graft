@@ -240,6 +240,7 @@
       "refreshTooltip": "Refreshes container detail, resources, network, mount list, and the latest mount usage result without rescanning mount space.",
       "autoRefresh": "Auto Refresh",
       "autoRefreshOff": "Off",
+      "autoRefreshPaused": "Paused",
       "autoRefreshSeconds": "{seconds} Sec",
       "pauseAutoRefresh": "Pause Auto Refresh",
       "resumeAutoRefresh": "Resume Auto Refresh",
