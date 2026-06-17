@@ -12,11 +12,11 @@ import (
 
 func statusForError(err error) int {
 	switch {
-	case errors.Is(err, errInvalidRef), errors.Is(err, errInvalidListQuery), errors.Is(err, errInvalidBatchAction), errors.Is(err, errLogsTooLarge), errors.Is(err, errInvalidLogQuery):
+	case errors.Is(err, errInvalidRef), errors.Is(err, errInvalidListQuery), errors.Is(err, errInvalidBatchAction), errors.Is(err, errLogsTooLarge), errors.Is(err, errInvalidLogQuery), errors.Is(err, errMountUsageUnsupported):
 		return http.StatusBadRequest
-	case errors.Is(err, errRuntimeDisabled), errors.Is(err, errDangerousActionsDisabled):
+	case errors.Is(err, errRuntimeDisabled), errors.Is(err, errDangerousActionsDisabled), errors.Is(err, errRuntimePermissionDenied):
 		return http.StatusForbidden
-	case errors.Is(err, errContainerNotFound):
+	case errors.Is(err, errContainerNotFound), errors.Is(err, errContainerMountNotFound):
 		return http.StatusNotFound
 	case errors.Is(err, errInvalidContainerState):
 		return http.StatusConflict
@@ -55,4 +55,6 @@ var containerErrorMessageRules = []struct {
 	{err: errInvalidLogQuery, key: containercontract.ContainerInvalidLogQuery},
 	{err: errContainerRuntimeTimeout, key: containercontract.ContainerTimeout},
 	{err: errDangerousActionsDisabled, key: containercontract.ContainerDangerousActionsDisabled},
+	{err: errMountUsageUnsupported, key: containercontract.ContainerMountUsageUnsupported},
+	{err: errContainerMountNotFound, key: containercontract.ContainerMountNotFound},
 }

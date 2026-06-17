@@ -38,6 +38,7 @@ type service struct {
 	auditBus                eventbus.Bus
 	logger                  *zap.Logger
 	moduleName              string
+	mountUsageCache         *mountUsageCache
 	enabled                 bool
 	dangerousActionsEnabled bool
 	defaultTail             int
@@ -53,6 +54,7 @@ type containerServiceOptions struct {
 	auditBus                eventbus.Bus
 	logger                  *zap.Logger
 	moduleName              string
+	mountUsageCache         *mountUsageCache
 	enabled                 bool
 	dangerousActionsEnabled bool
 	defaultTail             int
@@ -103,6 +105,10 @@ func newService(options containerServiceOptions) (*service, error) {
 	if runtimeFactory == nil {
 		runtimeFactory = newContainerRuntime
 	}
+	mountUsageCache := options.mountUsageCache
+	if mountUsageCache == nil {
+		mountUsageCache = newMountUsageCache(containerMountUsageCacheTTL)
+	}
 	return &service{
 		runtime:                 options.runtime,
 		runtimeOptions:          runtimeOptions,
@@ -110,6 +116,7 @@ func newService(options containerServiceOptions) (*service, error) {
 		auditBus:                options.auditBus,
 		logger:                  options.logger,
 		moduleName:              firstNonEmpty(options.moduleName, moduleID),
+		mountUsageCache:         mountUsageCache,
 		enabled:                 options.enabled,
 		systemConfig:            options.systemConfig,
 		dangerousActionsEnabled: options.dangerousActionsEnabled,
@@ -181,7 +188,80 @@ func (s *service) Detail(ctx context.Context, ref Ref) (Detail, error) {
 		detail.Summary = adjusted[0]
 	}
 	detail = s.applyEnvironmentPolicy(ctx, detail)
+	detail = s.attachCachedMountUsage(ref, detail)
 	return detail, nil
+}
+
+func (s *service) attachCachedMountUsage(ref Ref, detail Detail) Detail {
+	if s == nil || s.mountUsageCache == nil {
+		return detail
+	}
+	for index := range detail.Mounts {
+		mount := &detail.Mounts[index]
+		if strings.TrimSpace(mount.ID) == "" {
+			mount.ID = stableMountID(*mount)
+		}
+		if usage, ok := s.mountUsageCache.get(mountUsageCacheKey(ref, mount.ID)); ok {
+			mount.Usage = &usage
+		}
+	}
+	return detail
+}
+
+func (s *service) MountUsageList(ctx context.Context, ref Ref) ([]MountUsage, error) {
+	if err := s.requireRuntimeAccess(ctx); err != nil {
+		return nil, err
+	}
+	runtime, err := s.runtimeForRequest()
+	if err != nil {
+		return nil, err
+	}
+	mounts, err := runtime.Mounts(ctx, ref)
+	if err != nil {
+		return nil, err
+	}
+	items := make([]MountUsage, 0, len(mounts))
+	for _, mount := range mounts {
+		cacheKey := mountUsageCacheKey(ref, mount.ID)
+		if usage, ok := s.mountUsageCache.get(cacheKey); ok {
+			items = append(items, usage)
+			continue
+		}
+		status := containerMountUsageStatusNotMeasured
+		if !mountUsageSupported(mount) {
+			status = containerMountUsageStatusUnsupported
+		}
+		items = append(items, mountUsageFromMount(ref.Value, mount, status, 0, ""))
+	}
+	return items, nil
+}
+
+func (s *service) RefreshMountUsage(ctx context.Context, ref Ref, mountID string) (MountUsage, error) {
+	if err := s.requireRuntimeAccess(ctx); err != nil {
+		return MountUsage{}, err
+	}
+	mountID = strings.TrimSpace(mountID)
+	if !isValidMountID(mountID) {
+		return MountUsage{}, errInvalidRef
+	}
+	cacheKey := mountUsageCacheKey(ref, mountID)
+	if usage, ok := s.mountUsageCache.get(cacheKey); ok {
+		return usage, nil
+	}
+	runtime, err := s.runtimeForRequest()
+	if err != nil {
+		return MountUsage{}, err
+	}
+	usageCtx, cancel := context.WithTimeout(ctx, containerMountUsageTimeout)
+	defer cancel()
+	usage, err := runtime.MountUsage(usageCtx, ref, mountID)
+	if err != nil {
+		return MountUsage{}, err
+	}
+	if usage.Status == containerMountUsageStatusMeasured {
+		s.mountUsageCache.set(cacheKey, usage)
+	}
+	return usage, nil
 }
 
 func (s *service) Logs(ctx context.Context, ref Ref, query LogQuery) (Logs, error) {
@@ -979,6 +1059,12 @@ func (disabledRuntime) List(context.Context, ListQuery) ([]Summary, error) {
 }
 func (disabledRuntime) Detail(context.Context, Ref) (Detail, error) {
 	return Detail{}, errRuntimeDisabled
+}
+func (disabledRuntime) Mounts(context.Context, Ref) ([]Mount, error) {
+	return nil, errRuntimeDisabled
+}
+func (disabledRuntime) MountUsage(context.Context, Ref, string) (MountUsage, error) {
+	return MountUsage{}, errRuntimeDisabled
 }
 func (disabledRuntime) Logs(context.Context, Ref, LogQuery) (Logs, error) {
 	return Logs{}, errRuntimeDisabled

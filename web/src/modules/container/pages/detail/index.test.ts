@@ -20,6 +20,7 @@ const overviewPanelSourceText = readFileSync(
 const apiMocks = vi.hoisted(() => ({
   getContainer: vi.fn(),
   getContainerLogs: vi.fn(),
+  postContainerMountUsageRefresh: vi.fn(),
 }));
 
 const messageMocks = vi.hoisted(() => ({
@@ -290,10 +291,34 @@ const translations = vi.hoisted(
     'container.detail.resources.txPackets': '发送包',
     'container.detail.resources.unavailable': '未采集',
     'container.detail.storage.access': '访问',
+    'container.detail.storage.accessLabels.readOnly': '只读',
+    'container.detail.storage.accessLabels.readWrite': '读写',
     'container.detail.storage.destination': '挂载点',
+    'container.detail.storage.emptyTitle': '暂无挂载',
+    'container.detail.storage.errorMessage': '挂载用量无法测量',
+    'container.detail.storage.measuredAt': '测量时间 {time}',
     'container.detail.storage.mode': '模式',
+    'container.detail.storage.notMeasuredMessage': '暂未测量挂载用量',
+    'container.detail.storage.refreshError': '挂载用量刷新失败。',
+    'container.detail.storage.refreshMount': '刷新挂载用量',
+    'container.detail.storage.refreshSuccess': '挂载用量已刷新。',
     'container.detail.storage.source': '来源',
+    'container.detail.storage.sourceUnavailable': '无来源',
     'container.detail.storage.type': '类型',
+    'container.detail.storage.typeLabels.bind': 'Bind',
+    'container.detail.storage.typeLabels.tmpfs': 'Tmpfs',
+    'container.detail.storage.typeLabels.unknown': '未知',
+    'container.detail.storage.typeLabels.volume': 'Volume',
+    'container.detail.storage.unsupportedMessage': '此挂载暂不支持用量测量',
+    'container.detail.storage.usage': '用量',
+    'container.detail.storage.usageStatus.error': '测量失败',
+    'container.detail.storage.usageStatus.measured': '已测量',
+    'container.detail.storage.usageStatus.not_found': '挂载不存在',
+    'container.detail.storage.usageStatus.not_measured': '未测量',
+    'container.detail.storage.usageStatus.pending': '测量中',
+    'container.detail.storage.usageStatus.permission_denied': '权限不足',
+    'container.detail.storage.usageStatus.timeout': '测量超时',
+    'container.detail.storage.usageStatus.unsupported': '不支持',
     'container.detail.summary.identity': '身份信息',
     'container.detail.summary.network': '网络访问',
     'container.detail.summary.resources': '资源使用',
@@ -337,6 +362,7 @@ const translations = vi.hoisted(
 vi.mock('../../api/container', () => ({
   getContainer: apiMocks.getContainer,
   getContainerLogs: apiMocks.getContainerLogs,
+  postContainerMountUsageRefresh: apiMocks.postContainerMountUsageRefresh,
 }));
 
 vi.mock('tdesign-vue-next/es/message', () => ({
@@ -598,6 +624,103 @@ describe('container detail page', () => {
     expect(wrapper.text()).toContain('暂无网络信息。');
     expect(wrapper.text()).toContain('暂无挂载。');
     expect(wrapper.text()).not.toContain('undefined');
+  });
+
+  it('renders mount cards with semantic type, access, usage, and weak states', async () => {
+    routeState.route.query.tab = 'storage';
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.findAll('.container-mount-card')).toHaveLength(5);
+    expect(wrapper.text()).toContain('/app');
+    expect(wrapper.text()).toContain('/etc/graft');
+    expect(wrapper.text()).toContain('/var/lib/graft');
+    expect(wrapper.text()).toContain('/run');
+    expect(wrapper.text()).toContain('/broken');
+    expect(wrapper.text()).toContain('Bind');
+    expect(wrapper.text()).toContain('Volume');
+    expect(wrapper.text()).toContain('Tmpfs');
+    expect(wrapper.text()).toContain('读写');
+    expect(wrapper.text()).toContain('只读');
+    expect(wrapper.text()).toContain('已测量');
+    expect(wrapper.text()).toContain('1.0 MiB');
+    expect(wrapper.text()).toContain('5.0 MiB');
+    expect(wrapper.text()).toContain('测量时间');
+    expect(wrapper.text()).toContain('未测量');
+    expect(wrapper.text()).toContain('暂未测量挂载用量');
+    expect(wrapper.text()).toContain('不支持');
+    expect(wrapper.text()).toContain('tmpfs is runtime memory backed');
+    expect(wrapper.text()).toContain('测量失败');
+    expect(wrapper.text()).toContain('permission denied');
+    expect(wrapper.text()).toContain('Shared host path');
+    expect(sourceText).not.toContain('const mountColumns');
+    expect(sourceText).toContain('container-mount-card-grid');
+  });
+
+  it('renders an empty mount state when the container has no mounts', async () => {
+    routeState.route.query.tab = 'storage';
+    apiMocks.getContainer.mockResolvedValue({
+      ...createContainerDetail(),
+      mounts: [],
+    });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.findAll('.container-mount-card')).toHaveLength(0);
+    expect(wrapper.text()).toContain('暂无挂载');
+    expect(wrapper.text()).toContain('暂无挂载。');
+  });
+
+  it('middle-truncates long mount paths while copying full values', async () => {
+    routeState.route.query.tab = 'storage';
+    const { copyText } = await import('@/shared/observability');
+    const fullSource = '/srv/graft/releases/2026/06/14/containers/graft-web/shared/runtime/configuration/application';
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('/srv/graft/releases...uration/application');
+    expect(wrapper.text()).not.toContain(fullSource);
+
+    await wrapper.get('[data-testid="mount-source-copy-0"]').trigger('click');
+    await wrapper.get('[data-testid="mount-destination-copy-0"]').trigger('click');
+
+    expect(copyText).toHaveBeenCalledWith(fullSource);
+    expect(copyText).toHaveBeenCalledWith('/app');
+  });
+
+  it('refreshes only the selected mount card usage', async () => {
+    routeState.route.query.tab = 'storage';
+    const initialDetail = createContainerDetail();
+    apiMocks.getContainer.mockResolvedValueOnce(initialDetail);
+    apiMocks.postContainerMountUsageRefresh.mockResolvedValueOnce({
+      container_id: 'container-1',
+      destination: '/etc/graft',
+      mount_id: 'mount-bind-ro',
+      source: '/srv/graft/readonly/config',
+      status: 'measured',
+      type: 'bind',
+      size_bytes: 2097152,
+      measured_at: '2026-06-14T01:11:00Z',
+      message: 'ro bind refreshed',
+    });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.findAll('.container-mount-card')[1].text()).toContain('未测量');
+    await wrapper.get('[data-testid="mount-refresh-1"]').trigger('click');
+    await flushPromises();
+
+    expect(apiMocks.getContainer).toHaveBeenCalledTimes(1);
+    expect(apiMocks.postContainerMountUsageRefresh).toHaveBeenCalledWith('container-1', 'mount-bind-ro');
+    expect(wrapper.findAll('.container-mount-card')[0].text()).toContain('1.0 MiB');
+    expect(wrapper.findAll('.container-mount-card')[1].text()).toContain('2.0 MiB');
+    expect(wrapper.findAll('.container-mount-card')[1].text()).toContain('ro bind refreshed');
+    expect(wrapper.findAll('.container-mount-card')[2].text()).toContain('5.0 MiB');
+    expect(messageMocks.success).toHaveBeenCalledWith('挂载用量已刷新。');
   });
 
   it('renders single network details as cards with one port mapping', async () => {
@@ -1505,11 +1628,67 @@ function createContainerDetail() {
     ports: [{ private_port: 80, public_port: 8080, type: 'tcp' }],
     mounts: [
       {
+        mount_id: 'mount-bind-rw',
         type: 'bind',
-        source: '/srv/graft',
+        source: '/srv/graft/releases/2026/06/14/containers/graft-web/shared/runtime/configuration/application',
         destination: '/app',
         mode: 'rw',
         read_only: false,
+        usage: {
+          status: 'measured',
+          size_bytes: 1048576,
+          measured_at: '2026-06-14T01:09:00Z',
+          message: 'du complete',
+          shared_hint: 'Shared host path',
+        },
+      },
+      {
+        mount_id: 'mount-bind-ro',
+        type: 'bind',
+        source: '/srv/graft/readonly/config',
+        destination: '/etc/graft',
+        mode: 'ro',
+        read_only: true,
+        usage: {
+          status: 'not_measured',
+        },
+      },
+      {
+        mount_id: 'mount-volume',
+        type: 'volume',
+        name: 'graft_data',
+        source: '/var/lib/docker/volumes/graft_data/_data',
+        destination: '/var/lib/graft',
+        mode: 'rw',
+        read_only: false,
+        usage: {
+          status: 'measured',
+          size_bytes: 5242880,
+          measured_at: '2026-06-14T01:10:00Z',
+        },
+      },
+      {
+        mount_id: 'mount-tmpfs',
+        type: 'tmpfs',
+        destination: '/run',
+        mode: 'rw',
+        read_only: false,
+        usage: {
+          status: 'unsupported',
+          message: 'tmpfs is runtime memory backed',
+        },
+      },
+      {
+        mount_id: 'mount-error',
+        type: 'bind',
+        source: '/srv/graft/error',
+        destination: '/broken',
+        mode: 'rw',
+        read_only: false,
+        usage: {
+          status: 'error',
+          message: 'permission denied',
+        },
       },
     ],
     networks: [
@@ -1635,7 +1814,11 @@ function mountPage() {
           setup:
             (props, { slots }) =>
             () =>
-              h('section', [h('h2', String(props.title ?? '')), slots.actions?.(), slots.default?.()]),
+              h('section', [
+                h('h2', slots.title?.() ?? String(props.title ?? '')),
+                slots.actions?.(),
+                slots.default?.(),
+              ]),
         }),
         't-descriptions': defineComponent({
           setup:

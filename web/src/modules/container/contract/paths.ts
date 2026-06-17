@@ -10,6 +10,8 @@ export const CONTAINER_API_PATH = {
   LIST: '/api/ops/containers',
   DETAIL: '/api/ops/containers/{id}',
   LOGS: '/api/ops/containers/{id}/logs',
+  MOUNTS_USAGE: '/api/ops/containers/{id}/mounts/usage',
+  MOUNT_USAGE_REFRESH: '/api/ops/containers/{id}/mounts/{mountId}/usage/refresh',
   START: '/api/ops/containers/{id}/start',
   STOP: '/api/ops/containers/{id}/stop',
   RESTART: '/api/ops/containers/{id}/restart',
@@ -23,6 +25,17 @@ export function buildContainerDetailApiPath(containerId: string) {
 
 export function buildContainerLogsApiPath(containerId: string) {
   return CONTAINER_API_PATH.LOGS.replace('{id}', encodeContainerPathParam(containerId));
+}
+
+export function buildContainerMountUsageApiPath(containerId: string) {
+  return CONTAINER_API_PATH.MOUNTS_USAGE.replace('{id}', encodeContainerPathParam(containerId));
+}
+
+export function buildContainerMountUsageRefreshApiPath(containerId: string, mountId: string) {
+  return CONTAINER_API_PATH.MOUNT_USAGE_REFRESH.replace('{id}', encodeContainerPathParam(containerId)).replace(
+    '{mountId}',
+    encodeContainerPathParam(mountId),
+  );
 }
 
 export function buildContainerStartApiPath(containerId: string) {

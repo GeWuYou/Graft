@@ -1,0 +1,54 @@
+type: object
+required:
+  - mount_id
+  - container_id
+  - type
+  - source
+  - destination
+  - status
+properties:
+  mount_id:
+    type: string
+    description: Stable id generated from the inspected mount destination, source, and type.
+  container_id:
+    type: string
+    description: Container id or reference resolved by the runtime.
+  type:
+    type: string
+    description: Runtime mount type such as bind, volume, or tmpfs.
+  source:
+    type: string
+    description: Runtime-reported source path or volume source. It is never accepted from clients for statistics.
+  destination:
+    type: string
+    description: Container path where the mount is attached.
+  size_bytes:
+    type: integer
+    format: int64
+    minimum: 0
+    description: Measured storage usage in bytes when status is measured.
+  size_display:
+    type: string
+    description: Human-readable storage usage such as 128.4 MiB.
+  status:
+    type: string
+    enum:
+      - not_measured
+      - measured
+      - pending
+      - unsupported
+      - permission_denied
+      - not_found
+      - timeout
+      - error
+    description: Structured mount usage measurement state.
+  measured_at:
+    type: string
+    format: date-time
+    description: UTC timestamp when the usage was measured.
+  message:
+    type: string
+    description: Optional weak explanatory text for unsupported or failed statistics.
+  shared_hint:
+    type: string
+    description: Optional hint that the source path or named volume may be shared by multiple containers.

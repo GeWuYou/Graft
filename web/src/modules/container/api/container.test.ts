@@ -8,6 +8,8 @@ import { request } from '@/utils/request';
 import {
   buildContainerDetailApiPath,
   buildContainerLogsApiPath,
+  buildContainerMountUsageApiPath,
+  buildContainerMountUsageRefreshApiPath,
   buildContainerRemoveApiPath,
   buildContainerRestartApiPath,
   buildContainerStartApiPath,
@@ -18,7 +20,9 @@ import {
   batchContainerActions,
   getContainer,
   getContainerLogs,
+  getContainerMountUsage,
   getContainers,
+  postContainerMountUsageRefresh,
   removeContainer,
   restartContainer,
   startContainer,
@@ -67,6 +71,27 @@ describe('container api', () => {
     expect(requestGet).toHaveBeenNthCalledWith(2, {
       url: buildContainerLogsApiPath('web/api'),
       params: { tail: 100, stdout: true, stderr: false, timestamps: true },
+    });
+  });
+
+  it('uses canonical mount usage paths and stable mount ids', async () => {
+    const requestGet = vi.mocked(request.get);
+    const requestPost = vi.mocked(request.post);
+    requestGet.mockResolvedValue({ items: [] } as never);
+    requestPost.mockResolvedValue({ mount_id: 'mount/source:/data' } as never);
+
+    await getContainerMountUsage('web/api');
+    await postContainerMountUsageRefresh('web/api', 'mount/source:/data');
+
+    expect(buildContainerMountUsageApiPath('web/api')).toBe('/api/ops/containers/web%2Fapi/mounts/usage');
+    expect(buildContainerMountUsageRefreshApiPath('web/api', 'mount/source:/data')).toBe(
+      '/api/ops/containers/web%2Fapi/mounts/mount%2Fsource%3A%2Fdata/usage/refresh',
+    );
+    expect(requestGet).toHaveBeenCalledWith({
+      url: buildContainerMountUsageApiPath('web/api'),
+    });
+    expect(requestPost).toHaveBeenCalledWith({
+      url: buildContainerMountUsageRefreshApiPath('web/api', 'mount/source:/data'),
     });
   });
 

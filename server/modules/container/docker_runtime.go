@@ -41,8 +41,9 @@ var errInvalidLogQuery = errors.New("invalid log query parameter")
 
 // DockerRuntime adapts the official Docker SDK to the container module runtime boundary.
 type DockerRuntime struct {
-	client   dockerClient
-	endpoint string
+	client            dockerClient
+	endpoint          string
+	mountUsageScanner mountUsageScanner
 }
 
 type dockerClient interface {
@@ -108,6 +109,39 @@ func (r *DockerRuntime) Detail(ctx context.Context, ref Ref) (Detail, error) {
 	detail := dockerDetail(inspect, info)
 	detail.Resource = r.containerResourceSummary(ctx, firstNonEmpty(detail.ID, ref.Value))
 	return detail, nil
+}
+
+// Mounts returns sanitized mount metadata from Docker inspect.
+func (r *DockerRuntime) Mounts(ctx context.Context, ref Ref) ([]Mount, error) {
+	inspect, err := r.client.ContainerInspect(ctx, ref.Value)
+	if err != nil {
+		return nil, mapDockerError(err)
+	}
+	return dockerMounts(inspect.Mounts), nil
+}
+
+// MountUsage measures one inspect-derived mount source without accepting arbitrary paths.
+func (r *DockerRuntime) MountUsage(ctx context.Context, ref Ref, mountID string) (MountUsage, error) {
+	inspect, err := r.client.ContainerInspect(ctx, ref.Value)
+	if err != nil {
+		return MountUsage{}, mapDockerError(err)
+	}
+	mount, ok := findMountByID(dockerMounts(inspect.Mounts), mountID)
+	if !ok {
+		return MountUsage{}, errContainerMountNotFound
+	}
+	if !mountUsageSupported(mount) {
+		return mountUsageFromMount(strings.TrimSpace(inspect.ID), mount, containerMountUsageStatusUnsupported, 0, ""), nil
+	}
+	scanner := r.mountUsageScanner
+	if scanner == nil {
+		scanner = filesystemMountUsageScanner{}
+	}
+	size, err := scanner.ScanUsage(ctx, mount.Source)
+	if err != nil {
+		return mountUsageFromScanError(strings.TrimSpace(inspect.ID), mount, err), nil
+	}
+	return mountUsageFromMount(strings.TrimSpace(inspect.ID), mount, containerMountUsageStatusMeasured, size, time.Now().UTC().Format(time.RFC3339)), nil
 }
 
 // Logs reads bounded Docker logs according to the module log guardrails.
@@ -910,16 +944,80 @@ func dockerPorts(ports []container.Port) []Port {
 func dockerMounts(mounts []container.MountPoint) []Mount {
 	mapped := make([]Mount, 0, len(mounts))
 	for _, mount := range mounts {
-		mapped = append(mapped, Mount{
+		item := Mount{
 			Type:        string(mount.Type),
 			Name:        strings.TrimSpace(mount.Name),
 			Source:      strings.TrimSpace(mount.Source),
 			Destination: strings.TrimSpace(mount.Destination),
 			Mode:        strings.TrimSpace(mount.Mode),
 			ReadOnly:    !mount.RW,
-		})
+		}
+		item.ID = stableMountID(item)
+		mapped = append(mapped, item)
 	}
 	return mapped
+}
+
+func findMountByID(mounts []Mount, mountID string) (Mount, bool) {
+	mountID = strings.TrimSpace(mountID)
+	for _, mount := range mounts {
+		if mount.ID == mountID {
+			return mount, true
+		}
+	}
+	return Mount{}, false
+}
+
+func mountUsageSupported(mount Mount) bool {
+	switch strings.TrimSpace(strings.ToLower(mount.Type)) {
+	case "bind", "volume":
+		return strings.TrimSpace(mount.Source) != ""
+	default:
+		return false
+	}
+}
+
+func mountUsageFromMount(containerID string, mount Mount, status string, size int64, measuredAt string) MountUsage {
+	usage := MountUsage{
+		MountID:     mount.ID,
+		ContainerID: containerID,
+		Type:        strings.TrimSpace(mount.Type),
+		Name:        strings.TrimSpace(mount.Name),
+		Source:      strings.TrimSpace(mount.Source),
+		Destination: strings.TrimSpace(mount.Destination),
+		Status:      firstNonEmpty(strings.TrimSpace(status), containerMountUsageStatusNotMeasured),
+		MeasuredAt:  strings.TrimSpace(measuredAt),
+	}
+	if strings.TrimSpace(mount.Name) != "" {
+		usage.SharedHint = "named volume may be shared by multiple containers"
+	}
+	if usage.Status == containerMountUsageStatusMeasured {
+		usage.SizeBytes = size
+		usage.SizeDisplay = formatIECBytes(size)
+	}
+	if usage.Status == containerMountUsageStatusUnsupported {
+		usage.Message = "Mount usage is not supported for this mount."
+	}
+	return usage
+}
+
+func mountUsageFromScanError(containerID string, mount Mount, err error) MountUsage {
+	status := containerMountUsageStatusError
+	message := "Mount usage measurement failed."
+	switch {
+	case errors.Is(err, errRuntimePermissionDenied):
+		status = containerMountUsageStatusPermissionDenied
+		message = "Permission denied while measuring mount usage."
+	case errors.Is(err, errContainerMountNotFound):
+		status = containerMountUsageStatusNotFound
+		message = "Mount source was not found while measuring usage."
+	case errors.Is(err, errContainerRuntimeTimeout):
+		status = containerMountUsageStatusTimeout
+		message = "Mount usage measurement timed out."
+	}
+	usage := mountUsageFromMount(containerID, mount, status, 0, "")
+	usage.Message = message
+	return usage
 }
 
 func dockerNetworks(inspect container.InspectResponse) []Network {

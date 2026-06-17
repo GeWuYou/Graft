@@ -205,6 +205,52 @@ func toLogs(logs Logs) containergen.ContainerLogResponse {
 	}
 }
 
+type mountUsageListResponse struct {
+	Items []mountUsageResponse `json:"items"`
+}
+
+type mountUsageResponse struct {
+	MountID     string  `json:"mount_id"`
+	ContainerID string  `json:"container_id"`
+	Type        string  `json:"type"`
+	Source      string  `json:"source"`
+	Destination string  `json:"destination"`
+	SizeBytes   *int64  `json:"size_bytes,omitempty"`
+	SizeDisplay *string `json:"size_display,omitempty"`
+	Status      string  `json:"status"`
+	MeasuredAt  *string `json:"measured_at,omitempty"`
+	Message     *string `json:"message,omitempty"`
+	SharedHint  *string `json:"shared_hint,omitempty"`
+}
+
+func toMountUsageList(items []MountUsage) mountUsageListResponse {
+	mapped := make([]mountUsageResponse, 0, len(items))
+	for _, item := range items {
+		mapped = append(mapped, toMountUsage(item))
+	}
+	return mountUsageListResponse{Items: mapped}
+}
+
+func toMountUsage(usage MountUsage) mountUsageResponse {
+	var sizeBytes *int64
+	if usage.Status == containerMountUsageStatusMeasured {
+		sizeBytes = &usage.SizeBytes
+	}
+	return mountUsageResponse{
+		MountID:     usage.MountID,
+		ContainerID: usage.ContainerID,
+		Type:        usage.Type,
+		Source:      usage.Source,
+		Destination: usage.Destination,
+		SizeBytes:   sizeBytes,
+		SizeDisplay: optionalString(usage.SizeDisplay),
+		Status:      usage.Status,
+		MeasuredAt:  optionalString(usage.MeasuredAt),
+		Message:     optionalString(usage.Message),
+		SharedHint:  optionalString(usage.SharedHint),
+	}
+}
+
 func toContainerAction(result ActionResult) containergen.ContainerActionResponse {
 	return containergen.ContainerActionResponse{
 		Action:       containergen.ContainerActionResponseAction(result.Action),
@@ -274,13 +320,38 @@ func toMounts(mounts []Mount) []containergen.ContainerMount {
 		mapped = append(mapped, containergen.ContainerMount{
 			Destination: mount.Destination,
 			Mode:        mount.Mode,
+			MountId:     mount.ID,
 			Name:        optionalString(mount.Name),
 			ReadOnly:    mount.ReadOnly,
 			Source:      optionalString(mount.Source),
 			Type:        mount.Type,
+			Usage:       toGeneratedMountUsage(mount.Usage),
 		})
 	}
 	return mapped
+}
+
+func toGeneratedMountUsage(usage *MountUsage) *containergen.ContainerMountUsage {
+	if usage == nil {
+		return nil
+	}
+	var sizeBytes *int64
+	if usage.Status == containerMountUsageStatusMeasured {
+		sizeBytes = &usage.SizeBytes
+	}
+	return &containergen.ContainerMountUsage{
+		ContainerId: usage.ContainerID,
+		Destination: usage.Destination,
+		MeasuredAt:  optionalTime(usage.MeasuredAt),
+		Message:     optionalString(usage.Message),
+		MountId:     usage.MountID,
+		SharedHint:  optionalString(usage.SharedHint),
+		SizeBytes:   sizeBytes,
+		SizeDisplay: optionalString(usage.SizeDisplay),
+		Source:      usage.Source,
+		Status:      containergen.ContainerMountUsageStatus(usage.Status),
+		Type:        usage.Type,
+	}
 }
 
 func toNetworks(networks []Network) []containergen.ContainerNetwork {

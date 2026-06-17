@@ -7,6 +7,8 @@ import { request } from '@/utils/request';
 import {
   buildContainerDetailApiPath,
   buildContainerLogsApiPath,
+  buildContainerMountUsageApiPath,
+  buildContainerMountUsageRefreshApiPath,
   buildContainerRemoveApiPath,
   buildContainerRestartApiPath,
   buildContainerStartApiPath,
@@ -21,6 +23,10 @@ import type {
   ContainerListQuery,
   ContainerLogQuery,
   ContainerLogResponse,
+  ContainerMountUsage,
+  ContainerMountUsageListResponse,
+  ContainerMountUsagePathParams,
+  ContainerMountUsageRefreshPathParams,
   ContainerRemoveRequest,
 } from '../types/container';
 
@@ -40,6 +46,17 @@ type GetContainerLogsOperation = paths[ContainerLogsPath]['get'];
 type GetContainerLogsEnvelope = GetContainerLogsOperation['responses'][200]['content']['application/json'];
 type GetContainerLogsData = NonNullable<GetContainerLogsEnvelope['data']>;
 type GetContainerLogsPathParams = GetContainerLogsOperation['parameters']['path'];
+
+type ContainerMountUsagePath = (typeof CONTAINER_API_PATH)['MOUNTS_USAGE'];
+type GetContainerMountUsageOperation = paths[ContainerMountUsagePath]['get'];
+type GetContainerMountUsageEnvelope = GetContainerMountUsageOperation['responses'][200]['content']['application/json'];
+type GetContainerMountUsageData = NonNullable<GetContainerMountUsageEnvelope['data']>;
+
+type ContainerMountUsageRefreshPath = (typeof CONTAINER_API_PATH)['MOUNT_USAGE_REFRESH'];
+type PostContainerMountUsageRefreshOperation = paths[ContainerMountUsageRefreshPath]['post'];
+type PostContainerMountUsageRefreshEnvelope =
+  PostContainerMountUsageRefreshOperation['responses'][200]['content']['application/json'];
+type PostContainerMountUsageRefreshData = NonNullable<PostContainerMountUsageRefreshEnvelope['data']>;
 
 type ContainerStartPath = (typeof CONTAINER_API_PATH)['START'];
 type PostContainerStartOperation = paths[ContainerStartPath]['post'];
@@ -97,6 +114,21 @@ export function getContainerLogs(containerId: GetContainerLogsPathParams['id'], 
     url: buildContainerLogsApiPath(containerId),
     params: query,
   }) as Promise<ContainerLogResponse>;
+}
+
+export function getContainerMountUsage(containerId: ContainerMountUsagePathParams['id']) {
+  return request.get<GetContainerMountUsageData>({
+    url: buildContainerMountUsageApiPath(containerId),
+  }) as Promise<ContainerMountUsageListResponse>;
+}
+
+export function postContainerMountUsageRefresh(
+  containerId: ContainerMountUsageRefreshPathParams['id'],
+  mountId: ContainerMountUsageRefreshPathParams['mountId'],
+) {
+  return request.post<PostContainerMountUsageRefreshData>({
+    url: buildContainerMountUsageRefreshApiPath(containerId, mountId),
+  }) as Promise<ContainerMountUsage>;
 }
 
 export function startContainer(containerId: PostContainerStartPathParams['id']) {

@@ -19,6 +19,7 @@ func TestToDetailMapsHealthcheckAndRuntimeStability(t *testing.T) {
 		t.Fatalf("expected mapped oom killed true, got %#v", mapped.OomKilled)
 	}
 	assertMappedEnvironmentCopyValue(t, mapped.Environment)
+	assertMappedMountUsage(t, mapped.Mounts)
 }
 
 func detailWithHealthcheckAndRuntimeStability() Detail {
@@ -58,8 +59,30 @@ func detailWithHealthcheckAndRuntimeStability() Detail {
 			FailingStreak:  intPtrAllowZero(2),
 			FailureMessage: "curl failed",
 		},
-		LastExitCode:     intPtrAllowZero(137),
-		Mounts:           []Mount{},
+		LastExitCode: intPtrAllowZero(137),
+		Mounts: []Mount{
+			{
+				ID:          "m_abc123",
+				Type:        "bind",
+				Source:      "/srv/graft/data",
+				Destination: "/app/data",
+				Mode:        "rw",
+				ReadOnly:    false,
+				Usage: &MountUsage{
+					MountID:     "m_abc123",
+					ContainerID: "abc123",
+					Type:        "bind",
+					Source:      "/srv/graft/data",
+					Destination: "/app/data",
+					SizeBytes:   134637568,
+					SizeDisplay: "128.4 MiB",
+					Status:      containerMountUsageStatusMeasured,
+					MeasuredAt:  "2026-06-17T08:30:21Z",
+					Message:     "host path usage",
+					SharedHint:  "shared host path",
+				},
+			},
+		},
 		Networks:         []Network{},
 		OOMKilled:        boolPtr(true),
 		RuntimeInfo:      RuntimeInfo{Runtime: runtimeNameDocker, Status: "enabled", Endpoint: "local"},
@@ -100,6 +123,24 @@ func assertMappedEnvironmentCopyValue(t *testing.T, environment *[]containergen.
 	}
 	if (*environment)[0].CopyValue == nil || *(*environment)[0].CopyValue != "secret" {
 		t.Fatalf("expected mapped environment copy value, got %#v", environment)
+	}
+}
+
+func assertMappedMountUsage(t *testing.T, mounts []containergen.ContainerMount) {
+	t.Helper()
+
+	if len(mounts) != 1 {
+		t.Fatalf("expected one mapped mount, got %#v", mounts)
+	}
+	mount := mounts[0]
+	if mount.MountId != "m_abc123" || mount.Usage == nil {
+		t.Fatalf("expected mapped mount id and usage, got %#v", mount)
+	}
+	if mount.Usage.MountId != "m_abc123" || mount.Usage.SizeBytes == nil || *mount.Usage.SizeBytes != 134637568 {
+		t.Fatalf("unexpected mapped mount usage %#v", mount.Usage)
+	}
+	if mount.Usage.MeasuredAt == nil || mount.Usage.MeasuredAt.Format("2006-01-02T15:04:05Z07:00") != "2026-06-17T08:30:21Z" {
+		t.Fatalf("unexpected mapped mount usage measured_at %#v", mount.Usage.MeasuredAt)
 	}
 }
 

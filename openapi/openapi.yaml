@@ -190,6 +190,10 @@ paths:
     $ref: ./paths/ops-containers.batch-actions.yaml
   /api/ops/containers/{id}:
     $ref: ./paths/ops-containers.detail.yaml
+  /api/ops/containers/{id}/mounts/usage:
+    $ref: ./paths/ops-containers.mounts-usage.yaml
+  /api/ops/containers/{id}/mounts/{mountId}/usage/refresh:
+    $ref: ./paths/ops-containers.mount-usage-refresh.yaml
   /api/ops/containers/{id}/logs:
     $ref: ./paths/ops-containers.logs.yaml
   /api/ops/containers/{id}/start:
@@ -546,6 +550,10 @@ components:
       $ref: ./components/schemas/container-port.yaml
     ContainerMount:
       $ref: ./components/schemas/container-mount.yaml
+    ContainerMountUsage:
+      $ref: ./components/schemas/container-mount-usage.yaml
+    ContainerMountUsageListResponse:
+      $ref: ./components/schemas/container-mount-usage-list-response.yaml
     ContainerNetwork:
       $ref: ./components/schemas/container-network.yaml
     ContainerLogResponse:
@@ -572,6 +580,10 @@ components:
       $ref: ./components/schemas/enveloped-container-list-response.yaml
     EnvelopedContainerDetail:
       $ref: ./components/schemas/enveloped-container-detail.yaml
+    EnvelopedContainerMountUsage:
+      $ref: ./components/schemas/enveloped-container-mount-usage.yaml
+    EnvelopedContainerMountUsageListResponse:
+      $ref: ./components/schemas/enveloped-container-mount-usage-list-response.yaml
     EnvelopedContainerLogResponse:
       $ref: ./components/schemas/enveloped-container-log-response.yaml
     EnvelopedContainerActionResponse:

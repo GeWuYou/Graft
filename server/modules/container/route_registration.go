@@ -63,6 +63,16 @@ func registerRoutes(ctx *module.Context, moduleName string, service *service) er
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerLogsPermission.String(), publisher),
 		routes.handleLogs,
 	)
+	group.GET(
+		containercontract.ContainerMountUsageRoute,
+		httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerDetailPermission.String(), publisher),
+		routes.handleMountUsageList,
+	)
+	group.POST(
+		containercontract.ContainerMountUsageRefreshRoute,
+		httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerDetailPermission.String(), publisher),
+		routes.handleMountUsageRefresh,
+	)
 	group.POST(
 		containercontract.ContainerStartRoute,
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerStartPermission.String(), publisher),
@@ -142,6 +152,33 @@ func (r routeRuntime) handleLogs(ginCtx *gin.Context) {
 		return
 	}
 	httpx.WriteSuccess(ginCtx, http.StatusOK, toLogs(logs))
+}
+
+func (r routeRuntime) handleMountUsageList(ginCtx *gin.Context) {
+	ref, ok := readRef(ginCtx, r)
+	if !ok {
+		return
+	}
+	items, err := r.service.MountUsageList(ginCtx.Request.Context(), ref)
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, toMountUsageList(items))
+}
+
+func (r routeRuntime) handleMountUsageRefresh(ginCtx *gin.Context) {
+	ref, ok := readRef(ginCtx, r)
+	if !ok {
+		return
+	}
+	mountID := strings.TrimSpace(ginCtx.Param("mountId"))
+	usage, err := r.service.RefreshMountUsage(ginCtx.Request.Context(), ref, mountID)
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, toMountUsage(usage))
 }
 
 func (r routeRuntime) handleStart(ginCtx *gin.Context) {

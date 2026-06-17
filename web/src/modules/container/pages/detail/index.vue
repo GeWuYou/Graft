@@ -892,22 +892,99 @@
             </t-tab-panel>
 
             <t-tab-panel value="storage" :label="t('container.detail.tabs.storage')" :destroy-on-hide="false">
-              <section class="container-detail-section">
-                <t-table
-                  v-if="safeDetail.mounts.length"
-                  row-key="destination"
+              <section class="container-detail-section container-detail-section--storage">
+                <div v-if="mountCards.length" class="container-mount-card-grid">
+                  <t-card
+                    v-for="mount in mountCards"
+                    :key="mount.key"
+                    class="container-mount-card"
+                    size="small"
+                    :bordered="true"
+                    :data-testid="`mount-card-${mount.index}`"
+                  >
+                    <template #title>
+                      <copyable-detail-value
+                        class="container-mount-card__destination"
+                        :copy-label="t('container.detail.copy')"
+                        :value="mount.destination"
+                        :display-value="mount.destinationDisplay"
+                        code
+                        :data-testid="`mount-destination-copy-${mount.index}`"
+                        @copy="copyDetailText"
+                      />
+                    </template>
+                    <template #actions>
+                      <div class="container-mount-card__actions">
+                        <t-tag :theme="mount.typeTheme" variant="light-outline" size="small">
+                          {{ mount.typeLabel }}
+                        </t-tag>
+                        <t-tag :theme="mount.accessTheme" variant="light-outline" size="small">
+                          {{ mount.accessLabel }}
+                        </t-tag>
+                        <t-tooltip :content="t('container.detail.storage.refreshMount')">
+                          <t-button
+                            shape="square"
+                            size="small"
+                            theme="default"
+                            variant="text"
+                            :loading="refreshingMountKey === mount.key"
+                            :data-testid="`mount-refresh-${mount.index}`"
+                            @click="refreshMountUsage(mount)"
+                          >
+                            <template #icon>
+                              <t-icon name="refresh" />
+                            </template>
+                          </t-button>
+                        </t-tooltip>
+                      </div>
+                    </template>
+
+                    <div class="container-mount-card__body">
+                      <div class="container-mount-field">
+                        <span>{{ t('container.detail.storage.source') }}</span>
+                        <copyable-detail-value
+                          v-if="mount.source"
+                          :copy-label="t('container.detail.copy')"
+                          :value="mount.source"
+                          :display-value="mount.sourceDisplay"
+                          code
+                          :data-testid="`mount-source-copy-${mount.index}`"
+                          @copy="copyDetailText"
+                        />
+                        <strong v-else>{{ t('container.detail.storage.sourceUnavailable') }}</strong>
+                      </div>
+                      <div class="container-mount-field">
+                        <span>{{ t('container.detail.storage.mode') }}</span>
+                        <code>{{ mount.mode }}</code>
+                      </div>
+                      <div class="container-mount-usage" :class="`container-mount-usage--${mount.usageTone}`">
+                        <div class="container-mount-usage__header">
+                          <span>{{ t('container.detail.storage.usage') }}</span>
+                          <t-tag :theme="mount.usageTheme" variant="light-outline" size="small">
+                            {{ mount.usageLabel }}
+                          </t-tag>
+                        </div>
+                        <strong>{{ mount.usageSize }}</strong>
+                        <span v-if="mount.measuredAt" class="container-mount-usage__time">
+                          {{ t('container.detail.storage.measuredAt', { time: mount.measuredAt }) }}
+                        </span>
+                        <span v-if="mount.message" class="container-mount-usage__message">
+                          {{ mount.message }}
+                        </span>
+                        <span v-if="mount.sharedHint" class="container-mount-usage__message">
+                          {{ mount.sharedHint }}
+                        </span>
+                      </div>
+                    </div>
+                  </t-card>
+                </div>
+                <t-empty
+                  v-else
+                  class="container-mount-empty"
                   size="small"
-                  :columns="mountColumns"
-                  :data="safeDetail.mounts"
-                  :pagination="undefined"
-                  table-layout="fixed"
-                  cell-empty-content="-"
-                >
-                  <template #read_only="{ row }">
-                    {{ row.read_only ? 'ro' : 'rw' }}
-                  </template>
-                </t-table>
-                <t-empty v-else size="small" :description="t('container.list.detail.mountEmpty')" />
+                  :title="t('container.detail.storage.emptyTitle')"
+                  :description="t('container.list.detail.mountEmpty')"
+                />
               </section>
             </t-tab-panel>
 
@@ -960,13 +1037,14 @@ import {
 import { useTabsRouterStore } from '@/store';
 import { createLogger } from '@/utils/logger';
 
-import { getContainer, getContainerLogs } from '../../api/container';
+import { getContainer, getContainerLogs, postContainerMountUsageRefresh } from '../../api/container';
 import { CONTAINER_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import type {
   ContainerDetail,
   ContainerHealth,
   ContainerHealthcheck,
   ContainerLogResponse,
+  ContainerMount,
   ContainerState,
 } from '../../types/container';
 import ContainerOverviewPanel from './components/ContainerOverviewPanel.vue';
@@ -1017,11 +1095,35 @@ type PortMappingRow = {
   protocol: string;
   publicPort: string;
 };
+type MountCardUsageTone = 'success' | 'weak' | 'warning';
+type MountTagTheme = 'success' | 'primary' | 'warning' | 'danger' | 'default';
+type MountCard = {
+  accessLabel: string;
+  accessTheme: MountTagTheme;
+  destination: string;
+  destinationDisplay: string;
+  index: number;
+  key: string;
+  mountId: string;
+  measuredAt: string;
+  message: string;
+  mode: string;
+  raw: ContainerMount;
+  sharedHint: string;
+  source: string;
+  sourceDisplay: string;
+  typeLabel: string;
+  typeTheme: MountTagTheme;
+  usageLabel: string;
+  usageSize: string;
+  usageTheme: MountTagTheme;
+  usageTone: MountCardUsageTone;
+};
 type SafeContainerDetail = ContainerDetail & {
   command: string[];
   entrypoint: string[];
   environment: NonNullable<ContainerDetail['environment']>;
-  mounts: NonNullable<ContainerDetail['mounts']>;
+  mounts: ContainerMount[];
   names: NonNullable<ContainerDetail['names']>;
   networks: NonNullable<ContainerDetail['networks']>;
   ports: NonNullable<ContainerDetail['ports']>;
@@ -1113,6 +1215,7 @@ const logLineLimit = ref(DEFAULT_LOG_QUERY.tail);
 const activeTab = ref<DetailTab>(normalizeTab(route.query.tab));
 const environmentKeyword = ref('');
 const environmentPolicyFilter = ref<EnvironmentPolicyFilter>('all');
+const refreshingMountKey = ref('');
 
 const containerId = computed(() => String(route.params.id ?? '').trim());
 const shortContainerIdFallback = computed(() => shortIdentifier(containerId.value, undefined, 12));
@@ -1194,6 +1297,7 @@ const singleNetworkFields = computed<NetworkField[]>(() => {
   ];
 });
 const portMappingRows = computed<PortMappingRow[]>(() => buildPortMappingRows(safeDetail.value?.ports ?? []));
+const mountCards = computed<MountCard[]>(() => buildMountCards(safeDetail.value?.mounts ?? []));
 const networkMetadataFields = computed<NetworkField[]>(() => {
   const current = safeDetail.value;
   if (!current) {
@@ -1582,13 +1686,6 @@ const portColumns = computed<TableProps['columns']>(() => [
   { colKey: 'listenAddress', title: t('container.detail.network.listenAddress'), minWidth: 160, ellipsis: true },
   { colKey: 'mapping', title: t('container.detail.network.mapping'), minWidth: 260, ellipsis: true },
 ]);
-const mountColumns = computed<TableProps['columns']>(() => [
-  { colKey: 'destination', title: t('container.detail.storage.destination'), minWidth: 240, ellipsis: true },
-  { colKey: 'source', title: t('container.detail.storage.source'), minWidth: 260, ellipsis: true },
-  { colKey: 'type', title: t('container.detail.storage.type'), width: 120, align: 'center' },
-  { colKey: 'mode', title: t('container.detail.storage.mode'), width: 120, align: 'center' },
-  { colKey: 'read_only', title: t('container.detail.storage.access'), width: 120, align: 'center' },
-]);
 
 onMounted(() => {
   updateCurrentTabTitle(fallbackTitle.value);
@@ -1757,6 +1854,34 @@ async function copyDetailText(text: string) {
     return;
   }
   MessagePlugin.error(t('container.detail.copyError'));
+}
+
+async function refreshMountUsage(mount: MountCard) {
+  if (!containerId.value || refreshingMountKey.value) {
+    return;
+  }
+
+  refreshingMountKey.value = mount.key;
+  try {
+    const refreshedUsage = await postContainerMountUsageRefresh(containerId.value, mount.mountId);
+    const currentDetail = detail.value;
+    if (!currentDetail) {
+      MessagePlugin.error(t('container.detail.storage.refreshError'));
+      return;
+    }
+    detail.value = {
+      ...currentDetail,
+      mounts: (safeDetail.value?.mounts ?? []).map((item, index) =>
+        mountKey(item, index) === mount.key ? { ...item, usage: refreshedUsage } : item,
+      ),
+    };
+    MessagePlugin.success(t('container.detail.storage.refreshSuccess'));
+  } catch (refreshError) {
+    logger.warn('failed to refresh container mount usage', refreshError);
+    MessagePlugin.error(resolveLocalizedErrorMessage(t, refreshError, t('container.detail.storage.refreshError')));
+  } finally {
+    refreshingMountKey.value = '';
+  }
 }
 
 function normalizeTab(value: unknown): DetailTab {
@@ -2307,6 +2432,142 @@ function portMappingRawLabel(port: ContainerDetail['ports'][number]) {
   return `${hostPart}->${containerEndpoint}`;
 }
 
+function buildMountCards(mounts: ContainerMount[]): MountCard[] {
+  return mounts.map((mount, index) => {
+    const usage = readMountUsage(mount);
+    const status = usage.status || 'not_measured';
+    const message = usage.message || mountUsageMessage(status);
+    return {
+      accessLabel: mountAccessLabel(mount),
+      accessTheme: mount.read_only ? 'warning' : 'success',
+      destination: mount.destination || '',
+      destinationDisplay: displayMountPath(mount.destination),
+      index,
+      key: mountKey(mount, index),
+      mountId: mount.mount_id,
+      measuredAt: formatMountMeasuredAt(usage.measuredAt),
+      message,
+      mode: mount.mode || '-',
+      raw: mount,
+      sharedHint: usage.sharedHint,
+      source: mount.source || mount.name || '',
+      sourceDisplay: displayMountPath(mount.source || mount.name || ''),
+      typeLabel: mountTypeLabel(mount.type),
+      typeTheme: mountTypeTheme(mount.type),
+      usageLabel: mountUsageStatusLabel(status),
+      usageSize: usage.sizeBytes === null ? mountUsageSizeFallback(status) : formatBytes(usage.sizeBytes),
+      usageTheme: mountUsageTheme(status),
+      usageTone: mountUsageTone(status),
+    };
+  });
+}
+
+function readMountUsage(mount: ContainerMount) {
+  const usageRecord = readUnknownRecord(mount.usage);
+  return {
+    measuredAt: readRawString(usageRecord?.measured_at),
+    message: readRawString(usageRecord?.message),
+    sharedHint: readRawString(usageRecord?.shared_hint),
+    sizeBytes: readNullableNumber(usageRecord?.size_bytes),
+    status: readString(usageRecord?.status),
+  };
+}
+
+function readNullableNumber(value: unknown) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function mountKey(mount: ContainerMount, index: number) {
+  return (
+    mount.mount_id ||
+    [mount.destination || `destination-${index}`, mount.source || mount.name || `source-${index}`, mount.type || '']
+      .join('::')
+      .toLowerCase()
+  );
+}
+
+function mountTypeLabel(type?: string | null) {
+  const normalized = normalizeMountType(type);
+  return t(`container.detail.storage.typeLabels.${normalized}`);
+}
+
+function mountTypeTheme(type?: string | null): MountTagTheme {
+  const normalized = normalizeMountType(type);
+  if (normalized === 'bind') return 'primary';
+  if (normalized === 'volume') return 'success';
+  if (normalized === 'tmpfs') return 'warning';
+  return 'default';
+}
+
+function normalizeMountType(type?: string | null) {
+  const normalized = type?.trim().toLowerCase();
+  if (normalized === 'bind' || normalized === 'volume' || normalized === 'tmpfs') {
+    return normalized;
+  }
+  return 'unknown';
+}
+
+function mountAccessLabel(mount: ContainerMount) {
+  return mount.read_only
+    ? t('container.detail.storage.accessLabels.readOnly')
+    : t('container.detail.storage.accessLabels.readWrite');
+}
+
+function mountUsageStatusLabel(status: string) {
+  if (
+    status === 'measured' ||
+    status === 'not_measured' ||
+    status === 'pending' ||
+    status === 'unsupported' ||
+    status === 'permission_denied' ||
+    status === 'not_found' ||
+    status === 'timeout' ||
+    status === 'error'
+  ) {
+    return t(`container.detail.storage.usageStatus.${status}`);
+  }
+  return t('container.detail.storage.usageStatus.not_measured');
+}
+
+function mountUsageTheme(status: string): MountTagTheme {
+  if (status === 'measured') return 'success';
+  if (status === 'unsupported' || status === 'pending' || status === 'timeout') return 'warning';
+  if (status === 'permission_denied' || status === 'not_found' || status === 'error') return 'danger';
+  return 'default';
+}
+
+function mountUsageTone(status: string): MountCardUsageTone {
+  if (status === 'measured') return 'success';
+  if (status === 'unsupported' || status === 'pending' || status === 'timeout') return 'warning';
+  return 'weak';
+}
+
+function mountUsageMessage(status: string) {
+  if (status === 'unsupported') return t('container.detail.storage.unsupportedMessage');
+  if (status === 'permission_denied' || status === 'not_found' || status === 'timeout' || status === 'error') {
+    return t('container.detail.storage.errorMessage');
+  }
+  if (status === 'not_measured') return t('container.detail.storage.notMeasuredMessage');
+  return '';
+}
+
+function mountUsageSizeFallback(status: string) {
+  if (status === 'measured') return '0 B';
+  return '-';
+}
+
+function formatMountMeasuredAt(value: string) {
+  return value ? formatTime(value) : '';
+}
+
+function displayMountPath(value?: string | null) {
+  const normalized = value?.trim() ?? '';
+  if (!normalized) {
+    return '-';
+  }
+  return abbreviateMiddle(normalized, 42);
+}
+
 function readContainerHostname(current: SafeContainerDetail) {
   const record = readUnknownRecord(current);
   const hostname = readString(record?.hostname);
@@ -2718,6 +2979,131 @@ function portLabel(port: ContainerDetail['ports'][number]) {
   gap: var(--graft-density-gap-16);
   min-height: 360px;
   padding: 0 var(--graft-density-gap-16) var(--graft-density-gap-16);
+}
+
+.container-detail-section--storage {
+  min-height: 320px;
+  padding: 0 var(--graft-density-gap-16) var(--graft-density-gap-16);
+}
+
+.container-mount-card-grid {
+  display: grid;
+  gap: var(--graft-density-gap-12);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
+  min-width: 0;
+}
+
+.container-mount-card {
+  background: var(--td-bg-color-container);
+  min-width: 0;
+}
+
+.container-mount-card :deep(.t-card__header-wrapper) {
+  align-items: flex-start;
+  gap: var(--graft-density-gap-10);
+}
+
+.container-mount-card :deep(.t-card__title) {
+  min-width: 0;
+}
+
+.container-mount-card__destination {
+  max-width: min(100%, 520px);
+}
+
+.container-mount-card__actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--graft-density-gap-6);
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.container-mount-card__body {
+  display: grid;
+  gap: var(--graft-density-gap-12);
+  min-width: 0;
+}
+
+.container-mount-field {
+  display: grid;
+  gap: var(--graft-density-gap-4);
+  min-width: 0;
+}
+
+.container-mount-field > span {
+  color: var(--td-text-color-placeholder);
+  font: var(--td-font-body-small);
+}
+
+.container-mount-field strong,
+.container-mount-field code {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-body-medium);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.container-mount-field code {
+  font-family: var(
+    --td-font-family-mono,
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    'Liberation Mono',
+    monospace
+  );
+}
+
+.container-mount-usage {
+  background: color-mix(in srgb, var(--td-bg-color-page) 72%, var(--td-bg-color-container));
+  border: 1px solid color-mix(in srgb, var(--td-component-stroke) 64%, transparent);
+  border-radius: var(--td-radius-default);
+  display: grid;
+  gap: var(--graft-density-gap-6);
+  min-width: 0;
+  padding: var(--graft-density-gap-10);
+}
+
+.container-mount-usage--success {
+  background: color-mix(in srgb, var(--td-success-color-1) 28%, var(--td-bg-color-container));
+  border-color: color-mix(in srgb, var(--td-success-color) 20%, var(--td-component-stroke));
+}
+
+.container-mount-usage--warning {
+  background: color-mix(in srgb, var(--td-warning-color-1) 28%, var(--td-bg-color-container));
+  border-color: color-mix(in srgb, var(--td-warning-color) 22%, var(--td-component-stroke));
+}
+
+.container-mount-usage__header {
+  align-items: center;
+  display: flex;
+  gap: var(--graft-density-gap-8);
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.container-mount-usage__header > span,
+.container-mount-usage__time,
+.container-mount-usage__message {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.container-mount-usage strong {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-title-medium);
+}
+
+.container-mount-empty {
+  min-height: 280px;
 }
 
 .container-network-panel {

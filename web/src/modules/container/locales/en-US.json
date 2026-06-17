@@ -500,11 +500,41 @@
         "aliasDnsEmpty": "No Extra Network Aliases Or Custom DNS Configuration"
       },
       "storage": {
+        "accessLabels": {
+          "readOnly": "Read-Only",
+          "readWrite": "Read-Write"
+        },
         "destination": "Destination",
+        "emptyTitle": "No Mounts",
+        "errorMessage": "Mount Usage Could Not Be Measured",
         "source": "Source",
+        "sourceUnavailable": "No Source",
+        "measuredAt": "Measured At {time}",
         "type": "Type",
+        "typeLabels": {
+          "bind": "Bind",
+          "tmpfs": "Tmpfs",
+          "unknown": "Unknown",
+          "volume": "Volume"
+        },
         "mode": "Mode",
-        "access": "Access"
+        "access": "Access",
+        "notMeasuredMessage": "Usage Has Not Been Measured Yet",
+        "refreshError": "Mount Usage Could Not Be Refreshed.",
+        "refreshMount": "Refresh Mount Usage",
+        "refreshSuccess": "Mount Usage Refreshed.",
+        "unsupportedMessage": "Usage Measurement Is Not Supported For This Mount",
+        "usage": "Usage",
+        "usageStatus": {
+          "error": "Measurement Error",
+          "measured": "Measured",
+          "not_found": "Mount Not Found",
+          "not_measured": "Not Measured",
+          "pending": "Pending",
+          "permission_denied": "Permission Denied",
+          "timeout": "Timed Out",
+          "unsupported": "Unsupported"
+        }
       }
     }
   },

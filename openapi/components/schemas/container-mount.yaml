@@ -1,10 +1,14 @@
 type: object
 required:
+  - mount_id
   - type
   - destination
   - mode
   - read_only
 properties:
+  mount_id:
+    type: string
+    description: Stable id generated from destination, source, and type. Clients must use this value for usage refresh.
   type:
     type: string
     description: Runtime mount type such as bind, volume, or tmpfs.
@@ -18,3 +22,5 @@ properties:
     type: string
   read_only:
     type: boolean
+  usage:
+    $ref: ./container-mount-usage.yaml

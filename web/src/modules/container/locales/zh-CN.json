@@ -500,11 +500,41 @@
         "aliasDnsEmpty": "暂无额外网络别名或自定义 DNS 配置"
       },
       "storage": {
+        "accessLabels": {
+          "readOnly": "只读",
+          "readWrite": "读写"
+        },
         "destination": "挂载点",
+        "emptyTitle": "暂无挂载",
+        "errorMessage": "挂载用量无法测量",
         "source": "来源",
+        "sourceUnavailable": "无来源",
+        "measuredAt": "测量时间 {time}",
         "type": "类型",
+        "typeLabels": {
+          "bind": "Bind",
+          "tmpfs": "Tmpfs",
+          "unknown": "未知",
+          "volume": "Volume"
+        },
         "mode": "模式",
-        "access": "访问"
+        "access": "访问",
+        "notMeasuredMessage": "暂未测量挂载用量",
+        "refreshError": "挂载用量刷新失败。",
+        "refreshMount": "刷新挂载用量",
+        "refreshSuccess": "挂载用量已刷新。",
+        "unsupportedMessage": "此挂载暂不支持用量测量",
+        "usage": "用量",
+        "usageStatus": {
+          "error": "测量失败",
+          "measured": "已测量",
+          "not_found": "挂载不存在",
+          "not_measured": "未测量",
+          "pending": "测量中",
+          "permission_denied": "权限不足",
+          "timeout": "测量超时",
+          "unsupported": "不支持"
+        }
       }
     }
   },

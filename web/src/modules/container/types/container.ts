@@ -17,9 +17,13 @@ export type ContainerRemoveRequest = components['schemas']['ContainerRemoveReque
 export type ContainerBatchActionRequest = components['schemas']['ContainerBatchActionRequest'];
 export type ContainerBatchActionResponse = components['schemas']['ContainerBatchActionResponse'];
 export type ContainerBatchActionItem = components['schemas']['ContainerBatchActionItem'];
+export type ContainerMount = components['schemas']['ContainerMount'];
+export type ContainerMountUsage = components['schemas']['ContainerMountUsage'];
+export type ContainerMountUsageListResponse = components['schemas']['ContainerMountUsageListResponse'];
 export type ContainerState = ContainerSummary['state'];
 export type ContainerHealth = NonNullable<ContainerSummary['health']>;
 export type ContainerAction = ContainerActionResponse['action'];
+export type ContainerMountUsageStatus = ContainerMountUsage['status'];
 
 type ContainerListPath = (typeof CONTAINER_API_PATH)['LIST'];
 type GetContainersOperation = paths[ContainerListPath]['get'];
@@ -27,8 +31,16 @@ type GetContainersOperation = paths[ContainerListPath]['get'];
 type ContainerLogsPath = (typeof CONTAINER_API_PATH)['LOGS'];
 type GetContainerLogsOperation = paths[ContainerLogsPath]['get'];
 
+type ContainerMountUsagePath = (typeof CONTAINER_API_PATH)['MOUNTS_USAGE'];
+type GetContainerMountUsageOperation = paths[ContainerMountUsagePath]['get'];
+
+type ContainerMountUsageRefreshPath = (typeof CONTAINER_API_PATH)['MOUNT_USAGE_REFRESH'];
+type PostContainerMountUsageRefreshOperation = paths[ContainerMountUsageRefreshPath]['post'];
+
 export type ContainerListQuery = NonNullable<GetContainersOperation['parameters']['query']>;
 export type ContainerLogQuery = NonNullable<GetContainerLogsOperation['parameters']['query']>;
+export type ContainerMountUsagePathParams = GetContainerMountUsageOperation['parameters']['path'];
+export type ContainerMountUsageRefreshPathParams = PostContainerMountUsageRefreshOperation['parameters']['path'];
 
 export type ContainerFilters = {
   keyword: string;
