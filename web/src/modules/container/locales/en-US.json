@@ -437,17 +437,33 @@
         }
       },
       "config": {
+        "runtimeTitle": "Runtime Config",
         "environment": "Environment Variables",
+        "environmentCount": "{count} Items",
         "environmentUnavailable": "Environment Variables Are Not Available For This Container.",
+        "environmentEmptyTitle": "No Environment Variables",
+        "environmentFilterEmptyTitle": "No Matching Environment Variables",
+        "environmentFilterEmptyDescription": "Adjust the keyword or security policy filter.",
+        "searchPlaceholder": "Search Name / Value",
+        "copyRuntimeValue": "Copy Config Value",
+        "copyRuntimeSuccess": "Config Value Copied.",
+        "copyVariableValue": "Copy Variable Value",
+        "copyVariableValueSuccess": "Variable Value Copied.",
+        "copyEnvFile": "Copy .env",
+        "copyEnvSuccess": ".env Content Copied.",
         "envName": "Name",
         "envValue": "Value",
-        "envPolicy": "Policy",
-        "maskedValue": "Masked",
-        "hiddenValue": "Hidden",
+        "envPolicy": "Security Policy",
+        "maskedValue": "[Masked]",
+        "hiddenValue": "[Hidden]",
+        "policyFilter": {
+          "all": "Security Policy: All"
+        },
         "policy": {
           "plain": "Plain",
           "masked": "Masked",
           "hidden": "Hidden",
+          "sensitive": "Sensitive",
           "unknown": "Unknown"
         }
       },

@@ -33,14 +33,26 @@ const routerMocks = vi.hoisted(() => ({
   replace: vi.fn(),
 }));
 
+const tabStoreState = vi.hoisted(() => ({
+  tabRouterList: [
+    {
+      path: '/ops/containers/container-1',
+      tabKey: '/ops/containers/container-1',
+      title: { 'zh-CN': '容器详情', 'en-US': 'Container Detail' },
+    },
+  ],
+}));
+
 const routeState = vi.hoisted(
   (): {
     route: {
+      path: '/ops/containers/container-1';
       params: { id: string };
       query: { tab?: string };
     };
   } => ({
     route: {
+      path: '/ops/containers/container-1',
       params: { id: 'container-1' },
       query: { tab: 'config' },
     },
@@ -51,16 +63,30 @@ const translations = vi.hoisted(
   (): Record<string, string> => ({
     'container.detail.back': '返回',
     'container.detail.config.envName': '变量名',
-    'container.detail.config.envPolicy': '策略',
+    'container.detail.config.envPolicy': '安全策略',
     'container.detail.config.envValue': '值',
     'container.detail.config.environment': '环境变量',
+    'container.detail.config.environmentCount': '{count} 项',
+    'container.detail.config.environmentEmptyTitle': '暂无环境变量',
+    'container.detail.config.environmentFilterEmptyDescription': '请调整关键字或安全策略筛选。',
+    'container.detail.config.environmentFilterEmptyTitle': '未找到匹配的环境变量',
     'container.detail.config.environmentUnavailable': '当前容器无法查看环境变量。',
-    'container.detail.config.hiddenValue': '已隐藏',
-    'container.detail.config.maskedValue': '已脱敏',
+    'container.detail.config.copyEnvFile': '复制 .env',
+    'container.detail.config.copyEnvSuccess': '已复制 .env 内容',
+    'container.detail.config.copyRuntimeSuccess': '已复制配置值',
+    'container.detail.config.copyRuntimeValue': '复制配置值',
+    'container.detail.config.copyVariableValue': '复制变量值',
+    'container.detail.config.copyVariableValueSuccess': '已复制变量值',
+    'container.detail.config.hiddenValue': '[已隐藏]',
+    'container.detail.config.maskedValue': '[已脱敏]',
+    'container.detail.config.policy.sensitive': '敏感',
+    'container.detail.config.policyFilter.all': '安全策略：全部',
     'container.detail.config.policy.hidden': '隐藏',
     'container.detail.config.policy.masked': '脱敏',
     'container.detail.config.policy.plain': '明文',
     'container.detail.config.policy.unknown': '未知',
+    'container.detail.config.runtimeTitle': '运行配置',
+    'container.detail.config.searchPlaceholder': '搜索变量名 / 值',
     'container.detail.copy': '复制',
     'container.detail.copyError': '内容复制失败。',
     'container.detail.copySuccess': '内容已复制。',
@@ -304,6 +330,10 @@ vi.mock('vue-router', async () => {
   };
 });
 
+vi.mock('@/store', () => ({
+  useTabsRouterStore: () => tabStoreState,
+}));
+
 vi.mock('@/shared/observability', async () => {
   const actual = await vi.importActual<typeof import('@/shared/observability')>('@/shared/observability');
   return {
@@ -316,6 +346,14 @@ vi.mock('@/shared/observability', async () => {
 describe('container detail page', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    tabStoreState.tabRouterList = [
+      {
+        path: '/ops/containers/container-1',
+        tabKey: '/ops/containers/container-1',
+        title: { 'zh-CN': '容器详情', 'en-US': 'Container Detail' },
+      },
+    ];
+    routeState.route.path = '/ops/containers/container-1';
     routeState.route.params.id = 'container-1';
     routeState.route.query.tab = 'config';
     Object.defineProperty(window, 'history', {
@@ -345,6 +383,8 @@ describe('container detail page', () => {
 
     expect(apiMocks.getContainer).toHaveBeenCalledWith('container-1');
     expect(wrapper.find('h1').text()).toBe('graft-web');
+    expect(tabStoreState.tabRouterList[0]?.title?.['zh-CN']).toBe('容器详情 - graft-web');
+    expect(tabStoreState.tabRouterList[0]?.title?.['en-US']).toBe('Container Detail - graft-web');
     expect(wrapper.text()).toContain('graft/web:latest');
     expect(wrapper.text()).not.toContain('容器详情 - graft-web');
     expect(wrapper.text()).toContain('graft/web:latest');
@@ -435,7 +475,7 @@ describe('container detail page', () => {
     await flushPromises();
 
     expect(copyText).toHaveBeenCalledWith('production');
-    expect(messageMocks.success).toHaveBeenCalledWith('内容已复制。');
+    expect(messageMocks.success).toHaveBeenCalledWith('已复制变量值');
   });
 
   it('preserves raw environment values when copyable', async () => {
@@ -808,6 +848,63 @@ describe('container detail page', () => {
     );
   });
 
+  it('renders the config tab as runtime config and searchable environment management', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('运行配置');
+    expect(wrapper.text()).toContain('命令npm run serve');
+    expect(wrapper.text()).toContain('入口docker-entrypoint.sh');
+    expect(wrapper.text()).toContain('工作目录-');
+    expect(wrapper.text()).toContain('环境变量');
+    expect(wrapper.text()).toContain('3 项');
+    expect(wrapper.get('input[placeholder="搜索变量名 / 值"]').attributes('placeholder')).toBe('搜索变量名 / 值');
+    expect(wrapper.text()).toContain('安全策略：全部');
+    expect(wrapper.text()).toContain('复制 .env');
+    expect(wrapper.text()).toContain('安全策略');
+    expect(wrapper.text()).toContain('[已脱敏]');
+    expect(wrapper.text()).toContain('[已隐藏]');
+    expect(wrapper.text()).not.toContain('API_TOKENundefined');
+
+    await wrapper.get('input[placeholder="搜索变量名 / 值"]').setValue('APP');
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('APP_MODE');
+    expect(wrapper.text()).not.toContain('API_TOKEN');
+    expect(wrapper.text()).not.toContain('SECRET_KEY');
+
+    const select = wrapper.findAll('select').find((item) => item.text().includes('脱敏'));
+    expect(select).toBeTruthy();
+    await select!.setValue('masked');
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('未找到匹配的环境变量');
+
+    await wrapper.get('input[placeholder="搜索变量名 / 值"]').setValue('');
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('API_TOKEN');
+    expect(wrapper.text()).not.toContain('SECRET_KEY');
+  });
+
+  it('copies the filtered environment as safe dotenv content', async () => {
+    const { copyText } = await import('@/shared/observability');
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.get('input[placeholder="搜索变量名 / 值"]').setValue('token');
+    await flushPromises();
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('复制 .env'))
+      ?.trigger('click');
+    await flushPromises();
+
+    expect(copyText).toHaveBeenCalledWith('API_TOKEN=******');
+    expect(copyText).not.toHaveBeenCalledWith(expect.stringContaining('undefined'));
+    expect(messageMocks.success).toHaveBeenCalledWith('已复制 .env 内容');
+  });
+
   it('keeps detailed metric cards in a full-width memory and CPU flow before the lower two-column cards', () => {
     const memoryGroupStart = sourceText.indexOf("key: 'memory'");
     const cpuGroupStart = sourceText.indexOf("key: 'cpu'", memoryGroupStart);
@@ -1055,8 +1152,18 @@ function mountPage() {
               h('div', [h('strong', String(props.label ?? '')), slots.default?.()]),
         }),
         't-empty': defineComponent({
-          props: ['description'],
-          setup: (props) => () => h('div', String(props.description ?? '')),
+          props: ['description', 'title'],
+          setup: (props) => () => h('div', [String(props.title ?? ''), String(props.description ?? '')]),
+        }),
+        't-drawer': defineComponent({
+          setup:
+            (_, { slots }) =>
+            () =>
+              h('div', slots.default?.()),
+        }),
+        't-icon': defineComponent({
+          props: ['name'],
+          setup: (props) => () => h('span', String(props.name ?? '')),
         }),
         't-progress': defineComponent({
           props: ['percentage'],
@@ -1067,7 +1174,16 @@ function mountPage() {
           setup: (props) => () => h('strong', `${String(props.value ?? '')}${String(props.unit ?? '')}`),
         }),
         't-input': defineComponent({
-          setup: () => () => h('input'),
+          props: ['modelValue'],
+          emits: ['update:modelValue'],
+          setup:
+            (props, { attrs, emit }) =>
+            () =>
+              h('input', {
+                ...attrs,
+                value: String(props.modelValue ?? ''),
+                onInput: (event: Event) => emit('update:modelValue', (event.target as HTMLInputElement).value),
+              }),
         }),
         't-loading': defineComponent({
           setup:
@@ -1083,20 +1199,27 @@ function mountPage() {
         }),
         't-select': defineComponent({
           inheritAttrs: false,
-          emits: ['change', 'update:value'],
+          props: ['modelValue', 'options', 'value'],
+          emits: ['change', 'update:modelValue', 'update:value'],
           setup:
-            (_, { emit }) =>
+            (props, { attrs, emit }) =>
             () =>
               h(
                 'select',
                 {
+                  ...attrs,
+                  value: String(props.value ?? props.modelValue ?? ''),
                   onChange: (event: Event) => {
-                    const value = Number((event.target as HTMLSelectElement).value);
+                    const rawValue = (event.target as HTMLSelectElement).value;
+                    const value = Number.isNaN(Number(rawValue)) ? rawValue : Number(rawValue);
+                    emit('update:modelValue', value);
                     emit('update:value', value);
                     emit('change', value);
                   },
                 },
-                [h('option', { value: 200 }, '200')],
+                (props.options as Array<{ label: string; value: string | number }> | undefined)?.map((option) =>
+                  h('option', { value: option.value }, option.label),
+                ) ?? [h('option', { value: 200 }, '200')],
               ),
         }),
         't-skeleton': defineComponent({
@@ -1137,12 +1260,14 @@ function mountPage() {
           props: ['columns', 'data'],
           setup:
             (props, { slots }) =>
-            () =>
-              h('div', [
+            () => {
+              const rows = props.data as Array<Record<string, unknown>>;
+              return h('div', [
                 ...(props.columns as Array<{ colKey: string; title: string }>).map((column) =>
                   h('strong', column.title),
                 ),
-                ...(props.data as Array<Record<string, unknown>>).map((row) =>
+                rows.length === 0 ? slots.empty?.() : undefined,
+                ...rows.map((row) =>
                   h('div', { key: String(row.name ?? row.key ?? row.destination) }, [
                     Object.values(row).map((value) => h('span', String(value ?? ''))),
                     slots.value?.({ row }),
@@ -1150,7 +1275,8 @@ function mountPage() {
                     slots.operation?.({ row }),
                   ]),
                 ),
-              ]),
+              ]);
+            },
         }),
         't-tag': defineComponent({
           setup:

@@ -437,17 +437,33 @@
         }
       },
       "config": {
+        "runtimeTitle": "运行配置",
         "environment": "环境变量",
+        "environmentCount": "{count} 项",
         "environmentUnavailable": "当前容器无法查看环境变量。",
+        "environmentEmptyTitle": "暂无环境变量",
+        "environmentFilterEmptyTitle": "未找到匹配的环境变量",
+        "environmentFilterEmptyDescription": "请调整关键字或安全策略筛选。",
+        "searchPlaceholder": "搜索变量名 / 值",
+        "copyRuntimeValue": "复制配置值",
+        "copyRuntimeSuccess": "已复制配置值",
+        "copyVariableValue": "复制变量值",
+        "copyVariableValueSuccess": "已复制变量值",
+        "copyEnvFile": "复制 .env",
+        "copyEnvSuccess": "已复制 .env 内容",
         "envName": "变量名",
         "envValue": "值",
-        "envPolicy": "策略",
-        "maskedValue": "已脱敏",
-        "hiddenValue": "已隐藏",
+        "envPolicy": "安全策略",
+        "maskedValue": "[已脱敏]",
+        "hiddenValue": "[已隐藏]",
+        "policyFilter": {
+          "all": "安全策略：全部"
+        },
         "policy": {
           "plain": "明文",
           "masked": "脱敏",
           "hidden": "隐藏",
+          "sensitive": "敏感",
           "unknown": "未知"
         }
       },

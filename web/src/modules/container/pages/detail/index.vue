@@ -561,52 +561,143 @@
             </t-tab-panel>
 
             <t-tab-panel value="config" :label="t('container.detail.tabs.config')" :destroy-on-hide="false">
-              <section class="container-detail-section">
-                <t-descriptions :column="2" item-layout="vertical" bordered table-layout="fixed">
-                  <t-descriptions-item :label="t('container.list.detail.command')">
-                    {{ joinList(detail.command) }}
-                  </t-descriptions-item>
-                  <t-descriptions-item :label="t('container.list.detail.entrypoint')">
-                    {{ joinList(detail.entrypoint) }}
-                  </t-descriptions-item>
-                  <t-descriptions-item :label="t('container.list.detail.workingDir')">
-                    {{ detail.working_dir || '-' }}
-                  </t-descriptions-item>
-                </t-descriptions>
-                <div class="container-detail-subsection">
-                  <h3>{{ t('container.detail.config.environment') }}</h3>
+              <section class="container-detail-section container-detail-section--config">
+                <div class="container-config-section">
+                  <h3>{{ t('container.detail.config.runtimeTitle') }}</h3>
+                  <t-card class="container-runtime-config-card" size="small" :bordered="false">
+                    <div class="container-runtime-config-list">
+                      <div v-for="item in runtimeConfigItems" :key="item.key" class="container-runtime-config-row">
+                        <span class="container-runtime-config-row__label">{{ item.label }}</span>
+                        <t-tooltip :content="item.value">
+                          <code class="container-runtime-config-row__value">{{ item.value }}</code>
+                        </t-tooltip>
+                        <t-tooltip :content="t('container.detail.config.copyRuntimeValue')">
+                          <t-button
+                            class="container-runtime-config-row__copy"
+                            shape="square"
+                            size="small"
+                            theme="default"
+                            variant="text"
+                            :disabled="!item.copyable"
+                            @click="copyRuntimeConfigValue(item)"
+                          >
+                            <template #icon>
+                              <t-icon name="copy" />
+                            </template>
+                          </t-button>
+                        </t-tooltip>
+                      </div>
+                    </div>
+                  </t-card>
+                </div>
+
+                <div class="container-config-section">
+                  <div class="container-config-section__header">
+                    <h3>{{ t('container.detail.config.environment') }}</h3>
+                    <span>{{ t('container.detail.config.environmentCount', { count: environmentRows.length }) }}</span>
+                  </div>
+                  <div class="container-env-toolbar">
+                    <t-input
+                      v-model="environmentKeyword"
+                      class="container-env-toolbar__search"
+                      clearable
+                      :placeholder="t('container.detail.config.searchPlaceholder')"
+                    >
+                      <template #prefix-icon>
+                        <t-icon name="search" />
+                      </template>
+                    </t-input>
+                    <t-select
+                      v-model="environmentPolicyFilter"
+                      class="container-env-toolbar__policy"
+                      :options="environmentPolicyFilterOptions"
+                    />
+                    <t-button theme="default" variant="outline" @click="copyFilteredEnvironmentAsEnv">
+                      <template #icon>
+                        <t-icon name="file-copy" />
+                      </template>
+                      {{ t('container.detail.config.copyEnvFile') }}
+                    </t-button>
+                    <t-button theme="default" variant="outline" :loading="loading" @click="loadDetail">
+                      <template #icon>
+                        <t-icon name="refresh" />
+                      </template>
+                      {{ t('container.detail.refresh') }}
+                    </t-button>
+                  </div>
                   <t-table
                     v-if="environmentRows.length"
+                    class="container-env-table"
                     row-key="name"
                     size="small"
                     :columns="environmentColumns"
-                    :data="environmentRows"
+                    :data="filteredEnvironmentRows"
                     :pagination="undefined"
                     table-layout="fixed"
                     cell-empty-content="-"
                   >
+                    <template #empty>
+                      <t-empty
+                        size="small"
+                        :title="environmentEmptyState.title"
+                        :description="environmentEmptyState.description"
+                      />
+                    </template>
+                    <template #name="{ row }">
+                      <t-tooltip :content="row.name">
+                        <code class="container-env-cell container-env-cell--name">{{ row.name }}</code>
+                      </t-tooltip>
+                    </template>
                     <template #value="{ row }">
-                      <span>{{ row.value || '-' }}</span>
+                      <t-tag
+                        v-if="row.policy === 'masked' || row.policy === 'hidden'"
+                        :theme="policyTheme(row.policy)"
+                        variant="light-outline"
+                        size="small"
+                      >
+                        {{ row.value }}
+                      </t-tag>
+                      <t-tag
+                        v-else-if="isBooleanEnvironmentValue(row.value)"
+                        theme="primary"
+                        variant="light-outline"
+                        size="small"
+                      >
+                        {{ row.value }}
+                      </t-tag>
+                      <t-tooltip v-else :content="row.value">
+                        <code class="container-env-cell container-env-cell--value">{{ row.value || '-' }}</code>
+                      </t-tooltip>
                     </template>
                     <template #policy="{ row }">
-                      <t-tag :theme="policyTheme(row.policy)" variant="light-outline">
+                      <t-tag :theme="policyTheme(row.policy)" variant="light-outline" size="small">
                         {{ policyLabel(row.policy) }}
                       </t-tag>
                     </template>
                     <template #operation="{ row }">
-                      <t-button
-                        v-if="row.copyable"
-                        data-testid="env-copy"
-                        size="small"
-                        theme="default"
-                        variant="text"
-                        @click="copyEnvironmentValue(row)"
-                      >
-                        {{ t('container.detail.copy') }}
-                      </t-button>
+                      <t-tooltip v-if="row.copyable" :content="t('container.detail.config.copyVariableValue')">
+                        <t-button
+                          class="container-env-copy-button"
+                          data-testid="env-copy"
+                          shape="square"
+                          size="small"
+                          theme="default"
+                          variant="text"
+                          @click="copyEnvironmentValue(row)"
+                        >
+                          <template #icon>
+                            <t-icon name="copy" />
+                          </template>
+                        </t-button>
+                      </t-tooltip>
                     </template>
                   </t-table>
-                  <t-empty v-else size="small" :description="t('container.detail.config.environmentUnavailable')" />
+                  <t-empty
+                    v-else
+                    size="small"
+                    :title="t('container.detail.config.environmentEmptyTitle')"
+                    :description="t('container.detail.config.environmentUnavailable')"
+                  />
                 </div>
               </section>
             </t-tab-panel>
@@ -679,6 +770,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
+import { LOCALE } from '@/contracts/i18n/locales';
 import { ManagementPageHeader } from '@/shared/components/management';
 import { MetricCard } from '@/shared/components/metrics';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
@@ -692,6 +784,7 @@ import {
   LogViewer,
   toProgressPercent,
 } from '@/shared/observability';
+import { useTabsRouterStore } from '@/store';
 import { createLogger } from '@/utils/logger';
 
 import { getContainer, getContainerLogs } from '../../api/container';
@@ -714,10 +807,18 @@ defineOptions({
 
 type DetailTab = 'overview' | 'resources' | 'logs' | 'health' | 'config' | 'network' | 'storage' | 'raw';
 type EnvironmentPolicy = 'plain' | 'masked' | 'hidden' | 'unknown';
+type EnvironmentPolicyFilter = EnvironmentPolicy | 'all' | 'sensitive';
 type EnvironmentRow = {
   copyable: boolean;
   name: string;
   policy: EnvironmentPolicy;
+  rawValue: string;
+  value: string;
+};
+type RuntimeConfigItem = {
+  copyable: boolean;
+  key: 'command' | 'entrypoint' | 'workingDir';
+  label: string;
   rawValue: string;
   value: string;
 };
@@ -795,6 +896,7 @@ const DEFAULT_LOG_QUERY = {
 const { locale, t } = useI18n();
 const route = useRoute();
 const router = useRouter();
+const tabsRouterStore = useTabsRouterStore();
 const logger = createLogger('container.detail');
 
 const detail = ref<ContainerDetail | null>(null);
@@ -805,6 +907,8 @@ const logsLoading = ref(false);
 const logsError = ref('');
 const logLineLimit = ref(DEFAULT_LOG_QUERY.tail);
 const activeTab = ref<DetailTab>(normalizeTab(route.query.tab));
+const environmentKeyword = ref('');
+const environmentPolicyFilter = ref<EnvironmentPolicyFilter>('all');
 
 const containerId = computed(() => String(route.params.id ?? '').trim());
 const detailBreadcrumb = computed(() => [
@@ -818,6 +922,67 @@ const pageTitle = computed(() => {
   return containerId.value || t('container.detail.title');
 });
 const environmentRows = computed(() => normalizeEnvironmentRows(detail.value));
+const runtimeConfigItems = computed<RuntimeConfigItem[]>(() => {
+  const current = detail.value;
+  return [
+    {
+      copyable: Boolean(joinList(current?.command).trim() && joinList(current?.command) !== '-'),
+      key: 'command',
+      label: t('container.list.detail.command'),
+      rawValue: joinList(current?.command),
+      value: joinList(current?.command),
+    },
+    {
+      copyable: Boolean(joinList(current?.entrypoint).trim() && joinList(current?.entrypoint) !== '-'),
+      key: 'entrypoint',
+      label: t('container.list.detail.entrypoint'),
+      rawValue: joinList(current?.entrypoint),
+      value: joinList(current?.entrypoint),
+    },
+    {
+      copyable: Boolean(current?.working_dir?.trim()),
+      key: 'workingDir',
+      label: t('container.list.detail.workingDir'),
+      rawValue: current?.working_dir?.trim() || '',
+      value: current?.working_dir?.trim() || '-',
+    },
+  ];
+});
+const environmentPolicyFilterOptions = computed(() => [
+  { label: t('container.detail.config.policyFilter.all'), value: 'all' },
+  { label: t('container.detail.config.policy.plain'), value: 'plain' },
+  { label: t('container.detail.config.policy.masked'), value: 'masked' },
+  { label: t('container.detail.config.policy.hidden'), value: 'hidden' },
+  { label: t('container.detail.config.policy.sensitive'), value: 'sensitive' },
+]);
+const filteredEnvironmentRows = computed(() => {
+  const keyword = environmentKeyword.value.trim().toLowerCase();
+  const policy = environmentPolicyFilter.value;
+
+  return environmentRows.value.filter((row) => {
+    const matchesPolicy =
+      policy === 'all' || row.policy === policy || (policy === 'sensitive' && isSensitiveEnvironmentRow(row));
+    if (!matchesPolicy) {
+      return false;
+    }
+    if (!keyword) {
+      return true;
+    }
+    return row.name.toLowerCase().includes(keyword) || row.value.toLowerCase().includes(keyword);
+  });
+});
+const environmentEmptyState = computed(() => {
+  if (!environmentRows.value.length) {
+    return {
+      description: t('container.detail.config.environmentUnavailable'),
+      title: t('container.detail.config.environmentEmptyTitle'),
+    };
+  }
+  return {
+    description: t('container.detail.config.environmentFilterEmptyDescription'),
+    title: t('container.detail.config.environmentFilterEmptyTitle'),
+  };
+});
 const healthDiagnosis = computed(() => {
   const current = detail.value;
   if (!current) {
@@ -1105,10 +1270,10 @@ const overviewSections = computed<ContainerOverviewInfoSection[]>(() => {
   ];
 });
 const environmentColumns = computed<TableProps['columns']>(() => [
-  { colKey: 'name', title: t('container.detail.config.envName'), minWidth: 220, ellipsis: true },
-  { colKey: 'value', title: t('container.detail.config.envValue'), minWidth: 260, ellipsis: true },
-  { colKey: 'policy', title: t('container.detail.config.envPolicy'), width: 160, align: 'center' },
-  { colKey: 'operation', title: t('container.detail.operation'), width: 112, align: 'center' },
+  { colKey: 'name', title: t('container.detail.config.envName'), width: '40%', ellipsis: true },
+  { colKey: 'value', title: t('container.detail.config.envValue'), width: '40%', ellipsis: true },
+  { colKey: 'policy', title: t('container.detail.config.envPolicy'), width: 120, align: 'center' },
+  { colKey: 'operation', title: t('container.detail.operation'), width: 72, align: 'center' },
 ]);
 const networkColumns = computed<TableProps['columns']>(() => [
   { colKey: 'name', title: t('container.detail.network.name'), minWidth: 180, ellipsis: true },
@@ -1171,6 +1336,7 @@ async function loadDetail() {
   error.value = '';
   try {
     detail.value = await getContainer(containerId.value);
+    updateCurrentTabTitle(detail.value);
   } catch (loadError) {
     detail.value = null;
     error.value = resolveLocalizedErrorMessage(t, loadError, t('container.list.detail.loadFailed'));
@@ -1213,6 +1379,18 @@ async function copyHealthcheckCommand() {
   }
 }
 
+async function copyRuntimeConfigValue(item: RuntimeConfigItem) {
+  if (!item.copyable) {
+    return;
+  }
+  const copied = await copyTextToClipboard(item.rawValue);
+  if (copied) {
+    MessagePlugin.success(t('container.detail.config.copyRuntimeSuccess'));
+    return;
+  }
+  MessagePlugin.error(t('container.detail.copyError'));
+}
+
 function resetDetailState() {
   detail.value = null;
   error.value = '';
@@ -1244,7 +1422,22 @@ function goBack() {
 }
 
 async function copyEnvironmentValue(row: EnvironmentRow) {
-  await copyDetailText(row.rawValue);
+  const copied = await copyTextToClipboard(row.rawValue);
+  if (copied) {
+    MessagePlugin.success(t('container.detail.config.copyVariableValueSuccess'));
+    return;
+  }
+  MessagePlugin.error(t('container.detail.copyError'));
+}
+
+async function copyFilteredEnvironmentAsEnv() {
+  const content = filteredEnvironmentRows.value.map(formatEnvironmentLine).join('\n');
+  const copied = await copyTextToClipboard(content);
+  if (copied) {
+    MessagePlugin.success(t('container.detail.config.copyEnvSuccess'));
+    return;
+  }
+  MessagePlugin.error(t('container.detail.copyError'));
 }
 
 async function copyDetailText(text: string) {
@@ -1347,6 +1540,40 @@ function policyTheme(policy: EnvironmentPolicy) {
   if (policy === 'masked') return 'warning';
   if (policy === 'hidden') return 'danger';
   return 'default';
+}
+
+function isBooleanEnvironmentValue(value: string) {
+  const normalized = value.trim().toLowerCase();
+  return normalized === 'true' || normalized === 'false';
+}
+
+function isSensitiveEnvironmentRow(row: EnvironmentRow) {
+  if (row.policy === 'masked' || row.policy === 'hidden') {
+    return true;
+  }
+  return /(?:password|passwd|pwd|secret|token|key|credential|auth)/i.test(row.name);
+}
+
+function formatEnvironmentLine(row: EnvironmentRow) {
+  if (row.policy === 'masked' || row.policy === 'hidden') {
+    return `${row.name}=******`;
+  }
+  return `${row.name}=${row.rawValue}`;
+}
+
+function updateCurrentTabTitle(current: ContainerDetail | null) {
+  if (!current) {
+    return;
+  }
+  const name = displayName(current);
+  const title = {
+    [LOCALE.ZH_CN]: `${t('container.detail.title')} - ${name}`,
+    [LOCALE.EN_US]: `Container Detail - ${name}`,
+  };
+  const tabKey = route.path;
+  tabsRouterStore.tabRouterList = tabsRouterStore.tabRouterList.map((tab) =>
+    tab.tabKey === tabKey || tab.path === tabKey ? { ...tab, title } : tab,
+  );
 }
 
 function displayName(row: ContainerDetail) {
@@ -1904,6 +2131,159 @@ function portLabel(port: ContainerDetail['ports'][number]) {
   padding: 0 var(--graft-density-gap-16) var(--graft-density-gap-16);
 }
 
+.container-detail-section--config {
+  gap: var(--graft-density-gap-16);
+  padding: 0 var(--graft-density-gap-16) var(--graft-density-gap-16);
+}
+
+.container-config-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--graft-density-gap-10);
+  min-width: 0;
+}
+
+.container-config-section h3,
+.container-config-section__header h3 {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-title-small);
+  font-weight: 600;
+  margin: 0;
+}
+
+.container-config-section__header {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--graft-density-gap-8);
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.container-config-section__header > span {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+}
+
+.container-runtime-config-card {
+  background: var(--td-bg-color-container);
+  border: 1px solid color-mix(in srgb, var(--td-component-stroke) 70%, transparent);
+  min-width: 0;
+}
+
+.container-runtime-config-card :deep(.t-card__body) {
+  padding: var(--graft-density-gap-14) var(--graft-density-gap-16);
+}
+
+.container-runtime-config-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--graft-density-gap-4);
+  min-width: 0;
+}
+
+.container-runtime-config-row {
+  align-items: center;
+  border-radius: var(--td-radius-default);
+  display: grid;
+  gap: var(--graft-density-gap-10);
+  grid-template-columns: 108px minmax(0, 1fr) var(--td-comp-size-xs);
+  min-height: var(--td-comp-size-xl);
+  min-width: 0;
+  padding: var(--graft-density-gap-6) var(--graft-density-gap-8);
+}
+
+.container-runtime-config-row:hover {
+  background: var(--td-bg-color-container-hover);
+}
+
+.container-runtime-config-row__label {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+  white-space: nowrap;
+}
+
+.container-runtime-config-row__value,
+.container-env-cell {
+  color: var(--td-text-color-primary);
+  display: block;
+  font-family: var(
+    --td-font-family-mono,
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    'Liberation Mono',
+    monospace
+  );
+  font-size: var(--td-font-size-body-small);
+  line-height: 20px;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.container-runtime-config-row__copy {
+  opacity: 0.56;
+}
+
+.container-runtime-config-row:hover .container-runtime-config-row__copy,
+.container-runtime-config-row__copy:focus-visible {
+  opacity: 1;
+}
+
+.container-env-toolbar {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--graft-density-gap-8);
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.container-env-toolbar__search {
+  flex: 1 1 280px;
+  min-width: 220px;
+}
+
+.container-env-toolbar__policy {
+  flex: 0 0 176px;
+}
+
+.container-env-table {
+  min-width: 0;
+  width: 100%;
+}
+
+.container-env-table :deep(.t-table__content) {
+  max-width: 100%;
+}
+
+.container-env-table :deep(.t-table--layout-fixed) {
+  width: 100%;
+}
+
+.container-env-table :deep(.t-table__th-cell-inner) {
+  color: var(--td-text-color-secondary);
+  font-weight: 500;
+}
+
+.container-env-table :deep(.t-table__body tr .container-env-copy-button) {
+  opacity: 0.42;
+}
+
+.container-env-table :deep(.t-table__body tr:hover .container-env-copy-button),
+.container-env-table :deep(.container-env-copy-button:focus-visible) {
+  opacity: 1;
+}
+
+.container-env-cell--value {
+  color: var(--td-text-color-secondary);
+}
+
 .container-health-diagnostics {
   display: flex;
   flex-direction: column;
@@ -2411,6 +2791,31 @@ function portLabel(port: ContainerDetail['ports'][number]) {
 }
 
 @media (width <= 720px) {
+  .container-runtime-config-row {
+    align-items: flex-start;
+    grid-template-columns: minmax(0, 1fr) var(--td-comp-size-xs);
+  }
+
+  .container-runtime-config-row__label {
+    grid-column: 1 / -1;
+  }
+
+  .container-env-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .container-env-toolbar__search,
+  .container-env-toolbar__policy {
+    flex-basis: auto;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .container-env-toolbar :deep(.t-button) {
+    width: 100%;
+  }
+
   .container-detail-summary,
   .container-detail-summary__resource {
     grid-template-columns: 1fr;
