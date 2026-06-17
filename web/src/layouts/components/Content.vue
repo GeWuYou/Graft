@@ -4,7 +4,7 @@
 -->
 
 <template>
-  <div class="route-loading-host">
+  <div class="route-view-host route-loading-host">
     <t-loading
       class="route-page-loading"
       :delay="80"
@@ -109,9 +109,9 @@ const handleBeforeEnter = (viewRoute?: RouteLocationNormalizedLoaded) => {
 
 .route-loading-host {
   display: flex;
-  flex: 1;
+  flex: 1 0 auto;
   flex-direction: column;
-  min-height: 100%;
+  min-height: 0;
   min-width: 0;
   position: relative;
 }
@@ -123,7 +123,7 @@ const handleBeforeEnter = (viewRoute?: RouteLocationNormalizedLoaded) => {
   display: flex;
   flex: 1;
   flex-direction: column;
-  min-height: inherit;
+  min-height: 0;
   min-width: 0;
   width: 100%;
 }

@@ -118,7 +118,10 @@ function resolveNextTabTitle(current: TRouterInfo, next: TRouterInfo) {
   if (!next.title) {
     return current.title;
   }
-  if (current.fullPath === next.fullPath && current.title) {
+  if (
+    (current.fullPath === next.fullPath || current.path === next.path || getTabKey(current) === getTabKey(next)) &&
+    current.title
+  ) {
     return current.title;
   }
 

@@ -40,18 +40,25 @@ const tabStoreState = vi.hoisted(() => ({
       tabKey: '/ops/containers/container-1',
       title: { 'zh-CN': '容器详情', 'en-US': 'Container Detail' },
     },
-  ],
+  ] as Array<{
+    fullPath?: string;
+    path: string;
+    tabKey: string;
+    title: { 'zh-CN': string; 'en-US': string };
+  }>,
 }));
 
 const routeState = vi.hoisted(
   (): {
     route: {
-      path: '/ops/containers/container-1';
+      fullPath: string;
+      path: string;
       params: { id: string };
-      query: { tab?: string };
+      query: { name?: string; tab?: string };
     };
   } => ({
     route: {
+      fullPath: '/ops/containers/container-1?tab=config',
       path: '/ops/containers/container-1',
       params: { id: 'container-1' },
       query: { tab: 'config' },
@@ -172,12 +179,31 @@ const translations = vi.hoisted(
     'container.detail.logs.wrap': '自动换行',
     'container.detail.missingId': '缺少容器标识。',
     'container.detail.network.gateway': '网关',
+    'container.detail.network.aliasDns': '网络别名 / DNS',
+    'container.detail.network.aliases': 'Aliases',
+    'container.detail.network.connections': '网络连接',
+    'container.detail.network.containerPort': '容器端口',
+    'container.detail.network.dns': 'DNS',
+    'container.detail.network.endpointId': 'Endpoint',
+    'container.detail.network.hostname': 'Hostname',
+    'container.detail.network.hostPort': '主机端口',
     'container.detail.network.ipAddress': 'IP 地址',
+    'container.detail.network.listenAddress': '监听地址',
     'container.detail.network.macAddress': 'MAC 地址',
+    'container.detail.network.mapping': '映射',
     'container.detail.network.name': '网络',
+    'container.detail.network.networkId': 'Network ID',
+    'container.detail.network.noData': '暂无数据',
+    'container.detail.network.aliasDnsEmpty': '暂无额外网络别名或自定义 DNS 配置',
+    'container.detail.network.internalOnly': '仅容器网络内部可访问',
+    'container.detail.network.notPublished': '未发布到宿主机',
     'container.detail.network.noPublicPorts': '无公开端口',
+    'container.detail.network.publishedToHost': '已发布到宿主机',
+    'container.detail.network.portCount': '{count} 个端口映射',
     'container.detail.network.ports': '端口映射',
     'container.detail.network.primaryIp': '主 IP',
+    'container.detail.network.protocol': '协议',
+    'container.detail.network.subnet': '子网',
     'container.detail.network.summary': '网络摘要',
     'container.detail.operation': '操作',
     'container.detail.overview.basicInfo': '基础信息',
@@ -283,6 +309,7 @@ const translations = vi.hoisted(
     'container.list.detail.inspectUpdatedAt': '详情更新时间',
     'container.list.detail.mountEmpty': '暂无挂载。',
     'container.list.detail.networkEmpty': '暂无网络信息。',
+    'container.list.detail.portEmpty': '暂无端口映射。',
     'container.list.detail.workingDir': '工作目录',
     'container.list.eyebrow': '运维管理',
     'container.list.fields.createdAt': '创建时间',
@@ -353,8 +380,10 @@ describe('container detail page', () => {
         title: { 'zh-CN': '容器详情', 'en-US': 'Container Detail' },
       },
     ];
+    routeState.route.fullPath = '/ops/containers/container-1?tab=config';
     routeState.route.path = '/ops/containers/container-1';
     routeState.route.params.id = 'container-1';
+    routeState.route.query.name = undefined;
     routeState.route.query.tab = 'config';
     Object.defineProperty(window, 'history', {
       configurable: true,
@@ -439,6 +468,390 @@ describe('container detail page', () => {
     expect(wrapper.text()).toContain('已隐藏');
     expect(wrapper.text()).toContain('敏感字段已脱敏，仅用于只读排查。');
     expect(wrapper.text()).toContain('container');
+  });
+
+  it('uses the prefilled tab title before the detail request resolves', async () => {
+    let resolveDetail: (value: ReturnType<typeof createContainerDetail>) => void = () => undefined;
+    apiMocks.getContainer.mockReturnValue(
+      new Promise((resolve) => {
+        resolveDetail = resolve;
+      }),
+    );
+    tabStoreState.tabRouterList = [
+      {
+        fullPath: '/ops/containers/container-1?tab=config',
+        path: '/ops/containers/container-1',
+        tabKey: '/ops/containers/container-1',
+        title: { 'zh-CN': '容器详情 - list-name', 'en-US': 'Container Detail - list-name' },
+      },
+    ];
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.find('h1').text()).toBe('list-name');
+    expect(tabStoreState.tabRouterList[0]?.title?.['zh-CN']).toBe('容器详情 - list-name');
+    expect(wrapper.find('.container-detail-body').exists()).toBe(true);
+    expect(wrapper.find('.container-detail-state').exists()).toBe(true);
+    expect(wrapper.text()).not.toContain('暂无容器详情。');
+
+    resolveDetail(createContainerDetail());
+    await flushPromises();
+
+    expect(wrapper.find('h1').text()).toBe('graft-web');
+    expect(tabStoreState.tabRouterList[0]?.title?.['zh-CN']).toBe('容器详情 - graft-web');
+  });
+
+  it('keeps the fallback title when detail loading fails', async () => {
+    apiMocks.getContainer.mockRejectedValue(new Error('network failed'));
+    tabStoreState.tabRouterList = [
+      {
+        fullPath: '/ops/containers/container-1?tab=config',
+        path: '/ops/containers/container-1',
+        tabKey: '/ops/containers/container-1',
+        title: { 'zh-CN': '容器详情 - list-name', 'en-US': 'Container Detail - list-name' },
+      },
+    ];
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.find('h1').text()).toBe('list-name');
+    expect(tabStoreState.tabRouterList[0]?.title?.['zh-CN']).toBe('容器详情 - list-name');
+    expect(wrapper.text()).toContain('network failed');
+    expect(wrapper.text()).toContain('重试');
+    expect(wrapper.find('.container-detail-state-alert').exists()).toBe(true);
+    expect(wrapper.text()).not.toContain('暂无容器详情。');
+    expect(wrapper.text()).not.toContain('undefined');
+  });
+
+  it('shows the empty state only after loading resolves without detail', async () => {
+    let resolveDetail: (value: null) => void = () => undefined;
+    apiMocks.getContainer.mockReturnValue(
+      new Promise((resolve) => {
+        resolveDetail = resolve;
+      }),
+    );
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.find('.container-detail-state').exists()).toBe(true);
+    expect(wrapper.text()).toContain('loading');
+    expect(wrapper.text()).not.toContain('暂无容器详情。');
+
+    resolveDetail(null);
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('暂无容器详情。');
+    expect(wrapper.text()).not.toContain('loading');
+  });
+
+  it('falls back to the short route id for direct URL entry', async () => {
+    let resolveDetail: (value: ReturnType<typeof createContainerDetail>) => void = () => undefined;
+    apiMocks.getContainer.mockReturnValue(
+      new Promise((resolve) => {
+        resolveDetail = resolve;
+      }),
+    );
+    tabStoreState.tabRouterList = [
+      {
+        path: '/ops/containers/338d02f869494842b74a70c84a64a84d7a9ce8caa945d552823bad060f7002e59',
+        tabKey: '/ops/containers/338d02f869494842b74a70c84a64a84d7a9ce8caa945d552823bad060f7002e59',
+        title: { 'zh-CN': '容器详情', 'en-US': 'Container Detail' },
+      },
+    ];
+    routeState.route.path = '/ops/containers/338d02f869494842b74a70c84a64a84d7a9ce8caa945d552823bad060f7002e59';
+    routeState.route.fullPath = `${routeState.route.path}?tab=overview`;
+    routeState.route.params.id = '338d02f869494842b74a70c84a64a84d7a9ce8caa945d552823bad060f7002e59';
+    routeState.route.query.tab = 'overview';
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.find('h1').text()).toBe('338d02f86949');
+    expect(tabStoreState.tabRouterList[0]?.title?.['zh-CN']).toBe('容器详情 - 338d02f86949');
+
+    resolveDetail(createContainerDetail());
+    await flushPromises();
+  });
+
+  it('normalizes missing detail arrays without rendering failures', async () => {
+    apiMocks.getContainer.mockResolvedValue({
+      ...createContainerDetail(),
+      command: null,
+      entrypoint: null,
+      environment: null,
+      mounts: null,
+      names: null,
+      networks: null,
+      ports: null,
+    });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('无公开端口');
+    expect(wrapper.text()).toContain('暂无网络信息。');
+    expect(wrapper.text()).toContain('暂无挂载。');
+    expect(wrapper.text()).not.toContain('undefined');
+  });
+
+  it('renders single network details as cards with one port mapping', async () => {
+    routeState.route.query.tab = 'network';
+    apiMocks.getContainer.mockResolvedValue({
+      ...createContainerDetail(),
+      ports: [{ ip: '0.0.0.0', private_port: 80, public_port: 8080, type: 'tcp' }],
+      networks: [
+        {
+          name: 'arcane_default',
+          ip_address: '172.24.0.2',
+          gateway: '172.24.0.1',
+          mac_address: 'd2:13:55:9f:0b:21',
+          network_id: 'network-id-1',
+          endpoint_id: 'endpoint-id-1',
+        },
+      ],
+    });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('网络连接');
+    expect(wrapper.find('.container-network-connection-card').exists()).toBe(true);
+    expect(wrapper.text()).toContain('arcane_default');
+    expect(wrapper.text()).toContain('172.24.0.2');
+    expect(wrapper.text()).toContain('172.24.0.1');
+    expect(wrapper.text()).toContain('d2:13:55:9f:0b:21');
+    expect(wrapper.text()).toContain('network-id-1...k-id-1');
+    expect(wrapper.text()).toContain('endpoint-id-...t-id-1');
+    expect(wrapper.text()).toContain('容器端口');
+    expect(wrapper.text()).toContain('0.0.0.0:8080->80/tcp');
+    expect(wrapper.find('.container-port-mapping-card').exists()).toBe(true);
+    expect(wrapper.text()).toContain('已发布到宿主机');
+    expect(wrapper.text()).toContain('网络别名 / DNS');
+    expect(wrapper.text()).toContain('暂无额外网络别名或自定义 DNS 配置');
+  });
+
+  it('renders multiple networks in the network table', async () => {
+    routeState.route.query.tab = 'network';
+    apiMocks.getContainer.mockResolvedValue({
+      ...createContainerDetail(),
+      networks: [
+        {
+          name: 'frontend',
+          ip_address: '172.24.0.2',
+          gateway: '172.24.0.1',
+          mac_address: '02:42:ac:18:00:02',
+        },
+        {
+          name: 'backend',
+          ip_address: '172.25.0.2',
+          gateway: '172.25.0.1',
+          mac_address: '02:42:ac:19:00:02',
+        },
+      ],
+    });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.find('.container-network-connection-card').exists()).toBe(false);
+    expect(wrapper.text()).toContain('frontend');
+    expect(wrapper.text()).toContain('backend');
+    expect(wrapper.text()).toContain('172.25.0.2');
+  });
+
+  it('renders an explicit empty port mapping section', async () => {
+    routeState.route.query.tab = 'network';
+    apiMocks.getContainer.mockResolvedValue({
+      ...createContainerDetail(),
+      ports: [],
+    });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('端口映射');
+    expect(wrapper.text()).toContain('暂无端口映射。');
+  });
+
+  it('renders unpublished container ports as internal-only compact rows', async () => {
+    routeState.route.query.tab = 'network';
+    apiMocks.getContainer.mockResolvedValue({
+      ...createContainerDetail(),
+      ports: [{ private_port: 8082, type: 'tcp' }],
+    });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.find('.container-port-mapping-card').exists()).toBe(true);
+    expect(wrapper.text()).toContain('8082/tcp / 未发布到宿主机');
+    expect(wrapper.text()).toContain('仅容器网络内部可访问');
+    expect(wrapper.text()).not.toContain('暂无数据->8082/tcp');
+    expect(wrapper.text()).not.toContain('暂无数据 -> 8082/tcp');
+  });
+
+  it('renders published host bindings without replacing empty listen addresses with no data', async () => {
+    routeState.route.query.tab = 'network';
+    apiMocks.getContainer.mockResolvedValue({
+      ...createContainerDetail(),
+      ports: [{ private_port: 80, public_port: 8080, type: 'tcp' }],
+    });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('8080->80/tcp');
+    expect(wrapper.text()).toContain('已发布到宿主机');
+    expect(wrapper.text()).not.toContain('暂无数据:8080->80/tcp');
+  });
+
+  it('renders multiple port mappings in a table', async () => {
+    routeState.route.query.tab = 'network';
+    apiMocks.getContainer.mockResolvedValue({
+      ...createContainerDetail(),
+      ports: [
+        { ip: '127.0.0.1', private_port: 80, public_port: 8080, type: 'tcp' },
+        { private_port: 8082, type: 'tcp' },
+      ],
+    });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.find('.container-port-mapping-card').exists()).toBe(false);
+    expect(wrapper.text()).toContain('容器端口');
+    expect(wrapper.text()).toContain('127.0.0.1:8080->80/tcp');
+    expect(wrapper.text()).toContain('8082/tcp / 未发布到宿主机');
+  });
+
+  it('shows fallback text for missing optional network fields', async () => {
+    routeState.route.query.tab = 'network';
+    apiMocks.getContainer.mockResolvedValue({
+      ...createContainerDetail(),
+      networks: [
+        {
+          name: 'bridge',
+        },
+      ],
+    });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('子网');
+    expect(wrapper.text()).toContain('Network ID');
+    expect(wrapper.text()).toContain('Endpoint');
+    expect(wrapper.text()).toContain('暂无数据');
+    expect(wrapper.text()).not.toContain('undefined');
+    expect(wrapper.text()).not.toContain('null');
+  });
+
+  it('renders copy buttons for network and port mapping fields', async () => {
+    routeState.route.query.tab = 'network';
+    apiMocks.getContainer.mockResolvedValue({
+      ...createContainerDetail(),
+      ports: [{ ip: '127.0.0.1', private_port: 3552, public_port: 3552, type: 'tcp' }],
+      networks: [
+        {
+          name: 'arcane_default',
+          ip_address: '172.24.0.2',
+          mac_address: 'd2:13:55:9f:0b:21',
+          network_id: 'network-id-1',
+          endpoint_id: 'endpoint-id-1',
+        },
+      ],
+    });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="network-name-copy-0"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="network-ip-copy-0"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="network-mac-copy-0"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="network-id-copy-0"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="network-endpoint-copy-0"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="port-mapping-copy-0"]').exists()).toBe(true);
+  });
+
+  it('truncates network technical identifiers while copying full values', async () => {
+    const { copyText } = await import('@/shared/observability');
+    const networkId = '68e6eb2631f46e05e24714b3e8d03452e44cc91540f26f8c99bae3d953a0a9fb';
+    const endpointId = 'd7fc919985a5657754bbf066b6cf31f44926f152a2876d7118b554dc411547b8';
+    routeState.route.query.tab = 'network';
+    apiMocks.getContainer.mockResolvedValue({
+      ...createContainerDetail(),
+      networks: [
+        {
+          name: 'bridge',
+          ip_address: '172.17.0.5',
+          gateway: '172.17.0.1',
+          mac_address: 'ae:e8:86:3c:21:c5',
+          network_id: networkId,
+          endpoint_id: endpointId,
+        },
+      ],
+    });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('68e6eb2631f4...a0a9fb');
+    expect(wrapper.text()).toContain('d7fc919985a5...1547b8');
+    expect(wrapper.text()).not.toContain(networkId);
+    expect(wrapper.text()).not.toContain(endpointId);
+
+    await wrapper.get('[data-testid="network-id-copy-0"]').trigger('click');
+    await wrapper.get('[data-testid="network-endpoint-copy-0"]').trigger('click');
+    await flushPromises();
+
+    expect(copyText).toHaveBeenCalledWith(networkId);
+    expect(copyText).toHaveBeenCalledWith(endpointId);
+  });
+
+  it('shows the alias and dns empty text when no extra network metadata exists', async () => {
+    routeState.route.query.tab = 'network';
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('Hostname');
+    expect(wrapper.text()).toContain('graft-web');
+    expect(wrapper.text()).toContain('暂无额外网络别名或自定义 DNS 配置');
+    expect(wrapper.text()).not.toContain('Aliases暂无数据');
+    expect(wrapper.text()).not.toContain('DNS暂无数据');
+  });
+
+  it('renders aliases and dns only when values exist', async () => {
+    routeState.route.query.tab = 'network';
+    apiMocks.getContainer.mockResolvedValue({
+      ...createContainerDetail(),
+      hostname: 'web-host',
+      aliases: ['web', 'frontend'],
+      dns: ['10.0.0.2', '10.0.0.3'],
+    });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('Hostname');
+    expect(wrapper.text()).toContain('web-host');
+    expect(wrapper.text()).toContain('Aliases');
+    expect(wrapper.text()).toContain('web, frontend');
+    expect(wrapper.text()).toContain('DNS');
+    expect(wrapper.text()).toContain('10.0.0.2, 10.0.0.3');
+    expect(wrapper.text()).not.toContain('暂无额外网络别名或自定义 DNS 配置');
+  });
+
+  it('keeps footer visible globally and renders mutually exclusive detail states', () => {
+    expect(sourceText).toContain('class="container-detail-body"');
+    expect(sourceText).toContain('loading && !safeDetail && !error');
+    expect(sourceText).toContain('v-else-if="error"');
+    expect(sourceText).toContain('v-else-if="safeDetail"');
+    expect(sourceText).toContain('<t-empty v-else class="container-detail-state"');
+    expect(sourceText).not.toContain('footer: false');
+    expect(sourceText).not.toContain('calc(100vh');
   });
 
   it('loads logs when the logs tab is selected and syncs the route query', async () => {
@@ -583,7 +996,7 @@ describe('container detail page', () => {
     await wrapper.vm.$nextTick();
     await flushPromises();
 
-    expect(wrapper.text()).not.toContain('graft-web');
+    expect(wrapper.text()).not.toContain('graft/web:latest');
     expect(wrapper.text()).toContain('缺少容器标识。');
 
     routeState.route.params.id = 'container-failed';
@@ -591,7 +1004,7 @@ describe('container detail page', () => {
     await wrapper.vm.$nextTick();
     await flushPromises();
 
-    expect(wrapper.text()).not.toContain('graft-web');
+    expect(wrapper.text()).not.toContain('graft/web:latest');
     expect(wrapper.text()).toContain('boom');
   });
 
@@ -1294,14 +1707,12 @@ function mountPage() {
                   h('strong', column.title),
                 ),
                 rows.length === 0 ? slots.empty?.() : undefined,
-                ...rows.map((row) =>
+                ...rows.map((row, rowIndex) =>
                   h('div', { key: String(row.name ?? row.key ?? row.destination) }, [
-                    (props.columns as Array<{ colKey: string }>).map((column) =>
-                      h('span', String(row[column.colKey] ?? '')),
+                    (props.columns as Array<{ colKey: string }>).map(
+                      (column) =>
+                        slots[column.colKey]?.({ row, rowIndex }) ?? h('span', String(row[column.colKey] ?? '')),
                     ),
-                    slots.value?.({ row }),
-                    slots.policy?.({ row }),
-                    slots.operation?.({ row }),
                   ]),
                 ),
               ]);

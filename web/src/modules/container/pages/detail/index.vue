@@ -8,23 +8,23 @@
     <management-page-header
       :breadcrumb="detailBreadcrumb"
       :title="pageTitle"
-      :description="detail ? detail.image : t('container.detail.description')"
+      :description="safeDetail ? safeDetail.image : t('container.detail.description')"
       :source="{ labelKey: 'container.list.eyebrow', fallback: t('container.list.eyebrow') }"
     >
       <template #meta>
         <t-space class="container-detail-header-meta" break-line size="small">
-          <span v-if="detail" class="container-detail-header-id">{{ shortContainerId(detail) }}</span>
-          <t-tag v-if="detail" :theme="stateTheme(detail.state)" variant="light-outline">
-            {{ stateLabel(detail.state) }}
+          <span v-if="safeDetail" class="container-detail-header-id">{{ shortContainerId(safeDetail) }}</span>
+          <t-tag v-if="safeDetail" :theme="stateTheme(safeDetail.state)" variant="light-outline">
+            {{ stateLabel(safeDetail.state) }}
           </t-tag>
-          <t-tag v-if="detail" :theme="healthTheme(detail.health)" variant="light-outline">
-            {{ healthLabel(detail.health) }}
+          <t-tag v-if="safeDetail" :theme="healthTheme(safeDetail.health)" variant="light-outline">
+            {{ healthLabel(safeDetail.health) }}
           </t-tag>
-          <t-tag v-if="detail?.runtime" theme="default" variant="light-outline">
-            {{ detail.runtime }}
+          <t-tag v-if="safeDetail?.runtime" theme="default" variant="light-outline">
+            {{ safeDetail.runtime }}
           </t-tag>
-          <t-tag v-if="detail?.inspect_updated_at" theme="default" variant="light-outline">
-            {{ t('container.detail.inspectUpdatedAt') }}: {{ formatTime(detail.inspect_updated_at) }}
+          <t-tag v-if="safeDetail?.inspect_updated_at" theme="default" variant="light-outline">
+            {{ t('container.detail.inspectUpdatedAt') }}: {{ formatTime(safeDetail.inspect_updated_at) }}
           </t-tag>
         </t-space>
       </template>
@@ -40,16 +40,20 @@
       </template>
     </management-page-header>
 
-    <t-alert v-if="error" theme="error" :title="error">
-      <template #operation>
-        <t-button theme="danger" variant="text" @click="loadDetail">
-          {{ t('container.list.retry') }}
-        </t-button>
-      </template>
-    </t-alert>
+    <section class="container-detail-body">
+      <t-loading v-if="loading && !safeDetail && !error" class="container-detail-state" :loading="true">
+        <t-skeleton animation="gradient" theme="article" />
+      </t-loading>
 
-    <t-loading :loading="loading">
-      <template v-if="detail">
+      <t-alert v-else-if="error" class="container-detail-state-alert" theme="error" :title="error">
+        <template #operation>
+          <t-button theme="danger" variant="text" @click="loadDetail">
+            {{ t('container.list.retry') }}
+          </t-button>
+        </template>
+      </t-alert>
+
+      <template v-else-if="safeDetail">
         <section class="container-detail-summary">
           <t-card
             class="container-detail-summary-card container-detail-summary-card--identity"
@@ -60,22 +64,22 @@
             <div class="container-detail-summary-list">
               <div class="container-detail-kv">
                 <span>{{ t('container.list.fields.name') }}</span>
-                <strong>{{ displayName(detail) }}</strong>
+                <strong>{{ displayName(safeDetail) }}</strong>
               </div>
               <div class="container-detail-kv">
                 <span>{{ t('container.list.fields.image') }}</span>
                 <copyable-detail-value
                   :copy-label="t('container.detail.copy')"
-                  :value="detail.image"
-                  :display-value="detail.image"
+                  :value="safeDetail.image"
+                  :display-value="safeDetail.image"
                   @copy="copyDetailText"
                 />
               </div>
               <div class="container-detail-kv">
                 <span>{{ t('container.list.fields.id') }}</span>
                 <copyable-detail-value
-                  :value="detail.id"
-                  :display-value="shortContainerId(detail)"
+                  :value="safeDetail.id"
+                  :display-value="shortContainerId(safeDetail)"
                   :copy-label="t('container.detail.copy')"
                   code
                   data-testid="summary-container-id-copy"
@@ -84,7 +88,7 @@
               </div>
               <div class="container-detail-kv">
                 <span>{{ t('container.list.fields.runtime') }}</span>
-                <strong>{{ runtimeLabel(detail) }}</strong>
+                <strong>{{ runtimeLabel(safeDetail) }}</strong>
               </div>
             </div>
           </t-card>
@@ -97,21 +101,21 @@
             <div class="container-detail-summary-list">
               <div class="container-detail-kv container-detail-kv--inline">
                 <span>{{ t('container.list.fields.status') }}</span>
-                <t-tag :theme="stateTheme(detail.state)" variant="light-outline">
-                  {{ stateLabel(detail.state) }}
+                <t-tag :theme="stateTheme(safeDetail.state)" variant="light-outline">
+                  {{ stateLabel(safeDetail.state) }}
                 </t-tag>
               </div>
               <div class="container-detail-kv">
                 <span>{{ t('container.list.fields.state') }}</span>
-                <code>{{ detail.state || '-' }}</code>
+                <code>{{ safeDetail.state || '-' }}</code>
               </div>
               <div class="container-detail-kv">
                 <span>{{ t('container.list.fields.startedAt') }}</span>
-                <strong>{{ formatTime(detail.started_at) }}</strong>
+                <strong>{{ formatTime(safeDetail.started_at) }}</strong>
               </div>
               <div class="container-detail-kv">
                 <span>{{ t('container.detail.health.status') }}</span>
-                <strong>{{ healthLabel(detail.health) }}</strong>
+                <strong>{{ healthLabel(safeDetail.health) }}</strong>
               </div>
             </div>
           </t-card>
@@ -125,26 +129,26 @@
               <div class="container-detail-resource-meter container-detail-resource-meter--cpu">
                 <div class="container-detail-resource-meter__content">
                   <span>{{ t('container.detail.resources.cpu') }}</span>
-                  <strong>{{ formatPercent(detail.resource?.cpu_percent) }}</strong>
+                  <strong>{{ formatPercent(safeDetail.resource?.cpu_percent) }}</strong>
                 </div>
                 <t-progress
                   theme="circle"
                   size="small"
-                  :label="formatPercent(detail.resource?.cpu_percent)"
-                  :percentage="toProgressPercent(detail.resource?.cpu_percent)"
+                  :label="formatPercent(safeDetail.resource?.cpu_percent)"
+                  :percentage="toProgressPercent(safeDetail.resource?.cpu_percent)"
                 />
               </div>
               <div class="container-detail-resource-meter container-detail-resource-meter--memory">
                 <div class="container-detail-resource-meter__content">
                   <span>{{ t('container.detail.resources.memory') }}</span>
-                  <strong>{{ memorySummary(detail) }}</strong>
-                  <em>{{ formatPercent(detail.resource?.memory_percent) }}</em>
+                  <strong>{{ memorySummary(safeDetail) }}</strong>
+                  <em>{{ formatPercent(safeDetail.resource?.memory_percent) }}</em>
                 </div>
                 <t-progress
                   theme="line"
                   size="small"
                   :label="false"
-                  :percentage="toProgressPercent(detail.resource?.memory_percent)"
+                  :percentage="toProgressPercent(safeDetail.resource?.memory_percent)"
                 />
               </div>
             </div>
@@ -158,29 +162,17 @@
             <div class="container-detail-summary-list">
               <div class="container-detail-kv">
                 <span>{{ t('container.detail.network.primaryIp') }}</span>
-                <strong>{{ detail.primary_ip || '-' }}</strong>
+                <strong>{{ safeDetail.primary_ip || '-' }}</strong>
               </div>
               <div class="container-detail-kv">
                 <span>{{ t('container.detail.network.summary') }}</span>
-                <strong>{{ networkSummary(detail) }}</strong>
-              </div>
-              <div class="container-detail-kv">
-                <span>{{ t('container.detail.network.name') }}</span>
-                <strong>{{ primaryNetworkName(detail) }}</strong>
+                <strong>{{ networkSummary(safeDetail) }}</strong>
               </div>
               <div class="container-detail-kv">
                 <span>{{ t('container.detail.network.ports') }}</span>
-                <div v-if="detail.ports.length" class="container-detail-port-list">
-                  <t-tag
-                    v-for="port in detail.ports"
-                    :key="portLabel(port)"
-                    class="container-detail-port-chip"
-                    theme="default"
-                    variant="light-outline"
-                  >
-                    {{ portLabel(port) }}
-                  </t-tag>
-                </div>
+                <strong v-if="safeDetail.ports.length">
+                  {{ t('container.detail.network.portCount', { count: safeDetail.ports.length }) }}
+                </strong>
                 <strong v-else>{{ t('container.detail.network.noPublicPorts') }}</strong>
               </div>
             </div>
@@ -428,9 +420,9 @@
                         {{ t('container.detail.health.restartCount') }}
                       </span>
                       <strong class="container-health-summary-card__value">
-                        {{ restartCountLabel(detail.restart_count) }}
+                        {{ restartCountLabel(safeDetail.restart_count) }}
                       </strong>
-                      <p>{{ restartSummaryLabel(detail.restart_count) }}</p>
+                      <p>{{ restartSummaryLabel(safeDetail.restart_count) }}</p>
                     </t-card>
 
                     <t-card
@@ -443,7 +435,7 @@
                         {{ t('container.detail.health.recentCheck') }}
                       </span>
                       <strong class="container-health-summary-card__value">
-                        {{ healthcheckDetails.lastCheckedAt || formatTime(detail.inspect_updated_at) }}
+                        {{ healthcheckDetails.lastCheckedAt || formatTime(safeDetail.inspect_updated_at) }}
                       </strong>
                       <p>{{ healthcheckDetails.relativeCheckedAt || inspectUpdatedRelative }}</p>
                     </t-card>
@@ -537,16 +529,16 @@
                       table-layout="auto"
                     >
                       <t-descriptions-item :label="t('container.list.fields.startedAt')">
-                        {{ formatTime(detail.started_at) }}
+                        {{ formatTime(safeDetail.started_at) }}
                       </t-descriptions-item>
                       <t-descriptions-item :label="t('container.detail.health.uptime')">
-                        {{ uptimeLabel(detail.started_at) }}
+                        {{ uptimeLabel(safeDetail.started_at) }}
                       </t-descriptions-item>
                       <t-descriptions-item :label="t('container.list.fields.restartPolicy')">
-                        {{ detail.restart_policy || '-' }}
+                        {{ safeDetail.restart_policy || '-' }}
                       </t-descriptions-item>
                       <t-descriptions-item :label="t('container.detail.health.restartCount')">
-                        {{ detail.restart_count ?? '-' }}
+                        {{ safeDetail.restart_count ?? '-' }}
                       </t-descriptions-item>
                       <t-descriptions-item :label="t('container.detail.health.lastExitCode')">
                         {{ runtimeStability.lastExitCode }}
@@ -698,29 +690,214 @@
             </t-tab-panel>
 
             <t-tab-panel value="network" :label="t('container.detail.tabs.network')" :destroy-on-hide="false">
-              <section class="container-detail-section">
-                <t-table
-                  v-if="detail.networks.length"
-                  row-key="name"
-                  size="small"
-                  :columns="networkColumns"
-                  :data="detail.networks"
-                  :pagination="undefined"
-                  table-layout="fixed"
-                  cell-empty-content="-"
-                />
-                <t-empty v-else size="small" :description="t('container.list.detail.networkEmpty')" />
+              <section class="container-detail-section container-detail-section--network">
+                <section class="container-network-panel">
+                  <header class="container-network-panel__header">
+                    <h3>{{ t('container.detail.network.connections') }}</h3>
+                  </header>
+                  <template v-if="networkConnections.length">
+                    <article v-if="networkConnections.length === 1" class="container-network-connection-card">
+                      <header class="container-network-connection-card__header">
+                        <span class="container-network-connection-card__label">
+                          {{ t('container.detail.network.name') }}
+                        </span>
+                        <copyable-detail-value
+                          class="container-network-connection-card__name"
+                          :copy-label="t('container.detail.copy')"
+                          :value="networkConnections[0].name"
+                          :display-value="displayOptionalValue(networkConnections[0].name)"
+                          code
+                          data-testid="network-name-copy-0"
+                          @copy="copyDetailText"
+                        />
+                      </header>
+                      <div class="container-network-field-grid">
+                        <div
+                          v-for="field in singleNetworkFields"
+                          :key="field.key"
+                          class="container-network-field"
+                          :class="{ 'container-network-field--technical': field.technical }"
+                        >
+                          <span>{{ field.label }}</span>
+                          <copyable-detail-value
+                            v-if="field.copyable"
+                            :copy-label="t('container.detail.copy')"
+                            :value="field.copyValue"
+                            :display-value="field.displayValue"
+                            code
+                            :data-testid="field.testId"
+                            @copy="copyDetailText"
+                          />
+                          <strong v-else>{{ field.displayValue }}</strong>
+                        </div>
+                      </div>
+                    </article>
+                    <t-table
+                      v-else
+                      row-key="name"
+                      size="small"
+                      :columns="networkColumns"
+                      :data="networkConnections"
+                      :pagination="undefined"
+                      table-layout="fixed"
+                      :cell-empty-content="t('container.detail.network.noData')"
+                    >
+                      <template #name="{ row, rowIndex }">
+                        <copyable-detail-value
+                          :copy-label="t('container.detail.copy')"
+                          :value="row.name"
+                          :display-value="displayOptionalValue(row.name)"
+                          code
+                          :data-testid="`network-name-copy-${rowIndex}`"
+                          @copy="copyDetailText"
+                        />
+                      </template>
+                      <template #ip_address="{ row, rowIndex }">
+                        <copyable-detail-value
+                          :copy-label="t('container.detail.copy')"
+                          :value="row.ip_address || ''"
+                          :display-value="displayOptionalValue(row.ip_address)"
+                          code
+                          :data-testid="`network-ip-copy-${rowIndex}`"
+                          @copy="copyDetailText"
+                        />
+                      </template>
+                      <template #gateway="{ row }">
+                        {{ displayOptionalValue(row.gateway) }}
+                      </template>
+                      <template #mac_address="{ row, rowIndex }">
+                        <copyable-detail-value
+                          :copy-label="t('container.detail.copy')"
+                          :value="row.mac_address || ''"
+                          :display-value="displayOptionalValue(row.mac_address)"
+                          code
+                          :data-testid="`network-mac-copy-${rowIndex}`"
+                          @copy="copyDetailText"
+                        />
+                      </template>
+                      <template #network_id="{ row, rowIndex }">
+                        <copyable-detail-value
+                          :copy-label="t('container.detail.copy')"
+                          :value="row.network_id || ''"
+                          :display-value="displayTechnicalIdentifier(row.network_id)"
+                          code
+                          :data-testid="`network-id-copy-${rowIndex}`"
+                          @copy="copyDetailText"
+                        />
+                      </template>
+                      <template #endpoint_id="{ row, rowIndex }">
+                        <copyable-detail-value
+                          :copy-label="t('container.detail.copy')"
+                          :value="row.endpoint_id || ''"
+                          :display-value="displayTechnicalIdentifier(row.endpoint_id)"
+                          code
+                          :data-testid="`network-endpoint-copy-${rowIndex}`"
+                          @copy="copyDetailText"
+                        />
+                      </template>
+                    </t-table>
+                  </template>
+                  <t-empty v-else size="small" :description="t('container.list.detail.networkEmpty')" />
+                </section>
+
+                <section class="container-network-panel">
+                  <header class="container-network-panel__header">
+                    <h3>{{ t('container.detail.network.ports') }}</h3>
+                  </header>
+                  <article
+                    v-if="portMappingRows.length === 1"
+                    class="container-port-mapping-card"
+                    :class="{ 'container-port-mapping-card--internal': !portMappingRows[0].hasHostBinding }"
+                  >
+                    <div class="container-port-mapping-card__main">
+                      <span class="container-port-mapping-card__label">
+                        {{ t('container.detail.network.containerPort') }}
+                      </span>
+                      <copyable-detail-value
+                        :copy-label="t('container.detail.copy')"
+                        :value="portMappingRows[0].copyValue"
+                        :display-value="portMappingRows[0].mapping"
+                        code
+                        data-testid="port-mapping-copy-0"
+                        @copy="copyDetailText"
+                      />
+                    </div>
+                    <span class="container-port-mapping-card__description">
+                      {{ portMappingRows[0].description }}
+                    </span>
+                  </article>
+                  <t-table
+                    v-else-if="portMappingRows.length > 1"
+                    row-key="key"
+                    size="small"
+                    :columns="portColumns"
+                    :data="portMappingRows"
+                    :pagination="undefined"
+                    table-layout="fixed"
+                    :cell-empty-content="t('container.detail.network.noData')"
+                  >
+                    <template #privatePort="{ row }">
+                      <code class="container-network-code">{{ row.privatePort }}</code>
+                    </template>
+                    <template #publicPort="{ row }">
+                      <code class="container-network-code">{{ row.publicPort }}</code>
+                    </template>
+                    <template #protocol="{ row }">
+                      <code class="container-network-code">{{ row.protocol }}</code>
+                    </template>
+                    <template #listenAddress="{ row }">
+                      <code class="container-network-code">{{ row.listenAddress }}</code>
+                    </template>
+                    <template #mapping="{ row, rowIndex }">
+                      <copyable-detail-value
+                        :copy-label="t('container.detail.copy')"
+                        :value="row.copyValue"
+                        :display-value="row.mapping"
+                        code
+                        :data-testid="`port-mapping-copy-${rowIndex}`"
+                        @copy="copyDetailText"
+                      />
+                    </template>
+                  </t-table>
+                  <t-empty v-else size="small" :description="t('container.list.detail.portEmpty')" />
+                </section>
+
+                <section class="container-network-panel">
+                  <header class="container-network-panel__header">
+                    <h3>{{ t('container.detail.network.aliasDns') }}</h3>
+                  </header>
+                  <div
+                    v-if="networkMetadataFields.length"
+                    class="container-network-field-grid container-network-field-grid--metadata"
+                  >
+                    <div
+                      v-for="field in networkMetadataFields"
+                      :key="field.key"
+                      class="container-network-field"
+                      :class="{ 'container-network-field--technical': field.technical }"
+                    >
+                      <span>{{ field.label }}</span>
+                      <strong>{{ field.displayValue }}</strong>
+                    </div>
+                  </div>
+                  <t-empty
+                    v-if="!hasAdditionalNetworkMetadata"
+                    class="container-network-metadata-empty"
+                    size="small"
+                    :description="t('container.detail.network.aliasDnsEmpty')"
+                  />
+                </section>
               </section>
             </t-tab-panel>
 
             <t-tab-panel value="storage" :label="t('container.detail.tabs.storage')" :destroy-on-hide="false">
               <section class="container-detail-section">
                 <t-table
-                  v-if="detail.mounts.length"
+                  v-if="safeDetail.mounts.length"
                   row-key="destination"
                   size="small"
                   :columns="mountColumns"
-                  :data="detail.mounts"
+                  :data="safeDetail.mounts"
                   :pagination="undefined"
                   table-layout="fixed"
                   cell-empty-content="-"
@@ -736,7 +913,7 @@
             <t-tab-panel value="raw" :label="t('container.detail.tabs.raw')" :destroy-on-hide="false">
               <section class="container-detail-section">
                 <json-viewer
-                  :value="detail"
+                  :value="safeDetail"
                   :title="t('container.detail.raw.title')"
                   :description="t('container.detail.raw.description')"
                   :root-label="t('container.detail.raw.root')"
@@ -754,8 +931,8 @@
         </t-card>
       </template>
 
-      <t-empty v-else-if="!error" size="small" :description="t('container.detail.empty')" />
-    </t-loading>
+      <t-empty v-else class="container-detail-state" size="small" :description="t('container.detail.empty')" />
+    </section>
   </div>
 </template>
 <script setup lang="ts">
@@ -765,7 +942,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
-import { LOCALE } from '@/contracts/i18n/locales';
+import { LOCALE, type LocalizedTitle } from '@/contracts/i18n/locales';
 import { ManagementPageHeader } from '@/shared/components/management';
 import { MetricCard } from '@/shared/components/metrics';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
@@ -817,6 +994,35 @@ type RuntimeConfigItem = {
   label: string;
   rawValue: string;
   value: string;
+};
+type NetworkField = {
+  copyValue: string;
+  copyable: boolean;
+  displayValue: string;
+  key: string;
+  label: string;
+  testId?: string;
+  technical?: boolean;
+};
+type PortMappingRow = {
+  copyValue: string;
+  description: string;
+  hasHostBinding: boolean;
+  key: string;
+  listenAddress: string;
+  mapping: string;
+  privatePort: string;
+  protocol: string;
+  publicPort: string;
+};
+type SafeContainerDetail = ContainerDetail & {
+  command: string[];
+  entrypoint: string[];
+  environment: NonNullable<ContainerDetail['environment']>;
+  mounts: NonNullable<ContainerDetail['mounts']>;
+  names: NonNullable<ContainerDetail['names']>;
+  networks: NonNullable<ContainerDetail['networks']>;
+  ports: NonNullable<ContainerDetail['ports']>;
 };
 type ResourceStatusTheme = 'success' | 'warning' | 'default';
 type HealthStatusTheme = 'success' | 'warning' | 'danger' | 'default';
@@ -907,19 +1113,130 @@ const environmentKeyword = ref('');
 const environmentPolicyFilter = ref<EnvironmentPolicyFilter>('all');
 
 const containerId = computed(() => String(route.params.id ?? '').trim());
+const shortContainerIdFallback = computed(() => shortIdentifier(containerId.value, undefined, 12));
+const safeDetail = computed(() => normalizeDetail(detail.value));
+const activeTabRoute = computed(() =>
+  tabsRouterStore.tabRouterList.find(
+    (tab) => tab.tabKey === route.path || tab.path === route.path || tab.fullPath === route.fullPath,
+  ),
+);
+const fallbackDisplayName = computed(() => {
+  const tabTitle = readNameFromTabTitle(activeTabRoute.value?.title);
+  if (tabTitle) {
+    return tabTitle;
+  }
+
+  const queryName = readQueryString(route.query.name);
+  if (queryName) {
+    return queryName;
+  }
+
+  if (containerId.value) {
+    return shortContainerIdFallback.value;
+  }
+
+  return '';
+});
+const fallbackTitle = computed(() => buildDetailTitle(fallbackDisplayName.value));
 const detailBreadcrumb = computed(() => [
   { labelKey: 'container.list.eyebrow', fallback: t('container.list.eyebrow') },
-  { labelKey: 'container.detail.title', fallback: t('container.detail.title') },
+  { labelKey: 'container.detail.title', fallback: fallbackTitle.value[LOCALE.ZH_CN] },
 ]);
 const pageTitle = computed(() => {
-  if (detail.value) {
-    return displayName(detail.value);
+  if (safeDetail.value) {
+    return displayName(safeDetail.value);
   }
-  return containerId.value || t('container.detail.title');
+  return fallbackDisplayName.value || t('container.detail.title');
 });
-const environmentRows = computed(() => normalizeEnvironmentRows(detail.value));
+const environmentRows = computed(() => normalizeEnvironmentRows(safeDetail.value));
+const networkConnections = computed(() => safeDetail.value?.networks ?? []);
+const singleNetworkFields = computed<NetworkField[]>(() => {
+  const network = networkConnections.value[0];
+  if (!network) {
+    return [];
+  }
+
+  return [
+    createNetworkField(
+      'ip-address',
+      t('container.detail.network.ipAddress'),
+      network.ip_address,
+      true,
+      'network-ip-copy-0',
+    ),
+    createNetworkField('gateway', t('container.detail.network.gateway'), network.gateway),
+    createNetworkField(
+      'mac-address',
+      t('container.detail.network.macAddress'),
+      network.mac_address,
+      true,
+      'network-mac-copy-0',
+    ),
+    createNetworkField('subnet', t('container.detail.network.subnet')),
+    createNetworkField(
+      'network-id',
+      t('container.detail.network.networkId'),
+      network.network_id,
+      true,
+      'network-id-copy-0',
+      true,
+    ),
+    createNetworkField(
+      'endpoint-id',
+      t('container.detail.network.endpointId'),
+      network.endpoint_id,
+      true,
+      'network-endpoint-copy-0',
+      true,
+    ),
+  ];
+});
+const portMappingRows = computed<PortMappingRow[]>(() =>
+  (safeDetail.value?.ports ?? []).map((port, index) => {
+    const privatePort = formatPortNumber(port.private_port);
+    const publicPort = formatPortNumber(port.public_port);
+    const protocol = port.type || '-';
+    const hasHostBinding = hasPublishedHostBinding(port);
+    const listenAddress = hasHostBinding ? displayOptionalValue(port.ip) : t('container.detail.network.notPublished');
+    const mapping = portMappingLabel(port);
+
+    return {
+      copyValue: mapping,
+      description: hasHostBinding
+        ? t('container.detail.network.publishedToHost')
+        : t('container.detail.network.internalOnly'),
+      hasHostBinding,
+      key: `${listenAddress}:${publicPort}:${privatePort}/${protocol}:${index}`,
+      listenAddress,
+      mapping,
+      privatePort,
+      protocol,
+      publicPort,
+    };
+  }),
+);
+const networkMetadataFields = computed<NetworkField[]>(() => {
+  const current = safeDetail.value;
+  if (!current) {
+    return [];
+  }
+
+  const hostname = readContainerHostname(current);
+  const aliases = readStringListFromRecord(current, ['aliases', 'network_aliases']);
+  const dns = readStringListFromRecord(current, ['dns', 'dns_servers', 'dns_nameservers']);
+  const fields = [
+    createNetworkField('hostname', t('container.detail.network.hostname'), hostname),
+    createNetworkField('aliases', t('container.detail.network.aliases'), aliases.join(', ')),
+    createNetworkField('dns', t('container.detail.network.dns'), dns.join(', ')),
+  ];
+
+  return fields.filter((field) => field.copyValue);
+});
+const hasAdditionalNetworkMetadata = computed(() =>
+  networkMetadataFields.value.some((field) => field.key === 'aliases' || field.key === 'dns'),
+);
 const runtimeConfigItems = computed<RuntimeConfigItem[]>(() => {
-  const current = detail.value;
+  const current = safeDetail.value;
   return [
     {
       copyable: Boolean(joinList(current?.command).trim() && joinList(current?.command) !== '-'),
@@ -980,7 +1297,7 @@ const environmentEmptyState = computed(() => {
   };
 });
 const healthDiagnosis = computed(() => {
-  const current = detail.value;
+  const current = safeDetail.value;
   if (!current) {
     return {
       description: '-',
@@ -990,16 +1307,16 @@ const healthDiagnosis = computed(() => {
   }
   return resolveHealthDiagnosis(current);
 });
-const healthcheckDetails = computed(() => resolveHealthcheckDetails(detail.value?.healthcheck));
+const healthcheckDetails = computed(() => resolveHealthcheckDetails(safeDetail.value?.healthcheck));
 const inspectUpdatedRelative = computed(() => {
-  const current = detail.value;
+  const current = safeDetail.value;
   if (!current?.inspect_updated_at) {
     return t('container.detail.health.noRecentCheck');
   }
   return t('container.detail.health.updatedFromInspect');
 });
 const runtimeStability = computed(() => {
-  const current = detail.value;
+  const current = safeDetail.value;
   const risk = resolveRuntimeStability(current);
   return {
     ...risk,
@@ -1008,7 +1325,7 @@ const runtimeStability = computed(() => {
   };
 });
 const resourceMetrics = computed(() => {
-  const current = detail.value;
+  const current = safeDetail.value;
   const resource = current?.resource;
   const cpuValue = formatPercent(resource?.cpu_percent);
   const memoryPercent = formatPercent(resource?.memory_percent);
@@ -1033,7 +1350,7 @@ const resourceMetrics = computed(() => {
 });
 const cpuDetailMetrics = computed(() =>
   buildCpuDetailMetrics(
-    detail.value?.resource,
+    safeDetail.value?.resource,
     {
       cpuLimit: t('container.detail.resources.cpuLimitWithOnline'),
       cpuPercent: t('container.detail.resources.cpuPercent'),
@@ -1050,7 +1367,7 @@ const cpuDetailMetrics = computed(() =>
   ),
 );
 const resourceDetailGroups = computed<ResourceDetailGroup[]>(() => {
-  const current = detail.value;
+  const current = safeDetail.value;
   if (!current) {
     return [];
   }
@@ -1125,7 +1442,7 @@ const resourceDetailGroups = computed<ResourceDetailGroup[]>(() => {
   ];
 });
 const overviewSections = computed<ContainerOverviewInfoSection[]>(() => {
-  const current = detail.value;
+  const current = safeDetail.value;
   if (!current) {
     return [];
   }
@@ -1276,6 +1593,15 @@ const networkColumns = computed<TableProps['columns']>(() => [
   { colKey: 'ip_address', title: t('container.detail.network.ipAddress'), minWidth: 160, ellipsis: true },
   { colKey: 'gateway', title: t('container.detail.network.gateway'), minWidth: 160, ellipsis: true },
   { colKey: 'mac_address', title: t('container.detail.network.macAddress'), minWidth: 180, ellipsis: true },
+  { colKey: 'network_id', title: t('container.detail.network.networkId'), minWidth: 180, ellipsis: true },
+  { colKey: 'endpoint_id', title: t('container.detail.network.endpointId'), minWidth: 180, ellipsis: true },
+]);
+const portColumns = computed<TableProps['columns']>(() => [
+  { colKey: 'privatePort', title: t('container.detail.network.containerPort'), minWidth: 140, ellipsis: true },
+  { colKey: 'publicPort', title: t('container.detail.network.hostPort'), minWidth: 140, ellipsis: true },
+  { colKey: 'protocol', title: t('container.detail.network.protocol'), width: 120, align: 'center' },
+  { colKey: 'listenAddress', title: t('container.detail.network.listenAddress'), minWidth: 160, ellipsis: true },
+  { colKey: 'mapping', title: t('container.detail.network.mapping'), minWidth: 220, ellipsis: true },
 ]);
 const mountColumns = computed<TableProps['columns']>(() => [
   { colKey: 'destination', title: t('container.detail.storage.destination'), minWidth: 240, ellipsis: true },
@@ -1286,6 +1612,7 @@ const mountColumns = computed<TableProps['columns']>(() => [
 ]);
 
 onMounted(() => {
+  updateCurrentTabTitle(fallbackTitle.value);
   void loadDetail();
   if (activeTab.value === 'logs') {
     void loadLogs();
@@ -1332,7 +1659,10 @@ async function loadDetail() {
   error.value = '';
   try {
     detail.value = await getContainer(containerId.value);
-    updateCurrentTabTitle(detail.value);
+    const current = safeDetail.value;
+    if (current) {
+      updateCurrentTabTitle(buildDetailTitle(displayName(current)));
+    }
   } catch (loadError) {
     detail.value = null;
     error.value = resolveLocalizedErrorMessage(t, loadError, t('container.list.detail.loadFailed'));
@@ -1392,6 +1722,7 @@ function resetDetailState() {
   error.value = '';
   logs.value = null;
   logsError.value = '';
+  updateCurrentTabTitle(fallbackTitle.value);
 }
 
 function handleTabChange(value: string | number) {
@@ -1578,15 +1909,27 @@ function formatEnvironmentLine(row: EnvironmentRow) {
   return `${row.name}=${row.rawValue}`;
 }
 
-function updateCurrentTabTitle(current: ContainerDetail | null) {
-  if (!current) {
+function normalizeDetail(current: ContainerDetail | null): SafeContainerDetail | null {
+  if (!current || typeof current !== 'object') {
+    return null;
+  }
+
+  return {
+    ...current,
+    command: Array.isArray(current.command) ? current.command : [],
+    entrypoint: Array.isArray(current.entrypoint) ? current.entrypoint : [],
+    environment: Array.isArray(current.environment) ? current.environment : [],
+    mounts: Array.isArray(current.mounts) ? current.mounts : [],
+    names: Array.isArray(current.names) ? current.names : [],
+    networks: Array.isArray(current.networks) ? current.networks : [],
+    ports: Array.isArray(current.ports) ? current.ports : [],
+  };
+}
+
+function updateCurrentTabTitle(title: LocalizedTitle) {
+  if (!hasMeaningfulTitle(title)) {
     return;
   }
-  const name = displayName(current);
-  const title = {
-    [LOCALE.ZH_CN]: `${t('container.detail.title')} - ${name}`,
-    [LOCALE.EN_US]: `Container Detail - ${name}`,
-  };
   const routePath = route.path;
   const routeFullPath = route.fullPath;
   tabsRouterStore.tabRouterList = tabsRouterStore.tabRouterList.map((tab) =>
@@ -1594,7 +1937,55 @@ function updateCurrentTabTitle(current: ContainerDetail | null) {
   );
 }
 
-function displayName(row: ContainerDetail) {
+function hasMeaningfulTitle(title: LocalizedTitle) {
+  return Boolean(title[LOCALE.ZH_CN]?.trim() || title[LOCALE.EN_US]?.trim());
+}
+
+function buildDetailTitle(name: string): LocalizedTitle {
+  const normalizedName = name.trim();
+  const baseTitle = t('container.detail.title');
+  if (!normalizedName || normalizedName === baseTitle) {
+    return {
+      [LOCALE.ZH_CN]: baseTitle,
+      [LOCALE.EN_US]: 'Container Detail',
+    };
+  }
+
+  return {
+    [LOCALE.ZH_CN]: `${baseTitle} - ${normalizedName}`,
+    [LOCALE.EN_US]: `Container Detail - ${normalizedName}`,
+  };
+}
+
+function readNameFromTabTitle(title?: LocalizedTitle) {
+  if (!title) {
+    return '';
+  }
+
+  return extractNameFromTitle(title[LOCALE.ZH_CN]) || extractNameFromTitle(title[LOCALE.EN_US]);
+}
+
+function extractNameFromTitle(value?: string) {
+  const normalized = value?.trim() ?? '';
+  if (!normalized) {
+    return '';
+  }
+
+  const separator = ' - ';
+  const index = normalized.indexOf(separator);
+  if (index === -1) {
+    return '';
+  }
+
+  return normalized.slice(index + separator.length).trim();
+}
+
+function readQueryString(value: unknown) {
+  const raw = Array.isArray(value) ? value[0] : value;
+  return typeof raw === 'string' ? raw.trim() : '';
+}
+
+function displayName(row: SafeContainerDetail) {
   return row.name || row.names[0] || shortContainerId(row);
 }
 
@@ -1802,6 +2193,89 @@ function primaryNetworkName(nextDetail: ContainerDetail) {
   return nextDetail.networks[0]?.name || '-';
 }
 
+function createNetworkField(
+  key: string,
+  label: string,
+  value = '',
+  copyable = false,
+  testId?: string,
+  technical = false,
+): NetworkField {
+  const displayValue = technical ? displayTechnicalIdentifier(value) : displayOptionalValue(value);
+  return {
+    copyValue: displayValue === t('container.detail.network.noData') ? '' : value.trim(),
+    copyable: copyable && Boolean(value.trim()),
+    displayValue,
+    key,
+    label,
+    testId,
+    technical,
+  };
+}
+
+function displayOptionalValue(value?: string | number | null) {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return String(value);
+  }
+  const normalized = typeof value === 'string' ? value.trim() : '';
+  return normalized || t('container.detail.network.noData');
+}
+
+function displayTechnicalIdentifier(value?: string | null) {
+  const normalized = value?.trim() ?? '';
+  if (!normalized) {
+    return t('container.detail.network.noData');
+  }
+  return `${normalized.slice(0, 12)}...${normalized.slice(-6)}`;
+}
+
+function formatPortNumber(value?: number | null) {
+  return typeof value === 'number' && Number.isFinite(value) ? String(value) : t('container.detail.network.noData');
+}
+
+function hasPublishedHostBinding(port: ContainerDetail['ports'][number]) {
+  return typeof port.public_port === 'number' && Number.isFinite(port.public_port);
+}
+
+function portMappingLabel(port: ContainerDetail['ports'][number]) {
+  const privatePort = formatPortNumber(port.private_port);
+  const containerEndpoint = `${privatePort}/${port.type || '-'}`;
+  if (!hasPublishedHostBinding(port)) {
+    return `${containerEndpoint} / ${t('container.detail.network.notPublished')}`;
+  }
+  const publicPort = formatPortNumber(port.public_port);
+  const listenAddress = port.ip?.trim();
+  const hostPart = listenAddress ? `${listenAddress}:${publicPort}` : publicPort;
+  return `${hostPart}->${containerEndpoint}`;
+}
+
+function readContainerHostname(current: SafeContainerDetail) {
+  const record = readUnknownRecord(current);
+  const hostname = readString(record?.hostname);
+  return hostname || displayName(current);
+}
+
+function readStringListFromRecord(current: SafeContainerDetail, keys: string[]) {
+  const record = readUnknownRecord(current);
+  if (!record) {
+    return [];
+  }
+
+  for (const key of keys) {
+    const value = record[key];
+    if (Array.isArray(value)) {
+      return value.map((item) => readString(item)).filter(Boolean);
+    }
+    if (typeof value === 'string' && value.trim()) {
+      return value
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean);
+    }
+  }
+  return [];
+}
+
 function resourceStatus(nextDetail: ContainerDetail) {
   const resource = nextDetail.resource;
   if (resource?.stats_available || resource?.available) {
@@ -1864,7 +2338,7 @@ function readCpuCountText() {
 }
 
 function readResourceMetric(key: ResourceMetricKey) {
-  return detail.value?.resource?.[key];
+  return safeDetail.value?.resource?.[key];
 }
 
 function formatNumberMetric(value: unknown) {
@@ -1920,9 +2394,37 @@ function portLabel(port: ContainerDetail['ports'][number]) {
 <style scoped lang="less">
 .container-detail-page {
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: var(--graft-density-gap-16);
+  min-height: 0;
   min-width: 0;
+}
+
+.container-detail-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--graft-density-gap-16);
+  min-height: 420px;
+  min-width: 0;
+}
+
+.container-detail-state {
+  align-items: center;
+  display: flex;
+  flex: 1;
+  justify-content: center;
+  min-height: 420px;
+  min-width: 0;
+}
+
+.container-detail-state :deep(.t-loading__parent) {
+  width: min(100%, 760px);
+}
+
+.container-detail-state-alert {
+  flex: 0 0 auto;
 }
 
 .container-detail-summary {
@@ -2152,6 +2654,162 @@ function portLabel(port: ContainerDetail['ports'][number]) {
 .container-detail-section--config {
   gap: var(--graft-density-gap-16);
   padding: 0 var(--graft-density-gap-16) var(--graft-density-gap-16);
+}
+
+.container-detail-section--network {
+  gap: var(--graft-density-gap-16);
+  min-height: 360px;
+  padding: 0 var(--graft-density-gap-16) var(--graft-density-gap-16);
+}
+
+.container-network-panel {
+  background: var(--td-bg-color-container);
+  border: 1px solid color-mix(in srgb, var(--td-component-stroke) 70%, transparent);
+  border-radius: var(--td-radius-medium);
+  display: flex;
+  flex-direction: column;
+  gap: var(--graft-density-gap-12);
+  min-width: 0;
+  padding: var(--graft-density-gap-14) var(--graft-density-gap-16);
+}
+
+.container-network-panel__header {
+  align-items: center;
+  display: flex;
+  gap: var(--graft-density-gap-8);
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.container-network-panel__header h3,
+.container-network-connection-card__header h4 {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-title-small);
+  font-weight: 600;
+  margin: 0;
+}
+
+.container-network-connection-card {
+  background: color-mix(in srgb, var(--td-bg-color-container) 92%, var(--td-bg-color-page));
+  border: 1px solid color-mix(in srgb, var(--td-component-stroke) 68%, transparent);
+  border-radius: var(--td-radius-default);
+  display: flex;
+  flex-direction: column;
+  gap: var(--graft-density-gap-12);
+  min-width: 0;
+  padding: var(--graft-density-gap-12);
+}
+
+.container-network-connection-card__header {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--graft-density-gap-8);
+  min-width: 0;
+}
+
+.container-network-connection-card__label,
+.container-port-mapping-card__label {
+  color: var(--td-text-color-placeholder);
+  font: var(--td-font-body-small);
+}
+
+.container-network-connection-card__name {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-title-small);
+  font-weight: 600;
+  min-width: 0;
+}
+
+.container-network-field-grid {
+  display: grid;
+  gap: var(--graft-density-gap-12);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  min-width: 0;
+}
+
+.container-network-field-grid--metadata {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.container-network-field {
+  display: grid;
+  gap: var(--graft-density-gap-4);
+  min-width: 0;
+}
+
+.container-network-field > span {
+  color: var(--td-text-color-placeholder);
+  font: var(--td-font-body-small);
+}
+
+.container-network-field strong,
+.container-network-code {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-body-medium);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.container-network-field--technical strong,
+.container-network-field--technical :deep(.container-detail-copyable-value__text) {
+  color: var(--td-text-color-secondary);
+  font-size: var(--td-font-size-body-small);
+}
+
+.container-network-code {
+  display: inline-block;
+  font-family: var(
+    --td-font-family-mono,
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    'Liberation Mono',
+    monospace
+  );
+  max-width: 100%;
+}
+
+.container-port-mapping-card {
+  align-items: center;
+  background: color-mix(in srgb, var(--td-bg-color-container) 94%, var(--td-bg-color-page));
+  border: 1px solid color-mix(in srgb, var(--td-component-stroke) 62%, transparent);
+  border-radius: var(--td-radius-default);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--graft-density-gap-10) var(--graft-density-gap-16);
+  justify-content: space-between;
+  min-width: 0;
+  padding: var(--graft-density-gap-12);
+}
+
+.container-port-mapping-card--internal {
+  background: color-mix(in srgb, var(--td-warning-color-1) 24%, var(--td-bg-color-container));
+  border-color: color-mix(in srgb, var(--td-warning-color) 22%, var(--td-component-stroke));
+}
+
+.container-port-mapping-card__main {
+  align-items: center;
+  display: flex;
+  flex: 1 1 320px;
+  flex-wrap: wrap;
+  gap: var(--graft-density-gap-8);
+  min-width: 0;
+}
+
+.container-port-mapping-card__description {
+  color: var(--td-text-color-secondary);
+  flex: 0 1 auto;
+  font: var(--td-font-body-small);
+  min-width: 0;
+}
+
+.container-network-metadata-empty {
+  align-items: flex-start;
 }
 
 .container-config-section {

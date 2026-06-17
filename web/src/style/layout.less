@@ -138,23 +138,31 @@
 
   &-content-layout {
     background: var(--graft-shell-content-bg);
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+    min-width: 0;
     overflow-x: clip;
     padding: var(--td-comp-paddingTB-xl) var(--graft-page-side-padding);
 
     &__body {
       display: flex;
+      flex: 1;
       flex-direction: column;
       gap: var(--graft-density-gap-12);
-      min-height: 100%;
+      min-height: 0;
+      min-width: 0;
     }
   }
 
   &-layout {
+    display: flex;
     flex: 1;
+    flex-direction: column;
     min-height: 0;
-    overflow-y: auto;
+    overflow: hidden;
     overscroll-behavior: contain;
-    scrollbar-gutter: stable;
 
     &-tabs-nav {
       max-width: 100%;
@@ -187,9 +195,12 @@
 
   &-page-container {
     display: flex;
-    flex: 1 0 auto;
+    flex: 1;
     flex-direction: column;
-    min-height: 100%;
+    min-height: 0;
+    min-width: 0;
+    overflow: hidden auto;
+    scrollbar-gutter: stable;
     width: 100%;
 
     &__main {
@@ -202,6 +213,26 @@
       min-height: 0;
       min-width: 0;
       width: min(var(--graft-page-width-ratio), var(--graft-page-max-width));
+    }
+
+    &__content {
+      display: flex;
+      flex: 1 0 auto;
+      flex-direction: column;
+      min-height: 100%;
+      min-width: 0;
+    }
+
+    &::-webkit-scrollbar {
+      background: transparent;
+      width: 8px;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background-clip: content-box;
+      background-color: var(--td-scrollbar-color);
+      border: 2px solid transparent;
+      border-radius: 6px;
     }
 
     &__main--shell {
@@ -228,6 +259,7 @@
   }
 
   &-footer-layout {
+    flex-shrink: 0;
     margin-top: var(--td-comp-margin-xl);
   }
 

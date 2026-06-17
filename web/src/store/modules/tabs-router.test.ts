@@ -264,6 +264,38 @@ describe('useTabsRouterStore', () => {
     expect(detailTab?.title?.[LOCALE.EN_US]).toBe('Container Detail - graft-web');
   });
 
+  it('keeps an enriched tab title when the same route path is appended with another query', () => {
+    const tabsRouterStore = useTabsRouterStore();
+
+    tabsRouterStore.appendTabRouterList({
+      tabKey: '/ops/containers/container-1',
+      path: '/ops/containers/container-1',
+      fullPath: '/ops/containers/container-1?tab=overview',
+      title: {
+        [LOCALE.ZH_CN]: '容器详情 - graft-web',
+        [LOCALE.EN_US]: 'Container Detail - graft-web',
+      },
+      name: 'ContainerDetailIndex',
+    });
+
+    tabsRouterStore.appendTabRouterList({
+      tabKey: '/ops/containers/container-1',
+      path: '/ops/containers/container-1',
+      fullPath: '/ops/containers/container-1?tab=logs',
+      query: { tab: 'logs' },
+      title: {
+        [LOCALE.ZH_CN]: '容器详情',
+        [LOCALE.EN_US]: 'Container Detail',
+      },
+      name: 'ContainerDetailIndex',
+    });
+
+    const detailTab = tabsRouterStore.tabRouters.find((tab) => tab.tabKey === '/ops/containers/container-1');
+    expect(detailTab?.fullPath).toBe('/ops/containers/container-1?tab=logs');
+    expect(detailTab?.title?.[LOCALE.ZH_CN]).toBe('容器详情 - graft-web');
+    expect(detailTab?.title?.[LOCALE.EN_US]).toBe('Container Detail - graft-web');
+  });
+
   it('closes all closable tabs while preserving home and pinned tabs', () => {
     const tabsRouterStore = useTabsRouterStore();
 

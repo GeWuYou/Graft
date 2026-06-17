@@ -399,8 +399,10 @@ const handleDragend = (options: { currentIndex: number; targetIndex: number }) =
 .t-layout[data-page-type] {
   background: transparent;
   display: flex;
+  flex: 1;
   flex-direction: column;
-  min-height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .t-layout[data-page-type] :deep(.tdesign-starter-layout-tabs-nav) {
@@ -448,7 +450,7 @@ const handleDragend = (options: { currentIndex: number; targetIndex: number }) =
   flex: 1;
   flex-direction: column;
   gap: var(--td-comp-margin-xl);
-  min-height: 100%;
+  min-height: 0;
 }
 
 .t-layout[data-page-type='overview-dashboard'] :deep(.tdesign-starter-content-layout) {

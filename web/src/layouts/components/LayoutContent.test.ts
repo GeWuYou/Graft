@@ -203,6 +203,19 @@ const TDialogStub = defineComponent({
   },
 });
 
+const LContentStub = defineComponent({
+  name: 'LContent',
+  emits: ['page-surface-enter'],
+  setup() {
+    return () =>
+      h('div', { class: 'route-view-host route-loading-host', 'data-testid': 'route-view-host' }, [
+        h('div', { class: 'route-page-loading', 'data-testid': 'route-loading-host' }, [
+          h('div', { 'data-testid': 'router-view-host' }, 'route content'),
+        ]),
+      ]);
+  },
+});
+
 function createTab(path: string, name: string, isHome = false) {
   return {
     fullPath: path,
@@ -222,11 +235,7 @@ function mountLayoutContent() {
   return mount(LayoutContent, {
     global: {
       stubs: {
-        LContent: true,
-        PageContainer: {
-          props: ['surface'],
-          template: '<div data-testid="page-container" :data-surface="surface"><slot /></div>',
-        },
+        LContent: LContentStub,
         TContent: {
           template: '<main><slot /></main>',
         },
@@ -239,6 +248,9 @@ function mountLayoutContent() {
         TIcon: true,
         TLayout: {
           template: '<section><slot /></section>',
+        },
+        TFooter: {
+          template: '<footer class="t-layout__footer"><slot /></footer>',
         },
         TTabPanel: {
           props: ['value'],
@@ -330,19 +342,25 @@ describe('LayoutContent', () => {
     };
     const wrapper = mountLayoutContent();
 
-    expect(wrapper.get('[data-testid="page-container"]').attributes('data-surface')).toBe('paged-table');
+    expect(wrapper.get('.tdesign-starter-page-container').classes()).toContain(
+      'tdesign-starter-page-container--paged-table',
+    );
 
     routeState.meta = {
       pageSurface: 'form-detail',
     };
     await nextTick();
 
-    expect(wrapper.get('[data-testid="page-container"]').attributes('data-surface')).toBe('paged-table');
+    expect(wrapper.get('.tdesign-starter-page-container').classes()).toContain(
+      'tdesign-starter-page-container--paged-table',
+    );
 
     wrapper.findComponent({ name: 'LContent' }).vm.$emit('page-surface-enter', 'form-detail');
     await nextTick();
 
-    expect(wrapper.get('[data-testid="page-container"]').attributes('data-surface')).toBe('form-detail');
+    expect(wrapper.get('.tdesign-starter-page-container').classes()).toContain(
+      'tdesign-starter-page-container--form-detail',
+    );
   });
 
   it('renders non-cached route tabs even when their page instance is not alive', () => {
@@ -362,8 +380,31 @@ describe('LayoutContent', () => {
   });
 
   it('keeps the page main surface from collapsing while route content transitions', () => {
+    const wrapper = mountLayoutContent();
+    const pageContainer = wrapper.get('.tdesign-starter-page-container');
+    const pageMain = pageContainer.get('.tdesign-starter-page-container__main');
+    const pageContent = pageMain.get('.tdesign-starter-page-container__content');
+    const routeHost = pageContent.get('.route-view-host');
+    const footer = pageContainer.get('.tdesign-starter-footer-layout');
+
+    expect(pageContainer.classes()).toContain('page-scroll');
+    expect(routeHost.element.compareDocumentPosition(footer.element) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(routeHost.element.parentElement).toBe(pageContent.element);
+    expect(footer.element.parentElement).toBe(pageContainer.element);
+    expect(routeHost.find('.tdesign-starter-footer-layout').exists()).toBe(false);
+    expect(wrapper.get('[data-testid="route-loading-host"]').find('.tdesign-starter-footer-layout').exists()).toBe(
+      false,
+    );
+    expect(wrapper.get('[data-testid="router-view-host"]').find('.tdesign-starter-footer-layout').exists()).toBe(false);
+
     expect(layoutStyleSource).toContain('&__main {');
+    expect(layoutStyleSource).toContain('&__content {');
+    expect(layoutStyleSource).toContain('&-footer-layout {');
+    expect(layoutStyleSource).toContain('overflow: hidden auto;');
+    expect(layoutStyleSource).not.toContain('overflow: auto hidden;');
+    expect(layoutStyleSource).toContain('overflow: hidden;');
     expect(layoutStyleSource).toContain('flex: 1 0 auto;');
+    expect(layoutStyleSource).toContain('min-height: 0;');
   });
 
   it('keeps close-all disabled when no tabs can be closed', async () => {

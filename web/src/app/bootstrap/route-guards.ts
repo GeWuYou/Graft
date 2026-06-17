@@ -19,6 +19,18 @@ import { PAGE_NOT_FOUND_ROUTE } from '@/utils/route/constant';
 
 NProgress.configure({ showSpinner: false });
 
+function isSameRouteStateNavigation(to: { name?: unknown; path: string }, from?: { name?: unknown; path?: string }) {
+  if (!from?.path || to.path !== from.path) {
+    return false;
+  }
+
+  if (to.name && from.name && to.name !== from.name) {
+    return false;
+  }
+
+  return true;
+}
+
 function collectBootstrapRouteNames(routes: RouteRecordRaw[]): string[] {
   const routeNames: string[] = [];
 
@@ -49,8 +61,10 @@ function removeMountedBootstrapRoutes(targetRouter: Router, routes: RouteRecordR
 // registerRouteGuards wires shell-owned auth/bootstrap recovery into the single router runtime.
 export function registerRouteGuards(targetRouter: Router = router) {
   targetRouter.beforeEach(async (to, from, next) => {
-    startRouteLoading();
-    NProgress.start();
+    if (!isSameRouteStateNavigation(to, from)) {
+      startRouteLoading();
+      NProgress.start();
+    }
 
     const permissionStore = getPermissionStore();
     const { whiteListRouters } = permissionStore;
@@ -203,7 +217,7 @@ export function registerRouteGuards(targetRouter: Router = router) {
     }
   });
 
-  targetRouter.afterEach((to) => {
+  targetRouter.afterEach((to, from) => {
     if (to.path === AUTH_ROUTE_PATH.LOGIN) {
       const userStore = useAuthSessionStore();
       const permissionStore = getPermissionStore();
@@ -213,7 +227,9 @@ export function registerRouteGuards(targetRouter: Router = router) {
       permissionStore.restoreRoutes();
     }
     NProgress.done();
-    void finishRouteLoadingAfterRender();
+    if (!isSameRouteStateNavigation(to, from)) {
+      void finishRouteLoadingAfterRender();
+    }
   });
 
   targetRouter.onError(() => {

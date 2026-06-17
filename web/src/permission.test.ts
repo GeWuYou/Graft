@@ -14,7 +14,7 @@ const hideRouteLoading = vi.fn();
 
 const guardState = vi.hoisted(() => {
   const beforeEachHandlers: Array<(to: any, from: any, next: (arg?: any) => void) => unknown> = [];
-  const afterEachHandlers: Array<(to: any) => unknown> = [];
+  const afterEachHandlers: Array<(to: any, from?: any) => unknown> = [];
 
   return {
     beforeEachHandlers,
@@ -82,7 +82,7 @@ vi.mock('@/router', () => ({
     beforeEach: (handler: (to: any, from: any, next: (arg?: any) => void) => unknown) => {
       guardState.beforeEachHandlers.push(handler);
     },
-    afterEach: (handler: (to: any) => unknown) => {
+    afterEach: (handler: (to: any, from?: any) => unknown) => {
       guardState.afterEachHandlers.push(handler);
     },
     onError: onErrorMock,
@@ -177,6 +177,31 @@ describe('permission restricted session guard', () => {
       path: '/auth/restricted-session',
       replace: true,
     });
+  });
+
+  it('does not show page loading for same-route query state changes', async () => {
+    storeState.userStore.mustChangePassword = false;
+    const { beforeEach, afterEach } = await loadPermissionGuards();
+    const next = vi.fn();
+    const from = {
+      path: '/ops/containers/container-1',
+      fullPath: '/ops/containers/container-1?tab=overview',
+      name: 'ContainerDetail',
+      query: { tab: 'overview' },
+    };
+    const to = {
+      path: '/ops/containers/container-1',
+      fullPath: '/ops/containers/container-1?tab=health',
+      name: 'ContainerDetail',
+      query: { tab: 'health' },
+    };
+
+    await beforeEach(to, from, next);
+    await afterEach(to, from);
+
+    expect(startRouteLoading).not.toHaveBeenCalled();
+    expect(finishRouteLoadingAfterRender).not.toHaveBeenCalled();
+    expect(next).toHaveBeenCalledWith();
   });
 
   it('replays the original deep link after dynamic bootstrap routes are mounted', async () => {

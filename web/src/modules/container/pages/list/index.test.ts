@@ -5,6 +5,8 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h } from 'vue';
 
+import { LOCALE } from '@/contracts/i18n/locales';
+
 import ContainerListPage from './index.vue';
 
 const apiMocks = vi.hoisted(() => ({
@@ -36,6 +38,26 @@ const notifyMocks = vi.hoisted(() => ({
 
 const routerMocks = vi.hoisted(() => ({
   push: vi.fn(),
+  resolve: vi.fn((target: { name?: string; params?: { id?: string }; query?: { tab?: string } }) => {
+    const path = `/ops/containers/${target.params?.id ?? ''}`;
+    const query = target.query ?? {};
+    return {
+      fullPath: query.tab ? `${path}?tab=${query.tab}` : path,
+      meta: { keepAlive: false, pageKind: 'detail' },
+      name: target.name,
+      params: target.params ?? {},
+      path,
+      query,
+    };
+  }),
+}));
+
+const tabsRouterStoreMock = vi.hoisted(() => ({
+  activeTabKey: '',
+  appendTabRouterList: vi.fn(),
+  setActiveTabKey: vi.fn((tabKey: string) => {
+    tabsRouterStoreMock.activeTabKey = tabKey;
+  }),
 }));
 
 const translations = vi.hoisted(
@@ -68,6 +90,7 @@ const translations = vi.hoisted(
     'container.list.actions.viewEnvironment': '查看环境变量',
     'container.list.actions.viewMounts': '查看挂载',
     'container.list.actions.viewNetworks': '查看网络',
+    'container.detail.title': '容器详情',
     'container.list.actionModeEnabled': '操作已启用',
     'container.list.batch.cancelSelection': '取消选择',
     'container.list.batch.confirmRemove': '确认删除选中的 {count} 个容器？删除后不可恢复。',
@@ -275,6 +298,10 @@ vi.mock('vue-router', () => ({
   useRouter: () => routerMocks,
 }));
 
+vi.mock('@/store', () => ({
+  useTabsRouterStore: () => tabsRouterStoreMock,
+}));
+
 vi.mock('@/shared/observability', async () => {
   const actual = await vi.importActual<typeof import('@/shared/observability')>('@/shared/observability');
   return {
@@ -286,6 +313,7 @@ vi.mock('@/shared/observability', async () => {
 describe('container list page', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    tabsRouterStoreMock.activeTabKey = '';
     dialogMocks.instances = [];
     dialogMocks.confirm.mockImplementation((_options) => {
       const instance = {
@@ -475,6 +503,19 @@ describe('container list page', () => {
     await wrapper.get('[data-testid="container-action-detail"]').trigger('click');
     await flushPromises();
 
+    expect(tabsRouterStoreMock.appendTabRouterList).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        fullPath: '/ops/containers/container-1?tab=overview',
+        path: '/ops/containers/container-1',
+        query: { tab: 'overview' },
+        tabKey: '/ops/containers/container-1',
+        title: {
+          [LOCALE.ZH_CN]: '容器详情 - graft-web',
+          [LOCALE.EN_US]: 'Container Detail - graft-web',
+        },
+      }),
+    );
+    expect(tabsRouterStoreMock.setActiveTabKey).toHaveBeenLastCalledWith('/ops/containers/container-1');
     expect(routerMocks.push).toHaveBeenCalledWith({
       name: 'ContainerDetailIndex',
       params: { id: 'container-1' },
@@ -484,6 +525,14 @@ describe('container list page', () => {
     await wrapper.get('[data-testid="container-action-logs"]').trigger('click');
     await flushPromises();
 
+    expect(tabsRouterStoreMock.appendTabRouterList).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        fullPath: '/ops/containers/container-1?tab=logs',
+        path: '/ops/containers/container-1',
+        query: { tab: 'logs' },
+        tabKey: '/ops/containers/container-1',
+      }),
+    );
     expect(routerMocks.push).toHaveBeenCalledWith({
       name: 'ContainerDetailIndex',
       params: { id: 'container-1' },
@@ -492,6 +541,13 @@ describe('container list page', () => {
 
     await wrapper.get('[data-testid="container-action-view-mounts"]').trigger('click');
     await flushPromises();
+    expect(tabsRouterStoreMock.appendTabRouterList).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        fullPath: '/ops/containers/container-1?tab=storage',
+        path: '/ops/containers/container-1',
+        query: { tab: 'storage' },
+      }),
+    );
     expect(routerMocks.push).toHaveBeenCalledWith({
       name: 'ContainerDetailIndex',
       params: { id: 'container-1' },
@@ -500,6 +556,13 @@ describe('container list page', () => {
 
     await wrapper.get('[data-testid="container-action-view-networks"]').trigger('click');
     await flushPromises();
+    expect(tabsRouterStoreMock.appendTabRouterList).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        fullPath: '/ops/containers/container-1?tab=network',
+        path: '/ops/containers/container-1',
+        query: { tab: 'network' },
+      }),
+    );
     expect(routerMocks.push).toHaveBeenCalledWith({
       name: 'ContainerDetailIndex',
       params: { id: 'container-1' },
@@ -508,6 +571,13 @@ describe('container list page', () => {
 
     await wrapper.get('[data-testid="container-action-view-env"]').trigger('click');
     await flushPromises();
+    expect(tabsRouterStoreMock.appendTabRouterList).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        fullPath: '/ops/containers/container-1?tab=config',
+        path: '/ops/containers/container-1',
+        query: { tab: 'config' },
+      }),
+    );
     expect(routerMocks.push).toHaveBeenCalledWith({
       name: 'ContainerDetailIndex',
       params: { id: 'container-1' },
@@ -820,6 +890,14 @@ describe('container list page', () => {
     await wrapper.get('[data-testid="container-action-inspect"]').trigger('click');
     await flushPromises();
 
+    expect(tabsRouterStoreMock.appendTabRouterList).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fullPath: '/ops/containers/container-1?tab=overview',
+        path: '/ops/containers/container-1',
+        query: { tab: 'overview' },
+        tabKey: '/ops/containers/container-1',
+      }),
+    );
     expect(routerMocks.push).toHaveBeenCalledWith({
       name: 'ContainerDetailIndex',
       params: { id: 'container-1' },
