@@ -8,8 +8,8 @@ import (
 	"errors"
 	"fmt"
 
-	"graft/server/internal/i18n"
 	"golang.org/x/crypto/bcrypt"
+	"graft/server/internal/i18n"
 
 	"graft/server/internal/moduleapi"
 	"graft/server/internal/permission"
@@ -34,7 +34,17 @@ func (s authService) ensureDefaultAdmin(
 	if err != nil {
 		return err
 	}
-	return rbac.EnsureDefaultAdminAccess(ctx, credential.UserID, permissionSeedsFromItems(localizer, permissions))
+
+	seeds, err := permissionSeedsFromItemsE(localizer, permissions)
+	if err != nil {
+		return fmt.Errorf("build default admin permission seeds: %w", err)
+	}
+
+	if err := rbac.EnsureDefaultAdminAccess(ctx, credential.UserID, seeds); err != nil {
+		return fmt.Errorf("ensure default admin access: %w", err)
+	}
+
+	return nil
 }
 
 func (s authService) ensureAdminCredential(ctx context.Context) (userstore.UserCredential, error) {
@@ -93,34 +103,52 @@ func (s authService) reconcileDefaultAdminCredential(
 }
 
 func permissionSeedsFromItems(localizer *i18n.Service, items []permission.Item) []moduleapi.PermissionSeed {
-	seeds := make([]moduleapi.PermissionSeed, 0, len(items))
-	for _, item := range items {
-		seeds = append(seeds, moduleapi.PermissionSeed{
-			Code:           item.Code,
-			Display:        lookupPermissionText(localizer, item.DisplayKey, item.Code),
-			DisplayKey:     item.DisplayKey,
-			Description:    lookupPermissionText(localizer, item.DescriptionKey, item.Code),
-			DescriptionKey: item.DescriptionKey,
-			Category:       item.Category,
-		})
+	seeds, err := permissionSeedsFromItemsE(localizer, items)
+	if err != nil {
+		panic(err)
 	}
 
 	return seeds
 }
 
-func lookupPermissionText(localizer *i18n.Service, key string, permissionCode string) string {
+func permissionSeedsFromItemsE(localizer *i18n.Service, items []permission.Item) ([]moduleapi.PermissionSeed, error) {
+	seeds := make([]moduleapi.PermissionSeed, 0, len(items))
+	for _, item := range items {
+		display, err := lookupPermissionText(localizer, item.DisplayKey, item.Code)
+		if err != nil {
+			return nil, err
+		}
+		description, err := lookupPermissionText(localizer, item.DescriptionKey, item.Code)
+		if err != nil {
+			return nil, err
+		}
+
+		seeds = append(seeds, moduleapi.PermissionSeed{
+			Code:           item.Code,
+			Display:        display,
+			DisplayKey:     item.DisplayKey,
+			Description:    description,
+			DescriptionKey: item.DescriptionKey,
+			Category:       item.Category,
+		})
+	}
+
+	return seeds, nil
+}
+
+func lookupPermissionText(localizer *i18n.Service, key string, permissionCode string) (string, error) {
 	if localizer == nil {
-		panic("permission seed localization requires i18n service")
+		return "", errors.New("permission seed localization requires i18n service")
 	}
 	if key == "" {
-		panic("permission seed localization requires stable locale key for " + permissionCode)
+		return "", fmt.Errorf("permission seed localization requires stable locale key for %s", permissionCode)
 	}
 	if len(localizer.RegisteredMessageResources(i18n.LocaleTag(localizer.DefaultLocale()), i18n.MessageKey(key))) == 0 {
-		panic("permission seed localization key missing for " + permissionCode + ": " + key)
+		return "", fmt.Errorf("permission seed localization key missing for %s: %s", permissionCode, key)
 	}
 
 	return localizer.Lookup(i18n.LookupRequest{
 		Locale: i18n.LocaleTag(localizer.DefaultLocale()),
 		Key:    i18n.MessageKey(key),
-	})
+	}), nil
 }

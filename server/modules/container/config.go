@@ -41,6 +41,7 @@ const (
 	defaultContainerDangerousActionsEnabled = false
 	defaultContainerEnvironmentPolicy       = containercontract.ContainerEnvironmentPolicyMasked
 	defaultContainerEnvironmentMaskedCopy   = false
+	containerConfigEstimatedKeysPerItem     = 8
 )
 
 // registerConfig registers container configuration definitions and i18n messages.
@@ -331,5 +332,78 @@ func registerConfigMessages(localizer *i18n.Service) error {
 	if localizer == nil {
 		return errors.New("i18n service is required")
 	}
+	keys, err := containerConfigMessageKeys()
+	if err != nil {
+		return err
+	}
+	for _, locale := range []i18n.LocaleTag{i18n.LocaleZHCN, i18n.LocaleENUS} {
+		for _, key := range keys {
+			matches := localizer.RegisteredMessageResources(locale, i18n.MessageKey(key))
+			if len(matches) == 0 {
+				return fmt.Errorf("register container config messages: locale resource %s missing key %s", locale, key)
+			}
+		}
+	}
 	return nil
+}
+
+func containerConfigMessageKeys() ([]string, error) {
+	keys := make([]string, 0, len(configDefinitions())*containerConfigEstimatedKeysPerItem)
+	seen := make(map[string]struct{}, len(configDefinitions())*containerConfigEstimatedKeysPerItem)
+	appendKey := func(key string) {
+		if key == "" {
+			return
+		}
+		if _, exists := seen[key]; exists {
+			return
+		}
+		seen[key] = struct{}{}
+		keys = append(keys, key)
+	}
+
+	for _, definition := range configDefinitions() {
+		appendKey(definition.DomainKey)
+		appendKey(definition.GroupKey)
+		appendKey(definition.GroupDescriptionKey)
+		appendKey(definition.TitleKey)
+		appendKey(definition.DescriptionKey)
+		if err := appendContainerSchemaMessageKeys(definition.Key, definition.Schema, appendKey); err != nil {
+			return nil, err
+		}
+	}
+
+	return keys, nil
+}
+
+func appendContainerSchemaMessageKeys(configKey string, raw json.RawMessage, appendKey func(string)) error {
+	if len(raw) == 0 {
+		return nil
+	}
+
+	var decoded any
+	if err := json.Unmarshal(raw, &decoded); err != nil {
+		return fmt.Errorf("register container config messages: decode schema for %s: %w", configKey, err)
+	}
+
+	collectContainerSchemaMessageKeys(decoded, appendKey)
+	return nil
+}
+
+func collectContainerSchemaMessageKeys(node any, appendKey func(string)) {
+	switch typed := node.(type) {
+	case map[string]any:
+		for key, value := range typed {
+			switch key {
+			case "titleKey", "descriptionKey", "labelKey", "unitKey":
+				if text, ok := value.(string); ok {
+					appendKey(text)
+				}
+			}
+			collectContainerSchemaMessageKeys(value, appendKey)
+		}
+	case []any:
+		for _, item := range typed {
+			collectContainerSchemaMessageKeys(item, appendKey)
+		}
+	}
 }

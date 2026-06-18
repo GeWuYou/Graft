@@ -47,22 +47,28 @@ func EmbeddedLocaleResources() []i18n.EmbeddedLocaleResource {
 		{name: "user", load: userlocales.EmbeddedLocaleResources},
 	}
 
+	type loadedProviderResources struct {
+		name      string
+		resources []i18n.EmbeddedLocaleResource
+	}
+
+	loaded := make([]loadedProviderResources, 0, len(providers))
 	capacity := 0
 	for _, provider := range providers {
 		items, err := provider.load()
 		if err != nil {
 			panic(fmt.Sprintf("load %s embedded locale resources: %v", provider.name, err))
 		}
+		loaded = append(loaded, loadedProviderResources{
+			name:      provider.name,
+			resources: items,
+		})
 		capacity += len(items)
 	}
 
 	resources := make([]i18n.EmbeddedLocaleResource, 0, capacity)
-	for _, provider := range providers {
-		items, err := provider.load()
-		if err != nil {
-			panic(fmt.Sprintf("load %s embedded locale resources: %v", provider.name, err))
-		}
-		resources = append(resources, items...)
+	for _, provider := range loaded {
+		resources = append(resources, provider.resources...)
 	}
 
 	return resources

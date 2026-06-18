@@ -308,6 +308,13 @@ func decodeLocaleDocument(resourcePath string, content []byte) (*yaml.Node, erro
 }
 
 func collectFlatYAMLMessages(resourcePath string, root *yaml.Node) ([]MessageResource, error) {
+	if root == nil {
+		return nil, fmt.Errorf("locale resource %q must be a flat key-value mapping", resourcePath)
+	}
+	if len(root.Content)%yamlMappingPairWidth != 0 {
+		return nil, fmt.Errorf("locale resource %q contains a malformed mapping entry", resourcePath)
+	}
+
 	seenKeys := make(map[string]struct{}, len(root.Content)/yamlMappingPairWidth)
 	messages := make([]MessageResource, 0, len(root.Content)/yamlMappingPairWidth)
 	for index := 0; index < len(root.Content); index += yamlMappingPairWidth {

@@ -21,7 +21,7 @@ def find_legacy_locale_files(root: Path) -> list[Path]:
         return []
 
     offenders: list[Path] = []
-    for path in sorted(target_dir.iterdir()):
+    for path in sorted(target_dir.rglob("*")):
         if not path.is_file():
             continue
         if path.name in ALLOWED_NON_LOCALE_FILES:

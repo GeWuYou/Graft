@@ -215,7 +215,6 @@ func (r *repository) ListAuditLogs(ctx context.Context, query auditstore.ListAud
 		if err != nil {
 			return auditstore.ListAuditLogsResult{}, err
 		}
-		enrichAuditLog(ctx, &record, r.localizer)
 		items = append(items, record)
 	}
 	if err := rows.Err(); err != nil {

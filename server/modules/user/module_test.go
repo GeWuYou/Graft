@@ -692,21 +692,7 @@ func newModuleTestContextWithLoggerAndPermissions(
 
 	gin.SetMode(gin.TestMode)
 	engine := gin.New()
-	localizer := i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}})
-	userResources, err := userlocales.EmbeddedLocaleResources()
-	if err != nil {
-		t.Fatalf("load user locale resources: %v", err)
-	}
-	if err := localizer.RegisterEmbeddedLocaleResources(userResources); err != nil {
-		t.Fatalf("register user locale resources: %v", err)
-	}
-	rbacResources, err := rbaclocales.EmbeddedLocaleResources()
-	if err != nil {
-		t.Fatalf("load rbac locale resources: %v", err)
-	}
-	if err := localizer.RegisterEmbeddedLocaleResources(rbacResources); err != nil {
-		t.Fatalf("register rbac locale resources: %v", err)
-	}
+	localizer := mustNewUserModuleTestLocalizer(t)
 	ctx := &module.Context{
 		LifecycleContext: context.Background(),
 		Logger:           logger,
@@ -1735,6 +1721,65 @@ func TestBootFailsWithoutSharedRouteAuthorizer(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "resolve route authorizer") {
 		t.Fatalf("expected route authorizer resolution failure, got %v", err)
+	}
+}
+
+func TestPermissionSeedsFromItemsReturnsErrorWhenLocalizerUnavailable(t *testing.T) {
+	_, err := permissionSeedsFromItemsE(nil, []permission.Item{{
+		Code:           "user.read",
+		DisplayKey:     "permissions.user.read",
+		DescriptionKey: "permissions.user.read.description",
+	}})
+	if err == nil {
+		t.Fatal("expected permission seed localization to fail without i18n service")
+	}
+	if !strings.Contains(err.Error(), "requires i18n service") {
+		t.Fatalf("expected i18n service error, got %v", err)
+	}
+}
+
+func TestPermissionSeedsFromItemsReturnsErrorWhenLocaleKeyMissing(t *testing.T) {
+	localizer := mustNewUserModuleTestLocalizer(t)
+
+	_, err := permissionSeedsFromItemsE(localizer, []permission.Item{{
+		Code:           "user.read",
+		DisplayKey:     "permissions.user.read",
+		DescriptionKey: "permissions.user.read.description.missing",
+	}})
+	if err == nil {
+		t.Fatal("expected permission seed localization to fail when locale key is missing")
+	}
+	if !strings.Contains(err.Error(), "key missing for user.read") {
+		t.Fatalf("expected missing locale key error, got %v", err)
+	}
+}
+
+func TestBootFailsWhenDefaultAdminPermissionSeedLocalizationUnavailable(t *testing.T) {
+	ensuredDefaultAdmin := false
+	assignedRole := false
+	authRepo := newDefaultAdminBootAuthRepository(t, &ensuredDefaultAdmin)
+	rbacRepo := newDefaultAdminBootRBACRepository(t, &assignedRole)
+
+	ctx := newDefaultAdminBootModuleContext(authRepo, rbacRepo)
+	moduleInstance := NewModule(moduleTestUserRepository{}, authRepo)
+	if err := moduleInstance.Register(ctx); err != nil {
+		t.Fatalf("register module: %v", err)
+	}
+	if err := rbac.NewModule(rbacRepo).Register(ctx); err != nil {
+		t.Fatalf("register rbac module: %v", err)
+	}
+
+	ctx.I18n = nil
+
+	err := moduleInstance.Boot(ctx)
+	if err == nil {
+		t.Fatal("expected boot to fail when default admin permission seed localization is unavailable")
+	}
+	if !strings.Contains(err.Error(), "build default admin permission seeds") {
+		t.Fatalf("expected explicit permission seed error, got %v", err)
+	}
+	if strings.Contains(err.Error(), "panic") {
+		t.Fatalf("expected explicit error propagation instead of panic, got %v", err)
 	}
 }
 

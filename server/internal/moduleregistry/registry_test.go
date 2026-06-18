@@ -15,10 +15,6 @@ import (
 
 func TestEmbeddedLocaleResourcesIncludeMigratedModuleProviders(t *testing.T) {
 	got := EmbeddedLocaleResources()
-	if len(got) != 16 {
-		t.Fatalf("expected 16 module locale resources, got %#v", got)
-	}
-
 	expected := map[string]map[i18n.LocaleTag]struct{}{
 		"announcement":  {i18n.LocaleENUS: {}, i18n.LocaleZHCN: {}},
 		"audit":         {i18n.LocaleENUS: {}, i18n.LocaleZHCN: {}},
@@ -30,15 +26,20 @@ func TestEmbeddedLocaleResourcesIncludeMigratedModuleProviders(t *testing.T) {
 		"user":          {i18n.LocaleENUS: {}, i18n.LocaleZHCN: {}},
 	}
 
-	for _, resource := range got {
-		locales, ok := expected[string(resource.Namespace)]
-		if !ok {
-			t.Fatalf("unexpected locale resource namespace %#v", resource)
-		}
-		if _, ok := locales[resource.Locale]; !ok {
-			t.Fatalf("unexpected locale resource locale %#v", resource)
-		}
+	expectedCount := 0
+	for _, locales := range expected {
+		expectedCount += len(locales)
 	}
+	if len(got) != expectedCount {
+		t.Fatalf("expected %d module locale resources, got %#v", expectedCount, got)
+	}
+
+	seen := make(map[string]map[i18n.LocaleTag]struct{}, len(expected))
+	for _, resource := range got {
+		recordSeenLocaleResource(t, expected, seen, resource)
+	}
+
+	assertExpectedLocaleResourcesRegistered(t, expected, seen)
 }
 
 // TestMigrationDirsUsesOwnerAlignedBaseline 验证默认迁移链不再包含历史共享目录，
@@ -162,4 +163,61 @@ func TestFilteredOrderedModuleSpecsFiltersEnabledSet(t *testing.T) {
 func fileExists(path string) bool {
 	info, err := os.Stat(path)
 	return err == nil && !info.IsDir()
+}
+
+func mapKeys(values map[i18n.LocaleTag]struct{}) []i18n.LocaleTag {
+	keys := make([]i18n.LocaleTag, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	sort.Slice(keys, func(i, j int) bool {
+		return keys[i] < keys[j]
+	})
+	return keys
+}
+
+func recordSeenLocaleResource(
+	t *testing.T,
+	expected map[string]map[i18n.LocaleTag]struct{},
+	seen map[string]map[i18n.LocaleTag]struct{},
+	resource i18n.EmbeddedLocaleResource,
+) {
+	t.Helper()
+
+	namespace := string(resource.Namespace)
+	locales, ok := expected[namespace]
+	if !ok {
+		t.Fatalf("unexpected locale resource namespace %#v", resource)
+	}
+	if _, ok := locales[resource.Locale]; !ok {
+		t.Fatalf("unexpected locale resource locale %#v", resource)
+	}
+	if seen[namespace] == nil {
+		seen[namespace] = make(map[i18n.LocaleTag]struct{}, len(locales))
+	}
+	if _, duplicate := seen[namespace][resource.Locale]; duplicate {
+		t.Fatalf("duplicate locale resource namespace/locale pair %#v", resource)
+	}
+
+	seen[namespace][resource.Locale] = struct{}{}
+}
+
+func assertExpectedLocaleResourcesRegistered(
+	t *testing.T,
+	expected map[string]map[i18n.LocaleTag]struct{},
+	seen map[string]map[i18n.LocaleTag]struct{},
+) {
+	t.Helper()
+
+	for namespace, locales := range expected {
+		registered := seen[namespace]
+		if len(registered) != len(locales) {
+			t.Fatalf("expected namespace %q locales %v, got %v", namespace, mapKeys(locales), mapKeys(registered))
+		}
+		for locale := range locales {
+			if _, ok := registered[locale]; !ok {
+				t.Fatalf("missing locale resource for namespace %q locale %q", namespace, locale)
+			}
+		}
+	}
 }
