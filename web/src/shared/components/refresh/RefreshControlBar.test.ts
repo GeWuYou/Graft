@@ -177,4 +177,12 @@ describe('RefreshControlBar', () => {
     expect(wrapper.emitted('update:interval')?.[0]).toEqual([10]);
     expect(wrapper.emitted('update:trendWindow')?.[0]).toEqual(['30m']);
   });
+
+  it('does not coerce stringified numeric interval values', async () => {
+    const wrapper = mountBar();
+
+    wrapper.getComponent(selectStub).vm.$emit('update:modelValue', '10');
+
+    expect(wrapper.emitted('update:interval')).toBeUndefined();
+  });
 });

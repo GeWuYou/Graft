@@ -420,7 +420,13 @@ const selectStub = defineComponent({
         {
           ...attrs,
           value: String(props.modelValue),
-          onChange: (event: Event) => emit('update:modelValue', (event.target as HTMLSelectElement).value),
+          onChange: (event: Event) => {
+            const rawValue = (event.target as HTMLSelectElement).value;
+            const selectedOption = (props.options as Array<{ label: string; value: number | string }>).find(
+              (option) => String(option.value) === rawValue,
+            );
+            emit('update:modelValue', selectedOption?.value ?? rawValue);
+          },
         },
         (props.options as Array<{ label: string; value: number | string }>).map((option) =>
           h('option', { value: String(option.value) }, option.label),

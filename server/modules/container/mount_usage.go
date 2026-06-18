@@ -31,8 +31,15 @@ func (filesystemMountUsageScanner) ScanUsage(ctx context.Context, root string) (
 	if root == "" {
 		return 0, errMountUsageUnsupported
 	}
-	if _, err := os.Stat(root); err != nil {
+	info, err := os.Stat(root)
+	if err != nil {
 		return 0, mapMountUsageScanError(err)
+	}
+	if !info.IsDir() {
+		if info.Mode().IsRegular() {
+			return info.Size(), nil
+		}
+		return 0, errMountUsageUnsupported
 	}
 	total, err := scanMountUsageFS(ctx, os.DirFS(root), ".")
 	if err != nil {
@@ -48,20 +55,14 @@ func scanMountUsageFS(ctx context.Context, fileSystem fs.FS, root string) (int64
 			return err
 		}
 		if walkErr != nil {
-			if path == root {
-				return walkErr
-			}
-			if entry != nil && entry.IsDir() {
-				return filepath.SkipDir
-			}
-			return nil
+			return handleMountUsageWalkError(root, path, entry, walkErr)
 		}
 		if entry.IsDir() {
 			return nil
 		}
 		info, err := entry.Info()
 		if err != nil {
-			return nil
+			return handleMountUsageEntryInfoError(err)
 		}
 		if info.Mode().IsRegular() {
 			total += info.Size()
@@ -72,6 +73,26 @@ func scanMountUsageFS(ctx context.Context, fileSystem fs.FS, root string) (int64
 		return 0, err
 	}
 	return total, nil
+}
+
+func handleMountUsageWalkError(root string, path string, entry fs.DirEntry, err error) error {
+	if path == root {
+		return err
+	}
+	if !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	if entry != nil && entry.IsDir() {
+		return filepath.SkipDir
+	}
+	return nil
+}
+
+func handleMountUsageEntryInfoError(err error) error {
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	return err
 }
 
 // MapMountUsageScanError translates filesystem and context errors to container runtime errors.

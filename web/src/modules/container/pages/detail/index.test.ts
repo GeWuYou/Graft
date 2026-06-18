@@ -799,9 +799,11 @@ describe('container detail page', () => {
     });
 
     await wrapper.get('[data-refresh-now="true"]').trigger('click');
+    await vi.waitFor(() => {
+      expect(apiMocks.getContainer).toHaveBeenCalledWith('container-1');
+    });
     await flushPromises();
 
-    expect(apiMocks.getContainer).toHaveBeenCalledWith('container-1');
     expect(apiMocks.getContainerMountUsage).toHaveBeenCalledWith('container-1');
     expect(apiMocks.postContainerMountUsageRefresh).not.toHaveBeenCalled();
     expect(findMountCardByDestination(wrapper, '/etc/graft').text()).toContain('3.0 MiB');
@@ -1544,6 +1546,7 @@ describe('container detail page', () => {
     await flushPromises();
     expect(headingText()).toBe('graft-api');
     expect(logsText()).toContain('api started');
+    wrapper.unmount();
   });
 
   it('clears stale detail on missing route id and load failure', async () => {

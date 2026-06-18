@@ -215,11 +215,7 @@ function resolveOptionValue(value: RefreshControlValue, options: RefreshControlO
     return directMatch.value;
   }
 
-  if (typeof value !== 'string') {
-    return undefined;
-  }
-
-  return options.find((option) => typeof option.value === 'number' && String(option.value) === value)?.value;
+  return undefined;
 }
 </script>
 <style scoped lang="less">
