@@ -32,6 +32,7 @@ import (
 	"graft/server/internal/permission"
 	"graft/server/internal/testassert"
 	auditcontract "graft/server/modules/audit/contract"
+	auditlocales "graft/server/modules/audit/locales"
 	"graft/server/modules/audit/store"
 )
 
@@ -261,10 +262,18 @@ func newModuleTestContextWithLogger(t *testing.T, repo store.AuditRepository, lo
 	gin.SetMode(gin.TestMode)
 	engine := gin.New()
 	bus := eventbus.New(zap.NewNop())
+	localizer := i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}})
+	resources, err := auditlocales.EmbeddedLocaleResources()
+	if err != nil {
+		t.Fatalf("load audit locale resources: %v", err)
+	}
+	if err := localizer.RegisterEmbeddedLocaleResources(resources); err != nil {
+		t.Fatalf("register audit locale resources: %v", err)
+	}
 	ctx := &module.Context{
 		Logger:             logger,
 		Config:             &config.Config{Audit: config.AuditConfig{LogRetention: 30 * 24 * time.Hour}},
-		I18n:               i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}}),
+		I18n:               localizer,
 		EventBus:           bus,
 		Router:             engine.Group("/api"),
 		Services:           container.New(),
@@ -318,10 +327,18 @@ func newModuleTestContextWithDrilldown(
 	gin.SetMode(gin.TestMode)
 	engine := gin.New()
 	bus := eventbus.New(zap.NewNop())
+	localizer := i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}})
+	resources, err := auditlocales.EmbeddedLocaleResources()
+	if err != nil {
+		t.Fatalf("load audit locale resources: %v", err)
+	}
+	if err := localizer.RegisterEmbeddedLocaleResources(resources); err != nil {
+		t.Fatalf("register audit locale resources: %v", err)
+	}
 	ctx := &module.Context{
 		Logger:             zap.NewNop(),
 		Config:             &config.Config{Audit: config.AuditConfig{LogRetention: 30 * 24 * time.Hour}},
-		I18n:               i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}}),
+		I18n:               localizer,
 		EventBus:           bus,
 		Router:             engine.Group("/api"),
 		Services:           container.New(),
@@ -669,6 +686,50 @@ func TestAuditLogDetailRouteReturnsEvidenceRecord(t *testing.T) {
 	data := testassert.DecodeSuccessData[map[string]any](t, recorder)
 	if data["id"] != float64(42) || data["request_id"] != "req-42" || data["action"] != "auth.token.expired" {
 		t.Fatalf("expected audit detail record, got %#v", data)
+	}
+}
+
+func TestAuditLogDetailRouteKeepsTargetLabelWireShape(t *testing.T) {
+	actorID := uint64(7)
+	repo := &memoryAuditRepository{
+		items: []store.AuditLog{
+			{
+				ID:               42,
+				ActorUserID:      &actorID,
+				ActorUsername:    "alice",
+				ActorDisplayName: "Alice",
+				Action:           "auth.token.expired",
+				ResourceType:     "auth",
+				TargetType:       "AUTH",
+				TargetLabel:      "Authentication",
+				ResourceID:       "token",
+				ResourceName:     "",
+				Success:          false,
+				RequestID:        "req-42",
+				IP:               "127.0.0.1",
+				UserAgent:        "vitest",
+				Message:          "Token expired",
+				Metadata:         json.RawMessage(`{"traceId":"trace-42","route":"/api/auth/bootstrap"}`),
+				CreatedAt:        time.Date(2026, 6, 13, 12, 0, 0, 0, time.UTC),
+			},
+		},
+	}
+	_, engine, _ := newModuleTestContext(t, repo)
+
+	request := httptest.NewRequest(http.MethodGet, "/api/audit/logs/42", nil)
+	request.Header.Set("Authorization", "Bearer token")
+	recorder := httptest.NewRecorder()
+	engine.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d body=%s", recorder.Code, recorder.Body.String())
+	}
+	data := testassert.DecodeSuccessData[map[string]any](t, recorder)
+	if data["target_label"] != "Authentication" || data["target_type"] != "AUTH" {
+		t.Fatalf("expected localized target_label in existing wire field, got %#v", data)
+	}
+	if _, ok := data["target_label_key"]; ok {
+		t.Fatalf("wire shape must remain unchanged, got %#v", data)
 	}
 }
 

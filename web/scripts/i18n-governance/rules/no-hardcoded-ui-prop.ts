@@ -196,8 +196,10 @@ function collectLocalizedTitleObjectViolations(file: SourceFile): RuleViolation[
     const objectEnd = source.indexOf('}', objectStart);
     if (objectEnd === -1 || objectEnd - objectStart > 500) continue;
     const objectSource = source.slice(objectStart, objectEnd);
-    for (const localeMatch of objectSource.matchAll(/['"](zh-CN|en-US)['"]\s*:\s*(['"`])/g)) {
-      const locale = localeMatch[1] ?? 'locale';
+    for (const localeMatch of objectSource.matchAll(
+      /(?:['"](zh-CN|en-US)['"]|\[\s*LOCALE\.(ZH_CN|EN_US)\s*\])\s*:\s*(['"`])/g,
+    )) {
+      const locale = localeMatch[1] ?? (localeMatch[2] === 'ZH_CN' ? 'zh-CN' : 'en-US');
       const quoteIndex = objectStart + (localeMatch.index ?? 0) + localeMatch[0].length - 1;
       const parsed = parseStringLiteral(source, quoteIndex);
       if (!parsed) continue;
@@ -219,6 +221,28 @@ function collectLocaleLiteralFieldViolations(file: SourceFile): RuleViolation[] 
     const quoteIndex = (match.index ?? 0) + match[0].length - 1;
     const parsed = parseStringLiteral(source, quoteIndex);
     if (!parsed) continue;
+    addViolation(violations, file, quoteIndex, field, parsed.value);
+  }
+
+  return violations;
+}
+
+function collectComputedLocaleLiteralFieldViolations(file: SourceFile): RuleViolation[] {
+  const violations: RuleViolation[] = [];
+  const source = preserveLineStructure(file.source);
+
+  for (const match of source.matchAll(/\[\s*LOCALE\.(ZH_CN|EN_US)\s*\]\s*:\s*(['"`])/g)) {
+    const field = match[1] === 'ZH_CN' ? 'zh-CN' : 'en-US';
+    const quoteIndex = (match.index ?? 0) + match[0].length - 1;
+    const parsed = parseStringLiteral(source, quoteIndex);
+    if (!parsed) continue;
+    if (
+      parsed.hasInterpolation &&
+      !hasCjk(parsed.value) &&
+      !/[A-Za-z]/.test(parsed.value.replace(/\$\{[^}]+\}/g, ''))
+    ) {
+      continue;
+    }
     addViolation(violations, file, quoteIndex, field, parsed.value);
   }
 
@@ -282,6 +306,7 @@ export const noHardcodedUiPropRule: I18nGovernanceRule = {
       ...collectLogicalFallbackViolations(file),
       ...collectLocalizedTitleObjectViolations(file),
       ...collectLocaleLiteralFieldViolations(file),
+      ...collectComputedLocaleLiteralFieldViolations(file),
       ...collectTemplateAttributeViolations(file),
       ...collectTemplateLiteralCjkViolations(file),
     ]);

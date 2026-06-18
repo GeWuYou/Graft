@@ -401,13 +401,17 @@ vi.mock('tdesign-vue-next/es/message', () => ({
   MessagePlugin: messageMocks,
 }));
 
-vi.mock('vue-i18n', () => ({
-  useI18n: () => ({
-    locale: 'zh-CN',
-    t: (key: string, params?: Record<string, unknown>) =>
-      (translations[key] ?? key).replace(/\{(\w+)\}/g, (_, name) => String(params?.[name] ?? `{${name}}`)),
-  }),
-}));
+vi.mock('vue-i18n', async () => {
+  const actual = await vi.importActual<typeof import('vue-i18n')>('vue-i18n');
+  return {
+    ...actual,
+    useI18n: () => ({
+      locale: 'zh-CN',
+      t: (key: string, params?: Record<string, unknown>) =>
+        (translations[key] ?? key).replace(/\{(\w+)\}/g, (_, name) => String(params?.[name] ?? `{${name}}`)),
+    }),
+  };
+});
 
 vi.mock('vue-router', async () => {
   const { reactive } = await vi.importActual<typeof import('vue')>('vue');

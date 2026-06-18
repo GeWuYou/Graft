@@ -1,0 +1,24 @@
+menu.audit.title: Security Audit
+menu.audit.overview.title: Overview
+menu.audit.logs.title: Audit Logs
+audit.target.user: User
+audit.target.role: Role
+audit.target.permission: Permission
+audit.target.audit: Audit
+audit.target.serverStatus: Server Status
+audit.target.auth: Authentication
+dashboard.widget.auditRiskEvents.title: Audit Risk Events
+dashboard.widget.auditRiskEvents.description: Recent high-risk audit and security events.
+dashboard.widget.auditRiskEvents.highRisk.title: High-Risk Audit Events
+dashboard.widget.auditRiskEvents.highRisk.description: Review recent high-risk audit and security events.
+dashboard.widget.auditRiskEvents.highRisk.action: View Events
+dashboard.widget.auditRiskEvents.failedOperations.title: Failed Operations
+dashboard.widget.auditRiskEvents.failedOperations.description: Review recent failed or denied operations.
+dashboard.widget.auditRiskEvents.failedOperations.action: View Failures
+dashboard.widget.auditRiskEvents.authFailures.description: Review recent authentication failures.
+dashboard.widget.auditRiskEvents.authFailures.action: View Authentication Failures
+dashboard.widget.auditRiskEvents.empty: No audit risk events in the last 24 hours.
+audit.overview.riskGroups.authFailures: Authentication Failures
+scheduler.job.auditLogRetentionCleanup.title: Audit Log Retention Cleanup
+scheduler.job.shortTitle.auditLog: Audit Logs
+scheduledTask.auditLogRetention.description: Deletes audit logs beyond the configured retention window.

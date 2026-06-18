@@ -1,0 +1,24 @@
+menu.audit.title: 安全审计
+menu.audit.overview.title: 概览
+menu.audit.logs.title: 审计日志
+audit.target.user: 用户
+audit.target.role: 角色
+audit.target.permission: 权限
+audit.target.audit: 审计
+audit.target.serverStatus: 服务器状态
+audit.target.auth: 认证
+dashboard.widget.auditRiskEvents.title: 审计风险事件
+dashboard.widget.auditRiskEvents.description: 最近的高风险审计与安全事件。
+dashboard.widget.auditRiskEvents.highRisk.title: 高风险审计事件
+dashboard.widget.auditRiskEvents.highRisk.description: 查看最近的高风险审计与安全事件。
+dashboard.widget.auditRiskEvents.highRisk.action: 查看事件
+dashboard.widget.auditRiskEvents.failedOperations.title: 失败操作
+dashboard.widget.auditRiskEvents.failedOperations.description: 查看最近失败或被拒绝的操作。
+dashboard.widget.auditRiskEvents.failedOperations.action: 查看失败记录
+dashboard.widget.auditRiskEvents.authFailures.description: 查看最近的认证失败事件。
+dashboard.widget.auditRiskEvents.authFailures.action: 查看认证失败
+dashboard.widget.auditRiskEvents.empty: 最近 24 小时内没有审计风险事件。
+audit.overview.riskGroups.authFailures: 认证失败
+scheduler.job.auditLogRetentionCleanup.title: 审计日志保留清理
+scheduler.job.shortTitle.auditLog: 审计日志
+scheduledTask.auditLogRetention.description: 删除超过保留周期的审计日志。

@@ -1,0 +1,23 @@
+menu.notification.title: 通知中心
+menu.logCenter.title: 日志中心
+menu.accessLog.title: 访问日志
+menu.appLog.title: 应用日志
+dashboard.actions.details: 查看详情
+dashboard.widget.moduleRuntimeHealth.title: 模块运行时
+dashboard.widget.moduleRuntimeHealth.description: 当前模块运行时健康状态。
+dashboard.widget.moduleRuntimeHealth.summary: 模块健康
+dashboard.widget.moduleRuntimeHealth.runtimeStatus.registered: 已注册
+dashboard.widget.moduleRuntimeHealth.runtimeStatus.disabled: 已禁用
+dashboard.widget.moduleRuntimeHealth.runtimeStatus.degraded: 已降级
+dashboard.widget.moduleRuntimeHealth.runtimeStatus.unknown: 未知
+dashboard.widget.accessLogRequestAttention.title: 访问日志关注项
+dashboard.widget.accessLogRequestAttention.description: 最近的错误请求和慢请求，可能需要运维关注。
+dashboard.widget.accessLogRequestAttention.error: HTTP 错误请求
+dashboard.widget.accessLogRequestAttention.slow: 慢请求
+dashboard.widget.accessLogRequestAttention.empty: 最近没有错误请求或慢请求。
+scheduler.job.accessLogRetentionCleanup.title: 访问日志保留清理
+scheduler.job.shortTitle.accessLog: 访问日志
+scheduledTask.accessLogRetention.description: 删除超过保留周期的访问日志。
+scheduler.job.appLogRetentionCleanup.title: 应用日志保留清理
+scheduler.job.shortTitle.appLog: 应用日志
+scheduledTask.appLogRetention.description: 删除超过保留周期的应用日志。

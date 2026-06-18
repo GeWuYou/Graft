@@ -26,7 +26,6 @@ const (
 	errorCodePanic           = "DASHBOARD_WIDGET_PANIC"
 	errorCodeTimeout         = "DASHBOARD_WIDGET_TIMEOUT"
 	defaultWidgetActionKey   = "dashboard.actions.details"
-	defaultWidgetActionLabel = "View details"
 )
 
 // ModuleRuntimeSummaryProvider returns the current module runtime summary.
@@ -381,13 +380,9 @@ func applyWidgetRuntimeFields(widget *generated.DashboardWidget, definition Widg
 		if labelKey == "" {
 			labelKey = defaultWidgetActionKey
 		}
-		label := definition.Action.Label
-		if label == "" {
-			label = defaultWidgetActionLabel
-		}
 		widget.Action = &generated.DashboardWidgetAction{
 			LabelKey: labelKey,
-			Label:    label,
+			Label:    definition.Action.Label,
 			Route:    definition.Action.Route,
 		}
 	}

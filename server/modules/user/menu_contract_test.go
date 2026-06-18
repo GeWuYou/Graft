@@ -41,7 +41,7 @@ func TestFilterBootstrapMenusIncludesTitleKeyAndFallback(t *testing.T) {
 	if menus[0].Code != "user.list" ||
 		menus[0].TitleKey != usercontract.UserListMenuTitle.String() ||
 		menus[0].Order != 2 ||
-		menus[0].Title != "用户管理" {
+		menus[0].Title != "" {
 		t.Fatalf("expected canonical user bootstrap menu, got %#v", menus[0])
 	}
 	if menus[1].Code != "profile.self" || menus[1].TitleKey != "" || menus[1].Order != 999 || menus[1].Title != "个人中心" {
@@ -106,12 +106,12 @@ func TestFilterBootstrapMenusAppliesFeatureGateAfterPermission(t *testing.T) {
 	registry := menu.NewRegistry()
 	registry.Register(menu.Item{
 		Code:  "ops.root",
-		Title: "运维管理",
+		Title: "",
 		Path:  "/ops",
 	})
 	registry.Register(menu.Item{
 		Code:                     "container.list",
-		Title:                    "容器管理",
+		Title:                    "",
 		Path:                     "/ops/containers",
 		Permission:               "ops.container.view",
 		VisibleWhenConfigEnabled: "ops.container.runtime.enabled",

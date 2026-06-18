@@ -106,37 +106,6 @@ type appLogReadGuard struct {
 	delete gin.HandlerFunc
 }
 
-func registerAppLogExplorerMessages(localizer *i18n.Service) error {
-	if localizer == nil {
-		return errors.New("i18n service is unavailable")
-	}
-
-	for _, registration := range []i18n.Registration{
-		{
-			Namespace: "app-log",
-			Locale:    i18n.LocaleZHCN,
-			Messages: []i18n.MessageResource{
-				{Key: "menu.logCenter.title", Text: "日志中心"},
-				{Key: "menu.appLog.title", Text: "应用日志"},
-			},
-		},
-		{
-			Namespace: "app-log",
-			Locale:    i18n.LocaleENUS,
-			Messages: []i18n.MessageResource{
-				{Key: "menu.logCenter.title", Text: "Log Center"},
-				{Key: "menu.appLog.title", Text: "App Logs"},
-			},
-		},
-	} {
-		if err := localizer.RegisterMessages(registration); err != nil {
-			return fmt.Errorf("register app log messages: %w", err)
-		}
-	}
-
-	return nil
-}
-
 func registerAppLogExplorerPermissions(registry *permission.Registry) {
 	if registry == nil {
 		return
@@ -144,18 +113,14 @@ func registerAppLogExplorerPermissions(registry *permission.Registry) {
 
 	registry.Register(permission.Item{
 		Code:           AppLogReadPermission,
-		Name:           "Read App Logs",
 		DisplayKey:     "rbac.permissionCatalog.appLogRead.display",
-		Description:    "Allows reading logger-owned app-log explorer data.",
 		DescriptionKey: "rbac.permissionCatalog.appLogRead.description",
 		Category:       "api",
 		Module:         appLogModuleOwner,
 	})
 	registry.Register(permission.Item{
 		Code:           AppLogDeletePermission,
-		Name:           "Delete App Logs",
 		DisplayKey:     "rbac.permissionCatalog.appLogDelete.display",
-		Description:    "Allows explicit deletion of retained logger-owned app-log rows.",
 		DescriptionKey: "rbac.permissionCatalog.appLogDelete.description",
 		Category:       "api",
 		Module:         appLogModuleOwner,
@@ -169,7 +134,6 @@ func registerAppLogExplorerMenu(registry *menu.Registry) {
 
 	registry.Register(menu.Item{
 		Code:       appLogMenuCodeRoot,
-		Title:      "日志中心",
 		TitleKey:   "menu.logCenter.title",
 		Path:       appLogMenuRootPath,
 		Icon:       "bulletpoint",
@@ -179,7 +143,6 @@ func registerAppLogExplorerMenu(registry *menu.Registry) {
 	})
 	registry.Register(menu.Item{
 		Code:       appLogMenuCodeList,
-		Title:      "应用日志",
 		TitleKey:   "menu.appLog.title",
 		Path:       appLogMenuListPath,
 		Icon:       "file-search",
@@ -231,9 +194,6 @@ func RegisterAppLogExplorer(
 	authService moduleapi.AuthService,
 	authorizer moduleapi.Authorizer,
 ) error {
-	if err := registerAppLogExplorerMessages(ctx.I18n); err != nil {
-		return err
-	}
 	registerAppLogExplorerPermissions(ctx.PermissionRegistry)
 	registerAppLogExplorerMenu(ctx.MenuRegistry)
 	if err := registerAppLogExplorerRoutes(router, ctx.I18n, repo, authService, authorizer, ctx.EventBus); err != nil {

@@ -8,6 +8,7 @@ import (
 	"fmt"
 
 	"graft/server/internal/drilldown"
+	"graft/server/internal/i18n"
 	"graft/server/internal/module"
 	"graft/server/modules/audit/storeent"
 )
@@ -27,7 +28,11 @@ func NewModuleSpec() module.Spec {
 			if err != nil {
 				return nil, fmt.Errorf("resolve sql db: %w", err)
 			}
-			repo, err := storeent.NewRepository(sqlDB, nil)
+			localizer, err := module.ResolveService[*i18n.Service](ctx.Services, (*i18n.Service)(nil))
+			if err != nil {
+				return nil, fmt.Errorf("resolve i18n service: %w", err)
+			}
+			repo, err := storeent.NewRepository(sqlDB, localizer, nil)
 			if err != nil {
 				return nil, fmt.Errorf("build audit repository: %w", err)
 			}

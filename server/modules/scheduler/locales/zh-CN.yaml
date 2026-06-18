@@ -1,0 +1,16 @@
+menu.server.scheduled_tasks.title: 定时任务
+scheduled_task.not_found: 定时任务不存在
+scheduled_task.already_running: 定时任务正在运行
+scheduled_task.invalid_request: 定时任务请求无效
+scheduledTask.notification.runFailed.title: 定时任务失败
+scheduledTask.notification.runFailed.message: 定时任务执行失败。
+scheduledTask.notification.runSucceeded.title: 定时任务成功
+scheduledTask.notification.runSucceeded.message: 手动定时任务执行成功。
+dashboard.widget.schedulerTaskAttention.title: 定时任务关注项
+dashboard.widget.schedulerTaskAttention.description: 失败、运行中或已禁用的定时任务，需要运维关注。
+dashboard.widget.schedulerTaskAttention.failed: 失败任务
+dashboard.widget.schedulerTaskAttention.failedDescription: 最近一次执行失败。
+dashboard.widget.schedulerTaskAttention.running: 运行中任务
+dashboard.widget.schedulerTaskAttention.runningDescription: 当前正在执行的任务。
+dashboard.widget.schedulerTaskAttention.disabled: 已禁用任务
+dashboard.widget.schedulerTaskAttention.disabledDescription: 当前被禁用的任务。

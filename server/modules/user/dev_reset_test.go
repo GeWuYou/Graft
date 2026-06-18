@@ -9,7 +9,10 @@ import (
 	"testing"
 	"time"
 
+	"graft/server/internal/config"
+	"graft/server/internal/i18n"
 	"graft/server/internal/moduleapi"
+	rbaclocales "graft/server/modules/rbac/locales"
 	rbacstore "graft/server/modules/rbac/store"
 	userstore "graft/server/modules/user/store"
 )
@@ -29,6 +32,7 @@ func TestResetDefaultAdminForDevelopmentResetsCredentialAndRole(t *testing.T) {
 	if err := ResetDefaultAdminForDevelopment(
 		context.Background(),
 		state.authRepo,
+		newDevResetLocalizer(t),
 		devResetRBACBootstrapStub{state: state},
 	); err != nil {
 		t.Fatalf("reset default admin: %v", err)
@@ -44,6 +48,7 @@ func TestResetDefaultAdminForDevelopmentRejectsNonDevelopmentEnv(t *testing.T) {
 	err := ResetDefaultAdminForDevelopment(
 		context.Background(),
 		state.authRepo,
+		newDevResetLocalizer(t),
 		devResetRBACBootstrapStub{state: state},
 	)
 	if err == nil {
@@ -54,6 +59,27 @@ func TestResetDefaultAdminForDevelopmentRejectsNonDevelopmentEnv(t *testing.T) {
 	}
 	if state.ensured {
 		t.Fatal("did not expect reset flow to touch repositories outside local/test env")
+	}
+}
+
+func TestResetDefaultAdminForDevelopmentFailsWhenPermissionSeedsCannotBeBuilt(t *testing.T) {
+	t.Setenv("GRAFT_APP_ENV", "local")
+
+	state := newDevResetState(t, "unused")
+	err := ResetDefaultAdminForDevelopment(
+		context.Background(),
+		state.authRepo,
+		nil,
+		devResetRBACBootstrapStub{state: state},
+	)
+	if err == nil {
+		t.Fatal("expected reset flow to fail when permission seed localization is unavailable")
+	}
+	if !strings.Contains(err.Error(), "build default admin permission seeds") {
+		t.Fatalf("expected explicit permission seed error, got %v", err)
+	}
+	if strings.Contains(err.Error(), "panic") {
+		t.Fatalf("expected explicit error propagation instead of panic, got %v", err)
 	}
 }
 
@@ -114,6 +140,24 @@ func devResetStringPtrOrNil(value string) *string {
 	}
 	result := value
 	return &result
+}
+
+func newDevResetLocalizer(t *testing.T) *i18n.Service {
+	t.Helper()
+
+	localizer := i18n.MustNew(config.I18nConfig{
+		DefaultLocale:    "zh-CN",
+		FallbackLocale:   "en-US",
+		SupportedLocales: []string{"zh-CN", "en-US"},
+	})
+	resources, err := rbaclocales.EmbeddedLocaleResources()
+	if err != nil {
+		t.Fatalf("load rbac locale resources: %v", err)
+	}
+	if err := localizer.RegisterEmbeddedLocaleResources(resources); err != nil {
+		t.Fatalf("register rbac locale resources: %v", err)
+	}
+	return localizer
 }
 
 func newDevResetState(t *testing.T, currentHash string) *devResetState {

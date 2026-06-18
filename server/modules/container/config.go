@@ -41,6 +41,7 @@ const (
 	defaultContainerDangerousActionsEnabled = false
 	defaultContainerEnvironmentPolicy       = containercontract.ContainerEnvironmentPolicyMasked
 	defaultContainerEnvironmentMaskedCopy   = false
+	containerConfigEstimatedKeysPerItem     = 8
 )
 
 // registerConfig registers container configuration definitions and i18n messages.
@@ -70,8 +71,8 @@ func configDefinitions() []configregistry.Definition {
 		containerBooleanDefinition(containerDefinitionSpec{
 			key:                 containercontract.ContainerRuntimeEnabledConfig.String(),
 			group:               containerConfigGeneralGroup,
-			fallbackTitle:       "Container runtime access enabled",
-			fallbackDescription: "Whether container management may access the configured runtime.",
+			fallbackTitle:       "",
+			fallbackDescription: "",
 			defaultValue:        mustRawJSON(defaultContainerEnabled),
 		}),
 		containerRuntimeDefinition(),
@@ -80,8 +81,8 @@ func configDefinitions() []configregistry.Definition {
 			containerDefinitionSpec: containerDefinitionSpec{
 				key:                 containercontract.ContainerLogsDefaultTailConfig.String(),
 				group:               containerConfigLogsGroup,
-				fallbackTitle:       "Default log tail",
-				fallbackDescription: "Default number of log lines returned by container log reads.",
+				fallbackTitle:       "",
+				fallbackDescription: "",
 				defaultValue:        mustRawJSON(defaultContainerLogsDefaultTail),
 			},
 			defaultNumber: defaultContainerLogsDefaultTail,
@@ -92,8 +93,8 @@ func configDefinitions() []configregistry.Definition {
 			containerDefinitionSpec: containerDefinitionSpec{
 				key:                 containercontract.ContainerLogsMaxTailConfig.String(),
 				group:               containerConfigLogsGroup,
-				fallbackTitle:       "Maximum log tail",
-				fallbackDescription: "Maximum number of log lines allowed for container log reads.",
+				fallbackTitle:       "",
+				fallbackDescription: "",
 				defaultValue:        mustRawJSON(defaultContainerLogsMaxTail),
 			},
 			defaultNumber: defaultContainerLogsMaxTail,
@@ -103,16 +104,16 @@ func configDefinitions() []configregistry.Definition {
 		containerBooleanDefinition(containerDefinitionSpec{
 			key:                 containercontract.ContainerDangerousActionsEnabledConfig.String(),
 			group:               containerConfigActionsGroup,
-			fallbackTitle:       "Dangerous actions enabled",
-			fallbackDescription: "Whether start, stop, and restart actions are enabled.",
+			fallbackTitle:       "",
+			fallbackDescription: "",
 			defaultValue:        mustRawJSON(defaultContainerDangerousActionsEnabled),
 		}),
 		containerEnvironmentPolicyDefinition(),
 		containerBooleanDefinition(containerDefinitionSpec{
 			key:                 containercontract.ContainerEnvironmentMaskedCopyEnabledConfig.String(),
 			group:               containerConfigGeneralGroup,
-			fallbackTitle:       "Masked environment copy enabled",
-			fallbackDescription: "Whether masked environment values may expose copy-only raw values to authorized users.",
+			fallbackTitle:       "",
+			fallbackDescription: "",
 			defaultValue:        mustRawJSON(defaultContainerEnvironmentMaskedCopy),
 		}),
 	}
@@ -122,8 +123,8 @@ func containerRuntimeDefinition() configregistry.Definition {
 	return baseContainerDefinition(containerDefinitionSpec{
 		key:                 containercontract.ContainerRuntimeConfig.String(),
 		group:               containerConfigRuntimeGroup,
-		fallbackTitle:       "Container runtime",
-		fallbackDescription: "Runtime adapter used by container management.",
+		fallbackTitle:       "",
+		fallbackDescription: "",
 		valueType:           configregistry.ValueTypeString,
 		defaultValue:        mustRawJSON(defaultContainerRuntime),
 		schema:              containerRuntimeSchema(),
@@ -134,8 +135,8 @@ func containerEndpointDefinition() configregistry.Definition {
 	definition := baseContainerDefinition(containerDefinitionSpec{
 		key:                 containercontract.ContainerDockerEndpointConfig.String(),
 		group:               containerConfigRuntimeGroup,
-		fallbackTitle:       "Container runtime endpoint",
-		fallbackDescription: "Local runtime endpoint used by the first container adapter.",
+		fallbackTitle:       "",
+		fallbackDescription: "",
 		valueType:           configregistry.ValueTypeString,
 		defaultValue:        mustRawJSON(defaultContainerDockerEndpoint),
 		schema:              containerStringSchema(containercontract.ContainerDockerEndpointConfig.String(), 1, maxDockerEndpointLength),
@@ -148,8 +149,8 @@ func containerEnvironmentPolicyDefinition() configregistry.Definition {
 	return baseContainerDefinition(containerDefinitionSpec{
 		key:                 containercontract.ContainerEnvironmentPolicyConfig.String(),
 		group:               containerConfigGeneralGroup,
-		fallbackTitle:       "Environment value display policy",
-		fallbackDescription: "Controls how container environment variable values are returned by detail reads.",
+		fallbackTitle:       "",
+		fallbackDescription: "",
 		valueType:           configregistry.ValueTypeString,
 		defaultValue:        mustRawJSON(defaultContainerEnvironmentPolicy.String()),
 		schema:              containerEnvironmentPolicySchema(),
@@ -193,10 +194,10 @@ func baseContainerDefinition(spec containerDefinitionSpec) configregistry.Defini
 		Module:              moduleID,
 		Domain:              containerConfigDomain,
 		DomainKey:           containerConfigDomainKey,
-		DomainLabel:         "Operations",
+		DomainLabel:         "",
 		Group:               spec.group,
 		GroupKey:            metadata.key,
-		GroupLabel:          metadata.label,
+		GroupLabel:          "",
 		GroupDescription:    metadata.description,
 		GroupDescriptionKey: metadata.descriptionKey,
 		Title:               spec.fallbackTitle,
@@ -223,37 +224,37 @@ func containerConfigGroupMetadata(group string) containerConfigGroupInfo {
 	case containerConfigRuntimeGroup:
 		return containerConfigGroupInfo{
 			key:            containerConfigRuntimeGroupKey,
-			label:          "Container runtime",
+			label:          "",
 			descriptionKey: containerConfigRuntimeDescKey,
-			description:    "Control the local container runtime adapter.",
+			description:    "",
 		}
 	case containerConfigLogsGroup:
 		return containerConfigGroupInfo{
 			key:            containerConfigLogsGroupKey,
-			label:          "Container logs",
+			label:          "",
 			descriptionKey: containerConfigLogsDescKey,
-			description:    "Control bounded container log reads.",
+			description:    "",
 		}
 	case containerConfigActionsGroup:
 		return containerConfigGroupInfo{
 			key:            containerConfigActionsGroupKey,
-			label:          "Container actions",
+			label:          "",
 			descriptionKey: containerConfigActionsDescKey,
-			description:    "Control high-risk container operations.",
+			description:    "",
 		}
 	default:
 		return containerConfigGroupInfo{
 			key:            containerConfigGeneralGroupKey,
-			label:          "Container management",
+			label:          "",
 			descriptionKey: containerConfigGeneralDescKey,
-			description:    "Control the container management baseline.",
+			description:    "",
 		}
 	}
 }
 
 func containerRuntimeSchema() json.RawMessage {
 	return json.RawMessage(fmt.Sprintf(
-		`{"type":"string","enum":["first-adapter"],"default":%q,"title":"Container runtime","description":"Runtime adapter used by container management.","x-i18n":{"titleKey":%q,"descriptionKey":%q}}`,
+		`{"type":"string","enum":["first-adapter"],"default":%q,"x-i18n":{"titleKey":%q,"descriptionKey":%q}}`,
 		defaultContainerRuntime,
 		containerConfigTitleKey(containercontract.ContainerRuntimeConfig.String()),
 		containerConfigDescriptionKey(containercontract.ContainerRuntimeConfig.String()),
@@ -266,13 +267,11 @@ func containerEnvironmentPolicySchema() json.RawMessage {
 	maskedPolicy := containercontract.ContainerEnvironmentPolicyMasked.String()
 	plainPolicy := containercontract.ContainerEnvironmentPolicyPlain.String()
 	return json.RawMessage(fmt.Sprintf(
-		`{"type":"string","enum":[%q,%q,%q],"default":%q,"title":%q,"description":%q,"x-i18n":{"titleKey":%q,"descriptionKey":%q,"enumLabels":{"hidden":{"labelKey":"systemConfig.container.%s.enum.hidden.label","descriptionKey":"systemConfig.container.%s.enum.hidden.description"},"masked":{"labelKey":"systemConfig.container.%s.enum.masked.label","descriptionKey":"systemConfig.container.%s.enum.masked.description"},"plain":{"labelKey":"systemConfig.container.%s.enum.plain.label","descriptionKey":"systemConfig.container.%s.enum.plain.description"}}}}`,
+		`{"type":"string","enum":[%q,%q,%q],"default":%q,"x-i18n":{"titleKey":%q,"descriptionKey":%q,"enumLabels":{"hidden":{"labelKey":"systemConfig.container.%s.enum.hidden.label","descriptionKey":"systemConfig.container.%s.enum.hidden.description"},"masked":{"labelKey":"systemConfig.container.%s.enum.masked.label","descriptionKey":"systemConfig.container.%s.enum.masked.description"},"plain":{"labelKey":"systemConfig.container.%s.enum.plain.label","descriptionKey":"systemConfig.container.%s.enum.plain.description"}}}}`,
 		hiddenPolicy,
 		maskedPolicy,
 		plainPolicy,
 		defaultContainerEnvironmentPolicy.String(),
-		containerConfigTitleFallback(key),
-		containerConfigDescriptionFallback(key),
 		containerConfigTitleKey(key),
 		containerConfigDescriptionKey(key),
 		key,
@@ -286,9 +285,7 @@ func containerEnvironmentPolicySchema() json.RawMessage {
 
 func containerBooleanSchema(key string) json.RawMessage {
 	return json.RawMessage(fmt.Sprintf(
-		`{"type":"boolean","title":%q,"description":%q,"x-i18n":{"titleKey":%q,"descriptionKey":%q}}`,
-		containerConfigTitleFallback(key),
-		containerConfigDescriptionFallback(key),
+		`{"type":"boolean","x-i18n":{"titleKey":%q,"descriptionKey":%q}}`,
 		containerConfigTitleKey(key),
 		containerConfigDescriptionKey(key),
 	))
@@ -296,12 +293,10 @@ func containerBooleanSchema(key string) json.RawMessage {
 
 func containerIntegerSchema(key string, defaultValue int, minimum int, maximum int) json.RawMessage {
 	return json.RawMessage(fmt.Sprintf(
-		`{"type":"integer","minimum":%d,"maximum":%d,"default":%d,"title":%q,"description":%q,"x-i18n":{"titleKey":%q,"descriptionKey":%q,"unitKey":"systemConfig.units.rows"}}`,
+		`{"type":"integer","minimum":%d,"maximum":%d,"default":%d,"x-i18n":{"titleKey":%q,"descriptionKey":%q,"unitKey":"systemConfig.units.rows"}}`,
 		minimum,
 		maximum,
 		defaultValue,
-		containerConfigTitleFallback(key),
-		containerConfigDescriptionFallback(key),
 		containerConfigTitleKey(key),
 		containerConfigDescriptionKey(key),
 	))
@@ -309,32 +304,12 @@ func containerIntegerSchema(key string, defaultValue int, minimum int, maximum i
 
 func containerStringSchema(key string, minimumLength int, maximumLength int) json.RawMessage {
 	return json.RawMessage(fmt.Sprintf(
-		`{"type":"string","minLength":%d,"maxLength":%d,"title":%q,"description":%q,"x-i18n":{"titleKey":%q,"descriptionKey":%q}}`,
+		`{"type":"string","minLength":%d,"maxLength":%d,"x-i18n":{"titleKey":%q,"descriptionKey":%q}}`,
 		minimumLength,
 		maximumLength,
-		containerConfigTitleFallback(key),
-		containerConfigDescriptionFallback(key),
 		containerConfigTitleKey(key),
 		containerConfigDescriptionKey(key),
 	))
-}
-
-func containerConfigTitleFallback(key string) string {
-	for configKey, copy := range enUSContainerConfigCopy() {
-		if configKey == key {
-			return copy[0]
-		}
-	}
-	return key
-}
-
-func containerConfigDescriptionFallback(key string) string {
-	for configKey, copy := range enUSContainerConfigCopy() {
-		if configKey == key {
-			return copy[1]
-		}
-	}
-	return key
 }
 
 func containerConfigTitleKey(key string) string {
@@ -357,125 +332,78 @@ func registerConfigMessages(localizer *i18n.Service) error {
 	if localizer == nil {
 		return errors.New("i18n service is required")
 	}
-	for _, registration := range configMessageRegistrations() {
-		if err := localizer.RegisterMessages(registration); err != nil {
-			return fmt.Errorf("register container config messages: %w", err)
+	keys, err := containerConfigMessageKeys()
+	if err != nil {
+		return err
+	}
+	for _, locale := range []i18n.LocaleTag{i18n.LocaleZHCN, i18n.LocaleENUS} {
+		for _, key := range keys {
+			matches := localizer.RegisteredMessageResources(locale, i18n.MessageKey(key))
+			if len(matches) == 0 {
+				return fmt.Errorf("register container config messages: locale resource %s missing key %s", locale, key)
+			}
 		}
 	}
 	return nil
 }
 
-func configMessageRegistrations() []i18n.Registration {
-	return []i18n.Registration{
-		{
-			Namespace: "system-config",
-			Locale:    i18n.LocaleZHCN,
-			Messages: containerConfigMessages(map[string]string{
-				containerConfigDomainKey:       "运维管理",
-				containerConfigGeneralGroupKey: "容器管理",
-				containerConfigGeneralDescKey:  "控制容器管理能力的基础开关。",
-				containerConfigRuntimeGroupKey: "运行时",
-				containerConfigRuntimeDescKey:  "控制本地容器运行时适配器。",
-				containerConfigLogsGroupKey:    "日志",
-				containerConfigLogsDescKey:     "控制容器日志读取上限。",
-				containerConfigActionsGroupKey: "高危操作",
-				containerConfigActionsDescKey:  "控制容器启停和重启操作。",
-			}, zhCNContainerConfigCopy(), zhCNContainerEnvironmentPolicyEnumCopy()),
-		},
-		{
-			Namespace: "system-config",
-			Locale:    i18n.LocaleENUS,
-			Messages: containerConfigMessages(map[string]string{
-				containerConfigDomainKey:       "Operations",
-				containerConfigGeneralGroupKey: "Container Management",
-				containerConfigGeneralDescKey:  "Control the container management baseline.",
-				containerConfigRuntimeGroupKey: "Runtime",
-				containerConfigRuntimeDescKey:  "Control the local container runtime adapter.",
-				containerConfigLogsGroupKey:    "Logs",
-				containerConfigLogsDescKey:     "Control bounded container log reads.",
-				containerConfigActionsGroupKey: "Dangerous Actions",
-				containerConfigActionsDescKey:  "Control container start, stop, and restart actions.",
-			}, enUSContainerConfigCopy(), enUSContainerEnvironmentPolicyEnumCopy()),
-		},
+func containerConfigMessageKeys() ([]string, error) {
+	keys := make([]string, 0, len(configDefinitions())*containerConfigEstimatedKeysPerItem)
+	seen := make(map[string]struct{}, len(configDefinitions())*containerConfigEstimatedKeysPerItem)
+	appendKey := func(key string) {
+		if key == "" {
+			return
+		}
+		if _, exists := seen[key]; exists {
+			return
+		}
+		seen[key] = struct{}{}
+		keys = append(keys, key)
 	}
+
+	for _, definition := range configDefinitions() {
+		appendKey(definition.DomainKey)
+		appendKey(definition.GroupKey)
+		appendKey(definition.GroupDescriptionKey)
+		appendKey(definition.TitleKey)
+		appendKey(definition.DescriptionKey)
+		if err := appendContainerSchemaMessageKeys(definition.Key, definition.Schema, appendKey); err != nil {
+			return nil, err
+		}
+	}
+
+	return keys, nil
 }
 
-func containerConfigMessages(prefix map[string]string, definitions map[string][2]string, enumDefinitions map[string][2]string) []i18n.MessageResource {
-	enumMessages := containerEnvironmentPolicyEnumMessages(enumDefinitions)
-	messages := make([]i18n.MessageResource, 0, len(prefix)+len(definitions)*2+len(enumMessages))
-	for key, text := range prefix {
-		messages = append(messages, i18n.MessageResource{Key: i18n.MessageKey(key), Text: text})
+func appendContainerSchemaMessageKeys(configKey string, raw json.RawMessage, appendKey func(string)) error {
+	if len(raw) == 0 {
+		return nil
 	}
-	for key, copy := range definitions {
-		messages = append(messages,
-			i18n.MessageResource{Key: i18n.MessageKey(containerConfigTitleKey(key)), Text: copy[0]},
-			i18n.MessageResource{Key: i18n.MessageKey(containerConfigDescriptionKey(key)), Text: copy[1]},
-		)
+
+	var decoded any
+	if err := json.Unmarshal(raw, &decoded); err != nil {
+		return fmt.Errorf("register container config messages: decode schema for %s: %w", configKey, err)
 	}
-	messages = append(messages, enumMessages...)
-	return messages
+
+	collectContainerSchemaMessageKeys(decoded, appendKey)
+	return nil
 }
 
-func containerEnvironmentPolicyEnumMessages(definitions map[string][2]string) []i18n.MessageResource {
-	const messagesPerEnvironmentPolicyEnum = 2
-
-	key := containercontract.ContainerEnvironmentPolicyConfig.String()
-	messages := make([]i18n.MessageResource, 0, len(definitions)*messagesPerEnvironmentPolicyEnum)
-	for value, row := range definitions {
-		messages = append(messages,
-			i18n.MessageResource{Key: i18n.MessageKey(fmt.Sprintf("systemConfig.container.%s.enum.%s.label", key, value)), Text: row[0]},
-			i18n.MessageResource{Key: i18n.MessageKey(fmt.Sprintf("systemConfig.container.%s.enum.%s.description", key, value)), Text: row[1]},
-		)
-	}
-	return messages
-}
-
-func zhCNContainerEnvironmentPolicyEnumCopy() map[string][2]string {
-	return map[string][2]string{
-		containercontract.ContainerEnvironmentPolicyHidden.String(): {"隐藏", "仅返回环境变量名称和敏感标记。"},
-		containercontract.ContainerEnvironmentPolicyMasked.String(): {"脱敏", "敏感环境变量值脱敏，非敏感值正常返回。"},
-		containercontract.ContainerEnvironmentPolicyPlain.String():  {"明文", "不按策略脱敏，直接返回环境变量值。"},
-	}
-}
-
-func enUSContainerEnvironmentPolicyEnumCopy() map[string][2]string {
-	return map[string][2]string{
-		containercontract.ContainerEnvironmentPolicyHidden.String(): {"Hidden", "Return only environment variable names and sensitivity metadata."},
-		containercontract.ContainerEnvironmentPolicyMasked.String(): {"Masked", "Mask sensitive environment variable values and show non-sensitive values."},
-		containercontract.ContainerEnvironmentPolicyPlain.String():  {"Plain", "Return environment variable values without policy masking."},
-	}
-}
-
-// zhCNContainerConfigCopy returns the Chinese localization strings for container configuration items.
-func zhCNContainerConfigCopy() map[string][2]string {
-	return map[string][2]string{
-		containercontract.ContainerRuntimeEnabledConfig.String():          {"启用容器运行时访问", "是否允许容器管理访问已配置的容器运行时。"},
-		containercontract.ContainerRuntimeConfig.String():                 {"容器运行时", "容器管理使用的运行时适配器。"},
-		containercontract.ContainerDockerEndpointConfig.String():          {"容器运行时 endpoint", "首个本地容器运行时适配器使用的 endpoint。"},
-		containercontract.ContainerLogsDefaultTailConfig.String():         {"默认日志行数", "容器日志读取的默认返回行数。"},
-		containercontract.ContainerLogsMaxTailConfig.String():             {"最大日志行数", "容器日志读取允许的最大返回行数。"},
-		containercontract.ContainerDangerousActionsEnabledConfig.String(): {"启用容器高危操作", "是否允许容器启动、停止和重启等高危操作。"},
-		containercontract.ContainerEnvironmentPolicyConfig.String():       {"环境变量值展示策略", "控制容器详情读取时如何返回环境变量值。"},
-		containercontract.ContainerEnvironmentMaskedCopyEnabledConfig.String(): {
-			"允许复制脱敏环境变量真实值",
-			"开启后，具备环境变量读取权限的用户可复制脱敏环境变量的真实值。",
-		},
-	}
-}
-
-// enUSContainerConfigCopy returns English-US localization text for container configuration items.
-func enUSContainerConfigCopy() map[string][2]string {
-	return map[string][2]string{
-		containercontract.ContainerRuntimeEnabledConfig.String():          {"Container Runtime Access Enabled", "Whether container management may access the configured runtime."},
-		containercontract.ContainerRuntimeConfig.String():                 {"Container Runtime", "Runtime adapter used by container management."},
-		containercontract.ContainerDockerEndpointConfig.String():          {"Container Runtime Endpoint", "Local runtime endpoint used by the first container adapter."},
-		containercontract.ContainerLogsDefaultTailConfig.String():         {"Default Log Tail", "Default number of log lines returned by container log reads."},
-		containercontract.ContainerLogsMaxTailConfig.String():             {"Maximum Log Tail", "Maximum number of log lines allowed for container log reads."},
-		containercontract.ContainerDangerousActionsEnabledConfig.String(): {"Dangerous Container Actions Enabled", "Whether start, stop, restart, and future high-risk actions are enabled."},
-		containercontract.ContainerEnvironmentPolicyConfig.String():       {"Environment Value Display Policy", "Controls how container environment variable values are returned by detail reads."},
-		containercontract.ContainerEnvironmentMaskedCopyEnabledConfig.String(): {
-			"Masked Environment Copy Enabled",
-			"Allows authorized users to copy raw values for masked environment variables.",
-		},
+func collectContainerSchemaMessageKeys(node any, appendKey func(string)) {
+	switch typed := node.(type) {
+	case map[string]any:
+		for key, value := range typed {
+			switch key {
+			case "titleKey", "descriptionKey", "labelKey", "unitKey":
+				if text, ok := value.(string); ok {
+					appendKey(text)
+				}
+			}
+			collectContainerSchemaMessageKeys(value, appendKey)
+		}
+	case []any:
+		for _, item := range typed {
+			collectContainerSchemaMessageKeys(item, appendKey)
+		}
 	}
 }

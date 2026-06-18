@@ -25,7 +25,7 @@ func registerSystemConfigDashboardQuickLink(ctx *module.Context, moduleName stri
 		ID:                  systemConfigQuickLinkID,
 		ModuleKey:           moduleName,
 		TitleKey:            systemconfigcontract.SystemConfigMenuTitle.String(),
-		Title:               "System Configuration",
+		Title:               "",
 		Icon:                "setting",
 		RouteLocation:       systemconfigcontract.SystemConfigMenuPath,
 		RequiredPermissions: []string{systemconfigcontract.SystemConfigReadPermission.String()},

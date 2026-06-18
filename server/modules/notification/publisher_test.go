@@ -238,6 +238,41 @@ func TestPublisherRejectsEmptyPermissionFanoutBeforePersistingEvent(t *testing.T
 	}
 }
 
+func TestPublisherAllowsKeyOnlyLocalizedNotificationPayload(t *testing.T) {
+	stack := newNotificationTestStack(t)
+	input := validPublishInput()
+	input.Title = ""
+	input.Message = ""
+	input.ActionLabel = ""
+	input.TitleKey = "notification.title.scheduler.runSucceeded"
+	input.MessageKey = "notification.message.scheduler.runSucceeded"
+	input.ActionLabelKey = "notification.action.openRunRecord"
+
+	result, err := stack.publisher.Publish(context.Background(), input)
+	if err != nil {
+		t.Fatalf("publish key-only notification: %v", err)
+	}
+	if result.EventID == 0 || result.RecipientCount != 1 {
+		t.Fatalf("unexpected key-only publish result: %#v", result)
+	}
+
+	page, err := stack.service.List(context.Background(), ListQuery{RecipientUserID: 42, PageSize: 10})
+	if err != nil {
+		t.Fatalf("list key-only notification: %v", err)
+	}
+	if len(page.Items) != 1 {
+		t.Fatalf("expected one notification item, got %#v", page)
+	}
+	if page.Items[0].Event.Title != "" || page.Items[0].Event.Message != "" || page.Items[0].Event.ActionLabel != "" {
+		t.Fatalf("expected stored fallback text to stay empty, got %#v", page.Items[0].Event)
+	}
+	if page.Items[0].Event.TitleKey != input.TitleKey ||
+		page.Items[0].Event.MessageKey != input.MessageKey ||
+		page.Items[0].Event.ActionLabelKey != input.ActionLabelKey {
+		t.Fatalf("expected stored locale keys to match input, got %#v", page.Items[0].Event)
+	}
+}
+
 func TestRepositoryCreateDeliveriesRejectsInvalidBatchWithoutPartialInsert(t *testing.T) {
 	stack := newNotificationTestStack(t)
 	event, _, err := stack.repository.CreateEvent(context.Background(), createEventInputFromPublishInput(validPublishInput()))

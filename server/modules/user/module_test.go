@@ -43,8 +43,10 @@ import (
 	"graft/server/internal/testassert"
 	authmodule "graft/server/modules/auth"
 	"graft/server/modules/rbac"
+	rbaclocales "graft/server/modules/rbac/locales"
 	rbacstore "graft/server/modules/rbac/store"
 	usercontract "graft/server/modules/user/contract"
+	userlocales "graft/server/modules/user/locales"
 	store "graft/server/modules/user/store"
 )
 
@@ -74,6 +76,34 @@ func adaptTestAuthRepository(repo store.AuthRepository) userstoreAuthPair {
 type userstoreAuthPair struct {
 	auth            store.AuthRepository
 	passwordChanges store.PasswordChangeRepository
+}
+
+func mustNewUserModuleTestLocalizer(t *testing.T) *i18n.Service {
+	t.Helper()
+	return mustNewUserModuleLocalizerOrPanic(func(format string, args ...any) {
+		t.Fatalf(format, args...)
+	})
+}
+
+func mustNewUserModuleLocalizerOrPanic(fail func(format string, args ...any)) *i18n.Service {
+	localizer := i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}})
+	for _, provider := range []struct {
+		name string
+		load func() ([]i18n.EmbeddedLocaleResource, error)
+	}{
+		{name: "user", load: userlocales.EmbeddedLocaleResources},
+		{name: "rbac", load: rbaclocales.EmbeddedLocaleResources},
+	} {
+		resources, err := provider.load()
+		if err != nil {
+			fail("load %s locale resources: %v", provider.name, err)
+		}
+		if err := localizer.RegisterEmbeddedLocaleResources(resources); err != nil {
+			fail("register %s locale resources: %v", provider.name, err)
+		}
+	}
+
+	return localizer
 }
 
 // moduleTestAuthRepository 以内存状态模拟认证仓储的最小行为。
@@ -662,6 +692,7 @@ func newModuleTestContextWithLoggerAndPermissions(
 
 	gin.SetMode(gin.TestMode)
 	engine := gin.New()
+	localizer := mustNewUserModuleTestLocalizer(t)
 	ctx := &module.Context{
 		LifecycleContext: context.Background(),
 		Logger:           logger,
@@ -677,7 +708,7 @@ func newModuleTestContextWithLoggerAndPermissions(
 			FallbackLocale:   "zh-CN",
 			SupportedLocales: []string{"zh-CN", "en-US"},
 		}},
-		I18n:               i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}}),
+		I18n:               localizer,
 		Router:             engine.Group("/api"),
 		Services:           container.New(),
 		MenuRegistry:       menu.NewRegistry(),
@@ -1231,6 +1262,9 @@ func newDefaultAdminBootAuthRepository(t *testing.T, ensuredDefaultAdmin *bool) 
 func newDefaultAdminBootModuleContext(_ store.AuthRepository, _ rbacstore.Repository) *module.Context {
 	gin.SetMode(gin.TestMode)
 	engine := gin.New()
+	localizer := mustNewUserModuleLocalizerOrPanic(func(format string, args ...any) {
+		panic(fmt.Sprintf(format, args...))
+	})
 
 	return &module.Context{
 		LifecycleContext: context.Background(),
@@ -1243,7 +1277,7 @@ func newDefaultAdminBootModuleContext(_ store.AuthRepository, _ rbacstore.Reposi
 			RefreshCookieSameSite: "lax",
 			RefreshCookiePath:     "/",
 		}},
-		I18n:               i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}}),
+		I18n:               localizer,
 		Router:             engine.Group(testAPIBasePath),
 		Services:           container.New(),
 		MenuRegistry:       menu.NewRegistry(),
@@ -1687,6 +1721,65 @@ func TestBootFailsWithoutSharedRouteAuthorizer(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "resolve route authorizer") {
 		t.Fatalf("expected route authorizer resolution failure, got %v", err)
+	}
+}
+
+func TestPermissionSeedsFromItemsReturnsErrorWhenLocalizerUnavailable(t *testing.T) {
+	_, err := permissionSeedsFromItems(nil, []permission.Item{{
+		Code:           "user.read",
+		DisplayKey:     "permissions.user.read",
+		DescriptionKey: "permissions.user.read.description",
+	}})
+	if err == nil {
+		t.Fatal("expected permission seed localization to fail without i18n service")
+	}
+	if !strings.Contains(err.Error(), "requires i18n service") {
+		t.Fatalf("expected i18n service error, got %v", err)
+	}
+}
+
+func TestPermissionSeedsFromItemsReturnsErrorWhenLocaleKeyMissing(t *testing.T) {
+	localizer := mustNewUserModuleTestLocalizer(t)
+
+	_, err := permissionSeedsFromItems(localizer, []permission.Item{{
+		Code:           "user.read",
+		DisplayKey:     "permissions.user.read",
+		DescriptionKey: "permissions.user.read.description.missing",
+	}})
+	if err == nil {
+		t.Fatal("expected permission seed localization to fail when locale key is missing")
+	}
+	if !strings.Contains(err.Error(), "key missing for user.read") {
+		t.Fatalf("expected missing locale key error, got %v", err)
+	}
+}
+
+func TestBootFailsWhenDefaultAdminPermissionSeedLocalizationUnavailable(t *testing.T) {
+	ensuredDefaultAdmin := false
+	assignedRole := false
+	authRepo := newDefaultAdminBootAuthRepository(t, &ensuredDefaultAdmin)
+	rbacRepo := newDefaultAdminBootRBACRepository(t, &assignedRole)
+
+	ctx := newDefaultAdminBootModuleContext(authRepo, rbacRepo)
+	moduleInstance := NewModule(moduleTestUserRepository{}, authRepo)
+	if err := moduleInstance.Register(ctx); err != nil {
+		t.Fatalf("register module: %v", err)
+	}
+	if err := rbac.NewModule(rbacRepo).Register(ctx); err != nil {
+		t.Fatalf("register rbac module: %v", err)
+	}
+
+	ctx.I18n = nil
+
+	err := moduleInstance.Boot(ctx)
+	if err == nil {
+		t.Fatal("expected boot to fail when default admin permission seed localization is unavailable")
+	}
+	if !strings.Contains(err.Error(), "build default admin permission seeds") {
+		t.Fatalf("expected explicit permission seed error, got %v", err)
+	}
+	if strings.Contains(err.Error(), "panic") {
+		t.Fatalf("expected explicit error propagation instead of panic, got %v", err)
 	}
 }
 
@@ -2408,11 +2501,7 @@ func TestBootstrapLocaleSnapshotDeduplicatesFallbackLocales(t *testing.T) {
 			FallbackLocale:   "zh-CN",
 			SupportedLocales: nil,
 		},
-		i18n.MustNew(config.I18nConfig{
-			DefaultLocale:    "zh-CN",
-			FallbackLocale:   "zh-CN",
-			SupportedLocales: []string{"zh-CN"},
-		}),
+		mustNewUserModuleTestLocalizer(t),
 		nil,
 		nil,
 		nil,

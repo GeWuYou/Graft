@@ -15,6 +15,7 @@ import (
 
 	"graft/server/internal/config"
 	"graft/server/internal/database"
+	"graft/server/internal/i18n"
 	"graft/server/internal/moduleapi"
 	"graft/server/modules/user"
 	userstore "graft/server/modules/user/store"
@@ -50,6 +51,7 @@ func TestRunDevResetAdminResetsDefaultAdmin(t *testing.T) {
 	originalOpenDB := devResetOpenDB
 	originalCloseDB := devResetCloseDB
 	originalNewAuthRepository := devResetNewAuthRepository
+	originalNewLocalizer := devResetNewLocalizer
 	originalResolveRBACBootstrap := devResetResolveRBACBootstrap
 	originalResetAdmin := devResetAdmin
 	defer func() {
@@ -57,6 +59,7 @@ func TestRunDevResetAdminResetsDefaultAdmin(t *testing.T) {
 		devResetOpenDB = originalOpenDB
 		devResetCloseDB = originalCloseDB
 		devResetNewAuthRepository = originalNewAuthRepository
+		devResetNewLocalizer = originalNewLocalizer
 		devResetResolveRBACBootstrap = originalResolveRBACBootstrap
 		devResetAdmin = originalResetAdmin
 	}()
@@ -78,11 +81,15 @@ func TestRunDevResetAdminResetsDefaultAdmin(t *testing.T) {
 		steps = append(steps, "new-auth-repository")
 		return userAuthRepositoryForResetStub{}, nil
 	}
+	devResetNewLocalizer = func(config.I18nConfig) (*i18n.Service, error) {
+		steps = append(steps, "new-localizer")
+		return i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "en-US", SupportedLocales: []string{"zh-CN", "en-US"}}), nil
+	}
 	devResetResolveRBACBootstrap = func(*database.Resources) (moduleapi.RBACBootstrapService, error) {
 		steps = append(steps, "new-rbac-bootstrap")
 		return rbacBootstrapServiceStub{}, nil
 	}
-	devResetAdmin = func(_ context.Context, _ user.AuthRepositoryForReset, _ moduleapi.RBACBootstrapService) error {
+	devResetAdmin = func(_ context.Context, _ user.AuthRepositoryForReset, _ *i18n.Service, _ moduleapi.RBACBootstrapService) error {
 		steps = append(steps, "reset-admin")
 		return nil
 	}
@@ -100,6 +107,7 @@ func TestRunDevResetAdminResetsDefaultAdmin(t *testing.T) {
 		"load-config",
 		"open-db:" + testDevResetDatabaseURL(),
 		"new-auth-repository",
+		"new-localizer",
 		"new-rbac-bootstrap",
 		"reset-admin",
 		"close-db",
@@ -117,6 +125,7 @@ func TestRunDevResetAdminWrapsResetFailure(t *testing.T) {
 	originalOpenDB := devResetOpenDB
 	originalCloseDB := devResetCloseDB
 	originalNewAuthRepository := devResetNewAuthRepository
+	originalNewLocalizer := devResetNewLocalizer
 	originalResolveRBACBootstrap := devResetResolveRBACBootstrap
 	originalResetAdmin := devResetAdmin
 	defer func() {
@@ -124,6 +133,7 @@ func TestRunDevResetAdminWrapsResetFailure(t *testing.T) {
 		devResetOpenDB = originalOpenDB
 		devResetCloseDB = originalCloseDB
 		devResetNewAuthRepository = originalNewAuthRepository
+		devResetNewLocalizer = originalNewLocalizer
 		devResetResolveRBACBootstrap = originalResolveRBACBootstrap
 		devResetAdmin = originalResetAdmin
 	}()
@@ -140,10 +150,13 @@ func TestRunDevResetAdminWrapsResetFailure(t *testing.T) {
 	devResetNewAuthRepository = func(_ *sql.DB) (user.AuthRepositoryForReset, error) {
 		return userAuthRepositoryForResetStub{}, nil
 	}
+	devResetNewLocalizer = func(config.I18nConfig) (*i18n.Service, error) {
+		return i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "en-US", SupportedLocales: []string{"zh-CN", "en-US"}}), nil
+	}
 	devResetResolveRBACBootstrap = func(*database.Resources) (moduleapi.RBACBootstrapService, error) {
 		return rbacBootstrapServiceStub{}, nil
 	}
-	devResetAdmin = func(context.Context, user.AuthRepositoryForReset, moduleapi.RBACBootstrapService) error {
+	devResetAdmin = func(context.Context, user.AuthRepositoryForReset, *i18n.Service, moduleapi.RBACBootstrapService) error {
 		return errors.New("boom")
 	}
 

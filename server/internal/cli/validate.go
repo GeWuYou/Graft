@@ -78,6 +78,7 @@ var backendSmokeRunner = runValidateSmoke
 var backendOpenAPIRunner = runValidateOpenAPI
 var backendOpenAPIFreshnessRunner = runValidateOpenAPIFreshness
 var backendMigrationVersionRunner = runValidateMigrationVersions
+var backendLocaleOwnershipGuardRunner = runValidateServerLocaleOwnership
 var backendCommandRunner = runBackendCommand
 var backendGitOutputRunner = runBackendGitOutput
 
@@ -214,6 +215,9 @@ func runValidateBackend(cmd *cobra.Command, opts backendValidateOptions) error {
 	case defaultOpenAPIStage:
 		return backendOpenAPIRunner(cmd, opts.openapiSpec)
 	case "lint":
+		if err := backendLocaleOwnershipGuardRunner(cmd); err != nil {
+			return err
+		}
 		return backendLintRunner(cmd, opts.lintConfig, opts.testLintConfig)
 	case "buildtest":
 		return runBackendBuildTest(cmd, opts.testTargets)
@@ -237,6 +241,9 @@ func runFullBackendValidation(cmd *cobra.Command, opts backendValidateOptions) e
 		return err
 	}
 	if err := backendOpenAPIRunner(cmd, opts.openapiSpec); err != nil {
+		return err
+	}
+	if err := backendLocaleOwnershipGuardRunner(cmd); err != nil {
 		return err
 	}
 	if err := backendLintRunner(cmd, opts.lintConfig, opts.testLintConfig); err != nil {
@@ -374,6 +381,20 @@ func runBackendLint(cmd *cobra.Command, lintConfig string, testLintConfig string
 	if err := backendCommandRunner(cmd, lintPath, append([]string{"run", "--config", testLintConfig}, lintArgs...)...); err != nil {
 		return fmt.Errorf("run test golangci-lint config %q: %w", testLintConfig, err)
 	}
+	return nil
+}
+
+func runValidateServerLocaleOwnership(cmd *cobra.Command) error {
+	repoRoot, err := resolveRepositoryRoot()
+	if err != nil {
+		return fmt.Errorf("resolve repository root for server locale ownership guard: %w", err)
+	}
+
+	scriptPath := filepath.Join(repoRoot, "scripts", "check_server_locale_ownership.py")
+	if err := backendCommandRunner(cmd, "python3", scriptPath); err != nil {
+		return fmt.Errorf("run server locale ownership guard: %w", err)
+	}
+
 	return nil
 }
 

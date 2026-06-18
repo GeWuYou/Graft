@@ -1,0 +1,20 @@
+menu.server.title: 服务器管理
+menu.server.overview.title: 概览
+menu.server.runtime.title: 运行时
+menu.server.dependencies.title: 依赖服务
+monitor.evidence.auditUnavailable.title: 审计证据不可用
+dashboard.widget.monitorSystemHealth.title: 系统健康
+dashboard.widget.monitorSystemHealth.description: 当前服务健康度、依赖状态和活跃异常。
+dashboard.widget.monitorSystemHealth.database: 数据库
+dashboard.widget.monitorSystemHealth.databaseHealthyDescription: 数据库状态正常。
+dashboard.widget.monitorSystemHealth.databaseDegradedDescription: 数据库状态降级。
+dashboard.widget.monitorSystemHealth.databaseDisabledDescription: 数据库可观测性未启用。
+dashboard.widget.monitorSystemHealth.databaseUnknownDescription: 数据库状态未知。
+dashboard.widget.monitorSystemHealth.redis: Redis
+dashboard.widget.monitorSystemHealth.redisHealthyDescription: Redis 状态正常。
+dashboard.widget.monitorSystemHealth.redisDegradedDescription: Redis 状态降级。
+dashboard.widget.monitorSystemHealth.redisDisabledDescription: Redis 可观测性未启用。
+dashboard.widget.monitorSystemHealth.redisUnknownDescription: Redis 状态未知。
+dashboard.widget.monitorSystemHealth.anomalies: 活跃异常
+dashboard.widget.monitorSystemHealth.anomaliesDescription: 当前监控窗口内的活跃异常数量。
+dashboard.widget.monitorSystemHealth.summary: 系统健康

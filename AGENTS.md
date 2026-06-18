@@ -339,6 +339,9 @@ Prefer the repository skills below when their trigger matches the task:
 - `graft-shared-asset-reuse`
   - use before adding, moving, renaming, removing, or replacing reusable frontend/backend/cross-boundary assets so the
     curated shared asset registries stay useful without becoming full source-tree inventories
+- `graft-localization-governance`
+  - use when adding or changing server i18n facade behavior, locale resource files, message keys, JSON Schema
+    `x-i18n` metadata, web locale catalogs, locale aggregation, or key-first localization governance
 - `graft-web-module-scaffold`
   - use when adding a new `web` feature module aligned with backend module semantics
 - `graft-web-vibe-coding`

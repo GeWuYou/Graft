@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"graft/server/internal/i18n"
 	"graft/server/internal/moduleapi"
 	auditcontract "graft/server/modules/audit/contract"
 	auditstore "graft/server/modules/audit/store"
@@ -23,8 +24,11 @@ import (
 
 type repository struct {
 	db              *sql.DB
+	localizer       *i18n.Service
 	monitorEvidence moduleapi.MonitorIncidentEvidenceService
 }
+
+type auditLocaleContextKey struct{}
 
 type actorKey struct {
 	id       uint64
@@ -58,12 +62,19 @@ const incidentCandidateScanLimit = 200
 const sqlLikeEscapeClause = " ESCAPE '\\'"
 
 // NewRepository 基于共享连接池构建 audit 模块的 SQL repository。
-func NewRepository(db *sql.DB, monitorEvidence moduleapi.MonitorIncidentEvidenceService) (auditstore.AuditRepository, error) {
+func NewRepository(
+	db *sql.DB,
+	localizer *i18n.Service,
+	monitorEvidence moduleapi.MonitorIncidentEvidenceService,
+) (auditstore.AuditRepository, error) {
 	if db == nil {
 		return nil, errors.New("audit repository requires a non-nil sql db")
 	}
+	if localizer == nil {
+		return nil, errors.New("audit repository requires a non-nil i18n service")
+	}
 
-	return &repository{db: db, monitorEvidence: monitorEvidence}, nil
+	return &repository{db: db, localizer: localizer, monitorEvidence: monitorEvidence}, nil
 }
 
 func (r *repository) BindMonitorEvidence(service moduleapi.MonitorIncidentEvidenceService) {
@@ -200,11 +211,10 @@ func (r *repository) ListAuditLogs(ctx context.Context, query auditstore.ListAud
 
 	items := make([]auditstore.AuditLog, 0, query.Limit)
 	for rows.Next() {
-		record, err := scanAuditLog(rows)
+		record, err := scanAuditLog(ctx, r.localizer, rows)
 		if err != nil {
 			return auditstore.ListAuditLogsResult{}, err
 		}
-		enrichAuditLog(&record)
 		items = append(items, record)
 	}
 	if err := rows.Err(); err != nil {
@@ -889,9 +899,13 @@ func addTimeFilter(clauses *[]string, args *[]any, format string, value *time.Ti
 	*clauses = append(*clauses, fmt.Sprintf(format, len(*args)))
 }
 
-func scanAuditLog(scanner interface {
+func scanAuditLog(
+	ctx context.Context,
+	localizer *i18n.Service,
+	scanner interface {
 	Scan(dest ...any) error
-}) (auditstore.AuditLog, error) {
+},
+) (auditstore.AuditLog, error) {
 	var (
 		record      auditstore.AuditLog
 		actorUserID sql.NullInt64
@@ -923,12 +937,12 @@ func scanAuditLog(scanner interface {
 		record.ActorUserID = &value
 	}
 	record.Metadata = cloneRawMessage(metadata)
-	enrichAuditLog(&record)
+	enrichAuditLog(ctx, &record, localizer)
 
 	return record, nil
 }
 
-func enrichAuditLog(record *auditstore.AuditLog) {
+func enrichAuditLog(ctx context.Context, record *auditstore.AuditLog, localizer *i18n.Service) {
 	if record == nil {
 		return
 	}
@@ -946,7 +960,7 @@ func enrichAuditLog(record *auditstore.AuditLog) {
 	record.Result = classifyAuditResult(*record, metadata)
 	record.RiskLevel = classifyAuditRiskLevel(*record)
 	record.TargetType = normalizeAuditTargetType(record.ResourceType)
-	record.TargetLabel = firstNonEmpty(record.ResourceName, displayTargetLabel(record.TargetType), record.ResourceID)
+	record.TargetLabel = firstNonEmpty(record.ResourceName, displayTargetLabel(ctx, localizer, record.TargetType), record.ResourceID)
 	record.Target = buildAuditTarget(*record)
 }
 
@@ -1035,7 +1049,7 @@ func (r *repository) readAuditLogByID(ctx context.Context, eventID uint64) (audi
 	FROM audit_logs
 	WHERE id = $1`, eventID)
 
-	record, err := scanAuditLog(row)
+	record, err := scanAuditLog(ctx, r.localizer, row)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return auditstore.AuditLog{}, auditstore.ErrAuditLogNotFound
@@ -1076,7 +1090,7 @@ func (r *repository) readIncidentCandidateLogs(ctx context.Context, windowStart 
 
 	candidates := make([]auditstore.AuditLog, 0, incidentRelatedEventLimit)
 	for rows.Next() {
-		record, scanErr := scanAuditLog(rows)
+		record, scanErr := scanAuditLog(ctx, r.localizer, rows)
 		if scanErr != nil {
 			return nil, scanErr
 		}
@@ -1527,23 +1541,52 @@ func normalizeAuditTargetType(resourceType string) string {
 	}
 }
 
-func displayTargetLabel(targetType string) string {
+func displayTargetLabel(ctx context.Context, localizer *i18n.Service, targetType string) string {
+	key := targetLabelMessageKey(targetType)
+	if key == "" || localizer == nil {
+		return ""
+	}
+
+	return localizer.Lookup(i18n.LookupRequest{
+		Namespace: "audit",
+		Locale:    i18n.LocaleTag(auditLocaleFromContext(ctx)),
+		Key:       i18n.MessageKey(key),
+	})
+}
+
+func targetLabelMessageKey(targetType string) string {
 	switch targetType {
 	case "USER":
-		return "用户"
+		return auditcontract.AuditTargetLabelUser.String()
 	case "ROLE":
-		return "角色"
+		return auditcontract.AuditTargetLabelRole.String()
 	case "PERMISSION":
-		return "权限"
+		return auditcontract.AuditTargetLabelPermission.String()
 	case "AUDIT":
-		return "审计"
+		return auditcontract.AuditTargetLabelAudit.String()
 	case "SERVER_STATUS":
-		return "服务器状态"
+		return auditcontract.AuditTargetLabelServerStatus.String()
 	case "AUTH":
-		return "认证"
+		return auditcontract.AuditTargetLabelAuth.String()
 	default:
 		return ""
 	}
+}
+
+// WithAuditLocale attaches the resolved request locale to one audit read path.
+func WithAuditLocale(ctx context.Context, locale string) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return context.WithValue(ctx, auditLocaleContextKey{}, strings.TrimSpace(locale))
+}
+
+func auditLocaleFromContext(ctx context.Context) string {
+	if ctx == nil {
+		return ""
+	}
+	locale, _ := ctx.Value(auditLocaleContextKey{}).(string)
+	return strings.TrimSpace(locale)
 }
 
 func firstNonEmpty(values ...string) string {
@@ -1999,7 +2042,7 @@ ORDER BY created_at ASC, id ASC
 		if scanErr != nil {
 			return auditstore.OverviewTrend{}, scanErr
 		}
-		enrichAuditLog(&record)
+		enrichAuditLog(ctx, &record, r.localizer)
 		applyOverviewTrendRecord(points, record, startedAt, stepDuration)
 	}
 	if err := rows.Err(); err != nil {
@@ -2110,7 +2153,7 @@ func (r *repository) readOverviewSecurityTimeline(ctx context.Context, args []an
 			Metadata:         cloneRawMessage(metadata),
 			CreatedAt:        item.CreatedAt,
 		}
-		enrichAuditLog(&record)
+		enrichAuditLog(ctx, &record, r.localizer)
 		item.Source = record.Source
 		item.RiskLevel = record.RiskLevel
 		item.Result = record.Result

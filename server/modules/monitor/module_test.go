@@ -27,6 +27,7 @@ import (
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
 	monitorcontract "graft/server/modules/monitor/contract"
+	monitorlocales "graft/server/modules/monitor/locales"
 )
 
 func TestBuildServerStatusResponseIncludesCurrentSliceFields(t *testing.T) {
@@ -99,6 +100,13 @@ func TestRegisterMonitorDashboardWidgetRegistersSystemHealthInsight(t *testing.T
 
 func TestRegisterMessagesIncludesAuditEvidenceUnavailableTitle(t *testing.T) {
 	localizer := i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}})
+	resources, err := monitorlocales.EmbeddedLocaleResources()
+	if err != nil {
+		t.Fatalf("load monitor locale resources: %v", err)
+	}
+	if err := localizer.RegisterEmbeddedLocaleResources(resources); err != nil {
+		t.Fatalf("register monitor locale resources: %v", err)
+	}
 
 	if err := registerMessages(localizer); err != nil {
 		t.Fatalf("register monitor messages: %v", err)

@@ -232,31 +232,13 @@ func TestRegisterAccessLogRetentionCleanupJobMetadata(t *testing.T) {
 		t.Fatalf("expected one registered job, got %d", len(items))
 	}
 	item := items[0]
-	if item.Name != accessLogRetentionCleanupJobName {
-		t.Fatalf("expected job name %q, got %q", accessLogRetentionCleanupJobName, item.Name)
-	}
-	if item.Module != accessLogRetentionCleanupJobModule {
-		t.Fatalf("expected job module %q, got %q", accessLogRetentionCleanupJobModule, item.Module)
-	}
-	if item.Schedule != accessLogRetentionCleanupJobSchedule {
-		t.Fatalf("expected job schedule %q, got %q", accessLogRetentionCleanupJobSchedule, item.Schedule)
-	}
-	if item.DefaultConfig != accessLogRetentionCleanupDefaultConfig {
-		t.Fatalf("expected default config %s, got %s", accessLogRetentionCleanupDefaultConfig, item.DefaultConfig)
-	}
-	if strings.Contains(item.DefaultConfig, "dryRun") || strings.Contains(item.ConfigSchema, "dryRun") {
-		t.Fatalf("did not expect dryRun in persistent access log job config: default=%s schema=%s", item.DefaultConfig, item.ConfigSchema)
-	}
+	assertAccessLogRetentionJobIdentity(t, item)
+	assertAccessLogRetentionJobNoFallbackCopy(t, item)
+	assertAccessLogRetentionJobConfigShape(t, item)
 	if len(item.Actions) != 1 {
 		t.Fatalf("expected one access log retention action, got %#v", item.Actions)
 	}
-	action := item.Actions[0]
-	if action.Key != accessLogRetentionDryRunActionKey ||
-		action.TitleKey != accessLogRetentionDryRunActionTitleKey ||
-		action.DescriptionKey != accessLogRetentionDryRunActionDescKey ||
-		action.Handler == nil {
-		t.Fatalf("unexpected access log retention action: %#v", action)
-	}
+	assertAccessLogRetentionActionMetadata(t, item.Actions[0])
 }
 
 func TestRegisterAccessLogRetentionConfigDefinition(t *testing.T) {
@@ -276,11 +258,68 @@ func TestRegisterAccessLogRetentionConfigDefinition(t *testing.T) {
 func assertAccessLogRetentionConfigDefinition(t *testing.T, definition configregistry.Definition) {
 	t.Helper()
 
+	assertAccessLogRetentionDefinitionIdentity(t, definition)
+	assertAccessLogRetentionDefinitionLocalization(t, definition)
+	if string(definition.DefaultValue) != accessLogRetentionCleanupDefaultConfig {
+		t.Fatalf("expected default config %s, got %s", accessLogRetentionCleanupDefaultConfig, definition.DefaultValue)
+	}
+	assertAccessLogRetentionDefinitionSchema(t, definition)
+}
+
+func assertAccessLogRetentionJobIdentity(t *testing.T, job cronx.Job) {
+	t.Helper()
+	if job.Name != accessLogRetentionCleanupJobName {
+		t.Fatalf("expected job name %q, got %q", accessLogRetentionCleanupJobName, job.Name)
+	}
+	if job.Module != accessLogRetentionCleanupJobModule {
+		t.Fatalf("expected job module %q, got %q", accessLogRetentionCleanupJobModule, job.Module)
+	}
+	if job.Schedule != accessLogRetentionCleanupJobSchedule {
+		t.Fatalf("expected job schedule %q, got %q", accessLogRetentionCleanupJobSchedule, job.Schedule)
+	}
+}
+
+func assertAccessLogRetentionJobNoFallbackCopy(t *testing.T, job cronx.Job) {
+	t.Helper()
+	if job.Title != "" || job.ShortTitle != "" || job.Description != "" {
+		t.Fatalf("expected locale-key-backed access log job metadata without Go fallback copy, got %#v", job)
+	}
+}
+
+func assertAccessLogRetentionJobConfigShape(t *testing.T, job cronx.Job) {
+	t.Helper()
+	if job.DefaultConfig != accessLogRetentionCleanupDefaultConfig {
+		t.Fatalf("expected default config %s, got %s", accessLogRetentionCleanupDefaultConfig, job.DefaultConfig)
+	}
+	if strings.Contains(job.DefaultConfig, "dryRun") || strings.Contains(job.ConfigSchema, "dryRun") {
+		t.Fatalf("did not expect dryRun in persistent access log job config: default=%s schema=%s", job.DefaultConfig, job.ConfigSchema)
+	}
+}
+
+func assertAccessLogRetentionActionMetadata(t *testing.T, action cronx.JobAction) {
+	t.Helper()
+	if action.Key != accessLogRetentionDryRunActionKey ||
+		action.TitleKey != accessLogRetentionDryRunActionTitleKey ||
+		action.DescriptionKey != accessLogRetentionDryRunActionDescKey ||
+		action.Handler == nil {
+		t.Fatalf("unexpected access log retention action: %#v", action)
+	}
+	if action.Title != "" || action.Description != "" {
+		t.Fatalf("expected locale-key-backed access log action metadata without Go fallback copy, got %#v", action)
+	}
+}
+
+func assertAccessLogRetentionDefinitionIdentity(t *testing.T, definition configregistry.Definition) {
+	t.Helper()
 	if definition.Key != accessLogRetentionCleanupJobName ||
 		definition.Module != accessLogRetentionCleanupJobModule ||
 		definition.Type != configregistry.ValueTypeObject {
 		t.Fatalf("unexpected access log config definition: %#v", definition)
 	}
+}
+
+func assertAccessLogRetentionDefinitionLocalization(t *testing.T, definition configregistry.Definition) {
+	t.Helper()
 	if definition.GroupKey != accessLogRetentionConfigGroupKey ||
 		definition.DomainKey != accessLogRetentionConfigDomainKey ||
 		definition.GroupDescriptionKey != accessLogRetentionConfigGroupDescKey ||
@@ -288,12 +327,14 @@ func assertAccessLogRetentionConfigDefinition(t *testing.T, definition configreg
 		definition.DescriptionKey != accessLogRetentionConfigDescriptionKey {
 		t.Fatalf("expected localized access log config metadata, got %#v", definition)
 	}
-	if definition.GroupLabel == "core.httpx / log.retention" {
-		t.Fatalf("group label must be product-facing fallback, got %q", definition.GroupLabel)
+	if definition.DomainLabel != "" || definition.GroupLabel != "" || definition.GroupDescription != "" ||
+		definition.Title != "" || definition.Description != "" {
+		t.Fatalf("expected locale-key-backed access log config metadata without Go fallback copy, got %#v", definition)
 	}
-	if string(definition.DefaultValue) != accessLogRetentionCleanupDefaultConfig {
-		t.Fatalf("expected default config %s, got %s", accessLogRetentionCleanupDefaultConfig, definition.DefaultValue)
-	}
+}
+
+func assertAccessLogRetentionDefinitionSchema(t *testing.T, definition configregistry.Definition) {
+	t.Helper()
 	if !strings.Contains(string(definition.Schema), `"x-i18n"`) ||
 		!strings.Contains(string(definition.Schema), `"unitKey":"systemConfig.units.days"`) ||
 		!strings.Contains(string(definition.Schema), `"batchSize":{"type":"integer","minimum":1,"maximum":10000`) {

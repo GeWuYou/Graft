@@ -1075,6 +1075,7 @@ import {
 } from '@/shared/observability';
 import { useTabsRouterStore } from '@/store';
 import { createLogger } from '@/utils/logger';
+import { localizeRouteTitleKey } from '@/utils/route/title';
 
 import {
   getContainer,
@@ -2356,17 +2357,14 @@ function hasMeaningfulTitle(title: LocalizedTitle) {
 
 function buildDetailTitle(name: string): LocalizedTitle {
   const normalizedName = name.trim();
-  const baseTitle = t('container.detail.title');
-  if (!normalizedName || normalizedName === baseTitle) {
-    return {
-      [LOCALE.ZH_CN]: baseTitle,
-      [LOCALE.EN_US]: 'Container Detail',
-    };
+  const baseTitle = localizeRouteTitleKey('container.detail.title');
+  if (!normalizedName || normalizedName === baseTitle[LOCALE.ZH_CN] || normalizedName === baseTitle[LOCALE.EN_US]) {
+    return baseTitle;
   }
 
   return {
-    [LOCALE.ZH_CN]: `${baseTitle} - ${normalizedName}`,
-    [LOCALE.EN_US]: `Container Detail - ${normalizedName}`,
+    [LOCALE.ZH_CN]: `${baseTitle[LOCALE.ZH_CN]} - ${normalizedName}`,
+    [LOCALE.EN_US]: `${baseTitle[LOCALE.EN_US]} - ${normalizedName}`,
   };
 }
 

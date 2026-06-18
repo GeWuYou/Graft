@@ -1,0 +1,110 @@
+menu.server.system_config.title: System Configuration
+system_config.not_found: System Configuration Not Found
+system_config.invalid_request: Invalid System Configuration Request
+systemConfig.domains.dashboard: Dashboard Configuration
+systemConfig.groups.dashboardQuickActions: Dashboard Quick Actions
+systemConfig.groupDescriptions.dashboardQuickActions: Manage dashboard home quick-action visibility and ranking.
+systemConfig.items.dashboardQuickActions.title: Dashboard Quick Actions
+systemConfig.items.dashboardQuickActions.description: Dashboard home quick-action visibility and ranking defaults.
+systemConfig.fields.dashboardQuickActions.enabled.title: Enabled
+systemConfig.fields.dashboardQuickActions.enabled.description: Controls whether personalized dashboard quick actions are shown.
+systemConfig.fields.dashboardQuickActions.maxItems.title: Maximum Items
+systemConfig.fields.dashboardQuickActions.maxItems.description: Maximum personalized entries shown on the dashboard home page.
+systemConfig.fields.dashboardQuickActions.strategy.title: Ranking Strategy
+systemConfig.fields.dashboardQuickActions.strategy.description: Personalized quick action ranking strategy.
+systemConfig.options.dashboardQuickActionStrategy.mostUsed: Most Used
+systemConfig.options.dashboardQuickActionStrategyDescriptions.mostUsed: Prioritize the quick actions used most often.
+systemConfig.options.dashboardQuickActionStrategy.recent: Recent
+systemConfig.options.dashboardQuickActionStrategyDescriptions.recent: Prioritize quick actions visited most recently.
+systemConfig.options.dashboardQuickActionStrategy.hybrid: Hybrid
+systemConfig.options.dashboardQuickActionStrategyDescriptions.hybrid: Rank by recent visits, usage frequency, and system recommendations.
+systemConfig.domains.logs: Logs
+systemConfig.domains.notification: Notification
+systemConfig.domains.ops: Operations
+systemConfig.domains.audit: Security Audit
+systemConfig.groups.coreHttpxLogRetention: Access Log Retention
+systemConfig.groupDescriptions.coreHttpxLogRetention: Manage access log cleanup retention and batch policy.
+systemConfig.items.accessLogRetentionCleanup.title: Access log retention cleanup
+systemConfig.items.accessLogRetentionCleanup.description: Default cleanup configuration for access-log retention jobs.
+systemConfig.groups.coreLoggerLogRetention: App Log Retention
+systemConfig.groupDescriptions.coreLoggerLogRetention: Manage application log cleanup retention and batch policy.
+systemConfig.items.appLogRetentionCleanup.title: App log retention cleanup
+systemConfig.items.appLogRetentionCleanup.description: Default cleanup configuration for app-log retention jobs.
+systemConfig.groups.auditLogRetention: Audit Log Retention
+systemConfig.groupDescriptions.auditLogRetention: Manage audit log cleanup retention and batch policy.
+systemConfig.items.auditLogRetentionCleanup.title: Audit log retention cleanup
+systemConfig.items.auditLogRetentionCleanup.description: Default cleanup configuration for audit-log retention jobs.
+systemConfig.fields.retentionDays.title: Log Retention Days
+systemConfig.fields.retentionDays.description: Delete logs older than this many days.
+systemConfig.fields.batchSize.title: Batch Size
+systemConfig.fields.batchSize.description: Maximum rows deleted per cleanup batch.
+systemConfig.units.days: days
+systemConfig.units.rows: rows
+systemConfig.groups.notification.general: General
+systemConfig.groups.notification.general.description: Control the Notification Center baseline behavior.
+systemConfig.groups.notification.sources: Sources
+systemConfig.groups.notification.sources.description: Control which platform events create notifications.
+systemConfig.groups.notification.delivery: Delivery
+systemConfig.groups.notification.delivery.description: Control in-app delivery and fan-out limits.
+systemConfig.groups.notification.display: Display
+systemConfig.groups.notification.display.description: Control Notification Center display defaults.
+systemConfig.notification.notification.enabled.title: Notification Enabled
+systemConfig.notification.notification.enabled.description: Whether in-app notifications are enabled.
+systemConfig.notification.notification.retention_days.title: Notification Retention Days
+systemConfig.notification.notification.retention_days.description: Number of days notification records should be retained.
+systemConfig.notification.notification.default_page_size.title: Default Page Size
+systemConfig.notification.notification.default_page_size.description: Default page size used by Notification Center.
+systemConfig.notification.notification.source.system_announcement.enabled.title: System Announcement Notifications
+systemConfig.notification.notification.source.system_announcement.enabled.description: Enables notifications created from published system announcements.
+systemConfig.notification.notification.source.scheduled_task_failure.enabled.title: Scheduled Task Failure Notifications
+systemConfig.notification.notification.source.scheduled_task_failure.enabled.description: Enables notifications for failed scheduled task runs.
+systemConfig.notification.notification.source.scheduled_task_success.enabled.title: Scheduled Task Success Notifications
+systemConfig.notification.notification.source.scheduled_task_success.enabled.description: Enables notifications for successful manual scheduled task runs.
+systemConfig.notification.notification.source.audit_incident.enabled.title: Audit Incident Notifications
+systemConfig.notification.notification.source.audit_incident.enabled.description: Enables notifications for audit events that require security review.
+systemConfig.notification.notification.source.system_config_change.enabled.title: System Config Change Notifications
+systemConfig.notification.notification.source.system_config_change.enabled.description: Enables notifications for system configuration changes, resets, and validation failures.
+systemConfig.notification.notification.source.access_log_retention_failure.enabled.title: Access Log Retention Failure Notifications
+systemConfig.notification.notification.source.access_log_retention_failure.enabled.description: Enables notifications for access-log retention cleanup failures.
+systemConfig.notification.notification.delivery.in_app.enabled.title: In-App Delivery Enabled
+systemConfig.notification.notification.delivery.in_app.enabled.description: Whether Notification Center should create in-app delivery records.
+systemConfig.notification.notification.delivery.dedupe_window_seconds.title: Dedupe Window Seconds
+systemConfig.notification.notification.delivery.dedupe_window_seconds.description: Dedupe window for same source, target, and business object notifications.
+systemConfig.notification.notification.delivery.max_batch_recipients.title: Max Batch Recipients
+systemConfig.notification.notification.delivery.max_batch_recipients.description: Maximum recipients in one notification delivery batch.
+systemConfig.notification.notification.display.title: Notification Display
+systemConfig.notification.notification.display.description: Notification Center display defaults.
+systemConfig.notification.display.showReadDays.title: Show Read Days
+systemConfig.notification.display.showReadDays.description: Default time window for showing read notifications.
+systemConfig.notification.display.popupLimit.title: Popup Limit
+systemConfig.notification.display.popupLimit.description: Maximum notifications displayed by the notification bell popup.
+systemConfig.groups.ops.container.general: Container Management
+systemConfig.groups.ops.container.general.description: Control the container management baseline.
+systemConfig.groups.ops.container.runtime: Runtime
+systemConfig.groups.ops.container.runtime.description: Control the local container runtime adapter.
+systemConfig.groups.ops.container.logs: Logs
+systemConfig.groups.ops.container.logs.description: Control bounded container log reads.
+systemConfig.groups.ops.container.actions: Dangerous Actions
+systemConfig.groups.ops.container.actions.description: Control container start, stop, and restart actions.
+systemConfig.container.ops.container.runtime.enabled.title: Container Runtime Access Enabled
+systemConfig.container.ops.container.runtime.enabled.description: Whether container management may access the configured runtime.
+systemConfig.container.ops.container.runtime.title: Container Runtime
+systemConfig.container.ops.container.runtime.description: Runtime adapter used by container management.
+systemConfig.container.ops.container.docker.endpoint.title: Container Runtime Endpoint
+systemConfig.container.ops.container.docker.endpoint.description: Local runtime endpoint used by the first container adapter.
+systemConfig.container.ops.container.logs.default_tail.title: Default Log Tail
+systemConfig.container.ops.container.logs.default_tail.description: Default number of log lines returned by container log reads.
+systemConfig.container.ops.container.logs.max_tail.title: Maximum Log Tail
+systemConfig.container.ops.container.logs.max_tail.description: Maximum number of log lines allowed for container log reads.
+systemConfig.container.ops.container.actions.dangerous_enabled.title: Dangerous Container Actions Enabled
+systemConfig.container.ops.container.actions.dangerous_enabled.description: Whether start, stop, restart, and future high-risk actions are enabled.
+systemConfig.container.ops.container.environment.policy.title: Environment Value Display Policy
+systemConfig.container.ops.container.environment.policy.description: Controls how container environment variable values are returned by detail reads.
+systemConfig.container.ops.container.environment.masked_copy_enabled.title: Masked Environment Copy Enabled
+systemConfig.container.ops.container.environment.masked_copy_enabled.description: Allows authorized users to copy raw values for masked environment variables.
+systemConfig.container.ops.container.environment.policy.enum.hidden.label: Hidden
+systemConfig.container.ops.container.environment.policy.enum.hidden.description: Return only environment variable names and sensitivity metadata.
+systemConfig.container.ops.container.environment.policy.enum.masked.label: Masked
+systemConfig.container.ops.container.environment.policy.enum.masked.description: Mask sensitive environment variable values and show non-sensitive values.
+systemConfig.container.ops.container.environment.policy.enum.plain.label: Plain
+systemConfig.container.ops.container.environment.policy.enum.plain.description: Return environment variable values without policy masking.

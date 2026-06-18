@@ -45,9 +45,7 @@ func registerAuditDashboardWidget(ctx *module.Context, reader *Service) error {
 		ID:             auditRiskEventsWidgetID,
 		ModuleKey:      moduleID,
 		TitleKey:       "dashboard.widget.auditRiskEvents.title",
-		Title:          "Audit Risk Events",
 		DescriptionKey: "dashboard.widget.auditRiskEvents.description",
-		Description:    "Recent high-risk audit and security events.",
 		Type:           dashboard.WidgetTypeAlertList,
 		Size:           dashboard.WidgetSizeMedium,
 		Category:       dashboard.WidgetCategorySecurity,
@@ -56,7 +54,6 @@ func registerAuditDashboardWidget(ctx *module.Context, reader *Service) error {
 		RouteLocation:  auditcontract.AuditOverviewMenuPath,
 		Action: dashboard.WidgetAction{
 			LabelKey: "dashboard.actions.details",
-			Label:    "View details",
 			Route:    auditcontract.AuditOverviewMenuPath,
 		},
 		RequiredPermissions: []string{auditcontract.AuditReadPermission.String()},
@@ -77,7 +74,6 @@ func auditQuickLinks() []dashboard.QuickLinkDefinition {
 			ID:                  auditOverviewQuickLinkID,
 			ModuleKey:           moduleID,
 			TitleKey:            auditcontract.AuditOverviewMenuTitle.String(),
-			Title:               "Security Audit Overview",
 			Icon:                "dashboard",
 			RouteLocation:       auditcontract.AuditOverviewMenuPath,
 			RequiredPermissions: append([]string(nil), requiredPermissions...),
@@ -87,7 +83,6 @@ func auditQuickLinks() []dashboard.QuickLinkDefinition {
 			ID:                  auditLogsQuickLinkID,
 			ModuleKey:           moduleID,
 			TitleKey:            auditcontract.AuditLogMenuTitle.String(),
-			Title:               "Audit Logs",
 			Icon:                "history",
 			RouteLocation:       auditcontract.AuditLogsMenuPath,
 			RequiredPermissions: append([]string(nil), requiredPermissions...),
@@ -108,12 +103,10 @@ func loadAuditRiskEventsWidget(ctx context.Context, reader *Service) (dashboard.
 			"id":               "audit.high-risk",
 			"level":            "error",
 			"title_key":        "dashboard.widget.auditRiskEvents.highRisk.title",
-			"title":            "High-risk audit events",
 			"description_key":  "dashboard.widget.auditRiskEvents.highRisk.description",
 			"description":      strconv.Itoa(overview.Summary.HighRiskEvents) + " high-risk events in the last 24 hours.",
 			"count":            overview.Summary.HighRiskEvents,
 			"action_label_key": "dashboard.widget.auditRiskEvents.highRisk.action",
-			"action_label":     "View events",
 			"route_location":   auditHighRiskDashboardLocation(),
 		})
 	}
@@ -122,12 +115,10 @@ func loadAuditRiskEventsWidget(ctx context.Context, reader *Service) (dashboard.
 			"id":               "audit.failed-operations",
 			"level":            "warning",
 			"title_key":        "dashboard.widget.auditRiskEvents.failedOperations.title",
-			"title":            "Failed operations",
 			"description_key":  "dashboard.widget.auditRiskEvents.failedOperations.description",
 			"description":      strconv.Itoa(overview.Summary.FailedOperations) + " failed operations need review.",
 			"count":            overview.Summary.FailedOperations,
 			"action_label_key": "dashboard.widget.auditRiskEvents.failedOperations.action",
-			"action_label":     "View failures",
 			"route_location":   auditFailedOperationsDashboardLocation(),
 		})
 	}
@@ -137,10 +128,8 @@ func loadAuditRiskEventsWidget(ctx context.Context, reader *Service) (dashboard.
 		id:             "audit.failed-auth",
 		items:          overview.FailedAuth,
 		scope:          auditstore.AuditBusinessCategoryAuthFailures,
-		Title:          "Authentication failures",
 		TitleKey:       "audit.overview.riskGroups.authFailures",
 		DescriptionKey: "dashboard.widget.auditRiskEvents.authFailures.description",
-		ActionLabel:    "View authentication failures",
 		ActionLabelKey: "dashboard.widget.auditRiskEvents.authFailures.action",
 	})
 
@@ -158,7 +147,6 @@ func loadAuditRiskEventsWidget(ctx context.Context, reader *Service) (dashboard.
 	return dashboard.WidgetPayload{
 		"items":            items,
 		"empty_key":        "dashboard.widget.auditRiskEvents.empty",
-		"empty":            "No audit risk events in the last 24 hours.",
 		"visible":          len(items) > 0,
 		"state":            string(state),
 		"priority":         string(priority),
@@ -171,10 +159,8 @@ type auditOverviewGroupItemDefinition struct {
 	id             string
 	items          []auditstore.OverviewItem
 	scope          auditstore.AuditBusinessCategory
-	Title          string
 	TitleKey       string
 	DescriptionKey string
-	ActionLabel    string
 	ActionLabelKey string
 }
 
@@ -191,13 +177,11 @@ func appendAuditOverviewGroupItem(items []map[string]any, definition auditOvervi
 		"id":               definition.id,
 		"level":            "warning",
 		"title_key":        definition.TitleKey,
-		"title":            definition.Title,
 		"description_key":  definition.DescriptionKey,
 		"description":      description,
 		"count":            definition.count,
 		"occurred_at":      latest.CreatedAt,
 		"action_label_key": definition.ActionLabelKey,
-		"action_label":     definition.ActionLabel,
 		"route_location":   auditBusinessCategoryDashboardLocation(definition.scope),
 	}
 	return append(items, item)

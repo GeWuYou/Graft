@@ -24,6 +24,7 @@ import (
 	"graft/server/internal/moduleapi"
 	"graft/server/internal/permission"
 	systemconfigcontract "graft/server/modules/system-config/contract"
+	systemconfiglocales "graft/server/modules/system-config/locales"
 	systemconfigstore "graft/server/modules/system-config/store"
 )
 
@@ -224,6 +225,13 @@ func registerSystemConfigModuleWithUserService(t *testing.T, service *Service) *
 	})
 	if err != nil {
 		t.Fatalf("create i18n service: %v", err)
+	}
+	resources, err := systemconfiglocales.EmbeddedLocaleResources()
+	if err != nil {
+		t.Fatalf("load system-config locale resources: %v", err)
+	}
+	if err := localizer.RegisterEmbeddedLocaleResources(resources); err != nil {
+		t.Fatalf("register system-config locale resources: %v", err)
 	}
 
 	dashboardRegistry := dashboard.NewRegistry()

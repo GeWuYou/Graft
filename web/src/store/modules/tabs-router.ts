@@ -11,10 +11,12 @@ import {
 
 import { LOCALE } from '@/contracts/i18n/locales';
 import { AUTH_ROUTE_NAME } from '@/modules/auth/contract/routes';
+import { localizeRouteTitleKey } from '@/utils/route/title';
 import type { TabPageSnapshot, TRouterInfo, TTabRouterType } from '@/utils/types';
 
 const PINNED_TABS_STORAGE_KEY = 'tabs:pinned';
 const MAX_CLOSED_TABS = 20;
+const ROOT_ENTRY_TITLE_KEY = 'app.home.title';
 
 const homeRoute: Array<TRouterInfo> = [
   {
@@ -22,7 +24,7 @@ const homeRoute: Array<TRouterInfo> = [
     path: '/',
     fullPath: '/',
     routeIdx: 0,
-    title: { [LOCALE.ZH_CN]: '工作台', [LOCALE.EN_US]: 'Workspace' },
+    title: localizeRouteTitleKey(ROOT_ENTRY_TITLE_KEY),
     name: 'RootEntry',
     isHome: true,
     isAlive: true,

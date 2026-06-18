@@ -206,7 +206,7 @@ func unavailableMonitorEvidenceLink(start time.Time, end time.Time, reason strin
 		TargetKind: evidenceTargetAudit,
 		LinkState:  evidenceStateUnavailable,
 		TitleKey:   "monitor.evidence.unavailable.title",
-		Title:      "Monitor evidence is unavailable",
+		Title:      "",
 		Reason:     reason,
 		TimeWindow: &moduleapi.MonitorEvidenceLinkTimeWindow{
 			CreatedFrom: start,

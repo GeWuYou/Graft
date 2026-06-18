@@ -6,6 +6,7 @@ package container
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"slices"
@@ -23,6 +24,7 @@ import (
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
 	containercontract "graft/server/modules/container/contract"
+	containerlocales "graft/server/modules/container/locales"
 )
 
 func TestRoutesRequireContainerPermissions(t *testing.T) {
@@ -227,6 +229,21 @@ func newRegisteredRouteTestService(t *testing.T) (*module.Context, *gin.Engine) 
 func newRouteTestContext(authorizer moduleapi.Authorizer) (*module.Context, *gin.Engine) {
 	gin.SetMode(gin.TestMode)
 	engine := gin.New()
+	localizer := i18n.MustNew(config.I18nConfig{
+		DefaultLocale:  "zh-CN",
+		FallbackLocale: "zh-CN",
+		SupportedLocales: []string{
+			"zh-CN",
+			"en-US",
+		},
+	})
+	resources, err := containerlocales.EmbeddedLocaleResources()
+	if err != nil {
+		panic(fmt.Sprintf("load container locale resources: %v", err))
+	}
+	if err := localizer.RegisterEmbeddedLocaleResources(resources); err != nil {
+		panic(fmt.Sprintf("register container locale resources: %v", err))
+	}
 	services := internalcontainer.New()
 	if err := services.RegisterSingleton((*moduleapi.AuthService)(nil), func(internalcontainer.Resolver) (any, error) {
 		return routeTestAuthService{}, nil
@@ -240,14 +257,7 @@ func newRouteTestContext(authorizer moduleapi.Authorizer) (*module.Context, *gin
 	}
 	return &module.Context{
 		Logger: zap.NewNop(),
-		I18n: i18n.MustNew(config.I18nConfig{
-			DefaultLocale:  "zh-CN",
-			FallbackLocale: "zh-CN",
-			SupportedLocales: []string{
-				"zh-CN",
-				"en-US",
-			},
-		}),
+		I18n:    localizer,
 		EventBus: eventbus.New(zap.NewNop()),
 		Router:   engine.Group("/api"),
 		Services: services,

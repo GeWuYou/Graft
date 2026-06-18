@@ -1,0 +1,20 @@
+menu.server.title: Server Management
+menu.server.overview.title: Overview
+menu.server.runtime.title: Runtime
+menu.server.dependencies.title: Dependencies
+monitor.evidence.auditUnavailable.title: Audit evidence is unavailable
+dashboard.widget.monitorSystemHealth.title: System Health
+dashboard.widget.monitorSystemHealth.description: Current service health, dependency state, and active anomalies.
+dashboard.widget.monitorSystemHealth.database: Database
+dashboard.widget.monitorSystemHealth.databaseHealthyDescription: Database is healthy.
+dashboard.widget.monitorSystemHealth.databaseDegradedDescription: Database is degraded.
+dashboard.widget.monitorSystemHealth.databaseDisabledDescription: Database observability is disabled.
+dashboard.widget.monitorSystemHealth.databaseUnknownDescription: Database status is unknown.
+dashboard.widget.monitorSystemHealth.redis: Redis
+dashboard.widget.monitorSystemHealth.redisHealthyDescription: Redis is healthy.
+dashboard.widget.monitorSystemHealth.redisDegradedDescription: Redis is degraded.
+dashboard.widget.monitorSystemHealth.redisDisabledDescription: Redis observability is disabled.
+dashboard.widget.monitorSystemHealth.redisUnknownDescription: Redis status is unknown.
+dashboard.widget.monitorSystemHealth.anomalies: Active anomalies
+dashboard.widget.monitorSystemHealth.anomaliesDescription: Active anomalies in the monitor window.
+dashboard.widget.monitorSystemHealth.summary: System health

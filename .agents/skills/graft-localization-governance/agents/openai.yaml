@@ -1,0 +1,4 @@
+interface:
+  display_name: "Graft Localization Governance"
+  short_description: "Guide Graft localization and i18n changes."
+  default_prompt: "Use $graft-localization-governance before changing Graft i18n catalogs, locale keys, server i18n facade behavior, or web locale aggregation."

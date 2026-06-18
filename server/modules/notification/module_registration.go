@@ -5,7 +5,6 @@ package notification
 
 import (
 	"errors"
-	"fmt"
 
 	"graft/server/internal/i18n"
 	"graft/server/internal/module"
@@ -27,28 +26,6 @@ func registerNotificationMessages(localizer *i18n.Service) error {
 	if localizer == nil {
 		return errors.New("i18n service is unavailable")
 	}
-
-	for _, registration := range []i18n.Registration{
-		{
-			Namespace: "notification",
-			Locale:    i18n.LocaleZHCN,
-			Messages: []i18n.MessageResource{
-				{Key: i18n.MessageKey(notificationcontract.NotificationMenuTitle.String()), Text: "通知中心"},
-			},
-		},
-		{
-			Namespace: "notification",
-			Locale:    i18n.LocaleENUS,
-			Messages: []i18n.MessageResource{
-				{Key: i18n.MessageKey(notificationcontract.NotificationMenuTitle.String()), Text: "Notification Center"},
-			},
-		},
-	} {
-		if err := localizer.RegisterMessages(registration); err != nil {
-			return fmt.Errorf("register notification module messages: %w", err)
-		}
-	}
-
 	return nil
 }
 
@@ -59,27 +36,27 @@ func registerNotificationPermissions(registry *permission.Registry, moduleName s
 
 	registry.Register(permission.Item{
 		Code:           notificationcontract.NotificationViewPermission.String(),
-		Name:           "View Notifications",
+		Name:           "",
 		DisplayKey:     "rbac.permissionCatalog.notificationView.display",
-		Description:    "Allows reading current-user notifications and unread counts.",
+		Description:    "",
 		DescriptionKey: "rbac.permissionCatalog.notificationView.description",
 		Category:       "api",
 		Module:         moduleName,
 	})
 	registry.Register(permission.Item{
 		Code:           notificationcontract.NotificationReadPermission.String(),
-		Name:           "Read Notifications",
+		Name:           "",
 		DisplayKey:     "rbac.permissionCatalog.notificationRead.display",
-		Description:    "Allows marking current-user notifications as read or deleting current-user deliveries.",
+		Description:    "",
 		DescriptionKey: "rbac.permissionCatalog.notificationRead.description",
 		Category:       "api",
 		Module:         moduleName,
 	})
 	registry.Register(permission.Item{
 		Code:           notificationcontract.NotificationManagePermission.String(),
-		Name:           "Manage Notifications",
+		Name:           "",
 		DisplayKey:     "rbac.permissionCatalog.notificationManage.display",
-		Description:    "Reserved for future global notification delivery management.",
+		Description:    "",
 		DescriptionKey: "rbac.permissionCatalog.notificationManage.description",
 		Category:       "api",
 		Module:         moduleName,

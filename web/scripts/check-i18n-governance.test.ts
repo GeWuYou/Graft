@@ -409,6 +409,11 @@ describe('check-i18n-governance fixture rules', () => {
       expectedSnippets: ['semanticTitle', 'zh-CN', 'en-US'],
     },
     {
+      fixture: 'invalid-computed-locale-title-object',
+      expectation: 'blocks computed LOCALE title objects',
+      expectedSnippets: ['tabTitle', 'zh-CN', 'en-US', '工作台', 'Workspace'],
+    },
+    {
       fixture: 'invalid-cron-english-fallback',
       expectation: 'blocks cron-like English fallback copy',
       expectedSnippets: ['Advanced Cron expression'],

@@ -19,26 +19,17 @@ func registerMessages(localizer *i18n.Service) error {
 	if localizer == nil {
 		return errors.New("i18n service is unavailable")
 	}
-	for _, registration := range []i18n.Registration{
-		{
-			Namespace: "announcement",
-			Locale:    i18n.LocaleZHCN,
-			Messages: []i18n.MessageResource{
-				{Key: i18n.MessageKey(announcementcontract.AnnouncementMenuTitle.String()), Text: "公告管理"},
-				{Key: i18n.MessageKey(announcementcontract.AnnouncementPublishedDeleteForbidden.String()), Text: "已发布公告需先归档后删除"},
-			},
-		},
-		{
-			Namespace: "announcement",
-			Locale:    i18n.LocaleENUS,
-			Messages: []i18n.MessageResource{
-				{Key: i18n.MessageKey(announcementcontract.AnnouncementMenuTitle.String()), Text: "Announcements"},
-				{Key: i18n.MessageKey(announcementcontract.AnnouncementPublishedDeleteForbidden.String()), Text: "Archive the published announcement before deleting it"},
-			},
-		},
-	} {
-		if err := localizer.RegisterMessages(registration); err != nil {
-			return fmt.Errorf("register announcement module messages: %w", err)
+	for _, locale := range []i18n.LocaleTag{i18n.LocaleZHCN, i18n.LocaleENUS} {
+		matches := localizer.RegisteredMessageResources(
+			locale,
+			i18n.MessageKey(announcementcontract.AnnouncementPublishedDeleteForbidden.String()),
+		)
+		if len(matches) == 0 {
+			return fmt.Errorf(
+				"register announcement module messages: locale resource %s missing key %s",
+				locale,
+				announcementcontract.AnnouncementPublishedDeleteForbidden.String(),
+			)
 		}
 	}
 	return nil
@@ -51,45 +42,45 @@ func registerAnnouncementPermissions(registry *permission.Registry, moduleName s
 	for _, item := range []permission.Item{
 		{
 			Code:           announcementcontract.AnnouncementReadPermission.String(),
-			Name:           "Read Announcements",
+			Name:           "",
 			DisplayKey:     "rbac.permissionCatalog.announcementRead.display",
-			Description:    "Allows reading announcement management records.",
+			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.announcementRead.description",
 			Category:       "api",
 			Module:         moduleName,
 		},
 		{
 			Code:           announcementcontract.AnnouncementCreatePermission.String(),
-			Name:           "Create Announcements",
+			Name:           "",
 			DisplayKey:     "rbac.permissionCatalog.announcementCreate.display",
-			Description:    "Allows creating announcement drafts.",
+			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.announcementCreate.description",
 			Category:       "api",
 			Module:         moduleName,
 		},
 		{
 			Code:           announcementcontract.AnnouncementUpdatePermission.String(),
-			Name:           "Update Announcements",
+			Name:           "",
 			DisplayKey:     "rbac.permissionCatalog.announcementUpdate.display",
-			Description:    "Allows updating announcement drafts and management metadata.",
+			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.announcementUpdate.description",
 			Category:       "api",
 			Module:         moduleName,
 		},
 		{
 			Code:           announcementcontract.AnnouncementPublishPermission.String(),
-			Name:           "Publish Announcements",
+			Name:           "",
 			DisplayKey:     "rbac.permissionCatalog.announcementPublish.display",
-			Description:    "Allows publishing and archiving announcements.",
+			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.announcementPublish.description",
 			Category:       "api",
 			Module:         moduleName,
 		},
 		{
 			Code:           announcementcontract.AnnouncementDeletePermission.String(),
-			Name:           "Delete Announcements",
+			Name:           "",
 			DisplayKey:     "rbac.permissionCatalog.announcementDelete.display",
-			Description:    "Allows soft-deleting announcement records.",
+			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.announcementDelete.description",
 			Category:       "api",
 			Module:         moduleName,
@@ -104,10 +95,9 @@ func registerAnnouncementMenu(registry *menu.Registry, moduleName string) error 
 	if registry == nil {
 		return errors.New("menu registry is unavailable")
 	}
-	// Title 仅作为旧消费方的展示兜底，长期标题真相由 TitleKey 对接 i18n。
 	registry.Register(menu.Item{
 		Code:       "announcement.list",
-		Title:      "公告管理",
+		Title:      "",
 		TitleKey:   announcementcontract.AnnouncementMenuTitle.String(),
 		Path:       announcementcontract.AnnouncementMenuPath,
 		Icon:       "notification",

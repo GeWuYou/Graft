@@ -1,0 +1,24 @@
+menu.ops.title: 运维管理
+menu.ops.container.title: 容器管理
+ops.container.error.runtimeDisabled: 容器运行时访问未启用
+ops.container.error.runtimeSocketMissing: 容器运行时 socket 不存在
+ops.container.error.runtimePermissionDenied: 当前进程无权访问容器运行时
+ops.container.error.runtimeUnavailable: 容器运行时不可用
+ops.container.error.containerNotFound: 容器不存在
+ops.container.error.containerMountNotFound: 容器挂载不存在
+ops.container.error.invalidContainerRef: 容器标识不合法
+ops.container.error.invalidListQuery: 容器列表查询参数不合法
+ops.container.error.invalidBatchAction: 批量容器操作请求不合法
+ops.container.error.invalidState: 容器当前状态不允许执行该操作
+ops.container.error.logsTooLarge: 日志读取数量超过限制
+ops.container.error.invalidLogQuery: 日志查询参数不合法
+ops.container.error.timeout: 容器运行时操作超时
+ops.container.error.mountUsageUnsupported: 该挂载不支持用量统计
+ops.container.error.dangerousActionsDisabled: 高危容器操作未启用
+ops.container.action.start.completed: 容器启动操作已完成
+ops.container.action.stop.completed: 容器停止操作已完成
+ops.container.action.restart.completed: 容器重启操作已完成
+ops.container.action.remove.completed: 容器删除操作已完成
+ops.container.action.batch.completed: 批量容器操作已完成
+ops.container.action.batch.partial: 批量容器操作部分完成
+ops.container.action.batch.failed: 批量容器操作全部失败

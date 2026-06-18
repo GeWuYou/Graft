@@ -30,9 +30,7 @@ func registerAuditPermissions(registry *permission.Registry, moduleName string) 
 
 	registry.Register(permission.Item{
 		Code:           auditcontract.AuditReadPermission.String(),
-		Name:           "Read Audit Logs",
 		DisplayKey:     "rbac.permissionCatalog.auditRead.display",
-		Description:    "Allows reading audit-log records and filters.",
 		DescriptionKey: "rbac.permissionCatalog.auditRead.description",
 		Category:       "api",
 		Module:         moduleName,
@@ -46,7 +44,6 @@ func registerAuditMenu(registry *menu.Registry, moduleName string) {
 
 	registry.Register(menu.Item{
 		Code:       "audit.root",
-		Title:      "安全审计",
 		TitleKey:   auditcontract.AuditRootMenuTitle.String(),
 		Path:       auditcontract.AuditMenuPath,
 		Icon:       "secured",
@@ -57,7 +54,6 @@ func registerAuditMenu(registry *menu.Registry, moduleName string) {
 
 	registry.Register(menu.Item{
 		Code:       "audit.overview",
-		Title:      "概览",
 		TitleKey:   auditcontract.AuditOverviewMenuTitle.String(),
 		Path:       auditcontract.AuditOverviewMenuPath,
 		Icon:       "dashboard",
@@ -68,7 +64,6 @@ func registerAuditMenu(registry *menu.Registry, moduleName string) {
 
 	registry.Register(menu.Item{
 		Code:       "audit.logs",
-		Title:      "审计日志",
 		TitleKey:   auditcontract.AuditLogMenuTitle.String(),
 		Path:       auditcontract.AuditLogsMenuPath,
 		Icon:       "history",
@@ -83,32 +78,30 @@ func registerAuditMessages(localizer *i18n.Service) error {
 		return errors.New("i18n service is unavailable")
 	}
 
-	for _, registration := range []i18n.Registration{
-		{
-			Namespace: "audit",
-			Locale:    i18n.LocaleZHCN,
-			Messages: []i18n.MessageResource{
-				{Key: i18n.MessageKey(auditcontract.AuditRootMenuTitle.String()), Text: "安全审计"},
-				{Key: i18n.MessageKey(auditcontract.AuditOverviewMenuTitle.String()), Text: "概览"},
-				{Key: i18n.MessageKey(auditcontract.AuditLogMenuTitle.String()), Text: "审计日志"},
-			},
-		},
-		{
-			Namespace: "audit",
-			Locale:    i18n.LocaleENUS,
-			Messages: []i18n.MessageResource{
-				{Key: i18n.MessageKey(auditcontract.AuditRootMenuTitle.String()), Text: "Security Audit"},
-				{Key: i18n.MessageKey(auditcontract.AuditOverviewMenuTitle.String()), Text: "Overview"},
-				{Key: i18n.MessageKey(auditcontract.AuditLogMenuTitle.String()), Text: "Audit Logs"},
-			},
-		},
-	} {
-		if err := localizer.RegisterMessages(registration); err != nil {
-			return fmt.Errorf("register audit module messages: %w", err)
+	for _, locale := range []i18n.LocaleTag{i18n.LocaleZHCN, i18n.LocaleENUS} {
+		for _, key := range auditMessageKeys() {
+			matches := localizer.RegisteredMessageResources(locale, i18n.MessageKey(key))
+			if len(matches) == 0 {
+				return fmt.Errorf("register audit module messages: locale resource %s missing key %s", locale, key)
+			}
 		}
 	}
 
 	return nil
+}
+
+func auditMessageKeys() []string {
+	return []string{
+		auditcontract.AuditRootMenuTitle.String(),
+		auditcontract.AuditOverviewMenuTitle.String(),
+		auditcontract.AuditLogMenuTitle.String(),
+		auditcontract.AuditTargetLabelUser.String(),
+		auditcontract.AuditTargetLabelRole.String(),
+		auditcontract.AuditTargetLabelPermission.String(),
+		auditcontract.AuditTargetLabelAudit.String(),
+		auditcontract.AuditTargetLabelServerStatus.String(),
+		auditcontract.AuditTargetLabelAuth.String(),
+	}
 }
 
 func (p *Module) resolveRouteGuard(ctx *module.Context) (auditGuard, error) {

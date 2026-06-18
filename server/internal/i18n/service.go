@@ -15,7 +15,6 @@ import (
 
 	"graft/server/internal/config"
 	"graft/server/internal/contract/httpheader"
-	messagecontract "graft/server/internal/contract/message"
 )
 
 // LocaleHeader 允许调用方显式指定当前请求期望的语言。
@@ -66,38 +65,6 @@ type LookupRequest struct {
 	Key             MessageKey
 	FallbackMessage string
 	TemplateData    map[string]any
-}
-
-type catalogEntry struct {
-	key  messagecontract.Key
-	zhCN string
-	enUS string
-}
-
-// #nosec G101 -- 这里保存的是本地化 message key 与展示文案，不是凭据。
-var defaultCatalogEntries = []catalogEntry{
-	{key: messagecontract.AuthInvalidCredentials, zhCN: "用户名或密码错误", enUS: "Invalid username or password"},
-	{key: messagecontract.AuthTokenMissing, zhCN: "缺少访问令牌", enUS: "Missing access token"},
-	{key: messagecontract.AuthTokenExpired, zhCN: "访问令牌已过期", enUS: "Access token expired"},
-	{key: messagecontract.AuthTokenInvalid, zhCN: "访问令牌无效", enUS: "Invalid access token"},
-	{key: messagecontract.AuthForbidden, zhCN: "权限不足", enUS: "Forbidden"},
-	{key: messagecontract.AuthInvalidRefreshSession, zhCN: "刷新会话无效或已失效", enUS: "Invalid or expired refresh session"},
-	{key: messagecontract.AuthPasswordPolicyViolation, zhCN: "新密码不符合安全要求", enUS: "New password does not meet security requirements"},
-	{key: messagecontract.AuthPasswordReuseForbidden, zhCN: "新密码不能重复使用默认密码或当前密码", enUS: "New password must not reuse the default or current password"},
-	{key: messagecontract.AuthCurrentPasswordInvalid, zhCN: "当前密码错误", enUS: "Current password is invalid"},
-	{key: messagecontract.AuthMissingActor, zhCN: "缺少请求身份信息", enUS: "Missing request actor"},
-	{key: messagecontract.AuthMissingPermission, zhCN: "缺少所需权限", enUS: "Missing required permission"},
-	{key: messagecontract.AuthSessionNotFound, zhCN: "会话不存在或已失效", enUS: "Session not found or already inactive"},
-	{key: messagecontract.CommonConjunction, zhCN: "和", enUS: "and"},
-	{key: messagecontract.CommonCopyright, zhCN: "Copyright (C) 2021-2026 Tencent. All Rights Reserved", enUS: "Copyright (C) 2021-2026 Tencent. All Rights Reserved"},
-	{key: messagecontract.CommonInternalError, zhCN: "服务内部错误", enUS: "Internal server error"},
-	{key: messagecontract.CommonInvalidArgument, zhCN: "请求参数不合法", enUS: "Invalid request parameters"},
-	{key: messagecontract.MenuServerTitle, zhCN: "服务管理", enUS: "Service Management"},
-	{key: messagecontract.RbacCannotRemoveOwnAdminRole, zhCN: "不能移除当前登录用户自己的管理员角色", enUS: "You cannot remove your own admin role from the current session"},
-	{key: messagecontract.RbacBuiltinAdminPermissionsImmutable, zhCN: "内置管理员角色不允许变更权限", enUS: "Builtin administrator permissions cannot be changed"},
-	{key: messagecontract.PermissionNotFound, zhCN: "权限不存在", enUS: "Permission not found"},
-	{key: messagecontract.RoleNotFound, zhCN: "角色不存在", enUS: "Role not found"},
-	{key: messagecontract.UserNotFound, zhCN: "用户不存在", enUS: "User not found"},
 }
 
 var (
@@ -157,8 +124,8 @@ func New(cfg config.I18nConfig) (*Service, error) {
 	}
 	service.defaultLocale = canonicalizeLocale(cfg.DefaultLocale, supported)
 	service.fallbackLocale = canonicalizeLocale(cfg.FallbackLocale, supported)
-	if err := service.registerDefaultCatalogs(); err != nil {
-		return nil, fmt.Errorf("register default i18n catalogs: %w", err)
+	if err := service.registerEmbeddedCatalogs(); err != nil {
+		return nil, fmt.Errorf("register embedded i18n catalogs: %w", err)
 	}
 	return service, nil
 }
@@ -318,38 +285,6 @@ func (s *Service) Lookup(req LookupRequest) string {
 	}
 
 	return key
-}
-
-func (s *Service) registerDefaultCatalogs() error {
-	registrations := make([]Registration, 0, len(s.supported))
-	for _, locale := range s.SupportedLocales() {
-		registrations = append(registrations, Registration{
-			Namespace: CoreNamespace,
-			Locale:    LocaleTag(locale),
-			Messages:  make([]MessageResource, 0, len(defaultCatalogEntries)),
-		})
-	}
-
-	for _, entry := range defaultCatalogEntries {
-		for index := range registrations {
-			text := entry.zhCN
-			if registrations[index].Locale == LocaleENUS {
-				text = entry.enUS
-			}
-			registrations[index].Messages = append(registrations[index].Messages, MessageResource{
-				Key:  MessageKey(entry.key.String()),
-				Text: text,
-			})
-		}
-	}
-
-	for _, registration := range registrations {
-		if err := s.RegisterMessages(registration); err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 func (s *Service) messageFromCatalog(locale string, key string) string {

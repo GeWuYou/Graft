@@ -25,11 +25,7 @@ import (
 func TestRegisterExposesProtectedSnapshotRoutesAndMetadata(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	localizer := i18n.MustNew(config.I18nConfig{
-		DefaultLocale:    "zh-CN",
-		FallbackLocale:   "en-US",
-		SupportedLocales: []string{"zh-CN", "en-US"},
-	})
+	localizer := mustNewModuleRuntimeTestLocalizer(t)
 	menuRegistry := menu.NewRegistry()
 	menuRegistry.Register(menu.Item{Code: "monitor.section", Path: "/server"})
 	permissionRegistry := permission.NewRegistry()
@@ -90,11 +86,7 @@ func TestRegisterExposesProtectedDetailRoute(t *testing.T) {
 	engine := gin.New()
 	if err := Register(
 		Registration{
-			I18n: i18n.MustNew(config.I18nConfig{
-				DefaultLocale:    "zh-CN",
-				FallbackLocale:   "en-US",
-				SupportedLocales: []string{"zh-CN", "en-US"},
-			}),
+			I18n:               mustNewModuleRuntimeTestLocalizer(t),
 			MenuRegistry:       menu.NewRegistry(),
 			PermissionRegistry: permission.NewRegistry(),
 			Specs: []module.Spec{
@@ -129,11 +121,7 @@ func TestRegisterExposesProtectedDetailRoute(t *testing.T) {
 func TestRegisterAddsRootMenuWhenServerSectionIsMissing(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	localizer := i18n.MustNew(config.I18nConfig{
-		DefaultLocale:    "zh-CN",
-		FallbackLocale:   "en-US",
-		SupportedLocales: []string{"zh-CN", "en-US"},
-	})
+	localizer := mustNewModuleRuntimeTestLocalizer(t)
 	menuRegistry := menu.NewRegistry()
 	permissionRegistry := permission.NewRegistry()
 	engine := gin.New()
@@ -162,11 +150,7 @@ func TestRegisterDetailRouteReturnsNotFoundForUnknownModule(t *testing.T) {
 	engine := gin.New()
 	if err := Register(
 		Registration{
-			I18n: i18n.MustNew(config.I18nConfig{
-				DefaultLocale:    "zh-CN",
-				FallbackLocale:   "en-US",
-				SupportedLocales: []string{"zh-CN", "en-US"},
-			}),
+			I18n:               mustNewModuleRuntimeTestLocalizer(t),
 			MenuRegistry:       menu.NewRegistry(),
 			PermissionRegistry: permission.NewRegistry(),
 			Specs:              []module.Spec{{ID: "audit", Builder: module.BuilderFunc(noopBuilder)}},
@@ -221,11 +205,7 @@ func TestRegisterRejectsMissingRouteDependencies(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			registration := Registration{
-				I18n: i18n.MustNew(config.I18nConfig{
-					DefaultLocale:    "zh-CN",
-					FallbackLocale:   "en-US",
-					SupportedLocales: []string{"zh-CN", "en-US"},
-				}),
+				I18n:               mustNewModuleRuntimeTestLocalizer(t),
 				MenuRegistry:       menu.NewRegistry(),
 				PermissionRegistry: permission.NewRegistry(),
 			}

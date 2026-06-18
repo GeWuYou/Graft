@@ -1,0 +1,96 @@
+menu.access_control.title: Access Control
+menu.access_control.roles.title: Role Management
+menu.access_control.permissions.title: Permission Management
+menu.access_control.overview.title: Access Control Overview
+rbac.permissionCatalog.accessLogRead.display: Access Log Read
+rbac.permissionCatalog.accessLogRead.description: Allows reading canonical access-log explorer data.
+rbac.permissionCatalog.appLogRead.display: App Log Read
+rbac.permissionCatalog.appLogRead.description: Allows reading logger-owned app-log explorer data.
+rbac.permissionCatalog.appLogDelete.display: App Log Delete
+rbac.permissionCatalog.appLogDelete.description: Allows explicit deletion of retained logger-owned app-log rows.
+rbac.permissionCatalog.auditRead.display: Audit Log Read
+rbac.permissionCatalog.auditRead.description: Allows reading audit-log records and filters.
+rbac.permissionCatalog.moduleRuntimeRead.display: Module Runtime Read
+rbac.permissionCatalog.moduleRuntimeRead.description: Allows reading the core module runtime snapshot.
+rbac.permissionCatalog.monitorServerStatusRead.display: Server Status Read
+rbac.permissionCatalog.monitorServerStatusRead.description: Allows reading the server status overview.
+rbac.permissionCatalog.notificationView.display: Notification View
+rbac.permissionCatalog.notificationView.description: Allows reading current-user notifications and unread counts.
+rbac.permissionCatalog.notificationRead.display: Notification Read
+rbac.permissionCatalog.notificationRead.description: Allows marking current-user notifications as read or deleting current-user deliveries.
+rbac.permissionCatalog.notificationManage.display: Notification Manage
+rbac.permissionCatalog.notificationManage.description: Reserved for future global notification delivery management.
+rbac.permissionCatalog.systemConfigRead.display: System Configuration Read
+rbac.permissionCatalog.systemConfigRead.description: Allows reading registered system configuration definitions and effective values.
+rbac.permissionCatalog.systemConfigWrite.display: System Configuration Update
+rbac.permissionCatalog.systemConfigWrite.description: Allows writing and resetting user configuration overrides.
+rbac.permissionCatalog.containerView.display: Container View
+rbac.permissionCatalog.containerView.description: Allows reading the container list.
+rbac.permissionCatalog.containerDetail.display: Container Detail View
+rbac.permissionCatalog.containerDetail.description: Allows reading container details.
+rbac.permissionCatalog.containerEnvironment.display: Container Environment Read
+rbac.permissionCatalog.containerEnvironment.description: Allows reading container environment variable values when display policy permits them.
+rbac.permissionCatalog.containerLogs.display: Container Log Read
+rbac.permissionCatalog.containerLogs.description: Allows reading bounded container logs.
+rbac.permissionCatalog.containerStart.display: Container Start
+rbac.permissionCatalog.containerStart.description: Allows starting containers when dangerous actions are enabled.
+rbac.permissionCatalog.containerStop.display: Container Stop
+rbac.permissionCatalog.containerStop.description: Allows stopping containers when dangerous actions are enabled.
+rbac.permissionCatalog.containerRestart.display: Container Restart
+rbac.permissionCatalog.containerRestart.description: Allows restarting containers when dangerous actions are enabled.
+rbac.permissionCatalog.containerRemove.display: Container Remove
+rbac.permissionCatalog.containerRemove.description: Allows removing containers when dangerous actions are enabled.
+rbac.permissionCatalog.userRead.display: User Read
+rbac.permissionCatalog.userRead.description: Allows reading user management data.
+rbac.permissionCatalog.userCreate.display: User Create
+rbac.permissionCatalog.userCreate.description: Allows creating user management data.
+rbac.permissionCatalog.userUpdate.display: User Update
+rbac.permissionCatalog.userUpdate.description: Allows updating user management data.
+rbac.permissionCatalog.userDisable.display: User Disable
+rbac.permissionCatalog.userDisable.description: Allows disabling or deleting managed users.
+rbac.permissionCatalog.userSessionRevoke.display: User Session Revoke
+rbac.permissionCatalog.userSessionRevoke.description: Allows revoking refresh sessions for a specified user.
+rbac.permissionCatalog.userSessionRead.display: User Session Read
+rbac.permissionCatalog.userSessionRead.description: Allows reading active refresh sessions for a specified user.
+rbac.permissionCatalog.roleRead.display: Role Read
+rbac.permissionCatalog.roleRead.description: Allows reading role management data.
+rbac.permissionCatalog.roleCreate.display: Role Create
+rbac.permissionCatalog.roleCreate.description: Allows creating role-management data.
+rbac.permissionCatalog.roleUpdate.display: Role Update
+rbac.permissionCatalog.roleUpdate.description: Allows updating role-management data.
+rbac.permissionCatalog.roleStatusUpdate.display: Role Status Update
+rbac.permissionCatalog.roleStatusUpdate.description: Allows changing role lifecycle status.
+rbac.permissionCatalog.roleDelete.display: Role Delete
+rbac.permissionCatalog.roleDelete.description: Allows deleting disabled roles without bindings.
+rbac.permissionCatalog.rolePermissionAssign.display: Role Permission Assign
+rbac.permissionCatalog.rolePermissionAssign.description: Allows updating role-permission bindings.
+rbac.permissionCatalog.permissionRead.display: Permission Read
+rbac.permissionCatalog.permissionRead.description: Allows reading permission management data.
+rbac.permissionCatalog.userRoleRead.display: User Role Read
+rbac.permissionCatalog.userRoleRead.description: Allows reading user-role binding snapshots.
+rbac.permissionCatalog.userRoleAssign.display: User Role Assign
+rbac.permissionCatalog.userRoleAssign.description: Allows updating user-role bindings.
+rbac.permissionCatalog.announcementRead.display: Announcement Read
+rbac.permissionCatalog.announcementRead.description: Allows reading announcement management records.
+rbac.permissionCatalog.announcementCreate.display: Announcement Create
+rbac.permissionCatalog.announcementCreate.description: Allows creating announcement drafts.
+rbac.permissionCatalog.announcementUpdate.display: Announcement Update
+rbac.permissionCatalog.announcementUpdate.description: Allows updating announcement drafts and management metadata.
+rbac.permissionCatalog.announcementPublish.display: Announcement Publish
+rbac.permissionCatalog.announcementPublish.description: Allows publishing and archiving announcements.
+rbac.permissionCatalog.announcementDelete.display: Announcement Delete
+rbac.permissionCatalog.announcementDelete.description: Allows soft-deleting announcement records.
+rbac.permissionCatalog.scheduledTaskRead.display: Scheduled Task Read
+rbac.permissionCatalog.scheduledTaskRead.description: Allows reading scheduled task runtime data and run history.
+rbac.permissionCatalog.scheduledTaskCreate.display: Scheduled Task Create
+rbac.permissionCatalog.scheduledTaskCreate.description: Allows creating user-managed scheduled task instances.
+rbac.permissionCatalog.scheduledTaskUpdate.display: Scheduled Task Update
+rbac.permissionCatalog.scheduledTaskUpdate.description: Allows updating scheduled task definitions.
+rbac.permissionCatalog.scheduledTaskDelete.display: Scheduled Task Delete
+rbac.permissionCatalog.scheduledTaskDelete.description: Allows deleting user-managed scheduled task instances.
+rbac.permissionCatalog.scheduledTaskRun.display: Scheduled Task Run
+rbac.permissionCatalog.scheduledTaskRun.description: Allows manually running scheduled task runtime jobs.
+rbac.permissionCatalog.scheduledTaskEnable.display: Scheduled Task Enable
+rbac.permissionCatalog.scheduledTaskEnable.description: Allows enabling and disabling scheduled tasks.
+rbac.audit.rolePermissionsAdded: Role permissions added
+rbac.audit.rolePermissionsRemoved: Role permissions removed

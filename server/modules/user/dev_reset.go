@@ -10,6 +10,7 @@ import (
 	"os"
 	"strings"
 
+	"graft/server/internal/i18n"
 	"graft/server/internal/moduleapi"
 	userstore "graft/server/modules/user/store"
 	"graft/server/modules/user/storeent"
@@ -47,6 +48,7 @@ func NewAuthRepositoryForReset(sqlDB *sql.DB) (AuthRepositoryForReset, error) {
 func ResetDefaultAdminForDevelopment(
 	ctx context.Context,
 	authRepo userstore.AuthRepository,
+	localizer *i18n.Service,
 	rbac moduleapi.RBACBootstrapService,
 ) error {
 	if !isDevelopmentResetEnv(os.Getenv("GRAFT_APP_ENV")) {
@@ -58,10 +60,14 @@ func ResetDefaultAdminForDevelopment(
 		passwords: newPasswordHasher(),
 	}
 
-	return service.resetDefaultAdminForDevelopment(ctx, rbac)
+	return service.resetDefaultAdminForDevelopment(ctx, localizer, rbac)
 }
 
-func (s authService) resetDefaultAdminForDevelopment(ctx context.Context, rbac moduleapi.RBACBootstrapService) error {
+func (s authService) resetDefaultAdminForDevelopment(
+	ctx context.Context,
+	localizer *i18n.Service,
+	rbac moduleapi.RBACBootstrapService,
+) error {
 	if s.auth == nil {
 		return fmt.Errorf("auth repository is unavailable")
 	}
@@ -101,7 +107,12 @@ func (s authService) resetDefaultAdminForDevelopment(ctx context.Context, rbac m
 		return fmt.Errorf("revoke default admin refresh sessions: %w", err)
 	}
 
-	if err := rbac.EnsureDefaultAdminAccess(ctx, credential.UserID, permissionSeedsFromItems(userPermissionItems("user"))); err != nil {
+	seeds, err := permissionSeedsFromItems(localizer, userPermissionItems("user"))
+	if err != nil {
+		return fmt.Errorf("build default admin permission seeds: %w", err)
+	}
+
+	if err := rbac.EnsureDefaultAdminAccess(ctx, credential.UserID, seeds); err != nil {
 		return fmt.Errorf("ensure default admin access: %w", err)
 	}
 

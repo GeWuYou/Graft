@@ -1,0 +1,23 @@
+menu.notification.title: Notification Center
+menu.logCenter.title: Log Center
+menu.accessLog.title: Access Logs
+menu.appLog.title: App Logs
+dashboard.actions.details: View Details
+dashboard.widget.moduleRuntimeHealth.title: Module Runtime
+dashboard.widget.moduleRuntimeHealth.description: Current module runtime health.
+dashboard.widget.moduleRuntimeHealth.summary: Module Health
+dashboard.widget.moduleRuntimeHealth.runtimeStatus.registered: Registered
+dashboard.widget.moduleRuntimeHealth.runtimeStatus.disabled: Disabled
+dashboard.widget.moduleRuntimeHealth.runtimeStatus.degraded: Degraded
+dashboard.widget.moduleRuntimeHealth.runtimeStatus.unknown: Unknown
+dashboard.widget.accessLogRequestAttention.title: Access Log Request Attention
+dashboard.widget.accessLogRequestAttention.description: Recent error and slow requests that may need operator attention.
+dashboard.widget.accessLogRequestAttention.error: HTTP Error Requests
+dashboard.widget.accessLogRequestAttention.slow: Slow HTTP Requests
+dashboard.widget.accessLogRequestAttention.empty: No recent error or slow requests.
+scheduler.job.accessLogRetentionCleanup.title: Access Log Retention Cleanup
+scheduler.job.shortTitle.accessLog: Access Logs
+scheduledTask.accessLogRetention.description: Deletes access logs beyond the configured retention window.
+scheduler.job.appLogRetentionCleanup.title: App Log Retention Cleanup
+scheduler.job.shortTitle.appLog: App Logs
+scheduledTask.appLogRetention.description: Deletes app logs beyond the configured retention window.

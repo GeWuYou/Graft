@@ -5,6 +5,7 @@ import { createPinia, setActivePinia } from 'pinia';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { LOCALE } from '@/contracts/i18n/locales';
+import { localizeRouteTitleKey } from '@/utils/route/title';
 
 import { useTabsRouterStore } from './tabs-router';
 
@@ -20,10 +21,7 @@ describe('useTabsRouterStore', () => {
     expect(tabsRouterStore.tabRouters).toHaveLength(1);
     expect(tabsRouterStore.tabRouters[0]?.path).toBe('/');
     expect(tabsRouterStore.tabRouters[0]?.name).toBe('RootEntry');
-    expect(tabsRouterStore.tabRouters[0]?.title).toEqual({
-      [LOCALE.ZH_CN]: '工作台',
-      [LOCALE.EN_US]: 'Workspace',
-    });
+    expect(tabsRouterStore.tabRouters[0]?.title).toEqual(localizeRouteTitleKey('app.home.title'));
   });
 
   it('keeps refresh state ephemeral and restores the tab after refresh completes', () => {

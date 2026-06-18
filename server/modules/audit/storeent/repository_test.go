@@ -16,7 +16,11 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 
+	"graft/server/internal/config"
+	"graft/server/internal/i18n"
 	"graft/server/internal/moduleapi"
+	auditcontract "graft/server/modules/audit/contract"
+	auditlocales "graft/server/modules/audit/locales"
 	auditstore "graft/server/modules/audit/store"
 )
 
@@ -85,9 +89,25 @@ func openTestDB(t *testing.T) *sql.DB {
 	return db
 }
 
+func newTestLocalizer() *i18n.Service {
+	localizer := i18n.MustNew(config.I18nConfig{
+		DefaultLocale:    "zh-CN",
+		FallbackLocale:   "zh-CN",
+		SupportedLocales: []string{"zh-CN", "en-US"},
+	})
+	resources, err := auditlocales.EmbeddedLocaleResources()
+	if err != nil {
+		panic(err)
+	}
+	if err := localizer.RegisterEmbeddedLocaleResources(resources); err != nil {
+		panic(err)
+	}
+	return localizer
+}
+
 func TestRepositoryCreateAndListAuditLogs(t *testing.T) {
 	db := openTestDB(t)
-	repo, err := NewRepository(db, nil)
+	repo, err := NewRepository(db, newTestLocalizer(), nil)
 	if err != nil {
 		t.Fatalf("new repository: %v", err)
 	}
@@ -155,7 +175,7 @@ func TestRepositoryCreateAndListAuditLogs(t *testing.T) {
 
 func TestRepositoryListAuditLogsDoesNotApplyImplicitTimePreset(t *testing.T) {
 	db := openTestDB(t)
-	repo, err := NewRepository(db, nil)
+	repo, err := NewRepository(db, newTestLocalizer(), nil)
 	if err != nil {
 		t.Fatalf("new repository: %v", err)
 	}
@@ -202,7 +222,7 @@ func TestRepositoryListAuditLogsDoesNotApplyImplicitTimePreset(t *testing.T) {
 
 func TestRepositoryDeleteAuditLogsBeforeDeletesOnlyOlderRecords(t *testing.T) {
 	db := openTestDB(t)
-	repo, err := NewRepository(db, nil)
+	repo, err := NewRepository(db, newTestLocalizer(), nil)
 	if err != nil {
 		t.Fatalf("new repository: %v", err)
 	}
@@ -244,7 +264,7 @@ func TestRepositoryDeleteAuditLogsBeforeDeletesOnlyOlderRecords(t *testing.T) {
 
 func TestRepositoryReadAuditLogReturnsOneRecord(t *testing.T) {
 	db := openTestDB(t)
-	repo, err := NewRepository(db, nil)
+	repo, err := NewRepository(db, newTestLocalizer(), nil)
 	if err != nil {
 		t.Fatalf("new repository: %v", err)
 	}
@@ -277,9 +297,55 @@ func TestRepositoryReadAuditLogReturnsOneRecord(t *testing.T) {
 	}
 }
 
+func TestDisplayTargetLabelUsesLocaleResources(t *testing.T) {
+	localizer := newTestLocalizer()
+
+	zhLabel := displayTargetLabel(WithAuditLocale(context.Background(), "zh-CN"), localizer, "AUTH")
+	if zhLabel != "认证" {
+		t.Fatalf("expected zh-CN AUTH label from locale resource, got %q", zhLabel)
+	}
+
+	enLabel := displayTargetLabel(WithAuditLocale(context.Background(), "en-US"), localizer, "AUTH")
+	if enLabel != "Authentication" {
+		t.Fatalf("expected en-US AUTH label from locale resource, got %q", enLabel)
+	}
+}
+
+func TestDisplayTargetLabelUnknownTypeDoesNotFallbackToChinese(t *testing.T) {
+	localizer := newTestLocalizer()
+
+	label := displayTargetLabel(WithAuditLocale(context.Background(), "zh-CN"), localizer, "LOG_QUERY")
+	if label != "" {
+		t.Fatalf("expected unknown target type to keep empty localized label, got %q", label)
+	}
+}
+
+func TestAuditTargetLabelKeysRegisteredInEmbeddedLocales(t *testing.T) {
+	localizer := newTestLocalizer()
+
+	for _, tc := range []struct {
+		locale   i18n.LocaleTag
+		key      string
+		expected string
+	}{
+		{locale: i18n.LocaleZHCN, key: auditcontract.AuditTargetLabelUser.String(), expected: "用户"},
+		{locale: i18n.LocaleENUS, key: auditcontract.AuditTargetLabelUser.String(), expected: "User"},
+		{locale: i18n.LocaleZHCN, key: auditcontract.AuditTargetLabelServerStatus.String(), expected: "服务器状态"},
+		{locale: i18n.LocaleENUS, key: auditcontract.AuditTargetLabelServerStatus.String(), expected: "Server Status"},
+	} {
+		matches := localizer.RegisteredMessageResources(tc.locale, i18n.MessageKey(tc.key))
+		if len(matches) != 1 {
+			t.Fatalf("expected one registered audit target label for %s %q, got %#v", tc.locale, tc.key, matches)
+		}
+		if matches[0].Text != tc.expected {
+			t.Fatalf("expected registered audit target label %q for %s %q, got %#v", tc.expected, tc.locale, tc.key, matches[0])
+		}
+	}
+}
+
 func TestRepositoryReadAuditLogMapsMissingRow(t *testing.T) {
 	db := openTestDB(t)
-	repo, err := NewRepository(db, nil)
+	repo, err := NewRepository(db, newTestLocalizer(), nil)
 	if err != nil {
 		t.Fatalf("new repository: %v", err)
 	}
@@ -292,7 +358,7 @@ func TestRepositoryReadAuditLogMapsMissingRow(t *testing.T) {
 
 func TestRepositoryListAuditLogsSupportsExplicitAscendingSort(t *testing.T) {
 	db := openTestDB(t)
-	repo, err := NewRepository(db, nil)
+	repo, err := NewRepository(db, newTestLocalizer(), nil)
 	if err != nil {
 		t.Fatalf("new repository: %v", err)
 	}
@@ -322,7 +388,7 @@ func TestRepositoryListAuditLogsSupportsExplicitAscendingSort(t *testing.T) {
 
 func TestRepositoryCreateAuditLogRejectsActorUserIDOutsideBigIntRange(t *testing.T) {
 	db := openTestDB(t)
-	repo, err := NewRepository(db, nil)
+	repo, err := NewRepository(db, newTestLocalizer(), nil)
 	if err != nil {
 		t.Fatalf("new repository: %v", err)
 	}
@@ -344,7 +410,7 @@ func TestRepositoryCreateAuditLogRejectsActorUserIDOutsideBigIntRange(t *testing
 
 func TestRepositoryListAuditLogsSupportsActionPrefix(t *testing.T) {
 	db := openTestDB(t)
-	repo, err := NewRepository(db, nil)
+	repo, err := NewRepository(db, newTestLocalizer(), nil)
 	if err != nil {
 		t.Fatalf("new repository: %v", err)
 	}
@@ -412,7 +478,7 @@ func TestRepositoryListAuditLogsSupportsActionPrefix(t *testing.T) {
 
 func TestRepositoryListAuditLogsAppliesFilters(t *testing.T) {
 	db := openTestDB(t)
-	repo, err := NewRepository(db, nil)
+	repo, err := NewRepository(db, newTestLocalizer(), nil)
 	if err != nil {
 		t.Fatalf("new repository: %v", err)
 	}
@@ -466,7 +532,7 @@ func TestRepositoryListAuditLogsAppliesFilters(t *testing.T) {
 
 func TestRepositoryListAuditLogsRejectsInvalidPagination(t *testing.T) {
 	db := openTestDB(t)
-	repo, err := NewRepository(db, nil)
+	repo, err := NewRepository(db, newTestLocalizer(), nil)
 	if err != nil {
 		t.Fatalf("new repository: %v", err)
 	}
@@ -486,7 +552,7 @@ func TestRepositoryListAuditLogsRejectsInvalidPagination(t *testing.T) {
 
 func TestRepositoryListAuditLogsSupportsCanonicalFilters(t *testing.T) {
 	db := openTestDB(t)
-	repo, err := NewRepository(db, nil)
+	repo, err := NewRepository(db, newTestLocalizer(), nil)
 	if err != nil {
 		t.Fatalf("new repository: %v", err)
 	}
@@ -538,7 +604,7 @@ func TestRepositoryListAuditLogsSupportsCanonicalFilters(t *testing.T) {
 
 func TestRepositoryListAuditLogsSupportsOverviewBusinessCategories(t *testing.T) {
 	db := openTestDB(t)
-	repo, err := NewRepository(db, nil)
+	repo, err := NewRepository(db, newTestLocalizer(), nil)
 	if err != nil {
 		t.Fatalf("new repository: %v", err)
 	}
@@ -636,7 +702,7 @@ func seedAuditOverviewDrilldownLogs(
 func TestRepositoryReadIncidentCorrelatesBoundedContext(t *testing.T) {
 	db := openTestDB(t)
 	base := time.Date(2026, 5, 29, 12, 0, 0, 0, time.UTC)
-	repo, err := NewRepository(db, stubMonitorIncidentEvidenceService{
+	repo, err := NewRepository(db, newTestLocalizer(), stubMonitorIncidentEvidenceService{
 		resolved: moduleapi.ResolvedAuditIncidentMonitorEvidence{
 			Availability: moduleapi.MonitorEvidenceAvailable,
 			Summary:      "CPU pressure matched the bounded incident window.",
@@ -786,7 +852,7 @@ func TestBuildAuditTargetPromotesIncidentTargets(t *testing.T) {
 
 func TestRepositoryReadAuditOverview(t *testing.T) {
 	db := openTestDB(t)
-	repo, err := NewRepository(db, nil)
+	repo, err := NewRepository(db, newTestLocalizer(), nil)
 	if err != nil {
 		t.Fatalf("new repository: %v", err)
 	}
@@ -851,7 +917,7 @@ func TestRepositoryReadAuditOverview(t *testing.T) {
 
 func TestRepositoryReadAuditOverviewDoesNotFallbackPermissionDeniedToFailedAuth(t *testing.T) {
 	db := openTestDB(t)
-	repo, err := NewRepository(db, nil)
+	repo, err := NewRepository(db, newTestLocalizer(), nil)
 	if err != nil {
 		t.Fatalf("new repository: %v", err)
 	}
@@ -920,7 +986,7 @@ func timePointer(value time.Time) *time.Time {
 
 func TestRepositoryListAuditPolicyRulesOrdersByPriority(t *testing.T) {
 	db := openTestDB(t)
-	repo, err := NewRepository(db, nil)
+	repo, err := NewRepository(db, newTestLocalizer(), nil)
 	if err != nil {
 		t.Fatalf("new repository: %v", err)
 	}

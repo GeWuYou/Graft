@@ -1,0 +1,24 @@
+menu.ops.title: Operations
+menu.ops.container.title: Container Management
+ops.container.error.runtimeDisabled: Container runtime access is not enabled
+ops.container.error.runtimeSocketMissing: Container runtime socket is missing
+ops.container.error.runtimePermissionDenied: The current process cannot access the container runtime
+ops.container.error.runtimeUnavailable: Container runtime is unavailable
+ops.container.error.containerNotFound: Container not found
+ops.container.error.containerMountNotFound: Container mount not found
+ops.container.error.invalidContainerRef: Invalid container reference
+ops.container.error.invalidListQuery: Invalid container list query parameter
+ops.container.error.invalidBatchAction: Invalid container batch action request
+ops.container.error.invalidState: The container state does not allow this action
+ops.container.error.logsTooLarge: Requested log tail exceeds the configured limit
+ops.container.error.invalidLogQuery: Invalid container log query parameter
+ops.container.error.timeout: Container runtime operation timed out
+ops.container.error.mountUsageUnsupported: Mount usage is not supported for this mount
+ops.container.error.dangerousActionsDisabled: Dangerous container actions are disabled
+ops.container.action.start.completed: Container start action completed
+ops.container.action.stop.completed: Container stop action completed
+ops.container.action.restart.completed: Container restart action completed
+ops.container.action.remove.completed: Container remove action completed
+ops.container.action.batch.completed: Container batch action completed
+ops.container.action.batch.partial: Container batch action partially completed
+ops.container.action.batch.failed: Container batch action failed

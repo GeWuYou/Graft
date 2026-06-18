@@ -102,7 +102,7 @@ func (p *Module) Boot(ctx *module.Context) error {
 		return err
 	}
 
-	if err := p.defaultAdminAuth.ensureDefaultAdmin(ctx.LifecycleContext, rbacBootstrap, ctx.PermissionRegistry.Items()); err != nil {
+	if err := p.defaultAdminAuth.ensureDefaultAdmin(ctx.LifecycleContext, ctx.I18n, rbacBootstrap, ctx.PermissionRegistry.Items()); err != nil {
 		return err
 	}
 

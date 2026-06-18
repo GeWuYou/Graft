@@ -1,0 +1,16 @@
+menu.server.scheduled_tasks.title: Scheduled Tasks
+scheduled_task.not_found: Scheduled task not found
+scheduled_task.already_running: Scheduled task is already running
+scheduled_task.invalid_request: Invalid scheduled task request
+scheduledTask.notification.runFailed.title: Scheduled Task Failed
+scheduledTask.notification.runFailed.message: Scheduled task failed.
+scheduledTask.notification.runSucceeded.title: Scheduled Task Succeeded
+scheduledTask.notification.runSucceeded.message: Manual scheduled task succeeded.
+dashboard.widget.schedulerTaskAttention.title: Scheduled Task Attention
+dashboard.widget.schedulerTaskAttention.description: Failed, running, and disabled scheduled tasks that need operator attention.
+dashboard.widget.schedulerTaskAttention.failed: Failed Tasks
+dashboard.widget.schedulerTaskAttention.failedDescription: Last run failed.
+dashboard.widget.schedulerTaskAttention.running: Running Tasks
+dashboard.widget.schedulerTaskAttention.runningDescription: Currently executing tasks.
+dashboard.widget.schedulerTaskAttention.disabled: Disabled Tasks
+dashboard.widget.schedulerTaskAttention.disabledDescription: Tasks disabled from execution.

@@ -32,6 +32,7 @@ import (
 	"graft/server/internal/testassert"
 	notificationcontract "graft/server/modules/notification/contract"
 	notificationstore "graft/server/modules/notification/store"
+	systemconfiglocales "graft/server/modules/system-config/locales"
 )
 
 func TestModuleRegistersPermissionsAndPublisher(t *testing.T) {
@@ -52,7 +53,7 @@ func TestModuleRegistersPermissionsAndPublisher(t *testing.T) {
 		t.Fatalf("register rbac access service: %v", err)
 	}
 	ctx := &module.Context{
-		I18n:               i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}}),
+		I18n:               mustNewNotificationModuleTestLocalizer(t),
 		Services:           services,
 		MenuRegistry:       menu.NewRegistry(),
 		PermissionRegistry: permission.NewRegistry(),
@@ -136,7 +137,7 @@ func TestModuleRegisterMountsNotificationRoutesUnderInjectedAPIRoot(t *testing.T
 	ctx := &module.Context{
 		Logger:             zap.NewNop(),
 		Config:             &config.Config{},
-		I18n:               i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}}),
+		I18n:               mustNewNotificationModuleTestLocalizer(t),
 		EventBus:           eventbus.New(zap.NewNop()),
 		Router:             engine.Group("/api"),
 		Services:           services,
@@ -214,7 +215,7 @@ func TestModuleRegistersNotificationConfigI18nMetadata(t *testing.T) {
 		t.Fatalf("register rbac access service: %v", err)
 	}
 	ctx := &module.Context{
-		I18n:               i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}}),
+		I18n:               mustNewNotificationModuleTestLocalizer(t),
 		Services:           services,
 		MenuRegistry:       menu.NewRegistry(),
 		PermissionRegistry: permission.NewRegistry(),
@@ -310,7 +311,7 @@ func TestModuleBootBindsSystemConfigResolverOnce(t *testing.T) {
 		t.Fatalf("register system config resolver: %v", err)
 	}
 	ctx := &module.Context{
-		I18n:               i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}}),
+		I18n:               mustNewNotificationModuleTestLocalizer(t),
 		Services:           services,
 		MenuRegistry:       menu.NewRegistry(),
 		PermissionRegistry: permission.NewRegistry(),
@@ -460,6 +461,24 @@ func assertNotificationMenuTitleMessage(t *testing.T, localizer *i18n.Service, l
 	if matches[0].Text != expected {
 		t.Fatalf("expected notification menu title %q for %s, got %#v", expected, locale, matches[0])
 	}
+}
+
+func mustNewNotificationModuleTestLocalizer(t *testing.T) *i18n.Service {
+	t.Helper()
+
+	localizer := i18n.MustNew(config.I18nConfig{
+		DefaultLocale:    "zh-CN",
+		FallbackLocale:   "zh-CN",
+		SupportedLocales: []string{"zh-CN", "en-US"},
+	})
+	resources, err := systemconfiglocales.EmbeddedLocaleResources()
+	if err != nil {
+		t.Fatalf("load system-config locale resources: %v", err)
+	}
+	if err := localizer.RegisterEmbeddedLocaleResources(resources); err != nil {
+		t.Fatalf("register system-config locale resources: %v", err)
+	}
+	return localizer
 }
 
 type notificationModuleTestAuthService struct{}

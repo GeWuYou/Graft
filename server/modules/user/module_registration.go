@@ -33,7 +33,7 @@ func registerUserPermissions(registry *permission.Registry, moduleName string) {
 func registerUserMenu(registry *menu.Registry, moduleName string) {
 	registry.Register(menu.Item{
 		Code:       "user.list",
-		Title:      "用户管理",
+		Title:      "",
 		TitleKey:   usercontract.UserListMenuTitle.String(),
 		Path:       "/access-control/users",
 		Icon:       "usergroup",
@@ -47,54 +47,54 @@ func userPermissionItems(moduleName string) []permission.Item {
 	return []permission.Item{
 		{
 			Code:           usercontract.UserReadPermission.String(),
-			Name:           "Read Users",
+			Name:           "",
 			DisplayKey:     "rbac.permissionCatalog.userRead.display",
-			Description:    "Allows reading user management data.",
+			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.userRead.description",
 			Category:       "api",
 			Module:         moduleName,
 		},
 		{
 			Code:           usercontract.UserCreatePermission.String(),
-			Name:           "Create Users",
+			Name:           "",
 			DisplayKey:     "rbac.permissionCatalog.userCreate.display",
-			Description:    "Allows creating user management data.",
+			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.userCreate.description",
 			Category:       "api",
 			Module:         moduleName,
 		},
 		{
 			Code:           usercontract.UserUpdatePermission.String(),
-			Name:           "Update Users",
+			Name:           "",
 			DisplayKey:     "rbac.permissionCatalog.userUpdate.display",
-			Description:    "Allows updating user management data.",
+			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.userUpdate.description",
 			Category:       "api",
 			Module:         moduleName,
 		},
 		{
 			Code:           usercontract.UserDisablePermission.String(),
-			Name:           "Disable Users",
+			Name:           "",
 			DisplayKey:     "rbac.permissionCatalog.userDisable.display",
-			Description:    "Allows disabling or deleting managed users.",
+			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.userDisable.description",
 			Category:       "api",
 			Module:         moduleName,
 		},
 		{
 			Code:           usercontract.UserSessionRevokePermission.String(),
-			Name:           "Revoke User Sessions",
+			Name:           "",
 			DisplayKey:     "rbac.permissionCatalog.userSessionRevoke.display",
-			Description:    "Allows revoking refresh sessions for a specified user.",
+			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.userSessionRevoke.description",
 			Category:       "api",
 			Module:         moduleName,
 		},
 		{
 			Code:           usercontract.UserSessionReadPermission.String(),
-			Name:           "Read User Sessions",
+			Name:           "",
 			DisplayKey:     "rbac.permissionCatalog.userSessionRead.display",
-			Description:    "Allows reading active refresh sessions for a specified user.",
+			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.userSessionRead.description",
 			Category:       "api",
 			Module:         moduleName,
@@ -107,24 +107,10 @@ func registerMessages(localizer *i18n.Service) error {
 		return errors.New("i18n service is unavailable")
 	}
 
-	for _, registration := range []i18n.Registration{
-		{
-			Namespace: "user",
-			Locale:    i18n.LocaleZHCN,
-			Messages: []i18n.MessageResource{
-				{Key: i18n.MessageKey(usercontract.UserListMenuTitle.String()), Text: "用户管理"},
-			},
-		},
-		{
-			Namespace: "user",
-			Locale:    i18n.LocaleENUS,
-			Messages: []i18n.MessageResource{
-				{Key: i18n.MessageKey(usercontract.UserListMenuTitle.String()), Text: "User Management"},
-			},
-		},
-	} {
-		if err := localizer.RegisterMessages(registration); err != nil {
-			return fmt.Errorf("register user module messages: %w", err)
+	for _, locale := range []i18n.LocaleTag{i18n.LocaleZHCN, i18n.LocaleENUS} {
+		matches := localizer.RegisteredMessageResources(locale, i18n.MessageKey(usercontract.UserListMenuTitle.String()))
+		if len(matches) == 0 {
+			return fmt.Errorf("register user module messages: locale resource %s missing key %s", locale, usercontract.UserListMenuTitle.String())
 		}
 	}
 

@@ -92,6 +92,7 @@ func TestRunValidateBackendLintStage(t *testing.T) {
 	originalGoBuildRunner := backendGoBuildRunner
 	originalSmokeRunner := backendSmokeRunner
 	originalMigrationVersionRunner := backendMigrationVersionRunner
+	originalLocaleOwnershipGuardRunner := backendLocaleOwnershipGuardRunner
 	defer func() {
 		backendLintRunner = originalLintRunner
 		backendOpenAPIRunner = originalOpenAPIRunner
@@ -99,9 +100,14 @@ func TestRunValidateBackendLintStage(t *testing.T) {
 		backendGoBuildRunner = originalGoBuildRunner
 		backendSmokeRunner = originalSmokeRunner
 		backendMigrationVersionRunner = originalMigrationVersionRunner
+		backendLocaleOwnershipGuardRunner = originalLocaleOwnershipGuardRunner
 	}()
 
 	var steps []string
+	backendLocaleOwnershipGuardRunner = func(_ *cobra.Command) error {
+		steps = append(steps, "locale-ownership-guard")
+		return nil
+	}
 	backendLintRunner = func(_ *cobra.Command, lintConfig string, testLintConfig string) error {
 		steps = append(steps, "lint:"+lintConfig+":"+testLintConfig)
 		return nil
@@ -136,7 +142,10 @@ func TestRunValidateBackendLintStage(t *testing.T) {
 		t.Fatalf("run validate backend lint stage: %v", err)
 	}
 
-	expected := []string{"lint:" + defaultBackendLintConfig + ":" + defaultBackendTestLintConfig}
+	expected := []string{
+		"locale-ownership-guard",
+		"lint:" + defaultBackendLintConfig + ":" + defaultBackendTestLintConfig,
+	}
 	if !reflect.DeepEqual(steps, expected) {
 		t.Fatalf("expected %v, got %v", expected, steps)
 	}
@@ -695,6 +704,7 @@ func TestRunValidateBackendLintStageDoesNotRunAudit(t *testing.T) {
 	originalGoBuildRunner := backendGoBuildRunner
 	originalSmokeRunner := backendSmokeRunner
 	originalMigrationVersionRunner := backendMigrationVersionRunner
+	originalLocaleOwnershipGuardRunner := backendLocaleOwnershipGuardRunner
 	defer func() {
 		backendLintRunner = originalLintRunner
 		backendOpenAPIRunner = originalOpenAPIRunner
@@ -702,9 +712,15 @@ func TestRunValidateBackendLintStageDoesNotRunAudit(t *testing.T) {
 		backendGoBuildRunner = originalGoBuildRunner
 		backendSmokeRunner = originalSmokeRunner
 		backendMigrationVersionRunner = originalMigrationVersionRunner
+		backendLocaleOwnershipGuardRunner = originalLocaleOwnershipGuardRunner
 	}()
 
 	var lintCalls int
+	var guardCalls int
+	backendLocaleOwnershipGuardRunner = func(_ *cobra.Command) error {
+		guardCalls++
+		return nil
+	}
 	backendLintRunner = func(_ *cobra.Command, lintConfig string, testLintConfig string) error {
 		lintCalls++
 		if lintConfig != defaultBackendLintConfig || testLintConfig != defaultBackendTestLintConfig {
@@ -743,6 +759,9 @@ func TestRunValidateBackendLintStageDoesNotRunAudit(t *testing.T) {
 
 	if lintCalls != 1 {
 		t.Fatalf("expected exactly one blocking lint stage call, got %d", lintCalls)
+	}
+	if guardCalls != 1 {
+		t.Fatalf("expected exactly one locale ownership guard call, got %d", guardCalls)
 	}
 }
 
@@ -805,6 +824,7 @@ func TestRunValidateBackendFullStageWithSmoke(t *testing.T) {
 	originalGoBuildRunner := backendGoBuildRunner
 	originalSmokeRunner := backendSmokeRunner
 	originalMigrationVersionRunner := backendMigrationVersionRunner
+	originalLocaleOwnershipGuardRunner := backendLocaleOwnershipGuardRunner
 	defer func() {
 		backendLintRunner = originalLintRunner
 		backendOpenAPIRunner = originalOpenAPIRunner
@@ -812,6 +832,7 @@ func TestRunValidateBackendFullStageWithSmoke(t *testing.T) {
 		backendGoBuildRunner = originalGoBuildRunner
 		backendSmokeRunner = originalSmokeRunner
 		backendMigrationVersionRunner = originalMigrationVersionRunner
+		backendLocaleOwnershipGuardRunner = originalLocaleOwnershipGuardRunner
 	}()
 
 	var steps []string
@@ -821,6 +842,10 @@ func TestRunValidateBackendFullStageWithSmoke(t *testing.T) {
 	}
 	backendOpenAPIRunner = func(_ *cobra.Command, spec string) error {
 		steps = append(steps, "openapi:"+spec)
+		return nil
+	}
+	backendLocaleOwnershipGuardRunner = func(_ *cobra.Command) error {
+		steps = append(steps, "locale-ownership-guard")
 		return nil
 	}
 	backendLintRunner = func(_ *cobra.Command, _ string, _ string) error {
@@ -851,6 +876,7 @@ func TestRunValidateBackendFullStageWithSmoke(t *testing.T) {
 	expected := []string{
 		"migration",
 		"openapi:" + defaultOpenAPIRootSpec,
+		"locale-ownership-guard",
 		"lint",
 		"test:./...",
 		"build",
@@ -858,6 +884,48 @@ func TestRunValidateBackendFullStageWithSmoke(t *testing.T) {
 	}
 	if !reflect.DeepEqual(steps, expected) {
 		t.Fatalf("expected %v, got %v", expected, steps)
+	}
+}
+
+func TestRunValidateServerLocaleOwnershipRunsRepositoryGuard(t *testing.T) {
+	originalGetwd := backendGetwd
+	originalReadFile := backendReadFile
+	originalCommandRunner := backendCommandRunner
+	defer func() {
+		backendGetwd = originalGetwd
+		backendReadFile = originalReadFile
+		backendCommandRunner = originalCommandRunner
+	}()
+
+	serverDir := newBackendModuleRootFixture(t)
+	repoDir := filepath.Dir(serverDir)
+	if err := os.WriteFile(filepath.Join(repoDir, "AGENTS.md"), []byte("test\n"), 0o600); err != nil {
+		t.Fatalf("write AGENTS: %v", err)
+	}
+
+	backendGetwd = func() (string, error) {
+		return serverDir, nil
+	}
+	backendReadFile = os.ReadFile
+
+	var name string
+	var args []string
+	backendCommandRunner = func(_ *cobra.Command, gotName string, gotArgs ...string) error {
+		name = gotName
+		args = append([]string(nil), gotArgs...)
+		return nil
+	}
+
+	if err := runValidateServerLocaleOwnership(&cobra.Command{}); err != nil {
+		t.Fatalf("run locale ownership guard: %v", err)
+	}
+
+	if name != "python3" {
+		t.Fatalf("expected python3 runner, got %q", name)
+	}
+	expectedScript := filepath.Join(repoDir, "scripts", "check_server_locale_ownership.py")
+	if !reflect.DeepEqual(args, []string{expectedScript}) {
+		t.Fatalf("expected guard args [%s], got %v", expectedScript, args)
 	}
 }
 

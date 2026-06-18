@@ -333,15 +333,10 @@ func RegisterAppLogRetentionConfigDefinition(registry *configregistry.Registry) 
 		Module:              appLogRetentionCleanupJobModule,
 		Domain:              appLogRetentionConfigDomain,
 		DomainKey:           appLogRetentionConfigDomainKey,
-		DomainLabel:         "Logs",
 		Group:               "log.retention",
 		GroupKey:            appLogRetentionConfigGroupKey,
-		GroupLabel:          "App log retention",
-		GroupDescription:    "Manage application log cleanup retention and batch policy.",
 		GroupDescriptionKey: appLogRetentionConfigGroupDescKey,
-		Title:               "App log retention cleanup",
 		TitleKey:            appLogRetentionConfigTitleKey,
-		Description:         "Default cleanup configuration for app-log retention jobs.",
 		DescriptionKey:      appLogRetentionConfigDescriptionKey,
 		Tags:                []string{"logger", "log.retention"},
 		Type:                configregistry.ValueTypeObject,
@@ -355,33 +350,6 @@ func RegisterAppLogRetentionConfigDefinition(registry *configregistry.Registry) 
 func RegisterAppLogRetentionConfigMessages(localizer *i18n.Service) error {
 	if localizer == nil {
 		return errors.New("i18n service is required")
-	}
-
-	for _, registration := range []i18n.Registration{
-		{
-			Namespace: "system-config",
-			Locale:    i18n.LocaleZHCN,
-			Messages: []i18n.MessageResource{
-				{Key: i18n.MessageKey(appLogRetentionConfigGroupKey), Text: "应用日志保留"},
-				{Key: i18n.MessageKey(appLogRetentionConfigGroupDescKey), Text: "管理应用日志清理的保留周期与批量策略。"},
-				{Key: i18n.MessageKey(appLogRetentionConfigTitleKey), Text: "应用日志保留清理"},
-				{Key: i18n.MessageKey(appLogRetentionConfigDescriptionKey), Text: "应用日志保留清理任务的默认配置。"},
-			},
-		},
-		{
-			Namespace: "system-config",
-			Locale:    i18n.LocaleENUS,
-			Messages: []i18n.MessageResource{
-				{Key: i18n.MessageKey(appLogRetentionConfigGroupKey), Text: "App Log Retention"},
-				{Key: i18n.MessageKey(appLogRetentionConfigGroupDescKey), Text: "Manage application log cleanup retention and batch policy."},
-				{Key: i18n.MessageKey(appLogRetentionConfigTitleKey), Text: "App log retention cleanup"},
-				{Key: i18n.MessageKey(appLogRetentionConfigDescriptionKey), Text: "Default cleanup configuration for app-log retention jobs."},
-			},
-		},
-	} {
-		if err := localizer.RegisterMessages(registration); err != nil {
-			return fmt.Errorf("register app-log retention config messages: %w", err)
-		}
 	}
 	return nil
 }
@@ -408,11 +376,8 @@ func RegisterAppLogRetentionCleanupJob(
 		Key:              appLogRetentionCleanupJobName,
 		ModuleKey:        appLogRetentionCleanupJobModule,
 		Category:         cronx.JobCategoryRetention,
-		Title:            "Application log retention cleanup",
 		TitleKey:         appLogRetentionCleanupJobDisplayKey,
-		ShortTitle:       "App Log",
 		ShortTitleKey:    appLogRetentionCleanupJobShortTitleKey,
-		Description:      "Deletes app logs beyond the configured retention window.",
 		DescriptionKey:   appLogRetentionCleanupJobDescriptionKey,
 		ConfigSchema:     appLogRetentionCleanupConfigSchema,
 		DefaultConfig:    appLogRetentionCleanupDefaultConfig,
@@ -421,9 +386,7 @@ func RegisterAppLogRetentionCleanupJob(
 			{
 				Key:            appLogRetentionDryRunActionKey,
 				TitleKey:       appLogRetentionDryRunActionTitleKey,
-				Title:          "Dry run",
 				DescriptionKey: appLogRetentionDryRunActionDescKey,
-				Description:    "Preview cleanup result",
 				Handler: func(ctx context.Context, configJSON string) (cronx.JobRunResult, error) {
 					return cleaner.estimate(ctx, decodeAppLogRetentionJobConfig(configJSON))
 				},

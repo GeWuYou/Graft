@@ -130,51 +130,20 @@ func registerMessages(localizer *i18n.Service) error {
 		return errors.New("i18n service is unavailable")
 	}
 
-	for _, registration := range []struct {
-		locale i18n.LocaleTag
-		texts  []string
-	}{
-		{
-			locale: i18n.LocaleZHCN,
-			texts: []string{
-				"访问控制",
-				"角色管理",
-				"权限管理",
-				"访问控制概览",
-				"角色权限已追加",
-				"角色权限已移除",
-			},
-		},
-		{
-			locale: i18n.LocaleENUS,
-			texts: []string{
-				"Access Control",
-				"Role Management",
-				"Permission Management",
-				"Access Control Overview",
-				"Role permissions added",
-				"Role permissions removed",
-			},
-		},
-	} {
-		messages, err := rbacMessageResources(registration.texts)
-		if err != nil {
-			return fmt.Errorf("build rbac module messages for %s: %w", registration.locale, err)
-		}
-		if err := localizer.RegisterMessages(i18n.Registration{
-			Namespace: "rbac",
-			Locale:    registration.locale,
-			Messages:  messages,
-		}); err != nil {
-			return fmt.Errorf("register rbac module messages: %w", err)
+	for _, locale := range []i18n.LocaleTag{i18n.LocaleZHCN, i18n.LocaleENUS} {
+		for _, key := range rbacMessageKeys() {
+			matches := localizer.RegisteredMessageResources(locale, i18n.MessageKey(key.String()))
+			if len(matches) == 0 {
+				return fmt.Errorf("register rbac module messages: locale resource %s missing key %s", locale, key)
+			}
 		}
 	}
 
 	return nil
 }
 
-func rbacMessageResources(texts []string) ([]i18n.MessageResource, error) {
-	keys := []rbaccontract.MessageKey{
+func rbacMessageKeys() []rbaccontract.MessageKey {
+	return []rbaccontract.MessageKey{
 		rbaccontract.AccessControlMenuTitle,
 		rbaccontract.RoleListMenuTitle,
 		rbaccontract.PermissionListMenuTitle,
@@ -182,18 +151,6 @@ func rbacMessageResources(texts []string) ([]i18n.MessageResource, error) {
 		rbaccontract.AuditRolePermissionsAdded,
 		rbaccontract.AuditRolePermissionsRemoved,
 	}
-	if len(texts) != len(keys) {
-		return nil, fmt.Errorf("expected %d texts for %d rbac message keys, got %d", len(keys), len(keys), len(texts))
-	}
-
-	messages := make([]i18n.MessageResource, 0, len(keys))
-	for index, key := range keys {
-		messages = append(messages, i18n.MessageResource{
-			Key:  i18n.MessageKey(key.String()),
-			Text: texts[index],
-		})
-	}
-	return messages, nil
 }
 
 // Boot 当前没有额外运行时行为需要启动。

@@ -1,0 +1,22 @@
+auth.invalid_credentials: Invalid username or password
+auth.token_missing: Missing access token
+auth.token_expired: Access token expired
+auth.token_invalid: Invalid access token
+auth.forbidden: Forbidden
+auth.invalid_refresh_session: Invalid or expired refresh session
+auth.password_policy_violation: New password does not meet security requirements
+auth.password_reuse_forbidden: New password must not reuse the default or current password
+auth.current_password_invalid: Current password is invalid
+auth.missing_actor: Missing request actor
+auth.missing_permission: Missing required permission
+auth.session_not_found: Session not found or already inactive
+common.conjunction: and
+common.copyright: Copyright (C) 2021-2026 Tencent. All Rights Reserved
+common.internal_error: Internal server error
+common.invalid_argument: Invalid request parameters
+menu.server.title: Service Management
+rbac.cannot_remove_own_admin_role: You cannot remove your own admin role from the current session
+rbac.builtin_admin_permissions_immutable: Builtin administrator permissions cannot be changed
+permission.not_found: Permission not found
+role.not_found: Role not found
+user.not_found: User not found

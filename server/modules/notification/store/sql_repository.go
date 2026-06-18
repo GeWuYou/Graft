@@ -63,8 +63,13 @@ func (r *SQLRepository) ensureReady() error {
 
 func validateCreateEventInput(input CreateEventInput) (CreateEventInput, error) {
 	input = normalizeEventInput(input)
-	if input.Title == "" || input.Message == "" || input.Severity == "" || input.Category == "" ||
-		input.SourceModule == "" || input.EventType == "" || input.OccurredAt.IsZero() {
+	if (input.TitleKey == "" && input.Title == "") ||
+		(input.MessageKey == "" && input.Message == "") ||
+		input.Severity == "" ||
+		input.Category == "" ||
+		input.SourceModule == "" ||
+		input.EventType == "" ||
+		input.OccurredAt.IsZero() {
 		return CreateEventInput{}, ErrInvalidInput
 	}
 	return input, nil

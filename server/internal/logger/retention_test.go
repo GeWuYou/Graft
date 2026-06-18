@@ -232,11 +232,25 @@ func TestRegisterAppLogRetentionConfigDefinition(t *testing.T) {
 func assertAppLogRetentionConfigDefinition(t *testing.T, definition configregistry.Definition) {
 	t.Helper()
 
+	assertAppLogRetentionDefinitionIdentity(t, definition)
+	assertAppLogRetentionDefinitionLocalization(t, definition)
+	if string(definition.DefaultValue) != appLogRetentionCleanupDefaultConfig {
+		t.Fatalf("expected default config %s, got %s", appLogRetentionCleanupDefaultConfig, definition.DefaultValue)
+	}
+	assertAppLogRetentionDefinitionSchema(t, definition)
+}
+
+func assertAppLogRetentionDefinitionIdentity(t *testing.T, definition configregistry.Definition) {
+	t.Helper()
 	if definition.Key != appLogRetentionCleanupJobName ||
 		definition.Module != appLogRetentionCleanupJobModule ||
 		definition.Type != configregistry.ValueTypeObject {
 		t.Fatalf("unexpected app log config definition: %#v", definition)
 	}
+}
+
+func assertAppLogRetentionDefinitionLocalization(t *testing.T, definition configregistry.Definition) {
+	t.Helper()
 	if definition.GroupKey != appLogRetentionConfigGroupKey ||
 		definition.DomainKey != appLogRetentionConfigDomainKey ||
 		definition.GroupDescriptionKey != appLogRetentionConfigGroupDescKey ||
@@ -244,12 +258,14 @@ func assertAppLogRetentionConfigDefinition(t *testing.T, definition configregist
 		definition.DescriptionKey != appLogRetentionConfigDescriptionKey {
 		t.Fatalf("expected localized app log config metadata, got %#v", definition)
 	}
-	if definition.GroupLabel == "core.logger / log.retention" {
-		t.Fatalf("group label must be product-facing fallback, got %q", definition.GroupLabel)
+	if definition.DomainLabel != "" || definition.GroupLabel != "" || definition.GroupDescription != "" ||
+		definition.Title != "" || definition.Description != "" {
+		t.Fatalf("expected locale-key-backed app log config metadata without Go fallback copy, got %#v", definition)
 	}
-	if string(definition.DefaultValue) != appLogRetentionCleanupDefaultConfig {
-		t.Fatalf("expected default config %s, got %s", appLogRetentionCleanupDefaultConfig, definition.DefaultValue)
-	}
+}
+
+func assertAppLogRetentionDefinitionSchema(t *testing.T, definition configregistry.Definition) {
+	t.Helper()
 	if !strings.Contains(string(definition.Schema), `"x-i18n"`) ||
 		!strings.Contains(string(definition.Schema), `"unitKey":"systemConfig.units.rows"`) ||
 		!strings.Contains(string(definition.Schema), `"batchSize":{"type":"integer","minimum":1,"maximum":10000`) {
@@ -268,6 +284,9 @@ func assertAppLogRetentionJobMetadata(t *testing.T, job cronx.Job) {
 	}
 	if job.Schedule != appLogRetentionCleanupJobSchedule {
 		t.Fatalf("expected job schedule %q, got %q", appLogRetentionCleanupJobSchedule, job.Schedule)
+	}
+	if job.Title != "" || job.ShortTitle != "" || job.Description != "" {
+		t.Fatalf("expected locale-key-backed app log job metadata without Go fallback copy, got %#v", job)
 	}
 	if job.DefaultConfig != appLogRetentionCleanupDefaultConfig {
 		t.Fatalf("expected default config %s, got %s", appLogRetentionCleanupDefaultConfig, job.DefaultConfig)
@@ -295,6 +314,9 @@ func assertAppLogRetentionJobActions(t *testing.T, job cronx.Job) {
 
 	if len(job.Actions) != 1 || job.Actions[0].Key != appLogRetentionDryRunActionKey {
 		t.Fatalf("expected dryRun action, got %#v", job.Actions)
+	}
+	if job.Actions[0].Title != "" || job.Actions[0].Description != "" {
+		t.Fatalf("expected locale-key-backed app log action metadata without Go fallback copy, got %#v", job.Actions[0])
 	}
 }
 

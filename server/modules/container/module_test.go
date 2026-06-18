@@ -5,6 +5,7 @@ package container
 
 import (
 	"encoding/json"
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -16,6 +17,8 @@ import (
 	"graft/server/internal/module"
 	"graft/server/internal/permission"
 	containercontract "graft/server/modules/container/contract"
+	containerlocales "graft/server/modules/container/locales"
+	systemconfiglocales "graft/server/modules/system-config/locales"
 )
 
 func TestModuleRegistersContainerFoundation(t *testing.T) {
@@ -86,8 +89,23 @@ func TestRouteAndConfigContractsStayCanonical(t *testing.T) {
 }
 
 func newTestContext() *module.Context {
+	localizer := i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}})
+	resources, err := containerlocales.EmbeddedLocaleResources()
+	if err != nil {
+		panic(fmt.Sprintf("load container locale resources: %v", err))
+	}
+	if err := localizer.RegisterEmbeddedLocaleResources(resources); err != nil {
+		panic(fmt.Sprintf("register container locale resources: %v", err))
+	}
+	systemConfigResources, err := systemconfiglocales.EmbeddedLocaleResources()
+	if err != nil {
+		panic(fmt.Sprintf("load system-config locale resources: %v", err))
+	}
+	if err := localizer.RegisterEmbeddedLocaleResources(systemConfigResources); err != nil {
+		panic(fmt.Sprintf("register system-config locale resources: %v", err))
+	}
 	return &module.Context{
-		I18n:               i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}}),
+		I18n:               localizer,
 		MenuRegistry:       menu.NewRegistry(),
 		PermissionRegistry: permission.NewRegistry(),
 		ConfigRegistry:     configregistry.NewRegistry(),
@@ -133,7 +151,7 @@ func assertMenu(t *testing.T, registry *menu.Registry) {
 	}
 	assertMenuItem(t, items, expectedMenuItem{
 		code:                     "ops.root",
-		title:                    "运维管理",
+		title:                    "",
 		titleKey:                 containercontract.OperationsMenuTitle.String(),
 		path:                     "/ops",
 		permission:               "",
@@ -141,7 +159,7 @@ func assertMenu(t *testing.T, registry *menu.Registry) {
 	})
 	assertMenuItem(t, items, expectedMenuItem{
 		code:                     "container.list",
-		title:                    "容器管理",
+		title:                    "",
 		titleKey:                 containercontract.ContainerMenuTitle.String(),
 		path:                     "/ops/containers",
 		permission:               containercontract.ContainerViewPermission.String(),

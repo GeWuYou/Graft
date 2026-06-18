@@ -9,6 +9,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -31,6 +32,7 @@ import (
 	"graft/server/internal/permission"
 	schedulercore "graft/server/internal/scheduler"
 	schedulercontract "graft/server/modules/scheduler/contract"
+	schedulerlocales "graft/server/modules/scheduler/locales"
 )
 
 type stopContextRecorderRuntime struct {
@@ -395,6 +397,14 @@ func newModuleTestContextWithEngine() (*module.Context, *gin.Engine) {
 func newModuleTestContextWithEngineAndAuthorizer(authorizer moduleapi.Authorizer) (*module.Context, *gin.Engine) {
 	gin.SetMode(gin.TestMode)
 	engine := gin.New()
+	localizer := i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}})
+	resources, err := schedulerlocales.EmbeddedLocaleResources()
+	if err != nil {
+		panic(fmt.Sprintf("load scheduler locale resources: %v", err))
+	}
+	if err := localizer.RegisterEmbeddedLocaleResources(resources); err != nil {
+		panic(fmt.Sprintf("register scheduler locale resources: %v", err))
+	}
 	db := newSchedulerModuleTestDB()
 	services := container.New()
 	if err := services.RegisterSingleton((*sql.DB)(nil), func(container.Resolver) (any, error) {
@@ -416,7 +426,7 @@ func newModuleTestContextWithEngineAndAuthorizer(authorizer moduleapi.Authorizer
 	return &module.Context{
 		Logger:             zap.NewNop(),
 		Config:             &config.Config{},
-		I18n:               i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}}),
+		I18n:               localizer,
 		EventBus:           eventbus.New(zap.NewNop()),
 		Router:             engine.Group("/api"),
 		Services:           services,
@@ -489,6 +499,13 @@ func TestRegisterExposesRuntimeService(t *testing.T) {
 
 func TestRegisterMessagesIncludesRunFailureNotificationKeys(t *testing.T) {
 	localizer := i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}})
+	resources, err := schedulerlocales.EmbeddedLocaleResources()
+	if err != nil {
+		t.Fatalf("load scheduler locale resources: %v", err)
+	}
+	if err := localizer.RegisterEmbeddedLocaleResources(resources); err != nil {
+		t.Fatalf("register scheduler locale resources: %v", err)
+	}
 
 	if err := registerMessages(localizer); err != nil {
 		t.Fatalf("register scheduler messages: %v", err)
@@ -711,8 +728,8 @@ func assertSchedulerRunSuccessDisplay(t *testing.T, input moduleapi.PublishNotif
 		t.Fatalf("unexpected message keys: %#v", input)
 	}
 	if input.Title != "Webhook Health" ||
-		input.Message != "Completed successfully." ||
-		input.ActionLabel != "Open scheduled task run" {
+		input.Message != "" ||
+		input.ActionLabel != "" {
 		t.Fatalf("unexpected fallback copy: %#v", input)
 	}
 }
