@@ -6,7 +6,9 @@
 <template>
   <section :class="containerClasses">
     <main :class="mainClasses">
-      <slot />
+      <div :class="`${prefix}-page-container__content`">
+        <slot />
+      </div>
     </main>
     <t-footer v-if="showFooter" :class="`${prefix}-footer-layout`">
       <l-footer :content="footerText ?? ''" />
@@ -29,7 +31,9 @@ const props = defineProps<{
 
 const containerClasses = computed(() => [
   'graft-page-container',
+  'page-scroll',
   `${prefix}-page-container`,
+  `${prefix}-page-scroll`,
   `${prefix}-page-container--${props.surface ?? 'shell'}`,
 ]);
 
@@ -43,6 +47,29 @@ const mainClasses = computed(() => [
 @prefix-cls: ~'@{starter-prefix}-page-container';
 
 .@{prefix-cls} {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden auto;
   padding-bottom: var(--graft-page-bottom-safe-area);
+}
+
+.@{prefix-cls}__main,
+.@{prefix-cls}__content {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.@{prefix-cls}__main {
+  flex: 1 0 auto;
+  min-height: 0;
+}
+
+.@{prefix-cls}__content {
+  flex: 1 0 auto;
+  min-height: 100%;
 }
 </style>

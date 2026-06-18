@@ -1,5 +1,44 @@
 # Web UI Lessons
 
+## LESSON-WEB-UI-ROUTE-LOADING-001：路由切换不能让主内容区短暂卸载为空
+
+- Status: active
+- Level: L1
+- Applies to:
+  - `web` shell layout
+  - `router-view` / `keep-alive` route transitions
+  - Footer and page-container layout stability
+- Source:
+  - container detail navigation screenshot where Header, Sidebar, and Tabs were rendered but the main content area was
+    empty, causing the global Footer copyright to appear in the middle of the viewport
+  - shell-level route loading remediation for async route component and detail API latency
+- Problem:
+  后台壳层在路由切换、异步组件加载或标签页刷新期间，如果直接让 `router-view` 短暂渲染为空，页面主内容区会失去高度。
+  Footer 虽然没有 fixed，也会因为前面的内容坍缩而上浮，等详情页或 API 数据回来后再被挤下去，形成明显 layout shift。
+- Correct pattern:
+  壳层应在主内容区内提供统一的 TDesign page loading host，例如 `t-loading` 包裹 `router-view`，并让 loading host、
+  page container 和 content body 连续 `flex: 1` 且有稳定 `min-height`。路由守卫负责路由组件加载阶段的 loading
+  状态，页面内部再负责 API 数据阶段的 skeleton/loading/error/empty 状态。Loading 不应遮住 Header、Sidebar 或 Tabs。
+- Anti-pattern:
+  - 在每个详情页复制一套路由切换 loading
+  - 为了遮住上浮把 Footer 改成 fixed
+  - 用 `display: none` 或空 `router-view` 隐藏切换期内容
+  - 详情数据未返回时卸载整个页面外壳，只留下空白主内容区
+  - 只保留 NProgress 顶部进度条，却不保留主内容区占位高度
+- Enforcement:
+  修改 shell layout、route guard、tabs refresh 或详情页首屏 loading 时，用 `bun run check` 覆盖前端完成态；
+  对可见布局问题补浏览器测量或截图，确认切换期间 content host 有稳定高度、Footer 位置不跳动、Header/Sidebar/Tabs
+  不被 loading 遮挡且没有横向滚动。
+- Promotion:
+  - AGENTS.md: no
+  - Design doc: no
+- Related:
+  - `web/src/layouts/components/Content.vue`
+  - `web/src/router/route-loading.ts`
+  - `web/src/style/layout.less`
+- Updated at:
+  2026-06-17
+
 ## LESSON-WEB-UI-LOCALE-TIME-001：可见时间不能依赖宿主默认语言环境
 
 - Status: active

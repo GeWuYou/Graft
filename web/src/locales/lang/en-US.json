@@ -48,6 +48,7 @@
     "search": {
       "placeholder": "Enter search content"
     },
+    "routeLoading": "Loading Page",
     "setting": {
       "theme": {
         "mode": "Theme Mode",

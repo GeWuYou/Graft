@@ -17,7 +17,9 @@ const tabStoreState = vi.hoisted(() => ({
   refreshing: false,
   tabRouters: [
     {
+      fullPath: '/access-control/roles',
       tabKey: '/access-control/roles',
+      path: '/access-control/roles',
       isAlive: true,
       meta: {},
       name: 'RoleListIndex',
@@ -49,8 +51,39 @@ const TransitionStub = defineComponent({
   },
 });
 
+const LoadingStub = defineComponent({
+  name: 'TLoading',
+  props: {
+    loading: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  setup(props, { slots }) {
+    return () =>
+      h(
+        'div',
+        {
+          'data-testid': 'route-loading',
+          'data-loading': String(props.loading),
+        },
+        slots.default?.(),
+      );
+  },
+});
+
 vi.mock('vue-router', () => ({
   useRoute: () => routeState,
+}));
+
+vi.mock('@/locales', () => ({
+  t: (key: string) => key,
+}));
+
+vi.mock('@/router/route-loading', () => ({
+  routeLoading: {
+    value: false,
+  },
 }));
 
 vi.mock('@/store', async () => {
@@ -71,7 +104,9 @@ describe('Content', () => {
     tabStoreState.refreshing = false;
     tabStoreState.tabRouters = [
       {
+        fullPath: '/access-control/roles',
         tabKey: '/access-control/roles',
+        path: '/access-control/roles',
         isAlive: true,
         meta: {},
         name: 'RoleListIndex',
@@ -98,7 +133,7 @@ describe('Content', () => {
             template: '<div data-testid="keep-alive" :data-include="include"><slot /></div>',
           },
           FramePage: true,
-          TLoading: true,
+          TLoading: LoadingStub,
         },
       },
     });
@@ -110,6 +145,8 @@ describe('Content', () => {
       ...tabStoreProxy.value!.tabRouters,
       {
         tabKey: '/access-control/roles#copy-1',
+        path: '/access-control/roles',
+        fullPath: '/access-control/roles',
         isAlive: true,
         meta: {},
         name: 'RoleListIndex',
@@ -118,6 +155,40 @@ describe('Content', () => {
     await wrapper.vm.$nextTick();
 
     expect(wrapper.findComponent({ name: 'RouteContentProbe' }).vm.$.vnode.key).toBe('/access-control/roles#copy-1');
+  });
+
+  it('uses the entering route key when the active tab still points at the leaving route', async () => {
+    const wrapper = mount(Content, {
+      global: {
+        stubs: {
+          RouterView: {
+            template: '<slot :Component="Component" :route="route" />',
+            data() {
+              return {
+                Component: RouteContentProbe,
+                route: routeState,
+              };
+            },
+          },
+          transition: TransitionStub,
+          KeepAlive: {
+            props: ['include'],
+            template: '<div data-testid="keep-alive" :data-include="include"><slot /></div>',
+          },
+          FramePage: true,
+          TLoading: LoadingStub,
+        },
+      },
+    });
+
+    routeState.path = '/ops/containers/container-1';
+    routeState.fullPath = '/ops/containers/container-1?tab=overview';
+    tabStoreProxy.value!.activeTabKey = '/access-control/roles#leaving';
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.findComponent({ name: 'RouteContentProbe' }).vm.$.vnode.key).toBe(
+      '/ops/containers/container-1?tab=overview',
+    );
   });
 
   it('does not restrict keep-alive by route name', () => {
@@ -142,7 +213,7 @@ describe('Content', () => {
             template: '<div data-testid="keep-alive" :data-include="include"><slot /></div>',
           },
           FramePage: true,
-          TLoading: true,
+          TLoading: LoadingStub,
         },
       },
     });
@@ -175,11 +246,43 @@ describe('Content', () => {
             template: '<div data-testid="keep-alive" :data-include="include"><slot /></div>',
           },
           FramePage: true,
-          TLoading: true,
+          TLoading: LoadingStub,
         },
       },
     });
 
     expect(wrapper.emitted('page-surface-enter')).toEqual([['paged-table']]);
+  });
+
+  it('keeps a loading host mounted while a tab refresh removes route content', async () => {
+    tabStoreState.refreshing = true;
+
+    const wrapper = mount(Content, {
+      global: {
+        stubs: {
+          RouterView: {
+            template: '<slot :Component="Component" :route="route" />',
+            data() {
+              return {
+                Component: RouteContentProbe,
+                route: routeState,
+              };
+            },
+          },
+          transition: TransitionStub,
+          KeepAlive: {
+            props: ['include'],
+            template: '<div data-testid="keep-alive" :data-include="include"><slot /></div>',
+          },
+          FramePage: true,
+          TLoading: LoadingStub,
+        },
+      },
+    });
+
+    expect(wrapper.get('[data-testid="route-loading"]').attributes('data-loading')).toBe('true');
+    expect(wrapper.find('.route-loading-host').exists()).toBe(true);
+    expect(wrapper.find('.route-refresh-placeholder').exists()).toBe(true);
+    expect(wrapper.findComponent({ name: 'RouteContentProbe' }).exists()).toBe(false);
   });
 });

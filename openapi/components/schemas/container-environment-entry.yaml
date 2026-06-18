@@ -11,6 +11,9 @@ properties:
   value:
     type: string
     description: Environment variable value. Omitted when the active policy hides or masks the value.
+  copy_value:
+    type: string
+    description: Copy-only raw value for a masked entry. Present only when policy, permission, and system configuration allow copying masked values.
   masked:
     type: boolean
     description: Whether the value is intentionally omitted by environment display policy.

@@ -8,48 +8,68 @@
     <management-page-header
       :breadcrumb="detailBreadcrumb"
       :title="pageTitle"
-      :description="detail ? detail.image : t('container.detail.description')"
+      :description="safeDetail ? safeDetail.image : t('container.detail.description')"
       :source="{ labelKey: 'container.list.eyebrow', fallback: t('container.list.eyebrow') }"
     >
       <template #meta>
         <t-space class="container-detail-header-meta" break-line size="small">
-          <span v-if="detail" class="container-detail-header-id">{{ shortContainerId(detail) }}</span>
-          <t-tag v-if="detail" :theme="stateTheme(detail.state)" variant="light-outline">
-            {{ stateLabel(detail.state) }}
+          <span v-if="safeDetail" class="container-detail-header-id">{{ shortContainerId(safeDetail) }}</span>
+          <t-tag v-if="safeDetail" :theme="stateTheme(safeDetail.state)" variant="light-outline">
+            {{ stateLabel(safeDetail.state) }}
           </t-tag>
-          <t-tag v-if="detail" :theme="healthTheme(detail.health)" variant="light-outline">
-            {{ healthLabel(detail.health) }}
+          <t-tag v-if="safeDetail" :theme="healthTheme(safeDetail.health)" variant="light-outline">
+            {{ healthLabel(safeDetail.health) }}
           </t-tag>
-          <t-tag v-if="detail?.runtime" theme="default" variant="light-outline">
-            {{ detail.runtime }}
+          <t-tag v-if="safeDetail?.runtime" theme="default" variant="light-outline">
+            {{ safeDetail.runtime }}
           </t-tag>
-          <t-tag v-if="detail?.inspect_updated_at" theme="default" variant="light-outline">
-            {{ t('container.detail.inspectUpdatedAt') }}: {{ formatTime(detail.inspect_updated_at) }}
+          <t-tag v-if="safeDetail?.inspect_updated_at" theme="default" variant="light-outline">
+            {{ t('container.detail.inspectUpdatedAt') }}: {{ formatTime(safeDetail.inspect_updated_at) }}
           </t-tag>
         </t-space>
       </template>
       <template #actions>
         <t-space break-line size="small">
-          <t-button theme="default" variant="outline" @click="goBack">
-            {{ t('container.detail.back') }}
-          </t-button>
-          <t-button theme="primary" :loading="loading" @click="loadDetail">
-            {{ t('container.detail.refresh') }}
-          </t-button>
+          <t-tooltip :content="t('container.detail.refreshTooltip')">
+            <refresh-control-bar
+              :auto-refresh-enabled="autoRefreshAvailable"
+              :countdown-label="t('container.detail.autoRefresh')"
+              :countdown-seconds="remainingAutoRefreshSeconds"
+              :interval="selectedAutoRefreshInterval"
+              :interval-label="t('container.detail.autoRefresh')"
+              :interval-options="autoRefreshOptions"
+              :manual-label="t('container.detail.autoRefreshOff')"
+              :paused="autoRefreshPaused"
+              :pause-label="t('container.detail.pauseAutoRefresh')"
+              :paused-label="t('container.detail.autoRefreshPaused')"
+              :refresh-label="t('container.detail.refreshNow')"
+              :refreshing="detailRefreshing"
+              :resume-label="t('container.detail.resumeAutoRefresh')"
+              :show-countdown="true"
+              @pause="setAutoRefreshEnabled(false)"
+              @refresh="handleManualRefresh"
+              @resume="setAutoRefreshEnabled(true)"
+              @update:interval="handleAutoRefreshIntervalChange"
+            />
+          </t-tooltip>
         </t-space>
       </template>
     </management-page-header>
 
-    <t-alert v-if="error" theme="error" :title="error">
-      <template #operation>
-        <t-button theme="danger" variant="text" @click="loadDetail">
-          {{ t('container.list.retry') }}
-        </t-button>
-      </template>
-    </t-alert>
+    <section class="container-detail-body">
+      <t-loading v-if="detailRefreshing && !safeDetail && !error" class="container-detail-state" :loading="true">
+        <t-skeleton animation="gradient" theme="article" />
+      </t-loading>
 
-    <t-loading :loading="loading">
-      <template v-if="detail">
+      <t-alert v-else-if="error" class="container-detail-state-alert" theme="error" :title="error">
+        <template #operation>
+          <t-button theme="danger" variant="text" @click="refreshContainerDetail">
+            {{ t('container.list.retry') }}
+          </t-button>
+        </template>
+      </t-alert>
+
+      <template v-else-if="safeDetail">
         <section class="container-detail-summary">
           <t-card
             class="container-detail-summary-card container-detail-summary-card--identity"
@@ -60,22 +80,22 @@
             <div class="container-detail-summary-list">
               <div class="container-detail-kv">
                 <span>{{ t('container.list.fields.name') }}</span>
-                <strong>{{ displayName(detail) }}</strong>
+                <strong>{{ displayName(safeDetail) }}</strong>
               </div>
               <div class="container-detail-kv">
                 <span>{{ t('container.list.fields.image') }}</span>
                 <copyable-detail-value
                   :copy-label="t('container.detail.copy')"
-                  :value="detail.image"
-                  :display-value="detail.image"
+                  :value="safeDetail.image"
+                  :display-value="safeDetail.image"
                   @copy="copyDetailText"
                 />
               </div>
               <div class="container-detail-kv">
                 <span>{{ t('container.list.fields.id') }}</span>
                 <copyable-detail-value
-                  :value="detail.id"
-                  :display-value="shortContainerId(detail)"
+                  :value="safeDetail.id"
+                  :display-value="shortContainerId(safeDetail)"
                   :copy-label="t('container.detail.copy')"
                   code
                   data-testid="summary-container-id-copy"
@@ -84,7 +104,7 @@
               </div>
               <div class="container-detail-kv">
                 <span>{{ t('container.list.fields.runtime') }}</span>
-                <strong>{{ runtimeLabel(detail) }}</strong>
+                <strong>{{ runtimeLabel(safeDetail) }}</strong>
               </div>
             </div>
           </t-card>
@@ -97,21 +117,21 @@
             <div class="container-detail-summary-list">
               <div class="container-detail-kv container-detail-kv--inline">
                 <span>{{ t('container.list.fields.status') }}</span>
-                <t-tag :theme="stateTheme(detail.state)" variant="light-outline">
-                  {{ stateLabel(detail.state) }}
+                <t-tag :theme="stateTheme(safeDetail.state)" variant="light-outline">
+                  {{ stateLabel(safeDetail.state) }}
                 </t-tag>
               </div>
               <div class="container-detail-kv">
                 <span>{{ t('container.list.fields.state') }}</span>
-                <code>{{ detail.state || '-' }}</code>
+                <code>{{ safeDetail.state || '-' }}</code>
               </div>
               <div class="container-detail-kv">
                 <span>{{ t('container.list.fields.startedAt') }}</span>
-                <strong>{{ formatTime(detail.started_at) }}</strong>
+                <strong>{{ formatTime(safeDetail.started_at) }}</strong>
               </div>
               <div class="container-detail-kv">
                 <span>{{ t('container.detail.health.status') }}</span>
-                <strong>{{ healthLabel(detail.health) }}</strong>
+                <strong>{{ healthLabel(safeDetail.health) }}</strong>
               </div>
             </div>
           </t-card>
@@ -125,26 +145,26 @@
               <div class="container-detail-resource-meter container-detail-resource-meter--cpu">
                 <div class="container-detail-resource-meter__content">
                   <span>{{ t('container.detail.resources.cpu') }}</span>
-                  <strong>{{ formatPercent(detail.resource?.cpu_percent) }}</strong>
+                  <strong>{{ formatPercent(safeDetail.resource?.cpu_percent) }}</strong>
                 </div>
                 <t-progress
                   theme="circle"
                   size="small"
-                  :label="formatPercent(detail.resource?.cpu_percent)"
-                  :percentage="toProgressPercent(detail.resource?.cpu_percent)"
+                  :label="formatPercent(safeDetail.resource?.cpu_percent)"
+                  :percentage="toProgressPercent(safeDetail.resource?.cpu_percent)"
                 />
               </div>
               <div class="container-detail-resource-meter container-detail-resource-meter--memory">
                 <div class="container-detail-resource-meter__content">
                   <span>{{ t('container.detail.resources.memory') }}</span>
-                  <strong>{{ memorySummary(detail) }}</strong>
-                  <em>{{ formatPercent(detail.resource?.memory_percent) }}</em>
+                  <strong>{{ memorySummary(safeDetail) }}</strong>
+                  <em>{{ formatPercent(safeDetail.resource?.memory_percent) }}</em>
                 </div>
                 <t-progress
                   theme="line"
                   size="small"
                   :label="false"
-                  :percentage="toProgressPercent(detail.resource?.memory_percent)"
+                  :percentage="toProgressPercent(safeDetail.resource?.memory_percent)"
                 />
               </div>
             </div>
@@ -158,29 +178,17 @@
             <div class="container-detail-summary-list">
               <div class="container-detail-kv">
                 <span>{{ t('container.detail.network.primaryIp') }}</span>
-                <strong>{{ detail.primary_ip || '-' }}</strong>
+                <strong>{{ safeDetail.primary_ip || '-' }}</strong>
               </div>
               <div class="container-detail-kv">
                 <span>{{ t('container.detail.network.summary') }}</span>
-                <strong>{{ networkSummary(detail) }}</strong>
-              </div>
-              <div class="container-detail-kv">
-                <span>{{ t('container.detail.network.name') }}</span>
-                <strong>{{ primaryNetworkName(detail) }}</strong>
+                <strong>{{ networkSummary(safeDetail) }}</strong>
               </div>
               <div class="container-detail-kv">
                 <span>{{ t('container.detail.network.ports') }}</span>
-                <div v-if="detail.ports.length" class="container-detail-port-list">
-                  <t-tag
-                    v-for="port in detail.ports"
-                    :key="portLabel(port)"
-                    class="container-detail-port-chip"
-                    theme="default"
-                    variant="light-outline"
-                  >
-                    {{ portLabel(port) }}
-                  </t-tag>
-                </div>
+                <strong v-if="safeDetail.ports.length">
+                  {{ t('container.detail.network.portCount', { count: safeDetail.ports.length }) }}
+                </strong>
                 <strong v-else>{{ t('container.detail.network.noPublicPorts') }}</strong>
               </div>
             </div>
@@ -361,11 +369,31 @@
                   :truncated="logs?.truncated"
                   :refresh-label="t('container.detail.logs.refresh')"
                   :copy-label="t('container.detail.copy')"
+                  :download-label="t('container.detail.logs.download')"
+                  :retry-label="t('container.list.retry')"
                   :search-placeholder="t('container.detail.logs.searchPlaceholder')"
                   :wrap-label="t('container.detail.logs.wrap')"
-                  :follow-tail-label="t('container.detail.logs.followTail')"
+                  :refresh-scroll-label="t('container.detail.logs.refreshScroll')"
+                  :refresh-scroll-tooltip-label="t('container.detail.logs.refreshScrollTooltip')"
+                  :level-filter-label="t('container.detail.logs.levelFilter')"
+                  :all-levels-label="t('container.detail.logs.allLevels')"
+                  :match-count-label="t('container.detail.logs.matchCount')"
                   :empty-label="t('container.detail.logs.empty')"
                   :truncated-label="t('container.detail.logs.truncated')"
+                  :detail-title-label="t('container.detail.logs.detailTitle')"
+                  :important-fields-label="t('container.detail.logs.importantFields')"
+                  :basic-info-label="t('container.detail.logs.basicInfo')"
+                  :time-label="t('container.detail.logs.time')"
+                  :level-label="t('container.detail.logs.level')"
+                  :source-label="t('container.detail.logs.source')"
+                  :view-detail-label="t('container.detail.logs.viewDetail')"
+                  :collapse-detail-label="t('container.detail.logs.collapseDetail')"
+                  :metadata-label="t('container.detail.logs.metadata')"
+                  :message-label="t('container.detail.logs.message')"
+                  :raw-label="t('container.detail.logs.raw')"
+                  :copy-message-label="t('container.detail.logs.copyMessage')"
+                  :copy-line-label="t('container.detail.logs.copyLine')"
+                  :copy-json-label="t('container.detail.logs.copyJson')"
                   :copy-success-label="t('container.detail.copySuccess')"
                   :copy-error-label="t('container.detail.copyError')"
                   @refresh="loadLogs"
@@ -374,115 +402,634 @@
             </t-tab-panel>
 
             <t-tab-panel value="health" :label="t('container.detail.tabs.health')" :destroy-on-hide="false">
-              <section class="container-detail-section">
-                <t-descriptions :column="2" item-layout="vertical" bordered table-layout="fixed">
-                  <t-descriptions-item :label="t('container.detail.health.status')">
-                    {{ healthLabel(detail.health) }}
-                  </t-descriptions-item>
-                  <t-descriptions-item :label="t('container.detail.health.restartCount')">
-                    {{ detail.restart_count ?? '-' }}
-                  </t-descriptions-item>
-                  <t-descriptions-item :label="t('container.list.fields.restartPolicy')">
-                    {{ detail.restart_policy || '-' }}
-                  </t-descriptions-item>
-                  <t-descriptions-item :label="t('container.list.detail.inspectUpdatedAt')">
-                    {{ formatTime(detail.inspect_updated_at) }}
-                  </t-descriptions-item>
-                </t-descriptions>
+              <section class="container-detail-section container-detail-section--health">
+                <div class="container-health-diagnostics">
+                  <header class="container-health-diagnostics__header">
+                    <h3>{{ t('container.detail.health.diagnosisTitle') }}</h3>
+                  </header>
+
+                  <div class="container-health-summary-grid">
+                    <t-card
+                      class="container-health-summary-card"
+                      size="small"
+                      :bordered="false"
+                      data-testid="health-summary-status"
+                    >
+                      <span class="container-health-summary-card__label">
+                        {{ t('container.detail.health.currentStatus') }}
+                      </span>
+                      <div class="container-health-summary-card__value">
+                        <t-tag :theme="healthDiagnosis.theme" variant="light-outline">
+                          {{ healthDiagnosis.label }}
+                        </t-tag>
+                      </div>
+                      <p>{{ healthDiagnosis.description }}</p>
+                    </t-card>
+
+                    <t-card
+                      class="container-health-summary-card"
+                      size="small"
+                      :bordered="false"
+                      data-testid="health-summary-restarts"
+                    >
+                      <span class="container-health-summary-card__label">
+                        {{ t('container.detail.health.restartCount') }}
+                      </span>
+                      <strong class="container-health-summary-card__value">
+                        {{ restartCountLabel(safeDetail.restart_count) }}
+                      </strong>
+                      <p>{{ restartSummaryLabel(safeDetail.restart_count) }}</p>
+                    </t-card>
+
+                    <t-card
+                      class="container-health-summary-card"
+                      size="small"
+                      :bordered="false"
+                      data-testid="health-summary-last-check"
+                    >
+                      <span class="container-health-summary-card__label">
+                        {{ t('container.detail.health.recentCheck') }}
+                      </span>
+                      <strong class="container-health-summary-card__value">
+                        {{ healthcheckDetails.lastCheckedAt || formatTime(safeDetail.inspect_updated_at) }}
+                      </strong>
+                      <p>{{ healthcheckDetails.relativeCheckedAt || inspectUpdatedRelative }}</p>
+                    </t-card>
+                  </div>
+
+                  <t-card
+                    class="container-health-info-card"
+                    size="small"
+                    :title="t('container.detail.health.checkResult')"
+                    data-testid="healthcheck-result-card"
+                  >
+                    <template #actions>
+                      <div v-if="healthcheckDetails.configured" class="container-health-card-actions">
+                        <t-tag :theme="healthcheckDetails.theme" variant="light-outline" size="small">
+                          {{ healthcheckDetails.statusLabel }}
+                        </t-tag>
+                        <span>{{
+                          t('container.detail.health.exitCodeValue', { code: healthcheckDetails.exitCode })
+                        }}</span>
+                      </div>
+                    </template>
+                    <template v-if="healthcheckDetails.configured">
+                      <t-descriptions
+                        class="container-health-inline-descriptions"
+                        :column="2"
+                        size="small"
+                        table-layout="auto"
+                      >
+                        <t-descriptions-item :label="t('container.detail.health.healthcheck')">
+                          <t-tag :theme="healthcheckDetails.theme" variant="light-outline">
+                            {{ healthcheckDetails.statusLabel }}
+                          </t-tag>
+                        </t-descriptions-item>
+                        <t-descriptions-item :label="t('container.detail.health.exitCode')">
+                          {{ healthcheckDetails.exitCode }}
+                        </t-descriptions-item>
+                      </t-descriptions>
+                      <div class="container-health-block">
+                        <div class="container-health-block__label">
+                          <span>{{ t('container.detail.health.checkCommand') }}</span>
+                          <t-tooltip :content="t('container.detail.health.copyCommand')">
+                            <t-button
+                              size="small"
+                              variant="text"
+                              :disabled="healthcheckDetails.command === '-'"
+                              @click="copyHealthcheckCommand"
+                            >
+                              {{ t('container.detail.copy') }}
+                            </t-button>
+                          </t-tooltip>
+                        </div>
+                        <code class="container-health-code">{{ healthcheckDetails.command }}</code>
+                      </div>
+                      <div class="container-health-block">
+                        <span class="container-health-block__label">{{ t('container.detail.health.lastOutput') }}</span>
+                        <pre
+                          class="container-health-output"
+                          :class="{ 'container-health-output--error': healthcheckDetails.hasFailure }"
+                          >{{ healthcheckDetails.output }}</pre
+                        >
+                      </div>
+                      <p class="container-health-last-check">
+                        {{
+                          t('container.detail.health.lastCheckValue', { time: healthcheckDetails.lastCheckedAt || '-' })
+                        }}
+                      </p>
+                    </template>
+                    <div v-else class="container-health-empty">
+                      <t-alert theme="info">
+                        {{ t('container.detail.health.healthcheckUnavailableAlert') }}
+                      </t-alert>
+                      <t-empty size="small" :description="t('container.detail.health.healthcheckUnavailableEmpty')" />
+                    </div>
+                  </t-card>
+
+                  <t-card
+                    class="container-health-info-card"
+                    size="small"
+                    :title="t('container.detail.health.stability')"
+                    data-testid="runtime-stability-card"
+                  >
+                    <template #actions>
+                      <t-tag :theme="runtimeStability.theme" variant="light-outline" size="small">
+                        {{ runtimeStability.label }}
+                      </t-tag>
+                    </template>
+                    <t-descriptions
+                      class="container-health-stability-grid"
+                      :column="2"
+                      size="small"
+                      table-layout="auto"
+                    >
+                      <t-descriptions-item :label="t('container.list.fields.startedAt')">
+                        {{ formatTime(safeDetail.started_at) }}
+                      </t-descriptions-item>
+                      <t-descriptions-item :label="t('container.detail.health.uptime')">
+                        {{ uptimeLabel(safeDetail.started_at) }}
+                      </t-descriptions-item>
+                      <t-descriptions-item :label="t('container.list.fields.restartPolicy')">
+                        {{ safeDetail.restart_policy || '-' }}
+                      </t-descriptions-item>
+                      <t-descriptions-item :label="t('container.detail.health.restartCount')">
+                        {{ safeDetail.restart_count ?? '-' }}
+                      </t-descriptions-item>
+                      <t-descriptions-item :label="t('container.detail.health.lastExitCode')">
+                        {{ runtimeStability.lastExitCode }}
+                      </t-descriptions-item>
+                      <t-descriptions-item :label="t('container.detail.health.oomKilled')">
+                        {{ runtimeStability.oomKilled }}
+                      </t-descriptions-item>
+                    </t-descriptions>
+                  </t-card>
+                </div>
               </section>
             </t-tab-panel>
 
             <t-tab-panel value="config" :label="t('container.detail.tabs.config')" :destroy-on-hide="false">
-              <section class="container-detail-section">
-                <t-descriptions :column="2" item-layout="vertical" bordered table-layout="fixed">
-                  <t-descriptions-item :label="t('container.list.detail.command')">
-                    {{ joinList(detail.command) }}
-                  </t-descriptions-item>
-                  <t-descriptions-item :label="t('container.list.detail.entrypoint')">
-                    {{ joinList(detail.entrypoint) }}
-                  </t-descriptions-item>
-                  <t-descriptions-item :label="t('container.list.detail.workingDir')">
-                    {{ detail.working_dir || '-' }}
-                  </t-descriptions-item>
-                </t-descriptions>
-                <div class="container-detail-subsection">
-                  <h3>{{ t('container.detail.config.environment') }}</h3>
+              <section class="container-detail-section container-detail-section--config">
+                <div class="container-config-section">
+                  <h3>{{ t('container.detail.config.runtimeTitle') }}</h3>
+                  <t-card class="container-runtime-config-card" size="small" :bordered="false">
+                    <div class="container-runtime-config-list">
+                      <div v-for="item in runtimeConfigItems" :key="item.key" class="container-runtime-config-row">
+                        <span class="container-runtime-config-row__label">{{ item.label }}</span>
+                        <t-tooltip :content="item.value">
+                          <code class="container-runtime-config-row__value">{{ item.value }}</code>
+                        </t-tooltip>
+                        <t-tooltip :content="t('container.detail.config.copyRuntimeValue')">
+                          <t-button
+                            class="container-runtime-config-row__copy"
+                            shape="square"
+                            size="small"
+                            theme="default"
+                            variant="text"
+                            :disabled="!item.copyable"
+                            @click="copyRuntimeConfigValue(item)"
+                          >
+                            <template #icon>
+                              <t-icon name="copy" />
+                            </template>
+                          </t-button>
+                        </t-tooltip>
+                      </div>
+                    </div>
+                  </t-card>
+                </div>
+
+                <div class="container-config-section">
+                  <div class="container-config-section__header">
+                    <h3>{{ t('container.detail.config.environment') }}</h3>
+                    <span>{{ t('container.detail.config.environmentCount', { count: environmentRows.length }) }}</span>
+                  </div>
+                  <div class="container-env-toolbar">
+                    <t-input
+                      v-model="environmentKeyword"
+                      class="container-env-toolbar__search"
+                      clearable
+                      :placeholder="t('container.detail.config.searchPlaceholder')"
+                    >
+                      <template #prefix-icon>
+                        <t-icon name="search" />
+                      </template>
+                    </t-input>
+                    <t-select
+                      v-model="environmentPolicyFilter"
+                      class="container-env-toolbar__policy"
+                      :options="environmentPolicyFilterOptions"
+                    />
+                    <t-button theme="default" variant="outline" @click="copyFilteredEnvironmentAsEnv">
+                      <template #icon>
+                        <t-icon name="file-copy" />
+                      </template>
+                      {{ t('container.detail.config.copyEnvFile') }}
+                    </t-button>
+                    <t-button
+                      theme="default"
+                      variant="outline"
+                      :loading="detailRefreshing"
+                      @click="refreshContainerDetail"
+                    >
+                      <template #icon>
+                        <t-icon name="refresh" />
+                      </template>
+                      {{ t('container.detail.refresh') }}
+                    </t-button>
+                  </div>
                   <t-table
                     v-if="environmentRows.length"
+                    class="container-env-table"
                     row-key="name"
                     size="small"
                     :columns="environmentColumns"
-                    :data="environmentRows"
+                    :data="filteredEnvironmentRows"
                     :pagination="undefined"
                     table-layout="fixed"
                     cell-empty-content="-"
                   >
+                    <template #empty>
+                      <t-empty
+                        size="small"
+                        :title="environmentEmptyState.title"
+                        :description="environmentEmptyState.description"
+                      />
+                    </template>
+                    <template #name="{ row }">
+                      <t-tooltip :content="row.name">
+                        <code class="container-env-cell container-env-cell--name">{{ row.name }}</code>
+                      </t-tooltip>
+                    </template>
                     <template #value="{ row }">
-                      <span>{{ row.value || '-' }}</span>
+                      <t-tag v-if="row.policy === 'hidden'" theme="danger" variant="light-outline" size="small">
+                        {{ row.value }}
+                      </t-tag>
+                      <t-tag
+                        v-else-if="row.policy !== 'masked' && isBooleanEnvironmentValue(row.value)"
+                        theme="primary"
+                        variant="light-outline"
+                        size="small"
+                      >
+                        {{ row.value }}
+                      </t-tag>
+                      <t-tooltip v-else :content="row.rawValue || row.value">
+                        <code class="container-env-cell container-env-cell--value">{{ row.value || '-' }}</code>
+                      </t-tooltip>
                     </template>
                     <template #policy="{ row }">
-                      <t-tag :theme="policyTheme(row.policy)" variant="light-outline">
+                      <t-tag :theme="policyTheme(row.policy)" variant="light-outline" size="small">
                         {{ policyLabel(row.policy) }}
                       </t-tag>
                     </template>
                     <template #operation="{ row }">
-                      <t-button
-                        v-if="row.copyable"
-                        data-testid="env-copy"
-                        size="small"
-                        theme="default"
-                        variant="text"
-                        @click="copyEnvironmentValue(row)"
-                      >
-                        {{ t('container.detail.copy') }}
-                      </t-button>
+                      <t-tooltip v-if="row.copyable" :content="t('container.detail.config.copyVariableValue')">
+                        <t-button
+                          class="container-env-copy-button"
+                          data-testid="env-copy"
+                          shape="square"
+                          size="small"
+                          theme="default"
+                          variant="text"
+                          @click="copyEnvironmentValue(row)"
+                        >
+                          <template #icon>
+                            <t-icon name="copy" />
+                          </template>
+                        </t-button>
+                      </t-tooltip>
                     </template>
                   </t-table>
-                  <t-empty v-else size="small" :description="t('container.detail.config.environmentUnavailable')" />
+                  <t-empty
+                    v-else
+                    size="small"
+                    :title="t('container.detail.config.environmentEmptyTitle')"
+                    :description="t('container.detail.config.environmentUnavailable')"
+                  />
                 </div>
               </section>
             </t-tab-panel>
 
             <t-tab-panel value="network" :label="t('container.detail.tabs.network')" :destroy-on-hide="false">
-              <section class="container-detail-section">
-                <t-table
-                  v-if="detail.networks.length"
-                  row-key="name"
-                  size="small"
-                  :columns="networkColumns"
-                  :data="detail.networks"
-                  :pagination="undefined"
-                  table-layout="fixed"
-                  cell-empty-content="-"
-                />
-                <t-empty v-else size="small" :description="t('container.list.detail.networkEmpty')" />
+              <section class="container-detail-section container-detail-section--network">
+                <section class="container-network-panel">
+                  <header class="container-network-panel__header">
+                    <h3>{{ t('container.detail.network.connections') }}</h3>
+                  </header>
+                  <template v-if="networkConnections.length">
+                    <article v-if="networkConnections.length === 1" class="container-network-connection-card">
+                      <header class="container-network-connection-card__header">
+                        <copyable-detail-value
+                          class="container-network-connection-card__name"
+                          :copy-label="t('container.detail.copy')"
+                          :value="networkConnections[0].name"
+                          :display-value="displayOptionalValue(networkConnections[0].name)"
+                          code
+                          data-testid="network-name-copy-0"
+                          @copy="copyDetailText"
+                        />
+                      </header>
+                      <div class="container-network-field-grid">
+                        <div
+                          v-for="field in singleNetworkFields"
+                          :key="field.key"
+                          class="container-network-field"
+                          :class="{ 'container-network-field--technical': field.technical }"
+                        >
+                          <span>{{ field.label }}</span>
+                          <copyable-detail-value
+                            v-if="field.copyable"
+                            :copy-label="t('container.detail.copy')"
+                            :value="field.copyValue"
+                            :display-value="field.displayValue"
+                            code
+                            :data-testid="field.testId"
+                            @copy="copyDetailText"
+                          />
+                          <strong v-else>{{ field.displayValue }}</strong>
+                        </div>
+                      </div>
+                    </article>
+                    <t-table
+                      v-else
+                      row-key="name"
+                      size="small"
+                      :columns="networkColumns"
+                      :data="networkConnections"
+                      :pagination="undefined"
+                      table-layout="fixed"
+                      :cell-empty-content="t('container.detail.network.noData')"
+                    >
+                      <template #name="{ row, rowIndex }">
+                        <copyable-detail-value
+                          :copy-label="t('container.detail.copy')"
+                          :value="row.name"
+                          :display-value="displayOptionalValue(row.name)"
+                          code
+                          :data-testid="`network-name-copy-${rowIndex}`"
+                          @copy="copyDetailText"
+                        />
+                      </template>
+                      <template #ip_address="{ row, rowIndex }">
+                        <copyable-detail-value
+                          :copy-label="t('container.detail.copy')"
+                          :value="row.ip_address || ''"
+                          :display-value="displayOptionalValue(row.ip_address)"
+                          code
+                          :data-testid="`network-ip-copy-${rowIndex}`"
+                          @copy="copyDetailText"
+                        />
+                      </template>
+                      <template #gateway="{ row }">
+                        {{ displayOptionalValue(row.gateway) }}
+                      </template>
+                      <template #mac_address="{ row, rowIndex }">
+                        <copyable-detail-value
+                          :copy-label="t('container.detail.copy')"
+                          :value="row.mac_address || ''"
+                          :display-value="displayOptionalValue(row.mac_address)"
+                          code
+                          :data-testid="`network-mac-copy-${rowIndex}`"
+                          @copy="copyDetailText"
+                        />
+                      </template>
+                      <template #network_id="{ row, rowIndex }">
+                        <copyable-detail-value
+                          :copy-label="t('container.detail.copy')"
+                          :value="row.network_id || ''"
+                          :display-value="displayTechnicalIdentifier(row.network_id)"
+                          code
+                          :data-testid="`network-id-copy-${rowIndex}`"
+                          @copy="copyDetailText"
+                        />
+                      </template>
+                      <template #endpoint_id="{ row, rowIndex }">
+                        <copyable-detail-value
+                          :copy-label="t('container.detail.copy')"
+                          :value="row.endpoint_id || ''"
+                          :display-value="displayTechnicalIdentifier(row.endpoint_id)"
+                          code
+                          :data-testid="`network-endpoint-copy-${rowIndex}`"
+                          @copy="copyDetailText"
+                        />
+                      </template>
+                    </t-table>
+                  </template>
+                  <t-empty v-else size="small" :description="t('container.list.detail.networkEmpty')" />
+                </section>
+
+                <section class="container-network-panel">
+                  <header class="container-network-panel__header">
+                    <h3>{{ t('container.detail.network.ports') }}</h3>
+                  </header>
+                  <article
+                    v-if="portMappingRows.length === 1"
+                    class="container-port-mapping-card"
+                    :class="{ 'container-port-mapping-card--internal': !portMappingRows[0].hasHostBinding }"
+                  >
+                    <div class="container-port-mapping-card__main">
+                      <span class="container-port-mapping-card__label">
+                        {{ t('container.detail.network.mapping') }}
+                      </span>
+                      <copyable-detail-value
+                        :copy-label="t('container.detail.copy')"
+                        :value="portMappingRows[0].copyValue"
+                        :display-value="portMappingRows[0].mapping"
+                        code
+                        data-testid="port-mapping-copy-0"
+                        @copy="copyDetailText"
+                      />
+                    </div>
+                    <div v-if="portMappingRows[0].hasHostBinding" class="container-port-mapping-card__listen">
+                      <span>{{ t('container.detail.network.listenAddress') }}</span>
+                      <code class="container-network-code">{{ portMappingRows[0].listenAddress }}</code>
+                    </div>
+                    <span class="container-port-mapping-card__description">
+                      {{ portMappingRows[0].description }}
+                    </span>
+                  </article>
+                  <t-table
+                    v-else-if="portMappingRows.length > 1"
+                    row-key="key"
+                    size="small"
+                    :columns="portColumns"
+                    :data="portMappingRows"
+                    :pagination="undefined"
+                    table-layout="fixed"
+                    :cell-empty-content="t('container.detail.network.noData')"
+                  >
+                    <template #privatePort="{ row }">
+                      <code class="container-network-code">{{ row.privatePort }}</code>
+                    </template>
+                    <template #publicPort="{ row }">
+                      <code class="container-network-code">{{ row.publicPort }}</code>
+                    </template>
+                    <template #protocol="{ row }">
+                      <code class="container-network-code">{{ row.protocol }}</code>
+                    </template>
+                    <template #listenAddress="{ row }">
+                      <code class="container-network-code">{{ row.listenAddress }}</code>
+                    </template>
+                    <template #mapping="{ row, rowIndex }">
+                      <copyable-detail-value
+                        :copy-label="t('container.detail.copy')"
+                        :value="row.copyValue"
+                        :display-value="row.mapping"
+                        code
+                        :data-testid="`port-mapping-copy-${rowIndex}`"
+                        @copy="copyDetailText"
+                      />
+                    </template>
+                  </t-table>
+                  <t-empty v-else size="small" :description="t('container.list.detail.portEmpty')" />
+                </section>
+
+                <section class="container-network-panel">
+                  <header class="container-network-panel__header">
+                    <h3>{{ t('container.detail.network.aliasDns') }}</h3>
+                  </header>
+                  <div
+                    v-if="networkMetadataFields.length"
+                    class="container-network-field-grid container-network-field-grid--metadata"
+                  >
+                    <div
+                      v-for="field in networkMetadataFields"
+                      :key="field.key"
+                      class="container-network-field"
+                      :class="{ 'container-network-field--technical': field.technical }"
+                    >
+                      <span>{{ field.label }}</span>
+                      <strong>{{ field.displayValue }}</strong>
+                    </div>
+                  </div>
+                  <t-empty
+                    v-if="!hasAdditionalNetworkMetadata"
+                    class="container-network-metadata-empty"
+                    size="small"
+                    :description="t('container.detail.network.aliasDnsEmpty')"
+                  />
+                </section>
               </section>
             </t-tab-panel>
 
             <t-tab-panel value="storage" :label="t('container.detail.tabs.storage')" :destroy-on-hide="false">
-              <section class="container-detail-section">
-                <t-table
-                  v-if="detail.mounts.length"
-                  row-key="destination"
-                  size="small"
-                  :columns="mountColumns"
-                  :data="detail.mounts"
-                  :pagination="undefined"
-                  table-layout="fixed"
-                  cell-empty-content="-"
-                >
-                  <template #read_only="{ row }">
-                    {{ row.read_only ? 'ro' : 'rw' }}
-                  </template>
-                </t-table>
-                <t-empty v-else size="small" :description="t('container.list.detail.mountEmpty')" />
+              <section class="container-detail-section container-detail-section--storage">
+                <div v-if="mountCards.length" class="container-mount-card-grid">
+                  <article
+                    v-for="mount in mountCards"
+                    :key="mount.key"
+                    class="container-mount-card"
+                    :data-testid="`mount-card-${mount.index}`"
+                  >
+                    <header class="container-mount-card__header">
+                      <copyable-detail-value
+                        class="container-mount-card__destination"
+                        :copy-label="t('container.detail.copy')"
+                        :value="mount.destination"
+                        :display-value="mount.destinationDisplay"
+                        code
+                        :data-testid="`mount-destination-copy-${mount.index}`"
+                        @copy="copyDetailText"
+                      />
+                      <div class="container-mount-card__actions">
+                        <t-tag :theme="mount.typeTheme" variant="light-outline" size="small">
+                          {{ mount.typeLabel }}
+                        </t-tag>
+                        <t-tag :theme="mount.accessTheme" variant="light-outline" size="small">
+                          {{ mount.accessLabel }}
+                        </t-tag>
+                      </div>
+                    </header>
+
+                    <div class="container-mount-card__body">
+                      <section class="container-mount-info">
+                        <h3>{{ t('container.detail.storage.basicInfo') }}</h3>
+                        <div class="container-mount-field">
+                          <span>{{ t('container.detail.storage.source') }}</span>
+                          <copyable-detail-value
+                            v-if="mount.source"
+                            :copy-label="t('container.detail.copy')"
+                            :value="mount.source"
+                            :display-value="mount.sourceDisplay"
+                            code
+                            :data-testid="`mount-source-copy-${mount.index}`"
+                            @copy="copyDetailText"
+                          />
+                          <strong v-else>{{ t('container.detail.storage.sourceUnavailable') }}</strong>
+                        </div>
+                        <div class="container-mount-field">
+                          <span>{{ t('container.detail.storage.destination') }}</span>
+                          <copyable-detail-value
+                            :copy-label="t('container.detail.copy')"
+                            :value="mount.destination"
+                            :display-value="mount.destinationDisplay"
+                            code
+                            :data-testid="`mount-destination-field-copy-${mount.index}`"
+                            @copy="copyDetailText"
+                          />
+                        </div>
+                        <div class="container-mount-field">
+                          <span>{{ t('container.detail.storage.mode') }}</span>
+                          <code>{{ mount.modeLabel }}</code>
+                        </div>
+                      </section>
+                      <div class="container-mount-usage" :class="`container-mount-usage--${mount.usageTone}`">
+                        <div class="container-mount-usage__header">
+                          <span>{{ t('container.detail.storage.usage') }}</span>
+                          <t-button
+                            v-if="!mount.usageRefreshDisabled"
+                            size="small"
+                            theme="default"
+                            variant="outline"
+                            :loading="mount.usageRefreshing"
+                            :disabled="mount.usageRefreshing"
+                            :data-testid="`mount-refresh-${mount.index}`"
+                            @click="refreshMountUsage(mount)"
+                          >
+                            {{ mount.usageRefreshLabel }}
+                          </t-button>
+                          <t-tooltip v-else :content="mount.usageRefreshTooltip">
+                            <t-button
+                              size="small"
+                              theme="default"
+                              variant="outline"
+                              disabled
+                              :data-testid="`mount-refresh-unsupported-${mount.index}`"
+                            >
+                              {{ mount.usageRefreshLabel }}
+                            </t-button>
+                          </t-tooltip>
+                        </div>
+                        <strong>{{ mount.usageSize }}</strong>
+                        <span v-if="mount.measuredAt" class="container-mount-usage__time">
+                          {{ t('container.detail.storage.measuredAt', { time: mount.measuredAt }) }}
+                        </span>
+                        <span v-if="mount.message" class="container-mount-usage__message">
+                          {{ mount.message }}
+                        </span>
+                        <span v-if="mount.sharedHint" class="container-mount-usage__message">
+                          {{ mount.sharedHint }}
+                        </span>
+                      </div>
+                    </div>
+                  </article>
+                </div>
+                <div v-else class="container-mount-empty" role="status" aria-live="polite">
+                  <t-icon class="container-mount-empty__icon" name="server" />
+                  <span class="container-mount-empty__title">
+                    {{ t('container.detail.storage.emptyTitle') }}
+                  </span>
+                  <span class="container-mount-empty__description">
+                    {{ t('container.detail.storage.emptyDescription') }}
+                  </span>
+                </div>
               </section>
             </t-tab-panel>
 
             <t-tab-panel value="raw" :label="t('container.detail.tabs.raw')" :destroy-on-hide="false">
               <section class="container-detail-section">
                 <json-viewer
-                  :value="detail"
+                  :value="safeDetail"
                   :title="t('container.detail.raw.title')"
                   :description="t('container.detail.raw.description')"
                   :root-label="t('container.detail.raw.root')"
@@ -500,19 +1047,21 @@
         </t-card>
       </template>
 
-      <t-empty v-else-if="!error" size="small" :description="t('container.detail.empty')" />
-    </t-loading>
+      <t-empty v-else class="container-detail-state" size="small" :description="t('container.detail.empty')" />
+    </section>
   </div>
 </template>
 <script setup lang="ts">
 import type { TableProps } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
+import { LOCALE, type LocalizedTitle } from '@/contracts/i18n/locales';
 import { ManagementPageHeader } from '@/shared/components/management';
 import { MetricCard } from '@/shared/components/metrics';
+import { RefreshControlBar, type RefreshControlValue } from '@/shared/components/refresh';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import {
   copyText as copyTextToClipboard,
@@ -524,11 +1073,24 @@ import {
   LogViewer,
   toProgressPercent,
 } from '@/shared/observability';
+import { useTabsRouterStore } from '@/store';
 import { createLogger } from '@/utils/logger';
 
-import { getContainer, getContainerLogs } from '../../api/container';
-import { CONTAINER_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
-import type { ContainerDetail, ContainerHealth, ContainerLogResponse, ContainerState } from '../../types/container';
+import {
+  getContainer,
+  getContainerLogs,
+  getContainerMountUsage,
+  postContainerMountUsageRefresh,
+} from '../../api/container';
+import type {
+  ContainerDetail,
+  ContainerHealth,
+  ContainerHealthcheck,
+  ContainerLogResponse,
+  ContainerMount,
+  ContainerMountUsage,
+  ContainerState,
+} from '../../types/container';
 import ContainerOverviewPanel from './components/ContainerOverviewPanel.vue';
 import CopyableDetailValue from './components/CopyableDetailValue.vue';
 import type { ContainerOverviewInfoSection } from './components/overview';
@@ -540,14 +1102,83 @@ defineOptions({
 
 type DetailTab = 'overview' | 'resources' | 'logs' | 'health' | 'config' | 'network' | 'storage' | 'raw';
 type EnvironmentPolicy = 'plain' | 'masked' | 'hidden' | 'unknown';
+type EnvironmentPolicyFilter = EnvironmentPolicy | 'all' | 'sensitive';
 type EnvironmentRow = {
+  copyValue: string;
   copyable: boolean;
   name: string;
   policy: EnvironmentPolicy;
   rawValue: string;
   value: string;
 };
+type RuntimeConfigItem = {
+  copyable: boolean;
+  key: 'command' | 'entrypoint' | 'workingDir';
+  label: string;
+  rawValue: string;
+  value: string;
+};
+type NetworkField = {
+  copyValue: string;
+  copyable: boolean;
+  displayValue: string;
+  key: string;
+  label: string;
+  testId?: string;
+  technical?: boolean;
+};
+type PortMappingRow = {
+  copyValue: string;
+  description: string;
+  hasHostBinding: boolean;
+  key: string;
+  listenAddresses: string[];
+  listenAddress: string;
+  mapping: string;
+  privatePort: string;
+  protocol: string;
+  publicPort: string;
+};
+type MountCardUsageTone = 'success' | 'weak' | 'warning';
+type MountTagTheme = 'success' | 'primary' | 'warning' | 'danger' | 'default';
+type MountCard = {
+  accessLabel: string;
+  accessTheme: MountTagTheme;
+  destination: string;
+  destinationDisplay: string;
+  index: number;
+  key: string;
+  mountId: string;
+  measuredAt: string;
+  message: string;
+  mode: string;
+  modeLabel: string;
+  raw: ContainerMount;
+  sharedHint: string;
+  source: string;
+  sourceDisplay: string;
+  typeLabel: string;
+  typeTheme: MountTagTheme;
+  usageLabel: string;
+  usageRefreshDisabled: boolean;
+  usageRefreshLabel: string;
+  usageRefreshTooltip: string;
+  usageRefreshing: boolean;
+  usageSize: string;
+  usageTheme: MountTagTheme;
+  usageTone: MountCardUsageTone;
+};
+type SafeContainerDetail = ContainerDetail & {
+  command: string[];
+  entrypoint: string[];
+  environment: NonNullable<ContainerDetail['environment']>;
+  mounts: ContainerMount[];
+  names: NonNullable<ContainerDetail['names']>;
+  networks: NonNullable<ContainerDetail['networks']>;
+  ports: NonNullable<ContainerDetail['ports']>;
+};
 type ResourceStatusTheme = 'success' | 'warning' | 'default';
+type HealthStatusTheme = 'success' | 'warning' | 'danger' | 'default';
 type ResourceMetricFormat = 'bytes' | 'number' | 'percent' | 'text';
 type ContainerResourceSummary = NonNullable<ContainerDetail['resource']>;
 type ResourceMetricKey = Extract<
@@ -607,8 +1238,10 @@ type ResourceDetailGroup = {
   title: string;
 };
 type ResourceMetricDefinition = [ResourceMetricKey, string, ResourceMetricFormat];
+type AutoRefreshInterval = 0 | 5 | 10 | 30;
 
 const DETAIL_TABS: DetailTab[] = ['overview', 'resources', 'logs', 'health', 'config', 'network', 'storage', 'raw'];
+const AUTO_REFRESH_INTERVALS: AutoRefreshInterval[] = [0, 5, 10, 30];
 const DEFAULT_LOG_QUERY = {
   tail: 200,
   since: undefined,
@@ -620,31 +1253,233 @@ const DEFAULT_LOG_QUERY = {
 const { locale, t } = useI18n();
 const route = useRoute();
 const router = useRouter();
+const tabsRouterStore = useTabsRouterStore();
 const logger = createLogger('container.detail');
 
 const detail = ref<ContainerDetail | null>(null);
-const loading = ref(false);
+const detailRefreshing = ref(false);
 const error = ref('');
 const logs = ref<ContainerLogResponse | null>(null);
 const logsLoading = ref(false);
 const logsError = ref('');
 const logLineLimit = ref(DEFAULT_LOG_QUERY.tail);
 const activeTab = ref<DetailTab>(normalizeTab(route.query.tab));
+const environmentKeyword = ref('');
+const environmentPolicyFilter = ref<EnvironmentPolicyFilter>('all');
+const refreshingMountKeys = ref<Set<string>>(new Set());
+const selectedAutoRefreshInterval = ref<AutoRefreshInterval>(0);
+const autoRefreshEnabled = ref(false);
+const remainingAutoRefreshSeconds = ref<number | null>(null);
+const isPageVisible = ref(typeof document === 'undefined' ? true : document.visibilityState === 'visible');
+let autoRefreshTimer: number | null = null;
+let nextAutoRefreshAt: number | null = null;
+let detailRefreshSeq = 0;
 
 const containerId = computed(() => String(route.params.id ?? '').trim());
+const shortContainerIdFallback = computed(() => shortIdentifier(containerId.value, undefined, 12));
+const safeDetail = computed(() => normalizeDetail(detail.value));
+const activeTabRoute = computed(() =>
+  tabsRouterStore.tabRouterList.find(
+    (tab) => tab.tabKey === route.path || tab.path === route.path || tab.fullPath === route.fullPath,
+  ),
+);
+const fallbackDisplayName = computed(() => {
+  const tabTitle = readNameFromTabTitle(activeTabRoute.value?.title);
+  if (tabTitle) {
+    return tabTitle;
+  }
+
+  const queryName = readQueryString(route.query.name);
+  if (queryName) {
+    return queryName;
+  }
+
+  if (containerId.value) {
+    return shortContainerIdFallback.value;
+  }
+
+  return '';
+});
+const fallbackTitle = computed(() => buildDetailTitle(fallbackDisplayName.value));
+const autoRefreshOptions = computed(() =>
+  AUTO_REFRESH_INTERVALS.map((value) => ({
+    label:
+      value === 0
+        ? t('container.detail.autoRefreshOff')
+        : t('container.detail.autoRefreshSeconds', { seconds: String(value) }),
+    value,
+  })),
+);
+const autoRefreshAvailable = computed(() => selectedAutoRefreshInterval.value > 0);
+const autoRefreshPaused = computed(
+  () => autoRefreshAvailable.value && (!autoRefreshEnabled.value || !isPageVisible.value),
+);
 const detailBreadcrumb = computed(() => [
   { labelKey: 'container.list.eyebrow', fallback: t('container.list.eyebrow') },
-  { labelKey: 'container.detail.title', fallback: t('container.detail.title') },
+  { labelKey: 'container.detail.title', fallback: fallbackTitle.value[LOCALE.ZH_CN] },
 ]);
 const pageTitle = computed(() => {
-  if (detail.value) {
-    return displayName(detail.value);
+  if (safeDetail.value) {
+    return displayName(safeDetail.value);
   }
-  return containerId.value || t('container.detail.title');
+  return fallbackDisplayName.value || t('container.detail.title');
 });
-const environmentRows = computed(() => normalizeEnvironmentRows(detail.value));
+const environmentRows = computed(() => normalizeEnvironmentRows(safeDetail.value));
+const networkConnections = computed(() => safeDetail.value?.networks ?? []);
+const singleNetworkFields = computed<NetworkField[]>(() => {
+  const network = networkConnections.value[0];
+  if (!network) {
+    return [];
+  }
+
+  return [
+    createNetworkField(
+      'ip-address',
+      t('container.detail.network.ipAddress'),
+      network.ip_address,
+      true,
+      'network-ip-copy-0',
+    ),
+    createNetworkField('gateway', t('container.detail.network.gateway'), network.gateway),
+    createNetworkField(
+      'mac-address',
+      t('container.detail.network.macAddress'),
+      network.mac_address,
+      true,
+      'network-mac-copy-0',
+    ),
+    createNetworkField('subnet', t('container.detail.network.subnet')),
+    createNetworkField(
+      'network-id',
+      t('container.detail.network.networkId'),
+      network.network_id,
+      true,
+      'network-id-copy-0',
+      true,
+    ),
+    createNetworkField(
+      'endpoint-id',
+      t('container.detail.network.endpointId'),
+      network.endpoint_id,
+      true,
+      'network-endpoint-copy-0',
+      true,
+    ),
+  ];
+});
+const portMappingRows = computed<PortMappingRow[]>(() => buildPortMappingRows(safeDetail.value?.ports ?? []));
+const mountCards = computed<MountCard[]>(() => buildMountCards(safeDetail.value?.mounts ?? []));
+const networkMetadataFields = computed<NetworkField[]>(() => {
+  const current = safeDetail.value;
+  if (!current) {
+    return [];
+  }
+
+  const hostname = readContainerHostname(current);
+  const aliases = readStringListFromRecord(current, ['aliases', 'network_aliases']);
+  const dns = readStringListFromRecord(current, ['dns', 'dns_servers', 'dns_nameservers']);
+  const fields = [
+    createNetworkField('hostname', t('container.detail.network.hostname'), hostname),
+    createNetworkField('aliases', t('container.detail.network.aliases'), aliases.join(', ')),
+    createNetworkField('dns', t('container.detail.network.dns'), dns.join(', ')),
+  ];
+
+  return fields.filter((field) => field.copyValue);
+});
+const hasAdditionalNetworkMetadata = computed(() =>
+  networkMetadataFields.value.some((field) => field.key === 'aliases' || field.key === 'dns'),
+);
+const runtimeConfigItems = computed<RuntimeConfigItem[]>(() => {
+  const current = safeDetail.value;
+  return [
+    {
+      copyable: Boolean(joinList(current?.command).trim() && joinList(current?.command) !== '-'),
+      key: 'command',
+      label: t('container.list.detail.command'),
+      rawValue: joinList(current?.command),
+      value: joinList(current?.command),
+    },
+    {
+      copyable: Boolean(joinList(current?.entrypoint).trim() && joinList(current?.entrypoint) !== '-'),
+      key: 'entrypoint',
+      label: t('container.list.detail.entrypoint'),
+      rawValue: joinList(current?.entrypoint),
+      value: joinList(current?.entrypoint),
+    },
+    {
+      copyable: Boolean(current?.working_dir?.trim()),
+      key: 'workingDir',
+      label: t('container.list.detail.workingDir'),
+      rawValue: current?.working_dir?.trim() || '',
+      value: current?.working_dir?.trim() || '-',
+    },
+  ];
+});
+const environmentPolicyFilterOptions = computed(() => [
+  { label: t('container.detail.config.policyFilter.all'), value: 'all' },
+  { label: t('container.detail.config.policy.plain'), value: 'plain' },
+  { label: t('container.detail.config.policy.masked'), value: 'masked' },
+  { label: t('container.detail.config.policy.hidden'), value: 'hidden' },
+  { label: t('container.detail.config.policy.sensitive'), value: 'sensitive' },
+]);
+const filteredEnvironmentRows = computed(() => {
+  const keyword = environmentKeyword.value.trim().toLowerCase();
+  const policy = environmentPolicyFilter.value;
+
+  return environmentRows.value.filter((row) => {
+    const matchesPolicy =
+      policy === 'all' || row.policy === policy || (policy === 'sensitive' && isSensitiveEnvironmentRow(row));
+    if (!matchesPolicy) {
+      return false;
+    }
+    if (!keyword) {
+      return true;
+    }
+    return row.name.toLowerCase().includes(keyword) || row.value.toLowerCase().includes(keyword);
+  });
+});
+const environmentEmptyState = computed(() => {
+  if (!environmentRows.value.length) {
+    return {
+      description: t('container.detail.config.environmentUnavailable'),
+      title: t('container.detail.config.environmentEmptyTitle'),
+    };
+  }
+  return {
+    description: t('container.detail.config.environmentFilterEmptyDescription'),
+    title: t('container.detail.config.environmentFilterEmptyTitle'),
+  };
+});
+const healthDiagnosis = computed(() => {
+  const current = safeDetail.value;
+  if (!current) {
+    return {
+      description: '-',
+      label: '-',
+      theme: 'default' as HealthStatusTheme,
+    };
+  }
+  return resolveHealthDiagnosis(current);
+});
+const healthcheckDetails = computed(() => resolveHealthcheckDetails(safeDetail.value?.healthcheck));
+const inspectUpdatedRelative = computed(() => {
+  const current = safeDetail.value;
+  if (!current?.inspect_updated_at) {
+    return t('container.detail.health.noRecentCheck');
+  }
+  return t('container.detail.health.updatedFromInspect');
+});
+const runtimeStability = computed(() => {
+  const current = safeDetail.value;
+  const risk = resolveRuntimeStability(current);
+  return {
+    ...risk,
+    lastExitCode: formatNullableNumber(current?.last_exit_code),
+    oomKilled: formatNullableBoolean(current?.oom_killed),
+  };
+});
 const resourceMetrics = computed(() => {
-  const current = detail.value;
+  const current = safeDetail.value;
   const resource = current?.resource;
   const cpuValue = formatPercent(resource?.cpu_percent);
   const memoryPercent = formatPercent(resource?.memory_percent);
@@ -669,7 +1504,7 @@ const resourceMetrics = computed(() => {
 });
 const cpuDetailMetrics = computed(() =>
   buildCpuDetailMetrics(
-    detail.value?.resource,
+    safeDetail.value?.resource,
     {
       cpuLimit: t('container.detail.resources.cpuLimitWithOnline'),
       cpuPercent: t('container.detail.resources.cpuPercent'),
@@ -686,7 +1521,7 @@ const cpuDetailMetrics = computed(() =>
   ),
 );
 const resourceDetailGroups = computed<ResourceDetailGroup[]>(() => {
-  const current = detail.value;
+  const current = safeDetail.value;
   if (!current) {
     return [];
   }
@@ -761,7 +1596,7 @@ const resourceDetailGroups = computed<ResourceDetailGroup[]>(() => {
   ];
 });
 const overviewSections = computed<ContainerOverviewInfoSection[]>(() => {
-  const current = detail.value;
+  const current = safeDetail.value;
   if (!current) {
     return [];
   }
@@ -902,37 +1737,47 @@ const overviewSections = computed<ContainerOverviewInfoSection[]>(() => {
   ];
 });
 const environmentColumns = computed<TableProps['columns']>(() => [
-  { colKey: 'name', title: t('container.detail.config.envName'), minWidth: 220, ellipsis: true },
-  { colKey: 'value', title: t('container.detail.config.envValue'), minWidth: 260, ellipsis: true },
-  { colKey: 'policy', title: t('container.detail.config.envPolicy'), width: 160, align: 'center' },
-  { colKey: 'operation', title: t('container.detail.operation'), width: 112, align: 'center' },
+  { colKey: 'name', title: t('container.detail.config.envName'), width: '40%', ellipsis: true },
+  { colKey: 'value', title: t('container.detail.config.envValue'), width: '40%', ellipsis: true },
+  { colKey: 'policy', title: t('container.detail.config.envPolicy'), width: 120, align: 'center' },
+  { colKey: 'operation', title: t('container.detail.operation'), width: 72, align: 'center' },
 ]);
 const networkColumns = computed<TableProps['columns']>(() => [
   { colKey: 'name', title: t('container.detail.network.name'), minWidth: 180, ellipsis: true },
   { colKey: 'ip_address', title: t('container.detail.network.ipAddress'), minWidth: 160, ellipsis: true },
   { colKey: 'gateway', title: t('container.detail.network.gateway'), minWidth: 160, ellipsis: true },
   { colKey: 'mac_address', title: t('container.detail.network.macAddress'), minWidth: 180, ellipsis: true },
+  { colKey: 'network_id', title: t('container.detail.network.networkId'), minWidth: 180, ellipsis: true },
+  { colKey: 'endpoint_id', title: t('container.detail.network.endpointId'), minWidth: 180, ellipsis: true },
 ]);
-const mountColumns = computed<TableProps['columns']>(() => [
-  { colKey: 'destination', title: t('container.detail.storage.destination'), minWidth: 240, ellipsis: true },
-  { colKey: 'source', title: t('container.detail.storage.source'), minWidth: 260, ellipsis: true },
-  { colKey: 'type', title: t('container.detail.storage.type'), width: 120, align: 'center' },
-  { colKey: 'mode', title: t('container.detail.storage.mode'), width: 120, align: 'center' },
-  { colKey: 'read_only', title: t('container.detail.storage.access'), width: 120, align: 'center' },
+const portColumns = computed<TableProps['columns']>(() => [
+  { colKey: 'publicPort', title: t('container.detail.network.hostPort'), minWidth: 140, ellipsis: true },
+  { colKey: 'privatePort', title: t('container.detail.network.containerPort'), minWidth: 140, ellipsis: true },
+  { colKey: 'protocol', title: t('container.detail.network.protocol'), width: 112, align: 'center' },
+  { colKey: 'listenAddress', title: t('container.detail.network.listenAddress'), minWidth: 160, ellipsis: true },
+  { colKey: 'mapping', title: t('container.detail.network.mapping'), minWidth: 260, ellipsis: true },
 ]);
 
 onMounted(() => {
-  void loadDetail();
+  updateCurrentTabTitle(fallbackTitle.value);
+  void refreshContainerDetail();
   if (activeTab.value === 'logs') {
     void loadLogs();
   }
+  document.addEventListener('visibilitychange', handleVisibilityChange, false);
+  scheduleAutoRefresh();
+});
+
+onUnmounted(() => {
+  stopAutoRefresh();
+  document.removeEventListener('visibilitychange', handleVisibilityChange);
 });
 
 watch(
   () => route.params.id,
   () => {
     resetDetailState();
-    void loadDetail();
+    void refreshContainerDetail();
     if (activeTab.value === 'logs') {
       void loadLogs();
     }
@@ -956,25 +1801,202 @@ watch(logLineLimit, () => {
   }
 });
 
-async function loadDetail() {
-  if (!containerId.value) {
+watch(selectedAutoRefreshInterval, () => {
+  autoRefreshEnabled.value = selectedAutoRefreshInterval.value > 0;
+  scheduleAutoRefresh();
+});
+
+function handleVisibilityChange() {
+  isPageVisible.value = document.visibilityState === 'visible';
+  if (!isPageVisible.value) {
+    stopAutoRefresh();
+    return;
+  }
+  if (autoRefreshEnabled.value && selectedAutoRefreshInterval.value > 0) {
+    void refreshContainerDetail();
+    scheduleAutoRefresh();
+  }
+}
+
+function scheduleAutoRefresh() {
+  stopAutoRefresh();
+  if (!autoRefreshEnabled.value || !isPageVisible.value || selectedAutoRefreshInterval.value <= 0) {
+    remainingAutoRefreshSeconds.value = null;
+    return;
+  }
+  nextAutoRefreshAt = Date.now() + selectedAutoRefreshInterval.value * 1000;
+  updateRemainingAutoRefreshSeconds();
+  autoRefreshTimer = window.setInterval(() => {
+    updateRemainingAutoRefreshSeconds();
+    if (remainingAutoRefreshSeconds.value === 0) {
+      stopAutoRefresh();
+      void refreshContainerDetail();
+    }
+  }, 1000);
+}
+
+function stopAutoRefresh() {
+  if (autoRefreshTimer !== null) {
+    window.clearInterval(autoRefreshTimer);
+    autoRefreshTimer = null;
+  }
+  nextAutoRefreshAt = null;
+}
+
+function updateRemainingAutoRefreshSeconds() {
+  if (nextAutoRefreshAt === null) {
+    remainingAutoRefreshSeconds.value = null;
+    return;
+  }
+  remainingAutoRefreshSeconds.value = Math.max(0, Math.ceil((nextAutoRefreshAt - Date.now()) / 1000));
+}
+
+function handleAutoRefreshIntervalChange(value: RefreshControlValue) {
+  selectedAutoRefreshInterval.value = normalizeAutoRefreshInterval(value);
+}
+
+function normalizeAutoRefreshInterval(value: RefreshControlValue): AutoRefreshInterval {
+  const numericValue = typeof value === 'number' ? value : Number(value);
+  return AUTO_REFRESH_INTERVALS.includes(numericValue as AutoRefreshInterval)
+    ? (numericValue as AutoRefreshInterval)
+    : 0;
+}
+
+function setAutoRefreshEnabled(enabled: boolean) {
+  if (enabled && selectedAutoRefreshInterval.value <= 0) {
+    selectedAutoRefreshInterval.value = 5;
+  }
+  autoRefreshEnabled.value = enabled && selectedAutoRefreshInterval.value > 0;
+  scheduleAutoRefresh();
+  if (autoRefreshEnabled.value && isPageVisible.value) {
+    void refreshContainerDetail();
+  }
+}
+
+async function handleManualRefresh() {
+  await refreshContainerDetail();
+  if (!error.value) {
+    MessagePlugin.success(t('container.detail.refreshSuccess'));
+  }
+}
+
+async function refreshContainerDetail() {
+  const currentContainerId = containerId.value;
+  if (!currentContainerId) {
     detail.value = null;
     logs.value = null;
     error.value = t('container.detail.missingId');
     return;
   }
 
-  loading.value = true;
+  if (autoRefreshEnabled.value && isPageVisible.value && selectedAutoRefreshInterval.value > 0) {
+    stopAutoRefresh();
+  }
+
+  const requestSeq = ++detailRefreshSeq;
+  detailRefreshing.value = true;
   error.value = '';
   try {
-    detail.value = await getContainer(containerId.value);
+    const nextDetail = await getContainer(currentContainerId);
+    if (requestSeq !== detailRefreshSeq || currentContainerId !== containerId.value) {
+      return;
+    }
+    detail.value = nextDetail ? mergeDetailWithLocalMountUsage(nextDetail) : null;
+    const current = safeDetail.value;
+    if (current) {
+      updateCurrentTabTitle(buildDetailTitle(displayName(current)));
+    }
+    await fetchMountUsage(currentContainerId, requestSeq);
   } catch (loadError) {
+    if (requestSeq !== detailRefreshSeq || currentContainerId !== containerId.value) {
+      return;
+    }
     detail.value = null;
     error.value = resolveLocalizedErrorMessage(t, loadError, t('container.list.detail.loadFailed'));
     logger.warn('failed to fetch container detail', loadError);
   } finally {
-    loading.value = false;
+    if (requestSeq === detailRefreshSeq) {
+      detailRefreshing.value = false;
+      scheduleAutoRefresh();
+    }
   }
+}
+
+async function fetchMountUsage(currentContainerId = containerId.value, requestSeq = detailRefreshSeq) {
+  if (!currentContainerId || !detail.value) {
+    return;
+  }
+  try {
+    const usageList = await getContainerMountUsage(currentContainerId);
+    if (requestSeq !== detailRefreshSeq || currentContainerId !== containerId.value) {
+      return;
+    }
+    mergeMountUsage(usageList.items ?? []);
+  } catch (loadError) {
+    MessagePlugin.warning(t('container.detail.storage.syncFailed'));
+    logger.warn('failed to fetch cached container mount usage', loadError);
+  }
+}
+
+function mergeDetailWithLocalMountUsage(nextDetail: ContainerDetail): ContainerDetail {
+  const currentMounts = safeDetail.value?.mounts ?? [];
+  if (!Array.isArray(nextDetail.mounts)) {
+    return nextDetail;
+  }
+  const orderedMounts = orderMountsByCurrentPosition(nextDetail.mounts, currentMounts);
+  const orderedDetail = {
+    ...nextDetail,
+    mounts: orderedMounts,
+  };
+  if (currentMounts.length === 0) {
+    return orderedDetail;
+  }
+  const currentUsageByKey = new Map<string, ContainerMountUsage>();
+  currentMounts.forEach((mount, index) => {
+    const key = stableMountIdentity(mount);
+    if (key && shouldKeepLocalMountUsage(mount, index) && mount.usage) {
+      currentUsageByKey.set(key, mount.usage);
+    }
+  });
+  if (currentUsageByKey.size === 0) {
+    return orderedDetail;
+  }
+  return {
+    ...orderedDetail,
+    mounts: orderedMounts.map((mount) => {
+      const usage = currentUsageByKey.get(stableMountIdentity(mount));
+      return usage ? { ...mount, usage } : mount;
+    }),
+  };
+}
+
+function orderMountsByCurrentPosition(nextMounts: ContainerMount[], currentMounts: ContainerMount[]) {
+  if (!currentMounts.length) {
+    return nextMounts;
+  }
+
+  const currentPosition = new Map<string, number>();
+  currentMounts.forEach((mount, index) => {
+    const key = stableMountIdentity(mount);
+    if (key) {
+      currentPosition.set(key, index);
+    }
+  });
+
+  return [...nextMounts].sort((left, right) => {
+    const leftPosition = currentPosition.get(stableMountIdentity(left));
+    const rightPosition = currentPosition.get(stableMountIdentity(right));
+    if (leftPosition !== undefined && rightPosition !== undefined) {
+      return leftPosition - rightPosition;
+    }
+    if (leftPosition !== undefined) {
+      return -1;
+    }
+    if (rightPosition !== undefined) {
+      return 1;
+    }
+    return stableMountIdentity(left).localeCompare(stableMountIdentity(right));
+  });
 }
 
 async function loadLogs() {
@@ -997,11 +2019,38 @@ async function loadLogs() {
   }
 }
 
+async function copyHealthcheckCommand() {
+  if (!healthcheckDetails.value.configured || healthcheckDetails.value.command === '-') {
+    return;
+  }
+  try {
+    await copyTextToClipboard(healthcheckDetails.value.command);
+    MessagePlugin.success(t('container.detail.copySuccess'));
+  } catch (copyError) {
+    MessagePlugin.error(t('container.detail.copyError'));
+    logger.warn('failed to copy healthcheck command', copyError);
+  }
+}
+
+async function copyRuntimeConfigValue(item: RuntimeConfigItem) {
+  if (!item.copyable) {
+    return;
+  }
+  const copied = await copyTextToClipboard(item.rawValue);
+  if (copied) {
+    MessagePlugin.success(t('container.detail.config.copyRuntimeSuccess'));
+    return;
+  }
+  MessagePlugin.error(t('container.detail.copyError'));
+}
+
 function resetDetailState() {
   detail.value = null;
   error.value = '';
   logs.value = null;
   logsError.value = '';
+  refreshingMountKeys.value = new Set();
+  updateCurrentTabTitle(fallbackTitle.value);
 }
 
 function handleTabChange(value: string | number) {
@@ -1019,16 +2068,26 @@ function handleTabChange(value: string | number) {
   }
 }
 
-function goBack() {
-  if (window.history.length > 1) {
-    router.back();
+async function copyEnvironmentValue(row: EnvironmentRow) {
+  if (!row.copyable) {
     return;
   }
-  void router.push({ name: CONTAINER_BOOTSTRAP_ROUTE.LIST.routeName });
+  const copied = await copyTextToClipboard(row.copyValue);
+  if (copied) {
+    MessagePlugin.success(t('container.detail.config.copyVariableValueSuccess'));
+    return;
+  }
+  MessagePlugin.error(t('container.detail.copyError'));
 }
 
-async function copyEnvironmentValue(row: EnvironmentRow) {
-  await copyDetailText(row.rawValue);
+async function copyFilteredEnvironmentAsEnv() {
+  const content = filteredEnvironmentRows.value.map(formatEnvironmentLine).join('\n');
+  const copied = await copyTextToClipboard(content);
+  if (copied) {
+    MessagePlugin.success(t('container.detail.config.copyEnvSuccess'));
+    return;
+  }
+  MessagePlugin.error(t('container.detail.copyError'));
 }
 
 async function copyDetailText(text: string) {
@@ -1039,6 +2098,99 @@ async function copyDetailText(text: string) {
     return;
   }
   MessagePlugin.error(t('container.detail.copyError'));
+}
+
+async function refreshMountUsage(mount: MountCard) {
+  if (!containerId.value || mount.usageRefreshDisabled || refreshingMountKeys.value.has(mount.key)) {
+    return;
+  }
+
+  setMountRefreshing(mount.key, true);
+  mergeOneMountUsage(
+    mount.key,
+    {
+      container_id: containerId.value,
+      destination: mount.destination,
+      mount_id: mount.mountId,
+      source: mount.source,
+      status: 'pending',
+      type: mount.raw.type,
+      message: t('container.detail.storage.pendingMessage'),
+    },
+    { force: true },
+  );
+  try {
+    const refreshedUsage = await postContainerMountUsageRefresh(containerId.value, mount.mountId);
+    mergeOneMountUsage(mount.key, refreshedUsage, { force: true });
+    MessagePlugin.success(t('container.detail.storage.refreshSuccess'));
+  } catch (refreshError) {
+    logger.warn('failed to refresh container mount usage', refreshError);
+    MessagePlugin.error(resolveLocalizedErrorMessage(t, refreshError, t('container.detail.storage.refreshError')));
+  } finally {
+    setMountRefreshing(mount.key, false);
+  }
+}
+
+function setMountRefreshing(key: string, refreshing: boolean) {
+  const nextKeys = new Set(refreshingMountKeys.value);
+  if (refreshing) {
+    nextKeys.add(key);
+  } else {
+    nextKeys.delete(key);
+  }
+  refreshingMountKeys.value = nextKeys;
+}
+
+function mergeMountUsage(usages: ContainerMountUsage[]) {
+  if (!detail.value || usages.length === 0) {
+    return;
+  }
+  const byMountID = new Map<string, ContainerMountUsage>();
+  usages.forEach((usage) => {
+    const record = readUnknownRecord(usage);
+    const mountID = readString(record?.mount_id);
+    if (mountID) {
+      byMountID.set(mountID, usage);
+    }
+  });
+  detail.value = {
+    ...detail.value,
+    mounts: (safeDetail.value?.mounts ?? []).map((mount, index) => {
+      const usage = byMountID.get(mount.mount_id);
+      if (!usage || shouldKeepLocalMountUsage(mount, index)) {
+        return mount;
+      }
+      return { ...mount, usage };
+    }),
+  };
+}
+
+function mergeOneMountUsage(key: string, usage: ContainerMountUsage, options: { force?: boolean } = {}) {
+  if (!detail.value) {
+    return;
+  }
+  const usageMountKey = usage.mount_id?.trim() || '';
+  detail.value = {
+    ...detail.value,
+    mounts: (safeDetail.value?.mounts ?? []).map((item, index) => {
+      if (mountKey(item, index) !== key && (!usageMountKey || stableMountIdentity(item) !== usageMountKey)) {
+        return item;
+      }
+      if (!options.force && shouldKeepLocalMountUsage(item, index)) {
+        return item;
+      }
+      return { ...item, usage };
+    }),
+  };
+}
+
+function shouldKeepLocalMountUsage(mount: ContainerMount, index: number) {
+  const key = mountKey(mount, index);
+  if (refreshingMountKeys.value.has(key)) {
+    return true;
+  }
+  const status = readMountUsage(mount).status;
+  return status === 'pending';
 }
 
 function normalizeTab(value: unknown): DetailTab {
@@ -1063,17 +2215,20 @@ function normalizeEnvironmentRows(nextDetail: ContainerDetail | null): Environme
     const rawPolicy = readString(record?.policy ?? record?.visibility ?? record?.state);
     const masked = record?.masked === true;
     const rawValue = readRawString(record?.value);
+    const copyValue = readRawString(record?.copy_value);
     const policy = normalizeEnvironmentPolicy(
       rawPolicy,
       readString(detailRecord?.environment_policy),
       masked,
       rawValue,
     );
-    const value = policy === 'hidden' ? '' : rawValue;
+    const value = policy === 'hidden' ? '' : displayEnvironmentValue(rawValue, policy);
+    const resolvedCopyValue = copyValue || (policy === 'plain' ? rawValue : '');
 
     return [
       {
-        copyable: Boolean(rawValue) && policy !== 'hidden',
+        copyValue: resolvedCopyValue,
+        copyable: Boolean(resolvedCopyValue),
         name,
         policy,
         rawValue,
@@ -1117,9 +2272,24 @@ function normalizeEnvironmentPolicy(
 }
 
 function environmentValueFallback(policy: EnvironmentPolicy) {
-  if (policy === 'masked') return t('container.detail.config.maskedValue');
+  if (policy === 'masked') return '******';
   if (policy === 'hidden') return t('container.detail.config.hiddenValue');
   return '-';
+}
+
+function displayEnvironmentValue(value: string, policy: EnvironmentPolicy) {
+  if (policy === 'masked') {
+    return '******';
+  }
+  return abbreviateMiddle(value);
+}
+
+function abbreviateMiddle(value: string, maxLength = 32) {
+  if (value.length <= maxLength) {
+    return value;
+  }
+  const edgeLength = Math.max(4, Math.floor((maxLength - 3) / 2));
+  return `${value.slice(0, edgeLength)}...${value.slice(-edgeLength)}`;
 }
 
 function policyLabel(policy: EnvironmentPolicy) {
@@ -1133,7 +2303,102 @@ function policyTheme(policy: EnvironmentPolicy) {
   return 'default';
 }
 
-function displayName(row: ContainerDetail) {
+function isBooleanEnvironmentValue(value: string) {
+  const normalized = value.trim().toLowerCase();
+  return normalized === 'true' || normalized === 'false';
+}
+
+function isSensitiveEnvironmentRow(row: EnvironmentRow) {
+  if (row.policy === 'masked' || row.policy === 'hidden') {
+    return true;
+  }
+  return /(?:password|passwd|pwd|secret|token|key|credential|auth)/i.test(row.name);
+}
+
+function formatEnvironmentLine(row: EnvironmentRow) {
+  if (row.policy === 'masked' || row.policy === 'hidden') {
+    return `${row.name}=******`;
+  }
+  return `${row.name}=${row.rawValue}`;
+}
+
+function normalizeDetail(current: ContainerDetail | null): SafeContainerDetail | null {
+  if (!current || typeof current !== 'object') {
+    return null;
+  }
+
+  return {
+    ...current,
+    command: Array.isArray(current.command) ? current.command : [],
+    entrypoint: Array.isArray(current.entrypoint) ? current.entrypoint : [],
+    environment: Array.isArray(current.environment) ? current.environment : [],
+    mounts: Array.isArray(current.mounts) ? current.mounts : [],
+    names: Array.isArray(current.names) ? current.names : [],
+    networks: Array.isArray(current.networks) ? current.networks : [],
+    ports: Array.isArray(current.ports) ? current.ports : [],
+  };
+}
+
+function updateCurrentTabTitle(title: LocalizedTitle) {
+  if (!hasMeaningfulTitle(title)) {
+    return;
+  }
+  const routePath = route.path;
+  const routeFullPath = route.fullPath;
+  tabsRouterStore.tabRouterList = tabsRouterStore.tabRouterList.map((tab) =>
+    tab.tabKey === routePath || tab.path === routePath || tab.fullPath === routeFullPath ? { ...tab, title } : tab,
+  );
+}
+
+function hasMeaningfulTitle(title: LocalizedTitle) {
+  return Boolean(title[LOCALE.ZH_CN]?.trim() || title[LOCALE.EN_US]?.trim());
+}
+
+function buildDetailTitle(name: string): LocalizedTitle {
+  const normalizedName = name.trim();
+  const baseTitle = t('container.detail.title');
+  if (!normalizedName || normalizedName === baseTitle) {
+    return {
+      [LOCALE.ZH_CN]: baseTitle,
+      [LOCALE.EN_US]: 'Container Detail',
+    };
+  }
+
+  return {
+    [LOCALE.ZH_CN]: `${baseTitle} - ${normalizedName}`,
+    [LOCALE.EN_US]: `Container Detail - ${normalizedName}`,
+  };
+}
+
+function readNameFromTabTitle(title?: LocalizedTitle) {
+  if (!title) {
+    return '';
+  }
+
+  return extractNameFromTitle(title[LOCALE.ZH_CN]) || extractNameFromTitle(title[LOCALE.EN_US]);
+}
+
+function extractNameFromTitle(value?: string) {
+  const normalized = value?.trim() ?? '';
+  if (!normalized) {
+    return '';
+  }
+
+  const separator = ' - ';
+  const index = normalized.indexOf(separator);
+  if (index === -1) {
+    return '';
+  }
+
+  return normalized.slice(index + separator.length).trim();
+}
+
+function readQueryString(value: unknown) {
+  const raw = Array.isArray(value) ? value[0] : value;
+  return typeof raw === 'string' ? raw.trim() : '';
+}
+
+function displayName(row: SafeContainerDetail) {
   return row.name || row.names[0] || shortContainerId(row);
 }
 
@@ -1141,11 +2406,133 @@ function stateLabel(state: ContainerState) {
   return t(`container.list.states.${state}`);
 }
 
+function resolveHealthDiagnosis(nextDetail: ContainerDetail) {
+  if (nextDetail.state === 'exited' || nextDetail.state === 'dead') {
+    return {
+      description: t('container.detail.health.description.notRunning'),
+      label: t('container.detail.health.diagnosis.notRunning'),
+      theme: 'default' as const,
+    };
+  }
+  if (nextDetail.state === 'running' && nextDetail.health === 'healthy') {
+    return {
+      description: t('container.detail.health.description.healthy'),
+      label: t('container.detail.health.diagnosis.healthy'),
+      theme: 'success' as const,
+    };
+  }
+  if (nextDetail.state === 'running' && nextDetail.health === 'unhealthy') {
+    return {
+      description: t('container.detail.health.description.unhealthy'),
+      label: t('container.detail.health.diagnosis.unhealthy'),
+      theme: 'danger' as const,
+    };
+  }
+  if (nextDetail.state === 'running' && (!nextDetail.health || nextDetail.health === 'none')) {
+    return {
+      description: t('container.detail.health.description.noHealthcheck'),
+      label: t('container.detail.health.diagnosis.noHealthcheck'),
+      theme: 'warning' as const,
+    };
+  }
+  if (nextDetail.health === 'starting') {
+    return {
+      description: t('container.detail.health.description.starting'),
+      label: t('container.detail.health.diagnosis.starting'),
+      theme: 'warning' as const,
+    };
+  }
+  return {
+    description: t('container.detail.health.description.unavailable'),
+    label: healthLabel(nextDetail.health),
+    theme: healthTheme(nextDetail.health),
+  };
+}
+
+function resolveHealthcheckDetails(healthcheck?: ContainerHealthcheck) {
+  if (!healthcheck?.configured) {
+    return {
+      command: '-',
+      configured: false,
+      exitCode: '-',
+      hasFailure: false,
+      lastCheckedAt: '',
+      output: '-',
+      relativeCheckedAt: '',
+      statusLabel: t('container.detail.health.healthcheckStatus.unconfigured'),
+      theme: 'default' as HealthStatusTheme,
+    };
+  }
+  return {
+    command: joinList(healthcheck.command),
+    configured: true,
+    exitCode: formatNullableNumber(healthcheck.exit_code),
+    hasFailure:
+      healthcheck.status === 'unhealthy' || (typeof healthcheck.exit_code === 'number' && healthcheck.exit_code !== 0),
+    lastCheckedAt: formatTime(healthcheck.checked_at),
+    output: healthcheck.output || healthcheck.failure_message || t('container.detail.health.noOutput'),
+    relativeCheckedAt: healthcheck.checked_at
+      ? t('container.detail.health.updatedFromHealthcheck')
+      : t('container.detail.health.noRecentCheck'),
+    statusLabel: healthcheckStatusLabel(healthcheck.status),
+    theme: healthTheme(healthcheck.status),
+  };
+}
+
+function resolveRuntimeStability(current?: ContainerDetail | null) {
+  if (current?.oom_killed) {
+    return {
+      label: t('container.detail.health.stabilityStatus.oom'),
+      theme: 'danger' as const,
+    };
+  }
+  if (typeof current?.last_exit_code === 'number' && current.last_exit_code !== 0) {
+    return {
+      label: t('container.detail.health.stabilityStatus.exit'),
+      theme: 'danger' as const,
+    };
+  }
+  if (typeof current?.restart_count === 'number' && current.restart_count > 0) {
+    return {
+      label: t('container.detail.health.stabilityStatus.restart'),
+      theme: 'warning' as const,
+    };
+  }
+  return {
+    label: t('container.detail.health.stabilityStatus.stable'),
+    theme: 'success' as const,
+  };
+}
+
+function healthcheckStatusLabel(status: ContainerHealth) {
+  if (status === 'healthy') return t('container.detail.health.healthcheckStatus.passed');
+  if (status === 'unhealthy') return t('container.detail.health.healthcheckStatus.failed');
+  if (status === 'starting') return t('container.detail.health.healthcheckStatus.starting');
+  if (status === 'none') return t('container.detail.health.healthcheckStatus.unconfigured');
+  return t('container.detail.health.healthcheckStatus.unavailable');
+}
+
+function restartCountLabel(value?: number | null) {
+  if (typeof value !== 'number') {
+    return '-';
+  }
+  return t('container.detail.health.restartCountValue', { count: value });
+}
+
+function restartSummaryLabel(value?: number | null) {
+  if (typeof value !== 'number') {
+    return t('container.detail.health.restartUnknown');
+  }
+  return value > 0
+    ? t('container.detail.health.restartAbnormal', { count: value })
+    : t('container.detail.health.restartNormal');
+}
+
 function healthLabel(health?: ContainerHealth | null) {
   return t(`container.list.health.${health || 'none'}`);
 }
 
-function healthTheme(health?: ContainerHealth | null) {
+function healthTheme(health?: ContainerHealth | null): HealthStatusTheme {
   if (health === 'healthy') return 'success';
   if (health === 'unhealthy') return 'danger';
   if (health === 'starting') return 'warning';
@@ -1167,6 +2554,42 @@ function joinList(values?: string[]) {
   return values?.length ? values.join(' ') : '-';
 }
 
+function uptimeLabel(value?: string | null) {
+  if (!value) {
+    return '-';
+  }
+  const startedAt = new Date(value);
+  if (Number.isNaN(startedAt.getTime())) {
+    return '-';
+  }
+  const elapsedMs = Date.now() - startedAt.getTime();
+  if (elapsedMs < 0) {
+    return '-';
+  }
+  const totalMinutes = Math.floor(elapsedMs / 60000);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours > 0) {
+    return t('container.detail.health.uptimeHoursMinutes', { hours, minutes });
+  }
+  return t('container.detail.health.uptimeMinutes', { minutes });
+}
+
+function formatNullableNumber(value?: number | null) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return '-';
+  }
+  const currentLocale = typeof locale === 'string' ? locale : locale.value;
+  return new Intl.NumberFormat(currentLocale).format(value);
+}
+
+function formatNullableBoolean(value?: boolean | null) {
+  if (typeof value !== 'boolean') {
+    return '-';
+  }
+  return value ? t('container.detail.health.boolean.yes') : t('container.detail.health.boolean.no');
+}
+
 function runtimeLabel(nextDetail: ContainerDetail) {
   return nextDetail.runtime || nextDetail.runtime_info?.runtime || '-';
 }
@@ -1181,6 +2604,358 @@ function networkSummary(nextDetail: ContainerDetail) {
 
 function primaryNetworkName(nextDetail: ContainerDetail) {
   return nextDetail.networks[0]?.name || '-';
+}
+
+function createNetworkField(
+  key: string,
+  label: string,
+  value = '',
+  copyable = false,
+  testId?: string,
+  technical = false,
+): NetworkField {
+  const displayValue = technical ? displayTechnicalIdentifier(value) : displayOptionalValue(value);
+  return {
+    copyValue: displayValue === t('container.detail.network.noData') ? '' : value.trim(),
+    copyable: copyable && Boolean(value.trim()),
+    displayValue,
+    key,
+    label,
+    testId,
+    technical,
+  };
+}
+
+function displayOptionalValue(value?: string | number | null) {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return String(value);
+  }
+  const normalized = typeof value === 'string' ? value.trim() : '';
+  return normalized || t('container.detail.network.noData');
+}
+
+function displayTechnicalIdentifier(value?: string | null) {
+  const normalized = value?.trim() ?? '';
+  if (!normalized) {
+    return t('container.detail.network.noData');
+  }
+  return `${normalized.slice(0, 12)}...${normalized.slice(-6)}`;
+}
+
+function formatPortNumber(value?: number | null) {
+  return typeof value === 'number' && Number.isFinite(value) ? String(value) : t('container.detail.network.noData');
+}
+
+function hasPublishedHostBinding(port: ContainerDetail['ports'][number]) {
+  return typeof port.public_port === 'number' && Number.isFinite(port.public_port);
+}
+
+function buildPortMappingRows(ports: ContainerDetail['ports']): PortMappingRow[] {
+  const groups = new Map<
+    string,
+    {
+      hasHostBinding: boolean;
+      listenAddresses: string[];
+      privatePort: string;
+      protocol: string;
+      publicPort: string;
+      rawBindings: string[];
+    }
+  >();
+
+  for (const port of ports) {
+    const privatePort = formatPortNumber(port.private_port);
+    const publicPort = formatPortNumber(port.public_port);
+    const protocol = port.type || '-';
+    const hasHostBinding = hasPublishedHostBinding(port);
+    const groupKey = `${privatePort}:${publicPort}:${protocol}`;
+    const existing = groups.get(groupKey) ?? {
+      hasHostBinding,
+      listenAddresses: [],
+      privatePort,
+      protocol,
+      publicPort,
+      rawBindings: [],
+    };
+
+    if (hasHostBinding) {
+      const listenAddress = port.ip?.trim() || t('container.detail.network.allInterfaces');
+      if (!existing.listenAddresses.includes(listenAddress)) {
+        existing.listenAddresses.push(listenAddress);
+      }
+    }
+    existing.hasHostBinding = existing.hasHostBinding || hasHostBinding;
+    existing.rawBindings.push(portMappingRawLabel(port));
+    groups.set(groupKey, existing);
+  }
+
+  return Array.from(groups.values()).map((group) => {
+    const listenAddress = group.hasHostBinding
+      ? formatListenAddresses(group.listenAddresses)
+      : t('container.detail.network.notPublished');
+    const mapping = group.hasHostBinding
+      ? t('container.detail.network.publishedMapping', {
+          hostPort: group.publicPort,
+          privatePort: group.privatePort,
+          protocol: group.protocol,
+        })
+      : t('container.detail.network.internalOnlyFull');
+
+    return {
+      copyValue: group.rawBindings.join('\n'),
+      description: group.hasHostBinding
+        ? t('container.detail.network.publishedToHost')
+        : t('container.detail.network.internalOnly'),
+      hasHostBinding: group.hasHostBinding,
+      key: `${group.privatePort}:${group.publicPort}:${group.protocol}:${listenAddress}`,
+      listenAddresses: group.listenAddresses,
+      listenAddress,
+      mapping,
+      privatePort: group.privatePort,
+      protocol: group.protocol,
+      publicPort: group.publicPort,
+    };
+  });
+}
+
+function formatListenAddresses(addresses: string[]) {
+  const unique = addresses.filter(Boolean);
+  if (!unique.length) {
+    return t('container.detail.network.allInterfaces');
+  }
+  if (unique.includes('0.0.0.0') && unique.includes('::') && unique.length === 2) {
+    return '0.0.0.0, ::';
+  }
+  return unique.join(', ');
+}
+
+function portMappingRawLabel(port: ContainerDetail['ports'][number]) {
+  const privatePort = formatPortNumber(port.private_port);
+  const containerEndpoint = `${privatePort}/${port.type || '-'}`;
+  if (!hasPublishedHostBinding(port)) {
+    return `${containerEndpoint} / ${t('container.detail.network.notPublished')}`;
+  }
+  const publicPort = formatPortNumber(port.public_port);
+  const listenAddress = port.ip?.trim();
+  const hostPart = listenAddress ? `${listenAddress}:${publicPort}` : publicPort;
+  return `${hostPart}->${containerEndpoint}`;
+}
+
+function buildMountCards(mounts: ContainerMount[]): MountCard[] {
+  return stableSortMounts(mounts).map((mount, index) => {
+    const usage = readMountUsage(mount);
+    const status = usage.status || 'not_measured';
+    const message = usage.message || mountUsageMessage(status);
+    const key = mountKey(mount, index);
+    const refreshing = refreshingMountKeys.value.has(key) || status === 'pending';
+    return {
+      accessLabel: mountAccessLabel(mount),
+      accessTheme: mount.read_only ? 'warning' : 'success',
+      destination: mount.destination || '',
+      destinationDisplay: displayMountPath(mount.destination),
+      index,
+      key,
+      mountId: mount.mount_id,
+      measuredAt: formatMountMeasuredAt(usage.measuredAt),
+      message,
+      mode: mount.mode || '-',
+      modeLabel: mountModeLabel(mount),
+      raw: mount,
+      sharedHint: usage.sharedHint,
+      source: mount.source || mount.name || '',
+      sourceDisplay: displayMountPath(mount.source || mount.name || ''),
+      typeLabel: mountTypeLabel(mount.type),
+      typeTheme: mountTypeTheme(mount.type),
+      usageLabel: mountUsageStatusLabel(status),
+      usageRefreshDisabled: status === 'unsupported',
+      usageRefreshLabel: mountUsageRefreshLabel(status),
+      usageRefreshTooltip: mountUsageRefreshTooltip(status),
+      usageRefreshing: refreshing,
+      usageSize: usage.sizeBytes === null ? mountUsageSizeFallback(status) : formatBytes(usage.sizeBytes),
+      usageTheme: mountUsageTheme(status),
+      usageTone: mountUsageTone(status),
+    };
+  });
+}
+
+function stableSortMounts(mounts: ContainerMount[]) {
+  return [...mounts].sort(compareMountsForDisplay);
+}
+
+function compareMountsForDisplay(left: ContainerMount, right: ContainerMount) {
+  return (
+    compareStableString(left.destination, right.destination) ||
+    compareStableString(left.source || left.name, right.source || right.name) ||
+    compareStableString(left.type, right.type) ||
+    stableMountIdentity(left).localeCompare(stableMountIdentity(right))
+  );
+}
+
+function compareStableString(left?: string | null, right?: string | null) {
+  return (left?.trim() ?? '').localeCompare(right?.trim() ?? '');
+}
+
+function readMountUsage(mount: ContainerMount) {
+  const usageRecord = readUnknownRecord(mount.usage);
+  return {
+    measuredAt: readRawString(usageRecord?.measured_at),
+    message: readRawString(usageRecord?.message),
+    sharedHint: readRawString(usageRecord?.shared_hint),
+    sizeBytes: readNullableNumber(usageRecord?.size_bytes),
+    status: readString(usageRecord?.status),
+  };
+}
+
+function readNullableNumber(value: unknown) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function mountKey(mount: ContainerMount, index: number) {
+  return stableMountIdentity(mount) || `mount-${index}`;
+}
+
+function stableMountIdentity(mount: ContainerMount) {
+  const mountID = mount.mount_id?.trim();
+  if (mountID) {
+    return mountID;
+  }
+  const parts = [mount.destination || '', mount.source || mount.name || '', mount.type || ''].map((part) =>
+    part.trim(),
+  );
+  if (!parts.some(Boolean)) {
+    return '';
+  }
+  return parts.join('::').toLowerCase();
+}
+
+function mountTypeLabel(type?: string | null) {
+  const normalized = normalizeMountType(type);
+  return t(`container.detail.storage.typeLabels.${normalized}`);
+}
+
+function mountTypeTheme(type?: string | null): MountTagTheme {
+  const normalized = normalizeMountType(type);
+  if (normalized === 'bind') return 'primary';
+  if (normalized === 'volume') return 'success';
+  if (normalized === 'tmpfs') return 'warning';
+  return 'default';
+}
+
+function normalizeMountType(type?: string | null) {
+  const normalized = type?.trim().toLowerCase();
+  if (normalized === 'bind' || normalized === 'volume' || normalized === 'tmpfs') {
+    return normalized;
+  }
+  return 'unknown';
+}
+
+function mountAccessLabel(mount: ContainerMount) {
+  return mount.read_only
+    ? t('container.detail.storage.accessLabels.readOnly')
+    : t('container.detail.storage.accessLabels.readWrite');
+}
+
+function mountModeLabel(mount: ContainerMount) {
+  const accessLabel = mountAccessLabel(mount);
+  const mode = mount.mode || (mount.read_only ? 'ro' : 'rw');
+  return `${accessLabel} ${mode}`;
+}
+
+function mountUsageStatusLabel(status: string) {
+  if (
+    status === 'measured' ||
+    status === 'not_measured' ||
+    status === 'pending' ||
+    status === 'unsupported' ||
+    status === 'permission_denied' ||
+    status === 'not_found' ||
+    status === 'timeout' ||
+    status === 'error'
+  ) {
+    return t(`container.detail.storage.usageStatus.${status}`);
+  }
+  return t('container.detail.storage.usageStatus.not_measured');
+}
+
+function mountUsageTheme(status: string): MountTagTheme {
+  if (status === 'measured') return 'success';
+  if (status === 'unsupported' || status === 'pending' || status === 'timeout') return 'warning';
+  if (status === 'permission_denied' || status === 'not_found' || status === 'error') return 'danger';
+  return 'default';
+}
+
+function mountUsageTone(status: string): MountCardUsageTone {
+  if (status === 'measured') return 'success';
+  if (status === 'unsupported' || status === 'pending' || status === 'timeout') return 'warning';
+  return 'weak';
+}
+
+function mountUsageMessage(status: string) {
+  if (status === 'pending') return t('container.detail.storage.pendingMessage');
+  if (status === 'unsupported') return t('container.detail.storage.unsupportedMessage');
+  if (status === 'permission_denied' || status === 'not_found' || status === 'timeout' || status === 'error') {
+    return t('container.detail.storage.errorMessage');
+  }
+  if (status === 'not_measured') return t('container.detail.storage.notMeasuredMessage');
+  return '';
+}
+
+function mountUsageSizeFallback(status: string) {
+  if (status === 'pending') return t('container.detail.storage.pendingSize');
+  if (status === 'measured') return '0 B';
+  return '-';
+}
+
+function mountUsageRefreshLabel(status: string) {
+  if (status === 'pending') return t('container.detail.storage.refreshPending');
+  if (status === 'permission_denied' || status === 'not_found' || status === 'timeout' || status === 'error') {
+    return t('container.detail.storage.retryUsage');
+  }
+  return t('container.detail.storage.refreshMount');
+}
+
+function mountUsageRefreshTooltip(status: string) {
+  if (status === 'unsupported') return t('container.detail.storage.unsupportedTooltip');
+  return t('container.detail.storage.refreshMountTooltip');
+}
+
+function formatMountMeasuredAt(value: string) {
+  return value ? formatTime(value) : '';
+}
+
+function displayMountPath(value?: string | null) {
+  const normalized = value?.trim() ?? '';
+  if (!normalized) {
+    return '-';
+  }
+  return abbreviateMiddle(normalized, 42);
+}
+
+function readContainerHostname(current: SafeContainerDetail) {
+  const record = readUnknownRecord(current);
+  const hostname = readString(record?.hostname);
+  return hostname || displayName(current);
+}
+
+function readStringListFromRecord(current: SafeContainerDetail, keys: string[]) {
+  const record = readUnknownRecord(current);
+  if (!record) {
+    return [];
+  }
+
+  for (const key of keys) {
+    const value = record[key];
+    if (Array.isArray(value)) {
+      return value.map((item) => readString(item)).filter(Boolean);
+    }
+    if (typeof value === 'string' && value.trim()) {
+      return value
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean);
+    }
+  }
+  return [];
 }
 
 function resourceStatus(nextDetail: ContainerDetail) {
@@ -1245,7 +3020,7 @@ function readCpuCountText() {
 }
 
 function readResourceMetric(key: ResourceMetricKey) {
-  return detail.value?.resource?.[key];
+  return safeDetail.value?.resource?.[key];
 }
 
 function formatNumberMetric(value: unknown) {
@@ -1301,9 +3076,37 @@ function portLabel(port: ContainerDetail['ports'][number]) {
 <style scoped lang="less">
 .container-detail-page {
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: var(--graft-density-gap-16);
+  min-height: 0;
   min-width: 0;
+}
+
+.container-detail-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--graft-density-gap-16);
+  min-height: 420px;
+  min-width: 0;
+}
+
+.container-detail-state {
+  align-items: center;
+  display: flex;
+  flex: 1;
+  justify-content: center;
+  min-height: 420px;
+  min-width: 0;
+}
+
+.container-detail-state :deep(.t-loading__parent) {
+  width: min(100%, 760px);
+}
+
+.container-detail-state-alert {
+  flex: 0 0 auto;
 }
 
 .container-detail-summary {
@@ -1524,6 +3327,705 @@ function portLabel(port: ContainerDetail['ports'][number]) {
 .container-detail-section--overview {
   min-height: 0;
   padding: 0 var(--graft-density-gap-16) var(--graft-density-gap-16);
+}
+
+.container-detail-section--health {
+  padding: 0 var(--graft-density-gap-16) var(--graft-density-gap-16);
+}
+
+.container-detail-section--config {
+  gap: var(--graft-density-gap-16);
+  padding: 0 var(--graft-density-gap-16) var(--graft-density-gap-16);
+}
+
+.container-detail-section--network {
+  gap: var(--graft-density-gap-16);
+  min-height: 360px;
+  padding: 0 var(--graft-density-gap-16) var(--graft-density-gap-16);
+}
+
+.container-detail-section--storage {
+  min-height: 320px;
+  padding: 0 var(--graft-density-gap-16) var(--graft-density-gap-16);
+}
+
+.container-mount-card-grid {
+  display: grid;
+  gap: var(--graft-density-gap-16);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  min-width: 0;
+}
+
+.container-mount-card {
+  background: var(--td-bg-color-container);
+  border: 1px solid color-mix(in srgb, var(--td-component-stroke) 72%, transparent);
+  border-radius: var(--td-radius-medium);
+  display: flex;
+  flex-direction: column;
+  gap: var(--graft-density-gap-16);
+  min-width: 0;
+  padding: var(--graft-density-gap-16);
+}
+
+.container-mount-card__header {
+  align-items: flex-start;
+  display: flex;
+  gap: var(--graft-density-gap-10);
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.container-mount-card__destination {
+  color: var(--td-text-color-primary);
+  flex: 1 1 auto;
+  font: var(--td-font-title-small);
+  font-weight: 600;
+  max-width: min(100%, 520px);
+  min-width: 0;
+}
+
+.container-mount-card__actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--graft-density-gap-6);
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.container-mount-card__body {
+  display: grid;
+  gap: var(--graft-density-gap-16);
+  min-width: 0;
+}
+
+.container-mount-info {
+  display: grid;
+  gap: var(--graft-density-gap-10);
+  min-width: 0;
+}
+
+.container-mount-info h3 {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+  font-weight: 600;
+  margin: 0;
+}
+
+.container-mount-field {
+  align-items: center;
+  column-gap: var(--graft-density-gap-12);
+  display: grid;
+  grid-template-columns: minmax(72px, 96px) minmax(0, 1fr);
+  min-width: 0;
+}
+
+.container-mount-field > span {
+  color: var(--td-text-color-placeholder);
+  font: var(--td-font-body-small);
+}
+
+.container-mount-field strong,
+.container-mount-field code {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-body-medium);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.container-mount-field code {
+  font-family: var(
+    --td-font-family-mono,
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    'Liberation Mono',
+    monospace
+  );
+}
+
+.container-mount-usage {
+  background: color-mix(in srgb, var(--td-bg-color-page) 72%, var(--td-bg-color-container));
+  border: 0;
+  border-radius: var(--td-radius-default);
+  border-top: 1px solid color-mix(in srgb, var(--td-component-stroke) 72%, transparent);
+  display: grid;
+  gap: var(--graft-density-gap-8);
+  min-width: 0;
+  padding: var(--graft-density-gap-12);
+}
+
+.container-mount-usage--success {
+  background: color-mix(in srgb, var(--td-success-color-1) 28%, var(--td-bg-color-container));
+  border-color: color-mix(in srgb, var(--td-success-color) 20%, var(--td-component-stroke));
+}
+
+.container-mount-usage--warning {
+  background: color-mix(in srgb, var(--td-warning-color-1) 28%, var(--td-bg-color-container));
+  border-color: color-mix(in srgb, var(--td-warning-color) 22%, var(--td-component-stroke));
+}
+
+.container-mount-usage__header {
+  align-items: center;
+  display: flex;
+  gap: var(--graft-density-gap-8);
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.container-mount-usage__header > :deep(.t-button) {
+  flex: 0 0 auto;
+  min-width: 92px;
+}
+
+.container-mount-usage__header > span,
+.container-mount-usage__time,
+.container-mount-usage__message {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.container-mount-usage strong {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-title-medium);
+}
+
+.container-mount-empty {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: var(--graft-density-gap-4);
+  justify-content: center;
+  min-height: 148px;
+  padding: var(--graft-density-gap-16) var(--graft-density-gap-12);
+  text-align: center;
+}
+
+.container-mount-empty__icon {
+  color: var(--td-text-color-placeholder);
+  font-size: var(--td-comp-size-xxl);
+  line-height: 1;
+}
+
+.container-mount-empty__title,
+.container-mount-empty__description {
+  display: block;
+  width: 100%;
+}
+
+.container-mount-empty__title {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-body-medium);
+  font-weight: 500;
+}
+
+.container-mount-empty__description {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+}
+
+.container-network-panel {
+  background: var(--td-bg-color-container);
+  border: 1px solid color-mix(in srgb, var(--td-component-stroke) 70%, transparent);
+  border-radius: var(--td-radius-medium);
+  display: flex;
+  flex-direction: column;
+  gap: var(--graft-density-gap-12);
+  min-width: 0;
+  padding: var(--graft-density-gap-14) var(--graft-density-gap-16);
+}
+
+.container-network-panel__header {
+  align-items: center;
+  display: flex;
+  gap: var(--graft-density-gap-8);
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.container-network-panel__header h3,
+.container-network-connection-card__header h4 {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-title-small);
+  font-weight: 600;
+  margin: 0;
+}
+
+.container-network-connection-card {
+  background: color-mix(in srgb, var(--td-bg-color-container) 92%, var(--td-bg-color-page));
+  border: 1px solid color-mix(in srgb, var(--td-component-stroke) 68%, transparent);
+  border-radius: var(--td-radius-default);
+  display: flex;
+  flex-direction: column;
+  gap: var(--graft-density-gap-12);
+  min-width: 0;
+  padding: var(--graft-density-gap-12);
+}
+
+.container-network-connection-card__header {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--graft-density-gap-8);
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.container-network-connection-card__label,
+.container-port-mapping-card__label {
+  color: var(--td-text-color-placeholder);
+  font: var(--td-font-body-small);
+}
+
+.container-network-connection-card__name {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-title-small);
+  font-weight: 600;
+  min-width: 0;
+}
+
+.container-network-field-grid {
+  display: grid;
+  gap: var(--graft-density-gap-12);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  max-width: 880px;
+  min-width: 0;
+}
+
+.container-network-field-grid--metadata {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  max-width: 980px;
+}
+
+.container-network-field {
+  display: grid;
+  gap: var(--graft-density-gap-4);
+  min-width: 0;
+}
+
+.container-network-field > span {
+  color: var(--td-text-color-placeholder);
+  font: var(--td-font-body-small);
+}
+
+.container-network-field strong,
+.container-network-code {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-body-medium);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.container-network-field--technical strong,
+.container-network-field--technical :deep(.container-detail-copyable-value__text) {
+  color: var(--td-text-color-secondary);
+  font-size: var(--td-font-size-body-small);
+}
+
+.container-network-code {
+  display: inline-block;
+  font-family: var(
+    --td-font-family-mono,
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    'Liberation Mono',
+    monospace
+  );
+  max-width: 100%;
+}
+
+.container-port-mapping-card {
+  align-items: center;
+  background: color-mix(in srgb, var(--td-bg-color-container) 94%, var(--td-bg-color-page));
+  border: 1px solid color-mix(in srgb, var(--td-component-stroke) 62%, transparent);
+  border-radius: var(--td-radius-default);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--graft-density-gap-10) var(--graft-density-gap-16);
+  justify-content: space-between;
+  min-width: 0;
+  padding: var(--graft-density-gap-12);
+}
+
+.container-port-mapping-card--internal {
+  background: color-mix(in srgb, var(--td-warning-color-1) 24%, var(--td-bg-color-container));
+  border-color: color-mix(in srgb, var(--td-warning-color) 22%, var(--td-component-stroke));
+}
+
+.container-port-mapping-card__main {
+  align-items: center;
+  display: flex;
+  flex: 1 1 320px;
+  flex-wrap: wrap;
+  gap: var(--graft-density-gap-8);
+  min-width: 0;
+}
+
+.container-port-mapping-card__description {
+  color: var(--td-text-color-secondary);
+  flex: 0 1 auto;
+  font: var(--td-font-body-small);
+  min-width: 0;
+}
+
+.container-port-mapping-card__listen {
+  align-items: center;
+  display: inline-flex;
+  flex: 0 1 auto;
+  gap: var(--graft-density-gap-6);
+  min-width: 0;
+}
+
+.container-port-mapping-card__listen > span {
+  color: var(--td-text-color-placeholder);
+  font: var(--td-font-body-small);
+}
+
+.container-network-metadata-empty {
+  align-items: flex-start;
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+  min-height: auto;
+  padding: 0;
+  text-align: left;
+}
+
+.container-network-metadata-empty :deep(.t-empty__image) {
+  display: none;
+}
+
+.container-config-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--graft-density-gap-10);
+  min-width: 0;
+}
+
+.container-config-section h3,
+.container-config-section__header h3 {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-title-small);
+  font-weight: 600;
+  margin: 0;
+}
+
+.container-config-section__header {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--graft-density-gap-8);
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.container-config-section__header > span {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+}
+
+.container-runtime-config-card {
+  background: var(--td-bg-color-container);
+  border: 1px solid color-mix(in srgb, var(--td-component-stroke) 70%, transparent);
+  min-width: 0;
+}
+
+.container-runtime-config-card :deep(.t-card__body) {
+  padding: var(--graft-density-gap-14) var(--graft-density-gap-16);
+}
+
+.container-runtime-config-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--graft-density-gap-4);
+  min-width: 0;
+}
+
+.container-runtime-config-row {
+  align-items: center;
+  border-radius: var(--td-radius-default);
+  display: grid;
+  gap: var(--graft-density-gap-10);
+  grid-template-columns: 108px minmax(0, 1fr) var(--td-comp-size-xs);
+  min-height: var(--td-comp-size-xl);
+  min-width: 0;
+  padding: var(--graft-density-gap-6) var(--graft-density-gap-8);
+}
+
+.container-runtime-config-row:hover {
+  background: var(--td-bg-color-container-hover);
+}
+
+.container-runtime-config-row__label {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+  white-space: nowrap;
+}
+
+.container-runtime-config-row__value,
+.container-env-cell {
+  color: var(--td-text-color-primary);
+  display: block;
+  font-family: var(
+    --td-font-family-mono,
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    'Liberation Mono',
+    monospace
+  );
+  font-size: var(--td-font-size-body-small);
+  line-height: 20px;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.container-runtime-config-row__copy {
+  opacity: 0.56;
+}
+
+.container-runtime-config-row:hover .container-runtime-config-row__copy,
+.container-runtime-config-row__copy:focus-visible {
+  opacity: 1;
+}
+
+.container-env-toolbar {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--graft-density-gap-8);
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.container-env-toolbar__search {
+  flex: 1 1 280px;
+  min-width: 220px;
+}
+
+.container-env-toolbar__policy {
+  flex: 0 0 176px;
+}
+
+.container-env-table {
+  min-width: 0;
+  width: 100%;
+}
+
+.container-env-table :deep(.t-table__content) {
+  max-width: 100%;
+}
+
+.container-env-table :deep(.t-table--layout-fixed) {
+  width: 100%;
+}
+
+.container-env-table :deep(.t-table__th-cell-inner) {
+  color: var(--td-text-color-secondary);
+  font-weight: 500;
+}
+
+.container-env-table :deep(.t-table__body tr .container-env-copy-button) {
+  opacity: 0.42;
+}
+
+.container-env-table :deep(.t-table__body tr:hover .container-env-copy-button),
+.container-env-table :deep(.container-env-copy-button:focus-visible) {
+  opacity: 1;
+}
+
+.container-env-cell--value {
+  color: var(--td-text-color-secondary);
+}
+
+.container-health-diagnostics {
+  display: flex;
+  flex-direction: column;
+  gap: var(--graft-density-gap-10);
+  min-width: 0;
+}
+
+.container-health-diagnostics__header h3 {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-title-small);
+  font-weight: 600;
+  margin: 0;
+}
+
+.container-health-summary-grid {
+  display: grid;
+  gap: var(--graft-density-gap-10);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  min-width: 0;
+}
+
+.container-health-summary-card,
+.container-health-info-card {
+  background: var(--td-bg-color-container);
+  border: 1px solid color-mix(in srgb, var(--td-component-stroke) 64%, transparent);
+  min-width: 0;
+}
+
+.container-health-summary-card :deep(.t-card__body) {
+  display: flex;
+  flex-direction: column;
+  gap: var(--graft-density-gap-6);
+  min-height: 86px;
+  padding: var(--graft-density-gap-12);
+}
+
+.container-health-summary-card__label {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+}
+
+.container-health-summary-card__value {
+  align-items: center;
+  color: var(--td-text-color-primary);
+  display: flex;
+  font: var(--td-font-title-small);
+  font-weight: 600;
+  min-height: 24px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.container-health-summary-card p {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+  line-height: 20px;
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.container-health-info-card :deep(.t-card__body) {
+  display: flex;
+  flex-direction: column;
+  gap: var(--graft-density-gap-10);
+  min-width: 0;
+  padding: var(--graft-density-gap-14) var(--graft-density-gap-16);
+}
+
+.container-health-info-card :deep(.t-card__header) {
+  align-items: center;
+  min-height: var(--td-comp-size-xxl);
+  padding: 0 var(--graft-density-gap-16);
+}
+
+.container-health-info-card :deep(.t-descriptions__body) {
+  table-layout: auto;
+}
+
+.container-health-card-actions {
+  align-items: center;
+  color: var(--td-text-color-secondary);
+  display: flex;
+  flex-wrap: wrap;
+  font: var(--td-font-body-small);
+  gap: var(--graft-density-gap-8);
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.container-health-inline-descriptions,
+.container-health-stability-grid {
+  max-width: 920px;
+}
+
+.container-health-inline-descriptions :deep(.t-descriptions__label),
+.container-health-stability-grid :deep(.t-descriptions__label) {
+  color: var(--td-text-color-placeholder);
+  white-space: nowrap;
+}
+
+.container-health-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--graft-density-gap-6);
+  min-width: 0;
+}
+
+.container-health-block__label {
+  align-items: center;
+  color: var(--td-text-color-placeholder);
+  display: flex;
+  font: var(--td-font-body-small);
+  gap: var(--graft-density-gap-8);
+  justify-content: space-between;
+  min-height: var(--td-comp-size-xs);
+  min-width: 0;
+}
+
+.container-health-code,
+.container-health-output {
+  background: color-mix(in srgb, var(--td-bg-color-page) 82%, var(--td-bg-color-container));
+  border: 1px solid color-mix(in srgb, var(--td-component-stroke) 62%, transparent);
+  border-radius: var(--td-radius-default);
+  color: var(--td-text-color-primary);
+  display: block;
+  font-family: var(
+    --td-font-family-mono,
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    'Liberation Mono',
+    monospace
+  );
+  font-size: var(--td-font-size-body-small);
+  font-weight: 400;
+  line-height: 20px;
+  margin: 0;
+  max-width: 100%;
+  min-width: 0;
+  overflow: auto;
+  padding: var(--graft-density-gap-8) var(--graft-density-gap-10);
+  scrollbar-width: thin;
+}
+
+.container-health-code {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.container-health-output {
+  max-height: 144px;
+  white-space: pre-wrap;
+}
+
+.container-health-output--error {
+  background: color-mix(in srgb, var(--td-error-color-1) 36%, var(--td-bg-color-container));
+  border-color: color-mix(in srgb, var(--td-error-color) 34%, var(--td-component-stroke));
+}
+
+.container-health-last-check {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+  margin: 0;
+}
+
+.container-health-empty {
+  display: flex;
+  flex-direction: column;
+  gap: var(--graft-density-gap-12);
+  min-width: 0;
 }
 
 .container-detail-resource-status-card {
@@ -1848,6 +4350,8 @@ function portLabel(port: ContainerDetail['ports'][number]) {
 
 @media (width <= 960px) {
   .container-detail-resource-grid,
+  .container-health-summary-grid,
+  .container-mount-card-grid,
   .container-resource-dashboard-grid,
   .container-resource-detail-grid,
   .container-resource-detail-card__body--memory,
@@ -1857,12 +4361,38 @@ function portLabel(port: ContainerDetail['ports'][number]) {
 }
 
 @media (width <= 720px) {
+  .container-runtime-config-row {
+    align-items: flex-start;
+    grid-template-columns: minmax(0, 1fr) var(--td-comp-size-xs);
+  }
+
+  .container-runtime-config-row__label {
+    grid-column: 1 / -1;
+  }
+
+  .container-env-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .container-env-toolbar__search,
+  .container-env-toolbar__policy {
+    flex-basis: auto;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .container-env-toolbar :deep(.t-button) {
+    width: 100%;
+  }
+
   .container-detail-summary,
   .container-detail-summary__resource {
     grid-template-columns: 1fr;
   }
 
   .container-detail-resource-grid,
+  .container-health-summary-grid,
   .container-resource-dashboard-grid,
   .container-resource-detail-grid,
   .container-resource-detail-card__body--memory,
@@ -1890,6 +4420,20 @@ function portLabel(port: ContainerDetail['ports'][number]) {
     justify-content: flex-start;
     text-align: left;
     width: 100%;
+  }
+
+  .container-mount-card__header {
+    flex-direction: column;
+  }
+
+  .container-mount-card__actions {
+    justify-content: flex-start;
+  }
+
+  .container-mount-field {
+    align-items: flex-start;
+    gap: var(--graft-density-gap-4);
+    grid-template-columns: 1fr;
   }
 
   .container-detail-header-meta {

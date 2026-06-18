@@ -4,30 +4,34 @@
 -->
 
 <template>
-  <monitor-toolbar
-    :auto-refresh-enabled="autoRefreshEnabled"
-    :loading="loading"
-    :pause-auto-refresh-label="pauseAutoRefreshLabel"
-    :refresh-interval-label="refreshIntervalLabel"
-    :refresh-interval-options="refreshIntervalOptions"
-    :refresh-interval-value="refreshIntervalValue"
-    :refresh-now-label="refreshNowLabel"
-    :resume-auto-refresh-label="resumeAutoRefreshLabel"
-    :show-trend-range="false"
+  <refresh-control-bar
+    :auto-refresh-enabled="refreshControlAutoRefreshEnabled"
+    :interval="refreshIntervalValue"
+    :interval-label="refreshIntervalLabel"
+    :interval-options="refreshIntervalOptions"
+    :paused="refreshControlPaused"
+    :pause-label="pauseAutoRefreshLabel"
+    :refresh-label="refreshNowLabel"
+    :refreshing="loading"
+    :resume-label="resumeAutoRefreshLabel"
+    :show-trend-window="false"
     :status="status"
     :status-label="statusLabel"
-    :trend-range-label-placeholder="trendRangeLabelPlaceholder"
     @refresh="$emit('refresh')"
-    @toggle-auto-refresh="$emit('toggle-auto-refresh')"
-    @update:refresh-interval-value="$emit('update:refresh-interval-value', $event)"
+    @pause="$emit('toggle-auto-refresh')"
+    @resume="$emit('toggle-auto-refresh')"
+    @update:interval="$emit('update:refresh-interval-value', $event)"
   />
 </template>
 <script setup lang="ts">
+import { computed } from 'vue';
+
+import { RefreshControlBar } from '@/shared/components/refresh';
+
 import type { RefreshIntervalOption } from '../composables/use-monitor-refresh-preferences';
-import MonitorToolbar from './MonitorToolbar.vue';
 import type { ServerStatusTone } from './server-status-ui';
 
-defineProps<{
+const props = defineProps<{
   autoRefreshEnabled: boolean;
   loading: boolean;
   pauseAutoRefreshLabel: string;
@@ -46,4 +50,7 @@ defineEmits<{
   'toggle-auto-refresh': [];
   'update:refresh-interval-value': [value: number | string];
 }>();
+
+const refreshControlAutoRefreshEnabled = computed(() => Number(props.refreshIntervalValue) > 0);
+const refreshControlPaused = computed(() => refreshControlAutoRefreshEnabled.value && !props.autoRefreshEnabled);
 </script>

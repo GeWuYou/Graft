@@ -5,8 +5,11 @@ package container
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"net/url"
+	"regexp"
 	"slices"
 	"strings"
 	"unicode"
@@ -36,14 +39,24 @@ const (
 	containerHealthNone        = "none"
 	containerHealthUnavailable = "unavailable"
 
-	containerStatsNotCollectedReason = "stats_not_collected"
-	containerStatsIncompleteReason   = "stats_incomplete"
-	containerStatsTimeoutReason      = "stats_timeout"
-	containerStatsUnavailableReason  = "stats_unavailable"
+	containerStatsNotCollectedReason          = "stats_not_collected"
+	containerStatsIncompleteReason            = "stats_incomplete"
+	containerStatsTimeoutReason               = "stats_timeout"
+	containerStatsUnavailableReason           = "stats_unavailable"
+	containerMountUsageUnsupportedReason      = "mount_usage_unsupported"
+	containerMountUsageStatusNotMeasured      = "not_measured"
+	containerMountUsageStatusMeasured         = "measured"
+	containerMountUsageStatusUnsupported      = "unsupported"
+	containerMountUsageStatusPermissionDenied = "permission_denied"
+	containerMountUsageStatusNotFound         = "not_found"
+	containerMountUsageStatusTimeout          = "timeout"
+	containerMountUsageStatusError            = "error"
 
 	composeProjectLabel = "com.docker.compose.project"
 	composeServiceLabel = "com.docker.compose.service"
 )
+
+var mountIDPattern = regexp.MustCompile(`^m_[A-Za-z0-9_-]{1,62}$`)
 
 var (
 	errRuntimeDisabled             = errors.New("container runtime disabled")
@@ -59,6 +72,8 @@ var (
 	errContainerRuntimeTimeout     = errors.New("container runtime timeout")
 	errDangerousActionsDisabled    = errors.New("dangerous container actions disabled")
 	errUnsupportedContainerRuntime = errors.New("unsupported container runtime")
+	errMountUsageUnsupported       = errors.New("container mount usage unsupported")
+	errContainerMountNotFound      = errors.New("container mount not found")
 )
 
 // Runtime is the module-owned boundary between API/service code and a concrete container runtime adapter.
@@ -66,6 +81,8 @@ type Runtime interface {
 	Info(ctx context.Context) (RuntimeInfo, error)
 	List(ctx context.Context, query ListQuery) ([]Summary, error)
 	Detail(ctx context.Context, id Ref) (Detail, error)
+	Mounts(ctx context.Context, id Ref) ([]Mount, error)
+	MountUsage(ctx context.Context, id Ref, mountID string) (MountUsage, error)
 	Logs(ctx context.Context, id Ref, query LogQuery) (Logs, error)
 	Start(ctx context.Context, id Ref) (ActionResult, error)
 	Stop(ctx context.Context, id Ref) (ActionResult, error)
@@ -205,11 +222,26 @@ type Detail struct {
 	Entrypoint        []string
 	Environment       []EnvironmentVariable
 	EnvironmentPolicy string
+	Healthcheck       *Healthcheck
+	LastExitCode      *int
 	Mounts            []Mount
 	Networks          []Network
+	OOMKilled         *bool
 	RuntimeInfo       RuntimeInfo
 	InspectUpdatedAt  string
 	WorkingDir        string
+}
+
+// Healthcheck describes Docker healthcheck diagnostics from container inspect.
+type Healthcheck struct {
+	Configured     bool
+	Status         string
+	Command        []string
+	ExitCode       *int
+	Output         string
+	CheckedAt      string
+	FailingStreak  *int
+	FailureMessage string
 }
 
 // Port describes one exposed or published container port.
@@ -222,18 +254,38 @@ type Port struct {
 
 // Mount describes one mounted path without exposing raw inspect payloads.
 type Mount struct {
+	ID          string
 	Type        string
 	Name        string
 	Source      string
 	Destination string
 	Mode        string
 	ReadOnly    bool
+	Usage       *MountUsage
+}
+
+// MountUsage describes filesystem usage for one inspect-derived mount source.
+type MountUsage struct {
+	MountID     string
+	ContainerID string
+	Type        string
+	Name        string
+	Source      string
+	Destination string
+	SizeBytes   int64
+	SizeDisplay string
+	Status      string
+	Message     string
+	SharedHint  string
+	Cached      bool
+	MeasuredAt  string
 }
 
 // EnvironmentVariable describes one container environment entry after policy application.
 type EnvironmentVariable struct {
 	Key       string
 	Value     string
+	CopyValue *string
 	Masked    bool
 	Sensitive bool
 	Source    string
@@ -364,6 +416,7 @@ func isValidContainerState(state string) bool {
 	return slices.Contains([]string{"created", "running", "paused", "restarting", "removing", "exited", "dead", "unknown"}, state)
 }
 
+// isValidContainerHealth reports whether a health state is valid.
 func isValidContainerHealth(health string) bool {
 	return slices.Contains([]string{
 		containerHealthHealthy,
@@ -372,4 +425,20 @@ func isValidContainerHealth(health string) bool {
 		containerHealthNone,
 		containerHealthUnavailable,
 	}, health)
+}
+
+// isValidMountID reports whether value is a valid mount ID.
+func isValidMountID(value string) bool {
+	return mountIDPattern.MatchString(strings.TrimSpace(value))
+}
+
+// stableMountID generates a stable identifier for a mount based on its destination, source, and type.
+func stableMountID(mount Mount) string {
+	parts := []string{
+		strings.TrimSpace(mount.Destination),
+		strings.TrimSpace(mount.Source),
+		strings.TrimSpace(mount.Type),
+	}
+	sum := sha256.Sum256([]byte(strings.Join(parts, "\x00")))
+	return "m_" + hex.EncodeToString(sum[:16])
 }

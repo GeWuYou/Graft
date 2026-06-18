@@ -402,6 +402,7 @@ import { computed, h, onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
+import { LOCALE, type LocalizedTitle } from '@/contracts/i18n/locales';
 import {
   buildVisibleColumns,
   ManagementPageHeader,
@@ -415,7 +416,10 @@ import {
 import { AdvancedQueryColumnDrawer } from '@/shared/components/query-list';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { formatLocaleDateTime } from '@/shared/observability';
+import { useTabsRouterStore } from '@/store';
 import { createLogger } from '@/utils/logger';
+import { localizeRouteTitleKey } from '@/utils/route/title';
+import type { AppRouteMeta } from '@/utils/types';
 
 import {
   batchContainerActions,
@@ -447,6 +451,7 @@ defineOptions({
 
 const { locale, t } = useI18n();
 const router = useRouter();
+const tabsRouterStore = useTabsRouterStore();
 const logger = createLogger('container.list');
 const permissionCodes = CONTAINER_PERMISSION_CODE;
 
@@ -1278,11 +1283,26 @@ function batchFailureSummary(items: ContainerBatchActionItem[]) {
 }
 
 function navigateToDetail(row: ContainerSummary, tab: string) {
-  return router.push({
+  const target = {
     name: CONTAINER_BOOTSTRAP_ROUTE.DETAIL.pageRouteName,
     params: { id: row.id },
     query: { tab },
+  };
+  const resolved = router.resolve(target);
+  tabsRouterStore.appendTabRouterList({
+    tabKey: resolved.path,
+    path: resolved.path,
+    fullPath: resolved.fullPath,
+    query: resolved.query,
+    params: resolved.params,
+    title: buildDetailTabTitle(displayName(row)),
+    name: resolved.name,
+    isAlive: true,
+    meta: resolved.meta as AppRouteMeta,
   });
+  tabsRouterStore.setActiveTabKey(resolved.path);
+
+  return router.push(target);
 }
 
 function handlePageChange(pageInfo: { current?: number; pageSize?: number }) {
@@ -1295,7 +1315,15 @@ function handlePageChange(pageInfo: { current?: number; pageSize?: number }) {
 }
 
 function displayName(row: ContainerSummary) {
-  return row.name || row.names[0] || row.id;
+  return row.name || row.names?.[0] || row.id;
+}
+
+function buildDetailTabTitle(name: string): LocalizedTitle {
+  const baseTitle = localizeRouteTitleKey('container.detail.title');
+  return {
+    [LOCALE.ZH_CN]: `${baseTitle[LOCALE.ZH_CN]} - ${name}`,
+    [LOCALE.EN_US]: `${baseTitle[LOCALE.EN_US]} - ${name}`,
+  };
 }
 
 function shortContainerId(id: string) {

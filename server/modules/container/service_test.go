@@ -10,6 +10,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"go.uber.org/zap"
 
@@ -287,6 +288,35 @@ func TestServiceAppliesPlainEnvironmentPolicyWithPermissionContext(t *testing.T)
 	})
 }
 
+func TestServiceExposesMaskedEnvironmentCopyValueOnlyWhenConfigured(t *testing.T) {
+	t.Parallel()
+
+	service := newEnvironmentPolicyTestService(t, containercontract.ContainerEnvironmentPolicyMasked.String())
+	detail, err := service.Detail(withEnvironmentPlainAccess(context.Background()), Ref{Value: "web"})
+	if err != nil {
+		t.Fatalf("detail: %v", err)
+	}
+	if detail.Environment[1].CopyValue != nil {
+		t.Fatalf("expected masked copy value to stay hidden by default, got %#v", detail.Environment[1])
+	}
+
+	enabledService := newEnvironmentPolicyTestServiceWithValues(
+		t,
+		containercontract.ContainerEnvironmentPolicyMasked.String(),
+		map[string]bool{containercontract.ContainerEnvironmentMaskedCopyEnabledConfig.String(): true},
+	)
+	detail, err = enabledService.Detail(withEnvironmentPlainAccess(context.Background()), Ref{Value: "web"})
+	if err != nil {
+		t.Fatalf("detail with copy enabled: %v", err)
+	}
+	if detail.Environment[1].CopyValue == nil || *detail.Environment[1].CopyValue != "secret" {
+		t.Fatalf("expected copy-only raw value for masked sensitive env, got %#v", detail.Environment[1])
+	}
+	if detail.Environment[1].Value != "" || !detail.Environment[1].Masked {
+		t.Fatalf("expected display value to remain masked, got %#v", detail.Environment[1])
+	}
+}
+
 type expectedEnvironmentPolicyResult struct {
 	policy       string
 	firstValue   string
@@ -296,15 +326,24 @@ type expectedEnvironmentPolicyResult struct {
 }
 
 func newEnvironmentPolicyTestService(t *testing.T, policy string) *service {
+	return newEnvironmentPolicyTestServiceWithValues(t, policy, nil)
+}
+
+func newEnvironmentPolicyTestServiceWithValues(t *testing.T, policy string, values map[string]bool) *service {
 	t.Helper()
+
+	configValues := map[string]bool{
+		containercontract.ContainerRuntimeEnabledConfig.String(): true,
+	}
+	for key, value := range values {
+		configValues[key] = value
+	}
 
 	service, err := newService(containerServiceOptions{
 		runtime: fakeRuntime{},
 		systemConfig: serviceTestPolicyConfig{
-			serviceTestSystemConfig: serviceTestSystemConfig{values: map[string]bool{
-				containercontract.ContainerRuntimeEnabledConfig.String(): true,
-			}},
-			policy: policy,
+			serviceTestSystemConfig: serviceTestSystemConfig{values: configValues},
+			policy:                  policy,
 		},
 		enabled:     true,
 		defaultTail: defaultContainerLogsDefaultTail,
@@ -554,6 +593,200 @@ func TestServiceListFiltersHealth(t *testing.T) {
 	}
 }
 
+func TestServiceMountUsageListDoesNotScanAndUsesCache(t *testing.T) {
+	t.Parallel()
+
+	mount := Mount{Type: "bind", Source: "/host/data", Destination: "/data"}
+	cached := MountUsage{
+		MountID:     stableMountID(mount),
+		ContainerID: "docker-inspect-id",
+		Type:        "bind",
+		Source:      "/host/data",
+		Destination: "/data",
+		SizeBytes:   1024,
+		SizeDisplay: "1 KiB",
+		Status:      containerMountUsageStatusMeasured,
+		MeasuredAt:  "2026-06-17T00:00:00Z",
+	}
+	cache := newMountUsageCache(time.Minute)
+	cache.set(mountUsageCacheKey(Ref{Value: "web"}, stableMountID(mount)), cached)
+	runtime := &countingRuntime{mounts: []Mount{mount}}
+	service, err := newService(containerServiceOptions{
+		runtime:         runtime,
+		mountUsageCache: cache,
+		enabled:         true,
+		defaultTail:     defaultContainerLogsDefaultTail,
+		maxTail:         defaultContainerLogsMaxTail,
+	})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	items, err := service.MountUsageList(context.Background(), Ref{Value: "web"})
+	if err != nil {
+		t.Fatalf("mount usage list: %v", err)
+	}
+	if len(items) != 1 || !items[0].Cached || items[0].SizeDisplay != "1 KiB" {
+		t.Fatalf("expected cached mount usage, got %#v", items)
+	}
+	if items[0].ContainerID != "web" {
+		t.Fatalf("expected list cache result to use request ref container id, got %#v", items[0])
+	}
+	if runtime.mountUsageCalls.Load() != 0 {
+		t.Fatalf("expected cache-only list to avoid scan, got %d scans", runtime.mountUsageCalls.Load())
+	}
+}
+
+func TestServiceDetailAttachesCachedMountUsageWithoutScanning(t *testing.T) {
+	t.Parallel()
+
+	mount := Mount{Type: "bind", Source: "/host/data", Destination: "/data"}
+	mount.ID = stableMountID(mount)
+	cached := MountUsage{
+		MountID:     mount.ID,
+		ContainerID: "web",
+		Type:        "bind",
+		Source:      "/host/data",
+		Destination: "/data",
+		SizeBytes:   2048,
+		SizeDisplay: "2 KiB",
+		Status:      containerMountUsageStatusMeasured,
+		MeasuredAt:  "2026-06-17T00:00:00Z",
+	}
+	cache := newMountUsageCache(time.Minute)
+	cache.set(mountUsageCacheKey(Ref{Value: "web"}, mount.ID), cached)
+	runtime := &countingRuntime{
+		detail: Detail{
+			Summary: Summary{
+				ID:        "web",
+				ShortID:   "web",
+				Name:      "web",
+				Image:     "nginx:latest",
+				Runtime:   runtimeNameDocker,
+				CreatedAt: "2026-06-14T00:00:00Z",
+				State:     "running",
+				Status:    "running",
+			},
+			Mounts: []Mount{mount},
+		},
+	}
+	service, err := newService(containerServiceOptions{
+		runtime:         runtime,
+		mountUsageCache: cache,
+		enabled:         true,
+		defaultTail:     defaultContainerLogsDefaultTail,
+		maxTail:         defaultContainerLogsMaxTail,
+	})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	detail, err := service.Detail(context.Background(), Ref{Value: "web"})
+	if err != nil {
+		t.Fatalf("detail: %v", err)
+	}
+	if len(detail.Mounts) != 1 || detail.Mounts[0].Usage == nil || detail.Mounts[0].Usage.SizeDisplay != "2 KiB" {
+		t.Fatalf("expected cached usage attached to detail, got %#v", detail.Mounts)
+	}
+	if runtime.mountUsageCalls.Load() != 0 {
+		t.Fatalf("expected detail cache attachment to avoid scan, got %d scans", runtime.mountUsageCalls.Load())
+	}
+}
+
+func TestServiceRefreshMountUsageCachesMeasuredResult(t *testing.T) {
+	t.Parallel()
+
+	mount := Mount{Type: "bind", Source: "/host/data", Destination: "/data"}
+	mount.ID = stableMountID(mount)
+	runtime := &countingRuntime{
+		mountUsage: MountUsage{
+			MountID:     mount.ID,
+			ContainerID: "web",
+			Type:        "bind",
+			Source:      "/host/data",
+			Destination: "/data",
+			SizeBytes:   1536,
+			SizeDisplay: "1.5 KiB",
+			Status:      containerMountUsageStatusMeasured,
+			MeasuredAt:  "2026-06-17T00:00:00Z",
+		},
+	}
+	service, err := newService(containerServiceOptions{
+		runtime:     runtime,
+		enabled:     true,
+		defaultTail: defaultContainerLogsDefaultTail,
+		maxTail:     defaultContainerLogsMaxTail,
+	})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	usage, err := service.RefreshMountUsage(context.Background(), Ref{Value: "web"}, mount.ID)
+	if err != nil {
+		t.Fatalf("refresh mount usage: %v", err)
+	}
+	if usage.SizeDisplay != "1.5 KiB" || runtime.mountUsageCalls.Load() != 1 {
+		t.Fatalf("unexpected refreshed usage %#v calls=%d", usage, runtime.mountUsageCalls.Load())
+	}
+	runtime.mountUsage.SizeBytes = 2048
+	runtime.mountUsage.SizeDisplay = "2 KiB"
+	usage, err = service.RefreshMountUsage(context.Background(), Ref{Value: "web"}, mount.ID)
+	if err != nil {
+		t.Fatalf("second refresh mount usage: %v", err)
+	}
+	if usage.Cached || usage.SizeDisplay != "2 KiB" || runtime.mountUsageCalls.Load() != 2 {
+		t.Fatalf("expected refresh to bypass cache, got usage=%#v calls=%d", usage, runtime.mountUsageCalls.Load())
+	}
+	items, err := service.MountUsageList(context.Background(), Ref{Value: "web"})
+	if err != nil {
+		t.Fatalf("mount usage list: %v", err)
+	}
+	if len(items) != 1 || !items[0].Cached || items[0].SizeBytes != 2048 {
+		t.Fatalf("expected cached refreshed usage, got %#v", items)
+	}
+}
+
+func TestServiceRefreshMountUsageRejectsArbitraryPath(t *testing.T) {
+	t.Parallel()
+
+	runtime := &countingRuntime{}
+	service, err := newService(containerServiceOptions{
+		runtime:     runtime,
+		enabled:     true,
+		defaultTail: defaultContainerLogsDefaultTail,
+		maxTail:     defaultContainerLogsMaxTail,
+	})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	_, err = service.RefreshMountUsage(context.Background(), Ref{Value: "web"}, "/host/data")
+	if !errors.Is(err, errInvalidRef) {
+		t.Fatalf("expected invalid mount id, got %v", err)
+	}
+	if runtime.mountUsageCalls.Load() != 0 {
+		t.Fatalf("expected invalid mount id to avoid runtime scan, got %d", runtime.mountUsageCalls.Load())
+	}
+}
+
+func TestFormatIECBytesUsesExpectedUnits(t *testing.T) {
+	t.Parallel()
+
+	cases := map[int64]string{
+		0:                      "0 B",
+		512:                    "512 B",
+		1024:                   "1 KiB",
+		1536:                   "1.5 KiB",
+		2 * 1024 * 1024:        "2 MiB",
+		3 * 1024 * 1024 * 1024: "3 GiB",
+	}
+	for size, expected := range cases {
+		if actual := formatIECBytes(size); actual != expected {
+			t.Fatalf("expected %d as %q, got %q", size, expected, actual)
+		}
+	}
+}
+
 func TestSummarizeContainersAccountsForKnownRuntimeStates(t *testing.T) {
 	t.Parallel()
 
@@ -766,7 +999,11 @@ func (r serviceTestPolicyConfig) ResolveDefaultConfig(_ context.Context, key str
 }
 
 type countingRuntime struct {
-	calls atomic.Int64
+	calls           atomic.Int64
+	mountUsageCalls atomic.Int64
+	detail          Detail
+	mounts          []Mount
+	mountUsage      MountUsage
 }
 
 func (r *countingRuntime) Info(context.Context) (RuntimeInfo, error) {
@@ -781,7 +1018,26 @@ func (r *countingRuntime) List(context.Context, ListQuery) ([]Summary, error) {
 
 func (r *countingRuntime) Detail(context.Context, Ref) (Detail, error) {
 	r.calls.Add(1)
+	if r.detail.ID != "" {
+		return r.detail, nil
+	}
 	return Detail{}, nil
+}
+
+func (r *countingRuntime) Mounts(context.Context, Ref) ([]Mount, error) {
+	r.calls.Add(1)
+	if len(r.mounts) > 0 {
+		return r.mounts, nil
+	}
+	mount := Mount{Type: "bind", Source: "/host/data", Destination: "/data"}
+	mount.ID = stableMountID(mount)
+	return []Mount{mount}, nil
+}
+
+func (r *countingRuntime) MountUsage(context.Context, Ref, string) (MountUsage, error) {
+	r.calls.Add(1)
+	r.mountUsageCalls.Add(1)
+	return r.mountUsage, nil
 }
 
 func (r *countingRuntime) Logs(context.Context, Ref, LogQuery) (Logs, error) {
@@ -869,7 +1125,11 @@ func (listRuntime) List(context.Context, ListQuery) ([]Summary, error) {
 	}, nil
 }
 
-func (listRuntime) Detail(context.Context, Ref) (Detail, error)        { return Detail{}, nil }
+func (listRuntime) Detail(context.Context, Ref) (Detail, error)  { return Detail{}, nil }
+func (listRuntime) Mounts(context.Context, Ref) ([]Mount, error) { return nil, nil }
+func (listRuntime) MountUsage(context.Context, Ref, string) (MountUsage, error) {
+	return MountUsage{}, nil
+}
 func (listRuntime) Logs(context.Context, Ref, LogQuery) (Logs, error)  { return Logs{}, nil }
 func (listRuntime) Start(context.Context, Ref) (ActionResult, error)   { return ActionResult{}, nil }
 func (listRuntime) Stop(context.Context, Ref) (ActionResult, error)    { return ActionResult{}, nil }
@@ -889,6 +1149,14 @@ func (r failingRuntime) List(context.Context, ListQuery) ([]Summary, error) {
 
 func (r failingRuntime) Detail(context.Context, Ref) (Detail, error) {
 	return Detail{}, r.err
+}
+
+func (r failingRuntime) Mounts(context.Context, Ref) ([]Mount, error) {
+	return nil, r.err
+}
+
+func (r failingRuntime) MountUsage(context.Context, Ref, string) (MountUsage, error) {
+	return MountUsage{}, r.err
 }
 
 func (r failingRuntime) Logs(context.Context, Ref, LogQuery) (Logs, error) {
@@ -925,6 +1193,12 @@ func (r selectiveRemoveRuntime) List(context.Context, ListQuery) ([]Summary, err
 }
 func (r selectiveRemoveRuntime) Detail(context.Context, Ref) (Detail, error) {
 	return fakeRuntime{}.Detail(context.Background(), Ref{Value: "web"})
+}
+func (r selectiveRemoveRuntime) Mounts(context.Context, Ref) ([]Mount, error) {
+	return fakeRuntime{}.Mounts(context.Background(), Ref{Value: "web"})
+}
+func (r selectiveRemoveRuntime) MountUsage(context.Context, Ref, string) (MountUsage, error) {
+	return fakeRuntime{}.MountUsage(context.Background(), Ref{Value: "web"}, "")
 }
 func (r selectiveRemoveRuntime) Logs(context.Context, Ref, LogQuery) (Logs, error) {
 	return Logs{}, nil
@@ -971,6 +1245,18 @@ func (fakeRuntime) Detail(context.Context, Ref) (Detail, error) {
 	}, nil
 }
 
+func (fakeRuntime) Mounts(context.Context, Ref) ([]Mount, error) {
+	mount := Mount{Type: "bind", Source: "/host/data", Destination: "/data"}
+	mount.ID = stableMountID(mount)
+	return []Mount{mount}, nil
+}
+
+func (fakeRuntime) MountUsage(context.Context, Ref, string) (MountUsage, error) {
+	mount := Mount{Type: "bind", Source: "/host/data", Destination: "/data"}
+	mount.ID = stableMountID(mount)
+	return mountUsageFromMount("abc123", mount, containerMountUsageStatusMeasured, 1024, "2026-06-17T00:00:00Z"), nil
+}
+
 func (fakeRuntime) Logs(_ context.Context, ref Ref, query LogQuery) (Logs, error) {
 	return Logs{
 		ID:         ref.Value,
@@ -1014,6 +1300,11 @@ func fakeSummary() Summary {
 		Status:    "Up",
 		CanRemove: true,
 	}
+}
+
+func fakeMountID() string {
+	mount := Mount{Type: "bind", Source: "/host/data", Destination: "/data"}
+	return stableMountID(mount)
 }
 
 func fakeAction(action string) ActionResult {

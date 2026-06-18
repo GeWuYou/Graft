@@ -11,6 +11,7 @@ import { t } from '@/locales';
 import { AUTH_ROUTE_NAME, AUTH_ROUTE_PATH } from '@/modules/auth/contract/routes';
 import { useAuthSessionStore } from '@/modules/auth/store';
 import router from '@/router';
+import { finishRouteLoadingAfterRender, hideRouteLoading, startRouteLoading } from '@/router/route-loading';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { getPermissionStore } from '@/store';
 import { isRootEntryPath, resolveRuntimeHomePath, RUNTIME_ENTRY_FALLBACK_PATH } from '@/utils/route';
@@ -18,6 +19,28 @@ import { PAGE_NOT_FOUND_ROUTE } from '@/utils/route/constant';
 
 NProgress.configure({ showSpinner: false });
 
+/**
+ * Checks if the target route is in the same state as the source route.
+ *
+ * @returns `true` if both routes represent the same state, `false` otherwise.
+ */
+function isSameRouteStateNavigation(to: { name?: unknown; path: string }, from?: { name?: unknown; path?: string }) {
+  if (!from?.path || to.path !== from.path) {
+    return false;
+  }
+
+  if (to.name && from.name && to.name !== from.name) {
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * Extracts all route names from the given routes and their children.
+ *
+ * @returns An array of route name strings.
+ */
 function collectBootstrapRouteNames(routes: RouteRecordRaw[]): string[] {
   const routeNames: string[] = [];
 
@@ -45,10 +68,17 @@ function removeMountedBootstrapRoutes(targetRouter: Router, routes: RouteRecordR
   });
 }
 
-// registerRouteGuards wires shell-owned auth/bootstrap recovery into the single router runtime.
+/**
+ * Registers route guards to handle authentication, bootstrap recovery, and dynamic route initialization.
+ *
+ * @param targetRouter - The Vue Router instance to register guards on. Defaults to the application's root router.
+ */
 export function registerRouteGuards(targetRouter: Router = router) {
   targetRouter.beforeEach(async (to, from, next) => {
-    NProgress.start();
+    if (!isSameRouteStateNavigation(to, from)) {
+      startRouteLoading();
+      NProgress.start();
+    }
 
     const permissionStore = getPermissionStore();
     const { whiteListRouters } = permissionStore;
@@ -201,7 +231,7 @@ export function registerRouteGuards(targetRouter: Router = router) {
     }
   });
 
-  targetRouter.afterEach((to) => {
+  targetRouter.afterEach((to, from) => {
     if (to.path === AUTH_ROUTE_PATH.LOGIN) {
       const userStore = useAuthSessionStore();
       const permissionStore = getPermissionStore();
@@ -211,5 +241,13 @@ export function registerRouteGuards(targetRouter: Router = router) {
       permissionStore.restoreRoutes();
     }
     NProgress.done();
+    if (!isSameRouteStateNavigation(to, from)) {
+      void finishRouteLoadingAfterRender();
+    }
+  });
+
+  targetRouter.onError(() => {
+    NProgress.done();
+    hideRouteLoading();
   });
 }

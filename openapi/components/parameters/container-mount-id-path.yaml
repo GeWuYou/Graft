@@ -1,0 +1,15 @@
+name: mountId
+in: path
+required: true
+description: >
+  Stable mount id returned by the container detail or mount usage APIs. It is generated from the inspected mount
+  destination, source, and type, and must not be replaced by a raw source path.
+schema:
+  type: string
+  minLength: 3
+  maxLength: 64
+  pattern: '^m_[A-Za-z0-9_-]+$'
+examples:
+  mountId:
+    summary: Stable mount id
+    value: m_9f4a2c1b

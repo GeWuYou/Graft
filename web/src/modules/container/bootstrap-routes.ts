@@ -30,6 +30,7 @@ export const containerGlobalRouteRegistrations: GlobalRouteRegistration[] = [
     ...CONTAINER_BOOTSTRAP_ROUTE.DETAIL,
     loadPage: () => import('./pages/detail/index.vue'),
     meta: {
+      hidden: false,
       hiddenMenu: true,
       keepAlive: false,
       pageKind: 'detail',

@@ -873,6 +873,69 @@ func (e ContainerEnvironmentEntrySource) Valid() bool {
 	}
 }
 
+// Defines values for ContainerHealthcheckStatus.
+const (
+	ContainerHealthcheckStatusHealthy     ContainerHealthcheckStatus = "healthy"
+	ContainerHealthcheckStatusNone        ContainerHealthcheckStatus = "none"
+	ContainerHealthcheckStatusStarting    ContainerHealthcheckStatus = "starting"
+	ContainerHealthcheckStatusUnavailable ContainerHealthcheckStatus = "unavailable"
+	ContainerHealthcheckStatusUnhealthy   ContainerHealthcheckStatus = "unhealthy"
+)
+
+// Valid indicates whether the value is a known member of the ContainerHealthcheckStatus enum.
+func (e ContainerHealthcheckStatus) Valid() bool {
+	switch e {
+	case ContainerHealthcheckStatusHealthy:
+		return true
+	case ContainerHealthcheckStatusNone:
+		return true
+	case ContainerHealthcheckStatusStarting:
+		return true
+	case ContainerHealthcheckStatusUnavailable:
+		return true
+	case ContainerHealthcheckStatusUnhealthy:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ContainerMountUsageStatus.
+const (
+	ContainerMountUsageStatusError            ContainerMountUsageStatus = "error"
+	ContainerMountUsageStatusMeasured         ContainerMountUsageStatus = "measured"
+	ContainerMountUsageStatusNotFound         ContainerMountUsageStatus = "not_found"
+	ContainerMountUsageStatusNotMeasured      ContainerMountUsageStatus = "not_measured"
+	ContainerMountUsageStatusPending          ContainerMountUsageStatus = "pending"
+	ContainerMountUsageStatusPermissionDenied ContainerMountUsageStatus = "permission_denied"
+	ContainerMountUsageStatusTimeout          ContainerMountUsageStatus = "timeout"
+	ContainerMountUsageStatusUnsupported      ContainerMountUsageStatus = "unsupported"
+)
+
+// Valid indicates whether the value is a known member of the ContainerMountUsageStatus enum.
+func (e ContainerMountUsageStatus) Valid() bool {
+	switch e {
+	case ContainerMountUsageStatusError:
+		return true
+	case ContainerMountUsageStatusMeasured:
+		return true
+	case ContainerMountUsageStatusNotFound:
+		return true
+	case ContainerMountUsageStatusNotMeasured:
+		return true
+	case ContainerMountUsageStatusPending:
+		return true
+	case ContainerMountUsageStatusPermissionDenied:
+		return true
+	case ContainerMountUsageStatusTimeout:
+		return true
+	case ContainerMountUsageStatusUnsupported:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ContainerPortType.
 const (
 	ContainerPortTypeValueSCTP ContainerPortType = "sctp"
@@ -1661,19 +1724,19 @@ func (e ScheduledTaskJobDefinitionSummaryCategory) Valid() bool {
 
 // Defines values for ScheduledTaskLastRunStatus.
 const (
-	ScheduledTaskLastRunStatusFailed  ScheduledTaskLastRunStatus = "failed"
-	ScheduledTaskLastRunStatusRunning ScheduledTaskLastRunStatus = "running"
-	ScheduledTaskLastRunStatusSuccess ScheduledTaskLastRunStatus = "success"
+	Failed  ScheduledTaskLastRunStatus = "failed"
+	Running ScheduledTaskLastRunStatus = "running"
+	Success ScheduledTaskLastRunStatus = "success"
 )
 
 // Valid indicates whether the value is a known member of the ScheduledTaskLastRunStatus enum.
 func (e ScheduledTaskLastRunStatus) Valid() bool {
 	switch e {
-	case ScheduledTaskLastRunStatusFailed:
+	case Failed:
 		return true
-	case ScheduledTaskLastRunStatusRunning:
+	case Running:
 		return true
-	case ScheduledTaskLastRunStatusSuccess:
+	case Success:
 		return true
 	default:
 		return false
@@ -3050,20 +3113,29 @@ type ContainerDetail struct {
 	EnvironmentPolicy ContainerDetailEnvironmentPolicy `json:"environment_policy"`
 
 	// Health Nullable when the runtime cannot determine health on the list path without row-level inspect.
-	Health           *ContainerDetailHealth `json:"health,omitempty"`
-	Id               string                 `json:"id"`
-	Image            string                 `json:"image"`
-	ImageId          *string                `json:"image_id,omitempty"`
-	InspectUpdatedAt *time.Time             `json:"inspect_updated_at,omitempty"`
-	Labels           *map[string]string     `json:"labels,omitempty"`
-	Mounts           []ContainerMount       `json:"mounts"`
+	Health *ContainerDetailHealth `json:"health,omitempty"`
+
+	// Healthcheck Docker Healthcheck diagnostics from container inspect. Omitted when no Healthcheck is configured.
+	Healthcheck      *ContainerHealthcheck `json:"healthcheck,omitempty"`
+	Id               string                `json:"id"`
+	Image            string                `json:"image"`
+	ImageId          *string               `json:"image_id,omitempty"`
+	InspectUpdatedAt *time.Time            `json:"inspect_updated_at,omitempty"`
+	Labels           *map[string]string    `json:"labels,omitempty"`
+
+	// LastExitCode Last container process exit code from Docker inspect state when available.
+	LastExitCode *int             `json:"last_exit_code,omitempty"`
+	Mounts       []ContainerMount `json:"mounts"`
 
 	// Name Primary display name, falling back to id when the runtime returns no names.
 	Name           string             `json:"name"`
 	Names          []string           `json:"names"`
 	NetworkSummary *string            `json:"network_summary,omitempty"`
 	Networks       []ContainerNetwork `json:"networks"`
-	Ports          []ContainerPort    `json:"ports"`
+
+	// OomKilled Whether Docker inspect reports the container was killed by the OOM killer.
+	OomKilled *bool           `json:"oom_killed,omitempty"`
+	Ports     []ContainerPort `json:"ports"`
 
 	// PrimaryIp Primary IP address when the runtime list summary exposes one without raw inspect.
 	PrimaryIp *string                   `json:"primary_ip,omitempty"`
@@ -3098,6 +3170,9 @@ type ContainerDetailState string
 
 // ContainerEnvironmentEntry Container environment variable entry after policy application.
 type ContainerEnvironmentEntry struct {
+	// CopyValue Copy-only raw value for a masked entry. Present only when policy, permission, and system configuration allow copying masked values.
+	CopyValue *string `json:"copy_value,omitempty"`
+
 	// Key Environment variable name.
 	Key string `json:"key"`
 
@@ -3116,6 +3191,34 @@ type ContainerEnvironmentEntry struct {
 
 // ContainerEnvironmentEntrySource Runtime source of the environment variable entry.
 type ContainerEnvironmentEntrySource string
+
+// ContainerHealthcheck Docker Healthcheck diagnostics from container inspect.
+type ContainerHealthcheck struct {
+	// CheckedAt Completion time of the most recent Docker Healthcheck result when available.
+	CheckedAt *time.Time `json:"checked_at,omitempty"`
+
+	// Command Docker Healthcheck test command as reported by inspect.
+	Command []string `json:"command"`
+
+	// Configured True when Docker inspect exposes an active Healthcheck command for the container.
+	Configured bool `json:"configured"`
+
+	// ExitCode Exit code from the most recent Docker Healthcheck result when available.
+	ExitCode *int `json:"exit_code,omitempty"`
+
+	// FailingStreak Docker reported consecutive Healthcheck failure count.
+	FailingStreak *int `json:"failing_streak,omitempty"`
+
+	// FailureMessage Recent failure output when the latest Healthcheck result failed.
+	FailureMessage *string `json:"failure_message,omitempty"`
+
+	// Output Output from the most recent Docker Healthcheck result, trimmed for display.
+	Output *string                    `json:"output,omitempty"`
+	Status ContainerHealthcheckStatus `json:"status"`
+}
+
+// ContainerHealthcheckStatus defines model for ContainerHealthcheck.Status.
+type ContainerHealthcheckStatus string
 
 // ContainerListResponse defines model for container-list-response.
 type ContainerListResponse struct {
@@ -3160,14 +3263,62 @@ type ContainerLogResponse struct {
 
 // ContainerMount defines model for container-mount.
 type ContainerMount struct {
-	Destination string  `json:"destination"`
-	Mode        string  `json:"mode"`
-	Name        *string `json:"name,omitempty"`
-	ReadOnly    bool    `json:"read_only"`
-	Source      *string `json:"source,omitempty"`
+	Destination string `json:"destination"`
+	Mode        string `json:"mode"`
+
+	// MountId Stable id generated from destination, source, and type. Clients must use this value for usage refresh.
+	MountId  string  `json:"mount_id"`
+	Name     *string `json:"name,omitempty"`
+	ReadOnly bool    `json:"read_only"`
+	Source   *string `json:"source,omitempty"`
+
+	// Type Runtime mount type such as bind, volume, or tmpfs.
+	Type  string               `json:"type"`
+	Usage *ContainerMountUsage `json:"usage,omitempty"`
+}
+
+// ContainerMountUsage defines model for container-mount-usage.
+type ContainerMountUsage struct {
+	// ContainerId Container id or reference resolved by the runtime.
+	ContainerId string `json:"container_id"`
+
+	// Destination Container path where the mount is attached.
+	Destination string `json:"destination"`
+
+	// MeasuredAt UTC timestamp when the usage was measured.
+	MeasuredAt *time.Time `json:"measured_at,omitempty"`
+
+	// Message Optional weak explanatory text for unsupported or failed statistics.
+	Message *string `json:"message,omitempty"`
+
+	// MountId Stable id generated from the inspected mount destination, source, and type.
+	MountId string `json:"mount_id"`
+
+	// SharedHint Optional hint that the source path or named volume may be shared by multiple containers.
+	SharedHint *string `json:"shared_hint,omitempty"`
+
+	// SizeBytes Measured storage usage in bytes when status is measured.
+	SizeBytes *int64 `json:"size_bytes,omitempty"`
+
+	// SizeDisplay Human-readable storage usage such as 128.4 MiB.
+	SizeDisplay *string `json:"size_display,omitempty"`
+
+	// Source Runtime-reported source path or volume source. It is never accepted from clients for statistics.
+	Source string `json:"source"`
+
+	// Status Structured mount usage measurement state.
+	Status ContainerMountUsageStatus `json:"status"`
 
 	// Type Runtime mount type such as bind, volume, or tmpfs.
 	Type string `json:"type"`
+}
+
+// ContainerMountUsageStatus Structured mount usage measurement state.
+type ContainerMountUsageStatus string
+
+// ContainerMountUsageListResponse defines model for container-mount-usage-list-response.
+type ContainerMountUsageListResponse struct {
+	Items []ContainerMountUsage `json:"items"`
 }
 
 // ContainerNetwork defines model for container-network.
@@ -3876,6 +4027,46 @@ type EnvelopedContainerLogResponse struct {
 	// Code Existing canonical response code.
 	Code string               `json:"code"`
 	Data ContainerLogResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedContainerMountUsage defines model for enveloped-container-mount-usage.
+type EnvelopedContainerMountUsage struct {
+	// Code Existing canonical response code.
+	Code string              `json:"code"`
+	Data ContainerMountUsage `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedContainerMountUsageListResponse defines model for enveloped-container-mount-usage-list-response.
+type EnvelopedContainerMountUsageListResponse struct {
+	// Code Existing canonical response code.
+	Code string                          `json:"code"`
+	Data ContainerMountUsageListResponse `json:"data"`
 
 	// Locale Present on localized error flows and omitted on normal success.
 	Locale *string `json:"locale,omitempty"`
@@ -5530,6 +5721,9 @@ type ContainerLogsTail = int
 // ContainerLogsTimestamps defines model for container-logs-timestamps.
 type ContainerLogsTimestamps = bool
 
+// ContainerMountIdPath defines model for container-mount-id-path.
+type ContainerMountIdPath = string
+
 // LocaleHeader defines model for locale-header.
 type LocaleHeader = string
 
@@ -6225,6 +6419,26 @@ type GetContainerLogsParams struct {
 	// Stderr Whether stderr stream lines should be included.
 	Stderr *ContainerLogsStderr `form:"stderr,omitempty" json:"stderr,omitempty"`
 
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetContainerMountUsageParams defines parameters for GetContainerMountUsage.
+type GetContainerMountUsageParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostContainerMountUsageRefreshParams defines parameters for PostContainerMountUsageRefresh.
+type PostContainerMountUsageRefreshParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 

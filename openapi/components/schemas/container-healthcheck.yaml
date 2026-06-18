@@ -1,0 +1,43 @@
+description: Docker Healthcheck diagnostics from container inspect.
+type: object
+required:
+  - configured
+  - status
+  - command
+properties:
+  configured:
+    type: boolean
+    description: True when Docker inspect exposes an active Healthcheck command for the container.
+  status:
+    type: string
+    enum: [healthy, unhealthy, starting, none, unavailable]
+    x-enum-varnames:
+      - ContainerHealthcheckStatusHealthy
+      - ContainerHealthcheckStatusUnhealthy
+      - ContainerHealthcheckStatusStarting
+      - ContainerHealthcheckStatusNone
+      - ContainerHealthcheckStatusUnavailable
+  command:
+    type: array
+    items:
+      type: string
+    description: Docker Healthcheck test command as reported by inspect.
+  exit_code:
+    type: integer
+    nullable: true
+    description: Exit code from the most recent Docker Healthcheck result when available.
+  output:
+    type: string
+    description: Output from the most recent Docker Healthcheck result, trimmed for display.
+  checked_at:
+    type: string
+    format: date-time
+    description: Completion time of the most recent Docker Healthcheck result when available.
+  failing_streak:
+    type: integer
+    minimum: 0
+    nullable: true
+    description: Docker reported consecutive Healthcheck failure count.
+  failure_message:
+    type: string
+    description: Recent failure output when the latest Healthcheck result failed.

@@ -406,6 +406,69 @@ func (e GetContainer200JSONResponseBodyDataHealth) Valid() bool {
 	}
 }
 
+// Defines values for GetContainer200JSONResponseBodyDataHealthcheckStatus.
+const (
+	ContainerHealthcheckStatusHealthy     GetContainer200JSONResponseBodyDataHealthcheckStatus = "healthy"
+	ContainerHealthcheckStatusNone        GetContainer200JSONResponseBodyDataHealthcheckStatus = "none"
+	ContainerHealthcheckStatusStarting    GetContainer200JSONResponseBodyDataHealthcheckStatus = "starting"
+	ContainerHealthcheckStatusUnavailable GetContainer200JSONResponseBodyDataHealthcheckStatus = "unavailable"
+	ContainerHealthcheckStatusUnhealthy   GetContainer200JSONResponseBodyDataHealthcheckStatus = "unhealthy"
+)
+
+// Valid indicates whether the value is a known member of the GetContainer200JSONResponseBodyDataHealthcheckStatus enum.
+func (e GetContainer200JSONResponseBodyDataHealthcheckStatus) Valid() bool {
+	switch e {
+	case ContainerHealthcheckStatusHealthy:
+		return true
+	case ContainerHealthcheckStatusNone:
+		return true
+	case ContainerHealthcheckStatusStarting:
+		return true
+	case ContainerHealthcheckStatusUnavailable:
+		return true
+	case ContainerHealthcheckStatusUnhealthy:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetContainer200JSONResponseBodyDataMountsUsageStatus.
+const (
+	GetContainer200JSONResponseBodyDataMountsUsageStatusError            GetContainer200JSONResponseBodyDataMountsUsageStatus = "error"
+	GetContainer200JSONResponseBodyDataMountsUsageStatusMeasured         GetContainer200JSONResponseBodyDataMountsUsageStatus = "measured"
+	GetContainer200JSONResponseBodyDataMountsUsageStatusNotFound         GetContainer200JSONResponseBodyDataMountsUsageStatus = "not_found"
+	GetContainer200JSONResponseBodyDataMountsUsageStatusNotMeasured      GetContainer200JSONResponseBodyDataMountsUsageStatus = "not_measured"
+	GetContainer200JSONResponseBodyDataMountsUsageStatusPending          GetContainer200JSONResponseBodyDataMountsUsageStatus = "pending"
+	GetContainer200JSONResponseBodyDataMountsUsageStatusPermissionDenied GetContainer200JSONResponseBodyDataMountsUsageStatus = "permission_denied"
+	GetContainer200JSONResponseBodyDataMountsUsageStatusTimeout          GetContainer200JSONResponseBodyDataMountsUsageStatus = "timeout"
+	GetContainer200JSONResponseBodyDataMountsUsageStatusUnsupported      GetContainer200JSONResponseBodyDataMountsUsageStatus = "unsupported"
+)
+
+// Valid indicates whether the value is a known member of the GetContainer200JSONResponseBodyDataMountsUsageStatus enum.
+func (e GetContainer200JSONResponseBodyDataMountsUsageStatus) Valid() bool {
+	switch e {
+	case GetContainer200JSONResponseBodyDataMountsUsageStatusError:
+		return true
+	case GetContainer200JSONResponseBodyDataMountsUsageStatusMeasured:
+		return true
+	case GetContainer200JSONResponseBodyDataMountsUsageStatusNotFound:
+		return true
+	case GetContainer200JSONResponseBodyDataMountsUsageStatusNotMeasured:
+		return true
+	case GetContainer200JSONResponseBodyDataMountsUsageStatusPending:
+		return true
+	case GetContainer200JSONResponseBodyDataMountsUsageStatusPermissionDenied:
+		return true
+	case GetContainer200JSONResponseBodyDataMountsUsageStatusTimeout:
+		return true
+	case GetContainer200JSONResponseBodyDataMountsUsageStatusUnsupported:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetContainer200JSONResponseBodyDataPortsType.
 const (
 	GetContainer200JSONResponseBodyDataPortsTypeContainerPortTypeValueSCTP GetContainer200JSONResponseBodyDataPortsType = "sctp"
@@ -628,6 +691,228 @@ const (
 func (e GetContainerLogs500JSONResponseBodySuccess) Valid() bool {
 	switch e {
 	case GetContainerLogs500JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetContainerMountUsage200JSONResponseBodyDataItemsStatus.
+const (
+	GetContainerMountUsage200JSONResponseBodyDataItemsStatusError            GetContainerMountUsage200JSONResponseBodyDataItemsStatus = "error"
+	GetContainerMountUsage200JSONResponseBodyDataItemsStatusMeasured         GetContainerMountUsage200JSONResponseBodyDataItemsStatus = "measured"
+	GetContainerMountUsage200JSONResponseBodyDataItemsStatusNotFound         GetContainerMountUsage200JSONResponseBodyDataItemsStatus = "not_found"
+	GetContainerMountUsage200JSONResponseBodyDataItemsStatusNotMeasured      GetContainerMountUsage200JSONResponseBodyDataItemsStatus = "not_measured"
+	GetContainerMountUsage200JSONResponseBodyDataItemsStatusPending          GetContainerMountUsage200JSONResponseBodyDataItemsStatus = "pending"
+	GetContainerMountUsage200JSONResponseBodyDataItemsStatusPermissionDenied GetContainerMountUsage200JSONResponseBodyDataItemsStatus = "permission_denied"
+	GetContainerMountUsage200JSONResponseBodyDataItemsStatusTimeout          GetContainerMountUsage200JSONResponseBodyDataItemsStatus = "timeout"
+	GetContainerMountUsage200JSONResponseBodyDataItemsStatusUnsupported      GetContainerMountUsage200JSONResponseBodyDataItemsStatus = "unsupported"
+)
+
+// Valid indicates whether the value is a known member of the GetContainerMountUsage200JSONResponseBodyDataItemsStatus enum.
+func (e GetContainerMountUsage200JSONResponseBodyDataItemsStatus) Valid() bool {
+	switch e {
+	case GetContainerMountUsage200JSONResponseBodyDataItemsStatusError:
+		return true
+	case GetContainerMountUsage200JSONResponseBodyDataItemsStatusMeasured:
+		return true
+	case GetContainerMountUsage200JSONResponseBodyDataItemsStatusNotFound:
+		return true
+	case GetContainerMountUsage200JSONResponseBodyDataItemsStatusNotMeasured:
+		return true
+	case GetContainerMountUsage200JSONResponseBodyDataItemsStatusPending:
+		return true
+	case GetContainerMountUsage200JSONResponseBodyDataItemsStatusPermissionDenied:
+		return true
+	case GetContainerMountUsage200JSONResponseBodyDataItemsStatusTimeout:
+		return true
+	case GetContainerMountUsage200JSONResponseBodyDataItemsStatusUnsupported:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetContainerMountUsage400JSONResponseBodySuccess.
+const (
+	GetContainerMountUsage400JSONResponseBodySuccessFalse GetContainerMountUsage400JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetContainerMountUsage400JSONResponseBodySuccess enum.
+func (e GetContainerMountUsage400JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetContainerMountUsage400JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetContainerMountUsage401JSONResponseBodySuccess.
+const (
+	GetContainerMountUsage401JSONResponseBodySuccessFalse GetContainerMountUsage401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetContainerMountUsage401JSONResponseBodySuccess enum.
+func (e GetContainerMountUsage401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetContainerMountUsage401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetContainerMountUsage403JSONResponseBodySuccess.
+const (
+	GetContainerMountUsage403JSONResponseBodySuccessFalse GetContainerMountUsage403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetContainerMountUsage403JSONResponseBodySuccess enum.
+func (e GetContainerMountUsage403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetContainerMountUsage403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetContainerMountUsage404JSONResponseBodySuccess.
+const (
+	GetContainerMountUsage404JSONResponseBodySuccessFalse GetContainerMountUsage404JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetContainerMountUsage404JSONResponseBodySuccess enum.
+func (e GetContainerMountUsage404JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetContainerMountUsage404JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetContainerMountUsage500JSONResponseBodySuccess.
+const (
+	GetContainerMountUsage500JSONResponseBodySuccessFalse GetContainerMountUsage500JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetContainerMountUsage500JSONResponseBodySuccess enum.
+func (e GetContainerMountUsage500JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetContainerMountUsage500JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostContainerMountUsageRefresh200JSONResponseBodyDataStatus.
+const (
+	Error            PostContainerMountUsageRefresh200JSONResponseBodyDataStatus = "error"
+	Measured         PostContainerMountUsageRefresh200JSONResponseBodyDataStatus = "measured"
+	NotFound         PostContainerMountUsageRefresh200JSONResponseBodyDataStatus = "not_found"
+	NotMeasured      PostContainerMountUsageRefresh200JSONResponseBodyDataStatus = "not_measured"
+	Pending          PostContainerMountUsageRefresh200JSONResponseBodyDataStatus = "pending"
+	PermissionDenied PostContainerMountUsageRefresh200JSONResponseBodyDataStatus = "permission_denied"
+	Timeout          PostContainerMountUsageRefresh200JSONResponseBodyDataStatus = "timeout"
+	Unsupported      PostContainerMountUsageRefresh200JSONResponseBodyDataStatus = "unsupported"
+)
+
+// Valid indicates whether the value is a known member of the PostContainerMountUsageRefresh200JSONResponseBodyDataStatus enum.
+func (e PostContainerMountUsageRefresh200JSONResponseBodyDataStatus) Valid() bool {
+	switch e {
+	case Error:
+		return true
+	case Measured:
+		return true
+	case NotFound:
+		return true
+	case NotMeasured:
+		return true
+	case Pending:
+		return true
+	case PermissionDenied:
+		return true
+	case Timeout:
+		return true
+	case Unsupported:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostContainerMountUsageRefresh400JSONResponseBodySuccess.
+const (
+	PostContainerMountUsageRefresh400JSONResponseBodySuccessFalse PostContainerMountUsageRefresh400JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostContainerMountUsageRefresh400JSONResponseBodySuccess enum.
+func (e PostContainerMountUsageRefresh400JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostContainerMountUsageRefresh400JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostContainerMountUsageRefresh401JSONResponseBodySuccess.
+const (
+	PostContainerMountUsageRefresh401JSONResponseBodySuccessFalse PostContainerMountUsageRefresh401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostContainerMountUsageRefresh401JSONResponseBodySuccess enum.
+func (e PostContainerMountUsageRefresh401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostContainerMountUsageRefresh401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostContainerMountUsageRefresh403JSONResponseBodySuccess.
+const (
+	PostContainerMountUsageRefresh403JSONResponseBodySuccessFalse PostContainerMountUsageRefresh403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostContainerMountUsageRefresh403JSONResponseBodySuccess enum.
+func (e PostContainerMountUsageRefresh403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostContainerMountUsageRefresh403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostContainerMountUsageRefresh404JSONResponseBodySuccess.
+const (
+	PostContainerMountUsageRefresh404JSONResponseBodySuccessFalse PostContainerMountUsageRefresh404JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostContainerMountUsageRefresh404JSONResponseBodySuccess enum.
+func (e PostContainerMountUsageRefresh404JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostContainerMountUsageRefresh404JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostContainerMountUsageRefresh500JSONResponseBodySuccess.
+const (
+	PostContainerMountUsageRefresh500JSONResponseBodySuccessFalse PostContainerMountUsageRefresh500JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostContainerMountUsageRefresh500JSONResponseBodySuccess enum.
+func (e PostContainerMountUsageRefresh500JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostContainerMountUsageRefresh500JSONResponseBodySuccessFalse:
 		return true
 	default:
 		return false
@@ -1291,6 +1576,12 @@ type GetContainer200JSONResponseBodyDataEnvironmentPolicy string
 // GetContainer200JSONResponseBodyDataHealth defines parameters for GetContainer.
 type GetContainer200JSONResponseBodyDataHealth string
 
+// GetContainer200JSONResponseBodyDataHealthcheckStatus defines parameters for GetContainer.
+type GetContainer200JSONResponseBodyDataHealthcheckStatus string
+
+// GetContainer200JSONResponseBodyDataMountsUsageStatus defines parameters for GetContainer.
+type GetContainer200JSONResponseBodyDataMountsUsageStatus string
+
 // GetContainer200JSONResponseBodyDataPortsType defines parameters for GetContainer.
 type GetContainer200JSONResponseBodyDataPortsType string
 
@@ -1354,6 +1645,62 @@ type GetContainerLogs404JSONResponseBodySuccess bool
 
 // GetContainerLogs500JSONResponseBodySuccess defines parameters for GetContainerLogs.
 type GetContainerLogs500JSONResponseBodySuccess bool
+
+// GetContainerMountUsageParams defines parameters for GetContainerMountUsage.
+type GetContainerMountUsageParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// GetContainerMountUsage200JSONResponseBodyDataItemsStatus defines parameters for GetContainerMountUsage.
+type GetContainerMountUsage200JSONResponseBodyDataItemsStatus string
+
+// GetContainerMountUsage400JSONResponseBodySuccess defines parameters for GetContainerMountUsage.
+type GetContainerMountUsage400JSONResponseBodySuccess bool
+
+// GetContainerMountUsage401JSONResponseBodySuccess defines parameters for GetContainerMountUsage.
+type GetContainerMountUsage401JSONResponseBodySuccess bool
+
+// GetContainerMountUsage403JSONResponseBodySuccess defines parameters for GetContainerMountUsage.
+type GetContainerMountUsage403JSONResponseBodySuccess bool
+
+// GetContainerMountUsage404JSONResponseBodySuccess defines parameters for GetContainerMountUsage.
+type GetContainerMountUsage404JSONResponseBodySuccess bool
+
+// GetContainerMountUsage500JSONResponseBodySuccess defines parameters for GetContainerMountUsage.
+type GetContainerMountUsage500JSONResponseBodySuccess bool
+
+// PostContainerMountUsageRefreshParams defines parameters for PostContainerMountUsageRefresh.
+type PostContainerMountUsageRefreshParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// PostContainerMountUsageRefresh200JSONResponseBodyDataStatus defines parameters for PostContainerMountUsageRefresh.
+type PostContainerMountUsageRefresh200JSONResponseBodyDataStatus string
+
+// PostContainerMountUsageRefresh400JSONResponseBodySuccess defines parameters for PostContainerMountUsageRefresh.
+type PostContainerMountUsageRefresh400JSONResponseBodySuccess bool
+
+// PostContainerMountUsageRefresh401JSONResponseBodySuccess defines parameters for PostContainerMountUsageRefresh.
+type PostContainerMountUsageRefresh401JSONResponseBodySuccess bool
+
+// PostContainerMountUsageRefresh403JSONResponseBodySuccess defines parameters for PostContainerMountUsageRefresh.
+type PostContainerMountUsageRefresh403JSONResponseBodySuccess bool
+
+// PostContainerMountUsageRefresh404JSONResponseBodySuccess defines parameters for PostContainerMountUsageRefresh.
+type PostContainerMountUsageRefresh404JSONResponseBodySuccess bool
+
+// PostContainerMountUsageRefresh500JSONResponseBodySuccess defines parameters for PostContainerMountUsageRefresh.
+type PostContainerMountUsageRefresh500JSONResponseBodySuccess bool
 
 // PostContainerRemoveJSONBody defines parameters for PostContainerRemove.
 type PostContainerRemoveJSONBody struct {

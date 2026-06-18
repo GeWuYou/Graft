@@ -31,6 +31,7 @@
     "search": {
       "placeholder": "输入要搜索内容"
     },
+    "routeLoading": "页面加载中",
     "tagTabs": {
       "closeOther": "关闭其他",
       "closeLeft": "关闭左侧",

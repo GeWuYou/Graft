@@ -110,9 +110,12 @@ onMounted(() => {
 
 watch(
   () => route.fullPath,
-  () => {
+  (_, previousFullPath) => {
+    const previousPath = previousFullPath ? router.resolve(previousFullPath).path : '';
     appendNewRoute();
-    document.querySelector(`.${prefix}-layout`)?.scrollTo({ top: 0, behavior: 'smooth' });
+    if (previousPath && previousPath !== route.path) {
+      document.querySelector(`.${prefix}-layout`)?.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   },
 );
 </script>

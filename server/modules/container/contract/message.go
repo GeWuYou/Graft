@@ -26,6 +26,8 @@ const (
 	ContainerRuntimeUnavailable MessageKey = "ops.container.error.runtimeUnavailable"
 	// ContainerNotFound identifies missing container errors.
 	ContainerNotFound MessageKey = "ops.container.error.containerNotFound"
+	// ContainerMountNotFound identifies missing container mount errors.
+	ContainerMountNotFound MessageKey = "ops.container.error.containerMountNotFound"
 	// ContainerInvalidRef identifies invalid container reference errors.
 	ContainerInvalidRef MessageKey = "ops.container.error.invalidContainerRef"
 	// ContainerInvalidListQuery identifies invalid list query parameter errors.
@@ -40,6 +42,8 @@ const (
 	ContainerInvalidLogQuery MessageKey = "ops.container.error.invalidLogQuery"
 	// ContainerTimeout identifies runtime timeout errors.
 	ContainerTimeout MessageKey = "ops.container.error.timeout"
+	// ContainerMountUsageUnsupported identifies unsupported mount usage errors.
+	ContainerMountUsageUnsupported MessageKey = "ops.container.error.mountUsageUnsupported"
 	// ContainerDangerousActionsDisabled identifies disabled action errors.
 	ContainerDangerousActionsDisabled MessageKey = "ops.container.error.dangerousActionsDisabled"
 	// ContainerActionStartCompleted identifies successful start action responses.

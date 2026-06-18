@@ -12,6 +12,10 @@ const (
 	ContainerDetailRoute = "/:id"
 	// ContainerLogsRoute is the log route fragment.
 	ContainerLogsRoute = "/:id/logs"
+	// ContainerMountUsageRoute is the mount usage route fragment.
+	ContainerMountUsageRoute = "/:id/mounts/usage"
+	// ContainerMountUsageRefreshRoute is the mount usage refresh route fragment.
+	ContainerMountUsageRefreshRoute = "/:id/mounts/:mountId/usage/refresh"
 	// ContainerStartRoute is the start action route fragment.
 	ContainerStartRoute = "/:id/start"
 	// ContainerStopRoute is the stop action route fragment.

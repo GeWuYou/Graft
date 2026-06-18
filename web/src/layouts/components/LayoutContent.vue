@@ -152,7 +152,7 @@ const router = useRouter();
 
 const settingStore = useSettingStore();
 const tabsRouterStore = useTabsRouterStore();
-const tabRouters = computed(() => tabsRouterStore.tabRouters.filter((route) => route.isAlive || route.isHome));
+const tabRouters = computed(() => tabsRouterStore.tabRouters);
 const activeTabKeyForMenu = ref<string | null>('');
 const closeAllDialogVisible = ref(false);
 const pendingCloseAllDialog = ref(false);
@@ -399,8 +399,10 @@ const handleDragend = (options: { currentIndex: number; targetIndex: number }) =
 .t-layout[data-page-type] {
   background: transparent;
   display: flex;
+  flex: 1;
   flex-direction: column;
-  min-height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .t-layout[data-page-type] :deep(.tdesign-starter-layout-tabs-nav) {

@@ -1,0 +1,48 @@
+post:
+  tags: [container]
+  summary: Refresh one container mount usage statistic
+  operationId: postContainerMountUsageRefresh
+  description: >
+    Refreshes usage for one mount returned by Docker inspect. Clients must use mount_id from the container detail or
+    mount usage APIs; the backend never accepts arbitrary source paths from clients.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - $ref: ../components/parameters/container-id-path.yaml
+    - $ref: ../components/parameters/container-mount-id-path.yaml
+  security:
+    - bearerAuth: []
+  responses:
+    '200':
+      description: Refreshed mount usage statistic.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-container-mount-usage.yaml
+    '400':
+      description: Invalid container reference or mount id.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      $ref: ../components/responses/forbidden.yaml
+    '404':
+      description: Container or mount was not found.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml

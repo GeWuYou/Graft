@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/pkg/stdcopy"
 )
@@ -508,6 +509,91 @@ func TestDockerDetailParsesEnvironmentVariables(t *testing.T) {
 	}
 }
 
+func TestDockerDetailMapsHealthcheckAndRuntimeStability(t *testing.T) {
+	t.Parallel()
+
+	checkedAt := time.Date(2026, 6, 17, 1, 31, 53, 0, time.UTC)
+	inspect := container.InspectResponse{
+		ContainerJSONBase: &container.ContainerJSONBase{
+			ID:   "abc123",
+			Name: "/web",
+			State: &container.State{
+				Status:    container.StateRunning,
+				ExitCode:  137,
+				OOMKilled: true,
+				Health: &container.Health{
+					Status:        container.Unhealthy,
+					FailingStreak: 2,
+					Log: []*container.HealthcheckResult{
+						{
+							End:      checkedAt,
+							ExitCode: 1,
+							Output:   "curl failed\n",
+						},
+					},
+				},
+			},
+			Created: "2026-06-14T00:00:00Z",
+		},
+		Config: &container.Config{
+			Image: "nginx:latest",
+			Healthcheck: &container.HealthConfig{
+				Test: []string{"CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"},
+			},
+		},
+	}
+
+	detail := dockerDetail(inspect, RuntimeInfo{Runtime: runtimeNameDocker, Status: "enabled"})
+
+	if detail.Health != containerHealthUnhealthy {
+		t.Fatalf("expected unhealthy summary health, got %q", detail.Health)
+	}
+	if detail.Healthcheck == nil {
+		t.Fatalf("expected mapped healthcheck")
+	}
+	if !detail.Healthcheck.Configured || detail.Healthcheck.Status != containerHealthUnhealthy {
+		t.Fatalf("unexpected healthcheck status %#v", detail.Healthcheck)
+	}
+	if !reflect.DeepEqual(detail.Healthcheck.Command, []string{"CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"}) {
+		t.Fatalf("unexpected healthcheck command %#v", detail.Healthcheck.Command)
+	}
+	if detail.Healthcheck.CheckedAt != "2026-06-17T01:31:53Z" {
+		t.Fatalf("unexpected healthcheck checked_at %q", detail.Healthcheck.CheckedAt)
+	}
+	if detail.Healthcheck.Output != "curl failed" || detail.Healthcheck.FailureMessage != "curl failed" {
+		t.Fatalf("unexpected healthcheck output %#v", detail.Healthcheck)
+	}
+	assertIntPtr(t, detail.Healthcheck.ExitCode, 1, "healthcheck exit code")
+	assertIntPtr(t, detail.Healthcheck.FailingStreak, 2, "healthcheck failing streak")
+	assertIntPtr(t, detail.LastExitCode, 137, "last exit code")
+	if detail.OOMKilled == nil || !*detail.OOMKilled {
+		t.Fatalf("expected oom killed true, got %#v", detail.OOMKilled)
+	}
+}
+
+func TestDockerDetailOmitsDisabledHealthcheck(t *testing.T) {
+	t.Parallel()
+
+	detail := dockerDetail(container.InspectResponse{
+		ContainerJSONBase: &container.ContainerJSONBase{
+			ID:    "abc123",
+			Name:  "/web",
+			State: &container.State{Status: container.StateRunning},
+		},
+		Config: &container.Config{
+			Image:       "nginx:latest",
+			Healthcheck: &container.HealthConfig{Test: []string{"NONE"}},
+		},
+	}, RuntimeInfo{Runtime: runtimeNameDocker, Status: "enabled"})
+
+	if detail.Healthcheck != nil {
+		t.Fatalf("expected disabled healthcheck to be omitted, got %#v", detail.Healthcheck)
+	}
+	if detail.Health != containerHealthNone {
+		t.Fatalf("expected no healthcheck health, got %q", detail.Health)
+	}
+}
+
 func TestDockerRuntimeRemoveForceCallsDockerRemove(t *testing.T) {
 	t.Parallel()
 
@@ -535,6 +621,118 @@ func TestDockerRuntimeRemoveForceCallsDockerRemove(t *testing.T) {
 	}
 	if calls := client.removeCalls.Load(); calls != 1 {
 		t.Fatalf("expected one remove call, got %d", calls)
+	}
+}
+
+func TestDockerRuntimeMountUsageUsesInspectDerivedBindSource(t *testing.T) {
+	t.Parallel()
+
+	mount := dockerTestMount("bind", "/host/data", "/data", "")
+	scanner := &recordingMountUsageScanner{size: 2 * 1024 * 1024}
+	runtime := &DockerRuntime{
+		client:            &countingDockerClient{inspect: dockerInspectWithMounts("abc123", mount)},
+		endpoint:          "unix:///var/run/docker.sock",
+		mountUsageScanner: scanner,
+	}
+	mountID := dockerMounts([]container.MountPoint{mount})[0].ID
+
+	usage, err := runtime.MountUsage(context.Background(), Ref{Value: "web"}, mountID)
+	if err != nil {
+		t.Fatalf("mount usage: %v", err)
+	}
+	if usage.MountID != mountID || usage.Status != containerMountUsageStatusMeasured || usage.SizeBytes != 2*1024*1024 || usage.SizeDisplay != "2 MiB" {
+		t.Fatalf("unexpected mount usage %#v", usage)
+	}
+	if scanner.calls.Load() != 1 || scanner.paths[0] != "/host/data" {
+		t.Fatalf("expected inspect-derived source scan, got calls=%d paths=%#v", scanner.calls.Load(), scanner.paths)
+	}
+}
+
+func TestDockerRuntimeMountUsageMapsScannerStatuses(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name   string
+		err    error
+		status string
+	}{
+		{name: "not found", err: errContainerMountNotFound, status: containerMountUsageStatusNotFound},
+		{name: "permission denied", err: errRuntimePermissionDenied, status: containerMountUsageStatusPermissionDenied},
+		{name: "timeout", err: errContainerRuntimeTimeout, status: containerMountUsageStatusTimeout},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			mount := dockerTestMount("bind", "/host/data", "/data", "")
+			runtime := &DockerRuntime{
+				client:            &countingDockerClient{inspect: dockerInspectWithMounts("abc123", mount)},
+				mountUsageScanner: &recordingMountUsageScanner{err: tc.err},
+			}
+			mountID := dockerMounts([]container.MountPoint{mount})[0].ID
+
+			usage, err := runtime.MountUsage(context.Background(), Ref{Value: "web"}, mountID)
+			if err != nil {
+				t.Fatalf("mount usage should return status record, got %v", err)
+			}
+			if usage.Status != tc.status || usage.Message == "" {
+				t.Fatalf("expected status %q with message, got %#v", tc.status, usage)
+			}
+		})
+	}
+}
+
+func TestDockerRuntimeMountUsageVolumeAndUnsupportedMounts(t *testing.T) {
+	t.Parallel()
+
+	volume := dockerTestMount("volume", "/var/lib/docker/volumes/data/_data", "/data", "data")
+	tmpfs := dockerTestMount("tmpfs", "", "/tmp", "")
+	emptyVolume := dockerTestMount("volume", "", "/empty", "empty")
+	runtime := &DockerRuntime{
+		client:            &countingDockerClient{inspect: dockerInspectWithMounts("abc123", volume, tmpfs, emptyVolume)},
+		mountUsageScanner: &recordingMountUsageScanner{size: 3 * 1024 * 1024 * 1024},
+	}
+	mounts := dockerMounts([]container.MountPoint{volume, tmpfs, emptyVolume})
+
+	usage, err := runtime.MountUsage(context.Background(), Ref{Value: "web"}, mounts[0].ID)
+	if err != nil {
+		t.Fatalf("volume mount usage: %v", err)
+	}
+	if usage.Status != containerMountUsageStatusMeasured || usage.SizeDisplay != "3 GiB" || usage.SharedHint == "" {
+		t.Fatalf("unexpected volume usage %#v", usage)
+	}
+	for _, mount := range mounts[1:] {
+		usage, err := runtime.MountUsage(context.Background(), Ref{Value: "web"}, mount.ID)
+		if err != nil {
+			t.Fatalf("unsupported mount should return a status record for %#v, got %v", mount, err)
+		}
+		if usage.Status != containerMountUsageStatusUnsupported {
+			t.Fatalf("expected unsupported for %#v, got %#v", mount, usage)
+		}
+	}
+}
+
+func TestDockerRuntimeMountUsageRequiresCurrentInspectMountID(t *testing.T) {
+	t.Parallel()
+
+	current := dockerTestMount("bind", "/host/current", "/data", "")
+	old := dockerTestMount("bind", "/host/old", "/data", "")
+	currentID := dockerMounts([]container.MountPoint{current})[0].ID
+	oldID := dockerMounts([]container.MountPoint{old})[0].ID
+	runtime := &DockerRuntime{
+		client:            &countingDockerClient{inspect: dockerInspectWithMounts("abc123", current)},
+		mountUsageScanner: &recordingMountUsageScanner{size: 1024},
+	}
+
+	if _, err := runtime.MountUsage(context.Background(), Ref{Value: "web"}, oldID); !errors.Is(err, errContainerMountNotFound) {
+		t.Fatalf("expected old mount id to miss current inspect mounts, got %v", err)
+	}
+	if _, err := runtime.MountUsage(context.Background(), Ref{Value: "web"}, "/host/current"); !errors.Is(err, errContainerMountNotFound) {
+		t.Fatalf("expected arbitrary path to miss current inspect mount ids, got %v", err)
+	}
+	if usage, err := runtime.MountUsage(context.Background(), Ref{Value: "web"}, currentID); err != nil || usage.Status != containerMountUsageStatusMeasured {
+		t.Fatalf("expected current mount id to measure, got usage=%#v err=%v", usage, err)
 	}
 }
 
@@ -717,6 +915,14 @@ func assertInt64Ptr(t *testing.T, actual *int64, expected int64, label string) {
 	}
 }
 
+func assertIntPtr(t *testing.T, actual *int, expected int, label string) {
+	t.Helper()
+
+	if actual == nil || *actual != expected {
+		t.Fatalf("expected %s %v, got %#v", label, expected, actual)
+	}
+}
+
 type countingDockerClient struct {
 	infoCalls          atomic.Int64
 	inspectCalls       atomic.Int64
@@ -824,3 +1030,41 @@ func (timeoutError) Temporary() bool {
 }
 
 var _ net.Error = timeoutError{}
+
+type recordingMountUsageScanner struct {
+	calls atomic.Int64
+	paths []string
+	size  int64
+	err   error
+}
+
+func (s *recordingMountUsageScanner) ScanUsage(_ context.Context, path string) (int64, error) {
+	s.calls.Add(1)
+	s.paths = append(s.paths, path)
+	if s.err != nil {
+		return 0, s.err
+	}
+	return s.size, nil
+}
+
+func dockerInspectWithMounts(id string, mounts ...container.MountPoint) container.InspectResponse {
+	return container.InspectResponse{
+		ContainerJSONBase: &container.ContainerJSONBase{
+			ID:    id,
+			Name:  "/web",
+			State: &container.State{Status: container.StateRunning},
+		},
+		Config: &container.Config{Image: "nginx:latest"},
+		Mounts: mounts,
+	}
+}
+
+func dockerTestMount(mountType string, source string, destination string, name string) container.MountPoint {
+	return container.MountPoint{
+		Type:        mount.Type(mountType),
+		Name:        name,
+		Source:      source,
+		Destination: destination,
+		RW:          true,
+	}
+}

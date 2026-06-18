@@ -3,7 +3,146 @@
 
 package container
 
-import "testing"
+import (
+	"testing"
+
+	containergen "graft/server/internal/contract/openapi/generated"
+)
+
+func TestToDetailMapsHealthcheckAndRuntimeStability(t *testing.T) {
+	t.Parallel()
+
+	mapped := toDetail(detailWithHealthcheckAndRuntimeStability())
+	assertMappedHealthcheck(t, mapped.Healthcheck)
+	assertIntPtr(t, mapped.LastExitCode, 137, "mapped last exit code")
+	if mapped.OomKilled == nil || !*mapped.OomKilled {
+		t.Fatalf("expected mapped oom killed true, got %#v", mapped.OomKilled)
+	}
+	assertMappedEnvironmentCopyValue(t, mapped.Environment)
+	assertMappedMountUsage(t, mapped.Mounts)
+}
+
+func detailWithHealthcheckAndRuntimeStability() Detail {
+	return Detail{
+		Summary: Summary{
+			ID:            "abc123",
+			ShortID:       "abc123",
+			Name:          "web",
+			Names:         []string{"web"},
+			Image:         "nginx:latest",
+			Runtime:       runtimeNameDocker,
+			CreatedAt:     "2026-06-14T00:00:00Z",
+			State:         "running",
+			Status:        "running",
+			Health:        containerHealthUnhealthy,
+			RestartCount:  intPtrAllowZero(3),
+			RestartPolicy: "unless-stopped",
+		},
+		EnvironmentPolicy: "masked",
+		Environment: []EnvironmentVariable{
+			{
+				Key:       "API_TOKEN",
+				Value:     "",
+				CopyValue: stringPtr("secret"),
+				Masked:    true,
+				Sensitive: true,
+				Source:    dockerEnvironmentSource,
+			},
+		},
+		Healthcheck: &Healthcheck{
+			Configured:     true,
+			Status:         containerHealthUnhealthy,
+			Command:        []string{"CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"},
+			ExitCode:       intPtrAllowZero(1),
+			Output:         "curl failed",
+			CheckedAt:      "2026-06-17T01:31:53Z",
+			FailingStreak:  intPtrAllowZero(2),
+			FailureMessage: "curl failed",
+		},
+		LastExitCode: intPtrAllowZero(137),
+		Mounts: []Mount{
+			{
+				ID:          "m_abc123",
+				Type:        "bind",
+				Source:      "/srv/graft/data",
+				Destination: "/app/data",
+				Mode:        "rw",
+				ReadOnly:    false,
+				Usage: &MountUsage{
+					MountID:     "m_abc123",
+					ContainerID: "abc123",
+					Type:        "bind",
+					Source:      "/srv/graft/data",
+					Destination: "/app/data",
+					SizeBytes:   134637568,
+					SizeDisplay: "128.4 MiB",
+					Status:      containerMountUsageStatusMeasured,
+					MeasuredAt:  "2026-06-17T08:30:21Z",
+					Message:     "host path usage",
+					SharedHint:  "shared host path",
+				},
+			},
+		},
+		Networks:         []Network{},
+		OOMKilled:        boolPtr(true),
+		RuntimeInfo:      RuntimeInfo{Runtime: runtimeNameDocker, Status: "enabled", Endpoint: "local"},
+		InspectUpdatedAt: "2026-06-17T01:32:00Z",
+	}
+}
+
+func assertMappedHealthcheck(t *testing.T, healthcheck *containergen.ContainerHealthcheck) {
+	t.Helper()
+
+	if healthcheck == nil {
+		t.Fatalf("expected mapped healthcheck")
+	}
+	if !healthcheck.Configured || string(healthcheck.Status) != containerHealthUnhealthy {
+		t.Fatalf("unexpected mapped healthcheck %#v", healthcheck)
+	}
+	if len(healthcheck.Command) != 2 || healthcheck.Command[1] != "curl -f http://localhost:8080/health || exit 1" {
+		t.Fatalf("unexpected mapped healthcheck command %#v", healthcheck.Command)
+	}
+	assertIntPtr(t, healthcheck.ExitCode, 1, "mapped healthcheck exit code")
+	assertIntPtr(t, healthcheck.FailingStreak, 2, "mapped healthcheck failing streak")
+	if healthcheck.Output == nil || *healthcheck.Output != "curl failed" {
+		t.Fatalf("unexpected mapped healthcheck output %#v", healthcheck.Output)
+	}
+	if healthcheck.FailureMessage == nil || *healthcheck.FailureMessage != "curl failed" {
+		t.Fatalf("unexpected mapped healthcheck failure message %#v", healthcheck.FailureMessage)
+	}
+	if healthcheck.CheckedAt == nil || healthcheck.CheckedAt.Format("2006-01-02T15:04:05Z07:00") != "2026-06-17T01:31:53Z" {
+		t.Fatalf("unexpected mapped healthcheck checked_at %#v", healthcheck.CheckedAt)
+	}
+}
+
+func assertMappedEnvironmentCopyValue(t *testing.T, environment *[]containergen.ContainerEnvironmentEntry) {
+	t.Helper()
+
+	if environment == nil || len(*environment) != 1 {
+		t.Fatalf("expected one mapped environment entry, got %#v", environment)
+	}
+	if (*environment)[0].CopyValue == nil || *(*environment)[0].CopyValue != "secret" {
+		t.Fatalf("expected mapped environment copy value, got %#v", environment)
+	}
+}
+
+func assertMappedMountUsage(t *testing.T, mounts []containergen.ContainerMount) {
+	t.Helper()
+
+	if len(mounts) != 1 {
+		t.Fatalf("expected one mapped mount, got %#v", mounts)
+	}
+	mount := mounts[0]
+	if mount.MountId != "m_abc123" || mount.Usage == nil {
+		t.Fatalf("expected mapped mount id and usage, got %#v", mount)
+	}
+	if mount.Usage.MountId != "m_abc123" || mount.Usage.SizeBytes == nil || *mount.Usage.SizeBytes != 134637568 {
+		t.Fatalf("unexpected mapped mount usage %#v", mount.Usage)
+	}
+	if mount.Usage.MeasuredAt == nil || mount.Usage.MeasuredAt.Format("2006-01-02T15:04:05Z07:00") != "2026-06-17T08:30:21Z" {
+		t.Fatalf("unexpected mapped mount usage measured_at %#v", mount.Usage.MeasuredAt)
+	}
+}
 
 func TestToResourceSummaryMapsDockerStatsFields(t *testing.T) {
 	t.Parallel()
@@ -80,5 +219,13 @@ func int64Ptr(value int64) *int64 {
 }
 
 func float64Ptr(value float64) *float64 {
+	return &value
+}
+
+func boolPtr(value bool) *bool {
+	return &value
+}
+
+func stringPtr(value string) *string {
 	return &value
 }

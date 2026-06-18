@@ -10,6 +10,14 @@ describe('log-highlight', () => {
     expect(detectLogLevel('time=2026-06-15 level=INFO msg="started"')).toBe('INFO');
     expect(detectLogLevel('time=2026-06-15 level=WARN msg="slow"')).toBe('WARN');
     expect(detectLogLevel('time=2026-06-15 level=ERROR msg="failed"')).toBe('ERROR');
+    expect(detectLogLevel('time=2026-06-15 level=UNKNOWN msg="unclassified"')).toBe('UNKNOWN');
+    expect(detectLogLevel('time=2026-06-15 level=LOG msg="ordinary"')).toBe('LOG');
+  });
+
+  it('does not treat ordinary log or unknown text as standalone levels', () => {
+    expect(detectLogLevel('GitHub MCP Server running on stdio')).toBeNull();
+    expect(detectLogLevel('unknown host name after DNS lookup')).toBeNull();
+    expect(detectLogLevel('plain error line without structured fields')).toBe('ERROR');
   });
 
   it('maps log levels to display tones', () => {

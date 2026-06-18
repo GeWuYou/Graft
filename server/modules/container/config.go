@@ -40,8 +40,10 @@ const (
 	defaultContainerLogsMaxTail             = 2000
 	defaultContainerDangerousActionsEnabled = false
 	defaultContainerEnvironmentPolicy       = containercontract.ContainerEnvironmentPolicyMasked
+	defaultContainerEnvironmentMaskedCopy   = false
 )
 
+// registerConfig registers container configuration definitions and i18n messages.
 func registerConfig(localizer *i18n.Service, registry *configregistry.Registry) error {
 	if err := registerConfigMessages(localizer); err != nil {
 		return err
@@ -62,6 +64,7 @@ func registerConfigDefinitions(registry *configregistry.Registry) error {
 	return nil
 }
 
+// configDefinitions returns the list of all container configuration definitions in registration order.
 func configDefinitions() []configregistry.Definition {
 	return []configregistry.Definition{
 		containerBooleanDefinition(containerDefinitionSpec{
@@ -105,6 +108,13 @@ func configDefinitions() []configregistry.Definition {
 			defaultValue:        mustRawJSON(defaultContainerDangerousActionsEnabled),
 		}),
 		containerEnvironmentPolicyDefinition(),
+		containerBooleanDefinition(containerDefinitionSpec{
+			key:                 containercontract.ContainerEnvironmentMaskedCopyEnabledConfig.String(),
+			group:               containerConfigGeneralGroup,
+			fallbackTitle:       "Masked environment copy enabled",
+			fallbackDescription: "Whether masked environment values may expose copy-only raw values to authorized users.",
+			defaultValue:        mustRawJSON(defaultContainerEnvironmentMaskedCopy),
+		}),
 	}
 }
 
@@ -436,6 +446,7 @@ func enUSContainerEnvironmentPolicyEnumCopy() map[string][2]string {
 	}
 }
 
+// zhCNContainerConfigCopy returns the Chinese localization strings for container configuration items.
 func zhCNContainerConfigCopy() map[string][2]string {
 	return map[string][2]string{
 		containercontract.ContainerRuntimeEnabledConfig.String():          {"启用容器运行时访问", "是否允许容器管理访问已配置的容器运行时。"},
@@ -445,9 +456,14 @@ func zhCNContainerConfigCopy() map[string][2]string {
 		containercontract.ContainerLogsMaxTailConfig.String():             {"最大日志行数", "容器日志读取允许的最大返回行数。"},
 		containercontract.ContainerDangerousActionsEnabledConfig.String(): {"启用容器高危操作", "是否允许容器启动、停止和重启等高危操作。"},
 		containercontract.ContainerEnvironmentPolicyConfig.String():       {"环境变量值展示策略", "控制容器详情读取时如何返回环境变量值。"},
+		containercontract.ContainerEnvironmentMaskedCopyEnabledConfig.String(): {
+			"允许复制脱敏环境变量真实值",
+			"开启后，具备环境变量读取权限的用户可复制脱敏环境变量的真实值。",
+		},
 	}
 }
 
+// enUSContainerConfigCopy returns English-US localization text for container configuration items.
 func enUSContainerConfigCopy() map[string][2]string {
 	return map[string][2]string{
 		containercontract.ContainerRuntimeEnabledConfig.String():          {"Container Runtime Access Enabled", "Whether container management may access the configured runtime."},
@@ -457,5 +473,9 @@ func enUSContainerConfigCopy() map[string][2]string {
 		containercontract.ContainerLogsMaxTailConfig.String():             {"Maximum Log Tail", "Maximum number of log lines allowed for container log reads."},
 		containercontract.ContainerDangerousActionsEnabledConfig.String(): {"Dangerous Container Actions Enabled", "Whether start, stop, restart, and future high-risk actions are enabled."},
 		containercontract.ContainerEnvironmentPolicyConfig.String():       {"Environment Value Display Policy", "Controls how container environment variable values are returned by detail reads."},
+		containercontract.ContainerEnvironmentMaskedCopyEnabledConfig.String(): {
+			"Masked Environment Copy Enabled",
+			"Allows authorized users to copy raw values for masked environment variables.",
+		},
 	}
 }

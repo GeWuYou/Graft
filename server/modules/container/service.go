@@ -38,6 +38,7 @@ type service struct {
 	auditBus                eventbus.Bus
 	logger                  *zap.Logger
 	moduleName              string
+	mountUsageCache         *mountUsageCache
 	enabled                 bool
 	dangerousActionsEnabled bool
 	defaultTail             int
@@ -53,6 +54,7 @@ type containerServiceOptions struct {
 	auditBus                eventbus.Bus
 	logger                  *zap.Logger
 	moduleName              string
+	mountUsageCache         *mountUsageCache
 	enabled                 bool
 	dangerousActionsEnabled bool
 	defaultTail             int
@@ -78,6 +80,7 @@ func newContainerService(ctx *module.Context, moduleName string) (*service, erro
 	})
 }
 
+// newService creates a container service from the provided options, normalizing configuration values and applying defaults for optional components.
 func newService(options containerServiceOptions) (*service, error) {
 	if options.defaultTail <= 0 {
 		options.defaultTail = defaultContainerLogsDefaultTail
@@ -103,6 +106,10 @@ func newService(options containerServiceOptions) (*service, error) {
 	if runtimeFactory == nil {
 		runtimeFactory = newContainerRuntime
 	}
+	mountUsageCache := options.mountUsageCache
+	if mountUsageCache == nil {
+		mountUsageCache = newMountUsageCache(containerMountUsageCacheTTL)
+	}
 	return &service{
 		runtime:                 options.runtime,
 		runtimeOptions:          runtimeOptions,
@@ -110,6 +117,7 @@ func newService(options containerServiceOptions) (*service, error) {
 		auditBus:                options.auditBus,
 		logger:                  options.logger,
 		moduleName:              firstNonEmpty(options.moduleName, moduleID),
+		mountUsageCache:         mountUsageCache,
 		enabled:                 options.enabled,
 		systemConfig:            options.systemConfig,
 		dangerousActionsEnabled: options.dangerousActionsEnabled,
@@ -181,7 +189,81 @@ func (s *service) Detail(ctx context.Context, ref Ref) (Detail, error) {
 		detail.Summary = adjusted[0]
 	}
 	detail = s.applyEnvironmentPolicy(ctx, detail)
+	detail = s.attachCachedMountUsage(ref, detail)
 	return detail, nil
+}
+
+func (s *service) attachCachedMountUsage(ref Ref, detail Detail) Detail {
+	if s == nil || s.mountUsageCache == nil {
+		return detail
+	}
+	for index := range detail.Mounts {
+		mount := &detail.Mounts[index]
+		if strings.TrimSpace(mount.ID) == "" {
+			mount.ID = stableMountID(*mount)
+		}
+		if usage, ok := s.mountUsageCache.get(mountUsageCacheKey(ref, mount.ID)); ok {
+			mount.Usage = &usage
+		}
+	}
+	return detail
+}
+
+func (s *service) MountUsageList(ctx context.Context, ref Ref) ([]MountUsage, error) {
+	if err := s.requireRuntimeAccess(ctx); err != nil {
+		return nil, err
+	}
+	runtime, err := s.runtimeForRequest()
+	if err != nil {
+		return nil, err
+	}
+	mounts, err := runtime.Mounts(ctx, ref)
+	if err != nil {
+		return nil, err
+	}
+	items := make([]MountUsage, 0, len(mounts))
+	for _, mount := range mounts {
+		if strings.TrimSpace(mount.ID) == "" {
+			mount.ID = stableMountID(mount)
+		}
+		cacheKey := mountUsageCacheKey(ref, mount.ID)
+		if usage, ok := s.mountUsageCache.get(cacheKey); ok {
+			usage.ContainerID = ref.Value
+			items = append(items, usage)
+			continue
+		}
+		status := containerMountUsageStatusNotMeasured
+		if !mountUsageSupported(mount) {
+			status = containerMountUsageStatusUnsupported
+		}
+		items = append(items, mountUsageFromMount(ref.Value, mount, status, 0, ""))
+	}
+	return items, nil
+}
+
+func (s *service) RefreshMountUsage(ctx context.Context, ref Ref, mountID string) (MountUsage, error) {
+	if err := s.requireRuntimeAccess(ctx); err != nil {
+		return MountUsage{}, err
+	}
+	mountID = strings.TrimSpace(mountID)
+	if !isValidMountID(mountID) {
+		return MountUsage{}, errInvalidRef
+	}
+	cacheKey := mountUsageCacheKey(ref, mountID)
+	runtime, err := s.runtimeForRequest()
+	if err != nil {
+		return MountUsage{}, err
+	}
+	usageCtx, cancel := context.WithTimeout(ctx, containerMountUsageTimeout)
+	defer cancel()
+	usage, err := runtime.MountUsage(usageCtx, ref, mountID)
+	if err != nil {
+		return MountUsage{}, err
+	}
+	if usage.Status == containerMountUsageStatusMeasured {
+		s.mountUsageCache.set(cacheKey, usage)
+	}
+	return usage, nil
 }
 
 func (s *service) Logs(ctx context.Context, ref Ref, query LogQuery) (Logs, error) {
@@ -434,7 +516,12 @@ func (s *service) applyEnvironmentPolicy(ctx context.Context, detail Detail) Det
 		policy = containercontract.ContainerEnvironmentPolicyMasked
 	}
 	detail.EnvironmentPolicy = policy.String()
-	detail.Environment = applyEnvironmentPolicy(detail.Environment, policy)
+	detail.Environment = applyEnvironmentPolicy(detail.Environment, environmentPolicyOptions{
+		maskedCopyEnabled: policy == containercontract.ContainerEnvironmentPolicyMasked &&
+			environmentPlainAccessAllowed(ctx) &&
+			s.maskedEnvironmentCopyEnabled(ctx),
+		policy: policy,
+	})
 	return detail
 }
 
@@ -477,14 +564,25 @@ func (s *service) environmentDisplayPolicy(ctx context.Context) containercontrac
 	return normalizeEnvironmentPolicy(value)
 }
 
-func applyEnvironmentPolicy(environment []EnvironmentVariable, policy containercontract.EnvironmentPolicy) []EnvironmentVariable {
+type environmentPolicyOptions struct {
+	policy            containercontract.EnvironmentPolicy
+	maskedCopyEnabled bool
+}
+
+// applyEnvironmentPolicy applies environment display and masking policy to variables.
+// Each variable is marked sensitive if its key matches known sensitive patterns. The
+// policy determines visibility: Hidden clears values, Plain keeps them visible, and the
+// default policy hides sensitive variables while optionally preserving the original
+// value in CopyValue. Returns nil if the input is empty.
+func applyEnvironmentPolicy(environment []EnvironmentVariable, options environmentPolicyOptions) []EnvironmentVariable {
 	if len(environment) == 0 {
 		return nil
 	}
 	mapped := make([]EnvironmentVariable, 0, len(environment))
 	for _, item := range environment {
 		item.Sensitive = item.Sensitive || isSensitiveEnvironmentKey(item.Key)
-		switch policy {
+		item.CopyValue = nil
+		switch options.policy {
 		case containercontract.ContainerEnvironmentPolicyHidden:
 			item.Value = ""
 			item.Masked = true
@@ -492,6 +590,10 @@ func applyEnvironmentPolicy(environment []EnvironmentVariable, policy containerc
 			item.Masked = false
 		default:
 			if item.Sensitive {
+				if options.maskedCopyEnabled {
+					copyValue := item.Value
+					item.CopyValue = &copyValue
+				}
 				item.Value = ""
 				item.Masked = true
 			} else {
@@ -909,6 +1011,18 @@ func (s *service) dangerousActionsAllowed(ctx context.Context) bool {
 	)
 }
 
+func (s *service) maskedEnvironmentCopyEnabled(ctx context.Context) bool {
+	if s == nil || s.systemConfig == nil {
+		return defaultContainerEnvironmentMaskedCopy
+	}
+	return s.systemConfig.IsBooleanConfigEnabled(
+		ctx,
+		containercontract.ContainerEnvironmentMaskedCopyEnabledConfig.String(),
+		defaultContainerEnvironmentMaskedCopy,
+	)
+}
+
+// It returns a disabled runtime if the container is disabled, a Docker runtime if enabled, or an error if the runtime type is unsupported.
 func newContainerRuntime(options containerRuntimeOptions) (Runtime, error) {
 	if !options.enabled {
 		return disabledRuntime{}, nil
@@ -953,6 +1067,12 @@ func (disabledRuntime) List(context.Context, ListQuery) ([]Summary, error) {
 }
 func (disabledRuntime) Detail(context.Context, Ref) (Detail, error) {
 	return Detail{}, errRuntimeDisabled
+}
+func (disabledRuntime) Mounts(context.Context, Ref) ([]Mount, error) {
+	return nil, errRuntimeDisabled
+}
+func (disabledRuntime) MountUsage(context.Context, Ref, string) (MountUsage, error) {
+	return MountUsage{}, errRuntimeDisabled
 }
 func (disabledRuntime) Logs(context.Context, Ref, LogQuery) (Logs, error) {
 	return Logs{}, errRuntimeDisabled

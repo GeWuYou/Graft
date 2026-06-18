@@ -1,0 +1,47 @@
+get:
+  tags: [container]
+  summary: List container mount usage
+  operationId: getContainerMountUsage
+  description: >
+    Returns the latest cached usage statistics for the current container mounts. This endpoint does not trigger
+    filesystem scanning.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - $ref: ../components/parameters/container-id-path.yaml
+  security:
+    - bearerAuth: []
+  responses:
+    '200':
+      description: Latest mount usage statistics.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-container-mount-usage-list-response.yaml
+    '400':
+      description: Invalid container reference.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      $ref: ../components/responses/forbidden.yaml
+    '404':
+      description: Container was not found.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml

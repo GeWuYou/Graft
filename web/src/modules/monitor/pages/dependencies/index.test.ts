@@ -355,7 +355,7 @@ describe('monitor dependencies page', () => {
     expect(wrapper.text()).toContain(expectedDate);
     expect(wrapper.find('[data-dependency-key="redis"] [data-usage-status="danger"]').exists()).toBe(true);
     expect(wrapper.find('[data-dependency-key="postgresql"] [data-usage-status="healthy"]').exists()).toBe(true);
-    expect(wrapper.find('[data-monitor-refresh-extra-select="true"]').exists()).toBe(false);
+    expect(wrapper.find('[data-refresh-trend-window-select="true"]').exists()).toBe(false);
 
     await wrapper.get('[data-dependency-key="redis"] .dependency-health-card__diagnostic-action').trigger('click');
 

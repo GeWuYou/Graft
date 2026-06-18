@@ -23,6 +23,7 @@ describe('container bootstrap route registrations', () => {
       pageRouteName: 'ContainerDetailIndex',
       routeName: 'ContainerDetail',
       meta: {
+        hidden: false,
         hiddenMenu: true,
         pageKind: 'detail',
         titleKey: 'container.route.detail.title',

@@ -90,6 +90,23 @@ assets:
     validation_commands:
       - "cd web && bun run check"
 
+  - name: "refresh-control-components"
+    type: "frontend-component"
+    path: "web/src/shared/components/refresh"
+    owner: "web/shared"
+    purpose: "Reusable refresh control bar for auto-refresh cadence, optional trend window, manual refresh, and pause/resume actions."
+    use_when:
+      - "Building monitoring or detail pages that need consistent refresh cadence and manual refresh controls without owning timer behavior inside the component."
+    do_not_use_when:
+      - "The control triggers business-specific refresh side effects internally or needs module-private state management."
+    examples:
+      - "web/src/modules/monitor/pages/overview/index.vue"
+      - "web/src/modules/container/pages/detail/index.vue"
+    related_assets:
+      - "metric-components"
+    validation_commands:
+      - "cd web && bun run check"
+
   - name: "shared-page-header"
     type: "frontend-component"
     path: "web/src/shared/components/page"

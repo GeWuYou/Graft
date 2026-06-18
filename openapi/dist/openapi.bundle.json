@@ -8798,6 +8798,173 @@
         }
       }
     },
+    "/api/ops/containers/{id}/mounts/usage": {
+      "get": {
+        "tags": [
+          "container"
+        ],
+        "summary": "List container mount usage",
+        "operationId": "getContainerMountUsage",
+        "description": "Returns the latest cached usage statistics for the current container mounts. This endpoint does not trigger filesystem scanning.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/container-id-path"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Latest mount usage statistics.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-container-mount-usage-list-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid container reference.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Container was not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/ops/containers/{id}/mounts/{mountId}/usage/refresh": {
+      "post": {
+        "tags": [
+          "container"
+        ],
+        "summary": "Refresh one container mount usage statistic",
+        "operationId": "postContainerMountUsageRefresh",
+        "description": "Refreshes usage for one mount returned by Docker inspect. Clients must use mount_id from the container detail or mount usage APIs; the backend never accepts arbitrary source paths from clients.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/container-id-path"
+          },
+          {
+            "$ref": "#/components/parameters/container-mount-id-path"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Refreshed mount usage statistic.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-container-mount-usage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid container reference or mount id.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Container or mount was not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
     "/api/ops/containers/{id}/logs": {
       "get": {
         "tags": [
@@ -9815,11 +9982,20 @@
       "ContainerEnvironmentEntry": {
         "$ref": "#/components/schemas/container-environment-entry"
       },
+      "ContainerHealthcheck": {
+        "$ref": "#/components/schemas/container-healthcheck"
+      },
       "ContainerPort": {
         "$ref": "#/components/schemas/container-port"
       },
       "ContainerMount": {
         "$ref": "#/components/schemas/container-mount"
+      },
+      "ContainerMountUsage": {
+        "$ref": "#/components/schemas/container-mount-usage"
+      },
+      "ContainerMountUsageListResponse": {
+        "$ref": "#/components/schemas/container-mount-usage-list-response"
       },
       "ContainerNetwork": {
         "$ref": "#/components/schemas/container-network"
@@ -9859,6 +10035,12 @@
       },
       "EnvelopedContainerDetail": {
         "$ref": "#/components/schemas/enveloped-container-detail"
+      },
+      "EnvelopedContainerMountUsage": {
+        "$ref": "#/components/schemas/enveloped-container-mount-usage"
+      },
+      "EnvelopedContainerMountUsageListResponse": {
+        "$ref": "#/components/schemas/enveloped-container-mount-usage-list-response"
       },
       "EnvelopedContainerLogResponse": {
         "$ref": "#/components/schemas/enveloped-container-log-response"
@@ -16014,6 +16196,10 @@
             "type": "string",
             "description": "Environment variable value. Omitted when the active policy hides or masks the value."
           },
+          "copy_value": {
+            "type": "string",
+            "description": "Copy-only raw value for a masked entry. Present only when policy, permission, and system configuration allow copying masked values."
+          },
           "masked": {
             "type": "boolean",
             "description": "Whether the value is intentionally omitted by environment display policy."
@@ -16035,15 +16221,153 @@
         },
         "description": "Container environment variable entry after policy application."
       },
+      "container-healthcheck": {
+        "description": "Docker Healthcheck diagnostics from container inspect.",
+        "type": "object",
+        "required": [
+          "configured",
+          "status",
+          "command"
+        ],
+        "properties": {
+          "configured": {
+            "type": "boolean",
+            "description": "True when Docker inspect exposes an active Healthcheck command for the container."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "healthy",
+              "unhealthy",
+              "starting",
+              "none",
+              "unavailable"
+            ],
+            "x-enum-varnames": [
+              "ContainerHealthcheckStatusHealthy",
+              "ContainerHealthcheckStatusUnhealthy",
+              "ContainerHealthcheckStatusStarting",
+              "ContainerHealthcheckStatusNone",
+              "ContainerHealthcheckStatusUnavailable"
+            ]
+          },
+          "command": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Docker Healthcheck test command as reported by inspect."
+          },
+          "exit_code": {
+            "type": "integer",
+            "nullable": true,
+            "description": "Exit code from the most recent Docker Healthcheck result when available."
+          },
+          "output": {
+            "type": "string",
+            "description": "Output from the most recent Docker Healthcheck result, trimmed for display."
+          },
+          "checked_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Completion time of the most recent Docker Healthcheck result when available."
+          },
+          "failing_streak": {
+            "type": "integer",
+            "minimum": 0,
+            "nullable": true,
+            "description": "Docker reported consecutive Healthcheck failure count."
+          },
+          "failure_message": {
+            "type": "string",
+            "description": "Recent failure output when the latest Healthcheck result failed."
+          }
+        }
+      },
+      "container-mount-usage": {
+        "type": "object",
+        "required": [
+          "mount_id",
+          "container_id",
+          "type",
+          "source",
+          "destination",
+          "status"
+        ],
+        "properties": {
+          "mount_id": {
+            "type": "string",
+            "description": "Stable id generated from the inspected mount destination, source, and type."
+          },
+          "container_id": {
+            "type": "string",
+            "description": "Container id or reference resolved by the runtime."
+          },
+          "type": {
+            "type": "string",
+            "description": "Runtime mount type such as bind, volume, or tmpfs."
+          },
+          "source": {
+            "type": "string",
+            "description": "Runtime-reported source path or volume source. It is never accepted from clients for statistics."
+          },
+          "destination": {
+            "type": "string",
+            "description": "Container path where the mount is attached."
+          },
+          "size_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "description": "Measured storage usage in bytes when status is measured."
+          },
+          "size_display": {
+            "type": "string",
+            "description": "Human-readable storage usage such as 128.4 MiB."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "not_measured",
+              "measured",
+              "pending",
+              "unsupported",
+              "permission_denied",
+              "not_found",
+              "timeout",
+              "error"
+            ],
+            "description": "Structured mount usage measurement state."
+          },
+          "measured_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "UTC timestamp when the usage was measured."
+          },
+          "message": {
+            "type": "string",
+            "description": "Optional weak explanatory text for unsupported or failed statistics."
+          },
+          "shared_hint": {
+            "type": "string",
+            "description": "Optional hint that the source path or named volume may be shared by multiple containers."
+          }
+        }
+      },
       "container-mount": {
         "type": "object",
         "required": [
+          "mount_id",
           "type",
           "destination",
           "mode",
           "read_only"
         ],
         "properties": {
+          "mount_id": {
+            "type": "string",
+            "description": "Stable id generated from destination, source, and type. Clients must use this value for usage refresh."
+          },
           "type": {
             "type": "string",
             "description": "Runtime mount type such as bind, volume, or tmpfs."
@@ -16062,6 +16386,9 @@
           },
           "read_only": {
             "type": "boolean"
+          },
+          "usage": {
+            "$ref": "#/components/schemas/container-mount-usage"
           }
         }
       },
@@ -16111,8 +16438,22 @@
                 ],
                 "description": "Effective container environment variable display policy applied to this detail response."
               },
+              "healthcheck": {
+                "$ref": "#/components/schemas/container-healthcheck",
+                "description": "Docker Healthcheck diagnostics from container inspect. Omitted when no Healthcheck is configured."
+              },
               "working_dir": {
                 "type": "string"
+              },
+              "last_exit_code": {
+                "type": "integer",
+                "nullable": true,
+                "description": "Last container process exit code from Docker inspect state when available."
+              },
+              "oom_killed": {
+                "type": "boolean",
+                "nullable": true,
+                "description": "Whether Docker inspect reports the container was killed by the OOM killer."
               },
               "mounts": {
                 "type": "array",
@@ -16151,6 +16492,56 @@
             "properties": {
               "data": {
                 "$ref": "#/components/schemas/container-detail"
+              }
+            }
+          }
+        ]
+      },
+      "container-mount-usage-list-response": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/container-mount-usage"
+            }
+          }
+        }
+      },
+      "enveloped-container-mount-usage-list-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/container-mount-usage-list-response"
+              }
+            }
+          }
+        ]
+      },
+      "enveloped-container-mount-usage": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/container-mount-usage"
               }
             }
           }
@@ -17030,6 +17421,24 @@
           "encodedName": {
             "summary": "Encoded container name",
             "value": "web%2Dapi"
+          }
+        }
+      },
+      "container-mount-id-path": {
+        "name": "mountId",
+        "in": "path",
+        "required": true,
+        "description": "Stable mount id returned by the container detail or mount usage APIs. It is generated from the inspected mount destination, source, and type, and must not be replaced by a raw source path.\n",
+        "schema": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 64,
+          "pattern": "^m_[A-Za-z0-9_-]+$"
+        },
+        "examples": {
+          "mountId": {
+            "summary": "Stable mount id",
+            "value": "m_9f4a2c1b"
           }
         }
       },

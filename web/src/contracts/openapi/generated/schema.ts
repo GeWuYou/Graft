@@ -1651,6 +1651,46 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/ops/containers/{id}/mounts/usage': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List container mount usage
+     * @description Returns the latest cached usage statistics for the current container mounts. This endpoint does not trigger filesystem scanning.
+     */
+    get: operations['getContainerMountUsage'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/containers/{id}/mounts/{mountId}/usage/refresh': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Refresh one container mount usage statistic
+     * @description Refreshes usage for one mount returned by Docker inspect. Clients must use mount_id from the container detail or mount usage APIs; the backend never accepts arbitrary source paths from clients.
+     */
+    post: operations['postContainerMountUsageRefresh'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/ops/containers/{id}/logs': {
     parameters: {
       query?: never;
@@ -1924,8 +1964,11 @@ export interface components {
     ContainerSummary: components['schemas']['container-summary'];
     ContainerDetail: components['schemas']['container-detail'];
     ContainerEnvironmentEntry: components['schemas']['container-environment-entry'];
+    ContainerHealthcheck: components['schemas']['container-healthcheck'];
     ContainerPort: components['schemas']['container-port'];
     ContainerMount: components['schemas']['container-mount'];
+    ContainerMountUsage: components['schemas']['container-mount-usage'];
+    ContainerMountUsageListResponse: components['schemas']['container-mount-usage-list-response'];
     ContainerNetwork: components['schemas']['container-network'];
     ContainerLogResponse: components['schemas']['container-log-response'];
     ContainerActionResponse: components['schemas']['container-action-response'];
@@ -1939,6 +1982,8 @@ export interface components {
     ContainerListResponse: components['schemas']['container-list-response'];
     EnvelopedContainerListResponse: components['schemas']['enveloped-container-list-response'];
     EnvelopedContainerDetail: components['schemas']['enveloped-container-detail'];
+    EnvelopedContainerMountUsage: components['schemas']['enveloped-container-mount-usage'];
+    EnvelopedContainerMountUsageListResponse: components['schemas']['enveloped-container-mount-usage-list-response'];
     EnvelopedContainerLogResponse: components['schemas']['enveloped-container-log-response'];
     EnvelopedContainerActionResponse: components['schemas']['enveloped-container-action-response'];
     EnvelopedContainerBatchActionResponse: components['schemas']['enveloped-container-batch-action-response'];
@@ -3936,6 +3981,8 @@ export interface components {
       key: string;
       /** @description Environment variable value. Omitted when the active policy hides or masks the value. */
       value?: string;
+      /** @description Copy-only raw value for a masked entry. Present only when policy, permission, and system configuration allow copying masked values. */
+      copy_value?: string;
       /** @description Whether the value is intentionally omitted by environment display policy. */
       masked: boolean;
       /** @description Whether the key matched the container module sensitive-key heuristic. */
@@ -3946,7 +3993,72 @@ export interface components {
        */
       source: 'docker';
     };
+    /** @description Docker Healthcheck diagnostics from container inspect. */
+    'container-healthcheck': {
+      /** @description True when Docker inspect exposes an active Healthcheck command for the container. */
+      configured: boolean;
+      /** @enum {string} */
+      status: 'healthy' | 'unhealthy' | 'starting' | 'none' | 'unavailable';
+      /** @description Docker Healthcheck test command as reported by inspect. */
+      command: string[];
+      /** @description Exit code from the most recent Docker Healthcheck result when available. */
+      exit_code?: number | null;
+      /** @description Output from the most recent Docker Healthcheck result, trimmed for display. */
+      output?: string;
+      /**
+       * Format: date-time
+       * @description Completion time of the most recent Docker Healthcheck result when available.
+       */
+      checked_at?: string;
+      /** @description Docker reported consecutive Healthcheck failure count. */
+      failing_streak?: number | null;
+      /** @description Recent failure output when the latest Healthcheck result failed. */
+      failure_message?: string;
+    };
+    'container-mount-usage': {
+      /** @description Stable id generated from the inspected mount destination, source, and type. */
+      mount_id: string;
+      /** @description Container id or reference resolved by the runtime. */
+      container_id: string;
+      /** @description Runtime mount type such as bind, volume, or tmpfs. */
+      type: string;
+      /** @description Runtime-reported source path or volume source. It is never accepted from clients for statistics. */
+      source: string;
+      /** @description Container path where the mount is attached. */
+      destination: string;
+      /**
+       * Format: int64
+       * @description Measured storage usage in bytes when status is measured.
+       */
+      size_bytes?: number;
+      /** @description Human-readable storage usage such as 128.4 MiB. */
+      size_display?: string;
+      /**
+       * @description Structured mount usage measurement state.
+       * @enum {string}
+       */
+      status:
+        | 'not_measured'
+        | 'measured'
+        | 'pending'
+        | 'unsupported'
+        | 'permission_denied'
+        | 'not_found'
+        | 'timeout'
+        | 'error';
+      /**
+       * Format: date-time
+       * @description UTC timestamp when the usage was measured.
+       */
+      measured_at?: string;
+      /** @description Optional weak explanatory text for unsupported or failed statistics. */
+      message?: string;
+      /** @description Optional hint that the source path or named volume may be shared by multiple containers. */
+      shared_hint?: string;
+    };
     'container-mount': {
+      /** @description Stable id generated from destination, source, and type. Clients must use this value for usage refresh. */
+      mount_id: string;
       /** @description Runtime mount type such as bind, volume, or tmpfs. */
       type: string;
       name?: string;
@@ -3954,6 +4066,7 @@ export interface components {
       destination: string;
       mode: string;
       read_only: boolean;
+      usage?: components['schemas']['container-mount-usage'];
     };
     /** @description Container detail returns environment variables according to the configured display policy and omits raw inspect payload fields that may contain secrets. */
     'container-detail': components['schemas']['container-summary'] & {
@@ -3965,7 +4078,13 @@ export interface components {
        * @enum {string}
        */
       environment_policy: 'hidden' | 'masked' | 'plain';
+      /** @description Docker Healthcheck diagnostics from container inspect. Omitted when no Healthcheck is configured. */
+      healthcheck?: components['schemas']['container-healthcheck'];
       working_dir?: string;
+      /** @description Last container process exit code from Docker inspect state when available. */
+      last_exit_code?: number | null;
+      /** @description Whether Docker inspect reports the container was killed by the OOM killer. */
+      oom_killed?: boolean | null;
       mounts: components['schemas']['container-mount'][];
       networks: components['schemas']['container-network'][];
       runtime_info: components['schemas']['container-runtime-info'];
@@ -3974,6 +4093,15 @@ export interface components {
     };
     'enveloped-container-detail': components['schemas']['api-envelope'] & {
       data: components['schemas']['container-detail'];
+    };
+    'container-mount-usage-list-response': {
+      items: components['schemas']['container-mount-usage'][];
+    };
+    'enveloped-container-mount-usage-list-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['container-mount-usage-list-response'];
+    };
+    'enveloped-container-mount-usage': components['schemas']['api-envelope'] & {
+      data: components['schemas']['container-mount-usage'];
     };
     'container-log-response': {
       id: string;
@@ -4212,6 +4340,8 @@ export interface components {
     'container-list-health': 'healthy' | 'unhealthy' | 'starting' | 'none' | 'unavailable';
     /** @description Container id or name. Clients must call encodeURIComponent before placing this value in the path. The backend must PathUnescape the path parameter and reject empty values, slashes, and control characters with ops.container.error.invalidContainerRef. */
     'container-id-path': string;
+    /** @description Stable mount id returned by the container detail or mount usage APIs. It is generated from the inspected mount destination, source, and type, and must not be replaced by a raw source path. */
+    'container-mount-id-path': string;
     /** @description Number of log lines to return from the end of the stream. */
     'container-logs-tail': number;
     /** @description Optional log lower bound. Accepts an RFC3339 timestamp or a duration such as 10m, 1h, or 24h. Invalid values must return a localized validation error. */
@@ -8666,6 +8796,118 @@ export interface operations {
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
       /** @description Container was not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getContainerMountUsage: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Container id or name. Clients must call encodeURIComponent before placing this value in the path. The backend must PathUnescape the path parameter and reject empty values, slashes, and control characters with ops.container.error.invalidContainerRef. */
+        id: components['parameters']['container-id-path'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Latest mount usage statistics. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-container-mount-usage-list-response'];
+        };
+      };
+      /** @description Invalid container reference. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Container was not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postContainerMountUsageRefresh: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Container id or name. Clients must call encodeURIComponent before placing this value in the path. The backend must PathUnescape the path parameter and reject empty values, slashes, and control characters with ops.container.error.invalidContainerRef. */
+        id: components['parameters']['container-id-path'];
+        /** @description Stable mount id returned by the container detail or mount usage APIs. It is generated from the inspected mount destination, source, and type, and must not be replaced by a raw source path. */
+        mountId: components['parameters']['container-mount-id-path'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Refreshed mount usage statistic. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-container-mount-usage'];
+        };
+      };
+      /** @description Invalid container reference or mount id. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Container or mount was not found. */
       404: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];

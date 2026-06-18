@@ -267,7 +267,7 @@ describe('monitor runtime page', () => {
     expect(wrapper.findAll('.server-status-summary-card')).toHaveLength(4);
     expect(wrapper.findAll('.server-status-runtime-grid__card')).toHaveLength(3);
     expect(wrapper.findAll('.server-status-kv-row')).toHaveLength(16);
-    expect(wrapper.find('[data-monitor-refresh-extra-select="true"]').exists()).toBe(false);
+    expect(wrapper.find('[data-refresh-trend-window-select="true"]').exists()).toBe(false);
     expect(wrapper.text()).not.toContain('Snapshot Context');
     expect(wrapper.text()).not.toContain('Metric scope');
     expect(wrapper.text().match(/Snapshot ready/g)).toHaveLength(1);

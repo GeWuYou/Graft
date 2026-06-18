@@ -55,6 +55,7 @@ func toSummary(item Summary) containergen.ContainerSummary {
 	}
 }
 
+// ToDetail converts the internal Detail domain model into an OpenAPI container detail response.
 func toDetail(detail Detail) containergen.ContainerDetail {
 	return containergen.ContainerDetail{
 		CanRemove:         optionalBool(detail.CanRemove),
@@ -69,16 +70,19 @@ func toDetail(detail Detail) containergen.ContainerDetail {
 		Environment:       optionalEnvironment(detail.Environment),
 		EnvironmentPolicy: optionalEnvironmentPolicy(detail.EnvironmentPolicy),
 		Health:            optionalDetailHealth(detail.Health),
+		Healthcheck:       optionalHealthcheck(detail.Healthcheck),
 		Id:                detail.ID,
 		Image:             detail.Image,
 		ImageId:           optionalString(detail.ImageID),
 		InspectUpdatedAt:  optionalTime(detail.InspectUpdatedAt),
 		Labels:            optionalStringMap(detail.Labels),
+		LastExitCode:      detail.LastExitCode,
 		Mounts:            toMounts(detail.Mounts),
 		Name:              detail.Name,
 		Names:             detail.Names,
 		NetworkSummary:    optionalString(detail.NetworkSummary),
 		Networks:          toNetworks(detail.Networks),
+		OomKilled:         detail.OOMKilled,
 		Ports:             toPorts(detail.Ports),
 		PrimaryIp:         optionalString(detail.PrimaryIP),
 		Resource:          toResourceSummary(detail.Resource),
@@ -94,6 +98,25 @@ func toDetail(detail Detail) containergen.ContainerDetail {
 	}
 }
 
+// optionalHealthcheck converts a healthcheck into its generated response type.
+// It returns nil if the input is nil or the healthcheck is not configured.
+func optionalHealthcheck(healthcheck *Healthcheck) *containergen.ContainerHealthcheck {
+	if healthcheck == nil || !healthcheck.Configured {
+		return nil
+	}
+	return &containergen.ContainerHealthcheck{
+		CheckedAt:      optionalTime(healthcheck.CheckedAt),
+		Command:        append([]string(nil), healthcheck.Command...),
+		Configured:     healthcheck.Configured,
+		ExitCode:       healthcheck.ExitCode,
+		FailingStreak:  healthcheck.FailingStreak,
+		FailureMessage: optionalString(healthcheck.FailureMessage),
+		Output:         optionalString(healthcheck.Output),
+		Status:         containergen.ContainerHealthcheckStatus(healthcheck.Status),
+	}
+}
+
+// optionalEnvironment maps a slice of environment variables to a slice of container environment entries, returning nil if the input is empty.
 func optionalEnvironment(environment []EnvironmentVariable) *[]containergen.ContainerEnvironmentEntry {
 	if len(environment) == 0 {
 		return nil
@@ -101,6 +124,7 @@ func optionalEnvironment(environment []EnvironmentVariable) *[]containergen.Cont
 	mapped := make([]containergen.ContainerEnvironmentEntry, 0, len(environment))
 	for _, item := range environment {
 		mapped = append(mapped, containergen.ContainerEnvironmentEntry{
+			CopyValue: item.CopyValue,
 			Key:       item.Key,
 			Masked:    item.Masked,
 			Sensitive: item.Sensitive,
@@ -170,6 +194,7 @@ func toResourceSummary(resource ResourceSummary) *containergen.ContainerResource
 	}
 }
 
+// toLogs converts a Logs domain model into a ContainerLogResponse.
 func toLogs(logs Logs) containergen.ContainerLogResponse {
 	return containergen.ContainerLogResponse{
 		Id:         logs.ID,
@@ -185,6 +210,55 @@ func toLogs(logs Logs) containergen.ContainerLogResponse {
 	}
 }
 
+type mountUsageListResponse struct {
+	Items []mountUsageResponse `json:"items"`
+}
+
+type mountUsageResponse struct {
+	MountID     string  `json:"mount_id"`
+	ContainerID string  `json:"container_id"`
+	Type        string  `json:"type"`
+	Source      string  `json:"source"`
+	Destination string  `json:"destination"`
+	SizeBytes   *int64  `json:"size_bytes,omitempty"`
+	SizeDisplay *string `json:"size_display,omitempty"`
+	Status      string  `json:"status"`
+	MeasuredAt  *string `json:"measured_at,omitempty"`
+	Message     *string `json:"message,omitempty"`
+	SharedHint  *string `json:"shared_hint,omitempty"`
+}
+
+// toMountUsageList converts a slice of mount usage items into a response list.
+func toMountUsageList(items []MountUsage) mountUsageListResponse {
+	mapped := make([]mountUsageResponse, 0, len(items))
+	for _, item := range items {
+		mapped = append(mapped, toMountUsage(item))
+	}
+	return mountUsageListResponse{Items: mapped}
+}
+
+// toMountUsage converts a MountUsage into a mountUsageResponse. The SizeBytes field is populated only when the usage status indicates the value has been measured.
+func toMountUsage(usage MountUsage) mountUsageResponse {
+	var sizeBytes *int64
+	if usage.Status == containerMountUsageStatusMeasured {
+		sizeBytes = &usage.SizeBytes
+	}
+	return mountUsageResponse{
+		MountID:     usage.MountID,
+		ContainerID: usage.ContainerID,
+		Type:        usage.Type,
+		Source:      usage.Source,
+		Destination: usage.Destination,
+		SizeBytes:   sizeBytes,
+		SizeDisplay: optionalString(usage.SizeDisplay),
+		Status:      usage.Status,
+		MeasuredAt:  optionalString(usage.MeasuredAt),
+		Message:     optionalString(usage.Message),
+		SharedHint:  optionalString(usage.SharedHint),
+	}
+}
+
+// toContainerAction converts an action result to its OpenAPI response representation.
 func toContainerAction(result ActionResult) containergen.ContainerActionResponse {
 	return containergen.ContainerActionResponse{
 		Action:       containergen.ContainerActionResponseAction(result.Action),
@@ -248,21 +322,49 @@ func toPorts(ports []Port) []containergen.ContainerPort {
 	return mapped
 }
 
+// ToMounts maps a slice of internal Mount objects to OpenAPI-generated ContainerMount response objects.
 func toMounts(mounts []Mount) []containergen.ContainerMount {
 	mapped := make([]containergen.ContainerMount, 0, len(mounts))
 	for _, mount := range mounts {
 		mapped = append(mapped, containergen.ContainerMount{
 			Destination: mount.Destination,
 			Mode:        mount.Mode,
+			MountId:     mount.ID,
 			Name:        optionalString(mount.Name),
 			ReadOnly:    mount.ReadOnly,
 			Source:      optionalString(mount.Source),
 			Type:        mount.Type,
+			Usage:       toGeneratedMountUsage(mount.Usage),
 		})
 	}
 	return mapped
 }
 
+// toGeneratedMountUsage converts a MountUsage into a ContainerMountUsage response. The SizeBytes field is populated only when the usage status indicates a measurement is available.
+func toGeneratedMountUsage(usage *MountUsage) *containergen.ContainerMountUsage {
+	if usage == nil {
+		return nil
+	}
+	var sizeBytes *int64
+	if usage.Status == containerMountUsageStatusMeasured {
+		sizeBytes = &usage.SizeBytes
+	}
+	return &containergen.ContainerMountUsage{
+		ContainerId: usage.ContainerID,
+		Destination: usage.Destination,
+		MeasuredAt:  optionalTime(usage.MeasuredAt),
+		Message:     optionalString(usage.Message),
+		MountId:     usage.MountID,
+		SharedHint:  optionalString(usage.SharedHint),
+		SizeBytes:   sizeBytes,
+		SizeDisplay: optionalString(usage.SizeDisplay),
+		Source:      usage.Source,
+		Status:      containergen.ContainerMountUsageStatus(usage.Status),
+		Type:        usage.Type,
+	}
+}
+
+// toNetworks converts a slice of networks into generated container network response types.
 func toNetworks(networks []Network) []containergen.ContainerNetwork {
 	mapped := make([]containergen.ContainerNetwork, 0, len(networks))
 	for _, network := range networks {

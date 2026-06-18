@@ -4,19 +4,28 @@
 -->
 
 <template>
-  <div v-if="!isRefreshing">
-    <router-view v-if="!isFramePage" v-slot="{ Component, route: viewRoute }">
-      <transition name="fade" mode="out-in" @before-enter="() => handleBeforeEnter(viewRoute)">
-        <keep-alive v-if="shouldKeepActiveViewAlive">
-          <component :is="Component" :key="activeViewKey" />
-        </keep-alive>
-        <component :is="Component" v-else :key="activeViewKey" />
-      </transition>
-    </router-view>
-    <frame-page v-else />
+  <div class="route-view-host route-loading-host">
+    <t-loading
+      class="route-page-loading"
+      :delay="80"
+      :loading="isPageLoading"
+      size="small"
+      :text="t('layout.routeLoading')"
+    >
+      <div v-if="!isRefreshing" class="route-view-shell">
+        <router-view v-if="!isFramePage" v-slot="{ Component, route: viewRoute }">
+          <transition name="fade" mode="out-in" @before-enter="() => handleBeforeEnter(viewRoute)">
+            <keep-alive v-if="shouldKeepActiveViewAlive">
+              <component :is="Component" :key="activeViewKey" />
+            </keep-alive>
+            <component :is="Component" v-else :key="activeViewKey" />
+          </transition>
+        </router-view>
+        <frame-page v-else />
+      </div>
+      <div v-else class="route-refresh-placeholder" />
+    </t-loading>
   </div>
-
-  <t-loading v-else />
 </template>
 <script setup lang="ts">
 import isBoolean from 'lodash/isBoolean';
@@ -26,6 +35,8 @@ import type { RouteLocationNormalizedLoaded } from 'vue-router';
 import { useRoute } from 'vue-router';
 
 import FramePage from '@/layouts/frame/index.vue';
+import { t } from '@/locales';
+import { routeLoading } from '@/router/route-loading';
 import { useTabsRouterStore } from '@/store';
 import { resolvePageSurfaceType } from '@/utils/route/meta';
 
@@ -62,10 +73,18 @@ const isRefreshing = computed(() => {
   const { refreshing } = tabsRouterStore;
   return refreshing;
 });
+const isPageLoading = computed(() => routeLoading.value || isRefreshing.value);
 
 const activeViewKey = computed(() => {
   const tabsRouterStore = useTabsRouterStore();
-  return tabsRouterStore.activeTabKey || route.fullPath || route.path;
+  const activeTabRoute = tabsRouterStore.tabRouters.find(
+    (tabRoute) => tabRoute.tabKey === tabsRouterStore.activeTabKey,
+  );
+  if (activeTabRoute?.path === route.path || activeTabRoute?.fullPath === route.fullPath) {
+    return tabsRouterStore.activeTabKey;
+  }
+
+  return route.fullPath || route.path;
 });
 
 const route = useRoute(); // 这个不能放到computed中，切换页面时会导致被缓存
@@ -86,5 +105,26 @@ const handleBeforeEnter = (viewRoute?: RouteLocationNormalizedLoaded) => {
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+}
+
+.route-loading-host {
+  display: flex;
+  flex: 1 0 auto;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  position: relative;
+}
+
+.route-page-loading,
+.route-loading-host :deep(.t-loading__parent),
+.route-view-shell,
+.route-refresh-placeholder {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  width: 100%;
 }
 </style>

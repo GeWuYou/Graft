@@ -44,6 +44,17 @@ func TestRoutesRequireContainerPermissions(t *testing.T) {
 		t.Fatalf("register routes: %v", err)
 	}
 
+	assertDetailRoutePermission(t, engine, authorizer)
+	assertLogsRoutePermission(t, engine, authorizer)
+	assertMountUsageRoutePermission(t, engine, authorizer)
+	assertRemoveRoutePermission(t, engine, authorizer)
+	assertBatchActionRoutePermission(t, engine, authorizer)
+}
+
+func assertDetailRoutePermission(t *testing.T, engine *gin.Engine, authorizer *recordingAuthorizer) {
+	t.Helper()
+
+	authorizer.reset()
 	response := httptest.NewRecorder()
 	engine.ServeHTTP(response, authorizedRequest(http.MethodGet, "/api/ops/containers/abc123"))
 	if response.Code != http.StatusOK {
@@ -55,8 +66,13 @@ func TestRoutesRequireContainerPermissions(t *testing.T) {
 	if !slices.Contains(authorizer.permissions, containercontract.ContainerEnvironmentPermission.String()) {
 		t.Fatalf("expected environment permission check, got %#v", authorizer.permissions)
 	}
+}
 
-	response = httptest.NewRecorder()
+func assertLogsRoutePermission(t *testing.T, engine *gin.Engine, authorizer *recordingAuthorizer) {
+	t.Helper()
+
+	authorizer.reset()
+	response := httptest.NewRecorder()
 	engine.ServeHTTP(response, authorizedRequest(http.MethodGet, "/api/ops/containers/abc123/logs?tail=20&stdout=true"))
 	if response.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", response.Code, response.Body.String())
@@ -64,8 +80,41 @@ func TestRoutesRequireContainerPermissions(t *testing.T) {
 	if !slices.Contains(authorizer.permissions, containercontract.ContainerLogsPermission.String()) {
 		t.Fatalf("expected logs permission, got %#v", authorizer.permissions)
 	}
+}
 
+func assertMountUsageRoutePermission(t *testing.T, engine *gin.Engine, authorizer *recordingAuthorizer) {
+	t.Helper()
+
+	authorizer.reset()
+	response := httptest.NewRecorder()
+	engine.ServeHTTP(response, authorizedRequest(http.MethodGet, "/api/ops/containers/abc123/mounts/usage"))
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected mount usage list 200, got %d: %s", response.Code, response.Body.String())
+	}
+	if !slices.Contains(authorizer.permissions, containercontract.ContainerDetailPermission.String()) {
+		t.Fatalf("expected mount usage list detail permission, got %#v", authorizer.permissions)
+	}
+	if !strings.Contains(response.Body.String(), `"mount_id":"m_`) {
+		t.Fatalf("expected mount_id response field, got %s", response.Body.String())
+	}
+
+	authorizer.reset()
+	mountID := fakeMountID()
 	response = httptest.NewRecorder()
+	engine.ServeHTTP(response, authorizedJSONRequest(http.MethodPost, "/api/ops/containers/abc123/mounts/"+mountID+"/usage/refresh", `{}`))
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected mount usage refresh 200, got %d: %s", response.Code, response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), `"size_display":"1 KiB"`) {
+		t.Fatalf("expected size_display response field, got %s", response.Body.String())
+	}
+}
+
+func assertRemoveRoutePermission(t *testing.T, engine *gin.Engine, authorizer *recordingAuthorizer) {
+	t.Helper()
+
+	authorizer.reset()
+	response := httptest.NewRecorder()
 	engine.ServeHTTP(response, authorizedJSONRequest(http.MethodPost, "/api/ops/containers/abc123/remove", `{"force":true}`))
 	if response.Code != http.StatusOK {
 		t.Fatalf("expected remove 200, got %d: %s", response.Code, response.Body.String())
@@ -73,8 +122,13 @@ func TestRoutesRequireContainerPermissions(t *testing.T) {
 	if !slices.Contains(authorizer.permissions, containercontract.ContainerRemovePermission.String()) {
 		t.Fatalf("expected remove permission, got %#v", authorizer.permissions)
 	}
+}
 
-	response = httptest.NewRecorder()
+func assertBatchActionRoutePermission(t *testing.T, engine *gin.Engine, authorizer *recordingAuthorizer) {
+	t.Helper()
+
+	authorizer.reset()
+	response := httptest.NewRecorder()
 	engine.ServeHTTP(response, authorizedJSONRequest(http.MethodPost, "/api/ops/containers/batch-actions", `{"action":"start","ids":["abc123"]}`))
 	if response.Code != http.StatusOK {
 		t.Fatalf("expected batch start 200, got %d: %s", response.Code, response.Body.String())
@@ -83,12 +137,13 @@ func TestRoutesRequireContainerPermissions(t *testing.T) {
 		t.Fatalf("expected batch start permission, got %#v", authorizer.permissions)
 	}
 
+	authorizer.reset()
 	response = httptest.NewRecorder()
 	engine.ServeHTTP(response, authorizedJSONRequest(http.MethodPost, "/api/ops/containers/batch-actions", `{"action":"remove","ids":["abc123"],"force":true}`))
 	if response.Code != http.StatusOK {
 		t.Fatalf("expected batch remove 200, got %d: %s", response.Code, response.Body.String())
 	}
-	if countPermission(authorizer.permissions, containercontract.ContainerRemovePermission.String()) < 2 {
+	if !slices.Contains(authorizer.permissions, containercontract.ContainerRemovePermission.String()) {
 		t.Fatalf("expected batch remove to require remove permission, got %#v", authorizer.permissions)
 	}
 }
@@ -212,16 +267,6 @@ func authorizedJSONRequest(method string, path string, body string) *http.Reques
 	return request
 }
 
-func countPermission(permissions []string, permission string) int {
-	count := 0
-	for _, item := range permissions {
-		if item == permission {
-			count++
-		}
-	}
-	return count
-}
-
 type routeTestAuthService struct{}
 
 func (routeTestAuthService) CurrentUser(context.Context) (*moduleapi.CurrentUser, error) {
@@ -239,4 +284,8 @@ type recordingAuthorizer struct {
 func (a *recordingAuthorizer) Authorize(_ context.Context, _ moduleapi.RequestAuthContext, permission string) error {
 	a.permissions = append(a.permissions, permission)
 	return nil
+}
+
+func (a *recordingAuthorizer) reset() {
+	a.permissions = nil
 }

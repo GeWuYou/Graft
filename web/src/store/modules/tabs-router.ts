@@ -102,6 +102,16 @@ function clonePageSnapshot(snapshot: TabPageSnapshot | undefined): TabPageSnapsh
   return JSON.parse(JSON.stringify(snapshot)) as TabPageSnapshot;
 }
 
+/**
+ * Normalizes route state with computed tab properties.
+ *
+ * Establishes a unique tab key, ensures a full path, determines pinned status based on
+ * persisted preferences, and sets keep-alive behavior.
+ *
+ * @param route - The router info to normalize
+ * @param pinnedKeys - Set of pinned tab keys; defaults to the persisted pinned set
+ * @returns The route with computed tab properties
+ */
 function normalizeRouteState(route: TRouterInfo, pinnedKeys = readPinnedTabKeys()): TRouterInfo {
   const tabKey = getTabKey(route);
 
@@ -114,6 +124,34 @@ function normalizeRouteState(route: TRouterInfo, pinnedKeys = readPinnedTabKeys(
   };
 }
 
+/**
+ * Resolves which title to preserve when updating a tab route.
+ *
+ * Keeps the existing title if the next route has no title, or if both routes represent the same page and the existing title exists. Otherwise uses the new route's title.
+ *
+ * @param current - The existing tab route
+ * @param next - The new route information
+ * @returns The title to use
+ */
+function resolveNextTabTitle(current: TRouterInfo, next: TRouterInfo) {
+  if (!next.title) {
+    return current.title;
+  }
+  if (
+    (current.fullPath === next.fullPath || current.path === next.path || getTabKey(current) === getTabKey(next)) &&
+    current.title
+  ) {
+    return current.title;
+  }
+
+  return next.title;
+}
+
+/**
+ * Orders tabs by home status and pin status.
+ *
+ * @returns The input tabs ordered with home tabs first, followed by pinned non-home tabs, then unpinned non-home tabs.
+ */
 function sortTabs(routes: TRouterInfo[]) {
   const homeRoutes = routes.filter((route) => route.isHome);
   const pinnedRoutes = routes.filter((route) => !route.isHome && route.isPinned);
@@ -240,7 +278,7 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
                   fullPath: normalized.fullPath,
                   query: normalized.query,
                   params: normalized.params,
-                  title: normalized.title,
+                  title: resolveNextTabTitle(route, normalized),
                   name: normalized.name,
                   meta: normalized.meta,
                   isAlive: normalized.isAlive,
@@ -381,7 +419,9 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
 
       const activeTab =
         this.tabRouterList.find((tab) => !tab.isDuplicate && tab.fullPath === route.fullPath) ??
-        this.tabRouterList.find((tab) => tab.fullPath === route.fullPath);
+        this.tabRouterList.find((tab) => tab.fullPath === route.fullPath) ??
+        this.tabRouterList.find((tab) => !tab.isDuplicate && tab.path === route.path) ??
+        this.tabRouterList.find((tab) => tab.path === route.path);
       this.activeTabKey = activeTab ? getTabKey(activeTab) : route.path;
     },
     setActiveTabKey(tabKey: string) {
