@@ -20,16 +20,22 @@ Treat root `AGENTS.md` as startup truth. This skill does not define a second val
 3. Read `ai-plan/design/本地化与i18n治理规范.md`.
 4. Read `ai-plan/design/契约治理与魔法值治理规范.md` when adding or changing stable keys.
 5. Read `ai-plan/public/localization-governance/README.md` when continuing the localization migration topic.
+6. Read `ai-plan/public/server-locale-ownership-migration/README.md` when the task is specifically about server locale physical ownership, owner-local embedded resources, or the final drift audit for that migration.
 
 ## Authority Rules
 
 - Keep `server/internal/i18n.Service` as the only server i18n facade.
-- Treat embedded locale YAML under `server/internal/i18n/locales/**` as the canonical backend truth for user-visible localized copy.
+- Treat backend embedded locale YAML as canonical user-visible server copy, with physical ownership split across:
+  - `server/internal/i18n/locales/*.yaml` for core/display
+  - `server/internal/moduleruntime/locales/*.yaml` for internal runtime-owned copy
+  - `server/modules/<name>/locales/*.yaml` for module-owned copy
 - Keep locale resource embed, load, validate, freeze, and registry construction centralized in `server/internal/i18n`.
+- Treat `server/internal/i18n/locales/modules/` as guard-only legacy-free state; do not reintroduce module-owned or runtime-owned locale YAML there.
 - Do not add new production Go user-visible hardcoded localization copy; only technical identifiers may remain as Go strings by default.
 - Do not let business modules, `configregistry`, `httpx`, or `moduleapi` import `go-i18n`, loader internals, or provider
   internals.
-- Do not let business modules embed or load locale files themselves, even for module-owned namespaces.
+- Owner packages may `go:embed locales/*.yaml` and expose read-only resource descriptors, but must not parse YAML, validate keys,
+  build registries, or freeze locale state themselves.
 - Keep `web/src/locales/**` as the web locale state and aggregation boundary.
 - Keep module web messages in `web/src/modules/<name>/locales/**`; do not copy module keys into root catalog.
 - Prefer stable keys over server-provided final text for menus, errors, permissions, system config metadata, and schema
@@ -47,9 +53,9 @@ Treat root `AGENTS.md` as startup truth. This skill does not define a second val
    `LookupRequest`.
 3. For resource-file work, convert flat YAML entries into `i18n.Registration` and register through
    `Service.RegisterMessages`; do not bypass duplicate-key, unsupported-locale, or freeze rules.
-4. Keep backend locale resources centralized under `server/internal/i18n/locales/*.yaml` and
-   `server/internal/i18n/locales/modules/*.yaml`; module ownership is semantic, not a license to add per-module loaders.
-5. Keep centralized loader coverage for both root and nested module locale files without changing facade or provider exposure.
+4. Keep backend locale infrastructure centralized in `server/internal/i18n`, but let resource ownership follow the owner package
+   directory.
+5. Register owner-local embedded resources through runtime pre-registration before module `Register`; do not change facade or provider exposure.
 6. Do not migrate all `defaultCatalogEntries` in an early phase. Treat core HTTP error copy as high blast radius.
 7. Keep JSON Schema `x-i18n.titleKey`, `descriptionKey`, and `enumLabels` intact.
 8. For menus, widgets, quick links, retention jobs, cron actions, explorer metadata, permission display metadata, and config-definition visible fields, prefer locale-key/resource-backed authority and remove Go fallback copy when the current call chain supports it.
@@ -66,11 +72,11 @@ Treat root `AGENTS.md` as startup truth. This skill does not define a second val
 
 ## Phase Defaults
 
-- Phase 1: add server embedded YAML loader and tests; keep map catalog and facade, and centralize the locale directory strategy in `server/internal/i18n`.
-- Phase 2: migrate dashboard quick actions system-config copy as the first sample.
-- Phase 3: migrate system-config copy in batches.
-- Phase 4: migrate menu, notification, announcement, scheduler, container, and log explorer display copy.
-- Phase 5: evaluate `go-i18n` only if plural, template, or translation workflow needs justify it.
+- Phase 1: add raw embedded resource registration to `server/internal/i18n`; do not move files yet.
+- Phase 2: migrate one low-risk module such as `announcement` or `container`.
+- Phase 3: migrate remaining module-owned locale resources.
+- Phase 4: migrate internal runtime-owned locale resources such as `module-runtime`.
+- Phase 5: update governance docs, recovery materials, and CI/script drift guards.
 
 ## Validation
 

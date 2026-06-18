@@ -37,11 +37,10 @@
   - embedded locale YAML 是 backend 用户可见本地化文案的 canonical truth。
   - `server/internal/i18n` 独占 locale 资源的 embed、load、validate、freeze 与 registry construction。
   - module 不得自持 locale 文件 embed/load 逻辑，也不得在 `server/internal/i18n` 外维护平行 registry。
-- 目录策略落定为：
-  - `server/internal/i18n/locales/*.yaml` 承载 core-owned namespace。
-  - `server/internal/i18n/locales/modules/*.yaml` 承载 module-owned namespace。
-  - 两类资源都只能由 `server/internal/i18n` 编译期 embed 并在启动期集中加载。
-- 若实现侧仍只支持 `locales/*.yaml`，本轮同步补齐 `locales/modules/*.yaml` loader 支持，但不改 facade、provider exposure 或 wire contract。
+- 当时的过渡实现策略是先补齐 `server/internal/i18n` 对 raw embedded resource 的注册入口，保持集中目录继续工作：
+  - `server/internal/i18n/locales/*.yaml` 继续承载 `core` / `display`。
+  - module-owned 与 runtime-owned locale 的最终物理归属，随后在独立 `server-locale-ownership-migration` topic 中迁往 owner-local `locales/*.yaml`。
+  - 该 topic 最终完成后，`server/internal/i18n/locales/modules/*.yaml` 已不再承载 live locale YAML，只保留 guard marker `README.md`。
 
 ## 2026-06-18 Slice 3 delete legacy fallbacks and switch to locale resource
 
@@ -135,6 +134,16 @@
 - governance sync：
   - `ai-plan/public/localization-governance/README.md`、tracking、trace、design、skill 均更新为当前 cross-boundary 事实。
   - 明确：archive-ready 只能建立在当前代码与验证事实上；若重新引入未登记 fallback，不得沿用旧 closeout 结论。
+
+## 2026-06-18 server locale ownership follow-up closed
+
+- 独立 follow-up topic `ai-plan/public/server-locale-ownership-migration/README.md` 已完成全部实现批次与 final drift audit。
+- broad localization governance 与 server locale ownership follow-up 的联合最终事实为：
+  - `server/internal/i18n/locales/*.yaml` 仅保留 `core` / `display`。
+  - module-owned locale 位于 `server/modules/<name>/locales/*.yaml`。
+  - runtime-owned locale 位于 `server/internal/moduleruntime/locales/*.yaml`。
+  - `scripts/check_server_locale_ownership.py` 已阻止 `server/internal/i18n/locales/modules/*.yaml` 回流。
+- 因此本目录不再是新的 active recovery 入口；未来若要继续推进本地化治理，应新建 bounded topic，而不是复用旧的 broad governance loop。
 
 ## Loop Batch State
 
