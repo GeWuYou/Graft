@@ -38,4 +38,4 @@ Localization Governance
 - [x] slice-2：core default catalog migration
 - [x] slice-3：delete legacy fallbacks and switch to locale resource
 - [x] slice-4：residual server visible-copy cleanup
-- [ ] final：archive readiness and governance sync
+- [x] final：archive readiness and governance sync

@@ -711,8 +711,8 @@ func assertSchedulerRunSuccessDisplay(t *testing.T, input moduleapi.PublishNotif
 		t.Fatalf("unexpected message keys: %#v", input)
 	}
 	if input.Title != "Webhook Health" ||
-		input.Message != "Completed successfully." ||
-		input.ActionLabel != "Open scheduled task run" {
+		input.Message != "" ||
+		input.ActionLabel != "" {
 		t.Fatalf("unexpected fallback copy: %#v", input)
 	}
 }

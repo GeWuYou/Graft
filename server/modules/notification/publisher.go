@@ -276,7 +276,10 @@ func normalizePublishTimes(input moduleapi.PublishNotificationInput) moduleapi.P
 }
 
 func validatePublishInput(input moduleapi.PublishNotificationInput) error {
-	if input.Title == "" || input.Message == "" || input.SourceModule == "" || input.EventType == "" {
+	if (input.TitleKey == "" && input.Title == "") ||
+		(input.MessageKey == "" && input.Message == "") ||
+		input.SourceModule == "" ||
+		input.EventType == "" {
 		return moduleapi.ErrNotificationInvalidInput
 	}
 	if err := validatePublishContract(input); err != nil {

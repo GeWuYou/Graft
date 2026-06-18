@@ -84,16 +84,29 @@
   - `monitor` health `Detail`、anomaly `Summary`、reason 文本属于运行时动态诊断文本；当前未建立独立 locale resource owner，不在本批直接迁移。
   - route/path、menu code、module key、config key、resource key、event type、dedupe key、enum/status、log message 继续作为技术标识保留。
 - 临时例外：
-  - `server/modules/scheduler/notification_integration.go`
-    - 字段：`PublishNotificationInput.Message`、`PublishNotificationInput.ActionLabel`，以及失败通知的动态拼接 message。
-    - 原因：`server/modules/notification/publisher.go` 目前对 `PublishNotificationInput` 强制校验 `Title` 与 `Message` 非空，通知消费链也仍持久化 fallback 文本；本批不允许改 notification wire / facade。
-    - 移除条件：后续由 notification authority 批次把发布/持久化/消费链升级为 key-first，可接受空 fallback 或由 source-module locale lookup 生成最终文本。
-    - 验证范围：`cd server && go test ./modules/scheduler -run 'TestSchedulerRunSuccessNotifierPublishesLocalizedDisplay|TestSchedulerRunFailureNotifierPublishesFailureNotification'`
   - `server/modules/audit/storeent/repository.go`
     - 字段：`displayTargetLabel()` 返回的 `用户/角色/权限/审计/服务器状态/认证`。
     - 原因：当前需先确认该标签的 canonical consumer authority 是 audit read-model 展示文案还是内部 evidence 分类标签；本批只做分类，不冒然改变 audit evidence 输出。
     - 移除条件：final archive-readiness 批次完成 consumer trace，若判定为用户可见文案则迁移到 locale resource；若判定为内部技术标签则在治理文档中正式归类。
     - 验证范围：依赖后续 audit owner 审计结论。
+
+## 2026-06-18 Final archive readiness and governance sync
+
+- 移除 `server/modules/scheduler/notification_integration.go` 中剩余通知 fallback 文本：
+  - 成功通知不再写入 `Message` 与 `ActionLabel` 英文 fallback，仅保留 locale key authority 和必要的动态 `Title` 资源名。
+  - 失败通知不再写入 `Title` 与动态拼接 `Message` fallback，仅保留稳定 locale key authority。
+- 同步放宽通知中心发布/持久化校验：
+  - `server/modules/notification/publisher.go`
+  - `server/modules/notification/store/sql_repository.go`
+  - 以上两处都改为 `TitleKey/Title`、`MessageKey/Message` 二选一满足即可，允许 key-first 事件持久化。
+- 当前 final 审计结论：
+  - backend Go 仍存在 1 处登记的业务本地化硬编码：`server/modules/audit/storeent/repository.go:displayTargetLabel()`
+  - 该项被正式归类为临时例外，不是 archive-ready 之前的未声明残留。
+  - `server/modules/monitor/module.go` 中 `Review related audit activity` / `Check audit records from the same bounded monitor window.` 属于 monitor 动态诊断 evidence link 文本，当前仅做分类，不作为本 topic 的未登记业务本地化硬编码处理。
+- 本 topic 达到 archive-ready 条件：
+  - backend 用户可见本地化硬编码已迁移到 embedded locale YAML，或被显式登记为临时例外；
+  - docs / trace / tracking / skill 已同步，无未登记 drift；
+  - 当前无新的未声明 Go business-localization hardcoding 残留。
 
 ## Loop Batch State
 
