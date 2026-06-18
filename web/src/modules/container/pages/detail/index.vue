@@ -569,7 +569,9 @@
             </t-tab-panel>
 
             <t-tab-panel value="config" :label="t('container.detail.tabs.config')" :destroy-on-hide="false">
-              <section class="container-detail-section container-detail-section--config">
+              <section
+                class="container-detail-section container-detail-section--config container-detail-tab-body container-detail-tab-body--compact"
+              >
                 <div class="container-config-section">
                   <h3>{{ t('container.detail.config.runtimeTitle') }}</h3>
                   <t-card class="container-runtime-config-card" size="small" :bordered="false">
@@ -700,18 +702,21 @@
                       </t-tooltip>
                     </template>
                   </t-table>
-                  <t-empty
-                    v-else
-                    size="small"
-                    :title="t('container.detail.config.environmentEmptyTitle')"
-                    :description="t('container.detail.config.environmentUnavailable')"
-                  />
+                  <div v-else class="container-detail-empty-state container-detail-empty-state--inline">
+                    <t-empty
+                      size="small"
+                      :title="t('container.detail.config.environmentEmptyTitle')"
+                      :description="t('container.detail.config.environmentUnavailable')"
+                    />
+                  </div>
                 </div>
               </section>
             </t-tab-panel>
 
             <t-tab-panel value="network" :label="t('container.detail.tabs.network')" :destroy-on-hide="false">
-              <section class="container-detail-section container-detail-section--network">
+              <section
+                class="container-detail-section container-detail-section--network container-detail-tab-body container-detail-tab-body--short"
+              >
                 <section class="container-network-panel">
                   <header class="container-network-panel__header">
                     <h3>{{ t('container.detail.network.connections') }}</h3>
@@ -815,7 +820,9 @@
                       </template>
                     </t-table>
                   </template>
-                  <t-empty v-else size="small" :description="t('container.list.detail.networkEmpty')" />
+                  <div v-else class="container-detail-empty-state container-detail-empty-state--inline">
+                    <t-empty size="small" :description="t('container.list.detail.networkEmpty')" />
+                  </div>
                 </section>
 
                 <section class="container-network-panel">
@@ -881,7 +888,9 @@
                       />
                     </template>
                   </t-table>
-                  <t-empty v-else size="small" :description="t('container.list.detail.portEmpty')" />
+                  <div v-else class="container-detail-empty-state container-detail-empty-state--inline">
+                    <t-empty size="small" :description="t('container.list.detail.portEmpty')" />
+                  </div>
                 </section>
 
                 <section class="container-network-panel">
@@ -913,7 +922,9 @@
             </t-tab-panel>
 
             <t-tab-panel value="storage" :label="t('container.detail.tabs.storage')" :destroy-on-hide="false">
-              <section class="container-detail-section container-detail-section--storage">
+              <section
+                class="container-detail-section container-detail-section--storage container-detail-tab-body container-detail-tab-body--short"
+              >
                 <div v-if="mountCards.length" class="container-mount-card-grid">
                   <article
                     v-for="mount in mountCards"
@@ -1014,14 +1025,12 @@
                     </div>
                   </article>
                 </div>
-                <div v-else class="container-mount-empty" role="status" aria-live="polite">
-                  <t-icon class="container-mount-empty__icon" name="server" />
-                  <span class="container-mount-empty__title">
-                    {{ t('container.detail.storage.emptyTitle') }}
-                  </span>
-                  <span class="container-mount-empty__description">
-                    {{ t('container.detail.storage.emptyDescription') }}
-                  </span>
+                <div v-else class="container-detail-empty-state" role="status" aria-live="polite">
+                  <t-empty
+                    size="small"
+                    :title="t('container.detail.storage.emptyTitle')"
+                    :description="t('container.detail.storage.emptyDescription')"
+                  />
                 </div>
               </section>
             </t-tab-panel>
@@ -3318,6 +3327,20 @@ function portLabel(port: ContainerDetail['ports'][number]) {
  * Short detail tabs use the page scrollbar. Long-form tabs such as logs and raw JSON own
  * their internal scrolling so the page does not fight a second nested scrollbar.
  */
+.container-detail-tab-body {
+  --container-detail-tab-body-min-height: clamp(280px, calc(100vh - var(--graft-page-bottom-safe-area) - 420px), 520px);
+
+  min-height: var(--container-detail-tab-body-min-height);
+}
+
+.container-detail-tab-body--short {
+  --container-detail-tab-body-min-height: clamp(320px, calc(100vh - var(--graft-page-bottom-safe-area) - 420px), 520px);
+}
+
+.container-detail-tab-body--compact {
+  --container-detail-tab-body-min-height: clamp(280px, calc(100vh - var(--graft-page-bottom-safe-area) - 460px), 440px);
+}
+
 .container-detail-section {
   padding: 0;
 }
@@ -3338,13 +3361,39 @@ function portLabel(port: ContainerDetail['ports'][number]) {
 
 .container-detail-section--network {
   gap: var(--graft-density-gap-16);
-  min-height: 360px;
   padding: 0 var(--graft-density-gap-16) var(--graft-density-gap-16);
 }
 
 .container-detail-section--storage {
-  min-height: 320px;
   padding: 0 var(--graft-density-gap-16) var(--graft-density-gap-16);
+}
+
+.container-detail-empty-state {
+  align-items: center;
+  display: flex;
+  flex: 1 1 auto;
+  justify-content: center;
+  min-height: var(--container-detail-tab-body-min-height, 100%);
+  min-width: 0;
+  padding: var(--graft-density-gap-24) var(--graft-density-gap-16);
+  text-align: center;
+}
+
+.container-detail-empty-state :deep(.t-empty) {
+  max-width: 420px;
+}
+
+.container-detail-empty-state :deep(.t-empty__description) {
+  overflow-wrap: anywhere;
+}
+
+.container-detail-empty-state--compact {
+  padding-block: var(--graft-density-gap-16);
+}
+
+.container-detail-empty-state--inline {
+  min-height: 180px;
+  padding-block: var(--graft-density-gap-16);
 }
 
 .container-mount-card-grid {
@@ -3492,40 +3541,6 @@ function portLabel(port: ContainerDetail['ports'][number]) {
 .container-mount-usage strong {
   color: var(--td-text-color-primary);
   font: var(--td-font-title-medium);
-}
-
-.container-mount-empty {
-  align-items: center;
-  display: flex;
-  flex-direction: column;
-  gap: var(--graft-density-gap-4);
-  justify-content: center;
-  min-height: 148px;
-  padding: var(--graft-density-gap-16) var(--graft-density-gap-12);
-  text-align: center;
-}
-
-.container-mount-empty__icon {
-  color: var(--td-text-color-placeholder);
-  font-size: var(--td-comp-size-xxl);
-  line-height: 1;
-}
-
-.container-mount-empty__title,
-.container-mount-empty__description {
-  display: block;
-  width: 100%;
-}
-
-.container-mount-empty__title {
-  color: var(--td-text-color-primary);
-  font: var(--td-font-body-medium);
-  font-weight: 500;
-}
-
-.container-mount-empty__description {
-  color: var(--td-text-color-secondary);
-  font: var(--td-font-body-small);
 }
 
 .container-network-panel {

@@ -317,7 +317,7 @@ const translations = vi.hoisted(
     'container.detail.storage.accessLabels.readWrite': '读写',
     'container.detail.storage.basicInfo': '基础信息',
     'container.detail.storage.destination': '挂载点',
-    'container.detail.storage.emptyDescription': '该容器未配置额外挂载卷',
+    'container.detail.storage.emptyDescription': '该容器当前没有额外挂载卷',
     'container.detail.storage.emptyTitle': '暂无挂载',
     'container.detail.storage.errorMessage': '挂载用量无法测量',
     'container.detail.storage.measuredAt': '测量时间 {time}',
@@ -665,7 +665,7 @@ describe('container detail page', () => {
     expect(wrapper.text()).toContain('无公开端口');
     expect(wrapper.text()).toContain('暂无网络信息。');
     expect(wrapper.text()).toContain('暂无挂载');
-    expect(wrapper.text()).toContain('该容器未配置额外挂载卷');
+    expect(wrapper.text()).toContain('该容器当前没有额外挂载卷');
     expect(wrapper.text()).not.toContain('暂无挂载。');
     expect(wrapper.text()).not.toContain('undefined');
   });
@@ -720,12 +720,13 @@ describe('container detail page', () => {
 
     expect(wrapper.findAll('.container-mount-card')).toHaveLength(0);
     expect(wrapper.text()).toContain('暂无挂载');
-    expect(wrapper.text()).toContain('该容器未配置额外挂载卷');
+    expect(wrapper.text()).toContain('该容器当前没有额外挂载卷');
     expect(wrapper.text()).not.toContain('暂无挂载。');
-    expect(wrapper.find('.container-mount-empty__icon').exists()).toBe(true);
-    expect(wrapper.find('.container-mount-empty__title').text()).toBe('暂无挂载');
-    expect(wrapper.find('.container-mount-empty__description').text()).toBe('该容器未配置额外挂载卷');
-    expect(wrapper.find('.container-mount-empty .t-empty-stub').exists()).toBe(false);
+    expect(wrapper.find('.container-detail-empty-state .t-empty-stub').exists()).toBe(true);
+    expect(wrapper.find('.container-detail-empty-state .t-empty-stub__title').text()).toBe('暂无挂载');
+    expect(wrapper.find('.container-detail-empty-state .t-empty-stub__description').text()).toBe(
+      '该容器当前没有额外挂载卷',
+    );
   });
 
   it('middle-truncates long mount paths while copying full values', async () => {
@@ -1392,8 +1393,10 @@ describe('container detail page', () => {
     expect(sourceText).toContain('v-else-if="error"');
     expect(sourceText).toContain('v-else-if="safeDetail"');
     expect(sourceText).toContain('<t-empty v-else class="container-detail-state"');
+    expect(sourceText).toContain('container-detail-tab-body');
+    expect(sourceText).toContain('container-detail-empty-state');
     expect(sourceText).not.toContain('footer: false');
-    expect(sourceText).not.toContain('calc(100vh');
+    expect(sourceText).not.toContain('margin-top: 120px');
   });
 
   it('loads logs when the logs tab is selected and syncs the route query', async () => {

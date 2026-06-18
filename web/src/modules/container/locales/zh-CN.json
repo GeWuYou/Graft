@@ -516,7 +516,7 @@
         "basicInfo": "基础信息",
         "destination": "挂载点",
         "emptyTitle": "暂无挂载",
-        "emptyDescription": "该容器未配置额外挂载卷",
+        "emptyDescription": "该容器当前没有额外挂载卷",
         "errorMessage": "挂载用量无法测量",
         "source": "来源",
         "sourceUnavailable": "无来源",

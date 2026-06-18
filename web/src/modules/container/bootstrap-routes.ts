@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { BootstrapRouteRegistration, GlobalRouteRegistration } from '@/modules/types';
-import { localizeRouteTitle, localizeRouteTitleKey } from '@/utils/route/title';
+import { localizeRouteTitleKey } from '@/utils/route/title';
 
 import { CONTAINER_BOOTSTRAP_ROUTE } from './contract/bootstrap';
 
 const listRouteTitle = localizeRouteTitleKey('container.route.list.title');
 const listBreadcrumbTitle = localizeRouteTitleKey('container.route.list.breadcrumb');
-const operationsRouteTitle = localizeRouteTitle('Operations', 'menu.ops.title');
 const detailRouteTitle = localizeRouteTitleKey('container.route.detail.title');
 const detailBreadcrumbTitle = localizeRouteTitleKey('container.route.detail.breadcrumb');
 
@@ -19,11 +18,9 @@ export const containerBootstrapRouteRegistrations: BootstrapRouteRegistration[] 
     meta: {
       tabGroup: 'ops',
       pageKind: 'list',
-      semanticTitle: operationsRouteTitle,
+      semanticTitle: listRouteTitle,
       breadcrumbTitle: listBreadcrumbTitle,
       tabTitle: listRouteTitle,
-      title: operationsRouteTitle,
-      titleKey: 'container.route.list.title',
     },
   },
 ];
