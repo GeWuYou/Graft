@@ -1,0 +1,17 @@
+systemConfig.domains.dashboard: 工作台配置
+systemConfig.groups.dashboardQuickActions: 工作台快捷入口
+systemConfig.groupDescriptions.dashboardQuickActions: 管理首页快捷入口的显示与排序策略。
+systemConfig.items.dashboardQuickActions.title: 工作台快捷入口
+systemConfig.items.dashboardQuickActions.description: 工作台首页快捷入口的显示与排序默认配置。
+systemConfig.fields.dashboardQuickActions.enabled.title: 是否启用
+systemConfig.fields.dashboardQuickActions.enabled.description: 控制工作台首页是否展示个性化快捷入口。
+systemConfig.fields.dashboardQuickActions.maxItems.title: 最大数量
+systemConfig.fields.dashboardQuickActions.maxItems.description: 工作台首页默认展示的个性化入口数量。
+systemConfig.fields.dashboardQuickActions.strategy.title: 排序策略
+systemConfig.fields.dashboardQuickActions.strategy.description: 个性化快捷入口的推荐排序策略。
+systemConfig.options.dashboardQuickActionStrategy.mostUsed: 最常使用
+systemConfig.options.dashboardQuickActionStrategyDescriptions.mostUsed: 优先展示使用频率最高的快捷入口。
+systemConfig.options.dashboardQuickActionStrategy.recent: 最近访问
+systemConfig.options.dashboardQuickActionStrategyDescriptions.recent: 优先展示最近访问过的快捷入口。
+systemConfig.options.dashboardQuickActionStrategy.hybrid: 综合推荐
+systemConfig.options.dashboardQuickActionStrategyDescriptions.hybrid: 根据最近访问、使用频率和系统推荐结果综合排序。

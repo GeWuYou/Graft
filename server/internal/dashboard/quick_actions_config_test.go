@@ -167,8 +167,33 @@ func TestRegisterQuickActionsConfigMessagesUsesProductFacingChineseCopy(t *testi
 		t.Fatalf("register quick-actions config messages: %v", err)
 	}
 
+	zhMessage := localizer.Lookup(i18n.LookupRequest{
+		Namespace: "system-config",
+		Locale:    i18n.LocaleZHCN,
+		Key:       i18n.MessageKey(quickActionsConfigGroupKey),
+	})
+	if zhMessage != "工作台快捷入口" {
+		t.Fatalf("expected zh-CN localized dashboard quick-actions group label, got %q", zhMessage)
+	}
+
+	enMessage := localizer.Lookup(i18n.LookupRequest{
+		Namespace: "system-config",
+		Locale:    i18n.LocaleENUS,
+		Key:       i18n.MessageKey(quickActionsStrategyHybridDesc),
+	})
+	if enMessage != "Rank by recent visits, usage frequency, and system recommendations." {
+		t.Fatalf("expected en-US localized hybrid description, got %q", enMessage)
+	}
+
 	matches := localizer.RegisteredMessageResources(i18n.LocaleZHCN, i18n.MessageKey(quickActionsConfigGroupKey))
-	if len(matches) != 1 || matches[0].Text != "工作台快捷入口" {
-		t.Fatalf("expected localized dashboard quick-actions group label, got %#v", matches)
+	if len(matches) != 1 ||
+		matches[0].Key != "system-config."+quickActionsConfigGroupKey ||
+		matches[0].Text != "工作台快捷入口" {
+		t.Fatalf("expected registered zh-CN dashboard quick-actions diagnostic, got %#v", matches)
+	}
+
+	ids := localizer.RegisteredMessageKeyIDs(i18n.LocaleENUS, i18n.MessageKey(quickActionsStrategyHybridDesc))
+	if len(ids) != 1 || ids[0] != "system-config."+quickActionsStrategyHybridDesc {
+		t.Fatalf("expected registered en-US dashboard quick-actions diagnostic key, got %#v", ids)
 	}
 }

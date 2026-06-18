@@ -1,0 +1,17 @@
+systemConfig.domains.dashboard: Dashboard Configuration
+systemConfig.groups.dashboardQuickActions: Dashboard Quick Actions
+systemConfig.groupDescriptions.dashboardQuickActions: Manage dashboard home quick-action visibility and ranking.
+systemConfig.items.dashboardQuickActions.title: Dashboard Quick Actions
+systemConfig.items.dashboardQuickActions.description: Dashboard home quick-action visibility and ranking defaults.
+systemConfig.fields.dashboardQuickActions.enabled.title: Enabled
+systemConfig.fields.dashboardQuickActions.enabled.description: Controls whether personalized dashboard quick actions are shown.
+systemConfig.fields.dashboardQuickActions.maxItems.title: Maximum Items
+systemConfig.fields.dashboardQuickActions.maxItems.description: Maximum personalized entries shown on the dashboard home page.
+systemConfig.fields.dashboardQuickActions.strategy.title: Ranking Strategy
+systemConfig.fields.dashboardQuickActions.strategy.description: Personalized quick action ranking strategy.
+systemConfig.options.dashboardQuickActionStrategy.mostUsed: Most Used
+systemConfig.options.dashboardQuickActionStrategyDescriptions.mostUsed: Prioritize the quick actions used most often.
+systemConfig.options.dashboardQuickActionStrategy.recent: Recent
+systemConfig.options.dashboardQuickActionStrategyDescriptions.recent: Prioritize quick actions visited most recently.
+systemConfig.options.dashboardQuickActionStrategy.hybrid: Hybrid
+systemConfig.options.dashboardQuickActionStrategyDescriptions.hybrid: Rank by recent visits, usage frequency, and system recommendations.
