@@ -42,6 +42,44 @@ func EmbeddedLocaleResources() ([]EmbeddedLocaleResource, error) {
 	return loadEmbeddedLocaleResources(embeddedLocaleFS)
 }
 
+// EmbeddedLocaleResourcesFromFS converts owner-local {locale}.yaml resources
+// into read-only descriptors without exposing loader internals outside i18n.
+func EmbeddedLocaleResourcesFromFS(fsys fs.FS, namespace Namespace) ([]EmbeddedLocaleResource, error) {
+	namespace = Namespace(strings.TrimSpace(string(namespace)))
+	if namespace == "" {
+		return nil, errors.New("embedded locale resource namespace is required")
+	}
+	if fsys == nil {
+		return nil, nil
+	}
+
+	matches, err := fs.Glob(fsys, "*.yaml")
+	if err != nil {
+		return nil, fmt.Errorf("glob owner-local locale resources: %w", err)
+	}
+	slices.Sort(matches)
+
+	resources := make([]EmbeddedLocaleResource, 0, len(matches))
+	for _, name := range matches {
+		locale, err := parseOwnerLocaleResourceName(name)
+		if err != nil {
+			return nil, fmt.Errorf("parse owner-local locale resource %q: %w", name, err)
+		}
+		data, err := fs.ReadFile(fsys, name)
+		if err != nil {
+			return nil, fmt.Errorf("read owner-local locale resource %q: %w", name, err)
+		}
+		resources = append(resources, EmbeddedLocaleResource{
+			Namespace: namespace,
+			Locale:    locale,
+			Source:    name,
+			Data:      append([]byte(nil), data...),
+		})
+	}
+
+	return resources, nil
+}
+
 // RegisterEmbeddedLocaleResources registers raw embedded locale resources while
 // reusing the canonical RegisterMessages validation path.
 func (s *Service) RegisterEmbeddedLocaleResources(resources []EmbeddedLocaleResource) error {
@@ -211,6 +249,23 @@ func parseLocaleResourceName(filename string) (Namespace, LocaleTag, error) {
 	}
 
 	return namespace, locale, nil
+}
+
+func parseOwnerLocaleResourceName(filename string) (LocaleTag, error) {
+	name := strings.TrimSpace(filename)
+	if name == "" {
+		return "", errors.New("locale resource filename is required")
+	}
+	if !strings.HasSuffix(name, ".yaml") {
+		return "", fmt.Errorf("locale resource %q must end with .yaml", name)
+	}
+
+	locale := strings.TrimSpace(strings.TrimSuffix(name, ".yaml"))
+	if locale == "" {
+		return "", fmt.Errorf("locale resource %q must match {locale}.yaml", name)
+	}
+
+	return LocaleTag(locale), nil
 }
 
 func parseFlatYAMLMessages(resourcePath string, content []byte) ([]MessageResource, error) {

@@ -264,7 +264,6 @@ func TestEmbeddedLocaleResourcesIncludePhase4DisplayKeys(t *testing.T) {
 	service := newTestService()
 
 	keys := []string{
-		"menu.server.announcements.title",
 		"menu.notification.title",
 		"menu.audit.title",
 		"menu.server.scheduled_tasks.title",

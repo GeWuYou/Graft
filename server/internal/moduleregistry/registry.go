@@ -9,6 +9,7 @@ import (
 
 	"graft/server/internal/i18n"
 	"graft/server/internal/module"
+	announcementlocales "graft/server/modules/announcement/locales"
 )
 
 // DefaultMigrationDir 是 `graft migrate` 默认链路使用的 owner-aligned 选择器。
@@ -25,7 +26,11 @@ const drilldownMigrationDir = "internal/drilldown/migrations"
 // Slice 1 only establishes the runtime slot, so later module migrations can
 // populate this without changing the registration flow again.
 func EmbeddedLocaleResources() []i18n.EmbeddedLocaleResource {
-	return nil
+	resources, err := announcementlocales.EmbeddedLocaleResources()
+	if err != nil {
+		panic(fmt.Sprintf("load announcement embedded locale resources: %v", err))
+	}
+	return resources
 }
 
 // ModuleSpecs 返回 compile-time 生成的模块定义快照。

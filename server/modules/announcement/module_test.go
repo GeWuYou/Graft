@@ -29,6 +29,7 @@ import (
 	"graft/server/internal/permission"
 	"graft/server/internal/testassert"
 	announcementcontract "graft/server/modules/announcement/contract"
+	announcementlocales "graft/server/modules/announcement/locales"
 	announcementstore "graft/server/modules/announcement/store"
 )
 
@@ -73,6 +74,22 @@ func TestNewModuleSpecDeclaresMigrationAndDependencies(t *testing.T) {
 	}
 	if len(spec.MigrationPath) != 1 || spec.MigrationPath[0] != "modules/announcement/migrations" {
 		t.Fatalf("unexpected migration paths %#v", spec.MigrationPath)
+	}
+}
+
+func TestAnnouncementEmbeddedLocaleResources(t *testing.T) {
+	resources, err := announcementlocales.EmbeddedLocaleResources()
+	if err != nil {
+		t.Fatalf("embedded locale resources: %v", err)
+	}
+	if len(resources) != 2 {
+		t.Fatalf("expected 2 locale resources, got %d", len(resources))
+	}
+	if resources[0].Namespace != i18n.Namespace("announcement") || resources[0].Locale != i18n.LocaleENUS {
+		t.Fatalf("unexpected first locale resource %#v", resources[0])
+	}
+	if resources[1].Namespace != i18n.Namespace("announcement") || resources[1].Locale != i18n.LocaleZHCN {
+		t.Fatalf("unexpected second locale resource %#v", resources[1])
 	}
 }
 
@@ -859,6 +876,13 @@ func newAnnouncementTestContext(engine *gin.Engine) *module.Context {
 			"en-US",
 		},
 	})
+	resources, err := announcementlocales.EmbeddedLocaleResources()
+	if err != nil {
+		panic(fmt.Sprintf("load announcement locale resources: %v", err))
+	}
+	if err := localizer.RegisterEmbeddedLocaleResources(resources); err != nil {
+		panic(fmt.Sprintf("register announcement locale resources: %v", err))
+	}
 	var router gin.IRouter
 	if engine != nil {
 		router = engine.Group("/api")

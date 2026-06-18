@@ -9,11 +9,20 @@ import (
 	"reflect"
 	"sort"
 	"testing"
+
+	"graft/server/internal/i18n"
 )
 
-func TestEmbeddedLocaleResourcesStartsEmptyUntilModuleOwnedMigration(t *testing.T) {
-	if got := EmbeddedLocaleResources(); len(got) != 0 {
-		t.Fatalf("expected no compile-time locale resources in slice-1, got %#v", got)
+func TestEmbeddedLocaleResourcesIncludesAnnouncementPilot(t *testing.T) {
+	got := EmbeddedLocaleResources()
+	if len(got) != 2 {
+		t.Fatalf("expected 2 announcement locale resources, got %#v", got)
+	}
+	if got[0].Namespace != i18n.Namespace("announcement") || got[0].Locale != i18n.LocaleENUS {
+		t.Fatalf("unexpected first locale resource %#v", got[0])
+	}
+	if got[1].Namespace != i18n.Namespace("announcement") || got[1].Locale != i18n.LocaleZHCN {
+		t.Fatalf("unexpected second locale resource %#v", got[1])
 	}
 }
 
