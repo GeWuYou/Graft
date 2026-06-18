@@ -1481,8 +1481,11 @@ describe('container detail page', () => {
     const wrapper = mountPage();
     await flushPromises();
 
-    expect(wrapper.text()).toContain('graft-web');
-    expect(wrapper.text()).toContain('server started');
+    const headingText = () => wrapper.get('h1').text();
+    const logsText = () => wrapper.get('.log-viewer').text();
+
+    expect(headingText()).toBe('graft-web');
+    expect(logsText()).toContain('server started');
 
     const nextDetail = deferred<ReturnType<typeof createContainerDetail>>();
     const nextLogs = deferred<{
@@ -1517,27 +1520,30 @@ describe('container detail page', () => {
       truncated: false,
     };
 
+    const detailCallCount = apiMocks.getContainer.mock.calls.length;
+    const logsCallCount = apiMocks.getContainerLogs.mock.calls.length;
+
     routeState.route.params.id = 'container-2';
     await wrapper.vm.$nextTick();
-    await vi.waitFor(() => {
-      expect(apiMocks.getContainer).toHaveBeenLastCalledWith('container-2');
-      expect(apiMocks.getContainerLogs).toHaveBeenLastCalledWith('container-2', {
-        tail: 200,
-        since: undefined,
-        stderr: true,
-        stdout: true,
-        timestamps: false,
-      });
+    expect(apiMocks.getContainer.mock.calls.length).toBeGreaterThan(detailCallCount);
+    expect(apiMocks.getContainerLogs.mock.calls.length).toBeGreaterThan(logsCallCount);
+    expect(apiMocks.getContainer).toHaveBeenLastCalledWith('container-2');
+    expect(apiMocks.getContainerLogs).toHaveBeenLastCalledWith('container-2', {
+      tail: 200,
+      since: undefined,
+      stderr: true,
+      stdout: true,
+      timestamps: false,
     });
 
-    expect(wrapper.text()).not.toContain('graft-web');
-    expect(wrapper.text()).not.toContain('server started');
+    expect(headingText()).toBe('container-2');
+    expect(wrapper.find('.log-viewer').exists()).toBe(false);
 
     nextDetail.resolve(container2Detail);
     nextLogs.resolve(container2Logs);
     await flushPromises();
-    expect(wrapper.text()).toContain('graft-api');
-    expect(wrapper.text()).toContain('api started');
+    expect(headingText()).toBe('graft-api');
+    expect(logsText()).toContain('api started');
   });
 
   it('clears stale detail on missing route id and load failure', async () => {
