@@ -327,33 +327,6 @@ func RegisterAccessLogRetentionConfigMessages(localizer *i18n.Service) error {
 	if localizer == nil {
 		return errors.New("i18n service is required")
 	}
-
-	for _, registration := range []i18n.Registration{
-		{
-			Namespace: "system-config",
-			Locale:    i18n.LocaleZHCN,
-			Messages: []i18n.MessageResource{
-				{Key: i18n.MessageKey(accessLogRetentionConfigGroupKey), Text: "访问日志保留"},
-				{Key: i18n.MessageKey(accessLogRetentionConfigGroupDescKey), Text: "管理访问日志清理的保留周期与批量策略。"},
-				{Key: i18n.MessageKey(accessLogRetentionConfigTitleKey), Text: "访问日志保留清理"},
-				{Key: i18n.MessageKey(accessLogRetentionConfigDescriptionKey), Text: "访问日志保留清理任务的默认配置。"},
-			},
-		},
-		{
-			Namespace: "system-config",
-			Locale:    i18n.LocaleENUS,
-			Messages: []i18n.MessageResource{
-				{Key: i18n.MessageKey(accessLogRetentionConfigGroupKey), Text: "Access Log Retention"},
-				{Key: i18n.MessageKey(accessLogRetentionConfigGroupDescKey), Text: "Manage access log cleanup retention and batch policy."},
-				{Key: i18n.MessageKey(accessLogRetentionConfigTitleKey), Text: "Access log retention cleanup"},
-				{Key: i18n.MessageKey(accessLogRetentionConfigDescriptionKey), Text: "Default cleanup configuration for access-log retention jobs."},
-			},
-		},
-	} {
-		if err := localizer.RegisterMessages(registration); err != nil {
-			return fmt.Errorf("register access-log retention config messages: %w", err)
-		}
-	}
 	return nil
 }
 

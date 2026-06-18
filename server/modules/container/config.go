@@ -320,21 +320,49 @@ func containerStringSchema(key string, minimumLength int, maximumLength int) jso
 }
 
 func containerConfigTitleFallback(key string) string {
-	for configKey, copy := range enUSContainerConfigCopy() {
-		if configKey == key {
-			return copy[0]
-		}
+	switch key {
+	case containercontract.ContainerRuntimeEnabledConfig.String():
+		return "Container Runtime Access Enabled"
+	case containercontract.ContainerRuntimeConfig.String():
+		return "Container Runtime"
+	case containercontract.ContainerDockerEndpointConfig.String():
+		return "Container Runtime Endpoint"
+	case containercontract.ContainerLogsDefaultTailConfig.String():
+		return "Default Log Tail"
+	case containercontract.ContainerLogsMaxTailConfig.String():
+		return "Maximum Log Tail"
+	case containercontract.ContainerDangerousActionsEnabledConfig.String():
+		return "Dangerous Container Actions Enabled"
+	case containercontract.ContainerEnvironmentPolicyConfig.String():
+		return "Environment Value Display Policy"
+	case containercontract.ContainerEnvironmentMaskedCopyEnabledConfig.String():
+		return "Masked Environment Copy Enabled"
+	default:
+		return key
 	}
-	return key
 }
 
 func containerConfigDescriptionFallback(key string) string {
-	for configKey, copy := range enUSContainerConfigCopy() {
-		if configKey == key {
-			return copy[1]
-		}
+	switch key {
+	case containercontract.ContainerRuntimeEnabledConfig.String():
+		return "Whether container management may access the configured runtime."
+	case containercontract.ContainerRuntimeConfig.String():
+		return "Runtime adapter used by container management."
+	case containercontract.ContainerDockerEndpointConfig.String():
+		return "Local runtime endpoint used by the first container adapter."
+	case containercontract.ContainerLogsDefaultTailConfig.String():
+		return "Default number of log lines returned by container log reads."
+	case containercontract.ContainerLogsMaxTailConfig.String():
+		return "Maximum number of log lines allowed for container log reads."
+	case containercontract.ContainerDangerousActionsEnabledConfig.String():
+		return "Whether start, stop, restart, and future high-risk actions are enabled."
+	case containercontract.ContainerEnvironmentPolicyConfig.String():
+		return "Controls how container environment variable values are returned by detail reads."
+	case containercontract.ContainerEnvironmentMaskedCopyEnabledConfig.String():
+		return "Allows authorized users to copy raw values for masked environment variables."
+	default:
+		return key
 	}
-	return key
 }
 
 func containerConfigTitleKey(key string) string {
@@ -357,125 +385,5 @@ func registerConfigMessages(localizer *i18n.Service) error {
 	if localizer == nil {
 		return errors.New("i18n service is required")
 	}
-	for _, registration := range configMessageRegistrations() {
-		if err := localizer.RegisterMessages(registration); err != nil {
-			return fmt.Errorf("register container config messages: %w", err)
-		}
-	}
 	return nil
-}
-
-func configMessageRegistrations() []i18n.Registration {
-	return []i18n.Registration{
-		{
-			Namespace: "system-config",
-			Locale:    i18n.LocaleZHCN,
-			Messages: containerConfigMessages(map[string]string{
-				containerConfigDomainKey:       "运维管理",
-				containerConfigGeneralGroupKey: "容器管理",
-				containerConfigGeneralDescKey:  "控制容器管理能力的基础开关。",
-				containerConfigRuntimeGroupKey: "运行时",
-				containerConfigRuntimeDescKey:  "控制本地容器运行时适配器。",
-				containerConfigLogsGroupKey:    "日志",
-				containerConfigLogsDescKey:     "控制容器日志读取上限。",
-				containerConfigActionsGroupKey: "高危操作",
-				containerConfigActionsDescKey:  "控制容器启停和重启操作。",
-			}, zhCNContainerConfigCopy(), zhCNContainerEnvironmentPolicyEnumCopy()),
-		},
-		{
-			Namespace: "system-config",
-			Locale:    i18n.LocaleENUS,
-			Messages: containerConfigMessages(map[string]string{
-				containerConfigDomainKey:       "Operations",
-				containerConfigGeneralGroupKey: "Container Management",
-				containerConfigGeneralDescKey:  "Control the container management baseline.",
-				containerConfigRuntimeGroupKey: "Runtime",
-				containerConfigRuntimeDescKey:  "Control the local container runtime adapter.",
-				containerConfigLogsGroupKey:    "Logs",
-				containerConfigLogsDescKey:     "Control bounded container log reads.",
-				containerConfigActionsGroupKey: "Dangerous Actions",
-				containerConfigActionsDescKey:  "Control container start, stop, and restart actions.",
-			}, enUSContainerConfigCopy(), enUSContainerEnvironmentPolicyEnumCopy()),
-		},
-	}
-}
-
-func containerConfigMessages(prefix map[string]string, definitions map[string][2]string, enumDefinitions map[string][2]string) []i18n.MessageResource {
-	enumMessages := containerEnvironmentPolicyEnumMessages(enumDefinitions)
-	messages := make([]i18n.MessageResource, 0, len(prefix)+len(definitions)*2+len(enumMessages))
-	for key, text := range prefix {
-		messages = append(messages, i18n.MessageResource{Key: i18n.MessageKey(key), Text: text})
-	}
-	for key, copy := range definitions {
-		messages = append(messages,
-			i18n.MessageResource{Key: i18n.MessageKey(containerConfigTitleKey(key)), Text: copy[0]},
-			i18n.MessageResource{Key: i18n.MessageKey(containerConfigDescriptionKey(key)), Text: copy[1]},
-		)
-	}
-	messages = append(messages, enumMessages...)
-	return messages
-}
-
-func containerEnvironmentPolicyEnumMessages(definitions map[string][2]string) []i18n.MessageResource {
-	const messagesPerEnvironmentPolicyEnum = 2
-
-	key := containercontract.ContainerEnvironmentPolicyConfig.String()
-	messages := make([]i18n.MessageResource, 0, len(definitions)*messagesPerEnvironmentPolicyEnum)
-	for value, row := range definitions {
-		messages = append(messages,
-			i18n.MessageResource{Key: i18n.MessageKey(fmt.Sprintf("systemConfig.container.%s.enum.%s.label", key, value)), Text: row[0]},
-			i18n.MessageResource{Key: i18n.MessageKey(fmt.Sprintf("systemConfig.container.%s.enum.%s.description", key, value)), Text: row[1]},
-		)
-	}
-	return messages
-}
-
-func zhCNContainerEnvironmentPolicyEnumCopy() map[string][2]string {
-	return map[string][2]string{
-		containercontract.ContainerEnvironmentPolicyHidden.String(): {"隐藏", "仅返回环境变量名称和敏感标记。"},
-		containercontract.ContainerEnvironmentPolicyMasked.String(): {"脱敏", "敏感环境变量值脱敏，非敏感值正常返回。"},
-		containercontract.ContainerEnvironmentPolicyPlain.String():  {"明文", "不按策略脱敏，直接返回环境变量值。"},
-	}
-}
-
-func enUSContainerEnvironmentPolicyEnumCopy() map[string][2]string {
-	return map[string][2]string{
-		containercontract.ContainerEnvironmentPolicyHidden.String(): {"Hidden", "Return only environment variable names and sensitivity metadata."},
-		containercontract.ContainerEnvironmentPolicyMasked.String(): {"Masked", "Mask sensitive environment variable values and show non-sensitive values."},
-		containercontract.ContainerEnvironmentPolicyPlain.String():  {"Plain", "Return environment variable values without policy masking."},
-	}
-}
-
-// zhCNContainerConfigCopy returns the Chinese localization strings for container configuration items.
-func zhCNContainerConfigCopy() map[string][2]string {
-	return map[string][2]string{
-		containercontract.ContainerRuntimeEnabledConfig.String():          {"启用容器运行时访问", "是否允许容器管理访问已配置的容器运行时。"},
-		containercontract.ContainerRuntimeConfig.String():                 {"容器运行时", "容器管理使用的运行时适配器。"},
-		containercontract.ContainerDockerEndpointConfig.String():          {"容器运行时 endpoint", "首个本地容器运行时适配器使用的 endpoint。"},
-		containercontract.ContainerLogsDefaultTailConfig.String():         {"默认日志行数", "容器日志读取的默认返回行数。"},
-		containercontract.ContainerLogsMaxTailConfig.String():             {"最大日志行数", "容器日志读取允许的最大返回行数。"},
-		containercontract.ContainerDangerousActionsEnabledConfig.String(): {"启用容器高危操作", "是否允许容器启动、停止和重启等高危操作。"},
-		containercontract.ContainerEnvironmentPolicyConfig.String():       {"环境变量值展示策略", "控制容器详情读取时如何返回环境变量值。"},
-		containercontract.ContainerEnvironmentMaskedCopyEnabledConfig.String(): {
-			"允许复制脱敏环境变量真实值",
-			"开启后，具备环境变量读取权限的用户可复制脱敏环境变量的真实值。",
-		},
-	}
-}
-
-// enUSContainerConfigCopy returns English-US localization text for container configuration items.
-func enUSContainerConfigCopy() map[string][2]string {
-	return map[string][2]string{
-		containercontract.ContainerRuntimeEnabledConfig.String():          {"Container Runtime Access Enabled", "Whether container management may access the configured runtime."},
-		containercontract.ContainerRuntimeConfig.String():                 {"Container Runtime", "Runtime adapter used by container management."},
-		containercontract.ContainerDockerEndpointConfig.String():          {"Container Runtime Endpoint", "Local runtime endpoint used by the first container adapter."},
-		containercontract.ContainerLogsDefaultTailConfig.String():         {"Default Log Tail", "Default number of log lines returned by container log reads."},
-		containercontract.ContainerLogsMaxTailConfig.String():             {"Maximum Log Tail", "Maximum number of log lines allowed for container log reads."},
-		containercontract.ContainerDangerousActionsEnabledConfig.String(): {"Dangerous Container Actions Enabled", "Whether start, stop, restart, and future high-risk actions are enabled."},
-		containercontract.ContainerEnvironmentPolicyConfig.String():       {"Environment Value Display Policy", "Controls how container environment variable values are returned by detail reads."},
-		containercontract.ContainerEnvironmentMaskedCopyEnabledConfig.String(): {
-			"Masked Environment Copy Enabled",
-			"Allows authorized users to copy raw values for masked environment variables.",
-		},
-	}
 }

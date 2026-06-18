@@ -278,35 +278,6 @@ func registerAuditLogRetentionConfigMessages(localizer *i18n.Service) error {
 	if localizer == nil {
 		return errors.New("i18n service is required")
 	}
-
-	for _, registration := range []i18n.Registration{
-		{
-			Namespace: "system-config",
-			Locale:    i18n.LocaleZHCN,
-			Messages: []i18n.MessageResource{
-				{Key: i18n.MessageKey(auditLogRetentionConfigDomainKey), Text: "安全审计"},
-				{Key: i18n.MessageKey(auditLogRetentionConfigGroupKey), Text: "审计日志保留"},
-				{Key: i18n.MessageKey(auditLogRetentionConfigGroupDescKey), Text: "管理审计日志清理的保留周期与批量策略。"},
-				{Key: i18n.MessageKey(auditLogRetentionConfigTitleKey), Text: "审计日志保留清理"},
-				{Key: i18n.MessageKey(auditLogRetentionConfigDescriptionKey), Text: "审计日志保留清理任务的默认配置。"},
-			},
-		},
-		{
-			Namespace: "system-config",
-			Locale:    i18n.LocaleENUS,
-			Messages: []i18n.MessageResource{
-				{Key: i18n.MessageKey(auditLogRetentionConfigDomainKey), Text: "Security Audit"},
-				{Key: i18n.MessageKey(auditLogRetentionConfigGroupKey), Text: "Audit Log Retention"},
-				{Key: i18n.MessageKey(auditLogRetentionConfigGroupDescKey), Text: "Manage audit log cleanup retention and batch policy."},
-				{Key: i18n.MessageKey(auditLogRetentionConfigTitleKey), Text: "Audit log retention cleanup"},
-				{Key: i18n.MessageKey(auditLogRetentionConfigDescriptionKey), Text: "Default cleanup configuration for audit-log retention jobs."},
-			},
-		},
-	} {
-		if err := localizer.RegisterMessages(registration); err != nil {
-			return fmt.Errorf("register audit-log retention config messages: %w", err)
-		}
-	}
 	return nil
 }
 
