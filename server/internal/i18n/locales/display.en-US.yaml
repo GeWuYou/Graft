@@ -9,6 +9,7 @@ menu.ops.container.title: Container Management
 menu.logCenter.title: Log Center
 menu.accessLog.title: Access Logs
 menu.appLog.title: App Logs
+dashboard.actions.details: View Details
 dashboard.widget.accessLogRequestAttention.title: Access Log Request Attention
 dashboard.widget.accessLogRequestAttention.description: Recent error and slow requests that may need operator attention.
 dashboard.widget.accessLogRequestAttention.error: HTTP Error Requests

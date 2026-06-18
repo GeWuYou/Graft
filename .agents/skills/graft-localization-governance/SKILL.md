@@ -26,6 +26,7 @@ Treat root `AGENTS.md` as startup truth. This skill does not define a second val
 - Keep `server/internal/i18n.Service` as the only server i18n facade.
 - Treat embedded locale YAML under `server/internal/i18n/locales/**` as the canonical backend truth for user-visible localized copy.
 - Keep locale resource embed, load, validate, freeze, and registry construction centralized in `server/internal/i18n`.
+- Do not add new production Go user-visible hardcoded localization copy; only technical identifiers may remain as Go strings by default.
 - Do not let business modules, `configregistry`, `httpx`, or `moduleapi` import `go-i18n`, loader internals, or provider
   internals.
 - Do not let business modules embed or load locale files themselves, even for module-owned namespaces.
@@ -33,7 +34,7 @@ Treat root `AGENTS.md` as startup truth. This skill does not define a second val
 - Keep module web messages in `web/src/modules/<name>/locales/**`; do not copy module keys into root catalog.
 - Prefer stable keys over server-provided final text for menus, errors, permissions, system config metadata, and schema
   labels.
-- Keep fallback text as compatibility only; do not create a second long-term text truth or describe hardcoded Go copy as an acceptable steady-state authority.
+- Treat fallback text as a temporary exception only; register file, field, reason, removal condition, and validation scope when direct authority repair cannot be completed in the same slice.
 
 ## Server Workflow
 
@@ -47,7 +48,8 @@ Treat root `AGENTS.md` as startup truth. This skill does not define a second val
 5. Keep centralized loader coverage for both root and nested module locale files without changing facade or provider exposure.
 6. Do not migrate all `defaultCatalogEntries` in an early phase. Treat core HTTP error copy as high blast radius.
 7. Keep JSON Schema `x-i18n.titleKey`, `descriptionKey`, and `enumLabels` intact.
-8. Keep `LookupRequest.TemplateData` as the future template bridge; do not expose provider-specific template types.
+8. For menus, widgets, quick links, retention jobs, cron actions, explorer metadata, permission display metadata, and config-definition visible fields, prefer locale-key/resource-backed authority and remove Go fallback copy when the current call chain supports it.
+9. Keep `LookupRequest.TemplateData` as the future template bridge; do not expose provider-specific template types.
 
 ## Web Workflow
 

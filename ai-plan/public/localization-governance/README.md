@@ -3,8 +3,8 @@
 ## 当前状态摘要
 
 - 当前主题目标是建立 `Graft` 前后端本地化长期治理，并分阶段把 server 硬编码 i18n 文案迁移到资源文件。
-- 当前 loop 状态：`batch-0-authority-reset-and-locale-directory-strategy` 进行中。
-- 任务分类为 `server`；本轮只处理 authority reset、目录策略和 `server/internal/i18n` loader 前置收口，不触达 web。
+- 当前 loop 状态：`slice-3-delete-legacy-fallbacks-and-switch-to-locale-resource` 已完成，剩余 `final-archive-readiness-and-governance-sync`。
+- 任务分类为 `server`；当前主题只处理 backend locale authority 与治理收口，不触达 web。
 - Canonical design：`ai-plan/design/本地化与i18n治理规范.md`。
 - AI 执行 skill：`.agents/skills/graft-localization-governance/SKILL.md`。
 
@@ -23,7 +23,7 @@
 - `ai-plan/public/localization-governance/**`
 - `ai-plan/public/README.md`
 - `.agents/skills/graft-localization-governance/**`
-- 本轮按 batch 允许修改 `server/internal/i18n/**` 与其直接测试，仅用于落实集中 locale 目录策略和 loader 行为。
+- 当前 topic 允许修改 `server/internal/i18n/**`、相关 server 调用点、治理文档与其直接测试，用于完成 backend locale authority 迁移与治理收口。
 
 禁止误触：
 
@@ -38,10 +38,10 @@
 ## Phase Plan
 
 - Phase 0：现状盘点、规范和 topic 持久化。已完成。
-- batch-0：authority reset、主题恢复材料纠偏、集中 locale 目录策略落定，以及 `server/internal/i18n` nested module loader 前置支持。
-- slice-1：module registration resource migration。
-- slice-2：core default catalog migration。
-- slice-3：delete legacy fallbacks and switch to locale resource。
+- batch-0：authority reset、主题恢复材料纠偏、集中 locale 目录策略落定，以及 `server/internal/i18n` nested module loader 前置支持。已完成。
+- slice-1：module registration resource migration。已完成。
+- slice-2：core default catalog migration。已完成。
+- slice-3：delete legacy fallbacks and switch to locale resource。已完成。
 - final：archive readiness and governance sync。
 
 ## Current Recovery Point
@@ -51,10 +51,13 @@
   - backend 面向用户可见本地化文案的 canonical truth 是 embedded locale YAML。
   - locale 资源的 embed、load、validate、freeze 与 registry construction 只能集中在 `server/internal/i18n`。
   - module 只拥有 namespace/key 语义和调用 `i18n.Service` 的注册边界，不拥有独立 locale 文件加载器。
-- 当前 batch 的目标：
-  - 更新 design/README/tracking/trace/skill，移除过时 archive-ready 口径和旧 ownership 语言。
-  - 将 backend locale 目录策略固定为 `server/internal/i18n/locales/*.yaml` + `server/internal/i18n/locales/modules/*.yaml`。
-  - 若 loader 仍只支持顶层 `locales/*.yaml`，则在不改 facade 的前提下补齐 `locales/modules/*.yaml` 支持。
+  - 生产 Go 不得新增用户可见硬编码本地化文案；菜单、Widget、Retention、Explorer、Cron Action 等可见字段默认必须来自 locale resource。
+  - 仅技术标识可保留在 Go：稳定 key、模块名、资源名、action key、route/path、permission code、job name 等。
+  - 临时例外必须显式登记文件、字段、原因、移除条件与验证范围。
+- 当前剩余 batch 的目标：
+  - 执行 final archive readiness and governance sync 检查。
+  - 确认 docs / skill / trace / tracking / code 不再存在 localization authority drift。
+  - 确认无未登记的 Go 用户可见 fallback 残留。
 
 ## Validation Targets
 

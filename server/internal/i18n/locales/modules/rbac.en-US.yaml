@@ -2,5 +2,13 @@ menu.access_control.title: Access Control
 menu.access_control.roles.title: Role Management
 menu.access_control.permissions.title: Permission Management
 menu.access_control.overview.title: Access Control Overview
+rbac.permissionCatalog.accessLogRead.display: Access Log Read
+rbac.permissionCatalog.accessLogRead.description: Allows reading canonical access-log explorer data.
+rbac.permissionCatalog.appLogRead.display: App Log Read
+rbac.permissionCatalog.appLogRead.description: Allows reading logger-owned app-log explorer data.
+rbac.permissionCatalog.appLogDelete.display: App Log Delete
+rbac.permissionCatalog.appLogDelete.description: Allows explicit deletion of retained logger-owned app-log rows.
+rbac.permissionCatalog.auditRead.display: Audit Log Read
+rbac.permissionCatalog.auditRead.description: Allows reading audit-log records and filters.
 rbac.audit.rolePermissionsAdded: Role permissions added
 rbac.audit.rolePermissionsRemoved: Role permissions removed

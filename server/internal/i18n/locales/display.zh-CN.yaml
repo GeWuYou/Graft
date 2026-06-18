@@ -9,6 +9,7 @@ menu.ops.container.title: 容器管理
 menu.logCenter.title: 日志中心
 menu.accessLog.title: 访问日志
 menu.appLog.title: 应用日志
+dashboard.actions.details: 查看详情
 dashboard.widget.accessLogRequestAttention.title: 访问日志关注项
 dashboard.widget.accessLogRequestAttention.description: 最近的错误请求和慢请求，可能需要运维关注。
 dashboard.widget.accessLogRequestAttention.error: HTTP 错误请求

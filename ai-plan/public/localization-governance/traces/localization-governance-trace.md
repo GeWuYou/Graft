@@ -43,6 +43,23 @@
   - 两类资源都只能由 `server/internal/i18n` 编译期 embed 并在启动期集中加载。
 - 若实现侧仍只支持 `locales/*.yaml`，本轮同步补齐 `locales/modules/*.yaml` loader 支持，但不改 facade、provider exposure 或 wire contract。
 
+## 2026-06-18 Slice 3 delete legacy fallbacks and switch to locale resource
+
+- 删除以下 Go 用户可见 fallback，改由 locale resource authority 提供：
+  - `server/internal/httpx/accesslog_explorer.go`：权限 `Name/Description`，菜单 `Title`。
+  - `server/internal/logger/explorer.go`：权限 `Name/Description`，菜单 `Title`。
+  - `server/modules/audit/module_registration.go`：权限 `Name/Description`，菜单 `Title`。
+  - `server/modules/audit/dashboard_widget.go`：Widget/QuickLink/Action/item `Title/Description/Label/empty` fallback。
+  - `server/internal/httpx/accesslog_dashboard.go`：Widget item `Title` 与 empty fallback。
+  - `server/internal/httpx/accesslog_retention.go`、`server/internal/logger/retention.go`、`server/modules/audit/retention.go`：
+    config definition `DomainLabel/GroupLabel/GroupDescription/Title/Description`，job `Title/ShortTitle/Description`，action `Title/Description`。
+- 新增 locale authority：
+  - `server/internal/i18n/locales/display.{zh-CN,en-US}.yaml`：`dashboard.actions.details`。
+  - `server/internal/i18n/locales/modules/rbac.{zh-CN,en-US}.yaml`：`rbac.permissionCatalog.accessLogRead.*`、`appLogRead.*`、`appLogDelete.*`、`auditRead.*`。
+- 本轮保留在 Go 的字符串仅作为技术标识：
+  - permission code、menu code、module key、route/path、job name、action key、resource name、operation name、query key、状态枚举与内部日志消息。
+- 临时例外：无。
+
 ## Loop Batch State
 
 ```json

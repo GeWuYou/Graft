@@ -30,9 +30,7 @@ func registerAuditPermissions(registry *permission.Registry, moduleName string) 
 
 	registry.Register(permission.Item{
 		Code:           auditcontract.AuditReadPermission.String(),
-		Name:           "Read Audit Logs",
 		DisplayKey:     "rbac.permissionCatalog.auditRead.display",
-		Description:    "Allows reading audit-log records and filters.",
 		DescriptionKey: "rbac.permissionCatalog.auditRead.description",
 		Category:       "api",
 		Module:         moduleName,
@@ -46,7 +44,6 @@ func registerAuditMenu(registry *menu.Registry, moduleName string) {
 
 	registry.Register(menu.Item{
 		Code:       "audit.root",
-		Title:      "安全审计",
 		TitleKey:   auditcontract.AuditRootMenuTitle.String(),
 		Path:       auditcontract.AuditMenuPath,
 		Icon:       "secured",
@@ -57,7 +54,6 @@ func registerAuditMenu(registry *menu.Registry, moduleName string) {
 
 	registry.Register(menu.Item{
 		Code:       "audit.overview",
-		Title:      "概览",
 		TitleKey:   auditcontract.AuditOverviewMenuTitle.String(),
 		Path:       auditcontract.AuditOverviewMenuPath,
 		Icon:       "dashboard",
@@ -68,7 +64,6 @@ func registerAuditMenu(registry *menu.Registry, moduleName string) {
 
 	registry.Register(menu.Item{
 		Code:       "audit.logs",
-		Title:      "审计日志",
 		TitleKey:   auditcontract.AuditLogMenuTitle.String(),
 		Path:       auditcontract.AuditLogsMenuPath,
 		Icon:       "history",

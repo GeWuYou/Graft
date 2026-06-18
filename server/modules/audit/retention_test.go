@@ -173,11 +173,25 @@ func TestRegisterAuditLogRetentionConfigDefinition(t *testing.T) {
 func assertAuditLogRetentionConfigDefinition(t *testing.T, definition configregistry.Definition) {
 	t.Helper()
 
+	assertAuditLogRetentionDefinitionIdentity(t, definition)
+	assertAuditLogRetentionDefinitionLocalization(t, definition)
+	if string(definition.DefaultValue) != auditLogRetentionCleanupDefaultConfig {
+		t.Fatalf("expected default config %s, got %s", auditLogRetentionCleanupDefaultConfig, definition.DefaultValue)
+	}
+	assertAuditLogRetentionDefinitionSchema(t, definition)
+}
+
+func assertAuditLogRetentionDefinitionIdentity(t *testing.T, definition configregistry.Definition) {
+	t.Helper()
 	if definition.Key != auditLogRetentionCleanupJobName ||
 		definition.Module != moduleID ||
 		definition.Type != configregistry.ValueTypeObject {
 		t.Fatalf("unexpected audit log config definition: %#v", definition)
 	}
+}
+
+func assertAuditLogRetentionDefinitionLocalization(t *testing.T, definition configregistry.Definition) {
+	t.Helper()
 	if definition.GroupKey != auditLogRetentionConfigGroupKey ||
 		definition.DomainKey != auditLogRetentionConfigDomainKey ||
 		definition.GroupDescriptionKey != auditLogRetentionConfigGroupDescKey ||
@@ -185,12 +199,14 @@ func assertAuditLogRetentionConfigDefinition(t *testing.T, definition configregi
 		definition.DescriptionKey != auditLogRetentionConfigDescriptionKey {
 		t.Fatalf("expected localized audit log config metadata, got %#v", definition)
 	}
-	if definition.GroupLabel == "audit / log.retention" {
-		t.Fatalf("group label must be product-facing fallback, got %q", definition.GroupLabel)
+	if definition.DomainLabel != "" || definition.GroupLabel != "" || definition.GroupDescription != "" ||
+		definition.Title != "" || definition.Description != "" {
+		t.Fatalf("expected locale-key-backed audit log config metadata without Go fallback copy, got %#v", definition)
 	}
-	if string(definition.DefaultValue) != auditLogRetentionCleanupDefaultConfig {
-		t.Fatalf("expected default config %s, got %s", auditLogRetentionCleanupDefaultConfig, definition.DefaultValue)
-	}
+}
+
+func assertAuditLogRetentionDefinitionSchema(t *testing.T, definition configregistry.Definition) {
+	t.Helper()
 	if !strings.Contains(string(definition.Schema), `"x-i18n"`) ||
 		!strings.Contains(string(definition.Schema), `"unitKey":"systemConfig.units.days"`) ||
 		!strings.Contains(string(definition.Schema), `"batchSize":{"type":"integer","minimum":1,"maximum":10000`) {
@@ -209,6 +225,9 @@ func assertAuditLogRetentionJobMetadata(t *testing.T, job cronx.Job) {
 	}
 	if job.Schedule != auditLogRetentionCleanupJobSchedule {
 		t.Fatalf("expected job schedule %q, got %q", auditLogRetentionCleanupJobSchedule, job.Schedule)
+	}
+	if job.Title != "" || job.ShortTitle != "" || job.Description != "" {
+		t.Fatalf("expected locale-key-backed audit log job metadata without Go fallback copy, got %#v", job)
 	}
 	if job.DefaultConfig != auditLogRetentionCleanupDefaultConfig {
 		t.Fatalf("expected default config %s, got %s", auditLogRetentionCleanupDefaultConfig, job.DefaultConfig)
@@ -233,6 +252,9 @@ func assertAuditLogRetentionJobActions(t *testing.T, job cronx.Job) {
 
 	if len(job.Actions) != 1 || job.Actions[0].Key != auditLogRetentionDryRunActionKey {
 		t.Fatalf("expected dryRun action, got %#v", job.Actions)
+	}
+	if job.Actions[0].Title != "" || job.Actions[0].Description != "" {
+		t.Fatalf("expected locale-key-backed audit log action metadata without Go fallback copy, got %#v", job.Actions[0])
 	}
 }
 

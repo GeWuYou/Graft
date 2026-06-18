@@ -113,18 +113,14 @@ func registerAppLogExplorerPermissions(registry *permission.Registry) {
 
 	registry.Register(permission.Item{
 		Code:           AppLogReadPermission,
-		Name:           "Read App Logs",
 		DisplayKey:     "rbac.permissionCatalog.appLogRead.display",
-		Description:    "Allows reading logger-owned app-log explorer data.",
 		DescriptionKey: "rbac.permissionCatalog.appLogRead.description",
 		Category:       "api",
 		Module:         appLogModuleOwner,
 	})
 	registry.Register(permission.Item{
 		Code:           AppLogDeletePermission,
-		Name:           "Delete App Logs",
 		DisplayKey:     "rbac.permissionCatalog.appLogDelete.display",
-		Description:    "Allows explicit deletion of retained logger-owned app-log rows.",
 		DescriptionKey: "rbac.permissionCatalog.appLogDelete.description",
 		Category:       "api",
 		Module:         appLogModuleOwner,
@@ -138,7 +134,6 @@ func registerAppLogExplorerMenu(registry *menu.Registry) {
 
 	registry.Register(menu.Item{
 		Code:       appLogMenuCodeRoot,
-		Title:      "日志中心",
 		TitleKey:   "menu.logCenter.title",
 		Path:       appLogMenuRootPath,
 		Icon:       "bulletpoint",
@@ -148,7 +143,6 @@ func registerAppLogExplorerMenu(registry *menu.Registry) {
 	})
 	registry.Register(menu.Item{
 		Code:       appLogMenuCodeList,
-		Title:      "应用日志",
 		TitleKey:   "menu.appLog.title",
 		Path:       appLogMenuListPath,
 		Icon:       "file-search",

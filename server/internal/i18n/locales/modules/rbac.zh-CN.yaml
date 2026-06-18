@@ -2,5 +2,13 @@ menu.access_control.title: 访问控制
 menu.access_control.roles.title: 角色管理
 menu.access_control.permissions.title: 权限管理
 menu.access_control.overview.title: 访问控制概览
+rbac.permissionCatalog.accessLogRead.display: 访问日志读取
+rbac.permissionCatalog.accessLogRead.description: 允许读取规范化访问日志查询数据。
+rbac.permissionCatalog.appLogRead.display: 应用日志读取
+rbac.permissionCatalog.appLogRead.description: 允许读取 logger 归属的应用日志查询数据。
+rbac.permissionCatalog.appLogDelete.display: 应用日志删除
+rbac.permissionCatalog.appLogDelete.description: 允许显式删除保留中的应用日志记录。
+rbac.permissionCatalog.auditRead.display: 审计日志读取
+rbac.permissionCatalog.auditRead.description: 允许读取审计日志记录及筛选结果。
 rbac.audit.rolePermissionsAdded: 角色权限已追加
 rbac.audit.rolePermissionsRemoved: 角色权限已移除

@@ -96,7 +96,6 @@ func LoadAccessLogRequestAttentionPayload(ctx context.Context, repo AccessLogRep
 	return map[string]any{
 		"items":     items,
 		"empty_key": "dashboard.widget.accessLogRequestAttention.empty",
-		"empty":     "No recent error or slow requests.",
 		"visible":   visible,
 		"state":     state,
 		"priority":  priority,
@@ -119,7 +118,6 @@ func appendAccessLogStatusGroupItem(
 		level:         "error",
 		record:        record,
 		routeLocation: accessLogDashboardRouteLocation(url.Values{accessLogQueryStatusGroup: []string{string(statusGroup)}}),
-		Title:         "HTTP error request",
 		TitleKey:      "dashboard.widget.accessLogRequestAttention.error",
 	}))
 }
@@ -137,7 +135,6 @@ func appendAccessLogSlowRequestItem(items []map[string]any, result AccessLogList
 		routeLocation: accessLogDashboardRouteLocation(url.Values{
 			accessLogQueryDurationMinMS: []string{strconv.FormatInt(accessLogSlowRequestThresholdMS, 10)},
 		}),
-		Title:    "Slow HTTP request",
 		TitleKey: "dashboard.widget.accessLogRequestAttention.slow",
 	}))
 }
@@ -148,7 +145,6 @@ type accessLogAlertItemDefinition struct {
 	level         string
 	record        AccessLog
 	routeLocation string
-	Title         string
 	TitleKey      string
 }
 
@@ -162,7 +158,6 @@ func accessLogAlertItem(definition accessLogAlertItemDefinition) map[string]any 
 		"id":             definition.id,
 		"level":          definition.level,
 		"title_key":      definition.TitleKey,
-		"title":          definition.Title,
 		"description":    definition.record.Method + " " + definition.record.Path + " -> " + strconv.Itoa(definition.record.StatusCode) + " in " + strconv.FormatInt(definition.record.DurationMS, 10) + "ms",
 		"count":          definition.count,
 		"occurred_at":    occurredAt,

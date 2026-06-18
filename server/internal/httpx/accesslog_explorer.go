@@ -54,9 +54,7 @@ func registerAccessLogExplorerPermissions(registry *permission.Registry) {
 
 	registry.Register(permission.Item{
 		Code:           AccessLogReadPermission,
-		Name:           "Read Access Logs",
 		DisplayKey:     "rbac.permissionCatalog.accessLogRead.display",
-		Description:    "Allows reading canonical access-log explorer data.",
 		DescriptionKey: "rbac.permissionCatalog.accessLogRead.description",
 		Category:       "api",
 		Module:         accessLogModuleOwner,
@@ -70,7 +68,6 @@ func registerAccessLogExplorerMenu(registry *menu.Registry) {
 
 	registry.Register(menu.Item{
 		Code:       accessLogMenuCodeRoot,
-		Title:      "日志中心",
 		TitleKey:   "menu.logCenter.title",
 		Path:       accessLogMenuRootPath,
 		Icon:       "bulletpoint",
@@ -80,7 +77,6 @@ func registerAccessLogExplorerMenu(registry *menu.Registry) {
 	})
 	registry.Register(menu.Item{
 		Code:       accessLogMenuCodeList,
-		Title:      "访问日志",
 		TitleKey:   "menu.accessLog.title",
 		Path:       accessLogMenuListPath,
 		Icon:       "search",

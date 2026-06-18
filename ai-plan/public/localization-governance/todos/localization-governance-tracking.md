@@ -31,10 +31,10 @@ Localization Governance
 
 ## Task Checklist
 
-- [ ] batch-0：authority reset、README/skill/topic 状态纠偏
-- [ ] batch-0：集中 locale 目录策略落定
-- [ ] batch-0：`server/internal/i18n` nested module locale loader 支持
-- [ ] slice-1：module registration resource migration
-- [ ] slice-2：core default catalog migration
-- [ ] slice-3：delete legacy fallbacks and switch to locale resource
+- [x] batch-0：authority reset、README/skill/topic 状态纠偏
+- [x] batch-0：集中 locale 目录策略落定
+- [x] batch-0：`server/internal/i18n` nested module locale loader 支持
+- [x] slice-1：module registration resource migration
+- [x] slice-2：core default catalog migration
+- [x] slice-3：delete legacy fallbacks and switch to locale resource
 - [ ] final：archive readiness and governance sync
