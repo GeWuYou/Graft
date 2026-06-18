@@ -119,20 +119,6 @@ const (
 	HealthStatusUnknown HealthStatus = "unknown"
 )
 
-// QuickLinkDefinition is the module-declared dashboard quick-entry contract.
-type QuickLinkDefinition struct {
-	ID                  string
-	ModuleKey           string
-	TitleKey            string
-	Title               string
-	DescriptionKey      string
-	Description         string
-	Icon                string
-	RouteLocation       string
-	RequiredPermissions []string
-	Order               int
-}
-
 // WidgetDefinition is the module-declared dashboard insight contribution contract.
 type WidgetDefinition struct {
 	ID                  string

@@ -8,7 +8,7 @@ import type { RouteRecordRaw } from 'vue-router';
 import { getGlobalRouteRegistrations } from '@/modules';
 import { AUTH_ROUTE_PATH } from '@/modules/auth/contract/routes';
 import type { BootstrapResponse } from '@/modules/auth/contract/types';
-import { store } from '@/store';
+import { store } from '@/store/pinia';
 import { transformBootstrapMenusToRoutes, transformGlobalRegistrationsToRoutes } from '@/utils/route/bootstrap';
 
 export const usePermissionStore = defineStore('permission', {

@@ -59,10 +59,6 @@ const (
 	AppLogReadPermission = "app_log.read"
 	// AppLogDeletePermission constrains explicit manual deletion of retained App Log rows.
 	AppLogDeletePermission = "app_log.delete"
-	// AppLogDashboardQuickLinkID identifies the app-log dashboard quick entry.
-	AppLogDashboardQuickLinkID = "core.logger.app-log"
-	// AppLogDashboardQuickLinkOrder places the app-log entry with log-center quick links.
-	AppLogDashboardQuickLinkOrder = 220
 	appLogMenuRootPath            = "/logs"
 	appLogMenuListPath            = "/logs/app"
 	appLogMenuCodeRoot            = "log-center.root"
@@ -77,21 +73,6 @@ const (
 	appLogManualDeleteAction      = "app_log.manual_delete"
 	appLogResourceType            = "app_log"
 )
-
-// AppLogDashboardModuleKey returns the core logger owner for app-log dashboard data.
-func AppLogDashboardModuleKey() string {
-	return appLogModuleOwner
-}
-
-// AppLogDashboardRouteLocation returns the canonical app-log explorer route.
-func AppLogDashboardRouteLocation() string {
-	return appLogMenuListPath
-}
-
-// AppLogDashboardTitleKey returns the app-log explorer title message key.
-func AppLogDashboardTitleKey() string {
-	return "menu.appLog.title"
-}
 
 // AppLogExplorerRegistration carries the core registries required by the logger-owned read surface.
 type AppLogExplorerRegistration struct {

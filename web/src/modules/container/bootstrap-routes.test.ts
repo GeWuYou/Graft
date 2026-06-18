@@ -14,6 +14,25 @@ describe('container bootstrap route registrations', () => {
     });
   });
 
+  it('keeps menu title ownership with the bootstrap menu while deriving tab and breadcrumb titles locally', () => {
+    expect(containerBootstrapRouteRegistrations[0]?.meta).toMatchObject({
+      semanticTitle: {
+        'zh-CN': '运维管理 - 容器管理',
+        'en-US': 'Operations - Container Management',
+      },
+      tabTitle: {
+        'zh-CN': '运维管理 - 容器管理',
+        'en-US': 'Operations - Container Management',
+      },
+      breadcrumbTitle: {
+        'zh-CN': '容器管理',
+        'en-US': 'Container Management',
+      },
+    });
+    expect(containerBootstrapRouteRegistrations[0]?.meta).not.toHaveProperty('title');
+    expect(containerBootstrapRouteRegistrations[0]?.meta).not.toHaveProperty('titleKey');
+  });
+
   it('registers the detail page as a menu-hidden global route', async () => {
     const { containerGlobalRouteRegistrations } = await import('./bootstrap-routes');
 

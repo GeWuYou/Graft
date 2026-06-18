@@ -3,12 +3,12 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { DashboardQuickActionLink } from '../contract/quick-action-links';
 import {
   DASHBOARD_QUICK_ACTION_STORAGE_KEY,
   DASHBOARD_QUICK_ACTION_STRATEGY,
   type DashboardQuickActionConfig,
 } from '../contract/quick-actions';
-import type { DashboardQuickLink } from '../types/dashboard';
 import { useDashboardQuickActions } from './use-dashboard-quick-actions';
 
 const loggerMocks = vi.hoisted(() => ({
@@ -25,7 +25,7 @@ const defaultConfig: DashboardQuickActionConfig = {
   strategy: DASHBOARD_QUICK_ACTION_STRATEGY.HYBRID,
 };
 
-function quickLink(index: number, partial: Partial<DashboardQuickLink> = {}): DashboardQuickLink {
+function quickLink(index: number, partial: Partial<DashboardQuickActionLink> = {}): DashboardQuickActionLink {
   return {
     id: `link-${index}`,
     module_key: 'dashboard',

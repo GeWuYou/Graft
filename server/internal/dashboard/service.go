@@ -71,10 +71,8 @@ func NewService(options ServiceOptions) *Service {
 
 // Summary returns the dashboard system summary and all visible contributions.
 func (s *Service) Summary(ctx context.Context, requestAuth moduleapi.RequestAuthContext) generated.DashboardSummaryResponse {
-	quickLinks := s.visibleQuickLinks(ctx, requestAuth, s.registry.QuickLinks())
 	widgets := s.visibleWidgets(ctx, requestAuth, s.registry.Items())
 	return generated.DashboardSummaryResponse{
-		QuickLinks:    quickLinks,
 		SystemSummary: s.systemSummary(requestAuth, widgets),
 		Widgets:       widgets,
 	}
@@ -91,21 +89,6 @@ func (s *Service) Widget(ctx context.Context, requestAuth moduleapi.RequestAuthC
 		return generated.DashboardWidget{}, false
 	}
 	return widget, true
-}
-
-func (s *Service) visibleQuickLinks(
-	ctx context.Context,
-	requestAuth moduleapi.RequestAuthContext,
-	definitions []QuickLinkDefinition,
-) []generated.DashboardQuickLink {
-	quickLinks := make([]generated.DashboardQuickLink, 0, len(definitions))
-	for _, definition := range definitions {
-		if !s.canReadPermissions(ctx, requestAuth, definition.RequiredPermissions) {
-			continue
-		}
-		quickLinks = append(quickLinks, quickLinkFromDefinition(definition))
-	}
-	return quickLinks
 }
 
 func (s *Service) visibleWidgets(
@@ -462,6 +445,7 @@ func summaryMetric(widgets []generated.DashboardWidget, metric func(generated.Da
 	return total
 }
 
+// summaryAbnormalServices sums the abnormal services count across all dashboard widgets.
 func summaryAbnormalServices(widgets []generated.DashboardWidget) int {
 	total := 0
 	for _, widget := range widgets {
@@ -470,34 +454,7 @@ func summaryAbnormalServices(widgets []generated.DashboardWidget) int {
 	return total
 }
 
-func quickLinkFromDefinition(definition QuickLinkDefinition) generated.DashboardQuickLink {
-	quickLink := generated.DashboardQuickLink{
-		Id:            definition.ID,
-		ModuleKey:     definition.ModuleKey,
-		Order:         definition.Order,
-		RouteLocation: definition.RouteLocation,
-	}
-	if definition.TitleKey != "" {
-		quickLink.TitleKey = &definition.TitleKey
-	}
-	if definition.Title != "" {
-		quickLink.Title = &definition.Title
-	}
-	if definition.DescriptionKey != "" {
-		quickLink.DescriptionKey = &definition.DescriptionKey
-	}
-	if definition.Description != "" {
-		quickLink.Description = &definition.Description
-	}
-	if definition.Icon != "" {
-		quickLink.Icon = &definition.Icon
-	}
-	if len(definition.RequiredPermissions) > 0 {
-		quickLink.RequiredPermissions = ptr(append([]string(nil), definition.RequiredPermissions...))
-	}
-	return quickLink
-}
-
+// payloadMap converts a WidgetPayload into a map, returning an empty map if the payload is nil.
 func payloadMap(payload WidgetPayload) map[string]interface{} {
 	if payload == nil {
 		return map[string]interface{}{}

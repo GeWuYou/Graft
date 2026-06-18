@@ -32,7 +32,6 @@ import (
 	rbaccontract "graft/server/modules/rbac/contract"
 	rbaclocales "graft/server/modules/rbac/locales"
 	store "graft/server/modules/rbac/store"
-	usercontract "graft/server/modules/user/contract"
 )
 
 type testRBACRepository struct {
@@ -500,73 +499,6 @@ func TestRegisterRegistersReadManagementContracts(t *testing.T) {
 	}
 	if _, ok := resolved.(moduleapi.Authorizer); !ok {
 		t.Fatalf("expected moduleapi.Authorizer, got %T", resolved)
-	}
-}
-
-func TestRegisterRegistersAccessControlDashboardQuickLinks(t *testing.T) {
-	ctx, _ := newModuleTestContext(t, testRBACRepository{})
-
-	if _, ok := ctx.DashboardRegistry.Get("rbac.access-summary"); ok {
-		t.Fatalf("expected rbac access summary insight widget to be removed")
-	}
-
-	quickLinks := ctx.DashboardRegistry.QuickLinks()
-	if len(quickLinks) != 4 {
-		t.Fatalf("expected 4 access-control quick links, got %#v", quickLinks)
-	}
-
-	assertDashboardQuickLink(t, quickLinks[0], expectedDashboardQuickLink{
-		id:            accessControlOverviewQuickLinkID,
-		titleKey:      rbaccontract.AccessControlOverviewMenuTitle.String(),
-		routeLocation: "/access-control/overview",
-		icon:          "dashboard",
-		order:         accessControlOverviewQuickLinkOrder,
-	})
-	assertDashboardQuickLink(t, quickLinks[1], expectedDashboardQuickLink{
-		id:                  accessControlUsersQuickLinkID,
-		titleKey:            usercontract.UserListMenuTitle.String(),
-		routeLocation:       "/access-control/users",
-		icon:                "user",
-		requiredPermissions: []string{usercontract.UserReadPermission.String()},
-		order:               accessControlUsersQuickLinkOrder,
-	})
-	assertDashboardQuickLink(t, quickLinks[2], expectedDashboardQuickLink{
-		id:                  accessControlRolesQuickLinkID,
-		titleKey:            rbaccontract.RoleListMenuTitle.String(),
-		routeLocation:       "/access-control/roles",
-		icon:                "secured",
-		requiredPermissions: []string{rbaccontract.RoleReadPermission.String()},
-		order:               accessControlRolesQuickLinkOrder,
-	})
-	assertDashboardQuickLink(t, quickLinks[3], expectedDashboardQuickLink{
-		id:                  accessControlPermissionsQuickLinkID,
-		titleKey:            rbaccontract.PermissionListMenuTitle.String(),
-		routeLocation:       "/access-control/permissions",
-		icon:                "lock-on",
-		requiredPermissions: []string{rbaccontract.PermissionReadPermission.String()},
-		order:               accessControlPermissionsQuickLinkOrder,
-	})
-}
-
-type expectedDashboardQuickLink struct {
-	id                  string
-	titleKey            string
-	routeLocation       string
-	icon                string
-	requiredPermissions []string
-	order               int
-}
-
-func assertDashboardQuickLink(t *testing.T, link dashboard.QuickLinkDefinition, expected expectedDashboardQuickLink) {
-	t.Helper()
-	if link.ID != expected.id ||
-		link.ModuleKey != moduleID ||
-		link.TitleKey != expected.titleKey ||
-		link.RouteLocation != expected.routeLocation ||
-		link.Icon != expected.icon ||
-		link.Order != expected.order ||
-		!reflect.DeepEqual(link.RequiredPermissions, expected.requiredPermissions) {
-		t.Fatalf("unexpected dashboard quick link: %#v", link)
 	}
 }
 

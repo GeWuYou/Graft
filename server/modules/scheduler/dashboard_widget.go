@@ -18,17 +18,12 @@ const (
 	schedulerTaskAttentionWidgetID    = "scheduler.task-attention"
 	schedulerTaskAttentionWidgetOrder = 120
 	schedulerTaskAttentionListLimit   = 100
-	schedulerTaskQuickLinkID          = "scheduler.scheduled-tasks"
-	schedulerTaskQuickLinkOrder       = 110
 )
 
+// registerSchedulerDashboardWidget registers a dashboard widget for displaying scheduler task attention metrics. It returns nil if the dashboard registry is unavailable, or an error if registration fails.
 func registerSchedulerDashboardWidget(ctx *module.Context, instance *Module) error {
 	if ctx == nil || ctx.DashboardRegistry == nil {
 		return nil
-	}
-
-	if err := ctx.DashboardRegistry.RegisterQuickLink(schedulerTaskQuickLink()); err != nil {
-		return fmt.Errorf("register scheduler dashboard quick link: %w", err)
 	}
 
 	if err := ctx.DashboardRegistry.Register(dashboard.WidgetDefinition{
@@ -63,20 +58,7 @@ func registerSchedulerDashboardWidget(ctx *module.Context, instance *Module) err
 
 	return nil
 }
-
-func schedulerTaskQuickLink() dashboard.QuickLinkDefinition {
-	return dashboard.QuickLinkDefinition{
-		ID:                  schedulerTaskQuickLinkID,
-		ModuleKey:           moduleID,
-		TitleKey:            schedulercontract.ScheduledTaskMenuTitle.String(),
-		Title:               "",
-		Icon:                "time",
-		RouteLocation:       schedulercontract.ScheduledTaskMenuPath,
-		RequiredPermissions: []string{schedulercontract.ScheduledTaskReadPermission.String()},
-		Order:               schedulerTaskQuickLinkOrder,
-	}
-}
-
+// LoadSchedulerTaskAttentionWidget builds the dashboard widget payload for scheduler task attention statistics.
 func loadSchedulerTaskAttentionWidget(ctx context.Context, runtime schedulercore.Runtime) (dashboard.WidgetPayload, error) {
 	counts, err := schedulerAttentionCounts(ctx, runtime)
 	if err != nil {

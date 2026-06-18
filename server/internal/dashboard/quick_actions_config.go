@@ -10,7 +10,6 @@ import (
 
 	"graft/server/internal/configregistry"
 	"graft/server/internal/i18n"
-	systemconfiglocales "graft/server/modules/system-config/locales"
 )
 
 const (
@@ -81,13 +80,10 @@ func RegisterQuickActionsConfigDefinitions(registry *configregistry.Registry) er
 	return nil
 }
 
-// RegisterQuickActionsConfigMessages registers system-config display metadata for dashboard quick actions.
+// RegisterQuickActionsConfigMessages verifies that all required i18n message keys are registered in the provided localizer for dashboard quick-actions configuration display across supported locales. It returns an error if any required key is missing for any locale.
 func RegisterQuickActionsConfigMessages(localizer *i18n.Service) error {
 	if localizer == nil {
 		return errors.New("i18n service is required")
-	}
-	if err := ensureSystemConfigLocaleResources(localizer, quickActionsConfigMessageKeys()); err != nil {
-		return fmt.Errorf("register dashboard quick-actions config messages: %w", err)
 	}
 	for _, locale := range []i18n.LocaleTag{i18n.LocaleZHCN, i18n.LocaleENUS} {
 		for _, key := range quickActionsConfigMessageKeys() {
@@ -100,31 +96,7 @@ func RegisterQuickActionsConfigMessages(localizer *i18n.Service) error {
 	return nil
 }
 
-func ensureSystemConfigLocaleResources(localizer *i18n.Service, keys []string) error {
-	if hasAllSystemConfigMessageKeys(localizer, keys) {
-		return nil
-	}
-	resources, err := systemconfiglocales.EmbeddedLocaleResources()
-	if err != nil {
-		return fmt.Errorf("load system-config locale resources: %w", err)
-	}
-	if err := localizer.RegisterEmbeddedLocaleResources(resources); err != nil {
-		return fmt.Errorf("register system-config locale resources: %w", err)
-	}
-	return nil
-}
-
-func hasAllSystemConfigMessageKeys(localizer *i18n.Service, keys []string) bool {
-	for _, locale := range []i18n.LocaleTag{i18n.LocaleZHCN, i18n.LocaleENUS} {
-		for _, key := range keys {
-			if len(localizer.RegisteredMessageResources(locale, i18n.MessageKey(key))) == 0 {
-				return false
-			}
-		}
-	}
-	return true
-}
-
+// quickActionsConfigMessageKeys returns the list of message keys required for i18n configuration of dashboard quick actions.
 func quickActionsConfigMessageKeys() []string {
 	return []string{
 		quickActionsConfigGroupKey,

@@ -17,6 +17,7 @@ Use this skill when adding a new `web` feature module.
    - page entry
    - permission mapping
    - menu metadata
+   - optional homepage widget/component contribution
 4. Prefer the repository's standard admin shapes:
    - list page
    - create or edit dialog
@@ -26,7 +27,10 @@ Use this skill when adding a new `web` feature module.
 5. Use TDesign as the primary component system.
 6. Keep page-local state inside the page unless a shared store is clearly justified.
 7. If the module changes backend menu or permission semantics, treat it as cross-boundary work and validate both sides.
-8. At closeout, do not skip reusable-lesson evaluation:
+8. Do not ask whether a new menu needs a separate homepage quick action or quick link registration:
+   - homepage quick actions are derived from the currently visible sidebar / bootstrap menus
+   - only evaluate whether this module needs a homepage dashboard widget or component contribution
+9. At closeout, do not skip reusable-lesson evaluation:
    - prefer routing the slice through `graft-task-closeout`
    - if this skill is used as a self-contained implementation and closeout path, delegate the Experience Capture Check
      to `graft-lessons-learned`

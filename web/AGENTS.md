@@ -182,9 +182,14 @@ web/src/
 - 模块接入壳层的唯一新功能入口是 `modules/<name>/index.ts`
 - 模块对外声明 bootstrap 动态路由的唯一入口是 `modules/<name>/bootstrap-routes.ts`
 - `bootstrap-routes.ts` 只声明模块可接入壳层所需的最小注册信息，不扩散页面实现细节到壳层
+- 首页快捷入口属于壳层派生视图：默认由当前可见的 sidebar / bootstrap 菜单动态派生，不接受模块单独声明一份
+  homepage quick action / quick link 注册真值
 - 不属于左侧业务菜单但仍属于后台壳的模块页面，应通过模块注册面的 `globalRoutes` 声明为菜单外全局路由，
   不得依赖后端 hidden menu 撑路由，也不得在壳层写死模块页面组件
 - 壳层只消费模块注册结果，不直接维护“页面 path -> 模块页面组件”的第二套长期白名单
+- 新增或调整菜单时，默认评估“该菜单是否应出现在当前可见导航中”，不要再评估“是否需要额外注册首页快捷入口”
+- 首页 widget area 与快捷入口不是同一 authority：模块若需要在首页展示摘要卡片、状态块或其它 dashboard 组件，仍需
+  单独评估 dashboard widget/component contribution
 - 新增模块时，默认按 `pages`、`components`、`api`、`contract`、`types`、`locales` 组织
 - 模块存在稳定子菜单或同级子页面时，`pages/<subpage>/index.vue` 是默认页面真值；测试与页面私有样式跟随该目录放在 `pages/<subpage>/index.test.ts`、`pages/<subpage>/index.less`
 - 模块页面之间共享但不应暴露到跨模块 `shared/**` 的 helper、样式基线与 snapshot/composable，默认放在 `modules/<name>/shared/**`

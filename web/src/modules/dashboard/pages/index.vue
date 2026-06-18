@@ -76,9 +76,11 @@
 import { computed, onMounted, ref } from 'vue';
 
 import { API_CODE } from '@/contracts/api/codes';
+import type { SupportedLocale } from '@/contracts/i18n/locales';
 import { currentLocale, t } from '@/locales';
 import { PageHeader } from '@/shared/components/page';
 import { formatLocaleDateTime, MEDIUM_DATE_TIME_WITH_SECONDS_FORMAT_OPTIONS } from '@/shared/observability';
+import { usePermissionStore } from '@/store/modules/permission';
 import type { ApiRequestError } from '@/types/axios';
 import { createLogger } from '@/utils/logger';
 
@@ -91,18 +93,19 @@ import {
   DEFAULT_DASHBOARD_QUICK_ACTION_CONFIG,
   resolveDashboardQuickActionConfig,
 } from '../contract/quick-actions';
-import type { DashboardQuickLink, DashboardSummaryResponse, DashboardWidget } from '../types/dashboard';
+import { buildDashboardQuickActionLinks } from '../contract/sidebar-quick-actions';
+import type { DashboardSummaryResponse, DashboardWidget } from '../types/dashboard';
 
 defineOptions({
   name: 'DashboardHomePage',
 });
 
 const logger = createLogger('dashboard.home');
+const permissionStore = usePermissionStore();
 const loading = ref(false);
 const refreshingWidgetId = ref('');
 const errorMessage = ref('');
 const summary = ref<DashboardSummaryResponse | null>(null);
-const quickLinks = ref<DashboardQuickLink[]>([]);
 const widgets = ref<DashboardWidget[]>([]);
 const lastUpdatedAt = ref('');
 const quickActionConfig = ref<DashboardQuickActionConfig>({ ...DEFAULT_DASHBOARD_QUICK_ACTION_CONFIG });
@@ -165,6 +168,9 @@ const systemSummaryItems = computed(() => {
 const lastUpdatedLabel = computed(() =>
   formatLocaleDateTime(lastUpdatedAt.value, currentLocale, MEDIUM_DATE_TIME_WITH_SECONDS_FORMAT_OPTIONS),
 );
+const quickLinks = computed(() =>
+  buildDashboardQuickActionLinks(permissionStore.routers, currentLocale.value as SupportedLocale),
+);
 
 onMounted(() => {
   void loadSummary();
@@ -177,7 +183,6 @@ async function loadSummary() {
   try {
     const [response] = await Promise.all([getDashboardSummary(), loadQuickActionConfig()]);
     summary.value = response;
-    quickLinks.value = response.quick_links;
     widgets.value = response.widgets;
     lastUpdatedAt.value = new Date().toISOString();
   } catch (error) {

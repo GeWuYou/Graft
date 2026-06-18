@@ -42,8 +42,6 @@ const moduleShutdownTimeout = 5 * time.Second
 const appRuntimeLogComponent = "internal.app.runtime"
 const (
 	coreModuleRuntimeHealthWidgetOrder = 10
-	coreModuleRuntimeQuickLinkID       = "core.module-runtime"
-	coreModuleRuntimeQuickLinkOrder    = 105
 	moduleRuntimeHealthTitleKey        = "dashboard.widget.moduleRuntimeHealth.title"
 	moduleRuntimeHealthDescriptionKey  = "dashboard.widget.moduleRuntimeHealth.description"
 	moduleRuntimeHealthSummaryKey      = "dashboard.widget.moduleRuntimeHealth.summary"
@@ -83,6 +81,7 @@ type Runtime struct {
 	config             *config.Config
 	logger             *zap.Logger
 	i18n               *i18n.Service
+	localeResourcesRegistered bool
 	database           *database.Resources
 	redis              *redis.Client
 	server             *httpx.Server
@@ -200,6 +199,7 @@ func newRuntimeCore(cfg *config.Config) (*Runtime, error) {
 	return newRuntimeCoreWithDeps(cfg, defaultRuntimeCoreDeps)
 }
 
+// newRuntimeCoreWithDeps constructs a Runtime instance by opening core resources, initializing services, and pre-registering locale resources.
 func newRuntimeCoreWithDeps(cfg *config.Config, deps runtimeCoreDeps) (*Runtime, error) {
 	deps = normalizeRuntimeCoreDeps(deps)
 	applyGinMode(cfg)
@@ -246,7 +246,7 @@ func newRuntimeCoreWithDeps(cfg *config.Config, deps runtimeCoreDeps) (*Runtime,
 		return nil, err
 	}
 
-	return &Runtime{
+	runtime := &Runtime{
 		config:   cfg,
 		logger:   runtimeLogger,
 		i18n:     localizer,
@@ -267,9 +267,16 @@ func newRuntimeCoreWithDeps(cfg *config.Config, deps runtimeCoreDeps) (*Runtime,
 		dashboardRegistry:  dashboard.NewRegistry(),
 		moduleManager:      module.NewManager(),
 		appLogRepository:   appLogRepo,
-	}, nil
+	}
+	if err := runtime.preregisterOwnerLocaleResources(); err != nil {
+		_ = runtime.closeCoreResources()
+		return nil, err
+	}
+
+	return runtime, nil
 }
 
+// normalizeRuntimeCoreDeps replaces nil constructor functions with default implementations.
 func normalizeRuntimeCoreDeps(deps runtimeCoreDeps) runtimeCoreDeps {
 	if deps.newAccessLogRepository == nil {
 		deps.newAccessLogRepository = httpx.NewAccessLogRepository
@@ -348,7 +355,7 @@ func (r *Runtime) prepareModules(
 	if err := r.ensureLifecycleActive(runCtx, moduleCtx, booted); err != nil {
 		return nil, err
 	}
-	if err := r.preregisterLocaleResources(moduleCtx, booted); err != nil {
+	if err := r.assertOwnerLocaleResourcesRegistered(moduleCtx, booted); err != nil {
 		return nil, err
 	}
 	if err := r.registerModules(moduleCtx, ordered, booted); err != nil {
@@ -380,20 +387,35 @@ func (r *Runtime) prepareCoreRegistries(
 	return r.ensureLifecycleActive(runCtx, moduleCtx, booted)
 }
 
-func (r *Runtime) preregisterLocaleResources(
+func (r *Runtime) preregisterOwnerLocaleResources() error {
+	if r == nil || r.i18n == nil {
+		return errors.New("runtime i18n service is unavailable")
+	}
+	if r.localeResourcesRegistered {
+		return nil
+	}
+
+	resources := runtimeEmbeddedLocaleResources()
+	if len(resources) == 0 {
+		r.localeResourcesRegistered = true
+		return nil
+	}
+	if err := r.i18n.RegisterEmbeddedLocaleResources(resources); err != nil {
+		return fmt.Errorf("pre-register locale resources: %w", err)
+	}
+	r.localeResourcesRegistered = true
+	return nil
+}
+
+func (r *Runtime) assertOwnerLocaleResourcesRegistered(
 	moduleCtx *module.Context,
 	booted []module.RuntimeModule,
 ) error {
 	if r == nil || r.i18n == nil {
 		return r.cleanupAfterFailure(moduleCtx, booted, errors.New("runtime i18n service is unavailable"))
 	}
-
-	resources := runtimeEmbeddedLocaleResources()
-	if len(resources) == 0 {
-		return nil
-	}
-	if err := r.i18n.RegisterEmbeddedLocaleResources(resources); err != nil {
-		return r.cleanupAfterFailure(moduleCtx, booted, fmt.Errorf("pre-register locale resources: %w", err))
+	if !r.localeResourcesRegistered {
+		return r.cleanupAfterFailure(moduleCtx, booted, errors.New("runtime owner-local locale resources were not pre-registered"))
 	}
 	return nil
 }
@@ -647,37 +669,11 @@ func (r *Runtime) registerCoreModuleRuntimeDashboard() error {
 		return fmt.Errorf("register core dashboard widget: %w", err)
 	}
 
-	if err := r.dashboardRegistry.RegisterQuickLink(dashboard.QuickLinkDefinition{
-		ID:                  coreModuleRuntimeQuickLinkID,
-		ModuleKey:           "core",
-		TitleKey:            moduleruntime.MenuRuntimeTitleKey(),
-		Title:               r.mustLookupCoreDisplay(moduleruntime.MenuRuntimeTitleKey()),
-		Icon:                "module",
-		RouteLocation:       moduleruntime.MenuRuntimePath(),
-		RequiredPermissions: []string{moduleruntime.PermissionRead},
-		Order:               coreModuleRuntimeQuickLinkOrder,
-	}); err != nil {
-		return fmt.Errorf("register module-runtime dashboard quick link: %w", err)
-	}
-
 	return nil
 }
 
 func (r *Runtime) registerCoreAccessLogDashboard() error {
 	if repo := r.server.AccessLogRepository(); repo != nil {
-		if err := r.dashboardRegistry.RegisterQuickLink(dashboard.QuickLinkDefinition{
-			ID:                  httpx.AccessLogDashboardQuickLinkID,
-			ModuleKey:           httpx.AccessLogDashboardModuleKey(),
-			TitleKey:            httpx.AccessLogDashboardTitleKey(),
-			Title:               r.mustLookupCoreDisplay(httpx.AccessLogDashboardTitleKey()),
-			Icon:                "search",
-			RouteLocation:       httpx.AccessLogDashboardRouteLocation(),
-			RequiredPermissions: []string{httpx.AccessLogReadPermission},
-			Order:               httpx.AccessLogDashboardQuickLinkOrder,
-		}); err != nil {
-			return fmt.Errorf("register access-log dashboard quick link: %w", err)
-		}
-
 		if err := r.dashboardRegistry.Register(dashboard.WidgetDefinition{
 			ID:             httpx.AccessLogDashboardWidgetID,
 			ModuleKey:      httpx.AccessLogDashboardModuleKey(),
@@ -708,20 +704,6 @@ func (r *Runtime) registerCoreAccessLogDashboard() error {
 }
 
 func (r *Runtime) registerCoreAppLogDashboard() error {
-	if r.appLogRepository != nil {
-		if err := r.dashboardRegistry.RegisterQuickLink(dashboard.QuickLinkDefinition{
-			ID:                  logger.AppLogDashboardQuickLinkID,
-			ModuleKey:           logger.AppLogDashboardModuleKey(),
-			TitleKey:            logger.AppLogDashboardTitleKey(),
-			Title:               r.mustLookupCoreDisplay(logger.AppLogDashboardTitleKey()),
-			Icon:                "file-search",
-			RouteLocation:       logger.AppLogDashboardRouteLocation(),
-			RequiredPermissions: []string{logger.AppLogReadPermission},
-			Order:               logger.AppLogDashboardQuickLinkOrder,
-		}); err != nil {
-			return fmt.Errorf("register app-log dashboard quick link: %w", err)
-		}
-	}
 	return nil
 }
 

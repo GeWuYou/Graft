@@ -676,21 +676,6 @@ func TestRegisterRegistersSchedulerTaskAttentionDashboardWidget(t *testing.T) {
 		t.Fatalf("unexpected required permissions: %#v", widget.RequiredPermissions)
 	}
 
-	quickLinks := ctx.DashboardRegistry.QuickLinks()
-	if len(quickLinks) != 1 {
-		t.Fatalf("expected scheduler quick link, got %#v", quickLinks)
-	}
-	link := quickLinks[0]
-	if link.ID != schedulerTaskQuickLinkID ||
-		link.ModuleKey != moduleID ||
-		link.TitleKey != schedulercontract.ScheduledTaskMenuTitle.String() ||
-		link.RouteLocation != schedulercontract.ScheduledTaskMenuPath ||
-		link.Order != schedulerTaskQuickLinkOrder {
-		t.Fatalf("unexpected scheduler quick link: %#v", link)
-	}
-	if len(link.RequiredPermissions) != 1 || link.RequiredPermissions[0] != schedulercontract.ScheduledTaskReadPermission.String() {
-		t.Fatalf("unexpected scheduler quick link permissions: %#v", link.RequiredPermissions)
-	}
 }
 
 func assertRegisteredSchedulerMessage(t *testing.T, localizer *i18n.Service, locale i18n.LocaleTag, key string, expected string) {

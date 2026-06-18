@@ -28,8 +28,12 @@ Use this skill when adding a new `server` plugin.
    - migration registration
    - optional cron jobs
    - optional public services
-8. Add tests for dependency ordering, duplicate registration, and service resolution whenever those concerns are touched.
-9. At closeout, do not skip reusable-lesson evaluation:
+   - optional homepage dashboard widget/component contribution
+8. Do not add or require module-declared homepage quick link / quick action registration for new menu entries:
+   - homepage quick actions are derived from visible sidebar / bootstrap menus
+   - keep widget contribution review separate when the homepage needs module-owned summary UI
+9. Add tests for dependency ordering, duplicate registration, and service resolution whenever those concerns are touched.
+10. At closeout, do not skip reusable-lesson evaluation:
    - prefer routing the slice through `graft-task-closeout`
    - if this skill is used as a self-contained implementation and closeout path, delegate the Experience Capture Check
      to `graft-lessons-learned`

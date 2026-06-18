@@ -516,7 +516,7 @@
         "basicInfo": "Basic Information",
         "destination": "Destination",
         "emptyTitle": "No Mounts",
-        "emptyDescription": "This Container Has No Extra Mount Volumes",
+        "emptyDescription": "This Container Has No Additional Mounted Volumes.",
         "errorMessage": "Mount Usage Could Not Be Measured",
         "source": "Source",
         "sourceUnavailable": "No Source",

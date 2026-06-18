@@ -23,7 +23,6 @@ import (
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
 	"graft/server/internal/permission"
-	systemconfigcontract "graft/server/modules/system-config/contract"
 	systemconfiglocales "graft/server/modules/system-config/locales"
 	systemconfigstore "graft/server/modules/system-config/store"
 )
@@ -251,21 +250,8 @@ func registerSystemConfigModuleWithUserService(t *testing.T, service *Service) *
 func assertSystemConfigQuickLink(t *testing.T, registry *dashboard.Registry) {
 	t.Helper()
 
-	quickLinks := registry.QuickLinks()
-	if len(quickLinks) != 1 {
-		t.Fatalf("expected system-config quick link, got %#v", quickLinks)
-	}
-
-	link := quickLinks[0]
-	if link.ID != systemConfigQuickLinkID ||
-		link.ModuleKey != moduleID ||
-		link.TitleKey != systemconfigcontract.SystemConfigMenuTitle.String() ||
-		link.RouteLocation != systemconfigcontract.SystemConfigMenuPath ||
-		link.Order != systemConfigQuickLinkOrder {
-		t.Fatalf("unexpected system-config quick link: %#v", link)
-	}
-	if len(link.RequiredPermissions) != 1 || link.RequiredPermissions[0] != systemconfigcontract.SystemConfigReadPermission.String() {
-		t.Fatalf("unexpected system-config quick link permissions: %#v", link.RequiredPermissions)
+	if len(registry.Items()) != 0 {
+		t.Fatalf("expected system-config dashboard registry to stay empty, got %#v", registry.Items())
 	}
 }
 

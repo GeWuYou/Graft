@@ -17,6 +17,8 @@ Use this for monitor-style dashboards and high-level operational overviews.
 - Keep numbers prominent and labels compact.
 - Place the chart inside a token-aware card.
 - Make status clear before making it decorative.
+- Homepage quick actions come from visible navigation state, not from per-module quick-link declarations.
+- Treat homepage widget cards and components as explicit dashboard contributions with their own ownership review.
 
 ## Do
 

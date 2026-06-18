@@ -10,6 +10,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -34,6 +35,7 @@ import (
 	"graft/server/internal/moduleruntime"
 	"graft/server/internal/permission"
 	testent "graft/server/internal/testent"
+	systemconfiglocales "graft/server/modules/system-config/locales"
 )
 
 type runtimeAccessLogRecorderRepo struct {
@@ -490,34 +492,10 @@ func TestNewRuntimeCoreWiresAccessLogRepositoryIntoServer(t *testing.T) {
 		},
 	}
 
-	runtime, err := newRuntimeCoreWithDeps(&config.Config{
-		App: config.AppConfig{Name: "graft", Env: "test"},
-		HTTP: config.HTTPConfig{
-			Addr: "127.0.0.1:0",
-		},
-		Database: config.DatabaseConfig{
-			Driver: "postgres",
-			URL:    "postgres://graft@localhost:5432/graft?sslmode=disable",
-		},
-		Redis: config.RedisConfig{
-			Addr: "127.0.0.1:6379",
-		},
-		Log: config.LogConfig{
-			Level:           "info",
-			Format:          config.LogFormatAuto,
-			Color:           config.LogColorAuto,
-			AppLogPersist:   true,
-			AppLogRetention: 3 * 24 * time.Hour,
-		},
-		Runtime: config.RuntimeConfig{
-			GinMode: config.GinModeAuto,
-		},
-		I18n: config.I18nConfig{
-			DefaultLocale:    "zh-CN",
-			FallbackLocale:   "zh-CN",
-			SupportedLocales: []string{"zh-CN", "en-US"},
-		},
-	}, deps)
+	runtimeCfg := runtimeTestConfig()
+	runtimeCfg.I18n.FallbackLocale = "zh-CN"
+
+	runtime, err := newRuntimeCoreWithDeps(runtimeCfg, deps)
 	if err != nil {
 		t.Fatalf("new runtime core: %v", err)
 	}
@@ -598,6 +576,168 @@ func mustNewRuntimeTestLocalizer(t *testing.T) *i18n.Service {
 	}
 
 	return localizer
+}
+
+func mustPreregisterRuntimeOwnerLocales(t *testing.T, runtime *Runtime) {
+	t.Helper()
+
+	if err := runtime.preregisterOwnerLocaleResources(); err != nil {
+		t.Fatalf("pre-register runtime owner locale resources: %v", err)
+	}
+}
+
+func runtimeTestConfig() *config.Config {
+	return &config.Config{
+		App: config.AppConfig{Name: "graft", Env: "test"},
+		HTTP: config.HTTPConfig{
+			Addr: "127.0.0.1:0",
+		},
+		Database: config.DatabaseConfig{
+			Driver: "postgres",
+			URL:    "postgres://graft@localhost:5432/graft?sslmode=disable",
+		},
+		Redis: config.RedisConfig{
+			Addr: "127.0.0.1:6379",
+		},
+		Log: config.LogConfig{
+			Level:           "info",
+			Format:          config.LogFormatAuto,
+			Color:           config.LogColorAuto,
+			AppLogPersist:   true,
+			AppLogRetention: 3 * 24 * time.Hour,
+		},
+		Runtime: config.RuntimeConfig{
+			GinMode: config.GinModeAuto,
+		},
+		I18n: config.I18nConfig{
+			DefaultLocale:    "zh-CN",
+			FallbackLocale:   "en-US",
+			SupportedLocales: []string{"zh-CN", "en-US"},
+		},
+	}
+}
+
+func runtimeTestDeps() runtimeCoreDeps {
+	return runtimeCoreDeps{
+		newAccessLogRepository: func(_ *sql.DB) (httpx.AccessLogRepository, error) {
+			return &runtimeAccessLogRecorderRepo{}, nil
+		},
+		newAppLogRepository: func(_ *sql.DB) (logger.AppLogRepository, error) {
+			return &runtimeAppLogRecorderRepo{}, nil
+		},
+		openRedisClient: func(context.Context, config.RedisConfig) (*redis.Client, error) {
+			return redis.NewClient(&redis.Options{Addr: "127.0.0.1:6379"}), nil
+		},
+	}
+}
+
+func TestNewRuntimeCorePreregistersOwnerLocaleResources(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	runtime, err := newRuntimeCoreWithDeps(runtimeTestConfig(), runtimeTestDeps())
+	if err != nil {
+		t.Fatalf("new runtime core: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = runtime.closeCoreResources()
+	})
+
+	if !runtime.localeResourcesRegistered {
+		t.Fatal("expected runtime to mark owner-local locale resources as pre-registered")
+	}
+
+	got := runtime.i18n.Lookup(i18n.LookupRequest{
+		Namespace: "system-config",
+		Locale:    i18n.LocaleENUS,
+		Key:       "menu.server.system_config.title",
+	})
+	if got != "System Configuration" {
+		t.Fatalf("expected pre-registered system-config title, got %q", got)
+	}
+}
+
+func TestRuntimeLocalePreregistrationIsOneTime(t *testing.T) {
+	localizer := i18n.MustNew(config.I18nConfig{
+		DefaultLocale:    "zh-CN",
+		FallbackLocale:   "en-US",
+		SupportedLocales: []string{"zh-CN", "en-US"},
+	})
+	runtime := &Runtime{
+		i18n: localizer,
+	}
+
+	if err := runtime.preregisterOwnerLocaleResources(); err != nil {
+		t.Fatalf("first pre-register owner locales: %v", err)
+	}
+	idsBefore := localizer.RegisteredMessageKeyIDs(i18n.LocaleENUS, i18n.MessageKey("menu.server.system_config.title"))
+	if len(idsBefore) != 1 || idsBefore[0] != "system-config.menu.server.system_config.title" {
+		t.Fatalf("expected one system-config title key after first pre-registration, got %#v", idsBefore)
+	}
+	if err := runtime.preregisterOwnerLocaleResources(); err != nil {
+		t.Fatalf("second pre-register owner locales: %v", err)
+	}
+	idsAfter := localizer.RegisteredMessageKeyIDs(i18n.LocaleENUS, i18n.MessageKey("menu.server.system_config.title"))
+	if !slices.Equal(idsBefore, idsAfter) {
+		t.Fatalf("expected second pre-registration to be a no-op, got before=%#v after=%#v", idsBefore, idsAfter)
+	}
+}
+
+func TestPrepareModulesAssertsOwnerLocaleResourcesAlreadyRegistered(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	runCtx := context.Background()
+	localizer := i18n.MustNew(config.I18nConfig{
+		DefaultLocale:    "zh-CN",
+		FallbackLocale:   "en-US",
+		SupportedLocales: []string{"zh-CN", "en-US"},
+	})
+	runtime := &Runtime{
+		config:             runtimeTestConfig(),
+		logger:             zap.NewNop(),
+		i18n:               localizer,
+		server:             httpx.NewServer(zap.NewNop()),
+		eventBus:           eventbus.New(zap.NewNop()),
+		services:           container.New(),
+		menuRegistry:       menu.NewRegistry(),
+		permissionRegistry: permission.NewRegistry(),
+		cronRegistry:       cronx.NewRegistry(),
+		moduleManager:      module.NewManager(),
+	}
+
+	moduleCtx := runtime.newModuleContext(runCtx)
+	ordered := []module.RuntimeModule{}
+	if _, err := runtime.prepareModules(runCtx, moduleCtx, ordered); err == nil {
+		t.Fatal("expected prepareModules to fail when owner-local locale resources were not pre-registered")
+	}
+
+	if err := runtime.preregisterOwnerLocaleResources(); err != nil {
+		t.Fatalf("pre-register owner locales: %v", err)
+	}
+	if _, err := runtime.prepareModules(runCtx, runtime.newModuleContext(runCtx), ordered); err != nil {
+		t.Fatalf("expected prepareModules to accept already pre-registered owner locales, got %v", err)
+	}
+}
+
+func TestManualDuplicateOwnerLocaleRegistrationStillFails(t *testing.T) {
+	localizer := i18n.MustNew(config.I18nConfig{
+		DefaultLocale:    "zh-CN",
+		FallbackLocale:   "en-US",
+		SupportedLocales: []string{"zh-CN", "en-US"},
+	})
+	resources, err := systemconfiglocales.EmbeddedLocaleResources()
+	if err != nil {
+		t.Fatalf("load system-config locale resources: %v", err)
+	}
+	if err := localizer.RegisterEmbeddedLocaleResources(resources); err != nil {
+		t.Fatalf("register system-config locale resources: %v", err)
+	}
+	err = localizer.RegisterEmbeddedLocaleResources(resources)
+	if err == nil {
+		t.Fatal("expected manual duplicate locale registration to fail")
+	}
+	if !strings.Contains(err.Error(), "i18n message already registered") {
+		t.Fatalf("expected duplicate protection error, got %v", err)
+	}
 }
 
 func TestAccessLogIsNotRegisteredAsModule(t *testing.T) {
@@ -720,6 +860,7 @@ func TestRunPassesEventBusIntoModuleContext(t *testing.T) {
 		cronRegistry:       cronx.NewRegistry(),
 		moduleManager:      manager,
 	}
+	mustPreregisterRuntimeOwnerLocales(t, runtime)
 
 	if err := runtime.Run(runCtx); !errors.Is(err, context.Canceled) {
 		t.Fatalf("expected canceled runtime lifecycle, got %v", err)
@@ -760,6 +901,7 @@ func TestRunPassesLifecycleContextIntoModulePhases(t *testing.T) {
 		cronRegistry:       cronx.NewRegistry(),
 		moduleManager:      manager,
 	}
+	mustPreregisterRuntimeOwnerLocales(t, runtime)
 
 	if err := runtime.Run(runCtx); !errors.Is(err, context.Canceled) {
 		t.Fatalf("expected canceled runtime lifecycle, got %v", err)
@@ -809,6 +951,7 @@ func TestRunStopsBeforeBootWhenLifecycleContextAlreadyCanceled(t *testing.T) {
 		cronRegistry:       cronx.NewRegistry(),
 		moduleManager:      manager,
 	}
+	mustPreregisterRuntimeOwnerLocales(t, runtime)
 
 	runCtx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -853,6 +996,7 @@ func TestRunFreezesI18nRegistryAfterRegisterBeforeBoot(t *testing.T) {
 		cronRegistry:       cronx.NewRegistry(),
 		moduleManager:      manager,
 	}
+	mustPreregisterRuntimeOwnerLocales(t, runtime)
 
 	if err := runtime.Run(runCtx); !errors.Is(err, context.Canceled) {
 		t.Fatalf("expected canceled runtime lifecycle, got %v", err)
@@ -923,6 +1067,7 @@ func TestRunPrereRegistersEmbeddedLocaleResourcesBeforeModuleRegister(t *testing
 		cronRegistry:       cronx.NewRegistry(),
 		moduleManager:      manager,
 	}
+	mustPreregisterRuntimeOwnerLocales(t, runtime)
 
 	if err := runtime.Run(runCtx); !errors.Is(err, context.Canceled) {
 		t.Fatalf("expected canceled runtime lifecycle, got %v", err)

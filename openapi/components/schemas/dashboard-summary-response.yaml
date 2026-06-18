@@ -1,12 +1,8 @@
 type: object
-required: [system_summary, quick_links, widgets]
+required: [system_summary, widgets]
 properties:
   system_summary:
     $ref: ./dashboard-system-summary.yaml
-  quick_links:
-    type: array
-    items:
-      $ref: ./dashboard-quick-link.yaml
   widgets:
     type: array
     items:

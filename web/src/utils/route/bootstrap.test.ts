@@ -326,6 +326,39 @@ describe('transformBootstrapMenusToRoutes', () => {
     expect(routes[0]?.children?.map((child) => child.path)).toEqual(['overview', 'runtime', 'dependencies', 'modules']);
   });
 
+  it('为服务管理下的公告管理页保留子级 breadcrumb 并派生父级 tab 标题', () => {
+    const routes = transformBootstrapMenusToRoutes([
+      {
+        code: 'server.section',
+        order: 20,
+        title_key: 'menu.server.title',
+        title: '服务管理',
+        path: '/server',
+        icon: 'server',
+        permission: '',
+      },
+      {
+        code: 'server.announcements',
+        order: 5,
+        title_key: 'menu.server.announcements.title',
+        title: '公告管理',
+        path: '/server/announcements',
+        icon: 'notification',
+        permission: 'announcement.read',
+      },
+    ]);
+
+    expect(routes).toHaveLength(1);
+    expect(routes[0]?.path).toBe('/server');
+    expect(routes[0]?.children).toHaveLength(1);
+    expect(routes[0]?.children?.[0]?.path).toBe('announcements');
+    expect(routes[0]?.children?.[0]?.name).toBe('AnnouncementManagementIndex');
+    expect(routes[0]?.children?.[0]?.meta?.titleKey).toBe('menu.server.announcements.title');
+    expect(routes[0]?.children?.[0]?.meta?.breadcrumbTitle?.['zh-CN']).toBe('公告管理');
+    expect(routes[0]?.children?.[0]?.meta?.tabTitle?.['zh-CN']).toBe('服务管理 - 公告管理');
+    expect(routes[0]?.children?.[0]?.meta?.tabTitle?.['en-US']).toBe('Service Management - Announcements');
+  });
+
   it('registers menu-hidden global routes at their canonical URL without index redirects', () => {
     const routes = transformGlobalRegistrationsToRoutes([
       {

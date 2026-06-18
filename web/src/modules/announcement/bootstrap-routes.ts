@@ -20,7 +20,6 @@ export const announcementBootstrapRouteRegistrations: BootstrapRouteRegistration
       semanticTitle: managementRouteTitle,
       breadcrumbTitle: managementBreadcrumbTitle,
       tabGroup: 'server',
-      tabTitle: managementRouteTitle,
     },
   },
 ];

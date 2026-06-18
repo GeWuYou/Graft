@@ -5,12 +5,14 @@ package dashboard
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"graft/server/internal/config"
 	"graft/server/internal/configregistry"
 	"graft/server/internal/i18n"
 	"graft/server/internal/testassert"
+	systemconfiglocales "graft/server/modules/system-config/locales"
 )
 
 func TestRegisterQuickActionsConfigDefinitionsUsesDomainGroupItemMetadata(t *testing.T) {
@@ -163,6 +165,14 @@ func TestRegisterQuickActionsConfigMessagesUsesProductFacingChineseCopy(t *testi
 		FallbackLocale:   string(i18n.LocaleENUS),
 		SupportedLocales: []string{string(i18n.LocaleZHCN), string(i18n.LocaleENUS)},
 	})
+	resources, err := systemconfiglocales.EmbeddedLocaleResources()
+	if err != nil {
+		t.Fatalf("load system-config locale resources: %v", err)
+	}
+	if err := localizer.RegisterEmbeddedLocaleResources(resources); err != nil {
+		t.Fatalf("register system-config locale resources: %v", err)
+	}
+
 	if err := RegisterQuickActionsConfigMessages(localizer); err != nil {
 		t.Fatalf("register quick-actions config messages: %v", err)
 	}
@@ -195,5 +205,23 @@ func TestRegisterQuickActionsConfigMessagesUsesProductFacingChineseCopy(t *testi
 	ids := localizer.RegisteredMessageKeyIDs(i18n.LocaleENUS, i18n.MessageKey(quickActionsStrategyHybridDesc))
 	if len(ids) != 1 || ids[0] != "system-config."+quickActionsStrategyHybridDesc {
 		t.Fatalf("expected registered en-US dashboard quick-actions diagnostic key, got %#v", ids)
+	}
+}
+
+func TestRegisterQuickActionsConfigMessagesRequiresPreRegisteredSystemConfigResources(t *testing.T) {
+	t.Parallel()
+
+	localizer := i18n.MustNew(config.I18nConfig{
+		DefaultLocale:    string(i18n.LocaleZHCN),
+		FallbackLocale:   string(i18n.LocaleENUS),
+		SupportedLocales: []string{string(i18n.LocaleZHCN), string(i18n.LocaleENUS)},
+	})
+
+	err := RegisterQuickActionsConfigMessages(localizer)
+	if err == nil {
+		t.Fatal("expected missing pre-registered system-config locale resources to fail")
+	}
+	if !strings.Contains(err.Error(), "missing key") {
+		t.Fatalf("expected missing key error, got %v", err)
 	}
 }

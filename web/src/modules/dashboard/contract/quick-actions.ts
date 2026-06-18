@@ -3,7 +3,7 @@
 
 import type { components } from '@/contracts/openapi/generated/schema';
 
-import type { DashboardQuickLink } from '../types/dashboard';
+import type { DashboardQuickActionLink } from './quick-action-links';
 
 type SystemConfigItem = components['schemas']['system-config-item'];
 
@@ -35,7 +35,7 @@ export type DashboardQuickActionUsageRecord = {
 
 export type DashboardQuickActionUsageMap = Record<string, DashboardQuickActionUsageRecord>;
 
-export type DashboardQuickActionViewModel = DashboardQuickLink & {
+export type DashboardQuickActionViewModel = DashboardQuickActionLink & {
   accessCount: number;
   lastAccessAt: string;
   pinned: boolean;

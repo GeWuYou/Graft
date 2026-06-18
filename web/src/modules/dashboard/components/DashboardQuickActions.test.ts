@@ -5,15 +5,15 @@ import { mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h } from 'vue';
 
+import type { DashboardQuickActionLink } from '../contract/quick-action-links';
 import type { DashboardQuickActionConfig } from '../contract/quick-actions';
-import type { DashboardQuickLink } from '../types/dashboard';
 import DashboardQuickActions from './DashboardQuickActions.vue';
 
 vi.mock('@/locales', () => ({
   t: (key: string, params?: Record<string, unknown>) => {
     const translations: Record<string, string> = {
-      'dashboard.module.audit': '审计',
-      'dashboard.module.core': '核心',
+      'dashboard.module.audit': 'Security Audit',
+      'dashboard.module.core': 'Service Management',
       'dashboard.quickActions.description': '当前权限可用入口',
       'dashboard.quickActions.drawerTitle': '全部快捷入口',
       'dashboard.quickActions.empty': '暂无可用快捷入口',
@@ -100,29 +100,13 @@ vi.mock('vue-router', () => ({
 const passthroughStub = defineComponent({
   name: 'PassthroughStub',
   props: {
-    color: {
-      type: String,
-      default: '',
-    },
-    content: {
-      type: String,
-      default: '',
-    },
     description: {
       type: String,
       default: '',
     },
   },
   setup(props, { slots }) {
-    return () =>
-      h('div', { 'data-color': props.color }, [
-        props.content,
-        props.description,
-        slots.title?.(),
-        slots.default?.(),
-        slots.actions?.(),
-        slots.icon?.(),
-      ]);
+    return () => h('div', [props.description, slots.title?.(), slots.default?.(), slots.actions?.(), slots.icon?.()]);
   },
 });
 const buttonStub = defineComponent({
@@ -150,18 +134,20 @@ const drawerStub = defineComponent({
   },
 });
 
-function quickLink(index: number, partial: Partial<DashboardQuickLink> = {}): DashboardQuickLink {
+function quickLink(index: number, partial: Partial<DashboardQuickActionLink> = {}): DashboardQuickActionLink {
   return {
     id: `link-${index}`,
     module_key: index % 2 === 0 ? 'core' : 'audit',
+    group: index % 2 === 0 ? 'Service Management' : 'Security Audit',
     order: index,
     route_location: `/route-${index}`,
     title: `Link ${index}`,
+    full_label: `${index % 2 === 0 ? 'Service Management' : 'Security Audit'} - Link ${index}`,
     ...partial,
   };
 }
 
-function mountQuickActions(links: DashboardQuickLink[], config?: DashboardQuickActionConfig) {
+function mountQuickActions(links: DashboardQuickActionLink[], config?: DashboardQuickActionConfig) {
   return mount(DashboardQuickActions, {
     props: {
       config,
@@ -175,7 +161,7 @@ function mountQuickActions(links: DashboardQuickLink[], config?: DashboardQuickA
         TDrawer: drawerStub,
         TEmpty: passthroughStub,
         TIcon: passthroughStub,
-        TTag: passthroughStub,
+        TTooltip: passthroughStub,
       },
     },
   });
@@ -192,8 +178,8 @@ describe('DashboardQuickActions', () => {
 
     expect(wrapper.findAll('.dashboard-quick-actions__item')).toHaveLength(4);
     expect(wrapper.text()).toContain('查看全部 10 个');
-    expect(wrapper.text()).toContain('审计');
-    expect(wrapper.text()).toContain('核心');
+    expect(wrapper.text()).toContain('Security Audit');
+    expect(wrapper.text()).toContain('Service Management');
     expect(wrapper.text()).not.toContain('Link 5');
 
     await wrapper.findAll('button').at(-1)?.trigger('click');
@@ -221,11 +207,10 @@ describe('DashboardQuickActions', () => {
         stubs: {
           TButton: buttonStub,
           TCard: passthroughStub,
-          TBadge: passthroughStub,
           TDrawer: drawerStub,
           TEmpty: passthroughStub,
           TIcon: passthroughStub,
-          TTag: passthroughStub,
+          TTooltip: passthroughStub,
         },
       },
     });
@@ -242,44 +227,55 @@ describe('DashboardQuickActions', () => {
     expect(routerMocks.push).toHaveBeenCalledWith('/audit/events');
   });
 
-  it('uses route tab titles so overview quick links include their first-level menu context', async () => {
+  it('renders split title and group labels while preserving the full label in card title', async () => {
     const wrapper = mountQuickActions(
       [
-        quickLink(1, { route_location: '/server/overview', title: '概览' }),
-        quickLink(2, { route_location: '/access-control/users', title: '用户管理' }),
-        quickLink(3, { route_location: '/unknown/overview', title: '概览' }),
+        quickLink(1, {
+          route_location: '/server/overview',
+          title: 'Overview',
+          group: 'Service Management',
+          full_label: 'Service Management - Overview',
+        }),
+        quickLink(2, {
+          route_location: '/access-control/users',
+          title: 'User Management',
+          group: 'Access Control',
+          full_label: 'Access Control - User Management',
+        }),
+        quickLink(3, {
+          route_location: '/unknown/overview',
+          title: 'Overview',
+          group: 'Unknown',
+          full_label: 'Overview',
+        }),
       ],
       { enabled: true, maxItems: 2, strategy: 'hybrid' },
     );
 
     const titles = wrapper.findAll('.dashboard-quick-actions__item strong').map((item) => item.text());
-    expect(titles).toEqual(['服务管理 - 概览', '访问控制 - 用户管理']);
+    const groups = wrapper.findAll('.dashboard-quick-actions__item small').map((item) => item.text());
+    const fullLabels = wrapper.findAll('.dashboard-quick-actions__item').map((item) => item.attributes('title'));
+
+    expect(titles).toEqual(['Overview', 'User Management']);
+    expect(groups).toEqual(['Service Management', 'Access Control']);
+    expect(fullLabels).toEqual(['Service Management - Overview', 'Access Control - User Management']);
 
     await wrapper.findAll('button').at(-1)?.trigger('click');
 
     const drawerTitles = wrapper.findAll('.dashboard-quick-actions__item--drawer strong').map((item) => item.text());
-    expect(drawerTitles).toEqual(['服务管理 - 概览', '访问控制 - 用户管理', '概览']);
+    expect(drawerTitles).toEqual(['Overview', 'User Management', 'Overview']);
   });
 
-  it('uses runtime menu-derived titles for log quick links without local title mappings', () => {
+  it('falls back to module label when group is missing', () => {
     const wrapper = mountQuickActions([
-      quickLink(1, { route_location: '/logs/access', title: '访问日志' }),
-      quickLink(2, { route_location: '/logs/app', title: '应用日志' }),
+      quickLink(1, {
+        module_key: 'audit',
+        group: undefined,
+        title: 'Audit Logs',
+        full_label: 'Security Audit - Audit Logs',
+      }),
     ]);
 
-    const titles = wrapper.findAll('.dashboard-quick-actions__item strong').map((item) => item.text());
-    expect(titles).toEqual(['日志中心 - 访问日志', '日志中心 - 应用日志']);
-  });
-
-  it('colors only canonical module keys and dotted descendants', () => {
-    const wrapper = mountQuickActions([
-      quickLink(1, { module_key: 'audit' }),
-      quickLink(2, { module_key: 'audit.events' }),
-      quickLink(3, { module_key: 'not-audit' }),
-    ]);
-
-    const colors = wrapper.findAll('.dashboard-quick-actions__badge').map((badge) => badge.attributes('data-color'));
-
-    expect(colors).toEqual(['var(--td-error-color-6)', 'var(--td-error-color-6)', 'var(--td-text-color-secondary)']);
+    expect(wrapper.find('.dashboard-quick-actions__item small').text()).toBe('Security Audit');
   });
 });
