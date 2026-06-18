@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"slices"
 
+	"graft/server/internal/i18n"
 	"graft/server/internal/module"
 )
 
@@ -19,6 +20,13 @@ const DefaultMigrationDir = "default"
 const accessLogMigrationDir = "internal/httpx/migrations"
 const appLogMigrationDir = "internal/logger/migrations"
 const drilldownMigrationDir = "internal/drilldown/migrations"
+
+// EmbeddedLocaleResources returns compile-time owner-local locale resources.
+// Slice 1 only establishes the runtime slot, so later module migrations can
+// populate this without changing the registration flow again.
+func EmbeddedLocaleResources() []i18n.EmbeddedLocaleResource {
+	return nil
+}
 
 // ModuleSpecs 返回 compile-time 生成的模块定义快照。
 func ModuleSpecs() []module.Spec {

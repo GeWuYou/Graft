@@ -60,6 +60,8 @@ var defaultRuntimeCoreDeps = runtimeCoreDeps{
 	openRedisClient:        redisx.Open,
 }
 
+var runtimeEmbeddedLocaleResources = moduleregistry.EmbeddedLocaleResources
+
 // Runtime 持有 MVP 运行时的核心资源与模块生命周期执行入口。
 //
 // Runtime 把配置、数据库、Redis、HTTP 服务、注册中心和模块管理器集中
@@ -336,6 +338,9 @@ func (r *Runtime) prepareModules(
 	if err := r.ensureLifecycleActive(runCtx, moduleCtx, booted); err != nil {
 		return nil, err
 	}
+	if err := r.preregisterLocaleResources(moduleCtx, booted); err != nil {
+		return nil, err
+	}
 	if err := r.registerModules(moduleCtx, ordered, booted); err != nil {
 		return nil, err
 	}
@@ -363,6 +368,24 @@ func (r *Runtime) prepareCoreRegistries(
 		return r.cleanupAfterFailure(moduleCtx, booted, fmt.Errorf("freeze i18n registry: %w", err))
 	}
 	return r.ensureLifecycleActive(runCtx, moduleCtx, booted)
+}
+
+func (r *Runtime) preregisterLocaleResources(
+	moduleCtx *module.Context,
+	booted []module.RuntimeModule,
+) error {
+	if r == nil || r.i18n == nil {
+		return r.cleanupAfterFailure(moduleCtx, booted, errors.New("runtime i18n service is unavailable"))
+	}
+
+	resources := runtimeEmbeddedLocaleResources()
+	if len(resources) == 0 {
+		return nil
+	}
+	if err := r.i18n.RegisterEmbeddedLocaleResources(resources); err != nil {
+		return r.cleanupAfterFailure(moduleCtx, booted, fmt.Errorf("pre-register locale resources: %w", err))
+	}
+	return nil
 }
 
 func (r *Runtime) runServerAndShutdown(

@@ -440,6 +440,38 @@ func TestLoadLocaleRegistrationsIncludesNestedModuleResources(t *testing.T) {
 	}
 }
 
+func TestEmbeddedLocaleResourcesReturnsDeferredModuleRegistrations(t *testing.T) {
+	previousFS := embeddedLocaleFS
+	embeddedLocaleFS = fstest.MapFS{
+		"locales/core.en-US.yaml": {
+			Data: []byte("core.common.ok: OK\n"),
+		},
+		"locales/modules/rbac.en-US.yaml": {
+			Data: []byte("rbac.permissionCatalog.users.display: Users\n"),
+		},
+		"locales/modules/rbac.zh-CN.yaml": {
+			Data: []byte("rbac.permissionCatalog.users.display: 用户\n"),
+		},
+	}
+	t.Cleanup(func() {
+		embeddedLocaleFS = previousFS
+	})
+
+	resources, err := EmbeddedLocaleResources()
+	if err != nil {
+		t.Fatalf("embedded locale resources: %v", err)
+	}
+	if len(resources) != 2 {
+		t.Fatalf("expected 2 deferred resources, got %d", len(resources))
+	}
+	if resources[0].Namespace != "rbac" || resources[0].Locale != LocaleENUS {
+		t.Fatalf("unexpected first deferred resource: %+v", resources[0])
+	}
+	if resources[1].Namespace != "rbac" || resources[1].Locale != LocaleZHCN {
+		t.Fatalf("unexpected second deferred resource: %+v", resources[1])
+	}
+}
+
 func TestLoadLocaleRegistrationsRejectsDuplicateKeys(t *testing.T) {
 	_, err := loadLocaleRegistrations(fstest.MapFS{
 		"locales/system-config.en-US.yaml": {
@@ -475,6 +507,58 @@ func TestRegisterLocaleResourcesReusesRegisterMessagesValidation(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("expected frozen registry validation to fail")
+	}
+}
+
+func TestRegisterEmbeddedLocaleResourcesReusesRegisterMessagesValidation(t *testing.T) {
+	service := newTestService()
+	if err := service.Freeze(); err != nil {
+		t.Fatalf("freeze service: %v", err)
+	}
+
+	err := service.RegisterEmbeddedLocaleResources([]EmbeddedLocaleResource{
+		{
+			Namespace: "rbac",
+			Locale:    LocaleENUS,
+			Source:    "locales/modules/rbac.en-US.yaml",
+			Data:      []byte("rbac.permissionCatalog.users.display: Users\n"),
+		},
+	})
+	if err == nil {
+		t.Fatal("expected frozen registry validation to fail")
+	}
+}
+
+func TestRegisterEmbeddedLocaleResourcesAddsMessagesToCatalog(t *testing.T) {
+	previousFS := embeddedLocaleFS
+	embeddedLocaleFS = fstest.MapFS{
+		"locales/core.en-US.yaml": {
+			Data: []byte("core.common.ok: OK\n"),
+		},
+		"locales/core.zh-CN.yaml": {
+			Data: []byte("core.common.ok: 好\n"),
+		},
+	}
+	t.Cleanup(func() {
+		embeddedLocaleFS = previousFS
+	})
+
+	service := newTestService()
+	err := service.RegisterEmbeddedLocaleResources([]EmbeddedLocaleResource{
+		{
+			Namespace: "rbac",
+			Locale:    LocaleENUS,
+			Source:    "modules/rbac/en-US.yaml",
+			Data:      []byte("rbac.permissionCatalog.users.display: Users\n"),
+		},
+	})
+	if err != nil {
+		t.Fatalf("register embedded locale resources: %v", err)
+	}
+
+	matches := service.RegisteredMessageResources(LocaleENUS, "rbac.permissionCatalog.users.display")
+	if len(matches) != 1 || matches[0].Text != "Users" {
+		t.Fatalf("expected registered embedded locale message, got %#v", matches)
 	}
 }
 

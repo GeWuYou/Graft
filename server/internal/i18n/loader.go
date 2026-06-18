@@ -16,14 +16,40 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// EmbeddedLocaleResource carries owner-declared raw locale data while keeping
+// YAML parsing and registry validation inside server/internal/i18n.
+type EmbeddedLocaleResource struct {
+	Namespace Namespace
+	Locale    LocaleTag
+	Source    string
+	Data      []byte
+}
+
 var localeResourcePatterns = [...]string{
 	"locales/*.yaml",
 	"locales/modules/*.yaml",
 }
+
 const yamlMappingPairWidth = 2
 
 func (s *Service) registerEmbeddedCatalogs() error {
 	return s.registerLocaleResources(embeddedLocaleFS)
+}
+
+// EmbeddedLocaleResources returns deferred embedded locale resources that
+// runtime should pre-register before module Register.
+func EmbeddedLocaleResources() ([]EmbeddedLocaleResource, error) {
+	return loadEmbeddedLocaleResources(embeddedLocaleFS)
+}
+
+// RegisterEmbeddedLocaleResources registers raw embedded locale resources while
+// reusing the canonical RegisterMessages validation path.
+func (s *Service) RegisterEmbeddedLocaleResources(resources []EmbeddedLocaleResource) error {
+	registrations, err := loadEmbeddedLocaleRegistrations(resources)
+	if err != nil {
+		return err
+	}
+	return s.registerRegistrations(registrations)
 }
 
 func (s *Service) registerLocaleResources(fsys fs.FS) error {
@@ -32,6 +58,10 @@ func (s *Service) registerLocaleResources(fsys fs.FS) error {
 		return err
 	}
 
+	return s.registerRegistrations(registrations)
+}
+
+func (s *Service) registerRegistrations(registrations []Registration) error {
 	for _, registration := range registrations {
 		if err := s.RegisterMessages(registration); err != nil {
 			return fmt.Errorf(
@@ -44,6 +74,68 @@ func (s *Service) registerLocaleResources(fsys fs.FS) error {
 	}
 
 	return nil
+}
+
+func loadEmbeddedLocaleResources(fsys fs.FS) ([]EmbeddedLocaleResource, error) {
+	if fsys == nil {
+		return nil, nil
+	}
+
+	matches, err := fs.Glob(fsys, "locales/modules/*.yaml")
+	if err != nil {
+		return nil, fmt.Errorf("glob embedded module locale resources: %w", err)
+	}
+	slices.Sort(matches)
+
+	resources := make([]EmbeddedLocaleResource, 0, len(matches))
+	for _, name := range matches {
+		registration, err := loadLocaleRegistration(fsys, name)
+		if err != nil {
+			return nil, err
+		}
+		data, err := fs.ReadFile(fsys, name)
+		if err != nil {
+			return nil, fmt.Errorf("read locale resource %q: %w", name, err)
+		}
+		resources = append(resources, EmbeddedLocaleResource{
+			Namespace: registration.Namespace,
+			Locale:    registration.Locale,
+			Source:    name,
+			Data:      append([]byte(nil), data...),
+		})
+	}
+
+	return resources, nil
+}
+
+func loadEmbeddedLocaleRegistrations(resources []EmbeddedLocaleResource) ([]Registration, error) {
+	registrations := make([]Registration, 0, len(resources))
+	for _, resource := range resources {
+		source := strings.TrimSpace(resource.Source)
+		if source == "" {
+			source = fmt.Sprintf("%s.%s", resource.Namespace, resource.Locale)
+		}
+		namespace := Namespace(strings.TrimSpace(string(resource.Namespace)))
+		if namespace == "" {
+			return nil, fmt.Errorf("embedded locale resource %q: namespace is required", source)
+		}
+		locale := LocaleTag(strings.TrimSpace(string(resource.Locale)))
+		if locale == "" {
+			return nil, fmt.Errorf("embedded locale resource %q: locale is required", source)
+		}
+
+		messages, err := parseFlatYAMLMessages(source, resource.Data)
+		if err != nil {
+			return nil, err
+		}
+		registrations = append(registrations, Registration{
+			Namespace: namespace,
+			Locale:    locale,
+			Messages:  messages,
+		})
+	}
+
+	return registrations, nil
 }
 
 func loadLocaleRegistrations(fsys fs.FS) ([]Registration, error) {

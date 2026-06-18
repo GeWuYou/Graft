@@ -339,6 +339,11 @@ type i18nFreezeRecorderModule struct {
 	cancelOnBoot    context.CancelFunc
 }
 
+type preregisteredMessageRecorderModule struct {
+	registerMessage string
+	cancelOnBoot    context.CancelFunc
+}
+
 func (p *i18nFreezeRecorderModule) Register(ctx *module.Context) error {
 	p.registerFrozen = ctx.I18n.IsFrozen()
 	return ctx.I18n.RegisterMessages(i18n.Registration{
@@ -366,6 +371,24 @@ func (p *i18nFreezeRecorderModule) Boot(ctx *module.Context) error {
 }
 
 func (p *i18nFreezeRecorderModule) Shutdown(_ *module.Context) error { return nil }
+
+func (p *preregisteredMessageRecorderModule) Register(ctx *module.Context) error {
+	p.registerMessage = ctx.I18n.Lookup(i18n.LookupRequest{
+		Namespace: "rbac",
+		Locale:    i18n.LocaleENUS,
+		Key:       "rbac.permissionCatalog.users.display",
+	})
+	return nil
+}
+
+func (p *preregisteredMessageRecorderModule) Boot(_ *module.Context) error {
+	if p.cancelOnBoot != nil {
+		p.cancelOnBoot()
+	}
+	return nil
+}
+
+func (p *preregisteredMessageRecorderModule) Shutdown(_ *module.Context) error { return nil }
 
 func mustDescribeRuntimeTestModule(spec module.Spec, instance module.Module) module.RuntimeModule {
 	builtModule, err := module.Spec{
@@ -835,6 +858,61 @@ func TestRunFreezesI18nRegistryAfterRegisterBeforeBoot(t *testing.T) {
 	})
 	if message != "注册阶段文案" {
 		t.Fatalf("expected register-time message registration to persist, got %q", message)
+	}
+}
+
+func TestRunPrereRegistersEmbeddedLocaleResourcesBeforeModuleRegister(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	previousProviders := runtimeEmbeddedLocaleResources
+	runtimeEmbeddedLocaleResources = func() []i18n.EmbeddedLocaleResource {
+		return []i18n.EmbeddedLocaleResource{
+			{
+				Namespace: "rbac",
+				Locale:    i18n.LocaleENUS,
+				Source:    "modules/rbac/en-US.yaml",
+				Data:      []byte("rbac.permissionCatalog.users.display: Users\n"),
+			},
+		}
+	}
+	t.Cleanup(func() {
+		runtimeEmbeddedLocaleResources = previousProviders
+	})
+
+	runCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	recorder := &preregisteredMessageRecorderModule{cancelOnBoot: cancel}
+	manager := module.NewManager()
+	if err := manager.RegisterModule(mustDescribeRuntimeTestModule(module.Spec{ID: "preregistered-message-recorder"}, recorder)); err != nil {
+		t.Fatalf("register module: %v", err)
+	}
+
+	localizer := i18n.MustNew(config.I18nConfig{
+		DefaultLocale:    "zh-CN",
+		FallbackLocale:   "en-US",
+		SupportedLocales: []string{"zh-CN", "en-US"},
+	})
+	runtime := &Runtime{
+		config: &config.Config{
+			HTTP: config.HTTPConfig{Addr: "127.0.0.1:0"},
+		},
+		logger:             zap.NewNop(),
+		i18n:               localizer,
+		server:             httpx.NewServer(zap.NewNop()),
+		eventBus:           eventbus.New(zap.NewNop()),
+		services:           container.New(),
+		menuRegistry:       menu.NewRegistry(),
+		permissionRegistry: permission.NewRegistry(),
+		cronRegistry:       cronx.NewRegistry(),
+		moduleManager:      manager,
+	}
+
+	if err := runtime.Run(runCtx); !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected canceled runtime lifecycle, got %v", err)
+	}
+	if recorder.registerMessage != "Users" {
+		t.Fatalf("expected preregistered embedded locale message during Register, got %q", recorder.registerMessage)
 	}
 }
 
