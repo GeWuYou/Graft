@@ -672,6 +672,50 @@ func TestAuditLogDetailRouteReturnsEvidenceRecord(t *testing.T) {
 	}
 }
 
+func TestAuditLogDetailRouteKeepsTargetLabelWireShape(t *testing.T) {
+	actorID := uint64(7)
+	repo := &memoryAuditRepository{
+		items: []store.AuditLog{
+			{
+				ID:               42,
+				ActorUserID:      &actorID,
+				ActorUsername:    "alice",
+				ActorDisplayName: "Alice",
+				Action:           "auth.token.expired",
+				ResourceType:     "auth",
+				TargetType:       "AUTH",
+				TargetLabel:      "Authentication",
+				ResourceID:       "token",
+				ResourceName:     "",
+				Success:          false,
+				RequestID:        "req-42",
+				IP:               "127.0.0.1",
+				UserAgent:        "vitest",
+				Message:          "Token expired",
+				Metadata:         json.RawMessage(`{"traceId":"trace-42","route":"/api/auth/bootstrap"}`),
+				CreatedAt:        time.Date(2026, 6, 13, 12, 0, 0, 0, time.UTC),
+			},
+		},
+	}
+	_, engine, _ := newModuleTestContext(t, repo)
+
+	request := httptest.NewRequest(http.MethodGet, "/api/audit/logs/42", nil)
+	request.Header.Set("Authorization", "Bearer token")
+	recorder := httptest.NewRecorder()
+	engine.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d body=%s", recorder.Code, recorder.Body.String())
+	}
+	data := testassert.DecodeSuccessData[map[string]any](t, recorder)
+	if data["target_label"] != "Authentication" || data["target_type"] != "AUTH" {
+		t.Fatalf("expected localized target_label in existing wire field, got %#v", data)
+	}
+	if _, ok := data["target_label_key"]; ok {
+		t.Fatalf("wire shape must remain unchanged, got %#v", data)
+	}
+}
+
 func TestAuditLogDetailRouteReturnsNotFound(t *testing.T) {
 	repo := &memoryAuditRepository{}
 	_, engine, _ := newModuleTestContext(t, repo)

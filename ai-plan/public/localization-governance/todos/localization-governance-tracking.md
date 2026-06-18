@@ -39,3 +39,11 @@ Localization Governance
 - [x] slice-3：delete legacy fallbacks and switch to locale resource
 - [x] slice-4：residual server visible-copy cleanup
 - [x] final：archive readiness and governance sync
+
+## Final Closeout Notes
+
+- `audit` built-in target label 已完成收口，不再依赖 `displayTargetLabel()` 中的中文硬编码。
+- canonical truth 迁移到 `server/internal/i18n/locales/modules/audit.zh-CN.yaml` 与 `server/internal/i18n/locales/modules/audit.en-US.yaml`。
+- repository 仅保留 `TargetType -> stable locale key` 技术映射，并通过 `server/internal/i18n.Service` 按请求 locale 解析 `target_label`。
+- API wire shape 保持不变；未新增 `target_label_key`。
+- 当前 server 侧已无登记中的生产 Go 用户可见本地化硬编码临时例外。

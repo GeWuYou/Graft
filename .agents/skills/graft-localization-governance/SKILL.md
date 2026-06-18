@@ -35,7 +35,7 @@ Treat root `AGENTS.md` as startup truth. This skill does not define a second val
 - Prefer stable keys over server-provided final text for menus, errors, permissions, system config metadata, and schema
   labels.
 - Treat fallback text as a temporary exception only; register file, field, reason, removal condition, and validation scope when direct authority repair cannot be completed in the same slice.
-- 2026-06-18 当前已知 server 侧唯一登记例外是 `server/modules/audit/storeent/repository.go:displayTargetLabel()`；除显式登记项外，不应再接受新的 Go 用户可见本地化硬编码。
+- 2026-06-18 当前 server 侧已无登记中的生产 Go 用户可见本地化硬编码例外；除显式登记项外，不应再接受新的 Go 用户可见本地化硬编码。
 
 ## Server Workflow
 

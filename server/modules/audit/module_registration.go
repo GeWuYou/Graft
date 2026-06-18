@@ -77,7 +77,31 @@ func registerAuditMessages(localizer *i18n.Service) error {
 	if localizer == nil {
 		return errors.New("i18n service is unavailable")
 	}
+
+	for _, locale := range []i18n.LocaleTag{i18n.LocaleZHCN, i18n.LocaleENUS} {
+		for _, key := range auditMessageKeys() {
+			matches := localizer.RegisteredMessageResources(locale, i18n.MessageKey(key))
+			if len(matches) == 0 {
+				return fmt.Errorf("register audit module messages: locale resource %s missing key %s", locale, key)
+			}
+		}
+	}
+
 	return nil
+}
+
+func auditMessageKeys() []string {
+	return []string{
+		auditcontract.AuditRootMenuTitle.String(),
+		auditcontract.AuditOverviewMenuTitle.String(),
+		auditcontract.AuditLogMenuTitle.String(),
+		auditcontract.AuditTargetLabelUser.String(),
+		auditcontract.AuditTargetLabelRole.String(),
+		auditcontract.AuditTargetLabelPermission.String(),
+		auditcontract.AuditTargetLabelAudit.String(),
+		auditcontract.AuditTargetLabelServerStatus.String(),
+		auditcontract.AuditTargetLabelAuth.String(),
+	}
 }
 
 func (p *Module) resolveRouteGuard(ctx *module.Context) (auditGuard, error) {

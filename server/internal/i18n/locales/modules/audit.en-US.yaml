@@ -1,0 +1,6 @@
+audit.target.user: User
+audit.target.role: Role
+audit.target.permission: Permission
+audit.target.audit: Audit
+audit.target.serverStatus: Server Status
+audit.target.auth: Authentication

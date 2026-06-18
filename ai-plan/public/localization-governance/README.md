@@ -58,7 +58,7 @@
   - 执行 final archive readiness and governance sync 检查。
   - 确认 docs / skill / trace / tracking / code 不再存在 localization authority drift。
   - 确认无未登记的 Go 用户可见 fallback 残留。
-  - 当前审计后唯一剩余登记例外为 `server/modules/audit/storeent/repository.go:displayTargetLabel()`；`scheduler` 通知 fallback 已在 final batch 移除。
+  - 当前 server 侧已无登记中的生产 Go 用户可见本地化硬编码例外；`audit` TargetLabel 临时例外已关闭。
 
 ## Validation Targets
 

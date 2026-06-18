@@ -1,0 +1,6 @@
+audit.target.user: 用户
+audit.target.role: 角色
+audit.target.permission: 权限
+audit.target.audit: 审计
+audit.target.serverStatus: 服务器状态
+audit.target.auth: 认证

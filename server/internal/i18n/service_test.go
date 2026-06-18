@@ -295,6 +295,35 @@ func TestEmbeddedLocaleResourcesIncludePhase4DisplayKeys(t *testing.T) {
 	}
 }
 
+func TestEmbeddedLocaleResourcesIncludeAuditTargetLabelKeys(t *testing.T) {
+	service := newTestService()
+
+	for _, tc := range []struct {
+		locale   LocaleTag
+		key      string
+		expected string
+	}{
+		{locale: LocaleZHCN, key: "audit.target.user", expected: "用户"},
+		{locale: LocaleENUS, key: "audit.target.user", expected: "User"},
+		{locale: LocaleZHCN, key: "audit.target.auth", expected: "认证"},
+		{locale: LocaleENUS, key: "audit.target.auth", expected: "Authentication"},
+	} {
+		message := service.Lookup(LookupRequest{
+			Namespace: "audit",
+			Locale:    tc.locale,
+			Key:       MessageKey(tc.key),
+		})
+		if message != tc.expected {
+			t.Fatalf("expected embedded audit target label %q for %s %q, got %q", tc.expected, tc.locale, tc.key, message)
+		}
+
+		matches := service.RegisteredMessageResources(tc.locale, MessageKey(tc.key))
+		if len(matches) != 1 {
+			t.Fatalf("expected one embedded audit target label resource for %s %q, got %#v", tc.locale, tc.key, matches)
+		}
+	}
+}
+
 func TestEmbeddedCoreLocaleResourcesProvideDefaultCatalogMessages(t *testing.T) {
 	service := newTestService()
 

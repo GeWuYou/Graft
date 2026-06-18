@@ -22,6 +22,7 @@ import (
 	"graft/server/internal/module"
 	auditcontract "graft/server/modules/audit/contract"
 	auditstore "graft/server/modules/audit/store"
+	"graft/server/modules/audit/storeent"
 )
 
 type auditReader interface {
@@ -60,7 +61,7 @@ func handleListAuditLogs(
 		}
 		_ = params
 
-		result, err := reader.List(ginCtx, query)
+		result, err := reader.List(withAuditRequestLocale(ginCtx, ctx), query)
 		if err != nil {
 			if errors.Is(err, drilldown.ErrScopeNotFound) ||
 				errors.Is(err, drilldown.ErrScopeDisabled) ||
@@ -98,29 +99,121 @@ func handleReadAuditLog(
 	moduleName string,
 	reader auditReader,
 ) gin.HandlerFunc {
+	return handleAuditReadByID(ctx, moduleName, auditLogReadConfig(reader))
+}
+
+func handleReadAuditIncident(
+	ctx *module.Context,
+	moduleName string,
+	reader auditReader,
+) gin.HandlerFunc {
+	return handleAuditReadByID(ctx, moduleName, auditIncidentReadConfig(reader))
+}
+
+type auditReadByIDConfig[T any] struct {
+	param          string
+	invalidField   string
+	read           func(context.Context, uint64) (T, error)
+	mapper         func(T) (any, error)
+	isNotFound     func(error) bool
+	notFoundField  string
+	readLogMessage string
+	mapLogMessage  string
+}
+
+type auditReadByIDMeta struct {
+	param          string
+	field          string
+	readLogMessage string
+	mapLogMessage  string
+}
+
+func auditLogReadConfig(reader auditReader) auditReadByIDConfig[auditDetailResult] {
+	return newAuditReadConfig(
+		auditReadByIDMeta{
+			param:          auditcontract.AuditLogParam,
+			field:          "id",
+			readLogMessage: "read audit log detail failed",
+			mapLogMessage:  "map audit log detail response failed",
+		},
+		func(requestCtx context.Context, id uint64) (auditDetailResult, error) {
+			return reader.Detail(requestCtx, id)
+		},
+		func(result auditDetailResult) (any, error) {
+			return toAuditLogDetailResponse(result)
+		},
+		func(err error) bool {
+			return errors.Is(err, auditstore.ErrAuditLogNotFound)
+		},
+	)
+}
+
+func auditIncidentReadConfig(reader auditReader) auditReadByIDConfig[auditIncidentResult] {
+	return newAuditReadConfig(
+		auditReadByIDMeta{
+			param:          auditcontract.AuditIncidentParam,
+			field:          "event_id",
+			readLogMessage: "read audit incident failed",
+			mapLogMessage:  "map audit incident response failed",
+		},
+		func(requestCtx context.Context, id uint64) (auditIncidentResult, error) {
+			return reader.Incident(requestCtx, id)
+		},
+		func(result auditIncidentResult) (any, error) {
+			return toAuditIncidentResponse(result)
+		},
+		func(err error) bool {
+			return errors.Is(err, auditstore.ErrIncidentNotFound)
+		},
+	)
+}
+
+func newAuditReadConfig[T any](
+	meta auditReadByIDMeta,
+	read func(context.Context, uint64) (T, error),
+	mapper func(T) (any, error),
+	isNotFound func(error) bool,
+) auditReadByIDConfig[T] {
+	return auditReadByIDConfig[T]{
+		param:          meta.param,
+		invalidField:   meta.field,
+		read:           read,
+		mapper:         mapper,
+		isNotFound:     isNotFound,
+		notFoundField:  meta.field,
+		readLogMessage: meta.readLogMessage,
+		mapLogMessage:  meta.mapLogMessage,
+	}
+}
+
+func handleAuditReadByID[T any](
+	ctx *module.Context,
+	moduleName string,
+	config auditReadByIDConfig[T],
+) gin.HandlerFunc {
 	logger := zap.NewNop()
 	if ctx != nil && ctx.Logger != nil {
 		logger = ctx.Logger
 	}
 
 	return func(ginCtx *gin.Context) {
-		id, ok, err := parseOptionalUint64Param(ginCtx, auditcontract.AuditLogParam)
+		id, ok, err := parseOptionalUint64Param(ginCtx, config.param)
 		if err != nil || !ok {
 			httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), map[string]any{
-				"field": "id",
+				"field": config.invalidField,
 			})
 			return
 		}
 
-		record, readErr := reader.Detail(ginCtx.Request.Context(), id)
+		record, readErr := config.read(withAuditRequestLocale(ginCtx, ctx), id)
 		if readErr != nil {
-			if errors.Is(readErr, auditstore.ErrAuditLogNotFound) {
+			if config.isNotFound(readErr) {
 				httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusNotFound, "common.not_found", map[string]any{
-					"field": "id",
+					"field": config.notFoundField,
 				})
 				return
 			}
-			logger.Error("read audit log detail failed",
+			logger.Error(config.readLogMessage,
 				zap.String("module", moduleName),
 				zap.Uint64("id", id),
 				zap.Error(readErr),
@@ -129,9 +222,9 @@ func handleReadAuditLog(
 			return
 		}
 
-		payload, mapErr := toAuditLogDetailResponse(record)
+		payload, mapErr := config.mapper(record)
 		if mapErr != nil {
-			logger.Error("map audit log detail response failed",
+			logger.Error(config.mapLogMessage,
 				zap.String("module", moduleName),
 				zap.Uint64("id", id),
 				zap.Error(mapErr),
@@ -158,7 +251,7 @@ func handleReadAuditOverview(
 		params := bindGeneratedAuditOverviewParams(ginCtx)
 		preset := normalizeAuditOverviewPreset(params.Preset)
 
-		result, err := reader.Overview(ginCtx, preset)
+		result, err := reader.Overview(withAuditRequestLocale(ginCtx, ctx), preset)
 		if err != nil {
 			logger.Error("read audit overview failed",
 				zap.String("module", moduleName),
@@ -172,57 +265,6 @@ func handleReadAuditOverview(
 		if mapErr != nil {
 			logger.Error("map audit overview response failed",
 				zap.String("module", moduleName),
-				zap.Error(mapErr),
-			)
-			httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
-			return
-		}
-
-		httpx.WriteSuccess(ginCtx, http.StatusOK, payload)
-	}
-}
-
-func handleReadAuditIncident(
-	ctx *module.Context,
-	moduleName string,
-	reader auditReader,
-) gin.HandlerFunc {
-	logger := zap.NewNop()
-	if ctx != nil && ctx.Logger != nil {
-		logger = ctx.Logger
-	}
-
-	return func(ginCtx *gin.Context) {
-		eventID, ok, err := parseOptionalUint64Param(ginCtx, auditcontract.AuditIncidentParam)
-		if err != nil || !ok {
-			httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), map[string]any{
-				"field": "event_id",
-			})
-			return
-		}
-
-		result, readErr := reader.Incident(ginCtx, eventID)
-		if readErr != nil {
-			if errors.Is(readErr, auditstore.ErrIncidentNotFound) {
-				httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusNotFound, "common.not_found", map[string]any{
-					"field": "event_id",
-				})
-				return
-			}
-			logger.Error("read audit incident failed",
-				zap.String("module", moduleName),
-				zap.Uint64("event_id", eventID),
-				zap.Error(readErr),
-			)
-			httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
-			return
-		}
-
-		payload, mapErr := toAuditIncidentResponse(result)
-		if mapErr != nil {
-			logger.Error("map audit incident response failed",
-				zap.String("module", moduleName),
-				zap.Uint64("event_id", eventID),
 				zap.Error(mapErr),
 			)
 			httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
@@ -271,6 +313,19 @@ var auditAllowedListQueryKeys = map[string]struct{}{
 	"created_to":              {},
 	"sort":                    {},
 	"sort[]":                  {},
+}
+
+func withAuditRequestLocale(ginCtx *gin.Context, ctx *module.Context) context.Context {
+	requestCtx := context.Background()
+	if ginCtx != nil && ginCtx.Request != nil {
+		requestCtx = ginCtx.Request.Context()
+	}
+	if ctx == nil || ctx.I18n == nil || ginCtx == nil {
+		return requestCtx
+	}
+
+	locale := ctx.I18n.ResolveRequestLocale(ginCtx.Request, "")
+	return storeent.WithAuditLocale(requestCtx, locale)
 }
 
 func (h auditReadGeneratedHandler) GetAuditLogs(params auditopenapi.GetAuditLogsParams) {
