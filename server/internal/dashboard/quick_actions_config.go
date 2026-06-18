@@ -10,6 +10,7 @@ import (
 
 	"graft/server/internal/configregistry"
 	"graft/server/internal/i18n"
+	systemconfiglocales "graft/server/modules/system-config/locales"
 )
 
 const (
@@ -85,5 +86,62 @@ func RegisterQuickActionsConfigMessages(localizer *i18n.Service) error {
 	if localizer == nil {
 		return errors.New("i18n service is required")
 	}
+	if err := ensureSystemConfigLocaleResources(localizer, quickActionsConfigMessageKeys()); err != nil {
+		return fmt.Errorf("register dashboard quick-actions config messages: %w", err)
+	}
+	for _, locale := range []i18n.LocaleTag{i18n.LocaleZHCN, i18n.LocaleENUS} {
+		for _, key := range quickActionsConfigMessageKeys() {
+			matches := localizer.RegisteredMessageResources(locale, i18n.MessageKey(key))
+			if len(matches) == 0 {
+				return fmt.Errorf("register dashboard quick-actions config messages: locale resource %s missing key %s", locale, key)
+			}
+		}
+	}
 	return nil
+}
+
+func ensureSystemConfigLocaleResources(localizer *i18n.Service, keys []string) error {
+	if hasAllSystemConfigMessageKeys(localizer, keys) {
+		return nil
+	}
+	resources, err := systemconfiglocales.EmbeddedLocaleResources()
+	if err != nil {
+		return fmt.Errorf("load system-config locale resources: %w", err)
+	}
+	if err := localizer.RegisterEmbeddedLocaleResources(resources); err != nil {
+		return fmt.Errorf("register system-config locale resources: %w", err)
+	}
+	return nil
+}
+
+func hasAllSystemConfigMessageKeys(localizer *i18n.Service, keys []string) bool {
+	for _, locale := range []i18n.LocaleTag{i18n.LocaleZHCN, i18n.LocaleENUS} {
+		for _, key := range keys {
+			if len(localizer.RegisteredMessageResources(locale, i18n.MessageKey(key))) == 0 {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func quickActionsConfigMessageKeys() []string {
+	return []string{
+		quickActionsConfigGroupKey,
+		quickActionsConfigGroupDescKey,
+		quickActionsConfigTitleKey,
+		quickActionsConfigDescKey,
+		quickActionsEnabledTitleKey,
+		quickActionsEnabledDescKey,
+		quickActionsMaxItemsTitleKey,
+		quickActionsMaxItemsDescKey,
+		quickActionsStrategyTitleKey,
+		quickActionsStrategyDescKey,
+		quickActionsStrategyMostUsedKey,
+		quickActionsStrategyMostUsedDesc,
+		quickActionsStrategyRecentKey,
+		quickActionsStrategyRecentDesc,
+		quickActionsStrategyHybridKey,
+		quickActionsStrategyHybridDesc,
+	}
 }
