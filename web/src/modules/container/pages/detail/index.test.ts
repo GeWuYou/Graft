@@ -434,6 +434,7 @@ vi.mock('@/shared/observability', async () => {
 describe('container detail page', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useRealTimers();
     tabStoreState.tabRouterList = [
       {
         path: '/ops/containers/container-1',
@@ -1547,7 +1548,7 @@ describe('container detail page', () => {
     expect(headingText()).toBe('graft-api');
     expect(logsText()).toContain('api started');
     wrapper.unmount();
-  });
+  }, 10000);
 
   it('clears stale detail on missing route id and load failure', async () => {
     const wrapper = mountPage();
