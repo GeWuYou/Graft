@@ -107,7 +107,12 @@ func (s authService) resetDefaultAdminForDevelopment(
 		return fmt.Errorf("revoke default admin refresh sessions: %w", err)
 	}
 
-	if err := rbac.EnsureDefaultAdminAccess(ctx, credential.UserID, permissionSeedsFromItems(localizer, userPermissionItems("user"))); err != nil {
+	seeds, err := permissionSeedsFromItems(localizer, userPermissionItems("user"))
+	if err != nil {
+		return fmt.Errorf("build default admin permission seeds: %w", err)
+	}
+
+	if err := rbac.EnsureDefaultAdminAccess(ctx, credential.UserID, seeds); err != nil {
 		return fmt.Errorf("ensure default admin access: %w", err)
 	}
 

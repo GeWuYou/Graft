@@ -62,6 +62,27 @@ func TestResetDefaultAdminForDevelopmentRejectsNonDevelopmentEnv(t *testing.T) {
 	}
 }
 
+func TestResetDefaultAdminForDevelopmentFailsWhenPermissionSeedsCannotBeBuilt(t *testing.T) {
+	t.Setenv("GRAFT_APP_ENV", "local")
+
+	state := newDevResetState(t, "unused")
+	err := ResetDefaultAdminForDevelopment(
+		context.Background(),
+		state.authRepo,
+		nil,
+		devResetRBACBootstrapStub{state: state},
+	)
+	if err == nil {
+		t.Fatal("expected reset flow to fail when permission seed localization is unavailable")
+	}
+	if !strings.Contains(err.Error(), "build default admin permission seeds") {
+		t.Fatalf("expected explicit permission seed error, got %v", err)
+	}
+	if strings.Contains(err.Error(), "panic") {
+		t.Fatalf("expected explicit error propagation instead of panic, got %v", err)
+	}
+}
+
 type devResetState struct {
 	ensured                bool
 	setPasswordInput       userstore.SetPasswordHashInput

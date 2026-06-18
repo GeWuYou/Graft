@@ -35,7 +35,7 @@ func (s authService) ensureDefaultAdmin(
 		return err
 	}
 
-	seeds, err := permissionSeedsFromItemsE(localizer, permissions)
+	seeds, err := permissionSeedsFromItems(localizer, permissions)
 	if err != nil {
 		return fmt.Errorf("build default admin permission seeds: %w", err)
 	}
@@ -102,16 +102,7 @@ func (s authService) reconcileDefaultAdminCredential(
 	return credential, nil
 }
 
-func permissionSeedsFromItems(localizer *i18n.Service, items []permission.Item) []moduleapi.PermissionSeed {
-	seeds, err := permissionSeedsFromItemsE(localizer, items)
-	if err != nil {
-		panic(err)
-	}
-
-	return seeds
-}
-
-func permissionSeedsFromItemsE(localizer *i18n.Service, items []permission.Item) ([]moduleapi.PermissionSeed, error) {
+func permissionSeedsFromItems(localizer *i18n.Service, items []permission.Item) ([]moduleapi.PermissionSeed, error) {
 	seeds := make([]moduleapi.PermissionSeed, 0, len(items))
 	for _, item := range items {
 		display, err := lookupPermissionText(localizer, item.DisplayKey, item.Code)

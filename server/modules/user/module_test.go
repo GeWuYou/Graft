@@ -1725,7 +1725,7 @@ func TestBootFailsWithoutSharedRouteAuthorizer(t *testing.T) {
 }
 
 func TestPermissionSeedsFromItemsReturnsErrorWhenLocalizerUnavailable(t *testing.T) {
-	_, err := permissionSeedsFromItemsE(nil, []permission.Item{{
+	_, err := permissionSeedsFromItems(nil, []permission.Item{{
 		Code:           "user.read",
 		DisplayKey:     "permissions.user.read",
 		DescriptionKey: "permissions.user.read.description",
@@ -1741,7 +1741,7 @@ func TestPermissionSeedsFromItemsReturnsErrorWhenLocalizerUnavailable(t *testing
 func TestPermissionSeedsFromItemsReturnsErrorWhenLocaleKeyMissing(t *testing.T) {
 	localizer := mustNewUserModuleTestLocalizer(t)
 
-	_, err := permissionSeedsFromItemsE(localizer, []permission.Item{{
+	_, err := permissionSeedsFromItems(localizer, []permission.Item{{
 		Code:           "user.read",
 		DisplayKey:     "permissions.user.read",
 		DescriptionKey: "permissions.user.read.description.missing",
