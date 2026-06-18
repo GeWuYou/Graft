@@ -83,6 +83,7 @@ type Runtime struct {
 	config             *config.Config
 	logger             *zap.Logger
 	i18n               *i18n.Service
+	localeResourcesRegistered bool
 	database           *database.Resources
 	redis              *redis.Client
 	server             *httpx.Server
@@ -246,7 +247,7 @@ func newRuntimeCoreWithDeps(cfg *config.Config, deps runtimeCoreDeps) (*Runtime,
 		return nil, err
 	}
 
-	return &Runtime{
+	runtime := &Runtime{
 		config:   cfg,
 		logger:   runtimeLogger,
 		i18n:     localizer,
@@ -267,7 +268,13 @@ func newRuntimeCoreWithDeps(cfg *config.Config, deps runtimeCoreDeps) (*Runtime,
 		dashboardRegistry:  dashboard.NewRegistry(),
 		moduleManager:      module.NewManager(),
 		appLogRepository:   appLogRepo,
-	}, nil
+	}
+	if err := runtime.preregisterOwnerLocaleResources(); err != nil {
+		_ = runtime.closeCoreResources()
+		return nil, err
+	}
+
+	return runtime, nil
 }
 
 func normalizeRuntimeCoreDeps(deps runtimeCoreDeps) runtimeCoreDeps {
@@ -348,7 +355,7 @@ func (r *Runtime) prepareModules(
 	if err := r.ensureLifecycleActive(runCtx, moduleCtx, booted); err != nil {
 		return nil, err
 	}
-	if err := r.preregisterLocaleResources(moduleCtx, booted); err != nil {
+	if err := r.assertOwnerLocaleResourcesRegistered(moduleCtx, booted); err != nil {
 		return nil, err
 	}
 	if err := r.registerModules(moduleCtx, ordered, booted); err != nil {
@@ -380,20 +387,35 @@ func (r *Runtime) prepareCoreRegistries(
 	return r.ensureLifecycleActive(runCtx, moduleCtx, booted)
 }
 
-func (r *Runtime) preregisterLocaleResources(
+func (r *Runtime) preregisterOwnerLocaleResources() error {
+	if r == nil || r.i18n == nil {
+		return errors.New("runtime i18n service is unavailable")
+	}
+	if r.localeResourcesRegistered {
+		return nil
+	}
+
+	resources := runtimeEmbeddedLocaleResources()
+	if len(resources) == 0 {
+		r.localeResourcesRegistered = true
+		return nil
+	}
+	if err := r.i18n.RegisterEmbeddedLocaleResources(resources); err != nil {
+		return fmt.Errorf("pre-register locale resources: %w", err)
+	}
+	r.localeResourcesRegistered = true
+	return nil
+}
+
+func (r *Runtime) assertOwnerLocaleResourcesRegistered(
 	moduleCtx *module.Context,
 	booted []module.RuntimeModule,
 ) error {
 	if r == nil || r.i18n == nil {
 		return r.cleanupAfterFailure(moduleCtx, booted, errors.New("runtime i18n service is unavailable"))
 	}
-
-	resources := runtimeEmbeddedLocaleResources()
-	if len(resources) == 0 {
-		return nil
-	}
-	if err := r.i18n.RegisterEmbeddedLocaleResources(resources); err != nil {
-		return r.cleanupAfterFailure(moduleCtx, booted, fmt.Errorf("pre-register locale resources: %w", err))
+	if !r.localeResourcesRegistered {
+		return r.cleanupAfterFailure(moduleCtx, booted, errors.New("runtime owner-local locale resources were not pre-registered"))
 	}
 	return nil
 }
