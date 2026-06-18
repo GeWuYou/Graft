@@ -702,7 +702,10 @@
                       </t-tooltip>
                     </template>
                   </t-table>
-                  <div v-else class="container-detail-empty-state container-detail-empty-state--inline">
+                  <div
+                    v-else
+                    class="container-detail-empty-state container-detail-empty-state--compact container-detail-empty-state--inline"
+                  >
                     <t-empty
                       size="small"
                       :title="t('container.detail.config.environmentEmptyTitle')"
