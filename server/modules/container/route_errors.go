@@ -13,13 +13,13 @@ import (
 // Statusforerror returns the HTTP status code for the given error.
 func statusForError(err error) int {
 	switch {
-	case errors.Is(err, errInvalidRef), errors.Is(err, errInvalidListQuery), errors.Is(err, errInvalidBatchAction), errors.Is(err, errLogsTooLarge), errors.Is(err, errInvalidLogQuery), errors.Is(err, errMountUsageUnsupported):
+	case errors.Is(err, errInvalidRef), errors.Is(err, errInvalidListQuery), errors.Is(err, errInvalidBatchAction), errors.Is(err, errLogsTooLarge), errors.Is(err, errInvalidLogQuery), errors.Is(err, errMountUsageUnsupported), errors.Is(err, errShellTicketInvalid), errors.Is(err, errShellCommandNotFound):
 		return http.StatusBadRequest
-	case errors.Is(err, errRuntimeDisabled), errors.Is(err, errDangerousActionsDisabled), errors.Is(err, errRuntimePermissionDenied):
+	case errors.Is(err, errRuntimeDisabled), errors.Is(err, errDangerousActionsDisabled), errors.Is(err, errRuntimePermissionDenied), errors.Is(err, errShellDisabled), errors.Is(err, errShellForbidden), errors.Is(err, errShellOriginDenied):
 		return http.StatusForbidden
 	case errors.Is(err, errContainerNotFound), errors.Is(err, errContainerMountNotFound):
 		return http.StatusNotFound
-	case errors.Is(err, errInvalidContainerState):
+	case errors.Is(err, errInvalidContainerState), errors.Is(err, errShellTicketExpired), errors.Is(err, errShellTicketUsed), errors.Is(err, errContainerNotRunning):
 		return http.StatusConflict
 	default:
 		return http.StatusInternalServerError
@@ -54,6 +54,15 @@ var containerErrorMessageRules = []struct {
 	{err: errInvalidContainerState, key: containercontract.ContainerInvalidState},
 	{err: errLogsTooLarge, key: containercontract.ContainerLogsTooLarge},
 	{err: errInvalidLogQuery, key: containercontract.ContainerInvalidLogQuery},
+	{err: errShellDisabled, key: containercontract.ContainerShellDisabled},
+	{err: errShellForbidden, key: containercontract.ContainerShellForbidden},
+	{err: errShellTicketInvalid, key: containercontract.ContainerShellTicketInvalid},
+	{err: errShellTicketExpired, key: containercontract.ContainerShellTicketExpired},
+	{err: errShellTicketUsed, key: containercontract.ContainerShellTicketUsed},
+	{err: errShellOriginDenied, key: containercontract.ContainerShellOriginDenied},
+	{err: errContainerNotRunning, key: containercontract.ContainerShellContainerNotRunning},
+	{err: errShellCommandNotFound, key: containercontract.ContainerShellCommandNotFound},
+	{err: errShellSessionFailed, key: containercontract.ContainerShellSessionFailed},
 	{err: errContainerRuntimeTimeout, key: containercontract.ContainerTimeout},
 	{err: errDangerousActionsDisabled, key: containercontract.ContainerDangerousActionsDisabled},
 	{err: errMountUsageUnsupported, key: containercontract.ContainerMountUsageUnsupported},

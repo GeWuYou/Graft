@@ -214,6 +214,18 @@ func toLogs(logs Logs) containergen.ContainerLogResponse {
 	}
 }
 
+func toShellSession(session ShellSession) containergen.ContainerShellSessionResponse {
+	return containergen.ContainerShellSessionResponse{
+		Cols:         session.Cols,
+		Command:      containergen.ContainerShellSessionResponseCommand(session.Command),
+		ExpiresAt:    session.ExpiresAt,
+		Rows:         session.Rows,
+		SessionId:    session.SessionID,
+		Ticket:       session.Ticket,
+		WebsocketUrl: session.WebSocketURL,
+	}
+}
+
 type mountUsageListResponse struct {
 	Items []mountUsageResponse `json:"items"`
 }

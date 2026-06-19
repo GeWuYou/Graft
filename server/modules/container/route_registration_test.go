@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -23,6 +24,7 @@ import (
 	"graft/server/internal/i18n"
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
+	"graft/server/internal/realtimeauth"
 	containercontract "graft/server/modules/container/contract"
 	containerlocales "graft/server/modules/container/locales"
 )
@@ -36,6 +38,7 @@ func TestRoutesRequireContainerPermissions(t *testing.T) {
 		runtime:                 fakeRuntime{},
 		enabled:                 true,
 		dangerousActionsEnabled: true,
+		shellEnabled:            true,
 		defaultTail:             defaultContainerLogsDefaultTail,
 		maxTail:                 defaultContainerLogsMaxTail,
 	})
@@ -48,6 +51,8 @@ func TestRoutesRequireContainerPermissions(t *testing.T) {
 
 	assertDetailRoutePermission(t, engine, authorizer)
 	assertLogsRoutePermission(t, engine, authorizer)
+	assertShellSessionRoutePermission(t, engine, authorizer)
+	assertShellWebSocketRoutePermission(t, engine, authorizer)
 	assertMountUsageRoutePermission(t, engine, authorizer)
 	assertRemoveRoutePermission(t, engine, authorizer)
 	assertBatchActionRoutePermission(t, engine, authorizer)
@@ -81,6 +86,33 @@ func assertLogsRoutePermission(t *testing.T, engine *gin.Engine, authorizer *rec
 	}
 	if !slices.Contains(authorizer.permissions, containercontract.ContainerLogsPermission.String()) {
 		t.Fatalf("expected logs permission, got %#v", authorizer.permissions)
+	}
+}
+
+func assertShellSessionRoutePermission(t *testing.T, engine *gin.Engine, authorizer *recordingAuthorizer) {
+	t.Helper()
+
+	authorizer.reset()
+	response := httptest.NewRecorder()
+	engine.ServeHTTP(response, authorizedJSONRequest(http.MethodPost, "/api/ops/containers/abc123/shell/sessions", `{"command":"sh","cols":120,"rows":32}`))
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected shell session 200, got %d: %s", response.Code, response.Body.String())
+	}
+	if !slices.Contains(authorizer.permissions, containercontract.ContainerShellPermission.String()) {
+		t.Fatalf("expected shell permission, got %#v", authorizer.permissions)
+	}
+}
+
+func assertShellWebSocketRoutePermission(t *testing.T, engine *gin.Engine, authorizer *recordingAuthorizer) {
+	t.Helper()
+
+	authorizer.reset()
+	response := httptest.NewRecorder()
+	request := authorizedRequest(http.MethodGet, "/api/ops/containers/abc123/shell/ws?ticket=bad-ticket")
+	request.Header.Set("Origin", "https://console.example.com")
+	engine.ServeHTTP(response, request)
+	if !slices.Contains(authorizer.permissions, containercontract.ContainerShellPermission.String()) {
+		t.Fatalf("expected shell websocket permission, got %#v", authorizer.permissions)
 	}
 }
 
@@ -206,6 +238,136 @@ func TestRoutesRejectInvalidBatchAction(t *testing.T) {
 	}
 }
 
+func TestShellSessionRouteRejectsWhenFeatureDisabled(t *testing.T) {
+	t.Parallel()
+
+	ctx, engine := newRouteTestContextWithOptions(routeTestContextOptions{
+		systemConfig: serviceTestSystemConfig{values: map[string]bool{
+			containercontract.ContainerRuntimeEnabledConfig.String(): true,
+			containercontract.ContainerShellEnabledConfig.String():   false,
+		}},
+	})
+	service, err := newService(containerServiceOptions{
+		runtime:                 fakeRuntime{},
+		enabled:                 true,
+		dangerousActionsEnabled: true,
+		shellEnabled:            false,
+		defaultTail:             defaultContainerLogsDefaultTail,
+		maxTail:                 defaultContainerLogsMaxTail,
+	})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	if err := registerRoutes(ctx, moduleID, service); err != nil {
+		t.Fatalf("register routes: %v", err)
+	}
+
+	response := httptest.NewRecorder()
+	engine.ServeHTTP(response, authorizedJSONRequest(http.MethodPost, "/api/ops/containers/abc123/shell/sessions", `{"command":"sh","cols":120,"rows":32}`))
+	if response.Code != http.StatusForbidden {
+		t.Fatalf("expected 403, got %d: %s", response.Code, response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), containercontract.ContainerShellDisabled.String()) {
+		t.Fatalf("expected shell disabled key, got %s", response.Body.String())
+	}
+}
+
+func TestShellWebSocketRouteRejectsInvalidOrigin(t *testing.T) {
+	t.Parallel()
+
+	ctx, engine := newRouteTestContextWithOptions(routeTestContextOptions{
+		systemConfig: serviceTestSystemConfig{values: map[string]bool{
+			containercontract.ContainerRuntimeEnabledConfig.String(): true,
+			containercontract.ContainerShellEnabledConfig.String():   true,
+		}},
+		websocketAllowedOrigins: []string{"https://console.example.com"},
+	})
+	service, err := newService(containerServiceOptions{
+		runtime:                 fakeRuntime{},
+		enabled:                 true,
+		dangerousActionsEnabled: true,
+		shellEnabled:            true,
+		defaultTail:             defaultContainerLogsDefaultTail,
+		maxTail:                 defaultContainerLogsMaxTail,
+		websocketAllowedOrigins: []string{"https://console.example.com"},
+		realtimeTickets:         realtimeauth.NewMemoryServiceWithClock(&fixedClock{now: time.Date(2026, 6, 19, 10, 0, 0, 0, time.UTC)}),
+	})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	if err := registerRoutes(ctx, moduleID, service); err != nil {
+		t.Fatalf("register routes: %v", err)
+	}
+
+	issue := httptest.NewRecorder()
+	engine.ServeHTTP(issue, authorizedJSONRequest(http.MethodPost, "/api/ops/containers/abc123/shell/sessions", `{"command":"sh","cols":120,"rows":32}`))
+	if issue.Code != http.StatusOK {
+		t.Fatalf("expected issue 200, got %d: %s", issue.Code, issue.Body.String())
+	}
+	ticket := extractEnvelopeField(issue.Body.String(), `"ticket":"`, `"`)
+	response := httptest.NewRecorder()
+	request := authorizedRequest(http.MethodGet, "/api/ops/containers/abc123/shell/ws?ticket="+ticket)
+	request.Header.Set("Origin", "https://evil.example.com")
+	engine.ServeHTTP(response, request)
+	if response.Code != http.StatusForbidden {
+		t.Fatalf("expected 403, got %d: %s", response.Code, response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), containercontract.ContainerShellOriginDenied.String()) {
+		t.Fatalf("expected origin denied key, got %s", response.Body.String())
+	}
+}
+
+func TestShellWebSocketRouteRejectsReusedTicket(t *testing.T) {
+	t.Parallel()
+
+	service := realtimeauth.NewMemoryServiceWithClock(&fixedClock{now: time.Date(2026, 6, 19, 10, 0, 0, 0, time.UTC)})
+	ctx, engine := newRouteTestContextWithOptions(routeTestContextOptions{
+		systemConfig: serviceTestSystemConfig{values: map[string]bool{
+			containercontract.ContainerRuntimeEnabledConfig.String(): true,
+			containercontract.ContainerShellEnabledConfig.String():   true,
+		}},
+		websocketAllowedOrigins: []string{"https://console.example.com"},
+	})
+	registered, err := newService(containerServiceOptions{
+		runtime:                 fakeRuntime{},
+		enabled:                 true,
+		dangerousActionsEnabled: true,
+		shellEnabled:            true,
+		defaultTail:             defaultContainerLogsDefaultTail,
+		maxTail:                 defaultContainerLogsMaxTail,
+		websocketAllowedOrigins: []string{"https://console.example.com"},
+		realtimeTickets:         service,
+	})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	if err := registerRoutes(ctx, moduleID, registered); err != nil {
+		t.Fatalf("register routes: %v", err)
+	}
+
+	issue := httptest.NewRecorder()
+	engine.ServeHTTP(issue, authorizedJSONRequest(http.MethodPost, "/api/ops/containers/abc123/shell/sessions", `{"command":"sh","cols":120,"rows":32}`))
+	ticket := extractEnvelopeField(issue.Body.String(), `"ticket":"`, `"`)
+
+	for i := 0; i < 2; i++ {
+		response := httptest.NewRecorder()
+		request := authorizedRequest(http.MethodGet, "/api/ops/containers/abc123/shell/ws?ticket="+ticket)
+		request.Header.Set("Origin", "https://console.example.com")
+		engine.ServeHTTP(response, request)
+		if i == 0 && response.Code != http.StatusInternalServerError {
+			t.Fatalf("expected first consume placeholder 500, got %d: %s", response.Code, response.Body.String())
+		}
+		if i == 1 {
+			if response.Code != http.StatusConflict {
+				t.Fatalf("expected reused ticket 409, got %d: %s", response.Code, response.Body.String())
+			}
+			if !strings.Contains(response.Body.String(), containercontract.ContainerShellTicketUsed.String()) {
+				t.Fatalf("expected used ticket key, got %s", response.Body.String())
+			}
+		}
+	}
+}
+
 func newRegisteredRouteTestService(t *testing.T) (*module.Context, *gin.Engine) {
 	t.Helper()
 
@@ -214,6 +376,7 @@ func newRegisteredRouteTestService(t *testing.T) (*module.Context, *gin.Engine) 
 		runtime:                 fakeRuntime{},
 		enabled:                 true,
 		dangerousActionsEnabled: true,
+		shellEnabled:            true,
 		defaultTail:             defaultContainerLogsDefaultTail,
 		maxTail:                 defaultContainerLogsMaxTail,
 	})
@@ -226,7 +389,17 @@ func newRegisteredRouteTestService(t *testing.T) (*module.Context, *gin.Engine) 
 	return ctx, engine
 }
 
+type routeTestContextOptions struct {
+	authorizer              moduleapi.Authorizer
+	systemConfig            moduleapi.SystemConfigResolver
+	websocketAllowedOrigins []string
+}
+
 func newRouteTestContext(authorizer moduleapi.Authorizer) (*module.Context, *gin.Engine) {
+	return newRouteTestContextWithOptions(routeTestContextOptions{authorizer: authorizer})
+}
+
+func newRouteTestContextWithOptions(options routeTestContextOptions) (*module.Context, *gin.Engine) {
 	gin.SetMode(gin.TestMode)
 	engine := gin.New()
 	localizer := i18n.MustNew(config.I18nConfig{
@@ -251,9 +424,19 @@ func newRouteTestContext(authorizer moduleapi.Authorizer) (*module.Context, *gin
 		panic(err)
 	}
 	if err := services.RegisterSingleton((*moduleapi.Authorizer)(nil), func(internalcontainer.Resolver) (any, error) {
-		return authorizer, nil
+		if options.authorizer == nil {
+			return &recordingAuthorizer{}, nil
+		}
+		return options.authorizer, nil
 	}); err != nil {
 		panic(err)
+	}
+	if options.systemConfig != nil {
+		if err := services.RegisterSingleton((*moduleapi.SystemConfigResolver)(nil), func(internalcontainer.Resolver) (any, error) {
+			return options.systemConfig, nil
+		}); err != nil {
+			panic(err)
+		}
 	}
 	return &module.Context{
 		Logger: zap.NewNop(),
@@ -261,6 +444,11 @@ func newRouteTestContext(authorizer moduleapi.Authorizer) (*module.Context, *gin
 		EventBus: eventbus.New(zap.NewNop()),
 		Router:   engine.Group("/api"),
 		Services: services,
+		Config: &config.Config{
+			HTTPX: config.HTTPXConfig{
+				WebSocketAllowedOrigins: append([]string(nil), options.websocketAllowedOrigins...),
+			},
+		},
 	}, engine
 }
 
@@ -298,4 +486,39 @@ func (a *recordingAuthorizer) Authorize(_ context.Context, _ moduleapi.RequestAu
 
 func (a *recordingAuthorizer) reset() {
 	a.permissions = nil
+}
+
+type fixedClock struct {
+	now time.Time
+}
+
+func (c *fixedClock) Now() time.Time {
+	return c.now
+}
+
+func extractEnvelopeField(body string, prefix string, suffix string) string {
+	start := strings.Index(body, prefix)
+	if start < 0 {
+		return ""
+	}
+	start += len(prefix)
+	end := strings.Index(body[start:], suffix)
+	if end < 0 {
+		return ""
+	}
+	return body[start : start+end]
+}
+
+type auditRecorderBus struct {
+	mu     sync.Mutex
+	events []eventbus.Event
+}
+
+func (b *auditRecorderBus) Subscribe(string, eventbus.Handler) error { return nil }
+
+func (b *auditRecorderBus) Publish(_ context.Context, event eventbus.Event) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.events = append(b.events, event)
+	return nil
 }

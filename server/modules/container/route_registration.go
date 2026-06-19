@@ -65,6 +65,16 @@ func registerRoutes(ctx *module.Context, moduleName string, service *service) er
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerLogsPermission.String(), publisher),
 		routes.handleLogs,
 	)
+	group.POST(
+		containercontract.ContainerShellSessionsRoute,
+		httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerShellPermission.String(), publisher),
+		routes.handleShellSessionCreate,
+	)
+	group.GET(
+		containercontract.ContainerShellWebSocketRoute,
+		httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerShellPermission.String(), publisher),
+		routes.handleShellWebSocket,
+	)
 	group.GET(
 		containercontract.ContainerMountUsageRoute,
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerDetailPermission.String(), publisher),
@@ -154,6 +164,47 @@ func (r routeRuntime) handleLogs(ginCtx *gin.Context) {
 		return
 	}
 	httpx.WriteSuccess(ginCtx, http.StatusOK, toLogs(logs))
+}
+
+func (r routeRuntime) handleShellSessionCreate(ginCtx *gin.Context) {
+	_ = bindPostContainerShellSessionParams(ginCtx)
+	var request containeropenapi.PostContainerShellSessionJSONRequestBody
+	if !bindRequiredJSON(ginCtx, r, &request) {
+		return
+	}
+	ref, ok := readRef(ginCtx, r)
+	if !ok {
+		return
+	}
+	session, err := r.service.IssueShellSession(ginCtx.Request.Context(), ref, ShellSessionRequest{
+		Command: string(request.Command),
+		Cols:    request.Cols,
+		Rows:    request.Rows,
+	})
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, toShellSession(session))
+}
+
+func (r routeRuntime) handleShellWebSocket(ginCtx *gin.Context) {
+	params := bindGetContainerShellWebSocketParams(ginCtx)
+	ref, ok := readRef(ginCtx, r)
+	if !ok {
+		return
+	}
+	_, err := r.service.ConsumeShellSessionTicket(
+		ginCtx.Request.Context(),
+		ref,
+		strings.TrimSpace(params.Ticket),
+		strings.TrimSpace(ginCtx.GetHeader("Origin")),
+	)
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	r.writeRouteError(ginCtx, errShellSessionFailed)
 }
 
 func (r routeRuntime) handleMountUsageList(ginCtx *gin.Context) {
@@ -417,6 +468,19 @@ func bindPostContainerRemoveParams(ginCtx *gin.Context) containeropenapi.PostCon
 func bindPostContainerBatchActionsParams(ginCtx *gin.Context) containeropenapi.PostContainerBatchActionsParams {
 	locale, requestID := commonHeaders(ginCtx)
 	return containeropenapi.PostContainerBatchActionsParams{XGraftLocale: locale, XRequestId: requestID}
+}
+
+func bindPostContainerShellSessionParams(ginCtx *gin.Context) containeropenapi.PostContainerShellSessionParams {
+	locale, requestID := commonHeaders(ginCtx)
+	return containeropenapi.PostContainerShellSessionParams{XGraftLocale: locale, XRequestId: requestID}
+}
+
+func bindGetContainerShellWebSocketParams(ginCtx *gin.Context) containeropenapi.GetContainerShellWebSocketParams {
+	requestID := optionalHeader(ginCtx, httpx.RequestIDHeader)
+	return containeropenapi.GetContainerShellWebSocketParams{
+		Ticket:     strings.TrimSpace(ginCtx.Query("ticket")),
+		XRequestId: requestID,
+	}
 }
 
 func bindRequiredJSON(ginCtx *gin.Context, r routeRuntime, target any) bool {

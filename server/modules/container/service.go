@@ -6,8 +6,10 @@ package container
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -19,6 +21,7 @@ import (
 	"graft/server/internal/httpx"
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
+	"graft/server/internal/realtimeauth"
 	containercontract "graft/server/modules/container/contract"
 )
 
@@ -42,9 +45,12 @@ type service struct {
 	mountUsageCache         *mountUsageCache
 	enabled                 bool
 	dangerousActionsEnabled bool
+	shellEnabled            bool
 	defaultTail             int
 	maxTail                 int
 	environmentPolicy       containercontract.EnvironmentPolicy
+	websocketAllowedOrigins []string
+	realtimeTickets         realtimeauth.Service
 }
 
 type containerServiceOptions struct {
@@ -58,14 +64,21 @@ type containerServiceOptions struct {
 	mountUsageCache         *mountUsageCache
 	enabled                 bool
 	dangerousActionsEnabled bool
+	shellEnabled            bool
 	defaultTail             int
 	maxTail                 int
 	environmentPolicy       containercontract.EnvironmentPolicy
+	websocketAllowedOrigins []string
+	realtimeTickets         realtimeauth.Service
 }
 
 func newContainerService(ctx *module.Context, moduleName string) (*service, error) {
 	options := containerOptionsFromConfig(ctx)
 	runtime := Runtime(disabledRuntime{})
+	allowedOrigins := []string{}
+	if ctx != nil && ctx.Config != nil {
+		allowedOrigins = append(allowedOrigins, ctx.Config.HTTPX.WebSocketAllowedOrigins...)
+	}
 	return newService(containerServiceOptions{
 		runtime:                 runtime,
 		runtimeOptions:          options,
@@ -75,9 +88,11 @@ func newContainerService(ctx *module.Context, moduleName string) (*service, erro
 		moduleName:              moduleName,
 		enabled:                 options.enabled,
 		dangerousActionsEnabled: options.dangerousActionsEnabled,
+		shellEnabled:            defaultContainerShellEnabled,
 		defaultTail:             options.defaultTail,
 		maxTail:                 options.maxTail,
 		environmentPolicy:       options.environmentPolicy,
+		websocketAllowedOrigins: allowedOrigins,
 	})
 }
 
@@ -91,6 +106,9 @@ func newService(options containerServiceOptions) (*service, error) {
 	}
 	if options.defaultTail > options.maxTail {
 		options.defaultTail = options.maxTail
+	}
+	if options.realtimeTickets == nil {
+		options.realtimeTickets = realtimeauth.NewMemoryService()
 	}
 	runtimeOptions := options.runtimeOptions
 	if strings.TrimSpace(runtimeOptions.runtime) == "" {
@@ -122,9 +140,12 @@ func newService(options containerServiceOptions) (*service, error) {
 		enabled:                 options.enabled,
 		systemConfig:            options.systemConfig,
 		dangerousActionsEnabled: options.dangerousActionsEnabled,
+		shellEnabled:            options.shellEnabled,
 		defaultTail:             options.defaultTail,
 		maxTail:                 options.maxTail,
 		environmentPolicy:       environmentPolicy,
+		websocketAllowedOrigins: append([]string(nil), options.websocketAllowedOrigins...),
+		realtimeTickets:         options.realtimeTickets,
 	}, nil
 }
 
@@ -1018,6 +1039,20 @@ func (s *service) dangerousActionsAllowed(ctx context.Context) bool {
 	)
 }
 
+func (s *service) shellAllowed(ctx context.Context) bool {
+	if s == nil {
+		return false
+	}
+	if s.systemConfig == nil {
+		return s.shellEnabled
+	}
+	return s.systemConfig.IsBooleanConfigEnabled(
+		ctx,
+		containercontract.ContainerShellEnabledConfig.String(),
+		s.shellEnabled,
+	)
+}
+
 func (s *service) maskedEnvironmentCopyEnabled(ctx context.Context) bool {
 	if s == nil || s.systemConfig == nil {
 		return defaultContainerEnvironmentMaskedCopy
@@ -1062,6 +1097,252 @@ func (s *service) runtimeForRequest() (Runtime, error) {
 	}
 	s.runtime = runtime
 	return runtime, nil
+}
+
+type ShellSessionRequest struct {
+	Command string
+	Cols    int
+	Rows    int
+}
+
+type ShellSession struct {
+	SessionID    string
+	Ticket       string
+	Command      string
+	Cols         int
+	Rows         int
+	ExpiresAt    time.Time
+	WebSocketURL string
+}
+
+type ShellHandshake struct {
+	SessionID    string
+	Command      string
+	Cols         int
+	Rows         int
+	ResourceID   string
+	ResourceName string
+	UserID       uint64
+}
+
+const (
+	containerShellScope        = "container.shell"
+	containerShellResourceType = "container"
+)
+
+func (s *service) IssueShellSession(ctx context.Context, ref Ref, request ShellSessionRequest) (ShellSession, error) {
+	if err := s.requireRuntimeAccess(ctx); err != nil {
+		return ShellSession{}, err
+	}
+	if !s.shellAllowed(ctx) {
+		return ShellSession{}, errShellDisabled
+	}
+	normalized, err := normalizeShellSessionRequest(request)
+	if err != nil {
+		return ShellSession{}, err
+	}
+	runtime, err := s.runtimeForRequest()
+	if err != nil {
+		return ShellSession{}, err
+	}
+	detail, err := runtime.Detail(ctx, ref)
+	if err != nil {
+		return ShellSession{}, err
+	}
+	if strings.TrimSpace(strings.ToLower(detail.State)) != "running" {
+		return ShellSession{}, errContainerNotRunning
+	}
+	requestAuth, ok := moduleapi.RequestAuthContextFromContext(ctx)
+	if !ok || requestAuth.User == nil {
+		return ShellSession{}, errShellForbidden
+	}
+	s.publishShellAudit(ctx, containercontract.ContainerAuditActionShellSessionRequested, detail, nil, normalized.Command, "", nil)
+	issued, err := s.realtimeTickets.Issue(ctx, realtimeauth.IssueRequest{
+		UserID:       requestAuth.User.ID,
+		ResourceType: containerShellResourceType,
+		ResourceID:   ref.Value,
+		Scope:        containerShellScope,
+		ClientIP:     currentRequestClientIP(ctx),
+		UserAgent:    currentRequestUserAgent(ctx),
+		Command:      normalized.Command,
+		Cols:         normalized.Cols,
+		Rows:         normalized.Rows,
+		TTL:          containerOperationTTL,
+	})
+	if err != nil {
+		s.publishShellAudit(ctx, containercontract.ContainerAuditActionShellTicketRejected, detail, nil, normalized.Command, "ticket_issue_failed", errShellSessionFailed)
+		return ShellSession{}, errShellSessionFailed
+	}
+	s.publishShellAudit(ctx, containercontract.ContainerAuditActionShellTicketIssued, detail, &issued, normalized.Command, "", nil)
+	return ShellSession{
+		SessionID:    issued.SessionID,
+		Ticket:       issued.Ticket,
+		Command:      issued.Command,
+		Cols:         issued.Cols,
+		Rows:         issued.Rows,
+		ExpiresAt:    issued.ExpiresAt,
+		WebSocketURL: buildShellWebSocketURL(ref, issued.Ticket),
+	}, nil
+}
+
+func (s *service) ConsumeShellSessionTicket(ctx context.Context, ref Ref, ticket string, origin string) (ShellHandshake, error) {
+	if err := s.requireRuntimeAccess(ctx); err != nil {
+		return ShellHandshake{}, err
+	}
+	if !s.shellAllowed(ctx) {
+		return ShellHandshake{}, errShellDisabled
+	}
+	if err := realtimeauth.ValidateOrigin(origin, s.websocketAllowedOrigins); err != nil {
+		return ShellHandshake{}, errShellOriginDenied
+	}
+	consumed, err := s.realtimeTickets.Consume(ctx, realtimeauth.ConsumeRequest{
+		Ticket:       ticket,
+		ResourceType: containerShellResourceType,
+		ResourceID:   ref.Value,
+		Scope:        containerShellScope,
+	})
+	if err != nil {
+		return ShellHandshake{}, mapRealtimeTicketError(err)
+	}
+	requestAuth, ok := moduleapi.RequestAuthContextFromContext(ctx)
+	if !ok || requestAuth.User == nil || requestAuth.User.ID != consumed.UserID {
+		return ShellHandshake{}, errShellForbidden
+	}
+	runtime, err := s.runtimeForRequest()
+	if err != nil {
+		return ShellHandshake{}, err
+	}
+	detail, err := runtime.Detail(ctx, ref)
+	if err != nil {
+		return ShellHandshake{}, err
+	}
+	if strings.TrimSpace(strings.ToLower(detail.State)) != "running" {
+		s.publishShellAudit(ctx, containercontract.ContainerAuditActionShellTicketRejected, detail, nil, consumed.Command, "container_not_running", errContainerNotRunning)
+		return ShellHandshake{}, errContainerNotRunning
+	}
+	s.publishShellAudit(ctx, containercontract.ContainerAuditActionShellSessionStarted, detail, nil, consumed.Command, "", nil)
+	return ShellHandshake{
+		SessionID:    consumed.SessionID,
+		Command:      consumed.Command,
+		Cols:         consumed.Cols,
+		Rows:         consumed.Rows,
+		ResourceID:   detail.ID,
+		ResourceName: detail.Name,
+		UserID:       consumed.UserID,
+	}, nil
+}
+
+func normalizeShellSessionRequest(request ShellSessionRequest) (ShellSessionRequest, error) {
+	command := strings.TrimSpace(strings.ToLower(request.Command))
+	switch command {
+	case "sh", "bash", "ash":
+	default:
+		return ShellSessionRequest{}, errShellCommandNotFound
+	}
+	if request.Cols <= 0 || request.Rows <= 0 {
+		return ShellSessionRequest{}, errInvalidListQuery
+	}
+	return ShellSessionRequest{
+		Command: command,
+		Cols:    request.Cols,
+		Rows:    request.Rows,
+	}, nil
+}
+
+func buildShellWebSocketURL(ref Ref, ticket string) string {
+	values := url.Values{}
+	values.Set("ticket", ticket)
+	return "/api" + containercontract.ContainerAPIGroup + "/" + url.PathEscape(ref.Value) + "/shell/ws?" + values.Encode()
+}
+
+func mapRealtimeTicketError(err error) error {
+	switch {
+	case errors.Is(err, realtimeauth.ErrExpiredTicket):
+		return errShellTicketExpired
+	case errors.Is(err, realtimeauth.ErrUsedTicket):
+		return errShellTicketUsed
+	case errors.Is(err, realtimeauth.ErrResourceMismatch), errors.Is(err, realtimeauth.ErrScopeMismatch), errors.Is(err, realtimeauth.ErrInvalidTicket), errors.Is(err, realtimeauth.ErrTicketRequired):
+		return errShellTicketInvalid
+	default:
+		return errShellSessionFailed
+	}
+}
+
+func currentRequestClientIP(ctx context.Context) string {
+	requestAudit, ok := httpx.RequestAuditContextFromContext(ctx)
+	if !ok {
+		return ""
+	}
+	return strings.TrimSpace(requestAudit.ClientIP)
+}
+
+func currentRequestUserAgent(ctx context.Context) string {
+	requestAudit, ok := httpx.RequestAuditContextFromContext(ctx)
+	if !ok {
+		return ""
+	}
+	return strings.TrimSpace(requestAudit.UserAgent)
+}
+
+func (s *service) publishShellAudit(
+	ctx context.Context,
+	action containercontract.AuditAction,
+	detail Detail,
+	issued *realtimeauth.IssuedTicket,
+	command string,
+	reason string,
+	err error,
+) {
+	if s == nil || s.auditBus == nil {
+		return
+	}
+	metadata := map[string]any{
+		"container_id":   detail.ID,
+		"container_name": detail.Name,
+		"command":        strings.TrimSpace(command),
+		"result":         auditResult(err),
+	}
+	if reason != "" {
+		metadata["reason"] = reason
+	}
+	if issued != nil {
+		metadata["session_id"] = issued.SessionID
+		metadata["ticket_id"] = issued.TicketID
+		metadata["expires_at"] = issued.ExpiresAt.UTC().Format(time.RFC3339)
+	}
+	if requestAudit, ok := httpx.RequestAuditContextFromContext(ctx); ok {
+		metadata["requestId"] = requestAudit.RequestID
+		metadata["traceId"] = requestAudit.TraceID
+		metadata["route"] = requestAudit.Route
+		metadata["client_ip"] = requestAudit.ClientIP
+		metadata["user_agent"] = requestAudit.UserAgent
+	}
+	event := moduleapi.AuditEvent{
+		Kind:         moduleapi.AuditEventKindDomain,
+		Operator:     currentAuditOperator(ctx),
+		Action:       action.String(),
+		ResourceType: containerResourceType,
+		ResourceID:   firstNonEmpty(detail.ID, detail.Name),
+		ResourceName: detail.Name,
+		StatusCode:   auditStatusCode(err),
+		Success:      err == nil,
+		Metadata:     metadata,
+	}
+	if err != nil {
+		event.MessageKey = messageKeyForError(err).String()
+		event.Message = fallbackMessageForError(err)
+	}
+	if publishErr := s.auditBus.Publish(ctx, eventbus.Event{
+		Name:    string(moduleapi.AuditRecordEventName),
+		Source:  s.moduleName,
+		Payload: event,
+	}); publishErr != nil && s.logger != nil {
+		s.logger.Warn("publish container shell audit event failed",
+			zap.String("module", s.moduleName),
+			zap.String("action", action.String()),
+			zap.Error(publishErr),
+		)
+	}
 }
 
 type disabledRuntime struct{}

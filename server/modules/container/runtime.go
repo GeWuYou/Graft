@@ -74,6 +74,15 @@ var (
 	errUnsupportedContainerRuntime = errors.New("unsupported container runtime")
 	errMountUsageUnsupported       = errors.New("container mount usage unsupported")
 	errContainerMountNotFound      = errors.New("container mount not found")
+	errShellDisabled               = errors.New("container shell disabled")
+	errShellForbidden              = errors.New("container shell forbidden")
+	errShellTicketInvalid          = errors.New("container shell ticket invalid")
+	errShellTicketExpired          = errors.New("container shell ticket expired")
+	errShellTicketUsed             = errors.New("container shell ticket used")
+	errShellOriginDenied           = errors.New("container shell origin denied")
+	errContainerNotRunning         = errors.New("container not running")
+	errShellCommandNotFound        = errors.New("container shell command not found")
+	errShellSessionFailed          = errors.New("container shell session failed")
 )
 
 // Runtime is the module-owned boundary between API/service code and a concrete container runtime adapter.
