@@ -15,6 +15,11 @@ import { buildGlobalMenuSearchIndex, searchGlobalMenuItems } from './global-menu
 export type { GlobalMenuSearchItem } from './global-menu-search';
 export { normalizeGlobalMenuSearchKeyword } from './global-menu-search';
 
+/**
+ * Provides a composable for searching and accessing global menu routes.
+ *
+ * @returns An object containing the routes initialization state, search index, and a method to search routes by keyword.
+ */
 export function useGlobalMenuSearch() {
   const permissionStore = usePermissionStore();
   const { routers } = storeToRefs(permissionStore);

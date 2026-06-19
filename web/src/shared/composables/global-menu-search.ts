@@ -38,6 +38,11 @@ type GlobalMenuSearchMatchedItem = {
   titleLength: number;
 };
 
+/**
+ * Builds a searchable index of global menu items from routes, deduplicating by path and route name.
+ *
+ * @returns Array of global menu search items
+ */
 export function buildGlobalMenuSearchIndex(routes: MenuRoute[], options: BuildGlobalMenuSearchIndexOptions) {
   const items: GlobalMenuSearchInternalItem[] = [];
   const seenPaths = new Set<string>();
@@ -62,6 +67,12 @@ export function buildGlobalMenuSearchIndex(routes: MenuRoute[], options: BuildGl
   return items.map(({ order: _order, ...item }) => item);
 }
 
+/**
+ * Finds menu items matching a keyword and ranks them by relevance.
+ *
+ * @param keyword - The search term to match against menu items
+ * @returns Matching items, sorted by relevance score (highest first), title length (shortest first), and original item order.
+ */
 export function searchGlobalMenuItems(items: GlobalMenuSearchItem[], keyword: string) {
   const normalizedKeyword = normalizeGlobalMenuSearchKeyword(keyword);
   if (!normalizedKeyword) {
@@ -87,10 +98,24 @@ export function searchGlobalMenuItems(items: GlobalMenuSearchItem[], keyword: st
   return matchedItems.map(({ item }) => item);
 }
 
+/**
+ * Normalizes a keyword by removing whitespace and converting to lowercase.
+ *
+ * @returns The normalized keyword
+ */
 export function normalizeGlobalMenuSearchKeyword(keyword: string) {
   return keyword.trim().toLowerCase();
 }
 
+/**
+ * Recursively collects searchable menu items from a route hierarchy.
+ *
+ * Filters out hidden routes, computes full paths, derives titles and title keys, and builds hierarchical metadata. Returns a flattened array of leaf items with associated keywords, module information, and parent context. Uses the `orderRef` object to maintain consistent global ordering across recursive calls.
+ *
+ * @param routes - The routes to process
+ * @param locale - The locale for resolving localized titles
+ * @returns A flattened array of searchable menu items with computed metadata
+ */
 function collectGlobalMenuSearchItems(
   routes: MenuRoute[],
   locale: SupportedLocale,
@@ -158,6 +183,12 @@ function collectGlobalMenuSearchItems(
     });
 }
 
+/**
+ * Scores a menu item's relevance to a search keyword.
+ *
+ * @param order - The item's collection order, used for stable sorting when scores are equal
+ * @returns An object with the relevance score and sort metadata if the item matches, `null` otherwise
+ */
 function matchGlobalMenuSearchItem(item: GlobalMenuSearchItem, normalizedKeyword: string, order: number) {
   const title = normalizeGlobalMenuSearchKeyword(item.title);
   const parents = normalizeGlobalMenuSearchKeyword(item.parentTitles.join(' / '));
@@ -217,6 +248,11 @@ function matchGlobalMenuSearchItem(item: GlobalMenuSearchItem, normalizedKeyword
   };
 }
 
+/**
+ * Determines whether a route should be treated as a menu leaf node for search indexing.
+ *
+ * @returns `true` if the route is a leaf node for menu indexing, `false` otherwise.
+ */
 function isSearchableMenuLeaf(route: MenuRoute, fullPath: string, visibleChildren: MenuRoute[]) {
   if (!fullPath) {
     return false;
@@ -234,6 +270,14 @@ function isSearchableMenuLeaf(route: MenuRoute, fullPath: string, visibleChildre
   return !route.redirect;
 }
 
+/**
+ * Resolves the localized title for a route by attempting breadcrumb, page, and fallback sources in priority order.
+ *
+ * @param route - The route definition
+ * @param meta - The route's metadata containing potential title sources
+ * @param locale - The target locale for title rendering
+ * @returns The localized route title, or an empty string if no title is available from any source
+ */
 function resolveSearchRouteTitle(route: MenuRoute, meta: SearchableRouteMeta | undefined, locale: SupportedLocale) {
   return (
     renderLocalizedTitle(resolveRouteLocalizedTitle(meta, 'breadcrumb'), locale, '') ||
@@ -243,6 +287,11 @@ function resolveSearchRouteTitle(route: MenuRoute, meta: SearchableRouteMeta | u
   );
 }
 
+/**
+ * Collects searchable keywords from a route definition.
+ *
+ * @returns An array of keywords derived from the route name, title key, and any additional keywords in meta.
+ */
 function extractSearchKeywords(route: MenuRoute, meta: SearchableRouteMeta | undefined) {
   const keywords = new Set<string>();
 
@@ -264,6 +313,11 @@ function extractSearchKeywords(route: MenuRoute, meta: SearchableRouteMeta | und
   return [...keywords];
 }
 
+/**
+ * Derives a module key for a menu item based on its title key, route name, or path.
+ *
+ * @returns A normalized module key string, or an empty string if no key could be derived
+ */
 function inferSearchModuleKey(route: MenuRoute, meta: SearchableRouteMeta | undefined, fullPath: string) {
   const titleKey = meta?.titleKey?.trim();
   if (titleKey) {
@@ -293,6 +347,12 @@ function inferSearchModuleKey(route: MenuRoute, meta: SearchableRouteMeta | unde
   return firstSegment;
 }
 
+/**
+ * Normalizes a module key to kebab-case format.
+ *
+ * @param value - The module key to normalize
+ * @returns The normalized module key in kebab-case
+ */
 function normalizeSearchModuleKey(value: string) {
   return value
     .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
@@ -300,6 +360,13 @@ function normalizeSearchModuleKey(value: string) {
     .toLowerCase();
 }
 
+/**
+ * Determines the navigation destination for a route, following redirects and descending to the first visible child.
+ *
+ * @param route - The route to resolve
+ * @param fullPath - The current full path of the route
+ * @returns The navigation path to use
+ */
 function resolveSearchNavigationPath(route: MenuRoute, fullPath: string): string {
   if (typeof route.redirect === 'string' && route.redirect.trim()) {
     const redirectedPath = normalizeJoinedMenuPath(fullPath, route.redirect);
@@ -330,6 +397,13 @@ function resolveSearchNavigationPath(route: MenuRoute, fullPath: string): string
   return fullPath;
 }
 
+/**
+ * Joins a parent path with a route path, normalizing the result.
+ *
+ * @param parentPath - The base path
+ * @param routePath - The route path to append
+ * @returns The normalized joined path with trailing slashes removed, except the root path remains `/`
+ */
 function normalizeJoinedMenuPath(parentPath: string, routePath: string) {
   const trimmedRoutePath = routePath.trim();
   if (!trimmedRoutePath) {
@@ -347,6 +421,11 @@ function normalizeJoinedMenuPath(parentPath: string, routePath: string) {
   return `${parentPath.replace(/\/$/, '')}/${trimmedRoutePath}`.replace(/\/+$/, '');
 }
 
+/**
+ * Casts a route meta object to the searchable variant.
+ *
+ * @returns The meta object cast as `SearchableRouteMeta`, or `undefined` if the input is `null` or `undefined`
+ */
 function toSearchableRouteMeta(meta: MenuRoute['meta']) {
   return (meta ?? undefined) as SearchableRouteMeta | undefined;
 }

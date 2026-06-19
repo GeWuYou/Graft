@@ -17,6 +17,11 @@ import type { ServerStatusResponse } from '../types/server-status';
 
 export type DependencyDisplayStatus = 'healthy' | 'abnormal' | 'notConfigured' | 'unknown';
 
+/**
+ * Creates reactive state and automatic scheduling for fetching and refreshing server status data.
+ *
+ * @returns An object with reactive state for server status and loading indicators, configurable auto-refresh controls, and methods to manually trigger refreshes.
+ */
 export function useServerStatusSnapshot() {
   const { t } = useI18n();
   const {

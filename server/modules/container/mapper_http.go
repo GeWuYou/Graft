@@ -117,7 +117,7 @@ func optionalHealthcheck(healthcheck *Healthcheck) *containergen.ContainerHealth
 	}
 }
 
-// optionalEnvironment maps a slice of environment variables to a slice of container environment entries, returning nil if the input is empty.
+// Returns a pointer to the converted entries, or nil if the input is empty.
 func optionalEnvironment(environment []EnvironmentVariable) *[]containergen.ContainerEnvironmentEntry {
 	if len(environment) == 0 {
 		return nil

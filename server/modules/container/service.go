@@ -574,7 +574,7 @@ type environmentPolicyOptions struct {
 // applyEnvironmentPolicy applies environment display and masking policy to variables.
 // Each variable is marked sensitive if its key matches known sensitive patterns. The
 // returned payload always carries explicit display-state fields so downstream consumers
-// do not need to infer why a value is unavailable.
+// applyEnvironmentPolicy modifies environment variables to enforce the specified display policy, controlling value visibility through masking, hiding, or plaintext modes.
 func applyEnvironmentPolicy(environment []EnvironmentVariable, options environmentPolicyOptions) []EnvironmentVariable {
 	if len(environment) == 0 {
 		return nil

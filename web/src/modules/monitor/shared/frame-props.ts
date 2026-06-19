@@ -66,6 +66,11 @@ type MonitorStatusFrameSharedState = Pick<
 
 type MonitorStatusFrameCommonLabels = Pick<MonitorStatusPageFrameProps, 'errorTitle'>;
 
+/**
+ * Builds complete monitor status frame props from separate page, state, and label property groups.
+ *
+ * @returns A `MonitorStatusPageFrameProps` object with all combined properties.
+ */
 function buildMonitorStatusFrameBaseProps(args: {
   page: MonitorStatusFramePageCopy;
   state: MonitorStatusFrameSharedState;
@@ -91,6 +96,11 @@ type MonitorStatusFrameSharedRefs = {
 
 type MonitorTranslate = (key: string) => string;
 
+/**
+ * Builds monitor status frame properties from page copy, state snapshot, and default translations.
+ *
+ * @returns A fully populated `MonitorStatusPageFrameProps` object.
+ */
 export function buildStandardMonitorStatusFrameProps(args: {
   t: MonitorTranslate;
   page: Omit<MonitorStatusFramePageCopy, 'emptyDescription'>;
