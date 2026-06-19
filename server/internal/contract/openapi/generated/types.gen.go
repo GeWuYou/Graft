@@ -3109,7 +3109,7 @@ type ContainerDetail struct {
 	Entrypoint     *[]string                    `json:"entrypoint,omitempty"`
 	Environment    *[]ContainerEnvironmentEntry `json:"environment,omitempty"`
 
-	// EnvironmentMaskedCopyEnabled Whether the current system policy allows copying the masked display JSON when sensitive environment values exist.
+	// EnvironmentMaskedCopyEnabled Whether the current system policy allows copying real sensitive environment values from masked environment entries, .env export, and raw JSON copy flows when access is authorized.
 	EnvironmentMaskedCopyEnabled bool `json:"environment_masked_copy_enabled"`
 
 	// EnvironmentPolicy Effective container environment variable display policy applied to this detail response.
@@ -3173,6 +3173,9 @@ type ContainerDetailState string
 
 // ContainerEnvironmentEntry Container environment variable entry after policy application.
 type ContainerEnvironmentEntry struct {
+	// CopyValue Copy-only raw environment variable value. Present only when the effective policy keeps display masked but allows authorized real-value copy.
+	CopyValue *string `json:"copy_value,omitempty"`
+
 	// DisplayValue Stable display value rendered under the effective environment policy.
 	DisplayValue *string `json:"display_value,omitempty"`
 

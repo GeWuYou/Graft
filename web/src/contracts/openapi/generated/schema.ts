@@ -3967,6 +3967,8 @@ export interface components {
       key: string;
       /** @description Raw environment variable value. Present only when the effective policy allows plaintext display. */
       value?: string;
+      /** @description Copy-only raw environment variable value. Present only when the effective policy keeps display masked but allows authorized real-value copy. */
+      copy_value?: string;
       /** @description Stable display value rendered under the effective environment policy. */
       display_value?: string;
       /** @description Whether display_value is a masked placeholder instead of the original value. */
@@ -4068,7 +4070,7 @@ export interface components {
        * @enum {string}
        */
       environment_policy: 'hidden' | 'masked' | 'plain';
-      /** @description Whether the current system policy allows copying the masked display JSON when sensitive environment values exist. */
+      /** @description Whether the current system policy allows copying real sensitive environment values from masked environment entries, .env export, and raw JSON copy flows when access is authorized. */
       environment_masked_copy_enabled: boolean;
       /** @description Docker Healthcheck diagnostics from container inspect. Omitted when no Healthcheck is configured. */
       healthcheck?: components['schemas']['container-healthcheck'];

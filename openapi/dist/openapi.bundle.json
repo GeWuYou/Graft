@@ -16141,6 +16141,10 @@
             "type": "string",
             "description": "Raw environment variable value. Present only when the effective policy allows plaintext display."
           },
+          "copy_value": {
+            "type": "string",
+            "description": "Copy-only raw environment variable value. Present only when the effective policy keeps display masked but allows authorized real-value copy."
+          },
           "display_value": {
             "type": "string",
             "description": "Stable display value rendered under the effective environment policy."
@@ -16394,7 +16398,7 @@
               },
               "environment_masked_copy_enabled": {
                 "type": "boolean",
-                "description": "Whether the current system policy allows copying the masked display JSON when sensitive environment values exist."
+                "description": "Whether the current system policy allows copying real sensitive environment values from masked environment entries, .env export, and raw JSON copy flows when access is authorized."
               },
               "healthcheck": {
                 "$ref": "#/components/schemas/container-healthcheck",

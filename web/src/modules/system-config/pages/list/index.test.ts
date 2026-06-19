@@ -85,8 +85,8 @@ const translations = vi.hoisted(
     'systemConfig.container.ops.container.environment.policy.enum.plain.label': '明文',
     'systemConfig.container.ops.container.environment.policy.title': '环境变量值展示策略',
     'systemConfig.container.ops.container.environment.masked_copy_enabled.description':
-      '开启后，容器原始 JSON 与环境变量列表可复制脱敏后的展示值；关闭后，包含敏感环境变量的 JSON 与环境变量复制操作将被禁用。',
-    'systemConfig.container.ops.container.environment.masked_copy_enabled.title': '允许复制脱敏后的环境变量',
+      '开启后，具备环境变量读取权限的用户可在容器详情页复制敏感环境变量真实值，包括环境变量列表、复制 .env 和原始 JSON 复制；页面展示仍保持 *****。关闭后，仅展示脱敏结果，不提供真实值复制。',
+    'systemConfig.container.ops.container.environment.masked_copy_enabled.title': '允许复制敏感环境变量真实值',
     'systemConfig.list.boolean.disabled': '已禁用',
     'systemConfig.list.boolean.enabled': '已启用',
     'systemConfig.list.boolean.false': '否',
@@ -103,7 +103,7 @@ const translations = vi.hoisted(
     'systemConfig.list.groupConfigCount': '{count} 个配置项',
     'systemConfig.list.groupLabel': '{module} / {group}',
     'systemConfig.list.loadError': '系统配置加载失败。',
-    'systemConfig.list.masked': '已隐藏',
+    'systemConfig.list.masked': '*****',
     'systemConfig.list.noDescription': '暂无描述。',
     'systemConfig.list.overrideCount': '{count} 个覆盖值',
     'systemConfig.list.previewTitle': '配置预览 JSON',
@@ -502,14 +502,16 @@ describe('system config list page', () => {
         containerConfigItem({
           key: 'ops.container.environment.masked_copy_enabled',
           titleKey: 'systemConfig.container.ops.container.environment.masked_copy_enabled.title',
-          title: 'Masked environment copy enabled',
+          title: 'Allow copying real sensitive environment values',
           descriptionKey: 'systemConfig.container.ops.container.environment.masked_copy_enabled.description',
-          description: 'Allows authorized users to copy raw values for masked environment variables.',
+          description:
+            'When enabled, users with environment read access can copy real sensitive environment values from the container detail page.',
           type: 'boolean',
           configSchema: {
             type: 'boolean',
-            title: 'Masked environment copy enabled',
-            description: 'Allows authorized users to copy raw values for masked environment variables.',
+            title: 'Allow copying real sensitive environment values',
+            description:
+              'When enabled, users with environment read access can copy real sensitive environment values from the container detail page.',
             'x-i18n': {
               titleKey: 'systemConfig.container.ops.container.environment.masked_copy_enabled.title',
               descriptionKey: 'systemConfig.container.ops.container.environment.masked_copy_enabled.description',
@@ -527,16 +529,13 @@ describe('system config list page', () => {
     const wrapper = mountPage();
     await flushPromises();
 
-    expect(wrapper.text()).toContain('允许复制脱敏后的环境变量');
+    expect(wrapper.text()).toContain('允许复制敏感环境变量真实值');
     expect(wrapper.text()).toContain(
-      '开启后，容器原始 JSON 与环境变量列表可复制脱敏后的展示值；关闭后，包含敏感环境变量的 JSON 与环境变量复制操作将被禁用。',
+      '开启后，具备环境变量读取权限的用户可在容器详情页复制敏感环境变量真实值，包括环境变量列表、复制 .env 和原始 JSON 复制；页面展示仍保持 *****。关闭后，仅展示脱敏结果，不提供真实值复制。',
     );
     expect(wrapper.text()).not.toContain('ops.container.environment.masked_copy_enabled');
     expect(wrapper.text()).not.toContain('暂无描述。');
-    expect(wrapper.text()).not.toContain('Masked environment copy enabled');
-    expect(wrapper.text()).not.toContain(
-      'Allows authorized users to copy raw values for masked environment variables.',
-    );
+    expect(wrapper.text()).not.toContain('Allow copying real sensitive environment values');
   });
 
   it('uses item type fallback to render notification boolean config without schema as a switch', async () => {

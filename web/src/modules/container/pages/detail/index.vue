@@ -1058,6 +1058,7 @@
             <t-tab-panel value="raw" :label="t('container.detail.tabs.raw')" :destroy-on-hide="false">
               <section class="container-detail-section container-detail-section--raw container-detail-tab-body">
                 <container-raw-json-panel
+                  :copy-value="rawJsonCopyValue"
                   :value="rawJsonDisplayValue"
                   :title="t('container.detail.raw.title')"
                   :description="t('container.detail.raw.description')"
@@ -1069,7 +1070,7 @@
                   :tree-label="t('container.detail.raw.tree')"
                   :copy-label="t('container.detail.copy')"
                   :copy-tooltip="rawJsonCopyTooltip"
-                  :copy-masked-tooltip="t('container.detail.raw.copyMaskedTooltip')"
+                  :copy-masked-tooltip="rawJsonCopyTooltip"
                   :copy-disabled-message="t('container.detail.raw.copyDisabledMessage')"
                   :raw-copy-enabled="rawJsonCopyEnabled"
                   :copy-success-label="t('container.detail.copySuccess')"
@@ -1164,6 +1165,7 @@ type EnvironmentRow = {
   hasSensitiveValue: boolean;
   name: string;
   policy: EnvironmentPolicy;
+  rawJsonCopyValue: string;
   rawJsonValue: string;
   rawValue: string;
   value: string;
@@ -1383,12 +1385,11 @@ const pageTitle = computed(() => {
 });
 const environmentRows = computed(() => normalizeEnvironmentRows(safeDetail.value));
 const environmentHasSensitiveRows = computed(() => environmentRows.value.some((row) => row.hasSensitiveValue));
-const rawJsonCopyEnabled = computed(
-  () => !environmentHasSensitiveRows.value || containerEnvironmentMaskedCopyEnabled(safeDetail.value),
-);
+const rawJsonCopyValue = computed(() => buildRawJsonCopyValue(safeDetail.value));
+const rawJsonCopyEnabled = computed(() => Boolean(rawJsonCopyValue.value));
 const rawJsonCopyTooltip = computed(() =>
   rawJsonCopyEnabled.value
-    ? t('container.detail.raw.copyMaskedTooltip')
+    ? t('container.detail.raw.copyRealValueTooltip')
     : t('container.detail.raw.copyDisabledTooltip'),
 );
 const rawJsonPolicyTheme = computed(() => (rawJsonCopyEnabled.value ? 'warning' : 'error'));
@@ -1402,13 +1403,16 @@ const rawJsonPolicyMessage = computed(() => {
   }
   return t('container.detail.raw.policy.maskedCopyDisabled', { strategy: policyLabel(policy) });
 });
-const environmentCopyDisabled = computed(
-  () => environmentHasSensitiveRows.value && !containerEnvironmentMaskedCopyEnabled(safeDetail.value),
-);
+const environmentCopyDisabled = computed(() => {
+  if (!filteredEnvironmentRows.value.length) {
+    return true;
+  }
+  return filteredEnvironmentRows.value.some((row) => row.copyDisabled || !row.copyable);
+});
 const environmentCopyTooltip = computed(() =>
   environmentCopyDisabled.value
     ? t('container.detail.config.copyPolicyDisabled')
-    : t('container.detail.config.copyMaskedDisplayOnly'),
+    : t('container.detail.config.copyRealValueTooltip'),
 );
 const environmentPolicyNoticeTheme = computed(() => (environmentCopyDisabled.value ? 'warning' : 'info'));
 const environmentPolicyNotice = computed(() => {
@@ -2317,6 +2321,7 @@ function normalizeEnvironmentRows(nextDetail: ContainerDetail | null): Environme
     const masked = record?.masked === true;
     const rawValue = readRawString(record?.value);
     const displayValue = readRawString(record?.display_value);
+    const copyValue = readRawString(record?.copy_value);
     const valueMasked = record?.value_masked === true;
     const valueHidden = record?.value_hidden === true;
     const policy = normalizeEnvironmentPolicy(
@@ -2329,8 +2334,12 @@ function normalizeEnvironmentRows(nextDetail: ContainerDetail | null): Environme
     );
     const value = resolveEnvironmentDisplayValue(rawValue, displayValue, policy, valueMasked, valueHidden);
     const hasSensitiveValue = masked || valueMasked || valueHidden || record?.sensitive === true;
-    const copyDisabled = hasSensitiveValue && !containerEnvironmentMaskedCopyEnabled(nextDetail);
-    const resolvedCopyValue = policy === 'plain' ? rawValue : value;
+    const maskedCopyAllowed = containerEnvironmentMaskedCopyEnabled(nextDetail);
+    const resolvedCopyValue =
+      hasSensitiveValue && policy !== 'plain' && !maskedCopyAllowed
+        ? ''
+        : resolveEnvironmentCopyValue(rawValue, copyValue, policy, hasSensitiveValue);
+    const copyDisabled = !resolvedCopyValue;
 
     return [
       {
@@ -2339,13 +2348,18 @@ function normalizeEnvironmentRows(nextDetail: ContainerDetail | null): Environme
         copyDisabled,
         copyTooltip: copyDisabled
           ? t('container.detail.config.copyPolicyDisabled')
-          : t('container.detail.config.copyMaskedDisplayOnly'),
+          : t('container.detail.config.copyRealValueTooltip'),
         displayValue: value,
         hasSensitiveValue,
         name,
         policy,
+        rawJsonCopyValue: resolvedCopyValue,
         rawJsonValue:
-          valueHidden || policy === 'hidden' ? '[HIDDEN]' : valueMasked || policy === 'masked' ? '[MASKED]' : rawValue,
+          valueHidden || policy === 'hidden'
+            ? '[HIDDEN]'
+            : valueMasked || policy === 'masked'
+              ? value
+              : displayValue || rawValue,
         rawValue,
         value: value || environmentValueFallback(policy),
       },
@@ -2439,7 +2453,22 @@ function isSensitiveEnvironmentRow(row: EnvironmentRow) {
 }
 
 function formatEnvironmentLine(row: EnvironmentRow) {
-  return `${row.name}=${row.displayValue}`;
+  return `${row.name}=${row.copyValue}`;
+}
+
+function resolveEnvironmentCopyValue(
+  rawValue: string,
+  copyValue: string,
+  policy: EnvironmentPolicy,
+  hasSensitiveValue: boolean,
+) {
+  if (policy === 'plain') {
+    return rawValue;
+  }
+  if (!hasSensitiveValue) {
+    return rawValue;
+  }
+  return copyValue;
 }
 
 function resolveEnvironmentDisplayValue(
@@ -2488,6 +2517,31 @@ function buildRawJsonDisplayValue(detail: SafeContainerDetail | null) {
       ...(readUnknownRecord(sourceEnvironment[index]) ?? {}),
       key: row.name,
       value: row.rawJsonValue,
+      display_value: row.rawJsonValue,
+      masked: row.policy !== 'plain',
+      sensitive: row.hasSensitiveValue,
+      value_masked: row.policy === 'masked',
+      value_hidden: row.policy === 'hidden',
+    })),
+  };
+}
+
+function buildRawJsonCopyValue(detail: SafeContainerDetail | null) {
+  if (!detail) {
+    return detail;
+  }
+  if (environmentRows.value.some((row) => row.hasSensitiveValue && (row.copyDisabled || !row.copyable))) {
+    return null;
+  }
+  const sourceEnvironment = Array.isArray(detail.environment) ? detail.environment : [];
+  return {
+    ...detail,
+    environment: environmentRows.value.map((row, index) => ({
+      ...(readUnknownRecord(sourceEnvironment[index]) ?? {}),
+      key: row.name,
+      value: row.rawJsonCopyValue || row.rawJsonValue,
+      copy_value: row.rawJsonCopyValue || undefined,
+      display_value: row.rawJsonValue,
       masked: row.policy !== 'plain',
       sensitive: row.hasSensitiveValue,
       value_masked: row.policy === 'masked',

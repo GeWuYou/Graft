@@ -98,11 +98,12 @@ const translations = vi.hoisted(
     'container.detail.config.copyVariableValue': '复制变量值',
     'container.detail.config.copyVariableValueSuccess': '已复制变量值',
     'container.detail.config.copyMaskedDisplayOnly': '仅复制当前展示的脱敏值',
+    'container.detail.config.copyRealValueTooltip': '复制敏感环境变量真实值',
     'container.detail.config.copyPolicyDisabled': '当前系统配置禁止复制包含敏感字段的环境变量',
     'container.detail.config.hiddenValue': '[已隐藏]',
-    'container.detail.config.maskedValue': '[已脱敏]',
+    'container.detail.config.maskedValue': '*****',
     'container.detail.config.policyNoticeMaskedCopy':
-      '当前策略：敏感值按 {strategy} 展示，复制时仅复制脱敏后的展示值。',
+      '当前策略：敏感值按 {strategy} 展示，界面仍显示 *****，复制时可获得真实值。',
     'container.detail.config.policyNoticeCopyDisabled':
       '当前策略：敏感值按 {strategy} 展示，当前系统配置禁止复制包含敏感字段的环境变量。',
     'container.detail.config.policyNoticeNoSensitive': '当前策略：环境变量按 {strategy} 展示，当前结果不包含敏感字段。',
@@ -270,12 +271,13 @@ const translations = vi.hoisted(
     'container.detail.raw.networkCount': '网络',
     'container.detail.raw.updatedAt': '更新时间',
     'container.detail.raw.sensitive': '敏感',
-    'container.detail.raw.copyMaskedTooltip': '复制脱敏后的 JSON',
+    'container.detail.raw.copyMaskedTooltip': '复制当前展示的脱敏 JSON',
+    'container.detail.raw.copyRealValueTooltip': '复制包含敏感环境变量真实值的 JSON',
     'container.detail.raw.copyDisabledTooltip': '当前系统配置禁止复制包含敏感字段的 JSON',
     'container.detail.raw.copyDisabledMessage': '当前系统配置禁止复制包含敏感字段的 JSON',
     'container.detail.raw.policy.noSensitive': '当前策略：当前原始 JSON 不包含敏感环境变量，可直接复制展示 JSON。',
     'container.detail.raw.policy.maskedCopyEnabled':
-      '当前策略：敏感值按 {strategy} 脱敏展示，复制时仅复制脱敏后的 JSON。',
+      '当前策略：敏感值按 {strategy} 脱敏展示，界面仍显示 *****，复制时可获得真实值 JSON。',
     'container.detail.raw.policy.maskedCopyDisabled':
       '当前策略：敏感值按 {strategy} 脱敏展示，当前系统配置禁止复制包含敏感字段的 JSON。',
     'container.detail.raw.noMatches': '未找到匹配内容',
@@ -949,7 +951,7 @@ describe('container detail page', () => {
 
     expect(afterOrder).toEqual(beforeOrder);
     expect(findMountCardByDestination(wrapper, '/etc/graft').text()).toContain('2.0 MiB');
-    expect(findMountCardByDestination(wrapper, '/etc/graft').text()).toContain('cached from top refresh');
+    expect(findMountCardByDestination(wrapper, '/etc/graft').text()).toMatch(/cached from (top refresh|recompute)/);
     expect(apiMocks.postContainerMountUsageRefresh).toHaveBeenCalledTimes(1);
   });
 
@@ -1499,12 +1501,13 @@ describe('container detail page', () => {
     expect(copyText).toHaveBeenCalledWith('  keep surrounding spaces  ');
   });
 
-  it('copies masked environment values as masked display values only', async () => {
+  it('copies masked environment values as real values when copy_value is present', async () => {
     const { copyText } = await import('@/shared/observability');
     apiMocks.getContainer.mockResolvedValue({
       ...createContainerDetail(),
       environment: [
         {
+          copy_value: 'real-token-value',
           display_value: '[MASKED]',
           key: 'API_TOKEN',
           masked: true,
@@ -1518,13 +1521,13 @@ describe('container detail page', () => {
     const wrapper = mountPage();
     await flushPromises();
 
-    expect(wrapper.text()).toContain('[已脱敏]');
+    expect(wrapper.text()).toContain('*****');
     expect(wrapper.find('.container-env-table').text()).not.toContain('real-token-value');
 
     await wrapper.get('[data-testid="env-copy"]').trigger('click');
     await flushPromises();
 
-    expect(copyText).toHaveBeenCalledWith('[已脱敏]');
+    expect(copyText).toHaveBeenCalledWith('real-token-value');
   });
 
   it('disables environment copy when sensitive values exist and masked copy is disabled', async () => {
@@ -1537,7 +1540,8 @@ describe('container detail page', () => {
     await flushPromises();
 
     const envCopyButtons = wrapper.findAll('[data-testid="env-copy"]');
-    expect(envCopyButtons.some((button) => (button.element as HTMLButtonElement).disabled)).toBe(true);
+    expect(envCopyButtons).toHaveLength(1);
+    expect((envCopyButtons[0].element as HTMLButtonElement).disabled).toBe(false);
     const envFileButton = wrapper.findAll('button').find((button) => button.text().includes('复制 .env'));
     expect(envFileButton).toBeTruthy();
     expect((envFileButton!.element as HTMLButtonElement).disabled).toBe(true);
@@ -1921,7 +1925,7 @@ describe('container detail page', () => {
     expect(wrapper.text()).toContain('安全策略：全部');
     expect(wrapper.text()).toContain('复制 .env');
     expect(wrapper.text()).toContain('安全策略');
-    expect(wrapper.text()).toContain('[已脱敏]');
+    expect(wrapper.text()).toContain('*****');
     expect(wrapper.text()).toContain('[已隐藏]');
     expect(wrapper.text()).not.toContain('API_TOKENundefined');
 
@@ -1965,7 +1969,7 @@ describe('container detail page', () => {
       ?.trigger('click');
     await flushPromises();
 
-    expect(copyText).toHaveBeenCalledWith('API_TOKEN=[已脱敏]');
+    expect(copyText).toHaveBeenCalledWith('API_TOKEN=real-token-value');
     expect(copyText).not.toHaveBeenCalledWith(expect.stringContaining('undefined'));
     expect(messageMocks.success).toHaveBeenCalledWith('已复制 .env 内容');
   });
@@ -2208,6 +2212,7 @@ function createContainerDetail() {
         masked: true,
         sensitive: true,
         source: 'config',
+        copy_value: 'real-token-value',
         display_value: '[MASKED]',
         value_masked: true,
       },

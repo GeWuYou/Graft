@@ -25,6 +25,7 @@ import (
 const (
 	containerResourceType = "container"
 	containerOperationTTL = 30 * time.Second
+	maskedEnvironmentPlaceholder = "*****"
 )
 
 type environmentPlainAccessContextKey struct{}
@@ -581,6 +582,7 @@ func applyEnvironmentPolicy(environment []EnvironmentVariable, options environme
 	mapped := make([]EnvironmentVariable, 0, len(environment))
 	for _, item := range environment {
 		item.Sensitive = item.Sensitive || isSensitiveEnvironmentKey(item.Key)
+		item.CopyValue = ""
 		item.DisplayValue = item.Value
 		item.ValueMasked = false
 		item.ValueHidden = false
@@ -594,8 +596,11 @@ func applyEnvironmentPolicy(environment []EnvironmentVariable, options environme
 			item.Masked = false
 		default:
 			if item.Sensitive {
+				if options.maskedCopyEnabled && strings.TrimSpace(item.Value) != "" {
+					item.CopyValue = item.Value
+				}
 				item.Value = ""
-				item.DisplayValue = "[MASKED]"
+				item.DisplayValue = maskedEnvironmentPlaceholder
 				item.ValueMasked = true
 				item.Masked = true
 			} else {

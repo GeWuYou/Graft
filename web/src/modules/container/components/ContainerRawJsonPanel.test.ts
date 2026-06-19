@@ -36,7 +36,7 @@ describe('ContainerRawJsonPanel', () => {
     const wrapper = mountPanel();
 
     expect(wrapper.text()).toContain('原始 JSON');
-    expect(wrapper.text()).toContain('当前策略：敏感值按脱敏脱敏展示，复制时仅复制脱敏后的 JSON。');
+    expect(wrapper.text()).toContain('当前策略：敏感值按脱敏脱敏展示，界面仍显示 *****，复制时可获得真实值 JSON。');
     expect(wrapper.text()).toContain('字段数 7');
     expect(wrapper.text()).toContain('已脱敏 1');
     expect(wrapper.text()).toContain('环境变量 2');
@@ -48,7 +48,7 @@ describe('ContainerRawJsonPanel', () => {
   });
 
   it('switches to source mode and copies formatted json', async () => {
-    const wrapper = mountPanel();
+    const wrapper = mountPanel(createRawValue(), createCopyValue());
 
     await wrapper.get('select').setValue('source');
     await wrapper.vm.$nextTick();
@@ -61,7 +61,8 @@ describe('ContainerRawJsonPanel', () => {
       .find((button) => button.text().includes('复制'))
       ?.trigger('click');
 
-    expect(testMocks.copyText).toHaveBeenCalledWith(expect.stringContaining('"environment_policy": "masked"'));
+    expect(testMocks.copyText).toHaveBeenCalledWith(expect.stringContaining('"copy_value": "real-token-value"'));
+    expect(testMocks.copyText).not.toHaveBeenCalledWith(expect.stringContaining('"value": "[MASKED]"'));
     expect(testMocks.messageSuccess).toHaveBeenCalledWith('内容已复制。');
   });
 
@@ -117,7 +118,7 @@ describe('ContainerRawJsonPanel', () => {
       sourceLabel: '源码视图',
       treeLabel: '树形视图',
       copyLabel: '复制',
-      copyMaskedTooltip: '复制脱敏后的 JSON',
+      copyMaskedTooltip: '复制包含敏感环境变量真实值的 JSON',
       copyDisabledMessage: '当前系统配置禁止复制包含敏感字段的 JSON',
       copySuccessLabel: '内容已复制。',
       copyErrorLabel: '内容复制失败。',
@@ -147,13 +148,14 @@ describe('ContainerRawJsonPanel', () => {
   });
 });
 
-function mountPanel(value: unknown = createRawValue()) {
+function mountPanel(value: unknown = createRawValue(), copyValue: unknown = value) {
   return mount(ContainerRawJsonPanel, {
     props: {
+      copyValue,
       value,
       title: '原始 JSON',
       description: '容器原始 JSON 调试视图。',
-      policyMessage: '当前策略：敏感值按脱敏脱敏展示，复制时仅复制脱敏后的 JSON。',
+      policyMessage: '当前策略：敏感值按脱敏脱敏展示，界面仍显示 *****，复制时可获得真实值 JSON。',
       rawCopyEnabled: true,
       searchPlaceholder: '搜索字段或内容',
       rootLabel: 'container',
@@ -162,7 +164,7 @@ function mountPanel(value: unknown = createRawValue()) {
       sourceLabel: '源码视图',
       treeLabel: '树形视图',
       copyLabel: '复制',
-      copyMaskedTooltip: '复制脱敏后的 JSON',
+      copyMaskedTooltip: '复制包含敏感环境变量真实值的 JSON',
       copyDisabledMessage: '当前系统配置禁止复制包含敏感字段的 JSON',
       copySuccessLabel: '内容已复制。',
       copyErrorLabel: '内容复制失败。',
@@ -250,6 +252,27 @@ function mountPanel(value: unknown = createRawValue()) {
       },
     },
   });
+}
+
+function createCopyValue() {
+  return {
+    ...createRawValue(),
+    environment: [
+      {
+        key: 'APP_MODE',
+        value: 'production',
+      },
+      {
+        key: 'API_TOKEN',
+        copy_value: 'real-token-value',
+        display_value: '[MASKED]',
+        value: 'real-token-value',
+        value_masked: true,
+        sensitive: true,
+        masked: true,
+      },
+    ],
+  };
 }
 
 function createRawValue() {

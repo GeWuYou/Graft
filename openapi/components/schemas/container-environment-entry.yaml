@@ -11,6 +11,9 @@ properties:
   value:
     type: string
     description: Raw environment variable value. Present only when the effective policy allows plaintext display.
+  copy_value:
+    type: string
+    description: Copy-only raw environment variable value. Present only when the effective policy keeps display masked but allows authorized real-value copy.
   display_value:
     type: string
     description: Stable display value rendered under the effective environment policy.

@@ -43,7 +43,8 @@ func detailWithHealthcheckAndRuntimeStability() Detail {
 			{
 				Key:          "API_TOKEN",
 				Value:        "",
-				DisplayValue: "[MASKED]",
+				CopyValue:    "secret-token",
+				DisplayValue: maskedEnvironmentPlaceholder,
 				ValueMasked:  true,
 				Masked:       true,
 				Sensitive:    true,
@@ -122,8 +123,11 @@ func assertMappedEnvironmentDisplayValue(t *testing.T, environment *[]containerg
 	if environment == nil || len(*environment) != 1 {
 		t.Fatalf("expected one mapped environment entry, got %#v", environment)
 	}
-	if (*environment)[0].DisplayValue == nil || *(*environment)[0].DisplayValue != "[MASKED]" {
+	if (*environment)[0].DisplayValue == nil || *(*environment)[0].DisplayValue != maskedEnvironmentPlaceholder {
 		t.Fatalf("expected mapped environment display value, got %#v", environment)
+	}
+	if (*environment)[0].CopyValue == nil || *(*environment)[0].CopyValue != "secret-token" {
+		t.Fatalf("expected mapped copy_value, got %#v", environment)
 	}
 	if (*environment)[0].ValueMasked == nil || !*(*environment)[0].ValueMasked {
 		t.Fatalf("expected mapped value_masked marker, got %#v", environment)
@@ -227,9 +231,5 @@ func float64Ptr(value float64) *float64 {
 }
 
 func boolPtr(value bool) *bool {
-	return &value
-}
-
-func stringPtr(value string) *string {
 	return &value
 }

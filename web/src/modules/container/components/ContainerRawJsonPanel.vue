@@ -94,6 +94,7 @@ type ChipItem = {
 
 const props = defineProps<{
   collapseAllLabel: string;
+  copyValue?: unknown;
   copyDisabledMessage: string;
   copyErrorLabel: string;
   copyLabel: string;
@@ -166,8 +167,15 @@ const serializedJson = computed(() => {
 
 const maskedValue = computed(() => serializedJson.value.value);
 const formattedJson = computed(() => serializedJson.value.json);
+const copyJsonContent = computed(() => {
+  try {
+    return JSON.stringify(props.copyValue ?? props.value, null, 2);
+  } catch {
+    return '';
+  }
+});
 const hasError = computed(() => !isEmpty.value && serializedJson.value.error);
-const copyDisabled = computed(() => !formattedJson.value || props.rawCopyEnabled === false);
+const copyDisabled = computed(() => !copyJsonContent.value || props.rawCopyEnabled === false);
 const copyTooltip = computed(() => (copyDisabled.value ? props.copyDisabledMessage : props.copyMaskedTooltip));
 const visibleText = computed(() => {
   const keyword = searchValue.value.trim().toLowerCase();
@@ -238,7 +246,7 @@ async function copyJson() {
     return;
   }
   try {
-    const copied = await copyText(formattedJson.value);
+    const copied = await copyText(copyJsonContent.value);
     if (!copied) {
       MessagePlugin.error(props.copyErrorLabel);
       return;

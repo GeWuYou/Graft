@@ -286,6 +286,7 @@ type MountUsage struct {
 type EnvironmentVariable struct {
 	Key          string
 	Value        string
+	CopyValue    string
 	DisplayValue string
 	ValueMasked  bool
 	ValueHidden  bool

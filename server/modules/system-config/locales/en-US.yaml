@@ -100,8 +100,8 @@ systemConfig.container.ops.container.actions.dangerous_enabled.title: Dangerous 
 systemConfig.container.ops.container.actions.dangerous_enabled.description: Whether start, stop, restart, and future high-risk actions are enabled.
 systemConfig.container.ops.container.environment.policy.title: Environment Value Display Policy
 systemConfig.container.ops.container.environment.policy.description: Controls how container environment variable values are returned by detail reads.
-systemConfig.container.ops.container.environment.masked_copy_enabled.title: Allow Copying Masked Environment Values
-systemConfig.container.ops.container.environment.masked_copy_enabled.description: When enabled, container raw JSON and environment lists may copy masked display values; when disabled, JSON and environment copy actions are blocked whenever sensitive environment variables are present.
+systemConfig.container.ops.container.environment.masked_copy_enabled.title: Allow Copying Real Values From Masked Environment Entries
+systemConfig.container.ops.container.environment.masked_copy_enabled.description: When enabled, users who already have plaintext environment read access may obtain real sensitive values from environment list copy, .env copy, and raw JSON copy while the page still displays *****. When disabled, those copy flows return only masked display results and never expose real values.
 systemConfig.container.ops.container.environment.policy.enum.hidden.label: Hidden
 systemConfig.container.ops.container.environment.policy.enum.hidden.description: Return only environment variable names and sensitivity metadata.
 systemConfig.container.ops.container.environment.policy.enum.masked.label: Masked

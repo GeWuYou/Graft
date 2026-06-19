@@ -249,7 +249,7 @@ func TestServiceAppliesEnvironmentDisplayPolicy(t *testing.T) {
 				firstValue:        "prod",
 				firstDisplay:      "prod",
 				secondMasked:      true,
-				secondDisplay:     "[MASKED]",
+				secondDisplay:     maskedEnvironmentPlaceholder,
 				secondValueMasked: true,
 			},
 		},
@@ -261,7 +261,7 @@ func TestServiceAppliesEnvironmentDisplayPolicy(t *testing.T) {
 				firstValue:        "prod",
 				firstDisplay:      "prod",
 				secondMasked:      true,
-				secondDisplay:     "[MASKED]",
+				secondDisplay:     maskedEnvironmentPlaceholder,
 				secondValueMasked: true,
 			},
 		},
@@ -308,7 +308,7 @@ func TestServiceExposesMaskedEnvironmentCopyValueOnlyWhenConfigured(t *testing.T
 	if err != nil {
 		t.Fatalf("detail: %v", err)
 	}
-	if detail.Environment[1].Value != "" || detail.Environment[1].DisplayValue != "[MASKED]" || !detail.Environment[1].ValueMasked {
+	if detail.Environment[1].Value != "" || detail.Environment[1].CopyValue != "" || detail.Environment[1].DisplayValue != maskedEnvironmentPlaceholder || !detail.Environment[1].ValueMasked {
 		t.Fatalf("expected masked display state by default, got %#v", detail.Environment[1])
 	}
 
@@ -321,8 +321,25 @@ func TestServiceExposesMaskedEnvironmentCopyValueOnlyWhenConfigured(t *testing.T
 	if err != nil {
 		t.Fatalf("detail with copy enabled: %v", err)
 	}
-	if detail.Environment[1].Value != "" || !detail.Environment[1].Masked || detail.Environment[1].DisplayValue != "[MASKED]" {
+	if detail.Environment[1].Value != "" || detail.Environment[1].CopyValue != "secret" || !detail.Environment[1].Masked || detail.Environment[1].DisplayValue != maskedEnvironmentPlaceholder {
 		t.Fatalf("expected masked display value to remain stable when copy is enabled, got %#v", detail.Environment[1])
+	}
+}
+
+func TestServiceHiddenEnvironmentPolicyNeverExposesCopyValue(t *testing.T) {
+	t.Parallel()
+
+	service := newEnvironmentPolicyTestServiceWithValues(
+		t,
+		containercontract.ContainerEnvironmentPolicyHidden.String(),
+		map[string]bool{containercontract.ContainerEnvironmentMaskedCopyEnabledConfig.String(): true},
+	)
+	detail, err := service.Detail(withEnvironmentPlainAccess(context.Background()), Ref{Value: "web"})
+	if err != nil {
+		t.Fatalf("detail: %v", err)
+	}
+	if detail.Environment[1].CopyValue != "" || detail.Environment[1].Value != "" || !detail.Environment[1].ValueHidden {
+		t.Fatalf("expected hidden policy to block real-value copy, got %#v", detail.Environment[1])
 	}
 }
 
