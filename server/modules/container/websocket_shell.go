@@ -41,6 +41,8 @@ func (r routeRuntime) handleShellWebSocket(ginCtx *gin.Context) {
 	r.runShellWebSocketBridge(requestCtx, ginCtx, ref, handshake)
 }
 
+// shellHandshakeFromContext 从 Gin 上下文中检索 shell 握手。
+// 若握手存在且类型正确，返回握手和 true；否则返回零值握手和 false。
 func shellHandshakeFromContext(ginCtx *gin.Context) (ShellHandshake, bool) {
 	handshakeValue, exists := ginCtx.Get("container.shell.handshake")
 	if !exists {
@@ -170,6 +172,9 @@ func (r routeRuntime) authenticateShellWebSocketRequest(ginCtx *gin.Context) (co
 	return requestCtx, requestAuth, false
 }
 
+// isShellDisconnectError reports whether an error is a shell disconnection.
+// It returns true if the error is EOF, a closed connection, or a WebSocket close code,
+// and false otherwise.
 func isShellDisconnectError(err error) bool {
 	if err == nil {
 		return false

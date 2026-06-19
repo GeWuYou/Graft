@@ -76,7 +76,7 @@ type Bridge struct {
 	closed  chan struct{}
 }
 
-// NewBridge binds one websocket connection to one terminal session.
+// NewBridge 将一个 WebSocket 连接与一个终端会话绑定。
 func NewBridge(conn *websocket.Conn, session Session) *Bridge {
 	return &Bridge{conn: conn, session: session, closed: make(chan struct{})}
 }
@@ -228,6 +228,7 @@ func (b *Bridge) handleClientMessage(ctx context.Context, message ClientMessage)
 	}
 }
 
+// positiveUint converts an int to uint, returning the value if positive and zero if less than or equal to zero.
 func positiveUint(value int) uint {
 	if value <= 0 {
 		return 0

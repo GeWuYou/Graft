@@ -163,6 +163,13 @@ export function postContainerMountUsageRefresh(
   }) as Promise<ContainerMountUsage>;
 }
 
+/**
+ * Creates a shell session for the specified container.
+ *
+ * @param containerId - The ID of the container
+ * @param body - The shell session request parameters
+ * @returns The created shell session response
+ */
 export function postContainerShellSession(
   containerId: PostContainerShellSessionPathParams['id'],
   body: ContainerShellSessionRequest & PostContainerShellSessionRequest,

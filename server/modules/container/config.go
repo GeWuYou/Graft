@@ -230,6 +230,7 @@ type containerConfigGroupInfo struct {
 	description    string
 }
 
+// containerConfigGroupMetadata returns the configuration group metadata including the group key and description i18n key for the given group. If the group is not recognized, the general group metadata is returned.
 func containerConfigGroupMetadata(group string) containerConfigGroupInfo {
 	switch group {
 	case containerConfigRuntimeGroup:

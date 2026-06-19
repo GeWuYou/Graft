@@ -28,12 +28,19 @@ export function buildContainerDetailApiPath(containerId: string) {
 /**
  * Builds the API path for retrieving logs of a specific container.
  *
- * @returns The API path for fetching the container's logs.
+ * @param containerId - The ID of the container
+ * @returns The API path for fetching the container's logs
  */
 export function buildContainerLogsApiPath(containerId: string) {
   return CONTAINER_API_PATH.LOGS.replace('{id}', encodeContainerPathParam(containerId));
 }
 
+/**
+ * Builds the API path for accessing container shell sessions.
+ *
+ * @param containerId - The container identifier
+ * @returns The container shell sessions API path
+ */
 export function buildContainerShellSessionsApiPath(containerId: string) {
   return CONTAINER_API_PATH.SHELL_SESSIONS.replace('{id}', encodeContainerPathParam(containerId));
 }

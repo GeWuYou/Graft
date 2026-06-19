@@ -253,7 +253,7 @@ type ContainerConfig struct {
 //
 // 失败语义：
 //   - 当显式指定的 `GRAFT_ENV_FILE` 无法读取时直接返回错误，避免启动时误用过期默认值。
-//   - 当最终配置不满足运行时最小要求时返回 Validate 的校验错误。
+// 当最终配置不满足运行时最小要求时返回验证错误。
 func Load() (*Config, error) {
 	if err := loadDotenv(); err != nil {
 		return nil, err
@@ -425,6 +425,7 @@ func validateHTTPConfig(c *Config) error {
 	return nil
 }
 
+// validateHTTPXConfig 验证 HTTPX 配置。检查访问日志保留时间和慢查询阈值大于零，规范化并验证访问日志控制台策略为支持的值之一，并规范化 WebSocket 允许来源列表。
 func validateHTTPXConfig(c *Config) error {
 	if c.HTTPX.AccessLogRetention <= 0 {
 		return errors.New("GRAFT_HTTPX_ACCESS_LOG_RETENTION must be greater than zero")
@@ -662,6 +663,8 @@ func validateAuthConfig(c *Config) error {
 	return nil
 }
 
+// validateContainerConfig validates container configuration fields.
+// Returns nil if the configuration is valid, or an error describing the validation failure.
 func validateContainerConfig(c *Config) error {
 	c.Container.Runtime = strings.TrimSpace(c.Container.Runtime)
 	if c.Container.Runtime == "" {
@@ -786,6 +789,7 @@ func isDotenvSearchBoundary(dir string) bool {
 	return false
 }
 
+// setDefaults sets default configuration values for all supported configuration keys, including environment-dependent retention durations for logging and auditing.
 func setDefaults(reader *viper.Viper) {
 	reader.SetDefault("app.name", defaultAppName)
 	reader.SetDefault("app.env", defaultAppEnv)
@@ -836,20 +840,25 @@ func setDefaults(reader *viper.Viper) {
 	reader.SetDefault("ops.container.shell.enabled", false)
 }
 
+// parseLocaleList 将逗号分隔的地域字符串解析为规范化的地域值。
+// 结果已去除首尾空白、空项和重复值。
 func parseLocaleList(raw string) []string {
 	items, _ := normalizeLocaleList(strings.Split(raw, ","))
 	return items
 }
 
+// parseCommaSeparatedList parses a comma-separated string into a normalized slice, trimming whitespace, removing empty values, and deduplicating.
 func parseCommaSeparatedList(raw string) []string {
 	return normalizeStringList(strings.Split(raw, ","))
 }
 
+// parseModuleList parses a comma-separated string into a normalized list of module identifiers.
 func parseModuleList(raw string) []string {
 	items, _ := normalizeModuleList(strings.Split(raw, ","))
 	return items
 }
 
+// normalizeStringList removes empty strings and deduplicates the input list while preserving the order of first occurrence.
 func normalizeStringList(items []string) []string {
 	normalized := make([]string, 0, len(items))
 	seen := make(map[string]struct{}, len(items))
@@ -867,6 +876,7 @@ func normalizeStringList(items []string) []string {
 	return normalized
 }
 
+// resolveDocsEnabled determines whether documentation should be enabled based on explicit configuration or environment default.
 func resolveDocsEnabled(reader *viper.Viper) bool {
 	if reader == nil {
 		return defaultDocsEnabledForEnv(defaultAppEnv)

@@ -142,7 +142,7 @@ func NewMemoryService() Service {
 	}
 }
 
-// NewMemoryServiceWithClock creates an in-memory realtime ticket service using the supplied clock.
+// NewMemoryServiceWithClock creates an in-memory realtime ticket service using the provided clock, or the system clock if clock is nil.
 func NewMemoryServiceWithClock(clock Clock) Service {
 	if clock == nil {
 		clock = systemClock{}
@@ -270,6 +270,7 @@ func (s *memoryService) pruneExpiredLocked(now time.Time) {
 	}
 }
 
+// randomSecret 生成指定大小的随机密钥字符串，并编码为十六进制。若 size 小于或等于零，则使用 minTicketSecretBytes。若随机字节生成失败，返回相应错误。
 func randomSecret(size int) (string, error) {
 	if size <= 0 {
 		size = minTicketSecretBytes
@@ -281,11 +282,13 @@ func randomSecret(size int) (string, error) {
 	return hex.EncodeToString(buf), nil
 }
 
+// hashTicketSecret returns the SHA-256 digest of the given secret as a hex-encoded string.
 func hashTicketSecret(secret string) string {
 	sum := sha256.Sum256([]byte(secret))
 	return hex.EncodeToString(sum[:])
 }
 
+// SplitTicket 将 ticket 字符串解析为 ticketID 和密钥两个组件。Ticket 必须采用 ticketID.secret 的格式（以点号分隔）。若 ticket 为空返回 ErrTicketRequired，若格式无效或任一组件为空返回 ErrInvalidTicket。
 func splitTicket(raw string) (string, string, error) {
 	if raw == "" {
 		return "", "", ErrTicketRequired
@@ -297,6 +300,7 @@ func splitTicket(raw string) (string, string, error) {
 	return strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1]), nil
 }
 
+// validateStoredTicket validates a stored ticket against the current time, secret, scope, and resource binding.
 func validateStoredTicket(
 	record storedTicket,
 	now time.Time,

@@ -95,6 +95,12 @@ function createTDesignVueNextResolver(): ComponentResolverObject {
   };
 }
 
+/**
+ * 为 Vue 项目生成 Vite 配置对象。
+ *
+ * @param mode - 构建模式，控制 TDesign 自动导入、Mock 服务器和其他功能的启用
+ * @returns 完整的 Vite 用户配置
+ */
 export function createViteConfig(mode: string): UserConfig {
   const env = loadEnv(mode, CWD, '');
   const base = env.VITE_BASE_URL || '/';

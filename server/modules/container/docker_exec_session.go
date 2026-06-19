@@ -44,6 +44,7 @@ type dockerExecSession struct {
 	done      chan struct{}
 }
 
+// newDockerExecSession creates a new Docker exec session with the given client, container ID, and command.
 func newDockerExecSession(client dockerExecClient, containerID string, command string) *dockerExecSession {
 	return &dockerExecSession{
 		client:      client,
@@ -200,6 +201,8 @@ func (s *dockerExecSession) pushError(err error) {
 	}
 }
 
+// consoleSize 将终端大小转换为 Docker exec 支持的控制台大小格式。
+// 如果行数或列数为零，返回 nil；否则返回指向包含 [行数, 列数] 的数组指针。
 func consoleSize(size terminal.Size) *[2]uint {
 	if size.Cols == 0 || size.Rows == 0 {
 		return nil

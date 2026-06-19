@@ -13,6 +13,11 @@ const TERMINAL_FONT_FAMILY = [
   'monospace',
 ].join(', ');
 
+/**
+ * 创建终端的主题和样式配置选项。
+ *
+ * @returns 包含终端外观、字体、光标和颜色主题的配置对象
+ */
 export function createTerminalThemeOptions(): Pick<
   ITerminalOptions,
   | 'allowProposedApi'

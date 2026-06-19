@@ -73,6 +73,7 @@ type containerServiceOptions struct {
 	realtimeTickets         realtimeauth.Service
 }
 
+// newContainerService constructs a container service with configuration from the module context.
 func newContainerService(ctx *module.Context, moduleName string) (*service, error) {
 	options := containerOptionsFromConfig(ctx)
 	runtime := Runtime(disabledRuntime{})
@@ -97,7 +98,7 @@ func newContainerService(ctx *module.Context, moduleName string) (*service, erro
 	})
 }
 
-// newService creates a container service from the provided options, normalizing configuration values and applying defaults for optional components.
+// newService 创建容器服务，规范化配置参数并为缺失的组件应用默认实现。
 func newService(options containerServiceOptions) (*service, error) {
 	if options.defaultTail <= 0 {
 		options.defaultTail = defaultContainerLogsDefaultTail
@@ -1292,6 +1293,9 @@ func (s *service) OpenShellTerminalSession(ctx context.Context, ref Ref, handsha
 	return session, nil
 }
 
+// normalizeShellSessionRequest 验证并规范化 Shell 会话请求。
+// 确保命令为 sh、bash 或 ash 之一，且终端行列尺寸均为正数。
+// 返回规范化后的请求或错误。
 func normalizeShellSessionRequest(request ShellSessionRequest) (ShellSessionRequest, error) {
 	command := strings.TrimSpace(strings.ToLower(request.Command))
 	switch command {
@@ -1309,12 +1313,15 @@ func normalizeShellSessionRequest(request ShellSessionRequest) (ShellSessionRequ
 	}, nil
 }
 
+// buildShellWebSocketURL constructs a WebSocket URL for accessing the shell of a specified container.
 func buildShellWebSocketURL(ref Ref, ticket string) string {
 	values := url.Values{}
 	values.Set("ticket", ticket)
 	return "/api" + containercontract.ContainerAPIGroup + "/" + url.PathEscape(ref.Value) + "/shell/ws?" + values.Encode()
 }
 
+// mapRealtimeTicketError 将实时票证错误映射为对应的 Shell 特定错误。
+// 若错误为未知类型，则返回会话失败错误。
 func mapRealtimeTicketError(err error) error {
 	switch {
 	case errors.Is(err, realtimeauth.ErrExpiredTicket):
@@ -1328,6 +1335,7 @@ func mapRealtimeTicketError(err error) error {
 	}
 }
 
+// CurrentRequestClientIP 从请求审计上下文中提取客户端 IP 地址。如果审计上下文不存在，返回空字符串。
 func currentRequestClientIP(ctx context.Context) string {
 	requestAudit, ok := httpx.RequestAuditContextFromContext(ctx)
 	if !ok {
@@ -1336,6 +1344,7 @@ func currentRequestClientIP(ctx context.Context) string {
 	return strings.TrimSpace(requestAudit.ClientIP)
 }
 
+// currentRequestUserAgent returns the User-Agent from the current request's audit context, or an empty string if unavailable.
 func currentRequestUserAgent(ctx context.Context) string {
 	requestAudit, ok := httpx.RequestAuditContextFromContext(ctx)
 	if !ok {

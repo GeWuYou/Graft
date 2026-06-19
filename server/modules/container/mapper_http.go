@@ -214,6 +214,7 @@ func toLogs(logs Logs) containergen.ContainerLogResponse {
 	}
 }
 
+// toShellSession 将 ShellSession 域模型转换为 OpenAPI 响应类型 ContainerShellSessionResponse。
 func toShellSession(session ShellSession) containergen.ContainerShellSessionResponse {
 	return containergen.ContainerShellSessionResponse{
 		Cols:         session.Cols,

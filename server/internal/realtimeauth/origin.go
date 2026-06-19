@@ -13,7 +13,7 @@ import (
 // ErrOriginDenied indicates that the websocket request origin is not allowlisted.
 var ErrOriginDenied = errors.New("websocket origin denied")
 
-// ValidateOrigin ensures the websocket Origin header matches one configured allowlist entry.
+// ValidateOrigin validates that the provided WebSocket Origin header matches an entry in the allowlist. It returns nil if a match is found, and ErrOriginDenied otherwise.
 func ValidateOrigin(requestOrigin string, allowedOrigins []string) error {
 	origin := strings.TrimSpace(requestOrigin)
 	if origin == "" {

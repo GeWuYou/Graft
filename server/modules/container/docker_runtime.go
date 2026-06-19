@@ -208,6 +208,7 @@ func (r *DockerRuntime) Shell(ctx context.Context, ref Ref, command string) (ter
 	return newDockerExecSession(r.client, inspect.ID, command), nil
 }
 
+// mapDockerShellError 将 Docker Shell 执行错误映射为特定领域的错误类型。
 func mapDockerShellError(err error) error {
 	if err == nil {
 		return nil
