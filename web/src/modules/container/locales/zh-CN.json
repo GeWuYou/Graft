@@ -286,11 +286,41 @@
         "overview": "概览",
         "resources": "资源",
         "logs": "日志",
+        "shell": "Shell",
         "health": "健康",
         "config": "配置",
         "network": "网络",
         "storage": "挂载",
         "raw": "原始 JSON"
+      },
+      "shell": {
+        "title": "Shell",
+        "description": "通过交互式终端访问当前容器，关闭页面后自动断开。",
+        "disabled": "Shell 功能未启用",
+        "disabledHint": "请在系统配置中开启 ops.container.shell.enabled 后使用。",
+        "forbidden": "无 Shell 访问权限",
+        "forbiddenHint": "需要权限：ops.container.shell",
+        "commands": {
+          "sh": "SH",
+          "bash": "Bash",
+          "ash": "Ash"
+        },
+        "empty": "Shell 会话未启动",
+        "emptyHint": "切换到 Shell 标签页后将按当前 Shell 类型创建交互式会话。",
+        "connecting": "连接中",
+        "connectingHint": "正在准备交互式终端会话。",
+        "connected": "已连接",
+        "disconnected": "已断开",
+        "connectionFailed": "连接失败",
+        "reconnect": "重连",
+        "sessionFailed": "Shell 会话创建失败。",
+        "ticketUsed": "Shell 会话票据已被使用，请重新连接。",
+        "notRunning": "容器未运行",
+        "notRunningHint": "当前容器未处于运行状态，无法建立交互式 Shell 会话。",
+        "ticketExpired": "Shell 会话票据已过期，请重新连接。",
+        "connectionClosed": "Shell 连接已关闭。",
+        "originDenied": "当前请求来源不允许建立容器 Shell 连接。",
+        "transportError": "终端传输连接失败，请确认前端 WebSocket 代理和服务端来源白名单配置。"
       },
       "resources": {
         "cpu": "CPU",
@@ -633,7 +663,11 @@
         "invalidListQuery": "容器列表查询参数不合法",
         "invalidLogQuery": "容器日志查询参数不合法",
         "logsTooLarge": "容器日志请求超过允许上限",
-        "timeout": "容器运行时请求超时"
+        "timeout": "容器运行时请求超时",
+        "shellDisabled": "请在系统配置中开启 ops.container.shell.enabled 后使用。",
+        "shellForbidden": "需要权限：ops.container.shell",
+        "shellContainerNotRunning": "当前容器未处于运行状态，无法建立交互式 Shell 会话。",
+        "shellUnsupportedControlMessage": "当前终端控制消息不受支持。"
       }
     }
   }

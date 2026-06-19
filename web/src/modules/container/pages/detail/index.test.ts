@@ -12,6 +12,10 @@ import type { ContainerMountUsage } from '../../types/container';
 import ContainerDetailPage from './index.vue';
 
 const sourceText = readFileSync(join(process.cwd(), 'src/modules/container/pages/detail/index.vue'), 'utf8');
+const shellPanelSourceText = readFileSync(
+  join(process.cwd(), 'src/modules/container/components/ContainerShellPanel.vue'),
+  'utf8',
+);
 const overviewPanelSourceText = readFileSync(
   join(process.cwd(), 'src/modules/container/pages/detail/components/ContainerOverviewPanel.vue'),
   'utf8',
@@ -449,6 +453,19 @@ vi.mock('../../api/container', () => ({
   getContainerLogs: apiMocks.getContainerLogs,
   getContainerMountUsage: apiMocks.getContainerMountUsage,
   postContainerMountUsageRefresh: apiMocks.postContainerMountUsageRefresh,
+}));
+
+vi.mock('../../components/ContainerShellPanel.vue', () => ({
+  default: defineComponent({
+    props: ['active', 'containerId', 'containerState'],
+    setup: (props) => () =>
+      h('div', {
+        'data-testid': 'container-shell-panel-stub',
+        'data-active': String(Boolean(props.active)),
+        'data-container-id': String(props.containerId ?? ''),
+        'data-container-state': String(props.containerState ?? ''),
+      }),
+  }),
 }));
 
 vi.mock('tdesign-vue-next/es/message', () => ({
@@ -1177,6 +1194,44 @@ describe('container detail page', () => {
 
     expect(apiMocks.getContainer).toHaveBeenCalledTimes(2);
     vi.useRealTimers();
+  });
+
+  it('renders the shell panel through the existing route query tab lifecycle', async () => {
+    routeState.route.query.tab = 'shell';
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const shellPanel = wrapper.get('[data-testid="container-shell-panel-stub"]');
+    expect(shellPanel.attributes('data-active')).toBe('true');
+    expect(shellPanel.attributes('data-container-id')).toBe('container-1');
+    expect(shellPanel.attributes('data-container-state')).toBe('running');
+  });
+
+  it('activates the shell panel when the existing tab header switches route query to shell', async () => {
+    routeState.route.query.tab = 'config';
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.get('[data-testid="container-shell-panel-stub"]').attributes('data-active')).toBe('false');
+
+    await wrapper.get('[data-testid="tab-shell"]').trigger('click');
+    await flushPromises();
+
+    expect(routerMocks.replace).toHaveBeenCalledWith({
+      params: { id: 'container-1' },
+      query: { tab: 'shell' },
+    });
+    expect(wrapper.get('[data-testid="container-shell-panel-stub"]').attributes('data-active')).toBe('true');
+  });
+
+  it('keeps the shell tab on a bounded viewport height chain', () => {
+    expect(sourceText).toContain('.container-detail-tabs-card :deep(.t-card__body) {');
+    expect(sourceText).toContain('display: flex;');
+    expect(shellPanelSourceText).toContain(
+      '--container-shell-terminal-height: clamp(640px, calc(100vh - var(--graft-page-bottom-safe-area) - 320px), 860px);',
+    );
+    expect(shellPanelSourceText).toContain('.container-shell-panel__terminal {');
+    expect(shellPanelSourceText).toContain('height: var(--container-shell-terminal-height);');
   });
 
   it('pauses auto refresh while hidden and refreshes once when visible again', async () => {
@@ -2624,9 +2679,7 @@ function mountPage() {
             (_props, { emit, slots }) =>
             () =>
               h('div', { 'data-testid': 'container-detail-tabs' }, [
-                h(
-                  'div',
-                  { 'data-testid': 'container-detail-tabs-header' },
+                h('div', { 'data-testid': 'container-detail-tabs-header' }, [
                   h(
                     'button',
                     {
@@ -2638,7 +2691,18 @@ function mountPage() {
                     },
                     'logs',
                   ),
-                ),
+                  h(
+                    'button',
+                    {
+                      'data-testid': 'tab-shell',
+                      onClick: () => {
+                        emit('update:value', 'shell');
+                        emit('change', 'shell');
+                      },
+                    },
+                    'shell',
+                  ),
+                ]),
                 slots.default?.(),
               ]),
         }),

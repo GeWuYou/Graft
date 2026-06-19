@@ -11,6 +11,7 @@ import {
   buildContainerMountUsageRefreshApiPath,
   buildContainerRemoveApiPath,
   buildContainerRestartApiPath,
+  buildContainerShellSessionsApiPath,
   buildContainerStartApiPath,
   buildContainerStopApiPath,
   CONTAINER_API_PATH,
@@ -28,6 +29,8 @@ import type {
   ContainerMountUsagePathParams,
   ContainerMountUsageRefreshPathParams,
   ContainerRemoveRequest,
+  ContainerShellSessionRequest,
+  ContainerShellSessionResponse,
 } from '../types/container';
 
 type ContainerListPath = (typeof CONTAINER_API_PATH)['LIST'];
@@ -57,6 +60,16 @@ type PostContainerMountUsageRefreshOperation = paths[ContainerMountUsageRefreshP
 type PostContainerMountUsageRefreshEnvelope =
   PostContainerMountUsageRefreshOperation['responses'][200]['content']['application/json'];
 type PostContainerMountUsageRefreshData = NonNullable<PostContainerMountUsageRefreshEnvelope['data']>;
+
+type ContainerShellSessionsPath = (typeof CONTAINER_API_PATH)['SHELL_SESSIONS'];
+type PostContainerShellSessionOperation = paths[ContainerShellSessionsPath]['post'];
+type PostContainerShellSessionEnvelope =
+  PostContainerShellSessionOperation['responses'][200]['content']['application/json'];
+type PostContainerShellSessionData = NonNullable<PostContainerShellSessionEnvelope['data']>;
+type PostContainerShellSessionPathParams = PostContainerShellSessionOperation['parameters']['path'];
+type PostContainerShellSessionRequest = NonNullable<
+  PostContainerShellSessionOperation['requestBody']
+>['content']['application/json'];
 
 type ContainerStartPath = (typeof CONTAINER_API_PATH)['START'];
 type PostContainerStartOperation = paths[ContainerStartPath]['post'];
@@ -148,6 +161,23 @@ export function postContainerMountUsageRefresh(
   return request.post<PostContainerMountUsageRefreshData>({
     url: buildContainerMountUsageRefreshApiPath(containerId, mountId),
   }) as Promise<ContainerMountUsage>;
+}
+
+/**
+ * Creates a shell session for the specified container.
+ *
+ * @param containerId - The ID of the container
+ * @param body - The shell session request parameters
+ * @returns The created shell session response
+ */
+export function postContainerShellSession(
+  containerId: PostContainerShellSessionPathParams['id'],
+  body: ContainerShellSessionRequest & PostContainerShellSessionRequest,
+) {
+  return request.post<PostContainerShellSessionData>({
+    url: buildContainerShellSessionsApiPath(containerId),
+    data: body,
+  }) as Promise<ContainerShellSessionResponse>;
 }
 
 /**

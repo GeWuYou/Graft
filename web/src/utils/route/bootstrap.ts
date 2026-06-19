@@ -36,6 +36,15 @@ export function transformBootstrapMenusToRoutes(menus: BootstrapMenu[]): RouteRe
   return routes;
 }
 
+/**
+ * Converts global route registrations into route record definitions.
+ *
+ * Each registration is transformed into a top-level route with an index child route.
+ * The breadcrumb title is derived from the domain title, breadcrumb title, or title
+ * in that priority order.
+ *
+ * @returns An array of route records corresponding to the input registrations.
+ */
 export function transformGlobalRegistrationsToRoutes(registrations: GlobalRouteRegistration[]): RouteRecordRaw[] {
   return registrations.map((registration) =>
     toRouteRecordRaw({
@@ -44,6 +53,8 @@ export function transformGlobalRegistrationsToRoutes(registrations: GlobalRouteR
       component: LAYOUT,
       meta: {
         ...registration.meta,
+        breadcrumbTitle:
+          registration.meta?.domainTitle ?? registration.meta?.breadcrumbTitle ?? registration.meta?.title,
         hiddenMenu: true,
         single: true,
       },
@@ -55,7 +66,7 @@ export function transformGlobalRegistrationsToRoutes(registrations: GlobalRouteR
           meta: {
             ...registration.meta,
             hiddenMenu: true,
-            hiddenBreadcrumb: true,
+            hiddenBreadcrumb: !registration.meta?.domainTitle,
           },
         }),
       ],

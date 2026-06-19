@@ -37,6 +37,7 @@ export const containerGlobalRouteRegistrations: GlobalRouteRegistration[] = [
       pageSurface: 'form-detail',
       semanticTitle: detailRouteTitle,
       breadcrumbTitle: detailBreadcrumbTitle,
+      domainTitle: listRouteTitle,
       tabGroup: 'ops',
       tabTitle: detailRouteTitle,
       title: detailRouteTitle,

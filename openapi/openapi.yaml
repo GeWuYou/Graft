@@ -196,6 +196,10 @@ paths:
     $ref: ./paths/ops-containers.mount-usage-refresh.yaml
   /api/ops/containers/{id}/logs:
     $ref: ./paths/ops-containers.logs.yaml
+  /api/ops/containers/{id}/shell/sessions:
+    $ref: ./paths/ops-containers.shell-sessions.yaml
+  /api/ops/containers/{id}/shell/ws:
+    $ref: ./paths/ops-containers.shell-ws.yaml
   /api/ops/containers/{id}/start:
     $ref: ./paths/ops-containers.start.yaml
   /api/ops/containers/{id}/stop:
@@ -556,6 +560,10 @@ components:
       $ref: ./components/schemas/container-network.yaml
     ContainerLogResponse:
       $ref: ./components/schemas/container-log-response.yaml
+    ContainerShellSessionRequest:
+      $ref: ./components/schemas/container-shell-session-request.yaml
+    ContainerShellSessionResponse:
+      $ref: ./components/schemas/container-shell-session-response.yaml
     ContainerActionResponse:
       $ref: ./components/schemas/container-action-response.yaml
     ContainerRemoveRequest:
@@ -584,6 +592,8 @@ components:
       $ref: ./components/schemas/enveloped-container-mount-usage-list-response.yaml
     EnvelopedContainerLogResponse:
       $ref: ./components/schemas/enveloped-container-log-response.yaml
+    EnvelopedContainerShellSessionResponse:
+      $ref: ./components/schemas/enveloped-container-shell-session-response.yaml
     EnvelopedContainerActionResponse:
       $ref: ./components/schemas/enveloped-container-action-response.yaml
     EnvelopedContainerBatchActionResponse:

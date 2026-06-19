@@ -1,0 +1,25 @@
+type: object
+required:
+  - command
+  - cols
+  - rows
+properties:
+  command:
+    type: string
+    enum: [sh, bash, ash]
+    description: Requested interactive shell command to execute inside the container.
+    x-enum-varnames:
+      - ContainerShellSessionRequestCommandValueSh
+      - ContainerShellSessionRequestCommandValueBash
+      - ContainerShellSessionRequestCommandValueAsh
+  cols:
+    type: integer
+    minimum: 1
+    maximum: 1000
+    description: Initial terminal column count bound to the issued shell session ticket.
+  rows:
+    type: integer
+    minimum: 1
+    maximum: 1000
+    description: Initial terminal row count bound to the issued shell session ticket.
+additionalProperties: false

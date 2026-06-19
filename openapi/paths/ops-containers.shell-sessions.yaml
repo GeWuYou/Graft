@@ -1,0 +1,70 @@
+post:
+  tags: [container]
+  summary: Issue container shell session ticket
+  operationId: postContainerShellSession
+  description: >
+    Issues a short-lived single-use shell session ticket for one running container after normal HTTP authentication,
+    feature-flag checks, and permission checks succeed. The returned ticket must be consumed by the matching
+    WebSocket endpoint before it expires.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - $ref: ../components/parameters/container-id-path.yaml
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../components/schemas/container-shell-session-request.yaml
+  responses:
+    '200':
+      description: Shell session ticket issued.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-container-shell-session-response.yaml
+    '400':
+      description: Invalid container reference or shell session request payload.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      description: Shell feature disabled or permission denied.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '404':
+      description: Container was not found.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '409':
+      description: Container is not running or requested shell command cannot be used for this container.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml

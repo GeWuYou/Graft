@@ -2,4 +2,4 @@
 // SPDX-License-Identifier: Apache-2.0
 
 export { default as PageHeader } from './PageHeader.vue';
-export type { PageHeaderBreadcrumbItem, PageHeaderSource } from './types';
+export type { PageHeaderSource } from './types';

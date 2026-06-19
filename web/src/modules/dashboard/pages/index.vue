@@ -6,7 +6,6 @@
 <template>
   <section class="dashboard-page" data-page-type="overview-dashboard">
     <page-header
-      :breadcrumb="[{ labelKey: 'dashboard.page.title', fallback: t('dashboard.page.title') }]"
       title-key="dashboard.page.title"
       :title-fallback="t('dashboard.page.title')"
       description-key="dashboard.page.description"

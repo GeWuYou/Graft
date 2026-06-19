@@ -36,7 +36,9 @@
 
 - 不得把产品能力命名为特定容器运行时管理。
 - 不得使用 `ops.docker` 作为权限、菜单、OpenAPI tag 或前端业务前缀。
-- 不得在 MVP 中实现 exec、终端、文件编辑、删除、prune、镜像构建/拉取/推送、容器创建、多节点、远程 Docker Host 或 Kubernetes。
+- 下列限制是本 topic 早期设计基线，不代表最终 archived 完成态；最终 MVP authority 以
+  `ai-plan/design/容器管理设计.md` 为准。该基线当时排除了 exec、服务器终端、文件编辑、删除、prune、
+  镜像构建/拉取/推送、容器创建、多节点、远程 Docker Host 和 Kubernetes。
 - 不得新增单独操作日志表；操作记录复用 audit log。
 - 不得把容器管理挂入既有“服务器管理”菜单。
 

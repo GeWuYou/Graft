@@ -82,7 +82,7 @@ function calcHeight() {
   const headerHeight = resolveCssLength(rootStyle.getPropertyValue('--td-comp-size-xxxl'));
   const navDom = document.querySelector('.t-tabs__nav');
   const navHeight = isUseTabsRouter && navDom ? getOuterHeight(navDom) : 0;
-  const breadcrumbDom = document.querySelector('.t-breadcrumb');
+  const breadcrumbDom = document.querySelector('.shell-breadcrumb');
   const breadcrumbHeight = showBreadcrumb && breadcrumbDom ? getOuterHeight(breadcrumbDom) : 0;
   const contentPadding = resolveCssLength(rootStyle.getPropertyValue('--td-comp-paddingTB-xxl')) * 2;
   const footerDom = document.querySelector('.t-layout__footer');

@@ -24,12 +24,13 @@ import (
 )
 
 type routeRuntime struct {
-	ctx     *module.Context
-	service *service
+	ctx         *module.Context
+	service     *service
+	userService moduleapi.UserService
 }
 
 // RegisterRoutes registers HTTP API endpoints for container operations with permission-based access control.
-// It returns an error if the service is unavailable, or if resolving auth service or authorizer fails; nil otherwise.
+// registerRoutes 注册容器管理路由，包括权限中间件和审计日志发布。若服务不可用或依赖项解析失败则返回错误，否则返回 nil。
 func registerRoutes(ctx *module.Context, moduleName string, service *service) error {
 	if ctx == nil || ctx.Router == nil {
 		return nil
@@ -45,8 +46,12 @@ func registerRoutes(ctx *module.Context, moduleName string, service *service) er
 	if err != nil {
 		return fmt.Errorf("resolve authorizer: %w", err)
 	}
+	userService, err := resolveUserService(ctx)
+	if err != nil {
+		return fmt.Errorf("resolve user service: %w", err)
+	}
 
-	routes := routeRuntime{ctx: ctx, service: service}
+	routes := routeRuntime{ctx: ctx, service: service, userService: userService}
 	publisher := httpx.NewSecurityAuditPublisher(ctx.EventBus, ctx.Logger, moduleName)
 	group := ctx.Router.Group(containercontract.ContainerAPIGroup)
 	group.Use(httpx.RequestIDMiddleware())
@@ -64,6 +69,15 @@ func registerRoutes(ctx *module.Context, moduleName string, service *service) er
 		containercontract.ContainerLogsRoute,
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerLogsPermission.String(), publisher),
 		routes.handleLogs,
+	)
+	group.POST(
+		containercontract.ContainerShellSessionsRoute,
+		httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerShellPermission.String(), publisher),
+		routes.handleShellSessionCreate,
+	)
+	group.GET(
+		containercontract.ContainerShellWebSocketRoute,
+		routes.handleShellWebSocket,
 	)
 	group.GET(
 		containercontract.ContainerMountUsageRoute,
@@ -154,6 +168,28 @@ func (r routeRuntime) handleLogs(ginCtx *gin.Context) {
 		return
 	}
 	httpx.WriteSuccess(ginCtx, http.StatusOK, toLogs(logs))
+}
+
+func (r routeRuntime) handleShellSessionCreate(ginCtx *gin.Context) {
+	_ = bindPostContainerShellSessionParams(ginCtx)
+	var request containeropenapi.PostContainerShellSessionJSONRequestBody
+	if !bindRequiredJSON(ginCtx, r, &request) {
+		return
+	}
+	ref, ok := readRef(ginCtx, r)
+	if !ok {
+		return
+	}
+	session, err := r.service.IssueShellSession(ginCtx.Request.Context(), ref, ShellSessionRequest{
+		Command: string(request.Command),
+		Cols:    request.Cols,
+		Rows:    request.Rows,
+	})
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, toShellSession(session))
 }
 
 func (r routeRuntime) handleMountUsageList(ginCtx *gin.Context) {
@@ -332,6 +368,7 @@ func resolveAuthService(ctx *module.Context) (moduleapi.AuthService, error) {
 	return service, nil
 }
 
+// ResolveAuthorizer 从服务容器中解析权限授权器，并验证其实现了 Authorizer 接口。解析失败或类型不匹配时返回错误。
 func resolveAuthorizer(ctx *module.Context) (moduleapi.Authorizer, error) {
 	resolved, err := ctx.Services.Resolve((*moduleapi.Authorizer)(nil))
 	if err != nil {
@@ -344,6 +381,23 @@ func resolveAuthorizer(ctx *module.Context) (moduleapi.Authorizer, error) {
 	return authorizer, nil
 }
 
+// ResolveUserService resolves a UserService from the service container.
+// It returns an error if resolution fails or the resolved type does not implement UserService.
+func resolveUserService(ctx *module.Context) (moduleapi.UserService, error) {
+	resolved, err := ctx.Services.Resolve((*moduleapi.UserService)(nil))
+	if err != nil {
+		return nil, err
+	}
+	service, ok := resolved.(moduleapi.UserService)
+	if !ok {
+		return nil, fmt.Errorf("resolved user service has unexpected type %T", resolved)
+	}
+	return service, nil
+}
+
+// bindGetContainersParams 绑定并校验容器列表请求的查询参数与请求头。
+// 校验 limit、offset、keyword、state 和 health 查询参数的有效性。
+// 返回解析的参数和校验是否成功。校验失败时返回空参数和 false。
 func bindGetContainersParams(ginCtx *gin.Context, ctx *module.Context) (containeropenapi.GetContainersParams, bool) {
 	locale, requestID := commonHeaders(ginCtx)
 	params := containeropenapi.GetContainersParams{XGraftLocale: locale, XRequestId: requestID}
@@ -414,11 +468,28 @@ func bindPostContainerRemoveParams(ginCtx *gin.Context) containeropenapi.PostCon
 	return containeropenapi.PostContainerRemoveParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
+// BindPostContainerBatchActionsParams extracts locale and request ID headers from the HTTP request.
 func bindPostContainerBatchActionsParams(ginCtx *gin.Context) containeropenapi.PostContainerBatchActionsParams {
 	locale, requestID := commonHeaders(ginCtx)
 	return containeropenapi.PostContainerBatchActionsParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
+// bindPostContainerShellSessionParams extracts locale and request ID headers for shell session parameters.
+func bindPostContainerShellSessionParams(ginCtx *gin.Context) containeropenapi.PostContainerShellSessionParams {
+	locale, requestID := commonHeaders(ginCtx)
+	return containeropenapi.PostContainerShellSessionParams{XGraftLocale: locale, XRequestId: requestID}
+}
+
+// BindGetContainerShellWebSocketParams extracts the WebSocket ticket from the query string and request ID from headers for shell endpoint access.
+func bindGetContainerShellWebSocketParams(ginCtx *gin.Context) containeropenapi.GetContainerShellWebSocketParams {
+	requestID := optionalHeader(ginCtx, httpx.RequestIDHeader)
+	return containeropenapi.GetContainerShellWebSocketParams{
+		Ticket:     strings.TrimSpace(ginCtx.Query("ticket")),
+		XRequestId: requestID,
+	}
+}
+
+// BindRequiredJSON binds JSON from the request body to target. It returns true on success and false on binding failure, in which case it writes a localized error response.
 func bindRequiredJSON(ginCtx *gin.Context, r routeRuntime, target any) bool {
 	if err := ginCtx.ShouldBindJSON(target); err != nil {
 		r.writeRouteError(ginCtx, errInvalidListQuery)

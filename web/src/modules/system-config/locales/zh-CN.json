@@ -341,6 +341,10 @@
   "systemConfig.groups.ops.container.runtime.description": "控制本地容器运行时适配器。",
   "systemConfig.groups.ops.container.logs": "日志",
   "systemConfig.groups.ops.container.logs.description": "控制容器日志读取上限。",
+  "systemConfig.groups.ops.container.shell": "容器 Shell",
+  "systemConfig.groups.ops.container.shell.description": "管理交互式容器 Shell 会话的访问能力与安全边界。",
   "systemConfig.groups.ops.container.actions": "高危操作",
-  "systemConfig.groups.ops.container.actions.description": "控制容器启停和重启操作。"
+  "systemConfig.groups.ops.container.actions.description": "控制容器启停和重启操作。",
+  "systemConfig.container.ops.container.shell.enabled.title": "启用容器 Shell",
+  "systemConfig.container.ops.container.shell.enabled.description": "控制是否允许为容器创建交互式 Shell 会话票据与 WebSocket 连接。"
 }

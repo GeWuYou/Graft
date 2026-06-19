@@ -11,7 +11,6 @@
         :description="description"
         :title-key="titleKey"
         :description-key="descriptionKey"
-        :breadcrumb="breadcrumb"
         :compact="compactHeader"
         :source="source"
       >
@@ -54,13 +53,12 @@
 </template>
 <script setup lang="ts">
 import { ManagementEmptyState, ManagementPageContent, ManagementPageHeader } from '@/shared/components/management';
-import type { PageHeaderBreadcrumbItem, PageHeaderSource } from '@/shared/components/page';
+import type { PageHeaderSource } from '@/shared/components/page';
 
 withDefaults(
   defineProps<{
     description?: string;
     descriptionKey?: string;
-    breadcrumb?: PageHeaderBreadcrumbItem[];
     compactHeader?: boolean;
     errorMessage?: string;
     errorTitle: string;
@@ -75,7 +73,6 @@ withDefaults(
     titleKey?: string;
   }>(),
   {
-    breadcrumb: undefined,
     compactHeader: false,
     description: '',
     descriptionKey: '',

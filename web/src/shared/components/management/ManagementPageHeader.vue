@@ -6,7 +6,6 @@
 <template>
   <header :class="['management-page-header', { 'management-page-header--compact': compact }]">
     <page-header
-      :breadcrumb="resolvedBreadcrumb"
       :source="source"
       :title-key="titleKey"
       :title-fallback="title"
@@ -23,40 +22,16 @@
   </header>
 </template>
 <script setup lang="ts">
-import { computed } from 'vue';
+import { PageHeader, type PageHeaderSource } from '@/shared/components/page';
 
-import { PageHeader, type PageHeaderBreadcrumbItem, type PageHeaderSource } from '@/shared/components/page';
-
-const props = defineProps<{
+defineProps<{
   title?: string;
   description?: string;
   titleKey?: string;
   descriptionKey?: string;
-  breadcrumb?: PageHeaderBreadcrumbItem[];
   compact?: boolean;
   source?: PageHeaderSource;
 }>();
-
-const resolvedBreadcrumb = computed<PageHeaderBreadcrumbItem[]>(() => {
-  if (props.breadcrumb) {
-    return props.breadcrumb;
-  }
-
-  const titleKey = props.titleKey || props.title || '';
-  const titleFallback = props.title || '';
-  if (!props.source) {
-    return [{ labelKey: titleKey, fallback: titleFallback }];
-  }
-
-  if (props.source.labelKey === titleKey || props.source.fallback === titleFallback) {
-    return [{ labelKey: titleKey, fallback: titleFallback }];
-  }
-
-  return [
-    { labelKey: props.source.labelKey, fallback: props.source.fallback },
-    { labelKey: titleKey, fallback: titleFallback },
-  ];
-});
 </script>
 <style scoped lang="less">
 @import './card-surface.less';

@@ -13,6 +13,8 @@ import (
 	"slices"
 	"strings"
 	"unicode"
+
+	"graft/server/modules/container/terminal"
 )
 
 const (
@@ -74,6 +76,16 @@ var (
 	errUnsupportedContainerRuntime = errors.New("unsupported container runtime")
 	errMountUsageUnsupported       = errors.New("container mount usage unsupported")
 	errContainerMountNotFound      = errors.New("container mount not found")
+	errShellDisabled               = errors.New("container shell disabled")
+	errShellForbidden              = errors.New("container shell forbidden")
+	errShellTicketInvalid          = errors.New("container shell ticket invalid")
+	errShellTicketExpired          = errors.New("container shell ticket expired")
+	errShellTicketUsed             = errors.New("container shell ticket used")
+	errShellOriginDenied           = errors.New("container shell origin denied")
+	errContainerNotRunning         = errors.New("container not running")
+	errShellCommandNotFound        = errors.New("container shell command not found")
+	errShellInvalidSize            = errors.New("container shell invalid size")
+	errShellSessionFailed          = errors.New("container shell session failed")
 )
 
 // Runtime is the module-owned boundary between API/service code and a concrete container runtime adapter.
@@ -84,6 +96,7 @@ type Runtime interface {
 	Mounts(ctx context.Context, id Ref) ([]Mount, error)
 	MountUsage(ctx context.Context, id Ref, mountID string) (MountUsage, error)
 	Logs(ctx context.Context, id Ref, query LogQuery) (Logs, error)
+	Shell(ctx context.Context, ref Ref, command string) (terminal.Session, error)
 	Start(ctx context.Context, id Ref) (ActionResult, error)
 	Stop(ctx context.Context, id Ref) (ActionResult, error)
 	Restart(ctx context.Context, id Ref) (ActionResult, error)
@@ -218,19 +231,19 @@ type Summary struct {
 // Detail is a sanitized container inspect view.
 type Detail struct {
 	Summary
-	Command           []string
-	Entrypoint        []string
-	Environment       []EnvironmentVariable
-	EnvironmentPolicy string
+	Command                      []string
+	Entrypoint                   []string
+	Environment                  []EnvironmentVariable
+	EnvironmentPolicy            string
 	EnvironmentMaskedCopyEnabled bool
-	Healthcheck       *Healthcheck
-	LastExitCode      *int
-	Mounts            []Mount
-	Networks          []Network
-	OOMKilled         *bool
-	RuntimeInfo       RuntimeInfo
-	InspectUpdatedAt  string
-	WorkingDir        string
+	Healthcheck                  *Healthcheck
+	LastExitCode                 *int
+	Mounts                       []Mount
+	Networks                     []Network
+	OOMKilled                    *bool
+	RuntimeInfo                  RuntimeInfo
+	InspectUpdatedAt             string
+	WorkingDir                   string
 }
 
 // Healthcheck describes Docker healthcheck diagnostics from container inspect.

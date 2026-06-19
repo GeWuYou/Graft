@@ -60,9 +60,25 @@ var containerMessageKeys = []string{
 	containercontract.ContainerInvalidState.String(),
 	containercontract.ContainerLogsTooLarge.String(),
 	containercontract.ContainerInvalidLogQuery.String(),
+	containercontract.ContainerShellDisabled.String(),
+	containercontract.ContainerShellForbidden.String(),
+	containercontract.ContainerShellTicketInvalid.String(),
+	containercontract.ContainerShellTicketExpired.String(),
+	containercontract.ContainerShellTicketUsed.String(),
+	containercontract.ContainerShellOriginDenied.String(),
+	containercontract.ContainerShellContainerNotRunning.String(),
+	containercontract.ContainerShellCommandNotFound.String(),
+	containercontract.ContainerShellSessionFailed.String(),
+	containercontract.ContainerShellUnsupportedControlMessage.String(),
 	containercontract.ContainerTimeout.String(),
 	containercontract.ContainerMountUsageUnsupported.String(),
 	containercontract.ContainerDangerousActionsDisabled.String(),
+	containercontract.ContainerAuditShellSessionRequested.String(),
+	containercontract.ContainerAuditShellTicketIssued.String(),
+	containercontract.ContainerAuditShellTicketRejected.String(),
+	containercontract.ContainerAuditShellSessionStarted.String(),
+	containercontract.ContainerAuditShellSessionClosed.String(),
+	containercontract.ContainerAuditShellSessionFailed.String(),
 	containercontract.ContainerActionStartCompleted.String(),
 	containercontract.ContainerActionStopCompleted.String(),
 	containercontract.ContainerActionRestartCompleted.String(),
@@ -83,6 +99,9 @@ func registerPermissions(registry *permission.Registry, moduleName string) error
 	return nil
 }
 
+// permissionItems 为容器管理操作构建 RBAC 权限项。
+// 返回包含 9 个权限项的切片，对应容器的查看、详情、环境、日志、Shell、启动、停止、重启和删除操作。
+// 每个权限项均配置有国际化的显示和描述键，并被赋予指定的模块名称。
 func permissionItems(moduleName string) []permission.Item {
 	return []permission.Item{
 		{
@@ -118,6 +137,15 @@ func permissionItems(moduleName string) []permission.Item {
 			DisplayKey:     "rbac.permissionCatalog.containerLogs.display",
 			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.containerLogs.description",
+			Category:       "api",
+			Module:         moduleName,
+		},
+		{
+			Code:           containercontract.ContainerShellPermission.String(),
+			Name:           "",
+			DisplayKey:     "rbac.permissionCatalog.containerShell.display",
+			Description:    "",
+			DescriptionKey: "rbac.permissionCatalog.containerShell.description",
 			Category:       "api",
 			Module:         moduleName,
 		},

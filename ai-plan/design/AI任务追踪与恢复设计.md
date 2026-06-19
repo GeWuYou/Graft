@@ -124,15 +124,38 @@ runner：
 - checkpoint 响应不是 closeout，也不是 round 终态
 - 当 checkpoint 响应 `can_continue=true` 时，外层 main agent 必须继续同一个 worker round，并显式恢复到等待该 worker
   最终 closeout 的状态，不能因为最近一条消息是 checkpoint 就关闭、替换或判定 round malformed
+- 外层 main agent 在 post-checkpoint 阶段必须先分类：
+  - `silent_timeout`
+    - 走完必需的 post-checkpoint grace window 后仍无 usable final closeout
+    - 没有 recent meaningful progress 证据
+    - 也没有可信的继续执行信号
+  - `active_but_unfinished`
+    - checkpoint 或其后的可见证据表明仍有 recent meaningful progress，且 `can_continue=true`
+    - 只是 final closeout 尚未返回
+  - `blocked`
+    - worker 明确报告 blocker、unsafe continuation、out-of-scope repair 或 `can_continue=false`
+- recent meaningful progress 至少包括以下任一项：
+  - explicit diagnosis
+  - owned-scope file edits
+  - validation output
+  - 相关 `git diff` 变化
+  - concrete next step 加上可见 tool activity
+- 只有 `silent_timeout` 才允许在 post-checkpoint grace 之后立即关闭当前 worker；`active_but_unfinished` 必须获得一次
+  bounded continuation 或 refreshed grace，而不是直接进入 `retry_once_then_blocked`
 - 外层 main agent 根据 ETA 只调整下一次等待窗口：
   - `high`：等待 `estimated_remaining_minutes`，但不超过 `max_grace_window`
   - `medium`：等待 `min(estimated_remaining_minutes, default_grace_window)`
   - `low`：只等待 `short_grace_window`
 - ETA 只是建议，不得突破 round 总预算
+- 如果刚出现 recent owned-scope file edits、validation work 或新的相关 `git diff`，外层 main agent 不得立即关闭该
+  worker；必须在当前 hard limit 内至少刷新一次 grace，再根据后续是否重新转为 silent 判断
 - 如果 ETA 连续失准、无实质进展或长期无 closeout，先降低 worker reliability，再进入
   `retry_once_then_blocked`
 - round closeout 缺失、畸形或自相矛盾时，使用 `retry_once_then_blocked`：
   - incomplete checkpoint 本身不是 retry 触发条件；必须先走 post-checkpoint grace handling
+  - `active_but_unfinished` 不是 retry 触发条件；只有 `silent_timeout`、显式 `blocked`、post-checkpoint grace 之后仍无
+    recent meaningful progress 的 malformed final closeout，或 checkpoint budget exhausted 且没有 usable health
+    response，才允许进入 retry
   - 先用新的 worker subagent 重试一次
   - retry worker 必须继承 partial diff、相关 logs、validation 结果与 previous worker failure reason
   - 第二次仍失败则 fail closed 为 `blocked`

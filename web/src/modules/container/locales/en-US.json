@@ -286,11 +286,41 @@
         "overview": "Overview",
         "resources": "Resources",
         "logs": "Logs",
+        "shell": "Shell",
         "health": "Health",
         "config": "Config",
         "network": "Network",
         "storage": "Storage",
         "raw": "Raw JSON"
+      },
+      "shell": {
+        "title": "Shell",
+        "description": "Access the current container through an interactive terminal. The session disconnects when the page closes.",
+        "disabled": "Shell Is Disabled",
+        "disabledHint": "Enable ops.container.shell.enabled in System Config before using Shell.",
+        "forbidden": "No Shell Access",
+        "forbiddenHint": "Required Permission: ops.container.shell",
+        "commands": {
+          "sh": "SH",
+          "bash": "Bash",
+          "ash": "Ash"
+        },
+        "empty": "Shell Session Idle",
+        "emptyHint": "Open the Shell tab to create an interactive session with the selected shell command.",
+        "connecting": "Connecting",
+        "connectingHint": "Preparing an interactive terminal session.",
+        "connected": "Connected",
+        "disconnected": "Disconnected",
+        "connectionFailed": "Connection Failed",
+        "reconnect": "Reconnect",
+        "sessionFailed": "The shell session could not be created.",
+        "ticketUsed": "The shell session ticket was already used. Reconnect to continue.",
+        "notRunning": "Container Is Not Running",
+        "notRunningHint": "The current container is not running, so an interactive shell session cannot be opened.",
+        "ticketExpired": "The shell session ticket expired. Reconnect to continue.",
+        "connectionClosed": "The shell connection has closed.",
+        "originDenied": "The current request origin cannot open a container shell connection.",
+        "transportError": "The terminal transport connection failed. Verify the frontend WebSocket proxy and server origin allowlist."
       },
       "resources": {
         "cpu": "CPU",
@@ -633,7 +663,11 @@
         "invalidListQuery": "Invalid container list query parameter",
         "invalidLogQuery": "Invalid container log query parameter",
         "logsTooLarge": "Container log request exceeds the allowed limit",
-        "timeout": "Container runtime request timed out"
+        "timeout": "Container runtime request timed out",
+        "shellDisabled": "Enable ops.container.shell.enabled in System Config before using Shell.",
+        "shellForbidden": "Required Permission: ops.container.shell",
+        "shellContainerNotRunning": "The current container is not running, so an interactive shell session cannot be opened.",
+        "shellUnsupportedControlMessage": "The terminal control message is not supported."
       }
     }
   }

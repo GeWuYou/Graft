@@ -10,6 +10,8 @@ export const CONTAINER_API_PATH = {
   LIST: '/api/ops/containers',
   DETAIL: '/api/ops/containers/{id}',
   LOGS: '/api/ops/containers/{id}/logs',
+  SHELL_SESSIONS: '/api/ops/containers/{id}/shell/sessions',
+  SHELL_WS: '/api/ops/containers/{id}/shell/ws',
   MOUNTS_USAGE: '/api/ops/containers/{id}/mounts/usage',
   MOUNT_USAGE_REFRESH: '/api/ops/containers/{id}/mounts/{mountId}/usage/refresh',
   START: '/api/ops/containers/{id}/start',
@@ -26,10 +28,21 @@ export function buildContainerDetailApiPath(containerId: string) {
 /**
  * Builds the API path for retrieving logs of a specific container.
  *
- * @returns The API path for fetching the container's logs.
+ * @param containerId - The ID of the container
+ * @returns The API path for fetching the container's logs
  */
 export function buildContainerLogsApiPath(containerId: string) {
   return CONTAINER_API_PATH.LOGS.replace('{id}', encodeContainerPathParam(containerId));
+}
+
+/**
+ * Builds the API path for accessing container shell sessions.
+ *
+ * @param containerId - The container identifier
+ * @returns The container shell sessions API path
+ */
+export function buildContainerShellSessionsApiPath(containerId: string) {
+  return CONTAINER_API_PATH.SHELL_SESSIONS.replace('{id}', encodeContainerPathParam(containerId));
 }
 
 /**

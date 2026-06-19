@@ -28,4 +28,14 @@ describe('createViteConfig', () => {
     process.env.VITE_ENABLE_MOCK = 'true';
     expect(pluginNames('development')).toContain('vite:mock');
   });
+
+  it('enables websocket proxying on the canonical api prefix when request proxy is enabled', () => {
+    process.env.VITE_IS_REQUEST_PROXY = 'true';
+
+    const config = createViteConfig('development');
+    const apiProxy = config.server?.proxy && '/api' in config.server.proxy ? config.server.proxy['/api'] : undefined;
+
+    expect(typeof apiProxy).toBe('object');
+    expect(apiProxy && 'ws' in apiProxy ? apiProxy.ws : undefined).toBe(true);
+  });
 });

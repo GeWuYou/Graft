@@ -107,6 +107,8 @@ func TestLoadReadsContainerRuntimeConfig(t *testing.T) {
 	t.Setenv("GRAFT_OPS_CONTAINER_LOGS_DEFAULT_TAIL", "50")
 	t.Setenv("GRAFT_OPS_CONTAINER_LOGS_MAX_TAIL", "500")
 	t.Setenv("GRAFT_OPS_CONTAINER_ACTIONS_DANGEROUS_ENABLED", "true")
+	t.Setenv("GRAFT_OPS_CONTAINER_SHELL_ENABLED", "true")
+	t.Setenv("GRAFT_HTTPX_WEBSOCKET_ALLOWED_ORIGINS", "http://localhost:3002, http://127.0.0.1:3002")
 
 	cfg, err := Load()
 	if err != nil {
@@ -119,6 +121,31 @@ func TestLoadReadsContainerRuntimeConfig(t *testing.T) {
 	assertEqual(t, "container logs default tail", cfg.Container.LogsDefaultTail, 50)
 	assertEqual(t, "container logs max tail", cfg.Container.LogsMaxTail, 500)
 	assertEqual(t, "container dangerous actions enabled", cfg.Container.DangerousActionsEnabled, true)
+	assertEqual(t, "container shell enabled", cfg.Container.ShellEnabled, true)
+	assertStringSliceEqual(
+		t,
+		"websocket allowed origins",
+		cfg.HTTPX.WebSocketAllowedOrigins,
+		[]string{"http://localhost:3002", "http://127.0.0.1:3002"},
+	)
+}
+
+func TestLoadRejectsInvalidWebSocketAllowedOrigin(t *testing.T) {
+	restoreEnv := clearGraftEnv(t)
+	t.Cleanup(restoreEnv)
+	chdir(t, t.TempDir())
+
+	t.Setenv("GRAFT_AUTH_JWT_SECRET", "container-config-secret")
+	t.Setenv("GRAFT_OPS_CONTAINER_SHELL_ENABLED", "true")
+	t.Setenv("GRAFT_HTTPX_WEBSOCKET_ALLOWED_ORIGINS", "http://localhost:3002/shell")
+
+	_, err := Load()
+	if err == nil {
+		t.Fatal("expected invalid websocket allowed origin error")
+	}
+	if !strings.Contains(err.Error(), "GRAFT_HTTPX_WEBSOCKET_ALLOWED_ORIGINS") {
+		t.Fatalf("expected websocket allowed origins error, got %v", err)
+	}
 }
 
 // TestLoadReadsServerDotenvFromRepoRoot 验证从仓库根目录启动时会回退读取 server/.env。
@@ -748,6 +775,18 @@ func TestValidateRejectsMissingContainerDockerEndpoint(t *testing.T) {
 	assertValidateError(t, cfg, "GRAFT_OPS_CONTAINER_DOCKER_ENDPOINT is required")
 }
 
+func TestValidateRejectsEnabledContainerShellWithoutWebSocketAllowedOrigins(t *testing.T) {
+	cfg := validConfigForValidateTests()
+	cfg.Container.ShellEnabled = true
+	cfg.HTTPX.WebSocketAllowedOrigins = nil
+
+	assertValidateError(
+		t,
+		cfg,
+		"GRAFT_HTTPX_WEBSOCKET_ALLOWED_ORIGINS is required when GRAFT_OPS_CONTAINER_SHELL_ENABLED is true",
+	)
+}
+
 func TestResolveLogFormatColorAndGinMode(t *testing.T) {
 	logFormatCases := []struct {
 		name   string
@@ -978,6 +1017,7 @@ func validConfigForValidateTests() *Config {
 			LogsMaxTail:             2000,
 			RuntimeEnabled:          false,
 			DangerousActionsEnabled: false,
+			ShellEnabled:            false,
 		},
 	}
 }

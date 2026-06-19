@@ -90,6 +90,22 @@ assets:
     validation_commands:
       - "cd web && bun run check"
 
+  - name: "terminal-components"
+    type: "frontend-component-suite"
+    path: "web/src/shared/components/terminal"
+    owner: "web/shared"
+    purpose: "Reusable xterm-based interactive terminal surface, transport session helper, and terminal theme wiring for shell-style streaming workflows."
+    use_when:
+      - "Building an interactive terminal or shell surface that needs reusable WebSocket session transport without module-specific Docker semantics."
+    do_not_use_when:
+      - "The UI only needs static log output, JSON inspection, or a module-private command runner with business-specific transport rules."
+    examples:
+      - "web/src/modules/container/components/ContainerShellPanel.vue"
+    related_assets:
+      - "observability-helpers"
+    validation_commands:
+      - "cd web && bun run check"
+
   - name: "refresh-control-components"
     type: "frontend-component"
     path: "web/src/shared/components/refresh"

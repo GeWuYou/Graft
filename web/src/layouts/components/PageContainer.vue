@@ -7,6 +7,7 @@
   <section :class="containerClasses">
     <main :class="mainClasses">
       <div :class="`${prefix}-page-container__content`">
+        <breadcrumb />
         <slot />
       </div>
     </main>
@@ -21,6 +22,7 @@ import { computed } from 'vue';
 import { prefix } from '@/config/global';
 import type { PageSurfaceType } from '@/utils/route/meta';
 
+import Breadcrumb from './Breadcrumb.vue';
 import LFooter from './Footer.vue';
 
 const props = defineProps<{

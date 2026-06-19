@@ -169,6 +169,15 @@ Typical triggers:
    - a checkpoint response must begin with `Checkpoint status:`, must not include `Next-session startup prompt:`, and
      must not append the final closeout JSON block
 10. After a usable checkpoint, set the next wait window from ETA while respecting any user-defined hard limit:
+   - classify the post-checkpoint state before any closure or retry decision:
+     - `silent_timeout`: no usable final closeout arrived after the required post-checkpoint wait, there is no recent
+       meaningful progress evidence, and the worker no longer shows a credible continuation signal
+     - `active_but_unfinished`: the latest checkpoint or post-checkpoint evidence shows recent meaningful progress and
+       `can_continue=true`, but the final closeout is still pending
+     - `blocked`: the worker explicitly reports a blocker, unsafe continuation, out-of-scope repair, or
+       `can_continue=false`
+   - recent meaningful progress includes explicit diagnosis, owned-scope file edits, validation output, a relevant
+     `git diff` change, or a concrete next step paired with visible tool activity
    - `eta_confidence=high`: wait `estimated_remaining_minutes`, capped by `max_grace_window`
    - `eta_confidence=medium`: wait `min(estimated_remaining_minutes, default_grace_window)`
    - `eta_confidence=low`: wait only `short_grace_window`, then checkpoint again or move to retry/block
@@ -183,6 +192,11 @@ Typical triggers:
    - do not close, replace, or mark the round malformed merely because the most recent message was a checkpoint
    - before classifying a round as missing closeout, perform at least one post-checkpoint `wait_agent` window sized
      from ETA or the default grace rule above
+   - only `silent_timeout` may trigger immediate post-checkpoint closure after that required wait window; if the latest
+     evidence is `active_but_unfinished`, continue the same worker with a bounded continuation window or refreshed
+     grace instead of escalating directly to retry or blocked
+   - do not close immediately after recent owned-scope file edits, validation work, or a new relevant `git diff`;
+     refresh grace once within the current hard limits and reassess only after the worker goes silent again
    - if a worker later emits a valid final closeout after a prior checkpoint, accept that final closeout as the round
      result rather than freezing the earlier checkpoint as terminal state
    - incomplete checkpoint content alone is not retry justification; first use the post-checkpoint grace rule unless
@@ -199,8 +213,13 @@ Typical triggers:
    - degrade worker reliability when ETA repeatedly misses, there is no substantive progress, or no closeout arrives
    - do not classify a round as stalled while the latest evidence still shows recent visible output or a credible
      near-term next action
-   - if the worker gives no response, a malformed final closeout after the post-checkpoint grace handling above,
-     `can_continue=false`, or exhausts checkpoint budget, enter `retry_once_then_blocked`
+   - `retry_once_then_blocked` is allowed only after one of these explicit post-checkpoint outcomes:
+     - `silent_timeout`
+     - a malformed final closeout after the post-checkpoint grace handling above and without recent meaningful progress
+     - `blocked`
+     - checkpoint budget exhausted without a usable health response
+   - `active_but_unfinished` is not a retry trigger; keep the same worker alive with one bounded continuation or
+     refreshed grace window, then reassess against hard limits and the latest evidence
    - retry the same bounded round once with a fresh worker subagent
    - the retry worker must inherit the partial diff, relevant logs, validation evidence, and the previous worker
      failure reason

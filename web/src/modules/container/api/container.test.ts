@@ -12,6 +12,7 @@ import {
   buildContainerMountUsageRefreshApiPath,
   buildContainerRemoveApiPath,
   buildContainerRestartApiPath,
+  buildContainerShellSessionsApiPath,
   buildContainerStartApiPath,
   buildContainerStopApiPath,
   CONTAINER_API_PATH,
@@ -23,6 +24,7 @@ import {
   getContainerMountUsage,
   getContainers,
   postContainerMountUsageRefresh,
+  postContainerShellSession,
   removeContainer,
   restartContainer,
   startContainer,
@@ -120,6 +122,26 @@ describe('container api', () => {
     expect(requestPost).toHaveBeenNthCalledWith(4, {
       url: buildContainerRemoveApiPath('web/api'),
       data: { force: true },
+    });
+  });
+
+  it('issues container shell sessions through the canonical shell session path', async () => {
+    const requestPost = vi.mocked(request.post);
+    requestPost.mockResolvedValue({
+      command: 'sh',
+      cols: 120,
+      expires_at: '2026-06-19T10:00:30Z',
+      rows: 32,
+      session_id: 'shell_session_demo',
+      websocket_url: '/api/ops/containers/web%2Fapi/shell/ws?ticket=opaque-ticket',
+    } as never);
+
+    await postContainerShellSession('web/api', { command: 'sh', cols: 120, rows: 32 });
+
+    expect(buildContainerShellSessionsApiPath('web/api')).toBe('/api/ops/containers/web%2Fapi/shell/sessions');
+    expect(requestPost).toHaveBeenCalledWith({
+      url: buildContainerShellSessionsApiPath('web/api'),
+      data: { command: 'sh', cols: 120, rows: 32 },
     });
   });
 

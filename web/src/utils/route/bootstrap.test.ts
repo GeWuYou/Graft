@@ -387,4 +387,34 @@ describe('transformBootstrapMenusToRoutes', () => {
     expect(routes[0]?.children?.[0]?.meta?.hiddenMenu).toBe(true);
     expect(routes[0]?.children?.[0]?.meta?.hiddenBreadcrumb).toBe(true);
   });
+
+  it('keeps a parent breadcrumb slot for global routes when domainTitle is present', () => {
+    const routes = transformGlobalRegistrationsToRoutes([
+      {
+        path: '/ops/containers/:id',
+        routeName: 'ContainerDetail',
+        loadPage: async () => ({}),
+        meta: {
+          hiddenMenu: true,
+          title: {
+            'zh-CN': '容器详情',
+            'en-US': 'Container Detail',
+          },
+          titleKey: 'container.route.detail.title',
+          breadcrumbTitle: {
+            'zh-CN': '容器详情',
+            'en-US': 'Container Detail',
+          },
+          domainTitle: {
+            'zh-CN': '容器管理',
+            'en-US': 'Container Management',
+          },
+        },
+      },
+    ]);
+
+    expect(routes).toHaveLength(1);
+    expect(routes[0]?.children?.[0]?.meta?.hiddenBreadcrumb).toBe(false);
+    expect(routes[0]?.children?.[0]?.meta?.domainTitle?.['zh-CN']).toBe('容器管理');
+  });
 });

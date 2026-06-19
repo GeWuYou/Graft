@@ -364,6 +364,10 @@
         "display": "View Container Logs",
         "description": "Allows reading bounded container logs."
       },
+      "containerShell": {
+        "display": "Access Container Shell",
+        "description": "Allows creating interactive shell sessions for running containers."
+      },
       "containerStart": {
         "display": "Start Containers",
         "description": "Allows starting stopped containers when dangerous actions are enabled."

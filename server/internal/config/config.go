@@ -6,6 +6,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -48,6 +49,7 @@ const (
 	defaultContainerDockerEndpoint  = "unix:///var/run/docker.sock"
 	defaultContainerLogsDefaultTail = 200
 	defaultContainerLogsMaxTail     = 2000
+	defaultRealtimeAllowedOrigins   = ""
 )
 
 const (
@@ -155,6 +157,7 @@ type HTTPXConfig struct {
 	AccessLogRetention       time.Duration
 	AccessLogConsole         AccessLogConsolePolicy
 	AccessLogSlowThresholdMS int64
+	WebSocketAllowedOrigins  []string
 }
 
 // AuditConfig describes audit-module-owned runtime policy configuration.
@@ -244,13 +247,14 @@ type ContainerConfig struct {
 	LogsMaxTail             int
 	RuntimeEnabled          bool
 	DangerousActionsEnabled bool
+	ShellEnabled            bool
 }
 
 // Load 按“真实环境变量优先、.env 兜底”的顺序加载配置并返回校验后的快照。
 //
 // 失败语义：
 //   - 当显式指定的 `GRAFT_ENV_FILE` 无法读取时直接返回错误，避免启动时误用过期默认值。
-//   - 当最终配置不满足运行时最小要求时返回 Validate 的校验错误。
+// 当最终配置不满足运行时最小要求时返回验证错误。
 func Load() (*Config, error) {
 	if err := loadDotenv(); err != nil {
 		return nil, err
@@ -275,6 +279,7 @@ func Load() (*Config, error) {
 			AccessLogRetention:       reader.GetDuration("httpx.access_log_retention"),
 			AccessLogConsole:         AccessLogConsolePolicy(reader.GetString("access_log.console")),
 			AccessLogSlowThresholdMS: reader.GetInt64("access_log.slow_threshold_ms"),
+			WebSocketAllowedOrigins:  parseCommaSeparatedList(reader.GetString("httpx.websocket.allowed_origins")),
 		},
 		Audit: AuditConfig{
 			LogRetention: reader.GetDuration("audit.log_retention"),
@@ -337,6 +342,7 @@ func Load() (*Config, error) {
 			LogsMaxTail:             reader.GetInt("ops.container.logs.max_tail"),
 			RuntimeEnabled:          reader.GetBool("ops.container.runtime.enabled"),
 			DangerousActionsEnabled: reader.GetBool("ops.container.actions.dangerous_enabled"),
+			ShellEnabled:            reader.GetBool("ops.container.shell.enabled"),
 		},
 	}
 
@@ -420,6 +426,7 @@ func validateHTTPConfig(c *Config) error {
 	return nil
 }
 
+// validateHTTPXConfig 验证 HTTPX 配置。检查访问日志保留时间和慢查询阈值大于零，规范化并验证访问日志控制台策略为支持的值之一，并规范化 WebSocket 允许来源列表。
 func validateHTTPXConfig(c *Config) error {
 	if c.HTTPX.AccessLogRetention <= 0 {
 		return errors.New("GRAFT_HTTPX_ACCESS_LOG_RETENTION must be greater than zero")
@@ -436,7 +443,21 @@ func validateHTTPXConfig(c *Config) error {
 	if c.HTTPX.AccessLogSlowThresholdMS <= 0 {
 		return errors.New("GRAFT_ACCESS_LOG_SLOW_THRESHOLD_MS must be greater than zero")
 	}
+	c.HTTPX.WebSocketAllowedOrigins = normalizeStringList(c.HTTPX.WebSocketAllowedOrigins)
+	if err := validateWebSocketAllowedOrigins(c.HTTPX.WebSocketAllowedOrigins); err != nil {
+		return err
+	}
 
+	return nil
+}
+
+func validateWebSocketAllowedOrigins(origins []string) error {
+	for _, origin := range origins {
+		parsed, err := url.Parse(origin)
+		if err != nil || parsed.Scheme == "" || parsed.Host == "" || parsed.Path != "" || parsed.RawQuery != "" || parsed.Fragment != "" {
+			return fmt.Errorf("invalid GRAFT_HTTPX_WEBSOCKET_ALLOWED_ORIGINS entry %q", origin)
+		}
+	}
 	return nil
 }
 
@@ -656,6 +677,8 @@ func validateAuthConfig(c *Config) error {
 	return nil
 }
 
+// validateContainerConfig validates container configuration fields.
+// Returns nil if the configuration is valid, or an error describing the validation failure.
 func validateContainerConfig(c *Config) error {
 	c.Container.Runtime = strings.TrimSpace(c.Container.Runtime)
 	if c.Container.Runtime == "" {
@@ -677,6 +700,9 @@ func validateContainerConfig(c *Config) error {
 	}
 	if c.Container.LogsDefaultTail > c.Container.LogsMaxTail {
 		return errors.New("GRAFT_OPS_CONTAINER_LOGS_DEFAULT_TAIL must be less than or equal to GRAFT_OPS_CONTAINER_LOGS_MAX_TAIL")
+	}
+	if c.Container.ShellEnabled && len(c.HTTPX.WebSocketAllowedOrigins) == 0 {
+		return errors.New("GRAFT_HTTPX_WEBSOCKET_ALLOWED_ORIGINS is required when GRAFT_OPS_CONTAINER_SHELL_ENABLED is true")
 	}
 	return nil
 }
@@ -777,6 +803,7 @@ func isDotenvSearchBoundary(dir string) bool {
 	return false
 }
 
+// setDefaults sets default configuration values for all supported configuration keys, including environment-dependent retention durations for logging and auditing.
 func setDefaults(reader *viper.Viper) {
 	reader.SetDefault("app.name", defaultAppName)
 	reader.SetDefault("app.env", defaultAppEnv)
@@ -784,6 +811,7 @@ func setDefaults(reader *viper.Viper) {
 	reader.SetDefault("httpx.access_log_retention", defaultAccessLogRetentionForEnv(reader.GetString("app.env")))
 	reader.SetDefault("access_log.console", string(AccessLogConsoleAuto))
 	reader.SetDefault("access_log.slow_threshold_ms", defaultAccessLogSlowThreshold/time.Millisecond)
+	reader.SetDefault("httpx.websocket.allowed_origins", defaultRealtimeAllowedOrigins)
 	reader.SetDefault("audit.log_retention", defaultAuditLogRetentionForEnv(reader.GetString("app.env")))
 	reader.SetDefault("modules.enabled", "")
 	reader.SetDefault("database.driver", defaultDatabaseDriver)
@@ -823,18 +851,46 @@ func setDefaults(reader *viper.Viper) {
 	reader.SetDefault("ops.container.logs.default_tail", defaultContainerLogsDefaultTail)
 	reader.SetDefault("ops.container.logs.max_tail", defaultContainerLogsMaxTail)
 	reader.SetDefault("ops.container.actions.dangerous_enabled", false)
+	reader.SetDefault("ops.container.shell.enabled", false)
 }
 
+// parseLocaleList 将逗号分隔的地域字符串解析为规范化的地域值。
+// 结果已去除首尾空白、空项和重复值。
 func parseLocaleList(raw string) []string {
 	items, _ := normalizeLocaleList(strings.Split(raw, ","))
 	return items
 }
 
+// parseCommaSeparatedList parses a comma-separated string into a normalized slice, trimming whitespace, removing empty values, and deduplicating.
+func parseCommaSeparatedList(raw string) []string {
+	return normalizeStringList(strings.Split(raw, ","))
+}
+
+// parseModuleList parses a comma-separated string into a normalized list of module identifiers.
 func parseModuleList(raw string) []string {
 	items, _ := normalizeModuleList(strings.Split(raw, ","))
 	return items
 }
 
+// normalizeStringList removes empty strings and deduplicates the input list while preserving the order of first occurrence.
+func normalizeStringList(items []string) []string {
+	normalized := make([]string, 0, len(items))
+	seen := make(map[string]struct{}, len(items))
+	for _, raw := range items {
+		value := strings.TrimSpace(raw)
+		if value == "" {
+			continue
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		normalized = append(normalized, value)
+	}
+	return normalized
+}
+
+// resolveDocsEnabled determines whether documentation should be enabled based on explicit configuration or environment default.
 func resolveDocsEnabled(reader *viper.Viper) bool {
 	if reader == nil {
 		return defaultDocsEnabledForEnv(defaultAppEnv)

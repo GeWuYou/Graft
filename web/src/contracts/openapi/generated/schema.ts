@@ -1711,6 +1711,46 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/ops/containers/{id}/shell/sessions': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Issue container shell session ticket
+     * @description Issues a short-lived single-use shell session ticket for one running container after normal HTTP authentication, feature-flag checks, and permission checks succeed. The returned ticket must be consumed by the matching WebSocket endpoint before it expires.
+     */
+    post: operations['postContainerShellSession'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/containers/{id}/shell/ws': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Upgrade to container shell WebSocket
+     * @description Upgrades the request to a container shell WebSocket only after the server validates and atomically consumes the single-use shell ticket, confirms the ticket scope and container id match, rechecks feature-flag and permission gates, and validates the request Origin against the configured WebSocket allowlist. This operation is documented for contract governance; the successful handshake upgrades the connection instead of returning a JSON body.
+     */
+    get: operations['getContainerShellWebSocket'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/ops/containers/{id}/start': {
     parameters: {
       query?: never;
@@ -1970,6 +2010,8 @@ export interface components {
     ContainerMountUsageListResponse: components['schemas']['container-mount-usage-list-response'];
     ContainerNetwork: components['schemas']['container-network'];
     ContainerLogResponse: components['schemas']['container-log-response'];
+    ContainerShellSessionRequest: components['schemas']['container-shell-session-request'];
+    ContainerShellSessionResponse: components['schemas']['container-shell-session-response'];
     ContainerActionResponse: components['schemas']['container-action-response'];
     ContainerRemoveRequest: components['schemas']['container-remove-request'];
     ContainerBatchActionRequest: components['schemas']['container-batch-action-request'];
@@ -1984,6 +2026,7 @@ export interface components {
     EnvelopedContainerMountUsage: components['schemas']['enveloped-container-mount-usage'];
     EnvelopedContainerMountUsageListResponse: components['schemas']['enveloped-container-mount-usage-list-response'];
     EnvelopedContainerLogResponse: components['schemas']['enveloped-container-log-response'];
+    EnvelopedContainerShellSessionResponse: components['schemas']['enveloped-container-shell-session-response'];
     EnvelopedContainerActionResponse: components['schemas']['enveloped-container-action-response'];
     EnvelopedContainerBatchActionResponse: components['schemas']['enveloped-container-batch-action-response'];
     'health-response': {
@@ -4116,6 +4159,35 @@ export interface components {
     'enveloped-container-log-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['container-log-response'];
     };
+    'container-shell-session-request': {
+      /**
+       * @description Requested interactive shell command to execute inside the container.
+       * @enum {string}
+       */
+      command: 'sh' | 'bash' | 'ash';
+      /** @description Initial terminal column count bound to the issued shell session ticket. */
+      cols: number;
+      /** @description Initial terminal row count bound to the issued shell session ticket. */
+      rows: number;
+    };
+    'container-shell-session-response': {
+      /** @description Stable server-issued session identifier used for audit correlation. */
+      session_id: string;
+      /**
+       * Format: date-time
+       * @description Absolute UTC expiration time for the one-time shell ticket.
+       */
+      expires_at: string;
+      /** @description Relative WebSocket URL containing the issued ticket for immediate upgrade. */
+      websocket_url: string;
+      /** @enum {string} */
+      command: 'sh' | 'bash' | 'ash';
+      cols: number;
+      rows: number;
+    };
+    'enveloped-container-shell-session-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['container-shell-session-response'];
+    };
     'container-action-response': {
       id: string;
       name?: string;
@@ -4346,6 +4418,8 @@ export interface components {
     'container-logs-stdout': boolean;
     /** @description Whether stderr stream lines should be included. */
     'container-logs-stderr': boolean;
+    /** @description Opaque single-use shell session ticket issued by the authenticated shell session endpoint. The server must validate and consume this ticket before upgrading the connection to WebSocket. */
+    'container-shell-ticket-query': string;
   };
   requestBodies: never;
   headers: {
@@ -8969,6 +9043,157 @@ export interface operations {
       403: components['responses']['forbidden'];
       /** @description Container was not found. */
       404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postContainerShellSession: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Container id or name. Clients must call encodeURIComponent before placing this value in the path. The backend must PathUnescape the path parameter and reject empty values, slashes, and control characters with ops.container.error.invalidContainerRef. */
+        id: components['parameters']['container-id-path'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['container-shell-session-request'];
+      };
+    };
+    responses: {
+      /** @description Shell session ticket issued. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-container-shell-session-response'];
+        };
+      };
+      /** @description Invalid container reference or shell session request payload. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      /** @description Shell feature disabled or permission denied. */
+      403: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      /** @description Container was not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      /** @description Container is not running or requested shell command cannot be used for this container. */
+      409: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getContainerShellWebSocket: {
+    parameters: {
+      query: {
+        /** @description Opaque single-use shell session ticket issued by the authenticated shell session endpoint. The server must validate and consume this ticket before upgrading the connection to WebSocket. */
+        ticket: components['parameters']['container-shell-ticket-query'];
+      };
+      header?: {
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Container id or name. Clients must call encodeURIComponent before placing this value in the path. The backend must PathUnescape the path parameter and reject empty values, slashes, and control characters with ops.container.error.invalidContainerRef. */
+        id: components['parameters']['container-id-path'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description WebSocket upgrade accepted after pre-upgrade ticket validation and consumption. */
+      101: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Missing or malformed shell ticket, container reference, or handshake metadata. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      /** @description Ticket scope mismatch, ticket rejection, feature disabled, permission denied, or Origin denied. */
+      403: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      /** @description Container was not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      /** @description Ticket already used or expired, container not running, or shell command missing. */
+      409: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;

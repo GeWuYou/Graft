@@ -75,6 +75,9 @@ func TestRouteAndConfigContractsStayCanonical(t *testing.T) {
 	if containercontract.ContainerDangerousActionsEnabledConfig.String() != "ops.container.actions.dangerous_enabled" {
 		t.Fatalf("unexpected dangerous actions config key")
 	}
+	if containercontract.ContainerShellEnabledConfig.String() != "ops.container.shell.enabled" {
+		t.Fatalf("unexpected shell enabled config key")
+	}
 	if containercontract.ContainerEnvironmentPolicyConfig.String() != "ops.container.environment.policy" {
 		t.Fatalf("unexpected environment policy config key")
 	}
@@ -135,6 +138,7 @@ func expectedPermissionCodes() []string {
 		containercontract.ContainerDetailPermission.String(),
 		containercontract.ContainerEnvironmentPermission.String(),
 		containercontract.ContainerLogsPermission.String(),
+		containercontract.ContainerShellPermission.String(),
 		containercontract.ContainerStartPermission.String(),
 		containercontract.ContainerStopPermission.String(),
 		containercontract.ContainerRestartPermission.String(),
@@ -200,7 +204,10 @@ func assertModuleMessages(t *testing.T, localizer *i18n.Service) {
 		containercontract.OperationsMenuTitle.String(),
 		containercontract.ContainerMenuTitle.String(),
 		containercontract.ContainerInvalidRef.String(),
+		containercontract.ContainerShellDisabled.String(),
+		containercontract.ContainerShellInvalidSize.String(),
 		containercontract.ContainerDangerousActionsDisabled.String(),
+		containercontract.ContainerAuditShellSessionStarted.String(),
 		containercontract.ContainerActionRemoveCompleted.String(),
 		containercontract.ContainerBatchActionPartial.String(),
 	} {
@@ -310,6 +317,7 @@ func expectedConfigKeys() []string {
 		containercontract.ContainerLogsDefaultTailConfig.String(),
 		containercontract.ContainerLogsMaxTailConfig.String(),
 		containercontract.ContainerDangerousActionsEnabledConfig.String(),
+		containercontract.ContainerShellEnabledConfig.String(),
 		containercontract.ContainerEnvironmentPolicyConfig.String(),
 		containercontract.ContainerEnvironmentMaskedCopyEnabledConfig.String(),
 	}

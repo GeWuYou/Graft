@@ -5,17 +5,6 @@
 
 <template>
   <header class="page-header" :class="{ 'page-header--compact': compact }">
-    <t-breadcrumb v-if="resolvedBreadcrumb.length > 0" class="page-header__breadcrumb" max-item-width="180">
-      <t-breadcrumb-item
-        v-for="item in resolvedBreadcrumb"
-        :key="`${item.to || ''}:${item.labelKey}`"
-        :to="item.to"
-        :disabled="!item.to"
-      >
-        {{ resolveText(item.labelKey, item.fallback) }}
-      </t-breadcrumb-item>
-    </t-breadcrumb>
-
     <div v-if="resolvedSource" class="page-header__source">
       <span class="page-header__source-dot" :style="{ background: resolvedSource.color || defaultSourceColor }" />
       <span>{{ resolveText(resolvedSource.labelKey, resolvedSource.fallback) }}</span>
@@ -44,11 +33,10 @@
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import type { PageHeaderBreadcrumbItem, PageHeaderSource } from './types';
+import type { PageHeaderSource } from './types';
 
 const props = withDefaults(
   defineProps<{
-    breadcrumb?: PageHeaderBreadcrumbItem[];
     source?: PageHeaderSource;
     titleKey?: string;
     titleFallback?: string;
@@ -57,7 +45,6 @@ const props = withDefaults(
     compact?: boolean;
   }>(),
   {
-    breadcrumb: undefined,
     compact: false,
     descriptionFallback: '',
     descriptionKey: '',
@@ -86,7 +73,6 @@ function resolveText(key: string | undefined, fallback = '') {
   return translated && translated !== key ? translated : fallback;
 }
 
-const resolvedBreadcrumb = computed(() => props.breadcrumb ?? []);
 const resolvedSource = computed(() => props.source);
 const resolvedTitle = computed(() => resolveText(props.titleKey, props.titleFallback));
 const resolvedDescription = computed(() => {
@@ -103,10 +89,6 @@ const resolvedDescription = computed(() => {
   flex-direction: column;
   gap: var(--graft-density-gap-6);
   min-width: 0;
-}
-
-.page-header__breadcrumb {
-  margin-bottom: var(--graft-density-gap-2);
 }
 
 .page-header__source {

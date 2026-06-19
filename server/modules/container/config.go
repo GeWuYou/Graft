@@ -28,6 +28,9 @@ const (
 	containerConfigActionsGroup      = "ops.container.actions"
 	containerConfigActionsGroupKey   = "systemConfig.groups.ops.container.actions"
 	containerConfigActionsDescKey    = "systemConfig.groups.ops.container.actions.description"
+	containerConfigShellGroup        = "ops.container.shell"
+	containerConfigShellGroupKey     = "systemConfig.groups.ops.container.shell"
+	containerConfigShellDescKey      = "systemConfig.groups.ops.container.shell.description"
 	containerConfigDefinitionBaseOrd = 6200
 	maxDockerEndpointLength          = 512
 )
@@ -39,6 +42,7 @@ const (
 	defaultContainerLogsDefaultTail         = 200
 	defaultContainerLogsMaxTail             = 2000
 	defaultContainerDangerousActionsEnabled = false
+	defaultContainerShellEnabled            = false
 	defaultContainerEnvironmentPolicy       = containercontract.ContainerEnvironmentPolicyMasked
 	defaultContainerEnvironmentMaskedCopy   = false
 	containerConfigEstimatedKeysPerItem     = 8
@@ -107,6 +111,13 @@ func configDefinitions() []configregistry.Definition {
 			fallbackTitle:       "",
 			fallbackDescription: "",
 			defaultValue:        mustRawJSON(defaultContainerDangerousActionsEnabled),
+		}),
+		containerBooleanDefinition(containerDefinitionSpec{
+			key:                 containercontract.ContainerShellEnabledConfig.String(),
+			group:               containerConfigShellGroup,
+			fallbackTitle:       "",
+			fallbackDescription: "",
+			defaultValue:        mustRawJSON(defaultContainerShellEnabled),
 		}),
 		containerEnvironmentPolicyDefinition(),
 		containerBooleanDefinition(containerDefinitionSpec{
@@ -219,6 +230,7 @@ type containerConfigGroupInfo struct {
 	description    string
 }
 
+// containerConfigGroupMetadata returns the configuration group metadata including the group key and description i18n key for the given group. If the group is not recognized, the general group metadata is returned.
 func containerConfigGroupMetadata(group string) containerConfigGroupInfo {
 	switch group {
 	case containerConfigRuntimeGroup:
@@ -240,6 +252,13 @@ func containerConfigGroupMetadata(group string) containerConfigGroupInfo {
 			key:            containerConfigActionsGroupKey,
 			label:          "",
 			descriptionKey: containerConfigActionsDescKey,
+			description:    "",
+		}
+	case containerConfigShellGroup:
+		return containerConfigGroupInfo{
+			key:            containerConfigShellGroupKey,
+			label:          "",
+			descriptionKey: containerConfigShellDescKey,
 			description:    "",
 		}
 	default:

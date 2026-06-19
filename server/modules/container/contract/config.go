@@ -32,6 +32,8 @@ const (
 	ContainerLogsMaxTailConfig ConfigKey = "ops.container.logs.max_tail"
 	// ContainerDangerousActionsEnabledConfig enables high-risk container actions.
 	ContainerDangerousActionsEnabledConfig ConfigKey = "ops.container.actions.dangerous_enabled"
+	// ContainerShellEnabledConfig enables interactive shell session access.
+	ContainerShellEnabledConfig ConfigKey = "ops.container.shell.enabled"
 	// ContainerEnvironmentPolicyConfig controls container environment variable value display.
 	ContainerEnvironmentPolicyConfig ConfigKey = "ops.container.environment.policy"
 	// ContainerEnvironmentMaskedCopyEnabledConfig controls whether masked sensitive environment entries expose copy-only raw values to already-authorized readers.

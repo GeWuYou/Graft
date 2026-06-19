@@ -6,10 +6,6 @@
 <template>
   <section class="system-config-page" data-page-type="settings">
     <page-header
-      :breadcrumb="[
-        { labelKey: 'menu.server.title', fallback: t('systemConfig.list.eyebrow') },
-        { labelKey: 'systemConfig.list.title', fallback: t('systemConfig.list.title') },
-      ]"
       :source="{
         labelKey: 'menu.server.title',
         fallback: t('systemConfig.list.eyebrow'),

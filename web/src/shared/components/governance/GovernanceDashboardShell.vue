@@ -17,7 +17,6 @@
   >
     <header class="governance-dashboard-shell__hero">
       <page-header
-        :breadcrumb="resolvedBreadcrumb"
         :source="resolvedSource"
         :title-key="titleKey"
         :title-fallback="title"
@@ -50,7 +49,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-import { PageHeader, type PageHeaderBreadcrumbItem, type PageHeaderSource } from '@/shared/components/page';
+import { PageHeader, type PageHeaderSource } from '@/shared/components/page';
 
 const props = withDefaults(
   defineProps<{
@@ -59,7 +58,6 @@ const props = withDefaults(
     eyebrow?: string;
     titleKey?: string;
     descriptionKey?: string;
-    breadcrumb?: PageHeaderBreadcrumbItem[];
     source?: PageHeaderSource;
     domain?: 'audit' | 'monitor' | 'rbac' | 'access-control' | 'neutral';
     density?: 'comfortable' | 'compact';
@@ -70,7 +68,6 @@ const props = withDefaults(
     eyebrow: '',
     domain: 'neutral',
     density: 'comfortable',
-    breadcrumb: undefined,
     compactHeader: false,
     descriptionKey: '',
     source: undefined,
@@ -109,29 +106,6 @@ const resolvedSource = computed<PageHeaderSource | undefined>(() => {
     fallback: props.eyebrow,
     labelKey: domainSourceKeyMap[props.domain] || props.eyebrow,
   };
-});
-
-const resolvedBreadcrumb = computed<PageHeaderBreadcrumbItem[]>(() => {
-  if (props.breadcrumb) {
-    return props.breadcrumb;
-  }
-
-  const source = resolvedSource.value;
-  const titleKey = props.titleKey || props.title;
-  const titleFallback = props.title;
-
-  if (!source) {
-    return [{ labelKey: titleKey, fallback: titleFallback }];
-  }
-
-  if (source.labelKey === titleKey || source.fallback === titleFallback) {
-    return [{ labelKey: titleKey, fallback: titleFallback }];
-  }
-
-  return [
-    { labelKey: source.labelKey, fallback: source.fallback },
-    { labelKey: titleKey, fallback: titleFallback },
-  ];
 });
 </script>
 <style scoped lang="less">

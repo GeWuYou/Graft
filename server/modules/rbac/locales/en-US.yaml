@@ -32,6 +32,8 @@ rbac.permissionCatalog.containerEnvironment.display: Container Environment Read
 rbac.permissionCatalog.containerEnvironment.description: Allows reading container environment variable values when display policy permits them.
 rbac.permissionCatalog.containerLogs.display: Container Log Read
 rbac.permissionCatalog.containerLogs.description: Allows reading bounded container logs.
+rbac.permissionCatalog.containerShell.display: Container Shell Access
+rbac.permissionCatalog.containerShell.description: Allows creating interactive shell sessions for running containers.
 rbac.permissionCatalog.containerStart.display: Container Start
 rbac.permissionCatalog.containerStart.description: Allows starting containers when dangerous actions are enabled.
 rbac.permissionCatalog.containerStop.display: Container Stop

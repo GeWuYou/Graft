@@ -4,6 +4,7 @@
 package container
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -12,10 +13,12 @@ import (
 	"math"
 	"net"
 	"reflect"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 
+	dockertypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
@@ -115,6 +118,49 @@ func TestDockerRuntimeLogsReturnsInvalidLogQueryError(t *testing.T) {
 	})
 	if !errors.Is(err, errInvalidLogQuery) {
 		t.Fatalf("expected invalid log query error, got %v", err)
+	}
+}
+
+func TestMapDockerShellErrorPreservesMappedRuntimeErrors(t *testing.T) {
+	t.Parallel()
+
+	err := mapDockerShellError(timeoutError{})
+	if !errors.Is(err, errContainerRuntimeTimeout) {
+		t.Fatalf("expected runtime timeout mapping, got %v", err)
+	}
+}
+
+func TestMapDockerShellErrorDoesNotTreatGenericNoSuchFileAsCommandNotFound(t *testing.T) {
+	t.Parallel()
+
+	err := mapDockerShellError(errors.New("dial unix /var/run/docker.sock: connect: no such file or directory"))
+	if errors.Is(err, errShellCommandNotFound) {
+		t.Fatalf("expected socket path failure to avoid shell command mapping")
+	}
+	if !errors.Is(err, errRuntimeSocketMissing) && !strings.Contains(err.Error(), "runtime") {
+		t.Fatalf("expected runtime-oriented mapping, got %v", err)
+	}
+}
+
+func TestDockerExecSessionCloseWithoutStartDoesNotBlock(t *testing.T) {
+	t.Parallel()
+
+	session := newDockerExecSession(&countingDockerClient{}, "abc123", "sh")
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	done := make(chan error, 1)
+	go func() {
+		done <- session.Close(ctx)
+	}()
+
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("close returned error: %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatalf("close blocked before start")
 	}
 }
 
@@ -933,6 +979,9 @@ type countingDockerClient struct {
 	stopCalls          atomic.Int64
 	restartCalls       atomic.Int64
 	removeCalls        atomic.Int64
+	execCreateCalls    atomic.Int64
+	execAttachCalls    atomic.Int64
+	execResizeCalls    atomic.Int64
 	removeForce        atomic.Bool
 	logReader          io.ReadCloser
 	inspect            container.InspectResponse
@@ -940,6 +989,11 @@ type countingDockerClient struct {
 	stats              container.StatsResponse
 	statsErr           error
 	statsDelay         time.Duration
+	execCreate         container.ExecCreateResponse
+	execAttach         dockertypes.HijackedResponse
+	execCreateErr      error
+	execAttachErr      error
+	execResizeErr      error
 	activeStats        int64
 	maxConcurrentStats atomic.Int64
 }
@@ -988,6 +1042,33 @@ func (c *countingDockerClient) ContainerStatsOneShot(context.Context, string) (c
 		return container.StatsResponseReader{}, err
 	}
 	return container.StatsResponseReader{Body: io.NopCloser(&output)}, nil
+}
+
+func (c *countingDockerClient) ContainerExecCreate(context.Context, string, container.ExecOptions) (container.ExecCreateResponse, error) {
+	c.execCreateCalls.Add(1)
+	if c.execCreateErr != nil {
+		return container.ExecCreateResponse{}, c.execCreateErr
+	}
+	if c.execCreate.ID == "" {
+		c.execCreate = container.ExecCreateResponse{ID: "exec-1"}
+	}
+	return c.execCreate, nil
+}
+
+func (c *countingDockerClient) ContainerExecAttach(context.Context, string, container.ExecAttachOptions) (dockertypes.HijackedResponse, error) {
+	c.execAttachCalls.Add(1)
+	if c.execAttachErr != nil {
+		return dockertypes.HijackedResponse{}, c.execAttachErr
+	}
+	if c.execAttach.Reader == nil {
+		c.execAttach = dockertypes.HijackedResponse{Reader: bufio.NewReader(bytes.NewReader(nil))}
+	}
+	return c.execAttach, nil
+}
+
+func (c *countingDockerClient) ContainerExecResize(context.Context, string, container.ResizeOptions) error {
+	c.execResizeCalls.Add(1)
+	return c.execResizeErr
 }
 
 func (c *countingDockerClient) ContainerStart(context.Context, string, container.StartOptions) error {

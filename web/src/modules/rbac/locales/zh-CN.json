@@ -364,6 +364,10 @@
         "display": "查看容器日志",
         "description": "允许读取有界容器日志。"
       },
+      "containerShell": {
+        "display": "访问容器 Shell",
+        "description": "允许为运行中的容器创建交互式 Shell 会话。"
+      },
       "containerStart": {
         "display": "启动容器",
         "description": "允许在启用高危操作后启动已停止容器。"

@@ -21,6 +21,17 @@ type DropdownPopupProps = {
 
 const routeState = vi.hoisted(() => ({
   meta: {},
+  matched: [
+    {
+      meta: {
+        breadcrumbTitle: {
+          'zh-CN': '服务管理',
+          'en-US': 'Service Management',
+        },
+      },
+      path: '/server',
+    },
+  ],
   path: '/server/runtime',
   fullPath: '/server/runtime',
 }));
@@ -39,6 +50,7 @@ const routerMock = vi.hoisted(() => ({
 const storeState = vi.hoisted(() => ({
   settingStore: {
     isUseTabsRouter: true,
+    showBreadcrumb: true,
     showFooter: true,
   },
   tabsRouterStore: {
@@ -287,6 +299,17 @@ async function clickCloseAll(wrapper: ReturnType<typeof mountLayoutContent>) {
 describe('LayoutContent', () => {
   beforeEach(() => {
     routeState.meta = {};
+    routeState.matched = [
+      {
+        meta: {
+          breadcrumbTitle: {
+            'zh-CN': '服务管理',
+            'en-US': 'Service Management',
+          },
+        },
+        path: '/server',
+      },
+    ];
     routeState.path = '/server/runtime';
     routeState.fullPath = '/server/runtime';
     routerMock.currentRoute.value = routeState;
@@ -294,6 +317,7 @@ describe('LayoutContent', () => {
     routerMock.replace.mockClear();
     routerMock.resolve.mockClear();
     storeState.settingStore.isUseTabsRouter = true;
+    storeState.settingStore.showBreadcrumb = true;
     storeState.settingStore.showFooter = true;
     storeState.tabsRouterStore.activeTabKey = '/server/runtime';
     storeState.tabsRouterStore.canReopenClosedTab = false;
@@ -405,6 +429,25 @@ describe('LayoutContent', () => {
     expect(layoutStyleSource).toContain('overflow: hidden;');
     expect(layoutStyleSource).toContain('flex: 1 0 auto;');
     expect(layoutStyleSource).toContain('min-height: 0;');
+  });
+
+  it('renders the shell breadcrumb before route content when the setting is enabled', () => {
+    const wrapper = mountLayoutContent();
+    const pageContainer = wrapper.get('.tdesign-starter-page-container');
+    const pageContent = pageContainer.get('.tdesign-starter-page-container__content');
+    const breadcrumb = pageContent.get('.shell-breadcrumb');
+    const routeHost = pageContent.get('.route-view-host');
+
+    expect(
+      breadcrumb.element.compareDocumentPosition(routeHost.element) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it('hides the shell breadcrumb when the setting is disabled', () => {
+    storeState.settingStore.showBreadcrumb = false;
+    const wrapper = mountLayoutContent();
+
+    expect(wrapper.find('.shell-breadcrumb').exists()).toBe(false);
   });
 
   it('keeps close-all disabled when no tabs can be closed', async () => {

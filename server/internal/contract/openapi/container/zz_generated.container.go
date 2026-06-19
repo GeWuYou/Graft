@@ -1189,6 +1189,228 @@ func (e PostContainerRestart500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
+// Defines values for PostContainerShellSessionJSONBodyCommand.
+const (
+	ContainerShellSessionRequestCommandValueAsh  PostContainerShellSessionJSONBodyCommand = "ash"
+	ContainerShellSessionRequestCommandValueBash PostContainerShellSessionJSONBodyCommand = "bash"
+	ContainerShellSessionRequestCommandValueSh   PostContainerShellSessionJSONBodyCommand = "sh"
+)
+
+// Valid indicates whether the value is a known member of the PostContainerShellSessionJSONBodyCommand enum.
+func (e PostContainerShellSessionJSONBodyCommand) Valid() bool {
+	switch e {
+	case ContainerShellSessionRequestCommandValueAsh:
+		return true
+	case ContainerShellSessionRequestCommandValueBash:
+		return true
+	case ContainerShellSessionRequestCommandValueSh:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostContainerShellSession200JSONResponseBodyDataCommand.
+const (
+	ContainerShellSessionResponseCommandValueAsh  PostContainerShellSession200JSONResponseBodyDataCommand = "ash"
+	ContainerShellSessionResponseCommandValueBash PostContainerShellSession200JSONResponseBodyDataCommand = "bash"
+	ContainerShellSessionResponseCommandValueSh   PostContainerShellSession200JSONResponseBodyDataCommand = "sh"
+)
+
+// Valid indicates whether the value is a known member of the PostContainerShellSession200JSONResponseBodyDataCommand enum.
+func (e PostContainerShellSession200JSONResponseBodyDataCommand) Valid() bool {
+	switch e {
+	case ContainerShellSessionResponseCommandValueAsh:
+		return true
+	case ContainerShellSessionResponseCommandValueBash:
+		return true
+	case ContainerShellSessionResponseCommandValueSh:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostContainerShellSession400JSONResponseBodySuccess.
+const (
+	PostContainerShellSession400JSONResponseBodySuccessFalse PostContainerShellSession400JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostContainerShellSession400JSONResponseBodySuccess enum.
+func (e PostContainerShellSession400JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostContainerShellSession400JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostContainerShellSession401JSONResponseBodySuccess.
+const (
+	PostContainerShellSession401JSONResponseBodySuccessFalse PostContainerShellSession401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostContainerShellSession401JSONResponseBodySuccess enum.
+func (e PostContainerShellSession401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostContainerShellSession401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostContainerShellSession403JSONResponseBodySuccess.
+const (
+	PostContainerShellSession403JSONResponseBodySuccessFalse PostContainerShellSession403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostContainerShellSession403JSONResponseBodySuccess enum.
+func (e PostContainerShellSession403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostContainerShellSession403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostContainerShellSession404JSONResponseBodySuccess.
+const (
+	PostContainerShellSession404JSONResponseBodySuccessFalse PostContainerShellSession404JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostContainerShellSession404JSONResponseBodySuccess enum.
+func (e PostContainerShellSession404JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostContainerShellSession404JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostContainerShellSession409JSONResponseBodySuccess.
+const (
+	PostContainerShellSession409JSONResponseBodySuccessFalse PostContainerShellSession409JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostContainerShellSession409JSONResponseBodySuccess enum.
+func (e PostContainerShellSession409JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostContainerShellSession409JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostContainerShellSession500JSONResponseBodySuccess.
+const (
+	PostContainerShellSession500JSONResponseBodySuccessFalse PostContainerShellSession500JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostContainerShellSession500JSONResponseBodySuccess enum.
+func (e PostContainerShellSession500JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostContainerShellSession500JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetContainerShellWebSocket400JSONResponseBodySuccess.
+const (
+	GetContainerShellWebSocket400JSONResponseBodySuccessFalse GetContainerShellWebSocket400JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetContainerShellWebSocket400JSONResponseBodySuccess enum.
+func (e GetContainerShellWebSocket400JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetContainerShellWebSocket400JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetContainerShellWebSocket401JSONResponseBodySuccess.
+const (
+	GetContainerShellWebSocket401JSONResponseBodySuccessFalse GetContainerShellWebSocket401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetContainerShellWebSocket401JSONResponseBodySuccess enum.
+func (e GetContainerShellWebSocket401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetContainerShellWebSocket401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetContainerShellWebSocket403JSONResponseBodySuccess.
+const (
+	GetContainerShellWebSocket403JSONResponseBodySuccessFalse GetContainerShellWebSocket403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetContainerShellWebSocket403JSONResponseBodySuccess enum.
+func (e GetContainerShellWebSocket403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetContainerShellWebSocket403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetContainerShellWebSocket404JSONResponseBodySuccess.
+const (
+	GetContainerShellWebSocket404JSONResponseBodySuccessFalse GetContainerShellWebSocket404JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetContainerShellWebSocket404JSONResponseBodySuccess enum.
+func (e GetContainerShellWebSocket404JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetContainerShellWebSocket404JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetContainerShellWebSocket409JSONResponseBodySuccess.
+const (
+	GetContainerShellWebSocket409JSONResponseBodySuccessFalse GetContainerShellWebSocket409JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetContainerShellWebSocket409JSONResponseBodySuccess enum.
+func (e GetContainerShellWebSocket409JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetContainerShellWebSocket409JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetContainerShellWebSocket500JSONResponseBodySuccess.
+const (
+	GetContainerShellWebSocket500JSONResponseBodySuccessFalse GetContainerShellWebSocket500JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetContainerShellWebSocket500JSONResponseBodySuccess enum.
+func (e GetContainerShellWebSocket500JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetContainerShellWebSocket500JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PostContainerStart200JSONResponseBodyDataAction.
 const (
 	PostContainerStart200JSONResponseBodyDataActionContainerActionResponseActionValueRemove  PostContainerStart200JSONResponseBodyDataAction = "remove"
@@ -1776,6 +1998,80 @@ type PostContainerRestart409JSONResponseBodySuccess bool
 // PostContainerRestart500JSONResponseBodySuccess defines parameters for PostContainerRestart.
 type PostContainerRestart500JSONResponseBodySuccess bool
 
+// PostContainerShellSessionJSONBody defines parameters for PostContainerShellSession.
+type PostContainerShellSessionJSONBody struct {
+	// Cols Initial terminal column count bound to the issued shell session ticket.
+	Cols int `json:"cols"`
+
+	// Command Requested interactive shell command to execute inside the container.
+	Command PostContainerShellSessionJSONBodyCommand `json:"command"`
+
+	// Rows Initial terminal row count bound to the issued shell session ticket.
+	Rows int `json:"rows"`
+}
+
+// PostContainerShellSessionParams defines parameters for PostContainerShellSession.
+type PostContainerShellSessionParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// PostContainerShellSessionJSONBodyCommand defines parameters for PostContainerShellSession.
+type PostContainerShellSessionJSONBodyCommand string
+
+// PostContainerShellSession200JSONResponseBodyDataCommand defines parameters for PostContainerShellSession.
+type PostContainerShellSession200JSONResponseBodyDataCommand string
+
+// PostContainerShellSession400JSONResponseBodySuccess defines parameters for PostContainerShellSession.
+type PostContainerShellSession400JSONResponseBodySuccess bool
+
+// PostContainerShellSession401JSONResponseBodySuccess defines parameters for PostContainerShellSession.
+type PostContainerShellSession401JSONResponseBodySuccess bool
+
+// PostContainerShellSession403JSONResponseBodySuccess defines parameters for PostContainerShellSession.
+type PostContainerShellSession403JSONResponseBodySuccess bool
+
+// PostContainerShellSession404JSONResponseBodySuccess defines parameters for PostContainerShellSession.
+type PostContainerShellSession404JSONResponseBodySuccess bool
+
+// PostContainerShellSession409JSONResponseBodySuccess defines parameters for PostContainerShellSession.
+type PostContainerShellSession409JSONResponseBodySuccess bool
+
+// PostContainerShellSession500JSONResponseBodySuccess defines parameters for PostContainerShellSession.
+type PostContainerShellSession500JSONResponseBodySuccess bool
+
+// GetContainerShellWebSocketParams defines parameters for GetContainerShellWebSocket.
+type GetContainerShellWebSocketParams struct {
+	// Ticket Opaque single-use shell session ticket issued by the authenticated shell session endpoint. The server must validate and consume this ticket before upgrading the connection to WebSocket.
+	Ticket string `form:"ticket" json:"ticket"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// GetContainerShellWebSocket400JSONResponseBodySuccess defines parameters for GetContainerShellWebSocket.
+type GetContainerShellWebSocket400JSONResponseBodySuccess bool
+
+// GetContainerShellWebSocket401JSONResponseBodySuccess defines parameters for GetContainerShellWebSocket.
+type GetContainerShellWebSocket401JSONResponseBodySuccess bool
+
+// GetContainerShellWebSocket403JSONResponseBodySuccess defines parameters for GetContainerShellWebSocket.
+type GetContainerShellWebSocket403JSONResponseBodySuccess bool
+
+// GetContainerShellWebSocket404JSONResponseBodySuccess defines parameters for GetContainerShellWebSocket.
+type GetContainerShellWebSocket404JSONResponseBodySuccess bool
+
+// GetContainerShellWebSocket409JSONResponseBodySuccess defines parameters for GetContainerShellWebSocket.
+type GetContainerShellWebSocket409JSONResponseBodySuccess bool
+
+// GetContainerShellWebSocket500JSONResponseBodySuccess defines parameters for GetContainerShellWebSocket.
+type GetContainerShellWebSocket500JSONResponseBodySuccess bool
+
 // PostContainerStartParams defines parameters for PostContainerStart.
 type PostContainerStartParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -1849,3 +2145,6 @@ type PostContainerBatchActionsJSONRequestBody PostContainerBatchActionsJSONBody
 
 // PostContainerRemoveJSONRequestBody defines body for PostContainerRemove for application/json ContentType.
 type PostContainerRemoveJSONRequestBody PostContainerRemoveJSONBody
+
+// PostContainerShellSessionJSONRequestBody defines body for PostContainerShellSession for application/json ContentType.
+type PostContainerShellSessionJSONRequestBody PostContainerShellSessionJSONBody

@@ -6,7 +6,6 @@
 <template>
   <div class="container-detail-page" data-page-type="operations-detail">
     <management-page-header
-      :breadcrumb="detailBreadcrumb"
       :title="pageTitle"
       :description="safeDetail ? safeDetail.image : t('container.detail.description')"
       :source="{ labelKey: 'container.list.eyebrow', fallback: t('container.list.eyebrow') }"
@@ -392,6 +391,18 @@
                   :copy-success-label="t('container.detail.copySuccess')"
                   :copy-error-label="t('container.detail.copyError')"
                   @refresh="loadLogs"
+                />
+              </section>
+            </t-tab-panel>
+
+            <t-tab-panel value="shell" :label="t('container.detail.tabs.shell')" :destroy-on-hide="false">
+              <section
+                class="container-detail-section container-detail-section--shell container-detail-tab-body container-detail-tab-body--short"
+              >
+                <container-shell-panel
+                  :active="activeTab === 'shell'"
+                  :container-id="containerId"
+                  :container-state="safeDetail.state"
                 />
               </section>
             </t-tab-panel>
@@ -1130,6 +1141,7 @@ import {
   postContainerMountUsageRefresh,
 } from '../../api/container';
 import ContainerRawJsonPanel from '../../components/ContainerRawJsonPanel.vue';
+import ContainerShellPanel from '../../components/ContainerShellPanel.vue';
 import type {
   ContainerDetail,
   ContainerHealth,
@@ -1148,7 +1160,7 @@ defineOptions({
   name: 'ContainerDetailIndex',
 });
 
-type DetailTab = 'overview' | 'resources' | 'logs' | 'health' | 'config' | 'network' | 'storage' | 'raw';
+type DetailTab = 'overview' | 'resources' | 'logs' | 'shell' | 'health' | 'config' | 'network' | 'storage' | 'raw';
 type EnvironmentPolicy = 'plain' | 'masked' | 'hidden' | 'unknown';
 type EnvironmentPolicyFilter = EnvironmentPolicy | 'all' | 'sensitive';
 type EnvironmentRow = {
@@ -1294,7 +1306,17 @@ type ResourceDetailGroup = {
 type ResourceMetricDefinition = [ResourceMetricKey, string, ResourceMetricFormat];
 type AutoRefreshInterval = 0 | 5 | 10 | 30;
 
-const DETAIL_TABS: DetailTab[] = ['overview', 'resources', 'logs', 'health', 'config', 'network', 'storage', 'raw'];
+const DETAIL_TABS: DetailTab[] = [
+  'overview',
+  'resources',
+  'logs',
+  'shell',
+  'health',
+  'config',
+  'network',
+  'storage',
+  'raw',
+];
 const AUTO_REFRESH_INTERVALS: AutoRefreshInterval[] = [0, 5, 10, 30];
 const DEFAULT_LOG_QUERY = {
   tail: 200,
@@ -1377,10 +1399,6 @@ const refreshControlStatus = computed(() => {
   }
   return 'running' as const;
 });
-const detailBreadcrumb = computed(() => [
-  { labelKey: 'container.list.eyebrow', fallback: t('container.list.eyebrow') },
-  { labelKey: 'container.detail.title', fallback: fallbackTitle.value[LOCALE.ZH_CN] },
-]);
 const pageTitle = computed(() => {
   if (safeDetail.value) {
     return displayName(safeDetail.value);
@@ -3565,10 +3583,14 @@ function portLabel(port: ContainerDetail['ports'][number]) {
 }
 
 .container-detail-tabs-card {
+  min-height: 0;
   min-width: 0;
 }
 
 .container-detail-tabs-card :deep(.t-card__body) {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
   padding: 0;
 }
 
@@ -3600,7 +3622,18 @@ function portLabel(port: ContainerDetail['ports'][number]) {
 }
 
 .container-detail-tabs-card :deep(.t-tabs__content) {
+  min-height: 0;
   padding-top: var(--graft-density-gap-12);
+}
+
+.container-detail-tabs-card :deep(.t-tabs) {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.container-detail-tabs-card :deep(.t-tabs__panel) {
+  min-height: 0;
 }
 
 /*
@@ -3610,6 +3643,7 @@ function portLabel(port: ContainerDetail['ports'][number]) {
 .container-detail-tab-body {
   --container-detail-tab-body-min-height: clamp(280px, calc(100vh - var(--graft-page-bottom-safe-area) - 420px), 520px);
 
+  height: var(--container-detail-tab-body-min-height);
   min-height: var(--container-detail-tab-body-min-height);
 }
 
@@ -3631,6 +3665,12 @@ function portLabel(port: ContainerDetail['ports'][number]) {
 }
 
 .container-detail-section--health {
+  padding: 0 var(--graft-density-gap-16) var(--graft-density-gap-16);
+}
+
+.container-detail-section--shell {
+  height: auto;
+  min-height: 0;
   padding: 0 var(--graft-density-gap-16) var(--graft-density-gap-16);
 }
 
