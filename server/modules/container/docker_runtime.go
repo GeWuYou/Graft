@@ -216,11 +216,15 @@ func mapDockerShellError(err error) error {
 	mapped := mapDockerError(err)
 	message := strings.ToLower(strings.TrimSpace(err.Error()))
 	switch {
-	case strings.Contains(message, "executable file not found"), strings.Contains(message, "not found in $path"), strings.Contains(message, "no such file or directory"):
-		return errShellCommandNotFound
 	case errors.Is(mapped, errContainerNotFound):
 		return errContainerNotFound
+	case strings.Contains(message, "executable file not found"),
+		strings.Contains(message, "not found in $path"):
+		return errShellCommandNotFound
 	default:
+		if mapped != nil {
+			return mapped
+		}
 		return errShellSessionFailed
 	}
 }

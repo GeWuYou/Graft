@@ -114,7 +114,7 @@ func assertShellWebSocketRoutePermission(t *testing.T, engine *gin.Engine, autho
 	if issue.Code != http.StatusOK {
 		t.Fatalf("expected shell issue 200, got %d: %s", issue.Code, issue.Body.String())
 	}
-	ticket := extractEnvelopeField(issue.Body.String(), `"ticket":"`, `"`)
+	ticket := extractShellTicketFromEnvelope(issue.Body.String())
 	response := httptest.NewRecorder()
 	request := authorizedRequest(http.MethodGet, "/api/ops/containers/abc123/shell/ws?ticket="+ticket)
 	request.Header.Set("Origin", "https://console.example.com")
@@ -312,7 +312,7 @@ func TestShellWebSocketRouteRejectsInvalidOrigin(t *testing.T) {
 	if issue.Code != http.StatusOK {
 		t.Fatalf("expected issue 200, got %d: %s", issue.Code, issue.Body.String())
 	}
-	ticket := extractEnvelopeField(issue.Body.String(), `"ticket":"`, `"`)
+	ticket := extractShellTicketFromEnvelope(issue.Body.String())
 	response := httptest.NewRecorder()
 	request := authorizedRequest(http.MethodGet, "/api/ops/containers/abc123/shell/ws?ticket="+ticket)
 	request.Header.Set("Origin", "https://evil.example.com")
@@ -355,7 +355,7 @@ func TestShellWebSocketRouteRejectsReusedTicket(t *testing.T) {
 
 	issue := httptest.NewRecorder()
 	engine.ServeHTTP(issue, authorizedJSONRequest(http.MethodPost, "/api/ops/containers/abc123/shell/sessions", `{"command":"sh","cols":120,"rows":32}`))
-	ticket := extractEnvelopeField(issue.Body.String(), `"ticket":"`, `"`)
+	ticket := extractShellTicketFromEnvelope(issue.Body.String())
 
 	for i := 0; i < 2; i++ {
 		response := httptest.NewRecorder()
@@ -408,7 +408,7 @@ func TestShellWebSocketRouteConnectsWithoutAuthorizationHeaderAfterTicketIssue(t
 	if issue.Code != http.StatusOK {
 		t.Fatalf("expected issue 200, got %d: %s", issue.Code, issue.Body.String())
 	}
-	ticket := extractEnvelopeField(issue.Body.String(), `"ticket":"`, `"`)
+	ticket := extractShellTicketFromEnvelope(issue.Body.String())
 
 	server := httptest.NewServer(engine)
 	defer server.Close()
@@ -471,7 +471,7 @@ func TestShellWebSocketRoutePublishesCloseAuditOnDisconnect(t *testing.T) {
 	if issue.Code != http.StatusOK {
 		t.Fatalf("expected issue 200, got %d: %s", issue.Code, issue.Body.String())
 	}
-	ticket := extractEnvelopeField(issue.Body.String(), `"ticket":"`, `"`)
+	ticket := extractShellTicketFromEnvelope(issue.Body.String())
 
 	server := httptest.NewServer(engine)
 	defer server.Close()
@@ -665,6 +665,18 @@ func extractEnvelopeField(body string, prefix string, suffix string) string {
 		return ""
 	}
 	return body[start : start+end]
+}
+
+func extractShellTicketFromEnvelope(body string) string {
+	websocketURL := extractEnvelopeField(body, `"websocket_url":"`, `"`)
+	if websocketURL == "" {
+		return ""
+	}
+	parsed, err := url.Parse(websocketURL)
+	if err != nil {
+		return ""
+	}
+	return parsed.Query().Get("ticket")
 }
 
 type auditRecorderBus struct {

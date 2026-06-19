@@ -84,6 +84,7 @@ var (
 	errShellOriginDenied           = errors.New("container shell origin denied")
 	errContainerNotRunning         = errors.New("container not running")
 	errShellCommandNotFound        = errors.New("container shell command not found")
+	errShellInvalidSize            = errors.New("container shell invalid size")
 	errShellSessionFailed          = errors.New("container shell session failed")
 )
 
@@ -230,19 +231,19 @@ type Summary struct {
 // Detail is a sanitized container inspect view.
 type Detail struct {
 	Summary
-	Command           []string
-	Entrypoint        []string
-	Environment       []EnvironmentVariable
-	EnvironmentPolicy string
+	Command                      []string
+	Entrypoint                   []string
+	Environment                  []EnvironmentVariable
+	EnvironmentPolicy            string
 	EnvironmentMaskedCopyEnabled bool
-	Healthcheck       *Healthcheck
-	LastExitCode      *int
-	Mounts            []Mount
-	Networks          []Network
-	OOMKilled         *bool
-	RuntimeInfo       RuntimeInfo
-	InspectUpdatedAt  string
-	WorkingDir        string
+	Healthcheck                  *Healthcheck
+	LastExitCode                 *int
+	Mounts                       []Mount
+	Networks                     []Network
+	OOMKilled                    *bool
+	RuntimeInfo                  RuntimeInfo
+	InspectUpdatedAt             string
+	WorkingDir                   string
 }
 
 // Healthcheck describes Docker healthcheck diagnostics from container inspect.

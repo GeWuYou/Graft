@@ -24,8 +24,9 @@ import (
 )
 
 type routeRuntime struct {
-	ctx     *module.Context
-	service *service
+	ctx         *module.Context
+	service     *service
+	userService moduleapi.UserService
 }
 
 // RegisterRoutes registers HTTP API endpoints for container operations with permission-based access control.
@@ -45,8 +46,12 @@ func registerRoutes(ctx *module.Context, moduleName string, service *service) er
 	if err != nil {
 		return fmt.Errorf("resolve authorizer: %w", err)
 	}
+	userService, err := resolveUserService(ctx)
+	if err != nil {
+		return fmt.Errorf("resolve user service: %w", err)
+	}
 
-	routes := routeRuntime{ctx: ctx, service: service}
+	routes := routeRuntime{ctx: ctx, service: service, userService: userService}
 	publisher := httpx.NewSecurityAuditPublisher(ctx.EventBus, ctx.Logger, moduleName)
 	group := ctx.Router.Group(containercontract.ContainerAPIGroup)
 	group.Use(httpx.RequestIDMiddleware())

@@ -4173,8 +4173,6 @@ export interface components {
     'container-shell-session-response': {
       /** @description Stable server-issued session identifier used for audit correlation. */
       session_id: string;
-      /** @description Opaque one-time shell ticket. Clients must use it immediately for WebSocket upgrade, must not persist it, and must never log it. */
-      ticket: string;
       /**
        * Format: date-time
        * @description Absolute UTC expiration time for the one-time shell ticket.

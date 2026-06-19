@@ -16,7 +16,7 @@ import (
 // 其他错误映射到 500。
 func statusForError(err error) int {
 	switch {
-	case errors.Is(err, errInvalidRef), errors.Is(err, errInvalidListQuery), errors.Is(err, errInvalidBatchAction), errors.Is(err, errLogsTooLarge), errors.Is(err, errInvalidLogQuery), errors.Is(err, errMountUsageUnsupported), errors.Is(err, errShellTicketInvalid), errors.Is(err, errShellCommandNotFound):
+	case errors.Is(err, errInvalidRef), errors.Is(err, errInvalidListQuery), errors.Is(err, errInvalidBatchAction), errors.Is(err, errLogsTooLarge), errors.Is(err, errInvalidLogQuery), errors.Is(err, errMountUsageUnsupported), errors.Is(err, errShellTicketInvalid), errors.Is(err, errShellCommandNotFound), errors.Is(err, errShellInvalidSize):
 		return http.StatusBadRequest
 	case errors.Is(err, errRuntimeDisabled), errors.Is(err, errDangerousActionsDisabled), errors.Is(err, errRuntimePermissionDenied), errors.Is(err, errShellDisabled), errors.Is(err, errShellForbidden), errors.Is(err, errShellOriginDenied):
 		return http.StatusForbidden
@@ -65,6 +65,7 @@ var containerErrorMessageRules = []struct {
 	{err: errShellOriginDenied, key: containercontract.ContainerShellOriginDenied},
 	{err: errContainerNotRunning, key: containercontract.ContainerShellContainerNotRunning},
 	{err: errShellCommandNotFound, key: containercontract.ContainerShellCommandNotFound},
+	{err: errShellInvalidSize, key: containercontract.ContainerShellInvalidSize},
 	{err: errShellSessionFailed, key: containercontract.ContainerShellSessionFailed},
 	{err: errContainerRuntimeTimeout, key: containercontract.ContainerTimeout},
 	{err: errDangerousActionsDisabled, key: containercontract.ContainerDangerousActionsDisabled},

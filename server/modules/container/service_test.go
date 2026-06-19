@@ -885,6 +885,104 @@ func TestServiceListRejectsInvalidQuery(t *testing.T) {
 	}
 }
 
+func TestNormalizeShellSessionRequestRejectsInvalidSize(t *testing.T) {
+	t.Parallel()
+
+	_, err := normalizeShellSessionRequest(ShellSessionRequest{
+		Command: "sh",
+		Cols:    0,
+		Rows:    24,
+	})
+	if !errors.Is(err, errShellInvalidSize) {
+		t.Fatalf("expected invalid shell size, got %v", err)
+	}
+}
+
+func TestPublishShellSessionClosedDetachesCanceledRequestContext(t *testing.T) {
+	t.Parallel()
+
+	bus := &contextStateAuditBus{}
+	service, err := newService(containerServiceOptions{
+		runtime:     fakeRuntime{},
+		auditBus:    bus,
+		moduleName:  moduleID,
+		enabled:     true,
+		defaultTail: defaultContainerLogsDefaultTail,
+		maxTail:     defaultContainerLogsMaxTail,
+	})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	baseCtx, cancel := context.WithCancel(context.Background())
+	ctx := httpx.WithRequestAuditContext(baseCtx, httpx.RequestAuditContext{
+		RequestID: "req-shell-close",
+		TraceID:   "trace-shell-close",
+		Route:     "/api/ops/containers/:id/shell/ws",
+		Method:    "GET",
+	})
+	ctx = moduleapi.WithRequestAuthContext(ctx, moduleapi.RequestAuthContext{
+		User: &moduleapi.CurrentUser{ID: 7, Username: "admin"},
+	})
+	cancel()
+
+	service.publishShellSessionClosed(ctx, ShellHandshake{
+		UserID:       7,
+		ResourceID:   "abc123",
+		ResourceName: "web",
+		Command:      "sh",
+		SessionID:    "sess-1",
+	}, time.Now().UTC().Add(-time.Second), "client_closed", nil)
+
+	if len(bus.events) != 1 {
+		t.Fatalf("expected one audit event, got %#v", bus.events)
+	}
+	if bus.canceled[0] {
+		t.Fatalf("expected detached audit publish context")
+	}
+}
+
+func TestPublishShellSessionFailedDetachesCanceledRequestContext(t *testing.T) {
+	t.Parallel()
+
+	bus := &contextStateAuditBus{}
+	service, err := newService(containerServiceOptions{
+		runtime:     fakeRuntime{},
+		auditBus:    bus,
+		moduleName:  moduleID,
+		enabled:     true,
+		defaultTail: defaultContainerLogsDefaultTail,
+		maxTail:     defaultContainerLogsMaxTail,
+	})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	baseCtx, cancel := context.WithCancel(context.Background())
+	ctx := httpx.WithRequestAuditContext(baseCtx, httpx.RequestAuditContext{
+		RequestID: "req-shell-failed",
+		TraceID:   "trace-shell-failed",
+		Route:     "/api/ops/containers/:id/shell/ws",
+		Method:    "GET",
+	})
+	cancel()
+
+	service.publishShellSessionFailed(ctx, ShellHandshake{
+		UserID:       7,
+		ResourceID:   "abc123",
+		ResourceName: "web",
+		Command:      "sh",
+		SessionID:    "sess-2",
+	}, "bridge_failed", errShellSessionFailed)
+
+	if len(bus.events) != 1 {
+		t.Fatalf("expected one audit event, got %#v", bus.events)
+	}
+	if bus.canceled[0] {
+		t.Fatalf("expected detached audit publish context")
+	}
+}
+
 func TestContainerOptionsFromConfigUsesRegisteredDefaults(t *testing.T) {
 	t.Parallel()
 
@@ -1176,8 +1274,10 @@ func (listRuntime) Mounts(context.Context, Ref) ([]Mount, error) { return nil, n
 func (listRuntime) MountUsage(context.Context, Ref, string) (MountUsage, error) {
 	return MountUsage{}, nil
 }
-func (listRuntime) Logs(context.Context, Ref, LogQuery) (Logs, error)  { return Logs{}, nil }
-func (listRuntime) Shell(context.Context, Ref, string) (terminal.Session, error) { return newStubTerminalSession(), nil }
+func (listRuntime) Logs(context.Context, Ref, LogQuery) (Logs, error) { return Logs{}, nil }
+func (listRuntime) Shell(context.Context, Ref, string) (terminal.Session, error) {
+	return newStubTerminalSession(), nil
+}
 func (listRuntime) Start(context.Context, Ref) (ActionResult, error)   { return ActionResult{}, nil }
 func (listRuntime) Stop(context.Context, Ref) (ActionResult, error)    { return ActionResult{}, nil }
 func (listRuntime) Restart(context.Context, Ref) (ActionResult, error) { return ActionResult{}, nil }
@@ -1379,9 +1479,9 @@ func fakeAction(action string) ActionResult {
 }
 
 type stubTerminalSession struct {
-	output chan []byte
-	errs   chan error
-	once   sync.Once
+	output  chan []byte
+	errs    chan error
+	once    sync.Once
 	started bool
 }
 
@@ -1408,12 +1508,25 @@ func (s *stubTerminalSession) Write(_ context.Context, data []byte) error {
 }
 
 func (s *stubTerminalSession) Resize(context.Context, terminal.Size) error { return nil }
-func (s *stubTerminalSession) Output() <-chan []byte                      { return s.output }
-func (s *stubTerminalSession) Errors() <-chan error                       { return s.errs }
+func (s *stubTerminalSession) Output() <-chan []byte                       { return s.output }
+func (s *stubTerminalSession) Errors() <-chan error                        { return s.errs }
 func (s *stubTerminalSession) Close(context.Context) error {
 	s.once.Do(func() {
 		close(s.output)
 		close(s.errs)
 	})
+	return nil
+}
+
+type contextStateAuditBus struct {
+	events   []eventbus.Event
+	canceled []bool
+}
+
+func (b *contextStateAuditBus) Subscribe(string, eventbus.Handler) error { return nil }
+
+func (b *contextStateAuditBus) Publish(ctx context.Context, event eventbus.Event) error {
+	b.events = append(b.events, event)
+	b.canceled = append(b.canceled, ctx.Err() != nil)
 	return nil
 }

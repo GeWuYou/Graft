@@ -56,6 +56,8 @@ const (
 	ContainerShellContainerNotRunning MessageKey = "ops.container.error.shellContainerNotRunning"
 	// ContainerShellCommandNotFound identifies missing shell command errors.
 	ContainerShellCommandNotFound MessageKey = "ops.container.error.shellCommandNotFound"
+	// ContainerShellInvalidSize identifies invalid shell terminal dimension errors.
+	ContainerShellInvalidSize MessageKey = "ops.container.error.shellInvalidSize"
 	// ContainerShellSessionFailed identifies generic shell session failures.
 	ContainerShellSessionFailed MessageKey = "ops.container.error.shellSessionFailed"
 	// ContainerShellUnsupportedControlMessage identifies unsupported terminal control payload errors.

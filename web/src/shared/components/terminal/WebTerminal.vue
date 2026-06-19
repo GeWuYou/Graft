@@ -73,16 +73,10 @@ const emit = defineEmits<{
 
 const hostRef = ref<HTMLElement | null>(null);
 const focused = ref(false);
-
-const terminal = new Terminal({
-  ...createTerminalThemeOptions(),
-});
-const fitAddon = new FitAddon();
-const searchAddon = new SearchAddon();
-const webLinksAddon = new WebLinksAddon();
-terminal.loadAddon(fitAddon);
-terminal.loadAddon(searchAddon);
-terminal.loadAddon(webLinksAddon);
+let terminal: Terminal | null = null;
+let fitAddon: FitAddon | null = null;
+let searchAddon: SearchAddon | null = null;
+let webLinksAddon: WebLinksAddon | null = null;
 
 let resizeObserver: ResizeObserver | null = null;
 
@@ -117,19 +111,28 @@ const overlayDescription = computed(() => {
 
 watch(
   () => props.modelValue,
-  async (active) => {
+  (active) => {
     if (active) {
-      await ensureConnected();
+      void ensureConnected();
       return;
     }
     session.disconnect('manual_disconnect');
   },
 );
 
-onMounted(async () => {
+onMounted(() => {
   if (!hostRef.value) {
     return;
   }
+  terminal = new Terminal({
+    ...createTerminalThemeOptions(),
+  });
+  fitAddon = new FitAddon();
+  searchAddon = new SearchAddon();
+  webLinksAddon = new WebLinksAddon();
+  terminal.loadAddon(fitAddon);
+  terminal.loadAddon(searchAddon);
+  terminal.loadAddon(webLinksAddon);
   terminal.open(hostRef.value);
   terminal.onData((data) => {
     session.sendInput(data);
@@ -139,7 +142,7 @@ onMounted(async () => {
   });
   resizeObserver.observe(hostRef.value);
   if (props.autoConnect || props.modelValue) {
-    await ensureConnected();
+    void ensureConnected();
   } else {
     queueFitAndResize();
   }
@@ -149,18 +152,29 @@ onBeforeUnmount(() => {
   resizeObserver?.disconnect();
   resizeObserver = null;
   session.disconnect('component_unmount');
-  terminal.dispose();
+  terminal?.dispose();
+  terminal = null;
+  fitAddon = null;
+  searchAddon = null;
+  webLinksAddon = null;
 });
 
 async function ensureConnected() {
   await nextTick();
+  if (!terminal || !hostRef.value) {
+    return;
+  }
   const size = measureTerminal();
-  await session.connect(size);
+  try {
+    await session.connect(size);
+  } catch {
+    // The session composable already propagates error state through reactive state and callbacks.
+  }
 }
 
 function queueFitAndResize() {
   window.requestAnimationFrame(() => {
-    if (!hostRef.value) {
+    if (!hostRef.value || !fitAddon || !terminal) {
       return;
     }
     try {
@@ -175,27 +189,27 @@ function queueFitAndResize() {
 
 function measureTerminal(): TerminalResizePayload {
   return {
-    cols: terminal.cols || 120,
-    rows: terminal.rows || 32,
+    cols: terminal?.cols || 120,
+    rows: terminal?.rows || 32,
   };
 }
 
 function handleServerMessage(message: TerminalServerMessage) {
   if (message.type === 'output') {
-    terminal.write(message.data);
+    terminal?.write(message.data);
   }
   emit('message', message);
 }
 
 function focusTerminal() {
-  terminal.focus();
+  terminal?.focus();
   hostRef.value?.focus();
 }
 
 defineExpose({
   connect: ensureConnected,
   disconnect: session.disconnect,
-  findNext: (value: string) => searchAddon.findNext(value),
+  findNext: (value: string) => searchAddon?.findNext(value) ?? false,
   fit: queueFitAndResize,
   focus: focusTerminal,
   getState: () => connectionState.value,

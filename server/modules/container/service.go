@@ -29,6 +29,7 @@ import (
 const (
 	containerResourceType        = "container"
 	containerOperationTTL        = 30 * time.Second
+	containerAuditPublishTimeout = 3 * time.Second
 	maskedEnvironmentPlaceholder = "*****"
 )
 
@@ -1111,7 +1112,6 @@ type ShellSessionRequest struct {
 // ShellSession contains the issued shell ticket and websocket bootstrap data.
 type ShellSession struct {
 	SessionID    string
-	Ticket       string
 	Command      string
 	Cols         int
 	Rows         int
@@ -1214,7 +1214,6 @@ func (s *service) IssueShellSession(ctx context.Context, ref Ref, request ShellS
 	})
 	return ShellSession{
 		SessionID:    issued.SessionID,
-		Ticket:       issued.Ticket,
 		Command:      issued.Command,
 		Cols:         issued.Cols,
 		Rows:         issued.Rows,
@@ -1304,7 +1303,7 @@ func normalizeShellSessionRequest(request ShellSessionRequest) (ShellSessionRequ
 		return ShellSessionRequest{}, errShellCommandNotFound
 	}
 	if request.Cols <= 0 || request.Rows <= 0 {
-		return ShellSessionRequest{}, errInvalidListQuery
+		return ShellSessionRequest{}, errShellInvalidSize
 	}
 	return ShellSessionRequest{
 		Command: command,
@@ -1353,6 +1352,17 @@ func currentRequestUserAgent(ctx context.Context) string {
 	return strings.TrimSpace(requestAudit.UserAgent)
 }
 
+func detachedAuditContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	auditCtx, cancel := context.WithTimeout(context.Background(), containerAuditPublishTimeout)
+	if requestAudit, ok := httpx.RequestAuditContextFromContext(ctx); ok {
+		auditCtx = httpx.WithRequestAuditContext(auditCtx, requestAudit)
+	}
+	if requestAuth, ok := moduleapi.RequestAuthContextFromContext(ctx); ok {
+		auditCtx = moduleapi.WithRequestAuthContext(auditCtx, requestAuth)
+	}
+	return auditCtx, cancel
+}
+
 func (s *service) publishShellSessionClosed(
 	ctx context.Context,
 	handshake ShellHandshake,
@@ -1363,6 +1373,8 @@ func (s *service) publishShellSessionClosed(
 	if s == nil || s.auditBus == nil {
 		return
 	}
+	auditCtx, cancel := detachedAuditContext(ctx)
+	defer cancel()
 	duration := time.Since(startedAt)
 	metadata := map[string]any{
 		"container_id":   handshake.ResourceID,
@@ -1373,14 +1385,14 @@ func (s *service) publishShellSessionClosed(
 		"duration_ms":    duration.Milliseconds(),
 		"close_reason":   strings.TrimSpace(reason),
 	}
-	if requestAudit, ok := httpx.RequestAuditContextFromContext(ctx); ok {
+	if requestAudit, ok := httpx.RequestAuditContextFromContext(auditCtx); ok {
 		metadata["requestId"] = requestAudit.RequestID
 		metadata["traceId"] = requestAudit.TraceID
 		metadata["route"] = requestAudit.Route
 		metadata["client_ip"] = requestAudit.ClientIP
 		metadata["user_agent"] = requestAudit.UserAgent
 	}
-	user := currentAuditOperator(ctx)
+	user := currentAuditOperator(auditCtx)
 	if user == nil && handshake.UserID != 0 {
 		user = &moduleapi.CurrentUser{ID: handshake.UserID}
 	}
@@ -1399,7 +1411,7 @@ func (s *service) publishShellSessionClosed(
 		event.MessageKey = messageKeyForError(err).String()
 		event.Message = fallbackMessageForError(err)
 	}
-	if publishErr := s.auditBus.Publish(ctx, eventbus.Event{
+	if publishErr := s.auditBus.Publish(auditCtx, eventbus.Event{
 		Name:    string(moduleapi.AuditRecordEventName),
 		Source:  s.moduleName,
 		Payload: event,
@@ -1416,6 +1428,8 @@ func (s *service) publishShellSessionFailed(ctx context.Context, handshake Shell
 	if s == nil || s.auditBus == nil {
 		return
 	}
+	auditCtx, cancel := detachedAuditContext(ctx)
+	defer cancel()
 	metadata := map[string]any{
 		"container_id":   handshake.ResourceID,
 		"container_name": handshake.ResourceName,
@@ -1424,14 +1438,14 @@ func (s *service) publishShellSessionFailed(ctx context.Context, handshake Shell
 		"session_id":     handshake.SessionID,
 		"reason":         strings.TrimSpace(reason),
 	}
-	if requestAudit, ok := httpx.RequestAuditContextFromContext(ctx); ok {
+	if requestAudit, ok := httpx.RequestAuditContextFromContext(auditCtx); ok {
 		metadata["requestId"] = requestAudit.RequestID
 		metadata["traceId"] = requestAudit.TraceID
 		metadata["route"] = requestAudit.Route
 		metadata["client_ip"] = requestAudit.ClientIP
 		metadata["user_agent"] = requestAudit.UserAgent
 	}
-	user := currentAuditOperator(ctx)
+	user := currentAuditOperator(auditCtx)
 	if user == nil && handshake.UserID != 0 {
 		user = &moduleapi.CurrentUser{ID: handshake.UserID}
 	}
@@ -1450,7 +1464,7 @@ func (s *service) publishShellSessionFailed(ctx context.Context, handshake Shell
 		event.MessageKey = messageKeyForError(err).String()
 		event.Message = fallbackMessageForError(err)
 	}
-	if publishErr := s.auditBus.Publish(ctx, eventbus.Event{
+	if publishErr := s.auditBus.Publish(auditCtx, eventbus.Event{
 		Name:    string(moduleapi.AuditRecordEventName),
 		Source:  s.moduleName,
 		Payload: event,

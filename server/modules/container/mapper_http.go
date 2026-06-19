@@ -222,7 +222,6 @@ func toShellSession(session ShellSession) containergen.ContainerShellSessionResp
 		ExpiresAt:    session.ExpiresAt,
 		Rows:         session.Rows,
 		SessionId:    session.SessionID,
-		Ticket:       session.Ticket,
 		WebsocketUrl: session.WebSocketURL,
 	}
 }

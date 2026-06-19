@@ -130,6 +130,24 @@ func TestLoadReadsContainerRuntimeConfig(t *testing.T) {
 	)
 }
 
+func TestLoadRejectsInvalidWebSocketAllowedOrigin(t *testing.T) {
+	restoreEnv := clearGraftEnv(t)
+	t.Cleanup(restoreEnv)
+	chdir(t, t.TempDir())
+
+	t.Setenv("GRAFT_AUTH_JWT_SECRET", "container-config-secret")
+	t.Setenv("GRAFT_OPS_CONTAINER_SHELL_ENABLED", "true")
+	t.Setenv("GRAFT_HTTPX_WEBSOCKET_ALLOWED_ORIGINS", "http://localhost:3002/shell")
+
+	_, err := Load()
+	if err == nil {
+		t.Fatal("expected invalid websocket allowed origin error")
+	}
+	if !strings.Contains(err.Error(), "GRAFT_HTTPX_WEBSOCKET_ALLOWED_ORIGINS") {
+		t.Fatalf("expected websocket allowed origins error, got %v", err)
+	}
+}
+
 // TestLoadReadsServerDotenvFromRepoRoot 验证从仓库根目录启动时会回退读取 server/.env。
 func TestLoadReadsServerDotenvFromRepoRoot(t *testing.T) {
 	restoreEnv := clearGraftEnv(t)

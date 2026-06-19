@@ -1,7 +1,7 @@
 // Copyright (c) 2025-2026 GeWuYou
 // SPDX-License-Identifier: Apache-2.0
 
-import { computed, ref } from 'vue';
+import { computed, ref, shallowRef } from 'vue';
 
 import type {
   TerminalClientMessage,
@@ -28,9 +28,11 @@ type UseTerminalSessionOptions = {
  * @returns 会话管理对象，提供建立/断开连接、发送消息和监控连接状态的接口
  */
 export function useTerminalSession(options: UseTerminalSessionOptions) {
-  const socket = ref<WebSocket | null>(null);
+  const socket = shallowRef<WebSocket | null>(null);
   const state = ref<TerminalConnectionState>('idle');
   const lastError = ref<string>('');
+  let activeConnectionId = 0;
+  let activeClose: ((reason: TerminalLifecycleCloseReason) => void) | null = null;
 
   const isConnected = computed(() => state.value === 'connected');
 
@@ -43,23 +45,57 @@ export function useTerminalSession(options: UseTerminalSessionOptions) {
     disconnect('manual_disconnect');
     setState('connecting');
     lastError.value = '';
+    const connectionId = ++activeConnectionId;
 
     try {
       const opened = await options.connector.open({
         cols: initialSize.cols,
         rows: initialSize.rows,
       });
+      if (connectionId !== activeConnectionId) {
+        return;
+      }
       const nextSocket = opened.protocols?.length
         ? new WebSocket(opened.url, opened.protocols)
         : new WebSocket(opened.url);
       socket.value = nextSocket;
+      let didClose = false;
+      let closeReason: TerminalLifecycleCloseReason = 'remote_close';
+
+      const finalizeClose = (reason: TerminalLifecycleCloseReason) => {
+        if (didClose) {
+          return;
+        }
+        didClose = true;
+        if (socket.value === nextSocket) {
+          socket.value = null;
+        }
+        if (activeClose === finalizeClose) {
+          activeClose = null;
+        }
+        if (connectionId === activeConnectionId) {
+          if (reason === 'component_unmount') {
+            setState('idle');
+          } else if (state.value !== 'error') {
+            setState('disconnected');
+          }
+        }
+        options.onClose?.(reason);
+      };
+      activeClose = finalizeClose;
 
       nextSocket.onopen = () => {
+        if (connectionId !== activeConnectionId || socket.value !== nextSocket) {
+          return;
+        }
         setState('connected');
         options.onOpen?.();
       };
 
       nextSocket.onmessage = (event) => {
+        if (connectionId !== activeConnectionId || socket.value !== nextSocket) {
+          return;
+        }
         const payload = parseServerMessage(event.data);
         if (!payload) {
           return;
@@ -74,24 +110,28 @@ export function useTerminalSession(options: UseTerminalSessionOptions) {
       };
 
       nextSocket.onerror = () => {
+        if (connectionId !== activeConnectionId || socket.value !== nextSocket) {
+          return;
+        }
         const error = new Error('Terminal transport error');
+        closeReason = 'session_error';
         lastError.value = error.message;
         setState('error');
         options.onTransportError?.(error);
       };
 
       nextSocket.onclose = () => {
-        socket.value = null;
-        if (state.value !== 'error') {
-          setState('disconnected');
+        if (connectionId !== activeConnectionId && socket.value !== nextSocket) {
+          return;
         }
-        options.onClose?.('remote_close');
+        finalizeClose(closeReason === 'remote_close' && state.value === 'error' ? 'session_error' : closeReason);
       };
     } catch (error) {
       const normalized = normalizeError(error, 'Failed to create terminal session');
       lastError.value = normalized.message;
       setState('error');
       options.onTransportError?.(normalized);
+      options.onClose?.('connect_error');
       throw normalized;
     }
   }
@@ -104,9 +144,14 @@ export function useTerminalSession(options: UseTerminalSessionOptions) {
     } else if (current && current.readyState < WebSocket.CLOSING) {
       current.close();
     }
-    if (state.value !== 'idle') {
-      setState(reason === 'component_unmount' ? 'idle' : 'disconnected');
+    if (current) {
+      activeClose?.(reason);
+      return;
     }
+    if (state.value === 'idle') {
+      return;
+    }
+    setState(reason === 'component_unmount' ? 'idle' : 'disconnected');
     options.onClose?.(reason);
   }
 

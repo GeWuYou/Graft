@@ -356,6 +356,36 @@ describe('ContainerShellPanel', () => {
     );
   });
 
+  it('prefers canonical shell message keys for websocket error localization', async () => {
+    shellSessionMock.mockResolvedValue({
+      websocket_url: '/api/ops/containers/container-1/shell/ws?ticket=opaque-ticket',
+    });
+
+    const wrapper = mountPanel({ active: true });
+    await flushPromises();
+    await nextTick();
+
+    const terminal = wrapper.getComponent({ name: 'WebTerminalStub' });
+    terminal.vm.$emit('message', {
+      type: 'error',
+      message: 'The current user cannot open a container shell session',
+      messageKey: 'ops.container.error.shellForbidden',
+    });
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('Required Permission: ops.container.shell');
+  });
+
+  it('only falls back for exact known shell transport messages', async () => {
+    shellSessionMock.mockRejectedValue(new Error('container shell ticket expired'));
+
+    const wrapper = mountPanel({ active: true });
+    await flushPromises();
+    await nextTick();
+
+    expect(wrapper.text()).toContain('The shell session ticket expired. Reconnect to continue.');
+  });
+
   it('reconnects by requesting a fresh shell session', async () => {
     shellSessionMock.mockResolvedValue({
       websocket_url: '/api/ops/containers/container-1/shell/ws?ticket=opaque-ticket',

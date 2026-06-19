@@ -13,6 +13,7 @@ import (
 	"math"
 	"net"
 	"reflect"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -117,6 +118,49 @@ func TestDockerRuntimeLogsReturnsInvalidLogQueryError(t *testing.T) {
 	})
 	if !errors.Is(err, errInvalidLogQuery) {
 		t.Fatalf("expected invalid log query error, got %v", err)
+	}
+}
+
+func TestMapDockerShellErrorPreservesMappedRuntimeErrors(t *testing.T) {
+	t.Parallel()
+
+	err := mapDockerShellError(timeoutError{})
+	if !errors.Is(err, errContainerRuntimeTimeout) {
+		t.Fatalf("expected runtime timeout mapping, got %v", err)
+	}
+}
+
+func TestMapDockerShellErrorDoesNotTreatGenericNoSuchFileAsCommandNotFound(t *testing.T) {
+	t.Parallel()
+
+	err := mapDockerShellError(errors.New("dial unix /var/run/docker.sock: connect: no such file or directory"))
+	if errors.Is(err, errShellCommandNotFound) {
+		t.Fatalf("expected socket path failure to avoid shell command mapping")
+	}
+	if !errors.Is(err, errRuntimeSocketMissing) && !strings.Contains(err.Error(), "runtime") {
+		t.Fatalf("expected runtime-oriented mapping, got %v", err)
+	}
+}
+
+func TestDockerExecSessionCloseWithoutStartDoesNotBlock(t *testing.T) {
+	t.Parallel()
+
+	session := newDockerExecSession(&countingDockerClient{}, "abc123", "sh")
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	done := make(chan error, 1)
+	go func() {
+		done <- session.Close(ctx)
+	}()
+
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("close returned error: %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatalf("close blocked before start")
 	}
 }
 

@@ -205,6 +205,7 @@ func assertModuleMessages(t *testing.T, localizer *i18n.Service) {
 		containercontract.ContainerMenuTitle.String(),
 		containercontract.ContainerInvalidRef.String(),
 		containercontract.ContainerShellDisabled.String(),
+		containercontract.ContainerShellInvalidSize.String(),
 		containercontract.ContainerDangerousActionsDisabled.String(),
 		containercontract.ContainerAuditShellSessionStarted.String(),
 		containercontract.ContainerActionRemoveCompleted.String(),
@@ -316,6 +317,7 @@ func expectedConfigKeys() []string {
 		containercontract.ContainerLogsDefaultTailConfig.String(),
 		containercontract.ContainerLogsMaxTailConfig.String(),
 		containercontract.ContainerDangerousActionsEnabledConfig.String(),
+		containercontract.ContainerShellEnabledConfig.String(),
 		containercontract.ContainerEnvironmentPolicyConfig.String(),
 		containercontract.ContainerEnvironmentMaskedCopyEnabledConfig.String(),
 	}

@@ -73,6 +73,7 @@ type Bridge struct {
 	conn    *websocket.Conn
 	session Session
 	once    sync.Once
+	writeMu sync.Mutex
 	closed  chan struct{}
 }
 
@@ -194,6 +195,8 @@ func (b *Bridge) writeJSON(message ServerMessage) error {
 }
 
 func (b *Bridge) writeControl(messageType int, payload []byte) error {
+	b.writeMu.Lock()
+	defer b.writeMu.Unlock()
 	_ = b.conn.SetWriteDeadline(time.Now().Add(writeWait))
 	return b.conn.WriteMessage(messageType, payload)
 }

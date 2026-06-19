@@ -20,6 +20,7 @@ ops.container.error.shellTicketUsed: 容器 Shell 会话票据已使用
 ops.container.error.shellOriginDenied: 当前请求来源不允许建立容器 Shell 连接
 ops.container.error.shellContainerNotRunning: 当前容器未运行，无法建立 Shell 会话
 ops.container.error.shellCommandNotFound: 所选 Shell 命令在容器内不存在
+ops.container.error.shellInvalidSize: 请求的 Shell 终端尺寸不合法
 ops.container.error.shellSessionFailed: 容器 Shell 会话建立失败
 ops.container.error.shellUnsupportedControlMessage: 当前终端控制消息不受支持
 ops.container.error.timeout: 容器运行时操作超时

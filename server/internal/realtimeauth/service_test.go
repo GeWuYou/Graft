@@ -83,8 +83,8 @@ func TestMemoryServiceRejectsExpiredTicket(t *testing.T) {
 		ResourceID:   "abc123",
 		Scope:        "container.shell",
 	})
-	if !errors.Is(err, ErrInvalidTicket) && !errors.Is(err, ErrExpiredTicket) {
-		t.Fatalf("expected expired/invalid ticket after prune, got %v", err)
+	if !errors.Is(err, ErrExpiredTicket) {
+		t.Fatalf("expected expired ticket, got %v", err)
 	}
 }
 

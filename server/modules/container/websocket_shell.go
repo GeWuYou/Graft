@@ -9,6 +9,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"syscall"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -124,8 +125,7 @@ func (r routeRuntime) authenticateShellWebSocketRequest(ginCtx *gin.Context) (co
 		UserAgent: ginCtx.Request.UserAgent(),
 	})
 
-	userService, err := resolveUserService(r.ctx)
-	if err != nil {
+	if r.userService == nil {
 		httpx.WriteLocalizedError(ginCtx, r.ctx.I18n, http.StatusInternalServerError, "common.internalError", nil)
 		return nil, moduleapi.RequestAuthContext{}, true
 	}
@@ -149,7 +149,7 @@ func (r routeRuntime) authenticateShellWebSocketRequest(ginCtx *gin.Context) (co
 		r.writeRouteError(ginCtx, err)
 		return nil, moduleapi.RequestAuthContext{}, true
 	}
-	userSummary, err := userService.GetUserByID(requestCtx, handshake.UserID)
+	userSummary, err := r.userService.GetUserByID(requestCtx, handshake.UserID)
 	if err != nil {
 		httpx.WriteLocalizedError(ginCtx, r.ctx.I18n, http.StatusForbidden, messagecontract.AuthForbidden.String(), nil)
 		return nil, moduleapi.RequestAuthContext{}, true
@@ -179,7 +179,7 @@ func isShellDisconnectError(err error) bool {
 	if err == nil {
 		return false
 	}
-	if errors.Is(err, io.EOF) || errors.Is(err, net.ErrClosed) {
+	if errors.Is(err, io.EOF) || errors.Is(err, net.ErrClosed) || errors.Is(err, syscall.EPIPE) || errors.Is(err, syscall.ECONNRESET) {
 		return true
 	}
 	return websocket.IsCloseError(

@@ -33,15 +33,16 @@ type dockerExecSession struct {
 	containerID string
 	command     string
 
-	mu        sync.Mutex
-	started   bool
-	execID    string
-	stream    *dockertypes.HijackedResponse
-	outputCh  chan []byte
-	errorCh   chan error
-	closeCh   chan struct{}
-	closeOnce sync.Once
-	done      chan struct{}
+	mu         sync.Mutex
+	started    bool
+	execID     string
+	stream     *dockertypes.HijackedResponse
+	outputCh   chan []byte
+	errorCh    chan error
+	closeCh    chan struct{}
+	closeOnce  sync.Once
+	done       chan struct{}
+	finishOnce sync.Once
 }
 
 // newDockerExecSession creates a new Docker exec session with the given client, container ID, and command.
@@ -143,6 +144,7 @@ func (s *dockerExecSession) Close(ctx context.Context) error {
 	s.closeOnce.Do(func() {
 		s.mu.Lock()
 		stream := s.stream
+		started := s.started
 		s.stream = nil
 		s.mu.Unlock()
 		close(s.closeCh)
@@ -150,18 +152,21 @@ func (s *dockerExecSession) Close(ctx context.Context) error {
 			_ = stream.CloseWrite()
 			stream.Close()
 		}
-		close(s.outputCh)
-		close(s.errorCh)
+		if !started {
+			s.finish()
+			return
+		}
+		select {
+		case <-s.done:
+		case <-ctx.Done():
+			closeErr = ctx.Err()
+		}
 	})
-	select {
-	case <-ctx.Done():
-		closeErr = ctx.Err()
-	default:
-	}
 	return closeErr
 }
 
 func (s *dockerExecSession) copyOutput() {
+	defer s.finish()
 	s.mu.Lock()
 	stream := s.stream
 	s.mu.Unlock()
@@ -183,14 +188,20 @@ func (s *dockerExecSession) copyOutput() {
 		if err != nil {
 			if errors.Is(err, io.EOF) {
 				s.pushError(nil)
-				close(s.done)
 				return
 			}
 			s.pushError(mapDockerShellError(err))
-			close(s.done)
 			return
 		}
 	}
+}
+
+func (s *dockerExecSession) finish() {
+	s.finishOnce.Do(func() {
+		close(s.done)
+		close(s.outputCh)
+		close(s.errorCh)
+	})
 }
 
 func (s *dockerExecSession) pushError(err error) {

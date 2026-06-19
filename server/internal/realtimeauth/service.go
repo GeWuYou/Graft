@@ -231,10 +231,15 @@ func (s *memoryService) Consume(_ context.Context, req ConsumeRequest) (Consumed
 	defer s.mu.Unlock()
 
 	now := s.clock.Now().Add(defaultConsumeLeeway)
-	s.pruneExpiredLocked(now)
 	record, ok := s.store[ticketID]
 	if !ok {
+		s.pruneExpiredLocked(now)
 		return ConsumedTicket{}, ErrInvalidTicket
+	}
+	if record.expiresAt.Before(now) {
+		delete(s.store, ticketID)
+		s.pruneExpiredLocked(now)
+		return ConsumedTicket{}, ErrExpiredTicket
 	}
 	if err := validateStoredTicket(record, now, secret, scope, resourceType, resourceID); err != nil {
 		if errors.Is(err, ErrExpiredTicket) {
@@ -245,6 +250,7 @@ func (s *memoryService) Consume(_ context.Context, req ConsumeRequest) (Consumed
 	usedAt := now
 	record.usedAt = &usedAt
 	s.store[ticketID] = record
+	s.pruneExpiredLocked(now)
 
 	return ConsumedTicket{
 		TicketID:     record.ticketID,

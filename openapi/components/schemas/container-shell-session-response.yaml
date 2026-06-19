@@ -1,7 +1,6 @@
 type: object
 required:
   - session_id
-  - ticket
   - expires_at
   - websocket_url
   - command
@@ -11,11 +10,6 @@ properties:
   session_id:
     type: string
     description: Stable server-issued session identifier used for audit correlation.
-  ticket:
-    type: string
-    description: >
-      Opaque one-time shell ticket. Clients must use it immediately for WebSocket upgrade, must not persist it, and
-      must never log it.
   expires_at:
     type: string
     format: date-time
@@ -33,6 +27,8 @@ properties:
   cols:
     type: integer
     minimum: 1
+    maximum: 1000
   rows:
     type: integer
     minimum: 1
+    maximum: 1000

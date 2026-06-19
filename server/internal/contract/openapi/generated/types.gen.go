@@ -3506,9 +3506,6 @@ type ContainerShellSessionResponse struct {
 	// SessionId Stable server-issued session identifier used for audit correlation.
 	SessionId string `json:"session_id"`
 
-	// Ticket Opaque one-time shell ticket. Clients must use it immediately for WebSocket upgrade, must not persist it, and must never log it.
-	Ticket string `json:"ticket"`
-
 	// WebsocketUrl Relative WebSocket URL containing the issued ticket for immediate upgrade.
 	WebsocketUrl string `json:"websocket_url"`
 }

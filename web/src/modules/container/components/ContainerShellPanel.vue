@@ -91,9 +91,32 @@ type ServerAvailabilityState = 'unknown' | 'ready' | 'disabled' | 'forbidden' | 
 
 const SHELL_DISABLED_MESSAGE_KEY = 'ops.container.error.shellDisabled';
 const SHELL_FORBIDDEN_MESSAGE_KEY = 'ops.container.error.shellForbidden';
+const SHELL_TICKET_EXPIRED_MESSAGE_KEY = 'ops.container.error.shellTicketExpired';
+const SHELL_TICKET_USED_MESSAGE_KEY = 'ops.container.error.shellTicketUsed';
 const SHELL_NOT_RUNNING_MESSAGE_KEY = 'ops.container.error.shellContainerNotRunning';
 const SHELL_ORIGIN_DENIED_MESSAGE_KEY = 'ops.container.error.shellOriginDenied';
-const SHELL_UNSUPPORTED_CONTROL_MESSAGE_KEY = 'ops.container.error.shellUnsupportedControlMessage';
+
+const SHELL_MESSAGE_KEY_TO_LOCALE_KEY: Record<string, string> = {
+  [SHELL_DISABLED_MESSAGE_KEY]: 'container.detail.shell.disabledHint',
+  [SHELL_FORBIDDEN_MESSAGE_KEY]: 'container.detail.shell.forbiddenHint',
+  [SHELL_TICKET_EXPIRED_MESSAGE_KEY]: 'container.detail.shell.ticketExpired',
+  [SHELL_TICKET_USED_MESSAGE_KEY]: 'container.detail.shell.ticketUsed',
+  [SHELL_NOT_RUNNING_MESSAGE_KEY]: 'container.detail.shell.notRunningHint',
+  [SHELL_ORIGIN_DENIED_MESSAGE_KEY]: 'container.detail.shell.originDenied',
+};
+
+const SHELL_FALLBACK_MESSAGE_TO_LOCALE_KEY: Record<string, string> = {
+  'container shell disabled': 'container.detail.shell.disabledHint',
+  'container shell forbidden': 'container.detail.shell.forbiddenHint',
+  'container shell ticket invalid': 'container.detail.shell.sessionFailed',
+  'container shell ticket expired': 'container.detail.shell.ticketExpired',
+  'container shell ticket used': 'container.detail.shell.ticketUsed',
+  'container shell origin denied': 'container.detail.shell.originDenied',
+  'container shell command not found': 'container.detail.shell.sessionFailed',
+  'container shell session failed': 'container.detail.shell.sessionFailed',
+  'unsupported terminal control message': 'container.detail.shell.shellUnsupportedControlMessage',
+  'terminal transport error': 'container.detail.shell.transportError',
+};
 
 const props = defineProps<{
   active: boolean;
@@ -112,11 +135,11 @@ const sessionLoading = ref(false);
 const selectedCommand = ref<'sh' | 'bash' | 'ash'>('sh');
 const serverAvailability = ref<ServerAvailabilityState>('unknown');
 
-const shellOptions = [
+const shellOptions = computed(() => [
   { label: t('container.detail.shell.commands.sh'), value: 'sh' },
   { label: t('container.detail.shell.commands.bash'), value: 'bash' },
   { label: t('container.detail.shell.commands.ash'), value: 'ash' },
-];
+]);
 
 const hasShellPermission = computed(() => permissionStore.hasPermission(CONTAINER_PERMISSION_CODE.SHELL));
 const isRunning = computed(() => props.containerState === 'running');
@@ -252,33 +275,42 @@ function resolveShellErrorMessage(error: unknown) {
 
 function localizeShellApiError(error: ApiRequestError) {
   return (
-    localizedApiErrorMessage(t, error.messageKey, localizeShellMessage(error.message)) ||
+    localizeShellMessage(error.message, error.messageKey) ||
+    localizedApiErrorMessage(t, error.messageKey, error.message) ||
     t('container.detail.shell.sessionFailed')
   );
 }
 
 function localizeShellServerMessage(message: Extract<TerminalServerMessage, { type: 'error' }>) {
-  if (message.messageKey) {
-    const localized = localizedApiErrorMessage(t, message.messageKey, message.message);
-    if (localized) {
-      return localized;
-    }
-  }
-  return localizeShellMessage(message.message);
+  return (
+    localizeShellMessage(message.message, message.messageKey) ||
+    localizedApiErrorMessage(t, message.messageKey, message.message) ||
+    t('container.detail.shell.sessionFailed')
+  );
 }
 
-function localizeShellMessage(message: string) {
-  if (message.includes('expired')) return t('container.detail.shell.ticketExpired');
-  if (message.includes('used')) return t('container.detail.shell.ticketUsed');
-  if (message.includes('disabled')) return t('container.detail.shell.disabledHint');
-  if (message.includes('not running')) return t('container.detail.shell.notRunningHint');
-  if (message.includes('forbidden')) return t('container.detail.shell.forbiddenHint');
-  if (message.includes('origin')) return t('container.detail.shell.originDenied');
-  if (message.includes('transport error')) return t('container.detail.shell.transportError');
-  if (message.includes('unsupported terminal control')) {
-    return t(SHELL_UNSUPPORTED_CONTROL_MESSAGE_KEY);
+function localizeShellMessage(message: string, messageKey?: string) {
+  const localizedByKey = localizeShellMessageKey(messageKey);
+  if (localizedByKey) {
+    return localizedByKey;
   }
-  return message || t('container.detail.shell.sessionFailed');
+  const normalized = message.trim().toLowerCase();
+  const localeKey = SHELL_FALLBACK_MESSAGE_TO_LOCALE_KEY[normalized];
+  if (localeKey) {
+    return t(localeKey);
+  }
+  return message.trim() || '';
+}
+
+function localizeShellMessageKey(messageKey?: string) {
+  if (!messageKey) {
+    return '';
+  }
+  const localeKey = SHELL_MESSAGE_KEY_TO_LOCALE_KEY[messageKey];
+  if (!localeKey) {
+    return '';
+  }
+  return t(localeKey);
 }
 
 function applyServerAvailability(error: ApiRequestError) {

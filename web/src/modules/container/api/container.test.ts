@@ -133,7 +133,6 @@ describe('container api', () => {
       expires_at: '2026-06-19T10:00:30Z',
       rows: 32,
       session_id: 'shell_session_demo',
-      ticket: 'opaque-ticket',
       websocket_url: '/api/ops/containers/web%2Fapi/shell/ws?ticket=opaque-ticket',
     } as never);
 
