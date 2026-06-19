@@ -45,6 +45,8 @@
   </div>
 </template>
 <script setup lang="ts">
+import { computed } from 'vue';
+
 type RawJsonViewMode = 'tree' | 'source';
 
 const props = defineProps<{
@@ -72,10 +74,10 @@ const emit = defineEmits<{
   'update:view-mode': [value: RawJsonViewMode];
 }>();
 
-const viewOptions = [
+const viewOptions = computed(() => [
   { label: props.treeLabel, value: 'tree' },
   { label: props.sourceLabel, value: 'source' },
-];
+]);
 
 function handleSearchChange(value: string | number) {
   emit('update:search-value', String(value ?? ''));

@@ -1418,7 +1418,12 @@ const environmentCopyTooltip = computed(() =>
     ? t('container.detail.config.copyPolicyDisabled')
     : t('container.detail.config.copyRealValueTooltip'),
 );
-const environmentPolicyNoticeTheme = computed(() => (environmentCopyDisabled.value ? 'warning' : 'info'));
+const environmentPolicyNoticeTheme = computed(() => {
+  if (!environmentHasSensitiveRows.value) {
+    return 'info';
+  }
+  return environmentCopyDisabled.value ? 'warning' : 'info';
+});
 const environmentPolicyNotice = computed(() => {
   const policy = readEnvironmentPolicy(safeDetail.value);
   if (!environmentHasSensitiveRows.value) {
@@ -2482,10 +2487,10 @@ function resolveEnvironmentDisplayValue(
   valueMasked: boolean,
   valueHidden: boolean,
 ) {
-  if (displayValue === '[MASKED]') {
+  if (isMaskedEnvironmentDisplayValue(displayValue)) {
     return t('container.detail.config.maskedValue');
   }
-  if (displayValue === '[HIDDEN]') {
+  if (isHiddenEnvironmentDisplayValue(displayValue)) {
     return t('container.detail.config.hiddenValue');
   }
   if (displayValue) {
@@ -2498,6 +2503,14 @@ function resolveEnvironmentDisplayValue(
     return t('container.detail.config.maskedValue');
   }
   return displayEnvironmentValue(rawValue, policy);
+}
+
+function isMaskedEnvironmentDisplayValue(value: string) {
+  return value === '[MASKED]' || value === t('container.detail.config.maskedValue');
+}
+
+function isHiddenEnvironmentDisplayValue(value: string) {
+  return value === '[HIDDEN]' || value === t('container.detail.config.hiddenValue');
 }
 
 function readEnvironmentPolicy(detail: ContainerDetail | null) {
@@ -2534,7 +2547,7 @@ function buildRawJsonCopyValue(detail: SafeContainerDetail | null) {
   if (!detail) {
     return detail;
   }
-  if (environmentRows.value.some((row) => row.hasSensitiveValue && (row.copyDisabled || !row.copyable))) {
+  if (environmentRows.value.some((row) => row.hasSensitiveValue && row.copyDisabled)) {
     return null;
   }
   const sourceEnvironment = Array.isArray(detail.environment) ? detail.environment : [];

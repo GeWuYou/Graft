@@ -1124,7 +1124,7 @@ async function fetchServerStatus(options: { manual?: boolean } = {}) {
 function toggleAutoRefresh() {
   toggleSharedAutoRefresh();
 
-  if (autoRefreshEnabled.value && isPageVisible.value) {
+  if (autoRefreshEnabled.value && isPageVisible.value && selectedRefreshInterval.value > 0) {
     void fetchServerStatus({ manual: true });
     return;
   }
@@ -1135,7 +1135,7 @@ function toggleAutoRefresh() {
 
 function scheduleNextRefresh() {
   stopRefreshTick();
-  if (!autoRefreshEnabled.value || !isPageVisible.value) {
+  if (!autoRefreshEnabled.value || !isPageVisible.value || selectedRefreshInterval.value <= 0) {
     remainingRefreshSeconds.value = null;
     return;
   }
@@ -1173,7 +1173,7 @@ function stopRefreshTick() {
 
 function handleVisibilityChange() {
   isPageVisible.value = document.visibilityState === 'visible';
-  if (isPageVisible.value && autoRefreshEnabled.value) {
+  if (isPageVisible.value && autoRefreshEnabled.value && selectedRefreshInterval.value > 0) {
     void fetchServerStatus();
     return;
   }

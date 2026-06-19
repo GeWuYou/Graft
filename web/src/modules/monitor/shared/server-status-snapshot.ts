@@ -67,6 +67,10 @@ export function useServerStatusSnapshot() {
   }
 
   const refreshCountdownText = computed(() => {
+    if (selectedRefreshInterval.value <= 0) {
+      return t('app.refreshControl.status.off');
+    }
+
     if (!autoRefreshEnabled.value) {
       return t('monitor.serverStatus.nextRefreshPausedByUser');
     }
@@ -92,6 +96,10 @@ export function useServerStatusSnapshot() {
   });
 
   const refreshControlStatus = computed<RefreshControlStatus>(() => {
+    if (selectedRefreshInterval.value <= 0) {
+      return 'off';
+    }
+
     if (!autoRefreshEnabled.value) {
       return 'paused';
     }
@@ -106,7 +114,7 @@ export function useServerStatusSnapshot() {
   function handleVisibilityChange() {
     isPageVisible.value = document.visibilityState === 'visible';
 
-    if (isPageVisible.value && autoRefreshEnabled.value) {
+    if (isPageVisible.value && autoRefreshEnabled.value && selectedRefreshInterval.value > 0) {
       void refreshSnapshot();
       return;
     }
@@ -132,7 +140,7 @@ export function useServerStatusSnapshot() {
   function scheduleNextRefresh() {
     stopRefreshTick();
 
-    if (!autoRefreshEnabled.value || !isPageVisible.value) {
+    if (!autoRefreshEnabled.value || !isPageVisible.value || selectedRefreshInterval.value <= 0) {
       remainingRefreshSeconds.value = null;
       return;
     }
@@ -163,7 +171,7 @@ export function useServerStatusSnapshot() {
   function toggleAutoRefresh() {
     toggleSharedAutoRefresh();
 
-    if (autoRefreshEnabled.value && isPageVisible.value) {
+    if (autoRefreshEnabled.value && isPageVisible.value && selectedRefreshInterval.value > 0) {
       void refreshSnapshot();
       return;
     }

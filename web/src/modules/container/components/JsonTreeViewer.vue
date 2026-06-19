@@ -91,25 +91,29 @@ const props = defineProps<{
 
 const expandedPaths = ref(new Set<string>());
 
-watch(
-  () => props.expandAllToken,
-  () => {
-    if (props.expandedAll) {
-      const next = new Set<string>();
-      collectExpandablePaths(props.value, props.rootLabel).forEach((path) => next.add(path));
-      expandedPaths.value = next;
-      return;
-    }
+watch(() => props.expandAllToken, syncExpandedPaths, { immediate: true });
 
-    expandedPaths.value = new Set();
-  },
-  { immediate: true },
-);
+watch([() => props.value, () => props.rootLabel], () => {
+  if (props.expandedAll) {
+    syncExpandedPaths();
+  }
+});
 
 const visibleNodes = computed(() => {
   const normalizedSearch = props.searchValue.trim().toLowerCase();
   return buildVisibleNodes(props.value, props.rootLabel, normalizedSearch, expandedPaths.value);
 });
+
+function syncExpandedPaths() {
+  if (props.expandedAll) {
+    const next = new Set<string>();
+    collectExpandablePaths(props.value, props.rootLabel).forEach((path) => next.add(path));
+    expandedPaths.value = next;
+    return;
+  }
+
+  expandedPaths.value = new Set();
+}
 
 function buildVisibleNodes(
   value: unknown,

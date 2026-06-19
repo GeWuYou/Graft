@@ -1619,6 +1619,47 @@ describe('container detail page', () => {
     expect(copyText).toHaveBeenCalledWith('real-token-value');
   });
 
+  it('renders localized placeholder display values instead of raw placeholder tokens', async () => {
+    apiMocks.getContainer.mockResolvedValue({
+      ...createContainerDetail(),
+      environment: [
+        {
+          key: 'API_TOKEN',
+          masked: true,
+          sensitive: true,
+          source: 'config',
+          display_value: '*****',
+          value_masked: true,
+        },
+        {
+          key: 'SECRET_KEY',
+          masked: true,
+          sensitive: true,
+          source: 'config',
+          display_value: '[HIDDEN]',
+          value_hidden: true,
+        },
+        {
+          key: 'LOCALIZED_SECRET',
+          masked: true,
+          sensitive: true,
+          source: 'config',
+          display_value: '[已隐藏]',
+          value_hidden: true,
+        },
+      ],
+      environment_masked_copy_enabled: false,
+    });
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const envTableText = wrapper.find('.container-env-table').text();
+    expect(envTableText).toContain('*****');
+    expect(envTableText).toContain('SECRET_KEY[已隐藏]隐藏');
+    expect(envTableText).toContain('LOCALIZED_SECRET[已隐藏]隐藏');
+    expect(envTableText).not.toContain('SECRET_KEY[HIDDEN]隐藏');
+  });
+
   it('disables environment copy when sensitive values exist and masked copy is disabled', async () => {
     const { copyText } = await import('@/shared/observability');
     apiMocks.getContainer.mockResolvedValue({
@@ -1635,6 +1676,30 @@ describe('container detail page', () => {
     expect(envFileButton).toBeTruthy();
     expect((envFileButton!.element as HTMLButtonElement).disabled).toBe(true);
     expect(copyText).not.toHaveBeenCalled();
+  });
+
+  it('keeps the environment policy alert informational when no sensitive variables exist', async () => {
+    apiMocks.getContainer.mockResolvedValue({
+      ...createContainerDetail(),
+      environment: [
+        {
+          key: 'APP_MODE',
+          masked: false,
+          sensitive: false,
+          source: 'config',
+          value: 'production',
+          display_value: 'production',
+        },
+      ],
+      environment_masked_copy_enabled: false,
+    });
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const policyAlert = wrapper.find('.container-config-section__policy-alert');
+    expect(policyAlert.exists()).toBe(true);
+    expect(policyAlert.attributes('data-theme')).toBe('info');
+    expect(policyAlert.text()).toContain('当前结果不包含敏感字段');
   });
 
   it('clears stale detail and reloads logs when the route id changes on the logs tab', async () => {
@@ -2374,11 +2439,15 @@ function mountPage() {
               ]),
         }),
         't-alert': defineComponent({
-          props: ['message', 'title'],
+          props: ['message', 'theme', 'title'],
           setup:
             (props, { slots }) =>
             () =>
-              h('div', [String(props.title ?? props.message ?? ''), slots.default?.(), slots.operation?.()]),
+              h('div', { 'data-theme': String(props.theme ?? '') }, [
+                String(props.title ?? props.message ?? ''),
+                slots.default?.(),
+                slots.operation?.(),
+              ]),
         }),
         't-button': defineComponent({
           props: ['disabled', 'loading'],

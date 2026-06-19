@@ -1315,6 +1315,37 @@ describe('MonitorPage', () => {
     expect(wrapper.find('[data-refresh-countdown="true"]').exists()).toBe(false);
   });
 
+  it('treats a non-positive refresh interval as off and does not resume auto refresh from timers or visibility recovery', async () => {
+    vi.useFakeTimers();
+    monitorApiMocks.getServerStatus.mockResolvedValue(createServerStatusResponse());
+
+    const wrapper = mountMonitorPage();
+    await flushPromises();
+    await nextTick();
+
+    expect(monitorApiMocks.getServerStatus).toHaveBeenCalledTimes(1);
+
+    (wrapper.vm as unknown as { selectedRefreshInterval: number }).selectedRefreshInterval = 0;
+    await nextTick();
+
+    expect(wrapper.find('[data-refresh-countdown="true"]').exists()).toBe(false);
+    expect(wrapper.text()).toContain('Auto refresh off');
+
+    await vi.advanceTimersByTimeAsync(7000);
+    await flushPromises();
+    expect(monitorApiMocks.getServerStatus).toHaveBeenCalledTimes(1);
+
+    setVisibilityState('hidden');
+    document.dispatchEvent(new Event('visibilitychange'));
+    await nextTick();
+
+    setVisibilityState('visible');
+    document.dispatchEvent(new Event('visibilitychange'));
+    await flushPromises();
+
+    expect(monitorApiMocks.getServerStatus).toHaveBeenCalledTimes(1);
+  });
+
   it('backs off the retry cadence after a failed auto refresh', async () => {
     vi.useFakeTimers();
     monitorApiMocks.getServerStatus.mockRejectedValue(new Error('Network down'));

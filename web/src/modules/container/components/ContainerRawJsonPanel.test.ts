@@ -95,6 +95,47 @@ describe('ContainerRawJsonPanel', () => {
     expect(wrapper.text()).toContain('environment_policy');
   });
 
+  it('keeps nested expand-all visibility in sync after value refresh', async () => {
+    const initialValue = {
+      details: {
+        status: 'running',
+      },
+    };
+    const nextValue = {
+      details: {
+        status: 'running',
+        meta: {
+          region: 'cn',
+        },
+      },
+    };
+    const wrapper = mountPanel(initialValue, initialValue);
+
+    await wrapper.setProps({
+      value: nextValue,
+      copyValue: nextValue,
+    });
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.text()).toContain('meta');
+    expect(wrapper.text()).toContain('region');
+    expect(wrapper.text()).toContain('"cn"');
+  });
+
+  it('updates toolbar view labels when props change', async () => {
+    const wrapper = mountPanel();
+
+    expect(readOptionLabels(wrapper)).toEqual(['树形视图', '源码视图']);
+
+    await wrapper.setProps({
+      treeLabel: 'Tree mode',
+      sourceLabel: 'Source mode',
+    });
+    await wrapper.vm.$nextTick();
+
+    expect(readOptionLabels(wrapper)).toEqual(['Tree mode', 'Source mode']);
+  });
+
   it('renders empty state for null raw json', () => {
     const wrapper = mountPanel(null);
 
@@ -252,6 +293,10 @@ function mountPanel(value: unknown = createRawValue(), copyValue: unknown = valu
       },
     },
   });
+}
+
+function readOptionLabels(wrapper: ReturnType<typeof mountPanel>) {
+  return wrapper.findAll('option').map((option) => option.text());
 }
 
 function createCopyValue() {
