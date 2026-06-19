@@ -2,4 +2,4 @@
 // SPDX-License-Identifier: Apache-2.0
 
 export { default as RefreshControlBar } from './RefreshControlBar.vue';
-export type { RefreshControlOption, RefreshControlValue } from './types';
+export type { RefreshControlOption, RefreshControlStatus, RefreshControlValue } from './types';

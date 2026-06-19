@@ -159,4 +159,18 @@ describe('AnnouncementHeaderEntry', () => {
     await panel.vm.$emit('open-center');
     expect(pushMock).toHaveBeenCalledWith('/announcements');
   });
+
+  it('keeps the announcement trigger inside the standard header entry layout', async () => {
+    const wrapper = mount(AnnouncementHeaderEntry, {
+      global: {
+        stubs: componentStubs,
+      },
+    });
+
+    await nextTick();
+
+    expect(wrapper.classes()).toContain('announcement-header-entry');
+    expect(wrapper.find('[data-count]').exists()).toBe(true);
+    expect(wrapper.find('button').exists()).toBe(true);
+  });
 });

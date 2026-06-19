@@ -18,7 +18,7 @@ func TestToDetailMapsHealthcheckAndRuntimeStability(t *testing.T) {
 	if mapped.OomKilled == nil || !*mapped.OomKilled {
 		t.Fatalf("expected mapped oom killed true, got %#v", mapped.OomKilled)
 	}
-	assertMappedEnvironmentCopyValue(t, mapped.Environment)
+	assertMappedEnvironmentDisplayValue(t, mapped.Environment)
 	assertMappedMountUsage(t, mapped.Mounts)
 }
 
@@ -41,12 +41,14 @@ func detailWithHealthcheckAndRuntimeStability() Detail {
 		EnvironmentPolicy: "masked",
 		Environment: []EnvironmentVariable{
 			{
-				Key:       "API_TOKEN",
-				Value:     "",
-				CopyValue: stringPtr("secret"),
-				Masked:    true,
-				Sensitive: true,
-				Source:    dockerEnvironmentSource,
+				Key:          "API_TOKEN",
+				Value:        "",
+				CopyValue:    "secret-token",
+				DisplayValue: maskedEnvironmentPlaceholder,
+				ValueMasked:  true,
+				Masked:       true,
+				Sensitive:    true,
+				Source:       dockerEnvironmentSource,
 			},
 		},
 		Healthcheck: &Healthcheck{
@@ -115,14 +117,20 @@ func assertMappedHealthcheck(t *testing.T, healthcheck *containergen.ContainerHe
 	}
 }
 
-func assertMappedEnvironmentCopyValue(t *testing.T, environment *[]containergen.ContainerEnvironmentEntry) {
+func assertMappedEnvironmentDisplayValue(t *testing.T, environment *[]containergen.ContainerEnvironmentEntry) {
 	t.Helper()
 
 	if environment == nil || len(*environment) != 1 {
 		t.Fatalf("expected one mapped environment entry, got %#v", environment)
 	}
-	if (*environment)[0].CopyValue == nil || *(*environment)[0].CopyValue != "secret" {
-		t.Fatalf("expected mapped environment copy value, got %#v", environment)
+	if (*environment)[0].DisplayValue == nil || *(*environment)[0].DisplayValue != maskedEnvironmentPlaceholder {
+		t.Fatalf("expected mapped environment display value, got %#v", environment)
+	}
+	if (*environment)[0].CopyValue == nil || *(*environment)[0].CopyValue != "secret-token" {
+		t.Fatalf("expected mapped copy_value, got %#v", environment)
+	}
+	if (*environment)[0].ValueMasked == nil || !*(*environment)[0].ValueMasked {
+		t.Fatalf("expected mapped value_masked marker, got %#v", environment)
 	}
 }
 
@@ -223,9 +231,5 @@ func float64Ptr(value float64) *float64 {
 }
 
 func boolPtr(value bool) *bool {
-	return &value
-}
-
-func stringPtr(value string) *string {
 	return &value
 }

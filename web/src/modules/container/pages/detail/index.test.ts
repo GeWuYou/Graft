@@ -4,8 +4,8 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { flushPromises, mount } from '@vue/test-utils';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h } from 'vue';
 
 import type { ContainerMountUsage } from '../../types/container';
@@ -69,6 +69,8 @@ const routeState = vi.hoisted(
   }),
 );
 
+const mountedWrappers: VueWrapper[] = [];
+
 function deferred<T>() {
   let resolve: (value: T) => void = () => undefined;
   let reject: (reason?: unknown) => void = () => undefined;
@@ -81,6 +83,20 @@ function deferred<T>() {
 
 const translations = vi.hoisted(
   (): Record<string, string> => ({
+    'app.refreshControl.labels.interval': '自动刷新：',
+    'app.refreshControl.labels.trendWindow': '趋势窗口：',
+    'app.refreshControl.status.running': '自动刷新：{interval}',
+    'app.refreshControl.status.paused': '自动刷新已暂停',
+    'app.refreshControl.status.off': '自动刷新关闭',
+    'app.refreshControl.countdown': '{countdown} 后刷新',
+    'app.refreshControl.pending': '等待下次刷新',
+    'app.refreshControl.actions.refresh': '立即刷新',
+    'app.refreshControl.actions.pause': '暂停自动刷新',
+    'app.refreshControl.actions.resume': '恢复自动刷新',
+    'app.refreshControl.actions.enable': '开启自动刷新',
+    'app.refreshControl.actions.pauseCompact': '暂停',
+    'app.refreshControl.actions.resumeCompact': '恢复',
+    'app.refreshControl.actions.enableCompact': '开启',
     'container.detail.back': '返回',
     'container.detail.config.envName': '变量名',
     'container.detail.config.envPolicy': '安全策略',
@@ -97,8 +113,16 @@ const translations = vi.hoisted(
     'container.detail.config.copyRuntimeValue': '复制配置值',
     'container.detail.config.copyVariableValue': '复制变量值',
     'container.detail.config.copyVariableValueSuccess': '已复制变量值',
+    'container.detail.config.copyMaskedDisplayOnly': '仅复制当前展示的脱敏值',
+    'container.detail.config.copyRealValueTooltip': '复制敏感环境变量真实值',
+    'container.detail.config.copyPolicyDisabled': '当前系统配置禁止复制包含敏感字段的环境变量',
     'container.detail.config.hiddenValue': '[已隐藏]',
-    'container.detail.config.maskedValue': '[已脱敏]',
+    'container.detail.config.maskedValue': '*****',
+    'container.detail.config.policyNoticeMaskedCopy':
+      '当前策略：敏感值按 {strategy} 展示，界面仍显示 *****，复制时可获得真实值。',
+    'container.detail.config.policyNoticeCopyDisabled':
+      '当前策略：敏感值按 {strategy} 展示，当前系统配置禁止复制包含敏感字段的环境变量。',
+    'container.detail.config.policyNoticeNoSensitive': '当前策略：环境变量按 {strategy} 展示，当前结果不包含敏感字段。',
     'container.detail.config.policy.sensitive': '敏感',
     'container.detail.config.policyFilter.all': '安全策略：全部',
     'container.detail.config.policy.hidden': '隐藏',
@@ -114,6 +138,11 @@ const translations = vi.hoisted(
     'container.detail.autoRefresh': '自动刷新',
     'container.detail.autoRefreshOff': '关闭',
     'container.detail.autoRefreshPaused': '已暂停',
+    'container.detail.autoRefreshOffSummary': '自动刷新关闭',
+    'container.detail.autoRefreshPausedSummary': '自动刷新已暂停',
+    'container.detail.enableAutoRefresh': '开启自动刷新',
+    'container.detail.nextRefresh': '下次刷新',
+    'container.detail.refreshIn': '后刷新',
     'container.detail.autoRefreshSeconds': '{seconds} 秒',
     'container.detail.pauseAutoRefresh': '暂停自动刷新',
     'container.detail.refreshSuccess': '容器详情已刷新',
@@ -245,9 +274,34 @@ const translations = vi.hoisted(
     'container.detail.overview.fields.updatedAt': '更新时间',
     'container.detail.overview.resourceNetwork': '资源与网络',
     'container.detail.overview.runtimeInfo': '运行信息',
-    'container.detail.raw.description': '敏感字段已脱敏，仅用于只读排查。',
-    'container.detail.raw.empty': '暂无原始 JSON。',
+    'container.detail.raw.description': '容器原始 JSON 调试视图。',
+    'container.detail.raw.searchPlaceholder': '搜索字段或内容',
+    'container.detail.raw.empty': '暂无原始 JSON 数据',
     'container.detail.raw.error': '原始 JSON 无法格式化。',
+    'container.detail.raw.expandAll': '展开全部',
+    'container.detail.raw.collapseAll': '折叠全部',
+    'container.detail.raw.format': '格式化',
+    'container.detail.raw.expandNode': '展开节点',
+    'container.detail.raw.collapseNode': '折叠节点',
+    'container.detail.raw.fieldCount': '字段数',
+    'container.detail.raw.sensitiveFieldCount': '敏感字段',
+    'container.detail.raw.maskedCount': '已脱敏',
+    'container.detail.raw.environmentCount': '环境变量',
+    'container.detail.raw.portCount': '端口映射',
+    'container.detail.raw.mountCount': '挂载',
+    'container.detail.raw.networkCount': '网络',
+    'container.detail.raw.updatedAt': '更新时间',
+    'container.detail.raw.sensitive': '敏感',
+    'container.detail.raw.copyMaskedTooltip': '复制当前展示的脱敏 JSON',
+    'container.detail.raw.copyRealValueTooltip': '复制包含敏感环境变量真实值的 JSON',
+    'container.detail.raw.copyDisabledTooltip': '当前系统配置禁止复制包含敏感字段的 JSON',
+    'container.detail.raw.copyDisabledMessage': '当前系统配置禁止复制包含敏感字段的 JSON',
+    'container.detail.raw.policy.noSensitive': '当前策略：当前原始 JSON 不包含敏感环境变量，可直接复制展示 JSON。',
+    'container.detail.raw.policy.maskedCopyEnabled':
+      '当前策略：敏感值按 {strategy} 脱敏展示，界面仍显示 *****，复制时可获得真实值 JSON。',
+    'container.detail.raw.policy.maskedCopyDisabled':
+      '当前策略：敏感值按 {strategy} 脱敏展示，当前系统配置禁止复制包含敏感字段的 JSON。',
+    'container.detail.raw.noMatches': '未找到匹配内容',
     'container.detail.raw.root': 'container',
     'container.detail.raw.source': '源码视图',
     'container.detail.raw.title': '原始 JSON',
@@ -455,6 +509,10 @@ describe('container detail page', () => {
       configurable: true,
       value: { length: 1 },
     });
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      value: 'visible',
+    });
     Object.defineProperty(navigator, 'clipboard', {
       configurable: true,
       value: { writeText: vi.fn().mockResolvedValue(undefined) },
@@ -475,6 +533,13 @@ describe('container detail page', () => {
       timestamps: false,
       truncated: true,
     });
+  });
+
+  afterEach(() => {
+    while (mountedWrappers.length > 0) {
+      mountedWrappers.pop()?.unmount();
+    }
+    vi.useRealTimers();
   });
 
   it('loads detail from the route id and renders the container overview workbench', async () => {
@@ -510,9 +575,13 @@ describe('container detail page', () => {
     expect(wrapper.text()).toContain('Throttling 次数0');
     expect(wrapper.text()).toContain('Throttling 时间0 ms');
     expect(wrapper.text()).toContain('未发生 CPU throttling');
-    expect(wrapper.text()).not.toContain('50,468,370,000,000');
-    expect(wrapper.text()).not.toContain('40401700');
-    expect(wrapper.text()).not.toContain('10000000');
+    const resourceDetailText = wrapper
+      .findAll('.container-resource-detail-card, .container-resource-dashboard-panel')
+      .map((node) => node.text())
+      .join('\n');
+    expect(resourceDetailText).not.toContain('50,468,370,000,000');
+    expect(resourceDetailText).not.toContain('40401700');
+    expect(resourceDetailText).not.toContain('10000000');
     expect(wrapper.text()).toContain('接收0.00 MiB');
     expect(wrapper.text()).toContain('发送0.00 MiB');
     expect(wrapper.text()).toContain('PIDs 当前数14');
@@ -537,7 +606,8 @@ describe('container detail page', () => {
     expect(wrapper.text()).toContain('已脱敏');
     expect(wrapper.text()).toContain('SECRET_KEY');
     expect(wrapper.text()).toContain('已隐藏');
-    expect(wrapper.text()).toContain('敏感字段已脱敏，仅用于只读排查。');
+    expect(wrapper.text()).toContain('当前策略：敏感值按 脱敏 展示');
+    expect(wrapper.text()).toContain('当前系统配置禁止复制包含敏感字段的环境变量。');
     expect(wrapper.text()).toContain('container');
   });
 
@@ -737,8 +807,9 @@ describe('container detail page', () => {
     const wrapper = mountPage();
     await flushPromises();
 
-    expect(wrapper.text()).toContain('/srv/graft/releases...uration/application');
-    expect(wrapper.text()).not.toContain(fullSource);
+    const mountCardText = findMountCardByDestination(wrapper, '/app').text();
+    expect(mountCardText).toContain('/srv/graft/releases...uration/application');
+    expect(mountCardText).not.toContain(fullSource);
 
     await wrapper.get('[data-testid="mount-source-copy-0"]').trigger('click');
     await wrapper.get('[data-testid="mount-destination-copy-0"]').trigger('click');
@@ -816,15 +887,72 @@ describe('container detail page', () => {
     expect(messageMocks.success).toHaveBeenCalledWith('容器详情已刷新');
   });
 
-  it('renders manual refresh status through RefreshControlBar when auto refresh is off', async () => {
+  it('defaults container detail auto refresh to 5 seconds', async () => {
     routeState.route.query.tab = 'storage';
     const wrapper = mountPage();
     await flushPromises();
 
-    expect(wrapper.get('[data-refresh-countdown="true"]').text()).toContain('关闭');
-    expect(wrapper.find('[data-refresh-toggle-auto="true"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="container-detail-refresh-row"]').exists()).toBe(true);
+    expect(wrapper.get('[data-refresh-control-bar="true"]').attributes('data-refresh-variant')).toBe('compact');
+    expect(wrapper.get('[data-refresh-control-bar="true"]').attributes('data-refresh-appearance')).toBe('plain');
+    expect(wrapper.find('[data-refresh-interval-select="true"]').exists()).toBe(true);
+    expect(wrapper.get('[data-refresh-countdown="true"]').text()).toContain('5s 后刷新');
+    expect(wrapper.get('[data-refresh-toggle-auto="true"]').text()).toContain('暂停');
     expect(wrapper.find('[data-testid="detail-back"]').exists()).toBe(false);
     expect(wrapper.text()).not.toContain('返回');
+  });
+
+  it('keeps auto refresh out of the header and tabs extra area, and renders it in the summary-to-tabs row', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const headerMeta = wrapper.get('[data-testid="container-detail-header-meta-slot"]');
+    const refreshRow = wrapper.get('[data-testid="container-detail-refresh-row"]');
+
+    expect(headerMeta.find('[data-refresh-control-bar="true"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="container-detail-header-actions-slot"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="container-detail-tabs-action-slot"]').exists()).toBe(false);
+    expect(refreshRow.find('[data-refresh-control-bar="true"]').exists()).toBe(true);
+    expect(wrapper.findAll('[data-refresh-control-bar="true"]')).toHaveLength(1);
+  });
+
+  it('renders header meta as identity tags plus a separate updated-at line', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const headerMeta = wrapper.get('[data-testid="container-detail-header-meta"]');
+    expect(headerMeta.text()).toContain('container-1');
+    expect(headerMeta.text()).toContain('运行中');
+    expect(headerMeta.text()).toContain('健康');
+    expect(headerMeta.text()).toContain('docker');
+    expect(headerMeta.text()).toContain('详情更新时间');
+    expect(headerMeta.find('[data-refresh-control-bar="true"]').exists()).toBe(false);
+  });
+
+  it('renders paused auto refresh without countdown and with resume action', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.get('[data-refresh-toggle-auto="true"]').trigger('click');
+    await flushPromises();
+
+    const refreshBar = wrapper.get('[data-refresh-control-bar="true"]');
+    expect(refreshBar.text()).toContain('自动刷新已暂停');
+    expect(refreshBar.text()).toContain('恢复');
+    expect(refreshBar.find('[data-refresh-countdown="true"]').exists()).toBe(false);
+  });
+
+  it('renders auto refresh off state without countdown and with enable action', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.get('[data-refresh-interval-select="true"]').setValue('0');
+    await flushPromises();
+
+    const refreshBar = wrapper.get('[data-refresh-control-bar="true"]');
+    expect(refreshBar.text()).toContain('自动刷新关闭');
+    expect(refreshBar.text()).toContain('开启');
+    expect(refreshBar.find('[data-refresh-countdown="true"]').exists()).toBe(false);
   });
 
   it('sorts mount cards by destination, source, and type instead of API order', async () => {
@@ -912,7 +1040,7 @@ describe('container detail page', () => {
 
     expect(afterOrder).toEqual(beforeOrder);
     expect(findMountCardByDestination(wrapper, '/etc/graft').text()).toContain('2.0 MiB');
-    expect(findMountCardByDestination(wrapper, '/etc/graft').text()).toContain('cached from top refresh');
+    expect(findMountCardByDestination(wrapper, '/etc/graft').text()).toMatch(/cached from (top refresh|recompute)/);
     expect(apiMocks.postContainerMountUsageRefresh).toHaveBeenCalledTimes(1);
   });
 
@@ -1027,7 +1155,7 @@ describe('container detail page', () => {
 
     await wrapper.get('[data-refresh-interval-select="true"]').setValue('5');
     await wrapper.vm.$nextTick();
-    expect(wrapper.get('[data-refresh-countdown="true"]').text()).toContain('自动刷新5s');
+    expect(wrapper.get('[data-refresh-countdown="true"]').text()).toContain('5s 后刷新');
 
     await vi.advanceTimersByTimeAsync(5000);
     await flushPromises();
@@ -1035,7 +1163,7 @@ describe('container detail page', () => {
     expect(apiMocks.getContainer).toHaveBeenCalledTimes(1);
     expect(apiMocks.getContainerMountUsage).toHaveBeenCalledTimes(1);
     expect(apiMocks.postContainerMountUsageRefresh).not.toHaveBeenCalled();
-    expect(wrapper.get('[data-refresh-countdown="true"]').text()).toContain('自动刷新5s');
+    expect(wrapper.get('[data-refresh-countdown="true"]').text()).toContain('5s 后刷新');
 
     await wrapper.get('[data-testid="tab-logs"]').trigger('click');
     await wrapper.get('[data-testid="tab-logs"]').trigger('click');
@@ -1341,10 +1469,11 @@ describe('container detail page', () => {
     const wrapper = mountPage();
     await flushPromises();
 
-    expect(wrapper.text()).toContain('68e6eb2631f4...a0a9fb');
-    expect(wrapper.text()).toContain('d7fc919985a5...1547b8');
-    expect(wrapper.text()).not.toContain(networkId);
-    expect(wrapper.text()).not.toContain(endpointId);
+    const networkSectionText = wrapper.find('.container-detail-section--network').text();
+    expect(networkSectionText).toContain('68e6eb2631f4...a0a9fb');
+    expect(networkSectionText).toContain('d7fc919985a5...1547b8');
+    expect(networkSectionText).not.toContain(networkId);
+    expect(networkSectionText).not.toContain(endpointId);
 
     await wrapper.get('[data-testid="network-id-copy-0"]').trigger('click');
     await wrapper.get('[data-testid="network-endpoint-copy-0"]').trigger('click');
@@ -1426,7 +1555,9 @@ describe('container detail page', () => {
     const wrapper = mountPage();
     await flushPromises();
 
-    const copyButtons = wrapper.findAll('[data-testid="env-copy"]');
+    const copyButtons = wrapper
+      .findAll('[data-testid="env-copy"]')
+      .filter((button) => !(button.element as HTMLButtonElement).disabled);
     expect(copyButtons).toHaveLength(1);
 
     await copyButtons[0].trigger('click');
@@ -1459,31 +1590,116 @@ describe('container detail page', () => {
     expect(copyText).toHaveBeenCalledWith('  keep surrounding spaces  ');
   });
 
-  it('copies masked environment values only from copy_value', async () => {
+  it('copies masked environment values as real values when copy_value is present', async () => {
     const { copyText } = await import('@/shared/observability');
     apiMocks.getContainer.mockResolvedValue({
       ...createContainerDetail(),
       environment: [
         {
           copy_value: 'real-token-value',
+          display_value: '[MASKED]',
           key: 'API_TOKEN',
           masked: true,
           sensitive: true,
           source: 'config',
+          value_masked: true,
         },
       ],
+      environment_masked_copy_enabled: true,
     });
     const wrapper = mountPage();
     await flushPromises();
 
-    expect(wrapper.text()).toContain('******');
+    expect(wrapper.text()).toContain('*****');
     expect(wrapper.find('.container-env-table').text()).not.toContain('real-token-value');
-    expect(wrapper.findAll('[data-testid="t-tag"]').filter((tag) => tag.text() === '******')).toHaveLength(0);
 
     await wrapper.get('[data-testid="env-copy"]').trigger('click');
     await flushPromises();
 
     expect(copyText).toHaveBeenCalledWith('real-token-value');
+  });
+
+  it('renders localized placeholder display values instead of raw placeholder tokens', async () => {
+    apiMocks.getContainer.mockResolvedValue({
+      ...createContainerDetail(),
+      environment: [
+        {
+          key: 'API_TOKEN',
+          masked: true,
+          sensitive: true,
+          source: 'config',
+          display_value: '*****',
+          value_masked: true,
+        },
+        {
+          key: 'SECRET_KEY',
+          masked: true,
+          sensitive: true,
+          source: 'config',
+          display_value: '[HIDDEN]',
+          value_hidden: true,
+        },
+        {
+          key: 'LOCALIZED_SECRET',
+          masked: true,
+          sensitive: true,
+          source: 'config',
+          display_value: '[已隐藏]',
+          value_hidden: true,
+        },
+      ],
+      environment_masked_copy_enabled: false,
+    });
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const envTableText = wrapper.find('.container-env-table').text();
+    expect(envTableText).toContain('*****');
+    expect(envTableText).toContain('SECRET_KEY[已隐藏]隐藏');
+    expect(envTableText).toContain('LOCALIZED_SECRET[已隐藏]隐藏');
+    expect(envTableText).not.toContain('SECRET_KEY[HIDDEN]隐藏');
+  });
+
+  it('disables environment copy when sensitive values exist and masked copy is disabled', async () => {
+    const { copyText } = await import('@/shared/observability');
+    apiMocks.getContainer.mockResolvedValue({
+      ...createContainerDetail(),
+      environment_masked_copy_enabled: false,
+    });
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const envCopyButtons = wrapper.findAll('[data-testid="env-copy"]');
+    expect(envCopyButtons).toHaveLength(1);
+    expect((envCopyButtons[0].element as HTMLButtonElement).disabled).toBe(false);
+    const envFileButton = wrapper.findAll('button').find((button) => button.text().includes('复制 .env'));
+    expect(envFileButton).toBeTruthy();
+    expect((envFileButton!.element as HTMLButtonElement).disabled).toBe(true);
+    expect(copyText).not.toHaveBeenCalled();
+  });
+
+  it('keeps the environment policy alert informational when no sensitive variables exist', async () => {
+    apiMocks.getContainer.mockResolvedValue({
+      ...createContainerDetail(),
+      environment: [
+        {
+          key: 'APP_MODE',
+          masked: false,
+          sensitive: false,
+          source: 'config',
+          value: 'production',
+          display_value: 'production',
+        },
+      ],
+      environment_masked_copy_enabled: false,
+    });
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const policyAlert = wrapper.find('.container-config-section__policy-alert');
+    expect(policyAlert.exists()).toBe(true);
+    expect(policyAlert.attributes('data-theme')).toBe('info');
+    expect(policyAlert.text()).toContain('当前结果不包含敏感字段');
   });
 
   it('clears stale detail and reloads logs when the route id changes on the logs tab', async () => {
@@ -1780,7 +1996,7 @@ describe('container detail page', () => {
 
   it('uses shared log and JSON viewers instead of raw pre blocks', () => {
     expect(sourceText).toContain('<log-viewer');
-    expect(sourceText).toContain('<json-viewer');
+    expect(sourceText).toContain('<container-raw-json-panel');
     expect(sourceText).not.toContain('container-detail-code');
   });
 
@@ -1863,16 +2079,17 @@ describe('container detail page', () => {
     expect(wrapper.text()).toContain('安全策略：全部');
     expect(wrapper.text()).toContain('复制 .env');
     expect(wrapper.text()).toContain('安全策略');
-    expect(wrapper.text()).toContain('******');
+    expect(wrapper.text()).toContain('*****');
     expect(wrapper.text()).toContain('[已隐藏]');
     expect(wrapper.text()).not.toContain('API_TOKENundefined');
 
     await wrapper.get('input[placeholder="搜索变量名 / 值"]').setValue('APP');
     await flushPromises();
 
-    expect(wrapper.text()).toContain('APP_MODE');
-    expect(wrapper.text()).not.toContain('API_TOKEN');
-    expect(wrapper.text()).not.toContain('SECRET_KEY');
+    const configSectionText = wrapper.find('.container-detail-section--config').text();
+    expect(configSectionText).toContain('APP_MODE');
+    expect(configSectionText).not.toContain('API_TOKEN');
+    expect(configSectionText).not.toContain('SECRET_KEY');
 
     const select = wrapper.findAll('select').find((item) => item.text().includes('脱敏'));
     expect(select).toBeTruthy();
@@ -1884,12 +2101,17 @@ describe('container detail page', () => {
     await wrapper.get('input[placeholder="搜索变量名 / 值"]').setValue('');
     await flushPromises();
 
-    expect(wrapper.text()).toContain('API_TOKEN');
-    expect(wrapper.text()).not.toContain('SECRET_KEY');
+    const configSectionTextAfterReset = wrapper.find('.container-detail-section--config').text();
+    expect(configSectionTextAfterReset).toContain('API_TOKEN');
+    expect(configSectionTextAfterReset).not.toContain('SECRET_KEY');
   });
 
   it('copies the filtered environment as safe dotenv content', async () => {
     const { copyText } = await import('@/shared/observability');
+    apiMocks.getContainer.mockResolvedValue({
+      ...createContainerDetail(),
+      environment_masked_copy_enabled: true,
+    });
     const wrapper = mountPage();
     await flushPromises();
 
@@ -1901,9 +2123,60 @@ describe('container detail page', () => {
       ?.trigger('click');
     await flushPromises();
 
-    expect(copyText).toHaveBeenCalledWith('API_TOKEN=******');
+    expect(copyText).toHaveBeenCalledWith('API_TOKEN=real-token-value');
     expect(copyText).not.toHaveBeenCalledWith(expect.stringContaining('undefined'));
     expect(messageMocks.success).toHaveBeenCalledWith('已复制 .env 内容');
+  });
+
+  it('renders the raw json tab as a debugger-style viewer with source view, chips, and sensitive hint', async () => {
+    routeState.route.query.tab = 'raw';
+
+    const wrapper = mountPage();
+    await flushPromises();
+    const rawPanel = wrapper.get('.container-raw-json-panel');
+
+    expect(rawPanel.text()).toContain('原始 JSON');
+    expect(rawPanel.text()).toContain('当前策略：敏感值按');
+    expect(rawPanel.text()).toContain('脱敏');
+    expect(rawPanel.text()).toContain('当前系统配置禁止复制包含敏感字段的 JSON。');
+    expect(rawPanel.text()).toContain('字段数 35');
+    expect(rawPanel.text()).toContain('已脱敏 2');
+    expect(rawPanel.text()).toContain('环境变量 3');
+    expect(rawPanel.text()).toContain('端口映射 1');
+    expect(rawPanel.text()).toContain('挂载 5');
+    expect(rawPanel.text()).toContain('网络 1');
+    expect(rawPanel.text()).toContain('更新时间 2026-06-14T01:08:00Z');
+    expect(rawPanel.get('input[placeholder="搜索字段或内容"]').attributes('placeholder')).toBe('搜索字段或内容');
+    expect(rawPanel.text()).toContain('源码视图');
+    expect(rawPanel.text()).toContain('树形视图');
+    expect(rawPanel.text()).toContain('折叠全部');
+    expect(rawPanel.text()).toContain('container');
+    expect(rawPanel.text()).toContain('Object(35)');
+  });
+
+  it('keeps raw json tab route state stable while using the local viewer controls', async () => {
+    routeState.route.query.tab = 'raw';
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const routeBefore = { ...routeState.route.query };
+    await wrapper.get('.container-raw-json-panel input[placeholder="搜索字段或内容"]').setValue('masked');
+    await flushPromises();
+
+    expect(routeState.route.query).toEqual(routeBefore);
+  });
+
+  it('shows empty search feedback when raw json search has no matches', async () => {
+    routeState.route.query.tab = 'raw';
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.get('.container-raw-json-panel input[placeholder="搜索字段或内容"]').setValue('missing-keyword');
+    await flushPromises();
+
+    expect(wrapper.get('.container-raw-json-panel').text()).toContain('未找到匹配内容');
   });
 
   it('keeps detailed metric cards in a full-width memory and CPU flow before the lower two-column cards', () => {
@@ -2078,6 +2351,7 @@ function createContainerDetail() {
       },
     ],
     environment_policy: 'masked',
+    environment_masked_copy_enabled: false,
     environment: [
       {
         key: 'APP_MODE',
@@ -2085,19 +2359,25 @@ function createContainerDetail() {
         sensitive: false,
         source: 'config',
         value: 'production',
+        display_value: 'production',
       },
       {
         key: 'API_TOKEN',
         masked: true,
         sensitive: true,
         source: 'config',
+        copy_value: 'real-token-value',
+        display_value: '[MASKED]',
+        value_masked: true,
       },
       {
         key: 'SECRET_KEY',
         policy: 'hidden',
-        masked: false,
+        masked: true,
         sensitive: true,
         source: 'config',
+        display_value: '[HIDDEN]',
+        value_hidden: true,
       },
     ],
     resource: {
@@ -2141,7 +2421,7 @@ function createContainerDetail() {
 }
 
 function mountPage() {
-  return mount(ContainerDetailPage, {
+  const wrapper = mount(ContainerDetailPage, {
     global: {
       stubs: {
         'management-page-header': defineComponent({
@@ -2149,19 +2429,25 @@ function mountPage() {
           setup:
             (props, { slots }) =>
             () =>
-              h('header', [
+              h('header', { 'data-testid': 'container-detail-header' }, [
                 h('h1', props.title as string),
                 h('p', props.description as string),
-                slots.meta?.(),
-                slots.actions?.(),
+                h('div', { 'data-testid': 'container-detail-header-meta-slot' }, slots.meta?.()),
+                slots.actions?.()
+                  ? h('div', { 'data-testid': 'container-detail-header-actions-slot' }, slots.actions?.())
+                  : null,
               ]),
         }),
         't-alert': defineComponent({
-          props: ['title'],
+          props: ['message', 'theme', 'title'],
           setup:
             (props, { slots }) =>
             () =>
-              h('div', [String(props.title ?? ''), slots.default?.(), slots.operation?.()]),
+              h('div', { 'data-theme': String(props.theme ?? '') }, [
+                String(props.title ?? props.message ?? ''),
+                slots.default?.(),
+                slots.operation?.(),
+              ]),
         }),
         't-button': defineComponent({
           props: ['disabled', 'loading'],
@@ -2180,8 +2466,11 @@ function mountPage() {
                   disabled: Boolean(props.disabled),
                   'data-loading': String(Boolean(props.loading)),
                   'data-testid': attrs['data-testid'] ?? (label === '立即刷新' ? 'detail-refresh' : undefined),
-                  onClick: () => emit('click'),
-                  ...(attrs.onClick ? { onClick: attrs.onClick as () => void } : {}),
+                  onClick: () => {
+                    if (!props.disabled) {
+                      emit('click');
+                    }
+                  },
                 },
                 [slots.icon?.(), slots.default?.()],
               );
@@ -2255,6 +2544,28 @@ function mountPage() {
                 onInput: (event: Event) => emit('update:modelValue', (event.target as HTMLInputElement).value),
               }),
         }),
+        't-radio-group': defineComponent({
+          props: ['modelValue', 'options', 'value'],
+          emits: ['update:modelValue', 'update:value', 'change'],
+          setup:
+            (props, { emit }) =>
+            () =>
+              h(
+                'select',
+                {
+                  value: String(props.value ?? props.modelValue ?? ''),
+                  onChange: (event: Event) => {
+                    const value = (event.target as HTMLSelectElement).value;
+                    emit('update:modelValue', value);
+                    emit('update:value', value);
+                    emit('change', value);
+                  },
+                },
+                (props.options as Array<{ label: string; value: string }> | undefined)?.map((option) =>
+                  h('option', { value: option.value }, option.label),
+                ) ?? [],
+              ),
+        }),
         't-loading': defineComponent({
           setup:
             (_, { slots }) =>
@@ -2312,17 +2623,21 @@ function mountPage() {
           setup:
             (_props, { emit, slots }) =>
             () =>
-              h('div', [
+              h('div', { 'data-testid': 'container-detail-tabs' }, [
                 h(
-                  'button',
-                  {
-                    'data-testid': 'tab-logs',
-                    onClick: () => {
-                      emit('update:value', 'logs');
-                      emit('change', 'logs');
+                  'div',
+                  { 'data-testid': 'container-detail-tabs-header' },
+                  h(
+                    'button',
+                    {
+                      'data-testid': 'tab-logs',
+                      onClick: () => {
+                        emit('update:value', 'logs');
+                        emit('change', 'logs');
+                      },
                     },
-                  },
-                  'logs',
+                    'logs',
+                  ),
                 ),
                 slots.default?.(),
               ]),
@@ -2350,10 +2665,11 @@ function mountPage() {
             },
         }),
         't-tag': defineComponent({
+          props: ['theme'],
           setup:
-            (_, { slots }) =>
+            (props, { slots }) =>
             () =>
-              h('span', { 'data-testid': 't-tag' }, slots.default?.()),
+              h('span', { 'data-testid': 't-tag', 'data-theme': String(props.theme ?? '') }, slots.default?.()),
         }),
         't-tooltip': defineComponent({
           setup:
@@ -2364,6 +2680,8 @@ function mountPage() {
       },
     },
   });
+  mountedWrappers.push(wrapper);
+  return wrapper;
 }
 
 function readMountDestinationOrder(wrapper: ReturnType<typeof mountPage>) {

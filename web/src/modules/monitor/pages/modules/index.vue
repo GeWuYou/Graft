@@ -11,9 +11,21 @@
     compact-header
   >
     <template #toolbar>
-      <div class="module-runtime-toolbar">
-        <status-tag :label="headerStatusLabel" :status="headerStatus" />
-      </div>
+      <refresh-control-bar
+        :status="refreshControlStatus"
+        :countdown-seconds="remainingRefreshSeconds"
+        :interval="selectedRefreshInterval"
+        :interval-options="refreshIntervalOptions"
+        :refreshing="loading"
+        :show-countdown="true"
+        :status-label="headerStatusLabel"
+        :status-tone="headerStatus"
+        variant="page"
+        @pause="toggleAutoRefresh"
+        @refresh="refreshSnapshot"
+        @resume="toggleAutoRefresh"
+        @update:interval="handleRefreshIntervalChange"
+      />
     </template>
 
     <template #summary>
@@ -310,7 +322,7 @@
 </template>
 <script setup lang="ts">
 import type { TdBaseTableProps } from 'tdesign-vue-next';
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import {
@@ -321,12 +333,15 @@ import {
   useTableHostWidth,
 } from '@/shared/components/management';
 import { AdvancedQueryColumnDrawer } from '@/shared/components/query-list';
+import { RefreshControlBar } from '@/shared/components/refresh';
 import { createLogger } from '@/utils/logger';
 
 import { getModuleRuntimeDetail, getModuleRuntimeSnapshot } from '../../api/module-runtime';
 import type { ServerStatusTone } from '../../components/server-status-ui';
 import ServerStatusPageShell from '../../components/ServerStatusPageShell.vue';
 import StatusTag from '../../components/StatusTag.vue';
+import { useMonitorRefreshPreferences } from '../../composables/use-monitor-refresh-preferences';
+import type { MonitorRefreshInterval } from '../../contract/refresh';
 import type {
   ModuleRuntimeConfigStatus,
   ModuleRuntimeDependency,
@@ -338,6 +353,12 @@ import type {
 
 const { t } = useI18n();
 const moduleRuntimeLogger = createLogger('monitor.module-runtime.page');
+const {
+  autoRefreshEnabled,
+  refreshIntervalOptions,
+  selectedRefreshInterval,
+  toggleAutoRefresh: toggleSharedAutoRefresh,
+} = useMonitorRefreshPreferences();
 const DEFAULT_VISIBLE_COLUMNS = [
   'module_key',
   'enabled',
@@ -358,6 +379,11 @@ const columnDrawerVisible = ref(false);
 const visibleColumnKeys = ref<string[]>([...DEFAULT_VISIBLE_COLUMNS]);
 const tableDensity = ref<'medium' | 'small'>('medium');
 const selectedModule = ref<ModuleRuntimeItem | null>(null);
+const isPageVisible = ref(typeof document === 'undefined' ? true : document.visibilityState === 'visible');
+const remainingRefreshSeconds = ref<number | null>(null);
+
+let nextRefreshAt: number | null = null;
+let refreshTickTimer: number | null = null;
 
 const items = computed(() => snapshot.value?.items ?? []);
 const summary = computed(() => snapshot.value?.summary);
@@ -415,6 +441,16 @@ const headerStatusLabel = computed(() => {
     default:
       return t('monitor.moduleRuntime.status.unknown');
   }
+});
+
+const refreshControlStatus = computed(() => {
+  if (selectedRefreshInterval.value <= 0) {
+    return 'off' as const;
+  }
+  if (!autoRefreshEnabled.value || !isPageVisible.value) {
+    return 'paused' as const;
+  }
+  return 'running' as const;
 });
 
 const emptyTableContent = computed(() =>
@@ -506,9 +542,20 @@ const tableWidthPolicy = computed(() => resolveTableWidthPolicy(visibleColumns.v
 
 onMounted(() => {
   void refreshSnapshot();
+  document.addEventListener('visibilitychange', handleVisibilityChange, false);
+});
+
+onUnmounted(() => {
+  stopRefreshTick();
+  document.removeEventListener('visibilitychange', handleVisibilityChange);
+});
+
+watch(selectedRefreshInterval, () => {
+  scheduleNextRefresh();
 });
 
 async function refreshSnapshot() {
+  stopRefreshTick();
   loading.value = true;
   errorMessage.value = '';
 
@@ -522,7 +569,73 @@ async function refreshSnapshot() {
   } finally {
     loading.value = false;
     initialized.value = true;
+    scheduleNextRefresh();
   }
+}
+
+function handleRefreshIntervalChange(value: number | string) {
+  selectedRefreshInterval.value = value as MonitorRefreshInterval;
+}
+
+function toggleAutoRefresh() {
+  toggleSharedAutoRefresh();
+
+  if (autoRefreshEnabled.value && isPageVisible.value) {
+    void refreshSnapshot();
+    return;
+  }
+
+  stopRefreshTick();
+  remainingRefreshSeconds.value = null;
+}
+
+function handleVisibilityChange() {
+  isPageVisible.value = document.visibilityState === 'visible';
+
+  if (isPageVisible.value && autoRefreshEnabled.value) {
+    void refreshSnapshot();
+    return;
+  }
+
+  stopRefreshTick();
+  remainingRefreshSeconds.value = null;
+}
+
+function scheduleNextRefresh() {
+  stopRefreshTick();
+
+  if (!autoRefreshEnabled.value || !isPageVisible.value || selectedRefreshInterval.value <= 0) {
+    remainingRefreshSeconds.value = null;
+    return;
+  }
+
+  nextRefreshAt = Date.now() + selectedRefreshInterval.value * 1000;
+  updateRemainingRefreshSeconds();
+  refreshTickTimer = window.setInterval(() => {
+    updateRemainingRefreshSeconds();
+
+    if (remainingRefreshSeconds.value === 0) {
+      void refreshSnapshot();
+    }
+  }, 1000);
+}
+
+function stopRefreshTick() {
+  if (refreshTickTimer !== null) {
+    window.clearInterval(refreshTickTimer);
+    refreshTickTimer = null;
+  }
+
+  nextRefreshAt = null;
+}
+
+function updateRemainingRefreshSeconds() {
+  if (nextRefreshAt === null) {
+    remainingRefreshSeconds.value = null;
+    return;
+  }
+
+  remainingRefreshSeconds.value = Math.max(0, Math.ceil((nextRefreshAt - Date.now()) / 1000));
 }
 
 async function openDetail(row: ModuleRuntimeItem) {

@@ -3,6 +3,7 @@ allOf:
   - type: object
     required:
       - environment_policy
+      - environment_masked_copy_enabled
       - mounts
       - networks
       - runtime_info
@@ -27,6 +28,9 @@ allOf:
           - ContainerDetailEnvironmentPolicyMasked
           - ContainerDetailEnvironmentPolicyPlain
         description: Effective container environment variable display policy applied to this detail response.
+      environment_masked_copy_enabled:
+        type: boolean
+        description: Whether the current system policy allows copying real sensitive environment values from masked environment entries, .env export, and raw JSON copy flows when access is authorized.
       healthcheck:
         $ref: ./container-healthcheck.yaml
         description: Docker Healthcheck diagnostics from container inspect. Omitted when no Healthcheck is configured.

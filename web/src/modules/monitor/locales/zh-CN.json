@@ -31,6 +31,8 @@
       "refreshNow": "立即刷新",
       "pauseRefresh": "暂停自动刷新",
       "resumeRefresh": "恢复自动刷新",
+      "nextRefreshLabel": "下次刷新",
+      "refreshIn": "后刷新",
       "nextRefreshPausedByUser": "自动刷新已暂停",
       "nextRefreshPaused": "页面不可见时已暂停下次刷新",
       "nextRefreshPending": "正在准备下一次刷新",

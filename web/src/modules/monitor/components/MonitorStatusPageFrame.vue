@@ -15,17 +15,13 @@
   >
     <template #toolbar>
       <monitor-page-toolbar
-        :auto-refresh-enabled="autoRefreshEnabled"
+        :refresh-control-status="refreshControlStatus"
+        :remaining-refresh-seconds="remainingRefreshSeconds"
         :loading="loading"
-        :pause-auto-refresh-label="pauseAutoRefreshLabel"
-        :refresh-interval-label="refreshIntervalLabel"
         :refresh-interval-options="refreshIntervalOptions"
         :refresh-interval-value="refreshIntervalValue"
-        :refresh-now-label="refreshNowLabel"
-        :resume-auto-refresh-label="resumeAutoRefreshLabel"
         :status="status"
         :status-label="statusLabel"
-        :trend-range-label-placeholder="trendRangeLabelPlaceholder"
         @refresh="$emit('refresh')"
         @toggle-auto-refresh="$emit('toggle-auto-refresh')"
         @update:refresh-interval-value="$emit('update:refresh-interval-value', $event)"

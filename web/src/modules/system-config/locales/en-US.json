@@ -276,6 +276,10 @@
                   "description": "Return Environment Variable Values Without Policy Masking."
                 }
               }
+            },
+            "masked_copy_enabled": {
+              "title": "Allow Copying Real Sensitive Environment Values",
+              "description": "When enabled, users with environment read access can copy real sensitive environment values from the container detail page, including the environment list, Copy .env, and raw JSON copy, while the UI still displays *****. When disabled, sensitive values remain masked and cannot be copied in raw form."
             }
           }
         }

@@ -63,10 +63,71 @@
               class="overview-layout__presets"
               :class="resetFeedbackClass"
               :title="t('layout.setting.workbench.presets.title')"
+              :description="t('layout.setting.workbench.presets.description')"
               :presets="presetDefinitions"
               :active-preset-id="effectivePresetId"
               @select="settingStore.selectThemePreset"
             />
+
+            <div class="section overview-layout__quick">
+              <div class="section-title">{{ t('layout.setting.workbench.overview.quickAdjustments') }}</div>
+              <div class="section-desc">{{ t('layout.setting.workbench.overview.quickAdjustmentsDescription') }}</div>
+              <div class="quick-adjustments">
+                <div class="quick-adjustment-row">
+                  <span class="quick-adjustment-row__label">{{ t('layout.setting.theme.mode') }}</span>
+                  <t-radio-group
+                    class="quick-adjustment-row__group"
+                    variant="default-filled"
+                    theme="button"
+                    size="small"
+                    :value="effectiveTheme.mode"
+                    :options="quickModeOptions"
+                    @change="(value) => handleQuickModeChange(value)"
+                  />
+                </div>
+                <div class="quick-adjustment-row">
+                  <span class="quick-adjustment-row__label">{{ t('layout.setting.navigationLayout') }}</span>
+                  <t-radio-group
+                    class="quick-adjustment-row__group"
+                    variant="default-filled"
+                    theme="button"
+                    size="small"
+                    :value="settingStore.layout"
+                    :options="quickLayoutOptions"
+                    @change="(value) => handleQuickLayoutChange(value)"
+                  />
+                </div>
+                <div class="quick-adjustment-row">
+                  <span class="quick-adjustment-row__label">{{ t('layout.setting.workbench.style.density') }}</span>
+                  <t-radio-group
+                    class="quick-adjustment-row__group"
+                    variant="default-filled"
+                    theme="button"
+                    size="small"
+                    :value="effectiveTheme.densityPreset"
+                    :options="quickDensityOptions"
+                    @change="(value) => handleQuickDensityChange(value)"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div class="section overview-layout__scenarios">
+              <div class="section-title">{{ t('layout.setting.workbench.overview.recommendedCombos') }}</div>
+              <div class="section-desc">{{ t('layout.setting.workbench.overview.recommendedCombosDescription') }}</div>
+              <div class="scenario-grid">
+                <button
+                  v-for="preset in scenarioPresets"
+                  :key="preset.id"
+                  type="button"
+                  class="scenario-card"
+                  @click="settingStore.applyThemeWorkbenchScenarioPreset(preset.id)"
+                >
+                  <span class="scenario-card__title">{{ t(preset.labelKey) }}</span>
+                  <span class="scenario-card__desc">{{ t(preset.descriptionKey) }}</span>
+                </button>
+              </div>
+            </div>
           </div>
 
           <div v-else-if="activeGroup === 'appearance'" class="settings-layout settings-layout--appearance">
@@ -203,6 +264,7 @@
               class="settings-layout__presets"
               :class="resetFeedbackClass"
               :title="t('layout.setting.workbench.presets.title')"
+              :description="t('layout.setting.workbench.presets.description')"
               :presets="presetDefinitions"
               :active-preset-id="effectivePresetId"
               @select="settingStore.selectThemePreset"
@@ -596,7 +658,12 @@ import { t } from '@/locales';
 import { warnTranslationLengthBudget } from '@/locales/length-budgets';
 import { useLocale } from '@/locales/useLocale';
 import { useSettingStore } from '@/store';
-import type { ThemeAuthorityState, ThemeTokenGroupKey, ThemeWorkbenchGroupKey } from '@/types/theme';
+import type {
+  ThemeAuthorityState,
+  ThemeTokenGroupKey,
+  ThemeWorkbenchGroupKey,
+  ThemeWorkbenchScenarioPresetDefinition,
+} from '@/types/theme';
 import type { ModeType } from '@/utils/types';
 
 import ThemeTokenEditor from './ThemeTokenEditor.vue';
@@ -621,6 +688,9 @@ const groupIconMap: Record<ThemeWorkbenchGroupKey, string> = {
 
 const groups = computed(() => settingStore.themeWorkbenchGroups);
 const presetDefinitions = computed(() => settingStore.themePresetDefinitions);
+const scenarioPresets = computed<ThemeWorkbenchScenarioPresetDefinition[]>(
+  () => settingStore.themeWorkbenchScenarioPresets,
+);
 const effectiveTheme = computed(() => settingStore.effectiveThemeState);
 const effectivePresetId = computed(() => settingStore.effectiveThemeState.selectedThemePresetId);
 const activeGroup = computed(() => settingStore.activeThemeWorkbenchGroup);
@@ -784,6 +854,15 @@ const layoutOptions = computed(
     ] as const,
 );
 
+const quickModeOptions = computed(() => modeOptions.value.map(({ text, type }) => ({ label: text, value: type })));
+const quickLayoutOptions = computed(() => layoutOptions.value.map(({ label, value }) => ({ label, value })));
+const quickDensityOptions = computed(() =>
+  densityOptions.value.map(({ label, value }) => ({
+    label,
+    value,
+  })),
+);
+
 const modeLabel = computed(() => {
   const matched = modeOptions.value.find((item) => item.type === effectiveTheme.value.mode);
   return matched?.text ?? effectiveTheme.value.mode;
@@ -852,6 +931,16 @@ const overviewSummaryItems = computed(() => [
     key: 'fontSize',
     label: t('layout.setting.workbench.typography.fontSize'),
     value: activeFontSizeLabel.value,
+  },
+  {
+    key: 'density',
+    label: t('layout.setting.workbench.style.density'),
+    value: activeDensityLabel.value,
+  },
+  {
+    key: 'radius',
+    label: t('layout.setting.workbench.style.radius'),
+    value: activeRadiusLabel.value,
   },
 ]);
 
@@ -960,6 +1049,30 @@ const toggleAdvancedVisible = (value: boolean) => {
 
 const handleModeSelect = (mode: ModeType | 'auto', event: MouseEvent) => {
   void settingStore.updateThemeDraftModeWithTransition(mode, event);
+};
+
+const handleQuickModeChange = (value: unknown) => {
+  if (value !== 'light' && value !== 'dark' && value !== 'auto') {
+    return;
+  }
+
+  settingStore.applyWorkbenchQuickAppearance({ mode: value });
+};
+
+const handleQuickLayoutChange = (value: unknown) => {
+  if (value !== 'side' && value !== 'top' && value !== 'mix') {
+    return;
+  }
+
+  settingStore.applyWorkbenchQuickLayout({ layout: value });
+};
+
+const handleQuickDensityChange = (value: unknown) => {
+  if (value !== 'compact' && value !== 'standard' && value !== 'comfortable') {
+    return;
+  }
+
+  settingStore.applyWorkbenchQuickAppearance({ densityPreset: value });
 };
 
 const lockResetButtonWidth = (event: MouseEvent) => {
@@ -1199,6 +1312,13 @@ const handleResetDefaultTheme = async (event: MouseEvent) => {
   padding: var(--graft-density-gap-14);
 }
 
+.overview-layout__summary,
+.overview-layout__quick,
+.overview-layout__scenarios,
+.overview-layout__presets {
+  gap: var(--graft-density-gap-10);
+}
+
 .theme-reset-feedback--odd,
 .theme-reset-feedback--even {
   isolation: isolate;
@@ -1285,6 +1405,96 @@ const handleResetDefaultTheme = async (event: MouseEvent) => {
   min-width: 0;
   overflow: hidden;
   padding: var(--graft-density-gap-12);
+}
+
+.quick-adjustments {
+  display: grid;
+  gap: var(--graft-density-gap-12);
+}
+
+.quick-adjustment-row {
+  align-items: center;
+  background: var(--td-bg-color-page);
+  border: 1px solid var(--td-component-stroke);
+  border-radius: 14px;
+  display: grid;
+  gap: var(--graft-density-gap-10);
+  grid-template-columns: minmax(84px, auto) minmax(0, 1fr);
+  min-width: 0;
+  padding: var(--graft-density-gap-10) var(--graft-density-gap-12);
+}
+
+.quick-adjustment-row__label {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+  font-weight: 600;
+}
+
+.quick-adjustment-row__group {
+  min-width: 0;
+}
+
+.quick-adjustment-row__group :deep(.t-radio-group) {
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+
+.scenario-grid {
+  display: grid;
+  gap: var(--graft-density-gap-12);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.scenario-card {
+  appearance: none;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--td-brand-color) 4%, transparent), transparent),
+    var(--td-bg-color-page);
+  border: 1px solid var(--td-component-stroke);
+  border-radius: 14px;
+  color: inherit;
+  cursor: pointer;
+  display: grid;
+  gap: var(--graft-density-gap-6);
+  min-width: 0;
+  overflow: hidden;
+  padding: var(--graft-density-gap-12) var(--graft-density-gap-14);
+  text-align: left;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.18s ease,
+    background-color 0.18s ease;
+}
+
+.scenario-card:hover,
+.scenario-card:focus-visible {
+  background: color-mix(in srgb, var(--td-brand-color) 5%, var(--td-bg-color-page));
+  border-color: color-mix(in srgb, var(--td-brand-color) 26%, var(--td-component-stroke));
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--td-brand-color) 10%, transparent),
+    var(--td-shadow-1);
+  transform: translateY(-1px);
+}
+
+.scenario-card__title {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-body-medium);
+  font-weight: 700;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scenario-card__desc {
+  -webkit-box-orient: vertical;
+  color: var(--td-text-color-secondary);
+  display: -webkit-box;
+  font: var(--td-font-body-small);
+  -webkit-line-clamp: 2;
+  line-height: 1.45;
+  overflow: hidden;
 }
 
 .config-summary-row {
@@ -2308,7 +2518,7 @@ const handleResetDefaultTheme = async (event: MouseEvent) => {
 }
 
 .advanced-layout .advanced-collapse :deep(.t-collapse-panel__content) {
-  padding: var(--graft-density-gap-14);
+  padding: var(--graft-density-gap-16);
 }
 
 .advanced-layout .advanced-group__header {
@@ -2496,6 +2706,11 @@ const handleResetDefaultTheme = async (event: MouseEvent) => {
 
   .config-summary-row {
     gap: var(--graft-density-gap-4);
+    grid-template-columns: 1fr;
+  }
+
+  .quick-adjustment-row,
+  .scenario-grid {
     grid-template-columns: 1fr;
   }
 

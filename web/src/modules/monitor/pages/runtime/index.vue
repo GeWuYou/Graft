@@ -99,11 +99,12 @@ const { locale, t } = useI18n();
 // 若未来删除或改造该代码，必须同步移除对应 jscpd ignore，重新评估是否仍需保留本地解构。
 const snapshot = useServerStatusSnapshot();
 const {
-  autoRefreshEnabled,
   errorMessage,
   initialized,
   loading,
   observedAt,
+  remainingRefreshSeconds,
+  refreshControlStatus,
   refreshIntervalOptions,
   refreshSnapshot,
   selectedRefreshInterval,
@@ -167,7 +168,8 @@ const frameProps = computed(() =>
       summaryItems: summaryMetrics.value,
     },
     snapshot: {
-      autoRefreshEnabled: autoRefreshEnabled.value,
+      refreshControlStatus: refreshControlStatus.value,
+      remainingRefreshSeconds: remainingRefreshSeconds.value,
       loading: loading.value,
       refreshIntervalOptions: refreshIntervalOptions.value,
       refreshIntervalValue: selectedRefreshInterval.value,

@@ -5,18 +5,16 @@
 
 <template>
   <refresh-control-bar
-    :auto-refresh-enabled="refreshControlAutoRefreshEnabled"
+    :status="refreshControlStatus"
+    :countdown-seconds="remainingRefreshSeconds"
     :interval="refreshIntervalValue"
-    :interval-label="refreshIntervalLabel"
     :interval-options="refreshIntervalOptions"
-    :paused="refreshControlPaused"
-    :pause-label="pauseAutoRefreshLabel"
-    :refresh-label="refreshNowLabel"
     :refreshing="loading"
-    :resume-label="resumeAutoRefreshLabel"
+    :show-countdown="true"
     :show-trend-window="false"
-    :status="status"
+    :status-tone="status"
     :status-label="statusLabel"
+    variant="page"
     @refresh="$emit('refresh')"
     @pause="$emit('toggle-auto-refresh')"
     @resume="$emit('toggle-auto-refresh')"
@@ -24,25 +22,19 @@
   />
 </template>
 <script setup lang="ts">
-import { computed } from 'vue';
-
-import { RefreshControlBar } from '@/shared/components/refresh';
+import { RefreshControlBar, type RefreshControlStatus } from '@/shared/components/refresh';
 
 import type { RefreshIntervalOption } from '../composables/use-monitor-refresh-preferences';
 import type { ServerStatusTone } from './server-status-ui';
 
-const props = defineProps<{
-  autoRefreshEnabled: boolean;
+defineProps<{
+  refreshControlStatus: RefreshControlStatus;
+  remainingRefreshSeconds: number | null;
   loading: boolean;
-  pauseAutoRefreshLabel: string;
-  refreshIntervalLabel: string;
   refreshIntervalOptions: RefreshIntervalOption[];
   refreshIntervalValue: number | string;
-  refreshNowLabel: string;
-  resumeAutoRefreshLabel: string;
   status: ServerStatusTone;
   statusLabel: string;
-  trendRangeLabelPlaceholder: string;
 }>();
 
 defineEmits<{
@@ -50,7 +42,4 @@ defineEmits<{
   'toggle-auto-refresh': [];
   'update:refresh-interval-value': [value: number | string];
 }>();
-
-const refreshControlAutoRefreshEnabled = computed(() => Number(props.refreshIntervalValue) > 0);
-const refreshControlPaused = computed(() => refreshControlAutoRefreshEnabled.value && !props.autoRefreshEnabled);
 </script>

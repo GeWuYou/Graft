@@ -4,77 +4,79 @@
 -->
 
 <template>
-  <t-popup
-    v-model:visible="visible"
-    overlay-class-name="notification-bell-popup"
-    placement="bottom-right"
-    trigger="click"
-    @visible-change="handleVisibleChange"
-  >
-    <template #content>
-      <div class="notification-bell-panel">
-        <div class="notification-bell-panel__head">
-          <div>
-            <h3>{{ t('notification.bell.title') }}</h3>
-            <p>{{ t('notification.bell.unreadSummary', { count: unreadCount }) }}</p>
-          </div>
-          <t-button v-if="items.length" theme="primary" variant="text" size="small" @click="markAllRead">
-            {{ t('notification.action.markAllRead') }}
-          </t-button>
-        </div>
-
-        <t-list v-if="items.length" class="notification-bell-panel__list" :split="false" size="small">
-          <t-list-item v-for="item in items" :key="item.delivery_id" @click="openDetail(item)">
-            <div
-              class="notification-bell-panel__item"
-              :class="{ 'notification-bell-panel__item--unread': notificationView(item).status === 'unread' }"
-            >
-              <span
-                v-if="notificationView(item).status === 'unread'"
-                class="notification-bell-panel__unread-dot"
-                aria-hidden="true"
-              />
-              <div class="notification-bell-panel__item-main">
-                <strong>{{ notificationView(item).title }}</strong>
-                <span>{{ notificationView(item).message }}</span>
-                <small>{{ notificationView(item).compactMeta }}</small>
-              </div>
-              <t-tag :theme="notificationSeverityTheme(item.severity)" variant="light-outline" size="small">
-                {{ notificationView(item).levelLabel }}
-              </t-tag>
+  <div class="notification-header-entry">
+    <t-popup
+      v-model:visible="visible"
+      overlay-class-name="notification-bell-popup"
+      placement="bottom-right"
+      trigger="click"
+      @visible-change="handleVisibleChange"
+    >
+      <template #content>
+        <div class="notification-bell-panel">
+          <div class="notification-bell-panel__head">
+            <div>
+              <h3>{{ t('notification.bell.title') }}</h3>
+              <p>{{ t('notification.bell.unreadSummary', { count: unreadCount }) }}</p>
             </div>
-          </t-list-item>
-        </t-list>
+            <t-button v-if="items.length" theme="primary" variant="text" size="small" @click="markAllRead">
+              {{ t('notification.action.markAllRead') }}
+            </t-button>
+          </div>
 
-        <t-empty
-          v-else
-          class="notification-bell-panel__empty"
-          :type="previewError ? 'fail' : 'empty'"
-          :title="emptyTitle"
-          :description="emptyDescription"
-        />
+          <t-list v-if="items.length" class="notification-bell-panel__list" :split="false" size="small">
+            <t-list-item v-for="item in items" :key="item.delivery_id" @click="openDetail(item)">
+              <div
+                class="notification-bell-panel__item"
+                :class="{ 'notification-bell-panel__item--unread': notificationView(item).status === 'unread' }"
+              >
+                <span
+                  v-if="notificationView(item).status === 'unread'"
+                  class="notification-bell-panel__unread-dot"
+                  aria-hidden="true"
+                />
+                <div class="notification-bell-panel__item-main">
+                  <strong>{{ notificationView(item).title }}</strong>
+                  <span>{{ notificationView(item).message }}</span>
+                  <small>{{ notificationView(item).compactMeta }}</small>
+                </div>
+                <t-tag :theme="notificationSeverityTheme(item.severity)" variant="light-outline" size="small">
+                  {{ notificationView(item).levelLabel }}
+                </t-tag>
+              </div>
+            </t-list-item>
+          </t-list>
 
-        <div class="notification-bell-panel__foot" @click="openAll">
-          <t-button class="notification-bell-panel__open-center" block variant="text">
-            {{ t('notification.action.viewAll') }}
-          </t-button>
+          <t-empty
+            v-else
+            class="notification-bell-panel__empty"
+            :type="previewError ? 'fail' : 'empty'"
+            :title="emptyTitle"
+            :description="emptyDescription"
+          />
+
+          <div class="notification-bell-panel__foot" @click="openAll">
+            <t-button class="notification-bell-panel__open-center" block variant="text">
+              {{ t('notification.action.viewAll') }}
+            </t-button>
+          </div>
         </div>
-      </div>
-    </template>
+      </template>
 
-    <t-badge :count="unreadCount" :max-count="99" :offset="[4, 4]">
-      <t-button
-        theme="default"
-        shape="square"
-        variant="text"
-        :loading="loading"
-        :aria-label="t('notification.bell.open')"
-        :title="t('notification.bell.open')"
-      >
-        <t-icon name="mail" />
-      </t-button>
-    </t-badge>
-  </t-popup>
+      <t-badge :count="unreadCount" :max-count="99" :offset="[4, 4]">
+        <t-button
+          theme="default"
+          shape="square"
+          variant="text"
+          :loading="loading"
+          :aria-label="t('notification.bell.open')"
+          :title="t('notification.bell.open')"
+        >
+          <t-icon name="mail" />
+        </t-button>
+      </t-badge>
+    </t-popup>
+  </div>
 </template>
 <script setup lang="ts">
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
@@ -189,6 +191,14 @@ function notificationView(item: NotificationItem) {
 }
 </script>
 <style scoped lang="less">
+.notification-header-entry {
+  align-items: center;
+  display: inline-flex;
+  height: var(--td-comp-size-m);
+  justify-content: center;
+  width: var(--td-comp-size-m);
+}
+
 .notification-bell-panel {
   margin: calc(0px - var(--td-comp-paddingTB-xs)) calc(0px - var(--td-comp-paddingLR-s));
   max-width: calc(100vw - 32px);

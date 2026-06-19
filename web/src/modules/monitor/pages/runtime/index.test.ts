@@ -14,6 +14,20 @@ const monitorApiMocks = vi.hoisted(() => ({
 
 const translations = vi.hoisted(
   (): Record<string, string> => ({
+    'app.refreshControl.labels.interval': '自动刷新：',
+    'app.refreshControl.labels.trendWindow': '趋势窗口：',
+    'app.refreshControl.status.running': '自动刷新：{interval}',
+    'app.refreshControl.status.paused': '自动刷新已暂停',
+    'app.refreshControl.status.off': '自动刷新关闭',
+    'app.refreshControl.countdown': '{countdown} 后刷新',
+    'app.refreshControl.pending': '等待下次刷新',
+    'app.refreshControl.actions.refresh': 'Refresh now',
+    'app.refreshControl.actions.pause': 'Pause auto refresh',
+    'app.refreshControl.actions.resume': 'Resume auto refresh',
+    'app.refreshControl.actions.enable': 'Enable auto refresh',
+    'app.refreshControl.actions.pauseCompact': 'Pause',
+    'app.refreshControl.actions.resumeCompact': 'Resume',
+    'app.refreshControl.actions.enableCompact': 'Enable',
     'monitor.sectionTitle': 'Server Management',
     'monitor.shared.loadFailed': 'Failed to load server status',
     'monitor.shared.empty': 'No server-status snapshot is available yet',
@@ -27,6 +41,7 @@ const translations = vi.hoisted(
     'monitor.serverStatus.refreshNow': 'Refresh now',
     'monitor.serverStatus.pauseRefresh': 'Pause auto refresh',
     'monitor.serverStatus.resumeRefresh': 'Resume auto refresh',
+    'monitor.serverStatus.nextRefreshLabel': 'Next refresh',
     'monitor.serverStatus.refreshStateLabel': 'Refresh state',
     'monitor.serverStatus.nextRefreshPausedByUser': 'Auto refresh paused',
     'monitor.serverStatus.nextRefreshPaused': 'Next refresh paused while the page is hidden',
@@ -98,7 +113,17 @@ vi.mock('../../api/server-status', () => ({
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
-    t: (key: string) => translations[key] ?? key,
+    t: (key: string, params?: Record<string, unknown>) => {
+      const template = translations[key] ?? key;
+      if (!params) {
+        return template;
+      }
+
+      return Object.entries(params).reduce(
+        (result, [token, value]) => result.replace(`{${token}}`, String(value)),
+        template,
+      );
+    },
   }),
 }));
 
@@ -254,8 +279,8 @@ describe('monitor runtime page', () => {
     expect(wrapper.text()).toContain('Not reported');
     expect(wrapper.text()).toContain('Build version');
     expect(wrapper.text()).toContain('Go version');
-    expect(wrapper.text()).toContain('Refresh cadence');
     expect(wrapper.text()).toContain('Every 5 sec');
+    expect(wrapper.text()).toContain('5s 后刷新');
     expect(wrapper.text()).toContain('Pause auto refresh');
     expect(wrapper.text()).toContain('Current alloc');
     expect(wrapper.text()).toContain(

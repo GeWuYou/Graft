@@ -3109,6 +3109,9 @@ type ContainerDetail struct {
 	Entrypoint     *[]string                    `json:"entrypoint,omitempty"`
 	Environment    *[]ContainerEnvironmentEntry `json:"environment,omitempty"`
 
+	// EnvironmentMaskedCopyEnabled Whether the current system policy allows copying real sensitive environment values from masked environment entries, .env export, and raw JSON copy flows when access is authorized.
+	EnvironmentMaskedCopyEnabled bool `json:"environment_masked_copy_enabled"`
+
 	// EnvironmentPolicy Effective container environment variable display policy applied to this detail response.
 	EnvironmentPolicy ContainerDetailEnvironmentPolicy `json:"environment_policy"`
 
@@ -3170,13 +3173,16 @@ type ContainerDetailState string
 
 // ContainerEnvironmentEntry Container environment variable entry after policy application.
 type ContainerEnvironmentEntry struct {
-	// CopyValue Copy-only raw value for a masked entry. Present only when policy, permission, and system configuration allow copying masked values.
+	// CopyValue Copy-only raw environment variable value. Present only when the effective policy keeps display masked but allows authorized real-value copy.
 	CopyValue *string `json:"copy_value,omitempty"`
+
+	// DisplayValue Stable display value rendered under the effective environment policy.
+	DisplayValue *string `json:"display_value,omitempty"`
 
 	// Key Environment variable name.
 	Key string `json:"key"`
 
-	// Masked Whether the value is intentionally omitted by environment display policy.
+	// Masked Whether the original value is intentionally omitted by environment display policy.
 	Masked bool `json:"masked"`
 
 	// Sensitive Whether the key matched the container module sensitive-key heuristic.
@@ -3185,8 +3191,14 @@ type ContainerEnvironmentEntry struct {
 	// Source Runtime source of the environment variable entry.
 	Source ContainerEnvironmentEntrySource `json:"source"`
 
-	// Value Environment variable value. Omitted when the active policy hides or masks the value.
+	// Value Raw environment variable value. Present only when the effective policy allows plaintext display.
 	Value *string `json:"value,omitempty"`
+
+	// ValueHidden Whether the original value is intentionally hidden by the active policy.
+	ValueHidden *bool `json:"value_hidden,omitempty"`
+
+	// ValueMasked Whether display_value is a masked placeholder instead of the original value.
+	ValueMasked *bool `json:"value_masked,omitempty"`
 }
 
 // ContainerEnvironmentEntrySource Runtime source of the environment variable entry.

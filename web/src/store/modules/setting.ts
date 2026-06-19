@@ -13,6 +13,7 @@ import {
   THEME_PRESET_DEFINITIONS,
   THEME_TOKEN_DEFINITIONS,
   THEME_WORKBENCH_GROUPS,
+  THEME_WORKBENCH_SCENARIO_PRESETS,
 } from '@/config/theme-workbench';
 import type {
   ThemeAuthorityDiffItem,
@@ -23,7 +24,9 @@ import type {
   ThemeSourceType,
   ThemeTokenGroupKey,
   ThemeTokenMap,
+  ThemeWorkbenchAuthorityPatch,
   ThemeWorkbenchGroupKey,
+  ThemeWorkbenchStylePatch,
 } from '@/types/theme';
 import { composeThemeTokenMap, generateBrandColorMap, insertThemeStylesheet } from '@/utils/color';
 import {
@@ -552,6 +555,7 @@ export const useSettingStore = defineStore('setting', {
     themeWorkbenchGroups: () => THEME_WORKBENCH_GROUPS,
     themeTokenDefinitions: () => THEME_TOKEN_DEFINITIONS,
     themePresetDefinitions: () => THEME_PRESET_DEFINITIONS,
+    themeWorkbenchScenarioPresets: () => THEME_WORKBENCH_SCENARIO_PRESETS,
     selectedThemePreset(state): ThemePresetDefinition | null {
       return THEME_PRESET_DEFINITIONS.find((item) => item.id === resolvePresetId(state.selectedThemePresetId)) ?? null;
     },
@@ -905,18 +909,48 @@ export const useSettingStore = defineStore('setting', {
       }
 
       const nextState: ThemeAuthorityState = {
-        mode: preset.mode ?? this.themeDraft?.mode ?? (this.mode as ModeType | 'auto'),
+        mode: preset.authorityPatch?.mode ?? preset.mode ?? this.themeDraft?.mode ?? (this.mode as ModeType | 'auto'),
         brandTheme: preset.brandTheme,
         selectedThemePresetId: preset.id,
         themeSource: 'preset',
-        fontFamilyPreset: this.themeDraft?.fontFamilyPreset ?? this.fontFamilyPreset,
-        fontSizePreset: this.themeDraft?.fontSizePreset ?? this.fontSizePreset,
-        radiusPreset: this.themeDraft?.radiusPreset ?? this.radiusPreset,
-        shadowPreset: this.themeDraft?.shadowPreset ?? this.shadowPreset,
-        densityPreset: this.themeDraft?.densityPreset ?? this.densityPreset,
+        fontFamilyPreset:
+          preset.authorityPatch?.fontFamilyPreset ?? this.themeDraft?.fontFamilyPreset ?? this.fontFamilyPreset,
+        fontSizePreset: preset.authorityPatch?.fontSizePreset ?? this.themeDraft?.fontSizePreset ?? this.fontSizePreset,
+        radiusPreset: preset.authorityPatch?.radiusPreset ?? this.themeDraft?.radiusPreset ?? this.radiusPreset,
+        shadowPreset: preset.authorityPatch?.shadowPreset ?? this.themeDraft?.shadowPreset ?? this.shadowPreset,
+        densityPreset: preset.authorityPatch?.densityPreset ?? this.themeDraft?.densityPreset ?? this.densityPreset,
         themeTokenOverrides: createEmptyThemeModeTokenState(),
       };
       this.updateThemeDraft(nextState);
+      if (preset.stylePatch) {
+        this.updateConfig(preset.stylePatch);
+      }
+    },
+    applyWorkbenchQuickAppearance(patch: ThemeWorkbenchAuthorityPatch) {
+      this.updateThemeDraftAppearance(patch);
+    },
+    applyWorkbenchQuickLayout(patch: ThemeWorkbenchStylePatch) {
+      this.updateConfig(patch);
+    },
+    applyThemeWorkbenchScenarioPreset(presetId: string) {
+      const preset = THEME_WORKBENCH_SCENARIO_PRESETS.find((item) => item.id === presetId);
+
+      if (!preset) {
+        return;
+      }
+
+      if (preset.presetId) {
+        this.selectThemePreset(preset.presetId);
+      }
+
+      if (preset.authorityPatch) {
+        const nextPatch: ThemeWorkbenchAuthorityPatch = { ...preset.authorityPatch };
+        this.updateThemeDraftAppearance(nextPatch);
+      }
+
+      if (preset.stylePatch) {
+        this.updateConfig(preset.stylePatch);
+      }
     },
     setCustomBrandTheme(brandTheme: string) {
       this.updateThemeDraft({

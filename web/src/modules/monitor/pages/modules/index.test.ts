@@ -18,6 +18,24 @@ const loggerMocks = vi.hoisted(() => ({
 
 const translations = vi.hoisted(
   (): Record<string, string> => ({
+    'app.refreshControl.labels.interval': '自动刷新：',
+    'app.refreshControl.labels.trendWindow': '趋势窗口：',
+    'app.refreshControl.status.running': '自动刷新：{interval}',
+    'app.refreshControl.status.paused': '自动刷新已暂停',
+    'app.refreshControl.status.off': '自动刷新关闭',
+    'app.refreshControl.countdown': '{countdown} 后刷新',
+    'app.refreshControl.pending': '等待下次刷新',
+    'app.refreshControl.actions.refresh': 'Refresh',
+    'app.refreshControl.actions.pause': 'Pause auto refresh',
+    'app.refreshControl.actions.resume': 'Resume auto refresh',
+    'app.refreshControl.actions.enable': 'Enable auto refresh',
+    'app.refreshControl.actions.pauseCompact': 'Pause',
+    'app.refreshControl.actions.resumeCompact': 'Resume',
+    'app.refreshControl.actions.enableCompact': 'Enable',
+    'monitor.serverStatus.refreshInterval5Seconds': 'Every 5 sec',
+    'monitor.serverStatus.refreshInterval10Seconds': 'Every 10 sec',
+    'monitor.serverStatus.refreshInterval30Seconds': 'Every 30 sec',
+    'monitor.serverStatus.refreshInterval1Minute': 'Every 1 min',
     'monitor.sectionTitle': 'Service Management',
     'monitor.moduleRuntime.title': 'Module Runtime',
     'monitor.moduleRuntime.subtitle': 'Review compile-time module status.',
@@ -216,6 +234,35 @@ const buttonStub = defineComponent({
   },
 });
 
+const selectStub = defineComponent({
+  name: 'TSelectStub',
+  props: {
+    modelValue: {
+      type: [Number, String],
+      default: '',
+    },
+    options: {
+      type: Array,
+      default: () => [],
+    },
+  },
+  emits: ['update:modelValue'],
+  setup(props, { attrs, emit }) {
+    return () =>
+      h(
+        'select',
+        {
+          ...attrs,
+          value: String(props.modelValue),
+          onChange: (event: Event) => emit('update:modelValue', (event.target as HTMLSelectElement).value),
+        },
+        (props.options as Array<{ label: string; value: number | string }>).map((option) =>
+          h('option', { value: String(option.value) }, option.label),
+        ),
+      );
+  },
+});
+
 const tableStub = defineComponent({
   name: 'TTableStub',
   props: {
@@ -377,6 +424,7 @@ function mountModulesPage() {
         't-drawer': drawerStub,
         't-empty': passthroughStub,
         't-popup': popupStub,
+        't-select': selectStub,
         't-statistic': passthroughStub,
         't-table': tableStub,
         't-tag': passthroughStub,
@@ -445,6 +493,9 @@ describe('monitor module runtime page', () => {
     expect(wrapper.attributes('data-page-type')).toBe('overview-dashboard');
     expect(wrapper.text()).toContain('Module Runtime');
     expect(wrapper.text()).toContain('Needs attention');
+    expect(wrapper.text()).toContain('Every 5 sec');
+    expect(wrapper.text()).toContain('5s 后刷新');
+    expect(wrapper.text()).toContain('Pause auto refresh');
     expect(wrapper.text()).toContain('Runtime Module List');
     expect(wrapper.text()).toContain('Column settings');
     expect(wrapper.find('button[aria-label="Compact density"]').exists()).toBe(true);

@@ -413,6 +413,107 @@ describe('setting store theme authority', () => {
     expect(store.themeAuthorityLastModifiedAt).not.toBe(modifiedBeforeApply);
   });
 
+  it('applies overview quick adjustments through the shared draft state', () => {
+    const store = useSettingStore();
+
+    store.openThemeWorkbench('overview');
+    store.applyWorkbenchQuickAppearance({ densityPreset: 'compact', mode: 'dark' });
+    store.applyWorkbenchQuickLayout({ layout: 'mix' });
+
+    expect(store.densityPreset).toBe('compact');
+    expect(store.mode).toBe('dark');
+    expect(store.layout).toBe('mix');
+    expect(store.hasThemeWorkbenchPendingChanges).toBe(true);
+
+    store.cancelThemeDraft();
+
+    expect(store.densityPreset).toBe('standard');
+    expect(store.mode).toBe('light');
+    expect(store.layout).toBe('side');
+  });
+
+  it('applies scenario presets to both theme authority and shell layout draft state', () => {
+    const store = useSettingStore();
+
+    store.openThemeWorkbench('overview');
+    store.applyThemeWorkbenchScenarioPreset('high-density');
+
+    expect(store.layout).toBe('side');
+    expect(store.showFooter).toBe(false);
+    expect(store.fontSizePreset).toBe('small');
+    expect(store.densityPreset).toBe('compact');
+    expect(store.hasThemeWorkbenchPendingChanges).toBe(true);
+
+    store.applyThemeDraft();
+
+    expect(store.showThemeWorkbench).toBe(false);
+    expect(store.showFooter).toBe(false);
+    expect(store.fontSizePreset).toBe('small');
+    expect(store.densityPreset).toBe('compact');
+  });
+
+  it('applies official theme presets with their bundled appearance and layout defaults', () => {
+    const store = useSettingStore();
+
+    store.openThemeWorkbench('overview');
+
+    store.selectThemePreset('graphite-slate');
+    expect(store.selectedThemePresetId).toBe('graphite-slate');
+    expect(store.brandTheme).toBe('#4F6B8A');
+    expect(store.mode).toBe('dark');
+    expect(store.fontFamilyPreset).toBe('inter');
+    expect(store.fontSizePreset).toBe('small');
+    expect(store.radiusPreset).toBe('business');
+    expect(store.shadowPreset).toBe('flat');
+    expect(store.densityPreset).toBe('compact');
+    expect(store.layout).toBe('side');
+    expect(store.isUseTabsRouter).toBe(true);
+    expect(store.menuAutoCollapsed).toBe(true);
+    expect(store.splitMenu).toBe(false);
+
+    store.selectThemePreset('sunset-amber');
+    expect(store.selectedThemePresetId).toBe('sunset-amber');
+    expect(store.brandTheme).toBe('#D97706');
+    expect(store.mode).toBe('light');
+    expect(store.fontFamilyPreset).toBe('source-han-sans');
+    expect(store.fontSizePreset).toBe('standard');
+    expect(store.radiusPreset).toBe('rounded');
+    expect(store.shadowPreset).toBe('standard');
+    expect(store.densityPreset).toBe('comfortable');
+    expect(store.layout).toBe('side');
+    expect(store.isUseTabsRouter).toBe(false);
+    expect(store.menuAutoCollapsed).toBe(false);
+    expect(store.splitMenu).toBe(false);
+
+    store.selectThemePreset('ocean-teal');
+    expect(store.selectedThemePresetId).toBe('ocean-teal');
+    expect(store.brandTheme).toBe('#0F8A83');
+    expect(store.mode).toBe('light');
+    expect(store.fontFamilyPreset).toBe('harmonyos');
+    expect(store.fontSizePreset).toBe('standard');
+    expect(store.radiusPreset).toBe('standard');
+    expect(store.shadowPreset).toBe('floating');
+    expect(store.densityPreset).toBe('standard');
+    expect(store.layout).toBe('mix');
+    expect(store.isUseTabsRouter).toBe(true);
+    expect(store.menuAutoCollapsed).toBe(false);
+    expect(store.splitMenu).toBe(true);
+
+    store.selectThemePreset('frost-silver');
+    expect(store.selectedThemePresetId).toBe('frost-silver');
+    expect(store.brandTheme).toBe('#7A8CA5');
+    expect(store.mode).toBe('light');
+    expect(store.fontFamilyPreset).toBe('system');
+    expect(store.fontSizePreset).toBe('large');
+    expect(store.radiusPreset).toBe('capsule');
+    expect(store.shadowPreset).toBe('flat');
+    expect(store.densityPreset).toBe('comfortable');
+    expect(store.layout).toBe('side');
+    expect(store.isUseTabsRouter).toBe(false);
+    expect(store.menuAutoCollapsed).toBe(false);
+    expect(store.splitMenu).toBe(false);
+  });
+
   it('persists and resets the theme workbench dock position', () => {
     const store = useSettingStore();
 

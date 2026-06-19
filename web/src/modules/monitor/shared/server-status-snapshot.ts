@@ -5,6 +5,7 @@ import type { Ref } from 'vue';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import type { RefreshControlStatus } from '@/shared/components/refresh';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { formatLocaleDateTime } from '@/shared/observability';
 
@@ -16,6 +17,11 @@ import type { ServerStatusResponse } from '../types/server-status';
 
 export type DependencyDisplayStatus = 'healthy' | 'abnormal' | 'notConfigured' | 'unknown';
 
+/**
+ * Creates reactive state and automatic scheduling for fetching and refreshing server status data.
+ *
+ * @returns An object with reactive state for server status and loading indicators, configurable auto-refresh controls, and methods to manually trigger refreshes.
+ */
 export function useServerStatusSnapshot() {
   const { t } = useI18n();
   const {
@@ -61,6 +67,10 @@ export function useServerStatusSnapshot() {
   }
 
   const refreshCountdownText = computed(() => {
+    if (selectedRefreshInterval.value <= 0) {
+      return t('app.refreshControl.status.off');
+    }
+
     if (!autoRefreshEnabled.value) {
       return t('monitor.serverStatus.nextRefreshPausedByUser');
     }
@@ -85,10 +95,26 @@ export function useServerStatusSnapshot() {
     });
   });
 
+  const refreshControlStatus = computed<RefreshControlStatus>(() => {
+    if (selectedRefreshInterval.value <= 0) {
+      return 'off';
+    }
+
+    if (!autoRefreshEnabled.value) {
+      return 'paused';
+    }
+
+    if (!isPageVisible.value) {
+      return 'paused';
+    }
+
+    return 'running';
+  });
+
   function handleVisibilityChange() {
     isPageVisible.value = document.visibilityState === 'visible';
 
-    if (isPageVisible.value && autoRefreshEnabled.value) {
+    if (isPageVisible.value && autoRefreshEnabled.value && selectedRefreshInterval.value > 0) {
       void refreshSnapshot();
       return;
     }
@@ -114,7 +140,7 @@ export function useServerStatusSnapshot() {
   function scheduleNextRefresh() {
     stopRefreshTick();
 
-    if (!autoRefreshEnabled.value || !isPageVisible.value) {
+    if (!autoRefreshEnabled.value || !isPageVisible.value || selectedRefreshInterval.value <= 0) {
       remainingRefreshSeconds.value = null;
       return;
     }
@@ -145,7 +171,7 @@ export function useServerStatusSnapshot() {
   function toggleAutoRefresh() {
     toggleSharedAutoRefresh();
 
-    if (autoRefreshEnabled.value && isPageVisible.value) {
+    if (autoRefreshEnabled.value && isPageVisible.value && selectedRefreshInterval.value > 0) {
       void refreshSnapshot();
       return;
     }
@@ -169,6 +195,8 @@ export function useServerStatusSnapshot() {
     initialized,
     errorMessage,
     refreshCountdownText,
+    remainingRefreshSeconds,
+    refreshControlStatus,
     refreshIntervalOptions,
     selectedRefreshInterval,
     serverStatus,

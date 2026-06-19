@@ -91,8 +91,11 @@ const buttonStub = defineComponent({
 
 const componentStubs = {
   't-badge': defineComponent({
-    setup(_, { slots }) {
-      return () => h('div', slots.default?.());
+    props: {
+      count: { type: Number, default: 0 },
+    },
+    setup(props, { slots }) {
+      return () => h('div', { 'data-count': String(props.count) }, slots.default?.());
     },
   }),
   't-button': buttonStub,
@@ -207,5 +210,17 @@ describe('NotificationBellPanel', () => {
     expect(wrapper.text()).not.toContain('标记已读');
     expect(wrapper.find('.notification-bell-panel__item-main').exists()).toBe(true);
     expect(wrapper.find('.notification-bell-panel__unread-dot').exists()).toBe(true);
+  });
+
+  it('keeps the bell entry inside the standard header entry layout without badge-owned outer sizing', () => {
+    const wrapper = mount(NotificationBellPanel, {
+      global: {
+        stubs: componentStubs,
+      },
+    });
+
+    expect(wrapper.classes()).toContain('notification-header-entry');
+    expect(wrapper.find('.notification-header-entry').exists()).toBe(true);
+    expect(wrapper.find('[data-count]').exists()).toBe(true);
   });
 });

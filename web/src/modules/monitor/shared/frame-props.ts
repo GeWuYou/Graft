@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { PageHeaderSource } from '@/shared/components/page';
+import type { RefreshControlStatus } from '@/shared/components/refresh';
 
 import type { ServerStatusTone } from '../components/server-status-ui';
 import type { RefreshIntervalOption } from '../composables/use-monitor-refresh-preferences';
@@ -21,17 +22,13 @@ export type MonitorStatusPageFrameProps = {
   descriptionKey?: string;
   source?: PageHeaderSource;
   compactHeader?: boolean;
-  autoRefreshEnabled: boolean;
+  refreshControlStatus: RefreshControlStatus;
+  remainingRefreshSeconds: number | null;
   loading: boolean;
-  pauseAutoRefreshLabel: string;
-  refreshIntervalLabel: string;
   refreshIntervalOptions: RefreshIntervalOption[];
   refreshIntervalValue: number | string;
-  refreshNowLabel: string;
-  resumeAutoRefreshLabel: string;
   status: ServerStatusTone;
   statusLabel: string;
-  trendRangeLabelPlaceholder: string;
   summaryItems: MonitorSummaryItem[];
   errorTitle: string;
   errorMessage?: string;
@@ -57,7 +54,8 @@ type MonitorStatusFramePageCopy = Pick<
 
 type MonitorStatusFrameSharedState = Pick<
   MonitorStatusPageFrameProps,
-  | 'autoRefreshEnabled'
+  | 'refreshControlStatus'
+  | 'remainingRefreshSeconds'
   | 'loading'
   | 'refreshIntervalOptions'
   | 'refreshIntervalValue'
@@ -66,16 +64,13 @@ type MonitorStatusFrameSharedState = Pick<
   | 'hasServerStatus'
 >;
 
-type MonitorStatusFrameCommonLabels = Pick<
-  MonitorStatusPageFrameProps,
-  | 'pauseAutoRefreshLabel'
-  | 'refreshIntervalLabel'
-  | 'refreshNowLabel'
-  | 'resumeAutoRefreshLabel'
-  | 'trendRangeLabelPlaceholder'
-  | 'errorTitle'
->;
+type MonitorStatusFrameCommonLabels = Pick<MonitorStatusPageFrameProps, 'errorTitle'>;
 
+/**
+ * Builds complete monitor status frame props from separate page, state, and label property groups.
+ *
+ * @returns A `MonitorStatusPageFrameProps` object with all combined properties.
+ */
 function buildMonitorStatusFrameBaseProps(args: {
   page: MonitorStatusFramePageCopy;
   state: MonitorStatusFrameSharedState;
@@ -89,7 +84,8 @@ function buildMonitorStatusFrameBaseProps(args: {
 }
 
 type MonitorStatusFrameSharedRefs = {
-  autoRefreshEnabled: boolean;
+  refreshControlStatus: RefreshControlStatus;
+  remainingRefreshSeconds: number | null;
   loading: boolean;
   refreshIntervalOptions: RefreshIntervalOption[];
   refreshIntervalValue: number | string;
@@ -100,6 +96,11 @@ type MonitorStatusFrameSharedRefs = {
 
 type MonitorTranslate = (key: string) => string;
 
+/**
+ * Builds monitor status frame properties from page copy, state snapshot, and default translations.
+ *
+ * @returns A fully populated `MonitorStatusPageFrameProps` object.
+ */
 export function buildStandardMonitorStatusFrameProps(args: {
   t: MonitorTranslate;
   page: Omit<MonitorStatusFramePageCopy, 'emptyDescription'>;
@@ -112,11 +113,6 @@ export function buildStandardMonitorStatusFrameProps(args: {
     },
     state: args.snapshot,
     labels: {
-      pauseAutoRefreshLabel: args.t('monitor.serverStatus.pauseRefresh'),
-      refreshIntervalLabel: args.t('monitor.serverStatus.refreshIntervalLabel'),
-      refreshNowLabel: args.t('monitor.serverStatus.refreshNow'),
-      resumeAutoRefreshLabel: args.t('monitor.serverStatus.resumeRefresh'),
-      trendRangeLabelPlaceholder: args.t('monitor.serverStatus.trendWindowLabel'),
       errorTitle: args.t('monitor.shared.errorTitle'),
     },
   });

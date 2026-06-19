@@ -12,23 +12,19 @@
   >
     <template #toolbar>
       <refresh-control-bar
-        :auto-refresh-enabled="refreshControlAutoRefreshEnabled"
+        :status="refreshControlStatus"
         :countdown-seconds="remainingRefreshSeconds"
         :interval="selectedRefreshInterval"
-        :interval-label="t('monitor.serverStatus.refreshIntervalLabel')"
         :interval-options="refreshIntervalOptions"
-        :paused="refreshControlPaused"
-        :pause-label="t('monitor.serverStatus.pauseRefresh')"
-        :refresh-label="t('monitor.serverStatus.refreshNow')"
         :refreshing="loading"
-        :resume-label="t('monitor.serverStatus.resumeRefresh')"
         :show-countdown="true"
         :show-trend-window="true"
-        :status="toolbarStatus"
+        :status-tone="toolbarStatus"
         :status-label="overallStatusLabel(overallStatus)"
         :trend-window="selectedTrendRange"
         :trend-window-label="t('monitor.serverStatus.trendWindowLabel')"
         :trend-window-options="trendRangeOptions"
+        variant="page"
         @refresh="() => fetchServerStatus({ manual: true })"
         @pause="toggleAutoRefresh"
         @resume="toggleAutoRefresh"
@@ -1070,10 +1066,15 @@ const toolbarStatus = computed<ServerStatusTone>(() => {
   }
 });
 
-const refreshControlAutoRefreshEnabled = computed(() => selectedRefreshInterval.value > 0);
-const refreshControlPaused = computed(
-  () => refreshControlAutoRefreshEnabled.value && (!autoRefreshEnabled.value || !isPageVisible.value),
-);
+const refreshControlStatus = computed(() => {
+  if (selectedRefreshInterval.value <= 0) {
+    return 'off' as const;
+  }
+  if (!autoRefreshEnabled.value || !isPageVisible.value) {
+    return 'paused' as const;
+  }
+  return 'running' as const;
+});
 
 async function fetchServerStatus(options: { manual?: boolean } = {}) {
   const requestedTrendRange = selectedTrendRange.value;
@@ -1123,7 +1124,7 @@ async function fetchServerStatus(options: { manual?: boolean } = {}) {
 function toggleAutoRefresh() {
   toggleSharedAutoRefresh();
 
-  if (autoRefreshEnabled.value && isPageVisible.value) {
+  if (autoRefreshEnabled.value && isPageVisible.value && selectedRefreshInterval.value > 0) {
     void fetchServerStatus({ manual: true });
     return;
   }
@@ -1134,7 +1135,7 @@ function toggleAutoRefresh() {
 
 function scheduleNextRefresh() {
   stopRefreshTick();
-  if (!autoRefreshEnabled.value || !isPageVisible.value) {
+  if (!autoRefreshEnabled.value || !isPageVisible.value || selectedRefreshInterval.value <= 0) {
     remainingRefreshSeconds.value = null;
     return;
   }
@@ -1172,7 +1173,7 @@ function stopRefreshTick() {
 
 function handleVisibilityChange() {
   isPageVisible.value = document.visibilityState === 'visible';
-  if (isPageVisible.value && autoRefreshEnabled.value) {
+  if (isPageVisible.value && autoRefreshEnabled.value && selectedRefreshInterval.value > 0) {
     void fetchServerStatus();
     return;
   }

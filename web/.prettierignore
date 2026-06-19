@@ -7,3 +7,4 @@ _site
 package
 tmp*
 temp*
+vitest.config.ts.timestamp-*.mjs

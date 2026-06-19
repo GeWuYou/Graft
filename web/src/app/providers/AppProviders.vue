@@ -6,7 +6,7 @@
 <template>
   <t-config-provider :global-config="getComponentsLocale">
     <div class="app-theme-surface" :class="mode" :data-theme-mode="mode">
-      <router-view :key="locale" />
+      <router-view />
     </div>
     <setting-com />
   </t-config-provider>
@@ -24,7 +24,7 @@ const mode = computed(() => {
   return store.displayMode;
 });
 
-const { getComponentsLocale, locale } = useLocale();
+const { getComponentsLocale } = useLocale();
 </script>
 <style lang="less" scoped>
 .app-theme-surface {

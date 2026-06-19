@@ -9,8 +9,12 @@ import type { DashboardQuickActionLink } from '../contract/quick-action-links';
 import type { DashboardQuickActionConfig } from '../contract/quick-actions';
 import DashboardQuickActions from './DashboardQuickActions.vue';
 
+const localeCallKeys: string[] = [];
+
 vi.mock('@/locales', () => ({
   t: (key: string, params?: Record<string, unknown>) => {
+    localeCallKeys.push(key);
+
     const translations: Record<string, string> = {
       'dashboard.module.audit': 'Security Audit',
       'dashboard.module.core': 'Service Management',
@@ -50,7 +54,7 @@ vi.mock('@/modules', () => ({
   },
 }));
 
-const routerMocks = vi.hoisted(() => ({
+const routerMocks = {
   getRoutes: vi.fn(() => [
     {
       path: '/access-control',
@@ -91,7 +95,7 @@ const routerMocks = vi.hoisted(() => ({
     },
   ]),
   push: vi.fn(),
-}));
+};
 
 vi.mock('vue-router', () => ({
   useRouter: () => routerMocks,
@@ -169,6 +173,7 @@ function mountQuickActions(links: DashboardQuickActionLink[], config?: Dashboard
 
 describe('DashboardQuickActions', () => {
   beforeEach(() => {
+    localeCallKeys.length = 0;
     routerMocks.push.mockReset();
     localStorage.clear();
   });
@@ -277,5 +282,18 @@ describe('DashboardQuickActions', () => {
     ]);
 
     expect(wrapper.find('.dashboard-quick-actions__item small').text()).toBe('Security Audit');
+  });
+
+  it('does not resolve module fallback keys when group text is already available', () => {
+    mountQuickActions([
+      quickLink(1, {
+        module_key: 'container',
+        group: '运维管理',
+        title: '容器管理',
+        full_label: '运维管理 - 容器管理',
+      }),
+    ]);
+
+    expect(localeCallKeys).not.toContain('dashboard.module.container');
   });
 });

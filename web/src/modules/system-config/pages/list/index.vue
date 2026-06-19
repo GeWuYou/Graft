@@ -836,7 +836,7 @@ function buildValueSection(
   fields: ConfigSchemaField[],
 ): ConfigValueSection {
   if (item.masked) {
-    const maskedValue = item.masked_placeholder || t('systemConfig.list.masked');
+    const maskedValue = item.masked_placeholder || '*****';
     return {
       key: field,
       title,

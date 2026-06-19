@@ -85,6 +85,20 @@ const settingStoreMock = vi.hoisted(() => ({
 
 const translations = vi.hoisted(
   (): Record<string, string> => ({
+    'app.refreshControl.labels.interval': 'Auto refresh',
+    'app.refreshControl.labels.trendWindow': 'Trend window',
+    'app.refreshControl.status.running': '{interval}',
+    'app.refreshControl.status.paused': 'Auto refresh paused',
+    'app.refreshControl.status.off': 'Auto refresh off',
+    'app.refreshControl.countdown': '{countdown} Until refresh',
+    'app.refreshControl.pending': 'Preparing the next refresh',
+    'app.refreshControl.actions.refresh': 'Refresh now',
+    'app.refreshControl.actions.pause': 'Pause auto refresh',
+    'app.refreshControl.actions.resume': 'Resume auto refresh',
+    'app.refreshControl.actions.enable': 'Enable auto refresh',
+    'app.refreshControl.actions.pauseCompact': 'Pause',
+    'app.refreshControl.actions.resumeCompact': 'Resume',
+    'app.refreshControl.actions.enableCompact': 'Enable',
     'monitor.sectionTitle': 'Server Management',
     'monitor.serverStatus.overviewTitle': 'Server Status Overview',
     'monitor.serverStatus.overviewHint':
@@ -99,6 +113,8 @@ const translations = vi.hoisted(
     'monitor.serverStatus.refreshNow': 'Refresh now',
     'monitor.serverStatus.pauseRefresh': 'Pause auto refresh',
     'monitor.serverStatus.resumeRefresh': 'Resume auto refresh',
+    'monitor.serverStatus.nextRefreshLabel': 'Next refresh',
+    'monitor.serverStatus.refreshIn': 'Until refresh',
     'monitor.serverStatus.refreshStateLabel': 'Refresh state',
     'monitor.serverStatus.lastObserved': 'Last observed: {time}',
     'monitor.serverStatus.lastUpdated': 'Last updated: {time}',
@@ -288,13 +304,16 @@ vi.mock('@/store', () => ({
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
-    t: (key: string, params?: Record<string, string>) => {
+    t: (key: string, params?: Record<string, unknown>) => {
       const template = translations[key] ?? key;
       if (!params) {
         return template;
       }
 
-      return Object.entries(params).reduce((result, [token, value]) => result.replace(`{${token}}`, value), template);
+      return Object.entries(params).reduce(
+        (result, [token, value]) => result.replace(`{${token}}`, String(value)),
+        template,
+      );
     },
     locale: {
       value: 'en-US',
@@ -767,7 +786,6 @@ describe('MonitorPage', () => {
     expect(monitorApiMocks.getServerStatus).toHaveBeenCalledTimes(1);
     expect(monitorApiMocks.getServerStatus).toHaveBeenCalledWith('10m');
     expect(wrapper.text()).toContain('Server Status Overview');
-    expect(wrapper.text()).toContain('Refresh cadence');
     expect(wrapper.text()).toContain('Every 5 sec');
     expect(wrapper.text()).toContain('Trend window');
     expect(wrapper.text()).toContain('Refresh now');
@@ -1269,19 +1287,16 @@ describe('MonitorPage', () => {
     await flushPromises();
     await nextTick();
 
-    expect(wrapper.get('[data-refresh-countdown="true"]').text()).toBe('5s');
-    expect(wrapper.text()).not.toContain('下次刷新');
+    expect(wrapper.get('[data-refresh-countdown="true"]').text()).toBe('5s Until refresh');
 
     await vi.advanceTimersByTimeAsync(2000);
     await flushPromises();
-    expect(wrapper.get('[data-refresh-countdown="true"]').text()).toBe('3s');
-    expect(wrapper.text()).not.toContain('下次刷新');
+    expect(wrapper.get('[data-refresh-countdown="true"]').text()).toBe('3s Until refresh');
 
     const buttons = wrapper.findAll('button');
     await buttons[1]?.trigger('click');
     await nextTick();
-    expect(wrapper.get('[data-refresh-countdown="true"]').text()).toBe('');
-    expect(wrapper.text()).not.toContain('已暂停');
+    expect(wrapper.find('[data-refresh-countdown="true"]').exists()).toBe(false);
     expect(sidebarGroupText(wrapper, 'sampling')).toContain('Auto refresh');
     expect(sidebarGroupText(wrapper, 'sampling')).toContain('Paused');
 
@@ -1297,8 +1312,38 @@ describe('MonitorPage', () => {
     setVisibilityState('hidden');
     document.dispatchEvent(new Event('visibilitychange'));
     await nextTick();
-    expect(wrapper.get('[data-refresh-countdown="true"]').text()).toBe('');
-    expect(wrapper.text()).not.toContain('已暂停');
+    expect(wrapper.find('[data-refresh-countdown="true"]').exists()).toBe(false);
+  });
+
+  it('treats a non-positive refresh interval as off and does not resume auto refresh from timers or visibility recovery', async () => {
+    vi.useFakeTimers();
+    monitorApiMocks.getServerStatus.mockResolvedValue(createServerStatusResponse());
+
+    const wrapper = mountMonitorPage();
+    await flushPromises();
+    await nextTick();
+
+    expect(monitorApiMocks.getServerStatus).toHaveBeenCalledTimes(1);
+
+    (wrapper.vm as unknown as { selectedRefreshInterval: number }).selectedRefreshInterval = 0;
+    await nextTick();
+
+    expect(wrapper.find('[data-refresh-countdown="true"]').exists()).toBe(false);
+    expect(wrapper.text()).toContain('Auto refresh off');
+
+    await vi.advanceTimersByTimeAsync(7000);
+    await flushPromises();
+    expect(monitorApiMocks.getServerStatus).toHaveBeenCalledTimes(1);
+
+    setVisibilityState('hidden');
+    document.dispatchEvent(new Event('visibilitychange'));
+    await nextTick();
+
+    setVisibilityState('visible');
+    document.dispatchEvent(new Event('visibilitychange'));
+    await flushPromises();
+
+    expect(monitorApiMocks.getServerStatus).toHaveBeenCalledTimes(1);
   });
 
   it('backs off the retry cadence after a failed auto refresh', async () => {
@@ -1308,8 +1353,7 @@ describe('MonitorPage', () => {
     const wrapper = mountMonitorPage();
     await flushPromises();
 
-    expect(wrapper.get('[data-refresh-countdown="true"]').text()).toBe('10s');
-    expect(wrapper.text()).not.toContain('下次刷新');
+    expect(wrapper.get('[data-refresh-countdown="true"]').text()).toBe('10s Until refresh');
 
     await vi.advanceTimersByTimeAsync(9000);
     await flushPromises();

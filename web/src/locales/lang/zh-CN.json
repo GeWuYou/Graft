@@ -12,6 +12,16 @@
       "more": "更多"
     }
   },
+  "global": {
+    "search": {
+      "trigger": "搜索",
+      "placeholder": "输入要搜索内容",
+      "idle": "输入关键字以搜索页面入口",
+      "empty": "暂无可搜索菜单",
+      "noResults": "未找到匹配结果",
+      "menuResultPathLabel": "路径"
+    }
+  },
   "layout": {
     "header": {
       "code": "代码仓库",
@@ -109,30 +119,69 @@
         },
         "presets": {
           "title": "官方主题",
+          "description": "选择官方推荐主题，作为当前外观组合的起点。",
           "customized": {
             "label": "自定义主题"
           },
           "tdesignDefault": {
-            "label": "TDesign 原始主题",
-            "description": "保留 TDesign 默认主题基线。"
+            "label": "默认",
+            "description": "保留默认配色与中性色层级，适合作为自定义起点。"
           },
           "tencentCloud": {
             "label": "腾讯云",
-            "description": "使用更贴近腾讯云控制台的亮色主色，并保持页面中性色。"
+            "description": "偏控制台感的蓝色组合，突出导航层级与常用操作。"
           },
           "mountainGreen": {
             "label": "山野绿",
-            "description": "用温和绿色主色驱动按钮、选中态与状态强调。"
+            "description": "柔和绿色主色搭配浅色内容区，阅读节奏更平稳。"
           },
           "midnightBlue": {
             "label": "午夜蓝",
-            "description": "默认以暗色模式启动，保持 TDesign 中性深色工作区。"
+            "description": "深色工作区配合冷调浮层，更适合夜间值守与长时间查看。"
+          },
+          "graphiteSlate": {
+            "label": "石墨灰",
+            "description": "石墨灰导航配合冷调表面，适合表格与仪表盘并行查看。"
+          },
+          "sunsetAmber": {
+            "label": "落日琥珀",
+            "description": "低饱和琥珀强调主要操作，在亮色界面里保持克制。"
+          },
+          "oceanTeal": {
+            "label": "海洋青",
+            "description": "青蓝色在导航与内容区之间保持平衡，适合长时间查看数据。"
+          },
+          "frostSilver": {
+            "label": "霜银",
+            "description": "冷白银灰表面减轻对比压迫，让高密度页面更干净。"
           }
         },
         "overview": {
           "currentConfig": "当前配置",
           "currentTheme": "当前主题",
-          "description": "查看当前正在生效的外观配置。"
+          "description": "查看当前正在生效的外观配置。",
+          "quickAdjustments": "快捷调整",
+          "quickAdjustmentsDescription": "仅保留高频入口，快速切换主题模式、导航布局和信息密度。",
+          "recommendedCombos": "推荐组合",
+          "recommendedCombosDescription": "按场景一键套用常见组合，变更仍需点击应用后才会保存。"
+        },
+        "scenarios": {
+          "opsWide": {
+            "label": "运维宽屏推荐",
+            "description": "适合宽屏运维页面，强调混合导航与紧凑信息编排。"
+          },
+          "nightWatch": {
+            "label": "夜间值守推荐",
+            "description": "默认切到暗色主题，降低夜间持续盯盘时的视觉压力。"
+          },
+          "lowDistraction": {
+            "label": "低干扰模式",
+            "description": "减少阴影和底部干扰，让内容区更安静。"
+          },
+          "highDensity": {
+            "label": "高信息密度",
+            "description": "更适合表格和列表密集的后台页面。"
+          }
         },
         "appearance": {
           "description": "选择主题模式、主题色和预设主题。",
@@ -199,6 +248,15 @@
           "targetMode": "目标模式",
           "light": "亮色",
           "dark": "暗色",
+          "preview": "颜色预览",
+          "hex": "Hex",
+          "opacity": "透明度",
+          "value": "变量值",
+          "copyVariable": "复制变量名",
+          "copyVariableSuccess": "已复制变量名",
+          "copyVariableFail": "复制变量名失败",
+          "expand": "展开",
+          "collapse": "收起",
           "reset": "恢复继承",
           "empty": "当前分组暂无可编辑变量"
         },
@@ -298,6 +356,28 @@
     }
   },
   "app": {
+    "refreshControl": {
+      "labels": {
+        "interval": "自动刷新：",
+        "trendWindow": "趋势窗口："
+      },
+      "status": {
+        "running": "自动刷新：{interval}",
+        "paused": "自动刷新已暂停",
+        "off": "自动刷新关闭"
+      },
+      "countdown": "{countdown} 后刷新",
+      "pending": "等待下次刷新",
+      "actions": {
+        "refresh": "立即刷新",
+        "pause": "暂停自动刷新",
+        "resume": "恢复自动刷新",
+        "enable": "开启自动刷新",
+        "pauseCompact": "暂停",
+        "resumeCompact": "恢复",
+        "enableCompact": "开启"
+      }
+    },
     "request": {
       "failed": "请求失败"
     },

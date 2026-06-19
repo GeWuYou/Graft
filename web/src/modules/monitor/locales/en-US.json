@@ -31,6 +31,8 @@
       "refreshNow": "Refresh now",
       "pauseRefresh": "Pause auto refresh",
       "resumeRefresh": "Resume auto refresh",
+      "nextRefreshLabel": "Next refresh",
+      "refreshIn": "Until refresh",
       "nextRefreshPausedByUser": "Auto refresh paused",
       "nextRefreshPaused": "Next refresh paused while the page is hidden",
       "nextRefreshPending": "Preparing the next refresh",

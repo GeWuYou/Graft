@@ -5,7 +5,10 @@ import type {
   ThemeModeTokenState,
   ThemePresetDefinition,
   ThemeTokenDefinition,
+  ThemeWorkbenchAuthorityPatch,
   ThemeWorkbenchGroupDefinition,
+  ThemeWorkbenchScenarioPresetDefinition,
+  ThemeWorkbenchStylePatch,
 } from '@/types/theme';
 
 export const DEFAULT_THEME_PRESET_ID = 'tdesign-default';
@@ -294,6 +297,44 @@ export const THEME_TOKEN_DEFINITIONS: ThemeTokenDefinition[] = [
   },
 ];
 
+const SIDE_LAYOUT_STYLE_PATCH: ThemeWorkbenchStylePatch = {
+  layout: 'side',
+  splitMenu: false,
+  isSidebarFixed: true,
+  isUseTabsRouter: false,
+  showFooter: true,
+  showHeader: true,
+  showBreadcrumb: false,
+  menuAutoCollapsed: false,
+};
+
+const MIX_LAYOUT_STYLE_PATCH: ThemeWorkbenchStylePatch = {
+  layout: 'mix',
+  splitMenu: true,
+  isSidebarFixed: true,
+  isUseTabsRouter: true,
+  showFooter: true,
+  showHeader: true,
+  showBreadcrumb: false,
+  menuAutoCollapsed: false,
+};
+
+const STANDARD_SYSTEM_AUTHORITY_PATCH: ThemeWorkbenchAuthorityPatch = {
+  fontFamilyPreset: 'system',
+  fontSizePreset: 'standard',
+  radiusPreset: 'standard',
+  shadowPreset: 'standard',
+  densityPreset: 'standard',
+};
+
+const SOURCE_HAN_ROUNDED_AUTHORITY_PATCH: ThemeWorkbenchAuthorityPatch = {
+  fontFamilyPreset: 'source-han-sans',
+  fontSizePreset: 'standard',
+  radiusPreset: 'rounded',
+  shadowPreset: 'standard',
+  densityPreset: 'comfortable',
+};
+
 // 推荐主题保持为纯前端本地配置，先服务当前工作台预览，不与后端契约耦合。
 export const THEME_PRESET_DEFINITIONS: ThemePresetDefinition[] = [
   {
@@ -301,18 +342,30 @@ export const THEME_PRESET_DEFINITIONS: ThemePresetDefinition[] = [
     labelKey: 'layout.setting.workbench.presets.tdesignDefault.label',
     descriptionKey: 'layout.setting.workbench.presets.tdesignDefault.description',
     brandTheme: '#0052D9',
+    authorityPatch: STANDARD_SYSTEM_AUTHORITY_PATCH,
+    stylePatch: SIDE_LAYOUT_STYLE_PATCH,
   },
   {
     id: 'tencent-cloud',
     labelKey: 'layout.setting.workbench.presets.tencentCloud.label',
     descriptionKey: 'layout.setting.workbench.presets.tencentCloud.description',
     brandTheme: '#0064FF',
+    authorityPatch: {
+      fontFamilyPreset: 'inter',
+      fontSizePreset: 'standard',
+      radiusPreset: 'business',
+      shadowPreset: 'standard',
+      densityPreset: 'standard',
+    },
+    stylePatch: MIX_LAYOUT_STYLE_PATCH,
   },
   {
     id: 'mountain-green',
     labelKey: 'layout.setting.workbench.presets.mountainGreen.label',
     descriptionKey: 'layout.setting.workbench.presets.mountainGreen.description',
     brandTheme: '#2BA471',
+    authorityPatch: SOURCE_HAN_ROUNDED_AUTHORITY_PATCH,
+    stylePatch: SIDE_LAYOUT_STYLE_PATCH,
   },
   {
     id: 'midnight-blue',
@@ -320,5 +373,148 @@ export const THEME_PRESET_DEFINITIONS: ThemePresetDefinition[] = [
     descriptionKey: 'layout.setting.workbench.presets.midnightBlue.description',
     brandTheme: '#3B82F6',
     mode: 'dark',
+    authorityPatch: {
+      fontFamilyPreset: 'harmonyos',
+      fontSizePreset: 'standard',
+      radiusPreset: 'standard',
+      shadowPreset: 'floating',
+      densityPreset: 'comfortable',
+    },
+    stylePatch: MIX_LAYOUT_STYLE_PATCH,
+  },
+  {
+    id: 'graphite-slate',
+    labelKey: 'layout.setting.workbench.presets.graphiteSlate.label',
+    descriptionKey: 'layout.setting.workbench.presets.graphiteSlate.description',
+    brandTheme: '#4F6B8A',
+    mode: 'dark',
+    authorityPatch: {
+      fontFamilyPreset: 'inter',
+      fontSizePreset: 'small',
+      radiusPreset: 'business',
+      shadowPreset: 'flat',
+      densityPreset: 'compact',
+    },
+    stylePatch: {
+      layout: 'side',
+      splitMenu: false,
+      isSidebarFixed: true,
+      isUseTabsRouter: true,
+      showFooter: true,
+      showHeader: true,
+      showBreadcrumb: false,
+      menuAutoCollapsed: true,
+    },
+  },
+  {
+    id: 'sunset-amber',
+    labelKey: 'layout.setting.workbench.presets.sunsetAmber.label',
+    descriptionKey: 'layout.setting.workbench.presets.sunsetAmber.description',
+    brandTheme: '#D97706',
+    authorityPatch: {
+      mode: 'light',
+      fontFamilyPreset: 'source-han-sans',
+      fontSizePreset: 'standard',
+      radiusPreset: 'rounded',
+      shadowPreset: 'standard',
+      densityPreset: 'comfortable',
+    },
+    stylePatch: SIDE_LAYOUT_STYLE_PATCH,
+  },
+  {
+    id: 'ocean-teal',
+    labelKey: 'layout.setting.workbench.presets.oceanTeal.label',
+    descriptionKey: 'layout.setting.workbench.presets.oceanTeal.description',
+    brandTheme: '#0F8A83',
+    authorityPatch: {
+      mode: 'light',
+      fontFamilyPreset: 'harmonyos',
+      fontSizePreset: 'standard',
+      radiusPreset: 'standard',
+      shadowPreset: 'floating',
+      densityPreset: 'standard',
+    },
+    stylePatch: MIX_LAYOUT_STYLE_PATCH,
+  },
+  {
+    id: 'frost-silver',
+    labelKey: 'layout.setting.workbench.presets.frostSilver.label',
+    descriptionKey: 'layout.setting.workbench.presets.frostSilver.description',
+    brandTheme: '#7A8CA5',
+    authorityPatch: {
+      mode: 'light',
+      fontFamilyPreset: 'system',
+      fontSizePreset: 'large',
+      radiusPreset: 'capsule',
+      shadowPreset: 'flat',
+      densityPreset: 'comfortable',
+    },
+    stylePatch: {
+      layout: 'side',
+      splitMenu: false,
+      isSidebarFixed: true,
+      isUseTabsRouter: false,
+      showFooter: true,
+      showHeader: true,
+      showBreadcrumb: false,
+      menuAutoCollapsed: false,
+    },
+  },
+];
+
+export const THEME_WORKBENCH_SCENARIO_PRESETS: ThemeWorkbenchScenarioPresetDefinition[] = [
+  {
+    id: 'ops-wide',
+    labelKey: 'layout.setting.workbench.scenarios.opsWide.label',
+    descriptionKey: 'layout.setting.workbench.scenarios.opsWide.description',
+    authorityPatch: {
+      densityPreset: 'compact',
+      shadowPreset: 'standard',
+      radiusPreset: 'standard',
+    },
+    stylePatch: {
+      layout: 'mix',
+      splitMenu: true,
+      isSidebarFixed: true,
+      isUseTabsRouter: true,
+    },
+  },
+  {
+    id: 'night-watch',
+    labelKey: 'layout.setting.workbench.scenarios.nightWatch.label',
+    descriptionKey: 'layout.setting.workbench.scenarios.nightWatch.description',
+    presetId: 'midnight-blue',
+    authorityPatch: {
+      mode: 'dark',
+      densityPreset: 'comfortable',
+      shadowPreset: 'flat',
+    },
+  },
+  {
+    id: 'low-distraction',
+    labelKey: 'layout.setting.workbench.scenarios.lowDistraction.label',
+    descriptionKey: 'layout.setting.workbench.scenarios.lowDistraction.description',
+    authorityPatch: {
+      mode: 'light',
+      densityPreset: 'standard',
+      shadowPreset: 'flat',
+    },
+    stylePatch: {
+      showFooter: false,
+    },
+  },
+  {
+    id: 'high-density',
+    labelKey: 'layout.setting.workbench.scenarios.highDensity.label',
+    descriptionKey: 'layout.setting.workbench.scenarios.highDensity.description',
+    authorityPatch: {
+      densityPreset: 'compact',
+      fontSizePreset: 'small',
+    },
+    stylePatch: {
+      layout: 'side',
+      splitMenu: false,
+      showFooter: false,
+    },
   },
 ];

@@ -23,49 +23,63 @@
       <template #operations>
         <div class="operations-container">
           <!-- 搜索框 -->
-          <search v-if="layout !== 'side'" />
+          <div v-if="layout !== 'side'" class="header-operation-search">
+            <search />
+          </div>
 
           <!-- 全局通知 -->
           <notice />
 
-          <t-tooltip placement="bottom" :content="t('layout.header.code')">
-            <t-button theme="default" shape="square" variant="text" @click="navToGitHub">
-              <t-icon name="logo-github" />
-            </t-button>
-          </t-tooltip>
-          <t-tooltip placement="bottom" :content="t('layout.header.apiDocs')">
-            <t-button theme="default" shape="square" variant="text" @click="navToDocs">
-              <t-icon name="book-open" />
-            </t-button>
-          </t-tooltip>
-          <t-tooltip placement="bottom" :content="t('layout.header.help')">
-            <t-button theme="default" shape="square" variant="text" @click="navToHelper">
-              <t-icon name="help-circle" />
-            </t-button>
-          </t-tooltip>
-          <language-switcher />
-          <t-dropdown :min-column-width="120" trigger="click">
-            <template #dropdown>
-              <t-dropdown-item class="operations-dropdown-container-item" @click="handleNav(USER_ROUTE_PATH.LIST)">
-                <user-circle-icon />{{ t('layout.header.user') }}
-              </t-dropdown-item>
-              <t-dropdown-item class="operations-dropdown-container-item" @click="handleLogout">
-                <poweroff-icon />{{ t('layout.header.signOut') }}
-              </t-dropdown-item>
-            </template>
-            <t-button class="header-user-btn" theme="default" variant="text">
-              <template #icon>
-                <t-icon class="header-user-avatar" name="user-circle" />
+          <div class="header-operation-item">
+            <t-tooltip placement="bottom" :content="t('layout.header.code')">
+              <t-button theme="default" shape="square" variant="text" @click="navToGitHub">
+                <t-icon name="logo-github" />
+              </t-button>
+            </t-tooltip>
+          </div>
+          <div class="header-operation-item">
+            <t-tooltip placement="bottom" :content="t('layout.header.apiDocs')">
+              <t-button theme="default" shape="square" variant="text" @click="navToDocs">
+                <t-icon name="book-open" />
+              </t-button>
+            </t-tooltip>
+          </div>
+          <div class="header-operation-item">
+            <t-tooltip placement="bottom" :content="t('layout.header.help')">
+              <t-button theme="default" shape="square" variant="text" @click="navToHelper">
+                <t-icon name="help-circle" />
+              </t-button>
+            </t-tooltip>
+          </div>
+          <div class="header-operation-item">
+            <language-switcher />
+          </div>
+          <div class="header-operation-user">
+            <t-dropdown :min-column-width="120" trigger="click">
+              <template #dropdown>
+                <t-dropdown-item class="operations-dropdown-container-item" @click="handleNav(USER_ROUTE_PATH.LIST)">
+                  <user-circle-icon />{{ t('layout.header.user') }}
+                </t-dropdown-item>
+                <t-dropdown-item class="operations-dropdown-container-item" @click="handleLogout">
+                  <poweroff-icon />{{ t('layout.header.signOut') }}
+                </t-dropdown-item>
               </template>
-              <div class="header-user-account">{{ user.userInfo.name }}</div>
-              <template #suffix><chevron-down-icon /></template>
-            </t-button>
-          </t-dropdown>
-          <t-tooltip placement="bottom" :content="t('layout.header.setting')">
-            <t-button theme="default" shape="square" variant="text" @click="toggleSettingPanel">
-              <setting-icon />
-            </t-button>
-          </t-tooltip>
+              <t-button class="header-user-btn" theme="default" variant="text">
+                <template #icon>
+                  <t-icon class="header-user-avatar" name="user-circle" />
+                </template>
+                <div class="header-user-account">{{ user.userInfo.name }}</div>
+                <template #suffix><chevron-down-icon /></template>
+              </t-button>
+            </t-dropdown>
+          </div>
+          <div class="header-operation-item">
+            <t-tooltip placement="bottom" :content="t('layout.header.setting')">
+              <t-button theme="default" shape="square" variant="text" @click="toggleSettingPanel">
+                <setting-icon />
+              </t-button>
+            </t-tooltip>
+          </div>
         </div>
       </template>
     </t-head-menu>
@@ -223,19 +237,66 @@ const navToHelper = () => {
 
 .operations-container {
   align-items: center;
-  display: flex;
-  gap: var(--graft-density-gap-12);
+  align-self: center;
+  display: inline-flex;
+  gap: var(--graft-density-gap-4);
+  height: var(--td-comp-size-m);
+  line-height: 0;
+}
 
-  // TDesign adjacent text buttons add their own margin; this container owns spacing through flex gap.
-  :deep(.t-button + .t-button) {
-    margin-left: 0;
-  }
+.header-operation-search,
+.header-operation-user,
+.header-operation-item {
+  align-items: center;
+  display: inline-flex;
+  flex: 0 0 auto;
+  height: var(--td-comp-size-m);
+}
 
-  .t-popup__reference {
-    align-items: center;
-    display: flex;
-    justify-content: center;
-  }
+.header-operation-item {
+  justify-content: center;
+  width: var(--td-comp-size-m);
+}
+
+.header-operation-item :deep(.t-badge),
+.header-operation-item :deep(.t-popup__reference) {
+  align-items: center;
+  display: inline-flex;
+  height: 100%;
+  justify-content: center;
+  width: 100%;
+}
+
+.header-operation-item :deep(.t-button) {
+  align-items: center;
+  display: inline-flex;
+  height: 100%;
+  justify-content: center;
+  min-width: 100%;
+  padding: 0;
+  width: 100%;
+}
+
+.header-operation-user :deep(.t-popup__reference) {
+  align-items: center;
+  display: inline-flex;
+  height: 100%;
+}
+
+.header-operation-user :deep(.t-dropdown) {
+  align-items: center;
+  display: inline-flex;
+  height: 100%;
+}
+
+.header-operation-user :deep(.t-button) {
+  align-items: center;
+  display: inline-flex;
+  height: 100%;
+}
+
+.header-user-btn {
+  padding-inline: var(--td-comp-paddingLR-s);
 }
 
 .header-operate-left {
@@ -274,6 +335,12 @@ const navToHelper = () => {
 
 :deep(.t-head-menu__inner) {
   border-bottom: 1px solid var(--td-component-stroke);
+}
+
+:deep(.t-head-menu__operations) {
+  align-items: center;
+  display: flex;
+  height: 100%;
 }
 
 .t-menu--light {

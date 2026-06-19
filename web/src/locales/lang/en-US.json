@@ -12,6 +12,16 @@
       "more": "More"
     }
   },
+  "global": {
+    "search": {
+      "trigger": "Search",
+      "placeholder": "Search menus or pages",
+      "idle": "Type a keyword to search page entries",
+      "empty": "No searchable menus",
+      "noResults": "No results found",
+      "menuResultPathLabel": "Path"
+    }
+  },
   "layout": {
     "header": {
       "code": "Code Repository",
@@ -46,7 +56,7 @@
       "cancel": "Cancel"
     },
     "search": {
-      "placeholder": "Enter search content"
+      "placeholder": "Search menus or pages"
     },
     "routeLoading": "Loading Page",
     "setting": {
@@ -109,30 +119,69 @@
         },
         "presets": {
           "title": "Official Themes",
+          "description": "Choose an official theme as the starting point for the current appearance mix.",
           "customized": {
             "label": "Customized Theme"
           },
           "tdesignDefault": {
-            "label": "TDesign Original",
-            "description": "Keep the default TDesign theme baseline."
+            "label": "Default",
+            "description": "Keep the default palette and neutral scale as a clean starting point."
           },
           "tencentCloud": {
             "label": "Tencent Cloud",
-            "description": "Use a Tencent Cloud-style brand color while keeping neutral page colors."
+            "description": "A console-oriented blue mix that sharpens navigation hierarchy and common actions."
           },
           "mountainGreen": {
             "label": "Mountain Green",
-            "description": "Use a softer green brand color for buttons, selected states, and emphasis."
+            "description": "A softer green palette with light content surfaces and a steadier reading rhythm."
           },
           "midnightBlue": {
             "label": "Midnight Blue",
-            "description": "Start in dark mode and keep the neutral TDesign dark workspace."
+            "description": "A dark workspace with cool floating surfaces for night-watch and long review sessions."
+          },
+          "graphiteSlate": {
+            "label": "Graphite Slate",
+            "description": "Graphite navigation with cool surfaces for steady table and dashboard work."
+          },
+          "sunsetAmber": {
+            "label": "Sunset Amber",
+            "description": "Muted amber accents highlight primary actions while keeping light surfaces restrained."
+          },
+          "oceanTeal": {
+            "label": "Ocean Teal",
+            "description": "Teal-blue accents balance navigation and content for longer data review sessions."
+          },
+          "frostSilver": {
+            "label": "Frost Silver",
+            "description": "Cool silver surfaces reduce contrast weight and keep dense pages cleaner."
           }
         },
         "overview": {
           "currentConfig": "Current Configuration",
           "currentTheme": "Current Theme",
-          "description": "Review the appearance settings currently in effect."
+          "description": "Review the appearance settings currently in effect.",
+          "quickAdjustments": "Quick Adjustments",
+          "quickAdjustmentsDescription": "Keep only high-frequency shortcuts for theme mode, navigation layout, and density.",
+          "recommendedCombos": "Recommended Combos",
+          "recommendedCombosDescription": "Apply common combinations by scenario. Changes still require Apply to persist."
+        },
+        "scenarios": {
+          "opsWide": {
+            "label": "Ops Wide Screen",
+            "description": "Best for wide operational pages with mixed navigation and compact density."
+          },
+          "nightWatch": {
+            "label": "Night Watch",
+            "description": "Switch to a dark workspace to reduce strain during extended monitoring."
+          },
+          "lowDistraction": {
+            "label": "Low Distraction",
+            "description": "Reduce shadow and footer noise to keep the content area quieter."
+          },
+          "highDensity": {
+            "label": "High Density",
+            "description": "Better suited to table-heavy and list-dense admin pages."
+          }
         },
         "appearance": {
           "description": "Choose theme mode, theme color, and preset themes.",
@@ -199,6 +248,15 @@
           "targetMode": "Target Mode",
           "light": "Light",
           "dark": "Dark",
+          "preview": "Color Preview",
+          "hex": "Hex",
+          "opacity": "Opacity",
+          "value": "Token Value",
+          "copyVariable": "Copy Variable",
+          "copyVariableSuccess": "Variable Name Copied",
+          "copyVariableFail": "Copy Failed",
+          "expand": "Expand",
+          "collapse": "Collapse",
           "reset": "Reset Inheritance",
           "empty": "No editable tokens in this group"
         },
@@ -298,6 +356,28 @@
     }
   },
   "app": {
+    "refreshControl": {
+      "labels": {
+        "interval": "Auto refresh:",
+        "trendWindow": "Trend window:"
+      },
+      "status": {
+        "running": "Auto refresh: {interval}",
+        "paused": "Auto refresh paused",
+        "off": "Auto refresh off"
+      },
+      "countdown": "Refresh in {countdown}",
+      "pending": "Waiting for next refresh",
+      "actions": {
+        "refresh": "Refresh now",
+        "pause": "Pause auto refresh",
+        "resume": "Resume auto refresh",
+        "enable": "Enable auto refresh",
+        "pauseCompact": "Pause",
+        "resumeCompact": "Resume",
+        "enableCompact": "Enable"
+      }
+    },
     "request": {
       "failed": "Request Failed"
     },

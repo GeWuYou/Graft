@@ -14,6 +14,27 @@ export type ThemeSourceType = 'preset' | 'customized';
 
 export type ThemeTokenMap = Record<string, string>;
 
+export type ThemeWorkbenchAuthorityPatch = Partial<
+  Pick<
+    ThemeAuthorityState,
+    'mode' | 'fontFamilyPreset' | 'fontSizePreset' | 'radiusPreset' | 'shadowPreset' | 'densityPreset'
+  >
+>;
+
+export type ThemeWorkbenchStylePatch = Partial<
+  Pick<
+    SettingStyleConfig,
+    | 'layout'
+    | 'splitMenu'
+    | 'isSidebarFixed'
+    | 'isUseTabsRouter'
+    | 'showFooter'
+    | 'showHeader'
+    | 'showBreadcrumb'
+    | 'menuAutoCollapsed'
+  >
+>;
+
 export interface ThemeModeTokenState {
   light: ThemeTokenMap;
   dark: ThemeTokenMap;
@@ -61,6 +82,17 @@ export interface ThemePresetDefinition {
   brandTheme: string;
   mode?: ModeType | 'auto';
   tokenOverrides?: Partial<ThemeModeTokenState>;
+  authorityPatch?: ThemeWorkbenchAuthorityPatch;
+  stylePatch?: ThemeWorkbenchStylePatch;
+}
+
+export interface ThemeWorkbenchScenarioPresetDefinition {
+  id: string;
+  labelKey: string;
+  descriptionKey: string;
+  presetId?: string | null;
+  authorityPatch?: ThemeWorkbenchAuthorityPatch;
+  stylePatch?: ThemeWorkbenchStylePatch;
 }
 
 export interface ThemeAuthorityState {

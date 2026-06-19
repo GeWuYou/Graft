@@ -104,7 +104,12 @@ function linkTitle(link: DashboardQuickActionLink) {
 }
 
 function linkGroup(link: DashboardQuickActionLink) {
-  return resolveDashboardText(link.group_key, link.group, moduleLabel(link.module_key));
+  const resolvedGroup = resolveDashboardText(link.group_key, link.group, '');
+  if (resolvedGroup) {
+    return resolvedGroup;
+  }
+
+  return moduleLabel(link.module_key);
 }
 
 function linkFullLabel(link: DashboardQuickActionLink) {

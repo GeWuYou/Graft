@@ -25,6 +25,7 @@ import (
 const (
 	containerResourceType = "container"
 	containerOperationTTL = 30 * time.Second
+	maskedEnvironmentPlaceholder = "*****"
 )
 
 type environmentPlainAccessContextKey struct{}
@@ -516,6 +517,7 @@ func (s *service) applyEnvironmentPolicy(ctx context.Context, detail Detail) Det
 		policy = containercontract.ContainerEnvironmentPolicyMasked
 	}
 	detail.EnvironmentPolicy = policy.String()
+	detail.EnvironmentMaskedCopyEnabled = s.maskedEnvironmentCopyEnabled(ctx)
 	detail.Environment = applyEnvironmentPolicy(detail.Environment, environmentPolicyOptions{
 		maskedCopyEnabled: policy == containercontract.ContainerEnvironmentPolicyMasked &&
 			environmentPlainAccessAllowed(ctx) &&
@@ -571,9 +573,8 @@ type environmentPolicyOptions struct {
 
 // applyEnvironmentPolicy applies environment display and masking policy to variables.
 // Each variable is marked sensitive if its key matches known sensitive patterns. The
-// policy determines visibility: Hidden clears values, Plain keeps them visible, and the
-// default policy hides sensitive variables while optionally preserving the original
-// value in CopyValue. Returns nil if the input is empty.
+// returned payload always carries explicit display-state fields so downstream consumers
+// applyEnvironmentPolicy modifies environment variables to enforce the specified display policy, controlling value visibility through masking, hiding, or plaintext modes.
 func applyEnvironmentPolicy(environment []EnvironmentVariable, options environmentPolicyOptions) []EnvironmentVariable {
 	if len(environment) == 0 {
 		return nil
@@ -581,20 +582,26 @@ func applyEnvironmentPolicy(environment []EnvironmentVariable, options environme
 	mapped := make([]EnvironmentVariable, 0, len(environment))
 	for _, item := range environment {
 		item.Sensitive = item.Sensitive || isSensitiveEnvironmentKey(item.Key)
-		item.CopyValue = nil
+		item.CopyValue = ""
+		item.DisplayValue = item.Value
+		item.ValueMasked = false
+		item.ValueHidden = false
 		switch options.policy {
 		case containercontract.ContainerEnvironmentPolicyHidden:
 			item.Value = ""
+			item.DisplayValue = "[HIDDEN]"
+			item.ValueHidden = true
 			item.Masked = true
 		case containercontract.ContainerEnvironmentPolicyPlain:
 			item.Masked = false
 		default:
 			if item.Sensitive {
-				if options.maskedCopyEnabled {
-					copyValue := item.Value
-					item.CopyValue = &copyValue
+				if options.maskedCopyEnabled && strings.TrimSpace(item.Value) != "" {
+					item.CopyValue = item.Value
 				}
 				item.Value = ""
+				item.DisplayValue = maskedEnvironmentPlaceholder
+				item.ValueMasked = true
 				item.Masked = true
 			} else {
 				item.Masked = false

@@ -68,6 +68,7 @@ func toDetail(detail Detail) containergen.ContainerDetail {
 		CreatedAt:         mustTime(detail.CreatedAt),
 		Entrypoint:        optionalStringSlice(detail.Entrypoint),
 		Environment:       optionalEnvironment(detail.Environment),
+		EnvironmentMaskedCopyEnabled: detail.EnvironmentMaskedCopyEnabled,
 		EnvironmentPolicy: optionalEnvironmentPolicy(detail.EnvironmentPolicy),
 		Health:            optionalDetailHealth(detail.Health),
 		Healthcheck:       optionalHealthcheck(detail.Healthcheck),
@@ -116,7 +117,7 @@ func optionalHealthcheck(healthcheck *Healthcheck) *containergen.ContainerHealth
 	}
 }
 
-// optionalEnvironment maps a slice of environment variables to a slice of container environment entries, returning nil if the input is empty.
+// Returns a pointer to the converted entries, or nil if the input is empty.
 func optionalEnvironment(environment []EnvironmentVariable) *[]containergen.ContainerEnvironmentEntry {
 	if len(environment) == 0 {
 		return nil
@@ -124,12 +125,15 @@ func optionalEnvironment(environment []EnvironmentVariable) *[]containergen.Cont
 	mapped := make([]containergen.ContainerEnvironmentEntry, 0, len(environment))
 	for _, item := range environment {
 		mapped = append(mapped, containergen.ContainerEnvironmentEntry{
-			CopyValue: item.CopyValue,
-			Key:       item.Key,
-			Masked:    item.Masked,
-			Sensitive: item.Sensitive,
-			Source:    containergen.ContainerEnvironmentEntrySource(item.Source),
-			Value:     optionalString(item.Value),
+			CopyValue:    optionalString(item.CopyValue),
+			DisplayValue: optionalString(item.DisplayValue),
+			Key:          item.Key,
+			Masked:       item.Masked,
+			Sensitive:    item.Sensitive,
+			Source:       containergen.ContainerEnvironmentEntrySource(item.Source),
+			Value:        optionalString(item.Value),
+			ValueHidden:  optionalBool(item.ValueHidden),
+			ValueMasked:  optionalBool(item.ValueMasked),
 		})
 	}
 	return &mapped

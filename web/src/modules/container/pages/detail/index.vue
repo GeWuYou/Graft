@@ -12,47 +12,23 @@
       :source="{ labelKey: 'container.list.eyebrow', fallback: t('container.list.eyebrow') }"
     >
       <template #meta>
-        <t-space class="container-detail-header-meta" break-line size="small">
-          <span v-if="safeDetail" class="container-detail-header-id">{{ shortContainerId(safeDetail) }}</span>
-          <t-tag v-if="safeDetail" :theme="stateTheme(safeDetail.state)" variant="light-outline">
-            {{ stateLabel(safeDetail.state) }}
-          </t-tag>
-          <t-tag v-if="safeDetail" :theme="healthTheme(safeDetail.health)" variant="light-outline">
-            {{ healthLabel(safeDetail.health) }}
-          </t-tag>
-          <t-tag v-if="safeDetail?.runtime" theme="default" variant="light-outline">
-            {{ safeDetail.runtime }}
-          </t-tag>
-          <t-tag v-if="safeDetail?.inspect_updated_at" theme="default" variant="light-outline">
+        <div class="container-detail-header-meta" data-testid="container-detail-header-meta">
+          <t-space class="container-detail-header-meta__tags" break-line size="small">
+            <span v-if="safeDetail" class="container-detail-header-id">{{ shortContainerId(safeDetail) }}</span>
+            <t-tag v-if="safeDetail" :theme="stateTheme(safeDetail.state)" variant="light-outline">
+              {{ stateLabel(safeDetail.state) }}
+            </t-tag>
+            <t-tag v-if="safeDetail" :theme="healthTheme(safeDetail.health)" variant="light-outline">
+              {{ healthLabel(safeDetail.health) }}
+            </t-tag>
+            <t-tag v-if="safeDetail?.runtime" theme="default" variant="light-outline">
+              {{ safeDetail.runtime }}
+            </t-tag>
+          </t-space>
+          <div v-if="safeDetail?.inspect_updated_at" class="container-detail-header-meta__updated-at">
             {{ t('container.detail.inspectUpdatedAt') }}: {{ formatTime(safeDetail.inspect_updated_at) }}
-          </t-tag>
-        </t-space>
-      </template>
-      <template #actions>
-        <t-space break-line size="small">
-          <t-tooltip :content="t('container.detail.refreshTooltip')">
-            <refresh-control-bar
-              :auto-refresh-enabled="autoRefreshAvailable"
-              :countdown-label="t('container.detail.autoRefresh')"
-              :countdown-seconds="remainingAutoRefreshSeconds"
-              :interval="selectedAutoRefreshInterval"
-              :interval-label="t('container.detail.autoRefresh')"
-              :interval-options="autoRefreshOptions"
-              :manual-label="t('container.detail.autoRefreshOff')"
-              :paused="autoRefreshPaused"
-              :pause-label="t('container.detail.pauseAutoRefresh')"
-              :paused-label="t('container.detail.autoRefreshPaused')"
-              :refresh-label="t('container.detail.refreshNow')"
-              :refreshing="detailRefreshing"
-              :resume-label="t('container.detail.resumeAutoRefresh')"
-              :show-countdown="true"
-              @pause="setAutoRefreshEnabled(false)"
-              @refresh="handleManualRefresh"
-              @resume="setAutoRefreshEnabled(true)"
-              @update:interval="handleAutoRefreshIntervalChange"
-            />
-          </t-tooltip>
-        </t-space>
+          </div>
+        </div>
       </template>
     </management-page-header>
 
@@ -194,6 +170,25 @@
             </div>
           </t-card>
         </section>
+
+        <div class="container-detail-refresh-row" data-testid="container-detail-refresh-row">
+          <t-tooltip :content="t('container.detail.refreshTooltip')">
+            <refresh-control-bar
+              :status="refreshControlStatus"
+              :countdown-seconds="remainingAutoRefreshSeconds"
+              :interval="selectedAutoRefreshInterval"
+              :interval-options="autoRefreshOptions"
+              :refreshing="detailRefreshing"
+              :show-countdown="true"
+              appearance="plain"
+              variant="compact"
+              @pause="setAutoRefreshEnabled(false)"
+              @refresh="handleManualRefresh"
+              @resume="setAutoRefreshEnabled(true)"
+              @update:interval="handleAutoRefreshIntervalChange"
+            />
+          </t-tooltip>
+        </div>
 
         <t-card class="container-detail-tabs-card" :bordered="true">
           <t-tabs v-model:value="activeTab" theme="card" @change="handleTabChange">
@@ -606,6 +601,11 @@
                     <h3>{{ t('container.detail.config.environment') }}</h3>
                     <span>{{ t('container.detail.config.environmentCount', { count: environmentRows.length }) }}</span>
                   </div>
+                  <t-alert
+                    class="container-config-section__policy-alert"
+                    :theme="environmentPolicyNoticeTheme"
+                    :message="environmentPolicyNotice"
+                  />
                   <div class="container-env-toolbar">
                     <t-input
                       v-model="environmentKeyword"
@@ -622,12 +622,21 @@
                       class="container-env-toolbar__policy"
                       :options="environmentPolicyFilterOptions"
                     />
-                    <t-button theme="default" variant="outline" @click="copyFilteredEnvironmentAsEnv">
-                      <template #icon>
-                        <t-icon name="file-copy" />
-                      </template>
-                      {{ t('container.detail.config.copyEnvFile') }}
-                    </t-button>
+                    <t-tooltip :content="environmentCopyTooltip">
+                      <span>
+                        <t-button
+                          theme="default"
+                          variant="outline"
+                          :disabled="environmentCopyDisabled"
+                          @click="copyFilteredEnvironmentAsEnv"
+                        >
+                          <template #icon>
+                            <t-icon name="file-copy" />
+                          </template>
+                          {{ t('container.detail.config.copyEnvFile') }}
+                        </t-button>
+                      </span>
+                    </t-tooltip>
                     <t-button
                       theme="default"
                       variant="outline"
@@ -685,20 +694,23 @@
                       </t-tag>
                     </template>
                     <template #operation="{ row }">
-                      <t-tooltip v-if="row.copyable" :content="t('container.detail.config.copyVariableValue')">
-                        <t-button
-                          class="container-env-copy-button"
-                          data-testid="env-copy"
-                          shape="square"
-                          size="small"
-                          theme="default"
-                          variant="text"
-                          @click="copyEnvironmentValue(row)"
-                        >
-                          <template #icon>
-                            <t-icon name="copy" />
-                          </template>
-                        </t-button>
+                      <t-tooltip v-if="row.copyable" :content="row.copyTooltip">
+                        <span>
+                          <t-button
+                            class="container-env-copy-button"
+                            data-testid="env-copy"
+                            shape="square"
+                            size="small"
+                            theme="default"
+                            variant="text"
+                            :disabled="row.copyDisabled"
+                            @click="copyEnvironmentValue(row)"
+                          >
+                            <template #icon>
+                              <t-icon name="copy" />
+                            </template>
+                          </t-button>
+                        </span>
                       </t-tooltip>
                     </template>
                   </t-table>
@@ -1039,17 +1051,40 @@
             </t-tab-panel>
 
             <t-tab-panel value="raw" :label="t('container.detail.tabs.raw')" :destroy-on-hide="false">
-              <section class="container-detail-section">
-                <json-viewer
-                  :value="safeDetail"
+              <section class="container-detail-section container-detail-section--raw container-detail-tab-body">
+                <container-raw-json-panel
+                  :copy-value="rawJsonCopyValue"
+                  :value="rawJsonDisplayValue"
                   :title="t('container.detail.raw.title')"
                   :description="t('container.detail.raw.description')"
+                  :policy-message="rawJsonPolicyMessage"
+                  :policy-alert-theme="rawJsonPolicyTheme"
+                  :search-placeholder="t('container.detail.raw.searchPlaceholder')"
                   :root-label="t('container.detail.raw.root')"
                   :source-label="t('container.detail.raw.source')"
                   :tree-label="t('container.detail.raw.tree')"
                   :copy-label="t('container.detail.copy')"
+                  :copy-tooltip="rawJsonCopyTooltip"
+                  :copy-masked-tooltip="rawJsonCopyTooltip"
+                  :copy-disabled-message="t('container.detail.raw.copyDisabledMessage')"
+                  :raw-copy-enabled="rawJsonCopyEnabled"
                   :copy-success-label="t('container.detail.copySuccess')"
                   :copy-error-label="t('container.detail.copyError')"
+                  :expand-all-label="t('container.detail.raw.expandAll')"
+                  :collapse-all-label="t('container.detail.raw.collapseAll')"
+                  :format-label="t('container.detail.raw.format')"
+                  :field-count-label="t('container.detail.raw.fieldCount')"
+                  :sensitive-field-label="t('container.detail.raw.sensitiveFieldCount')"
+                  :masked-count-label="t('container.detail.raw.maskedCount')"
+                  :environment-label="t('container.detail.raw.environmentCount')"
+                  :port-label="t('container.detail.raw.portCount')"
+                  :mounted-label="t('container.detail.raw.mountCount')"
+                  :network-label="t('container.detail.raw.networkCount')"
+                  :updated-at-label="t('container.detail.raw.updatedAt')"
+                  :collapse-tree-node-label="t('container.detail.raw.collapseNode')"
+                  :expand-tree-node-label="t('container.detail.raw.expandNode')"
+                  :search-empty-label="t('container.detail.raw.noMatches')"
+                  :sensitive-label="t('container.detail.raw.sensitive')"
                   :empty-label="t('container.detail.raw.empty')"
                   :error-label="t('container.detail.raw.error')"
                 />
@@ -1081,7 +1116,6 @@ import {
   formatLocaleDateTime,
   formatNanosecondsAsDuration,
   formatPercent,
-  JsonViewer,
   LogViewer,
   toProgressPercent,
 } from '@/shared/observability';
@@ -1095,6 +1129,7 @@ import {
   getContainerMountUsage,
   postContainerMountUsageRefresh,
 } from '../../api/container';
+import ContainerRawJsonPanel from '../../components/ContainerRawJsonPanel.vue';
 import type {
   ContainerDetail,
   ContainerHealth,
@@ -1119,8 +1154,14 @@ type EnvironmentPolicyFilter = EnvironmentPolicy | 'all' | 'sensitive';
 type EnvironmentRow = {
   copyValue: string;
   copyable: boolean;
+  copyDisabled: boolean;
+  copyTooltip: string;
+  displayValue: string;
+  hasSensitiveValue: boolean;
   name: string;
   policy: EnvironmentPolicy;
+  rawJsonCopyValue: string;
+  rawJsonValue: string;
   rawValue: string;
   value: string;
 };
@@ -1280,8 +1321,8 @@ const activeTab = ref<DetailTab>(normalizeTab(route.query.tab));
 const environmentKeyword = ref('');
 const environmentPolicyFilter = ref<EnvironmentPolicyFilter>('all');
 const refreshingMountKeys = ref<Set<string>>(new Set());
-const selectedAutoRefreshInterval = ref<AutoRefreshInterval>(0);
-const autoRefreshEnabled = ref(false);
+const selectedAutoRefreshInterval = ref<AutoRefreshInterval>(5);
+const autoRefreshEnabled = ref(true);
 const remainingAutoRefreshSeconds = ref<number | null>(null);
 const isPageVisible = ref(typeof document === 'undefined' ? true : document.visibilityState === 'visible');
 let autoRefreshTimer: number | null = null;
@@ -1327,6 +1368,15 @@ const autoRefreshAvailable = computed(() => selectedAutoRefreshInterval.value > 
 const autoRefreshPaused = computed(
   () => autoRefreshAvailable.value && (!autoRefreshEnabled.value || !isPageVisible.value),
 );
+const refreshControlStatus = computed(() => {
+  if (!autoRefreshAvailable.value) {
+    return 'off' as const;
+  }
+  if (autoRefreshPaused.value) {
+    return 'paused' as const;
+  }
+  return 'running' as const;
+});
 const detailBreadcrumb = computed(() => [
   { labelKey: 'container.list.eyebrow', fallback: t('container.list.eyebrow') },
   { labelKey: 'container.detail.title', fallback: fallbackTitle.value[LOCALE.ZH_CN] },
@@ -1338,6 +1388,58 @@ const pageTitle = computed(() => {
   return fallbackDisplayName.value || t('container.detail.title');
 });
 const environmentRows = computed(() => normalizeEnvironmentRows(safeDetail.value));
+const environmentHasSensitiveRows = computed(() => environmentRows.value.some((row) => row.hasSensitiveValue));
+const rawJsonCopyValue = computed(() => buildRawJsonCopyValue(safeDetail.value));
+const rawJsonCopyEnabled = computed(() => Boolean(rawJsonCopyValue.value));
+const rawJsonCopyTooltip = computed(() =>
+  rawJsonCopyEnabled.value
+    ? t('container.detail.raw.copyRealValueTooltip')
+    : t('container.detail.raw.copyDisabledTooltip'),
+);
+const rawJsonPolicyTheme = computed(() => {
+  if (!environmentHasSensitiveRows.value) {
+    return 'info';
+  }
+  return rawJsonCopyEnabled.value ? 'warning' : 'error';
+});
+const rawJsonPolicyMessage = computed(() => {
+  const policy = readEnvironmentPolicy(safeDetail.value);
+  if (!environmentHasSensitiveRows.value) {
+    return t('container.detail.raw.policy.noSensitive');
+  }
+  if (rawJsonCopyEnabled.value) {
+    return t('container.detail.raw.policy.maskedCopyEnabled', { strategy: policyLabel(policy) });
+  }
+  return t('container.detail.raw.policy.maskedCopyDisabled', { strategy: policyLabel(policy) });
+});
+const environmentCopyDisabled = computed(() => {
+  if (!filteredEnvironmentRows.value.length) {
+    return true;
+  }
+  return filteredEnvironmentRows.value.some((row) => row.copyDisabled);
+});
+const environmentCopyTooltip = computed(() =>
+  environmentCopyDisabled.value
+    ? t('container.detail.config.copyPolicyDisabled')
+    : t('container.detail.config.copyRealValueTooltip'),
+);
+const environmentPolicyNoticeTheme = computed(() => {
+  if (!environmentHasSensitiveRows.value) {
+    return 'info';
+  }
+  return environmentCopyDisabled.value ? 'warning' : 'info';
+});
+const environmentPolicyNotice = computed(() => {
+  const policy = readEnvironmentPolicy(safeDetail.value);
+  if (!environmentHasSensitiveRows.value) {
+    return t('container.detail.config.policyNoticeNoSensitive', { strategy: policyLabel(policy) });
+  }
+  if (environmentCopyDisabled.value) {
+    return t('container.detail.config.policyNoticeCopyDisabled', { strategy: policyLabel(policy) });
+  }
+  return t('container.detail.config.policyNoticeMaskedCopy', { strategy: policyLabel(policy) });
+});
+const rawJsonDisplayValue = computed(() => buildRawJsonDisplayValue(safeDetail.value));
 const networkConnections = computed(() => safeDetail.value?.networks ?? []);
 const singleNetworkFields = computed<NetworkField[]>(() => {
   const network = networkConnections.value[0];
@@ -2082,7 +2184,7 @@ function handleTabChange(value: string | number) {
 }
 
 async function copyEnvironmentValue(row: EnvironmentRow) {
-  if (!row.copyable) {
+  if (!row.copyable || row.copyDisabled) {
     return;
   }
   const copied = await copyTextToClipboard(row.copyValue);
@@ -2094,6 +2196,10 @@ async function copyEnvironmentValue(row: EnvironmentRow) {
 }
 
 async function copyFilteredEnvironmentAsEnv() {
+  if (environmentCopyDisabled.value) {
+    MessagePlugin.error(t('container.detail.config.copyPolicyDisabled'));
+    return;
+  }
   const content = filteredEnvironmentRows.value.map(formatEnvironmentLine).join('\n');
   const copied = await copyTextToClipboard(content);
   if (copied) {
@@ -2228,22 +2334,46 @@ function normalizeEnvironmentRows(nextDetail: ContainerDetail | null): Environme
     const rawPolicy = readString(record?.policy ?? record?.visibility ?? record?.state);
     const masked = record?.masked === true;
     const rawValue = readRawString(record?.value);
+    const displayValue = readRawString(record?.display_value);
     const copyValue = readRawString(record?.copy_value);
+    const valueMasked = record?.value_masked === true;
+    const valueHidden = record?.value_hidden === true;
     const policy = normalizeEnvironmentPolicy(
       rawPolicy,
       readString(detailRecord?.environment_policy),
       masked,
       rawValue,
+      valueMasked,
+      valueHidden,
     );
-    const value = policy === 'hidden' ? '' : displayEnvironmentValue(rawValue, policy);
-    const resolvedCopyValue = copyValue || (policy === 'plain' ? rawValue : '');
+    const value = resolveEnvironmentDisplayValue(rawValue, displayValue, policy, valueMasked, valueHidden);
+    const hasSensitiveValue = masked || valueMasked || valueHidden || record?.sensitive === true;
+    const maskedCopyAllowed = containerEnvironmentMaskedCopyEnabled(nextDetail);
+    const resolvedCopyValue =
+      hasSensitiveValue && policy !== 'plain' && !maskedCopyAllowed
+        ? ''
+        : resolveEnvironmentCopyValue(rawValue, copyValue, policy, hasSensitiveValue);
+    const copyDisabled = !resolvedCopyValue;
 
     return [
       {
         copyValue: resolvedCopyValue,
         copyable: Boolean(resolvedCopyValue),
+        copyDisabled,
+        copyTooltip: copyDisabled
+          ? t('container.detail.config.copyPolicyDisabled')
+          : t('container.detail.config.copyRealValueTooltip'),
+        displayValue: value,
+        hasSensitiveValue,
         name,
         policy,
+        rawJsonCopyValue: resolvedCopyValue,
+        rawJsonValue:
+          valueHidden || policy === 'hidden'
+            ? '[HIDDEN]'
+            : valueMasked || policy === 'masked'
+              ? value
+              : displayValue || rawValue,
         rawValue,
         value: value || environmentValueFallback(policy),
       },
@@ -2268,9 +2398,17 @@ function normalizeEnvironmentPolicy(
   detailPolicy = '',
   masked = false,
   rawValue = '',
+  valueMasked = false,
+  valueHidden = false,
 ): EnvironmentPolicy {
   if (value === 'plain' || value === 'masked' || value === 'hidden') {
     return value;
+  }
+  if (valueHidden) {
+    return 'hidden';
+  }
+  if (valueMasked) {
+    return 'masked';
   }
   if (rawValue && !masked) {
     return 'plain';
@@ -2285,14 +2423,14 @@ function normalizeEnvironmentPolicy(
 }
 
 function environmentValueFallback(policy: EnvironmentPolicy) {
-  if (policy === 'masked') return '******';
+  if (policy === 'masked') return t('container.detail.config.maskedValue');
   if (policy === 'hidden') return t('container.detail.config.hiddenValue');
   return '-';
 }
 
 function displayEnvironmentValue(value: string, policy: EnvironmentPolicy) {
   if (policy === 'masked') {
-    return '******';
+    return t('container.detail.config.maskedValue');
   }
   return abbreviateMiddle(value);
 }
@@ -2329,10 +2467,109 @@ function isSensitiveEnvironmentRow(row: EnvironmentRow) {
 }
 
 function formatEnvironmentLine(row: EnvironmentRow) {
-  if (row.policy === 'masked' || row.policy === 'hidden') {
-    return `${row.name}=******`;
+  return `${row.name}=${row.copyValue}`;
+}
+
+function resolveEnvironmentCopyValue(
+  rawValue: string,
+  copyValue: string,
+  policy: EnvironmentPolicy,
+  hasSensitiveValue: boolean,
+) {
+  if (policy === 'plain') {
+    return rawValue;
   }
-  return `${row.name}=${row.rawValue}`;
+  if (!hasSensitiveValue) {
+    return rawValue;
+  }
+  return copyValue;
+}
+
+function resolveEnvironmentDisplayValue(
+  rawValue: string,
+  displayValue: string,
+  policy: EnvironmentPolicy,
+  valueMasked: boolean,
+  valueHidden: boolean,
+) {
+  if (isMaskedEnvironmentDisplayValue(displayValue)) {
+    return t('container.detail.config.maskedValue');
+  }
+  if (isHiddenEnvironmentDisplayValue(displayValue)) {
+    return t('container.detail.config.hiddenValue');
+  }
+  if (valueHidden || policy === 'hidden') {
+    return t('container.detail.config.hiddenValue');
+  }
+  if (valueMasked || policy === 'masked') {
+    return t('container.detail.config.maskedValue');
+  }
+  if (displayValue) {
+    return displayEnvironmentValue(displayValue, 'plain');
+  }
+  return displayEnvironmentValue(rawValue, policy);
+}
+
+function isMaskedEnvironmentDisplayValue(value: string) {
+  return value === '[MASKED]' || value === t('container.detail.config.maskedValue');
+}
+
+function isHiddenEnvironmentDisplayValue(value: string) {
+  return value === '[HIDDEN]' || value === t('container.detail.config.hiddenValue');
+}
+
+function readEnvironmentPolicy(detail: ContainerDetail | null) {
+  const value = readString(readUnknownRecord(detail)?.environment_policy);
+  return value === 'plain' || value === 'masked' || value === 'hidden' ? value : 'unknown';
+}
+
+function containerEnvironmentMaskedCopyEnabled(detail: ContainerDetail | null) {
+  const record = readUnknownRecord(detail);
+  return record?.environment_masked_copy_enabled === true;
+}
+
+function buildRawJsonDisplayValue(detail: SafeContainerDetail | null) {
+  if (!detail) {
+    return detail;
+  }
+  const sourceEnvironment = Array.isArray(detail.environment) ? detail.environment : [];
+  return {
+    ...detail,
+    environment: environmentRows.value.map((row, index) => ({
+      ...(readUnknownRecord(sourceEnvironment[index]) ?? {}),
+      key: row.name,
+      value: row.rawJsonValue,
+      display_value: row.rawJsonValue,
+      masked: row.policy !== 'plain',
+      sensitive: row.hasSensitiveValue,
+      value_masked: row.policy === 'masked',
+      value_hidden: row.policy === 'hidden',
+    })),
+  };
+}
+
+function buildRawJsonCopyValue(detail: SafeContainerDetail | null) {
+  if (!detail) {
+    return detail;
+  }
+  if (environmentRows.value.some((row) => row.hasSensitiveValue && row.copyDisabled)) {
+    return null;
+  }
+  const sourceEnvironment = Array.isArray(detail.environment) ? detail.environment : [];
+  return {
+    ...detail,
+    environment: environmentRows.value.map((row, index) => ({
+      ...(readUnknownRecord(sourceEnvironment[index]) ?? {}),
+      key: row.name,
+      value: row.rawJsonCopyValue || row.rawJsonValue,
+      copy_value: row.rawJsonCopyValue || undefined,
+      display_value: row.rawJsonValue,
+      masked: row.policy !== 'plain',
+      sensitive: row.hasSensitiveValue,
+      value_masked: row.policy === 'masked',
+      value_hidden: row.policy === 'hidden',
+    })),
+  };
 }
 
 function normalizeDetail(current: ContainerDetail | null): SafeContainerDetail | null {
@@ -3203,15 +3440,28 @@ function portLabel(port: ContainerDetail['ports'][number]) {
 }
 
 .container-detail-header-meta {
+  display: grid;
+  gap: var(--graft-density-gap-6);
   max-width: min(100%, 680px);
   min-width: 0;
 }
 
-.container-detail-header-meta :deep(.t-space-item) {
+.container-detail-header-meta__tags {
   min-width: 0;
 }
 
-.container-detail-header-meta :deep(.t-tag) {
+.container-detail-header-meta__updated-at {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.container-detail-header-meta__tags :deep(.t-space-item) {
+  min-width: 0;
+}
+
+.container-detail-header-meta__tags :deep(.t-tag) {
   max-width: 100%;
 }
 
@@ -3322,6 +3572,33 @@ function portLabel(port: ContainerDetail['ports'][number]) {
   padding: 0;
 }
 
+.container-detail-refresh-row {
+  align-items: center;
+  display: flex;
+  justify-content: flex-end;
+  margin: var(--graft-density-gap-8) 0 var(--graft-density-gap-10);
+  min-height: 40px;
+  min-width: 0;
+  padding-inline: var(--graft-density-gap-12);
+}
+
+.container-detail-refresh-row :deep(.refresh-control-bar) {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.container-detail-refresh-row :deep(.refresh-control-bar--compact) {
+  justify-content: flex-end;
+}
+
+.container-detail-refresh-row :deep(.refresh-control-bar__summary) {
+  justify-content: flex-end;
+}
+
+.container-detail-refresh-row :deep(.refresh-control-bar__items) {
+  justify-content: flex-end;
+}
+
 .container-detail-tabs-card :deep(.t-tabs__content) {
   padding-top: var(--graft-density-gap-12);
 }
@@ -3369,6 +3646,11 @@ function portLabel(port: ContainerDetail['ports'][number]) {
 
 .container-detail-section--storage {
   padding: 0 var(--graft-density-gap-16) var(--graft-density-gap-16);
+}
+
+.container-detail-section--raw {
+  min-height: var(--container-detail-tab-body-min-height);
+  padding: 0;
 }
 
 .container-detail-empty-state {
@@ -4456,12 +4738,26 @@ function portLabel(port: ContainerDetail['ports'][number]) {
     max-width: 100%;
   }
 
-  .container-detail-header-meta :deep(.t-space) {
+  .container-detail-header-meta__tags :deep(.t-space) {
     width: 100%;
   }
 
-  .container-detail-header-meta :deep(.t-space-item) {
+  .container-detail-header-meta__tags :deep(.t-space-item) {
     max-width: 100%;
+  }
+
+  .container-detail-refresh-row {
+    margin-block: var(--graft-density-gap-8);
+  }
+}
+
+@media (width <= 767px) {
+  .container-detail-refresh-row {
+    padding-inline: var(--graft-density-gap-12);
+  }
+
+  .container-detail-refresh-row :deep(.refresh-control-bar--compact) {
+    justify-content: flex-end;
   }
 }
 </style>
