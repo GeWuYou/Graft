@@ -43,6 +43,13 @@ func TestRegisterMessagesUsesEmbeddedLocaleResources(t *testing.T) {
 		"systemConfig.container.ops.container.environment.masked_copy_enabled.description",
 		"开启后，已具备环境变量明文读取权限的用户可在环境变量列表、复制 .env 与原始 JSON 复制中获得敏感环境变量真实值；页面展示仍保持 *****。关闭后，包含敏感字段的复制操作会被禁止，不提供真实值。",
 	)
+	assertRegisteredSystemConfigMessage(
+		t,
+		localizer,
+		i18n.LocaleENUS,
+		"systemConfig.container.ops.container.environment.masked_copy_enabled.description",
+		"When enabled, users who already have plaintext environment read access may obtain real sensitive values from environment list copy, .env copy, and raw JSON copy while the page still displays *****. When disabled, those copy flows return only masked display results and never expose real values.",
+	)
 }
 
 func assertRegisteredSystemConfigMessage(

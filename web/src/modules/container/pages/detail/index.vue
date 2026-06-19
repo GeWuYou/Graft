@@ -1396,7 +1396,12 @@ const rawJsonCopyTooltip = computed(() =>
     ? t('container.detail.raw.copyRealValueTooltip')
     : t('container.detail.raw.copyDisabledTooltip'),
 );
-const rawJsonPolicyTheme = computed(() => (rawJsonCopyEnabled.value ? 'warning' : 'error'));
+const rawJsonPolicyTheme = computed(() => {
+  if (!environmentHasSensitiveRows.value) {
+    return 'info';
+  }
+  return rawJsonCopyEnabled.value ? 'warning' : 'error';
+});
 const rawJsonPolicyMessage = computed(() => {
   const policy = readEnvironmentPolicy(safeDetail.value);
   if (!environmentHasSensitiveRows.value) {
@@ -1411,7 +1416,7 @@ const environmentCopyDisabled = computed(() => {
   if (!filteredEnvironmentRows.value.length) {
     return true;
   }
-  return filteredEnvironmentRows.value.some((row) => row.copyDisabled || !row.copyable);
+  return filteredEnvironmentRows.value.some((row) => row.copyDisabled);
 });
 const environmentCopyTooltip = computed(() =>
   environmentCopyDisabled.value
@@ -2493,14 +2498,14 @@ function resolveEnvironmentDisplayValue(
   if (isHiddenEnvironmentDisplayValue(displayValue)) {
     return t('container.detail.config.hiddenValue');
   }
-  if (displayValue) {
-    return displayEnvironmentValue(displayValue, 'plain');
-  }
   if (valueHidden || policy === 'hidden') {
     return t('container.detail.config.hiddenValue');
   }
   if (valueMasked || policy === 'masked') {
     return t('container.detail.config.maskedValue');
+  }
+  if (displayValue) {
+    return displayEnvironmentValue(displayValue, 'plain');
   }
   return displayEnvironmentValue(rawValue, policy);
 }
