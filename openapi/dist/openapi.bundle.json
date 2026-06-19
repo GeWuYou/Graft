@@ -16139,15 +16139,23 @@
           },
           "value": {
             "type": "string",
-            "description": "Environment variable value. Omitted when the active policy hides or masks the value."
+            "description": "Raw environment variable value. Present only when the effective policy allows plaintext display."
           },
-          "copy_value": {
+          "display_value": {
             "type": "string",
-            "description": "Copy-only raw value for a masked entry. Present only when policy, permission, and system configuration allow copying masked values."
+            "description": "Stable display value rendered under the effective environment policy."
+          },
+          "value_masked": {
+            "type": "boolean",
+            "description": "Whether display_value is a masked placeholder instead of the original value."
+          },
+          "value_hidden": {
+            "type": "boolean",
+            "description": "Whether the original value is intentionally hidden by the active policy."
           },
           "masked": {
             "type": "boolean",
-            "description": "Whether the value is intentionally omitted by environment display policy."
+            "description": "Whether the original value is intentionally omitted by environment display policy."
           },
           "sensitive": {
             "type": "boolean",
@@ -16346,6 +16354,7 @@
             "type": "object",
             "required": [
               "environment_policy",
+              "environment_masked_copy_enabled",
               "mounts",
               "networks",
               "runtime_info"
@@ -16382,6 +16391,10 @@
                   "ContainerDetailEnvironmentPolicyPlain"
                 ],
                 "description": "Effective container environment variable display policy applied to this detail response."
+              },
+              "environment_masked_copy_enabled": {
+                "type": "boolean",
+                "description": "Whether the current system policy allows copying the masked display JSON when sensitive environment values exist."
               },
               "healthcheck": {
                 "$ref": "#/components/schemas/container-healthcheck",

@@ -68,6 +68,7 @@ func toDetail(detail Detail) containergen.ContainerDetail {
 		CreatedAt:         mustTime(detail.CreatedAt),
 		Entrypoint:        optionalStringSlice(detail.Entrypoint),
 		Environment:       optionalEnvironment(detail.Environment),
+		EnvironmentMaskedCopyEnabled: detail.EnvironmentMaskedCopyEnabled,
 		EnvironmentPolicy: optionalEnvironmentPolicy(detail.EnvironmentPolicy),
 		Health:            optionalDetailHealth(detail.Health),
 		Healthcheck:       optionalHealthcheck(detail.Healthcheck),
@@ -124,12 +125,14 @@ func optionalEnvironment(environment []EnvironmentVariable) *[]containergen.Cont
 	mapped := make([]containergen.ContainerEnvironmentEntry, 0, len(environment))
 	for _, item := range environment {
 		mapped = append(mapped, containergen.ContainerEnvironmentEntry{
-			CopyValue: item.CopyValue,
-			Key:       item.Key,
-			Masked:    item.Masked,
-			Sensitive: item.Sensitive,
-			Source:    containergen.ContainerEnvironmentEntrySource(item.Source),
-			Value:     optionalString(item.Value),
+			DisplayValue: optionalString(item.DisplayValue),
+			Key:          item.Key,
+			Masked:       item.Masked,
+			Sensitive:    item.Sensitive,
+			Source:       containergen.ContainerEnvironmentEntrySource(item.Source),
+			Value:        optionalString(item.Value),
+			ValueHidden:  optionalBool(item.ValueHidden),
+			ValueMasked:  optionalBool(item.ValueMasked),
 		})
 	}
 	return &mapped

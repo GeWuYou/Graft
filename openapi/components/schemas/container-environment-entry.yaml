@@ -10,13 +10,19 @@ properties:
     description: Environment variable name.
   value:
     type: string
-    description: Environment variable value. Omitted when the active policy hides or masks the value.
-  copy_value:
+    description: Raw environment variable value. Present only when the effective policy allows plaintext display.
+  display_value:
     type: string
-    description: Copy-only raw value for a masked entry. Present only when policy, permission, and system configuration allow copying masked values.
+    description: Stable display value rendered under the effective environment policy.
+  value_masked:
+    type: boolean
+    description: Whether display_value is a masked placeholder instead of the original value.
+  value_hidden:
+    type: boolean
+    description: Whether the original value is intentionally hidden by the active policy.
   masked:
     type: boolean
-    description: Whether the value is intentionally omitted by environment display policy.
+    description: Whether the original value is intentionally omitted by environment display policy.
   sensitive:
     type: boolean
     description: Whether the key matched the container module sensitive-key heuristic.

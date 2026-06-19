@@ -374,7 +374,7 @@
       },
       "raw": {
         "title": "原始 JSON",
-        "description": "敏感字段已脱敏，仅用于只读排查。",
+        "description": "容器原始 JSON 调试视图。",
         "searchPlaceholder": "搜索字段或内容",
         "root": "container",
         "source": "源码视图",
@@ -386,12 +386,21 @@
         "collapseNode": "折叠节点",
         "fieldCount": "字段数",
         "sensitiveFieldCount": "敏感字段",
+        "maskedCount": "已脱敏",
         "environmentCount": "环境变量",
         "portCount": "端口映射",
         "mountCount": "挂载",
         "networkCount": "网络",
         "updatedAt": "更新时间",
         "sensitive": "敏感",
+        "copyMaskedTooltip": "复制脱敏后的 JSON",
+        "copyDisabledTooltip": "当前系统配置禁止复制包含敏感字段的 JSON",
+        "copyDisabledMessage": "当前系统配置禁止复制包含敏感字段的 JSON",
+        "policy": {
+          "noSensitive": "当前策略：当前原始 JSON 不包含敏感环境变量，可直接复制展示 JSON。",
+          "maskedCopyEnabled": "当前策略：敏感值按 {strategy} 脱敏展示，复制时仅复制脱敏后的 JSON。",
+          "maskedCopyDisabled": "当前策略：敏感值按 {strategy} 脱敏展示，当前系统配置禁止复制包含敏感字段的 JSON。"
+        },
         "empty": "暂无原始 JSON 数据",
         "error": "原始 JSON 无法格式化。",
         "noMatches": "未找到匹配内容"
@@ -475,11 +484,16 @@
         "copyVariableValueSuccess": "已复制变量值",
         "copyEnvFile": "复制 .env",
         "copyEnvSuccess": "已复制 .env 内容",
+        "copyMaskedDisplayOnly": "仅复制当前展示的脱敏值",
+        "copyPolicyDisabled": "当前系统配置禁止复制包含敏感字段的环境变量",
         "envName": "变量名",
         "envValue": "值",
         "envPolicy": "安全策略",
         "maskedValue": "[已脱敏]",
         "hiddenValue": "[已隐藏]",
+        "policyNoticeMaskedCopy": "当前策略：敏感值按 {strategy} 展示，复制时仅复制脱敏后的展示值。",
+        "policyNoticeCopyDisabled": "当前策略：敏感值按 {strategy} 展示，当前系统配置禁止复制包含敏感字段的环境变量。",
+        "policyNoticeNoSensitive": "当前策略：环境变量按 {strategy} 展示，当前结果不包含敏感字段。",
         "policyFilter": {
           "all": "安全策略：全部"
         },

@@ -374,7 +374,7 @@
       },
       "raw": {
         "title": "Raw JSON",
-        "description": "Sensitive Fields Are Masked for Read-only Troubleshooting.",
+        "description": "Container raw JSON debugger view.",
         "searchPlaceholder": "Search Keys Or Values",
         "root": "Container",
         "source": "Source View",
@@ -386,12 +386,21 @@
         "collapseNode": "Collapse Node",
         "fieldCount": "Fields",
         "sensitiveFieldCount": "Sensitive Fields",
+        "maskedCount": "Masked",
         "environmentCount": "Environment",
         "portCount": "Port Mappings",
         "mountCount": "Mounts",
         "networkCount": "Networks",
         "updatedAt": "Updated At",
         "sensitive": "Sensitive",
+        "copyMaskedTooltip": "Copy masked JSON",
+        "copyDisabledTooltip": "The current system policy blocks copying JSON with sensitive fields",
+        "copyDisabledMessage": "The current system policy blocks copying JSON with sensitive fields",
+        "policy": {
+          "noSensitive": "Current policy: this raw JSON contains no sensitive environment variables, so the display JSON can be copied directly.",
+          "maskedCopyEnabled": "Current policy: sensitive values use the {strategy} strategy, and copy only returns masked JSON.",
+          "maskedCopyDisabled": "Current policy: sensitive values use the {strategy} strategy, and the current system policy blocks copying JSON with sensitive fields."
+        },
         "empty": "No Raw JSON Data Is Available",
         "error": "Raw JSON Could Not Be Formatted.",
         "noMatches": "No Matches Found"
@@ -475,11 +484,16 @@
         "copyVariableValueSuccess": "Variable Value Copied.",
         "copyEnvFile": "Copy .env",
         "copyEnvSuccess": ".env Content Copied.",
+        "copyMaskedDisplayOnly": "Copy masked display values only",
+        "copyPolicyDisabled": "The current system policy blocks copying environment data with sensitive fields",
         "envName": "Name",
         "envValue": "Value",
         "envPolicy": "Security Policy",
         "maskedValue": "[Masked]",
         "hiddenValue": "[Hidden]",
+        "policyNoticeMaskedCopy": "Current policy: sensitive values use the {strategy} strategy, and copy only returns masked display values.",
+        "policyNoticeCopyDisabled": "Current policy: sensitive values use the {strategy} strategy, and the current system policy blocks copying environment data with sensitive fields.",
+        "policyNoticeNoSensitive": "Current policy: environment values use the {strategy} strategy, and this result contains no sensitive fields.",
         "policyFilter": {
           "all": "Security Policy: All"
         },

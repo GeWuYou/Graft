@@ -22,9 +22,13 @@
         :options="viewOptions"
         @update:model-value="handleViewModeChange"
       />
-      <t-button theme="default" variant="outline" :disabled="copyDisabled" @click="$emit('copy')">
-        {{ copyLabel }}
-      </t-button>
+      <t-tooltip :content="copyTooltip">
+        <span class="json-viewer-toolbar__copy-wrap">
+          <t-button theme="default" variant="outline" :disabled="copyDisabled" @click="$emit('copy')">
+            {{ copyLabel }}
+          </t-button>
+        </span>
+      </t-tooltip>
       <t-button
         v-if="viewMode === 'tree'"
         theme="default"
@@ -47,6 +51,7 @@ const props = defineProps<{
   collapseAllLabel: string;
   copyDisabled?: boolean;
   copyLabel: string;
+  copyTooltip: string;
   expandAllLabel: string;
   expandDisabled?: boolean;
   expandedAll: boolean;
@@ -103,6 +108,10 @@ function handleViewModeChange(value: string | number | boolean) {
   gap: var(--graft-density-gap-8);
   justify-content: flex-end;
   min-width: 0;
+}
+
+.json-viewer-toolbar__copy-wrap {
+  display: inline-flex;
 }
 
 .json-viewer-toolbar__search :deep(.t-input) {

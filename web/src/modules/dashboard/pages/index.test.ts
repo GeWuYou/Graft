@@ -291,7 +291,6 @@ function summaryResponse(): DashboardSummaryResponse {
       },
       visible_widgets: 1,
     },
-    quick_links: [],
     widgets: [
       {
         category: 'system',

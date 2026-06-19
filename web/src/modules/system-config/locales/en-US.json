@@ -276,6 +276,10 @@
                   "description": "Return Environment Variable Values Without Policy Masking."
                 }
               }
+            },
+            "masked_copy_enabled": {
+              "title": "Masked Environment Copy Enabled",
+              "description": "Allows Authorized Users to Copy the Raw Values Behind Masked Sensitive Environment Variables; When Disabled, Masked Values Remain View-Only and Cannot Be Copied in Raw Form."
             }
           }
         }

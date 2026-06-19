@@ -84,6 +84,9 @@ const translations = vi.hoisted(
       '不按策略脱敏，直接返回环境变量值。',
     'systemConfig.container.ops.container.environment.policy.enum.plain.label': '明文',
     'systemConfig.container.ops.container.environment.policy.title': '环境变量值展示策略',
+    'systemConfig.container.ops.container.environment.masked_copy_enabled.description':
+      '开启后，容器原始 JSON 与环境变量列表可复制脱敏后的展示值；关闭后，包含敏感环境变量的 JSON 与环境变量复制操作将被禁用。',
+    'systemConfig.container.ops.container.environment.masked_copy_enabled.title': '允许复制脱敏后的环境变量',
     'systemConfig.list.boolean.disabled': '已禁用',
     'systemConfig.list.boolean.enabled': '已启用',
     'systemConfig.list.boolean.false': '否',
@@ -490,6 +493,49 @@ describe('system config list page', () => {
     expect(wrapper.text()).not.toContain('Environment Value Display Policy');
     expect(wrapper.text()).not.toContain(
       'Controls how container environment variable values are returned by detail reads.',
+    );
+  });
+
+  it('renders masked copy config with localized title and description instead of the technical key fallback', async () => {
+    apiMocks.getSystemConfigs.mockResolvedValue({
+      items: [
+        containerConfigItem({
+          key: 'ops.container.environment.masked_copy_enabled',
+          titleKey: 'systemConfig.container.ops.container.environment.masked_copy_enabled.title',
+          title: 'Masked environment copy enabled',
+          descriptionKey: 'systemConfig.container.ops.container.environment.masked_copy_enabled.description',
+          description: 'Allows authorized users to copy raw values for masked environment variables.',
+          type: 'boolean',
+          configSchema: {
+            type: 'boolean',
+            title: 'Masked environment copy enabled',
+            description: 'Allows authorized users to copy raw values for masked environment variables.',
+            'x-i18n': {
+              titleKey: 'systemConfig.container.ops.container.environment.masked_copy_enabled.title',
+              descriptionKey: 'systemConfig.container.ops.container.environment.masked_copy_enabled.description',
+            },
+          },
+          defaultValue: 'false',
+          effectiveValue: 'false',
+          hasOverride: false,
+          order: 6207,
+        }),
+      ],
+      total: 1,
+    });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('允许复制脱敏后的环境变量');
+    expect(wrapper.text()).toContain(
+      '开启后，容器原始 JSON 与环境变量列表可复制脱敏后的展示值；关闭后，包含敏感环境变量的 JSON 与环境变量复制操作将被禁用。',
+    );
+    expect(wrapper.text()).not.toContain('ops.container.environment.masked_copy_enabled');
+    expect(wrapper.text()).not.toContain('暂无描述。');
+    expect(wrapper.text()).not.toContain('Masked environment copy enabled');
+    expect(wrapper.text()).not.toContain(
+      'Allows authorized users to copy raw values for masked environment variables.',
     );
   });
 

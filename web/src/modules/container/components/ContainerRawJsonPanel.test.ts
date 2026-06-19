@@ -36,9 +36,9 @@ describe('ContainerRawJsonPanel', () => {
     const wrapper = mountPanel();
 
     expect(wrapper.text()).toContain('原始 JSON');
-    expect(wrapper.text()).toContain('敏感字段已脱敏，仅用于只读排查。');
+    expect(wrapper.text()).toContain('当前策略：敏感值按脱敏脱敏展示，复制时仅复制脱敏后的 JSON。');
     expect(wrapper.text()).toContain('字段数 7');
-    expect(wrapper.text()).toContain('敏感字段 1');
+    expect(wrapper.text()).toContain('已脱敏 1');
     expect(wrapper.text()).toContain('环境变量 2');
     expect(wrapper.text()).toContain('端口映射 1');
     expect(wrapper.text()).toContain('挂载 1');
@@ -99,14 +99,17 @@ describe('ContainerRawJsonPanel', () => {
 
     expect(wrapper.text()).toContain('暂无原始 JSON 数据');
   });
-});
 
-function mountPanel(value: unknown = createRawValue()) {
-  return mount(ContainerRawJsonPanel, {
-    props: {
-      value,
+  it('blocks copy when raw json copy is disabled', async () => {
+    const wrapper = mountPanel();
+    testMocks.copyText.mockClear();
+    testMocks.messageError.mockClear();
+    await wrapper.setProps({
+      value: createRawValue(),
       title: '原始 JSON',
-      description: '敏感字段已脱敏，仅用于只读排查。',
+      description: '容器原始 JSON 调试视图。',
+      policyMessage: '当前策略：敏感值按脱敏脱敏展示，当前系统配置禁止复制包含敏感字段的 JSON。',
+      rawCopyEnabled: false,
       searchPlaceholder: '搜索字段或内容',
       rootLabel: 'container',
       collapseTreeNodeLabel: '折叠节点',
@@ -114,6 +117,8 @@ function mountPanel(value: unknown = createRawValue()) {
       sourceLabel: '源码视图',
       treeLabel: '树形视图',
       copyLabel: '复制',
+      copyMaskedTooltip: '复制脱敏后的 JSON',
+      copyDisabledMessage: '当前系统配置禁止复制包含敏感字段的 JSON',
       copySuccessLabel: '内容已复制。',
       copyErrorLabel: '内容复制失败。',
       expandAllLabel: '展开全部',
@@ -121,6 +126,52 @@ function mountPanel(value: unknown = createRawValue()) {
       formatLabel: '格式化',
       fieldCountLabel: '字段数',
       sensitiveFieldLabel: '敏感字段',
+      maskedCountLabel: '已脱敏',
+      environmentLabel: '环境变量',
+      portLabel: '端口映射',
+      mountedLabel: '挂载',
+      networkLabel: '网络',
+      updatedAtLabel: '更新时间',
+      searchEmptyLabel: '未找到匹配内容',
+      sensitiveLabel: '敏感',
+      emptyLabel: '暂无原始 JSON 数据',
+      errorLabel: '原始 JSON 无法格式化。',
+    });
+
+    const copyButton = wrapper.findAll('button').find((button) => button.text().includes('复制'));
+    expect(copyButton).toBeTruthy();
+    expect((copyButton!.element as HTMLButtonElement).disabled).toBe(true);
+
+    expect(testMocks.copyText).not.toHaveBeenCalled();
+    expect(testMocks.messageError).not.toHaveBeenCalled();
+  });
+});
+
+function mountPanel(value: unknown = createRawValue()) {
+  return mount(ContainerRawJsonPanel, {
+    props: {
+      value,
+      title: '原始 JSON',
+      description: '容器原始 JSON 调试视图。',
+      policyMessage: '当前策略：敏感值按脱敏脱敏展示，复制时仅复制脱敏后的 JSON。',
+      rawCopyEnabled: true,
+      searchPlaceholder: '搜索字段或内容',
+      rootLabel: 'container',
+      collapseTreeNodeLabel: '折叠节点',
+      expandTreeNodeLabel: '展开节点',
+      sourceLabel: '源码视图',
+      treeLabel: '树形视图',
+      copyLabel: '复制',
+      copyMaskedTooltip: '复制脱敏后的 JSON',
+      copyDisabledMessage: '当前系统配置禁止复制包含敏感字段的 JSON',
+      copySuccessLabel: '内容已复制。',
+      copyErrorLabel: '内容复制失败。',
+      expandAllLabel: '展开全部',
+      collapseAllLabel: '折叠全部',
+      formatLabel: '格式化',
+      fieldCountLabel: '字段数',
+      sensitiveFieldLabel: '敏感字段',
+      maskedCountLabel: '已脱敏',
       environmentLabel: '环境变量',
       portLabel: '端口映射',
       mountedLabel: '挂载',
@@ -145,7 +196,15 @@ function mountPanel(value: unknown = createRawValue()) {
             () =>
               h(
                 'button',
-                { ...attrs, disabled: Boolean(props.disabled), onClick: () => emit('click') },
+                {
+                  ...attrs,
+                  disabled: Boolean(props.disabled),
+                  onClick: () => {
+                    if (!props.disabled) {
+                      emit('click');
+                    }
+                  },
+                },
                 slots.default?.(),
               ),
         }),

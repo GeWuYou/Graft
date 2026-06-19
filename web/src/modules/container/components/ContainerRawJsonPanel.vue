@@ -9,7 +9,7 @@
       <div class="container-raw-json-panel__heading">
         <h3>{{ title }}</h3>
       </div>
-      <t-alert theme="info" :message="description" />
+      <t-alert :theme="policyAlertTheme" :message="policyMessage" />
     </header>
 
     <div v-if="hasError" class="container-raw-json-panel__empty">
@@ -30,8 +30,9 @@
           v-model:search-value="searchValue"
           v-model:view-mode="viewMode"
           :collapse-all-label="collapseAllLabel"
-          :copy-disabled="!formattedJson"
+          :copy-disabled="copyDisabled"
           :copy-label="copyLabel"
+          :copy-tooltip="copyTooltip"
           :expand-all-label="expandAllLabel"
           :expand-disabled="expandActionDisabled"
           :expanded-all="expandedAll"
@@ -79,7 +80,6 @@ import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { copyText, formatLocaleDateTime } from '@/shared/observability';
-import { maskSensitiveJson } from '@/shared/observability/json-sanitize';
 
 import JsonSourceViewer from './JsonSourceViewer.vue';
 import JsonTreeViewer from './JsonTreeViewer.vue';
@@ -94,8 +94,10 @@ type ChipItem = {
 
 const props = defineProps<{
   collapseAllLabel: string;
+  copyDisabledMessage: string;
   copyErrorLabel: string;
   copyLabel: string;
+  copyMaskedTooltip: string;
   copySuccessLabel: string;
   description: string;
   emptyLabel: string;
@@ -112,12 +114,16 @@ const props = defineProps<{
   expandTreeNodeLabel: string;
   searchEmptyLabel: string;
   searchPlaceholder: string;
+  maskedCountLabel: string;
   sensitiveFieldLabel: string;
   sensitiveLabel: string;
   sourceLabel: string;
   title: string;
   treeLabel: string;
   updatedAtLabel: string;
+  policyAlertTheme?: 'info' | 'warning' | 'error' | 'success';
+  policyMessage: string;
+  rawCopyEnabled?: boolean;
   value: unknown;
 }>();
 
@@ -142,7 +148,7 @@ const serializedJson = computed(() => {
   }
 
   try {
-    const value = maskSensitiveJson(props.value);
+    const value = props.value;
     const json = JSON.stringify(value, null, 2);
     return {
       error: !json,
@@ -161,6 +167,8 @@ const serializedJson = computed(() => {
 const maskedValue = computed(() => serializedJson.value.value);
 const formattedJson = computed(() => serializedJson.value.json);
 const hasError = computed(() => !isEmpty.value && serializedJson.value.error);
+const copyDisabled = computed(() => !formattedJson.value || props.rawCopyEnabled === false);
+const copyTooltip = computed(() => (copyDisabled.value ? props.copyDisabledMessage : props.copyMaskedTooltip));
 const visibleText = computed(() => {
   const keyword = searchValue.value.trim().toLowerCase();
   if (!keyword) {
@@ -190,7 +198,7 @@ const chips = computed<ChipItem[]>(() => {
 
   const sensitiveCount = countSensitiveFields(record);
   if (sensitiveCount > 0) {
-    items.push({ key: 'sensitive', label: `${props.sensitiveFieldLabel} ${sensitiveCount}` });
+    items.push({ key: 'sensitive', label: `${props.maskedCountLabel} ${sensitiveCount}` });
   }
 
   const environmentCount = countArray(record.environment);
@@ -225,6 +233,10 @@ const chips = computed<ChipItem[]>(() => {
 });
 
 async function copyJson() {
+  if (copyDisabled.value) {
+    MessagePlugin.error(props.copyDisabledMessage);
+    return;
+  }
   try {
     const copied = await copyText(formattedJson.value);
     if (!copied) {
@@ -262,7 +274,10 @@ function countSensitiveFields(value: unknown): number {
   }
 
   const record = value as Record<string, unknown>;
-  const current = record.masked === true || record.sensitive === true ? 1 : 0;
+  const current =
+    record.masked === true || record.sensitive === true || record.value_masked === true || record.value_hidden === true
+      ? 1
+      : 0;
   return current + Object.values(record).reduce<number>((total, item) => total + countSensitiveFields(item), 0);
 }
 

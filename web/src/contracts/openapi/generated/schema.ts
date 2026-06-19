@@ -1288,7 +1288,7 @@ export interface paths {
     };
     /**
      * Read dashboard summary
-     * @description Returns the fixed dashboard system summary plus quick links and insight widgets visible to the current user.
+     * @description Returns the fixed dashboard system summary plus insight widgets visible to the current user.
      */
     get: operations['getDashboardSummary'];
     put?: never;
@@ -1922,7 +1922,6 @@ export interface components {
     DashboardWidgetStatus: components['schemas']['dashboard-widget-status'];
     DashboardWidgetError: components['schemas']['dashboard-widget-error'];
     DashboardWidget: components['schemas']['dashboard-widget'];
-    DashboardQuickLink: components['schemas']['dashboard-quick-link'];
     DashboardSummaryResponse: components['schemas']['dashboard-summary-response'];
     DashboardStatGroupPayload: components['schemas']['dashboard-stat-group-payload'];
     DashboardAlertListPayload: components['schemas']['dashboard-alert-list-payload'];
@@ -3448,18 +3447,6 @@ export interface components {
       high_risk_events: number;
       abnormal_services: number;
     };
-    'dashboard-quick-link': {
-      id: string;
-      module_key: string;
-      title_key?: string;
-      title?: string;
-      description_key?: string;
-      description?: string;
-      icon?: string;
-      route_location: string;
-      required_permissions?: string[];
-      order: number;
-    };
     /** @enum {string} */
     'dashboard-widget-type': 'stat-group' | 'alert-list' | 'link-list' | 'timeline' | 'health';
     /** @enum {string} */
@@ -3510,7 +3497,6 @@ export interface components {
     };
     'dashboard-summary-response': {
       system_summary: components['schemas']['dashboard-system-summary'];
-      quick_links: components['schemas']['dashboard-quick-link'][];
       widgets: components['schemas']['dashboard-widget'][];
     };
     'enveloped-dashboard-summary-response': components['schemas']['api-envelope'] & {
@@ -3979,11 +3965,15 @@ export interface components {
     'container-environment-entry': {
       /** @description Environment variable name. */
       key: string;
-      /** @description Environment variable value. Omitted when the active policy hides or masks the value. */
+      /** @description Raw environment variable value. Present only when the effective policy allows plaintext display. */
       value?: string;
-      /** @description Copy-only raw value for a masked entry. Present only when policy, permission, and system configuration allow copying masked values. */
-      copy_value?: string;
-      /** @description Whether the value is intentionally omitted by environment display policy. */
+      /** @description Stable display value rendered under the effective environment policy. */
+      display_value?: string;
+      /** @description Whether display_value is a masked placeholder instead of the original value. */
+      value_masked?: boolean;
+      /** @description Whether the original value is intentionally hidden by the active policy. */
+      value_hidden?: boolean;
+      /** @description Whether the original value is intentionally omitted by environment display policy. */
       masked: boolean;
       /** @description Whether the key matched the container module sensitive-key heuristic. */
       sensitive: boolean;
@@ -4078,6 +4068,8 @@ export interface components {
        * @enum {string}
        */
       environment_policy: 'hidden' | 'masked' | 'plain';
+      /** @description Whether the current system policy allows copying the masked display JSON when sensitive environment values exist. */
+      environment_masked_copy_enabled: boolean;
       /** @description Docker Healthcheck diagnostics from container inspect. Omitted when no Healthcheck is configured. */
       healthcheck?: components['schemas']['container-healthcheck'];
       working_dir?: string;

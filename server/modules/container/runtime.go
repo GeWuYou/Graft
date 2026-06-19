@@ -222,6 +222,7 @@ type Detail struct {
 	Entrypoint        []string
 	Environment       []EnvironmentVariable
 	EnvironmentPolicy string
+	EnvironmentMaskedCopyEnabled bool
 	Healthcheck       *Healthcheck
 	LastExitCode      *int
 	Mounts            []Mount
@@ -283,12 +284,14 @@ type MountUsage struct {
 
 // EnvironmentVariable describes one container environment entry after policy application.
 type EnvironmentVariable struct {
-	Key       string
-	Value     string
-	CopyValue *string
-	Masked    bool
-	Sensitive bool
-	Source    string
+	Key          string
+	Value        string
+	DisplayValue string
+	ValueMasked  bool
+	ValueHidden  bool
+	Masked       bool
+	Sensitive    bool
+	Source       string
 }
 
 // Network describes one network attachment.

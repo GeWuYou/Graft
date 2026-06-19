@@ -234,25 +234,35 @@ func TestServiceAppliesEnvironmentDisplayPolicy(t *testing.T) {
 			name:   "hidden",
 			policy: containercontract.ContainerEnvironmentPolicyHidden.String(),
 			expected: expectedEnvironmentPolicyResult{
-				firstMasked:  true,
-				secondMasked: true,
+				firstMasked:   true,
+				firstDisplay:  "[HIDDEN]",
+				firstHidden:   true,
+				secondMasked:  true,
+				secondDisplay: "[HIDDEN]",
+				secondHidden:  true,
 			},
 		},
 		{
 			name:   "masked",
 			policy: containercontract.ContainerEnvironmentPolicyMasked.String(),
 			expected: expectedEnvironmentPolicyResult{
-				firstValue:   "prod",
-				secondMasked: true,
+				firstValue:        "prod",
+				firstDisplay:      "prod",
+				secondMasked:      true,
+				secondDisplay:     "[MASKED]",
+				secondValueMasked: true,
 			},
 		},
 		{
 			name:   "plain",
 			policy: containercontract.ContainerEnvironmentPolicyPlain.String(),
 			expected: expectedEnvironmentPolicyResult{
-				policy:       containercontract.ContainerEnvironmentPolicyMasked.String(),
-				firstValue:   "prod",
-				secondMasked: true,
+				policy:            containercontract.ContainerEnvironmentPolicyMasked.String(),
+				firstValue:        "prod",
+				firstDisplay:      "prod",
+				secondMasked:      true,
+				secondDisplay:     "[MASKED]",
+				secondValueMasked: true,
 			},
 		},
 	}
@@ -282,9 +292,11 @@ func TestServiceAppliesPlainEnvironmentPolicyWithPermissionContext(t *testing.T)
 		t.Fatalf("detail: %v", err)
 	}
 	assertEnvironmentPolicyResult(t, detail, containercontract.ContainerEnvironmentPolicyPlain.String(), expectedEnvironmentPolicyResult{
-		policy:      containercontract.ContainerEnvironmentPolicyPlain.String(),
-		firstValue:  "prod",
-		secondValue: "secret",
+		policy:        containercontract.ContainerEnvironmentPolicyPlain.String(),
+		firstValue:    "prod",
+		firstDisplay:  "prod",
+		secondValue:   "secret",
+		secondDisplay: "secret",
 	})
 }
 
@@ -296,8 +308,8 @@ func TestServiceExposesMaskedEnvironmentCopyValueOnlyWhenConfigured(t *testing.T
 	if err != nil {
 		t.Fatalf("detail: %v", err)
 	}
-	if detail.Environment[1].CopyValue != nil {
-		t.Fatalf("expected masked copy value to stay hidden by default, got %#v", detail.Environment[1])
+	if detail.Environment[1].Value != "" || detail.Environment[1].DisplayValue != "[MASKED]" || !detail.Environment[1].ValueMasked {
+		t.Fatalf("expected masked display state by default, got %#v", detail.Environment[1])
 	}
 
 	enabledService := newEnvironmentPolicyTestServiceWithValues(
@@ -309,20 +321,22 @@ func TestServiceExposesMaskedEnvironmentCopyValueOnlyWhenConfigured(t *testing.T
 	if err != nil {
 		t.Fatalf("detail with copy enabled: %v", err)
 	}
-	if detail.Environment[1].CopyValue == nil || *detail.Environment[1].CopyValue != "secret" {
-		t.Fatalf("expected copy-only raw value for masked sensitive env, got %#v", detail.Environment[1])
-	}
-	if detail.Environment[1].Value != "" || !detail.Environment[1].Masked {
-		t.Fatalf("expected display value to remain masked, got %#v", detail.Environment[1])
+	if detail.Environment[1].Value != "" || !detail.Environment[1].Masked || detail.Environment[1].DisplayValue != "[MASKED]" {
+		t.Fatalf("expected masked display value to remain stable when copy is enabled, got %#v", detail.Environment[1])
 	}
 }
 
 type expectedEnvironmentPolicyResult struct {
-	policy       string
-	firstValue   string
-	firstMasked  bool
-	secondValue  string
-	secondMasked bool
+	policy            string
+	firstValue        string
+	firstDisplay      string
+	firstMasked       bool
+	firstHidden       bool
+	secondValue       string
+	secondDisplay     string
+	secondMasked      bool
+	secondValueMasked bool
+	secondHidden      bool
 }
 
 func newEnvironmentPolicyTestService(t *testing.T, policy string) *service {
@@ -370,10 +384,19 @@ func assertEnvironmentPolicyResult(
 	if len(detail.Environment) != 2 {
 		t.Fatalf("expected two environment entries, got %#v", detail.Environment)
 	}
-	if detail.Environment[0].Value != expected.firstValue || detail.Environment[0].Masked != expected.firstMasked || detail.Environment[0].Sensitive {
+	if detail.Environment[0].Value != expected.firstValue ||
+		detail.Environment[0].DisplayValue != firstNonEmpty(expected.firstDisplay, expected.firstValue) ||
+		detail.Environment[0].Masked != expected.firstMasked ||
+		detail.Environment[0].ValueHidden != expected.firstHidden ||
+		detail.Environment[0].Sensitive {
 		t.Fatalf("unexpected first environment entry %#v", detail.Environment[0])
 	}
-	if detail.Environment[1].Value != expected.secondValue || detail.Environment[1].Masked != expected.secondMasked || !detail.Environment[1].Sensitive {
+	if detail.Environment[1].Value != expected.secondValue ||
+		detail.Environment[1].DisplayValue != firstNonEmpty(expected.secondDisplay, expected.secondValue) ||
+		detail.Environment[1].Masked != expected.secondMasked ||
+		detail.Environment[1].ValueMasked != expected.secondValueMasked ||
+		detail.Environment[1].ValueHidden != expected.secondHidden ||
+		!detail.Environment[1].Sensitive {
 		t.Fatalf("unexpected second environment entry %#v", detail.Environment[1])
 	}
 }
