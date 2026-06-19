@@ -207,6 +207,8 @@ i18n 与标题规则：
 - 根级 `web/src/locales/**` 只承载壳层拥有的 root catalog、locale 状态、消息聚合入口、回退语言与持久化策略
 - 模块消息源由 `web/src/modules/<name>/locales/**` 拥有，模块 key 不得复制到 root catalog 形成第二套真值
 - 应用运行时必须通过 `web/src/locales/**` 的中心聚合入口合并 root catalog 与各模块 catalog；页面、壳层和模块不得绕过聚合入口直接拼装第二套 messages
+- locale 切换必须优先依赖 Vue / vue-i18n / TDesign locale provider 的响应式更新；禁止通过给 `router-view`、壳层 layout、header 操作区或整页容器绑定 `:key=\"locale\"` 等方式强制卸载重建整棵页面树来刷新文案
+- 若某个页面或组件在切换 locale 后需要刷新派生数据，应在该局部显式 `watch(locale)` 或重算 computed；不得把整页 remount 当作通用 locale 刷新机制
 - 同一个 locale 内不得出现重复的 exact key 定义；不同边界需要相同展示值时，只有语义不同且 key 归属不同才允许重复 value
 - i18n 治理必须检查 unused key，删除不再被源码、路由、菜单或稳定映射消费的 key
 - 英文 locale 的可见 UI 文案必须首字母大写；只有连接词、统计单位等刻意作为语法片段展示的值允许小写
