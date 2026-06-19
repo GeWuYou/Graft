@@ -72,7 +72,6 @@ func registerRoutes(ctx *module.Context, moduleName string, service *service) er
 	)
 	group.GET(
 		containercontract.ContainerShellWebSocketRoute,
-		httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerShellPermission.String(), publisher),
 		routes.handleShellWebSocket,
 	)
 	group.GET(
@@ -186,25 +185,6 @@ func (r routeRuntime) handleShellSessionCreate(ginCtx *gin.Context) {
 		return
 	}
 	httpx.WriteSuccess(ginCtx, http.StatusOK, toShellSession(session))
-}
-
-func (r routeRuntime) handleShellWebSocket(ginCtx *gin.Context) {
-	params := bindGetContainerShellWebSocketParams(ginCtx)
-	ref, ok := readRef(ginCtx, r)
-	if !ok {
-		return
-	}
-	_, err := r.service.ConsumeShellSessionTicket(
-		ginCtx.Request.Context(),
-		ref,
-		strings.TrimSpace(params.Ticket),
-		strings.TrimSpace(ginCtx.GetHeader("Origin")),
-	)
-	if err != nil {
-		r.writeRouteError(ginCtx, err)
-		return
-	}
-	r.writeRouteError(ginCtx, errShellSessionFailed)
 }
 
 func (r routeRuntime) handleMountUsageList(ginCtx *gin.Context) {
@@ -393,6 +373,18 @@ func resolveAuthorizer(ctx *module.Context) (moduleapi.Authorizer, error) {
 		return nil, fmt.Errorf("resolved authorizer has unexpected type %T", resolved)
 	}
 	return authorizer, nil
+}
+
+func resolveUserService(ctx *module.Context) (moduleapi.UserService, error) {
+	resolved, err := ctx.Services.Resolve((*moduleapi.UserService)(nil))
+	if err != nil {
+		return nil, err
+	}
+	service, ok := resolved.(moduleapi.UserService)
+	if !ok {
+		return nil, fmt.Errorf("resolved user service has unexpected type %T", resolved)
+	}
+	return service, nil
 }
 
 func bindGetContainersParams(ginCtx *gin.Context, ctx *module.Context) (containeropenapi.GetContainersParams, bool) {

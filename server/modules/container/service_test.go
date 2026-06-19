@@ -21,6 +21,7 @@ import (
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
 	containercontract "graft/server/modules/container/contract"
+	"graft/server/modules/container/terminal"
 )
 
 func TestParseRefRejectsUnsafeValues(t *testing.T) {
@@ -1085,6 +1086,11 @@ func (r *countingRuntime) Logs(context.Context, Ref, LogQuery) (Logs, error) {
 	return Logs{}, nil
 }
 
+func (r *countingRuntime) Shell(context.Context, Ref, string) (terminal.Session, error) {
+	r.calls.Add(1)
+	return newStubTerminalSession(), nil
+}
+
 func (r *countingRuntime) Start(context.Context, Ref) (ActionResult, error) {
 	r.calls.Add(1)
 	return ActionResult{}, nil
@@ -1171,6 +1177,7 @@ func (listRuntime) MountUsage(context.Context, Ref, string) (MountUsage, error) 
 	return MountUsage{}, nil
 }
 func (listRuntime) Logs(context.Context, Ref, LogQuery) (Logs, error)  { return Logs{}, nil }
+func (listRuntime) Shell(context.Context, Ref, string) (terminal.Session, error) { return newStubTerminalSession(), nil }
 func (listRuntime) Start(context.Context, Ref) (ActionResult, error)   { return ActionResult{}, nil }
 func (listRuntime) Stop(context.Context, Ref) (ActionResult, error)    { return ActionResult{}, nil }
 func (listRuntime) Restart(context.Context, Ref) (ActionResult, error) { return ActionResult{}, nil }
@@ -1201,6 +1208,10 @@ func (r failingRuntime) MountUsage(context.Context, Ref, string) (MountUsage, er
 
 func (r failingRuntime) Logs(context.Context, Ref, LogQuery) (Logs, error) {
 	return Logs{}, r.err
+}
+
+func (r failingRuntime) Shell(context.Context, Ref, string) (terminal.Session, error) {
+	return nil, r.err
 }
 
 func (r failingRuntime) Start(context.Context, Ref) (ActionResult, error) {
@@ -1242,6 +1253,9 @@ func (r selectiveRemoveRuntime) MountUsage(context.Context, Ref, string) (MountU
 }
 func (r selectiveRemoveRuntime) Logs(context.Context, Ref, LogQuery) (Logs, error) {
 	return Logs{}, nil
+}
+func (r selectiveRemoveRuntime) Shell(context.Context, Ref, string) (terminal.Session, error) {
+	return newStubTerminalSession(), nil
 }
 func (r selectiveRemoveRuntime) Start(context.Context, Ref) (ActionResult, error) {
 	return ActionResult{}, nil
@@ -1309,6 +1323,10 @@ func (fakeRuntime) Logs(_ context.Context, ref Ref, query LogQuery) (Logs, error
 	}, nil
 }
 
+func (fakeRuntime) Shell(context.Context, Ref, string) (terminal.Session, error) {
+	return newStubTerminalSession(), nil
+}
+
 func (fakeRuntime) Start(context.Context, Ref) (ActionResult, error) {
 	return fakeAction(containerActionStart), nil
 }
@@ -1358,4 +1376,44 @@ func fakeAction(action string) ActionResult {
 		StatusBefore: "exited",
 		StatusAfter:  "running",
 	}
+}
+
+type stubTerminalSession struct {
+	output chan []byte
+	errs   chan error
+	once   sync.Once
+	started bool
+}
+
+func newStubTerminalSession() *stubTerminalSession {
+	return &stubTerminalSession{
+		output: make(chan []byte, 4),
+		errs:   make(chan error, 1),
+	}
+}
+
+func (s *stubTerminalSession) Start(context.Context, terminal.Size) error {
+	if !s.started {
+		s.started = true
+		s.output <- []byte("/app # ")
+	}
+	return nil
+}
+
+func (s *stubTerminalSession) Write(_ context.Context, data []byte) error {
+	if len(data) > 0 {
+		s.output <- append([]byte(nil), data...)
+	}
+	return nil
+}
+
+func (s *stubTerminalSession) Resize(context.Context, terminal.Size) error { return nil }
+func (s *stubTerminalSession) Output() <-chan []byte                      { return s.output }
+func (s *stubTerminalSession) Errors() <-chan error                       { return s.errs }
+func (s *stubTerminalSession) Close(context.Context) error {
+	s.once.Do(func() {
+		close(s.output)
+		close(s.errs)
+	})
+	return nil
 }

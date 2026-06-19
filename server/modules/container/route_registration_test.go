@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"slices"
 	"strings"
 	"sync"
@@ -16,6 +17,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
 	"go.uber.org/zap"
 
 	"graft/server/internal/config"
@@ -107,8 +109,14 @@ func assertShellWebSocketRoutePermission(t *testing.T, engine *gin.Engine, autho
 	t.Helper()
 
 	authorizer.reset()
+	issue := httptest.NewRecorder()
+	engine.ServeHTTP(issue, authorizedJSONRequest(http.MethodPost, "/api/ops/containers/abc123/shell/sessions", `{"command":"sh","cols":120,"rows":32}`))
+	if issue.Code != http.StatusOK {
+		t.Fatalf("expected shell issue 200, got %d: %s", issue.Code, issue.Body.String())
+	}
+	ticket := extractEnvelopeField(issue.Body.String(), `"ticket":"`, `"`)
 	response := httptest.NewRecorder()
-	request := authorizedRequest(http.MethodGet, "/api/ops/containers/abc123/shell/ws?ticket=bad-ticket")
+	request := authorizedRequest(http.MethodGet, "/api/ops/containers/abc123/shell/ws?ticket="+ticket)
 	request.Header.Set("Origin", "https://console.example.com")
 	engine.ServeHTTP(response, request)
 	if !slices.Contains(authorizer.permissions, containercontract.ContainerShellPermission.String()) {
@@ -354,8 +362,8 @@ func TestShellWebSocketRouteRejectsReusedTicket(t *testing.T) {
 		request := authorizedRequest(http.MethodGet, "/api/ops/containers/abc123/shell/ws?ticket="+ticket)
 		request.Header.Set("Origin", "https://console.example.com")
 		engine.ServeHTTP(response, request)
-		if i == 0 && response.Code != http.StatusInternalServerError {
-			t.Fatalf("expected first consume placeholder 500, got %d: %s", response.Code, response.Body.String())
+		if i == 0 && response.Code != http.StatusBadRequest {
+			t.Fatalf("expected first websocket upgrade request to fail without upgrade headers, got %d: %s", response.Code, response.Body.String())
 		}
 		if i == 1 {
 			if response.Code != http.StatusConflict {
@@ -366,6 +374,136 @@ func TestShellWebSocketRouteRejectsReusedTicket(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestShellWebSocketRouteConnectsWithoutAuthorizationHeaderAfterTicketIssue(t *testing.T) {
+	t.Parallel()
+
+	ctx, engine := newRouteTestContextWithOptions(routeTestContextOptions{
+		systemConfig: serviceTestSystemConfig{values: map[string]bool{
+			containercontract.ContainerRuntimeEnabledConfig.String(): true,
+			containercontract.ContainerShellEnabledConfig.String():   true,
+		}},
+		websocketAllowedOrigins: []string{"http://127.0.0.1"},
+	})
+	registered, err := newService(containerServiceOptions{
+		runtime:                 fakeRuntime{},
+		enabled:                 true,
+		dangerousActionsEnabled: true,
+		shellEnabled:            true,
+		defaultTail:             defaultContainerLogsDefaultTail,
+		maxTail:                 defaultContainerLogsMaxTail,
+		websocketAllowedOrigins: []string{"http://127.0.0.1"},
+		realtimeTickets:         realtimeauth.NewMemoryServiceWithClock(&fixedClock{now: time.Date(2026, 6, 19, 10, 0, 0, 0, time.UTC)}),
+	})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	if err := registerRoutes(ctx, moduleID, registered); err != nil {
+		t.Fatalf("register routes: %v", err)
+	}
+
+	issue := httptest.NewRecorder()
+	engine.ServeHTTP(issue, authorizedJSONRequest(http.MethodPost, "/api/ops/containers/abc123/shell/sessions", `{"command":"sh","cols":120,"rows":32}`))
+	if issue.Code != http.StatusOK {
+		t.Fatalf("expected issue 200, got %d: %s", issue.Code, issue.Body.String())
+	}
+	ticket := extractEnvelopeField(issue.Body.String(), `"ticket":"`, `"`)
+
+	server := httptest.NewServer(engine)
+	defer server.Close()
+	registered.websocketAllowedOrigins = []string{server.URL}
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/api/ops/containers/abc123/shell/ws?ticket=" + url.QueryEscape(ticket)
+	header := http.Header{}
+	header.Set("Origin", server.URL)
+
+	conn, response, err := websocket.DefaultDialer.Dial(wsURL, header)
+	if err != nil {
+		t.Fatalf("dial websocket: %v", err)
+	}
+	defer conn.Close()
+	if response == nil || response.StatusCode != http.StatusSwitchingProtocols {
+		t.Fatalf("expected websocket upgrade 101, got %#v", response)
+	}
+	_, payload, err := conn.ReadMessage()
+	if err != nil {
+		t.Fatalf("read status frame: %v", err)
+	}
+	if !strings.Contains(string(payload), `"state":"connected"`) {
+		t.Fatalf("expected connected status frame, got %s", string(payload))
+	}
+}
+
+func TestShellWebSocketRoutePublishesCloseAuditOnDisconnect(t *testing.T) {
+	t.Parallel()
+
+	bus := &auditRecorderBus{}
+	ctx, engine := newRouteTestContextWithOptions(routeTestContextOptions{
+		systemConfig: serviceTestSystemConfig{values: map[string]bool{
+			containercontract.ContainerRuntimeEnabledConfig.String(): true,
+			containercontract.ContainerShellEnabledConfig.String():   true,
+		}},
+		websocketAllowedOrigins: []string{"http://127.0.0.1"},
+	})
+	registered, err := newService(containerServiceOptions{
+		runtime:                 fakeRuntime{},
+		auditBus:                bus,
+		moduleName:              moduleID,
+		enabled:                 true,
+		dangerousActionsEnabled: true,
+		shellEnabled:            true,
+		defaultTail:             defaultContainerLogsDefaultTail,
+		maxTail:                 defaultContainerLogsMaxTail,
+		websocketAllowedOrigins: []string{"http://127.0.0.1"},
+		realtimeTickets:         realtimeauth.NewMemoryServiceWithClock(&fixedClock{now: time.Date(2026, 6, 19, 10, 0, 0, 0, time.UTC)}),
+	})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	if err := registerRoutes(ctx, moduleID, registered); err != nil {
+		t.Fatalf("register routes: %v", err)
+	}
+
+	issue := httptest.NewRecorder()
+	engine.ServeHTTP(issue, authorizedJSONRequest(http.MethodPost, "/api/ops/containers/abc123/shell/sessions", `{"command":"sh","cols":120,"rows":32}`))
+	if issue.Code != http.StatusOK {
+		t.Fatalf("expected issue 200, got %d: %s", issue.Code, issue.Body.String())
+	}
+	ticket := extractEnvelopeField(issue.Body.String(), `"ticket":"`, `"`)
+
+	server := httptest.NewServer(engine)
+	defer server.Close()
+	registered.websocketAllowedOrigins = []string{server.URL}
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/api/ops/containers/abc123/shell/ws?ticket=" + url.QueryEscape(ticket)
+	header := http.Header{}
+	header.Set("Origin", server.URL)
+
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL, header)
+	if err != nil {
+		t.Fatalf("dial websocket: %v", err)
+	}
+	_, _, err = conn.ReadMessage()
+	if err != nil {
+		t.Fatalf("read status frame: %v", err)
+	}
+	if err := conn.Close(); err != nil {
+		t.Fatalf("close websocket: %v", err)
+	}
+
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		bus.mu.Lock()
+		events := append([]eventbus.Event(nil), bus.events...)
+		bus.mu.Unlock()
+		for _, event := range events {
+			payload, ok := event.Payload.(moduleapi.AuditEvent)
+			if ok && payload.Action == containercontract.ContainerAuditActionShellSessionClosed.String() {
+				return
+			}
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	t.Fatalf("expected shell session closed audit event, got %#v", bus.events)
 }
 
 func newRegisteredRouteTestService(t *testing.T) (*module.Context, *gin.Engine) {
@@ -423,6 +561,11 @@ func newRouteTestContextWithOptions(options routeTestContextOptions) (*module.Co
 	}); err != nil {
 		panic(err)
 	}
+	if err := services.RegisterSingleton((*moduleapi.UserService)(nil), func(internalcontainer.Resolver) (any, error) {
+		return routeTestUserService{}, nil
+	}); err != nil {
+		panic(err)
+	}
 	if err := services.RegisterSingleton((*moduleapi.Authorizer)(nil), func(internalcontainer.Resolver) (any, error) {
 		if options.authorizer == nil {
 			return &recordingAuthorizer{}, nil
@@ -473,6 +616,19 @@ func (routeTestAuthService) CurrentUser(context.Context) (*moduleapi.CurrentUser
 
 func (routeTestAuthService) ParseAccessToken(context.Context, string) (*moduleapi.AccessTokenClaims, error) {
 	return &moduleapi.AccessTokenClaims{UserID: 7, SessionID: "session-1", ExpiresAt: time.Now().UTC().Add(time.Hour)}, nil
+}
+
+type routeTestUserService struct{}
+
+func (routeTestUserService) GetUserByID(_ context.Context, id uint64) (moduleapi.UserSummary, error) {
+	if id == 0 {
+		return moduleapi.UserSummary{}, moduleapi.ErrUserNotFound
+	}
+	return moduleapi.UserSummary{ID: id, Username: "admin", Display: "Admin"}, nil
+}
+
+func (routeTestUserService) CountUsers(context.Context) (int, error) {
+	return 1, nil
 }
 
 type recordingAuthorizer struct {

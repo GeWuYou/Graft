@@ -13,6 +13,8 @@ import (
 	"slices"
 	"strings"
 	"unicode"
+
+	"graft/server/modules/container/terminal"
 )
 
 const (
@@ -93,6 +95,7 @@ type Runtime interface {
 	Mounts(ctx context.Context, id Ref) ([]Mount, error)
 	MountUsage(ctx context.Context, id Ref, mountID string) (MountUsage, error)
 	Logs(ctx context.Context, id Ref, query LogQuery) (Logs, error)
+	Shell(ctx context.Context, ref Ref, command string) (terminal.Session, error)
 	Start(ctx context.Context, id Ref) (ActionResult, error)
 	Stop(ctx context.Context, id Ref) (ActionResult, error)
 	Restart(ctx context.Context, id Ref) (ActionResult, error)

@@ -23,6 +23,7 @@ import (
 	"graft/server/internal/moduleapi"
 	"graft/server/internal/realtimeauth"
 	containercontract "graft/server/modules/container/contract"
+	"graft/server/modules/container/terminal"
 )
 
 const (
@@ -1125,6 +1126,14 @@ type ShellHandshake struct {
 	UserID       uint64
 }
 
+type ShellSessionCloseSummary struct {
+	SessionID    string
+	ResourceID   string
+	ResourceName string
+	Command      string
+	UserID       uint64
+}
+
 const (
 	containerShellScope        = "container.shell"
 	containerShellResourceType = "container"
@@ -1204,10 +1213,6 @@ func (s *service) ConsumeShellSessionTicket(ctx context.Context, ref Ref, ticket
 	if err != nil {
 		return ShellHandshake{}, mapRealtimeTicketError(err)
 	}
-	requestAuth, ok := moduleapi.RequestAuthContextFromContext(ctx)
-	if !ok || requestAuth.User == nil || requestAuth.User.ID != consumed.UserID {
-		return ShellHandshake{}, errShellForbidden
-	}
 	runtime, err := s.runtimeForRequest()
 	if err != nil {
 		return ShellHandshake{}, err
@@ -1230,6 +1235,23 @@ func (s *service) ConsumeShellSessionTicket(ctx context.Context, ref Ref, ticket
 		ResourceName: detail.Name,
 		UserID:       consumed.UserID,
 	}, nil
+}
+
+func (s *service) OpenShellTerminalSession(ctx context.Context, ref Ref, handshake ShellHandshake) (terminal.Session, error) {
+	if s == nil {
+		return nil, errShellSessionFailed
+	}
+	runtime, err := s.runtimeForRequest()
+	if err != nil {
+		s.publishShellSessionFailed(ctx, handshake, "runtime_unavailable", err)
+		return nil, err
+	}
+	session, err := runtime.Shell(ctx, ref, handshake.Command)
+	if err != nil {
+		s.publishShellSessionFailed(ctx, handshake, "session_open_failed", err)
+		return nil, err
+	}
+	return session, nil
 }
 
 func normalizeShellSessionRequest(request ShellSessionRequest) (ShellSessionRequest, error) {
@@ -1282,6 +1304,116 @@ func currentRequestUserAgent(ctx context.Context) string {
 		return ""
 	}
 	return strings.TrimSpace(requestAudit.UserAgent)
+}
+
+func (s *service) publishShellSessionClosed(
+	ctx context.Context,
+	handshake ShellHandshake,
+	startedAt time.Time,
+	reason string,
+	err error,
+) {
+	if s == nil || s.auditBus == nil {
+		return
+	}
+	duration := time.Since(startedAt)
+	metadata := map[string]any{
+		"container_id":   handshake.ResourceID,
+		"container_name": handshake.ResourceName,
+		"command":        handshake.Command,
+		"result":         auditResult(err),
+		"session_id":     handshake.SessionID,
+		"duration_ms":    duration.Milliseconds(),
+		"close_reason":   strings.TrimSpace(reason),
+	}
+	if requestAudit, ok := httpx.RequestAuditContextFromContext(ctx); ok {
+		metadata["requestId"] = requestAudit.RequestID
+		metadata["traceId"] = requestAudit.TraceID
+		metadata["route"] = requestAudit.Route
+		metadata["client_ip"] = requestAudit.ClientIP
+		metadata["user_agent"] = requestAudit.UserAgent
+	}
+	user := currentAuditOperator(ctx)
+	if user == nil && handshake.UserID != 0 {
+		user = &moduleapi.CurrentUser{ID: handshake.UserID}
+	}
+	event := moduleapi.AuditEvent{
+		Kind:         moduleapi.AuditEventKindDomain,
+		Operator:     user,
+		Action:       containercontract.ContainerAuditActionShellSessionClosed.String(),
+		ResourceType: containerResourceType,
+		ResourceID:   firstNonEmpty(handshake.ResourceID, handshake.ResourceName),
+		ResourceName: handshake.ResourceName,
+		StatusCode:   auditStatusCode(err),
+		Success:      err == nil,
+		Metadata:     metadata,
+	}
+	if err != nil {
+		event.MessageKey = messageKeyForError(err).String()
+		event.Message = fallbackMessageForError(err)
+	}
+	if publishErr := s.auditBus.Publish(ctx, eventbus.Event{
+		Name:    string(moduleapi.AuditRecordEventName),
+		Source:  s.moduleName,
+		Payload: event,
+	}); publishErr != nil && s.logger != nil {
+		s.logger.Warn("publish container shell close audit event failed",
+			zap.String("module", s.moduleName),
+			zap.String("action", containercontract.ContainerAuditActionShellSessionClosed.String()),
+			zap.Error(publishErr),
+		)
+	}
+}
+
+func (s *service) publishShellSessionFailed(ctx context.Context, handshake ShellHandshake, reason string, err error) {
+	if s == nil || s.auditBus == nil {
+		return
+	}
+	metadata := map[string]any{
+		"container_id":   handshake.ResourceID,
+		"container_name": handshake.ResourceName,
+		"command":        handshake.Command,
+		"result":         auditResult(err),
+		"session_id":     handshake.SessionID,
+		"reason":         strings.TrimSpace(reason),
+	}
+	if requestAudit, ok := httpx.RequestAuditContextFromContext(ctx); ok {
+		metadata["requestId"] = requestAudit.RequestID
+		metadata["traceId"] = requestAudit.TraceID
+		metadata["route"] = requestAudit.Route
+		metadata["client_ip"] = requestAudit.ClientIP
+		metadata["user_agent"] = requestAudit.UserAgent
+	}
+	user := currentAuditOperator(ctx)
+	if user == nil && handshake.UserID != 0 {
+		user = &moduleapi.CurrentUser{ID: handshake.UserID}
+	}
+	event := moduleapi.AuditEvent{
+		Kind:         moduleapi.AuditEventKindDomain,
+		Operator:     user,
+		Action:       containercontract.ContainerAuditActionShellSessionFailed.String(),
+		ResourceType: containerResourceType,
+		ResourceID:   firstNonEmpty(handshake.ResourceID, handshake.ResourceName),
+		ResourceName: handshake.ResourceName,
+		StatusCode:   auditStatusCode(err),
+		Success:      false,
+		Metadata:     metadata,
+	}
+	if err != nil {
+		event.MessageKey = messageKeyForError(err).String()
+		event.Message = fallbackMessageForError(err)
+	}
+	if publishErr := s.auditBus.Publish(ctx, eventbus.Event{
+		Name:    string(moduleapi.AuditRecordEventName),
+		Source:  s.moduleName,
+		Payload: event,
+	}); publishErr != nil && s.logger != nil {
+		s.logger.Warn("publish container shell failure audit event failed",
+			zap.String("module", s.moduleName),
+			zap.String("action", containercontract.ContainerAuditActionShellSessionFailed.String()),
+			zap.Error(publishErr),
+		)
+	}
 }
 
 func (s *service) publishShellAudit(
@@ -1364,6 +1496,9 @@ func (disabledRuntime) MountUsage(context.Context, Ref, string) (MountUsage, err
 }
 func (disabledRuntime) Logs(context.Context, Ref, LogQuery) (Logs, error) {
 	return Logs{}, errRuntimeDisabled
+}
+func (disabledRuntime) Shell(context.Context, Ref, string) (terminal.Session, error) {
+	return nil, errRuntimeDisabled
 }
 func (disabledRuntime) Start(context.Context, Ref) (ActionResult, error) {
 	return ActionResult{}, errRuntimeDisabled

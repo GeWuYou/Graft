@@ -4,6 +4,7 @@
 package container
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -16,6 +17,7 @@ import (
 	"testing"
 	"time"
 
+	dockertypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
@@ -933,6 +935,9 @@ type countingDockerClient struct {
 	stopCalls          atomic.Int64
 	restartCalls       atomic.Int64
 	removeCalls        atomic.Int64
+	execCreateCalls    atomic.Int64
+	execAttachCalls    atomic.Int64
+	execResizeCalls    atomic.Int64
 	removeForce        atomic.Bool
 	logReader          io.ReadCloser
 	inspect            container.InspectResponse
@@ -940,6 +945,11 @@ type countingDockerClient struct {
 	stats              container.StatsResponse
 	statsErr           error
 	statsDelay         time.Duration
+	execCreate         container.ExecCreateResponse
+	execAttach         dockertypes.HijackedResponse
+	execCreateErr      error
+	execAttachErr      error
+	execResizeErr      error
 	activeStats        int64
 	maxConcurrentStats atomic.Int64
 }
@@ -988,6 +998,33 @@ func (c *countingDockerClient) ContainerStatsOneShot(context.Context, string) (c
 		return container.StatsResponseReader{}, err
 	}
 	return container.StatsResponseReader{Body: io.NopCloser(&output)}, nil
+}
+
+func (c *countingDockerClient) ContainerExecCreate(context.Context, string, container.ExecOptions) (container.ExecCreateResponse, error) {
+	c.execCreateCalls.Add(1)
+	if c.execCreateErr != nil {
+		return container.ExecCreateResponse{}, c.execCreateErr
+	}
+	if c.execCreate.ID == "" {
+		c.execCreate = container.ExecCreateResponse{ID: "exec-1"}
+	}
+	return c.execCreate, nil
+}
+
+func (c *countingDockerClient) ContainerExecAttach(context.Context, string, container.ExecAttachOptions) (dockertypes.HijackedResponse, error) {
+	c.execAttachCalls.Add(1)
+	if c.execAttachErr != nil {
+		return dockertypes.HijackedResponse{}, c.execAttachErr
+	}
+	if c.execAttach.Reader == nil {
+		c.execAttach = dockertypes.HijackedResponse{Reader: bufio.NewReader(bytes.NewReader(nil))}
+	}
+	return c.execAttach, nil
+}
+
+func (c *countingDockerClient) ContainerExecResize(context.Context, string, container.ResizeOptions) error {
+	c.execResizeCalls.Add(1)
+	return c.execResizeErr
 }
 
 func (c *countingDockerClient) ContainerStart(context.Context, string, container.StartOptions) error {

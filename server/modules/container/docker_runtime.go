@@ -21,10 +21,13 @@ import (
 	"time"
 
 	cerrdefs "github.com/containerd/errdefs"
+	dockertypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
+
+	"graft/server/modules/container/terminal"
 )
 
 const (
@@ -52,6 +55,9 @@ type dockerClient interface {
 	ContainerInspect(context.Context, string) (container.InspectResponse, error)
 	ContainerLogs(context.Context, string, container.LogsOptions) (io.ReadCloser, error)
 	ContainerStatsOneShot(context.Context, string) (container.StatsResponseReader, error)
+	ContainerExecCreate(context.Context, string, container.ExecOptions) (container.ExecCreateResponse, error)
+	ContainerExecAttach(context.Context, string, container.ExecAttachOptions) (dockertypes.HijackedResponse, error)
+	ContainerExecResize(context.Context, string, container.ResizeOptions) error
 	ContainerStart(context.Context, string, container.StartOptions) error
 	ContainerStop(context.Context, string, container.StopOptions) error
 	ContainerRestart(context.Context, string, container.StopOptions) error
@@ -188,6 +194,33 @@ func (r *DockerRuntime) Logs(ctx context.Context, ref Ref, query LogQuery) (Logs
 		Stderr:     query.Stderr,
 		Truncated:  truncated,
 	}, nil
+}
+
+func (r *DockerRuntime) Shell(ctx context.Context, ref Ref, command string) (terminal.Session, error) {
+	inspect, err := r.client.ContainerInspect(ctx, ref.Value)
+	if err != nil {
+		return nil, mapDockerShellError(err)
+	}
+	if strings.TrimSpace(inspect.ID) == "" {
+		return nil, errContainerNotFound
+	}
+	return newDockerExecSession(r.client, inspect.ID, command), nil
+}
+
+func mapDockerShellError(err error) error {
+	if err == nil {
+		return nil
+	}
+	mapped := mapDockerError(err)
+	message := strings.ToLower(strings.TrimSpace(err.Error()))
+	switch {
+	case strings.Contains(message, "executable file not found"), strings.Contains(message, "not found in $path"), strings.Contains(message, "no such file or directory"):
+		return errShellCommandNotFound
+	case errors.Is(mapped, errContainerNotFound):
+		return errContainerNotFound
+	default:
+		return errShellSessionFailed
+	}
 }
 
 // Start starts one Docker container by id or name.
@@ -1168,6 +1201,18 @@ func (d dockerClientAdapter) Info(ctx context.Context) (systemInfo, error) {
 		Containers:        info.Containers,
 		ContainersRunning: info.ContainersRunning,
 	}, nil
+}
+
+func (d dockerClientAdapter) ContainerExecCreate(ctx context.Context, containerID string, options container.ExecOptions) (container.ExecCreateResponse, error) {
+	return d.Client.ContainerExecCreate(ctx, containerID, options)
+}
+
+func (d dockerClientAdapter) ContainerExecAttach(ctx context.Context, execID string, config container.ExecAttachOptions) (dockertypes.HijackedResponse, error) {
+	return d.Client.ContainerExecAttach(ctx, execID, config)
+}
+
+func (d dockerClientAdapter) ContainerExecResize(ctx context.Context, execID string, options container.ResizeOptions) error {
+	return d.Client.ContainerExecResize(ctx, execID, options)
 }
 
 var dockerErrorMessageRules = []struct {
