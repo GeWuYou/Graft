@@ -9062,6 +9062,222 @@
         }
       }
     },
+    "/api/ops/containers/{id}/shell/sessions": {
+      "post": {
+        "tags": [
+          "container"
+        ],
+        "summary": "Issue container shell session ticket",
+        "operationId": "postContainerShellSession",
+        "description": "Issues a short-lived single-use shell session ticket for one running container after normal HTTP authentication, feature-flag checks, and permission checks succeed. The returned ticket must be consumed by the matching WebSocket endpoint before it expires.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/container-id-path"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/container-shell-session-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Shell session ticket issued.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-container-shell-session-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid container reference or shell session request payload.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "description": "Shell feature disabled or permission denied.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Container was not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Container is not running or requested shell command cannot be used for this container.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/ops/containers/{id}/shell/ws": {
+      "get": {
+        "tags": [
+          "container"
+        ],
+        "summary": "Upgrade to container shell WebSocket",
+        "operationId": "getContainerShellWebSocket",
+        "description": "Upgrades the request to a container shell WebSocket only after the server validates and atomically consumes the single-use shell ticket, confirms the ticket scope and container id match, rechecks feature-flag and permission gates, and validates the request Origin against the configured WebSocket allowlist. This operation is documented for contract governance; the successful handshake upgrades the connection instead of returning a JSON body.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/container-id-path"
+          },
+          {
+            "$ref": "#/components/parameters/container-shell-ticket-query"
+          }
+        ],
+        "responses": {
+          "101": {
+            "description": "WebSocket upgrade accepted after pre-upgrade ticket validation and consumption.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            }
+          },
+          "400": {
+            "description": "Missing or malformed shell ticket, container reference, or handshake metadata.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "description": "Ticket scope mismatch, ticket rejection, feature disabled, permission denied, or Origin denied.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Container was not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Ticket already used or expired, container not running, or shell command missing.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
     "/api/ops/containers/{id}/start": {
       "post": {
         "tags": [
@@ -10000,6 +10216,12 @@
       "ContainerLogResponse": {
         "$ref": "#/components/schemas/container-log-response"
       },
+      "ContainerShellSessionRequest": {
+        "$ref": "#/components/schemas/container-shell-session-request"
+      },
+      "ContainerShellSessionResponse": {
+        "$ref": "#/components/schemas/container-shell-session-response"
+      },
       "ContainerActionResponse": {
         "$ref": "#/components/schemas/container-action-response"
       },
@@ -10041,6 +10263,9 @@
       },
       "EnvelopedContainerLogResponse": {
         "$ref": "#/components/schemas/enveloped-container-log-response"
+      },
+      "EnvelopedContainerShellSessionResponse": {
+        "$ref": "#/components/schemas/enveloped-container-shell-session-response"
       },
       "EnvelopedContainerActionResponse": {
         "$ref": "#/components/schemas/enveloped-container-action-response"
@@ -16581,6 +16806,113 @@
           }
         ]
       },
+      "container-shell-session-request": {
+        "type": "object",
+        "required": [
+          "command",
+          "cols",
+          "rows"
+        ],
+        "properties": {
+          "command": {
+            "type": "string",
+            "enum": [
+              "sh",
+              "bash",
+              "ash"
+            ],
+            "description": "Requested interactive shell command to execute inside the container.",
+            "x-enum-varnames": [
+              "ContainerShellSessionRequestCommandValueSh",
+              "ContainerShellSessionRequestCommandValueBash",
+              "ContainerShellSessionRequestCommandValueAsh"
+            ]
+          },
+          "cols": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000,
+            "description": "Initial terminal column count bound to the issued shell session ticket."
+          },
+          "rows": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000,
+            "description": "Initial terminal row count bound to the issued shell session ticket."
+          }
+        },
+        "additionalProperties": false
+      },
+      "container-shell-session-response": {
+        "type": "object",
+        "required": [
+          "session_id",
+          "ticket",
+          "expires_at",
+          "websocket_url",
+          "command",
+          "cols",
+          "rows"
+        ],
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "description": "Stable server-issued session identifier used for audit correlation."
+          },
+          "ticket": {
+            "type": "string",
+            "description": "Opaque one-time shell ticket. Clients must use it immediately for WebSocket upgrade, must not persist it, and must never log it.\n"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Absolute UTC expiration time for the one-time shell ticket."
+          },
+          "websocket_url": {
+            "type": "string",
+            "description": "Relative WebSocket URL containing the issued ticket for immediate upgrade."
+          },
+          "command": {
+            "type": "string",
+            "enum": [
+              "sh",
+              "bash",
+              "ash"
+            ],
+            "x-enum-varnames": [
+              "ContainerShellSessionResponseCommandValueSh",
+              "ContainerShellSessionResponseCommandValueBash",
+              "ContainerShellSessionResponseCommandValueAsh"
+            ]
+          },
+          "cols": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "rows": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      },
+      "enveloped-container-shell-session-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/container-shell-session-response"
+              }
+            }
+          }
+        ]
+      },
       "container-action-response": {
         "type": "object",
         "required": [
@@ -17473,6 +17805,17 @@
         "schema": {
           "type": "boolean",
           "default": true
+        }
+      },
+      "container-shell-ticket-query": {
+        "name": "ticket",
+        "in": "query",
+        "required": true,
+        "description": "Opaque single-use shell session ticket issued by the authenticated shell session endpoint. The server must validate and consume this ticket before upgrading the connection to WebSocket.\n",
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
         }
       }
     },

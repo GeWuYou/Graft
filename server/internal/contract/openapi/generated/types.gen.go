@@ -978,6 +978,48 @@ func (e ContainerRuntimeInfoStatus) Valid() bool {
 	}
 }
 
+// Defines values for ContainerShellSessionRequestCommand.
+const (
+	ContainerShellSessionRequestCommandValueAsh  ContainerShellSessionRequestCommand = "ash"
+	ContainerShellSessionRequestCommandValueBash ContainerShellSessionRequestCommand = "bash"
+	ContainerShellSessionRequestCommandValueSh   ContainerShellSessionRequestCommand = "sh"
+)
+
+// Valid indicates whether the value is a known member of the ContainerShellSessionRequestCommand enum.
+func (e ContainerShellSessionRequestCommand) Valid() bool {
+	switch e {
+	case ContainerShellSessionRequestCommandValueAsh:
+		return true
+	case ContainerShellSessionRequestCommandValueBash:
+		return true
+	case ContainerShellSessionRequestCommandValueSh:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ContainerShellSessionResponseCommand.
+const (
+	ContainerShellSessionResponseCommandValueAsh  ContainerShellSessionResponseCommand = "ash"
+	ContainerShellSessionResponseCommandValueBash ContainerShellSessionResponseCommand = "bash"
+	ContainerShellSessionResponseCommandValueSh   ContainerShellSessionResponseCommand = "sh"
+)
+
+// Valid indicates whether the value is a known member of the ContainerShellSessionResponseCommand enum.
+func (e ContainerShellSessionResponseCommand) Valid() bool {
+	switch e {
+	case ContainerShellSessionResponseCommandValueAsh:
+		return true
+	case ContainerShellSessionResponseCommandValueBash:
+		return true
+	case ContainerShellSessionResponseCommandValueSh:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ContainerStopErrorResponseSuccess.
 const (
 	ContainerStopErrorResponseSuccessFalse ContainerStopErrorResponseSuccess = false
@@ -3437,6 +3479,43 @@ type ContainerRuntimeInfo struct {
 // ContainerRuntimeInfoStatus defines model for ContainerRuntimeInfo.Status.
 type ContainerRuntimeInfoStatus string
 
+// ContainerShellSessionRequest defines model for container-shell-session-request.
+type ContainerShellSessionRequest struct {
+	// Cols Initial terminal column count bound to the issued shell session ticket.
+	Cols int `json:"cols"`
+
+	// Command Requested interactive shell command to execute inside the container.
+	Command ContainerShellSessionRequestCommand `json:"command"`
+
+	// Rows Initial terminal row count bound to the issued shell session ticket.
+	Rows int `json:"rows"`
+}
+
+// ContainerShellSessionRequestCommand Requested interactive shell command to execute inside the container.
+type ContainerShellSessionRequestCommand string
+
+// ContainerShellSessionResponse defines model for container-shell-session-response.
+type ContainerShellSessionResponse struct {
+	Cols    int                                  `json:"cols"`
+	Command ContainerShellSessionResponseCommand `json:"command"`
+
+	// ExpiresAt Absolute UTC expiration time for the one-time shell ticket.
+	ExpiresAt time.Time `json:"expires_at"`
+	Rows      int       `json:"rows"`
+
+	// SessionId Stable server-issued session identifier used for audit correlation.
+	SessionId string `json:"session_id"`
+
+	// Ticket Opaque one-time shell ticket. Clients must use it immediately for WebSocket upgrade, must not persist it, and must never log it.
+	Ticket string `json:"ticket"`
+
+	// WebsocketUrl Relative WebSocket URL containing the issued ticket for immediate upgrade.
+	WebsocketUrl string `json:"websocket_url"`
+}
+
+// ContainerShellSessionResponseCommand defines model for ContainerShellSessionResponse.Command.
+type ContainerShellSessionResponseCommand string
+
 // ContainerStopErrorResponse defines model for container-stop-error-response.
 type ContainerStopErrorResponse struct {
 	// Code Existing canonical error response code.
@@ -4064,6 +4143,26 @@ type EnvelopedContainerMountUsageListResponse struct {
 	// Code Existing canonical response code.
 	Code string                          `json:"code"`
 	Data ContainerMountUsageListResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedContainerShellSessionResponse defines model for enveloped-container-shell-session-response.
+type EnvelopedContainerShellSessionResponse struct {
+	// Code Existing canonical response code.
+	Code string                        `json:"code"`
+	Data ContainerShellSessionResponse `json:"data"`
 
 	// Locale Present on localized error flows and omitted on normal success.
 	Locale *string `json:"locale,omitempty"`
@@ -5721,6 +5820,9 @@ type ContainerLogsTimestamps = bool
 // ContainerMountIdPath defines model for container-mount-id-path.
 type ContainerMountIdPath = string
 
+// ContainerShellTicketQuery defines model for container-shell-ticket-query.
+type ContainerShellTicketQuery = string
+
 // LocaleHeader defines model for locale-header.
 type LocaleHeader = string
 
@@ -6464,6 +6566,26 @@ type PostContainerRestartParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
+// PostContainerShellSessionParams defines parameters for PostContainerShellSession.
+type PostContainerShellSessionParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetContainerShellWebSocketParams defines parameters for GetContainerShellWebSocket.
+type GetContainerShellWebSocketParams struct {
+	// Ticket Opaque single-use shell session ticket issued by the authenticated shell session endpoint. The server must validate and consume this ticket before upgrading the connection to WebSocket.
+	Ticket ContainerShellTicketQuery `form:"ticket" json:"ticket"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
 // PostContainerStartParams defines parameters for PostContainerStart.
 type PostContainerStartParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -6998,6 +7120,9 @@ type PostContainerBatchActionsJSONRequestBody = ContainerBatchActionRequest
 
 // PostContainerRemoveJSONRequestBody defines body for PostContainerRemove for application/json ContentType.
 type PostContainerRemoveJSONRequestBody = ContainerRemoveRequest
+
+// PostContainerShellSessionJSONRequestBody defines body for PostContainerShellSession for application/json ContentType.
+type PostContainerShellSessionJSONRequestBody = ContainerShellSessionRequest
 
 // PostRolesJSONRequestBody defines body for PostRoles for application/json ContentType.
 type PostRolesJSONRequestBody = CreateRoleRequest

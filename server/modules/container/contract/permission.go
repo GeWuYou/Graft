@@ -27,6 +27,9 @@ const (
 	// ContainerLogsPermission identifies container log access.
 	// Lifecycle: stable.
 	ContainerLogsPermission PermissionCode = "ops.container.logs"
+	// ContainerShellPermission identifies interactive shell session access.
+	// Lifecycle: stable.
+	ContainerShellPermission PermissionCode = "ops.container.shell"
 	// ContainerStartPermission identifies container start access.
 	// Lifecycle: stable.
 	ContainerStartPermission PermissionCode = "ops.container.start"

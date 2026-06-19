@@ -1,0 +1,38 @@
+type: object
+required:
+  - session_id
+  - ticket
+  - expires_at
+  - websocket_url
+  - command
+  - cols
+  - rows
+properties:
+  session_id:
+    type: string
+    description: Stable server-issued session identifier used for audit correlation.
+  ticket:
+    type: string
+    description: >
+      Opaque one-time shell ticket. Clients must use it immediately for WebSocket upgrade, must not persist it, and
+      must never log it.
+  expires_at:
+    type: string
+    format: date-time
+    description: Absolute UTC expiration time for the one-time shell ticket.
+  websocket_url:
+    type: string
+    description: Relative WebSocket URL containing the issued ticket for immediate upgrade.
+  command:
+    type: string
+    enum: [sh, bash, ash]
+    x-enum-varnames:
+      - ContainerShellSessionResponseCommandValueSh
+      - ContainerShellSessionResponseCommandValueBash
+      - ContainerShellSessionResponseCommandValueAsh
+  cols:
+    type: integer
+    minimum: 1
+  rows:
+    type: integer
+    minimum: 1

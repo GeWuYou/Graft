@@ -40,12 +40,42 @@ const (
 	ContainerLogsTooLarge MessageKey = "ops.container.error.logsTooLarge"
 	// ContainerInvalidLogQuery identifies invalid log query parameter errors.
 	ContainerInvalidLogQuery MessageKey = "ops.container.error.invalidLogQuery"
+	// ContainerShellDisabled identifies disabled shell feature errors.
+	ContainerShellDisabled MessageKey = "ops.container.error.shellDisabled"
+	// ContainerShellForbidden identifies shell permission errors.
+	ContainerShellForbidden MessageKey = "ops.container.error.shellForbidden"
+	// ContainerShellTicketInvalid identifies invalid shell ticket errors.
+	ContainerShellTicketInvalid MessageKey = "ops.container.error.shellTicketInvalid"
+	// ContainerShellTicketExpired identifies expired shell ticket errors.
+	ContainerShellTicketExpired MessageKey = "ops.container.error.shellTicketExpired"
+	// ContainerShellTicketUsed identifies consumed shell ticket errors.
+	ContainerShellTicketUsed MessageKey = "ops.container.error.shellTicketUsed"
+	// ContainerShellOriginDenied identifies denied shell websocket origin errors.
+	ContainerShellOriginDenied MessageKey = "ops.container.error.shellOriginDenied"
+	// ContainerShellContainerNotRunning identifies non-running container shell errors.
+	ContainerShellContainerNotRunning MessageKey = "ops.container.error.shellContainerNotRunning"
+	// ContainerShellCommandNotFound identifies missing shell command errors.
+	ContainerShellCommandNotFound MessageKey = "ops.container.error.shellCommandNotFound"
+	// ContainerShellSessionFailed identifies generic shell session failures.
+	ContainerShellSessionFailed MessageKey = "ops.container.error.shellSessionFailed"
 	// ContainerTimeout identifies runtime timeout errors.
 	ContainerTimeout MessageKey = "ops.container.error.timeout"
 	// ContainerMountUsageUnsupported identifies unsupported mount usage errors.
 	ContainerMountUsageUnsupported MessageKey = "ops.container.error.mountUsageUnsupported"
 	// ContainerDangerousActionsDisabled identifies disabled action errors.
 	ContainerDangerousActionsDisabled MessageKey = "ops.container.error.dangerousActionsDisabled"
+	// ContainerAuditShellSessionRequested identifies shell session request audit messages.
+	ContainerAuditShellSessionRequested MessageKey = "ops.container.audit.shellSessionRequested"
+	// ContainerAuditShellTicketIssued identifies shell ticket issue audit messages.
+	ContainerAuditShellTicketIssued MessageKey = "ops.container.audit.shellTicketIssued"
+	// ContainerAuditShellTicketRejected identifies shell ticket rejection audit messages.
+	ContainerAuditShellTicketRejected MessageKey = "ops.container.audit.shellTicketRejected"
+	// ContainerAuditShellSessionStarted identifies shell session start audit messages.
+	ContainerAuditShellSessionStarted MessageKey = "ops.container.audit.shellSessionStarted"
+	// ContainerAuditShellSessionClosed identifies shell session close audit messages.
+	ContainerAuditShellSessionClosed MessageKey = "ops.container.audit.shellSessionClosed"
+	// ContainerAuditShellSessionFailed identifies shell session failure audit messages.
+	ContainerAuditShellSessionFailed MessageKey = "ops.container.audit.shellSessionFailed"
 	// ContainerActionStartCompleted identifies successful start action responses.
 	ContainerActionStartCompleted MessageKey = "ops.container.action.start.completed"
 	// ContainerActionStopCompleted identifies successful stop action responses.

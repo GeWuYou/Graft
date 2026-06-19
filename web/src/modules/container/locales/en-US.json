@@ -286,11 +286,22 @@
         "overview": "Overview",
         "resources": "Resources",
         "logs": "Logs",
+        "shell": "Shell",
         "health": "Health",
         "config": "Config",
         "network": "Network",
         "storage": "Storage",
         "raw": "Raw JSON"
+      },
+      "shell": {
+        "title": "Shell",
+        "description": "Access the current container through an interactive terminal. The session disconnects when the page closes.",
+        "disabled": "Shell Is Disabled",
+        "disabledHint": "Enable ops.container.shell.enabled in System Config before using Shell.",
+        "forbidden": "No Shell Access",
+        "forbiddenHint": "Required Permission: ops.container.shell",
+        "ticketExpired": "The shell session ticket expired. Reconnect to continue.",
+        "connectionClosed": "The shell connection has closed."
       },
       "resources": {
         "cpu": "CPU",

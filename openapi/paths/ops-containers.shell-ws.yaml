@@ -1,0 +1,59 @@
+get:
+  tags: [container]
+  summary: Upgrade to container shell WebSocket
+  operationId: getContainerShellWebSocket
+  description: >
+    Upgrades the request to a container shell WebSocket only after the server validates and atomically consumes the
+    single-use shell ticket, confirms the ticket scope and container id match, rechecks feature-flag and permission
+    gates, and validates the request Origin against the configured WebSocket allowlist. This operation is documented
+    for contract governance; the successful handshake upgrades the connection instead of returning a JSON body.
+  parameters:
+    - $ref: ../components/parameters/request-id-header.yaml
+    - $ref: ../components/parameters/container-id-path.yaml
+    - $ref: ../components/parameters/container-shell-ticket-query.yaml
+  responses:
+    '101':
+      description: WebSocket upgrade accepted after pre-upgrade ticket validation and consumption.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+    '400':
+      description: Missing or malformed shell ticket, container reference, or handshake metadata.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      description: Ticket scope mismatch, ticket rejection, feature disabled, permission denied, or Origin denied.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '404':
+      description: Container was not found.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '409':
+      description: Ticket already used or expired, container not running, or shell command missing.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml

@@ -341,6 +341,10 @@
   "systemConfig.groups.ops.container.runtime.description": "Control the local container runtime adapter.",
   "systemConfig.groups.ops.container.logs": "Logs",
   "systemConfig.groups.ops.container.logs.description": "Control bounded container log reads.",
+  "systemConfig.groups.ops.container.shell": "Container Shell",
+  "systemConfig.groups.ops.container.shell.description": "Manage access and security boundaries for interactive container shell sessions.",
   "systemConfig.groups.ops.container.actions": "Dangerous Actions",
-  "systemConfig.groups.ops.container.actions.description": "Control container start, stop, and restart actions."
+  "systemConfig.groups.ops.container.actions.description": "Control container start, stop, and restart actions.",
+  "systemConfig.container.ops.container.shell.enabled.title": "Enable Container Shell",
+  "systemConfig.container.ops.container.shell.enabled.description": "Controls whether interactive container shell session tickets and WebSocket connections can be created."
 }

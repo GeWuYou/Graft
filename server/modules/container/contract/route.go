@@ -12,6 +12,10 @@ const (
 	ContainerDetailRoute = "/:id"
 	// ContainerLogsRoute is the log route fragment.
 	ContainerLogsRoute = "/:id/logs"
+	// ContainerShellSessionsRoute is the shell session issue route fragment.
+	ContainerShellSessionsRoute = "/:id/shell/sessions"
+	// ContainerShellWebSocketRoute is the shell websocket route fragment.
+	ContainerShellWebSocketRoute = "/:id/shell/ws"
 	// ContainerMountUsageRoute is the mount usage route fragment.
 	ContainerMountUsageRoute = "/:id/mounts/usage"
 	// ContainerMountUsageRefreshRoute is the mount usage refresh route fragment.

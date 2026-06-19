@@ -12,9 +12,24 @@ ops.container.error.invalidBatchAction: Invalid container batch action request
 ops.container.error.invalidState: The container state does not allow this action
 ops.container.error.logsTooLarge: Requested log tail exceeds the configured limit
 ops.container.error.invalidLogQuery: Invalid container log query parameter
+ops.container.error.shellDisabled: Container shell access is disabled
+ops.container.error.shellForbidden: The current user cannot open a container shell session
+ops.container.error.shellTicketInvalid: The container shell session ticket is invalid
+ops.container.error.shellTicketExpired: The container shell session ticket has expired
+ops.container.error.shellTicketUsed: The container shell session ticket was already used
+ops.container.error.shellOriginDenied: The current request origin cannot open a container shell connection
+ops.container.error.shellContainerNotRunning: The container is not running, so a shell session cannot be opened
+ops.container.error.shellCommandNotFound: The selected shell command is not available in the container
+ops.container.error.shellSessionFailed: The container shell session could not be established
 ops.container.error.timeout: Container runtime operation timed out
 ops.container.error.mountUsageUnsupported: Mount usage is not supported for this mount
 ops.container.error.dangerousActionsDisabled: Dangerous container actions are disabled
+ops.container.audit.shellSessionRequested: Container shell session requested
+ops.container.audit.shellTicketIssued: Container shell ticket issued
+ops.container.audit.shellTicketRejected: Container shell ticket rejected
+ops.container.audit.shellSessionStarted: Container shell session started
+ops.container.audit.shellSessionClosed: Container shell session closed
+ops.container.audit.shellSessionFailed: Container shell session failed
 ops.container.action.start.completed: Container start action completed
 ops.container.action.stop.completed: Container stop action completed
 ops.container.action.restart.completed: Container restart action completed
@@ -22,3 +37,7 @@ ops.container.action.remove.completed: Container remove action completed
 ops.container.action.batch.completed: Container batch action completed
 ops.container.action.batch.partial: Container batch action partially completed
 ops.container.action.batch.failed: Container batch action failed
+systemConfig.groups.ops.container.shell: Container Shell
+systemConfig.groups.ops.container.shell.description: Manages access and security boundaries for interactive container shell sessions.
+systemConfig.container.ops.container.shell.enabled.title: Enable Container Shell
+systemConfig.container.ops.container.shell.enabled.description: Controls whether interactive container shell session tickets and WebSocket connections can be created.

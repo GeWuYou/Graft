@@ -286,11 +286,22 @@
         "overview": "概览",
         "resources": "资源",
         "logs": "日志",
+        "shell": "Shell",
         "health": "健康",
         "config": "配置",
         "network": "网络",
         "storage": "挂载",
         "raw": "原始 JSON"
+      },
+      "shell": {
+        "title": "Shell",
+        "description": "通过交互式终端访问当前容器，关闭页面后自动断开。",
+        "disabled": "Shell 功能未启用",
+        "disabledHint": "请在系统配置中开启 ops.container.shell.enabled 后使用。",
+        "forbidden": "无 Shell 访问权限",
+        "forbiddenHint": "需要权限：ops.container.shell",
+        "ticketExpired": "Shell 会话票据已过期，请重新连接。",
+        "connectionClosed": "Shell 连接已关闭。"
       },
       "resources": {
         "cpu": "CPU",

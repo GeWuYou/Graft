@@ -1,0 +1,10 @@
+name: ticket
+in: query
+required: true
+description: >
+  Opaque single-use shell session ticket issued by the authenticated shell session endpoint. The server must validate
+  and consume this ticket before upgrading the connection to WebSocket.
+schema:
+  type: string
+  minLength: 1
+  maxLength: 2048

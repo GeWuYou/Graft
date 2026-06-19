@@ -48,6 +48,7 @@ const (
 	defaultContainerDockerEndpoint  = "unix:///var/run/docker.sock"
 	defaultContainerLogsDefaultTail = 200
 	defaultContainerLogsMaxTail     = 2000
+	defaultRealtimeAllowedOrigins   = ""
 )
 
 const (
@@ -155,6 +156,7 @@ type HTTPXConfig struct {
 	AccessLogRetention       time.Duration
 	AccessLogConsole         AccessLogConsolePolicy
 	AccessLogSlowThresholdMS int64
+	WebSocketAllowedOrigins  []string
 }
 
 // AuditConfig describes audit-module-owned runtime policy configuration.
@@ -275,6 +277,7 @@ func Load() (*Config, error) {
 			AccessLogRetention:       reader.GetDuration("httpx.access_log_retention"),
 			AccessLogConsole:         AccessLogConsolePolicy(reader.GetString("access_log.console")),
 			AccessLogSlowThresholdMS: reader.GetInt64("access_log.slow_threshold_ms"),
+			WebSocketAllowedOrigins:  parseCommaSeparatedList(reader.GetString("httpx.websocket.allowed_origins")),
 		},
 		Audit: AuditConfig{
 			LogRetention: reader.GetDuration("audit.log_retention"),
@@ -436,6 +439,7 @@ func validateHTTPXConfig(c *Config) error {
 	if c.HTTPX.AccessLogSlowThresholdMS <= 0 {
 		return errors.New("GRAFT_ACCESS_LOG_SLOW_THRESHOLD_MS must be greater than zero")
 	}
+	c.HTTPX.WebSocketAllowedOrigins = normalizeStringList(c.HTTPX.WebSocketAllowedOrigins)
 
 	return nil
 }
@@ -784,6 +788,7 @@ func setDefaults(reader *viper.Viper) {
 	reader.SetDefault("httpx.access_log_retention", defaultAccessLogRetentionForEnv(reader.GetString("app.env")))
 	reader.SetDefault("access_log.console", string(AccessLogConsoleAuto))
 	reader.SetDefault("access_log.slow_threshold_ms", defaultAccessLogSlowThreshold/time.Millisecond)
+	reader.SetDefault("httpx.websocket.allowed_origins", defaultRealtimeAllowedOrigins)
 	reader.SetDefault("audit.log_retention", defaultAuditLogRetentionForEnv(reader.GetString("app.env")))
 	reader.SetDefault("modules.enabled", "")
 	reader.SetDefault("database.driver", defaultDatabaseDriver)
@@ -823,6 +828,7 @@ func setDefaults(reader *viper.Viper) {
 	reader.SetDefault("ops.container.logs.default_tail", defaultContainerLogsDefaultTail)
 	reader.SetDefault("ops.container.logs.max_tail", defaultContainerLogsMaxTail)
 	reader.SetDefault("ops.container.actions.dangerous_enabled", false)
+	reader.SetDefault("ops.container.shell.enabled", false)
 }
 
 func parseLocaleList(raw string) []string {
@@ -830,9 +836,30 @@ func parseLocaleList(raw string) []string {
 	return items
 }
 
+func parseCommaSeparatedList(raw string) []string {
+	return normalizeStringList(strings.Split(raw, ","))
+}
+
 func parseModuleList(raw string) []string {
 	items, _ := normalizeModuleList(strings.Split(raw, ","))
 	return items
+}
+
+func normalizeStringList(items []string) []string {
+	normalized := make([]string, 0, len(items))
+	seen := make(map[string]struct{}, len(items))
+	for _, raw := range items {
+		value := strings.TrimSpace(raw)
+		if value == "" {
+			continue
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		normalized = append(normalized, value)
+	}
+	return normalized
 }
 
 func resolveDocsEnabled(reader *viper.Viper) bool {

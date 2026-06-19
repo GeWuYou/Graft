@@ -32,6 +32,8 @@ rbac.permissionCatalog.containerEnvironment.display: 容器环境变量读取
 rbac.permissionCatalog.containerEnvironment.description: 允许在展示策略允许时读取容器环境变量值。
 rbac.permissionCatalog.containerLogs.display: 容器日志读取
 rbac.permissionCatalog.containerLogs.description: 允许读取有界容器日志。
+rbac.permissionCatalog.containerShell.display: 容器 Shell 访问
+rbac.permissionCatalog.containerShell.description: 允许为运行中的容器创建交互式 Shell 会话。
 rbac.permissionCatalog.containerStart.display: 容器启动
 rbac.permissionCatalog.containerStart.description: 允许在危险操作开启时启动容器。
 rbac.permissionCatalog.containerStop.display: 容器停止

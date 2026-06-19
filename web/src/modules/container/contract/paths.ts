@@ -10,6 +10,8 @@ export const CONTAINER_API_PATH = {
   LIST: '/api/ops/containers',
   DETAIL: '/api/ops/containers/{id}',
   LOGS: '/api/ops/containers/{id}/logs',
+  SHELL_SESSIONS: '/api/ops/containers/{id}/shell/sessions',
+  SHELL_WS: '/api/ops/containers/{id}/shell/ws',
   MOUNTS_USAGE: '/api/ops/containers/{id}/mounts/usage',
   MOUNT_USAGE_REFRESH: '/api/ops/containers/{id}/mounts/{mountId}/usage/refresh',
   START: '/api/ops/containers/{id}/start',
@@ -30,6 +32,14 @@ export function buildContainerDetailApiPath(containerId: string) {
  */
 export function buildContainerLogsApiPath(containerId: string) {
   return CONTAINER_API_PATH.LOGS.replace('{id}', encodeContainerPathParam(containerId));
+}
+
+export function buildContainerShellSessionsApiPath(containerId: string) {
+  return CONTAINER_API_PATH.SHELL_SESSIONS.replace('{id}', encodeContainerPathParam(containerId));
+}
+
+export function buildContainerShellWebSocketApiPath(containerId: string) {
+  return CONTAINER_API_PATH.SHELL_WS.replace('{id}', encodeContainerPathParam(containerId));
 }
 
 /**
