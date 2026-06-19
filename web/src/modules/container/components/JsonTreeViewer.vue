@@ -9,7 +9,7 @@
       {{ emptyLabel }}
     </div>
 
-    <div v-else class="json-tree-viewer__viewport">
+    <div v-else class="json-tree-viewer__viewport graft-scrollbar">
       <div
         v-for="node in visibleNodes"
         :key="node.path"

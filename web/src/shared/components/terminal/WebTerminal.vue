@@ -14,7 +14,14 @@
           </div>
         </slot>
       </div>
-      <div ref="hostRef" class="web-terminal__host" tabindex="0" @focus="focused = true" @blur="focused = false" />
+      <div
+        ref="hostRef"
+        class="web-terminal__host"
+        tabindex="0"
+        @focus="focused = true"
+        @blur="focused = false"
+        @wheel.capture="handleTerminalWheel"
+      />
     </div>
   </div>
 </template>
@@ -134,6 +141,7 @@ onMounted(() => {
   terminal.loadAddon(searchAddon);
   terminal.loadAddon(webLinksAddon);
   terminal.open(hostRef.value);
+  hostRef.value.querySelector('.xterm-viewport')?.classList.add('graft-scrollbar');
   terminal.onData((data) => {
     session.sendInput(data);
   });
@@ -164,6 +172,7 @@ async function ensureConnected() {
   if (!terminal || !hostRef.value) {
     return;
   }
+  resetTerminalSurface();
   const size = measureTerminal();
   try {
     await session.connect(size);
@@ -206,6 +215,30 @@ function focusTerminal() {
   hostRef.value?.focus();
 }
 
+function resetTerminalSurface() {
+  terminal?.reset();
+  terminal?.clear();
+}
+
+function handleTerminalWheel(event: WheelEvent) {
+  const viewport = hostRef.value?.querySelector('.xterm-viewport');
+  if (!(viewport instanceof HTMLElement)) {
+    return;
+  }
+  const canScroll = viewport.scrollHeight > viewport.clientHeight;
+  if (!canScroll) {
+    return;
+  }
+  const deltaY = event.deltaY;
+  const atTop = viewport.scrollTop <= 0;
+  const atBottom = viewport.scrollTop + viewport.clientHeight >= viewport.scrollHeight - 1;
+  const willScrollInside = (deltaY < 0 && !atTop) || (deltaY > 0 && !atBottom) || deltaY === 0;
+
+  if (willScrollInside) {
+    event.stopPropagation();
+  }
+}
+
 defineExpose({
   connect: ensureConnected,
   disconnect: session.disconnect,
@@ -213,6 +246,7 @@ defineExpose({
   fit: queueFitAndResize,
   focus: focusTerminal,
   getState: () => connectionState.value,
+  reset: resetTerminalSurface,
 });
 </script>
 <style scoped lang="less">
@@ -237,6 +271,7 @@ defineExpose({
   min-height: 0;
   min-width: 0;
   overflow: hidden;
+  overscroll-behavior: contain;
   position: relative;
 }
 
@@ -267,6 +302,11 @@ defineExpose({
 
 .web-terminal__host :deep(.xterm-viewport) {
   border-radius: calc(var(--td-radius-medium) - 2px);
+  overscroll-behavior: contain;
+}
+
+.web-terminal__host :deep(.xterm-viewport.graft-scrollbar) {
+  scrollbar-gutter: stable;
 }
 
 .web-terminal__overlay {

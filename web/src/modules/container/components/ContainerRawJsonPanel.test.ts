@@ -136,6 +136,17 @@ describe('ContainerRawJsonPanel', () => {
     expect(readOptionLabels(wrapper)).toEqual(['Tree mode', 'Source mode']);
   });
 
+  it('applies shared scrollbar styling to tree and source viewports', async () => {
+    const wrapper = mountPanel();
+
+    expect(wrapper.find('.json-tree-viewer__viewport.graft-scrollbar').exists()).toBe(true);
+
+    await wrapper.get('select').setValue('source');
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.find('.json-source-viewer__viewport.graft-scrollbar').exists()).toBe(true);
+  });
+
   it('renders empty state for null raw json', () => {
     const wrapper = mountPanel(null);
 

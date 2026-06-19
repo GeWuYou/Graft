@@ -397,7 +397,7 @@
 
             <t-tab-panel value="shell" :label="t('container.detail.tabs.shell')" :destroy-on-hide="false">
               <section
-                class="container-detail-section container-detail-section--shell container-detail-tab-body container-detail-tab-body--short"
+                class="container-detail-section container-detail-section--shell container-detail-tab-body container-detail-tab-body--terminal"
               >
                 <container-shell-panel
                   :active="activeTab === 'shell'"
@@ -576,7 +576,7 @@
 
             <t-tab-panel value="config" :label="t('container.detail.tabs.config')" :destroy-on-hide="false">
               <section
-                class="container-detail-section container-detail-section--config container-detail-tab-body container-detail-tab-body--compact"
+                class="container-detail-section container-detail-section--config container-detail-tab-body container-detail-tab-body--long"
               >
                 <div class="container-config-section">
                   <h3>{{ t('container.detail.config.runtimeTitle') }}</h3>
@@ -741,7 +741,7 @@
 
             <t-tab-panel value="network" :label="t('container.detail.tabs.network')" :destroy-on-hide="false">
               <section
-                class="container-detail-section container-detail-section--network container-detail-tab-body container-detail-tab-body--short"
+                class="container-detail-section container-detail-section--network container-detail-tab-body container-detail-tab-body--long"
               >
                 <section class="container-network-panel">
                   <header class="container-network-panel__header">
@@ -949,7 +949,7 @@
 
             <t-tab-panel value="storage" :label="t('container.detail.tabs.storage')" :destroy-on-hide="false">
               <section
-                class="container-detail-section container-detail-section--storage container-detail-tab-body container-detail-tab-body--short"
+                class="container-detail-section container-detail-section--storage container-detail-tab-body container-detail-tab-body--long"
               >
                 <div v-if="mountCards.length" class="container-mount-card-grid">
                   <article
@@ -3641,18 +3641,18 @@ function portLabel(port: ContainerDetail['ports'][number]) {
  * their internal scrolling so the page does not fight a second nested scrollbar.
  */
 .container-detail-tab-body {
-  --container-detail-tab-body-min-height: clamp(280px, calc(100vh - var(--graft-page-bottom-safe-area) - 420px), 520px);
+  --container-detail-tab-body-min-height: clamp(360px, calc(100vh - var(--graft-page-bottom-safe-area) - 360px), 640px);
 
   height: var(--container-detail-tab-body-min-height);
   min-height: var(--container-detail-tab-body-min-height);
 }
 
-.container-detail-tab-body--short {
-  --container-detail-tab-body-min-height: clamp(320px, calc(100vh - var(--graft-page-bottom-safe-area) - 420px), 520px);
+.container-detail-tab-body--long {
+  --container-detail-tab-body-min-height: clamp(420px, calc(100vh - var(--graft-page-bottom-safe-area) - 330px), 720px);
 }
 
-.container-detail-tab-body--compact {
-  --container-detail-tab-body-min-height: clamp(280px, calc(100vh - var(--graft-page-bottom-safe-area) - 460px), 440px);
+.container-detail-tab-body--terminal {
+  --container-detail-tab-body-min-height: clamp(320px, calc(100vh - var(--graft-page-bottom-safe-area) - 420px), 520px);
 }
 
 .container-detail-section {

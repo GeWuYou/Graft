@@ -8,7 +8,7 @@
     <div v-if="!lines.length" class="json-source-viewer__empty">
       {{ emptyLabel }}
     </div>
-    <div v-else class="json-source-viewer__viewport">
+    <div v-else class="json-source-viewer__viewport graft-scrollbar">
       <div
         v-for="line in lines"
         :key="line.lineNumber"

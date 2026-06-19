@@ -14,6 +14,8 @@ const terminalLoadAddon = vi.fn();
 const terminalWrite = vi.fn();
 const terminalFocus = vi.fn();
 const terminalDispose = vi.fn();
+const terminalReset = vi.fn();
+const terminalClear = vi.fn();
 
 const fitAddonCtor = vi.fn();
 const fitAddonFit = vi.fn();
@@ -29,9 +31,11 @@ vi.mock('@xterm/xterm', () => ({
       rows: 32,
       dispose: terminalDispose,
       focus: terminalFocus,
+      clear: terminalClear,
       loadAddon: terminalLoadAddon,
       onData: terminalOnData,
       open: terminalOpen,
+      reset: terminalReset,
       write: terminalWrite,
     };
   }),
@@ -122,5 +126,31 @@ describe('WebTerminal', () => {
     expect(failingConnector.open).toHaveBeenCalledTimes(1);
     expect(rejectionSpy).not.toHaveBeenCalled();
     window.removeEventListener('unhandledrejection', rejectionSpy);
+  });
+
+  it('resets terminal surface before reconnecting after tab re-entry', async () => {
+    const successfulConnector: TerminalSessionConnector = {
+      open: vi.fn().mockResolvedValue({ url: 'ws://localhost/terminal' }),
+    };
+
+    const wrapper = mount(WebTerminal, {
+      props: {
+        connector: successfulConnector,
+        modelValue: true,
+      },
+      attachTo: document.body,
+    });
+
+    await flushPromises();
+    expect(terminalReset).toHaveBeenCalledTimes(1);
+    expect(terminalClear).toHaveBeenCalledTimes(1);
+
+    await wrapper.setProps({ modelValue: false });
+    await flushPromises();
+    await wrapper.setProps({ modelValue: true });
+    await flushPromises();
+
+    expect(terminalReset).toHaveBeenCalledTimes(2);
+    expect(terminalClear).toHaveBeenCalledTimes(2);
   });
 });

@@ -44,3 +44,22 @@ a TDesign token cannot represent the requirement for this specific surface.
   mapping unless a documented exception applies.
 - Font size responds to personalization font-size settings.
 - Personalization font-size control is used as the regression validation sample for typography changes.
+
+## Scroll Containers
+
+Business pages in `web` must not let internal scroll surfaces drift into page-local one-off behavior.
+
+- Independent scroll viewports such as JSON viewers, log panes, drawer bodies, markdown tables, and embedded terminal
+  surfaces must reuse the shared project scrollbar styling rather than shipping browser-default scrollbars.
+- When one page owns multiple internal scroll panels, the height authority must stay at the page or layout container
+  boundary. Child components should fill the provided space and manage only their own internal overflow.
+- Interactive embedded surfaces with their own scroll context, especially terminals and code/log viewers, must isolate
+  scroll chaining so wheel input inside the surface does not continue scrolling the outer page container.
+- New local `scrollbar-color`, `scrollbar-width`, or `::-webkit-scrollbar*` rules are allowed only when the shared
+  scrollbar utility cannot represent a verified requirement for that surface.
+
+### Review Checklist
+
+- Internal scroll viewports use the shared scrollbar utility instead of ad hoc scrollbar rules.
+- Page-level containers, not child components, own viewport-height math for long-form tab or panel layouts.
+- Embedded terminals, log viewers, and code/JSON panes prevent wheel chaining from unintentionally moving the page.

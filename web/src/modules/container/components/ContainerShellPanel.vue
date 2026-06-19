@@ -406,6 +406,7 @@ defineExpose({
   height: var(--container-shell-terminal-height);
   min-height: var(--container-shell-terminal-height);
   min-width: 0;
+  overflow: hidden;
 }
 
 @media (width <= 1024px) {

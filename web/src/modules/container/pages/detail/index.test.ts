@@ -1227,6 +1227,11 @@ describe('container detail page', () => {
   it('keeps the shell tab on a bounded viewport height chain', () => {
     expect(sourceText).toContain('.container-detail-tabs-card :deep(.t-card__body) {');
     expect(sourceText).toContain('display: flex;');
+    expect(sourceText).toContain('container-detail-tab-body--terminal');
+    expect(sourceText).toContain('container-detail-tab-body--long');
+    expect(sourceText).toContain(
+      '--container-detail-tab-body-min-height: clamp(420px, calc(100vh - var(--graft-page-bottom-safe-area) - 330px), 720px);',
+    );
     expect(shellPanelSourceText).toContain(
       '--container-shell-terminal-height: clamp(640px, calc(100vh - var(--graft-page-bottom-safe-area) - 320px), 860px);',
     );
@@ -2053,6 +2058,19 @@ describe('container detail page', () => {
     expect(sourceText).toContain('<log-viewer');
     expect(sourceText).toContain('<container-raw-json-panel');
     expect(sourceText).not.toContain('container-detail-code');
+  });
+
+  it('routes long-form detail tabs through the shared long viewport height chain', () => {
+    expect(sourceText).toContain(
+      'container-detail-section--config container-detail-tab-body container-detail-tab-body--long',
+    );
+    expect(sourceText).toContain(
+      'container-detail-section--network container-detail-tab-body container-detail-tab-body--long',
+    );
+    expect(sourceText).toContain(
+      'container-detail-section--storage container-detail-tab-body container-detail-tab-body--long',
+    );
+    expect(sourceText).toContain('container-detail-section--raw container-detail-tab-body');
   });
 
   it('keeps overview as a single-column grouped information flow without nested scrolling', () => {

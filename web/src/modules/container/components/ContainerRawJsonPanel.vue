@@ -331,7 +331,8 @@ function readString(value: unknown) {
   flex: 1;
   flex-direction: column;
   gap: var(--graft-density-gap-12);
-  min-height: clamp(360px, calc(100vh - var(--graft-page-bottom-safe-area) - 430px), 640px);
+  height: 100%;
+  min-height: 0;
   min-width: 0;
   padding: var(--graft-density-gap-12);
 }
@@ -357,7 +358,7 @@ function readString(value: unknown) {
   display: flex;
   flex: 1;
   justify-content: center;
-  min-height: clamp(240px, calc(100vh - var(--graft-page-bottom-safe-area) - 520px), 320px);
+  min-height: 240px;
 }
 
 @media (width <= 720px) {
@@ -366,7 +367,6 @@ function readString(value: unknown) {
   }
 
   .container-raw-json-panel__viewer {
-    min-height: clamp(320px, calc(100vh - var(--graft-page-bottom-safe-area) - 380px), 520px);
     padding: var(--graft-density-gap-10);
   }
 }
