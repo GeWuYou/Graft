@@ -12,6 +12,16 @@
       "more": "More"
     }
   },
+  "global": {
+    "search": {
+      "trigger": "Search",
+      "placeholder": "Search menus or pages",
+      "idle": "Type a keyword to search page entries",
+      "empty": "No searchable menus",
+      "noResults": "No results found",
+      "menuResultPathLabel": "Path"
+    }
+  },
   "layout": {
     "header": {
       "code": "Code Repository",
@@ -46,7 +56,7 @@
       "cancel": "Cancel"
     },
     "search": {
-      "placeholder": "Enter search content"
+      "placeholder": "Search menus or pages"
     },
     "routeLoading": "Loading Page",
     "setting": {

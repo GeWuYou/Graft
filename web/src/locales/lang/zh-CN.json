@@ -12,6 +12,16 @@
       "more": "更多"
     }
   },
+  "global": {
+    "search": {
+      "trigger": "搜索",
+      "placeholder": "输入要搜索内容",
+      "idle": "输入关键字以搜索页面入口",
+      "empty": "暂无可搜索菜单",
+      "noResults": "未找到匹配结果",
+      "menuResultPathLabel": "路径"
+    }
+  },
   "layout": {
     "header": {
       "code": "代码仓库",

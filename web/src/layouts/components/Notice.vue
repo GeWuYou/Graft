@@ -19,6 +19,13 @@ import { notificationHeaderWidget } from '@/modules/notification';
   align-items: center;
   display: inline-flex;
   flex: 0 0 auto;
-  gap: var(--graft-density-gap-12);
+  gap: 0;
+  height: var(--td-comp-size-m);
+  justify-content: center;
+
+  :deep(.announcement-header-entry),
+  :deep(.notification-header-entry) {
+    flex: 0 0 var(--td-comp-size-m);
+  }
 }
 </style>

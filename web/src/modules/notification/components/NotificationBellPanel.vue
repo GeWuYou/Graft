@@ -6,6 +6,7 @@
 <template>
   <t-popup
     v-model:visible="visible"
+    class="notification-header-entry"
     overlay-class-name="notification-bell-popup"
     placement="bottom-right"
     trigger="click"
@@ -189,6 +190,22 @@ function notificationView(item: NotificationItem) {
 }
 </script>
 <style scoped lang="less">
+.notification-header-entry {
+  align-items: center;
+  display: inline-flex;
+  height: var(--td-comp-size-m);
+  justify-content: center;
+  width: var(--td-comp-size-m);
+}
+
+.notification-header-entry :deep(.t-badge) {
+  align-items: center;
+  display: inline-flex;
+  height: var(--td-comp-size-m);
+  justify-content: center;
+  width: var(--td-comp-size-m);
+}
+
 .notification-bell-panel {
   margin: calc(0px - var(--td-comp-paddingTB-xs)) calc(0px - var(--td-comp-paddingLR-s));
   max-width: calc(100vw - 32px);

@@ -4,7 +4,7 @@
 -->
 
 <template>
-  <span>
+  <span class="announcement-header-entry">
     <t-tooltip placement="bottom" :content="t('announcement.header.title')">
       <t-badge :count="unreadCount" :max-count="99" :offset="[4, 4]">
         <t-button
@@ -128,3 +128,20 @@ async function markCurrentRead() {
   }
 }
 </script>
+<style scoped lang="less">
+.announcement-header-entry {
+  align-items: center;
+  display: inline-flex;
+  height: var(--td-comp-size-m);
+  justify-content: center;
+  width: var(--td-comp-size-m);
+}
+
+.announcement-header-entry :deep(.t-badge) {
+  align-items: center;
+  display: inline-flex;
+  height: var(--td-comp-size-m);
+  justify-content: center;
+  width: var(--td-comp-size-m);
+}
+</style>

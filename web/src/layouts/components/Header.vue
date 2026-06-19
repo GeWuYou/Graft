@@ -224,17 +224,23 @@ const navToHelper = () => {
 .operations-container {
   align-items: center;
   display: flex;
-  gap: var(--graft-density-gap-12);
+  height: 100%;
 
-  // TDesign adjacent text buttons add their own margin; this container owns spacing through flex gap.
-  :deep(.t-button + .t-button) {
-    margin-left: 0;
-  }
-
-  .t-popup__reference {
+  :deep(.t-popup__reference) {
     align-items: center;
     display: flex;
+    height: var(--td-comp-size-m);
     justify-content: center;
+  }
+
+  :deep(.t-button) {
+    align-items: center;
+    display: inline-flex;
+    height: var(--td-comp-size-m);
+    justify-content: center;
+    margin-left: var(--td-comp-margin-l);
+    min-width: var(--td-comp-size-m);
+    padding: 0;
   }
 }
 
