@@ -345,8 +345,6 @@ defineExpose({
 </script>
 <style scoped lang="less">
 .container-shell-panel {
-  --container-shell-terminal-height: clamp(640px, calc(100vh - var(--graft-page-bottom-safe-area) - 320px), 860px);
-
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;

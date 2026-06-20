@@ -4,6 +4,7 @@
 package container
 
 import (
+	"slices"
 	"testing"
 
 	containergen "graft/server/internal/contract/openapi/generated"
@@ -153,8 +154,28 @@ func assertMappedOrchestratorPolicy(t *testing.T, info *containergen.ContainerOr
 	if string(info.ActionLevel) != containercontract.ContainerOrchestratorActionLevelWarn.String() || info.BatchActionAllowed {
 		t.Fatalf("unexpected orchestrator policy %#v", info)
 	}
-	if len(info.Warnings) != 2 {
-		t.Fatalf("expected orchestrator warnings, got %#v", info.Warnings)
+	if !slices.Contains(info.Warnings, orchestratorWarningManagedActionRisk) ||
+		!slices.Contains(info.Warnings, orchestratorWarningBatchBlocked) {
+		t.Fatalf("expected managed/batch-blocked warnings, got %#v", info.Warnings)
+	}
+}
+
+func TestToOrchestratorInfoNormalizesInvalidScopeKinds(t *testing.T) {
+	t.Parallel()
+
+	mapped := toOrchestratorInfo(OrchestratorInfo{
+		Type:            containerOrchestratorCompose,
+		Managed:         true,
+		GroupScopeKind:  " bad-group ",
+		GroupValue:      "graft",
+		MemberScopeKind: "bad-member",
+		MemberValue:     "web",
+	})
+	if mapped == nil {
+		t.Fatalf("expected mapped orchestrator info")
+	}
+	if mapped.GroupScopeKind != nil || mapped.MemberScopeKind != nil {
+		t.Fatalf("expected invalid scope kinds to be dropped, got %#v", mapped)
 	}
 }
 

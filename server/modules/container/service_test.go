@@ -622,6 +622,69 @@ func TestServiceBatchActionAllowsPartialSuccess(t *testing.T) {
 	}
 }
 
+func TestServiceBatchActionBlocksWarnManagedContainers(t *testing.T) {
+	t.Parallel()
+
+	runtime := &managedActionRuntime{
+		detail: Detail{
+			Summary: Summary{
+				ID:        "web",
+				Name:      "graft-web",
+				Image:     "graft/web:latest",
+				Runtime:   runtimeNameDocker,
+				State:     "running",
+				Status:    "Up",
+				CreatedAt: "2026-06-14T00:00:00Z",
+				Orchestrator: OrchestratorInfo{
+					Type:            containerOrchestratorCompose,
+					Managed:         true,
+					GroupScopeKind:  composeProjectScopeKind,
+					GroupValue:      "graft",
+					MemberScopeKind: composeServiceScopeKind,
+					MemberValue:     "web",
+				},
+			},
+		},
+	}
+	service, err := newService(containerServiceOptions{
+		runtime: runtime,
+		systemConfig: serviceTestPolicyConfig{
+			serviceTestSystemConfig: serviceTestSystemConfig{values: map[string]bool{
+				containercontract.ContainerRuntimeEnabledConfig.String():          true,
+				containercontract.ContainerDangerousActionsEnabledConfig.String(): true,
+			}},
+			values: map[string]string{
+				containercontract.ContainerComposeActionLevelConfig.String(): string(mustRawJSON("warn")),
+			},
+		},
+		enabled:                 true,
+		dangerousActionsEnabled: true,
+		defaultTail:             defaultContainerLogsDefaultTail,
+		maxTail:                 defaultContainerLogsMaxTail,
+	})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	result, err := service.BatchAction(context.Background(), BatchActionCommand{
+		Action: containerActionRemove,
+		IDs:    []string{"web"},
+		Force:  true,
+	})
+	if err != nil {
+		t.Fatalf("batch action should aggregate policy failures, got %v", err)
+	}
+	if result.SuccessCount != 0 || result.FailedCount != 1 || len(result.Items) != 1 {
+		t.Fatalf("unexpected batch result %#v", result)
+	}
+	if result.Items[0].Success {
+		t.Fatalf("expected warn-managed batch action to be blocked, got %#v", result.Items[0])
+	}
+	if result.Items[0].ErrorCode != containercontract.ContainerDangerousActionsDisabled.String() {
+		t.Fatalf("expected dangerous-action-disabled message key, got %#v", result.Items[0])
+	}
+}
+
 func TestServiceListFiltersHealth(t *testing.T) {
 	t.Parallel()
 
@@ -632,6 +695,43 @@ func TestServiceListFiltersHealth(t *testing.T) {
 	}
 	if healthResult.Total != 1 || healthResult.Items[0].Name != "cache" {
 		t.Fatalf("unexpected health-filtered result %#v", healthResult)
+	}
+}
+
+func TestServiceRunActionBlocksUnknownManagedPolicyWhenDetailFails(t *testing.T) {
+	t.Parallel()
+
+	runtime := &managedActionRuntime{
+		detailErr: errors.New("inspect unavailable"),
+		removeResult: ActionResult{
+			ID:           "web",
+			Action:       containerActionRemove,
+			Runtime:      runtimeNameDocker,
+			Result:       actionResultCompleted,
+			StatusBefore: "running",
+			StatusAfter:  actionStatusRemoved,
+		},
+	}
+	service, err := newService(containerServiceOptions{
+		runtime:                 runtime,
+		enabled:                 true,
+		dangerousActionsEnabled: true,
+		orchestratorPolicies: orchestratorActionPolicies{
+			Unknown: defaultContainerUnknownActionLevel,
+		},
+		defaultTail:             defaultContainerLogsDefaultTail,
+		maxTail:                 defaultContainerLogsMaxTail,
+	})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	_, err = service.Remove(context.Background(), Ref{Value: "web"}, RemoveOptions{Force: true})
+	if !errors.Is(err, errDangerousActionsDisabled) {
+		t.Fatalf("expected unknown-policy guard to block action when detail fails, got %v", err)
+	}
+	if runtime.removeCalls.Load() != 0 {
+		t.Fatalf("expected runtime action to stay blocked, got %d remove calls", runtime.removeCalls.Load())
 	}
 }
 
@@ -1503,6 +1603,66 @@ func (r selectiveRemoveRuntime) Remove(_ context.Context, ref Ref, _ RemoveOptio
 	return result, nil
 }
 func (r selectiveRemoveRuntime) Close() error { return nil }
+
+type managedActionRuntime struct {
+	detail       Detail
+	detailErr    error
+	removeResult ActionResult
+	removeCalls  atomic.Int64
+}
+
+func (r *managedActionRuntime) Info(context.Context) (RuntimeInfo, error) {
+	return fakeRuntime{}.Info(context.Background())
+}
+
+func (r *managedActionRuntime) List(context.Context, ListQuery) ([]Summary, error) {
+	return fakeRuntime{}.List(context.Background(), ListQuery{})
+}
+
+func (r *managedActionRuntime) Detail(context.Context, Ref) (Detail, error) {
+	if r.detailErr != nil {
+		return Detail{}, r.detailErr
+	}
+	return r.detail, nil
+}
+
+func (r *managedActionRuntime) Mounts(context.Context, Ref) ([]Mount, error) {
+	return fakeRuntime{}.Mounts(context.Background(), Ref{Value: "web"})
+}
+
+func (r *managedActionRuntime) MountUsage(context.Context, Ref, string) (MountUsage, error) {
+	return fakeRuntime{}.MountUsage(context.Background(), Ref{Value: "web"}, "")
+}
+
+func (r *managedActionRuntime) Logs(context.Context, Ref, LogQuery) (Logs, error) {
+	return Logs{}, nil
+}
+
+func (r *managedActionRuntime) Shell(context.Context, Ref, string) (terminal.Session, error) {
+	return newStubTerminalSession(), nil
+}
+
+func (r *managedActionRuntime) Start(context.Context, Ref) (ActionResult, error) {
+	return ActionResult{}, nil
+}
+
+func (r *managedActionRuntime) Stop(context.Context, Ref) (ActionResult, error) {
+	return ActionResult{}, nil
+}
+
+func (r *managedActionRuntime) Restart(context.Context, Ref) (ActionResult, error) {
+	return ActionResult{}, nil
+}
+
+func (r *managedActionRuntime) Remove(context.Context, Ref, RemoveOptions) (ActionResult, error) {
+	r.removeCalls.Add(1)
+	if r.removeResult.Action == "" {
+		return fakeAction(containerActionRemove), nil
+	}
+	return r.removeResult, nil
+}
+
+func (r *managedActionRuntime) Close() error { return nil }
 
 type fakeRuntime struct{}
 

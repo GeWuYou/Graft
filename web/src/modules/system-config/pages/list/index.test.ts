@@ -706,39 +706,43 @@ describe('system config list page', () => {
 
   it('falls back to backend copy without triggering missing-key warnings when a localized key is absent', async () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    apiMocks.getSystemConfigs.mockResolvedValue({
-      items: [
-        notificationConfigItem({
-          key: 'ops.container.actions.compose_level',
-          titleKey: 'systemConfig.container.ops.container.actions.compose_level.title.missing',
-          title: 'Compose Action Policy',
-          descriptionKey: 'systemConfig.container.ops.container.actions.compose_level.description.missing',
-          description: 'Controls dangerous action behavior for compose-managed containers.',
-          type: 'string',
-          configSchema: {},
-          defaultValue: '"warn"',
-          effectiveValue: '"warn"',
-          order: 5200,
-        }),
-      ],
-      total: 1,
-    });
+    const missingTitleKey = 'systemConfig.container.ops.container.actions.compose_level.title.missing';
+    const missingDescriptionKey = 'systemConfig.container.ops.container.actions.compose_level.description.missing';
 
-    const wrapper = mountPage();
-    await flushPromises();
+    try {
+      apiMocks.getSystemConfigs.mockResolvedValue({
+        items: [
+          notificationConfigItem({
+            key: 'ops.container.actions.compose_level',
+            titleKey: missingTitleKey,
+            title: 'Compose Action Policy',
+            descriptionKey: missingDescriptionKey,
+            description: 'Controls dangerous action behavior for compose-managed containers.',
+            type: 'string',
+            configSchema: {},
+            defaultValue: '"warn"',
+            effectiveValue: '"warn"',
+            order: 5200,
+          }),
+        ],
+        total: 1,
+      });
 
-    expect(wrapper.text()).toContain('Compose Action Policy');
-    expect(wrapper.text()).toContain('Controls dangerous action behavior for compose-managed containers.');
-    expect(
-      warnSpy.mock.calls.some((args) =>
-        args.some(
-          (arg) =>
-            typeof arg === 'string' &&
-            arg.includes('systemConfig.container.ops.container.actions.compose_level.title.missing'),
+      const wrapper = mountPage();
+      await flushPromises();
+
+      expect(wrapper.text()).toContain('Compose Action Policy');
+      expect(wrapper.text()).toContain('Controls dangerous action behavior for compose-managed containers.');
+      expect(
+        warnSpy.mock.calls.some((args) =>
+          args.some(
+            (arg) => typeof arg === 'string' && (arg.includes(missingTitleKey) || arg.includes(missingDescriptionKey)),
+          ),
         ),
-      ),
-    ).toBe(false);
-    warnSpy.mockRestore();
+      ).toBe(false);
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 
   it('declares the full left and right scroll container height chain', () => {

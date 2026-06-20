@@ -942,7 +942,7 @@ function buildListQuery(): ContainerListQueryWithOrchestrator {
 }
 
 function buildSourceScopeQuery(): ContainerListSourceScopeQuery {
-  const sourceScopeFilter = activeSourceScopeFilter();
+  const sourceScopeFilter = pendingSourceScopeFilter.value;
   if (!sourceScopeFilter) {
     return {};
   }
@@ -951,17 +951,6 @@ function buildSourceScopeQuery(): ContainerListSourceScopeQuery {
     source_scope_kind: sourceScopeFilter.kind,
     source_scope: sourceScopeFilter.value,
   };
-}
-
-function activeSourceScopeFilter(): SourceQuickFilterValue | null {
-  if (filters.sourceScopeKind !== 'all' && filters.sourceScope.trim()) {
-    return {
-      kind: filters.sourceScopeKind,
-      value: filters.sourceScope.trim(),
-    };
-  }
-
-  return pendingSourceScopeFilter.value;
 }
 
 function syncPendingSourceScopeFilter() {

@@ -3742,6 +3742,7 @@ function portLabel(port: ContainerDetail['ports'][number]) {
 
 .container-detail-tab-body--terminal {
   --container-detail-tab-body-min-height: clamp(320px, calc(100vh - var(--graft-page-bottom-safe-area) - 420px), 520px);
+  --container-shell-terminal-height: var(--container-detail-tab-body-min-height);
 }
 
 .container-detail-section {

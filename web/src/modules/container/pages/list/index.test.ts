@@ -754,6 +754,56 @@ describe('container list page', () => {
     });
   });
 
+  it('keeps the submitted source scope query stable until filters are applied again', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="container-filter-orchestrator"]').setValue('compose');
+    await wrapper.get('[data-testid="container-filter-source-scope"]').setValue('graft');
+    await wrapper.get('[data-testid="container-filter-apply"]').trigger('click');
+    await flushPromises();
+
+    expect(apiMocks.getContainers).toHaveBeenLastCalledWith({
+      health: undefined,
+      keyword: undefined,
+      limit: 20,
+      offset: 0,
+      orchestrator: 'compose',
+      source_scope: 'graft',
+      source_scope_kind: 'compose_project',
+      state: undefined,
+    });
+
+    await wrapper.get('[data-testid="container-filter-source-scope"]').setValue('draft-change');
+    await wrapper.get('[data-testid="table-refresh"]').trigger('click');
+    await flushPromises();
+
+    expect(apiMocks.getContainers).toHaveBeenLastCalledWith({
+      health: undefined,
+      keyword: undefined,
+      limit: 20,
+      offset: 0,
+      orchestrator: 'compose',
+      source_scope: 'graft',
+      source_scope_kind: 'compose_project',
+      state: undefined,
+    });
+
+    await wrapper.get('[data-testid="container-filter-apply"]').trigger('click');
+    await flushPromises();
+
+    expect(apiMocks.getContainers).toHaveBeenLastCalledWith({
+      health: undefined,
+      keyword: undefined,
+      limit: 20,
+      offset: 0,
+      orchestrator: 'compose',
+      source_scope: 'draft-change',
+      source_scope_kind: 'compose_project',
+      state: undefined,
+    });
+  });
+
   it('clears incompatible toolbar source scope kinds when orchestrator changes', async () => {
     const wrapper = mountPage();
     await flushPromises();

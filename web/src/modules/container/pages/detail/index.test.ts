@@ -1232,11 +1232,10 @@ describe('container detail page', () => {
     expect(sourceText).toContain(
       '--container-detail-tab-body-min-height: clamp(420px, calc(100vh - var(--graft-page-bottom-safe-area) - 330px), 720px);',
     );
-    expect(shellPanelSourceText).toContain(
-      '--container-shell-terminal-height: clamp(640px, calc(100vh - var(--graft-page-bottom-safe-area) - 320px), 860px);',
-    );
+    expect(sourceText).toContain('--container-shell-terminal-height: var(--container-detail-tab-body-min-height);');
     expect(shellPanelSourceText).toContain('.container-shell-panel__terminal {');
     expect(shellPanelSourceText).toContain('height: var(--container-shell-terminal-height);');
+    expect(shellPanelSourceText).not.toContain('--container-shell-terminal-height: clamp(');
   });
 
   it('pauses auto refresh while hidden and refreshes once when visible again', async () => {

@@ -357,6 +357,16 @@ func (s *service) BatchAction(ctx context.Context, command BatchActionCommand) (
 			s.publishActionAudit(ctx, item.Result, ActionOptions{Force: normalized.Force}, parseErr)
 			continue
 		}
+		if blockedItem, blocked := s.batchActionPolicyFailure(
+			ctx,
+			ref,
+			normalized.Action,
+			ActionOptions{Force: normalized.Force},
+		); blocked {
+			result.Items = append(result.Items, blockedItem)
+			result.FailedCount++
+			continue
+		}
 		actionResult, actionErr := s.runAction(ctx, ref, normalized.Action, ActionOptions{Force: normalized.Force})
 		item := batchActionItem(ref.Value, normalized.Action, actionResult, actionErr)
 		result.Items = append(result.Items, item)
@@ -388,12 +398,13 @@ func (s *service) runAction(
 		s.publishActionAudit(ctx, result, options, errDangerousActionsDisabled)
 		return ActionResult{}, errDangerousActionsDisabled
 	}
+	policy := s.effectiveActionPolicy(ctx)
 	detail, detailErr := runtime.Detail(ctx, ref)
-	orchestratorType := ""
+	orchestratorType := containerOrchestratorUnknown
 	if detailErr == nil {
 		orchestratorType = effectiveOrchestratorType(detail.Summary)
 	}
-	if s.effectiveActionPolicy(ctx).singleBlockedFor(orchestratorType) {
+	if policy.singleBlockedFor(orchestratorType) {
 		result := ActionResult{
 			ID:      firstNonEmpty(ref.Value, detail.ID),
 			Name:    detail.Name,
@@ -418,6 +429,39 @@ func (s *service) runAction(
 		return ActionResult{}, err
 	}
 	return result, nil
+}
+
+func (s *service) batchActionPolicyFailure(
+	ctx context.Context,
+	ref Ref,
+	action string,
+	options ActionOptions,
+) (BatchActionItem, bool) {
+	if !isSupportedAction(action) {
+		return BatchActionItem{}, false
+	}
+	runtime, err := s.runtimeForRequest()
+	if err != nil {
+		return batchActionFailure(ref.Value, action, err), true
+	}
+	policy := s.effectiveActionPolicy(ctx)
+	detail, detailErr := runtime.Detail(ctx, ref)
+	orchestratorType := containerOrchestratorUnknown
+	if detailErr == nil {
+		orchestratorType = effectiveOrchestratorType(detail.Summary)
+	}
+	if policy.singleBlockedFor(orchestratorType) || policy.batchBlockedFor(orchestratorType) {
+		result := ActionResult{
+			ID:      firstNonEmpty(ref.Value, detail.ID),
+			Name:    detail.Name,
+			Image:   detail.Image,
+			Action:  action,
+			Runtime: runtimeNameDocker,
+		}
+		s.publishActionAudit(ctx, result, options, errDangerousActionsDisabled)
+		return batchActionItem(ref.Value, action, result, errDangerousActionsDisabled), true
+	}
+	return BatchActionItem{}, false
 }
 
 func (s *service) requireRuntimeAccess(ctx context.Context) error {
@@ -1308,6 +1352,13 @@ func (p effectiveActionPolicy) singleBlockedFor(orchestratorType string) bool {
 		return true
 	}
 	return p.orchestrators.levelFor(orchestratorType) == containercontract.ContainerOrchestratorActionLevelReadonly
+}
+
+func (p effectiveActionPolicy) batchBlockedFor(orchestratorType string) bool {
+	if !p.dangerousAllowed {
+		return true
+	}
+	return p.orchestrators.levelFor(orchestratorType) != containercontract.ContainerOrchestratorActionLevelAllow
 }
 
 func (s *service) effectiveActionPolicy(ctx context.Context) effectiveActionPolicy {

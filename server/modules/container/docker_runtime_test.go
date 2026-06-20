@@ -370,6 +370,7 @@ func TestDockerOrchestratorFromLabels(t *testing.T) {
 		wantProject string
 		wantService string
 		wantStack   string
+		wantTask    string
 		wantPod     string
 		wantNS      string
 		wantConf    string
@@ -407,6 +408,18 @@ func TestDockerOrchestratorFromLabels(t *testing.T) {
 			wantConf:    orchestratorConfidenceHigh,
 		},
 		{
+			name: "swarm",
+			labels: map[string]string{
+				"com.docker.stack.namespace": "edge",
+				"com.docker.swarm.task.name": "edge.1.abcd",
+			},
+			wantType:    containerOrchestratorSwarm,
+			wantManaged: true,
+			wantStack:   "edge",
+			wantTask:    "edge.1.abcd",
+			wantConf:    orchestratorConfidenceHigh,
+		},
+		{
 			name: "conflicting labels become unknown",
 			labels: map[string]string{
 				composeProjectLabel:          "graft",
@@ -440,6 +453,7 @@ func assertDockerOrchestratorBase(t *testing.T, info OrchestratorInfo, tc struct
 	wantProject string
 	wantService string
 	wantStack   string
+	wantTask    string
 	wantPod     string
 	wantNS      string
 	wantConf    string
@@ -458,6 +472,7 @@ func assertDockerOrchestratorMetadata(t *testing.T, info OrchestratorInfo, tc st
 	wantProject string
 	wantService string
 	wantStack   string
+	wantTask    string
 	wantPod     string
 	wantNS      string
 	wantConf    string
@@ -465,6 +480,9 @@ func assertDockerOrchestratorMetadata(t *testing.T, info OrchestratorInfo, tc st
 	t.Helper()
 	if info.Project != tc.wantProject || info.Service != tc.wantService || info.Stack != tc.wantStack {
 		t.Fatalf("unexpected project/service/stack %#v", info)
+	}
+	if info.Task != tc.wantTask {
+		t.Fatalf("unexpected swarm task metadata %#v", info)
 	}
 	if info.Pod != tc.wantPod || info.Namespace != tc.wantNS {
 		t.Fatalf("unexpected kubernetes metadata %#v", info)
@@ -479,6 +497,7 @@ func assertDockerOrchestratorScopes(t *testing.T, info OrchestratorInfo, tc stru
 	wantProject string
 	wantService string
 	wantStack   string
+	wantTask    string
 	wantPod     string
 	wantNS      string
 	wantConf    string
@@ -486,6 +505,9 @@ func assertDockerOrchestratorScopes(t *testing.T, info OrchestratorInfo, tc stru
 	t.Helper()
 	if tc.wantType == containerOrchestratorCompose {
 		assertComposeScopeSemantics(t, info, tc.wantProject, tc.wantService)
+	}
+	if tc.wantType == containerOrchestratorSwarm {
+		assertSwarmScopeSemantics(t, info, tc.wantStack, tc.wantTask)
 	}
 	if tc.wantType == containerOrchestratorKubernetes {
 		assertKubernetesScopeSemantics(t, info, tc.wantNS, tc.wantPod)
@@ -509,6 +531,16 @@ func assertKubernetesScopeSemantics(t *testing.T, info OrchestratorInfo, namespa
 	}
 	if info.MemberScopeKind != kubernetesPodScopeKind || info.MemberValue != pod {
 		t.Fatalf("unexpected kubernetes member scope %#v", info)
+	}
+}
+
+func assertSwarmScopeSemantics(t *testing.T, info OrchestratorInfo, stack string, task string) {
+	t.Helper()
+	if info.GroupScopeKind != swarmStackScopeKind || info.GroupValue != stack {
+		t.Fatalf("unexpected swarm group scope %#v", info)
+	}
+	if info.MemberScopeKind != swarmTaskScopeKind || info.MemberValue != task {
+		t.Fatalf("unexpected swarm member scope %#v", info)
 	}
 }
 
