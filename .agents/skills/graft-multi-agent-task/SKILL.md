@@ -68,6 +68,8 @@ Typical triggers:
     from the outer main agent:
 
 - treat checkpoint interrupts as health checks only
+- do not treat `no visible diff yet`, `no final closeout yet`, one quiet wait timeout, or a checkpoint reply itself as
+  permission to stop, hand off, or let the outer main agent take over the delegated implementation
 - do not change the round goal, broaden scope, or append extra implementation work because of a checkpoint
 - label checkpoint replies clearly as checkpoint status rather than final closeout
 - reply with a structured status containing `current_phase`, `changed_files`, `last_validation`, `next_action`,

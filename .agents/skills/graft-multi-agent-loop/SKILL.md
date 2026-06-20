@@ -127,12 +127,15 @@ Typical triggers:
      read-only dependency mapping, validation setup, or edit preparation may still be active
    - before any checkpoint request, first distinguish:
      - `no visible diff yet`
+     - `no final closeout yet`
      - `no new visible output evidence`
      - `closeout not started`
    - when the current tool surface does not expose a direct activity query, do not rewrite "cannot observe tool
      activity" into "no tool activity"
    - if the worker still shows recent visible output or other signs that an edit wave is about to start, keep waiting
      instead of interrupting
+   - one wait timeout, one soft-timeout hit, or the combination of `no visible diff yet` plus `no final closeout yet`
+     is not enough to close, replace, or locally take over the worker
    - stalled judgment requires all of the following:
      - the round has exceeded soft timeout
      - there has been prolonged lack of new visible output evidence
@@ -141,6 +144,8 @@ Typical triggers:
 9. Use bounded checkpoint requests instead of ad-hoc remote control:
    - every round starts with `checkpoint_budget=1` unless the round budget explicitly raises it to `2` or `3`
    - checkpoint requests use `interrupt=true`
+   - checkpoint is a health check only; it is not a closeout, not a stop signal, and not permission for the outer main
+     agent to finish the worker's implementation locally
    - in `topic-completion-loop`, checkpoint is exceptional only for:
      - `blocked`
      - architecture decision required
@@ -169,6 +174,11 @@ Typical triggers:
    - a checkpoint response must begin with `Checkpoint status:`, must not include `Next-session startup prompt:`, and
      must not append the final closeout JSON block
 10. After a usable checkpoint, set the next wait window from ETA while respecting any user-defined hard limit:
+   - when no stronger explicit task-specific wait rule is present, use this minimum ladder:
+     - first active wait window: `15` minutes
+     - first timeout plus healthy checkpoint with `can_continue=true`: second wait window of at least `30` minutes
+     - later healthy checkpoints: wait by credible ETA when available, otherwise keep doubling the prior window within
+       applicable hard limits
    - classify the post-checkpoint state before any closure or retry decision:
      - `silent_timeout`: no usable final closeout arrived after the required post-checkpoint wait, there is no recent
        meaningful progress evidence, and the worker no longer shows a credible continuation signal
