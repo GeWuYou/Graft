@@ -51,13 +51,28 @@ export type ContainerListQuery = NonNullable<GetContainersOperation['parameters'
 export type ContainerListQueryWithOrchestrator = ContainerListQuery & {
   orchestrator?: ContainerOrchestratorType;
 };
+export type ContainerListSourceScopeKind = NonNullable<ContainerListQuery['source_scope_kind']>;
+export type ContainerListSourceScopeQuery = Pick<
+  ContainerListQuery,
+  Extract<'source_scope_kind' | 'source_scope', keyof ContainerListQuery>
+>;
 export type ContainerLogQuery = NonNullable<GetContainerLogsOperation['parameters']['query']>;
 export type ContainerMountUsagePathParams = GetContainerMountUsageOperation['parameters']['path'];
 export type ContainerMountUsageRefreshPathParams = PostContainerMountUsageRefreshOperation['parameters']['path'];
 
+export type ContainerSourceGroupKind = Extract<
+  ContainerListSourceScopeKind,
+  'compose_project' | 'swarm_stack' | 'kubernetes_namespace'
+>;
+export type ContainerSourceMemberKind = Extract<
+  ContainerListSourceScopeKind,
+  'compose_service' | 'swarm_task' | 'kubernetes_pod'
+>;
 export type ContainerFilters = {
   keyword: string;
   orchestrator: ContainerOrchestratorType | 'all';
+  sourceScopeKind: ContainerListSourceScopeKind | 'all';
+  sourceScope: string;
   status: ContainerState | 'all';
   health: ContainerHealth | 'all';
 };

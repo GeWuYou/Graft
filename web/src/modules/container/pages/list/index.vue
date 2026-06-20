@@ -39,12 +39,13 @@
       </template>
     </management-page-header>
 
-    <management-toolbar>
+    <management-toolbar class="container-toolbar">
       <template #filters>
         <t-input
           v-model="filters.keyword"
           class="management-list-search"
           clearable
+          data-testid="container-filter-keyword"
           :placeholder="t('container.list.filters.searchPlaceholder')"
           @enter="applyFilters"
         >
@@ -53,6 +54,7 @@
         <t-select
           v-model="filters.status"
           class="management-toolbar__select"
+          data-testid="container-filter-status"
           :placeholder="t('container.list.filters.status')"
         >
           <t-option value="all" :label="t('container.list.filters.allStatuses')" />
@@ -61,6 +63,7 @@
         <t-select
           v-model="filters.orchestrator"
           class="management-toolbar__select"
+          data-testid="container-filter-orchestrator"
           :placeholder="t('container.list.filters.orchestrator')"
         >
           <t-option value="all" :label="t('container.list.filters.allOrchestrators')" />
@@ -72,17 +75,42 @@
           />
         </t-select>
         <t-select
+          v-model="filters.sourceScopeKind"
+          class="management-toolbar__select"
+          data-testid="container-filter-source-scope-kind"
+          :disabled="!availableSourceScopeKinds.length"
+          :placeholder="t('container.list.filters.sourceScopeKind')"
+        >
+          <t-option value="all" :label="t('container.list.filters.allSourceScopeKinds')" />
+          <t-option
+            v-for="scopeKind in availableSourceScopeKinds"
+            :key="scopeKind"
+            :value="scopeKind"
+            :label="t(`container.list.sourceKinds.${scopeKind}`)"
+          />
+        </t-select>
+        <t-input
+          v-model="filters.sourceScope"
+          class="management-toolbar__select management-toolbar__scope-input"
+          clearable
+          data-testid="container-filter-source-scope"
+          :disabled="filters.sourceScopeKind === 'all'"
+          :placeholder="sourceScopePlaceholder"
+          @enter="applyFilters"
+        />
+        <t-select
           v-model="filters.health"
           class="management-toolbar__select"
+          data-testid="container-filter-health"
           :placeholder="t('container.list.filters.health')"
         >
           <t-option value="all" :label="t('container.list.filters.allHealth')" />
           <t-option v-for="health in healthOptions" :key="health" :value="health" :label="healthLabel(health)" />
         </t-select>
-        <t-button theme="primary" @click="applyFilters">
+        <t-button data-testid="container-filter-apply" theme="primary" @click="applyFilters">
           {{ t('container.list.filters.query') }}
         </t-button>
-        <t-button theme="default" variant="text" @click="resetFilters">
+        <t-button data-testid="container-filter-reset" theme="default" variant="text" @click="resetFilters">
           {{ t('container.list.filters.reset') }}
         </t-button>
       </template>
@@ -263,10 +291,38 @@
 
           <template #source="{ row }">
             <div class="container-source-cell">
-              <t-tag :theme="orchestratorTheme(row)" size="small" variant="light-outline">
-                {{ orchestratorLabel(readOrchestratorType(row)) }}
-              </t-tag>
-              <span class="container-muted">{{ orchestratorSummary(row) }}</span>
+              <div class="container-source-cell__header">
+                <t-tag :theme="orchestratorTheme(row)" size="small" variant="light-outline">
+                  {{ orchestratorLabel(readOrchestratorType(row)) }}
+                </t-tag>
+              </div>
+              <div v-if="sourceGroupFilter(row)" class="container-source-cell__line">
+                <span class="container-source-cell__label">{{ sourceGroupLabel(row) }}</span>
+                <t-button
+                  data-testid="container-source-group-filter"
+                  size="small"
+                  theme="primary"
+                  variant="text"
+                  @click="applySourceQuickFilter(row, 'group')"
+                >
+                  {{ sourceGroupFilter(row)?.value }}
+                </t-button>
+              </div>
+              <div v-if="sourceMemberFilter(row)" class="container-source-cell__line">
+                <span class="container-source-cell__label">{{ sourceMemberLabel(row) }}</span>
+                <t-button
+                  data-testid="container-source-member-filter"
+                  size="small"
+                  theme="default"
+                  variant="text"
+                  @click="applySourceQuickFilter(row, 'member')"
+                >
+                  {{ sourceMemberFilter(row)?.value }}
+                </t-button>
+              </div>
+              <span v-if="!sourceGroupFilter(row) && !sourceMemberFilter(row)" class="container-muted">
+                {{ orchestratorSummary(row) }}
+              </span>
             </div>
           </template>
 
@@ -461,10 +517,14 @@ import type {
   ContainerFilters,
   ContainerHealth,
   ContainerListQueryWithOrchestrator,
+  ContainerListSourceScopeKind,
+  ContainerListSourceScopeQuery,
   ContainerListSummary,
   ContainerOrchestratorType,
   ContainerPort,
   ContainerRuntimeInfo,
+  ContainerSourceGroupKind,
+  ContainerSourceMemberKind,
   ContainerState,
   ContainerSummaryRecord,
 } from '../../types/container';
@@ -554,6 +614,11 @@ type ResourceMetric = {
 };
 type DropdownActionValue = { value?: string | number | Record<string, unknown> } | string | number;
 type DropdownActionContext = { e?: MouseEvent };
+type SourceQuickFilterTarget = 'group' | 'member';
+type SourceQuickFilterValue = {
+  kind: ContainerSourceGroupKind | ContainerSourceMemberKind;
+  value: string;
+};
 
 const loading = ref(false);
 const listError = ref<ListErrorState>({ title: '', hint: '' });
@@ -568,9 +633,12 @@ const selectedRowKeys = ref<Array<string | number>>([]);
 const batchActionLoading = ref<DangerousContainerAction | ''>('');
 const activeDangerousDialog = ref<DialogInstance | null>(null);
 const dangerousDialogOpen = ref(false);
+const pendingSourceScopeFilter = ref<SourceQuickFilterValue | null>(null);
 const filters = reactive<ContainerFilters>({
   keyword: '',
   orchestrator: 'all',
+  sourceScopeKind: 'all',
+  sourceScope: '',
   status: 'all',
   health: 'all',
 });
@@ -633,14 +701,49 @@ const allColumns = computed<TdBaseTableProps['columns']>(() => [
 const visibleColumns = computed<TdBaseTableProps['columns']>(() =>
   buildVisibleColumns(allColumns.value, visibleColumnKeys.value, ALWAYS_VISIBLE_COLUMNS),
 );
+const orchestratorSourceScopeKinds = computed<
+  Record<ContainerOrchestratorType, Array<ContainerSourceGroupKind | ContainerSourceMemberKind>>
+>(() => ({
+  standalone: [],
+  compose: ['compose_project', 'compose_service'],
+  swarm: ['swarm_stack', 'swarm_task'],
+  kubernetes: ['kubernetes_namespace', 'kubernetes_pod'],
+  unknown: [],
+}));
 const { tableHostRef, tableHostWidth } = useTableHostWidth(() => visibleColumns.value);
 const tableWidthPolicy = computed(() => resolveTableWidthPolicy(visibleColumns.value, tableHostWidth.value));
+const availableSourceScopeKinds = computed<Array<ContainerSourceGroupKind | ContainerSourceMemberKind>>(() => {
+  if (filters.orchestrator === 'all') {
+    return [
+      'compose_project',
+      'compose_service',
+      'swarm_stack',
+      'swarm_task',
+      'kubernetes_namespace',
+      'kubernetes_pod',
+    ];
+  }
+
+  return orchestratorSourceScopeKinds.value[filters.orchestrator] ?? [];
+});
+const sourceScopePlaceholder = computed(() => {
+  if (filters.sourceScopeKind === 'all') {
+    return t('container.list.filters.sourceScopePlaceholderDisabled');
+  }
+
+  return t('container.list.filters.sourceScopePlaceholder', {
+    kind: t(`container.list.sourceKinds.${filters.sourceScopeKind}`),
+  });
+});
 const hasActiveFilters = computed(
   () =>
     Boolean(filters.keyword.trim()) ||
     filters.orchestrator !== 'all' ||
+    filters.sourceScopeKind !== 'all' ||
+    Boolean(filters.sourceScope.trim()) ||
     filters.status !== 'all' ||
-    filters.health !== 'all',
+    filters.health !== 'all' ||
+    Boolean(pendingSourceScopeFilter.value),
 );
 const totalCount = computed(() => listSummary.value?.total ?? listTotal.value);
 const runningCount = computed(() => listSummary.value?.running ?? 0);
@@ -729,6 +832,32 @@ watch(
   () => void refreshContainers(),
 );
 
+watch(
+  () => filters.orchestrator,
+  (nextOrchestrator) => {
+    if (nextOrchestrator === 'all') {
+      filters.sourceScopeKind = 'all';
+      filters.sourceScope = '';
+      return;
+    }
+    if (availableSourceScopeKinds.value.includes(filters.sourceScopeKind as ContainerListSourceScopeKind)) {
+      return;
+    }
+    filters.sourceScopeKind = defaultSourceScopeKind(nextOrchestrator);
+    filters.sourceScope = '';
+  },
+);
+
+watch(
+  () => filters.sourceScopeKind,
+  (nextKind) => {
+    if (nextKind !== 'all') {
+      return;
+    }
+    filters.sourceScope = '';
+  },
+);
+
 async function refreshContainers() {
   loading.value = true;
   listError.value = { title: '', hint: '' };
@@ -776,14 +905,19 @@ function isApiRequestErrorShape(error: unknown): error is { isApiRequestError: t
 
 function applyFilters() {
   filters.keyword = filters.keyword.trim();
+  filters.sourceScope = filters.sourceScope.trim();
+  syncPendingSourceScopeFilter();
   requestFirstPage();
 }
 
 function resetFilters() {
   filters.keyword = '';
   filters.orchestrator = 'all';
+  filters.sourceScopeKind = 'all';
+  filters.sourceScope = '';
   filters.status = 'all';
   filters.health = 'all';
+  pendingSourceScopeFilter.value = null;
   requestFirstPage();
 }
 
@@ -803,7 +937,54 @@ function buildListQuery(): ContainerListQueryWithOrchestrator {
     orchestrator: filters.orchestrator === 'all' ? undefined : filters.orchestrator,
     state: filters.status === 'all' ? undefined : filters.status,
     health: filters.health === 'all' ? undefined : filters.health,
+    ...buildSourceScopeQuery(),
   };
+}
+
+function buildSourceScopeQuery(): ContainerListSourceScopeQuery {
+  const sourceScopeFilter = activeSourceScopeFilter();
+  if (!sourceScopeFilter) {
+    return {};
+  }
+
+  return {
+    source_scope_kind: sourceScopeFilter.kind,
+    source_scope: sourceScopeFilter.value,
+  };
+}
+
+function activeSourceScopeFilter(): SourceQuickFilterValue | null {
+  if (filters.sourceScopeKind !== 'all' && filters.sourceScope.trim()) {
+    return {
+      kind: filters.sourceScopeKind,
+      value: filters.sourceScope.trim(),
+    };
+  }
+
+  return pendingSourceScopeFilter.value;
+}
+
+function syncPendingSourceScopeFilter() {
+  pendingSourceScopeFilter.value =
+    filters.sourceScopeKind !== 'all' && filters.sourceScope
+      ? {
+          kind: filters.sourceScopeKind,
+          value: filters.sourceScope,
+        }
+      : null;
+}
+
+function defaultSourceScopeKind(orchestrator: ContainerOrchestratorType | 'all'): ContainerListSourceScopeKind | 'all' {
+  if (orchestrator === 'compose') {
+    return 'compose_project';
+  }
+  if (orchestrator === 'swarm') {
+    return 'swarm_stack';
+  }
+  if (orchestrator === 'kubernetes') {
+    return 'kubernetes_namespace';
+  }
+  return 'all';
 }
 
 function openDetail(row: ContainerSummaryRecord) {
@@ -1516,20 +1697,126 @@ function orchestratorTheme(row: ContainerSummaryRecord) {
 }
 
 function orchestratorSummary(row: ContainerSummaryRecord) {
-  const orchestrator = row.orchestrator;
-  if (!orchestrator) {
-    return orchestratorLabel(readOrchestratorType(row));
+  const group = sourceGroupFilter(row);
+  if (group) {
+    return group.value;
   }
 
-  return (
-    orchestrator.service ||
-    orchestrator.project ||
-    orchestrator.stack ||
-    orchestrator.namespace ||
-    orchestrator.pod ||
-    orchestrator.display_name ||
-    t('container.list.sourceUnknownSummary')
+  const member = sourceMemberFilter(row);
+  if (member) {
+    return member.value;
+  }
+
+  return row.orchestrator?.display_name || t('container.list.sourceUnknownSummary');
+}
+
+function sourceGroupFilter(row: ContainerSummaryRecord): SourceQuickFilterValue | null {
+  return toQuickFilterValue(
+    row.orchestrator?.group_scope_kind || legacyGroupScopeKind(row),
+    row.orchestrator?.group_value || row.orchestrator?.group_display_name || legacyGroupScopeValue(row),
   );
+}
+
+function sourceMemberFilter(row: ContainerSummaryRecord): SourceQuickFilterValue | null {
+  return toQuickFilterValue(
+    row.orchestrator?.member_scope_kind || legacyMemberScopeKind(row),
+    row.orchestrator?.member_value || row.orchestrator?.member_display_name || legacyMemberScopeValue(row),
+  );
+}
+
+function toQuickFilterValue(
+  kind: ContainerSourceGroupKind | ContainerSourceMemberKind | null | undefined,
+  value?: string | null,
+): SourceQuickFilterValue | null {
+  const normalizedValue = value?.trim();
+  if (!kind || !normalizedValue) {
+    return null;
+  }
+
+  return {
+    kind,
+    value: normalizedValue,
+  };
+}
+
+function sourceGroupLabel(row: ContainerSummaryRecord) {
+  const group = sourceGroupFilter(row);
+  return group ? t(`container.list.sourceKinds.${group.kind}`) : '';
+}
+
+function sourceMemberLabel(row: ContainerSummaryRecord) {
+  const member = sourceMemberFilter(row);
+  return member ? t(`container.list.sourceKinds.${member.kind}`) : '';
+}
+
+function applySourceQuickFilter(row: ContainerSummaryRecord, target: SourceQuickFilterTarget) {
+  const sourceFilter = target === 'group' ? sourceGroupFilter(row) : sourceMemberFilter(row);
+  if (!sourceFilter) {
+    return;
+  }
+
+  filters.orchestrator = readOrchestratorType(row);
+  filters.keyword = '';
+  filters.sourceScopeKind = sourceFilter.kind;
+  filters.sourceScope = sourceFilter.value;
+  pendingSourceScopeFilter.value = sourceFilter;
+  requestFirstPage();
+}
+
+function legacyGroupScopeKind(row: ContainerSummaryRecord): ContainerSourceGroupKind | null {
+  const orchestratorType = readOrchestratorType(row);
+  if (orchestratorType === 'compose' && (row.orchestrator?.project || row.compose_project)) {
+    return 'compose_project';
+  }
+  if (orchestratorType === 'swarm' && row.orchestrator?.stack) {
+    return 'swarm_stack';
+  }
+  if (orchestratorType === 'kubernetes' && row.orchestrator?.namespace) {
+    return 'kubernetes_namespace';
+  }
+  return null;
+}
+
+function legacyGroupScopeValue(row: ContainerSummaryRecord): string | null | undefined {
+  const orchestratorType = readOrchestratorType(row);
+  if (orchestratorType === 'compose') {
+    return row.orchestrator?.project || row.compose_project;
+  }
+  if (orchestratorType === 'swarm') {
+    return row.orchestrator?.stack;
+  }
+  if (orchestratorType === 'kubernetes') {
+    return row.orchestrator?.namespace;
+  }
+  return null;
+}
+
+function legacyMemberScopeKind(row: ContainerSummaryRecord): ContainerSourceMemberKind | null {
+  const orchestratorType = readOrchestratorType(row);
+  if (orchestratorType === 'compose' && (row.orchestrator?.service || row.compose_service)) {
+    return 'compose_service';
+  }
+  if (orchestratorType === 'swarm' && row.orchestrator?.task) {
+    return 'swarm_task';
+  }
+  if (orchestratorType === 'kubernetes' && row.orchestrator?.pod) {
+    return 'kubernetes_pod';
+  }
+  return null;
+}
+
+function legacyMemberScopeValue(row: ContainerSummaryRecord): string | null | undefined {
+  const orchestratorType = readOrchestratorType(row);
+  if (orchestratorType === 'compose') {
+    return row.orchestrator?.service || row.compose_service;
+  }
+  if (orchestratorType === 'swarm') {
+    return row.orchestrator?.task;
+  }
+  if (orchestratorType === 'kubernetes') {
+    return row.orchestrator?.pod;
+  }
+  return null;
 }
 
 function rowActionRiskText(row: ContainerSummaryRecord) {
@@ -1739,8 +2026,41 @@ function normalizeVisibleColumnKeys(keys: unknown[]) {
   align-self: flex-start;
 }
 
-.container-source-cell .t-tag {
+.container-source-cell {
+  align-items: flex-start;
+}
+
+.container-source-cell__header {
+  align-items: center;
+  display: flex;
+}
+
+.container-source-cell__line {
+  align-items: center;
+  display: inline-flex;
+  gap: var(--graft-density-gap-4);
+  min-width: 0;
+}
+
+.container-source-cell__label {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+}
+
+.container-source-cell .t-tag,
+.container-source-cell :deep(.t-button) {
   align-self: flex-start;
+}
+
+.container-source-cell :deep(.t-button) {
+  min-width: auto;
+  padding: 0;
+}
+
+.management-toolbar__scope-input {
+  flex: 0 1 var(--graft-list-select-width);
+  min-width: 180px;
+  width: var(--graft-list-select-width);
 }
 
 .container-resource-meter {

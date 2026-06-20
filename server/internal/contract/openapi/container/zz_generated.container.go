@@ -97,6 +97,36 @@ func (e GetContainersParamsOrchestrator) Valid() bool {
 	}
 }
 
+// Defines values for GetContainersParamsSourceScopeKind.
+const (
+	ContainerListSourceScopeKindComposeProject      GetContainersParamsSourceScopeKind = "compose_project"
+	ContainerListSourceScopeKindComposeService      GetContainersParamsSourceScopeKind = "compose_service"
+	ContainerListSourceScopeKindKubernetesNamespace GetContainersParamsSourceScopeKind = "kubernetes_namespace"
+	ContainerListSourceScopeKindKubernetesPod       GetContainersParamsSourceScopeKind = "kubernetes_pod"
+	ContainerListSourceScopeKindSwarmStack          GetContainersParamsSourceScopeKind = "swarm_stack"
+	ContainerListSourceScopeKindSwarmTask           GetContainersParamsSourceScopeKind = "swarm_task"
+)
+
+// Valid indicates whether the value is a known member of the GetContainersParamsSourceScopeKind enum.
+func (e GetContainersParamsSourceScopeKind) Valid() bool {
+	switch e {
+	case ContainerListSourceScopeKindComposeProject:
+		return true
+	case ContainerListSourceScopeKindComposeService:
+		return true
+	case ContainerListSourceScopeKindKubernetesNamespace:
+		return true
+	case ContainerListSourceScopeKindKubernetesPod:
+		return true
+	case ContainerListSourceScopeKindSwarmStack:
+		return true
+	case ContainerListSourceScopeKindSwarmTask:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetContainers200JSONResponseBodyDataItemsHealth.
 const (
 	GetContainers200JSONResponseBodyDataItemsHealthContainerSummaryHealthHealthy     GetContainers200JSONResponseBodyDataItemsHealth = "healthy"
@@ -160,6 +190,48 @@ func (e GetContainers200JSONResponseBodyDataItemsOrchestratorConfidence) Valid()
 	case GetContainers200JSONResponseBodyDataItemsOrchestratorConfidenceContainerOrchestratorInfoConfidenceLow:
 		return true
 	case GetContainers200JSONResponseBodyDataItemsOrchestratorConfidenceContainerOrchestratorInfoConfidenceMedium:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetContainers200JSONResponseBodyDataItemsOrchestratorGroupScopeKind.
+const (
+	GetContainers200JSONResponseBodyDataItemsOrchestratorGroupScopeKindContainerOrchestratorInfoGroupScopeKindComposeProject      GetContainers200JSONResponseBodyDataItemsOrchestratorGroupScopeKind = "compose_project"
+	GetContainers200JSONResponseBodyDataItemsOrchestratorGroupScopeKindContainerOrchestratorInfoGroupScopeKindKubernetesNamespace GetContainers200JSONResponseBodyDataItemsOrchestratorGroupScopeKind = "kubernetes_namespace"
+	GetContainers200JSONResponseBodyDataItemsOrchestratorGroupScopeKindContainerOrchestratorInfoGroupScopeKindSwarmStack          GetContainers200JSONResponseBodyDataItemsOrchestratorGroupScopeKind = "swarm_stack"
+)
+
+// Valid indicates whether the value is a known member of the GetContainers200JSONResponseBodyDataItemsOrchestratorGroupScopeKind enum.
+func (e GetContainers200JSONResponseBodyDataItemsOrchestratorGroupScopeKind) Valid() bool {
+	switch e {
+	case GetContainers200JSONResponseBodyDataItemsOrchestratorGroupScopeKindContainerOrchestratorInfoGroupScopeKindComposeProject:
+		return true
+	case GetContainers200JSONResponseBodyDataItemsOrchestratorGroupScopeKindContainerOrchestratorInfoGroupScopeKindKubernetesNamespace:
+		return true
+	case GetContainers200JSONResponseBodyDataItemsOrchestratorGroupScopeKindContainerOrchestratorInfoGroupScopeKindSwarmStack:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetContainers200JSONResponseBodyDataItemsOrchestratorMemberScopeKind.
+const (
+	GetContainers200JSONResponseBodyDataItemsOrchestratorMemberScopeKindContainerOrchestratorInfoMemberScopeKindComposeService GetContainers200JSONResponseBodyDataItemsOrchestratorMemberScopeKind = "compose_service"
+	GetContainers200JSONResponseBodyDataItemsOrchestratorMemberScopeKindContainerOrchestratorInfoMemberScopeKindKubernetesPod  GetContainers200JSONResponseBodyDataItemsOrchestratorMemberScopeKind = "kubernetes_pod"
+	GetContainers200JSONResponseBodyDataItemsOrchestratorMemberScopeKindContainerOrchestratorInfoMemberScopeKindSwarmTask      GetContainers200JSONResponseBodyDataItemsOrchestratorMemberScopeKind = "swarm_task"
+)
+
+// Valid indicates whether the value is a known member of the GetContainers200JSONResponseBodyDataItemsOrchestratorMemberScopeKind enum.
+func (e GetContainers200JSONResponseBodyDataItemsOrchestratorMemberScopeKind) Valid() bool {
+	switch e {
+	case GetContainers200JSONResponseBodyDataItemsOrchestratorMemberScopeKindContainerOrchestratorInfoMemberScopeKindComposeService:
+		return true
+	case GetContainers200JSONResponseBodyDataItemsOrchestratorMemberScopeKindContainerOrchestratorInfoMemberScopeKindKubernetesPod:
+		return true
+	case GetContainers200JSONResponseBodyDataItemsOrchestratorMemberScopeKindContainerOrchestratorInfoMemberScopeKindSwarmTask:
 		return true
 	default:
 		return false
@@ -601,6 +673,48 @@ func (e GetContainer200JSONResponseBodyDataOrchestratorConfidence) Valid() bool 
 	case GetContainer200JSONResponseBodyDataOrchestratorConfidenceContainerOrchestratorInfoConfidenceLow:
 		return true
 	case GetContainer200JSONResponseBodyDataOrchestratorConfidenceContainerOrchestratorInfoConfidenceMedium:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetContainer200JSONResponseBodyDataOrchestratorGroupScopeKind.
+const (
+	GetContainer200JSONResponseBodyDataOrchestratorGroupScopeKindContainerOrchestratorInfoGroupScopeKindComposeProject      GetContainer200JSONResponseBodyDataOrchestratorGroupScopeKind = "compose_project"
+	GetContainer200JSONResponseBodyDataOrchestratorGroupScopeKindContainerOrchestratorInfoGroupScopeKindKubernetesNamespace GetContainer200JSONResponseBodyDataOrchestratorGroupScopeKind = "kubernetes_namespace"
+	GetContainer200JSONResponseBodyDataOrchestratorGroupScopeKindContainerOrchestratorInfoGroupScopeKindSwarmStack          GetContainer200JSONResponseBodyDataOrchestratorGroupScopeKind = "swarm_stack"
+)
+
+// Valid indicates whether the value is a known member of the GetContainer200JSONResponseBodyDataOrchestratorGroupScopeKind enum.
+func (e GetContainer200JSONResponseBodyDataOrchestratorGroupScopeKind) Valid() bool {
+	switch e {
+	case GetContainer200JSONResponseBodyDataOrchestratorGroupScopeKindContainerOrchestratorInfoGroupScopeKindComposeProject:
+		return true
+	case GetContainer200JSONResponseBodyDataOrchestratorGroupScopeKindContainerOrchestratorInfoGroupScopeKindKubernetesNamespace:
+		return true
+	case GetContainer200JSONResponseBodyDataOrchestratorGroupScopeKindContainerOrchestratorInfoGroupScopeKindSwarmStack:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetContainer200JSONResponseBodyDataOrchestratorMemberScopeKind.
+const (
+	GetContainer200JSONResponseBodyDataOrchestratorMemberScopeKindContainerOrchestratorInfoMemberScopeKindComposeService GetContainer200JSONResponseBodyDataOrchestratorMemberScopeKind = "compose_service"
+	GetContainer200JSONResponseBodyDataOrchestratorMemberScopeKindContainerOrchestratorInfoMemberScopeKindKubernetesPod  GetContainer200JSONResponseBodyDataOrchestratorMemberScopeKind = "kubernetes_pod"
+	GetContainer200JSONResponseBodyDataOrchestratorMemberScopeKindContainerOrchestratorInfoMemberScopeKindSwarmTask      GetContainer200JSONResponseBodyDataOrchestratorMemberScopeKind = "swarm_task"
+)
+
+// Valid indicates whether the value is a known member of the GetContainer200JSONResponseBodyDataOrchestratorMemberScopeKind enum.
+func (e GetContainer200JSONResponseBodyDataOrchestratorMemberScopeKind) Valid() bool {
+	switch e {
+	case GetContainer200JSONResponseBodyDataOrchestratorMemberScopeKindContainerOrchestratorInfoMemberScopeKindComposeService:
+		return true
+	case GetContainer200JSONResponseBodyDataOrchestratorMemberScopeKindContainerOrchestratorInfoMemberScopeKindKubernetesPod:
+		return true
+	case GetContainer200JSONResponseBodyDataOrchestratorMemberScopeKindContainerOrchestratorInfoMemberScopeKindSwarmTask:
 		return true
 	default:
 		return false
@@ -1872,6 +1986,12 @@ type GetContainersParams struct {
 	// Orchestrator Optional orchestrator source filter resolved by the backend from runtime metadata.
 	Orchestrator *GetContainersParamsOrchestrator `form:"orchestrator,omitempty" json:"orchestrator,omitempty"`
 
+	// SourceScopeKind Exact orchestrator source scope kind filter. Must be paired with source_scope and remain compatible with the selected orchestrator type.
+	SourceScopeKind *GetContainersParamsSourceScopeKind `form:"source_scope_kind,omitempty" json:"source_scope_kind,omitempty"`
+
+	// SourceScope Exact orchestrator source scope value. Must be paired with source_scope_kind.
+	SourceScope *string `form:"source_scope,omitempty" json:"source_scope,omitempty"`
+
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
 
@@ -1889,6 +2009,9 @@ type GetContainersParamsHealth string
 // GetContainersParamsOrchestrator defines parameters for GetContainers.
 type GetContainersParamsOrchestrator string
 
+// GetContainersParamsSourceScopeKind defines parameters for GetContainers.
+type GetContainersParamsSourceScopeKind string
+
 // GetContainers200JSONResponseBodyDataItemsHealth defines parameters for GetContainers.
 type GetContainers200JSONResponseBodyDataItemsHealth string
 
@@ -1897,6 +2020,12 @@ type GetContainers200JSONResponseBodyDataItemsOrchestratorActionLevel string
 
 // GetContainers200JSONResponseBodyDataItemsOrchestratorConfidence defines parameters for GetContainers.
 type GetContainers200JSONResponseBodyDataItemsOrchestratorConfidence string
+
+// GetContainers200JSONResponseBodyDataItemsOrchestratorGroupScopeKind defines parameters for GetContainers.
+type GetContainers200JSONResponseBodyDataItemsOrchestratorGroupScopeKind string
+
+// GetContainers200JSONResponseBodyDataItemsOrchestratorMemberScopeKind defines parameters for GetContainers.
+type GetContainers200JSONResponseBodyDataItemsOrchestratorMemberScopeKind string
 
 // GetContainers200JSONResponseBodyDataItemsOrchestratorType defines parameters for GetContainers.
 type GetContainers200JSONResponseBodyDataItemsOrchestratorType string
@@ -1989,6 +2118,12 @@ type GetContainer200JSONResponseBodyDataOrchestratorActionLevel string
 
 // GetContainer200JSONResponseBodyDataOrchestratorConfidence defines parameters for GetContainer.
 type GetContainer200JSONResponseBodyDataOrchestratorConfidence string
+
+// GetContainer200JSONResponseBodyDataOrchestratorGroupScopeKind defines parameters for GetContainer.
+type GetContainer200JSONResponseBodyDataOrchestratorGroupScopeKind string
+
+// GetContainer200JSONResponseBodyDataOrchestratorMemberScopeKind defines parameters for GetContainer.
+type GetContainer200JSONResponseBodyDataOrchestratorMemberScopeKind string
 
 // GetContainer200JSONResponseBodyDataOrchestratorType defines parameters for GetContainer.
 type GetContainer200JSONResponseBodyDataOrchestratorType string

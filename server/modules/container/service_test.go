@@ -1281,66 +1281,117 @@ func (listRuntime) Info(context.Context) (RuntimeInfo, error) {
 func (listRuntime) List(context.Context, ListQuery) ([]Summary, error) {
 	return []Summary{
 		{
-			ID:         "111111111111abcdef",
-			ShortID:    "111111111111",
-			Name:       "graft-web",
-			Names:      []string{"graft-web"},
-			Image:      "graft/web:latest",
-			Runtime:    runtimeNameDocker,
-			CreatedAt:  "2026-06-14T00:00:00Z",
-			State:      "running",
-			Status:     "Up",
-			Health:     containerHealthHealthy,
-			Ports:      []Port{{PrivatePort: 80, PublicPort: intPtr(8080), Type: "tcp"}},
-			Labels:     map[string]string{composeProjectLabel: "graft", composeServiceLabel: "web"},
+			ID:        "111111111111abcdef",
+			ShortID:   "111111111111",
+			Name:      "graft-web",
+			Names:     []string{"graft-web"},
+			Image:     "graft/web:latest",
+			Runtime:   runtimeNameDocker,
+			CreatedAt: "2026-06-14T00:00:00Z",
+			State:     "running",
+			Status:    "Up",
+			Health:    containerHealthHealthy,
+			Ports:     []Port{{PrivatePort: 80, PublicPort: intPtr(8080), Type: "tcp"}},
+			Labels:    map[string]string{composeProjectLabel: "graft", composeServiceLabel: "web"},
 			Orchestrator: OrchestratorInfo{
-				Type:       containerOrchestratorCompose,
-				Managed:    true,
-				Project:    "graft",
-				Service:    "web",
-				Confidence: orchestratorConfidenceHigh,
+				Type:            containerOrchestratorCompose,
+				Managed:         true,
+				GroupScopeKind:  composeProjectScopeKind,
+				GroupValue:      "graft",
+				MemberScopeKind: composeServiceScopeKind,
+				MemberValue:     "web",
+				Project:         "graft",
+				Service:         "web",
+				Confidence:      orchestratorConfidenceHigh,
 			},
 			CanStop:    true,
 			CanRestart: true,
 		},
 		{
-			ID:         "222222222222abcdef",
-			ShortID:    "222222222222",
-			Name:       "graft-worker",
-			Names:      []string{"graft-worker"},
-			Image:      "graft/worker:latest",
-			Runtime:    runtimeNameDocker,
-			CreatedAt:  "2026-06-14T00:00:00Z",
-			State:      "exited",
-			Status:     "Exited",
-			Health:     containerHealthNone,
+			ID:        "222222222222abcdef",
+			ShortID:   "222222222222",
+			Name:      "graft-worker",
+			Names:     []string{"graft-worker"},
+			Image:     "graft/worker:latest",
+			Runtime:   runtimeNameDocker,
+			CreatedAt: "2026-06-14T00:00:00Z",
+			State:     "exited",
+			Status:    "Exited",
+			Health:    containerHealthNone,
 			Orchestrator: OrchestratorInfo{
-				Type:       containerOrchestratorStandalone,
-				Managed:    false,
-				Confidence: orchestratorConfidenceHigh,
+				Type:            containerOrchestratorStandalone,
+				Managed:         false,
+				Confidence:      orchestratorConfidenceHigh,
+				GroupScopeKind:  "",
+				MemberScopeKind: "",
 			},
 			CanStart:   true,
 			CanRestart: true,
 		},
 		{
-			ID:         "333333333333abcdef",
-			ShortID:    "333333333333",
-			Name:       "cache",
-			Names:      []string{"cache"},
-			Image:      "redis:latest",
-			Runtime:    runtimeNameDocker,
-			CreatedAt:  "2026-06-14T00:00:00Z",
-			State:      "running",
-			Status:     "Up",
+			ID:        "333333333333abcdef",
+			ShortID:   "333333333333",
+			Name:      "cache",
+			Names:     []string{"cache"},
+			Image:     "redis:latest",
+			Runtime:   runtimeNameDocker,
+			CreatedAt: "2026-06-14T00:00:00Z",
+			State:     "running",
+			Status:    "Up",
 			Orchestrator: OrchestratorInfo{
-				Type:       containerOrchestratorUnknown,
-				Managed:    true,
-				Confidence: orchestratorConfidenceLow,
+				Type:            containerOrchestratorUnknown,
+				Managed:         true,
+				Confidence:      orchestratorConfidenceLow,
+				GroupScopeKind:  "",
+				MemberScopeKind: "",
 			},
 			CanStop:    true,
 			CanRestart: true,
 		},
 	}, nil
+}
+
+func TestServiceListFiltersExactSourceScope(t *testing.T) {
+	t.Parallel()
+
+	service := newListTestService(t, true)
+
+	result, err := service.List(context.Background(), ListQuery{
+		Orchestrator:    containerOrchestratorCompose,
+		SourceScopeKind: composeProjectScopeKind,
+		SourceScope:     "graft",
+	})
+	if err != nil {
+		t.Fatalf("list by compose project: %v", err)
+	}
+	if result.Total != 1 || len(result.Items) != 1 || result.Items[0].Name != "graft-web" {
+		t.Fatalf("unexpected compose project filtered result %#v", result)
+	}
+
+	result, err = service.List(context.Background(), ListQuery{
+		SourceScopeKind: composeServiceScopeKind,
+		SourceScope:     "web",
+	})
+	if err != nil {
+		t.Fatalf("list by compose service: %v", err)
+	}
+	if result.Total != 1 || result.Items[0].Name != "graft-web" {
+		t.Fatalf("unexpected compose service filtered result %#v", result)
+	}
+}
+
+func TestServiceListRejectsIncompatibleSourceScopeKind(t *testing.T) {
+	t.Parallel()
+
+	service := newListTestService(t, true)
+	_, err := service.List(context.Background(), ListQuery{
+		Orchestrator:    containerOrchestratorCompose,
+		SourceScopeKind: kubernetesNamespaceScopeKind,
+		SourceScope:     "default",
+	})
+	if !errors.Is(err, errInvalidListQuery) {
+		t.Fatalf("expected invalid list query, got %v", err)
+	}
 }
 
 func (listRuntime) Detail(context.Context, Ref) (Detail, error)  { return Detail{}, nil }

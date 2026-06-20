@@ -8595,6 +8595,12 @@
           },
           {
             "$ref": "#/components/parameters/container-list-orchestrator"
+          },
+          {
+            "$ref": "#/components/parameters/container-list-source-scope-kind"
+          },
+          {
+            "$ref": "#/components/parameters/container-list-source-scope"
           }
         ],
         "security": [
@@ -15947,6 +15953,56 @@
             "nullable": true,
             "description": "Optional fallback source label. Visible UI should still localize by type first."
           },
+          "group_scope_kind": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "compose_project",
+              "swarm_stack",
+              "kubernetes_namespace"
+            ],
+            "x-enum-varnames": [
+              "ContainerOrchestratorInfoGroupScopeKindComposeProject",
+              "ContainerOrchestratorInfoGroupScopeKindSwarmStack",
+              "ContainerOrchestratorInfoGroupScopeKindKubernetesNamespace"
+            ],
+            "description": "Stable normalized group scope kind for list/detail consumers."
+          },
+          "group_value": {
+            "type": "string",
+            "nullable": true,
+            "description": "Canonical group scope value for exact filtering and grouping."
+          },
+          "group_display_name": {
+            "type": "string",
+            "nullable": true,
+            "description": "Human-readable group scope label derived from runtime metadata."
+          },
+          "member_scope_kind": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "compose_service",
+              "swarm_task",
+              "kubernetes_pod"
+            ],
+            "x-enum-varnames": [
+              "ContainerOrchestratorInfoMemberScopeKindComposeService",
+              "ContainerOrchestratorInfoMemberScopeKindSwarmTask",
+              "ContainerOrchestratorInfoMemberScopeKindKubernetesPod"
+            ],
+            "description": "Stable normalized member scope kind for list/detail consumers."
+          },
+          "member_value": {
+            "type": "string",
+            "nullable": true,
+            "description": "Canonical member scope value for exact filtering and grouping."
+          },
+          "member_display_name": {
+            "type": "string",
+            "nullable": true,
+            "description": "Human-readable member scope label derived from runtime metadata."
+          },
           "confidence": {
             "type": "string",
             "enum": [
@@ -17849,6 +17905,40 @@
             "ContainerListOrchestratorKubernetes",
             "ContainerListOrchestratorUnknown"
           ]
+        }
+      },
+      "container-list-source-scope-kind": {
+        "name": "source_scope_kind",
+        "in": "query",
+        "required": false,
+        "description": "Exact orchestrator source scope kind filter. Must be paired with source_scope and remain compatible with the selected orchestrator type.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "compose_project",
+            "compose_service",
+            "swarm_stack",
+            "swarm_task",
+            "kubernetes_namespace",
+            "kubernetes_pod"
+          ],
+          "x-enum-varnames": [
+            "ContainerListSourceScopeKindComposeProject",
+            "ContainerListSourceScopeKindComposeService",
+            "ContainerListSourceScopeKindSwarmStack",
+            "ContainerListSourceScopeKindSwarmTask",
+            "ContainerListSourceScopeKindKubernetesNamespace",
+            "ContainerListSourceScopeKindKubernetesPod"
+          ]
+        }
+      },
+      "container-list-source-scope": {
+        "name": "source_scope",
+        "in": "query",
+        "required": false,
+        "description": "Exact orchestrator source scope value. Must be paired with source_scope_kind.",
+        "schema": {
+          "type": "string"
         }
       },
       "container-id-path": {

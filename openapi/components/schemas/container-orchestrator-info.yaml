@@ -23,6 +23,40 @@ properties:
     type: string
     nullable: true
     description: Optional fallback source label. Visible UI should still localize by type first.
+  group_scope_kind:
+    type: string
+    nullable: true
+    enum: [compose_project, swarm_stack, kubernetes_namespace]
+    x-enum-varnames:
+      - ContainerOrchestratorInfoGroupScopeKindComposeProject
+      - ContainerOrchestratorInfoGroupScopeKindSwarmStack
+      - ContainerOrchestratorInfoGroupScopeKindKubernetesNamespace
+    description: Stable normalized group scope kind for list/detail consumers.
+  group_value:
+    type: string
+    nullable: true
+    description: Canonical group scope value for exact filtering and grouping.
+  group_display_name:
+    type: string
+    nullable: true
+    description: Human-readable group scope label derived from runtime metadata.
+  member_scope_kind:
+    type: string
+    nullable: true
+    enum: [compose_service, swarm_task, kubernetes_pod]
+    x-enum-varnames:
+      - ContainerOrchestratorInfoMemberScopeKindComposeService
+      - ContainerOrchestratorInfoMemberScopeKindSwarmTask
+      - ContainerOrchestratorInfoMemberScopeKindKubernetesPod
+    description: Stable normalized member scope kind for list/detail consumers.
+  member_value:
+    type: string
+    nullable: true
+    description: Canonical member scope value for exact filtering and grouping.
+  member_display_name:
+    type: string
+    nullable: true
+    description: Human-readable member scope label derived from runtime metadata.
   confidence:
     type: string
     enum: [high, medium, low]

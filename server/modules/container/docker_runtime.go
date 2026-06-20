@@ -630,23 +630,33 @@ func dockerOrchestratorFromLabels(labels map[string]string) OrchestratorInfo {
 	labels = cloneLabels(labels)
 	if len(labels) == 0 {
 		return OrchestratorInfo{
-			Type:       containerOrchestratorStandalone,
-			Managed:    false,
-			Confidence: orchestratorConfidenceHigh,
+			Type:            containerOrchestratorStandalone,
+			Managed:         false,
+			Confidence:      orchestratorConfidenceHigh,
+			GroupScopeKind:  "",
+			MemberScopeKind: "",
 		}
 	}
 
 	typeCount := 0
 	info := OrchestratorInfo{
-		Type:       containerOrchestratorStandalone,
-		Managed:    false,
-		Confidence: orchestratorConfidenceHigh,
+		Type:            containerOrchestratorStandalone,
+		Managed:         false,
+		Confidence:      orchestratorConfidenceHigh,
+		GroupScopeKind:  "",
+		MemberScopeKind: "",
 	}
 
 	if metadata, ok := kubernetesMetadata(labels); ok {
 		typeCount++
 		info.Type = containerOrchestratorKubernetes
 		info.Managed = true
+		info.GroupScopeKind = kubernetesNamespaceScopeKind
+		info.GroupValue = metadata.Namespace
+		info.GroupDisplayName = metadata.Namespace
+		info.MemberScopeKind = kubernetesPodScopeKind
+		info.MemberValue = metadata.Pod
+		info.MemberDisplayName = metadata.Pod
 		info.Namespace = metadata.Namespace
 		info.Pod = metadata.Pod
 		info.Container = metadata.Container
@@ -657,6 +667,12 @@ func dockerOrchestratorFromLabels(labels map[string]string) OrchestratorInfo {
 		typeCount++
 		info.Type = containerOrchestratorSwarm
 		info.Managed = true
+		info.GroupScopeKind = swarmStackScopeKind
+		info.GroupValue = stack
+		info.GroupDisplayName = stack
+		info.MemberScopeKind = swarmTaskScopeKind
+		info.MemberValue = task
+		info.MemberDisplayName = task
 		info.Stack = stack
 		info.Task = task
 		info.DisplayName = firstNonEmpty(stack, task, "swarm")
@@ -666,6 +682,12 @@ func dockerOrchestratorFromLabels(labels map[string]string) OrchestratorInfo {
 		typeCount++
 		info.Type = containerOrchestratorCompose
 		info.Managed = true
+		info.GroupScopeKind = composeProjectScopeKind
+		info.GroupValue = project
+		info.GroupDisplayName = project
+		info.MemberScopeKind = composeServiceScopeKind
+		info.MemberValue = service
+		info.MemberDisplayName = service
 		info.Project = project
 		info.Service = service
 		info.DisplayName = firstNonEmpty(project, service, "compose")
@@ -676,9 +698,11 @@ func dockerOrchestratorFromLabels(labels map[string]string) OrchestratorInfo {
 	}
 	if typeCount > 1 {
 		return OrchestratorInfo{
-			Type:       containerOrchestratorUnknown,
-			Managed:    true,
-			Confidence: orchestratorConfidenceLow,
+			Type:            containerOrchestratorUnknown,
+			Managed:         true,
+			Confidence:      orchestratorConfidenceLow,
+			GroupScopeKind:  "",
+			MemberScopeKind: "",
 		}
 	}
 	return info

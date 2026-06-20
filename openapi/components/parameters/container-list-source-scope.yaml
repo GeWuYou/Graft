@@ -1,0 +1,6 @@
+name: source_scope
+in: query
+required: false
+description: Exact orchestrator source scope value. Must be paired with source_scope_kind.
+schema:
+  type: string

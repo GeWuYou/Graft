@@ -71,6 +71,10 @@
         "searchPlaceholder": "Search Name, Image, ID, or Port",
         "status": "Container Status",
         "orchestrator": "Source",
+        "sourceScopeKind": "Source Scope",
+        "allSourceScopeKinds": "All Scopes",
+        "sourceScopePlaceholder": "Enter Exact {kind} Name",
+        "sourceScopePlaceholderDisabled": "Select a Source Scope First",
         "allOrchestrators": "All Sources",
         "health": "Health",
         "allStatuses": "All Statuses",
@@ -120,6 +124,14 @@
         "swarm": "Swarm",
         "kubernetes": "Kubernetes",
         "unknown": "Unknown Source"
+      },
+      "sourceKinds": {
+        "compose_project": "Project",
+        "compose_service": "Service",
+        "swarm_stack": "Stack",
+        "swarm_task": "Task",
+        "kubernetes_namespace": "Namespace",
+        "kubernetes_pod": "Pod"
       },
       "sourceUnknownSummary": "No Source Summary",
       "actions": {

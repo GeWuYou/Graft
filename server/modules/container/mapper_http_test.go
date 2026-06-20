@@ -42,6 +42,12 @@ func detailWithHealthcheckAndRuntimeStability() Detail {
 			Orchestrator: OrchestratorInfo{
 				Type:               containerOrchestratorCompose,
 				Managed:            true,
+				GroupScopeKind:     composeProjectScopeKind,
+				GroupDisplayName:   "graft",
+				GroupValue:         "graft",
+				MemberScopeKind:    composeServiceScopeKind,
+				MemberDisplayName:  "web",
+				MemberValue:        "web",
 				Project:            "graft",
 				Service:            "web",
 				DisplayName:        "graft",
@@ -112,12 +118,38 @@ func assertMappedOrchestrator(t *testing.T, info *containergen.ContainerOrchestr
 	if info == nil {
 		t.Fatalf("expected mapped orchestrator info")
 	}
+	assertMappedOrchestratorIdentity(t, info)
+	assertMappedOrchestratorLegacyFields(t, info)
+	assertMappedOrchestratorScopeFields(t, info)
+	assertMappedOrchestratorPolicy(t, info)
+}
+
+func assertMappedOrchestratorIdentity(t *testing.T, info *containergen.ContainerOrchestratorInfo) {
+	t.Helper()
 	if string(info.Type) != containerOrchestratorCompose || !info.Managed {
 		t.Fatalf("unexpected orchestrator identity %#v", info)
 	}
+}
+
+func assertMappedOrchestratorLegacyFields(t *testing.T, info *containergen.ContainerOrchestratorInfo) {
+	t.Helper()
 	if info.Project == nil || *info.Project != "graft" || info.Service == nil || *info.Service != "web" {
 		t.Fatalf("unexpected orchestrator project/service %#v", info)
 	}
+}
+
+func assertMappedOrchestratorScopeFields(t *testing.T, info *containergen.ContainerOrchestratorInfo) {
+	t.Helper()
+	if info.GroupScopeKind == nil || *info.GroupScopeKind != composeProjectScopeKind || info.GroupValue == nil || *info.GroupValue != "graft" {
+		t.Fatalf("unexpected orchestrator group scope %#v", info)
+	}
+	if info.MemberScopeKind == nil || *info.MemberScopeKind != composeServiceScopeKind || info.MemberValue == nil || *info.MemberValue != "web" {
+		t.Fatalf("unexpected orchestrator member scope %#v", info)
+	}
+}
+
+func assertMappedOrchestratorPolicy(t *testing.T, info *containergen.ContainerOrchestratorInfo) {
+	t.Helper()
 	if string(info.ActionLevel) != containercontract.ContainerOrchestratorActionLevelWarn.String() || info.BatchActionAllowed {
 		t.Fatalf("unexpected orchestrator policy %#v", info)
 	}

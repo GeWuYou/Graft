@@ -72,6 +72,13 @@ const (
 
 	composeProjectLabel = "com.docker.compose.project"
 	composeServiceLabel = "com.docker.compose.service"
+
+	composeProjectScopeKind      = "compose_project"
+	composeServiceScopeKind      = "compose_service"
+	swarmStackScopeKind          = "swarm_stack"
+	swarmTaskScopeKind           = "swarm_task"
+	kubernetesNamespaceScopeKind = "kubernetes_namespace"
+	kubernetesPodScopeKind       = "kubernetes_pod"
 )
 
 var mountIDPattern = regexp.MustCompile(`^m_[A-Za-z0-9_-]{1,62}$`)
@@ -83,6 +90,15 @@ var validContainerOrchestrators = []string{
 	containerOrchestratorSwarm,
 	containerOrchestratorKubernetes,
 	containerOrchestratorUnknown,
+}
+
+var validContainerSourceScopeKinds = []string{
+	composeProjectScopeKind,
+	composeServiceScopeKind,
+	swarmStackScopeKind,
+	swarmTaskScopeKind,
+	kubernetesNamespaceScopeKind,
+	kubernetesPodScopeKind,
 }
 
 var (
@@ -136,12 +152,14 @@ type Ref struct {
 
 // ListQuery describes bounded list pagination and low-cost runtime filters.
 type ListQuery struct {
-	Limit        int
-	Offset       int
-	Keyword      string
-	State        string
-	Health       string
-	Orchestrator string
+	Limit           int
+	Offset          int
+	Keyword         string
+	State           string
+	Health          string
+	Orchestrator    string
+	SourceScopeKind string
+	SourceScope     string
 }
 
 // ListResult is the service-owned list response model.
@@ -351,6 +369,12 @@ type OrchestratorInfo struct {
 	Managed            bool
 	DisplayName        string
 	Confidence         string
+	GroupScopeKind     string
+	GroupDisplayName   string
+	GroupValue         string
+	MemberScopeKind    string
+	MemberDisplayName  string
+	MemberValue        string
 	Project            string
 	Service            string
 	Stack              string
@@ -453,33 +477,84 @@ func parseRef(raw string) (Ref, error) {
 }
 
 func normalizeListQuery(query ListQuery) (ListQuery, error) {
+	if err := normalizeListPagination(&query); err != nil {
+		return ListQuery{}, err
+	}
+	if err := normalizeListKeyword(&query); err != nil {
+		return ListQuery{}, err
+	}
+	if err := normalizeListEnums(&query); err != nil {
+		return ListQuery{}, err
+	}
+	if err := normalizeListSourceScope(&query); err != nil {
+		return ListQuery{}, err
+	}
+	return query, nil
+}
+
+func normalizeListPagination(query *ListQuery) error {
+	if query == nil {
+		return errInvalidListQuery
+	}
 	if query.Limit == 0 {
 		query.Limit = defaultContainerListLimit
 	}
 	if query.Limit < 1 || query.Limit > maxContainerListLimit {
-		return ListQuery{}, errInvalidListQuery
+		return errInvalidListQuery
 	}
 	if query.Offset < 0 {
-		return ListQuery{}, errInvalidListQuery
+		return errInvalidListQuery
+	}
+	return nil
+}
+
+func normalizeListKeyword(query *ListQuery) error {
+	if query == nil {
+		return errInvalidListQuery
 	}
 	query.Keyword = strings.TrimSpace(query.Keyword)
 	if len(query.Keyword) > containerListKeywordMaxLength {
-		return ListQuery{}, errInvalidListQuery
+		return errInvalidListQuery
+	}
+	return nil
+}
+
+func normalizeListEnums(query *ListQuery) error {
+	if query == nil {
+		return errInvalidListQuery
 	}
 	var err error
 	query.State, err = normalizeOptionalListEnum(query.State, isValidContainerState)
 	if err != nil {
-		return ListQuery{}, err
+		return err
 	}
 	query.Health, err = normalizeOptionalListEnum(query.Health, isValidContainerHealth)
 	if err != nil {
-		return ListQuery{}, err
+		return err
 	}
 	query.Orchestrator, err = normalizeOptionalListEnum(query.Orchestrator, isValidContainerOrchestrator)
 	if err != nil {
-		return ListQuery{}, err
+		return err
 	}
-	return query, nil
+	query.SourceScopeKind, err = normalizeOptionalListEnum(query.SourceScopeKind, isValidContainerSourceScopeKind)
+	return err
+}
+
+func normalizeListSourceScope(query *ListQuery) error {
+	if query == nil {
+		return errInvalidListQuery
+	}
+	query.SourceScope = strings.TrimSpace(query.SourceScope)
+	if (query.SourceScopeKind == "") != (query.SourceScope == "") {
+		return errInvalidListQuery
+	}
+	if query.SourceScope == "" {
+		return nil
+	}
+	if !sourceScopeKindCompatibleWithOrchestrator(query.Orchestrator, query.SourceScopeKind) {
+		return errInvalidListQuery
+	}
+	return nil
 }
 
 func normalizeOptionalListEnum(value string, valid func(string) bool) (string, error) {
@@ -507,6 +582,10 @@ func isValidContainerHealth(health string) bool {
 
 func isValidContainerOrchestrator(value string) bool {
 	return slices.Contains(validContainerOrchestrators, value)
+}
+
+func isValidContainerSourceScopeKind(value string) bool {
+	return slices.Contains(validContainerSourceScopeKinds, value)
 }
 
 // isValidMountID reports whether value is a valid mount ID.

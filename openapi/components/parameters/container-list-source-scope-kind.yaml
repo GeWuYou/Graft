@@ -1,0 +1,14 @@
+name: source_scope_kind
+in: query
+required: false
+description: Exact orchestrator source scope kind filter. Must be paired with source_scope and remain compatible with the selected orchestrator type.
+schema:
+  type: string
+  enum: [compose_project, compose_service, swarm_stack, swarm_task, kubernetes_namespace, kubernetes_pod]
+  x-enum-varnames:
+    - ContainerListSourceScopeKindComposeProject
+    - ContainerListSourceScopeKindComposeService
+    - ContainerListSourceScopeKindSwarmStack
+    - ContainerListSourceScopeKindSwarmTask
+    - ContainerListSourceScopeKindKubernetesNamespace
+    - ContainerListSourceScopeKindKubernetesPod

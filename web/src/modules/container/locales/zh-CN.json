@@ -71,6 +71,10 @@
         "searchPlaceholder": "搜索名称、镜像、ID 或端口",
         "status": "容器状态",
         "orchestrator": "来源",
+        "sourceScopeKind": "来源范围",
+        "allSourceScopeKinds": "全部范围",
+        "sourceScopePlaceholder": "输入{kind}名称精确筛选",
+        "sourceScopePlaceholderDisabled": "先选择来源范围",
         "allOrchestrators": "全部来源",
         "health": "健康状态",
         "allStatuses": "全部状态",
@@ -120,6 +124,14 @@
         "swarm": "Swarm",
         "kubernetes": "Kubernetes",
         "unknown": "未知来源"
+      },
+      "sourceKinds": {
+        "compose_project": "项目",
+        "compose_service": "服务",
+        "swarm_stack": "Stack",
+        "swarm_task": "任务",
+        "kubernetes_namespace": "命名空间",
+        "kubernetes_pod": "Pod"
       },
       "sourceUnknownSummary": "未提供来源摘要",
       "actions": {

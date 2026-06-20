@@ -682,6 +682,12 @@ func normalizeOrchestratorActionLevel(value string) containercontract.Orchestrat
 func normalizedOrchestratorInfo(info OrchestratorInfo) OrchestratorInfo {
 	info.Type = effectiveOrchestratorTypeFromValue(info.Type)
 	info.Managed = info.Type != containerOrchestratorStandalone
+	info.GroupScopeKind = normalizeContainerSourceScopeKind(info.GroupScopeKind)
+	info.MemberScopeKind = normalizeContainerSourceScopeKind(info.MemberScopeKind)
+	info.GroupValue = strings.TrimSpace(info.GroupValue)
+	info.MemberValue = strings.TrimSpace(info.MemberValue)
+	info.GroupDisplayName = strings.TrimSpace(info.GroupDisplayName)
+	info.MemberDisplayName = strings.TrimSpace(info.MemberDisplayName)
 	if strings.TrimSpace(info.Confidence) == "" {
 		if info.Managed {
 			info.Confidence = orchestratorConfidenceMedium
@@ -789,21 +795,40 @@ func filterContainerSummaries(items []Summary, query ListQuery) []Summary {
 	filtered := make([]Summary, 0, len(items))
 	keyword := strings.ToLower(strings.TrimSpace(query.Keyword))
 	for _, item := range items {
-		if query.State != "" && item.State != query.State {
-			continue
-		}
-		if query.Health != "" && effectiveHealth(item) != query.Health {
-			continue
-		}
-		if query.Orchestrator != "" && effectiveOrchestratorType(item) != query.Orchestrator {
-			continue
-		}
-		if keyword != "" && !summaryMatchesKeyword(item, keyword) {
+		if !summaryMatchesListQuery(item, query, keyword) {
 			continue
 		}
 		filtered = append(filtered, item)
 	}
 	return filtered
+}
+
+func summaryMatchesListQuery(item Summary, query ListQuery, keyword string) bool {
+	return summaryMatchesState(item, query.State) &&
+		summaryMatchesHealth(item, query.Health) &&
+		summaryMatchesOrchestrator(item, query.Orchestrator) &&
+		summaryMatchesSourceScopeFilter(item, query.SourceScopeKind, query.SourceScope) &&
+		summaryMatchesKeywordFilter(item, keyword)
+}
+
+func summaryMatchesState(item Summary, state string) bool {
+	return state == "" || item.State == state
+}
+
+func summaryMatchesHealth(item Summary, health string) bool {
+	return health == "" || effectiveHealth(item) == health
+}
+
+func summaryMatchesOrchestrator(item Summary, orchestrator string) bool {
+	return orchestrator == "" || effectiveOrchestratorType(item) == orchestrator
+}
+
+func summaryMatchesSourceScopeFilter(item Summary, scopeKind string, scope string) bool {
+	return scopeKind == "" || summaryMatchesSourceScope(item, scopeKind, scope)
+}
+
+func summaryMatchesKeywordFilter(item Summary, keyword string) bool {
+	return keyword == "" || summaryMatchesKeyword(item, keyword)
 }
 
 func pageContainerSummaries(items []Summary, query ListQuery) []Summary {
@@ -891,6 +916,64 @@ func summaryMatchesKeyword(item Summary, keyword string) bool {
 		}
 	}
 	return false
+}
+
+func normalizeContainerSourceScopeKind(value string) string {
+	value = strings.TrimSpace(strings.ToLower(value))
+	if !isValidContainerSourceScopeKind(value) {
+		return ""
+	}
+	return value
+}
+
+func sourceScopeKindCompatibleWithOrchestrator(orchestrator string, scopeKind string) bool {
+	scopeKind = normalizeContainerSourceScopeKind(scopeKind)
+	if scopeKind == "" {
+		return false
+	}
+	switch scopeKind {
+	case composeProjectScopeKind, composeServiceScopeKind:
+		return orchestrator == "" || orchestrator == containerOrchestratorCompose
+	case swarmStackScopeKind, swarmTaskScopeKind:
+		return orchestrator == "" || orchestrator == containerOrchestratorSwarm
+	case kubernetesNamespaceScopeKind, kubernetesPodScopeKind:
+		return orchestrator == "" || orchestrator == containerOrchestratorKubernetes
+	default:
+		return false
+	}
+}
+
+func summaryMatchesSourceScope(item Summary, scopeKind string, scope string) bool {
+	scopeKind = normalizeContainerSourceScopeKind(scopeKind)
+	scope = strings.TrimSpace(scope)
+	if scopeKind == "" || scope == "" {
+		return false
+	}
+	info := normalizedOrchestratorInfo(item.Orchestrator)
+	if info.Type != "" && !sourceScopeKindCompatibleWithOrchestrator(info.Type, scopeKind) {
+		return false
+	}
+	for _, candidate := range sourceScopeCandidates(item, info, scopeKind) {
+		if strings.EqualFold(candidate, scope) {
+			return true
+		}
+	}
+	return false
+}
+
+func sourceScopeCandidates(item Summary, info OrchestratorInfo, scopeKind string) []string {
+	switch scopeKind {
+	case composeProjectScopeKind:
+		return []string{item.ComposeProject, info.GroupValue}
+	case composeServiceScopeKind:
+		return []string{item.ComposeService, info.MemberValue}
+	case swarmStackScopeKind, kubernetesNamespaceScopeKind:
+		return []string{info.GroupValue}
+	case swarmTaskScopeKind, kubernetesPodScopeKind:
+		return []string{info.MemberValue}
+	default:
+		return nil
+	}
 }
 
 func effectiveHealth(item Summary) string {

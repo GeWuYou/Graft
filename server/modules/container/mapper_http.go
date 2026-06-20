@@ -4,6 +4,7 @@
 package container
 
 import (
+	"strings"
 	"time"
 
 	containergen "graft/server/internal/contract/openapi/generated"
@@ -59,45 +60,45 @@ func toSummary(item Summary) containergen.ContainerSummary {
 // ToDetail converts the internal Detail domain model into an OpenAPI container detail response.
 func toDetail(detail Detail) containergen.ContainerDetail {
 	return containergen.ContainerDetail{
-		CanRemove:         optionalBool(detail.CanRemove),
-		CanRestart:        optionalBool(detail.CanRestart),
-		CanStart:          optionalBool(detail.CanStart),
-		CanStop:           optionalBool(detail.CanStop),
-		Command:           optionalStringSlice(detail.Command),
-		ComposeProject:    optionalString(detail.ComposeProject),
-		ComposeService:    optionalString(detail.ComposeService),
-		CreatedAt:         mustTime(detail.CreatedAt),
-		Entrypoint:        optionalStringSlice(detail.Entrypoint),
-		Environment:       optionalEnvironment(detail.Environment),
+		CanRemove:                    optionalBool(detail.CanRemove),
+		CanRestart:                   optionalBool(detail.CanRestart),
+		CanStart:                     optionalBool(detail.CanStart),
+		CanStop:                      optionalBool(detail.CanStop),
+		Command:                      optionalStringSlice(detail.Command),
+		ComposeProject:               optionalString(detail.ComposeProject),
+		ComposeService:               optionalString(detail.ComposeService),
+		CreatedAt:                    mustTime(detail.CreatedAt),
+		Entrypoint:                   optionalStringSlice(detail.Entrypoint),
+		Environment:                  optionalEnvironment(detail.Environment),
 		EnvironmentMaskedCopyEnabled: detail.EnvironmentMaskedCopyEnabled,
-		EnvironmentPolicy: optionalEnvironmentPolicy(detail.EnvironmentPolicy),
-		Health:            optionalDetailHealth(detail.Health),
-		Healthcheck:       optionalHealthcheck(detail.Healthcheck),
-		Id:                detail.ID,
-		Image:             detail.Image,
-		ImageId:           optionalString(detail.ImageID),
-		InspectUpdatedAt:  optionalTime(detail.InspectUpdatedAt),
-		Labels:            optionalStringMap(detail.Labels),
-		LastExitCode:      detail.LastExitCode,
-		Mounts:            toMounts(detail.Mounts),
-		Name:              detail.Name,
-		Names:             detail.Names,
-		NetworkSummary:    optionalString(detail.NetworkSummary),
-		Networks:          toNetworks(detail.Networks),
-		OomKilled:         detail.OOMKilled,
-		Orchestrator:      toOrchestratorInfo(detail.Orchestrator),
-		Ports:             toPorts(detail.Ports),
-		PrimaryIp:         optionalString(detail.PrimaryIP),
-		Resource:          toResourceSummary(detail.Resource),
-		RestartCount:      detail.RestartCount,
-		RestartPolicy:     optionalString(detail.RestartPolicy),
-		Runtime:           detail.Runtime,
-		RuntimeInfo:       toRuntimeInfo(detail.RuntimeInfo),
-		ShortId:           detail.ShortID,
-		StartedAt:         optionalTime(detail.StartedAt),
-		State:             containergen.ContainerDetailState(detail.State),
-		Status:            detail.Status,
-		WorkingDir:        optionalString(detail.WorkingDir),
+		EnvironmentPolicy:            optionalEnvironmentPolicy(detail.EnvironmentPolicy),
+		Health:                       optionalDetailHealth(detail.Health),
+		Healthcheck:                  optionalHealthcheck(detail.Healthcheck),
+		Id:                           detail.ID,
+		Image:                        detail.Image,
+		ImageId:                      optionalString(detail.ImageID),
+		InspectUpdatedAt:             optionalTime(detail.InspectUpdatedAt),
+		Labels:                       optionalStringMap(detail.Labels),
+		LastExitCode:                 detail.LastExitCode,
+		Mounts:                       toMounts(detail.Mounts),
+		Name:                         detail.Name,
+		Names:                        detail.Names,
+		NetworkSummary:               optionalString(detail.NetworkSummary),
+		Networks:                     toNetworks(detail.Networks),
+		OomKilled:                    detail.OOMKilled,
+		Orchestrator:                 toOrchestratorInfo(detail.Orchestrator),
+		Ports:                        toPorts(detail.Ports),
+		PrimaryIp:                    optionalString(detail.PrimaryIP),
+		Resource:                     toResourceSummary(detail.Resource),
+		RestartCount:                 detail.RestartCount,
+		RestartPolicy:                optionalString(detail.RestartPolicy),
+		Runtime:                      detail.Runtime,
+		RuntimeInfo:                  toRuntimeInfo(detail.RuntimeInfo),
+		ShortId:                      detail.ShortID,
+		StartedAt:                    optionalTime(detail.StartedAt),
+		State:                        containergen.ContainerDetailState(detail.State),
+		Status:                       detail.Status,
+		WorkingDir:                   optionalString(detail.WorkingDir),
 	}
 }
 
@@ -336,7 +337,13 @@ func toOrchestratorInfo(info OrchestratorInfo) *containergen.ContainerOrchestrat
 		ConfigFiles:        optionalStringSlice(info.ConfigFiles),
 		Container:          optionalString(info.Container),
 		DisplayName:        optionalString(info.DisplayName),
+		GroupDisplayName:   optionalString(info.GroupDisplayName),
+		GroupScopeKind:     optionalOrchestratorGroupScopeKind(info.GroupScopeKind),
+		GroupValue:         optionalString(info.GroupValue),
 		Managed:            info.Managed,
+		MemberDisplayName:  optionalString(info.MemberDisplayName),
+		MemberScopeKind:    optionalOrchestratorMemberScopeKind(info.MemberScopeKind),
+		MemberValue:        optionalString(info.MemberValue),
 		Namespace:          optionalString(info.Namespace),
 		Pod:                optionalString(info.Pod),
 		Project:            optionalString(info.Project),
@@ -348,6 +355,24 @@ func toOrchestratorInfo(info OrchestratorInfo) *containergen.ContainerOrchestrat
 		Warnings:           append([]string(nil), info.Warnings...),
 		WorkingDir:         optionalString(info.WorkingDir),
 	}
+}
+
+func optionalOrchestratorGroupScopeKind(value string) *containergen.ContainerOrchestratorInfoGroupScopeKind {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil
+	}
+	mapped := containergen.ContainerOrchestratorInfoGroupScopeKind(value)
+	return &mapped
+}
+
+func optionalOrchestratorMemberScopeKind(value string) *containergen.ContainerOrchestratorInfoMemberScopeKind {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil
+	}
+	mapped := containergen.ContainerOrchestratorInfoMemberScopeKind(value)
+	return &mapped
 }
 
 func toPorts(ports []Port) []containergen.ContainerPort {

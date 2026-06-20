@@ -363,9 +363,9 @@ func TestDockerOrchestratorFromLabels(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
-		name      string
-		labels     map[string]string
-		wantType   string
+		name        string
+		labels      map[string]string
+		wantType    string
 		wantManaged bool
 		wantProject string
 		wantService string
@@ -375,11 +375,11 @@ func TestDockerOrchestratorFromLabels(t *testing.T) {
 		wantConf    string
 	}{
 		{
-			name:       "standalone",
-			labels:     nil,
-			wantType:   containerOrchestratorStandalone,
+			name:        "standalone",
+			labels:      nil,
+			wantType:    containerOrchestratorStandalone,
 			wantManaged: false,
-			wantConf:   orchestratorConfidenceHigh,
+			wantConf:    orchestratorConfidenceHigh,
 		},
 		{
 			name: "compose",
@@ -387,11 +387,11 @@ func TestDockerOrchestratorFromLabels(t *testing.T) {
 				composeProjectLabel: "graft",
 				composeServiceLabel: "web",
 			},
-			wantType:   containerOrchestratorCompose,
+			wantType:    containerOrchestratorCompose,
 			wantManaged: true,
 			wantProject: "graft",
 			wantService: "web",
-			wantConf:   orchestratorConfidenceHigh,
+			wantConf:    orchestratorConfidenceHigh,
 		},
 		{
 			name: "kubernetes",
@@ -400,22 +400,22 @@ func TestDockerOrchestratorFromLabels(t *testing.T) {
 				"io.kubernetes.pod.name":       "web-7c9f",
 				"io.kubernetes.container.name": "web",
 			},
-			wantType:   containerOrchestratorKubernetes,
+			wantType:    containerOrchestratorKubernetes,
 			wantManaged: true,
-			wantPod:    "web-7c9f",
-			wantNS:     "default",
-			wantConf:   orchestratorConfidenceHigh,
+			wantPod:     "web-7c9f",
+			wantNS:      "default",
+			wantConf:    orchestratorConfidenceHigh,
 		},
 		{
 			name: "conflicting labels become unknown",
 			labels: map[string]string{
-				composeProjectLabel:             "graft",
-				"com.docker.stack.namespace":    "edge",
-				"com.docker.swarm.task.name":    "edge.1.abcd",
+				composeProjectLabel:          "graft",
+				"com.docker.stack.namespace": "edge",
+				"com.docker.swarm.task.name": "edge.1.abcd",
 			},
-			wantType:   containerOrchestratorUnknown,
+			wantType:    containerOrchestratorUnknown,
 			wantManaged: true,
-			wantConf:   orchestratorConfidenceLow,
+			wantConf:    orchestratorConfidenceLow,
 		},
 	}
 
@@ -425,16 +425,90 @@ func TestDockerOrchestratorFromLabels(t *testing.T) {
 			t.Parallel()
 
 			info := dockerOrchestratorFromLabels(tc.labels)
-			if info.Type != tc.wantType || info.Managed != tc.wantManaged || info.Confidence != tc.wantConf {
-				t.Fatalf("unexpected orchestrator info %#v", info)
-			}
-			if info.Project != tc.wantProject || info.Service != tc.wantService || info.Stack != tc.wantStack {
-				t.Fatalf("unexpected project/service/stack %#v", info)
-			}
-			if info.Pod != tc.wantPod || info.Namespace != tc.wantNS {
-				t.Fatalf("unexpected kubernetes metadata %#v", info)
-			}
+			assertDockerOrchestratorBase(t, info, tc)
+			assertDockerOrchestratorMetadata(t, info, tc)
+			assertDockerOrchestratorScopes(t, info, tc)
 		})
+	}
+}
+
+func assertDockerOrchestratorBase(t *testing.T, info OrchestratorInfo, tc struct {
+	name        string
+	labels      map[string]string
+	wantType    string
+	wantManaged bool
+	wantProject string
+	wantService string
+	wantStack   string
+	wantPod     string
+	wantNS      string
+	wantConf    string
+}) {
+	t.Helper()
+	if info.Type != tc.wantType || info.Managed != tc.wantManaged || info.Confidence != tc.wantConf {
+		t.Fatalf("unexpected orchestrator info %#v", info)
+	}
+}
+
+func assertDockerOrchestratorMetadata(t *testing.T, info OrchestratorInfo, tc struct {
+	name        string
+	labels      map[string]string
+	wantType    string
+	wantManaged bool
+	wantProject string
+	wantService string
+	wantStack   string
+	wantPod     string
+	wantNS      string
+	wantConf    string
+}) {
+	t.Helper()
+	if info.Project != tc.wantProject || info.Service != tc.wantService || info.Stack != tc.wantStack {
+		t.Fatalf("unexpected project/service/stack %#v", info)
+	}
+	if info.Pod != tc.wantPod || info.Namespace != tc.wantNS {
+		t.Fatalf("unexpected kubernetes metadata %#v", info)
+	}
+}
+
+func assertDockerOrchestratorScopes(t *testing.T, info OrchestratorInfo, tc struct {
+	name        string
+	labels      map[string]string
+	wantType    string
+	wantManaged bool
+	wantProject string
+	wantService string
+	wantStack   string
+	wantPod     string
+	wantNS      string
+	wantConf    string
+}) {
+	t.Helper()
+	if tc.wantType == containerOrchestratorCompose {
+		assertComposeScopeSemantics(t, info, tc.wantProject, tc.wantService)
+	}
+	if tc.wantType == containerOrchestratorKubernetes {
+		assertKubernetesScopeSemantics(t, info, tc.wantNS, tc.wantPod)
+	}
+}
+
+func assertComposeScopeSemantics(t *testing.T, info OrchestratorInfo, project string, service string) {
+	t.Helper()
+	if info.GroupScopeKind != composeProjectScopeKind || info.GroupValue != project {
+		t.Fatalf("unexpected compose group scope %#v", info)
+	}
+	if info.MemberScopeKind != composeServiceScopeKind || info.MemberValue != service {
+		t.Fatalf("unexpected compose member scope %#v", info)
+	}
+}
+
+func assertKubernetesScopeSemantics(t *testing.T, info OrchestratorInfo, namespace string, pod string) {
+	t.Helper()
+	if info.GroupScopeKind != kubernetesNamespaceScopeKind || info.GroupValue != namespace {
+		t.Fatalf("unexpected kubernetes group scope %#v", info)
+	}
+	if info.MemberScopeKind != kubernetesPodScopeKind || info.MemberValue != pod {
+		t.Fatalf("unexpected kubernetes member scope %#v", info)
 	}
 }
 
