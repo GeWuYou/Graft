@@ -298,7 +298,6 @@
         "cronExpression": "Cron Expression",
         "enabled": "Enabled",
         "configJson": "Config JSON",
-        "configJsonPlaceholder": "{\n  \"window_days\": 30\n}",
         "formatJson": "Format JSON",
         "taskKeyRequiredHint": "Task Key is required.",
         "titleRequiredHint": "Title is required.",

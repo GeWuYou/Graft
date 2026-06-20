@@ -256,6 +256,22 @@
             "dangerous_enabled": {
               "title": "Dangerous Container Actions Enabled",
               "description": "Whether start, stop, restart, and future high-risk actions are enabled."
+            },
+            "compose_level": {
+              "title": "Compose Action Policy",
+              "description": "Controls dangerous action behavior for compose-managed containers."
+            },
+            "swarm_level": {
+              "title": "Swarm Action Policy",
+              "description": "Controls dangerous action behavior for swarm-managed containers."
+            },
+            "kubernetes_level": {
+              "title": "Kubernetes Action Policy",
+              "description": "Controls dangerous action behavior for kubernetes-managed containers."
+            },
+            "unknown_level": {
+              "title": "Unknown Source Action Policy",
+              "description": "Controls dangerous action behavior for containers with unclassified managed sources."
             }
           },
           "environment": {

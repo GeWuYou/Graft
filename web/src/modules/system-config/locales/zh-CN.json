@@ -256,6 +256,22 @@
             "dangerous_enabled": {
               "title": "启用容器高危操作",
               "description": "是否允许容器启动、停止和重启等高危操作。"
+            },
+            "compose_level": {
+              "title": "Compose 操作策略",
+              "description": "控制 Compose 管理容器的高危操作策略。"
+            },
+            "swarm_level": {
+              "title": "Swarm 操作策略",
+              "description": "控制 Swarm 管理容器的高危操作策略。"
+            },
+            "kubernetes_level": {
+              "title": "Kubernetes 操作策略",
+              "description": "控制 Kubernetes 管理容器的高危操作策略。"
+            },
+            "unknown_level": {
+              "title": "未知来源操作策略",
+              "description": "控制无法安全归类来源的受管容器高危操作策略。"
             }
           },
           "environment": {

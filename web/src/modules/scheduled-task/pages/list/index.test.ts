@@ -145,7 +145,6 @@ const translations = vi.hoisted(
     'scheduler.job.shortTitle.appLog': '应用日志',
     'scheduler.job.shortTitle.auditLog': '审计日志',
     'scheduledTask.list.form.configJsonInvalidHint': '配置必须是合法 JSON。',
-    'scheduledTask.list.form.configJsonPlaceholder': '{\n  "batchSize": 1000\n}',
     'scheduledTask.list.form.configNumberPlaceholder': '请输入数值',
     'scheduledTask.list.form.configSelectPlaceholder': '请选择',
     'scheduledTask.list.form.configStringPlaceholder': '请输入内容',
@@ -662,10 +661,7 @@ const TextareaStub = defineComponent({
   setup(props, { emit }) {
     return () =>
       h('textarea', {
-        'data-testid':
-          props.placeholder === translations['scheduledTask.list.form.configJsonPlaceholder']
-            ? 'config-json-textarea'
-            : undefined,
+        'data-testid': props.placeholder === '{\n  "window_days": 30\n}' ? 'config-json-textarea' : undefined,
         placeholder: props.placeholder,
         value: props.modelValue,
         onInput: (event: Event) => {

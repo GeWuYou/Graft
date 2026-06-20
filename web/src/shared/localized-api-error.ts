@@ -1,6 +1,8 @@
 // Copyright (c) 2025-2026 GeWuYou
 // SPDX-License-Identifier: Apache-2.0
 
+import { isHandledAuthRequestError } from '@/utils/auth-request-error';
+
 export function localizedApiErrorMessage(
   translate: (key: string) => string,
   messageKey?: string,
@@ -36,6 +38,10 @@ export function resolveLocalizedErrorMessage(
   error: unknown,
   fallbackMessage: string,
 ) {
+  if (isHandledAuthRequestError(error)) {
+    return '';
+  }
+
   if (hasApiRequestErrorShape(error)) {
     return localizedApiErrorMessage(translate, error.messageKey, error.message) || fallbackMessage;
   }

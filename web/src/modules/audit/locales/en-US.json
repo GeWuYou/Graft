@@ -467,7 +467,8 @@
         "failed": "Authentication Failed",
         "token_expired": "Token Expired",
         "token": {
-          "expired": "Token Expired"
+          "expired": "Token Expired",
+          "missing": "Token Missing"
         },
         "missing": "Token Missing",
         "invalid": "Token Invalid"

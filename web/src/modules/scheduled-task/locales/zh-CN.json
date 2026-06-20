@@ -298,7 +298,6 @@
         "cronExpression": "Cron 表达式",
         "enabled": "启用",
         "configJson": "配置 JSON",
-        "configJsonPlaceholder": "{\n  \"window_days\": 30\n}",
         "formatJson": "格式化 JSON",
         "taskKeyRequiredHint": "请填写 Task Key。",
         "titleRequiredHint": "请填写标题。",

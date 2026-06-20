@@ -467,7 +467,8 @@
         "failed": "认证失败",
         "token_expired": "令牌失效",
         "token": {
-          "expired": "令牌失效"
+          "expired": "令牌失效",
+          "missing": "令牌缺失"
         },
         "missing": "令牌缺失",
         "invalid": "令牌无效"

@@ -8,6 +8,7 @@ import App from '@/App.vue';
 import { i18n } from '@/locales';
 import router from '@/router';
 import { store, useTabsRouterStore } from '@/store';
+import { isHandledAuthRequestError } from '@/utils/auth-request-error';
 import { createLogger, patchGlobalLoggerContext } from '@/utils/logger';
 
 import { registerPermissionDirective } from './permission-directive';
@@ -68,6 +69,11 @@ function registerGlobalLoggerSinks() {
   });
 
   window.addEventListener('unhandledrejection', (event) => {
+    if (isHandledAuthRequestError(event.reason)) {
+      event.preventDefault();
+      return;
+    }
+
     appLogger.error(normalizeError(event.reason), {
       component: 'window',
       eventType: 'window.unhandledrejection',

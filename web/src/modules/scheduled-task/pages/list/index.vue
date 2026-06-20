@@ -579,7 +579,7 @@
                     :editor-label="t('scheduledTask.list.form.configJson')"
                     :error="formFieldErrors.configJson"
                     :format-label="t('scheduledTask.list.form.formatJson')"
-                    :placeholder="t('scheduledTask.list.form.configJsonPlaceholder')"
+                    :placeholder="CONFIG_JSON_PLACEHOLDER"
                     :preview-text="formatJsonPreview(taskForm.configJson) || t('scheduledTask.list.detail.none')"
                     :title="t('scheduledTask.list.configDialog.jsonPreview')"
                     @change="handleConfigJsonChange"
@@ -1228,6 +1228,7 @@ const cronPopoverOverlayInnerStyle = {
 };
 
 const statusOptions: ScheduledTaskStatus[] = ['idle', 'running', 'success', 'failed', 'unknown'];
+const CONFIG_JSON_PLACEHOLDER = JSON.stringify({ window_days: 30 }, null, 2);
 const builtinTaskMessageKeys = [
   'scheduler.job.accessLogRetentionCleanup.title',
   'scheduler.job.auditLogRetentionCleanup.title',

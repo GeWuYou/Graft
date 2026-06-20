@@ -982,9 +982,9 @@ function schemaValidationMessage(issue?: {
 }
 
 function resolveI18nText(key?: string, fallback?: string, rawFallback = '') {
-  if (key) {
+  if (key && te(key)) {
     const resolved = t(key);
-    if (resolved && (te(key) || resolved !== key)) {
+    if (resolved) {
       return resolved;
     }
   }

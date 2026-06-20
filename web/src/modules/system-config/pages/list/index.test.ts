@@ -704,6 +704,43 @@ describe('system config list page', () => {
     expect(wrapper.find('.system-config-content__head').text()).toContain('工作台快捷入口');
   });
 
+  it('falls back to backend copy without triggering missing-key warnings when a localized key is absent', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    apiMocks.getSystemConfigs.mockResolvedValue({
+      items: [
+        notificationConfigItem({
+          key: 'ops.container.actions.compose_level',
+          titleKey: 'systemConfig.container.ops.container.actions.compose_level.title.missing',
+          title: 'Compose Action Policy',
+          descriptionKey: 'systemConfig.container.ops.container.actions.compose_level.description.missing',
+          description: 'Controls dangerous action behavior for compose-managed containers.',
+          type: 'string',
+          configSchema: {},
+          defaultValue: '"warn"',
+          effectiveValue: '"warn"',
+          order: 5200,
+        }),
+      ],
+      total: 1,
+    });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('Compose Action Policy');
+    expect(wrapper.text()).toContain('Controls dangerous action behavior for compose-managed containers.');
+    expect(
+      warnSpy.mock.calls.some((args) =>
+        args.some(
+          (arg) =>
+            typeof arg === 'string' &&
+            arg.includes('systemConfig.container.ops.container.actions.compose_level.title.missing'),
+        ),
+      ),
+    ).toBe(false);
+    warnSpy.mockRestore();
+  });
+
   it('declares the full left and right scroll container height chain', () => {
     expect(cssBlock('.system-config-page')).toContain('overflow: hidden;');
     expect(cssBlock('.system-config-workspace,')).toContain('height: 100%;');
