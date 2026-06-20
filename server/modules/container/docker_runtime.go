@@ -302,6 +302,8 @@ func dockerSummary(item container.Summary) Summary {
 	networks := dockerSummaryNetworks(item)
 	primaryIP := primaryNetworkIP(networks)
 	state := normalizeContainerState(string(item.State))
+	labels := cloneLabels(item.Labels)
+	orchestrator := dockerOrchestratorFromLabels(labels)
 	return Summary{
 		ID:             strings.TrimSpace(item.ID),
 		ShortID:        shortRuntimeID(item.ID),
@@ -309,7 +311,7 @@ func dockerSummary(item container.Summary) Summary {
 		Names:          names,
 		Image:          strings.TrimSpace(item.Image),
 		ImageID:        strings.TrimSpace(item.ImageID),
-		Labels:         cloneLabels(item.Labels),
+		Labels:         labels,
 		Ports:          dockerPorts(item.Ports),
 		PrimaryIP:      primaryIP,
 		Networks:       networks,
@@ -326,8 +328,9 @@ func dockerSummary(item container.Summary) Summary {
 		State:          state,
 		Status:         strings.TrimSpace(item.Status),
 		Health:         containerHealthUnavailable,
-		ComposeProject: strings.TrimSpace(item.Labels[composeProjectLabel]),
-		ComposeService: strings.TrimSpace(item.Labels[composeServiceLabel]),
+		ComposeProject: strings.TrimSpace(labels[composeProjectLabel]),
+		ComposeService: strings.TrimSpace(labels[composeServiceLabel]),
+		Orchestrator:   orchestrator,
 		CanStart:       canStartState(state),
 		CanStop:        canStopState(state),
 		CanRestart:     canRestartState(state),
@@ -569,13 +572,15 @@ func uint32ToInt64Ptr(value uint32) *int64 {
 // dockerDetail builds a Detail struct from Docker container inspect output and runtime metadata.
 func dockerDetail(inspect container.InspectResponse, info RuntimeInfo) Detail {
 	state, status, startedAt := dockerState(inspect)
+	labels := dockerLabels(inspect)
+	orchestrator := dockerOrchestratorFromLabels(labels)
 	summary := Summary{
 		ID:             strings.TrimSpace(inspect.ID),
 		ShortID:        shortRuntimeID(inspect.ID),
 		Names:          []string{strings.TrimPrefix(strings.TrimSpace(inspect.Name), "/")},
 		Image:          dockerImage(inspect),
 		ImageID:        strings.TrimSpace(inspect.Image),
-		Labels:         dockerLabels(inspect),
+		Labels:         labels,
 		Ports:          dockerInspectPorts(inspect),
 		Networks:       dockerNetworks(inspect),
 		Resource:       unavailableResourceSummary(containerStatsNotCollectedReason),
@@ -585,8 +590,9 @@ func dockerDetail(inspect container.InspectResponse, info RuntimeInfo) Detail {
 		State:          state,
 		Status:         status,
 		Health:         dockerHealth(inspect),
-		ComposeProject: strings.TrimSpace(dockerLabels(inspect)[composeProjectLabel]),
-		ComposeService: strings.TrimSpace(dockerLabels(inspect)[composeServiceLabel]),
+		ComposeProject: strings.TrimSpace(labels[composeProjectLabel]),
+		ComposeService: strings.TrimSpace(labels[composeServiceLabel]),
+		Orchestrator:   orchestrator,
 		CanStart:       canStartState(state),
 		CanStop:        canStopState(state),
 		CanRestart:     canRestartState(state),
@@ -618,6 +624,94 @@ func dockerDetail(inspect container.InspectResponse, info RuntimeInfo) Detail {
 		detail.RestartPolicy = string(inspect.HostConfig.RestartPolicy.Name)
 	}
 	return detail
+}
+
+func dockerOrchestratorFromLabels(labels map[string]string) OrchestratorInfo {
+	labels = cloneLabels(labels)
+	if len(labels) == 0 {
+		return OrchestratorInfo{
+			Type:       containerOrchestratorStandalone,
+			Managed:    false,
+			Confidence: orchestratorConfidenceHigh,
+		}
+	}
+
+	typeCount := 0
+	info := OrchestratorInfo{
+		Type:       containerOrchestratorStandalone,
+		Managed:    false,
+		Confidence: orchestratorConfidenceHigh,
+	}
+
+	if metadata, ok := kubernetesMetadata(labels); ok {
+		typeCount++
+		info.Type = containerOrchestratorKubernetes
+		info.Managed = true
+		info.Namespace = metadata.Namespace
+		info.Pod = metadata.Pod
+		info.Container = metadata.Container
+		info.DisplayName = firstNonEmpty(metadata.Namespace, metadata.Pod, "kubernetes")
+		info.Confidence = orchestratorConfidenceHigh
+	}
+	if stack, task, ok := swarmMetadata(labels); ok {
+		typeCount++
+		info.Type = containerOrchestratorSwarm
+		info.Managed = true
+		info.Stack = stack
+		info.Task = task
+		info.DisplayName = firstNonEmpty(stack, task, "swarm")
+		info.Confidence = orchestratorConfidenceHigh
+	}
+	if project, service, ok := composeMetadata(labels); ok {
+		typeCount++
+		info.Type = containerOrchestratorCompose
+		info.Managed = true
+		info.Project = project
+		info.Service = service
+		info.DisplayName = firstNonEmpty(project, service, "compose")
+		info.Confidence = orchestratorConfidenceHigh
+	}
+	if typeCount == 0 {
+		return info
+	}
+	if typeCount > 1 {
+		return OrchestratorInfo{
+			Type:       containerOrchestratorUnknown,
+			Managed:    true,
+			Confidence: orchestratorConfidenceLow,
+		}
+	}
+	return info
+}
+
+type kubernetesOrchestratorMetadata struct {
+	Namespace string
+	Pod       string
+	Container string
+}
+
+func kubernetesMetadata(labels map[string]string) (kubernetesOrchestratorMetadata, bool) {
+	metadata := kubernetesOrchestratorMetadata{
+		Namespace: strings.TrimSpace(labels["io.kubernetes.pod.namespace"]),
+		Pod:       strings.TrimSpace(labels["io.kubernetes.pod.name"]),
+		Container: strings.TrimSpace(labels["io.kubernetes.container.name"]),
+	}
+	ok := metadata.Namespace != "" || metadata.Pod != "" || metadata.Container != ""
+	return metadata, ok
+}
+
+func swarmMetadata(labels map[string]string) (stack string, task string, ok bool) {
+	stack = strings.TrimSpace(labels["com.docker.stack.namespace"])
+	task = strings.TrimSpace(labels["com.docker.swarm.task.name"])
+	ok = stack != "" || task != ""
+	return stack, task, ok
+}
+
+func composeMetadata(labels map[string]string) (project string, service string, ok bool) {
+	project = strings.TrimSpace(labels[composeProjectLabel])
+	service = strings.TrimSpace(labels[composeServiceLabel])
+	ok = project != "" || service != ""
+	return project, service, ok
 }
 
 func dockerEnvironmentVariables(values []string) []EnvironmentVariable {

@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	containergen "graft/server/internal/contract/openapi/generated"
+	containercontract "graft/server/modules/container/contract"
 )
 
 func TestToDetailMapsHealthcheckAndRuntimeStability(t *testing.T) {
@@ -14,6 +15,7 @@ func TestToDetailMapsHealthcheckAndRuntimeStability(t *testing.T) {
 
 	mapped := toDetail(detailWithHealthcheckAndRuntimeStability())
 	assertMappedHealthcheck(t, mapped.Healthcheck)
+	assertMappedOrchestrator(t, mapped.Orchestrator)
 	assertIntPtr(t, mapped.LastExitCode, 137, "mapped last exit code")
 	if mapped.OomKilled == nil || !*mapped.OomKilled {
 		t.Fatalf("expected mapped oom killed true, got %#v", mapped.OomKilled)
@@ -37,6 +39,18 @@ func detailWithHealthcheckAndRuntimeStability() Detail {
 			Health:        containerHealthUnhealthy,
 			RestartCount:  intPtrAllowZero(3),
 			RestartPolicy: "unless-stopped",
+			Orchestrator: OrchestratorInfo{
+				Type:               containerOrchestratorCompose,
+				Managed:            true,
+				Project:            "graft",
+				Service:            "web",
+				DisplayName:        "graft",
+				Confidence:         orchestratorConfidenceHigh,
+				ActionLevel:        containercontract.ContainerOrchestratorActionLevelWarn.String(),
+				BatchActionAllowed: false,
+				Warnings:           []string{orchestratorWarningManagedActionRisk, orchestratorWarningBatchBlocked},
+				RecommendedAction:  recommendedActionOpenController,
+			},
 		},
 		EnvironmentPolicy: "masked",
 		Environment: []EnvironmentVariable{
@@ -89,6 +103,26 @@ func detailWithHealthcheckAndRuntimeStability() Detail {
 		OOMKilled:        boolPtr(true),
 		RuntimeInfo:      RuntimeInfo{Runtime: runtimeNameDocker, Status: "enabled", Endpoint: "local"},
 		InspectUpdatedAt: "2026-06-17T01:32:00Z",
+	}
+}
+
+func assertMappedOrchestrator(t *testing.T, info *containergen.ContainerOrchestratorInfo) {
+	t.Helper()
+
+	if info == nil {
+		t.Fatalf("expected mapped orchestrator info")
+	}
+	if string(info.Type) != containerOrchestratorCompose || !info.Managed {
+		t.Fatalf("unexpected orchestrator identity %#v", info)
+	}
+	if info.Project == nil || *info.Project != "graft" || info.Service == nil || *info.Service != "web" {
+		t.Fatalf("unexpected orchestrator project/service %#v", info)
+	}
+	if string(info.ActionLevel) != containercontract.ContainerOrchestratorActionLevelWarn.String() || info.BatchActionAllowed {
+		t.Fatalf("unexpected orchestrator policy %#v", info)
+	}
+	if len(info.Warnings) != 2 {
+		t.Fatalf("expected orchestrator warnings, got %#v", info.Warnings)
 	}
 }
 

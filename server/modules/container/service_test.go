@@ -6,6 +6,7 @@ package container
 import (
 	"context"
 	"errors"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -634,6 +635,58 @@ func TestServiceListFiltersHealth(t *testing.T) {
 	}
 }
 
+func TestServiceListFiltersOrchestratorAndAppliesPolicy(t *testing.T) {
+	t.Parallel()
+
+	service, err := newService(containerServiceOptions{
+		runtime: listRuntime{},
+		systemConfig: serviceTestPolicyConfig{
+			serviceTestSystemConfig: serviceTestSystemConfig{values: map[string]bool{
+				containercontract.ContainerRuntimeEnabledConfig.String():          true,
+				containercontract.ContainerDangerousActionsEnabledConfig.String(): true,
+			}},
+			values: map[string]string{
+				containercontract.ContainerComposeActionLevelConfig.String(): string(mustRawJSON("warn")),
+			},
+		},
+		enabled:                 true,
+		dangerousActionsEnabled: true,
+		defaultTail:             defaultContainerLogsDefaultTail,
+		maxTail:                 defaultContainerLogsMaxTail,
+	})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	result, err := service.List(context.Background(), ListQuery{Orchestrator: containerOrchestratorCompose})
+	if err != nil {
+		t.Fatalf("list by orchestrator: %v", err)
+	}
+	if result.Total != 1 || len(result.Items) != 1 {
+		t.Fatalf("expected one compose item, got %#v", result)
+	}
+	item := result.Items[0]
+	if item.Name != "graft-web" {
+		t.Fatalf("unexpected compose item %#v", item)
+	}
+	if item.Orchestrator.Type != containerOrchestratorCompose {
+		t.Fatalf("expected compose orchestrator, got %#v", item.Orchestrator)
+	}
+	if item.Orchestrator.ActionLevel != containercontract.ContainerOrchestratorActionLevelWarn.String() {
+		t.Fatalf("expected warn action level, got %#v", item.Orchestrator)
+	}
+	if item.Orchestrator.BatchActionAllowed {
+		t.Fatalf("expected warn policy to block batch actions, got %#v", item.Orchestrator)
+	}
+	if !item.CanStop || !item.CanRestart || !item.CanRemove || item.CanStart {
+		t.Fatalf("expected warn policy to keep eligible single-item dangerous actions available, got %#v", item)
+	}
+	if !slices.Contains(item.Orchestrator.Warnings, orchestratorWarningManagedActionRisk) ||
+		!slices.Contains(item.Orchestrator.Warnings, orchestratorWarningBatchBlocked) {
+		t.Fatalf("expected managed and batch-blocked warnings, got %#v", item.Orchestrator.Warnings)
+	}
+}
+
 func TestServiceMountUsageListDoesNotScanAndUsesCache(t *testing.T) {
 	t.Parallel()
 
@@ -1128,13 +1181,17 @@ var _ moduleapi.SystemConfigResolver = serviceTestSystemConfig{}
 type serviceTestPolicyConfig struct {
 	serviceTestSystemConfig
 	policy string
+	values map[string]string
 }
 
 func (r serviceTestPolicyConfig) ResolveDefaultConfig(_ context.Context, key string) (string, error) {
-	if key != containercontract.ContainerEnvironmentPolicyConfig.String() || strings.TrimSpace(r.policy) == "" {
-		return "", errors.New("config unavailable")
+	if value, ok := r.values[key]; ok && strings.TrimSpace(value) != "" {
+		return value, nil
 	}
-	return string(mustRawJSON(r.policy)), nil
+	if key == containercontract.ContainerEnvironmentPolicyConfig.String() && strings.TrimSpace(r.policy) != "" {
+		return string(mustRawJSON(r.policy)), nil
+	}
+	return "", errors.New("config unavailable")
 }
 
 type countingRuntime struct {
@@ -1236,6 +1293,13 @@ func (listRuntime) List(context.Context, ListQuery) ([]Summary, error) {
 			Health:     containerHealthHealthy,
 			Ports:      []Port{{PrivatePort: 80, PublicPort: intPtr(8080), Type: "tcp"}},
 			Labels:     map[string]string{composeProjectLabel: "graft", composeServiceLabel: "web"},
+			Orchestrator: OrchestratorInfo{
+				Type:       containerOrchestratorCompose,
+				Managed:    true,
+				Project:    "graft",
+				Service:    "web",
+				Confidence: orchestratorConfidenceHigh,
+			},
 			CanStop:    true,
 			CanRestart: true,
 		},
@@ -1250,6 +1314,11 @@ func (listRuntime) List(context.Context, ListQuery) ([]Summary, error) {
 			State:      "exited",
 			Status:     "Exited",
 			Health:     containerHealthNone,
+			Orchestrator: OrchestratorInfo{
+				Type:       containerOrchestratorStandalone,
+				Managed:    false,
+				Confidence: orchestratorConfidenceHigh,
+			},
 			CanStart:   true,
 			CanRestart: true,
 		},
@@ -1263,6 +1332,11 @@ func (listRuntime) List(context.Context, ListQuery) ([]Summary, error) {
 			CreatedAt:  "2026-06-14T00:00:00Z",
 			State:      "running",
 			Status:     "Up",
+			Orchestrator: OrchestratorInfo{
+				Type:       containerOrchestratorUnknown,
+				Managed:    true,
+				Confidence: orchestratorConfidenceLow,
+			},
 			CanStop:    true,
 			CanRestart: true,
 		},

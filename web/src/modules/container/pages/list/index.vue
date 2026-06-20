@@ -59,6 +59,19 @@
           <t-option v-for="status in statusOptions" :key="status" :value="status" :label="stateLabel(status)" />
         </t-select>
         <t-select
+          v-model="filters.orchestrator"
+          class="management-toolbar__select"
+          :placeholder="t('container.list.filters.orchestrator')"
+        >
+          <t-option value="all" :label="t('container.list.filters.allOrchestrators')" />
+          <t-option
+            v-for="orchestrator in orchestratorOptions"
+            :key="orchestrator"
+            :value="orchestrator"
+            :label="orchestratorLabel(orchestrator)"
+          />
+        </t-select>
+        <t-select
           v-model="filters.health"
           class="management-toolbar__select"
           :placeholder="t('container.list.filters.health')"
@@ -248,6 +261,15 @@
             </div>
           </template>
 
+          <template #source="{ row }">
+            <div class="container-source-cell">
+              <t-tag :theme="orchestratorTheme(row)" size="small" variant="light-outline">
+                {{ orchestratorLabel(readOrchestratorType(row)) }}
+              </t-tag>
+              <span class="container-muted">{{ orchestratorSummary(row) }}</span>
+            </div>
+          </template>
+
           <template #cpu="{ row }">
             <t-tooltip
               v-for="metric in [cpuMetric(row)]"
@@ -433,16 +455,18 @@ import { CONTAINER_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import { CONTAINER_PERMISSION_CODE } from '../../contract/permissions';
 import type {
   ContainerAction,
+  ContainerActionLevel,
   ContainerBatchActionItem,
   ContainerBatchActionResponse,
   ContainerFilters,
   ContainerHealth,
-  ContainerListQuery,
+  ContainerListQueryWithOrchestrator,
   ContainerListSummary,
+  ContainerOrchestratorType,
   ContainerPort,
   ContainerRuntimeInfo,
   ContainerState,
-  ContainerSummary,
+  ContainerSummaryRecord,
 } from '../../types/container';
 
 defineOptions({
@@ -466,6 +490,7 @@ const statusOptions: ContainerState[] = [
   'unknown',
 ];
 const healthOptions: ContainerHealth[] = ['healthy', 'unhealthy', 'starting', 'none', 'unavailable'];
+const orchestratorOptions: ContainerOrchestratorType[] = ['standalone', 'compose', 'swarm', 'kubernetes', 'unknown'];
 const CONTAINER_RUNTIME_DISABLED_MESSAGE_KEY = 'ops.container.error.runtimeDisabled';
 const CONTAINER_COLUMN_STORAGE_KEY = 'graft.container.list.visibleColumns';
 const DEFAULT_VISIBLE_COLUMNS = [
@@ -473,6 +498,7 @@ const DEFAULT_VISIBLE_COLUMNS = [
   'state',
   'name',
   'image',
+  'source',
   'cpu',
   'memory',
   'ports',
@@ -487,6 +513,7 @@ const ALL_COLUMN_KEYS = [
   'state',
   'name',
   'image',
+  'source',
   'cpu',
   'memory',
   'ports',
@@ -530,7 +557,7 @@ type DropdownActionContext = { e?: MouseEvent };
 
 const loading = ref(false);
 const listError = ref<ListErrorState>({ title: '', hint: '' });
-const rows = ref<ContainerSummary[]>([]);
+const rows = ref<ContainerSummaryRecord[]>([]);
 const runtime = ref<ContainerRuntimeInfo | null>(null);
 const listSummary = ref<ContainerListSummary | null>(null);
 const listTotal = ref(0);
@@ -543,6 +570,7 @@ const activeDangerousDialog = ref<DialogInstance | null>(null);
 const dangerousDialogOpen = ref(false);
 const filters = reactive<ContainerFilters>({
   keyword: '',
+  orchestrator: 'all',
   status: 'all',
   health: 'all',
 });
@@ -566,6 +594,7 @@ const allColumns = computed<TdBaseTableProps['columns']>(() => [
     minWidth: 280,
     ellipsis: { theme: 'default', placement: 'top-left' },
   },
+  { title: t('container.list.columns.source'), colKey: 'source', width: 188, ellipsis: false },
   { title: t('container.list.columns.cpu'), colKey: 'cpu', width: 132, align: 'center', ellipsis: false },
   { title: t('container.list.columns.memory'), colKey: 'memory', width: 180, align: 'center', ellipsis: false },
   { title: t('container.list.columns.ports'), colKey: 'ports', width: 220, ellipsis: false },
@@ -607,7 +636,11 @@ const visibleColumns = computed<TdBaseTableProps['columns']>(() =>
 const { tableHostRef, tableHostWidth } = useTableHostWidth(() => visibleColumns.value);
 const tableWidthPolicy = computed(() => resolveTableWidthPolicy(visibleColumns.value, tableHostWidth.value));
 const hasActiveFilters = computed(
-  () => Boolean(filters.keyword.trim()) || filters.status !== 'all' || filters.health !== 'all',
+  () =>
+    Boolean(filters.keyword.trim()) ||
+    filters.orchestrator !== 'all' ||
+    filters.status !== 'all' ||
+    filters.health !== 'all',
 );
 const totalCount = computed(() => listSummary.value?.total ?? listTotal.value);
 const runningCount = computed(() => listSummary.value?.running ?? 0);
@@ -619,8 +652,7 @@ const readOnlyMode = computed(() => {
     return true;
   }
 
-  // The list contract only exposes row-level can_* flags. Treat missing or all-false dangerous action availability as read-only.
-  return rows.value.every((row) => !row.can_start && !row.can_stop && !row.can_restart && !row.can_remove);
+  return rows.value.every((row) => !canRunAnyDangerousAction(row));
 });
 const readOnlyModeStatus = computed(() =>
   readOnlyMode.value ? t('container.list.readOnlyMode') : t('container.list.actionModeEnabled'),
@@ -643,6 +675,7 @@ const columnSettingOptions = computed(() => [
   { label: t('container.list.columns.status'), value: 'state' },
   { label: t('container.list.columns.name'), value: 'name' },
   { label: t('container.list.columns.image'), value: 'image' },
+  { label: t('container.list.columns.source'), value: 'source' },
   { label: t('container.list.columns.cpu'), value: 'cpu' },
   { label: t('container.list.columns.memory'), value: 'memory' },
   { label: t('container.list.columns.ports'), value: 'ports' },
@@ -748,6 +781,7 @@ function applyFilters() {
 
 function resetFilters() {
   filters.keyword = '';
+  filters.orchestrator = 'all';
   filters.status = 'all';
   filters.health = 'all';
   requestFirstPage();
@@ -761,21 +795,22 @@ function requestFirstPage() {
   pagination.current = 1;
 }
 
-function buildListQuery(): ContainerListQuery {
+function buildListQuery(): ContainerListQueryWithOrchestrator {
   return {
     limit: pagination.pageSize,
     offset: (pagination.current - 1) * pagination.pageSize,
     keyword: filters.keyword.trim() || undefined,
+    orchestrator: filters.orchestrator === 'all' ? undefined : filters.orchestrator,
     state: filters.status === 'all' ? undefined : filters.status,
     health: filters.health === 'all' ? undefined : filters.health,
   };
 }
 
-function openDetail(row: ContainerSummary) {
+function openDetail(row: ContainerSummaryRecord) {
   void navigateToDetail(row, 'overview');
 }
 
-async function copyContainerId(row: ContainerSummary) {
+async function copyContainerId(row: ContainerSummaryRecord) {
   try {
     await navigator.clipboard.writeText(row.id);
     MessagePlugin.success(t('container.list.copyIdSuccess'));
@@ -785,7 +820,7 @@ async function copyContainerId(row: ContainerSummary) {
   }
 }
 
-function moreRowActions(row: ContainerSummary) {
+function moreRowActions(row: ContainerSummaryRecord) {
   const actions: Array<{
     disabled?: boolean;
     fallbackLabel: string;
@@ -829,7 +864,7 @@ function moreRowActions(row: ContainerSummary) {
     value: 'view-env',
   });
 
-  if (row.can_start) {
+  if (canRunDangerousAction(row, 'start')) {
     actions.push({
       fallbackLabel: t('container.list.actions.start'),
       label: 'container.list.actions.start',
@@ -838,7 +873,7 @@ function moreRowActions(row: ContainerSummary) {
     });
   }
 
-  if (row.can_stop) {
+  if (canRunDangerousAction(row, 'stop')) {
     actions.push({
       fallbackLabel: t('container.list.actions.stop'),
       label: 'container.list.actions.stop',
@@ -847,7 +882,7 @@ function moreRowActions(row: ContainerSummary) {
     });
   }
 
-  if (row.can_restart) {
+  if (canRunDangerousAction(row, 'restart')) {
     actions.push({
       fallbackLabel: t('container.list.actions.restart'),
       label: 'container.list.actions.restart',
@@ -856,7 +891,7 @@ function moreRowActions(row: ContainerSummary) {
     });
   }
 
-  if (!readOnlyMode.value || row.can_remove) {
+  if (orchestratorActionLevel(row) !== 'readonly') {
     actions.push({
       disabled: isDangerousActionDisabled(row, 'remove'),
       fallbackLabel: t('container.list.actions.remove'),
@@ -869,7 +904,7 @@ function moreRowActions(row: ContainerSummary) {
   return actions;
 }
 
-function moreRowActionOptions(row: ContainerSummary): DropdownOption[] {
+function moreRowActionOptions(row: ContainerSummaryRecord): DropdownOption[] {
   return moreRowActions(row).map((action) => ({
     content: action.fallbackLabel,
     disabled: action.disabled,
@@ -883,7 +918,7 @@ function moreRowActionOptions(row: ContainerSummary): DropdownOption[] {
 function handleMoreRowAction(
   payload: DropdownActionValue,
   context: DropdownActionContext | undefined,
-  row: ContainerSummary,
+  row: ContainerSummaryRecord,
 ) {
   context?.e?.stopPropagation();
 
@@ -893,7 +928,7 @@ function handleMoreRowAction(
   }
 }
 
-function handleRowAction(action: string, row: ContainerSummary) {
+function handleRowAction(action: string, row: ContainerSummaryRecord) {
   if (action === 'copy-id') {
     void copyContainerId(row);
     return;
@@ -924,7 +959,7 @@ function handleRowAction(action: string, row: ContainerSummary) {
   }
 }
 
-async function performDangerousAction(row: ContainerSummary, action: DangerousContainerAction) {
+async function performDangerousAction(row: ContainerSummaryRecord, action: DangerousContainerAction) {
   if (isDangerousActionDisabled(row, action)) {
     MessagePlugin.warning(t('container.list.actions.dangerousDisabled'));
     return;
@@ -936,7 +971,7 @@ async function performDangerousAction(row: ContainerSummary, action: DangerousCo
   await executeDangerousAction(row, action, force);
 }
 
-function confirmRuntimeAction(row: ContainerSummary, action: Exclude<DangerousContainerAction, 'remove'>) {
+function confirmRuntimeAction(row: ContainerSummaryRecord, action: Exclude<DangerousContainerAction, 'remove'>) {
   if (dangerousDialogOpen.value) {
     return Promise.resolve(undefined);
   }
@@ -946,7 +981,11 @@ function confirmRuntimeAction(row: ContainerSummary, action: Exclude<DangerousCo
     dangerousDialogOpen.value = true;
     const dialog = DialogPlugin.confirm({
       header: t(actionDialogTitleKey(action)),
-      body: t(actionConfirmKey(action), { name: displayName(row) }),
+      body: () =>
+        h('div', { class: 'container-remove-confirm' }, [
+          h('p', t(actionConfirmKey(action), { name: displayName(row) })),
+          rowActionRiskText(row) ? h('p', { class: 'container-remove-confirm__risk' }, rowActionRiskText(row)) : null,
+        ]),
       theme: action === 'start' ? 'warning' : 'danger',
       confirmBtn: t('container.list.actions.confirm'),
       cancelBtn: t('container.list.actions.cancel'),
@@ -980,7 +1019,7 @@ function confirmRuntimeAction(row: ContainerSummary, action: Exclude<DangerousCo
   });
 }
 
-function confirmRemoveAction(row: ContainerSummary) {
+function confirmRemoveAction(row: ContainerSummaryRecord) {
   if (dangerousDialogOpen.value) {
     return Promise.resolve(undefined);
   }
@@ -1000,6 +1039,7 @@ function confirmRemoveAction(row: ContainerSummary) {
               ? t('container.list.actions.confirmRemoveRunning', { name: displayName(row) })
               : t('container.list.actions.confirmRemove', { name: displayName(row) }),
           ),
+          rowActionRiskText(row) ? h('p', { class: 'container-remove-confirm__risk' }, rowActionRiskText(row)) : null,
           running
             ? h('label', { class: 'container-remove-confirm__force' }, [
                 h('input', {
@@ -1064,7 +1104,7 @@ function closeConfirmDialog<T>(
   resolve(value);
 }
 
-async function executeDangerousAction(row: ContainerSummary, action: DangerousContainerAction, force: boolean) {
+async function executeDangerousAction(row: ContainerSummaryRecord, action: DangerousContainerAction, force: boolean) {
   try {
     const response =
       action === 'start'
@@ -1084,8 +1124,11 @@ async function executeDangerousAction(row: ContainerSummary, action: DangerousCo
   }
 }
 
-function isDangerousActionDisabled(row: ContainerSummary, action: DangerousContainerAction) {
+function isDangerousActionDisabled(row: ContainerSummaryRecord, action: DangerousContainerAction) {
   if (!row.id || row.state === 'unknown' || row.state === 'removing') {
+    return true;
+  }
+  if (orchestratorActionLevel(row) === 'readonly') {
     return true;
   }
 
@@ -1123,7 +1166,7 @@ function isBatchActionDisabled(action: DangerousContainerAction) {
 }
 
 function batchActionableRows(action: DangerousContainerAction) {
-  return selectedRows.value.filter((row) => !isDangerousActionDisabled(row, action));
+  return selectedRows.value.filter((row) => isBatchActionEligible(row, action));
 }
 
 function clearSelection() {
@@ -1149,6 +1192,9 @@ function confirmBatchAction(action: DangerousContainerAction) {
   const actionableRows = batchActionableRows(action);
   const actionableCount = actionableRows.length;
   const skippedCount = selectedCount - actionableCount;
+  const sourceBlockedCount = selectedRows.value.filter(
+    (row) => !isDangerousActionDisabled(row, action) && !isBatchActionEligible(row, action),
+  ).length;
   const runningCountForRemove =
     action === 'remove' ? actionableRows.filter((row) => row.state === 'running').length : 0;
   let resolved = false;
@@ -1166,6 +1212,9 @@ function confirmBatchAction(action: DangerousContainerAction) {
           }),
         ),
         skippedCount > 0 ? h('p', t('container.list.batch.skipInapplicable')) : null,
+        sourceBlockedCount > 0
+          ? h('p', t('container.list.batch.skipSourceRestricted', { count: sourceBlockedCount }))
+          : null,
         action === 'remove' && runningCountForRemove > 0
           ? h('p', t('container.list.batch.confirmRemoveRunning', { count: runningCountForRemove }))
           : null,
@@ -1282,7 +1331,7 @@ function batchFailureSummary(items: ContainerBatchActionItem[]) {
     .join('\n');
 }
 
-function navigateToDetail(row: ContainerSummary, tab: string) {
+function navigateToDetail(row: ContainerSummaryRecord, tab: string) {
   const target = {
     name: CONTAINER_BOOTSTRAP_ROUTE.DETAIL.pageRouteName,
     params: { id: row.id },
@@ -1314,7 +1363,7 @@ function handlePageChange(pageInfo: { current?: number; pageSize?: number }) {
   }
 }
 
-function displayName(row: ContainerSummary) {
+function displayName(row: ContainerSummaryRecord) {
   return row.name || row.names?.[0] || row.id;
 }
 
@@ -1340,20 +1389,20 @@ function formatPorts(ports: ContainerPort[]) {
   });
 }
 
-function visiblePortLabels(row: ContainerSummary) {
+function visiblePortLabels(row: ContainerSummaryRecord) {
   return formatPorts(row.ports).slice(0, CONTAINER_PORT_VISIBLE_LIMIT);
 }
 
-function hiddenPortLabels(row: ContainerSummary) {
+function hiddenPortLabels(row: ContainerSummaryRecord) {
   return formatPorts(row.ports).slice(CONTAINER_PORT_VISIBLE_LIMIT);
 }
 
-function labelSummary(row: ContainerSummary) {
+function labelSummary(row: ContainerSummaryRecord) {
   const count = Object.keys(row.labels ?? {}).length;
   return count ? t('container.list.labelCount', { count }) : '-';
 }
 
-function resourceSummary(row: ContainerSummary) {
+function resourceSummary(row: ContainerSummaryRecord) {
   if (!isResourceStatsAvailable(row)) {
     return resourceUnavailableSummary(row);
   }
@@ -1364,7 +1413,7 @@ function resourceSummary(row: ContainerSummary) {
   return `${cpu} / ${memory}`;
 }
 
-function cpuMetric(row: ContainerSummary): ResourceMetric {
+function cpuMetric(row: ContainerSummaryRecord): ResourceMetric {
   if (!isResourceStatsAvailable(row) || row.resource?.cpu_percent === undefined) {
     return {
       available: false,
@@ -1383,7 +1432,7 @@ function cpuMetric(row: ContainerSummary): ResourceMetric {
   };
 }
 
-function memoryMetric(row: ContainerSummary): ResourceMetric {
+function memoryMetric(row: ContainerSummaryRecord): ResourceMetric {
   if (!isResourceStatsAvailable(row) || row.resource?.memory_percent === undefined) {
     return {
       available: false,
@@ -1413,7 +1462,7 @@ function clampPercentage(value: number) {
   return Math.min(100, Math.max(0, Number.isFinite(value) ? value : 0));
 }
 
-function isResourceStatsAvailable(row: ContainerSummary) {
+function isResourceStatsAvailable(row: ContainerSummaryRecord) {
   if (row.resource?.stats_available !== undefined) {
     return row.resource.stats_available;
   }
@@ -1421,7 +1470,7 @@ function isResourceStatsAvailable(row: ContainerSummary) {
   return Boolean(row.resource?.available);
 }
 
-function resourceUnavailableSummary(row: ContainerSummary) {
+function resourceUnavailableSummary(row: ContainerSummaryRecord) {
   const reason = row.resource?.stats_error_message || row.resource?.stats_error_key || row.resource?.unavailable_reason;
   return reason?.trim() || t('container.list.resourceUnavailable');
 }
@@ -1440,6 +1489,73 @@ function formatTime(value?: string | null) {
 
 function stateLabel(state: ContainerState) {
   return t(`container.list.states.${state}`);
+}
+
+function readOrchestratorType(row: ContainerSummaryRecord): ContainerOrchestratorType {
+  return row.orchestrator?.type || 'standalone';
+}
+
+function orchestratorActionLevel(row: ContainerSummaryRecord): ContainerActionLevel {
+  if (row.orchestrator?.action_level) {
+    return row.orchestrator.action_level;
+  }
+
+  return row.can_start || row.can_stop || row.can_restart || row.can_remove ? 'allow' : 'readonly';
+}
+
+function orchestratorLabel(type: ContainerOrchestratorType) {
+  return t(`container.list.orchestrators.${type}`);
+}
+
+function orchestratorTheme(row: ContainerSummaryRecord) {
+  const type = readOrchestratorType(row);
+  if (type === 'standalone') return 'success';
+  if (type === 'compose') return 'warning';
+  if (type === 'unknown') return 'danger';
+  return 'default';
+}
+
+function orchestratorSummary(row: ContainerSummaryRecord) {
+  const orchestrator = row.orchestrator;
+  if (!orchestrator) {
+    return orchestratorLabel(readOrchestratorType(row));
+  }
+
+  return (
+    orchestrator.service ||
+    orchestrator.project ||
+    orchestrator.stack ||
+    orchestrator.namespace ||
+    orchestrator.pod ||
+    orchestrator.display_name ||
+    t('container.list.sourceUnknownSummary')
+  );
+}
+
+function rowActionRiskText(row: ContainerSummaryRecord) {
+  return orchestratorActionLevel(row) === 'warn'
+    ? t('container.list.actions.sourceRisk', { source: orchestratorLabel(readOrchestratorType(row)) })
+    : '';
+}
+
+function canRunDangerousAction(row: ContainerSummaryRecord, action: DangerousContainerAction) {
+  if (orchestratorActionLevel(row) === 'readonly') {
+    return false;
+  }
+  if (action === 'start') return Boolean(row.can_start);
+  if (action === 'stop') return Boolean(row.can_stop);
+  if (action === 'restart') return Boolean(row.can_restart);
+  return Boolean(row.can_remove);
+}
+
+function canRunAnyDangerousAction(row: ContainerSummaryRecord) {
+  return (['start', 'stop', 'restart', 'remove'] as DangerousContainerAction[]).some((action) =>
+    canRunDangerousAction(row, action),
+  );
+}
+
+function isBatchActionEligible(row: ContainerSummaryRecord, action: DangerousContainerAction) {
+  return !isDangerousActionDisabled(row, action) && (row.orchestrator?.batch_action_allowed ?? true);
 }
 
 function healthLabel(health?: ContainerHealth | null) {
@@ -1530,7 +1646,8 @@ function normalizeVisibleColumnKeys(keys: unknown[]) {
 
 .container-table-head,
 .container-image,
-.container-identity {
+.container-identity,
+.container-source-cell {
   display: flex;
   flex-direction: column;
   gap: var(--graft-density-gap-4);
@@ -1599,6 +1716,10 @@ function normalizeVisibleColumnKeys(keys: unknown[]) {
   margin: 0;
 }
 
+.container-remove-confirm__risk {
+  color: var(--td-warning-color-7);
+}
+
 .container-runtime-status {
   display: flex;
   flex-direction: column;
@@ -1615,6 +1736,10 @@ function normalizeVisibleColumnKeys(keys: unknown[]) {
 }
 
 .container-runtime-status .t-tag {
+  align-self: flex-start;
+}
+
+.container-source-cell .t-tag {
   align-self: flex-start;
 }
 

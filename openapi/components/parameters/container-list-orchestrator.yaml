@@ -1,0 +1,13 @@
+name: orchestrator
+in: query
+required: false
+description: Optional orchestrator source filter resolved by the backend from runtime metadata.
+schema:
+  type: string
+  enum: [standalone, compose, swarm, kubernetes, unknown]
+  x-enum-varnames:
+    - ContainerListOrchestratorStandalone
+    - ContainerListOrchestratorCompose
+    - ContainerListOrchestratorSwarm
+    - ContainerListOrchestratorKubernetes
+    - ContainerListOrchestratorUnknown

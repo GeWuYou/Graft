@@ -111,6 +111,32 @@
             </div>
           </t-card>
           <t-card
+            class="container-detail-summary-card container-detail-summary-card--source"
+            size="small"
+            :bordered="false"
+            :title="t('container.detail.summary.source')"
+          >
+            <div class="container-detail-summary-list">
+              <div class="container-detail-kv container-detail-kv--inline">
+                <span>{{ t('container.detail.source.type') }}</span>
+                <t-tag :theme="orchestratorTheme(safeDetail)" variant="light-outline">
+                  {{ orchestratorLabel(readOrchestratorType(safeDetail)) }}
+                </t-tag>
+              </div>
+              <div class="container-detail-kv">
+                <span>{{ t('container.detail.source.summary') }}</span>
+                <strong>{{ orchestratorSummary(safeDetail) }}</strong>
+              </div>
+              <div class="container-detail-kv">
+                <span>{{ t('container.detail.source.actionPolicy') }}</span>
+                <strong>{{ actionLevelLabel(safeDetail) }}</strong>
+              </div>
+              <div v-if="orchestratorRiskHint(safeDetail)" class="container-detail-kv container-detail-kv--full">
+                <t-alert theme="warning" :message="orchestratorRiskHint(safeDetail)" />
+              </div>
+            </div>
+          </t-card>
+          <t-card
             class="container-detail-summary-card container-detail-summary-card--resources"
             size="small"
             :bordered="false"
@@ -1143,12 +1169,15 @@ import {
 import ContainerRawJsonPanel from '../../components/ContainerRawJsonPanel.vue';
 import ContainerShellPanel from '../../components/ContainerShellPanel.vue';
 import type {
+  ContainerActionLevel,
   ContainerDetail,
+  ContainerDetailRecord,
   ContainerHealth,
   ContainerHealthcheck,
   ContainerLogResponse,
   ContainerMount,
   ContainerMountUsage,
+  ContainerOrchestratorType,
   ContainerState,
 } from '../../types/container';
 import ContainerOverviewPanel from './components/ContainerOverviewPanel.vue';
@@ -1234,7 +1263,7 @@ type MountCard = {
   usageTheme: MountTagTheme;
   usageTone: MountCardUsageTone;
 };
-type SafeContainerDetail = ContainerDetail & {
+type SafeContainerDetail = ContainerDetailRecord & {
   command: string[];
   entrypoint: string[];
   environment: NonNullable<ContainerDetail['environment']>;
@@ -1332,7 +1361,7 @@ const router = useRouter();
 const tabsRouterStore = useTabsRouterStore();
 const logger = createLogger('container.detail');
 
-const detail = ref<ContainerDetail | null>(null);
+const detail = ref<ContainerDetailRecord | null>(null);
 const detailRefreshing = ref(false);
 const error = ref('');
 const logs = ref<ContainerLogResponse | null>(null);
@@ -2669,6 +2698,66 @@ function displayName(row: SafeContainerDetail) {
 
 function stateLabel(state: ContainerState) {
   return t(`container.list.states.${state}`);
+}
+
+function readOrchestratorType(detailRecord?: SafeContainerDetail | null): ContainerOrchestratorType {
+  return detailRecord?.orchestrator?.type || 'standalone';
+}
+
+function orchestratorLabel(type: ContainerOrchestratorType) {
+  return t(`container.list.orchestrators.${type}`);
+}
+
+function orchestratorTheme(detailRecord?: SafeContainerDetail | null) {
+  const type = readOrchestratorType(detailRecord);
+  if (type === 'standalone') return 'success';
+  if (type === 'compose') return 'warning';
+  if (type === 'unknown') return 'danger';
+  return 'default';
+}
+
+function orchestratorSummary(detailRecord?: SafeContainerDetail | null) {
+  const orchestrator = detailRecord?.orchestrator;
+  if (!orchestrator) {
+    return orchestratorLabel(readOrchestratorType(detailRecord));
+  }
+
+  return (
+    orchestrator.service ||
+    orchestrator.project ||
+    orchestrator.stack ||
+    orchestrator.namespace ||
+    orchestrator.pod ||
+    orchestrator.display_name ||
+    t('container.detail.source.summaryUnknown')
+  );
+}
+
+function readActionLevel(detailRecord?: SafeContainerDetail | null): ContainerActionLevel {
+  if (detailRecord?.orchestrator?.action_level) {
+    return detailRecord.orchestrator.action_level;
+  }
+
+  return detailRecord?.can_start || detailRecord?.can_stop || detailRecord?.can_restart || detailRecord?.can_remove
+    ? 'allow'
+    : 'readonly';
+}
+
+function actionLevelLabel(detailRecord?: SafeContainerDetail | null) {
+  return t(`container.detail.source.actionLevels.${readActionLevel(detailRecord)}`);
+}
+
+function orchestratorRiskHint(detailRecord?: SafeContainerDetail | null) {
+  const level = readActionLevel(detailRecord);
+  if (level === 'warn') {
+    return t('container.detail.source.riskWarn', { source: orchestratorLabel(readOrchestratorType(detailRecord)) });
+  }
+  if (level === 'readonly') {
+    return t('container.detail.source.riskReadonly', {
+      source: orchestratorLabel(readOrchestratorType(detailRecord)),
+    });
+  }
+  return '';
 }
 
 function resolveHealthDiagnosis(nextDetail: ContainerDetail) {

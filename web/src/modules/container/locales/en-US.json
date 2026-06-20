@@ -70,6 +70,8 @@
       "filters": {
         "searchPlaceholder": "Search Name, Image, ID, or Port",
         "status": "Container Status",
+        "orchestrator": "Source",
+        "allOrchestrators": "All Sources",
         "health": "Health",
         "allStatuses": "All Statuses",
         "allHealth": "All Health",
@@ -81,6 +83,7 @@
         "status": "Status",
         "name": "Container",
         "image": "Image",
+        "source": "Source",
         "cpu": "CPU",
         "memory": "Memory",
         "ports": "Ports",
@@ -111,6 +114,14 @@
         "none": "Healthcheck Not Configured",
         "unavailable": "Health Unknown"
       },
+      "orchestrators": {
+        "standalone": "Standalone",
+        "compose": "Compose",
+        "swarm": "Swarm",
+        "kubernetes": "Kubernetes",
+        "unknown": "Unknown Source"
+      },
+      "sourceUnknownSummary": "No Source Summary",
       "actions": {
         "detail": "Detail",
         "logs": "Logs",
@@ -135,6 +146,7 @@
         "confirmRemoveRunning": "Container {name} Is Running. The Default Delete Will Be Rejected; Select Force to Continue.",
         "forceRemove": "Force Delete Running Container",
         "dangerousDisabled": "Dangerous Actions Are Disabled or Not Allowed for the Current State.",
+        "sourceRisk": "This container comes from {source}. Confirm the upstream orchestrator state before dangerous actions.",
         "unavailable": "This action is currently unavailable.",
         "confirm": "Confirm",
         "cancel": "Cancel"
@@ -161,6 +173,7 @@
         "confirmRemove": "Delete the Selected {count} Containers? This Cannot Be Undone.",
         "confirmScope": "{selectedCount} Containers Are Selected. This Action Will Process {actionableCount} Eligible Containers and Skip {skippedCount}.",
         "skipInapplicable": "Some Containers Are Not Applicable Because of Their Current State or Permissions and Will Be Skipped.",
+        "skipSourceRestricted": "{count} Containers Were Skipped Because Their Source Policy Disallows Batch Dangerous Actions.",
         "confirmRemoveRunning": "{count} Selected Containers Are Running. The Default Delete Will Be Rejected; Select Force to Continue.",
         "success": "Batch Action Completed. {count} Succeeded.",
         "partialTitle": "Batch Action Partially Succeeded",
@@ -258,9 +271,23 @@
       "operation": "Operation",
       "summary": {
         "identity": "Identity",
+        "source": "Source Policy",
         "runtime": "Runtime Status",
         "resources": "Resources",
         "network": "Network Access"
+      },
+      "source": {
+        "type": "Source Type",
+        "summary": "Source Summary",
+        "summaryUnknown": "No Source Summary",
+        "actionPolicy": "Action Policy",
+        "riskWarn": "This container comes from {source}. Confirm the orchestrator control plane state before single-container dangerous actions. Batch dangerous actions remain blocked.",
+        "riskReadonly": "This container comes from {source}. The current policy is read-only, so dangerous entrypoints are intentionally constrained.",
+        "actionLevels": {
+          "readonly": "Read-only",
+          "warn": "Single-container Warning",
+          "allow": "Allowed"
+        }
       },
       "overview": {
         "basicInfo": "Basic Information",

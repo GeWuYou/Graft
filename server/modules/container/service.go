@@ -51,6 +51,7 @@ type service struct {
 	defaultTail             int
 	maxTail                 int
 	environmentPolicy       containercontract.EnvironmentPolicy
+	orchestratorPolicies    orchestratorActionPolicies
 	websocketAllowedOrigins []string
 	realtimeTickets         realtimeauth.Service
 }
@@ -70,6 +71,7 @@ type containerServiceOptions struct {
 	defaultTail             int
 	maxTail                 int
 	environmentPolicy       containercontract.EnvironmentPolicy
+	orchestratorPolicies    orchestratorActionPolicies
 	websocketAllowedOrigins []string
 	realtimeTickets         realtimeauth.Service
 }
@@ -95,6 +97,7 @@ func newContainerService(ctx *module.Context, moduleName string) (*service, erro
 		defaultTail:             options.defaultTail,
 		maxTail:                 options.maxTail,
 		environmentPolicy:       options.environmentPolicy,
+		orchestratorPolicies:    options.orchestratorPolicies,
 		websocketAllowedOrigins: allowedOrigins,
 	})
 }
@@ -147,6 +150,7 @@ func newService(options containerServiceOptions) (*service, error) {
 		defaultTail:             options.defaultTail,
 		maxTail:                 options.maxTail,
 		environmentPolicy:       environmentPolicy,
+		orchestratorPolicies:    options.orchestratorPolicies.normalized(),
 		websocketAllowedOrigins: append([]string(nil), options.websocketAllowedOrigins...),
 		realtimeTickets:         options.realtimeTickets,
 	}, nil
@@ -186,7 +190,7 @@ func (s *service) List(ctx context.Context, query ListQuery) (ListResult, error)
 	}
 	filtered := filterContainerSummaries(items, normalized)
 	paged := pageContainerSummaries(filtered, normalized)
-	paged = applyActionAvailability(paged, s.dangerousActionsAllowed(ctx))
+	paged = applyActionAvailability(paged, s.effectiveActionPolicy(ctx))
 	return ListResult{
 		Runtime: info,
 		Items:   paged,
@@ -209,7 +213,7 @@ func (s *service) Detail(ctx context.Context, ref Ref) (Detail, error) {
 	if err != nil {
 		return Detail{}, err
 	}
-	adjusted := applyActionAvailability([]Summary{detail.Summary}, s.dangerousActionsAllowed(ctx))
+	adjusted := applyActionAvailability([]Summary{detail.Summary}, s.effectiveActionPolicy(ctx))
 	if len(adjusted) == 1 {
 		detail.Summary = adjusted[0]
 	}
@@ -330,7 +334,8 @@ func (s *service) BatchAction(ctx context.Context, command BatchActionCommand) (
 	if err := s.requireRuntimeAccess(ctx); err != nil {
 		return BatchActionResult{}, err
 	}
-	if !s.dangerousActionsAllowed(ctx) {
+	policy := s.effectiveActionPolicy(ctx)
+	if !policy.dangerousAllowed {
 		for _, ref := range normalized.IDs {
 			result := ActionResult{ID: ref, Action: normalized.Action, Runtime: runtimeNameDocker}
 			s.publishActionAudit(ctx, result, ActionOptions{Force: normalized.Force}, errDangerousActionsDisabled)
@@ -374,14 +379,30 @@ func (s *service) runAction(
 	if err := s.requireRuntimeAccess(ctx); err != nil {
 		return ActionResult{}, err
 	}
+	runtime, err := s.runtimeForRequest()
+	if err != nil {
+		return ActionResult{}, err
+	}
 	if !s.dangerousActionsAllowed(ctx) {
 		result := ActionResult{ID: ref.Value, Action: action, Runtime: runtimeNameDocker}
 		s.publishActionAudit(ctx, result, options, errDangerousActionsDisabled)
 		return ActionResult{}, errDangerousActionsDisabled
 	}
-	runtime, err := s.runtimeForRequest()
-	if err != nil {
-		return ActionResult{}, err
+	detail, detailErr := runtime.Detail(ctx, ref)
+	orchestratorType := ""
+	if detailErr == nil {
+		orchestratorType = effectiveOrchestratorType(detail.Summary)
+	}
+	if s.effectiveActionPolicy(ctx).singleBlockedFor(orchestratorType) {
+		result := ActionResult{
+			ID:      firstNonEmpty(ref.Value, detail.ID),
+			Name:    detail.Name,
+			Image:   detail.Image,
+			Action:  action,
+			Runtime: runtimeNameDocker,
+		}
+		s.publishActionAudit(ctx, result, options, errDangerousActionsDisabled)
+		return ActionResult{}, errDangerousActionsDisabled
 	}
 	actionCtx, cancel := context.WithTimeout(ctx, containerOperationTTL)
 	defer cancel()
@@ -647,6 +668,80 @@ func normalizeEnvironmentPolicy(value string) containercontract.EnvironmentPolic
 	}
 }
 
+func normalizeOrchestratorActionLevel(value string) containercontract.OrchestratorActionLevel {
+	switch containercontract.OrchestratorActionLevel(strings.ToLower(strings.TrimSpace(value))) {
+	case containercontract.ContainerOrchestratorActionLevelReadonly:
+		return containercontract.ContainerOrchestratorActionLevelReadonly
+	case containercontract.ContainerOrchestratorActionLevelAllow:
+		return containercontract.ContainerOrchestratorActionLevelAllow
+	default:
+		return containercontract.ContainerOrchestratorActionLevelWarn
+	}
+}
+
+func normalizedOrchestratorInfo(info OrchestratorInfo) OrchestratorInfo {
+	info.Type = effectiveOrchestratorTypeFromValue(info.Type)
+	info.Managed = info.Type != containerOrchestratorStandalone
+	if strings.TrimSpace(info.Confidence) == "" {
+		if info.Managed {
+			info.Confidence = orchestratorConfidenceMedium
+		} else {
+			info.Confidence = orchestratorConfidenceHigh
+		}
+	}
+	if info.Warnings == nil {
+		info.Warnings = []string{}
+	}
+	return info
+}
+
+func effectiveOrchestratorType(item Summary) string {
+	return effectiveOrchestratorTypeFromValue(item.Orchestrator.Type)
+}
+
+func effectiveOrchestratorTypeFromValue(value string) string {
+	value = strings.TrimSpace(strings.ToLower(value))
+	if isValidContainerOrchestrator(value) {
+		return value
+	}
+	return containerOrchestratorStandalone
+}
+
+func orchestratorWarningsFor(
+	info OrchestratorInfo,
+	level containercontract.OrchestratorActionLevel,
+) []string {
+	const extraOrchestratorWarnings = 2
+
+	seen := map[string]struct{}{}
+	warnings := make([]string, 0, len(info.Warnings)+extraOrchestratorWarnings)
+	appendWarning := func(code string) {
+		code = strings.TrimSpace(code)
+		if code == "" {
+			return
+		}
+		if _, ok := seen[code]; ok {
+			return
+		}
+		seen[code] = struct{}{}
+		warnings = append(warnings, code)
+	}
+	for _, code := range info.Warnings {
+		appendWarning(code)
+	}
+	if info.Managed {
+		appendWarning(orchestratorWarningManagedActionRisk)
+	}
+	switch level {
+	case containercontract.ContainerOrchestratorActionLevelReadonly:
+		appendWarning(orchestratorWarningReadonly)
+		appendWarning(orchestratorWarningBatchBlocked)
+	case containercontract.ContainerOrchestratorActionLevelWarn:
+		appendWarning(orchestratorWarningBatchBlocked)
+	}
+	return warnings
+}
+
 func isSensitiveEnvironmentKey(key string) bool {
 	normalized := strings.ToUpper(strings.TrimSpace(key))
 	for _, marker := range sensitiveEnvironmentKeyMarkers {
@@ -700,6 +795,9 @@ func filterContainerSummaries(items []Summary, query ListQuery) []Summary {
 		if query.Health != "" && effectiveHealth(item) != query.Health {
 			continue
 		}
+		if query.Orchestrator != "" && effectiveOrchestratorType(item) != query.Orchestrator {
+			continue
+		}
 		if keyword != "" && !summaryMatchesKeyword(item, keyword) {
 			continue
 		}
@@ -742,11 +840,12 @@ func summarizeContainers(items []Summary) ListSummary {
 	return summary
 }
 
-func applyActionAvailability(items []Summary, dangerousAllowed bool) []Summary {
+func applyActionAvailability(items []Summary, policy effectiveActionPolicy) []Summary {
 	adjusted := make([]Summary, 0, len(items))
 	for _, item := range items {
 		item.CanRemove = canRemoveState(item.State)
-		if !dangerousAllowed {
+		item.Orchestrator = policy.decorate(item.Orchestrator)
+		if !policy.dangerousAllowed || item.Orchestrator.ActionLevel == containercontract.ContainerOrchestratorActionLevelReadonly.String() {
 			item.CanStart = false
 			item.CanStop = false
 			item.CanRestart = false
@@ -903,6 +1002,7 @@ type containerRuntimeOptions struct {
 	defaultTail             int
 	maxTail                 int
 	environmentPolicy       containercontract.EnvironmentPolicy
+	orchestratorPolicies    orchestratorActionPolicies
 }
 
 func containerOptionsFromConfig(ctx *module.Context) containerRuntimeOptions {
@@ -914,6 +1014,12 @@ func containerOptionsFromConfig(ctx *module.Context) containerRuntimeOptions {
 		defaultTail:             defaultContainerLogsDefaultTail,
 		maxTail:                 defaultContainerLogsMaxTail,
 		environmentPolicy:       defaultContainerEnvironmentPolicy,
+		orchestratorPolicies: orchestratorActionPolicies{
+			Compose:    defaultContainerComposeActionLevel,
+			Swarm:      defaultContainerSwarmActionLevel,
+			Kubernetes: defaultContainerKubernetesActionLevel,
+			Unknown:    defaultContainerUnknownActionLevel,
+		},
 	}
 	if ctx == nil {
 		return options
@@ -925,6 +1031,10 @@ func containerOptionsFromConfig(ctx *module.Context) containerRuntimeOptions {
 	applyContainerIntDefault(ctx, containercontract.ContainerLogsMaxTailConfig.String(), &options.maxTail)
 	applyContainerBoolDefault(ctx, containercontract.ContainerDangerousActionsEnabledConfig.String(), &options.dangerousActionsEnabled)
 	applyContainerEnvironmentPolicyDefault(ctx, containercontract.ContainerEnvironmentPolicyConfig.String(), &options.environmentPolicy)
+	applyContainerOrchestratorActionLevelDefault(ctx, containercontract.ContainerComposeActionLevelConfig.String(), &options.orchestratorPolicies.Compose)
+	applyContainerOrchestratorActionLevelDefault(ctx, containercontract.ContainerSwarmActionLevelConfig.String(), &options.orchestratorPolicies.Swarm)
+	applyContainerOrchestratorActionLevelDefault(ctx, containercontract.ContainerKubernetesActionLevelConfig.String(), &options.orchestratorPolicies.Kubernetes)
+	applyContainerOrchestratorActionLevelDefault(ctx, containercontract.ContainerUnknownActionLevelConfig.String(), &options.orchestratorPolicies.Unknown)
 	if ctx.Config != nil {
 		options.enabled = ctx.Config.Container.RuntimeEnabled
 		options.runtime = ctx.Config.Container.Runtime
@@ -934,6 +1044,24 @@ func containerOptionsFromConfig(ctx *module.Context) containerRuntimeOptions {
 		options.dangerousActionsEnabled = ctx.Config.Container.DangerousActionsEnabled
 	}
 	return options
+}
+
+func applyContainerOrchestratorActionLevelDefault(
+	ctx *module.Context,
+	key string,
+	target *containercontract.OrchestratorActionLevel,
+) {
+	if target == nil {
+		return
+	}
+	raw, ok := containerDefaultValue(ctx, key)
+	if !ok {
+		return
+	}
+	var value string
+	if err := json.Unmarshal(raw, &value); err == nil {
+		*target = normalizeOrchestratorActionLevel(value)
+	}
 }
 
 func applyContainerEnvironmentPolicyDefault(ctx *module.Context, key string, target *containercontract.EnvironmentPolicy) {
@@ -1040,6 +1168,106 @@ func (s *service) dangerousActionsAllowed(ctx context.Context) bool {
 		containercontract.ContainerDangerousActionsEnabledConfig.String(),
 		s.dangerousActionsEnabled,
 	)
+}
+
+type orchestratorActionPolicies struct {
+	Compose    containercontract.OrchestratorActionLevel
+	Swarm      containercontract.OrchestratorActionLevel
+	Kubernetes containercontract.OrchestratorActionLevel
+	Unknown    containercontract.OrchestratorActionLevel
+}
+
+func (p orchestratorActionPolicies) normalized() orchestratorActionPolicies {
+	p.Compose = normalizeOrchestratorActionLevel(p.Compose.String())
+	p.Swarm = normalizeOrchestratorActionLevel(p.Swarm.String())
+	p.Kubernetes = normalizeOrchestratorActionLevel(p.Kubernetes.String())
+	p.Unknown = normalizeOrchestratorActionLevel(p.Unknown.String())
+	return p
+}
+
+func (p orchestratorActionPolicies) levelFor(orchestratorType string) containercontract.OrchestratorActionLevel {
+	switch strings.TrimSpace(strings.ToLower(orchestratorType)) {
+	case containerOrchestratorCompose:
+		return p.Compose
+	case containerOrchestratorSwarm:
+		return p.Swarm
+	case containerOrchestratorKubernetes:
+		return p.Kubernetes
+	case containerOrchestratorUnknown:
+		return p.Unknown
+	default:
+		return containercontract.ContainerOrchestratorActionLevelAllow
+	}
+}
+
+type effectiveActionPolicy struct {
+	dangerousAllowed bool
+	orchestrators    orchestratorActionPolicies
+}
+
+func (p effectiveActionPolicy) decorate(info OrchestratorInfo) OrchestratorInfo {
+	info = normalizedOrchestratorInfo(info)
+	level := p.orchestrators.levelFor(info.Type)
+	if !p.dangerousAllowed {
+		level = containercontract.ContainerOrchestratorActionLevelReadonly
+	}
+	info.ActionLevel = level.String()
+	info.BatchActionAllowed = p.dangerousAllowed && level == containercontract.ContainerOrchestratorActionLevelAllow
+	info.Warnings = orchestratorWarningsFor(info, level)
+	if info.Managed && strings.TrimSpace(info.RecommendedAction) == "" {
+		info.RecommendedAction = recommendedActionOpenController
+	}
+	return info
+}
+
+func (p effectiveActionPolicy) singleBlockedFor(orchestratorType string) bool {
+	if !p.dangerousAllowed {
+		return true
+	}
+	return p.orchestrators.levelFor(orchestratorType) == containercontract.ContainerOrchestratorActionLevelReadonly
+}
+
+func (s *service) effectiveActionPolicy(ctx context.Context) effectiveActionPolicy {
+	return effectiveActionPolicy{
+		dangerousAllowed: s.dangerousActionsAllowed(ctx),
+		orchestrators:    s.effectiveOrchestratorPolicies(ctx),
+	}
+}
+
+func (s *service) effectiveOrchestratorPolicies(ctx context.Context) orchestratorActionPolicies {
+	if s == nil || s.systemConfig == nil {
+		if s == nil {
+			return orchestratorActionPolicies{}.normalized()
+		}
+		return s.orchestratorPolicies.normalized()
+	}
+	fallback := s.orchestratorPolicies.normalized()
+	return orchestratorActionPolicies{
+		Compose:    s.resolveOrchestratorActionLevel(ctx, containercontract.ContainerComposeActionLevelConfig.String(), fallback.Compose),
+		Swarm:      s.resolveOrchestratorActionLevel(ctx, containercontract.ContainerSwarmActionLevelConfig.String(), fallback.Swarm),
+		Kubernetes: s.resolveOrchestratorActionLevel(ctx, containercontract.ContainerKubernetesActionLevelConfig.String(), fallback.Kubernetes),
+		Unknown:    s.resolveOrchestratorActionLevel(ctx, containercontract.ContainerUnknownActionLevelConfig.String(), fallback.Unknown),
+	}.normalized()
+}
+
+func (s *service) resolveOrchestratorActionLevel(
+	ctx context.Context,
+	key string,
+	fallback containercontract.OrchestratorActionLevel,
+) containercontract.OrchestratorActionLevel {
+	resolver, ok := s.systemConfig.(stringSystemConfigResolver)
+	if !ok {
+		return fallback
+	}
+	raw, err := resolver.ResolveDefaultConfig(ctx, key)
+	if err != nil {
+		return fallback
+	}
+	var value string
+	if err := json.Unmarshal([]byte(raw), &value); err != nil {
+		return fallback
+	}
+	return normalizeOrchestratorActionLevel(value)
 }
 
 func (s *service) shellAllowed(ctx context.Context) bool {

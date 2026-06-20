@@ -52,6 +52,8 @@ allOf:
         type: array
         items:
           $ref: ./container-network.yaml
+      orchestrator:
+        $ref: ./container-orchestrator-info.yaml
       runtime_info:
         $ref: ./container-runtime-info.yaml
       inspect_updated_at:

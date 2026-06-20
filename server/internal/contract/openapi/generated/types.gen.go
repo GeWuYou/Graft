@@ -936,6 +936,75 @@ func (e ContainerMountUsageStatus) Valid() bool {
 	}
 }
 
+// Defines values for ContainerOrchestratorInfoActionLevel.
+const (
+	ContainerOrchestratorInfoActionLevelAllow    ContainerOrchestratorInfoActionLevel = "allow"
+	ContainerOrchestratorInfoActionLevelReadonly ContainerOrchestratorInfoActionLevel = "readonly"
+	ContainerOrchestratorInfoActionLevelWarn     ContainerOrchestratorInfoActionLevel = "warn"
+)
+
+// Valid indicates whether the value is a known member of the ContainerOrchestratorInfoActionLevel enum.
+func (e ContainerOrchestratorInfoActionLevel) Valid() bool {
+	switch e {
+	case ContainerOrchestratorInfoActionLevelAllow:
+		return true
+	case ContainerOrchestratorInfoActionLevelReadonly:
+		return true
+	case ContainerOrchestratorInfoActionLevelWarn:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ContainerOrchestratorInfoConfidence.
+const (
+	ContainerOrchestratorInfoConfidenceHigh   ContainerOrchestratorInfoConfidence = "high"
+	ContainerOrchestratorInfoConfidenceLow    ContainerOrchestratorInfoConfidence = "low"
+	ContainerOrchestratorInfoConfidenceMedium ContainerOrchestratorInfoConfidence = "medium"
+)
+
+// Valid indicates whether the value is a known member of the ContainerOrchestratorInfoConfidence enum.
+func (e ContainerOrchestratorInfoConfidence) Valid() bool {
+	switch e {
+	case ContainerOrchestratorInfoConfidenceHigh:
+		return true
+	case ContainerOrchestratorInfoConfidenceLow:
+		return true
+	case ContainerOrchestratorInfoConfidenceMedium:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ContainerOrchestratorInfoType.
+const (
+	ContainerOrchestratorInfoTypeCompose    ContainerOrchestratorInfoType = "compose"
+	ContainerOrchestratorInfoTypeKubernetes ContainerOrchestratorInfoType = "kubernetes"
+	ContainerOrchestratorInfoTypeStandalone ContainerOrchestratorInfoType = "standalone"
+	ContainerOrchestratorInfoTypeSwarm      ContainerOrchestratorInfoType = "swarm"
+	ContainerOrchestratorInfoTypeUnknown    ContainerOrchestratorInfoType = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the ContainerOrchestratorInfoType enum.
+func (e ContainerOrchestratorInfoType) Valid() bool {
+	switch e {
+	case ContainerOrchestratorInfoTypeCompose:
+		return true
+	case ContainerOrchestratorInfoTypeKubernetes:
+		return true
+	case ContainerOrchestratorInfoTypeStandalone:
+		return true
+	case ContainerOrchestratorInfoTypeSwarm:
+		return true
+	case ContainerOrchestratorInfoTypeUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ContainerPortType.
 const (
 	ContainerPortTypeValueSCTP ContainerPortType = "sctp"
@@ -2109,6 +2178,33 @@ func (e ContainerListHealth) Valid() bool {
 	}
 }
 
+// Defines values for ContainerListOrchestrator.
+const (
+	ContainerListOrchestratorContainerListOrchestratorCompose    ContainerListOrchestrator = "compose"
+	ContainerListOrchestratorContainerListOrchestratorKubernetes ContainerListOrchestrator = "kubernetes"
+	ContainerListOrchestratorContainerListOrchestratorStandalone ContainerListOrchestrator = "standalone"
+	ContainerListOrchestratorContainerListOrchestratorSwarm      ContainerListOrchestrator = "swarm"
+	ContainerListOrchestratorContainerListOrchestratorUnknown    ContainerListOrchestrator = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the ContainerListOrchestrator enum.
+func (e ContainerListOrchestrator) Valid() bool {
+	switch e {
+	case ContainerListOrchestratorContainerListOrchestratorCompose:
+		return true
+	case ContainerListOrchestratorContainerListOrchestratorKubernetes:
+		return true
+	case ContainerListOrchestratorContainerListOrchestratorStandalone:
+		return true
+	case ContainerListOrchestratorContainerListOrchestratorSwarm:
+		return true
+	case ContainerListOrchestratorContainerListOrchestratorUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ContainerListState.
 const (
 	ContainerListStateContainerListStateCreated    ContainerListState = "created"
@@ -2535,6 +2631,33 @@ func (e GetContainersParamsHealth) Valid() bool {
 	case GetContainersParamsHealthContainerListHealthUnavailable:
 		return true
 	case GetContainersParamsHealthContainerListHealthUnhealthy:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetContainersParamsOrchestrator.
+const (
+	GetContainersParamsOrchestratorContainerListOrchestratorCompose    GetContainersParamsOrchestrator = "compose"
+	GetContainersParamsOrchestratorContainerListOrchestratorKubernetes GetContainersParamsOrchestrator = "kubernetes"
+	GetContainersParamsOrchestratorContainerListOrchestratorStandalone GetContainersParamsOrchestrator = "standalone"
+	GetContainersParamsOrchestratorContainerListOrchestratorSwarm      GetContainersParamsOrchestrator = "swarm"
+	GetContainersParamsOrchestratorContainerListOrchestratorUnknown    GetContainersParamsOrchestrator = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the GetContainersParamsOrchestrator enum.
+func (e GetContainersParamsOrchestrator) Valid() bool {
+	switch e {
+	case GetContainersParamsOrchestratorContainerListOrchestratorCompose:
+		return true
+	case GetContainersParamsOrchestratorContainerListOrchestratorKubernetes:
+		return true
+	case GetContainersParamsOrchestratorContainerListOrchestratorStandalone:
+		return true
+	case GetContainersParamsOrchestratorContainerListOrchestratorSwarm:
+		return true
+	case GetContainersParamsOrchestratorContainerListOrchestratorUnknown:
 		return true
 	default:
 		return false
@@ -3179,8 +3302,9 @@ type ContainerDetail struct {
 	Networks       []ContainerNetwork `json:"networks"`
 
 	// OomKilled Whether Docker inspect reports the container was killed by the OOM killer.
-	OomKilled *bool           `json:"oom_killed,omitempty"`
-	Ports     []ContainerPort `json:"ports"`
+	OomKilled    *bool                      `json:"oom_killed,omitempty"`
+	Orchestrator *ContainerOrchestratorInfo `json:"orchestrator,omitempty"`
+	Ports        []ContainerPort            `json:"ports"`
 
 	// PrimaryIp Primary IP address when the runtime list summary exposes one without raw inspect.
 	PrimaryIp *string                   `json:"primary_ip,omitempty"`
@@ -3396,6 +3520,48 @@ type ContainerNetwork struct {
 	NetworkId *string `json:"network_id,omitempty"`
 }
 
+// ContainerOrchestratorInfo defines model for container-orchestrator-info.
+type ContainerOrchestratorInfo struct {
+	ActionLevel ContainerOrchestratorInfoActionLevel `json:"action_level"`
+
+	// BatchActionAllowed Whether the current orchestrator source may participate in batch dangerous actions under the effective policy.
+	BatchActionAllowed bool                                `json:"batch_action_allowed"`
+	Confidence         ContainerOrchestratorInfoConfidence `json:"confidence"`
+	ConfigFiles        *[]string                           `json:"config_files,omitempty"`
+	Container          *string                             `json:"container,omitempty"`
+
+	// DisplayName Optional fallback source label. Visible UI should still localize by type first.
+	DisplayName *string `json:"display_name,omitempty"`
+
+	// Managed Whether the container belongs to an upper-level orchestrator or control plane.
+	Managed   bool    `json:"managed"`
+	Namespace *string `json:"namespace,omitempty"`
+	Pod       *string `json:"pod,omitempty"`
+	Project   *string `json:"project,omitempty"`
+
+	// RecommendedAction Stable recommended action code without embedded visible copy.
+	RecommendedAction *string                       `json:"recommended_action,omitempty"`
+	Service           *string                       `json:"service,omitempty"`
+	Stack             *string                       `json:"stack,omitempty"`
+	Task              *string                       `json:"task,omitempty"`
+	Type              ContainerOrchestratorInfoType `json:"type"`
+
+	// Warnings Stable warning codes without embedded visible copy.
+	Warnings []string `json:"warnings"`
+
+	// WorkingDir Compose project working directory metadata, not the runtime container working_dir field.
+	WorkingDir *string `json:"working_dir,omitempty"`
+}
+
+// ContainerOrchestratorInfoActionLevel defines model for ContainerOrchestratorInfo.ActionLevel.
+type ContainerOrchestratorInfoActionLevel string
+
+// ContainerOrchestratorInfoConfidence defines model for ContainerOrchestratorInfo.Confidence.
+type ContainerOrchestratorInfoConfidence string
+
+// ContainerOrchestratorInfoType defines model for ContainerOrchestratorInfo.Type.
+type ContainerOrchestratorInfoType string
+
 // ContainerPort defines model for container-port.
 type ContainerPort struct {
 	Ip          *string           `json:"ip,omitempty"`
@@ -3563,8 +3729,9 @@ type ContainerSummary struct {
 	NetworkSummary *string  `json:"network_summary,omitempty"`
 
 	// Networks Low-cost network attachment summary from the runtime list path.
-	Networks *[]ContainerNetwork `json:"networks,omitempty"`
-	Ports    []ContainerPort     `json:"ports"`
+	Networks     *[]ContainerNetwork        `json:"networks,omitempty"`
+	Orchestrator *ContainerOrchestratorInfo `json:"orchestrator,omitempty"`
+	Ports        []ContainerPort            `json:"ports"`
 
 	// PrimaryIp Primary IP address when the runtime list summary exposes one without raw inspect.
 	PrimaryIp *string                   `json:"primary_ip,omitempty"`
@@ -5796,6 +5963,9 @@ type ContainerListLimit = int
 // ContainerListOffset defines model for container-list-offset.
 type ContainerListOffset = int
 
+// ContainerListOrchestrator defines model for container-list-orchestrator.
+type ContainerListOrchestrator string
+
 // ContainerListState defines model for container-list-state.
 type ContainerListState string
 
@@ -6464,6 +6634,9 @@ type GetContainersParams struct {
 	// Health Optional health filter. Containers whose list row cannot cheaply determine health are excluded when a specific health filter is provided.
 	Health *GetContainersParamsHealth `form:"health,omitempty" json:"health,omitempty"`
 
+	// Orchestrator Optional orchestrator source filter resolved by the backend from runtime metadata.
+	Orchestrator *GetContainersParamsOrchestrator `form:"orchestrator,omitempty" json:"orchestrator,omitempty"`
+
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
@@ -6477,6 +6650,9 @@ type GetContainersParamsState string
 
 // GetContainersParamsHealth defines parameters for GetContainers.
 type GetContainersParamsHealth string
+
+// GetContainersParamsOrchestrator defines parameters for GetContainers.
+type GetContainersParamsOrchestrator string
 
 // PostContainerBatchActionsParams defines parameters for PostContainerBatchActions.
 type PostContainerBatchActionsParams struct {

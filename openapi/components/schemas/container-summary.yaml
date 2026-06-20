@@ -99,6 +99,8 @@ properties:
     type: string
     nullable: true
     description: Docker Compose service label when present.
+  orchestrator:
+    $ref: ./container-orchestrator-info.yaml
   can_start:
     type: boolean
   can_stop:

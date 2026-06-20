@@ -41,6 +41,22 @@ const (
 	containerHealthNone        = "none"
 	containerHealthUnavailable = "unavailable"
 
+	containerOrchestratorStandalone = "standalone"
+	containerOrchestratorCompose    = "compose"
+	containerOrchestratorSwarm      = "swarm"
+	containerOrchestratorKubernetes = "kubernetes"
+	containerOrchestratorUnknown    = "unknown"
+
+	orchestratorConfidenceHigh   = "high"
+	orchestratorConfidenceMedium = "medium"
+	orchestratorConfidenceLow    = "low"
+
+	orchestratorWarningManagedActionRisk = "managed_action_risk"
+	orchestratorWarningBatchBlocked      = "batch_action_blocked"
+	orchestratorWarningReadonly          = "readonly"
+
+	recommendedActionOpenController = "open_controller"
+
 	containerStatsNotCollectedReason          = "stats_not_collected"
 	containerStatsIncompleteReason            = "stats_incomplete"
 	containerStatsTimeoutReason               = "stats_timeout"
@@ -59,6 +75,15 @@ const (
 )
 
 var mountIDPattern = regexp.MustCompile(`^m_[A-Za-z0-9_-]{1,62}$`)
+
+var validContainerStates = []string{"created", "running", "paused", "restarting", "removing", "exited", "dead", "unknown"}
+var validContainerOrchestrators = []string{
+	containerOrchestratorStandalone,
+	containerOrchestratorCompose,
+	containerOrchestratorSwarm,
+	containerOrchestratorKubernetes,
+	containerOrchestratorUnknown,
+}
 
 var (
 	errRuntimeDisabled             = errors.New("container runtime disabled")
@@ -111,11 +136,12 @@ type Ref struct {
 
 // ListQuery describes bounded list pagination and low-cost runtime filters.
 type ListQuery struct {
-	Limit   int
-	Offset  int
-	Keyword string
-	State   string
-	Health  string
+	Limit        int
+	Offset       int
+	Keyword      string
+	State        string
+	Health       string
+	Orchestrator string
 }
 
 // ListResult is the service-owned list response model.
@@ -222,6 +248,7 @@ type Summary struct {
 	Health         string
 	ComposeProject string
 	ComposeService string
+	Orchestrator   OrchestratorInfo
 	CanStart       bool
 	CanStop        bool
 	CanRestart     bool
@@ -316,6 +343,27 @@ type Network struct {
 	Gateway    string
 	IPAddress  string
 	MacAddress string
+}
+
+// OrchestratorInfo describes the resolved container source and policy semantics.
+type OrchestratorInfo struct {
+	Type               string
+	Managed            bool
+	DisplayName        string
+	Confidence         string
+	Project            string
+	Service            string
+	Stack              string
+	Namespace          string
+	Pod                string
+	Container          string
+	Task               string
+	WorkingDir         string
+	ConfigFiles        []string
+	Warnings           []string
+	RecommendedAction  string
+	ActionLevel        string
+	BatchActionAllowed bool
 }
 
 // Logs contains bounded log lines and the effective log options.
@@ -418,19 +466,32 @@ func normalizeListQuery(query ListQuery) (ListQuery, error) {
 	if len(query.Keyword) > containerListKeywordMaxLength {
 		return ListQuery{}, errInvalidListQuery
 	}
-	query.State = strings.TrimSpace(strings.ToLower(query.State))
-	if query.State != "" && !isValidContainerState(query.State) {
-		return ListQuery{}, errInvalidListQuery
+	var err error
+	query.State, err = normalizeOptionalListEnum(query.State, isValidContainerState)
+	if err != nil {
+		return ListQuery{}, err
 	}
-	query.Health = strings.TrimSpace(strings.ToLower(query.Health))
-	if query.Health != "" && !isValidContainerHealth(query.Health) {
-		return ListQuery{}, errInvalidListQuery
+	query.Health, err = normalizeOptionalListEnum(query.Health, isValidContainerHealth)
+	if err != nil {
+		return ListQuery{}, err
+	}
+	query.Orchestrator, err = normalizeOptionalListEnum(query.Orchestrator, isValidContainerOrchestrator)
+	if err != nil {
+		return ListQuery{}, err
 	}
 	return query, nil
 }
 
+func normalizeOptionalListEnum(value string, valid func(string) bool) (string, error) {
+	value = strings.TrimSpace(strings.ToLower(value))
+	if value != "" && !valid(value) {
+		return "", errInvalidListQuery
+	}
+	return value, nil
+}
+
 func isValidContainerState(state string) bool {
-	return slices.Contains([]string{"created", "running", "paused", "restarting", "removing", "exited", "dead", "unknown"}, state)
+	return slices.Contains(validContainerStates, state)
 }
 
 // isValidContainerHealth reports whether a health state is valid.
@@ -442,6 +503,10 @@ func isValidContainerHealth(health string) bool {
 		containerHealthNone,
 		containerHealthUnavailable,
 	}, health)
+}
+
+func isValidContainerOrchestrator(value string) bool {
+	return slices.Contains(validContainerOrchestrators, value)
 }
 
 // isValidMountID reports whether value is a valid mount ID.

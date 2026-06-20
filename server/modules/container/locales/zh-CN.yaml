@@ -41,5 +41,37 @@ ops.container.action.batch.partial: 批量容器操作部分完成
 ops.container.action.batch.failed: 批量容器操作全部失败
 systemConfig.groups.ops.container.shell: 容器 Shell
 systemConfig.groups.ops.container.shell.description: 管理交互式容器 Shell 会话的访问能力与安全边界。
+systemConfig.container.ops.container.actions.compose_level.title: Compose 操作策略
+systemConfig.container.ops.container.actions.compose_level.description: 控制 Compose 管理容器的高危操作策略。
+systemConfig.container.ops.container.actions.swarm_level.title: Swarm 操作策略
+systemConfig.container.ops.container.actions.swarm_level.description: 控制 Swarm 管理容器的高危操作策略。
+systemConfig.container.ops.container.actions.kubernetes_level.title: Kubernetes 操作策略
+systemConfig.container.ops.container.actions.kubernetes_level.description: 控制 Kubernetes 管理容器的高危操作策略。
+systemConfig.container.ops.container.actions.unknown_level.title: 未知来源操作策略
+systemConfig.container.ops.container.actions.unknown_level.description: 控制无法安全归类来源的受管容器高危操作策略。
+systemConfig.container.ops.container.actions.compose_level.enum.readonly.label: 只读
+systemConfig.container.ops.container.actions.compose_level.enum.readonly.description: 禁止 Compose 管理容器的单项和批量高危操作。
+systemConfig.container.ops.container.actions.compose_level.enum.warn.label: 警告
+systemConfig.container.ops.container.actions.compose_level.enum.warn.description: 允许 Compose 管理容器的单项高危操作，但禁止批量高危操作。
+systemConfig.container.ops.container.actions.compose_level.enum.allow.label: 允许
+systemConfig.container.ops.container.actions.compose_level.enum.allow.description: 允许 Compose 管理容器的单项和批量高危操作。
+systemConfig.container.ops.container.actions.swarm_level.enum.readonly.label: 只读
+systemConfig.container.ops.container.actions.swarm_level.enum.readonly.description: 禁止 Swarm 管理容器的单项和批量高危操作。
+systemConfig.container.ops.container.actions.swarm_level.enum.warn.label: 警告
+systemConfig.container.ops.container.actions.swarm_level.enum.warn.description: 允许 Swarm 管理容器的单项高危操作，但禁止批量高危操作。
+systemConfig.container.ops.container.actions.swarm_level.enum.allow.label: 允许
+systemConfig.container.ops.container.actions.swarm_level.enum.allow.description: 允许 Swarm 管理容器的单项和批量高危操作。
+systemConfig.container.ops.container.actions.kubernetes_level.enum.readonly.label: 只读
+systemConfig.container.ops.container.actions.kubernetes_level.enum.readonly.description: 禁止 Kubernetes 管理容器的单项和批量高危操作。
+systemConfig.container.ops.container.actions.kubernetes_level.enum.warn.label: 警告
+systemConfig.container.ops.container.actions.kubernetes_level.enum.warn.description: 允许 Kubernetes 管理容器的单项高危操作，但禁止批量高危操作。
+systemConfig.container.ops.container.actions.kubernetes_level.enum.allow.label: 允许
+systemConfig.container.ops.container.actions.kubernetes_level.enum.allow.description: 允许 Kubernetes 管理容器的单项和批量高危操作。
+systemConfig.container.ops.container.actions.unknown_level.enum.readonly.label: 只读
+systemConfig.container.ops.container.actions.unknown_level.enum.readonly.description: 禁止无法安全归类来源的受管容器执行单项和批量高危操作。
+systemConfig.container.ops.container.actions.unknown_level.enum.warn.label: 警告
+systemConfig.container.ops.container.actions.unknown_level.enum.warn.description: 允许无法安全归类来源的受管容器执行单项高危操作，但禁止批量高危操作。
+systemConfig.container.ops.container.actions.unknown_level.enum.allow.label: 允许
+systemConfig.container.ops.container.actions.unknown_level.enum.allow.description: 允许无法安全归类来源的受管容器执行单项和批量高危操作。
 systemConfig.container.ops.container.shell.enabled.title: 启用容器 Shell
 systemConfig.container.ops.container.shell.enabled.description: 控制是否允许为容器创建交互式 Shell 会话票据与 WebSocket 连接。

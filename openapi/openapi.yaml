@@ -576,6 +576,8 @@ components:
       $ref: ./components/schemas/container-batch-action-response.yaml
     ContainerRuntimeInfo:
       $ref: ./components/schemas/container-runtime-info.yaml
+    ContainerOrchestratorInfo:
+      $ref: ./components/schemas/container-orchestrator-info.yaml
     ContainerResourceSummary:
       $ref: ./components/schemas/container-resource-summary.yaml
     ContainerListSummary:

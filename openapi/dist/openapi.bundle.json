@@ -8592,6 +8592,9 @@
           },
           {
             "$ref": "#/components/parameters/container-list-health"
+          },
+          {
+            "$ref": "#/components/parameters/container-list-orchestrator"
           }
         ],
         "security": [
@@ -10239,6 +10242,9 @@
       },
       "ContainerRuntimeInfo": {
         "$ref": "#/components/schemas/container-runtime-info"
+      },
+      "ContainerOrchestratorInfo": {
+        "$ref": "#/components/schemas/container-orchestrator-info"
       },
       "ContainerResourceSummary": {
         "$ref": "#/components/schemas/container-resource-summary"
@@ -15904,6 +15910,127 @@
           }
         }
       },
+      "container-orchestrator-info": {
+        "type": "object",
+        "required": [
+          "type",
+          "managed",
+          "confidence",
+          "warnings",
+          "action_level",
+          "batch_action_allowed"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "standalone",
+              "compose",
+              "swarm",
+              "kubernetes",
+              "unknown"
+            ],
+            "x-enum-varnames": [
+              "ContainerOrchestratorInfoTypeStandalone",
+              "ContainerOrchestratorInfoTypeCompose",
+              "ContainerOrchestratorInfoTypeSwarm",
+              "ContainerOrchestratorInfoTypeKubernetes",
+              "ContainerOrchestratorInfoTypeUnknown"
+            ]
+          },
+          "managed": {
+            "type": "boolean",
+            "description": "Whether the container belongs to an upper-level orchestrator or control plane."
+          },
+          "display_name": {
+            "type": "string",
+            "nullable": true,
+            "description": "Optional fallback source label. Visible UI should still localize by type first."
+          },
+          "confidence": {
+            "type": "string",
+            "enum": [
+              "high",
+              "medium",
+              "low"
+            ],
+            "x-enum-varnames": [
+              "ContainerOrchestratorInfoConfidenceHigh",
+              "ContainerOrchestratorInfoConfidenceMedium",
+              "ContainerOrchestratorInfoConfidenceLow"
+            ]
+          },
+          "project": {
+            "type": "string",
+            "nullable": true
+          },
+          "service": {
+            "type": "string",
+            "nullable": true
+          },
+          "stack": {
+            "type": "string",
+            "nullable": true
+          },
+          "namespace": {
+            "type": "string",
+            "nullable": true
+          },
+          "pod": {
+            "type": "string",
+            "nullable": true
+          },
+          "container": {
+            "type": "string",
+            "nullable": true
+          },
+          "task": {
+            "type": "string",
+            "nullable": true
+          },
+          "working_dir": {
+            "type": "string",
+            "nullable": true,
+            "description": "Compose project working directory metadata, not the runtime container working_dir field."
+          },
+          "config_files": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "warnings": {
+            "type": "array",
+            "description": "Stable warning codes without embedded visible copy.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "recommended_action": {
+            "type": "string",
+            "nullable": true,
+            "description": "Stable recommended action code without embedded visible copy."
+          },
+          "action_level": {
+            "type": "string",
+            "enum": [
+              "readonly",
+              "warn",
+              "allow"
+            ],
+            "x-enum-varnames": [
+              "ContainerOrchestratorInfoActionLevelReadonly",
+              "ContainerOrchestratorInfoActionLevelWarn",
+              "ContainerOrchestratorInfoActionLevelAllow"
+            ]
+          },
+          "batch_action_allowed": {
+            "type": "boolean",
+            "description": "Whether the current orchestrator source may participate in batch dangerous actions under the effective policy."
+          }
+        },
+        "additionalProperties": false
+      },
       "container-summary": {
         "type": "object",
         "required": [
@@ -16049,6 +16176,9 @@
             "type": "string",
             "nullable": true,
             "description": "Docker Compose service label when present."
+          },
+          "orchestrator": {
+            "$ref": "#/components/schemas/container-orchestrator-info"
           },
           "can_start": {
             "type": "boolean"
@@ -16653,6 +16783,9 @@
                 "items": {
                   "$ref": "#/components/schemas/container-network"
                 }
+              },
+              "orchestrator": {
+                "$ref": "#/components/schemas/container-orchestrator-info"
               },
               "runtime_info": {
                 "$ref": "#/components/schemas/container-runtime-info"
@@ -17692,6 +17825,29 @@
             "ContainerListHealthStarting",
             "ContainerListHealthNone",
             "ContainerListHealthUnavailable"
+          ]
+        }
+      },
+      "container-list-orchestrator": {
+        "name": "orchestrator",
+        "in": "query",
+        "required": false,
+        "description": "Optional orchestrator source filter resolved by the backend from runtime metadata.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "standalone",
+            "compose",
+            "swarm",
+            "kubernetes",
+            "unknown"
+          ],
+          "x-enum-varnames": [
+            "ContainerListOrchestratorStandalone",
+            "ContainerListOrchestratorCompose",
+            "ContainerListOrchestratorSwarm",
+            "ContainerListOrchestratorKubernetes",
+            "ContainerListOrchestratorUnknown"
           ]
         }
       },

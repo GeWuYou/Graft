@@ -70,6 +70,8 @@
       "filters": {
         "searchPlaceholder": "搜索名称、镜像、ID 或端口",
         "status": "容器状态",
+        "orchestrator": "来源",
+        "allOrchestrators": "全部来源",
         "health": "健康状态",
         "allStatuses": "全部状态",
         "allHealth": "全部健康状态",
@@ -81,6 +83,7 @@
         "status": "状态",
         "name": "容器",
         "image": "镜像",
+        "source": "来源",
         "cpu": "CPU",
         "memory": "内存",
         "ports": "端口",
@@ -111,6 +114,14 @@
         "none": "未配置健康检查",
         "unavailable": "健康未知"
       },
+      "orchestrators": {
+        "standalone": "独立容器",
+        "compose": "Compose",
+        "swarm": "Swarm",
+        "kubernetes": "Kubernetes",
+        "unknown": "未知来源"
+      },
+      "sourceUnknownSummary": "未提供来源摘要",
       "actions": {
         "detail": "详情",
         "logs": "日志",
@@ -135,6 +146,7 @@
         "confirmRemoveRunning": "容器 {name} 正在运行。默认删除会被拒绝，如需强制删除必须显式勾选。",
         "forceRemove": "强制删除运行中容器",
         "dangerousDisabled": "高危操作已禁用或当前状态不允许。",
+        "sourceRisk": "该容器来自 {source}，执行高危操作前请确认上层编排状态。",
         "unavailable": "该操作当前不可用。",
         "confirm": "确认",
         "cancel": "取消"
@@ -161,6 +173,7 @@
         "confirmRemove": "确认删除选中的 {count} 个容器？删除后不可恢复。",
         "confirmScope": "当前已选择 {selectedCount} 个容器，本次将处理 {actionableCount} 个可操作容器，跳过 {skippedCount} 个。",
         "skipInapplicable": "部分容器因当前状态或权限不适用，将被跳过。",
+        "skipSourceRestricted": "其中 {count} 个容器因来源策略不允许参与批量高危操作而被跳过。",
         "confirmRemoveRunning": "其中 {count} 个容器正在运行。默认删除会被拒绝，如需强制删除必须显式勾选。",
         "success": "批量操作已完成，成功 {count} 个。",
         "partialTitle": "批量操作部分成功",
@@ -258,9 +271,23 @@
       "operation": "操作",
       "summary": {
         "identity": "身份信息",
+        "source": "来源策略",
         "runtime": "运行状态",
         "resources": "资源使用",
         "network": "网络访问"
+      },
+      "source": {
+        "type": "来源类型",
+        "summary": "来源摘要",
+        "summaryUnknown": "未提供来源摘要",
+        "actionPolicy": "操作策略",
+        "riskWarn": "该容器来自 {source}，单容器高危操作前应确认编排控制面状态，且不允许批量高危操作。",
+        "riskReadonly": "该容器来自 {source}，当前策略为只读，高危操作入口已收敛。",
+        "actionLevels": {
+          "readonly": "只读",
+          "warn": "单容器警告",
+          "allow": "允许"
+        }
       },
       "overview": {
         "basicInfo": "基础信息",

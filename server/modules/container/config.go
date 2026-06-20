@@ -42,6 +42,10 @@ const (
 	defaultContainerLogsDefaultTail         = 200
 	defaultContainerLogsMaxTail             = 2000
 	defaultContainerDangerousActionsEnabled = false
+	defaultContainerComposeActionLevel      = containercontract.ContainerOrchestratorActionLevelWarn
+	defaultContainerSwarmActionLevel        = containercontract.ContainerOrchestratorActionLevelReadonly
+	defaultContainerKubernetesActionLevel   = containercontract.ContainerOrchestratorActionLevelReadonly
+	defaultContainerUnknownActionLevel      = containercontract.ContainerOrchestratorActionLevelReadonly
 	defaultContainerShellEnabled            = false
 	defaultContainerEnvironmentPolicy       = containercontract.ContainerEnvironmentPolicyMasked
 	defaultContainerEnvironmentMaskedCopy   = false
@@ -112,6 +116,22 @@ func configDefinitions() []configregistry.Definition {
 			fallbackDescription: "",
 			defaultValue:        mustRawJSON(defaultContainerDangerousActionsEnabled),
 		}),
+		containerOrchestratorActionLevelDefinition(
+			containercontract.ContainerComposeActionLevelConfig.String(),
+			defaultContainerComposeActionLevel,
+		),
+		containerOrchestratorActionLevelDefinition(
+			containercontract.ContainerSwarmActionLevelConfig.String(),
+			defaultContainerSwarmActionLevel,
+		),
+		containerOrchestratorActionLevelDefinition(
+			containercontract.ContainerKubernetesActionLevelConfig.String(),
+			defaultContainerKubernetesActionLevel,
+		),
+		containerOrchestratorActionLevelDefinition(
+			containercontract.ContainerUnknownActionLevelConfig.String(),
+			defaultContainerUnknownActionLevel,
+		),
 		containerBooleanDefinition(containerDefinitionSpec{
 			key:                 containercontract.ContainerShellEnabledConfig.String(),
 			group:               containerConfigShellGroup,
@@ -165,6 +185,21 @@ func containerEnvironmentPolicyDefinition() configregistry.Definition {
 		valueType:           configregistry.ValueTypeString,
 		defaultValue:        mustRawJSON(defaultContainerEnvironmentPolicy.String()),
 		schema:              containerEnvironmentPolicySchema(),
+	})
+}
+
+func containerOrchestratorActionLevelDefinition(
+	key string,
+	defaultValue containercontract.OrchestratorActionLevel,
+) configregistry.Definition {
+	return baseContainerDefinition(containerDefinitionSpec{
+		key:                 key,
+		group:               containerConfigActionsGroup,
+		fallbackTitle:       "",
+		fallbackDescription: "",
+		valueType:           configregistry.ValueTypeString,
+		defaultValue:        mustRawJSON(defaultValue.String()),
+		schema:              containerOrchestratorActionLevelSchema(key, defaultValue),
 	})
 }
 
@@ -291,6 +326,30 @@ func containerEnvironmentPolicySchema() json.RawMessage {
 		maskedPolicy,
 		plainPolicy,
 		defaultContainerEnvironmentPolicy.String(),
+		containerConfigTitleKey(key),
+		containerConfigDescriptionKey(key),
+		key,
+		key,
+		key,
+		key,
+		key,
+		key,
+	))
+}
+
+func containerOrchestratorActionLevelSchema(
+	key string,
+	defaultValue containercontract.OrchestratorActionLevel,
+) json.RawMessage {
+	readonlyLevel := containercontract.ContainerOrchestratorActionLevelReadonly.String()
+	warnLevel := containercontract.ContainerOrchestratorActionLevelWarn.String()
+	allowLevel := containercontract.ContainerOrchestratorActionLevelAllow.String()
+	return json.RawMessage(fmt.Sprintf(
+		`{"type":"string","enum":[%q,%q,%q],"default":%q,"x-i18n":{"titleKey":%q,"descriptionKey":%q,"enumLabels":{"readonly":{"labelKey":"systemConfig.container.%s.enum.readonly.label","descriptionKey":"systemConfig.container.%s.enum.readonly.description"},"warn":{"labelKey":"systemConfig.container.%s.enum.warn.label","descriptionKey":"systemConfig.container.%s.enum.warn.description"},"allow":{"labelKey":"systemConfig.container.%s.enum.allow.label","descriptionKey":"systemConfig.container.%s.enum.allow.description"}}}}`,
+		readonlyLevel,
+		warnLevel,
+		allowLevel,
+		defaultValue.String(),
 		containerConfigTitleKey(key),
 		containerConfigDescriptionKey(key),
 		key,

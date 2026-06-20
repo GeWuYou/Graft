@@ -418,23 +418,61 @@ func bindGetContainersParams(ginCtx *gin.Context, ctx *module.Context) (containe
 		}
 		params.Keyword = &value
 	}
-	if value := strings.TrimSpace(ginCtx.Query("state")); value != "" {
-		if !isValidContainerState(value) {
-			writeInvalidContainerQuery(ginCtx, ctx, "state")
-			return containeropenapi.GetContainersParams{}, false
-		}
-		state := containeropenapi.GetContainersParamsState(value)
-		params.State = &state
-	}
-	if value := strings.TrimSpace(ginCtx.Query("health")); value != "" {
-		if !isValidContainerHealth(value) {
-			writeInvalidContainerQuery(ginCtx, ctx, "health")
-			return containeropenapi.GetContainersParams{}, false
-		}
-		health := containeropenapi.GetContainersParamsHealth(value)
-		params.Health = &health
+	if !bindContainerListStateFilters(ginCtx, ctx, &params) {
+		return containeropenapi.GetContainersParams{}, false
 	}
 	return params, true
+}
+
+func bindContainerListStateFilters(
+	ginCtx *gin.Context,
+	ctx *module.Context,
+	params *containeropenapi.GetContainersParams,
+) bool {
+	state, ok := optionalEnumQueryValue(ginCtx, ctx, "state", isValidContainerState)
+	if !ok {
+		return false
+	}
+	if state != "" {
+		value := containeropenapi.GetContainersParamsState(state)
+		params.State = &value
+	}
+
+	health, ok := optionalEnumQueryValue(ginCtx, ctx, "health", isValidContainerHealth)
+	if !ok {
+		return false
+	}
+	if health != "" {
+		value := containeropenapi.GetContainersParamsHealth(health)
+		params.Health = &value
+	}
+
+	orchestrator, ok := optionalEnumQueryValue(ginCtx, ctx, "orchestrator", isValidContainerOrchestrator)
+	if !ok {
+		return false
+	}
+	if orchestrator != "" {
+		value := containeropenapi.GetContainersParamsOrchestrator(orchestrator)
+		params.Orchestrator = &value
+	}
+	return true
+}
+
+func optionalEnumQueryValue(
+	ginCtx *gin.Context,
+	ctx *module.Context,
+	key string,
+	valid func(string) bool,
+) (string, bool) {
+	value := strings.TrimSpace(ginCtx.Query(key))
+	if value == "" {
+		return "", true
+	}
+	if !valid(value) {
+		writeInvalidContainerQuery(ginCtx, ctx, key)
+		return "", false
+	}
+	return value, true
 }
 
 func bindGetContainerParams(ginCtx *gin.Context) containeropenapi.GetContainerParams {
@@ -565,6 +603,9 @@ func listQueryFromParams(params containeropenapi.GetContainersParams) ListQuery 
 	}
 	if params.Health != nil {
 		query.Health = string(*params.Health)
+	}
+	if params.Orchestrator != nil {
+		query.Orchestrator = string(*params.Orchestrator)
 	}
 	return query
 }

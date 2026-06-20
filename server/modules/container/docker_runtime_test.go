@@ -359,6 +359,85 @@ func TestDockerRuntimeDetailCollectsResourceStats(t *testing.T) {
 	}
 }
 
+func TestDockerOrchestratorFromLabels(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name      string
+		labels     map[string]string
+		wantType   string
+		wantManaged bool
+		wantProject string
+		wantService string
+		wantStack   string
+		wantPod     string
+		wantNS      string
+		wantConf    string
+	}{
+		{
+			name:       "standalone",
+			labels:     nil,
+			wantType:   containerOrchestratorStandalone,
+			wantManaged: false,
+			wantConf:   orchestratorConfidenceHigh,
+		},
+		{
+			name: "compose",
+			labels: map[string]string{
+				composeProjectLabel: "graft",
+				composeServiceLabel: "web",
+			},
+			wantType:   containerOrchestratorCompose,
+			wantManaged: true,
+			wantProject: "graft",
+			wantService: "web",
+			wantConf:   orchestratorConfidenceHigh,
+		},
+		{
+			name: "kubernetes",
+			labels: map[string]string{
+				"io.kubernetes.pod.namespace":  "default",
+				"io.kubernetes.pod.name":       "web-7c9f",
+				"io.kubernetes.container.name": "web",
+			},
+			wantType:   containerOrchestratorKubernetes,
+			wantManaged: true,
+			wantPod:    "web-7c9f",
+			wantNS:     "default",
+			wantConf:   orchestratorConfidenceHigh,
+		},
+		{
+			name: "conflicting labels become unknown",
+			labels: map[string]string{
+				composeProjectLabel:             "graft",
+				"com.docker.stack.namespace":    "edge",
+				"com.docker.swarm.task.name":    "edge.1.abcd",
+			},
+			wantType:   containerOrchestratorUnknown,
+			wantManaged: true,
+			wantConf:   orchestratorConfidenceLow,
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			info := dockerOrchestratorFromLabels(tc.labels)
+			if info.Type != tc.wantType || info.Managed != tc.wantManaged || info.Confidence != tc.wantConf {
+				t.Fatalf("unexpected orchestrator info %#v", info)
+			}
+			if info.Project != tc.wantProject || info.Service != tc.wantService || info.Stack != tc.wantStack {
+				t.Fatalf("unexpected project/service/stack %#v", info)
+			}
+			if info.Pod != tc.wantPod || info.Namespace != tc.wantNS {
+				t.Fatalf("unexpected kubernetes metadata %#v", info)
+			}
+		})
+	}
+}
+
 func TestDockerRuntimeRejectsActionsWhenKnownStateDisallowsThem(t *testing.T) {
 	t.Parallel()
 

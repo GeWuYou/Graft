@@ -41,5 +41,37 @@ ops.container.action.batch.partial: Container batch action partially completed
 ops.container.action.batch.failed: Container batch action failed
 systemConfig.groups.ops.container.shell: Container Shell
 systemConfig.groups.ops.container.shell.description: Manages access and security boundaries for interactive container shell sessions.
+systemConfig.container.ops.container.actions.compose_level.title: Compose Action Policy
+systemConfig.container.ops.container.actions.compose_level.description: Controls dangerous action behavior for compose-managed containers.
+systemConfig.container.ops.container.actions.swarm_level.title: Swarm Action Policy
+systemConfig.container.ops.container.actions.swarm_level.description: Controls dangerous action behavior for swarm-managed containers.
+systemConfig.container.ops.container.actions.kubernetes_level.title: Kubernetes Action Policy
+systemConfig.container.ops.container.actions.kubernetes_level.description: Controls dangerous action behavior for kubernetes-managed containers.
+systemConfig.container.ops.container.actions.unknown_level.title: Unknown Source Action Policy
+systemConfig.container.ops.container.actions.unknown_level.description: Controls dangerous action behavior for containers with unclassified managed sources.
+systemConfig.container.ops.container.actions.compose_level.enum.readonly.label: Readonly
+systemConfig.container.ops.container.actions.compose_level.enum.readonly.description: Block dangerous single-item and batch actions for compose-managed containers.
+systemConfig.container.ops.container.actions.compose_level.enum.warn.label: Warn
+systemConfig.container.ops.container.actions.compose_level.enum.warn.description: Allow single-item actions with warnings but block batch dangerous actions for compose-managed containers.
+systemConfig.container.ops.container.actions.compose_level.enum.allow.label: Allow
+systemConfig.container.ops.container.actions.compose_level.enum.allow.description: Allow both single-item and batch dangerous actions for compose-managed containers.
+systemConfig.container.ops.container.actions.swarm_level.enum.readonly.label: Readonly
+systemConfig.container.ops.container.actions.swarm_level.enum.readonly.description: Block dangerous single-item and batch actions for swarm-managed containers.
+systemConfig.container.ops.container.actions.swarm_level.enum.warn.label: Warn
+systemConfig.container.ops.container.actions.swarm_level.enum.warn.description: Allow single-item actions with warnings but block batch dangerous actions for swarm-managed containers.
+systemConfig.container.ops.container.actions.swarm_level.enum.allow.label: Allow
+systemConfig.container.ops.container.actions.swarm_level.enum.allow.description: Allow both single-item and batch dangerous actions for swarm-managed containers.
+systemConfig.container.ops.container.actions.kubernetes_level.enum.readonly.label: Readonly
+systemConfig.container.ops.container.actions.kubernetes_level.enum.readonly.description: Block dangerous single-item and batch actions for kubernetes-managed containers.
+systemConfig.container.ops.container.actions.kubernetes_level.enum.warn.label: Warn
+systemConfig.container.ops.container.actions.kubernetes_level.enum.warn.description: Allow single-item actions with warnings but block batch dangerous actions for kubernetes-managed containers.
+systemConfig.container.ops.container.actions.kubernetes_level.enum.allow.label: Allow
+systemConfig.container.ops.container.actions.kubernetes_level.enum.allow.description: Allow both single-item and batch dangerous actions for kubernetes-managed containers.
+systemConfig.container.ops.container.actions.unknown_level.enum.readonly.label: Readonly
+systemConfig.container.ops.container.actions.unknown_level.enum.readonly.description: Block dangerous single-item and batch actions for containers with unclassified managed sources.
+systemConfig.container.ops.container.actions.unknown_level.enum.warn.label: Warn
+systemConfig.container.ops.container.actions.unknown_level.enum.warn.description: Allow single-item actions with warnings but block batch dangerous actions for containers with unclassified managed sources.
+systemConfig.container.ops.container.actions.unknown_level.enum.allow.label: Allow
+systemConfig.container.ops.container.actions.unknown_level.enum.allow.description: Allow both single-item and batch dangerous actions for containers with unclassified managed sources.
 systemConfig.container.ops.container.shell.enabled.title: Enable Container Shell
 systemConfig.container.ops.container.shell.enabled.description: Controls whether interactive container shell session tickets and WebSocket connections can be created.

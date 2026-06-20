@@ -19,6 +19,14 @@ func (p EnvironmentPolicy) String() string {
 	return string(p)
 }
 
+// OrchestratorActionLevel identifies the stable dangerous-action policy for one orchestrator source.
+type OrchestratorActionLevel string
+
+// String returns the canonical action level policy.
+func (l OrchestratorActionLevel) String() string {
+	return string(l)
+}
+
 const (
 	// ContainerRuntimeEnabledConfig enables access to the configured container runtime.
 	ContainerRuntimeEnabledConfig ConfigKey = "ops.container.runtime.enabled"
@@ -32,6 +40,14 @@ const (
 	ContainerLogsMaxTailConfig ConfigKey = "ops.container.logs.max_tail"
 	// ContainerDangerousActionsEnabledConfig enables high-risk container actions.
 	ContainerDangerousActionsEnabledConfig ConfigKey = "ops.container.actions.dangerous_enabled"
+	// ContainerComposeActionLevelConfig stores the dangerous-action policy for compose-managed containers.
+	ContainerComposeActionLevelConfig ConfigKey = "ops.container.actions.compose_level"
+	// ContainerSwarmActionLevelConfig stores the dangerous-action policy for swarm-managed containers.
+	ContainerSwarmActionLevelConfig ConfigKey = "ops.container.actions.swarm_level"
+	// ContainerKubernetesActionLevelConfig stores the dangerous-action policy for kubernetes-managed containers.
+	ContainerKubernetesActionLevelConfig ConfigKey = "ops.container.actions.kubernetes_level"
+	// ContainerUnknownActionLevelConfig stores the dangerous-action policy for unclassified managed containers.
+	ContainerUnknownActionLevelConfig ConfigKey = "ops.container.actions.unknown_level"
 	// ContainerShellEnabledConfig enables interactive shell session access.
 	ContainerShellEnabledConfig ConfigKey = "ops.container.shell.enabled"
 	// ContainerEnvironmentPolicyConfig controls container environment variable value display.
@@ -47,4 +63,13 @@ const (
 	ContainerEnvironmentPolicyMasked EnvironmentPolicy = "masked"
 	// ContainerEnvironmentPolicyPlain shows environment variable values.
 	ContainerEnvironmentPolicyPlain EnvironmentPolicy = "plain"
+)
+
+const (
+	// ContainerOrchestratorActionLevelReadonly disables dangerous actions for the source.
+	ContainerOrchestratorActionLevelReadonly OrchestratorActionLevel = "readonly"
+	// ContainerOrchestratorActionLevelWarn allows single-item dangerous actions but blocks batch actions.
+	ContainerOrchestratorActionLevelWarn OrchestratorActionLevel = "warn"
+	// ContainerOrchestratorActionLevelAllow allows both single and batch dangerous actions.
+	ContainerOrchestratorActionLevelAllow OrchestratorActionLevel = "allow"
 )

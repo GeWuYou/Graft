@@ -42,6 +42,7 @@ func toSummary(item Summary) containergen.ContainerSummary {
 		Health:         optionalSummaryHealth(item.Health),
 		Ports:          toPorts(item.Ports),
 		PrimaryIp:      optionalString(item.PrimaryIP),
+		Orchestrator:   toOrchestratorInfo(item.Orchestrator),
 		Networks:       optionalNetworks(item.Networks),
 		NetworkSummary: optionalString(item.NetworkSummary),
 		Resource:       toResourceSummary(item.Resource),
@@ -84,6 +85,7 @@ func toDetail(detail Detail) containergen.ContainerDetail {
 		NetworkSummary:    optionalString(detail.NetworkSummary),
 		Networks:          toNetworks(detail.Networks),
 		OomKilled:         detail.OOMKilled,
+		Orchestrator:      toOrchestratorInfo(detail.Orchestrator),
 		Ports:             toPorts(detail.Ports),
 		PrimaryIp:         optionalString(detail.PrimaryIP),
 		Resource:          toResourceSummary(detail.Resource),
@@ -322,6 +324,29 @@ func toRuntimeInfo(info RuntimeInfo) containergen.ContainerRuntimeInfo {
 		Runtime:           info.Runtime,
 		ServerVersion:     optionalString(info.ServerVersion),
 		Status:            containergen.ContainerRuntimeInfoStatus(info.Status),
+	}
+}
+
+func toOrchestratorInfo(info OrchestratorInfo) *containergen.ContainerOrchestratorInfo {
+	info = normalizedOrchestratorInfo(info)
+	return &containergen.ContainerOrchestratorInfo{
+		ActionLevel:        containergen.ContainerOrchestratorInfoActionLevel(info.ActionLevel),
+		BatchActionAllowed: info.BatchActionAllowed,
+		Confidence:         containergen.ContainerOrchestratorInfoConfidence(info.Confidence),
+		ConfigFiles:        optionalStringSlice(info.ConfigFiles),
+		Container:          optionalString(info.Container),
+		DisplayName:        optionalString(info.DisplayName),
+		Managed:            info.Managed,
+		Namespace:          optionalString(info.Namespace),
+		Pod:                optionalString(info.Pod),
+		Project:            optionalString(info.Project),
+		RecommendedAction:  optionalString(info.RecommendedAction),
+		Service:            optionalString(info.Service),
+		Stack:              optionalString(info.Stack),
+		Task:               optionalString(info.Task),
+		Type:               containergen.ContainerOrchestratorInfoType(info.Type),
+		Warnings:           append([]string(nil), info.Warnings...),
+		WorkingDir:         optionalString(info.WorkingDir),
 	}
 }
 

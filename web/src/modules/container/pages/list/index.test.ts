@@ -116,6 +116,7 @@ const translations = vi.hoisted(
     'container.list.batch.restartHint': '重启选中的 {count} 个容器。',
     'container.list.batch.selected': '已选择 {count} 个容器',
     'container.list.batch.skipInapplicable': '部分容器因当前状态或权限不适用，将被跳过。',
+    'container.list.batch.skipSourceRestricted': '其中 {count} 个容器因来源策略不允许参与批量高危操作而被跳过。',
     'container.list.batch.start': '批量启动',
     'container.list.batch.startHint': '启动选中的 {count} 个容器。',
     'container.list.batch.stop': '批量停止',
@@ -137,6 +138,7 @@ const translations = vi.hoisted(
     'container.list.columns.ports': '端口',
     'container.list.columns.restartPolicy': '重启策略',
     'container.list.columns.selection': '选择',
+    'container.list.columns.source': '来源',
     'container.list.columns.startedAt': '启动时间',
     'container.list.columns.status': '状态',
     'container.list.copyError': '日志复制失败。',
@@ -187,8 +189,10 @@ const translations = vi.hoisted(
     'container.list.fields.state': '状态码',
     'container.list.fields.status': '状态',
     'container.list.filters.allStatuses': '全部状态',
+    'container.list.filters.allOrchestrators': '全部来源',
     'container.list.filters.allHealth': '全部健康状态',
     'container.list.filters.health': '健康状态',
+    'container.list.filters.orchestrator': '来源',
     'container.list.filters.query': '查询',
     'container.list.filters.reset': '重置',
     'container.list.filters.searchPlaceholder': '搜索名称、镜像、ID 或端口',
@@ -239,6 +243,13 @@ const translations = vi.hoisted(
     'container.list.states.restarting': '重启中',
     'container.list.states.running': '运行中',
     'container.list.states.unknown': '未知',
+    'container.list.orchestrators.compose': 'Compose',
+    'container.list.orchestrators.kubernetes': 'Kubernetes',
+    'container.list.orchestrators.standalone': '独立容器',
+    'container.list.orchestrators.swarm': 'Swarm',
+    'container.list.orchestrators.unknown': '未知来源',
+    'container.list.sourceUnknownSummary': '未提供来源摘要',
+    'container.list.actions.sourceRisk': '该容器来自 {source}，执行高危操作前请确认上层编排状态。',
     'container.list.health.healthy': '健康',
     'container.list.health.unhealthy': '异常',
     'container.list.health.starting': '启动中',
@@ -607,6 +618,7 @@ describe('container list page', () => {
       'state',
       'name',
       'image',
+      'source',
       'cpu',
       'memory',
       'ports',
@@ -625,6 +637,7 @@ describe('container list page', () => {
       'state',
       'name',
       'image',
+      'source',
       'cpu',
       'memory',
       'ports',
@@ -655,6 +668,7 @@ describe('container list page', () => {
       keyword: undefined,
       limit: 20,
       offset: 20,
+      orchestrator: undefined,
       state: undefined,
     });
     expect(wrapper.text()).toContain('第 21-25 条 / 共 25 条');
@@ -681,11 +695,11 @@ describe('container list page', () => {
 
     expect(dialogMocks.confirm).toHaveBeenCalledWith(
       expect.objectContaining({
-        body: '确认停止容器 graft-web？',
         header: '确认停止容器',
         theme: 'danger',
       }),
     );
+    expect(renderDialogBodyText(dialogMocks.confirm.mock.calls.at(-1)?.[0].body)).toContain('确认停止容器 graft-web？');
     await dialogMocks.confirm.mock.calls.at(-1)?.[0].onConfirm();
     await flushPromises();
 

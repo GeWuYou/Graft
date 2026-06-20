@@ -20,8 +20,8 @@ import type {
   ContainerActionResponse,
   ContainerBatchActionRequest,
   ContainerBatchActionResponse,
-  ContainerDetail,
-  ContainerListQuery,
+  ContainerDetailRecord,
+  ContainerListQueryWithOrchestrator,
   ContainerLogQuery,
   ContainerLogResponse,
   ContainerMountUsage,
@@ -109,7 +109,7 @@ type PostContainerBatchActionsRequest = NonNullable<
 
 export type ContainerListResponse = GetContainersData;
 
-export function getContainers(query?: ContainerListQuery) {
+export function getContainers(query?: ContainerListQueryWithOrchestrator) {
   return request.get<GetContainersData>({
     url: CONTAINER_API_PATH.LIST,
     params: query,
@@ -119,7 +119,7 @@ export function getContainers(query?: ContainerListQuery) {
 export function getContainer(containerId: GetContainerPathParams['id']) {
   return request.get<GetContainerData>({
     url: buildContainerDetailApiPath(containerId),
-  }) as Promise<ContainerDetail>;
+  }) as Promise<ContainerDetailRecord>;
 }
 
 /**
