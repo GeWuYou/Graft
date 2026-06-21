@@ -109,6 +109,15 @@
   - publish failure 统计覆盖
 - 主题 recovery 与设计 authority 已同步更新，供后续 archive 或 admin-only 调试入口复用。
 
+## 2026-06-21 progress clarification audit
+
+- 复核 `server/modules/system-config/service.go`、topic README、tracking 与 trace 后确认：
+  - process-local snapshot cache、`singleflight`、local invalidation、Redis invalidation transport、debug state 已全部落地。
+  - 当前 topic 的 archive-ready 结论成立，但结论边界仅限 `system-config` authority 主链及本 topic 已登记热点。
+- 同步修正文档口径：
+  - 当前状态不是“全仓缓存治理完成”。
+  - 后续仓库级缓存治理仍需按新增热点或未纳入本 topic 的 authority owner 逐项推进。
+
 ## Loop Batch State
 
 ```json

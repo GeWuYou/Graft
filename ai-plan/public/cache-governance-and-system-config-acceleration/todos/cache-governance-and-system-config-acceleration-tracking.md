@@ -40,6 +40,9 @@ Cache Governance And System Config Acceleration
   - `phase-3-hotspot-expansion` 已提交 `93886719` `fix(system-config): unify hotspot resolver reads`
 - 当前待推进批次：
   - 无；主题进入 archive-ready closeout
+- 主题完成边界：
+  - 当前 archive-ready 仅覆盖 `system-config` authority 主链和本 topic 已登记的热点消费者。
+  - 不得把该状态解读为“仓库全部缓存已经治理完成”；后续新增或未纳入本 topic 的热点仍需继续治理。
 
 ## Task Checklist
 
@@ -53,7 +56,7 @@ Cache Governance And System Config Acceleration
 - [x] Phase 1：Update/Reset 后显式本地失效
 - [x] Phase 1：container / notification / scheduler / bootstrap 接入缓存化 resolver
 - [x] Phase 1：扩展 typed resolver，避免仅 bool-only resolver
-- [ ] Phase 1：系统配置页补充 runtime-hot / restart-required / effective-source 展示建议
+- [ ] Follow-up：系统配置页补充 runtime-hot / restart-required / effective-source 展示建议
 - [x] Phase 2：Redis pub/sub 或版本轮询方案落地
 - [x] Phase 2：多节点失效一致性验证
 - [x] Phase 3：RBAC/menu/dashboard/container runtime 热点扩展

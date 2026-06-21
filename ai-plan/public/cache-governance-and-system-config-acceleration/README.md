@@ -3,7 +3,8 @@
 ## 当前状态摘要
 
 - 当前主题目标是为 `Graft` 建立统一缓存治理规范，并优先收敛系统配置运行时读取加速方案。
-- 当前状态：Phase 0 治理资产已落盘，Phase 1 本地 snapshot 与热点消费方收口已完成，Phase 2 多节点失效传播已完成并提交，Phase 3 热点扩展已完成并提交，Phase 4 可观测性与治理门禁已完成并提交；主题已进入 archive-ready。
+- 当前状态：Phase 0 治理资产已落盘，Phase 1 本地 snapshot 与热点消费方收口已完成，Phase 2 多节点失效传播已完成并提交，Phase 3 热点扩展已完成并提交，Phase 4 可观测性与治理门禁已完成并提交；`system-config` authority 主链已进入 archive-ready。
+- 边界说明：上述完成态仅表示本主题负责的 `system-config` 与已登记热点缓存治理已收口，不表示仓库全部缓存热点都已完成治理。仓库级缓存治理仍需按 authority-first 热点清单逐项推进。
 - 任务分类为 `cross-boundary`，但本主题以 `backend-first` 为主；前端仅涉及系统配置页面的生效语义与高级信息展示建议。
 - Canonical design：`ai-plan/design/缓存治理与系统配置读取加速规范.md`。
 - AI 执行 skill：`.agents/skills/graft-cache-governance/SKILL.md`。
