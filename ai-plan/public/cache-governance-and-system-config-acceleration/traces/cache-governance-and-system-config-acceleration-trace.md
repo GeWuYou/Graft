@@ -74,6 +74,22 @@
   - module Boot/Shutdown 的 Redis 订阅 wiring
 - 已提交：`f3adec43` `fix(system-config): broadcast snapshot invalidation`
 
+## 2026-06-21 Phase 3 hotspot expansion completed
+
+- `server/internal/moduleapi/notification.go` 中的 `SystemConfigResolver` 已扩展统一暴露：
+  - `IsBooleanConfigEnabled(ctx, key, fallback bool) bool`
+  - `ResolveDefaultConfig(ctx, key) (string, error)`
+- `server/modules/container/service.go` 已移除局部 `stringSystemConfigResolver` 类型断言路径：
+  - 环境变量展示策略读取改为直接调用共享 `SystemConfigResolver.ResolveDefaultConfig(...)`
+  - 编排来源动作级别读取改为直接调用共享 `SystemConfigResolver.ResolveDefaultConfig(...)`
+- `server/modules/user/bootstrap.go` 现在会在 `bootstrapReader` 构造阶段缓存已解析的 `SystemConfigResolver` capability，避免每次菜单过滤在热路径中重复 `services.Resolve(...)`。
+- 本批次确认：
+  - system-config authority 仍保持在 `configregistry` + `server/modules/system-config/service.go`
+  - 未引入 Redis authority、override-table 直查、日志分页缓存或实时容器状态长期缓存
+  - dashboard quick actions 仍停留在 config-definition authority，本批次未把它误扩展成新的 runtime cache surface
+- `server/modules/container/service_test.go`、`server/modules/user/menu_contract_test.go`、`server/modules/notification/module_test.go` 已补充/对齐 unified resolver 覆盖。
+- 已提交：`93886719` `fix(system-config): unify hotspot resolver reads`
+
 ## Loop Batch State
 
 ```json
@@ -83,15 +99,15 @@
     "phase-0-cache-audit-and-governance-persistence",
     "phase-1-system-config-local-snapshot",
     "phase-1-hot-consumer-adoption",
-    "phase-2-multi-node-invalidation"
+    "phase-2-multi-node-invalidation",
+    "phase-3-hotspot-expansion"
   ],
   "pending_batches": [
-    "phase-3-hotspot-expansion",
     "phase-4-observability-and-guardrails"
   ],
-  "current_batch": "phase-2-multi-node-invalidation",
-  "next_batch": "phase-3-hotspot-expansion",
-  "closeout_status": "phase-2-multi-node-invalidation-completed",
+  "current_batch": "phase-3-hotspot-expansion",
+  "next_batch": "phase-4-observability-and-guardrails",
+  "closeout_status": "phase-3-hotspot-expansion-completed",
   "commit": [
     {
       "sha": "076dc954",
@@ -100,6 +116,10 @@
     {
       "sha": "f3adec43",
       "title": "fix(system-config): broadcast snapshot invalidation"
+    },
+    {
+      "sha": "93886719",
+      "title": "fix(system-config): unify hotspot resolver reads"
     }
   ]
 }

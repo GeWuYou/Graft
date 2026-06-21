@@ -3,7 +3,7 @@
 ## 当前状态摘要
 
 - 当前主题目标是为 `Graft` 建立统一缓存治理规范，并优先收敛系统配置运行时读取加速方案。
-- 当前状态：Phase 0 治理资产已落盘，Phase 1 本地 snapshot 与热点消费方收口已完成，Phase 2 多节点失效传播已完成并提交；下一批进入热点扩展。
+- 当前状态：Phase 0 治理资产已落盘，Phase 1 本地 snapshot 与热点消费方收口已完成，Phase 2 多节点失效传播已完成并提交，Phase 3 热点扩展已完成并提交；下一批进入可观测性与治理门禁收口。
 - 任务分类为 `cross-boundary`，但本主题以 `backend-first` 为主；前端仅涉及系统配置页面的生效语义与高级信息展示建议。
 - Canonical design：`ai-plan/design/缓存治理与系统配置读取加速规范.md`。
 - AI 执行 skill：`.agents/skills/graft-cache-governance/SKILL.md`。
@@ -47,7 +47,7 @@
 - Phase 0：现状盘点、规范沉淀、topic/skill 持久化。已完成。
 - Phase 1：单进程本地 snapshot + singleflight + 显式失效。已完成。
 - Phase 2：Redis pub/sub 或版本号轮询，多节点一致性预留。`phase-2-multi-node-invalidation` 已完成。
-- Phase 3：扩展到 RBAC/menu/dashboard/container runtime 等热点缓存。
+- Phase 3：扩展到 RBAC/menu/dashboard/container runtime 等热点缓存。已完成。
 - Phase 4：补充指标、调试面板、缓存治理文档和测试门禁。
 
 ## Current Recovery Point
@@ -68,17 +68,23 @@
   - `server/modules/system-config/module.go` 在 `Boot` 阶段接入 Redis 订阅；收到远端 invalidation 后仅清理本地 snapshot，不改变 authority。
   - Redis 不可用或 publish 失败时会退化为仅本地失效，不影响配置写入成功。
   - 已提交：`f3adec43` `fix(system-config): broadcast snapshot invalidation`。
+- 已完成 `phase-3-hotspot-expansion`：
+  - `server/internal/moduleapi.SystemConfigResolver` 已扩展为统一暴露布尔与 effective config 读取能力，热点消费方不再需要局部类型断言绕过共享 resolver 边界。
+  - `server/modules/container/service.go` 已将环境展示策略与编排来源动作级别解析统一切到共享 `SystemConfigResolver.ResolveDefaultConfig(...)` 路径，继续复用 system-config 本地 snapshot authority。
+  - `server/modules/user/bootstrap.go` 已在 reader 装配阶段缓存已解析的 `SystemConfigResolver` capability，避免每次 bootstrap 菜单过滤都在热路径重新解析服务容器。
+  - 本批次未扩展到新的 dashboard authority 或 web 长期缓存；`dashboard.quick_actions` 仍保持 config-definition authority，后续如需 runtime 消费扩展必须在独立 authority 范围内推进。
+  - 已提交：`93886719` `fix(system-config): unify hotspot resolver reads`。
 - 当前确认的系统配置 authority 与热点事实：
-  - `server/modules/system-config/service.go` 当前 authority 仍在统一 service/resolver 边界，但读取链路已切换为本地 full snapshot cache + `singleflight`。
-  - `server/internal/moduleapi/notification.go` 中 `SystemConfigResolver` 目前只有 `IsBooleanConfigEnabled(ctx, key, fallback bool) bool`。
-  - `server/internal/scheduler/runtime.go` 通过 `ResolveDefaultConfig` 读取 job default config，当前仍会回源 DB。
-  - `server/modules/notification/publisher.go`、`server/modules/container/service.go`、`server/modules/user/bootstrap.go` 已处于系统配置热点消费链上。
+  - `server/modules/system-config/service.go` 当前 authority 仍在统一 service/resolver 边界，读取链路保持本地 full snapshot cache + `singleflight`。
+  - `server/internal/moduleapi/notification.go` 中 `SystemConfigResolver` 现已统一提供 `IsBooleanConfigEnabled(...)` 与 `ResolveDefaultConfig(...)`。
+  - `server/modules/notification/publisher.go`、`server/modules/container/service.go`、`server/internal/scheduler/runtime.go`、`server/modules/user/bootstrap.go` 都继续通过共享 resolver 边界消费有效配置。
   - `server/modules/container/mount_usage.go` 已有本地 TTL cache，可作为 process-local cache 参考，但不是 system-config authority。
   - `server/modules/monitor/module.go` 已有 Redis 趋势缓存，可作为 distributed cache 参考，但不应用来取代 system-config authority。
 - 当前推荐实现起点：
   - Phase 1 已完成 authority 层 process-local full snapshot cache + singleflight + explicit invalidation。
   - Phase 2 已完成 Redis invalidation signal 的多节点传播预留，authority 与统一 resolver 边界保持不变。
-  - 下一步进入 `phase-3-hotspot-expansion`，仅在已声明 owned scope 内继续评估和扩展真正的热点读路径。
+  - Phase 3 已完成热点读路径扩展，未改变 system-config authority。
+  - 下一步进入 `phase-4-observability-and-guardrails`，补齐可观测性、调试证据、topic recovery 更新与最小必要治理门禁。
 
 ## Validation Targets
 

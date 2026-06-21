@@ -36,8 +36,10 @@ Cache Governance And System Config Acceleration
 - 已完成 Phase 2：
   - `phase-2-multi-node-invalidation` 已提交 `f3adec43` `fix(system-config): broadcast snapshot invalidation`
   - 多节点失效传播现已通过 Redis pub/sub best-effort signal 驱动；Redis 不可用时仍退化为仅本地失效
+- 已完成 Phase 3：
+  - `phase-3-hotspot-expansion` 已提交 `93886719` `fix(system-config): unify hotspot resolver reads`
 - 当前待推进批次：
-  - `phase-3-hotspot-expansion`
+  - `phase-4-observability-and-guardrails`
 
 ## Task Checklist
 
@@ -50,11 +52,11 @@ Cache Governance And System Config Acceleration
 - [x] Phase 1：singleflight 合并加载
 - [x] Phase 1：Update/Reset 后显式本地失效
 - [x] Phase 1：container / notification / scheduler / bootstrap 接入缓存化 resolver
-- [ ] Phase 1：扩展 typed resolver，避免仅 bool-only resolver
+- [x] Phase 1：扩展 typed resolver，避免仅 bool-only resolver
 - [ ] Phase 1：系统配置页补充 runtime-hot / restart-required / effective-source 展示建议
 - [x] Phase 2：Redis pub/sub 或版本轮询方案落地
 - [x] Phase 2：多节点失效一致性验证
-- [ ] Phase 3：RBAC/menu/dashboard/container runtime 热点扩展
+- [x] Phase 3：RBAC/menu/dashboard/container runtime 热点扩展
 - [ ] Phase 4：指标、调试面板、治理门禁和文档收口
 
 ## Batch Boundaries
@@ -74,7 +76,8 @@ Cache Governance And System Config Acceleration
 - `phase-3-hotspot-expansion`
   - 范围：RBAC/menu/dashboard/container runtime
   - 目标：扩展缓存治理到更多聚合读热点
-  - 状态：下一批次
+  - 状态：已完成，提交 `93886719` `fix(system-config): unify hotspot resolver reads`
 - `phase-4-observability-and-guardrails`
   - 范围：metrics/debug/docs/tests/scripts
   - 目标：可观测性与治理门禁闭环
+  - 状态：下一批次
