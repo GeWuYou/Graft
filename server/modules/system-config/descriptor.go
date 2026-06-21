@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"fmt"
 
+	"graft/server/internal/cachex"
 	"graft/server/internal/configregistry"
 	"graft/server/internal/module"
 	"graft/server/modules/system-config/storeent"
@@ -27,11 +28,21 @@ func NewModuleSpec() module.Spec {
 			if err != nil {
 				return nil, fmt.Errorf("resolve config registry: %w", err)
 			}
+			cacheManager, err := module.ResolveService[*cachex.Manager](ctx.Services, (*cachex.Manager)(nil))
+			if err != nil {
+				return nil, fmt.Errorf("resolve cache manager: %w", err)
+			}
+			snapshotCache, err := cacheManager.NewCache(systemConfigSnapshotCacheName)
+			if err != nil {
+				return nil, fmt.Errorf("build system config snapshot cache: %w", err)
+			}
 			repo, err := storeent.NewRepository(sqlDB)
 			if err != nil {
 				return nil, fmt.Errorf("build system config repository: %w", err)
 			}
-			service, err := NewService(registry, repo, nil)
+			service, err := NewService(registry, repo, ServiceOptions{
+				Cache: snapshotCache,
+			})
 			if err != nil {
 				return nil, fmt.Errorf("build system config service: %w", err)
 			}

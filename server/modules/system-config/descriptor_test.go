@@ -10,6 +10,8 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 
+	"graft/server/internal/cachex"
+	cachebackend "graft/server/internal/cachex/backend"
 	"graft/server/internal/configregistry"
 	"graft/server/internal/container"
 	"graft/server/internal/module"
@@ -40,6 +42,18 @@ func TestDescriptorBuildAllowsUserServiceRegistrationAfterBuild(t *testing.T) {
 		return registry, nil
 	}); err != nil {
 		t.Fatalf("register config registry: %v", err)
+	}
+	cacheManager, err := cachex.NewManager(cachex.ManagerOptions{
+		Backend:   cachebackend.NewMemory(),
+		Namespace: "test-runtime",
+	})
+	if err != nil {
+		t.Fatalf("new cache manager: %v", err)
+	}
+	if err := services.RegisterSingleton((*cachex.Manager)(nil), func(container.Resolver) (any, error) {
+		return cacheManager, nil
+	}); err != nil {
+		t.Fatalf("register cache manager: %v", err)
 	}
 
 	descriptor := NewModuleSpec()
@@ -72,6 +86,18 @@ func TestDescriptorBuildWithUserService(t *testing.T) {
 		return registry, nil
 	}); err != nil {
 		t.Fatalf("register config registry: %v", err)
+	}
+	cacheManager, err := cachex.NewManager(cachex.ManagerOptions{
+		Backend:   cachebackend.NewMemory(),
+		Namespace: "test-runtime",
+	})
+	if err != nil {
+		t.Fatalf("new cache manager: %v", err)
+	}
+	if err := services.RegisterSingleton((*cachex.Manager)(nil), func(container.Resolver) (any, error) {
+		return cacheManager, nil
+	}); err != nil {
+		t.Fatalf("register cache manager: %v", err)
 	}
 	if err := services.RegisterSingleton((*moduleapi.UserService)(nil), func(container.Resolver) (any, error) {
 		return descriptorTestUserService{}, nil

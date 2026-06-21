@@ -25,6 +25,7 @@ linters:
     - funlen
     - misspell
     - nestif
+    - depguard
   settings:
     gocyclo:
       min-complexity: 15
@@ -76,6 +77,13 @@ linters:
           arguments: []
         - name: bare-return
           arguments: []
+    depguard:
+      rules:
+        redis_boundary:
+          list-mode: original
+          deny:
+            - pkg: github.com/redis/go-redis/v9$
+              desc: use internal/cachex services or core-owned redis adapters instead of importing go-redis directly
   exclusions:
     generated: lax
     paths:
@@ -100,6 +108,12 @@ linters:
           - maintidx
           - dupl
           - mnd
+      - path: "^internal/(redisx|cachex/backend|app)/.*\\.go$"
+        linters:
+          - depguard
+      - path: "^internal/module/module\\.go$"
+        linters:
+          - depguard
 
 issues:
   max-issues-per-linter: 0

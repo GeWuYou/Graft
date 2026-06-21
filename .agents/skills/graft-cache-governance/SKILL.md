@@ -5,20 +5,20 @@ description: Repository-specific workflow for Graft cache governance. Use when a
 
 # Graft Cache Governance
 
-Use this skill before implementing or refactoring Graft runtime read paths that may become hotspots.
+Use this skill before implementing or refactoring backend read paths that may become hotspots.
 
 Treat root `AGENTS.md` as startup truth. This skill does not replace startup, validation, commit, or recovery workflow.
 
 ## Read First
 
 1. Complete root `AGENTS.md` startup preflight.
-2. Read `server/AGENTS.md` for backend work.
-3. Read `web/AGENTS.md` when menu/bootstrap/config effective value is exposed to `web`.
+2. Read `server/AGENTS.md`.
+3. Read `web/AGENTS.md` only when the task changes `web`-visible menu/bootstrap/config semantics or shared authority.
 4. Read `ai-plan/design/缓存治理与系统配置读取加速规范.md`.
-5. Read `ai-plan/design/系统配置模型与渲染设计.md` when the task changes system config metadata or UI semantics.
-6. Read `ai-plan/design/通知中心设计.md` when the task changes notification source gating or delivery config.
-7. Read `ai-plan/design/容器管理设计.md` when the task changes container runtime config reads.
-8. Read `ai-plan/design/共享资产复用治理规范.md` and the relevant shared-asset registries before introducing a new shared cache helper.
+5. Read `ai-plan/design/系统配置模型与渲染设计.md` when the task changes system-config metadata or UI semantics.
+6. Read `ai-plan/design/通知中心设计.md` when the task changes notification gating or delivery config semantics.
+7. Read `ai-plan/design/容器管理设计.md` when the task changes container runtime config reads or runtime-hot semantics.
+8. Read `ai-plan/design/共享资产复用治理规范.md` before adding any shared helper or shared cache mechanism.
 
 ## When To Use
 
@@ -29,96 +29,137 @@ Use this skill when the task changes any of:
 - `server/internal/scheduler/**` default config resolution
 - `server/modules/notification/**` runtime config gating
 - `server/modules/container/**` runtime config consumption
-- `server/modules/user/bootstrap.go` menu/bootstrap feature gating
+- `server/modules/user/bootstrap.go`
 - RBAC/menu/dashboard/container runtime aggregation or similar hotspot reads
-- any new path that repeatedly reads DB-backed config, permission, menu, or summary data
+- any new path that repeatedly reads DB-backed config, permission, menu, summary, or authority-owned runtime data
 
-## Authority Rules
+## Workflow
 
-- Keep `configregistry` plus `server/modules/system-config` as the system-config authority.
-- All runtime system-config reads must go through one unified resolver or snapshot provider; do not let modules query the system-config override table directly.
-- Prefer reusing existing `moduleapi`, `configregistry`, `cronx`, menu registry, dashboard registry, Redis client, and in-process cache patterns before inventing a new abstraction.
-- Do not make Redis the authority for system config.
-- Do not add distributed cache by default just because Redis exists.
-- Do not cache highly volatile real-time status for too long just to reduce API latency.
-- Do not let `web` become the authority for effective permissions, menus, or runtime config values.
-- Keep `restart-required` and `runtime-hot` semantics explicit; do not claim hot reload for values that still require process rebuild or runtime reconstruction.
+### 1. Authority-First Inventory
 
-## Current Repository Status
+Before proposing cache code, inspect the real codebase:
 
-- The repository's `system-config` authority chain already has a process-local snapshot cache with `singleflight`, explicit local invalidation, and Redis best-effort invalidation transport.
-- The shared `SystemConfigResolver` contract is no longer bool-only; current repository truth includes `IsBooleanConfigEnabled(...)` and `ResolveDefaultConfig(...)`.
-- Canonical runtime apply semantics now live in upstream `runtime_apply_mode`; `web` must consume that authority instead of inferring `runtime-hot` locally.
-- Existing effective-source authority remains the current `default` vs `override` distinction; do not add a new display-only field for the same meaning.
-- This completed scope is limited to the `system-config` authority chain and the hotspot consumers already registered by the topic.
-- Do not reinterpret that archive-ready state as "all repository cache governance is finished"; new or unregistered hotspots still require explicit authority-first classification and follow-up.
+- search current shared surfaces under `server/internal/**` and `server/modules/**`
+- search direct Redis usage
+- search local TTL caches
+- search snapshot providers
+- search `singleflight`
+- search invalidation paths
 
-## Required Cache Classification
+At minimum, inspect:
 
-Before coding, classify the target data into exactly one primary strategy:
+- `server/internal/configregistry/**`
+- `server/internal/moduleapi/**`
+- `server/internal/redisx/**`
+- `server/modules/system-config/**`
+- the target consumer path
 
-- `request-scoped cache`
-- `process local cache`
-- `Redis distributed cache`
-- `startup immutable cache`
+You must answer:
+
+1. What is the canonical authority owner?
+2. Is the observed problem upstream authority drift or only downstream read amplification?
+3. Does an existing shared facility already cover this path?
+4. Is this truly a hotspot?
+
+If the real authority sits outside the initial file target, escalate before implementing a downstream-only cache patch.
+
+### 2. Choose Exactly One Primary Strategy
+
+Classify the target path into exactly one:
+
 - `no cache`
+- `request-scoped cache`
+- `process-local cache`
+- `startup-immutable cache`
+- `redis-authority-data`
+- `redis-invalidation-transport`
 
-Every implementation or review should answer:
+Do not combine several strategies in the closeout label just because multiple mechanisms are present internally.
 
-1. Is the read path actually hot?
-2. What is the authority source?
-3. What is the acceptable stale window?
-4. How is invalidation handled on write?
-5. Does multi-node consistency matter now, or only later?
+Every classification must state:
 
-## System Config Rules
+- authority owner
+- stale window
+- invalidation or reload path
+- whether multi-node correctness matters now
 
-For system-config-backed runtime reads:
+### 3. Reuse Before Adding
 
-- Default to process-local typed snapshot cache.
-- Prefer whole-snapshot or domain/group snapshot over ad-hoc per-key caches unless a tighter shape is clearly justified.
-- Use singleflight or equivalent request coalescing when a miss can hit the database.
-- Merge `configregistry` defaults with DB overrides in one place.
-- Preserve explicit fallback behavior.
-- Preserve config-change audit behavior.
-- Plan for explicit invalidation after successful writes.
-- If the project is still single-node for the target slice, Phase 1 may stop at local cache plus explicit invalidation.
-- If the task explicitly needs multi-node correctness, extend with Redis pub/sub invalidation or a version-polling design without changing authority.
+Default to reusing current repository facilities:
 
-## Hotspot Checklist
+- `configregistry` for system-config definitions and defaults
+- `moduleapi.SystemConfigResolver` for cross-module effective config reads
+- `server/modules/system-config/service.go` for authority-owned config snapshot reads
+- `server/internal/redisx/**` only for Redis transport opening
+- startup registries under `server/internal/menu/**`, `server/internal/cronx/**`, `server/internal/dashboard/**` when the data is immutable after registration
 
-When touching a runtime read path, inspect whether it already belongs to one of these hotspot classes:
+Do not create a new shared helper unless authority discovery proves a repeated mechanical need across more than one authority owner.
 
-- notification source gating
-- scheduler default config resolution
-- container enablement / dangerous action / shell gating
-- bootstrap menu feature gating
-- RBAC permission aggregation
-- dashboard summary aggregation
-- mount usage / local filesystem scans
-- log retention / scheduled task config resolution
+### 4. Direct Redis Policy
 
-If the path is hot and uncached, either:
+Default rule:
 
-- implement the correct cache layer in the same slice, or
-- explicitly record why caching is deferred and what protects the system in the meantime
+- modules must not treat Redis as an arbitrary cache backdoor
 
-Do not silently leave a newly created hotspot uncached.
+Direct Redis usage is allowed only when one of these is true:
 
-## Shared Asset Reuse
+- the code is core Redis transport under `server/internal/redisx/**`
+- the module owns Redis-backed data as part of its business/runtime authority
+- Redis is used only for best-effort invalidation transport for another authority owner
 
-Before adding a new cache helper or cache interface:
+Direct Redis usage is not allowed when:
 
-1. Search `.ai/registries/server-shared-assets.yaml` and `.ai/registries/cross-boundary-assets.yaml`.
-2. Search real code for:
-   - `configregistry`
-   - `SystemConfigResolver`
-   - `ResolveDefaultConfig`
-   - `singleflight`
-   - `cache`
-   - Redis client usage
-3. Reuse or extend an existing shared helper when ownership matches.
-4. Add a new registry entry only if the new helper becomes a stable shared asset.
+- a module wants to mirror DB-backed authority into Redis just for convenience
+- a module bypasses a unified resolver or snapshot provider
+- a module invents ad-hoc key/TTL/invalidation rules without shared-facility review
+- the cache would make Redis or `web` appear to own effective values
+
+### 5. Shared Helper Admission Rule
+
+Add or extend `server/internal` shared cache machinery only if all are true:
+
+- at least two authority owners need the same cache mechanics
+- the shared package can stay mechanical only
+- no module business DTO, override table access, business key policy, or second config authority leaks into it
+- current authority-owned helpers cannot reasonably hold the behavior themselves
+
+If these conditions are not met, keep the helper authority-owned or module-local.
+
+### 6. System-Config Hard Rules
+
+For any system-config-backed path:
+
+- keep `configregistry` plus `server/modules/system-config/**` as the authority chain
+- all effective reads must go through the unified resolver or snapshot provider
+- do not let modules query the override table directly
+- do not make Redis the authority
+- do not let `web` infer runtime apply semantics locally
+- keep `runtime_apply_mode` as the canonical runtime-apply signal
+
+### 7. Hotspot Registration Or Deferred Decision
+
+If a path is genuinely hot and uncached, the task must end in one of these states:
+
+- `reused-existing`
+- `added-cache`
+- `deferred-with-reason`
+
+Do not silently leave a newly identified hotspot without a governance decision.
+
+If deferred, record:
+
+- why no cache is being added now
+- what protects the path meanwhile
+- what future trigger should reopen the decision
+
+## Guardrails
+
+- Do not assume every hotspot should be cached.
+- Do not default to Redis because Redis exists.
+- Do not make `web` an authority for effective config, permission, or menu state.
+- Do not bypass unified resolver / snapshot provider for system-config reads.
+- Do not create compatibility layers, aliases, or fallback authorities just to preserve downstream drift.
+- Do not introduce a generic cache abstraction that only one module can use.
 
 ## Validation
 
@@ -126,23 +167,30 @@ For docs or skill-only changes:
 
 ```bash
 git diff --check
-python3 /root/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/graft-cache-governance
 python3 scripts/validate_ai_governance.py
+python3 /root/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/graft-cache-governance
+```
+
+Add:
+
+```bash
 python3 scripts/validate_shared_asset_registries.py
 ```
+
+when the task changes shared-asset registry entries.
 
 For backend cache changes:
 
 ```bash
-graft validate backend --stage lint
+cd server && go run ./cmd/graft validate backend --stage lint
 ```
 
-Add focused tests for:
+Also run the smallest direct `go test` scope covering:
 
 - cache hit/miss behavior
 - invalidation after update/reset
-- singleflight behavior on concurrent reads
-- degraded behavior when Redis is unavailable, if Redis is part of the slice
+- concurrent miss collapse when relevant
+- degraded behavior when Redis publish/subscribe is unavailable, if Redis is part of the slice
 
 ## Closeout Evidence
 
@@ -150,10 +198,13 @@ Add focused tests for:
 Cache governance:
 - task_class: server | cross-boundary | docs/automation
 - owned_scope: <paths>
-- authority: configregistry | system-config service | module-local runtime summary | registry-owned immutable data
-- cache_strategy: request-scoped | process-local | redis | startup-immutable | none
-- stale_window: <duration or not-allowed>
-- invalidation: explicit-local | ttl-only | redis-pubsub | version-polling | not-applicable
+- authority_owner: <canonical owner>
+- hotspot: yes | no
+- cache_strategy: none | request-scoped | process-local | startup-immutable | redis-authority-data | redis-invalidation-transport
+- shared_facility: reused-existing | added-authority-owned-helper | added-shared-mechanical-layer | none
+- direct_redis_usage: forbidden | reused-existing | added-with-justification | not-applicable
+- stale_window: <duration | explicit-invalidation-only | not-allowed>
+- invalidation: local-explicit | ttl-only | redis-pubsub | not-applicable
 - hotspot_status: reused-existing | added-cache | deferred-with-reason | not-applicable
 - validation: <commands and results>
 ```

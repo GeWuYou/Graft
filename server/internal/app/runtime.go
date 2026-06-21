@@ -10,12 +10,15 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 
+	"graft/server/internal/cachex"
+	cachebackend "graft/server/internal/cachex/backend"
 	"graft/server/internal/config"
 	"graft/server/internal/configregistry"
 	"graft/server/internal/container"
@@ -78,24 +81,25 @@ var runtimeEmbeddedLocaleResources = func() []i18n.EmbeddedLocaleResource {
 // Runtime 本身不承载业务能力；它只负责 core 资源装配、模块生命周期编排
 // 和进程级关闭顺序，避免模块把运行时控制逻辑反向塞回 core。
 type Runtime struct {
-	config             *config.Config
-	logger             *zap.Logger
-	i18n               *i18n.Service
+	config                    *config.Config
+	logger                    *zap.Logger
+	i18n                      *i18n.Service
 	localeResourcesRegistered bool
-	database           *database.Resources
-	redis              *redis.Client
-	server             *httpx.Server
-	openapiDocs        *openAPIDocsAssets
-	eventBus           eventbus.Bus
-	services           *container.Container
-	menuRegistry       *menu.Registry
-	permissionRegistry *permission.Registry
-	cronRegistry       *cronx.Registry
-	configRegistry     *configregistry.Registry
-	dashboardRegistry  *dashboard.Registry
-	moduleManager      *module.Manager
-	runtimeMetadata    module.RuntimeMetadata
-	appLogRepository   logger.AppLogRepository
+	database                  *database.Resources
+	redis                     *redis.Client
+	cacheManager              *cachex.Manager
+	server                    *httpx.Server
+	openapiDocs               *openAPIDocsAssets
+	eventBus                  eventbus.Bus
+	services                  *container.Container
+	menuRegistry              *menu.Registry
+	permissionRegistry        *permission.Registry
+	cronRegistry              *cronx.Registry
+	configRegistry            *configregistry.Registry
+	dashboardRegistry         *dashboard.Registry
+	moduleManager             *module.Manager
+	runtimeMetadata           module.RuntimeMetadata
+	appLogRepository          logger.AppLogRepository
 }
 
 // NewRuntime 使用给定模块构造显式的 MVP 运行时外壳。
@@ -246,12 +250,21 @@ func newRuntimeCoreWithDeps(cfg *config.Config, deps runtimeCoreDeps) (*Runtime,
 		return nil, err
 	}
 
+	cacheManager, err := newRuntimeCacheManager(cfg, redisClient)
+	if err != nil {
+		_ = redisClient.Close()
+		_ = database.Close(databaseResources)
+		_ = logger.Close(runtimeLogger)
+		return nil, fmt.Errorf("create cache manager: %w", err)
+	}
+
 	runtime := &Runtime{
-		config:   cfg,
-		logger:   runtimeLogger,
-		i18n:     localizer,
-		database: databaseResources,
-		redis:    redisClient,
+		config:       cfg,
+		logger:       runtimeLogger,
+		i18n:         localizer,
+		database:     databaseResources,
+		redis:        redisClient,
+		cacheManager: cacheManager,
 		server: httpx.NewServerWithOptions(runtimeLogger, httpx.ServerOptions{
 			AccessLog: httpx.AccessLogOptions{
 				ConsolePolicy: config.ResolveAccessLogConsolePolicy(cfg.App.Env, cfg.HTTPX.AccessLogConsole),
@@ -980,9 +993,12 @@ func (r *Runtime) registerCoreServices() error {
 			},
 		},
 		{
-			key: (*redis.Client)(nil),
+			key: (*cachex.Manager)(nil),
 			provider: func() (any, error) {
-				return r.redis, nil
+				if r.cacheManager == nil {
+					return nil, errors.New("cache manager is unavailable")
+				}
+				return r.cacheManager, nil
 			},
 		},
 	}
@@ -994,6 +1010,29 @@ func (r *Runtime) registerCoreServices() error {
 	}
 
 	return nil
+}
+
+func newRuntimeCacheManager(cfg *config.Config, client *redis.Client) (*cachex.Manager, error) {
+	namespace := "graft"
+	if cfg != nil {
+		appName := strings.TrimSpace(cfg.App.Name)
+		if appName != "" {
+			namespace = appName
+		}
+	}
+
+	redisBackend, err := cachebackend.NewRedis(client, cachebackend.RedisOptions{
+		Prefix: namespace + ":cache",
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return cachex.NewManager(cachex.ManagerOptions{
+		Backend:   redisBackend,
+		Metrics:   cachex.NopMetrics(),
+		Namespace: namespace,
+	})
 }
 
 func (r *Runtime) registerAccessLogRetentionJob() error {

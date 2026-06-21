@@ -13,11 +13,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/alicebob/miniredis/v2"
 	"github.com/gin-gonic/gin"
-	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 
+	"graft/server/internal/cachex"
+	cachebackend "graft/server/internal/cachex/backend"
 	"graft/server/internal/config"
 	"graft/server/internal/configregistry"
 	"graft/server/internal/container"
@@ -234,10 +234,10 @@ func TestServiceInvalidatesLocalSnapshotAfterUpdateAndReset(t *testing.T) {
 	}
 }
 
-func TestServiceUpdateAndResetKeepWorkingWhenInvalidationPublishFails(t *testing.T) {
+func TestServiceUpdateAndResetInvalidateSharedSnapshotCache(t *testing.T) {
 	repo := newMemoryRepo()
-	broker := &failingInvalidationBroker{}
-	service := newTestServiceWithRepo(t, repo, configregistry.Definition{
+	manager := newTestCacheManager(t)
+	service := newTestServiceWithRepoAndManager(t, repo, manager, configregistry.Definition{
 		Key:          "notification.enabled",
 		Module:       "notification",
 		Group:        "notification.general",
@@ -245,141 +245,54 @@ func TestServiceUpdateAndResetKeepWorkingWhenInvalidationPublishFails(t *testing
 		Type:         configregistry.ValueTypeBoolean,
 		DefaultValue: json.RawMessage(`true`),
 	})
-	service.invalidationBroker = broker
+	peer := newTestServiceWithRepoAndManager(t, repo, manager, configregistry.Definition{
+		Key:          "notification.enabled",
+		Module:       "notification",
+		Group:        "notification.general",
+		Title:        "Notification enabled",
+		Type:         configregistry.ValueTypeBoolean,
+		DefaultValue: json.RawMessage(`true`),
+	})
+	if _, err := peer.Get(context.Background(), "notification.enabled"); err != nil {
+		t.Fatalf("warm shared snapshot: %v", err)
+	}
+	repo.resetReadCounters()
 
 	updated, err := service.Update(context.Background(), "notification.enabled", json.RawMessage(`false`), nil)
 	if err != nil {
-		t.Fatalf("update with failed invalidation publish: %v", err)
+		t.Fatalf("update override: %v", err)
 	}
 	if string(updated.EffectiveValue) != "false" {
-		t.Fatalf("expected updated value despite publish failure, got %#v", updated)
+		t.Fatalf("expected updated value false, got %#v", updated)
+	}
+
+	peerItem, err := peer.Get(context.Background(), "notification.enabled")
+	if err != nil {
+		t.Fatalf("peer get after update invalidation: %v", err)
+	}
+	if string(peerItem.EffectiveValue) != "false" {
+		t.Fatalf("expected peer to observe updated value through shared cache invalidation, got %#v", peerItem)
+	}
+	if repo.listOverridesCalls() != 1 {
+		t.Fatalf("expected one reload after shared cache invalidation, got %d", repo.listOverridesCalls())
 	}
 
 	reset, err := service.Reset(context.Background(), "notification.enabled")
 	if err != nil {
-		t.Fatalf("reset with failed invalidation publish: %v", err)
+		t.Fatalf("reset override: %v", err)
 	}
 	if string(reset.EffectiveValue) != "true" || reset.HasOverride {
-		t.Fatalf("expected reset value despite publish failure, got %#v", reset)
+		t.Fatalf("expected reset to restore default, got %#v", reset)
 	}
-	if broker.publishCalls.Load() != 2 {
-		t.Fatalf("expected best-effort invalidation publish attempts for update/reset, got %d", broker.publishCalls.Load())
-	}
-
-	debugState := service.SnapshotCacheDebugState()
-	if debugState.PublishAttemptCount != 2 || debugState.PublishFailureCount != 2 {
-		t.Fatalf("expected publish attempts and failures to be recorded, got %#v", debugState)
-	}
-}
-
-func TestServiceRemoteInvalidationClearsLocalSnapshotCache(t *testing.T) {
-	repo := newMemoryRepo()
-	service := newTestServiceWithRepo(t, repo, configregistry.Definition{
-		Key:          "notification.enabled",
-		Module:       "notification",
-		Group:        "notification.general",
-		Title:        "Notification enabled",
-		Type:         configregistry.ValueTypeBoolean,
-		DefaultValue: json.RawMessage(`true`),
-	})
-	if _, err := service.Update(context.Background(), "notification.enabled", json.RawMessage(`false`), nil); err != nil {
-		t.Fatalf("seed override: %v", err)
-	}
-	if _, err := service.Get(context.Background(), "notification.enabled"); err != nil {
-		t.Fatalf("warm snapshot: %v", err)
-	}
-	repo.resetReadCounters()
-
-	service.handleInvalidationMessage(&redis.Message{Payload: `{"source":"other-node","key":"notification.enabled","action":"update","updated_at":"2026-06-21T00:00:00Z"}`})
-
-	if _, err := service.Get(context.Background(), "notification.enabled"); err != nil {
-		t.Fatalf("get after remote invalidation: %v", err)
-	}
-	if repo.listOverridesCalls() != 1 {
-		t.Fatalf("expected remote invalidation to force one snapshot reload, got %d", repo.listOverridesCalls())
-	}
-
-	debugState := service.SnapshotCacheDebugState()
-	if debugState.RemoteInvalidateCount != 1 {
-		t.Fatalf("expected one remote invalidation, got %#v", debugState)
-	}
-	if debugState.LastInvalidationSource != string(snapshotInvalidationSourceRemote) {
-		t.Fatalf("expected remote invalidation source, got %#v", debugState)
-	}
-	if debugState.LastInvalidationAction != string(snapshotInvalidationActionUpdate) {
-		t.Fatalf("expected update invalidation action, got %#v", debugState)
-	}
-}
-
-func TestModuleBootSubscribesToRedisInvalidationAndShutdownClosesSubscription(t *testing.T) {
-	mini := miniredis.RunT(t)
-	client := redis.NewClient(&redis.Options{Addr: mini.Addr()})
-	t.Cleanup(func() {
-		_ = client.Close()
-	})
-
-	repo := newMemoryRepo()
-	service := newTestServiceWithRepo(t, repo, configregistry.Definition{
-		Key:          "notification.enabled",
-		Module:       "notification",
-		Group:        "notification.general",
-		Title:        "Notification enabled",
-		Type:         configregistry.ValueTypeBoolean,
-		DefaultValue: json.RawMessage(`true`),
-	})
-	moduleInstance, err := NewModule(service)
+	resetPeerItem, err := peer.Get(context.Background(), "notification.enabled")
 	if err != nil {
-		t.Fatalf("create module: %v", err)
+		t.Fatalf("peer get after reset invalidation: %v", err)
 	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	if err := moduleInstance.Boot(&module.Context{
-		LifecycleContext: ctx,
-		Logger:           zap.NewNop(),
-		Redis:            client,
-	}); err != nil {
-		t.Fatalf("boot module: %v", err)
+	if string(resetPeerItem.EffectiveValue) != "true" || resetPeerItem.HasOverride {
+		t.Fatalf("expected peer to observe reset default, got %#v", resetPeerItem)
 	}
-	t.Cleanup(func() {
-		_ = moduleInstance.Shutdown(nil)
-	})
-
-	if _, err := service.Update(context.Background(), "notification.enabled", json.RawMessage(`false`), nil); err != nil {
-		t.Fatalf("seed override: %v", err)
-	}
-	if _, err := service.Get(context.Background(), "notification.enabled"); err != nil {
-		t.Fatalf("warm snapshot: %v", err)
-	}
-	repo.resetReadCounters()
-
-	payload := `{"source":"other-node","key":"notification.enabled","action":"update","updated_at":"2026-06-21T00:00:00Z"}`
-	if err := client.Publish(context.Background(), systemConfigSnapshotInvalidationChannel, payload).Err(); err != nil {
-		t.Fatalf("publish redis invalidation: %v", err)
-	}
-
-	deadline := time.Now().Add(time.Second)
-	for time.Now().Before(deadline) {
-		if service.cachedSnapshot() == nil {
-			break
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
-	if service.cachedSnapshot() != nil {
-		t.Fatal("expected redis invalidation subscriber to clear local snapshot cache")
-	}
-	if _, err := service.Get(context.Background(), "notification.enabled"); err != nil {
-		t.Fatalf("get after redis invalidation: %v", err)
-	}
-	if repo.listOverridesCalls() != 1 {
-		t.Fatalf("expected snapshot reload after subscribed invalidation, got %d", repo.listOverridesCalls())
-	}
-
-	if err := moduleInstance.Shutdown(nil); err != nil {
-		t.Fatalf("shutdown module: %v", err)
-	}
-	if service.invalidationDone != nil || service.invalidationSub != nil {
-		t.Fatalf("expected shutdown to clear invalidation subscription state")
+	if repo.listOverridesCalls() != 2 {
+		t.Fatalf("expected second reload after reset invalidation, got %d", repo.listOverridesCalls())
 	}
 }
 
@@ -520,7 +433,7 @@ func TestModuleRegisterRequiresUserService(t *testing.T) {
 
 func TestModuleRegisterBindsUserServiceForUpdatedByUsername(t *testing.T) {
 	repo := newMemoryRepo()
-	service := newTestServiceWithRepoAndUsers(t, repo, nil, configregistry.Definition{
+	service := newTestServiceWithRepoAndUsers(t, repo, newTestCacheManager(t), nil, configregistry.Definition{
 		Key:          "scheduler.timeout",
 		Module:       "scheduler",
 		Group:        "runtime",
@@ -830,7 +743,7 @@ func TestToItemIncludesLocalizationMetadataAndStructuredSchema(t *testing.T) {
 			Schema: json.RawMessage(
 				`{"type":"object","properties":{"retentionDays":{"type":"integer","title":"Log retention days","x-i18n":{"titleKey":"systemConfig.fields.retentionDays.title","unitKey":"systemConfig.units.days"}}}}`,
 			),
-			DefaultValue:      json.RawMessage(`{"retentionDays":30}`),
+			DefaultValue:     json.RawMessage(`{"retentionDays":30}`),
 			RuntimeApplyMode: configregistry.RuntimeApplyModeRuntimeHot,
 		},
 		DefaultValue:   json.RawMessage(`{"retentionDays":30}`),
@@ -894,7 +807,22 @@ func newTestService(t *testing.T, definition configregistry.Definition) *Service
 
 func newTestServiceWithRepo(t *testing.T, repo *memoryRepo, definition configregistry.Definition) *Service {
 	t.Helper()
-	return newTestServiceWithRepoAndUsers(t, repo, testUserService{
+	return newTestServiceWithRepoAndUsers(t, repo, newTestCacheManager(t), testUserService{
+		users: map[uint64]moduleapi.UserSummary{
+			7:  {ID: 7, Username: "bob", Display: "Bob"},
+			42: {ID: 42, Username: "alice", Display: "Alice"},
+		},
+	}, definition)
+}
+
+func newTestServiceWithRepoAndManager(
+	t *testing.T,
+	repo *memoryRepo,
+	manager *cachex.Manager,
+	definition configregistry.Definition,
+) *Service {
+	t.Helper()
+	return newTestServiceWithRepoAndUsers(t, repo, manager, testUserService{
 		users: map[uint64]moduleapi.UserSummary{
 			7:  {ID: 7, Username: "bob", Display: "Bob"},
 			42: {ID: 42, Username: "alice", Display: "Alice"},
@@ -905,6 +833,7 @@ func newTestServiceWithRepo(t *testing.T, repo *memoryRepo, definition configreg
 func newTestServiceWithRepoAndUsers(
 	t *testing.T,
 	repo *memoryRepo,
+	manager *cachex.Manager,
 	users moduleapi.UserService,
 	definition configregistry.Definition,
 ) *Service {
@@ -914,11 +843,31 @@ func newTestServiceWithRepoAndUsers(
 	if err := registry.Register(definition); err != nil {
 		t.Fatalf("register definition: %v", err)
 	}
-	service, err := NewService(registry, repo, users)
+	cache, err := manager.NewCache(systemConfigSnapshotCacheName)
+	if err != nil {
+		t.Fatalf("new test snapshot cache: %v", err)
+	}
+	service, err := NewService(registry, repo, ServiceOptions{
+		Users:  users,
+		Cache:  cache,
+		Logger: zap.NewNop(),
+	})
 	if err != nil {
 		t.Fatalf("create service: %v", err)
 	}
 	return service
+}
+
+func newTestCacheManager(t *testing.T) *cachex.Manager {
+	t.Helper()
+	manager, err := cachex.NewManager(cachex.ManagerOptions{
+		Backend:   cachebackend.NewMemory(),
+		Namespace: "test-runtime",
+	})
+	if err != nil {
+		t.Fatalf("new test cache manager: %v", err)
+	}
+	return manager
 }
 
 func normalizeTestDefinition(definition configregistry.Definition) configregistry.Definition {
@@ -1034,19 +983,6 @@ func (r *memoryRepo) waitForListOverridesCalls(min int, timeout time.Duration) b
 		time.Sleep(5 * time.Millisecond)
 	}
 	return r.listOverridesCalls() >= min
-}
-
-type failingInvalidationBroker struct {
-	publishCalls atomic.Int32
-}
-
-func (b *failingInvalidationBroker) Publish(context.Context, string, string) error {
-	b.publishCalls.Add(1)
-	return errors.New("publish failed")
-}
-
-func (b *failingInvalidationBroker) Subscribe(context.Context, string) (invalidationSubscription, error) {
-	return nil, errors.New("subscribe failed")
 }
 
 type testUserService struct {

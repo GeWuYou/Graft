@@ -9,14 +9,12 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"time"
 
-	"github.com/google/uuid"
-	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
-	"golang.org/x/sync/singleflight"
+	"graft/server/internal/cachex"
+	"graft/server/internal/cachex/keys"
 
 	"graft/server/internal/configregistry"
 	"graft/server/internal/moduleapi"
@@ -31,9 +29,7 @@ var (
 )
 
 const (
-	systemConfigSnapshotInvalidationChannel = "graft:system-config:snapshot:invalidate"
-	systemConfigInvalidationPublishTimeout  = 1 * time.Second
-	systemConfigInvalidationShutdownTimeout = 1 * time.Second
+	systemConfigSnapshotCacheName = "system-config-snapshot"
 )
 
 type snapshotInvalidationAction string
@@ -43,18 +39,10 @@ const (
 	snapshotInvalidationActionReset  snapshotInvalidationAction = "reset"
 )
 
-type snapshotInvalidationSignal struct {
-	Source    string                     `json:"source"`
-	Key       string                     `json:"key"`
-	Action    snapshotInvalidationAction `json:"action"`
-	UpdatedAt time.Time                  `json:"updated_at"`
-}
-
 type snapshotInvalidationSource string
 
 const (
 	snapshotInvalidationSourceLocal  snapshotInvalidationSource = "local"
-	snapshotInvalidationSourceRemote snapshotInvalidationSource = "remote"
 	snapshotInvalidationSourceManual snapshotInvalidationSource = "manual"
 )
 
@@ -86,37 +74,39 @@ const (
 
 // Service merges module-registered definitions with user overrides.
 type Service struct {
-	registry *configregistry.Registry
-	store    systemconfigstore.Repository
-	users    moduleapi.UserService
-
-	snapshotMu    sync.RWMutex
-	snapshotCache *overrideSnapshotCache
-	snapshotGroup singleflight.Group
+	registry      *configregistry.Registry
+	store         systemconfigstore.Repository
+	users         moduleapi.UserService
+	cache         *cachex.Cache
 	snapshotStats snapshotCacheStats
 
-	invalidationMu     sync.Mutex
-	invalidationBroker invalidationBroker
-	invalidationSub    invalidationSubscription
-	invalidationCancel context.CancelFunc
-	invalidationDone   chan struct{}
-	logger             *zap.Logger
-	instanceID         string
+	logger *zap.Logger
+}
+
+// ServiceOptions configures module-local cache wiring and optional service collaborators.
+type ServiceOptions struct {
+	Users  moduleapi.UserService
+	Cache  *cachex.Cache
+	Logger *zap.Logger
 }
 
 // NewService creates the system configuration service boundary.
-func NewService(registry *configregistry.Registry, store systemconfigstore.Repository, users moduleapi.UserService) (*Service, error) {
+func NewService(registry *configregistry.Registry, store systemconfigstore.Repository, options ServiceOptions) (*Service, error) {
 	if registry == nil {
 		return nil, errors.New("config registry is unavailable")
 	}
 	if store == nil {
 		return nil, errors.New("system config store is unavailable")
 	}
+	if options.Cache == nil {
+		return nil, errors.New("system config snapshot cache is unavailable")
+	}
 	return &Service{
-		registry:   registry,
-		store:      store,
-		users:      users,
-		instanceID: uuid.NewString(),
+		registry: registry,
+		store:    store,
+		users:    options.Users,
+		cache:    options.Cache,
+		logger:   options.Logger,
 	}, nil
 }
 
@@ -132,11 +122,9 @@ type SnapshotCacheDebugState struct {
 	MissCount               uint64
 	LoadCount               uint64
 	LoadErrorCount          uint64
+	LoadSharedCount         uint64
 	LastLoadedOverrideCount int64
 	InvalidateCount         uint64
-	RemoteInvalidateCount   uint64
-	PublishAttemptCount     uint64
-	PublishFailureCount     uint64
 	LastLoadAt              *time.Time
 	LastInvalidateAt        *time.Time
 	LastInvalidationKey     string
@@ -157,34 +145,13 @@ type snapshotCacheStats struct {
 	missCount               atomic.Uint64
 	loadCount               atomic.Uint64
 	loadErrorCount          atomic.Uint64
+	loadSharedCount         atomic.Uint64
 	lastLoadedOverrideCount atomic.Int64
 	invalidateCount         atomic.Uint64
-	remoteInvalidateCount   atomic.Uint64
-	publishAttemptCount     atomic.Uint64
-	publishFailureCount     atomic.Uint64
 
-	metaMu           sync.RWMutex
 	lastLoadAt       *time.Time
 	lastInvalidateAt *time.Time
 	lastInvalidation snapshotInvalidationObservation
-}
-
-type invalidationBroker interface {
-	Publish(ctx context.Context, channel string, payload string) error
-	Subscribe(ctx context.Context, channel string) (invalidationSubscription, error)
-}
-
-type invalidationSubscription interface {
-	Channel() <-chan *redis.Message
-	Close() error
-}
-
-type redisInvalidationBroker struct {
-	client *redis.Client
-}
-
-type redisPubSubSubscription struct {
-	pubsub *redis.PubSub
 }
 
 func (s *Service) setUserService(users moduleapi.UserService) {
@@ -266,9 +233,7 @@ func (s *Service) Update(ctx context.Context, key string, value json.RawMessage,
 		return ValueSnapshot{}, err
 	}
 	s.invalidateSnapshotCacheForKey(definition.Key, snapshotInvalidationActionUpdate)
-	item, err := s.Get(ctx, definition.Key)
-	s.publishSnapshotInvalidation(ctx, definition.Key, snapshotInvalidationActionUpdate)
-	return item, err
+	return s.Get(ctx, definition.Key)
 }
 
 // Reset deletes the user override for one registered definition key.
@@ -281,9 +246,7 @@ func (s *Service) Reset(ctx context.Context, key string) (ValueSnapshot, error) 
 		return ValueSnapshot{}, err
 	}
 	s.invalidateSnapshotCacheForKey(definition.Key, snapshotInvalidationActionReset)
-	item, err := s.Get(ctx, definition.Key)
-	s.publishSnapshotInvalidation(ctx, definition.Key, snapshotInvalidationActionReset)
-	return item, err
+	return s.Get(ctx, definition.Key)
 }
 
 // SnapshotCacheDebugState returns read-only observability for the unified local snapshot path.
@@ -291,78 +254,13 @@ func (s *Service) SnapshotCacheDebugState() SnapshotCacheDebugState {
 	if s == nil {
 		return SnapshotCacheDebugState{}
 	}
-	cache := s.cachedSnapshot()
+	cache, err := s.cachedSnapshot(context.Background())
 	state := s.snapshotStats.snapshot()
-	state.Cached = cache != nil
+	state.Cached = err == nil && cache != nil
 	if cache != nil {
 		state.CachedOverrideCount = len(cache.overrides)
 	}
 	return state
-}
-
-func (s *Service) startInvalidationSync(ctx context.Context, broker invalidationBroker, logger *zap.Logger) {
-	if s == nil {
-		return
-	}
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
-	s.invalidationMu.Lock()
-	s.logger = logger
-	s.invalidationBroker = broker
-	if broker == nil || s.invalidationCancel != nil {
-		s.invalidationMu.Unlock()
-		return
-	}
-
-	runCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
-	sub, err := broker.Subscribe(runCtx, systemConfigSnapshotInvalidationChannel)
-	if err != nil {
-		s.invalidationMu.Unlock()
-		cancel()
-		s.logInvalidationWarning("subscribe system-config invalidation", err)
-		return
-	}
-
-	done := make(chan struct{})
-	s.invalidationCancel = cancel
-	s.invalidationSub = sub
-	s.invalidationDone = done
-	s.invalidationMu.Unlock()
-
-	go s.runInvalidationSubscriber(runCtx, sub, done)
-}
-
-func (s *Service) stopInvalidationSync() {
-	if s == nil {
-		return
-	}
-
-	s.invalidationMu.Lock()
-	cancel := s.invalidationCancel
-	sub := s.invalidationSub
-	done := s.invalidationDone
-	s.invalidationCancel = nil
-	s.invalidationSub = nil
-	s.invalidationDone = nil
-	s.invalidationMu.Unlock()
-
-	if cancel != nil {
-		cancel()
-	}
-	if sub != nil {
-		_ = sub.Close()
-	}
-	if done == nil {
-		return
-	}
-
-	select {
-	case <-done:
-	case <-time.After(systemConfigInvalidationShutdownTimeout):
-		s.logInvalidationWarning("shutdown system-config invalidation subscriber", errors.New("timed out waiting for subscriber to stop"))
-	}
 }
 
 func (s *Service) snapshotFromCache(
@@ -406,53 +304,60 @@ func (s *Service) snapshotFromCache(
 }
 
 func (s *Service) loadOverrideSnapshot(ctx context.Context) (*overrideSnapshotCache, error) {
-	if cache := s.cachedSnapshot(); cache != nil {
+	if cache, err := s.cachedSnapshot(ctx); err != nil {
+		s.snapshotStats.recordLoadError()
+		s.logInvalidationWarning("read system-config snapshot cache", err)
+	} else if cache != nil {
 		s.snapshotStats.recordHit()
 		return cache, nil
 	}
 	s.snapshotStats.recordMiss()
-
-	resultCh := s.snapshotGroup.DoChan("override-snapshot", func() (any, error) {
-		if cache := s.cachedSnapshot(); cache != nil {
-			return cache, nil
+	item, err := s.cache.GetOrLoad(ctx, systemConfigSnapshotKey(), func(loadCtx context.Context) (cachex.Item, error) {
+		if cache, cacheErr := s.cachedSnapshot(loadCtx); cacheErr != nil {
+			s.logInvalidationWarning("recheck system-config snapshot cache", cacheErr)
+		} else if cache != nil {
+			payload, marshalErr := marshalOverrideSnapshotCache(cache)
+			if marshalErr != nil {
+				return cachex.Item{}, marshalErr
+			}
+			return cachex.NewItem(payload, 0), nil
 		}
-		overrides, err := s.store.ListOverrides(context.WithoutCancel(ctx))
-		if err != nil {
-			return nil, err
+
+		overrides, loadErr := s.store.ListOverrides(context.WithoutCancel(loadCtx))
+		if loadErr != nil {
+			return cachex.Item{}, loadErr
 		}
 		cache := buildOverrideSnapshotCache(overrides)
-		s.snapshotMu.Lock()
-		s.snapshotCache = cache
-		s.snapshotMu.Unlock()
+		payload, marshalErr := marshalOverrideSnapshotCache(cache)
+		if marshalErr != nil {
+			return cachex.Item{}, marshalErr
+		}
 		s.snapshotStats.recordLoad(len(overrides))
 		s.logSnapshotDebug("system-config snapshot cache loaded", zap.Int("overrideCount", len(overrides)))
-		return cache, nil
+		return cachex.NewItem(payload, 0), nil
 	})
-
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	case result := <-resultCh:
-		if result.Err != nil {
-			s.snapshotStats.recordLoadError()
-			s.logInvalidationWarning("load system-config snapshot cache", result.Err)
-			return nil, result.Err
-		}
-		cache, ok := result.Val.(*overrideSnapshotCache)
-		if !ok || cache == nil {
-			return nil, errors.New("system config snapshot cache returned unexpected value")
-		}
-		return cache, nil
+	if err != nil {
+		s.snapshotStats.recordLoadError()
+		s.logInvalidationWarning("load system-config snapshot cache", err)
+		return nil, err
 	}
+	cache, err := unmarshalOverrideSnapshotCache(item.Value)
+	if err != nil {
+		return nil, err
+	}
+	return cache, nil
 }
 
-func (s *Service) cachedSnapshot() *overrideSnapshotCache {
-	if s == nil {
-		return nil
+func (s *Service) cachedSnapshot(ctx context.Context) (*overrideSnapshotCache, error) {
+	if s == nil || s.cache == nil {
+		return nil, nil
 	}
-	s.snapshotMu.RLock()
-	defer s.snapshotMu.RUnlock()
-	return s.snapshotCache
+	item, ok, err := s.cache.Get(ctx, systemConfigSnapshotKey())
+	if err != nil || !ok {
+		return nil, err
+	}
+	cache, decodeErr := unmarshalOverrideSnapshotCache(item.Value)
+	return cache, decodeErr
 }
 
 func (s *Service) invalidateSnapshotCacheForKey(key string, action snapshotInvalidationAction) {
@@ -468,9 +373,11 @@ func (s *Service) invalidateSnapshotCacheWithObservation(observation snapshotInv
 	if s == nil {
 		return
 	}
-	s.snapshotMu.Lock()
-	s.snapshotCache = nil
-	s.snapshotMu.Unlock()
+	if s.cache != nil {
+		if err := s.cache.Delete(context.Background(), systemConfigSnapshotKey()); err != nil {
+			s.logInvalidationWarning("delete system-config snapshot cache", err)
+		}
+	}
 	s.snapshotStats.recordInvalidation(observation)
 	s.logSnapshotInvalidation(observation)
 }
@@ -571,114 +478,32 @@ func cloneOverride(value systemconfigstore.Override) systemconfigstore.Override 
 	}
 }
 
-func newRedisInvalidationBroker(client *redis.Client) invalidationBroker {
-	if client == nil {
-		return nil
+func marshalOverrideSnapshotCache(cache *overrideSnapshotCache) ([]byte, error) {
+	if cache == nil {
+		return nil, errors.New("system config snapshot cache is unavailable")
 	}
-	return redisInvalidationBroker{client: client}
+	return json.Marshal(cache.overrides)
 }
 
-func (b redisInvalidationBroker) Publish(ctx context.Context, channel string, payload string) error {
-	return b.client.Publish(ctx, channel, payload).Err()
-}
-
-func (b redisInvalidationBroker) Subscribe(ctx context.Context, channel string) (invalidationSubscription, error) {
-	pubsub := b.client.Subscribe(ctx, channel)
-	if _, err := pubsub.Receive(ctx); err != nil {
-		_ = pubsub.Close()
+func unmarshalOverrideSnapshotCache(payload []byte) (*overrideSnapshotCache, error) {
+	if len(payload) == 0 {
+		return nil, errors.New("system config snapshot cache returned empty payload")
+	}
+	var overrides map[string]systemconfigstore.Override
+	if err := json.Unmarshal(payload, &overrides); err != nil {
 		return nil, err
 	}
-	return redisPubSubSubscription{pubsub: pubsub}, nil
+	cache := &overrideSnapshotCache{
+		overrides: make(map[string]systemconfigstore.Override, len(overrides)),
+	}
+	for key, override := range overrides {
+		cache.overrides[key] = cloneOverride(override)
+	}
+	return cache, nil
 }
 
-func (s redisPubSubSubscription) Channel() <-chan *redis.Message {
-	return s.pubsub.Channel()
-}
-
-func (s redisPubSubSubscription) Close() error {
-	return s.pubsub.Close()
-}
-
-func (s *Service) publishSnapshotInvalidation(ctx context.Context, key string, action snapshotInvalidationAction) {
-	broker := s.currentInvalidationBroker()
-	if broker == nil {
-		return
-	}
-	s.snapshotStats.recordPublishAttempt()
-
-	signal := snapshotInvalidationSignal{
-		Source:    s.instanceID,
-		Key:       key,
-		Action:    action,
-		UpdatedAt: time.Now().UTC(),
-	}
-	payload, err := json.Marshal(signal)
-	if err != nil {
-		s.logInvalidationWarning("marshal system-config invalidation signal", err)
-		return
-	}
-
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	publishCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), systemConfigInvalidationPublishTimeout)
-	defer cancel()
-
-	if err := broker.Publish(publishCtx, systemConfigSnapshotInvalidationChannel, string(payload)); err != nil {
-		s.snapshotStats.recordPublishFailure()
-		s.logInvalidationWarning("publish system-config invalidation", err)
-		return
-	}
-	s.logSnapshotDebug(
-		"published system-config invalidation",
-		zap.String("key", key),
-		zap.String("action", string(action)),
-	)
-}
-
-func (s *Service) currentInvalidationBroker() invalidationBroker {
-	if s == nil {
-		return nil
-	}
-	s.invalidationMu.Lock()
-	defer s.invalidationMu.Unlock()
-	return s.invalidationBroker
-}
-
-func (s *Service) runInvalidationSubscriber(ctx context.Context, sub invalidationSubscription, done chan struct{}) {
-	defer close(done)
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case message, ok := <-sub.Channel():
-			if !ok {
-				return
-			}
-			s.handleInvalidationMessage(message)
-		}
-	}
-}
-
-func (s *Service) handleInvalidationMessage(message *redis.Message) {
-	if s == nil || message == nil {
-		return
-	}
-
-	var signal snapshotInvalidationSignal
-	if err := json.Unmarshal([]byte(message.Payload), &signal); err != nil {
-		s.logInvalidationWarning("decode system-config invalidation signal", err)
-		return
-	}
-	if signal.Source == s.instanceID {
-		return
-	}
-	s.invalidateSnapshotCacheWithObservation(snapshotInvalidationObservation{
-		Key:       signal.Key,
-		Action:    signal.Action,
-		Source:    snapshotInvalidationSourceRemote,
-		UpdatedAt: signal.UpdatedAt,
-	})
+func systemConfigSnapshotKey() keys.Key {
+	return keys.MustNew("system-config", "snapshot", "effective-overrides")
 }
 
 func (s *Service) logInvalidationWarning(msg string, err error) {
@@ -727,9 +552,7 @@ func (s *snapshotCacheStats) recordLoad(overrideCount int) {
 	}
 	s.lastLoadedOverrideCount.Store(int64(overrideCount))
 	now := time.Now().UTC()
-	s.metaMu.Lock()
 	s.lastLoadAt = &now
-	s.metaMu.Unlock()
 }
 
 func (s *snapshotCacheStats) recordLoadError() {
@@ -738,41 +561,23 @@ func (s *snapshotCacheStats) recordLoadError() {
 
 func (s *snapshotCacheStats) recordInvalidation(observation snapshotInvalidationObservation) {
 	s.invalidateCount.Add(1)
-	if observation.Source == snapshotInvalidationSourceRemote {
-		s.remoteInvalidateCount.Add(1)
-	}
 	if observation.UpdatedAt.IsZero() {
 		observation.UpdatedAt = time.Now().UTC()
 	}
 	now := time.Now().UTC()
-	s.metaMu.Lock()
 	s.lastInvalidateAt = &now
 	s.lastInvalidation = observation
-	s.metaMu.Unlock()
-}
-
-func (s *snapshotCacheStats) recordPublishAttempt() {
-	s.publishAttemptCount.Add(1)
-}
-
-func (s *snapshotCacheStats) recordPublishFailure() {
-	s.publishFailureCount.Add(1)
 }
 
 func (s *snapshotCacheStats) snapshot() SnapshotCacheDebugState {
-	s.metaMu.RLock()
-	defer s.metaMu.RUnlock()
-
 	state := SnapshotCacheDebugState{
 		HitCount:                s.hitCount.Load(),
 		MissCount:               s.missCount.Load(),
 		LoadCount:               s.loadCount.Load(),
 		LoadErrorCount:          s.loadErrorCount.Load(),
+		LoadSharedCount:         s.loadSharedCount.Load(),
 		LastLoadedOverrideCount: s.lastLoadedOverrideCount.Load(),
 		InvalidateCount:         s.invalidateCount.Load(),
-		RemoteInvalidateCount:   s.remoteInvalidateCount.Load(),
-		PublishAttemptCount:     s.publishAttemptCount.Load(),
-		PublishFailureCount:     s.publishFailureCount.Load(),
 		LastInvalidationKey:     s.lastInvalidation.Key,
 		LastInvalidationAction:  string(s.lastInvalidation.Action),
 		LastInvalidationSource:  string(s.lastInvalidation.Source),

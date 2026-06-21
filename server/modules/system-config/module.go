@@ -64,7 +64,7 @@ func requiredUserService(resolver container.Resolver) (moduleapi.UserService, er
 	return module.ResolveService[moduleapi.UserService](resolver, (*moduleapi.UserService)(nil))
 }
 
-// Boot wires optional multi-node invalidation without changing system-config authority.
+// Boot does not start extra runtime mechanics because cachex handles shared snapshot storage.
 func (m *Module) Boot(ctx *module.Context) error {
 	if m == nil || m.service == nil {
 		return errors.New("system config module service is unavailable")
@@ -72,15 +72,10 @@ func (m *Module) Boot(ctx *module.Context) error {
 	if ctx == nil {
 		return errors.New("system config module context is unavailable")
 	}
-	m.service.startInvalidationSync(ctx.LifecycleContext, newRedisInvalidationBroker(ctx.Redis), ctx.Logger)
 	return nil
 }
 
-// Shutdown releases the optional invalidation subscription when it was started.
+// Shutdown has no module-local background resources to release.
 func (m *Module) Shutdown(_ *module.Context) error {
-	if m == nil || m.service == nil {
-		return nil
-	}
-	m.service.stopInvalidationSync()
 	return nil
 }

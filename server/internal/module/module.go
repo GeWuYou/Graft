@@ -193,7 +193,9 @@ type Context struct {
 	//
 	// 模块应只依赖显式 Subscribe / Publish 语义，不应假设存在消息持久化、
 	// 重试队列或异步工作流编排等当前阶段并未提供的行为。
-	EventBus           eventbus.Bus
+	EventBus eventbus.Bus
+	// Deprecated: Redis remains a temporary legacy bridge for out-of-scope modules
+	// that have not yet migrated to cachex-backed or authority-owned runtime services.
 	Redis              *redis.Client
 	Router             gin.IRouter
 	Services           *container.Container

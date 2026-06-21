@@ -1,9 +1,14 @@
 # Cache Governance And System Config Acceleration
 
+本 README 只承载 topic recovery、阶段历史和 archive-ready 边界，不是仓库规范正文。
+
+稳定缓存治理规则、shared mechanism policy、允许/禁止事项和 closeout evidence 以
+`ai-plan/design/缓存治理与系统配置读取加速规范.md` 为准。
+
 ## 当前状态摘要
 
 - 当前主题目标是为 `Graft` 建立统一缓存治理规范，并优先收敛系统配置运行时读取加速方案。
-- 当前状态：Phase 0 治理资产已落盘，Phase 1 本地 snapshot 与热点消费方收口已完成，Phase 2 多节点失效传播已完成并提交，Phase 3 热点扩展已完成并提交，Phase 4 可观测性与治理门禁已完成并提交；`system-config` authority 主链已进入 archive-ready。
+- 当前状态：Phase 0 治理资产已落盘，Phase 1 本地 snapshot 与热点消费方收口已完成，Phase 2 cache mechanical layer 收口已完成，Phase 3 热点扩展已完成并提交，Phase 4 可观测性与治理门禁已完成并提交；`system-config` authority 主链已进入 archive-ready。
 - 显示 authority 收口：上游 canonical contract 现已以 `runtime_apply_mode` 承载运行时生效语义；页面继续沿用既有 `effective-source` authority，且仅表达 `default` / `override`。
 - 边界说明：上述完成态仅表示本主题负责的 `system-config` 与已登记热点缓存治理已收口，不表示仓库全部缓存热点都已完成治理。仓库级缓存治理仍需按 authority-first 热点清单逐项推进。
 - 未完成范围：仓库级其它热点仍不因本主题 closeout 自动完成；系统配置页若继续追加高级提示或调试展示，也属于独立 UX / operability follow-up，而不是新的 display-authority 缺口。
@@ -49,7 +54,7 @@
 
 - Phase 0：现状盘点、规范沉淀、topic/skill 持久化。已完成。
 - Phase 1：单进程本地 snapshot + singleflight + 显式失效。已完成。
-- Phase 2：Redis pub/sub 或版本号轮询，多节点一致性预留。`phase-2-multi-node-invalidation` 已完成。
+- Phase 2：`cachex` mechanical layer 收口与 runtime wiring。已完成。
 - Phase 3：扩展到 RBAC/menu/dashboard/container runtime 等热点缓存。已完成。
 - Phase 4：补充指标、调试面板、缓存治理文档和测试门禁。已完成。
 
@@ -65,12 +70,11 @@
 - 已完成 `phase-1-hot-consumer-adoption`：
   - 当前 owned scope 内的 container / notification / scheduler / bootstrap 热点消费点已稳定通过统一 resolver 边界读取系统配置。
   - 本批次未要求新增 owned-scope diff；loop closeout 已将该批次标记为完成。
-- 已完成 `phase-2-multi-node-invalidation`：
-  - `server/modules/system-config/service.go` 继续保持 process-local snapshot cache 为唯一读缓存。
-  - `Update(...)` / `Reset(...)` 成功后会在本地失效之外，best-effort 发布 Redis invalidation signal。
-  - `server/modules/system-config/module.go` 在 `Boot` 阶段接入 Redis 订阅；收到远端 invalidation 后仅清理本地 snapshot，不改变 authority。
-  - Redis 不可用或 publish 失败时会退化为仅本地失效，不影响配置写入成功。
-  - 已提交：`f3adec43` `fix(system-config): broadcast snapshot invalidation`。
+- 已完成 `phase-2-cachex-mechanical-layer`：
+  - `server/internal/cachex/**` 已提供机械化 cache manager、named cache、singleflight 合并与 backend adapter 边界。
+  - `server/internal/app/runtime.go` 已注入 runtime-owned `cachex.Manager`，并通过 core wiring 向模块暴露共享 cache mechanical layer。
+  - `server/modules/system-config/service.go` 已切换到 `cachex.Cache` 承载 snapshot 读取、装载与显式失效；authority 仍停留在 `configregistry + system-config service/store` 主链。
+  - `server/modules/system-config/**` 不再直接导入 `go-redis`，也不再自持 ad-hoc Redis invalidation mechanics。
 - 已完成 `phase-3-hotspot-expansion`：
   - `server/internal/moduleapi.SystemConfigResolver` 已扩展为统一暴露布尔与 effective config 读取能力，热点消费方不再需要局部类型断言绕过共享 resolver 边界。
   - `server/modules/container/service.go` 已将环境展示策略与编排来源动作级别解析统一切到共享 `SystemConfigResolver.ResolveDefaultConfig(...)` 路径，继续复用 system-config 本地 snapshot authority。
@@ -78,19 +82,19 @@
   - 本批次未扩展到新的 dashboard authority 或 web 长期缓存；`dashboard.quick_actions` 仍保持 config-definition authority，后续如需 runtime 消费扩展必须在独立 authority 范围内推进。
   - 已提交：`93886719` `fix(system-config): unify hotspot resolver reads`。
 - 当前确认的系统配置 authority 与热点事实：
-  - `server/modules/system-config/service.go` 当前 authority 仍在统一 service/resolver 边界，读取链路保持本地 full snapshot cache + `singleflight`。
+  - `server/modules/system-config/service.go` 当前 authority 仍在统一 service/resolver 边界，读取链路保持 `cachex` 承载的 snapshot cache + `singleflight`。
   - `server/internal/moduleapi/notification.go` 中 `SystemConfigResolver` 现已统一提供 `IsBooleanConfigEnabled(...)` 与 `ResolveDefaultConfig(...)`。
   - `server/modules/notification/publisher.go`、`server/modules/container/service.go`、`server/internal/scheduler/runtime.go`、`server/modules/user/bootstrap.go` 都继续通过共享 resolver 边界消费有效配置。
   - `server/modules/container/mount_usage.go` 已有本地 TTL cache，可作为 process-local cache 参考，但不是 system-config authority。
   - `server/modules/monitor/module.go` 已有 Redis 趋势缓存，可作为 distributed cache 参考，但不应用来取代 system-config authority。
 - 已完成 `phase-4-observability-and-guardrails`：
-  - `server/modules/system-config/service.go` 已补充 snapshot cache hit / miss / load / invalidation / publish failure 调试计数与最近状态快照。
-  - 结构化 debug log 已覆盖 snapshot load、local invalidation、remote invalidation 与 publish 事件。
-  - `server/modules/system-config/service_test.go` 已补充 phase-4 调试态覆盖，验证命中/未命中、单次装载、本地失效、远端失效与 publish failure 统计。
+  - `server/modules/system-config/service.go` 已补充 snapshot cache hit / miss / load / invalidation / shared-load 调试计数与最近状态快照。
+  - 结构化 debug log 已覆盖 snapshot load 与本地失效事件。
+  - `server/modules/system-config/service_test.go` 已补充 phase-4 调试态覆盖，验证命中/未命中、单次装载、本地失效与 shared cache 失效后的 reload 行为。
   - 设计文档与 topic recovery 资产已同步更新，可作为后续 admin-only 调试面或 debug endpoint 的 authority 基线。
 - 当前推荐实现终态：
   - Phase 1 已完成 authority 层 process-local full snapshot cache + singleflight + explicit invalidation。
-  - Phase 2 已完成 Redis invalidation signal 的多节点传播预留，authority 与统一 resolver 边界保持不变。
+  - Phase 2 已完成 `cachex` mechanical layer 收口，authority 与统一 resolver 边界保持不变。
   - Phase 3 已完成热点读路径扩展，未改变 system-config authority。
   - Phase 4 已完成可观测性与治理门禁收口，当前主题满足 archive-ready。
 - 当前未完成但已记录的后续项：
@@ -109,7 +113,7 @@ python3 scripts/validate_shared_asset_registries.py
 若本轮进入运行时实现：
 
 ```bash
-graft validate backend --stage lint
+cd server && go run ./cmd/graft validate backend
 ```
 
 若本轮触达系统配置页展示语义：
