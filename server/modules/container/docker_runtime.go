@@ -727,7 +727,7 @@ func kubernetesMetadata(labels map[string]string) (kubernetesOrchestratorMetadat
 	return metadata, ok
 }
 
-// SwarmMetadata extracts Docker Swarm metadata from container labels. It returns the stack namespace, task name, and a flag indicating whether valid metadata was found.
+// swarmMetadata extracts Docker Swarm metadata from container labels. It returns the stack namespace, task name, and a flag indicating whether valid metadata was found.
 func swarmMetadata(labels map[string]string) (stack string, task string, ok bool) {
 	stack = strings.TrimSpace(labels["com.docker.stack.namespace"])
 	task = strings.TrimSpace(labels["com.docker.swarm.task.name"])

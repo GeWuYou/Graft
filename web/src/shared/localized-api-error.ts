@@ -7,6 +7,8 @@ import { isHandledAuthRequestError } from '@/utils/auth-request-error';
  * 获取本地化的 API 错误消息。
  *
  * @param translate - 将消息键转换为本地化字符串的函数
+ * @param messageKey - 待翻译的消息键
+ * @param fallback - 当翻译失败时使用的备用字符串
  * @returns 当 `messageKey` 被成功翻译时返回翻译后的字符串；否则返回修剪后的 `fallback`，若其不存在或为空，则返回空字符串
  */
 export function localizedApiErrorMessage(
@@ -42,6 +44,9 @@ function hasApiRequestErrorShape(error: unknown): error is {
 /**
  * 从错误对象中解析本地化的错误消息。
  *
+ * @param translate - 将消息键转换为本地化字符串的函数
+ * @param error - 待解析的错误对象
+ * @param fallbackMessage - 当无法解析错误消息时使用的备用字符串
  * @returns 解析得到的错误消息字符串。若为已处理的认证错误返回空字符串；若为 API 请求错误优先返回本地化消息，否则返回备用文本；若为标准 Error 对象返回其消息；其他情况返回备用文本。
  */
 export function resolveLocalizedErrorMessage(

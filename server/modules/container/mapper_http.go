@@ -315,7 +315,7 @@ func toContainerBatchAction(result BatchActionResult) containergen.ContainerBatc
 	}
 }
 
-// ToRuntimeInfo 将运行时信息转换为容器运行时信息响应。
+// toRuntimeInfo 将运行时信息转换为容器运行时信息响应。
 func toRuntimeInfo(info RuntimeInfo) containergen.ContainerRuntimeInfo {
 	return containergen.ContainerRuntimeInfo{
 		ApiVersion:        optionalString(info.APIVersion),

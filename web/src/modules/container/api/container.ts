@@ -113,7 +113,7 @@ export type ContainerListResponse = GetContainersData;
  * Retrieves a list of containers.
  *
  * @param query - Optional query parameters for filtering and pagination
- * @returns The container list response data
+ * @returns A Promise that resolves to the container list response data
  */
 export function getContainers(query?: ContainerListQueryWithOrchestrator) {
   return request.get<GetContainersData>({

@@ -727,7 +727,7 @@ func normalizeOrchestratorActionLevel(value string) containercontract.Orchestrat
 	}
 }
 
-// NormalizedOrchestratorInfo normalizes the provided orchestrator information by validating the type, deriving managed status from type, normalizing scope kinds, trimming whitespace from string fields, applying default confidence based on managed status, and ensuring the warnings slice is initialized.
+// normalizedOrchestratorInfo normalizes the provided orchestrator information by validating the type, deriving managed status from type, normalizing scope kinds, trimming whitespace from string fields, applying default confidence based on managed status, and ensuring the warnings slice is initialized.
 func normalizedOrchestratorInfo(info OrchestratorInfo) OrchestratorInfo {
 	info.Type = effectiveOrchestratorTypeFromValue(info.Type)
 	info.Managed = info.Type != containerOrchestratorStandalone
