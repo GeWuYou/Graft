@@ -1,6 +1,3 @@
-// Copyright (c) 2025-2026 GeWuYou
-// SPDX-License-Identifier: Apache-2.0
-
 export const MOCK_API_PATH = {
   PURCHASE_LIST: '/api/get-purchase-list',
   LIST: '/api/get-list',

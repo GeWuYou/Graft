@@ -1,8 +1,3 @@
-<!--
-  Copyright (c) 2025-2026 GeWuYou
-  SPDX-License-Identifier: Apache-2.0
--->
-
 <template>
   <div v-if="payload" class="dashboard-health">
     <div class="dashboard-health__summary">

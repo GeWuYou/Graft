@@ -1,6 +1,3 @@
-// Copyright (c) 2025-2026 GeWuYou
-// SPDX-License-Identifier: Apache-2.0
-
 package module
 
 // DescriptorSnapshot 是暴露给运行时模块消费的稳定描述符元数据快照。

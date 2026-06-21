@@ -1,8 +1,3 @@
-<!--
-  Copyright (c) 2025-2026 GeWuYou
-  SPDX-License-Identifier: Apache-2.0
--->
-
 <template>
   <div class="json-source-viewer" data-testid="container-raw-source-viewer">
     <div v-if="!lines.length" class="json-source-viewer__empty">

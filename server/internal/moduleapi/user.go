@@ -1,6 +1,3 @@
-// Copyright (c) 2025-2026 GeWuYou
-// SPDX-License-Identifier: Apache-2.0
-
 // Package moduleapi 定义稳定的跨模块能力契约。
 package moduleapi
 

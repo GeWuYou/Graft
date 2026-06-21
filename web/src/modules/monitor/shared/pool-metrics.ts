@@ -1,6 +1,3 @@
-// Copyright (c) 2025-2026 GeWuYou
-// SPDX-License-Identifier: Apache-2.0
-
 import type { ServerStatusConnectionPool } from '../types/server-status';
 
 export type PoolUsageStatus = 'healthy' | 'warning' | 'danger' | 'unknown';

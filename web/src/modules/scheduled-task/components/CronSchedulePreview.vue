@@ -1,8 +1,3 @@
-<!--
-  Copyright (c) 2025-2026 GeWuYou
-  SPDX-License-Identifier: Apache-2.0
--->
-
 <template>
   <div class="cron-schedule-preview" data-testid="cron-preview">
     <div class="cron-schedule-preview__row">

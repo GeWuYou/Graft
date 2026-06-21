@@ -1,6 +1,3 @@
-// Copyright (c) 2025-2026 GeWuYou
-// SPDX-License-Identifier: Apache-2.0
-
 const BYTES_PER_MIB = 1024 * 1024;
 const BYTES_PER_GIB = 1024 * BYTES_PER_MIB;
 const NANOSECONDS_PER_MILLISECOND = 1_000_000;

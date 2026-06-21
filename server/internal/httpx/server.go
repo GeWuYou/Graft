@@ -1,6 +1,3 @@
-// Copyright (c) 2025-2026 GeWuYou
-// SPDX-License-Identifier: Apache-2.0
-
 // Package httpx 提供 `server` 运行时使用的 HTTP 服务封装。
 package httpx
 

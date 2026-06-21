@@ -1,6 +1,3 @@
-// Copyright (c) 2025-2026 GeWuYou
-// SPDX-License-Identifier: Apache-2.0
-
 export const NOTIFICATION_SOURCE_LABEL_KEY_BY_MODULE: Record<string, string> = {
   'access-log': 'notification.source.accessLog',
   audit: 'notification.source.audit',

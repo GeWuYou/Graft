@@ -1,6 +1,3 @@
-// Copyright (c) 2025-2026 GeWuYou
-// SPDX-License-Identifier: Apache-2.0
-
 export const API_CODE = {
   OK: 'OK',
   AUTH_INVALID_CREDENTIALS: 'AUTH_INVALID_CREDENTIALS',

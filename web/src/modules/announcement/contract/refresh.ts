@@ -1,6 +1,3 @@
-// Copyright (c) 2025-2026 GeWuYou
-// SPDX-License-Identifier: Apache-2.0
-
 const ANNOUNCEMENT_CHANGED_EVENT = 'graft:announcement-changed';
 
 export function emitAnnouncementChanged() {

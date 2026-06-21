@@ -1,8 +1,3 @@
-<!--
-  Copyright (c) 2025-2026 GeWuYou
-  SPDX-License-Identifier: Apache-2.0
--->
-
 <template>
   <article class="theme-token-item" :class="{ 'theme-token-item--expanded': expanded }">
     <button type="button" class="theme-token-item__summary" :aria-expanded="expanded" @click="expanded = !expanded">

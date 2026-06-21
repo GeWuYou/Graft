@@ -49,9 +49,6 @@
   </div>
 </template>
 <script setup lang="ts">
-// Copyright (c) 2025-2026 GeWuYou
-// SPDX-License-Identifier: Apache-2.0
-
 import CopyableDetailValue from './CopyableDetailValue.vue';
 import type { ContainerOverviewInfoSection } from './overview';
 

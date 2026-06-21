@@ -196,7 +196,7 @@ jobs:
               "# Graft Release License Compliance",
               "",
               "- Release tag: `${{ steps.release.outputs.tag }}`",
-              "- Project license posture: Apache-2.0",
+              "- Project license posture: AGPL-3.0-only",
               f"- Packages reviewed: {len(rows)}",
               f"- Allowed packages: {sum(1 for row in rows if row['status'] == 'allowed')}",
               f"- Review-required packages: {len(review)}",
@@ -226,8 +226,9 @@ jobs:
               [
                   "## Policy",
                   "",
-                  "- SPDX-compatible permissive and weak-copyleft licenses listed in the workflow are allowed.",
-                  "- GPL, AGPL, LGPL, SSPL, BUSL, and Commons Clause style findings block the bundle.",
+                  "- SPDX-compatible permissive licenses listed in the workflow are allowed.",
+                  "- The repository itself is `AGPL-3.0-only`, but GPL / AGPL / LGPL family dependencies remain blocked by policy to preserve downstream relicensing and commercialization flexibility.",
+                  "- SSPL, BUSL, and Commons Clause style findings also block the bundle.",
                   "- Missing or unrecognized license metadata is reported for human review without blocking release asset publication.",
                   "",
               ]

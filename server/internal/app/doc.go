@@ -1,6 +1,3 @@
-// Copyright (c) 2025-2026 GeWuYou
-// SPDX-License-Identifier: Apache-2.0
-
 // Package app 负责 `server` 进程的显式运行时装配。
 //
 // 这个包把启动顺序、核心资源归属和模块生命周期执行保留在可读代码中，

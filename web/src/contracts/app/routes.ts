@@ -1,6 +1,3 @@
-// Copyright (c) 2025-2026 GeWuYou
-// SPDX-License-Identifier: Apache-2.0
-
 export const ROOT_ENTRY_PATH = '/';
 
 export const APP_RESULT_ROUTE_PATH = {

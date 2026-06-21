@@ -1,6 +1,3 @@
-// Copyright (c) 2025-2026 GeWuYou
-// SPDX-License-Identifier: Apache-2.0
-
 // Package cli 负责维护 server 进程的显式 Cobra 命令树。
 //
 // 运行时启动、数据库迁移与最小 smoke 验证仍保持为可见的 CLI 子命令，

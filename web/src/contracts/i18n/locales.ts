@@ -1,6 +1,3 @@
-// Copyright (c) 2025-2026 GeWuYou
-// SPDX-License-Identifier: Apache-2.0
-
 import en_US from 'tdesign-vue-next/es/locale/en_US';
 import zh_CN from 'tdesign-vue-next/es/locale/zh_CN';
 

@@ -1,6 +1,3 @@
-// Copyright (c) 2025-2026 GeWuYou
-// SPDX-License-Identifier: Apache-2.0
-
 export type LogLevel = 'FATAL' | 'ERROR' | 'WARN' | 'INFO' | 'DEBUG' | 'TRACE' | 'LOG' | 'UNKNOWN';
 export type LogTokenType = 'text' | 'keyword' | 'field-key' | 'field-value' | 'level';
 export type LogToken = {

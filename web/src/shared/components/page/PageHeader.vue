@@ -1,8 +1,3 @@
-<!--
-  Copyright (c) 2025-2026 GeWuYou
-  SPDX-License-Identifier: Apache-2.0
--->
-
 <template>
   <header class="page-header" :class="{ 'page-header--compact': compact }">
     <div v-if="resolvedSource" class="page-header__source">

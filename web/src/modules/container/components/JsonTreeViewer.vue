@@ -1,8 +1,3 @@
-<!--
-  Copyright (c) 2025-2026 GeWuYou
-  SPDX-License-Identifier: Apache-2.0
--->
-
 <template>
   <div class="json-tree-viewer" data-testid="container-raw-tree-viewer">
     <div v-if="!visibleNodes.length" class="json-tree-viewer__empty">

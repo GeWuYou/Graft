@@ -1,6 +1,3 @@
-// Copyright (c) 2025-2026 GeWuYou
-// SPDX-License-Identifier: Apache-2.0
-
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import type { Ref } from 'vue';
 

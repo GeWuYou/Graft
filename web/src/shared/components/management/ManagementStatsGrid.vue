@@ -1,8 +1,3 @@
-<!--
-  Copyright (c) 2025-2026 GeWuYou
-  SPDX-License-Identifier: Apache-2.0
--->
-
 <template>
   <section class="management-stats-grid" :class="`management-stats-grid--${layout}`">
     <article v-for="(item, index) in items" :key="`${item.label}-${index}`" class="management-stats-grid__item">

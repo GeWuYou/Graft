@@ -1,6 +1,3 @@
-// Copyright (c) 2025-2026 GeWuYou
-// SPDX-License-Identifier: Apache-2.0
-
 export const MONITOR_REFRESH_INTERVAL = {
   FIVE_SECONDS: 5,
   TEN_SECONDS: 10,

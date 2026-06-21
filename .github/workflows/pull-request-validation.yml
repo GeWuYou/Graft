@@ -67,49 +67,6 @@ jobs:
           base: ${{ steps.secret_scan_range.outputs.base_ref }}
           head: ${{ steps.secret_scan_range.outputs.head_ref }}
 
-  license-header-new-files:
-    name: License Header New Files
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
-        with:
-          fetch-depth: 0
-
-      - name: Setup Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
-        with:
-          python-version: "3.12"
-
-      - name: Resolve license header diff base
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            base_branch="${{ github.event.pull_request.base.ref }}"
-            git fetch --no-tags --prune origin "${base_branch}"
-            base_ref="refs/remotes/origin/${base_branch}"
-            head_ref="HEAD"
-          else
-            base_ref="${{ github.event.before }}"
-            head_ref="${{ github.sha }}"
-            if [[ -z "${base_ref}" || "${base_ref}" =~ ^0+$ ]]; then
-              base_ref="${head_ref}^"
-            fi
-          fi
-
-          echo "GRAFT_LICENSE_HEADER_BASE_REF=${base_ref}" >> "$GITHUB_ENV"
-          echo "GRAFT_LICENSE_HEADER_HEAD_REF=${head_ref}" >> "$GITHUB_ENV"
-
-      - name: Validate new file license headers
-        run: |
-          python3 scripts/license-header.py \
-            --check \
-            --scope added \
-            --base-ref "${GRAFT_LICENSE_HEADER_BASE_REF}" \
-            --head-ref "${GRAFT_LICENSE_HEADER_HEAD_REF}"
-
   contract-governance-check:
     name: Contract Governance Check
     runs-on: ubuntu-latest

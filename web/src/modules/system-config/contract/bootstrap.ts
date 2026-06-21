@@ -1,6 +1,3 @@
-// Copyright (c) 2025-2026 GeWuYou
-// SPDX-License-Identifier: Apache-2.0
-
 import { SYSTEM_CONFIG_ROUTE_PATH } from './paths';
 
 export const SYSTEM_CONFIG_BOOTSTRAP_ROUTE = {

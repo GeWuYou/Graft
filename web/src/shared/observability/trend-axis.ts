@@ -1,6 +1,3 @@
-// Copyright (c) 2025-2026 GeWuYou
-// SPDX-License-Identifier: Apache-2.0
-
 import { formatLocaleDateTime } from './time';
 
 export type TrendAxisPreset = 'last_24h' | 'last_7d' | 'last_30d';

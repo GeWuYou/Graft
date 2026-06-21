@@ -2,6 +2,8 @@
 
 Graft is a composable admin platform built with Go and Vue 3.
 
+License: `AGPL-3.0-only`. See the repository root [LICENSE](LICENSE).
+
 The project is not a single-purpose business application and is not a dynamic extension marketplace. Its current
 architecture is a module-oriented modular monolith: the backend composes business capabilities through compile-time
 modules, while the frontend provides a Vue 3 admin shell with module-owned feature pages.

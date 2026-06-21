@@ -60,8 +60,8 @@ Container Management MVP
 ## Risks
 
 - 本地容器运行时 socket 权限依赖部署用户和宿主机配置。
-- Phase 3 引入官方 Docker Go SDK `github.com/docker/docker v28.5.2+incompatible`；license 为 Apache-2.0，兼容仓库
-  Apache-2.0 授权。依赖只服务 `DockerRuntime` adapter，不改变产品命名或 core runtime。
+- Phase 3 引入官方 Docker Go SDK `github.com/docker/docker v28.5.2+incompatible`；其上游许可与仓库当前
+  `AGPL-3.0-only` 授权兼容。依赖只服务 `DockerRuntime` adapter，不改变产品命名或 core runtime。
 - `ops.container.actions.dangerous_enabled` 默认关闭，写操作必须被显式启用。
 - 当前 core 配置快照尚未提供读取任意 `ops.container.*` 系统配置值的稳定 resolver；Phase 3 不扩展 resolver/UI surface，
   因此后端 runtime 继续使用模块默认值，API 默认返回 `runtimeDisabled`。后续若要启用运行时，应先走系统配置 resolver

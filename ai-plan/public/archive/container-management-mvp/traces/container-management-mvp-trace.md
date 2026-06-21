@@ -40,7 +40,7 @@
 - Phase 3 新增 `server/modules/container` runtime/service/route API，注册六个 `/ops/containers` 后端路由并通过
   `httpx.RequirePermission` 使用 Phase 2 已注册的 MVP 权限。
 - Phase 3 新增 `DockerRuntime` adapter，使用官方 Docker Go SDK `github.com/docker/docker v28.5.2+incompatible`
-  访问本地 `unix:///var/run/docker.sock`；该依赖为 Apache-2.0 license，兼容仓库授权。
+  访问本地 `unix:///var/run/docker.sock`；该依赖的上游许可与仓库当前 `AGPL-3.0-only` 授权兼容。
 - Phase 3 对 container id/name path 参数执行 `PathUnescape`，并拒绝空值、斜杠和控制字符。
 - Phase 3 日志读取支持 `tail`、`since`、`timestamps`、`stdout`、`stderr`，默认 tail 为 200，最大 2000。
 - Phase 3 详情和日志响应不暴露环境变量、secret、token、authorization header 或 raw Docker inspect payload。

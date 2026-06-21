@@ -1,8 +1,3 @@
-<!--
-  Copyright (c) 2025-2026 GeWuYou
-  SPDX-License-Identifier: Apache-2.0
--->
-
 <template>
   <section class="assignment-summary">
     <div v-if="items.length > 0" class="assignment-summary__grid">

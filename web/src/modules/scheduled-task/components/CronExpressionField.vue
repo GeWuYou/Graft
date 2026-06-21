@@ -1,8 +1,3 @@
-<!--
-  Copyright (c) 2025-2026 GeWuYou
-  SPDX-License-Identifier: Apache-2.0
--->
-
 <template>
   <div class="cron-expression-field scheduled-task-cron-field" :class="{ 'cron-expression-field--disabled': disabled }">
     <div class="scheduled-task-cron-row" data-testid="cron-expression-row">

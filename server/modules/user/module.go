@@ -1,6 +1,3 @@
-// Copyright (c) 2025-2026 GeWuYou
-// SPDX-License-Identifier: Apache-2.0
-
 // Package user 提供接入 MVP 运行时的首个示例业务模块。
 package user
 

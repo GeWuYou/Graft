@@ -1,6 +1,3 @@
-// Copyright (c) 2025-2026 GeWuYou
-// SPDX-License-Identifier: Apache-2.0
-
 import type { I18nGovernanceRule } from '../types';
 import { noDuplicateLocaleKeyRule } from './no-duplicate-locale-key';
 import { noFallbackOnlyKeyFirstRule } from './no-fallback-only-key-first';

@@ -1,6 +1,3 @@
-// Copyright (c) 2025-2026 GeWuYou
-// SPDX-License-Identifier: Apache-2.0
-
 import type { MenuRoute } from '@/utils/types';
 
 export function flattenMixHeaderMenus(menus: MenuRoute[]): MenuRoute[] {

@@ -1,8 +1,3 @@
-<!--
-  Copyright (c) 2025-2026 GeWuYou
-  SPDX-License-Identifier: Apache-2.0
--->
-
 <template>
   <t-tag class="monitor-status-tag" :class="`monitor-status-tag--${status}`" :theme="theme" variant="light">
     {{ label }}

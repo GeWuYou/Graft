@@ -1,6 +1,3 @@
-// Copyright (c) 2025-2026 GeWuYou
-// SPDX-License-Identifier: Apache-2.0
-
 // Package httpx 管理显式的 HTTP 服务外壳。
 //
 // 这个包负责 Gin 服务包装、MVP 阶段的后端权限守卫，以及服务启动与

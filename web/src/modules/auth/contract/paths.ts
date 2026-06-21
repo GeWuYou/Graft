@@ -1,6 +1,3 @@
-// Copyright (c) 2025-2026 GeWuYou
-// SPDX-License-Identifier: Apache-2.0
-
 export const AUTH_API_PATH = {
   BOOTSTRAP: '/api/auth/bootstrap',
   CHANGE_PASSWORD: '/api/auth/change-password',

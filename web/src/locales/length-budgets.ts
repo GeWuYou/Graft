@@ -1,6 +1,3 @@
-// Copyright (c) 2025-2026 GeWuYou
-// SPDX-License-Identifier: Apache-2.0
-
 import type { SupportedLocale } from '@/contracts/i18n/locales';
 import { createLogger } from '@/utils/logger';
 

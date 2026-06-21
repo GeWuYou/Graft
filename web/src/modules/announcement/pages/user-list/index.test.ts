@@ -1,6 +1,3 @@
-// Copyright (c) 2025-2026 GeWuYou
-// SPDX-License-Identifier: Apache-2.0
-
 import { mount } from '@vue/test-utils';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { describe, expect, it, vi } from 'vitest';

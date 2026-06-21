@@ -722,7 +722,7 @@ Repository automation should follow the same boundary rules as local development
 
 ## 13. License Governance
 
-This repository is licensed under Apache License 2.0.
+This repository is licensed under GNU Affero General Public License v3.0 only (`AGPL-3.0-only`).
 
 Contributors must preserve that licensing posture when changing code, docs, automation, or dependencies.
 
@@ -731,31 +731,26 @@ Contributors must preserve that licensing posture when changing code, docs, auto
 - do not remove or weaken the top-level `LICENSE` file
 - if the repository later requires a `NOTICE` file or third-party license inventory, keep those files aligned with the
   actual distributed contents
-- do not add repository rules that conflict with Apache-2.0 distribution terms
+- do not add repository rules that conflict with `AGPL-3.0-only` distribution terms
 
-### 13.2 Source File Headers
+### 13.2 Source File License Headers
 
-- all new repository-maintained source, script, style, and migration files supported by `scripts/license-header.py` must
-  include an Apache-2.0 header near the top of the file
-- the canonical header marker is `SPDX-License-Identifier: Apache-2.0`
-- `scripts/license-header.py` is the canonical CLI wrapper for checks and workflow calls; `scripts/license_header.py`
-  owns the importable implementation policy
-- supported comment formats and exclusions are owned by the license header implementation; do not reimplement that
-  policy in workflow YAML, hooks, or ad-hoc shell snippets
-- pull request validation gates newly added supported files only, so the repository stops new header drift without
-  forcing broad historical churn into unrelated feature branches
-- existing tracked supported files that predate this policy must be backfilled through the manual
-  `license-header-fix.yml` workflow or a dedicated license-header branch, not opportunistically mixed into unrelated work
+- repository-maintained source, script, style, and migration files must not carry per-file license headers by default
+- the repository license is declared at the root `LICENSE` file, not repeated in individual source files
+- do not add new workflow, hook, or script enforcement that requires repository-owned source files to carry per-file
+  license notices
 - generated files, third-party or vendored content, lockfiles, docs, AI governance metadata, configuration files,
-  generated environment inventories, binary files, and build output must stay excluded from header automation
+  generated environment inventories, binary files, and build output must stay free of repository-invented per-file
+  license notice churn unless an external upstream license obligation explicitly requires otherwise
 
 ### 13.3 Dependency and Distribution Compliance
 
 When introducing a new dependency, package, or distributable artifact:
 
-- check whether its license is compatible with Apache-2.0 distribution
+- check whether its license is compatible with `AGPL-3.0-only` distribution
 - record any required attribution or notice obligations when they apply
-- avoid adding copyleft or distribution-restrictive dependencies without an explicit repository decision
+- avoid adding license terms that are incompatible with the repository distribution posture or introduce undisclosed
+  source-available restrictions without an explicit repository decision
 - keep future CI license checks lightweight until the repository has a real release pipeline and artifact inventory
 
 ## 14. Subagent Usage Rules

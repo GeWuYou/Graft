@@ -1,6 +1,3 @@
-// Copyright (c) 2025-2026 GeWuYou
-// SPDX-License-Identifier: Apache-2.0
-
 // Package dashboard owns the MVP dashboard contribution registry and aggregate
 // routes. It must stay limited to runtime contributions; dashboard persistence
 // and user preferences belong in a future module.

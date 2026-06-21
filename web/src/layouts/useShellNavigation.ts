@@ -1,6 +1,3 @@
-// Copyright (c) 2025-2026 GeWuYou
-// SPDX-License-Identifier: Apache-2.0
-
 import { useRouter } from 'vue-router';
 
 import { ROOT_ENTRY_PATH } from '@/contracts/app/routes';

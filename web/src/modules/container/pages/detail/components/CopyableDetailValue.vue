@@ -21,9 +21,6 @@
   </span>
 </template>
 <script setup lang="ts">
-// Copyright (c) 2025-2026 GeWuYou
-// SPDX-License-Identifier: Apache-2.0
-
 import { CopyIcon } from 'tdesign-icons-vue-next';
 import { computed, useAttrs } from 'vue';
 

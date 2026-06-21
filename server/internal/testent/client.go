@@ -1,6 +1,3 @@
-// Copyright (c) 2025-2026 GeWuYou
-// SPDX-License-Identifier: Apache-2.0
-
 // Package ent provides a test-only placeholder for the removed shared Ent client key.
 package ent
 

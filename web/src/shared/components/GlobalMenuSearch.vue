@@ -1,8 +1,3 @@
-<!--
-  Copyright (c) 2025-2026 GeWuYou
-  SPDX-License-Identifier: Apache-2.0
--->
-
 <template>
   <div ref="rootRef" class="header-menu-search-left" :class="{ 'is-open': isSearchFocus }">
     <t-tooltip :content="t('global.search.trigger')" placement="bottom" :disabled="isSearchFocus">

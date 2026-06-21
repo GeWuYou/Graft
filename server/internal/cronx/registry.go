@@ -1,6 +1,3 @@
-// Copyright (c) 2025-2026 GeWuYou
-// SPDX-License-Identifier: Apache-2.0
-
 // Package cronx 存放模块声明的定时任务元数据，供后续调度器装配使用。
 package cronx
 

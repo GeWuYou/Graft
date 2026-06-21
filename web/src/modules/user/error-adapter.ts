@@ -1,6 +1,3 @@
-// Copyright (c) 2025-2026 GeWuYou
-// SPDX-License-Identifier: Apache-2.0
-
 import { API_CODE } from '@/contracts/api/codes';
 import { readErrorField } from '@/modules/shared/error-field';
 import type { ApiRequestError } from '@/types/axios';

@@ -1,8 +1,3 @@
-<!--
-  Copyright (c) 2025-2026 GeWuYou
-  SPDX-License-Identifier: Apache-2.0
--->
-
 <template>
   <t-list v-if="payload && payload.items.length" class="dashboard-alert-list" size="small" split>
     <t-list-item v-for="item in payload.items" :key="item.id">

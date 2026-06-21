@@ -1,8 +1,3 @@
-<!--
-  Copyright (c) 2025-2026 GeWuYou
-  SPDX-License-Identifier: Apache-2.0
--->
-
 <template>
   <result :title="t('app.result.403.title')" :tip="t('app.result.403.tips')">
     <t-button @click="() => router.push(ROOT_ENTRY_PATH)">{{ t('app.result.403.back') }}</t-button>

@@ -1,6 +1,3 @@
-// Copyright (c) 2025-2026 GeWuYou
-// SPDX-License-Identifier: Apache-2.0
-
 // Package user 提供 MVP 路径中的用户与认证示例模块。
 //
 // 这个包用于演示单个业务能力如何在不回流 core 的前提下，声明登录、
