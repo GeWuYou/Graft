@@ -12,10 +12,12 @@ import (
 
 	"graft/server/internal/config"
 	"graft/server/internal/configregistry"
+	containerdi "graft/server/internal/container"
 	"graft/server/internal/i18n"
 	"graft/server/internal/menu"
 	"graft/server/internal/module"
 	"graft/server/internal/permission"
+	"graft/server/internal/realtimeauth"
 	containercontract "graft/server/modules/container/contract"
 	containerlocales "graft/server/modules/container/locales"
 	systemconfiglocales "graft/server/modules/system-config/locales"
@@ -107,11 +109,18 @@ func newTestContext() *module.Context {
 	if err := localizer.RegisterEmbeddedLocaleResources(systemConfigResources); err != nil {
 		panic(fmt.Sprintf("register system-config locale resources: %v", err))
 	}
+	services := containerdi.New()
+	if err := services.RegisterSingleton((*realtimeauth.Service)(nil), func(containerdi.Resolver) (any, error) {
+		return realtimeauth.NewMemoryService(), nil
+	}); err != nil {
+		panic(fmt.Sprintf("register realtime ticket service: %v", err))
+	}
 	return &module.Context{
 		I18n:               localizer,
 		MenuRegistry:       menu.NewRegistry(),
 		PermissionRegistry: permission.NewRegistry(),
 		ConfigRegistry:     configregistry.NewRegistry(),
+		Services:           services,
 	}
 }
 

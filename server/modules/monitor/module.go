@@ -13,14 +13,12 @@ import (
 	"net/http"
 	"os"
 	"runtime"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/redis/go-redis/v9"
 	"github.com/shirou/gopsutil/v4/cpu"
 	"github.com/shirou/gopsutil/v4/disk"
 	"github.com/shirou/gopsutil/v4/load"
@@ -39,6 +37,9 @@ import (
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
 	"graft/server/internal/permission"
+	"graft/server/internal/redisx"
+	"graft/server/internal/statex"
+	statexkeys "graft/server/internal/statex/keys"
 	monitorcontract "graft/server/modules/monitor/contract"
 )
 
@@ -78,7 +79,6 @@ const (
 	runtimeHeapWarningBytes        = 512 * 1024 * 1024
 	runtimeHeapCriticalBytes       = 1024 * 1024 * 1024
 	serverDependencyCount          = 2
-	redisDefaultPoolSizePerCPU     = 10
 )
 
 func defaultDiskUsagePath() string {
@@ -89,10 +89,11 @@ func defaultDiskUsagePath() string {
 type Module struct {
 	startedAtUnixNs atomic.Int64
 	db              *sql.DB
-	redis           *redis.Client
 	logger          *zap.Logger
 	authService     moduleapi.AuthService
 	routeAuthorizer moduleapi.Authorizer
+	trendStore      statex.TimeSeriesStore
+	redisHealth     redisx.HealthReporter
 
 	samplerMu     sync.Mutex
 	samplerCancel context.CancelFunc
@@ -152,7 +153,6 @@ func (p *Module) Register(ctx *module.Context) error {
 func (p *Module) Boot(ctx *module.Context) error {
 	p.startedAtUnixNs.CompareAndSwap(0, time.Now().UTC().UnixNano())
 	if ctx != nil {
-		p.redis = ctx.Redis
 		p.logger = ctx.Logger
 	}
 
@@ -194,8 +194,19 @@ func (p *Module) bindDependencies(ctx *module.Context) error {
 		return err
 	}
 	p.db = db
-	p.redis = ctx.Redis
 	p.logger = ctx.Logger
+
+	trendStore, err := resolveOptionalTrendStore(ctx)
+	if err != nil {
+		return err
+	}
+	p.trendStore = trendStore
+
+	redisHealthReporter, err := resolveOptionalRedisHealthReporter(ctx)
+	if err != nil {
+		return err
+	}
+	p.redisHealth = redisHealthReporter
 
 	authResolved, err := ctx.Services.Resolve((*moduleapi.AuthService)(nil))
 	if err != nil {
@@ -241,6 +252,38 @@ func resolveDatabaseDependency(ctx *module.Context) (*sql.DB, error) {
 	}
 
 	return db, nil
+}
+
+func resolveOptionalTrendStore(ctx *module.Context) (statex.TimeSeriesStore, error) {
+	if ctx == nil || ctx.Services == nil {
+		return nil, nil
+	}
+
+	store, err := module.ResolveService[statex.TimeSeriesStore](ctx.Services, (*statex.TimeSeriesStore)(nil))
+	if errors.Is(err, container.ErrServiceNotRegistered) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("resolve monitor trend store: %w", err)
+	}
+
+	return store, nil
+}
+
+func resolveOptionalRedisHealthReporter(ctx *module.Context) (redisx.HealthReporter, error) {
+	if ctx == nil || ctx.Services == nil {
+		return nil, nil
+	}
+
+	reporter, err := module.ResolveService[redisx.HealthReporter](ctx.Services, (*redisx.HealthReporter)(nil))
+	if errors.Is(err, container.ErrServiceNotRegistered) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("resolve redis health reporter: %w", err)
+	}
+
+	return reporter, nil
 }
 
 func registerMonitorPermissions(registry *permission.Registry, moduleName string) {
@@ -437,7 +480,7 @@ func buildServerStatusResponseWithRuntimeSnapshot(
 	if err != nil {
 		return generated.ServerStatusResponse{}, err
 	}
-	redisStatus, err := redisHealth(ctx, moduleCtx)
+	redisStatus, err := redisHealth(ctx, moduleCtx, instance)
 	if err != nil {
 		return generated.ServerStatusResponse{}, err
 	}
@@ -857,8 +900,9 @@ func databaseHealth(ctx context.Context, instance *Module) (generated.ServerStat
 	}, nil
 }
 
-func redisHealth(ctx context.Context, moduleCtx *module.Context) (generated.ServerStatusDependency, error) {
-	if moduleCtx == nil || moduleCtx.Redis == nil {
+func redisHealth(ctx context.Context, moduleCtx *module.Context, instance *Module) (generated.ServerStatusDependency, error) {
+	reporter := resolveRedisHealthReporter(moduleCtx, instance)
+	if reporter == nil {
 		return generated.ServerStatusDependency{
 			Status: statusDisabled,
 			Detail: "Redis client is not configured",
@@ -866,20 +910,31 @@ func redisHealth(ctx context.Context, moduleCtx *module.Context) (generated.Serv
 		}, nil
 	}
 
-	pingCtx, cancel := context.WithTimeout(ctx, healthCheckTimeout)
-	defer cancel()
-
-	startedAt := time.Now()
-	if err := moduleCtx.Redis.Ping(pingCtx).Err(); err != nil {
+	report, err := reporter.Report(ctx)
+	if err != nil {
 		logTrendWarning(nil, moduleCtx, "redis ping failed", err)
 		return generated.ServerStatusDependency{
 			Status: statusDegraded,
 			Detail: "Redis ping failed",
-			Pool:   redisPoolStats(moduleCtx.Redis),
+			Pool:   redisPoolStats(report.Pool),
+		}, nil
+	}
+	if !report.Configured {
+		return generated.ServerStatusDependency{
+			Status: statusDisabled,
+			Detail: "Redis client is not configured",
+			Pool:   nil,
+		}, nil
+	}
+	if !report.Reachable {
+		return generated.ServerStatusDependency{
+			Status: statusDegraded,
+			Detail: "Redis ping failed",
+			Pool:   redisPoolStats(report.Pool),
 		}, nil
 	}
 
-	latencyMs, err := toGeneratedFloat32(roundLatencyMilliseconds(time.Since(startedAt)), "redis latency ms")
+	latencyMs, err := toGeneratedFloat32(roundLatencyMilliseconds(report.Latency), "redis latency ms")
 	if err != nil {
 		return generated.ServerStatusDependency{}, fmt.Errorf("convert redis latency: %w", err)
 	}
@@ -887,7 +942,7 @@ func redisHealth(ctx context.Context, moduleCtx *module.Context) (generated.Serv
 		Status:    statusHealthy,
 		Detail:    "Redis ping succeeded",
 		LatencyMs: &latencyMs,
-		Pool:      redisPoolStats(moduleCtx.Redis),
+		Pool:      redisPoolStats(report.Pool),
 	}, nil
 }
 
@@ -917,30 +972,38 @@ func databasePoolStats(db *sql.DB) *generated.ServerStatusConnectionPool {
 	}
 }
 
-func redisPoolStats(client *redis.Client) *generated.ServerStatusConnectionPool {
-	if client == nil {
+func resolveRedisHealthReporter(moduleCtx *module.Context, instance *Module) redisx.HealthReporter {
+	if instance != nil && instance.redisHealth != nil {
+		return instance.redisHealth
+	}
+
+	reporter, err := resolveOptionalRedisHealthReporter(moduleCtx)
+	if err != nil {
+		logTrendWarning(instance, moduleCtx, "resolve redis health reporter failed", err)
 		return nil
 	}
 
-	options := client.Options()
-	stats := client.PoolStats()
-	capacity := options.PoolSize
-	if capacity <= 0 {
-		capacity = redisDefaultPoolSizePerCPU * runtime.GOMAXPROCS(0)
+	return reporter
+}
+
+func redisPoolStats(pool redisx.PoolStats) *generated.ServerStatusConnectionPool {
+	if pool.Capacity <= 0 && pool.OpenConnections <= 0 {
+		return nil
 	}
-	maxActiveConnections := optionalPositiveInt64(options.MaxActiveConns)
+
+	maxActiveConnections := optionalPositiveInt64(pool.MaxActiveConnections)
 
 	return &generated.ServerStatusConnectionPool{
-		Capacity:             int64(capacity),
+		Capacity:             int64(pool.Capacity),
 		MaxActiveConnections: maxActiveConnections,
-		OpenConnections:      int64(stats.TotalConns),
-		InUseConnections:     int64(stats.TotalConns - stats.IdleConns),
-		IdleConnections:      int64(stats.IdleConns),
-		UsagePercent:         poolUsagePercent(int(stats.TotalConns-stats.IdleConns), capacity),
-		WaitCount:            int64(stats.WaitCount),
-		WaitDurationMs:       float32(roundLatencyMilliseconds(time.Duration(stats.WaitDurationNs))),
-		TimeoutCount:         int64(stats.Timeouts),
-		StaleCount:           int64(stats.StaleConns),
+		OpenConnections:      int64(pool.OpenConnections),
+		InUseConnections:     int64(pool.InUseConnections),
+		IdleConnections:      int64(pool.IdleConnections),
+		UsagePercent:         float32(roundUsagePercent(pool.UsagePercent)),
+		WaitCount:            pool.WaitCount,
+		WaitDurationMs:       float32(roundLatencyMilliseconds(pool.WaitDuration)),
+		TimeoutCount:         pool.TimeoutCount,
+		StaleCount:           pool.StaleCount,
 	}
 }
 
@@ -1087,14 +1150,14 @@ func buildServerStatusTrend(
 		Points:                nil,
 	}
 
-	redisClient := resolveRedisClient(moduleCtx, instance)
-	if redisClient == nil {
+	trendStore := resolveTrendStore(moduleCtx, instance)
+	if trendStore == nil {
 		return trend
 	}
 
-	points, err := loadTrendPoints(ctx, redisClient, trendStorageKey(resolveAppName(moduleCtx), resolveHostName()), observedAt, retention)
+	points, err := loadTrendPoints(ctx, trendStore, trendStorageKey(resolveAppName(moduleCtx), resolveHostName()), observedAt, retention)
 	if err != nil {
-		logTrendWarning(instance, moduleCtx, "load redis trend points failed", err)
+		logTrendWarning(instance, moduleCtx, "load state trend points failed", err)
 		return trend
 	}
 
@@ -1102,18 +1165,22 @@ func buildServerStatusTrend(
 	return trend
 }
 
-func resolveRedisClient(moduleCtx *module.Context, instance *Module) *redis.Client {
-	if instance != nil && instance.redis != nil {
-		return instance.redis
+func resolveTrendStore(moduleCtx *module.Context, instance *Module) statex.TimeSeriesStore {
+	if instance != nil && instance.trendStore != nil {
+		return instance.trendStore
 	}
-	if moduleCtx != nil {
-		return moduleCtx.Redis
+
+	store, err := resolveOptionalTrendStore(moduleCtx)
+	if err != nil {
+		logTrendWarning(instance, moduleCtx, "resolve monitor trend store failed", err)
+		return nil
 	}
-	return nil
+
+	return store
 }
 
 func (p *Module) startTrendSampler(ctx *module.Context) {
-	if p == nil || ctx == nil || ctx.Redis == nil || ctx.LifecycleContext == nil {
+	if p == nil || ctx == nil || p.trendStore == nil || ctx.LifecycleContext == nil {
 		return
 	}
 
@@ -1132,7 +1199,7 @@ func (p *Module) startTrendSampler(ctx *module.Context) {
 	storageKey := trendStorageKey(resolveAppName(ctx), resolveHostName())
 	go func() {
 		defer close(done)
-		p.runTrendSampler(runCtx, ctx.Redis, storageKey)
+		p.runTrendSampler(runCtx, p.trendStore, storageKey)
 	}()
 }
 
@@ -1169,10 +1236,10 @@ func (p *Module) stopTrendSampler(ctx *module.Context) error {
 	}
 }
 
-func (p *Module) runTrendSampler(ctx context.Context, redisClient *redis.Client, storageKey string) {
+func (p *Module) runTrendSampler(ctx context.Context, trendStore statex.TimeSeriesStore, storageKey string) {
 	var previousCPUTimes *cpu.TimesStat
 
-	p.recordTrendSample(ctx, redisClient, storageKey, &previousCPUTimes)
+	p.recordTrendSample(ctx, trendStore, storageKey, &previousCPUTimes)
 
 	ticker := time.NewTicker(trendSampleInterval)
 	defer ticker.Stop()
@@ -1182,18 +1249,18 @@ func (p *Module) runTrendSampler(ctx context.Context, redisClient *redis.Client,
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			p.recordTrendSample(ctx, redisClient, storageKey, &previousCPUTimes)
+			p.recordTrendSample(ctx, trendStore, storageKey, &previousCPUTimes)
 		}
 	}
 }
 
 func (p *Module) recordTrendSample(
 	ctx context.Context,
-	redisClient *redis.Client,
+	trendStore statex.TimeSeriesStore,
 	storageKey string,
 	previousCPUTimes **cpu.TimesStat,
 ) {
-	if redisClient == nil {
+	if trendStore == nil {
 		return
 	}
 
@@ -1221,7 +1288,7 @@ func (p *Module) recordTrendSample(
 		RuntimeSysBytes:           runtimeSnapshot.RuntimeSysBytes,
 	}
 
-	if err := storeTrendPoint(ctx, redisClient, storageKey, observedAt, point); err != nil {
+	if err := storeTrendPoint(ctx, trendStore, storageKey, observedAt, point); err != nil {
 		logTrendWarning(p, nil, "store monitor trend sample failed", err)
 	}
 }
@@ -1255,7 +1322,7 @@ func collectCPUPercent(ctx context.Context, previousCPUTimes **cpu.TimesStat, in
 
 func storeTrendPoint(
 	ctx context.Context,
-	redisClient *redis.Client,
+	trendStore statex.TimeSeriesStore,
 	storageKey string,
 	observedAt time.Time,
 	point generated.ServerStatusTrendPoint,
@@ -1265,50 +1332,38 @@ func storeTrendPoint(
 		return fmt.Errorf("marshal trend point: %w", err)
 	}
 
-	observedAtMillis := observedAt.UnixMilli()
-	cutoffMillis := observedAt.Add(-maxTrendRetentionWindow).UnixMilli()
-	pipe := redisClient.TxPipeline()
-	pipe.ZAdd(ctx, storageKey, redis.Z{
-		Score:  float64(observedAtMillis),
-		Member: string(payload),
+	return trendStore.Append(ctx, storageKey, statex.TimeSeriesSample{
+		ObservedAt: observedAt,
+		Payload:    payload,
+	}, statex.RetentionPolicy{
+		TrimBefore:   observedAt.Add(-maxTrendRetentionWindow),
+		ExpiresAfter: trendStorageTTL,
 	})
-	pipe.ZRemRangeByScore(ctx, storageKey, "-inf", strconv.FormatInt(cutoffMillis, 10))
-	pipe.Expire(ctx, storageKey, trendStorageTTL)
-
-	if _, err := pipe.Exec(ctx); err != nil {
-		return fmt.Errorf("exec redis trend pipeline: %w", err)
-	}
-
-	return nil
 }
 
 func loadTrendPoints(
 	ctx context.Context,
-	redisClient *redis.Client,
+	trendStore statex.TimeSeriesStore,
 	storageKey string,
 	observedAt time.Time,
 	retention time.Duration,
 ) ([]generated.ServerStatusTrendPoint, error) {
-	if redisClient == nil {
+	if trendStore == nil {
 		return nil, nil
 	}
 
-	minScore := strconv.FormatInt(observedAt.Add(-retention).UnixMilli(), 10)
-	maxScore := strconv.FormatInt(observedAt.UnixMilli(), 10)
-	members, err := redisClient.ZRangeArgs(ctx, redis.ZRangeArgs{
-		Key:     storageKey,
-		Start:   minScore,
-		Stop:    maxScore,
-		ByScore: true,
-	}).Result()
+	samples, err := trendStore.Range(ctx, storageKey, statex.TimeSeriesQuery{
+		StartAt: observedAt.Add(-retention),
+		EndAt:   observedAt,
+	})
 	if err != nil {
-		return nil, fmt.Errorf("range redis trend points: %w", err)
+		return nil, fmt.Errorf("range state trend points: %w", err)
 	}
 
-	points := make([]generated.ServerStatusTrendPoint, 0, len(members))
-	for _, member := range members {
+	points := make([]generated.ServerStatusTrendPoint, 0, len(samples))
+	for _, sample := range samples {
 		var point generated.ServerStatusTrendPoint
-		if err := json.Unmarshal([]byte(member), &point); err != nil {
+		if err := json.Unmarshal(sample.Payload, &point); err != nil {
 			continue
 		}
 		points = append(points, point)
@@ -1318,27 +1373,12 @@ func loadTrendPoints(
 }
 
 func trendStorageKey(appName string, hostName string) string {
-	resolvedAppName := sanitizeTrendKeySegment(appName)
-	if resolvedAppName == "" {
-		resolvedAppName = "app"
-	}
-
-	resolvedHostName := sanitizeTrendKeySegment(hostName)
-	if resolvedHostName == "" {
-		resolvedHostName = "host"
-	}
-
-	return fmt.Sprintf("%s:%s:%s", trendStorageKeyPrefix, resolvedAppName, resolvedHostName)
-}
-
-func sanitizeTrendKeySegment(value string) string {
-	trimmed := strings.TrimSpace(strings.ToLower(value))
-	if trimmed == "" {
-		return ""
-	}
-
-	replacer := strings.NewReplacer(" ", "-", "/", "-", "\\", "-", ":", "-", ".", "-")
-	return replacer.Replace(trimmed)
+	return fmt.Sprintf(
+		"%s:%s:%s",
+		trendStorageKeyPrefix,
+		statexkeys.Segment(appName, "app"),
+		statexkeys.Segment(hostName, "host"),
+	)
 }
 
 func resolveHostName() string {

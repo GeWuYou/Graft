@@ -11,10 +11,12 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/google/uuid"
+
+	"graft/server/internal/kvx"
+	kvkeys "graft/server/internal/kvx/keys"
 )
 
 const (
@@ -40,6 +42,11 @@ var (
 	ErrTicketRequired = errors.New("realtime ticket required")
 	// ErrInvalidTicketSpec indicates a ticket issue or consume request failed validation.
 	ErrInvalidTicketSpec = errors.New("realtime ticket request invalid")
+)
+
+const (
+	ticketStatusIssued = "issued"
+	ticketStatusUsed   = "used"
 )
 
 // Clock provides the current time for ticket issuance and consumption.
@@ -111,91 +118,157 @@ type ConsumedTicket struct {
 	ExpiresAt    time.Time
 }
 
-type storedTicket struct {
-	ticketID     string
-	secretHash   string
-	sessionID    string
-	userID       uint64
+type ticketRecord struct {
+	TicketID     string     `json:"ticket_id"`
+	SecretHash   string     `json:"secret_hash"`
+	SessionID    string     `json:"session_id"`
+	UserID       uint64     `json:"user_id"`
+	ResourceType string     `json:"resource_type"`
+	ResourceID   string     `json:"resource_id"`
+	Scope        string     `json:"scope"`
+	Command      string     `json:"command"`
+	Cols         int        `json:"cols"`
+	Rows         int        `json:"rows"`
+	ClientIP     string     `json:"client_ip"`
+	UserAgent    string     `json:"user_agent"`
+	ExpiresAt    time.Time  `json:"expires_at"`
+	Status       string     `json:"status"`
+	UsedAt       *time.Time `json:"used_at,omitempty"`
+}
+
+// Options configures one KV-backed realtime ticket service.
+type Options struct {
+	Store      kvx.Store
+	Clock      Clock
+	KeyPrefix  string
+	KeyBuilder func(ticketID string) string
+}
+
+type kvService struct {
+	store      kvx.Store
+	clock      Clock
+	keyPrefix  string
+	keyBuilder func(ticketID string) string
+}
+
+type consumeState struct {
+	key          string
+	secret       string
+	scope        string
 	resourceType string
 	resourceID   string
-	scope        string
-	command      string
-	cols         int
-	rows         int
-	clientIP     string
-	userAgent    string
-	expiresAt    time.Time
-	usedAt       *time.Time
+	now          time.Time
 }
 
-type memoryService struct {
-	clock Clock
-	mu    sync.Mutex
-	store map[string]storedTicket
+type ticketSnapshot struct {
+	item   kvx.Item
+	record ticketRecord
 }
 
-// NewMemoryService creates an in-memory realtime ticket service backed by the system clock.
-func NewMemoryService() Service {
-	return &memoryService{
-		clock: systemClock{},
-		store: make(map[string]storedTicket),
+// NewService creates one KV-backed realtime ticket service.
+func NewService(store kvx.Store) (Service, error) {
+	return NewServiceWithOptions(Options{Store: store})
+}
+
+// NewServiceWithOptions creates one KV-backed realtime ticket service with explicit options.
+func NewServiceWithOptions(options Options) (Service, error) {
+	if options.Store == nil {
+		return nil, errors.New("realtime ticket kv store is required")
 	}
-}
 
-// NewMemoryServiceWithClock creates an in-memory realtime ticket service using the provided clock, or the system clock if clock is nil.
-func NewMemoryServiceWithClock(clock Clock) Service {
+	clock := options.Clock
 	if clock == nil {
 		clock = systemClock{}
 	}
-	return &memoryService{
-		clock: clock,
-		store: make(map[string]storedTicket),
+
+	keyBuilder := options.KeyBuilder
+	keyPrefix := strings.TrimSpace(options.KeyPrefix)
+	if keyPrefix == "" {
+		keyPrefix = kvkeys.Join("realtimeauth", "tickets")
 	}
+	if keyBuilder == nil {
+		keyBuilder = func(ticketID string) string {
+			return kvkeys.Join(keyPrefix, ticketID)
+		}
+	}
+
+	return &kvService{
+		store:      options.Store,
+		clock:      clock,
+		keyPrefix:  keyPrefix,
+		keyBuilder: keyBuilder,
+	}, nil
 }
 
-func (s *memoryService) Issue(_ context.Context, req IssueRequest) (IssuedTicket, error) {
+// NewMemoryService creates a realtime ticket service backed by an in-process KV store.
+func NewMemoryService() Service {
+	return NewMemoryServiceWithClock(nil)
+}
+
+// NewMemoryServiceWithClock creates a realtime ticket service backed by an in-process KV store.
+func NewMemoryServiceWithClock(clock Clock) Service {
+	service, err := NewServiceWithOptions(Options{
+		Store: kvx.NewMemory(kvx.MemoryOptions{Clock: clock}),
+		Clock: clock,
+	})
+	if err != nil {
+		panic(err)
+	}
+	return service
+}
+
+func (s *kvService) Issue(ctx context.Context, req IssueRequest) (IssuedTicket, error) {
 	if req.UserID == 0 || strings.TrimSpace(req.ResourceID) == "" || strings.TrimSpace(req.Scope) == "" {
 		return IssuedTicket{}, ErrInvalidTicketSpec
 	}
+
 	ttl := req.TTL
 	if ttl <= 0 {
 		ttl = defaultTicketTTL
 	}
+
 	resourceType := strings.TrimSpace(req.ResourceType)
 	if resourceType == "" {
 		resourceType = defaultResourceType
 	}
+
 	ticketID := uuid.NewString()
 	sessionID := strings.TrimSpace(req.SessionID)
 	if sessionID == "" {
 		sessionID = "shell_session_" + strings.ReplaceAll(uuid.NewString(), "-", "")
 	}
+
 	secret, err := randomSecret(minTicketSecretBytes)
 	if err != nil {
 		return IssuedTicket{}, fmt.Errorf("generate realtime ticket secret: %w", err)
 	}
+
 	now := s.clock.Now()
 	expiresAt := now.Add(ttl)
-	record := storedTicket{
-		ticketID:     ticketID,
-		secretHash:   hashTicketSecret(secret),
-		sessionID:    sessionID,
-		userID:       req.UserID,
-		resourceType: resourceType,
-		resourceID:   strings.TrimSpace(req.ResourceID),
-		scope:        strings.TrimSpace(req.Scope),
-		command:      strings.TrimSpace(req.Command),
-		cols:         req.Cols,
-		rows:         req.Rows,
-		clientIP:     strings.TrimSpace(req.ClientIP),
-		userAgent:    strings.TrimSpace(req.UserAgent),
-		expiresAt:    expiresAt,
+	record := ticketRecord{
+		TicketID:     ticketID,
+		SecretHash:   hashTicketSecret(secret),
+		SessionID:    sessionID,
+		UserID:       req.UserID,
+		ResourceType: resourceType,
+		ResourceID:   strings.TrimSpace(req.ResourceID),
+		Scope:        strings.TrimSpace(req.Scope),
+		Command:      strings.TrimSpace(req.Command),
+		Cols:         req.Cols,
+		Rows:         req.Rows,
+		ClientIP:     strings.TrimSpace(req.ClientIP),
+		UserAgent:    strings.TrimSpace(req.UserAgent),
+		ExpiresAt:    expiresAt,
+		Status:       ticketStatusIssued,
 	}
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.pruneExpiredLocked(now)
-	s.store[ticketID] = record
+	encoded, err := kvx.EncodeJSON(record)
+	if err != nil {
+		return IssuedTicket{}, fmt.Errorf("encode realtime ticket record: %w", err)
+	}
+	if err := s.store.Put(ctx, s.ticketKey(ticketID), encoded, 0); err != nil {
+		return IssuedTicket{}, fmt.Errorf("store realtime ticket record: %w", err)
+	}
 
 	return IssuedTicket{
 		TicketID:     ticketID,
@@ -204,75 +277,160 @@ func (s *memoryService) Issue(_ context.Context, req IssueRequest) (IssuedTicket
 		ExpiresAt:    expiresAt,
 		UserID:       req.UserID,
 		ResourceType: resourceType,
-		ResourceID:   record.resourceID,
-		Scope:        record.scope,
-		Command:      record.command,
-		Cols:         record.cols,
-		Rows:         record.rows,
+		ResourceID:   record.ResourceID,
+		Scope:        record.Scope,
+		Command:      record.Command,
+		Cols:         record.Cols,
+		Rows:         record.Rows,
 	}, nil
 }
 
-func (s *memoryService) Consume(_ context.Context, req ConsumeRequest) (ConsumedTicket, error) {
-	ticketID, secret, err := splitTicket(strings.TrimSpace(req.Ticket))
+func (s *kvService) Consume(ctx context.Context, req ConsumeRequest) (ConsumedTicket, error) {
+	state, err := s.newConsumeState(req)
 	if err != nil {
 		return ConsumedTicket{}, err
 	}
+
+	snapshot, ok, err := s.loadTicketSnapshot(ctx, state.key, "load")
+	if err != nil {
+		return ConsumedTicket{}, err
+	}
+	if !ok {
+		return ConsumedTicket{}, ErrInvalidTicket
+	}
+
+	if err := s.validateTicketSnapshot(ctx, state, snapshot.record); err != nil {
+		return ConsumedTicket{}, err
+	}
+
+	return s.consumeSnapshot(ctx, state, snapshot)
+}
+
+func (s *kvService) newConsumeState(req ConsumeRequest) (consumeState, error) {
+	ticketID, secret, err := splitTicket(strings.TrimSpace(req.Ticket))
+	if err != nil {
+		return consumeState{}, err
+	}
+
 	scope := strings.TrimSpace(req.Scope)
 	resourceID := strings.TrimSpace(req.ResourceID)
 	resourceType := strings.TrimSpace(req.ResourceType)
 	if scope == "" || resourceID == "" {
-		return ConsumedTicket{}, ErrInvalidTicketSpec
+		return consumeState{}, ErrInvalidTicketSpec
 	}
 	if resourceType == "" {
 		resourceType = defaultResourceType
 	}
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	now := s.clock.Now().Add(defaultConsumeLeeway)
-	record, ok := s.store[ticketID]
-	if !ok {
-		s.pruneExpiredLocked(now)
-		return ConsumedTicket{}, ErrInvalidTicket
-	}
-	if record.expiresAt.Before(now) {
-		delete(s.store, ticketID)
-		s.pruneExpiredLocked(now)
-		return ConsumedTicket{}, ErrExpiredTicket
-	}
-	if err := validateStoredTicket(record, now, secret, scope, resourceType, resourceID); err != nil {
-		if errors.Is(err, ErrExpiredTicket) {
-			delete(s.store, ticketID)
-		}
-		return ConsumedTicket{}, err
-	}
-	usedAt := now
-	record.usedAt = &usedAt
-	s.store[ticketID] = record
-	s.pruneExpiredLocked(now)
-
-	return ConsumedTicket{
-		TicketID:     record.ticketID,
-		SessionID:    record.sessionID,
-		UserID:       record.userID,
-		ResourceType: record.resourceType,
-		ResourceID:   record.resourceID,
-		Scope:        record.scope,
-		Command:      record.command,
-		Cols:         record.cols,
-		Rows:         record.rows,
-		ClientIP:     record.clientIP,
-		UserAgent:    record.userAgent,
-		ExpiresAt:    record.expiresAt,
+	return consumeState{
+		key:          s.ticketKey(ticketID),
+		secret:       secret,
+		scope:        scope,
+		resourceType: resourceType,
+		resourceID:   resourceID,
+		now:          s.clock.Now().Add(defaultConsumeLeeway),
 	}, nil
 }
 
-func (s *memoryService) pruneExpiredLocked(now time.Time) {
-	for key, item := range s.store {
-		if item.expiresAt.Before(now) {
-			delete(s.store, key)
+func (s *kvService) loadTicketSnapshot(ctx context.Context, key string, operation string) (ticketSnapshot, bool, error) {
+	item, ok, err := s.store.Get(ctx, key)
+	if err != nil {
+		return ticketSnapshot{}, false, fmt.Errorf("%s realtime ticket record: %w", operation, err)
+	}
+	if !ok {
+		return ticketSnapshot{}, false, nil
+	}
+
+	record, err := decodeTicketRecord(item.Value)
+	if err != nil {
+		return ticketSnapshot{}, false, fmt.Errorf("decode realtime ticket record: %w", err)
+	}
+
+	return ticketSnapshot{item: item, record: record}, true, nil
+}
+
+func (s *kvService) validateTicketSnapshot(ctx context.Context, state consumeState, record ticketRecord) error {
+	if record.ExpiresAt.Before(state.now) {
+		_ = s.store.Delete(ctx, state.key)
+		return ErrExpiredTicket
+	}
+
+	if err := validateStoredTicket(record, state.now, state.secret, state.scope, state.resourceType, state.resourceID); err != nil {
+		if errors.Is(err, ErrExpiredTicket) {
+			_ = s.store.Delete(ctx, state.key)
 		}
+		return err
+	}
+
+	return nil
+}
+
+func (s *kvService) consumeSnapshot(ctx context.Context, state consumeState, snapshot ticketSnapshot) (ConsumedTicket, error) {
+	record := snapshot.record
+	usedAt := state.now
+	record.Status = ticketStatusUsed
+	record.UsedAt = &usedAt
+
+	replacement, err := kvx.EncodeJSON(record)
+	if err != nil {
+		return ConsumedTicket{}, fmt.Errorf("encode consumed realtime ticket record: %w", err)
+	}
+
+	remainingTTL := record.ExpiresAt.Sub(state.now)
+	if remainingTTL <= 0 {
+		_ = s.store.Delete(ctx, state.key)
+		return ConsumedTicket{}, ErrExpiredTicket
+	}
+
+	swapped, err := s.store.CompareAndSwap(ctx, state.key, snapshot.item.Value, replacement, remainingTTL)
+	if err != nil {
+		return ConsumedTicket{}, fmt.Errorf("consume realtime ticket record: %w", err)
+	}
+	if !swapped {
+		return s.resolveConcurrentConsume(ctx, state)
+	}
+
+	return consumedTicketFromRecord(record), nil
+}
+
+func (s *kvService) resolveConcurrentConsume(ctx context.Context, state consumeState) (ConsumedTicket, error) {
+	snapshot, ok, err := s.loadTicketSnapshot(ctx, state.key, "reload")
+	if err != nil {
+		return ConsumedTicket{}, err
+	}
+	if !ok {
+		return ConsumedTicket{}, ErrInvalidTicket
+	}
+
+	if err := s.validateTicketSnapshot(ctx, state, snapshot.record); err != nil {
+		return ConsumedTicket{}, err
+	}
+
+	return ConsumedTicket{}, ErrUsedTicket
+}
+
+func (s *kvService) ticketKey(ticketID string) string {
+	return s.keyBuilder(strings.TrimSpace(ticketID))
+}
+
+func decodeTicketRecord(value []byte) (ticketRecord, error) {
+	return kvx.DecodeJSON[ticketRecord](value)
+}
+
+func consumedTicketFromRecord(record ticketRecord) ConsumedTicket {
+	return ConsumedTicket{
+		TicketID:     record.TicketID,
+		SessionID:    record.SessionID,
+		UserID:       record.UserID,
+		ResourceType: record.ResourceType,
+		ResourceID:   record.ResourceID,
+		Scope:        record.Scope,
+		Command:      record.Command,
+		Cols:         record.Cols,
+		Rows:         record.Rows,
+		ClientIP:     record.ClientIP,
+		UserAgent:    record.UserAgent,
+		ExpiresAt:    record.ExpiresAt,
 	}
 }
 
@@ -308,26 +466,26 @@ func splitTicket(raw string) (string, string, error) {
 
 // validateStoredTicket validates a stored ticket against the current time, secret, scope, and resource binding.
 func validateStoredTicket(
-	record storedTicket,
+	record ticketRecord,
 	now time.Time,
 	secret string,
 	scope string,
 	resourceType string,
 	resourceID string,
 ) error {
-	if record.expiresAt.Before(now) {
+	if record.ExpiresAt.Before(now) {
 		return ErrExpiredTicket
 	}
-	if record.usedAt != nil {
+	if record.Status == ticketStatusUsed || record.UsedAt != nil {
 		return ErrUsedTicket
 	}
-	if record.secretHash != hashTicketSecret(secret) {
+	if record.SecretHash != hashTicketSecret(secret) {
 		return ErrInvalidTicket
 	}
-	if record.scope != scope {
+	if record.Scope != scope {
 		return ErrScopeMismatch
 	}
-	if record.resourceID != resourceID || record.resourceType != resourceType {
+	if record.ResourceID != resourceID || record.ResourceType != resourceType {
 		return ErrResourceMismatch
 	}
 	return nil

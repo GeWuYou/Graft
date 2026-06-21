@@ -6,6 +6,7 @@ package redisx
 import (
 	"context"
 	"fmt"
+	"runtime"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -14,6 +15,40 @@ import (
 )
 
 const redisPingTimeout = 3 * time.Second
+
+const defaultPoolSizePerCPU = 10
+const percentageScale = 100
+
+// HealthReporter reports narrow Redis runtime health without exposing the raw client to modules.
+type HealthReporter interface {
+	Report(context.Context) (HealthReport, error)
+}
+
+// HealthReport captures Redis availability, latency, and pool stats.
+type HealthReport struct {
+	Configured bool
+	Reachable  bool
+	Latency    time.Duration
+	Pool       PoolStats
+}
+
+// PoolStats describes Redis connection-pool behavior in core-owned terms.
+type PoolStats struct {
+	Capacity             int
+	MaxActiveConnections int
+	OpenConnections      int
+	InUseConnections     int
+	IdleConnections      int
+	UsagePercent         float64
+	WaitCount            int64
+	WaitDuration         time.Duration
+	TimeoutCount         int64
+	StaleCount           int64
+}
+
+type reporter struct {
+	client *redis.Client
+}
 
 // Open 创建并验证服务端运行时所需的 Redis 客户端。
 //
@@ -42,4 +77,69 @@ func Open(ctx context.Context, cfg config.RedisConfig) (*redis.Client, error) {
 	}
 
 	return client, nil
+}
+
+// NewHealthReporter wraps the core Redis client in a narrow health-reporting surface.
+func NewHealthReporter(client *redis.Client) HealthReporter {
+	return reporter{client: client}
+}
+
+// Report checks Redis reachability and current pool stats.
+func (r reporter) Report(ctx context.Context) (HealthReport, error) {
+	if r.client == nil {
+		return HealthReport{}, nil
+	}
+
+	pingCtx, cancel := context.WithTimeout(ctx, redisPingTimeout)
+	defer cancel()
+
+	startedAt := time.Now()
+	if err := r.client.Ping(pingCtx).Err(); err != nil {
+		return HealthReport{
+			Configured: true,
+			Reachable:  false,
+			Pool:       poolStatsFromClient(r.client),
+		}, fmt.Errorf("ping redis: %w", err)
+	}
+
+	return HealthReport{
+		Configured: true,
+		Reachable:  true,
+		Latency:    time.Since(startedAt),
+		Pool:       poolStatsFromClient(r.client),
+	}, nil
+}
+
+func poolStatsFromClient(client *redis.Client) PoolStats {
+	if client == nil {
+		return PoolStats{}
+	}
+
+	options := client.Options()
+	stats := client.PoolStats()
+	capacity := options.PoolSize
+	if capacity <= 0 {
+		capacity = defaultPoolSizePerCPU * runtime.GOMAXPROCS(0)
+	}
+	inUseConnections := int(stats.TotalConns - stats.IdleConns)
+
+	return PoolStats{
+		Capacity:             capacity,
+		MaxActiveConnections: options.MaxActiveConns,
+		OpenConnections:      int(stats.TotalConns),
+		InUseConnections:     inUseConnections,
+		IdleConnections:      int(stats.IdleConns),
+		UsagePercent:         usagePercent(inUseConnections, capacity),
+		WaitCount:            int64(stats.WaitCount),
+		WaitDuration:         time.Duration(stats.WaitDurationNs),
+		TimeoutCount:         int64(stats.Timeouts),
+		StaleCount:           int64(stats.StaleConns),
+	}
+}
+
+func usagePercent(inUse int, capacity int) float64 {
+	if inUse <= 0 || capacity <= 0 {
+		return 0
+	}
+	return float64(inUse) / float64(capacity) * percentageScale
 }

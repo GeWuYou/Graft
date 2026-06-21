@@ -31,12 +31,19 @@ import (
 	containerlocales "graft/server/modules/container/locales"
 )
 
+func newRouteTestService(options containerServiceOptions) (*service, error) {
+	if options.realtimeTickets == nil {
+		options.realtimeTickets = realtimeauth.NewMemoryService()
+	}
+	return newService(options)
+}
+
 func TestRoutesRequireContainerPermissions(t *testing.T) {
 	t.Parallel()
 
 	authorizer := &recordingAuthorizer{}
 	ctx, engine := newRouteTestContext(authorizer)
-	service, err := newService(containerServiceOptions{
+	service, err := newRouteTestService(containerServiceOptions{
 		runtime:                 fakeRuntime{},
 		enabled:                 true,
 		dangerousActionsEnabled: true,
@@ -255,7 +262,7 @@ func TestShellSessionRouteRejectsWhenFeatureDisabled(t *testing.T) {
 			containercontract.ContainerShellEnabledConfig.String():   false,
 		}},
 	})
-	service, err := newService(containerServiceOptions{
+	service, err := newRouteTestService(containerServiceOptions{
 		runtime:                 fakeRuntime{},
 		enabled:                 true,
 		dangerousActionsEnabled: true,
@@ -290,7 +297,7 @@ func TestShellWebSocketRouteRejectsInvalidOrigin(t *testing.T) {
 		}},
 		websocketAllowedOrigins: []string{"https://console.example.com"},
 	})
-	service, err := newService(containerServiceOptions{
+	service, err := newRouteTestService(containerServiceOptions{
 		runtime:                 fakeRuntime{},
 		enabled:                 true,
 		dangerousActionsEnabled: true,
@@ -336,7 +343,7 @@ func TestShellWebSocketRouteRejectsReusedTicket(t *testing.T) {
 		}},
 		websocketAllowedOrigins: []string{"https://console.example.com"},
 	})
-	registered, err := newService(containerServiceOptions{
+	registered, err := newRouteTestService(containerServiceOptions{
 		runtime:                 fakeRuntime{},
 		enabled:                 true,
 		dangerousActionsEnabled: true,
@@ -386,7 +393,7 @@ func TestShellWebSocketRouteConnectsWithoutAuthorizationHeaderAfterTicketIssue(t
 		}},
 		websocketAllowedOrigins: []string{"http://127.0.0.1"},
 	})
-	registered, err := newService(containerServiceOptions{
+	registered, err := newRouteTestService(containerServiceOptions{
 		runtime:                 fakeRuntime{},
 		enabled:                 true,
 		dangerousActionsEnabled: true,
@@ -447,7 +454,7 @@ func TestShellWebSocketRoutePublishesCloseAuditOnDisconnect(t *testing.T) {
 		}},
 		websocketAllowedOrigins: []string{"http://127.0.0.1"},
 	})
-	registered, err := newService(containerServiceOptions{
+	registered, err := newRouteTestService(containerServiceOptions{
 		runtime:                 fakeRuntime{},
 		auditBus:                bus,
 		moduleName:              moduleID,
@@ -512,7 +519,7 @@ func newRegisteredRouteTestService(t *testing.T) (*module.Context, *gin.Engine) 
 	t.Helper()
 
 	ctx, engine := newRouteTestContext(&recordingAuthorizer{})
-	service, err := newService(containerServiceOptions{
+	service, err := newRouteTestService(containerServiceOptions{
 		runtime:                 fakeRuntime{},
 		enabled:                 true,
 		dangerousActionsEnabled: true,
@@ -582,6 +589,11 @@ func newRouteTestContextWithOptions(options routeTestContextOptions) (*module.Co
 		}); err != nil {
 			panic(err)
 		}
+	}
+	if err := services.RegisterSingleton((*realtimeauth.Service)(nil), func(internalcontainer.Resolver) (any, error) {
+		return realtimeauth.NewMemoryService(), nil
+	}); err != nil {
+		panic(err)
 	}
 	return &module.Context{
 		Logger:   zap.NewNop(),

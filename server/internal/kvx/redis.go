@@ -1,0 +1,180 @@
+// Copyright (c) 2025-2026 GeWuYou
+// SPDX-License-Identifier: Apache-2.0
+
+package kvx
+
+import (
+	"context"
+	"errors"
+	"strings"
+	"time"
+
+	"github.com/redis/go-redis/v9"
+)
+
+var compareAndSwapScript = redis.NewScript(`
+local current = redis.call("GET", KEYS[1])
+if not current then
+	return 0
+end
+if current ~= ARGV[1] then
+	return 0
+end
+local ttl = tonumber(ARGV[3])
+if ttl > 0 then
+	redis.call("PSETEX", KEYS[1], ttl, ARGV[2])
+else
+	redis.call("SET", KEYS[1], ARGV[2])
+end
+return 1
+`)
+
+var compareAndDeleteScript = redis.NewScript(`
+local current = redis.call("GET", KEYS[1])
+if not current then
+	return 0
+end
+if current ~= ARGV[1] then
+	return 0
+end
+redis.call("DEL", KEYS[1])
+return 1
+`)
+
+// RedisOptions configures the Redis-backed KV adapter.
+type RedisOptions struct {
+	Prefix string
+	Now    func() time.Time
+}
+
+// Redis adapts go-redis to the mechanical KV contract.
+type Redis struct {
+	client redis.Cmdable
+	prefix string
+	now    func() time.Time
+}
+
+// NewRedis creates one Redis-backed KV store.
+func NewRedis(client redis.Cmdable, options RedisOptions) (*Redis, error) {
+	if client == nil {
+		return nil, errors.New("kv redis client is required")
+	}
+
+	now := options.Now
+	if now == nil {
+		now = func() time.Time { return time.Now().UTC() }
+	}
+
+	return &Redis{
+		client: client,
+		prefix: strings.TrimSpace(options.Prefix),
+		now:    now,
+	}, nil
+}
+
+// Put writes one value into Redis with the given TTL.
+func (r *Redis) Put(ctx context.Context, key string, value []byte, ttl time.Duration) error {
+	if err := validateKey(key); err != nil {
+		return err
+	}
+	if err := validateTTL(ttl); err != nil {
+		return err
+	}
+
+	return r.client.Set(ctx, r.prefixed(key), cloneBytes(value), ttl).Err()
+}
+
+// Get reads one value from Redis when present.
+func (r *Redis) Get(ctx context.Context, key string) (Item, bool, error) {
+	if err := validateKey(key); err != nil {
+		return Item{}, false, err
+	}
+
+	value, err := r.client.Get(ctx, r.prefixed(key)).Bytes()
+	if errors.Is(err, redis.Nil) {
+		return Item{}, false, nil
+	}
+	if err != nil {
+		return Item{}, false, err
+	}
+
+	item := Item{Value: cloneBytes(value)}
+	ttl, ttlErr := r.client.PTTL(ctx, r.prefixed(key)).Result()
+	if ttlErr != nil && !errors.Is(ttlErr, redis.Nil) {
+		return Item{}, false, ttlErr
+	}
+	if ttl > 0 {
+		item.ExpiresAt = r.now().Add(ttl)
+	}
+
+	return item, true, nil
+}
+
+// Delete removes one Redis value.
+func (r *Redis) Delete(ctx context.Context, key string) error {
+	if err := validateKey(key); err != nil {
+		return err
+	}
+
+	return r.client.Del(ctx, r.prefixed(key)).Err()
+}
+
+// CompareAndSwap updates one Redis value only when the current bytes still match.
+func (r *Redis) CompareAndSwap(ctx context.Context, key string, oldValue []byte, newValue []byte, ttl time.Duration) (bool, error) {
+	if err := validateKey(key); err != nil {
+		return false, err
+	}
+	if err := validateTTL(ttl); err != nil {
+		return false, err
+	}
+
+	result, err := compareAndSwapScript.Run(
+		ctx,
+		r.client,
+		[]string{r.prefixed(key)},
+		string(oldValue),
+		string(newValue),
+		ttlMilliseconds(ttl),
+	).Int64()
+	if err != nil {
+		return false, err
+	}
+
+	return result == 1, nil
+}
+
+// CompareAndDelete removes one Redis value only when the current bytes still match.
+func (r *Redis) CompareAndDelete(ctx context.Context, key string, oldValue []byte) (bool, error) {
+	if err := validateKey(key); err != nil {
+		return false, err
+	}
+
+	result, err := compareAndDeleteScript.Run(
+		ctx,
+		r.client,
+		[]string{r.prefixed(key)},
+		string(oldValue),
+	).Int64()
+	if err != nil {
+		return false, err
+	}
+
+	return result == 1, nil
+}
+
+func (r *Redis) prefixed(key string) string {
+	if r.prefix == "" {
+		return key
+	}
+	return r.prefix + ":" + key
+}
+
+func ttlMilliseconds(ttl time.Duration) int64 {
+	if ttl <= 0 {
+		return 0
+	}
+	if ttl < time.Millisecond {
+		return 1
+	}
+	return ttl.Milliseconds()
+}

@@ -30,6 +30,7 @@ import (
 	"graft/server/internal/eventbus"
 	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
+	"graft/server/internal/kvx"
 	"graft/server/internal/logger"
 	"graft/server/internal/menu"
 	"graft/server/internal/module"
@@ -38,11 +39,14 @@ import (
 	"graft/server/internal/moduleruntime"
 	moduleruntimelocales "graft/server/internal/moduleruntime/locales"
 	"graft/server/internal/permission"
+	"graft/server/internal/realtimeauth"
 	"graft/server/internal/redisx"
+	"graft/server/internal/statex"
 )
 
 const moduleShutdownTimeout = 5 * time.Second
 const appRuntimeLogComponent = "internal.app.runtime"
+const coreServiceRegistrationCapacity = 12
 const (
 	coreModuleRuntimeHealthWidgetOrder = 10
 	moduleRuntimeHealthTitleKey        = "dashboard.widget.moduleRuntimeHealth.title"
@@ -530,7 +534,6 @@ func (r *Runtime) newModuleContext(runCtx context.Context) *module.Context {
 		Logger:             r.logger,
 		I18n:               r.i18n,
 		EventBus:           r.eventBus,
-		Redis:              r.redis,
 		Router:             r.server.Engine().Group("/api"),
 		Services:           r.services,
 		RuntimeMetadata:    r.runtimeMetadata,
@@ -934,10 +937,32 @@ func (h coreHealthGeneratedHandler) GetHealthz() {
 }
 
 func (r *Runtime) registerCoreServices() error {
-	registrations := []struct {
-		key      any
-		provider func() (any, error)
-	}{
+	registrations := r.coreServiceRegistrations()
+
+	for _, registration := range registrations {
+		if err := r.registerSingleton(registration.key, registration.provider); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+type serviceRegistration struct {
+	key      any
+	provider func() (any, error)
+}
+
+func (r *Runtime) coreServiceRegistrations() []serviceRegistration {
+	registrations := make([]serviceRegistration, 0, coreServiceRegistrationCapacity)
+	registrations = append(registrations, r.foundationServiceRegistrations()...)
+	registrations = append(registrations, r.runtimeDataServiceRegistrations()...)
+	registrations = append(registrations, r.redisBackedServiceRegistrations()...)
+	return registrations
+}
+
+func (r *Runtime) foundationServiceRegistrations() []serviceRegistration {
+	return []serviceRegistration{
 		{
 			key: (*configregistry.Registry)(nil),
 			provider: func() (any, error) {
@@ -983,6 +1008,11 @@ func (r *Runtime) registerCoreServices() error {
 				return r.eventBus, nil
 			},
 		},
+	}
+}
+
+func (r *Runtime) runtimeDataServiceRegistrations() []serviceRegistration {
+	return []serviceRegistration{
 		{
 			key: (*sql.DB)(nil),
 			provider: func() (any, error) {
@@ -1002,14 +1032,53 @@ func (r *Runtime) registerCoreServices() error {
 			},
 		},
 	}
+}
 
-	for _, registration := range registrations {
-		if err := r.registerSingleton(registration.key, registration.provider); err != nil {
-			return err
-		}
+func (r *Runtime) redisBackedServiceRegistrations() []serviceRegistration {
+	return []serviceRegistration{
+		{
+			key: (*realtimeauth.Service)(nil),
+			provider: func() (any, error) {
+				if r.redis == nil {
+					return nil, errors.New("redis client is unavailable")
+				}
+
+				namespace := "graft"
+				if r.config != nil {
+					appName := strings.TrimSpace(r.config.App.Name)
+					if appName != "" {
+						namespace = appName
+					}
+				}
+
+				store, err := kvx.NewRedis(r.redis, kvx.RedisOptions{
+					Prefix: namespace + ":kv:realtimeauth",
+				})
+				if err != nil {
+					return nil, fmt.Errorf("create realtime ticket kv store: %w", err)
+				}
+
+				service, err := realtimeauth.NewService(store)
+				if err != nil {
+					return nil, fmt.Errorf("create realtime ticket service: %w", err)
+				}
+
+				return service, nil
+			},
+		},
+		{
+			key: (*redisx.HealthReporter)(nil),
+			provider: func() (any, error) {
+				return redisx.NewHealthReporter(r.redis), nil
+			},
+		},
+		{
+			key: (*statex.TimeSeriesStore)(nil),
+			provider: func() (any, error) {
+				return statex.NewRedisTimeSeriesStore(r.redis)
+			},
+		},
 	}
-
-	return nil
 }
 
 func newRuntimeCacheManager(cfg *config.Config, client *redis.Client) (*cachex.Manager, error) {

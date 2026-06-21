@@ -35,6 +35,8 @@ import (
 	"graft/server/internal/moduleregistry"
 	"graft/server/internal/moduleruntime"
 	"graft/server/internal/permission"
+	"graft/server/internal/redisx"
+	"graft/server/internal/statex"
 	testent "graft/server/internal/testent"
 	systemconfiglocales "graft/server/modules/system-config/locales"
 )
@@ -469,6 +471,8 @@ func TestRegisterCoreServicesExposesRuntimeSingletons(t *testing.T) {
 	assertResolvedService(t, runtime.services, (*cachex.Manager)(nil), cacheManager, "cache manager")
 	assertAppLoggerRegistered(t, runtime.services)
 	assertResolvedService(t, runtime.services, (*logger.AppLogRepository)(nil), runtime.appLogRepository, "app log repository")
+	assertServiceRegistered(t, runtime.services, (*redisx.HealthReporter)(nil), "redis health reporter")
+	assertServiceRegistered(t, runtime.services, (*statex.TimeSeriesStore)(nil), "statex time-series store")
 	assertServiceKeyNotRegistered(t, runtime.services, (*redis.Client)(nil), "redis client")
 	assertServiceKeyNotRegistered(t, runtime.services, (*testent.Client)(nil), "*ent.Client")
 }
@@ -823,6 +827,18 @@ func assertAppLoggerRegistered(t *testing.T, resolver container.Resolver) {
 	}
 	if appLogger == nil {
 		t.Fatal("expected non-nil app logger")
+	}
+}
+
+func assertServiceRegistered(t *testing.T, resolver container.Resolver, key any, name string) {
+	t.Helper()
+
+	resolved, err := resolver.Resolve(key)
+	if err != nil {
+		t.Fatalf("resolve %s: %v", name, err)
+	}
+	if resolved == nil {
+		t.Fatalf("expected %s to resolve to a non-nil service", name)
 	}
 }
 

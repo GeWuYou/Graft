@@ -86,6 +86,10 @@ func newContainerService(ctx *module.Context, moduleName string) (*service, erro
 	if ctx != nil && ctx.Config != nil {
 		allowedOrigins = append(allowedOrigins, ctx.Config.HTTPX.WebSocketAllowedOrigins...)
 	}
+	realtimeTickets, err := resolveRealtimeTicketService(ctx)
+	if err != nil {
+		return nil, err
+	}
 	return newService(containerServiceOptions{
 		runtime:                 runtime,
 		runtimeOptions:          options,
@@ -101,6 +105,7 @@ func newContainerService(ctx *module.Context, moduleName string) (*service, erro
 		environmentPolicy:       options.environmentPolicy,
 		orchestratorPolicies:    options.orchestratorPolicies,
 		websocketAllowedOrigins: allowedOrigins,
+		realtimeTickets:         realtimeTickets,
 	})
 }
 
@@ -108,7 +113,7 @@ func newContainerService(ctx *module.Context, moduleName string) (*service, erro
 func newService(options containerServiceOptions) (*service, error) {
 	options.defaultTail, options.maxTail = normalizeContainerLogTailBounds(options.defaultTail, options.maxTail)
 	if options.realtimeTickets == nil {
-		options.realtimeTickets = realtimeauth.NewMemoryService()
+		return nil, errors.New("realtime ticket service is required")
 	}
 	runtimeOptions := options.runtimeOptions
 	if strings.TrimSpace(runtimeOptions.runtime) == "" {
@@ -148,6 +153,14 @@ func newService(options containerServiceOptions) (*service, error) {
 		websocketAllowedOrigins: append([]string(nil), options.websocketAllowedOrigins...),
 		realtimeTickets:         options.realtimeTickets,
 	}, nil
+}
+
+func resolveRealtimeTicketService(ctx *module.Context) (realtimeauth.Service, error) {
+	if ctx == nil || ctx.Services == nil {
+		return nil, errors.New("realtime ticket service resolver is unavailable")
+	}
+
+	return module.ResolveService[realtimeauth.Service](ctx.Services, (*realtimeauth.Service)(nil))
 }
 
 func (s *service) Close() error {

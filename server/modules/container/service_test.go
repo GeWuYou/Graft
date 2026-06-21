@@ -22,9 +22,17 @@ import (
 	"graft/server/internal/httpx"
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
+	"graft/server/internal/realtimeauth"
 	containercontract "graft/server/modules/container/contract"
 	"graft/server/modules/container/terminal"
 )
+
+func newTestService(options containerServiceOptions) (*service, error) {
+	if options.realtimeTickets == nil {
+		options.realtimeTickets = realtimeauth.NewMemoryService()
+	}
+	return newService(options)
+}
 
 func TestParseRefRejectsUnsafeValues(t *testing.T) {
 	t.Parallel()
@@ -47,7 +55,7 @@ func TestParseRefRejectsUnsafeValues(t *testing.T) {
 func TestServiceNormalizesLogQuery(t *testing.T) {
 	t.Parallel()
 
-	service, err := newService(containerServiceOptions{
+	service, err := newTestService(containerServiceOptions{
 		runtime:     fakeRuntime{},
 		enabled:     true,
 		defaultTail: defaultContainerLogsDefaultTail,
@@ -88,7 +96,7 @@ func TestDangerousActionsDisabledPublishesFailureAudit(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("subscribe audit: %v", err)
 	}
-	service, err := newService(containerServiceOptions{
+	service, err := newTestService(containerServiceOptions{
 		runtime:                 fakeRuntime{},
 		auditBus:                bus,
 		moduleName:              moduleID,
@@ -140,7 +148,7 @@ func TestRemoveDangerousActionsDisabledPublishesForceAudit(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("subscribe audit: %v", err)
 	}
-	service, err := newService(containerServiceOptions{
+	service, err := newTestService(containerServiceOptions{
 		runtime:                 fakeRuntime{},
 		auditBus:                bus,
 		moduleName:              moduleID,
@@ -175,7 +183,7 @@ func TestRemoveDangerousActionsDisabledPublishesForceAudit(t *testing.T) {
 func TestServiceActionResponseCarriesMessageKey(t *testing.T) {
 	t.Parallel()
 
-	service, err := newService(containerServiceOptions{
+	service, err := newTestService(containerServiceOptions{
 		runtime:                 fakeRuntime{},
 		enabled:                 true,
 		dangerousActionsEnabled: true,
@@ -205,7 +213,7 @@ func TestServiceActionResponseCarriesMessageKey(t *testing.T) {
 func TestServiceRemoveResponseCarriesMessageKey(t *testing.T) {
 	t.Parallel()
 
-	service, err := newService(containerServiceOptions{
+	service, err := newTestService(containerServiceOptions{
 		runtime:                 fakeRuntime{},
 		enabled:                 true,
 		dangerousActionsEnabled: true,
@@ -373,7 +381,7 @@ func newEnvironmentPolicyTestServiceWithValues(t *testing.T, policy string, valu
 		configValues[key] = value
 	}
 
-	service, err := newService(containerServiceOptions{
+	service, err := newTestService(containerServiceOptions{
 		runtime: fakeRuntime{},
 		systemConfig: serviceTestPolicyConfig{
 			serviceTestSystemConfig: serviceTestSystemConfig{values: configValues},
@@ -436,7 +444,7 @@ func TestServiceActionFailurePublishesAuditWithRuntimeContext(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("subscribe audit: %v", err)
 	}
-	service, err := newService(containerServiceOptions{
+	service, err := newTestService(containerServiceOptions{
 		runtime:                 failingRuntime{err: errInvalidContainerState},
 		auditBus:                bus,
 		moduleName:              moduleID,
@@ -472,7 +480,7 @@ func TestRuntimeAccessDisabledUsesResolverAndDoesNotTouchRuntime(t *testing.T) {
 	t.Parallel()
 
 	runtime := &countingRuntime{}
-	service, err := newService(containerServiceOptions{
+	service, err := newTestService(containerServiceOptions{
 		runtime: runtime,
 		systemConfig: serviceTestSystemConfig{values: map[string]bool{
 			containercontract.ContainerRuntimeEnabledConfig.String(): false,
@@ -497,7 +505,7 @@ func TestRuntimeAccessDisabledUsesResolverAndDoesNotTouchRuntime(t *testing.T) {
 func TestRuntimeAccessEnabledButRuntimeUnavailableUsesConnectionErrorKey(t *testing.T) {
 	t.Parallel()
 
-	service, err := newService(containerServiceOptions{
+	service, err := newTestService(containerServiceOptions{
 		runtime: failingRuntime{err: errRuntimeDaemonUnavailable},
 		systemConfig: serviceTestSystemConfig{values: map[string]bool{
 			containercontract.ContainerRuntimeEnabledConfig.String(): true,
@@ -521,7 +529,7 @@ func TestRuntimeAccessEnabledButRuntimeUnavailableUsesConnectionErrorKey(t *test
 func TestDangerousActionsResolverControlsWriteActionsOnly(t *testing.T) {
 	t.Parallel()
 
-	service, err := newService(containerServiceOptions{
+	service, err := newTestService(containerServiceOptions{
 		runtime: fakeRuntime{},
 		systemConfig: serviceTestSystemConfig{values: map[string]bool{
 			containercontract.ContainerRuntimeEnabledConfig.String():          true,
@@ -586,7 +594,7 @@ func TestServiceBatchActionAllowsPartialSuccess(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("subscribe audit: %v", err)
 	}
-	service, err := newService(containerServiceOptions{
+	service, err := newTestService(containerServiceOptions{
 		runtime:                 selectiveRemoveRuntime{failID: "bad"},
 		auditBus:                bus,
 		enabled:                 true,
@@ -647,7 +655,7 @@ func TestServiceBatchActionBlocksWarnManagedContainers(t *testing.T) {
 			},
 		},
 	}
-	service, err := newService(containerServiceOptions{
+	service, err := newTestService(containerServiceOptions{
 		runtime: runtime,
 		systemConfig: serviceTestPolicyConfig{
 			serviceTestSystemConfig: serviceTestSystemConfig{values: map[string]bool{
@@ -713,7 +721,7 @@ func TestServiceRunActionBlocksUnknownManagedPolicyWhenDetailFails(t *testing.T)
 			StatusAfter:  actionStatusRemoved,
 		},
 	}
-	service, err := newService(containerServiceOptions{
+	service, err := newTestService(containerServiceOptions{
 		runtime:                 runtime,
 		enabled:                 true,
 		dangerousActionsEnabled: true,
@@ -739,7 +747,7 @@ func TestServiceRunActionBlocksUnknownManagedPolicyWhenDetailFails(t *testing.T)
 func TestServiceListFiltersOrchestratorAndAppliesPolicy(t *testing.T) {
 	t.Parallel()
 
-	service, err := newService(containerServiceOptions{
+	service, err := newTestService(containerServiceOptions{
 		runtime: listRuntime{},
 		systemConfig: serviceTestPolicyConfig{
 			serviceTestSystemConfig: serviceTestSystemConfig{values: map[string]bool{
@@ -791,7 +799,7 @@ func TestServiceListFiltersOrchestratorAndAppliesPolicy(t *testing.T) {
 func TestServiceEnvironmentDisplayPolicyUsesUnifiedSystemConfigResolver(t *testing.T) {
 	t.Parallel()
 
-	service, err := newService(containerServiceOptions{
+	service, err := newTestService(containerServiceOptions{
 		runtime: fakeRuntime{},
 		systemConfig: serviceTestPolicyConfig{
 			serviceTestSystemConfig: serviceTestSystemConfig{},
@@ -829,7 +837,7 @@ func TestServiceMountUsageListDoesNotScanAndUsesCache(t *testing.T) {
 	cache := newMountUsageCache(time.Minute)
 	cache.set(mountUsageCacheKey(Ref{Value: "web"}, stableMountID(mount)), cached)
 	runtime := &countingRuntime{mounts: []Mount{mount}}
-	service, err := newService(containerServiceOptions{
+	service, err := newTestService(containerServiceOptions{
 		runtime:         runtime,
 		mountUsageCache: cache,
 		enabled:         true,
@@ -888,7 +896,7 @@ func TestServiceDetailAttachesCachedMountUsageWithoutScanning(t *testing.T) {
 			Mounts: []Mount{mount},
 		},
 	}
-	service, err := newService(containerServiceOptions{
+	service, err := newTestService(containerServiceOptions{
 		runtime:         runtime,
 		mountUsageCache: cache,
 		enabled:         true,
@@ -929,7 +937,7 @@ func TestServiceRefreshMountUsageCachesMeasuredResult(t *testing.T) {
 			MeasuredAt:  "2026-06-17T00:00:00Z",
 		},
 	}
-	service, err := newService(containerServiceOptions{
+	service, err := newTestService(containerServiceOptions{
 		runtime:     runtime,
 		enabled:     true,
 		defaultTail: defaultContainerLogsDefaultTail,
@@ -968,7 +976,7 @@ func TestServiceRefreshMountUsageRejectsArbitraryPath(t *testing.T) {
 	t.Parallel()
 
 	runtime := &countingRuntime{}
-	service, err := newService(containerServiceOptions{
+	service, err := newTestService(containerServiceOptions{
 		runtime:     runtime,
 		enabled:     true,
 		defaultTail: defaultContainerLogsDefaultTail,
@@ -1030,7 +1038,7 @@ func TestSummarizeContainersAccountsForKnownRuntimeStates(t *testing.T) {
 func newListTestService(t *testing.T, dangerousActionsEnabled bool) *service {
 	t.Helper()
 
-	service, err := newService(containerServiceOptions{
+	service, err := newTestService(containerServiceOptions{
 		runtime:                 listRuntime{},
 		enabled:                 true,
 		dangerousActionsEnabled: dangerousActionsEnabled,
@@ -1046,7 +1054,7 @@ func newListTestService(t *testing.T, dangerousActionsEnabled bool) *service {
 func TestServiceListRejectsInvalidQuery(t *testing.T) {
 	t.Parallel()
 
-	service, err := newService(containerServiceOptions{
+	service, err := newTestService(containerServiceOptions{
 		runtime:     fakeRuntime{},
 		enabled:     true,
 		defaultTail: defaultContainerLogsDefaultTail,
@@ -1079,7 +1087,7 @@ func TestPublishShellSessionClosedDetachesCanceledRequestContext(t *testing.T) {
 	t.Parallel()
 
 	bus := &contextStateAuditBus{}
-	service, err := newService(containerServiceOptions{
+	service, err := newTestService(containerServiceOptions{
 		runtime:     fakeRuntime{},
 		auditBus:    bus,
 		moduleName:  moduleID,
@@ -1123,7 +1131,7 @@ func TestPublishShellSessionFailedDetachesCanceledRequestContext(t *testing.T) {
 	t.Parallel()
 
 	bus := &contextStateAuditBus{}
-	service, err := newService(containerServiceOptions{
+	service, err := newTestService(containerServiceOptions{
 		runtime:     fakeRuntime{},
 		auditBus:    bus,
 		moduleName:  moduleID,
@@ -1225,6 +1233,11 @@ func TestNewContainerServiceUsesEffectiveStartupRuntimeConfig(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("register system config resolver: %v", err)
 	}
+	if err := services.RegisterSingleton((*realtimeauth.Service)(nil), func(containerdi.Resolver) (any, error) {
+		return realtimeauth.NewMemoryService(), nil
+	}); err != nil {
+		t.Fatalf("register realtime ticket service: %v", err)
+	}
 	service, err := newContainerService(&module.Context{
 		LifecycleContext: context.Background(),
 		Services:         services,
@@ -1278,7 +1291,7 @@ func newContainerConfigRegistry(t *testing.T) *configregistry.Registry {
 func TestServiceLogsUseRuntimeHotTailConfig(t *testing.T) {
 	t.Parallel()
 
-	service, err := newService(containerServiceOptions{
+	service, err := newTestService(containerServiceOptions{
 		runtime: fakeRuntime{},
 		systemConfig: serviceTestPolicyConfig{
 			values: map[string]string{
@@ -1310,7 +1323,7 @@ func TestRuntimeForRequestInitializesOnceUnderConcurrentAccess(t *testing.T) {
 	t.Parallel()
 
 	var factoryCalls atomic.Int64
-	service, err := newService(containerServiceOptions{
+	service, err := newTestService(containerServiceOptions{
 		runtime: disabledRuntime{},
 		runtimeOptions: containerRuntimeOptions{
 			runtime:  runtimeNameDocker,

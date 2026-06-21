@@ -6,6 +6,7 @@ package monitor
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"math"
 	"runtime"
@@ -26,6 +27,8 @@ import (
 	"graft/server/internal/i18n"
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
+	"graft/server/internal/redisx"
+	"graft/server/internal/statex"
 	monitorcontract "graft/server/modules/monitor/contract"
 	monitorlocales "graft/server/modules/monitor/locales"
 )
@@ -414,6 +417,10 @@ func TestLoadTrendPointsHonorsRequestedRange(t *testing.T) {
 	t.Cleanup(func() {
 		_ = redisClient.Close()
 	})
+	trendStore, err := statex.NewRedisTimeSeriesStore(redisClient)
+	if err != nil {
+		t.Fatalf("new redis trend store: %v", err)
+	}
 
 	storageKey := trendStorageKey("graft", "trend-host")
 	observedAt := time.Date(2026, 5, 20, 9, 0, 0, 0, time.UTC)
@@ -457,12 +464,12 @@ func TestLoadTrendPointsHonorsRequestedRange(t *testing.T) {
 	}
 
 	for _, point := range points {
-		if err := storeTrendPoint(ctx, redisClient, storageKey, point.ObservedAt, point); err != nil {
+		if err := storeTrendPoint(ctx, trendStore, storageKey, point.ObservedAt, point); err != nil {
 			t.Fatalf("store trend point: %v", err)
 		}
 	}
 
-	thirtyMinutePoints, err := loadTrendPoints(ctx, redisClient, storageKey, observedAt, monitorcontract.TrendRange30Minutes.Duration())
+	thirtyMinutePoints, err := loadTrendPoints(ctx, trendStore, storageKey, observedAt, monitorcontract.TrendRange30Minutes.Duration())
 	if err != nil {
 		t.Fatalf("load 30m trend points: %v", err)
 	}
@@ -472,7 +479,7 @@ func TestLoadTrendPointsHonorsRequestedRange(t *testing.T) {
 	assertEqual(t, "30m oldest point", thirtyMinutePoints[0].ObservedAt, points[1].ObservedAt)
 	assertEqual(t, "30m latest point", thirtyMinutePoints[1].ObservedAt, points[2].ObservedAt)
 
-	tenMinutePoints, err := loadTrendPoints(ctx, redisClient, storageKey, observedAt, monitorcontract.TrendRange10Minutes.Duration())
+	tenMinutePoints, err := loadTrendPoints(ctx, trendStore, storageKey, observedAt, monitorcontract.TrendRange10Minutes.Duration())
 	if err != nil {
 		t.Fatalf("load 10m trend points: %v", err)
 	}
@@ -482,17 +489,10 @@ func TestLoadTrendPointsHonorsRequestedRange(t *testing.T) {
 	assertEqual(t, "10m point", tenMinutePoints[0].ObservedAt, points[2].ObservedAt)
 }
 
-func TestBuildServerStatusResponseLoadsRedisTrendPoints(t *testing.T) {
+func TestBuildServerStatusResponseLoadsStateTrendPoints(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	redisServer := miniredis.RunT(t)
-	redisClient := redis.NewClient(&redis.Options{
-		Addr: redisServer.Addr(),
-	})
-	t.Cleanup(func() {
-		_ = redisClient.Close()
-	})
 
 	db, err := sql.Open("sqlite3", ":memory:")
 	if err != nil {
@@ -504,36 +504,58 @@ func TestBuildServerStatusResponseLoadsRedisTrendPoints(t *testing.T) {
 
 	observedAt := time.Now().UTC()
 	storageKey := trendStorageKey("graft", resolveHostName())
-	for _, point := range []generated.ServerStatusTrendPoint{
-		{
-			ObservedAt:                observedAt.Add(-25 * time.Minute),
-			CpuPercent:                12.4,
-			HostMemoryUsedPercent:     39.1,
-			LoadAverageOneMinute:      0.28,
-			LoadAverageFiveMinutes:    0.24,
-			LoadAverageFifteenMinutes: 0.19,
-			Goroutines:                15,
-			RuntimeAllocBytes:         40 * 1024 * 1024,
-			RuntimeHeapInUseBytes:     22 * 1024 * 1024,
-			RuntimeSysBytes:           72 * 1024 * 1024,
+	trendStore := &monitorTrendStoreStub{
+		rangeSamplesByKey: map[string][]statex.TimeSeriesSample{
+			storageKey: {
+				{
+					ObservedAt: observedAt.Add(-25 * time.Minute),
+					Payload: mustMarshalTrendPoint(t, generated.ServerStatusTrendPoint{
+						ObservedAt:                observedAt.Add(-25 * time.Minute),
+						CpuPercent:                12.4,
+						HostMemoryUsedPercent:     39.1,
+						LoadAverageOneMinute:      0.28,
+						LoadAverageFiveMinutes:    0.24,
+						LoadAverageFifteenMinutes: 0.19,
+						Goroutines:                15,
+						RuntimeAllocBytes:         40 * 1024 * 1024,
+						RuntimeHeapInUseBytes:     22 * 1024 * 1024,
+						RuntimeSysBytes:           72 * 1024 * 1024,
+					}),
+				},
+				{
+					ObservedAt: observedAt.Add(-8 * time.Minute),
+					Payload: mustMarshalTrendPoint(t, generated.ServerStatusTrendPoint{
+						ObservedAt:                observedAt.Add(-8 * time.Minute),
+						CpuPercent:                18.7,
+						HostMemoryUsedPercent:     44.3,
+						LoadAverageOneMinute:      0.49,
+						LoadAverageFiveMinutes:    0.35,
+						LoadAverageFifteenMinutes: 0.27,
+						Goroutines:                19,
+						RuntimeAllocBytes:         55 * 1024 * 1024,
+						RuntimeHeapInUseBytes:     30 * 1024 * 1024,
+						RuntimeSysBytes:           88 * 1024 * 1024,
+					}),
+				},
+			},
 		},
-		{
-			ObservedAt:                observedAt.Add(-8 * time.Minute),
-			CpuPercent:                18.7,
-			HostMemoryUsedPercent:     44.3,
-			LoadAverageOneMinute:      0.49,
-			LoadAverageFiveMinutes:    0.35,
-			LoadAverageFifteenMinutes: 0.27,
-			Goroutines:                19,
-			RuntimeAllocBytes:         55 * 1024 * 1024,
-			RuntimeHeapInUseBytes:     30 * 1024 * 1024,
-			RuntimeSysBytes:           88 * 1024 * 1024,
-		},
-	} {
-		if err := storeTrendPoint(ctx, redisClient, storageKey, point.ObservedAt, point); err != nil {
-			t.Fatalf("store redis trend point: %v", err)
-		}
 	}
+	healthReporter := monitorRedisHealthReporterStub{
+		report: redisx.HealthReport{
+			Configured: true,
+			Reachable:  true,
+			Latency:    12 * time.Millisecond,
+			Pool: redisx.PoolStats{
+				Capacity:         24,
+				OpenConnections:  3,
+				InUseConnections: 1,
+				IdleConnections:  2,
+			},
+		},
+	}
+	services := container.New()
+	registerMonitorServiceStub(t, services, (*statex.TimeSeriesStore)(nil), statex.TimeSeriesStore(trendStore))
+	registerMonitorServiceStub(t, services, (*redisx.HealthReporter)(nil), redisx.HealthReporter(healthReporter))
 
 	response, err := buildServerStatusResponse(ctx, &module.Context{
 		Config: &config.Config{
@@ -541,32 +563,121 @@ func TestBuildServerStatusResponseLoadsRedisTrendPoints(t *testing.T) {
 				Name: "graft",
 			},
 		},
-		Redis: redisClient,
+		Services: services,
 	}, moduleWithStartedAt(db, observedAt.Add(-5*time.Minute)), monitorcontract.TrendRange30Minutes)
 	if err != nil {
-		t.Fatalf("build response with redis trend: %v", err)
+		t.Fatalf("build response with state trend: %v", err)
 	}
 
 	assertEqual(t, "redis trend range", string(response.Trend.Range), monitorcontract.TrendRange30Minutes.String())
 	if response.Dependencies.Redis.Pool == nil {
 		t.Fatalf("expected redis pool stats to be recorded")
 	}
-	assertEqual(t, "redis pool capacity", response.Dependencies.Redis.Pool.Capacity, int64(redisDefaultPoolSizePerCPU*runtime.GOMAXPROCS(0)))
+	assertEqual(t, "redis pool capacity", response.Dependencies.Redis.Pool.Capacity, int64(24))
 	if response.Dependencies.Redis.Pool.OpenConnections < 1 {
 		t.Fatalf("expected redis pool open connections to be positive, got %d", response.Dependencies.Redis.Pool.OpenConnections)
 	}
 	if len(response.Trend.Points) != 2 {
-		t.Fatalf("expected 2 redis-backed trend points, got %d", len(response.Trend.Points))
+		t.Fatalf("expected 2 state-backed trend points, got %d", len(response.Trend.Points))
 	}
 	if response.Trend.Points[1].CpuPercent != 18.7 {
-		t.Fatalf("expected cpu percent from redis-backed trend point, got %v", response.Trend.Points[1].CpuPercent)
+		t.Fatalf("expected cpu percent from state-backed trend point, got %v", response.Trend.Points[1].CpuPercent)
 	}
 	if response.Trend.Points[1].HostMemoryUsedPercent != 44.3 {
-		t.Fatalf("expected host memory percent from redis-backed trend point, got %v", response.Trend.Points[1].HostMemoryUsedPercent)
+		t.Fatalf("expected host memory percent from state-backed trend point, got %v", response.Trend.Points[1].HostMemoryUsedPercent)
 	}
 	if response.Trend.Points[1].LoadAverageOneMinute != 0.49 {
-		t.Fatalf("expected one-minute load average from redis-backed trend point, got %v", response.Trend.Points[1].LoadAverageOneMinute)
+		t.Fatalf("expected one-minute load average from state-backed trend point, got %v", response.Trend.Points[1].LoadAverageOneMinute)
 	}
+}
+
+func TestRecordTrendSampleAppendsToStateStore(t *testing.T) {
+	t.Parallel()
+
+	store := &monitorTrendStoreStub{}
+	moduleInstance := &Module{}
+	var previous *cpu.TimesStat
+	storageKey := trendStorageKey("graft", "writer-host")
+
+	moduleInstance.recordTrendSample(context.Background(), store, storageKey, &previous)
+
+	if len(store.appended) != 1 {
+		t.Fatalf("expected one appended trend sample, got %d", len(store.appended))
+	}
+	if store.appended[0].key != storageKey {
+		t.Fatalf("expected storage key %q, got %q", storageKey, store.appended[0].key)
+	}
+	if store.appended[0].policy.ExpiresAfter != trendStorageTTL {
+		t.Fatalf("expected ttl %v, got %v", trendStorageTTL, store.appended[0].policy.ExpiresAfter)
+	}
+
+	var point generated.ServerStatusTrendPoint
+	if err := json.Unmarshal(store.appended[0].sample.Payload, &point); err != nil {
+		t.Fatalf("unmarshal recorded trend payload: %v", err)
+	}
+	if point.ObservedAt.IsZero() {
+		t.Fatal("expected recorded trend point to include observed time")
+	}
+}
+
+type appendedTrendSample struct {
+	key    string
+	sample statex.TimeSeriesSample
+	policy statex.RetentionPolicy
+}
+
+type monitorTrendStoreStub struct {
+	appended          []appendedTrendSample
+	rangeSamplesByKey map[string][]statex.TimeSeriesSample
+	appendErr         error
+	rangeErr          error
+}
+
+func (s *monitorTrendStoreStub) Append(_ context.Context, key string, sample statex.TimeSeriesSample, policy statex.RetentionPolicy) error {
+	if s.appendErr != nil {
+		return s.appendErr
+	}
+	s.appended = append(s.appended, appendedTrendSample{key: key, sample: sample, policy: policy})
+	return nil
+}
+
+func (s *monitorTrendStoreStub) Range(_ context.Context, key string, _ statex.TimeSeriesQuery) ([]statex.TimeSeriesSample, error) {
+	if s.rangeErr != nil {
+		return nil, s.rangeErr
+	}
+	if s.rangeSamplesByKey == nil {
+		return nil, nil
+	}
+	return append([]statex.TimeSeriesSample(nil), s.rangeSamplesByKey[key]...), nil
+}
+
+type monitorRedisHealthReporterStub struct {
+	report redisx.HealthReport
+	err    error
+}
+
+func (s monitorRedisHealthReporterStub) Report(context.Context) (redisx.HealthReport, error) {
+	return s.report, s.err
+}
+
+func registerMonitorServiceStub(t *testing.T, services *container.Container, key any, service any) {
+	t.Helper()
+
+	if err := services.RegisterSingleton(key, func(container.Resolver) (any, error) {
+		return service, nil
+	}); err != nil {
+		t.Fatalf("register monitor test service: %v", err)
+	}
+}
+
+func mustMarshalTrendPoint(t *testing.T, point generated.ServerStatusTrendPoint) []byte {
+	t.Helper()
+
+	payload, err := json.Marshal(point)
+	if err != nil {
+		t.Fatalf("marshal trend point: %v", err)
+	}
+	return payload
 }
 
 func TestIncidentEvidenceCapabilityReturnsExpiredWhenWindowExceedsRetention(t *testing.T) {
