@@ -235,6 +235,8 @@ const tagStub = defineComponent({
 
 const i18n = createI18n({
   legacy: false,
+  missingWarn: false,
+  fallbackWarn: false,
   locale: 'en-US',
   messages: {
     'en-US': {
@@ -257,6 +259,11 @@ const i18n = createI18n({
           unknownResource: 'Unknown resource',
           result: { SUCCESS: 'Success', FAILED: 'Business Failed', DENIED: 'Denied', ERROR: 'System Error' },
           risk: { LOW: 'Low', MEDIUM: 'Medium', HIGH: 'High', CRITICAL: 'Critical' },
+          targetType: {
+            permission: 'Permission',
+            role: 'Role',
+            user: 'User',
+          },
         },
         logList: {
           title: 'Audit Logs',
@@ -285,6 +292,13 @@ const i18n = createI18n({
             sensitiveOps: 'Sensitive Operations',
             authFailed: 'Auth Failed',
             highRisk: 'High Risk',
+          },
+          columnViews: {
+            label: 'View Presets',
+            default: 'Default View',
+            troubleshooting: 'Troubleshooting View',
+            technical: 'Technical View',
+            resetDefault: 'Restore Default Columns',
           },
           actions: {
             search: 'Search',
@@ -445,6 +459,14 @@ const i18n = createI18n({
             rawJsonEmpty: 'No raw JSON is available for this event.',
           },
         },
+        actionLabel: {
+          auth: {
+            failed: 'Authentication Failed',
+            permission: {
+              denied: 'Permission Denied',
+            },
+          },
+        },
       },
     },
   },
@@ -477,7 +499,12 @@ describe('AuditLogsPage', () => {
   ) {
     const router = createRouter({
       history: createMemoryHistory(),
-      routes: [{ path: '/audit/logs', component: AuditLogsPage }],
+      routes: [
+        { path: '/audit/logs', component: AuditLogsPage },
+        { path: '/logs/access', component: passthroughStub },
+        { path: '/logs/app', component: passthroughStub },
+        { path: '/audit/overview', component: passthroughStub },
+      ],
     });
 
     await router.push({

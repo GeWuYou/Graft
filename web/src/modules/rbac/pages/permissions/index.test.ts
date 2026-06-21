@@ -4,6 +4,7 @@
 import { flushPromises, mount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h } from 'vue';
+import { createMemoryHistory, createRouter } from 'vue-router';
 
 import { formatCompactDateTime } from '@/shared/components/management';
 
@@ -239,9 +240,18 @@ const dropdownStub = defineComponent({
   },
 });
 
-function mountPermissionPage() {
+async function mountPermissionPage() {
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [{ path: '/access-control/permissions', component: PermissionPage }],
+  });
+
+  await router.push('/access-control/permissions');
+  await router.isReady();
+
   return mount(PermissionPage, {
     global: {
+      plugins: [router],
       stubs: {
         't-button': buttonStub,
         't-checkbox': passthroughStub,
@@ -288,7 +298,7 @@ describe('PermissionPage', () => {
       ],
     });
 
-    const wrapper = mountPermissionPage();
+    const wrapper = await mountPermissionPage();
     await flushPromises();
 
     expect(wrapper.attributes('data-page-type')).toBe('list-form-detail');
@@ -328,7 +338,7 @@ describe('PermissionPage', () => {
       ],
     });
 
-    const wrapper = mountPermissionPage();
+    const wrapper = await mountPermissionPage();
     await flushPromises();
 
     await wrapper.get('.management-list-search').setValue('user.create');
@@ -353,7 +363,7 @@ describe('PermissionPage', () => {
       ],
     });
 
-    const wrapper = mountPermissionPage();
+    const wrapper = await mountPermissionPage();
     await flushPromises();
 
     expect(wrapper.text()).toContain('Custom Permission');
@@ -363,7 +373,7 @@ describe('PermissionPage', () => {
   it('renders the default empty state without filter actions', async () => {
     rbacApiMocks.getPermissions.mockResolvedValue({ items: [] });
 
-    const wrapper = mountPermissionPage();
+    const wrapper = await mountPermissionPage();
     await flushPromises();
 
     expect(wrapper.text()).toContain('rbac.permissionList.emptyTitle');
@@ -387,7 +397,7 @@ describe('PermissionPage', () => {
       ],
     });
 
-    const wrapper = mountPermissionPage();
+    const wrapper = await mountPermissionPage();
     await flushPromises();
 
     await wrapper.get('.management-list-search').setValue('no-match');
@@ -423,7 +433,7 @@ describe('PermissionPage', () => {
       ],
     });
 
-    const wrapper = mountPermissionPage();
+    const wrapper = await mountPermissionPage();
     await flushPromises();
 
     expect(wrapper.text()).toContain('No description');
@@ -455,7 +465,7 @@ describe('PermissionPage', () => {
       role_binding_count: 3,
     });
 
-    const wrapper = mountPermissionPage();
+    const wrapper = await mountPermissionPage();
     await flushPromises();
 
     await wrapper.get('[data-testid="permission-detail"]').trigger('click');
@@ -486,7 +496,7 @@ describe('PermissionPage', () => {
     });
     rbacApiMocks.getPermissionDetail.mockRejectedValue(new Error('detail failed'));
 
-    const wrapper = mountPermissionPage();
+    const wrapper = await mountPermissionPage();
     await flushPromises();
 
     await wrapper.get('[data-testid="permission-detail"]').trigger('click');

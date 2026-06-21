@@ -207,6 +207,8 @@ vi.mock('tdesign-icons-vue-next', () => ({
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
+    getLocaleMessage: () => translations,
+    locale: ref('zh-CN'),
     t: (key: string, params?: Record<string, unknown>) =>
       (translations[key] ?? key).replace(/\{(\w+)\}/g, (_, name) => String(params?.[name] ?? `{${name}}`)),
     te: (key: string) => Object.prototype.hasOwnProperty.call(translations, key),
@@ -277,6 +279,56 @@ describe('system config list page', () => {
     expect(wrapper.text()).toContain('配置预览 JSON');
   });
 
+  it('renders flat exact locale keys for notification and container group copy before backend fallback', async () => {
+    apiMocks.getSystemConfigs.mockResolvedValue({
+      items: [
+        notificationConfigItem({
+          key: 'notification.enabled',
+          titleKey: 'systemConfig.notification.notification.enabled.title',
+          title: 'Notification Enabled',
+          descriptionKey: 'systemConfig.notification.notification.enabled.description',
+          description: 'Whether in-app notifications are enabled.',
+          type: 'boolean',
+          configSchema: {},
+          defaultValue: 'true',
+          effectiveValue: 'true',
+          order: 5100,
+        }),
+        containerConfigItem({
+          key: 'ops.container.runtime.enabled',
+          titleKey: 'systemConfig.container.ops.container.runtime.enabled.title',
+          title: 'Container Runtime Access Enabled',
+          descriptionKey: 'systemConfig.container.ops.container.runtime.enabled.description',
+          description: 'Whether container management may access the configured runtime.',
+          type: 'boolean',
+          configSchema: {},
+          defaultValue: 'false',
+          effectiveValue: 'false',
+          order: 6200,
+        }),
+      ],
+      total: 2,
+    });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('通用');
+    expect(wrapper.text()).toContain('控制通知中心的基础行为。');
+    expect(wrapper.text()).toContain('启用通知');
+    expect(wrapper.text()).not.toContain('Notification general');
+    expect(wrapper.text()).not.toContain('Control the Notification Center baseline behavior.');
+
+    await wrapper.findComponent({ name: 'TTree' }).vm.$emit('active', ['ops:container:ops.container.general']);
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('容器管理');
+    expect(wrapper.text()).toContain('控制容器管理能力的基础开关。');
+    expect(wrapper.text()).toContain('启用容器运行时访问');
+    expect(wrapper.text()).not.toContain('Container Management');
+    expect(wrapper.text()).not.toContain('Control the container management baseline.');
+  });
+
   it('renders modified config as a user override with username and timestamp', async () => {
     apiMocks.getSystemConfigs.mockResolvedValue({
       items: [
@@ -298,7 +350,7 @@ describe('system config list page', () => {
     expect(wrapper.text()).toContain('已修改');
     expect(wrapper.text()).toContain('默认值');
     expect(wrapper.text()).toContain('当前值');
-    expect(wrapper.text()).toContain(`alice / ${formatCompactDateTime('2026-05-24T10:00:00Z')}`);
+    expect(wrapper.text()).toContain(`alice / ${formatCompactDateTime('2026-05-24T10:00:00Z', 'zh-CN')}`);
     expect(wrapper.findAll('button').some((button) => button.text() === '重置')).toBe(true);
   });
 
@@ -787,7 +839,7 @@ describe('system config list page', () => {
     const wrapper = mountPage();
     await flushPromises();
 
-    expect(wrapper.text()).toContain(`用户 7 / ${formatCompactDateTime('2026-05-24T10:00:00Z')}`);
+    expect(wrapper.text()).toContain(`用户 7 / ${formatCompactDateTime('2026-05-24T10:00:00Z', 'zh-CN')}`);
   });
 
   it('falls back to unknown user when modified config only has updated time', async () => {
@@ -808,7 +860,7 @@ describe('system config list page', () => {
     const wrapper = mountPage();
     await flushPromises();
 
-    expect(wrapper.text()).toContain(`未知用户 / ${formatCompactDateTime('2026-05-24T10:00:00Z')}`);
+    expect(wrapper.text()).toContain(`未知用户 / ${formatCompactDateTime('2026-05-24T10:00:00Z', 'zh-CN')}`);
   });
 
   it('uses dialog for small flat object schemas', async () => {

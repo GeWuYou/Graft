@@ -86,6 +86,7 @@ const translations: Record<string, string> = {
   'audit.common.result.ERROR': 'Error',
   'audit.common.risk.LOW': 'Low',
   'audit.common.risk.HIGH': 'High',
+  'audit.common.targetType.permission': 'Permission',
   'audit.logList.columns.action': 'Event',
   'audit.logList.columns.actor': 'Actor',
   'audit.logList.columns.resource': 'Audit Target',
@@ -108,10 +109,13 @@ const translations: Record<string, string> = {
   'audit.logList.drawer.actions.copyRequestId': 'Copy Request ID',
   'audit.logList.drawer.actions.copyRequestIdSuccess': 'Request ID copied',
   'audit.logList.drawer.actions.copyRequestIdFail': 'Failed to copy Request ID',
+  'audit.actionLabel.auth.permission.denied': 'Permission Denied',
 };
 
 const i18n = createI18n({
   legacy: false,
+  missingWarn: false,
+  fallbackWarn: false,
   locale: 'en-US',
   messages: {
     'en-US': translations,

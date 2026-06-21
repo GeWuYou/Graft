@@ -166,6 +166,8 @@ const tagStub = defineComponent({
 
 const i18n = createI18n({
   legacy: false,
+  missingWarn: false,
+  fallbackWarn: false,
   locale: 'en-US',
   messages: {
     'en-US': {

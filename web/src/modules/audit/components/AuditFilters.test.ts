@@ -39,6 +39,8 @@ const logFilterBuilderStub = defineComponent({
 
 const i18n = createI18n({
   legacy: false,
+  missingWarn: false,
+  fallbackWarn: false,
   locale: 'zh-CN',
   messages: {
     'zh-CN': {

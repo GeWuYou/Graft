@@ -33,6 +33,8 @@ vi.mock('@/shared/observability', async () => {
 
 const i18n = createI18n({
   legacy: false,
+  missingWarn: false,
+  fallbackWarn: false,
   locale: 'en-US',
   messages: {
     'en-US': {
@@ -48,6 +50,9 @@ const i18n = createI18n({
           },
           result: { SUCCESS: 'Success', FAILED: 'Failed', DENIED: 'Denied', ERROR: 'Error' },
           risk: { LOW: 'Low', MEDIUM: 'Medium', HIGH: 'High', CRITICAL: 'Critical' },
+          targetType: {
+            permission: 'Permission',
+          },
         },
         logList: {
           detailTitle: 'Audit Detail',
@@ -118,6 +123,13 @@ const i18n = createI18n({
           columns: {
             actor: 'Actor',
             createdAt: 'Created At',
+          },
+        },
+        actionLabel: {
+          auth: {
+            permission: {
+              denied: 'Permission Denied',
+            },
           },
         },
       },

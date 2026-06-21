@@ -308,6 +308,8 @@ const timelineItemStub = defineComponent({
 
 const i18n = createI18n({
   legacy: false,
+  missingWarn: false,
+  fallbackWarn: false,
   locale: 'en-US',
   messages: {
     'en-US': {
@@ -408,7 +410,18 @@ const i18n = createI18n({
             },
           },
         },
+        actionLabel: {
+          auth: {
+            failed: 'Authentication Failed',
+            permission: {
+              denied: 'Permission Denied',
+            },
+          },
+        },
         common: {
+          targetType: {
+            permission: 'Permission',
+          },
           risk: { HIGH: 'High', CRITICAL: 'Critical' },
           source: { SECURITY_EVENT: 'Security Event' },
         },

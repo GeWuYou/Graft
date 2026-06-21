@@ -445,7 +445,7 @@ type EditorContainer = 'dialog' | 'drawer';
 
 const CORE_VALUE_ROW_LIMIT = 3;
 
-const { locale, t, te } = useI18n();
+const { getLocaleMessage, locale, t, te } = useI18n();
 const permissionCodes = SYSTEM_CONFIG_PERMISSION_CODE;
 const items = ref<SystemConfigItem[]>([]);
 const loading = ref(false);
@@ -982,14 +982,46 @@ function schemaValidationMessage(issue?: {
 }
 
 function resolveI18nText(key?: string, fallback?: string, rawFallback = '') {
-  if (key && te(key)) {
-    const resolved = t(key);
-    if (resolved) {
+  const localized = resolveLocaleMessage(key);
+  if (localized) {
+    return localized;
+  }
+
+  return fallback || rawFallback;
+}
+
+function resolveLocaleMessage(key?: string) {
+  const trimmed = key?.trim();
+  if (!trimmed) {
+    return '';
+  }
+
+  const messages = localeMessages();
+  const exact = messages[trimmed];
+  if (typeof exact === 'string' && exact.trim()) {
+    return exact;
+  }
+
+  if (te(trimmed)) {
+    const resolved = t(trimmed);
+    if (resolved && resolved !== trimmed) {
       return resolved;
     }
   }
 
-  return fallback || rawFallback;
+  const nested = trimmed.split('.').reduce<unknown>((current, segment) => {
+    if (!current || typeof current !== 'object') {
+      return undefined;
+    }
+
+    return (current as Record<string, unknown>)[segment];
+  }, messages);
+
+  return typeof nested === 'string' && nested.trim() ? nested : '';
+}
+
+function localeMessages() {
+  return getLocaleMessage(locale.value) as Record<string, unknown>;
 }
 
 function readableError(error: unknown, fallback: string) {
