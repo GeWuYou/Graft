@@ -64,12 +64,23 @@ func requiredUserService(resolver container.Resolver) (moduleapi.UserService, er
 	return module.ResolveService[moduleapi.UserService](resolver, (*moduleapi.UserService)(nil))
 }
 
-// Boot currently has no runtime work; definitions are registered by owner modules.
-func (m *Module) Boot(_ *module.Context) error {
+// Boot wires optional multi-node invalidation without changing system-config authority.
+func (m *Module) Boot(ctx *module.Context) error {
+	if m == nil || m.service == nil {
+		return errors.New("system config module service is unavailable")
+	}
+	if ctx == nil {
+		return errors.New("system config module context is unavailable")
+	}
+	m.service.startInvalidationSync(ctx.LifecycleContext, newRedisInvalidationBroker(ctx.Redis), ctx.Logger)
 	return nil
 }
 
-// Shutdown currently has no resources to release.
+// Shutdown releases the optional invalidation subscription when it was started.
 func (m *Module) Shutdown(_ *module.Context) error {
+	if m == nil || m.service == nil {
+		return nil
+	}
+	m.service.stopInvalidationSync()
 	return nil
 }

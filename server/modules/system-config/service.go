@@ -12,6 +12,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
+	"go.uber.org/zap"
 	"golang.org/x/sync/singleflight"
 
 	"graft/server/internal/configregistry"
@@ -25,6 +28,26 @@ var (
 	errInvalidConfigValue = errors.New("invalid system config value")
 	errSensitiveConfig    = errors.New("sensitive system config cannot be resolved as default config")
 )
+
+const (
+	systemConfigSnapshotInvalidationChannel = "graft:system-config:snapshot:invalidate"
+	systemConfigInvalidationPublishTimeout  = 1 * time.Second
+	systemConfigInvalidationShutdownTimeout = 1 * time.Second
+)
+
+type snapshotInvalidationAction string
+
+const (
+	snapshotInvalidationActionUpdate snapshotInvalidationAction = "update"
+	snapshotInvalidationActionReset  snapshotInvalidationAction = "reset"
+)
+
+type snapshotInvalidationSignal struct {
+	Source    string                     `json:"source"`
+	Key       string                     `json:"key"`
+	Action    snapshotInvalidationAction `json:"action"`
+	UpdatedAt time.Time                  `json:"updated_at"`
+}
 
 // ValueSnapshot is the service read model for one effective config value.
 type ValueSnapshot struct {
@@ -61,6 +84,14 @@ type Service struct {
 	snapshotMu    sync.RWMutex
 	snapshotCache *overrideSnapshotCache
 	snapshotGroup singleflight.Group
+
+	invalidationMu     sync.Mutex
+	invalidationBroker invalidationBroker
+	invalidationSub    invalidationSubscription
+	invalidationCancel context.CancelFunc
+	invalidationDone   chan struct{}
+	logger             *zap.Logger
+	instanceID         string
 }
 
 // NewService creates the system configuration service boundary.
@@ -71,11 +102,34 @@ func NewService(registry *configregistry.Registry, store systemconfigstore.Repos
 	if store == nil {
 		return nil, errors.New("system config store is unavailable")
 	}
-	return &Service{registry: registry, store: store, users: users}, nil
+	return &Service{
+		registry:   registry,
+		store:      store,
+		users:      users,
+		instanceID: uuid.NewString(),
+	}, nil
 }
 
 type overrideSnapshotCache struct {
 	overrides map[string]systemconfigstore.Override
+}
+
+type invalidationBroker interface {
+	Publish(ctx context.Context, channel string, payload string) error
+	Subscribe(ctx context.Context, channel string) (invalidationSubscription, error)
+}
+
+type invalidationSubscription interface {
+	Channel() <-chan *redis.Message
+	Close() error
+}
+
+type redisInvalidationBroker struct {
+	client *redis.Client
+}
+
+type redisPubSubSubscription struct {
+	pubsub *redis.PubSub
 }
 
 func (s *Service) setUserService(users moduleapi.UserService) {
@@ -157,7 +211,9 @@ func (s *Service) Update(ctx context.Context, key string, value json.RawMessage,
 		return ValueSnapshot{}, err
 	}
 	s.invalidateSnapshotCache()
-	return s.Get(ctx, definition.Key)
+	item, err := s.Get(ctx, definition.Key)
+	s.publishSnapshotInvalidation(ctx, definition.Key, snapshotInvalidationActionUpdate)
+	return item, err
 }
 
 // Reset deletes the user override for one registered definition key.
@@ -170,7 +226,74 @@ func (s *Service) Reset(ctx context.Context, key string) (ValueSnapshot, error) 
 		return ValueSnapshot{}, err
 	}
 	s.invalidateSnapshotCache()
-	return s.Get(ctx, definition.Key)
+	item, err := s.Get(ctx, definition.Key)
+	s.publishSnapshotInvalidation(ctx, definition.Key, snapshotInvalidationActionReset)
+	return item, err
+}
+
+func (s *Service) startInvalidationSync(ctx context.Context, broker invalidationBroker, logger *zap.Logger) {
+	if s == nil {
+		return
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	s.invalidationMu.Lock()
+	s.logger = logger
+	s.invalidationBroker = broker
+	if broker == nil || s.invalidationCancel != nil {
+		s.invalidationMu.Unlock()
+		return
+	}
+
+	runCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
+	sub, err := broker.Subscribe(runCtx, systemConfigSnapshotInvalidationChannel)
+	if err != nil {
+		s.invalidationMu.Unlock()
+		cancel()
+		s.logInvalidationWarning("subscribe system-config invalidation", err)
+		return
+	}
+
+	done := make(chan struct{})
+	s.invalidationCancel = cancel
+	s.invalidationSub = sub
+	s.invalidationDone = done
+	s.invalidationMu.Unlock()
+
+	go s.runInvalidationSubscriber(runCtx, sub, done)
+}
+
+func (s *Service) stopInvalidationSync() {
+	if s == nil {
+		return
+	}
+
+	s.invalidationMu.Lock()
+	cancel := s.invalidationCancel
+	sub := s.invalidationSub
+	done := s.invalidationDone
+	s.invalidationCancel = nil
+	s.invalidationSub = nil
+	s.invalidationDone = nil
+	s.invalidationMu.Unlock()
+
+	if cancel != nil {
+		cancel()
+	}
+	if sub != nil {
+		_ = sub.Close()
+	}
+	if done == nil {
+		return
+	}
+
+	select {
+	case <-done:
+	case <-time.After(systemConfigInvalidationShutdownTimeout):
+		s.logInvalidationWarning("shutdown system-config invalidation subscriber", errors.New("timed out waiting for subscriber to stop"))
+	}
 }
 
 func (s *Service) snapshotFromCache(
@@ -352,4 +475,108 @@ func cloneOverride(value systemconfigstore.Override) systemconfigstore.Override 
 		UpdatedAt: value.UpdatedAt,
 		UpdatedBy: cloneUint64Pointer(value.UpdatedBy),
 	}
+}
+
+func newRedisInvalidationBroker(client *redis.Client) invalidationBroker {
+	if client == nil {
+		return nil
+	}
+	return redisInvalidationBroker{client: client}
+}
+
+func (b redisInvalidationBroker) Publish(ctx context.Context, channel string, payload string) error {
+	return b.client.Publish(ctx, channel, payload).Err()
+}
+
+func (b redisInvalidationBroker) Subscribe(ctx context.Context, channel string) (invalidationSubscription, error) {
+	pubsub := b.client.Subscribe(ctx, channel)
+	if _, err := pubsub.Receive(ctx); err != nil {
+		_ = pubsub.Close()
+		return nil, err
+	}
+	return redisPubSubSubscription{pubsub: pubsub}, nil
+}
+
+func (s redisPubSubSubscription) Channel() <-chan *redis.Message {
+	return s.pubsub.Channel()
+}
+
+func (s redisPubSubSubscription) Close() error {
+	return s.pubsub.Close()
+}
+
+func (s *Service) publishSnapshotInvalidation(ctx context.Context, key string, action snapshotInvalidationAction) {
+	broker := s.currentInvalidationBroker()
+	if broker == nil {
+		return
+	}
+
+	signal := snapshotInvalidationSignal{
+		Source:    s.instanceID,
+		Key:       key,
+		Action:    action,
+		UpdatedAt: time.Now().UTC(),
+	}
+	payload, err := json.Marshal(signal)
+	if err != nil {
+		s.logInvalidationWarning("marshal system-config invalidation signal", err)
+		return
+	}
+
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	publishCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), systemConfigInvalidationPublishTimeout)
+	defer cancel()
+
+	if err := broker.Publish(publishCtx, systemConfigSnapshotInvalidationChannel, string(payload)); err != nil {
+		s.logInvalidationWarning("publish system-config invalidation", err)
+	}
+}
+
+func (s *Service) currentInvalidationBroker() invalidationBroker {
+	if s == nil {
+		return nil
+	}
+	s.invalidationMu.Lock()
+	defer s.invalidationMu.Unlock()
+	return s.invalidationBroker
+}
+
+func (s *Service) runInvalidationSubscriber(ctx context.Context, sub invalidationSubscription, done chan struct{}) {
+	defer close(done)
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case message, ok := <-sub.Channel():
+			if !ok {
+				return
+			}
+			s.handleInvalidationMessage(message)
+		}
+	}
+}
+
+func (s *Service) handleInvalidationMessage(message *redis.Message) {
+	if s == nil || message == nil {
+		return
+	}
+
+	var signal snapshotInvalidationSignal
+	if err := json.Unmarshal([]byte(message.Payload), &signal); err != nil {
+		s.logInvalidationWarning("decode system-config invalidation signal", err)
+		return
+	}
+	if signal.Source == s.instanceID {
+		return
+	}
+	s.invalidateSnapshotCache()
+}
+
+func (s *Service) logInvalidationWarning(msg string, err error) {
+	if s == nil || s.logger == nil || err == nil {
+		return
+	}
+	s.logger.Warn(msg, zap.Error(err))
 }

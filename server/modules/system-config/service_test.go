@@ -13,7 +13,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/alicebob/miniredis/v2"
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
+	"go.uber.org/zap"
 
 	"graft/server/internal/config"
 	"graft/server/internal/configregistry"
@@ -214,6 +217,139 @@ func TestServiceInvalidatesLocalSnapshotAfterUpdateAndReset(t *testing.T) {
 	}
 	if repo.listOverridesCalls() != 3 {
 		t.Fatalf("expected snapshot reload after reset invalidation, got %d", repo.listOverridesCalls())
+	}
+}
+
+func TestServiceUpdateAndResetKeepWorkingWhenInvalidationPublishFails(t *testing.T) {
+	repo := newMemoryRepo()
+	broker := &failingInvalidationBroker{}
+	service := newTestServiceWithRepo(t, repo, configregistry.Definition{
+		Key:          "notification.enabled",
+		Module:       "notification",
+		Group:        "notification.general",
+		Title:        "Notification enabled",
+		Type:         configregistry.ValueTypeBoolean,
+		DefaultValue: json.RawMessage(`true`),
+	})
+	service.invalidationBroker = broker
+
+	updated, err := service.Update(context.Background(), "notification.enabled", json.RawMessage(`false`), nil)
+	if err != nil {
+		t.Fatalf("update with failed invalidation publish: %v", err)
+	}
+	if string(updated.EffectiveValue) != "false" {
+		t.Fatalf("expected updated value despite publish failure, got %#v", updated)
+	}
+
+	reset, err := service.Reset(context.Background(), "notification.enabled")
+	if err != nil {
+		t.Fatalf("reset with failed invalidation publish: %v", err)
+	}
+	if string(reset.EffectiveValue) != "true" || reset.HasOverride {
+		t.Fatalf("expected reset value despite publish failure, got %#v", reset)
+	}
+	if broker.publishCalls.Load() != 2 {
+		t.Fatalf("expected best-effort invalidation publish attempts for update/reset, got %d", broker.publishCalls.Load())
+	}
+}
+
+func TestServiceRemoteInvalidationClearsLocalSnapshotCache(t *testing.T) {
+	repo := newMemoryRepo()
+	service := newTestServiceWithRepo(t, repo, configregistry.Definition{
+		Key:          "notification.enabled",
+		Module:       "notification",
+		Group:        "notification.general",
+		Title:        "Notification enabled",
+		Type:         configregistry.ValueTypeBoolean,
+		DefaultValue: json.RawMessage(`true`),
+	})
+	if _, err := service.Update(context.Background(), "notification.enabled", json.RawMessage(`false`), nil); err != nil {
+		t.Fatalf("seed override: %v", err)
+	}
+	if _, err := service.Get(context.Background(), "notification.enabled"); err != nil {
+		t.Fatalf("warm snapshot: %v", err)
+	}
+	repo.resetReadCounters()
+
+	service.handleInvalidationMessage(&redis.Message{Payload: `{"source":"other-node","key":"notification.enabled","action":"update","updated_at":"2026-06-21T00:00:00Z"}`})
+
+	if _, err := service.Get(context.Background(), "notification.enabled"); err != nil {
+		t.Fatalf("get after remote invalidation: %v", err)
+	}
+	if repo.listOverridesCalls() != 1 {
+		t.Fatalf("expected remote invalidation to force one snapshot reload, got %d", repo.listOverridesCalls())
+	}
+}
+
+func TestModuleBootSubscribesToRedisInvalidationAndShutdownClosesSubscription(t *testing.T) {
+	mini := miniredis.RunT(t)
+	client := redis.NewClient(&redis.Options{Addr: mini.Addr()})
+	t.Cleanup(func() {
+		_ = client.Close()
+	})
+
+	repo := newMemoryRepo()
+	service := newTestServiceWithRepo(t, repo, configregistry.Definition{
+		Key:          "notification.enabled",
+		Module:       "notification",
+		Group:        "notification.general",
+		Title:        "Notification enabled",
+		Type:         configregistry.ValueTypeBoolean,
+		DefaultValue: json.RawMessage(`true`),
+	})
+	moduleInstance, err := NewModule(service)
+	if err != nil {
+		t.Fatalf("create module: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	if err := moduleInstance.Boot(&module.Context{
+		LifecycleContext: ctx,
+		Logger:           zap.NewNop(),
+		Redis:            client,
+	}); err != nil {
+		t.Fatalf("boot module: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = moduleInstance.Shutdown(nil)
+	})
+
+	if _, err := service.Update(context.Background(), "notification.enabled", json.RawMessage(`false`), nil); err != nil {
+		t.Fatalf("seed override: %v", err)
+	}
+	if _, err := service.Get(context.Background(), "notification.enabled"); err != nil {
+		t.Fatalf("warm snapshot: %v", err)
+	}
+	repo.resetReadCounters()
+
+	payload := `{"source":"other-node","key":"notification.enabled","action":"update","updated_at":"2026-06-21T00:00:00Z"}`
+	if err := client.Publish(context.Background(), systemConfigSnapshotInvalidationChannel, payload).Err(); err != nil {
+		t.Fatalf("publish redis invalidation: %v", err)
+	}
+
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		if service.cachedSnapshot() == nil {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if service.cachedSnapshot() != nil {
+		t.Fatal("expected redis invalidation subscriber to clear local snapshot cache")
+	}
+	if _, err := service.Get(context.Background(), "notification.enabled"); err != nil {
+		t.Fatalf("get after redis invalidation: %v", err)
+	}
+	if repo.listOverridesCalls() != 1 {
+		t.Fatalf("expected snapshot reload after subscribed invalidation, got %d", repo.listOverridesCalls())
+	}
+
+	if err := moduleInstance.Shutdown(nil); err != nil {
+		t.Fatalf("shutdown module: %v", err)
+	}
+	if service.invalidationDone != nil || service.invalidationSub != nil {
+		t.Fatalf("expected shutdown to clear invalidation subscription state")
 	}
 }
 
@@ -812,6 +948,19 @@ func (r *memoryRepo) waitForListOverridesCalls(min int, timeout time.Duration) b
 		time.Sleep(5 * time.Millisecond)
 	}
 	return r.listOverridesCalls() >= min
+}
+
+type failingInvalidationBroker struct {
+	publishCalls atomic.Int32
+}
+
+func (b *failingInvalidationBroker) Publish(context.Context, string, string) error {
+	b.publishCalls.Add(1)
+	return errors.New("publish failed")
+}
+
+func (b *failingInvalidationBroker) Subscribe(context.Context, string) (invalidationSubscription, error) {
+	return nil, errors.New("subscribe failed")
 }
 
 type testUserService struct {
