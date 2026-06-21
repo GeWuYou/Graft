@@ -625,10 +625,6 @@ func environmentPlainAccessAllowed(ctx context.Context) bool {
 	return allowed
 }
 
-type stringSystemConfigResolver interface {
-	ResolveDefaultConfig(ctx context.Context, key string) (string, error)
-}
-
 func (s *service) environmentDisplayPolicy(ctx context.Context) containercontract.EnvironmentPolicy {
 	fallback := defaultContainerEnvironmentPolicy
 	if s != nil && s.environmentPolicy != "" {
@@ -637,11 +633,7 @@ func (s *service) environmentDisplayPolicy(ctx context.Context) containercontrac
 	if s == nil || s.systemConfig == nil {
 		return fallback
 	}
-	resolver, ok := s.systemConfig.(stringSystemConfigResolver)
-	if !ok {
-		return fallback
-	}
-	raw, err := resolver.ResolveDefaultConfig(
+	raw, err := s.systemConfig.ResolveDefaultConfig(
 		ctx,
 		containercontract.ContainerEnvironmentPolicyConfig.String(),
 	)
@@ -1421,11 +1413,10 @@ func (s *service) resolveOrchestratorActionLevel(
 	key string,
 	fallback containercontract.OrchestratorActionLevel,
 ) containercontract.OrchestratorActionLevel {
-	resolver, ok := s.systemConfig.(stringSystemConfigResolver)
-	if !ok {
+	if s == nil || s.systemConfig == nil {
 		return fallback
 	}
-	raw, err := resolver.ResolveDefaultConfig(ctx, key)
+	raw, err := s.systemConfig.ResolveDefaultConfig(ctx, key)
 	if err != nil {
 		return fallback
 	}

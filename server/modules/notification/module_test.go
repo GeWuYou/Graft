@@ -520,6 +520,10 @@ func (r *notificationModuleTestSystemConfigResolver) IsBooleanConfigEnabled(_ co
 	return value
 }
 
+func (r *notificationModuleTestSystemConfigResolver) ResolveDefaultConfig(_ context.Context, _ string) (string, error) {
+	return "", errors.New("config unavailable")
+}
+
 func (r *moduleTestRepository) CreateEvent(context.Context, notificationstore.CreateEventInput) (notificationstore.Event, bool, error) {
 	return notificationstore.Event{}, false, nil
 }

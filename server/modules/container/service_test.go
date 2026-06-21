@@ -719,8 +719,8 @@ func TestServiceRunActionBlocksUnknownManagedPolicyWhenDetailFails(t *testing.T)
 		orchestratorPolicies: orchestratorActionPolicies{
 			Unknown: defaultContainerUnknownActionLevel,
 		},
-		defaultTail:             defaultContainerLogsDefaultTail,
-		maxTail:                 defaultContainerLogsMaxTail,
+		defaultTail: defaultContainerLogsDefaultTail,
+		maxTail:     defaultContainerLogsMaxTail,
 	})
 	if err != nil {
 		t.Fatalf("new service: %v", err)
@@ -784,6 +784,29 @@ func TestServiceListFiltersOrchestratorAndAppliesPolicy(t *testing.T) {
 	if !slices.Contains(item.Orchestrator.Warnings, orchestratorWarningManagedActionRisk) ||
 		!slices.Contains(item.Orchestrator.Warnings, orchestratorWarningBatchBlocked) {
 		t.Fatalf("expected managed and batch-blocked warnings, got %#v", item.Orchestrator.Warnings)
+	}
+}
+
+func TestServiceEnvironmentDisplayPolicyUsesUnifiedSystemConfigResolver(t *testing.T) {
+	t.Parallel()
+
+	service, err := newService(containerServiceOptions{
+		runtime: fakeRuntime{},
+		systemConfig: serviceTestPolicyConfig{
+			serviceTestSystemConfig: serviceTestSystemConfig{},
+			policy:                  containercontract.ContainerEnvironmentPolicyPlain.String(),
+		},
+		enabled:     true,
+		defaultTail: defaultContainerLogsDefaultTail,
+		maxTail:     defaultContainerLogsMaxTail,
+	})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	policy := service.environmentDisplayPolicy(context.Background())
+	if policy != containercontract.ContainerEnvironmentPolicyPlain {
+		t.Fatalf("expected unified resolver to drive plain environment policy, got %q", policy)
 	}
 }
 
@@ -1274,6 +1297,10 @@ func (r serviceTestSystemConfig) IsBooleanConfigEnabled(_ context.Context, key s
 		return fallback
 	}
 	return value
+}
+
+func (r serviceTestSystemConfig) ResolveDefaultConfig(_ context.Context, _ string) (string, error) {
+	return "", errors.New("config unavailable")
 }
 
 var _ moduleapi.SystemConfigResolver = serviceTestSystemConfig{}

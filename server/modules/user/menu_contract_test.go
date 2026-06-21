@@ -7,6 +7,8 @@ import (
 	"context"
 	"testing"
 
+	"graft/server/internal/config"
+	servicecontainer "graft/server/internal/container"
 	"graft/server/internal/menu"
 	"graft/server/internal/moduleapi"
 	usercontract "graft/server/modules/user/contract"
@@ -150,6 +152,40 @@ func TestFilterBootstrapMenusAppliesFeatureGateAfterPermission(t *testing.T) {
 	}
 }
 
+func TestNewBootstrapReaderCachesResolvedSystemConfig(t *testing.T) {
+	services := servicecontainer.New()
+	resolver := &bootstrapReaderTestSystemConfigResolver{
+		bootstrapMenuTestSystemConfig: bootstrapMenuTestSystemConfig{values: map[string]bool{
+			"ops.container.runtime.enabled": true,
+		}},
+	}
+	if err := services.RegisterSingleton((*moduleapi.SystemConfigResolver)(nil), func(servicecontainer.Resolver) (any, error) {
+		return resolver, nil
+	}); err != nil {
+		t.Fatalf("register system config resolver: %v", err)
+	}
+
+	reader := newBootstrapReader(
+		config.I18nConfig{},
+		nil,
+		testMenuRegistryWithContainerGate(),
+		services,
+		nil,
+		nil,
+	)
+
+	menus := reader.filterBootstrapMenus(context.Background(), map[string]struct{}{
+		"ops.container.view":                     {},
+		usercontract.UserReadPermission.String(): {},
+	})
+	if !bootstrapMenuTestContainsCode(menus, "container.list") {
+		t.Fatalf("expected resolved system config to keep gated container menu, got %#v", menus)
+	}
+	if resolver.boolCalls != 1 {
+		t.Fatalf("expected bootstrap filtering to consume the cached resolver once for the gated menu, got %d", resolver.boolCalls)
+	}
+}
+
 type bootstrapMenuTestSystemConfig struct {
 	values map[string]bool
 }
@@ -162,7 +198,42 @@ func (r bootstrapMenuTestSystemConfig) IsBooleanConfigEnabled(_ context.Context,
 	return value
 }
 
+func (r bootstrapMenuTestSystemConfig) ResolveDefaultConfig(_ context.Context, _ string) (string, error) {
+	return "", nil
+}
+
 var _ moduleapi.SystemConfigResolver = bootstrapMenuTestSystemConfig{}
+
+type bootstrapReaderTestSystemConfigResolver struct {
+	bootstrapMenuTestSystemConfig
+	boolCalls int
+}
+
+func (r *bootstrapReaderTestSystemConfigResolver) IsBooleanConfigEnabled(ctx context.Context, key string, fallback bool) bool {
+	r.boolCalls++
+	return r.bootstrapMenuTestSystemConfig.IsBooleanConfigEnabled(ctx, key, fallback)
+}
+
+func (r *bootstrapReaderTestSystemConfigResolver) ResolveDefaultConfig(ctx context.Context, key string) (string, error) {
+	return r.bootstrapMenuTestSystemConfig.ResolveDefaultConfig(ctx, key)
+}
+
+func testMenuRegistryWithContainerGate() *menu.Registry {
+	registry := testMenuRegistry()
+	registry.Register(menu.Item{
+		Code:  "ops.root",
+		Title: "",
+		Path:  "/ops",
+	})
+	registry.Register(menu.Item{
+		Code:                     "container.list",
+		Title:                    "",
+		Path:                     "/ops/containers",
+		Permission:               "ops.container.view",
+		VisibleWhenConfigEnabled: "ops.container.runtime.enabled",
+	})
+	return registry
+}
 
 func bootstrapMenuTestContainsCode(menus []bootstrapMenuResponse, code string) bool {
 	for _, item := range menus {

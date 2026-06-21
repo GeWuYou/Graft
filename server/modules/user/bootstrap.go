@@ -26,7 +26,7 @@ type bootstrapReader struct {
 	auth         userstore.AuthRepository
 	rbac         moduleapi.RBACAccessService
 	menuRegistry *menu.Registry
-	services     servicecontainer.Resolver
+	systemConfig moduleapi.SystemConfigResolver
 	localizer    *i18n.Service
 	localeConfig config.I18nConfig
 }
@@ -71,7 +71,7 @@ func newBootstrapReader(
 		auth:         auth,
 		rbac:         rbac,
 		menuRegistry: menuRegistry,
-		services:     services,
+		systemConfig: resolveBootstrapSystemConfig(services),
 		localizer:    localizer,
 		localeConfig: localeConfig,
 	}
@@ -155,7 +155,7 @@ func (r bootstrapReader) listRoleNames(ctx context.Context, userID uint64) ([]st
 }
 
 func (r bootstrapReader) filterBootstrapMenus(ctx context.Context, granted map[string]struct{}) []bootstrapMenuResponse {
-	return filterBootstrapMenus(ctx, r.menuRegistry, granted, resolveBootstrapSystemConfig(r.services))
+	return filterBootstrapMenus(ctx, r.menuRegistry, granted, r.systemConfig)
 }
 
 func filterBootstrapMenus(
