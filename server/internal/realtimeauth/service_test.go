@@ -9,6 +9,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"graft/server/internal/kvx"
 )
 
 type fixedClock struct {
@@ -85,6 +87,48 @@ func TestMemoryServiceRejectsExpiredTicket(t *testing.T) {
 	})
 	if !errors.Is(err, ErrExpiredTicket) {
 		t.Fatalf("expected expired ticket, got %v", err)
+	}
+}
+
+func TestServiceStoresTicketsWithTTL(t *testing.T) {
+	t.Parallel()
+
+	clock := &fixedClock{now: time.Date(2026, 6, 19, 10, 0, 0, 0, time.UTC)}
+	store := kvx.NewMemory(kvx.MemoryOptions{Clock: clock})
+	service, err := NewServiceWithOptions(Options{
+		Store: store,
+		Clock: clock,
+		KeyBuilder: func(ticketID string) string {
+			return ticketID
+		},
+	})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	issued, err := service.Issue(context.Background(), IssueRequest{
+		UserID:       7,
+		ResourceType: "container",
+		ResourceID:   "abc123",
+		Scope:        "container.shell",
+		TTL:          time.Second,
+	})
+	if err != nil {
+		t.Fatalf("issue ticket: %v", err)
+	}
+
+	clock.now = clock.now.Add(2 * time.Second)
+	if _, ok, err := store.Get(context.Background(), issued.TicketID); err != nil {
+		t.Fatalf("get stored ticket before retention cutoff: %v", err)
+	} else if !ok {
+		t.Fatal("expected expired ticket record to remain briefly for expired-ticket detection")
+	}
+
+	clock.now = clock.now.Add(expiredTicketTTL + time.Second)
+	if _, ok, err := store.Get(context.Background(), issued.TicketID); err != nil {
+		t.Fatalf("get stored ticket: %v", err)
+	} else if ok {
+		t.Fatal("expected expired ticket record to be removed by store ttl")
 	}
 }
 

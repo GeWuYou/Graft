@@ -22,10 +22,16 @@ func New(namespace string, name string, parts ...string) (Key, error) {
 	if trimmedNamespace == "" {
 		return Key{}, fmt.Errorf("cache key namespace is required")
 	}
+	if strings.Contains(trimmedNamespace, ":") {
+		return Key{}, fmt.Errorf("cache key namespace must not contain ':'")
+	}
 
 	trimmedName := strings.TrimSpace(name)
 	if trimmedName == "" {
 		return Key{}, fmt.Errorf("cache key name is required")
+	}
+	if strings.Contains(trimmedName, ":") {
+		return Key{}, fmt.Errorf("cache key name must not contain ':'")
 	}
 
 	normalizedParts := make([]string, 0, len(parts))
@@ -33,6 +39,9 @@ func New(namespace string, name string, parts ...string) (Key, error) {
 		trimmedPart := strings.TrimSpace(part)
 		if trimmedPart == "" {
 			return Key{}, fmt.Errorf("cache key part is required")
+		}
+		if strings.Contains(trimmedPart, ":") {
+			return Key{}, fmt.Errorf("cache key part must not contain ':'")
 		}
 		normalizedParts = append(normalizedParts, trimmedPart)
 	}

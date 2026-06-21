@@ -108,7 +108,10 @@ linters:
           - maintidx
           - dupl
           - mnd
-      - path: "^internal/(redisx|statex|cachex/backend|kvx|app)/.*\\.go$"
+      - path: "^internal/(redisx|statex|cachex/backend|kvx)/.*\\.go$"
+        linters:
+          - depguard
+      - path: "^internal/app/runtime(_test)?\\.go$"
         linters:
           - depguard
       - path: "^internal/module/module\\.go$"

@@ -63,7 +63,7 @@ func validateTTL(ttl time.Duration) error {
 
 // CloneBytes returns a copy of the provided byte slice, or nil if the slice is empty.
 func cloneBytes(value []byte) []byte {
-	if len(value) == 0 {
+	if value == nil {
 		return nil
 	}
 

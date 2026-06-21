@@ -299,6 +299,9 @@ func TestServiceUpdateAndResetInvalidateSharedSnapshotCache(t *testing.T) {
 func TestServiceSingleflightCollapsesConcurrentSnapshotMisses(t *testing.T) {
 	repo := newMemoryRepo()
 	repo.listOverridesBlock = make(chan struct{})
+	t.Cleanup(func() {
+		repo.closeListOverridesBlock()
+	})
 	service := newTestServiceWithRepo(t, repo, configregistry.Definition{
 		Key:          "notification.enabled",
 		Module:       "notification",
@@ -331,7 +334,7 @@ func TestServiceSingleflightCollapsesConcurrentSnapshotMisses(t *testing.T) {
 	if !repo.waitForListOverridesCalls(1, time.Second) {
 		t.Fatalf("expected concurrent reads to queue behind the same snapshot load, got %d starts", repo.listOverridesCalls())
 	}
-	close(repo.listOverridesBlock)
+	repo.closeListOverridesBlock()
 	wg.Wait()
 	close(results)
 	for err := range results {
@@ -349,6 +352,50 @@ func TestServiceSingleflightCollapsesConcurrentSnapshotMisses(t *testing.T) {
 	}
 	if debugState.LoadCount != 1 {
 		t.Fatalf("expected one snapshot load in debug state, got %#v", debugState)
+	}
+}
+
+func TestServiceReloadsSnapshotAfterCorruptCachePayload(t *testing.T) {
+	repo := newMemoryRepo()
+	manager := newTestCacheManager(t)
+	service := newTestServiceWithRepoAndManager(t, repo, manager, configregistry.Definition{
+		Key:          "notification.enabled",
+		Module:       "notification",
+		Group:        "notification.general",
+		Title:        "Notification enabled",
+		Type:         configregistry.ValueTypeBoolean,
+		DefaultValue: json.RawMessage(`true`),
+	})
+	if _, err := service.Update(context.Background(), "notification.enabled", json.RawMessage(`false`), nil); err != nil {
+		t.Fatalf("seed override: %v", err)
+	}
+	repo.resetReadCounters()
+
+	cache, err := manager.NewCache(systemConfigSnapshotCacheName)
+	if err != nil {
+		t.Fatalf("new cache for corruption setup: %v", err)
+	}
+	if err := cache.Set(context.Background(), systemConfigSnapshotKey(), cachex.NewItem([]byte("{"), 0)); err != nil {
+		t.Fatalf("seed corrupt cache payload: %v", err)
+	}
+
+	item, err := service.Get(context.Background(), "notification.enabled")
+	if err != nil {
+		t.Fatalf("get with corrupt cache payload: %v", err)
+	}
+	if string(item.EffectiveValue) != "false" {
+		t.Fatalf("expected rebuilt snapshot to preserve override value, got %#v", item)
+	}
+	if repo.listOverridesCalls() != 1 {
+		t.Fatalf("expected one reload from store after corrupt payload eviction, got %d", repo.listOverridesCalls())
+	}
+
+	debugState := service.SnapshotCacheDebugState()
+	if debugState.LoadErrorCount == 0 {
+		t.Fatalf("expected decode failure to increment load error count, got %#v", debugState)
+	}
+	if debugState.LoadCount == 0 {
+		t.Fatalf("expected cache rebuild to record a fresh load, got %#v", debugState)
 	}
 }
 
@@ -886,6 +933,7 @@ type memoryRepo struct {
 	listOverridesStarted atomic.Int32
 	getOverrideStarted   atomic.Int32
 	listOverridesBlock   chan struct{}
+	listOverridesOnce    sync.Once
 }
 
 func newMemoryRepo() *memoryRepo {
@@ -964,6 +1012,15 @@ func (r *memoryRepo) DeleteOverride(_ context.Context, key string) error {
 func (r *memoryRepo) resetReadCounters() {
 	r.listOverridesStarted.Store(0)
 	r.getOverrideStarted.Store(0)
+}
+
+func (r *memoryRepo) closeListOverridesBlock() {
+	if r == nil || r.listOverridesBlock == nil {
+		return
+	}
+	r.listOverridesOnce.Do(func() {
+		close(r.listOverridesBlock)
+	})
 }
 
 func (r *memoryRepo) listOverridesCalls() int {

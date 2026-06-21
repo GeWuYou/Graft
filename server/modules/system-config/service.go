@@ -30,6 +30,7 @@ var (
 
 const (
 	systemConfigSnapshotCacheName = "system-config-snapshot"
+	systemConfigSnapshotLoadTTL   = 2 * time.Second
 )
 
 type snapshotInvalidationAction string
@@ -149,9 +150,9 @@ type snapshotCacheStats struct {
 	lastLoadedOverrideCount atomic.Int64
 	invalidateCount         atomic.Uint64
 
-	lastLoadAt       *time.Time
-	lastInvalidateAt *time.Time
-	lastInvalidation snapshotInvalidationObservation
+	lastLoadAtUnixNano       atomic.Int64
+	lastInvalidateAtUnixNano atomic.Int64
+	lastInvalidation         atomic.Pointer[snapshotInvalidationObservation]
 }
 
 func (s *Service) setUserService(users moduleapi.UserService) {
@@ -304,46 +305,84 @@ func (s *Service) snapshotFromCache(
 }
 
 func (s *Service) loadOverrideSnapshot(ctx context.Context) (*overrideSnapshotCache, error) {
-	if cache, err := s.cachedSnapshot(ctx); err != nil {
-		s.snapshotStats.recordLoadError()
-		s.logInvalidationWarning("read system-config snapshot cache", err)
-	} else if cache != nil {
-		s.snapshotStats.recordHit()
+	if cache, ok := s.readWarmOverrideSnapshot(ctx); ok {
 		return cache, nil
 	}
 	s.snapshotStats.recordMiss()
-	item, err := s.cache.GetOrLoad(ctx, systemConfigSnapshotKey(), func(loadCtx context.Context) (cachex.Item, error) {
-		if cache, cacheErr := s.cachedSnapshot(loadCtx); cacheErr != nil {
-			s.logInvalidationWarning("recheck system-config snapshot cache", cacheErr)
-		} else if cache != nil {
-			payload, marshalErr := marshalOverrideSnapshotCache(cache)
-			if marshalErr != nil {
-				return cachex.Item{}, marshalErr
-			}
-			return cachex.NewItem(payload, 0), nil
-		}
-
-		overrides, loadErr := s.store.ListOverrides(context.WithoutCancel(loadCtx))
-		if loadErr != nil {
-			return cachex.Item{}, loadErr
-		}
-		cache := buildOverrideSnapshotCache(overrides)
-		payload, marshalErr := marshalOverrideSnapshotCache(cache)
-		if marshalErr != nil {
-			return cachex.Item{}, marshalErr
-		}
-		s.snapshotStats.recordLoad(len(overrides))
-		s.logSnapshotDebug("system-config snapshot cache loaded", zap.Int("overrideCount", len(overrides)))
-		return cachex.NewItem(payload, 0), nil
-	})
+	item, err := s.sharedLoadOverrideSnapshot(ctx)
 	if err != nil {
 		s.snapshotStats.recordLoadError()
 		s.logInvalidationWarning("load system-config snapshot cache", err)
 		return nil, err
 	}
+
+	return s.decodeOrRebuildOverrideSnapshot(ctx, item)
+}
+
+func (s *Service) readWarmOverrideSnapshot(ctx context.Context) (*overrideSnapshotCache, bool) {
+	if cache, err := s.cachedSnapshot(ctx); err != nil {
+		s.snapshotStats.recordLoadError()
+		s.logInvalidationWarning("read system-config snapshot cache", err)
+	} else if cache != nil {
+		s.snapshotStats.recordHit()
+		return cache, true
+	}
+
+	return nil, false
+}
+
+func (s *Service) sharedLoadOverrideSnapshot(ctx context.Context) (cachex.Item, error) {
+	return s.cache.GetOrLoad(ctx, systemConfigSnapshotKey(), func(loadCtx context.Context) (cachex.Item, error) {
+		payload, ok, err := s.readSharedCachedSnapshot(loadCtx)
+		if ok || err != nil {
+			return payload, err
+		}
+
+		return s.buildOverrideSnapshotCacheItem(loadCtx)
+	})
+}
+
+func (s *Service) readSharedCachedSnapshot(ctx context.Context) (cachex.Item, bool, error) {
+	cache, err := s.cachedSnapshot(ctx)
+	if err != nil {
+		s.logInvalidationWarning("recheck system-config snapshot cache", err)
+		return cachex.Item{}, false, nil
+	}
+	if cache == nil {
+		return cachex.Item{}, false, nil
+	}
+
+	payload, err := marshalOverrideSnapshotCache(cache)
+	if err != nil {
+		return cachex.Item{}, false, err
+	}
+	return cachex.NewItem(payload, 0), true, nil
+}
+
+func (s *Service) buildOverrideSnapshotCacheItem(ctx context.Context) (cachex.Item, error) {
+	overrides, err := s.listOverridesForSnapshotLoad(ctx)
+	if err != nil {
+		return cachex.Item{}, err
+	}
+	cache := buildOverrideSnapshotCache(overrides)
+	payload, err := marshalOverrideSnapshotCache(cache)
+	if err != nil {
+		return cachex.Item{}, err
+	}
+	s.snapshotStats.recordLoad(len(overrides))
+	s.logSnapshotDebug("system-config snapshot cache loaded", zap.Int("overrideCount", len(overrides)))
+	return cachex.NewItem(payload, 0), nil
+}
+
+func (s *Service) decodeOrRebuildOverrideSnapshot(ctx context.Context, item cachex.Item) (*overrideSnapshotCache, error) {
 	cache, err := unmarshalOverrideSnapshotCache(item.Value)
 	if err != nil {
-		return nil, err
+		s.snapshotStats.recordLoadError()
+		s.logInvalidationWarning("decode system-config snapshot cache", err)
+		if invalidateErr := s.deleteSnapshotCache(); invalidateErr != nil {
+			s.logInvalidationWarning("delete corrupt system-config snapshot cache", invalidateErr)
+		}
+		return s.reloadOverrideSnapshotAfterCacheEviction(ctx)
 	}
 	return cache, nil
 }
@@ -373,13 +412,47 @@ func (s *Service) invalidateSnapshotCacheWithObservation(observation snapshotInv
 	if s == nil {
 		return
 	}
-	if s.cache != nil {
-		if err := s.cache.Delete(context.Background(), systemConfigSnapshotKey()); err != nil {
-			s.logInvalidationWarning("delete system-config snapshot cache", err)
-		}
+	if err := s.deleteSnapshotCache(); err != nil {
+		s.logInvalidationWarning("delete system-config snapshot cache", err)
 	}
 	s.snapshotStats.recordInvalidation(observation)
 	s.logSnapshotInvalidation(observation)
+}
+
+func (s *Service) reloadOverrideSnapshotAfterCacheEviction(ctx context.Context) (*overrideSnapshotCache, error) {
+	overrides, err := s.listOverridesForSnapshotLoad(ctx)
+	if err != nil {
+		s.snapshotStats.recordLoadError()
+		s.logInvalidationWarning("reload system-config snapshot cache after decode failure", err)
+		return nil, err
+	}
+	cache := buildOverrideSnapshotCache(overrides)
+	payload, marshalErr := marshalOverrideSnapshotCache(cache)
+	if marshalErr != nil {
+		return nil, marshalErr
+	}
+	if err := s.cache.Set(ctx, systemConfigSnapshotKey(), cachex.NewItem(payload, 0)); err != nil {
+		s.snapshotStats.recordLoadError()
+		s.logInvalidationWarning("persist rebuilt system-config snapshot cache", err)
+		return nil, err
+	}
+	s.snapshotStats.recordLoad(len(overrides))
+	s.logSnapshotDebug("system-config snapshot cache rebuilt after decode failure", zap.Int("overrideCount", len(overrides)))
+	return cache, nil
+}
+
+func (s *Service) listOverridesForSnapshotLoad(ctx context.Context) ([]systemconfigstore.Override, error) {
+	detachedCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), systemConfigSnapshotLoadTTL)
+	defer cancel()
+
+	return s.store.ListOverrides(detachedCtx)
+}
+
+func (s *Service) deleteSnapshotCache() error {
+	if s == nil || s.cache == nil {
+		return nil
+	}
+	return s.cache.Delete(context.Background(), systemConfigSnapshotKey())
 }
 
 // buildOverrideSnapshotCache constructs a snapshot cache indexed by definition key from the provided overrides.
@@ -458,15 +531,6 @@ func cloneUint64Pointer(value *uint64) *uint64 {
 		return nil
 	}
 	cloned := *value
-	return &cloned
-}
-
-// cloneTimePointer returns a pointer to the given time converted to UTC, or nil if the input is nil.
-func cloneTimePointer(value *time.Time) *time.Time {
-	if value == nil {
-		return nil
-	}
-	cloned := value.UTC()
 	return &cloned
 }
 
@@ -559,8 +623,7 @@ func (s *snapshotCacheStats) recordLoad(overrideCount int) {
 		overrideCount = 0
 	}
 	s.lastLoadedOverrideCount.Store(int64(overrideCount))
-	now := time.Now().UTC()
-	s.lastLoadAt = &now
+	s.lastLoadAtUnixNano.Store(time.Now().UTC().UnixNano())
 }
 
 func (s *snapshotCacheStats) recordLoadError() {
@@ -572,9 +635,9 @@ func (s *snapshotCacheStats) recordInvalidation(observation snapshotInvalidation
 	if observation.UpdatedAt.IsZero() {
 		observation.UpdatedAt = time.Now().UTC()
 	}
-	now := time.Now().UTC()
-	s.lastInvalidateAt = &now
-	s.lastInvalidation = observation
+	s.lastInvalidateAtUnixNano.Store(time.Now().UTC().UnixNano())
+	copied := observation
+	s.lastInvalidation.Store(&copied)
 }
 
 func (s *snapshotCacheStats) snapshot() SnapshotCacheDebugState {
@@ -586,15 +649,23 @@ func (s *snapshotCacheStats) snapshot() SnapshotCacheDebugState {
 		LoadSharedCount:         s.loadSharedCount.Load(),
 		LastLoadedOverrideCount: s.lastLoadedOverrideCount.Load(),
 		InvalidateCount:         s.invalidateCount.Load(),
-		LastInvalidationKey:     s.lastInvalidation.Key,
-		LastInvalidationAction:  string(s.lastInvalidation.Action),
-		LastInvalidationSource:  string(s.lastInvalidation.Source),
-		LastLoadAt:              cloneTimePointer(s.lastLoadAt),
-		LastInvalidateAt:        cloneTimePointer(s.lastInvalidateAt),
 	}
-	if !s.lastInvalidation.UpdatedAt.IsZero() {
-		updatedAt := s.lastInvalidation.UpdatedAt.UTC()
-		state.LastInvalidationAt = &updatedAt
+	if lastLoadAt := s.lastLoadAtUnixNano.Load(); lastLoadAt > 0 {
+		loadedAt := time.Unix(0, lastLoadAt).UTC()
+		state.LastLoadAt = &loadedAt
+	}
+	if lastInvalidateAt := s.lastInvalidateAtUnixNano.Load(); lastInvalidateAt > 0 {
+		invalidatedAt := time.Unix(0, lastInvalidateAt).UTC()
+		state.LastInvalidateAt = &invalidatedAt
+	}
+	if lastInvalidation := s.lastInvalidation.Load(); lastInvalidation != nil {
+		state.LastInvalidationKey = lastInvalidation.Key
+		state.LastInvalidationAction = string(lastInvalidation.Action)
+		state.LastInvalidationSource = string(lastInvalidation.Source)
+		if !lastInvalidation.UpdatedAt.IsZero() {
+			updatedAt := lastInvalidation.UpdatedAt.UTC()
+			state.LastInvalidationAt = &updatedAt
+		}
 	}
 	return state
 }

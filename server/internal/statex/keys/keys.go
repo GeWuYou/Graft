@@ -10,14 +10,18 @@ var segmentReplacer = strings.NewReplacer(" ", "-", "/", "-", "\\", "-", ":", "-
 
 // Segment normalizes a raw key segment for state-store storage. If the input is empty or becomes empty after normalization, the fallback value is returned instead.
 func Segment(value string, fallback string) string {
-	trimmed := strings.TrimSpace(strings.ToLower(value))
-	if trimmed == "" {
-		return fallback
-	}
-
-	sanitized := segmentReplacer.Replace(trimmed)
+	sanitized := normalizeSegment(value)
 	if sanitized == "" {
-		return fallback
+		return normalizeSegment(fallback)
 	}
 	return sanitized
+}
+
+func normalizeSegment(value string) string {
+	trimmed := strings.TrimSpace(strings.ToLower(value))
+	if trimmed == "" {
+		return ""
+	}
+
+	return segmentReplacer.Replace(trimmed)
 }

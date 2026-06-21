@@ -5,6 +5,7 @@ package statex
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"strconv"
@@ -66,7 +67,7 @@ func (s *redisTimeSeriesStore) Append(
 	pipe := s.client.TxPipeline()
 	pipe.ZAdd(ctx, key, redis.Z{
 		Score:  float64(observedAt.UnixMilli()),
-		Member: string(sample.Payload),
+		Member: encodeMember(observedAt, sample.Payload),
 	})
 	if !policy.TrimBefore.IsZero() {
 		pipe.ZRemRangeByScore(ctx, key, "-inf", strconv.FormatInt(policy.TrimBefore.UTC().UnixMilli(), 10))
@@ -91,7 +92,7 @@ func (s *redisTimeSeriesStore) Range(ctx context.Context, key string, query Time
 		return nil, err
 	}
 
-	members, err := s.client.ZRangeArgs(ctx, redis.ZRangeArgs{
+	members, err := s.client.ZRangeArgsWithScores(ctx, redis.ZRangeArgs{
 		Key:     key,
 		Start:   strconv.FormatInt(query.StartAt.UTC().UnixMilli(), 10),
 		Stop:    strconv.FormatInt(query.EndAt.UTC().UnixMilli(), 10),
@@ -103,10 +104,50 @@ func (s *redisTimeSeriesStore) Range(ctx context.Context, key string, query Time
 
 	samples := make([]TimeSeriesSample, 0, len(members))
 	for _, member := range members {
-		samples = append(samples, TimeSeriesSample{Payload: []byte(member)})
+		payload, err := decodeMember(member.Member)
+		if err != nil {
+			return nil, fmt.Errorf("decode time-series sample member: %w", err)
+		}
+		samples = append(samples, TimeSeriesSample{
+			ObservedAt: time.UnixMilli(int64(member.Score)).UTC(),
+			Payload:    payload,
+		})
 	}
 
 	return samples, nil
+}
+
+func encodeMember(observedAt time.Time, payload []byte) string {
+	return strconv.FormatInt(observedAt.UnixNano(), 10) + "|" + base64.RawStdEncoding.EncodeToString(payload)
+}
+
+func decodeMember(member any) ([]byte, error) {
+	raw, err := memberString(member)
+	if err != nil {
+		return nil, err
+	}
+
+	_, encodedPayload, ok := strings.Cut(raw, "|")
+	if !ok {
+		return []byte(raw), nil
+	}
+
+	payload, err := base64.RawStdEncoding.DecodeString(encodedPayload)
+	if err != nil {
+		return nil, fmt.Errorf("decode payload: %w", err)
+	}
+	return payload, nil
+}
+
+func memberString(member any) (string, error) {
+	switch typed := member.(type) {
+	case string:
+		return typed, nil
+	case []byte:
+		return string(typed), nil
+	default:
+		return "", fmt.Errorf("unsupported member type %T", member)
+	}
 }
 
 // Validate ensures the time query is bounded and ordered.

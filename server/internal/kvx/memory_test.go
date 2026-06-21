@@ -95,3 +95,29 @@ func TestMemoryExpiresEntries(t *testing.T) {
 		t.Fatal("expected expired value to be absent")
 	}
 }
+
+func TestMemoryPreservesEmptyByteSlices(t *testing.T) {
+	t.Parallel()
+
+	store := NewMemory(MemoryOptions{
+		Clock: &fixedClock{now: time.Date(2026, 6, 21, 10, 0, 0, 0, time.UTC)},
+	})
+
+	if err := store.Put(context.Background(), "alpha", []byte{}, 0); err != nil {
+		t.Fatalf("put empty bytes: %v", err)
+	}
+
+	item, ok, err := store.Get(context.Background(), "alpha")
+	if err != nil {
+		t.Fatalf("get empty bytes: %v", err)
+	}
+	if !ok {
+		t.Fatal("expected stored empty value")
+	}
+	if item.Value == nil {
+		t.Fatal("expected empty slice, got nil")
+	}
+	if len(item.Value) != 0 {
+		t.Fatalf("expected zero-length slice, got %d", len(item.Value))
+	}
+}

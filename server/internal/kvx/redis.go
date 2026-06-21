@@ -6,6 +6,7 @@ package kvx
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -83,7 +84,11 @@ func (r *Redis) Put(ctx context.Context, key string, value []byte, ttl time.Dura
 		return err
 	}
 
-	return r.client.Set(ctx, r.prefixed(key), cloneBytes(value), ttl).Err()
+	prefixedKey := r.prefixed(key)
+	if err := r.client.Set(ctx, prefixedKey, cloneBytes(value), ttl).Err(); err != nil {
+		return fmt.Errorf("kv redis put %q: %w", prefixedKey, err)
+	}
+	return nil
 }
 
 // Get reads one value from Redis when present.
@@ -92,18 +97,19 @@ func (r *Redis) Get(ctx context.Context, key string) (Item, bool, error) {
 		return Item{}, false, err
 	}
 
-	value, err := r.client.Get(ctx, r.prefixed(key)).Bytes()
+	prefixedKey := r.prefixed(key)
+	value, err := r.client.Get(ctx, prefixedKey).Bytes()
 	if errors.Is(err, redis.Nil) {
 		return Item{}, false, nil
 	}
 	if err != nil {
-		return Item{}, false, err
+		return Item{}, false, fmt.Errorf("kv redis get %q: %w", prefixedKey, err)
 	}
 
 	item := Item{Value: cloneBytes(value)}
-	ttl, ttlErr := r.client.PTTL(ctx, r.prefixed(key)).Result()
+	ttl, ttlErr := r.client.PTTL(ctx, prefixedKey).Result()
 	if ttlErr != nil && !errors.Is(ttlErr, redis.Nil) {
-		return Item{}, false, ttlErr
+		return Item{}, false, fmt.Errorf("kv redis pttl %q: %w", prefixedKey, ttlErr)
 	}
 	if ttl > 0 {
 		item.ExpiresAt = r.now().Add(ttl)
@@ -118,7 +124,11 @@ func (r *Redis) Delete(ctx context.Context, key string) error {
 		return err
 	}
 
-	return r.client.Del(ctx, r.prefixed(key)).Err()
+	prefixedKey := r.prefixed(key)
+	if err := r.client.Del(ctx, prefixedKey).Err(); err != nil {
+		return fmt.Errorf("kv redis delete %q: %w", prefixedKey, err)
+	}
+	return nil
 }
 
 // CompareAndSwap updates one Redis value only when the current bytes still match.
@@ -130,16 +140,17 @@ func (r *Redis) CompareAndSwap(ctx context.Context, key string, oldValue []byte,
 		return false, err
 	}
 
+	prefixedKey := r.prefixed(key)
 	result, err := compareAndSwapScript.Run(
 		ctx,
 		r.client,
-		[]string{r.prefixed(key)},
+		[]string{prefixedKey},
 		string(oldValue),
 		string(newValue),
 		ttlMilliseconds(ttl),
 	).Int64()
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("kv redis compare-and-swap %q: %w", prefixedKey, err)
 	}
 
 	return result == 1, nil
@@ -151,14 +162,15 @@ func (r *Redis) CompareAndDelete(ctx context.Context, key string, oldValue []byt
 		return false, err
 	}
 
+	prefixedKey := r.prefixed(key)
 	result, err := compareAndDeleteScript.Run(
 		ctx,
 		r.client,
-		[]string{r.prefixed(key)},
+		[]string{prefixedKey},
 		string(oldValue),
 	).Int64()
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("kv redis compare-and-delete %q: %w", prefixedKey, err)
 	}
 
 	return result == 1, nil

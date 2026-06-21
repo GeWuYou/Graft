@@ -537,9 +537,7 @@ const domainTree = computed<TreeProps['data']>(() =>
 const activeTreeValue = computed(() => (activeGroupKey.value ? [activeGroupKey.value] : []));
 const activeGroup = computed(() => groupedConfigs.value.find((group) => group.key === activeGroupKey.value) ?? null);
 const activeConfigCards = computed(() => activeGroup.value?.items.map(buildConfigCard) ?? []);
-const activeGroupOverrideCount = computed(
-  () => activeGroup.value?.items.filter((item) => item.has_override).length ?? 0,
-);
+const activeGroupOverrideCount = computed(() => activeGroup.value?.items.filter(hasConfigOverride).length ?? 0);
 const editingSchema = computed(() =>
   editingItem.value ? editorSchemaForItem(editingItem.value) : parseConfigSchema(),
 );
@@ -829,7 +827,7 @@ function buildConfigCard(item: SystemConfigItem): ConfigCardVM {
       defaultJson: jsonPreviewFromRaw(item.default_value),
       schemaSummary: schemaSummary(item, schema, fields),
     },
-    canReset: item.has_override,
+    canReset: hasConfigOverride(item),
   };
 }
 

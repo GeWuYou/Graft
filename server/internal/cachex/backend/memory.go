@@ -31,6 +31,7 @@ func (m *Memory) Name() string {
 
 // Get returns one stored entry when present and not expired.
 func (m *Memory) Get(_ context.Context, key string) (Entry, bool, error) {
+	now := m.now()
 	m.mu.RLock()
 	entry, ok := m.items[key]
 	m.mu.RUnlock()
@@ -38,11 +39,20 @@ func (m *Memory) Get(_ context.Context, key string) (Entry, bool, error) {
 		return Entry{}, false, nil
 	}
 
-	if !entry.ExpiresAt.IsZero() && !entry.ExpiresAt.After(m.now()) {
+	if !entry.ExpiresAt.IsZero() && !entry.ExpiresAt.After(now) {
 		m.mu.Lock()
-		delete(m.items, key)
+		latest, exists := m.items[key]
+		if !exists {
+			m.mu.Unlock()
+			return Entry{}, false, nil
+		}
+		if !latest.ExpiresAt.IsZero() && !latest.ExpiresAt.After(now) {
+			delete(m.items, key)
+			m.mu.Unlock()
+			return Entry{}, false, nil
+		}
 		m.mu.Unlock()
-		return Entry{}, false, nil
+		return cloneEntry(latest), true, nil
 	}
 
 	return cloneEntry(entry), true, nil

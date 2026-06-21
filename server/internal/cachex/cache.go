@@ -118,7 +118,9 @@ func (c *Cache) GetOrLoad(ctx context.Context, key keys.Key, loader Loader) (Ite
 
 	cacheKey := c.cacheKey(key)
 	loaded, err, shared := c.group.Do(cacheKey, func() (Item, error) {
-		current, found, currentErr := c.Get(ctx, key)
+		sharedCtx := context.WithoutCancel(ctx)
+
+		current, found, currentErr := c.Get(sharedCtx, key)
 		if currentErr != nil {
 			return Item{}, currentErr
 		}
@@ -127,7 +129,7 @@ func (c *Cache) GetOrLoad(ctx context.Context, key keys.Key, loader Loader) (Ite
 		}
 
 		started := time.Now()
-		loadedItem, loadErr := loader(ctx)
+		loadedItem, loadErr := loader(sharedCtx)
 		if loadErr != nil {
 			c.metrics.Observe(Event{
 				Cache:     c.name,
@@ -150,7 +152,7 @@ func (c *Cache) GetOrLoad(ctx context.Context, key keys.Key, loader Loader) (Ite
 			})
 			return Item{}, normalizeErr
 		}
-		if setErr := c.backend.Set(ctx, cacheKey, entryFromItem(normalized)); setErr != nil {
+		if setErr := c.backend.Set(sharedCtx, cacheKey, entryFromItem(normalized)); setErr != nil {
 			c.metrics.Observe(Event{
 				Cache:     c.name,
 				Backend:   c.backend.Name(),

@@ -29,7 +29,7 @@ func NewRepository(db *sql.DB) (systemconfigstore.Repository, error) {
 	return &repository{db: db}, nil
 }
 
-func (r *repository) ListOverrides(ctx context.Context) ([]systemconfigstore.Override, error) {
+func (r *repository) ListOverrides(ctx context.Context) (overrides []systemconfigstore.Override, err error) {
 	if r == nil || r.db == nil {
 		return nil, errors.New("system config repository is unavailable")
 	}
@@ -49,7 +49,7 @@ func (r *repository) ListOverrides(ctx context.Context) ([]systemconfigstore.Ove
 		}
 	}()
 
-	overrides := make([]systemconfigstore.Override, 0)
+	overrides = make([]systemconfigstore.Override, 0)
 	for rows.Next() {
 		override, scanErr := scanOverride(rows)
 		if scanErr != nil {

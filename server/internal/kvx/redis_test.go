@@ -5,6 +5,7 @@ package kvx
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -99,5 +100,62 @@ func TestRedisCompareAndSwapAndExpiry(t *testing.T) {
 		t.Fatalf("get after expiry: %v", err)
 	} else if ok {
 		t.Fatal("expected expired value to be absent")
+	}
+}
+
+func TestRedisPreservesEmptyByteSlices(t *testing.T) {
+	t.Parallel()
+
+	server := miniredis.RunT(t)
+	client := redis.NewClient(&redis.Options{Addr: server.Addr()})
+	t.Cleanup(func() {
+		_ = client.Close()
+	})
+
+	store, err := NewRedis(client, RedisOptions{Prefix: "graft-kv"})
+	if err != nil {
+		t.Fatalf("new redis store: %v", err)
+	}
+
+	if err := store.Put(context.Background(), "alpha", []byte{}, 0); err != nil {
+		t.Fatalf("put empty bytes: %v", err)
+	}
+
+	item, ok, err := store.Get(context.Background(), "alpha")
+	if err != nil {
+		t.Fatalf("get empty bytes: %v", err)
+	}
+	if !ok {
+		t.Fatal("expected stored empty value")
+	}
+	if item.Value == nil {
+		t.Fatal("expected empty slice, got nil")
+	}
+	if len(item.Value) != 0 {
+		t.Fatalf("expected zero-length slice, got %d", len(item.Value))
+	}
+}
+
+func TestRedisWrapsClientErrors(t *testing.T) {
+	t.Parallel()
+
+	server := miniredis.RunT(t)
+	client := redis.NewClient(&redis.Options{Addr: server.Addr()})
+	store, err := NewRedis(client, RedisOptions{Prefix: "graft-kv"})
+	if err != nil {
+		t.Fatalf("new redis store: %v", err)
+	}
+
+	_ = client.Close()
+
+	_, _, err = store.Get(context.Background(), "alpha")
+	if err == nil {
+		t.Fatal("expected redis get error")
+	}
+	if !errors.Is(err, redis.ErrClosed) {
+		t.Fatalf("expected wrapped redis closed error, got %v", err)
+	}
+	if got := err.Error(); got == redis.ErrClosed.Error() {
+		t.Fatal("expected contextual error wrapping, got bare redis error")
 	}
 }
