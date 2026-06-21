@@ -10,6 +10,7 @@ required:
   - sensitive
   - masked
   - restart_required
+  - runtime_apply_mode
 properties:
   key:
     type: string
@@ -111,6 +112,10 @@ properties:
   restart_required:
     type: boolean
     description: Whether changing this config requires a service restart before it takes effect.
+  runtime_apply_mode:
+    type: string
+    enum: [unknown, runtime_hot, restart_required]
+    description: Canonical runtime apply semantics declared by the config-definition owner; unknown means the current authority has not classified it yet.
   permission:
     type: string
     description: Permission code required to update this config item when the definition declares one.

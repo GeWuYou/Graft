@@ -313,6 +313,7 @@ func RegisterAccessLogRetentionConfigDefinition(registry *configregistry.Registr
 		Type:                configregistry.ValueTypeObject,
 		Schema:              json.RawMessage(accessLogRetentionCleanupConfigSchema),
 		DefaultValue:        json.RawMessage(accessLogRetentionCleanupDefaultConfig),
+		RuntimeApplyMode:    configregistry.RuntimeApplyModeRuntimeHot,
 		Order:               accessLogRetentionConfigDefinitionOrder,
 	})
 }

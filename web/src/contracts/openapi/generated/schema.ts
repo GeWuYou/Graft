@@ -3378,6 +3378,11 @@ export interface components {
       masked_placeholder?: string | null;
       /** @description Whether changing this config requires a service restart before it takes effect. */
       restart_required: boolean;
+      /**
+       * @description Canonical runtime apply semantics declared by the config-definition owner; unknown means the current authority has not classified it yet.
+       * @enum {string}
+       */
+      runtime_apply_mode: 'unknown' | 'runtime_hot' | 'restart_required';
       /** @description Permission code required to update this config item when the definition declares one. */
       permission?: string;
       /** @description Module-declared display order within the config group. */

@@ -51,6 +51,9 @@ func assertLocalizedMetadata(t *testing.T, got Definition) {
 	if len(got.Tags) != 1 || got.Tags[0] != "retention" {
 		t.Fatalf("expected normalized tags, got %#v", got.Tags)
 	}
+	if got.RuntimeApplyMode != RuntimeApplyModeUnknown {
+		t.Fatalf("expected default runtime apply mode unknown, got %#v", got.RuntimeApplyMode)
+	}
 }
 
 func TestRegistryRejectsDuplicateDefinition(t *testing.T) {
@@ -130,6 +133,15 @@ func TestRegistryRequiresDomain(t *testing.T) {
 func TestMaskedPlaceholder(t *testing.T) {
 	if MaskedPlaceholder() == "" {
 		t.Fatal("masked placeholder must be stable and non-empty")
+	}
+}
+
+func TestRegistryRejectsInvalidRuntimeApplyMode(t *testing.T) {
+	definition := testDefinition("auth.password_policy")
+	definition.RuntimeApplyMode = RuntimeApplyMode("immediate")
+
+	if err := NewRegistry().Register(definition); err == nil {
+		t.Fatal("expected invalid runtime apply mode error")
 	}
 }
 

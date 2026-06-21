@@ -103,11 +103,15 @@ func notificationConfigDefinitions() []configregistry.Definition {
 }
 
 func booleanNotificationDefinition(key string, group string, title string, description string, defaultValue bool) configregistry.Definition {
-	return baseNotificationDefinition(key, group, title, description, configregistry.ValueTypeBoolean, mustRawJSON(defaultValue))
+	definition := baseNotificationDefinition(key, group, title, description, configregistry.ValueTypeBoolean, mustRawJSON(defaultValue))
+	definition.RuntimeApplyMode = configregistry.RuntimeApplyModeRuntimeHot
+	return definition
 }
 
 func numberNotificationDefinition(key string, group string, title string, description string, defaultValue int) configregistry.Definition {
-	return baseNotificationDefinition(key, group, title, description, configregistry.ValueTypeInteger, mustRawJSON(defaultValue))
+	definition := baseNotificationDefinition(key, group, title, description, configregistry.ValueTypeInteger, mustRawJSON(defaultValue))
+	definition.RuntimeApplyMode = configregistry.RuntimeApplyModeUnknown
+	return definition
 }
 
 func notificationDisplayDefinition() configregistry.Definition {
@@ -120,6 +124,7 @@ func notificationDisplayDefinition() configregistry.Definition {
 		json.RawMessage(fmt.Sprintf(`{"showReadDays":%d,"popupLimit":%d}`, defaultNotificationDisplayShowReadDays, defaultNotificationDisplayPopupLimit)),
 	)
 	definition.Schema = notificationDisplaySchema()
+	definition.RuntimeApplyMode = configregistry.RuntimeApplyModeUnknown
 	return definition
 }
 

@@ -17,6 +17,7 @@ import (
 
 	"graft/server/internal/config"
 	"graft/server/internal/configregistry"
+	containerdi "graft/server/internal/container"
 	"graft/server/internal/eventbus"
 	"graft/server/internal/httpx"
 	"graft/server/internal/module"
@@ -1209,6 +1210,43 @@ func TestContainerOptionsFromConfigPrefersProcessConfig(t *testing.T) {
 	}
 }
 
+func TestNewContainerServiceUsesEffectiveStartupRuntimeConfig(t *testing.T) {
+	t.Parallel()
+
+	services := containerdi.New()
+	resolver := serviceTestPolicyConfig{
+		values: map[string]string{
+			containercontract.ContainerRuntimeConfig.String():        string(mustRawJSON(runtimeNameDocker)),
+			containercontract.ContainerDockerEndpointConfig.String(): string(mustRawJSON("unix:///effective/docker.sock")),
+		},
+	}
+	if err := services.RegisterSingleton((*moduleapi.SystemConfigResolver)(nil), func(containerdi.Resolver) (any, error) {
+		return resolver, nil
+	}); err != nil {
+		t.Fatalf("register system config resolver: %v", err)
+	}
+	service, err := newContainerService(&module.Context{
+		LifecycleContext: context.Background(),
+		Services:         services,
+		ConfigRegistry:   newContainerConfigRegistry(t),
+		Config: &config.Config{
+			Container: config.ContainerConfig{
+				Runtime:        "ignored-runtime",
+				DockerEndpoint: "unix:///ignored/docker.sock",
+			},
+		},
+	}, moduleID)
+	if err != nil {
+		t.Fatalf("new container service: %v", err)
+	}
+	if service.runtimeOptions.runtime != runtimeNameDocker {
+		t.Fatalf("expected effective startup runtime, got %q", service.runtimeOptions.runtime)
+	}
+	if service.runtimeOptions.endpoint != "unix:///effective/docker.sock" {
+		t.Fatalf("expected effective startup endpoint, got %q", service.runtimeOptions.endpoint)
+	}
+}
+
 func newContainerConfigRegistry(t *testing.T) *configregistry.Registry {
 	t.Helper()
 
@@ -1235,6 +1273,37 @@ func newContainerConfigRegistry(t *testing.T) *configregistry.Registry {
 		}
 	}
 	return registry
+}
+
+func TestServiceLogsUseRuntimeHotTailConfig(t *testing.T) {
+	t.Parallel()
+
+	service, err := newService(containerServiceOptions{
+		runtime: fakeRuntime{},
+		systemConfig: serviceTestPolicyConfig{
+			values: map[string]string{
+				containercontract.ContainerLogsDefaultTailConfig.String(): string(mustRawJSON(25)),
+				containercontract.ContainerLogsMaxTailConfig.String():     string(mustRawJSON(250)),
+			},
+		},
+		enabled:     true,
+		defaultTail: defaultContainerLogsDefaultTail,
+		maxTail:     defaultContainerLogsMaxTail,
+	})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	logs, err := service.Logs(context.Background(), Ref{Value: "web"}, LogQuery{})
+	if err != nil {
+		t.Fatalf("logs: %v", err)
+	}
+	if logs.Tail != 25 {
+		t.Fatalf("expected runtime-hot default tail, got %#v", logs)
+	}
+	if _, err := service.Logs(context.Background(), Ref{Value: "web"}, LogQuery{Tail: 251}); !errors.Is(err, errLogsTooLarge) {
+		t.Fatalf("expected runtime-hot max tail guard, got %v", err)
+	}
 }
 
 func TestRuntimeForRequestInitializesOnceUnderConcurrentAccess(t *testing.T) {

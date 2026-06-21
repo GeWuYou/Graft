@@ -9,7 +9,7 @@
 - 建立仓库 skill：`.agents/skills/graft-cache-governance/SKILL.md`。
 - 更新 `ai-plan/public/README.md` 与共享资产注册表，使后续会话可直接恢复本主题。
 
-## 2026-06-21 Real-code exploration findings
+## 2026-06-21 Real-code exploration baseline findings
 
 - 系统配置读取 authority 当前位于 `server/modules/system-config/service.go`：
   - `Get(ctx, key)` 先查 `configregistry` definition，再调用 `store.GetOverride(ctx, key)`。
@@ -30,6 +30,8 @@
 - 已确认容器配置存在双轨：
   - 部分布尔开关已经由 `SystemConfigResolver` 消费
   - `ops.container.runtime`、`ops.container.docker.endpoint`、`logs.default_tail`、`logs.max_tail` 仍主要依赖启动期 config 默认值
+
+以上是 Phase 0 的历史基线，不代表当前 archive-ready 时点的最新运行时现状。
 
 ## 2026-06-21 Governance decision
 
@@ -114,9 +116,12 @@
 - 复核 `server/modules/system-config/service.go`、topic README、tracking 与 trace 后确认：
   - process-local snapshot cache、`singleflight`、local invalidation、Redis invalidation transport、debug state 已全部落地。
   - 当前 topic 的 archive-ready 结论成立，但结论边界仅限 `system-config` authority 主链及本 topic 已登记热点。
+  - `SystemConfigResolver` 当前共享 contract 已覆盖布尔与 `ResolveDefaultConfig(...)` 读取，不再应被描述为 bool-only resolver。
+  - 上游 canonical contract 已以 `runtime_apply_mode` 承载 runtime apply semantics；现有 `effective-source` authority 继续只表达 `default` / `override`，不新增新的 display-only contract field。
 - 同步修正文档口径：
   - 当前状态不是“全仓缓存治理完成”。
   - 后续仓库级缓存治理仍需按新增热点或未纳入本 topic 的 authority owner 逐项推进。
+  - 当前 round 已将 system-config display-authority gap 收口到 canonical contract + page consumption 边界；后续若继续扩展，仅属于页面高级提示或调试展示增强。
 
 ## Loop Batch State
 

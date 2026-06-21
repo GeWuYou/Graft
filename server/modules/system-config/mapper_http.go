@@ -54,6 +54,7 @@ func toItem(snapshot ValueSnapshot) generated.SystemConfigItem {
 		Sensitive:           definition.Sensitive,
 		Masked:              snapshot.Masked,
 		RestartRequired:     definition.RestartRequired,
+		RuntimeApplyMode:    generated.SystemConfigItemRuntimeApplyMode(definition.RuntimeApplyMode),
 		Permission:          optionalString(definition.Permission),
 		Order:               optionalInt(definition.Order),
 		MaskedPlaceholder:   maskedPointer(definition),

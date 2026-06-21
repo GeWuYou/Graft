@@ -4,7 +4,9 @@
 
 - 当前主题目标是为 `Graft` 建立统一缓存治理规范，并优先收敛系统配置运行时读取加速方案。
 - 当前状态：Phase 0 治理资产已落盘，Phase 1 本地 snapshot 与热点消费方收口已完成，Phase 2 多节点失效传播已完成并提交，Phase 3 热点扩展已完成并提交，Phase 4 可观测性与治理门禁已完成并提交；`system-config` authority 主链已进入 archive-ready。
+- 显示 authority 收口：上游 canonical contract 现已以 `runtime_apply_mode` 承载运行时生效语义；页面继续沿用既有 `effective-source` authority，且仅表达 `default` / `override`。
 - 边界说明：上述完成态仅表示本主题负责的 `system-config` 与已登记热点缓存治理已收口，不表示仓库全部缓存热点都已完成治理。仓库级缓存治理仍需按 authority-first 热点清单逐项推进。
+- 未完成范围：仓库级其它热点仍不因本主题 closeout 自动完成；系统配置页若继续追加高级提示或调试展示，也属于独立 UX / operability follow-up，而不是新的 display-authority 缺口。
 - 任务分类为 `cross-boundary`，但本主题以 `backend-first` 为主；前端仅涉及系统配置页面的生效语义与高级信息展示建议。
 - Canonical design：`ai-plan/design/缓存治理与系统配置读取加速规范.md`。
 - AI 执行 skill：`.agents/skills/graft-cache-governance/SKILL.md`。
@@ -91,6 +93,9 @@
   - Phase 2 已完成 Redis invalidation signal 的多节点传播预留，authority 与统一 resolver 边界保持不变。
   - Phase 3 已完成热点读路径扩展，未改变 system-config authority。
   - Phase 4 已完成可观测性与治理门禁收口，当前主题满足 archive-ready。
+- 当前未完成但已记录的后续项：
+  - 若继续增强系统配置页，仅限更丰富的高级提示或调试展示；运行时生效语义仍以 canonical `runtime_apply_mode` 为准，`effective-source` 继续只表达 `default` / `override`。
+  - 本 topic 未覆盖的新热点或仓库级其它缓存 authority 继续按独立 topic / slice 推进。
 
 ## Validation Targets
 

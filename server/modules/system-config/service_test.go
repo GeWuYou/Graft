@@ -830,7 +830,8 @@ func TestToItemIncludesLocalizationMetadataAndStructuredSchema(t *testing.T) {
 			Schema: json.RawMessage(
 				`{"type":"object","properties":{"retentionDays":{"type":"integer","title":"Log retention days","x-i18n":{"titleKey":"systemConfig.fields.retentionDays.title","unitKey":"systemConfig.units.days"}}}}`,
 			),
-			DefaultValue: json.RawMessage(`{"retentionDays":30}`),
+			DefaultValue:      json.RawMessage(`{"retentionDays":30}`),
+			RuntimeApplyMode: configregistry.RuntimeApplyModeRuntimeHot,
 		},
 		DefaultValue:   json.RawMessage(`{"retentionDays":30}`),
 		EffectiveValue: json.RawMessage(`{"retentionDays":30}`),
@@ -838,6 +839,7 @@ func TestToItemIncludesLocalizationMetadataAndStructuredSchema(t *testing.T) {
 
 	assertMappedLocalizationMetadata(t, item)
 	assertMappedStructuredSchema(t, item)
+	assertMappedRuntimeApplyMode(t, item)
 }
 
 func assertMappedLocalizationMetadata(t *testing.T, item generated.SystemConfigItem) {
@@ -874,6 +876,14 @@ func assertMappedStructuredSchema(t *testing.T, item generated.SystemConfigItem)
 	i18nExtension, ok := retentionDays["x-i18n"].(map[string]interface{})
 	if !ok || i18nExtension["unitKey"] != "systemConfig.units.days" {
 		t.Fatalf("expected x-i18n unit metadata, got %#v", retentionDays)
+	}
+}
+
+func assertMappedRuntimeApplyMode(t *testing.T, item generated.SystemConfigItem) {
+	t.Helper()
+
+	if item.RuntimeApplyMode != generated.SystemConfigItemRuntimeApplyMode(configregistry.RuntimeApplyModeRuntimeHot) {
+		t.Fatalf("expected runtime apply mode in response, got %#v", item.RuntimeApplyMode)
 	}
 }
 

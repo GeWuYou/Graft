@@ -248,6 +248,9 @@ func assertNotificationDisplayConfigDefinition(t *testing.T, definition configre
 	if definition.Type != configregistry.ValueTypeObject {
 		t.Fatalf("expected notification.display object type, got %#v", definition)
 	}
+	if definition.RuntimeApplyMode != configregistry.RuntimeApplyModeUnknown {
+		t.Fatalf("expected notification.display runtime apply mode to remain unknown, got %#v", definition.RuntimeApplyMode)
+	}
 	if string(definition.DefaultValue) != `{"showReadDays":7,"popupLimit":5}` {
 		t.Fatalf("expected notification.display object default, got %s", definition.DefaultValue)
 	}
@@ -370,6 +373,16 @@ func assertNotificationConfigDefinitionI18nKeys(t *testing.T, definition configr
 	}
 	if definition.DescriptionKey != notificationConfigDescriptionKey(definition.Key) {
 		t.Fatalf("expected notification config %s description key %q, got %q", definition.Key, notificationConfigDescriptionKey(definition.Key), definition.DescriptionKey)
+	}
+	switch definition.Type {
+	case configregistry.ValueTypeBoolean:
+		if definition.RuntimeApplyMode != configregistry.RuntimeApplyModeRuntimeHot {
+			t.Fatalf("expected boolean notification config %s to be runtime-hot, got %#v", definition.Key, definition.RuntimeApplyMode)
+		}
+	default:
+		if definition.Key != notificationDisplayKey && definition.RuntimeApplyMode != configregistry.RuntimeApplyModeUnknown {
+			t.Fatalf("expected non-boolean notification config %s to remain unknown, got %#v", definition.Key, definition.RuntimeApplyMode)
+		}
 	}
 }
 

@@ -44,6 +44,15 @@ Use this skill when the task changes any of:
 - Do not let `web` become the authority for effective permissions, menus, or runtime config values.
 - Keep `restart-required` and `runtime-hot` semantics explicit; do not claim hot reload for values that still require process rebuild or runtime reconstruction.
 
+## Current Repository Status
+
+- The repository's `system-config` authority chain already has a process-local snapshot cache with `singleflight`, explicit local invalidation, and Redis best-effort invalidation transport.
+- The shared `SystemConfigResolver` contract is no longer bool-only; current repository truth includes `IsBooleanConfigEnabled(...)` and `ResolveDefaultConfig(...)`.
+- Canonical runtime apply semantics now live in upstream `runtime_apply_mode`; `web` must consume that authority instead of inferring `runtime-hot` locally.
+- Existing effective-source authority remains the current `default` vs `override` distinction; do not add a new display-only field for the same meaning.
+- This completed scope is limited to the `system-config` authority chain and the hotspot consumers already registered by the topic.
+- Do not reinterpret that archive-ready state as "all repository cache governance is finished"; new or unregistered hotspots still require explicit authority-first classification and follow-up.
+
 ## Required Cache Classification
 
 Before coding, classify the target data into exactly one primary strategy:

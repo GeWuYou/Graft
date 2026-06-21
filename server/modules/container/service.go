@@ -79,6 +79,8 @@ type containerServiceOptions struct {
 // newContainerService constructs a container service with configuration from the module context.
 func newContainerService(ctx *module.Context, moduleName string) (*service, error) {
 	options := containerOptionsFromConfig(ctx)
+	systemConfig := resolveSystemConfigResolver(ctx)
+	options = resolveStartupRuntimeOptions(systemConfigReadContext(ctx), systemConfig, options)
 	runtime := Runtime(disabledRuntime{})
 	allowedOrigins := []string{}
 	if ctx != nil && ctx.Config != nil {
@@ -87,7 +89,7 @@ func newContainerService(ctx *module.Context, moduleName string) (*service, erro
 	return newService(containerServiceOptions{
 		runtime:                 runtime,
 		runtimeOptions:          options,
-		systemConfig:            resolveSystemConfigResolver(ctx),
+		systemConfig:            systemConfig,
 		auditBus:                ctx.EventBus,
 		logger:                  ctx.Logger,
 		moduleName:              moduleName,
@@ -104,15 +106,7 @@ func newContainerService(ctx *module.Context, moduleName string) (*service, erro
 
 // newService 创建容器服务，规范化配置参数并为缺失的组件应用默认实现。
 func newService(options containerServiceOptions) (*service, error) {
-	if options.defaultTail <= 0 {
-		options.defaultTail = defaultContainerLogsDefaultTail
-	}
-	if options.maxTail <= 0 || options.maxTail > defaultContainerLogsMaxTail {
-		options.maxTail = defaultContainerLogsMaxTail
-	}
-	if options.defaultTail > options.maxTail {
-		options.defaultTail = options.maxTail
-	}
+	options.defaultTail, options.maxTail = normalizeContainerLogTailBounds(options.defaultTail, options.maxTail)
 	if options.realtimeTickets == nil {
 		options.realtimeTickets = realtimeauth.NewMemoryService()
 	}
@@ -299,7 +293,7 @@ func (s *service) Logs(ctx context.Context, ref Ref, query LogQuery) (Logs, erro
 	if err := s.requireRuntimeAccess(ctx); err != nil {
 		return Logs{}, err
 	}
-	normalized, err := s.normalizeLogQuery(query)
+	normalized, err := s.normalizeLogQuery(ctx, query)
 	if err != nil {
 		return Logs{}, err
 	}
@@ -817,11 +811,12 @@ var sensitiveEnvironmentKeyMarkers = []string{
 	"SESSION",
 }
 
-func (s *service) normalizeLogQuery(query LogQuery) (LogQuery, error) {
+func (s *service) normalizeLogQuery(ctx context.Context, query LogQuery) (LogQuery, error) {
+	defaultTail, maxTail := s.effectiveLogTailBounds(ctx)
 	if query.Tail == 0 {
-		query.Tail = s.defaultTail
+		query.Tail = defaultTail
 	}
-	if query.Tail < 0 || query.Tail > s.maxTail || query.Tail > defaultContainerLogsMaxTail {
+	if query.Tail < 0 || query.Tail > maxTail || query.Tail > defaultContainerLogsMaxTail {
 		return LogQuery{}, errLogsTooLarge
 	}
 	if !query.Stdout && !query.Stderr {
@@ -1271,6 +1266,23 @@ func applyContainerIntDefault(ctx *module.Context, key string, target *int) {
 	}
 }
 
+func systemConfigReadContext(ctx *module.Context) context.Context {
+	if ctx != nil && ctx.LifecycleContext != nil {
+		return ctx.LifecycleContext
+	}
+	return context.Background()
+}
+
+func resolveStartupRuntimeOptions(
+	ctx context.Context,
+	resolver moduleapi.SystemConfigResolver,
+	options containerRuntimeOptions,
+) containerRuntimeOptions {
+	options.runtime = resolveStringConfigValue(ctx, resolver, containercontract.ContainerRuntimeConfig.String(), options.runtime)
+	options.endpoint = resolveStringConfigValue(ctx, resolver, containercontract.ContainerDockerEndpointConfig.String(), options.endpoint)
+	return options
+}
+
 func containerDefaultValue(ctx *module.Context, key string) (json.RawMessage, bool) {
 	if ctx == nil || ctx.ConfigRegistry == nil {
 		return nil, false
@@ -1295,6 +1307,70 @@ func resolveSystemConfigResolver(ctx *module.Context) moduleapi.SystemConfigReso
 		return nil
 	}
 	return resolver
+}
+
+func resolveStringConfigValue(
+	ctx context.Context,
+	resolver moduleapi.SystemConfigResolver,
+	key string,
+	fallback string,
+) string {
+	if resolver == nil {
+		return strings.TrimSpace(fallback)
+	}
+	raw, err := resolver.ResolveDefaultConfig(ctx, key)
+	if err != nil {
+		return strings.TrimSpace(fallback)
+	}
+	var value string
+	if err := json.Unmarshal([]byte(raw), &value); err != nil {
+		return strings.TrimSpace(fallback)
+	}
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return strings.TrimSpace(fallback)
+	}
+	return value
+}
+
+func (s *service) resolveIntegerConfig(ctx context.Context, key string, fallback int) int {
+	if s == nil || s.systemConfig == nil {
+		return fallback
+	}
+	raw, err := s.systemConfig.ResolveDefaultConfig(ctx, key)
+	if err != nil {
+		return fallback
+	}
+	var value int
+	if err := json.Unmarshal([]byte(raw), &value); err != nil || value <= 0 {
+		return fallback
+	}
+	return value
+}
+
+func normalizeContainerLogTailBounds(defaultTail int, maxTail int) (int, int) {
+	if defaultTail <= 0 {
+		defaultTail = defaultContainerLogsDefaultTail
+	}
+	if maxTail <= 0 || maxTail > defaultContainerLogsMaxTail {
+		maxTail = defaultContainerLogsMaxTail
+	}
+	if defaultTail > maxTail {
+		defaultTail = maxTail
+	}
+	return defaultTail, maxTail
+}
+
+func (s *service) effectiveLogTailBounds(ctx context.Context) (int, int) {
+	defaultTail := defaultContainerLogsDefaultTail
+	maxTail := defaultContainerLogsMaxTail
+	if s != nil {
+		defaultTail = s.defaultTail
+		maxTail = s.maxTail
+	}
+	defaultTail = s.resolveIntegerConfig(ctx, containercontract.ContainerLogsDefaultTailConfig.String(), defaultTail)
+	maxTail = s.resolveIntegerConfig(ctx, containercontract.ContainerLogsMaxTailConfig.String(), maxTail)
+	return normalizeContainerLogTailBounds(defaultTail, maxTail)
 }
 
 func (s *service) runtimeAccessEnabled(ctx context.Context) bool {

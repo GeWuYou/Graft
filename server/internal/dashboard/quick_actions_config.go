@@ -68,6 +68,7 @@ func RegisterQuickActionsConfigDefinitions(registry *configregistry.Registry) er
 			Type:                configregistry.ValueTypeObject,
 			Schema:              json.RawMessage(quickActionsConfigSchema),
 			DefaultValue:        json.RawMessage(`{"enabled":true,"maxItems":4,"strategy":"hybrid"}`),
+			RuntimeApplyMode:    configregistry.RuntimeApplyModeUnknown,
 			Order:               quickActionsConfigDefinitionBase,
 		},
 	}

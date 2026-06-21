@@ -7,6 +7,27 @@ const (
 	BearerAuthScopes bearerAuthContextKey = "bearerAuth.Scopes"
 )
 
+// Defines values for GetSystemConfigs200JSONResponseBodyDataItemsRuntimeApplyMode.
+const (
+	GetSystemConfigs200JSONResponseBodyDataItemsRuntimeApplyModeRestartRequired GetSystemConfigs200JSONResponseBodyDataItemsRuntimeApplyMode = "restart_required"
+	GetSystemConfigs200JSONResponseBodyDataItemsRuntimeApplyModeRuntimeHot      GetSystemConfigs200JSONResponseBodyDataItemsRuntimeApplyMode = "runtime_hot"
+	GetSystemConfigs200JSONResponseBodyDataItemsRuntimeApplyModeUnknown         GetSystemConfigs200JSONResponseBodyDataItemsRuntimeApplyMode = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the GetSystemConfigs200JSONResponseBodyDataItemsRuntimeApplyMode enum.
+func (e GetSystemConfigs200JSONResponseBodyDataItemsRuntimeApplyMode) Valid() bool {
+	switch e {
+	case GetSystemConfigs200JSONResponseBodyDataItemsRuntimeApplyModeRestartRequired:
+		return true
+	case GetSystemConfigs200JSONResponseBodyDataItemsRuntimeApplyModeRuntimeHot:
+		return true
+	case GetSystemConfigs200JSONResponseBodyDataItemsRuntimeApplyModeUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetSystemConfigs200JSONResponseBodyDataItemsStatus.
 const (
 	GetSystemConfigs200JSONResponseBodyDataItemsStatusDefault  GetSystemConfigs200JSONResponseBodyDataItemsStatus = "default"
@@ -94,6 +115,27 @@ const (
 func (e GetSystemConfigs500JSONResponseBodySuccess) Valid() bool {
 	switch e {
 	case GetSystemConfigs500JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetSystemConfig200JSONResponseBodyDataRuntimeApplyMode.
+const (
+	GetSystemConfig200JSONResponseBodyDataRuntimeApplyModeRestartRequired GetSystemConfig200JSONResponseBodyDataRuntimeApplyMode = "restart_required"
+	GetSystemConfig200JSONResponseBodyDataRuntimeApplyModeRuntimeHot      GetSystemConfig200JSONResponseBodyDataRuntimeApplyMode = "runtime_hot"
+	GetSystemConfig200JSONResponseBodyDataRuntimeApplyModeUnknown         GetSystemConfig200JSONResponseBodyDataRuntimeApplyMode = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the GetSystemConfig200JSONResponseBodyDataRuntimeApplyMode enum.
+func (e GetSystemConfig200JSONResponseBodyDataRuntimeApplyMode) Valid() bool {
+	switch e {
+	case GetSystemConfig200JSONResponseBodyDataRuntimeApplyModeRestartRequired:
+		return true
+	case GetSystemConfig200JSONResponseBodyDataRuntimeApplyModeRuntimeHot:
+		return true
+	case GetSystemConfig200JSONResponseBodyDataRuntimeApplyModeUnknown:
 		return true
 	default:
 		return false
@@ -193,6 +235,27 @@ func (e GetSystemConfig500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
+// Defines values for PutSystemConfig200JSONResponseBodyDataRuntimeApplyMode.
+const (
+	PutSystemConfig200JSONResponseBodyDataRuntimeApplyModeRestartRequired PutSystemConfig200JSONResponseBodyDataRuntimeApplyMode = "restart_required"
+	PutSystemConfig200JSONResponseBodyDataRuntimeApplyModeRuntimeHot      PutSystemConfig200JSONResponseBodyDataRuntimeApplyMode = "runtime_hot"
+	PutSystemConfig200JSONResponseBodyDataRuntimeApplyModeUnknown         PutSystemConfig200JSONResponseBodyDataRuntimeApplyMode = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the PutSystemConfig200JSONResponseBodyDataRuntimeApplyMode enum.
+func (e PutSystemConfig200JSONResponseBodyDataRuntimeApplyMode) Valid() bool {
+	switch e {
+	case PutSystemConfig200JSONResponseBodyDataRuntimeApplyModeRestartRequired:
+		return true
+	case PutSystemConfig200JSONResponseBodyDataRuntimeApplyModeRuntimeHot:
+		return true
+	case PutSystemConfig200JSONResponseBodyDataRuntimeApplyModeUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PutSystemConfig200JSONResponseBodyDataStatus.
 const (
 	PutSystemConfig200JSONResponseBodyDataStatusDefault  PutSystemConfig200JSONResponseBodyDataStatus = "default"
@@ -280,6 +343,27 @@ const (
 func (e PutSystemConfig500JSONResponseBodySuccess) Valid() bool {
 	switch e {
 	case PutSystemConfig500JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostSystemConfigReset200JSONResponseBodyDataRuntimeApplyMode.
+const (
+	PostSystemConfigReset200JSONResponseBodyDataRuntimeApplyModeRestartRequired PostSystemConfigReset200JSONResponseBodyDataRuntimeApplyMode = "restart_required"
+	PostSystemConfigReset200JSONResponseBodyDataRuntimeApplyModeRuntimeHot      PostSystemConfigReset200JSONResponseBodyDataRuntimeApplyMode = "runtime_hot"
+	PostSystemConfigReset200JSONResponseBodyDataRuntimeApplyModeUnknown         PostSystemConfigReset200JSONResponseBodyDataRuntimeApplyMode = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the PostSystemConfigReset200JSONResponseBodyDataRuntimeApplyMode enum.
+func (e PostSystemConfigReset200JSONResponseBodyDataRuntimeApplyMode) Valid() bool {
+	switch e {
+	case PostSystemConfigReset200JSONResponseBodyDataRuntimeApplyModeRestartRequired:
+		return true
+	case PostSystemConfigReset200JSONResponseBodyDataRuntimeApplyModeRuntimeHot:
+		return true
+	case PostSystemConfigReset200JSONResponseBodyDataRuntimeApplyModeUnknown:
 		return true
 	default:
 		return false
@@ -395,6 +479,9 @@ type GetSystemConfigsParams struct {
 	XRequestId *string `json:"X-Request-Id,omitempty"`
 }
 
+// GetSystemConfigs200JSONResponseBodyDataItemsRuntimeApplyMode defines parameters for GetSystemConfigs.
+type GetSystemConfigs200JSONResponseBodyDataItemsRuntimeApplyMode string
+
 // GetSystemConfigs200JSONResponseBodyDataItemsStatus defines parameters for GetSystemConfigs.
 type GetSystemConfigs200JSONResponseBodyDataItemsStatus string
 
@@ -419,6 +506,9 @@ type GetSystemConfigParams struct {
 	// through the response header and envelope traceId field.
 	XRequestId *string `json:"X-Request-Id,omitempty"`
 }
+
+// GetSystemConfig200JSONResponseBodyDataRuntimeApplyMode defines parameters for GetSystemConfig.
+type GetSystemConfig200JSONResponseBodyDataRuntimeApplyMode string
 
 // GetSystemConfig200JSONResponseBodyDataStatus defines parameters for GetSystemConfig.
 type GetSystemConfig200JSONResponseBodyDataStatus string
@@ -451,6 +541,9 @@ type PutSystemConfigParams struct {
 	XRequestId *string `json:"X-Request-Id,omitempty"`
 }
 
+// PutSystemConfig200JSONResponseBodyDataRuntimeApplyMode defines parameters for PutSystemConfig.
+type PutSystemConfig200JSONResponseBodyDataRuntimeApplyMode string
+
 // PutSystemConfig200JSONResponseBodyDataStatus defines parameters for PutSystemConfig.
 type PutSystemConfig200JSONResponseBodyDataStatus string
 
@@ -475,6 +568,9 @@ type PostSystemConfigResetParams struct {
 	// through the response header and envelope traceId field.
 	XRequestId *string `json:"X-Request-Id,omitempty"`
 }
+
+// PostSystemConfigReset200JSONResponseBodyDataRuntimeApplyMode defines parameters for PostSystemConfigReset.
+type PostSystemConfigReset200JSONResponseBodyDataRuntimeApplyMode string
 
 // PostSystemConfigReset200JSONResponseBodyDataStatus defines parameters for PostSystemConfigReset.
 type PostSystemConfigReset200JSONResponseBodyDataStatus string

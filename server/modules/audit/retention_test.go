@@ -175,6 +175,9 @@ func assertAuditLogRetentionConfigDefinition(t *testing.T, definition configregi
 
 	assertAuditLogRetentionDefinitionIdentity(t, definition)
 	assertAuditLogRetentionDefinitionLocalization(t, definition)
+	if definition.RuntimeApplyMode != configregistry.RuntimeApplyModeRuntimeHot {
+		t.Fatalf("expected audit log retention config to be runtime-hot, got %#v", definition.RuntimeApplyMode)
+	}
 	if string(definition.DefaultValue) != auditLogRetentionCleanupDefaultConfig {
 		t.Fatalf("expected default config %s, got %s", auditLogRetentionCleanupDefaultConfig, definition.DefaultValue)
 	}

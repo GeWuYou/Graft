@@ -37,6 +37,18 @@ const (
 	ValueTypeArray ValueType = "array"
 )
 
+// RuntimeApplyMode identifies how a changed config value is expected to apply at runtime.
+type RuntimeApplyMode string
+
+const (
+	// RuntimeApplyModeUnknown means the current authority owners have not classified apply semantics yet.
+	RuntimeApplyModeUnknown RuntimeApplyMode = "unknown"
+	// RuntimeApplyModeRuntimeHot means the next runtime read should observe the new effective value without restart.
+	RuntimeApplyModeRuntimeHot RuntimeApplyMode = "runtime_hot"
+	// RuntimeApplyModeRestartRequired means the persisted value changes immediately, but runtime behavior changes only after restart.
+	RuntimeApplyModeRestartRequired RuntimeApplyMode = "restart_required"
+)
+
 // Definition declares one module-owned system configuration key.
 //
 // Definitions are registered by modules during Register. They are canonical
@@ -63,6 +75,7 @@ type Definition struct {
 	Sensitive           bool
 	Required            bool
 	RestartRequired     bool
+	RuntimeApplyMode    RuntimeApplyMode
 	Permission          string
 	Order               int
 }
@@ -94,6 +107,9 @@ func validateDefinition(definition Definition) error {
 	}
 	if !slices.Contains(validValueTypes(), definition.Type) {
 		return fmt.Errorf("config definition %s type %q is invalid", key, definition.Type)
+	}
+	if !slices.Contains(validRuntimeApplyModes(), definition.RuntimeApplyMode) {
+		return fmt.Errorf("config definition %s runtime apply mode %q is invalid", key, definition.RuntimeApplyMode)
 	}
 	if err := validateJSONObject(definition.Schema, "schema", key); err != nil {
 		return err
@@ -128,6 +144,14 @@ func validValueTypes() []ValueType {
 		ValueTypeBoolean,
 		ValueTypeObject,
 		ValueTypeArray,
+	}
+}
+
+func validRuntimeApplyModes() []RuntimeApplyMode {
+	return []RuntimeApplyMode{
+		RuntimeApplyModeUnknown,
+		RuntimeApplyModeRuntimeHot,
+		RuntimeApplyModeRestartRequired,
 	}
 }
 

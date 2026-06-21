@@ -55,8 +55,8 @@
         "title": "配置状态",
         "default": "使用默认值",
         "defaultDescription": "使用默认配置",
-        "modified": "已修改",
-        "modifiedDescription": "存在用户覆盖"
+        "override": "使用覆盖值",
+        "overrideDescription": "存在用户覆盖"
       },
       "lastModified": {
         "title": "最后修改",
@@ -66,7 +66,8 @@
         "value": "{user} / {time}"
       },
       "tags": {
-        "override": "已修改",
+        "override": "使用覆盖值",
+        "runtimeHot": "运行时生效",
         "sensitive": "敏感",
         "restartRequired": "需重启"
       },

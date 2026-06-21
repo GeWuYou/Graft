@@ -90,11 +90,14 @@
                     <p>{{ card.description }}</p>
                   </div>
                   <t-space size="small" break-line>
-                    <t-tag :theme="card.status.theme" variant="light">
-                      {{ card.status.label }}
+                    <t-tag :theme="card.effectiveSource.theme" variant="light">
+                      {{ card.effectiveSource.label }}
                     </t-tag>
                     <t-tag v-if="card.sensitive" theme="danger" variant="light">
                       {{ t('systemConfig.list.tags.sensitive') }}
+                    </t-tag>
+                    <t-tag v-if="card.runtimeHot" theme="success" variant="light">
+                      {{ t('systemConfig.list.tags.runtimeHot') }}
                     </t-tag>
                     <t-tag v-if="card.restartRequired" theme="primary" variant="light">
                       {{ t('systemConfig.list.tags.restartRequired') }}
@@ -424,12 +427,13 @@ type ConfigCardVM = {
   key: string;
   title: string;
   description: string;
-  status: {
+  effectiveSource: {
     label: string;
     description: string;
     theme: 'default' | 'primary';
   };
   sensitive: boolean;
+  runtimeHot: boolean;
   restartRequired: boolean;
   auditLabel: string;
   valueSections: ConfigValueSection[];
@@ -756,11 +760,11 @@ function technicalGroupKey(item: SystemConfigItem) {
   return item.group || t('systemConfig.list.defaultGroup');
 }
 
-function configStatus(item: SystemConfigItem) {
-  if (isModifiedConfig(item)) {
+function configEffectiveSource(item: SystemConfigItem) {
+  if (hasConfigOverride(item)) {
     return {
-      label: t('systemConfig.list.status.modified'),
-      description: t('systemConfig.list.status.modifiedDescription'),
+      label: t('systemConfig.list.status.override'),
+      description: t('systemConfig.list.status.overrideDescription'),
       theme: 'primary' as const,
     };
   }
@@ -772,12 +776,16 @@ function configStatus(item: SystemConfigItem) {
   };
 }
 
-function isModifiedConfig(item: SystemConfigItem) {
-  return item.status === 'modified';
+function hasConfigOverride(item: SystemConfigItem) {
+  return item.has_override || item.status === 'modified';
+}
+
+function isRuntimeHotConfig(item: SystemConfigItem) {
+  return item.runtime_apply_mode === 'runtime_hot';
 }
 
 function configLastModifiedLabel(item: SystemConfigItem) {
-  if (!isModifiedConfig(item)) {
+  if (!hasConfigOverride(item)) {
     return t('systemConfig.list.lastModified.none');
   }
 
@@ -807,8 +815,9 @@ function buildConfigCard(item: SystemConfigItem): ConfigCardVM {
     key: item.key,
     title: configTitle(item),
     description: configDescription(item),
-    status: configStatus(item),
+    effectiveSource: configEffectiveSource(item),
     sensitive: item.sensitive,
+    runtimeHot: isRuntimeHotConfig(item),
     restartRequired: item.restart_required,
     auditLabel: configLastModifiedLabel(item),
     valueSections: [

@@ -127,15 +127,16 @@ const translations = vi.hoisted(
     'systemConfig.list.schema.aboveMaximum': '配置值不能大于 {maximum}',
     'systemConfig.list.status.default': '使用默认值',
     'systemConfig.list.status.defaultDescription': '使用默认配置',
-    'systemConfig.list.status.modified': '已修改',
-    'systemConfig.list.status.modifiedDescription': '存在用户覆盖',
+    'systemConfig.list.status.override': '使用覆盖值',
+    'systemConfig.list.status.overrideDescription': '存在用户覆盖',
     'systemConfig.list.status.title': '配置状态',
     'systemConfig.list.lastModified.none': '无覆盖值',
     'systemConfig.list.lastModified.title': '最后修改',
     'systemConfig.list.lastModified.unknownUser': '未知用户',
     'systemConfig.list.lastModified.userId': '用户 {id}',
     'systemConfig.list.lastModified.value': '{user} / {time}',
-    'systemConfig.list.tags.override': '已修改',
+    'systemConfig.list.tags.override': '使用覆盖值',
+    'systemConfig.list.tags.runtimeHot': '运行时生效',
     'systemConfig.list.tags.restartRequired': '需重启',
     'systemConfig.list.tags.sensitive': '敏感',
     'systemConfig.list.technicalId': '技术标识',
@@ -336,6 +337,7 @@ describe('system config list page', () => {
           ...systemConfigItem(),
           status: 'modified',
           has_override: true,
+          runtime_apply_mode: 'runtime_hot',
           updated_at: '2026-05-24T10:00:00Z',
           updated_by_user_id: 7,
           updated_by_username: 'alice',
@@ -347,11 +349,57 @@ describe('system config list page', () => {
     const wrapper = mountPage();
     await flushPromises();
 
-    expect(wrapper.text()).toContain('已修改');
+    expect(wrapper.text()).toContain('使用覆盖值');
+    expect(wrapper.text()).toContain('运行时生效');
     expect(wrapper.text()).toContain('默认值');
     expect(wrapper.text()).toContain('当前值');
     expect(wrapper.text()).toContain(`alice / ${formatCompactDateTime('2026-05-24T10:00:00Z', 'zh-CN')}`);
     expect(wrapper.findAll('button').some((button) => button.text() === '重置')).toBe(true);
+  });
+
+  it('uses only override authority for effective source and keeps restart semantics separate', async () => {
+    apiMocks.getSystemConfigs.mockResolvedValue({
+      items: [
+        {
+          ...systemConfigItem(),
+          has_override: false,
+          status: 'default',
+          runtime_apply_mode: 'restart_required',
+          restart_required: true,
+        },
+      ],
+      total: 1,
+    });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('使用默认值');
+    expect(wrapper.text()).toContain('需重启');
+    expect(wrapper.text()).not.toContain('运行时生效');
+    expect(wrapper.text()).not.toContain('使用覆盖值');
+  });
+
+  it('shows runtime-hot only from canonical runtime_apply_mode', async () => {
+    apiMocks.getSystemConfigs.mockResolvedValue({
+      items: [
+        {
+          ...systemConfigItem(),
+          has_override: false,
+          status: 'default',
+          runtime_apply_mode: 'runtime_hot',
+          restart_required: false,
+        },
+      ],
+      total: 1,
+    });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('运行时生效');
+    expect(wrapper.text()).toContain('使用默认值');
+    expect(wrapper.text()).not.toContain('需重启');
   });
 
   it('shows the copy failure toast when copying the config key rejects', async () => {
@@ -1252,6 +1300,8 @@ function systemConfigItem() {
     sensitive: false,
     masked: false,
     restart_required: false,
+    runtime_apply_mode: 'unknown',
+    status: 'default',
     order: 210,
   };
 }
@@ -1369,6 +1419,7 @@ function dashboardQuickActionItem(input: {
     sensitive: false,
     masked: false,
     restart_required: false,
+    runtime_apply_mode: 'unknown',
     status: 'default',
     order: input.order,
   };
@@ -1411,6 +1462,7 @@ function notificationConfigItem(input: {
     sensitive: false,
     masked: false,
     restart_required: false,
+    runtime_apply_mode: 'unknown',
     status: 'default',
     order: input.order,
   };
@@ -1454,6 +1506,7 @@ function containerConfigItem(input: {
     sensitive: false,
     masked: false,
     restart_required: false,
+    runtime_apply_mode: 'unknown',
     status: input.hasOverride ? 'modified' : 'default',
     order: input.order,
   };

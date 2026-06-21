@@ -260,6 +260,9 @@ func assertAccessLogRetentionConfigDefinition(t *testing.T, definition configreg
 
 	assertAccessLogRetentionDefinitionIdentity(t, definition)
 	assertAccessLogRetentionDefinitionLocalization(t, definition)
+	if definition.RuntimeApplyMode != configregistry.RuntimeApplyModeRuntimeHot {
+		t.Fatalf("expected access log retention config to be runtime-hot, got %#v", definition.RuntimeApplyMode)
+	}
 	if string(definition.DefaultValue) != accessLogRetentionCleanupDefaultConfig {
 		t.Fatalf("expected default config %s, got %s", accessLogRetentionCleanupDefaultConfig, definition.DefaultValue)
 	}

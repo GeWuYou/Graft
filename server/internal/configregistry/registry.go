@@ -31,6 +31,9 @@ func (r *Registry) Register(definition Definition) error {
 	if r == nil {
 		return errors.New("config registry is unavailable")
 	}
+	if definition.RuntimeApplyMode == "" {
+		definition.RuntimeApplyMode = RuntimeApplyModeUnknown
+	}
 	if err := validateDefinition(definition); err != nil {
 		return err
 	}
@@ -52,7 +55,6 @@ func (r *Registry) Register(definition Definition) error {
 	normalized.DescriptionKey = strings.TrimSpace(normalized.DescriptionKey)
 	normalized.Permission = strings.TrimSpace(normalized.Permission)
 	normalized.Tags = trimNonEmptyStrings(normalized.Tags)
-
 	r.mu.Lock()
 	defer r.mu.Unlock()
 

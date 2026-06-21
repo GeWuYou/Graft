@@ -265,6 +265,7 @@ func registerAuditLogRetentionConfigDefinition(registry *configregistry.Registry
 		Type:                configregistry.ValueTypeObject,
 		Schema:              json.RawMessage(auditLogRetentionCleanupConfigSchema),
 		DefaultValue:        json.RawMessage(auditLogRetentionCleanupDefaultConfig),
+		RuntimeApplyMode:    configregistry.RuntimeApplyModeRuntimeHot,
 		Order:               auditLogRetentionConfigDefinitionOrder,
 	})
 }

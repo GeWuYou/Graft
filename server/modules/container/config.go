@@ -151,7 +151,7 @@ func configDefinitions() []configregistry.Definition {
 }
 
 func containerRuntimeDefinition() configregistry.Definition {
-	return baseContainerDefinition(containerDefinitionSpec{
+	definition := baseContainerDefinition(containerDefinitionSpec{
 		key:                 containercontract.ContainerRuntimeConfig.String(),
 		group:               containerConfigRuntimeGroup,
 		fallbackTitle:       "",
@@ -160,6 +160,9 @@ func containerRuntimeDefinition() configregistry.Definition {
 		defaultValue:        mustRawJSON(defaultContainerRuntime),
 		schema:              containerRuntimeSchema(),
 	})
+	definition.RestartRequired = true
+	definition.RuntimeApplyMode = configregistry.RuntimeApplyModeRestartRequired
+	return definition
 }
 
 func containerEndpointDefinition() configregistry.Definition {
@@ -173,12 +176,13 @@ func containerEndpointDefinition() configregistry.Definition {
 		schema:              containerStringSchema(containercontract.ContainerDockerEndpointConfig.String(), 1, maxDockerEndpointLength),
 	})
 	definition.RestartRequired = true
+	definition.RuntimeApplyMode = configregistry.RuntimeApplyModeRestartRequired
 	return definition
 }
 
 // containerEnvironmentPolicyDefinition builds a configuration definition for the environment policy setting.
 func containerEnvironmentPolicyDefinition() configregistry.Definition {
-	return baseContainerDefinition(containerDefinitionSpec{
+	definition := baseContainerDefinition(containerDefinitionSpec{
 		key:                 containercontract.ContainerEnvironmentPolicyConfig.String(),
 		group:               containerConfigGeneralGroup,
 		fallbackTitle:       "",
@@ -187,6 +191,8 @@ func containerEnvironmentPolicyDefinition() configregistry.Definition {
 		defaultValue:        mustRawJSON(defaultContainerEnvironmentPolicy.String()),
 		schema:              containerEnvironmentPolicySchema(),
 	})
+	definition.RuntimeApplyMode = configregistry.RuntimeApplyModeRuntimeHot
+	return definition
 }
 
 // containerOrchestratorActionLevelDefinition 根据指定的键和默认值构建编排器行动等级的配置定义。
@@ -194,7 +200,7 @@ func containerOrchestratorActionLevelDefinition(
 	key string,
 	defaultValue containercontract.OrchestratorActionLevel,
 ) configregistry.Definition {
-	return baseContainerDefinition(containerDefinitionSpec{
+	definition := baseContainerDefinition(containerDefinitionSpec{
 		key:                 key,
 		group:               containerConfigActionsGroup,
 		fallbackTitle:       "",
@@ -203,6 +209,8 @@ func containerOrchestratorActionLevelDefinition(
 		defaultValue:        mustRawJSON(defaultValue.String()),
 		schema:              containerOrchestratorActionLevelSchema(key, defaultValue),
 	})
+	definition.RuntimeApplyMode = configregistry.RuntimeApplyModeUnknown
+	return definition
 }
 
 type containerDefinitionSpec struct {
@@ -225,14 +233,32 @@ type containerIntegerDefinitionSpec struct {
 func containerBooleanDefinition(spec containerDefinitionSpec) configregistry.Definition {
 	spec.valueType = configregistry.ValueTypeBoolean
 	spec.schema = containerBooleanSchema(spec.key)
-	return baseContainerDefinition(spec)
+	definition := baseContainerDefinition(spec)
+	switch spec.key {
+	case containercontract.ContainerRuntimeEnabledConfig.String(),
+		containercontract.ContainerDangerousActionsEnabledConfig.String(),
+		containercontract.ContainerShellEnabledConfig.String(),
+		containercontract.ContainerEnvironmentMaskedCopyEnabledConfig.String():
+		definition.RuntimeApplyMode = configregistry.RuntimeApplyModeRuntimeHot
+	default:
+		definition.RuntimeApplyMode = configregistry.RuntimeApplyModeUnknown
+	}
+	return definition
 }
 
 func containerIntegerDefinition(spec containerIntegerDefinitionSpec) configregistry.Definition {
 	definitionSpec := spec.containerDefinitionSpec
 	definitionSpec.valueType = configregistry.ValueTypeInteger
 	definitionSpec.schema = containerIntegerSchema(definitionSpec.key, spec.defaultNumber, spec.minimum, spec.maximum)
-	return baseContainerDefinition(definitionSpec)
+	definition := baseContainerDefinition(definitionSpec)
+	switch definitionSpec.key {
+	case containercontract.ContainerLogsDefaultTailConfig.String(),
+		containercontract.ContainerLogsMaxTailConfig.String():
+		definition.RuntimeApplyMode = configregistry.RuntimeApplyModeRuntimeHot
+	default:
+		definition.RuntimeApplyMode = configregistry.RuntimeApplyModeUnknown
+	}
+	return definition
 }
 
 func baseContainerDefinition(spec containerDefinitionSpec) configregistry.Definition {

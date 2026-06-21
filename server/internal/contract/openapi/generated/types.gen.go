@@ -2109,6 +2109,27 @@ func (e ServerStatusTrendRange) Valid() bool {
 	}
 }
 
+// Defines values for SystemConfigItemRuntimeApplyMode.
+const (
+	RestartRequired SystemConfigItemRuntimeApplyMode = "restart_required"
+	RuntimeHot      SystemConfigItemRuntimeApplyMode = "runtime_hot"
+	Unknown         SystemConfigItemRuntimeApplyMode = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the SystemConfigItemRuntimeApplyMode enum.
+func (e SystemConfigItemRuntimeApplyMode) Valid() bool {
+	switch e {
+	case RestartRequired:
+		return true
+	case RuntimeHot:
+		return true
+	case Unknown:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for SystemConfigItemStatus.
 const (
 	Default  SystemConfigItemStatus = "default"
@@ -5934,6 +5955,9 @@ type SystemConfigItem struct {
 	// RestartRequired Whether changing this config requires a service restart before it takes effect.
 	RestartRequired bool `json:"restart_required"`
 
+	// RuntimeApplyMode Canonical runtime apply semantics declared by the config-definition owner; unknown means the current authority has not classified it yet.
+	RuntimeApplyMode SystemConfigItemRuntimeApplyMode `json:"runtime_apply_mode"`
+
 	// Sensitive Whether plaintext values must not be returned to clients.
 	Sensitive bool `json:"sensitive"`
 
@@ -5959,6 +5983,9 @@ type SystemConfigItem struct {
 	// UpdatedByUsername Username for updated_by_user_id when it can be resolved.
 	UpdatedByUsername *string `json:"updated_by_username,omitempty"`
 }
+
+// SystemConfigItemRuntimeApplyMode Canonical runtime apply semantics declared by the config-definition owner; unknown means the current authority has not classified it yet.
+type SystemConfigItemRuntimeApplyMode string
 
 // SystemConfigItemStatus Whether the effective value is using the module default or a stored user override.
 type SystemConfigItemStatus string

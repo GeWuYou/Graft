@@ -342,6 +342,7 @@ func RegisterAppLogRetentionConfigDefinition(registry *configregistry.Registry) 
 		Type:                configregistry.ValueTypeObject,
 		Schema:              json.RawMessage(appLogRetentionCleanupConfigSchema),
 		DefaultValue:        json.RawMessage(appLogRetentionCleanupDefaultConfig),
+		RuntimeApplyMode:    configregistry.RuntimeApplyModeRuntimeHot,
 		Order:               appLogRetentionConfigDefinitionOrder,
 	})
 }

@@ -69,6 +69,9 @@ func assertQuickActionsSchemaI18nMetadata(t *testing.T, item configregistry.Defi
 	if item.Key != QuickActionsConfigKey || item.Type != configregistry.ValueTypeObject {
 		t.Fatalf("expected canonical quick-action object config, got %#v", item)
 	}
+	if item.RuntimeApplyMode != configregistry.RuntimeApplyModeUnknown {
+		t.Fatalf("expected dashboard quick-actions runtime apply mode to remain unknown, got %#v", item.RuntimeApplyMode)
+	}
 	if schema.Type != "object" || schema.AdditionalProperties {
 		t.Fatalf("expected strict object schema, got %#v", schema)
 	}

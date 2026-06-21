@@ -22,7 +22,13 @@ Cache Governance And System Config Acceleration
 
 ## Current Recovery Point
 
-- 已完成 Phase 0：
+- 当前 archive-ready 收口：
+  - 已完成范围仅覆盖 `system-config` authority 主链与本 topic 已登记热点消费者。
+  - 当前 authority 主链已具备 process-local snapshot cache、`singleflight`、显式本地失效、Redis best-effort invalidation signal 与调试态。
+  - `SystemConfigResolver` 当前共享 contract 已覆盖布尔开关与 `ResolveDefaultConfig(...)`，不再是 bool-only resolver。
+  - 上游 canonical contract 现已由 `runtime_apply_mode` 承载运行时生效语义；现有 `effective-source` authority 继续仅表达 `default` / `override`。
+  - 未完成范围不再包括 system-config display-authority 主缺口；仍待后续推进的是仓库级其它热点缓存治理，以及如有需要的页面高级提示 / 调试展示增强。
+- 已完成 Phase 0 历史基线：
   - 真实代码扫描完成。
   - 已识别 `system-config` 当前无统一缓存层。
   - 已识别现有真实缓存资产：
@@ -56,7 +62,8 @@ Cache Governance And System Config Acceleration
 - [x] Phase 1：Update/Reset 后显式本地失效
 - [x] Phase 1：container / notification / scheduler / bootstrap 接入缓存化 resolver
 - [x] Phase 1：扩展 typed resolver，避免仅 bool-only resolver
-- [ ] Follow-up：系统配置页补充 runtime-hot / restart-required / effective-source 展示建议
+- [x] Follow-up closure：system-config 显示 authority 已按 canonical `runtime_apply_mode` + 现有 `effective-source(default/override)` 收口
+- [ ] Optional follow-up：系统配置页高级提示或调试展示增强
 - [x] Phase 2：Redis pub/sub 或版本轮询方案落地
 - [x] Phase 2：多节点失效一致性验证
 - [x] Phase 3：RBAC/menu/dashboard/container runtime 热点扩展
@@ -80,6 +87,7 @@ Cache Governance And System Config Acceleration
   - 范围：RBAC/menu/dashboard/container runtime
   - 目标：扩展缓存治理到更多聚合读热点
   - 状态：已完成，提交 `93886719` `fix(system-config): unify hotspot resolver reads`
+  - 边界：当前完成只覆盖已登记热点；不外推为 RBAC/menu/dashboard 全仓收口
 - `phase-4-observability-and-guardrails`
   - 范围：metrics/debug/docs/tests/scripts
   - 目标：可观测性与治理门禁闭环

@@ -19,6 +19,7 @@ function systemConfigItem(key: string, effectiveValue: string) {
     key,
     masked: false,
     module: 'core',
+    runtime_apply_mode: 'unknown',
     restart_required: false,
     sensitive: false,
     status: 'default',
