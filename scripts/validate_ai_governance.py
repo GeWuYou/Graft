@@ -378,10 +378,10 @@ def validate_skills() -> list[Finding]:
 
 def validate_agents_skill_list() -> list[Finding]:
     """
-    验证 AGENTS.md 文件包含所需的技能列表并符合治理规范。
+    验证 AGENTS.md 包含所需的技能列表且不含禁止的治理内容。
     
     Returns:
-    	list[Finding]: 包含验证失败项（缺失技能名称或禁止内容）的 Finding 列表；若文件不存在或验证通过，返回空列表。
+    	list[Finding]: 验证失败项的 Finding 列表；文件不存在或通过验证时返回空列表。
     """
     if not AGENTS.is_file():
         return []
@@ -612,13 +612,10 @@ def validate_no_private_config_tracked(tracked: set[str]) -> list[Finding]:
 
 def run_validation() -> list[Finding]:
     """
-    执行完整的 AI 治理验证。
-    
-    汇集对仓库 AI 治理合规性的所有检查结果，包括必需文件、文档内容、
-    技能配置和工件卫生等方面的验证。
+    执行所有 AI 治理验证。
     
     Returns:
-        list[Finding]: 所有验证中发现的问题列表。
+        list[Finding]: 验证中发现的所有问题列表。
     """
     findings: list[Finding] = []
     findings.extend(validate_required_files())

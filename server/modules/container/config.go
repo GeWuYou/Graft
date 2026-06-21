@@ -182,7 +182,7 @@ func containerEndpointDefinition() configregistry.Definition {
 	return definition
 }
 
-// ContainerEnvironmentPolicyDefinition returns a configuration definition for the container environment policy setting, configured for hot runtime updates.
+// containerEnvironmentPolicyDefinition builds a configuration definition for the container environment policy.
 func containerEnvironmentPolicyDefinition() configregistry.Definition {
 	definition := baseContainerDefinition(containerDefinitionSpec{
 		key:                 containercontract.ContainerEnvironmentPolicyConfig.String(),
@@ -197,7 +197,7 @@ func containerEnvironmentPolicyDefinition() configregistry.Definition {
 	return definition
 }
 
-// containerOrchestratorActionLevelDefinition 根据指定的键和默认值构建编排器行动等级的配置定义。
+containerOrchestratorActionLevelDefinition 为编排器行动等级配置项构建配置定义。
 func containerOrchestratorActionLevelDefinition(
 	key string,
 	defaultValue containercontract.OrchestratorActionLevel,
@@ -249,7 +249,7 @@ func containerBooleanDefinition(spec containerDefinitionSpec) configregistry.Def
 	return definition
 }
 
-// containerIntegerDefinition builds a configuration definition for an integer-type container setting, setting its runtime applicability to runtime-hot for log tail configurations and unknown for others.
+// containerIntegerDefinition 为整数类型的容器配置项创建配置定义。日志尾部配置采用运行时热加载模式，其他配置采用未知模式。
 func containerIntegerDefinition(spec containerIntegerDefinitionSpec) configregistry.Definition {
 	definitionSpec := spec.containerDefinitionSpec
 	definitionSpec.valueType = configregistry.ValueTypeInteger

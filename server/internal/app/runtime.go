@@ -207,7 +207,7 @@ func newRuntimeCore(cfg *config.Config) (*Runtime, error) {
 	return newRuntimeCoreWithDeps(cfg, defaultRuntimeCoreDeps)
 }
 
-// newRuntimeCoreWithDeps constructs a Runtime instance by opening core resources, initializing services, and pre-registering locale resources.
+// newRuntimeCoreWithDeps initializes all core runtime resources and returns a fully configured Runtime instance with locale resources pre-registered.
 func newRuntimeCoreWithDeps(cfg *config.Config, deps runtimeCoreDeps) (*Runtime, error) {
 	deps = normalizeRuntimeCoreDeps(deps)
 	applyGinMode(cfg)

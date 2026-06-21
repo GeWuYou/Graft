@@ -59,7 +59,7 @@ type bootstrapLocaleSnapshot struct {
 	SupportedLocales []string `json:"supported_locales"`
 }
 
-// newBootstrapReader creates a bootstrapReader by wiring the provided dependencies.
+// newBootstrapReader wires the provided dependencies into a bootstrapReader, resolving systemConfig from the service container.
 func newBootstrapReader(
 	localeConfig config.I18nConfig,
 	localizer *i18n.Service,
@@ -159,7 +159,7 @@ func (r bootstrapReader) filterBootstrapMenus(ctx context.Context, granted map[s
 	return filterBootstrapMenus(ctx, r.menuRegistry, granted, r.systemConfig)
 }
 
-// filterBootstrapMenus 根据授予的权限和系统配置的可见性门控对菜单项进行过滤、合并、去重和排序。如果 registry 为 nil，返回空切片。
+// filterBootstrapMenus 根据授予的权限和系统配置的可见性门控对菜单项进行过滤、去重和排序，同时移除没有可见子菜单的父菜单。如果 registry 为 nil，返回空切片。
 func filterBootstrapMenus(
 	ctx context.Context,
 	registry *menu.Registry,

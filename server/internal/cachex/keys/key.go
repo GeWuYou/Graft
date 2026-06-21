@@ -16,7 +16,8 @@ type Key struct {
 	parts     []string
 }
 
-// New 创建经过验证的缓存键。对所有输入进行空白裁剪，验证 namespace、name 和各个 part 均不为空。通过验证时返回 Key，任意字段为空或仅为空白时返回错误。
+// New creates a validated and normalized cache Key from the provided namespace, name, and optional parts.
+// Whitespace is trimmed from all inputs. An error is returned if any input is empty or contains a colon.
 func New(namespace string, name string, parts ...string) (Key, error) {
 	trimmedNamespace := strings.TrimSpace(namespace)
 	if trimmedNamespace == "" {

@@ -54,6 +54,7 @@ func itemFromEntry(entry backend.Entry) Item {
 	}
 }
 
+// entryFromItem converts an Item to a backend.Entry, defensively copying the payload value and preserving the expiration time.
 func entryFromItem(item Item) backend.Entry {
 	return backend.Entry{
 		Value:     cloneBytes(item.Value),

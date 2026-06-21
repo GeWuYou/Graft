@@ -71,6 +71,7 @@ func registerNotificationConfig(localizer *i18n.Service, registry *configregistr
 	return registerNotificationConfigDefinitions(registry)
 }
 
+// RegisterNotificationConfigDefinitions registers notification configuration definitions with the provided registry.
 func registerNotificationConfigDefinitions(registry *configregistry.Registry) error {
 	if registry == nil {
 		return errors.New("config registry is required")

@@ -57,7 +57,9 @@ type Redis struct {
 
 // NewRedis initializes a Redis-backed KV store with the provided client and options.
 // It returns an error if client is nil.
-// If options.Now is nil, it defaults to time.Now().UTC().
+// NewRedis creates a new Redis adapter using the provided client and options.
+// It returns an error if the client is nil. If options.Now is nil, it defaults
+// to time.Now().UTC().
 func NewRedis(client redis.Cmdable, options RedisOptions) (*Redis, error) {
 	if client == nil {
 		return nil, errors.New("kv redis client is required")

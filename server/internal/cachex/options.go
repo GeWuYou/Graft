@@ -48,7 +48,7 @@ func WithSingleflight(group *Group) Option {
 	}
 }
 
-// defaultCacheOptions returns a zero-valued CacheOptions.
+// defaultCacheOptions 返回缓存实例的默认配置。
 func defaultCacheOptions() CacheOptions {
 	return CacheOptions{}
 }

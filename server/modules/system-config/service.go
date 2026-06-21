@@ -455,7 +455,7 @@ func (s *Service) deleteSnapshotCache() error {
 	return s.cache.Delete(context.Background(), systemConfigSnapshotKey())
 }
 
-// buildOverrideSnapshotCache constructs a snapshot cache indexed by definition key from the provided overrides.
+// buildOverrideSnapshotCache 从覆盖值列表构建快照缓存，按 key 索引并深拷贝所有覆盖值。
 func buildOverrideSnapshotCache(overrides []systemconfigstore.Override) *overrideSnapshotCache {
 	cache := &overrideSnapshotCache{
 		overrides: make(map[string]systemconfigstore.Override, len(overrides)),
@@ -516,6 +516,7 @@ func cleanKey(key string) string {
 	return strings.TrimSpace(key)
 }
 
+// cloneRawMessage returns a deep copy of the given JSON raw message, or nil if the input is empty.
 func cloneRawMessage(raw json.RawMessage) json.RawMessage {
 	if len(raw) == 0 {
 		return nil
@@ -546,7 +547,7 @@ func cloneOverride(value systemconfigstore.Override) systemconfigstore.Override 
 	}
 }
 
-// MarshalOverrideSnapshotCache 将覆盖快照缓存序列化为 JSON 字节。
+// marshalOverrideSnapshotCache 将覆盖快照缓存中的覆盖映射序列化为 JSON 字节。若缓存为 nil，返回错误。
 func marshalOverrideSnapshotCache(cache *overrideSnapshotCache) ([]byte, error) {
 	if cache == nil {
 		return nil, errors.New("system config snapshot cache is unavailable")
@@ -555,7 +556,7 @@ func marshalOverrideSnapshotCache(cache *overrideSnapshotCache) ([]byte, error) 
 }
 
 // unmarshalOverrideSnapshotCache 从 JSON 载体重建覆盖快照缓存结构。
-// 如果载体为空或包含无效 JSON，则返回错误。
+// unmarshalOverrideSnapshotCache 将 JSON 载体反序列化为 override 快照缓存。如果载体为空或 JSON 无效，返回错误；否则解析 override 映射并返回深度克隆后的缓存。
 func unmarshalOverrideSnapshotCache(payload []byte) (*overrideSnapshotCache, error) {
 	if len(payload) == 0 {
 		return nil, errors.New("system config snapshot cache returned empty payload")
@@ -573,7 +574,7 @@ func unmarshalOverrideSnapshotCache(payload []byte) (*overrideSnapshotCache, err
 	return cache, nil
 }
 
-// SystemConfigSnapshotKey returns the cache key for the system config snapshot.
+// SystemConfigSnapshotKey 构建系统配置有效覆盖快照的缓存键。
 func systemConfigSnapshotKey() keys.Key {
 	return keys.MustNew("system-config", "snapshot", "effective-overrides")
 }

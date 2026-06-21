@@ -109,7 +109,7 @@ func newContainerService(ctx *module.Context, moduleName string) (*service, erro
 	})
 }
 
-// newService 初始化容器服务实例，规范化日志配置并应用默认值。若实时票证服务为 nil，返回错误。
+// newService 初始化容器服务实例，完成配置验证和默认值应用。实时票证服务必须提供，否则返回错误。
 func newService(options containerServiceOptions) (*service, error) {
 	options.defaultTail, options.maxTail = normalizeContainerLogTailBounds(options.defaultTail, options.maxTail)
 	if options.realtimeTickets == nil {
@@ -624,6 +624,7 @@ func (s *service) applyEnvironmentPolicy(ctx context.Context, detail Detail) Det
 	return detail
 }
 
+// withEnvironmentPlainAccess 将上下文标记为允许访问明文环境变量。
 func withEnvironmentPlainAccess(ctx context.Context) context.Context {
 	return context.WithValue(ctx, environmentPlainAccessContextKey{}, true)
 }
@@ -1253,6 +1254,7 @@ func applyContainerBoolDefault(ctx *module.Context, key string, target *bool) {
 	}
 }
 
+// applyContainerStringDefault 从容器配置注册表为目标指针应用字符串默认值。
 func applyContainerStringDefault(ctx *module.Context, key string, target *string) {
 	if target == nil {
 		return
@@ -1267,7 +1269,7 @@ func applyContainerStringDefault(ctx *module.Context, key string, target *string
 	}
 }
 
-// applyContainerIntDefault applies a positive integer default from the configuration registry to the target.
+// applyContainerIntDefault 从配置注册表应用正整数默认值至目标。
 func applyContainerIntDefault(ctx *module.Context, key string, target *int) {
 	if target == nil {
 		return
@@ -1283,7 +1285,8 @@ func applyContainerIntDefault(ctx *module.Context, key string, target *int) {
 }
 
 // systemConfigReadContext selects an appropriate context for system configuration operations.
-// It returns the module's lifecycle context if available, otherwise a background context.
+// systemConfigReadContext returns the module's lifecycle context if available,
+// otherwise a background context.
 func systemConfigReadContext(ctx *module.Context) context.Context {
 	if ctx != nil && ctx.LifecycleContext != nil {
 		return ctx.LifecycleContext
@@ -1372,7 +1375,7 @@ func (s *service) resolveIntegerConfig(ctx context.Context, key string, fallback
 
 // NormalizeContainerLogTailBounds normalizes log tail bounds, applying package defaults
 // for non-positive values and capping maxTail to a maximum limit.
-// It returns the normalized defaultTail and maxTail.
+// normalizeContainerLogTailBounds ensures default and maximum log tail bounds are positive, capped to system limits, and properly ordered.
 func normalizeContainerLogTailBounds(defaultTail int, maxTail int) (int, int) {
 	if defaultTail <= 0 {
 		defaultTail = defaultContainerLogsDefaultTail

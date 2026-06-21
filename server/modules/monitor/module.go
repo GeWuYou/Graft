@@ -234,7 +234,7 @@ func (p *Module) bindDependencies(ctx *module.Context) error {
 	return nil
 }
 
-// resolveDatabaseDependency 从依赖注入容器解析可选的 SQL 数据库服务。若服务未注册或上下文不可用，返回 nil。若服务类型错误或解析失败，返回错误。
+resolveDatabaseDependency 从模块依赖容器解析可选的 SQL 数据库服务。若上下文不可用或服务未注册，返回 nil；若解析失败或已解析的类型不正确，返回错误。
 func resolveDatabaseDependency(ctx *module.Context) (*sql.DB, error) {
 	if ctx == nil || ctx.Services == nil {
 		return nil, nil
@@ -256,7 +256,7 @@ func resolveDatabaseDependency(ctx *module.Context) (*sql.DB, error) {
 	return db, nil
 }
 
-// ResolveOptionalTrendStore resolves an optional time-series store service from the dependency container. It returns nil if the context is invalid or the service is not registered.
+// ResolveOptionalTrendStore resolves an optional time-series store service from the dependency container. It returns nil values if the context is invalid or the service is not registered. An error is returned if resolution fails for other reasons.
 func resolveOptionalTrendStore(ctx *module.Context) (statex.TimeSeriesStore, error) {
 	if ctx == nil || ctx.Services == nil {
 		return nil, nil
@@ -273,7 +273,7 @@ func resolveOptionalTrendStore(ctx *module.Context) (statex.TimeSeriesStore, err
 	return store, nil
 }
 
-// It returns nil if the context is nil, has no services, or the service is not registered. It returns an error only if service resolution fails for reasons other than the service not being registered.
+// resolveOptionalRedisHealthReporter resolves an optional Redis health reporter service. It returns nil if the context is nil, has no services, or the service is not registered. It returns an error only if service resolution fails for reasons other than the service not being registered.
 func resolveOptionalRedisHealthReporter(ctx *module.Context) (redisx.HealthReporter, error) {
 	if ctx == nil || ctx.Services == nil {
 		return nil, nil
@@ -290,7 +290,7 @@ func resolveOptionalRedisHealthReporter(ctx *module.Context) (redisx.HealthRepor
 	return reporter, nil
 }
 
-// registerMonitorPermissions registers the server status read permission with the provided registry. The registry may be nil.
+// registerMonitorPermissions 注册服务器状态读权限。若注册表为 nil，则直接返回。
 func registerMonitorPermissions(registry *permission.Registry, moduleName string) {
 	if registry == nil {
 		return
@@ -451,6 +451,7 @@ func bindGeneratedMonitorParams(ginCtx *gin.Context) monitoropenapi.GetMonitorSe
 	return params
 }
 
+// buildServerStatusResponse 构建包含当前运行时指标的服务器状态响应。
 func buildServerStatusResponse(
 	ctx context.Context,
 	moduleCtx *module.Context,
@@ -467,7 +468,7 @@ func buildServerStatusResponse(
 // buildServerStatusResponseWithRuntimeSnapshot keeps the production response assembly
 // Constructs a server status response using the provided runtime snapshot.
 // It returns the response containing dependency health, module status, trends,
-// and anomalies.
+// buildServerStatusResponseWithRuntimeSnapshot 组装完整的服务器状态响应，汇聚依赖健康、模块观察、趋势数据及异常信息。若依赖健康探测失败则返回错误。
 func buildServerStatusResponseWithRuntimeSnapshot(
 	ctx context.Context,
 	moduleCtx *module.Context,
@@ -866,6 +867,7 @@ func unavailableEvidenceLink(windowStart time.Time, windowEnd time.Time, reason 
 	}
 }
 
+// stringPointer 返回 nil（若修剪后的 value 为空），否则返回指向 value 的指针。
 func stringPointer(value string) *string {
 	if strings.TrimSpace(value) == "" {
 		return nil
@@ -876,7 +878,10 @@ func stringPointer(value string) *string {
 // databaseHealth evaluates the database connection status.
 // Returns dependency status unknown if the database is unavailable, degraded if the connection check fails,
 // or healthy with latency and pool statistics if the database responds successfully. An error is returned
-// only if latency conversion fails.
+// databaseHealth 检查数据库连接的健康状态。
+// 若实例或数据库句柄为空，返回未知状态。
+// 通过 Ping 测试连接可达性：失败返回降级状态，成功返回健康状态及延迟信息。
+// 仅当延迟转换失败时返回错误。
 func databaseHealth(ctx context.Context, instance *Module) (generated.ServerStatusDependency, error) {
 	if instance == nil || instance.db == nil {
 		return generated.ServerStatusDependency{
@@ -915,7 +920,7 @@ func databaseHealth(ctx context.Context, instance *Module) (generated.ServerStat
 // The returned status is disabled if Redis is not configured, degraded if the health
 // check fails or Redis is unreachable, and healthy if Redis responds successfully.
 // Connection pool statistics and latency are included when available. An error is
-// returned only if latency conversion fails.
+// Returns an error only if latency metric conversion fails.
 func redisHealth(ctx context.Context, moduleCtx *module.Context, instance *Module) (generated.ServerStatusDependency, error) {
 	reporter := resolveRedisHealthReporter(moduleCtx, instance)
 	if reporter == nil {
@@ -989,7 +994,7 @@ func databasePoolStats(db *sql.DB) *generated.ServerStatusConnectionPool {
 	}
 }
 
-// resolveRedisHealthReporter 获取 Redis 健康报告器，若无缓存则从模块上下文解析；解析失败时返回 nil。
+// ResolveRedisHealthReporter 获取 Redis 健康报告器。若实例已缓存则返回缓存值，否则从模块上下文解析；解析失败时返回 nil。
 func resolveRedisHealthReporter(moduleCtx *module.Context, instance *Module) redisx.HealthReporter {
 	if instance != nil && instance.redisHealth != nil {
 		return instance.redisHealth
@@ -1004,7 +1009,7 @@ func resolveRedisHealthReporter(moduleCtx *module.Context, instance *Module) red
 	return reporter
 }
 
-// redisPoolStats 将 Redis 连接池统计转换为服务器状态响应结构，连接池容量和打开连接数均不大于 0 时返回 nil。
+// redisPoolStats 将 Redis 连接池统计映射为服务器状态响应结构，容量和打开连接数均为 0 或以下时返回 nil。
 func redisPoolStats(pool redisx.PoolStats) *generated.ServerStatusConnectionPool {
 	if pool.Capacity <= 0 && pool.OpenConnections <= 0 {
 		return nil
@@ -1122,6 +1127,7 @@ func deriveRuntimeModuleObservation(
 	}
 }
 
+// buildServerStatusSummary aggregates the health status of dependencies and modules into a summary containing total and categorized counts.
 func buildServerStatusSummary(
 	database generated.ServerStatusDependency,
 	redis generated.ServerStatusDependency,
@@ -1154,7 +1160,8 @@ func buildServerStatusSummary(
 	return summary
 }
 
-// buildServerStatusTrend 构造服务器状态趋势对象，如果配置了趋势存储则加载历史趋势数据点。
+// buildServerStatusTrend 构造服务器状态趋势对象，包含时间范围、保留时间和采样间隔。
+// 若配置了趋势存储，则加载指定时间范围内的历史趋势数据点；若加载失败，返回不含数据点的趋势对象。
 func buildServerStatusTrend(
 	ctx context.Context,
 	moduleCtx *module.Context,
@@ -1185,7 +1192,7 @@ func buildServerStatusTrend(
 	return trend
 }
 
-// resolveTrendStore returns the TimeSeriesStore, using the cached instance value if available, otherwise attempting to resolve from the module context. Returns nil if resolution fails.
+// resolveTrendStore 返回时间序列存储。若存储不可用或解析失败，返回 nil。
 func resolveTrendStore(moduleCtx *module.Context, instance *Module) statex.TimeSeriesStore {
 	if instance != nil && instance.trendStore != nil {
 		return instance.trendStore
@@ -1314,6 +1321,7 @@ func (p *Module) recordTrendSample(
 	}
 }
 
+// collectCPUPercent 计算当前 CPU 使用百分比，基于与前一次采样的对比。若无法获取 CPU 数据或前一次采样数据为 nil，返回 0。
 func collectCPUPercent(ctx context.Context, previousCPUTimes **cpu.TimesStat, instance *Module, storageKey string) float64 {
 	if ctx == nil || previousCPUTimes == nil {
 		return 0

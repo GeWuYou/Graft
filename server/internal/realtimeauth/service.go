@@ -171,7 +171,11 @@ func NewService(store kvx.Store) (Service, error) {
 	return NewServiceWithOptions(Options{Store: store})
 }
 
-// NewServiceWithOptions creates one KV-backed realtime ticket service with explicit options.
+// NewServiceWithOptions creates a KV-backed realtime ticket service with the provided options,
+// applying defaults for unspecified or empty values. The Store must not be nil;
+// if nil, an error is returned. Clock defaults to the system clock if not provided.
+// KeyPrefix defaults to "realtimeauth/tickets" if empty after trimming. KeyBuilder
+// defaults to a function that joins the key prefix with the ticket ID if not provided.
 func NewServiceWithOptions(options Options) (Service, error) {
 	if options.Store == nil {
 		return nil, errors.New("realtime ticket kv store is required")
@@ -419,7 +423,7 @@ func decodeTicketRecord(value []byte) (ticketRecord, error) {
 	return kvx.DecodeJSON[ticketRecord](value)
 }
 
-// ConsumedTicketFromRecord constructs a ConsumedTicket from the fields of a ticket record.
+// consumedTicketFromRecord constructs a ConsumedTicket from the fields of a ticket record.
 func consumedTicketFromRecord(record ticketRecord) ConsumedTicket {
 	return ConsumedTicket{
 		TicketID:     record.TicketID,
@@ -455,7 +459,7 @@ func hashTicketSecret(secret string) string {
 	return hex.EncodeToString(sum[:])
 }
 
-// SplitTicket 将 ticket 字符串解析为 ticketID 和密钥两个组件。Ticket 必须采用 ticketID.secret 的格式（以点号分隔）。若 ticket 为空返回 ErrTicketRequired，若格式无效或任一组件为空返回 ErrInvalidTicket。
+// splitTicket 将票证字符串解析为 ticketID 和 secret 两个分量。票证必须采用 ticketID.secret 的格式（以点号分隔），返回 ErrTicketRequired 如果票证为空，返回 ErrInvalidTicket 如果格式无效或任一分量去空格后为空。
 func splitTicket(raw string) (string, string, error) {
 	if raw == "" {
 		return "", "", ErrTicketRequired
@@ -468,7 +472,7 @@ func splitTicket(raw string) (string, string, error) {
 }
 
 // validateStoredTicket checks that a ticket record has not expired, has not been consumed,
-// has the correct secret, matches the given scope, and matches the given resource type and ID.
+// validateStoredTicket validates that a stored ticket record has not expired, has not been used, has the correct secret, matches the given scope, and matches the given resource type and ID. It returns nil if all validations pass, or one of ErrExpiredTicket, ErrUsedTicket, ErrInvalidTicket, ErrScopeMismatch, or ErrResourceMismatch.
 func validateStoredTicket(
 	record ticketRecord,
 	now time.Time,

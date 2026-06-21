@@ -8,7 +8,7 @@ import "strings"
 
 var segmentReplacer = strings.NewReplacer(" ", "-", "/", "-", "\\", "-", ":", "-", ".", "-")
 
-// Segment normalizes a raw key segment for state-store storage. If the input is empty or becomes empty after normalization, the fallback value is returned instead.
+// Segment normalizes a key segment for state storage, using the normalized fallback if the value becomes empty after normalization.
 func Segment(value string, fallback string) string {
 	sanitized := normalizeSegment(value)
 	if sanitized == "" {
@@ -17,6 +17,7 @@ func Segment(value string, fallback string) string {
 	return sanitized
 }
 
+// normalizeSegment 规范化段字符串，将其转换为小写、去除空白，并将特殊字符（如空格、斜杠、冒号、句点等）替换为连字符。若规范化后结果为空字符串，则返回空字符串。
 func normalizeSegment(value string) string {
 	trimmed := strings.TrimSpace(strings.ToLower(value))
 	if trimmed == "" {

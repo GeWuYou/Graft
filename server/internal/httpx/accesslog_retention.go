@@ -278,6 +278,7 @@ func accessLogRetentionFailureResult(err error, cutoff time.Time, config accessL
 	return cronx.JobRunResult{Summary: err.Error(), Stage: "failed", AffectedResource: "access_log", Details: details, Warnings: []string{err.Error()}}
 }
 
+// decodeAccessLogRetentionJobConfig 将 JSON 字符串解析为访问日志保留清理作业配置，并对配置值进行验证和标准化处理。保留天数不足或无效时将重置为默认值，超过最大值时将限制到最大值；批处理大小不足或无效时将重置为默认值。
 func decodeAccessLogRetentionJobConfig(configJSON string) accessLogRetentionJobConfig {
 	config := accessLogRetentionJobConfig{RetentionDays: accessLogRetentionDefaultDays, BatchSize: accessLogRetentionDefaultBatchSize}
 	_ = json.Unmarshal([]byte(configJSON), &config)
@@ -293,7 +294,7 @@ func decodeAccessLogRetentionJobConfig(configJSON string) accessLogRetentionJobC
 	return config
 }
 
-// RegisterAccessLogRetentionConfigDefinition registers the access log retention cleanup configuration definition in the provided registry. It returns an error if the registry is nil or if registration fails.
+// RegisterAccessLogRetentionConfigDefinition registers the access log retention cleanup configuration definition in the provided registry with support for runtime hot updates. It returns an error if the registry is nil or if registration fails.
 func RegisterAccessLogRetentionConfigDefinition(registry *configregistry.Registry) error {
 	if registry == nil {
 		return errors.New("config registry is required")

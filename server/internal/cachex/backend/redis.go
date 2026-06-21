@@ -101,6 +101,7 @@ func (r *Redis) prefixed(key string) string {
 	return r.prefix + ":" + key
 }
 
+// cloneBytes returns a deep copy of value, or nil if value is empty.
 func cloneBytes(value []byte) []byte {
 	if len(value) == 0 {
 		return nil

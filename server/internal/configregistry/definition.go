@@ -95,7 +95,10 @@ func MaskedPlaceholder() string {
 }
 
 // validateDefinition validates a configuration definition and returns
-// an error if any validation fails.
+// validateDefinition 验证配置定义。
+//
+// 检查定义的键、必需元数据、值类型、运行时应用模式、Schema 和默认值是否有效。
+// 若任何验证失败则返回错误，否则返回 nil。
 func validateDefinition(definition Definition) error {
 	key := strings.TrimSpace(definition.Key)
 	if key == "" {
@@ -122,6 +125,8 @@ func validateDefinition(definition Definition) error {
 	return nil
 }
 
+// validateRequiredDefinitionMetadata 验证定义体的必需元数据字段。
+// 它检查 Module、Domain 和 Group 非空，且 Title 或 TitleKey 至少有一个提供。
 func validateRequiredDefinitionMetadata(definition Definition, key string) error {
 	if strings.TrimSpace(definition.Module) == "" {
 		return fmt.Errorf("config definition %s module is required", key)
@@ -160,7 +165,7 @@ func validRuntimeApplyModes() []RuntimeApplyMode {
 }
 
 // validateJSONObject validates that raw is either empty or a valid JSON object.
-// If raw is not empty, it must be valid JSON that decodes to a map[string]any.
+// validateJSONObject validates that raw is empty or valid JSON representing a JSON object.
 func validateJSONObject(raw json.RawMessage, label string, key string) error {
 	if len(raw) == 0 {
 		return nil

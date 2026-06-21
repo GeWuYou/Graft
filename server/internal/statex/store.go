@@ -43,7 +43,7 @@ type redisTimeSeriesStore struct {
 	client redis.Cmdable
 }
 
-// NewRedisTimeSeriesStore creates a TimeSeriesStore backed by a Redis client. It returns an error if the client is nil.
+// NewRedisTimeSeriesStore 使用 Redis 客户端创建一个 TimeSeriesStore。若客户端为 nil，则返回错误。
 func NewRedisTimeSeriesStore(client redis.Cmdable) (TimeSeriesStore, error) {
 	if client == nil {
 		return nil, errors.New("statex redis client is required")
@@ -117,10 +117,16 @@ func (s *redisTimeSeriesStore) Range(ctx context.Context, key string, query Time
 	return samples, nil
 }
 
+// encodeMember formats the given timestamp and payload bytes into a string member for Redis ZSET storage.
 func encodeMember(observedAt time.Time, payload []byte) string {
 	return strconv.FormatInt(observedAt.UnixNano(), 10) + "|" + base64.RawStdEncoding.EncodeToString(payload)
 }
 
+// decodeMember 从编码的成员字符串中提取负载。
+//
+// 成员应采用格式 "<timestamp>|<base64编码的负载>"。
+// 如果成员中不存在 "|" 分隔符，将整个原始值作为负载返回。
+// 否则将 "|" 后的部分从 base64 解码。base64 解码失败时返回错误。
 func decodeMember(member any) ([]byte, error) {
 	raw, err := memberString(member)
 	if err != nil {
@@ -139,6 +145,8 @@ func decodeMember(member any) ([]byte, error) {
 	return payload, nil
 }
 
+// memberString converts member to a string.
+// It accepts string and []byte; other types return an error.
 func memberString(member any) (string, error) {
 	switch typed := member.(type) {
 	case string:

@@ -20,7 +20,7 @@ type Manager struct {
 
 // NewManager 从提供的选项创建一个缓存管理器。
 // 它验证命名空间（去除空格后）和后端均不为空；若验证失败则返回错误。
-// 若指标或分组未提供，将应用默认值。
+// NewManager 从提供的选项创建一个 Manager，验证命名空间非空且后端非空。若指标或分组未提供，则使用默认实现。
 func NewManager(options ManagerOptions) (*Manager, error) {
 	namespace := strings.TrimSpace(options.Namespace)
 	if namespace == "" {
