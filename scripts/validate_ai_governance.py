@@ -30,6 +30,12 @@ SQL_MIGRATION_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-sql-migration" /
 SHARED_ASSET_REUSE_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-shared-asset-reuse" / "SKILL.md"
 SHARED_ASSET_DOC = REPO_ROOT / "ai-plan" / "design" / "共享资产复用治理规范.md"
 SHARED_ASSET_VALIDATOR = REPO_ROOT / "scripts" / "validate_shared_asset_registries.py"
+BACKEND_QUERY_DOC = REPO_ROOT / "ai-plan" / "design" / "后端查询与数据库访问治理规范.md"
+SERVER_API_GOVERNANCE_DOC = REPO_ROOT / "ai-plan" / "design" / "服务端API边界与兼容治理规范.md"
+BACKEND_SECURITY_DOC = REPO_ROOT / "ai-plan" / "design" / "后端安全与信任边界治理规范.md"
+BACKEND_TEST_MAINTAIN_DOC = REPO_ROOT / "ai-plan" / "design" / "后端测试与可维护性治理规范.md"
+AI_CODE_REVIEW_DOC = REPO_ROOT / "ai-plan" / "design" / "AI代码生成与Review规范.md"
+SERVER_AGENTS = REPO_ROOT / "server" / "AGENTS.md"
 
 FRONTMATTER_RE = re.compile(r"\A---\n(?P<body>.*?)\n---\n", re.DOTALL)
 HEADROOM_RTK_START = "<!-- headroom:rtk-instructions -->"
@@ -391,6 +397,124 @@ def validate_agents_skill_list() -> list[Finding]:
     return findings
 
 
+def validate_backend_guardrail_governance() -> list[Finding]:
+    findings: list[Finding] = []
+    required_docs = (
+        BACKEND_QUERY_DOC,
+        SERVER_API_GOVERNANCE_DOC,
+        BACKEND_SECURITY_DOC,
+        BACKEND_TEST_MAINTAIN_DOC,
+        AI_CODE_REVIEW_DOC,
+    )
+    for path in required_docs:
+        if not path.is_file():
+            findings.append(Finding(path, "backend guardrail governance file is missing"))
+
+    if BACKEND_QUERY_DOC.is_file():
+        text = read_text(BACKEND_QUERY_DOC)
+        findings.extend(
+            missing_exact_terms(
+                text,
+                BACKEND_QUERY_DOC,
+                "backend query governance",
+                ("N+1", "全表扫描", "分页", "SELECT *", "Count", "EXPLAIN", "查询超时", "大字段", "批量", "CI"),
+            )
+        )
+
+    if SERVER_API_GOVERNANCE_DOC.is_file():
+        text = read_text(SERVER_API_GOVERNANCE_DOC)
+        findings.extend(
+            missing_exact_terms(
+                text,
+                SERVER_API_GOVERNANCE_DOC,
+                "server API governance",
+                ("Entity", "DTO", "VO", "Request", "Response", "OpenAPI", "兼容", "废弃", "Ent entity", "CI"),
+            )
+        )
+
+    if BACKEND_SECURITY_DOC.is_file():
+        text = read_text(BACKEND_SECURITY_DOC)
+        findings.extend(
+            missing_exact_terms(
+                text,
+                BACKEND_SECURITY_DOC,
+                "backend security governance",
+                ("authz", "审计", "危险操作", "信任边界", "前端", "批量", "CI"),
+            )
+        )
+
+    if BACKEND_TEST_MAINTAIN_DOC.is_file():
+        text = read_text(BACKEND_TEST_MAINTAIN_DOC)
+        findings.extend(
+            missing_exact_terms(
+                text,
+                BACKEND_TEST_MAINTAIN_DOC,
+                "backend test maintainability governance",
+                ("query-count", "public API", "service", "复杂函数", "兼容", "导出符号", "魔法值", "lint", "CI"),
+            )
+        )
+
+    if AI_CODE_REVIEW_DOC.is_file():
+        text = read_text(AI_CODE_REVIEW_DOC)
+        findings.extend(
+            missing_exact_terms(
+                text,
+                AI_CODE_REVIEW_DOC,
+                "AI code review governance",
+                ("跨模块重构", "自动", "依赖升级", "TODO", "closeout", "rollback", "多 agent", "CI"),
+            )
+        )
+
+    if AGENTS.is_file():
+        root_text = read_text(AGENTS)
+        for term in (
+            "后端查询与数据库访问治理规范.md",
+            "服务端API边界与兼容治理规范.md",
+            "后端安全与信任边界治理规范.md",
+            "后端测试与可维护性治理规范.md",
+            "AI代码生成与Review规范.md",
+        ):
+            if term not in root_text:
+                findings.append(Finding(AGENTS, f"root AGENTS should reference backend guardrail doc {term!r}"))
+
+    if SERVER_AGENTS.is_file():
+        text = read_text(SERVER_AGENTS)
+        for term in (
+            "后端查询与数据库访问治理规范.md",
+            "服务端API边界与兼容治理规范.md",
+            "后端安全与信任边界治理规范.md",
+            "后端测试与可维护性治理规范.md",
+            "AI代码生成与Review规范.md",
+            "### Backend Guardrails",
+            "禁止引入 N+1 查询",
+            "列表接口默认分页",
+            "不暴露 Ent entity",
+            "不信任前端上传",
+            "写接口必须做后端权限校验",
+            "危险操作必须具备权限、审计",
+            "query-count regression",
+            "禁止超范围修改",
+            "禁止自动数据库迁移",
+            "回滚方案",
+        ):
+            if term not in text:
+                findings.append(Finding(SERVER_AGENTS, f"server AGENTS missing backend guardrail term {term!r}"))
+
+    if AI_TOOLING_DOC.is_file():
+        text = read_text(AI_TOOLING_DOC)
+        for term in (
+            "规范",
+            "`AGENTS.md`",
+            "CI / validation script",
+            "review checklist",
+            "AI guardrail",
+        ):
+            if term not in text:
+                findings.append(Finding(AI_TOOLING_DOC, f"AI tooling governance should mention guardrail adoption term {term!r}"))
+
+    return findings
+
+
 def validate_shared_asset_governance() -> list[Finding]:
     findings: list[Finding] = []
     required = (
@@ -476,6 +600,7 @@ def run_validation() -> list[Finding]:
     findings.extend(validate_sql_migration_governance())
     findings.extend(validate_shared_asset_governance())
     findings.extend(validate_agents_skill_list())
+    findings.extend(validate_backend_guardrail_governance())
     findings.extend(validate_environment_inventory())
     findings.extend(validate_no_private_config_tracked(tracked))
     return findings

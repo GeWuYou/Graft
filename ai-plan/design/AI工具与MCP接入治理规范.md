@@ -36,6 +36,15 @@ AI 工具按职责分层：
 
 MCP 和 skill 不得定义第二套启动 receipt、第二套 validation truth、第二套 commit 规则或第二套恢复入口。
 
+当仓库把某类治理沉淀为 AI guardrail 时，落地顺序应优先遵循：
+
+- 规范
+- `AGENTS.md`
+- CI / validation script
+- review checklist
+
+不要只补设计文档却不更新 `AGENTS.md`、校验脚本或 review 口径；否则多人协作和多 agent 场景下这些规则很快会失效。
+
 ## 3. MCP 风险等级
 
 接入 MCP 前必须先按能力分级：
@@ -204,3 +213,11 @@ AI tooling evidence:
 - 是否与 `.ai/environment/tools.ai.yaml` 的工具事实冲突。
 - 是否能在 MCP 不可用时退回 `rg`、真实文件读取、官方文档或现有 CLI。
 - 是否有结构性验证覆盖新增文档或 skill。
+
+评审 AI guardrail 治理变更时至少追加检查：
+
+- 是否同时更新了对应 `AGENTS.md` 入口，而不是只新增孤立设计文档。
+- 是否区分了必须写成 agent guardrail 的规则与只适合保留在设计文档中的规则。
+- 是否把可机检规则收口进现有 validation script、lint 或测试，而不是只靠人工记忆。
+- 是否避免使用注释覆盖率、文档覆盖率这类 AI 易作弊指标。
+- 是否为多 agent closeout 规定最小证据字段，例如修改范围、影响模块、风险点、验证步骤和回滚方案。

@@ -50,6 +50,16 @@ authority-first overlay：
 - 改动注释、包文档、模块 README 或 AI 文档行为时，读 `ai-plan/design/代码注释与模块文档规范.md`
 - 改动数据库表设计、Ent schema、migration、审计字段、软删除、索引、store query 语义或数据库注释时，读
   `ai-plan/design/数据库表设计与迁移规范.md`
+- 改动查询形状、分页、Count 策略、原始 SQL、查询超时、大字段读取、批量写入、Explain 证据或 repository 查询成本时，读
+  `ai-plan/design/后端查询与数据库访问治理规范.md`
+- 改动 HTTP request / response、DTO / VO / Entity 边界、OpenAPI authority、兼容策略或弃用路径时，读
+  `ai-plan/design/服务端API边界与兼容治理规范.md`
+- 改动权限校验、信任边界、危险操作保护、审计要求或前后端安全职责分界时，读
+  `ai-plan/design/后端安全与信任边界治理规范.md`
+- 改动后端测试最小集、回归测试、query-count regression、导出符号注释、service 职责说明、复杂度或魔法数字治理时，读
+  `ai-plan/design/后端测试与可维护性治理规范.md`
+- 任务主要由 agent 生成、重构、review 或多 agent 协作完成，且需要限制超范围修改、偷修、自动迁移、自动升级依赖或
+  closeout 证据时，读 `ai-plan/design/AI代码生成与Review规范.md`
 
 如果代码、文档与本文件冲突：
 
@@ -570,6 +580,21 @@ shared hotspot 处理规则如下：
 ## 14. Go 编码规则
 
 本节适用于 `server` 下手写 Go 代码。
+
+### Backend Guardrails
+
+以下 10 条是后端 AI / 人工协作切片都必须遵守的默认 guardrail；除非任务或 authority 文档明确批准，否则不得绕开：
+
+1. 禁止引入 N+1 查询；列表、详情聚合和 dashboard 读取都要先判断 query shape。
+2. 列表接口默认分页；只有明确的 bounded dataset 才能豁免，并在评审或 closeout 里说明理由。
+3. 不暴露 Ent entity、数据库模型、内部外键或 edge 细节到 HTTP / OpenAPI。
+4. 不信任前端上传的 actor、tenant、role、permission、ownership 或其它身份 / 授权字段。
+5. 写接口必须做后端权限校验；前端隐藏按钮不是安全控制。
+6. 危险操作必须具备权限、审计和显式保护条件；批量高危操作必须有上限和部分失败语义。
+7. 修改后端行为必须补最小直接测试；查询热点优先补 query-count regression 或等价回归测试。
+8. 禁止超范围修改；用户没有授权的跨模块重构、顺手修、rename wave 和兼容层扩散都默认拒绝。
+9. 禁止自动数据库迁移、隐式 schema 修复、运行时自同步或未经授权的依赖升级。
+10. 每个 agent closeout 必须说明修改范围、影响模块、风险点、验证步骤和回滚方案；没有这些字段不得宣称切片完成。
 
 ### 14.1 文件与包
 

@@ -49,6 +49,11 @@ class EnvironmentInventoryTests(unittest.TestCase):
         self.assertEqual(MODULE.validate_environment_inventory(), [])
 
 
+class BackendGuardrailGovernanceTests(unittest.TestCase):
+    def test_backend_guardrail_governance_is_currently_satisfied(self) -> None:
+        self.assertEqual(MODULE.validate_backend_guardrail_governance(), [])
+
+
 class HeadroomGovernanceTests(unittest.TestCase):
     def test_detects_headroom_rtk_injection_block(self) -> None:
         text = "<!-- headroom:rtk-instructions -->\ncontent\n<!-- /headroom:rtk-instructions -->\n"

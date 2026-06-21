@@ -53,6 +53,21 @@ Authoritative repository documents:
 - [ai-plan/design/数据库表设计与迁移规范.md](ai-plan/design/数据库表设计与迁移规范.md) when the task changes
   database table design, Ent schema, Atlas migration, audit fields, soft delete semantics, indexes, store query
   semantics, or database table / column comments
+- [ai-plan/design/后端查询与数据库访问治理规范.md](ai-plan/design/后端查询与数据库访问治理规范.md) when the task changes
+  backend query shape, pagination, count strategy, SQL field selection, query timeout, batch writes, repository query
+  cost, or Explain evidence expectations
+- [ai-plan/design/服务端API边界与兼容治理规范.md](ai-plan/design/服务端API边界与兼容治理规范.md) when the task changes
+  server HTTP request/response boundaries, Entity/DTO/VO separation, OpenAPI authority, backward compatibility, or
+  API deprecation policy
+- [ai-plan/design/后端安全与信任边界治理规范.md](ai-plan/design/后端安全与信任边界治理规范.md) when the task changes
+  backend authorization, audit requirements, dangerous operation protection, actor/resource trust boundaries, or
+  frontend/backend security responsibility split
+- [ai-plan/design/后端测试与可维护性治理规范.md](ai-plan/design/后端测试与可维护性治理规范.md) when the task changes
+  backend test minimums, regression strategy, query-count regression, public API comments, service responsibility
+  notes, magic-number governance, or complexity guardrails
+- [ai-plan/design/AI代码生成与Review规范.md](ai-plan/design/AI代码生成与Review规范.md) when the task changes
+  agent-generated code scope, multi-agent review workflow, closeout evidence, opportunistic fixes, or AI coding
+  guardrails
 
 Subdomain governance documents:
 
