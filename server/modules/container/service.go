@@ -701,6 +701,8 @@ func applyEnvironmentPolicy(environment []EnvironmentVariable, options environme
 	return mapped
 }
 
+// normalizeEnvironmentPolicy 将字符串规范化为环境策略类型。
+// 识别 Hidden 和 Plain 策略；若输入不匹配任何已知策略，则默认返回 Masked。
 func normalizeEnvironmentPolicy(value string) containercontract.EnvironmentPolicy {
 	switch containercontract.EnvironmentPolicy(strings.ToLower(strings.TrimSpace(value))) {
 	case containercontract.ContainerEnvironmentPolicyHidden:
@@ -712,6 +714,8 @@ func normalizeEnvironmentPolicy(value string) containercontract.EnvironmentPolic
 	}
 }
 
+// normalizeOrchestratorActionLevel normalizes a string to an orchestrator action level,
+// returning Readonly or Allow if matched, or Warn as the default.
 func normalizeOrchestratorActionLevel(value string) containercontract.OrchestratorActionLevel {
 	switch containercontract.OrchestratorActionLevel(strings.ToLower(strings.TrimSpace(value))) {
 	case containercontract.ContainerOrchestratorActionLevelReadonly:
@@ -723,6 +727,7 @@ func normalizeOrchestratorActionLevel(value string) containercontract.Orchestrat
 	}
 }
 
+// NormalizedOrchestratorInfo normalizes the provided orchestrator information by validating the type, deriving managed status from type, normalizing scope kinds, trimming whitespace from string fields, applying default confidence based on managed status, and ensuring the warnings slice is initialized.
 func normalizedOrchestratorInfo(info OrchestratorInfo) OrchestratorInfo {
 	info.Type = effectiveOrchestratorTypeFromValue(info.Type)
 	info.Managed = info.Type != containerOrchestratorStandalone
@@ -745,10 +750,12 @@ func normalizedOrchestratorInfo(info OrchestratorInfo) OrchestratorInfo {
 	return info
 }
 
+// EffectiveOrchestratorType returns the normalized orchestrator type from the container summary.
 func effectiveOrchestratorType(item Summary) string {
 	return effectiveOrchestratorTypeFromValue(item.Orchestrator.Type)
 }
 
+// effectiveOrchestratorTypeFromValue returns the normalized orchestrator type for the given value, defaulting to standalone if the value is invalid.
 func effectiveOrchestratorTypeFromValue(value string) string {
 	value = strings.TrimSpace(strings.ToLower(value))
 	if isValidContainerOrchestrator(value) {
@@ -757,6 +764,7 @@ func effectiveOrchestratorTypeFromValue(value string) string {
 	return containerOrchestratorStandalone
 }
 
+// orchestratorWarningsFor returns a deduplicated slice of warnings for an orchestrator, combining base warnings with those derived from managed status and action level constraints.
 func orchestratorWarningsFor(
 	info OrchestratorInfo,
 	level containercontract.OrchestratorActionLevel,
@@ -792,6 +800,7 @@ func orchestratorWarningsFor(
 	return warnings
 }
 
+// isSensitiveEnvironmentKey 判断环境变量键是否表示敏感值。
 func isSensitiveEnvironmentKey(key string) bool {
 	normalized := strings.ToUpper(strings.TrimSpace(key))
 	for _, marker := range sensitiveEnvironmentKeyMarkers {
@@ -835,6 +844,7 @@ func (s *service) normalizeLogQuery(query LogQuery) (LogQuery, error) {
 	return query, nil
 }
 
+// filterContainerSummaries returns the summaries that match the query criteria.
 func filterContainerSummaries(items []Summary, query ListQuery) []Summary {
 	filtered := make([]Summary, 0, len(items))
 	keyword := strings.ToLower(strings.TrimSpace(query.Keyword))
@@ -847,6 +857,7 @@ func filterContainerSummaries(items []Summary, query ListQuery) []Summary {
 	return filtered
 }
 
+// summaryMatchesListQuery 确定容器摘要是否与列表查询的所有过滤条件相匹配。
 func summaryMatchesListQuery(item Summary, query ListQuery, keyword string) bool {
 	return summaryMatchesState(item, query.State) &&
 		summaryMatchesHealth(item, query.Health) &&
@@ -855,26 +866,35 @@ func summaryMatchesListQuery(item Summary, query ListQuery, keyword string) bool
 		summaryMatchesKeywordFilter(item, keyword)
 }
 
+// summaryMatchesState 检查容器摘要的状态是否与给定的状态匹配，空字符串表示接受任何状态。
 func summaryMatchesState(item Summary, state string) bool {
 	return state == "" || item.State == state
 }
 
+// summaryMatchesHealth reports whether a container summary matches the given health filter.
 func summaryMatchesHealth(item Summary, health string) bool {
 	return health == "" || effectiveHealth(item) == health
 }
 
+// summaryMatchesOrchestrator reports whether a container summary matches the
+// given orchestrator filter.
 func summaryMatchesOrchestrator(item Summary, orchestrator string) bool {
 	return orchestrator == "" || effectiveOrchestratorType(item) == orchestrator
 }
 
+// summaryMatchesSourceScopeFilter 检查容器摘要是否与源作用域过滤条件匹配。
+// 当 scopeKind 为空时返回 true，表示不应用该过滤；否则检查摘要是否与指定作用域相匹配。
 func summaryMatchesSourceScopeFilter(item Summary, scopeKind string, scope string) bool {
 	return scopeKind == "" || summaryMatchesSourceScope(item, scopeKind, scope)
 }
 
+// SummaryMatchesKeywordFilter reports whether a Summary matches the keyword filter, where an empty keyword matches all summaries.
 func summaryMatchesKeywordFilter(item Summary, keyword string) bool {
 	return keyword == "" || summaryMatchesKeyword(item, keyword)
 }
 
+// pageContainerSummaries 根据查询条件对容器摘要进行分页。
+// 返回从指定偏移开始、不超过指定限制数量的摘要切片，若偏移超过总项数则返回空切片。
 func pageContainerSummaries(items []Summary, query ListQuery) []Summary {
 	if query.Offset >= len(items) {
 		return []Summary{}
@@ -886,6 +906,7 @@ func pageContainerSummaries(items []Summary, query ListQuery) []Summary {
 	return items[query.Offset:end]
 }
 
+// summarizeContainers computes aggregate counts of containers grouped by state and health status.
 func summarizeContainers(items []Summary) ListSummary {
 	summary := ListSummary{Total: len(items)}
 	for _, item := range items {
@@ -909,6 +930,7 @@ func summarizeContainers(items []Summary) ListSummary {
 	return summary
 }
 
+// applyActionAvailability 根据编排器策略和容器状态对容器摘要应用动作可用性限制，禁用危险操作被禁用或编排器操作级别为只读时的所有可变动作。
 func applyActionAvailability(items []Summary, policy effectiveActionPolicy) []Summary {
 	adjusted := make([]Summary, 0, len(items))
 	for _, item := range items {
@@ -925,6 +947,7 @@ func applyActionAvailability(items []Summary, policy effectiveActionPolicy) []Su
 	return adjusted
 }
 
+// summaryMatchesKeyword reports whether the keyword matches any of the container summary's searchable fields.
 func summaryMatchesKeyword(item Summary, keyword string) bool {
 	values := []string{
 		item.ID,
@@ -962,6 +985,7 @@ func summaryMatchesKeyword(item Summary, keyword string) bool {
 	return false
 }
 
+// NormalizeContainerSourceScopeKind 规范化容器源作用域类型值，转换为小写并去除空白。返回规范化后的值（如果为支持的作用域类型）或空字符串。
 func normalizeContainerSourceScopeKind(value string) string {
 	value = strings.TrimSpace(strings.ToLower(value))
 	if !isValidContainerSourceScopeKind(value) {
@@ -970,6 +994,7 @@ func normalizeContainerSourceScopeKind(value string) string {
 	return value
 }
 
+// sourceScopeKindCompatibleWithOrchestrator reports whether a source scope kind is compatible with an orchestrator type.
 func sourceScopeKindCompatibleWithOrchestrator(orchestrator string, scopeKind string) bool {
 	scopeKind = normalizeContainerSourceScopeKind(scopeKind)
 	if scopeKind == "" {
@@ -987,6 +1012,8 @@ func sourceScopeKindCompatibleWithOrchestrator(orchestrator string, scopeKind st
 	}
 }
 
+// summaryMatchesSourceScope 判断容器摘要是否与指定的源作用域类型和值相匹配。
+// 比较采用不区分大小写的方式，源作用域类型必须与容器的编排器类型兼容。
 func summaryMatchesSourceScope(item Summary, scopeKind string, scope string) bool {
 	scopeKind = normalizeContainerSourceScopeKind(scopeKind)
 	scope = strings.TrimSpace(scope)
@@ -1005,6 +1032,7 @@ func summaryMatchesSourceScope(item Summary, scopeKind string, scope string) boo
 	return false
 }
 
+// SourceScopeCandidates returns candidate values from the container summary and orchestrator information for matching against the given scope kind.
 func sourceScopeCandidates(item Summary, info OrchestratorInfo, scopeKind string) []string {
 	switch scopeKind {
 	case composeProjectScopeKind:
@@ -1020,6 +1048,7 @@ func sourceScopeCandidates(item Summary, info OrchestratorInfo, scopeKind string
 	}
 }
 
+// effectiveHealth 返回项目的有效健康状态，若未设定则默认为不可用。
 func effectiveHealth(item Summary) string {
 	if item.Health == "" {
 		return containerHealthUnavailable
@@ -1132,6 +1161,7 @@ type containerRuntimeOptions struct {
 	orchestratorPolicies    orchestratorActionPolicies
 }
 
+// ContainerOptionsFromConfig 从模块上下文中提取容器运行时配置选项，应用默认值、配置注册表中的设置，最后使用显式模块配置覆盖。
 func containerOptionsFromConfig(ctx *module.Context) containerRuntimeOptions {
 	options := containerRuntimeOptions{
 		enabled:                 defaultContainerEnabled,
@@ -1173,6 +1203,7 @@ func containerOptionsFromConfig(ctx *module.Context) containerRuntimeOptions {
 	return options
 }
 
+// applyContainerOrchestratorActionLevelDefault applies a default orchestrator action level from the configuration registry to the target, normalizing the value and silently ignoring missing or invalid values.
 func applyContainerOrchestratorActionLevelDefault(
 	ctx *module.Context,
 	key string,
@@ -1191,6 +1222,7 @@ func applyContainerOrchestratorActionLevelDefault(
 	}
 }
 
+// applyContainerEnvironmentPolicyDefault 从配置注册表中读取默认容器环境策略，并应用到 target，对缺失或无效值无声忽略。
 func applyContainerEnvironmentPolicyDefault(ctx *module.Context, key string, target *containercontract.EnvironmentPolicy) {
 	if target == nil {
 		return

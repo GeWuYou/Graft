@@ -53,6 +53,12 @@ export function bootstrapApp() {
   return app;
 }
 
+/**
+ * 在浏览器环境中注册全局事件监听器以记录错误和未处理的 Promise 拒绝。
+ *
+ * 为 `window` 的 `error` 和 `unhandledrejection` 事件设置监听器。已处理的鉴权请求错误会被阻止，不予记录。
+ * 在非浏览器环境中无操作。
+ */
 function registerGlobalLoggerSinks() {
   if (typeof window === 'undefined') {
     return;

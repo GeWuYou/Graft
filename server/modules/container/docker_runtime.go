@@ -297,6 +297,7 @@ func (r *DockerRuntime) Close() error {
 	return r.client.Close()
 }
 
+// dockerSummary converts a Docker container summary to the module Summary type, normalizing metadata and detecting orchestrator information.
 func dockerSummary(item container.Summary) Summary {
 	names := cleanDockerNames(item.Names)
 	networks := dockerSummaryNetworks(item)
@@ -569,7 +570,7 @@ func uint32ToInt64Ptr(value uint32) *int64 {
 	return &converted
 }
 
-// dockerDetail builds a Detail struct from Docker container inspect output and runtime metadata.
+// dockerDetail 从 Docker 容器检查输出和运行时元数据构建 Detail 结构体。
 func dockerDetail(inspect container.InspectResponse, info RuntimeInfo) Detail {
 	state, status, startedAt := dockerState(inspect)
 	labels := dockerLabels(inspect)
@@ -626,6 +627,7 @@ func dockerDetail(inspect container.InspectResponse, info RuntimeInfo) Detail {
 	return detail
 }
 
+// dockerOrchestratorFromLabels 从容器标签检测编排器类型，并返回该编排器的元数据。
 func dockerOrchestratorFromLabels(labels map[string]string) OrchestratorInfo {
 	labels = cloneLabels(labels)
 	if len(labels) == 0 {
@@ -714,6 +716,7 @@ type kubernetesOrchestratorMetadata struct {
 	Container string
 }
 
+// kubernetesMetadata extracts Kubernetes metadata from the provided labels, returning the extracted metadata and whether any Kubernetes metadata was found.
 func kubernetesMetadata(labels map[string]string) (kubernetesOrchestratorMetadata, bool) {
 	metadata := kubernetesOrchestratorMetadata{
 		Namespace: strings.TrimSpace(labels["io.kubernetes.pod.namespace"]),
@@ -724,6 +727,7 @@ func kubernetesMetadata(labels map[string]string) (kubernetesOrchestratorMetadat
 	return metadata, ok
 }
 
+// SwarmMetadata extracts Docker Swarm metadata from container labels. It returns the stack namespace, task name, and a flag indicating whether valid metadata was found.
 func swarmMetadata(labels map[string]string) (stack string, task string, ok bool) {
 	stack = strings.TrimSpace(labels["com.docker.stack.namespace"])
 	task = strings.TrimSpace(labels["com.docker.swarm.task.name"])
@@ -731,6 +735,8 @@ func swarmMetadata(labels map[string]string) (stack string, task string, ok bool
 	return stack, task, ok
 }
 
+// composeMetadata 从容器标签中检测 Docker Compose 的项目和服务名称。
+// 返回项目名、服务名以及是否检测到 Compose 编排器的布尔值。
 func composeMetadata(labels map[string]string) (project string, service string, ok bool) {
 	project = strings.TrimSpace(labels[composeProjectLabel])
 	service = strings.TrimSpace(labels[composeServiceLabel])
@@ -738,6 +744,7 @@ func composeMetadata(labels map[string]string) (project string, service string, 
 	return project, service, ok
 }
 
+// dockerEnvironmentVariables 将原始环境变量字符串列表解析为 EnvironmentVariable 对象。跳过格式错误（无等号分隔符）或键为空的条目。返回的每个 EnvironmentVariable 对象包含其敏感性判断和来源标记。
 func dockerEnvironmentVariables(values []string) []EnvironmentVariable {
 	if len(values) == 0 {
 		return nil

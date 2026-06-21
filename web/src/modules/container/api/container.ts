@@ -109,6 +109,12 @@ type PostContainerBatchActionsRequest = NonNullable<
 
 export type ContainerListResponse = GetContainersData;
 
+/**
+ * Retrieves a list of containers.
+ *
+ * @param query - Optional query parameters for filtering and pagination
+ * @returns The container list response data
+ */
 export function getContainers(query?: ContainerListQueryWithOrchestrator) {
   return request.get<GetContainersData>({
     url: CONTAINER_API_PATH.LIST,
@@ -116,6 +122,12 @@ export function getContainers(query?: ContainerListQueryWithOrchestrator) {
   }) as Promise<ContainerListResponse>;
 }
 
+/**
+ * 检索指定容器的详细信息。
+ *
+ * @param containerId - 容器的唯一标识符
+ * @returns 容器的详细信息
+ */
 export function getContainer(containerId: GetContainerPathParams['id']) {
   return request.get<GetContainerData>({
     url: buildContainerDetailApiPath(containerId),

@@ -9,6 +9,12 @@ type MinimalApiRequestError = {
   status?: number;
 };
 
+/**
+ * 确定错误是否为应用已处理的认证相关请求错误。
+ *
+ * @param error - 要检查的值
+ * @returns `true` 如果错误是已处理的认证请求错误，`false` 否则。
+ */
 export function isHandledAuthRequestError(error: unknown) {
   if (!error || typeof error !== 'object') {
     return false;

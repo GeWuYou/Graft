@@ -459,6 +459,7 @@ type BatchActionItem struct {
 	Result     ActionResult
 }
 
+// parseRef validates and normalizes a container reference from a raw string. It returns a Ref containing the normalized reference on success, or an error if the input is invalid.
 func parseRef(raw string) (Ref, error) {
 	unescaped, err := url.PathUnescape(raw)
 	if err != nil {
@@ -476,6 +477,9 @@ func parseRef(raw string) (Ref, error) {
 	return Ref{Value: value}, nil
 }
 
+// normalizeListQuery 对容器列表查询应用验证约束。
+// 验证分页边界、关键词长度、枚举字段值和源作用域兼容性。
+// 如果任何验证失败，返回错误；否则返回规范化的查询。
 func normalizeListQuery(query ListQuery) (ListQuery, error) {
 	if err := normalizeListPagination(&query); err != nil {
 		return ListQuery{}, err
@@ -492,6 +496,7 @@ func normalizeListQuery(query ListQuery) (ListQuery, error) {
 	return query, nil
 }
 
+// normalizeListPagination 验证列表查询的分页参数是否有效，并在未指定时应用默认的限制数。如果查询为 nil、限制值超出允许范围或偏移量为负数，返回 errInvalidListQuery。
 func normalizeListPagination(query *ListQuery) error {
 	if query == nil {
 		return errInvalidListQuery
@@ -508,6 +513,7 @@ func normalizeListPagination(query *ListQuery) error {
 	return nil
 }
 
+// normalizeListKeyword validates the keyword field, ensuring it does not exceed the maximum length after trimming whitespace.
 func normalizeListKeyword(query *ListQuery) error {
 	if query == nil {
 		return errInvalidListQuery
@@ -519,6 +525,7 @@ func normalizeListKeyword(query *ListQuery) error {
 	return nil
 }
 
+// normalizeListEnums normalizes and validates enumerated filter fields in a list query.
 func normalizeListEnums(query *ListQuery) error {
 	if query == nil {
 		return errInvalidListQuery
@@ -540,6 +547,9 @@ func normalizeListEnums(query *ListQuery) error {
 	return err
 }
 
+// normalizeListSourceScope validates source scope constraints in a list query.
+// It ensures that SourceScopeKind and SourceScope are paired (both non-empty or both empty),
+// and validates that SourceScopeKind is compatible with the specified orchestrator.
 func normalizeListSourceScope(query *ListQuery) error {
 	if query == nil {
 		return errInvalidListQuery
@@ -557,6 +567,7 @@ func normalizeListSourceScope(query *ListQuery) error {
 	return nil
 }
 
+// normalizeOptionalListEnum 规范化并验证可选的枚举字符串值。若非空字符串经验证函数检查无效，则返回错误；否则返回规范化后的字符串。
 func normalizeOptionalListEnum(value string, valid func(string) bool) (string, error) {
 	value = strings.TrimSpace(strings.ToLower(value))
 	if value != "" && !valid(value) {
@@ -565,6 +576,7 @@ func normalizeOptionalListEnum(value string, valid func(string) bool) (string, e
 	return value, nil
 }
 
+// isValidContainerState 报告 state 是否为有效的容器状态。
 func isValidContainerState(state string) bool {
 	return slices.Contains(validContainerStates, state)
 }
@@ -580,10 +592,12 @@ func isValidContainerHealth(health string) bool {
 	}, health)
 }
 
+// isValidContainerOrchestrator 报告给定的值是否为有效的容器编排器。
 func isValidContainerOrchestrator(value string) bool {
 	return slices.Contains(validContainerOrchestrators, value)
 }
 
+// isValidContainerSourceScopeKind reports whether value is a valid container source scope kind.
 func isValidContainerSourceScopeKind(value string) bool {
 	return slices.Contains(validContainerSourceScopeKinds, value)
 }

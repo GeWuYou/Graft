@@ -176,6 +176,7 @@ func containerEndpointDefinition() configregistry.Definition {
 	return definition
 }
 
+// containerEnvironmentPolicyDefinition builds a configuration definition for the environment policy setting.
 func containerEnvironmentPolicyDefinition() configregistry.Definition {
 	return baseContainerDefinition(containerDefinitionSpec{
 		key:                 containercontract.ContainerEnvironmentPolicyConfig.String(),
@@ -188,6 +189,7 @@ func containerEnvironmentPolicyDefinition() configregistry.Definition {
 	})
 }
 
+// containerOrchestratorActionLevelDefinition 根据指定的键和默认值构建编排器行动等级的配置定义。
 func containerOrchestratorActionLevelDefinition(
 	key string,
 	defaultValue containercontract.OrchestratorActionLevel,
@@ -315,6 +317,8 @@ func containerRuntimeSchema() json.RawMessage {
 	))
 }
 
+// containerEnvironmentPolicySchema 生成环境策略配置的 JSON schema。
+// 返回值包含 hidden、masked、plain 三个枚举选项及其国际化元数据。
 func containerEnvironmentPolicySchema() json.RawMessage {
 	key := containercontract.ContainerEnvironmentPolicyConfig.String()
 	hiddenPolicy := containercontract.ContainerEnvironmentPolicyHidden.String()
@@ -337,6 +341,7 @@ func containerEnvironmentPolicySchema() json.RawMessage {
 	))
 }
 
+// containerOrchestratorActionLevelSchema 为编排器行动等级配置生成 JSON schema，包含允许的枚举值和国际化元数据。
 func containerOrchestratorActionLevelSchema(
 	key string,
 	defaultValue containercontract.OrchestratorActionLevel,
@@ -361,6 +366,7 @@ func containerOrchestratorActionLevelSchema(
 	))
 }
 
+// containerBooleanSchema 为指定的配置项生成布尔值类型的 JSON 模式。返回值包含类型声明和 i18n 国际化元数据（标题键和描述键）。
 func containerBooleanSchema(key string) json.RawMessage {
 	return json.RawMessage(fmt.Sprintf(
 		`{"type":"boolean","x-i18n":{"titleKey":%q,"descriptionKey":%q}}`,

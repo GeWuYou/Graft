@@ -25,6 +25,7 @@ func toContainerListResponse(result ListResult) containergen.ContainerListRespon
 	}
 }
 
+// toSummary converts a Summary domain object into a ContainerSummary response.
 func toSummary(item Summary) containergen.ContainerSummary {
 	return containergen.ContainerSummary{
 		CanRemove:      optionalBool(item.CanRemove),
@@ -314,6 +315,7 @@ func toContainerBatchAction(result BatchActionResult) containergen.ContainerBatc
 	}
 }
 
+// ToRuntimeInfo 将运行时信息转换为容器运行时信息响应。
 func toRuntimeInfo(info RuntimeInfo) containergen.ContainerRuntimeInfo {
 	return containergen.ContainerRuntimeInfo{
 		ApiVersion:        optionalString(info.APIVersion),
@@ -328,6 +330,7 @@ func toRuntimeInfo(info RuntimeInfo) containergen.ContainerRuntimeInfo {
 	}
 }
 
+// toOrchestratorInfo 将编排器信息转换为 OpenAPI 容器编排器响应类型。
 func toOrchestratorInfo(info OrchestratorInfo) *containergen.ContainerOrchestratorInfo {
 	info = normalizedOrchestratorInfo(info)
 	return &containergen.ContainerOrchestratorInfo{
@@ -357,6 +360,7 @@ func toOrchestratorInfo(info OrchestratorInfo) *containergen.ContainerOrchestrat
 	}
 }
 
+// optionalOrchestratorGroupScopeKind 将字符串转换为编排器组作用域类型的可选值，去除空白后若为空则返回 nil，否则返回指向转换后枚举值的指针。
 func optionalOrchestratorGroupScopeKind(value string) *containergen.ContainerOrchestratorInfoGroupScopeKind {
 	value = strings.TrimSpace(value)
 	if value == "" {
@@ -366,6 +370,7 @@ func optionalOrchestratorGroupScopeKind(value string) *containergen.ContainerOrc
 	return &mapped
 }
 
+// optionalOrchestratorMemberScopeKind converts the given string to a ContainerOrchestratorInfoMemberScopeKind enum value, returning a pointer to the enum or nil if the string is empty after trimming whitespace.
 func optionalOrchestratorMemberScopeKind(value string) *containergen.ContainerOrchestratorInfoMemberScopeKind {
 	value = strings.TrimSpace(value)
 	if value == "" {
@@ -375,6 +380,7 @@ func optionalOrchestratorMemberScopeKind(value string) *containergen.ContainerOr
 	return &mapped
 }
 
+// toPorts 将端口信息转换为容器端口响应。
 func toPorts(ports []Port) []containergen.ContainerPort {
 	mapped := make([]containergen.ContainerPort, 0, len(ports))
 	for _, port := range ports {

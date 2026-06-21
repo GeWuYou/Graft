@@ -397,7 +397,7 @@ func resolveUserService(ctx *module.Context) (moduleapi.UserService, error) {
 
 // bindGetContainersParams 绑定并校验容器列表请求的查询参数与请求头。
 // 校验 limit、offset、keyword、state 和 health 查询参数的有效性。
-// 返回解析的参数和校验是否成功。校验失败时返回空参数和 false。
+// bindGetContainersParams 从请求中解析并校验容器列表查询参数，包括分页、关键词和筛选条件。校验失败时返回 false。
 func bindGetContainersParams(ginCtx *gin.Context, ctx *module.Context) (containeropenapi.GetContainersParams, bool) {
 	locale, requestID := commonHeaders(ginCtx)
 	params := containeropenapi.GetContainersParams{XGraftLocale: locale, XRequestId: requestID}
@@ -424,6 +424,7 @@ func bindGetContainersParams(ginCtx *gin.Context, ctx *module.Context) (containe
 	return params, true
 }
 
+// bindContainerListStateFilters validates and binds state, health, and orchestrator filters for container list queries, and validates source scope consistency. It returns true if all validations succeed, false otherwise.
 func bindContainerListStateFilters(
 	ginCtx *gin.Context,
 	ctx *module.Context,
@@ -461,6 +462,9 @@ func bindContainerListStateFilters(
 	return true
 }
 
+// bindContainerListSourceScopeFilters validates and binds the source_scope_kind and source_scope query parameters.
+// Both parameters must be provided together and source_scope_kind must be compatible with the given orchestrator.
+// Returns true if validation succeeds, false otherwise.
 func bindContainerListSourceScopeFilters(
 	ginCtx *gin.Context,
 	ctx *module.Context,
@@ -489,6 +493,9 @@ func bindContainerListSourceScopeFilters(
 	return true
 }
 
+// optionalEnumQueryValue 读取并验证一个可选的枚举类查询参数。
+// 参数不存在或为空时返回空字符串和 true；参数存在但验证失败时返回空字符串和 false；
+// 参数有效时返回参数值和 true。
 func optionalEnumQueryValue(
 	ginCtx *gin.Context,
 	ctx *module.Context,
@@ -506,6 +513,7 @@ func optionalEnumQueryValue(
 	return value, true
 }
 
+// BindGetContainerParams extracts common header values and returns them as an OpenAPI GetContainerParams object.
 func bindGetContainerParams(ginCtx *gin.Context) containeropenapi.GetContainerParams {
 	locale, requestID := commonHeaders(ginCtx)
 	return containeropenapi.GetContainerParams{XGraftLocale: locale, XRequestId: requestID}
@@ -623,6 +631,7 @@ func writeInvalidContainerQuery(ginCtx *gin.Context, ctx *module.Context, field 
 	})
 }
 
+// listQueryFromParams converts OpenAPI container list parameters into an internal ListQuery.
 func listQueryFromParams(params containeropenapi.GetContainersParams) ListQuery {
 	query := ListQuery{
 		Limit:   intValue(params.Limit),
