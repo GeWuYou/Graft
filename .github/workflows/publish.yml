@@ -78,9 +78,14 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p ../dist/server
+          build_time_utc="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           go build \
             -trimpath \
-            -ldflags="-s -w" \
+            -ldflags="-s -w \
+              -X 'graft/server/internal/buildinfo.version=${{ steps.tag_version.outputs.version }}' \
+              -X 'graft/server/internal/buildinfo.gitCommit=${GITHUB_SHA}' \
+              -X 'graft/server/internal/buildinfo.buildTimeUTC=${build_time_utc}' \
+              -X 'graft/server/internal/buildinfo.gitTreeState=clean'" \
             -o ../dist/server/graft-server-linux-amd64 \
             ./cmd/graft
 

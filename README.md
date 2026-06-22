@@ -167,10 +167,10 @@ The current `v0.1.0` release identity and support baseline is:
 - the canonical official release identity is the repository Git tag `vMAJOR.MINOR.PATCH`
 - official `server` and `web` release artifacts, plus release notes, must come from the same release tag
 - migration version numbers are internal ordering identifiers, not product versions and not compatibility labels
-- the future minimal `BuildInfo` / `graft version` baseline is `version`, `git_commit`, `build_time_utc`, and
+- the minimal `BuildInfo` / `graft version` baseline is `version`, `git_commit`, `build_time_utc`, and
   `git_tree_state`
-- until BuildInfo injection and a `graft version` command are implemented, operators should treat the release tag,
-  published artifact names, and release notes as the canonical release identity
+- `graft version` now exposes the canonical server build identity without starting runtime dependencies
+- when local builds do not inject ldflags, the fallback identity remains explicit as `dev` / `unknown`
 - `v0.1.0` does not promise LTS lines, independent `server` / `web` release trains, or mixed-version compatibility
 
 Windows PowerShell / CMD can use the same Go command:
