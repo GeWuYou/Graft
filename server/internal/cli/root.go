@@ -16,7 +16,7 @@ import "github.com/spf13/cobra"
 //   - 后端完成态质量链通过 `graft validate backend` 显式触发。
 //   - OpenAPI 契约校验通过 `graft validate openapi` 或 `graft validate backend --stage openapi` 显式触发。
 //   - release-grade 二进制契约校验通过 `graft validate release` 显式触发。
-//   - 可重复的最小后端验证通过 `graft validate smoke` 显式触发。
+// NewRootCommand 构造并返回 graft CLI 的根命令。该命令注册 version、dev、serve、migrate 和 validate 子命令。如果不提供子命令，则仅打印帮助信息。
 func NewRootCommand() *cobra.Command {
 	root := &cobra.Command{
 		Use:          "graft",

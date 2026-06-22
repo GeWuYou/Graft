@@ -91,7 +91,12 @@ class DefinitionContextTests(unittest.TestCase):
         )
 
     def test_server_module_permission_contract_is_canonical_definition_context(self) -> None:
-        """Server module permission contracts may define canonical permission literals."""
+        """
+        验证服务器模块权限合约文件中的权限代码字面量被正确识别为规范定义上下文。
+        
+        测试 `is_definition_context` 函数对权限合约文件的识别：当文件路径为服务器模块权限合约，
+        代码片段包含权限代码定义时，应返回 `True`。
+        """
         self.assertTrue(
             MODULE.is_definition_context(
                 "server/modules/user/contract/permission.go",

@@ -34,23 +34,53 @@ type DuplicateLocaleKey = {
 
 const EXTERNAL_BOOTSTRAP_KEY_ALLOWLIST = [/^menu\./, /^lang$/];
 
+/**
+ * 检查文件是否为国际化语言文件。
+ *
+ * @param file - 要检查的文件路径
+ * @returns `true` 如果文件名包含 zh-CN 或 en-US 地区代码且扩展名为 json、yaml 或 yml，`false` 否则
+ */
 export function isLocaleFile(file: string): boolean {
   return /(?:^|\/).*\.(?:zh-CN|en-US)\.(?:json|ya?ml)$|(?:^|\/)(?:zh-CN|en-US)\.(?:json|ya?ml)$/.test(file);
 }
 
+/**
+ * 判断文件是否为前端 JSON 格式的语言环境文件。
+ *
+ * @returns 如果文件匹配 `*.{zh-CN|en-US}.json` 的模式则返回 `true`，否则返回 `false`
+ */
 function isFrontendLocaleFile(file: string): boolean {
   return /(?:^|\/).*\.(?:zh-CN|en-US)\.json$|(?:^|\/)(?:zh-CN|en-US)\.json$/.test(file);
 }
 
+/**
+ * Rewrites a locale file path into a template with a locale placeholder.
+ *
+ * @param file - A file path or name containing a locale code (`zh-CN` or `en-US`)
+ * @returns The rewritten path with the locale code replaced by `{locale}`
+ */
 export function localePairKey(file: string): string {
   return file.replace(/(.*?)(?:\.|\/)(zh-CN|en-US)\.(json|ya?ml)$/, '$1.{locale}.$3');
 }
 
+/**
+ * Extracts the locale code from a file path.
+ *
+ * @returns The locale code (`zh-CN` or `en-US`) if the file matches a locale file pattern, `null` otherwise.
+ */
 function localeFromFile(file: string): LocaleCode | null {
   const match = file.match(/(?:^|\/).*?\.(zh-CN|en-US)\.(?:json|ya?ml)$|(?:^|\/)(zh-CN|en-US)\.(?:json|ya?ml)$/);
   return match ? ((match[1] ?? match[2]) as LocaleCode) : null;
 }
 
+/**
+ * Recursively collects files matching a predicate from a directory.
+ *
+ * @param dir - The directory to search from
+ * @param predicate - A function that receives the file path relative to `rootDir` (with forward slashes) and determines whether to include it
+ * @param rootDir - The base directory for computing relative file paths
+ * @returns An array of full file paths matching the predicate, or an empty array if the directory does not exist
+ */
 function collectFiles(dir: string, predicate: (file: string) => boolean, rootDir: string): string[] {
   if (!existsSync(dir)) return [];
 
@@ -90,6 +120,11 @@ export function flattenLocaleStrings(
   return output;
 }
 
+/**
+ * Collects and indexes i18n locale catalogs from frontend and server directories.
+ *
+ * @returns An array of locale catalogs sorted by file path.
+ */
 export function collectLocaleCatalogs(context: ScanContext): LocaleCatalog[] {
   const catalogs: LocaleCatalog[] = [];
 

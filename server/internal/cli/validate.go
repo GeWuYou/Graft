@@ -95,7 +95,7 @@ var backendGitRevisionPattern = regexp.MustCompile(`\A[0-9A-Fa-f]+\z`)
 // newValidateCommand 创建后端显式验证命令树。
 //
 // 这里的命令只编排仓库内已经存在的迁移与运行时入口，不负责隐式拉起
-// disposable 基础设施，避免把环境准备魔法塞进 core 或 CLI 黑盒里。
+// newValidateCommand 创建 validate 根命令，并注册后端、OpenAPI、发布版本和冒烟测试的验证子命令。
 func newValidateCommand() *cobra.Command {
 	command := &cobra.Command{
 		Use:   "validate",
@@ -149,6 +149,7 @@ func newValidateBackendCommand() *cobra.Command {
 	return command
 }
 
+// newValidateOpenAPICommand creates the validate openapi subcommand.
 func newValidateOpenAPICommand() *cobra.Command {
 	var specPath string
 
@@ -166,6 +167,7 @@ func newValidateOpenAPICommand() *cobra.Command {
 	return command
 }
 
+// newValidateReleaseCommand 构造用于验证发布就绪状态的 "graft validate release" 子命令。
 func newValidateReleaseCommand() *cobra.Command {
 	command := &cobra.Command{
 		Use:          "release",
@@ -327,6 +329,7 @@ func runValidateOpenAPI(_ *cobra.Command, specPath string) error {
 	return nil
 }
 
+// runValidateOpenAPIFreshness 验证嵌入式 OpenAPI 规范包和生成的后端规范是否为最新状态。
 func runValidateOpenAPIFreshness() error {
 	repoRoot, err := resolveRepositoryRoot()
 	if err != nil {
@@ -365,6 +368,7 @@ func runValidateOpenAPIFreshness() error {
 	return nil
 }
 
+// RunValidateRelease validates that the repository is ready for release.
 func runValidateRelease(_ *cobra.Command) error {
 	info := buildReleaseInfoSnapshot()
 	if !info.IsOfficialRelease() {
@@ -396,6 +400,7 @@ func runValidateRelease(_ *cobra.Command) error {
 	return nil
 }
 
+// validateEmbeddedOpenAPIBundleFreshness checks that the runtime-embedded OpenAPI bundle matches the canonical source by comparing their SHA-256 digests. Returns an error if the digests do not match, including instructions to regenerate the bundle via `go generate`.
 func validateEmbeddedOpenAPIBundleFreshness(repoRoot string) error {
 	canonicalPath := filepath.Join(repoRoot, filepath.FromSlash(app.OpenAPIDocsBundleSourcePath()))
 

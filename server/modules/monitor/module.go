@@ -468,7 +468,8 @@ func buildServerStatusResponse(
 // buildServerStatusResponseWithRuntimeSnapshot keeps the production response assembly.
 // buildServerStatusResponseWithRuntimeSnapshot constructs a server status response
 // using the provided runtime snapshot and returns dependency health, module status,
-// trends, and anomalies.
+// buildServerStatusResponseWithRuntimeSnapshot 根据运行时快照和趋势范围构建服务器状态响应。
+// 该函数聚合数据库和 Redis 健康状态、模块信息、趋势数据和系统异常，返回完整的服务器状态响应或在依赖项健康检查失败时返回错误。
 func buildServerStatusResponseWithRuntimeSnapshot(
 	ctx context.Context,
 	moduleCtx *module.Context,
@@ -534,6 +535,7 @@ func buildServerStatusResponseWithRuntimeSnapshot(
 	}, nil
 }
 
+// ResolveServerBuildInfo 从模块上下文中解析服务器构建信息，如果上下文不可用则返回规范化的空信息。
 func resolveServerBuildInfo(moduleCtx *module.Context) buildinfo.Info {
 	if moduleCtx == nil {
 		return buildinfo.Normalize(buildinfo.Info{})
@@ -542,6 +544,7 @@ func resolveServerBuildInfo(moduleCtx *module.Context) buildinfo.Info {
 	return moduleCtx.RuntimeMetadata.BuildInfo()
 }
 
+// buildServerStatusAnomalies collects server status anomalies from dependencies, modules, and runtime metrics within the specified time window.
 func buildServerStatusAnomalies(
 	observedAt time.Time,
 	trendRange monitorcontract.TrendRange,

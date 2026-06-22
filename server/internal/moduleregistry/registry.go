@@ -189,12 +189,12 @@ func BuildModules(buildCtx module.BuildContext, enabled []string) ([]module.Runt
 	return built, nil
 }
 
-// CoreMigrationDirs 返回当前默认链路中的 core-owned live 迁移目录集合。
+// CoreMigrationDirs returns the core live migration directories.
 func CoreMigrationDirs() []string {
 	return []string{accessLogMigrationDir, appLogMigrationDir, drilldownMigrationDir}
 }
 
-// EmbeddedMigrationDirs 返回 compile-time 生成的嵌入式迁移目录快照。
+// EmbeddedMigrationDirs 返回 compile-time 生成的嵌入式迁移目录快照的深拷贝。
 func EmbeddedMigrationDirs() []EmbeddedMigrationDir {
 	dirs := make([]EmbeddedMigrationDir, 0, len(generatedEmbeddedMigrationDirs))
 	for _, dir := range generatedEmbeddedMigrationDirs {
@@ -214,7 +214,7 @@ func EmbeddedMigrationDirs() []EmbeddedMigrationDir {
 	return dirs
 }
 
-// EmbeddedMigrationDirByPath 返回指定 owner-aligned 路径对应的嵌入式迁移目录。
+// EmbeddedMigrationDirByPath 根据指定路径从编译期嵌入迁移目录中查找匹配项。找到时返回目录的深拷贝和 true；未找到时返回零值和 false。
 func EmbeddedMigrationDirByPath(path string) (EmbeddedMigrationDir, bool) {
 	for _, dir := range generatedEmbeddedMigrationDirs {
 		if dir.Path != path {

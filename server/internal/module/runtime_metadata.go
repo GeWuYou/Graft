@@ -20,7 +20,7 @@ type RuntimeMetadata struct {
 	buildInfo                buildinfo.Info
 }
 
-// NewRuntimeMetadata 从有序模块定义集合构造运行时元数据快照。
+// NewRuntimeMetadata constructs a RuntimeMetadata snapshot from module definitions and the current build information, normalizing the build identity.
 func NewRuntimeMetadata(descriptors []Spec, currentBuildInfo buildinfo.Info) RuntimeMetadata {
 	snapshots := make([]DescriptorSnapshot, 0, len(descriptors))
 	for _, descriptor := range descriptors {

@@ -25,7 +25,7 @@ type Info struct {
 	GitTreeState string
 }
 
-// Current returns the current build identity with explicit local-build fallbacks.
+// Current constructs the current build identity from package-level variables, applying default fallbacks for empty fields.
 func Current() Info {
 	return Normalize(Info{
 		Version:      version,
@@ -35,7 +35,7 @@ func Current() Info {
 	})
 }
 
-// Normalize applies the canonical fallback semantics to an arbitrary build info snapshot.
+// Normalize 对任意构建信息快照应用规范化规则和默认值回退。
 func Normalize(info Info) Info {
 	return normalize(info)
 }
@@ -51,6 +51,7 @@ func (i Info) IsDirty() bool {
 	return strings.EqualFold(normalize(i).GitTreeState, "dirty")
 }
 
+// normalize returns a normalized copy of info with canonical field values, applying fallback defaults to empty or invalid fields.
 func normalize(info Info) Info {
 	info.Version = normalizeField(info.Version, defaultVersion)
 	info.GitCommit = normalizeField(info.GitCommit, defaultGitCommit)
@@ -59,6 +60,7 @@ func normalize(info Info) Info {
 	return info
 }
 
+// normalizeField 规范化一个字符串，移除前后空白，如果结果为空则返回回退值。
 func normalizeField(value string, fallback string) string {
 	trimmed := strings.TrimSpace(value)
 	if trimmed == "" {
@@ -67,6 +69,8 @@ func normalizeField(value string, fallback string) string {
 	return trimmed
 }
 
+// normalizeTreeState returns a canonical representation of the given git tree state value.
+// The result is either "clean", "dirty", or the default unknown state.
 func normalizeTreeState(value string) string {
 	trimmed := strings.TrimSpace(strings.ToLower(value))
 	switch trimmed {

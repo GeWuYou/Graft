@@ -293,6 +293,12 @@ def ci_changed_files() -> list[str]:
 
 
 def is_skipped_path(path: str) -> bool:
+    """
+    判断文件路径是否应被排除在合同字面量扫描外。
+    
+    Returns:
+        bool: 如果路径应被跳过则返回 `True`，否则返回 `False`
+    """
     if path in SKIP_GENERATED_FILES:
         return True
     if any(path.startswith(prefix) for prefix in SKIP_DIR_PREFIXES):
