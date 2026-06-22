@@ -22,7 +22,14 @@ const GO_KEY_FIRST_PAIRS: Pair[] = [
 ];
 
 function shouldScanServerKeyFirstFile(filePath: string) {
-  if (filePath.includes('/ent/') || filePath.includes('/storeent/') || filePath.includes('/migrations/')) return false;
+  if (
+    filePath.includes('/ent/') ||
+    filePath.includes('/storeent/') ||
+    filePath.includes('/migrations/') ||
+    filePath.endsWith('/generated.go')
+  ) {
+    return false;
+  }
   return /(?:registry|definition|registration|dashboard|config|scheduler|notification|menu|permission|module|retention)/.test(
     filePath,
   );
