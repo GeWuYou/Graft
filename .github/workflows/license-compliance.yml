@@ -75,21 +75,21 @@ jobs:
           mkdir -p dist/security
 
           "${{ steps.syft.outputs.cmd }}" dir:. \
-            --exclude .git \
-            --exclude "**/node_modules" \
-            --exclude "**/dist" \
+            --exclude "./.git/**" \
+            --exclude "**/node_modules/**" \
+            --exclude "**/dist/**" \
             -o spdx-json=dist/security/graft-sbom-spdx-${{ steps.release.outputs.asset_tag }}.json
 
           "${{ steps.syft.outputs.cmd }}" dir:. \
-            --exclude .git \
-            --exclude "**/node_modules" \
-            --exclude "**/dist" \
+            --exclude "./.git/**" \
+            --exclude "**/node_modules/**" \
+            --exclude "**/dist/**" \
             -o cyclonedx-json=dist/security/graft-sbom-cyclonedx-${{ steps.release.outputs.asset_tag }}.json
 
           "${{ steps.syft.outputs.cmd }}" dir:. \
-            --exclude .git \
-            --exclude "**/node_modules" \
-            --exclude "**/dist" \
+            --exclude "./.git/**" \
+            --exclude "**/node_modules/**" \
+            --exclude "**/dist/**" \
             -o syft-json=dist/security/graft-sbom-syft-${{ steps.release.outputs.asset_tag }}.json
 
       - name: Generate license compliance report
