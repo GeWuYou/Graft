@@ -192,7 +192,7 @@ jobs:
           password: ${{ github.token }}
 
       - name: Download release artifacts
-        uses: actions/download-artifact@b14a5fd5cfd0f4e7f8ff0e0b9fd7b8d3f6b6a44a
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: release-assets
           path: release-assets

@@ -63,34 +63,75 @@ jobs:
           ref: ${{ steps.release.outputs.checkout_ref }}
           fetch-depth: 0
 
+      - name: Wait for GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          for attempt in {1..30}; do
+            if gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
+              echo "Found GitHub Release for ${RELEASE_TAG}."
+              exit 0
+            fi
+
+            echo "Release ${RELEASE_TAG} is not available yet; retry ${attempt}/30."
+            sleep 10
+          done
+
+          echo "::error title=GitHub Release missing::Publish Release must create ${RELEASE_TAG} before SBOM assets can be attached."
+          exit 1
+
+      - name: Download release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p release-assets server-release web-release
+
+          gh release download "${RELEASE_TAG}" \
+            --dir release-assets \
+            --pattern "graft-server-linux-amd64-${RELEASE_TAG}.tar.gz" \
+            --pattern "graft-web-dist-${RELEASE_TAG}.tar.gz" \
+            --pattern "graft-license-${RELEASE_TAG}.txt"
+
+          tar -C server-release -xzf "release-assets/graft-server-linux-amd64-${RELEASE_TAG}.tar.gz"
+          tar -C web-release -xzf "release-assets/graft-web-dist-${RELEASE_TAG}.tar.gz"
+
       - name: Install Syft
         id: syft
         uses: anchore/sbom-action/download-syft@e22c389904149dbc22b58101806040fa8d37a610
 
       - name: Generate SBOMs
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+          ASSET_TAG: ${{ steps.release.outputs.asset_tag }}
+          SYFT_CMD: ${{ steps.syft.outputs.cmd }}
         shell: bash
         run: |
           set -euo pipefail
 
           mkdir -p dist/security
+          mkdir -p dist/security/release-package
 
-          "${{ steps.syft.outputs.cmd }}" dir:. \
-            --exclude "./.git/**" \
-            --exclude "**/node_modules/**" \
-            --exclude "**/dist/**" \
-            -o spdx-json=dist/security/graft-sbom-spdx-${{ steps.release.outputs.asset_tag }}.json
+          cp -R server-release/. dist/security/release-package/
+          cp "release-assets/graft-license-${RELEASE_TAG}.txt" \
+            "dist/security/release-package/LICENSE.txt"
+          mv web-release/dist "dist/security/release-package/web-dist"
 
-          "${{ steps.syft.outputs.cmd }}" dir:. \
-            --exclude "./.git/**" \
-            --exclude "**/node_modules/**" \
-            --exclude "**/dist/**" \
-            -o cyclonedx-json=dist/security/graft-sbom-cyclonedx-${{ steps.release.outputs.asset_tag }}.json
+          "${SYFT_CMD}" dir:dist/security/release-package \
+            -o "spdx-json=dist/security/graft-sbom-spdx-${ASSET_TAG}.json"
 
-          "${{ steps.syft.outputs.cmd }}" dir:. \
-            --exclude "./.git/**" \
-            --exclude "**/node_modules/**" \
-            --exclude "**/dist/**" \
-            -o syft-json=dist/security/graft-sbom-syft-${{ steps.release.outputs.asset_tag }}.json
+          "${SYFT_CMD}" dir:dist/security/release-package \
+            -o "cyclonedx-json=dist/security/graft-sbom-cyclonedx-${ASSET_TAG}.json"
+
+          "${SYFT_CMD}" dir:dist/security/release-package \
+            -o "syft-json=dist/security/graft-sbom-syft-${ASSET_TAG}.json"
 
       - name: Generate license compliance report
         shell: python
@@ -197,7 +238,8 @@ jobs:
               "",
               "- Release tag: `${{ steps.release.outputs.tag }}`",
               "- Project license posture: AGPL-3.0-only",
-              f"- Packages reviewed: {len(rows)}",
+              "- Review scope: official release package assets (`server` binary, `web` dist, bundled `LICENSE`)",
+              f"- Release package components reviewed: {len(rows)}",
               f"- Allowed packages: {sum(1 for row in rows if row['status'] == 'allowed')}",
               f"- Review-required packages: {len(review)}",
               f"- Blocked packages: {len(blocked)}",
@@ -226,7 +268,7 @@ jobs:
               [
                   "## Policy",
                   "",
-                  "- SPDX-compatible permissive licenses listed in the workflow are allowed.",
+                  "- SPDX-compatible permissive licenses listed in the workflow are allowed for the official release package assets.",
                   "- The repository itself is `AGPL-3.0-only`, but GPL / AGPL / LGPL family dependencies remain blocked by policy to preserve downstream relicensing and commercialization flexibility.",
                   "- SSPL, BUSL, and Commons Clause style findings also block the bundle.",
                   "- Missing or unrecognized license metadata is reported for human review without blocking release asset publication.",
@@ -261,27 +303,6 @@ jobs:
           path: dist/security/*
           if-no-files-found: error
           retention-days: 90
-
-      - name: Wait for GitHub Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ steps.release.outputs.tag }}
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          for attempt in {1..30}; do
-            if gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
-              echo "Found GitHub Release for ${RELEASE_TAG}."
-              exit 0
-            fi
-
-            echo "Release ${RELEASE_TAG} is not available yet; retry ${attempt}/30."
-            sleep 10
-          done
-
-          echo "::error title=GitHub Release missing::Publish Release must create ${RELEASE_TAG} before SBOM assets can be attached."
-          exit 1
 
       - name: Attach bundle to GitHub Release
         uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b

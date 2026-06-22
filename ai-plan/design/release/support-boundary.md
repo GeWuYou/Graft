@@ -15,6 +15,8 @@
   migration chain, and the runtime embedded OpenAPI asset
 - release-package authority where `LICENSE`, `SBOM`, license compliance report, checksum bundle, and `web` dist may be
   published as external release assets instead of binary-embedded payload
+- release-package SBOM and license compliance scope limited to the official same-tag release assets rather than the
+  full repository source tree or local-only development toolchain
 
 ## Not Yet Promised In `v0.1.0`
 
