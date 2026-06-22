@@ -14,6 +14,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 
+	"graft/server/internal/buildinfo"
 	"graft/server/internal/cachex"
 	cachebackend "graft/server/internal/cachex/backend"
 	"graft/server/internal/config"
@@ -182,7 +183,7 @@ func (r *Runtime) registerRuntimeModules(enabledModules []string) error {
 		_ = r.closeCoreResources()
 		return fmt.Errorf("order runtime module descriptors: %w", err)
 	}
-	r.runtimeMetadata = module.NewRuntimeMetadata(orderedDescriptors)
+	r.runtimeMetadata = module.NewRuntimeMetadata(orderedDescriptors, buildinfo.Current())
 
 	modules, err := moduleregistry.BuildModules(module.BuildContext{Services: r.services}, enabledModules)
 	if err != nil {

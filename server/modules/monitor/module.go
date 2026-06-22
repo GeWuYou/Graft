@@ -41,7 +41,6 @@ import (
 )
 
 const (
-	fallbackServerVersion          = "dev"
 	healthCheckTimeout             = 2 * time.Second
 	trendSampleInterval            = 5 * time.Second
 	maxTrendRetentionWindow        = time.Hour
@@ -509,7 +508,7 @@ func buildServerStatusResponseWithRuntimeSnapshot(
 		Status:     deriveOverallStatus(databaseStatus.Status, redisStatus.Status, anomalies),
 		ObservedAt: observedAt,
 		Server: generated.ServerStatusServer{
-			Version:       fallbackServerVersion,
+			Version:       resolveServerVersion(moduleCtx),
 			StartedAt:     startedAt,
 			UptimeSeconds: int64(observedAt.Sub(startedAt).Seconds()),
 			GoVersion:     runtime.Version(),
@@ -526,6 +525,14 @@ func buildServerStatusResponseWithRuntimeSnapshot(
 		Modules:   modules,
 		Anomalies: anomalies,
 	}, nil
+}
+
+func resolveServerVersion(moduleCtx *module.Context) string {
+	if moduleCtx == nil {
+		return "dev"
+	}
+
+	return moduleCtx.RuntimeMetadata.BuildInfo().Version
 }
 
 func buildServerStatusAnomalies(

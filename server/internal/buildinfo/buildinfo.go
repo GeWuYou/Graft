@@ -27,12 +27,17 @@ type Info struct {
 
 // Current returns the current build identity with explicit local-build fallbacks.
 func Current() Info {
-	return normalize(Info{
+	return Normalize(Info{
 		Version:      version,
 		GitCommit:    gitCommit,
 		BuildTimeUTC: buildTimeUTC,
 		GitTreeState: gitTreeState,
 	})
+}
+
+// Normalize applies the canonical fallback semantics to an arbitrary build info snapshot.
+func Normalize(info Info) Info {
+	return normalize(info)
 }
 
 // IsOfficialRelease reports whether the current identity looks like a tagged release build.

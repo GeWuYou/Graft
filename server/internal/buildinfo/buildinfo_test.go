@@ -78,6 +78,23 @@ func TestCurrentPreservesInjectedBuildMetadata(t *testing.T) {
 	}
 }
 
+func TestNormalizeAppliesFallbacksToArbitrarySnapshot(t *testing.T) {
+	info := Normalize(Info{})
+
+	if info.Version != defaultVersion {
+		t.Fatalf("expected normalized version %q, got %q", defaultVersion, info.Version)
+	}
+	if info.GitCommit != defaultGitCommit {
+		t.Fatalf("expected normalized commit %q, got %q", defaultGitCommit, info.GitCommit)
+	}
+	if info.BuildTimeUTC != defaultBuildTimeUTC {
+		t.Fatalf("expected normalized build time %q, got %q", defaultBuildTimeUTC, info.BuildTimeUTC)
+	}
+	if info.GitTreeState != defaultGitTreeState {
+		t.Fatalf("expected normalized tree state %q, got %q", defaultGitTreeState, info.GitTreeState)
+	}
+}
+
 func TestCurrentNormalizesUnknownTreeStates(t *testing.T) {
 	originalGitTreeState := gitTreeState
 	defer func() {

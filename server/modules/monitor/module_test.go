@@ -17,6 +17,7 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 
+	"graft/server/internal/buildinfo"
 	"graft/server/internal/config"
 	"graft/server/internal/container"
 	generated "graft/server/internal/contract/openapi/generated"
@@ -54,7 +55,7 @@ func TestBuildServerStatusResponseIncludesCurrentSliceFields(t *testing.T) {
 			{ID: "user"},
 			{ID: "rbac", Dependencies: []string{"user"}},
 			{ID: moduleID, Dependencies: []string{"user", "rbac"}},
-		}),
+		}, buildinfo.Info{}),
 	}, moduleWithStartedAt(db, startedAt), monitorcontract.TrendRange10Minutes, stableRuntimeSnapshot())
 	if err != nil {
 		t.Fatalf("build server status response: %v", err)
@@ -89,6 +90,37 @@ func TestRegisterMonitorDashboardWidgetRegistersSystemHealthInsight(t *testing.T
 		t.Fatalf("unexpected required permissions: %#v", widget.RequiredPermissions)
 	}
 
+}
+
+func TestBuildServerStatusResponseUsesInjectedBuildInfoVersion(t *testing.T) {
+	t.Parallel()
+
+	db, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		t.Fatalf("open sqlite database: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = db.Close()
+	})
+
+	response, err := buildServerStatusResponseWithRuntimeSnapshot(context.Background(), &module.Context{
+		Config: &config.Config{
+			App: config.AppConfig{Name: "graft", Env: "prod"},
+		},
+		RuntimeMetadata: module.NewRuntimeMetadata([]module.Spec{
+			{ID: moduleID},
+		}, buildinfo.Info{
+			Version:      "0.1.0",
+			GitCommit:    "abc1234",
+			BuildTimeUTC: "2026-06-22T00:00:00Z",
+			GitTreeState: "clean",
+		}),
+	}, moduleWithStartedAt(db, time.Now().UTC().Add(-5*time.Second)), monitorcontract.TrendRange10Minutes, stableRuntimeSnapshot())
+	if err != nil {
+		t.Fatalf("build server status response: %v", err)
+	}
+
+	assertEqual(t, "server version", response.Server.Version, "0.1.0")
 }
 
 func TestRegisterMessagesIncludesAuditEvidenceUnavailableTitle(t *testing.T) {
@@ -214,7 +246,7 @@ func TestRuntimeModuleSummariesFollowPlatformStatus(t *testing.T) {
 			{ID: "user"},
 			{ID: "rbac", Dependencies: []string{"user"}},
 			{ID: moduleID, Dependencies: []string{"user", "rbac"}},
-		}),
+		}, buildinfo.Info{}),
 	}
 
 	healthy := runtimeModuleSummaries(
@@ -247,7 +279,7 @@ func TestRuntimeModuleSummariesDegradeWhenDependencyMetadataIsMissing(t *testing
 		RuntimeMetadata: module.NewRuntimeMetadata([]module.Spec{
 			{ID: "audit"},
 			{ID: moduleID, Dependencies: []string{"user", "rbac"}},
-		}),
+		}, buildinfo.Info{}),
 	}
 
 	actual := runtimeModuleSummaries(
@@ -816,7 +848,7 @@ func assertCurrentSliceResponseStatus(t *testing.T, response generated.ServerSta
 	if response.Dependencies.Redis.Pool != nil {
 		t.Fatalf("expected disabled redis dependency to omit pool stats")
 	}
-	assertEqual(t, "server version", response.Server.Version, fallbackServerVersion)
+	assertEqual(t, "server version", response.Server.Version, "dev")
 	assertEqual(t, "started_at", response.Server.StartedAt, startedAt)
 	assertEqual(t, "go version", response.Server.GoVersion, runtime.Version())
 	assertEqual(t, "app name", response.Server.AppName, "graft")
