@@ -323,6 +323,7 @@ func (s *devSupervisor) runDevelopmentMigrations(cmd *cobra.Command) error {
 	return err
 }
 
+// isAtlasDirtyDevBootstrapError reports whether err indicates an Atlas dirty database bootstrap scenario encountered during development.
 func isAtlasDirtyDevBootstrapError(err error) bool {
 	if err == nil {
 		return false
