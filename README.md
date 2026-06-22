@@ -176,25 +176,6 @@ The current `v0.1.0` release identity and support baseline is:
 - when local builds do not inject ldflags, the fallback identity remains explicit as `dev` / `unknown`
 - `v0.1.0` does not promise LTS lines, independent `server` / `web` release trains, or mixed-version compatibility
 
-### Manual Release Workflow
-
-The manual semantic-release workflow at `.github/workflows/release.yml` now uses a single `workflow_dispatch` run:
-
-- `semantic-release-preview` always runs first as a dry-run preview on the dispatch SHA
-- when the preview reports `published == true`, the same workflow run queues `publish-version-tag`
-- `publish-version-tag` is gated only by the GitHub `release` environment approval step
-
-Operator requirements:
-
-- before merging or triggering this workflow on a publishable `main` commit, configure the repository `release`
-  environment in GitHub Settings with at least one required reviewer
-- if the `release` environment is missing or has no required reviewers, GitHub Actions will not provide a real human
-  approval gate and the publish job may proceed immediately after the preview succeeds
-- every manual trigger that reaches `published == true` creates a fresh environment approval request for `release`
-- repeated preview attempts are therefore not side-effect free anymore; rerunning the workflow for the same pending
-  release can notify reviewers again and queue multiple waiting publish jobs because release concurrency keeps
-  `cancel-in-progress: false`
-
 Windows PowerShell / CMD can use the same Go command:
 
 ```powershell

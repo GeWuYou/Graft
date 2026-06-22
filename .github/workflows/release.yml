@@ -117,17 +117,75 @@ jobs:
             fi
             if [[ "${RELEASE_PUBLISHED}" == "true" ]]; then
               echo
-              echo "- 审批前置: GitHub 仓库必须已存在受保护的 \`release\` Environment，并配置至少一名 required reviewer。"
-              echo "- 触发影响: 当前手动运行不再是纯预览；只要检测到可发布版本，就会为 \`release\` Environment 创建一次新的审批请求。"
-              echo "- 如需继续正式发布，请在确认以上前置条件后，在当前运行中审批 \`release\` 环境。"
+              echo "如需继续正式发布，请在当前运行中审批 \`release\` 环境。"
             fi
           } >> "${GITHUB_STEP_SUMMARY}"
+
+  validate-release-environment:
+    name: Validate Release Environment
+    runs-on: ubuntu-latest
+    needs: semantic-release-preview
+    if: ${{ github.ref == 'refs/heads/main' && needs.semantic-release-preview.result == 'success' && needs.semantic-release-preview.outputs.published == 'true' }}
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Validate protected release environment reviewers
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_API_URL: ${{ github.api_url }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          response_file="$(mktemp)"
+          status_code="$(
+            curl -sS \
+              -o "${response_file}" \
+              -w '%{http_code}' \
+              -H 'Accept: application/vnd.github+json' \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
+              "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/environments/release"
+          )"
+
+          if [[ "${status_code}" == "404" ]]; then
+            echo "::error::GitHub environment 'release' does not exist. Create it and configure required reviewers before running release publish."
+            cat "${response_file}"
+            exit 1
+          fi
+
+          if [[ "${status_code}" != "200" ]]; then
+            echo "::error::Failed to read GitHub environment 'release' (HTTP ${status_code})."
+            cat "${response_file}"
+            exit 1
+          fi
+
+          reviewer_count="$(
+            jq '
+              [
+                .protection_rules[]?
+                | select(.type == "required_reviewers")
+                | .reviewers[]?
+              ] | length
+            ' "${response_file}"
+          )"
+
+          if [[ "${reviewer_count}" -lt 1 ]]; then
+            echo "::error::GitHub environment 'release' has no required reviewers. Configure at least one reviewer before running release publish."
+            cat "${response_file}"
+            exit 1
+          fi
+
+          echo "Validated release environment with ${reviewer_count} required reviewer(s)."
 
   publish-version-tag:
     name: Publish Version Tag
     runs-on: ubuntu-latest
-    needs: semantic-release-preview
-    if: ${{ github.ref == 'refs/heads/main' && needs.semantic-release-preview.result == 'success' && needs.semantic-release-preview.outputs.published == 'true' }}
+    needs:
+      - semantic-release-preview
+      - validate-release-environment
+    if: ${{ github.ref == 'refs/heads/main' && needs.semantic-release-preview.result == 'success' && needs.semantic-release-preview.outputs.published == 'true' && needs.validate-release-environment.result == 'success' }}
     environment: release
 
     permissions:
