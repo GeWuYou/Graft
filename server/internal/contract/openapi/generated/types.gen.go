@@ -2088,6 +2088,27 @@ func (e ServerStatusAnomalyStatus) Valid() bool {
 	}
 }
 
+// Defines values for ServerStatusServerBuildInfoGitTreeState.
+const (
+	ServerStatusServerBuildInfoGitTreeStateClean   ServerStatusServerBuildInfoGitTreeState = "clean"
+	ServerStatusServerBuildInfoGitTreeStateDirty   ServerStatusServerBuildInfoGitTreeState = "dirty"
+	ServerStatusServerBuildInfoGitTreeStateUnknown ServerStatusServerBuildInfoGitTreeState = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the ServerStatusServerBuildInfoGitTreeState enum.
+func (e ServerStatusServerBuildInfoGitTreeState) Valid() bool {
+	switch e {
+	case ServerStatusServerBuildInfoGitTreeStateClean:
+		return true
+	case ServerStatusServerBuildInfoGitTreeStateDirty:
+		return true
+	case ServerStatusServerBuildInfoGitTreeStateUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ServerStatusTrendRange.
 const (
 	ServerStatusTrendRangeN10m ServerStatusTrendRange = "10m"
@@ -2111,19 +2132,19 @@ func (e ServerStatusTrendRange) Valid() bool {
 
 // Defines values for SystemConfigItemRuntimeApplyMode.
 const (
-	RestartRequired SystemConfigItemRuntimeApplyMode = "restart_required"
-	RuntimeHot      SystemConfigItemRuntimeApplyMode = "runtime_hot"
-	Unknown         SystemConfigItemRuntimeApplyMode = "unknown"
+	SystemConfigItemRuntimeApplyModeRestartRequired SystemConfigItemRuntimeApplyMode = "restart_required"
+	SystemConfigItemRuntimeApplyModeRuntimeHot      SystemConfigItemRuntimeApplyMode = "runtime_hot"
+	SystemConfigItemRuntimeApplyModeUnknown         SystemConfigItemRuntimeApplyMode = "unknown"
 )
 
 // Valid indicates whether the value is a known member of the SystemConfigItemRuntimeApplyMode enum.
 func (e SystemConfigItemRuntimeApplyMode) Valid() bool {
 	switch e {
-	case RestartRequired:
+	case SystemConfigItemRuntimeApplyModeRestartRequired:
 		return true
-	case RuntimeHot:
+	case SystemConfigItemRuntimeApplyModeRuntimeHot:
 		return true
-	case Unknown:
+	case SystemConfigItemRuntimeApplyModeUnknown:
 		return true
 	default:
 		return false
@@ -5834,13 +5855,24 @@ type ServerStatusRuntime struct {
 
 // ServerStatusServer defines model for server-status-server.
 type ServerStatusServer struct {
-	AppEnv        string    `json:"app_env"`
-	AppName       string    `json:"app_name"`
-	GoVersion     string    `json:"go_version"`
-	StartedAt     time.Time `json:"started_at"`
-	UptimeSeconds int64     `json:"uptime_seconds"`
-	Version       string    `json:"version"`
+	AppEnv        string                      `json:"app_env"`
+	AppName       string                      `json:"app_name"`
+	Build         ServerStatusServerBuildInfo `json:"build"`
+	GoVersion     string                      `json:"go_version"`
+	StartedAt     time.Time                   `json:"started_at"`
+	UptimeSeconds int64                       `json:"uptime_seconds"`
 }
+
+// ServerStatusServerBuildInfo defines model for server-status-server-build-info.
+type ServerStatusServerBuildInfo struct {
+	BuildTimeUtc string                                  `json:"build_time_utc"`
+	GitCommit    string                                  `json:"git_commit"`
+	GitTreeState ServerStatusServerBuildInfoGitTreeState `json:"git_tree_state"`
+	Version      string                                  `json:"version"`
+}
+
+// ServerStatusServerBuildInfoGitTreeState defines model for ServerStatusServerBuildInfo.GitTreeState.
+type ServerStatusServerBuildInfoGitTreeState string
 
 // ServerStatusSummary defines model for server-status-summary.
 type ServerStatusSummary struct {

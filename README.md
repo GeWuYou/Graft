@@ -170,6 +170,9 @@ The current `v0.1.0` release identity and support baseline is:
 - the minimal `BuildInfo` / `graft version` baseline is `version`, `git_commit`, `build_time_utc`, and
   `git_tree_state`
 - `graft version` now exposes the canonical server build identity without starting runtime dependencies
+- `.github/workflows/publish.yml` injects those four fields into tagged release server binaries with Go ldflags; the
+  publish path sets `version` from the Git tag, `git_commit` from the tagged commit, `build_time_utc` from the UTC
+  build timestamp, and `git_tree_state=clean`
 - when local builds do not inject ldflags, the fallback identity remains explicit as `dev` / `unknown`
 - `v0.1.0` does not promise LTS lines, independent `server` / `web` release trains, or mixed-version compatibility
 

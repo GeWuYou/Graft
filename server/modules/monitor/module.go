@@ -22,6 +22,7 @@ import (
 	"github.com/shirou/gopsutil/v4/mem"
 	"go.uber.org/zap"
 
+	"graft/server/internal/buildinfo"
 	"graft/server/internal/config"
 	"graft/server/internal/container"
 	"graft/server/internal/contract/httpheader"
@@ -494,6 +495,7 @@ func buildServerStatusResponseWithRuntimeSnapshot(
 	modules := runtimeModuleSummaries(moduleCtx, databaseStatus, redisStatus)
 	summary := buildServerStatusSummary(databaseStatus, redisStatus, modules)
 	trend := buildServerStatusTrend(ctx, moduleCtx, instance, observedAt, trendRange)
+	serverBuildInfo := resolveServerBuildInfo(moduleCtx)
 	anomalies := buildServerStatusAnomalies(observedAt, trendRange, serverStatusAnomalyInputs{
 		runtimeSnapshot: runtimeSnapshot,
 		dependencies: generated.ServerStatusDependencies{
@@ -508,7 +510,12 @@ func buildServerStatusResponseWithRuntimeSnapshot(
 		Status:     deriveOverallStatus(databaseStatus.Status, redisStatus.Status, anomalies),
 		ObservedAt: observedAt,
 		Server: generated.ServerStatusServer{
-			Version:       resolveServerVersion(moduleCtx),
+			Build: generated.ServerStatusServerBuildInfo{
+				Version:      serverBuildInfo.Version,
+				BuildTimeUtc: serverBuildInfo.BuildTimeUTC,
+				GitCommit:    serverBuildInfo.GitCommit,
+				GitTreeState: generated.ServerStatusServerBuildInfoGitTreeState(serverBuildInfo.GitTreeState),
+			},
 			StartedAt:     startedAt,
 			UptimeSeconds: int64(observedAt.Sub(startedAt).Seconds()),
 			GoVersion:     runtime.Version(),
@@ -527,12 +534,12 @@ func buildServerStatusResponseWithRuntimeSnapshot(
 	}, nil
 }
 
-func resolveServerVersion(moduleCtx *module.Context) string {
+func resolveServerBuildInfo(moduleCtx *module.Context) buildinfo.Info {
 	if moduleCtx == nil {
-		return "dev"
+		return buildinfo.Normalize(buildinfo.Info{})
 	}
 
-	return moduleCtx.RuntimeMetadata.BuildInfo().Version
+	return moduleCtx.RuntimeMetadata.BuildInfo()
 }
 
 func buildServerStatusAnomalies(

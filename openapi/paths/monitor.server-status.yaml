@@ -31,7 +31,11 @@ get:
                   status: healthy
                   observed_at: '2026-05-24T08:05:00Z'
                   server:
-                    version: dev
+                    build:
+                      version: dev
+                      git_commit: unknown
+                      build_time_utc: unknown
+                      git_tree_state: unknown
                     started_at: '2026-05-24T08:00:00Z'
                     uptime_seconds: 300
                     go_version: go1.25.1

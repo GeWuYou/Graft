@@ -92,7 +92,7 @@ func TestRegisterMonitorDashboardWidgetRegistersSystemHealthInsight(t *testing.T
 
 }
 
-func TestBuildServerStatusResponseUsesInjectedBuildInfoVersion(t *testing.T) {
+func TestBuildServerStatusResponseUsesInjectedBuildInfo(t *testing.T) {
 	t.Parallel()
 
 	db, err := sql.Open("sqlite3", ":memory:")
@@ -120,7 +120,39 @@ func TestBuildServerStatusResponseUsesInjectedBuildInfoVersion(t *testing.T) {
 		t.Fatalf("build server status response: %v", err)
 	}
 
-	assertEqual(t, "server version", response.Server.Version, "0.1.0")
+	assertEqual(t, "server build version", response.Server.Build.Version, "0.1.0")
+	assertEqual(t, "server build git commit", response.Server.Build.GitCommit, "abc1234")
+	assertEqual(t, "server build time utc", response.Server.Build.BuildTimeUtc, "2026-06-22T00:00:00Z")
+	assertEqual(t, "server build git tree state", string(response.Server.Build.GitTreeState), "clean")
+}
+
+func TestBuildServerStatusResponseBuildInfoFallsBackToCanonicalDefaults(t *testing.T) {
+	t.Parallel()
+
+	db, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		t.Fatalf("open sqlite database: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = db.Close()
+	})
+
+	response, err := buildServerStatusResponseWithRuntimeSnapshot(context.Background(), &module.Context{
+		Config: &config.Config{
+			App: config.AppConfig{Name: "graft", Env: "prod"},
+		},
+		RuntimeMetadata: module.NewRuntimeMetadata([]module.Spec{
+			{ID: moduleID},
+		}, buildinfo.Info{}),
+	}, moduleWithStartedAt(db, time.Now().UTC().Add(-5*time.Second)), monitorcontract.TrendRange10Minutes, stableRuntimeSnapshot())
+	if err != nil {
+		t.Fatalf("build server status response: %v", err)
+	}
+
+	assertEqual(t, "server build version fallback", response.Server.Build.Version, "dev")
+	assertEqual(t, "server build git commit fallback", response.Server.Build.GitCommit, "unknown")
+	assertEqual(t, "server build time utc fallback", response.Server.Build.BuildTimeUtc, "unknown")
+	assertEqual(t, "server build git tree state fallback", string(response.Server.Build.GitTreeState), "unknown")
 }
 
 func TestRegisterMessagesIncludesAuditEvidenceUnavailableTitle(t *testing.T) {
@@ -848,7 +880,10 @@ func assertCurrentSliceResponseStatus(t *testing.T, response generated.ServerSta
 	if response.Dependencies.Redis.Pool != nil {
 		t.Fatalf("expected disabled redis dependency to omit pool stats")
 	}
-	assertEqual(t, "server version", response.Server.Version, "dev")
+	assertEqual(t, "server build version", response.Server.Build.Version, "dev")
+	assertEqual(t, "server build git commit", response.Server.Build.GitCommit, "unknown")
+	assertEqual(t, "server build time utc", response.Server.Build.BuildTimeUtc, "unknown")
+	assertEqual(t, "server build git tree state", string(response.Server.Build.GitTreeState), "unknown")
 	assertEqual(t, "started_at", response.Server.StartedAt, startedAt)
 	assertEqual(t, "go version", response.Server.GoVersion, runtime.Version())
 	assertEqual(t, "app name", response.Server.AppName, "graft")

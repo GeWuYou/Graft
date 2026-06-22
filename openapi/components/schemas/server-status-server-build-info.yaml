@@ -1,0 +1,17 @@
+type: object
+required: [version, git_commit, build_time_utc, git_tree_state]
+properties:
+  version:
+    type: string
+  git_commit:
+    type: string
+  build_time_utc:
+    type: string
+  git_tree_state:
+    type: string
+    enum: [clean, dirty, unknown]
+example:
+  version: dev
+  git_commit: unknown
+  build_time_utc: unknown
+  git_tree_state: unknown
