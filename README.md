@@ -148,6 +148,18 @@ Important server notes:
 - `graft serve` connects to PostgreSQL and Redis before serving; unavailable dependencies fail startup.
 - In GoLand or another IDE, use working directory `server`, program entry `./cmd/graft`, and argument `dev`.
 
+### Release Safety Baseline
+
+The current `v0.1.0` release-governance baseline is documentation-first and operator-controlled:
+
+- live database evolution is governed as forward-only migration application
+- `graft serve` does not apply migrations; use `graft migrate up` or `graft dev`
+- upgrade preparation should verify database backup and restore capability before applying live migrations
+- rollback support is manual and documentation-based; the repository does not currently promise automatic database or
+  config rollback helpers
+- stable config rename, removal, or semantic re-interpretation must be called out in release notes and upgrade notes;
+  alias bridges are not assumed by default
+
 Windows PowerShell / CMD can use the same Go command:
 
 ```powershell
