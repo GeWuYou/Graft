@@ -12,6 +12,7 @@ concurrency:
 permissions:
   contents: write
   pull-requests: read
+  packages: write
 
 jobs:
   build-artifacts:
@@ -122,6 +123,153 @@ jobs:
         with:
           name: release-assets
           path: release-assets/*
+          if-no-files-found: error
+
+  publish-images:
+    name: Publish Container Images
+    runs-on: ubuntu-latest
+    needs: build-artifacts
+
+    permissions:
+      contents: read
+      packages: write
+
+    outputs:
+      owner_lc: ${{ steps.image_vars.outputs.owner_lc }}
+      server_image: ${{ steps.image_vars.outputs.server_image }}
+      web_image: ${{ steps.image_vars.outputs.web_image }}
+      server_digest: ${{ steps.server_build.outputs.digest }}
+      web_digest: ${{ steps.web_build.outputs.digest }}
+
+    steps:
+      - name: Checkout repository at tag
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Prepare image coordinates
+        id: image_vars
+        shell: bash
+        run: |
+          set -euo pipefail
+          owner_lc="$(printf '%s' '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')"
+          server_image="ghcr.io/${owner_lc}/graft-server"
+          web_image="ghcr.io/${owner_lc}/graft-web"
+          echo "owner_lc=${owner_lc}" >> "${GITHUB_OUTPUT}"
+          echo "server_image=${server_image}" >> "${GITHUB_OUTPUT}"
+          echo "web_image=${web_image}" >> "${GITHUB_OUTPUT}"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
+
+      - name: Resolve image build timestamp
+        id: image_build_time
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "build_time_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "${GITHUB_OUTPUT}"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Download release artifacts
+        uses: actions/download-artifact@b14a5fd5cfd0f4e7f8ff0e0b9fd7b8d3f6b6a44a
+        with:
+          name: release-assets
+          path: release-assets
+
+      - name: Restore web dist artifact
+        env:
+          RELEASE_REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          rm -rf web/dist
+          tar -C web -xzf "release-assets/graft-web-dist-${RELEASE_REF_NAME}.tar.gz"
+
+      - name: Docker metadata for server image
+        id: server_meta
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051
+        with:
+          images: ${{ steps.image_vars.outputs.server_image }}
+          tags: |
+            type=raw,value=${{ needs.build-artifacts.outputs.version }}
+            type=raw,value=${{ github.ref_name }}
+            type=raw,value=latest
+          labels: |
+            org.opencontainers.image.title=Graft Server
+            org.opencontainers.image.description=Graft backend runtime image
+
+      - name: Docker metadata for web image
+        id: web_meta
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051
+        with:
+          images: ${{ steps.image_vars.outputs.web_image }}
+          tags: |
+            type=raw,value=${{ needs.build-artifacts.outputs.version }}
+            type=raw,value=${{ github.ref_name }}
+            type=raw,value=latest
+          labels: |
+            org.opencontainers.image.title=Graft Web
+            org.opencontainers.image.description=Graft frontend static site image
+
+      - name: Build and push server image
+        id: server_build
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
+        with:
+          context: ./server
+          file: ./server/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.server_meta.outputs.tags }}
+          labels: ${{ steps.server_meta.outputs.labels }}
+          cache-from: type=gha,scope=graft-server-image
+          cache-to: type=gha,mode=max,scope=graft-server-image
+          build-args: |
+            GRAFT_VERSION=${{ needs.build-artifacts.outputs.version }}
+            GRAFT_GIT_COMMIT=${{ github.sha }}
+            GRAFT_BUILD_TIME_UTC=${{ steps.image_build_time.outputs.build_time_utc }}
+            GRAFT_GIT_TREE_STATE=clean
+
+      - name: Build and push web image
+        id: web_build
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
+        with:
+          context: ./web
+          file: ./web/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.web_meta.outputs.tags }}
+          labels: ${{ steps.web_meta.outputs.labels }}
+          cache-from: type=gha,scope=graft-web-image
+          cache-to: type=gha,mode=max,scope=graft-web-image
+
+      - name: Write image manifest
+        env:
+          RELEASE_REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          mkdir -p image-assets
+          cat > "image-assets/graft-container-images-${RELEASE_REF_NAME}.txt" <<EOF
+          server_image=${{ steps.image_vars.outputs.server_image }}
+          server_version_tag=${{ needs.build-artifacts.outputs.version }}
+          server_ref_tag=${{ github.ref_name }}
+          server_digest=${{ steps.server_build.outputs.digest }}
+          web_image=${{ steps.image_vars.outputs.web_image }}
+          web_version_tag=${{ needs.build-artifacts.outputs.version }}
+          web_ref_tag=${{ github.ref_name }}
+          web_digest=${{ steps.web_build.outputs.digest }}
+          EOF
+
+      - name: Upload image manifest
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: image-assets
+          path: image-assets/*
           if-no-files-found: error
 
   bubble-smoke:
@@ -263,12 +411,138 @@ jobs:
             echo "- Duration Seconds: \`${{ steps.bubble_smoke.outputs.duration_seconds || 'unknown' }}\`"
           } >> "${GITHUB_STEP_SUMMARY}"
 
+  compose-smoke:
+    name: Compose Smoke Gate
+    runs-on: ubuntu-latest
+    needs:
+      - build-artifacts
+      - publish-images
+    timeout-minutes: 20
+
+    permissions:
+      contents: read
+      packages: read
+
+    steps:
+      - name: Checkout repository at tag
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Log in to GHCR
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Write compose environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > .env <<EOF
+          GRAFT_SERVER_IMAGE=${{ needs.publish-images.outputs.server_image }}
+          GRAFT_WEB_IMAGE=${{ needs.publish-images.outputs.web_image }}
+          GRAFT_IMAGE_TAG=${{ needs.build-artifacts.outputs.version }}
+          POSTGRES_DB=graft
+          POSTGRES_USER=graft
+          POSTGRES_PASSWORD=graft
+          GRAFT_AUTH_JWT_SECRET=ci-compose-smoke-secret
+          EOF
+
+      - name: Start compose stack
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .tmp
+          docker compose pull
+          docker compose up -d
+
+      - name: Wait for bootstrap completion
+        shell: bash
+        run: |
+          set -euo pipefail
+          for _ in $(seq 1 60); do
+            status="$(docker inspect -f '{{.State.Status}}' "$(docker compose ps -q bootstrap)")"
+            exit_code="$(docker inspect -f '{{.State.ExitCode}}' "$(docker compose ps -q bootstrap)")"
+            if [[ "${status}" == "exited" && "${exit_code}" == "0" ]]; then
+              exit 0
+            fi
+            if [[ "${status}" == "exited" && "${exit_code}" != "0" ]]; then
+              echo "bootstrap failed with exit code ${exit_code}"
+              docker compose logs bootstrap
+              exit 1
+            fi
+            sleep 2
+          done
+          echo "bootstrap did not complete in time"
+          docker compose logs bootstrap
+          exit 1
+
+      - name: Wait for server and web readiness
+        shell: bash
+        run: |
+          set -euo pipefail
+          for _ in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1/healthz > .tmp-compose-healthz.json \
+              && curl -fsS http://127.0.0.1/openapi.json > .tmp-compose-openapi.json \
+              && curl -fsS http://127.0.0.1/ > .tmp-compose-index.html; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "compose services were not ready in time"
+          docker compose ps
+          docker compose logs server web
+          exit 1
+
+      - name: Verify frontend shell and proxied assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q "<!doctype html" .tmp-compose-index.html
+          grep -q "\"openapi\"" .tmp-compose-openapi.json
+
+      - name: Upload compose smoke logs
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: compose-smoke-logs
+          path: |
+            .tmp-compose-healthz.json
+            .tmp-compose-openapi.json
+            .tmp-compose-index.html
+          if-no-files-found: ignore
+
+      - name: Write compose smoke summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Compose Smoke Gate"
+            echo
+            echo "- Tag: \`${{ github.ref_name }}\`"
+            echo "- Version: \`${{ needs.build-artifacts.outputs.version }}\`"
+            echo "- Bootstrap: \`service_completed_successfully\`"
+            echo "- Health Probe: \`http://127.0.0.1/healthz\`"
+            echo "- Proxy Probe: \`http://127.0.0.1/openapi.json\`"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Tear down compose stack
+        if: always()
+        shell: bash
+        run: |
+          docker compose down -v --remove-orphans
+
   create-release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
     needs:
       - build-artifacts
       - bubble-smoke
+      - publish-images
+      - compose-smoke
 
     permissions:
       contents: write
@@ -285,6 +559,12 @@ jobs:
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: release-assets
+          path: release-assets
+
+      - name: Download image manifest
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: image-assets
           path: release-assets
 
       - name: Generate release notes
@@ -320,6 +600,8 @@ jobs:
             echo
             echo "- Tag: \`${{ github.ref_name }}\`"
             echo "- Version: \`${{ needs.build-artifacts.outputs.version }}\`"
+            echo "- Server Image: \`${{ needs.publish-images.outputs.server_image }}:${{ needs.build-artifacts.outputs.version }}\`"
+            echo "- Web Image: \`${{ needs.publish-images.outputs.web_image }}:${{ needs.build-artifacts.outputs.version }}\`"
             echo
             printf '%s\n' "${CLIFF_RELEASE_NOTES}"
           } >> "${GITHUB_STEP_SUMMARY}"

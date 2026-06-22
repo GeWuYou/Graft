@@ -258,6 +258,42 @@ format:check -> typecheck -> openapi:frontend-governance:check -> lint:i18n -> l
 ```
 
 Focused commands are fine during development, but completion, handoff, and merge readiness should use `bun run check`
+
+## Container Deployment
+
+The tagged release workflow publishes two container images to GHCR:
+
+- `graft-server`
+- `graft-web`
+
+The default deployment entrypoint is the repository root `compose.yml`.
+
+Minimal startup:
+
+1. Copy `compose.env.example` to `.env`.
+2. Set the image coordinates and runtime secrets in `.env`.
+3. Pull and start the stack:
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+Compose startup semantics:
+
+- `postgres` and `redis` start first.
+- `bootstrap` runs as a one-shot init service.
+- The current `bootstrap` implementation executes `graft migrate up --allow-dirty` for a freshly provisioned or disposable deployment database.
+- `server` starts only after `bootstrap` exits successfully.
+- `web` starts only after `server` becomes healthy.
+
+Important deployment notes:
+
+- `server` itself does not auto-migrate the database.
+- Database change authority remains the explicit CLI command `graft migrate up`.
+- Compose only orchestrates that step into the startup flow; it does not move migration logic into runtime startup.
+- The `bootstrap` service is the future extension point for other one-time initialization tasks such as seed data,
+  license initialization, storage validation, or plugin preflight checks.
 unless the task explicitly reports why a narrower validation was used.
 
 To reproduce the local contract-governance changed scan:

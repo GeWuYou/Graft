@@ -1,0 +1,12 @@
+.git
+.github
+.ai
+.codegraph
+node_modules
+coverage
+.tmp
+tmp
+*.log
+.env
+.env.*
+!.env.example

@@ -69,6 +69,9 @@ type devPIDPaths struct {
 var devMigrateRunner = func(cmd *cobra.Command, migrationDir string) error {
 	return runMigrateUp(cmd, migrateUpOptions{migrationDir: migrationDir})
 }
+var devMigrateRunnerAllowDirty = func(cmd *cobra.Command, migrationDir string) error {
+	return runMigrateUp(cmd, migrateUpOptions{migrationDir: migrationDir, allowDirty: true})
+}
 
 var devAirModuleRootResolver = resolveBackendModuleRoot
 var devAirLookPath = exec.LookPath
@@ -289,7 +292,7 @@ func (s *devSupervisor) reconcile(cmd *cobra.Command, forceMigrate bool) error {
 		return s.restartServe(cmd)
 	}
 
-	if err := devMigrateRunner(cmd, s.migrationDir); err != nil {
+	if err := s.runDevelopmentMigrations(cmd); err != nil {
 		if s.serveCmd != nil {
 			s.log(cmd, "migration failed, keeping existing server: %v", err)
 			return nil
@@ -300,6 +303,34 @@ func (s *devSupervisor) reconcile(cmd *cobra.Command, forceMigrate bool) error {
 	s.appliedSnapshot = snapshot
 	s.log(cmd, "migration success")
 	return s.restartServe(cmd)
+}
+
+func (s *devSupervisor) runDevelopmentMigrations(cmd *cobra.Command) error {
+	err := devMigrateRunner(cmd, s.migrationDir)
+	if err == nil {
+		return nil
+	}
+
+	// When a local dev database already has Atlas revision history but was not created
+	// through the current clean-baseline flow, allow one controlled first-run retry so
+	// `graft dev` / `graft dev air` can take over the disposable local database without
+	// weakening the default protection on explicit `graft migrate up`.
+	if s.serveCmd == nil && isAtlasDirtyDevBootstrapError(err) {
+		s.log(cmd, "existing dev database requires one allow-dirty migration bootstrap; retrying once")
+		return devMigrateRunnerAllowDirty(cmd, s.migrationDir)
+	}
+
+	return err
+}
+
+func isAtlasDirtyDevBootstrapError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	message := err.Error()
+	return strings.Contains(message, "connected database is not clean") &&
+		strings.Contains(message, "atlas_schema_revisions")
 }
 
 func (s *devSupervisor) restartServe(cmd *cobra.Command) error {
