@@ -185,45 +185,16 @@ func TestRunDevSupervisorWithAirStartFailureStopsServe(t *testing.T) {
 }
 
 func TestDevSupervisorRetriesAllowDirtyForFirstBootstrap(t *testing.T) {
-	originalMigrateRunner := devMigrateRunner
-	originalMigrateRunnerAllowDirty := devMigrateRunnerAllowDirty
-	originalLoadConfig := devLoadConfig
-	defer func() {
-		devMigrateRunner = originalMigrateRunner
-		devMigrateRunnerAllowDirty = originalMigrateRunnerAllowDirty
-		devLoadConfig = originalLoadConfig
-	}()
-
-	attempts := make([]string, 0, 2)
-	devMigrateRunner = func(_ *cobra.Command, _ string) error {
-		attempts = append(attempts, "default")
-		return fmt.Errorf(
-			"apply atlas migrations: %w. baseline version or allow-dirty is required",
-			&atlasmigrate.NotCleanError{Reason: `found schema "atlas_schema_revisions"`},
-		)
-	}
-	devMigrateRunnerAllowDirty = func(_ *cobra.Command, _ string) error {
-		attempts = append(attempts, "allow-dirty")
-		return nil
-	}
-	devLoadConfig = func() (*config.Config, error) {
-		return &config.Config{Runtime: config.RuntimeConfig{DevAllowDirtyMigrationBootstrap: true}}, nil
-	}
-
-	supervisor := &devSupervisor{migrationDir: defaultMigrationDir}
-	if err := supervisor.runDevelopmentMigrations(&cobra.Command{}); err != nil {
-		t.Fatalf("run development migrations: %v", err)
-	}
-
-	if len(attempts) != 2 {
-		t.Fatalf("expected 2 migration attempts, got %#v", attempts)
-	}
-	if attempts[0] != "default" || attempts[1] != "allow-dirty" {
-		t.Fatalf("unexpected migration attempt order %#v", attempts)
-	}
+	testDevSupervisorRetriesAllowDirtyForFirstBootstrap(t, `found schema "atlas_schema_revisions"`)
 }
 
 func TestDevSupervisorRetriesAllowDirtyForFirstBootstrapWithUserSchemaDirtyState(t *testing.T) {
+	testDevSupervisorRetriesAllowDirtyForFirstBootstrap(t, `found schema "public"`)
+}
+
+func testDevSupervisorRetriesAllowDirtyForFirstBootstrap(t *testing.T, dirtyReason string) {
+	t.Helper()
+
 	originalMigrateRunner := devMigrateRunner
 	originalMigrateRunnerAllowDirty := devMigrateRunnerAllowDirty
 	originalLoadConfig := devLoadConfig
@@ -238,7 +209,7 @@ func TestDevSupervisorRetriesAllowDirtyForFirstBootstrapWithUserSchemaDirtyState
 		attempts = append(attempts, "default")
 		return fmt.Errorf(
 			"apply atlas migrations: %w. baseline version or allow-dirty is required",
-			&atlasmigrate.NotCleanError{Reason: `found schema "public"`},
+			&atlasmigrate.NotCleanError{Reason: dirtyReason},
 		)
 	}
 	devMigrateRunnerAllowDirty = func(_ *cobra.Command, _ string) error {
