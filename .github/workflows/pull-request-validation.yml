@@ -61,7 +61,7 @@ jobs:
           echo "head_ref=${head_ref}" >> "$GITHUB_OUTPUT"
 
       - name: TruffleHog OSS
-        uses: trufflesecurity/trufflehog@d411fff7b8879a62509f3fa98c07f247ac089a51
+        uses: trufflesecurity/trufflehog@30d5bb91af1a771378349dbbb0c82129392acf70
         with:
           path: .
           base: ${{ steps.secret_scan_range.outputs.base_ref }}
