@@ -103,21 +103,26 @@ jobs:
             fi
           }
           {
-            echo "## Release Preview"
+            echo "## 预览区"
             echo
-            echo "- Commit: \`${{ github.sha }}\`"
-            echo "- Release needed: \`$(normalize "${RELEASE_PUBLISHED}")\`"
-            echo "- Last tag: \`$(normalize "${LAST_TAG}")\`"
-            echo "- Next version: \`$(normalize "${NEXT_VERSION}")\`"
-            echo "- Next tag: \`$(normalize "${NEXT_TAG}")\`"
-            echo "- Preview auth: uses \`PAT_TOKEN\` because semantic-release dry-run still performs a remote push permission probe."
-            echo "- Snapshot semantics: this preview is pinned to dispatch SHA \`${{ github.sha }}\`; commits added to \`main\` after the run starts are not included."
+            echo "- 提交: \`${{ github.sha }}\`"
+            echo "- 是否需要发布: \`$(normalize "${RELEASE_PUBLISHED}")\`"
+            echo "- 当前最新标签: \`$(normalize "${LAST_TAG}")\`"
+            echo "- 预估下一个版本: \`$(normalize "${NEXT_VERSION}")\`"
+            echo "- 预估下一个标签: \`$(normalize "${NEXT_TAG}")\`"
+            echo "- 预览鉴权: 使用 \`PAT_TOKEN\`，因为 semantic-release dry-run 仍会执行远端 push 权限探测。"
+            if [[ -z "${LAST_TAG}" ]]; then
+              echo "- 基线提示: 当前未发现历史版本标签；预 1.0 发布线应先在项目初始化基线提交上创建真实远端 \`v0.0.0\` 标签。"
+            fi
+            echo "- 快照语义: 本次预览固定在触发时的 SHA \`${{ github.sha }}\`；运行开始后再进入 \`main\` 的提交不会计入本次结果。"
             if [[ "${RELEASE_PUBLISHED}" == "true" && -n "${CLIFF_RELEASE_NOTES}" ]]; then
               echo
-              echo "### Candidate Release Notes"
+              echo "### 候选发布说明"
               echo
               printf '%s\n' "${CLIFF_RELEASE_NOTES}"
             fi
+            echo
+            echo "如需继续正式发布，请审批 \`release-approval\` 环境并以非 dry-run 方式重跑。"
           } >> "${GITHUB_STEP_SUMMARY}"
 
   publish-version-tag:
@@ -195,7 +200,7 @@ jobs:
             fi
           }
           {
-            echo "## Release Publish"
+            echo "## Publish Section"
             echo
             echo "- Commit: \`${{ github.sha }}\`"
             echo "- Preview last tag: \`$(normalize "${PREVIEW_LAST_TAG}")\`"
@@ -205,5 +210,8 @@ jobs:
             echo "- Last tag: \`$(normalize "${LAST_TAG}")\`"
             echo "- Next version: \`$(normalize "${NEXT_VERSION}")\`"
             echo "- Next tag: \`$(normalize "${NEXT_TAG}")\`"
+            if [[ -z "${PREVIEW_LAST_TAG}" ]]; then
+              echo "- Baseline note: this release line expects a real remote \`v0.0.0\` tag on the project-initialization baseline commit before pre-1.0 publishing begins."
+            fi
             echo "- Snapshot semantics: this publish run still uses dispatch SHA \`${{ github.sha }}\`; commits added to \`main\` after the preview started are excluded."
           } >> "${GITHUB_STEP_SUMMARY}"
