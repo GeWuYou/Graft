@@ -38,8 +38,8 @@ systemConfig.fields.retentionDays.title: Log Retention Days
 systemConfig.fields.retentionDays.description: Delete logs older than this many days.
 systemConfig.fields.batchSize.title: Batch Size
 systemConfig.fields.batchSize.description: Maximum rows deleted per cleanup batch.
-systemConfig.units.days: days
-systemConfig.units.rows: rows
+systemConfig.units.days: Days
+systemConfig.units.rows: Rows
 systemConfig.groups.notification.general: General
 systemConfig.groups.notification.general.description: Control the Notification Center baseline behavior.
 systemConfig.groups.notification.sources: Sources
