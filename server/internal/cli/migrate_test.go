@@ -825,6 +825,72 @@ func TestBuildAtlasMigrationDirUsesEmbeddedDirForExplicitPath(t *testing.T) {
 	}
 }
 
+func TestBuildAtlasMigrationDirRejectsRepoOwnedSelectorWithoutEmbeddedAssets(t *testing.T) {
+	hooks := captureMigrateTestHooks()
+	defer hooks.restore()
+
+	root := t.TempDir()
+	repoDir := filepath.Join(root, "server", "modules", "user", "migrations")
+	createMigrationFixture(t, []string{repoDir}, map[string]string{
+		filepath.Join(repoDir, "202605190001_user.sql"): "CREATE TABLE users (id bigint);\n",
+	})
+	writeAtlasStateFiles(t, []string{repoDir})
+
+	migrateEmbeddedMigrationDirByPath = func(string) (moduleregistry.EmbeddedMigrationDir, bool) {
+		return moduleregistry.EmbeddedMigrationDir{}, false
+	}
+
+	_, err := buildAtlasMigrationDir(root, "modules/user/migrations")
+	if err == nil {
+		t.Fatal("expected missing embedded assets error")
+	}
+	if !strings.Contains(err.Error(), "compile-time embedded migration dir \"modules/user/migrations\" is not available") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestBuildAtlasMigrationDirUsesExplicitExternalPath(t *testing.T) {
+	root := t.TempDir()
+	externalDir := filepath.Join(root, "tmp-migrations")
+	createMigrationFixture(t, []string{externalDir}, map[string]string{
+		filepath.Join(externalDir, "202605190001_user.sql"):   "CREATE TABLE users (id bigint);\n",
+		filepath.Join(externalDir, atlasmigrate.HashFileName): "h1:test\n202605190001_user.sql h1:file\n",
+	})
+
+	dir, err := buildAtlasMigrationDir(root, "file:tmp-migrations")
+	if err != nil {
+		t.Fatalf("build external atlas migration dir: %v", err)
+	}
+
+	files, err := dir.Files()
+	if err != nil {
+		t.Fatalf("read external migration dir files: %v", err)
+	}
+	if len(files) != 1 || files[0].Name() != "202605190001_user.sql" {
+		t.Fatalf("unexpected files %#v", files)
+	}
+}
+
+func TestBuildAtlasMigrationDirRejectsImplicitExternalPath(t *testing.T) {
+	_, err := buildAtlasMigrationDir(t.TempDir(), "./tmp-migrations")
+	if err == nil {
+		t.Fatal("expected explicit external path error")
+	}
+	if !strings.Contains(err.Error(), "must use explicit file: prefix") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestBuildAtlasMigrationDirRejectsServerPrefixedRepoOwnedSelector(t *testing.T) {
+	_, err := buildAtlasMigrationDir(t.TempDir(), "server/modules/user/migrations")
+	if err == nil {
+		t.Fatal("expected server-prefixed selector error")
+	}
+	if !strings.Contains(err.Error(), "must use owner-aligned path without \"server/\"") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestBuildAtlasMigrationDirSynthesizesDefaultChainFromEmbeddedSources(t *testing.T) {
 	hooks := captureMigrateTestHooks()
 	defer hooks.restore()
@@ -1060,5 +1126,86 @@ func TestRunMigrateUpPropagatesExecutorOpenError(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "open atlas executor failed") {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestRunMigrateValidateUsesEmbeddedDefaultChain(t *testing.T) {
+	hooks := captureMigrateTestHooks()
+	defer hooks.restore()
+
+	migrateRegistryMigrationDirs = func() ([]string, error) {
+		return []string{"modules/user/migrations"}, nil
+	}
+	migrateEmbeddedMigrationDirByPath = func(path string) (moduleregistry.EmbeddedMigrationDir, bool) {
+		if path != "modules/user/migrations" {
+			return moduleregistry.EmbeddedMigrationDir{}, false
+		}
+		return embeddedMigrationDir(t, path, map[string]string{
+			"202605190001_user.sql": "CREATE TABLE users (id bigint);\n",
+		}), true
+	}
+	migrateOpenExecutor = func(string, atlasmigrate.Dir, atlasmigrate.Logger) (*atlasExecutorHandle, error) {
+		t.Fatal("migrate validate must not open an executor")
+		return nil, nil
+	}
+
+	if err := runMigrateValidate(migrateResolveOptions{
+		migrationDir: defaultMigrationDir,
+		workingDir:   t.TempDir(),
+	}); err != nil {
+		t.Fatalf("run migrate validate: %v", err)
+	}
+}
+
+func TestRunMigrateValidateUsesExplicitExternalPath(t *testing.T) {
+	hooks := captureMigrateTestHooks()
+	defer hooks.restore()
+
+	root := t.TempDir()
+	externalDir := filepath.Join(root, "tmp-migrations")
+	createMigrationFixture(t, []string{externalDir}, map[string]string{
+		filepath.Join(externalDir, "202605190001_user.sql"): "CREATE TABLE users (id bigint);\n",
+	})
+	writeAtlasStateFiles(t, []string{externalDir})
+
+	if err := runMigrateValidate(migrateResolveOptions{
+		migrationDir: "file:tmp-migrations",
+		workingDir:   root,
+	}); err != nil {
+		t.Fatalf("run migrate validate: %v", err)
+	}
+}
+
+func TestRunMigrateValidateRejectsRepoOwnedSelectorWithoutEmbeddedAssets(t *testing.T) {
+	hooks := captureMigrateTestHooks()
+	defer hooks.restore()
+
+	migrateEmbeddedMigrationDirByPath = func(string) (moduleregistry.EmbeddedMigrationDir, bool) {
+		return moduleregistry.EmbeddedMigrationDir{}, false
+	}
+
+	err := runMigrateValidate(migrateResolveOptions{
+		migrationDir: "modules/user/migrations",
+		workingDir:   t.TempDir(),
+	})
+	if err == nil {
+		t.Fatal("expected missing embedded assets error")
+	}
+	if !strings.Contains(err.Error(), "compile-time embedded migration dir \"modules/user/migrations\" is not available") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestNewMigrateCommandRegistersValidateSubcommand(t *testing.T) {
+	command := newMigrateCommand()
+	validateCommand, _, err := command.Find([]string{"validate"})
+	if err != nil {
+		t.Fatalf("find validate command: %v", err)
+	}
+	if validateCommand == nil {
+		t.Fatal("expected validate subcommand")
+	}
+	if validateCommand.Name() != "validate" {
+		t.Fatalf("expected validate command name, got %q", validateCommand.Name())
 	}
 }

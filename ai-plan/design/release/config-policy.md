@@ -59,6 +59,25 @@ For every governed `rename`, `semantic-change`, or `removal`, keep at least:
 - when a rename is governed, the new key is canonical and the migration path is manual and documentation-driven
 - removal must not be described as safe by default; documents must state when the old key stops being accepted
 
+## Release Packaging Config Boundary
+
+- release-grade binaries must keep deployment-specific runtime config external; packaging a binary does not authorize
+  hard-coding environment-specific operator values into the artifact
+- `graft validate release` minimum guarantees do not imply full config completeness validation, operator secret
+  validation, or environment-preflight success
+- publish-time environment variables, workflow inputs, asset filenames, or GitHub Release metadata are release
+  automation inputs, not stable runtime config authority
+- external release assets such as `LICENSE`, `SBOM`, license compliance report, and `web` dist may evolve in packaging
+  shape without being reclassified as runtime config keys
+
+## Documentation-First Release Config Evolution
+
+- if future release packaging introduces sample config bundles, environment manifests, or installer-generated config,
+  the stable operator-facing config authority must still be documented here or in a sibling release authority doc
+  before automation is treated as canonical behavior
+- do not treat publish workflow defaults, branch-local scripts, or ad-hoc release notes as the sole record of config
+  compatibility policy
+
 ## Operator-Visible Docs Status
 
 - operator-facing config reference docs are deferred in the current phase

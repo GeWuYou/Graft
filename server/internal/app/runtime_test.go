@@ -2,7 +2,9 @@ package app
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -1178,6 +1180,28 @@ func TestRegisterCoreRoutesServesOpenAPIDocsWhenEnabled(t *testing.T) {
 	assertOpenAPIJSONResponse(t, engine)
 	assertDocsHTMLResponse(t, engine)
 	assertOpenAPIYAMLDisabled(t, engine)
+}
+
+func TestLoadOpenAPIDocsAssetsUsesGeneratedCanonicalBundle(t *testing.T) {
+	assets, err := loadOpenAPIDocsAssets()
+	if err != nil {
+		t.Fatalf("load openapi docs assets: %v", err)
+	}
+
+	if OpenAPIDocsBundleSourcePath() != "openapi/dist/openapi.bundle.json" {
+		t.Fatalf("expected canonical bundle path, got %q", OpenAPIDocsBundleSourcePath())
+	}
+	if len(assets.json) == 0 {
+		t.Fatal("expected generated openapi docs asset bytes")
+	}
+	if string(assets.json) != string(generatedOpenAPIBundleJSON) {
+		t.Fatal("expected runtime docs asset to serve generated canonical bundle bytes")
+	}
+
+	sum := sha256.Sum256(generatedOpenAPIBundleJSON)
+	if OpenAPIDocsBundleSHA256() != hex.EncodeToString(sum[:]) {
+		t.Fatalf("expected generated bundle sha256 %s, got %s", hex.EncodeToString(sum[:]), OpenAPIDocsBundleSHA256())
+	}
 }
 
 func TestRegisterCoreRoutesSkipsOpenAPIDocsWhenDisabled(t *testing.T) {

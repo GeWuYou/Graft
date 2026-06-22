@@ -13,7 +13,10 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"graft/server/internal/app"
+	"graft/server/internal/buildinfo"
 	"graft/server/internal/config"
+	"graft/server/internal/moduleregistry"
 )
 
 func newBackendModuleRootFixture(t *testing.T) string {
@@ -241,26 +244,22 @@ func TestValidateEmbeddedOpenAPIBundleFreshness(t *testing.T) {
 	}()
 
 	repoDir := t.TempDir()
-	canonicalPath := filepath.Join(repoDir, filepath.FromSlash(defaultOpenAPIBundlePath))
-	runtimePath := filepath.Join(repoDir, filepath.FromSlash(defaultRuntimeOpenAPIBundle))
+	canonicalPath := filepath.Join(repoDir, filepath.FromSlash(app.OpenAPIDocsBundleSourcePath()))
 	if err := os.MkdirAll(filepath.Dir(canonicalPath), 0o750); err != nil {
 		t.Fatalf("mkdir canonical dir: %v", err)
-	}
-	if err := os.MkdirAll(filepath.Dir(runtimePath), 0o750); err != nil {
-		t.Fatalf("mkdir runtime dir: %v", err)
 	}
 
 	canonical := []byte(`{"openapi":"3.0.3","info":{"title":"canonical"}}`)
 	if err := os.WriteFile(canonicalPath, canonical, 0o600); err != nil {
 		t.Fatalf("write canonical bundle: %v", err)
 	}
-	if err := os.WriteFile(runtimePath, canonical, 0o600); err != nil {
-		t.Fatalf("write runtime bundle: %v", err)
-	}
 
 	backendReadFile = os.ReadFile
-	if err := validateEmbeddedOpenAPIBundleFreshness(repoDir); err != nil {
-		t.Fatalf("expected matching bundles to pass, got %v", err)
+	buildReleaseInfoSnapshot = func() buildinfo.Info {
+		return buildinfo.Info{}
+	}
+	if err := validateEmbeddedOpenAPIBundleFreshness(repoDir); err == nil {
+		t.Fatal("expected fixture canonical bundle to differ from checked-in generated asset")
 	}
 }
 
@@ -271,20 +270,13 @@ func TestValidateEmbeddedOpenAPIBundleFreshnessRejectsDrift(t *testing.T) {
 	}()
 
 	repoDir := t.TempDir()
-	canonicalPath := filepath.Join(repoDir, filepath.FromSlash(defaultOpenAPIBundlePath))
-	runtimePath := filepath.Join(repoDir, filepath.FromSlash(defaultRuntimeOpenAPIBundle))
+	canonicalPath := filepath.Join(repoDir, filepath.FromSlash(app.OpenAPIDocsBundleSourcePath()))
 	if err := os.MkdirAll(filepath.Dir(canonicalPath), 0o750); err != nil {
 		t.Fatalf("mkdir canonical dir: %v", err)
 	}
-	if err := os.MkdirAll(filepath.Dir(runtimePath), 0o750); err != nil {
-		t.Fatalf("mkdir runtime dir: %v", err)
-	}
 
-	if err := os.WriteFile(canonicalPath, []byte(`{"canonical":true}`), 0o600); err != nil {
+	if err := os.WriteFile(canonicalPath, []byte(`{"canonical":false}`), 0o600); err != nil {
 		t.Fatalf("write canonical bundle: %v", err)
-	}
-	if err := os.WriteFile(runtimePath, []byte(`{"canonical":false}`), 0o600); err != nil {
-		t.Fatalf("write runtime bundle: %v", err)
 	}
 
 	backendReadFile = os.ReadFile
@@ -292,14 +284,125 @@ func TestValidateEmbeddedOpenAPIBundleFreshnessRejectsDrift(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected drift error")
 	}
-	if !strings.Contains(err.Error(), defaultRuntimeOpenAPIBundle) {
-		t.Fatalf("expected runtime bundle path in error, got %v", err)
-	}
-	if !strings.Contains(err.Error(), defaultOpenAPIBundlePath) {
+	if !strings.Contains(err.Error(), app.OpenAPIDocsBundleSourcePath()) {
 		t.Fatalf("expected canonical bundle path in error, got %v", err)
 	}
 	if !strings.Contains(err.Error(), "sha256=") {
 		t.Fatalf("expected checksum evidence in error, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "go generate ./internal/app") {
+		t.Fatalf("expected regenerate hint, got %v", err)
+	}
+}
+
+func TestValidateEmbeddedOpenAPIBundleFreshnessMatchesGeneratedSource(t *testing.T) {
+	originalGetwd := backendGetwd
+	originalReadFile := backendReadFile
+	defer func() {
+		backendGetwd = originalGetwd
+		backendReadFile = originalReadFile
+	}()
+
+	repoRoot, err := filepath.Abs(filepath.Join("..", "..", ".."))
+	if err != nil {
+		t.Fatalf("resolve repo root: %v", err)
+	}
+
+	backendGetwd = func() (string, error) {
+		return filepath.Join(repoRoot, "server"), nil
+	}
+	backendReadFile = os.ReadFile
+	if err := validateEmbeddedOpenAPIBundleFreshness(repoRoot); err != nil {
+		t.Fatalf("expected matching bundles to pass, got %v", err)
+	}
+}
+
+func TestRunValidateReleaseRequiresReleaseBuildInfo(t *testing.T) {
+	originalGetwd := backendGetwd
+	originalReadFile := backendReadFile
+	originalSnapshot := buildReleaseInfoSnapshot
+	defer func() {
+		backendGetwd = originalGetwd
+		backendReadFile = originalReadFile
+		buildReleaseInfoSnapshot = originalSnapshot
+	}()
+
+	repoDir := t.TempDir()
+	serverDir := filepath.Join(repoDir, "server")
+	if err := os.MkdirAll(serverDir, 0o750); err != nil {
+		t.Fatalf("mkdir server dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(serverDir, "go.mod"), []byte("module graft/server\n"), 0o600); err != nil {
+		t.Fatalf("write go.mod: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(repoDir, "AGENTS.md"), []byte("test\n"), 0o600); err != nil {
+		t.Fatalf("write AGENTS: %v", err)
+	}
+
+	backendGetwd = func() (string, error) {
+		return serverDir, nil
+	}
+	backendReadFile = os.ReadFile
+	buildReleaseInfoSnapshot = func() buildinfo.Info {
+		return buildinfo.Info{}
+	}
+
+	err := runValidateRelease(&cobra.Command{})
+	if err == nil {
+		t.Fatal("expected release build info error")
+	}
+	if !strings.Contains(err.Error(), "requires release-grade BuildInfo") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestRunValidateReleaseValidatesEmbeddedAssets(t *testing.T) {
+	originalGetwd := backendGetwd
+	originalReadFile := backendReadFile
+	originalVersion := buildReleaseInfoSnapshot
+	originalRegistryDirs := migrateRegistryMigrationDirs
+	originalEmbeddedDir := migrateEmbeddedMigrationDirByPath
+	defer func() {
+		backendGetwd = originalGetwd
+		backendReadFile = originalReadFile
+		buildReleaseInfoSnapshot = originalVersion
+		migrateRegistryMigrationDirs = originalRegistryDirs
+		migrateEmbeddedMigrationDirByPath = originalEmbeddedDir
+	}()
+
+	repoDir, err := filepath.Abs("..")
+	if err != nil {
+		t.Fatalf("resolve repo dir: %v", err)
+	}
+	serverDir := filepath.Join(repoDir, "server")
+
+	backendGetwd = func() (string, error) {
+		return serverDir, nil
+	}
+	backendReadFile = os.ReadFile
+	buildReleaseInfoSnapshot = func() buildinfo.Info {
+		return buildinfo.Info{
+			Version:      "0.1.0",
+			GitCommit:    "abc1234",
+			BuildTimeUTC: "2026-06-22T00:00:00Z",
+			GitTreeState: "clean",
+		}
+	}
+
+	migrateRegistryMigrationDirs = func() ([]string, error) {
+		return []string{"modules/user/migrations"}, nil
+	}
+	migrateEmbeddedMigrationDirByPath = func(path string) (moduleregistry.EmbeddedMigrationDir, bool) {
+		if path != "modules/user/migrations" {
+			return moduleregistry.EmbeddedMigrationDir{}, false
+		}
+		return embeddedMigrationDir(t, path, map[string]string{
+			"202605190001_user.sql": "CREATE TABLE users (id bigint);\n",
+		}), true
+	}
+
+	if err := runValidateRelease(&cobra.Command{}); err != nil {
+		t.Fatalf("expected release validation to pass, got %v", err)
 	}
 }
 
@@ -1317,5 +1420,13 @@ func TestNewRootCommandRegistersValidateCommands(t *testing.T) {
 	}
 	if foundSmoke == nil || foundSmoke.Name() != "smoke" {
 		t.Fatalf("expected smoke command, got %#v", foundSmoke)
+	}
+
+	foundRelease, _, err := command.Find([]string{"validate", "release"})
+	if err != nil {
+		t.Fatalf("find validate release command: %v", err)
+	}
+	if foundRelease == nil || foundRelease.Name() != "release" {
+		t.Fatalf("expected release command, got %#v", foundRelease)
 	}
 }

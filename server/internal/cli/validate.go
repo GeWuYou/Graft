@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -20,6 +19,8 @@ import (
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/spf13/cobra"
 
+	"graft/server/internal/app"
+	"graft/server/internal/buildinfo"
 	"graft/server/internal/config"
 )
 
@@ -29,6 +30,7 @@ const (
 	defaultSmokeProbeDelay = 200 * time.Millisecond
 	defaultBackendStage    = "full"
 	defaultOpenAPIStage    = "openapi"
+	defaultReleaseStage    = "release"
 
 	defaultBackendLintConfig     = ".golangci.yml"
 	defaultBackendTestLintConfig = ".golangci.test.yml"
@@ -41,8 +43,6 @@ const (
 	defaultRemoteName            = "origin"
 	defaultRemoteHeadRef         = "refs/remotes/origin/HEAD"
 	defaultOpenAPIRootSpec       = "openapi/openapi.yaml"
-	defaultOpenAPIBundlePath     = "openapi/dist/openapi.bundle.json"
-	defaultRuntimeOpenAPIBundle  = "server/internal/app/openapi.bundle.json"
 	shaLength40                  = 40
 	shaLength64                  = 64
 )
@@ -78,6 +78,8 @@ var backendSmokeRunner = runValidateSmoke
 var backendOpenAPIRunner = runValidateOpenAPI
 var backendOpenAPIFreshnessRunner = runValidateOpenAPIFreshness
 var backendMigrationVersionRunner = runValidateMigrationVersions
+var backendReleaseRunner = runValidateRelease
+var buildReleaseInfoSnapshot = buildinfo.Current
 var backendLocaleOwnershipGuardRunner = runValidateServerLocaleOwnership
 var backendCommandRunner = runBackendCommand
 var backendGitOutputRunner = runBackendGitOutput
@@ -102,6 +104,7 @@ func newValidateCommand() *cobra.Command {
 
 	command.AddCommand(newValidateBackendCommand())
 	command.AddCommand(newValidateOpenAPICommand())
+	command.AddCommand(newValidateReleaseCommand())
 	command.AddCommand(newValidateSmokeCommand())
 	return command
 }
@@ -160,6 +163,20 @@ func newValidateOpenAPICommand() *cobra.Command {
 	}
 
 	command.Flags().StringVar(&specPath, "spec", defaultOpenAPIRootSpec, "root OpenAPI spec path relative to repository root")
+	return command
+}
+
+func newValidateReleaseCommand() *cobra.Command {
+	command := &cobra.Command{
+		Use:          "release",
+		Short:        "Validate release-binary readiness guarantees",
+		SilenceUsage: true,
+		Args:         cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return backendReleaseRunner(cmd)
+		},
+	}
+
 	return command
 }
 
@@ -348,32 +365,55 @@ func runValidateOpenAPIFreshness() error {
 	return nil
 }
 
+func runValidateRelease(_ *cobra.Command) error {
+	info := buildReleaseInfoSnapshot()
+	if !info.IsOfficialRelease() {
+		return fmt.Errorf(
+			"`graft validate release` requires release-grade BuildInfo; current version=%q git_commit=%q build_time_utc=%q git_tree_state=%q",
+			info.Version,
+			info.GitCommit,
+			info.BuildTimeUTC,
+			info.GitTreeState,
+		)
+	}
+	if info.IsDirty() {
+		return fmt.Errorf("`graft validate release` requires a clean release build; current git_tree_state=%q", info.GitTreeState)
+	}
+
+	repoRoot, err := resolveRepositoryRoot()
+	if err != nil {
+		return fmt.Errorf("resolve repository root for release validation: %w", err)
+	}
+
+	if err := validateEmbeddedOpenAPIBundleFreshness(repoRoot); err != nil {
+		return err
+	}
+
+	if _, err := buildAtlasMigrationDir(repoRoot, defaultMigrationDir); err != nil {
+		return fmt.Errorf("validate embedded default migration chain: %w", err)
+	}
+
+	return nil
+}
+
 func validateEmbeddedOpenAPIBundleFreshness(repoRoot string) error {
-	canonicalPath := filepath.Join(repoRoot, filepath.FromSlash(defaultOpenAPIBundlePath))
-	runtimePath := filepath.Join(repoRoot, filepath.FromSlash(defaultRuntimeOpenAPIBundle))
+	canonicalPath := filepath.Join(repoRoot, filepath.FromSlash(app.OpenAPIDocsBundleSourcePath()))
 
 	canonicalBundle, err := backendReadFile(canonicalPath)
 	if err != nil {
 		return fmt.Errorf("read canonical bundled openapi spec %q: %w", canonicalPath, err)
 	}
-	runtimeBundle, err := backendReadFile(runtimePath)
-	if err != nil {
-		return fmt.Errorf("read runtime embedded bundled openapi spec %q: %w", runtimePath, err)
-	}
-	if bytes.Equal(canonicalBundle, runtimeBundle) {
+	canonicalDigest := sha256.Sum256(canonicalBundle)
+	generatedDigest := app.OpenAPIDocsBundleSHA256()
+	if hex.EncodeToString(canonicalDigest[:]) == generatedDigest {
 		return nil
 	}
 
-	canonicalDigest := sha256.Sum256(canonicalBundle)
-	runtimeDigest := sha256.Sum256(runtimeBundle)
 	return fmt.Errorf(
-		"runtime embedded bundled openapi spec is stale: %s (sha256=%s) does not match %s (sha256=%s); sync %s from %s",
-		defaultRuntimeOpenAPIBundle,
-		hex.EncodeToString(runtimeDigest[:]),
-		defaultOpenAPIBundlePath,
+		"runtime generated bundled openapi spec is stale: server/internal/app generated sha256=%s does not match %s (sha256=%s); run `cd server && go generate ./internal/app` to sync runtime docs asset",
+		generatedDigest,
+		app.OpenAPIDocsBundleSourcePath(),
 		hex.EncodeToString(canonicalDigest[:]),
-		defaultRuntimeOpenAPIBundle,
-		defaultOpenAPIBundlePath,
 	)
 }
 

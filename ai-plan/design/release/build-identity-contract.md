@@ -27,6 +27,28 @@ Release-grade `BuildInfo` must include:
 
 Optional future metadata may be added later, but must not replace or weaken the baseline fields above.
 
+## Release Binary Required Payload
+
+The official `server` release binary contract must carry these runtime-readable assets inside the binary itself:
+
+- canonical `BuildInfo`
+- the default embedded migration chain used by the repository-default migration entry
+- the runtime embedded bundled OpenAPI asset used as the canonical runtime HTTP contract snapshot
+
+These assets are part of the release-binary authority because they are required for runtime-safe operator inspection or
+runtime-safe explicit validation without depending on GitHub Release attachments, CI logs, or external network fetches.
+
+The following release assets may be published alongside a release tag without being embedded in the `server` binary:
+
+- `LICENSE`
+- `SBOM`
+- license compliance report
+- `web` dist artifact
+- checksum manifests and other release-note attachments
+
+External release assets may be required by the wider release package, but they do not redefine the binary contract and
+must not be described as if the `server` binary reads them at runtime.
+
 ## `graft version` Minimum Boundary
 
 - current repository state exposes a `graft version` subcommand
@@ -66,3 +88,17 @@ For local binaries and `go run` development flows, `graft version` must report t
 - `git_commit=unknown`
 - `build_time_utc=unknown`
 - `git_tree_state=unknown`
+
+## `graft validate release` Minimum Guarantee
+
+`graft validate release` is the canonical repository entrypoint for release-binary contract checks. Its minimum
+guarantee is intentionally narrow:
+
+- verify release-grade `BuildInfo` is present
+- verify the binary identifies itself as a clean release build
+- verify the runtime embedded bundled OpenAPI asset matches the canonical repository bundle
+- verify the default embedded migration chain can be synthesized as the release-default migration authority
+
+`graft validate release` must not be described as proving the full publish bundle, GitHub Release attachment set,
+operator deployment environment, or release-note completeness unless those checks are explicitly added to this
+authority later.

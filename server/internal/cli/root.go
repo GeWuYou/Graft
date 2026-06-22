@@ -15,13 +15,14 @@ import "github.com/spf13/cobra"
 //   - 本地开发编排通过 `graft dev` 组合显式迁移与启动流程，并通过 `graft dev air` 提供热重载入口。
 //   - 后端完成态质量链通过 `graft validate backend` 显式触发。
 //   - OpenAPI 契约校验通过 `graft validate openapi` 或 `graft validate backend --stage openapi` 显式触发。
+//   - release-grade 二进制契约校验通过 `graft validate release` 显式触发。
 //   - 可重复的最小后端验证通过 `graft validate smoke` 显式触发。
 func NewRootCommand() *cobra.Command {
 	root := &cobra.Command{
 		Use:          "graft",
 		Short:        "Graft server runtime and maintenance commands",
 		Long:         "Graft uses explicit subcommands for build identity inspection, database migration, local development orchestration, backend quality validation, runtime smoke validation, and server startup. Running `graft` without a subcommand only prints help.",
-		Example:      "  graft version\n  graft dev\n  graft dev air\n  graft migrate up\n  graft validate openapi\n  graft validate backend\n  graft validate smoke\n  graft serve",
+		Example:      "  graft version\n  graft dev\n  graft dev air\n  graft migrate up\n  graft validate openapi\n  graft validate release\n  graft validate backend\n  graft validate smoke\n  graft serve",
 		SilenceUsage: true,
 		Args:         cobra.NoArgs,
 		// 保持 `serve` 作为纯运行时入口，这样 `dev` 可以复用显式迁移步骤，

@@ -30,6 +30,7 @@
 * `DefaultMigrationDir`
   - CLI 默认值使用的选择器，不对应真实目录
   - `graft migrate up` / `graft dev` / `graft validate smoke` 在未显式传入 `--dir` 时，会通过它展开 live core-owned + module-owned 默认迁移链
+  - `graft migrate up` / `graft migrate validate` 对 repo-owned 选择器（如 `default`、`modules/*/migrations`、`internal/*/migrations`）正式消费 compile-time embedded assets；外部本地目录必须显式使用 `file:<path>`
 * `CoreMigrationDirs()`
   - 暴露默认链中的 core-owned live 迁移目录
   - 当前 `internal/httpx/migrations` 持有 `access_logs` 的 canonical migration authority

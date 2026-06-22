@@ -89,6 +89,11 @@ jobs:
             -o ../dist/server/graft-server-linux-amd64 \
             ./cmd/graft
 
+      - name: Validate release binary contract
+        run: |
+          set -euo pipefail
+          ./dist/server/graft-server-linux-amd64 validate release
+
       - name: Install web dependencies
         working-directory: web
         run: bun install --frozen-lockfile
@@ -107,6 +112,7 @@ jobs:
           mkdir -p release-assets
           tar -C dist/server -czf "release-assets/graft-server-linux-amd64-${{ github.ref_name }}.tar.gz" graft-server-linux-amd64
           tar -C web -czf "release-assets/graft-web-dist-${{ github.ref_name }}.tar.gz" dist
+          cp LICENSE "release-assets/LICENSE-${{ github.ref_name }}"
           sha256sum release-assets/* > release-assets/SHA256SUMS
 
       - name: Upload release artifacts

@@ -27,6 +27,7 @@ import (
 const defaultMigrationDir = moduleregistry.DefaultMigrationDir
 
 const migrationVersionMatchCount = 2
+const externalMigrationDirPrefix = "file:"
 
 var migrationVersionPattern = regexp.MustCompile(`^(\d+)_.*\.sql$`)
 
@@ -51,6 +52,21 @@ type atlasExecutorHandle struct {
 
 type atlasExecutor interface {
 	ExecuteN(context.Context, int) error
+}
+
+type migrationDirInputKind int
+
+const (
+	migrationDirInputKindDefault migrationDirInputKind = iota
+	migrationDirInputKindRepoOwned
+	migrationDirInputKindExternal
+)
+
+type migrationDirInput struct {
+	kind         migrationDirInputKind
+	displayValue string
+	selector     string
+	externalPath string
 }
 
 type migrationDirSource struct {
@@ -79,6 +95,13 @@ func newMigrateCommand() *cobra.Command {
 			return runMigrateUp(cmd, migrateUpOptions{migrationDir: migrationDir})
 		},
 	})
+	command.AddCommand(&cobra.Command{
+		Use:   "validate",
+		Short: "Validate migration assets without connecting to the database",
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return runMigrateValidate(migrateResolveOptions{migrationDir: migrationDir})
+		},
+	})
 
 	return command
 }
@@ -97,15 +120,7 @@ func runMigrateUp(cmd *cobra.Command, opts migrateUpOptions) error {
 		return fmt.Errorf("load config: %w", err)
 	}
 
-	workingDir := opts.workingDir
-	if strings.TrimSpace(workingDir) == "" {
-		workingDir, err = migrateGetwd()
-		if err != nil {
-			return fmt.Errorf("resolve working directory: %w", err)
-		}
-	}
-
-	dir, err := buildAtlasMigrationDir(workingDir, opts.migrationDir)
+	dir, err := resolveAtlasMigrationDir(migrateResolveOptions(opts))
 	if err != nil {
 		return fmt.Errorf("resolve migration dir: %w", err)
 	}
@@ -133,6 +148,35 @@ func runMigrateUp(cmd *cobra.Command, opts migrateUpOptions) error {
 	}
 
 	return nil
+}
+
+type migrateResolveOptions struct {
+	migrationDir string
+	workingDir   string
+}
+
+func runMigrateValidate(opts migrateResolveOptions) error {
+	dir, err := resolveAtlasMigrationDir(opts)
+	if err != nil {
+		return fmt.Errorf("resolve migration dir: %w", err)
+	}
+	if err := atlasmigrate.Validate(dir); err != nil {
+		return fmt.Errorf("validate migration dir: %w", err)
+	}
+	return nil
+}
+
+func resolveAtlasMigrationDir(opts migrateResolveOptions) (atlasmigrate.Dir, error) {
+	workingDir := opts.workingDir
+	if strings.TrimSpace(workingDir) == "" {
+		var err error
+		workingDir, err = migrateGetwd()
+		if err != nil {
+			return nil, fmt.Errorf("resolve working directory: %w", err)
+		}
+	}
+
+	return buildAtlasMigrationDir(workingDir, opts.migrationDir)
 }
 
 func openAtlasExecutor(databaseURL string, dir atlasmigrate.Dir, logger atlasmigrate.Logger) (*atlasExecutorHandle, error) {
@@ -166,29 +210,24 @@ func openAtlasExecutor(databaseURL string, dir atlasmigrate.Dir, logger atlasmig
 }
 
 func buildAtlasMigrationDir(baseDir string, migrationDir string) (atlasmigrate.Dir, error) {
-	if strings.TrimSpace(migrationDir) == "" {
-		return nil, fmt.Errorf("migration dir is required")
-	}
-
-	if migrationDir != defaultMigrationDir {
-		return loadSingleAtlasMigrationDir(baseDir, migrationDir)
-	}
-
-	return buildDefaultAtlasMigrationDir(baseDir)
-}
-
-func loadSingleAtlasMigrationDir(baseDir string, migrationDir string) (atlasmigrate.Dir, error) {
-	source, found, err := loadMigrationDirSource(baseDir, migrationDir)
+	input, err := parseMigrationDirInput(migrationDir)
 	if err != nil {
 		return nil, err
 	}
-	if !found {
-		return nil, fmt.Errorf("cannot find migration dir %q from %s: %w", migrationDir, baseDir, os.ErrNotExist)
+
+	switch input.kind {
+	case migrationDirInputKindDefault:
+		return buildDefaultAtlasMigrationDir()
+	case migrationDirInputKindRepoOwned:
+		return loadRepoOwnedAtlasMigrationDir(input.selector)
+	case migrationDirInputKindExternal:
+		return loadExternalAtlasMigrationDir(baseDir, input.externalPath)
+	default:
+		return nil, fmt.Errorf("unsupported migration dir input %q", input.displayValue)
 	}
-	return source.dir, nil
 }
 
-func buildDefaultAtlasMigrationDir(baseDir string) (atlasmigrate.Dir, error) {
+func buildDefaultAtlasMigrationDir() (atlasmigrate.Dir, error) {
 	searchDirs, err := migrateRegistryMigrationDirs()
 	if err != nil {
 		return nil, fmt.Errorf("load compile-time migration registry: %w", err)
@@ -196,11 +235,11 @@ func buildDefaultAtlasMigrationDir(baseDir string) (atlasmigrate.Dir, error) {
 
 	sources := make([]migrationDirSource, 0, len(searchDirs))
 	for _, current := range searchDirs {
-		source, found, err := loadMigrationDirSource(baseDir, current)
+		source, err := loadRepoOwnedMigrationDirSource(current)
 		if err != nil {
 			return nil, err
 		}
-		if !found || !source.hasAtlasState {
+		if !source.hasAtlasState {
 			continue
 		}
 		if err := atlasmigrate.Validate(source.dir); err != nil {
@@ -223,33 +262,81 @@ func buildDefaultAtlasMigrationDir(baseDir string) (atlasmigrate.Dir, error) {
 	return dir, nil
 }
 
-func loadMigrationDirSource(baseDir string, migrationDir string) (migrationDirSource, bool, error) {
-	if embedded, found, err := loadEmbeddedMigrationDirSource(migrationDir); found || err != nil {
-		return embedded, found, err
+func parseMigrationDirInput(migrationDir string) (migrationDirInput, error) {
+	trimmed := strings.TrimSpace(migrationDir)
+	if trimmed == "" {
+		return migrationDirInput{}, fmt.Errorf("migration dir is required")
 	}
 
-	absDir, err := resolveMigrationDir(baseDir, migrationDir)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return migrationDirSource{}, false, nil
+	if strings.HasPrefix(trimmed, externalMigrationDirPrefix) {
+		externalPath := strings.TrimSpace(strings.TrimPrefix(trimmed, externalMigrationDirPrefix))
+		if externalPath == "" {
+			return migrationDirInput{}, fmt.Errorf("external migration dir path is required after %q", externalMigrationDirPrefix)
 		}
-		return migrationDirSource{}, false, err
+		return migrationDirInput{
+			kind:         migrationDirInputKindExternal,
+			displayValue: trimmed,
+			externalPath: externalPath,
+		}, nil
 	}
 
-	dir, err := atlasmigrate.NewLocalDir(absDir)
-	if err != nil {
-		return migrationDirSource{}, false, fmt.Errorf("open migration dir %s: %w", absDir, err)
-	}
-	hasAtlasState, err := directoryContainsAtlasState(absDir)
-	if err != nil {
-		return migrationDirSource{}, false, err
+	normalized := filepath.ToSlash(trimmed)
+	if normalized == defaultMigrationDir {
+		return migrationDirInput{
+			kind:         migrationDirInputKindDefault,
+			displayValue: trimmed,
+			selector:     defaultMigrationDir,
+		}, nil
 	}
 
-	return migrationDirSource{
-		path:          migrationDir,
-		dir:           dir,
-		hasAtlasState: hasAtlasState,
-	}, true, nil
+	if isRepoOwnedMigrationSelector(normalized) {
+		return migrationDirInput{
+			kind:         migrationDirInputKindRepoOwned,
+			displayValue: trimmed,
+			selector:     normalized,
+		}, nil
+	}
+
+	if strings.HasPrefix(normalized, "server/modules/") || strings.HasPrefix(normalized, "server/internal/") {
+		return migrationDirInput{}, fmt.Errorf(
+			"repo-owned migration selector %q must use owner-aligned path without \"server/\" or explicit %s prefix",
+			trimmed,
+			externalMigrationDirPrefix,
+		)
+	}
+
+	return migrationDirInput{}, fmt.Errorf(
+		"external migration dir %q must use explicit %s prefix",
+		trimmed,
+		externalMigrationDirPrefix,
+	)
+}
+
+func isRepoOwnedMigrationSelector(migrationDir string) bool {
+	return strings.HasPrefix(migrationDir, "modules/") || strings.HasPrefix(migrationDir, "internal/")
+}
+
+func loadRepoOwnedAtlasMigrationDir(migrationDir string) (atlasmigrate.Dir, error) {
+	source, err := loadRepoOwnedMigrationDirSource(migrationDir)
+	if err != nil {
+		return nil, err
+	}
+	return source.dir, nil
+}
+
+func loadRepoOwnedMigrationDirSource(migrationDir string) (migrationDirSource, error) {
+	embedded, found, err := loadEmbeddedMigrationDirSource(migrationDir)
+	if err != nil {
+		return migrationDirSource{}, err
+	}
+	if !found {
+		return migrationDirSource{}, fmt.Errorf(
+			"compile-time embedded migration dir %q is not available; regenerate registry assets or use %s<path> for an explicit external directory",
+			migrationDir,
+			externalMigrationDirPrefix,
+		)
+	}
+	return embedded, nil
 }
 
 func loadEmbeddedMigrationDirSource(migrationDir string) (migrationDirSource, bool, error) {
@@ -270,6 +357,40 @@ func loadEmbeddedMigrationDirSource(migrationDir string) (migrationDirSource, bo
 		dir:           dir,
 		hasAtlasState: embeddedMigrationDirHasAtlasState(embedded),
 	}, true, nil
+}
+
+func loadExternalAtlasMigrationDir(baseDir string, externalPath string) (atlasmigrate.Dir, error) {
+	absDir, err := resolveExternalMigrationDir(baseDir, externalPath)
+	if err != nil {
+		return nil, err
+	}
+
+	dir, err := atlasmigrate.NewLocalDir(absDir)
+	if err != nil {
+		return nil, fmt.Errorf("open migration dir %s: %w", absDir, err)
+	}
+	return dir, nil
+}
+
+func resolveExternalMigrationDir(baseDir string, externalPath string) (string, error) {
+	candidate := externalPath
+	if !filepath.IsAbs(candidate) {
+		candidate = filepath.Join(baseDir, candidate)
+	}
+
+	info, err := os.Stat(candidate)
+	if err != nil {
+		return "", fmt.Errorf("cannot find migration dir %q from %s: %w", externalPath, baseDir, err)
+	}
+	if !info.IsDir() {
+		return "", fmt.Errorf("migration dir %s is not a directory", candidate)
+	}
+
+	absDir, err := filepath.Abs(candidate)
+	if err != nil {
+		return "", fmt.Errorf("resolve migration dir %s: %w", candidate, err)
+	}
+	return absDir, nil
 }
 
 func embeddedMigrationDirHasAtlasState(dir moduleregistry.EmbeddedMigrationDir) bool {
