@@ -233,6 +233,7 @@ const runtimeSecondaryFields = computed(() => {
 const processAndBuildFields = computed(() => {
   const server = serverStatus.value?.server;
   const runtime = serverStatus.value?.runtime;
+  const build = server?.build;
 
   return [
     {
@@ -248,12 +249,22 @@ const processAndBuildFields = computed(() => {
     {
       key: 'buildVersion',
       label: t('monitor.runtimePage.fields.buildVersion'),
-      value: displaySnapshotText(server?.version),
+      value: displaySnapshotText(build?.version),
     },
     {
       key: 'gitCommit',
       label: t('monitor.runtimePage.fields.gitCommit'),
-      value: notReportedLabel.value,
+      value: displaySnapshotText(build?.git_commit),
+    },
+    {
+      key: 'buildTimeUtc',
+      label: t('monitor.runtimePage.fields.buildTimeUtc'),
+      value: displaySnapshotText(build?.build_time_utc),
+    },
+    {
+      key: 'gitTreeState',
+      label: t('monitor.runtimePage.fields.gitTreeState'),
+      value: displaySnapshotText(build?.git_tree_state),
     },
     {
       key: 'startedAt',

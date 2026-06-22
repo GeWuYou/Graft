@@ -73,6 +73,8 @@ const translations = vi.hoisted(
     'monitor.runtimePage.fields.lastGc': 'Last GC time',
     'monitor.runtimePage.fields.buildVersion': 'Build version',
     'monitor.runtimePage.fields.gitCommit': 'Git commit',
+    'monitor.runtimePage.fields.buildTimeUtc': 'Build time (UTC)',
+    'monitor.runtimePage.fields.gitTreeState': 'Git tree state',
     'monitor.runtimePage.fields.appName': 'Application',
     'monitor.runtimePage.fields.appEnv': 'Environment',
     'monitor.runtimePage.fields.startedAt': 'Started at',
@@ -201,7 +203,12 @@ function createResponse() {
     status: 'healthy',
     observed_at: '2026-05-21T10:30:00Z',
     server: {
-      version: 'v0.3.2',
+      build: {
+        version: 'v0.3.2',
+        git_commit: 'abc1234',
+        build_time_utc: '2026-05-21T07:55:00Z',
+        git_tree_state: 'clean',
+      },
       started_at: '2026-05-21T08:30:00Z',
       uptime_seconds: 7200,
       go_version: 'go1.26.0',
@@ -260,7 +267,7 @@ function createResponse() {
 }
 
 describe('monitor runtime page', () => {
-  it('renders runtime and host sections with explicit memory separation and reserved fields', async () => {
+  it('renders runtime and host sections with explicit memory separation and build identity fields', async () => {
     monitorApiMocks.getServerStatus.mockResolvedValue(createResponse());
 
     const wrapper = mountRuntimePage();
@@ -273,7 +280,8 @@ describe('monitor runtime page', () => {
     expect(wrapper.text()).toContain('Server memory');
     expect(wrapper.text()).toContain('Memory usage');
     expect(wrapper.text()).toContain('Git commit');
-    expect(wrapper.text()).toContain('Not reported');
+    expect(wrapper.text()).toContain('Build time (UTC)');
+    expect(wrapper.text()).toContain('Git tree state');
     expect(wrapper.text()).toContain('Build version');
     expect(wrapper.text()).toContain('Go version');
     expect(wrapper.text()).toContain('Every 5 sec');
@@ -286,9 +294,12 @@ describe('monitor runtime page', () => {
     expect(wrapper.text()).toContain('8.00 GB / 16.0 GB');
     expect(wrapper.text()).toContain('50%');
     expect(wrapper.text()).toContain('v0.3.2');
+    expect(wrapper.text()).toContain('abc1234');
+    expect(wrapper.text()).toContain('2026-05-21T07:55:00Z');
+    expect(wrapper.text()).toContain('clean');
     expect(wrapper.findAll('.server-status-summary-card')).toHaveLength(4);
     expect(wrapper.findAll('.server-status-runtime-grid__card')).toHaveLength(3);
-    expect(wrapper.findAll('.server-status-kv-row')).toHaveLength(16);
+    expect(wrapper.findAll('.server-status-kv-row')).toHaveLength(18);
     expect(wrapper.find('[data-refresh-trend-window-select="true"]').exists()).toBe(false);
     expect(wrapper.text()).not.toContain('Snapshot Context');
     expect(wrapper.text()).not.toContain('Metric scope');

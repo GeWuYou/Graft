@@ -36,6 +36,8 @@
         "lastGc": "最近 GC 时间",
         "buildVersion": "构建版本",
         "gitCommit": "Git Commit",
+        "buildTimeUtc": "构建时间（UTC）",
+        "gitTreeState": "Git 工作树状态",
         "appName": "应用标识",
         "appEnv": "运行环境",
         "startedAt": "启动时间",
