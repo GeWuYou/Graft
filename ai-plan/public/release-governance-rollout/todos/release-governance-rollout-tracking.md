@@ -25,11 +25,11 @@ Release Governance Rollout
 
 - 已完成上游审计 topic archive handoff。
 - 当前 active topic 只承接 `v0.1.0 P0` 治理落地顺序，不直接实现 release workflow。
-- 当前批次 `phase-1-release-safety-governance` 已完成。
-- 下一批固定为 `phase-2-release-identity-and-policy`。
+- 当前批次 `phase-2-release-identity-and-policy` 已完成。
+- 下一批固定为 `phase-3-release-operator-docs-baseline`。
 - 剩余串行计划：
-  - Phase 2：BuildInfo / version / release policy governance
   - Phase 3：operator docs baseline
+  - Final：archive-readiness check
 
 ## Task Checklist
 
@@ -37,7 +37,7 @@ Release Governance Rollout
 - [x] 建立新的 active topic recovery 入口
 - [x] 固定 loop mode、预算和 stop conditions
 - [x] Phase 1：Release Safety Governance
-- [ ] Phase 2：Release Identity And Policy
+- [x] Phase 2：Release Identity And Policy
 - [ ] Phase 3：Release Operator Docs Baseline
 - [ ] Final archive-readiness check
 
@@ -45,9 +45,9 @@ Release Governance Rollout
 
 - `loop_mode`: `topic-completion-loop`
 - `current_batch`: `none`
-- `next_batch`: `phase-2-release-identity-and-policy`
+- `next_batch`: `phase-3-release-operator-docs-baseline`
 - `remaining_after_current`:
-  - `phase-3-release-operator-docs-baseline`
+  - `final-archive-readiness-check`
 
 ## Phase 1 Decisions
 
@@ -79,3 +79,20 @@ Release Governance Rollout
 - `phase-3-release-operator-docs-baseline`
   - 聚焦 operator-facing 文档最小集合
   - 不进入 docs-site 或 hosted docs 建设
+
+## Phase 2 Decisions
+
+- 已固定 release identity baseline：
+  - official release identity 以仓库 Git tag `vMAJOR.MINOR.PATCH` 为唯一 authority
+  - future `BuildInfo` baseline fields 固定为 `version`、`git_commit`、`build_time_utc`、`git_tree_state`
+  - `BuildInfo.version` 使用 bare semver；release tag 继续保留 `v` 前缀
+- 已固定 `graft version` 最小边界：
+  - 当前仓库还没有 `version` subcommand
+  - 后续实现必须是纯 metadata readout，不能依赖数据库、Redis、HTTP 启动或 migration 执行
+  - release build 至少输出 `version`、`git_commit`、`build_time_utc`、`git_tree_state`
+- 已固定 release policy / support boundary：
+  - `v0.1.0` 只承诺一个 active repository release line
+  - 不承诺 LTS、多 minor 并行维护或独立 `server` / `web` 官方发布节奏
+- 已固定 version coordination：
+  - 官方 `server` / `web` artifact 与 release notes 必须来自同一 release tag
+  - migration version 是内部排序号，不是 product version，也不能用来替代 release compatibility

@@ -83,12 +83,11 @@
 ## Current Recovery Point
 
 - 上游 `release-readiness-governance-audit` 已 archive-ready，并已迁入 archive。
-- 当前主题已完成 Phase 1 worker round，并固定了 release safety governance authority。
+- 当前主题已完成 Phase 1-2 worker round，并固定了 release safety / identity / policy governance authority。
 - 当前 loop 的 pending batches 为：
-  - `phase-2-release-identity-and-policy`
   - `phase-3-release-operator-docs-baseline`
 - 实施顺序必须串行：
-  - 先完成 Phase 2，再进入 Phase 3
+  - 先完成 Phase 3
   - `pending_batches=[]` 后仍需做 final archive-readiness check，不能直接停
 
 ## Loop Batch State
@@ -98,14 +97,14 @@
   "loop_mode": "topic-completion-loop",
   "completed_batches": [
     "phase-0-topic-bootstrap-and-archive-handoff",
-    "phase-1-release-safety-governance"
+    "phase-1-release-safety-governance",
+    "phase-2-release-identity-and-policy"
   ],
   "pending_batches": [
-    "phase-2-release-identity-and-policy",
     "phase-3-release-operator-docs-baseline"
   ],
   "current_batch": null,
-  "next_batch": "phase-2-release-identity-and-policy",
+  "next_batch": "phase-3-release-operator-docs-baseline",
   "closeout_status": "planned-active"
 }
 ```
@@ -159,6 +158,68 @@
 
 - 本 topic README 原先引用了不存在的 `startup-prompt.md`。
 - Phase 1 已补齐 `ai-plan/public/release-governance-rollout/startup-prompt.md`，恢复了 recovery 入口一致性。
+
+## Phase 2 Accepted Authority
+
+### Release Identity Baseline
+
+- authority evidence：
+  - `server/internal/cli/root.go`
+  - `.github/workflows/release.yml`
+  - `.github/workflows/publish.yml`
+  - `web/package.json`
+  - `README.md`
+- accepted rules：
+  - official release identity for `v0.1.0` is the repository Git tag `vMAJOR.MINOR.PATCH`; publish-time artifact naming,
+    release notes, and release summary must derive from that same tag
+  - the minimal future `BuildInfo` contract for release-grade `server` binaries is:
+    - `version`
+    - `git_commit`
+    - `build_time_utc`
+    - `git_tree_state`
+  - `BuildInfo.version` uses bare semver such as `0.1.0`; the canonical release tag remains `v0.1.0`
+  - optional future metadata such as target platform or builder identity may be added later, but must not replace the
+    four required baseline fields
+  - current repository state does not yet expose unified BuildInfo injection or an operator-facing runtime identity
+    surface; until that implementation lands, operators must treat release tag, artifact filename, and release notes as
+    the canonical release identity
+
+### `graft version` Minimum Boundary
+
+- current authority evidence shows `server/internal/cli/root.go` registers `dev`、`serve`、`migrate` and `validate`,
+  but no `version` subcommand yet
+- accepted rules for the future command boundary：
+  - `graft version` must be a pure metadata readout and must not require PostgreSQL, Redis, HTTP startup, or live
+    migration access
+  - release builds must print or return at least `version`、`git_commit`、`build_time_utc` and `git_tree_state`
+  - non-release or local builds may still identify themselves as `dev`, but must not be confused with an official
+    tagged release
+  - the command boundary is governance-only in Phase 2; this batch does not claim the command already exists
+
+### Release Policy And Support Boundary
+
+- `v0.1.0` only promises one active repository release line at a time; no LTS line, multi-minor support matrix, or
+  independent `server` / `web` support cadence is promised
+- the minimal supported release package for official operators is:
+  - one repository tag
+  - one `server` release artifact built from that tag
+  - one `web` release artifact built from that tag
+  - one matching release-notes body for that tag
+- `v0.1.0` does not promise hot-patch builds, per-module releases, or detached `web`-only or `server`-only official
+  release lines outside the shared repository version
+
+### `server` / `web` / Migration Version Coordination
+
+- `server` binary, `web` dist artifact, and release notes for an official release must come from the same Git tag and
+  same repository commit lineage
+- mixing `server` and `web` artifacts from different official release tags is unsupported for `v0.1.0`
+- migration governance remains explicit and forward-only:
+  - operators apply the migration set associated with the target release before normal runtime startup when schema
+    changes are present
+  - migration file versions are internal ordering identifiers, not product release numbers and not compatibility labels
+- `web/package.json` dependency versions and frontend build tool versions are build inputs, not product release identity
+- Phase 3 docs must cite release tag compatibility and explicit migration step requirements instead of inventing a
+  separate compatibility matrix
 
 ## Batch Details
 

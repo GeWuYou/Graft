@@ -160,6 +160,19 @@ The current `v0.1.0` release-governance baseline is documentation-first and oper
 - stable config rename, removal, or semantic re-interpretation must be called out in release notes and upgrade notes;
   alias bridges are not assumed by default
 
+### Release Identity Baseline
+
+The current `v0.1.0` release identity and support baseline is:
+
+- the canonical official release identity is the repository Git tag `vMAJOR.MINOR.PATCH`
+- official `server` and `web` release artifacts, plus release notes, must come from the same release tag
+- migration version numbers are internal ordering identifiers, not product versions and not compatibility labels
+- the future minimal `BuildInfo` / `graft version` baseline is `version`, `git_commit`, `build_time_utc`, and
+  `git_tree_state`
+- until BuildInfo injection and a `graft version` command are implemented, operators should treat the release tag,
+  published artifact names, and release notes as the canonical release identity
+- `v0.1.0` does not promise LTS lines, independent `server` / `web` release trains, or mixed-version compatibility
+
 Windows PowerShell / CMD can use the same Go command:
 
 ```powershell
