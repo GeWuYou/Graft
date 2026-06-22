@@ -17,6 +17,12 @@ Release Governance Rollout
 - `ai-plan/design/AI任务追踪与恢复设计.md`
 - `ai-plan/design/数据库表设计与迁移规范.md`
 - `ai-plan/design/服务端API边界与兼容治理规范.md`
+- `ai-plan/design/release/build-identity-contract.md`
+- `ai-plan/design/release/migration-policy.md`
+- `ai-plan/design/release/config-policy.md`
+- `ai-plan/design/release/versioning-policy.md`
+- `ai-plan/design/release/support-boundary.md`
+- `ai-plan/design/release/upgrade-policy.md`
 - `ai-plan/public/archive/release-readiness-governance-audit/README.md`
 - `ai-plan/public/archive/release-readiness-governance-audit/todos/release-readiness-governance-audit-tracking.md`
 - `ai-plan/public/archive/release-readiness-governance-audit/traces/release-readiness-governance-audit-trace.md`
@@ -25,10 +31,9 @@ Release Governance Rollout
 
 - 已完成上游审计 topic archive handoff。
 - 当前 active topic 只承接 `v0.1.0 P0` 治理落地顺序，不直接实现 release workflow。
-- 当前批次 `phase-3-release-operator-docs-baseline` 已完成。
+- 当前批次 `phase-3-release-operator-docs-baseline` 已完成修正，authority 已收口到 `ai-plan/design/release/**`。
 - 下一批固定为 `final-archive-readiness-check`。
 - 剩余串行计划：
-  - Phase 3：operator docs baseline
   - Final：archive-readiness check
 
 ## Task Checklist
@@ -38,7 +43,7 @@ Release Governance Rollout
 - [x] 固定 loop mode、预算和 stop conditions
 - [x] Phase 1：Release Safety Governance
 - [x] Phase 2：Release Identity And Policy
-- [x] Phase 3：Release Operator Docs Baseline
+- [x] Phase 3：Release Authority Baseline Alignment
 - [ ] Final archive-readiness check
 
 ## Current Loop State
@@ -77,8 +82,8 @@ Release Governance Rollout
   - 聚焦 `BuildInfo`、`graft version`、release policy、support boundary
   - 不进入 workflow 改造
 - `phase-3-release-operator-docs-baseline`
-  - 聚焦 operator-facing 文档最小集合
-  - 不进入 docs-site 或 hosted docs 建设
+  - 聚焦 release governance authority baseline
+  - 不进入 docs-site、hosted docs 或 operator-facing 文档集合建设
 
 ## Phase 2 Decisions
 
@@ -99,14 +104,14 @@ Release Governance Rollout
 
 ## Phase 3 Decisions
 
-- 已固定 operator 文档集合 canonical location：
-  - `ai-plan/public/release-governance-rollout/operator-docs/README.md`
-  - `install.md`
-  - `config-reference.md`
-  - `upgrade.md`
-  - `rollback.md`
-  - `release-notes-template.md`
-- 已完成 coverage check，并只补齐原本未直接可消费的 operator 落点：
+- 已固定 release governance authority canonical location：
+  - `ai-plan/design/release/build-identity-contract.md`
+  - `ai-plan/design/release/migration-policy.md`
+  - `ai-plan/design/release/config-policy.md`
+  - `ai-plan/design/release/versioning-policy.md`
+  - `ai-plan/design/release/support-boundary.md`
+  - `ai-plan/design/release/upgrade-policy.md`
+- 已完成 coverage check，并把原本缺口收口到 release design authority：
   - `Upgrade Safety Boundary`
   - `Migration Governance Details`
   - `Configuration Lifecycle`
@@ -114,9 +119,6 @@ Release Governance Rollout
   - `Versioning And Compatibility`
   - `Support Boundary Clarification`
   - `Operator Documentation Mapping`
-- 已固定最小 operator 文档口径：
-  - install guide 只支持同一 release tag 下的自管 `server` / `web` artifact 安装
-  - config reference 固定 stable config lifecycle、default value principle 和 deprecation record baseline
-  - upgrade guide 固定 supported/unsupported path、operator responsibility boundary 和 migration class
-  - rollback guide 固定 documentation-first、operator-controlled baseline
-  - release notes template 固定 release identity、migration/config impact、upgrade/rollback/support boundary 字段
+- 已固定 operator-facing 文档状态：
+  - install / configuration / upgrade / rollback / versioning docs 当前阶段 deferred
+  - `ai-plan/public/release-governance-rollout/operator-docs/**` 属于上一版同批次误落产物，已在本轮修正中移除

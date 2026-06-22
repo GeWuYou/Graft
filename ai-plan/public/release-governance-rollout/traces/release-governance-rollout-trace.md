@@ -20,7 +20,7 @@
 - 第二优先级：Release Identity And Policy
   - 再固定 `BuildInfo`、`graft version`、release policy 和 support boundary，避免文档引用不存在的 version contract
 - 第三优先级：Release Operator Docs Baseline
-  - 最后把前两批 authority 真正沉淀为最小 operator 文档集合
+  - 最后把前两批 authority 真正沉淀为 release governance 设计真值，而不是提前承诺 operator 文档集合
 
 ## 2026-06-22 Phase 1 release safety governance
 
@@ -76,40 +76,27 @@
   - 混用不同 tag 的 `server` / `web` artifact 在 `v0.1.0` 下不受支持
   - migration version 仅是内部排序号，不是 product version 或 compatibility label
 
-## 2026-06-22 Phase 3 release operator docs baseline
+## 2026-06-22 Phase 3 release authority baseline correction
 
-- 已先执行 coverage check，确认 Phase 1/2 已覆盖基础 authority，但 operator-facing 落点仍缺：
-  - supported vs unsupported upgrade path
-  - migration class as operator guidance
-  - config lifecycle as consumable notes
-  - BuildInfo visibility contract across `CLI` / `API` / `logs`
-  - versioning/support boundary mapping
-- 已新增最小 operator 文档集合：
-  - `operator-docs/README.md`
-  - `operator-docs/install.md`
-  - `operator-docs/config-reference.md`
-  - `operator-docs/upgrade.md`
-  - `operator-docs/rollback.md`
-  - `operator-docs/release-notes-template.md`
-- 已把 `Installation` / `Configuration` / `Upgrade` / `Rollback` / `Release notes` / `Versioning` /
-  `Support boundary` 固定到单一 canonical mapping，避免散落在 topic 摘要里不可直接消费
-- 已把 `Upgrade Safety Boundary` 明确为：
-  - 只支持 official repository tag 到 official repository tag 的升级路径
-  - mixed-tag 部署、隐式 startup migration、跳过 release notes/config review 属于 unsupported or discouraged path
-  - operator 必须承担 backup/restore readiness、config snapshot、explicit migration 与 post-upgrade verification
-- 已把 `Migration Governance Details` 明确为：
-  - `additive`
-  - `compatible`
-  - `destructive`
-  - 并固定其对 `patch` / `minor` / `major` 的最小 release boundary
-- 已把 `Configuration Lifecycle` 明确为：
-  - 新配置默认值原则
-  - deprecation record baseline
-  - rename/removal 的 operator 手工动作边界
-  - 不把 alias bridge、startup warning 或 rewrite helper 伪装成现成能力
-- 已把 `Build Identity Visibility` 明确为：
-  - future `graft version` 是 canonical `CLI` surface
-  - `API` / `logs` 目前都不是 `v0.1.0` promised canonical identity surface
-  - 在实现前，release tag、artifact name、release notes 仍是 operator-facing canonical identity
-- 已把 `experimental` 固定为 explicit label rule：
-  - 只有 release notes 或 operator docs 明确标记 experimental，operator 才能按 experimental 理解
+- 复核最新用户要求后，确认上一版 Phase 3 将 authority 误落到
+  `ai-plan/public/release-governance-rollout/operator-docs/**`，不再满足当前 topic 约束。
+- 本轮修正保持同一批次边界，不新开 phase，也不扩张实现范围；目标是把同批次错误方向收回到正确
+  authority owner。
+- 已新建 `ai-plan/design/release/**` 作为 Phase 3 live authority：
+  - `build-identity-contract.md`
+  - `migration-policy.md`
+  - `config-policy.md`
+  - `versioning-policy.md`
+  - `support-boundary.md`
+  - `upgrade-policy.md`
+- 已把缺口维度分别固定到新的 design authority：
+  - `Upgrade Safety Boundary`
+  - `Migration Governance Details`
+  - `Configuration Lifecycle`
+  - `Build Identity Visibility`
+  - `Versioning And Compatibility`
+  - `Support Boundary Clarification`
+- 已明确当前阶段的 operator-facing install / configuration / upgrade / rollback / versioning docs 为 deferred，
+  不再把它们当作 live deliverable。
+- 已删除上一版误落的 `operator-docs/**`，原因是这些文件属于同一 Phase 3 批次内错误 authority 落点的修正范围，
+  而不是跨批次扩张或回滚他人独立工作。

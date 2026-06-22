@@ -8,6 +8,12 @@ Round context:
 - design authority:
   - `ai-plan/design/数据库表设计与迁移规范.md`
   - `ai-plan/design/服务端API边界与兼容治理规范.md`
+  - `ai-plan/design/release/build-identity-contract.md`
+  - `ai-plan/design/release/migration-policy.md`
+  - `ai-plan/design/release/config-policy.md`
+  - `ai-plan/design/release/versioning-policy.md`
+  - `ai-plan/design/release/support-boundary.md`
+  - `ai-plan/design/release/upgrade-policy.md`
   - `README.md`
 - AI skills:
   - `$graft-multi-agent-loop`
@@ -72,15 +78,15 @@ Locked Phase 2 decisions:
 8. Migration version identifiers remain internal ordering values, not product versions or compatibility labels.
 
 Locked Phase 3 decisions:
-1. The operator doc baseline now lives under `ai-plan/public/release-governance-rollout/operator-docs/`.
-2. Canonical operator docs are:
-   - `README.md`
-   - `install.md`
-   - `config-reference.md`
-   - `upgrade.md`
-   - `rollback.md`
-   - `release-notes-template.md`
-3. The doc set now directly covers:
+1. The live Phase 3 authority now lives under `ai-plan/design/release/**`.
+2. Canonical Phase 3 design docs are:
+   - `build-identity-contract.md`
+   - `migration-policy.md`
+   - `config-policy.md`
+   - `versioning-policy.md`
+   - `support-boundary.md`
+   - `upgrade-policy.md`
+3. The design set directly covers:
    - upgrade safety boundary
    - migration governance details
    - configuration lifecycle
@@ -88,7 +94,9 @@ Locked Phase 3 decisions:
    - versioning and compatibility
    - support boundary clarification
    - operator documentation mapping
-4. The doc set remains documentation-first and does not create new runtime or workflow promises.
+4. Operator-facing install / configuration / upgrade / rollback / versioning docs are deferred in the current phase and
+   are not live deliverables.
+5. The design set remains documentation-first and does not create new runtime or workflow promises.
 
 Final archive-readiness goals:
 1. Verify Phase 1, Phase 2, and Phase 3 authority is stable and internally consistent.

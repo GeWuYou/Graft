@@ -16,14 +16,14 @@
   - Phase 0：topic 建立与 archive handoff
   - Phase 1：release safety governance
   - Phase 2：release identity and policy
-  - Phase 3：release operator docs baseline
+  - Phase 3：release authority baseline alignment
 
 ## Recovery Receipt
 
 - governance source：root `AGENTS.md`
 - task class：`cross-boundary`
 - recovery source：`parent topic`
-- authority summary：root `AGENTS.md` + `ai-plan/public/archive/release-readiness-governance-audit/README.md` + `README.md` + `server/internal/cli/{serve,migrate,validate}.go` + `server/internal/config/**` + `web/package.json` + `.github/workflows/{release,publish}.yml`
+- authority summary：root `AGENTS.md` + `ai-plan/public/archive/release-readiness-governance-audit/README.md` + `ai-plan/design/release/**` + `README.md` + `server/internal/cli/{serve,migrate,validate}.go` + `server/internal/config/**` + `web/package.json` + `.github/workflows/{release,publish}.yml`
 
 ## Owned Scope
 
@@ -39,9 +39,10 @@
 - Phase 2 如需沉淀仓库级治理真值，可修改：
   - `README.md`
   - 必要的 topic-only design/roadmap 文档
-- Phase 3 如需落地最小 operator 文档，可修改：
-  - `README.md`
-  - 后续新建的 release/install/upgrade/rollback 文档目录
+- Phase 3 当前 authority 修正可修改：
+  - `ai-plan/design/release/**`
+  - `README.md` 仅在确有必要时最小修改
+  - `ai-plan/public/release-governance-rollout/operator-docs/**` 仅允许作为同批次误落产物被修正或删除
 
 禁止误触：
 
@@ -75,9 +76,9 @@
   - 固定 `BuildInfo` / `graft version` 最小 contract
   - 固定 release policy / support boundary
   - 固定 `server` / `web` / migration 的版本协同口径
-- Phase 3：Release Operator Docs Baseline
-  - 固定 install / config reference / upgrade / rollback / release notes 最小文档集合
-  - 明确各文档的 canonical location 与 authority 引用
+- Phase 3：Release Authority Baseline Alignment
+  - 固定 release governance 开发约束的 authority 落点
+  - 将 operator-facing install / configuration / upgrade / rollback / versioning docs 明确标记为 deferred
 - Final closeout：执行 archive-readiness check；若三个 phase 的治理口径全部稳定且无新的 bounded batch，转为 `archive-ready`
 
 ## Current Recovery Point
@@ -218,75 +219,53 @@
     changes are present
   - migration file versions are internal ordering identifiers, not product release numbers and not compatibility labels
 - `web/package.json` dependency versions and frontend build tool versions are build inputs, not product release identity
-- Phase 3 docs must cite release tag compatibility and explicit migration step requirements instead of inventing a
+- Phase 3 authority must cite release tag compatibility and explicit migration step requirements instead of inventing a
   separate compatibility matrix
 
 ## Phase 3 Accepted Authority
 
-### Operator Docs Canonical Set
+### Release Design Authority Set
 
 - canonical location：
-  - `ai-plan/public/release-governance-rollout/operator-docs/README.md`
-  - `ai-plan/public/release-governance-rollout/operator-docs/install.md`
-  - `ai-plan/public/release-governance-rollout/operator-docs/config-reference.md`
-  - `ai-plan/public/release-governance-rollout/operator-docs/upgrade.md`
-  - `ai-plan/public/release-governance-rollout/operator-docs/rollback.md`
-  - `ai-plan/public/release-governance-rollout/operator-docs/release-notes-template.md`
-- operator-facing docs remain topic-owned in Phase 3. They are a documentation baseline, not a docs-site or product UI.
-- each doc must cite the Phase 1 safety baseline and Phase 2 release identity baseline instead of creating a new
-  compatibility authority.
+  - `ai-plan/design/release/build-identity-contract.md`
+  - `ai-plan/design/release/migration-policy.md`
+  - `ai-plan/design/release/config-policy.md`
+  - `ai-plan/design/release/versioning-policy.md`
+  - `ai-plan/design/release/support-boundary.md`
+  - `ai-plan/design/release/upgrade-policy.md`
+- Phase 3 fixes development-time authority, not operator-facing docs-site structure.
+- operator-facing install / configuration / upgrade / rollback / versioning docs are currently deferred and are not live
+  Phase 3 deliverables.
 
 ### Coverage Check Result
 
 - `Upgrade Safety Boundary`
   - Phase 1 already fixed the minimal upgrade baseline.
-  - Phase 3 adds the operator-consumable supported path, unsupported path, operator responsibility boundary, and
-    upgrade compatibility principle in `operator-docs/upgrade.md`.
+  - Phase 3 fixes the supported path, unsupported path, operator responsibility boundary, and upgrade compatibility
+    principle in `ai-plan/design/release/upgrade-policy.md`.
 - `Migration Governance Details`
   - Phase 1 already fixed forward-only governance.
-  - Phase 3 adds the operator classification for `additive` / `compatible` / `destructive` migration change shapes and
-    the `patch` / `minor` / `major` release boundary in `operator-docs/upgrade.md`.
+  - Phase 3 fixes the `additive` / `compatible` / `destructive` migration change shapes and the `patch` / `minor` /
+    `major` release boundary in `ai-plan/design/release/migration-policy.md`.
 - `Configuration Lifecycle`
   - Phase 1 already fixed stable config change classes.
-  - Phase 3 adds default value principles, deprecation record expectations, removal constraints, and rename
-    compatibility guidance in `operator-docs/config-reference.md`.
+  - Phase 3 fixes default value principles, deprecation record expectations, removal constraints, and rename
+    compatibility guidance in `ai-plan/design/release/config-policy.md`.
 - `Build Identity Visibility`
   - Phase 2 already fixed the minimum BuildInfo field set.
-  - Phase 3 adds the visibility contract for `CLI` / `API` / `logs` in `operator-docs/README.md` and the release
-    notes template.
+  - Phase 3 fixes the visibility contract for `CLI` / `API` / `logs` in
+    `ai-plan/design/release/build-identity-contract.md`.
 - `Versioning And Compatibility`
   - Phase 2 already fixed the release tag and same-tag artifact coordination.
-  - Phase 3 adds the operator-facing `SemVer` rule, breaking-change boundary, and `patch` / `minor` / `major`
-    expectations in `operator-docs/README.md` and `operator-docs/upgrade.md`.
+  - Phase 3 fixes the `SemVer` rule, breaking-change boundary, and `patch` / `minor` / `major` expectations in
+    `ai-plan/design/release/versioning-policy.md`.
 - `Support Boundary Clarification`
   - Phase 2 already fixed the high-level support boundary.
-  - Phase 3 makes the supported / unsupported / experimental boundary directly consumable in `operator-docs/README.md`
-    and `operator-docs/install.md`.
+  - Phase 3 fixes the supported / unsupported / experimental boundary in
+    `ai-plan/design/release/support-boundary.md`.
 - `Operator Documentation Mapping`
-  - Phase 3 fixes one canonical landing point for `Installation` / `Upgrade` / `Configuration` / `Versioning` /
-    `Support Boundary` through `operator-docs/README.md`.
-
-### Operator-Facing Authority Contract
-
-- official supported install shape for `v0.1.0` remains self-managed deployment of one `server` artifact and one `web`
-  artifact from the same release tag, with explicit operator-run migration steps when schema changes are present
-- unsupported operator assumptions for `v0.1.0` remain:
-  - mixed-tag `server` / `web` deployment
-  - implicit startup migration
-  - automatic rollback
-  - `Docker` / `Compose` / `Kubernetes` / hosted deployment support commitments
-- `experimental` only applies when a release note or operator doc explicitly labels a capability as experimental; absent
-  that label, operators must not infer a soft promise from internal implementation artifacts
-- current Build Identity visibility is documentation-first:
-  - `CLI`
-    - future `graft version` must expose `version`、`git_commit`、`build_time_utc` and may additionally print
-      `git_tree_state`
-  - `API`
-    - `v0.1.0` does not yet promise a dedicated operator-facing version endpoint
-  - `logs`
-    - `v0.1.0` does not yet promise startup-log BuildInfo emission as a canonical support surface
-- until `CLI` / `API` / `logs` identity surfaces are implemented, release tag, published artifact names, and release
-  notes remain the canonical operator-facing identity surface
+  - Phase 3 now explicitly defers operator-facing `Installation` / `Upgrade` / `Configuration` / `Versioning` docs.
+  - 当前 live deliverable 是 release design authority，不是 operator doc set。
 
 ## Batch Details
 
@@ -320,19 +299,22 @@
   - 不直接修改 workflow 实现
   - 不直接承诺更强的 operator-facing introspection UI
 
-### Phase 3: Release Operator Docs Baseline
+### Phase 3: Release Authority Baseline Alignment
 
 - allowed scopes：
   - `ai-plan/public/release-governance-rollout/**`
-  - `README.md`
-  - 新建的 release/install/upgrade/rollback 文档目录
+  - `ai-plan/design/release/**`
+  - `README.md` 仅在确有必要时最小修改
+  - `ai-plan/public/release-governance-rollout/operator-docs/**` 仅允许作为同批次误落产物被修正或删除
 - hard goals：
-  - 固定文档位置与最小章节结构
-  - 补齐 install guide、config reference + compatibility notes、upgrade guide、rollback/recovery guide、release notes template
-  - 所有文档必须引用 Phase 1/2 的 governance authority
+  - 固定 build identity、migration、config、versioning、support boundary、upgrade policy 的 authority 落点
+  - 将 `Upgrade Safety Boundary`、`Migration Governance Details`、`Configuration Lifecycle`、
+    `Build Identity Visibility`、`Versioning And Compatibility`、`Support Boundary Clarification`
+    收口到 `ai-plan/design/release/**`
+  - 明确 operator-facing 文档映射当前 deferred
 - non-goals：
   - 不把文档写成已存在自动化能力的承诺
-  - 不引入 docs-site、web shell docs page 或 hosted docs 平台
+  - 不引入 docs-site、web shell docs page、hosted docs 平台或 live operator doc set
 
 ## Validation Targets
 
