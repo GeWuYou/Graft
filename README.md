@@ -296,6 +296,27 @@ Important deployment notes:
 - The `--allow-dirty` retry path is limited to the local `graft dev` bootstrap flow for disposable development databases.
 - The `bootstrap` service is the future extension point for other one-time initialization tasks such as seed data,
   license initialization, storage validation, or plugin preflight checks.
+- The default `compose.yml` uses a relative host bind mount at `./.data/postgres` so deployment data stays beside the
+  compose file instead of in an anonymous Docker-managed location.
+- Optional runtime overrides belong in `.env`. Leave the commented defaults untouched unless you need to override the
+  image defaults or the server's built-in runtime defaults.
+- `web` runtime proxying is controlled by `GRAFT_SERVER_UPSTREAM`; `VITE_*` variables remain development-only and do
+  not belong in the root compose deployment template.
+- Production docs are disabled by default. Set `GRAFT_DOCS_ENABLED=true` only when you intentionally want `/docs` and
+  OpenAPI endpoints exposed.
+
+Compose variants:
+
+- Use `compose.named-volume.yml` if you prefer a Docker named volume for PostgreSQL data instead of `./.data/postgres`.
+- Use `compose.ops-container.yml` when you intentionally enable container-management features and need the server to
+  mount `/var/run/docker.sock`.
+
+Examples:
+
+```bash
+docker compose -f compose.yml -f compose.named-volume.yml up -d
+docker compose -f compose.yml -f compose.ops-container.yml up -d
+```
 
 To reproduce the local contract-governance changed scan:
 

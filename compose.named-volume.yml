@@ -1,0 +1,7 @@
+services:
+  postgres:
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+volumes:
+  postgres-data:
