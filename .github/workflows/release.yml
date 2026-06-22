@@ -121,8 +121,10 @@ jobs:
               echo
               printf '%s\n' "${CLIFF_RELEASE_NOTES}"
             fi
-            echo
-            echo "如需继续正式发布，请审批 \`release-approval\` 环境并以非 dry-run 方式重跑。"
+            if [[ "${RELEASE_PUBLISHED}" == "true" ]]; then
+              echo
+              echo "如需继续正式发布，请审批 \`release-approval\` 环境并以非 dry-run 方式重跑。"
+            fi
           } >> "${GITHUB_STEP_SUMMARY}"
 
   publish-version-tag:
