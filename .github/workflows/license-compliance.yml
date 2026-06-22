@@ -55,7 +55,7 @@ jobs:
 
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "checkout_ref=refs/tags/$tag" >> "$GITHUB_OUTPUT"
-          echo "asset_prefix=graft-${asset_tag}" >> "$GITHUB_OUTPUT"
+          echo "asset_tag=${asset_tag}" >> "$GITHUB_OUTPUT"
 
       - name: Checkout release source
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
@@ -78,19 +78,19 @@ jobs:
             --exclude .git \
             --exclude "**/node_modules" \
             --exclude "**/dist" \
-            -o spdx-json=dist/security/${{ steps.release.outputs.asset_prefix }}-sbom.spdx.json
+            -o spdx-json=dist/security/graft-sbom-spdx-${{ steps.release.outputs.asset_tag }}.json
 
           "${{ steps.syft.outputs.cmd }}" dir:. \
             --exclude .git \
             --exclude "**/node_modules" \
             --exclude "**/dist" \
-            -o cyclonedx-json=dist/security/${{ steps.release.outputs.asset_prefix }}-sbom.cyclonedx.json
+            -o cyclonedx-json=dist/security/graft-sbom-cyclonedx-${{ steps.release.outputs.asset_tag }}.json
 
           "${{ steps.syft.outputs.cmd }}" dir:. \
             --exclude .git \
             --exclude "**/node_modules" \
             --exclude "**/dist" \
-            -o syft-json=dist/security/${{ steps.release.outputs.asset_prefix }}-sbom.syft.json
+            -o syft-json=dist/security/graft-sbom-syft-${{ steps.release.outputs.asset_tag }}.json
 
       - name: Generate license compliance report
         shell: python
@@ -101,11 +101,11 @@ jobs:
           import sys
           from pathlib import Path
 
-          prefix = "${{ steps.release.outputs.asset_prefix }}"
+          asset_tag = "${{ steps.release.outputs.asset_tag }}"
           bundle_dir = Path("dist/security")
-          syft_path = bundle_dir / f"{prefix}-sbom.syft.json"
-          report_path = bundle_dir / f"{prefix}-license-compliance.md"
-          csv_path = bundle_dir / f"{prefix}-licenses.csv"
+          syft_path = bundle_dir / f"graft-sbom-syft-{asset_tag}.json"
+          report_path = bundle_dir / f"graft-license-report-{asset_tag}.md"
+          csv_path = bundle_dir / f"graft-licenses-{asset_tag}.csv"
 
           allowed = {
               "0BSD",
@@ -246,12 +246,18 @@ jobs:
           set -euo pipefail
 
           cd dist/security
-          sha256sum "${{ steps.release.outputs.asset_prefix }}"-* > "${{ steps.release.outputs.asset_prefix }}-SHA256SUMS.txt"
+          sha256sum \
+            "graft-sbom-spdx-${{ steps.release.outputs.asset_tag }}.json" \
+            "graft-sbom-cyclonedx-${{ steps.release.outputs.asset_tag }}.json" \
+            "graft-sbom-syft-${{ steps.release.outputs.asset_tag }}.json" \
+            "graft-license-report-${{ steps.release.outputs.asset_tag }}.md" \
+            "graft-licenses-${{ steps.release.outputs.asset_tag }}.csv" \
+            > "graft-security-sha256sums-${{ steps.release.outputs.asset_tag }}.txt"
 
       - name: Upload workflow artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: ${{ steps.release.outputs.asset_prefix }}-security-bundle
+          name: graft-security-bundle-${{ steps.release.outputs.asset_tag }}
           path: dist/security/*
           if-no-files-found: error
           retention-days: 90

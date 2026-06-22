@@ -22,6 +22,7 @@ import (
 	"github.com/shirou/gopsutil/v4/mem"
 	"go.uber.org/zap"
 
+	"graft/server/internal/buildinfo"
 	"graft/server/internal/config"
 	"graft/server/internal/container"
 	"graft/server/internal/contract/httpheader"
@@ -41,7 +42,6 @@ import (
 )
 
 const (
-	fallbackServerVersion          = "dev"
 	healthCheckTimeout             = 2 * time.Second
 	trendSampleInterval            = 5 * time.Second
 	maxTrendRetentionWindow        = time.Hour
@@ -468,7 +468,8 @@ func buildServerStatusResponse(
 // buildServerStatusResponseWithRuntimeSnapshot keeps the production response assembly.
 // buildServerStatusResponseWithRuntimeSnapshot constructs a server status response
 // using the provided runtime snapshot and returns dependency health, module status,
-// trends, and anomalies.
+// buildServerStatusResponseWithRuntimeSnapshot 根据运行时快照和趋势范围构建服务器状态响应。
+// 该函数聚合数据库和 Redis 健康状态、模块信息、趋势数据和系统异常，返回完整的服务器状态响应或在依赖项健康检查失败时返回错误。
 func buildServerStatusResponseWithRuntimeSnapshot(
 	ctx context.Context,
 	moduleCtx *module.Context,
@@ -495,6 +496,7 @@ func buildServerStatusResponseWithRuntimeSnapshot(
 	modules := runtimeModuleSummaries(moduleCtx, databaseStatus, redisStatus)
 	summary := buildServerStatusSummary(databaseStatus, redisStatus, modules)
 	trend := buildServerStatusTrend(ctx, moduleCtx, instance, observedAt, trendRange)
+	serverBuildInfo := resolveServerBuildInfo(moduleCtx)
 	anomalies := buildServerStatusAnomalies(observedAt, trendRange, serverStatusAnomalyInputs{
 		runtimeSnapshot: runtimeSnapshot,
 		dependencies: generated.ServerStatusDependencies{
@@ -509,7 +511,12 @@ func buildServerStatusResponseWithRuntimeSnapshot(
 		Status:     deriveOverallStatus(databaseStatus.Status, redisStatus.Status, anomalies),
 		ObservedAt: observedAt,
 		Server: generated.ServerStatusServer{
-			Version:       fallbackServerVersion,
+			Build: generated.ServerStatusServerBuildInfo{
+				Version:      serverBuildInfo.Version,
+				BuildTimeUtc: serverBuildInfo.BuildTimeUTC,
+				GitCommit:    serverBuildInfo.GitCommit,
+				GitTreeState: generated.ServerStatusServerBuildInfoGitTreeState(serverBuildInfo.GitTreeState),
+			},
 			StartedAt:     startedAt,
 			UptimeSeconds: int64(observedAt.Sub(startedAt).Seconds()),
 			GoVersion:     runtime.Version(),
@@ -528,6 +535,16 @@ func buildServerStatusResponseWithRuntimeSnapshot(
 	}, nil
 }
 
+// ResolveServerBuildInfo 从模块上下文中解析服务器构建信息，如果上下文不可用则返回规范化的空信息。
+func resolveServerBuildInfo(moduleCtx *module.Context) buildinfo.Info {
+	if moduleCtx == nil {
+		return buildinfo.Normalize(buildinfo.Info{})
+	}
+
+	return moduleCtx.RuntimeMetadata.BuildInfo()
+}
+
+// buildServerStatusAnomalies collects server status anomalies from dependencies, modules, and runtime metrics within the specified time window.
 func buildServerStatusAnomalies(
 	observedAt time.Time,
 	trendRange monitorcontract.TrendRange,

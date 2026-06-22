@@ -2670,6 +2670,26 @@ export interface components {
     /**
      * @example {
      *       "version": "dev",
+     *       "git_commit": "unknown",
+     *       "build_time_utc": "unknown",
+     *       "git_tree_state": "unknown"
+     *     }
+     */
+    'server-status-server-build-info': {
+      version: string;
+      git_commit: string;
+      build_time_utc: string;
+      /** @enum {string} */
+      git_tree_state: 'clean' | 'dirty' | 'unknown';
+    };
+    /**
+     * @example {
+     *       "build": {
+     *         "version": "dev",
+     *         "git_commit": "unknown",
+     *         "build_time_utc": "unknown",
+     *         "git_tree_state": "unknown"
+     *       },
      *       "started_at": "2026-05-24T08:00:00Z",
      *       "uptime_seconds": 300,
      *       "go_version": "go1.25.1",
@@ -2678,7 +2698,7 @@ export interface components {
      *     }
      */
     'server-status-server': {
-      version: string;
+      build: components['schemas']['server-status-server-build-info'];
       /** Format: date-time */
       started_at: string;
       /** Format: int64 */

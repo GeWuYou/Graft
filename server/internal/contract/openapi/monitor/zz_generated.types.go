@@ -235,6 +235,27 @@ func (e GetMonitorServerStatus200JSONResponseBodyDataAnomaliesStatus) Valid() bo
 	}
 }
 
+// Defines values for GetMonitorServerStatus200JSONResponseBodyDataServerBuildGitTreeState.
+const (
+	Clean   GetMonitorServerStatus200JSONResponseBodyDataServerBuildGitTreeState = "clean"
+	Dirty   GetMonitorServerStatus200JSONResponseBodyDataServerBuildGitTreeState = "dirty"
+	Unknown GetMonitorServerStatus200JSONResponseBodyDataServerBuildGitTreeState = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the GetMonitorServerStatus200JSONResponseBodyDataServerBuildGitTreeState enum.
+func (e GetMonitorServerStatus200JSONResponseBodyDataServerBuildGitTreeState) Valid() bool {
+	switch e {
+	case Clean:
+		return true
+	case Dirty:
+		return true
+	case Unknown:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetMonitorServerStatus200JSONResponseBodyDataTrendRange.
 const (
 	GetMonitorServerStatus200JSONResponseBodyDataTrendRangeN10m GetMonitorServerStatus200JSONResponseBodyDataTrendRange = "10m"
@@ -349,6 +370,9 @@ type GetMonitorServerStatus200JSONResponseBodyDataAnomaliesSeverity string
 
 // GetMonitorServerStatus200JSONResponseBodyDataAnomaliesStatus defines parameters for GetMonitorServerStatus.
 type GetMonitorServerStatus200JSONResponseBodyDataAnomaliesStatus string
+
+// GetMonitorServerStatus200JSONResponseBodyDataServerBuildGitTreeState defines parameters for GetMonitorServerStatus.
+type GetMonitorServerStatus200JSONResponseBodyDataServerBuildGitTreeState string
 
 // GetMonitorServerStatus200JSONResponseBodyDataTrendRange defines parameters for GetMonitorServerStatus.
 type GetMonitorServerStatus200JSONResponseBodyDataTrendRange string

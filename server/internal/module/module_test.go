@@ -4,6 +4,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"graft/server/internal/buildinfo"
 )
 
 type testModule struct{}
@@ -146,6 +148,11 @@ func TestNewRuntimeMetadataPreservesOrderedDescriptorSnapshot(t *testing.T) {
 		{ID: "audit"},
 		{ID: "user"},
 		{ID: "rbac", Dependencies: []string{"user"}},
+	}, buildinfo.Info{
+		Version:      "0.1.0",
+		GitCommit:    "abc1234",
+		BuildTimeUTC: "2026-06-22T00:00:00Z",
+		GitTreeState: "clean",
 	})
 
 	got := metadata.OrderedModuleDescriptors()
@@ -164,5 +171,27 @@ func TestNewRuntimeMetadataPreservesOrderedDescriptorSnapshot(t *testing.T) {
 	unchanged := metadata.OrderedModuleDescriptors()
 	if !reflect.DeepEqual(unchanged, expected) {
 		t.Fatalf("expected runtime metadata to remain immutable, got %v", unchanged)
+	}
+
+	if got := metadata.BuildInfo(); got.Version != "0.1.0" || got.GitCommit != "abc1234" {
+		t.Fatalf("expected runtime metadata to expose build info snapshot, got %+v", got)
+	}
+}
+
+func TestRuntimeMetadataBuildInfoNormalizesZeroValueSnapshot(t *testing.T) {
+	var metadata RuntimeMetadata
+
+	got := metadata.BuildInfo()
+	if got.Version != "dev" {
+		t.Fatalf("expected normalized version %q, got %q", "dev", got.Version)
+	}
+	if got.GitCommit != "unknown" {
+		t.Fatalf("expected normalized git commit %q, got %q", "unknown", got.GitCommit)
+	}
+	if got.BuildTimeUTC != "unknown" {
+		t.Fatalf("expected normalized build time %q, got %q", "unknown", got.BuildTimeUTC)
+	}
+	if got.GitTreeState != "unknown" {
+		t.Fatalf("expected normalized tree state %q, got %q", "unknown", got.GitTreeState)
 	}
 }

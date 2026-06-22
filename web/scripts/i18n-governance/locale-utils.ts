@@ -1,7 +1,9 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 
-import { EXCLUDED_DIRS, ROOT_DIR } from './config';
+import { parse as parseYaml } from 'yaml';
+
+import { EXCLUDED_DIRS } from './config';
 import { isLikelyI18nKey, parseStringLiteral, positionForIndex, preserveLineStructure } from './text-utils';
 import type { RuleViolation, ScanContext, SourceFile } from './types';
 
@@ -32,20 +34,54 @@ type DuplicateLocaleKey = {
 
 const EXTERNAL_BOOTSTRAP_KEY_ALLOWLIST = [/^menu\./, /^lang$/];
 
+/**
+ * 检查文件是否为国际化语言文件。
+ *
+ * @param file - 要检查的文件路径
+ * @returns `true` 如果文件名包含 zh-CN 或 en-US 地区代码且扩展名为 json、yaml 或 yml，`false` 否则
+ */
 export function isLocaleFile(file: string): boolean {
-  return /(?:^|\/)(?:zh-CN|en-US)\.json$/.test(file);
+  return /(?:^|\/).*\.(?:zh-CN|en-US)\.(?:json|ya?ml)$|(?:^|\/)(?:zh-CN|en-US)\.(?:json|ya?ml)$/.test(file);
 }
 
+/**
+ * 判断文件是否为前端 JSON 格式的语言环境文件。
+ *
+ * @returns 如果文件匹配 `*.{zh-CN|en-US}.json` 的模式则返回 `true`，否则返回 `false`
+ */
+function isFrontendLocaleFile(file: string): boolean {
+  return /(?:^|\/).*\.(?:zh-CN|en-US)\.json$|(?:^|\/)(?:zh-CN|en-US)\.json$/.test(file);
+}
+
+/**
+ * Rewrites a locale file path into a template with a locale placeholder.
+ *
+ * @param file - A file path or name containing a locale code (`zh-CN` or `en-US`)
+ * @returns The rewritten path with the locale code replaced by `{locale}`
+ */
 export function localePairKey(file: string): string {
-  return file.replace(/(?:zh-CN|en-US)\.json$/, '{locale}.json');
+  return file.replace(/(.*?)(?:\.|\/)(zh-CN|en-US)\.(json|ya?ml)$/, '$1.{locale}.$3');
 }
 
+/**
+ * Extracts the locale code from a file path.
+ *
+ * @returns The locale code (`zh-CN` or `en-US`) if the file matches a locale file pattern, `null` otherwise.
+ */
 function localeFromFile(file: string): LocaleCode | null {
-  const match = file.match(/(?:^|\/)(zh-CN|en-US)\.json$/);
-  return match ? (match[1] as LocaleCode) : null;
+  const match = file.match(/(?:^|\/).*?\.(zh-CN|en-US)\.(?:json|ya?ml)$|(?:^|\/)(zh-CN|en-US)\.(?:json|ya?ml)$/);
+  return match ? ((match[1] ?? match[2]) as LocaleCode) : null;
 }
 
-function collectLocaleFiles(dir: string): string[] {
+/**
+ * Recursively collects files matching a predicate from a directory.
+ *
+ * @param dir - The directory to search from
+ * @param predicate - A function that receives the file path relative to `rootDir` (with forward slashes) and determines whether to include it
+ * @param rootDir - The base directory for computing relative file paths
+ * @returns An array of full file paths matching the predicate, or an empty array if the directory does not exist
+ */
+function collectFiles(dir: string, predicate: (file: string) => boolean, rootDir: string): string[] {
   if (!existsSync(dir)) return [];
 
   const files: string[] = [];
@@ -54,12 +90,12 @@ function collectLocaleFiles(dir: string): string[] {
 
     const fullPath = join(dir, entry.name);
     if (entry.isDirectory()) {
-      files.push(...collectLocaleFiles(fullPath));
+      files.push(...collectFiles(fullPath, predicate, rootDir));
       continue;
     }
 
-    const file = relative(ROOT_DIR, fullPath).replaceAll('\\', '/');
-    if (isLocaleFile(file)) files.push(fullPath);
+    const file = relative(rootDir, fullPath).replaceAll('\\', '/');
+    if (predicate(file)) files.push(fullPath);
   }
 
   return files;
@@ -84,10 +120,15 @@ export function flattenLocaleStrings(
   return output;
 }
 
+/**
+ * Collects and indexes i18n locale catalogs from frontend and server directories.
+ *
+ * @returns An array of locale catalogs sorted by file path.
+ */
 export function collectLocaleCatalogs(context: ScanContext): LocaleCatalog[] {
   const catalogs: LocaleCatalog[] = [];
 
-  for (const filePath of collectLocaleFiles(context.srcDir)) {
+  for (const filePath of collectFiles(context.srcDir, isFrontendLocaleFile, context.rootDir)) {
     const file = relative(context.rootDir, filePath).replaceAll('\\', '/');
     const locale = localeFromFile(file);
     if (!locale) continue;
@@ -98,6 +139,22 @@ export function collectLocaleCatalogs(context: ScanContext): LocaleCatalog[] {
       file,
       locale,
       messages: flattenLocaleStrings(JSON.parse(source)),
+      source,
+      lineStarts: buildLineIndex(source),
+    });
+  }
+
+  for (const filePath of collectFiles(join(context.repositoryDir, 'server'), isLocaleFile, context.repositoryDir)) {
+    const file = relative(context.repositoryDir, filePath).replaceAll('\\', '/');
+    const locale = localeFromFile(file);
+    if (!locale) continue;
+
+    const source = readFileSync(filePath, 'utf8');
+    catalogs.push({
+      absolutePath: filePath,
+      file,
+      locale,
+      messages: flattenLocaleStrings(parseYaml(source) ?? {}),
       source,
       lineStarts: buildLineIndex(source),
     });

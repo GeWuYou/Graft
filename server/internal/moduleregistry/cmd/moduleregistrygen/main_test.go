@@ -66,10 +66,21 @@ func TestCollectModulePackagesRejectsMissingDescriptor(t *testing.T) {
 
 // TestRenderGeneratedFileIncludesSortedModuleSpecs 验证生成文件内容稳定且包含模块定义入口。
 func TestRenderGeneratedFileIncludesSortedDescriptors(t *testing.T) {
-	content, err := renderGeneratedFile([]modulePackage{
-		{importAlias: "auditmodule", importPath: "graft/server/modules/audit"},
-		{importAlias: "usermodule", importPath: "graft/server/modules/user"},
-	})
+	content, err := renderGeneratedFile(
+		[]modulePackage{
+			{importAlias: "auditmodule", importPath: "graft/server/modules/audit"},
+			{importAlias: "usermodule", importPath: "graft/server/modules/user"},
+		},
+		[]generatedMigrationDir{
+			{
+				path: "internal/httpx/migrations",
+				files: []generatedMigrationFile{
+					{name: "202605300001_httpx_baseline.sql", content: []byte("CREATE TABLE httpx_logs (id bigint);\n")},
+					{name: hashFileName, content: []byte("h1:test\n202605300001_httpx_baseline.sql h1:file\n")},
+				},
+			},
+		},
+	)
 	if err != nil {
 		t.Fatalf("render generated file: %v", err)
 	}
@@ -82,6 +93,9 @@ func TestRenderGeneratedFileIncludesSortedDescriptors(t *testing.T) {
 		"usermodule \"graft/server/modules/user\"",
 		"auditmodule.NewModuleSpec()",
 		"usermodule.NewModuleSpec()",
+		"var generatedEmbeddedMigrationDirs = []EmbeddedMigrationDir{",
+		"Path: \"internal/httpx/migrations\"",
+		"Name: \"202605300001_httpx_baseline.sql\"",
 	} {
 		if !strings.Contains(source, snippet) {
 			t.Fatalf("expected generated source to contain %q, got:\n%s", snippet, source)
@@ -89,5 +103,68 @@ func TestRenderGeneratedFileIncludesSortedDescriptors(t *testing.T) {
 	}
 	if strings.Index(source, "auditmodule.NewModuleSpec()") > strings.Index(source, "usermodule.NewModuleSpec()") {
 		t.Fatalf("expected generated module specs to remain sorted, got:\n%s", source)
+	}
+}
+
+func TestReadMigrationDirLoadsSQLAndAtlasHash(t *testing.T) {
+	serverRoot := t.TempDir()
+	absDir := filepath.Join(serverRoot, internalDirName, "httpx", migrationsDirName)
+	if err := os.MkdirAll(absDir, testDirPerm); err != nil {
+		t.Fatalf("mkdir migration dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(absDir, "202605300001_httpx_baseline.sql"), []byte("CREATE TABLE httpx_logs (id bigint);\n"), testFilePerm); err != nil {
+		t.Fatalf("write sql file: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(absDir, hashFileName), []byte("h1:test\n202605300001_httpx_baseline.sql h1:file\n"), testFilePerm); err != nil {
+		t.Fatalf("write atlas sum: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(absDir, "README.md"), []byte("ignore me"), testFilePerm); err != nil {
+		t.Fatalf("write extra file: %v", err)
+	}
+
+	dir, ok, err := readMigrationDir(serverRoot, httpxMigrationsPath)
+	if err != nil {
+		t.Fatalf("read migration dir: %v", err)
+	}
+	if !ok {
+		t.Fatal("expected migration dir to be present")
+	}
+	if dir.path != httpxMigrationsPath {
+		t.Fatalf("expected path %q, got %q", httpxMigrationsPath, dir.path)
+	}
+	if len(dir.files) != 2 {
+		t.Fatalf("expected 2 embedded files, got %#v", dir.files)
+	}
+	if dir.files[0].name != "202605300001_httpx_baseline.sql" {
+		t.Fatalf("expected sql file first, got %#v", dir.files)
+	}
+	if dir.files[1].name != hashFileName {
+		t.Fatalf("expected atlas.sum second, got %#v", dir.files)
+	}
+}
+
+func TestReadMigrationDirRejectsNonRegularFiles(t *testing.T) {
+	serverRoot := t.TempDir()
+	absDir := filepath.Join(serverRoot, internalDirName, "httpx", migrationsDirName)
+	if err := os.MkdirAll(absDir, testDirPerm); err != nil {
+		t.Fatalf("mkdir migration dir: %v", err)
+	}
+
+	targetPath := filepath.Join(serverRoot, "target.sql")
+	if err := os.WriteFile(targetPath, []byte("CREATE TABLE httpx_logs (id bigint);\n"), testFilePerm); err != nil {
+		t.Fatalf("write target sql file: %v", err)
+	}
+
+	linkPath := filepath.Join(absDir, "202605300001_httpx_baseline.sql")
+	if err := os.Symlink(targetPath, linkPath); err != nil {
+		t.Skipf("symlink unsupported in test environment: %v", err)
+	}
+
+	_, _, err := readMigrationDir(serverRoot, httpxMigrationsPath)
+	if err == nil {
+		t.Fatal("expected non-regular migration file error")
+	}
+	if !strings.Contains(err.Error(), "not a regular file") {
+		t.Fatalf("expected non-regular file error, got %v", err)
 	}
 }

@@ -215,6 +215,39 @@ CI 适合做：
 - 兼容期是否可结束
 - 是否存在第二套长期真值风险
 
+### 5.4 Release-Time Config Compatibility Governance
+
+当变更的是稳定 runtime config key、默认值语义或 operator-facing 配置口径时，按 release governance 额外检查：
+
+- 稳定配置变更必须先分类为以下之一：
+  - `additive`
+  - `default-change`
+  - `rename`
+  - `semantic-change`
+  - `removal`
+- patch release 不允许静默执行以下任一行为：
+  - rename stable config key
+  - removal stable config key
+  - reinterpret stable config semantics
+  - 在没有显式升级说明时把稳定默认值变成高风险行为变化
+- minor release 若必须发生 `rename`、`semantic-change` 或 `removal`，至少记录：
+  - canonical owner
+  - deprecated_in
+  - removal_target
+  - replacement
+  - operator action required
+  - release-notes required
+  - upgrade-notes required
+- startup deprecation warning、legacy key alias bridge、config rewrite helper 不是默认承诺；只有 authority 不能直接修复时，
+  才允许作为受控兼容例外记录。
+- 若确需受控兼容例外，至少记录：
+  - canonical key
+  - legacy key
+  - why direct repair is deferred
+  - affected consumers
+  - expiry trigger
+  - validation expectation
+
 ## 6. 共享契约演进 Guardrail
 
 共享契约包括但不限于：

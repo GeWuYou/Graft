@@ -78,11 +78,21 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p ../dist/server
+          build_time_utc="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           go build \
             -trimpath \
-            -ldflags="-s -w" \
+            -ldflags="-s -w \
+              -X 'graft/server/internal/buildinfo.version=${{ steps.tag_version.outputs.version }}' \
+              -X 'graft/server/internal/buildinfo.gitCommit=${GITHUB_SHA}' \
+              -X 'graft/server/internal/buildinfo.buildTimeUTC=${build_time_utc}' \
+              -X 'graft/server/internal/buildinfo.gitTreeState=clean'" \
             -o ../dist/server/graft-server-linux-amd64 \
             ./cmd/graft
+
+      - name: Validate release binary contract
+        run: |
+          set -euo pipefail
+          ./dist/server/graft-server-linux-amd64 validate release
 
       - name: Install web dependencies
         working-directory: web
@@ -97,12 +107,15 @@ jobs:
         run: bun run build
 
       - name: Package release artifacts
+        env:
+          RELEASE_REF_NAME: ${{ github.ref_name }}
         run: |
           set -euo pipefail
           mkdir -p release-assets
-          tar -C dist/server -czf "release-assets/graft-server-linux-amd64-${{ github.ref_name }}.tar.gz" graft-server-linux-amd64
-          tar -C web -czf "release-assets/graft-web-dist-${{ github.ref_name }}.tar.gz" dist
-          sha256sum release-assets/* > release-assets/SHA256SUMS
+          tar -C dist/server -czf "release-assets/graft-server-linux-amd64-${RELEASE_REF_NAME}.tar.gz" graft-server-linux-amd64
+          tar -C web -czf "release-assets/graft-web-dist-${RELEASE_REF_NAME}.tar.gz" dist
+          cp LICENSE "release-assets/graft-license-${RELEASE_REF_NAME}.txt"
+          sha256sum release-assets/* > "release-assets/graft-sha256sums-${RELEASE_REF_NAME}.txt"
 
       - name: Upload release artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -111,10 +124,151 @@ jobs:
           path: release-assets/*
           if-no-files-found: error
 
+  bubble-smoke:
+    name: Bubble Smoke Gate
+    runs-on: ubuntu-latest
+    needs: build-artifacts
+    timeout-minutes: 15
+
+    permissions:
+      contents: read
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: graft
+          POSTGRES_USER: graft
+          POSTGRES_PASSWORD: graft
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U graft -d graft"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    env:
+      GRAFT_APP_ENV: ci
+      GRAFT_HTTP_ADDR: 127.0.0.1:18080
+      GRAFT_DATABASE_URL: postgres://graft:graft@127.0.0.1:5432/graft?sslmode=disable
+      GRAFT_REDIS_ADDR: 127.0.0.1:6379
+      GRAFT_AUTH_JWT_SECRET: ci-release-smoke-secret
+      GRAFT_LOG_FORMAT: json
+      GRAFT_LOG_COLOR: never
+      GRAFT_ACCESS_LOG_CONSOLE: error_only
+      GRAFT_OPS_CONTAINER_RUNTIME_ENABLED: "false"
+      GRAFT_OPS_CONTAINER_SHELL_ENABLED: "false"
+
+    steps:
+      - name: Checkout repository at tag
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Download release artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: release-assets
+          path: release-assets
+
+      - name: Extract release binary
+        run: |
+          set -euo pipefail
+          mkdir -p smoke-bin
+          tar -C smoke-bin -xzf "release-assets/graft-server-linux-amd64-${GITHUB_REF_NAME}.tar.gz"
+          chmod +x smoke-bin/graft-server-linux-amd64
+
+      - name: Run release bubble smoke
+        id: bubble_smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          start_epoch="$(date +%s)"
+          probe_url="http://${GRAFT_HTTP_ADDR}/healthz"
+          echo "probe_url=${probe_url}" >> "${GITHUB_OUTPUT}"
+
+          mkdir -p .tmp
+          ./smoke-bin/graft-server-linux-amd64 migrate up --allow-dirty 2>&1 | tee .tmp/release-bubble-migrate.log
+
+          server_pid=""
+          cleanup() {
+            if [[ -n "${server_pid}" ]] && kill -0 "${server_pid}" >/dev/null 2>&1; then
+              kill "${server_pid}" >/dev/null 2>&1 || true
+              wait "${server_pid}" >/dev/null 2>&1 || true
+            fi
+          }
+          trap cleanup EXIT
+
+          ./smoke-bin/graft-server-linux-amd64 serve > .tmp/release-bubble-server.log 2>&1 &
+          server_pid=$!
+
+          set +e
+          smoke_status=1
+          for _ in $(seq 1 30); do
+            if curl -fsS "${probe_url}" > .tmp/release-bubble-healthz.json; then
+              smoke_status=0
+              break
+            fi
+            if ! kill -0 "${server_pid}" >/dev/null 2>&1; then
+              smoke_status=1
+              break
+            fi
+            sleep 1
+          done
+          end_epoch="$(date +%s)"
+          duration="$((end_epoch - start_epoch))"
+          echo "duration_seconds=${duration}" >> "${GITHUB_OUTPUT}"
+          if [[ ${smoke_status} -ne 0 ]]; then
+            echo "result=failed" >> "${GITHUB_OUTPUT}"
+            cat .tmp/release-bubble-server.log
+            exit "${smoke_status}"
+          fi
+          cat .tmp/release-bubble-healthz.json | tee .tmp/release-bubble-smoke.log
+          set -e
+          echo "result=passed" >> "${GITHUB_OUTPUT}"
+
+      - name: Upload bubble smoke logs
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: release-bubble-smoke-logs
+          path: |
+            .tmp/release-bubble-migrate.log
+            .tmp/release-bubble-server.log
+            .tmp/release-bubble-healthz.json
+            .tmp/release-bubble-smoke.log
+          if-no-files-found: ignore
+
+      - name: Write bubble smoke summary
+        if: always()
+        run: |
+          {
+            echo "## Bubble Smoke Gate"
+            echo
+            echo "- Tag: \`${{ github.ref_name }}\`"
+            echo "- Version: \`${{ needs.build-artifacts.outputs.version }}\`"
+            echo "- Probe URL: \`${{ steps.bubble_smoke.outputs.probe_url || 'http://127.0.0.1:18080/healthz' }}\`"
+            echo "- Result: \`${{ steps.bubble_smoke.outputs.result || 'failed' }}\`"
+            echo "- Duration Seconds: \`${{ steps.bubble_smoke.outputs.duration_seconds || 'unknown' }}\`"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
   create-release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
-    needs: build-artifacts
+    needs:
+      - build-artifacts
+      - bubble-smoke
 
     permissions:
       contents: write

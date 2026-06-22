@@ -21,8 +21,20 @@ const GO_KEY_FIRST_PAIRS: Pair[] = [
   { fallback: 'Label', keys: ['LabelKey'] },
 ];
 
+/**
+ * 判断是否应对指定的 Go 服务器文件进行 key-first 本地化扫描。
+ *
+ * @returns `true` 如果应扫描该文件，`false` 否则。
+ */
 function shouldScanServerKeyFirstFile(filePath: string) {
-  if (filePath.includes('/ent/') || filePath.includes('/storeent/') || filePath.includes('/migrations/')) return false;
+  if (
+    filePath.includes('/ent/') ||
+    filePath.includes('/storeent/') ||
+    filePath.includes('/migrations/') ||
+    filePath.endsWith('/generated.go')
+  ) {
+    return false;
+  }
   return /(?:registry|definition|registration|dashboard|config|scheduler|notification|menu|permission|module|retention)/.test(
     filePath,
   );

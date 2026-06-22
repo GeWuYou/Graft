@@ -1,0 +1,93 @@
+# Release Readiness Governance Audit Trace
+
+## 2026-06-22
+
+- 建立 `release-readiness-governance-audit` public topic，用于收口 `Graft` 的发版就绪治理审计与后续治理落地设计。
+- 审计范围明确聚焦：
+  - Version Governance
+  - Build Governance
+  - Release Governance
+  - Migration Governance
+  - Config Governance
+  - Deployment Governance
+  - Upgrade Governance
+  - Documentation Governance
+- 明确本主题当前阶段不做：
+  - release 流水线改造
+  - Docker / Compose 实现
+  - `server` / `web` 功能修改
+- 已确认当前仓库存在部分发版机制，但未形成长期维护级治理闭环：
+  - `web` 版本来自 `package.json`
+  - `server` 运行版本仍可能显示 `dev`
+  - 未见统一 BuildInfo / Commit / BuildTime / DirtyState 注入模型
+  - `Atlas` 显式迁移路径存在，回滚治理不足
+  - 配置默认值和校验存在，兼容与弃用治理不足
+  - 官方部署支持边界未明确
+  - 升级 / 回滚 / 安装 / release 文档不足
+- 审计结论：
+  - 当前 readiness 更接近 `4/10`
+  - 不建议先重构 release 流水线
+  - 应先补治理基础设施，再让流水线实现这些规则
+- Batch 4 docs-only worker round 已完成，当前 loop 批次编号明确收敛为：
+  - Batch 4：Config Compatibility / Deprecation Governance
+  - Batch 5：Deployment Support Boundary + Documentation Inventory
+  - Batch 6：Consolidated P0/P1/P2 roadmap and archive-readiness check
+- Batch 4 明确的治理结论：
+  - `v0.1.0` P0 必须先建立 config compatibility / deprecation 文档治理口径
+  - patch release 不允许静默删除、静默重命名或静默改变稳定配置项语义
+  - minor release 如涉及 rename / semantic-change / removal，必须配套 release notes、upgrade notes、replacement 与 removal target
+  - legacy config alias / fallback 不是 `v0.1.0` 默认承诺，只能作为例外兼容记录
+- Batch 4 明确推迟到 `v0.2.x` 的内容：
+  - machine-readable config inventory
+  - config diff automation
+  - startup deprecation warnings
+  - operator-facing config migration helper
+- Batch 5 已被显式收口为 deployment support boundary + documentation inventory，不再与 Batch 4 混写为同一批次。
+- Batch 5 docs-only worker round 已完成，形成以下治理结论：
+  - `v0.1.0` 的官方 deployment support boundary 只覆盖 documentation-first 的自管部署
+  - 官方支持形态明确为 `server` / `web` 独立分发与显式数据库迁移，不承诺 Docker/Compose、Kubernetes 或托管平台流程
+  - `v0.1.0` 必须补齐的最小文档集合包括：
+    - release policy / support boundary
+    - install guide
+    - config reference + compatibility notes
+    - upgrade guide
+    - rollback / recovery guide
+    - release notes template
+  - `v0.1.0` 的 rollback support 只承诺文档化前提、风险、operator action 与最小验证，不承诺自动回滚
+  - 以下内容明确推迟到 `v0.2.x`：
+    - deployment assets 与支持策略
+    - 更强 deployment matrix
+    - upgrade / rollback helper automation
+    - deployment validation automation
+    - 文档与实现一致性自动检查
+- Batch 6 docs-only worker round 已完成，形成以下终态结论：
+  - 已把本主题此前审计与 Batch 4/5 的结论合并成显式 `P0/P1/P2` 路线
+  - `P0` 明确绑定 `v0.1.0`：
+    - BuildInfo / version identity baseline
+    - release policy / support boundary
+    - migration / upgrade / rollback governance
+    - config compatibility / deprecation governance
+    - deployment support boundary
+    - 最小 release/install/upgrade/rollback 文档基线
+  - `P1` 明确绑定 early `v0.2.x`：
+    - 受控的 release / deployment automation
+    - 更强 version/build ergonomics
+    - config inventory / warnings / controlled compatibility assistance
+    - upgrade / rollback helper tooling
+  - `P2` 明确留给 later `v0.2.x+`：
+    - Docker / Compose / orchestration assets
+    - Kubernetes / hosted-platform matrix
+    - multi-node / zero-downtime rollout governance
+    - 更强的一键式 operator tooling
+  - archive-readiness check 结论：
+    - 本主题作为 docs-only design/closeout topic 已完成
+    - 剩余工作属于新的治理落地 topic，而不是当前 topic 内的未完成审计项
+    - 当前状态可标记为 `archive-ready`，但本轮不执行实际 archive move，也不修改 shared recovery index
+
+## Suggested Next Phase
+
+- 当前 topic 无后续 batch。
+- 后续若继续推进，应新开治理落地 topic，再按实现边界拆分：
+  - Version + Build Governance 落地
+  - Migration + Config + Upgrade Governance 落地
+  - Deployment + Documentation Governance 落地

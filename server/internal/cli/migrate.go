@@ -2,15 +2,21 @@ package cli
 
 import (
 	"context"
+	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
+	"time"
 
+	atlasmigrate "ariga.io/atlas/sql/migrate"
+	atlaspostgres "ariga.io/atlas/sql/postgres"
 	"github.com/spf13/cobra"
 
 	"graft/server/internal/config"
@@ -20,34 +26,60 @@ import (
 // defaultMigrationDir 定义 `server` 模块默认迁移链使用的 registry 选择器。
 const defaultMigrationDir = moduleregistry.DefaultMigrationDir
 
-const migrationFileMode = 0o600
 const migrationVersionMatchCount = 2
+const externalMigrationDirPrefix = "file:"
 
 var migrationVersionPattern = regexp.MustCompile(`^(\d+)_.*\.sql$`)
 
-// 这些变量保留为可替换的命令边界，便于测试覆盖 Atlas 查找、子进程执行和
-// 当前工作目录解析，而不把真实系统依赖硬编码到测试中。
-var migrateLookPath = exec.LookPath
-var migrateCommandContext = exec.CommandContext
+// 这些变量保留为可替换的命令边界，便于测试覆盖 cwd、compile-time registry、
+// 嵌入式迁移资源解析以及 Atlas 执行装配。
 var migrateGetwd = os.Getwd
-var migrateStdin io.Reader = os.Stdin
 var migrateRegistryMigrationDirs = moduleregistry.MigrationDirs
+var migrateEmbeddedMigrationDirByPath = moduleregistry.EmbeddedMigrationDirByPath
 var migrateReadDir = os.ReadDir
-var migrateReadFile = os.ReadFile
-var migrateWriteFile = os.WriteFile
-var migrateMkdirTemp = os.MkdirTemp
-var migrateRemoveAll = os.RemoveAll
+var migrateOpenExecutor = openAtlasExecutor
 
 // migrateUpOptions 封装一次显式迁移执行所需的输入。
 type migrateUpOptions struct {
 	migrationDir string
 	workingDir   string
+	allowDirty   bool
+}
+
+type atlasExecutorHandle struct {
+	executor atlasExecutor
+	close    func() error
+}
+
+type atlasExecutor interface {
+	ExecuteN(context.Context, int) error
+}
+
+type migrationDirInputKind int
+
+const (
+	migrationDirInputKindDefault migrationDirInputKind = iota
+	migrationDirInputKindRepoOwned
+	migrationDirInputKindExternal
+)
+
+type migrationDirInput struct {
+	kind         migrationDirInputKind
+	displayValue string
+	selector     string
+	externalPath string
+}
+
+type migrationDirSource struct {
+	path          string
+	dir           atlasmigrate.Dir
+	hasAtlasState bool
 }
 
 // newMigrateCommand 创建显式数据库迁移命令树。
 //
 // 迁移能力保持在独立的 `graft migrate` 子树下，避免普通运行时启动路径
-// 隐式修改数据库 schema。
+// NewMigrateCommand creates the migrate command with subcommands for applying and validating Atlas migrations.
 func newMigrateCommand() *cobra.Command {
 	var migrationDir string
 
@@ -57,11 +89,22 @@ func newMigrateCommand() *cobra.Command {
 	}
 	command.PersistentFlags().StringVar(&migrationDir, "dir", defaultMigrationDir, "migration directory or owner-aligned default chain")
 
-	command.AddCommand(&cobra.Command{
+	upOptions := migrateUpOptions{}
+	upCommand := &cobra.Command{
 		Use:   "up",
 		Short: "Apply pending Atlas versioned migrations",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runMigrateUp(cmd, migrateUpOptions{migrationDir: migrationDir})
+			upOptions.migrationDir = migrationDir
+			return runMigrateUp(cmd, upOptions)
+		},
+	}
+	upCommand.Flags().BoolVar(&upOptions.allowDirty, "allow-dirty", false, "allow the first migration run against a disposable database that is not Atlas-clean")
+	command.AddCommand(upCommand)
+	command.AddCommand(&cobra.Command{
+		Use:   "validate",
+		Short: "Validate migration assets without connecting to the database",
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return runMigrateValidate(migrateResolveOptions{migrationDir: migrationDir})
 		},
 	})
 
@@ -75,29 +118,20 @@ func newMigrateCommand() *cobra.Command {
 //   - opts: 迁移目录与工作目录等显式执行选项。
 //
 // 返回值：
-//   - error: 当配置加载、迁移目录解析、Atlas 查找或迁移执行失败时返回错误。
+// runMigrateUp 应用待处理的迁移到数据库。
+// 迁移成功时返回 nil（包括不存在待处理迁移的情况）；否则返回错误。
 func runMigrateUp(cmd *cobra.Command, opts migrateUpOptions) error {
 	cfg, err := config.Load()
 	if err != nil {
 		return fmt.Errorf("load config: %w", err)
 	}
 
-	workingDir := opts.workingDir
-	if strings.TrimSpace(workingDir) == "" {
-		workingDir, err = migrateGetwd()
-		if err != nil {
-			return fmt.Errorf("resolve working directory: %w", err)
-		}
-	}
-
-	absDirs, err := resolveMigrationDirs(workingDir, opts.migrationDir)
+	dir, err := resolveAtlasMigrationDir(migrateResolveOptions{
+		migrationDir: opts.migrationDir,
+		workingDir:   opts.workingDir,
+	})
 	if err != nil {
 		return fmt.Errorf("resolve migration dir: %w", err)
-	}
-
-	atlasPath, err := findAtlasCLI()
-	if err != nil {
-		return err
 	}
 
 	commandContext := cmd.Context()
@@ -105,158 +139,379 @@ func runMigrateUp(cmd *cobra.Command, opts migrateUpOptions) error {
 		commandContext = context.Background()
 	}
 
-	absDirs, cleanup, err := prepareMigrationDirs(commandContext, atlasPath, opts.migrationDir, absDirs)
+	handle, err := migrateOpenExecutor(cfg.Database.URL, dir, newAtlasCommandLogger(cmd), opts.allowDirty)
 	if err != nil {
 		return err
 	}
-	defer cleanup()
-
-	return applyAtlasMigrations(commandContext, atlasPath, cmd, cfg.Database.URL, absDirs)
-}
-
-func synthesizeDefaultMigrationDir(commandContext context.Context, atlasPath string, sourceDirs []string) (string, func(), error) {
-	tempDir, err := migrateMkdirTemp("", "graft-atlas-default-*")
-	if err != nil {
-		return "", nil, fmt.Errorf("create temporary default migration dir: %w", err)
-	}
-
-	cleanup := func() {
-		_ = migrateRemoveAll(tempDir)
-	}
-
-	if err := copyMigrationFilesIntoDir(tempDir, sourceDirs); err != nil {
-		cleanup()
-		return "", nil, err
-	}
-
-	var hashStderr strings.Builder
-	if err := runAtlasMigrationCommand(
-		commandContext,
-		atlasPath,
-		nil,
-		&hashStderr,
-		"hash",
-		"--dir", "file://"+filepath.ToSlash(tempDir),
-	); err != nil {
-		cleanup()
-		return "", nil, fmt.Errorf("hash synthesized default migration dir %s: %w", tempDir, wrapAtlasCommandError(err, hashStderr.String()))
-	}
-
-	return tempDir, cleanup, nil
-}
-
-func prepareMigrationDirs(commandContext context.Context, atlasPath string, migrationDir string, absDirs []string) ([]string, func(), error) {
-	if migrationDir != defaultMigrationDir {
-		return absDirs, func() {}, nil
-	}
-
-	defaultDir, cleanup, err := synthesizeDefaultMigrationDir(commandContext, atlasPath, absDirs)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return []string{defaultDir}, cleanup, nil
-}
-
-func applyAtlasMigrations(commandContext context.Context, atlasPath string, cmd *cobra.Command, databaseURL string, absDirs []string) error {
-	for _, absDir := range absDirs {
-		if err := runAtlasMigrationCommand(
-			commandContext,
-			atlasPath,
-			cmd,
-			nil,
-			"apply",
-			"--dir", "file://"+filepath.ToSlash(absDir),
-			"--url", databaseURL,
-		); err != nil {
-			return fmt.Errorf("apply atlas migrations from %s: %w", absDir, err)
+	defer func() {
+		if handle.close != nil {
+			_ = handle.close()
 		}
+	}()
+
+	if err := handle.executor.ExecuteN(commandContext, 0); err != nil {
+		if errors.Is(err, atlasmigrate.ErrNoPendingFiles) {
+			return nil
+		}
+		return fmt.Errorf("apply atlas migrations: %w", err)
 	}
 
 	return nil
 }
 
-func copyMigrationFilesIntoDir(targetDir string, sourceDirs []string) error {
-	copiedAny := false
+type migrateResolveOptions struct {
+	migrationDir string
+	workingDir   string
+}
+
+// runMigrateValidate 验证 Atlas 迁移目录是否有效。
+func runMigrateValidate(opts migrateResolveOptions) error {
+	dir, err := resolveAtlasMigrationDir(opts)
+	if err != nil {
+		return fmt.Errorf("resolve migration dir: %w", err)
+	}
+	if err := atlasmigrate.Validate(dir); err != nil {
+		return fmt.Errorf("validate migration dir: %w", err)
+	}
+	return nil
+}
+
+// ResolveAtlasMigrationDir resolves an Atlas migration directory, using the current working directory if none is provided.
+func resolveAtlasMigrationDir(opts migrateResolveOptions) (atlasmigrate.Dir, error) {
+	workingDir := opts.workingDir
+	if strings.TrimSpace(workingDir) == "" {
+		var err error
+		workingDir, err = migrateGetwd()
+		if err != nil {
+			return nil, fmt.Errorf("resolve working directory: %w", err)
+		}
+	}
+
+	return buildAtlasMigrationDir(workingDir, opts.migrationDir)
+}
+
+// openAtlasExecutor 为指定的数据库和迁移目录创建一个 Atlas 迁移执行器。
+// 返回的执行器句柄包含迁移执行器和数据库连接的关闭函数。
+func openAtlasExecutor(databaseURL string, dir atlasmigrate.Dir, logger atlasmigrate.Logger, allowDirty bool) (*atlasExecutorHandle, error) {
+	sqlDB, err := sql.Open("pgx", databaseURL)
+	if err != nil {
+		return nil, fmt.Errorf("open postgres database pool: %w", err)
+	}
+
+	driver, err := atlaspostgres.Open(sqlDB)
+	if err != nil {
+		_ = sqlDB.Close()
+		return nil, fmt.Errorf("open atlas postgres driver: %w", err)
+	}
+
+	executor, err := atlasmigrate.NewExecutor(
+		driver,
+		dir,
+		newAtlasRevisionStore(sqlDB),
+		atlasmigrate.WithAllowDirty(allowDirty),
+		atlasmigrate.WithLogger(logger),
+		atlasmigrate.WithOperatorVersion("graft"),
+	)
+	if err != nil {
+		_ = sqlDB.Close()
+		return nil, fmt.Errorf("create atlas migration executor: %w", err)
+	}
+
+	return &atlasExecutorHandle{
+		executor: executor,
+		close:    sqlDB.Close,
+	}, nil
+}
+
+// buildAtlasMigrationDir 根据迁移目录规范构造 Atlas 迁移目录。
+// 规范可指定默认链、仓库拥有目录或外部路径（"file:" 前缀）。baseDir 用于解析外部路径。
+func buildAtlasMigrationDir(baseDir string, migrationDir string) (atlasmigrate.Dir, error) {
+	input, err := parseMigrationDirInput(migrationDir)
+	if err != nil {
+		return nil, err
+	}
+
+	switch input.kind {
+	case migrationDirInputKindDefault:
+		return buildDefaultAtlasMigrationDir()
+	case migrationDirInputKindRepoOwned:
+		return loadRepoOwnedAtlasMigrationDir(input.selector)
+	case migrationDirInputKindExternal:
+		return loadExternalAtlasMigrationDir(baseDir, input.externalPath)
+	default:
+		return nil, fmt.Errorf("unsupported migration dir input %q", input.displayValue)
+	}
+}
+
+// buildDefaultAtlasMigrationDir 从编译期注册表加载迁移源，筛选出包含 Atlas 状态的源目录，并将其合成为单一迁移目录。
+func buildDefaultAtlasMigrationDir() (atlasmigrate.Dir, error) {
+	searchDirs, err := migrateRegistryMigrationDirs()
+	if err != nil {
+		return nil, fmt.Errorf("load compile-time migration registry: %w", err)
+	}
+
+	sources := make([]migrationDirSource, 0, len(searchDirs))
+	for _, current := range searchDirs {
+		source, err := loadRepoOwnedMigrationDirSource(current)
+		if err != nil {
+			return nil, err
+		}
+		if !source.hasAtlasState {
+			continue
+		}
+		if err := atlasmigrate.Validate(source.dir); err != nil {
+			return nil, fmt.Errorf("validate migration dir %s: %w", source.path, err)
+		}
+		sources = append(sources, source)
+	}
+
+	if len(sources) == 0 {
+		return nil, fmt.Errorf("no migration directories with atlas state found in compile-time registry")
+	}
+
+	dir, err := synthesizeDefaultMigrationDir(sources)
+	if err != nil {
+		return nil, err
+	}
+	if err := atlasmigrate.Validate(dir); err != nil {
+		return nil, fmt.Errorf("validate synthesized default migration dir: %w", err)
+	}
+	return dir, nil
+}
+
+// parseMigrationDirInput parses a migration directory input string into a categorized migration directory specification.
+// It recognizes three input kinds: external paths prefixed with "file:", the default migration directory, and repository-owned selectors starting with "modules/" or "internal/".
+// It returns an error if the input is empty, uses server-prefixed paths without explicit prefixes, or lacks required prefixes for external paths.
+func parseMigrationDirInput(migrationDir string) (migrationDirInput, error) {
+	trimmed := strings.TrimSpace(migrationDir)
+	if trimmed == "" {
+		return migrationDirInput{}, fmt.Errorf("migration dir is required")
+	}
+
+	if strings.HasPrefix(trimmed, externalMigrationDirPrefix) {
+		externalPath := strings.TrimSpace(strings.TrimPrefix(trimmed, externalMigrationDirPrefix))
+		if externalPath == "" {
+			return migrationDirInput{}, fmt.Errorf("external migration dir path is required after %q", externalMigrationDirPrefix)
+		}
+		return migrationDirInput{
+			kind:         migrationDirInputKindExternal,
+			displayValue: trimmed,
+			externalPath: externalPath,
+		}, nil
+	}
+
+	normalized := filepath.ToSlash(trimmed)
+	if normalized == defaultMigrationDir {
+		return migrationDirInput{
+			kind:         migrationDirInputKindDefault,
+			displayValue: trimmed,
+			selector:     defaultMigrationDir,
+		}, nil
+	}
+
+	if isRepoOwnedMigrationSelector(normalized) {
+		return migrationDirInput{
+			kind:         migrationDirInputKindRepoOwned,
+			displayValue: trimmed,
+			selector:     normalized,
+		}, nil
+	}
+
+	if strings.HasPrefix(normalized, "server/modules/") || strings.HasPrefix(normalized, "server/internal/") {
+		return migrationDirInput{}, fmt.Errorf(
+			"repo-owned migration selector %q must use owner-aligned path without \"server/\" or explicit %s prefix",
+			trimmed,
+			externalMigrationDirPrefix,
+		)
+	}
+
+	return migrationDirInput{}, fmt.Errorf(
+		"external migration dir %q must use explicit %s prefix",
+		trimmed,
+		externalMigrationDirPrefix,
+	)
+}
+
+// isRepoOwnedMigrationSelector reports whether migrationDir is a repository-owned selector.
+//
+// A directory is repository-owned if it starts with "modules/" or "internal/".
+func isRepoOwnedMigrationSelector(migrationDir string) bool {
+	return strings.HasPrefix(migrationDir, "modules/") || strings.HasPrefix(migrationDir, "internal/")
+}
+
+// loadRepoOwnedAtlasMigrationDir 从仓库拥有的迁移源加载 Atlas 迁移目录。
+func loadRepoOwnedAtlasMigrationDir(migrationDir string) (atlasmigrate.Dir, error) {
+	source, err := loadRepoOwnedMigrationDirSource(migrationDir)
+	if err != nil {
+		return nil, err
+	}
+	return source.dir, nil
+}
+
+// LoadRepoOwnedMigrationDirSource loads a repo-owned migration directory from compile-time embedded sources. It returns an error if the embedded migration directory is not available in the registry.
+func loadRepoOwnedMigrationDirSource(migrationDir string) (migrationDirSource, error) {
+	embedded, found, err := loadEmbeddedMigrationDirSource(migrationDir)
+	if err != nil {
+		return migrationDirSource{}, err
+	}
+	if !found {
+		return migrationDirSource{}, fmt.Errorf(
+			"compile-time embedded migration dir %q is not available; regenerate registry assets or use %s<path> for an explicit external directory",
+			migrationDir,
+			externalMigrationDirPrefix,
+		)
+	}
+	return embedded, nil
+}
+
+// loadEmbeddedMigrationDirSource 从编译期注册表加载指定迁移目录的嵌入式迁移文件到内存。
+// 若不存在返回 false，若成功加载返回包含文件的迁移源及 true。
+func loadEmbeddedMigrationDirSource(migrationDir string) (migrationDirSource, bool, error) {
+	embedded, ok := migrateEmbeddedMigrationDirByPath(migrationDir)
+	if !ok {
+		return migrationDirSource{}, false, nil
+	}
+
+	dir := &atlasmigrate.MemDir{}
+	for _, file := range embedded.Files {
+		if err := dir.WriteFile(file.Name, file.Contents); err != nil {
+			return migrationDirSource{}, false, fmt.Errorf("write embedded migration file %s/%s: %w", migrationDir, file.Name, err)
+		}
+	}
+
+	return migrationDirSource{
+		path:          migrationDir,
+		dir:           dir,
+		hasAtlasState: embeddedMigrationDirHasAtlasState(embedded),
+	}, true, nil
+}
+
+// loadExternalAtlasMigrationDir 加载外部文件系统路径中的迁移目录。
+// 若目录打开成功,返回 atlasmigrate.Dir;否则返回错误。
+func loadExternalAtlasMigrationDir(baseDir string, externalPath string) (atlasmigrate.Dir, error) {
+	absDir, err := resolveExternalMigrationDir(baseDir, externalPath)
+	if err != nil {
+		return nil, err
+	}
+
+	dir, err := atlasmigrate.NewLocalDir(absDir)
+	if err != nil {
+		return nil, fmt.Errorf("open migration dir %s: %w", absDir, err)
+	}
+	return dir, nil
+}
+
+// resolveExternalMigrationDir 解析 externalPath 为绝对目录路径，
+// 若其为相对路径，则相对于 baseDir 进行合并。
+// 若目录不存在或非目录，则返回错误。
+func resolveExternalMigrationDir(baseDir string, externalPath string) (string, error) {
+	candidate := externalPath
+	if !filepath.IsAbs(candidate) {
+		candidate = filepath.Join(baseDir, candidate)
+	}
+
+	info, err := os.Stat(candidate)
+	if err != nil {
+		return "", fmt.Errorf("cannot find migration dir %q from %s: %w", externalPath, baseDir, err)
+	}
+	if !info.IsDir() {
+		return "", fmt.Errorf("migration dir %s is not a directory", candidate)
+	}
+
+	absDir, err := filepath.Abs(candidate)
+	if err != nil {
+		return "", fmt.Errorf("resolve migration dir %s: %w", candidate, err)
+	}
+	return absDir, nil
+}
+
+// embeddedMigrationDirHasAtlasState 报告嵌入式迁移目录中是否存在 Atlas 哈希文件。
+func embeddedMigrationDirHasAtlasState(dir moduleregistry.EmbeddedMigrationDir) bool {
+	for _, file := range dir.Files {
+		if file.Name == atlasmigrate.HashFileName {
+			return true
+		}
+	}
+	return false
+}
+
+// synthesizeDefaultMigrationDir 将多个迁移源目录合并到单个内存目录中，并计算该目录的校验和。
+// 合并过程中会检测并拒绝文件名和版本号的重复。如果合并后的目录不包含任何 SQL 迁移文件，返回错误。
+func synthesizeDefaultMigrationDir(sourceDirs []migrationDirSource) (atlasmigrate.Dir, error) {
+	memDir := &atlasmigrate.MemDir{}
 	copiedNames := make(map[string]string, len(sourceDirs))
 	copiedVersions := make(map[string]string, len(sourceDirs))
+	totalCopied := 0
 
 	for _, sourceDir := range sourceDirs {
-		copied, err := copyMigrationFilesFromSource(targetDir, sourceDir, copiedNames, copiedVersions)
+		copied, err := copyMigrationSourceFiles(memDir, sourceDir, copiedNames, copiedVersions)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		copiedAny = copiedAny || copied
+		totalCopied += copied
 	}
-
-	if !copiedAny {
-		return fmt.Errorf("default migration chain has no SQL migration files")
+	if totalCopied == 0 {
+		return nil, fmt.Errorf("default migration chain has no SQL migration files")
 	}
-
-	return nil
-}
-
-func copyMigrationFilesFromSource(targetDir string, sourceDir string, copiedNames map[string]string, copiedVersions map[string]string) (bool, error) {
-	entries, err := migrateReadDir(sourceDir)
+	sum, err := memDir.Checksum()
 	if err != nil {
-		return false, fmt.Errorf("read migration dir %s: %w", sourceDir, err)
+		return nil, fmt.Errorf("compute synthesized migration checksum: %w", err)
+	}
+	if err := atlasmigrate.WriteSumFile(memDir, sum); err != nil {
+		return nil, fmt.Errorf("write synthesized migration checksum: %w", err)
 	}
 
-	copiedAny := false
-	for _, entry := range entries {
-		copied, err := copyMigrationFileEntry(targetDir, sourceDir, entry, copiedNames, copiedVersions)
-		if err != nil {
-			return false, err
-		}
-		copiedAny = copiedAny || copied
-	}
-
-	return copiedAny, nil
+	return memDir, nil
 }
 
-func copyMigrationFileEntry(targetDir string, sourceDir string, entry os.DirEntry, copiedNames map[string]string, copiedVersions map[string]string) (bool, error) {
-	if entry.IsDir() {
-		return false, nil
+// CopyMigrationSourceFiles copies migration files from a source directory to a memory directory, validating against duplicate filenames and versions. It returns the number of files copied and any error encountered.
+func copyMigrationSourceFiles(
+	memDir *atlasmigrate.MemDir,
+	sourceDir migrationDirSource,
+	copiedNames map[string]string,
+	copiedVersions map[string]string,
+) (int, error) {
+	files, err := sourceDir.dir.Files()
+	if err != nil {
+		return 0, fmt.Errorf("read migration dir %s: %w", sourceDir.path, err)
 	}
 
-	name := entry.Name()
-	if filepath.Ext(name) != ".sql" {
-		return false, nil
+	copiedCount := 0
+	for _, file := range files {
+		if err := validateSynthesizedMigrationFile(sourceDir.path, file.Name(), copiedNames, copiedVersions); err != nil {
+			return 0, err
+		}
+		if err := memDir.WriteFile(file.Name(), file.Bytes()); err != nil {
+			return 0, fmt.Errorf("write synthesized migration file %s: %w", file.Name(), err)
+		}
+		copiedNames[file.Name()] = sourceDir.path
+		copiedCount++
 	}
 
+	return copiedCount, nil
+}
+
+// validateSynthesizedMigrationFile 验证迁移文件不存在重复的文件名或版本号。sourcePath 为该文件所来自的源目录路径。copiedNames 记录已复制的文件名，copiedVersions 记录已复制的版本号。若验证通过，该函数将版本号记录到 copiedVersions 中；若发现重复的文件名或版本号，返回相应的错误。
+func validateSynthesizedMigrationFile(
+	sourcePath string,
+	name string,
+	copiedNames map[string]string,
+	copiedVersions map[string]string,
+) error {
 	if previousSource, exists := copiedNames[name]; exists {
-		return false, fmt.Errorf("duplicate migration filename %s from %s and %s", name, previousSource, sourceDir)
+		return fmt.Errorf("duplicate migration filename %s from %s and %s", name, previousSource, sourcePath)
 	}
 	if version := migrationFileVersion(name); version != "" {
 		if previousSource, exists := copiedVersions[version]; exists {
-			return false, fmt.Errorf("duplicate migration version %s from %s and %s", version, previousSource, sourceDir)
+			return fmt.Errorf("duplicate migration version %s from %s and %s", version, previousSource, sourcePath)
 		}
-		copiedVersions[version] = sourceDir
-	}
-
-	if err := copyMigrationFile(targetDir, sourceDir, name); err != nil {
-		return false, err
-	}
-
-	copiedNames[name] = sourceDir
-	return true, nil
-}
-
-func copyMigrationFile(targetDir string, sourceDir string, name string) error {
-	sourcePath := filepath.Join(sourceDir, name)
-	content, err := migrateReadFile(sourcePath)
-	if err != nil {
-		return fmt.Errorf("read migration file %s: %w", sourcePath, err)
-	}
-
-	targetPath := filepath.Join(targetDir, name)
-	if err := migrateWriteFile(targetPath, content, migrationFileMode); err != nil {
-		return fmt.Errorf("write synthesized migration file %s: %w", targetPath, err)
+		copiedVersions[version] = sourcePath
 	}
 
 	return nil
 }
 
+// migrationFileVersion extracts the leading numeric version from a migration filename. It returns the version number if the filename matches the migration pattern, or an empty string if the filename does not match.
 func migrationFileVersion(name string) string {
 	matches := migrationVersionPattern.FindStringSubmatch(name)
 	if len(matches) != migrationVersionMatchCount {
@@ -264,51 +519,6 @@ func migrationFileVersion(name string) string {
 	}
 
 	return matches[1]
-}
-
-func runAtlasMigrationCommand(commandContext context.Context, atlasPath string, cmd *cobra.Command, stderrCapture io.Writer, args ...string) error {
-	command := migrateCommandContext(commandContext, atlasPath, append([]string{"migrate"}, args...)...)
-
-	stdout := io.Discard
-	stderr := io.Discard
-	if cmd != nil {
-		stdout = cmd.OutOrStdout()
-		stderr = cmd.ErrOrStderr()
-	}
-	if stderrCapture != nil {
-		stderr = io.MultiWriter(stderr, stderrCapture)
-	}
-
-	command.Stdout = stdout
-	command.Stderr = stderr
-	command.Stdin = migrateStdin
-
-	return command.Run()
-}
-
-func wrapAtlasCommandError(err error, stderr string) error {
-	stderr = strings.TrimSpace(stderr)
-	if stderr == "" {
-		return err
-	}
-
-	return fmt.Errorf("%w: %s", err, stderr)
-}
-
-// findAtlasCLI 解析本地可执行的 Atlas CLI 路径。
-//
-// 如果 Atlas 不存在，这里直接返回面向开发者的下一步提示，明确哪些命令
-// 依赖迁移工具，哪些命令只适用于 schema 已经同步的场景。
-func findAtlasCLI() (string, error) {
-	atlasPath, err := migrateLookPath("atlas")
-	if err == nil {
-		return atlasPath, nil
-	}
-
-	return "", fmt.Errorf(
-		"atlas CLI is required for `graft migrate up` and `graft dev`; install Atlas first, or run `graft serve` only after the database schema is already up to date: %w",
-		err,
-	)
 }
 
 // resolveMigrationDirs 从当前目录向上搜索可用的迁移目录集合。
@@ -417,6 +627,7 @@ func resolveMigrationDir(baseDir string, migrationDir string) (string, error) {
 	return "", fmt.Errorf("cannot find migration dir %q from %s: %w", migrationDir, baseDir, os.ErrNotExist)
 }
 
+// directoryContainsAtlasState reports whether a directory contains an Atlas state file.
 func directoryContainsAtlasState(absDir string) (bool, error) {
 	entries, err := migrateReadDir(absDir)
 	if err != nil {
@@ -427,10 +638,292 @@ func directoryContainsAtlasState(absDir string) (bool, error) {
 		if entry.IsDir() {
 			continue
 		}
-		if entry.Name() == "atlas.sum" {
+		if entry.Name() == atlasmigrate.HashFileName {
 			return true, nil
 		}
 	}
 
 	return false, nil
+}
+
+type atlasRevisionStore struct {
+	db       *sql.DB
+	initOnce sync.Once
+	initErr  error
+}
+
+var _ atlasmigrate.RevisionReadWriter = (*atlasRevisionStore)(nil)
+
+const atlasRevisionStoreCreateTableSQL = `CREATE TABLE IF NOT EXISTS atlas_schema_revisions (
+				version VARCHAR(255) PRIMARY KEY,
+				description TEXT NOT NULL DEFAULT '',
+				type BIGINT NOT NULL DEFAULT 0,
+				applied BIGINT NOT NULL DEFAULT 0,
+				total BIGINT NOT NULL DEFAULT 0,
+				executed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				execution_time BIGINT NOT NULL DEFAULT 0,
+				error TEXT NOT NULL DEFAULT '',
+				error_stmt TEXT NOT NULL DEFAULT '',
+				hash TEXT NOT NULL DEFAULT '',
+				partial_hashes JSONB NULL,
+				operator_version TEXT NOT NULL DEFAULT ''
+			)`
+
+// newAtlasRevisionStore 为给定的数据库连接创建一个新的 Atlas 修订存储实例。
+func newAtlasRevisionStore(db *sql.DB) *atlasRevisionStore {
+	return &atlasRevisionStore{db: db}
+}
+
+func (s *atlasRevisionStore) Ident() *atlasmigrate.TableIdent {
+	return &atlasmigrate.TableIdent{Name: "atlas_schema_revisions"}
+}
+
+func (s *atlasRevisionStore) ReadRevisions(ctx context.Context) ([]*atlasmigrate.Revision, error) {
+	if err := s.ensureTable(ctx); err != nil {
+		return nil, err
+	}
+
+	rows, err := s.db.QueryContext(
+		ctx,
+		`SELECT version, description, type, applied, total, executed_at, execution_time, error, error_stmt, hash, partial_hashes, operator_version
+		FROM atlas_schema_revisions
+		ORDER BY version ASC`,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("query revision history: %w", err)
+	}
+	defer func() {
+		_ = rows.Close()
+	}()
+
+	revisions := make([]*atlasmigrate.Revision, 0)
+	for rows.Next() {
+		revision, err := scanAtlasRevision(rows.Scan)
+		if err != nil {
+			return nil, err
+		}
+		revisions = append(revisions, revision)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate revision history: %w", err)
+	}
+
+	return revisions, nil
+}
+
+func (s *atlasRevisionStore) ReadRevision(ctx context.Context, version string) (*atlasmigrate.Revision, error) {
+	if err := s.ensureTable(ctx); err != nil {
+		return nil, err
+	}
+
+	row := s.db.QueryRowContext(
+		ctx,
+		`SELECT version, description, type, applied, total, executed_at, execution_time, error, error_stmt, hash, partial_hashes, operator_version
+		FROM atlas_schema_revisions
+		WHERE version = $1`,
+		version,
+	)
+
+	revision, err := scanAtlasRevision(row.Scan)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, atlasmigrate.ErrRevisionNotExist
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return revision, nil
+}
+
+func (s *atlasRevisionStore) WriteRevision(ctx context.Context, revision *atlasmigrate.Revision) error {
+	if revision == nil {
+		return fmt.Errorf("write revision: revision is required")
+	}
+	if err := s.ensureTable(ctx); err != nil {
+		return err
+	}
+
+	var partialHashes any
+	if len(revision.PartialHashes) > 0 {
+		encoded, err := json.Marshal(revision.PartialHashes)
+		if err != nil {
+			return fmt.Errorf("marshal partial hashes for revision %s: %w", revision.Version, err)
+		}
+		partialHashes = encoded
+	}
+	revisionType, err := revisionTypeToInt64(revision.Type)
+	if err != nil {
+		return fmt.Errorf("encode revision type for %s: %w", revision.Version, err)
+	}
+
+	if _, err := s.db.ExecContext(
+		ctx,
+		`INSERT INTO atlas_schema_revisions (
+			version, description, type, applied, total, executed_at, execution_time, error, error_stmt, hash, partial_hashes, operator_version
+		) VALUES (
+			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
+		)
+		ON CONFLICT (version) DO UPDATE SET
+			description = EXCLUDED.description,
+			type = EXCLUDED.type,
+			applied = EXCLUDED.applied,
+			total = EXCLUDED.total,
+			executed_at = EXCLUDED.executed_at,
+			execution_time = EXCLUDED.execution_time,
+			error = EXCLUDED.error,
+			error_stmt = EXCLUDED.error_stmt,
+			hash = EXCLUDED.hash,
+			partial_hashes = EXCLUDED.partial_hashes,
+			operator_version = EXCLUDED.operator_version`,
+		revision.Version,
+		revision.Description,
+		revisionType,
+		revision.Applied,
+		revision.Total,
+		revision.ExecutedAt,
+		revision.ExecutionTime.Nanoseconds(),
+		revision.Error,
+		revision.ErrorStmt,
+		revision.Hash,
+		partialHashes,
+		revision.OperatorVersion,
+	); err != nil {
+		return fmt.Errorf("upsert revision %s: %w", revision.Version, err)
+	}
+
+	return nil
+}
+
+func (s *atlasRevisionStore) DeleteRevision(ctx context.Context, version string) error {
+	if err := s.ensureTable(ctx); err != nil {
+		return err
+	}
+
+	if _, err := s.db.ExecContext(ctx, `DELETE FROM atlas_schema_revisions WHERE version = $1`, version); err != nil {
+		return fmt.Errorf("delete revision %s: %w", version, err)
+	}
+	return nil
+}
+
+func (s *atlasRevisionStore) ensureTable(ctx context.Context) error {
+	s.initOnce.Do(func() {
+		_, s.initErr = s.db.ExecContext(ctx, atlasRevisionStoreCreateTableSQL)
+	})
+	if s.initErr != nil {
+		return fmt.Errorf("ensure atlas_schema_revisions table: %w", s.initErr)
+	}
+	return nil
+}
+
+// scanAtlasRevision 将数据库行数据扫描并映射为一个 Atlas 迁移版本记录。
+func scanAtlasRevision(scan func(dest ...any) error) (*atlasmigrate.Revision, error) {
+	var (
+		version         string
+		description     string
+		revisionType    int64
+		applied         int
+		total           int
+		executedAt      time.Time
+		executionTimeNS int64
+		errorText       string
+		errorStmt       string
+		hash            string
+		partialHashes   []byte
+		operatorVersion string
+	)
+
+	if err := scan(
+		&version,
+		&description,
+		&revisionType,
+		&applied,
+		&total,
+		&executedAt,
+		&executionTimeNS,
+		&errorText,
+		&errorStmt,
+		&hash,
+		&partialHashes,
+		&operatorVersion,
+	); err != nil {
+		return nil, err
+	}
+
+	var hashes []string
+	if len(partialHashes) > 0 {
+		if err := json.Unmarshal(partialHashes, &hashes); err != nil {
+			return nil, fmt.Errorf("decode partial hashes for revision %s: %w", version, err)
+		}
+	}
+	migrationType, err := revisionTypeFromInt64(revisionType)
+	if err != nil {
+		return nil, fmt.Errorf("decode revision type for %s: %w", version, err)
+	}
+
+	return &atlasmigrate.Revision{
+		Version:         version,
+		Description:     description,
+		Type:            migrationType,
+		Applied:         applied,
+		Total:           total,
+		ExecutedAt:      executedAt,
+		ExecutionTime:   time.Duration(executionTimeNS),
+		Error:           errorText,
+		ErrorStmt:       errorStmt,
+		Hash:            hash,
+		PartialHashes:   hashes,
+		OperatorVersion: operatorVersion,
+	}, nil
+}
+
+// revisionTypeToInt64 converts a revision type value to an int64, returning an error if the value exceeds math.MaxInt64.
+func revisionTypeToInt64(value atlasmigrate.RevisionType) (int64, error) {
+	raw := uint64(value)
+	if raw > math.MaxInt64 {
+		return 0, fmt.Errorf("revision type %d exceeds int64 storage", raw)
+	}
+	return int64(raw), nil
+}
+
+// revisionTypeFromInt64 将 int64 值转换为 RevisionType，如果该值为负则返回错误。
+func revisionTypeFromInt64(value int64) (atlasmigrate.RevisionType, error) {
+	if value < 0 {
+		return 0, fmt.Errorf("revision type %d cannot be negative", value)
+	}
+	return atlasmigrate.RevisionType(value), nil
+}
+
+type atlasCommandLogger struct {
+	stdout io.Writer
+	stderr io.Writer
+}
+
+// newAtlasCommandLogger creates an Atlas logger that writes to the command's standard output and error streams, or returns a no-op logger if the command is nil.
+func newAtlasCommandLogger(cmd *cobra.Command) atlasmigrate.Logger {
+	if cmd == nil {
+		return atlasmigrate.NopLogger{}
+	}
+	return atlasCommandLogger{
+		stdout: cmd.OutOrStdout(),
+		stderr: cmd.ErrOrStderr(),
+	}
+}
+
+func (l atlasCommandLogger) Log(entry atlasmigrate.LogEntry) {
+	switch current := entry.(type) {
+	case atlasmigrate.LogExecution:
+		if len(current.Files) == 0 {
+			_, _ = fmt.Fprintln(l.stdout, "No pending migrations.")
+			return
+		}
+		_, _ = fmt.Fprintf(l.stdout, "Applying %d migration file(s)...\n", len(current.Files))
+	case atlasmigrate.LogFile:
+		_, _ = fmt.Fprintf(l.stdout, "Applying %s\n", current.File.Name())
+	case atlasmigrate.LogDone:
+		_, _ = fmt.Fprintln(l.stdout, "Migration complete.")
+	case atlasmigrate.LogError:
+		if current.Error != nil {
+			_, _ = fmt.Fprintln(l.stderr, current.Error.Error())
+		}
+	}
 }

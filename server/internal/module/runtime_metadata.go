@@ -1,5 +1,7 @@
 package module
 
+import "graft/server/internal/buildinfo"
+
 // DescriptorSnapshot 是暴露给运行时模块消费的稳定描述符元数据快照。
 //
 // 它只包含模块运行期观测需要的 canonical metadata，避免模块直接依赖
@@ -15,10 +17,11 @@ type DescriptorSnapshot struct {
 // 观测或诊断，不提供 registry 级构造能力。
 type RuntimeMetadata struct {
 	orderedModuleDescriptors []DescriptorSnapshot
+	buildInfo                buildinfo.Info
 }
 
-// NewRuntimeMetadata 从有序模块定义集合构造运行时元数据快照。
-func NewRuntimeMetadata(descriptors []Spec) RuntimeMetadata {
+// NewRuntimeMetadata constructs a RuntimeMetadata snapshot from module definitions and the current build information, normalizing the build identity.
+func NewRuntimeMetadata(descriptors []Spec, currentBuildInfo buildinfo.Info) RuntimeMetadata {
 	snapshots := make([]DescriptorSnapshot, 0, len(descriptors))
 	for _, descriptor := range descriptors {
 		snapshots = append(snapshots, DescriptorSnapshot{
@@ -27,7 +30,10 @@ func NewRuntimeMetadata(descriptors []Spec) RuntimeMetadata {
 		})
 	}
 
-	return RuntimeMetadata{orderedModuleDescriptors: snapshots}
+	return RuntimeMetadata{
+		orderedModuleDescriptors: snapshots,
+		buildInfo:                buildinfo.Normalize(currentBuildInfo),
+	}
 }
 
 // OrderedModuleDescriptors 返回运行时可见的 canonical 有序描述符快照。
@@ -41,4 +47,9 @@ func (m RuntimeMetadata) OrderedModuleDescriptors() []DescriptorSnapshot {
 	}
 
 	return snapshots
+}
+
+// BuildInfo 返回运行时可见的 canonical 构建身份快照。
+func (m RuntimeMetadata) BuildInfo() buildinfo.Info {
+	return buildinfo.Normalize(m.buildInfo)
 }

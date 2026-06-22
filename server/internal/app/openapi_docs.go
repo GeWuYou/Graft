@@ -4,22 +4,16 @@ import (
 	"bytes"
 	"fmt"
 	"html/template"
-	"net/url"
-	"os"
-	"path/filepath"
-	"strings"
 
 	"github.com/getkin/kin-openapi/openapi3"
 )
 
 const (
-	openapiRootSpecRelativePath   = "openapi/openapi.yaml"
-	openapiBundleSpecRelativePath = "openapi/dist/openapi.bundle.json"
-	openapiJSONPath               = "/openapi.json"
-	openapiYAMLPath               = "/openapi.yaml"
-	openapiDocsPath               = "/docs"
-	scalarDocsScriptURL           = "https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.57.5/dist/browser/standalone.js"
-	scalarDocsScriptIntegrity     = "sha384-t5h38o34qqR7GUJVk2SXZl4p7wXfwNuV04PZALl5ae4ih2PEwQtGRPLiAax9r7V8"
+	openapiJSONPath           = "/openapi.json"
+	openapiDocsPath           = "/docs"
+	openapiBundleSourcePath   = "openapi/dist/openapi.bundle.json"
+	scalarDocsScriptURL       = "https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.57.5/dist/browser/standalone.js"
+	scalarDocsScriptIntegrity = "sha384-t5h38o34qqR7GUJVk2SXZl4p7wXfwNuV04PZALl5ae4ih2PEwQtGRPLiAax9r7V8"
 )
 
 var scalarDocsPageTemplate = template.Must(template.New("scalar-docs").Parse(`<!doctype html>
@@ -40,57 +34,49 @@ var scalarDocsPageTemplate = template.Must(template.New("scalar-docs").Parse(`<!
 
 type openAPIDocsAssets struct {
 	json []byte
-	yaml []byte
 }
 
-func loadOpenAPIDocsAssets() (*openAPIDocsAssets, error) {
-	repositoryRoot, err := resolveRepositoryRoot()
-	if err != nil {
-		return nil, fmt.Errorf("resolve repository root: %w", err)
-	}
+// OpenAPIDocsBundleSourcePath returns the canonical bundled OpenAPI source path in the repository.
+func OpenAPIDocsBundleSourcePath() string {
+	return openapiBundleSourcePath
+}
 
-	rootSpecPath := filepath.Join(repositoryRoot, filepath.FromSlash(openapiRootSpecRelativePath))
-	// #nosec G304 -- rootSpecPath is constrained to the repository-owned openapi spec under the resolved repo root.
-	yamlContent, err := os.ReadFile(rootSpecPath)
-	if err != nil {
-		return nil, fmt.Errorf("read openapi spec %q: %w", rootSpecPath, err)
+// OpenAPIDocsBundleSHA256 returns the digest of the embedded bundled OpenAPI asset.
+func OpenAPIDocsBundleSHA256() string {
+	return generatedOpenAPIBundleSHA256
+}
+
+// loadOpenAPIDocsAssets loads and validates the embedded OpenAPI documentation assets.
+func loadOpenAPIDocsAssets() (*openAPIDocsAssets, error) {
+	return buildOpenAPIDocsAssets(generatedOpenAPIBundleJSON)
+}
+
+// buildOpenAPIDocsAssets 从规范字节构建 OpenAPI 文档资源。它验证规范的有效性，确保规范为完整的打包内容且不包含外部文件引用。
+func buildOpenAPIDocsAssets(spec []byte) (*openAPIDocsAssets, error) {
+	if len(spec) == 0 {
+		return nil, fmt.Errorf("generated bundled openapi spec is empty")
 	}
 
 	loader := openapi3.NewLoader()
 	loader.IsExternalRefsAllowed = true
 
-	rootDocument, err := loader.LoadFromDataWithPath(yamlContent, &url.URL{Path: filepath.ToSlash(rootSpecPath)})
+	document, err := loader.LoadFromData(spec)
 	if err != nil {
-		return nil, fmt.Errorf("load openapi spec %q: %w", rootSpecPath, err)
+		return nil, fmt.Errorf("load generated bundled openapi spec: %w", err)
 	}
-	if err := rootDocument.Validate(loader.Context); err != nil {
-		return nil, fmt.Errorf("validate openapi spec %q: %w", rootSpecPath, err)
+	if err := document.Validate(loader.Context); err != nil {
+		return nil, fmt.Errorf("validate generated bundled openapi spec: %w", err)
 	}
-
-	bundleSpecPath := filepath.Join(repositoryRoot, filepath.FromSlash(openapiBundleSpecRelativePath))
-	// #nosec G304 -- bundleSpecPath is constrained to the repository-owned bundled openapi spec under the resolved repo root.
-	jsonContent, err := os.ReadFile(bundleSpecPath)
-	if err != nil {
-		return nil, fmt.Errorf("read bundled openapi spec %q: %w", bundleSpecPath, err)
-	}
-
-	bundleDocument, err := loader.LoadFromData(jsonContent)
-	if err != nil {
-		return nil, fmt.Errorf("load bundled openapi spec %q: %w", bundleSpecPath, err)
-	}
-	if err := bundleDocument.Validate(loader.Context); err != nil {
-		return nil, fmt.Errorf("validate bundled openapi spec %q: %w", bundleSpecPath, err)
-	}
-	if bytes.Contains(jsonContent, []byte("./paths/")) || bytes.Contains(jsonContent, []byte("./components/")) {
-		return nil, fmt.Errorf("bundled openapi spec %q still contains external file refs", bundleSpecPath)
+	if bytes.Contains(spec, []byte("./paths/")) || bytes.Contains(spec, []byte("./components/")) {
+		return nil, fmt.Errorf("generated bundled openapi spec still contains external file refs")
 	}
 
 	return &openAPIDocsAssets{
-		json: jsonContent,
-		yaml: yamlContent,
+		json: spec,
 	}, nil
 }
 
+// renderScalarDocsHTML 渲染 Scalar 文档 HTML 页面，其中包含指定的 OpenAPI 规范 URL。
 func renderScalarDocsHTML(specURL string) ([]byte, error) {
 	var buffer bytes.Buffer
 	data := struct {
@@ -102,26 +88,4 @@ func renderScalarDocsHTML(specURL string) ([]byte, error) {
 		return nil, fmt.Errorf("render scalar docs html: %w", err)
 	}
 	return buffer.Bytes(), nil
-}
-
-func resolveRepositoryRoot() (string, error) {
-	workingDirectory, err := os.Getwd()
-	if err != nil {
-		return "", fmt.Errorf("get working directory: %w", err)
-	}
-
-	current := workingDirectory
-	for {
-		if _, openapiErr := os.Stat(filepath.Join(current, "openapi", "openapi.yaml")); openapiErr == nil {
-			return current, nil
-		}
-
-		parent := filepath.Dir(current)
-		if parent == current {
-			break
-		}
-		current = parent
-	}
-
-	return "", fmt.Errorf("find repository root from %q", strings.TrimSpace(workingDirectory))
 }

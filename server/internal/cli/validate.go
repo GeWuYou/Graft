@@ -19,6 +19,8 @@ import (
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/spf13/cobra"
 
+	"graft/server/internal/app"
+	"graft/server/internal/buildinfo"
 	"graft/server/internal/config"
 )
 
@@ -75,6 +77,8 @@ var backendSmokeRunner = runValidateSmoke
 var backendOpenAPIRunner = runValidateOpenAPI
 var backendOpenAPIFreshnessRunner = runValidateOpenAPIFreshness
 var backendMigrationVersionRunner = runValidateMigrationVersions
+var backendReleaseRunner = runValidateRelease
+var buildReleaseInfoSnapshot = buildinfo.Current
 var backendLocaleOwnershipGuardRunner = runValidateServerLocaleOwnership
 var backendCommandRunner = runBackendCommand
 var backendGitOutputRunner = runBackendGitOutput
@@ -90,7 +94,7 @@ var backendGitRevisionPattern = regexp.MustCompile(`\A[0-9A-Fa-f]+\z`)
 // newValidateCommand 创建后端显式验证命令树。
 //
 // 这里的命令只编排仓库内已经存在的迁移与运行时入口，不负责隐式拉起
-// disposable 基础设施，避免把环境准备魔法塞进 core 或 CLI 黑盒里。
+// newValidateCommand 创建 validate 根命令，并注册后端、OpenAPI、发布版本和冒烟测试的验证子命令。
 func newValidateCommand() *cobra.Command {
 	command := &cobra.Command{
 		Use:   "validate",
@@ -99,6 +103,7 @@ func newValidateCommand() *cobra.Command {
 
 	command.AddCommand(newValidateBackendCommand())
 	command.AddCommand(newValidateOpenAPICommand())
+	command.AddCommand(newValidateReleaseCommand())
 	command.AddCommand(newValidateSmokeCommand())
 	return command
 }
@@ -143,6 +148,7 @@ func newValidateBackendCommand() *cobra.Command {
 	return command
 }
 
+// newValidateOpenAPICommand creates the validate openapi subcommand.
 func newValidateOpenAPICommand() *cobra.Command {
 	var specPath string
 
@@ -157,6 +163,21 @@ func newValidateOpenAPICommand() *cobra.Command {
 	}
 
 	command.Flags().StringVar(&specPath, "spec", defaultOpenAPIRootSpec, "root OpenAPI spec path relative to repository root")
+	return command
+}
+
+// newValidateReleaseCommand 构造用于验证发布就绪状态的 "graft validate release" 子命令。
+func newValidateReleaseCommand() *cobra.Command {
+	command := &cobra.Command{
+		Use:          "release",
+		Short:        "Validate release-binary readiness guarantees",
+		SilenceUsage: true,
+		Args:         cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return backendReleaseRunner(cmd)
+		},
+	}
+
 	return command
 }
 
@@ -307,10 +328,15 @@ func runValidateOpenAPI(_ *cobra.Command, specPath string) error {
 	return nil
 }
 
+// runValidateOpenAPIFreshness 验证嵌入式 OpenAPI 规范包和生成的后端规范是否为最新状态。
 func runValidateOpenAPIFreshness() error {
 	repoRoot, err := resolveRepositoryRoot()
 	if err != nil {
 		return fmt.Errorf("resolve repository root for generated freshness validation: %w", err)
+	}
+
+	if err := validateEmbeddedOpenAPIBundleFreshness(repoRoot); err != nil {
+		return err
 	}
 
 	scriptPath := filepath.Join(repoRoot, "scripts", "openapi_generated_freshness_check.py")
@@ -339,6 +365,60 @@ func runValidateOpenAPIFreshness() error {
 	}
 
 	return nil
+}
+
+// RunValidateRelease validates that the repository is ready for release.
+func runValidateRelease(_ *cobra.Command) error {
+	info := buildinfo.Normalize(buildReleaseInfoSnapshot())
+	if !info.IsOfficialRelease() || info.GitCommit == "unknown" || info.BuildTimeUTC == "unknown" {
+		return fmt.Errorf(
+			"`graft validate release` requires release-grade BuildInfo; current version=%q git_commit=%q build_time_utc=%q git_tree_state=%q",
+			info.Version,
+			info.GitCommit,
+			info.BuildTimeUTC,
+			info.GitTreeState,
+		)
+	}
+	if info.GitTreeState != "clean" {
+		return fmt.Errorf("`graft validate release` requires a clean release build; current git_tree_state=%q", info.GitTreeState)
+	}
+
+	repoRoot, err := resolveRepositoryRoot()
+	if err != nil {
+		return fmt.Errorf("resolve repository root for release validation: %w", err)
+	}
+
+	if err := validateEmbeddedOpenAPIBundleFreshness(repoRoot); err != nil {
+		return err
+	}
+
+	if _, err := buildAtlasMigrationDir(repoRoot, defaultMigrationDir); err != nil {
+		return fmt.Errorf("validate embedded default migration chain: %w", err)
+	}
+
+	return nil
+}
+
+// validateEmbeddedOpenAPIBundleFreshness checks that the runtime-embedded OpenAPI bundle matches the canonical source by comparing their SHA-256 digests. Returns an error if the digests do not match, including instructions to regenerate the bundle via `go generate`.
+func validateEmbeddedOpenAPIBundleFreshness(repoRoot string) error {
+	canonicalPath := filepath.Join(repoRoot, filepath.FromSlash(app.OpenAPIDocsBundleSourcePath()))
+
+	canonicalBundle, err := backendReadFile(canonicalPath)
+	if err != nil {
+		return fmt.Errorf("read canonical bundled openapi spec %q: %w", canonicalPath, err)
+	}
+	canonicalDigest := sha256.Sum256(canonicalBundle)
+	generatedDigest := app.OpenAPIDocsBundleSHA256()
+	if hex.EncodeToString(canonicalDigest[:]) == generatedDigest {
+		return nil
+	}
+
+	return fmt.Errorf(
+		"runtime generated bundled openapi spec is stale: server/internal/app generated sha256=%s does not match %s (sha256=%s); run `cd server && go generate ./internal/app` to sync runtime docs asset",
+		generatedDigest,
+		app.OpenAPIDocsBundleSourcePath(),
+		hex.EncodeToString(canonicalDigest[:]),
+	)
 }
 
 // runBackendBuildTest 执行 `go test -> go build ./cmd/graft` 的后端编译验证链。

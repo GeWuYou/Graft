@@ -4,6 +4,7 @@ package app
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -12,8 +13,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
+	"gopkg.in/yaml.v3"
 	"go.uber.org/zap"
 
+	"graft/server/internal/buildinfo"
 	"graft/server/internal/cachex"
 	cachebackend "graft/server/internal/cachex/backend"
 	"graft/server/internal/config"
@@ -49,6 +52,7 @@ const (
 	moduleRuntimeHealthTitleKey        = "dashboard.widget.moduleRuntimeHealth.title"
 	moduleRuntimeHealthDescriptionKey  = "dashboard.widget.moduleRuntimeHealth.description"
 	moduleRuntimeHealthSummaryKey      = "dashboard.widget.moduleRuntimeHealth.summary"
+	openapiYAMLPath                    = "/openapi.yaml"
 )
 
 type runtimeCoreDeps struct {
@@ -182,7 +186,7 @@ func (r *Runtime) registerRuntimeModules(enabledModules []string) error {
 		_ = r.closeCoreResources()
 		return fmt.Errorf("order runtime module descriptors: %w", err)
 	}
-	r.runtimeMetadata = module.NewRuntimeMetadata(orderedDescriptors)
+	r.runtimeMetadata = module.NewRuntimeMetadata(orderedDescriptors, buildinfo.Current())
 
 	modules, err := moduleregistry.BuildModules(module.BuildContext{Services: r.services}, enabledModules)
 	if err != nil {
@@ -909,7 +913,16 @@ func (r *Runtime) registerCoreRoutes(engine *gin.Engine) {
 		ctx.Data(http.StatusOK, "application/json; charset=utf-8", r.openapiDocs.json)
 	})
 	engine.GET(openapiYAMLPath, func(ctx *gin.Context) {
-		ctx.Data(http.StatusOK, "application/yaml; charset=utf-8", r.openapiDocs.yaml)
+		yamlSpec, err := buildLegacyOpenAPIYAML(r.openapiDocs.json)
+		if err != nil {
+			if r.logger != nil {
+				r.appLogger().
+					Error(ctx.Request.Context(), "build legacy openapi yaml", logger.ErrorField(err))
+			}
+			ctx.String(http.StatusInternalServerError, "failed to render openapi yaml")
+			return
+		}
+		ctx.Data(http.StatusOK, "application/yaml; charset=utf-8", yamlSpec)
 	})
 	engine.GET(openapiDocsPath, func(ctx *gin.Context) {
 		html, err := renderScalarDocsHTML(openapiJSONPath)
@@ -931,6 +944,23 @@ type coreHealthGeneratedHandler struct{}
 
 func (h coreHealthGeneratedHandler) GetHealthz() {
 	_ = h
+}
+
+func buildLegacyOpenAPIYAML(spec []byte) ([]byte, error) {
+	if len(spec) == 0 {
+		return nil, fmt.Errorf("generated bundled openapi spec is empty")
+	}
+
+	var document any
+	if err := json.Unmarshal(spec, &document); err != nil {
+		return nil, fmt.Errorf("decode generated bundled openapi json: %w", err)
+	}
+
+	yamlSpec, err := yaml.Marshal(document)
+	if err != nil {
+		return nil, fmt.Errorf("encode generated bundled openapi yaml: %w", err)
+	}
+	return yamlSpec, nil
 }
 
 func (r *Runtime) registerCoreServices() error {

@@ -65,6 +65,49 @@ func TestMigrationDirsUsesOwnerAlignedBaseline(t *testing.T) {
 	}
 }
 
+func TestEmbeddedMigrationDirByPathReturnsClonedFiles(t *testing.T) {
+	dir, ok := EmbeddedMigrationDirByPath("modules/user/migrations")
+	if !ok {
+		t.Fatal("expected embedded migration dir for user module")
+	}
+	if dir.Path != "modules/user/migrations" {
+		t.Fatalf("unexpected dir path %q", dir.Path)
+	}
+	if len(dir.Files) == 0 {
+		t.Fatal("expected embedded migration files")
+	}
+
+	contentIndex := -1
+	for index, file := range dir.Files {
+		if len(file.Contents) > 0 {
+			contentIndex = index
+			break
+		}
+	}
+	if contentIndex < 0 {
+		t.Fatal("expected at least one embedded migration file with contents")
+	}
+
+	originalName := dir.Files[0].Name
+	originalByte := dir.Files[contentIndex].Contents[0]
+	dir.Files[0].Name = "mutated.sql"
+	dir.Files[contentIndex].Contents[0] = 'X'
+
+	again, ok := EmbeddedMigrationDirByPath("modules/user/migrations")
+	if !ok {
+		t.Fatal("expected embedded migration dir on second lookup")
+	}
+	if again.Files[0].Name != originalName {
+		t.Fatalf("expected cloned name %q, got %q", originalName, again.Files[0].Name)
+	}
+	if len(again.Files) <= contentIndex || len(again.Files[contentIndex].Contents) == 0 {
+		t.Fatal("expected cloned contents to remain available")
+	}
+	if again.Files[contentIndex].Contents[0] != originalByte {
+		t.Fatal("expected cloned contents to remain immutable")
+	}
+}
+
 // TestDescriptorsStayAlignedWithModuleDirectories verifies the generated registry
 // still includes every module directory that declares a runtime descriptor.
 func TestDescriptorsStayAlignedWithModuleDirectories(t *testing.T) {

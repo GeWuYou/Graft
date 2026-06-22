@@ -36,6 +36,8 @@
         "lastGc": "Last GC time",
         "buildVersion": "Build version",
         "gitCommit": "Git commit",
+        "buildTimeUtc": "Build time (UTC)",
+        "gitTreeState": "Git tree state",
         "appName": "Application",
         "appEnv": "Environment",
         "startedAt": "Started at",
