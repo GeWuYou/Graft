@@ -45,6 +45,11 @@ SKIP_DIR_PREFIXES = (
     "web/src/assets/",
 )
 
+SKIP_GENERATED_FILES = {
+    "server/internal/app/openapi.bundle.json",
+    "server/internal/moduleregistry/generated.go",
+}
+
 WARNING_ONLY_PREFIXES = (
     "web/mock/",
     "web/src/pages/dashboard/",
@@ -288,6 +293,8 @@ def ci_changed_files() -> list[str]:
 
 
 def is_skipped_path(path: str) -> bool:
+    if path in SKIP_GENERATED_FILES:
+        return True
     if any(path.startswith(prefix) for prefix in SKIP_DIR_PREFIXES):
         return True
     if path.endswith(".min.js") or path.endswith(".map") or "/migrations/" in path:

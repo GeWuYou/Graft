@@ -101,6 +101,16 @@ class DefinitionContextTests(unittest.TestCase):
         )
 
 
+class GeneratedArtifactSkipTests(unittest.TestCase):
+    """Generated artifacts should be skipped instead of treated as handwritten drift."""
+
+    def test_skip_generated_openapi_bundle_json(self) -> None:
+        self.assertTrue(MODULE.is_skipped_path("server/internal/app/openapi.bundle.json"))
+
+    def test_skip_generated_module_registry_output(self) -> None:
+        self.assertTrue(MODULE.is_skipped_path("server/internal/moduleregistry/generated.go"))
+
+
 class TestFixtureExemptionTests(unittest.TestCase):
     """Keep test-only fixtures quiet without weakening runtime checks."""
 

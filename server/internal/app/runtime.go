@@ -909,9 +909,6 @@ func (r *Runtime) registerCoreRoutes(engine *gin.Engine) {
 	engine.GET(openapiJSONPath, func(ctx *gin.Context) {
 		ctx.Data(http.StatusOK, "application/json; charset=utf-8", r.openapiDocs.json)
 	})
-	engine.GET(openapiYAMLPath, func(ctx *gin.Context) {
-		ctx.Data(http.StatusOK, "application/yaml; charset=utf-8", r.openapiDocs.yaml)
-	})
 	engine.GET(openapiDocsPath, func(ctx *gin.Context) {
 		html, err := renderScalarDocsHTML(openapiJSONPath)
 		if err != nil {

@@ -26,6 +26,18 @@ const accessLogMigrationDir = "internal/httpx/migrations"
 const appLogMigrationDir = "internal/logger/migrations"
 const drilldownMigrationDir = "internal/drilldown/migrations"
 
+// EmbeddedMigrationFile 表示 compile-time 嵌入 registry 的单个迁移文件快照。
+type EmbeddedMigrationFile struct {
+	Name     string
+	Contents []byte
+}
+
+// EmbeddedMigrationDir 表示 compile-time 嵌入 registry 的单个迁移目录快照。
+type EmbeddedMigrationDir struct {
+	Path  string
+	Files []EmbeddedMigrationFile
+}
+
 // EmbeddedLocaleResources returns compile-time owner-local locale resources.
 // Slice 1 only establishes the runtime slot, so later module migrations can
 // populate this without changing the registration flow again.
@@ -180,6 +192,50 @@ func BuildModules(buildCtx module.BuildContext, enabled []string) ([]module.Runt
 // CoreMigrationDirs 返回当前默认链路中的 core-owned live 迁移目录集合。
 func CoreMigrationDirs() []string {
 	return []string{accessLogMigrationDir, appLogMigrationDir, drilldownMigrationDir}
+}
+
+// EmbeddedMigrationDirs 返回 compile-time 生成的嵌入式迁移目录快照。
+func EmbeddedMigrationDirs() []EmbeddedMigrationDir {
+	dirs := make([]EmbeddedMigrationDir, 0, len(generatedEmbeddedMigrationDirs))
+	for _, dir := range generatedEmbeddedMigrationDirs {
+		cloned := EmbeddedMigrationDir{
+			Path:  dir.Path,
+			Files: make([]EmbeddedMigrationFile, 0, len(dir.Files)),
+		}
+		for _, file := range dir.Files {
+			cloned.Files = append(cloned.Files, EmbeddedMigrationFile{
+				Name:     file.Name,
+				Contents: append([]byte(nil), file.Contents...),
+			})
+		}
+		dirs = append(dirs, cloned)
+	}
+
+	return dirs
+}
+
+// EmbeddedMigrationDirByPath 返回指定 owner-aligned 路径对应的嵌入式迁移目录。
+func EmbeddedMigrationDirByPath(path string) (EmbeddedMigrationDir, bool) {
+	for _, dir := range generatedEmbeddedMigrationDirs {
+		if dir.Path != path {
+			continue
+		}
+
+		cloned := EmbeddedMigrationDir{
+			Path:  dir.Path,
+			Files: make([]EmbeddedMigrationFile, 0, len(dir.Files)),
+		}
+		for _, file := range dir.Files {
+			cloned.Files = append(cloned.Files, EmbeddedMigrationFile{
+				Name:     file.Name,
+				Contents: append([]byte(nil), file.Contents...),
+			})
+		}
+
+		return cloned, true
+	}
+
+	return EmbeddedMigrationDir{}, false
 }
 
 // MigrationDirs 返回当前 compile-time registry 声明的默认迁移目录集合。

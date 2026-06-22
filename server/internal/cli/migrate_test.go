@@ -5,57 +5,42 @@ import (
 	"errors"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"reflect"
 	"slices"
 	"strings"
 	"testing"
 
+	atlasmigrate "ariga.io/atlas/sql/migrate"
 	"github.com/spf13/cobra"
 
 	"graft/server/internal/moduleregistry"
 )
 
 type migrateTestHooks struct {
-	getwd                 func() (string, error)
-	lookPath              func(string) (string, error)
-	commandContext        func(context.Context, string, ...string) *exec.Cmd
-	stdin                 io.Reader
-	registryMigrationDirs func() ([]string, error)
-	readDir               func(string) ([]os.DirEntry, error)
-	readFile              func(string) ([]byte, error)
-	writeFile             func(string, []byte, os.FileMode) error
-	mkdirTemp             func(string, string) (string, error)
-	removeAll             func(string) error
+	getwd                      func() (string, error)
+	registryMigrationDirs      func() ([]string, error)
+	embeddedMigrationDirByPath func(string) (moduleregistry.EmbeddedMigrationDir, bool)
+	readDir                    func(string) ([]os.DirEntry, error)
+	openExecutor               func(string, atlasmigrate.Dir, atlasmigrate.Logger) (*atlasExecutorHandle, error)
 }
 
 func captureMigrateTestHooks() migrateTestHooks {
 	return migrateTestHooks{
-		getwd:                 migrateGetwd,
-		lookPath:              migrateLookPath,
-		commandContext:        migrateCommandContext,
-		stdin:                 migrateStdin,
-		registryMigrationDirs: migrateRegistryMigrationDirs,
-		readDir:               migrateReadDir,
-		readFile:              migrateReadFile,
-		writeFile:             migrateWriteFile,
-		mkdirTemp:             migrateMkdirTemp,
-		removeAll:             migrateRemoveAll,
+		getwd:                      migrateGetwd,
+		registryMigrationDirs:      migrateRegistryMigrationDirs,
+		embeddedMigrationDirByPath: migrateEmbeddedMigrationDirByPath,
+		readDir:                    migrateReadDir,
+		openExecutor:               migrateOpenExecutor,
 	}
 }
 
 func (hooks migrateTestHooks) restore() {
 	migrateGetwd = hooks.getwd
-	migrateLookPath = hooks.lookPath
-	migrateCommandContext = hooks.commandContext
-	migrateStdin = hooks.stdin
 	migrateRegistryMigrationDirs = hooks.registryMigrationDirs
+	migrateEmbeddedMigrationDirByPath = hooks.embeddedMigrationDirByPath
 	migrateReadDir = hooks.readDir
-	migrateReadFile = hooks.readFile
-	migrateWriteFile = hooks.writeFile
-	migrateMkdirTemp = hooks.mkdirTemp
-	migrateRemoveAll = hooks.removeAll
+	migrateOpenExecutor = hooks.openExecutor
 }
 
 func setMigrateCommandTestEnv(t *testing.T) {
@@ -91,64 +76,86 @@ func writeAtlasStateFiles(t *testing.T, dirs []string) {
 	t.Helper()
 
 	for _, dir := range dirs {
-		if err := os.WriteFile(filepath.Join(dir, "atlas.sum"), []byte(filepath.Base(dir)), 0o600); err != nil {
+		atlasDir, err := atlasmigrate.NewLocalDir(dir)
+		if err != nil {
+			t.Fatalf("open atlas dir %s: %v", dir, err)
+		}
+		sum, err := atlasDir.Checksum()
+		if err != nil {
+			t.Fatalf("compute atlas checksum in %s: %v", dir, err)
+		}
+		if err := atlasmigrate.WriteSumFile(atlasDir, sum); err != nil {
 			t.Fatalf("write atlas.sum in %s: %v", dir, err)
 		}
 	}
 }
 
-func useRealMigrateFileOps(removeAll func(string) error) {
-	migrateReadDir = os.ReadDir
-	migrateReadFile = os.ReadFile
-	migrateWriteFile = os.WriteFile
-	migrateMkdirTemp = os.MkdirTemp
-	migrateRemoveAll = removeAll
-}
-
-func assertDefaultChainAtlasCommands(t *testing.T, gotArgs [][]string) string {
+func embeddedMigrationDir(t *testing.T, path string, files map[string]string) moduleregistry.EmbeddedMigrationDir {
 	t.Helper()
 
-	if len(gotArgs) != 2 {
-		t.Fatalf("expected hash + apply atlas commands, got %d", len(gotArgs))
-	}
-	if !reflect.DeepEqual(gotArgs[0][:2], []string{"migrate", "hash"}) {
-		t.Fatalf("expected first atlas command to hash, got %v", gotArgs[0])
-	}
-	if !reflect.DeepEqual(gotArgs[1][:2], []string{"migrate", "apply"}) {
-		t.Fatalf("expected second atlas command to apply, got %v", gotArgs[1])
-	}
-
-	synthDir := atlasDirArgument(t, gotArgs[0])
-	if synthDir == "" {
-		t.Fatalf("expected synthesized dir in hash args, got %v", gotArgs[0])
-	}
-	if applyDir := atlasDirArgument(t, gotArgs[1]); applyDir != synthDir {
-		t.Fatalf("expected apply dir %s to match hash dir, got %s", synthDir, applyDir)
-	}
-
-	return synthDir
-}
-
-func assertSynthesizedMigrationFiles(t *testing.T, synthDir string, expectedNames []string) {
-	t.Helper()
-
-	entries, err := os.ReadDir(synthDir)
-	if err != nil {
-		t.Fatalf("read synthesized dir: %v", err)
-	}
-
-	names := make([]string, 0, len(entries))
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-		names = append(names, entry.Name())
+	memDir := &atlasmigrate.MemDir{}
+	names := make([]string, 0, len(files))
+	for name := range files {
+		names = append(names, name)
 	}
 	slices.Sort(names)
-
-	if !reflect.DeepEqual(names, expectedNames) {
-		t.Fatalf("expected synthesized files %v, got %v", expectedNames, names)
+	for _, name := range names {
+		if err := memDir.WriteFile(name, []byte(files[name])); err != nil {
+			t.Fatalf("write embedded file %s: %v", name, err)
+		}
 	}
+	sum, err := memDir.Checksum()
+	if err != nil {
+		t.Fatalf("compute embedded checksum: %v", err)
+	}
+	if err := atlasmigrate.WriteSumFile(memDir, sum); err != nil {
+		t.Fatalf("write embedded atlas.sum: %v", err)
+	}
+
+	entries, err := memDir.Files()
+	if err != nil {
+		t.Fatalf("read embedded files: %v", err)
+	}
+
+	result := moduleregistry.EmbeddedMigrationDir{
+		Path:  path,
+		Files: make([]moduleregistry.EmbeddedMigrationFile, 0, len(entries)+1),
+	}
+	for _, file := range entries {
+		result.Files = append(result.Files, moduleregistry.EmbeddedMigrationFile{
+			Name:     file.Name(),
+			Contents: append([]byte(nil), file.Bytes()...),
+		})
+	}
+	sumFile, err := memDir.Open(atlasmigrate.HashFileName)
+	if err != nil {
+		t.Fatalf("open embedded atlas.sum: %v", err)
+	}
+	defer func() {
+		_ = sumFile.Close()
+	}()
+
+	content, err := io.ReadAll(sumFile)
+	if err != nil {
+		t.Fatalf("read embedded atlas.sum: %v", err)
+	}
+	result.Files = append(result.Files, moduleregistry.EmbeddedMigrationFile{
+		Name:     atlasmigrate.HashFileName,
+		Contents: content,
+	})
+
+	return result
+}
+
+type fakeAtlasExecutor struct {
+	executeN func(context.Context, int) error
+}
+
+func (f fakeAtlasExecutor) ExecuteN(ctx context.Context, n int) error {
+	if f.executeN != nil {
+		return f.executeN(ctx, n)
+	}
+	return nil
 }
 
 // TestResolveMigrationDirFindsServerRelativePathFromRepoRoot 验证仓库根目录下
@@ -190,8 +197,6 @@ func TestResolveMigrationDirFindsPathFromServerModuleRoot(t *testing.T) {
 	}
 }
 
-// TestResolveMigrationDirRejectsMissingPath 验证当两个受支持的迁移目录都不
-// 存在时，解析器会返回错误。
 func TestResolveMigrationDirRejectsMissingPath(t *testing.T) {
 	root := t.TempDir()
 
@@ -201,15 +206,9 @@ func TestResolveMigrationDirRejectsMissingPath(t *testing.T) {
 	}
 }
 
-// TestResolveMigrationDirsUsesCompileTimeRegistry 验证默认迁移目录会先回到
-// compile-time registry 读取 live owner-aligned 目录集合。
 func TestResolveMigrationDirsUsesCompileTimeRegistry(t *testing.T) {
-	originalRegistryMigrationDirs := migrateRegistryMigrationDirs
-	originalReadDir := migrateReadDir
-	defer func() {
-		migrateRegistryMigrationDirs = originalRegistryMigrationDirs
-		migrateReadDir = originalReadDir
-	}()
+	hooks := captureMigrateTestHooks()
+	defer hooks.restore()
 
 	root := t.TempDir()
 	coreDir := filepath.Join(root, "server", "internal", "httpx", "migrations")
@@ -220,11 +219,7 @@ func TestResolveMigrationDirsUsesCompileTimeRegistry(t *testing.T) {
 			t.Fatalf("mkdir %s: %v", dir, err)
 		}
 	}
-	for _, dir := range []string{coreDir, auditDir, moduleDir} {
-		if err := os.WriteFile(filepath.Join(dir, "atlas.sum"), []byte(filepath.Base(dir)), 0o600); err != nil {
-			t.Fatalf("write atlas.sum in %s: %v", dir, err)
-		}
-	}
+	writeAtlasStateFiles(t, []string{coreDir, auditDir, moduleDir})
 
 	migrateRegistryMigrationDirs = func() ([]string, error) {
 		return []string{"internal/httpx/migrations", "modules/audit/migrations", "modules/user/migrations"}, nil
@@ -242,15 +237,9 @@ func TestResolveMigrationDirsUsesCompileTimeRegistry(t *testing.T) {
 	}
 }
 
-// TestResolveMigrationDirsSkipsRegistryDirsWithoutAtlasState 验证默认迁移目录会跳过
-// 尚未形成 Atlas 状态的模块自有目录，避免空目录参与默认 apply 链路。
 func TestResolveMigrationDirsSkipsRegistryDirsWithoutAtlasState(t *testing.T) {
-	originalRegistryMigrationDirs := migrateRegistryMigrationDirs
-	originalReadDir := migrateReadDir
-	defer func() {
-		migrateRegistryMigrationDirs = originalRegistryMigrationDirs
-		migrateReadDir = originalReadDir
-	}()
+	hooks := captureMigrateTestHooks()
+	defer hooks.restore()
 
 	root := t.TempDir()
 	coreDir := filepath.Join(root, "server", "internal", "httpx", "migrations")
@@ -261,12 +250,7 @@ func TestResolveMigrationDirsSkipsRegistryDirsWithoutAtlasState(t *testing.T) {
 			t.Fatalf("mkdir %s: %v", dir, err)
 		}
 	}
-	if err := os.WriteFile(filepath.Join(coreDir, "atlas.sum"), []byte("httpx"), 0o600); err != nil {
-		t.Fatalf("write atlas.sum: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(auditDir, "atlas.sum"), []byte("audit"), 0o600); err != nil {
-		t.Fatalf("write atlas.sum: %v", err)
-	}
+	writeAtlasStateFiles(t, []string{coreDir, auditDir})
 
 	migrateRegistryMigrationDirs = func() ([]string, error) {
 		return []string{"internal/httpx/migrations", "modules/audit/migrations", "modules/user/migrations"}, nil
@@ -284,29 +268,18 @@ func TestResolveMigrationDirsSkipsRegistryDirsWithoutAtlasState(t *testing.T) {
 	}
 }
 
-// TestResolveMigrationDirsSkipsMissingRegistryDirs 验证默认 registry 链路会跳过
-// 尚未创建的模块迁移目录，而不是让缺失目录阻断全部迁移。
-func TestResolveMigrationDirsSkipsMissingRegistryDirs(t *testing.T) {
-	originalRegistryMigrationDirs := migrateRegistryMigrationDirs
-	originalReadDir := migrateReadDir
-	defer func() {
-		migrateRegistryMigrationDirs = originalRegistryMigrationDirs
-		migrateReadDir = originalReadDir
-	}()
+func TestResolveMigrationDirsRejectsRegistryWithoutAtlasState(t *testing.T) {
+	hooks := captureMigrateTestHooks()
+	defer hooks.restore()
 
 	root := t.TempDir()
 	coreDir := filepath.Join(root, "server", "internal", "httpx", "migrations")
 	auditDir := filepath.Join(root, "server", "modules", "audit", "migrations")
-	for _, dir := range []string{coreDir, auditDir} {
+	moduleDir := filepath.Join(root, "server", "modules", "user", "migrations")
+	for _, dir := range []string{coreDir, auditDir, moduleDir} {
 		if err := os.MkdirAll(dir, 0o750); err != nil {
 			t.Fatalf("mkdir %s: %v", dir, err)
 		}
-	}
-	if err := os.WriteFile(filepath.Join(coreDir, "atlas.sum"), []byte("httpx"), 0o600); err != nil {
-		t.Fatalf("write atlas.sum: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(auditDir, "atlas.sum"), []byte("audit"), 0o600); err != nil {
-		t.Fatalf("write atlas.sum: %v", err)
 	}
 
 	migrateRegistryMigrationDirs = func() ([]string, error) {
@@ -314,20 +287,59 @@ func TestResolveMigrationDirsSkipsMissingRegistryDirs(t *testing.T) {
 	}
 	migrateReadDir = os.ReadDir
 
-	resolved, err := resolveMigrationDirs(root, defaultMigrationDir)
+	_, err := resolveMigrationDirs(root, defaultMigrationDir)
+	if err == nil {
+		t.Fatal("expected empty atlas-state registry error")
+	}
+	if !strings.Contains(err.Error(), "no migration directories with atlas state found") {
+		t.Fatalf("expected atlas-state guidance, got %v", err)
+	}
+}
+
+func TestResolveMigrationDirsKeepsExplicitLiveDir(t *testing.T) {
+	hooks := captureMigrateTestHooks()
+	defer hooks.restore()
+
+	root := t.TempDir()
+	liveDir := filepath.Join(root, "server", "modules", "user", "migrations")
+	if err := os.MkdirAll(liveDir, 0o750); err != nil {
+		t.Fatalf("mkdir %s: %v", liveDir, err)
+	}
+
+	migrateRegistryMigrationDirs = func() ([]string, error) {
+		t.Fatal("explicit live dir should not consult registry")
+		return nil, nil
+	}
+
+	resolved, err := resolveMigrationDirs(root, "modules/user/migrations")
 	if err != nil {
 		t.Fatalf("resolve migration dirs: %v", err)
 	}
 
-	expected := []string{coreDir, auditDir}
+	expected := []string{liveDir}
 	if !reflect.DeepEqual(resolved, expected) {
 		t.Fatalf("expected %v, got %v", expected, resolved)
 	}
 }
 
-// TestDefaultMigrationRegistrySQLDirsHaveAtlasState guards against registering
-// live migration SQL that the default chain silently skips because atlas.sum is
-// missing.
+func TestResolveMigrationDirsKeepsExplicitDirWithoutAtlasState(t *testing.T) {
+	root := t.TempDir()
+	moduleDir := filepath.Join(root, "server", "modules", "user", "migrations")
+	if err := os.MkdirAll(moduleDir, 0o750); err != nil {
+		t.Fatalf("mkdir %s: %v", moduleDir, err)
+	}
+
+	resolved, err := resolveMigrationDirs(root, "modules/user/migrations")
+	if err != nil {
+		t.Fatalf("resolve migration dirs: %v", err)
+	}
+
+	expected := []string{moduleDir}
+	if !reflect.DeepEqual(resolved, expected) {
+		t.Fatalf("expected %v, got %v", expected, resolved)
+	}
+}
+
 func TestDefaultMigrationRegistrySQLDirsHaveAtlasState(t *testing.T) {
 	workingDir, err := os.Getwd()
 	if err != nil {
@@ -376,190 +388,173 @@ func migrationDirState(t *testing.T, absDir string) (bool, bool) {
 			continue
 		}
 		hasSQL = hasSQL || filepath.Ext(entry.Name()) == ".sql"
-		hasAtlasState = hasAtlasState || entry.Name() == "atlas.sum"
+		hasAtlasState = hasAtlasState || entry.Name() == atlasmigrate.HashFileName
 	}
 
 	return hasSQL, hasAtlasState
 }
 
-// TestResolveMigrationDirsRejectsRegistryWithoutAtlasState 验证默认 registry 目录
-// 若全部缺少 Atlas 状态，会显式报错而不是静默跳过迁移。
-func TestResolveMigrationDirsRejectsRegistryWithoutAtlasState(t *testing.T) {
-	originalRegistryMigrationDirs := migrateRegistryMigrationDirs
-	originalReadDir := migrateReadDir
-	defer func() {
-		migrateRegistryMigrationDirs = originalRegistryMigrationDirs
-		migrateReadDir = originalReadDir
-	}()
+func TestBuildAtlasMigrationDirUsesEmbeddedDirForExplicitPath(t *testing.T) {
+	hooks := captureMigrateTestHooks()
+	defer hooks.restore()
 
-	root := t.TempDir()
-	coreDir := filepath.Join(root, "server", "internal", "httpx", "migrations")
-	auditDir := filepath.Join(root, "server", "modules", "audit", "migrations")
-	moduleDir := filepath.Join(root, "server", "modules", "user", "migrations")
-	for _, dir := range []string{coreDir, auditDir, moduleDir} {
-		if err := os.MkdirAll(dir, 0o750); err != nil {
-			t.Fatalf("mkdir %s: %v", dir, err)
+	migrateEmbeddedMigrationDirByPath = func(path string) (moduleregistry.EmbeddedMigrationDir, bool) {
+		if path != "modules/user/migrations" {
+			return moduleregistry.EmbeddedMigrationDir{}, false
+		}
+		return embeddedMigrationDir(t, path, map[string]string{
+			"202605190001_user.sql": "CREATE TABLE users (id bigint);\n",
+		}), true
+	}
+
+	dir, err := buildAtlasMigrationDir(t.TempDir(), "modules/user/migrations")
+	if err != nil {
+		t.Fatalf("build atlas migration dir: %v", err)
+	}
+
+	files, err := dir.Files()
+	if err != nil {
+		t.Fatalf("read embedded migration dir files: %v", err)
+	}
+	if len(files) != 1 || files[0].Name() != "202605190001_user.sql" {
+		t.Fatalf("unexpected files %#v", files)
+	}
+}
+
+func TestBuildAtlasMigrationDirSynthesizesDefaultChainFromEmbeddedSources(t *testing.T) {
+	hooks := captureMigrateTestHooks()
+	defer hooks.restore()
+
+	migrateRegistryMigrationDirs = func() ([]string, error) {
+		return []string{"modules/user/migrations", "modules/rbac/migrations"}, nil
+	}
+	migrateEmbeddedMigrationDirByPath = func(path string) (moduleregistry.EmbeddedMigrationDir, bool) {
+		switch path {
+		case "modules/user/migrations":
+			return embeddedMigrationDir(t, path, map[string]string{
+				"202605190001_user.sql": "CREATE TABLE users (id bigint);\n",
+			}), true
+		case "modules/rbac/migrations":
+			return embeddedMigrationDir(t, path, map[string]string{
+				"202605190002_rbac.sql": "CREATE TABLE roles (id bigint);\n",
+			}), true
+		default:
+			return moduleregistry.EmbeddedMigrationDir{}, false
 		}
 	}
 
-	migrateRegistryMigrationDirs = func() ([]string, error) {
-		return []string{"internal/httpx/migrations", "modules/audit/migrations", "modules/user/migrations"}, nil
-	}
-	migrateReadDir = os.ReadDir
-
-	_, err := resolveMigrationDirs(root, defaultMigrationDir)
-	if err == nil {
-		t.Fatal("expected empty atlas-state registry error")
-	}
-	if !strings.Contains(err.Error(), "no migration directories with atlas state found") {
-		t.Fatalf("expected atlas-state guidance, got %v", err)
-	}
-}
-
-// TestResolveMigrationDirsKeepsExplicitLiveDir 验证显式传入 live 迁移目录时，
-// CLI 仍会直接解析该目录，而不会回退到默认 registry 链。
-func TestResolveMigrationDirsKeepsExplicitLiveDir(t *testing.T) {
-	originalRegistryMigrationDirs := migrateRegistryMigrationDirs
-	defer func() {
-		migrateRegistryMigrationDirs = originalRegistryMigrationDirs
-	}()
-
-	root := t.TempDir()
-	liveDir := filepath.Join(root, "server", "modules", "user", "migrations")
-	if err := os.MkdirAll(liveDir, 0o750); err != nil {
-		t.Fatalf("mkdir %s: %v", liveDir, err)
-	}
-
-	migrateRegistryMigrationDirs = func() ([]string, error) {
-		t.Fatal("explicit live dir should not consult registry")
-		return nil, nil
-	}
-
-	resolved, err := resolveMigrationDirs(root, "modules/user/migrations")
+	dir, err := buildAtlasMigrationDir(t.TempDir(), defaultMigrationDir)
 	if err != nil {
-		t.Fatalf("resolve migration dirs: %v", err)
+		t.Fatalf("build default atlas migration dir: %v", err)
 	}
 
-	expected := []string{liveDir}
-	if !reflect.DeepEqual(resolved, expected) {
-		t.Fatalf("expected %v, got %v", expected, resolved)
-	}
-}
-
-// TestResolveMigrationDirsKeepsExplicitDirWithoutAtlasState 验证显式传入的迁移目录
-// 仍按用户要求参与执行，而不是被默认链路的 Atlas 状态过滤逻辑跳过。
-func TestResolveMigrationDirsKeepsExplicitDirWithoutAtlasState(t *testing.T) {
-	root := t.TempDir()
-	moduleDir := filepath.Join(root, "server", "modules", "user", "migrations")
-	if err := os.MkdirAll(moduleDir, 0o750); err != nil {
-		t.Fatalf("mkdir %s: %v", moduleDir, err)
-	}
-
-	resolved, err := resolveMigrationDirs(root, "modules/user/migrations")
+	files, err := dir.Files()
 	if err != nil {
-		t.Fatalf("resolve migration dirs: %v", err)
+		t.Fatalf("read synthesized files: %v", err)
 	}
 
-	expected := []string{moduleDir}
-	if !reflect.DeepEqual(resolved, expected) {
-		t.Fatalf("expected %v, got %v", expected, resolved)
+	names := make([]string, 0, len(files))
+	for _, file := range files {
+		names = append(names, file.Name())
+	}
+	slices.Sort(names)
+	expected := []string{"202605190001_user.sql", "202605190002_rbac.sql"}
+	if !reflect.DeepEqual(names, expected) {
+		t.Fatalf("expected %v, got %v", expected, names)
+	}
+
+	if err := atlasmigrate.Validate(dir); err != nil {
+		t.Fatalf("validate synthesized dir: %v", err)
 	}
 }
 
-// TestFindAtlasCLIReportsDevGuidance 验证缺少 Atlas 时会返回可执行的开发提示。
-func TestFindAtlasCLIReportsDevGuidance(t *testing.T) {
-	originalLookPath := migrateLookPath
-	defer func() {
-		migrateLookPath = originalLookPath
-	}()
+func TestBuildAtlasMigrationDirRejectsDuplicateMigrationFilename(t *testing.T) {
+	hooks := captureMigrateTestHooks()
+	defer hooks.restore()
 
-	migrateLookPath = func(_ string) (string, error) {
-		return "", errors.New("executable file not found")
+	migrateRegistryMigrationDirs = func() ([]string, error) {
+		return []string{"modules/user/migrations", "modules/rbac/migrations"}, nil
+	}
+	migrateEmbeddedMigrationDirByPath = func(path string) (moduleregistry.EmbeddedMigrationDir, bool) {
+		return embeddedMigrationDir(t, path, map[string]string{
+			"202605190001_shared.sql": "SELECT 1;\n",
+		}), true
 	}
 
-	_, err := findAtlasCLI()
+	_, err := buildAtlasMigrationDir(t.TempDir(), defaultMigrationDir)
 	if err == nil {
-		t.Fatal("expected atlas lookup error")
+		t.Fatal("expected duplicate filename error")
 	}
-
-	message := err.Error()
-	if !strings.Contains(message, "graft dev") {
-		t.Fatalf("expected dev guidance, got %q", message)
-	}
-	if !strings.Contains(message, "graft serve") {
-		t.Fatalf("expected serve fallback guidance, got %q", message)
+	if !strings.Contains(err.Error(), "duplicate migration filename 202605190001_shared.sql") {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
-// TestRunMigrateUpFallsBackToBackgroundContext 验证未通过 Execute 链路设置
-// Cobra 上下文时，迁移命令仍会使用后台上下文而不是触发 nil-context 风险。
+func TestBuildAtlasMigrationDirRejectsDuplicateMigrationVersion(t *testing.T) {
+	hooks := captureMigrateTestHooks()
+	defer hooks.restore()
+
+	migrateRegistryMigrationDirs = func() ([]string, error) {
+		return []string{"modules/user/migrations", "modules/rbac/migrations"}, nil
+	}
+	migrateEmbeddedMigrationDirByPath = func(path string) (moduleregistry.EmbeddedMigrationDir, bool) {
+		switch path {
+		case "modules/user/migrations":
+			return embeddedMigrationDir(t, path, map[string]string{
+				"202605280001_user.sql": "SELECT 1;\n",
+			}), true
+		case "modules/rbac/migrations":
+			return embeddedMigrationDir(t, path, map[string]string{
+				"202605280001_rbac.sql": "SELECT 1;\n",
+			}), true
+		default:
+			return moduleregistry.EmbeddedMigrationDir{}, false
+		}
+	}
+
+	_, err := buildAtlasMigrationDir(t.TempDir(), defaultMigrationDir)
+	if err == nil {
+		t.Fatal("expected duplicate version error")
+	}
+	if !strings.Contains(err.Error(), "duplicate migration version 202605280001") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestRunMigrateUpFallsBackToBackgroundContext(t *testing.T) {
-	originalGetwd := migrateGetwd
-	originalLookPath := migrateLookPath
-	originalCommandContext := migrateCommandContext
-	originalStdin := migrateStdin
-	originalRegistryMigrationDirs := migrateRegistryMigrationDirs
-	originalReadDir := migrateReadDir
-	originalReadFile := migrateReadFile
-	originalWriteFile := migrateWriteFile
-	originalMkdirTemp := migrateMkdirTemp
-	originalRemoveAll := migrateRemoveAll
-	defer func() {
-		migrateGetwd = originalGetwd
-		migrateLookPath = originalLookPath
-		migrateCommandContext = originalCommandContext
-		migrateStdin = originalStdin
-		migrateRegistryMigrationDirs = originalRegistryMigrationDirs
-		migrateReadDir = originalReadDir
-		migrateReadFile = originalReadFile
-		migrateWriteFile = originalWriteFile
-		migrateMkdirTemp = originalMkdirTemp
-		migrateRemoveAll = originalRemoveAll
-	}()
+	hooks := captureMigrateTestHooks()
+	defer hooks.restore()
 
 	root := t.TempDir()
 	migrationDir := filepath.Join(root, "server", "modules", "user", "migrations")
-	if err := os.MkdirAll(migrationDir, 0o750); err != nil {
-		t.Fatalf("mkdir migration dir: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(migrationDir, "atlas.sum"), []byte("core"), 0o600); err != nil {
-		t.Fatalf("write atlas.sum: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(migrationDir, "202605190001_user.sql"), []byte("CREATE TABLE users (id bigint);\n"), 0o600); err != nil {
-		t.Fatalf("write migration sql: %v", err)
-	}
+	createMigrationFixture(t, []string{migrationDir}, map[string]string{
+		filepath.Join(migrationDir, "202605190001_user.sql"):   "CREATE TABLE users (id bigint);\n",
+		filepath.Join(migrationDir, atlasmigrate.HashFileName): "h1:test\n202605190001_user.sql h1:file\n",
+	})
 
-	t.Setenv("GRAFT_DATABASE_URL", "postgres://user:pass@localhost:5432/graft?sslmode=disable")
-	t.Setenv("GRAFT_REDIS_ADDR", "127.0.0.1:6379")
-	t.Setenv("GRAFT_AUTH_JWT_SECRET", "test-signing-secret")
+	setMigrateCommandTestEnv(t)
 
 	migrateGetwd = func() (string, error) {
 		return root, nil
 	}
-	migrateLookPath = func(_ string) (string, error) {
-		return "/usr/bin/atlas", nil
-	}
-	migrateRegistryMigrationDirs = func() ([]string, error) {
-		return []string{"modules/user/migrations"}, nil
-	}
-	migrateReadDir = os.ReadDir
-	migrateReadFile = os.ReadFile
-	migrateWriteFile = os.WriteFile
-	migrateMkdirTemp = os.MkdirTemp
-	migrateRemoveAll = func(string) error { return nil }
 
 	capturedCtx := context.Context(nil)
-	migrateCommandContext = func(ctx context.Context, _ string, _ ...string) *exec.Cmd {
-		capturedCtx = ctx
-		return exec.Command("true")
+	migrateOpenExecutor = func(_ string, _ atlasmigrate.Dir, _ atlasmigrate.Logger) (*atlasExecutorHandle, error) {
+		return &atlasExecutorHandle{
+			executor: fakeAtlasExecutor{
+				executeN: func(ctx context.Context, _ int) error {
+					capturedCtx = ctx
+					return nil
+				},
+			},
+		}, nil
 	}
-	migrateStdin = strings.NewReader("")
 
 	cmd := &cobra.Command{}
 	cmd.SetOut(io.Discard)
 	cmd.SetErr(io.Discard)
 
-	if err := runMigrateUp(cmd, migrateUpOptions{migrationDir: defaultMigrationDir}); err != nil {
+	if err := runMigrateUp(cmd, migrateUpOptions{migrationDir: "modules/user/migrations"}); err != nil {
 		t.Fatalf("run migrate up: %v", err)
 	}
 
@@ -568,195 +563,98 @@ func TestRunMigrateUpFallsBackToBackgroundContext(t *testing.T) {
 	}
 }
 
-// TestRunMigrateUpSynthesizesDefaultChain 验证默认迁移路径会把 live owner-aligned
-// 迁移目录合成为单一 Atlas 版本链，再对数据库执行一次 apply。
-func TestRunMigrateUpSynthesizesDefaultChain(t *testing.T) {
+func TestRunMigrateUpExecutesDefaultChain(t *testing.T) {
 	hooks := captureMigrateTestHooks()
 	defer hooks.restore()
 
-	root := t.TempDir()
-	coreDir := filepath.Join(root, "server", "internal", "httpx", "migrations")
-	auditDir := filepath.Join(root, "server", "modules", "audit", "migrations")
-	rbacDir := filepath.Join(root, "server", "modules", "rbac", "migrations")
-	userDir := filepath.Join(root, "server", "modules", "user", "migrations")
-	dirs := []string{coreDir, auditDir, rbacDir, userDir}
-	createMigrationFixture(t, dirs, map[string]string{
-		filepath.Join(coreDir, "202605300001_access_log.sql"): "CREATE TABLE access_logs (id bigint);\n",
-		filepath.Join(userDir, "202605190001_user.sql"):       "CREATE TABLE users (id bigint);\n",
-		filepath.Join(rbacDir, "202605190002_rbac.sql"):       "CREATE TABLE roles (id bigint);\n",
-		filepath.Join(auditDir, "202605190003_audit.sql"):     "CREATE TABLE audit_logs (id bigint);\n",
-	})
-	writeAtlasStateFiles(t, dirs)
-
 	setMigrateCommandTestEnv(t)
 
-	migrateGetwd = func() (string, error) {
-		return root, nil
-	}
-	migrateLookPath = func(_ string) (string, error) {
-		return "/usr/bin/atlas", nil
-	}
-	migrateRegistryMigrationDirs = func() ([]string, error) {
-		return []string{
-			"internal/httpx/migrations",
-			"modules/user/migrations",
-			"modules/rbac/migrations",
-			"modules/audit/migrations",
-		}, nil
-	}
-	useRealMigrateFileOps(func(string) error { return nil })
-
-	var gotArgs [][]string
-	migrateCommandContext = func(_ context.Context, _ string, args ...string) *exec.Cmd {
-		gotArgs = append(gotArgs, append([]string(nil), args...))
-		return exec.Command("true")
-	}
-	migrateStdin = strings.NewReader("")
-
-	if err := runMigrateUp(newSilentMigrateCommand(), migrateUpOptions{migrationDir: defaultMigrationDir}); err != nil {
-		t.Fatalf("run migrate up: %v", err)
-	}
-
-	synthDir := assertDefaultChainAtlasCommands(t, gotArgs)
-	assertSynthesizedMigrationFiles(t, synthDir, []string{
-		"202605190001_user.sql",
-		"202605190002_rbac.sql",
-		"202605190003_audit.sql",
-		"202605300001_access_log.sql",
-	})
-}
-
-func TestRunMigrateUpIncludesAtlasHashStderr(t *testing.T) {
-	hooks := captureMigrateTestHooks()
-	defer hooks.restore()
-
-	root := t.TempDir()
-	userDir := filepath.Join(root, "server", "modules", "user", "migrations")
-	dirs := []string{userDir}
-	createMigrationFixture(t, dirs, map[string]string{
-		filepath.Join(userDir, "202605190001_user.sql"): "CREATE TABLE users (id bigint);\n",
-	})
-	writeAtlasStateFiles(t, dirs)
-
-	setMigrateCommandTestEnv(t)
-
-	migrateGetwd = func() (string, error) {
-		return root, nil
-	}
-	migrateLookPath = func(_ string) (string, error) {
-		return "/usr/bin/atlas", nil
-	}
 	migrateRegistryMigrationDirs = func() ([]string, error) {
 		return []string{"modules/user/migrations"}, nil
 	}
-	useRealMigrateFileOps(os.RemoveAll)
+	migrateEmbeddedMigrationDirByPath = func(path string) (moduleregistry.EmbeddedMigrationDir, bool) {
+		return embeddedMigrationDir(t, path, map[string]string{
+			"202605190001_user.sql": "CREATE TABLE users (id bigint);\n",
+		}), true
+	}
 
-	atlasInvocations := 0
-	migrateCommandContext = func(_ context.Context, _ string, args ...string) *exec.Cmd {
-		atlasInvocations++
-		if len(args) >= 2 && args[0] == "migrate" && args[1] == "hash" {
-			return exec.Command("sh", "-c", "printf 'atlas hash failed: malformed sql\\n' >&2; exit 1")
+	executed := false
+	migrateOpenExecutor = func(databaseURL string, dir atlasmigrate.Dir, _ atlasmigrate.Logger) (*atlasExecutorHandle, error) {
+		if databaseURL == "" {
+			t.Fatal("expected database URL")
 		}
+		files, err := dir.Files()
+		if err != nil {
+			t.Fatalf("read files: %v", err)
+		}
+		if len(files) != 1 || files[0].Name() != "202605190001_user.sql" {
+			t.Fatalf("unexpected files %#v", files)
+		}
+		return &atlasExecutorHandle{
+			executor: fakeAtlasExecutor{
+				executeN: func(_ context.Context, n int) error {
+					executed = true
+					if n != 0 {
+						t.Fatalf("expected ExecuteN(0), got %d", n)
+					}
+					return nil
+				},
+			},
+		}, nil
+	}
 
-		return exec.Command("true")
+	if err := runMigrateUp(newSilentMigrateCommand(), migrateUpOptions{migrationDir: defaultMigrationDir, workingDir: t.TempDir()}); err != nil {
+		t.Fatalf("run migrate up: %v", err)
 	}
-	migrateStdin = strings.NewReader("")
-
-	err := runMigrateUp(newSilentMigrateCommand(), migrateUpOptions{migrationDir: defaultMigrationDir})
-	if err == nil {
-		t.Fatal("expected atlas hash error")
-	}
-	if !strings.Contains(err.Error(), "hash synthesized default migration dir") {
-		t.Fatalf("expected synthesized dir context, got %v", err)
-	}
-	if !strings.Contains(err.Error(), "atlas hash failed: malformed sql") {
-		t.Fatalf("expected atlas stderr in error, got %v", err)
-	}
-	if atlasInvocations != 1 {
-		t.Fatalf("expected hash failure to stop before apply, got %d atlas invocations", atlasInvocations)
+	if !executed {
+		t.Fatal("expected executor to run")
 	}
 }
 
-func TestRunMigrateUpRejectsDuplicateMigrationFilenames(t *testing.T) {
-	assertDuplicateSynthesizedDefaultChainError(
-		t,
-		map[string]string{
-			"user": "202605190001_shared.sql",
-			"rbac": "202605190001_shared.sql",
-		},
-		"duplicate migration filename 202605190001_shared.sql",
-		"synthesized default chain is invalid",
-	)
-}
-
-func TestRunMigrateUpRejectsDuplicateMigrationVersions(t *testing.T) {
-	assertDuplicateSynthesizedDefaultChainError(
-		t,
-		map[string]string{
-			"user": "202605280001_user.sql",
-			"rbac": "202605280001_rbac.sql",
-		},
-		"duplicate migration version 202605280001",
-		"synthesized default chain has version conflicts",
-	)
-}
-
-func assertDuplicateSynthesizedDefaultChainError(t *testing.T, filenames map[string]string, expectedErr string, atlasGuardMessage string) {
-	t.Helper()
-
+func TestRunMigrateUpTreatsNoPendingAsSuccess(t *testing.T) {
 	hooks := captureMigrateTestHooks()
 	defer hooks.restore()
 
-	root := t.TempDir()
-	userDir := filepath.Join(root, "server", "modules", "user", "migrations")
-	rbacDir := filepath.Join(root, "server", "modules", "rbac", "migrations")
-	dirs := []string{userDir, rbacDir}
-	createMigrationFixture(t, dirs, map[string]string{
-		filepath.Join(userDir, filenames["user"]): "SELECT 1;\n",
-		filepath.Join(rbacDir, filenames["rbac"]): "SELECT 1;\n",
-	})
-	writeAtlasStateFiles(t, dirs)
-
 	setMigrateCommandTestEnv(t)
+	migrateEmbeddedMigrationDirByPath = func(path string) (moduleregistry.EmbeddedMigrationDir, bool) {
+		return embeddedMigrationDir(t, path, map[string]string{
+			"202605190001_user.sql": "CREATE TABLE users (id bigint);\n",
+		}), true
+	}
+	migrateOpenExecutor = func(_ string, _ atlasmigrate.Dir, _ atlasmigrate.Logger) (*atlasExecutorHandle, error) {
+		return &atlasExecutorHandle{
+			executor: fakeAtlasExecutor{
+				executeN: func(context.Context, int) error {
+					return atlasmigrate.ErrNoPendingFiles
+				},
+			},
+		}, nil
+	}
 
-	migrateGetwd = func() (string, error) {
-		return root, nil
-	}
-	migrateLookPath = func(_ string) (string, error) {
-		return "/usr/bin/atlas", nil
-	}
-	migrateRegistryMigrationDirs = func() ([]string, error) {
-		return []string{"modules/user/migrations", "modules/rbac/migrations"}, nil
-	}
-	useRealMigrateFileOps(os.RemoveAll)
-
-	atlasInvoked := false
-	migrateCommandContext = func(_ context.Context, _ string, _ ...string) *exec.Cmd {
-		atlasInvoked = true
-		return exec.Command("true")
-	}
-	migrateStdin = strings.NewReader("")
-
-	err := runMigrateUp(newSilentMigrateCommand(), migrateUpOptions{migrationDir: defaultMigrationDir})
-	if err == nil {
-		t.Fatal("expected synthesized default chain validation error")
-	}
-	if !strings.Contains(err.Error(), expectedErr) {
-		t.Fatalf("expected duplicate migration guidance, got %v", err)
-	}
-	if atlasInvoked {
-		t.Fatal("atlas should not run when " + atlasGuardMessage)
+	if err := runMigrateUp(newSilentMigrateCommand(), migrateUpOptions{migrationDir: "modules/user/migrations", workingDir: t.TempDir()}); err != nil {
+		t.Fatalf("expected no-pending path to succeed, got %v", err)
 	}
 }
 
-func atlasDirArgument(t *testing.T, args []string) string {
-	t.Helper()
+func TestRunMigrateUpPropagatesExecutorOpenError(t *testing.T) {
+	hooks := captureMigrateTestHooks()
+	defer hooks.restore()
 
-	for index := 0; index < len(args)-1; index++ {
-		if args[index] == "--dir" {
-			return strings.TrimPrefix(args[index+1], "file://")
-		}
+	setMigrateCommandTestEnv(t)
+	migrateEmbeddedMigrationDirByPath = func(path string) (moduleregistry.EmbeddedMigrationDir, bool) {
+		return embeddedMigrationDir(t, path, map[string]string{
+			"202605190001_user.sql": "CREATE TABLE users (id bigint);\n",
+		}), true
+	}
+	migrateOpenExecutor = func(_ string, _ atlasmigrate.Dir, _ atlasmigrate.Logger) (*atlasExecutorHandle, error) {
+		return nil, errors.New("open atlas executor failed")
 	}
 
-	return ""
+	err := runMigrateUp(newSilentMigrateCommand(), migrateUpOptions{migrationDir: "modules/user/migrations", workingDir: t.TempDir()})
+	if err == nil {
+		t.Fatal("expected executor open error")
+	}
+	if !strings.Contains(err.Error(), "open atlas executor failed") {
+		t.Fatalf("unexpected error: %v", err)
+	}
 }
