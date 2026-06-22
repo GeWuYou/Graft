@@ -226,9 +226,11 @@ func TestDevSupervisorRetriesAllowDirtyForFirstBootstrap(t *testing.T) {
 func TestDevSupervisorRetriesAllowDirtyForFirstBootstrapWithUserSchemaDirtyState(t *testing.T) {
 	originalMigrateRunner := devMigrateRunner
 	originalMigrateRunnerAllowDirty := devMigrateRunnerAllowDirty
+	originalLoadConfig := devLoadConfig
 	defer func() {
 		devMigrateRunner = originalMigrateRunner
 		devMigrateRunnerAllowDirty = originalMigrateRunnerAllowDirty
+		devLoadConfig = originalLoadConfig
 	}()
 
 	attempts := make([]string, 0, 2)
@@ -242,6 +244,9 @@ func TestDevSupervisorRetriesAllowDirtyForFirstBootstrapWithUserSchemaDirtyState
 	devMigrateRunnerAllowDirty = func(_ *cobra.Command, _ string) error {
 		attempts = append(attempts, "allow-dirty")
 		return nil
+	}
+	devLoadConfig = func() (*config.Config, error) {
+		return &config.Config{Runtime: config.RuntimeConfig{DevAllowDirtyMigrationBootstrap: true}}, nil
 	}
 
 	supervisor := &devSupervisor{migrationDir: defaultMigrationDir}
