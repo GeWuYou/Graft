@@ -304,8 +304,12 @@ func TestDockerRuntimeListCollectsStatsWithBoundedConcurrency(t *testing.T) {
 		if item.ID != client.list[index].ID {
 			t.Fatalf("expected stable list order, got item %d as %#v", index, item)
 		}
-		assertInt64Ptr(t, item.Resource.MemoryUsageBytes, 64, "memory usage bytes")
-		assertInt64Ptr(t, item.Resource.MemoryLimitBytes, 128, "memory limit bytes")
+		if item.Resource.Available || item.Resource.StatsAvailable {
+			t.Fatalf("expected cold-start partial list stats to degrade as unavailable, got %#v", item.Resource)
+		}
+		if item.Resource.CPUPercent != nil || item.Resource.MemoryUsageBytes != nil || item.Resource.MemoryLimitBytes != nil || item.Resource.MemoryPercent != nil {
+			t.Fatalf("expected cold-start list miss to avoid field-level partial stats, got %#v", item.Resource)
+		}
 	}
 }
 
