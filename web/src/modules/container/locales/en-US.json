@@ -3,15 +3,15 @@
     "ops": {
       "title": "Operations",
       "container": {
-        "title": "Container Management"
+        "title": "Containers"
       }
     }
   },
   "container": {
     "route": {
       "list": {
-        "title": "Operations - Container Management",
-        "breadcrumb": "Container Management"
+        "title": "Containers",
+        "breadcrumb": "Containers"
       },
       "detail": {
         "title": "Container Detail",
@@ -20,7 +20,7 @@
     },
     "list": {
       "eyebrow": "Operations",
-      "title": "Container Management",
+      "title": "Containers",
       "description": "Review Local Container Runtime State, Details, and Truncated Logs.",
       "refresh": "Refresh",
       "retry": "Retry",

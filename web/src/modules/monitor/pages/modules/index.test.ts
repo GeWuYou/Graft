@@ -13,6 +13,24 @@ const loggerMocks = vi.hoisted(() => ({
   error: vi.fn(),
 }));
 
+const routeMocks = vi.hoisted(() => ({
+  route: {
+    path: '/server/modules',
+    fullPath: '/server/modules',
+  },
+}));
+
+const tabsRouterStoreMock = vi.hoisted(() => ({
+  activeTabKey: '/server/modules',
+  tabRouters: [
+    {
+      path: '/server/modules',
+      fullPath: '/server/modules',
+      tabKey: '/server/modules',
+    },
+  ],
+}));
+
 const translations = vi.hoisted(
   (): Record<string, string> => ({
     'app.refreshControl.labels.interval': '自动刷新：',
@@ -34,7 +52,7 @@ const translations = vi.hoisted(
     'monitor.serverStatus.refreshInterval30Seconds': 'Every 30 sec',
     'monitor.serverStatus.refreshInterval1Minute': 'Every 1 min',
     'monitor.sectionTitle': 'Service Management',
-    'monitor.moduleRuntime.title': 'Module Runtime',
+    'monitor.moduleRuntime.title': 'Modules',
     'monitor.moduleRuntime.subtitle': 'Review compile-time module status.',
     'monitor.moduleRuntime.errorTitle': 'Module snapshot request failed',
     'monitor.moduleRuntime.errorFallback': 'Failed to load module runtime snapshot',
@@ -132,20 +150,32 @@ vi.mock('../../api/module-runtime', () => ({
   getModuleRuntimeSnapshot: moduleRuntimeApiMocks.getModuleRuntimeSnapshot,
 }));
 
-vi.mock('vue-i18n', () => ({
-  useI18n: () => ({
-    t: (key: string, params?: Record<string, unknown>) => {
-      const template = translations[key] ?? key;
-      return Object.entries(params ?? {}).reduce(
-        (message, [name, value]) => message.replace(`{${name}}`, String(value)),
-        template,
-      );
-    },
-  }),
-}));
+vi.mock('vue-i18n', async () => {
+  const actual = await vi.importActual<typeof import('vue-i18n')>('vue-i18n');
+  return {
+    ...actual,
+    useI18n: () => ({
+      t: (key: string, params?: Record<string, unknown>) => {
+        const template = translations[key] ?? key;
+        return Object.entries(params ?? {}).reduce(
+          (message, [name, value]) => message.replace(`{${name}}`, String(value)),
+          template,
+        );
+      },
+    }),
+  };
+});
 
 vi.mock('@/utils/logger', () => ({
   createLogger: () => loggerMocks,
+}));
+
+vi.mock('vue-router', () => ({
+  useRoute: () => routeMocks.route,
+}));
+
+vi.mock('@/store', () => ({
+  useTabsRouterStore: () => tabsRouterStoreMock,
 }));
 
 const shellStub = defineComponent({
@@ -488,7 +518,7 @@ describe('monitor module runtime page', () => {
     await flushPromises();
 
     expect(wrapper.attributes('data-page-type')).toBe('overview-dashboard');
-    expect(wrapper.text()).toContain('Module Runtime');
+    expect(wrapper.text()).toContain('Modules');
     expect(wrapper.text()).toContain('Needs attention');
     expect(wrapper.text()).toContain('Every 5 sec');
     expect(wrapper.text()).toContain('5s 后刷新');

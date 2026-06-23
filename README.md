@@ -303,10 +303,24 @@ Important deployment notes:
   the file is missing.
 - Optional runtime overrides belong in `.env`. Leave the commented defaults untouched unless you need to override the
   image defaults or the server's built-in runtime defaults.
+- The root `compose.yml` is a container deployment entrypoint, not a local Vite development entrypoint. Keep
+  `VITE_*` variables in `web/.env.*`; they remain development-only and do not belong in the root compose template.
+- If `GRAFT_DATABASE_URL` is left unset, `bootstrap` and `server` default to the bundled `postgres` service. Set
+  `GRAFT_DATABASE_URL` explicitly when you want those containers to use an external PostgreSQL instance instead.
+- If `GRAFT_REDIS_ADDR` is left unset, `bootstrap` and `server` default to the bundled `redis` service. Set
+  `GRAFT_REDIS_ADDR` explicitly when you want those containers to use an external Redis instance instead.
+- If you set `GRAFT_REDIS_PASSWORD`, the bundled `redis` service will start with `requirepass`, and the server-side
+  services will use the same password through their normal runtime configuration.
 - If you override `GRAFT_HTTP_ADDR`, also keep `GRAFT_SERVER_EXPOSE_PORT` and `GRAFT_SERVER_UPSTREAM` aligned with the
   same internal server port so the `web` container can still reach the `server` container.
-- `web` runtime proxying is controlled by `GRAFT_SERVER_UPSTREAM`; `VITE_*` variables remain development-only and do
-  not belong in the root compose deployment template.
+- `web` runtime proxying is controlled by `GRAFT_SERVER_UPSTREAM`, and the published host port defaults to `80` unless
+  you override `GRAFT_WEB_HOST_PORT`.
+- When container shell is enabled, the root compose deployment also derives a default
+  `GRAFT_HTTPX_WEBSOCKET_ALLOWED_ORIGINS` allowlist from `GRAFT_WEB_HOST_PORT`, permitting
+  `http://127.0.0.1:<port>` and `http://localhost:<port>` by default so local browser access does not require an extra
+  manual setting.
+- If the browser reaches the deployment through HTTPS, a custom hostname, or a reverse proxy, override
+  `GRAFT_HTTPX_WEBSOCKET_ALLOWED_ORIGINS` explicitly to match the real browser-visible web origin.
 - The `web` container does not read the root `.env` file directly; only the server-side services receive those secrets.
 - Production docs are disabled by default. Set `GRAFT_DOCS_ENABLED=true` only when you intentionally want `/docs` and
   OpenAPI endpoints exposed.

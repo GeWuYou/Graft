@@ -1,13 +1,17 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { mount } from '@vue/test-utils';
+import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, nextTick, reactive } from 'vue';
 
 import { LOCALE } from '@/contracts/i18n/locales';
 
 import LayoutContent from './LayoutContent.vue';
+
+const tabRefreshMocks = vi.hoisted(() => ({
+  resolveTabRefreshHandler: vi.fn(),
+}));
 
 const layoutStyleSource = readFileSync(join(process.cwd(), 'src/style/layout.less'), 'utf8');
 
@@ -110,6 +114,10 @@ vi.mock('@/shared/observability/copy', () => ({
   copyText: vi.fn(),
 }));
 
+vi.mock('@/shared/composables/useTabRefresh', () => ({
+  resolveTabRefreshHandler: tabRefreshMocks.resolveTabRefreshHandler,
+}));
+
 vi.mock('@/store', async () => ({
   useSettingStore: () => reactive(storeState.settingStore),
   useTabsRouterStore: () => reactive(storeState.tabsRouterStore),
@@ -128,7 +136,11 @@ const TDropdownStub = defineComponent({
     },
   },
   setup(_, { slots }) {
-    return () => h('div', { 'data-testid': 'tab-dropdown' }, [slots.default?.(), slots.dropdown?.()]);
+    return () =>
+      h('div', { 'data-testid': 'tab-dropdown' }, [
+        h('div', { 'data-testid': 'tab-dropdown-trigger' }, slots.default?.()),
+        h('div', { 'data-testid': 'tab-dropdown-menu' }, slots.dropdown?.()),
+      ]);
   },
 });
 
@@ -293,6 +305,30 @@ async function clickCloseAll(wrapper: ReturnType<typeof mountLayoutContent>) {
   await nextTick();
 }
 
+async function openTabMenuByLabel(wrapper: ReturnType<typeof mountLayoutContent>, label: string) {
+  const targetIndex = storeState.tabsRouterStore.tabRouters.findIndex((tab) => tab.title?.[LOCALE.ZH_CN] === label);
+
+  expect(targetIndex).toBeGreaterThanOrEqual(0);
+
+  return openRuntimeTabMenu(wrapper, targetIndex);
+}
+
+async function clickRefreshItemForTab(wrapper: ReturnType<typeof mountLayoutContent>, label: string) {
+  const targetDropdown = wrapper
+    .findAllComponents(TDropdownStub)
+    .find((dropdown) => dropdown.get('[data-testid="tab-dropdown-trigger"]').text().includes(label));
+
+  expect(targetDropdown).toBeTruthy();
+
+  const refreshItem = targetDropdown!
+    .findAll('[data-testid="dropdown-item"]')
+    .find((item) => item.text().includes('layout.tagTabs.refresh'));
+
+  expect(refreshItem).toBeTruthy();
+  await refreshItem!.trigger('click');
+  await nextTick();
+}
+
 describe('LayoutContent', () => {
   beforeEach(() => {
     routeState.meta = {};
@@ -340,6 +376,8 @@ describe('LayoutContent', () => {
     storeState.tabsRouterStore.subtractTabRouterBehind.mockReset();
     storeState.tabsRouterStore.subtractTabRouterOther.mockReset();
     storeState.tabsRouterStore.togglePinnedTab.mockReset();
+    tabRefreshMocks.resolveTabRefreshHandler.mockReset();
+    tabRefreshMocks.resolveTabRefreshHandler.mockReturnValue(undefined);
   });
 
   it('opens the close-all dialog after the tab context menu is closed', async () => {
@@ -517,5 +555,47 @@ describe('LayoutContent', () => {
       query: undefined,
     });
     expect(wrapper.find('[data-testid="close-all-dialog"]').exists()).toBe(false);
+  });
+
+  it('finishes refresh when the custom handler throws synchronously', async () => {
+    const wrapper = mountLayoutContent();
+    tabRefreshMocks.resolveTabRefreshHandler.mockReturnValue(() => {
+      throw new Error('sync refresh failed');
+    });
+
+    await openTabMenuByLabel(wrapper, 'ServerRuntime');
+    await clickRefreshItemForTab(wrapper, 'ServerRuntime');
+    await flushPromises();
+
+    expect(storeState.tabsRouterStore.startTabRefresh).toHaveBeenCalledWith(1);
+    expect(storeState.tabsRouterStore.finishTabRefresh).toHaveBeenCalledWith(1);
+  });
+
+  it('finishes refresh against the current tab index after tabs reorder during async refresh', async () => {
+    const wrapper = mountLayoutContent();
+    let resolveRefresh: (() => void) | undefined;
+    tabRefreshMocks.resolveTabRefreshHandler.mockReturnValue(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveRefresh = resolve;
+        }),
+    );
+
+    await openTabMenuByLabel(wrapper, 'ServerRuntime');
+    await clickRefreshItemForTab(wrapper, 'ServerRuntime');
+
+    expect(storeState.tabsRouterStore.startTabRefresh).toHaveBeenCalledWith(1);
+
+    storeState.tabsRouterStore.tabRouters = [
+      createTab('/', 'RootEntry', true),
+      createTab('/audit/logs', 'AuditLogs'),
+      createTab('/server/runtime', 'ServerRuntime'),
+    ];
+
+    resolveRefresh?.();
+    await flushPromises();
+    await nextTick();
+
+    expect(storeState.tabsRouterStore.finishTabRefresh).toHaveBeenCalledWith(2);
   });
 });

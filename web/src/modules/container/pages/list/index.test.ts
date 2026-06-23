@@ -52,6 +52,7 @@ const routerMocks = vi.hoisted(() => ({
 const tabsRouterStoreMock = vi.hoisted(() => ({
   activeTabKey: '',
   appendTabRouterList: vi.fn(),
+  tabRouters: [] as Array<{ path: string; fullPath?: string; tabKey?: string }>,
   setActiveTabKey: vi.fn((tabKey: string) => {
     tabsRouterStoreMock.activeTabKey = tabKey;
   }),
@@ -317,6 +318,10 @@ vi.mock('vue-i18n', async (importOriginal) => {
 });
 
 vi.mock('vue-router', () => ({
+  useRoute: () => ({
+    path: '/ops/containers',
+    fullPath: '/ops/containers',
+  }),
   useRouter: () => routerMocks,
 }));
 
@@ -342,7 +347,14 @@ vi.mock('@/utils/route/title', () => ({
 describe('container list page', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    tabsRouterStoreMock.activeTabKey = '';
+    tabsRouterStoreMock.activeTabKey = '/ops/containers';
+    tabsRouterStoreMock.tabRouters = [
+      {
+        path: '/ops/containers',
+        fullPath: '/ops/containers',
+        tabKey: '/ops/containers',
+      },
+    ];
     dialogMocks.instances = [];
     dialogMocks.confirm.mockImplementation((_options) => {
       const instance = {

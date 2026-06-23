@@ -2,20 +2,20 @@
   "monitor": {
     "route": {
       "overview": {
-        "title": "Service Management - Overview",
+        "title": "Overview",
         "breadcrumb": "Overview"
       },
       "runtime": {
-        "title": "Service Management - Runtime",
+        "title": "Runtime",
         "breadcrumb": "Runtime"
       },
       "dependencies": {
-        "title": "Service Management - Dependencies",
+        "title": "Dependencies",
         "breadcrumb": "Dependencies"
       },
       "moduleRuntime": {
-        "title": "Service Management - Module Runtime",
-        "breadcrumb": "Module Runtime"
+        "title": "Modules",
+        "breadcrumb": "Modules"
       }
     },
     "sectionTitle": "Service Management",
@@ -166,7 +166,7 @@
       }
     },
     "moduleRuntime": {
-      "title": "Module Runtime",
+      "title": "Modules",
       "subtitle": "Review compile-time module registration, enablement, dependency, migration, schema, and config status.",
       "errorTitle": "Module snapshot request failed",
       "errorFallback": "Failed to load module runtime snapshot",

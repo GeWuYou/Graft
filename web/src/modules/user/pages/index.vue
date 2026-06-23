@@ -601,10 +601,19 @@ const auditPermissionCodes = AUDIT_PERMISSION_CODE;
 const rbacPermissionCodes = RBAC_PERMISSION_CODE;
 const userRoleManagePermissionCodes = [rbacPermissionCodes.USER_ROLE_READ, rbacPermissionCodes.USER_ROLE_ASSIGN];
 const loadingRoleDialogData = computed(() => roleCatalogLoading.value || loadingRoleSelection.value);
-const roleMutationPayload = computed(() => {
-  return {
-    role_ids: [...selectedRoleIds.value].sort((left, right) => left - right),
-  };
+const roleMutationPayload = computed(() => ({
+  role_ids: roleMutationMode.value === 'replace' ? [...selectedRoleIds.value].sort((left, right) => left - right) : [],
+}));
+const effectiveRoleMutationIds = computed(() => {
+  if (roleMutationMode.value === 'replace') {
+    return roleMutationPayload.value.role_ids;
+  }
+
+  if (roleDialogMode.value === 'batch') {
+    return [...selectedRoleIds.value].sort((left, right) => left - right);
+  }
+
+  return [...roleMutationIds.value];
 });
 const hasUserRoleSelectionChanges = computed(() => {
   if (!roleSelectionReady.value) {
@@ -612,7 +621,7 @@ const hasUserRoleSelectionChanges = computed(() => {
   }
 
   if (roleDialogMode.value === 'batch') {
-    return roleMutationPayload.value.role_ids.length > 0;
+    return effectiveRoleMutationIds.value.length > 0;
   }
 
   if (selectedUser.value === null) {
@@ -635,7 +644,7 @@ const canSubmitRoleAssignment = computed(
     canManageUserRoles() &&
     hasUserRoleSelectionChanges.value &&
     (roleDialogMode.value === 'batch' ? selectedRowKeys.value.length > 0 : selectedUser.value !== null) &&
-    (roleMutationMode.value === 'replace' || roleMutationPayload.value.role_ids.length > 0),
+    (roleMutationMode.value === 'replace' || effectiveRoleMutationIds.value.length > 0),
 );
 const hasActiveFilters = computed(
   () => Boolean(filters.value.keyword.trim()) || Boolean(filters.value.status) || filters.value.roleId !== undefined,
@@ -728,7 +737,11 @@ const pagedUsers = computed(() => {
   return filteredUsers.value.slice(start, start + pagination.value.pageSize);
 });
 
-const { selectedIds: selectedRoleIdsInternal, resetSelection: resetRoleSelection } = useAssignmentSelection({
+const {
+  mutationIds: roleMutationIds,
+  selectedIds: selectedRoleIdsInternal,
+  resetSelection: resetRoleSelection,
+} = useAssignmentSelection({
   active: userRoleDrawerVisible,
   mode: roleMutationMode,
   originalIds: currentRoleIds,
@@ -805,7 +818,9 @@ const userAssignmentSummaryItems = computed(() => [
         ? t('user.userList.roleDialog.summary.currentSelection')
         : t('user.userList.roleDialog.summary.updatedAt'),
     value:
-      roleDialogMode.value === 'batch' ? selectedRoleIds.value.length : formatTimestamp(selectedUser.value?.updated_at),
+      roleDialogMode.value === 'batch'
+        ? effectiveRoleMutationIds.value.length
+        : formatTimestamp(selectedUser.value?.updated_at),
   },
 ]);
 const userAssignmentHint = computed(() =>
@@ -840,7 +855,7 @@ const userAssignmentFooterDetails = computed(() => {
   if (roleDialogMode.value === 'batch') {
     details.push(
       t(`user.userList.roleDialog.${roleMutationMode.value}SelectionCount`, {
-        count: roleMutationPayload.value.role_ids.length,
+        count: effectiveRoleMutationIds.value.length,
       }),
     );
     return details;
@@ -868,7 +883,7 @@ const userAssignmentFooterDetails = computed(() => {
 
   details.push(
     t(`user.userList.roleDialog.${roleMutationMode.value}SelectionCount`, {
-      count: roleMutationPayload.value.role_ids.length,
+      count: effectiveRoleMutationIds.value.length,
     }),
   );
 
@@ -1675,22 +1690,24 @@ async function submitUserRoleAssignment() {
   const session = drawerSession.value;
   submittingRoles.value = true;
 
+  const payload = { role_ids: [...effectiveRoleMutationIds.value] };
+
   try {
     if (roleDialogMode.value === 'batch') {
-      const payload: BatchUserRoleMutationPayload = {
+      const batchPayload: BatchUserRoleMutationPayload = {
         user_ids: selectedBatchUserIds.value,
-        role_ids: roleMutationPayload.value.role_ids,
+        role_ids: payload.role_ids,
       };
-      await mutateBatchUserRoles(roleMutationMode.value, payload);
+      await mutateBatchUserRoles(roleMutationMode.value, batchPayload);
     } else if (selectedUser.value) {
-      await mutateUserRoles(selectedUser.value.id, roleMutationMode.value, roleMutationPayload.value);
+      await mutateUserRoles(selectedUser.value.id, roleMutationMode.value, payload);
     }
 
     if (!isActiveDrawerSession(session)) {
       return;
     }
 
-    const mutationRoleIDs = new Set(roleMutationPayload.value.role_ids);
+    const mutationRoleIDs = new Set(payload.role_ids);
     const mutationRoles = roles.value.filter((role) => mutationRoleIDs.has(role.id));
     const applyRoleMutation = (currentRoles: UserRoleSummary[]) => {
       if (roleMutationMode.value === 'replace') {

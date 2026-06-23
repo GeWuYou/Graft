@@ -198,6 +198,21 @@ func openTestAtlasRevisionStore(t *testing.T) (*atlasRevisionStore, *sql.DB) {
 	return store, db
 }
 
+func openEmptyTestAtlasRevisionStore(t *testing.T) (*atlasRevisionStore, *sql.DB) {
+	t.Helper()
+
+	dbPath := filepath.Join(t.TempDir(), "atlas-revisions-empty.db")
+	db, err := sql.Open("sqlite3", dbPath)
+	if err != nil {
+		t.Fatalf("open sqlite db: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = db.Close()
+	})
+
+	return newAtlasRevisionStore(db), db
+}
+
 func requireEqualStoredRevision(t *testing.T, expected, actual *atlasmigrate.Revision) {
 	t.Helper()
 	if actual == nil {
@@ -332,6 +347,43 @@ func TestAtlasRevisionStoreReadRevisionMissing(t *testing.T) {
 	}
 }
 
+func TestAtlasRevisionStoreReadRevisionsWithoutTableReturnsEmpty(t *testing.T) {
+	store, db := openEmptyTestAtlasRevisionStore(t)
+
+	revisions, err := store.ReadRevisions(context.Background())
+	if err != nil {
+		t.Fatalf("read revisions without table: %v", err)
+	}
+	if len(revisions) != 0 {
+		t.Fatalf("expected no revisions, got %d", len(revisions))
+	}
+
+	var count int
+	if err := db.QueryRow(`SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = 'atlas_schema_revisions'`).Scan(&count); err != nil {
+		t.Fatalf("query sqlite schema: %v", err)
+	}
+	if count != 0 {
+		t.Fatal("expected read revisions not to create atlas_schema_revisions")
+	}
+}
+
+func TestAtlasRevisionStoreReadRevisionWithoutTableReturnsNotExist(t *testing.T) {
+	store, db := openEmptyTestAtlasRevisionStore(t)
+
+	_, err := store.ReadRevision(context.Background(), "missing")
+	if !errors.Is(err, atlasmigrate.ErrRevisionNotExist) {
+		t.Fatalf("expected ErrRevisionNotExist, got %v", err)
+	}
+
+	var count int
+	if err := db.QueryRow(`SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = 'atlas_schema_revisions'`).Scan(&count); err != nil {
+		t.Fatalf("query sqlite schema: %v", err)
+	}
+	if count != 0 {
+		t.Fatal("expected read revision not to create atlas_schema_revisions")
+	}
+}
+
 func TestAtlasRevisionStoreDeleteRevision(t *testing.T) {
 	store, _ := openTestAtlasRevisionStore(t)
 	ctx := context.Background()
@@ -354,6 +406,22 @@ func TestAtlasRevisionStoreDeleteRevision(t *testing.T) {
 	_, err := store.ReadRevision(ctx, revision.Version)
 	if !errors.Is(err, atlasmigrate.ErrRevisionNotExist) {
 		t.Fatalf("expected ErrRevisionNotExist after delete, got %v", err)
+	}
+}
+
+func TestAtlasRevisionStoreDeleteRevisionWithoutTableIsNoOp(t *testing.T) {
+	store, db := openEmptyTestAtlasRevisionStore(t)
+
+	if err := store.DeleteRevision(context.Background(), "missing"); err != nil {
+		t.Fatalf("delete revision without table: %v", err)
+	}
+
+	var count int
+	if err := db.QueryRow(`SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = 'atlas_schema_revisions'`).Scan(&count); err != nil {
+		t.Fatalf("query sqlite schema: %v", err)
+	}
+	if count != 0 {
+		t.Fatal("expected delete revision not to create atlas_schema_revisions")
 	}
 }
 

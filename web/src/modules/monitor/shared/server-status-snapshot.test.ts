@@ -10,49 +10,79 @@ const apiMocks = vi.hoisted(() => ({
   getServerStatus: vi.fn(),
 }));
 
+const routeMocks = vi.hoisted(() => ({
+  route: {
+    path: '/server/overview',
+    fullPath: '/server/overview',
+  },
+}));
+
+const tabsRouterStoreMock = vi.hoisted(() => ({
+  activeTabKey: '/server/overview',
+  tabRouters: [
+    {
+      path: '/server/overview',
+      fullPath: '/server/overview',
+      tabKey: '/server/overview',
+    },
+  ],
+}));
+
 vi.mock('../api/server-status', () => ({
   getServerStatus: apiMocks.getServerStatus,
 }));
 
-vi.mock('vue-i18n', () => ({
-  useI18n: () => ({
-    t: (key: string, params?: Record<string, unknown>) => {
-      if (key === 'app.refreshControl.status.off') {
-        return 'Auto refresh off';
-      }
-      if (key === 'monitor.serverStatus.nextRefreshPausedByUser') {
-        return 'Auto refresh paused';
-      }
-      if (key === 'monitor.serverStatus.nextRefreshPaused') {
-        return 'Next refresh paused while the page is hidden';
-      }
-      if (key === 'monitor.serverStatus.nextRefreshPending') {
-        return 'Preparing the next refresh';
-      }
-      if (key === 'monitor.serverStatus.nextRefreshIn') {
-        return `Next refresh in ${String(params?.seconds ?? '')}s`;
-      }
-      if (key === 'monitor.serverStatus.nextRefreshRetryIn') {
-        return `Retry in ${String(params?.seconds ?? '')}s`;
-      }
-      if (key === 'monitor.shared.loadFailed') {
-        return 'Failed to load server status';
-      }
-      if (key === 'monitor.serverStatus.refreshInterval5Seconds') {
-        return 'Every 5 sec';
-      }
-      if (key === 'monitor.serverStatus.refreshInterval10Seconds') {
-        return 'Every 10 sec';
-      }
-      if (key === 'monitor.serverStatus.refreshInterval30Seconds') {
-        return 'Every 30 sec';
-      }
-      if (key === 'monitor.serverStatus.refreshInterval1Minute') {
-        return 'Every 1 min';
-      }
-      return key;
-    },
-  }),
+vi.mock('vue-i18n', async () => {
+  const actual = await vi.importActual<typeof import('vue-i18n')>('vue-i18n');
+  return {
+    ...actual,
+    useI18n: () => ({
+      t: (key: string, params?: Record<string, unknown>) => {
+        if (key === 'app.refreshControl.status.off') {
+          return 'Auto refresh off';
+        }
+        if (key === 'monitor.serverStatus.nextRefreshPausedByUser') {
+          return 'Auto refresh paused';
+        }
+        if (key === 'monitor.serverStatus.nextRefreshPaused') {
+          return 'Next refresh paused while the page is hidden';
+        }
+        if (key === 'monitor.serverStatus.nextRefreshPending') {
+          return 'Preparing the next refresh';
+        }
+        if (key === 'monitor.serverStatus.nextRefreshIn') {
+          return `Next refresh in ${String(params?.seconds ?? '')}s`;
+        }
+        if (key === 'monitor.serverStatus.nextRefreshRetryIn') {
+          return `Retry in ${String(params?.seconds ?? '')}s`;
+        }
+        if (key === 'monitor.shared.loadFailed') {
+          return 'Failed to load server status';
+        }
+        if (key === 'monitor.serverStatus.refreshInterval5Seconds') {
+          return 'Every 5 sec';
+        }
+        if (key === 'monitor.serverStatus.refreshInterval10Seconds') {
+          return 'Every 10 sec';
+        }
+        if (key === 'monitor.serverStatus.refreshInterval30Seconds') {
+          return 'Every 30 sec';
+        }
+        if (key === 'monitor.serverStatus.refreshInterval1Minute') {
+          return 'Every 1 min';
+        }
+        return key;
+      },
+    }),
+  };
+});
+
+vi.mock('vue-router', () => ({
+  useRoute: () => routeMocks.route,
+}));
+
+vi.mock('@/store', () => ({
+  useTabsRouterStore: () => tabsRouterStoreMock,
 }));
 
 vi.mock('@/shared/localized-api-error', () => ({

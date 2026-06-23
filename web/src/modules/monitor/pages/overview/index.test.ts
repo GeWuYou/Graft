@@ -80,6 +80,17 @@ const settingStoreMock = vi.hoisted(() => ({
   },
 }));
 
+const tabsRouterStoreMock = vi.hoisted(() => ({
+  activeTabKey: '/server/overview',
+  tabRouters: [
+    {
+      path: '/server/overview',
+      fullPath: '/server/overview',
+      tabKey: '/server/overview',
+    },
+  ],
+}));
+
 const translations = vi.hoisted(
   (): Record<string, string> => ({
     'app.refreshControl.labels.interval': 'Auto refresh',
@@ -297,6 +308,7 @@ vi.mock('../../api/server-status', () => ({
 
 vi.mock('@/store', () => ({
   useSettingStore: () => settingStoreMock,
+  useTabsRouterStore: () => tabsRouterStoreMock,
 }));
 
 vi.mock('vue-i18n', () => ({
@@ -340,6 +352,10 @@ vi.mock('@/modules/audit/shared/correlation-actions', () => ({
 }));
 
 vi.mock('vue-router', () => ({
+  useRoute: () => ({
+    path: '/server/overview',
+    fullPath: '/server/overview',
+  }),
   useRouter: () => routerMocks,
 }));
 
@@ -750,6 +766,14 @@ describe('MonitorPage', () => {
     resizeObserverMocks.unobserve.mockClear();
     resizeObserverMocks.disconnect.mockClear();
     settingStoreMock.brandTheme = '#0052D9';
+    tabsRouterStoreMock.activeTabKey = '/server/overview';
+    tabsRouterStoreMock.tabRouters = [
+      {
+        path: '/server/overview',
+        fullPath: '/server/overview',
+        tabKey: '/server/overview',
+      },
+    ];
     document.body.innerHTML = '';
     setVisibilityState('visible');
     document.documentElement.style.setProperty('--td-brand-color', '#0052D9');

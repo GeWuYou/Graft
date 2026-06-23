@@ -214,3 +214,50 @@ func TestValidateOrigin(t *testing.T) {
 		t.Fatalf("expected origin denied, got %v", err)
 	}
 }
+
+func TestValidateOriginNormalizesDefaultPorts(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name          string
+		requestOrigin string
+		allowedOrigin string
+	}{
+		{
+			name:          "http explicit request port",
+			requestOrigin: "http://localhost:80",
+			allowedOrigin: "http://localhost",
+		},
+		{
+			name:          "http explicit allowed port",
+			requestOrigin: "http://127.0.0.1",
+			allowedOrigin: "http://127.0.0.1:80",
+		},
+		{
+			name:          "https explicit request port",
+			requestOrigin: "https://console.example.com:443",
+			allowedOrigin: "https://console.example.com",
+		},
+		{
+			name:          "http ipv6 default port",
+			requestOrigin: "http://[::1]",
+			allowedOrigin: "http://[::1]:80",
+		},
+		{
+			name:          "https ipv6 default port",
+			requestOrigin: "https://[2001:db8::1]",
+			allowedOrigin: "https://[2001:db8::1]:443",
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			if err := ValidateOrigin(tc.requestOrigin, []string{tc.allowedOrigin}); err != nil {
+				t.Fatalf("expected normalized origin to match, got %v", err)
+			}
+		})
+	}
+}

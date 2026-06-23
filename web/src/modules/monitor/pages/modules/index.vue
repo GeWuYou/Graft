@@ -329,6 +329,7 @@ import {
 } from '@/shared/components/management';
 import { AdvancedQueryColumnDrawer } from '@/shared/components/query-list';
 import { RefreshControlBar } from '@/shared/components/refresh';
+import { useCurrentTabRefresh } from '@/shared/composables/useTabRefresh';
 import { createLogger } from '@/utils/logger';
 
 import { getModuleRuntimeDetail, getModuleRuntimeSnapshot } from '../../api/module-runtime';
@@ -547,6 +548,10 @@ onUnmounted(() => {
 
 watch(selectedRefreshInterval, () => {
   scheduleNextRefresh();
+});
+
+useCurrentTabRefresh(async () => {
+  await refreshSnapshot();
 });
 
 async function refreshSnapshot() {

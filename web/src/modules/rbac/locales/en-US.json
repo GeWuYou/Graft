@@ -2,12 +2,12 @@
   "rbac": {
     "route": {
       "roleList": {
-        "title": "Access Control - Role Management",
-        "breadcrumb": "Role Management"
+        "title": "Roles",
+        "breadcrumb": "Roles"
       },
       "permissionList": {
-        "title": "Access Control - Permission Management",
-        "breadcrumb": "Permission Management"
+        "title": "Permissions",
+        "breadcrumb": "Permissions"
       }
     },
     "roleList": {

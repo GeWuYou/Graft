@@ -251,7 +251,7 @@ describe('Content', () => {
     expect(wrapper.emitted('page-surface-enter')).toEqual([['paged-table']]);
   });
 
-  it('keeps a loading host mounted while a tab refresh removes route content', async () => {
+  it('keeps route content mounted while tab refresh only raises the loading state', async () => {
     tabStoreState.refreshing = true;
 
     const wrapper = mount(Content, {
@@ -279,7 +279,7 @@ describe('Content', () => {
 
     expect(wrapper.get('[data-testid="route-loading"]').attributes('data-loading')).toBe('true');
     expect(wrapper.find('.route-loading-host').exists()).toBe(true);
-    expect(wrapper.find('.route-refresh-placeholder').exists()).toBe(true);
-    expect(wrapper.findComponent({ name: 'RouteContentProbe' }).exists()).toBe(false);
+    expect(wrapper.find('.route-refresh-placeholder').exists()).toBe(false);
+    expect(wrapper.findComponent({ name: 'RouteContentProbe' }).exists()).toBe(true);
   });
 });

@@ -17,6 +17,7 @@ import (
 
 	atlasmigrate "ariga.io/atlas/sql/migrate"
 	atlaspostgres "ariga.io/atlas/sql/postgres"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/spf13/cobra"
 
 	"graft/server/internal/config"
@@ -679,10 +680,6 @@ func (s *atlasRevisionStore) Ident() *atlasmigrate.TableIdent {
 }
 
 func (s *atlasRevisionStore) ReadRevisions(ctx context.Context) ([]*atlasmigrate.Revision, error) {
-	if err := s.ensureTable(ctx); err != nil {
-		return nil, err
-	}
-
 	rows, err := s.db.QueryContext(
 		ctx,
 		`SELECT version, description, type, applied, total, executed_at, execution_time, error, error_stmt, hash, partial_hashes, operator_version
@@ -690,6 +687,9 @@ func (s *atlasRevisionStore) ReadRevisions(ctx context.Context) ([]*atlasmigrate
 		ORDER BY version ASC`,
 	)
 	if err != nil {
+		if isAtlasRevisionTableMissingError(err) {
+			return nil, nil
+		}
 		return nil, fmt.Errorf("query revision history: %w", err)
 	}
 	defer func() {
@@ -712,10 +712,6 @@ func (s *atlasRevisionStore) ReadRevisions(ctx context.Context) ([]*atlasmigrate
 }
 
 func (s *atlasRevisionStore) ReadRevision(ctx context.Context, version string) (*atlasmigrate.Revision, error) {
-	if err := s.ensureTable(ctx); err != nil {
-		return nil, err
-	}
-
 	row := s.db.QueryRowContext(
 		ctx,
 		`SELECT version, description, type, applied, total, executed_at, execution_time, error, error_stmt, hash, partial_hashes, operator_version
@@ -725,6 +721,9 @@ func (s *atlasRevisionStore) ReadRevision(ctx context.Context, version string) (
 	)
 
 	revision, err := scanAtlasRevision(row.Scan)
+	if isAtlasRevisionTableMissingError(err) {
+		return nil, atlasmigrate.ErrRevisionNotExist
+	}
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, atlasmigrate.ErrRevisionNotExist
 	}
@@ -795,11 +794,10 @@ func (s *atlasRevisionStore) WriteRevision(ctx context.Context, revision *atlasm
 }
 
 func (s *atlasRevisionStore) DeleteRevision(ctx context.Context, version string) error {
-	if err := s.ensureTable(ctx); err != nil {
-		return err
-	}
-
 	if _, err := s.db.ExecContext(ctx, `DELETE FROM atlas_schema_revisions WHERE version = $1`, version); err != nil {
+		if isAtlasRevisionTableMissingError(err) {
+			return nil
+		}
 		return fmt.Errorf("delete revision %s: %w", version, err)
 	}
 	return nil
@@ -813,6 +811,19 @@ func (s *atlasRevisionStore) ensureTable(ctx context.Context) error {
 		return fmt.Errorf("ensure atlas_schema_revisions table: %w", s.initErr)
 	}
 	return nil
+}
+
+func isAtlasRevisionTableMissingError(err error) bool {
+	if err == nil {
+		return false
+	}
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == "42P01" {
+		return true
+	}
+	message := strings.ToLower(err.Error())
+	return strings.Contains(message, "no such table: atlas_schema_revisions") ||
+		strings.Contains(message, "relation \"atlas_schema_revisions\" does not exist")
 }
 
 // scanAtlasRevision 将数据库行数据扫描并映射为一个 Atlas 迁移版本记录。

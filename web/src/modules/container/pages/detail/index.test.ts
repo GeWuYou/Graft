@@ -1617,9 +1617,9 @@ describe('container detail page', () => {
     expect(copyButtons).toHaveLength(1);
 
     await copyButtons[0].trigger('click');
-    await flushPromises();
-
-    expect(copyText).toHaveBeenCalledWith('production');
+    await vi.waitFor(() => {
+      expect(copyText).toHaveBeenCalledWith('production');
+    });
     expect(messageMocks.success).toHaveBeenCalledWith('已复制变量值');
   });
 
