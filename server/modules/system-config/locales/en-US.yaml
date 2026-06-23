@@ -40,6 +40,7 @@ systemConfig.fields.batchSize.title: Batch Size
 systemConfig.fields.batchSize.description: Maximum rows deleted per cleanup batch.
 systemConfig.units.days: Days
 systemConfig.units.rows: Rows
+systemConfig.units.seconds: Seconds
 systemConfig.groups.notification.general: General
 systemConfig.groups.notification.general.description: Control the Notification Center baseline behavior.
 systemConfig.groups.notification.sources: Sources

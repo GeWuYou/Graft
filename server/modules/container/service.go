@@ -67,6 +67,8 @@ type containerServiceOptions struct {
 	shellEnabled            bool
 	defaultTail             int
 	maxTail                 int
+	resourceStatsCacheTTLSeconds         int
+	resourceStatsCacheStaleWindowSeconds int
 	environmentPolicy       containercontract.EnvironmentPolicy
 	orchestratorPolicies    orchestratorActionPolicies
 	websocketAllowedOrigins []string
@@ -122,6 +124,8 @@ func newService(options containerServiceOptions) (*service, error) {
 	runtimeOptions.dangerousActionsEnabled = options.dangerousActionsEnabled
 	runtimeOptions.defaultTail = options.defaultTail
 	runtimeOptions.maxTail = options.maxTail
+	runtimeOptions.resourceStatsCacheTTLSeconds = options.resourceStatsCacheTTLSeconds
+	runtimeOptions.resourceStatsCacheStaleWindowSeconds = options.resourceStatsCacheStaleWindowSeconds
 	runtimeOptions.logger = options.logger
 	environmentPolicy := normalizeEnvironmentPolicy(options.environmentPolicy.String())
 	runtimeFactory := options.runtimeFactory
@@ -1160,6 +1164,8 @@ type containerRuntimeOptions struct {
 	dangerousActionsEnabled bool
 	defaultTail             int
 	maxTail                 int
+	resourceStatsCacheTTLSeconds         int
+	resourceStatsCacheStaleWindowSeconds int
 	environmentPolicy       containercontract.EnvironmentPolicy
 	orchestratorPolicies    orchestratorActionPolicies
 	logger                  *zap.Logger
@@ -1174,6 +1180,8 @@ func containerOptionsFromConfig(ctx *module.Context) containerRuntimeOptions {
 		dangerousActionsEnabled: defaultContainerDangerousActionsEnabled,
 		defaultTail:             defaultContainerLogsDefaultTail,
 		maxTail:                 defaultContainerLogsMaxTail,
+		resourceStatsCacheTTLSeconds:         defaultContainerResourceStatsCacheTTL,
+		resourceStatsCacheStaleWindowSeconds: defaultContainerResourceStatsStaleWindow,
 		environmentPolicy:       defaultContainerEnvironmentPolicy,
 		orchestratorPolicies: orchestratorActionPolicies{
 			Compose:    defaultContainerComposeActionLevel,
@@ -1190,6 +1198,12 @@ func containerOptionsFromConfig(ctx *module.Context) containerRuntimeOptions {
 	applyContainerStringDefault(ctx, containercontract.ContainerDockerEndpointConfig.String(), &options.endpoint)
 	applyContainerIntDefault(ctx, containercontract.ContainerLogsDefaultTailConfig.String(), &options.defaultTail)
 	applyContainerIntDefault(ctx, containercontract.ContainerLogsMaxTailConfig.String(), &options.maxTail)
+	applyContainerIntDefault(ctx, containercontract.ContainerResourceStatsCacheTTLConfig.String(), &options.resourceStatsCacheTTLSeconds)
+	applyContainerIntDefault(
+		ctx,
+		containercontract.ContainerResourceStatsCacheStaleWindowConfig.String(),
+		&options.resourceStatsCacheStaleWindowSeconds,
+	)
 	applyContainerBoolDefault(ctx, containercontract.ContainerDangerousActionsEnabledConfig.String(), &options.dangerousActionsEnabled)
 	applyContainerEnvironmentPolicyDefault(ctx, containercontract.ContainerEnvironmentPolicyConfig.String(), &options.environmentPolicy)
 	applyContainerOrchestratorActionLevelDefault(ctx, containercontract.ContainerComposeActionLevelConfig.String(), &options.orchestratorPolicies.Compose)
@@ -1402,6 +1416,33 @@ func (s *service) effectiveLogTailBounds(ctx context.Context) (int, int) {
 	return normalizeContainerLogTailBounds(defaultTail, maxTail)
 }
 
+func normalizeContainerResourceStatsCacheBounds(ttlSeconds int, staleWindowSeconds int) (int, int) {
+	if ttlSeconds <= 0 {
+		ttlSeconds = defaultContainerResourceStatsCacheTTL
+	}
+	if staleWindowSeconds <= 0 {
+		staleWindowSeconds = defaultContainerResourceStatsStaleWindow
+	}
+	return ttlSeconds, staleWindowSeconds
+}
+
+func (s *service) effectiveResourceStatsCacheBounds(ctx context.Context) (time.Duration, time.Duration) {
+	ttlSeconds := defaultContainerResourceStatsCacheTTL
+	staleWindowSeconds := defaultContainerResourceStatsStaleWindow
+	if s != nil {
+		ttlSeconds = s.runtimeOptions.resourceStatsCacheTTLSeconds
+		staleWindowSeconds = s.runtimeOptions.resourceStatsCacheStaleWindowSeconds
+	}
+	ttlSeconds = s.resolveIntegerConfig(ctx, containercontract.ContainerResourceStatsCacheTTLConfig.String(), ttlSeconds)
+	staleWindowSeconds = s.resolveIntegerConfig(
+		ctx,
+		containercontract.ContainerResourceStatsCacheStaleWindowConfig.String(),
+		staleWindowSeconds,
+	)
+	ttlSeconds, staleWindowSeconds = normalizeContainerResourceStatsCacheBounds(ttlSeconds, staleWindowSeconds)
+	return time.Duration(ttlSeconds) * time.Second, time.Duration(staleWindowSeconds) * time.Second
+}
+
 func (s *service) runtimeAccessEnabled(ctx context.Context) bool {
 	if s == nil {
 		return false
@@ -1565,7 +1606,12 @@ func newContainerRuntime(options containerRuntimeOptions) (Runtime, error) {
 	if strings.TrimSpace(options.runtime) != defaultContainerRuntime && strings.TrimSpace(options.runtime) != runtimeNameDocker {
 		return nil, errUnsupportedContainerRuntime
 	}
-	return NewDockerRuntime(options.endpoint, options.logger)
+	return NewDockerRuntime(
+		options.endpoint,
+		options.logger,
+		time.Duration(options.resourceStatsCacheTTLSeconds)*time.Second,
+		time.Duration(options.resourceStatsCacheStaleWindowSeconds)*time.Second,
+	)
 }
 
 func (s *service) runtimeForRequest() (Runtime, error) {
@@ -1584,10 +1630,16 @@ func (s *service) runtimeForRequest() (Runtime, error) {
 	options.dangerousActionsEnabled = s.dangerousActionsEnabled
 	options.defaultTail = s.defaultTail
 	options.maxTail = s.maxTail
+	options.resourceStatsCacheTTLSeconds = s.runtimeOptions.resourceStatsCacheTTLSeconds
+	options.resourceStatsCacheStaleWindowSeconds = s.runtimeOptions.resourceStatsCacheStaleWindowSeconds
 	options.logger = s.logger
 	runtime, err := s.runtimeFactory(options)
 	if err != nil {
 		return nil, err
+	}
+	if dockerRuntime, ok := runtime.(*DockerRuntime); ok {
+		ttl, staleWindow := s.effectiveResourceStatsCacheBounds(context.Background())
+		dockerRuntime.updateResourceStatsCachePolicy(ttl, staleWindow)
 	}
 	s.runtime = runtime
 	return runtime, nil

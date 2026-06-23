@@ -71,7 +71,7 @@ type systemInfo interface {
 }
 
 // NewDockerRuntime creates the first local container runtime adapter.
-func NewDockerRuntime(endpoint string, logger *zap.Logger) (*DockerRuntime, error) {
+func NewDockerRuntime(endpoint string, logger *zap.Logger, cacheTTL time.Duration, staleWindow time.Duration) (*DockerRuntime, error) {
 	endpoint = firstNonEmpty(endpoint, defaultContainerDockerEndpoint)
 	cli, err := mobyclient.New(mobyclient.WithHost(endpoint))
 	if err != nil {
@@ -81,7 +81,7 @@ func NewDockerRuntime(endpoint string, logger *zap.Logger) (*DockerRuntime, erro
 		client:        dockerClientAdapter{Client: cli},
 		endpoint:      endpoint,
 		logger:        logger,
-		resourceStats: newResourceStatsCache(containerResourceStatsCacheTTL, containerResourceStatsCacheStaleWindow),
+		resourceStats: newResourceStatsCache(cacheTTL, staleWindow),
 	}, nil
 }
 
@@ -410,6 +410,13 @@ func (r *DockerRuntime) ensureResourceStatsCache() *resourceStatsCache {
 		r.resourceStats = newResourceStatsCache(containerResourceStatsCacheTTL, containerResourceStatsCacheStaleWindow)
 	}
 	return r.resourceStats
+}
+
+func (r *DockerRuntime) updateResourceStatsCachePolicy(ttl time.Duration, staleWindow time.Duration) {
+	if r == nil {
+		return
+	}
+	r.resourceStats = newResourceStatsCache(ttl, staleWindow)
 }
 
 func (r *DockerRuntime) collectListResourceSummaries(ctx context.Context, summaries []Summary) {

@@ -68,6 +68,12 @@ const translations = vi.hoisted(
     'systemConfig.container.ops.container.logs.default_tail.title': '默认日志行数',
     'systemConfig.container.ops.container.logs.max_tail.description': '容器日志读取允许的最大返回行数。',
     'systemConfig.container.ops.container.logs.max_tail.title': '最大日志行数',
+    'systemConfig.container.ops.container.resource_stats.cache_ttl_seconds.description':
+      '控制容器资源快照在下一次 stats 刷新前保持新鲜结果的时长。',
+    'systemConfig.container.ops.container.resource_stats.cache_ttl_seconds.title': '资源快照新鲜窗口',
+    'systemConfig.container.ops.container.resource_stats.stale_window_seconds.description':
+      '控制容器资源快照在后台刷新期间还能继续返回陈旧结果的时长。',
+    'systemConfig.container.ops.container.resource_stats.stale_window_seconds.title': '资源快照过期兜底窗口',
     'systemConfig.container.ops.container.actions.dangerous_enabled.description':
       '是否允许容器启动、停止和重启等高危操作。',
     'systemConfig.container.ops.container.actions.dangerous_enabled.title': '启用容器高危操作',
@@ -163,6 +169,7 @@ const translations = vi.hoisted(
     'systemConfig.options.dashboardQuickActionStrategyDescriptions.recent': '优先展示最近访问过的快捷入口。',
     'systemConfig.units.days': '天',
     'systemConfig.units.rows': '行',
+    'systemConfig.units.seconds': '秒',
   }),
 );
 

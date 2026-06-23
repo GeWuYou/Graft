@@ -40,6 +40,7 @@ systemConfig.fields.batchSize.title: 批量大小
 systemConfig.fields.batchSize.description: 单次清理最多删除的日志行数。
 systemConfig.units.days: 天
 systemConfig.units.rows: 行
+systemConfig.units.seconds: 秒
 systemConfig.groups.notification.general: 通用
 systemConfig.groups.notification.general.description: 控制通知中心的基础行为。
 systemConfig.groups.notification.sources: 通知来源

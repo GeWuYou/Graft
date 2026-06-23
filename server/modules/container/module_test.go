@@ -71,6 +71,12 @@ func TestRouteAndConfigContractsStayCanonical(t *testing.T) {
 	if containercontract.ContainerRuntimeEnabledConfig.String() != "ops.container.runtime.enabled" {
 		t.Fatalf("unexpected runtime access config key")
 	}
+	if containercontract.ContainerResourceStatsCacheTTLConfig.String() != "ops.container.resource_stats.cache_ttl_seconds" {
+		t.Fatalf("unexpected resource stats cache ttl config key")
+	}
+	if containercontract.ContainerResourceStatsCacheStaleWindowConfig.String() != "ops.container.resource_stats.stale_window_seconds" {
+		t.Fatalf("unexpected resource stats stale window config key")
+	}
 	if containercontract.ContainerDangerousActionsEnabledConfig.String() != "ops.container.actions.dangerous_enabled" {
 		t.Fatalf("unexpected dangerous actions config key")
 	}
@@ -265,6 +271,8 @@ func assertContainerRuntimeHotConfigModes(t *testing.T, registry *configregistry
 		containercontract.ContainerRuntimeEnabledConfig.String(),
 		containercontract.ContainerLogsDefaultTailConfig.String(),
 		containercontract.ContainerLogsMaxTailConfig.String(),
+		containercontract.ContainerResourceStatsCacheTTLConfig.String(),
+		containercontract.ContainerResourceStatsCacheStaleWindowConfig.String(),
 		containercontract.ContainerDangerousActionsEnabledConfig.String(),
 		containercontract.ContainerShellEnabledConfig.String(),
 		containercontract.ContainerEnvironmentPolicyConfig.String(),
@@ -311,6 +319,19 @@ func assertMaxTailConfigSchema(t *testing.T, registry *configregistry.Registry) 
 	if maxTailSchema.Type != "integer" || maxTailSchema.Maximum == nil || *maxTailSchema.Maximum != defaultContainerLogsMaxTail {
 		t.Fatalf("expected max tail integer schema, got %#v", maxTailSchema)
 	}
+
+	resourceTTL, _ := registry.Get(containercontract.ContainerResourceStatsCacheTTLConfig.String())
+	var resourceTTLSchema struct {
+		Type    string   `json:"type"`
+		Minimum *float64 `json:"minimum"`
+		Maximum *float64 `json:"maximum"`
+	}
+	if err := json.Unmarshal(resourceTTL.Schema, &resourceTTLSchema); err != nil {
+		t.Fatalf("decode resource ttl schema: %v", err)
+	}
+	if resourceTTLSchema.Type != "integer" || resourceTTLSchema.Minimum == nil || *resourceTTLSchema.Minimum != 1 {
+		t.Fatalf("expected resource ttl integer schema, got %#v", resourceTTLSchema)
+	}
 }
 
 func assertEnvironmentPolicyConfigSchema(t *testing.T, registry *configregistry.Registry, localizer *i18n.Service) {
@@ -355,6 +376,8 @@ func expectedConfigKeys() []string {
 		containercontract.ContainerDockerEndpointConfig.String(),
 		containercontract.ContainerLogsDefaultTailConfig.String(),
 		containercontract.ContainerLogsMaxTailConfig.String(),
+		containercontract.ContainerResourceStatsCacheTTLConfig.String(),
+		containercontract.ContainerResourceStatsCacheStaleWindowConfig.String(),
 		containercontract.ContainerDangerousActionsEnabledConfig.String(),
 		containercontract.ContainerShellEnabledConfig.String(),
 		containercontract.ContainerEnvironmentPolicyConfig.String(),

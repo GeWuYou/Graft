@@ -81,7 +81,11 @@ func TestDockerRuntimeLogsAvoidsRuntimeInfoCall(t *testing.T) {
 			Name: "/web",
 		},
 	}
-	runtime := &DockerRuntime{client: client, endpoint: "unix:///var/run/docker.sock"}
+	runtime := &DockerRuntime{
+		client:        client,
+		endpoint:      "unix:///var/run/docker.sock",
+		resourceStats: newResourceStatsCache(containerResourceStatsCacheTTL, containerResourceStatsCacheStaleWindow),
+	}
 
 	logs, err := runtime.Logs(context.Background(), Ref{Value: "web"}, LogQuery{
 		Tail:   2,
@@ -195,7 +199,11 @@ func TestDockerRuntimeListUsesCheapSummaryFields(t *testing.T) {
 		},
 		stats: richDockerStatsFixture(),
 	}
-	runtime := &DockerRuntime{client: client, endpoint: "unix:///var/run/docker.sock"}
+	runtime := &DockerRuntime{
+		client:        client,
+		endpoint:      "unix:///var/run/docker.sock",
+		resourceStats: newResourceStatsCache(containerResourceStatsCacheTTL, containerResourceStatsCacheStaleWindow),
+	}
 
 	items, err := runtime.List(context.Background(), ListQuery{})
 	if err != nil {
@@ -237,7 +245,11 @@ func TestDockerRuntimeListDegradesWhenStatsUnavailable(t *testing.T) {
 		},
 		statsErr: timeoutError{},
 	}
-	runtime := &DockerRuntime{client: client, endpoint: "unix:///var/run/docker.sock"}
+	runtime := &DockerRuntime{
+		client:        client,
+		endpoint:      "unix:///var/run/docker.sock",
+		resourceStats: newResourceStatsCache(containerResourceStatsCacheTTL, containerResourceStatsCacheStaleWindow),
+	}
 
 	items, err := runtime.List(context.Background(), ListQuery{})
 	if err != nil {
@@ -283,7 +295,11 @@ func TestDockerRuntimeListCollectsStatsWithBoundedConcurrency(t *testing.T) {
 			Created: 1781409600,
 		})
 	}
-	runtime := &DockerRuntime{client: client, endpoint: "unix:///var/run/docker.sock"}
+	runtime := &DockerRuntime{
+		client:        client,
+		endpoint:      "unix:///var/run/docker.sock",
+		resourceStats: newResourceStatsCache(containerResourceStatsCacheTTL, containerResourceStatsCacheStaleWindow),
+	}
 
 	items, err := runtime.List(context.Background(), ListQuery{})
 	if err != nil {
@@ -337,7 +353,11 @@ func TestDockerRuntimeDetailCollectsResourceStats(t *testing.T) {
 			MemoryStats: container.MemoryStats{Usage: 256, Limit: 1024},
 		},
 	}
-	runtime := &DockerRuntime{client: client, endpoint: "unix:///var/run/docker.sock"}
+	runtime := &DockerRuntime{
+		client:        client,
+		endpoint:      "unix:///var/run/docker.sock",
+		resourceStats: newResourceStatsCache(containerResourceStatsCacheTTL, containerResourceStatsCacheStaleWindow),
+	}
 
 	detail, err := runtime.Detail(context.Background(), Ref{Value: "graft-web"})
 	if err != nil {
@@ -372,7 +392,11 @@ func TestDockerRuntimeDetailReusesCachedResourceStats(t *testing.T) {
 		},
 		stats: richDockerStatsFixture(),
 	}
-	runtime := &DockerRuntime{client: client, endpoint: "unix:///var/run/docker.sock"}
+	runtime := &DockerRuntime{
+		client:        client,
+		endpoint:      "unix:///var/run/docker.sock",
+		resourceStats: newResourceStatsCache(containerResourceStatsCacheTTL, containerResourceStatsCacheStaleWindow),
+	}
 
 	first, err := runtime.Detail(context.Background(), Ref{Value: "graft-web"})
 	if err != nil {

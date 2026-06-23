@@ -35,6 +35,10 @@ const (
 	ContainerLogsDefaultTailConfig ConfigKey = "ops.container.logs.default_tail"
 	// ContainerLogsMaxTailConfig stores the maximum log tail size.
 	ContainerLogsMaxTailConfig ConfigKey = "ops.container.logs.max_tail"
+	// ContainerResourceStatsCacheTTLConfig stores the fresh window for cached container resource stats snapshots.
+	ContainerResourceStatsCacheTTLConfig ConfigKey = "ops.container.resource_stats.cache_ttl_seconds"
+	// ContainerResourceStatsCacheStaleWindowConfig stores the stale-while-refresh window for cached container resource stats snapshots.
+	ContainerResourceStatsCacheStaleWindowConfig ConfigKey = "ops.container.resource_stats.stale_window_seconds"
 	// ContainerDangerousActionsEnabledConfig enables high-risk container actions.
 	ContainerDangerousActionsEnabledConfig ConfigKey = "ops.container.actions.dangerous_enabled"
 	// ContainerComposeActionLevelConfig stores the dangerous-action policy for compose-managed containers.

@@ -363,5 +363,9 @@
   "systemConfig.groups.ops.container.actions": "Dangerous Actions",
   "systemConfig.groups.ops.container.actions.description": "Control container start, stop, and restart actions.",
   "systemConfig.container.ops.container.shell.enabled.title": "Enable Container Shell",
-  "systemConfig.container.ops.container.shell.enabled.description": "Controls whether interactive container shell session tickets and WebSocket connections can be created."
+  "systemConfig.container.ops.container.shell.enabled.description": "Controls whether interactive container shell session tickets and WebSocket connections can be created.",
+  "systemConfig.container.ops.container.resource_stats.cache_ttl_seconds.title": "Resource Snapshot Fresh Window",
+  "systemConfig.container.ops.container.resource_stats.cache_ttl_seconds.description": "Controls how long container resource snapshots stay fresh before the next stats refresh is required.",
+  "systemConfig.container.ops.container.resource_stats.stale_window_seconds.title": "Resource Snapshot Stale Window",
+  "systemConfig.container.ops.container.resource_stats.stale_window_seconds.description": "Controls how long stale container resource snapshots may be served while the next stats refresh runs in the background."
 }

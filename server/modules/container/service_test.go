@@ -1416,6 +1416,10 @@ func newContainerConfigRegistry(t *testing.T) *configregistry.Registry {
 			definition.DefaultValue = mustRawJSON(50)
 		case containercontract.ContainerLogsMaxTailConfig.String():
 			definition.DefaultValue = mustRawJSON(500)
+		case containercontract.ContainerResourceStatsCacheTTLConfig.String():
+			definition.DefaultValue = mustRawJSON(3)
+		case containercontract.ContainerResourceStatsCacheStaleWindowConfig.String():
+			definition.DefaultValue = mustRawJSON(9)
 		case containercontract.ContainerDangerousActionsEnabledConfig.String():
 			definition.DefaultValue = mustRawJSON(true)
 		case containercontract.ContainerEnvironmentPolicyConfig.String():
@@ -1456,6 +1460,34 @@ func TestServiceLogsUseRuntimeHotTailConfig(t *testing.T) {
 	}
 	if _, err := service.Logs(context.Background(), Ref{Value: "web"}, LogQuery{Tail: 251}); !errors.Is(err, errLogsTooLarge) {
 		t.Fatalf("expected runtime-hot max tail guard, got %v", err)
+	}
+}
+
+func TestServiceEffectiveResourceStatsCacheBoundsUseRuntimeHotConfig(t *testing.T) {
+	t.Parallel()
+
+	service, err := newTestService(containerServiceOptions{
+		runtime: fakeRuntime{},
+		systemConfig: serviceTestPolicyConfig{
+			values: map[string]string{
+				containercontract.ContainerResourceStatsCacheTTLConfig.String():         string(mustRawJSON(6)),
+				containercontract.ContainerResourceStatsCacheStaleWindowConfig.String(): string(mustRawJSON(15)),
+			},
+		},
+		enabled: true,
+	})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	service.runtimeOptions.resourceStatsCacheTTLSeconds = defaultContainerResourceStatsCacheTTL
+	service.runtimeOptions.resourceStatsCacheStaleWindowSeconds = defaultContainerResourceStatsStaleWindow
+
+	ttl, staleWindow := service.effectiveResourceStatsCacheBounds(context.Background())
+	if ttl != 6*time.Second {
+		t.Fatalf("expected runtime-hot ttl, got %s", ttl)
+	}
+	if staleWindow != 15*time.Second {
+		t.Fatalf("expected runtime-hot stale window, got %s", staleWindow)
 	}
 }
 
