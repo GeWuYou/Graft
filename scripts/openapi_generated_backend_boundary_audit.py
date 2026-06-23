@@ -355,6 +355,8 @@ def verdict(result: AuditResult) -> str:
             - "PASS_WITH_WARNINGS"：存在警告或边界保护失效
             - "PASS_ALLOWED_BOUNDARY_MODELS"：所有审计条件均满足
     """
+    # `generated_runtime_used` is diagnostic output; blocking ownership failures must
+    # be recorded as explicit violations so future call sites do not rely on the flag.
     if result.stale_manual_api_request_dto or result.stale_manual_api_response_dto or result.violations:
         return "FAILED_VIOLATIONS"
     if result.warnings or not result.generated_boundary_preserved or not result.httpx_runtime_preserved:

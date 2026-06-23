@@ -76,10 +76,14 @@ jobs:
         run: |
           set -euo pipefail
 
-          gh release view "${RELEASE_TAG}" >/dev/null 2>&1 || {
-            echo "::error title=GitHub Release missing::Expected existing GitHub Release ${RELEASE_TAG} before attaching SBOM assets."
+          if ! output="$(gh release view "${RELEASE_TAG}" 2>&1 >/dev/null)"; then
+            if printf '%s' "${output}" | grep -Eqi 'not found|404'; then
+              echo "::error title=GitHub Release missing::Expected existing GitHub Release ${RELEASE_TAG} before attaching SBOM assets."
+            else
+              printf '::error title=GitHub Release check failed::gh release view failed for %s: %s\n' "${RELEASE_TAG}" "${output}"
+            fi
             exit 1
-          }
+          fi
 
       - name: Download release assets
         env:

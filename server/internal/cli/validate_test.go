@@ -508,32 +508,14 @@ func TestRunValidateOpenAPIFreshnessInvokesBoundaryAudit(t *testing.T) {
 		backendCommandRunner = originalCommandRunner
 	}()
 
-	repoDir := t.TempDir()
-	serverDir := filepath.Join(repoDir, "server")
-	if err := os.MkdirAll(serverDir, 0o750); err != nil {
-		t.Fatalf("mkdir server dir: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(repoDir, "AGENTS.md"), []byte("test\n"), 0o600); err != nil {
-		t.Fatalf("write AGENTS: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(serverDir, "go.mod"), []byte("module graft/server\n"), 0o600); err != nil {
-		t.Fatalf("write go.mod: %v", err)
-	}
-	canonicalPath := filepath.Join(repoDir, filepath.FromSlash(app.OpenAPIDocsBundleSourcePath()))
-	if err := os.MkdirAll(filepath.Dir(canonicalPath), 0o750); err != nil {
-		t.Fatalf("mkdir canonical dir: %v", err)
-	}
-	canonicalBundle, err := os.ReadFile(filepath.Join("..", "..", "..", app.OpenAPIDocsBundleSourcePath()))
-	if err != nil {
-		t.Fatalf("read canonical bundle fixture: %v", err)
-	}
+	fixture := setupBoundaryAuditTest(t)
 
 	backendGetwd = func() (string, error) {
-		return serverDir, nil
+		return fixture.serverDir, nil
 	}
 	backendReadFile = func(path string) ([]byte, error) {
-		if path == canonicalPath {
-			return canonicalBundle, nil
+		if path == fixture.canonicalPath {
+			return fixture.canonicalBundle, nil
 		}
 		return os.ReadFile(path) //nolint:gosec // Test stub reads a temp fixture path controlled by the test.
 	}
@@ -548,7 +530,10 @@ func TestRunValidateOpenAPIFreshnessInvokesBoundaryAudit(t *testing.T) {
 		t.Fatalf("run validate openapi freshness: %v", err)
 	}
 
-	expectedBoundaryAudit := []string{"python3", filepath.Join(repoDir, "scripts", "openapi_generated_backend_boundary_audit.py")}
+	expectedBoundaryAudit := []string{"python3", filepath.Join(fixture.repoDir, "scripts", "openapi_generated_backend_boundary_audit.py")}
+	if len(calls) == 0 {
+		t.Fatal("expected boundary audit command call, got none")
+	}
 	if !reflect.DeepEqual(calls[len(calls)-1], expectedBoundaryAudit) {
 		t.Fatalf("expected final freshness call %v, got %v", expectedBoundaryAudit, calls[len(calls)-1])
 	}
@@ -564,32 +549,14 @@ func TestRunValidateOpenAPIFreshnessPropagatesBoundaryAuditFailure(t *testing.T)
 		backendCommandRunner = originalCommandRunner
 	}()
 
-	repoDir := t.TempDir()
-	serverDir := filepath.Join(repoDir, "server")
-	if err := os.MkdirAll(serverDir, 0o750); err != nil {
-		t.Fatalf("mkdir server dir: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(repoDir, "AGENTS.md"), []byte("test\n"), 0o600); err != nil {
-		t.Fatalf("write AGENTS: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(serverDir, "go.mod"), []byte("module graft/server\n"), 0o600); err != nil {
-		t.Fatalf("write go.mod: %v", err)
-	}
-	canonicalPath := filepath.Join(repoDir, filepath.FromSlash(app.OpenAPIDocsBundleSourcePath()))
-	if err := os.MkdirAll(filepath.Dir(canonicalPath), 0o750); err != nil {
-		t.Fatalf("mkdir canonical dir: %v", err)
-	}
-	canonicalBundle, err := os.ReadFile(filepath.Join("..", "..", "..", app.OpenAPIDocsBundleSourcePath()))
-	if err != nil {
-		t.Fatalf("read canonical bundle fixture: %v", err)
-	}
+	fixture := setupBoundaryAuditTest(t)
 
 	backendGetwd = func() (string, error) {
-		return serverDir, nil
+		return fixture.serverDir, nil
 	}
 	backendReadFile = func(path string) ([]byte, error) {
-		if path == canonicalPath {
-			return canonicalBundle, nil
+		if path == fixture.canonicalPath {
+			return fixture.canonicalBundle, nil
 		}
 		return os.ReadFile(path) //nolint:gosec // Test stub reads a temp fixture path controlled by the test.
 	}
@@ -602,7 +569,7 @@ func TestRunValidateOpenAPIFreshnessPropagatesBoundaryAuditFailure(t *testing.T)
 		return nil
 	}
 
-	err = runValidateOpenAPIFreshness()
+	err := runValidateOpenAPIFreshness()
 	if err == nil {
 		t.Fatal("expected boundary audit failure")
 	}
@@ -612,6 +579,40 @@ func TestRunValidateOpenAPIFreshnessPropagatesBoundaryAuditFailure(t *testing.T)
 	if !strings.Contains(err.Error(), boundaryErr.Error()) {
 		t.Fatalf("expected original boundary audit error, got %v", err)
 	}
+}
+
+type boundaryAuditTestFixture struct {
+	repoDir         string
+	serverDir       string
+	canonicalPath   string
+	canonicalBundle []byte
+}
+
+func setupBoundaryAuditTest(t *testing.T) boundaryAuditTestFixture {
+	t.Helper()
+
+	fixture := boundaryAuditTestFixture{}
+	fixture.repoDir = t.TempDir()
+	fixture.serverDir = filepath.Join(fixture.repoDir, "server")
+	if err := os.MkdirAll(fixture.serverDir, 0o750); err != nil {
+		t.Fatalf("mkdir server dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(fixture.repoDir, "AGENTS.md"), []byte("test\n"), 0o600); err != nil {
+		t.Fatalf("write AGENTS: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(fixture.serverDir, "go.mod"), []byte("module graft/server\n"), 0o600); err != nil {
+		t.Fatalf("write go.mod: %v", err)
+	}
+	fixture.canonicalPath = filepath.Join(fixture.repoDir, filepath.FromSlash(app.OpenAPIDocsBundleSourcePath()))
+	if err := os.MkdirAll(filepath.Dir(fixture.canonicalPath), 0o750); err != nil {
+		t.Fatalf("mkdir canonical dir: %v", err)
+	}
+	var err error
+	fixture.canonicalBundle, err = os.ReadFile(filepath.Join("..", "..", "..", app.OpenAPIDocsBundleSourcePath()))
+	if err != nil {
+		t.Fatalf("read canonical bundle fixture: %v", err)
+	}
+	return fixture
 }
 
 // TestRunBackendLintUsesChangedFileScopedArgs 验证 blocking lint gate 采用 changed-file scoped 语义，
