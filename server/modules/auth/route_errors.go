@@ -13,6 +13,7 @@ import (
 	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
 	applog "graft/server/internal/logger"
+	"graft/server/internal/logger/logsafe"
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
 )
@@ -67,7 +68,7 @@ func (r routeRuntime) writeAuthRouteError(ginCtx *gin.Context, message string, e
 	mapped := r.authFlow.RouteError(err)
 	if mapped.Status == http.StatusInternalServerError {
 		logFields := append([]zap.Field{zap.String("module", r.moduleName), zap.Error(err)}, fields...)
-		r.logger.Error(message, logFields...)
+		logsafe.Error(r.logger, message, logFields...)
 	}
 
 	writeLocalizedContractError(ginCtx, r.localizer, mapped.Status, mapped.MessageKey, mapped.Data)

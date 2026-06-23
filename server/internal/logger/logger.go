@@ -10,6 +10,7 @@ import (
 	"go.uber.org/zap/zapcore"
 
 	"graft/server/internal/config"
+	"graft/server/internal/logger/logsafe"
 )
 
 const (
@@ -85,6 +86,7 @@ func buildLogger(
 
 	logger, err := zapConfig.Build(
 		zap.AddCaller(),
+		zap.WrapCore(logsafe.WrapCore),
 		zap.Fields(
 			zap.String("app", firstNonEmpty(appName, bootstrapAppName)),
 			zap.String("env", firstNonEmpty(appEnv, bootstrapAppEnv)),

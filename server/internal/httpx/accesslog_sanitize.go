@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"unicode"
 )
 
 const accessLogRedactedValue = "[REDACTED]"
@@ -25,7 +26,7 @@ func sanitizeAccessLogRoute(route string) string {
 }
 
 func sanitizeAccessLogFreeText(value string) string {
-	sanitized := strings.TrimSpace(value)
+	sanitized := sanitizeAccessLogStableText(value)
 	for _, pattern := range sensitiveAccessLogPatterns {
 		sanitized = pattern.ReplaceAllStringFunc(sanitized, func(match string) string {
 			parts := strings.SplitN(match, ":", accessLogSplitPairParts)
@@ -42,5 +43,27 @@ func sanitizeAccessLogFreeText(value string) string {
 		})
 	}
 
-	return sanitized
+	return sanitizeAccessLogStableText(sanitized)
+}
+
+func sanitizeAccessLogStableText(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
+	}
+
+	var builder strings.Builder
+	builder.Grow(len(value))
+	for _, r := range value {
+		if r == '\n' || r == '\r' || r == '\t' {
+			builder.WriteByte(' ')
+			continue
+		}
+		if unicode.IsControl(r) {
+			continue
+		}
+		builder.WriteRune(r)
+	}
+
+	return strings.Join(strings.Fields(builder.String()), " ")
 }

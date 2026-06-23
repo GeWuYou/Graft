@@ -14,6 +14,7 @@ import (
 	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
 	applog "graft/server/internal/logger"
+	"graft/server/internal/logger/logsafe"
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
 	authruntime "graft/server/modules/auth"
@@ -103,7 +104,7 @@ func (r routeRuntime) writeAuthRouteError(ginCtx *gin.Context, message string, e
 	status, messageKey := mapAuthError(err)
 	if status == http.StatusInternalServerError {
 		logFields := append([]zap.Field{zap.String("module", r.moduleName), zap.Error(err)}, fields...)
-		r.logger.Error(message, logFields...)
+		logsafe.Error(r.logger, message, logFields...)
 	}
 
 	writeLocalizedContractError(ginCtx, r.localizer, status, messageKey, authErrorDetails(err))
@@ -116,7 +117,7 @@ func (r routeRuntime) writeUserLookupError(ginCtx *gin.Context, userID uint64, m
 		status = http.StatusNotFound
 		messageKey = messagecontract.UserNotFound
 	} else {
-		r.logger.Error(message,
+		logsafe.Error(r.logger, message,
 			zap.String("module", r.moduleName),
 			zap.Uint64("userID", userID),
 			zap.Error(err),
@@ -143,7 +144,7 @@ func (r routeRuntime) writeUserManagementError(ginCtx *gin.Context, userID uint6
 		if field, ok := errorFieldFromDetails(data); ok {
 			logFields = append(logFields, zap.String("field", field))
 		}
-		r.logger.Error(message,
+		logsafe.Error(r.logger, message,
 			logFields...,
 		)
 	}
@@ -170,7 +171,7 @@ func (r routeRuntime) writeCreateUserError(ginCtx *gin.Context, message string, 
 		if field, ok := errorFieldFromDetails(data); ok {
 			logFields = append(logFields, zap.String("field", field))
 		}
-		r.logger.Error(message, logFields...)
+		logsafe.Error(r.logger, message, logFields...)
 	}
 
 	writeLocalizedContractError(ginCtx, r.localizer, status, messageKey, data)
