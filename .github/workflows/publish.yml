@@ -463,6 +463,7 @@ jobs:
           POSTGRES_USER=graft
           POSTGRES_PASSWORD=graft
           GRAFT_AUTH_JWT_SECRET=ci-compose-smoke-secret
+          GRAFT_DOCS_ENABLED=true
           EOF
 
       - name: Start compose stack
