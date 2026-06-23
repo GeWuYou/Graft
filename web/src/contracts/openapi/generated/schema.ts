@@ -3861,7 +3861,10 @@ export interface components {
       stats_error_key?: string | null;
       /** @description Sanitized display-safe stats collection message; raw Docker daemon errors are not exposed. */
       stats_error_message?: string | null;
-      /** Format: double */
+      /**
+       * Format: double
+       * @description CPU usage normalized against total host CPU capacity, expressed as a 0-100 style percentage.
+       */
       cpu_percent?: number;
       /** Format: int64 */
       online_cpus?: number;

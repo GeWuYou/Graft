@@ -21,7 +21,7 @@ const searchAddonFindNext = vi.fn();
 const webLinksAddonCtor = vi.fn();
 
 vi.mock('@xterm/xterm', () => ({
-  Terminal: vi.fn().mockImplementation(() => {
+  Terminal: vi.fn().mockImplementation(function TerminalMock() {
     terminalCtor();
     return {
       cols: 120,
@@ -39,7 +39,7 @@ vi.mock('@xterm/xterm', () => ({
 }));
 
 vi.mock('@xterm/addon-fit', () => ({
-  FitAddon: vi.fn().mockImplementation(() => {
+  FitAddon: vi.fn().mockImplementation(function FitAddonMock() {
     fitAddonCtor();
     return {
       fit: fitAddonFit,
@@ -48,7 +48,7 @@ vi.mock('@xterm/addon-fit', () => ({
 }));
 
 vi.mock('@xterm/addon-search', () => ({
-  SearchAddon: vi.fn().mockImplementation(() => {
+  SearchAddon: vi.fn().mockImplementation(function SearchAddonMock() {
     searchAddonCtor();
     return {
       findNext: searchAddonFindNext,
@@ -57,7 +57,7 @@ vi.mock('@xterm/addon-search', () => ({
 }));
 
 vi.mock('@xterm/addon-web-links', () => ({
-  WebLinksAddon: vi.fn().mockImplementation(() => {
+  WebLinksAddon: vi.fn().mockImplementation(function WebLinksAddonMock() {
     webLinksAddonCtor();
     return {};
   }),

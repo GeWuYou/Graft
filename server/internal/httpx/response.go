@@ -3,7 +3,6 @@ package httpx
 import (
 	"context"
 	"encoding/json"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -126,15 +125,20 @@ func EnsureRequestID(ctx *gin.Context) string {
 	}
 
 	if current, ok := ctx.Get(requestIDContextKey); ok {
-		if requestID, ok := current.(string); ok && strings.TrimSpace(requestID) != "" {
+		if requestID, ok := current.(string); ok {
+			requestID = sanitizeAccessLogStableText(requestID)
+			if requestID == "" {
+				goto resolveRequestID
+			}
 			ctx.Writer.Header().Set(RequestIDHeader, requestID)
 			return requestID
 		}
 	}
 
-	requestID := strings.TrimSpace(ctx.GetHeader(RequestIDHeader))
+resolveRequestID:
+	requestID := sanitizeAccessLogStableText(ctx.GetHeader(RequestIDHeader))
 	if requestID == "" {
-		requestID = strings.TrimSpace(ctx.GetHeader(traceIDFallbackHeader))
+		requestID = sanitizeAccessLogStableText(ctx.GetHeader(traceIDFallbackHeader))
 	}
 	if requestID == "" {
 		requestID = uuid.NewString()
@@ -153,12 +157,17 @@ func EnsureTraceID(ctx *gin.Context) string {
 	}
 
 	if current, ok := ctx.Get(traceIDContextKey); ok {
-		if traceID, ok := current.(string); ok && strings.TrimSpace(traceID) != "" {
+		if traceID, ok := current.(string); ok {
+			traceID = sanitizeAccessLogStableText(traceID)
+			if traceID == "" {
+				goto resolveTraceID
+			}
 			return traceID
 		}
 	}
 
-	traceID := strings.TrimSpace(ctx.GetHeader(traceIDFallbackHeader))
+resolveTraceID:
+	traceID := sanitizeAccessLogStableText(ctx.GetHeader(traceIDFallbackHeader))
 	if traceID == "" {
 		traceID = EnsureRequestID(ctx)
 	}

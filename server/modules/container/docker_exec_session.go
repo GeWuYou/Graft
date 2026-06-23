@@ -7,8 +7,7 @@ import (
 	"strings"
 	"sync"
 
-	dockertypes "github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
+	mobyclient "github.com/moby/moby/client"
 
 	"graft/server/modules/container/terminal"
 )
@@ -20,9 +19,9 @@ const (
 )
 
 type dockerExecClient interface {
-	ContainerExecCreate(context.Context, string, container.ExecOptions) (container.ExecCreateResponse, error)
-	ContainerExecAttach(context.Context, string, container.ExecAttachOptions) (dockertypes.HijackedResponse, error)
-	ContainerExecResize(context.Context, string, container.ResizeOptions) error
+	ContainerExecCreate(context.Context, string, mobyclient.ExecCreateOptions) (mobyclient.ExecCreateResult, error)
+	ContainerExecAttach(context.Context, string, mobyclient.ExecAttachOptions) (mobyclient.HijackedResponse, error)
+	ContainerExecResize(context.Context, string, mobyclient.ExecResizeOptions) error
 }
 
 type dockerExecSession struct {
@@ -33,7 +32,7 @@ type dockerExecSession struct {
 	mu         sync.Mutex
 	started    bool
 	execID     string
-	stream     *dockertypes.HijackedResponse
+	stream     *mobyclient.HijackedResponse
 	outputCh   chan []byte
 	errorCh    chan error
 	closeCh    chan struct{}
@@ -65,12 +64,12 @@ func (s *dockerExecSession) Start(ctx context.Context, size terminal.Size) error
 		return errShellSessionFailed
 	}
 
-	options := container.ExecOptions{
+	options := mobyclient.ExecCreateOptions{
 		Cmd:          []string{s.command},
 		AttachStdin:  true,
 		AttachStdout: true,
 		AttachStderr: true,
-		Tty:          true,
+		TTY:          true,
 		ConsoleSize:  consoleSize(size),
 	}
 	created, err := s.client.ContainerExecCreate(ctx, s.containerID, options)
@@ -80,8 +79,8 @@ func (s *dockerExecSession) Start(ctx context.Context, size terminal.Size) error
 	if strings.TrimSpace(created.ID) == "" {
 		return errShellSessionFailed
 	}
-	stream, err := s.client.ContainerExecAttach(ctx, created.ID, container.ExecAttachOptions{
-		Tty:         true,
+	stream, err := s.client.ContainerExecAttach(ctx, created.ID, mobyclient.ExecAttachOptions{
+		TTY:         true,
 		ConsoleSize: consoleSize(size),
 	})
 	if err != nil {
@@ -122,7 +121,7 @@ func (s *dockerExecSession) Resize(ctx context.Context, size terminal.Size) erro
 	if size.Cols == 0 || size.Rows == 0 {
 		return nil
 	}
-	return mapDockerShellError(s.client.ContainerExecResize(ctx, execID, container.ResizeOptions{
+	return mapDockerShellError(s.client.ContainerExecResize(ctx, execID, mobyclient.ExecResizeOptions{
 		Height: size.Rows,
 		Width:  size.Cols,
 	}))
@@ -211,9 +210,9 @@ func (s *dockerExecSession) pushError(err error) {
 
 // consoleSize 将终端大小转换为 Docker exec 支持的控制台大小格式。
 // 如果行数或列数为零，返回 nil；否则返回指向包含 [行数, 列数] 的数组指针。
-func consoleSize(size terminal.Size) *[2]uint {
+func consoleSize(size terminal.Size) mobyclient.ConsoleSize {
 	if size.Cols == 0 || size.Rows == 0 {
-		return nil
+		return mobyclient.ConsoleSize{}
 	}
-	return &[2]uint{size.Rows, size.Cols}
+	return mobyclient.ConsoleSize{Height: size.Rows, Width: size.Cols}
 }

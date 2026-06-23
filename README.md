@@ -330,12 +330,17 @@ Compose variants:
 - Use `compose.named-volume.yml` if you prefer a Docker named volume for PostgreSQL data instead of `./.data/postgres`.
 - Use `compose.ops-container.yml` when you intentionally enable container-management features and need the server to
   mount `/var/run/docker.sock`.
+- The ops-container overlay starts the `server` container as `root` only long enough to read the mounted
+  `/var/run/docker.sock` group id, add the existing `graft` user to that group, and then drop back to the `graft`
+  user before starting `/app/graft serve`.
+- If container management still reports permission denied after the socket is mounted, verify that the merged compose
+  config includes both the socket mount and the overridden `entrypoint` / `user: "0:0"` from `compose.ops-container.yml`.
 
 Examples:
 
 ```bash
 docker compose -f compose.yml -f compose.named-volume.yml up -d
-docker compose -f compose.yml -f compose.ops-container.yml up -d
+docker compose --env-file .env -f compose.yml -f compose.ops-container.yml up -d
 ```
 
 To reproduce the local contract-governance changed scan:

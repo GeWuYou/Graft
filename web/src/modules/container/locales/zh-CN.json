@@ -23,6 +23,7 @@
       "title": "容器管理",
       "description": "查看本机容器运行时中的容器状态、详情和有界日志。",
       "refresh": "刷新",
+      "autoRefreshInterval1Second": "每 1 秒",
       "retry": "重试",
       "loadFailed": "容器列表加载失败。",
       "runtimeLabel": "运行时",

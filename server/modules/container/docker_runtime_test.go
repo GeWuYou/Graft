@@ -4,22 +4,24 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"io"
 	"math"
 	"net"
+	"net/netip"
 	"reflect"
 	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 
-	dockertypes "github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/mount"
-	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/pkg/stdcopy"
+	"github.com/moby/moby/api/pkg/stdcopy"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/mount"
+	"github.com/moby/moby/api/types/network"
+	mobyclient "github.com/moby/moby/client"
 )
 
 func TestReadDockerLogLinesDoesNotReportExactTailAsTruncated(t *testing.T) {
@@ -74,10 +76,8 @@ func TestDockerRuntimeLogsAvoidsRuntimeInfoCall(t *testing.T) {
 	client := &countingDockerClient{
 		logReader: dockerLogReadCloser(t, "one\n", "two\n"),
 		inspect: container.InspectResponse{
-			ContainerJSONBase: &container.ContainerJSONBase{
-				ID:   "full-id",
-				Name: "/web",
-			},
+			ID:   "full-id",
+			Name: "/web",
 		},
 	}
 	runtime := &DockerRuntime{client: client, endpoint: "unix:///var/run/docker.sock"}
@@ -175,7 +175,7 @@ func TestDockerRuntimeListUsesCheapSummaryFields(t *testing.T) {
 					composeProjectLabel: "graft",
 					composeServiceLabel: "web",
 				},
-				Ports:  []container.Port{{IP: "0.0.0.0", PrivatePort: 80, PublicPort: 8080, Type: "tcp"}},
+				Ports:  []container.PortSummary{{IP: mustAddr(t, "0.0.0.0"), PrivatePort: 80, PublicPort: 8080, Type: "tcp"}},
 				State:  container.StateRunning,
 				Status: "Up 10 minutes",
 				NetworkSettings: &container.NetworkSettingsSummary{
@@ -183,9 +183,9 @@ func TestDockerRuntimeListUsesCheapSummaryFields(t *testing.T) {
 						"bridge": {
 							NetworkID:  "net-1",
 							EndpointID: "endpoint-1",
-							Gateway:    "172.18.0.1",
-							IPAddress:  "172.18.0.2",
-							MacAddress: "02:42:ac:12:00:02",
+							Gateway:    mustAddr(t, "172.18.0.1"),
+							IPAddress:  mustAddr(t, "172.18.0.2"),
+							MacAddress: mustHardwareAddr(t, "02:42:ac:12:00:02"),
 						},
 					},
 				},
@@ -313,13 +313,11 @@ func TestDockerRuntimeDetailCollectsResourceStats(t *testing.T) {
 
 	client := &countingDockerClient{
 		inspect: container.InspectResponse{
-			ContainerJSONBase: &container.ContainerJSONBase{
-				ID:      "1234567890abcdef",
-				Name:    "/graft-web",
-				State:   &container.State{Status: container.StateRunning},
-				Created: "2026-06-14T00:00:00Z",
-			},
-			Config: &container.Config{Image: "graft/web:latest"},
+			ID:      "1234567890abcdef",
+			Name:    "/graft-web",
+			State:   &container.State{Status: container.StateRunning},
+			Created: "2026-06-14T00:00:00Z",
+			Config:  &container.Config{Image: "graft/web:latest"},
 		},
 		stats: container.StatsResponse{
 			CPUStats: container.CPUStats{
@@ -344,7 +342,7 @@ func TestDockerRuntimeDetailCollectsResourceStats(t *testing.T) {
 	if !detail.Resource.Available || !detail.Resource.StatsAvailable {
 		t.Fatalf("expected available detail resource stats, got %#v", detail.Resource)
 	}
-	assertFloatPtr(t, detail.Resource.CPUPercent, 40, "detail CPU percent")
+	assertFloatPtr(t, detail.Resource.CPUPercent, 20, "detail CPU percent")
 	assertInt64Ptr(t, detail.Resource.MemoryUsageBytes, 256, "detail memory usage bytes")
 	assertInt64Ptr(t, detail.Resource.MemoryLimitBytes, 1024, "detail memory limit bytes")
 	assertFloatPtr(t, detail.Resource.MemoryPercent, 25, "detail memory percent")
@@ -619,11 +617,9 @@ func TestDockerRuntimeRejectsActionsWhenKnownStateDisallowsThem(t *testing.T) {
 
 			client := &countingDockerClient{
 				inspect: container.InspectResponse{
-					ContainerJSONBase: &container.ContainerJSONBase{
-						ID:    "abc123",
-						Name:  "/web",
-						State: &container.State{Status: tc.state},
-					},
+					ID:     "abc123",
+					Name:   "/web",
+					State:  &container.State{Status: tc.state},
 					Config: &container.Config{Image: "nginx:latest"},
 				},
 			}
@@ -670,10 +666,36 @@ func TestDockerResourceSummarySkipsUnknownOnlineCPUs(t *testing.T) {
 	if !resource.Available || !resource.StatsAvailable {
 		t.Fatalf("expected per-CPU stats to keep resource available, got %#v", resource)
 	}
-	assertFloatPtr(t, resource.CPUPercent, 40, "computed CPU percent")
+	assertFloatPtr(t, resource.CPUPercent, 20, "computed CPU percent")
 	if resource.OnlineCPUs != nil {
 		t.Fatalf("expected unknown online CPUs to stay absent, got %#v", resource.OnlineCPUs)
 	}
+}
+
+func TestDockerResourceSummaryNormalizesCPUPercentAgainstHostCapacity(t *testing.T) {
+	t.Parallel()
+
+	resource := dockerResourceSummary(container.StatsResponse{
+		CPUStats: container.CPUStats{
+			CPUUsage: container.CPUUsage{
+				TotalUsage:  1_400,
+				PercpuUsage: []uint64{350, 350, 350, 350},
+			},
+			SystemUsage: 10_000,
+			OnlineCPUs:  4,
+		},
+		PreCPUStats: container.CPUStats{
+			CPUUsage:    container.CPUUsage{TotalUsage: 1_000},
+			SystemUsage: 9_000,
+		},
+		MemoryStats: container.MemoryStats{Usage: 1, Limit: 2},
+	})
+
+	if !resource.Available || !resource.StatsAvailable {
+		t.Fatalf("expected normalized cpu stats to remain available, got %#v", resource)
+	}
+	assertFloatPtr(t, resource.CPUPercent, 40, "normalized CPU percent")
+	assertInt64Ptr(t, resource.OnlineCPUs, 4, "online CPUs")
 }
 
 func TestDockerResourceSummarySkipsOverflowedNetworkTotals(t *testing.T) {
@@ -700,12 +722,10 @@ func TestDockerDetailParsesEnvironmentVariables(t *testing.T) {
 	t.Parallel()
 
 	inspect := container.InspectResponse{
-		ContainerJSONBase: &container.ContainerJSONBase{
-			ID:      "abc123",
-			Name:    "/web",
-			State:   &container.State{Status: container.StateRunning},
-			Created: "2026-06-14T00:00:00Z",
-		},
+		ID:      "abc123",
+		Name:    "/web",
+		State:   &container.State{Status: container.StateRunning},
+		Created: "2026-06-14T00:00:00Z",
 		Config: &container.Config{
 			Image: "nginx:latest",
 			Env: []string{
@@ -742,27 +762,25 @@ func TestDockerDetailMapsHealthcheckAndRuntimeStability(t *testing.T) {
 
 	checkedAt := time.Date(2026, 6, 17, 1, 31, 53, 0, time.UTC)
 	inspect := container.InspectResponse{
-		ContainerJSONBase: &container.ContainerJSONBase{
-			ID:   "abc123",
-			Name: "/web",
-			State: &container.State{
-				Status:    container.StateRunning,
-				ExitCode:  137,
-				OOMKilled: true,
-				Health: &container.Health{
-					Status:        container.Unhealthy,
-					FailingStreak: 2,
-					Log: []*container.HealthcheckResult{
-						{
-							End:      checkedAt,
-							ExitCode: 1,
-							Output:   "curl failed\n",
-						},
+		ID:   "abc123",
+		Name: "/web",
+		State: &container.State{
+			Status:    container.StateRunning,
+			ExitCode:  137,
+			OOMKilled: true,
+			Health: &container.Health{
+				Status:        container.Unhealthy,
+				FailingStreak: 2,
+				Log: []*container.HealthcheckResult{
+					{
+						End:      checkedAt,
+						ExitCode: 1,
+						Output:   "curl failed\n",
 					},
 				},
 			},
-			Created: "2026-06-14T00:00:00Z",
 		},
+		Created: "2026-06-14T00:00:00Z",
 		Config: &container.Config{
 			Image: "nginx:latest",
 			Healthcheck: &container.HealthConfig{
@@ -803,11 +821,9 @@ func TestDockerDetailOmitsDisabledHealthcheck(t *testing.T) {
 	t.Parallel()
 
 	detail := dockerDetail(container.InspectResponse{
-		ContainerJSONBase: &container.ContainerJSONBase{
-			ID:    "abc123",
-			Name:  "/web",
-			State: &container.State{Status: container.StateRunning},
-		},
+		ID:    "abc123",
+		Name:  "/web",
+		State: &container.State{Status: container.StateRunning},
 		Config: &container.Config{
 			Image:       "nginx:latest",
 			Healthcheck: &container.HealthConfig{Test: []string{"NONE"}},
@@ -827,11 +843,9 @@ func TestDockerRuntimeRemoveForceCallsDockerRemove(t *testing.T) {
 
 	client := &countingDockerClient{
 		inspect: container.InspectResponse{
-			ContainerJSONBase: &container.ContainerJSONBase{
-				ID:    "abc123",
-				Name:  "/web",
-				State: &container.State{Status: container.StateRunning},
-			},
+			ID:     "abc123",
+			Name:   "/web",
+			State:  &container.State{Status: container.StateRunning},
 			Config: &container.Config{Image: "nginx:latest"},
 		},
 	}
@@ -968,11 +982,8 @@ func dockerLogStream(t *testing.T, chunks ...string) io.Reader {
 	t.Helper()
 
 	var output bytes.Buffer
-	writer := stdcopy.NewStdWriter(&output, stdcopy.Stdout)
 	for _, chunk := range chunks {
-		if _, err := writer.Write([]byte(chunk)); err != nil {
-			t.Fatalf("write log chunk: %v", err)
-		}
+		writeStdcopyFrame(t, &output, stdcopy.Stdout, []byte(chunk))
 	}
 	return bytes.NewReader(output.Bytes())
 }
@@ -1053,7 +1064,7 @@ func richDockerNetworkStatsFixture() map[string]container.NetworkStats {
 func assertRichDockerResourceStats(t *testing.T, resource ResourceSummary) {
 	t.Helper()
 
-	assertFloatPtr(t, resource.CPUPercent, 40, "computed CPU percent")
+	assertFloatPtr(t, resource.CPUPercent, 20, "computed CPU percent")
 	assertInt64Ptr(t, resource.OnlineCPUs, 2, "online CPUs")
 	assertInt64Ptr(t, resource.SystemCPUUsage, 1000, "system CPU usage")
 	assertInt64Ptr(t, resource.TotalCPUUsage, 200, "total CPU usage")
@@ -1171,8 +1182,8 @@ type countingDockerClient struct {
 	stats              container.StatsResponse
 	statsErr           error
 	statsDelay         time.Duration
-	execCreate         container.ExecCreateResponse
-	execAttach         dockertypes.HijackedResponse
+	execCreate         mobyclient.ExecCreateResult
+	execAttach         mobyclient.HijackedResponse
 	execCreateErr      error
 	execAttachErr      error
 	execResizeErr      error
@@ -1185,7 +1196,7 @@ func (c *countingDockerClient) Info(context.Context) (systemInfo, error) {
 	return dockerClientSystemInfo{}, nil
 }
 
-func (c *countingDockerClient) ContainerList(context.Context, container.ListOptions) ([]container.Summary, error) {
+func (c *countingDockerClient) ContainerList(context.Context, mobyclient.ContainerListOptions) ([]container.Summary, error) {
 	c.listCalls.Add(1)
 	return c.list, nil
 }
@@ -1195,7 +1206,7 @@ func (c *countingDockerClient) ContainerInspect(context.Context, string) (contai
 	return c.inspect, nil
 }
 
-func (c *countingDockerClient) ContainerLogs(context.Context, string, container.LogsOptions) (io.ReadCloser, error) {
+func (c *countingDockerClient) ContainerLogs(context.Context, string, mobyclient.ContainerLogsOptions) (io.ReadCloser, error) {
 	c.logCalls.Add(1)
 	if c.logReader == nil {
 		return io.NopCloser(bytes.NewReader(nil)), nil
@@ -1203,7 +1214,7 @@ func (c *countingDockerClient) ContainerLogs(context.Context, string, container.
 	return c.logReader, nil
 }
 
-func (c *countingDockerClient) ContainerStatsOneShot(context.Context, string) (container.StatsResponseReader, error) {
+func (c *countingDockerClient) ContainerStatsOneShot(context.Context, string) (mobyclient.ContainerStatsResult, error) {
 	c.statsCalls.Add(1)
 	active := atomic.AddInt64(&c.activeStats, 1)
 	for {
@@ -1217,58 +1228,58 @@ func (c *countingDockerClient) ContainerStatsOneShot(context.Context, string) (c
 	}
 	defer atomic.AddInt64(&c.activeStats, -1)
 	if c.statsErr != nil {
-		return container.StatsResponseReader{}, c.statsErr
+		return mobyclient.ContainerStatsResult{}, c.statsErr
 	}
 	var output bytes.Buffer
 	if err := json.NewEncoder(&output).Encode(c.stats); err != nil {
-		return container.StatsResponseReader{}, err
+		return mobyclient.ContainerStatsResult{}, err
 	}
-	return container.StatsResponseReader{Body: io.NopCloser(&output)}, nil
+	return mobyclient.ContainerStatsResult{Body: io.NopCloser(&output)}, nil
 }
 
-func (c *countingDockerClient) ContainerExecCreate(context.Context, string, container.ExecOptions) (container.ExecCreateResponse, error) {
+func (c *countingDockerClient) ContainerExecCreate(context.Context, string, mobyclient.ExecCreateOptions) (mobyclient.ExecCreateResult, error) {
 	c.execCreateCalls.Add(1)
 	if c.execCreateErr != nil {
-		return container.ExecCreateResponse{}, c.execCreateErr
+		return mobyclient.ExecCreateResult{}, c.execCreateErr
 	}
 	if c.execCreate.ID == "" {
-		c.execCreate = container.ExecCreateResponse{ID: "exec-1"}
+		c.execCreate = mobyclient.ExecCreateResult{ID: "exec-1"}
 	}
 	return c.execCreate, nil
 }
 
-func (c *countingDockerClient) ContainerExecAttach(context.Context, string, container.ExecAttachOptions) (dockertypes.HijackedResponse, error) {
+func (c *countingDockerClient) ContainerExecAttach(context.Context, string, mobyclient.ExecAttachOptions) (mobyclient.HijackedResponse, error) {
 	c.execAttachCalls.Add(1)
 	if c.execAttachErr != nil {
-		return dockertypes.HijackedResponse{}, c.execAttachErr
+		return mobyclient.HijackedResponse{}, c.execAttachErr
 	}
 	if c.execAttach.Reader == nil {
-		c.execAttach = dockertypes.HijackedResponse{Reader: bufio.NewReader(bytes.NewReader(nil))}
+		c.execAttach = mobyclient.HijackedResponse{Reader: bufio.NewReader(bytes.NewReader(nil))}
 	}
 	return c.execAttach, nil
 }
 
-func (c *countingDockerClient) ContainerExecResize(context.Context, string, container.ResizeOptions) error {
+func (c *countingDockerClient) ContainerExecResize(context.Context, string, mobyclient.ExecResizeOptions) error {
 	c.execResizeCalls.Add(1)
 	return c.execResizeErr
 }
 
-func (c *countingDockerClient) ContainerStart(context.Context, string, container.StartOptions) error {
+func (c *countingDockerClient) ContainerStart(context.Context, string, mobyclient.ContainerStartOptions) error {
 	c.startCalls.Add(1)
 	return nil
 }
 
-func (c *countingDockerClient) ContainerStop(context.Context, string, container.StopOptions) error {
+func (c *countingDockerClient) ContainerStop(context.Context, string, mobyclient.ContainerStopOptions) error {
 	c.stopCalls.Add(1)
 	return nil
 }
 
-func (c *countingDockerClient) ContainerRestart(context.Context, string, container.StopOptions) error {
+func (c *countingDockerClient) ContainerRestart(context.Context, string, mobyclient.ContainerRestartOptions) error {
 	c.restartCalls.Add(1)
 	return nil
 }
 
-func (c *countingDockerClient) ContainerRemove(_ context.Context, _ string, options container.RemoveOptions) error {
+func (c *countingDockerClient) ContainerRemove(_ context.Context, _ string, options mobyclient.ContainerRemoveOptions) error {
 	c.removeCalls.Add(1)
 	c.removeForce.Store(options.Force)
 	return nil
@@ -1312,11 +1323,9 @@ func (s *recordingMountUsageScanner) ScanUsage(_ context.Context, path string) (
 
 func dockerInspectWithMounts(id string, mounts ...container.MountPoint) container.InspectResponse {
 	return container.InspectResponse{
-		ContainerJSONBase: &container.ContainerJSONBase{
-			ID:    id,
-			Name:  "/web",
-			State: &container.State{Status: container.StateRunning},
-		},
+		ID:     id,
+		Name:   "/web",
+		State:  &container.State{Status: container.StateRunning},
 		Config: &container.Config{Image: "nginx:latest"},
 		Mounts: mounts,
 	}
@@ -1329,5 +1338,42 @@ func dockerTestMount(mountType string, source string, destination string, name s
 		Source:      source,
 		Destination: destination,
 		RW:          true,
+	}
+}
+
+func mustAddr(t *testing.T, value string) netip.Addr {
+	t.Helper()
+	addr, err := netip.ParseAddr(value)
+	if err != nil {
+		t.Fatalf("parse addr %q: %v", value, err)
+	}
+	return addr
+}
+
+func mustHardwareAddr(t *testing.T, value string) network.HardwareAddr {
+	t.Helper()
+	var addr network.HardwareAddr
+	if err := addr.UnmarshalText([]byte(value)); err != nil {
+		t.Fatalf("parse hardware addr %q: %v", value, err)
+	}
+	return addr
+}
+
+func writeStdcopyFrame(t *testing.T, w io.Writer, stream stdcopy.StdType, payload []byte) {
+	t.Helper()
+	size := uint64(len(payload))
+	if size > math.MaxUint32 {
+		t.Fatalf("payload too large: %d", len(payload))
+	}
+	header := [8]byte{}
+	header[0] = byte(stream)
+	var sizeBuf [8]byte
+	binary.BigEndian.PutUint64(sizeBuf[:], size)
+	copy(header[4:], sizeBuf[4:])
+	if _, err := w.Write(header[:]); err != nil {
+		t.Fatalf("write stdcopy header: %v", err)
+	}
+	if _, err := w.Write(payload); err != nil {
+		t.Fatalf("write stdcopy payload: %v", err)
 	}
 }

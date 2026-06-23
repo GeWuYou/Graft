@@ -88,16 +88,18 @@ describe('AnnouncementReadPanel', () => {
     expect(wrapper.text()).toContain('Pinned');
     expect(wrapper.text()).toContain('# Long content');
 
-    await wrapper
+    const markReadButton = wrapper
       .findAll('button')
-      .find((button) => button.text() === 'announcement.readPanel.markRead')
-      ?.trigger('click');
+      .find((button) => button.text() === 'announcement.readPanel.markRead');
+    expect(markReadButton).toBeDefined();
+    await markReadButton!.trigger('click');
     expect(wrapper.emitted('mark-read')).toHaveLength(1);
 
-    await wrapper
+    const openCenterButton = wrapper
       .findAll('button')
-      .find((button) => button.text() === 'announcement.readPanel.openCenter')
-      ?.trigger('click');
+      .find((button) => button.text() === 'announcement.readPanel.openCenter');
+    expect(openCenterButton).toBeDefined();
+    await openCenterButton!.trigger('click');
     expect(wrapper.emitted('open-center')).toHaveLength(1);
 
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));

@@ -15,6 +15,7 @@ import (
 	"graft/server/internal/drilldown"
 	"graft/server/internal/eventbus"
 	"graft/server/internal/httpx"
+	"graft/server/internal/logger/logsafe"
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
 	auditstore "graft/server/modules/audit/store"
@@ -244,13 +245,13 @@ func requestAuditMiddleware(
 
 		candidate := requestAuditCandidate(ctx)
 		if record, recorded, err := recorder.RecordCandidate(ctx.Request.Context(), candidate); err != nil {
-			logger.Error("write request audit log failed",
+			logsafe.Error(logger, "write request audit log failed",
 				zap.String("module", moduleID),
 				zap.String("action", candidate.Action),
 				zap.Error(err),
 			)
 		} else if !recorded {
-			logger.Debug("skip request audit candidate by policy",
+			logsafe.Debug(logger, "skip request audit candidate by policy",
 				zap.String("module", moduleID),
 				zap.String("method", candidate.RequestMethod),
 				zap.String("path", candidate.RequestPath),
@@ -283,7 +284,7 @@ func recordEvent(
 		logger = zap.NewNop()
 	}
 
-	logger.Warn("skip security audit candidate by policy",
+	logsafe.Warn(logger, "skip security audit candidate by policy",
 		zap.String("module", moduleID),
 		zap.String("action", candidate.Action),
 		zap.String("eventType", candidate.EventType),

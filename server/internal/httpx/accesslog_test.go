@@ -474,6 +474,56 @@ func TestNewServerPreservesIncomingTraceIDForRootRoutes(t *testing.T) {
 	}
 }
 
+func TestNewServerSanitizesIncomingRequestMetadataForLogs(t *testing.T) {
+	core, recorded := observer.New(zapcore.DebugLevel)
+	repo := &stubAccessLogRepository{}
+	server := NewServer(zap.New(core), repo)
+
+	server.Engine().GET("/healthz", func(ctx *gin.Context) {
+		ctx.Status(http.StatusOK)
+	})
+
+	request := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	request.Header.Set(RequestIDHeader, "req-root\r\nforged")
+	request.Header.Set("X-Trace-Id", "trace-root\r\nforged")
+	request.Header.Set("User-Agent", "curl/8\r\nx-injected: yes token=secret")
+	request.RemoteAddr = "203.0.113.9:1234"
+
+	recorder := httptest.NewRecorder()
+	server.Engine().ServeHTTP(recorder, request)
+
+	if recorder.Header().Get(RequestIDHeader) != "req-root forged" {
+		t.Fatalf("expected sanitized request id header, got %q", recorder.Header().Get(RequestIDHeader))
+	}
+	if len(repo.created) != 1 {
+		t.Fatalf("expected one persisted access log, got %d", len(repo.created))
+	}
+	if repo.created[0].RequestID != "req-root forged" {
+		t.Fatalf("expected sanitized persisted request id, got %#v", repo.created[0].RequestID)
+	}
+	if repo.created[0].TraceID != "trace-root forged" {
+		t.Fatalf("expected sanitized persisted trace id, got %#v", repo.created[0].TraceID)
+	}
+	if repo.created[0].UserAgent != "curl/8 x-injected: yes token=[REDACTED]" {
+		t.Fatalf("expected sanitized persisted user agent, got %q", repo.created[0].UserAgent)
+	}
+
+	entries := recorded.All()
+	if len(entries) != 1 {
+		t.Fatalf("expected one access log entry, got %d", len(entries))
+	}
+	fields := entries[0].ContextMap()
+	if fields["requestId"] != "req-root forged" {
+		t.Fatalf("expected sanitized request id field, got %#v", fields["requestId"])
+	}
+	if fields["traceId"] != "trace-root forged" {
+		t.Fatalf("expected sanitized trace id field, got %#v", fields["traceId"])
+	}
+	if fields["userAgent"] != "curl/8 x-injected: yes token=[REDACTED]" {
+		t.Fatalf("expected sanitized user agent field, got %#v", fields["userAgent"])
+	}
+}
+
 func TestNewAccessLogMiddlewarePersistsAuthenticatedCanonicalFieldsAndRedactsSensitiveValues(t *testing.T) {
 	repo, recorder := runAuthenticatedAccessLogMiddlewareRequest(t)
 

@@ -11,7 +11,7 @@
         :countdown-seconds="remainingRefreshSeconds"
         :interval="selectedRefreshInterval"
         :interval-options="refreshIntervalOptions"
-        :refreshing="loading"
+        :refreshing="refreshing"
         :show-countdown="true"
         :status-label="headerStatusLabel"
         :status-tone="headerStatus"
@@ -25,7 +25,7 @@
 
     <template #summary>
       <div v-for="metric in summaryMetrics" :key="metric.key" class="module-runtime-summary-card">
-        <t-statistic :title="metric.label" :value="metric.value" :loading="loading" />
+        <t-statistic :title="metric.label" :value="metric.value" :loading="initialLoading" />
         <p>{{ metric.description }}</p>
       </div>
     </template>
@@ -48,7 +48,7 @@
           :column-settings-label="t('monitor.moduleRuntime.table.columnSettings')"
           :density-label="tableDensityLabel"
           :refresh-label="t('monitor.moduleRuntime.actions.refresh')"
-          :refresh-loading="loading"
+          :refresh-loading="refreshing"
           @column-settings="columnDrawerVisible = true"
           @density="toggleTableDensity"
           @refresh="refreshSnapshot"
@@ -63,7 +63,7 @@
           hover
           :data="items"
           :columns="visibleColumns"
-          :loading="loading"
+          :loading="initialLoading"
           :empty="emptyTableContent"
           :size="tableDensity"
           :table-content-width="tableWidthPolicy.tableContentWidth"
@@ -367,7 +367,8 @@ const DEFAULT_VISIBLE_COLUMNS = [
 const ALWAYS_VISIBLE_COLUMNS = ['module_key', 'health', 'operation'];
 
 const snapshot = ref<ModuleRuntimeSnapshot | null>(null);
-const loading = ref(false);
+const initialLoading = ref(false);
+const refreshing = ref(false);
 const initialized = ref(false);
 const errorMessage = ref('');
 const detailVisible = ref(false);
@@ -379,7 +380,7 @@ const isPageVisible = ref(typeof document === 'undefined' ? true : document.visi
 const remainingRefreshSeconds = ref<number | null>(null);
 
 let nextRefreshAt: number | null = null;
-let refreshTickTimer: number | null = null;
+let refreshTickTimer: ReturnType<typeof setInterval> | number | null = null;
 
 const items = computed(() => snapshot.value?.items ?? []);
 const summary = computed(() => snapshot.value?.summary);
@@ -450,7 +451,7 @@ const refreshControlStatus = computed(() => {
 });
 
 const emptyTableContent = computed(() =>
-  initialized.value && !loading.value && !items.value.length && !errorMessage.value
+  initialized.value && !initialLoading.value && !items.value.length && !errorMessage.value
     ? t('monitor.moduleRuntime.empty')
     : '',
 );
@@ -556,7 +557,12 @@ useCurrentTabRefresh(async () => {
 
 async function refreshSnapshot() {
   stopRefreshTick();
-  loading.value = true;
+  const blockPage = !initialized.value && !snapshot.value;
+  if (blockPage) {
+    initialLoading.value = true;
+  } else {
+    refreshing.value = true;
+  }
   errorMessage.value = '';
 
   try {
@@ -567,7 +573,8 @@ async function refreshSnapshot() {
     });
     errorMessage.value = t('monitor.moduleRuntime.errorFallback');
   } finally {
-    loading.value = false;
+    initialLoading.value = false;
+    refreshing.value = false;
     initialized.value = true;
     scheduleNextRefresh();
   }

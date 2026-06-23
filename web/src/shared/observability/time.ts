@@ -1,5 +1,7 @@
 import type { Ref } from 'vue';
 
+import { getDefaultLocale, normalizeLocale } from '@/contracts/i18n/locales';
+
 const DEFAULT_DATE_TIME_FORMAT_OPTIONS = {
   year: 'numeric',
   month: '2-digit',
@@ -33,15 +35,17 @@ const TIME_ONLY_FORMAT_OPTIONS = {
 } satisfies Intl.DateTimeFormatOptions;
 
 function resolveLocale(locale?: string | Ref<string | undefined> | null) {
+  const fallbackLocale = getDefaultLocale();
+
   if (!locale) {
-    return undefined;
+    return fallbackLocale;
   }
 
   if (typeof locale === 'string') {
-    return locale || undefined;
+    return normalizeLocale(locale) ?? fallbackLocale;
   }
 
-  return locale.value || undefined;
+  return normalizeLocale(locale.value) ?? fallbackLocale;
 }
 
 export function formatLocaleDateTime(

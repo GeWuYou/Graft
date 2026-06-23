@@ -1,5 +1,5 @@
 import { flushPromises, mount } from '@vue/test-utils';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h } from 'vue';
 
 import { LOCALE } from '@/contracts/i18n/locales';
@@ -224,6 +224,7 @@ const translations = vi.hoisted(
     'container.list.pagination.empty': '暂无记录',
     'container.list.pagination.summary': '第 {start}-{end} 条 / 共 {total} 条',
     'container.list.refresh': '刷新',
+    'container.list.autoRefreshInterval1Second': '每 1 秒',
     'container.list.resourceUnavailable': '不可用',
     'container.list.unhealthyCount': '不健康 {count}',
     'container.list.readOnlyMode': '只读模式',
@@ -276,6 +277,16 @@ const translations = vi.hoisted(
     'ops.container.action.remove.completed': '容器删除操作已完成',
   }),
 );
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((promiseResolve, promiseReject) => {
+    resolve = promiseResolve;
+    reject = promiseReject;
+  });
+  return { promise, reject, resolve };
+}
 
 vi.mock('../../api/container', () => ({
   batchContainerActions: apiMocks.batchContainerActions,
@@ -347,6 +358,7 @@ vi.mock('@/utils/route/title', () => ({
 describe('container list page', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useFakeTimers();
     tabsRouterStoreMock.activeTabKey = '/ops/containers';
     tabsRouterStoreMock.tabRouters = [
       {
@@ -513,6 +525,11 @@ describe('container list page', () => {
     });
   });
 
+  afterEach(() => {
+    vi.runOnlyPendingTimers();
+    vi.useRealTimers();
+  });
+
   it('loads and renders container rows with required operation buttons', async () => {
     const wrapper = mountPage();
     await flushPromises();
@@ -555,6 +572,135 @@ describe('container list page', () => {
     expect(wrapper.find('[data-testid="container-action-remove"]').exists()).toBe(true);
     expect(wrapper.text()).toContain('第 1-20 条 / 共 25 条');
     expect(wrapper.text()).not.toContain('graft-extra-21');
+    expect(wrapper.get('[data-refresh-control-bar="true"]').attributes('data-status')).toBe('running');
+    wrapper.unmount();
+  });
+
+  it('auto refreshes the list every second by default', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(apiMocks.getContainers).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(1000);
+    await flushPromises();
+
+    expect(apiMocks.getContainers).toHaveBeenCalledTimes(2);
+    expect(wrapper.get('[data-refresh-countdown="true"]').text()).toBe('1');
+    wrapper.unmount();
+  });
+
+  it('pauses auto refresh while hidden and refreshes once when visible again', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      get: () => 'hidden',
+    });
+    document.dispatchEvent(new Event('visibilitychange'));
+    await flushPromises();
+
+    await vi.advanceTimersByTimeAsync(2000);
+    await flushPromises();
+    expect(apiMocks.getContainers).toHaveBeenCalledTimes(1);
+
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      get: () => 'visible',
+    });
+    document.dispatchEvent(new Event('visibilitychange'));
+    await flushPromises();
+
+    expect(apiMocks.getContainers).toHaveBeenCalledTimes(2);
+    wrapper.unmount();
+  });
+
+  it('does not stack concurrent auto refresh requests', async () => {
+    const pending = deferred<{
+      items: ReturnType<typeof createContainerRows>;
+      limit: number;
+      offset: number;
+      runtime: {
+        runtime: string;
+        status: string;
+        endpoint: string;
+        containers_running: number;
+        containers_total: number;
+      };
+      summary: {
+        total: number;
+        running: number;
+        stopped: number;
+        error: number;
+        healthy: number;
+        unhealthy: number;
+        health_unavailable: number;
+      };
+      total: number;
+    }>();
+
+    apiMocks.getContainers.mockReset();
+    apiMocks.getContainers.mockReturnValueOnce(pending.promise);
+
+    const wrapper = mountPage();
+    await flushPromises();
+    expect(apiMocks.getContainers).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(3000);
+    await flushPromises();
+    expect(apiMocks.getContainers).toHaveBeenCalledTimes(1);
+
+    pending.resolve({
+      items: createContainerRows(20, 1),
+      limit: 20,
+      offset: 0,
+      runtime: {
+        runtime: 'first-adapter',
+        status: 'enabled',
+        endpoint: 'unix:///var/run/docker.sock',
+        containers_running: 1,
+        containers_total: 25,
+      },
+      summary: {
+        total: 25,
+        running: 1,
+        stopped: 24,
+        error: 0,
+        healthy: 1,
+        unhealthy: 0,
+        health_unavailable: 24,
+      },
+      total: 25,
+    });
+    apiMocks.getContainers.mockResolvedValue({
+      items: createContainerRows(20, 1),
+      limit: 20,
+      offset: 0,
+      runtime: {
+        runtime: 'first-adapter',
+        status: 'enabled',
+        endpoint: 'unix:///var/run/docker.sock',
+        containers_running: 1,
+        containers_total: 25,
+      },
+      summary: {
+        total: 25,
+        running: 1,
+        stopped: 24,
+        error: 0,
+        healthy: 1,
+        unhealthy: 0,
+        health_unavailable: 24,
+      },
+      total: 25,
+    });
+    await flushPromises();
+
+    await vi.advanceTimersByTimeAsync(1000);
+    await flushPromises();
+    expect(apiMocks.getContainers).toHaveBeenCalledTimes(2);
+    wrapper.unmount();
   });
 
   it('navigates safe read actions to the non-overview detail tabs', async () => {
@@ -1306,6 +1452,20 @@ function mountPage() {
                 props.densityLabel
                   ? h('button', { 'data-testid': 'table-density', onClick: () => emit('density') }, props.densityLabel)
                   : null,
+              ]),
+        }),
+        'refresh-control-bar': defineComponent({
+          props: ['status', 'countdownSeconds', 'interval'],
+          emits: ['pause', 'refresh', 'resume'],
+          setup:
+            (props, { emit }) =>
+            () =>
+              h('div', { 'data-refresh-control-bar': 'true', 'data-status': props.status }, [
+                h('span', { 'data-refresh-countdown': 'true' }, String(props.countdownSeconds ?? '')),
+                h('span', { 'data-refresh-interval': 'true' }, String(props.interval ?? '')),
+                h('button', { 'data-testid': 'refresh-bar-refresh', onClick: () => emit('refresh') }, '刷新'),
+                h('button', { 'data-testid': 'refresh-bar-pause', onClick: () => emit('pause') }, '暂停'),
+                h('button', { 'data-testid': 'refresh-bar-resume', onClick: () => emit('resume') }, '恢复'),
               ]),
         }),
         't-dropdown': defineComponent({

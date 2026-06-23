@@ -121,15 +121,30 @@
         </div>
       </template>
       <template #toolbar>
-        <table-view-toolbar
-          :column-settings-label="t('container.list.columnSettings')"
-          :density-label="tableDensityLabel"
-          :refresh-label="t('container.list.refresh')"
-          :refresh-loading="loading"
-          @column-settings="columnDrawerVisible = true"
-          @density="toggleTableDensity"
-          @refresh="refreshContainers"
-        />
+        <div class="container-toolbar-row">
+          <table-view-toolbar
+            :column-settings-label="t('container.list.columnSettings')"
+            :density-label="tableDensityLabel"
+            :refresh-label="t('container.list.refresh')"
+            :refresh-loading="refreshing"
+            @column-settings="columnDrawerVisible = true"
+            @density="toggleTableDensity"
+            @refresh="handleManualRefresh"
+          />
+          <refresh-control-bar
+            :status="refreshControlStatus"
+            :countdown-seconds="remainingAutoRefreshSeconds"
+            :interval="AUTO_REFRESH_INTERVAL_SECONDS"
+            :interval-options="autoRefreshOptions"
+            :refreshing="refreshing"
+            :show-countdown="true"
+            appearance="plain"
+            variant="compact"
+            @pause="setAutoRefreshEnabled(false)"
+            @refresh="handleManualRefresh"
+            @resume="setAutoRefreshEnabled(true)"
+          />
+        </div>
       </template>
       <template #batch>
         <div v-if="selectedRows.length > 0" class="container-batch-bar">
@@ -214,7 +229,7 @@
           row-key="id"
           :columns="visibleColumns"
           :data="rows"
-          :loading="loading"
+          :loading="tableLoading"
           :size="tableDensity"
           :table-content-width="tableWidthPolicy.tableContentWidth"
           cell-empty-content="-"
@@ -471,7 +486,7 @@ import type { DialogInstance, DropdownOption, TdBaseTableProps } from 'tdesign-v
 import { DialogPlugin } from 'tdesign-vue-next/es/dialog';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { NotifyPlugin } from 'tdesign-vue-next/es/notification';
-import { computed, h, onMounted, reactive, ref, watch } from 'vue';
+import { computed, h, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
@@ -487,6 +502,7 @@ import {
   useTableHostWidth,
 } from '@/shared/components/management';
 import { AdvancedQueryColumnDrawer } from '@/shared/components/query-list';
+import { RefreshControlBar, type RefreshControlOption } from '@/shared/components/refresh';
 import { useCurrentTabRefresh } from '@/shared/composables/useTabRefresh';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { formatLocaleDateTime } from '@/shared/observability';
@@ -586,6 +602,7 @@ const ALL_COLUMN_KEYS = [
 const CONTAINER_PORT_VISIBLE_LIMIT = 2;
 const CONTAINER_DEFAULT_PAGE_SIZE = 20;
 const BYTES_PER_MIB = 1024 * 1024;
+const AUTO_REFRESH_INTERVAL_SECONDS = 1;
 
 type ListErrorState = {
   title: string;
@@ -616,7 +633,8 @@ type SourceQuickFilterValue = {
   value: string;
 };
 
-const loading = ref(false);
+const tableLoading = ref(false);
+const refreshing = ref(false);
 const listError = ref<ListErrorState>({ title: '', hint: '' });
 const rows = ref<ContainerSummaryRecord[]>([]);
 const runtime = ref<ContainerRuntimeInfo | null>(null);
@@ -630,6 +648,9 @@ const batchActionLoading = ref<DangerousContainerAction | ''>('');
 const activeDangerousDialog = ref<DialogInstance | null>(null);
 const dangerousDialogOpen = ref(false);
 const pendingSourceScopeFilter = ref<SourceQuickFilterValue | null>(null);
+const autoRefreshEnabled = ref(true);
+const remainingAutoRefreshSeconds = ref<number | null>(null);
+const isPageVisible = ref(true);
 const filters = reactive<ContainerFilters>({
   keyword: '',
   orchestrator: 'all',
@@ -805,13 +826,32 @@ const selectedRows = computed(() => {
   const selectedKeySet = new Set(selectedRowKeys.value.map(String));
   return rows.value.filter((row) => selectedKeySet.has(row.id));
 });
+const autoRefreshOptions = computed<RefreshControlOption[]>(() => [
+  {
+    label: t('container.list.autoRefreshInterval1Second'),
+    value: AUTO_REFRESH_INTERVAL_SECONDS,
+  },
+]);
+const refreshControlStatus = computed(() => (autoRefreshEnabled.value ? ('running' as const) : ('paused' as const)));
+
+let autoRefreshTimer: ReturnType<typeof setInterval> | number | null = null;
+let nextAutoRefreshAt: number | null = null;
+let refreshRequestSeq = 0;
 
 onMounted(() => {
   void refreshContainers();
+  document.addEventListener('visibilitychange', handleVisibilityChange, false);
+  scheduleAutoRefresh();
 });
 
 useCurrentTabRefresh(async () => {
   await refreshContainers();
+  scheduleAutoRefresh();
+});
+
+onUnmounted(() => {
+  stopAutoRefresh();
+  document.removeEventListener('visibilitychange', handleVisibilityChange);
 });
 
 watch(
@@ -859,16 +899,29 @@ watch(
 );
 
 async function refreshContainers() {
-  loading.value = true;
+  const requestSeq = ++refreshRequestSeq;
+  stopAutoRefresh();
+  const shouldBlockTable = rows.value.length === 0 && !tableLoading.value;
+  if (shouldBlockTable) {
+    tableLoading.value = true;
+  } else {
+    refreshing.value = true;
+  }
   listError.value = { title: '', hint: '' };
   try {
     const payload = await getContainers(buildListQuery());
+    if (requestSeq !== refreshRequestSeq) {
+      return;
+    }
     rows.value = payload.items;
     runtime.value = payload.runtime;
     listSummary.value = payload.summary;
     listTotal.value = payload.total;
     pruneSelectedRows();
   } catch (error) {
+    if (requestSeq !== refreshRequestSeq) {
+      return;
+    }
     rows.value = [];
     runtime.value = null;
     listSummary.value = null;
@@ -876,8 +929,67 @@ async function refreshContainers() {
     listError.value = resolveListError(error);
     logger.error('failed to fetch containers', error);
   } finally {
-    loading.value = false;
+    if (requestSeq === refreshRequestSeq) {
+      tableLoading.value = false;
+      refreshing.value = false;
+      scheduleAutoRefresh();
+    }
   }
+}
+
+async function handleManualRefresh() {
+  await refreshContainers();
+}
+
+function handleVisibilityChange() {
+  isPageVisible.value = document.visibilityState === 'visible';
+  if (!isPageVisible.value) {
+    stopAutoRefresh();
+    return;
+  }
+  void refreshContainers();
+}
+
+function setAutoRefreshEnabled(enabled: boolean) {
+  autoRefreshEnabled.value = enabled;
+  if (!enabled) {
+    stopAutoRefresh();
+    remainingAutoRefreshSeconds.value = null;
+    return;
+  }
+  void refreshContainers();
+}
+
+function scheduleAutoRefresh() {
+  stopAutoRefresh();
+  if (!autoRefreshEnabled.value || !isPageVisible.value || tableLoading.value || refreshing.value) {
+    remainingAutoRefreshSeconds.value = null;
+    return;
+  }
+  nextAutoRefreshAt = Date.now() + AUTO_REFRESH_INTERVAL_SECONDS * 1000;
+  updateRemainingAutoRefreshSeconds();
+  autoRefreshTimer = window.setInterval(() => {
+    updateRemainingAutoRefreshSeconds();
+    if (remainingAutoRefreshSeconds.value === 0) {
+      void refreshContainers();
+    }
+  }, 1000);
+}
+
+function stopAutoRefresh() {
+  if (autoRefreshTimer !== null) {
+    clearInterval(autoRefreshTimer);
+    autoRefreshTimer = null;
+  }
+  nextAutoRefreshAt = null;
+}
+
+function updateRemainingAutoRefreshSeconds() {
+  if (nextAutoRefreshAt === null) {
+    remainingAutoRefreshSeconds.value = null;
+    return;
+  }
+  remainingAutoRefreshSeconds.value = Math.max(0, Math.ceil((nextAutoRefreshAt - Date.now()) / 1000));
 }
 
 function pruneSelectedRows() {
@@ -1920,6 +2032,18 @@ function normalizeVisibleColumnKeys(keys: unknown[]) {
   min-width: 0;
 }
 
+.container-toolbar-row {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--graft-density-gap-12);
+  justify-content: space-between;
+}
+
+.container-toolbar-row :deep(.refresh-control-bar) {
+  margin-left: auto;
+}
+
 .container-table-head,
 .container-image,
 .container-identity,
@@ -2116,6 +2240,15 @@ function normalizeVisibleColumnKeys(keys: unknown[]) {
 }
 
 @media (width <= 768px) {
+  .container-toolbar-row {
+    align-items: stretch;
+  }
+
+  .container-toolbar-row :deep(.refresh-control-bar) {
+    margin-left: 0;
+    width: 100%;
+  }
+
   .container-actions {
     justify-content: flex-start;
   }

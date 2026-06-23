@@ -18,11 +18,10 @@ import (
 	"time"
 
 	cerrdefs "github.com/containerd/errdefs"
-	dockertypes "github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/client"
-	"github.com/docker/docker/pkg/stdcopy"
+	"github.com/moby/moby/api/pkg/stdcopy"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/network"
+	mobyclient "github.com/moby/moby/client"
 
 	"graft/server/modules/container/terminal"
 )
@@ -48,17 +47,17 @@ type DockerRuntime struct {
 
 type dockerClient interface {
 	Info(context.Context) (systemInfo, error)
-	ContainerList(context.Context, container.ListOptions) ([]container.Summary, error)
+	ContainerList(context.Context, mobyclient.ContainerListOptions) ([]container.Summary, error)
 	ContainerInspect(context.Context, string) (container.InspectResponse, error)
-	ContainerLogs(context.Context, string, container.LogsOptions) (io.ReadCloser, error)
-	ContainerStatsOneShot(context.Context, string) (container.StatsResponseReader, error)
-	ContainerExecCreate(context.Context, string, container.ExecOptions) (container.ExecCreateResponse, error)
-	ContainerExecAttach(context.Context, string, container.ExecAttachOptions) (dockertypes.HijackedResponse, error)
-	ContainerExecResize(context.Context, string, container.ResizeOptions) error
-	ContainerStart(context.Context, string, container.StartOptions) error
-	ContainerStop(context.Context, string, container.StopOptions) error
-	ContainerRestart(context.Context, string, container.StopOptions) error
-	ContainerRemove(context.Context, string, container.RemoveOptions) error
+	ContainerLogs(context.Context, string, mobyclient.ContainerLogsOptions) (io.ReadCloser, error)
+	ContainerStatsOneShot(context.Context, string) (mobyclient.ContainerStatsResult, error)
+	ContainerExecCreate(context.Context, string, mobyclient.ExecCreateOptions) (mobyclient.ExecCreateResult, error)
+	ContainerExecAttach(context.Context, string, mobyclient.ExecAttachOptions) (mobyclient.HijackedResponse, error)
+	ContainerExecResize(context.Context, string, mobyclient.ExecResizeOptions) error
+	ContainerStart(context.Context, string, mobyclient.ContainerStartOptions) error
+	ContainerStop(context.Context, string, mobyclient.ContainerStopOptions) error
+	ContainerRestart(context.Context, string, mobyclient.ContainerRestartOptions) error
+	ContainerRemove(context.Context, string, mobyclient.ContainerRemoveOptions) error
 	Close() error
 }
 
@@ -69,7 +68,7 @@ type systemInfo interface {
 // NewDockerRuntime creates the first local container runtime adapter.
 func NewDockerRuntime(endpoint string) (*DockerRuntime, error) {
 	endpoint = firstNonEmpty(endpoint, defaultContainerDockerEndpoint)
-	cli, err := client.NewClientWithOpts(client.WithHost(endpoint), client.WithAPIVersionNegotiation())
+	cli, err := mobyclient.New(mobyclient.WithHost(endpoint))
 	if err != nil {
 		return nil, mapDockerError(err)
 	}
@@ -87,7 +86,7 @@ func (r *DockerRuntime) Info(ctx context.Context) (RuntimeInfo, error) {
 
 // List returns Docker container summaries without raw inspect, logs, or env leakage.
 func (r *DockerRuntime) List(ctx context.Context, _ ListQuery) ([]Summary, error) {
-	items, err := r.client.ContainerList(ctx, container.ListOptions{All: true})
+	items, err := r.client.ContainerList(ctx, mobyclient.ContainerListOptions{All: true})
 	if err != nil {
 		return nil, mapDockerError(err)
 	}
@@ -153,7 +152,7 @@ func (r *DockerRuntime) Logs(ctx context.Context, ref Ref, query LogQuery) (Logs
 	if err != nil {
 		return Logs{}, fmt.Errorf("%w: %v", errInvalidLogQuery, err)
 	}
-	reader, err := r.client.ContainerLogs(ctx, ref.Value, container.LogsOptions{
+	reader, err := r.client.ContainerLogs(ctx, ref.Value, mobyclient.ContainerLogsOptions{
 		ShowStdout: query.Stdout,
 		ShowStderr: query.Stderr,
 		Since:      since,
@@ -232,7 +231,7 @@ func (r *DockerRuntime) Start(ctx context.Context, ref Ref) (ActionResult, error
 	if before.State != "" && !canStartState(before.State) {
 		return actionResultFromDetail(before, ref, containerActionStart, before.State), errInvalidContainerState
 	}
-	if err := r.client.ContainerStart(ctx, ref.Value, container.StartOptions{}); err != nil {
+	if err := r.client.ContainerStart(ctx, ref.Value, mobyclient.ContainerStartOptions{}); err != nil {
 		return actionResultFromDetail(before, ref, containerActionStart, ""), mapDockerError(err)
 	}
 	after, _ := r.Detail(ctx, ref)
@@ -241,12 +240,16 @@ func (r *DockerRuntime) Start(ctx context.Context, ref Ref) (ActionResult, error
 
 // Stop stops one Docker container by id or name.
 func (r *DockerRuntime) Stop(ctx context.Context, ref Ref) (ActionResult, error) {
-	return r.runTimedStateAction(ctx, ref, containerActionStop, canStopState, r.client.ContainerStop)
+	return r.runTimedStateAction(ctx, ref, containerActionStop, canStopState, func(ctx context.Context, id string, timeout *int) error {
+		return r.client.ContainerStop(ctx, id, mobyclient.ContainerStopOptions{Timeout: timeout})
+	})
 }
 
 // Restart restarts one Docker container by id or name.
 func (r *DockerRuntime) Restart(ctx context.Context, ref Ref) (ActionResult, error) {
-	return r.runTimedStateAction(ctx, ref, containerActionRestart, canRestartState, r.client.ContainerRestart)
+	return r.runTimedStateAction(ctx, ref, containerActionRestart, canRestartState, func(ctx context.Context, id string, timeout *int) error {
+		return r.client.ContainerRestart(ctx, id, mobyclient.ContainerRestartOptions{Timeout: timeout})
+	})
 }
 
 func (r *DockerRuntime) runTimedStateAction(
@@ -254,14 +257,14 @@ func (r *DockerRuntime) runTimedStateAction(
 	ref Ref,
 	action string,
 	allowed func(string) bool,
-	run func(context.Context, string, container.StopOptions) error,
+	run func(context.Context, string, *int) error,
 ) (ActionResult, error) {
 	before, _ := r.Detail(ctx, ref)
 	if before.State != "" && !allowed(before.State) {
 		return actionResultFromDetail(before, ref, action, before.State), errInvalidContainerState
 	}
 	timeout := 10
-	if err := run(ctx, ref.Value, container.StopOptions{Timeout: &timeout}); err != nil {
+	if err := run(ctx, ref.Value, &timeout); err != nil {
 		return actionResultFromDetail(before, ref, action, ""), mapDockerError(err)
 	}
 	after, _ := r.Detail(ctx, ref)
@@ -277,7 +280,7 @@ func (r *DockerRuntime) Remove(ctx context.Context, ref Ref, options RemoveOptio
 	if !canRemoveState(before.State) || (!options.Force && !canRemoveWithoutForce(before.State)) {
 		return actionResultFromDetail(before, ref, containerActionRemove, before.State), errInvalidContainerState
 	}
-	if err := r.client.ContainerRemove(ctx, ref.Value, container.RemoveOptions{Force: options.Force}); err != nil {
+	if err := r.client.ContainerRemove(ctx, ref.Value, mobyclient.ContainerRemoveOptions{Force: options.Force}); err != nil {
 		return actionResultFromDetail(before, ref, containerActionRemove, before.State), mapDockerError(err)
 	}
 	result := actionResultFromDetail(before, ref, containerActionRemove, before.State)
@@ -502,14 +505,7 @@ func dockerCPUPercent(stats container.StatsResponse) (float64, bool) {
 	}
 	cpuDelta := float64(stats.CPUStats.CPUUsage.TotalUsage - stats.PreCPUStats.CPUUsage.TotalUsage)
 	systemDelta := float64(stats.CPUStats.SystemUsage - stats.PreCPUStats.SystemUsage)
-	onlineCPUs := float64(stats.CPUStats.OnlineCPUs)
-	if onlineCPUs == 0 {
-		onlineCPUs = float64(len(stats.CPUStats.CPUUsage.PercpuUsage))
-	}
-	if onlineCPUs == 0 {
-		return 0, false
-	}
-	return (cpuDelta / systemDelta) * onlineCPUs * dockerStatsPercentScale, true
+	return (cpuDelta / systemDelta) * dockerStatsPercentScale, true
 }
 
 func unavailableResourceSummary(reason string) ResourceSummary {
@@ -599,9 +595,7 @@ func dockerDetail(inspect container.InspectResponse, info RuntimeInfo) Detail {
 	summary.Name = firstNonEmpty(firstContainerName(summary.Names), summary.ShortID, summary.ID)
 	summary.PrimaryIP = primaryNetworkIP(summary.Networks)
 	summary.NetworkSummary = networkSummary(summary.Networks)
-	if inspect.ContainerJSONBase != nil {
-		summary.RestartCount = intPtrAllowZero(inspect.RestartCount)
-	}
+	summary.RestartCount = intPtrAllowZero(inspect.RestartCount)
 	detail := Detail{
 		Summary:          summary,
 		Healthcheck:      dockerHealthcheck(inspect),
@@ -801,7 +795,7 @@ func dockerHealth(inspect container.InspectResponse) string {
 	if inspect.State == nil || inspect.State.Health == nil {
 		return containerHealthNone
 	}
-	switch strings.TrimSpace(inspect.State.Health.Status) {
+	switch inspect.State.Health.Status {
 	case container.NoHealthcheck:
 		return containerHealthNone
 	case container.Starting:
@@ -1076,29 +1070,29 @@ func dockerInspectPorts(inspect container.InspectResponse) []Port {
 	for port, bindings := range inspect.NetworkSettings.Ports {
 		privatePort, _ := strconv.Atoi(port.Port())
 		if len(bindings) == 0 {
-			ports = append(ports, Port{PrivatePort: privatePort, Type: port.Proto()})
+			ports = append(ports, Port{PrivatePort: privatePort, Type: string(port.Proto())})
 			continue
 		}
 		for _, binding := range bindings {
 			publicPort, _ := strconv.Atoi(binding.HostPort)
 			ports = append(ports, Port{
-				IP:          strings.TrimSpace(binding.HostIP),
+				IP:          strings.TrimSpace(binding.HostIP.String()),
 				PrivatePort: privatePort,
 				PublicPort:  intPtr(publicPort),
-				Type:        port.Proto(),
+				Type:        string(port.Proto()),
 			})
 		}
 	}
 	return ports
 }
 
-func dockerPorts(ports []container.Port) []Port {
+func dockerPorts(ports []container.PortSummary) []Port {
 	mapped := make([]Port, 0, len(ports))
 	for _, port := range ports {
 		privatePort := int(port.PrivatePort)
 		publicPort := int(port.PublicPort)
 		item := Port{
-			IP:          strings.TrimSpace(port.IP),
+			IP:          strings.TrimSpace(port.IP.String()),
 			PrivatePort: privatePort,
 			Type:        strings.TrimSpace(port.Type),
 		}
@@ -1220,9 +1214,9 @@ func dockerEndpointNetwork(name string, network *network.EndpointSettings) (Netw
 		Name:       strings.TrimSpace(name),
 		NetworkID:  strings.TrimSpace(network.NetworkID),
 		EndpointID: strings.TrimSpace(network.EndpointID),
-		Gateway:    strings.TrimSpace(network.Gateway),
-		IPAddress:  strings.TrimSpace(network.IPAddress),
-		MacAddress: strings.TrimSpace(network.MacAddress),
+		Gateway:    strings.TrimSpace(network.Gateway.String()),
+		IPAddress:  strings.TrimSpace(network.IPAddress.String()),
+		MacAddress: strings.TrimSpace(network.MacAddress.String()),
 	}, true
 }
 
@@ -1300,7 +1294,7 @@ func intPtrAllowZero(value int) *int {
 }
 
 type dockerClientAdapter struct {
-	*client.Client
+	*mobyclient.Client
 }
 
 func (dockerClientAdapter) dockerSystemInfo() {}
@@ -1317,30 +1311,82 @@ type dockerClientSystemInfo struct {
 func (dockerClientSystemInfo) dockerSystemInfo() {}
 
 func (d dockerClientAdapter) Info(ctx context.Context) (systemInfo, error) {
-	info, err := d.Client.Info(ctx)
+	info, err := d.Client.Info(ctx, mobyclient.InfoOptions{})
 	if err != nil {
 		return nil, err
 	}
 	return dockerClientSystemInfo{
 		APIVersion:        d.ClientVersion(),
-		ServerVersion:     info.ServerVersion,
-		OperatingSystem:   info.OperatingSystem,
-		Architecture:      info.Architecture,
-		Containers:        info.Containers,
-		ContainersRunning: info.ContainersRunning,
+		ServerVersion:     info.Info.ServerVersion,
+		OperatingSystem:   info.Info.OperatingSystem,
+		Architecture:      info.Info.Architecture,
+		Containers:        info.Info.Containers,
+		ContainersRunning: info.Info.ContainersRunning,
 	}, nil
 }
 
-func (d dockerClientAdapter) ContainerExecCreate(ctx context.Context, containerID string, options container.ExecOptions) (container.ExecCreateResponse, error) {
-	return d.Client.ContainerExecCreate(ctx, containerID, options)
+func (d dockerClientAdapter) ContainerList(ctx context.Context, options mobyclient.ContainerListOptions) ([]container.Summary, error) {
+	result, err := d.Client.ContainerList(ctx, options)
+	if err != nil {
+		return nil, err
+	}
+	return result.Items, nil
 }
 
-func (d dockerClientAdapter) ContainerExecAttach(ctx context.Context, execID string, config container.ExecAttachOptions) (dockertypes.HijackedResponse, error) {
-	return d.Client.ContainerExecAttach(ctx, execID, config)
+func (d dockerClientAdapter) ContainerInspect(ctx context.Context, containerID string) (container.InspectResponse, error) {
+	result, err := d.Client.ContainerInspect(ctx, containerID, mobyclient.ContainerInspectOptions{})
+	if err != nil {
+		return container.InspectResponse{}, err
+	}
+	return result.Container, nil
 }
 
-func (d dockerClientAdapter) ContainerExecResize(ctx context.Context, execID string, options container.ResizeOptions) error {
-	return d.Client.ContainerExecResize(ctx, execID, options)
+func (d dockerClientAdapter) ContainerLogs(ctx context.Context, containerID string, options mobyclient.ContainerLogsOptions) (io.ReadCloser, error) {
+	return d.Client.ContainerLogs(ctx, containerID, options)
+}
+
+func (d dockerClientAdapter) ContainerStatsOneShot(ctx context.Context, containerID string) (mobyclient.ContainerStatsResult, error) {
+	return d.ContainerStats(ctx, containerID, mobyclient.ContainerStatsOptions{
+		Stream:                false,
+		IncludePreviousSample: false,
+	})
+}
+
+func (d dockerClientAdapter) ContainerExecCreate(ctx context.Context, containerID string, options mobyclient.ExecCreateOptions) (mobyclient.ExecCreateResult, error) {
+	return d.ExecCreate(ctx, containerID, options)
+}
+
+func (d dockerClientAdapter) ContainerExecAttach(ctx context.Context, execID string, config mobyclient.ExecAttachOptions) (mobyclient.HijackedResponse, error) {
+	result, err := d.ExecAttach(ctx, execID, config)
+	if err != nil {
+		return mobyclient.HijackedResponse{}, err
+	}
+	return result.HijackedResponse, nil
+}
+
+func (d dockerClientAdapter) ContainerExecResize(ctx context.Context, execID string, options mobyclient.ExecResizeOptions) error {
+	_, err := d.ExecResize(ctx, execID, options)
+	return err
+}
+
+func (d dockerClientAdapter) ContainerStart(ctx context.Context, containerID string, options mobyclient.ContainerStartOptions) error {
+	_, err := d.Client.ContainerStart(ctx, containerID, options)
+	return err
+}
+
+func (d dockerClientAdapter) ContainerStop(ctx context.Context, containerID string, options mobyclient.ContainerStopOptions) error {
+	_, err := d.Client.ContainerStop(ctx, containerID, options)
+	return err
+}
+
+func (d dockerClientAdapter) ContainerRestart(ctx context.Context, containerID string, options mobyclient.ContainerRestartOptions) error {
+	_, err := d.Client.ContainerRestart(ctx, containerID, options)
+	return err
+}
+
+func (d dockerClientAdapter) ContainerRemove(ctx context.Context, containerID string, options mobyclient.ContainerRemoveOptions) error {
+	_, err := d.Client.ContainerRemove(ctx, containerID, options)
+	return err
 }
 
 var dockerErrorMessageRules = []struct {

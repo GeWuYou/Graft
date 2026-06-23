@@ -9,6 +9,7 @@ import (
 	"go.uber.org/zap"
 
 	"graft/server/internal/config"
+	"graft/server/internal/logger/logsafe"
 	"graft/server/internal/moduleapi"
 )
 
@@ -94,15 +95,15 @@ func shouldLogAccessToConsole(record CreateAccessLogInput, options AccessLogOpti
 
 func buildAccessLogRecord(ctx *gin.Context, requestID string, traceID string, startedAt time.Time) CreateAccessLogInput {
 	record := CreateAccessLogInput{
-		RequestID:    strings.TrimSpace(requestID),
-		TraceID:      strings.TrimSpace(traceID),
-		Method:       strings.TrimSpace(ctx.Request.Method),
+		RequestID:    sanitizeAccessLogStableText(requestID),
+		TraceID:      sanitizeAccessLogStableText(traceID),
+		Method:       sanitizeAccessLogStableText(ctx.Request.Method),
 		Path:         sanitizeAccessLogPath(currentRequestPath(ctx)),
 		Route:        sanitizeAccessLogRoute(currentRequestRoute(ctx)),
 		StatusCode:   ctx.Writer.Status(),
 		DurationMS:   time.Since(startedAt).Milliseconds(),
-		ClientIP:     strings.TrimSpace(ctx.ClientIP()),
-		UserAgent:    sanitizeAccessLogFreeText(strings.TrimSpace(ctx.Request.UserAgent())),
+		ClientIP:     sanitizeAccessLogStableText(ctx.ClientIP()),
+		UserAgent:    sanitizeAccessLogFreeText(ctx.Request.UserAgent()),
 		RequestSize:  currentRequestSize(ctx),
 		ResponseSize: currentResponseSize(ctx),
 		StartedAt:    startedAt.UTC(),
@@ -111,7 +112,7 @@ func buildAccessLogRecord(ctx *gin.Context, requestID string, traceID string, st
 
 	if requestAuth, ok := moduleapi.RequestAuthContextFromContext(ctx.Request.Context()); ok && requestAuth.User != nil {
 		record.UserID = cloneUint64Pointer(&requestAuth.User.ID)
-		record.Username = strings.TrimSpace(requestAuth.User.Username)
+		record.Username = sanitizeAccessLogStableText(requestAuth.User.Username)
 	}
 
 	return record
@@ -126,7 +127,7 @@ func persistAccessLog(ctx *gin.Context, logger *zap.Logger, repo AccessLogReposi
 	defer cancel()
 
 	if _, err := repo.CreateAccessLog(persistCtx, record); err != nil {
-		logger.Error("persist access log failed",
+		logsafe.Error(logger, "persist access log failed",
 			zap.String("requestId", record.RequestID),
 			zap.String("method", record.Method),
 			zap.String("path", record.Path),
@@ -139,11 +140,11 @@ func persistAccessLog(ctx *gin.Context, logger *zap.Logger, repo AccessLogReposi
 func logAccess(logger *zap.Logger, status int, fields ...zap.Field) {
 	switch {
 	case status >= httpStatusInternalServerError:
-		logger.Error("http access", fields...)
+		logsafe.Error(logger, "http access", fields...)
 	case status >= httpStatusBadRequest:
-		logger.Warn("http access", fields...)
+		logsafe.Warn(logger, "http access", fields...)
 	case status >= 0:
-		logger.Info("http access", fields...)
+		logsafe.Info(logger, "http access", fields...)
 	}
 }
 

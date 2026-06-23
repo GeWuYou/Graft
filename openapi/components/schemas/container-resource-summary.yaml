@@ -24,6 +24,7 @@ properties:
     type: number
     format: double
     minimum: 0
+    description: CPU usage normalized against total host CPU capacity, expressed as a 0-100 style percentage.
   online_cpus:
     type: integer
     format: int64

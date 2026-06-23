@@ -31,6 +31,7 @@ import (
 	monitoropenapi "graft/server/internal/contract/openapi/monitor"
 	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
+	"graft/server/internal/logger/logsafe"
 	"graft/server/internal/menu"
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
@@ -392,7 +393,7 @@ func newServerStatusHandler(handler *monitorServerHandler) gin.HandlerFunc {
 			if handler.ctx != nil {
 				localizer = handler.ctx.I18n
 				if handler.ctx.Logger != nil {
-					handler.ctx.Logger.Error("validate monitor server status params failed",
+					logsafe.Error(handler.ctx.Logger, "validate monitor server status params failed",
 						zap.String("module", handler.moduleName),
 						zap.String("requestId", httpx.EnsureRequestID(ginCtx)),
 						zap.Error(err),
@@ -409,7 +410,7 @@ func newServerStatusHandler(handler *monitorServerHandler) gin.HandlerFunc {
 			if handler.ctx != nil {
 				localizer = handler.ctx.I18n
 				if handler.ctx.Logger != nil {
-					handler.ctx.Logger.Error("build monitor server status failed",
+					logsafe.Error(handler.ctx.Logger, "build monitor server status failed",
 						zap.String("module", handler.moduleName),
 						zap.String("requestId", httpx.EnsureRequestID(ginCtx)),
 						zap.Error(buildErr),

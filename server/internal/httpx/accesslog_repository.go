@@ -434,21 +434,21 @@ func (r *accessLogRepository) placeholder(index int) string {
 }
 
 func normalizeCreateAccessLogInput(input CreateAccessLogInput) AccessLog {
-	requestID := strings.TrimSpace(input.RequestID)
-	traceID := normalizeAccessLogTraceID(strings.TrimSpace(input.TraceID), requestID)
+	requestID := sanitizeAccessLogStableText(input.RequestID)
+	traceID := normalizeAccessLogTraceID(sanitizeAccessLogStableText(input.TraceID), requestID)
 
 	return AccessLog{
 		RequestID:    requestID,
 		TraceID:      traceID,
-		Method:       strings.TrimSpace(input.Method),
+		Method:       sanitizeAccessLogStableText(input.Method),
 		Path:         sanitizeAccessLogPath(input.Path),
 		Route:        sanitizeAccessLogRoute(input.Route),
 		StatusCode:   input.StatusCode,
 		DurationMS:   input.DurationMS,
-		ClientIP:     strings.TrimSpace(input.ClientIP),
+		ClientIP:     sanitizeAccessLogStableText(input.ClientIP),
 		UserAgent:    sanitizeAccessLogFreeText(input.UserAgent),
 		UserID:       cloneUint64Pointer(input.UserID),
-		Username:     strings.TrimSpace(input.Username),
+		Username:     sanitizeAccessLogStableText(input.Username),
 		RequestSize:  cloneInt64Pointer(input.RequestSize),
 		ResponseSize: cloneInt64Pointer(input.ResponseSize),
 		StartedAt:    normalizeStartedAt(input.StartedAt, input.OccurredAt),

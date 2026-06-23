@@ -3750,7 +3750,9 @@ type ContainerRemoveRequest struct {
 // ContainerResourceSummary defines model for container-resource-summary.
 type ContainerResourceSummary struct {
 	// Available Compatibility mirror of stats_available for existing clients. New UI code should use stats_available.
-	Available            bool     `json:"available"`
+	Available bool `json:"available"`
+
+	// CpuPercent CPU usage normalized against total host CPU capacity, expressed as a 0-100 style percentage.
 	CpuPercent           *float64 `json:"cpu_percent,omitempty"`
 	CpuUsageInKernelmode *int64   `json:"cpu_usage_in_kernelmode,omitempty"`
 	CpuUsageInUsermode   *int64   `json:"cpu_usage_in_usermode,omitempty"`

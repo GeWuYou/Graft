@@ -1345,7 +1345,7 @@ function handleRoleMoreAction(
   payload: { value?: string | number | Record<string, unknown> } | string | number,
   role: RoleListItem,
 ) {
-  const action = typeof payload === 'object' && payload ? payload.value : payload;
+  const action = typeof payload === 'object' ? payload.value : payload;
   if (action === 'edit') {
     openEditDrawer(role);
     return;

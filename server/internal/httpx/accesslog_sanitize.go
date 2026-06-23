@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+
+	"graft/server/internal/logger/logsafe"
 )
 
 const accessLogRedactedValue = "[REDACTED]"
@@ -25,7 +27,7 @@ func sanitizeAccessLogRoute(route string) string {
 }
 
 func sanitizeAccessLogFreeText(value string) string {
-	sanitized := strings.TrimSpace(value)
+	sanitized := sanitizeAccessLogStableText(value)
 	for _, pattern := range sensitiveAccessLogPatterns {
 		sanitized = pattern.ReplaceAllStringFunc(sanitized, func(match string) string {
 			parts := strings.SplitN(match, ":", accessLogSplitPairParts)
@@ -42,5 +44,9 @@ func sanitizeAccessLogFreeText(value string) string {
 		})
 	}
 
-	return sanitized
+	return sanitizeAccessLogStableText(sanitized)
+}
+
+func sanitizeAccessLogStableText(value string) string {
+	return logsafe.SanitizeText(value)
 }

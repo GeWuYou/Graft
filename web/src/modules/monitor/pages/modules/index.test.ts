@@ -619,6 +619,28 @@ describe('monitor module runtime page', () => {
     expect(moduleRuntimeApiMocks.getModuleRuntimeSnapshot).toHaveBeenCalledTimes(2);
   });
 
+  it('keeps table content stable during refresh instead of re-entering blocking table loading', async () => {
+    const snapshot = createSnapshot();
+    const pending = new Promise<typeof snapshot>((resolve) => {
+      setTimeout(() => resolve(snapshot), 0);
+    });
+    moduleRuntimeApiMocks.getModuleRuntimeSnapshot.mockResolvedValueOnce(snapshot).mockReturnValueOnce(pending);
+
+    const wrapper = mountModulesPage();
+    await flushPromises();
+
+    expect(wrapper.find('[data-table-columns]').exists()).toBe(true);
+
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('Refresh'))
+      ?.trigger('click');
+    await flushPromises();
+
+    expect(wrapper.find('[data-table-columns]').exists()).toBe(true);
+    expect(wrapper.find('[data-table-size]').attributes('data-table-size')).toBe('medium');
+  });
+
   it('renders empty and error states', async () => {
     moduleRuntimeApiMocks.getModuleRuntimeSnapshot.mockResolvedValueOnce({
       summary: {

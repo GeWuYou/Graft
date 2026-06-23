@@ -1,4 +1,15 @@
 services:
   server:
+    user: "0:0"
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        sock_gid="$(stat -c '%g' /var/run/docker.sock)"
+        if ! grep -q "^dockerhost:" /etc/group; then
+          addgroup -S -g "$$sock_gid" dockerhost
+        fi
+        addgroup graft dockerhost
+        exec su graft -s /bin/sh -c '/app/graft serve'
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
