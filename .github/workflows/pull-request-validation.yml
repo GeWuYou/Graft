@@ -33,6 +33,7 @@ env:
 jobs:
   secret-scan:
     name: Secret Scan
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -40,32 +41,12 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Resolve secret scan diff range
-        id: secret_scan_range
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            base_ref="${{ github.event.pull_request.base.sha }}"
-            head_ref="${{ github.event.pull_request.head.sha }}"
-          else
-            base_ref="${{ github.event.before }}"
-            head_ref="${{ github.sha }}"
-            if [[ -z "${base_ref}" || "${base_ref}" =~ ^0+$ ]]; then
-              base_ref="${head_ref}^"
-            fi
-          fi
-
-          echo "base_ref=${base_ref}" >> "$GITHUB_OUTPUT"
-          echo "head_ref=${head_ref}" >> "$GITHUB_OUTPUT"
-
       - name: TruffleHog OSS
         uses: trufflesecurity/trufflehog@30d5bb91af1a771378349dbbb0c82129392acf70
         with:
           path: .
-          base: ${{ steps.secret_scan_range.outputs.base_ref }}
-          head: ${{ steps.secret_scan_range.outputs.head_ref }}
+          base: ${{ github.event.pull_request.base.sha }}
+          head: ${{ github.event.pull_request.head.sha }}
 
   contract-governance-check:
     name: Contract Governance Check
