@@ -484,7 +484,7 @@ jobs:
         run: |
           set -euo pipefail
           for _ in $(seq 1 60); do
-            bootstrap_id="$(docker compose ps -q bootstrap)"
+            bootstrap_id="$(docker compose ps -aq bootstrap)"
             if [[ -z "${bootstrap_id}" ]]; then
               sleep 2
               continue
@@ -496,12 +496,18 @@ jobs:
             fi
             if [[ "${status}" == "exited" && "${exit_code}" != "0" ]]; then
               echo "bootstrap failed with exit code ${exit_code}"
+              docker compose ps -a
+              docker inspect "${bootstrap_id}" || true
               docker compose logs bootstrap
               exit 1
             fi
             sleep 2
           done
           echo "bootstrap did not complete in time"
+          docker compose ps -a
+          if [[ -n "$(docker compose ps -aq bootstrap)" ]]; then
+            docker inspect "$(docker compose ps -aq bootstrap)" || true
+          fi
           docker compose logs bootstrap
           exit 1
 
