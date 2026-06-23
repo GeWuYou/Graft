@@ -409,10 +409,15 @@ func TestDockerRuntimeResourceStatsCacheCollapsesConcurrentMiss(t *testing.T) {
 	wg.Wait()
 
 	for _, summary := range results {
-		if !summary.Available {
-			t.Fatalf("expected available summary from collapsed cache load, got %#v", summary)
+		if summary.Available || summary.StatsAvailable {
+			t.Fatalf("expected cold-start partial stats to degrade as unavailable, got %#v", summary)
 		}
-		assertInt64Ptr(t, summary.MemoryUsageBytes, 128, "memory usage bytes")
+		if summary.UnavailableReason == "" || summary.StatsErrorKey == "" || summary.StatsErrorMessage == "" {
+			t.Fatalf("expected unavailable summary context, got %#v", summary)
+		}
+		if summary.CPUPercent != nil || summary.MemoryUsageBytes != nil || summary.MemoryLimitBytes != nil || summary.MemoryPercent != nil {
+			t.Fatalf("expected cold-start miss to avoid field-level partial stats, got %#v", summary)
+		}
 	}
 	if calls := client.statsCalls.Load(); calls != 1 {
 		t.Fatalf("expected concurrent miss collapse to issue one stats call, got %d", calls)
