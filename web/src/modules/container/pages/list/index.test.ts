@@ -224,7 +224,7 @@ const translations = vi.hoisted(
     'container.list.pagination.empty': '暂无记录',
     'container.list.pagination.summary': '第 {start}-{end} 条 / 共 {total} 条',
     'container.list.refresh': '刷新',
-    'container.list.autoRefreshInterval1Second': '每 1 秒',
+    'container.list.autoRefreshInterval5Seconds': '每 5 秒',
     'container.list.resourceUnavailable': '不可用',
     'container.list.unhealthyCount': '不健康 {count}',
     'container.list.readOnlyMode': '只读模式',
@@ -623,17 +623,18 @@ describe('container list page', () => {
     expect(wrapper.findAll('[data-testid="resource-progress"]').some((node) => node.text() === '100')).toBe(true);
   });
 
-  it('auto refreshes the list every second by default', async () => {
+  it('auto refreshes the list every five seconds by default', async () => {
     const wrapper = mountPage();
     await flushPromises();
 
     expect(apiMocks.getContainers).toHaveBeenCalledTimes(1);
 
-    await vi.advanceTimersByTimeAsync(1000);
+    await vi.advanceTimersByTimeAsync(5000);
     await flushPromises();
 
     expect(apiMocks.getContainers).toHaveBeenCalledTimes(2);
-    expect(wrapper.get('[data-refresh-countdown="true"]').text()).toBe('1');
+    expect(wrapper.get('[data-refresh-countdown="true"]').text()).toBe('5');
+    expect(wrapper.get('[data-refresh-interval="true"]').text()).toBe('5');
     wrapper.unmount();
   });
 
@@ -744,7 +745,7 @@ describe('container list page', () => {
     });
     await flushPromises();
 
-    await vi.advanceTimersByTimeAsync(1000);
+    await vi.advanceTimersByTimeAsync(5000);
     await flushPromises();
     expect(apiMocks.getContainers).toHaveBeenCalledTimes(2);
     wrapper.unmount();

@@ -23,7 +23,7 @@
       "title": "Containers",
       "description": "Review Local Container Runtime State, Details, and Truncated Logs.",
       "refresh": "Refresh",
-      "autoRefreshInterval1Second": "Every 1 Sec",
+      "autoRefreshInterval5Seconds": "Every 5 Sec",
       "retry": "Retry",
       "loadFailed": "Container List Could Not Be Loaded.",
       "runtimeLabel": "Runtime",

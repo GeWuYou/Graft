@@ -602,7 +602,7 @@ const ALL_COLUMN_KEYS = [
 const CONTAINER_PORT_VISIBLE_LIMIT = 2;
 const CONTAINER_DEFAULT_PAGE_SIZE = 20;
 const BYTES_PER_MIB = 1024 * 1024;
-const AUTO_REFRESH_INTERVAL_SECONDS = 1;
+const AUTO_REFRESH_INTERVAL_SECONDS = 5;
 
 type ListErrorState = {
   title: string;
@@ -828,7 +828,7 @@ const selectedRows = computed(() => {
 });
 const autoRefreshOptions = computed<RefreshControlOption[]>(() => [
   {
-    label: t('container.list.autoRefreshInterval1Second'),
+    label: t('container.list.autoRefreshInterval5Seconds'),
     value: AUTO_REFRESH_INTERVAL_SECONDS,
   },
 ]);
