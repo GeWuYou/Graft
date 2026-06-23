@@ -133,7 +133,8 @@ class AuditResult:
     httpx_runtime_allowed: list[str]
     stale_manual_api_request_dto: list[str]
     stale_manual_api_response_dto: list[str]
-    suspicious: list[str]
+    warnings: list[str]
+    violations: list[str]
     generated_boundary_preserved: bool
     httpx_runtime_preserved: bool
     generated_runtime_used: bool
@@ -228,11 +229,16 @@ def audit_type_declarations(repo_root: Path, result: AuditResult) -> None:
 
 
 def audit_generated_boundary_usage(repo_root: Path, result: AuditResult) -> None:
+    """
+    验证指定 Go 文件中预期的生成标记的存在性。
+    
+    检查处理器边界文件和响应映射器文件是否包含配置中要求的生成标记。当标记缺失时，向结果添加警告并将边界保持状态标记为假；当标记全部存在时，记录允许的发现。
+    """
     for rel_path, patterns in HANDLER_BOUNDARY_CHECKS.items():
         text = read_text(repo_root / rel_path)
         missing = [pattern for pattern in patterns if pattern not in text]
         if missing:
-            result.suspicious.append(
+            result.warnings.append(
                 f"{rel_path}: expected generated boundary markers missing: {', '.join(missing)}"
             )
             result.generated_boundary_preserved = False
@@ -245,7 +251,7 @@ def audit_generated_boundary_usage(repo_root: Path, result: AuditResult) -> None
         text = read_text(repo_root / rel_path)
         missing = [pattern for pattern in patterns if pattern not in text]
         if missing:
-            result.suspicious.append(
+            result.warnings.append(
                 f"{rel_path}: expected generated response mapper markers missing: {', '.join(missing)}"
             )
             result.generated_boundary_preserved = False
@@ -256,6 +262,16 @@ def audit_generated_boundary_usage(repo_root: Path, result: AuditResult) -> None
 
 
 def audit_httpx_runtime(repo_root: Path, result: AuditResult) -> None:
+    """
+    验证指定的 Go 文件包含所有预期的 httpx 运行时所有权标记。
+    
+    若任何必需的标记缺失，则记录警告并将运行时所有权状态标记为未保留；
+    若所有标记存在，则记录该文件的运行时所有权已保留。
+    
+    Parameters:
+        repo_root (Path): 代码仓库的根目录
+        result (AuditResult): 用于记录审计发现的结果对象
+    """
     runtime_checks = {
         "server/modules/auth/route_handlers.go": ("httpx.WriteSuccess", "writeLocalizedContractError"),
         "server/modules/user/route_user_handlers.go": ("httpx.WriteSuccess", "writeLocalizedContractError"),
@@ -270,7 +286,7 @@ def audit_httpx_runtime(repo_root: Path, result: AuditResult) -> None:
         text = read_text(repo_root / rel_path)
         missing = [pattern for pattern in patterns if pattern not in text]
         if missing:
-            result.suspicious.append(
+            result.warnings.append(
                 f"{rel_path}: expected runtime ownership markers missing: {', '.join(missing)}"
             )
             result.httpx_runtime_preserved = False
@@ -281,18 +297,31 @@ def audit_httpx_runtime(repo_root: Path, result: AuditResult) -> None:
 
 
 def audit_generated_runtime_takeover(repo_root: Path, result: AuditResult) -> None:
+    """
+    检测禁止的生成代码运行时接管标记，并在审计结果中记录发现的违规项。
+    
+    Parameters:
+        repo_root (Path): 仓库根目录路径
+        result (AuditResult): 审计结果对象，将被修改以记录发现的违规项
+    """
     for path in sorted((repo_root / "server").rglob("*.go")):
         rel_path = path.relative_to(repo_root).as_posix()
         text = read_text(path)
         for pattern in FORBIDDEN_GENERATED_RUNTIME_PATTERNS:
             if pattern in text:
                 result.generated_runtime_used = True
-                result.suspicious.append(
+                result.violations.append(
                     f"{rel_path}: found generated runtime takeover marker `{pattern}`"
                 )
 
 
 def build_result() -> AuditResult:
+    """
+    创建初始化的审计结果对象。
+    
+    Returns:
+        AuditResult: 包含空发现列表和默认保留状态的审计结果对象。
+    """
     return AuditResult(
         generated_boundary_type=[],
         generated_mapper_allowed=[],
@@ -305,7 +334,8 @@ def build_result() -> AuditResult:
         httpx_runtime_allowed=[],
         stale_manual_api_request_dto=[],
         stale_manual_api_response_dto=[],
-        suspicious=[],
+        warnings=[],
+        violations=[],
         generated_boundary_preserved=True,
         httpx_runtime_preserved=True,
         generated_runtime_used=False,
@@ -313,14 +343,33 @@ def build_result() -> AuditResult:
 
 
 def verdict(result: AuditResult) -> str:
-    if result.stale_manual_api_request_dto or result.stale_manual_api_response_dto:
-        return "BLOCKED_STALE_MANUAL_API_DTO"
-    if result.suspicious or not result.generated_boundary_preserved or not result.httpx_runtime_preserved or result.generated_runtime_used:
-        return "CLEAN_WITH_SUSPICIOUS_ITEMS"
-    return "CLEAN_WITH_ALLOWED_INTERNAL_MODELS"
+    """
+    根据审计结果确定最终的审查结论。
+    
+    参数:
+        result (AuditResult): 包含审计发现的结果对象
+    
+    返回值:
+        str: 审查结论，为以下之一：
+            - "FAILED_VIOLATIONS"：存在违规项或过期的手工 DTO
+            - "PASS_WITH_WARNINGS"：存在警告或边界保护失效
+            - "PASS_ALLOWED_BOUNDARY_MODELS"：所有审计条件均满足
+    """
+    # `generated_runtime_used` is diagnostic output; blocking ownership failures must
+    # be recorded as explicit violations so future call sites do not rely on the flag.
+    if result.stale_manual_api_request_dto or result.stale_manual_api_response_dto or result.violations:
+        return "FAILED_VIOLATIONS"
+    if result.warnings or not result.generated_boundary_preserved or not result.httpx_runtime_preserved:
+        return "PASS_WITH_WARNINGS"
+    return "PASS_ALLOWED_BOUNDARY_MODELS"
 
 
 def print_category(title: str, items: list[str]) -> None:
+    """
+    打印格式化的分类列表。
+    
+    如果列表为空，打印占位符"none"；否则打印列表中的每一项，每项前缀为"  - "。
+    """
     print(f"{title}:")
     if not items:
         print("  - none")
@@ -330,6 +379,15 @@ def print_category(title: str, items: list[str]) -> None:
 
 
 def main() -> int:
+    """
+    执行后端 DTO 边界审计并输出检查报告。
+    
+    遍历服务器源文件以分类 DTO 类型声明、验证生成边界标记、检查 HTTP 运行时所有权和禁用的生成代码接管模式。
+    汇总审计结果并按类别打印允许项、警告和违规项。
+    
+    Returns:
+        int: 1 如果发现违规项，0 否则
+    """
     repo_root = find_repo_root()
     result = build_result()
     audit_type_declarations(repo_root, result)
@@ -339,21 +397,23 @@ def main() -> int:
 
     final_verdict = verdict(result)
     print(f"Backend DTO Boundary Verdict: {final_verdict}")
+    print("Allowed Findings:")
     print_category("generated_boundary_type", result.generated_boundary_type)
     print_category("generated_mapper_allowed", result.generated_mapper_allowed)
     print_category("service_command_allowed", result.service_command_allowed)
     print_category("domain_or_ent_model_allowed", result.domain_or_ent_model_allowed)
     print_category("httpx_runtime_allowed", result.httpx_runtime_allowed)
+    print("Warnings:")
+    print_category("warnings", result.warnings)
+    print("Violations:")
     print_category("stale_manual_api_request_dto", result.stale_manual_api_request_dto)
     print_category("stale_manual_api_response_dto", result.stale_manual_api_response_dto)
-    print_category("suspicious", result.suspicious)
+    print_category("violations", result.violations)
     print(f"generated_boundary_preserved: {result.generated_boundary_preserved}")
     print(f"httpx_runtime_preserved: {result.httpx_runtime_preserved}")
     print(f"generated_runtime_used: {result.generated_runtime_used}")
 
-    if final_verdict == "BLOCKED_STALE_MANUAL_API_DTO":
-        return 1
-    if final_verdict == "CLEAN_WITH_SUSPICIOUS_ITEMS":
+    if final_verdict == "FAILED_VIOLATIONS":
         return 1
     return 0
 

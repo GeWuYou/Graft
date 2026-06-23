@@ -471,7 +471,13 @@ jobs:
           set -euo pipefail
           mkdir -p .tmp
           docker compose pull
-          docker compose up -d
+          docker compose up -d postgres redis
+
+      - name: Run bootstrap migration
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker compose -f compose.yml -f compose.smoke.yml up -d bootstrap
 
       - name: Wait for bootstrap completion
         shell: bash
@@ -499,6 +505,12 @@ jobs:
           docker compose logs bootstrap
           exit 1
 
+      - name: Start server and web
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker compose up -d server web
+
       - name: Wait for server and web readiness
         shell: bash
         run: |
@@ -523,6 +535,19 @@ jobs:
           grep -q "<!doctype html" .tmp-compose-index.html
           grep -q "\"openapi\"" .tmp-compose-openapi.json
 
+      - name: Capture compose diagnostics
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .tmp
+          docker compose ps -a > .tmp/compose-ps.txt 2>&1 || true
+          docker compose logs bootstrap > .tmp/compose-bootstrap.log 2>&1 || true
+          docker compose logs postgres > .tmp/compose-postgres.log 2>&1 || true
+          docker compose logs redis > .tmp/compose-redis.log 2>&1 || true
+          docker compose logs server > .tmp/compose-server.log 2>&1 || true
+          docker compose logs web > .tmp/compose-web.log 2>&1 || true
+
       - name: Upload compose smoke logs
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -532,6 +557,12 @@ jobs:
             .tmp-compose-healthz.json
             .tmp-compose-openapi.json
             .tmp-compose-index.html
+            .tmp/compose-ps.txt
+            .tmp/compose-bootstrap.log
+            .tmp/compose-postgres.log
+            .tmp/compose-redis.log
+            .tmp/compose-server.log
+            .tmp/compose-web.log
           if-no-files-found: ignore
 
       - name: Write compose smoke summary

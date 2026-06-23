@@ -498,6 +498,123 @@ func TestRunValidateMigrationVersionsUsesAllMode(t *testing.T) {
 	}
 }
 
+func TestRunValidateOpenAPIFreshnessInvokesBoundaryAudit(t *testing.T) {
+	originalGetwd := backendGetwd
+	originalReadFile := backendReadFile
+	originalCommandRunner := backendCommandRunner
+	defer func() {
+		backendGetwd = originalGetwd
+		backendReadFile = originalReadFile
+		backendCommandRunner = originalCommandRunner
+	}()
+
+	fixture := setupBoundaryAuditTest(t)
+
+	backendGetwd = func() (string, error) {
+		return fixture.serverDir, nil
+	}
+	backendReadFile = func(path string) ([]byte, error) {
+		if path == fixture.canonicalPath {
+			return fixture.canonicalBundle, nil
+		}
+		return os.ReadFile(path) //nolint:gosec // Test stub reads a temp fixture path controlled by the test.
+	}
+
+	var calls [][]string
+	backendCommandRunner = func(_ *cobra.Command, name string, args ...string) error {
+		calls = append(calls, append([]string{name}, args...))
+		return nil
+	}
+
+	if err := runValidateOpenAPIFreshness(); err != nil {
+		t.Fatalf("run validate openapi freshness: %v", err)
+	}
+
+	expectedBoundaryAudit := []string{"python3", filepath.Join(fixture.repoDir, "scripts", "openapi_generated_backend_boundary_audit.py")}
+	if len(calls) == 0 {
+		t.Fatal("expected boundary audit command call, got none")
+	}
+	if !reflect.DeepEqual(calls[len(calls)-1], expectedBoundaryAudit) {
+		t.Fatalf("expected final freshness call %v, got %v", expectedBoundaryAudit, calls[len(calls)-1])
+	}
+}
+
+func TestRunValidateOpenAPIFreshnessPropagatesBoundaryAuditFailure(t *testing.T) {
+	originalGetwd := backendGetwd
+	originalReadFile := backendReadFile
+	originalCommandRunner := backendCommandRunner
+	defer func() {
+		backendGetwd = originalGetwd
+		backendReadFile = originalReadFile
+		backendCommandRunner = originalCommandRunner
+	}()
+
+	fixture := setupBoundaryAuditTest(t)
+
+	backendGetwd = func() (string, error) {
+		return fixture.serverDir, nil
+	}
+	backendReadFile = func(path string) ([]byte, error) {
+		if path == fixture.canonicalPath {
+			return fixture.canonicalBundle, nil
+		}
+		return os.ReadFile(path) //nolint:gosec // Test stub reads a temp fixture path controlled by the test.
+	}
+
+	boundaryErr := errors.New("python3 boundary audit failed")
+	backendCommandRunner = func(_ *cobra.Command, _ string, args ...string) error {
+		if len(args) == 1 && strings.HasSuffix(args[0], "openapi_generated_backend_boundary_audit.py") {
+			return boundaryErr
+		}
+		return nil
+	}
+
+	err := runValidateOpenAPIFreshness()
+	if err == nil {
+		t.Fatal("expected boundary audit failure")
+	}
+	if !strings.Contains(err.Error(), "run backend generated DTO boundary audit") {
+		t.Fatalf("expected boundary audit context, got %v", err)
+	}
+	if !strings.Contains(err.Error(), boundaryErr.Error()) {
+		t.Fatalf("expected original boundary audit error, got %v", err)
+	}
+}
+
+type boundaryAuditTestFixture struct {
+	repoDir         string
+	serverDir       string
+	canonicalPath   string
+	canonicalBundle []byte
+}
+
+func setupBoundaryAuditTest(t *testing.T) boundaryAuditTestFixture {
+	t.Helper()
+
+	fixture := boundaryAuditTestFixture{}
+	fixture.repoDir = t.TempDir()
+	fixture.serverDir = filepath.Join(fixture.repoDir, "server")
+	if err := os.MkdirAll(fixture.serverDir, 0o750); err != nil {
+		t.Fatalf("mkdir server dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(fixture.repoDir, "AGENTS.md"), []byte("test\n"), 0o600); err != nil {
+		t.Fatalf("write AGENTS: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(fixture.serverDir, "go.mod"), []byte("module graft/server\n"), 0o600); err != nil {
+		t.Fatalf("write go.mod: %v", err)
+	}
+	fixture.canonicalPath = filepath.Join(fixture.repoDir, filepath.FromSlash(app.OpenAPIDocsBundleSourcePath()))
+	if err := os.MkdirAll(filepath.Dir(fixture.canonicalPath), 0o750); err != nil {
+		t.Fatalf("mkdir canonical dir: %v", err)
+	}
+	var err error
+	fixture.canonicalBundle, err = os.ReadFile(filepath.Join("..", "..", "..", app.OpenAPIDocsBundleSourcePath()))
+	if err != nil {
+		t.Fatalf("read canonical bundle fixture: %v", err)
+	}
+	return fixture
+}
+
 // TestRunBackendLintUsesChangedFileScopedArgs 验证 blocking lint gate 采用 changed-file scoped 语义，
 // 并且不会在该路径里运行 full-repo audit。
 func TestRunBackendLintUsesChangedFileScopedArgs(t *testing.T) {

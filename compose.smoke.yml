@@ -1,0 +1,3 @@
+services:
+  bootstrap:
+    command: ["migrate", "up", "--allow-dirty"]

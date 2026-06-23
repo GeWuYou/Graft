@@ -1,9 +1,9 @@
 name: Release SBOM and License Compliance
 
 "on":
-  push:
-    tags:
-      - "v*"
+  release:
+    types:
+      - published
   workflow_dispatch:
     inputs:
       release_tag:
@@ -29,17 +29,22 @@ jobs:
         id: release
         env:
           RELEASE_TAG_INPUT: ${{ github.event.inputs.release_tag || '' }}
+          RELEASE_TAG_EVENT: ${{ github.event.release.tag_name || '' }}
         shell: bash
         run: |
           set -euo pipefail
 
           tag="${RELEASE_TAG_INPUT}"
           if [ -z "$tag" ]; then
-            if [ "${GITHUB_REF_TYPE}" != "tag" ]; then
+            tag="${RELEASE_TAG_EVENT}"
+          fi
+          if [ -z "$tag" ]; then
+            if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+              tag="${GITHUB_REF_NAME}"
+            else
               echo "Manual runs from a branch must provide release_tag." >&2
               exit 1
             fi
-            tag="${GITHUB_REF_NAME}"
           fi
 
           if [ -z "$tag" ]; then
@@ -63,7 +68,7 @@ jobs:
           ref: ${{ steps.release.outputs.checkout_ref }}
           fetch-depth: 0
 
-      - name: Wait for GitHub Release
+      - name: Verify GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ steps.release.outputs.tag }}
@@ -71,18 +76,14 @@ jobs:
         run: |
           set -euo pipefail
 
-          for attempt in {1..30}; do
-            if gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
-              echo "Found GitHub Release for ${RELEASE_TAG}."
-              exit 0
+          if ! output="$(gh release view "${RELEASE_TAG}" 2>&1 >/dev/null)"; then
+            if printf '%s' "${output}" | grep -Eqi 'not found|404'; then
+              echo "::error title=GitHub Release missing::Expected existing GitHub Release ${RELEASE_TAG} before attaching SBOM assets."
+            else
+              printf '::error title=GitHub Release check failed::gh release view failed for %s: %s\n' "${RELEASE_TAG}" "${output}"
             fi
-
-            echo "Release ${RELEASE_TAG} is not available yet; retry ${attempt}/30."
-            sleep 10
-          done
-
-          echo "::error title=GitHub Release missing::Publish Release must create ${RELEASE_TAG} before SBOM assets can be attached."
-          exit 1
+            exit 1
+          fi
 
       - name: Download release assets
         env:
