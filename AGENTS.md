@@ -554,6 +554,12 @@ For repository work:
 - default to a dedicated branch and PR for repository work
 - direct development on `main` is allowed only for emergency fixes or when the user explicitly authorizes it
 - use branch names in the form `<type>/<topic-or-scope>`
+- keep `<topic-or-scope>` in lowercase kebab-case and aligned with the real intent of the branch, not with stale
+  earlier work
+- use established branch types such as `feat`, `fix`, `refactor`, `docs`, `chore`, `build`, or `ci`; do not invent a
+  one-off prefix when an existing repository type already matches
+- avoid generic placeholders or worktree-marker names such as `wt-*` unless the branch is intentionally the tracked
+  long-lived topic/worktree branch recorded in `ai-plan/public/**`
 - decide change ownership before staging or committing; a validated change is auto-committable only when its ownership
   is reliably known
 - when one logical feature slice reaches a directly validated milestone, commit it before starting the next unrelated
@@ -620,6 +626,20 @@ Task handoff and pre-handoff commit rules:
   preflight and provides the minimum inherited context package needed to resume safely
 - a handoff requirement does not override mixed-ownership or insufficient-validation refusal rules; when a safe commit
   cannot be made, say so and leave the scope uncommitted rather than force-staging ambiguous changes
+
+For push-triggered branch-name hygiene:
+
+- `$graft-push` must inspect the commits that are about to be pushed before choosing the final branch name
+- when an upstream exists, compare the local push scope from `@{upstream}..HEAD`; when no upstream exists, compare the
+  local-only scope from the merge-base with the intended base branch, normally `main`
+- if the current branch name no longer matches the dominant intent of that local-only commit range, rename the local
+  branch before pushing
+- the renamed branch must still follow `<type>/<topic-or-scope>`, where `type` matches the dominant change kind and
+  `topic-or-scope` is a concise lowercase kebab-case summary of the commits being pushed
+- do not rename branches during ordinary `$graft-commit` runs just because the local commit stack evolved; the
+  mandatory branch-name fit check happens at `$graft-push`
+- when a push-triggered rename happens, update the upstream mapping through the new branch name and do not auto-delete
+  the old remote branch unless the user explicitly asks
 
 For staging and mixed-ownership files:
 

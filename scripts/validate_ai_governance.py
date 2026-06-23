@@ -25,6 +25,7 @@ WEB_BROWSER_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-web-browser-agent"
 PR_REVIEW_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-pr-review" / "SKILL.md"
 PR_CREATE_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-pr-create" / "SKILL.md"
 AI_AUDIT_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-ai-governance-audit" / "SKILL.md"
+PUSH_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-push" / "SKILL.md"
 TABLE_DESIGN_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-table-design" / "SKILL.md"
 SQL_MIGRATION_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-sql-migration" / "SKILL.md"
 SHARED_ASSET_REUSE_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-shared-asset-reuse" / "SKILL.md"
@@ -403,6 +404,42 @@ def validate_agents_skill_list() -> list[Finding]:
     return findings
 
 
+def validate_push_branch_governance() -> list[Finding]:
+    findings: list[Finding] = []
+
+    if AGENTS.is_file():
+        text = read_text(AGENTS)
+        for term in (
+            "For push-triggered branch-name hygiene:",
+            "`$graft-push` must inspect the commits that are about to be pushed",
+            "`@{upstream}..HEAD`",
+            "lowercase kebab-case",
+            "do not rename branches during ordinary `$graft-commit` runs",
+        ):
+            if term not in text:
+                findings.append(Finding(AGENTS, f"missing push branch governance term {term!r}"))
+
+    if not PUSH_SKILL.is_file():
+        findings.append(Finding(PUSH_SKILL, "push skill is missing"))
+        return findings
+
+    text = read_text(PUSH_SKILL)
+    for term in (
+        "git log --oneline @{upstream}..HEAD",
+        "merge-base with the intended base branch, normally `main`",
+        "branch names must follow `<type>/<topic-or-scope>`",
+        "lowercase kebab-case",
+        "generic `wt-*` placeholders",
+        "rename the local branch before pushing",
+        "do not auto-delete the old remote branch after a rename unless the user explicitly asks",
+        "whether a branch-name check ran, what commit range it used, and whether a rename happened",
+    ):
+        if term not in text:
+            findings.append(Finding(PUSH_SKILL, f"missing push branch governance term {term!r}"))
+
+    return findings
+
+
 def validate_backend_guardrail_governance() -> list[Finding]:
     """
     验证后端守护栏治理文档的存在性和完整性。
@@ -627,6 +664,7 @@ def run_validation() -> list[Finding]:
     findings.extend(validate_sql_migration_governance())
     findings.extend(validate_shared_asset_governance())
     findings.extend(validate_agents_skill_list())
+    findings.extend(validate_push_branch_governance())
     findings.extend(validate_backend_guardrail_governance())
     findings.extend(validate_environment_inventory())
     findings.extend(validate_no_private_config_tracked(tracked))

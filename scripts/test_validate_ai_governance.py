@@ -49,6 +49,11 @@ class EnvironmentInventoryTests(unittest.TestCase):
         self.assertEqual(MODULE.validate_environment_inventory(), [])
 
 
+class PushBranchGovernanceTests(unittest.TestCase):
+    def test_push_branch_governance_is_currently_satisfied(self) -> None:
+        self.assertEqual(MODULE.validate_push_branch_governance(), [])
+
+
 class BackendGuardrailGovernanceTests(unittest.TestCase):
     def test_backend_guardrail_governance_is_currently_satisfied(self) -> None:
         self.assertEqual(MODULE.validate_backend_guardrail_governance(), [])
