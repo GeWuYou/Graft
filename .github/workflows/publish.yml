@@ -619,6 +619,8 @@ jobs:
           repo-api-url: ${{ github.api_url }}/repos/${{ github.repository }}
           repository: ${{ github.repository }}
           missing-token-message: PAT_TOKEN is required to dispatch the post-release SBOM and license compliance workflow.
+          workflow-dispatch-probe: license-compliance.yml
+          workflow-dispatch-required-message: PAT_TOKEN must allow workflow dispatch for license-compliance.yml; use a classic token with workflow scope or a fine-grained token with Actions read/write permission.
 
       - name: Download release artifacts
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c

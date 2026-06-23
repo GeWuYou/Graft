@@ -14,6 +14,14 @@ inputs:
   missing-token-message:
     description: Error message emitted when the PAT is absent.
     required: true
+  workflow-dispatch-probe:
+    description: Optional workflow file name to probe for workflow_dispatch permission without creating a real run.
+    required: false
+    default: ""
+  workflow-dispatch-required-message:
+    description: Error message emitted when the PAT cannot dispatch the requested workflow.
+    required: false
+    default: ""
 
 runs:
   using: composite
@@ -25,6 +33,8 @@ runs:
         REPO_API_URL: ${{ inputs.repo-api-url }}
         REPOSITORY: ${{ inputs.repository }}
         MISSING_TOKEN_MESSAGE: ${{ inputs.missing-token-message }}
+        WORKFLOW_DISPATCH_PROBE: ${{ inputs.workflow-dispatch-probe }}
+        WORKFLOW_DISPATCH_REQUIRED_MESSAGE: ${{ inputs.workflow-dispatch-required-message }}
       run: |
         if [ -z "${PAT_TOKEN}" ]; then
           echo "::error::${MISSING_TOKEN_MESSAGE}"
@@ -66,3 +76,40 @@ runs:
             exit 1
             ;;
         esac
+
+        if [ -n "${WORKFLOW_DISPATCH_PROBE}" ]; then
+          dispatch_probe_file="$(mktemp)"
+          trap 'rm -f "${response_file}" "${dispatch_probe_file}"' EXIT
+
+          dispatch_status_code="$(
+            curl -sS -o "${dispatch_probe_file}" -w "%{http_code}" \
+              --connect-timeout 10 \
+              --max-time 30 \
+              -X POST \
+              -H "Authorization: Bearer ${PAT_TOKEN}" \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "${REPO_API_URL}/actions/workflows/${WORKFLOW_DISPATCH_PROBE}/dispatches" \
+              -d '{"ref":"__graft_permission_probe__"}'
+          )"
+
+          case "${dispatch_status_code}" in
+            204|422)
+              # 422 is expected because the probe ref must not exist; it still proves dispatch permission.
+              ;;
+            401|403)
+              if [ -n "${WORKFLOW_DISPATCH_REQUIRED_MESSAGE}" ]; then
+                echo "::error::${WORKFLOW_DISPATCH_REQUIRED_MESSAGE}"
+              else
+                echo "::error::PAT_TOKEN cannot dispatch ${WORKFLOW_DISPATCH_PROBE}."
+              fi
+              cat "${dispatch_probe_file}"
+              exit 1
+              ;;
+            *)
+              echo "::error::Failed to probe workflow_dispatch permission for ${WORKFLOW_DISPATCH_PROBE} (HTTP ${dispatch_status_code})."
+              cat "${dispatch_probe_file}"
+              exit 1
+              ;;
+          esac
+        fi

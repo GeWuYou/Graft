@@ -20,6 +20,8 @@
 - release-package SBOM and license compliance automation is dispatched explicitly from the publish workflow with
   `PAT_TOKEN` after the GitHub Release is created; the repository does not rely on `release.published` fan-out from a
   `github.token`-authored release step
+- the release `PAT_TOKEN` must cover both repository write access for release publication and workflow-dispatch access
+  for the post-release `license-compliance.yml` automation
 
 ## Not Yet Promised In `v0.1.0`
 
