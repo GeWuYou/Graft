@@ -535,7 +535,7 @@ func TestRunValidateOpenAPIFreshnessInvokesBoundaryAudit(t *testing.T) {
 		if path == canonicalPath {
 			return canonicalBundle, nil
 		}
-		return os.ReadFile(path)
+		return os.ReadFile(path) //nolint:gosec // Test stub reads a temp fixture path controlled by the test.
 	}
 
 	var calls [][]string
@@ -591,7 +591,7 @@ func TestRunValidateOpenAPIFreshnessPropagatesBoundaryAuditFailure(t *testing.T)
 		if path == canonicalPath {
 			return canonicalBundle, nil
 		}
-		return os.ReadFile(path)
+		return os.ReadFile(path) //nolint:gosec // Test stub reads a temp fixture path controlled by the test.
 	}
 
 	boundaryErr := errors.New("python3 boundary audit failed")
