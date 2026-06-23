@@ -1694,11 +1694,11 @@ async function submitUserRoleAssignment() {
 
   try {
     if (roleDialogMode.value === 'batch') {
-      const payload: BatchUserRoleMutationPayload = {
+      const batchPayload: BatchUserRoleMutationPayload = {
         user_ids: selectedBatchUserIds.value,
-        role_ids: [...effectiveRoleMutationIds.value],
+        role_ids: payload.role_ids,
       };
-      await mutateBatchUserRoles(roleMutationMode.value, payload);
+      await mutateBatchUserRoles(roleMutationMode.value, batchPayload);
     } else if (selectedUser.value) {
       await mutateUserRoles(selectedUser.value.id, roleMutationMode.value, payload);
     }
