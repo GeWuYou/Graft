@@ -17,6 +17,11 @@
   published as external release assets instead of binary-embedded payload
 - release-package SBOM and license compliance scope limited to the official same-tag release assets rather than the
   full repository source tree or local-only development toolchain
+- release-package SBOM and license compliance automation is dispatched explicitly from the publish workflow with
+  `PAT_TOKEN` after the GitHub Release is created; the repository does not rely on `release.published` fan-out from a
+  `github.token`-authored release step
+- the release `PAT_TOKEN` must cover both repository write access for release publication and workflow-dispatch access
+  for the post-release `license-compliance.yml` automation
 
 ## Not Yet Promised In `v0.1.0`
 
@@ -45,6 +50,8 @@
   redefine the support boundary
 - when automation and release docs diverge, repair the release docs or align the automation in the same task instead of
   treating workflow behavior as self-authorizing truth
+- when a GitHub Actions token would suppress downstream workflow fan-out, release automation must use an explicit
+  dispatch step or another documented authority-safe trigger instead of assuming `release.published` will run
 
 ## `v0.1.0` Before And After Boundary
 

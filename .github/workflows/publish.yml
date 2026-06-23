@@ -612,6 +612,16 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Validate release PAT
+        uses: ./.github/actions/validate-pat
+        with:
+          pat-token: ${{ secrets.PAT_TOKEN }}
+          repo-api-url: ${{ github.api_url }}/repos/${{ github.repository }}
+          repository: ${{ github.repository }}
+          missing-token-message: PAT_TOKEN is required to dispatch the post-release SBOM and license compliance workflow.
+          workflow-dispatch-probe: license-compliance.yml
+          workflow-dispatch-required-message: PAT_TOKEN must allow workflow dispatch for license-compliance.yml; use a classic token with workflow scope or a fine-grained token with Actions read/write permission.
+
       - name: Download release artifacts
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
@@ -647,6 +657,27 @@ jobs:
             release-assets/*
         env:
           GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Dispatch release SBOM workflow
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          gh workflow run license-compliance.yml \
+            --ref "${RELEASE_TAG}" \
+            -f "release_tag=${RELEASE_TAG}"
+
+          {
+            echo "## Release SBOM Dispatch"
+            echo
+            echo "- Workflow: \`license-compliance.yml\`"
+            echo "- Trigger: \`workflow_dispatch\` via \`PAT_TOKEN\`"
+            echo "- Release Tag: \`${RELEASE_TAG}\`"
+            echo "- Reason: GitHub Release creation in this workflow uses \`github.token\`, which does not fan out a second workflow run through \`release.published\`."
+          } >> "${GITHUB_STEP_SUMMARY}"
 
       - name: Write publish summary
         env:
