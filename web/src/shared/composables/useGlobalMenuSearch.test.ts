@@ -24,7 +24,7 @@ describe('useGlobalMenuSearch helpers', () => {
             name: 'ContainerListIndex',
             path: 'containers',
             meta: {
-              title: { 'zh-CN': '容器管理', 'en-US': 'Container Management' },
+              title: { 'zh-CN': '容器管理', 'en-US': 'Containers' },
               titleKey: 'container.list.title',
             },
           }),
@@ -123,7 +123,7 @@ describe('useGlobalMenuSearch helpers', () => {
             name: 'ContainerListIndex',
             path: 'containers',
             meta: {
-              title: { 'zh-CN': '容器管理', 'en-US': 'Container Management' },
+              title: { 'zh-CN': '容器管理', 'en-US': 'Containers' },
               titleKey: 'container.list.title',
             },
           }),

@@ -229,7 +229,7 @@ describe('transformBootstrapMenusToRoutes', () => {
     expect(routes[0]?.children?.[3]?.name).toBe('MonitorModuleRuntimeOverviewIndex');
     expect(routes[0]?.children?.[3]?.meta?.titleKey).toBe('menu.server.modules.title');
     expect(routes[0]?.children?.[3]?.meta?.breadcrumbTitle?.['zh-CN']).toBe('模块运行时');
-    expect(routes[0]?.children?.[3]?.meta?.tabTitle?.['en-US']).toBe('Service Management - Module Runtime');
+    expect(routes[0]?.children?.[3]?.meta?.tabTitle?.['en-US']).toBe('Modules');
     expect(routes[0]?.children?.[3]?.meta?.orderNo).toBe(4);
     expect(routes[0]?.children?.[3]?.meta?.pageSurface).toBe('paged-table');
   });
@@ -265,8 +265,8 @@ describe('transformBootstrapMenusToRoutes', () => {
     expect(routes[0]?.children?.[0]?.meta?.titleKey).toBe('menu.accessLog.title');
     expect(routes[0]?.children?.[0]?.meta?.pageKind).toBe('list');
     expect(routes[0]?.children?.[0]?.meta?.breadcrumbTitle?.['zh-CN']).toBe('访问日志');
-    expect(routes[0]?.children?.[0]?.meta?.tabTitle?.['zh-CN']).toBe('日志中心 - 访问日志');
-    expect(routes[0]?.children?.[0]?.meta?.tabTitle?.['en-US']).toBe('Log Center - Access Logs');
+    expect(routes[0]?.children?.[0]?.meta?.tabTitle?.['zh-CN']).toBe('访问日志');
+    expect(routes[0]?.children?.[0]?.meta?.tabTitle?.['en-US']).toBe('Access Logs');
   });
 
   it('规范化尾随斜杠后仍能正确挂载父子菜单', () => {
@@ -352,8 +352,8 @@ describe('transformBootstrapMenusToRoutes', () => {
     expect(routes[0]?.children?.[0]?.name).toBe('AnnouncementManagementIndex');
     expect(routes[0]?.children?.[0]?.meta?.titleKey).toBe('menu.server.announcements.title');
     expect(routes[0]?.children?.[0]?.meta?.breadcrumbTitle?.['zh-CN']).toBe('公告管理');
-    expect(routes[0]?.children?.[0]?.meta?.tabTitle?.['zh-CN']).toBe('服务管理 - 公告管理');
-    expect(routes[0]?.children?.[0]?.meta?.tabTitle?.['en-US']).toBe('Service Management - Announcements');
+    expect(routes[0]?.children?.[0]?.meta?.tabTitle?.['zh-CN']).toBe('公告管理');
+    expect(routes[0]?.children?.[0]?.meta?.tabTitle?.['en-US']).toBe('Announcements');
   });
 
   it('registers menu-hidden global routes at their canonical URL without index redirects', () => {
@@ -404,7 +404,7 @@ describe('transformBootstrapMenusToRoutes', () => {
           },
           domainTitle: {
             'zh-CN': '容器管理',
-            'en-US': 'Container Management',
+            'en-US': 'Containers',
           },
         },
       },

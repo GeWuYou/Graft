@@ -246,7 +246,7 @@ function buildDerivedTitleMeta(title: LocalizedTitle, parentTitle?: LocalizedTit
   return {
     semanticTitle: combineLocalizedTitles(parentTitle, title),
     breadcrumbTitle: title,
-    tabTitle: combineLocalizedTitles(parentTitle, title),
+    tabTitle: title,
   };
 }
 

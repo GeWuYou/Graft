@@ -6,7 +6,7 @@ describe('localizeRouteTitle', () => {
   it('prefers the bootstrap title_key when the frontend locale catalog defines it', () => {
     expect(localizeRouteTitle('用户管理', 'menu.user_list.title')).toEqual({
       'zh-CN': '用户管理',
-      'en-US': 'User Management',
+      'en-US': 'Users',
     });
     expect(localizeRouteTitle('服务管理', 'monitor.sectionTitle')).toEqual({
       'zh-CN': '服务管理',

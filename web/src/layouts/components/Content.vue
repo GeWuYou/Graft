@@ -7,7 +7,7 @@
       size="small"
       :text="t('layout.routeLoading')"
     >
-      <div v-if="!isRefreshing" class="route-view-shell">
+      <div class="route-view-shell">
         <router-view v-if="!isFramePage" v-slot="{ Component, route: viewRoute }">
           <transition name="fade" mode="out-in" @before-enter="() => handleBeforeEnter(viewRoute)">
             <keep-alive v-if="shouldKeepActiveViewAlive">
@@ -18,7 +18,6 @@
         </router-view>
         <frame-page v-else />
       </div>
-      <div v-else class="route-refresh-placeholder" />
     </t-loading>
   </div>
 </template>
@@ -113,8 +112,7 @@ const handleBeforeEnter = (viewRoute?: RouteLocationNormalizedLoaded) => {
 
 .route-page-loading,
 .route-loading-host :deep(.t-loading__parent),
-.route-view-shell,
-.route-refresh-placeholder {
+.route-view-shell {
   display: flex;
   flex: 1;
   flex-direction: column;

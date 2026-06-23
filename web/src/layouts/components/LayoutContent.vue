@@ -134,6 +134,7 @@ import type { LocalizedTitle } from '@/contracts/i18n/locales';
 import { LOCALE } from '@/contracts/i18n/locales';
 import { t } from '@/locales';
 import { useLocale } from '@/locales/useLocale';
+import { resolveTabRefreshHandler } from '@/shared/composables/useTabRefresh';
 import { copyText } from '@/shared/observability/copy';
 import { useSettingStore, useTabsRouterStore } from '@/store';
 import { type PageSurfaceType, renderLocalizedTitle, resolvePageSurfaceType } from '@/utils/route/meta';
@@ -232,6 +233,16 @@ const handlePageSurfaceEnter = (surface: PageSurfaceType) => {
 };
 
 const handleRefresh = (route: TRouterInfo, routeIdx: number) => {
+  const refreshHandler = resolveTabRefreshHandler(getTabKey(route));
+  if (refreshHandler) {
+    tabsRouterStore.startTabRefresh(routeIdx);
+    Promise.resolve(refreshHandler()).finally(() => {
+      tabsRouterStore.finishTabRefresh(routeIdx);
+    });
+    activeTabKeyForMenu.value = null;
+    return;
+  }
+
   tabsRouterStore.startTabRefresh(routeIdx);
   nextTick(() => {
     tabsRouterStore.finishTabRefresh(routeIdx);

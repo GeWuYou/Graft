@@ -15,15 +15,15 @@ describe('container bootstrap route registrations', () => {
     expect(containerBootstrapRouteRegistrations[0]?.meta).toMatchObject({
       semanticTitle: {
         'zh-CN': '运维管理 - 容器管理',
-        'en-US': 'Operations - Container Management',
+        'en-US': 'Containers',
       },
       tabTitle: {
         'zh-CN': '运维管理 - 容器管理',
-        'en-US': 'Operations - Container Management',
+        'en-US': 'Containers',
       },
       breadcrumbTitle: {
         'zh-CN': '容器管理',
-        'en-US': 'Container Management',
+        'en-US': 'Containers',
       },
     });
     expect(containerBootstrapRouteRegistrations[0]?.meta).not.toHaveProperty('title');

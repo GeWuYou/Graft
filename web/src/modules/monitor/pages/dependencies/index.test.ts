@@ -9,6 +9,24 @@ const monitorApiMocks = vi.hoisted(() => ({
   getServerStatus: vi.fn(),
 }));
 
+const routeMocks = vi.hoisted(() => ({
+  route: {
+    path: '/server/dependencies',
+    fullPath: '/server/dependencies',
+  },
+}));
+
+const tabsRouterStoreMock = vi.hoisted(() => ({
+  activeTabKey: '/server/dependencies',
+  tabRouters: [
+    {
+      path: '/server/dependencies',
+      fullPath: '/server/dependencies',
+      tabKey: '/server/dependencies',
+    },
+  ],
+}));
+
 const translations = vi.hoisted(
   (): Record<string, string> => ({
     'app.refreshControl.labels.interval': '自动刷新：',
@@ -108,21 +126,33 @@ vi.mock('../../api/server-status', () => ({
   getServerStatus: monitorApiMocks.getServerStatus,
 }));
 
-vi.mock('vue-i18n', () => ({
-  useI18n: () => ({
-    locale: 'en-US',
-    t: (key: string, params?: Record<string, unknown>) => {
-      const template = translations[key] ?? key;
-      if (!params) {
-        return template;
-      }
+vi.mock('vue-i18n', async () => {
+  const actual = await vi.importActual<typeof import('vue-i18n')>('vue-i18n');
+  return {
+    ...actual,
+    useI18n: () => ({
+      locale: 'en-US',
+      t: (key: string, params?: Record<string, unknown>) => {
+        const template = translations[key] ?? key;
+        if (!params) {
+          return template;
+        }
 
-      return Object.entries(params).reduce(
-        (result, [token, value]) => result.replace(`{${token}}`, String(value)),
-        template,
-      );
-    },
-  }),
+        return Object.entries(params).reduce(
+          (result, [token, value]) => result.replace(`{${token}}`, String(value)),
+          template,
+        );
+      },
+    }),
+  };
+});
+
+vi.mock('vue-router', () => ({
+  useRoute: () => routeMocks.route,
+}));
+
+vi.mock('@/store', () => ({
+  useTabsRouterStore: () => tabsRouterStoreMock,
 }));
 
 const passthroughStub = defineComponent({

@@ -3,6 +3,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import type { RefreshControlStatus } from '@/shared/components/refresh';
+import { useCurrentTabRefresh } from '@/shared/composables/useTabRefresh';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { formatLocaleDateTime } from '@/shared/observability';
 
@@ -123,6 +124,10 @@ export function useServerStatusSnapshot() {
   onMounted(() => {
     void refreshSnapshot();
     document.addEventListener('visibilitychange', handleVisibilityChange, false);
+  });
+
+  useCurrentTabRefresh(async () => {
+    await refreshSnapshot();
   });
 
   onUnmounted(() => {

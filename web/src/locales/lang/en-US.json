@@ -321,20 +321,20 @@
         "title": "Overview"
       },
       "users": {
-        "title": "User Management"
+        "title": "Users"
       },
       "roles": {
-        "title": "Role Management"
+        "title": "Roles"
       },
       "permissions": {
-        "title": "Permission Management"
+        "title": "Permissions"
       }
     },
     "role_list": {
-      "title": "Role Management"
+      "title": "Roles"
     },
     "user_list": {
-      "title": "User Management"
+      "title": "Users"
     },
     "server": {
       "title": "Service Management",
@@ -349,7 +349,7 @@
       }
     },
     "modulesRuntime": {
-      "title": "Module Runtime"
+      "title": "Modules"
     },
     "logCenter": {
       "title": "Log Center"
