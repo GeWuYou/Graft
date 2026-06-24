@@ -3451,8 +3451,10 @@ type ContainerDetail struct {
 	Ports        []ContainerPort            `json:"ports"`
 
 	// PrimaryIp Primary IP address when the runtime list summary exposes one without raw inspect.
-	PrimaryIp *string                   `json:"primary_ip,omitempty"`
-	Resource  *ContainerResourceSummary `json:"resource,omitempty"`
+	PrimaryIp *string `json:"primary_ip,omitempty"`
+
+	// Resource Latest-known backend resource stats projection attached to this metadata row. On HTTP responses it should be treated as a seed snapshot for container stats state rather than the final frontend authority.
+	Resource *ContainerResourceSummary `json:"resource,omitempty"`
 
 	// RestartCount Nullable when the runtime list path does not expose restart count without inspect.
 	RestartCount  *int    `json:"restart_count,omitempty"`
@@ -3747,10 +3749,13 @@ type ContainerRemoveRequest struct {
 	Force *bool `json:"force,omitempty"`
 }
 
-// ContainerResourceSummary defines model for container-resource-summary.
+// ContainerResourceSummary Latest-known backend resource stats projection for one container. On HTTP list/detail responses this object is a seed snapshot for frontend stats state, not the final cross-page authority. Canonical stats authority remains the backend collector, cache, and `container.stats:{id}` topic chain.
 type ContainerResourceSummary struct {
 	// Available Compatibility mirror of stats_available for existing clients. New UI code should use stats_available.
 	Available bool `json:"available"`
+
+	// CollectedAt RFC3339 timestamp of the latest-known stats snapshot represented by this summary. Consumers should use it to compare HTTP seed snapshots with realtime updates and preserve newer stats authority.
+	CollectedAt *time.Time `json:"collected_at,omitempty"`
 
 	// CpuPercent Docker-compatible instantaneous CPU usage percentage derived from consecutive stats samples. The value may exceed 100 on multi-core hosts.
 	CpuPercent           *float64 `json:"cpu_percent,omitempty"`
@@ -3904,8 +3909,10 @@ type ContainerSummary struct {
 	Ports        []ContainerPort            `json:"ports"`
 
 	// PrimaryIp Primary IP address when the runtime list summary exposes one without raw inspect.
-	PrimaryIp *string                   `json:"primary_ip,omitempty"`
-	Resource  *ContainerResourceSummary `json:"resource,omitempty"`
+	PrimaryIp *string `json:"primary_ip,omitempty"`
+
+	// Resource Latest-known backend resource stats projection attached to this metadata row. On HTTP responses it should be treated as a seed snapshot for container stats state rather than the final frontend authority.
+	Resource *ContainerResourceSummary `json:"resource,omitempty"`
 
 	// RestartCount Nullable when the runtime list path does not expose restart count without inspect.
 	RestartCount  *int    `json:"restart_count,omitempty"`

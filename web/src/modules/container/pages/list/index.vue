@@ -330,13 +330,19 @@
               :content="metric.tooltip"
               placement="top"
             >
-              <div class="container-resource-meter" :data-available="metric.available">
+              <div
+                class="container-resource-meter"
+                :class="metric.changeClass"
+                :data-available="metric.available"
+                data-testid="container-cpu-meter"
+              >
                 <t-progress
                   v-if="metric.available"
                   theme="circle"
                   :label="false"
                   :percentage="metric.percentage"
                   :size="36"
+                  :status="metric.progressStatus"
                   :stroke-width="4"
                 />
                 <span v-else class="container-resource-meter__empty"></span>
@@ -352,13 +358,19 @@
               :content="metric.tooltip"
               placement="top"
             >
-              <div class="container-resource-meter" :data-available="metric.available">
+              <div
+                class="container-resource-meter"
+                :class="metric.changeClass"
+                :data-available="metric.available"
+                data-testid="container-memory-meter"
+              >
                 <t-progress
                   v-if="metric.available"
                   theme="circle"
                   :label="false"
                   :percentage="metric.percentage"
                   :size="36"
+                  :status="metric.progressStatus"
                   :stroke-width="4"
                 />
                 <span v-else class="container-resource-meter__empty"></span>
@@ -473,7 +485,7 @@ import type { DialogInstance, DropdownOption, TdBaseTableProps } from 'tdesign-v
 import { DialogPlugin } from 'tdesign-vue-next/es/dialog';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { NotifyPlugin } from 'tdesign-vue-next/es/notification';
-import { computed, h, onMounted, reactive, ref, watch } from 'vue';
+import { computed, h, onActivated, onDeactivated, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
@@ -507,7 +519,15 @@ import {
 } from '../../api/container';
 import { CONTAINER_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import { CONTAINER_PERMISSION_CODE } from '../../contract/permissions';
-import { CONTAINER_REALTIME_TOPIC } from '../../contract/realtime';
+import {
+  acquireContainerSummaryCollectionSubscription,
+  clearContainerListMetadata,
+  releaseContainerSummaryCollectionSubscription,
+  seedContainerList,
+  selectContainerListViews,
+  selectContainerStatsChangeState,
+} from '../../shared/stats-manager';
+import { metricChangedClass, metricProgressStatus } from '../../shared/stats-visual-state';
 import type {
   ContainerAction,
   ContainerActionLevel,
@@ -606,7 +626,9 @@ type RowAction =
   | 'view-networks';
 type ResourceMetric = {
   available: boolean;
+  changeClass: Record<string, boolean>;
   percentage: number;
+  progressStatus: 'success' | 'warning' | undefined;
   tooltip: string;
   value: string;
 };
@@ -621,7 +643,6 @@ type SourceQuickFilterValue = {
 const tableLoading = ref(false);
 const refreshing = ref(false);
 const listError = ref<ListErrorState>({ title: '', hint: '' });
-const rows = ref<ContainerSummaryRecord[]>([]);
 const runtime = ref<ContainerRuntimeInfo | null>(null);
 const listSummary = ref<ContainerListSummary | null>(null);
 const listTotal = ref(0);
@@ -645,6 +666,9 @@ const pagination = reactive({
   current: 1,
   pageSize: CONTAINER_DEFAULT_PAGE_SIZE,
 });
+const rows = computed<ContainerSummaryRecord[]>(() => selectContainerListViews());
+const listRealtimeActive = ref(false);
+let listRealtimeSubscribed = false;
 
 const allColumns = computed<TdBaseTableProps['columns']>(() => [
   { colKey: 'row-select', type: 'multiple', width: 48, fixed: 'left', align: 'center' },
@@ -811,7 +835,23 @@ const selectedRows = computed(() => {
 let refreshRequestSeq = 0;
 
 onMounted(() => {
+  listRealtimeActive.value = true;
   void refreshContainers();
+});
+
+onUnmounted(() => {
+  listRealtimeActive.value = false;
+  releaseListRealtimeSubscription();
+});
+
+onActivated(() => {
+  listRealtimeActive.value = true;
+  acquireListRealtimeSubscription();
+});
+
+onDeactivated(() => {
+  listRealtimeActive.value = false;
+  releaseListRealtimeSubscription();
 });
 
 useCurrentTabRefresh(async () => {
@@ -876,7 +916,12 @@ async function refreshContainers() {
     if (requestSeq !== refreshRequestSeq) {
       return;
     }
-    rows.value = payload.items;
+    seedContainerList(payload.items);
+    if (payload.items.length > 0) {
+      acquireListRealtimeSubscription();
+    } else {
+      releaseListRealtimeSubscription();
+    }
     runtime.value = payload.runtime;
     listSummary.value = payload.summary;
     listTotal.value = payload.total;
@@ -885,7 +930,8 @@ async function refreshContainers() {
     if (requestSeq !== refreshRequestSeq) {
       return;
     }
-    rows.value = [];
+    releaseListRealtimeSubscription();
+    clearContainerListMetadata();
     runtime.value = null;
     listSummary.value = null;
     listTotal.value = 0;
@@ -909,6 +955,22 @@ async function handleManualRefresh() {
 function pruneSelectedRows() {
   const availableIds = new Set(rows.value.map((row) => row.id));
   selectedRowKeys.value = selectedRowKeys.value.filter((key) => availableIds.has(String(key)));
+}
+
+function acquireListRealtimeSubscription() {
+  if (!listRealtimeActive.value || rows.value.length === 0 || listRealtimeSubscribed) {
+    return;
+  }
+  listRealtimeSubscribed = true;
+  acquireContainerSummaryCollectionSubscription();
+}
+
+function releaseListRealtimeSubscription() {
+  if (!listRealtimeSubscribed) {
+    return;
+  }
+  listRealtimeSubscribed = false;
+  releaseContainerSummaryCollectionSubscription();
 }
 
 function resolveListError(error: unknown): ListErrorState {
@@ -1605,20 +1667,25 @@ function resourceSummary(row: ContainerSummaryRecord) {
 }
 
 function cpuMetric(row: ContainerSummaryRecord): ResourceMetric & { summaryValue: string } {
+  const change = selectContainerStatsChangeState(row.id);
   if (row.resource?.cpu_percent === undefined) {
     return {
       available: false,
+      changeClass: metricChangedClass(change, 'cpu'),
       percentage: 0,
+      progressStatus: metricProgressStatus(change.cpu),
       summaryValue: t('container.list.stats.unavailable'),
       tooltip: resourceUnavailableSummary(row, 'cpu'),
       value: t('container.list.stats.unavailable'),
     };
   }
 
-  const value = `${row.resource.cpu_percent.toFixed(1)}%`;
+  const value = formatPercent(row.resource.cpu_percent);
   return {
     available: true,
+    changeClass: metricChangedClass(change, 'cpu'),
     percentage: clampPercentage(row.resource.cpu_percent),
+    progressStatus: metricProgressStatus(change.cpu),
     summaryValue: value,
     tooltip: t('container.list.stats.cpuTooltip', { percent: value }),
     value,
@@ -1626,10 +1693,13 @@ function cpuMetric(row: ContainerSummaryRecord): ResourceMetric & { summaryValue
 }
 
 function memoryMetric(row: ContainerSummaryRecord): ResourceMetric & { summaryValue: string } {
+  const change = selectContainerStatsChangeState(row.id);
   if (row.resource?.memory_usage_bytes === undefined || row.resource?.memory_percent === undefined) {
     return {
       available: false,
+      changeClass: metricChangedClass(change, 'memory'),
       percentage: 0,
+      progressStatus: metricProgressStatus(change.memory),
       summaryValue: t('container.list.stats.unavailable'),
       tooltip: resourceUnavailableSummary(row, 'memory'),
       value: t('container.list.stats.unavailable'),
@@ -1638,12 +1708,14 @@ function memoryMetric(row: ContainerSummaryRecord): ResourceMetric & { summaryVa
 
   const usage = formatBytes(row.resource.memory_usage_bytes);
   const limit = formatBytes(row.resource.memory_limit_bytes);
-  const percent = `${row.resource.memory_percent.toFixed(1)}%`;
+  const percent = formatPercent(row.resource.memory_percent);
   const value = usage || t('container.list.stats.unavailable');
 
   return {
     available: true,
+    changeClass: metricChangedClass(change, 'memory'),
     percentage: clampPercentage(row.resource.memory_percent),
+    progressStatus: metricProgressStatus(change.memory),
     summaryValue: percent,
     tooltip: t('container.list.stats.memoryTooltip', {
       limit: limit || t('container.list.stats.unavailable'),
@@ -1656,6 +1728,14 @@ function memoryMetric(row: ContainerSummaryRecord): ResourceMetric & { summaryVa
 
 function clampPercentage(value: number) {
   return Math.min(100, Math.max(0, Number.isFinite(value) ? value : 0));
+}
+
+function formatPercent(value?: number) {
+  if (value === undefined || !Number.isFinite(value)) {
+    return t('container.list.stats.unavailable');
+  }
+
+  return `${value.toFixed(2)}%`;
 }
 
 function resourceUnavailableSummary(row: ContainerSummaryRecord, metric: 'cpu' | 'memory') {
@@ -1673,10 +1753,7 @@ function localizeResourceUnavailableReason(reason?: string | null) {
   if (!normalizedReason) {
     return '';
   }
-  if (
-    !normalizedReason.startsWith('ops.container.error.') &&
-    !normalizedReason.startsWith(CONTAINER_REALTIME_TOPIC.STATS_PREFIX)
-  ) {
+  if (!normalizedReason.startsWith('ops.container.error.') && !normalizedReason.startsWith('container.stats:')) {
     return normalizedReason;
   }
   if (te(normalizedReason)) {
@@ -1690,7 +1767,7 @@ function formatBytes(value?: number) {
     return '';
   }
 
-  return `${(value / BYTES_PER_MIB).toFixed(value >= BYTES_PER_MIB ? 1 : 2)} MiB`;
+  return `${(value / BYTES_PER_MIB).toFixed(2)} MiB`;
 }
 
 function formatTime(value?: string | null) {
@@ -2102,11 +2179,32 @@ function normalizeVisibleColumnKeys(keys: unknown[]) {
 
 .container-resource-meter {
   align-items: center;
+  border-radius: 999px;
   display: inline-flex;
   gap: var(--graft-density-gap-8);
   justify-content: center;
   min-width: 0;
+  overflow: hidden;
+  padding: var(--graft-density-gap-2) var(--graft-density-gap-8) var(--graft-density-gap-2) var(--graft-density-gap-2);
+  position: relative;
+  transform: translateZ(0);
+  transition:
+    background-color 180ms ease,
+    color 180ms ease,
+    opacity 180ms ease,
+    transform 180ms ease;
   white-space: nowrap;
+  will-change: background-color, opacity, transform;
+}
+
+.container-resource-meter::after {
+  border-radius: inherit;
+  content: '';
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  position: absolute;
+  transform: scaleX(0.96);
 }
 
 .container-resource-meter > span:last-child {
@@ -2127,6 +2225,116 @@ function normalizeVisibleColumnKeys(keys: unknown[]) {
   flex: 0 0 36px;
   height: 36px;
   width: 36px;
+}
+
+.container-resource-meter.container-metric-change--up {
+  animation: container-resource-shift-up 480ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  background: color-mix(in srgb, var(--td-warning-color-1) 58%, transparent);
+  transform: translateY(-1px);
+}
+
+.container-resource-meter.container-metric-change--down {
+  animation: container-resource-shift-down 480ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  background: color-mix(in srgb, var(--td-success-color-1) 60%, transparent);
+}
+
+.container-resource-meter.container-metric-change--up::after {
+  animation: container-resource-overlay-up 520ms ease-out;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--td-warning-color-3) 0%, transparent) 0%,
+    color-mix(in srgb, var(--td-warning-color-4) 18%, transparent) 28%,
+    color-mix(in srgb, var(--td-warning-color-5) 24%, transparent) 52%,
+    color-mix(in srgb, var(--td-warning-color-3) 0%, transparent) 100%
+  );
+}
+
+.container-resource-meter.container-metric-change--down::after {
+  animation: container-resource-overlay-down 520ms ease-out;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--td-success-color-3) 0%, transparent) 0%,
+    color-mix(in srgb, var(--td-success-color-4) 16%, transparent) 28%,
+    color-mix(in srgb, var(--td-success-color-5) 20%, transparent) 52%,
+    color-mix(in srgb, var(--td-success-color-3) 0%, transparent) 100%
+  );
+}
+
+@keyframes container-resource-shift-up {
+  0% {
+    opacity: 0.92;
+    transform: translate3d(0, 1px, 0);
+  }
+
+  40% {
+    opacity: 1;
+    transform: translate3d(0, -1px, 0);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translate3d(0, -1px, 0);
+  }
+}
+
+@keyframes container-resource-shift-down {
+  0% {
+    opacity: 0.92;
+    transform: translate3d(0, -1px, 0);
+  }
+
+  40% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes container-resource-overlay-up {
+  0% {
+    opacity: 0;
+    transform: scaleX(0.94) translateX(-8%);
+  }
+
+  30% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: scaleX(1.02) translateX(8%);
+  }
+}
+
+@keyframes container-resource-overlay-down {
+  0% {
+    opacity: 0;
+    transform: scaleX(0.94) translateX(8%);
+  }
+
+  30% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: scaleX(1.02) translateX(-8%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .container-resource-meter,
+  .container-resource-meter::after,
+  .container-resource-meter.container-metric-change--up,
+  .container-resource-meter.container-metric-change--down {
+    animation: none;
+    transform: none;
+    transition-duration: 0ms;
+  }
 }
 
 .container-actions {

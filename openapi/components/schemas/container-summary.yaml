@@ -84,6 +84,9 @@ properties:
     nullable: true
   resource:
     $ref: ./container-resource-summary.yaml
+    description: >
+      Latest-known backend resource stats projection attached to this metadata row. On HTTP responses it should be
+      treated as a seed snapshot for container stats state rather than the final frontend authority.
   restart_count:
     type: integer
     minimum: 0

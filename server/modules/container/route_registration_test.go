@@ -218,6 +218,39 @@ func TestRoutesRejectInvalidRef(t *testing.T) {
 	}
 }
 
+func TestDashboardSummaryRouteUsesViewPermission(t *testing.T) {
+	t.Parallel()
+
+	authorizer := &recordingAuthorizer{}
+	ctx, engine := newRouteTestContext(authorizer)
+	service, err := newRouteTestService(containerServiceOptions{
+		runtime:                 fakeRuntime{},
+		enabled:                 true,
+		dangerousActionsEnabled: true,
+		shellEnabled:            true,
+		defaultTail:             defaultContainerLogsDefaultTail,
+		maxTail:                 defaultContainerLogsMaxTail,
+	})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	if err := registerRoutes(ctx, moduleID, service); err != nil {
+		t.Fatalf("register routes: %v", err)
+	}
+
+	response := httptest.NewRecorder()
+	engine.ServeHTTP(response, authorizedRequest(http.MethodGet, "/api/ops/containers/dashboard-summary"))
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected dashboard summary 200, got %d: %s", response.Code, response.Body.String())
+	}
+	if !slices.Contains(authorizer.permissions, containercontract.ContainerViewPermission.String()) {
+		t.Fatalf("expected container view permission, got %#v", authorizer.permissions)
+	}
+	if !strings.Contains(response.Body.String(), "\"overview\"") {
+		t.Fatalf("expected dashboard summary payload, got %s", response.Body.String())
+	}
+}
+
 func TestRoutesRejectInvalidLogQuery(t *testing.T) {
 	t.Parallel()
 

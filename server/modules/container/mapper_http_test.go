@@ -242,6 +242,7 @@ func TestToResourceSummaryMapsDockerStatsFields(t *testing.T) {
 	resource := ResourceSummary{
 		Available:                  true,
 		StatsAvailable:             true,
+		CollectedAt:                "2026-06-24T02:03:04Z",
 		CPUPercent:                 float64Ptr(12.5),
 		OnlineCPUs:                 int64Ptr(4),
 		SystemCPUUsage:             int64Ptr(1000),
@@ -276,6 +277,9 @@ func TestToResourceSummaryMapsDockerStatsFields(t *testing.T) {
 	if mapped == nil {
 		t.Fatalf("expected mapped resource summary")
 	}
+	if mapped.CollectedAt == nil || mapped.CollectedAt.Format("2006-01-02T15:04:05Z07:00") != "2026-06-24T02:03:04Z" {
+		t.Fatalf("unexpected mapped resource collected_at %#v", mapped.CollectedAt)
+	}
 	assertFloatPtr(t, mapped.CpuPercent, 12.5, "mapped CPU percent")
 	assertInt64Ptr(t, mapped.OnlineCpus, 4, "mapped online CPUs")
 	assertInt64Ptr(t, mapped.SystemCpuUsage, 1000, "mapped system CPU usage")
@@ -304,6 +308,24 @@ func TestToResourceSummaryMapsDockerStatsFields(t *testing.T) {
 	assertInt64Ptr(t, mapped.TxDropped, 20, "mapped tx dropped")
 	assertInt64Ptr(t, mapped.PidsCurrent, 5, "mapped pids current")
 	assertInt64Ptr(t, mapped.PidsLimit, 128, "mapped pids limit")
+}
+
+func TestToContainerDashboardOverviewPreservesZeroTotals(t *testing.T) {
+	t.Parallel()
+
+	mapped := toContainerDashboardOverview(containerDashboardOverview{
+		RunningContainers:     1,
+		AbnormalContainers:    0,
+		CPUTotalPercent:       0,
+		MemoryTotalUsageBytes: 0,
+		MemoryTotalLimitBytes: 0,
+	})
+
+	assertInt64Ptr(t, mapped.MemoryTotalUsageBytes, 0, "mapped zero dashboard memory usage bytes")
+	assertInt64Ptr(t, mapped.MemoryTotalLimitBytes, 0, "mapped zero dashboard memory limit bytes")
+	if mapped.MemoryTotalPercent != nil {
+		t.Fatalf("expected nil memory total percent without aggregate limit, got %#v", mapped.MemoryTotalPercent)
+	}
 }
 
 func int64Ptr(value int64) *int64 {

@@ -77,5 +77,7 @@ systemConfig.container.ops.container.shell.enabled.title: 启用容器 Shell
 systemConfig.container.ops.container.shell.enabled.description: 控制是否允许为容器创建交互式 Shell 会话票据与 WebSocket 连接。
 systemConfig.container.ops.container.resource_stats.cache_ttl_seconds.title: 资源快照新鲜窗口
 systemConfig.container.ops.container.resource_stats.cache_ttl_seconds.description: 控制容器资源快照在下一次 stats 刷新前保持新鲜结果的时长。
+systemConfig.container.ops.container.resource_stats.collect_interval_seconds.title: 资源采样周期
+systemConfig.container.ops.container.resource_stats.collect_interval_seconds.description: 控制容器资源采样与 canonical stats topic 发布的默认周期，默认每 1 秒刷新一次。
 systemConfig.container.ops.container.resource_stats.stale_window_seconds.title: 资源快照过期兜底窗口
 systemConfig.container.ops.container.resource_stats.stale_window_seconds.description: 控制容器资源快照在后台刷新期间还能继续返回陈旧结果的时长。

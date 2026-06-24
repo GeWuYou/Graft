@@ -1,4 +1,5 @@
 export const CONTAINER_REALTIME_TOPIC = {
+  LIST_STATS: 'container.stats.list',
   STATS_PREFIX: 'container.stats:',
 } as const;
 

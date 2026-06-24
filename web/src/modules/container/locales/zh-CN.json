@@ -388,6 +388,8 @@
         "cpuUsageRate": "CPU 使用率",
         "dashboard": "资源仪表盘",
         "detailedMetrics": "详细指标",
+        "history": "资源历史",
+        "historyEmpty": "暂无历史快照",
         "memory": "内存",
         "memoryActiveFile": "活跃文件",
         "memoryCache": "缓存",

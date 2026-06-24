@@ -388,6 +388,8 @@
         "cpuUsageRate": "CPU Usage",
         "dashboard": "Resource Dashboard",
         "detailedMetrics": "Detailed Metrics",
+        "history": "Resource History",
+        "historyEmpty": "No History Snapshots Yet",
         "memory": "Memory",
         "memoryActiveFile": "Active File",
         "memoryCache": "Cache",

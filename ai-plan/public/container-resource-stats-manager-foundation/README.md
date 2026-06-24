@@ -6,8 +6,8 @@
 
 ## 当前状态摘要
 
-- 当前主题目标是为 `Graft` 容器管理建立统一资源状态层，收敛 `metadata / stats / subscription` 的 authority，并为 `List / Detail / Dashboard` 共享消费准备基础设施。
-- 当前状态：Phase 0 设计与 recovery topic 已建立，尚未进入实现批次。
+- 当前主题目标是为 `Graft` 容器管理建立统一资源状态层，收敛 `metadata / stats / subscription` 的 authority，并为 `container.stats.list`、详情页与 Dashboard 的共享消费准备基础设施。
+- 当前状态：`archive-ready`。
 - 任务分类为 `cross-boundary`，涉及 container backend authority、OpenAPI 契约和 container frontend module state architecture。
 - Canonical design：`ai-plan/design/容器资源状态与订阅治理设计.md`。
 - 推荐执行技能：`$graft-multi-agent-loop`，loop mode 默认 `topic-completion-loop`。
@@ -51,11 +51,34 @@
 ## Current Recovery Point
 
 - 已完成 Arcane 与 Graft 资源数据流对照审计，结论已收敛到仓库级设计文档。
-- 已确认：
-  - Arcane 的列表页存在集中式 stats manager，但 Detail 与 Dashboard 不共享统一资源状态层。
-  - Graft 后端已具备 `statsCollector -> resourceStatsCache -> container.stats:{id}` 主链。
-  - Graft 前端当前仍缺少统一 stats state authority，资源状态分散在 list HTTP、detail HTTP 和 detail realtime 局部合并逻辑中。
-- 当前下一批推荐从 Phase 1 开始，不直接跳到前端 manager 实现。
+- 已完成 Phase 1 authority repair 目标：
+  - `ContainerResourceSummary.collected_at` 回到 canonical contract
+  - HTTP `resource` 明确为 seed snapshot / latest-known projection
+  - collector / cache / canonical topic 主链保持不变
+- 已完成 Phase 2 frontend foundation：
+  - `web/src/modules/container/shared/stats-manager.ts` 建立 module-owned metadata/stats foundation
+  - list/detail 已通过 selector 读取统一 stats authority
+  - detail 不再用页面局部 merge/patch 长期保留 realtime resource
+- 已完成 Phase 3 subscription manager unification：
+  - `ContainerStatsManager` 收口 acquire / release / ref-count / idle-grace cleanup
+  - list/detail 共享同一份 `container.stats:{id}` 订阅生命周期
+  - list 加载失败只清理 list metadata，不再全局 reset module-owned stats authority
+- 已完成 Phase 4 dashboard shared resource consumption：
+  - dashboard 通过 container module contract facade 读取面向概览的容器资源聚合视图；详情 authority 仍保持在 `container.stats:{id}`
+  - dashboard 复用同一份 canonical stats authority 与 subscription lifecycle
+  - container stats manager 增加 collection-key 隔离，避免 dashboard metadata projection 覆盖 list projection
+- 已完成 Phase 5 optional history store：
+  - container module 内新增短时 history ring buffer
+  - detail resources 区可读取独立 history state，latest/history 显式分离
+  - 未引入新的 server/OpenAPI authority 或 dashboard authority
+- 当前补充修复：
+  - container resource stats 默认采样周期调整为 1 秒，并通过 module system config 保持可覆盖
+  - list/detail/dashboard 对 CPU / 内存 realtime 变化增加 module-owned visual emphasis，不改变 authority
+- archive-ready 判定：
+  - 所有计划 Phase 已完成并分别按批次提交
+  - authority 主链保持为 `statsCollector -> resourceStatsCache -> container.stats:{id}`
+  - container module 继续拥有 latest stats 与 optional history 的长期 authority
+  - 无剩余 in-scope batch 需要继续推进
 
 ## Validation Targets
 

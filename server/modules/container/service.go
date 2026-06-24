@@ -279,6 +279,22 @@ func (s *service) List(ctx context.Context, query ListQuery) (ListResult, error)
 	}, nil
 }
 
+func (s *service) DashboardSummary(ctx context.Context, _ dashboardSummaryQuery) (dashboardSummaryResult, error) {
+	if err := s.requireRuntimeAccess(ctx); err != nil {
+		return dashboardSummaryResult{}, err
+	}
+	runtime, err := s.runtimeForRequest()
+	if err != nil {
+		return dashboardSummaryResult{}, err
+	}
+	items, err := runtime.List(ctx, ListQuery{})
+	if err != nil {
+		return dashboardSummaryResult{}, err
+	}
+	items = applyActionAvailability(items, s.effectiveActionPolicy(ctx))
+	return buildContainerDashboardSummary(items), nil
+}
+
 func (s *service) Detail(ctx context.Context, ref Ref) (Detail, error) {
 	if err := s.requireRuntimeAccess(ctx); err != nil {
 		return Detail{}, err
@@ -1236,12 +1252,13 @@ type containerRuntimeOptions struct {
 	maxTail                              int
 	resourceStatsCacheTTLSeconds         int
 	resourceStatsCacheStaleWindowSeconds int
+	resourceStatsCollectIntervalSeconds  int
 	environmentPolicy                    containercontract.EnvironmentPolicy
 	orchestratorPolicies                 orchestratorActionPolicies
 	logger                               *zap.Logger
 }
 
-// containerOptionsFromConfig 从模块上下文提取容器运行时配置选项，并按默认值、配置注册表和显式模块配置依次应用覆盖。
+// containerOptionsFromConfig 从模块上下文构建容器运行时选项，并按默认值、配置注册表和显式模块配置的顺序应用覆盖。
 func containerOptionsFromConfig(ctx *module.Context) containerRuntimeOptions {
 	options := containerRuntimeOptions{
 		enabled:                              defaultContainerEnabled,
@@ -1252,6 +1269,7 @@ func containerOptionsFromConfig(ctx *module.Context) containerRuntimeOptions {
 		maxTail:                              defaultContainerLogsMaxTail,
 		resourceStatsCacheTTLSeconds:         defaultContainerResourceStatsCacheTTL,
 		resourceStatsCacheStaleWindowSeconds: defaultContainerResourceStatsStaleWindow,
+		resourceStatsCollectIntervalSeconds:  defaultContainerResourceStatsCollectInterval,
 		environmentPolicy:                    defaultContainerEnvironmentPolicy,
 		orchestratorPolicies: orchestratorActionPolicies{
 			Compose:    defaultContainerComposeActionLevel,
@@ -1273,6 +1291,11 @@ func containerOptionsFromConfig(ctx *module.Context) containerRuntimeOptions {
 		ctx,
 		containercontract.ContainerResourceStatsCacheStaleWindowConfig.String(),
 		&options.resourceStatsCacheStaleWindowSeconds,
+	)
+	applyContainerIntDefault(
+		ctx,
+		containercontract.ContainerResourceStatsCollectIntervalConfig.String(),
+		&options.resourceStatsCollectIntervalSeconds,
 	)
 	applyContainerBoolDefault(ctx, containercontract.ContainerDangerousActionsEnabledConfig.String(), &options.dangerousActionsEnabled)
 	applyContainerEnvironmentPolicyDefault(ctx, containercontract.ContainerEnvironmentPolicyConfig.String(), &options.environmentPolicy)
@@ -1491,6 +1514,7 @@ func (s *service) effectiveLogTailBounds(ctx context.Context) (int, int) {
 //
 // @param ttlSeconds 资源统计缓存的 TTL 秒数。
 // @param staleWindowSeconds 资源统计缓存的过期窗口秒数。
+// normalizeContainerResourceStatsCacheBounds 归一化资源统计缓存的 TTL 和过期窗口。
 // @returns 归一化后的 TTL 秒数和过期窗口秒数。
 func normalizeContainerResourceStatsCacheBounds(ttlSeconds int, staleWindowSeconds int) (int, int) {
 	if ttlSeconds <= 0 {
@@ -1500,6 +1524,30 @@ func normalizeContainerResourceStatsCacheBounds(ttlSeconds int, staleWindowSecon
 		staleWindowSeconds = defaultContainerResourceStatsStaleWindow
 	}
 	return ttlSeconds, staleWindowSeconds
+}
+
+// normalizeContainerResourceStatsCollectInterval 将资源统计采集间隔归一为有效值。
+// 当 intervalSeconds 小于等于 0 时，返回默认采集间隔。
+//
+// @returns 归一化后的采集间隔（秒）。
+func normalizeContainerResourceStatsCollectInterval(intervalSeconds int) int {
+	if intervalSeconds <= 0 {
+		return defaultContainerResourceStatsCollectInterval
+	}
+	return intervalSeconds
+}
+
+func (s *service) effectiveResourceStatsCollectInterval(ctx context.Context) time.Duration {
+	intervalSeconds := defaultContainerResourceStatsCollectInterval
+	if s != nil {
+		intervalSeconds = s.runtimeOptions.resourceStatsCollectIntervalSeconds
+	}
+	intervalSeconds = s.resolveIntegerConfig(
+		ctx,
+		containercontract.ContainerResourceStatsCollectIntervalConfig.String(),
+		intervalSeconds,
+	)
+	return time.Duration(normalizeContainerResourceStatsCollectInterval(intervalSeconds)) * time.Second
 }
 
 func (s *service) effectiveResourceStatsCacheBounds(ctx context.Context) (time.Duration, time.Duration) {
@@ -1736,6 +1784,7 @@ func (s *service) startStatsCollector(ctx context.Context) error {
 			s.moduleName,
 		)
 	}
+	s.statsCollector.interval = s.effectiveResourceStatsCollectInterval(ctx)
 	return s.statsCollector.Start(ctx)
 }
 
@@ -1761,6 +1810,9 @@ func (s *service) registerRealtimeTopics() error {
 	if s.topicIssuers == nil {
 		return errors.New("realtime topic issuer registry is unavailable")
 	}
+	if err := s.topicIssuers.Register(containercontract.ContainerListStatsTopic, s); err != nil {
+		return err
+	}
 	return s.topicIssuers.Register(containercontract.ContainerStatsTopicPrefix, s)
 }
 
@@ -1776,6 +1828,9 @@ func (s *service) IssueSubscription(
 	if topic == "" {
 		return realtime.SubscriptionResponse{}, realtime.ErrTopicRequired
 	}
+	if topic == containercontract.ContainerListStatsTopic {
+		return s.issueContainerListRealtimeSubscription(ctx, request, topic)
+	}
 	if !strings.HasPrefix(topic, containercontract.ContainerStatsTopicPrefix) {
 		return realtime.SubscriptionResponse{}, realtime.ErrTopicNotFound
 	}
@@ -1787,6 +1842,39 @@ func (s *service) IssueSubscription(
 	}
 
 	return s.issueContainerRealtimeSubscription(ctx, request, topic)
+}
+
+func (s *service) issueContainerListRealtimeSubscription(
+	ctx context.Context,
+	request realtime.SubscriptionRequest,
+	topic string,
+) (realtime.SubscriptionResponse, error) {
+	if request.RequestAuth.User == nil {
+		return realtime.SubscriptionResponse{}, realtime.ErrTopicForbidden
+	}
+	if s.authorizer == nil {
+		return realtime.SubscriptionResponse{}, realtime.ErrTopicForbidden
+	}
+	if err := s.authorizer.Authorize(ctx, request.RequestAuth, containercontract.ContainerViewPermission.String()); err != nil {
+		return realtime.SubscriptionResponse{}, realtime.ErrTopicForbidden
+	}
+	if _, err := s.List(ctx, ListQuery{Limit: 1}); err != nil {
+		if errors.Is(err, errRuntimeDisabled) {
+			return realtime.SubscriptionResponse{}, realtime.ErrTopicForbidden
+		}
+		return realtime.SubscriptionResponse{}, realtime.ErrTopicConflict
+	}
+
+	issued, err := (realtime.TicketIssuer{Tickets: s.realtimeTickets}).IssueTopicTicket(ctx, request)
+	if err != nil {
+		return realtime.SubscriptionResponse{}, realtime.ErrTopicConflict
+	}
+	return realtime.SubscriptionResponse{
+		Topic:        topic,
+		Ticket:       issued.Ticket,
+		WebSocketURL: realtime.BuildTopicWebSocketURL(topic, issued.Ticket),
+		ExpiresAt:    issued.ExpiresAt,
+	}, nil
 }
 
 func (s *service) issueContainerRealtimeSubscription(

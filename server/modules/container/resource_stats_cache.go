@@ -171,9 +171,11 @@ func (c *resourceStatsCache) completeLoad(ctx context.Context, key string, load 
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	load.summary = summary
 	if cacheable {
 		recordedAt := c.now()
+		if strings.TrimSpace(summary.CollectedAt) == "" {
+			summary.CollectedAt = recordedAt.UTC().Format(time.RFC3339)
+		}
 		c.items[key] = resourceStatsCacheEntry{
 			summary:    summary,
 			updatedAt:  recordedAt,
@@ -181,6 +183,7 @@ func (c *resourceStatsCache) completeLoad(ctx context.Context, key string, load 
 			staleUntil: recordedAt.Add(c.ttl + c.staleWindow),
 		}
 	}
+	load.summary = summary
 	delete(c.inflight, key)
 	close(load.done)
 	return summary

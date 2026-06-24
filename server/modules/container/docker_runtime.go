@@ -48,6 +48,15 @@ type DockerRuntime struct {
 	logger            *zap.Logger
 	mountUsageScanner mountUsageScanner
 	resourceStats     *resourceStatsCache
+	cpuBaselinesMu    sync.Mutex
+	cpuBaselines      map[string]dockerCPUStatsBaseline
+}
+
+type dockerCPUStatsBaseline struct {
+	totalUsage  uint64
+	systemUsage uint64
+	onlineCPUs  uint32
+	collectedAt time.Time
 }
 
 type dockerClient interface {
@@ -71,7 +80,7 @@ type systemInfo interface {
 }
 
 // NewDockerRuntime 创建 Docker 容器运行时适配器。
-// 它会使用给定的端点初始化连接，并按配置创建资源统计缓存。
+// staleWindow 指定缓存允许返回过期数据的时间窗口。
 func NewDockerRuntime(endpoint string, logger *zap.Logger, cacheTTL time.Duration, staleWindow time.Duration) (*DockerRuntime, error) {
 	endpoint = firstNonEmpty(endpoint, defaultContainerDockerEndpoint)
 	cli, err := mobyclient.New(mobyclient.WithHost(endpoint))
@@ -83,6 +92,7 @@ func NewDockerRuntime(endpoint string, logger *zap.Logger, cacheTTL time.Duratio
 		endpoint:      endpoint,
 		logger:        logger,
 		resourceStats: newResourceStatsCache(cacheTTL, staleWindow),
+		cpuBaselines:  make(map[string]dockerCPUStatsBaseline),
 	}, nil
 }
 
@@ -399,6 +409,7 @@ func (r *DockerRuntime) invalidateResourceSummary(ids ...string) {
 		return
 	}
 	cache.invalidate(ids...)
+	r.clearCPUStatsBaselines(ids...)
 }
 
 func (r *DockerRuntime) ensureResourceStatsCache() *resourceStatsCache {
@@ -459,13 +470,19 @@ func (r *DockerRuntime) CollectStatsSnapshots(ctx context.Context) ([]StatsSnaps
 			for index := range indexes {
 				summary := dockerSummary(items[index])
 				resource := r.collectCachedResourceSummary(ctx, summary.ID)
+				snapshotCollectedAt := collectedAt
+				if parsedCollectedAt, ok := parseResourceCollectedAt(resource.CollectedAt); ok {
+					snapshotCollectedAt = parsedCollectedAt
+				} else if strings.TrimSpace(resource.CollectedAt) == "" {
+					resource.CollectedAt = collectedAt.Format(time.RFC3339)
+				}
 				snapshots[index] = StatsSnapshot{
 					ContainerID: summary.ID,
 					Name:        summary.Name,
 					ShortID:     summary.ShortID,
 					Runtime:     summary.Runtime,
 					Resource:    resource,
-					CollectedAt: collectedAt,
+					CollectedAt: snapshotCollectedAt,
 				}
 			}
 		}()
@@ -493,7 +510,7 @@ func (r *DockerRuntime) dockerResourceSummary(containerID string, stats containe
 		Available:      true,
 		StatsAvailable: true,
 	}
-	if cpuPercent, ok := dockerCPUPercent(stats); ok {
+	if cpuPercent, ok := r.dockerCPUPercent(containerID, stats); ok {
 		resource.CPUPercent = &cpuPercent
 		r.logDockerCPUCalculation(containerID, stats, cpuPercent, true)
 	} else {
@@ -597,6 +614,8 @@ func (dockerNetworkTotals) int64Ptr(value uint64, overflow bool) *int64 {
 	return uint64ToInt64Ptr(value)
 }
 
+// addUint64 将 value 累加到 total，并在发生溢出时标记结果无效。
+// @returns 累加后的和；如果输入已溢出或加法会溢出，则返回 0 和 true。
 func addUint64(total uint64, value uint64, overflow bool) (uint64, bool) {
 	if overflow || total > ^uint64(0)-value {
 		return 0, true
@@ -604,19 +623,86 @@ func addUint64(total uint64, value uint64, overflow bool) (uint64, bool) {
 	return total + value, false
 }
 
-// 仅在当前采样相较于上一采样存在有效增量且可确定在线 CPU 数时返回结果。
-func dockerCPUPercent(stats container.StatsResponse) (float64, bool) {
-	if stats.CPUStats.CPUUsage.TotalUsage <= stats.PreCPUStats.CPUUsage.TotalUsage ||
-		stats.CPUStats.SystemUsage <= stats.PreCPUStats.SystemUsage {
+// 优先使用运行时维护的上一帧 one-shot 样本计算 CPU 百分比。
+// 当基线缺失或当前采样不完整时返回 false，并在可行时更新基线供下一帧使用。
+func (r *DockerRuntime) dockerCPUPercent(containerID string, stats container.StatsResponse) (float64, bool) {
+	normalizedID := strings.TrimSpace(containerID)
+	current, ok := dockerCurrentCPUStatsBaseline(stats)
+	if !ok {
 		return 0, false
 	}
-	cpuDelta := float64(stats.CPUStats.CPUUsage.TotalUsage - stats.PreCPUStats.CPUUsage.TotalUsage)
-	systemDelta := float64(stats.CPUStats.SystemUsage - stats.PreCPUStats.SystemUsage)
-	onlineCPUs := dockerStatsOnlineCPUs(stats)
+	previous, hasPrevious := r.cpuStatsBaseline(normalizedID)
+	r.recordCPUStatsBaseline(normalizedID, current)
+	if !hasPrevious {
+		return 0, false
+	}
+	if current.systemUsage <= previous.systemUsage {
+		return 0, false
+	}
+	if current.totalUsage <= previous.totalUsage {
+		return 0, true
+	}
+	cpuDelta := float64(current.totalUsage - previous.totalUsage)
+	systemDelta := float64(current.systemUsage - previous.systemUsage)
+	onlineCPUs := current.onlineCPUs
 	if onlineCPUs == 0 {
 		return 0, false
 	}
 	return (cpuDelta / systemDelta) * float64(onlineCPUs) * dockerStatsPercentScale, true
+}
+
+// dockerCurrentCPUStatsBaseline 提取用于计算 CPU 百分比的当前基线。
+// 当可用 CPU 数或系统 CPU 使用量为零时，返回 false。
+/*
+*/
+func dockerCurrentCPUStatsBaseline(stats container.StatsResponse) (dockerCPUStatsBaseline, bool) {
+	onlineCPUs := dockerStatsOnlineCPUs(stats)
+	if onlineCPUs == 0 || stats.CPUStats.SystemUsage == 0 {
+		return dockerCPUStatsBaseline{}, false
+	}
+	return dockerCPUStatsBaseline{
+		totalUsage:  stats.CPUStats.CPUUsage.TotalUsage,
+		systemUsage: stats.CPUStats.SystemUsage,
+		onlineCPUs:  onlineCPUs,
+	}, true
+}
+
+func (r *DockerRuntime) cpuStatsBaseline(containerID string) (dockerCPUStatsBaseline, bool) {
+	if r == nil || strings.TrimSpace(containerID) == "" {
+		return dockerCPUStatsBaseline{}, false
+	}
+	r.cpuBaselinesMu.Lock()
+	defer r.cpuBaselinesMu.Unlock()
+	baseline, ok := r.cpuBaselines[strings.TrimSpace(containerID)]
+	return baseline, ok
+}
+
+func (r *DockerRuntime) recordCPUStatsBaseline(containerID string, baseline dockerCPUStatsBaseline) {
+	if r == nil || strings.TrimSpace(containerID) == "" {
+		return
+	}
+	r.cpuBaselinesMu.Lock()
+	defer r.cpuBaselinesMu.Unlock()
+	if r.cpuBaselines == nil {
+		r.cpuBaselines = make(map[string]dockerCPUStatsBaseline)
+	}
+	baseline.collectedAt = time.Now().UTC()
+	r.cpuBaselines[strings.TrimSpace(containerID)] = baseline
+}
+
+func (r *DockerRuntime) clearCPUStatsBaselines(ids ...string) {
+	if r == nil || len(ids) == 0 {
+		return
+	}
+	r.cpuBaselinesMu.Lock()
+	defer r.cpuBaselinesMu.Unlock()
+	for _, id := range ids {
+		normalizedID := strings.TrimSpace(id)
+		if normalizedID == "" {
+			continue
+		}
+		delete(r.cpuBaselines, normalizedID)
+	}
 }
 
 // dockerStatsOnlineCPUs 返回统计信息中的在线 CPU 数。
@@ -705,6 +791,8 @@ func resourceStatsErrorReason(err error) string {
 	return containerStatsUnavailableReason
 }
 
+// resourceStatsErrorMessage 将资源统计原因转换为用户可读的错误消息。
+// reason 对应的消息包括“未收集”“数据不完整”“收集超时”和通用不可用说明。
 func resourceStatsErrorMessage(reason string) string {
 	switch reason {
 	case containerStatsNotCollectedReason:
@@ -718,6 +806,18 @@ func resourceStatsErrorMessage(reason string) string {
 	}
 }
 
+// parseResourceCollectedAt 解析资源采集时间。
+// 成功时返回转换为 UTC 的时间和 true；解析失败时返回零值和 false。
+func parseResourceCollectedAt(value string) (time.Time, bool) {
+	parsed, err := time.Parse(time.RFC3339, strings.TrimSpace(value))
+	if err != nil {
+		return time.Time{}, false
+	}
+	return parsed.UTC(), true
+}
+
+// uint64ToInt64 将 uint64 值转换为 int64，并在超出范围时返回失败。
+// @returns 转换后的 int64 值，以及一个布尔值；当原值可以安全表示为 int64 时为 `true`，否则为 `false`。
 func uint64ToInt64(value uint64) (int64, bool) {
 	if value > uint64(^uint64(0)>>1) {
 		return 0, false

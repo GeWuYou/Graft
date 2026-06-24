@@ -1,4 +1,8 @@
 type: object
+description: >
+  Latest-known backend resource stats projection for one container. On HTTP list/detail responses this object is a seed
+  snapshot for frontend stats state, not the final cross-page authority. Canonical stats authority remains the backend
+  collector, cache, and `container.stats:{id}` topic chain.
 required:
   - available
   - stats_available
@@ -20,6 +24,13 @@ properties:
     type: string
     nullable: true
     description: Sanitized display-safe stats collection message; raw Docker daemon errors are not exposed.
+  collected_at:
+    type: string
+    format: date-time
+    nullable: true
+    description: >
+      RFC3339 timestamp of the latest-known stats snapshot represented by this summary. Consumers should use it to
+      compare HTTP seed snapshots with realtime updates and preserve newer stats authority.
   cpu_percent:
     type: number
     format: double

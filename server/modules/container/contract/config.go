@@ -39,6 +39,8 @@ const (
 	ContainerResourceStatsCacheTTLConfig ConfigKey = "ops.container.resource_stats.cache_ttl_seconds"
 	// ContainerResourceStatsCacheStaleWindowConfig stores the stale-while-refresh window for cached container resource stats snapshots.
 	ContainerResourceStatsCacheStaleWindowConfig ConfigKey = "ops.container.resource_stats.stale_window_seconds"
+	// ContainerResourceStatsCollectIntervalConfig stores the realtime stats collector publish interval in seconds.
+	ContainerResourceStatsCollectIntervalConfig ConfigKey = "ops.container.resource_stats.collect_interval_seconds"
 	// ContainerDangerousActionsEnabledConfig enables high-risk container actions.
 	ContainerDangerousActionsEnabledConfig ConfigKey = "ops.container.actions.dangerous_enabled"
 	// ContainerComposeActionLevelConfig stores the dangerous-action policy for compose-managed containers.

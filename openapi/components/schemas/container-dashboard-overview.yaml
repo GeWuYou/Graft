@@ -1,0 +1,31 @@
+type: object
+required:
+  - running_containers
+  - abnormal_containers
+  - cpu_total_percent
+properties:
+  running_containers:
+    type: integer
+    minimum: 0
+  abnormal_containers:
+    type: integer
+    minimum: 0
+  cpu_total_percent:
+    type: number
+    format: double
+    minimum: 0
+  memory_total_usage_bytes:
+    type: integer
+    format: int64
+    minimum: 0
+    nullable: true
+  memory_total_limit_bytes:
+    type: integer
+    format: int64
+    minimum: 0
+    nullable: true
+  memory_total_percent:
+    type: number
+    format: double
+    minimum: 0
+    nullable: true

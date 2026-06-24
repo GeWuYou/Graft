@@ -54,6 +54,12 @@
 
         <dashboard-quick-actions v-if="summary" :links="quickLinks" :config="quickActionConfig" />
 
+        <dashboard-container-resources
+          v-if="canViewContainerOverview"
+          :summary="containerDashboardSummary"
+          :loading="containerResourcesLoading"
+        />
+
         <dashboard-renderer
           :widgets="widgets"
           :refreshing-widget-id="refreshingWidgetId"
@@ -72,6 +78,9 @@ import { computed, onMounted, ref } from 'vue';
 import { API_CODE } from '@/contracts/api/codes';
 import type { SupportedLocale } from '@/contracts/i18n/locales';
 import { currentLocale, t } from '@/locales';
+import { containerModuleFacades } from '@/modules/container';
+import type { ContainerDashboardSummary } from '@/modules/container/contract/dashboard-summary';
+import { CONTAINER_PERMISSION_CODE } from '@/modules/container/contract/permissions';
 import { PageHeader } from '@/shared/components/page';
 import { formatLocaleDateTime, MEDIUM_DATE_TIME_WITH_SECONDS_FORMAT_OPTIONS } from '@/shared/observability';
 import { usePermissionStore } from '@/store/modules/permission';
@@ -80,6 +89,7 @@ import { createLogger } from '@/utils/logger';
 
 import { getDashboardSummary, getDashboardWidget } from '../api/dashboard';
 import { getDashboardSystemConfigs } from '../api/quick-actions-config';
+import DashboardContainerResources from '../components/DashboardContainerResources.vue';
 import DashboardQuickActions from '../components/DashboardQuickActions.vue';
 import DashboardRenderer from '../components/DashboardRenderer.vue';
 import {
@@ -103,6 +113,8 @@ const summary = ref<DashboardSummaryResponse | null>(null);
 const widgets = ref<DashboardWidget[]>([]);
 const lastUpdatedAt = ref('');
 const quickActionConfig = ref<DashboardQuickActionConfig>({ ...DEFAULT_DASHBOARD_QUICK_ACTION_CONFIG });
+const containerResourcesLoading = ref(false);
+const containerDashboardSummary = ref<ContainerDashboardSummary>(emptyContainerDashboardSummary());
 const summarySkeletonRowCol = [
   { width: '52%', height: '14px' },
   { width: '36%', height: '28px' },
@@ -165,6 +177,7 @@ const lastUpdatedLabel = computed(() =>
 const quickLinks = computed(() =>
   buildDashboardQuickActionLinks(permissionStore.routers, currentLocale.value as SupportedLocale),
 );
+const canViewContainerOverview = computed(() => permissionStore.hasPermission(CONTAINER_PERMISSION_CODE.VIEW));
 
 onMounted(() => {
   void loadSummary();
@@ -175,7 +188,11 @@ async function loadSummary() {
   errorMessage.value = '';
 
   try {
-    const [response] = await Promise.all([getDashboardSummary(), loadQuickActionConfig()]);
+    const [response] = await Promise.all([
+      getDashboardSummary(),
+      loadQuickActionConfig(),
+      loadDashboardContainerResources(),
+    ]);
     summary.value = response;
     widgets.value = response.widgets;
     lastUpdatedAt.value = new Date().toISOString();
@@ -199,6 +216,42 @@ async function loadQuickActionConfig() {
     logger.error('dashboard quick-action config request failed', error);
     quickActionConfig.value = { ...DEFAULT_DASHBOARD_QUICK_ACTION_CONFIG };
   }
+}
+
+async function loadDashboardContainerResources() {
+  if (!canViewContainerOverview.value) {
+    containerDashboardSummary.value = emptyContainerDashboardSummary();
+    return;
+  }
+
+  containerResourcesLoading.value = true;
+  try {
+    containerDashboardSummary.value = await containerModuleFacades.getContainerDashboardSummary();
+  } catch (error) {
+    logger.warn('dashboard container resource seed request failed', error);
+    containerDashboardSummary.value = emptyContainerDashboardSummary();
+  } finally {
+    containerResourcesLoading.value = false;
+  }
+}
+
+function emptyContainerDashboardSummary(): ContainerDashboardSummary {
+  return {
+    overview: {
+      abnormalContainers: 0,
+      collectedAt: null,
+      cpuTotalPercent: 0,
+      memoryTotalLimitBytes: null,
+      memoryTotalPercent: null,
+      memoryTotalUsageBytes: null,
+      runningContainers: 0,
+    },
+    hotspots: {
+      cpu: [],
+      memory: [],
+    },
+    anomalies: [],
+  };
 }
 
 async function refreshWidget(widgetId: string) {

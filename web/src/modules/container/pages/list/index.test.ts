@@ -1,9 +1,10 @@
 import { flushPromises, mount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { defineComponent, h, ref } from 'vue';
+import { defineComponent, h, KeepAlive, nextTick, ref } from 'vue';
 
 import { LOCALE } from '@/contracts/i18n/locales';
 
+import { applyContainerRealtimeStats, resetContainerStatsManager } from '../../shared/stats-manager';
 import ContainerListPage from './index.vue';
 
 const apiMocks = vi.hoisted(() => ({
@@ -27,6 +28,30 @@ const messageMocks = vi.hoisted(() => ({
   error: vi.fn(),
   success: vi.fn(),
   warning: vi.fn(),
+}));
+
+const realtimeMocks = vi.hoisted(() => ({
+  controllers: [] as Array<{
+    close: ReturnType<typeof vi.fn>;
+    emitMessage: (payload: unknown) => void;
+    reconnect: ReturnType<typeof vi.fn>;
+  }>,
+  openRealtimeTopicSocket: vi.fn(
+    (options?: { onMessage?: (payload: unknown) => void; parseMessage?: (payload: unknown) => unknown }) => {
+      const controller = {
+        close: vi.fn(),
+        emitMessage: (payload: unknown) => {
+          const parsed = options?.parseMessage ? options.parseMessage(payload) : payload;
+          if (parsed) {
+            options?.onMessage?.(parsed);
+          }
+        },
+        reconnect: vi.fn(),
+      };
+      realtimeMocks.controllers.push(controller);
+      return controller;
+    },
+  ),
 }));
 
 const notifyMocks = vi.hoisted(() => ({
@@ -352,6 +377,10 @@ vi.mock('@/shared/observability', async () => {
   };
 });
 
+vi.mock('@/shared/realtime', () => ({
+  openRealtimeTopicSocket: realtimeMocks.openRealtimeTopicSocket,
+}));
+
 vi.mock('@/utils/route/title', () => ({
   localizeRouteTitleKey: (titleKey: string) => ({
     [LOCALE.ZH_CN]: translations[titleKey] ?? titleKey,
@@ -362,6 +391,8 @@ vi.mock('@/utils/route/title', () => ({
 describe('container list page', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    realtimeMocks.controllers = [];
+    resetContainerStatsManager();
     tabsRouterStoreMock.activeTabKey = '/ops/containers';
     tabsRouterStoreMock.tabRouters = [
       {
@@ -529,6 +560,7 @@ describe('container list page', () => {
   });
 
   afterEach(() => {
+    resetContainerStatsManager();
     vi.useRealTimers();
   });
 
@@ -537,6 +569,7 @@ describe('container list page', () => {
     await flushPromises();
 
     expect(apiMocks.getContainers).toHaveBeenCalledTimes(1);
+    expect(realtimeMocks.openRealtimeTopicSocket).toHaveBeenCalledTimes(1);
     expect(apiMocks.getContainers).toHaveBeenCalledWith({
       health: undefined,
       keyword: undefined,
@@ -554,8 +587,8 @@ describe('container list page', () => {
     expect(wrapper.text()).toContain('graft');
     expect(wrapper.text()).toContain('服务');
     expect(wrapper.text()).toContain('web');
-    expect(wrapper.text()).toContain('21.8%');
-    expect(wrapper.text()).toContain('256.0 MiB');
+    expect(wrapper.text()).toContain('21.80%');
+    expect(wrapper.text()).toContain('256.00 MiB');
     expect(wrapper.text()).toContain('N/A');
     expect(wrapper.text()).not.toContain('stats_not_collected');
     expect(wrapper.text()).toContain('8080->80/tcp');
@@ -575,6 +608,138 @@ describe('container list page', () => {
     expect(wrapper.text()).toContain('第 1-20 条 / 共 25 条');
     expect(wrapper.text()).not.toContain('graft-extra-21');
     wrapper.unmount();
+  });
+
+  it('releases visible list subscriptions on unmount', async () => {
+    vi.useFakeTimers();
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const controllers = [...realtimeMocks.controllers];
+    wrapper.unmount();
+
+    expect(controllers.length).toBeGreaterThan(0);
+    vi.runOnlyPendingTimers();
+    expect(controllers.every((controller) => controller.close.mock.calls.length > 0)).toBe(true);
+  });
+
+  it('releases the list realtime subscription when a refresh returns no items', async () => {
+    vi.useFakeTimers();
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const controller = realtimeMocks.controllers[0]!;
+    apiMocks.getContainers.mockResolvedValueOnce({
+      items: [],
+      limit: 20,
+      offset: 0,
+      runtime: {
+        runtime: 'docker',
+        status: 'enabled',
+        endpoint: 'unix:///var/run/docker.sock',
+        server_version: '26.1.4',
+        api_version: '1.45',
+      },
+      summary: {
+        total: 0,
+        running: 0,
+        stopped: 0,
+        error: 0,
+        unhealthy: 0,
+      },
+      total: 0,
+    });
+
+    await wrapper.get('[data-testid="table-refresh"]').trigger('click');
+    await flushPromises();
+    expect(controller.close).not.toHaveBeenCalled();
+
+    vi.runOnlyPendingTimers();
+
+    expect(controller.close).toHaveBeenCalledTimes(1);
+    expect(wrapper.text()).toContain('暂无容器');
+  });
+
+  it('applies list realtime updates through a single list subscription', async () => {
+    vi.useFakeTimers();
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const controller = realtimeMocks.controllers[0]!;
+    controller.emitMessage(
+      JSON.stringify({
+        data: {
+          items: [
+            {
+              id: 'container-1',
+              resource: {
+                available: true,
+                stats_available: true,
+                cpu_percent: 88.4,
+                memory_limit_bytes: 536870912,
+                memory_percent: 62,
+                memory_usage_bytes: 332859965,
+                collected_at: '2026-06-14T01:10:00Z',
+              },
+            },
+          ],
+        },
+      }),
+    );
+    vi.advanceTimersByTime(20);
+    await nextTick();
+    await nextTick();
+
+    expect(wrapper.text()).toContain('88.40%');
+    expect(wrapper.text()).toContain('317.44 MiB');
+  });
+
+  it('pauses and resumes the list realtime subscription across keep-alive activation', async () => {
+    vi.useFakeTimers();
+    const visible = ref(true);
+    const Host = defineComponent({
+      setup() {
+        return () => h(KeepAlive, () => (visible.value ? h(ContainerListPage) : null));
+      },
+    });
+
+    const wrapper = mountPage(Host);
+    await flushPromises();
+
+    expect(realtimeMocks.openRealtimeTopicSocket).toHaveBeenCalledTimes(1);
+    const firstController = realtimeMocks.controllers[0]!;
+
+    visible.value = false;
+    await nextTick();
+    expect(firstController.close).toHaveBeenCalledTimes(0);
+
+    visible.value = true;
+    await nextTick();
+    await flushPromises();
+    expect(realtimeMocks.openRealtimeTopicSocket).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(10_001);
+    expect(firstController.close).toHaveBeenCalledTimes(0);
+
+    wrapper.unmount();
+  });
+
+  it('renders realtime updates from manager-owned list authority', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    applyContainerRealtimeStats('container-1', {
+      available: true,
+      stats_available: true,
+      cpu_percent: 72.4,
+      memory_limit_bytes: 536870912,
+      memory_percent: 61.5,
+      memory_usage_bytes: 330175610,
+      collected_at: '2026-06-14T01:11:00Z',
+    });
+    await nextTick();
+
+    expect(wrapper.text()).toContain('72.40%');
+    expect(wrapper.text()).toContain('314.88 MiB');
   });
 
   it('keeps cpu text above 100 percent while clamping progress width', async () => {
@@ -620,7 +785,7 @@ describe('container list page', () => {
     const wrapper = mountPage();
     await flushPromises();
 
-    expect(wrapper.text()).toContain('628.6%');
+    expect(wrapper.text()).toContain('628.60%');
     expect(wrapper.findAll('[data-testid="resource-progress"]').some((node) => node.text() === '100')).toBe(true);
   });
 
@@ -668,8 +833,8 @@ describe('container list page', () => {
     await flushPromises();
 
     expect(wrapper.text()).toContain('N/A');
-    expect(wrapper.text()).toContain('128.0 MiB');
-    expect(wrapper.text()).toContain('N/A / 25.0%');
+    expect(wrapper.text()).toContain('128.00 MiB');
+    expect(wrapper.text()).toContain('N/A / 25.00%');
   });
 
   it('replaces resource metrics with the latest list payload on refresh', async () => {
@@ -754,19 +919,44 @@ describe('container list page', () => {
     const wrapper = mountPage();
     await flushPromises();
 
-    expect(wrapper.text()).toContain('21.8%');
-    expect(wrapper.text()).toContain('256.0 MiB');
-    expect(wrapper.text()).toContain('21.8% / 50.0%');
+    expect(wrapper.text()).toContain('21.80%');
+    expect(wrapper.text()).toContain('256.00 MiB');
+    expect(wrapper.text()).toContain('21.80% / 50.00%');
 
     await wrapper.get('[data-testid="table-refresh"]').trigger('click');
     await flushPromises();
 
     expect(apiMocks.getContainers).toHaveBeenCalledTimes(2);
-    expect(wrapper.text()).not.toContain('21.8%');
-    expect(wrapper.text()).not.toContain('21.8% / 50.0%');
+    expect(wrapper.text()).not.toContain('21.80%');
+    expect(wrapper.text()).not.toContain('21.80% / 50.00%');
     expect(wrapper.text()).toContain('N/A');
-    expect(wrapper.text()).toContain('128.0 MiB');
-    expect(wrapper.text()).toContain('N/A / 25.0%');
+    expect(wrapper.text()).toContain('128.00 MiB');
+    expect(wrapper.text()).toContain('N/A / 25.00%');
+  });
+
+  it('highlights cpu and memory meters when realtime stats change', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    applyContainerRealtimeStats('container-1', {
+      available: true,
+      stats_available: true,
+      cpu_percent: 44.4,
+      memory_limit_bytes: 536870912,
+      memory_percent: 43.5,
+      memory_usage_bytes: 233832448,
+      collected_at: '2026-06-14T01:10:30Z',
+    });
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.get('[data-testid="container-cpu-meter"]').classes()).toContain('container-metric-change--up');
+    expect(wrapper.get('[data-testid="container-memory-meter"]').classes()).toContain('container-metric-change--down');
+    expect(
+      wrapper.findAll('[data-testid="resource-progress"]').some((node) => node.attributes('data-status') === 'warning'),
+    ).toBe(true);
+    expect(
+      wrapper.findAll('[data-testid="resource-progress"]').some((node) => node.attributes('data-status') === 'success'),
+    ).toBe(true);
   });
 
   it('does not render a list-page realtime toolbar', async () => {
@@ -1569,8 +1759,8 @@ function createContainerRows(count: number, startOrdinal = 1) {
   });
 }
 
-function mountPage() {
-  return mount(ContainerListPage, {
+function mountPage(component: object = ContainerListPage) {
+  return mount(component, {
     global: {
       directives: {
         permission: () => undefined,
@@ -1852,8 +2042,16 @@ function mountPage() {
               h('span', { onClick: () => emit('confirm') }, slots.default?.()),
         }),
         't-progress': defineComponent({
-          props: ['percentage'],
-          setup: (props) => () => h('span', { 'data-testid': 'resource-progress' }, String(props.percentage ?? 0)),
+          props: ['percentage', 'status'],
+          setup: (props) => () =>
+            h(
+              'span',
+              {
+                'data-status': String(props.status ?? ''),
+                'data-testid': 'resource-progress',
+              },
+              String(props.percentage ?? 0),
+            ),
         }),
         't-select': defineComponent({
           props: ['modelValue', 'disabled'],

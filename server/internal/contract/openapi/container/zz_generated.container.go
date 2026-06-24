@@ -511,6 +511,240 @@ func (e PostContainerBatchActions500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
+// Defines values for GetContainerDashboardSummary200JSONResponseBodyDataAnomaliesHealth.
+const (
+	ContainerDashboardAnomalyItemHealthHealthy     GetContainerDashboardSummary200JSONResponseBodyDataAnomaliesHealth = "healthy"
+	ContainerDashboardAnomalyItemHealthNone        GetContainerDashboardSummary200JSONResponseBodyDataAnomaliesHealth = "none"
+	ContainerDashboardAnomalyItemHealthStarting    GetContainerDashboardSummary200JSONResponseBodyDataAnomaliesHealth = "starting"
+	ContainerDashboardAnomalyItemHealthUnavailable GetContainerDashboardSummary200JSONResponseBodyDataAnomaliesHealth = "unavailable"
+	ContainerDashboardAnomalyItemHealthUnhealthy   GetContainerDashboardSummary200JSONResponseBodyDataAnomaliesHealth = "unhealthy"
+)
+
+// Valid indicates whether the value is a known member of the GetContainerDashboardSummary200JSONResponseBodyDataAnomaliesHealth enum.
+func (e GetContainerDashboardSummary200JSONResponseBodyDataAnomaliesHealth) Valid() bool {
+	switch e {
+	case ContainerDashboardAnomalyItemHealthHealthy:
+		return true
+	case ContainerDashboardAnomalyItemHealthNone:
+		return true
+	case ContainerDashboardAnomalyItemHealthStarting:
+		return true
+	case ContainerDashboardAnomalyItemHealthUnavailable:
+		return true
+	case ContainerDashboardAnomalyItemHealthUnhealthy:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetContainerDashboardSummary200JSONResponseBodyDataAnomaliesState.
+const (
+	ContainerDashboardAnomalyItemStateCreated    GetContainerDashboardSummary200JSONResponseBodyDataAnomaliesState = "created"
+	ContainerDashboardAnomalyItemStateDead       GetContainerDashboardSummary200JSONResponseBodyDataAnomaliesState = "dead"
+	ContainerDashboardAnomalyItemStateExited     GetContainerDashboardSummary200JSONResponseBodyDataAnomaliesState = "exited"
+	ContainerDashboardAnomalyItemStatePaused     GetContainerDashboardSummary200JSONResponseBodyDataAnomaliesState = "paused"
+	ContainerDashboardAnomalyItemStateRemoving   GetContainerDashboardSummary200JSONResponseBodyDataAnomaliesState = "removing"
+	ContainerDashboardAnomalyItemStateRestarting GetContainerDashboardSummary200JSONResponseBodyDataAnomaliesState = "restarting"
+	ContainerDashboardAnomalyItemStateRunning    GetContainerDashboardSummary200JSONResponseBodyDataAnomaliesState = "running"
+	ContainerDashboardAnomalyItemStateUnknown    GetContainerDashboardSummary200JSONResponseBodyDataAnomaliesState = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the GetContainerDashboardSummary200JSONResponseBodyDataAnomaliesState enum.
+func (e GetContainerDashboardSummary200JSONResponseBodyDataAnomaliesState) Valid() bool {
+	switch e {
+	case ContainerDashboardAnomalyItemStateCreated:
+		return true
+	case ContainerDashboardAnomalyItemStateDead:
+		return true
+	case ContainerDashboardAnomalyItemStateExited:
+		return true
+	case ContainerDashboardAnomalyItemStatePaused:
+		return true
+	case ContainerDashboardAnomalyItemStateRemoving:
+		return true
+	case ContainerDashboardAnomalyItemStateRestarting:
+		return true
+	case ContainerDashboardAnomalyItemStateRunning:
+		return true
+	case ContainerDashboardAnomalyItemStateUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetContainerDashboardSummary200JSONResponseBodyDataHotspotsCpuTopHealth.
+const (
+	GetContainerDashboardSummary200JSONResponseBodyDataHotspotsCpuTopHealthContainerDashboardTopItemHealthHealthy     GetContainerDashboardSummary200JSONResponseBodyDataHotspotsCpuTopHealth = "healthy"
+	GetContainerDashboardSummary200JSONResponseBodyDataHotspotsCpuTopHealthContainerDashboardTopItemHealthNone        GetContainerDashboardSummary200JSONResponseBodyDataHotspotsCpuTopHealth = "none"
+	GetContainerDashboardSummary200JSONResponseBodyDataHotspotsCpuTopHealthContainerDashboardTopItemHealthStarting    GetContainerDashboardSummary200JSONResponseBodyDataHotspotsCpuTopHealth = "starting"
+	GetContainerDashboardSummary200JSONResponseBodyDataHotspotsCpuTopHealthContainerDashboardTopItemHealthUnavailable GetContainerDashboardSummary200JSONResponseBodyDataHotspotsCpuTopHealth = "unavailable"
+	GetContainerDashboardSummary200JSONResponseBodyDataHotspotsCpuTopHealthContainerDashboardTopItemHealthUnhealthy   GetContainerDashboardSummary200JSONResponseBodyDataHotspotsCpuTopHealth = "unhealthy"
+)
+
+// Valid indicates whether the value is a known member of the GetContainerDashboardSummary200JSONResponseBodyDataHotspotsCpuTopHealth enum.
+func (e GetContainerDashboardSummary200JSONResponseBodyDataHotspotsCpuTopHealth) Valid() bool {
+	switch e {
+	case GetContainerDashboardSummary200JSONResponseBodyDataHotspotsCpuTopHealthContainerDashboardTopItemHealthHealthy:
+		return true
+	case GetContainerDashboardSummary200JSONResponseBodyDataHotspotsCpuTopHealthContainerDashboardTopItemHealthNone:
+		return true
+	case GetContainerDashboardSummary200JSONResponseBodyDataHotspotsCpuTopHealthContainerDashboardTopItemHealthStarting:
+		return true
+	case GetContainerDashboardSummary200JSONResponseBodyDataHotspotsCpuTopHealthContainerDashboardTopItemHealthUnavailable:
+		return true
+	case GetContainerDashboardSummary200JSONResponseBodyDataHotspotsCpuTopHealthContainerDashboardTopItemHealthUnhealthy:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetContainerDashboardSummary200JSONResponseBodyDataHotspotsCpuTopState.
+const (
+	GetContainerDashboardSummary200JSONResponseBodyDataHotspotsCpuTopStateContainerDashboardTopItemStateCreated    GetContainerDashboardSummary200JSONResponseBodyDataHotspotsCpuTopState = "created"
+	GetContainerDashboardSummary200JSONResponseBodyDataHotspotsCpuTopStateContainerDashboardTopItemStateDead       GetContainerDashboardSummary200JSONResponseBodyDataHotspotsCpuTopState = "dead"
+	GetContainerDashboardSummary200JSONResponseBodyDataHotspotsCpuTopStateContainerDashboardTopItemStateExited     GetContainerDashboardSummary200JSONResponseBodyDataHotspotsCpuTopState = "exited"
+	GetContainerDashboardSummary200JSONResponseBodyDataHotspotsCpuTopStateContainerDashboardTopItemStatePaused     GetContainerDashboardSummary200JSONResponseBodyDataHotspotsCpuTopState = "paused"
+	GetContainerDashboardSummary200JSONResponseBodyDataHotspotsCpuTopStateContainerDashboardTopItemStateRemoving   GetContainerDashboardSummary200JSONResponseBodyDataHotspotsCpuTopState = "removing"
+	GetContainerDashboardSummary200JSONResponseBodyDataHotspotsCpuTopStateContainerDashboardTopItemStateRestarting GetContainerDashboardSummary200JSONResponseBodyDataHotspotsCpuTopState = "restarting"
+	GetContainerDashboardSummary200JSONResponseBodyDataHotspotsCpuTopStateContainerDashboardTopItemStateRunning    GetContainerDashboardSummary200JSONResponseBodyDataHotspotsCpuTopState = "running"
+	GetContainerDashboardSummary200JSONResponseBodyDataHotspotsCpuTopStateContainerDashboardTopItemStateUnknown    GetContainerDashboardSummary200JSONResponseBodyDataHotspotsCpuTopState = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the GetContainerDashboardSummary200JSONResponseBodyDataHotspotsCpuTopState enum.
+func (e GetContainerDashboardSummary200JSONResponseBodyDataHotspotsCpuTopState) Valid() bool {
+	switch e {
+	case GetContainerDashboardSummary200JSONResponseBodyDataHotspotsCpuTopStateContainerDashboardTopItemStateCreated:
+		return true
+	case GetContainerDashboardSummary200JSONResponseBodyDataHotspotsCpuTopStateContainerDashboardTopItemStateDead:
+		return true
+	case GetContainerDashboardSummary200JSONResponseBodyDataHotspotsCpuTopStateContainerDashboardTopItemStateExited:
+		return true
+	case GetContainerDashboardSummary200JSONResponseBodyDataHotspotsCpuTopStateContainerDashboardTopItemStatePaused:
+		return true
+	case GetContainerDashboardSummary200JSONResponseBodyDataHotspotsCpuTopStateContainerDashboardTopItemStateRemoving:
+		return true
+	case GetContainerDashboardSummary200JSONResponseBodyDataHotspotsCpuTopStateContainerDashboardTopItemStateRestarting:
+		return true
+	case GetContainerDashboardSummary200JSONResponseBodyDataHotspotsCpuTopStateContainerDashboardTopItemStateRunning:
+		return true
+	case GetContainerDashboardSummary200JSONResponseBodyDataHotspotsCpuTopStateContainerDashboardTopItemStateUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetContainerDashboardSummary200JSONResponseBodyDataHotspotsMemoryTopHealth.
+const (
+	GetContainerDashboardSummary200JSONResponseBodyDataHotspotsMemoryTopHealthContainerDashboardTopItemHealthHealthy     GetContainerDashboardSummary200JSONResponseBodyDataHotspotsMemoryTopHealth = "healthy"
+	GetContainerDashboardSummary200JSONResponseBodyDataHotspotsMemoryTopHealthContainerDashboardTopItemHealthNone        GetContainerDashboardSummary200JSONResponseBodyDataHotspotsMemoryTopHealth = "none"
+	GetContainerDashboardSummary200JSONResponseBodyDataHotspotsMemoryTopHealthContainerDashboardTopItemHealthStarting    GetContainerDashboardSummary200JSONResponseBodyDataHotspotsMemoryTopHealth = "starting"
+	GetContainerDashboardSummary200JSONResponseBodyDataHotspotsMemoryTopHealthContainerDashboardTopItemHealthUnavailable GetContainerDashboardSummary200JSONResponseBodyDataHotspotsMemoryTopHealth = "unavailable"
+	GetContainerDashboardSummary200JSONResponseBodyDataHotspotsMemoryTopHealthContainerDashboardTopItemHealthUnhealthy   GetContainerDashboardSummary200JSONResponseBodyDataHotspotsMemoryTopHealth = "unhealthy"
+)
+
+// Valid indicates whether the value is a known member of the GetContainerDashboardSummary200JSONResponseBodyDataHotspotsMemoryTopHealth enum.
+func (e GetContainerDashboardSummary200JSONResponseBodyDataHotspotsMemoryTopHealth) Valid() bool {
+	switch e {
+	case GetContainerDashboardSummary200JSONResponseBodyDataHotspotsMemoryTopHealthContainerDashboardTopItemHealthHealthy:
+		return true
+	case GetContainerDashboardSummary200JSONResponseBodyDataHotspotsMemoryTopHealthContainerDashboardTopItemHealthNone:
+		return true
+	case GetContainerDashboardSummary200JSONResponseBodyDataHotspotsMemoryTopHealthContainerDashboardTopItemHealthStarting:
+		return true
+	case GetContainerDashboardSummary200JSONResponseBodyDataHotspotsMemoryTopHealthContainerDashboardTopItemHealthUnavailable:
+		return true
+	case GetContainerDashboardSummary200JSONResponseBodyDataHotspotsMemoryTopHealthContainerDashboardTopItemHealthUnhealthy:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetContainerDashboardSummary200JSONResponseBodyDataHotspotsMemoryTopState.
+const (
+	GetContainerDashboardSummary200JSONResponseBodyDataHotspotsMemoryTopStateContainerDashboardTopItemStateCreated    GetContainerDashboardSummary200JSONResponseBodyDataHotspotsMemoryTopState = "created"
+	GetContainerDashboardSummary200JSONResponseBodyDataHotspotsMemoryTopStateContainerDashboardTopItemStateDead       GetContainerDashboardSummary200JSONResponseBodyDataHotspotsMemoryTopState = "dead"
+	GetContainerDashboardSummary200JSONResponseBodyDataHotspotsMemoryTopStateContainerDashboardTopItemStateExited     GetContainerDashboardSummary200JSONResponseBodyDataHotspotsMemoryTopState = "exited"
+	GetContainerDashboardSummary200JSONResponseBodyDataHotspotsMemoryTopStateContainerDashboardTopItemStatePaused     GetContainerDashboardSummary200JSONResponseBodyDataHotspotsMemoryTopState = "paused"
+	GetContainerDashboardSummary200JSONResponseBodyDataHotspotsMemoryTopStateContainerDashboardTopItemStateRemoving   GetContainerDashboardSummary200JSONResponseBodyDataHotspotsMemoryTopState = "removing"
+	GetContainerDashboardSummary200JSONResponseBodyDataHotspotsMemoryTopStateContainerDashboardTopItemStateRestarting GetContainerDashboardSummary200JSONResponseBodyDataHotspotsMemoryTopState = "restarting"
+	GetContainerDashboardSummary200JSONResponseBodyDataHotspotsMemoryTopStateContainerDashboardTopItemStateRunning    GetContainerDashboardSummary200JSONResponseBodyDataHotspotsMemoryTopState = "running"
+	GetContainerDashboardSummary200JSONResponseBodyDataHotspotsMemoryTopStateContainerDashboardTopItemStateUnknown    GetContainerDashboardSummary200JSONResponseBodyDataHotspotsMemoryTopState = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the GetContainerDashboardSummary200JSONResponseBodyDataHotspotsMemoryTopState enum.
+func (e GetContainerDashboardSummary200JSONResponseBodyDataHotspotsMemoryTopState) Valid() bool {
+	switch e {
+	case GetContainerDashboardSummary200JSONResponseBodyDataHotspotsMemoryTopStateContainerDashboardTopItemStateCreated:
+		return true
+	case GetContainerDashboardSummary200JSONResponseBodyDataHotspotsMemoryTopStateContainerDashboardTopItemStateDead:
+		return true
+	case GetContainerDashboardSummary200JSONResponseBodyDataHotspotsMemoryTopStateContainerDashboardTopItemStateExited:
+		return true
+	case GetContainerDashboardSummary200JSONResponseBodyDataHotspotsMemoryTopStateContainerDashboardTopItemStatePaused:
+		return true
+	case GetContainerDashboardSummary200JSONResponseBodyDataHotspotsMemoryTopStateContainerDashboardTopItemStateRemoving:
+		return true
+	case GetContainerDashboardSummary200JSONResponseBodyDataHotspotsMemoryTopStateContainerDashboardTopItemStateRestarting:
+		return true
+	case GetContainerDashboardSummary200JSONResponseBodyDataHotspotsMemoryTopStateContainerDashboardTopItemStateRunning:
+		return true
+	case GetContainerDashboardSummary200JSONResponseBodyDataHotspotsMemoryTopStateContainerDashboardTopItemStateUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetContainerDashboardSummary401JSONResponseBodySuccess.
+const (
+	GetContainerDashboardSummary401JSONResponseBodySuccessFalse GetContainerDashboardSummary401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetContainerDashboardSummary401JSONResponseBodySuccess enum.
+func (e GetContainerDashboardSummary401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetContainerDashboardSummary401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetContainerDashboardSummary403JSONResponseBodySuccess.
+const (
+	GetContainerDashboardSummary403JSONResponseBodySuccessFalse GetContainerDashboardSummary403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetContainerDashboardSummary403JSONResponseBodySuccess enum.
+func (e GetContainerDashboardSummary403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetContainerDashboardSummary403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetContainerDashboardSummary500JSONResponseBodySuccess.
+const (
+	GetContainerDashboardSummary500JSONResponseBodySuccessFalse GetContainerDashboardSummary500JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetContainerDashboardSummary500JSONResponseBodySuccess enum.
+func (e GetContainerDashboardSummary500JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetContainerDashboardSummary500JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetContainer200JSONResponseBodyDataEnvironmentSource.
 const (
 	ContainerEnvironmentEntrySourceDocker GetContainer200JSONResponseBodyDataEnvironmentSource = "docker"
@@ -1932,13 +2166,13 @@ func (e PostContainerStop404JSONResponseBodySuccess) Valid() bool {
 
 // Defines values for PostContainerStop409JSONResponseBodySuccess.
 const (
-	False PostContainerStop409JSONResponseBodySuccess = false
+	PostContainerStop409JSONResponseBodySuccessFalse PostContainerStop409JSONResponseBodySuccess = false
 )
 
 // Valid indicates whether the value is a known member of the PostContainerStop409JSONResponseBodySuccess enum.
 func (e PostContainerStop409JSONResponseBodySuccess) Valid() bool {
 	switch e {
-	case False:
+	case PostContainerStop409JSONResponseBodySuccessFalse:
 		return true
 	default:
 		return false
@@ -2087,6 +2321,43 @@ type PostContainerBatchActions403JSONResponseBodySuccess bool
 
 // PostContainerBatchActions500JSONResponseBodySuccess defines parameters for PostContainerBatchActions.
 type PostContainerBatchActions500JSONResponseBodySuccess bool
+
+// GetContainerDashboardSummaryParams defines parameters for GetContainerDashboardSummary.
+type GetContainerDashboardSummaryParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// GetContainerDashboardSummary200JSONResponseBodyDataAnomaliesHealth defines parameters for GetContainerDashboardSummary.
+type GetContainerDashboardSummary200JSONResponseBodyDataAnomaliesHealth string
+
+// GetContainerDashboardSummary200JSONResponseBodyDataAnomaliesState defines parameters for GetContainerDashboardSummary.
+type GetContainerDashboardSummary200JSONResponseBodyDataAnomaliesState string
+
+// GetContainerDashboardSummary200JSONResponseBodyDataHotspotsCpuTopHealth defines parameters for GetContainerDashboardSummary.
+type GetContainerDashboardSummary200JSONResponseBodyDataHotspotsCpuTopHealth string
+
+// GetContainerDashboardSummary200JSONResponseBodyDataHotspotsCpuTopState defines parameters for GetContainerDashboardSummary.
+type GetContainerDashboardSummary200JSONResponseBodyDataHotspotsCpuTopState string
+
+// GetContainerDashboardSummary200JSONResponseBodyDataHotspotsMemoryTopHealth defines parameters for GetContainerDashboardSummary.
+type GetContainerDashboardSummary200JSONResponseBodyDataHotspotsMemoryTopHealth string
+
+// GetContainerDashboardSummary200JSONResponseBodyDataHotspotsMemoryTopState defines parameters for GetContainerDashboardSummary.
+type GetContainerDashboardSummary200JSONResponseBodyDataHotspotsMemoryTopState string
+
+// GetContainerDashboardSummary401JSONResponseBodySuccess defines parameters for GetContainerDashboardSummary.
+type GetContainerDashboardSummary401JSONResponseBodySuccess bool
+
+// GetContainerDashboardSummary403JSONResponseBodySuccess defines parameters for GetContainerDashboardSummary.
+type GetContainerDashboardSummary403JSONResponseBodySuccess bool
+
+// GetContainerDashboardSummary500JSONResponseBodySuccess defines parameters for GetContainerDashboardSummary.
+type GetContainerDashboardSummary500JSONResponseBodySuccess bool
 
 // GetContainerParams defines parameters for GetContainer.
 type GetContainerParams struct {

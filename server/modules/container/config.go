@@ -38,10 +38,12 @@ const (
 	defaultContainerDockerEndpoint          = "unix:///var/run/docker.sock"
 	defaultContainerLogsDefaultTail         = 200
 	defaultContainerLogsMaxTail             = 2000
-	defaultContainerResourceStatsCacheTTL    = 2
-	defaultContainerResourceStatsStaleWindow = 8
-	maxContainerResourceStatsCacheTTL        = 60
-	maxContainerResourceStatsStaleWindow     = 300
+	defaultContainerResourceStatsCacheTTL      = 2
+	defaultContainerResourceStatsStaleWindow   = 8
+	defaultContainerResourceStatsCollectInterval = 1
+	maxContainerResourceStatsCacheTTL          = 60
+	maxContainerResourceStatsStaleWindow       = 300
+	maxContainerResourceStatsCollectInterval   = 60
 	defaultContainerDangerousActionsEnabled = false
 	defaultContainerComposeActionLevel      = containercontract.ContainerOrchestratorActionLevelWarn
 	defaultContainerSwarmActionLevel        = containercontract.ContainerOrchestratorActionLevelReadonly
@@ -74,9 +76,9 @@ func registerConfigDefinitions(registry *configregistry.Registry) error {
 	return nil
 }
 
-// configDefinitions returns the list of all container configuration definitions in registration order.
+// configDefinitions 按注册顺序构建所有容器配置定义，并在末尾追加资源统计相关定义。
 func configDefinitions() []configregistry.Definition {
-	return []configregistry.Definition{
+	definitions := []configregistry.Definition{
 		containerBooleanDefinition(containerDefinitionSpec{
 			key:                 containercontract.ContainerRuntimeEnabledConfig.String(),
 			group:               containerConfigGeneralGroup,
@@ -109,30 +111,6 @@ func configDefinitions() []configregistry.Definition {
 			defaultNumber: defaultContainerLogsMaxTail,
 			minimum:       defaultContainerLogsDefaultTail,
 			maximum:       defaultContainerLogsMaxTail,
-		}),
-		containerIntegerDefinition(containerIntegerDefinitionSpec{
-			containerDefinitionSpec: containerDefinitionSpec{
-				key:                 containercontract.ContainerResourceStatsCacheTTLConfig.String(),
-				group:               containerConfigLogsGroup,
-				fallbackTitle:       "",
-				fallbackDescription: "",
-				defaultValue:        mustRawJSON(defaultContainerResourceStatsCacheTTL),
-			},
-			defaultNumber: defaultContainerResourceStatsCacheTTL,
-			minimum:       1,
-			maximum:       maxContainerResourceStatsCacheTTL,
-		}),
-		containerIntegerDefinition(containerIntegerDefinitionSpec{
-			containerDefinitionSpec: containerDefinitionSpec{
-				key:                 containercontract.ContainerResourceStatsCacheStaleWindowConfig.String(),
-				group:               containerConfigLogsGroup,
-				fallbackTitle:       "",
-				fallbackDescription: "",
-				defaultValue:        mustRawJSON(defaultContainerResourceStatsStaleWindow),
-			},
-			defaultNumber: defaultContainerResourceStatsStaleWindow,
-			minimum:       1,
-			maximum:       maxContainerResourceStatsStaleWindow,
 		}),
 		containerBooleanDefinition(containerDefinitionSpec{
 			key:                 containercontract.ContainerDangerousActionsEnabledConfig.String(),
@@ -171,6 +149,51 @@ func configDefinitions() []configregistry.Definition {
 			fallbackTitle:       "",
 			fallbackDescription: "",
 			defaultValue:        mustRawJSON(defaultContainerEnvironmentMaskedCopy),
+		}),
+	}
+	definitions = append(definitions, containerResourceStatsDefinitions()...)
+	return definitions
+}
+
+// containerResourceStatsDefinitions 返回资源统计缓存相关的容器配置定义。
+// 这些定义包括缓存 TTL、缓存失效窗口和采集间隔。
+func containerResourceStatsDefinitions() []configregistry.Definition {
+	return []configregistry.Definition{
+		containerIntegerDefinition(containerIntegerDefinitionSpec{
+			containerDefinitionSpec: containerDefinitionSpec{
+				key:                 containercontract.ContainerResourceStatsCacheTTLConfig.String(),
+				group:               containerConfigLogsGroup,
+				fallbackTitle:       "",
+				fallbackDescription: "",
+				defaultValue:        mustRawJSON(defaultContainerResourceStatsCacheTTL),
+			},
+			defaultNumber: defaultContainerResourceStatsCacheTTL,
+			minimum:       1,
+			maximum:       maxContainerResourceStatsCacheTTL,
+		}),
+		containerIntegerDefinition(containerIntegerDefinitionSpec{
+			containerDefinitionSpec: containerDefinitionSpec{
+				key:                 containercontract.ContainerResourceStatsCacheStaleWindowConfig.String(),
+				group:               containerConfigLogsGroup,
+				fallbackTitle:       "",
+				fallbackDescription: "",
+				defaultValue:        mustRawJSON(defaultContainerResourceStatsStaleWindow),
+			},
+			defaultNumber: defaultContainerResourceStatsStaleWindow,
+			minimum:       1,
+			maximum:       maxContainerResourceStatsStaleWindow,
+		}),
+		containerIntegerDefinition(containerIntegerDefinitionSpec{
+			containerDefinitionSpec: containerDefinitionSpec{
+				key:                 containercontract.ContainerResourceStatsCollectIntervalConfig.String(),
+				group:               containerConfigLogsGroup,
+				fallbackTitle:       "",
+				fallbackDescription: "",
+				defaultValue:        mustRawJSON(defaultContainerResourceStatsCollectInterval),
+			},
+			defaultNumber: defaultContainerResourceStatsCollectInterval,
+			minimum:       1,
+			maximum:       maxContainerResourceStatsCollectInterval,
 		}),
 	}
 }
@@ -274,7 +297,7 @@ func containerBooleanDefinition(spec containerDefinitionSpec) configregistry.Def
 	return definition
 }
 
-// containerIntegerDefinition 为整数类型的容器配置项创建配置定义，并为日志尾部和资源统计缓存相关配置启用运行时热更新。
+// containerIntegerDefinition 为整数类型的容器配置项构建配置定义，并为日志尾部与资源统计缓存相关项启用运行时热更新。
 func containerIntegerDefinition(spec containerIntegerDefinitionSpec) configregistry.Definition {
 	definitionSpec := spec.containerDefinitionSpec
 	definitionSpec.valueType = configregistry.ValueTypeInteger
@@ -284,7 +307,8 @@ func containerIntegerDefinition(spec containerIntegerDefinitionSpec) configregis
 	case containercontract.ContainerLogsDefaultTailConfig.String(),
 		containercontract.ContainerLogsMaxTailConfig.String(),
 		containercontract.ContainerResourceStatsCacheTTLConfig.String(),
-		containercontract.ContainerResourceStatsCacheStaleWindowConfig.String():
+		containercontract.ContainerResourceStatsCacheStaleWindowConfig.String(),
+		containercontract.ContainerResourceStatsCollectIntervalConfig.String():
 		definition.RuntimeApplyMode = configregistry.RuntimeApplyModeRuntimeHot
 	default:
 		definition.RuntimeApplyMode = configregistry.RuntimeApplyModeUnknown
@@ -452,7 +476,8 @@ func containerIntegerSchema(key string, defaultValue int, minimum int, maximum i
 func containerIntegerUnitKey(key string) string {
 	switch key {
 	case containercontract.ContainerResourceStatsCacheTTLConfig.String(),
-		containercontract.ContainerResourceStatsCacheStaleWindowConfig.String():
+		containercontract.ContainerResourceStatsCacheStaleWindowConfig.String(),
+		containercontract.ContainerResourceStatsCollectIntervalConfig.String():
 		return "systemConfig.units.seconds"
 	default:
 		return "systemConfig.units.rows"

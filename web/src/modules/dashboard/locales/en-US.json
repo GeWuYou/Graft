@@ -25,6 +25,66 @@
       "security": "Security",
       "system": "System"
     },
+    "containerResources": {
+      "collectedAt": "Collected At",
+      "cpu": "CPU",
+      "empty": "No container resource data",
+      "memoryUsage": "{usage} / {limit}",
+      "memory": "Memory",
+      "overview": {
+        "title": "Container Resource Overview",
+        "running": {
+          "label": "Running Containers",
+          "value": "{count}",
+          "description": "Containers currently in the running state"
+        },
+        "abnormal": {
+          "label": "Abnormal Containers",
+          "value": "{count}",
+          "description": "Containers in unhealthy, restarting, exited, or dead states"
+        },
+        "cpuTotal": {
+          "label": "CPU Total",
+          "description": "Current aggregate CPU usage across containers"
+        },
+        "memoryTotal": {
+          "label": "Memory Total",
+          "description": "Current aggregate memory usage across containers"
+        }
+      },
+      "hotspots": {
+        "eyebrow": "Hotspot Containers",
+        "cpuTitle": "CPU TOP3",
+        "memoryTitle": "Memory TOP3",
+        "top3": "TOP3",
+        "empty": "No hotspot container data"
+      },
+      "anomalies": {
+        "eyebrow": "Anomalous Containers",
+        "title": "Anomaly List",
+        "count": "{count} anomalies",
+        "empty": "No anomalous containers",
+        "kind": {
+          "unhealthy": "Unhealthy",
+          "restarting": "Restarting",
+          "exited": "Exited",
+          "dead": "Dead",
+          "high_load": "High Load"
+        }
+      },
+      "source": "Shared Container Resource View",
+      "status": {
+        "dead": "Dead",
+        "exited": "Exited",
+        "paused": "Paused",
+        "restarting": "Restarting",
+        "running": "Running",
+        "unknown": "Unknown",
+        "unhealthy": "Unhealthy"
+      },
+      "title": "Container Resource Overview",
+      "unavailable": "Unavailable"
+    },
     "empty": "No Dashboard data",
     "error": {
       "fallback": "Dashboard data failed to load",
@@ -197,6 +257,7 @@
       "core": "Core",
       "core_httpx": "Access Log",
       "core_logger": "App Log",
+      "container": "Container Management",
       "dashboard": "Dashboard",
       "monitor": "Monitor",
       "rbac": "RBAC",

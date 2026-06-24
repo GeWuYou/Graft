@@ -6,6 +6,13 @@ const DEFAULT_NUMBER_LOCALE = 'en-US';
 
 export type ResourceNumberFormatLocale = string | readonly string[];
 
+/**
+ * 将字节数格式化为 MiB 或 GiB。
+ *
+ * @param value - 要格式化的字节数
+ * @param emptyText - 当值无效时返回的文本
+ * @returns 格式化后的容量文本；当值为 `null`、`undefined` 或非有限数字时，返回 `emptyText`
+ */
 export function formatBytes(value?: number | null, emptyText = '-') {
   const normalizedValue = finiteNumberOrNull(value);
   if (normalizedValue === null) {
@@ -18,9 +25,16 @@ export function formatBytes(value?: number | null, emptyText = '-') {
   }
 
   const mib = normalizedValue / BYTES_PER_MIB;
-  return `${mib.toFixed(absValue >= BYTES_PER_MIB ? 1 : 2)} MiB`;
+  return `${mib.toFixed(2)} MiB`;
 }
 
+/**
+ * 将数值格式化为百分比文本。
+ *
+ * @param value - 要格式化的数值
+ * @param emptyText - 值为空或无效时返回的文本
+ * @returns 格式化后的百分比文本；当值为空或无效时返回 `emptyText`
+ */
 export function formatPercent(value?: number | null, emptyText = '-') {
   const normalizedValue = finiteNumberOrNull(value);
   if (normalizedValue === null) {

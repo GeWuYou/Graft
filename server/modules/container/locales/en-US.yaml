@@ -77,5 +77,7 @@ systemConfig.container.ops.container.shell.enabled.title: Enable Container Shell
 systemConfig.container.ops.container.shell.enabled.description: Controls whether interactive container shell session tickets and WebSocket connections can be created.
 systemConfig.container.ops.container.resource_stats.cache_ttl_seconds.title: Resource Snapshot Fresh Window
 systemConfig.container.ops.container.resource_stats.cache_ttl_seconds.description: Controls how long container resource snapshots stay fresh before the next stats refresh is required.
+systemConfig.container.ops.container.resource_stats.collect_interval_seconds.title: Resource Sampling Interval
+systemConfig.container.ops.container.resource_stats.collect_interval_seconds.description: Controls the default cadence for container resource sampling and canonical stats topic publication. Defaults to a 1 second refresh interval.
 systemConfig.container.ops.container.resource_stats.stale_window_seconds.title: Resource Snapshot Stale Window
 systemConfig.container.ops.container.resource_stats.stale_window_seconds.description: Controls how long stale container resource snapshots may be served while the next stats refresh runs in the background.

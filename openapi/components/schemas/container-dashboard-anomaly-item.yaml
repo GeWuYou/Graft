@@ -1,0 +1,45 @@
+type: object
+required:
+  - id
+  - name
+  - short_id
+  - image
+  - state
+  - resource
+properties:
+  id:
+    type: string
+  name:
+    type: string
+  short_id:
+    type: string
+  image:
+    type: string
+  state:
+    type: string
+    enum: [created, running, paused, restarting, removing, exited, dead, unknown]
+    x-enum-varnames:
+      - ContainerDashboardAnomalyItemStateCreated
+      - ContainerDashboardAnomalyItemStateRunning
+      - ContainerDashboardAnomalyItemStatePaused
+      - ContainerDashboardAnomalyItemStateRestarting
+      - ContainerDashboardAnomalyItemStateRemoving
+      - ContainerDashboardAnomalyItemStateExited
+      - ContainerDashboardAnomalyItemStateDead
+      - ContainerDashboardAnomalyItemStateUnknown
+  health:
+    type: string
+    nullable: true
+    enum: [healthy, unhealthy, starting, none, unavailable]
+    x-enum-varnames:
+      - ContainerDashboardAnomalyItemHealthHealthy
+      - ContainerDashboardAnomalyItemHealthUnhealthy
+      - ContainerDashboardAnomalyItemHealthStarting
+      - ContainerDashboardAnomalyItemHealthNone
+      - ContainerDashboardAnomalyItemHealthUnavailable
+  restart_count:
+    type: integer
+    minimum: 0
+    nullable: true
+  resource:
+    $ref: ./container-resource-summary.yaml

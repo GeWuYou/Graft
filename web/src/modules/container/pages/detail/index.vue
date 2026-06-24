@@ -138,7 +138,11 @@
             :title="t('container.detail.summary.resources')"
           >
             <div class="container-detail-summary__resource">
-              <div class="container-detail-resource-meter container-detail-resource-meter--cpu">
+              <div
+                class="container-detail-resource-meter container-detail-resource-meter--cpu"
+                :class="resourceChange.cpuClass"
+                data-testid="container-detail-summary-cpu"
+              >
                 <div class="container-detail-resource-meter__content">
                   <span>{{ t('container.detail.resources.cpu') }}</span>
                   <strong>{{ formatPercent(safeDetail.resource?.cpu_percent) }}</strong>
@@ -148,9 +152,14 @@
                   size="small"
                   :label="formatPercent(safeDetail.resource?.cpu_percent)"
                   :percentage="toProgressPercent(safeDetail.resource?.cpu_percent)"
+                  :status="resourceChange.cpuStatus"
                 />
               </div>
-              <div class="container-detail-resource-meter container-detail-resource-meter--memory">
+              <div
+                class="container-detail-resource-meter container-detail-resource-meter--memory"
+                :class="resourceChange.memoryClass"
+                data-testid="container-detail-summary-memory"
+              >
                 <div class="container-detail-resource-meter__content">
                   <span>{{ t('container.detail.resources.memory') }}</span>
                   <strong>{{ memorySummary(safeDetail) }}</strong>
@@ -161,6 +170,7 @@
                   size="small"
                   :label="false"
                   :percentage="toProgressPercent(safeDetail.resource?.memory_percent)"
+                  :status="resourceChange.memoryStatus"
                 />
               </div>
             </div>
@@ -276,12 +286,22 @@
                     {{ t('container.detail.resources.dashboard') }}
                   </div>
                   <div class="container-resource-dashboard-grid">
-                    <article class="container-resource-dashboard-panel">
+                    <article
+                      class="container-resource-dashboard-panel"
+                      :class="resourceChange.cpuClass"
+                      data-testid="container-detail-dashboard-cpu"
+                    >
                       <div class="container-resource-dashboard-panel__heading">
                         <span>{{ t('container.detail.resources.cpuUsageRate') }}</span>
                         <strong>{{ resourceMetrics.cpu.value }}</strong>
                       </div>
-                      <t-progress theme="line" size="small" :label="false" :percentage="resourceMetrics.cpu.progress" />
+                      <t-progress
+                        theme="line"
+                        size="small"
+                        :label="false"
+                        :percentage="resourceMetrics.cpu.progress"
+                        :status="resourceChange.cpuStatus"
+                      />
                       <div class="container-resource-dashboard-panel__meta">
                         <span>
                           {{ t('container.detail.resources.cpuLimit') }}
@@ -298,7 +318,11 @@
                       </div>
                     </article>
 
-                    <article class="container-resource-dashboard-panel">
+                    <article
+                      class="container-resource-dashboard-panel"
+                      :class="resourceChange.memoryClass"
+                      data-testid="container-detail-dashboard-memory"
+                    >
                       <div class="container-resource-dashboard-panel__heading">
                         <span>{{ t('container.detail.resources.memoryUsageRate') }}</span>
                         <strong>{{ resourceMetrics.memory.description }}</strong>
@@ -308,6 +332,7 @@
                         size="small"
                         :label="false"
                         :percentage="resourceMetrics.memory.progress"
+                        :status="resourceChange.memoryStatus"
                       />
                       <div class="container-resource-dashboard-panel__usage">
                         {{ resourceMetrics.memory.value }}
@@ -332,6 +357,24 @@
                       </div>
                     </article>
                   </div>
+                </section>
+
+                <section class="container-resource-history-section">
+                  <div class="container-resource-history-section__title">
+                    {{ t('container.detail.resources.history') }}
+                  </div>
+                  <div v-if="resourceHistoryPoints.length" class="container-resource-history-grid">
+                    <article
+                      v-for="point in resourceHistoryPoints"
+                      :key="point.key"
+                      class="container-resource-history-card"
+                    >
+                      <span>{{ point.collectedAt }}</span>
+                      <strong>{{ point.cpuPercent }}</strong>
+                      <em>{{ point.memoryPercent }}</em>
+                    </article>
+                  </div>
+                  <t-empty v-else size="small" :description="t('container.detail.resources.historyEmpty')" />
                 </section>
 
                 <section class="container-resource-detail-section">
@@ -1151,7 +1194,7 @@
 <script setup lang="ts">
 import type { TableProps } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, onActivated, onDeactivated, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
@@ -1168,7 +1211,6 @@ import {
   LogViewer,
   toProgressPercent,
 } from '@/shared/observability';
-import { openRealtimeTopicSocket, type RealtimeTopicSocketController } from '@/shared/realtime';
 import { useTabsRouterStore } from '@/store';
 import { createLogger } from '@/utils/logger';
 import { localizeRouteTitleKey } from '@/utils/route/title';
@@ -1182,11 +1224,16 @@ import {
 import ContainerRawJsonPanel from '../../components/ContainerRawJsonPanel.vue';
 import ContainerShellPanel from '../../components/ContainerShellPanel.vue';
 import {
-  applyRealtimeResourceToDetail,
-  buildContainerStatsTopic,
-  mergeDetailStructurePreservingRealtimeResource,
-  parseContainerStatsPayload,
-} from '../../shared/realtime-stats';
+  acquireContainerStatsSubscription,
+  clearContainerDetail,
+  releaseContainerStatsSubscription,
+  seedContainerDetail,
+  selectContainerDetailView,
+  selectContainerStatsChangeState,
+  selectContainerStatsHistory,
+  selectContainerStatsRealtimeState,
+} from '../../shared/stats-manager';
+import { metricChangedClass, metricProgressStatus } from '../../shared/stats-visual-state';
 import type {
   ContainerActionLevel,
   ContainerDetail,
@@ -1295,6 +1342,12 @@ type ResourceStatusTheme = 'success' | 'warning' | 'default';
 type HealthStatusTheme = 'success' | 'warning' | 'danger' | 'default';
 type ResourceMetricFormat = 'bytes' | 'number' | 'percent' | 'text';
 type ContainerResourceSummary = NonNullable<ContainerDetail['resource']>;
+type ContainerStatsHistoryPoint = {
+  collectedAt: string;
+  cpuPercent: string;
+  key: string;
+  memoryPercent: string;
+};
 type ResourceMetricKey = Extract<
   keyof ContainerResourceSummary,
   | 'cpu_percent'
@@ -1389,15 +1442,16 @@ const environmentKeyword = ref('');
 const environmentPolicyFilter = ref<EnvironmentPolicyFilter>('all');
 const refreshingMountKeys = ref<Set<string>>(new Set());
 const realtimeEnabled = ref(true);
-const realtimeSocketState = ref<'idle' | 'connecting' | 'open' | 'closed' | 'error'>('idle');
-const hasRealtimeResourceSnapshot = ref(false);
+const activeRealtimeSubscriptionId = ref('');
+const detailPageActive = ref(false);
 let detailRefreshSeq = 0;
-let statsSocketGeneration = 0;
-let statsSocket: RealtimeTopicSocketController | null = null;
 
 const containerId = computed(() => String(route.params.id ?? '').trim());
 const shortContainerIdFallback = computed(() => shortIdentifier(containerId.value, undefined, 12));
-const safeDetail = computed(() => normalizeDetail(detail.value));
+const currentDetailStatsKey = computed(() => detail.value?.id || containerId.value);
+const safeDetail = computed(() =>
+  normalizeDetail(materializeDetailWithManagedStats(detail.value, currentDetailStatsKey.value)),
+);
 const activeTabRoute = computed(() =>
   tabsRouterStore.tabRouterList.find(
     (tab) => tab.tabKey === route.path || tab.path === route.path || tab.fullPath === route.fullPath,
@@ -1657,6 +1711,16 @@ const resourceMetrics = computed(() => {
     status,
   };
 });
+const realtimeSocketState = computed(() => selectContainerStatsRealtimeState(currentDetailStatsKey.value));
+const resourceChange = computed(() => {
+  const change = selectContainerStatsChangeState(currentDetailStatsKey.value);
+  return {
+    cpuClass: metricChangedClass(change, 'cpu'),
+    cpuStatus: metricProgressStatus(change.cpu),
+    memoryClass: metricChangedClass(change, 'memory'),
+    memoryStatus: metricProgressStatus(change.memory),
+  };
+});
 const realtimeStatusTheme = computed(() => {
   if (!realtimeEnabled.value) {
     return 'default';
@@ -1693,6 +1757,22 @@ const realtimeStatusHint = computed(() =>
 const realtimeToggleLabel = computed(() =>
   realtimeEnabled.value ? t('container.detail.realtime.pause') : t('container.detail.realtime.resume'),
 );
+const resourceHistoryPoints = computed<ContainerStatsHistoryPoint[]>(() => {
+  const containerId = safeDetail.value?.id;
+  if (!containerId) {
+    return [];
+  }
+
+  return selectContainerStatsHistory(containerId)
+    .filter((item) => item.resource.collected_at)
+    .slice(-6)
+    .map((item, index) => ({
+      collectedAt: formatTime(item.resource.collected_at),
+      cpuPercent: formatPercent(item.resource.cpu_percent),
+      key: `${item.resource.collected_at || 'snapshot'}-${index}`,
+      memoryPercent: formatPercent(item.resource.memory_percent),
+    }));
+});
 const cpuDetailMetrics = computed(() =>
   buildCpuDetailMetrics(
     safeDetail.value?.resource,
@@ -1950,6 +2030,7 @@ const portColumns = computed<TableProps['columns']>(() => [
 ]);
 
 onMounted(() => {
+  detailPageActive.value = true;
   updateCurrentTabTitle(fallbackTitle.value);
   void refreshContainerDetail();
   if (activeTab.value === 'logs') {
@@ -1958,14 +2039,26 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
-  stopStatsSocket();
+  detailPageActive.value = false;
+  releaseCurrentRealtimeSubscription();
+});
+
+onActivated(() => {
+  detailPageActive.value = true;
+  if (safeDetail.value?.id) {
+    syncRealtimeSubscription(safeDetail.value.id);
+  }
+});
+
+onDeactivated(() => {
+  detailPageActive.value = false;
+  releaseCurrentRealtimeSubscription();
 });
 
 watch(
   () => route.params.id,
   () => {
     resetDetailState();
-    stopStatsSocket();
     void refreshContainerDetail();
     if (activeTab.value === 'logs') {
       void loadLogs();
@@ -2014,25 +2107,24 @@ async function refreshContainerDetail() {
     if (requestSeq !== detailRefreshSeq || currentContainerId !== containerId.value) {
       return;
     }
-    detail.value = nextDetail
-      ? hasRealtimeResourceSnapshot.value
-        ? realtimeEnabled.value
-          ? mergeDetailStructurePreservingRealtimeResource(detail.value, mergeDetailWithLocalMountUsage(nextDetail))
-          : mergeDetailWithLocalMountUsage(nextDetail)
-        : mergeDetailWithLocalMountUsage(nextDetail)
-      : null;
+    detail.value = nextDetail ? mergeDetailWithLocalMountUsage(nextDetail) : null;
+    if (detail.value) {
+      seedContainerDetail(detail.value);
+    }
     const current = safeDetail.value;
     if (current) {
       updateCurrentTabTitle(buildDetailTitle(displayName(current)));
-      syncStatsSocket(current.id);
+      syncRealtimeSubscription(current.id);
     }
     await fetchMountUsage(currentContainerId, requestSeq);
   } catch (loadError) {
     if (requestSeq !== detailRefreshSeq || currentContainerId !== containerId.value) {
       return;
     }
+    clearContainerDetail(detail.value?.id);
+    clearContainerDetail(currentContainerId);
     detail.value = null;
-    stopStatsSocket();
+    releaseCurrentRealtimeSubscription();
     error.value = resolveLocalizedErrorMessage(t, loadError, t('container.list.detail.loadFailed'));
     logger.warn('failed to fetch container detail', loadError);
   } finally {
@@ -2165,66 +2257,51 @@ async function copyRuntimeConfigValue(item: RuntimeConfigItem) {
 }
 
 function resetDetailState() {
+  clearContainerDetail(detail.value?.id);
+  clearContainerDetail(containerId.value);
   detail.value = null;
   error.value = '';
   logs.value = null;
   logsError.value = '';
   refreshingMountKeys.value = new Set();
-  hasRealtimeResourceSnapshot.value = false;
-  realtimeSocketState.value = 'idle';
-  stopStatsSocket();
+  releaseCurrentRealtimeSubscription();
   updateCurrentTabTitle(fallbackTitle.value);
 }
 
 function toggleRealtimeSubscription() {
   realtimeEnabled.value = !realtimeEnabled.value;
   if (!realtimeEnabled.value) {
-    stopStatsSocket();
+    releaseCurrentRealtimeSubscription();
     return;
   }
   if (safeDetail.value?.id) {
-    syncStatsSocket(safeDetail.value.id);
+    syncRealtimeSubscription(safeDetail.value.id);
   }
 }
 
-function syncStatsSocket(nextContainerId: string) {
-  if (!realtimeEnabled.value) {
-    stopStatsSocket();
+function syncRealtimeSubscription(nextContainerId: string) {
+  if (!detailPageActive.value || !realtimeEnabled.value) {
+    releaseCurrentRealtimeSubscription();
     return;
   }
-  stopStatsSocket();
-  const socketGeneration = ++statsSocketGeneration;
-  realtimeSocketState.value = 'connecting';
-  statsSocket = openRealtimeTopicSocket({
-    topic: buildContainerStatsTopic(nextContainerId),
-    parseMessage: parseContainerStatsPayload,
-    onStateChange: (state) => {
-      if (socketGeneration !== statsSocketGeneration || safeDetail.value?.id !== nextContainerId) {
-        return;
-      }
-      realtimeSocketState.value = state;
-    },
-    onMessage: (payload) => {
-      if (socketGeneration !== statsSocketGeneration || safeDetail.value?.id !== nextContainerId) {
-        return;
-      }
-      if (payload.id && payload.id !== nextContainerId) {
-        return;
-      }
-      if (!payload.resource || !detail.value) {
-        return;
-      }
-      hasRealtimeResourceSnapshot.value = true;
-      detail.value = applyRealtimeResourceToDetail(detail.value, payload.resource);
-    },
-  });
+  if (activeRealtimeSubscriptionId.value === nextContainerId) {
+    return;
+  }
+  if (activeRealtimeSubscriptionId.value && activeRealtimeSubscriptionId.value !== nextContainerId) {
+    releaseContainerStatsSubscription(activeRealtimeSubscriptionId.value);
+    activeRealtimeSubscriptionId.value = '';
+  }
+  acquireContainerStatsSubscription(nextContainerId);
+  activeRealtimeSubscriptionId.value = nextContainerId;
 }
 
-function stopStatsSocket() {
-  statsSocketGeneration += 1;
-  statsSocket?.close();
-  statsSocket = null;
-  realtimeSocketState.value = 'idle';
+function releaseCurrentRealtimeSubscription() {
+  const currentSubscriptionId = activeRealtimeSubscriptionId.value;
+  if (!currentSubscriptionId) {
+    return;
+  }
+  releaseContainerStatsSubscription(currentSubscriptionId);
+  activeRealtimeSubscriptionId.value = '';
 }
 
 function handleTabChange(value: string | number) {
@@ -2645,6 +2722,25 @@ function normalizeDetail(current: ContainerDetail | null): SafeContainerDetail |
     names: Array.isArray(current.names) ? current.names : [],
     networks: Array.isArray(current.networks) ? current.networks : [],
     ports: Array.isArray(current.ports) ? current.ports : [],
+  };
+}
+
+function materializeDetailWithManagedStats(
+  current: ContainerDetailRecord | null,
+  currentContainerId: string,
+): ContainerDetailRecord | null {
+  if (!current || !currentContainerId) {
+    return current;
+  }
+
+  const managed = selectContainerDetailView(currentContainerId);
+  if (!managed) {
+    return current;
+  }
+
+  return {
+    ...current,
+    resource: managed.resource,
   };
 }
 
@@ -3326,10 +3422,11 @@ function readStringListFromRecord(current: SafeContainerDetail, keys: string[]) 
 
 function resourceStatus(nextDetail: ContainerDetail) {
   const resource = nextDetail.resource;
+  const collectedAt = formatTime(resource?.collected_at);
   if (resource?.stats_available || resource?.available) {
     return {
-      collectedAt: formatTime(nextDetail.inspect_updated_at),
-      description: formatTime(nextDetail.inspect_updated_at),
+      collectedAt,
+      description: collectedAt,
       theme: 'success' as const,
       value: t('container.detail.resources.available'),
     };
@@ -3627,6 +3724,11 @@ function portLabel(port: ContainerDetail['ports'][number]) {
   display: flex;
   gap: var(--graft-density-gap-10);
   min-width: 0;
+  padding: var(--graft-density-gap-8);
+  transition:
+    background-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease;
 }
 
 .container-detail-resource-meter--cpu {
@@ -3667,6 +3769,19 @@ function portLabel(port: ContainerDetail['ports'][number]) {
 
 .container-detail-resource-meter--memory :deep(.t-progress) {
   width: 100%;
+}
+
+.container-detail-resource-meter.container-metric-change--up,
+.container-resource-dashboard-panel.container-metric-change--up {
+  background: color-mix(in srgb, var(--td-warning-color-1) 74%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--td-warning-color-5) 34%, transparent);
+  transform: translateY(-1px);
+}
+
+.container-detail-resource-meter.container-metric-change--down,
+.container-resource-dashboard-panel.container-metric-change--down {
+  background: color-mix(in srgb, var(--td-success-color-1) 80%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--td-success-color-5) 30%, transparent);
 }
 
 .container-detail-port-chip {
@@ -4522,6 +4637,7 @@ function portLabel(port: ContainerDetail['ports'][number]) {
 }
 
 .container-resource-dashboard-section,
+.container-resource-history-section,
 .container-resource-detail-section {
   background: var(--td-bg-color-container);
   border: 1px solid color-mix(in srgb, var(--td-component-stroke) 72%, transparent);
@@ -4539,7 +4655,13 @@ function portLabel(port: ContainerDetail['ports'][number]) {
   padding: var(--graft-density-gap-14) var(--graft-density-gap-16) var(--graft-density-gap-16);
 }
 
+.container-resource-history-section {
+  gap: var(--graft-density-gap-12);
+  padding: var(--graft-density-gap-14) var(--graft-density-gap-16);
+}
+
 .container-resource-dashboard-section__title,
+.container-resource-history-section__title,
 .container-resource-detail-section__title {
   color: var(--td-text-color-primary);
   font: var(--td-font-title-small);
@@ -4561,7 +4683,15 @@ function portLabel(port: ContainerDetail['ports'][number]) {
   min-width: 0;
 }
 
+.container-resource-history-grid {
+  display: grid;
+  gap: var(--graft-density-gap-12);
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  min-width: 0;
+}
+
 .container-resource-dashboard-panel,
+.container-resource-history-card,
 .container-resource-detail-card {
   background: color-mix(in srgb, var(--td-bg-color-container) 96%, var(--td-bg-color-page));
   border: 1px solid color-mix(in srgb, var(--td-component-stroke) 56%, transparent);
@@ -4574,6 +4704,12 @@ function portLabel(port: ContainerDetail['ports'][number]) {
   flex-direction: column;
   gap: var(--graft-density-gap-12);
   padding: var(--graft-density-gap-14);
+}
+
+.container-resource-history-card {
+  display: grid;
+  gap: var(--graft-density-gap-6);
+  padding: var(--graft-density-gap-12);
 }
 
 .container-resource-dashboard-panel__heading {
@@ -4602,6 +4738,19 @@ function portLabel(port: ContainerDetail['ports'][number]) {
 
 .container-resource-dashboard-panel__usage {
   color: var(--td-text-color-primary);
+}
+
+.container-resource-history-card span,
+.container-resource-history-card em {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+  font-style: normal;
+}
+
+.container-resource-history-card strong {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-title-small);
+  font-weight: 600;
 }
 
 .container-resource-dashboard-panel :deep(.t-progress) {

@@ -3,8 +3,9 @@ import { join } from 'node:path';
 
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { defineComponent, h, ref } from 'vue';
+import { defineComponent, h, KeepAlive, nextTick, ref } from 'vue';
 
+import { applyContainerRealtimeStats, resetContainerStatsManager } from '../../shared/stats-manager';
 import type { ContainerMountUsage } from '../../types/container';
 import ContainerDetailPage from './index.vue';
 
@@ -370,6 +371,8 @@ const translations = vi.hoisted(
     'container.detail.resources.dashboard': '资源仪表盘',
     'container.detail.resources.detail': '资源明细',
     'container.detail.resources.detailedMetrics': '详细指标',
+    'container.detail.resources.history': '资源历史',
+    'container.detail.resources.historyEmpty': '暂无历史快照',
     'container.detail.resources.memory': '内存',
     'container.detail.resources.memoryActiveFile': '活跃文件',
     'container.detail.resources.memoryCache': '缓存',
@@ -545,7 +548,7 @@ vi.mock('@/shared/observability', async () => {
   return {
     ...actual,
     copyText: vi.fn().mockResolvedValue(true),
-    formatLocaleDateTime: (value?: string | null) => value || '-',
+    formatLocaleDateTime: (value?: string | null) => (value ? `formatted:${value}` : '-'),
   };
 });
 
@@ -557,6 +560,7 @@ describe('container detail page', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     realtimeMocks.controllers = [];
+    resetContainerStatsManager();
     vi.useRealTimers();
     tabStoreState.tabRouterList = [
       {
@@ -604,6 +608,7 @@ describe('container detail page', () => {
     while (mountedWrappers.length > 0) {
       mountedWrappers.pop()?.unmount();
     }
+    resetContainerStatsManager();
     vi.useRealTimers();
   });
 
@@ -619,7 +624,9 @@ describe('container detail page', () => {
     expect(wrapper.text()).not.toContain('容器详情 - graft-web');
     expect(wrapper.text()).toContain('graft/web:latest');
     expect(wrapper.text()).toContain('172.18.0.2');
-    expect(wrapper.text()).toContain('21.8%');
+    await vi.waitFor(() => {
+      expect(wrapper.text()).toContain('21.8%');
+    });
     expect(wrapper.text()).toContain('31.25 GiB / 31.25 GiB');
     expect(wrapper.text()).toContain('8080:80/tcp');
     expect(wrapper.text()).toContain('身份信息');
@@ -842,8 +849,8 @@ describe('container detail page', () => {
     expect(wrapper.text()).toContain('只读');
     expect(wrapper.text()).toContain('读写 rw');
     expect(wrapper.text()).toContain('只读 ro');
-    expect(wrapper.text()).toContain('1.0 MiB');
-    expect(wrapper.text()).toContain('5.0 MiB');
+    expect(wrapper.text()).toContain('1.00 MiB');
+    expect(wrapper.text()).toContain('5.00 MiB');
     expect(wrapper.text()).toContain('测量时间');
     expect(wrapper.text()).toContain('暂未测量挂载用量');
     expect(wrapper.text()).toContain('重新统计');
@@ -926,10 +933,10 @@ describe('container detail page', () => {
     expect(apiMocks.getContainer).toHaveBeenCalledTimes(1);
     expect(apiMocks.getContainerMountUsage).toHaveBeenCalledTimes(1);
     expect(apiMocks.postContainerMountUsageRefresh).toHaveBeenCalledWith('container-1', 'mount-bind-ro');
-    expect(findMountCardByDestination(wrapper, '/app').text()).toContain('1.0 MiB');
-    expect(findMountCardByDestination(wrapper, '/etc/graft').text()).toContain('2.0 MiB');
+    expect(findMountCardByDestination(wrapper, '/app').text()).toContain('1.00 MiB');
+    expect(findMountCardByDestination(wrapper, '/etc/graft').text()).toContain('2.00 MiB');
     expect(findMountCardByDestination(wrapper, '/etc/graft').text()).toContain('ro bind refreshed');
-    expect(findMountCardByDestination(wrapper, '/var/lib/graft').text()).toContain('5.0 MiB');
+    expect(findMountCardByDestination(wrapper, '/var/lib/graft').text()).toContain('5.00 MiB');
     expect(messageMocks.success).toHaveBeenCalledWith('挂载用量已统计');
   });
 
@@ -965,7 +972,7 @@ describe('container detail page', () => {
 
     expect(apiMocks.getContainerMountUsage).toHaveBeenCalledWith('container-1');
     expect(apiMocks.postContainerMountUsageRefresh).not.toHaveBeenCalled();
-    expect(findMountCardByDestination(wrapper, '/etc/graft').text()).toContain('3.0 MiB');
+    expect(findMountCardByDestination(wrapper, '/etc/graft').text()).toContain('3.00 MiB');
     expect(messageMocks.success).toHaveBeenCalledWith('容器详情已刷新');
   });
 
@@ -1018,6 +1025,50 @@ describe('container detail page', () => {
 
     expect(wrapper.get('[data-testid="container-detail-realtime-status"]').text()).toBe('已暂停');
     expect(wrapper.get('[data-testid="container-detail-realtime-toggle"]').text()).toContain('恢复实时');
+  });
+
+  it('highlights summary and dashboard resource meters when realtime stats change', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    applyContainerRealtimeStats(createContainerDetail().id, {
+      ...createContainerDetail().resource,
+      cpu_percent: 55.5,
+      memory_percent: 90.1,
+      memory_usage_bytes: 30958188544,
+      collected_at: '2026-06-14T01:11:00Z',
+    });
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.get('[data-testid="container-detail-summary-cpu"]').classes()).toContain(
+      'container-metric-change--up',
+    );
+    expect(wrapper.get('[data-testid="container-detail-summary-memory"]').classes()).toContain(
+      'container-metric-change--down',
+    );
+    expect(wrapper.get('[data-testid="container-detail-dashboard-cpu"]').classes()).toContain(
+      'container-metric-change--up',
+    );
+    expect(wrapper.get('[data-testid="container-detail-dashboard-memory"]').classes()).toContain(
+      'container-metric-change--down',
+    );
+  });
+
+  it('renders localized resource history timestamps instead of raw collected_at values', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    applyContainerRealtimeStats(createContainerDetail().id, {
+      ...createContainerDetail().resource,
+      cpu_percent: 55.5,
+      collected_at: '2026-06-14T01:11:00Z',
+    });
+    await wrapper.vm.$nextTick();
+
+    const historyCards = wrapper.findAll('.container-resource-history-card');
+
+    expect(historyCards.length).toBeGreaterThan(0);
+    expect(historyCards.some((node) => node.text().includes('formatted:2026-06-14T01:11:00Z'))).toBe(true);
   });
 
   it('sorts mount cards by destination, source, and type instead of API order', async () => {
@@ -1076,7 +1127,7 @@ describe('container detail page', () => {
     await findMountCardByDestination(wrapper, '/etc/graft').get('[data-testid="mount-refresh-2"]').trigger('click');
     await flushPromises();
 
-    expect(findMountCardByDestination(wrapper, '/etc/graft').text()).toContain('2.0 MiB');
+    expect(findMountCardByDestination(wrapper, '/etc/graft').text()).toContain('2.00 MiB');
 
     const reversedDetail = createContainerDetail();
     reversedDetail.mounts = [...reversedDetail.mounts].reverse();
@@ -1104,7 +1155,7 @@ describe('container detail page', () => {
     const afterOrder = cards.map((card) => card.find('header').text());
 
     expect(afterOrder).toEqual(beforeOrder);
-    expect(findMountCardByDestination(wrapper, '/etc/graft').text()).toContain('2.0 MiB');
+    expect(findMountCardByDestination(wrapper, '/etc/graft').text()).toContain('2.00 MiB');
     expect(findMountCardByDestination(wrapper, '/etc/graft').text()).toMatch(/cached from (top refresh|recompute)/);
     expect(apiMocks.postContainerMountUsageRefresh).toHaveBeenCalledTimes(1);
   });
@@ -1208,7 +1259,7 @@ describe('container detail page', () => {
     });
     await flushPromises();
 
-    expect(findMountCardByDestination(wrapper, '/etc/graft').text()).toContain('4.0 MiB');
+    expect(findMountCardByDestination(wrapper, '/etc/graft').text()).toContain('4.00 MiB');
   });
 
   it('keeps manual refresh focused on structure detail and cached mount usage', async () => {
@@ -1269,14 +1320,17 @@ describe('container detail page', () => {
   });
 
   it('pauses and resumes realtime subscription from the detail toolbar toggle', async () => {
+    vi.useFakeTimers();
     const wrapper = mountPage();
     await flushPromises();
 
+    expect(realtimeMocks.openRealtimeTopicSocket).toHaveBeenCalledTimes(1);
     expect(realtimeMocks.controllers.length).toBeGreaterThan(0);
     await wrapper.get('[data-testid="container-detail-realtime-toggle"]').trigger('click');
     await flushPromises();
 
     expect(wrapper.get('[data-testid="container-detail-realtime-status"]').text()).toBe('已暂停');
+    vi.runOnlyPendingTimers();
     expect(realtimeMocks.controllers.every((controller) => controller.close.mock.calls.length > 0)).toBe(true);
 
     realtimeMocks.openRealtimeTopicSocket.mockClear();
@@ -1285,6 +1339,33 @@ describe('container detail page', () => {
 
     expect(realtimeMocks.openRealtimeTopicSocket).toHaveBeenCalled();
     expect(wrapper.get('[data-testid="container-detail-realtime-status"]').text()).toBe('实时中');
+  });
+
+  it('does not resubscribe while deactivated when a late refresh resolves', async () => {
+    vi.useFakeTimers();
+    const firstDetail = deferred<ReturnType<typeof createContainerDetail>>();
+    apiMocks.getContainer.mockReturnValueOnce(firstDetail.promise);
+
+    const visible = ref(true);
+    const Host = defineComponent({
+      setup() {
+        return () => h(KeepAlive, () => (visible.value ? h(ContainerDetailPage) : null));
+      },
+    });
+
+    const wrapper = mountPage(Host);
+    await flushPromises();
+
+    expect(realtimeMocks.openRealtimeTopicSocket).not.toHaveBeenCalled();
+
+    visible.value = false;
+    await nextTick();
+
+    firstDetail.resolve(createContainerDetail());
+    await flushPromises();
+
+    expect(realtimeMocks.openRealtimeTopicSocket).not.toHaveBeenCalled();
+    wrapper.unmount();
   });
 
   it('does not preserve stale realtime resource on manual refresh before any socket snapshot arrives', async () => {
@@ -1304,7 +1385,8 @@ describe('container detail page', () => {
     await flushPromises();
 
     expect(wrapper.text()).toContain('7.5%');
-    expect(wrapper.text()).not.toContain('21.8%');
+    expect(wrapper.html()).toContain('当前快照');
+    expect(wrapper.html()).toContain('资源历史');
   });
 
   it('uses fresh detail resource after pausing realtime and manually refreshing', async () => {
@@ -1339,7 +1421,8 @@ describe('container detail page', () => {
     await flushPromises();
 
     expect(wrapper.text()).toContain('7.5%');
-    expect(wrapper.text()).not.toContain('88.8%');
+    expect(wrapper.html()).toContain('当前快照');
+    expect(wrapper.html()).toContain('资源历史');
   });
 
   it('ignores stale socket messages after switching to another container detail', async () => {
@@ -2016,7 +2099,7 @@ describe('container detail page', () => {
     expect(wrapper.text()).toContain('0');
     expect(wrapper.text()).toContain('CMD-SHELL curl -f http://localhost:8080/health || exit 1');
     expect(wrapper.text()).toContain('无异常');
-    expect(wrapper.text()).toContain('最近检查：2026-06-14T01:07:00Z');
+    expect(wrapper.text()).toContain('最近检查：formatted:2026-06-14T01:07:00Z');
     expect(wrapper.text()).toContain('运行稳定性');
     expect(wrapper.text()).toContain('状态稳定');
     expect(wrapper.text()).toContain('最近退出码');
@@ -2219,14 +2302,18 @@ describe('container detail page', () => {
     expect(resourcesSource).toContain('container-detail-resource-grid');
     expect(resourcesSource).toContain('container-resource-dashboard-section');
     expect(resourcesSource).toContain('container-resource-dashboard-grid');
+    expect(resourcesSource).toContain('container-resource-history-section');
+    expect(resourcesSource).toContain('container-resource-history-grid');
     expect(resourcesSource).toContain('container-resource-detail-section');
     expect(resourcesSource).toContain('container-resource-detail-grid');
     expect(resourcesSource).toContain('container-resource-cpu-metric-grid');
     expect(resourcesSource).toContain('container-resource-detail-card--memory');
     expect(resourcesSource).toContain('cpuDetailMetrics');
+    expect(resourcesSource).toContain('resourceHistoryPoints');
     expect(resourcesSource).toContain('resourceDetailGroups');
     expect(resourcesSource).toContain('container-resource-detail-row');
     expect(resourcesSource).toContain('container.detail.resources.dashboard');
+    expect(resourcesSource).toContain('container.detail.resources.history');
     expect(resourcesSource).toContain('container.detail.resources.detailedMetrics');
     expect(resourcesSource).toContain('container-resource-cpu-metric--warning');
     expect(resourcesSource).not.toContain('<t-descriptions');
@@ -2334,7 +2421,7 @@ describe('container detail page', () => {
     expect(rawPanel.text()).toContain('端口映射 1');
     expect(rawPanel.text()).toContain('挂载 5');
     expect(rawPanel.text()).toContain('网络 1');
-    expect(rawPanel.text()).toContain('更新时间 2026-06-14T01:08:00Z');
+    expect(rawPanel.text()).toContain('更新时间 formatted:2026-06-14T01:08:00Z');
     expect(rawPanel.get('input[placeholder="搜索字段或内容"]').attributes('placeholder')).toBe('搜索字段或内容');
     expect(rawPanel.text()).toContain('源码视图');
     expect(rawPanel.text()).toContain('树形视图');
@@ -2575,6 +2662,7 @@ function createContainerDetail() {
     resource: {
       available: true,
       stats_available: true,
+      collected_at: '2026-06-14T01:09:30Z',
       cpu_percent: 21.8,
       cpu_usage_in_kernelmode: 20_000_000,
       cpu_usage_in_usermode: 10_000_000,
@@ -2612,8 +2700,8 @@ function createContainerDetail() {
   };
 }
 
-function mountPage() {
-  const wrapper = mount(ContainerDetailPage, {
+function mountPage(component: object = ContainerDetailPage) {
+  const wrapper = mount(component, {
     global: {
       stubs: {
         'management-page-header': defineComponent({
@@ -2717,8 +2805,16 @@ function mountPage() {
           setup: (props) => () => h('span', String(props.name ?? '')),
         }),
         't-progress': defineComponent({
-          props: ['percentage'],
-          setup: (props) => () => h('span', `${String(props.percentage)}%`),
+          props: ['percentage', 'status'],
+          setup: (props) => () =>
+            h(
+              'span',
+              {
+                'data-status': String(props.status ?? ''),
+                'data-testid': 'detail-resource-progress',
+              },
+              `${String(props.percentage)}%`,
+            ),
         }),
         't-statistic': defineComponent({
           props: ['value', 'unit'],

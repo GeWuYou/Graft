@@ -23,6 +23,10 @@ const quickActionConfigApiMocks = vi.hoisted(() => ({
   getDashboardSystemConfigs: vi.fn(),
 }));
 
+const containerDashboardApiMocks = vi.hoisted(() => ({
+  getContainerDashboardSummary: vi.fn(),
+}));
+
 const loggerMocks = vi.hoisted(() => ({
   error: vi.fn(),
 }));
@@ -39,6 +43,17 @@ vi.mock('../api/dashboard', () => ({
 vi.mock('../api/quick-actions-config', () => ({
   getDashboardSystemConfigs: quickActionConfigApiMocks.getDashboardSystemConfigs,
 }));
+
+vi.mock('@/modules/container', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/modules/container')>();
+  return {
+    ...actual,
+    containerModuleFacades: {
+      ...actual.containerModuleFacades,
+      getContainerDashboardSummary: containerDashboardApiMocks.getContainerDashboardSummary,
+    },
+  };
+});
 
 vi.mock('../components/DashboardRenderer.vue', () => ({
   default: defineComponent({
@@ -113,6 +128,44 @@ vi.mock('../components/DashboardQuickActions.vue', () => ({
               )
             : [],
         );
+      };
+    },
+  }),
+}));
+
+vi.mock('../components/DashboardContainerResources.vue', () => ({
+  default: defineComponent({
+    name: 'DashboardContainerResourcesStub',
+    props: {
+      summary: {
+        type: Object,
+        default: () => ({
+          overview: {},
+          hotspots: { cpu: [], memory: [] },
+          anomalies: [],
+        }),
+      },
+      loading: {
+        type: Boolean,
+        default: false,
+      },
+    },
+    setup(props) {
+      return () => {
+        const summary = props.summary as {
+          overview?: { runningContainers?: number; abnormalContainers?: number };
+          hotspots?: { cpu?: Array<unknown>; memory?: Array<unknown> };
+          anomalies?: Array<unknown>;
+        };
+        return h('section', {
+          class: 'dashboard-container-resources-stub',
+          'data-loading': String(props.loading),
+          'data-running': String(summary.overview?.runningContainers ?? 0),
+          'data-abnormal': String(summary.overview?.abnormalContainers ?? 0),
+          'data-cpu-hotspots': String(summary.hotspots?.cpu?.length ?? 0),
+          'data-memory-hotspots': String(summary.hotspots?.memory?.length ?? 0),
+          'data-anomalies': String(summary.anomalies?.length ?? 0),
+        });
       };
     },
   }),
@@ -329,6 +382,70 @@ function summaryResponse(): DashboardSummaryResponse {
   };
 }
 
+function containerDashboardSummaryResponse() {
+  return {
+    overview: {
+      runningContainers: 10,
+      abnormalContainers: 3,
+      cpuTotalPercent: 42.5,
+      memoryTotalUsageBytes: 2147483648,
+      memoryTotalLimitBytes: 4294967296,
+      memoryTotalPercent: 58.3,
+      collectedAt: '2026-06-24T00:02:00Z',
+    },
+    hotspots: {
+      cpu: [
+        {
+          id: 'cpu-1',
+          name: 'graft-server',
+          state: 'running',
+          health: null,
+          image: '',
+          shortId: 'cpu-1',
+          restartCount: null,
+          cpuPercent: 42.5,
+          memoryPercent: 12.4,
+          memoryUsageBytes: 536870912,
+          memoryLimitBytes: 2147483648,
+          collectedAt: '2026-06-24T00:01:00Z',
+        },
+      ],
+      memory: [
+        {
+          id: 'mem-1',
+          name: 'graft-worker',
+          state: 'running',
+          health: null,
+          image: '',
+          shortId: 'mem-1',
+          restartCount: null,
+          cpuPercent: 12.2,
+          memoryPercent: 58.3,
+          memoryUsageBytes: 1073741824,
+          memoryLimitBytes: 2147483648,
+          collectedAt: '2026-06-24T00:02:00Z',
+        },
+      ],
+    },
+    anomalies: [
+      {
+        id: 'bad-1',
+        name: 'graft-scheduler',
+        state: 'restarting',
+        health: null,
+        image: '',
+        shortId: 'bad-1',
+        restartCount: null,
+        cpuPercent: 2.4,
+        memoryPercent: 12.3,
+        memoryUsageBytes: null,
+        memoryLimitBytes: null,
+        collectedAt: '2026-06-24T00:02:00Z',
+      },
+    ],
+  };
+}
+
 function quickActionsConfigItem(effectiveValue: string) {
   return {
     config_schema: {},
@@ -495,7 +612,13 @@ describe('DashboardHomePage', () => {
     vi.clearAllMocks();
     setActivePinia(createPinia());
     quickActionConfigApiMocks.getDashboardSystemConfigs.mockResolvedValue({ items: [] });
+    containerDashboardApiMocks.getContainerDashboardSummary.mockResolvedValue(containerDashboardSummaryResponse());
     usePermissionStore().routers = buildSidebarRoutes();
+    usePermissionStore().setBootstrapSnapshot({
+      permissions: ['ops.container.view'],
+      menus: [],
+      user: null,
+    } as never);
   });
 
   it('loads and renders the fixed system summary plus sidebar-derived quick links and widgets', async () => {
@@ -519,6 +642,36 @@ describe('DashboardHomePage', () => {
     expect(wrapper.text()).not.toContain('Access Control - Permissions');
     expect(wrapper.text()).toContain('core.module-runtime-health');
     expect(wrapper.text()).toContain('monitor.system-health');
+    expect(containerDashboardApiMocks.getContainerDashboardSummary).toHaveBeenCalledTimes(1);
+    expect(wrapper.find('.dashboard-container-resources-stub').attributes('data-running')).toBe('10');
+    expect(wrapper.find('.dashboard-container-resources-stub').attributes('data-anomalies')).toBe('1');
+  });
+
+  it('does not acquire the dashboard collection subscription twice on repeated refresh', async () => {
+    dashboardApiMocks.getDashboardSummary.mockResolvedValue(summaryResponse());
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.find('button').trigger('click');
+    await flushPromises();
+
+    expect(containerDashboardApiMocks.getContainerDashboardSummary).toHaveBeenCalledTimes(2);
+  });
+
+  it('skips container dashboard consumption when the permission is missing', async () => {
+    dashboardApiMocks.getDashboardSummary.mockResolvedValueOnce(summaryResponse());
+    usePermissionStore().setBootstrapSnapshot({
+      permissions: [],
+      menus: [],
+      user: null,
+    } as never);
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(containerDashboardApiMocks.getContainerDashboardSummary).not.toHaveBeenCalled();
+    expect(wrapper.find('.dashboard-container-resources-stub').exists()).toBe(false);
   });
 
   it('opens the sidebar-derived route when a quick action is clicked', async () => {
