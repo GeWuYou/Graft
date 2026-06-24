@@ -7,6 +7,7 @@ import { buildContainerStatsTopic, parseContainerStatsPayload } from './realtime
 
 type ContainerMetadataRecord = Omit<ContainerSummaryRecord, 'resource'>;
 type ContainerDetailMetadataRecord = Omit<ContainerDetailRecord, 'resource'>;
+type ContainerSummaryCollectionKey = string;
 
 type StatsSnapshotSource = 'http-seed' | 'realtime';
 type RealtimeSocketState = 'idle' | 'connecting' | 'open' | 'closed' | 'error';
@@ -29,18 +30,19 @@ type ContainerStatsSubscriptionEntry = {
 
 type ContainerStatsManagerState = {
   detailMetadataById: Map<string, ContainerDetailMetadataRecord>;
-  listOrder: string[];
-  listMetadataById: Map<string, ContainerMetadataRecord>;
+  listCollections: Map<ContainerSummaryCollectionKey, string[]>;
+  listMetadataByCollection: Map<ContainerSummaryCollectionKey, Map<string, ContainerMetadataRecord>>;
   statsById: Map<string, ContainerStatsEntry>;
   subscriptionsById: Map<string, ContainerStatsSubscriptionEntry>;
 };
 
 const SUBSCRIPTION_IDLE_GRACE_MS = 10_000;
+const DEFAULT_CONTAINER_LIST_COLLECTION_KEY = 'container:list';
 
 const state = reactive<ContainerStatsManagerState>({
   detailMetadataById: new Map<string, ContainerDetailMetadataRecord>(),
-  listOrder: [],
-  listMetadataById: new Map<string, ContainerMetadataRecord>(),
+  listCollections: new Map<ContainerSummaryCollectionKey, string[]>(),
+  listMetadataByCollection: new Map<ContainerSummaryCollectionKey, Map<string, ContainerMetadataRecord>>(),
   statsById: new Map<string, ContainerStatsEntry>(),
   subscriptionsById: new Map<string, ContainerStatsSubscriptionEntry>(),
 });
@@ -98,9 +100,30 @@ function upsertStatsSnapshot(containerId: string, resource: ContainerResourceSum
   return nextSnapshot;
 }
 
-function clearListMetadata() {
-  state.listOrder = [];
-  state.listMetadataById.clear();
+function normalizeCollectionKey(collectionKey?: string) {
+  return collectionKey?.trim() || DEFAULT_CONTAINER_LIST_COLLECTION_KEY;
+}
+
+function ensureListCollection(collectionKey?: string) {
+  const normalizedCollectionKey = normalizeCollectionKey(collectionKey);
+  if (!state.listCollections.has(normalizedCollectionKey)) {
+    state.listCollections.set(normalizedCollectionKey, []);
+  }
+  if (!state.listMetadataByCollection.has(normalizedCollectionKey)) {
+    state.listMetadataByCollection.set(normalizedCollectionKey, new Map<string, ContainerMetadataRecord>());
+  }
+
+  return {
+    key: normalizedCollectionKey,
+    order: state.listCollections.get(normalizedCollectionKey)!,
+    metadataById: state.listMetadataByCollection.get(normalizedCollectionKey)!,
+  };
+}
+
+function clearListMetadata(collectionKey?: string) {
+  const targetCollection = ensureListCollection(collectionKey);
+  targetCollection.order.length = 0;
+  targetCollection.metadataById.clear();
 }
 
 function ensureSubscriptionEntry(containerId: string) {
@@ -184,19 +207,21 @@ export function resetContainerStatsManager() {
   state.subscriptionsById.forEach((entry) => {
     closeSubscriptionEntry(entry);
   });
-  state.listOrder = [];
-  state.listMetadataById.clear();
+  state.listCollections.clear();
+  state.listMetadataByCollection.clear();
   state.detailMetadataById.clear();
   state.statsById.clear();
   state.subscriptionsById.clear();
 }
 
-export function seedContainerList(items: ContainerSummaryRecord[]) {
-  clearListMetadata();
+export function seedContainerList(items: ContainerSummaryRecord[], collectionKey?: string) {
+  const targetCollection = ensureListCollection(collectionKey);
+  targetCollection.order.length = 0;
+  targetCollection.metadataById.clear();
   items.forEach((item) => {
-    state.listOrder.push(item.id);
+    targetCollection.order.push(item.id);
     const { metadata, resource } = splitSummaryRecord(item);
-    state.listMetadataById.set(item.id, metadata);
+    targetCollection.metadataById.set(item.id, metadata);
     if (resource) {
       upsertStatsSnapshot(item.id, resource, 'http-seed');
     }
@@ -221,6 +246,10 @@ export function clearContainerDetail(containerId?: string) {
 
 export function clearContainerListMetadata() {
   clearListMetadata();
+}
+
+export function clearContainerSummaryCollection(collectionKey: string) {
+  clearListMetadata(collectionKey);
 }
 
 export function applyContainerRealtimeStats(containerId: string, resource: ContainerResourceSummary) {
@@ -272,7 +301,7 @@ export function selectContainerStatsRealtimeState(containerId: string): Realtime
 }
 
 function selectContainerSummaryView(containerId: string): ContainerSummaryRecord | null {
-  const metadata = state.listMetadataById.get(containerId);
+  const metadata = state.listMetadataByCollection.get(DEFAULT_CONTAINER_LIST_COLLECTION_KEY)?.get(containerId);
   if (!metadata) {
     return null;
   }
@@ -285,11 +314,35 @@ function selectContainerSummaryView(containerId: string): ContainerSummaryRecord
 }
 
 export function selectContainerListViews(): ContainerSummaryRecord[] {
-  return state.listOrder.reduce<ContainerSummaryRecord[]>((items, containerId) => {
+  const order = state.listCollections.get(DEFAULT_CONTAINER_LIST_COLLECTION_KEY) ?? [];
+  return order.reduce<ContainerSummaryRecord[]>((items, containerId) => {
     const next = selectContainerSummaryView(containerId);
     if (next) {
       items.push(next);
     }
+    return items;
+  }, []);
+}
+
+export function selectContainerSummaryCollectionViews(collectionKey: string): ContainerSummaryRecord[] {
+  const normalizedCollectionKey = normalizeCollectionKey(collectionKey);
+  const order = state.listCollections.get(normalizedCollectionKey) ?? [];
+  const metadataById = state.listMetadataByCollection.get(normalizedCollectionKey);
+  if (!metadataById) {
+    return [];
+  }
+
+  return order.reduce<ContainerSummaryRecord[]>((items, containerId) => {
+    const metadata = metadataById.get(containerId);
+    if (!metadata) {
+      return items;
+    }
+
+    const snapshot = state.statsById.get(containerId)?.snapshot ?? null;
+    items.push({
+      ...metadata,
+      resource: snapshot?.resource,
+    });
     return items;
   }, []);
 }

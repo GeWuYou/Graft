@@ -25,6 +25,15 @@
       "security": "Security",
       "system": "System"
     },
+    "containerResources": {
+      "collectedAt": "Collected At",
+      "cpu": "CPU",
+      "empty": "No container resource data",
+      "memory": "Memory",
+      "source": "Container Module Shared State",
+      "title": "Container Resource Overview",
+      "unavailable": "Unavailable"
+    },
     "empty": "No Dashboard data",
     "error": {
       "fallback": "Dashboard data failed to load",
@@ -197,6 +206,7 @@
       "core": "Core",
       "core_httpx": "Access Log",
       "core_logger": "App Log",
+      "container": "Container Management",
       "dashboard": "Dashboard",
       "monitor": "Monitor",
       "rbac": "RBAC",

@@ -63,11 +63,15 @@
   - `ContainerStatsManager` 收口 acquire / release / ref-count / idle-grace cleanup
   - list/detail 共享同一份 `container.stats:{id}` 订阅生命周期
   - list 加载失败只清理 list metadata，不再全局 reset module-owned stats authority
+- 已完成 Phase 4 dashboard shared resource consumption：
+  - dashboard 通过 container module contract facade 读取容器资源概览
+  - dashboard 复用同一份 canonical stats authority 与 subscription lifecycle
+  - container stats manager 增加 collection-key 隔离，避免 dashboard metadata projection 覆盖 list projection
 - 已确认：
   - Arcane 的列表页存在集中式 stats manager，但 Detail 与 Dashboard 不共享统一资源状态层。
   - Graft 后端已具备 `statsCollector -> resourceStatsCache -> container.stats:{id}` 主链。
   - Graft 前端已具备统一 stats store foundation，但尚未统一订阅 acquire/release/ref-count 生命周期。
-- 当前下一批推荐进入 Phase 4，而不是继续在 list/detail 内新增页面局部订阅逻辑。
+- 当前下一批推荐进入 Phase 5 optional history store，而不是回退到新的页面局部资源 authority。
 
 ## Validation Targets
 

@@ -4,6 +4,7 @@ import type { ContainerDetailRecord, ContainerSummaryRecord } from '../types/con
 import {
   acquireContainerStatsSubscription,
   applyContainerRealtimeStats,
+  clearContainerSummaryCollection,
   releaseContainerStatsSubscription,
   resetContainerStatsManager,
   seedContainerDetail,
@@ -11,6 +12,7 @@ import {
   selectContainerDetailView,
   selectContainerListViews,
   selectContainerStatsRealtimeState,
+  selectContainerSummaryCollectionViews,
 } from './stats-manager';
 
 const realtimeMocks = vi.hoisted(() => ({
@@ -118,6 +120,33 @@ describe('container stats manager', () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]?.resource?.cpu_percent).toBe(21.8);
     expect(rows[0]?.resource?.collected_at).toBe('2026-06-14T01:09:00Z');
+  });
+
+  it('keeps dashboard and list projections isolated while sharing the same stats authority', () => {
+    seedContainerList([createSummary()], 'container:list');
+    seedContainerList(
+      [
+        createSummary({
+          cpu_percent: 11.2,
+          collected_at: '2026-06-14T01:08:00Z',
+        }),
+      ],
+      'dashboard:container-overview',
+    );
+
+    applyContainerRealtimeStats('container-1', {
+      ...createSummary().resource!,
+      cpu_percent: 64.5,
+      collected_at: '2026-06-14T01:12:00Z',
+    });
+
+    expect(selectContainerListViews()[0]?.resource?.cpu_percent).toBe(64.5);
+    expect(selectContainerSummaryCollectionViews('dashboard:container-overview')[0]?.resource?.cpu_percent).toBe(64.5);
+
+    clearContainerSummaryCollection('dashboard:container-overview');
+
+    expect(selectContainerListViews()).toHaveLength(1);
+    expect(selectContainerSummaryCollectionViews('dashboard:container-overview')).toHaveLength(0);
   });
 
   it('does not let an older http seed override a fresher realtime snapshot', () => {

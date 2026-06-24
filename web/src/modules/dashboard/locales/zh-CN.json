@@ -25,6 +25,15 @@
       "security": "安全",
       "system": "系统"
     },
+    "containerResources": {
+      "collectedAt": "采集时间",
+      "cpu": "CPU",
+      "empty": "暂无容器资源数据",
+      "memory": "内存",
+      "source": "容器模块共享状态",
+      "title": "容器资源概览",
+      "unavailable": "不可用"
+    },
     "empty": "暂无 Dashboard 数据",
     "error": {
       "fallback": "Dashboard 数据加载失败",
@@ -197,6 +206,7 @@
       "core": "核心",
       "core_httpx": "访问日志",
       "core_logger": "应用日志",
+      "container": "容器管理",
       "dashboard": "工作台",
       "monitor": "监控",
       "rbac": "权限",

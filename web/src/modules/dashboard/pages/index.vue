@@ -54,6 +54,12 @@
 
         <dashboard-quick-actions v-if="summary" :links="quickLinks" :config="quickActionConfig" />
 
+        <dashboard-container-resources
+          v-if="canViewContainerOverview"
+          :containers="containerResourceViews"
+          :loading="containerResourcesLoading"
+        />
+
         <dashboard-renderer
           :widgets="widgets"
           :refreshing-widget-id="refreshingWidgetId"
@@ -67,11 +73,20 @@
   </section>
 </template>
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 
 import { API_CODE } from '@/contracts/api/codes';
 import type { SupportedLocale } from '@/contracts/i18n/locales';
 import { currentLocale, t } from '@/locales';
+import { getDashboardContainerStatsSeed } from '@/modules/container/api/dashboard-stats';
+import {
+  acquireDashboardContainerStats,
+  clearDashboardContainerStats,
+  releaseDashboardContainerStats,
+  seedDashboardContainerStats,
+  selectDashboardContainerStatsViews,
+} from '@/modules/container/contract/dashboard-stats';
+import { CONTAINER_PERMISSION_CODE } from '@/modules/container/contract/permissions';
 import { PageHeader } from '@/shared/components/page';
 import { formatLocaleDateTime, MEDIUM_DATE_TIME_WITH_SECONDS_FORMAT_OPTIONS } from '@/shared/observability';
 import { usePermissionStore } from '@/store/modules/permission';
@@ -80,6 +95,7 @@ import { createLogger } from '@/utils/logger';
 
 import { getDashboardSummary, getDashboardWidget } from '../api/dashboard';
 import { getDashboardSystemConfigs } from '../api/quick-actions-config';
+import DashboardContainerResources from '../components/DashboardContainerResources.vue';
 import DashboardQuickActions from '../components/DashboardQuickActions.vue';
 import DashboardRenderer from '../components/DashboardRenderer.vue';
 import {
@@ -103,6 +119,8 @@ const summary = ref<DashboardSummaryResponse | null>(null);
 const widgets = ref<DashboardWidget[]>([]);
 const lastUpdatedAt = ref('');
 const quickActionConfig = ref<DashboardQuickActionConfig>({ ...DEFAULT_DASHBOARD_QUICK_ACTION_CONFIG });
+const containerResourcesLoading = ref(false);
+const dashboardContainerSubscriptionIds = ref<string[]>([]);
 const summarySkeletonRowCol = [
   { width: '52%', height: '14px' },
   { width: '36%', height: '28px' },
@@ -165,9 +183,16 @@ const lastUpdatedLabel = computed(() =>
 const quickLinks = computed(() =>
   buildDashboardQuickActionLinks(permissionStore.routers, currentLocale.value as SupportedLocale),
 );
+const canViewContainerOverview = computed(() => permissionStore.hasPermission(CONTAINER_PERMISSION_CODE.VIEW));
+const containerResourceViews = computed(() => selectDashboardContainerStatsViews());
 
 onMounted(() => {
   void loadSummary();
+});
+
+onBeforeUnmount(() => {
+  releaseDashboardContainerSubscriptions();
+  clearDashboardContainerStats();
 });
 
 async function loadSummary() {
@@ -175,7 +200,11 @@ async function loadSummary() {
   errorMessage.value = '';
 
   try {
-    const [response] = await Promise.all([getDashboardSummary(), loadQuickActionConfig()]);
+    const [response] = await Promise.all([
+      getDashboardSummary(),
+      loadQuickActionConfig(),
+      loadDashboardContainerResources(),
+    ]);
     summary.value = response;
     widgets.value = response.widgets;
     lastUpdatedAt.value = new Date().toISOString();
@@ -199,6 +228,47 @@ async function loadQuickActionConfig() {
     logger.error('dashboard quick-action config request failed', error);
     quickActionConfig.value = { ...DEFAULT_DASHBOARD_QUICK_ACTION_CONFIG };
   }
+}
+
+async function loadDashboardContainerResources() {
+  if (!canViewContainerOverview.value) {
+    releaseDashboardContainerSubscriptions();
+    clearDashboardContainerStats();
+    return;
+  }
+
+  containerResourcesLoading.value = true;
+  try {
+    const response = await getDashboardContainerStatsSeed();
+    seedDashboardContainerStats(response.items);
+    syncDashboardContainerSubscriptions(response.items.map((item) => item.id));
+  } catch (error) {
+    logger.warn('dashboard container resource seed request failed', error);
+    releaseDashboardContainerSubscriptions();
+    clearDashboardContainerStats();
+  } finally {
+    containerResourcesLoading.value = false;
+  }
+}
+
+function syncDashboardContainerSubscriptions(containerIds: string[]) {
+  const normalizedIds = Array.from(new Set(containerIds.map((value) => value.trim()).filter(Boolean)));
+  const previousIds = dashboardContainerSubscriptionIds.value;
+
+  previousIds
+    .filter((containerId) => !normalizedIds.includes(containerId))
+    .forEach((containerId) => releaseDashboardContainerStats(containerId));
+
+  normalizedIds
+    .filter((containerId) => !previousIds.includes(containerId))
+    .forEach((containerId) => acquireDashboardContainerStats(containerId));
+
+  dashboardContainerSubscriptionIds.value = normalizedIds;
+}
+
+function releaseDashboardContainerSubscriptions() {
+  dashboardContainerSubscriptionIds.value.forEach((containerId) => releaseDashboardContainerStats(containerId));
+  dashboardContainerSubscriptionIds.value = [];
 }
 
 async function refreshWidget(widgetId: string) {

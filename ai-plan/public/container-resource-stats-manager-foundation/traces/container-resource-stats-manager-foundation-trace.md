@@ -41,6 +41,11 @@
   - list 页开始为当前可见容器集合 acquire/release 订阅，并通过 selector 响应式读取共享 stats state。
   - list 刷新失败改为只清理 list metadata，不再 `resetContainerStatsManager()` 抹掉 detail 等仍在持有的 canonical stats authority。
   - container scoped vitest 通过。
+- Phase 4 dashboard shared resource consumption：
+  - `ContainerStatsManager` 增加 collection-key 隔离，允许 dashboard 拥有独立 metadata projection，同时继续共享同一份 stats authority。
+  - 新增 `web/src/modules/container/contract/dashboard-stats.ts` 作为最小跨模块稳定消费面，dashboard 不再需要 ad-hoc 导入 container 私有实现。
+  - dashboard 首页新增容器资源概览卡片，seed 来自 container list HTTP latest-known projection，realtime 仍由 canonical `container.stats:{id}` 驱动。
+  - dashboard 释放订阅与清理 projection 时不影响 list/detail 仍持有的 container module authority。
 
 ## Loop Batch State
 
@@ -51,14 +56,14 @@
     "phase-0-audit-and-design-anchor",
     "phase-1-resource-ownership-separation",
     "phase-2-frontend-stats-manager-foundation",
-    "phase-3-subscription-manager-unification"
+    "phase-3-subscription-manager-unification",
+    "phase-4-dashboard-shared-resource-consumption"
   ],
   "pending_batches": [
-    "phase-4-dashboard-shared-resource-consumption",
     "phase-5-history-store-optional"
   ],
-  "current_batch": "phase-3-subscription-manager-unification",
-  "next_batch": "phase-4-dashboard-shared-resource-consumption",
+  "current_batch": "phase-4-dashboard-shared-resource-consumption",
+  "next_batch": "phase-5-history-store-optional",
   "closeout_status": "active"
 }
 ```

@@ -31,9 +31,9 @@ Container Resource Stats Manager Foundation
   - list/detail HTTP `resource` 是 latest-known snapshot 投影，phase-2 已将其收口为共享 stats seed
   - detail 页 realtime snapshot 已不再直接 patch 页面局部 `resource`，而是写入 module-owned stats store
   - list 页不再直接以 HTTP row.resource 作为长期 authority
-  - dashboard 当前未接入容器资源共享状态
+  - dashboard 已通过 container-owned contract facade 接入共享资源状态
 - 当前推荐下一批：
-  - `phase-4-dashboard-shared-resource-consumption`
+  - `phase-5-history-store-optional`
 
 ## Task Checklist
 
@@ -43,7 +43,7 @@ Container Resource Stats Manager Foundation
 - [x] Phase 1：resource ownership separation
 - [x] Phase 2：frontend ContainerStatsManager foundation
 - [x] Phase 3：subscription manager unification
-- [ ] Phase 4：dashboard shared resource consumption
+- [x] Phase 4：dashboard shared resource consumption
 - [ ] Phase 5：optional history store
 
 ## Batch Boundaries
@@ -102,4 +102,16 @@ Container Resource Stats Manager Foundation
   - container scoped vitest 通过
 - 本批未进入：
   - Dashboard 共享消费
+  - history / trend metrics
+
+## Phase 4 Closeout
+
+- 已完成 dashboard shared resource consumption：
+  - `web/src/modules/container/contract/dashboard-stats.ts` 暴露 container-owned dashboard consumption facade
+  - `web/src/modules/container/shared/stats-manager.ts` 引入 collection-key 隔离，让 dashboard metadata projection 与 list projection 分离
+  - `web/src/modules/dashboard/pages/index.vue` 通过 facade seed/acquire/select/release 容器资源概览，不新增 dashboard 自有 stats authority
+- 已完成边界修复：
+  - dashboard 不再需要直接导入容器页面或容器模块私有类型实现细节
+  - container module 继续拥有 canonical stats authority，dashboard 仅消费 facade
+- 本批未进入：
   - history / trend metrics

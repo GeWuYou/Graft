@@ -23,6 +23,16 @@ const quickActionConfigApiMocks = vi.hoisted(() => ({
   getDashboardSystemConfigs: vi.fn(),
 }));
 
+const containerDashboardApiMocks = vi.hoisted(() => ({
+  getDashboardContainerStatsSeed: vi.fn(),
+}));
+
+const containerDashboardFacadeState = vi.hoisted(() => ({
+  acquired: [] as string[],
+  items: [] as Array<Record<string, unknown>>,
+  released: [] as string[],
+}));
+
 const loggerMocks = vi.hoisted(() => ({
   error: vi.fn(),
 }));
@@ -38,6 +48,27 @@ vi.mock('../api/dashboard', () => ({
 
 vi.mock('../api/quick-actions-config', () => ({
   getDashboardSystemConfigs: quickActionConfigApiMocks.getDashboardSystemConfigs,
+}));
+
+vi.mock('@/modules/container/api/dashboard-stats', () => ({
+  getDashboardContainerStatsSeed: containerDashboardApiMocks.getDashboardContainerStatsSeed,
+}));
+
+vi.mock('@/modules/container/contract/dashboard-stats', () => ({
+  CONTAINER_DASHBOARD_COLLECTION_KEY: 'dashboard:container-overview',
+  seedDashboardContainerStats: vi.fn((items: Array<Record<string, unknown>>) => {
+    containerDashboardFacadeState.items = items;
+  }),
+  clearDashboardContainerStats: vi.fn(() => {
+    containerDashboardFacadeState.items = [];
+  }),
+  selectDashboardContainerStatsViews: vi.fn(() => containerDashboardFacadeState.items),
+  acquireDashboardContainerStats: vi.fn((containerId: string) => {
+    containerDashboardFacadeState.acquired.push(containerId);
+  }),
+  releaseDashboardContainerStats: vi.fn((containerId: string) => {
+    containerDashboardFacadeState.released.push(containerId);
+  }),
 }));
 
 vi.mock('../components/DashboardRenderer.vue', () => ({
@@ -114,6 +145,35 @@ vi.mock('../components/DashboardQuickActions.vue', () => ({
             : [],
         );
       };
+    },
+  }),
+}));
+
+vi.mock('../components/DashboardContainerResources.vue', () => ({
+  default: defineComponent({
+    name: 'DashboardContainerResourcesStub',
+    props: {
+      containers: {
+        type: Array,
+        default: () => [],
+      },
+      loading: {
+        type: Boolean,
+        default: false,
+      },
+    },
+    setup(props) {
+      return () =>
+        h(
+          'section',
+          {
+            class: 'dashboard-container-resources-stub',
+            'data-loading': String(props.loading),
+          },
+          (props.containers as Array<{ id: string; name?: string }>).map((container) =>
+            h('span', { class: 'dashboard-container-resource-id' }, container.name || container.id),
+          ),
+        );
     },
   }),
 }));
@@ -329,6 +389,47 @@ function summaryResponse(): DashboardSummaryResponse {
   };
 }
 
+function containerSeedResponse() {
+  return {
+    items: [
+      {
+        id: 'container-1',
+        short_id: 'container-1',
+        name: 'graft-server',
+        names: ['graft-server'],
+        image: 'graft/server:latest',
+        image_id: 'sha256:server',
+        labels: {},
+        ports: [],
+        restart_policy: 'unless-stopped',
+        runtime: 'docker',
+        state: 'running',
+        health: 'healthy',
+        status: 'Up 5 minutes',
+        created_at: '2026-06-24T00:00:00Z',
+        started_at: '2026-06-24T00:01:00Z',
+        networks: [],
+        resource: {
+          available: true,
+          stats_available: true,
+          cpu_percent: 12.4,
+          memory_percent: 41.2,
+          memory_usage_bytes: 128,
+          memory_limit_bytes: 512,
+          collected_at: '2026-06-24T00:02:00Z',
+        },
+        can_start: false,
+        can_stop: true,
+        can_restart: true,
+        can_remove: true,
+      },
+    ],
+    summary: {
+      total: 1,
+    },
+  };
+}
+
 function quickActionsConfigItem(effectiveValue: string) {
   return {
     config_schema: {},
@@ -495,7 +596,16 @@ describe('DashboardHomePage', () => {
     vi.clearAllMocks();
     setActivePinia(createPinia());
     quickActionConfigApiMocks.getDashboardSystemConfigs.mockResolvedValue({ items: [] });
+    containerDashboardApiMocks.getDashboardContainerStatsSeed.mockResolvedValue(containerSeedResponse());
+    containerDashboardFacadeState.items = [];
+    containerDashboardFacadeState.acquired = [];
+    containerDashboardFacadeState.released = [];
     usePermissionStore().routers = buildSidebarRoutes();
+    usePermissionStore().setBootstrapSnapshot({
+      permissions: ['ops.container.view'],
+      menus: [],
+      user: null,
+    } as never);
   });
 
   it('loads and renders the fixed system summary plus sidebar-derived quick links and widgets', async () => {
@@ -519,6 +629,23 @@ describe('DashboardHomePage', () => {
     expect(wrapper.text()).not.toContain('Access Control - Permissions');
     expect(wrapper.text()).toContain('core.module-runtime-health');
     expect(wrapper.text()).toContain('monitor.system-health');
+    expect(containerDashboardApiMocks.getDashboardContainerStatsSeed).toHaveBeenCalledTimes(1);
+    expect(containerDashboardFacadeState.acquired).toEqual(['container-1']);
+  });
+
+  it('skips container dashboard consumption when the permission is missing', async () => {
+    dashboardApiMocks.getDashboardSummary.mockResolvedValueOnce(summaryResponse());
+    usePermissionStore().setBootstrapSnapshot({
+      permissions: [],
+      menus: [],
+      user: null,
+    } as never);
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(containerDashboardApiMocks.getDashboardContainerStatsSeed).not.toHaveBeenCalled();
+    expect(wrapper.find('.dashboard-container-resources-stub').exists()).toBe(false);
   });
 
   it('opens the sidebar-derived route when a quick action is clicked', async () => {
