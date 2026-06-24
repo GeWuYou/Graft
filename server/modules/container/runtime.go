@@ -187,6 +187,8 @@ type ListResult struct {
 	Summary ListSummary
 }
 
+type dashboardSummaryQuery struct{}
+
 // LogQuery describes bounded container log retrieval options.
 type LogQuery struct {
 	Tail       int

@@ -58,6 +58,11 @@ func registerRoutes(ctx *module.Context, moduleName string, service *service) er
 		routes.handleList,
 	)
 	group.GET(
+		containercontract.ContainerDashboardSummaryRoute,
+		httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerViewPermission.String(), publisher),
+		routes.handleDashboardSummary,
+	)
+	group.GET(
 		containercontract.ContainerDetailRoute,
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerDetailPermission.String(), publisher),
 		routes.handleDetail,
@@ -126,6 +131,15 @@ func (r routeRuntime) handleList(ginCtx *gin.Context) {
 		return
 	}
 	httpx.WriteSuccess(ginCtx, http.StatusOK, toContainerListResponse(result))
+}
+
+func (r routeRuntime) handleDashboardSummary(ginCtx *gin.Context) {
+	result, err := r.service.DashboardSummary(ginCtx.Request.Context(), dashboardSummaryQuery{})
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, toContainerDashboardSummaryResponse(result))
 }
 
 func (r routeRuntime) handleDetail(ginCtx *gin.Context) {

@@ -56,7 +56,7 @@
 
         <dashboard-container-resources
           v-if="canViewContainerOverview"
-          :containers="containerResourceViews"
+          :summary="containerDashboardSummary"
           :loading="containerResourcesLoading"
         />
 
@@ -73,19 +73,13 @@
   </section>
 </template>
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 
 import { API_CODE } from '@/contracts/api/codes';
 import type { SupportedLocale } from '@/contracts/i18n/locales';
 import { currentLocale, t } from '@/locales';
-import { getDashboardContainerStatsSeed } from '@/modules/container/api/dashboard-stats';
-import {
-  acquireDashboardContainerStatsCollection,
-  clearDashboardContainerStats,
-  releaseDashboardContainerStatsCollection,
-  seedDashboardContainerStats,
-  selectDashboardContainerStatsViews,
-} from '@/modules/container/contract/dashboard-stats';
+import { getContainerDashboardSummary } from '@/modules/container/api/dashboard-summary';
+import type { ContainerDashboardSummary } from '@/modules/container/contract/dashboard-summary';
 import { CONTAINER_PERMISSION_CODE } from '@/modules/container/contract/permissions';
 import { PageHeader } from '@/shared/components/page';
 import { formatLocaleDateTime, MEDIUM_DATE_TIME_WITH_SECONDS_FORMAT_OPTIONS } from '@/shared/observability';
@@ -120,7 +114,7 @@ const widgets = ref<DashboardWidget[]>([]);
 const lastUpdatedAt = ref('');
 const quickActionConfig = ref<DashboardQuickActionConfig>({ ...DEFAULT_DASHBOARD_QUICK_ACTION_CONFIG });
 const containerResourcesLoading = ref(false);
-const dashboardContainerSubscriptionActive = ref(false);
+const containerDashboardSummary = ref<ContainerDashboardSummary>(emptyContainerDashboardSummary());
 const summarySkeletonRowCol = [
   { width: '52%', height: '14px' },
   { width: '36%', height: '28px' },
@@ -184,15 +178,9 @@ const quickLinks = computed(() =>
   buildDashboardQuickActionLinks(permissionStore.routers, currentLocale.value as SupportedLocale),
 );
 const canViewContainerOverview = computed(() => permissionStore.hasPermission(CONTAINER_PERMISSION_CODE.VIEW));
-const containerResourceViews = computed(() => selectDashboardContainerStatsViews());
 
 onMounted(() => {
   void loadSummary();
-});
-
-onBeforeUnmount(() => {
-  releaseDashboardContainerSubscriptions();
-  clearDashboardContainerStats();
 });
 
 async function loadSummary() {
@@ -232,34 +220,38 @@ async function loadQuickActionConfig() {
 
 async function loadDashboardContainerResources() {
   if (!canViewContainerOverview.value) {
-    releaseDashboardContainerSubscriptions();
-    clearDashboardContainerStats();
+    containerDashboardSummary.value = emptyContainerDashboardSummary();
     return;
   }
 
   containerResourcesLoading.value = true;
   try {
-    const response = await getDashboardContainerStatsSeed();
-    seedDashboardContainerStats(response.items);
-    if (!dashboardContainerSubscriptionActive.value) {
-      acquireDashboardContainerStatsCollection();
-      dashboardContainerSubscriptionActive.value = true;
-    }
+    containerDashboardSummary.value = await getContainerDashboardSummary();
   } catch (error) {
     logger.warn('dashboard container resource seed request failed', error);
-    releaseDashboardContainerSubscriptions();
-    clearDashboardContainerStats();
+    containerDashboardSummary.value = emptyContainerDashboardSummary();
   } finally {
     containerResourcesLoading.value = false;
   }
 }
 
-function releaseDashboardContainerSubscriptions() {
-  if (!dashboardContainerSubscriptionActive.value) {
-    return;
-  }
-  dashboardContainerSubscriptionActive.value = false;
-  releaseDashboardContainerStatsCollection();
+function emptyContainerDashboardSummary(): ContainerDashboardSummary {
+  return {
+    overview: {
+      abnormalContainers: 0,
+      collectedAt: null,
+      cpuTotalPercent: 0,
+      memoryTotalLimitBytes: null,
+      memoryTotalPercent: null,
+      memoryTotalUsageBytes: null,
+      runningContainers: 0,
+    },
+    hotspots: {
+      cpu: [],
+      memory: [],
+    },
+    anomalies: [],
+  };
 }
 
 async function refreshWidget(widgetId: string) {

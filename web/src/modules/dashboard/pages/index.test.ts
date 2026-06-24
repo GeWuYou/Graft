@@ -24,13 +24,7 @@ const quickActionConfigApiMocks = vi.hoisted(() => ({
 }));
 
 const containerDashboardApiMocks = vi.hoisted(() => ({
-  getDashboardContainerStatsSeed: vi.fn(),
-}));
-
-const containerDashboardFacadeState = vi.hoisted(() => ({
-  acquiredCollections: 0,
-  items: [] as Array<Record<string, unknown>>,
-  releasedCollections: 0,
+  getContainerDashboardSummary: vi.fn(),
 }));
 
 const loggerMocks = vi.hoisted(() => ({
@@ -50,25 +44,8 @@ vi.mock('../api/quick-actions-config', () => ({
   getDashboardSystemConfigs: quickActionConfigApiMocks.getDashboardSystemConfigs,
 }));
 
-vi.mock('@/modules/container/api/dashboard-stats', () => ({
-  getDashboardContainerStatsSeed: containerDashboardApiMocks.getDashboardContainerStatsSeed,
-}));
-
-vi.mock('@/modules/container/contract/dashboard-stats', () => ({
-  CONTAINER_DASHBOARD_COLLECTION_KEY: 'dashboard:container-overview',
-  seedDashboardContainerStats: vi.fn((items: Array<Record<string, unknown>>) => {
-    containerDashboardFacadeState.items = items;
-  }),
-  clearDashboardContainerStats: vi.fn(() => {
-    containerDashboardFacadeState.items = [];
-  }),
-  selectDashboardContainerStatsViews: vi.fn(() => containerDashboardFacadeState.items),
-  acquireDashboardContainerStatsCollection: vi.fn(() => {
-    containerDashboardFacadeState.acquiredCollections += 1;
-  }),
-  releaseDashboardContainerStatsCollection: vi.fn(() => {
-    containerDashboardFacadeState.releasedCollections += 1;
-  }),
+vi.mock('@/modules/container/api/dashboard-summary', () => ({
+  getContainerDashboardSummary: containerDashboardApiMocks.getContainerDashboardSummary,
 }));
 
 vi.mock('../components/DashboardRenderer.vue', () => ({
@@ -153,9 +130,13 @@ vi.mock('../components/DashboardContainerResources.vue', () => ({
   default: defineComponent({
     name: 'DashboardContainerResourcesStub',
     props: {
-      containers: {
-        type: Array,
-        default: () => [],
+      summary: {
+        type: Object,
+        default: () => ({
+          overview: {},
+          hotspots: { cpu: [], memory: [] },
+          anomalies: [],
+        }),
       },
       loading: {
         type: Boolean,
@@ -163,17 +144,22 @@ vi.mock('../components/DashboardContainerResources.vue', () => ({
       },
     },
     setup(props) {
-      return () =>
-        h(
-          'section',
-          {
-            class: 'dashboard-container-resources-stub',
-            'data-loading': String(props.loading),
-          },
-          (props.containers as Array<{ id: string; name?: string }>).map((container) =>
-            h('span', { class: 'dashboard-container-resource-id' }, container.name || container.id),
-          ),
-        );
+      return () => {
+        const summary = props.summary as {
+          overview?: { runningContainers?: number; abnormalContainers?: number };
+          hotspots?: { cpu?: Array<unknown>; memory?: Array<unknown> };
+          anomalies?: Array<unknown>;
+        };
+        return h('section', {
+          class: 'dashboard-container-resources-stub',
+          'data-loading': String(props.loading),
+          'data-running': String(summary.overview?.runningContainers ?? 0),
+          'data-abnormal': String(summary.overview?.abnormalContainers ?? 0),
+          'data-cpu-hotspots': String(summary.hotspots?.cpu?.length ?? 0),
+          'data-memory-hotspots': String(summary.hotspots?.memory?.length ?? 0),
+          'data-anomalies': String(summary.anomalies?.length ?? 0),
+        });
+      };
     },
   }),
 }));
@@ -389,44 +375,67 @@ function summaryResponse(): DashboardSummaryResponse {
   };
 }
 
-function containerSeedResponse() {
+function containerDashboardSummaryResponse() {
   return {
-    items: [
-      {
-        id: 'container-1',
-        short_id: 'container-1',
-        name: 'graft-server',
-        names: ['graft-server'],
-        image: 'graft/server:latest',
-        image_id: 'sha256:server',
-        labels: {},
-        ports: [],
-        restart_policy: 'unless-stopped',
-        runtime: 'docker',
-        state: 'running',
-        health: 'healthy',
-        status: 'Up 5 minutes',
-        created_at: '2026-06-24T00:00:00Z',
-        started_at: '2026-06-24T00:01:00Z',
-        networks: [],
-        resource: {
-          available: true,
-          stats_available: true,
-          cpu_percent: 12.4,
-          memory_percent: 41.2,
-          memory_usage_bytes: 128,
-          memory_limit_bytes: 512,
-          collected_at: '2026-06-24T00:02:00Z',
+    overview: {
+      runningContainers: 10,
+      abnormalContainers: 3,
+      cpuTotalPercent: 42.5,
+      memoryTotalUsageBytes: 2147483648,
+      memoryTotalLimitBytes: 4294967296,
+      memoryTotalPercent: 58.3,
+      collectedAt: '2026-06-24T00:02:00Z',
+    },
+    hotspots: {
+      cpu: [
+        {
+          id: 'cpu-1',
+          name: 'graft-server',
+          state: 'running',
+          health: null,
+          image: '',
+          shortId: 'cpu-1',
+          restartCount: null,
+          cpuPercent: 42.5,
+          memoryPercent: 12.4,
+          memoryUsageBytes: 536870912,
+          memoryLimitBytes: 2147483648,
+          collectedAt: '2026-06-24T00:01:00Z',
         },
-        can_start: false,
-        can_stop: true,
-        can_restart: true,
-        can_remove: true,
+      ],
+      memory: [
+        {
+          id: 'mem-1',
+          name: 'graft-worker',
+          state: 'running',
+          health: null,
+          image: '',
+          shortId: 'mem-1',
+          restartCount: null,
+          cpuPercent: 12.2,
+          memoryPercent: 58.3,
+          memoryUsageBytes: 1073741824,
+          memoryLimitBytes: 2147483648,
+          collectedAt: '2026-06-24T00:02:00Z',
+        },
+      ],
+    },
+    anomalies: [
+      {
+        id: 'bad-1',
+        name: 'graft-scheduler',
+        state: 'restarting',
+        health: null,
+        image: '',
+        shortId: 'bad-1',
+        restartCount: null,
+        cpuPercent: 2.4,
+        memoryPercent: 12.3,
+        memoryUsageBytes: null,
+        memoryLimitBytes: null,
+        collectedAt: '2026-06-24T00:02:00Z',
       },
     ],
-    summary: {
-      total: 1,
-    },
   };
 }
 
@@ -596,10 +605,7 @@ describe('DashboardHomePage', () => {
     vi.clearAllMocks();
     setActivePinia(createPinia());
     quickActionConfigApiMocks.getDashboardSystemConfigs.mockResolvedValue({ items: [] });
-    containerDashboardApiMocks.getDashboardContainerStatsSeed.mockResolvedValue(containerSeedResponse());
-    containerDashboardFacadeState.items = [];
-    containerDashboardFacadeState.acquiredCollections = 0;
-    containerDashboardFacadeState.releasedCollections = 0;
+    containerDashboardApiMocks.getContainerDashboardSummary.mockResolvedValue(containerDashboardSummaryResponse());
     usePermissionStore().routers = buildSidebarRoutes();
     usePermissionStore().setBootstrapSnapshot({
       permissions: ['ops.container.view'],
@@ -629,8 +635,9 @@ describe('DashboardHomePage', () => {
     expect(wrapper.text()).not.toContain('Access Control - Permissions');
     expect(wrapper.text()).toContain('core.module-runtime-health');
     expect(wrapper.text()).toContain('monitor.system-health');
-    expect(containerDashboardApiMocks.getDashboardContainerStatsSeed).toHaveBeenCalledTimes(1);
-    expect(containerDashboardFacadeState.acquiredCollections).toBe(1);
+    expect(containerDashboardApiMocks.getContainerDashboardSummary).toHaveBeenCalledTimes(1);
+    expect(wrapper.find('.dashboard-container-resources-stub').attributes('data-running')).toBe('10');
+    expect(wrapper.find('.dashboard-container-resources-stub').attributes('data-anomalies')).toBe('1');
   });
 
   it('does not acquire the dashboard collection subscription twice on repeated refresh', async () => {
@@ -642,8 +649,7 @@ describe('DashboardHomePage', () => {
     await wrapper.find('button').trigger('click');
     await flushPromises();
 
-    expect(containerDashboardApiMocks.getDashboardContainerStatsSeed).toHaveBeenCalledTimes(2);
-    expect(containerDashboardFacadeState.acquiredCollections).toBe(1);
+    expect(containerDashboardApiMocks.getContainerDashboardSummary).toHaveBeenCalledTimes(2);
   });
 
   it('skips container dashboard consumption when the permission is missing', async () => {
@@ -657,7 +663,7 @@ describe('DashboardHomePage', () => {
     const wrapper = mountPage();
     await flushPromises();
 
-    expect(containerDashboardApiMocks.getDashboardContainerStatsSeed).not.toHaveBeenCalled();
+    expect(containerDashboardApiMocks.getContainerDashboardSummary).not.toHaveBeenCalled();
     expect(wrapper.find('.dashboard-container-resources-stub').exists()).toBe(false);
   });
 

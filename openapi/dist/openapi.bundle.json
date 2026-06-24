@@ -8846,6 +8846,55 @@
         }
       }
     },
+    "/api/ops/containers/dashboard-summary": {
+      "get": {
+        "tags": [
+          "container"
+        ],
+        "summary": "Read container dashboard summary",
+        "operationId": "getContainerDashboardSummary",
+        "description": "Returns the container-module-owned dashboard summary projection built from current runtime list snapshots.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Container dashboard summary.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-container-dashboard-summary-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
     "/api/ops/containers/batch-actions": {
       "post": {
         "tags": [
@@ -10459,11 +10508,29 @@
       "ContainerResourceSummary": {
         "$ref": "#/components/schemas/container-resource-summary"
       },
+      "ContainerDashboardTopItem": {
+        "$ref": "#/components/schemas/container-dashboard-top-item"
+      },
+      "ContainerDashboardAnomalyItem": {
+        "$ref": "#/components/schemas/container-dashboard-anomaly-item"
+      },
+      "ContainerDashboardOverview": {
+        "$ref": "#/components/schemas/container-dashboard-overview"
+      },
+      "ContainerDashboardHotspots": {
+        "$ref": "#/components/schemas/container-dashboard-hotspots"
+      },
+      "ContainerDashboardSummaryResponse": {
+        "$ref": "#/components/schemas/container-dashboard-summary-response"
+      },
       "ContainerListSummary": {
         "$ref": "#/components/schemas/container-list-summary"
       },
       "ContainerListResponse": {
         "$ref": "#/components/schemas/container-list-response"
+      },
+      "EnvelopedContainerDashboardSummaryResponse": {
+        "$ref": "#/components/schemas/enveloped-container-dashboard-summary-response"
       },
       "EnvelopedContainerListResponse": {
         "$ref": "#/components/schemas/enveloped-container-list-response"
@@ -16712,6 +16779,259 @@
             "properties": {
               "data": {
                 "$ref": "#/components/schemas/container-list-response"
+              }
+            }
+          }
+        ]
+      },
+      "container-dashboard-overview": {
+        "type": "object",
+        "required": [
+          "running_containers",
+          "abnormal_containers",
+          "cpu_total_percent"
+        ],
+        "properties": {
+          "running_containers": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "abnormal_containers": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "cpu_total_percent": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0
+          },
+          "memory_total_usage_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "nullable": true
+          },
+          "memory_total_limit_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "nullable": true
+          },
+          "memory_total_percent": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0,
+            "nullable": true
+          }
+        }
+      },
+      "container-dashboard-top-item": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "short_id",
+          "image",
+          "state",
+          "resource"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "short_id": {
+            "type": "string"
+          },
+          "image": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "created",
+              "running",
+              "paused",
+              "restarting",
+              "removing",
+              "exited",
+              "dead",
+              "unknown"
+            ],
+            "x-enum-varnames": [
+              "ContainerDashboardTopItemStateCreated",
+              "ContainerDashboardTopItemStateRunning",
+              "ContainerDashboardTopItemStatePaused",
+              "ContainerDashboardTopItemStateRestarting",
+              "ContainerDashboardTopItemStateRemoving",
+              "ContainerDashboardTopItemStateExited",
+              "ContainerDashboardTopItemStateDead",
+              "ContainerDashboardTopItemStateUnknown"
+            ]
+          },
+          "health": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "healthy",
+              "unhealthy",
+              "starting",
+              "none",
+              "unavailable"
+            ],
+            "x-enum-varnames": [
+              "ContainerDashboardTopItemHealthHealthy",
+              "ContainerDashboardTopItemHealthUnhealthy",
+              "ContainerDashboardTopItemHealthStarting",
+              "ContainerDashboardTopItemHealthNone",
+              "ContainerDashboardTopItemHealthUnavailable"
+            ]
+          },
+          "restart_count": {
+            "type": "integer",
+            "minimum": 0,
+            "nullable": true
+          },
+          "resource": {
+            "$ref": "#/components/schemas/container-resource-summary"
+          }
+        }
+      },
+      "container-dashboard-hotspots": {
+        "type": "object",
+        "required": [
+          "cpu_top",
+          "memory_top"
+        ],
+        "properties": {
+          "cpu_top": {
+            "type": "array",
+            "maxItems": 3,
+            "items": {
+              "$ref": "#/components/schemas/container-dashboard-top-item"
+            }
+          },
+          "memory_top": {
+            "type": "array",
+            "maxItems": 3,
+            "items": {
+              "$ref": "#/components/schemas/container-dashboard-top-item"
+            }
+          }
+        }
+      },
+      "container-dashboard-anomaly-item": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "short_id",
+          "image",
+          "state",
+          "resource"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "short_id": {
+            "type": "string"
+          },
+          "image": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "created",
+              "running",
+              "paused",
+              "restarting",
+              "removing",
+              "exited",
+              "dead",
+              "unknown"
+            ],
+            "x-enum-varnames": [
+              "ContainerDashboardAnomalyItemStateCreated",
+              "ContainerDashboardAnomalyItemStateRunning",
+              "ContainerDashboardAnomalyItemStatePaused",
+              "ContainerDashboardAnomalyItemStateRestarting",
+              "ContainerDashboardAnomalyItemStateRemoving",
+              "ContainerDashboardAnomalyItemStateExited",
+              "ContainerDashboardAnomalyItemStateDead",
+              "ContainerDashboardAnomalyItemStateUnknown"
+            ]
+          },
+          "health": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "healthy",
+              "unhealthy",
+              "starting",
+              "none",
+              "unavailable"
+            ],
+            "x-enum-varnames": [
+              "ContainerDashboardAnomalyItemHealthHealthy",
+              "ContainerDashboardAnomalyItemHealthUnhealthy",
+              "ContainerDashboardAnomalyItemHealthStarting",
+              "ContainerDashboardAnomalyItemHealthNone",
+              "ContainerDashboardAnomalyItemHealthUnavailable"
+            ]
+          },
+          "restart_count": {
+            "type": "integer",
+            "minimum": 0,
+            "nullable": true
+          },
+          "resource": {
+            "$ref": "#/components/schemas/container-resource-summary"
+          }
+        }
+      },
+      "container-dashboard-summary-response": {
+        "type": "object",
+        "required": [
+          "overview",
+          "hotspots",
+          "anomalies"
+        ],
+        "properties": {
+          "overview": {
+            "$ref": "#/components/schemas/container-dashboard-overview"
+          },
+          "hotspots": {
+            "$ref": "#/components/schemas/container-dashboard-hotspots"
+          },
+          "anomalies": {
+            "type": "array",
+            "maxItems": 5,
+            "items": {
+              "$ref": "#/components/schemas/container-dashboard-anomaly-item"
+            }
+          }
+        }
+      },
+      "enveloped-container-dashboard-summary-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/container-dashboard-summary-response"
               }
             }
           }

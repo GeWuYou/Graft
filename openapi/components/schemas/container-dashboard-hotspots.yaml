@@ -1,0 +1,15 @@
+type: object
+required:
+  - cpu_top
+  - memory_top
+properties:
+  cpu_top:
+    type: array
+    maxItems: 3
+    items:
+      $ref: ./container-dashboard-top-item.yaml
+  memory_top:
+    type: array
+    maxItems: 3
+    items:
+      $ref: ./container-dashboard-top-item.yaml

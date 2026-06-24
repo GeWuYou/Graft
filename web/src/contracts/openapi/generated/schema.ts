@@ -1651,6 +1651,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/ops/containers/dashboard-summary': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Read container dashboard summary
+     * @description Returns the container-module-owned dashboard summary projection built from current runtime list snapshots.
+     */
+    get: operations['getContainerDashboardSummary'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/ops/containers/batch-actions': {
     parameters: {
       query?: never;
@@ -2063,8 +2083,14 @@ export interface components {
     ContainerRuntimeInfo: components['schemas']['container-runtime-info'];
     ContainerOrchestratorInfo: components['schemas']['container-orchestrator-info'];
     ContainerResourceSummary: components['schemas']['container-resource-summary'];
+    ContainerDashboardTopItem: components['schemas']['container-dashboard-top-item'];
+    ContainerDashboardAnomalyItem: components['schemas']['container-dashboard-anomaly-item'];
+    ContainerDashboardOverview: components['schemas']['container-dashboard-overview'];
+    ContainerDashboardHotspots: components['schemas']['container-dashboard-hotspots'];
+    ContainerDashboardSummaryResponse: components['schemas']['container-dashboard-summary-response'];
     ContainerListSummary: components['schemas']['container-list-summary'];
     ContainerListResponse: components['schemas']['container-list-response'];
+    EnvelopedContainerDashboardSummaryResponse: components['schemas']['enveloped-container-dashboard-summary-response'];
     EnvelopedContainerListResponse: components['schemas']['enveloped-container-list-response'];
     EnvelopedContainerDetail: components['schemas']['enveloped-container-detail'];
     EnvelopedContainerMountUsage: components['schemas']['enveloped-container-mount-usage'];
@@ -4117,6 +4143,54 @@ export interface components {
     };
     'enveloped-container-list-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['container-list-response'];
+    };
+    'container-dashboard-overview': {
+      running_containers: number;
+      abnormal_containers: number;
+      /** Format: double */
+      cpu_total_percent: number;
+      /** Format: int64 */
+      memory_total_usage_bytes?: number | null;
+      /** Format: int64 */
+      memory_total_limit_bytes?: number | null;
+      /** Format: double */
+      memory_total_percent?: number | null;
+    };
+    'container-dashboard-top-item': {
+      id: string;
+      name: string;
+      short_id: string;
+      image: string;
+      /** @enum {string} */
+      state: 'created' | 'running' | 'paused' | 'restarting' | 'removing' | 'exited' | 'dead' | 'unknown';
+      /** @enum {string|null} */
+      health?: 'healthy' | 'unhealthy' | 'starting' | 'none' | 'unavailable' | null;
+      restart_count?: number | null;
+      resource: components['schemas']['container-resource-summary'];
+    };
+    'container-dashboard-hotspots': {
+      cpu_top: components['schemas']['container-dashboard-top-item'][];
+      memory_top: components['schemas']['container-dashboard-top-item'][];
+    };
+    'container-dashboard-anomaly-item': {
+      id: string;
+      name: string;
+      short_id: string;
+      image: string;
+      /** @enum {string} */
+      state: 'created' | 'running' | 'paused' | 'restarting' | 'removing' | 'exited' | 'dead' | 'unknown';
+      /** @enum {string|null} */
+      health?: 'healthy' | 'unhealthy' | 'starting' | 'none' | 'unavailable' | null;
+      restart_count?: number | null;
+      resource: components['schemas']['container-resource-summary'];
+    };
+    'container-dashboard-summary-response': {
+      overview: components['schemas']['container-dashboard-overview'];
+      hotspots: components['schemas']['container-dashboard-hotspots'];
+      anomalies: components['schemas']['container-dashboard-anomaly-item'][];
+    };
+    'enveloped-container-dashboard-summary-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['container-dashboard-summary-response'];
     };
     'container-batch-action-request': {
       /** @enum {string} */
@@ -9067,6 +9141,38 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getContainerDashboardSummary: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Container dashboard summary. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-container-dashboard-summary-response'];
         };
       };
       401: components['responses']['unauthorized'];

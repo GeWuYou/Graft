@@ -2141,6 +2141,8 @@ func (fakeRuntime) Close() error { return nil }
 func fakeSummary() Summary {
 	return Summary{
 		ID:        "abc123",
+		ShortID:   "abc123",
+		Name:      "web",
 		Names:     []string{"web"},
 		Image:     "nginx:latest",
 		Runtime:   runtimeNameDocker,

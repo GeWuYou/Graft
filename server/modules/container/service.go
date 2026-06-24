@@ -279,6 +279,22 @@ func (s *service) List(ctx context.Context, query ListQuery) (ListResult, error)
 	}, nil
 }
 
+func (s *service) DashboardSummary(ctx context.Context, _ dashboardSummaryQuery) (dashboardSummaryResult, error) {
+	if err := s.requireRuntimeAccess(ctx); err != nil {
+		return dashboardSummaryResult{}, err
+	}
+	runtime, err := s.runtimeForRequest()
+	if err != nil {
+		return dashboardSummaryResult{}, err
+	}
+	items, err := runtime.List(ctx, ListQuery{})
+	if err != nil {
+		return dashboardSummaryResult{}, err
+	}
+	items = applyActionAvailability(items, s.effectiveActionPolicy(ctx))
+	return buildContainerDashboardSummary(items), nil
+}
+
 func (s *service) Detail(ctx context.Context, ref Ref) (Detail, error) {
 	if err := s.requireRuntimeAccess(ctx); err != nil {
 		return Detail{}, err

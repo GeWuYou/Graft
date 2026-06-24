@@ -1,0 +1,15 @@
+type: object
+required:
+  - overview
+  - hotspots
+  - anomalies
+properties:
+  overview:
+    $ref: ./container-dashboard-overview.yaml
+  hotspots:
+    $ref: ./container-dashboard-hotspots.yaml
+  anomalies:
+    type: array
+    maxItems: 5
+    items:
+      $ref: ./container-dashboard-anomaly-item.yaml

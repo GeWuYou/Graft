@@ -190,6 +190,8 @@ paths:
     $ref: ./paths/realtime-ws.yaml
   /api/ops/containers:
     $ref: ./paths/ops-containers.collection.yaml
+  /api/ops/containers/dashboard-summary:
+    $ref: ./paths/ops-containers.dashboard-summary.yaml
   /api/ops/containers/batch-actions:
     $ref: ./paths/ops-containers.batch-actions.yaml
   /api/ops/containers/{id}:
@@ -590,10 +592,22 @@ components:
       $ref: ./components/schemas/container-orchestrator-info.yaml
     ContainerResourceSummary:
       $ref: ./components/schemas/container-resource-summary.yaml
+    ContainerDashboardTopItem:
+      $ref: ./components/schemas/container-dashboard-top-item.yaml
+    ContainerDashboardAnomalyItem:
+      $ref: ./components/schemas/container-dashboard-anomaly-item.yaml
+    ContainerDashboardOverview:
+      $ref: ./components/schemas/container-dashboard-overview.yaml
+    ContainerDashboardHotspots:
+      $ref: ./components/schemas/container-dashboard-hotspots.yaml
+    ContainerDashboardSummaryResponse:
+      $ref: ./components/schemas/container-dashboard-summary-response.yaml
     ContainerListSummary:
       $ref: ./components/schemas/container-list-summary.yaml
     ContainerListResponse:
       $ref: ./components/schemas/container-list-response.yaml
+    EnvelopedContainerDashboardSummaryResponse:
+      $ref: ./components/schemas/enveloped-container-dashboard-summary-response.yaml
     EnvelopedContainerListResponse:
       $ref: ./components/schemas/enveloped-container-list-response.yaml
     EnvelopedContainerDetail:

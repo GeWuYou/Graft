@@ -55,6 +55,10 @@ describe('container api', () => {
     });
   });
 
+  it('exposes the canonical dashboard summary path', () => {
+    expect(CONTAINER_API_PATH.DASHBOARD_SUMMARY).toBe('/api/ops/containers/dashboard-summary');
+  });
+
   it('encodes container ids for detail and logs reads', async () => {
     const requestGet = vi.mocked(request.get);
     requestGet.mockResolvedValue({ id: 'web/api' } as never);

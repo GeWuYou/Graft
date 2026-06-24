@@ -22,6 +22,14 @@ func toContainerListResponse(result ListResult) containergen.ContainerListRespon
 	}
 }
 
+func toContainerDashboardSummaryResponse(result dashboardSummaryResult) containerDashboardSummaryResponse {
+	return containerDashboardSummaryResponse{
+		Overview:  toContainerDashboardOverview(result.Overview),
+		Hotspots:  toContainerDashboardHotspots(result.Hotspots),
+		Anomalies: toContainerDashboardAnomalies(result.Anomalies),
+	}
+}
+
 // toSummary converts a Summary domain object into a ContainerSummary response.
 func toSummary(item Summary) containergen.ContainerSummary {
 	return containergen.ContainerSummary{
@@ -158,6 +166,58 @@ func toListSummary(summary ListSummary) containergen.ContainerListSummary {
 	}
 }
 
+func toContainerDashboardOverview(overview containerDashboardOverview) containerDashboardOverviewResponse {
+	return containerDashboardOverviewResponse{
+		AbnormalContainers:    overview.AbnormalContainers,
+		CPUTotalPercent:       overview.CPUTotalPercent,
+		MemoryTotalLimitBytes: optionalInt64(overview.MemoryTotalLimitBytes),
+		MemoryTotalPercent:    overview.MemoryTotalPercent,
+		MemoryTotalUsageBytes: optionalInt64(overview.MemoryTotalUsageBytes),
+		RunningContainers:     overview.RunningContainers,
+	}
+}
+
+func toContainerDashboardHotspots(hotspots containerDashboardHotspots) containerDashboardHotspotsResponse {
+	return containerDashboardHotspotsResponse{
+		CPUTop:    toContainerDashboardTopItems(hotspots.CPUTop),
+		MemoryTop: toContainerDashboardTopItems(hotspots.MemoryTop),
+	}
+}
+
+func toContainerDashboardTopItems(items []containerDashboardTopItem) []containerDashboardTopItemResponse {
+	mapped := make([]containerDashboardTopItemResponse, 0, len(items))
+	for _, item := range items {
+		mapped = append(mapped, containerDashboardTopItemResponse{
+			Health:       optionalString(item.Health),
+			ID:           item.ID,
+			Image:        item.Image,
+			Name:         item.Name,
+			Resource:     toResourceSummary(item.Resource),
+			RestartCount: item.RestartCount,
+			ShortID:      item.ShortID,
+			State:        item.State,
+		})
+	}
+	return mapped
+}
+
+func toContainerDashboardAnomalies(items []containerDashboardAnomalyItem) []containerDashboardAnomalyItemResponse {
+	mapped := make([]containerDashboardAnomalyItemResponse, 0, len(items))
+	for _, item := range items {
+		mapped = append(mapped, containerDashboardAnomalyItemResponse{
+			Health:       optionalString(item.Health),
+			ID:           item.ID,
+			Image:        item.Image,
+			Name:         item.Name,
+			Resource:     toResourceSummary(item.Resource),
+			RestartCount: item.RestartCount,
+			ShortID:      item.ShortID,
+			State:        item.State,
+		})
+	}
+	return mapped
+}
+
 func toResourceSummary(resource ResourceSummary) *containergen.ContainerResourceSummary {
 	collectedAt := optionalTime(resource.CollectedAt)
 	unavailableReason := optionalString(resource.UnavailableReason)
@@ -231,6 +291,48 @@ func toShellSession(session ShellSession) containergen.ContainerShellSessionResp
 
 type mountUsageListResponse struct {
 	Items []mountUsageResponse `json:"items"`
+}
+
+type containerDashboardSummaryResponse struct {
+	Overview  containerDashboardOverviewResponse      `json:"overview"`
+	Hotspots  containerDashboardHotspotsResponse      `json:"hotspots"`
+	Anomalies []containerDashboardAnomalyItemResponse `json:"anomalies"`
+}
+
+type containerDashboardOverviewResponse struct {
+	RunningContainers     int      `json:"running_containers"`
+	AbnormalContainers    int      `json:"abnormal_containers"`
+	CPUTotalPercent       float64  `json:"cpu_total_percent"`
+	MemoryTotalUsageBytes *int64   `json:"memory_total_usage_bytes,omitempty"`
+	MemoryTotalLimitBytes *int64   `json:"memory_total_limit_bytes,omitempty"`
+	MemoryTotalPercent    *float64 `json:"memory_total_percent,omitempty"`
+}
+
+type containerDashboardHotspotsResponse struct {
+	CPUTop    []containerDashboardTopItemResponse `json:"cpu_top"`
+	MemoryTop []containerDashboardTopItemResponse `json:"memory_top"`
+}
+
+type containerDashboardTopItemResponse struct {
+	ID           string                                 `json:"id"`
+	Name         string                                 `json:"name"`
+	ShortID      string                                 `json:"short_id"`
+	Image        string                                 `json:"image"`
+	State        string                                 `json:"state"`
+	Health       *string                                `json:"health,omitempty"`
+	RestartCount *int                                   `json:"restart_count,omitempty"`
+	Resource     *containergen.ContainerResourceSummary `json:"resource,omitempty"`
+}
+
+type containerDashboardAnomalyItemResponse struct {
+	ID           string                                 `json:"id"`
+	Name         string                                 `json:"name"`
+	ShortID      string                                 `json:"short_id"`
+	Image        string                                 `json:"image"`
+	State        string                                 `json:"state"`
+	Health       *string                                `json:"health,omitempty"`
+	RestartCount *int                                   `json:"restart_count,omitempty"`
+	Resource     *containergen.ContainerResourceSummary `json:"resource,omitempty"`
 }
 
 type mountUsageResponse struct {
@@ -481,6 +583,13 @@ func optionalStringMap(values map[string]string) *map[string]string {
 }
 
 func optionalInt(value int) *int {
+	if value == 0 {
+		return nil
+	}
+	return &value
+}
+
+func optionalInt64(value int64) *int64 {
 	if value == 0 {
 		return nil
 	}

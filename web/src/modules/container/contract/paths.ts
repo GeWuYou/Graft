@@ -5,6 +5,7 @@ export const CONTAINER_ROUTE_PATH = {
 
 export const CONTAINER_API_PATH = {
   LIST: '/api/ops/containers',
+  DASHBOARD_SUMMARY: '/api/ops/containers/dashboard-summary',
   DETAIL: '/api/ops/containers/{id}',
   LOGS: '/api/ops/containers/{id}/logs',
   SHELL_SESSIONS: '/api/ops/containers/{id}/shell/sessions',

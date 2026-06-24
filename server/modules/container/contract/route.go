@@ -5,6 +5,8 @@ const (
 	ContainerAPIGroup = "/ops/containers"
 	// ContainerCollectionRoute is the collection route fragment.
 	ContainerCollectionRoute = ""
+	// ContainerDashboardSummaryRoute is the dashboard summary route fragment.
+	ContainerDashboardSummaryRoute = "/dashboard-summary"
 	// ContainerDetailRoute is the detail route fragment.
 	ContainerDetailRoute = "/:id"
 	// ContainerLogsRoute is the log route fragment.
