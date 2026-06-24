@@ -18,7 +18,7 @@ export function formatBytes(value?: number | null, emptyText = '-') {
   }
 
   const mib = normalizedValue / BYTES_PER_MIB;
-  return `${mib.toFixed(absValue >= BYTES_PER_MIB ? 1 : 2)} MiB`;
+  return `${mib.toFixed(2)} MiB`;
 }
 
 export function formatPercent(value?: number | null, emptyText = '-') {

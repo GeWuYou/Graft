@@ -847,8 +847,8 @@ describe('container detail page', () => {
     expect(wrapper.text()).toContain('只读');
     expect(wrapper.text()).toContain('读写 rw');
     expect(wrapper.text()).toContain('只读 ro');
-    expect(wrapper.text()).toContain('1.0 MiB');
-    expect(wrapper.text()).toContain('5.0 MiB');
+    expect(wrapper.text()).toContain('1.00 MiB');
+    expect(wrapper.text()).toContain('5.00 MiB');
     expect(wrapper.text()).toContain('测量时间');
     expect(wrapper.text()).toContain('暂未测量挂载用量');
     expect(wrapper.text()).toContain('重新统计');
@@ -931,10 +931,10 @@ describe('container detail page', () => {
     expect(apiMocks.getContainer).toHaveBeenCalledTimes(1);
     expect(apiMocks.getContainerMountUsage).toHaveBeenCalledTimes(1);
     expect(apiMocks.postContainerMountUsageRefresh).toHaveBeenCalledWith('container-1', 'mount-bind-ro');
-    expect(findMountCardByDestination(wrapper, '/app').text()).toContain('1.0 MiB');
-    expect(findMountCardByDestination(wrapper, '/etc/graft').text()).toContain('2.0 MiB');
+    expect(findMountCardByDestination(wrapper, '/app').text()).toContain('1.00 MiB');
+    expect(findMountCardByDestination(wrapper, '/etc/graft').text()).toContain('2.00 MiB');
     expect(findMountCardByDestination(wrapper, '/etc/graft').text()).toContain('ro bind refreshed');
-    expect(findMountCardByDestination(wrapper, '/var/lib/graft').text()).toContain('5.0 MiB');
+    expect(findMountCardByDestination(wrapper, '/var/lib/graft').text()).toContain('5.00 MiB');
     expect(messageMocks.success).toHaveBeenCalledWith('挂载用量已统计');
   });
 
@@ -970,7 +970,7 @@ describe('container detail page', () => {
 
     expect(apiMocks.getContainerMountUsage).toHaveBeenCalledWith('container-1');
     expect(apiMocks.postContainerMountUsageRefresh).not.toHaveBeenCalled();
-    expect(findMountCardByDestination(wrapper, '/etc/graft').text()).toContain('3.0 MiB');
+    expect(findMountCardByDestination(wrapper, '/etc/graft').text()).toContain('3.00 MiB');
     expect(messageMocks.success).toHaveBeenCalledWith('容器详情已刷新');
   });
 
@@ -1108,7 +1108,7 @@ describe('container detail page', () => {
     await findMountCardByDestination(wrapper, '/etc/graft').get('[data-testid="mount-refresh-2"]').trigger('click');
     await flushPromises();
 
-    expect(findMountCardByDestination(wrapper, '/etc/graft').text()).toContain('2.0 MiB');
+    expect(findMountCardByDestination(wrapper, '/etc/graft').text()).toContain('2.00 MiB');
 
     const reversedDetail = createContainerDetail();
     reversedDetail.mounts = [...reversedDetail.mounts].reverse();
@@ -1136,7 +1136,7 @@ describe('container detail page', () => {
     const afterOrder = cards.map((card) => card.find('header').text());
 
     expect(afterOrder).toEqual(beforeOrder);
-    expect(findMountCardByDestination(wrapper, '/etc/graft').text()).toContain('2.0 MiB');
+    expect(findMountCardByDestination(wrapper, '/etc/graft').text()).toContain('2.00 MiB');
     expect(findMountCardByDestination(wrapper, '/etc/graft').text()).toMatch(/cached from (top refresh|recompute)/);
     expect(apiMocks.postContainerMountUsageRefresh).toHaveBeenCalledTimes(1);
   });
@@ -1240,7 +1240,7 @@ describe('container detail page', () => {
     });
     await flushPromises();
 
-    expect(findMountCardByDestination(wrapper, '/etc/graft').text()).toContain('4.0 MiB');
+    expect(findMountCardByDestination(wrapper, '/etc/graft').text()).toContain('4.00 MiB');
   });
 
   it('keeps manual refresh focused on structure detail and cached mount usage', async () => {

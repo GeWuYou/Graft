@@ -578,8 +578,8 @@ describe('container list page', () => {
     expect(wrapper.text()).toContain('graft');
     expect(wrapper.text()).toContain('服务');
     expect(wrapper.text()).toContain('web');
-    expect(wrapper.text()).toContain('21.8%');
-    expect(wrapper.text()).toContain('256.0 MiB');
+    expect(wrapper.text()).toContain('21.80%');
+    expect(wrapper.text()).toContain('256.00 MiB');
     expect(wrapper.text()).toContain('N/A');
     expect(wrapper.text()).not.toContain('stats_not_collected');
     expect(wrapper.text()).toContain('8080->80/tcp');
@@ -657,7 +657,7 @@ describe('container list page', () => {
     const wrapper = mountPage();
     await flushPromises();
 
-    expect(wrapper.text()).toContain('628.6%');
+    expect(wrapper.text()).toContain('628.60%');
     expect(wrapper.findAll('[data-testid="resource-progress"]').some((node) => node.text() === '100')).toBe(true);
   });
 
@@ -705,8 +705,8 @@ describe('container list page', () => {
     await flushPromises();
 
     expect(wrapper.text()).toContain('N/A');
-    expect(wrapper.text()).toContain('128.0 MiB');
-    expect(wrapper.text()).toContain('N/A / 25.0%');
+    expect(wrapper.text()).toContain('128.00 MiB');
+    expect(wrapper.text()).toContain('N/A / 25.00%');
   });
 
   it('replaces resource metrics with the latest list payload on refresh', async () => {
@@ -791,19 +791,19 @@ describe('container list page', () => {
     const wrapper = mountPage();
     await flushPromises();
 
-    expect(wrapper.text()).toContain('21.8%');
-    expect(wrapper.text()).toContain('256.0 MiB');
-    expect(wrapper.text()).toContain('21.8% / 50.0%');
+    expect(wrapper.text()).toContain('21.80%');
+    expect(wrapper.text()).toContain('256.00 MiB');
+    expect(wrapper.text()).toContain('21.80% / 50.00%');
 
     await wrapper.get('[data-testid="table-refresh"]').trigger('click');
     await flushPromises();
 
     expect(apiMocks.getContainers).toHaveBeenCalledTimes(2);
-    expect(wrapper.text()).not.toContain('21.8%');
-    expect(wrapper.text()).not.toContain('21.8% / 50.0%');
+    expect(wrapper.text()).not.toContain('21.80%');
+    expect(wrapper.text()).not.toContain('21.80% / 50.00%');
     expect(wrapper.text()).toContain('N/A');
-    expect(wrapper.text()).toContain('128.0 MiB');
-    expect(wrapper.text()).toContain('N/A / 25.0%');
+    expect(wrapper.text()).toContain('128.00 MiB');
+    expect(wrapper.text()).toContain('N/A / 25.00%');
   });
 
   it('highlights cpu and memory meters when realtime stats change', async () => {

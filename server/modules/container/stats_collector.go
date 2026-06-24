@@ -9,6 +9,7 @@ import (
 
 	"go.uber.org/zap"
 
+	containergen "graft/server/internal/contract/openapi/generated"
 	"graft/server/internal/realtime"
 	containercontract "graft/server/modules/container/contract"
 )
@@ -32,13 +33,13 @@ type statsCollector struct {
 }
 
 type containerStatsPublished struct {
-	Topic       string          `json:"topic"`
-	ID          string          `json:"id"`
-	Name        string          `json:"name"`
-	ShortID     string          `json:"short_id"`
-	Runtime     string          `json:"runtime"`
-	Resource    ResourceSummary `json:"resource"`
-	CollectedAt time.Time       `json:"collected_at"`
+	Topic       string                            `json:"topic"`
+	ID          string                            `json:"id"`
+	Name        string                            `json:"name"`
+	ShortID     string                            `json:"short_id"`
+	Runtime     string                            `json:"runtime"`
+	Resource    *containergen.ContainerResourceSummary `json:"resource,omitempty"`
+	CollectedAt time.Time                         `json:"collected_at"`
 }
 
 // 如果 logger 为空，会使用无操作日志器。
@@ -161,7 +162,7 @@ func (c *statsCollector) publish(_ context.Context, snapshot StatsSnapshot) erro
 		Name:        strings.TrimSpace(snapshot.Name),
 		ShortID:     strings.TrimSpace(snapshot.ShortID),
 		Runtime:     strings.TrimSpace(snapshot.Runtime),
-		Resource:    snapshot.Resource,
+		Resource:    toResourceSummary(snapshot.Resource),
 		CollectedAt: snapshot.CollectedAt,
 	})
 	return nil

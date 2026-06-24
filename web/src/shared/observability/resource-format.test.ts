@@ -4,7 +4,7 @@ import { formatBytes, formatNanosecondsAsDuration, formatPercent, toProgressPerc
 
 describe('resource-format', () => {
   it('formats bytes as MiB and GiB', () => {
-    expect(formatBytes(9.3 * 1024 * 1024)).toBe('9.3 MiB');
+    expect(formatBytes(9.3 * 1024 * 1024)).toBe('9.30 MiB');
     expect(formatBytes(32002.7 * 1024 * 1024)).toBe('31.25 GiB');
   });
 

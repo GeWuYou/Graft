@@ -25,7 +25,10 @@ func TestDockerRuntimeCollectStatsSnapshotsReturnsStaleCacheDuringRefreshFailure
 				Created: 1781409600,
 			},
 		},
-		stats: richDockerStatsFixture(),
+		statsSequence: []container.StatsResponse{
+			baselineDockerStatsFixture(),
+			richDockerStatsFixture(),
+		},
 	}
 	cache := newResourceStatsCache(2*time.Second, 5*time.Second)
 	cache.now = func() time.Time { return now }
@@ -33,6 +36,11 @@ func TestDockerRuntimeCollectStatsSnapshotsReturnsStaleCacheDuringRefreshFailure
 		client:        client,
 		endpoint:      "unix:///var/run/docker.sock",
 		resourceStats: cache,
+		cpuBaselines:  make(map[string]dockerCPUStatsBaseline),
+	}
+
+	if _, err := runtime.CollectStatsSnapshots(context.Background()); err != nil {
+		t.Fatalf("collect baseline stats snapshots: %v", err)
 	}
 
 	first, err := runtime.CollectStatsSnapshots(context.Background())
@@ -52,7 +60,12 @@ func TestDockerRuntimeCollectStatsSnapshotsReturnsStaleCacheDuringRefreshFailure
 		t.Fatalf("expected one stale snapshot, got %#v", stale)
 	}
 	assertSingleFreshSnapshot(t, stale, start.UTC(), "stale")
-	assertRichDockerResourceStats(t, stale[0].Resource)
+	assertInt64Ptr(t, stale[0].Resource.MemoryUsageBytes, 256, "stale memory usage bytes")
+	assertInt64Ptr(t, stale[0].Resource.MemoryLimitBytes, 1024, "stale memory limit bytes")
+	assertFloatPtr(t, stale[0].Resource.MemoryPercent, 25, "stale memory percent")
+	if stale[0].Resource.CPUPercent != nil {
+		t.Fatalf("expected stale snapshot to preserve first cached one-shot cpu=nil, got %#v", stale[0].Resource.CPUPercent)
+	}
 
 	waitForAtomicInt64(t, &client.statsCalls, 2)
 
@@ -63,7 +76,12 @@ func TestDockerRuntimeCollectStatsSnapshotsReturnsStaleCacheDuringRefreshFailure
 	if current.CollectedAt != start.UTC().Format(time.RFC3339) {
 		t.Fatalf("expected current resource collected_at to preserve last usable snapshot, got %q", current.CollectedAt)
 	}
-	assertRichDockerResourceStats(t, current)
+	assertInt64Ptr(t, current.MemoryUsageBytes, 256, "current stale memory usage bytes")
+	assertInt64Ptr(t, current.MemoryLimitBytes, 1024, "current stale memory limit bytes")
+	assertFloatPtr(t, current.MemoryPercent, 25, "current stale memory percent")
+	if current.CPUPercent != nil {
+		t.Fatalf("expected current stale snapshot to preserve first cached one-shot cpu=nil, got %#v", current.CPUPercent)
+	}
 }
 
 func assertSingleFreshSnapshot(t *testing.T, snapshots []StatsSnapshot, expectedCollectedAt time.Time, label string) {

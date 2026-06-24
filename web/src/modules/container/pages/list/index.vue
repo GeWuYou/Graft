@@ -1668,7 +1668,7 @@ function cpuMetric(row: ContainerSummaryRecord): ResourceMetric & { summaryValue
     };
   }
 
-  const value = `${row.resource.cpu_percent.toFixed(1)}%`;
+  const value = formatPercent(row.resource.cpu_percent);
   return {
     available: true,
     changeClass: metricChangedClass(change, 'cpu'),
@@ -1696,7 +1696,7 @@ function memoryMetric(row: ContainerSummaryRecord): ResourceMetric & { summaryVa
 
   const usage = formatBytes(row.resource.memory_usage_bytes);
   const limit = formatBytes(row.resource.memory_limit_bytes);
-  const percent = `${row.resource.memory_percent.toFixed(1)}%`;
+  const percent = formatPercent(row.resource.memory_percent);
   const value = usage || t('container.list.stats.unavailable');
 
   return {
@@ -1716,6 +1716,14 @@ function memoryMetric(row: ContainerSummaryRecord): ResourceMetric & { summaryVa
 
 function clampPercentage(value: number) {
   return Math.min(100, Math.max(0, Number.isFinite(value) ? value : 0));
+}
+
+function formatPercent(value?: number) {
+  if (value === undefined || !Number.isFinite(value)) {
+    return t('container.list.stats.unavailable');
+  }
+
+  return `${value.toFixed(2)}%`;
 }
 
 function resourceUnavailableSummary(row: ContainerSummaryRecord, metric: 'cpu' | 'memory') {
@@ -1750,7 +1758,7 @@ function formatBytes(value?: number) {
     return '';
   }
 
-  return `${(value / BYTES_PER_MIB).toFixed(value >= BYTES_PER_MIB ? 1 : 2)} MiB`;
+  return `${(value / BYTES_PER_MIB).toFixed(2)} MiB`;
 }
 
 function formatTime(value?: string | null) {
@@ -2172,8 +2180,10 @@ function normalizeVisibleColumnKeys(keys: unknown[]) {
     background-color 180ms ease,
     box-shadow 180ms ease,
     color 180ms ease,
+    opacity 180ms ease,
     transform 180ms ease;
   white-space: nowrap;
+  will-change: background-color, box-shadow, opacity, transform;
 }
 
 .container-resource-meter > span:last-child {
@@ -2197,14 +2207,72 @@ function normalizeVisibleColumnKeys(keys: unknown[]) {
 }
 
 .container-resource-meter.container-metric-change--up {
+  animation: container-resource-pulse-up 900ms ease-out;
   background: color-mix(in srgb, var(--td-warning-color-1) 72%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--td-warning-color-5) 34%, transparent);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--td-warning-color-5) 34%, transparent),
+    0 0 0 3px color-mix(in srgb, var(--td-warning-color-3) 12%, transparent);
   transform: translateY(-1px);
 }
 
 .container-resource-meter.container-metric-change--down {
+  animation: container-resource-pulse-down 900ms ease-out;
   background: color-mix(in srgb, var(--td-success-color-1) 78%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--td-success-color-5) 30%, transparent);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--td-success-color-5) 30%, transparent),
+    0 0 0 3px color-mix(in srgb, var(--td-success-color-3) 12%, transparent);
+}
+
+@keyframes container-resource-pulse-up {
+  0% {
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--td-warning-color-5) 42%, transparent),
+      0 0 0 0 color-mix(in srgb, var(--td-warning-color-5) 28%, transparent);
+    opacity: 0.98;
+    transform: translateY(-1px) scale(0.985);
+  }
+
+  45% {
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--td-warning-color-5) 38%, transparent),
+      0 0 0 5px color-mix(in srgb, var(--td-warning-color-3) 16%, transparent);
+    opacity: 1;
+    transform: translateY(-1px) scale(1);
+  }
+
+  100% {
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--td-warning-color-5) 34%, transparent),
+      0 0 0 3px color-mix(in srgb, var(--td-warning-color-3) 12%, transparent);
+    opacity: 1;
+    transform: translateY(-1px) scale(1);
+  }
+}
+
+@keyframes container-resource-pulse-down {
+  0% {
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--td-success-color-5) 38%, transparent),
+      0 0 0 0 color-mix(in srgb, var(--td-success-color-5) 24%, transparent);
+    opacity: 0.98;
+    transform: scale(0.985);
+  }
+
+  45% {
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--td-success-color-5) 34%, transparent),
+      0 0 0 5px color-mix(in srgb, var(--td-success-color-3) 14%, transparent);
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  100% {
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--td-success-color-5) 30%, transparent),
+      0 0 0 3px color-mix(in srgb, var(--td-success-color-3) 12%, transparent);
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .container-actions {

@@ -48,6 +48,15 @@ type DockerRuntime struct {
 	logger            *zap.Logger
 	mountUsageScanner mountUsageScanner
 	resourceStats     *resourceStatsCache
+	cpuBaselinesMu    sync.Mutex
+	cpuBaselines      map[string]dockerCPUStatsBaseline
+}
+
+type dockerCPUStatsBaseline struct {
+	totalUsage  uint64
+	systemUsage uint64
+	onlineCPUs  uint32
+	collectedAt time.Time
 }
 
 type dockerClient interface {
@@ -83,6 +92,7 @@ func NewDockerRuntime(endpoint string, logger *zap.Logger, cacheTTL time.Duratio
 		endpoint:      endpoint,
 		logger:        logger,
 		resourceStats: newResourceStatsCache(cacheTTL, staleWindow),
+		cpuBaselines:  make(map[string]dockerCPUStatsBaseline),
 	}, nil
 }
 
@@ -399,6 +409,7 @@ func (r *DockerRuntime) invalidateResourceSummary(ids ...string) {
 		return
 	}
 	cache.invalidate(ids...)
+	r.clearCPUStatsBaselines(ids...)
 }
 
 func (r *DockerRuntime) ensureResourceStatsCache() *resourceStatsCache {
@@ -499,7 +510,7 @@ func (r *DockerRuntime) dockerResourceSummary(containerID string, stats containe
 		Available:      true,
 		StatsAvailable: true,
 	}
-	if cpuPercent, ok := dockerCPUPercent(stats); ok {
+	if cpuPercent, ok := r.dockerCPUPercent(containerID, stats); ok {
 		resource.CPUPercent = &cpuPercent
 		r.logDockerCPUCalculation(containerID, stats, cpuPercent, true)
 	} else {
@@ -610,19 +621,82 @@ func addUint64(total uint64, value uint64, overflow bool) (uint64, bool) {
 	return total + value, false
 }
 
-// 仅在当前采样相较于上一采样存在有效增量且可确定在线 CPU 数时返回结果。
-func dockerCPUPercent(stats container.StatsResponse) (float64, bool) {
-	if stats.CPUStats.CPUUsage.TotalUsage <= stats.PreCPUStats.CPUUsage.TotalUsage ||
-		stats.CPUStats.SystemUsage <= stats.PreCPUStats.SystemUsage {
+// 优先使用运行时维护的上一帧 one-shot 样本计算 CPU 百分比。
+// 当基线缺失或当前采样不完整时返回 false，并在可行时更新基线供下一帧使用。
+func (r *DockerRuntime) dockerCPUPercent(containerID string, stats container.StatsResponse) (float64, bool) {
+	normalizedID := strings.TrimSpace(containerID)
+	current, ok := dockerCurrentCPUStatsBaseline(stats)
+	if !ok {
 		return 0, false
 	}
-	cpuDelta := float64(stats.CPUStats.CPUUsage.TotalUsage - stats.PreCPUStats.CPUUsage.TotalUsage)
-	systemDelta := float64(stats.CPUStats.SystemUsage - stats.PreCPUStats.SystemUsage)
-	onlineCPUs := dockerStatsOnlineCPUs(stats)
+	previous, hasPrevious := r.cpuStatsBaseline(normalizedID)
+	r.recordCPUStatsBaseline(normalizedID, current)
+	if !hasPrevious {
+		return 0, false
+	}
+	if current.systemUsage <= previous.systemUsage {
+		return 0, false
+	}
+	if current.totalUsage <= previous.totalUsage {
+		return 0, true
+	}
+	cpuDelta := float64(current.totalUsage - previous.totalUsage)
+	systemDelta := float64(current.systemUsage - previous.systemUsage)
+	onlineCPUs := current.onlineCPUs
 	if onlineCPUs == 0 {
 		return 0, false
 	}
 	return (cpuDelta / systemDelta) * float64(onlineCPUs) * dockerStatsPercentScale, true
+}
+
+func dockerCurrentCPUStatsBaseline(stats container.StatsResponse) (dockerCPUStatsBaseline, bool) {
+	onlineCPUs := dockerStatsOnlineCPUs(stats)
+	if onlineCPUs == 0 || stats.CPUStats.SystemUsage == 0 {
+		return dockerCPUStatsBaseline{}, false
+	}
+	return dockerCPUStatsBaseline{
+		totalUsage:  stats.CPUStats.CPUUsage.TotalUsage,
+		systemUsage: stats.CPUStats.SystemUsage,
+		onlineCPUs:  onlineCPUs,
+	}, true
+}
+
+func (r *DockerRuntime) cpuStatsBaseline(containerID string) (dockerCPUStatsBaseline, bool) {
+	if r == nil || strings.TrimSpace(containerID) == "" {
+		return dockerCPUStatsBaseline{}, false
+	}
+	r.cpuBaselinesMu.Lock()
+	defer r.cpuBaselinesMu.Unlock()
+	baseline, ok := r.cpuBaselines[strings.TrimSpace(containerID)]
+	return baseline, ok
+}
+
+func (r *DockerRuntime) recordCPUStatsBaseline(containerID string, baseline dockerCPUStatsBaseline) {
+	if r == nil || strings.TrimSpace(containerID) == "" {
+		return
+	}
+	r.cpuBaselinesMu.Lock()
+	defer r.cpuBaselinesMu.Unlock()
+	if r.cpuBaselines == nil {
+		r.cpuBaselines = make(map[string]dockerCPUStatsBaseline)
+	}
+	baseline.collectedAt = time.Now().UTC()
+	r.cpuBaselines[strings.TrimSpace(containerID)] = baseline
+}
+
+func (r *DockerRuntime) clearCPUStatsBaselines(ids ...string) {
+	if r == nil || len(ids) == 0 {
+		return
+	}
+	r.cpuBaselinesMu.Lock()
+	defer r.cpuBaselinesMu.Unlock()
+	for _, id := range ids {
+		normalizedID := strings.TrimSpace(id)
+		if normalizedID == "" {
+			continue
+		}
+		delete(r.cpuBaselines, normalizedID)
+	}
 }
 
 // dockerStatsOnlineCPUs 返回统计信息中的在线 CPU 数。
