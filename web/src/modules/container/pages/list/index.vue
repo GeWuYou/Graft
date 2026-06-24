@@ -330,13 +330,19 @@
               :content="metric.tooltip"
               placement="top"
             >
-              <div class="container-resource-meter" :data-available="metric.available">
+              <div
+                class="container-resource-meter"
+                :class="metric.changeClass"
+                :data-available="metric.available"
+                data-testid="container-cpu-meter"
+              >
                 <t-progress
                   v-if="metric.available"
                   theme="circle"
                   :label="false"
                   :percentage="metric.percentage"
                   :size="36"
+                  :status="metric.progressStatus"
                   :stroke-width="4"
                 />
                 <span v-else class="container-resource-meter__empty"></span>
@@ -352,13 +358,19 @@
               :content="metric.tooltip"
               placement="top"
             >
-              <div class="container-resource-meter" :data-available="metric.available">
+              <div
+                class="container-resource-meter"
+                :class="metric.changeClass"
+                :data-available="metric.available"
+                data-testid="container-memory-meter"
+              >
                 <t-progress
                   v-if="metric.available"
                   theme="circle"
                   :label="false"
                   :percentage="metric.percentage"
                   :size="36"
+                  :status="metric.progressStatus"
                   :stroke-width="4"
                 />
                 <span v-else class="container-resource-meter__empty"></span>
@@ -514,7 +526,9 @@ import {
   releaseContainerStatsSubscription,
   seedContainerList,
   selectContainerListViews,
+  selectContainerStatsChangeState,
 } from '../../shared/stats-manager';
+import { metricChangedClass, metricProgressStatus } from '../../shared/stats-visual-state';
 import type {
   ContainerAction,
   ContainerActionLevel,
@@ -613,7 +627,9 @@ type RowAction =
   | 'view-networks';
 type ResourceMetric = {
   available: boolean;
+  changeClass: Record<string, boolean>;
   percentage: number;
+  progressStatus: 'success' | 'warning' | undefined;
   tooltip: string;
   value: string;
 };
@@ -1639,10 +1655,13 @@ function resourceSummary(row: ContainerSummaryRecord) {
 }
 
 function cpuMetric(row: ContainerSummaryRecord): ResourceMetric & { summaryValue: string } {
+  const change = selectContainerStatsChangeState(row.id);
   if (row.resource?.cpu_percent === undefined) {
     return {
       available: false,
+      changeClass: metricChangedClass(change, 'cpu'),
       percentage: 0,
+      progressStatus: metricProgressStatus(change.cpu),
       summaryValue: t('container.list.stats.unavailable'),
       tooltip: resourceUnavailableSummary(row, 'cpu'),
       value: t('container.list.stats.unavailable'),
@@ -1652,7 +1671,9 @@ function cpuMetric(row: ContainerSummaryRecord): ResourceMetric & { summaryValue
   const value = `${row.resource.cpu_percent.toFixed(1)}%`;
   return {
     available: true,
+    changeClass: metricChangedClass(change, 'cpu'),
     percentage: clampPercentage(row.resource.cpu_percent),
+    progressStatus: metricProgressStatus(change.cpu),
     summaryValue: value,
     tooltip: t('container.list.stats.cpuTooltip', { percent: value }),
     value,
@@ -1660,10 +1681,13 @@ function cpuMetric(row: ContainerSummaryRecord): ResourceMetric & { summaryValue
 }
 
 function memoryMetric(row: ContainerSummaryRecord): ResourceMetric & { summaryValue: string } {
+  const change = selectContainerStatsChangeState(row.id);
   if (row.resource?.memory_usage_bytes === undefined || row.resource?.memory_percent === undefined) {
     return {
       available: false,
+      changeClass: metricChangedClass(change, 'memory'),
       percentage: 0,
+      progressStatus: metricProgressStatus(change.memory),
       summaryValue: t('container.list.stats.unavailable'),
       tooltip: resourceUnavailableSummary(row, 'memory'),
       value: t('container.list.stats.unavailable'),
@@ -1677,7 +1701,9 @@ function memoryMetric(row: ContainerSummaryRecord): ResourceMetric & { summaryVa
 
   return {
     available: true,
+    changeClass: metricChangedClass(change, 'memory'),
     percentage: clampPercentage(row.resource.memory_percent),
+    progressStatus: metricProgressStatus(change.memory),
     summaryValue: percent,
     tooltip: t('container.list.stats.memoryTooltip', {
       limit: limit || t('container.list.stats.unavailable'),
@@ -2136,10 +2162,17 @@ function normalizeVisibleColumnKeys(keys: unknown[]) {
 
 .container-resource-meter {
   align-items: center;
+  border-radius: 999px;
   display: inline-flex;
   gap: var(--graft-density-gap-8);
   justify-content: center;
   min-width: 0;
+  padding: var(--graft-density-gap-2) var(--graft-density-gap-8) var(--graft-density-gap-2) var(--graft-density-gap-2);
+  transition:
+    background-color 180ms ease,
+    box-shadow 180ms ease,
+    color 180ms ease,
+    transform 180ms ease;
   white-space: nowrap;
 }
 
@@ -2161,6 +2194,17 @@ function normalizeVisibleColumnKeys(keys: unknown[]) {
   flex: 0 0 36px;
   height: 36px;
   width: 36px;
+}
+
+.container-resource-meter.container-metric-change--up {
+  background: color-mix(in srgb, var(--td-warning-color-1) 72%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--td-warning-color-5) 34%, transparent);
+  transform: translateY(-1px);
+}
+
+.container-resource-meter.container-metric-change--down {
+  background: color-mix(in srgb, var(--td-success-color-1) 78%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--td-success-color-5) 30%, transparent);
 }
 
 .container-actions {

@@ -4,7 +4,7 @@ import { defineComponent, h, ref } from 'vue';
 
 import { LOCALE } from '@/contracts/i18n/locales';
 
-import { resetContainerStatsManager } from '../../shared/stats-manager';
+import { applyContainerRealtimeStats, resetContainerStatsManager } from '../../shared/stats-manager';
 import ContainerListPage from './index.vue';
 
 const apiMocks = vi.hoisted(() => ({
@@ -804,6 +804,31 @@ describe('container list page', () => {
     expect(wrapper.text()).toContain('N/A');
     expect(wrapper.text()).toContain('128.0 MiB');
     expect(wrapper.text()).toContain('N/A / 25.0%');
+  });
+
+  it('highlights cpu and memory meters when realtime stats change', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    applyContainerRealtimeStats('container-1', {
+      available: true,
+      stats_available: true,
+      cpu_percent: 44.4,
+      memory_limit_bytes: 536870912,
+      memory_percent: 43.5,
+      memory_usage_bytes: 233832448,
+      collected_at: '2026-06-14T01:10:30Z',
+    });
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.get('[data-testid="container-cpu-meter"]').classes()).toContain('container-metric-change--up');
+    expect(wrapper.get('[data-testid="container-memory-meter"]').classes()).toContain('container-metric-change--down');
+    expect(
+      wrapper.findAll('[data-testid="resource-progress"]').some((node) => node.attributes('data-status') === 'warning'),
+    ).toBe(true);
+    expect(
+      wrapper.findAll('[data-testid="resource-progress"]').some((node) => node.attributes('data-status') === 'success'),
+    ).toBe(true);
   });
 
   it('does not render a list-page realtime toolbar', async () => {
@@ -1889,8 +1914,16 @@ function mountPage() {
               h('span', { onClick: () => emit('confirm') }, slots.default?.()),
         }),
         't-progress': defineComponent({
-          props: ['percentage'],
-          setup: (props) => () => h('span', { 'data-testid': 'resource-progress' }, String(props.percentage ?? 0)),
+          props: ['percentage', 'status'],
+          setup: (props) => () =>
+            h(
+              'span',
+              {
+                'data-status': String(props.status ?? ''),
+                'data-testid': 'resource-progress',
+              },
+              String(props.percentage ?? 0),
+            ),
         }),
         't-select': defineComponent({
           props: ['modelValue', 'disabled'],

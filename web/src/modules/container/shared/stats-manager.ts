@@ -17,8 +17,18 @@ export type ContainerStatsSnapshot = {
   source: StatsSnapshotSource;
 };
 
+export type ContainerStatsChangeDirection = 'down' | 'none' | 'up';
+
+export type ContainerStatsChangeState = {
+  changedAt: number | null;
+  cpu: ContainerStatsChangeDirection;
+  memory: ContainerStatsChangeDirection;
+};
+
 type ContainerStatsEntry = {
+  change: ContainerStatsChangeState;
   history: ContainerStatsSnapshot[];
+  previousSnapshot: ContainerStatsSnapshot | null;
   snapshot: ContainerStatsSnapshot | null;
 };
 
@@ -40,6 +50,7 @@ type ContainerStatsManagerState = {
 const SUBSCRIPTION_IDLE_GRACE_MS = 10_000;
 const DEFAULT_CONTAINER_LIST_COLLECTION_KEY = 'container:list';
 const CONTAINER_STATS_HISTORY_LIMIT = 12;
+const CONTAINER_STATS_CHANGE_HIGHLIGHT_MS = 800;
 
 const state = reactive<ContainerStatsManagerState>({
   detailMetadataById: new Map<string, ContainerDetailMetadataRecord>(),
@@ -55,6 +66,40 @@ function normalizeCollectedAt(value?: string | null) {
 
 function getCollectedAtValue(resource?: ContainerResourceSummary | null) {
   return normalizeCollectedAt(resource?.collected_at);
+}
+
+function compareMetricDirection(previous?: number | null, next?: number | null): ContainerStatsChangeDirection {
+  if (typeof previous !== 'number' || Number.isNaN(previous) || typeof next !== 'number' || Number.isNaN(next)) {
+    return 'none';
+  }
+  if (next > previous) {
+    return 'up';
+  }
+  if (next < previous) {
+    return 'down';
+  }
+  return 'none';
+}
+
+function buildChangeState(
+  current: ContainerStatsSnapshot | null,
+  nextSnapshot: ContainerStatsSnapshot,
+  source: StatsSnapshotSource,
+): ContainerStatsChangeState {
+  const currentTime = source === 'realtime' ? Date.now() : null;
+  const cpu = compareMetricDirection(current?.resource.cpu_percent, nextSnapshot.resource.cpu_percent);
+  const memory = compareMetricDirection(current?.resource.memory_percent, nextSnapshot.resource.memory_percent);
+  const changed = source === 'realtime' && (cpu !== 'none' || memory !== 'none');
+
+  return {
+    changedAt: changed ? currentTime : null,
+    cpu,
+    memory,
+  };
+}
+
+function isChangeStateFresh(change: ContainerStatsChangeState) {
+  return typeof change.changedAt === 'number' && Date.now() - change.changedAt <= CONTAINER_STATS_CHANGE_HIGHLIGHT_MS;
 }
 
 function isNewerStatsSnapshot(
@@ -99,8 +144,11 @@ function upsertStatsSnapshot(containerId: string, resource: ContainerResourceSum
     },
     source,
   };
+  const nextChange = buildChangeState(current, nextSnapshot, source);
   state.statsById.set(containerId, {
+    change: nextChange,
     history: [...(currentEntry?.history ?? []), nextSnapshot].slice(-CONTAINER_STATS_HISTORY_LIMIT),
+    previousSnapshot: current,
     snapshot: nextSnapshot,
   });
   return nextSnapshot;
@@ -364,4 +412,23 @@ export function selectContainerDetailView(containerId: string): ContainerDetailR
 
 export function selectContainerStatsHistory(containerId: string): ContainerStatsSnapshot[] {
   return [...(state.statsById.get(containerId)?.history ?? [])];
+}
+
+export function selectContainerStatsChangeState(containerId: string): ContainerStatsChangeState {
+  const entry = state.statsById.get(containerId);
+  if (!entry) {
+    return {
+      changedAt: null,
+      cpu: 'none',
+      memory: 'none',
+    };
+  }
+  if (!isChangeStateFresh(entry.change)) {
+    return {
+      changedAt: null,
+      cpu: 'none',
+      memory: 'none',
+    };
+  }
+  return entry.change;
 }

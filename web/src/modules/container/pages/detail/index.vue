@@ -138,7 +138,11 @@
             :title="t('container.detail.summary.resources')"
           >
             <div class="container-detail-summary__resource">
-              <div class="container-detail-resource-meter container-detail-resource-meter--cpu">
+              <div
+                class="container-detail-resource-meter container-detail-resource-meter--cpu"
+                :class="resourceChange.cpuClass"
+                data-testid="container-detail-summary-cpu"
+              >
                 <div class="container-detail-resource-meter__content">
                   <span>{{ t('container.detail.resources.cpu') }}</span>
                   <strong>{{ formatPercent(safeDetail.resource?.cpu_percent) }}</strong>
@@ -148,9 +152,14 @@
                   size="small"
                   :label="formatPercent(safeDetail.resource?.cpu_percent)"
                   :percentage="toProgressPercent(safeDetail.resource?.cpu_percent)"
+                  :status="resourceChange.cpuStatus"
                 />
               </div>
-              <div class="container-detail-resource-meter container-detail-resource-meter--memory">
+              <div
+                class="container-detail-resource-meter container-detail-resource-meter--memory"
+                :class="resourceChange.memoryClass"
+                data-testid="container-detail-summary-memory"
+              >
                 <div class="container-detail-resource-meter__content">
                   <span>{{ t('container.detail.resources.memory') }}</span>
                   <strong>{{ memorySummary(safeDetail) }}</strong>
@@ -161,6 +170,7 @@
                   size="small"
                   :label="false"
                   :percentage="toProgressPercent(safeDetail.resource?.memory_percent)"
+                  :status="resourceChange.memoryStatus"
                 />
               </div>
             </div>
@@ -276,12 +286,22 @@
                     {{ t('container.detail.resources.dashboard') }}
                   </div>
                   <div class="container-resource-dashboard-grid">
-                    <article class="container-resource-dashboard-panel">
+                    <article
+                      class="container-resource-dashboard-panel"
+                      :class="resourceChange.cpuClass"
+                      data-testid="container-detail-dashboard-cpu"
+                    >
                       <div class="container-resource-dashboard-panel__heading">
                         <span>{{ t('container.detail.resources.cpuUsageRate') }}</span>
                         <strong>{{ resourceMetrics.cpu.value }}</strong>
                       </div>
-                      <t-progress theme="line" size="small" :label="false" :percentage="resourceMetrics.cpu.progress" />
+                      <t-progress
+                        theme="line"
+                        size="small"
+                        :label="false"
+                        :percentage="resourceMetrics.cpu.progress"
+                        :status="resourceChange.cpuStatus"
+                      />
                       <div class="container-resource-dashboard-panel__meta">
                         <span>
                           {{ t('container.detail.resources.cpuLimit') }}
@@ -298,7 +318,11 @@
                       </div>
                     </article>
 
-                    <article class="container-resource-dashboard-panel">
+                    <article
+                      class="container-resource-dashboard-panel"
+                      :class="resourceChange.memoryClass"
+                      data-testid="container-detail-dashboard-memory"
+                    >
                       <div class="container-resource-dashboard-panel__heading">
                         <span>{{ t('container.detail.resources.memoryUsageRate') }}</span>
                         <strong>{{ resourceMetrics.memory.description }}</strong>
@@ -308,6 +332,7 @@
                         size="small"
                         :label="false"
                         :percentage="resourceMetrics.memory.progress"
+                        :status="resourceChange.memoryStatus"
                       />
                       <div class="container-resource-dashboard-panel__usage">
                         {{ resourceMetrics.memory.value }}
@@ -1204,9 +1229,11 @@ import {
   releaseContainerStatsSubscription,
   seedContainerDetail,
   selectContainerDetailView,
+  selectContainerStatsChangeState,
   selectContainerStatsHistory,
   selectContainerStatsRealtimeState,
 } from '../../shared/stats-manager';
+import { metricChangedClass, metricProgressStatus } from '../../shared/stats-visual-state';
 import type {
   ContainerActionLevel,
   ContainerDetail,
@@ -1684,6 +1711,15 @@ const resourceMetrics = computed(() => {
   };
 });
 const realtimeSocketState = computed(() => selectContainerStatsRealtimeState(currentDetailStatsKey.value));
+const resourceChange = computed(() => {
+  const change = selectContainerStatsChangeState(currentDetailStatsKey.value);
+  return {
+    cpuClass: metricChangedClass(change, 'cpu'),
+    cpuStatus: metricProgressStatus(change.cpu),
+    memoryClass: metricChangedClass(change, 'memory'),
+    memoryStatus: metricProgressStatus(change.memory),
+  };
+});
 const realtimeStatusTheme = computed(() => {
   if (!realtimeEnabled.value) {
     return 'default';
@@ -3673,6 +3709,11 @@ function portLabel(port: ContainerDetail['ports'][number]) {
   display: flex;
   gap: var(--graft-density-gap-10);
   min-width: 0;
+  padding: var(--graft-density-gap-8);
+  transition:
+    background-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease;
 }
 
 .container-detail-resource-meter--cpu {
@@ -3713,6 +3754,19 @@ function portLabel(port: ContainerDetail['ports'][number]) {
 
 .container-detail-resource-meter--memory :deep(.t-progress) {
   width: 100%;
+}
+
+.container-detail-resource-meter.container-metric-change--up,
+.container-resource-dashboard-panel.container-metric-change--up {
+  background: color-mix(in srgb, var(--td-warning-color-1) 74%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--td-warning-color-5) 34%, transparent);
+  transform: translateY(-1px);
+}
+
+.container-detail-resource-meter.container-metric-change--down,
+.container-resource-dashboard-panel.container-metric-change--down {
+  background: color-mix(in srgb, var(--td-success-color-1) 80%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--td-success-color-5) 30%, transparent);
 }
 
 .container-detail-port-chip {

@@ -71,6 +71,9 @@
   - container module 内新增短时 history ring buffer
   - detail resources 区可读取独立 history state，latest/history 显式分离
   - 未引入新的 server/OpenAPI authority 或 dashboard authority
+- 当前补充修复：
+  - container resource stats 默认采样周期调整为 1 秒，并通过 module system config 保持可覆盖
+  - list/detail/dashboard 对 CPU / 内存 realtime 变化增加 module-owned visual emphasis，不改变 authority
 - archive-ready 判定：
   - 所有计划 Phase 已完成并分别按批次提交
   - authority 主链保持为 `statsCollector -> resourceStatsCache -> container.stats:{id}`

@@ -11,6 +11,7 @@ import {
   seedContainerList,
   selectContainerDetailView,
   selectContainerListViews,
+  selectContainerStatsChangeState,
   selectContainerStatsHistory,
   selectContainerStatsRealtimeState,
   selectContainerSummaryCollectionViews,
@@ -190,6 +191,45 @@ describe('container stats manager', () => {
     expect(history).toHaveLength(3);
     expect(history.at(-1)?.resource.cpu_percent).toBe(42.1);
     expect(detail?.resource?.cpu_percent).toBe(42.1);
+  });
+
+  it('marks realtime change direction without treating http seed as a highlight trigger', () => {
+    seedContainerDetail(createDetail());
+
+    expect(selectContainerStatsChangeState('container-1')).toEqual({
+      changedAt: null,
+      cpu: 'none',
+      memory: 'none',
+    });
+
+    applyContainerRealtimeStats('container-1', {
+      ...createDetail().resource!,
+      cpu_percent: 35.5,
+      memory_percent: 47.5,
+      collected_at: '2026-06-14T01:11:00Z',
+    });
+
+    expect(selectContainerStatsChangeState('container-1').cpu).toBe('up');
+    expect(selectContainerStatsChangeState('container-1').memory).toBe('down');
+  });
+
+  it('expires the change highlight window after 800ms', () => {
+    seedContainerDetail(createDetail());
+    applyContainerRealtimeStats('container-1', {
+      ...createDetail().resource!,
+      cpu_percent: 35.5,
+      collected_at: '2026-06-14T01:11:00Z',
+    });
+
+    expect(selectContainerStatsChangeState('container-1').cpu).toBe('up');
+
+    vi.advanceTimersByTime(900);
+
+    expect(selectContainerStatsChangeState('container-1')).toEqual({
+      changedAt: null,
+      cpu: 'none',
+      memory: 'none',
+    });
   });
 
   it('shares one realtime subscription controller across multiple acquires of the same container id', () => {

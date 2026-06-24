@@ -35,15 +35,33 @@
         </header>
 
         <div class="dashboard-container-resources__metrics">
-          <div class="dashboard-container-resources__metric">
+          <div
+            class="dashboard-container-resources__metric"
+            :class="metricChangeClass(container.id, 'cpu')"
+            data-testid="dashboard-container-resource-cpu"
+          >
             <span>{{ t('dashboard.containerResources.cpu') }}</span>
             <strong>{{ formatPercent(container.resource?.cpu_percent) }}</strong>
-            <t-progress :percentage="clampPercent(container.resource?.cpu_percent)" :label="false" size="small" />
+            <t-progress
+              :percentage="clampPercent(container.resource?.cpu_percent)"
+              :label="false"
+              :status="metricStatus(container.id, 'cpu')"
+              size="small"
+            />
           </div>
-          <div class="dashboard-container-resources__metric">
+          <div
+            class="dashboard-container-resources__metric"
+            :class="metricChangeClass(container.id, 'memory')"
+            data-testid="dashboard-container-resource-memory"
+          >
             <span>{{ t('dashboard.containerResources.memory') }}</span>
             <strong>{{ formatPercent(container.resource?.memory_percent) }}</strong>
-            <t-progress :percentage="clampPercent(container.resource?.memory_percent)" :label="false" size="small" />
+            <t-progress
+              :percentage="clampPercent(container.resource?.memory_percent)"
+              :label="false"
+              :status="metricStatus(container.id, 'memory')"
+              size="small"
+            />
           </div>
         </div>
 
@@ -57,6 +75,8 @@
 </template>
 <script setup lang="ts">
 import { t } from '@/locales';
+import { selectContainerStatsChangeState } from '@/modules/container/shared/stats-manager';
+import { metricChangedClass, metricProgressStatus } from '@/modules/container/shared/stats-visual-state';
 
 import type { DashboardContainerResourceView } from '../types/container-resource';
 
@@ -88,6 +108,15 @@ function formatPercent(value?: number) {
     return t('dashboard.containerResources.unavailable');
   }
   return `${value.toFixed(1)}%`;
+}
+
+function metricChangeClass(containerId: string, metric: 'cpu' | 'memory') {
+  return metricChangedClass(selectContainerStatsChangeState(containerId), metric);
+}
+
+function metricStatus(containerId: string, metric: 'cpu' | 'memory') {
+  const change = selectContainerStatsChangeState(containerId);
+  return metricProgressStatus(change[metric]);
 }
 
 function stateTheme(state?: string) {
@@ -147,13 +176,30 @@ function stateTheme(state?: string) {
 }
 
 .dashboard-container-resources__metric {
+  border-radius: var(--td-radius-medium);
   display: grid;
   gap: var(--td-comp-margin-xxs);
+  padding: var(--td-comp-paddingTB-s) var(--td-comp-paddingLR-s);
+  transition:
+    background-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease;
 }
 
 .dashboard-container-resources__metric strong {
   color: var(--td-text-color-primary);
   font: var(--td-font-title-medium);
+}
+
+.dashboard-container-resources__metric.container-metric-change--up {
+  background: color-mix(in srgb, var(--td-warning-color-1) 76%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--td-warning-color-5) 34%, transparent);
+  transform: translateY(-1px);
+}
+
+.dashboard-container-resources__metric.container-metric-change--down {
+  background: color-mix(in srgb, var(--td-success-color-1) 80%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--td-success-color-5) 30%, transparent);
 }
 
 .dashboard-container-resources__footer {

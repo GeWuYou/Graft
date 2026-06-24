@@ -54,6 +54,10 @@
   - confirmed no remaining pending batch in owned scope
   - confirmed phase-1 to phase-5 validation and scoped commits were already recorded
   - marked topic `archive-ready` without widening authority to new backend/shared history surfaces
+- Post-archive incremental repair:
+  - container module 新增 `ops.container.resource_stats.collect_interval_seconds`，默认值下调为 1 秒，collector 发布 cadence 仍从 module-owned runtime-hot config 读取
+  - list/detail/dashboard 通过 `stats-manager` 派生 change state，对 CPU / 内存上涨/下降增加视觉强调
+  - visual emphasis 仅消费 canonical topic 驱动的 latest stats，不新增 dashboard/shared/platform authority
 
 ## Loop Batch State
 

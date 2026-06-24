@@ -1236,6 +1236,7 @@ type containerRuntimeOptions struct {
 	maxTail                              int
 	resourceStatsCacheTTLSeconds         int
 	resourceStatsCacheStaleWindowSeconds int
+	resourceStatsCollectIntervalSeconds  int
 	environmentPolicy                    containercontract.EnvironmentPolicy
 	orchestratorPolicies                 orchestratorActionPolicies
 	logger                               *zap.Logger
@@ -1252,6 +1253,7 @@ func containerOptionsFromConfig(ctx *module.Context) containerRuntimeOptions {
 		maxTail:                              defaultContainerLogsMaxTail,
 		resourceStatsCacheTTLSeconds:         defaultContainerResourceStatsCacheTTL,
 		resourceStatsCacheStaleWindowSeconds: defaultContainerResourceStatsStaleWindow,
+		resourceStatsCollectIntervalSeconds:  defaultContainerResourceStatsCollectInterval,
 		environmentPolicy:                    defaultContainerEnvironmentPolicy,
 		orchestratorPolicies: orchestratorActionPolicies{
 			Compose:    defaultContainerComposeActionLevel,
@@ -1273,6 +1275,11 @@ func containerOptionsFromConfig(ctx *module.Context) containerRuntimeOptions {
 		ctx,
 		containercontract.ContainerResourceStatsCacheStaleWindowConfig.String(),
 		&options.resourceStatsCacheStaleWindowSeconds,
+	)
+	applyContainerIntDefault(
+		ctx,
+		containercontract.ContainerResourceStatsCollectIntervalConfig.String(),
+		&options.resourceStatsCollectIntervalSeconds,
 	)
 	applyContainerBoolDefault(ctx, containercontract.ContainerDangerousActionsEnabledConfig.String(), &options.dangerousActionsEnabled)
 	applyContainerEnvironmentPolicyDefault(ctx, containercontract.ContainerEnvironmentPolicyConfig.String(), &options.environmentPolicy)
@@ -1500,6 +1507,26 @@ func normalizeContainerResourceStatsCacheBounds(ttlSeconds int, staleWindowSecon
 		staleWindowSeconds = defaultContainerResourceStatsStaleWindow
 	}
 	return ttlSeconds, staleWindowSeconds
+}
+
+func normalizeContainerResourceStatsCollectInterval(intervalSeconds int) int {
+	if intervalSeconds <= 0 {
+		return defaultContainerResourceStatsCollectInterval
+	}
+	return intervalSeconds
+}
+
+func (s *service) effectiveResourceStatsCollectInterval(ctx context.Context) time.Duration {
+	intervalSeconds := defaultContainerResourceStatsCollectInterval
+	if s != nil {
+		intervalSeconds = s.runtimeOptions.resourceStatsCollectIntervalSeconds
+	}
+	intervalSeconds = s.resolveIntegerConfig(
+		ctx,
+		containercontract.ContainerResourceStatsCollectIntervalConfig.String(),
+		intervalSeconds,
+	)
+	return time.Duration(normalizeContainerResourceStatsCollectInterval(intervalSeconds)) * time.Second
 }
 
 func (s *service) effectiveResourceStatsCacheBounds(ctx context.Context) (time.Duration, time.Duration) {
@@ -1736,6 +1763,7 @@ func (s *service) startStatsCollector(ctx context.Context) error {
 			s.moduleName,
 		)
 	}
+	s.statsCollector.interval = s.effectiveResourceStatsCollectInterval(ctx)
 	return s.statsCollector.Start(ctx)
 }
 

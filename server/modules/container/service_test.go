@@ -47,6 +47,16 @@ func (fakeAuthorizer) Authorize(context.Context, moduleapi.RequestAuthContext, s
 	return nil
 }
 
+type fakeRealtimePublisher struct{}
+
+func (fakeRealtimePublisher) Publish(string, any) {}
+
+func (fakeRealtimePublisher) Subscribe(string) (<-chan realtime.Event, func()) {
+	ch := make(chan realtime.Event)
+	close(ch)
+	return ch, func() {}
+}
+
 func TestParseRefRejectsUnsafeValues(t *testing.T) {
 	t.Parallel()
 
@@ -1519,6 +1529,60 @@ func TestServiceEffectiveResourceStatsCacheBoundsUseRuntimeHotConfig(t *testing.
 	}
 	if staleWindow != 15*time.Second {
 		t.Fatalf("expected runtime-hot stale window, got %s", staleWindow)
+	}
+}
+
+func TestServiceEffectiveResourceStatsCollectIntervalUsesRuntimeHotConfig(t *testing.T) {
+	t.Parallel()
+
+	service, err := newTestService(containerServiceOptions{
+		runtime: fakeRuntime{},
+		systemConfig: serviceTestPolicyConfig{
+			values: map[string]string{
+				containercontract.ContainerResourceStatsCollectIntervalConfig.String(): string(mustRawJSON(1)),
+			},
+		},
+		enabled: true,
+	})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	service.runtimeOptions.resourceStatsCollectIntervalSeconds = 5
+
+	interval := service.effectiveResourceStatsCollectInterval(context.Background())
+	if interval != time.Second {
+		t.Fatalf("expected runtime-hot collect interval, got %s", interval)
+	}
+}
+
+func TestServiceStartStatsCollectorAppliesEffectiveCollectInterval(t *testing.T) {
+	t.Parallel()
+
+	service, err := newTestService(containerServiceOptions{
+		runtime: fakeRuntime{},
+		systemConfig: serviceTestPolicyConfig{
+			values: map[string]string{
+				containercontract.ContainerResourceStatsCollectIntervalConfig.String(): string(mustRawJSON(1)),
+			},
+		},
+		enabled: true,
+	})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	service.realtimeHub = fakeRealtimePublisher{}
+	service.statsCollector = &statsCollector{}
+	service.runtimeOptions.resourceStatsCollectIntervalSeconds = 3
+
+	if err := service.startStatsCollector(context.Background()); err != nil {
+		t.Fatalf("start stats collector: %v", err)
+	}
+	defer func() {
+		_ = service.statsCollector.Stop(context.Background())
+	}()
+
+	if service.statsCollector.interval != time.Second {
+		t.Fatalf("expected collector interval to honor runtime-hot config, got %s", service.statsCollector.interval)
 	}
 }
 

@@ -101,6 +101,9 @@ func TestRouteAndConfigContractsStayCanonical(t *testing.T) {
 	if containercontract.ContainerResourceStatsCacheStaleWindowConfig.String() != "ops.container.resource_stats.stale_window_seconds" {
 		t.Fatalf("unexpected resource stats stale window config key")
 	}
+	if containercontract.ContainerResourceStatsCollectIntervalConfig.String() != "ops.container.resource_stats.collect_interval_seconds" {
+		t.Fatalf("unexpected resource stats collect interval config key")
+	}
 	if containercontract.ContainerDangerousActionsEnabledConfig.String() != "ops.container.actions.dangerous_enabled" {
 		t.Fatalf("unexpected dangerous actions config key")
 	}
@@ -408,6 +411,21 @@ func assertMaxTailConfigSchema(t *testing.T, registry *configregistry.Registry) 
 	}
 	if resourceTTLSchema.Type != "integer" || resourceTTLSchema.Minimum == nil || *resourceTTLSchema.Minimum != 1 {
 		t.Fatalf("expected resource ttl integer schema, got %#v", resourceTTLSchema)
+	}
+
+	resourceCollectInterval, _ := registry.Get(containercontract.ContainerResourceStatsCollectIntervalConfig.String())
+	var resourceCollectIntervalSchema struct {
+		Type    string   `json:"type"`
+		Minimum *float64 `json:"minimum"`
+		Maximum *float64 `json:"maximum"`
+	}
+	if err := json.Unmarshal(resourceCollectInterval.Schema, &resourceCollectIntervalSchema); err != nil {
+		t.Fatalf("decode resource collect interval schema: %v", err)
+	}
+	if resourceCollectIntervalSchema.Type != "integer" ||
+		resourceCollectIntervalSchema.Minimum == nil ||
+		*resourceCollectIntervalSchema.Minimum != 1 {
+		t.Fatalf("expected resource collect interval integer schema, got %#v", resourceCollectIntervalSchema)
 	}
 }
 

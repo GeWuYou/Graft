@@ -5,7 +5,7 @@ import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, ref } from 'vue';
 
-import { resetContainerStatsManager } from '../../shared/stats-manager';
+import { applyContainerRealtimeStats, resetContainerStatsManager } from '../../shared/stats-manager';
 import type { ContainerMountUsage } from '../../types/container';
 import ContainerDetailPage from './index.vue';
 
@@ -1023,6 +1023,33 @@ describe('container detail page', () => {
 
     expect(wrapper.get('[data-testid="container-detail-realtime-status"]').text()).toBe('已暂停');
     expect(wrapper.get('[data-testid="container-detail-realtime-toggle"]').text()).toContain('恢复实时');
+  });
+
+  it('highlights summary and dashboard resource meters when realtime stats change', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    applyContainerRealtimeStats(createContainerDetail().id, {
+      ...createContainerDetail().resource,
+      cpu_percent: 55.5,
+      memory_percent: 90.1,
+      memory_usage_bytes: 30958188544,
+      collected_at: '2026-06-14T01:11:00Z',
+    });
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.get('[data-testid="container-detail-summary-cpu"]').classes()).toContain(
+      'container-metric-change--up',
+    );
+    expect(wrapper.get('[data-testid="container-detail-summary-memory"]').classes()).toContain(
+      'container-metric-change--down',
+    );
+    expect(wrapper.get('[data-testid="container-detail-dashboard-cpu"]').classes()).toContain(
+      'container-metric-change--up',
+    );
+    expect(wrapper.get('[data-testid="container-detail-dashboard-memory"]').classes()).toContain(
+      'container-metric-change--down',
+    );
   });
 
   it('sorts mount cards by destination, source, and type instead of API order', async () => {
@@ -2732,8 +2759,16 @@ function mountPage() {
           setup: (props) => () => h('span', String(props.name ?? '')),
         }),
         't-progress': defineComponent({
-          props: ['percentage'],
-          setup: (props) => () => h('span', `${String(props.percentage)}%`),
+          props: ['percentage', 'status'],
+          setup: (props) => () =>
+            h(
+              'span',
+              {
+                'data-status': String(props.status ?? ''),
+                'data-testid': 'detail-resource-progress',
+              },
+              `${String(props.percentage)}%`,
+            ),
         }),
         't-statistic': defineComponent({
           props: ['value', 'unit'],

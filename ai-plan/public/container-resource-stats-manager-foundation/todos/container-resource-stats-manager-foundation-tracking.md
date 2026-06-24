@@ -34,6 +34,7 @@ Container Resource Stats Manager Foundation
   - dashboard 已通过 container-owned contract facade 接入共享资源状态
 - 当前状态：
   - topic 已完成 archive-readiness check，结论为 `archive-ready`
+  - 当前增量修复补齐了 1 秒采样默认值与 UI 变化强调，未引入新 authority owner
 
 ## Task Checklist
 
@@ -131,3 +132,4 @@ Container Resource Stats Manager Foundation
   - 已完成 Phase 1 到 Phase 5 的 authority / frontend / dashboard / history 收口
   - phase-1 至 phase-5 均已完成对应 scoped commit
   - 当前无剩余 pending batch，也无新的 in-scope authority gap
+  - 当前增量修复保持 archive-ready，不重开新的 batch

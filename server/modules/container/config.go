@@ -38,10 +38,12 @@ const (
 	defaultContainerDockerEndpoint          = "unix:///var/run/docker.sock"
 	defaultContainerLogsDefaultTail         = 200
 	defaultContainerLogsMaxTail             = 2000
-	defaultContainerResourceStatsCacheTTL    = 2
-	defaultContainerResourceStatsStaleWindow = 8
-	maxContainerResourceStatsCacheTTL        = 60
-	maxContainerResourceStatsStaleWindow     = 300
+	defaultContainerResourceStatsCacheTTL      = 2
+	defaultContainerResourceStatsStaleWindow   = 8
+	defaultContainerResourceStatsCollectInterval = 1
+	maxContainerResourceStatsCacheTTL          = 60
+	maxContainerResourceStatsStaleWindow       = 300
+	maxContainerResourceStatsCollectInterval   = 60
 	defaultContainerDangerousActionsEnabled = false
 	defaultContainerComposeActionLevel      = containercontract.ContainerOrchestratorActionLevelWarn
 	defaultContainerSwarmActionLevel        = containercontract.ContainerOrchestratorActionLevelReadonly
@@ -76,7 +78,7 @@ func registerConfigDefinitions(registry *configregistry.Registry) error {
 
 // configDefinitions returns the list of all container configuration definitions in registration order.
 func configDefinitions() []configregistry.Definition {
-	return []configregistry.Definition{
+	definitions := []configregistry.Definition{
 		containerBooleanDefinition(containerDefinitionSpec{
 			key:                 containercontract.ContainerRuntimeEnabledConfig.String(),
 			group:               containerConfigGeneralGroup,
@@ -109,30 +111,6 @@ func configDefinitions() []configregistry.Definition {
 			defaultNumber: defaultContainerLogsMaxTail,
 			minimum:       defaultContainerLogsDefaultTail,
 			maximum:       defaultContainerLogsMaxTail,
-		}),
-		containerIntegerDefinition(containerIntegerDefinitionSpec{
-			containerDefinitionSpec: containerDefinitionSpec{
-				key:                 containercontract.ContainerResourceStatsCacheTTLConfig.String(),
-				group:               containerConfigLogsGroup,
-				fallbackTitle:       "",
-				fallbackDescription: "",
-				defaultValue:        mustRawJSON(defaultContainerResourceStatsCacheTTL),
-			},
-			defaultNumber: defaultContainerResourceStatsCacheTTL,
-			minimum:       1,
-			maximum:       maxContainerResourceStatsCacheTTL,
-		}),
-		containerIntegerDefinition(containerIntegerDefinitionSpec{
-			containerDefinitionSpec: containerDefinitionSpec{
-				key:                 containercontract.ContainerResourceStatsCacheStaleWindowConfig.String(),
-				group:               containerConfigLogsGroup,
-				fallbackTitle:       "",
-				fallbackDescription: "",
-				defaultValue:        mustRawJSON(defaultContainerResourceStatsStaleWindow),
-			},
-			defaultNumber: defaultContainerResourceStatsStaleWindow,
-			minimum:       1,
-			maximum:       maxContainerResourceStatsStaleWindow,
 		}),
 		containerBooleanDefinition(containerDefinitionSpec{
 			key:                 containercontract.ContainerDangerousActionsEnabledConfig.String(),
@@ -171,6 +149,49 @@ func configDefinitions() []configregistry.Definition {
 			fallbackTitle:       "",
 			fallbackDescription: "",
 			defaultValue:        mustRawJSON(defaultContainerEnvironmentMaskedCopy),
+		}),
+	}
+	definitions = append(definitions, containerResourceStatsDefinitions()...)
+	return definitions
+}
+
+func containerResourceStatsDefinitions() []configregistry.Definition {
+	return []configregistry.Definition{
+		containerIntegerDefinition(containerIntegerDefinitionSpec{
+			containerDefinitionSpec: containerDefinitionSpec{
+				key:                 containercontract.ContainerResourceStatsCacheTTLConfig.String(),
+				group:               containerConfigLogsGroup,
+				fallbackTitle:       "",
+				fallbackDescription: "",
+				defaultValue:        mustRawJSON(defaultContainerResourceStatsCacheTTL),
+			},
+			defaultNumber: defaultContainerResourceStatsCacheTTL,
+			minimum:       1,
+			maximum:       maxContainerResourceStatsCacheTTL,
+		}),
+		containerIntegerDefinition(containerIntegerDefinitionSpec{
+			containerDefinitionSpec: containerDefinitionSpec{
+				key:                 containercontract.ContainerResourceStatsCacheStaleWindowConfig.String(),
+				group:               containerConfigLogsGroup,
+				fallbackTitle:       "",
+				fallbackDescription: "",
+				defaultValue:        mustRawJSON(defaultContainerResourceStatsStaleWindow),
+			},
+			defaultNumber: defaultContainerResourceStatsStaleWindow,
+			minimum:       1,
+			maximum:       maxContainerResourceStatsStaleWindow,
+		}),
+		containerIntegerDefinition(containerIntegerDefinitionSpec{
+			containerDefinitionSpec: containerDefinitionSpec{
+				key:                 containercontract.ContainerResourceStatsCollectIntervalConfig.String(),
+				group:               containerConfigLogsGroup,
+				fallbackTitle:       "",
+				fallbackDescription: "",
+				defaultValue:        mustRawJSON(defaultContainerResourceStatsCollectInterval),
+			},
+			defaultNumber: defaultContainerResourceStatsCollectInterval,
+			minimum:       1,
+			maximum:       maxContainerResourceStatsCollectInterval,
 		}),
 	}
 }
@@ -284,7 +305,8 @@ func containerIntegerDefinition(spec containerIntegerDefinitionSpec) configregis
 	case containercontract.ContainerLogsDefaultTailConfig.String(),
 		containercontract.ContainerLogsMaxTailConfig.String(),
 		containercontract.ContainerResourceStatsCacheTTLConfig.String(),
-		containercontract.ContainerResourceStatsCacheStaleWindowConfig.String():
+		containercontract.ContainerResourceStatsCacheStaleWindowConfig.String(),
+		containercontract.ContainerResourceStatsCollectIntervalConfig.String():
 		definition.RuntimeApplyMode = configregistry.RuntimeApplyModeRuntimeHot
 	default:
 		definition.RuntimeApplyMode = configregistry.RuntimeApplyModeUnknown
@@ -452,7 +474,8 @@ func containerIntegerSchema(key string, defaultValue int, minimum int, maximum i
 func containerIntegerUnitKey(key string) string {
 	switch key {
 	case containercontract.ContainerResourceStatsCacheTTLConfig.String(),
-		containercontract.ContainerResourceStatsCacheStaleWindowConfig.String():
+		containercontract.ContainerResourceStatsCacheStaleWindowConfig.String(),
+		containercontract.ContainerResourceStatsCollectIntervalConfig.String():
 		return "systemConfig.units.seconds"
 	default:
 		return "systemConfig.units.rows"
