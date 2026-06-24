@@ -27,7 +27,7 @@ type routeRuntime struct {
 }
 
 // RegisterRoutes registers HTTP API endpoints for container operations with permission-based access control.
-// registerRoutes 注册容器管理路由，包括权限中间件和审计日志发布。若服务不可用或依赖项解析失败则返回错误，否则返回 nil。
+// 当 ctx 或其路由器为空时直接返回 nil；当 service 为空或依赖解析失败时返回错误。
 func registerRoutes(ctx *module.Context, moduleName string, service *service) error {
 	if ctx == nil || ctx.Router == nil {
 		return nil

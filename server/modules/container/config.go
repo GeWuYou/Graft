@@ -76,7 +76,7 @@ func registerConfigDefinitions(registry *configregistry.Registry) error {
 	return nil
 }
 
-// configDefinitions returns the list of all container configuration definitions in registration order.
+// configDefinitions 按注册顺序构建所有容器配置定义，并在末尾追加资源统计相关定义。
 func configDefinitions() []configregistry.Definition {
 	definitions := []configregistry.Definition{
 		containerBooleanDefinition(containerDefinitionSpec{
@@ -155,6 +155,8 @@ func configDefinitions() []configregistry.Definition {
 	return definitions
 }
 
+// containerResourceStatsDefinitions 返回资源统计缓存相关的容器配置定义。
+// 这些定义包括缓存 TTL、缓存失效窗口和采集间隔。
 func containerResourceStatsDefinitions() []configregistry.Definition {
 	return []configregistry.Definition{
 		containerIntegerDefinition(containerIntegerDefinitionSpec{
@@ -295,7 +297,7 @@ func containerBooleanDefinition(spec containerDefinitionSpec) configregistry.Def
 	return definition
 }
 
-// containerIntegerDefinition 为整数类型的容器配置项创建配置定义，并为日志尾部和资源统计缓存相关配置启用运行时热更新。
+// containerIntegerDefinition 为整数类型的容器配置项构建配置定义，并为日志尾部与资源统计缓存相关项启用运行时热更新。
 func containerIntegerDefinition(spec containerIntegerDefinitionSpec) configregistry.Definition {
 	definitionSpec := spec.containerDefinitionSpec
 	definitionSpec.valueType = configregistry.ValueTypeInteger

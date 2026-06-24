@@ -1258,7 +1258,7 @@ type containerRuntimeOptions struct {
 	logger                               *zap.Logger
 }
 
-// containerOptionsFromConfig 从模块上下文提取容器运行时配置选项，并按默认值、配置注册表和显式模块配置依次应用覆盖。
+// containerOptionsFromConfig 从模块上下文构建容器运行时选项，并按默认值、配置注册表和显式模块配置的顺序应用覆盖。
 func containerOptionsFromConfig(ctx *module.Context) containerRuntimeOptions {
 	options := containerRuntimeOptions{
 		enabled:                              defaultContainerEnabled,
@@ -1514,6 +1514,7 @@ func (s *service) effectiveLogTailBounds(ctx context.Context) (int, int) {
 //
 // @param ttlSeconds 资源统计缓存的 TTL 秒数。
 // @param staleWindowSeconds 资源统计缓存的过期窗口秒数。
+// normalizeContainerResourceStatsCacheBounds 归一化资源统计缓存的 TTL 和过期窗口。
 // @returns 归一化后的 TTL 秒数和过期窗口秒数。
 func normalizeContainerResourceStatsCacheBounds(ttlSeconds int, staleWindowSeconds int) (int, int) {
 	if ttlSeconds <= 0 {
@@ -1525,6 +1526,10 @@ func normalizeContainerResourceStatsCacheBounds(ttlSeconds int, staleWindowSecon
 	return ttlSeconds, staleWindowSeconds
 }
 
+// normalizeContainerResourceStatsCollectInterval 将资源统计采集间隔归一为有效值。
+// 当 intervalSeconds 小于等于 0 时，返回默认采集间隔。
+//
+// @returns 归一化后的采集间隔（秒）。
 func normalizeContainerResourceStatsCollectInterval(intervalSeconds int) int {
 	if intervalSeconds <= 0 {
 		return defaultContainerResourceStatsCollectInterval

@@ -79,14 +79,33 @@ const state = reactive<ContainerStatsManagerState>({
   subscriptionsById: new Map<string, ContainerStatsSubscriptionEntry>(),
 });
 
+/**
+ * 规范化采集时间字符串。
+ *
+ * @param value - 待处理的采集时间
+ * @returns 去除首尾空白后的字符串；当值缺失或为空时返回 `null`
+ */
 function normalizeCollectedAt(value?: string | null) {
   return value?.trim() || null;
 }
 
+/**
+ * 获取资源的采集时间。
+ *
+ * @param resource - 容器资源摘要
+ * @returns 规范化后的采集时间，缺失或为空时为 `null`
+ */
 function getCollectedAtValue(resource?: ContainerResourceSummary | null) {
   return normalizeCollectedAt(resource?.collected_at);
 }
 
+/**
+ * 比较两个指标值的变化方向。
+ *
+ * @param previous - 之前的指标值
+ * @param next - 之后的指标值
+ * @returns `up` 表示升高，`down` 表示降低，`none` 表示保持不变或值无效
+ */
 function compareMetricDirection(previous?: number | null, next?: number | null): ContainerStatsChangeDirection {
   if (typeof previous !== 'number' || Number.isNaN(previous) || typeof next !== 'number' || Number.isNaN(next)) {
     return 'none';
@@ -100,6 +119,14 @@ function compareMetricDirection(previous?: number | null, next?: number | null):
   return 'none';
 }
 
+/**
+ * 生成容器统计变化状态。
+ *
+ * @param current - 当前快照
+ * @param nextSnapshot - 新快照
+ * @param source - 快照来源
+ * @returns 包含 CPU、内存变化方向及高亮时间戳的状态
+ */
 function buildChangeState(
   current: ContainerStatsSnapshot | null,
   nextSnapshot: ContainerStatsSnapshot,
@@ -117,10 +144,24 @@ function buildChangeState(
   };
 }
 
+/**
+ * 判断变化状态是否仍处于高亮窗口内。
+ *
+ * @param change - 变化状态
+ * @returns `true` if `changedAt` 存在且未超过高亮时长，`false` otherwise.
+ */
 function isChangeStateFresh(change: ContainerStatsChangeState) {
   return typeof change.changedAt === 'number' && Date.now() - change.changedAt <= CONTAINER_STATS_CHANGE_HIGHLIGHT_MS;
 }
 
+/**
+ * 判断候选统计快照是否比当前快照更新。
+ *
+ * @param current - 当前已保存的统计快照
+ * @param candidate - 待比较的统计资源
+ * @param source - 候选快照来源
+ * @returns `true` 如果候选快照应覆盖当前快照，`false` 其他情况
+ */
 function isNewerStatsSnapshot(
   current: ContainerStatsSnapshot | null,
   candidate: ContainerResourceSummary,
@@ -150,6 +191,14 @@ function isNewerStatsSnapshot(
   return true;
 }
 
+/**
+ * 更新容器的统计快照。
+ *
+ * @param containerId - 容器标识
+ * @param resource - 要写入的统计资源
+ * @param source - 快照来源
+ * @returns 新写入的快照；如果现有快照更新，则返回当前快照
+ */
 function upsertStatsSnapshot(containerId: string, resource: ContainerResourceSummary, source: StatsSnapshotSource) {
   const currentEntry = state.statsById.get(containerId);
   const current = currentEntry?.snapshot ?? null;
@@ -173,10 +222,22 @@ function upsertStatsSnapshot(containerId: string, resource: ContainerResourceSum
   return nextSnapshot;
 }
 
+/**
+ * 规范化容器集合键。
+ *
+ * @param collectionKey - 待规范化的集合键
+ * @returns 规范化后的集合键；当输入为空或仅包含空白时返回默认键 `container:list`
+ */
 function normalizeCollectionKey(collectionKey?: string) {
   return collectionKey?.trim() || DEFAULT_CONTAINER_LIST_COLLECTION_KEY;
 }
 
+/**
+ * 确保列表集合的排序和元数据容器已初始化。
+ *
+ * @param collectionKey - 列表集合键
+ * @returns 包含规范化集合键、顺序数组和按 ID 存储的元数据映射
+ */
 function ensureListCollection(collectionKey?: string) {
   const normalizedCollectionKey = normalizeCollectionKey(collectionKey);
   if (!state.listCollections.has(normalizedCollectionKey)) {
@@ -193,12 +254,23 @@ function ensureListCollection(collectionKey?: string) {
   };
 }
 
+/**
+ * 清空指定列表集合的顺序和元数据。
+ *
+ * @param collectionKey - 列集合键
+ */
 function clearListMetadata(collectionKey?: string) {
   const targetCollection = ensureListCollection(collectionKey);
   targetCollection.order.length = 0;
   targetCollection.metadataById.clear();
 }
 
+/**
+ * 确保容器统计订阅条目存在。
+ *
+ * @param containerId - 容器标识
+ * @returns 对应的订阅条目
+ */
 function ensureSubscriptionEntry(containerId: string) {
   const current = state.subscriptionsById.get(containerId);
   if (current) {
@@ -215,6 +287,9 @@ function ensureSubscriptionEntry(containerId: string) {
   return next;
 }
 
+/**
+ * 清除订阅条目的空闲定时器。
+ */
 function clearIdleTimer(entry: ContainerStatsSubscriptionEntry) {
   if (entry.idleTimer !== null) {
     clearTimeout(entry.idleTimer);
@@ -222,6 +297,9 @@ function clearIdleTimer(entry: ContainerStatsSubscriptionEntry) {
   }
 }
 
+/**
+ * 关闭单个容器统计订阅并重置其状态。
+ */
 function closeSubscriptionEntry(entry: ContainerStatsSubscriptionEntry) {
   clearIdleTimer(entry);
   entry.controller?.close();
@@ -229,6 +307,9 @@ function closeSubscriptionEntry(entry: ContainerStatsSubscriptionEntry) {
   entry.state = 'idle';
 }
 
+/**
+ * 关闭共享集合订阅并将其重置为空闲状态。
+ */
 function closeCollectionSubscriptionEntry(entry: ContainerStatsCollectionSubscriptionEntry) {
   clearIdleTimer(entry);
   entry.controller?.close();
@@ -236,6 +317,12 @@ function closeCollectionSubscriptionEntry(entry: ContainerStatsCollectionSubscri
   entry.state = 'idle';
 }
 
+/**
+ * 为指定容器建立实时统计订阅。
+ *
+ * @param containerId - 容器 ID
+ * @param entry - 该容器对应的订阅状态
+ */
 function connectSubscription(containerId: string, entry: ContainerStatsSubscriptionEntry) {
   if (entry.controller) {
     return;
@@ -267,6 +354,11 @@ function connectSubscription(containerId: string, entry: ContainerStatsSubscript
   });
 }
 
+/**
+ * 连接容器列表汇总的实时订阅。
+ *
+ * 当订阅控制器已存在时直接返回；否则打开共享的列表主题连接，并在收到列表项更新时同步应用到对应容器的实时统计。
+ */
 function connectCollectionSubscription(entry: ContainerStatsCollectionSubscriptionEntry) {
   if (entry.controller) {
     return;
@@ -290,6 +382,12 @@ function connectCollectionSubscription(entry: ContainerStatsCollectionSubscripti
   });
 }
 
+/**
+ * 拆分容器摘要记录中的资源与元数据。
+ *
+ * @param record - 容器摘要记录
+ * @returns 包含 `metadata` 和 `resource` 的对象
+ */
 function splitSummaryRecord(record: ContainerSummaryRecord) {
   const { resource, ...metadata } = record;
   return {
@@ -298,6 +396,12 @@ function splitSummaryRecord(record: ContainerSummaryRecord) {
   };
 }
 
+/**
+ * 将容器详情记录拆分为元数据和资源部分。
+ *
+ * @param record - 容器详情记录
+ * @returns 拆分后的元数据与资源对象
+ */
 function splitDetailRecord(record: ContainerDetailRecord) {
   const { resource, ...metadata } = record;
   return {
@@ -306,6 +410,13 @@ function splitDetailRecord(record: ContainerDetailRecord) {
   };
 }
 
+/**
+ * 将容器元数据附加为带最新资源信息的视图对象。
+ *
+ * @param containerId - 容器 ID
+ * @param metadata - 要附加资源信息的元数据
+ * @returns 合并了当前统计快照中资源信息的对象；当元数据缺失时返回 `null`
+ */
 function attachLatestResource<TMetadata extends ContainerMetadataRecord | ContainerDetailMetadataRecord>(
   containerId: string,
   metadata: TMetadata | undefined,
@@ -321,6 +432,9 @@ function attachLatestResource<TMetadata extends ContainerMetadataRecord | Contai
   };
 }
 
+/**
+ * 重置容器统计管理器的全部状态。
+ */
 export function resetContainerStatsManager() {
   closeCollectionSubscriptionEntry(state.listTopicSubscription);
   state.subscriptionsById.forEach((entry) => {
@@ -336,6 +450,12 @@ export function resetContainerStatsManager() {
   state.listTopicSubscription.state = 'idle';
 }
 
+/**
+ * 预置容器列表并写入对应统计快照。
+ *
+ * @param items - 要写入的容器列表项
+ * @param collectionKey - 列表集合键
+ */
 export function seedContainerList(items: ContainerSummaryRecord[], collectionKey?: string) {
   const targetCollection = ensureListCollection(collectionKey);
   targetCollection.order.length = 0;
@@ -350,6 +470,11 @@ export function seedContainerList(items: ContainerSummaryRecord[], collectionKey
   });
 }
 
+/**
+ * 预置容器详情及其最新统计快照。
+ *
+ * @param detail - 容器详情记录
+ */
 export function seedContainerDetail(detail: ContainerDetailRecord) {
   const { metadata, resource } = splitDetailRecord(detail);
   state.detailMetadataById.set(detail.id, metadata);
@@ -358,6 +483,11 @@ export function seedContainerDetail(detail: ContainerDetailRecord) {
   }
 }
 
+/**
+ * 清除容器详情元数据。
+ *
+ * @param containerId - 容器 ID；不传则清除全部详情元数据
+ */
 export function clearContainerDetail(containerId?: string) {
   if (!containerId) {
     state.detailMetadataById.clear();
@@ -366,18 +496,38 @@ export function clearContainerDetail(containerId?: string) {
   state.detailMetadataById.delete(containerId);
 }
 
+/**
+ * 清空默认容器列表集合的元数据和顺序。
+ */
 export function clearContainerListMetadata() {
   clearListMetadata();
 }
 
+/**
+ * 清除指定容器汇总集合的元数据和顺序。
+ *
+ * @param collectionKey - 集合键
+ */
 export function clearContainerSummaryCollection(collectionKey: string) {
   clearListMetadata(collectionKey);
 }
 
+/**
+ * 应用容器的实时统计资源更新。
+ *
+ * @param containerId - 容器 ID
+ * @param resource - 实时统计资源
+ * @returns 最新的统计快照；如果传入数据未更新现有快照，则返回现有快照
+ */
 export function applyContainerRealtimeStats(containerId: string, resource: ContainerResourceSummary) {
   return upsertStatsSnapshot(containerId, resource, 'realtime');
 }
 
+/**
+ * 获取容器统计实时订阅。
+ *
+ * @param containerId - 容器 ID
+ */
 export function acquireContainerStatsSubscription(containerId: string) {
   const normalizedContainerId = containerId.trim();
   if (!normalizedContainerId) {
@@ -392,6 +542,9 @@ export function acquireContainerStatsSubscription(containerId: string) {
   }
 }
 
+/**
+ * 获取容器汇总集合的实时订阅。
+ */
 export function acquireContainerSummaryCollectionSubscription() {
   const entry = state.listTopicSubscription;
   clearIdleTimer(entry);
@@ -401,6 +554,11 @@ export function acquireContainerSummaryCollectionSubscription() {
   }
 }
 
+/**
+ * 释放容器统计实时订阅的一个引用，并在空闲宽限期后关闭连接。
+ *
+ * @param containerId - 容器 ID
+ */
 export function releaseContainerStatsSubscription(containerId: string) {
   const normalizedContainerId = containerId.trim();
   if (!normalizedContainerId) {
@@ -427,6 +585,11 @@ export function releaseContainerStatsSubscription(containerId: string) {
   }, SUBSCRIPTION_IDLE_GRACE_MS);
 }
 
+/**
+ * 释放容器汇总集合的实时订阅引用。
+ *
+ * 将共享列表主题的引用计数减一；当引用计数降为 0 时，立即关闭该订阅。
+ */
 export function releaseContainerSummaryCollectionSubscription() {
   const entry = state.listTopicSubscription;
   entry.refCount = Math.max(0, entry.refCount - 1);
@@ -438,15 +601,32 @@ export function releaseContainerSummaryCollectionSubscription() {
   closeCollectionSubscriptionEntry(entry);
 }
 
+/**
+ * 获取容器统计实时订阅的连接状态。
+ *
+ * @param containerId - 容器 ID
+ * @returns 该容器订阅的实时连接状态；若不存在订阅则返回 `idle`
+ */
 export function selectContainerStatsRealtimeState(containerId: string): RealtimeSocketState {
   return state.subscriptionsById.get(containerId)?.state ?? 'idle';
 }
 
+/**
+ * 获取容器在默认列表集合中的摘要视图。
+ *
+ * @param containerId - 容器 ID
+ * @returns 包含最新统计资源的容器摘要记录；如果未找到对应元数据则返回 `null`
+ */
 function selectContainerSummaryView(containerId: string): ContainerSummaryRecord | null {
   const metadata = state.listMetadataByCollection.get(DEFAULT_CONTAINER_LIST_COLLECTION_KEY)?.get(containerId);
   return attachLatestResource(containerId, metadata);
 }
 
+/**
+ * 获取默认容器列表集合的视图数据。
+ *
+ * @returns 按集合顺序返回的容器摘要记录数组，缺少元数据的项会被跳过。
+ */
 export function selectContainerListViews(): ContainerSummaryRecord[] {
   const order = state.listCollections.get(DEFAULT_CONTAINER_LIST_COLLECTION_KEY) ?? [];
   return order.reduce<ContainerSummaryRecord[]>((items, containerId) => {
@@ -458,6 +638,12 @@ export function selectContainerListViews(): ContainerSummaryRecord[] {
   }, []);
 }
 
+/**
+ * 获取指定集合的容器列表视图。
+ *
+ * @param collectionKey - 集合键
+ * @returns 该集合中按顺序排列的容器摘要记录数组
+ */
 export function selectContainerSummaryCollectionViews(collectionKey: string): ContainerSummaryRecord[] {
   const normalizedCollectionKey = normalizeCollectionKey(collectionKey);
   const order = state.listCollections.get(normalizedCollectionKey) ?? [];
@@ -478,15 +664,33 @@ export function selectContainerSummaryCollectionViews(collectionKey: string): Co
   }, []);
 }
 
+/**
+ * 获取容器详情视图。
+ *
+ * @param containerId - 容器 ID
+ * @returns 包含最新统计资源的容器详情记录；如果没有详情元数据则返回 `null`
+ */
 export function selectContainerDetailView(containerId: string): ContainerDetailRecord | null {
   const metadata = state.detailMetadataById.get(containerId);
   return attachLatestResource(containerId, metadata);
 }
 
+/**
+ * 获取容器统计快照历史。
+ *
+ * @param containerId - 容器 ID
+ * @returns 该容器已保存的统计快照历史数组
+ */
 export function selectContainerStatsHistory(containerId: string): ContainerStatsSnapshot[] {
   return [...(state.statsById.get(containerId)?.history ?? [])];
 }
 
+/**
+ * 获取容器统计的变化状态。
+ *
+ * @param containerId - 容器 ID
+ * @returns 容器的变化状态；在没有统计记录或变化高亮已过期时，返回 `changedAt: null` 且 CPU、内存方向均为 `none` 的状态
+ */
 export function selectContainerStatsChangeState(containerId: string): ContainerStatsChangeState {
   const entry = state.statsById.get(containerId);
   if (!entry) {

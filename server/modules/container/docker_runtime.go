@@ -80,7 +80,7 @@ type systemInfo interface {
 }
 
 // NewDockerRuntime 创建 Docker 容器运行时适配器。
-// 它会使用给定的端点初始化连接，并按配置创建资源统计缓存。
+// staleWindow 指定缓存允许返回过期数据的时间窗口。
 func NewDockerRuntime(endpoint string, logger *zap.Logger, cacheTTL time.Duration, staleWindow time.Duration) (*DockerRuntime, error) {
 	endpoint = firstNonEmpty(endpoint, defaultContainerDockerEndpoint)
 	cli, err := mobyclient.New(mobyclient.WithHost(endpoint))
@@ -614,6 +614,8 @@ func (dockerNetworkTotals) int64Ptr(value uint64, overflow bool) *int64 {
 	return uint64ToInt64Ptr(value)
 }
 
+// addUint64 将 value 累加到 total，并在发生溢出时标记结果无效。
+// @returns 累加后的和；如果输入已溢出或加法会溢出，则返回 0 和 true。
 func addUint64(total uint64, value uint64, overflow bool) (uint64, bool) {
 	if overflow || total > ^uint64(0)-value {
 		return 0, true
@@ -649,6 +651,10 @@ func (r *DockerRuntime) dockerCPUPercent(containerID string, stats container.Sta
 	return (cpuDelta / systemDelta) * float64(onlineCPUs) * dockerStatsPercentScale, true
 }
 
+// dockerCurrentCPUStatsBaseline 提取用于计算 CPU 百分比的当前基线。
+// 当可用 CPU 数或系统 CPU 使用量为零时，返回 false。
+/*
+*/
 func dockerCurrentCPUStatsBaseline(stats container.StatsResponse) (dockerCPUStatsBaseline, bool) {
 	onlineCPUs := dockerStatsOnlineCPUs(stats)
 	if onlineCPUs == 0 || stats.CPUStats.SystemUsage == 0 {
@@ -785,6 +791,8 @@ func resourceStatsErrorReason(err error) string {
 	return containerStatsUnavailableReason
 }
 
+// resourceStatsErrorMessage 将资源统计原因转换为用户可读的错误消息。
+// reason 对应的消息包括“未收集”“数据不完整”“收集超时”和通用不可用说明。
 func resourceStatsErrorMessage(reason string) string {
 	switch reason {
 	case containerStatsNotCollectedReason:
@@ -798,6 +806,8 @@ func resourceStatsErrorMessage(reason string) string {
 	}
 }
 
+// parseResourceCollectedAt 解析资源采集时间。
+// 成功时返回转换为 UTC 的时间和 true；解析失败时返回零值和 false。
 func parseResourceCollectedAt(value string) (time.Time, bool) {
 	parsed, err := time.Parse(time.RFC3339, strings.TrimSpace(value))
 	if err != nil {
@@ -806,6 +816,8 @@ func parseResourceCollectedAt(value string) (time.Time, bool) {
 	return parsed.UTC(), true
 }
 
+// uint64ToInt64 将 uint64 值转换为 int64，并在超出范围时返回失败。
+// @returns 转换后的 int64 值，以及一个布尔值；当原值可以安全表示为 int64 时为 `true`，否则为 `false`。
 func uint64ToInt64(value uint64) (int64, bool) {
 	if value > uint64(^uint64(0)>>1) {
 		return 0, false

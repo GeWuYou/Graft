@@ -11,6 +11,12 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === 'object');
 }
 
+/**
+ * 解析实时事件的数据部分。
+ *
+ * @param raw - 原始事件内容
+ * @returns 解析后的 `data` 对象；解析失败或结构不符合时返回 `null`
+ */
 function parseRealtimeEventData(raw: unknown) {
   if (typeof raw !== 'string') {
     return null;
@@ -37,6 +43,11 @@ export function buildContainerStatsTopic(containerId: string) {
   return buildContainerStatsTopicName(containerId);
 }
 
+/**
+ * 构建容器列表实时统计主题。
+ *
+ * @returns 容器列表实时统计主题名称。
+ */
 export function buildContainerListStatsTopic() {
   return CONTAINER_REALTIME_TOPIC.LIST_STATS;
 }
@@ -50,7 +61,7 @@ export type ContainerListStatsRealtimeItem = {
  * 解析容器实时统计载荷。
  *
  * @param raw - 待解析的原始载荷
- * @returns 解析成功时返回包含 `id` 和 `resource` 的对象；格式不符合或解析失败时返回 `null`
+ * @returns 解析成功时返回包含 `resource`，以及可选 `id` 的对象；格式不符合或解析失败时返回 `null`
  */
 export function parseContainerStatsPayload(raw: unknown) {
   const eventData = parseRealtimeEventData(raw);
@@ -73,6 +84,14 @@ export function parseContainerStatsPayload(raw: unknown) {
   }
 }
 
+/**
+ * 解析容器实时统计列表载荷。
+ *
+ * 将有效的事件数据转换为包含条目列表的结果；当载荷格式不符合要求时返回 `null`。
+ *
+ * @param raw - 原始事件载荷
+ * @returns 解析后的列表数据；解析失败时返回 `null`
+ */
 export function parseContainerListStatsPayload(raw: unknown): { items: ContainerListStatsRealtimeItem[] } | null {
   const eventData = parseRealtimeEventData(raw);
   if (!eventData || !Array.isArray(eventData.items)) {

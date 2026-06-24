@@ -7,6 +7,9 @@ import (
 	containergen "graft/server/internal/contract/openapi/generated"
 )
 
+// toContainerListResponse 将容器列表结果转换为 OpenAPI 容器列表响应。
+//
+// 该响应包含分页信息、运行时信息、列表摘要以及逐项转换后的容器概要。
 func toContainerListResponse(result ListResult) containergen.ContainerListResponse {
 	mapped := make([]containergen.ContainerSummary, 0, len(result.Items))
 	for _, item := range result.Items {
@@ -22,6 +25,8 @@ func toContainerListResponse(result ListResult) containergen.ContainerListRespon
 	}
 }
 
+// toContainerDashboardSummaryResponse 组装容器仪表盘摘要响应。
+// Overview、Hotspots 和 Anomalies 分别映射为对应的响应结构。
 func toContainerDashboardSummaryResponse(result dashboardSummaryResult) containerDashboardSummaryResponse {
 	return containerDashboardSummaryResponse{
 		Overview:  toContainerDashboardOverview(result.Overview),
@@ -30,7 +35,8 @@ func toContainerDashboardSummaryResponse(result dashboardSummaryResult) containe
 	}
 }
 
-// toSummary converts a Summary domain object into a ContainerSummary response.
+// toSummary 将 Summary 域对象转换为 ContainerSummary 响应。  
+// 它会复制容器标识、名称、镜像、状态和重启信息，并将健康状态、端口、网络、资源、编排信息以及可选字段映射为对应的 OpenAPI 类型。
 func toSummary(item Summary) containergen.ContainerSummary {
 	return containergen.ContainerSummary{
 		CanRemove:      optionalBool(item.CanRemove),
@@ -154,6 +160,8 @@ func optionalEnvironmentPolicy(policy string) containergen.ContainerDetailEnviro
 	return value
 }
 
+// toListSummary 将容器列表汇总信息映射为 OpenAPI 列表汇总响应。
+// 它复制健康状态、运行状态和总数统计字段。
 func toListSummary(summary ListSummary) containergen.ContainerListSummary {
 	return containergen.ContainerListSummary{
 		Error:             summary.Error,
@@ -166,6 +174,8 @@ func toListSummary(summary ListSummary) containergen.ContainerListSummary {
 	}
 }
 
+// toContainerDashboardOverview 将容器仪表盘概览数据转换为响应结构。
+// 它保留运行中与异常容器数量以及 CPU 总占比，并将内存总量字段按可选值返回。
 func toContainerDashboardOverview(overview containerDashboardOverview) containerDashboardOverviewResponse {
 	return containerDashboardOverviewResponse{
 		AbnormalContainers:    overview.AbnormalContainers,
@@ -177,6 +187,8 @@ func toContainerDashboardOverview(overview containerDashboardOverview) container
 	}
 }
 
+// toContainerDashboardHotspots 组装容器仪表盘的热点信息响应。
+// 它将 CPU 热点和内存热点分别转换为对应的列表响应。
 func toContainerDashboardHotspots(hotspots containerDashboardHotspots) containerDashboardHotspotsResponse {
 	return containerDashboardHotspotsResponse{
 		CPUTop:    toContainerDashboardTopItems(hotspots.CPUTop),
@@ -184,6 +196,7 @@ func toContainerDashboardHotspots(hotspots containerDashboardHotspots) container
 	}
 }
 
+// 每个条目会保留容器标识、镜像、状态、重启次数与资源信息，并将健康状态转换为可选字段。
 func toContainerDashboardTopItems(items []containerDashboardTopItem) []containerDashboardTopItemResponse {
 	mapped := make([]containerDashboardTopItemResponse, 0, len(items))
 	for _, item := range items {
@@ -201,6 +214,7 @@ func toContainerDashboardTopItems(items []containerDashboardTopItem) []container
 	return mapped
 }
 
+// toContainerDashboardAnomalies 将容器仪表盘的异常项转换为响应列表。
 func toContainerDashboardAnomalies(items []containerDashboardAnomalyItem) []containerDashboardAnomalyItemResponse {
 	mapped := make([]containerDashboardAnomalyItemResponse, 0, len(items))
 	for _, item := range items {
@@ -218,6 +232,8 @@ func toContainerDashboardAnomalies(items []containerDashboardAnomalyItem) []cont
 	return mapped
 }
 
+// toResourceSummary 将资源统计信息转换为容器资源摘要响应。
+// 该响应包含 CPU、内存、网络、进程及限流统计，并保留采集时间、不可用原因和统计错误信息。
 func toResourceSummary(resource ResourceSummary) *containergen.ContainerResourceSummary {
 	collectedAt := optionalTime(resource.CollectedAt)
 	unavailableReason := optionalString(resource.UnavailableReason)
@@ -582,6 +598,10 @@ func optionalStringMap(values map[string]string) *map[string]string {
 	return &values
 }
 
+// optionalInt 将非零整数转换为指针。
+//
+// @param value 要转换的整数值。
+// @returns value 为 0 时返回 nil，否则返回指向该值的指针。
 func optionalInt(value int) *int {
 	if value == 0 {
 		return nil
@@ -589,6 +609,7 @@ func optionalInt(value int) *int {
 	return &value
 }
 
+// optionalInt64 在值为 0 时返回 nil，否则返回该值的指针。
 func optionalInt64(value int64) *int64 {
 	if value == 0 {
 		return nil
@@ -596,6 +617,7 @@ func optionalInt64(value int64) *int64 {
 	return &value
 }
 
+// optionalBool 返回指向给定布尔值的指针。
 func optionalBool(value bool) *bool {
 	return &value
 }
