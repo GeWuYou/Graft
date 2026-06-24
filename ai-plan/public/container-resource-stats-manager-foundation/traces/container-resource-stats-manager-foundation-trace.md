@@ -29,6 +29,12 @@
   - 将 HTTP `resource` 明确标注为 seed snapshot / latest-known projection，而不是前端最终 authority。
   - 保持 `statsCollector -> resourceStatsCache -> container.stats:{id}` 主链不变。
   - 修复 `CollectStatsSnapshots` 在 stale last-known snapshot 场景下错误使用新尝试时间作为 freshness 的漂移，改为沿用真实 snapshot `collected_at`。
+- Phase 2 frontend stats-manager foundation：
+  - 在 `web/src/modules/container/shared/stats-manager.ts` 建立 module-owned metadata/stats foundation。
+  - list 页由 `seedContainerList -> selectContainerListViews` 读取 `resource`，不再把 `payload.items[].resource` 直接作为长期 authority。
+  - detail 页由 `seedContainerDetail -> selectContainerDetailView -> applyContainerRealtimeStats` 组合 `resource`，不再用页面局部 merge/patch 保留 realtime 值。
+  - `resourceStatus` 改为读取 canonical `resource.collected_at`，而不是 `inspect_updated_at`。
+  - 定向 container tests 通过；全量 `bun run check` 在非本批 `src/modules/rbac/pages/index.test.ts` 既有失败处被阻塞。
 
 ## Loop Batch State
 
@@ -37,16 +43,16 @@
   "loop_mode": "topic-completion-loop",
   "completed_batches": [
     "phase-0-audit-and-design-anchor",
-    "phase-1-resource-ownership-separation"
+    "phase-1-resource-ownership-separation",
+    "phase-2-frontend-stats-manager-foundation"
   ],
   "pending_batches": [
-    "phase-2-frontend-stats-manager-foundation",
     "phase-3-subscription-manager-unification",
     "phase-4-dashboard-shared-resource-consumption",
     "phase-5-history-store-optional"
   ],
-  "current_batch": "phase-1-resource-ownership-separation",
-  "next_batch": "phase-2-frontend-stats-manager-foundation",
+  "current_batch": "phase-2-frontend-stats-manager-foundation",
+  "next_batch": "phase-3-subscription-manager-unification",
   "closeout_status": "active"
 }
 ```

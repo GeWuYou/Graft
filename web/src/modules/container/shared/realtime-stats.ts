@@ -1,7 +1,5 @@
 import { buildContainerStatsTopicName } from '../contract/realtime';
-import type { ContainerDetailRecord, ContainerSummaryRecord } from '../types/container';
-
-type ContainerResourceSummary = NonNullable<ContainerSummaryRecord['resource']>;
+import type { ContainerResourceSummary } from '../types/container';
 
 /**
  * 判断值是否为对象。
@@ -57,46 +55,4 @@ export function parseContainerStatsPayload(raw: unknown) {
   } catch {
     return null;
   }
-}
-
-/**
- * 将实时资源信息写入容器详情。
- *
- * @param detail - 原始容器详情
- * @param resource - 要写入的资源信息
- * @returns 资源字段已替换为给定内容的新容器详情
- */
-export function applyRealtimeResourceToDetail(
-  detail: ContainerDetailRecord,
-  resource: ContainerResourceSummary,
-): ContainerDetailRecord {
-  return {
-    ...detail,
-    resource: {
-      ...resource,
-    },
-  };
-}
-
-/**
- * 合并容器详情并保留当前实时资源信息。
- *
- * @param current - 当前的容器详情
- * @param next - 新的容器详情
- * @returns 合并后的容器详情；当存在当前资源信息时，返回 `next` 并保留 `current.resource`
- */
-export function mergeDetailStructurePreservingRealtimeResource(
-  current: ContainerDetailRecord | null | undefined,
-  next: ContainerDetailRecord,
-): ContainerDetailRecord {
-  if (!current?.resource) {
-    return next;
-  }
-
-  return {
-    ...next,
-    resource: {
-      ...current.resource,
-    },
-  };
 }

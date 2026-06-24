@@ -2575,6 +2575,7 @@ function createContainerDetail() {
     resource: {
       available: true,
       stats_available: true,
+      collected_at: '2026-06-14T01:09:30Z',
       cpu_percent: 21.8,
       cpu_usage_in_kernelmode: 20_000_000,
       cpu_usage_in_usermode: 10_000_000,

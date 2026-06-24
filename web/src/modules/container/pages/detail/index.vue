@@ -1181,12 +1181,13 @@ import {
 } from '../../api/container';
 import ContainerRawJsonPanel from '../../components/ContainerRawJsonPanel.vue';
 import ContainerShellPanel from '../../components/ContainerShellPanel.vue';
+import { buildContainerStatsTopic, parseContainerStatsPayload } from '../../shared/realtime-stats';
 import {
-  applyRealtimeResourceToDetail,
-  buildContainerStatsTopic,
-  mergeDetailStructurePreservingRealtimeResource,
-  parseContainerStatsPayload,
-} from '../../shared/realtime-stats';
+  applyContainerRealtimeStats,
+  clearContainerDetail,
+  seedContainerDetail,
+  selectContainerDetailView,
+} from '../../shared/stats-manager';
 import type {
   ContainerActionLevel,
   ContainerDetail,
@@ -1390,14 +1391,16 @@ const environmentPolicyFilter = ref<EnvironmentPolicyFilter>('all');
 const refreshingMountKeys = ref<Set<string>>(new Set());
 const realtimeEnabled = ref(true);
 const realtimeSocketState = ref<'idle' | 'connecting' | 'open' | 'closed' | 'error'>('idle');
-const hasRealtimeResourceSnapshot = ref(false);
 let detailRefreshSeq = 0;
 let statsSocketGeneration = 0;
 let statsSocket: RealtimeTopicSocketController | null = null;
 
 const containerId = computed(() => String(route.params.id ?? '').trim());
 const shortContainerIdFallback = computed(() => shortIdentifier(containerId.value, undefined, 12));
-const safeDetail = computed(() => normalizeDetail(detail.value));
+const currentDetailStatsKey = computed(() => detail.value?.id || containerId.value);
+const safeDetail = computed(() =>
+  normalizeDetail(materializeDetailWithManagedStats(detail.value, currentDetailStatsKey.value)),
+);
 const activeTabRoute = computed(() =>
   tabsRouterStore.tabRouterList.find(
     (tab) => tab.tabKey === route.path || tab.path === route.path || tab.fullPath === route.fullPath,
@@ -2014,13 +2017,10 @@ async function refreshContainerDetail() {
     if (requestSeq !== detailRefreshSeq || currentContainerId !== containerId.value) {
       return;
     }
-    detail.value = nextDetail
-      ? hasRealtimeResourceSnapshot.value
-        ? realtimeEnabled.value
-          ? mergeDetailStructurePreservingRealtimeResource(detail.value, mergeDetailWithLocalMountUsage(nextDetail))
-          : mergeDetailWithLocalMountUsage(nextDetail)
-        : mergeDetailWithLocalMountUsage(nextDetail)
-      : null;
+    detail.value = nextDetail ? mergeDetailWithLocalMountUsage(nextDetail) : null;
+    if (detail.value) {
+      seedContainerDetail(detail.value);
+    }
     const current = safeDetail.value;
     if (current) {
       updateCurrentTabTitle(buildDetailTitle(displayName(current)));
@@ -2031,6 +2031,8 @@ async function refreshContainerDetail() {
     if (requestSeq !== detailRefreshSeq || currentContainerId !== containerId.value) {
       return;
     }
+    clearContainerDetail(detail.value?.id);
+    clearContainerDetail(currentContainerId);
     detail.value = null;
     stopStatsSocket();
     error.value = resolveLocalizedErrorMessage(t, loadError, t('container.list.detail.loadFailed'));
@@ -2165,12 +2167,13 @@ async function copyRuntimeConfigValue(item: RuntimeConfigItem) {
 }
 
 function resetDetailState() {
+  clearContainerDetail(detail.value?.id);
+  clearContainerDetail(containerId.value);
   detail.value = null;
   error.value = '';
   logs.value = null;
   logsError.value = '';
   refreshingMountKeys.value = new Set();
-  hasRealtimeResourceSnapshot.value = false;
   realtimeSocketState.value = 'idle';
   stopStatsSocket();
   updateCurrentTabTitle(fallbackTitle.value);
@@ -2214,8 +2217,7 @@ function syncStatsSocket(nextContainerId: string) {
       if (!payload.resource || !detail.value) {
         return;
       }
-      hasRealtimeResourceSnapshot.value = true;
-      detail.value = applyRealtimeResourceToDetail(detail.value, payload.resource);
+      applyContainerRealtimeStats(nextContainerId, payload.resource);
     },
   });
 }
@@ -2645,6 +2647,25 @@ function normalizeDetail(current: ContainerDetail | null): SafeContainerDetail |
     names: Array.isArray(current.names) ? current.names : [],
     networks: Array.isArray(current.networks) ? current.networks : [],
     ports: Array.isArray(current.ports) ? current.ports : [],
+  };
+}
+
+function materializeDetailWithManagedStats(
+  current: ContainerDetailRecord | null,
+  currentContainerId: string,
+): ContainerDetailRecord | null {
+  if (!current || !currentContainerId) {
+    return current;
+  }
+
+  const managed = selectContainerDetailView(currentContainerId);
+  if (!managed) {
+    return current;
+  }
+
+  return {
+    ...current,
+    resource: managed.resource,
   };
 }
 
@@ -3326,10 +3347,11 @@ function readStringListFromRecord(current: SafeContainerDetail, keys: string[]) 
 
 function resourceStatus(nextDetail: ContainerDetail) {
   const resource = nextDetail.resource;
+  const collectedAt = formatTime(resource?.collected_at);
   if (resource?.stats_available || resource?.available) {
     return {
-      collectedAt: formatTime(nextDetail.inspect_updated_at),
-      description: formatTime(nextDetail.inspect_updated_at),
+      collectedAt,
+      description: collectedAt,
       theme: 'success' as const,
       value: t('container.detail.resources.available'),
     };

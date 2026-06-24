@@ -508,6 +508,7 @@ import {
 import { CONTAINER_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import { CONTAINER_PERMISSION_CODE } from '../../contract/permissions';
 import { CONTAINER_REALTIME_TOPIC } from '../../contract/realtime';
+import { resetContainerStatsManager, seedContainerList, selectContainerListViews } from '../../shared/stats-manager';
 import type {
   ContainerAction,
   ContainerActionLevel,
@@ -876,7 +877,8 @@ async function refreshContainers() {
     if (requestSeq !== refreshRequestSeq) {
       return;
     }
-    rows.value = payload.items;
+    seedContainerList(payload.items);
+    rows.value = selectContainerListViews();
     runtime.value = payload.runtime;
     listSummary.value = payload.summary;
     listTotal.value = payload.total;
@@ -885,6 +887,7 @@ async function refreshContainers() {
     if (requestSeq !== refreshRequestSeq) {
       return;
     }
+    resetContainerStatsManager();
     rows.value = [];
     runtime.value = null;
     listSummary.value = null;

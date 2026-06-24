@@ -28,11 +28,12 @@ Container Resource Stats Manager Foundation
   - 已建立 active topic recovery 入口
 - 当前确认事实：
   - backend authority 主链为 `statsCollector -> resourceStatsCache -> container.stats:{id}`
-  - list/detail HTTP `resource` 当前是 latest-known snapshot 投影，但前端仍未把它收口为共享 state seed
-  - detail 页已有 realtime patch 逻辑；list 页仍以 HTTP row.resource 为主
+  - list/detail HTTP `resource` 是 latest-known snapshot 投影，phase-2 已将其收口为共享 stats seed
+  - detail 页 realtime snapshot 已不再直接 patch 页面局部 `resource`，而是写入 module-owned stats store
+  - list 页不再直接以 HTTP row.resource 作为长期 authority
   - dashboard 当前未接入容器资源共享状态
 - 当前推荐下一批：
-  - `phase-1-resource-ownership-separation`
+  - `phase-2-frontend-stats-manager-foundation`
 
 ## Task Checklist
 
@@ -40,7 +41,7 @@ Container Resource Stats Manager Foundation
 - [x] Phase 0：设计 authority 文档落盘
 - [x] Phase 0：public topic / tracking / trace 建立
 - [x] Phase 1：resource ownership separation
-- [ ] Phase 2：frontend ContainerStatsManager foundation
+- [x] Phase 2：frontend ContainerStatsManager foundation
 - [ ] Phase 3：subscription manager unification
 - [ ] Phase 4：dashboard shared resource consumption
 - [ ] Phase 5：optional history store
@@ -74,3 +75,18 @@ Container Resource Stats Manager Foundation
   - `ContainerStatsManager`
   - 订阅引用计数
   - Dashboard 共享消费
+
+## Phase 2 Closeout
+
+- 已完成 module-owned `ContainerStatsManager` foundation：
+  - 新增 `shared/stats-manager.ts`
+  - list 页通过 manager seed/selectors 读取 `resource`
+  - detail 页通过 manager seed/selectors + realtime apply 读取 `resource`
+  - `resourceStatus` 的 freshness 显示改为读取 canonical `resource.collected_at`
+- 已删除 phase-1 前的页面局部长期 authority 逻辑：
+  - 移除 `mergeDetailStructurePreservingRealtimeResource`
+  - 移除 `applyRealtimeResourceToDetail`
+- 本批未进入：
+  - `Subscription Manager` acquire/release/ref-count
+  - Dashboard 共享消费
+  - 平台级 shared stats authority 上提

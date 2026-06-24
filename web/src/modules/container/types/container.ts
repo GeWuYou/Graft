@@ -4,6 +4,7 @@ import type { CONTAINER_API_PATH } from '../contract/paths';
 
 export type ContainerSummary = components['schemas']['ContainerSummary'];
 export type ContainerDetail = components['schemas']['ContainerDetail'];
+export type ContainerResourceSummary = components['schemas']['ContainerResourceSummary'];
 export type ContainerPort = components['schemas']['ContainerPort'];
 export type ContainerRuntimeInfo = components['schemas']['ContainerRuntimeInfo'];
 export type ContainerHealthcheck = components['schemas']['ContainerHealthcheck'];
