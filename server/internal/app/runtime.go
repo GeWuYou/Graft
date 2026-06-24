@@ -117,7 +117,8 @@ type Runtime struct {
 //
 // 返回：
 //   - *Runtime: 已完成 core 资源装配和模块登记的运行时对象。
-//   - error: 当配置、数据库、Redis 或核心服务注册失败时返回错误，并尽力回收已创建资源。
+// NewRuntime 加载配置并构建运行时实例，完成核心资源、服务、路由和模块注册。
+// 在装配过程中任一步骤失败时返回错误，并在部分失败场景下尽力回收已创建的核心资源。
 func NewRuntime() (*Runtime, error) {
 	cfg, err := config.Load()
 	if err != nil {
@@ -214,7 +215,8 @@ func newRuntimeCore(cfg *config.Config) (*Runtime, error) {
 	return newRuntimeCoreWithDeps(cfg, defaultRuntimeCoreDeps)
 }
 
-// newRuntimeCoreWithDeps initializes all core runtime resources and returns a fully configured Runtime instance with locale resources pre-registered.
+// newRuntimeCoreWithDeps 初始化核心运行时资源，并返回已完成配置且预注册了本地化资源的 Runtime 实例。
+// 它会按顺序创建日志、数据库、Redis、i18n、仓储、缓存管理器、HTTP 服务器以及各类注册表，并在任一步失败时回收已创建资源。
 func newRuntimeCoreWithDeps(cfg *config.Config, deps runtimeCoreDeps) (*Runtime, error) {
 	deps = normalizeRuntimeCoreDeps(deps)
 	applyGinMode(cfg)

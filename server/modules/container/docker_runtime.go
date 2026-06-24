@@ -70,7 +70,8 @@ type systemInfo interface {
 	dockerSystemInfo()
 }
 
-// NewDockerRuntime creates the first local container runtime adapter.
+// NewDockerRuntime 创建 Docker 容器运行时适配器。
+// 它会使用给定的端点初始化连接，并按配置创建资源统计缓存。
 func NewDockerRuntime(endpoint string, logger *zap.Logger, cacheTTL time.Duration, staleWindow time.Duration) (*DockerRuntime, error) {
 	endpoint = firstNonEmpty(endpoint, defaultContainerDockerEndpoint)
 	cli, err := mobyclient.New(mobyclient.WithHost(endpoint))
@@ -531,6 +532,9 @@ func (r *DockerRuntime) dockerResourceSummary(containerID string, stats containe
 	return resource
 }
 
+// dockerOnlineCPUs 返回容器的在线 CPU 数量。
+//
+// @returns 在线 CPU 数量的指针；当无法确定时返回 nil。
 func dockerOnlineCPUs(stats container.StatsResponse) *int64 {
 	onlineCPUs := dockerStatsOnlineCPUs(stats)
 	if onlineCPUs == 0 {
@@ -539,6 +543,7 @@ func dockerOnlineCPUs(stats container.StatsResponse) *int64 {
 	return uint32ToInt64Ptr(onlineCPUs)
 }
 
+// 如果对应统计项不存在或无法转换为 int64，则返回 nil。
 func dockerMemoryStat(stats container.StatsResponse, key string) *int64 {
 	if len(stats.MemoryStats.Stats) == 0 {
 		return nil
@@ -599,6 +604,7 @@ func addUint64(total uint64, value uint64, overflow bool) (uint64, bool) {
 	return total + value, false
 }
 
+// 仅在当前采样相较于上一采样存在有效增量且可确定在线 CPU 数时返回结果。
 func dockerCPUPercent(stats container.StatsResponse) (float64, bool) {
 	if stats.CPUStats.CPUUsage.TotalUsage <= stats.PreCPUStats.CPUUsage.TotalUsage ||
 		stats.CPUStats.SystemUsage <= stats.PreCPUStats.SystemUsage {
@@ -613,6 +619,9 @@ func dockerCPUPercent(stats container.StatsResponse) (float64, bool) {
 	return (cpuDelta / systemDelta) * float64(onlineCPUs) * dockerStatsPercentScale, true
 }
 
+// dockerStatsOnlineCPUs 返回统计信息中的在线 CPU 数。
+// 当在线 CPU 数不可用时，它会使用每个 CPU 的使用率条目数量作为估算值；
+// 如果也无法获得该数量，或数量超出 uint32 范围，则返回 0。
 func dockerStatsOnlineCPUs(stats container.StatsResponse) uint32 {
 	if stats.CPUStats.OnlineCPUs > 0 {
 		return stats.CPUStats.OnlineCPUs
@@ -672,6 +681,8 @@ func (r *DockerRuntime) logDockerCPUCalculation(containerID string, stats contai
 	)
 }
 
+// unavailableResourceSummary 生成一个不可用的资源摘要。
+// 摘要会使用给定原因，或在原因为空时回退到默认的资源统计不可用原因。
 func unavailableResourceSummary(reason string) ResourceSummary {
 	reason = firstNonEmpty(strings.TrimSpace(reason), containerStatsUnavailableReason)
 	return ResourceSummary{

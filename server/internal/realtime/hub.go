@@ -20,7 +20,7 @@ type subscriber struct {
 	unsubscribed atomic.Bool
 }
 
-// NewHub creates an in-memory realtime topic hub.
+// NewHub 创建一个基于内存的实时话题 Hub，并初始化订阅映射。
 func NewHub() Hub {
 	return &memoryHub{
 		topics: make(map[string]map[uint64]*subscriber),
@@ -55,6 +55,7 @@ func (h *memoryHub) Publish(topic string, payload any) {
 	}
 }
 
+// publishLatestEvent 尝试将事件发送到通道，并在通道已满时丢弃一个旧事件后重试一次。
 func publishLatestEvent(ch chan Event, event Event) {
 	select {
 	case ch <- event:
@@ -67,6 +68,7 @@ func publishLatestEvent(ch chan Event, event Event) {
 	}
 }
 
+// drainStaleEvent 从通道中非阻塞地移除一个待处理事件。
 func drainStaleEvent(ch chan Event) {
 	select {
 	case <-ch:

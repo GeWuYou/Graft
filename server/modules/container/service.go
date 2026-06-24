@@ -83,7 +83,8 @@ type containerServiceOptions struct {
 	authorizer                           moduleapi.Authorizer
 }
 
-// newContainerService 根据模块上下文和系统配置构建容器服务。当实时工单服务无法解析时返回错误。
+// newContainerService 根据模块上下文初始化容器服务，并解析运行时、实时订阅和鉴权依赖。
+// 解析任一必需依赖失败时返回错误。
 func newContainerService(ctx *module.Context, moduleName string) (*service, error) {
 	options := containerOptionsFromConfig(ctx)
 	systemConfig := resolveSystemConfigResolver(ctx)
@@ -131,7 +132,8 @@ func newContainerService(ctx *module.Context, moduleName string) (*service, erro
 	})
 }
 
-// newService 初始化容器服务实例，完成配置验证和默认值应用。实时票证服务必须提供，否则返回错误。
+// newService 初始化容器服务实例，并应用默认值与归一化配置。
+// realtimeTickets 不能为空，否则返回错误。
 func newService(options containerServiceOptions) (*service, error) {
 	options.defaultTail, options.maxTail = normalizeContainerLogTailBounds(options.defaultTail, options.maxTail)
 	if options.realtimeTickets == nil {
@@ -183,7 +185,11 @@ func newService(options containerServiceOptions) (*service, error) {
 	}, nil
 }
 
-// resolveRealtimeTicketService resolves the realtime authentication service from the module context. It returns an error if ctx or ctx.Services is nil.
+// resolveRealtimeTicketService 从模块上下文中解析实时认证服务。
+//
+// 当 ctx 或 ctx.Services 为空时返回错误。
+//
+// @returns 解析得到的 realtimeauth.Service，或在上下文不可用时返回错误。
 func resolveRealtimeTicketService(ctx *module.Context) (realtimeauth.Service, error) {
 	if ctx == nil || ctx.Services == nil {
 		return nil, errors.New("realtime ticket service resolver is unavailable")
@@ -192,6 +198,10 @@ func resolveRealtimeTicketService(ctx *module.Context) (realtimeauth.Service, er
 	return module.ResolveService[realtimeauth.Service](ctx.Services, (*realtimeauth.Service)(nil))
 }
 
+// resolveRealtimeHub 从模块上下文中解析实时消息总线。
+// 优先返回 ctx.Realtime；当 ctx.Services 可用时，再从服务容器中解析 realtime.Hub。
+//
+// @returns 解析到的实时消息总线；当上下文或服务解析器不可用时返回错误。
 func resolveRealtimeHub(ctx *module.Context) (realtime.Hub, error) {
 	if ctx != nil && ctx.Realtime != nil {
 		return ctx.Realtime, nil
@@ -203,6 +213,7 @@ func resolveRealtimeHub(ctx *module.Context) (realtime.Hub, error) {
 	return module.ResolveService[realtime.Hub](ctx.Services, (*realtime.Hub)(nil))
 }
 
+// 当 ctx 或其 Services 为空时返回错误。
 func resolveRealtimeTopicIssuerRegistry(ctx *module.Context) (realtime.TopicIssuerRegistry, error) {
 	if ctx == nil || ctx.Services == nil {
 		return nil, errors.New("realtime topic issuer registry resolver is unavailable")
@@ -1200,6 +1211,8 @@ func auditResult(err error) string {
 	return "success"
 }
 
+// auditStatusCode 将错误转换为审计状态码。
+// @returns 错误为 nil 时返回 http.StatusOK；否则返回与该错误对应的状态码。
 func auditStatusCode(err error) int {
 	if err == nil {
 		return http.StatusOK
@@ -1221,7 +1234,7 @@ type containerRuntimeOptions struct {
 	logger                               *zap.Logger
 }
 
-// ContainerOptionsFromConfig 从模块上下文中提取容器运行时配置选项，应用默认值、配置注册表中的设置，最后使用显式模块配置覆盖。
+// containerOptionsFromConfig 从模块上下文提取容器运行时配置选项，并按默认值、配置注册表和显式模块配置依次应用覆盖。
 func containerOptionsFromConfig(ctx *module.Context) containerRuntimeOptions {
 	options := containerRuntimeOptions{
 		enabled:                              defaultContainerEnabled,
@@ -1466,6 +1479,12 @@ func (s *service) effectiveLogTailBounds(ctx context.Context) (int, int) {
 	return normalizeContainerLogTailBounds(defaultTail, maxTail)
 }
 
+// normalizeContainerResourceStatsCacheBounds 归一化资源统计缓存的 TTL 和过期窗口。
+// 当任一值小于等于 0 时，使用默认配置值。
+//
+// @param ttlSeconds 资源统计缓存的 TTL 秒数。
+// @param staleWindowSeconds 资源统计缓存的过期窗口秒数。
+// @returns 归一化后的 TTL 秒数和过期窗口秒数。
 func normalizeContainerResourceStatsCacheBounds(ttlSeconds int, staleWindowSeconds int) (int, int) {
 	if ttlSeconds <= 0 {
 		ttlSeconds = defaultContainerResourceStatsCacheTTL
@@ -1648,7 +1667,7 @@ func (s *service) maskedEnvironmentCopyEnabled(ctx context.Context) bool {
 	)
 }
 
-// It returns a disabled runtime if the container is disabled, a Docker runtime if enabled, or an error if the runtime type is unsupported.
+// 当容器运行被禁用时返回禁用运行时；当运行时类型为 Docker 或默认值时返回 Docker 运行时；其他类型返回错误。
 func newContainerRuntime(options containerRuntimeOptions) (Runtime, error) {
 	if !options.enabled {
 		return disabledRuntime{}, nil

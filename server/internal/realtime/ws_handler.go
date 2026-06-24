@@ -37,7 +37,12 @@ type GatewayRegistration struct {
 	WebSocketAllowOrigins []string
 }
 
-// RegisterWebSocketGateway mounts the canonical unified realtime websocket route.
+// RegisterWebSocketGateway 注册统一的实时 WebSocket 入口路由。
+// 当路由器、事件中心或票据服务不可用时返回错误；否则挂载 GET /ws，并在连接建立前完成主题、票据和来源校验。
+//
+// @param router Gin 路由器。
+// @param registration 网关依赖与来源白名单配置。
+// @return 注册失败时返回错误。
 func RegisterWebSocketGateway(router gin.IRouter, registration GatewayRegistration) error {
 	if router == nil {
 		return errors.New("realtime router is unavailable")
@@ -72,6 +77,7 @@ type gatewayRequest struct {
 	ticket string
 }
 
+// 返回解析后的请求和成功标记；校验失败时会写入本地化错误响应。
 func parseGatewayRequest(ctx *gin.Context, registration GatewayRegistration) (gatewayRequest, bool) {
 	request := gatewayRequest{
 		topic:  NormalizeTopic(ctx.Query("topic")),
@@ -92,6 +98,8 @@ func parseGatewayRequest(ctx *gin.Context, registration GatewayRegistration) (ga
 	return request, true
 }
 
+// consumeGatewayTicket 消费用于订阅指定主题的实时访问票据。
+// 成功时返回 true；失败时返回 false，并写入本地化的错误响应。
 func consumeGatewayTicket(ctx *gin.Context, registration GatewayRegistration, request gatewayRequest) bool {
 	_, err := registration.Tickets.Consume(ctx.Request.Context(), realtimeauth.ConsumeRequest{
 		Ticket:       request.ticket,
@@ -108,6 +116,9 @@ func consumeGatewayTicket(ctx *gin.Context, registration GatewayRegistration, re
 	return false
 }
 
+// websocketTicketErrorStatus 将票据错误映射为对应的 HTTP 状态码。
+// 票据缺失或无效返回 400，已过期或已使用返回 409，其余情况返回 403。
+// @return 对应的 HTTP 状态码。
 func websocketTicketErrorStatus(err error) int {
 	switch {
 	case errors.Is(err, realtimeauth.ErrTicketRequired), errors.Is(err, realtimeauth.ErrInvalidTicket):
@@ -119,6 +130,8 @@ func websocketTicketErrorStatus(err error) int {
 	}
 }
 
+// closeWebSocketConnection 关闭 WebSocket 连接。
+// 如果连接不为空，则调用其 Close 方法并忽略返回错误。
 func closeWebSocketConnection(conn *websocket.Conn) {
 	if conn == nil {
 		return
@@ -126,6 +139,8 @@ func closeWebSocketConnection(conn *websocket.Conn) {
 	_ = conn.Close()
 }
 
+// streamTopicEvents 订阅指定 topic 的事件并写入 WebSocket 连接。
+// 连接或 hub 为空时直接返回。函数会在连接关闭、上下文取消或写入失败时结束，并关闭连接。
 func streamTopicEvents(parent context.Context, conn *websocket.Conn, hub Hub, topic string) error {
 	if conn == nil || hub == nil {
 		return nil
@@ -151,6 +166,7 @@ func streamTopicEvents(parent context.Context, conn *websocket.Conn, hub Hub, to
 	}
 }
 
+// watchWebSocketReads 持续读取 WebSocket 消息，并在读取出错时取消连接上下文。
 func watchWebSocketReads(conn *websocket.Conn, cancel context.CancelFunc) {
 	if conn == nil || cancel == nil {
 		return

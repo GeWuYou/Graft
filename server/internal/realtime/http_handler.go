@@ -19,7 +19,13 @@ type HTTPRegistration struct {
 	Registry TopicIssuerRegistry
 }
 
-// RegisterSubscriptionRoutes mounts the canonical HTTP endpoint for issuing realtime topic subscriptions.
+// RegisterSubscriptionRoutes 注册用于签发实时主题订阅票据的 HTTP 端点。
+// 当 router 或 registration.Registry 为空时返回错误。
+// 成功时挂载 `POST /realtime/subscriptions`，并在请求处理过程中按主题解析、路由到对应的订阅签发器，最后返回签发结果。
+//
+// @param router 用于注册路由的 HTTP 路由器。
+// @param registration 订阅路由所需的依赖。
+// @returns 注册失败时返回错误；成功时返回 nil。
 func RegisterSubscriptionRoutes(router gin.IRouter, registration HTTPRegistration) error {
 	if router == nil {
 		return errors.New("realtime router is unavailable")
@@ -65,6 +71,10 @@ func RegisterSubscriptionRoutes(router gin.IRouter, registration HTTPRegistratio
 // SubscriptionRequestPayload is the OpenAPI-generated request shape for subscription issuance.
 type SubscriptionRequestPayload = openapigen.RealtimeSubscriptionRequest
 
+// bindSubscriptionRequest 绑定并校验订阅请求的 JSON 请求体。
+//
+// 当 ctx 或 request 为空，或请求体绑定失败时返回 false；绑定成功时返回 true。
+// 绑定失败时会写入一个带有 body 字段的本地化 400 错误响应。
 func bindSubscriptionRequest(ctx *gin.Context, localizer *i18n.Service, request *SubscriptionRequestPayload) bool {
 	if ctx == nil || request == nil {
 		return false
@@ -78,6 +88,8 @@ func bindSubscriptionRequest(ctx *gin.Context, localizer *i18n.Service, request 
 	return true
 }
 
+// writeSubscriptionError 将领域错误映射为本地化的 HTTP 错误响应并写回客户端。
+// 它会根据错误类型选择相应的状态码与消息键，并在错误体中包含 topic 字段。
 func writeSubscriptionError(ctx *gin.Context, localizer *i18n.Service, err error, topic string) {
 	status := http.StatusInternalServerError
 	messageKey := messagecontract.CommonInternalError.String()

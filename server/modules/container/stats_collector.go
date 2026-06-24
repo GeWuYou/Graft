@@ -41,6 +41,7 @@ type containerStatsPublished struct {
 	CollectedAt time.Time       `json:"collected_at"`
 }
 
+// 如果 logger 为空，会使用无操作日志器。
 func newStatsCollector(
 	collect func(context.Context) ([]StatsSnapshot, error),
 	hub realtime.Publisher,

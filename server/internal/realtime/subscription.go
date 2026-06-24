@@ -69,7 +69,8 @@ type topicIssuerEntry struct {
 	issuer SubscriptionIssuer
 }
 
-// NewTopicIssuerRegistry creates the in-memory registry used by the unified realtime gateway.
+// NewTopicIssuerRegistry 创建用于统一实时网关的内存主题签发器注册表。
+// 它返回一个已初始化的注册表，初始容量为 `initialTopicIssuerCapacity`。
 func NewTopicIssuerRegistry() TopicIssuerRegistry {
 	return &topicIssuerRegistry{
 		entries: make([]topicIssuerEntry, 0, initialTopicIssuerCapacity),
@@ -158,7 +159,8 @@ func (i TicketIssuer) IssueTopicTicket(
 	return issued, nil
 }
 
-// BuildTopicWebSocketURL returns the canonical websocket URL for a topic ticket pair.
+// BuildTopicWebSocketURL 生成指定 topic 与 ticket 对应的标准 WebSocket 地址。
+// 地址固定为 "/ws"，并将 topic 和 ticket 编码为查询参数。
 func BuildTopicWebSocketURL(topic string, ticket string) string {
 	values := url.Values{}
 	values.Set("topic", topic)
@@ -166,7 +168,8 @@ func BuildTopicWebSocketURL(topic string, ticket string) string {
 	return "/ws?" + values.Encode()
 }
 
-// BuildSubscriptionRequest extracts the normalized realtime request context from the current request.
+// BuildSubscriptionRequest 构建实时订阅请求并填充规范化的上下文信息。
+// 它会规范化 topic，提取请求认证信息，并收集客户端 IP 和 User-Agent。
 func BuildSubscriptionRequest(ctx context.Context, topic string) SubscriptionRequest {
 	request := SubscriptionRequest{
 		Topic: NormalizeTopic(topic),
@@ -179,6 +182,7 @@ func BuildSubscriptionRequest(ctx context.Context, topic string) SubscriptionReq
 	return request
 }
 
+// currentRequestClientIP 从上下文中提取客户端 IP 并返回其去除首尾空白后的值。
 func currentRequestClientIP(ctx context.Context) string {
 	requestAudit, ok := httpx.RequestAuditContextFromContext(ctx)
 	if !ok {
@@ -187,6 +191,7 @@ func currentRequestClientIP(ctx context.Context) string {
 	return strings.TrimSpace(requestAudit.ClientIP)
 }
 
+// currentRequestUserAgent 返回请求审计上下文中的 User-Agent，并去除首尾空白。
 func currentRequestUserAgent(ctx context.Context) string {
 	requestAudit, ok := httpx.RequestAuditContextFromContext(ctx)
 	if !ok {

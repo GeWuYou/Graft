@@ -35,6 +35,7 @@ type resourceStatsLoad struct {
 	summary ResourceSummary
 }
 
+// 当 ttl 或 staleWindow 小于等于 0 时，会分别使用默认值。
 func newResourceStatsCache(ttl time.Duration, staleWindow time.Duration) *resourceStatsCache {
 	if ttl <= 0 {
 		ttl = containerResourceStatsCacheTTL
@@ -114,6 +115,8 @@ func (c *resourceStatsCache) invalidate(keys ...string) {
 	}
 }
 
+// resourceStatsFreshHit 判断缓存条目是否仍处于新鲜期并可直接返回。
+// 当条目存在且当前时间早于 freshUntil 时，返回缓存的 ResourceSummary。
 func resourceStatsFreshHit(entry resourceStatsCacheEntry, ok bool, now time.Time) (ResourceSummary, bool) {
 	if ok && now.Before(entry.freshUntil) {
 		return entry.summary, true
@@ -183,6 +186,11 @@ func (c *resourceStatsCache) completeLoad(ctx context.Context, key string, load 
 	return summary
 }
 
+// normalizeResourceStatsSummary 规范化资源统计摘要，并判断其是否可缓存。
+// 当摘要包含可用的统计快照时，清空不可用原因和统计错误信息并返回。
+// 否则返回一个不可用摘要。
+//
+// 返回规范化后的 ResourceSummary；第二个值表示结果是否可缓存。
 func normalizeResourceStatsSummary(summary ResourceSummary) (ResourceSummary, bool) {
 	if isUsableResourceStatsSnapshot(summary) {
 		summary.UnavailableReason = ""
@@ -193,6 +201,8 @@ func normalizeResourceStatsSummary(summary ResourceSummary) (ResourceSummary, bo
 	return unavailableResourceSummary(resourceStatsUnavailableReason(summary)), false
 }
 
+// isUsableResourceStatsSnapshot 判断资源统计快照是否可用。
+// 只有在资源可用、统计可用且包含至少一项 CPU 或内存指标时，才视为可用。
 func isUsableResourceStatsSnapshot(summary ResourceSummary) bool {
 	if !summary.Available || !summary.StatsAvailable {
 		return false
@@ -203,6 +213,11 @@ func isUsableResourceStatsSnapshot(summary ResourceSummary) bool {
 		summary.MemoryLimitBytes != nil
 }
 
+// resourceStatsUnavailableReason 返回资源统计不可用原因。
+//
+// 优先使用 summary.UnavailableReason；如果统计数据可用但信息不完整，则返回
+// containerStatsIncompleteReason；否则优先使用 summary.StatsErrorKey，最后回退到
+// containerStatsIncompleteReason。
 func resourceStatsUnavailableReason(summary ResourceSummary) string {
 	if reason := strings.TrimSpace(summary.UnavailableReason); reason != "" {
 		return reason

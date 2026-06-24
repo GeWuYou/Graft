@@ -23,6 +23,12 @@ export type RealtimeTopicSocketController = {
   reconnect: () => void;
 };
 
+/**
+ * 解析实时消息文本。
+ *
+ * @param raw - 原始消息内容
+ * @returns 解析后的消息值；当输入不是字符串或 JSON 解析失败时返回 `null`
+ */
 function defaultParseMessage<TMessage>(raw: unknown) {
   if (typeof raw !== 'string') {
     return null;
@@ -34,14 +40,32 @@ function defaultParseMessage<TMessage>(raw: unknown) {
   }
 }
 
+/**
+ * 判断错误对象是否包含数值状态码。
+ *
+ * @param error - 待检查的错误值
+ * @returns `true` if `error` 是包含 `status` 数值属性的对象，`false` otherwise.
+ */
 function hasStatusCode(error: unknown): error is { status: number } {
   return Boolean(error && typeof error === 'object' && typeof (error as { status?: unknown }).status === 'number');
 }
 
+/**
+ * 判断票据获取错误是否可重试。
+ *
+ * @param error - 要检查的错误
+ * @returns `true` if 错误没有数值型 `status`，或其 `status` 不在不可重试状态码集合中；`false` otherwise.
+ */
 function isRetryableTicketError(error: unknown) {
   return !hasStatusCode(error) || !NON_RETRYABLE_STATUS_CODES.has(error.status);
 }
 
+/**
+ * 打开并管理指定主题的实时 WebSocket 连接。
+ *
+ * @param options - 连接配置，包括主题、票据获取、消息解析以及状态和错误回调
+ * @returns 用于关闭连接或手动重连的控制器
+ */
 export function openRealtimeTopicSocket<TMessage>(
   options: OpenRealtimeTopicSocketOptions<TMessage>,
 ): RealtimeTopicSocketController {
