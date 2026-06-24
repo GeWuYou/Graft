@@ -271,7 +271,7 @@ assets:
     examples:
       - "web/src/modules/container/pages/list/index.vue"
       - "web/src/modules/container/pages/detail/index.vue"
-      - "web/src/modules/container/components/ContainerShellPanel.vue"
+      - "web/src/shared/realtime/ws-client.test.ts"
     related_assets:
       - "request-client"
       - "terminal-components"

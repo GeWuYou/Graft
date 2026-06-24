@@ -1522,6 +1522,32 @@ func TestServiceEffectiveResourceStatsCacheBoundsUseRuntimeHotConfig(t *testing.
 	}
 }
 
+func TestServiceCloseStopsCollectorAndClosesRuntimeOnce(t *testing.T) {
+	t.Parallel()
+
+	runtime := &countingRuntime{}
+	service, err := newTestService(containerServiceOptions{
+		runtime:     runtime,
+		enabled:     true,
+		defaultTail: defaultContainerLogsDefaultTail,
+		maxTail:     defaultContainerLogsMaxTail,
+	})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	service.statsCollector = &statsCollector{}
+
+	if err := service.Close(); err != nil {
+		t.Fatalf("close service: %v", err)
+	}
+	if err := service.Close(); err != nil {
+		t.Fatalf("close service second time: %v", err)
+	}
+	if runtime.closeCalls.Load() != 2 {
+		t.Fatalf("expected runtime close on each service close call, got %d", runtime.closeCalls.Load())
+	}
+}
+
 func TestRuntimeForRequestInitializesOnceUnderConcurrentAccess(t *testing.T) {
 	t.Parallel()
 
@@ -1608,6 +1634,7 @@ func (r serviceTestPolicyConfig) ResolveDefaultConfig(_ context.Context, key str
 
 type countingRuntime struct {
 	calls           atomic.Int64
+	closeCalls      atomic.Int64
 	mountUsageCalls atomic.Int64
 	detail          Detail
 	mounts          []Mount
@@ -1678,7 +1705,10 @@ func (r *countingRuntime) Remove(context.Context, Ref, RemoveOptions) (ActionRes
 	return ActionResult{}, nil
 }
 
-func (r *countingRuntime) Close() error { return nil }
+func (r *countingRuntime) Close() error {
+	r.closeCalls.Add(1)
+	return nil
+}
 
 type failingRuntime struct {
 	err error

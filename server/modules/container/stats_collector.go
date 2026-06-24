@@ -63,16 +63,20 @@ func (c *statsCollector) Start(ctx context.Context) error {
 	if c == nil || c.collect == nil {
 		return nil
 	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	c.runMu.Lock()
 	defer c.runMu.Unlock()
 	if c.started {
 		return nil
 	}
 	runCtx, cancel := context.WithCancel(ctx)
+	done := make(chan struct{})
 	c.cancel = cancel
-	c.done = make(chan struct{})
+	c.done = done
 	c.started = true
-	go c.run(runCtx)
+	go c.run(runCtx, done)
 	return nil
 }
 
@@ -110,8 +114,8 @@ func (c *statsCollector) Stop(ctx context.Context) error {
 	}
 }
 
-func (c *statsCollector) run(ctx context.Context) {
-	defer close(c.done)
+func (c *statsCollector) run(ctx context.Context, done chan struct{}) {
+	defer close(done)
 	c.collectAndPublish(ctx)
 	ticker := time.NewTicker(c.interval)
 	defer ticker.Stop()

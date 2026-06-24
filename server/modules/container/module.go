@@ -45,7 +45,7 @@ func (m *Module) Register(ctx *module.Context) error {
 	return registerRoutes(ctx, moduleID, service)
 }
 
-// Boot currently has no background runtime work; container reads are request-driven.
+// Boot starts the module-owned stats collector when realtime publishing is available.
 func (m *Module) Boot(ctx *module.Context) error {
 	if m == nil || m.service == nil {
 		return nil
@@ -57,20 +57,10 @@ func (m *Module) Boot(ctx *module.Context) error {
 	return m.service.startStatsCollector(lifecycleCtx)
 }
 
-// Shutdown releases the runtime client owned by this module.
-func (m *Module) Shutdown(ctx *module.Context) error {
+// Shutdown stops module-owned background work and releases the runtime client.
+func (m *Module) Shutdown(_ *module.Context) error {
 	if m == nil || m.service == nil {
 		return nil
 	}
-	lifecycleCtx := context.Background()
-	if ctx != nil && ctx.LifecycleContext != nil {
-		lifecycleCtx = ctx.LifecycleContext
-	}
-	if err := m.service.stopStatsCollector(lifecycleCtx); err != nil {
-		return err
-	}
-	if err := m.service.Close(); err != nil {
-		return err
-	}
-	return nil
+	return m.service.Close()
 }

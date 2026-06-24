@@ -34,6 +34,7 @@ import (
 	"graft/server/internal/moduleregistry"
 	"graft/server/internal/moduleruntime"
 	"graft/server/internal/permission"
+	"graft/server/internal/realtimeauth"
 	"graft/server/internal/redisx"
 	"graft/server/internal/statex"
 	testent "graft/server/internal/testent"
@@ -1124,7 +1125,9 @@ func TestRegisterCoreRoutesHealthzReportsRegistryCounts(t *testing.T) {
 	}
 
 	engine := gin.New()
-	runtime.registerCoreRoutes(engine)
+	if err := runtime.registerCoreRoutes(engine); err != nil {
+		t.Fatalf("register core routes: %v", err)
+	}
 
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/healthz", nil)
@@ -1175,7 +1178,9 @@ func TestRegisterCoreRoutesServesOpenAPIDocsWhenEnabled(t *testing.T) {
 	}
 
 	engine := gin.New()
-	runtime.registerCoreRoutes(engine)
+	if err := runtime.registerCoreRoutes(engine); err != nil {
+		t.Fatalf("register core routes: %v", err)
+	}
 
 	assertOpenAPIJSONResponse(t, engine)
 	assertOpenAPIYAMLResponse(t, engine)
@@ -1216,7 +1221,9 @@ func TestRegisterCoreRoutesSkipsOpenAPIDocsWhenDisabled(t *testing.T) {
 	}
 
 	engine := gin.New()
-	runtime.registerCoreRoutes(engine)
+	if err := runtime.registerCoreRoutes(engine); err != nil {
+		t.Fatalf("register core routes: %v", err)
+	}
 
 	for _, path := range []string{openapiJSONPath, openapiYAMLPath, openapiDocsPath} {
 		recorder := httptest.NewRecorder()
@@ -1228,6 +1235,36 @@ func TestRegisterCoreRoutesSkipsOpenAPIDocsWhenDisabled(t *testing.T) {
 		}
 	}
 
+}
+
+func TestRegisterCoreRoutesReturnsRealtimeGatewayRegistrationError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	runtime := &Runtime{
+		config: &config.Config{
+			HTTPX: config.HTTPXConfig{},
+		},
+		i18n:               i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "en-US", SupportedLocales: []string{"zh-CN", "en-US"}}),
+		services:           container.New(),
+		menuRegistry:       menu.NewRegistry(),
+		permissionRegistry: permission.NewRegistry(),
+		cronRegistry:       cronx.NewRegistry(),
+		realtimeHub:        nil,
+	}
+	if err := runtime.services.RegisterSingleton((*realtimeauth.Service)(nil), func(container.Resolver) (any, error) {
+		return realtimeauth.NewMemoryService(), nil
+	}); err != nil {
+		t.Fatalf("register realtime ticket service: %v", err)
+	}
+
+	engine := gin.New()
+	err := runtime.registerCoreRoutes(engine)
+	if err == nil {
+		t.Fatal("expected realtime websocket gateway registration error")
+	}
+	if !strings.Contains(err.Error(), "register realtime websocket gateway") {
+		t.Fatalf("expected wrapped realtime gateway registration error, got %v", err)
+	}
 }
 
 func TestNewRuntimeCoreRegistersAccessLogRetentionJobWithoutRunningCleanup(t *testing.T) {

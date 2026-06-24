@@ -1,6 +1,5 @@
+import { buildContainerStatsTopicName } from '../contract/realtime';
 import type { ContainerDetailRecord, ContainerSummaryRecord } from '../types/container';
-
-const CONTAINER_STATS_TOPIC_PREFIX = 'container.stats:';
 
 type ContainerResourceSummary = NonNullable<ContainerSummaryRecord['resource']>;
 
@@ -9,7 +8,7 @@ function isObject(value: unknown): value is Record<string, unknown> {
 }
 
 export function buildContainerStatsTopic(containerId: string) {
-  return `${CONTAINER_STATS_TOPIC_PREFIX}${containerId}`;
+  return buildContainerStatsTopicName(containerId);
 }
 
 export function parseContainerStatsPayload(raw: unknown) {

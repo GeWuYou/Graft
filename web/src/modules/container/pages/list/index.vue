@@ -507,6 +507,7 @@ import {
 } from '../../api/container';
 import { CONTAINER_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import { CONTAINER_PERMISSION_CODE } from '../../contract/permissions';
+import { CONTAINER_REALTIME_TOPIC } from '../../contract/realtime';
 import type {
   ContainerAction,
   ContainerActionLevel,
@@ -531,7 +532,7 @@ defineOptions({
   name: 'ContainerListIndex',
 });
 
-const { locale, t } = useI18n();
+const { locale, t, te } = useI18n();
 const router = useRouter();
 const tabsRouterStore = useTabsRouterStore();
 const logger = createLogger('container.list');
@@ -1658,12 +1659,30 @@ function clampPercentage(value: number) {
 }
 
 function resourceUnavailableSummary(row: ContainerSummaryRecord, metric: 'cpu' | 'memory') {
-  const reason =
+  const reason = localizeResourceUnavailableReason(
     (metric === 'memory' && row.resource?.memory_usage_bytes === undefined && row.resource?.stats_error_message) ||
-    row.resource?.stats_error_message ||
-    row.resource?.stats_error_key ||
-    row.resource?.unavailable_reason;
-  return reason?.trim() || t('container.list.stats.unavailable');
+      row.resource?.stats_error_message ||
+      row.resource?.stats_error_key ||
+      row.resource?.unavailable_reason,
+  );
+  return reason || t('container.list.stats.unavailable');
+}
+
+function localizeResourceUnavailableReason(reason?: string | null) {
+  const normalizedReason = reason?.trim();
+  if (!normalizedReason) {
+    return '';
+  }
+  if (
+    !normalizedReason.startsWith('ops.container.error.') &&
+    !normalizedReason.startsWith(CONTAINER_REALTIME_TOPIC.STATS_PREFIX)
+  ) {
+    return normalizedReason;
+  }
+  if (te(normalizedReason)) {
+    return t(normalizedReason);
+  }
+  return t('container.list.stats.unavailableReasonFallback');
 }
 
 function formatBytes(value?: number) {

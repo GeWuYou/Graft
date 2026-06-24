@@ -457,15 +457,13 @@ func (r *DockerRuntime) CollectStatsSnapshots(ctx context.Context) ([]StatsSnaps
 			defer wg.Done()
 			for index := range indexes {
 				summary := dockerSummary(items[index])
-				resource := r.containerResourceSummary(ctx, summary.ID)
-				normalized, _ := normalizeResourceStatsSummary(resource)
-				r.recordResourceSummary(summary.ID, resource)
+				resource := r.collectCachedResourceSummary(ctx, summary.ID)
 				snapshots[index] = StatsSnapshot{
 					ContainerID: summary.ID,
 					Name:        summary.Name,
 					ShortID:     summary.ShortID,
 					Runtime:     summary.Runtime,
-					Resource:    normalized,
+					Resource:    resource,
 					CollectedAt: collectedAt,
 				}
 			}
@@ -475,16 +473,18 @@ func (r *DockerRuntime) CollectStatsSnapshots(ctx context.Context) ([]StatsSnaps
 	return snapshots, nil
 }
 
-func (r *DockerRuntime) recordResourceSummary(id string, summary ResourceSummary) {
+func (r *DockerRuntime) collectCachedResourceSummary(ctx context.Context, id string) ResourceSummary {
 	ref := strings.TrimSpace(id)
 	if ref == "" {
-		return
+		return unavailableResourceSummary(containerStatsIncompleteReason)
 	}
 	cache := r.ensureResourceStatsCache()
 	if cache == nil {
-		return
+		return unavailableResourceSummary(containerStatsNotCollectedReason)
 	}
-	cache.set(ref, summary)
+	return cache.get(ctx, ref, func(loadCtx context.Context) ResourceSummary {
+		return r.containerResourceSummary(loadCtx, ref)
+	})
 }
 
 func (r *DockerRuntime) dockerResourceSummary(containerID string, stats container.StatsResponse) ResourceSummary {

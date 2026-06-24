@@ -236,6 +236,7 @@ const translations = vi.hoisted(
     'container.list.runtimeUnavailable': '运行时不可用',
     'container.list.runningCount': '运行中 {count}',
     'container.list.stats.unavailable': 'N/A',
+    'container.list.stats.unavailableReasonFallback': '资源统计暂不可用',
     'container.list.stats.cpuTooltip': 'CPU 使用率：{percent}',
     'container.list.stats.memoryTooltip': '内存：{usage} / {limit}，{percent}',
     'container.list.states.created': '已创建',
@@ -1417,6 +1418,50 @@ describe('container list page', () => {
     expect(wrapper.text()).not.toContain('容器模块');
     expect(wrapper.text()).not.toContain('module is disabled');
   });
+
+  it('localizes resource stats error keys instead of rendering raw keys', async () => {
+    apiMocks.getContainers.mockResolvedValue({
+      items: [
+        {
+          ...createContainerRows(1)[0],
+          resource: {
+            available: false,
+            stats_available: false,
+            stats_error_key: 'ops.container.error.runtimeUnavailable',
+          },
+        },
+      ],
+      limit: 20,
+      offset: 0,
+      runtime: {
+        runtime: 'first-adapter',
+        status: 'enabled',
+        endpoint: 'unix:///var/run/docker.sock',
+        containers_running: 1,
+        containers_total: 1,
+      },
+      summary: {
+        total: 1,
+        running: 1,
+        stopped: 0,
+        error: 0,
+        healthy: 0,
+        unhealthy: 0,
+        health_unavailable: 1,
+      },
+      total: 1,
+    });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const tooltipContents = wrapper
+      .findAll('[data-tooltip-content]')
+      .map((tooltip) => tooltip.attributes('data-tooltip-content'));
+
+    expect(tooltipContents).toContain('容器运行时连接不可用');
+    expect(wrapper.text()).not.toContain('ops.container.error.runtimeUnavailable');
+  });
 });
 
 function apiError(messageKey: string, message: string) {
@@ -1890,10 +1935,11 @@ function mountPage() {
               h('span', slots.default?.()),
         }),
         't-tooltip': defineComponent({
+          props: ['content'],
           setup:
-            (_, { slots }) =>
+            (props, { slots }) =>
             () =>
-              h('span', slots.default?.()),
+              h('span', { 'data-tooltip-content': String(props.content ?? '') }, slots.default?.()),
         }),
       },
     },

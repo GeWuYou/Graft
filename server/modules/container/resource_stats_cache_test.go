@@ -7,7 +7,6 @@ import (
 	"time"
 )
 
-//nolint:unused // The tested stale-refresh path is intentionally kept for cache-governance coverage.
 func TestResourceStatsCacheReturnsStaleAndRefreshesInBackground(t *testing.T) {
 	t.Parallel()
 
@@ -17,8 +16,16 @@ func TestResourceStatsCacheReturnsStaleAndRefreshesInBackground(t *testing.T) {
 	cache.now = func() time.Time { return now }
 
 	var calls atomic.Int64
+	refreshStarted := make(chan struct{})
+	releaseRefresh := make(chan struct{})
+	refreshDone := make(chan struct{})
 	loader := func(context.Context) ResourceSummary {
 		value := calls.Add(1)
+		if value == 2 {
+			close(refreshStarted)
+			<-releaseRefresh
+			defer close(refreshDone)
+		}
 		return fullResourceSummary(float64(value), float64(value*10))
 	}
 
@@ -34,7 +41,9 @@ func TestResourceStatsCacheReturnsStaleAndRefreshesInBackground(t *testing.T) {
 	assertFloatPtr(t, stale.CPUPercent, 1, "stale cpu percent")
 	assertFloatPtr(t, stale.MemoryPercent, 10, "stale memory percent")
 
-	waitForCalls(t, &calls, 2)
+	<-refreshStarted
+	close(releaseRefresh)
+	<-refreshDone
 
 	fresh := cache.get(context.Background(), "container-1", loader)
 	assertFloatPtr(t, fresh.CPUPercent, 2, "refreshed cpu percent")
@@ -44,7 +53,6 @@ func TestResourceStatsCacheReturnsStaleAndRefreshesInBackground(t *testing.T) {
 	}
 }
 
-//nolint:unused // The tested stale-refresh path is intentionally kept for cache-governance coverage.
 func TestResourceStatsCacheRefreshFailurePreservesLastSuccessWithinStaleWindow(t *testing.T) {
 	t.Parallel()
 
@@ -54,10 +62,18 @@ func TestResourceStatsCacheRefreshFailurePreservesLastSuccessWithinStaleWindow(t
 	cache.now = func() time.Time { return now }
 
 	var calls atomic.Int64
+	refreshStarted := make(chan struct{})
+	releaseRefresh := make(chan struct{})
+	refreshDone := make(chan struct{})
 	loader := func(context.Context) ResourceSummary {
 		switch calls.Add(1) {
 		case 1:
 			return fullResourceSummary(0.6, 12)
+		case 2:
+			close(refreshStarted)
+			<-releaseRefresh
+			defer close(refreshDone)
+			return unavailableResourceSummary(containerStatsTimeoutReason)
 		default:
 			return unavailableResourceSummary(containerStatsTimeoutReason)
 		}
@@ -72,7 +88,9 @@ func TestResourceStatsCacheRefreshFailurePreservesLastSuccessWithinStaleWindow(t
 	assertFloatPtr(t, stale.CPUPercent, 0.6, "stale cpu percent")
 	assertFloatPtr(t, stale.MemoryPercent, 12, "stale memory percent")
 
-	waitForCalls(t, &calls, 2)
+	<-refreshStarted
+	close(releaseRefresh)
+	<-refreshDone
 
 	afterFailure := cache.get(context.Background(), "container-1", loader)
 	assertFloatPtr(t, afterFailure.CPUPercent, 0.6, "preserved cpu percent")
@@ -82,7 +100,6 @@ func TestResourceStatsCacheRefreshFailurePreservesLastSuccessWithinStaleWindow(t
 	}
 }
 
-//nolint:unused // The tested stale-refresh path is intentionally kept for cache-governance coverage.
 func TestResourceStatsCachePartialRefreshPromotesUsablePartialSnapshot(t *testing.T) {
 	t.Parallel()
 
@@ -92,10 +109,18 @@ func TestResourceStatsCachePartialRefreshPromotesUsablePartialSnapshot(t *testin
 	cache.now = func() time.Time { return now }
 
 	var calls atomic.Int64
+	refreshStarted := make(chan struct{})
+	releaseRefresh := make(chan struct{})
+	refreshDone := make(chan struct{})
 	loader := func(context.Context) ResourceSummary {
 		switch calls.Add(1) {
 		case 1:
 			return fullResourceSummary(0.6, 12)
+		case 2:
+			close(refreshStarted)
+			<-releaseRefresh
+			defer close(refreshDone)
+			return partialResourceSummary(cpuOnlySummary(0.8))
 		default:
 			return partialResourceSummary(cpuOnlySummary(0.8))
 		}
@@ -110,7 +135,9 @@ func TestResourceStatsCachePartialRefreshPromotesUsablePartialSnapshot(t *testin
 	assertFloatPtr(t, stale.CPUPercent, 0.6, "stale cpu percent")
 	assertFloatPtr(t, stale.MemoryPercent, 12, "stale memory percent")
 
-	waitForCalls(t, &calls, 2)
+	<-refreshStarted
+	close(releaseRefresh)
+	<-refreshDone
 
 	afterPartial := cache.get(context.Background(), "container-1", loader)
 	assertFloatPtr(t, afterPartial.CPUPercent, 0.8, "refreshed cpu percent")
@@ -119,7 +146,6 @@ func TestResourceStatsCachePartialRefreshPromotesUsablePartialSnapshot(t *testin
 	}
 }
 
-//nolint:unused // The tested stale-refresh path is intentionally kept for cache-governance coverage.
 func TestResourceStatsCacheWithoutPriorSnapshotCachesUsablePartialResult(t *testing.T) {
 	t.Parallel()
 
@@ -172,17 +198,4 @@ func partialResourceSummary(summary ResourceSummary) ResourceSummary {
 	summary.StatsErrorKey = "should-not-survive"
 	summary.StatsErrorMessage = "should-not-survive"
 	return summary
-}
-
-func waitForCalls(t *testing.T, calls *atomic.Int64, expected int64) {
-	t.Helper()
-
-	deadline := time.Now().Add(2 * time.Second)
-	for time.Now().Before(deadline) {
-		if calls.Load() >= expected {
-			return
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
-	t.Fatalf("expected loader call count %d, got %d", expected, calls.Load())
 }

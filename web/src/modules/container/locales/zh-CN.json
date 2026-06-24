@@ -45,6 +45,7 @@
       "resourceUnavailable": "不可用",
       "stats": {
         "unavailable": "N/A",
+        "unavailableReasonFallback": "资源统计暂不可用",
         "cpuTooltip": "CPU 使用率：{percent}",
         "memoryTooltip": "内存：{usage} / {limit}，{percent}"
       },

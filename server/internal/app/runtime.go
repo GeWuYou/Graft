@@ -13,8 +13,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
-	"gopkg.in/yaml.v3"
 	"go.uber.org/zap"
+	"gopkg.in/yaml.v3"
 
 	"graft/server/internal/buildinfo"
 	"graft/server/internal/cachex"
@@ -147,7 +147,10 @@ func NewRuntime() (*Runtime, error) {
 		return nil, err
 	}
 
-	runtime.registerCoreRoutes(runtime.server.Engine())
+	if err := runtime.registerCoreRoutes(runtime.server.Engine()); err != nil {
+		_ = runtime.closeCoreResources()
+		return nil, err
+	}
 
 	if err := runtime.registerRuntimeModules(cfg.Modules.Enabled); err != nil {
 		return nil, err
@@ -942,20 +945,37 @@ func (r *Runtime) loadOptionalDocsAssets() error {
 	return nil
 }
 
-func (r *Runtime) registerCoreRoutes(engine *gin.Engine) {
+func (r *Runtime) registerCoreRoutes(engine *gin.Engine) error {
 	if engine == nil {
-		return
+		return nil
 	}
 
-	if ticketService := r.injectedRealtimeTicketService(); ticketService != nil {
-		_ = realtime.RegisterWebSocketGateway(engine, realtime.GatewayRegistration{
-			Hub:                   r.realtimeHub,
-			I18n:                  r.i18n,
-			Tickets:               ticketService,
-			WebSocketAllowOrigins: append([]string(nil), r.config.HTTPX.WebSocketAllowedOrigins...),
-		})
+	if err := r.registerRealtimeGatewayRoute(engine); err != nil {
+		return err
+	}
+	r.registerHealthRoute(engine)
+	r.registerOpenAPIRoutes(engine)
+	return nil
+}
+
+func (r *Runtime) registerRealtimeGatewayRoute(engine *gin.Engine) error {
+	ticketService := r.injectedRealtimeTicketService()
+	if ticketService == nil {
+		return nil
 	}
 
+	if err := realtime.RegisterWebSocketGateway(engine, realtime.GatewayRegistration{
+		Hub:                   r.realtimeHub,
+		I18n:                  r.i18n,
+		Tickets:               ticketService,
+		WebSocketAllowOrigins: append([]string(nil), r.config.HTTPX.WebSocketAllowedOrigins...),
+	}); err != nil {
+		return fmt.Errorf("register realtime websocket gateway: %w", err)
+	}
+	return nil
+}
+
+func (r *Runtime) registerHealthRoute(engine *gin.Engine) {
 	engine.GET("/healthz", func(ctx *gin.Context) {
 		coreHealthGeneratedHandler{}.GetHealthz()
 		ctx.JSON(http.StatusOK, gin.H{
@@ -967,38 +987,44 @@ func (r *Runtime) registerCoreRoutes(engine *gin.Engine) {
 			"jobs":           len(r.cronRegistry.Items()),
 		})
 	})
+}
 
+func (r *Runtime) registerOpenAPIRoutes(engine *gin.Engine) {
 	if r.config == nil || !r.config.Docs.Enabled || r.openapiDocs == nil {
 		return
 	}
 
-	engine.GET(openapiJSONPath, func(ctx *gin.Context) {
-		ctx.Data(http.StatusOK, "application/json; charset=utf-8", r.openapiDocs.json)
-	})
-	engine.GET(openapiYAMLPath, func(ctx *gin.Context) {
-		yamlSpec, err := buildLegacyOpenAPIYAML(r.openapiDocs.json)
-		if err != nil {
-			if r.logger != nil {
-				r.appLogger().
-					Error(ctx.Request.Context(), "build legacy openapi yaml", logger.ErrorField(err))
-			}
-			ctx.String(http.StatusInternalServerError, "failed to render openapi yaml")
-			return
+	engine.GET(openapiJSONPath, r.handleOpenAPIJSON)
+	engine.GET(openapiYAMLPath, r.handleOpenAPIYAML)
+	engine.GET(openapiDocsPath, r.handleOpenAPIDocs)
+}
+
+func (r *Runtime) handleOpenAPIJSON(ctx *gin.Context) {
+	ctx.Data(http.StatusOK, "application/json; charset=utf-8", r.openapiDocs.json)
+}
+
+func (r *Runtime) handleOpenAPIYAML(ctx *gin.Context) {
+	yamlSpec, err := buildLegacyOpenAPIYAML(r.openapiDocs.json)
+	if err != nil {
+		if r.logger != nil {
+			r.appLogger().Error(ctx.Request.Context(), "build legacy openapi yaml", logger.ErrorField(err))
 		}
-		ctx.Data(http.StatusOK, "application/yaml; charset=utf-8", yamlSpec)
-	})
-	engine.GET(openapiDocsPath, func(ctx *gin.Context) {
-		html, err := renderScalarDocsHTML(openapiJSONPath)
-		if err != nil {
-			if r.logger != nil {
-				r.appLogger().
-					Error(ctx.Request.Context(), "render docs page", logger.ErrorField(err))
-			}
-			ctx.String(http.StatusInternalServerError, "failed to render docs page")
-			return
+		ctx.String(http.StatusInternalServerError, "failed to render openapi yaml")
+		return
+	}
+	ctx.Data(http.StatusOK, "application/yaml; charset=utf-8", yamlSpec)
+}
+
+func (r *Runtime) handleOpenAPIDocs(ctx *gin.Context) {
+	html, err := renderScalarDocsHTML(openapiJSONPath)
+	if err != nil {
+		if r.logger != nil {
+			r.appLogger().Error(ctx.Request.Context(), "render docs page", logger.ErrorField(err))
 		}
-		ctx.Data(http.StatusOK, "text/html; charset=utf-8", html)
-	})
+		ctx.String(http.StatusInternalServerError, "failed to render docs page")
+		return
+	}
+	ctx.Data(http.StatusOK, "text/html; charset=utf-8", html)
 }
 
 var _ healthopenapi.ServerInterface = coreHealthGeneratedHandler{}

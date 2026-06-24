@@ -45,6 +45,7 @@
       "resourceUnavailable": "Unavailable",
       "stats": {
         "unavailable": "N/A",
+        "unavailableReasonFallback": "Resource Stats Are Currently Unavailable",
         "cpuTooltip": "CPU Usage: {percent}",
         "memoryTooltip": "Memory: {usage} / {limit}, {percent}"
       },

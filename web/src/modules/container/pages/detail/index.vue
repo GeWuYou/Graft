@@ -1390,7 +1390,9 @@ const environmentPolicyFilter = ref<EnvironmentPolicyFilter>('all');
 const refreshingMountKeys = ref<Set<string>>(new Set());
 const realtimeEnabled = ref(true);
 const realtimeSocketState = ref<'idle' | 'connecting' | 'open' | 'closed' | 'error'>('idle');
+const hasRealtimeResourceSnapshot = ref(false);
 let detailRefreshSeq = 0;
+let statsSocketGeneration = 0;
 let statsSocket: RealtimeTopicSocketController | null = null;
 
 const containerId = computed(() => String(route.params.id ?? '').trim());
@@ -2013,7 +2015,9 @@ async function refreshContainerDetail() {
       return;
     }
     detail.value = nextDetail
-      ? mergeDetailStructurePreservingRealtimeResource(detail.value, mergeDetailWithLocalMountUsage(nextDetail))
+      ? hasRealtimeResourceSnapshot.value
+        ? mergeDetailStructurePreservingRealtimeResource(detail.value, mergeDetailWithLocalMountUsage(nextDetail))
+        : mergeDetailWithLocalMountUsage(nextDetail)
       : null;
     const current = safeDetail.value;
     if (current) {
@@ -2164,6 +2168,7 @@ function resetDetailState() {
   logs.value = null;
   logsError.value = '';
   refreshingMountKeys.value = new Set();
+  hasRealtimeResourceSnapshot.value = false;
   realtimeSocketState.value = 'idle';
   stopStatsSocket();
   updateCurrentTabTitle(fallbackTitle.value);
@@ -2186,26 +2191,35 @@ function syncStatsSocket(nextContainerId: string) {
     return;
   }
   stopStatsSocket();
+  const socketGeneration = ++statsSocketGeneration;
   realtimeSocketState.value = 'connecting';
   statsSocket = openRealtimeTopicSocket({
     topic: buildContainerStatsTopic(nextContainerId),
     parseMessage: parseContainerStatsPayload,
     onStateChange: (state) => {
+      if (socketGeneration !== statsSocketGeneration || safeDetail.value?.id !== nextContainerId) {
+        return;
+      }
       realtimeSocketState.value = state;
     },
     onMessage: (payload) => {
+      if (socketGeneration !== statsSocketGeneration || safeDetail.value?.id !== nextContainerId) {
+        return;
+      }
       if (payload.id && payload.id !== nextContainerId) {
         return;
       }
       if (!payload.resource || !detail.value) {
         return;
       }
+      hasRealtimeResourceSnapshot.value = true;
       detail.value = applyRealtimeResourceToDetail(detail.value, payload.resource);
     },
   });
 }
 
 function stopStatsSocket() {
+  statsSocketGeneration += 1;
   statsSocket?.close();
   statsSocket = null;
   realtimeSocketState.value = 'idle';
@@ -3687,6 +3701,38 @@ function portLabel(port: ContainerDetail['ports'][number]) {
   min-height: 40px;
   min-width: 0;
   padding-inline: var(--graft-density-gap-12);
+}
+
+.container-detail-realtime-bar {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--graft-density-gap-6) var(--graft-density-gap-8);
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.container-detail-realtime-bar__label {
+  color: var(--td-text-color-primary);
+  font-size: var(--td-font-size-body-small);
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.container-detail-realtime-bar__hint {
+  color: var(--td-text-color-secondary);
+  font-size: var(--td-font-size-body-small);
+  line-height: 20px;
+  max-width: min(560px, 100%);
+  min-width: 0;
+  text-align: right;
+}
+
+.container-detail-realtime-bar__actions {
+  align-items: center;
+  display: inline-flex;
+  flex-shrink: 0;
+  gap: var(--graft-density-gap-8);
 }
 
 .container-detail-tabs-card :deep(.t-tabs__content) {

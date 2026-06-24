@@ -59,28 +59,28 @@ type service struct {
 }
 
 type containerServiceOptions struct {
-	runtime                 Runtime
-	runtimeOptions          containerRuntimeOptions
-	runtimeFactory          func(containerRuntimeOptions) (Runtime, error)
-	systemConfig            moduleapi.SystemConfigResolver
-	auditBus                eventbus.Bus
-	logger                  *zap.Logger
-	moduleName              string
-	mountUsageCache         *mountUsageCache
-	enabled                 bool
-	dangerousActionsEnabled bool
-	shellEnabled            bool
-	defaultTail             int
-	maxTail                 int
+	runtime                              Runtime
+	runtimeOptions                       containerRuntimeOptions
+	runtimeFactory                       func(containerRuntimeOptions) (Runtime, error)
+	systemConfig                         moduleapi.SystemConfigResolver
+	auditBus                             eventbus.Bus
+	logger                               *zap.Logger
+	moduleName                           string
+	mountUsageCache                      *mountUsageCache
+	enabled                              bool
+	dangerousActionsEnabled              bool
+	shellEnabled                         bool
+	defaultTail                          int
+	maxTail                              int
 	resourceStatsCacheTTLSeconds         int
 	resourceStatsCacheStaleWindowSeconds int
-	environmentPolicy       containercontract.EnvironmentPolicy
-	orchestratorPolicies    orchestratorActionPolicies
-	websocketAllowedOrigins []string
-	realtimeTickets         realtimeauth.Service
-	realtimeHub             realtime.Hub
-	topicIssuers            realtime.TopicIssuerRegistry
-	authorizer              moduleapi.Authorizer
+	environmentPolicy                    containercontract.EnvironmentPolicy
+	orchestratorPolicies                 orchestratorActionPolicies
+	websocketAllowedOrigins              []string
+	realtimeTickets                      realtimeauth.Service
+	realtimeHub                          realtime.Hub
+	topicIssuers                         realtime.TopicIssuerRegistry
+	authorizer                           moduleapi.Authorizer
 }
 
 // newContainerService 根据模块上下文和系统配置构建容器服务。当实时工单服务无法解析时返回错误。
@@ -1208,31 +1208,31 @@ func auditStatusCode(err error) int {
 }
 
 type containerRuntimeOptions struct {
-	enabled                 bool
-	runtime                 string
-	endpoint                string
-	dangerousActionsEnabled bool
-	defaultTail             int
-	maxTail                 int
+	enabled                              bool
+	runtime                              string
+	endpoint                             string
+	dangerousActionsEnabled              bool
+	defaultTail                          int
+	maxTail                              int
 	resourceStatsCacheTTLSeconds         int
 	resourceStatsCacheStaleWindowSeconds int
-	environmentPolicy       containercontract.EnvironmentPolicy
-	orchestratorPolicies    orchestratorActionPolicies
-	logger                  *zap.Logger
+	environmentPolicy                    containercontract.EnvironmentPolicy
+	orchestratorPolicies                 orchestratorActionPolicies
+	logger                               *zap.Logger
 }
 
 // ContainerOptionsFromConfig 从模块上下文中提取容器运行时配置选项，应用默认值、配置注册表中的设置，最后使用显式模块配置覆盖。
 func containerOptionsFromConfig(ctx *module.Context) containerRuntimeOptions {
 	options := containerRuntimeOptions{
-		enabled:                 defaultContainerEnabled,
-		runtime:                 defaultContainerRuntime,
-		endpoint:                defaultContainerDockerEndpoint,
-		dangerousActionsEnabled: defaultContainerDangerousActionsEnabled,
-		defaultTail:             defaultContainerLogsDefaultTail,
-		maxTail:                 defaultContainerLogsMaxTail,
+		enabled:                              defaultContainerEnabled,
+		runtime:                              defaultContainerRuntime,
+		endpoint:                             defaultContainerDockerEndpoint,
+		dangerousActionsEnabled:              defaultContainerDangerousActionsEnabled,
+		defaultTail:                          defaultContainerLogsDefaultTail,
+		maxTail:                              defaultContainerLogsMaxTail,
 		resourceStatsCacheTTLSeconds:         defaultContainerResourceStatsCacheTTL,
 		resourceStatsCacheStaleWindowSeconds: defaultContainerResourceStatsStaleWindow,
-		environmentPolicy:       defaultContainerEnvironmentPolicy,
+		environmentPolicy:                    defaultContainerEnvironmentPolicy,
 		orchestratorPolicies: orchestratorActionPolicies{
 			Compose:    defaultContainerComposeActionLevel,
 			Swarm:      defaultContainerSwarmActionLevel,
@@ -1711,13 +1711,6 @@ func (s *service) startStatsCollector(ctx context.Context) error {
 		)
 	}
 	return s.statsCollector.Start(ctx)
-}
-
-func (s *service) stopStatsCollector(ctx context.Context) error {
-	if s == nil || s.statsCollector == nil {
-		return nil
-	}
-	return s.statsCollector.Stop(ctx)
 }
 
 func (s *service) collectStatsSnapshots(ctx context.Context) ([]StatsSnapshot, error) {

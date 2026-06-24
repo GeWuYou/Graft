@@ -10,9 +10,9 @@ vi.mock('vue-i18n', () => ({
     t: (key: string) =>
       (
         ({
-          'announcement.readPanel.close': '关闭',
+          'announcement.readPanel.close': '关闭公告',
           'announcement.readPanel.markRead': '标记已读',
-          'announcement.readPanel.openCenter': '打开消息中心',
+          'announcement.readPanel.openCenter': '查看公告中心',
           'announcement.readPanel.publishAt': '发布时间',
           'announcement.readPanel.viewLater': '稍后查看',
         }) as Record<string, string>
@@ -102,7 +102,7 @@ describe('AnnouncementReadPanel', () => {
     await markReadButton!.trigger('click');
     expect(wrapper.emitted('mark-read')).toHaveLength(1);
 
-    const openCenterButton = wrapper.findAll('button').find((button) => button.text() === '打开消息中心');
+    const openCenterButton = wrapper.findAll('button').find((button) => button.text() === '查看公告中心');
     expect(openCenterButton).toBeDefined();
     await openCenterButton!.trigger('click');
     expect(wrapper.emitted('open-center')).toHaveLength(1);
@@ -129,7 +129,7 @@ describe('AnnouncementReadPanel', () => {
 
     expect(wrapper.text()).toContain('Read');
     expect(wrapper.text()).not.toContain('标记已读');
-    expect(wrapper.text()).not.toContain('打开消息中心');
+    expect(wrapper.text()).not.toContain('查看公告中心');
   });
 
   it('does not emit close for Escape while hidden', async () => {

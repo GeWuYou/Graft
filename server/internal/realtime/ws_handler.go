@@ -1,6 +1,7 @@
 package realtime
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strings"
@@ -60,16 +61,7 @@ func RegisterWebSocketGateway(router gin.IRouter, registration GatewayRegistrati
 		if err != nil {
 			return
 		}
-		defer closeWebSocketConnection(conn)
-
-		eventCh, unsubscribe := registration.Hub.Subscribe(request.topic)
-		defer unsubscribe()
-
-		for event := range eventCh {
-			if err := conn.WriteJSON(event); err != nil {
-				return
-			}
-		}
+		_ = streamTopicEvents(ctx.Request.Context(), conn, registration.Hub, request.topic)
 	})
 
 	return nil
@@ -132,4 +124,42 @@ func closeWebSocketConnection(conn *websocket.Conn) {
 		return
 	}
 	_ = conn.Close()
+}
+
+func streamTopicEvents(parent context.Context, conn *websocket.Conn, hub Hub, topic string) error {
+	if conn == nil || hub == nil {
+		return nil
+	}
+	defer closeWebSocketConnection(conn)
+
+	eventCh, unsubscribe := hub.Subscribe(topic)
+	defer unsubscribe()
+
+	connectionCtx, cancel := context.WithCancel(parent)
+	defer cancel()
+	go watchWebSocketReads(conn, cancel)
+
+	for {
+		select {
+		case <-connectionCtx.Done():
+			return connectionCtx.Err()
+		case event := <-eventCh:
+			if err := conn.WriteJSON(event); err != nil {
+				return err
+			}
+		}
+	}
+}
+
+func watchWebSocketReads(conn *websocket.Conn, cancel context.CancelFunc) {
+	if conn == nil || cancel == nil {
+		return
+	}
+
+	for {
+		if _, _, err := conn.ReadMessage(); err != nil {
+			cancel()
+			return
+		}
+	}
 }

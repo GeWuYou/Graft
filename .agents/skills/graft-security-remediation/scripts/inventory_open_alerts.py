@@ -112,6 +112,14 @@ def load_json_array(path: Path) -> list[dict[str, Any]]:
     return [item for item in data if isinstance(item, dict)]
 
 
+def source_label(path: Path) -> str:
+    name = path.name
+    parent = path.parent.name
+    if parent:
+        return f"file:{parent}/{name}"
+    return f"file:{name}"
+
+
 def rule_id(alert: dict[str, Any]) -> str | None:
     rule = alert.get("rule")
     if isinstance(rule, dict):
@@ -246,7 +254,7 @@ def main() -> int:
 
     for kind in requested:
         raw = fetch_or_load(args.repo, kind, inputs)
-        sources[kind] = str(inputs[kind]) if kind in inputs else "gh-api"
+        sources[kind] = source_label(inputs[kind]) if kind in inputs else "gh-api"
         if kind == "code-scanning":
             alerts.extend(normalize_code_scanning(item) for item in raw)
         else:

@@ -31,15 +31,31 @@ const messageMocks = vi.hoisted(() => ({
   warning: vi.fn(),
 }));
 
+type RealtimeControllerMock = {
+  close: ReturnType<typeof vi.fn>;
+  reconnect: ReturnType<typeof vi.fn>;
+  emitMessage: (payload: unknown) => void;
+  emitStateChange: (state: 'idle' | 'connecting' | 'open' | 'closed' | 'error') => void;
+};
+
 const realtimeMocks = vi.hoisted(() => ({
-  controllers: [] as Array<{ close: ReturnType<typeof vi.fn>; reconnect: ReturnType<typeof vi.fn> }>,
+  controllers: [] as RealtimeControllerMock[],
   openRealtimeTopicSocket: vi.fn(
-    (options?: { onStateChange?: (state: 'idle' | 'connecting' | 'open' | 'closed' | 'error') => void }) => {
+    (options?: {
+      onMessage?: (payload: unknown) => void;
+      onStateChange?: (state: 'idle' | 'connecting' | 'open' | 'closed' | 'error') => void;
+    }) => {
       options?.onStateChange?.('open');
-      const controller = {
+      const controller: RealtimeControllerMock = {
         close: vi.fn(() => {
           options?.onStateChange?.('idle');
         }),
+        emitMessage: (payload) => {
+          options?.onMessage?.(payload);
+        },
+        emitStateChange: (state) => {
+          options?.onStateChange?.(state);
+        },
         reconnect: vi.fn(),
       };
       realtimeMocks.controllers.push(controller);
@@ -1256,6 +1272,7 @@ describe('container detail page', () => {
     const wrapper = mountPage();
     await flushPromises();
 
+    expect(realtimeMocks.controllers.length).toBeGreaterThan(0);
     await wrapper.get('[data-testid="container-detail-realtime-toggle"]').trigger('click');
     await flushPromises();
 
@@ -1268,6 +1285,72 @@ describe('container detail page', () => {
 
     expect(realtimeMocks.openRealtimeTopicSocket).toHaveBeenCalled();
     expect(wrapper.get('[data-testid="container-detail-realtime-status"]').text()).toBe('实时中');
+  });
+
+  it('does not preserve stale realtime resource on manual refresh before any socket snapshot arrives', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('21.8%');
+    apiMocks.getContainer.mockResolvedValueOnce({
+      ...createContainerDetail(),
+      resource: {
+        ...createContainerDetail().resource,
+        cpu_percent: 7.5,
+      },
+    });
+
+    await wrapper.get('[data-refresh-now="true"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('7.5%');
+    expect(wrapper.text()).not.toContain('21.8%');
+  });
+
+  it('ignores stale socket messages after switching to another container detail', async () => {
+    const firstDetail = deferred<ReturnType<typeof createContainerDetail>>();
+    apiMocks.getContainer.mockReturnValueOnce(firstDetail.promise);
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    firstDetail.resolve(createContainerDetail());
+    await flushPromises();
+    expect(realtimeMocks.controllers.length).toBeGreaterThan(0);
+    const firstController = realtimeMocks.controllers.at(-1)!;
+
+    routeState.route.path = '/ops/containers/container-2';
+    routeState.route.fullPath = '/ops/containers/container-2?tab=config';
+    routeState.route.params.id = 'container-2';
+    apiMocks.getContainer.mockResolvedValueOnce({
+      ...createContainerDetail(),
+      id: 'container-2-full-id',
+      short_id: 'container-2',
+      name: 'graft-worker',
+      names: ['graft-worker'],
+      resource: {
+        ...createContainerDetail().resource,
+        cpu_percent: 33.3,
+      },
+    });
+
+    await flushPromises();
+    expect(wrapper.find('h1').text()).toBe('graft-worker');
+    expect(wrapper.text()).toContain('33.3%');
+
+    firstController.emitStateChange('error');
+    firstController.emitMessage({
+      id: 'container-1',
+      resource: {
+        ...createContainerDetail().resource,
+        cpu_percent: 98.8,
+      },
+    });
+    await flushPromises();
+
+    expect(wrapper.get('[data-testid="container-detail-realtime-status"]').text()).toBe('实时中');
+    expect(wrapper.text()).toContain('33.3%');
+    expect(wrapper.text()).not.toContain('98.8%');
   });
 
   it('renders single network details as cards with one port mapping', async () => {
@@ -2272,6 +2355,9 @@ describe('container detail page', () => {
     expect(styleSource).toContain('.container-resource-cpu-metric-grid,');
     expect(styleSource).toContain('@media (width <= 720px)');
     expect(styleSource).toContain('grid-template-columns: 1fr;');
+    expect(styleSource).toContain('.container-detail-realtime-bar {');
+    expect(styleSource).toContain('.container-detail-realtime-bar__hint {');
+    expect(styleSource).toContain('.container-detail-realtime-bar__actions {');
   });
 
   it('renders memory and CPU as full-width detail cards before the lower metric cards', async () => {

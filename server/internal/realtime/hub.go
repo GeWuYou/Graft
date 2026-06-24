@@ -3,6 +3,7 @@ package realtime
 import (
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -10,14 +11,19 @@ const defaultSubscriberBuffer = 8
 
 type memoryHub struct {
 	mu     sync.RWMutex
-	topics map[string]map[uint64]chan Event
+	topics map[string]map[uint64]*subscriber
 	nextID uint64
+}
+
+type subscriber struct {
+	ch           chan Event
+	unsubscribed atomic.Bool
 }
 
 // NewHub creates an in-memory realtime topic hub.
 func NewHub() Hub {
 	return &memoryHub{
-		topics: make(map[string]map[uint64]chan Event),
+		topics: make(map[string]map[uint64]*subscriber),
 	}
 }
 
@@ -35,14 +41,17 @@ func (h *memoryHub) Publish(topic string, payload any) {
 
 	h.mu.RLock()
 	subscribers := h.topics[normalized]
-	channels := make([]chan Event, 0, len(subscribers))
-	for _, ch := range subscribers {
-		channels = append(channels, ch)
+	targets := make([]*subscriber, 0, len(subscribers))
+	for _, current := range subscribers {
+		targets = append(targets, current)
 	}
 	h.mu.RUnlock()
 
-	for _, ch := range channels {
-		publishLatestEvent(ch, event)
+	for _, current := range targets {
+		if current == nil || current.unsubscribed.Load() {
+			continue
+		}
+		publishLatestEvent(current.ch, event)
 	}
 }
 
@@ -79,9 +88,10 @@ func (h *memoryHub) Subscribe(topic string) (<-chan Event, func()) {
 	h.nextID++
 	id := h.nextID
 	if h.topics[normalized] == nil {
-		h.topics[normalized] = make(map[uint64]chan Event)
+		h.topics[normalized] = make(map[uint64]*subscriber)
 	}
-	h.topics[normalized][id] = ch
+	sub := &subscriber{ch: ch}
+	h.topics[normalized][id] = sub
 
 	return ch, func() {
 		h.mu.Lock()
@@ -93,7 +103,7 @@ func (h *memoryHub) Subscribe(topic string) (<-chan Event, func()) {
 		}
 		if existing, ok := subscribers[id]; ok {
 			delete(subscribers, id)
-			close(existing)
+			existing.unsubscribed.Store(true)
 		}
 		if len(subscribers) == 0 {
 			delete(h.topics, normalized)

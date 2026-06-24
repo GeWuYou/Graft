@@ -34,15 +34,6 @@ get:
         application/json:
           schema:
             $ref: ../components/schemas/error-response.yaml
-    '404':
-      description: Topic resource target was not found.
-      headers:
-        X-Request-Id:
-          $ref: ../components/headers/request-id.yaml
-      content:
-        application/json:
-          schema:
-            $ref: ../components/schemas/error-response.yaml
     '409':
       description: Ticket already used or expired, or the topic is not currently available.
       headers:

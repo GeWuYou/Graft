@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"graft/server/internal/config"
@@ -20,6 +21,7 @@ import (
 	"graft/server/internal/realtimeauth"
 	containercontract "graft/server/modules/container/contract"
 	containerlocales "graft/server/modules/container/locales"
+	"graft/server/modules/container/terminal"
 	systemconfiglocales "graft/server/modules/system-config/locales"
 )
 
@@ -58,6 +60,25 @@ func TestDescriptorDeclaresContainerModule(t *testing.T) {
 	}
 	if !slices.Contains(built.DependsOn(), "system-config") {
 		t.Fatalf("expected built module dependencies to include system-config, got %#v", built.DependsOn())
+	}
+}
+
+func TestModuleShutdownUsesServiceClosePath(t *testing.T) {
+	t.Parallel()
+
+	service := &service{
+		runtime:        &moduleCloseRuntime{},
+		statsCollector: &statsCollector{},
+	}
+	containerModule := &Module{service: service}
+
+	if err := containerModule.Shutdown(&module.Context{LifecycleContext: context.Background()}); err != nil {
+		t.Fatalf("shutdown module: %v", err)
+	}
+
+	runtime := service.runtime.(*moduleCloseRuntime)
+	if runtime.closeCalls.Load() != 1 {
+		t.Fatalf("expected shutdown to close runtime exactly once, got %d", runtime.closeCalls.Load())
 	}
 }
 
@@ -148,6 +169,38 @@ func newTestContext() *module.Context {
 type moduleAuthorizerStub struct{}
 
 func (moduleAuthorizerStub) Authorize(context.Context, moduleapi.RequestAuthContext, string) error {
+	return nil
+}
+
+type moduleCloseRuntime struct {
+	closeCalls atomic.Int64
+}
+
+func (*moduleCloseRuntime) Info(context.Context) (RuntimeInfo, error)          { return RuntimeInfo{}, nil }
+func (*moduleCloseRuntime) List(context.Context, ListQuery) ([]Summary, error) { return nil, nil }
+func (*moduleCloseRuntime) Detail(context.Context, Ref) (Detail, error)        { return Detail{}, nil }
+func (*moduleCloseRuntime) Mounts(context.Context, Ref) ([]Mount, error)       { return nil, nil }
+func (*moduleCloseRuntime) MountUsage(context.Context, Ref, string) (MountUsage, error) {
+	return MountUsage{}, nil
+}
+func (*moduleCloseRuntime) Logs(context.Context, Ref, LogQuery) (Logs, error) { return Logs{}, nil }
+func (*moduleCloseRuntime) Shell(context.Context, Ref, string) (terminal.Session, error) {
+	return nil, nil
+}
+func (*moduleCloseRuntime) Start(context.Context, Ref) (ActionResult, error) {
+	return ActionResult{}, nil
+}
+func (*moduleCloseRuntime) Stop(context.Context, Ref) (ActionResult, error) {
+	return ActionResult{}, nil
+}
+func (*moduleCloseRuntime) Restart(context.Context, Ref) (ActionResult, error) {
+	return ActionResult{}, nil
+}
+func (*moduleCloseRuntime) Remove(context.Context, Ref, RemoveOptions) (ActionResult, error) {
+	return ActionResult{}, nil
+}
+func (r *moduleCloseRuntime) Close() error {
+	r.closeCalls.Add(1)
 	return nil
 }
 
