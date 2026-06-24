@@ -6,7 +6,7 @@
 
 ## 当前状态摘要
 
-- 当前主题目标是为 `Graft` 容器管理建立统一资源状态层，收敛 `metadata / stats / subscription` 的 authority，并为 `List / Detail / Dashboard` 共享消费准备基础设施。
+- 当前主题目标是为 `Graft` 容器管理建立统一资源状态层，收敛 `metadata / stats / subscription` 的 authority，并为 `container.stats.list`、详情页与 Dashboard 的共享消费准备基础设施。
 - 当前状态：`archive-ready`。
 - 任务分类为 `cross-boundary`，涉及 container backend authority、OpenAPI 契约和 container frontend module state architecture。
 - Canonical design：`ai-plan/design/容器资源状态与订阅治理设计.md`。
@@ -64,7 +64,7 @@
   - list/detail 共享同一份 `container.stats:{id}` 订阅生命周期
   - list 加载失败只清理 list metadata，不再全局 reset module-owned stats authority
 - 已完成 Phase 4 dashboard shared resource consumption：
-  - dashboard 通过 container module contract facade 读取容器资源概览
+  - dashboard 通过 container module contract facade 读取面向概览的容器资源聚合视图；详情 authority 仍保持在 `container.stats:{id}`
   - dashboard 复用同一份 canonical stats authority 与 subscription lifecycle
   - container stats manager 增加 collection-key 隔离，避免 dashboard metadata projection 覆盖 list projection
 - 已完成 Phase 5 optional history store：

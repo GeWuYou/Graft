@@ -1849,12 +1849,18 @@ func (s *service) issueContainerListRealtimeSubscription(
 	request realtime.SubscriptionRequest,
 	topic string,
 ) (realtime.SubscriptionResponse, error) {
+	if request.RequestAuth.User == nil {
+		return realtime.SubscriptionResponse{}, realtime.ErrTopicForbidden
+	}
+	if s.authorizer == nil {
+		return realtime.SubscriptionResponse{}, realtime.ErrTopicForbidden
+	}
 	if err := s.authorizer.Authorize(ctx, request.RequestAuth, containercontract.ContainerViewPermission.String()); err != nil {
 		return realtime.SubscriptionResponse{}, realtime.ErrTopicForbidden
 	}
 	if _, err := s.List(ctx, ListQuery{Limit: 1}); err != nil {
 		if errors.Is(err, errRuntimeDisabled) {
-			return realtime.SubscriptionResponse{}, realtime.ErrTopicConflict
+			return realtime.SubscriptionResponse{}, realtime.ErrTopicForbidden
 		}
 		return realtime.SubscriptionResponse{}, realtime.ErrTopicConflict
 	}

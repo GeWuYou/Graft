@@ -32,6 +32,8 @@ export type ContainerStatsChangeState = {
 
 type ContainerStatsEntry = {
   change: ContainerStatsChangeState;
+  changeTick: number;
+  highlightTimer: number | null;
   history: ContainerStatsSnapshot[];
   previousSnapshot: ContainerStatsSnapshot | null;
   snapshot: ContainerStatsSnapshot | null;
@@ -145,6 +147,19 @@ function buildChangeState(
 }
 
 /**
+ * 判断两个统计快照是否指向同一采集时刻。
+ *
+ * @param current - 当前快照
+ * @param nextSnapshot - 待写入的快照
+ * @returns `true` 表示两个快照拥有相同的采集时间且该时间有效
+ */
+function hasSameCollectedAt(current: ContainerStatsSnapshot | null, nextSnapshot: ContainerStatsSnapshot) {
+  const currentCollectedAt = getCollectedAtValue(current?.resource);
+  const nextCollectedAt = getCollectedAtValue(nextSnapshot.resource);
+  return Boolean(currentCollectedAt && nextCollectedAt && currentCollectedAt === nextCollectedAt);
+}
+
+/**
  * 判断变化状态是否仍处于高亮窗口内。
  *
  * @param change - 变化状态
@@ -213,12 +228,34 @@ function upsertStatsSnapshot(containerId: string, resource: ContainerResourceSum
     source,
   };
   const nextChange = buildChangeState(current, nextSnapshot, source);
-  state.statsById.set(containerId, {
+  const nextHistory = hasSameCollectedAt(current, nextSnapshot)
+    ? [...(currentEntry?.history ?? []).slice(0, -1), nextSnapshot]
+    : [...(currentEntry?.history ?? []), nextSnapshot];
+  const nextEntry: ContainerStatsEntry = {
     change: nextChange,
-    history: [...(currentEntry?.history ?? []), nextSnapshot].slice(-CONTAINER_STATS_HISTORY_LIMIT),
+    changeTick: currentEntry?.changeTick ?? 0,
+    highlightTimer: currentEntry?.highlightTimer ?? null,
+    history: nextHistory.slice(-CONTAINER_STATS_HISTORY_LIMIT),
     previousSnapshot: current,
     snapshot: nextSnapshot,
-  });
+  };
+  clearHighlightTimer(nextEntry);
+  if (nextChange.changedAt !== null) {
+    nextEntry.highlightTimer = window.setTimeout(() => {
+      const latestEntry = state.statsById.get(containerId);
+      if (!latestEntry || !latestEntry.change.changedAt || isChangeStateFresh(latestEntry.change)) {
+        return;
+      }
+      latestEntry.change = {
+        changedAt: null,
+        cpu: 'none',
+        memory: 'none',
+      };
+      latestEntry.changeTick += 1;
+      clearHighlightTimer(latestEntry);
+    }, CONTAINER_STATS_CHANGE_HIGHLIGHT_MS + 1);
+  }
+  state.statsById.set(containerId, nextEntry);
   return nextSnapshot;
 }
 
@@ -294,6 +331,13 @@ function clearIdleTimer(entry: ContainerStatsSubscriptionEntry) {
   if (entry.idleTimer !== null) {
     clearTimeout(entry.idleTimer);
     entry.idleTimer = null;
+  }
+}
+
+function clearHighlightTimer(entry: ContainerStatsEntry) {
+  if (entry.highlightTimer !== null) {
+    clearTimeout(entry.highlightTimer);
+    entry.highlightTimer = null;
   }
 }
 
@@ -439,6 +483,9 @@ export function resetContainerStatsManager() {
   closeCollectionSubscriptionEntry(state.listTopicSubscription);
   state.subscriptionsById.forEach((entry) => {
     closeSubscriptionEntry(entry);
+  });
+  state.statsById.forEach((entry) => {
+    clearHighlightTimer(entry);
   });
   state.listCollections.clear();
   state.listMetadataByCollection.clear();
@@ -598,7 +645,12 @@ export function releaseContainerSummaryCollectionSubscription() {
   }
 
   clearIdleTimer(entry);
-  closeCollectionSubscriptionEntry(entry);
+  entry.idleTimer = window.setTimeout(() => {
+    if (state.listTopicSubscription.refCount > 0) {
+      return;
+    }
+    closeCollectionSubscriptionEntry(state.listTopicSubscription);
+  }, SUBSCRIPTION_IDLE_GRACE_MS);
 }
 
 /**
@@ -700,6 +752,7 @@ export function selectContainerStatsChangeState(containerId: string): ContainerS
       memory: 'none',
     };
   }
+  void entry.changeTick;
   if (!isChangeStateFresh(entry.change)) {
     return {
       changedAt: null,

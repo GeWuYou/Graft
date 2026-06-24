@@ -240,6 +240,22 @@ describe('container stats manager', () => {
     expect(detail?.resource?.cpu_percent).toBe(42.1);
   });
 
+  it('replaces the latest history snapshot when realtime data arrives with the same collected_at timestamp', () => {
+    seedContainerDetail(createDetail());
+
+    applyContainerRealtimeStats('container-1', {
+      ...createDetail().resource!,
+      cpu_percent: 66.6,
+      collected_at: '2026-06-14T01:09:00Z',
+    });
+
+    const history = selectContainerStatsHistory('container-1');
+
+    expect(history).toHaveLength(1);
+    expect(history[0]?.resource.cpu_percent).toBe(66.6);
+    expect(history[0]?.resource.collected_at).toBe('2026-06-14T01:09:00Z');
+  });
+
   it('marks realtime change direction without treating http seed as a highlight trigger', () => {
     seedContainerDetail(createDetail());
 
@@ -272,6 +288,24 @@ describe('container stats manager', () => {
 
     vi.advanceTimersByTime(900);
 
+    expect(selectContainerStatsChangeState('container-1')).toEqual({
+      changedAt: null,
+      cpu: 'none',
+      memory: 'none',
+    });
+  });
+
+  it('does not mutate reactive state when reading an expired change highlight', () => {
+    seedContainerDetail(createDetail());
+    applyContainerRealtimeStats('container-1', {
+      ...createDetail().resource!,
+      cpu_percent: 35.5,
+      collected_at: '2026-06-14T01:11:00Z',
+    });
+
+    vi.advanceTimersByTime(900);
+
+    expect(() => selectContainerStatsChangeState('container-1')).not.toThrow();
     expect(selectContainerStatsChangeState('container-1')).toEqual({
       changedAt: null,
       cpu: 'none',

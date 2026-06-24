@@ -41,21 +41,21 @@
         "abnormal": {
           "label": "异常容器数",
           "value": "{count} 个",
-          "description": "unhealthy、restarting、exited、dead 等异常容器"
+          "description": "处于不健康、重启中、已退出或已终止等异常状态的容器"
         },
         "cpuTotal": {
           "label": "CPU 总占用",
           "description": "当前容器总体 CPU 使用百分比"
         },
         "memoryTotal": {
-          "label": "Memory 总占用",
+          "label": "内存总占用",
           "description": "当前容器总体内存使用百分比"
         }
       },
       "hotspots": {
         "eyebrow": "热点容器",
         "cpuTitle": "CPU TOP3",
-        "memoryTitle": "Memory TOP3",
+        "memoryTitle": "内存 TOP3",
         "top3": "TOP3",
         "empty": "暂无热点容器数据"
       },
@@ -65,21 +65,22 @@
         "count": "{count} 个异常",
         "empty": "暂无异常容器",
         "kind": {
-          "unhealthy": "Unhealthy",
-          "restarting": "Restarting",
-          "exited": "Exited",
-          "dead": "Dead",
-          "high_load": "High Load"
+          "unhealthy": "不健康",
+          "restarting": "重启中",
+          "exited": "已退出",
+          "dead": "已终止",
+          "high_load": "高负载"
         }
       },
-      "source": "容器模块共享状态",
+      "source": "共享容器资源视图",
       "status": {
-        "dead": "Dead",
-        "exited": "Exited",
-        "restarting": "Restarting",
-        "running": "Running",
-        "unknown": "Unknown",
-        "unhealthy": "Unhealthy"
+        "dead": "已终止",
+        "exited": "已退出",
+        "paused": "已暂停",
+        "restarting": "重启中",
+        "running": "运行中",
+        "unknown": "未知",
+        "unhealthy": "不健康"
       },
       "title": "容器资源概览",
       "unavailable": "不可用"

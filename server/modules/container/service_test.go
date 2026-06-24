@@ -25,6 +25,8 @@ import (
 	"graft/server/modules/container/terminal"
 )
 
+const testContainerListTopic = containercontract.ContainerListStatsTopic
+
 func newTestService(options containerServiceOptions) (*service, error) {
 	if options.realtimeTickets == nil {
 		options.realtimeTickets = realtimeauth.NewMemoryService()
@@ -45,6 +47,14 @@ type fakeAuthorizer struct{}
 
 func (fakeAuthorizer) Authorize(context.Context, moduleapi.RequestAuthContext, string) error {
 	return nil
+}
+
+type rejectingAuthorizer struct {
+	err error
+}
+
+func (a rejectingAuthorizer) Authorize(context.Context, moduleapi.RequestAuthContext, string) error {
+	return a.err
 }
 
 type fakeRealtimePublisher struct{}
@@ -1659,6 +1669,80 @@ func TestRuntimeForRequestInitializesOnceUnderConcurrentAccess(t *testing.T) {
 	}
 	if calls := factoryCalls.Load(); calls != 1 {
 		t.Fatalf("expected one runtime factory call, got %d", calls)
+	}
+}
+
+func TestIssueContainerListRealtimeSubscriptionRequiresAuthenticatedUser(t *testing.T) {
+	t.Parallel()
+
+	service, err := newTestService(containerServiceOptions{
+		runtime:    fakeRuntime{},
+		enabled:    true,
+		authorizer: fakeAuthorizer{},
+	})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	_, err = service.IssueSubscription(context.Background(), realtime.SubscriptionRequest{
+		Topic: testContainerListTopic,
+	})
+	if !errors.Is(err, realtime.ErrTopicForbidden) {
+		t.Fatalf("expected forbidden for unauthenticated list topic subscription, got %v", err)
+	}
+}
+
+func TestIssueContainerListRealtimeSubscriptionReturnsForbiddenWhenRuntimeDisabled(t *testing.T) {
+	t.Parallel()
+
+	service, err := newTestService(containerServiceOptions{
+		runtime:     fakeRuntime{},
+		enabled:     false,
+		authorizer:  fakeAuthorizer{},
+		defaultTail: defaultContainerLogsDefaultTail,
+		maxTail:     defaultContainerLogsMaxTail,
+	})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	request := realtime.SubscriptionRequest{
+		Topic: testContainerListTopic,
+		RequestAuth: moduleapi.RequestAuthContext{
+			User: &moduleapi.CurrentUser{ID: 7, Username: "admin"},
+		},
+	}
+	_, err = service.IssueSubscription(context.Background(), request)
+	if !errors.Is(err, realtime.ErrTopicForbidden) {
+		t.Fatalf("expected forbidden when runtime access is disabled, got %v", err)
+	}
+}
+
+func TestIssueContainerListRealtimeSubscriptionReturnsForbiddenWhenAuthorizationFails(t *testing.T) {
+	t.Parallel()
+
+	service, err := newTestService(containerServiceOptions{
+		runtime: fakeRuntime{},
+		enabled: true,
+		authorizer: rejectingAuthorizer{
+			err: moduleapi.ErrPermissionDenied,
+		},
+		defaultTail: defaultContainerLogsDefaultTail,
+		maxTail:     defaultContainerLogsMaxTail,
+	})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	request := realtime.SubscriptionRequest{
+		Topic: testContainerListTopic,
+		RequestAuth: moduleapi.RequestAuthContext{
+			User: &moduleapi.CurrentUser{ID: 7, Username: "admin"},
+		},
+	}
+	_, err = service.IssueSubscription(context.Background(), request)
+	if !errors.Is(err, realtime.ErrTopicForbidden) {
+		t.Fatalf("expected forbidden when authorizer rejects list topic subscription, got %v", err)
 	}
 }
 

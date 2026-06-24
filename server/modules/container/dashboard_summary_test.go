@@ -51,8 +51,8 @@ func TestBuildContainerDashboardSummary(t *testing.T) {
 	if len(result.Hotspots.MemoryTop) != 3 || result.Hotspots.MemoryTop[0].ID != "c-2" {
 		t.Fatalf("expected memory top ordered by memory usage, got %#v", result.Hotspots.MemoryTop)
 	}
-	if len(result.Anomalies) != 4 {
-		t.Fatalf("expected all anomaly candidates included, got %#v", result.Anomalies)
+	if len(result.Anomalies) != 2 {
+		t.Fatalf("expected only abnormal containers included, got %#v", result.Anomalies)
 	}
 	if result.Anomalies[0].ID != "c-3" {
 		t.Fatalf("expected unhealthy anomaly first, got %#v", result.Anomalies)
@@ -62,6 +62,25 @@ func TestBuildContainerDashboardSummary(t *testing.T) {
 	}
 	if result.Overview.MemoryTotalPercent == nil {
 		t.Fatalf("expected aggregated memory total percent")
+	}
+}
+
+func TestBuildContainerDashboardSummaryExcludesNormalLoadFromAnomalies(t *testing.T) {
+	t.Parallel()
+
+	cpuHeavy := fakeSummary()
+	cpuHeavy.ID = "cpu"
+	cpuHeavy.Name = "cpu"
+	cpuHeavy.Resource = resourceWithCPUAndMemory(90, 128, 256)
+
+	memoryHeavy := fakeSummary()
+	memoryHeavy.ID = "mem"
+	memoryHeavy.Name = "mem"
+	memoryHeavy.Resource = resourceWithCPUAndMemory(8, 4096, 8192)
+
+	result := buildContainerDashboardSummary([]Summary{cpuHeavy, memoryHeavy})
+	if len(result.Anomalies) != 0 {
+		t.Fatalf("expected hotspot-only rows to stay out of anomalies, got %#v", result.Anomalies)
 	}
 }
 
@@ -101,8 +120,11 @@ func TestServiceDashboardSummaryUsesRuntimeList(t *testing.T) {
 	if len(result.Hotspots.CPUTop) != 2 {
 		t.Fatalf("expected 2 cpu hotspots, got %d", len(result.Hotspots.CPUTop))
 	}
-	if len(result.Anomalies) != 2 {
-		t.Fatalf("expected 2 anomalies, got %d", len(result.Anomalies))
+	if len(result.Anomalies) != 1 {
+		t.Fatalf("expected only abnormal containers in anomalies, got %d", len(result.Anomalies))
+	}
+	if result.Anomalies[0].ID != "dashboard-b" {
+		t.Fatalf("expected restarting container to remain the only anomaly, got %#v", result.Anomalies)
 	}
 }
 

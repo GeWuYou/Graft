@@ -78,7 +78,7 @@ import { computed, onMounted, ref } from 'vue';
 import { API_CODE } from '@/contracts/api/codes';
 import type { SupportedLocale } from '@/contracts/i18n/locales';
 import { currentLocale, t } from '@/locales';
-import { getContainerDashboardSummary } from '@/modules/container/api/dashboard-summary';
+import { containerModuleFacades } from '@/modules/container';
 import type { ContainerDashboardSummary } from '@/modules/container/contract/dashboard-summary';
 import { CONTAINER_PERMISSION_CODE } from '@/modules/container/contract/permissions';
 import { PageHeader } from '@/shared/components/page';
@@ -226,7 +226,7 @@ async function loadDashboardContainerResources() {
 
   containerResourcesLoading.value = true;
   try {
-    containerDashboardSummary.value = await getContainerDashboardSummary();
+    containerDashboardSummary.value = await containerModuleFacades.getContainerDashboardSummary();
   } catch (error) {
     logger.warn('dashboard container resource seed request failed', error);
     containerDashboardSummary.value = emptyContainerDashboardSummary();

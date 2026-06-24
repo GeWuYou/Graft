@@ -44,9 +44,16 @@ vi.mock('../api/quick-actions-config', () => ({
   getDashboardSystemConfigs: quickActionConfigApiMocks.getDashboardSystemConfigs,
 }));
 
-vi.mock('@/modules/container/api/dashboard-summary', () => ({
-  getContainerDashboardSummary: containerDashboardApiMocks.getContainerDashboardSummary,
-}));
+vi.mock('@/modules/container', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/modules/container')>();
+  return {
+    ...actual,
+    containerModuleFacades: {
+      ...actual.containerModuleFacades,
+      getContainerDashboardSummary: containerDashboardApiMocks.getContainerDashboardSummary,
+    },
+  };
+});
 
 vi.mock('../components/DashboardRenderer.vue', () => ({
   default: defineComponent({

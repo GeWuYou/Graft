@@ -623,6 +623,43 @@ describe('container list page', () => {
     expect(controllers.every((controller) => controller.close.mock.calls.length > 0)).toBe(true);
   });
 
+  it('releases the list realtime subscription when a refresh returns no items', async () => {
+    vi.useFakeTimers();
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const controller = realtimeMocks.controllers[0]!;
+    apiMocks.getContainers.mockResolvedValueOnce({
+      items: [],
+      limit: 20,
+      offset: 0,
+      runtime: {
+        runtime: 'docker',
+        status: 'enabled',
+        endpoint: 'unix:///var/run/docker.sock',
+        server_version: '26.1.4',
+        api_version: '1.45',
+      },
+      summary: {
+        total: 0,
+        running: 0,
+        stopped: 0,
+        error: 0,
+        unhealthy: 0,
+      },
+      total: 0,
+    });
+
+    await wrapper.get('[data-testid="table-refresh"]').trigger('click');
+    await flushPromises();
+    expect(controller.close).not.toHaveBeenCalled();
+
+    vi.runOnlyPendingTimers();
+
+    expect(controller.close).toHaveBeenCalledTimes(1);
+    expect(wrapper.text()).toContain('暂无容器');
+  });
+
   it('applies list realtime updates through a single list subscription', async () => {
     vi.useFakeTimers();
     const wrapper = mountPage();
@@ -659,10 +696,10 @@ describe('container list page', () => {
 
   it('pauses and resumes the list realtime subscription across keep-alive activation', async () => {
     vi.useFakeTimers();
-    const pageKey = ref('list-page-a');
+    const visible = ref(true);
     const Host = defineComponent({
       setup() {
-        return () => h(KeepAlive, () => h(ContainerListPage, { key: pageKey.value }));
+        return () => h(KeepAlive, () => (visible.value ? h(ContainerListPage) : null));
       },
     });
 
@@ -672,13 +709,16 @@ describe('container list page', () => {
     expect(realtimeMocks.openRealtimeTopicSocket).toHaveBeenCalledTimes(1);
     const firstController = realtimeMocks.controllers[0]!;
 
-    pageKey.value = 'list-page-b';
+    visible.value = false;
     await nextTick();
-    vi.runOnlyPendingTimers();
-    expect(firstController.close).toHaveBeenCalledTimes(1);
+    expect(firstController.close).toHaveBeenCalledTimes(0);
 
+    visible.value = true;
+    await nextTick();
     await flushPromises();
-    expect(realtimeMocks.openRealtimeTopicSocket).toHaveBeenCalledTimes(2);
+    expect(realtimeMocks.openRealtimeTopicSocket).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(10_001);
+    expect(firstController.close).toHaveBeenCalledTimes(0);
 
     wrapper.unmount();
   });

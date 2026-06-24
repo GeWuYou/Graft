@@ -35,7 +35,7 @@ func toContainerDashboardSummaryResponse(result dashboardSummaryResult) containe
 	}
 }
 
-// toSummary 将 Summary 域对象转换为 ContainerSummary 响应。  
+// toSummary 将 Summary 域对象转换为 ContainerSummary 响应。
 // 它会复制容器标识、名称、镜像、状态和重启信息，并将健康状态、端口、网络、资源、编排信息以及可选字段映射为对应的 OpenAPI 类型。
 func toSummary(item Summary) containergen.ContainerSummary {
 	return containergen.ContainerSummary{
@@ -609,11 +609,8 @@ func optionalInt(value int) *int {
 	return &value
 }
 
-// optionalInt64 在值为 0 时返回 nil，否则返回该值的指针。
+// optionalInt64 返回该值的指针，包括 0。
 func optionalInt64(value int64) *int64 {
-	if value == 0 {
-		return nil
-	}
 	return &value
 }
 

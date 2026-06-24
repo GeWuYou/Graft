@@ -72,10 +72,11 @@
           "high_load": "High Load"
         }
       },
-      "source": "Container Module Shared State",
+      "source": "Shared Container Resource View",
       "status": {
         "dead": "Dead",
         "exited": "Exited",
+        "paused": "Paused",
         "restarting": "Restarting",
         "running": "Running",
         "unknown": "Unknown",

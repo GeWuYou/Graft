@@ -10,10 +10,8 @@ const (
 	containerDashboardTopLimit     = 3
 	containerDashboardAnomalyLimit = 5
 	containerDashboardPercentScale = 100
-	containerDashboardRankHighLoad = 1
-	containerDashboardRankCPU      = 2
-	containerDashboardRankState    = 3
-	containerDashboardRankHealth   = 4
+	containerDashboardRankState    = 1
+	containerDashboardRankHealth   = 2
 )
 
 type dashboardSummaryResult struct {
@@ -225,17 +223,13 @@ func compareSummaryIdentity(a Summary, b Summary) int {
 }
 
 // dashboardAnomalyRank 返回容器异常候选的优先级。
-// 优先级依次为健康异常、状态异常、CPU 占用异常和内存占用异常；不满足条件时返回 0。
+// 当前仅将健康异常和状态异常视为 anomaly；正常资源活跃度由热点列表承载。
 func dashboardAnomalyRank(item Summary) int {
 	switch {
 	case strings.EqualFold(item.Health, containerHealthUnhealthy):
 		return containerDashboardRankHealth
 	case isDashboardAbnormalState(item.State):
 		return containerDashboardRankState
-	case resourceCPUPercent(item.Resource) > 0:
-		return containerDashboardRankCPU
-	case resourceMemoryUsage(item.Resource) > 0:
-		return containerDashboardRankHighLoad
 	default:
 		return 0
 	}

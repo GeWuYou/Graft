@@ -1443,6 +1443,7 @@ const environmentPolicyFilter = ref<EnvironmentPolicyFilter>('all');
 const refreshingMountKeys = ref<Set<string>>(new Set());
 const realtimeEnabled = ref(true);
 const activeRealtimeSubscriptionId = ref('');
+const detailPageActive = ref(false);
 let detailRefreshSeq = 0;
 
 const containerId = computed(() => String(route.params.id ?? '').trim());
@@ -1766,7 +1767,7 @@ const resourceHistoryPoints = computed<ContainerStatsHistoryPoint[]>(() => {
     .filter((item) => item.resource.collected_at)
     .slice(-6)
     .map((item, index) => ({
-      collectedAt: item.resource.collected_at || '-',
+      collectedAt: formatTime(item.resource.collected_at),
       cpuPercent: formatPercent(item.resource.cpu_percent),
       key: `${item.resource.collected_at || 'snapshot'}-${index}`,
       memoryPercent: formatPercent(item.resource.memory_percent),
@@ -2029,6 +2030,7 @@ const portColumns = computed<TableProps['columns']>(() => [
 ]);
 
 onMounted(() => {
+  detailPageActive.value = true;
   updateCurrentTabTitle(fallbackTitle.value);
   void refreshContainerDetail();
   if (activeTab.value === 'logs') {
@@ -2037,16 +2039,19 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  detailPageActive.value = false;
   releaseCurrentRealtimeSubscription();
 });
 
 onActivated(() => {
+  detailPageActive.value = true;
   if (safeDetail.value?.id) {
     syncRealtimeSubscription(safeDetail.value.id);
   }
 });
 
 onDeactivated(() => {
+  detailPageActive.value = false;
   releaseCurrentRealtimeSubscription();
 });
 
@@ -2275,7 +2280,7 @@ function toggleRealtimeSubscription() {
 }
 
 function syncRealtimeSubscription(nextContainerId: string) {
-  if (!realtimeEnabled.value) {
+  if (!detailPageActive.value || !realtimeEnabled.value) {
     releaseCurrentRealtimeSubscription();
     return;
   }

@@ -310,6 +310,24 @@ func TestToResourceSummaryMapsDockerStatsFields(t *testing.T) {
 	assertInt64Ptr(t, mapped.PidsLimit, 128, "mapped pids limit")
 }
 
+func TestToContainerDashboardOverviewPreservesZeroTotals(t *testing.T) {
+	t.Parallel()
+
+	mapped := toContainerDashboardOverview(containerDashboardOverview{
+		RunningContainers:     1,
+		AbnormalContainers:    0,
+		CPUTotalPercent:       0,
+		MemoryTotalUsageBytes: 0,
+		MemoryTotalLimitBytes: 0,
+	})
+
+	assertInt64Ptr(t, mapped.MemoryTotalUsageBytes, 0, "mapped zero dashboard memory usage bytes")
+	assertInt64Ptr(t, mapped.MemoryTotalLimitBytes, 0, "mapped zero dashboard memory limit bytes")
+	if mapped.MemoryTotalPercent != nil {
+		t.Fatalf("expected nil memory total percent without aggregate limit, got %#v", mapped.MemoryTotalPercent)
+	}
+}
+
 func int64Ptr(value int64) *int64 {
 	return &value
 }

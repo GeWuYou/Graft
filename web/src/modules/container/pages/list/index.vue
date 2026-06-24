@@ -917,7 +917,11 @@ async function refreshContainers() {
       return;
     }
     seedContainerList(payload.items);
-    acquireListRealtimeSubscription();
+    if (payload.items.length > 0) {
+      acquireListRealtimeSubscription();
+    } else {
+      releaseListRealtimeSubscription();
+    }
     runtime.value = payload.runtime;
     listSummary.value = payload.summary;
     listTotal.value = payload.total;

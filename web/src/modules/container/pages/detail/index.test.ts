@@ -3,7 +3,7 @@ import { join } from 'node:path';
 
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { defineComponent, h, ref } from 'vue';
+import { defineComponent, h, KeepAlive, nextTick, ref } from 'vue';
 
 import { applyContainerRealtimeStats, resetContainerStatsManager } from '../../shared/stats-manager';
 import type { ContainerMountUsage } from '../../types/container';
@@ -548,7 +548,7 @@ vi.mock('@/shared/observability', async () => {
   return {
     ...actual,
     copyText: vi.fn().mockResolvedValue(true),
-    formatLocaleDateTime: (value?: string | null) => value || '-',
+    formatLocaleDateTime: (value?: string | null) => (value ? `formatted:${value}` : '-'),
   };
 });
 
@@ -624,7 +624,9 @@ describe('container detail page', () => {
     expect(wrapper.text()).not.toContain('容器详情 - graft-web');
     expect(wrapper.text()).toContain('graft/web:latest');
     expect(wrapper.text()).toContain('172.18.0.2');
-    expect(wrapper.text()).toContain('21.8%');
+    await vi.waitFor(() => {
+      expect(wrapper.text()).toContain('21.8%');
+    });
     expect(wrapper.text()).toContain('31.25 GiB / 31.25 GiB');
     expect(wrapper.text()).toContain('8080:80/tcp');
     expect(wrapper.text()).toContain('身份信息');
@@ -1052,6 +1054,23 @@ describe('container detail page', () => {
     );
   });
 
+  it('renders localized resource history timestamps instead of raw collected_at values', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    applyContainerRealtimeStats(createContainerDetail().id, {
+      ...createContainerDetail().resource,
+      cpu_percent: 55.5,
+      collected_at: '2026-06-14T01:11:00Z',
+    });
+    await wrapper.vm.$nextTick();
+
+    const historyCards = wrapper.findAll('.container-resource-history-card');
+
+    expect(historyCards.length).toBeGreaterThan(0);
+    expect(historyCards.some((node) => node.text().includes('formatted:2026-06-14T01:11:00Z'))).toBe(true);
+  });
+
   it('sorts mount cards by destination, source, and type instead of API order', async () => {
     routeState.route.query.tab = 'storage';
     const detailWithUnstableMountOrder = createContainerDetail();
@@ -1320,6 +1339,33 @@ describe('container detail page', () => {
 
     expect(realtimeMocks.openRealtimeTopicSocket).toHaveBeenCalled();
     expect(wrapper.get('[data-testid="container-detail-realtime-status"]').text()).toBe('实时中');
+  });
+
+  it('does not resubscribe while deactivated when a late refresh resolves', async () => {
+    vi.useFakeTimers();
+    const firstDetail = deferred<ReturnType<typeof createContainerDetail>>();
+    apiMocks.getContainer.mockReturnValueOnce(firstDetail.promise);
+
+    const visible = ref(true);
+    const Host = defineComponent({
+      setup() {
+        return () => h(KeepAlive, () => (visible.value ? h(ContainerDetailPage) : null));
+      },
+    });
+
+    const wrapper = mountPage(Host);
+    await flushPromises();
+
+    expect(realtimeMocks.openRealtimeTopicSocket).not.toHaveBeenCalled();
+
+    visible.value = false;
+    await nextTick();
+
+    firstDetail.resolve(createContainerDetail());
+    await flushPromises();
+
+    expect(realtimeMocks.openRealtimeTopicSocket).not.toHaveBeenCalled();
+    wrapper.unmount();
   });
 
   it('does not preserve stale realtime resource on manual refresh before any socket snapshot arrives', async () => {
@@ -2053,7 +2099,7 @@ describe('container detail page', () => {
     expect(wrapper.text()).toContain('0');
     expect(wrapper.text()).toContain('CMD-SHELL curl -f http://localhost:8080/health || exit 1');
     expect(wrapper.text()).toContain('无异常');
-    expect(wrapper.text()).toContain('最近检查：2026-06-14T01:07:00Z');
+    expect(wrapper.text()).toContain('最近检查：formatted:2026-06-14T01:07:00Z');
     expect(wrapper.text()).toContain('运行稳定性');
     expect(wrapper.text()).toContain('状态稳定');
     expect(wrapper.text()).toContain('最近退出码');
@@ -2375,7 +2421,7 @@ describe('container detail page', () => {
     expect(rawPanel.text()).toContain('端口映射 1');
     expect(rawPanel.text()).toContain('挂载 5');
     expect(rawPanel.text()).toContain('网络 1');
-    expect(rawPanel.text()).toContain('更新时间 2026-06-14T01:08:00Z');
+    expect(rawPanel.text()).toContain('更新时间 formatted:2026-06-14T01:08:00Z');
     expect(rawPanel.get('input[placeholder="搜索字段或内容"]').attributes('placeholder')).toBe('搜索字段或内容');
     expect(rawPanel.text()).toContain('源码视图');
     expect(rawPanel.text()).toContain('树形视图');

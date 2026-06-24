@@ -6,7 +6,7 @@
           {{ t('dashboard.containerResources.source') }}
         </t-tag>
         <span v-if="summary.overview.collectedAt" class="dashboard-container-resources__collected-at">
-          {{ t('dashboard.containerResources.collectedAt') }} {{ summary.overview.collectedAt }}
+          {{ t('dashboard.containerResources.collectedAt') }} {{ collectedAtLabel }}
         </span>
       </t-space>
     </template>
@@ -174,9 +174,14 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-import { t } from '@/locales';
+import { currentLocale, t } from '@/locales';
 import type { ContainerDashboardSummary } from '@/modules/container/contract/dashboard-summary';
-import { formatBytes, formatPercent as formatResourcePercent } from '@/shared/observability';
+import {
+  formatBytes,
+  formatLocaleDateTime,
+  formatPercent as formatResourcePercent,
+  MEDIUM_DATE_TIME_WITH_SECONDS_FORMAT_OPTIONS,
+} from '@/shared/observability';
 
 defineOptions({
   name: 'DashboardContainerResources',
@@ -233,6 +238,10 @@ const overviewItems = computed(() => [
   },
 ]);
 
+const collectedAtLabel = computed(() =>
+  formatLocaleDateTime(props.summary.overview.collectedAt, currentLocale, MEDIUM_DATE_TIME_WITH_SECONDS_FORMAT_OPTIONS),
+);
+
 function clampPercent(value?: number | null) {
   if (typeof value !== 'number' || Number.isNaN(value)) {
     return 0;
@@ -266,6 +275,9 @@ function stateTheme(state?: string | null, health?: string | null) {
 function containerStatusLabel(state?: string | null, health?: string | null) {
   if (health === 'unhealthy') {
     return t('dashboard.containerResources.status.unhealthy');
+  }
+  if (state === 'paused') {
+    return t('dashboard.containerResources.status.paused');
   }
   if (state === 'restarting') {
     return t('dashboard.containerResources.status.restarting');
