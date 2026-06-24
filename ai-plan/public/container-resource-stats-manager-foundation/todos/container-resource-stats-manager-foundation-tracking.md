@@ -33,7 +33,7 @@ Container Resource Stats Manager Foundation
   - list 页不再直接以 HTTP row.resource 作为长期 authority
   - dashboard 当前未接入容器资源共享状态
 - 当前推荐下一批：
-  - `phase-2-frontend-stats-manager-foundation`
+  - `phase-4-dashboard-shared-resource-consumption`
 
 ## Task Checklist
 
@@ -42,7 +42,7 @@ Container Resource Stats Manager Foundation
 - [x] Phase 0：public topic / tracking / trace 建立
 - [x] Phase 1：resource ownership separation
 - [x] Phase 2：frontend ContainerStatsManager foundation
-- [ ] Phase 3：subscription manager unification
+- [x] Phase 3：subscription manager unification
 - [ ] Phase 4：dashboard shared resource consumption
 - [ ] Phase 5：optional history store
 
@@ -90,3 +90,16 @@ Container Resource Stats Manager Foundation
   - `Subscription Manager` acquire/release/ref-count
   - Dashboard 共享消费
   - 平台级 shared stats authority 上提
+
+## Phase 3 Closeout
+
+- 已完成 module-owned `Subscription Manager`：
+  - `web/src/modules/container/shared/stats-manager.ts` 新增 `acquire/release/selectContainerStatsRealtimeState`
+  - list/detail 共享 `container.stats:{id}` socket lifecycle、ref-count 与 idle-grace close
+  - detail 页 realtime toggle 改为消费模块级 subscription authority，而不是直接持有 socket controller
+  - list 页刷新失败只清理当前 list metadata，不再 `resetContainerStatsManager()` 抹掉其它页面仍持有的 stats authority
+- 已完成验证：
+  - container scoped vitest 通过
+- 本批未进入：
+  - Dashboard 共享消费
+  - history / trend metrics

@@ -5,6 +5,7 @@ import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, ref } from 'vue';
 
+import { resetContainerStatsManager } from '../../shared/stats-manager';
 import type { ContainerMountUsage } from '../../types/container';
 import ContainerDetailPage from './index.vue';
 
@@ -557,6 +558,7 @@ describe('container detail page', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     realtimeMocks.controllers = [];
+    resetContainerStatsManager();
     vi.useRealTimers();
     tabStoreState.tabRouterList = [
       {
@@ -604,6 +606,7 @@ describe('container detail page', () => {
     while (mountedWrappers.length > 0) {
       mountedWrappers.pop()?.unmount();
     }
+    resetContainerStatsManager();
     vi.useRealTimers();
   });
 
@@ -1269,14 +1272,17 @@ describe('container detail page', () => {
   });
 
   it('pauses and resumes realtime subscription from the detail toolbar toggle', async () => {
+    vi.useFakeTimers();
     const wrapper = mountPage();
     await flushPromises();
 
+    expect(realtimeMocks.openRealtimeTopicSocket).toHaveBeenCalledTimes(1);
     expect(realtimeMocks.controllers.length).toBeGreaterThan(0);
     await wrapper.get('[data-testid="container-detail-realtime-toggle"]').trigger('click');
     await flushPromises();
 
     expect(wrapper.get('[data-testid="container-detail-realtime-status"]').text()).toBe('已暂停');
+    vi.runOnlyPendingTimers();
     expect(realtimeMocks.controllers.every((controller) => controller.close.mock.calls.length > 0)).toBe(true);
 
     realtimeMocks.openRealtimeTopicSocket.mockClear();

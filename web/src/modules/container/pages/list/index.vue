@@ -473,7 +473,7 @@ import type { DialogInstance, DropdownOption, TdBaseTableProps } from 'tdesign-v
 import { DialogPlugin } from 'tdesign-vue-next/es/dialog';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { NotifyPlugin } from 'tdesign-vue-next/es/notification';
-import { computed, h, onMounted, reactive, ref, watch } from 'vue';
+import { computed, h, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
@@ -508,7 +508,13 @@ import {
 import { CONTAINER_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import { CONTAINER_PERMISSION_CODE } from '../../contract/permissions';
 import { CONTAINER_REALTIME_TOPIC } from '../../contract/realtime';
-import { resetContainerStatsManager, seedContainerList, selectContainerListViews } from '../../shared/stats-manager';
+import {
+  acquireContainerStatsSubscription,
+  clearContainerListMetadata,
+  releaseContainerStatsSubscription,
+  seedContainerList,
+  selectContainerListViews,
+} from '../../shared/stats-manager';
 import type {
   ContainerAction,
   ContainerActionLevel,
@@ -622,7 +628,6 @@ type SourceQuickFilterValue = {
 const tableLoading = ref(false);
 const refreshing = ref(false);
 const listError = ref<ListErrorState>({ title: '', hint: '' });
-const rows = ref<ContainerSummaryRecord[]>([]);
 const runtime = ref<ContainerRuntimeInfo | null>(null);
 const listSummary = ref<ContainerListSummary | null>(null);
 const listTotal = ref(0);
@@ -646,6 +651,8 @@ const pagination = reactive({
   current: 1,
   pageSize: CONTAINER_DEFAULT_PAGE_SIZE,
 });
+const currentListSubscriptionIds = ref<string[]>([]);
+const rows = computed<ContainerSummaryRecord[]>(() => selectContainerListViews());
 
 const allColumns = computed<TdBaseTableProps['columns']>(() => [
   { colKey: 'row-select', type: 'multiple', width: 48, fixed: 'left', align: 'center' },
@@ -815,6 +822,10 @@ onMounted(() => {
   void refreshContainers();
 });
 
+onUnmounted(() => {
+  syncVisibleRealtimeSubscriptions([]);
+});
+
 useCurrentTabRefresh(async () => {
   await refreshContainers();
 });
@@ -878,7 +889,7 @@ async function refreshContainers() {
       return;
     }
     seedContainerList(payload.items);
-    rows.value = selectContainerListViews();
+    syncVisibleRealtimeSubscriptions(payload.items.map((item) => item.id));
     runtime.value = payload.runtime;
     listSummary.value = payload.summary;
     listTotal.value = payload.total;
@@ -887,8 +898,8 @@ async function refreshContainers() {
     if (requestSeq !== refreshRequestSeq) {
       return;
     }
-    resetContainerStatsManager();
-    rows.value = [];
+    syncVisibleRealtimeSubscriptions([]);
+    clearContainerListMetadata();
     runtime.value = null;
     listSummary.value = null;
     listTotal.value = 0;
@@ -912,6 +923,26 @@ async function handleManualRefresh() {
 function pruneSelectedRows() {
   const availableIds = new Set(rows.value.map((row) => row.id));
   selectedRowKeys.value = selectedRowKeys.value.filter((key) => availableIds.has(String(key)));
+}
+
+function syncVisibleRealtimeSubscriptions(nextContainerIds: string[]) {
+  const previousIds = new Set(currentListSubscriptionIds.value);
+  const normalizedNextIds = Array.from(new Set(nextContainerIds.map((item) => item.trim()).filter(Boolean)));
+  const nextIdsSet = new Set(normalizedNextIds);
+
+  previousIds.forEach((containerId) => {
+    if (!nextIdsSet.has(containerId)) {
+      releaseContainerStatsSubscription(containerId);
+    }
+  });
+
+  normalizedNextIds.forEach((containerId) => {
+    if (!previousIds.has(containerId)) {
+      acquireContainerStatsSubscription(containerId);
+    }
+  });
+
+  currentListSubscriptionIds.value = normalizedNextIds;
 }
 
 function resolveListError(error: unknown): ListErrorState {

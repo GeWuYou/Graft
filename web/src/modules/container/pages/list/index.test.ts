@@ -4,6 +4,7 @@ import { defineComponent, h, ref } from 'vue';
 
 import { LOCALE } from '@/contracts/i18n/locales';
 
+import { resetContainerStatsManager } from '../../shared/stats-manager';
 import ContainerListPage from './index.vue';
 
 const apiMocks = vi.hoisted(() => ({
@@ -27,6 +28,21 @@ const messageMocks = vi.hoisted(() => ({
   error: vi.fn(),
   success: vi.fn(),
   warning: vi.fn(),
+}));
+
+const realtimeMocks = vi.hoisted(() => ({
+  controllers: [] as Array<{
+    close: ReturnType<typeof vi.fn>;
+    reconnect: ReturnType<typeof vi.fn>;
+  }>,
+  openRealtimeTopicSocket: vi.fn(() => {
+    const controller = {
+      close: vi.fn(),
+      reconnect: vi.fn(),
+    };
+    realtimeMocks.controllers.push(controller);
+    return controller;
+  }),
 }));
 
 const notifyMocks = vi.hoisted(() => ({
@@ -352,6 +368,10 @@ vi.mock('@/shared/observability', async () => {
   };
 });
 
+vi.mock('@/shared/realtime', () => ({
+  openRealtimeTopicSocket: realtimeMocks.openRealtimeTopicSocket,
+}));
+
 vi.mock('@/utils/route/title', () => ({
   localizeRouteTitleKey: (titleKey: string) => ({
     [LOCALE.ZH_CN]: translations[titleKey] ?? titleKey,
@@ -362,6 +382,8 @@ vi.mock('@/utils/route/title', () => ({
 describe('container list page', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    realtimeMocks.controllers = [];
+    resetContainerStatsManager();
     tabsRouterStoreMock.activeTabKey = '/ops/containers';
     tabsRouterStoreMock.tabRouters = [
       {
@@ -529,6 +551,7 @@ describe('container list page', () => {
   });
 
   afterEach(() => {
+    resetContainerStatsManager();
     vi.useRealTimers();
   });
 
@@ -537,6 +560,7 @@ describe('container list page', () => {
     await flushPromises();
 
     expect(apiMocks.getContainers).toHaveBeenCalledTimes(1);
+    expect(realtimeMocks.openRealtimeTopicSocket).toHaveBeenCalledTimes(20);
     expect(apiMocks.getContainers).toHaveBeenCalledWith({
       health: undefined,
       keyword: undefined,
@@ -575,6 +599,19 @@ describe('container list page', () => {
     expect(wrapper.text()).toContain('第 1-20 条 / 共 25 条');
     expect(wrapper.text()).not.toContain('graft-extra-21');
     wrapper.unmount();
+  });
+
+  it('releases visible list subscriptions on unmount', async () => {
+    vi.useFakeTimers();
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const controllers = [...realtimeMocks.controllers];
+    wrapper.unmount();
+
+    expect(controllers.length).toBeGreaterThan(0);
+    vi.runOnlyPendingTimers();
+    expect(controllers.every((controller) => controller.close.mock.calls.length > 0)).toBe(true);
   });
 
   it('keeps cpu text above 100 percent while clamping progress width', async () => {

@@ -7,7 +7,7 @@
 ## 当前状态摘要
 
 - 当前主题目标是为 `Graft` 容器管理建立统一资源状态层，收敛 `metadata / stats / subscription` 的 authority，并为 `List / Detail / Dashboard` 共享消费准备基础设施。
-- 当前状态：Phase 0、Phase 1、Phase 2 已完成；当前下一批进入 Phase 3 订阅统一。
+- 当前状态：Phase 0、Phase 1、Phase 2、Phase 3 已完成；当前下一批进入 Phase 4 Dashboard 共享消费。
 - 任务分类为 `cross-boundary`，涉及 container backend authority、OpenAPI 契约和 container frontend module state architecture。
 - Canonical design：`ai-plan/design/容器资源状态与订阅治理设计.md`。
 - 推荐执行技能：`$graft-multi-agent-loop`，loop mode 默认 `topic-completion-loop`。
@@ -59,11 +59,15 @@
   - `web/src/modules/container/shared/stats-manager.ts` 建立 module-owned metadata/stats foundation
   - list/detail 已通过 selector 读取统一 stats authority
   - detail 不再用页面局部 merge/patch 长期保留 realtime resource
+- 已完成 Phase 3 subscription manager unification：
+  - `ContainerStatsManager` 收口 acquire / release / ref-count / idle-grace cleanup
+  - list/detail 共享同一份 `container.stats:{id}` 订阅生命周期
+  - list 加载失败只清理 list metadata，不再全局 reset module-owned stats authority
 - 已确认：
   - Arcane 的列表页存在集中式 stats manager，但 Detail 与 Dashboard 不共享统一资源状态层。
   - Graft 后端已具备 `statsCollector -> resourceStatsCache -> container.stats:{id}` 主链。
   - Graft 前端已具备统一 stats store foundation，但尚未统一订阅 acquire/release/ref-count 生命周期。
-- 当前下一批推荐进入 Phase 3，而不是继续回到页面局部 authority patch。
+- 当前下一批推荐进入 Phase 4，而不是继续在 list/detail 内新增页面局部订阅逻辑。
 
 ## Validation Targets
 

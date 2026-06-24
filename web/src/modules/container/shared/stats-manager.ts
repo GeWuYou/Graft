@@ -1,11 +1,15 @@
 import { reactive } from 'vue';
 
+import { openRealtimeTopicSocket, type RealtimeTopicSocketController } from '@/shared/realtime';
+
 import type { ContainerDetailRecord, ContainerResourceSummary, ContainerSummaryRecord } from '../types/container';
+import { buildContainerStatsTopic, parseContainerStatsPayload } from './realtime-stats';
 
 type ContainerMetadataRecord = Omit<ContainerSummaryRecord, 'resource'>;
 type ContainerDetailMetadataRecord = Omit<ContainerDetailRecord, 'resource'>;
 
 type StatsSnapshotSource = 'http-seed' | 'realtime';
+type RealtimeSocketState = 'idle' | 'connecting' | 'open' | 'closed' | 'error';
 
 export type ContainerStatsSnapshot = {
   resource: ContainerResourceSummary;
@@ -16,18 +20,29 @@ type ContainerStatsEntry = {
   snapshot: ContainerStatsSnapshot | null;
 };
 
+type ContainerStatsSubscriptionEntry = {
+  controller: RealtimeTopicSocketController | null;
+  idleTimer: number | null;
+  refCount: number;
+  state: RealtimeSocketState;
+};
+
 type ContainerStatsManagerState = {
   detailMetadataById: Map<string, ContainerDetailMetadataRecord>;
   listOrder: string[];
   listMetadataById: Map<string, ContainerMetadataRecord>;
   statsById: Map<string, ContainerStatsEntry>;
+  subscriptionsById: Map<string, ContainerStatsSubscriptionEntry>;
 };
+
+const SUBSCRIPTION_IDLE_GRACE_MS = 10_000;
 
 const state = reactive<ContainerStatsManagerState>({
   detailMetadataById: new Map<string, ContainerDetailMetadataRecord>(),
   listOrder: [],
   listMetadataById: new Map<string, ContainerMetadataRecord>(),
   statsById: new Map<string, ContainerStatsEntry>(),
+  subscriptionsById: new Map<string, ContainerStatsSubscriptionEntry>(),
 });
 
 function normalizeCollectedAt(value?: string | null) {
@@ -88,6 +103,67 @@ function clearListMetadata() {
   state.listMetadataById.clear();
 }
 
+function ensureSubscriptionEntry(containerId: string) {
+  const current = state.subscriptionsById.get(containerId);
+  if (current) {
+    return current;
+  }
+
+  const next: ContainerStatsSubscriptionEntry = {
+    controller: null,
+    idleTimer: null,
+    refCount: 0,
+    state: 'idle',
+  };
+  state.subscriptionsById.set(containerId, next);
+  return next;
+}
+
+function clearIdleTimer(entry: ContainerStatsSubscriptionEntry) {
+  if (entry.idleTimer !== null) {
+    clearTimeout(entry.idleTimer);
+    entry.idleTimer = null;
+  }
+}
+
+function closeSubscriptionEntry(entry: ContainerStatsSubscriptionEntry) {
+  clearIdleTimer(entry);
+  entry.controller?.close();
+  entry.controller = null;
+  entry.state = 'idle';
+}
+
+function connectSubscription(containerId: string, entry: ContainerStatsSubscriptionEntry) {
+  if (entry.controller) {
+    return;
+  }
+
+  entry.state = 'connecting';
+  entry.controller = openRealtimeTopicSocket({
+    topic: buildContainerStatsTopic(containerId),
+    parseMessage: parseContainerStatsPayload,
+    onStateChange: (nextState) => {
+      const latestEntry = state.subscriptionsById.get(containerId);
+      if (!latestEntry) {
+        return;
+      }
+      latestEntry.state = nextState;
+      if (nextState === 'idle' && latestEntry.refCount > 0 && !latestEntry.controller) {
+        connectSubscription(containerId, latestEntry);
+      }
+    },
+    onMessage: (payload) => {
+      if (payload.id && payload.id !== containerId) {
+        return;
+      }
+      if (!payload.resource) {
+        return;
+      }
+      applyContainerRealtimeStats(containerId, payload.resource);
+    },
+  });
+}
+
 function splitSummaryRecord(record: ContainerSummaryRecord) {
   const { resource, ...metadata } = record;
   return {
@@ -105,10 +181,14 @@ function splitDetailRecord(record: ContainerDetailRecord) {
 }
 
 export function resetContainerStatsManager() {
+  state.subscriptionsById.forEach((entry) => {
+    closeSubscriptionEntry(entry);
+  });
   state.listOrder = [];
   state.listMetadataById.clear();
   state.detailMetadataById.clear();
   state.statsById.clear();
+  state.subscriptionsById.clear();
 }
 
 export function seedContainerList(items: ContainerSummaryRecord[]) {
@@ -139,8 +219,56 @@ export function clearContainerDetail(containerId?: string) {
   state.detailMetadataById.delete(containerId);
 }
 
+export function clearContainerListMetadata() {
+  clearListMetadata();
+}
+
 export function applyContainerRealtimeStats(containerId: string, resource: ContainerResourceSummary) {
   return upsertStatsSnapshot(containerId, resource, 'realtime');
+}
+
+export function acquireContainerStatsSubscription(containerId: string) {
+  const normalizedContainerId = containerId.trim();
+  if (!normalizedContainerId) {
+    return;
+  }
+
+  const entry = ensureSubscriptionEntry(normalizedContainerId);
+  clearIdleTimer(entry);
+  entry.refCount += 1;
+  if (!entry.controller) {
+    connectSubscription(normalizedContainerId, entry);
+  }
+}
+
+export function releaseContainerStatsSubscription(containerId: string) {
+  const normalizedContainerId = containerId.trim();
+  if (!normalizedContainerId) {
+    return;
+  }
+
+  const entry = state.subscriptionsById.get(normalizedContainerId);
+  if (!entry) {
+    return;
+  }
+
+  entry.refCount = Math.max(0, entry.refCount - 1);
+  if (entry.refCount > 0) {
+    return;
+  }
+
+  clearIdleTimer(entry);
+  entry.idleTimer = window.setTimeout(() => {
+    const latestEntry = state.subscriptionsById.get(normalizedContainerId);
+    if (!latestEntry || latestEntry.refCount > 0) {
+      return;
+    }
+    closeSubscriptionEntry(latestEntry);
+  }, SUBSCRIPTION_IDLE_GRACE_MS);
+}
+
+export function selectContainerStatsRealtimeState(containerId: string): RealtimeSocketState {
+  return state.subscriptionsById.get(containerId)?.state ?? 'idle';
 }
 
 function selectContainerSummaryView(containerId: string): ContainerSummaryRecord | null {

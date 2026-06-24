@@ -1168,7 +1168,6 @@ import {
   LogViewer,
   toProgressPercent,
 } from '@/shared/observability';
-import { openRealtimeTopicSocket, type RealtimeTopicSocketController } from '@/shared/realtime';
 import { useTabsRouterStore } from '@/store';
 import { createLogger } from '@/utils/logger';
 import { localizeRouteTitleKey } from '@/utils/route/title';
@@ -1181,12 +1180,13 @@ import {
 } from '../../api/container';
 import ContainerRawJsonPanel from '../../components/ContainerRawJsonPanel.vue';
 import ContainerShellPanel from '../../components/ContainerShellPanel.vue';
-import { buildContainerStatsTopic, parseContainerStatsPayload } from '../../shared/realtime-stats';
 import {
-  applyContainerRealtimeStats,
+  acquireContainerStatsSubscription,
   clearContainerDetail,
+  releaseContainerStatsSubscription,
   seedContainerDetail,
   selectContainerDetailView,
+  selectContainerStatsRealtimeState,
 } from '../../shared/stats-manager';
 import type {
   ContainerActionLevel,
@@ -1390,10 +1390,8 @@ const environmentKeyword = ref('');
 const environmentPolicyFilter = ref<EnvironmentPolicyFilter>('all');
 const refreshingMountKeys = ref<Set<string>>(new Set());
 const realtimeEnabled = ref(true);
-const realtimeSocketState = ref<'idle' | 'connecting' | 'open' | 'closed' | 'error'>('idle');
+const activeRealtimeSubscriptionId = ref('');
 let detailRefreshSeq = 0;
-let statsSocketGeneration = 0;
-let statsSocket: RealtimeTopicSocketController | null = null;
 
 const containerId = computed(() => String(route.params.id ?? '').trim());
 const shortContainerIdFallback = computed(() => shortIdentifier(containerId.value, undefined, 12));
@@ -1660,6 +1658,7 @@ const resourceMetrics = computed(() => {
     status,
   };
 });
+const realtimeSocketState = computed(() => selectContainerStatsRealtimeState(currentDetailStatsKey.value));
 const realtimeStatusTheme = computed(() => {
   if (!realtimeEnabled.value) {
     return 'default';
@@ -1961,14 +1960,13 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
-  stopStatsSocket();
+  releaseCurrentRealtimeSubscription();
 });
 
 watch(
   () => route.params.id,
   () => {
     resetDetailState();
-    stopStatsSocket();
     void refreshContainerDetail();
     if (activeTab.value === 'logs') {
       void loadLogs();
@@ -2024,7 +2022,7 @@ async function refreshContainerDetail() {
     const current = safeDetail.value;
     if (current) {
       updateCurrentTabTitle(buildDetailTitle(displayName(current)));
-      syncStatsSocket(current.id);
+      syncRealtimeSubscription(current.id);
     }
     await fetchMountUsage(currentContainerId, requestSeq);
   } catch (loadError) {
@@ -2034,7 +2032,7 @@ async function refreshContainerDetail() {
     clearContainerDetail(detail.value?.id);
     clearContainerDetail(currentContainerId);
     detail.value = null;
-    stopStatsSocket();
+    releaseCurrentRealtimeSubscription();
     error.value = resolveLocalizedErrorMessage(t, loadError, t('container.list.detail.loadFailed'));
     logger.warn('failed to fetch container detail', loadError);
   } finally {
@@ -2174,59 +2172,44 @@ function resetDetailState() {
   logs.value = null;
   logsError.value = '';
   refreshingMountKeys.value = new Set();
-  realtimeSocketState.value = 'idle';
-  stopStatsSocket();
+  releaseCurrentRealtimeSubscription();
   updateCurrentTabTitle(fallbackTitle.value);
 }
 
 function toggleRealtimeSubscription() {
   realtimeEnabled.value = !realtimeEnabled.value;
   if (!realtimeEnabled.value) {
-    stopStatsSocket();
+    releaseCurrentRealtimeSubscription();
     return;
   }
   if (safeDetail.value?.id) {
-    syncStatsSocket(safeDetail.value.id);
+    syncRealtimeSubscription(safeDetail.value.id);
   }
 }
 
-function syncStatsSocket(nextContainerId: string) {
+function syncRealtimeSubscription(nextContainerId: string) {
   if (!realtimeEnabled.value) {
-    stopStatsSocket();
+    releaseCurrentRealtimeSubscription();
     return;
   }
-  stopStatsSocket();
-  const socketGeneration = ++statsSocketGeneration;
-  realtimeSocketState.value = 'connecting';
-  statsSocket = openRealtimeTopicSocket({
-    topic: buildContainerStatsTopic(nextContainerId),
-    parseMessage: parseContainerStatsPayload,
-    onStateChange: (state) => {
-      if (socketGeneration !== statsSocketGeneration || safeDetail.value?.id !== nextContainerId) {
-        return;
-      }
-      realtimeSocketState.value = state;
-    },
-    onMessage: (payload) => {
-      if (socketGeneration !== statsSocketGeneration || safeDetail.value?.id !== nextContainerId) {
-        return;
-      }
-      if (payload.id && payload.id !== nextContainerId) {
-        return;
-      }
-      if (!payload.resource || !detail.value) {
-        return;
-      }
-      applyContainerRealtimeStats(nextContainerId, payload.resource);
-    },
-  });
+  if (activeRealtimeSubscriptionId.value === nextContainerId) {
+    return;
+  }
+  if (activeRealtimeSubscriptionId.value && activeRealtimeSubscriptionId.value !== nextContainerId) {
+    releaseContainerStatsSubscription(activeRealtimeSubscriptionId.value);
+    activeRealtimeSubscriptionId.value = '';
+  }
+  acquireContainerStatsSubscription(nextContainerId);
+  activeRealtimeSubscriptionId.value = nextContainerId;
 }
 
-function stopStatsSocket() {
-  statsSocketGeneration += 1;
-  statsSocket?.close();
-  statsSocket = null;
-  realtimeSocketState.value = 'idle';
+function releaseCurrentRealtimeSubscription() {
+  const currentSubscriptionId = activeRealtimeSubscriptionId.value;
+  if (!currentSubscriptionId) {
+    return;
+  }
+  releaseContainerStatsSubscription(currentSubscriptionId);
+  activeRealtimeSubscriptionId.value = '';
 }
 
 function handleTabChange(value: string | number) {

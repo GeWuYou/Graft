@@ -35,6 +35,12 @@
   - detail 页由 `seedContainerDetail -> selectContainerDetailView -> applyContainerRealtimeStats` 组合 `resource`，不再用页面局部 merge/patch 保留 realtime 值。
   - `resourceStatus` 改为读取 canonical `resource.collected_at`，而不是 `inspect_updated_at`。
   - 定向 container tests 通过；全量 `bun run check` 在非本批 `src/modules/rbac/pages/index.test.ts` 既有失败处被阻塞。
+- Phase 3 subscription manager unification：
+  - 在 `web/src/modules/container/shared/stats-manager.ts` 收口 acquire / release / ref-count / idle-grace cleanup。
+  - detail 页不再直接持有 `openRealtimeTopicSocket` 与 socket controller，realtime toggle 改为模块级订阅 authority 开关。
+  - list 页开始为当前可见容器集合 acquire/release 订阅，并通过 selector 响应式读取共享 stats state。
+  - list 刷新失败改为只清理 list metadata，不再 `resetContainerStatsManager()` 抹掉 detail 等仍在持有的 canonical stats authority。
+  - container scoped vitest 通过。
 
 ## Loop Batch State
 
@@ -44,15 +50,15 @@
   "completed_batches": [
     "phase-0-audit-and-design-anchor",
     "phase-1-resource-ownership-separation",
-    "phase-2-frontend-stats-manager-foundation"
+    "phase-2-frontend-stats-manager-foundation",
+    "phase-3-subscription-manager-unification"
   ],
   "pending_batches": [
-    "phase-3-subscription-manager-unification",
     "phase-4-dashboard-shared-resource-consumption",
     "phase-5-history-store-optional"
   ],
-  "current_batch": "phase-2-frontend-stats-manager-foundation",
-  "next_batch": "phase-3-subscription-manager-unification",
+  "current_batch": "phase-3-subscription-manager-unification",
+  "next_batch": "phase-4-dashboard-shared-resource-consumption",
   "closeout_status": "active"
 }
 ```

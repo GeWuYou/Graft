@@ -1,14 +1,36 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { ContainerDetailRecord, ContainerSummaryRecord } from '../types/container';
 import {
+  acquireContainerStatsSubscription,
   applyContainerRealtimeStats,
+  releaseContainerStatsSubscription,
   resetContainerStatsManager,
   seedContainerDetail,
   seedContainerList,
   selectContainerDetailView,
   selectContainerListViews,
+  selectContainerStatsRealtimeState,
 } from './stats-manager';
+
+const realtimeMocks = vi.hoisted(() => ({
+  controllers: [] as Array<{
+    close: ReturnType<typeof vi.fn>;
+    reconnect: ReturnType<typeof vi.fn>;
+  }>,
+  openRealtimeTopicSocket: vi.fn(() => {
+    const controller = {
+      close: vi.fn(),
+      reconnect: vi.fn(),
+    };
+    realtimeMocks.controllers.push(controller);
+    return controller;
+  }),
+}));
+
+vi.mock('@/shared/realtime', () => ({
+  openRealtimeTopicSocket: realtimeMocks.openRealtimeTopicSocket,
+}));
 
 function createSummary(
   resourceOverrides?: Partial<NonNullable<ContainerSummaryRecord['resource']>>,
@@ -78,7 +100,14 @@ function createDetail(
 
 describe('container stats manager', () => {
   beforeEach(() => {
+    vi.useFakeTimers();
     resetContainerStatsManager();
+    realtimeMocks.controllers = [];
+  });
+
+  afterEach(() => {
+    resetContainerStatsManager();
+    vi.useRealTimers();
   });
 
   it('exposes seeded list rows through managed selectors', () => {
@@ -110,5 +139,28 @@ describe('container stats manager', () => {
 
     expect(detail?.resource?.cpu_percent).toBe(88.8);
     expect(detail?.resource?.collected_at).toBe('2026-06-14T01:11:00Z');
+  });
+
+  it('shares one realtime subscription controller across multiple acquires of the same container id', () => {
+    acquireContainerStatsSubscription('container-1');
+    acquireContainerStatsSubscription('container-1');
+
+    expect(realtimeMocks.openRealtimeTopicSocket).toHaveBeenCalledTimes(1);
+    expect(selectContainerStatsRealtimeState('container-1')).toBe('connecting');
+  });
+
+  it('keeps the realtime socket alive until the last release', () => {
+    acquireContainerStatsSubscription('container-1');
+    acquireContainerStatsSubscription('container-1');
+    const controller = realtimeMocks.controllers.at(-1)!;
+
+    releaseContainerStatsSubscription('container-1');
+    expect(controller.close).not.toHaveBeenCalled();
+
+    releaseContainerStatsSubscription('container-1');
+    vi.runOnlyPendingTimers();
+
+    expect(controller.close).toHaveBeenCalledTimes(1);
+    expect(selectContainerStatsRealtimeState('container-1')).toBe('idle');
   });
 });
