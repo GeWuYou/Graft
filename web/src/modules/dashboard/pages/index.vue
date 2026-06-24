@@ -80,9 +80,9 @@ import type { SupportedLocale } from '@/contracts/i18n/locales';
 import { currentLocale, t } from '@/locales';
 import { getDashboardContainerStatsSeed } from '@/modules/container/api/dashboard-stats';
 import {
-  acquireDashboardContainerStats,
+  acquireDashboardContainerStatsCollection,
   clearDashboardContainerStats,
-  releaseDashboardContainerStats,
+  releaseDashboardContainerStatsCollection,
   seedDashboardContainerStats,
   selectDashboardContainerStatsViews,
 } from '@/modules/container/contract/dashboard-stats';
@@ -120,7 +120,7 @@ const widgets = ref<DashboardWidget[]>([]);
 const lastUpdatedAt = ref('');
 const quickActionConfig = ref<DashboardQuickActionConfig>({ ...DEFAULT_DASHBOARD_QUICK_ACTION_CONFIG });
 const containerResourcesLoading = ref(false);
-const dashboardContainerSubscriptionIds = ref<string[]>([]);
+const dashboardContainerSubscriptionActive = ref(false);
 const summarySkeletonRowCol = [
   { width: '52%', height: '14px' },
   { width: '36%', height: '28px' },
@@ -241,7 +241,10 @@ async function loadDashboardContainerResources() {
   try {
     const response = await getDashboardContainerStatsSeed();
     seedDashboardContainerStats(response.items);
-    syncDashboardContainerSubscriptions(response.items.map((item) => item.id));
+    if (!dashboardContainerSubscriptionActive.value) {
+      acquireDashboardContainerStatsCollection();
+      dashboardContainerSubscriptionActive.value = true;
+    }
   } catch (error) {
     logger.warn('dashboard container resource seed request failed', error);
     releaseDashboardContainerSubscriptions();
@@ -251,24 +254,12 @@ async function loadDashboardContainerResources() {
   }
 }
 
-function syncDashboardContainerSubscriptions(containerIds: string[]) {
-  const normalizedIds = Array.from(new Set(containerIds.map((value) => value.trim()).filter(Boolean)));
-  const previousIds = dashboardContainerSubscriptionIds.value;
-
-  previousIds
-    .filter((containerId) => !normalizedIds.includes(containerId))
-    .forEach((containerId) => releaseDashboardContainerStats(containerId));
-
-  normalizedIds
-    .filter((containerId) => !previousIds.includes(containerId))
-    .forEach((containerId) => acquireDashboardContainerStats(containerId));
-
-  dashboardContainerSubscriptionIds.value = normalizedIds;
-}
-
 function releaseDashboardContainerSubscriptions() {
-  dashboardContainerSubscriptionIds.value.forEach((containerId) => releaseDashboardContainerStats(containerId));
-  dashboardContainerSubscriptionIds.value = [];
+  if (!dashboardContainerSubscriptionActive.value) {
+    return;
+  }
+  dashboardContainerSubscriptionActive.value = false;
+  releaseDashboardContainerStatsCollection();
 }
 
 async function refreshWidget(widgetId: string) {

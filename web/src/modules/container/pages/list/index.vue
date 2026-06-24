@@ -485,7 +485,7 @@ import type { DialogInstance, DropdownOption, TdBaseTableProps } from 'tdesign-v
 import { DialogPlugin } from 'tdesign-vue-next/es/dialog';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { NotifyPlugin } from 'tdesign-vue-next/es/notification';
-import { computed, h, onActivated, onDeactivated, onMounted, onUnmounted, reactive, ref, shallowRef, watch } from 'vue';
+import { computed, h, onActivated, onDeactivated, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
@@ -504,7 +504,6 @@ import { AdvancedQueryColumnDrawer } from '@/shared/components/query-list';
 import { useCurrentTabRefresh } from '@/shared/composables/useTabRefresh';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { formatLocaleDateTime } from '@/shared/observability';
-import { openRealtimeTopicSocket } from '@/shared/realtime';
 import { useTabsRouterStore } from '@/store';
 import { createLogger } from '@/utils/logger';
 import { localizeRouteTitleKey } from '@/utils/route/title';
@@ -520,11 +519,12 @@ import {
 } from '../../api/container';
 import { CONTAINER_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import { CONTAINER_PERMISSION_CODE } from '../../contract/permissions';
-import { buildContainerListStatsTopic, parseContainerListStatsPayload } from '../../shared/realtime-stats';
 import {
-  applyContainerRealtimeStats,
+  acquireContainerSummaryCollectionSubscription,
   clearContainerListMetadata,
+  releaseContainerSummaryCollectionSubscription,
   seedContainerList,
+  selectContainerListViews,
   selectContainerStatsChangeState,
 } from '../../shared/stats-manager';
 import { metricChangedClass, metricProgressStatus } from '../../shared/stats-visual-state';
@@ -654,7 +654,6 @@ const batchActionLoading = ref<DangerousContainerAction | ''>('');
 const activeDangerousDialog = ref<DialogInstance | null>(null);
 const dangerousDialogOpen = ref(false);
 const pendingSourceScopeFilter = ref<SourceQuickFilterValue | null>(null);
-const listRows = shallowRef<ContainerSummaryRecord[]>([]);
 const filters = reactive<ContainerFilters>({
   keyword: '',
   orchestrator: 'all',
@@ -667,11 +666,9 @@ const pagination = reactive({
   current: 1,
   pageSize: CONTAINER_DEFAULT_PAGE_SIZE,
 });
-const rows = computed<ContainerSummaryRecord[]>(() => listRows.value);
-const listRealtimeController = ref<ReturnType<typeof openRealtimeTopicSocket> | null>(null);
+const rows = computed<ContainerSummaryRecord[]>(() => selectContainerListViews());
 const listRealtimeActive = ref(false);
-const pendingRealtimeResourceMap = new Map<string, ContainerSummaryRecord['resource']>();
-let realtimeFlushHandle: number | null = null;
+let listRealtimeSubscribed = false;
 
 const allColumns = computed<TdBaseTableProps['columns']>(() => [
   { colKey: 'row-select', type: 'multiple', width: 48, fixed: 'left', align: 'center' },
@@ -843,19 +840,18 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
-  stopListRealtimeSubscription();
-  flushPendingRealtimeResourcePatches();
+  listRealtimeActive.value = false;
+  releaseListRealtimeSubscription();
 });
 
 onActivated(() => {
   listRealtimeActive.value = true;
-  ensureListRealtimeSubscription();
+  acquireListRealtimeSubscription();
 });
 
 onDeactivated(() => {
   listRealtimeActive.value = false;
-  stopListRealtimeSubscription();
-  flushPendingRealtimeResourcePatches();
+  releaseListRealtimeSubscription();
 });
 
 useCurrentTabRefresh(async () => {
@@ -921,8 +917,7 @@ async function refreshContainers() {
       return;
     }
     seedContainerList(payload.items);
-    listRows.value = payload.items.map((item) => ({ ...item }));
-    ensureListRealtimeSubscription();
+    acquireListRealtimeSubscription();
     runtime.value = payload.runtime;
     listSummary.value = payload.summary;
     listTotal.value = payload.total;
@@ -931,9 +926,8 @@ async function refreshContainers() {
     if (requestSeq !== refreshRequestSeq) {
       return;
     }
-    stopListRealtimeSubscription();
+    releaseListRealtimeSubscription();
     clearContainerListMetadata();
-    listRows.value = [];
     runtime.value = null;
     listSummary.value = null;
     listTotal.value = 0;
@@ -959,66 +953,20 @@ function pruneSelectedRows() {
   selectedRowKeys.value = selectedRowKeys.value.filter((key) => availableIds.has(String(key)));
 }
 
-function ensureListRealtimeSubscription() {
-  if (!listRealtimeActive.value || listRealtimeController.value || rows.value.length === 0) {
+function acquireListRealtimeSubscription() {
+  if (!listRealtimeActive.value || rows.value.length === 0 || listRealtimeSubscribed) {
     return;
   }
-  listRealtimeController.value = openRealtimeTopicSocket({
-    topic: buildContainerListStatsTopic(),
-    parseMessage: parseContainerListStatsPayload,
-    onMessage: (payload) => {
-      payload.items.forEach((item) => {
-        applyContainerRealtimeStats(item.id, item.resource);
-        pendingRealtimeResourceMap.set(item.id, item.resource);
-      });
-      scheduleRealtimeResourcePatchFlush();
-    },
-  });
+  listRealtimeSubscribed = true;
+  acquireContainerSummaryCollectionSubscription();
 }
 
-function stopListRealtimeSubscription() {
-  listRealtimeController.value?.close();
-  listRealtimeController.value = null;
-  clearRealtimePatchQueue();
-}
-
-function clearRealtimePatchQueue() {
-  pendingRealtimeResourceMap.clear();
-  if (realtimeFlushHandle !== null) {
-    clearTimeout(realtimeFlushHandle);
-    realtimeFlushHandle = null;
-  }
-}
-
-function scheduleRealtimeResourcePatchFlush() {
-  if (realtimeFlushHandle !== null) {
+function releaseListRealtimeSubscription() {
+  if (!listRealtimeSubscribed) {
     return;
   }
-  realtimeFlushHandle = window.setTimeout(() => {
-    realtimeFlushHandle = null;
-    flushPendingRealtimeResourcePatches();
-  }, 16);
-}
-
-function flushPendingRealtimeResourcePatches() {
-  if (pendingRealtimeResourceMap.size === 0 || rows.value.length === 0) {
-    return;
-  }
-
-  const nextRows = rows.value.map((row) => {
-    const nextResource = pendingRealtimeResourceMap.get(row.id);
-    if (!nextResource) {
-      return row;
-    }
-    return {
-      ...row,
-      resource: {
-        ...nextResource,
-      },
-    };
-  });
-  pendingRealtimeResourceMap.clear();
-  listRows.value = nextRows;
+  listRealtimeSubscribed = false;
+  releaseContainerSummaryCollectionSubscription();
 }
 
 function resolveListError(error: unknown): ListErrorState {

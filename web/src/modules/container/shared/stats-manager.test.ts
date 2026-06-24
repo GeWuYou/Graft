@@ -3,9 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ContainerDetailRecord, ContainerSummaryRecord } from '../types/container';
 import {
   acquireContainerStatsSubscription,
+  acquireContainerSummaryCollectionSubscription,
   applyContainerRealtimeStats,
   clearContainerSummaryCollection,
   releaseContainerStatsSubscription,
+  releaseContainerSummaryCollectionSubscription,
   resetContainerStatsManager,
   seedContainerDetail,
   seedContainerList,
@@ -20,16 +22,25 @@ import {
 const realtimeMocks = vi.hoisted(() => ({
   controllers: [] as Array<{
     close: ReturnType<typeof vi.fn>;
+    emitMessage: (payload: unknown) => void;
     reconnect: ReturnType<typeof vi.fn>;
   }>,
-  openRealtimeTopicSocket: vi.fn(() => {
-    const controller = {
-      close: vi.fn(),
-      reconnect: vi.fn(),
-    };
-    realtimeMocks.controllers.push(controller);
-    return controller;
-  }),
+  openRealtimeTopicSocket: vi.fn(
+    (options?: { onMessage?: (payload: unknown) => void; parseMessage?: (payload: unknown) => unknown }) => {
+      const controller = {
+        close: vi.fn(),
+        emitMessage: (payload: unknown) => {
+          const parsed = options?.parseMessage ? options.parseMessage(payload) : payload;
+          if (parsed) {
+            options?.onMessage?.(parsed);
+          }
+        },
+        reconnect: vi.fn(),
+      };
+      realtimeMocks.controllers.push(controller);
+      return controller;
+    },
+  ),
 }));
 
 vi.mock('@/shared/realtime', () => ({
@@ -107,6 +118,7 @@ describe('container stats manager', () => {
     vi.useFakeTimers();
     resetContainerStatsManager();
     realtimeMocks.controllers = [];
+    realtimeMocks.openRealtimeTopicSocket.mockClear();
   });
 
   afterEach(() => {
@@ -149,6 +161,41 @@ describe('container stats manager', () => {
 
     expect(selectContainerListViews()).toHaveLength(1);
     expect(selectContainerSummaryCollectionViews('dashboard:container-overview')).toHaveLength(0);
+  });
+
+  it('shares one list-level realtime subscription controller across multiple collections', () => {
+    seedContainerList([createSummary()], 'container:list');
+    seedContainerList([createSummary()], 'dashboard:container-overview');
+
+    acquireContainerSummaryCollectionSubscription();
+    acquireContainerSummaryCollectionSubscription();
+
+    expect(realtimeMocks.openRealtimeTopicSocket).toHaveBeenCalledTimes(1);
+  });
+
+  it('applies list topic payloads through the shared stats authority', () => {
+    seedContainerList([createSummary()], 'container:list');
+    acquireContainerSummaryCollectionSubscription();
+
+    const controller = realtimeMocks.controllers.at(-1)!;
+    controller.emitMessage(
+      JSON.stringify({
+        data: {
+          items: [
+            {
+              id: 'container-1',
+              resource: {
+                ...createSummary().resource!,
+                cpu_percent: 64.5,
+                collected_at: '2026-06-14T01:12:00Z',
+              },
+            },
+          ],
+        },
+      }),
+    );
+
+    expect(selectContainerListViews()[0]?.resource?.cpu_percent).toBe(64.5);
   });
 
   it('does not let an older http seed override a fresher realtime snapshot', () => {
@@ -253,5 +300,28 @@ describe('container stats manager', () => {
 
     expect(controller.close).toHaveBeenCalledTimes(1);
     expect(selectContainerStatsRealtimeState('container-1')).toBe('idle');
+  });
+
+  it('shares one list-level realtime controller across multiple collection acquires', () => {
+    seedContainerList([createSummary()], 'container:list');
+    acquireContainerSummaryCollectionSubscription();
+    acquireContainerSummaryCollectionSubscription();
+
+    expect(realtimeMocks.openRealtimeTopicSocket).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the list-level realtime socket alive until the last collection release', () => {
+    seedContainerList([createSummary()], 'container:list');
+    acquireContainerSummaryCollectionSubscription();
+    acquireContainerSummaryCollectionSubscription();
+    const controller = realtimeMocks.controllers.at(-1)!;
+
+    releaseContainerSummaryCollectionSubscription();
+    expect(controller.close).not.toHaveBeenCalled();
+
+    releaseContainerSummaryCollectionSubscription();
+    vi.runOnlyPendingTimers();
+
+    expect(controller.close).toHaveBeenCalledTimes(1);
   });
 });

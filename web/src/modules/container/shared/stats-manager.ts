@@ -3,7 +3,12 @@ import { reactive } from 'vue';
 import { openRealtimeTopicSocket, type RealtimeTopicSocketController } from '@/shared/realtime';
 
 import type { ContainerDetailRecord, ContainerResourceSummary, ContainerSummaryRecord } from '../types/container';
-import { buildContainerStatsTopic, parseContainerStatsPayload } from './realtime-stats';
+import {
+  buildContainerListStatsTopic,
+  buildContainerStatsTopic,
+  parseContainerListStatsPayload,
+  parseContainerStatsPayload,
+} from './realtime-stats';
 
 type ContainerMetadataRecord = Omit<ContainerSummaryRecord, 'resource'>;
 type ContainerDetailMetadataRecord = Omit<ContainerDetailRecord, 'resource'>;
@@ -39,9 +44,17 @@ type ContainerStatsSubscriptionEntry = {
   state: RealtimeSocketState;
 };
 
+type ContainerStatsCollectionSubscriptionEntry = {
+  controller: RealtimeTopicSocketController | null;
+  idleTimer: number | null;
+  refCount: number;
+  state: RealtimeSocketState;
+};
+
 type ContainerStatsManagerState = {
   detailMetadataById: Map<string, ContainerDetailMetadataRecord>;
   listCollections: Map<ContainerSummaryCollectionKey, string[]>;
+  listTopicSubscription: ContainerStatsCollectionSubscriptionEntry;
   listMetadataByCollection: Map<ContainerSummaryCollectionKey, Map<string, ContainerMetadataRecord>>;
   statsById: Map<string, ContainerStatsEntry>;
   subscriptionsById: Map<string, ContainerStatsSubscriptionEntry>;
@@ -55,6 +68,12 @@ const CONTAINER_STATS_CHANGE_HIGHLIGHT_MS = 800;
 const state = reactive<ContainerStatsManagerState>({
   detailMetadataById: new Map<string, ContainerDetailMetadataRecord>(),
   listCollections: new Map<ContainerSummaryCollectionKey, string[]>(),
+  listTopicSubscription: {
+    controller: null,
+    idleTimer: null,
+    refCount: 0,
+    state: 'idle',
+  },
   listMetadataByCollection: new Map<ContainerSummaryCollectionKey, Map<string, ContainerMetadataRecord>>(),
   statsById: new Map<string, ContainerStatsEntry>(),
   subscriptionsById: new Map<string, ContainerStatsSubscriptionEntry>(),
@@ -210,6 +229,13 @@ function closeSubscriptionEntry(entry: ContainerStatsSubscriptionEntry) {
   entry.state = 'idle';
 }
 
+function closeCollectionSubscriptionEntry(entry: ContainerStatsCollectionSubscriptionEntry) {
+  clearIdleTimer(entry);
+  entry.controller?.close();
+  entry.controller = null;
+  entry.state = 'idle';
+}
+
 function connectSubscription(containerId: string, entry: ContainerStatsSubscriptionEntry) {
   if (entry.controller) {
     return;
@@ -237,6 +263,29 @@ function connectSubscription(containerId: string, entry: ContainerStatsSubscript
         return;
       }
       applyContainerRealtimeStats(containerId, payload.resource);
+    },
+  });
+}
+
+function connectCollectionSubscription(entry: ContainerStatsCollectionSubscriptionEntry) {
+  if (entry.controller) {
+    return;
+  }
+
+  entry.state = 'connecting';
+  entry.controller = openRealtimeTopicSocket({
+    topic: buildContainerListStatsTopic(),
+    parseMessage: parseContainerListStatsPayload,
+    onStateChange: (nextState) => {
+      state.listTopicSubscription.state = nextState;
+      if (nextState === 'idle' && state.listTopicSubscription.refCount > 0 && !state.listTopicSubscription.controller) {
+        connectCollectionSubscription(state.listTopicSubscription);
+      }
+    },
+    onMessage: (payload) => {
+      payload.items.forEach((item) => {
+        applyContainerRealtimeStats(item.id, item.resource);
+      });
     },
   });
 }
@@ -273,6 +322,7 @@ function attachLatestResource<TMetadata extends ContainerMetadataRecord | Contai
 }
 
 export function resetContainerStatsManager() {
+  closeCollectionSubscriptionEntry(state.listTopicSubscription);
   state.subscriptionsById.forEach((entry) => {
     closeSubscriptionEntry(entry);
   });
@@ -281,6 +331,9 @@ export function resetContainerStatsManager() {
   state.detailMetadataById.clear();
   state.statsById.clear();
   state.subscriptionsById.clear();
+  state.listTopicSubscription.refCount = 0;
+  state.listTopicSubscription.idleTimer = null;
+  state.listTopicSubscription.state = 'idle';
 }
 
 export function seedContainerList(items: ContainerSummaryRecord[], collectionKey?: string) {
@@ -339,6 +392,15 @@ export function acquireContainerStatsSubscription(containerId: string) {
   }
 }
 
+export function acquireContainerSummaryCollectionSubscription() {
+  const entry = state.listTopicSubscription;
+  clearIdleTimer(entry);
+  entry.refCount += 1;
+  if (!entry.controller) {
+    connectCollectionSubscription(entry);
+  }
+}
+
 export function releaseContainerStatsSubscription(containerId: string) {
   const normalizedContainerId = containerId.trim();
   if (!normalizedContainerId) {
@@ -363,6 +425,17 @@ export function releaseContainerStatsSubscription(containerId: string) {
     }
     closeSubscriptionEntry(latestEntry);
   }, SUBSCRIPTION_IDLE_GRACE_MS);
+}
+
+export function releaseContainerSummaryCollectionSubscription() {
+  const entry = state.listTopicSubscription;
+  entry.refCount = Math.max(0, entry.refCount - 1);
+  if (entry.refCount > 0) {
+    return;
+  }
+
+  clearIdleTimer(entry);
+  closeCollectionSubscriptionEntry(entry);
 }
 
 export function selectContainerStatsRealtimeState(containerId: string): RealtimeSocketState {

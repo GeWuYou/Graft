@@ -658,6 +658,7 @@ describe('container list page', () => {
   });
 
   it('pauses and resumes the list realtime subscription across keep-alive activation', async () => {
+    vi.useFakeTimers();
     const pageKey = ref('list-page-a');
     const Host = defineComponent({
       setup() {
@@ -673,12 +674,32 @@ describe('container list page', () => {
 
     pageKey.value = 'list-page-b';
     await nextTick();
+    vi.runOnlyPendingTimers();
     expect(firstController.close).toHaveBeenCalledTimes(1);
 
     await flushPromises();
     expect(realtimeMocks.openRealtimeTopicSocket).toHaveBeenCalledTimes(2);
 
     wrapper.unmount();
+  });
+
+  it('renders realtime updates from manager-owned list authority', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    applyContainerRealtimeStats('container-1', {
+      available: true,
+      stats_available: true,
+      cpu_percent: 72.4,
+      memory_limit_bytes: 536870912,
+      memory_percent: 61.5,
+      memory_usage_bytes: 330175610,
+      collected_at: '2026-06-14T01:11:00Z',
+    });
+    await nextTick();
+
+    expect(wrapper.text()).toContain('72.40%');
+    expect(wrapper.text()).toContain('314.88 MiB');
   });
 
   it('keeps cpu text above 100 percent while clamping progress width', async () => {

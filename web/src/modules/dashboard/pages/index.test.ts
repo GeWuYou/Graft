@@ -28,9 +28,9 @@ const containerDashboardApiMocks = vi.hoisted(() => ({
 }));
 
 const containerDashboardFacadeState = vi.hoisted(() => ({
-  acquired: [] as string[],
+  acquiredCollections: 0,
   items: [] as Array<Record<string, unknown>>,
-  released: [] as string[],
+  releasedCollections: 0,
 }));
 
 const loggerMocks = vi.hoisted(() => ({
@@ -63,11 +63,11 @@ vi.mock('@/modules/container/contract/dashboard-stats', () => ({
     containerDashboardFacadeState.items = [];
   }),
   selectDashboardContainerStatsViews: vi.fn(() => containerDashboardFacadeState.items),
-  acquireDashboardContainerStats: vi.fn((containerId: string) => {
-    containerDashboardFacadeState.acquired.push(containerId);
+  acquireDashboardContainerStatsCollection: vi.fn(() => {
+    containerDashboardFacadeState.acquiredCollections += 1;
   }),
-  releaseDashboardContainerStats: vi.fn((containerId: string) => {
-    containerDashboardFacadeState.released.push(containerId);
+  releaseDashboardContainerStatsCollection: vi.fn(() => {
+    containerDashboardFacadeState.releasedCollections += 1;
   }),
 }));
 
@@ -598,8 +598,8 @@ describe('DashboardHomePage', () => {
     quickActionConfigApiMocks.getDashboardSystemConfigs.mockResolvedValue({ items: [] });
     containerDashboardApiMocks.getDashboardContainerStatsSeed.mockResolvedValue(containerSeedResponse());
     containerDashboardFacadeState.items = [];
-    containerDashboardFacadeState.acquired = [];
-    containerDashboardFacadeState.released = [];
+    containerDashboardFacadeState.acquiredCollections = 0;
+    containerDashboardFacadeState.releasedCollections = 0;
     usePermissionStore().routers = buildSidebarRoutes();
     usePermissionStore().setBootstrapSnapshot({
       permissions: ['ops.container.view'],
@@ -630,7 +630,20 @@ describe('DashboardHomePage', () => {
     expect(wrapper.text()).toContain('core.module-runtime-health');
     expect(wrapper.text()).toContain('monitor.system-health');
     expect(containerDashboardApiMocks.getDashboardContainerStatsSeed).toHaveBeenCalledTimes(1);
-    expect(containerDashboardFacadeState.acquired).toEqual(['container-1']);
+    expect(containerDashboardFacadeState.acquiredCollections).toBe(1);
+  });
+
+  it('does not acquire the dashboard collection subscription twice on repeated refresh', async () => {
+    dashboardApiMocks.getDashboardSummary.mockResolvedValue(summaryResponse());
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.find('button').trigger('click');
+    await flushPromises();
+
+    expect(containerDashboardApiMocks.getDashboardContainerStatsSeed).toHaveBeenCalledTimes(2);
+    expect(containerDashboardFacadeState.acquiredCollections).toBe(1);
   });
 
   it('skips container dashboard consumption when the permission is missing', async () => {

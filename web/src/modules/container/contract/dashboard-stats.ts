@@ -1,7 +1,7 @@
 import {
-  acquireContainerStatsSubscription,
+  acquireContainerSummaryCollectionSubscription,
   clearContainerSummaryCollection,
-  releaseContainerStatsSubscription,
+  releaseContainerSummaryCollectionSubscription,
   seedContainerList,
   selectContainerSummaryCollectionViews,
 } from '../shared/stats-manager';
@@ -21,10 +21,10 @@ export function selectDashboardContainerStatsViews() {
   return selectContainerSummaryCollectionViews(CONTAINER_DASHBOARD_COLLECTION_KEY);
 }
 
-export function acquireDashboardContainerStats(containerId: string) {
-  acquireContainerStatsSubscription(containerId);
+export function acquireDashboardContainerStatsCollection() {
+  acquireContainerSummaryCollectionSubscription();
 }
 
-export function releaseDashboardContainerStats(containerId: string) {
-  releaseContainerStatsSubscription(containerId);
+export function releaseDashboardContainerStatsCollection() {
+  releaseContainerSummaryCollectionSubscription();
 }
