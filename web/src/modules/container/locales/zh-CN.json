@@ -42,21 +42,9 @@
       "actionModeEnabled": "操作已启用",
       "tableSummary": "共 {count} 个容器",
       "tableHint": "数据来自当前配置的容器运行时。",
-      "realtime": {
-        "label": "资源实时订阅",
-        "live": "实时中",
-        "connecting": "连接中",
-        "degraded": "连接异常",
-        "idle": "待建立",
-        "paused": "已暂停",
-        "hint": "资源用量由统一 realtime topic 推送驱动，列表刷新仅更新结构数据。",
-        "pausedHint": "当前已暂停资源实时订阅，页面保留最后一次成功资源值。",
-        "pause": "暂停实时",
-        "resume": "恢复实时"
-      },
       "resourceUnavailable": "不可用",
       "stats": {
-        "notCollected": "未采集",
+        "unavailable": "N/A",
         "cpuTooltip": "CPU 使用率：{percent}",
         "memoryTooltip": "内存：{usage} / {limit}，{percent}"
       },

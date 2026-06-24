@@ -33,23 +33,6 @@ const notifyMocks = vi.hoisted(() => ({
   warning: vi.fn(),
 }));
 
-const realtimeMocks = vi.hoisted(() => ({
-  controllers: [] as Array<{ close: ReturnType<typeof vi.fn>; reconnect: ReturnType<typeof vi.fn> }>,
-  openRealtimeTopicSocket: vi.fn(
-    (options?: { onStateChange?: (state: 'idle' | 'connecting' | 'open' | 'closed' | 'error') => void }) => {
-      options?.onStateChange?.('open');
-      const controller = {
-        close: vi.fn(() => {
-          options?.onStateChange?.('idle');
-        }),
-        reconnect: vi.fn(),
-      };
-      realtimeMocks.controllers.push(controller);
-      return controller;
-    },
-  ),
-}));
-
 const routerMocks = vi.hoisted(() => ({
   push: vi.fn(),
   resolve: vi.fn((target: { name?: string; params?: { id?: string }; query?: { tab?: string } }) => {
@@ -252,7 +235,7 @@ const translations = vi.hoisted(
     'container.list.runtimeLabel': '运行时',
     'container.list.runtimeUnavailable': '运行时不可用',
     'container.list.runningCount': '运行中 {count}',
-    'container.list.stats.notCollected': '未采集',
+    'container.list.stats.unavailable': 'N/A',
     'container.list.stats.cpuTooltip': 'CPU 使用率：{percent}',
     'container.list.stats.memoryTooltip': '内存：{usage} / {limit}，{percent}',
     'container.list.states.created': '已创建',
@@ -286,16 +269,6 @@ const translations = vi.hoisted(
     'container.list.tableSummary': '共 {count} 个容器',
     'container.list.title': '容器管理',
     'container.list.totalCount': '总数 {count}',
-    'container.list.realtime.label': '资源实时订阅',
-    'container.list.realtime.live': '实时中',
-    'container.list.realtime.connecting': '连接中',
-    'container.list.realtime.degraded': '连接异常',
-    'container.list.realtime.idle': '待建立',
-    'container.list.realtime.paused': '已暂停',
-    'container.list.realtime.hint': '资源用量由统一 realtime topic 推送驱动，列表刷新仅更新结构数据。',
-    'container.list.realtime.pausedHint': '当前已暂停资源实时订阅，页面保留最后一次成功资源值。',
-    'container.list.realtime.pause': '暂停实时',
-    'container.list.realtime.resume': '恢复实时',
     'ops.container.error.runtimeDisabled': '容器运行时访问未启用',
     'ops.container.error.runtimeUnavailable': '容器运行时连接不可用',
     'ops.container.action.start.completed': '容器启动操作已完成',
@@ -378,10 +351,6 @@ vi.mock('@/shared/observability', async () => {
   };
 });
 
-vi.mock('@/shared/realtime', () => ({
-  openRealtimeTopicSocket: realtimeMocks.openRealtimeTopicSocket,
-}));
-
 vi.mock('@/utils/route/title', () => ({
   localizeRouteTitleKey: (titleKey: string) => ({
     [LOCALE.ZH_CN]: translations[titleKey] ?? titleKey,
@@ -392,7 +361,6 @@ vi.mock('@/utils/route/title', () => ({
 describe('container list page', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    realtimeMocks.controllers = [];
     tabsRouterStoreMock.activeTabKey = '/ops/containers';
     tabsRouterStoreMock.tabRouters = [
       {
@@ -587,7 +555,7 @@ describe('container list page', () => {
     expect(wrapper.text()).toContain('web');
     expect(wrapper.text()).toContain('21.8%');
     expect(wrapper.text()).toContain('256.0 MiB');
-    expect(wrapper.text()).toContain('未采集');
+    expect(wrapper.text()).toContain('N/A');
     expect(wrapper.text()).not.toContain('stats_not_collected');
     expect(wrapper.text()).toContain('8080->80/tcp');
     expect(wrapper.text()).toContain('+1');
@@ -605,7 +573,6 @@ describe('container list page', () => {
     expect(wrapper.find('[data-testid="container-action-remove"]').exists()).toBe(true);
     expect(wrapper.text()).toContain('第 1-20 条 / 共 25 条');
     expect(wrapper.text()).not.toContain('graft-extra-21');
-    expect(wrapper.get('[data-testid="container-list-realtime-status"]').text()).toBe('实时中');
     wrapper.unmount();
   });
 
@@ -656,32 +623,157 @@ describe('container list page', () => {
     expect(wrapper.findAll('[data-testid="resource-progress"]').some((node) => node.text() === '100')).toBe(true);
   });
 
-  it('opens realtime subscriptions for visible rows by default', async () => {
+  it('renders per-metric availability independently with N/A fallback', async () => {
+    apiMocks.getContainers.mockResolvedValueOnce({
+      items: [
+        {
+          ...createContainerRows(1)[0],
+          resource: {
+            available: true,
+            stats_available: true,
+            cpu_percent: undefined,
+            memory_limit_bytes: 536870912,
+            memory_percent: 25,
+            memory_usage_bytes: 134217728,
+          },
+        },
+      ],
+      limit: 20,
+      offset: 0,
+      runtime: {
+        api_version: '1.51',
+        architecture: 'x86_64',
+        containers_running: 1,
+        containers_total: 1,
+        endpoint: 'unix:///var/run/docker.sock',
+        operating_system: 'Ubuntu 24.04.3 LTS',
+        runtime: 'docker',
+        server_version: '29.4.1',
+        status: 'enabled',
+      },
+      summary: {
+        error: 0,
+        health_unavailable: 0,
+        healthy: 1,
+        running: 1,
+        stopped: 0,
+        total: 1,
+        unhealthy: 0,
+      },
+      total: 1,
+    });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('N/A');
+    expect(wrapper.text()).toContain('128.0 MiB');
+    expect(wrapper.text()).toContain('N/A / 25.0%');
+  });
+
+  it('replaces resource metrics with the latest list payload on refresh', async () => {
+    apiMocks.getContainers
+      .mockResolvedValueOnce({
+        items: [
+          {
+            ...createContainerRows(1)[0],
+            resource: {
+              available: true,
+              stats_available: true,
+              cpu_percent: 21.8,
+              memory_limit_bytes: 536870912,
+              memory_percent: 50,
+              memory_usage_bytes: 268435456,
+            },
+          },
+        ],
+        limit: 20,
+        offset: 0,
+        runtime: {
+          api_version: '1.51',
+          architecture: 'x86_64',
+          containers_running: 1,
+          containers_total: 1,
+          endpoint: 'unix:///var/run/docker.sock',
+          operating_system: 'Ubuntu 24.04.3 LTS',
+          runtime: 'docker',
+          server_version: '29.4.1',
+          status: 'enabled',
+        },
+        summary: {
+          error: 0,
+          health_unavailable: 0,
+          healthy: 1,
+          running: 1,
+          stopped: 0,
+          total: 1,
+          unhealthy: 0,
+        },
+        total: 1,
+      })
+      .mockResolvedValueOnce({
+        items: [
+          {
+            ...createContainerRows(1)[0],
+            resource: {
+              available: true,
+              stats_available: true,
+              cpu_percent: undefined,
+              memory_limit_bytes: 536870912,
+              memory_percent: 25,
+              memory_usage_bytes: 134217728,
+            },
+          },
+        ],
+        limit: 20,
+        offset: 0,
+        runtime: {
+          api_version: '1.51',
+          architecture: 'x86_64',
+          containers_running: 1,
+          containers_total: 1,
+          endpoint: 'unix:///var/run/docker.sock',
+          operating_system: 'Ubuntu 24.04.3 LTS',
+          runtime: 'docker',
+          server_version: '29.4.1',
+          status: 'enabled',
+        },
+        summary: {
+          error: 0,
+          health_unavailable: 0,
+          healthy: 1,
+          running: 1,
+          stopped: 0,
+          total: 1,
+          unhealthy: 0,
+        },
+        total: 1,
+      });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('21.8%');
+    expect(wrapper.text()).toContain('256.0 MiB');
+    expect(wrapper.text()).toContain('21.8% / 50.0%');
+
+    await wrapper.get('[data-testid="table-refresh"]').trigger('click');
+    await flushPromises();
+
+    expect(apiMocks.getContainers).toHaveBeenCalledTimes(2);
+    expect(wrapper.text()).not.toContain('21.8%');
+    expect(wrapper.text()).not.toContain('21.8% / 50.0%');
+    expect(wrapper.text()).toContain('N/A');
+    expect(wrapper.text()).toContain('128.0 MiB');
+    expect(wrapper.text()).toContain('N/A / 25.0%');
+  });
+
+  it('does not render a list-page realtime toolbar', async () => {
     const wrapper = mountPage();
     await flushPromises();
 
     expect(apiMocks.getContainers).toHaveBeenCalledTimes(1);
-    expect(realtimeMocks.openRealtimeTopicSocket).toHaveBeenCalled();
-    expect(wrapper.get('[data-testid="container-list-realtime-status"]').text()).toBe('实时中');
-    wrapper.unmount();
-  });
-
-  it('pauses and resumes realtime subscriptions from the toolbar toggle', async () => {
-    const wrapper = mountPage();
-    await flushPromises();
-
-    await wrapper.get('[data-testid="container-list-realtime-toggle"]').trigger('click');
-    await flushPromises();
-
-    expect(wrapper.get('[data-testid="container-list-realtime-status"]').text()).toBe('已暂停');
-    expect(realtimeMocks.controllers.every((controller) => controller.close.mock.calls.length > 0)).toBe(true);
-
-    realtimeMocks.openRealtimeTopicSocket.mockClear();
-    await wrapper.get('[data-testid="container-list-realtime-toggle"]').trigger('click');
-    await flushPromises();
-
-    expect(realtimeMocks.openRealtimeTopicSocket).toHaveBeenCalled();
-    expect(wrapper.get('[data-testid="container-list-realtime-status"]').text()).toBe('实时中');
+    expect(wrapper.find('[data-testid="container-list-realtime-bar"]').exists()).toBe(false);
     wrapper.unmount();
   });
 
@@ -1396,11 +1488,12 @@ function createContainerRows(count: number, startOrdinal = 1) {
               memory_usage_bytes: 268435456,
             }
           : {
-              available: false,
-              stats_available: false,
-              stats_error_key: 'stats_not_collected',
-              stats_error_message: '未采集',
-              unavailable_reason: '未采集',
+              available: true,
+              stats_available: true,
+              cpu_percent: undefined,
+              memory_limit_bytes: 536870912,
+              memory_percent: 50,
+              memory_usage_bytes: 134217728,
             },
       compose_project: ordinal === 1 ? 'graft' : undefined,
       compose_service: ordinal === 1 ? 'web' : undefined,

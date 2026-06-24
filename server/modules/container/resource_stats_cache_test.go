@@ -83,7 +83,7 @@ func TestResourceStatsCacheRefreshFailurePreservesLastSuccessWithinStaleWindow(t
 }
 
 //nolint:unused // The tested stale-refresh path is intentionally kept for cache-governance coverage.
-func TestResourceStatsCachePartialRefreshPreservesLastFullSnapshot(t *testing.T) {
+func TestResourceStatsCachePartialRefreshPromotesUsablePartialSnapshot(t *testing.T) {
 	t.Parallel()
 
 	start := time.Unix(1_700_000_000, 0)
@@ -113,12 +113,14 @@ func TestResourceStatsCachePartialRefreshPreservesLastFullSnapshot(t *testing.T)
 	waitForCalls(t, &calls, 2)
 
 	afterPartial := cache.get(context.Background(), "container-1", loader)
-	assertFloatPtr(t, afterPartial.CPUPercent, 0.6, "preserved cpu percent")
-	assertFloatPtr(t, afterPartial.MemoryPercent, 12, "preserved memory percent")
+	assertFloatPtr(t, afterPartial.CPUPercent, 0.8, "refreshed cpu percent")
+	if afterPartial.MemoryPercent != nil {
+		t.Fatalf("expected refreshed partial snapshot to omit memory percent, got %#v", afterPartial.MemoryPercent)
+	}
 }
 
 //nolint:unused // The tested stale-refresh path is intentionally kept for cache-governance coverage.
-func TestResourceStatsCacheWithoutPriorSnapshotReturnsUnavailableForPartialResult(t *testing.T) {
+func TestResourceStatsCacheWithoutPriorSnapshotCachesUsablePartialResult(t *testing.T) {
 	t.Parallel()
 
 	cache := newResourceStatsCache(2*time.Second, 5*time.Second)
@@ -126,17 +128,18 @@ func TestResourceStatsCacheWithoutPriorSnapshotReturnsUnavailableForPartialResul
 		return partialResourceSummary(memoryOnlySummary(12))
 	})
 
-	if summary.Available || summary.StatsAvailable {
-		t.Fatalf("expected partial result without prior snapshot to be unavailable, got %#v", summary)
+	if !summary.Available || !summary.StatsAvailable {
+		t.Fatalf("expected partial result without prior snapshot to stay available, got %#v", summary)
 	}
-	if summary.CPUPercent != nil || summary.MemoryPercent != nil {
-		t.Fatalf("expected unavailable result to avoid half snapshot, got %#v", summary)
+	if summary.CPUPercent != nil {
+		t.Fatalf("expected memory-only summary to omit cpu percent, got %#v", summary.CPUPercent)
 	}
-	if summary.UnavailableReason != containerStatsIncompleteReason {
-		t.Fatalf("expected incomplete reason, got %q", summary.UnavailableReason)
+	assertFloatPtr(t, summary.MemoryPercent, 12, "cached memory-only percent")
+	if summary.UnavailableReason != "" || summary.StatsErrorKey != "" || summary.StatsErrorMessage != "" {
+		t.Fatalf("expected usable partial result to clear unavailable metadata, got %#v", summary)
 	}
-	if _, ok := cache.items["container-1"]; ok {
-		t.Fatalf("expected partial result without prior snapshot to avoid caching")
+	if _, ok := cache.items["container-1"]; !ok {
+		t.Fatalf("expected usable partial result to be cached")
 	}
 }
 

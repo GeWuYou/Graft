@@ -131,22 +131,6 @@
             @density="toggleTableDensity"
             @refresh="handleManualRefresh"
           />
-          <div class="container-realtime-bar" data-testid="container-list-realtime-bar">
-            <span class="container-realtime-bar__label">{{ t('container.list.realtime.label') }}</span>
-            <t-tag :theme="realtimeStatusTheme" variant="light-outline" data-testid="container-list-realtime-status">
-              {{ realtimeStatusLabel }}
-            </t-tag>
-            <span class="container-realtime-bar__hint">{{ realtimeStatusHint }}</span>
-            <t-button
-              size="small"
-              theme="default"
-              variant="outline"
-              data-testid="container-list-realtime-toggle"
-              @click="toggleRealtimeSubscription"
-            >
-              {{ realtimeToggleLabel }}
-            </t-button>
-          </div>
         </div>
       </template>
       <template #batch>
@@ -489,7 +473,7 @@ import type { DialogInstance, DropdownOption, TdBaseTableProps } from 'tdesign-v
 import { DialogPlugin } from 'tdesign-vue-next/es/dialog';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { NotifyPlugin } from 'tdesign-vue-next/es/notification';
-import { computed, h, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
+import { computed, h, onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
@@ -508,7 +492,6 @@ import { AdvancedQueryColumnDrawer } from '@/shared/components/query-list';
 import { useCurrentTabRefresh } from '@/shared/composables/useTabRefresh';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { formatLocaleDateTime } from '@/shared/observability';
-import { openRealtimeTopicSocket, type RealtimeTopicSocketController } from '@/shared/realtime';
 import { useTabsRouterStore } from '@/store';
 import { createLogger } from '@/utils/logger';
 import { localizeRouteTitleKey } from '@/utils/route/title';
@@ -524,12 +507,6 @@ import {
 } from '../../api/container';
 import { CONTAINER_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import { CONTAINER_PERMISSION_CODE } from '../../contract/permissions';
-import {
-  applyRealtimeResourceToSummary,
-  buildContainerStatsTopic,
-  mergeSummaryStructurePreservingRealtimeResource,
-  parseContainerStatsPayload,
-} from '../../shared/realtime-stats';
 import type {
   ContainerAction,
   ContainerActionLevel,
@@ -831,47 +808,6 @@ const selectedRows = computed(() => {
   return rows.value.filter((row) => selectedKeySet.has(row.id));
 });
 let refreshRequestSeq = 0;
-const statsSockets = new Map<string, RealtimeTopicSocketController>();
-const realtimeEnabled = ref(true);
-const realtimeSocketStates = reactive<Record<string, 'idle' | 'connecting' | 'open' | 'closed' | 'error'>>({});
-const realtimeStatusTheme = computed(() => {
-  if (!realtimeEnabled.value) {
-    return 'default';
-  }
-  const states = Object.values(realtimeSocketStates);
-  if (states.some((state) => state === 'error')) {
-    return 'danger';
-  }
-  if (states.some((state) => state === 'connecting' || state === 'closed')) {
-    return 'warning';
-  }
-  if (states.some((state) => state === 'open')) {
-    return 'success';
-  }
-  return 'default';
-});
-const realtimeStatusLabel = computed(() => {
-  if (!realtimeEnabled.value) {
-    return t('container.list.realtime.paused');
-  }
-  const states = Object.values(realtimeSocketStates);
-  if (states.some((state) => state === 'error')) {
-    return t('container.list.realtime.degraded');
-  }
-  if (states.some((state) => state === 'connecting' || state === 'closed')) {
-    return t('container.list.realtime.connecting');
-  }
-  if (states.some((state) => state === 'open')) {
-    return t('container.list.realtime.live');
-  }
-  return t('container.list.realtime.idle');
-});
-const realtimeStatusHint = computed(() =>
-  realtimeEnabled.value ? t('container.list.realtime.hint') : t('container.list.realtime.pausedHint'),
-);
-const realtimeToggleLabel = computed(() =>
-  realtimeEnabled.value ? t('container.list.realtime.pause') : t('container.list.realtime.resume'),
-);
 
 onMounted(() => {
   void refreshContainers();
@@ -879,10 +815,6 @@ onMounted(() => {
 
 useCurrentTabRefresh(async () => {
   await refreshContainers();
-});
-
-onUnmounted(() => {
-  stopStatsSockets();
 });
 
 watch(
@@ -943,11 +875,7 @@ async function refreshContainers() {
     if (requestSeq !== refreshRequestSeq) {
       return;
     }
-    const currentRowsById = new Map(rows.value.map((row) => [row.id, row] as const));
-    rows.value = payload.items.map((item) =>
-      mergeSummaryStructurePreservingRealtimeResource(currentRowsById.get(item.id), item),
-    );
-    syncStatsSockets(payload.items);
+    rows.value = payload.items;
     runtime.value = payload.runtime;
     listSummary.value = payload.summary;
     listTotal.value = payload.total;
@@ -957,7 +885,6 @@ async function refreshContainers() {
       return;
     }
     rows.value = [];
-    stopStatsSockets();
     runtime.value = null;
     listSummary.value = null;
     listTotal.value = 0;
@@ -976,70 +903,6 @@ async function handleManualRefresh() {
     return;
   }
   await refreshContainers();
-}
-
-function toggleRealtimeSubscription() {
-  realtimeEnabled.value = !realtimeEnabled.value;
-  if (!realtimeEnabled.value) {
-    stopStatsSockets();
-    return;
-  }
-  syncStatsSockets(rows.value);
-}
-
-function syncStatsSockets(nextRows: ContainerSummaryRecord[]) {
-  if (!realtimeEnabled.value) {
-    stopStatsSockets();
-    return;
-  }
-  const nextIds = new Set(nextRows.map((row) => row.id));
-
-  for (const [containerId, controller] of statsSockets.entries()) {
-    if (nextIds.has(containerId)) {
-      continue;
-    }
-    controller.close();
-    statsSockets.delete(containerId);
-    delete realtimeSocketStates[containerId];
-  }
-
-  for (const row of nextRows) {
-    if (statsSockets.has(row.id)) {
-      continue;
-    }
-    const containerId = row.id;
-    statsSockets.set(
-      containerId,
-      openRealtimeTopicSocket({
-        topic: buildContainerStatsTopic(containerId),
-        parseMessage: parseContainerStatsPayload,
-        onStateChange: (state) => {
-          realtimeSocketStates[containerId] = state;
-        },
-        onMessage: (payload) => {
-          if (payload.id && payload.id !== containerId) {
-            return;
-          }
-          if (!payload.resource) {
-            return;
-          }
-          rows.value = rows.value.map((item) =>
-            item.id === containerId ? applyRealtimeResourceToSummary(item, payload.resource!) : item,
-          );
-        },
-      }),
-    );
-  }
-}
-
-function stopStatsSockets() {
-  for (const controller of statsSockets.values()) {
-    controller.close();
-  }
-  statsSockets.clear();
-  for (const key of Object.keys(realtimeSocketStates)) {
-    delete realtimeSocketStates[key];
-  }
 }
 
 function pruneSelectedRows() {
@@ -1735,23 +1598,19 @@ function labelSummary(row: ContainerSummaryRecord) {
 }
 
 function resourceSummary(row: ContainerSummaryRecord) {
-  if (!isResourceStatsAvailable(row)) {
-    return resourceUnavailableSummary(row);
-  }
-
-  const resource = row.resource;
-  const cpu = resource?.cpu_percent === undefined ? '-' : `${resource.cpu_percent.toFixed(1)}%`;
-  const memory = resource?.memory_percent === undefined ? '-' : `${resource.memory_percent.toFixed(1)}%`;
+  const cpu = cpuMetric(row).value;
+  const memory = memoryMetric(row).summaryValue;
   return `${cpu} / ${memory}`;
 }
 
-function cpuMetric(row: ContainerSummaryRecord): ResourceMetric {
-  if (!isResourceStatsAvailable(row) || row.resource?.cpu_percent === undefined) {
+function cpuMetric(row: ContainerSummaryRecord): ResourceMetric & { summaryValue: string } {
+  if (row.resource?.cpu_percent === undefined) {
     return {
       available: false,
       percentage: 0,
-      tooltip: resourceUnavailableSummary(row),
-      value: t('container.list.stats.notCollected'),
+      summaryValue: t('container.list.stats.unavailable'),
+      tooltip: resourceUnavailableSummary(row, 'cpu'),
+      value: t('container.list.stats.unavailable'),
     };
   }
 
@@ -1759,34 +1618,38 @@ function cpuMetric(row: ContainerSummaryRecord): ResourceMetric {
   return {
     available: true,
     percentage: clampPercentage(row.resource.cpu_percent),
+    summaryValue: value,
     tooltip: t('container.list.stats.cpuTooltip', { percent: value }),
     value,
   };
 }
 
-function memoryMetric(row: ContainerSummaryRecord): ResourceMetric {
-  if (!isResourceStatsAvailable(row) || row.resource?.memory_percent === undefined) {
+function memoryMetric(row: ContainerSummaryRecord): ResourceMetric & { summaryValue: string } {
+  if (row.resource?.memory_usage_bytes === undefined || row.resource?.memory_percent === undefined) {
     return {
       available: false,
       percentage: 0,
-      tooltip: resourceUnavailableSummary(row),
-      value: t('container.list.stats.notCollected'),
+      summaryValue: t('container.list.stats.unavailable'),
+      tooltip: resourceUnavailableSummary(row, 'memory'),
+      value: t('container.list.stats.unavailable'),
     };
   }
 
   const usage = formatBytes(row.resource.memory_usage_bytes);
   const limit = formatBytes(row.resource.memory_limit_bytes);
   const percent = `${row.resource.memory_percent.toFixed(1)}%`;
+  const value = usage || t('container.list.stats.unavailable');
 
   return {
     available: true,
     percentage: clampPercentage(row.resource.memory_percent),
+    summaryValue: percent,
     tooltip: t('container.list.stats.memoryTooltip', {
-      limit: limit || '-',
+      limit: limit || t('container.list.stats.unavailable'),
       percent,
-      usage: usage || '-',
+      usage: value,
     }),
-    value: usage || '-',
+    value,
   };
 }
 
@@ -1794,17 +1657,13 @@ function clampPercentage(value: number) {
   return Math.min(100, Math.max(0, Number.isFinite(value) ? value : 0));
 }
 
-function isResourceStatsAvailable(row: ContainerSummaryRecord) {
-  if (row.resource?.stats_available !== undefined) {
-    return row.resource.stats_available;
-  }
-
-  return Boolean(row.resource?.available);
-}
-
-function resourceUnavailableSummary(row: ContainerSummaryRecord) {
-  const reason = row.resource?.stats_error_message || row.resource?.stats_error_key || row.resource?.unavailable_reason;
-  return reason?.trim() || t('container.list.resourceUnavailable');
+function resourceUnavailableSummary(row: ContainerSummaryRecord, metric: 'cpu' | 'memory') {
+  const reason =
+    (metric === 'memory' && row.resource?.memory_usage_bytes === undefined && row.resource?.stats_error_message) ||
+    row.resource?.stats_error_message ||
+    row.resource?.stats_error_key ||
+    row.resource?.unavailable_reason;
+  return reason?.trim() || t('container.list.stats.unavailable');
 }
 
 function formatBytes(value?: number) {

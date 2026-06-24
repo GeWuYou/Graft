@@ -42,21 +42,9 @@
       "actionModeEnabled": "Actions Enabled",
       "tableSummary": "{count} Containers",
       "tableHint": "Data Comes from the Configured Container Runtime.",
-      "realtime": {
-        "label": "Resource Realtime",
-        "live": "Live",
-        "connecting": "Connecting",
-        "degraded": "Connection Degraded",
-        "idle": "Idle",
-        "paused": "Paused",
-        "hint": "Resource usage is driven by the unified realtime topic. List refresh only updates structural data.",
-        "pausedHint": "Realtime resource subscription is paused. The page keeps the last successful resource value.",
-        "pause": "Pause Realtime",
-        "resume": "Resume Realtime"
-      },
       "resourceUnavailable": "Unavailable",
       "stats": {
-        "notCollected": "Not Collected",
+        "unavailable": "N/A",
         "cpuTooltip": "CPU Usage: {percent}",
         "memoryTooltip": "Memory: {usage} / {limit}, {percent}"
       },

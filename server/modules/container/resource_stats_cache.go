@@ -212,17 +212,23 @@ func (c *resourceStatsCache) completeLoad(ctx context.Context, key string, load 
 }
 
 func normalizeResourceStatsSummary(summary ResourceSummary) (ResourceSummary, bool) {
-	if isCompleteResourceStatsSnapshot(summary) {
+	if isUsableResourceStatsSnapshot(summary) {
+		summary.UnavailableReason = ""
+		summary.StatsErrorKey = ""
+		summary.StatsErrorMessage = ""
 		return summary, true
 	}
 	return unavailableResourceSummary(resourceStatsUnavailableReason(summary)), false
 }
 
-func isCompleteResourceStatsSnapshot(summary ResourceSummary) bool {
-	return summary.Available &&
-		summary.StatsAvailable &&
-		summary.CPUPercent != nil &&
-		summary.MemoryPercent != nil
+func isUsableResourceStatsSnapshot(summary ResourceSummary) bool {
+	if !summary.Available || !summary.StatsAvailable {
+		return false
+	}
+	return summary.CPUPercent != nil ||
+		summary.MemoryPercent != nil ||
+		summary.MemoryUsageBytes != nil ||
+		summary.MemoryLimitBytes != nil
 }
 
 func resourceStatsUnavailableReason(summary ResourceSummary) string {

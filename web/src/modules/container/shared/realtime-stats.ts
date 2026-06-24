@@ -42,18 +42,6 @@ export function parseContainerStatsPayload(raw: unknown) {
   }
 }
 
-export function applyRealtimeResourceToSummary(
-  row: ContainerSummaryRecord,
-  resource: ContainerResourceSummary,
-): ContainerSummaryRecord {
-  return {
-    ...row,
-    resource: {
-      ...resource,
-    },
-  };
-}
-
 export function applyRealtimeResourceToDetail(
   detail: ContainerDetailRecord,
   resource: ContainerResourceSummary,
@@ -62,22 +50,6 @@ export function applyRealtimeResourceToDetail(
     ...detail,
     resource: {
       ...resource,
-    },
-  };
-}
-
-export function mergeSummaryStructurePreservingRealtimeResource(
-  current: ContainerSummaryRecord | null | undefined,
-  next: ContainerSummaryRecord,
-): ContainerSummaryRecord {
-  if (!current?.resource) {
-    return next;
-  }
-
-  return {
-    ...next,
-    resource: {
-      ...current.resource,
     },
   };
 }

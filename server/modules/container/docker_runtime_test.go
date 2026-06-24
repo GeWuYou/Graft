@@ -325,11 +325,14 @@ func TestDockerRuntimeCollectStatsSnapshotsCollectsStatsWithBoundedConcurrency(t
 		if item.ContainerID != client.list[index].ID {
 			t.Fatalf("expected stable list order, got item %d as %#v", index, item)
 		}
-		if item.Resource.Available || item.Resource.StatsAvailable {
-			t.Fatalf("expected cold-start collector stats to degrade as unavailable, got %#v", item.Resource)
+		if !item.Resource.Available || !item.Resource.StatsAvailable {
+			t.Fatalf("expected usable memory-only collector stats to stay available, got %#v", item.Resource)
 		}
-		if item.Resource.CPUPercent != nil || item.Resource.MemoryUsageBytes != nil || item.Resource.MemoryLimitBytes != nil || item.Resource.MemoryPercent != nil {
-			t.Fatalf("expected cold-start collector miss to avoid field-level partial stats, got %#v", item.Resource)
+		assertInt64Ptr(t, item.Resource.MemoryUsageBytes, 64, "collected memory usage bytes")
+		assertInt64Ptr(t, item.Resource.MemoryLimitBytes, 128, "collected memory limit bytes")
+		assertFloatPtr(t, item.Resource.MemoryPercent, 50, "collected memory percent")
+		if item.Resource.CPUPercent != nil {
+			t.Fatalf("expected collector fixture without cpu delta to omit cpu percent, got %#v", item.Resource.CPUPercent)
 		}
 	}
 }
