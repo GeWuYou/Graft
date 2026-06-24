@@ -1194,7 +1194,7 @@
 <script setup lang="ts">
 import type { TableProps } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, onActivated, onDeactivated, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
@@ -2037,6 +2037,16 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  releaseCurrentRealtimeSubscription();
+});
+
+onActivated(() => {
+  if (safeDetail.value?.id) {
+    syncRealtimeSubscription(safeDetail.value.id);
+  }
+});
+
+onDeactivated(() => {
   releaseCurrentRealtimeSubscription();
 });
 

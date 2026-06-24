@@ -1,6 +1,6 @@
 import { flushPromises, mount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { defineComponent, h, ref } from 'vue';
+import { defineComponent, h, KeepAlive, nextTick, ref } from 'vue';
 
 import { LOCALE } from '@/contracts/i18n/locales';
 
@@ -33,16 +33,25 @@ const messageMocks = vi.hoisted(() => ({
 const realtimeMocks = vi.hoisted(() => ({
   controllers: [] as Array<{
     close: ReturnType<typeof vi.fn>;
+    emitMessage: (payload: unknown) => void;
     reconnect: ReturnType<typeof vi.fn>;
   }>,
-  openRealtimeTopicSocket: vi.fn(() => {
-    const controller = {
-      close: vi.fn(),
-      reconnect: vi.fn(),
-    };
-    realtimeMocks.controllers.push(controller);
-    return controller;
-  }),
+  openRealtimeTopicSocket: vi.fn(
+    (options?: { onMessage?: (payload: unknown) => void; parseMessage?: (payload: unknown) => unknown }) => {
+      const controller = {
+        close: vi.fn(),
+        emitMessage: (payload: unknown) => {
+          const parsed = options?.parseMessage ? options.parseMessage(payload) : payload;
+          if (parsed) {
+            options?.onMessage?.(parsed);
+          }
+        },
+        reconnect: vi.fn(),
+      };
+      realtimeMocks.controllers.push(controller);
+      return controller;
+    },
+  ),
 }));
 
 const notifyMocks = vi.hoisted(() => ({
@@ -560,7 +569,7 @@ describe('container list page', () => {
     await flushPromises();
 
     expect(apiMocks.getContainers).toHaveBeenCalledTimes(1);
-    expect(realtimeMocks.openRealtimeTopicSocket).toHaveBeenCalledTimes(20);
+    expect(realtimeMocks.openRealtimeTopicSocket).toHaveBeenCalledTimes(1);
     expect(apiMocks.getContainers).toHaveBeenCalledWith({
       health: undefined,
       keyword: undefined,
@@ -612,6 +621,64 @@ describe('container list page', () => {
     expect(controllers.length).toBeGreaterThan(0);
     vi.runOnlyPendingTimers();
     expect(controllers.every((controller) => controller.close.mock.calls.length > 0)).toBe(true);
+  });
+
+  it('applies list realtime updates through a single list subscription', async () => {
+    vi.useFakeTimers();
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const controller = realtimeMocks.controllers[0]!;
+    controller.emitMessage(
+      JSON.stringify({
+        data: {
+          items: [
+            {
+              id: 'container-1',
+              resource: {
+                available: true,
+                stats_available: true,
+                cpu_percent: 88.4,
+                memory_limit_bytes: 536870912,
+                memory_percent: 62,
+                memory_usage_bytes: 332859965,
+                collected_at: '2026-06-14T01:10:00Z',
+              },
+            },
+          ],
+        },
+      }),
+    );
+    vi.advanceTimersByTime(20);
+    await nextTick();
+    await nextTick();
+
+    expect(wrapper.text()).toContain('88.40%');
+    expect(wrapper.text()).toContain('317.44 MiB');
+  });
+
+  it('pauses and resumes the list realtime subscription across keep-alive activation', async () => {
+    const pageKey = ref('list-page-a');
+    const Host = defineComponent({
+      setup() {
+        return () => h(KeepAlive, () => h(ContainerListPage, { key: pageKey.value }));
+      },
+    });
+
+    const wrapper = mountPage(Host);
+    await flushPromises();
+
+    expect(realtimeMocks.openRealtimeTopicSocket).toHaveBeenCalledTimes(1);
+    const firstController = realtimeMocks.controllers[0]!;
+
+    pageKey.value = 'list-page-b';
+    await nextTick();
+    expect(firstController.close).toHaveBeenCalledTimes(1);
+
+    await flushPromises();
+    expect(realtimeMocks.openRealtimeTopicSocket).toHaveBeenCalledTimes(2);
+
+    wrapper.unmount();
   });
 
   it('keeps cpu text above 100 percent while clamping progress width', async () => {
@@ -1631,8 +1698,8 @@ function createContainerRows(count: number, startOrdinal = 1) {
   });
 }
 
-function mountPage() {
-  return mount(ContainerListPage, {
+function mountPage(component: object = ContainerListPage) {
+  return mount(component, {
     global: {
       directives: {
         permission: () => undefined,

@@ -2654,8 +2654,8 @@ function createContainerDetail() {
   };
 }
 
-function mountPage() {
-  const wrapper = mount(ContainerDetailPage, {
+function mountPage(component: object = ContainerDetailPage) {
+  const wrapper = mount(component, {
     global: {
       stubs: {
         'management-page-header': defineComponent({

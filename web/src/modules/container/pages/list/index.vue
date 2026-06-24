@@ -485,7 +485,7 @@ import type { DialogInstance, DropdownOption, TdBaseTableProps } from 'tdesign-v
 import { DialogPlugin } from 'tdesign-vue-next/es/dialog';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { NotifyPlugin } from 'tdesign-vue-next/es/notification';
-import { computed, h, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
+import { computed, h, onActivated, onDeactivated, onMounted, onUnmounted, reactive, ref, shallowRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
@@ -504,6 +504,7 @@ import { AdvancedQueryColumnDrawer } from '@/shared/components/query-list';
 import { useCurrentTabRefresh } from '@/shared/composables/useTabRefresh';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { formatLocaleDateTime } from '@/shared/observability';
+import { openRealtimeTopicSocket } from '@/shared/realtime';
 import { useTabsRouterStore } from '@/store';
 import { createLogger } from '@/utils/logger';
 import { localizeRouteTitleKey } from '@/utils/route/title';
@@ -519,13 +520,11 @@ import {
 } from '../../api/container';
 import { CONTAINER_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import { CONTAINER_PERMISSION_CODE } from '../../contract/permissions';
-import { CONTAINER_REALTIME_TOPIC } from '../../contract/realtime';
+import { buildContainerListStatsTopic, parseContainerListStatsPayload } from '../../shared/realtime-stats';
 import {
-  acquireContainerStatsSubscription,
+  applyContainerRealtimeStats,
   clearContainerListMetadata,
-  releaseContainerStatsSubscription,
   seedContainerList,
-  selectContainerListViews,
   selectContainerStatsChangeState,
 } from '../../shared/stats-manager';
 import { metricChangedClass, metricProgressStatus } from '../../shared/stats-visual-state';
@@ -655,6 +654,7 @@ const batchActionLoading = ref<DangerousContainerAction | ''>('');
 const activeDangerousDialog = ref<DialogInstance | null>(null);
 const dangerousDialogOpen = ref(false);
 const pendingSourceScopeFilter = ref<SourceQuickFilterValue | null>(null);
+const listRows = shallowRef<ContainerSummaryRecord[]>([]);
 const filters = reactive<ContainerFilters>({
   keyword: '',
   orchestrator: 'all',
@@ -667,8 +667,11 @@ const pagination = reactive({
   current: 1,
   pageSize: CONTAINER_DEFAULT_PAGE_SIZE,
 });
-const currentListSubscriptionIds = ref<string[]>([]);
-const rows = computed<ContainerSummaryRecord[]>(() => selectContainerListViews());
+const rows = computed<ContainerSummaryRecord[]>(() => listRows.value);
+const listRealtimeController = ref<ReturnType<typeof openRealtimeTopicSocket> | null>(null);
+const listRealtimeActive = ref(false);
+const pendingRealtimeResourceMap = new Map<string, ContainerSummaryRecord['resource']>();
+let realtimeFlushHandle: number | null = null;
 
 const allColumns = computed<TdBaseTableProps['columns']>(() => [
   { colKey: 'row-select', type: 'multiple', width: 48, fixed: 'left', align: 'center' },
@@ -835,11 +838,24 @@ const selectedRows = computed(() => {
 let refreshRequestSeq = 0;
 
 onMounted(() => {
+  listRealtimeActive.value = true;
   void refreshContainers();
 });
 
 onUnmounted(() => {
-  syncVisibleRealtimeSubscriptions([]);
+  stopListRealtimeSubscription();
+  flushPendingRealtimeResourcePatches();
+});
+
+onActivated(() => {
+  listRealtimeActive.value = true;
+  ensureListRealtimeSubscription();
+});
+
+onDeactivated(() => {
+  listRealtimeActive.value = false;
+  stopListRealtimeSubscription();
+  flushPendingRealtimeResourcePatches();
 });
 
 useCurrentTabRefresh(async () => {
@@ -905,7 +921,8 @@ async function refreshContainers() {
       return;
     }
     seedContainerList(payload.items);
-    syncVisibleRealtimeSubscriptions(payload.items.map((item) => item.id));
+    listRows.value = payload.items.map((item) => ({ ...item }));
+    ensureListRealtimeSubscription();
     runtime.value = payload.runtime;
     listSummary.value = payload.summary;
     listTotal.value = payload.total;
@@ -914,8 +931,9 @@ async function refreshContainers() {
     if (requestSeq !== refreshRequestSeq) {
       return;
     }
-    syncVisibleRealtimeSubscriptions([]);
+    stopListRealtimeSubscription();
     clearContainerListMetadata();
+    listRows.value = [];
     runtime.value = null;
     listSummary.value = null;
     listTotal.value = 0;
@@ -941,24 +959,66 @@ function pruneSelectedRows() {
   selectedRowKeys.value = selectedRowKeys.value.filter((key) => availableIds.has(String(key)));
 }
 
-function syncVisibleRealtimeSubscriptions(nextContainerIds: string[]) {
-  const previousIds = new Set(currentListSubscriptionIds.value);
-  const normalizedNextIds = Array.from(new Set(nextContainerIds.map((item) => item.trim()).filter(Boolean)));
-  const nextIdsSet = new Set(normalizedNextIds);
-
-  previousIds.forEach((containerId) => {
-    if (!nextIdsSet.has(containerId)) {
-      releaseContainerStatsSubscription(containerId);
-    }
+function ensureListRealtimeSubscription() {
+  if (!listRealtimeActive.value || listRealtimeController.value || rows.value.length === 0) {
+    return;
+  }
+  listRealtimeController.value = openRealtimeTopicSocket({
+    topic: buildContainerListStatsTopic(),
+    parseMessage: parseContainerListStatsPayload,
+    onMessage: (payload) => {
+      payload.items.forEach((item) => {
+        applyContainerRealtimeStats(item.id, item.resource);
+        pendingRealtimeResourceMap.set(item.id, item.resource);
+      });
+      scheduleRealtimeResourcePatchFlush();
+    },
   });
+}
 
-  normalizedNextIds.forEach((containerId) => {
-    if (!previousIds.has(containerId)) {
-      acquireContainerStatsSubscription(containerId);
+function stopListRealtimeSubscription() {
+  listRealtimeController.value?.close();
+  listRealtimeController.value = null;
+  clearRealtimePatchQueue();
+}
+
+function clearRealtimePatchQueue() {
+  pendingRealtimeResourceMap.clear();
+  if (realtimeFlushHandle !== null) {
+    clearTimeout(realtimeFlushHandle);
+    realtimeFlushHandle = null;
+  }
+}
+
+function scheduleRealtimeResourcePatchFlush() {
+  if (realtimeFlushHandle !== null) {
+    return;
+  }
+  realtimeFlushHandle = window.setTimeout(() => {
+    realtimeFlushHandle = null;
+    flushPendingRealtimeResourcePatches();
+  }, 16);
+}
+
+function flushPendingRealtimeResourcePatches() {
+  if (pendingRealtimeResourceMap.size === 0 || rows.value.length === 0) {
+    return;
+  }
+
+  const nextRows = rows.value.map((row) => {
+    const nextResource = pendingRealtimeResourceMap.get(row.id);
+    if (!nextResource) {
+      return row;
     }
+    return {
+      ...row,
+      resource: {
+        ...nextResource,
+      },
+    };
   });
-
-  currentListSubscriptionIds.value = normalizedNextIds;
+  pendingRealtimeResourceMap.clear();
+  listRows.value = nextRows;
 }
 
 function resolveListError(error: unknown): ListErrorState {
@@ -1741,10 +1801,7 @@ function localizeResourceUnavailableReason(reason?: string | null) {
   if (!normalizedReason) {
     return '';
   }
-  if (
-    !normalizedReason.startsWith('ops.container.error.') &&
-    !normalizedReason.startsWith(CONTAINER_REALTIME_TOPIC.STATS_PREFIX)
-  ) {
+  if (!normalizedReason.startsWith('ops.container.error.') && !normalizedReason.startsWith('container.stats:')) {
     return normalizedReason;
   }
   if (te(normalizedReason)) {
@@ -2175,15 +2232,27 @@ function normalizeVisibleColumnKeys(keys: unknown[]) {
   gap: var(--graft-density-gap-8);
   justify-content: center;
   min-width: 0;
+  overflow: hidden;
   padding: var(--graft-density-gap-2) var(--graft-density-gap-8) var(--graft-density-gap-2) var(--graft-density-gap-2);
+  position: relative;
+  transform: translateZ(0);
   transition:
     background-color 180ms ease,
-    box-shadow 180ms ease,
     color 180ms ease,
     opacity 180ms ease,
     transform 180ms ease;
   white-space: nowrap;
-  will-change: background-color, box-shadow, opacity, transform;
+  will-change: background-color, opacity, transform;
+}
+
+.container-resource-meter::after {
+  border-radius: inherit;
+  content: '';
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  position: absolute;
+  transform: scaleX(0.96);
 }
 
 .container-resource-meter > span:last-child {
@@ -2207,71 +2276,112 @@ function normalizeVisibleColumnKeys(keys: unknown[]) {
 }
 
 .container-resource-meter.container-metric-change--up {
-  animation: container-resource-pulse-up 900ms ease-out;
-  background: color-mix(in srgb, var(--td-warning-color-1) 72%, transparent);
-  box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, var(--td-warning-color-5) 34%, transparent),
-    0 0 0 3px color-mix(in srgb, var(--td-warning-color-3) 12%, transparent);
+  animation: container-resource-shift-up 480ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  background: color-mix(in srgb, var(--td-warning-color-1) 58%, transparent);
   transform: translateY(-1px);
 }
 
 .container-resource-meter.container-metric-change--down {
-  animation: container-resource-pulse-down 900ms ease-out;
-  background: color-mix(in srgb, var(--td-success-color-1) 78%, transparent);
-  box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, var(--td-success-color-5) 30%, transparent),
-    0 0 0 3px color-mix(in srgb, var(--td-success-color-3) 12%, transparent);
+  animation: container-resource-shift-down 480ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  background: color-mix(in srgb, var(--td-success-color-1) 60%, transparent);
 }
 
-@keyframes container-resource-pulse-up {
+.container-resource-meter.container-metric-change--up::after {
+  animation: container-resource-overlay-up 520ms ease-out;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--td-warning-color-3) 0%, transparent) 0%,
+    color-mix(in srgb, var(--td-warning-color-4) 18%, transparent) 28%,
+    color-mix(in srgb, var(--td-warning-color-5) 24%, transparent) 52%,
+    color-mix(in srgb, var(--td-warning-color-3) 0%, transparent) 100%
+  );
+}
+
+.container-resource-meter.container-metric-change--down::after {
+  animation: container-resource-overlay-down 520ms ease-out;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--td-success-color-3) 0%, transparent) 0%,
+    color-mix(in srgb, var(--td-success-color-4) 16%, transparent) 28%,
+    color-mix(in srgb, var(--td-success-color-5) 20%, transparent) 52%,
+    color-mix(in srgb, var(--td-success-color-3) 0%, transparent) 100%
+  );
+}
+
+@keyframes container-resource-shift-up {
   0% {
-    box-shadow:
-      inset 0 0 0 1px color-mix(in srgb, var(--td-warning-color-5) 42%, transparent),
-      0 0 0 0 color-mix(in srgb, var(--td-warning-color-5) 28%, transparent);
-    opacity: 0.98;
-    transform: translateY(-1px) scale(0.985);
+    opacity: 0.92;
+    transform: translate3d(0, 1px, 0);
   }
 
-  45% {
-    box-shadow:
-      inset 0 0 0 1px color-mix(in srgb, var(--td-warning-color-5) 38%, transparent),
-      0 0 0 5px color-mix(in srgb, var(--td-warning-color-3) 16%, transparent);
+  40% {
     opacity: 1;
-    transform: translateY(-1px) scale(1);
+    transform: translate3d(0, -1px, 0);
   }
 
   100% {
-    box-shadow:
-      inset 0 0 0 1px color-mix(in srgb, var(--td-warning-color-5) 34%, transparent),
-      0 0 0 3px color-mix(in srgb, var(--td-warning-color-3) 12%, transparent);
     opacity: 1;
-    transform: translateY(-1px) scale(1);
+    transform: translate3d(0, -1px, 0);
   }
 }
 
-@keyframes container-resource-pulse-down {
+@keyframes container-resource-shift-down {
   0% {
-    box-shadow:
-      inset 0 0 0 1px color-mix(in srgb, var(--td-success-color-5) 38%, transparent),
-      0 0 0 0 color-mix(in srgb, var(--td-success-color-5) 24%, transparent);
-    opacity: 0.98;
-    transform: scale(0.985);
+    opacity: 0.92;
+    transform: translate3d(0, -1px, 0);
   }
 
-  45% {
-    box-shadow:
-      inset 0 0 0 1px color-mix(in srgb, var(--td-success-color-5) 34%, transparent),
-      0 0 0 5px color-mix(in srgb, var(--td-success-color-3) 14%, transparent);
+  40% {
     opacity: 1;
-    transform: scale(1);
+    transform: translate3d(0, 0, 0);
   }
 
   100% {
-    box-shadow:
-      inset 0 0 0 1px color-mix(in srgb, var(--td-success-color-5) 30%, transparent),
-      0 0 0 3px color-mix(in srgb, var(--td-success-color-3) 12%, transparent);
     opacity: 1;
-    transform: scale(1);
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes container-resource-overlay-up {
+  0% {
+    opacity: 0;
+    transform: scaleX(0.94) translateX(-8%);
+  }
+
+  30% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: scaleX(1.02) translateX(8%);
+  }
+}
+
+@keyframes container-resource-overlay-down {
+  0% {
+    opacity: 0;
+    transform: scaleX(0.94) translateX(8%);
+  }
+
+  30% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: scaleX(1.02) translateX(-8%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .container-resource-meter,
+  .container-resource-meter::after,
+  .container-resource-meter.container-metric-change--up,
+  .container-resource-meter.container-metric-change--down {
+    animation: none;
+    transform: none;
+    transition-duration: 0ms;
   }
 }
 

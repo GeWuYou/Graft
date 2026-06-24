@@ -1789,6 +1789,9 @@ func (s *service) registerRealtimeTopics() error {
 	if s.topicIssuers == nil {
 		return errors.New("realtime topic issuer registry is unavailable")
 	}
+	if err := s.topicIssuers.Register(containercontract.ContainerListStatsTopic, s); err != nil {
+		return err
+	}
 	return s.topicIssuers.Register(containercontract.ContainerStatsTopicPrefix, s)
 }
 
@@ -1804,6 +1807,9 @@ func (s *service) IssueSubscription(
 	if topic == "" {
 		return realtime.SubscriptionResponse{}, realtime.ErrTopicRequired
 	}
+	if topic == containercontract.ContainerListStatsTopic {
+		return s.issueContainerListRealtimeSubscription(ctx, request, topic)
+	}
 	if !strings.HasPrefix(topic, containercontract.ContainerStatsTopicPrefix) {
 		return realtime.SubscriptionResponse{}, realtime.ErrTopicNotFound
 	}
@@ -1815,6 +1821,33 @@ func (s *service) IssueSubscription(
 	}
 
 	return s.issueContainerRealtimeSubscription(ctx, request, topic)
+}
+
+func (s *service) issueContainerListRealtimeSubscription(
+	ctx context.Context,
+	request realtime.SubscriptionRequest,
+	topic string,
+) (realtime.SubscriptionResponse, error) {
+	if err := s.authorizer.Authorize(ctx, request.RequestAuth, containercontract.ContainerViewPermission.String()); err != nil {
+		return realtime.SubscriptionResponse{}, realtime.ErrTopicForbidden
+	}
+	if _, err := s.List(ctx, ListQuery{Limit: 1}); err != nil {
+		if errors.Is(err, errRuntimeDisabled) {
+			return realtime.SubscriptionResponse{}, realtime.ErrTopicConflict
+		}
+		return realtime.SubscriptionResponse{}, realtime.ErrTopicConflict
+	}
+
+	issued, err := (realtime.TicketIssuer{Tickets: s.realtimeTickets}).IssueTopicTicket(ctx, request)
+	if err != nil {
+		return realtime.SubscriptionResponse{}, realtime.ErrTopicConflict
+	}
+	return realtime.SubscriptionResponse{
+		Topic:        topic,
+		Ticket:       issued.Ticket,
+		WebSocketURL: realtime.BuildTopicWebSocketURL(topic, issued.Ticket),
+		ExpiresAt:    issued.ExpiresAt,
+	}, nil
 }
 
 func (s *service) issueContainerRealtimeSubscription(
