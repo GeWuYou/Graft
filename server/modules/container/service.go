@@ -226,17 +226,24 @@ func (s *service) Close() error {
 	if s == nil {
 		return nil
 	}
+	var closeErr error
 	if s.statsCollector != nil {
 		if err := s.statsCollector.Stop(context.Background()); err != nil {
-			return err
+			closeErr = errors.Join(closeErr, err)
 		}
+		s.statsCollector = nil
 	}
 	s.runtimeMu.Lock()
 	defer s.runtimeMu.Unlock()
-	if s.runtime == nil {
-		return nil
+	runtime := s.runtime
+	if runtime == nil {
+		return closeErr
 	}
-	return s.runtime.Close()
+	s.runtime = nil
+	if err := runtime.Close(); err != nil {
+		closeErr = errors.Join(closeErr, err)
+	}
+	return closeErr
 }
 
 func (s *service) List(ctx context.Context, query ListQuery) (ListResult, error) {

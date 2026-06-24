@@ -2016,7 +2016,9 @@ async function refreshContainerDetail() {
     }
     detail.value = nextDetail
       ? hasRealtimeResourceSnapshot.value
-        ? mergeDetailStructurePreservingRealtimeResource(detail.value, mergeDetailWithLocalMountUsage(nextDetail))
+        ? realtimeEnabled.value
+          ? mergeDetailStructurePreservingRealtimeResource(detail.value, mergeDetailWithLocalMountUsage(nextDetail))
+          : mergeDetailWithLocalMountUsage(nextDetail)
         : mergeDetailWithLocalMountUsage(nextDetail)
       : null;
     const current = safeDetail.value;

@@ -1307,6 +1307,41 @@ describe('container detail page', () => {
     expect(wrapper.text()).not.toContain('21.8%');
   });
 
+  it('uses fresh detail resource after pausing realtime and manually refreshing', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(realtimeMocks.controllers.length).toBeGreaterThan(0);
+    const controller = realtimeMocks.controllers.at(-1)!;
+    controller.emitMessage({
+      id: createContainerDetail().id,
+      resource: {
+        ...createContainerDetail().resource,
+        cpu_percent: 88.8,
+      },
+    });
+    await flushPromises();
+    expect(wrapper.text()).toContain('88.8%');
+
+    await wrapper.get('[data-testid="container-detail-realtime-toggle"]').trigger('click');
+    await flushPromises();
+    expect(wrapper.get('[data-testid="container-detail-realtime-status"]').text()).toBe('已暂停');
+
+    apiMocks.getContainer.mockResolvedValueOnce({
+      ...createContainerDetail(),
+      resource: {
+        ...createContainerDetail().resource,
+        cpu_percent: 7.5,
+      },
+    });
+
+    await wrapper.get('[data-refresh-now="true"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('7.5%');
+    expect(wrapper.text()).not.toContain('88.8%');
+  });
+
   it('ignores stale socket messages after switching to another container detail', async () => {
     const firstDetail = deferred<ReturnType<typeof createContainerDetail>>();
     apiMocks.getContainer.mockReturnValueOnce(firstDetail.promise);

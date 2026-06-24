@@ -29,6 +29,10 @@ func TestRegisterWebSocketGatewayStopsSubscriptionOnClientDisconnect(t *testing.
 	}
 
 	hub := NewHub()
+	memoryHub, ok := hub.(*memoryHub)
+	if !ok {
+		t.Fatal("expected memory hub implementation")
+	}
 	engine := gin.New()
 	if err := RegisterWebSocketGateway(engine, GatewayRegistration{
 		Hub:                   hub,
@@ -60,24 +64,35 @@ func TestRegisterWebSocketGatewayStopsSubscriptionOnClientDisconnect(t *testing.
 		t.Fatalf("dial websocket gateway: %v", err)
 	}
 
-	_, unsubscribe := hub.Subscribe(topic)
-	unsubscribe()
+	waitForTopicSubscriberCount(t, memoryHub, topic, 1)
 
 	if err := conn.Close(); err != nil {
 		t.Fatalf("close websocket client: %v", err)
 	}
 
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		for i := 0; i < 10; i++ {
-			hub.Publish(topic, i)
-		}
-	}()
+	waitForTopicSubscriberCount(t, memoryHub, topic, 0)
+}
 
-	select {
-	case <-done:
-	case <-time.After(2 * time.Second):
-		t.Fatal("expected websocket disconnect to stop gateway subscription without blocking publishers")
+func waitForTopicSubscriberCount(t *testing.T, hub *memoryHub, topic string, want int) {
+	t.Helper()
+
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if got := topicSubscriberCount(hub, topic); got == want {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
+
+	t.Fatalf("expected %d subscribers for topic %q, got %d", want, topic, topicSubscriberCount(hub, topic))
+}
+
+func topicSubscriberCount(hub *memoryHub, topic string) int {
+	if hub == nil {
+		return 0
+	}
+
+	hub.mu.RLock()
+	defer hub.mu.RUnlock()
+	return len(hub.topics[topic])
 }

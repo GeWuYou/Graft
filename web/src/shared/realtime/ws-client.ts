@@ -140,7 +140,7 @@ export function openRealtimeTopicSocket<TMessage>(
         }
         const parser = options.parseMessage ?? defaultParseMessage<TMessage>;
         const parsed = parser(event.data);
-        if (!parsed) {
+        if (parsed === null) {
           return;
         }
         options.onMessage?.(parsed);

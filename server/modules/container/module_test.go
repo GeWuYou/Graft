@@ -66,8 +66,9 @@ func TestDescriptorDeclaresContainerModule(t *testing.T) {
 func TestModuleShutdownUsesServiceClosePath(t *testing.T) {
 	t.Parallel()
 
+	runtime := &moduleCloseRuntime{}
 	service := &service{
-		runtime:        &moduleCloseRuntime{},
+		runtime:        runtime,
 		statsCollector: &statsCollector{},
 	}
 	containerModule := &Module{service: service}
@@ -76,7 +77,6 @@ func TestModuleShutdownUsesServiceClosePath(t *testing.T) {
 		t.Fatalf("shutdown module: %v", err)
 	}
 
-	runtime := service.runtime.(*moduleCloseRuntime)
 	if runtime.closeCalls.Load() != 1 {
 		t.Fatalf("expected shutdown to close runtime exactly once, got %d", runtime.closeCalls.Load())
 	}

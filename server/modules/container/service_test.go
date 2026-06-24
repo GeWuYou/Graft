@@ -1543,8 +1543,8 @@ func TestServiceCloseStopsCollectorAndClosesRuntimeOnce(t *testing.T) {
 	if err := service.Close(); err != nil {
 		t.Fatalf("close service second time: %v", err)
 	}
-	if runtime.closeCalls.Load() != 2 {
-		t.Fatalf("expected runtime close on each service close call, got %d", runtime.closeCalls.Load())
+	if runtime.closeCalls.Load() != 1 {
+		t.Fatalf("expected repeated service close to be idempotent, got %d", runtime.closeCalls.Load())
 	}
 }
 

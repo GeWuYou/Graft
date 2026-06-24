@@ -98,6 +98,30 @@ describe('openRealtimeTopicSocket', () => {
     expect(onMessage).toHaveBeenCalledWith({ value: 42 });
   });
 
+  it('delivers valid falsy parsed messages', async () => {
+    const issueTicket = vi.fn().mockResolvedValue({
+      topic: 'container.stats:container-1',
+      ticket: 'opaque-ticket',
+      websocket_url: '/ws?topic=container.stats%3Acontainer-1&ticket=opaque-ticket',
+      expires_at: '2026-06-24T08:00:30Z',
+    });
+    const onMessage = vi.fn();
+
+    openRealtimeTopicSocket({
+      topic: 'container.stats:container-1',
+      issueTicket,
+      onMessage,
+      parseMessage: () => 0,
+    });
+
+    await vi.runAllTicks();
+
+    MockWebSocket.instances[0]?.emitOpen();
+    MockWebSocket.instances[0]?.emitMessage('ignored');
+
+    expect(onMessage).toHaveBeenCalledWith(0);
+  });
+
   it('backs off reconnect attempts after socket close and stops after the retry limit', async () => {
     const issueTicket = vi.fn().mockResolvedValue({
       topic: 'container.stats:container-1',
