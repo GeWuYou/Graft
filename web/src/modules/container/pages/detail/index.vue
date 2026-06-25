@@ -5,6 +5,18 @@
       :description="safeDetail ? safeDetail.image : t('container.detail.description')"
       :source="{ labelKey: 'container.list.eyebrow', fallback: t('container.list.eyebrow') }"
     >
+      <template #actions>
+        <t-button
+          v-if="safeDetail && permissionStore.hasPermission(auditPermissionCodes.READ)"
+          data-testid="container-detail-view-audit"
+          theme="default"
+          variant="outline"
+          size="small"
+          @click="openAuditLogs"
+        >
+          {{ t('container.detail.viewAudit') }}
+        </t-button>
+      </template>
       <template #meta>
         <div class="container-detail-header-meta" data-testid="container-detail-header-meta">
           <t-space class="container-detail-header-meta__tags" break-line size="small">
@@ -591,12 +603,12 @@
                             </t-button>
                           </t-tooltip>
                         </div>
-                        <code class="container-health-code">{{ healthcheckDetails.command }}</code>
+                        <code class="container-health-code graft-scrollbar">{{ healthcheckDetails.command }}</code>
                       </div>
                       <div class="container-health-block">
                         <span class="container-health-block__label">{{ t('container.detail.health.lastOutput') }}</span>
                         <pre
-                          class="container-health-output"
+                          class="container-health-output graft-scrollbar"
                           :class="{ 'container-health-output--error': healthcheckDetails.hasFailure }"
                           >{{ healthcheckDetails.output }}</pre
                         >
@@ -1199,6 +1211,8 @@ import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
 import { LOCALE, type LocalizedTitle } from '@/contracts/i18n/locales';
+import { buildAuditResourceLocation } from '@/modules/audit/contract/deep-link';
+import { AUDIT_PERMISSION_CODE } from '@/modules/audit/contract/permissions';
 import { ManagementPageHeader } from '@/shared/components/management';
 import { MetricCard } from '@/shared/components/metrics';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
@@ -1211,7 +1225,7 @@ import {
   LogViewer,
   toProgressPercent,
 } from '@/shared/observability';
-import { useTabsRouterStore } from '@/store';
+import { usePermissionStore, useTabsRouterStore } from '@/store';
 import { createLogger } from '@/utils/logger';
 import { localizeRouteTitleKey } from '@/utils/route/title';
 
@@ -1427,8 +1441,10 @@ const DEFAULT_LOG_QUERY = {
 const { locale, t } = useI18n();
 const route = useRoute();
 const router = useRouter();
+const permissionStore = usePermissionStore();
 const tabsRouterStore = useTabsRouterStore();
 const logger = createLogger('container.detail');
+const auditPermissionCodes = AUDIT_PERMISSION_CODE;
 
 const detail = ref<ContainerDetailRecord | null>(null);
 const detailRefreshing = ref(false);
@@ -1678,6 +1694,15 @@ const inspectUpdatedRelative = computed(() => {
   }
   return t('container.detail.health.updatedFromInspect');
 });
+
+function openAuditLogs() {
+  if (!safeDetail.value) {
+    return;
+  }
+
+  void router.push(buildAuditResourceLocation('container', safeDetail.value.id, displayName(safeDetail.value)));
+}
+
 const runtimeStability = computed(() => {
   const current = safeDetail.value;
   const risk = resolveRuntimeStability(current);
@@ -4567,7 +4592,6 @@ function portLabel(port: ContainerDetail['ports'][number]) {
   min-width: 0;
   overflow: auto;
   padding: var(--graft-density-gap-8) var(--graft-density-gap-10);
-  scrollbar-width: thin;
 }
 
 .container-health-code {

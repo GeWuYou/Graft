@@ -86,6 +86,10 @@ const tabStoreState = vi.hoisted(() => ({
   }>,
 }));
 
+const permissionStoreMock = vi.hoisted(() => ({
+  hasPermission: vi.fn(() => true),
+}));
+
 const routeState = vi.hoisted(
   (): {
     route: {
@@ -170,6 +174,7 @@ const translations = vi.hoisted(
     'container.detail.copyError': '内容复制失败。',
     'container.detail.copySuccess': '内容已复制。',
     'container.detail.description': '查看容器运行时详情、资源、日志、配置、网络和挂载信息。',
+    'container.detail.viewAudit': '查看审计',
     'container.detail.autoRefresh': '自动刷新',
     'container.detail.autoRefreshOff': '关闭',
     'container.detail.autoRefreshPaused': '已暂停',
@@ -540,6 +545,7 @@ vi.mock('vue-router', async () => {
 });
 
 vi.mock('@/store', () => ({
+  usePermissionStore: () => permissionStoreMock,
   useTabsRouterStore: () => tabStoreState,
 }));
 
@@ -995,12 +1001,34 @@ describe('container detail page', () => {
 
     const headerMeta = wrapper.get('[data-testid="container-detail-header-meta-slot"]');
     const refreshRow = wrapper.get('[data-testid="container-detail-realtime-row"]');
+    const headerActions = wrapper.get('[data-testid="container-detail-header-actions-slot"]');
 
     expect(headerMeta.find('[data-testid="container-detail-realtime-bar"]').exists()).toBe(false);
-    expect(wrapper.find('[data-testid="container-detail-header-actions-slot"]').exists()).toBe(false);
+    expect(headerActions.find('[data-testid="container-detail-realtime-bar"]').exists()).toBe(false);
+    expect(headerActions.text()).toContain('查看审计');
     expect(wrapper.find('[data-testid="container-detail-tabs-action-slot"]').exists()).toBe(false);
     expect(refreshRow.find('[data-testid="container-detail-realtime-bar"]').exists()).toBe(true);
     expect(wrapper.findAll('[data-testid="container-detail-realtime-bar"]')).toHaveLength(1);
+  });
+
+  it('renders a fixed audit entry in the detail header and routes by container resource identity', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const actionSlot = wrapper.get('[data-testid="container-detail-header-actions-slot"]');
+    expect(actionSlot.text()).toContain('查看审计');
+
+    await wrapper.get('[data-testid="container-detail-view-audit"]').trigger('click');
+    await flushPromises();
+
+    expect(routerMocks.push).toHaveBeenCalledWith({
+      path: '/audit/logs',
+      query: {
+        resource_id: 'ff007d095ed9faafdf39957cf4e2134dc9644a935c0e8d94bc3e599bcc518edb',
+        resource_name: 'graft-web',
+        resource_type: 'container',
+      },
+    });
   });
 
   it('renders header meta as identity tags plus a separate updated-at line', async () => {

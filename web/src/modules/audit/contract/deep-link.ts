@@ -10,6 +10,7 @@ import { AUDIT_DRILLDOWN_SCOPE } from './presets';
 type AuditEvidenceContext = components['schemas']['AuditEvidenceContext'];
 
 export type AuditLogsRouteQuery = Partial<{
+  audit_log_id: string;
   preset: string;
   scope: string;
   keyword: string;
@@ -48,6 +49,7 @@ function firstQueryValue(value: LocationQueryValue | LocationQueryValue[] | unde
 export function parseAuditLogsRouteQuery(query: LocationQuery | AuditLogsRouteQuery): AuditLogsRouteQuery {
   const rawSort = query.sort as LocationQueryValue | LocationQueryValue[] | undefined;
   return {
+    audit_log_id: trimQueryValue(firstQueryValue(query.audit_log_id)),
     keyword: trimQueryValue(firstQueryValue(query.keyword)),
     preset: trimQueryValue(firstQueryValue(query.preset)),
     scope: trimQueryValue(firstQueryValue(query.scope)),

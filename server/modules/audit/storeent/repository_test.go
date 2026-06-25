@@ -259,6 +259,51 @@ func TestRepositoryDeleteAuditLogsBeforeDeletesOnlyOlderRecords(t *testing.T) {
 	}
 }
 
+func TestRepositoryHighRiskOperationsIncludesContainerDangerousActions(t *testing.T) {
+	db := openTestDB(t)
+	repo, err := NewRepository(db, newTestLocalizer(), nil)
+	if err != nil {
+		t.Fatalf("new repository: %v", err)
+	}
+
+	ctx := context.Background()
+	now := time.Now().UTC()
+	for _, item := range []auditstore.CreateAuditLogInput{
+		{
+			Action:       "ops.container.action.restart",
+			ResourceType: "container",
+			ResourceID:   "abc123",
+			ResourceName: "web",
+			Success:      true,
+			RequestID:    "req-container-danger",
+			Metadata:     json.RawMessage(`{"status_code":200}`),
+			CreatedAt:    now.Add(-10 * time.Minute),
+		},
+		{
+			Action:       "ops.container.shell.session.started",
+			ResourceType: "container",
+			ResourceID:   "shell-1",
+			ResourceName: "web",
+			Success:      true,
+			RequestID:    "req-shell",
+			Metadata:     json.RawMessage(`{"status_code":200}`),
+			CreatedAt:    now.Add(-5 * time.Minute),
+		},
+	} {
+		if _, err := repo.CreateAuditLog(ctx, item); err != nil {
+			t.Fatalf("create audit log: %v", err)
+		}
+	}
+
+	assertAuditBusinessCategoryResult(
+		ctx,
+		t,
+		repo,
+		auditstore.AuditBusinessCategoryHighRiskOperations,
+		"req-container-danger",
+	)
+}
+
 func TestRepositoryReadAuditLogReturnsOneRecord(t *testing.T) {
 	db := openTestDB(t)
 	repo, err := NewRepository(db, newTestLocalizer(), nil)

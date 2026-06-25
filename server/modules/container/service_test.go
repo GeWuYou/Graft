@@ -156,7 +156,7 @@ func TestDangerousActionsDisabledPublishesFailureAudit(t *testing.T) {
 		t.Fatalf("expected one audit event, got %#v", events)
 	}
 	event := events[0]
-	if event.Action != "ops.container.start" || event.Success {
+	if event.Action != containercontract.ContainerAuditActionStart.String() || event.Success {
 		t.Fatalf("unexpected audit event %#v", event)
 	}
 	if event.MessageKey != "ops.container.error.dangerousActionsDisabled" {
@@ -203,7 +203,7 @@ func TestRemoveDangerousActionsDisabledPublishesForceAudit(t *testing.T) {
 		t.Fatalf("expected one audit event, got %#v", events)
 	}
 	event := events[0]
-	if event.Action != "ops.container.remove" || event.Success {
+	if event.Action != containercontract.ContainerAuditActionRemove.String() || event.Success {
 		t.Fatalf("unexpected audit event %#v", event)
 	}
 	if event.Metadata["force"] != true {
@@ -499,7 +499,7 @@ func TestServiceActionFailurePublishesAuditWithRuntimeContext(t *testing.T) {
 		t.Fatalf("expected one audit event, got %#v", events)
 	}
 	event := events[0]
-	if event.Action != "ops.container.stop" || event.Success {
+	if event.Action != containercontract.ContainerAuditActionStop.String() || event.Success {
 		t.Fatalf("unexpected audit event %#v", event)
 	}
 	if event.MessageKey != containercontract.ContainerInvalidState.String() {
@@ -616,18 +616,7 @@ func TestServiceListAppliesPaginationFiltersAndActionAvailability(t *testing.T) 
 func TestServiceBatchActionAllowsPartialSuccess(t *testing.T) {
 	t.Parallel()
 
-	bus := eventbus.New(zap.NewNop())
-	events := make([]moduleapi.AuditEvent, 0, 2)
-	if err := bus.Subscribe(string(moduleapi.AuditRecordEventName), func(_ context.Context, event eventbus.Event) error {
-		payload, ok := event.Payload.(moduleapi.AuditEvent)
-		if !ok {
-			t.Fatalf("unexpected payload %T", event.Payload)
-		}
-		events = append(events, payload)
-		return nil
-	}); err != nil {
-		t.Fatalf("subscribe audit: %v", err)
-	}
+	bus, eventsPtr := newAuditCaptureBus(t, 2)
 	service, err := newTestService(containerServiceOptions{
 		runtime:                 selectiveRemoveRuntime{failID: "bad"},
 		auditBus:                bus,
@@ -655,14 +644,16 @@ func TestServiceBatchActionAllowsPartialSuccess(t *testing.T) {
 	if len(result.Items) != 2 || !result.Items[0].Success || result.Items[1].Success {
 		t.Fatalf("unexpected batch items %#v", result.Items)
 	}
-	if len(events) != 2 {
-		t.Fatalf("expected one audit per batch item, got %#v", events)
-	}
-	for _, event := range events {
-		if event.Metadata["force"] != true || event.Metadata["requestId"] != "req-batch" {
-			t.Fatalf("expected force/request audit metadata, got %#v", event.Metadata)
-		}
-	}
+	events := *eventsPtr
+	assertPerItemBatchAuditMetadata(t, events, "req-batch")
+	assertBatchSummaryAudit(
+		t,
+		events,
+		2,
+		containercontract.ContainerAuditActionBatchRemove.String(),
+		1,
+		1,
+	)
 }
 
 func TestServiceBatchActionBlocksWarnManagedContainers(t *testing.T) {
@@ -1248,7 +1239,7 @@ func TestStartAuditDetachesCanceledRequestContext(t *testing.T) {
 	if !ok {
 		t.Fatalf("unexpected payload %T", bus.events[0].Payload)
 	}
-	if payload.Action != "ops.container.start" || !payload.Success {
+	if payload.Action != containercontract.ContainerAuditActionStart.String() || !payload.Success {
 		t.Fatalf("unexpected audit payload %#v", payload)
 	}
 	if payload.Metadata["requestId"] != "req-start" || payload.Metadata["traceId"] != "trace-start" {
@@ -1259,18 +1250,7 @@ func TestStartAuditDetachesCanceledRequestContext(t *testing.T) {
 func TestBatchActionPolicyFailurePublishesAudit(t *testing.T) {
 	t.Parallel()
 
-	bus := eventbus.New(zap.NewNop())
-	events := make([]moduleapi.AuditEvent, 0, 1)
-	if err := bus.Subscribe(string(moduleapi.AuditRecordEventName), func(_ context.Context, event eventbus.Event) error {
-		payload, ok := event.Payload.(moduleapi.AuditEvent)
-		if !ok {
-			t.Fatalf("unexpected payload %T", event.Payload)
-		}
-		events = append(events, payload)
-		return nil
-	}); err != nil {
-		t.Fatalf("subscribe audit: %v", err)
-	}
+	bus, eventsPtr := newAuditCaptureBus(t, 1)
 
 	runtime := &managedActionRuntime{
 		detail: Detail{
@@ -1330,18 +1310,157 @@ func TestBatchActionPolicyFailurePublishesAudit(t *testing.T) {
 	if result.SuccessCount != 0 || result.FailedCount != 1 {
 		t.Fatalf("unexpected batch result %#v", result)
 	}
-	if len(events) != 1 {
-		t.Fatalf("expected one audit event, got %#v", events)
+	events := *eventsPtr
+	assertSingleActionAuditFailure(
+		t,
+		events[0],
+		containercontract.ContainerAuditActionRemove.String(),
+		containercontract.ContainerDangerousActionsDisabled.String(),
+		"req-batch-policy",
+	)
+	assertBatchSummaryAudit(
+		t,
+		events,
+		1,
+		containercontract.ContainerAuditActionBatchRemove.String(),
+		0,
+		1,
+	)
+	if events[1].ResourceType != containerBatchResourceType || events[1].Success {
+		t.Fatalf("expected failed batch summary, got %#v", events[1])
 	}
-	event := events[0]
-	if event.Action != "ops.container.remove" || event.Success {
-		t.Fatalf("unexpected audit event %#v", event)
+}
+
+func TestBatchActionPublishesSummaryAudit(t *testing.T) {
+	t.Parallel()
+
+	bus := eventbus.New(zap.NewNop())
+	events := make([]moduleapi.AuditEvent, 0, 4)
+	if err := bus.Subscribe(string(moduleapi.AuditRecordEventName), func(_ context.Context, event eventbus.Event) error {
+		payload, ok := event.Payload.(moduleapi.AuditEvent)
+		if !ok {
+			t.Fatalf("unexpected payload %T", event.Payload)
+		}
+		events = append(events, payload)
+		return nil
+	}); err != nil {
+		t.Fatalf("subscribe audit: %v", err)
 	}
-	if event.MessageKey != containercontract.ContainerDangerousActionsDisabled.String() {
+
+	service, err := newTestService(containerServiceOptions{
+		runtime:                 fakeRuntime{},
+		auditBus:                bus,
+		moduleName:              moduleID,
+		enabled:                 true,
+		dangerousActionsEnabled: true,
+		defaultTail:             defaultContainerLogsDefaultTail,
+		maxTail:                 defaultContainerLogsMaxTail,
+	})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	ctx := httpx.WithRequestAuditContext(context.Background(), httpx.RequestAuditContext{
+		RequestID: "req-batch-success",
+		TraceID:   "trace-batch-success",
+	})
+	result, err := service.BatchAction(ctx, BatchActionCommand{
+		Action: containerActionStart,
+		IDs:    []string{"web", "api"},
+	})
+	if err != nil {
+		t.Fatalf("batch action: %v", err)
+	}
+	if result.SuccessCount != 2 || result.FailedCount != 0 {
+		t.Fatalf("unexpected batch result %#v", result)
+	}
+	if len(events) != 3 {
+		t.Fatalf("expected two item events and one summary event, got %#v", events)
+	}
+	summary := events[2]
+	if summary.Action != containercontract.ContainerAuditActionBatchStart.String() {
+		t.Fatalf("unexpected summary action %#v", summary)
+	}
+	if summary.ResourceType != containerBatchResourceType || !summary.Success {
+		t.Fatalf("unexpected batch summary %#v", summary)
+	}
+	if summary.Metadata["requested_total"] != 2 || summary.Metadata["success_count"] != 2 || summary.Metadata["failed_count"] != 0 {
+		t.Fatalf("unexpected summary metadata %#v", summary.Metadata)
+	}
+}
+
+func newAuditCaptureBus(t *testing.T, capacity int) (*eventbus.MemoryBus, *[]moduleapi.AuditEvent) {
+	t.Helper()
+
+	bus := eventbus.New(zap.NewNop())
+	events := make([]moduleapi.AuditEvent, 0, capacity)
+	eventsPtr := &events
+	if err := bus.Subscribe(string(moduleapi.AuditRecordEventName), func(_ context.Context, event eventbus.Event) error {
+		payload, ok := event.Payload.(moduleapi.AuditEvent)
+		if !ok {
+			t.Fatalf("unexpected payload %T", event.Payload)
+		}
+		*eventsPtr = append(*eventsPtr, payload)
+		return nil
+	}); err != nil {
+		t.Fatalf("subscribe audit: %v", err)
+	}
+
+	return bus, eventsPtr
+}
+
+func assertPerItemBatchAuditMetadata(t *testing.T, events []moduleapi.AuditEvent, requestID string) {
+	t.Helper()
+
+	if len(events) < 2 {
+		t.Fatalf("expected at least two per-item audit events, got %#v", events)
+	}
+	for _, event := range events[:2] {
+		if event.Metadata["force"] != true || event.Metadata["requestId"] != requestID {
+			t.Fatalf("expected force/request audit metadata, got %#v", event.Metadata)
+		}
+	}
+}
+
+func assertSingleActionAuditFailure(
+	t *testing.T,
+	event moduleapi.AuditEvent,
+	expectedAction string,
+	expectedMessageKey string,
+	expectedRequestID string,
+) {
+	t.Helper()
+
+	if event.Action != expectedAction || event.Success {
+		t.Fatalf("unexpected item audit event %#v", event)
+	}
+	if event.MessageKey != expectedMessageKey {
 		t.Fatalf("unexpected message key %q", event.MessageKey)
 	}
-	if event.Metadata["force"] != true || event.Metadata["requestId"] != "req-batch-policy" {
+	if event.Metadata["force"] != true || event.Metadata["requestId"] != expectedRequestID {
 		t.Fatalf("expected force/request metadata, got %#v", event.Metadata)
+	}
+}
+
+func assertBatchSummaryAudit(
+	t *testing.T,
+	events []moduleapi.AuditEvent,
+	index int,
+	expectedAction string,
+	expectedSuccessCount int,
+	expectedFailedCount int,
+) {
+	t.Helper()
+
+	if len(events) <= index {
+		t.Fatalf("expected batch summary audit at index %d, got %#v", index, events)
+	}
+	summaryEvent := events[index]
+	if summaryEvent.Action != expectedAction {
+		t.Fatalf("unexpected batch summary action %#v", summaryEvent)
+	}
+	if summaryEvent.Metadata["success_count"] != expectedSuccessCount || summaryEvent.Metadata["failed_count"] != expectedFailedCount {
+		t.Fatalf("unexpected batch summary metadata %#v", summaryEvent.Metadata)
 	}
 }
 

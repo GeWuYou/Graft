@@ -95,6 +95,14 @@ export function buildAuditRelatedRecordLocation(
   row: AuditLogListItem,
   monitorOrigin?: MonitorOriginContext | null,
 ): RouteLocationWithQuery {
+  if (row.id) {
+    return buildAuditLogsLocationWithOrigin(
+      {
+        audit_log_id: String(row.id),
+      },
+      monitorOrigin,
+    );
+  }
   if (row.request_id) {
     return buildAuditRequestLocationWithOrigin(row.request_id, monitorOrigin);
   }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 	"time"
+	"strings"
 
 	"go.uber.org/zap"
 
@@ -35,6 +36,21 @@ func TestPublishAuditNotificationTargetsAuditReaders(t *testing.T) {
 	}
 	if input.EventType != "permission_denied" || input.Category != moduleapi.NotificationCategory(notificationcontract.CategorySecurity) {
 		t.Fatalf("unexpected audit notification input: %#v", input)
+	}
+	if input.TitleKey != "notification.title.audit.permissionDenied" || input.MessageKey != "notification.message.audit.permissionDenied" {
+		t.Fatalf("expected localized audit copy keys, got %#v", input)
+	}
+	if input.ActionLabelKey != "notification.action.openAuditLog" {
+		t.Fatalf("expected action label key, got %#v", input.ActionLabelKey)
+	}
+	if input.Navigation.Kind != moduleapi.NotificationNavigationKind(notificationcontract.NavigationAuditLog) {
+		t.Fatalf("expected audit log navigation, got %#v", input.Navigation.Kind)
+	}
+	if string(input.Navigation.Payload) == "" || !strings.Contains(string(input.Navigation.Payload), `"audit_log_id":12`) {
+		t.Fatalf("expected navigation payload to carry audit log id, got %s", string(input.Navigation.Payload))
+	}
+	if string(input.Metadata) == "" || !strings.Contains(string(input.Metadata), `"action":"auth.permission.denied"`) {
+		t.Fatalf("expected audit metadata to carry action context, got %s", string(input.Metadata))
 	}
 }
 

@@ -894,6 +894,15 @@ func defaultModuleTestPolicyRules() []store.AuditPolicyRule {
 			EventType: "user.profile.update",
 			MatchType: store.AuditPolicyMatchTypeExact,
 		},
+		{
+			Name:      "domain.container.action.stop",
+			Source:    store.AuditSourceDomainEvent,
+			Enabled:   true,
+			Priority:  50,
+			Effect:    store.AuditPolicyEffectInclude,
+			EventType: "ops.container.action.stop",
+			MatchType: store.AuditPolicyMatchTypeExact,
+		},
 	}
 }
 
@@ -1027,6 +1036,49 @@ func TestRegisterSubscribesActiveAuditEventsFallsBackToRequestAuthActor(t *testi
 	}
 	if repo.items[0].ActorUserID == nil || *repo.items[0].ActorUserID != 22 {
 		t.Fatalf("expected actor id 22 from request auth, got %#v", repo.items[0].ActorUserID)
+	}
+}
+
+func TestRegisterSubscribesContainerDangerousActionEvents(t *testing.T) {
+	repo := &memoryAuditRepository{}
+	_, _, bus := newModuleTestContext(t, repo)
+
+	requestCtx := httpx.WithRequestAuditContext(
+		moduleapi.WithRequestAuthContext(context.Background(), moduleapi.RequestAuthContext{
+			User: &moduleapi.CurrentUser{ID: 31, Username: "container-admin", DisplayName: "Container Admin"},
+		}),
+		httpx.RequestAuditContext{
+			RequestID: "req-container-stop-1",
+			TraceID:   "req-container-stop-1",
+			Route:     "/api/ops/containers/:id/stop",
+			Method:    http.MethodPost,
+			ClientIP:  "203.0.113.31",
+			UserAgent: "container-audit-test",
+		},
+	)
+
+	err := bus.Publish(requestCtx, eventbus.Event{
+		Name: string(moduleapi.AuditRecordEventName),
+		Payload: moduleapi.AuditEvent{
+			Operator:     &moduleapi.CurrentUser{ID: 31, Username: "container-admin", DisplayName: "Container Admin"},
+			Action:       "ops.container.action.stop",
+			ResourceType: "container",
+			ResourceID:   "container-1",
+			ResourceName: "graft-web",
+			Success:      true,
+		},
+	})
+	if err != nil {
+		t.Fatalf("publish audit event: %v", err)
+	}
+	if len(repo.items) != 1 {
+		t.Fatalf("expected one audit record, got %d", len(repo.items))
+	}
+	if repo.items[0].Action != "ops.container.action.stop" {
+		t.Fatalf("expected container dangerous action to be preserved, got %q", repo.items[0].Action)
+	}
+	if repo.items[0].ResourceType != "container" || repo.items[0].ResourceID != "container-1" {
+		t.Fatalf("expected container target to be preserved, got %#v", repo.items[0])
 	}
 }
 

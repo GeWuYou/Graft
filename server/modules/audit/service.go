@@ -742,9 +742,13 @@ func classifyCandidateResult(record auditstore.AuditLog, metadata map[string]any
 
 func classifyCandidateAuditRiskLevel(record auditstore.AuditLog) auditstore.AuditRiskLevel {
 	action := strings.ToLower(strings.TrimSpace(record.Action))
+	resourceType := strings.ToLower(strings.TrimSpace(record.ResourceType))
 
 	if record.Result == auditstore.AuditResultError || record.Result == auditstore.AuditResultDenied {
 		return auditstore.AuditRiskLevelCritical
+	}
+	if (resourceType == "container" || resourceType == "container_batch") && strings.HasPrefix(action, "ops.container.action.") {
+		return auditstore.AuditRiskLevelHigh
 	}
 	if containsAny(action, []string{"reset_password", "update_permission", "update_role", "assign_role", "token_revoke"}) {
 		return auditstore.AuditRiskLevelCritical

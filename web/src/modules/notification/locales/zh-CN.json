@@ -39,6 +39,14 @@
     },
     "detail": {
       "basic": "基础信息",
+      "auditAction": "审计动作",
+      "auditReason": "审计原因",
+      "auditRequestId": "请求 ID",
+      "auditResource": "审计资源",
+      "auditResult": "审计结果",
+      "auditRiskLevel": "风险等级",
+      "auditSummary": "审计摘要",
+      "auditTraceId": "Trace ID",
       "eventType": "事件类型",
       "navigation": "业务上下文",
       "readAt": "已读时间",
@@ -137,7 +145,18 @@
       "openNotificationCenter": "查看全部通知",
       "openRelatedPage": "打开相关页面",
       "openRunRecord": "打开运行记录",
-      "openTarget": "打开相关页面"
+      "openTarget": "打开相关页面",
+      "openAuditLog": "查看审计日志"
+    },
+    "message": {
+      "audit": {
+        "highRisk": "高风险审计活动需要复核。",
+        "loginFailed": "失败的登录尝试需要复核。",
+        "permissionDenied": "已拒绝对 {target} 的权限请求。"
+      },
+      "scheduler": {
+        "runSucceeded": "已成功完成。"
+      }
     },
     "level": {
       "info": "信息",
@@ -158,13 +177,13 @@
       "scheduledTaskRun": "定时任务运行记录"
     },
     "title": {
+      "audit": {
+        "highRisk": "高风险审计事件",
+        "loginFailed": "登录失败",
+        "permissionDenied": "权限拒绝"
+      },
       "scheduler": {
         "runSucceeded": "定时任务执行成功"
-      }
-    },
-    "message": {
-      "scheduler": {
-        "runSucceeded": "已成功完成。"
       }
     },
     "emptyValue": "无",

@@ -36,18 +36,11 @@ export function resolveNotificationNavigationLocation(navigation: NotificationNa
         };
       }
 
-      const auditLogId = payloadText(payload, 'audit_log_id');
-      return auditLogId ? buildAuditLogsLocation({ keyword: auditLogId }) : buildAuditLogsLocation({});
+      return buildAuditLogLocation(payload);
     }
 
     case NOTIFICATION_NAVIGATION_KIND.AUDIT_LOG: {
-      const requestId = payloadText(payload, 'request_id');
-      if (requestId) {
-        return buildAuditLogsLocation({ request_id: requestId });
-      }
-
-      const auditLogId = payloadText(payload, 'audit_log_id');
-      return auditLogId ? buildAuditLogsLocation({ keyword: auditLogId }) : buildAuditLogsLocation({});
+      return buildAuditLogLocation(payload);
     }
 
     case NOTIFICATION_NAVIGATION_KIND.SCHEDULER_RUN: {
@@ -71,4 +64,18 @@ export function resolveNotificationNavigationLocation(navigation: NotificationNa
     default:
       return null;
   }
+}
+
+function buildAuditLogLocation(payload: Record<string, unknown>) {
+  const auditLogId = payloadText(payload, 'audit_log_id');
+  if (auditLogId) {
+    return buildAuditLogsLocation({ audit_log_id: auditLogId });
+  }
+
+  const requestId = payloadText(payload, 'request_id');
+  if (requestId) {
+    return buildAuditLogsLocation({ request_id: requestId });
+  }
+
+  return buildAuditLogsLocation({});
 }

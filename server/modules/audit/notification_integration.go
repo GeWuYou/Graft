@@ -52,7 +52,7 @@ func shouldNotifyAuditRecord(record auditstore.AuditLog) bool {
 
 func auditNotificationInput(record auditstore.AuditLog) moduleapi.PublishNotificationInput {
 	kind := auditNotificationKind(record)
-	title, message := auditNotificationCopy(kind, record)
+	titleKey, title, messageKey, message, actionLabelKey, actionLabel := auditNotificationCopy(kind, record)
 	severity := moduleapi.NotificationSeverity(notificationcontract.SeverityWarning)
 	if auditRecordRiskLevel(record) == auditstore.AuditRiskLevelCritical {
 		severity = moduleapi.NotificationSeverity(notificationcontract.SeverityCritical)
@@ -64,11 +64,35 @@ func auditNotificationInput(record auditstore.AuditLog) moduleapi.PublishNotific
 	navigationPayload, _ := json.Marshal(map[string]any{
 		"audit_log_id": record.ID,
 		"request_id":   record.RequestID,
+		"trace_id":     record.TraceID,
 	})
+	auditContext := map[string]any{
+		"auditLogId":   record.ID,
+		"action":       record.Action,
+		"eventType":    kind,
+		"resourceType":  firstNonEmptyTrimmed(record.ResourceType, "audit_log"),
+		"resourceId":   firstNonEmptyTrimmed(record.ResourceID, strconv.FormatUint(record.ID, 10)),
+		"resourceName":  firstNonEmptyTrimmed(record.ResourceName, record.Action),
+		"result":       firstNonEmptyTrimmed(string(record.Result), resultFallback(record.Success)),
+		"riskLevel":    string(record.RiskLevel),
+		"requestId":    record.RequestID,
+		"traceId":      record.TraceID,
+		"reason":       firstNonEmptyTrimmed(record.Message, string(record.Result)),
+		"actionLabel":   actionLabel,
+		"title":        title,
+		"message":      message,
+	}
+	if record.StatusCode > 0 {
+		auditContext["statusCode"] = record.StatusCode
+	}
 
 	return moduleapi.PublishNotificationInput{
+		TitleKey:     titleKey,
 		Title:        title,
+		MessageKey:   messageKey,
 		Message:      message,
+		ActionLabelKey: actionLabelKey,
+		ActionLabel:    actionLabel,
 		Severity:     severity,
 		Category:     moduleapi.NotificationCategory(notificationcontract.CategorySecurity),
 		SourceModule: moduleID,
@@ -80,7 +104,7 @@ func auditNotificationInput(record auditstore.AuditLog) moduleapi.PublishNotific
 			Kind:    moduleapi.NotificationNavigationKind(notificationcontract.NavigationAuditLog),
 			Payload: navigationPayload,
 		},
-		Metadata:   metadata,
+		Metadata:   mustMarshalJSON(auditContext, metadata),
 		DedupeKey:  "audit:" + strconv.FormatUint(record.ID, 10),
 		OccurredAt: record.CreatedAt,
 		Target: moduleapi.NotificationTarget{
@@ -102,19 +126,60 @@ func auditNotificationKind(record auditstore.AuditLog) string {
 	}
 }
 
-func auditNotificationCopy(kind string, record auditstore.AuditLog) (string, string) {
+func auditNotificationCopy(kind string, record auditstore.AuditLog) (string, string, string, string, string, string) {
 	target := firstNonEmptyTrimmed(record.ResourceName, record.ResourceID, record.Action, "Audit event")
 	switch kind {
 	case "login_failed":
-		return "Login failed",
-			"A failed login attempt needs review."
+		return "notification.title.audit.loginFailed",
+			"Login failed",
+			"notification.message.audit.loginFailed",
+			"A failed login attempt needs review.",
+			"notification.action.openAuditLog",
+			"View audit log"
 	case "permission_denied":
-		return "Permission denied",
-			"Permission was denied for " + target + "."
+		return "notification.title.audit.permissionDenied",
+			"Permission denied",
+			"notification.message.audit.permissionDenied",
+			"Permission was denied for " + target + ".",
+			"notification.action.openAuditLog",
+			"View audit log"
 	default:
-		return "High-risk audit event",
-			"High-risk audit activity needs review."
+		return "notification.title.audit.highRisk",
+			"High-risk audit event",
+			"notification.message.audit.highRisk",
+			"High-risk audit activity needs review.",
+			"notification.action.openAuditLog",
+			"View audit log"
 	}
+}
+
+func mustMarshalJSON(auditContext map[string]any, existing json.RawMessage) json.RawMessage {
+	metadata := make(map[string]any, len(auditContext)+4)
+	for key, value := range auditContext {
+		metadata[key] = value
+	}
+	if len(existing) > 0 {
+		var extra map[string]any
+		if err := json.Unmarshal(existing, &extra); err == nil {
+			for key, value := range extra {
+				if _, exists := metadata[key]; !exists {
+					metadata[key] = value
+				}
+			}
+		}
+	}
+	payload, err := json.Marshal(metadata)
+	if err != nil {
+		return json.RawMessage(`{}`)
+	}
+	return json.RawMessage(payload)
+}
+
+func resultFallback(success bool) string {
+	if success {
+		return "SUCCESS"
+	}
+	return "FAILED"
 }
 
 func auditRecordRiskLevel(record auditstore.AuditLog) auditstore.AuditRiskLevel {

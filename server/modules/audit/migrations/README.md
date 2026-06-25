@@ -5,6 +5,9 @@ baseline. The old shared Ent/manual replay chain has been removed and is no long
 authority.
 
 `202605190003_audit_module_schema.sql` is the canonical audit-module baseline on the default
-migration path. It already contains the current table structure, indexes, comments, and seeded
-policy rules, so no module-boundary or follow-up upgrade/comment migrations remain in this
-directory.
+migration path for the original audit table structure, indexes, comments, and baseline policy
+seed. Follow-up policy upgrades for already deployed environments also live in this directory.
+
+`202606250001_audit_container_dangerous_action_policies.sql` extends the default seeded
+`DOMAIN_EVENT` include rules so dangerous container operations are persisted by the audit module
+without requiring a manual policy repair after upgrade.

@@ -13,6 +13,7 @@ import (
 
 type stubAuditRepository struct {
 	createdInput  auditstore.CreateAuditLogInput
+	createdAction string
 	listQuery     auditstore.ListAuditLogsQuery
 	overviewWnd   auditstore.AuditTimePreset
 	incidentID    uint64
@@ -36,11 +37,15 @@ type stubAuditRepository struct {
 
 func (r *stubAuditRepository) CreateAuditLog(_ context.Context, input auditstore.CreateAuditLogInput) (auditstore.AuditLog, error) {
 	r.createdInput = input
+	r.createdAction = input.Action
 	if r.createErr != nil {
 		return auditstore.AuditLog{}, r.createErr
 	}
 	if r.createResult.ID == 0 {
 		r.createResult = auditstore.AuditLog{ID: 1}
+	}
+	if r.createResult.Action == "" {
+		r.createResult.Action = input.Action
 	}
 	return r.createResult, nil
 }
@@ -434,6 +439,45 @@ func TestServiceRecordCandidateAppliesPolicy(t *testing.T) {
 	}
 }
 
+func TestServiceRecordCandidateIncludesContainerDangerousDomainEvent(t *testing.T) {
+	repo := &stubAuditRepository{
+		policyRules: []auditstore.AuditPolicyRule{
+			{
+				Name:      "domain.container.action.stop",
+				Source:    auditstore.AuditSourceDomainEvent,
+				Enabled:   true,
+				Priority:  50,
+				Effect:    auditstore.AuditPolicyEffectInclude,
+				EventType: "ops.container.action.stop",
+				MatchType: auditstore.AuditPolicyMatchTypeExact,
+			},
+		},
+	}
+	service, err := NewService(repo)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	_, recorded, err := service.RecordCandidate(context.Background(), auditstore.AuditCandidate{
+		Source:       auditstore.AuditSourceDomainEvent,
+		Action:       "ops.container.action.stop",
+		EventType:    "ops.container.action.stop",
+		ResourceType: "container",
+		ResourceID:   "container-1",
+		ResourceName: "graft-web",
+		Success:      true,
+	})
+	if err != nil {
+		t.Fatalf("record candidate: %v", err)
+	}
+	if !recorded {
+		t.Fatal("expected container dangerous action candidate to be recorded")
+	}
+	if repo.createdInput.Action != "ops.container.action.stop" {
+		t.Fatalf("expected persisted action to be preserved, got %q", repo.createdInput.Action)
+	}
+}
+
 func TestParseOptionalUint64Param(t *testing.T) {
 	t.Run("empty", func(t *testing.T) {
 		got, ok, err := parseOptionalUint64Param(stubParamGetter{value: ""}, "id")
@@ -475,5 +519,17 @@ func TestPolicyEvaluatorReturnsRepositoryError(t *testing.T) {
 	_, err = evaluator.Evaluate(context.Background(), auditstore.AuditCandidate{})
 	if err == nil || err.Error() != "policy failed" {
 		t.Fatalf("expected repository error, got %v", err)
+	}
+}
+
+func TestClassifyCandidateRiskLevelMarksContainerDangerousActionsHigh(t *testing.T) {
+	record := auditstore.AuditLog{
+		Action:       "ops.container.action.remove",
+		ResourceType: "container",
+		Result:       auditstore.AuditResultSuccess,
+	}
+
+	if got := classifyCandidateAuditRiskLevel(record); got != auditstore.AuditRiskLevelHigh {
+		t.Fatalf("expected container dangerous action to be high risk, got %q", got)
 	}
 }

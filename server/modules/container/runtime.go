@@ -441,6 +441,7 @@ type ActionResult struct {
 	StatusAfter  string
 	MessageKey   string
 	Message      string
+	Orchestrator OrchestratorInfo
 }
 
 // RemoveOptions describes guarded remove behavior passed to runtime adapters.

@@ -191,4 +191,51 @@ describe('AuditDetailDrawer', () => {
     expect(wrapper.get('[data-testid="json-panel-Raw JSON"]').text()).not.toContain('trace');
     expect(wrapper.text()).not.toContain('openIncident');
   });
+
+  it('renders the tabbed detail payloads inside the drawer body', () => {
+    const wrapper = mount(AuditDetailDrawer, {
+      props: {
+        visible: true,
+        monitorOrigin: null,
+        rows: [],
+        record: {
+          id: 1,
+          action: 'auth.permission.denied',
+          actor_display_name: 'Admin',
+          actor_username: 'admin',
+          actor_user_id: 1,
+          resource_type: 'permission',
+          resource_id: 'rbac.role.read',
+          resource_name: 'rbac.role.read',
+          target: { kind: 'incident', type: 'incident', id: '42', label: 'Incident #42' },
+          request_id: 'req-1',
+          trace_id: 'trace-1',
+          session_id: 'sess-1',
+          source: 'SECURITY_EVENT',
+          result: 'DENIED',
+          success: false,
+          risk_level: 'HIGH',
+          ip: '127.0.0.1',
+          user_agent: 'vitest',
+          request_method: 'POST',
+          request_path: '/api/auth/login',
+          status_code: 401,
+          message: 'Denied',
+          metadata: {
+            eventType: 'auth.permission.denied',
+            permission: 'rbac.role.read',
+            targetName: 'rbac.role.read',
+          },
+          created_at: '2026-05-31T04:00:00Z',
+        },
+      },
+      global: {
+        plugins: [i18n],
+      },
+    });
+
+    expect(wrapper.find('[data-testid="json-panel-Audit Context"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="json-panel-Metadata"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="json-panel-Raw JSON"]').exists()).toBe(true);
+  });
 });

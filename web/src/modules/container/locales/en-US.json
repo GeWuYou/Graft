@@ -139,6 +139,7 @@
       "actions": {
         "detail": "Detail",
         "logs": "Logs",
+        "viewAudit": "View Audit",
         "start": "Start",
         "stop": "Stop",
         "restart": "Restart",
@@ -291,6 +292,7 @@
       "copy": "Copy",
       "copySuccess": "Content Copied.",
       "copyError": "Content Could Not Be Copied.",
+      "viewAudit": "View Audit",
       "empty": "No Container Detail.",
       "missingId": "Container ID Is Missing.",
       "inspectUpdatedAt": "Detail Updated At",

@@ -26,6 +26,7 @@ import (
 
 const (
 	containerResourceType        = "container"
+	containerBatchResourceType   = "container_batch"
 	containerOperationTTL        = 30 * time.Second
 	containerAuditPublishTimeout = 3 * time.Second
 	maskedEnvironmentPlaceholder = "*****"
@@ -430,10 +431,20 @@ func (s *service) BatchAction(ctx context.Context, command BatchActionCommand) (
 	}
 	policy := s.effectiveActionPolicy(ctx)
 	if !policy.dangerousAllowed {
+		blocked := BatchActionResult{
+			Action:    normalized.Action,
+			Total:     len(normalized.IDs),
+			RequestID: requestIDFromContext(ctx),
+			Items:     make([]BatchActionItem, 0, len(normalized.IDs)),
+		}
 		for _, ref := range normalized.IDs {
 			result := ActionResult{ID: ref, Action: normalized.Action, Runtime: runtimeNameDocker}
 			s.publishActionAudit(ctx, result, ActionOptions{Force: normalized.Force}, errDangerousActionsDisabled)
+			blocked.Items = append(blocked.Items, batchActionFailure(ref, normalized.Action, errDangerousActionsDisabled))
 		}
+		blocked.FailedCount = len(blocked.Items)
+		blocked = withBatchActionMessage(blocked)
+		s.publishBatchActionAudit(ctx, blocked, ActionOptions{Force: normalized.Force})
 		return BatchActionResult{}, errDangerousActionsDisabled
 	}
 	result := BatchActionResult{
@@ -471,6 +482,7 @@ func (s *service) BatchAction(ctx context.Context, command BatchActionCommand) (
 		result.SuccessCount++
 	}
 	result = withBatchActionMessage(result)
+	s.publishBatchActionAudit(ctx, result, ActionOptions{Force: normalized.Force})
 	return result, nil
 }
 
@@ -494,18 +506,10 @@ func (s *service) runAction(
 	}
 	policy := s.effectiveActionPolicy(ctx)
 	detail, detailErr := runtime.Detail(ctx, ref)
-	orchestratorType := containerOrchestratorUnknown
-	if detailErr == nil {
-		orchestratorType = effectiveOrchestratorType(detail.Summary)
-	}
+	orchestrator := actionAuditOrchestrator(detail, detailErr)
+	orchestratorType := effectiveActionAuditOrchestratorType(orchestrator, detailErr)
 	if policy.singleBlockedFor(orchestratorType) {
-		result := ActionResult{
-			ID:      firstNonEmpty(ref.Value, detail.ID),
-			Name:    detail.Name,
-			Image:   detail.Image,
-			Action:  action,
-			Runtime: runtimeNameDocker,
-		}
+		result := blockedActionAuditResult(ref, detail, action, orchestrator)
 		s.publishActionAudit(ctx, result, options, errDangerousActionsDisabled)
 		return ActionResult{}, errDangerousActionsDisabled
 	}
@@ -514,6 +518,9 @@ func (s *service) runAction(
 	result, err := runWithRuntime(actionCtx, ref, action, options, runtime)
 	if result.Action == "" {
 		result.Action = action
+	}
+	if shouldBackfillActionAuditOrchestrator(result.Orchestrator, detailErr) {
+		result.Orchestrator = orchestrator
 	}
 	if err == nil {
 		result = withActionMessage(result)
@@ -540,22 +547,50 @@ func (s *service) batchActionPolicyFailure(
 	}
 	policy := s.effectiveActionPolicy(ctx)
 	detail, detailErr := runtime.Detail(ctx, ref)
-	orchestratorType := containerOrchestratorUnknown
-	if detailErr == nil {
-		orchestratorType = effectiveOrchestratorType(detail.Summary)
-	}
+	orchestrator := actionAuditOrchestrator(detail, detailErr)
+	orchestratorType := effectiveActionAuditOrchestratorType(orchestrator, detailErr)
 	if policy.singleBlockedFor(orchestratorType) || policy.batchBlockedFor(orchestratorType) {
-		result := ActionResult{
-			ID:      firstNonEmpty(ref.Value, detail.ID),
-			Name:    detail.Name,
-			Image:   detail.Image,
-			Action:  action,
-			Runtime: runtimeNameDocker,
-		}
+		result := blockedActionAuditResult(ref, detail, action, orchestrator)
 		s.publishActionAudit(ctx, result, options, errDangerousActionsDisabled)
 		return batchActionItem(ref.Value, action, result, errDangerousActionsDisabled), true
 	}
 	return BatchActionItem{}, false
+}
+
+func actionAuditOrchestrator(detail Detail, detailErr error) OrchestratorInfo {
+	if detailErr != nil {
+		return OrchestratorInfo{}
+	}
+	return detail.Orchestrator
+}
+
+func effectiveActionAuditOrchestratorType(orchestrator OrchestratorInfo, detailErr error) string {
+	if detailErr != nil {
+		return containerOrchestratorUnknown
+	}
+	return effectiveOrchestratorType(Summary{Orchestrator: orchestrator})
+}
+
+func blockedActionAuditResult(ref Ref, detail Detail, action string, orchestrator OrchestratorInfo) ActionResult {
+	return ActionResult{
+		ID:           firstNonEmpty(ref.Value, detail.ID),
+		Name:         detail.Name,
+		Image:        detail.Image,
+		Action:       action,
+		Runtime:      runtimeNameDocker,
+		Orchestrator: orchestrator,
+	}
+}
+
+func shouldBackfillActionAuditOrchestrator(orchestrator OrchestratorInfo, detailErr error) bool {
+	if detailErr != nil {
+		return false
+	}
+	return orchestrator.Type == "" &&
+		orchestrator.GroupScopeKind == "" &&
+		orchestrator.MemberScopeKind == "" &&
+		orchestrator.GroupValue == "" &&
+		orchestrator.MemberValue == ""
 }
 
 func (s *service) requireRuntimeAccess(ctx context.Context) error {
@@ -1166,7 +1201,7 @@ func (s *service) publishActionAudit(ctx context.Context, result ActionResult, o
 	}
 	auditCtx, cancel := detachedAuditContext(ctx)
 	defer cancel()
-	action := "ops.container." + strings.TrimSpace(result.Action)
+	action := actionAuditContract(result.Action).String()
 	messageKey := ""
 	message := ""
 	if err != nil {
@@ -1185,6 +1220,14 @@ func (s *service) publishActionAudit(ctx context.Context, result ActionResult, o
 		"error":          messageKey,
 		"status_before":  result.StatusBefore,
 		"status_after":   result.StatusAfter,
+		"orchestrator_type": firstNonEmpty(
+			result.Orchestrator.Type,
+			containerOrchestratorUnknown,
+		),
+		"source_group_kind":   strings.TrimSpace(result.Orchestrator.GroupScopeKind),
+		"source_group_value":  strings.TrimSpace(result.Orchestrator.GroupValue),
+		"source_member_kind":  strings.TrimSpace(result.Orchestrator.MemberScopeKind),
+		"source_member_value": strings.TrimSpace(result.Orchestrator.MemberValue),
 	}
 	if requestAudit, ok := httpx.RequestAuditContextFromContext(auditCtx); ok {
 		metadata["requestId"] = requestAudit.RequestID
@@ -1216,6 +1259,112 @@ func (s *service) publishActionAudit(ctx context.Context, result ActionResult, o
 			zap.Error(publishErr),
 		)
 	}
+}
+
+func (s *service) publishBatchActionAudit(ctx context.Context, result BatchActionResult, options ActionOptions) {
+	if s == nil || s.auditBus == nil {
+		return
+	}
+	auditCtx, cancel := detachedAuditContext(ctx)
+	defer cancel()
+
+	requestID := firstNonEmpty(strings.TrimSpace(result.RequestID), requestIDFromContext(ctx))
+	resourceID := requestID
+	if resourceID == "" {
+		resourceID = "batch:" + strings.TrimSpace(result.Action) + ":" + strconv.FormatInt(time.Now().UTC().UnixNano(), 10)
+	}
+	metadata := map[string]any{
+		"batch":           true,
+		"batch_action":    batchActionAuditContract(result.Action).String(),
+		"requested_total": result.Total,
+		"requested_ids":   batchRequestedIDs(result.Items),
+		"success_count":   result.SuccessCount,
+		"failed_count":    result.FailedCount,
+		"failed_ids":      batchFailedIDs(result.Items),
+		"force":           options.Force,
+	}
+	if requestAudit, ok := httpx.RequestAuditContextFromContext(auditCtx); ok {
+		metadata["requestId"] = firstNonEmpty(requestID, requestAudit.RequestID)
+		metadata["traceId"] = requestAudit.TraceID
+	} else if requestID != "" {
+		metadata["requestId"] = requestID
+	}
+	event := moduleapi.AuditEvent{
+		Kind:         moduleapi.AuditEventKindDomain,
+		Operator:     currentAuditOperator(auditCtx),
+		Action:       batchActionAuditContract(result.Action).String(),
+		ResourceType: containerBatchResourceType,
+		ResourceID:   resourceID,
+		ResourceName: strings.TrimSpace(result.Action) + " x" + strconv.Itoa(result.Total),
+		StatusCode:   batchAuditStatusCode(result),
+		Success:      result.FailedCount == 0,
+		MessageKey:   strings.TrimSpace(result.MessageKey),
+		Message:      strings.TrimSpace(result.Message),
+		Metadata:     metadata,
+	}
+	if publishErr := s.auditBus.Publish(auditCtx, eventbus.Event{
+		Name:    string(moduleapi.AuditRecordEventName),
+		Source:  s.moduleName,
+		Payload: event,
+	}); publishErr != nil && s.logger != nil {
+		s.logger.Warn("publish container batch audit event failed",
+			zap.String("module", s.moduleName),
+			zap.String("action", event.Action),
+			zap.Error(publishErr),
+		)
+	}
+}
+
+func actionAuditContract(action string) containercontract.AuditAction {
+	switch strings.TrimSpace(action) {
+	case containerActionStart:
+		return containercontract.ContainerAuditActionStart
+	case containerActionStop:
+		return containercontract.ContainerAuditActionStop
+	case containerActionRemove:
+		return containercontract.ContainerAuditActionRemove
+	default:
+		return containercontract.AuditAction(strings.TrimSpace(action))
+	}
+}
+
+func batchActionAuditContract(action string) containercontract.AuditAction {
+	switch strings.TrimSpace(action) {
+	case containerActionStart:
+		return containercontract.ContainerAuditActionBatchStart
+	case containerActionStop:
+		return containercontract.ContainerAuditActionBatchStop
+	case containerActionRemove:
+		return containercontract.ContainerAuditActionBatchRemove
+	default:
+		return containercontract.AuditAction(strings.TrimSpace(action))
+	}
+}
+
+func batchRequestedIDs(items []BatchActionItem) []string {
+	ids := make([]string, 0, len(items))
+	for _, item := range items {
+		ids = append(ids, firstNonEmpty(item.Result.ID, item.ID))
+	}
+	return ids
+}
+
+func batchFailedIDs(items []BatchActionItem) []string {
+	ids := make([]string, 0, len(items))
+	for _, item := range items {
+		if item.Success {
+			continue
+		}
+		ids = append(ids, firstNonEmpty(item.Result.ID, item.ID))
+	}
+	return ids
+}
+
+func batchAuditStatusCode(result BatchActionResult) int {
+	if result.FailedCount > 0 {
+		return http.StatusConflict
+	}
+	return http.StatusOK
 }
 
 func currentAuditOperator(ctx context.Context) *moduleapi.CurrentUser {

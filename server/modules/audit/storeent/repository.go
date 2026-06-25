@@ -618,7 +618,11 @@ func auditPresetStart(now time.Time, preset auditstore.AuditTimePreset) time.Tim
 }
 
 func highRiskOperationsWhereClause() string {
-	return `(` + auditRiskLevelExpression() + ` IN ('HIGH', 'CRITICAL'))`
+	return `(` + auditRiskLevelExpression() + ` IN ('HIGH', 'CRITICAL')
+		OR (
+			resource_type IN ('container', 'container_batch')
+			AND LOWER(action) LIKE 'ops.container.action.%'
+		))`
 }
 
 func failedOperationsWhereClause() string {
@@ -900,8 +904,8 @@ func scanAuditLog(
 	ctx context.Context,
 	localizer *i18n.Service,
 	scanner interface {
-	Scan(dest ...any) error
-},
+		Scan(dest ...any) error
+	},
 ) (auditstore.AuditLog, error) {
 	var (
 		record      auditstore.AuditLog

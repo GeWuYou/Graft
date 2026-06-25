@@ -139,6 +139,7 @@
       "actions": {
         "detail": "详情",
         "logs": "日志",
+        "viewAudit": "查看审计",
         "start": "启动",
         "stop": "停止",
         "restart": "重启",
@@ -291,6 +292,7 @@
       "copy": "复制",
       "copySuccess": "内容已复制。",
       "copyError": "内容复制失败。",
+      "viewAudit": "查看审计",
       "empty": "暂无容器详情。",
       "missingId": "缺少容器标识。",
       "inspectUpdatedAt": "详情更新时间",

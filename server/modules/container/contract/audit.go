@@ -9,6 +9,22 @@ func (a AuditAction) String() string {
 }
 
 const (
+	// ContainerAuditActionStart identifies single-item start auditing.
+	ContainerAuditActionStart AuditAction = "ops.container.action.start"
+	// ContainerAuditActionStop identifies single-item stop auditing.
+	ContainerAuditActionStop AuditAction = "ops.container.action.stop"
+	// ContainerAuditActionRestart identifies single-item restart auditing.
+	ContainerAuditActionRestart AuditAction = "ops.container.action.restart"
+	// ContainerAuditActionRemove identifies single-item remove auditing.
+	ContainerAuditActionRemove AuditAction = "ops.container.action.remove"
+	// ContainerAuditActionBatchStart identifies batch start summary auditing.
+	ContainerAuditActionBatchStart AuditAction = "ops.container.action.batch.start"
+	// ContainerAuditActionBatchStop identifies batch stop summary auditing.
+	ContainerAuditActionBatchStop AuditAction = "ops.container.action.batch.stop"
+	// ContainerAuditActionBatchRestart identifies batch restart summary auditing.
+	ContainerAuditActionBatchRestart AuditAction = "ops.container.action.batch.restart"
+	// ContainerAuditActionBatchRemove identifies batch remove summary auditing.
+	ContainerAuditActionBatchRemove AuditAction = "ops.container.action.batch.remove"
 	// ContainerAuditActionShellSessionRequested identifies shell session request auditing.
 	ContainerAuditActionShellSessionRequested AuditAction = "ops.container.shell.session.requested"
 	// ContainerAuditActionShellTicketIssued identifies shell ticket issue auditing.

@@ -83,6 +83,10 @@ const tabsRouterStoreMock = vi.hoisted(() => ({
   }),
 }));
 
+const permissionStoreMock = vi.hoisted(() => ({
+  hasPermission: vi.fn(() => true),
+}));
+
 const translations = vi.hoisted(
   (): Record<string, string> => ({
     'container.list.actionFailed': '容器操作失败。',
@@ -110,6 +114,7 @@ const translations = vi.hoisted(
     'container.list.actions.start': '启动',
     'container.list.actions.stop': '停止',
     'container.list.actions.unavailable': '该操作当前不可用。',
+    'container.list.actions.viewAudit': '查看审计',
     'container.list.actions.viewEnvironment': '查看环境变量',
     'container.list.actions.viewMounts': '查看挂载',
     'container.list.actions.viewNetworks': '查看网络',
@@ -366,6 +371,7 @@ vi.mock('vue-router', () => ({
 }));
 
 vi.mock('@/store', () => ({
+  usePermissionStore: () => permissionStoreMock,
   useTabsRouterStore: () => tabsRouterStoreMock,
 }));
 
@@ -1074,6 +1080,17 @@ describe('container list page', () => {
       name: 'ContainerDetailIndex',
       params: { id: 'container-1' },
       query: { tab: 'logs' },
+    });
+
+    await wrapper.get('[data-testid="container-action-audit"]').trigger('click');
+    await flushPromises();
+    expect(routerMocks.push).toHaveBeenLastCalledWith({
+      path: '/audit/logs',
+      query: {
+        resource_id: 'container-1',
+        resource_name: 'graft-web',
+        resource_type: 'container',
+      },
     });
 
     await wrapper.get('[data-testid="container-action-view-mounts"]').trigger('click');

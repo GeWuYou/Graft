@@ -8,7 +8,8 @@ export type AuditQuickPresetKey =
   | 'permission-denied'
   | 'sensitive-ops'
   | 'auth-failed'
-  | 'high-risk';
+  | 'high-risk'
+  | 'container-dangerous-ops';
 
 export type AuditQuickPresetDefinition = {
   key: AuditQuickPresetKey;
@@ -24,6 +25,7 @@ const AUDIT_PRESET_DEFINITIONS: readonly AuditQuickPresetDefinition[] = [
   { key: 'sensitive-ops', titleKey: 'audit.logList.presets.sensitiveOps' },
   { key: 'auth-failed', titleKey: 'audit.logList.presets.authFailed' },
   { key: 'high-risk', titleKey: 'audit.logList.presets.highRisk' },
+  { key: 'container-dangerous-ops', titleKey: 'audit.logList.presets.containerDangerousOps' },
 ] as const;
 
 export const AUDIT_DRILLDOWN_SCOPE = {

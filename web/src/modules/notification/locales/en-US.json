@@ -39,6 +39,14 @@
     },
     "detail": {
       "basic": "Basic Information",
+      "auditAction": "Audit Action",
+      "auditReason": "Audit Reason",
+      "auditRequestId": "Request ID",
+      "auditResource": "Audit Resource",
+      "auditResult": "Audit Result",
+      "auditRiskLevel": "Risk Level",
+      "auditSummary": "Audit Summary",
+      "auditTraceId": "Trace ID",
       "eventType": "Event Type",
       "navigation": "Business Context",
       "readAt": "Read At",
@@ -137,7 +145,18 @@
       "openNotificationCenter": "View All Notifications",
       "openRelatedPage": "Open Related Page",
       "openRunRecord": "Open Run Record",
-      "openTarget": "Open Related Page"
+      "openTarget": "Open Related Page",
+      "openAuditLog": "View Audit Log"
+    },
+    "message": {
+      "audit": {
+        "highRisk": "High-risk audit activity needs review.",
+        "loginFailed": "A failed login attempt needs review.",
+        "permissionDenied": "Permission was denied for {target}."
+      },
+      "scheduler": {
+        "runSucceeded": "Completed successfully."
+      }
     },
     "level": {
       "info": "Info",
@@ -158,13 +177,13 @@
       "scheduledTaskRun": "Scheduled Task Run"
     },
     "title": {
+      "audit": {
+        "highRisk": "High-risk Audit Event",
+        "loginFailed": "Login Failed",
+        "permissionDenied": "Permission Denied"
+      },
       "scheduler": {
         "runSucceeded": "Scheduled Task Succeeded"
-      }
-    },
-    "message": {
-      "scheduler": {
-        "runSucceeded": "Completed successfully."
       }
     },
     "emptyValue": "None",

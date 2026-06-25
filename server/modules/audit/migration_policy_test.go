@@ -27,3 +27,31 @@ func TestAuditPolicyMigrationSeedIsIdempotent(t *testing.T) {
 		t.Fatal("expected policy migration seed upsert to refresh updated_at")
 	}
 }
+
+func TestContainerDangerousActionPolicyUpgradeSeedExists(t *testing.T) {
+	t.Parallel()
+
+	content, err := os.ReadFile("migrations/202606250001_audit_container_dangerous_action_policies.sql")
+	if err != nil {
+		t.Fatalf("read container policy migration: %v", err)
+	}
+
+	sql := string(content)
+	for _, action := range []string{
+		"ops.container.action.start",
+		"ops.container.action.stop",
+		"ops.container.action.restart",
+		"ops.container.action.remove",
+		"ops.container.action.batch.start",
+		"ops.container.action.batch.stop",
+		"ops.container.action.batch.restart",
+		"ops.container.action.batch.remove",
+	} {
+		if !strings.Contains(sql, action) {
+			t.Fatalf("expected container dangerous action %q in upgrade migration", action)
+		}
+	}
+	if !strings.Contains(sql, `ON CONFLICT ("name") DO UPDATE SET`) {
+		t.Fatal("expected container policy upgrade migration to upsert by rule name")
+	}
+}
