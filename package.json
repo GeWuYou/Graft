@@ -1,0 +1,10 @@
+{
+  "name": "graft-tools",
+  "private": true,
+  "scripts": {
+    "quality:eff-u-code": "python3 scripts/run_eff_u_code.py"
+  },
+  "devDependencies": {
+    "eff-u-code": "2.2.2"
+  }
+}

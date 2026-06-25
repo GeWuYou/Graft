@@ -16,6 +16,12 @@ ROOT_DIR = Path(__file__).resolve().parents[1]
 EXAMPLE_CONFIG = ROOT_DIR / "scripts" / "eff-u-code.example.json"
 LOCAL_CONFIG = ROOT_DIR / ".eff-u-code.local.json"
 SCOPES = ("server", "web")
+LOCAL_BIN_DIR = ROOT_DIR / "node_modules" / ".bin"
+LOCAL_NODE_MODULES_DIR = ROOT_DIR / "node_modules"
+EFF_U_CODE_DIR = LOCAL_NODE_MODULES_DIR / "eff-u-code"
+TREE_SITTER_WASMS_DIR = LOCAL_NODE_MODULES_DIR / "tree-sitter-wasms"
+EFF_U_CODE_WASMS_DIR = EFF_U_CODE_DIR / "node_modules" / "tree-sitter-wasms"
+LOCAL_TOOL_NAME = "fuck-u-code.cmd" if sys.platform == "win32" else "fuck-u-code"
 
 
 class ConfigError(RuntimeError):
@@ -109,11 +115,6 @@ def resolve_scopes(requested_scope: str) -> list[str]:
 
 def build_command(scope_config: dict[str, Any], *, output_file: Path | None, verbose: bool) -> list[str]:
     command = [
-        "bunx",
-        "--bun",
-        "--package",
-        "eff-u-code",
-        "fuck-u-code",
         "analyze",
         scope_config["path"],
         "--locale",
@@ -132,10 +133,36 @@ def build_command(scope_config: dict[str, Any], *, output_file: Path | None, ver
     return command
 
 
-def ensure_tooling() -> None:
-    missing = [tool for tool in ("bunx", "python3") if shutil.which(tool) is None]
-    if missing:
-        raise ConfigError(f"missing required local tools: {', '.join(missing)}")
+def resolve_local_tool() -> Path:
+    local_tool = LOCAL_BIN_DIR / LOCAL_TOOL_NAME
+    if local_tool.is_file():
+        return local_tool
+    raise ConfigError(
+        "missing project-local eff-u-code install: run `bun install` at the repository root "
+        "and avoid using the global eff-u-code package"
+    )
+
+
+def ensure_tree_sitter_wasms_layout() -> None:
+    if not TREE_SITTER_WASMS_DIR.is_dir():
+        raise ConfigError(
+            "missing project-local tree-sitter-wasms install: run `bun install` at the repository root"
+        )
+
+    expected_out_dir = EFF_U_CODE_WASMS_DIR / "out"
+    if expected_out_dir.is_dir():
+        return
+
+    EFF_U_CODE_WASMS_DIR.parent.mkdir(parents=True, exist_ok=True)
+    if EFF_U_CODE_WASMS_DIR.exists():
+        if EFF_U_CODE_WASMS_DIR.is_symlink() and EFF_U_CODE_WASMS_DIR.resolve() == TREE_SITTER_WASMS_DIR.resolve():
+            return
+        if EFF_U_CODE_WASMS_DIR.is_dir():
+            shutil.rmtree(EFF_U_CODE_WASMS_DIR)
+        else:
+            EFF_U_CODE_WASMS_DIR.unlink()
+
+    EFF_U_CODE_WASMS_DIR.symlink_to(TREE_SITTER_WASMS_DIR, target_is_directory=True)
 
 
 def init_local_config() -> None:
@@ -184,7 +211,8 @@ def main() -> int:
     args = parse_args()
 
     try:
-        ensure_tooling()
+        tool = resolve_local_tool()
+        ensure_tree_sitter_wasms_layout()
         if args.init_config:
             init_local_config()
 
@@ -200,7 +228,7 @@ def main() -> int:
             if output_dir is not None:
                 output_file = output_dir / f"eff-u-code-{scope}.{suffix_for_format(scope_config['format'])}"
 
-            command = build_command(scope_config, output_file=output_file, verbose=args.verbose)
+            command = [str(tool), *build_command(scope_config, output_file=output_file, verbose=args.verbose)]
             print(f"[eff-u-code:{scope}] {' '.join(command)}")
             if args.dry_run:
                 continue

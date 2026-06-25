@@ -117,7 +117,7 @@
             "runtimeExecutable": "bash",
             "runtimeArgs": [
                 "-lc",
-                "cd \"${workspaceFolder}\" && python3 scripts/run_eff_u_code.py server"
+                "cd \"${workspaceFolder}\" && bun run quality:eff-u-code -- server"
             ],
             "console": "integratedTerminal"
         },
@@ -128,7 +128,7 @@
             "runtimeExecutable": "bash",
             "runtimeArgs": [
                 "-lc",
-                "cd \"${workspaceFolder}\" && python3 scripts/run_eff_u_code.py web"
+                "cd \"${workspaceFolder}\" && bun run quality:eff-u-code -- web"
             ],
             "console": "integratedTerminal"
         },
@@ -139,7 +139,7 @@
             "runtimeExecutable": "bash",
             "runtimeArgs": [
                 "-lc",
-                "cd \"${workspaceFolder}\" && python3 scripts/run_eff_u_code.py all"
+                "cd \"${workspaceFolder}\" && bun run quality:eff-u-code -- all"
             ],
             "console": "integratedTerminal"
         }
