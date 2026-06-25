@@ -73,7 +73,7 @@
   </section>
 </template>
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onActivated, onDeactivated, onMounted, onUnmounted, ref } from 'vue';
 
 import { API_CODE } from '@/contracts/api/codes';
 import type { SupportedLocale } from '@/contracts/i18n/locales';
@@ -81,6 +81,13 @@ import { currentLocale, t } from '@/locales';
 import { containerModuleFacades } from '@/modules/container';
 import type { ContainerDashboardSummary } from '@/modules/container/contract/dashboard-summary';
 import { CONTAINER_PERMISSION_CODE } from '@/modules/container/contract/permissions';
+import {
+  acquireContainerDashboardSummarySubscription,
+  clearContainerDashboardSummary,
+  releaseContainerDashboardSummarySubscription,
+  seedContainerDashboardSummary,
+  selectContainerDashboardSummaryView,
+} from '@/modules/container/shared/stats-manager';
 import { PageHeader } from '@/shared/components/page';
 import { formatLocaleDateTime, MEDIUM_DATE_TIME_WITH_SECONDS_FORMAT_OPTIONS } from '@/shared/observability';
 import { usePermissionStore } from '@/store/modules/permission';
@@ -114,7 +121,8 @@ const widgets = ref<DashboardWidget[]>([]);
 const lastUpdatedAt = ref('');
 const quickActionConfig = ref<DashboardQuickActionConfig>({ ...DEFAULT_DASHBOARD_QUICK_ACTION_CONFIG });
 const containerResourcesLoading = ref(false);
-const containerDashboardSummary = ref<ContainerDashboardSummary>(emptyContainerDashboardSummary());
+const dashboardPageActive = ref(false);
+let dashboardContainerRealtimeSubscribed = false;
 const summarySkeletonRowCol = [
   { width: '52%', height: '14px' },
   { width: '36%', height: '28px' },
@@ -178,9 +186,28 @@ const quickLinks = computed(() =>
   buildDashboardQuickActionLinks(permissionStore.routers, currentLocale.value as SupportedLocale),
 );
 const canViewContainerOverview = computed(() => permissionStore.hasPermission(CONTAINER_PERMISSION_CODE.VIEW));
+const containerDashboardSummary = computed<ContainerDashboardSummary>(
+  () => selectContainerDashboardSummaryView() ?? emptyContainerDashboardSummary(),
+);
 
 onMounted(() => {
+  dashboardPageActive.value = true;
   void loadSummary();
+});
+
+onUnmounted(() => {
+  dashboardPageActive.value = false;
+  releaseDashboardContainerRealtimeSubscription();
+});
+
+onActivated(() => {
+  dashboardPageActive.value = true;
+  acquireDashboardContainerRealtimeSubscription();
+});
+
+onDeactivated(() => {
+  dashboardPageActive.value = false;
+  releaseDashboardContainerRealtimeSubscription();
 });
 
 async function loadSummary() {
@@ -220,16 +247,19 @@ async function loadQuickActionConfig() {
 
 async function loadDashboardContainerResources() {
   if (!canViewContainerOverview.value) {
-    containerDashboardSummary.value = emptyContainerDashboardSummary();
+    clearContainerDashboardSummary();
+    releaseDashboardContainerRealtimeSubscription();
     return;
   }
 
   containerResourcesLoading.value = true;
   try {
-    containerDashboardSummary.value = await containerModuleFacades.getContainerDashboardSummary();
+    const nextSummary = await containerModuleFacades.getContainerDashboardSummary();
+    seedContainerDashboardSummary(nextSummary);
+    acquireDashboardContainerRealtimeSubscription();
   } catch (error) {
     logger.warn('dashboard container resource seed request failed', error);
-    containerDashboardSummary.value = emptyContainerDashboardSummary();
+    clearContainerDashboardSummary();
   } finally {
     containerResourcesLoading.value = false;
   }
@@ -252,6 +282,27 @@ function emptyContainerDashboardSummary(): ContainerDashboardSummary {
     },
     anomalies: [],
   };
+}
+
+function acquireDashboardContainerRealtimeSubscription() {
+  if (
+    !dashboardPageActive.value ||
+    !canViewContainerOverview.value ||
+    dashboardContainerRealtimeSubscribed ||
+    !selectContainerDashboardSummaryView()
+  ) {
+    return;
+  }
+  dashboardContainerRealtimeSubscribed = true;
+  acquireContainerDashboardSummarySubscription();
+}
+
+function releaseDashboardContainerRealtimeSubscription() {
+  if (!dashboardContainerRealtimeSubscribed) {
+    return;
+  }
+  dashboardContainerRealtimeSubscribed = false;
+  releaseContainerDashboardSummarySubscription();
 }
 
 async function refreshWidget(widgetId: string) {

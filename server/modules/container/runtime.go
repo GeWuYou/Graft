@@ -152,12 +152,17 @@ type StatsCollectorRuntime interface {
 
 // StatsSnapshot is one collector-produced resource snapshot ready for publish.
 type StatsSnapshot struct {
-	ContainerID string
-	Name        string
-	ShortID     string
-	Runtime     string
-	Resource    ResourceSummary
-	CollectedAt time.Time
+	ContainerID  string
+	Name         string
+	ShortID      string
+	Image        string
+	Runtime      string
+	State        string
+	Status       string
+	Health       string
+	RestartCount *int
+	Resource     ResourceSummary
+	CollectedAt  time.Time
 }
 
 // Ref is a validated Docker-compatible container id or name.

@@ -8853,7 +8853,7 @@
         ],
         "summary": "Read container dashboard summary",
         "operationId": "getContainerDashboardSummary",
-        "description": "Returns the container-module-owned dashboard summary projection built from current runtime list snapshots.",
+        "description": "Returns the container-module-owned dashboard summary projection built from current runtime list snapshots. The canonical realtime companion topic is `container.dashboard.summary`, which reuses the unified realtime subscription and WebSocket flow.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -16991,6 +16991,32 @@
             "minimum": 0,
             "nullable": true
           },
+          "status": {
+            "type": "string",
+            "nullable": true
+          },
+          "reason_code": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "health.unhealthy",
+              "state.restarting",
+              "state.exited",
+              "state.dead",
+              "state.unknown"
+            ],
+            "x-enum-varnames": [
+              "ContainerDashboardAnomalyReasonCodeHealthUnhealthy",
+              "ContainerDashboardAnomalyReasonCodeStateRestarting",
+              "ContainerDashboardAnomalyReasonCodeStateExited",
+              "ContainerDashboardAnomalyReasonCodeStateDead",
+              "ContainerDashboardAnomalyReasonCodeStateUnknown"
+            ]
+          },
+          "reason_label": {
+            "type": "string",
+            "nullable": true
+          },
           "resource": {
             "$ref": "#/components/schemas/container-resource-summary"
           }
@@ -16999,11 +17025,16 @@
       "container-dashboard-summary-response": {
         "type": "object",
         "required": [
+          "collected_at",
           "overview",
           "hotspots",
           "anomalies"
         ],
         "properties": {
+          "collected_at": {
+            "type": "string",
+            "format": "date-time"
+          },
           "overview": {
             "$ref": "#/components/schemas/container-dashboard-overview"
           },

@@ -2,10 +2,14 @@ import { reactive } from 'vue';
 
 import { openRealtimeTopicSocket, type RealtimeTopicSocketController } from '@/shared/realtime';
 
+import { mapContainerDashboardSummary } from '../api/dashboard-summary';
+import type { ContainerDashboardSummary } from '../contract/dashboard-summary';
 import type { ContainerDetailRecord, ContainerResourceSummary, ContainerSummaryRecord } from '../types/container';
 import {
+  buildContainerDashboardSummaryTopic,
   buildContainerListStatsTopic,
   buildContainerStatsTopic,
+  parseContainerDashboardSummaryPayload,
   parseContainerListStatsPayload,
   parseContainerStatsPayload,
 } from './realtime-stats';
@@ -39,27 +43,32 @@ type ContainerStatsEntry = {
   snapshot: ContainerStatsSnapshot | null;
 };
 
-type ContainerStatsSubscriptionEntry = {
+type RealtimeSubscriptionEntry = {
   controller: RealtimeTopicSocketController | null;
   idleTimer: number | null;
   refCount: number;
   state: RealtimeSocketState;
 };
 
-type ContainerStatsCollectionSubscriptionEntry = {
-  controller: RealtimeTopicSocketController | null;
-  idleTimer: number | null;
-  refCount: number;
-  state: RealtimeSocketState;
+type ContainerDashboardSummarySnapshot = {
+  source: StatsSnapshotSource;
+  summary: ContainerDashboardSummary;
 };
 
 type ContainerStatsManagerState = {
+  dashboardSummary: ContainerDashboardSummarySnapshot | null;
+  dashboardSummarySubscription: RealtimeSubscriptionEntry;
   detailMetadataById: Map<string, ContainerDetailMetadataRecord>;
   listCollections: Map<ContainerSummaryCollectionKey, string[]>;
-  listTopicSubscription: ContainerStatsCollectionSubscriptionEntry;
+  listTopicSubscription: RealtimeSubscriptionEntry;
   listMetadataByCollection: Map<ContainerSummaryCollectionKey, Map<string, ContainerMetadataRecord>>;
   statsById: Map<string, ContainerStatsEntry>;
-  subscriptionsById: Map<string, ContainerStatsSubscriptionEntry>;
+  subscriptionsById: Map<string, RealtimeSubscriptionEntry>;
+};
+
+type SnapshotWithSource<TSnapshot> = {
+  source: StatsSnapshotSource;
+  summary: TSnapshot;
 };
 
 const SUBSCRIPTION_IDLE_GRACE_MS = 10_000;
@@ -68,6 +77,13 @@ const CONTAINER_STATS_HISTORY_LIMIT = 12;
 const CONTAINER_STATS_CHANGE_HIGHLIGHT_MS = 800;
 
 const state = reactive<ContainerStatsManagerState>({
+  dashboardSummary: null,
+  dashboardSummarySubscription: {
+    controller: null,
+    idleTimer: null,
+    refCount: 0,
+    state: 'idle',
+  },
   detailMetadataById: new Map<string, ContainerDetailMetadataRecord>(),
   listCollections: new Map<ContainerSummaryCollectionKey, string[]>(),
   listTopicSubscription: {
@@ -78,7 +94,7 @@ const state = reactive<ContainerStatsManagerState>({
   },
   listMetadataByCollection: new Map<ContainerSummaryCollectionKey, Map<string, ContainerMetadataRecord>>(),
   statsById: new Map<string, ContainerStatsEntry>(),
-  subscriptionsById: new Map<string, ContainerStatsSubscriptionEntry>(),
+  subscriptionsById: new Map<string, RealtimeSubscriptionEntry>(),
 });
 
 /**
@@ -99,6 +115,55 @@ function normalizeCollectedAt(value?: string | null) {
  */
 function getCollectedAtValue(resource?: ContainerResourceSummary | null) {
   return normalizeCollectedAt(resource?.collected_at);
+}
+
+/**
+ * 获取仪表盘汇总快照的采集时间。
+ *
+ * @param summary - 容器仪表盘汇总
+ * @returns 规范化后的汇总采集时间，缺失时为 `null`
+ */
+function getDashboardSummaryCollectedAt(summary?: ContainerDashboardSummary | null) {
+  return normalizeCollectedAt(summary?.overview.collectedAt);
+}
+
+/**
+ * 判断候选快照是否比当前快照更新。
+ *
+ * @param current - 当前快照
+ * @param candidate - 待写入的候选值
+ * @param source - 候选来源
+ * @param readCollectedAt - 读取采集时间的函数
+ * @returns `true` 表示候选值应覆盖当前快照
+ */
+function isNewerSnapshot<TSnapshot>(
+  current: SnapshotWithSource<TSnapshot> | null,
+  candidate: TSnapshot,
+  source: StatsSnapshotSource,
+  readCollectedAt: (snapshot: TSnapshot) => string | null,
+) {
+  if (!current) {
+    return true;
+  }
+
+  const currentCollectedAt = readCollectedAt(current.summary);
+  const candidateCollectedAt = readCollectedAt(candidate);
+
+  if (candidateCollectedAt && currentCollectedAt) {
+    return candidateCollectedAt >= currentCollectedAt;
+  }
+  if (candidateCollectedAt && !currentCollectedAt) {
+    return true;
+  }
+  if (!candidateCollectedAt && currentCollectedAt) {
+    return false;
+  }
+
+  if (current.source === 'realtime' && source === 'http-seed') {
+    return false;
+  }
+
+  return true;
 }
 
 /**
@@ -182,28 +247,28 @@ function isNewerStatsSnapshot(
   candidate: ContainerResourceSummary,
   source: StatsSnapshotSource,
 ) {
-  if (!current) {
-    return true;
-  }
+  return isNewerSnapshot(
+    current ? { source: current.source, summary: current.resource } : null,
+    candidate,
+    source,
+    getCollectedAtValue,
+  );
+}
 
-  const currentCollectedAt = getCollectedAtValue(current.resource);
-  const candidateCollectedAt = getCollectedAtValue(candidate);
-
-  if (candidateCollectedAt && currentCollectedAt) {
-    return candidateCollectedAt >= currentCollectedAt;
-  }
-  if (candidateCollectedAt && !currentCollectedAt) {
-    return true;
-  }
-  if (!candidateCollectedAt && currentCollectedAt) {
-    return false;
-  }
-
-  if (current.source === 'realtime' && source === 'http-seed') {
-    return false;
-  }
-
-  return true;
+/**
+ * 判断候选仪表盘汇总快照是否比当前快照更新。
+ *
+ * @param current - 当前已保存的汇总快照
+ * @param candidate - 待写入的汇总数据
+ * @param source - 候选快照来源
+ * @returns `true` 表示候选数据应覆盖当前快照
+ */
+function isNewerDashboardSummarySnapshot(
+  current: ContainerDashboardSummarySnapshot | null,
+  candidate: ContainerDashboardSummary,
+  source: StatsSnapshotSource,
+) {
+  return isNewerSnapshot(current, candidate, source, getDashboardSummaryCollectedAt);
 }
 
 /**
@@ -314,7 +379,7 @@ function ensureSubscriptionEntry(containerId: string) {
     return current;
   }
 
-  const next: ContainerStatsSubscriptionEntry = {
+  const next: RealtimeSubscriptionEntry = {
     controller: null,
     idleTimer: null,
     refCount: 0,
@@ -327,7 +392,7 @@ function ensureSubscriptionEntry(containerId: string) {
 /**
  * 清除订阅条目的空闲定时器。
  */
-function clearIdleTimer(entry: ContainerStatsSubscriptionEntry) {
+function clearIdleTimer(entry: RealtimeSubscriptionEntry) {
   if (entry.idleTimer !== null) {
     clearTimeout(entry.idleTimer);
     entry.idleTimer = null;
@@ -344,7 +409,7 @@ function clearHighlightTimer(entry: ContainerStatsEntry) {
 /**
  * 关闭单个容器统计订阅并重置其状态。
  */
-function closeSubscriptionEntry(entry: ContainerStatsSubscriptionEntry) {
+function closeSubscriptionEntry(entry: RealtimeSubscriptionEntry) {
   clearIdleTimer(entry);
   entry.controller?.close();
   entry.controller = null;
@@ -354,11 +419,31 @@ function closeSubscriptionEntry(entry: ContainerStatsSubscriptionEntry) {
 /**
  * 关闭共享集合订阅并将其重置为空闲状态。
  */
-function closeCollectionSubscriptionEntry(entry: ContainerStatsCollectionSubscriptionEntry) {
+function closeCollectionSubscriptionEntry(entry: RealtimeSubscriptionEntry) {
   clearIdleTimer(entry);
   entry.controller?.close();
   entry.controller = null;
   entry.state = 'idle';
+}
+
+/**
+ * 在共享订阅引用计数归零后按空闲宽限期释放该订阅。
+ *
+ * @param entry - 要释放的订阅条目
+ */
+function releaseSharedSubscription(entry: RealtimeSubscriptionEntry) {
+  entry.refCount = Math.max(0, entry.refCount - 1);
+  if (entry.refCount > 0) {
+    return;
+  }
+
+  clearIdleTimer(entry);
+  entry.idleTimer = window.setTimeout(() => {
+    if (entry.refCount > 0) {
+      return;
+    }
+    closeCollectionSubscriptionEntry(entry);
+  }, SUBSCRIPTION_IDLE_GRACE_MS);
 }
 
 /**
@@ -367,7 +452,7 @@ function closeCollectionSubscriptionEntry(entry: ContainerStatsCollectionSubscri
  * @param containerId - 容器 ID
  * @param entry - 该容器对应的订阅状态
  */
-function connectSubscription(containerId: string, entry: ContainerStatsSubscriptionEntry) {
+function connectSubscription(containerId: string, entry: RealtimeSubscriptionEntry) {
   if (entry.controller) {
     return;
   }
@@ -403,7 +488,7 @@ function connectSubscription(containerId: string, entry: ContainerStatsSubscript
  *
  * 当订阅控制器已存在时直接返回；否则打开共享的列表主题连接，并在收到列表项更新时同步应用到对应容器的实时统计。
  */
-function connectCollectionSubscription(entry: ContainerStatsCollectionSubscriptionEntry) {
+function connectCollectionSubscription(entry: RealtimeSubscriptionEntry) {
   if (entry.controller) {
     return;
   }
@@ -424,6 +509,56 @@ function connectCollectionSubscription(entry: ContainerStatsCollectionSubscripti
       });
     },
   });
+}
+
+/**
+ * 连接容器仪表盘汇总的实时订阅。
+ *
+ * @param entry - 汇总主题对应的订阅状态
+ */
+function connectDashboardSummarySubscription(entry: RealtimeSubscriptionEntry) {
+  if (entry.controller) {
+    return;
+  }
+
+  entry.state = 'connecting';
+  entry.controller = openRealtimeTopicSocket({
+    topic: buildContainerDashboardSummaryTopic(),
+    parseMessage: parseContainerDashboardSummaryPayload,
+    onStateChange: (nextState) => {
+      state.dashboardSummarySubscription.state = nextState;
+      if (
+        nextState === 'idle' &&
+        state.dashboardSummarySubscription.refCount > 0 &&
+        !state.dashboardSummarySubscription.controller
+      ) {
+        connectDashboardSummarySubscription(state.dashboardSummarySubscription);
+      }
+    },
+    onMessage: (payload) => {
+      seedContainerDashboardSummary(mapContainerDashboardSummary(payload), 'realtime');
+    },
+  });
+}
+
+/**
+ * 写入容器仪表盘汇总快照。
+ *
+ * @param summary - 仪表盘汇总数据
+ * @param source - 快照来源
+ * @returns 当前生效的汇总数据
+ */
+function upsertDashboardSummarySnapshot(summary: ContainerDashboardSummary, source: StatsSnapshotSource) {
+  const current = state.dashboardSummary;
+  if (!isNewerDashboardSummarySnapshot(current, summary, source)) {
+    return current?.summary ?? null;
+  }
+
+  state.dashboardSummary = {
+    source,
+    summary,
+  };
+  return summary;
 }
 
 /**
@@ -480,6 +615,7 @@ function attachLatestResource<TMetadata extends ContainerMetadataRecord | Contai
  * 重置容器统计管理器的全部状态。
  */
 export function resetContainerStatsManager() {
+  closeCollectionSubscriptionEntry(state.dashboardSummarySubscription);
   closeCollectionSubscriptionEntry(state.listTopicSubscription);
   state.subscriptionsById.forEach((entry) => {
     closeSubscriptionEntry(entry);
@@ -489,12 +625,36 @@ export function resetContainerStatsManager() {
   });
   state.listCollections.clear();
   state.listMetadataByCollection.clear();
+  state.dashboardSummary = null;
   state.detailMetadataById.clear();
   state.statsById.clear();
   state.subscriptionsById.clear();
+  state.dashboardSummarySubscription.refCount = 0;
+  state.dashboardSummarySubscription.idleTimer = null;
+  state.dashboardSummarySubscription.state = 'idle';
   state.listTopicSubscription.refCount = 0;
   state.listTopicSubscription.idleTimer = null;
   state.listTopicSubscription.state = 'idle';
+}
+
+/**
+ * 预置容器仪表盘汇总快照。
+ *
+ * @param summary - 容器仪表盘汇总
+ * @param source - 快照来源，默认使用 HTTP seed
+ */
+export function seedContainerDashboardSummary(
+  summary: ContainerDashboardSummary,
+  source: StatsSnapshotSource = 'http-seed',
+) {
+  upsertDashboardSummarySnapshot(summary, source);
+}
+
+/**
+ * 清除容器仪表盘汇总快照。
+ */
+export function clearContainerDashboardSummary() {
+  state.dashboardSummary = null;
 }
 
 /**
@@ -638,19 +798,26 @@ export function releaseContainerStatsSubscription(containerId: string) {
  * 将共享列表主题的引用计数减一；当引用计数降为 0 时，立即关闭该订阅。
  */
 export function releaseContainerSummaryCollectionSubscription() {
-  const entry = state.listTopicSubscription;
-  entry.refCount = Math.max(0, entry.refCount - 1);
-  if (entry.refCount > 0) {
-    return;
-  }
+  releaseSharedSubscription(state.listTopicSubscription);
+}
 
+/**
+ * 获取容器仪表盘汇总实时订阅。
+ */
+export function acquireContainerDashboardSummarySubscription() {
+  const entry = state.dashboardSummarySubscription;
   clearIdleTimer(entry);
-  entry.idleTimer = window.setTimeout(() => {
-    if (state.listTopicSubscription.refCount > 0) {
-      return;
-    }
-    closeCollectionSubscriptionEntry(state.listTopicSubscription);
-  }, SUBSCRIPTION_IDLE_GRACE_MS);
+  entry.refCount += 1;
+  if (!entry.controller) {
+    connectDashboardSummarySubscription(entry);
+  }
+}
+
+/**
+ * 释放容器仪表盘汇总实时订阅引用。
+ */
+export function releaseContainerDashboardSummarySubscription() {
+  releaseSharedSubscription(state.dashboardSummarySubscription);
 }
 
 /**
@@ -661,6 +828,24 @@ export function releaseContainerSummaryCollectionSubscription() {
  */
 export function selectContainerStatsRealtimeState(containerId: string): RealtimeSocketState {
   return state.subscriptionsById.get(containerId)?.state ?? 'idle';
+}
+
+/**
+ * 获取容器仪表盘汇总的视图数据。
+ *
+ * @returns 当前仪表盘汇总；未写入时返回 `null`
+ */
+export function selectContainerDashboardSummaryView(): ContainerDashboardSummary | null {
+  return state.dashboardSummary?.summary ?? null;
+}
+
+/**
+ * 获取容器仪表盘汇总实时订阅的连接状态。
+ *
+ * @returns 容器仪表盘汇总主题的实时连接状态
+ */
+export function selectContainerDashboardRealtimeState(): RealtimeSocketState {
+  return state.dashboardSummarySubscription.state;
 }
 
 /**

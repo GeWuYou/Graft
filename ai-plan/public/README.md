@@ -16,6 +16,8 @@ Overlay note:
   - Recovery entry: `ai-plan/public/announcement-center-mvp/README.md`
 - `cache-governance-and-system-config-acceleration`
   - Recovery entry: `ai-plan/public/cache-governance-and-system-config-acceleration/README.md`
+- `container-dashboard-summary-realtime-upgrade`
+  - Recovery entry: `ai-plan/public/container-dashboard-summary-realtime-upgrade/README.md`
 - `container-resource-stats-manager-foundation`
   - Recovery entry: `ai-plan/public/container-resource-stats-manager-foundation/README.md`
 - `server-locale-ownership-migration`

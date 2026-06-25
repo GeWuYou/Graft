@@ -774,6 +774,132 @@ func (e ContainerBatchActionRequestAction) Valid() bool {
 	}
 }
 
+// Defines values for ContainerDashboardAnomalyItemHealth.
+const (
+	ContainerDashboardAnomalyItemHealthHealthy     ContainerDashboardAnomalyItemHealth = "healthy"
+	ContainerDashboardAnomalyItemHealthNone        ContainerDashboardAnomalyItemHealth = "none"
+	ContainerDashboardAnomalyItemHealthStarting    ContainerDashboardAnomalyItemHealth = "starting"
+	ContainerDashboardAnomalyItemHealthUnavailable ContainerDashboardAnomalyItemHealth = "unavailable"
+	ContainerDashboardAnomalyItemHealthUnhealthy   ContainerDashboardAnomalyItemHealth = "unhealthy"
+)
+
+// Valid indicates whether the value is a known member of the ContainerDashboardAnomalyItemHealth enum.
+func (e ContainerDashboardAnomalyItemHealth) Valid() bool {
+	switch e {
+	case ContainerDashboardAnomalyItemHealthHealthy:
+		return true
+	case ContainerDashboardAnomalyItemHealthNone:
+		return true
+	case ContainerDashboardAnomalyItemHealthStarting:
+		return true
+	case ContainerDashboardAnomalyItemHealthUnavailable:
+		return true
+	case ContainerDashboardAnomalyItemHealthUnhealthy:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ContainerDashboardAnomalyItemState.
+const (
+	ContainerDashboardAnomalyItemStateCreated    ContainerDashboardAnomalyItemState = "created"
+	ContainerDashboardAnomalyItemStateDead       ContainerDashboardAnomalyItemState = "dead"
+	ContainerDashboardAnomalyItemStateExited     ContainerDashboardAnomalyItemState = "exited"
+	ContainerDashboardAnomalyItemStatePaused     ContainerDashboardAnomalyItemState = "paused"
+	ContainerDashboardAnomalyItemStateRemoving   ContainerDashboardAnomalyItemState = "removing"
+	ContainerDashboardAnomalyItemStateRestarting ContainerDashboardAnomalyItemState = "restarting"
+	ContainerDashboardAnomalyItemStateRunning    ContainerDashboardAnomalyItemState = "running"
+	ContainerDashboardAnomalyItemStateUnknown    ContainerDashboardAnomalyItemState = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the ContainerDashboardAnomalyItemState enum.
+func (e ContainerDashboardAnomalyItemState) Valid() bool {
+	switch e {
+	case ContainerDashboardAnomalyItemStateCreated:
+		return true
+	case ContainerDashboardAnomalyItemStateDead:
+		return true
+	case ContainerDashboardAnomalyItemStateExited:
+		return true
+	case ContainerDashboardAnomalyItemStatePaused:
+		return true
+	case ContainerDashboardAnomalyItemStateRemoving:
+		return true
+	case ContainerDashboardAnomalyItemStateRestarting:
+		return true
+	case ContainerDashboardAnomalyItemStateRunning:
+		return true
+	case ContainerDashboardAnomalyItemStateUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ContainerDashboardTopItemHealth.
+const (
+	ContainerDashboardTopItemHealthHealthy     ContainerDashboardTopItemHealth = "healthy"
+	ContainerDashboardTopItemHealthNone        ContainerDashboardTopItemHealth = "none"
+	ContainerDashboardTopItemHealthStarting    ContainerDashboardTopItemHealth = "starting"
+	ContainerDashboardTopItemHealthUnavailable ContainerDashboardTopItemHealth = "unavailable"
+	ContainerDashboardTopItemHealthUnhealthy   ContainerDashboardTopItemHealth = "unhealthy"
+)
+
+// Valid indicates whether the value is a known member of the ContainerDashboardTopItemHealth enum.
+func (e ContainerDashboardTopItemHealth) Valid() bool {
+	switch e {
+	case ContainerDashboardTopItemHealthHealthy:
+		return true
+	case ContainerDashboardTopItemHealthNone:
+		return true
+	case ContainerDashboardTopItemHealthStarting:
+		return true
+	case ContainerDashboardTopItemHealthUnavailable:
+		return true
+	case ContainerDashboardTopItemHealthUnhealthy:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ContainerDashboardTopItemState.
+const (
+	ContainerDashboardTopItemStateCreated    ContainerDashboardTopItemState = "created"
+	ContainerDashboardTopItemStateDead       ContainerDashboardTopItemState = "dead"
+	ContainerDashboardTopItemStateExited     ContainerDashboardTopItemState = "exited"
+	ContainerDashboardTopItemStatePaused     ContainerDashboardTopItemState = "paused"
+	ContainerDashboardTopItemStateRemoving   ContainerDashboardTopItemState = "removing"
+	ContainerDashboardTopItemStateRestarting ContainerDashboardTopItemState = "restarting"
+	ContainerDashboardTopItemStateRunning    ContainerDashboardTopItemState = "running"
+	ContainerDashboardTopItemStateUnknown    ContainerDashboardTopItemState = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the ContainerDashboardTopItemState enum.
+func (e ContainerDashboardTopItemState) Valid() bool {
+	switch e {
+	case ContainerDashboardTopItemStateCreated:
+		return true
+	case ContainerDashboardTopItemStateDead:
+		return true
+	case ContainerDashboardTopItemStateExited:
+		return true
+	case ContainerDashboardTopItemStatePaused:
+		return true
+	case ContainerDashboardTopItemStateRemoving:
+		return true
+	case ContainerDashboardTopItemStateRestarting:
+		return true
+	case ContainerDashboardTopItemStateRunning:
+		return true
+	case ContainerDashboardTopItemStateUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ContainerDetailEnvironmentPolicy.
 const (
 	ContainerDetailEnvironmentPolicyHidden ContainerDetailEnvironmentPolicy = "hidden"
@@ -3401,6 +3527,69 @@ type ContainerBatchActionResponse struct {
 	Total        int                        `json:"total"`
 }
 
+// ContainerDashboardAnomalyItem defines model for container-dashboard-anomaly-item.
+type ContainerDashboardAnomalyItem struct {
+	Health *ContainerDashboardAnomalyItemHealth `json:"health,omitempty"`
+	Id     string                               `json:"id"`
+	Image  string                               `json:"image"`
+	Name   string                               `json:"name"`
+
+	// Resource Latest-known backend resource stats projection for one container. On HTTP list/detail responses this object is a seed snapshot for frontend stats state, not the final cross-page authority. Canonical stats authority remains the backend collector, cache, and `container.stats:{id}` topic chain.
+	Resource     ContainerResourceSummary           `json:"resource"`
+	RestartCount *int                               `json:"restart_count,omitempty"`
+	ShortId      string                             `json:"short_id"`
+	State        ContainerDashboardAnomalyItemState `json:"state"`
+}
+
+// ContainerDashboardAnomalyItemHealth defines model for ContainerDashboardAnomalyItem.Health.
+type ContainerDashboardAnomalyItemHealth string
+
+// ContainerDashboardAnomalyItemState defines model for ContainerDashboardAnomalyItem.State.
+type ContainerDashboardAnomalyItemState string
+
+// ContainerDashboardHotspots defines model for container-dashboard-hotspots.
+type ContainerDashboardHotspots struct {
+	CpuTop    []ContainerDashboardTopItem `json:"cpu_top"`
+	MemoryTop []ContainerDashboardTopItem `json:"memory_top"`
+}
+
+// ContainerDashboardOverview defines model for container-dashboard-overview.
+type ContainerDashboardOverview struct {
+	AbnormalContainers    int      `json:"abnormal_containers"`
+	CpuTotalPercent       float64  `json:"cpu_total_percent"`
+	MemoryTotalLimitBytes *int64   `json:"memory_total_limit_bytes,omitempty"`
+	MemoryTotalPercent    *float64 `json:"memory_total_percent,omitempty"`
+	MemoryTotalUsageBytes *int64   `json:"memory_total_usage_bytes,omitempty"`
+	RunningContainers     int      `json:"running_containers"`
+}
+
+// ContainerDashboardSummaryResponse defines model for container-dashboard-summary-response.
+type ContainerDashboardSummaryResponse struct {
+	Anomalies []ContainerDashboardAnomalyItem `json:"anomalies"`
+	Hotspots  ContainerDashboardHotspots      `json:"hotspots"`
+	Overview  ContainerDashboardOverview      `json:"overview"`
+}
+
+// ContainerDashboardTopItem defines model for container-dashboard-top-item.
+type ContainerDashboardTopItem struct {
+	Health *ContainerDashboardTopItemHealth `json:"health,omitempty"`
+	Id     string                           `json:"id"`
+	Image  string                           `json:"image"`
+	Name   string                           `json:"name"`
+
+	// Resource Latest-known backend resource stats projection for one container. On HTTP list/detail responses this object is a seed snapshot for frontend stats state, not the final cross-page authority. Canonical stats authority remains the backend collector, cache, and `container.stats:{id}` topic chain.
+	Resource     ContainerResourceSummary       `json:"resource"`
+	RestartCount *int                           `json:"restart_count,omitempty"`
+	ShortId      string                         `json:"short_id"`
+	State        ContainerDashboardTopItemState `json:"state"`
+}
+
+// ContainerDashboardTopItemHealth defines model for ContainerDashboardTopItem.Health.
+type ContainerDashboardTopItemHealth string
+
+// ContainerDashboardTopItemState defines model for ContainerDashboardTopItem.State.
+type ContainerDashboardTopItemState string
+
 // ContainerDetail defines model for container-detail.
 type ContainerDetail struct {
 	CanRemove  *bool     `json:"can_remove,omitempty"`
@@ -4382,6 +4571,26 @@ type EnvelopedContainerBatchActionResponse struct {
 
 	// Data Batch action result summary. The items array contains exactly one result item for each requested container id and preserves the request id order so callers can correlate each result by position as well as by id.
 	Data ContainerBatchActionResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedContainerDashboardSummaryResponse defines model for enveloped-container-dashboard-summary-response.
+type EnvelopedContainerDashboardSummaryResponse struct {
+	// Code Existing canonical response code.
+	Code string                            `json:"code"`
+	Data ContainerDashboardSummaryResponse `json:"data"`
 
 	// Locale Present on localized error flows and omitted on normal success.
 	Locale *string `json:"locale,omitempty"`
@@ -6912,6 +7121,16 @@ type GetContainersParamsSourceScopeKind string
 
 // PostContainerBatchActionsParams defines parameters for PostContainerBatchActions.
 type PostContainerBatchActionsParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetContainerDashboardSummaryParams defines parameters for GetContainerDashboardSummary.
+type GetContainerDashboardSummaryParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 

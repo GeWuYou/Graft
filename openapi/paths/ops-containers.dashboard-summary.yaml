@@ -2,7 +2,10 @@ get:
   tags: [container]
   summary: Read container dashboard summary
   operationId: getContainerDashboardSummary
-  description: Returns the container-module-owned dashboard summary projection built from current runtime list snapshots.
+  description: >
+    Returns the container-module-owned dashboard summary projection built from current runtime list snapshots.
+    The canonical realtime companion topic is `container.dashboard.summary`, which reuses the unified realtime
+    subscription and WebSocket flow.
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml

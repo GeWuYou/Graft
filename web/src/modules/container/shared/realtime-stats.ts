@@ -1,4 +1,9 @@
-import { buildContainerStatsTopicName, CONTAINER_REALTIME_TOPIC } from '../contract/realtime';
+import type { ContainerDashboardSummaryResponse } from '../contract/dashboard-summary';
+import {
+  buildContainerStatsTopicName,
+  CONTAINER_REALTIME_TOPIC,
+  getContainerDashboardSummaryTopicName,
+} from '../contract/realtime';
 import type { ContainerResourceSummary } from '../types/container';
 
 /**
@@ -50,6 +55,15 @@ export function buildContainerStatsTopic(containerId: string) {
  */
 export function buildContainerListStatsTopic() {
   return CONTAINER_REALTIME_TOPIC.LIST_STATS;
+}
+
+/**
+ * 构建容器仪表盘汇总实时主题。
+ *
+ * @returns 容器仪表盘汇总实时主题名称
+ */
+export function buildContainerDashboardSummaryTopic() {
+  return getContainerDashboardSummaryTopicName();
 }
 
 export type ContainerListStatsRealtimeItem = {
@@ -115,4 +129,29 @@ export function parseContainerListStatsPayload(raw: unknown): { items: Container
   } catch {
     return null;
   }
+}
+
+/**
+ * 解析容器仪表盘汇总实时载荷。
+ *
+ * @param raw - 原始事件载荷
+ * @returns 解析后的仪表盘汇总数据；解析失败时返回 `null`
+ */
+export function parseContainerDashboardSummaryPayload(raw: unknown): ContainerDashboardSummaryResponse | null {
+  const eventData = parseRealtimeEventData(raw);
+  if (!eventData) {
+    return null;
+  }
+
+  const summaryData = isDashboardSummaryPayloadShape(eventData)
+    ? eventData
+    : isObject(eventData.data) && isDashboardSummaryPayloadShape(eventData.data)
+      ? eventData.data
+      : null;
+
+  return summaryData as ContainerDashboardSummaryResponse | null;
+}
+
+function isDashboardSummaryPayloadShape(value: unknown): value is ContainerDashboardSummaryResponse {
+  return isObject(value) && isObject(value.overview) && isObject(value.hotspots) && Array.isArray(value.anomalies);
 }

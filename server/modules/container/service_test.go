@@ -26,6 +26,7 @@ import (
 )
 
 const testContainerListTopic = containercontract.ContainerListStatsTopic
+const testContainerDashboardSummaryTopic = containercontract.ContainerDashboardSummaryTopic
 
 func newTestService(options containerServiceOptions) (*service, error) {
 	if options.realtimeTickets == nil {
@@ -1743,6 +1744,61 @@ func TestIssueContainerListRealtimeSubscriptionReturnsForbiddenWhenAuthorization
 	_, err = service.IssueSubscription(context.Background(), request)
 	if !errors.Is(err, realtime.ErrTopicForbidden) {
 		t.Fatalf("expected forbidden when authorizer rejects list topic subscription, got %v", err)
+	}
+}
+
+func TestIssueContainerDashboardSummaryRealtimeSubscriptionRequiresAuthenticatedUser(t *testing.T) {
+	t.Parallel()
+
+	service, err := newTestService(containerServiceOptions{
+		runtime:    fakeRuntime{},
+		enabled:    true,
+		authorizer: fakeAuthorizer{},
+	})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	_, err = service.IssueSubscription(context.Background(), realtime.SubscriptionRequest{
+		Topic: testContainerDashboardSummaryTopic,
+	})
+	if !errors.Is(err, realtime.ErrTopicForbidden) {
+		t.Fatalf("expected forbidden for unauthenticated dashboard summary topic subscription, got %v", err)
+	}
+}
+
+func TestIssueContainerDashboardSummaryRealtimeSubscriptionSucceeds(t *testing.T) {
+	t.Parallel()
+
+	service, err := newTestService(containerServiceOptions{
+		runtime:                 fakeRuntime{},
+		enabled:                 true,
+		authorizer:              fakeAuthorizer{},
+		defaultTail:             defaultContainerLogsDefaultTail,
+		maxTail:                 defaultContainerLogsMaxTail,
+		dangerousActionsEnabled: true,
+	})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	response, err := service.IssueSubscription(context.Background(), realtime.SubscriptionRequest{
+		Topic: testContainerDashboardSummaryTopic,
+		RequestAuth: moduleapi.RequestAuthContext{
+			User: &moduleapi.CurrentUser{ID: 7, Username: "admin"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("issue subscription: %v", err)
+	}
+	if response.Topic != testContainerDashboardSummaryTopic {
+		t.Fatalf("expected topic %q, got %#v", testContainerDashboardSummaryTopic, response)
+	}
+	if strings.TrimSpace(response.Ticket) == "" || strings.TrimSpace(response.WebSocketURL) == "" {
+		t.Fatalf("expected ticket and websocket URL, got %#v", response)
+	}
+	if response.ExpiresAt.IsZero() {
+		t.Fatalf("expected expiration timestamp, got %#v", response)
 	}
 }
 

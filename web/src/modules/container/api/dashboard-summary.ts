@@ -66,7 +66,12 @@ function mapContainerDashboardHotspotItem(
 function mapContainerDashboardAnomalyItem(
   payload: ContainerDashboardSummaryResponse['anomalies'][number],
 ): ContainerDashboardAnomalyItem {
-  return mapContainerDashboardItemBase(payload);
+  return {
+    ...mapContainerDashboardItemBase(payload),
+    reasonCode: readOptionalString(payload, 'reason_code'),
+    reasonLabel: readOptionalString(payload, 'reason_label'),
+    status: readOptionalString(payload, 'status'),
+  };
 }
 
 /**
@@ -96,6 +101,11 @@ function mapContainerDashboardItemBase(
   };
 }
 
+function readOptionalString(payload: object, key: string) {
+  const value = (payload as Record<string, unknown>)[key];
+  return typeof value === 'string' && value.trim().length > 0 ? value : null;
+}
+
 /**
  * 提取汇总数据中最新的采集时间戳。
  *
@@ -103,6 +113,11 @@ function mapContainerDashboardItemBase(
  * @returns 最新的 `resource.collected_at` 时间戳；无可用时间戳时返回 `null`
  */
 function collectSummaryTimestamp(payload: ContainerDashboardSummaryResponse) {
+  const summaryCollectedAt = readOptionalString(payload as object, 'collected_at');
+  if (summaryCollectedAt) {
+    return summaryCollectedAt;
+  }
+
   const timestamps = [...payload.hotspots.cpu_top, ...payload.hotspots.memory_top, ...payload.anomalies]
     .map((item) => item.resource.collected_at ?? '')
     .filter((value) => value.length > 0)

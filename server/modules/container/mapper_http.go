@@ -29,9 +29,10 @@ func toContainerListResponse(result ListResult) containergen.ContainerListRespon
 // Overview、Hotspots 和 Anomalies 分别映射为对应的响应结构。
 func toContainerDashboardSummaryResponse(result dashboardSummaryResult) containerDashboardSummaryResponse {
 	return containerDashboardSummaryResponse{
-		Overview:  toContainerDashboardOverview(result.Overview),
-		Hotspots:  toContainerDashboardHotspots(result.Hotspots),
-		Anomalies: toContainerDashboardAnomalies(result.Anomalies),
+		CollectedAt: result.CollectedAt,
+		Overview:    toContainerDashboardOverview(result.Overview),
+		Hotspots:    toContainerDashboardHotspots(result.Hotspots),
+		Anomalies:   toContainerDashboardAnomalies(result.Anomalies),
 	}
 }
 
@@ -223,10 +224,13 @@ func toContainerDashboardAnomalies(items []containerDashboardAnomalyItem) []cont
 			ID:           item.ID,
 			Image:        item.Image,
 			Name:         item.Name,
+			ReasonCode:   optionalString(item.ReasonCode),
+			ReasonLabel:  optionalString(item.ReasonLabel),
 			Resource:     toResourceSummary(item.Resource),
 			RestartCount: item.RestartCount,
 			ShortID:      item.ShortID,
 			State:        item.State,
+			Status:       optionalString(item.Status),
 		})
 	}
 	return mapped
@@ -310,9 +314,10 @@ type mountUsageListResponse struct {
 }
 
 type containerDashboardSummaryResponse struct {
-	Overview  containerDashboardOverviewResponse      `json:"overview"`
-	Hotspots  containerDashboardHotspotsResponse      `json:"hotspots"`
-	Anomalies []containerDashboardAnomalyItemResponse `json:"anomalies"`
+	CollectedAt string                                  `json:"collected_at"`
+	Overview    containerDashboardOverviewResponse      `json:"overview"`
+	Hotspots    containerDashboardHotspotsResponse      `json:"hotspots"`
+	Anomalies   []containerDashboardAnomalyItemResponse `json:"anomalies"`
 }
 
 type containerDashboardOverviewResponse struct {
@@ -346,8 +351,11 @@ type containerDashboardAnomalyItemResponse struct {
 	ShortID      string                                 `json:"short_id"`
 	Image        string                                 `json:"image"`
 	State        string                                 `json:"state"`
+	Status       *string                                `json:"status,omitempty"`
 	Health       *string                                `json:"health,omitempty"`
 	RestartCount *int                                   `json:"restart_count,omitempty"`
+	ReasonCode   *string                                `json:"reason_code,omitempty"`
+	ReasonLabel  *string                                `json:"reason_label,omitempty"`
 	Resource     *containergen.ContainerResourceSummary `json:"resource,omitempty"`
 }
 

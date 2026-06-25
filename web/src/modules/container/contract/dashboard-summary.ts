@@ -42,9 +42,12 @@ export type ContainerDashboardAnomalyItem = ContainerDashboardResourceMetric & {
   id: string;
   image: string;
   name: string;
+  reasonCode: string | null;
+  reasonLabel: string | null;
   restartCount: number | null;
   shortId: string;
   state: string;
+  status: string | null;
 };
 
 export type ContainerDashboardSummary = {
