@@ -51,6 +51,39 @@ The repository also keeps `.ai/environment/` as generated environment truth:
 - `.ai/environment/tools.raw.yaml` records raw local machine and repository facts.
 - `.ai/environment/tools.ai.yaml` records the condensed inventory used by AI agents and contributors.
 
+## Optional Local Code Quality Check
+
+`eff-u-code` is available in this repository as an optional developer-local code quality helper.
+
+Guardrails:
+
+- It is not part of the formal validation flow.
+- It does not replace `graft validate backend` or `bun run check`.
+- It must not be added to CI, hooks, runtime dependencies, or package manifests.
+- Only the local `analyze` workflow is adopted here; do not use its `mcp-install`, `ai-review`, `update`, or `uninstall`
+  commands as part of repository workflow.
+
+Recommended usage:
+
+```bash
+python3 scripts/run_eff_u_code.py server
+python3 scripts/run_eff_u_code.py web
+python3 scripts/run_eff_u_code.py all
+```
+
+Local configuration:
+
+- The tracked template is `scripts/eff-u-code.example.json`.
+- The optional local override file is `.eff-u-code.local.json`.
+- To create the local override file:
+
+```bash
+python3 scripts/run_eff_u_code.py --init-config
+```
+
+- If `.eff-u-code.local.json` is missing, the helper falls back to the tracked recommended defaults.
+- Keep `.eff-u-code.local.json` untracked.
+
 ## Local Server
 
 The server uses `.env` as its primary local runtime configuration source. The recommended IDE working directory is
@@ -259,6 +292,8 @@ format:check -> typecheck -> openapi:frontend-governance:check -> lint:i18n -> l
 
 Focused commands are fine during development, but completion, handoff, and merge readiness should use `bun run check`
 unless the task explicitly reports why a narrower validation was used.
+
+`eff-u-code` remains outside this flow even when it is installed locally. It is a manual optional hotspot check only.
 
 ## Container Deployment
 

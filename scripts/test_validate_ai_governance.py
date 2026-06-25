@@ -48,6 +48,9 @@ class EnvironmentInventoryTests(unittest.TestCase):
     def test_environment_inventory_covers_adopted_and_pilot_mcp_servers(self) -> None:
         self.assertEqual(MODULE.validate_environment_inventory(), [])
 
+    def test_environment_inventory_covers_eff_u_code_optional_helper(self) -> None:
+        self.assertEqual(MODULE.validate_environment_inventory(), [])
+
 
 class PushBranchGovernanceTests(unittest.TestCase):
     def test_push_branch_governance_is_currently_satisfied(self) -> None:

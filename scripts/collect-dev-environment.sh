@@ -398,6 +398,11 @@ project_tools:
     purpose: "GitHub CLI for authenticated PR automation and future environment bootstrap scripts."
 
 ai_tools:
+  eff_u_code:
+    installed: $(command_installed fuck-u-code)
+    version: "$(command_version fuck-u-code)"
+    path: "$(command_path fuck-u-code)"
+    purpose: "Optional developer-local code quality analyzer for manual hotspot inspection."
   headroom:
     installed: $(headroom_installed)
     version: "$(headroom_version)"

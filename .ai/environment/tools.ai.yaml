@@ -1,5 +1,5 @@
 schema_version: 1
-generated_at_utc: "2026-06-11T04:49:28Z"
+generated_at_utc: "2026-06-25T05:02:44Z"
 generated_from: ".ai/environment/tools.raw.yaml"
 generator: "scripts/generate-ai-environment.py"
 platform:
@@ -84,6 +84,13 @@ tool_selection:
     fallback: "unavailable"
     use_for: "Server build and test workflows once server/go.mod exists."
 ai_tools:
+  eff_u_code:
+    installed: true
+    risk_level: "L1"
+    use_for: "Optional developer-local code quality hotspot inspection outside the formal validation flow."
+    default_command: "/root/.bun/bin/fuck-u-code"
+    version: "2.2.2"
+    guardrail: "Keep eff-u-code developer-local only; do not add it to package manifests, CI, hooks, or completion gates."
   headroom:
     installed: true
     risk_level: "L1"
@@ -148,6 +155,7 @@ rules:
   - "Prefer gh-authenticated access for GitHub PR automation when gh is installed and logged in."
   - "Prefer python3 over complex bash for non-trivial scripting when python3 is available."
   - "Prefer bun for web installs when web/bun.lock exists; otherwise fall back to npm."
+  - "Keep eff-u-code as an optional developer-local helper; never treat it as a repository validation gate."
   - "Use graft-web-browser-agent for AI-assisted frontend screenshots and interactions; do not treat it as the web validation entrypoint."
   - "Use Playwright MCP only as a browser exploration aid; keep graft-web-browser-agent artifacts as auditable evidence."
   - "Use Context7 MCP for current third-party library documentation when repository truth is insufficient."

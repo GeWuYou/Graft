@@ -1,0 +1,27 @@
+{
+  "defaults": {
+    "locale": "zh",
+    "format": "console",
+    "top": 20
+  },
+  "targets": {
+    "server": {
+      "path": "server",
+      "exclude": [
+        "**/ent/**",
+        "**/internal/contract/openapi/**",
+        "**/*_generated.go",
+        "**/zz_*generated*.go",
+        "**/*_test.go"
+      ]
+    },
+    "web": {
+      "path": "web/src",
+      "exclude": [
+        "**/contracts/openapi/generated/**",
+        "**/*.test.ts",
+        "**/*.d.ts"
+      ]
+    }
+  }
+}

@@ -153,6 +153,10 @@ def validate_ai_tooling_doc() -> list[Finding]:
     text = read_text(AI_TOOLING_DOC)
     findings: list[Finding] = []
     exact_terms = (
+        "eff-u-code",
+        "fuck-u-code",
+        "developer-local",
+        "not part of the formal validation flow",
         "codegraph",
         "tdesign",
         "context7",
@@ -196,6 +200,15 @@ def validate_ai_tooling_doc() -> list[Finding]:
                         r"user-level|用户级",
                         r"MCP",
                         r"context compression|上下文.*压缩",
+                    ),
+                ),
+                (
+                    "eff-u-code optional local helper",
+                    (
+                        r"eff-u-code|fuck-u-code",
+                        r"optional|可选",
+                        r"developer-local|本地",
+                        r"validation flow|完成态|CI|hook",
                     ),
                 ),
                 ("RTK prefix rule is forbidden", (r"不得|must not", r"always prefix with\s+`?rtk`?")),
@@ -286,6 +299,8 @@ def validate_environment_inventory() -> list[Finding]:
     text = read_text(TOOLS_AI)
     findings: list[Finding] = []
     exact_terms = (
+        "eff_u_code:",
+        "Keep eff-u-code as an optional developer-local helper; never treat it as a repository validation gate.",
         "preferred: \"headroom mcp\"",
         ".ai/headroom/memory",
         ".ai/headroom/learn",
@@ -302,6 +317,7 @@ def validate_environment_inventory() -> list[Finding]:
             "AI environment inventory",
             (
                 ("Headroom CLI and MCP capabilities", (r"ai_headroom:\s*true", r"ai_headroom_mcp:\s*true")),
+                ("eff-u-code optional helper record", (r"ai_tools:", r"eff_u_code:", r"developer-local", r"validation flow|validation gate")),
                 ("context compression tool selection", (r"context_compression:", r"preferred:\s+\"headroom mcp\"")),
                 ("controlled local Headroom directories", (r"controlled_local_dirs:", r"\.ai/headroom/memory", r"\.ai/headroom/learn")),
                 ("disallowed Headroom automation", (r"disallowed_by_default:", r"rtk instruction injection", r"automatic instructions write")),
