@@ -29,8 +29,19 @@
       "collectedAt": "Collected At",
       "cpu": "CPU",
       "empty": "No container resource data",
+      "metricStateDescription": {
+        "notApplicable": "Metric does not apply while the container is not running",
+        "notCollected": "Waiting for the next resource sample",
+        "running": "Collected from the latest snapshot",
+        "unknown": "Metric state is unknown"
+      },
       "memoryUsage": "{usage} / {limit}",
       "memory": "Memory",
+      "metrics": {
+        "cpuDescription": "Current CPU usage share"
+      },
+      "notApplicable": "N/A",
+      "notCollected": "Not Collected",
       "overview": {
         "title": "Container Resource Overview",
         "running": {
@@ -52,24 +63,33 @@
           "description": "Current aggregate memory usage across containers"
         }
       },
-      "hotspots": {
-        "eyebrow": "Hotspot Containers",
-        "cpuTitle": "CPU TOP3",
-        "memoryTitle": "Memory TOP3",
-        "top3": "TOP3",
-        "empty": "No hotspot container data"
+      "consumers": {
+        "eyebrow": "Top consumers",
+        "title": "Top Resource Consumers",
+        "topCount": "Top {count}",
+        "empty": "No ranked container resource data",
+        "noRunning": "No running containers.",
+        "rankCpu": "CPU #{rank}",
+        "rankMemory": "Memory #{rank}"
       },
       "anomalies": {
         "eyebrow": "Anomalous Containers",
         "title": "Anomaly List",
         "count": "{count} anomalies",
         "empty": "No anomalous containers",
+        "resourceSummary": "CPU {cpu} / Memory {memory}",
+        "restartCount": "{count} restarts",
+        "reasonFallback": "Investigate the latest runtime state",
+        "noCollectedAt": "Collected At Unknown",
         "kind": {
           "unhealthy": "Unhealthy",
           "restarting": "Restarting",
           "exited": "Exited",
           "dead": "Dead",
           "high_load": "High Load"
+        },
+        "reasonCode": {
+          "state_restarting": "Restart Back-off"
         }
       },
       "source": "Shared Container Resource View",
@@ -82,8 +102,7 @@
         "unknown": "Unknown",
         "unhealthy": "Unhealthy"
       },
-      "title": "Container Resource Overview",
-      "unavailable": "Unavailable"
+      "title": "Container Resource Overview"
     },
     "empty": "No Dashboard data",
     "error": {

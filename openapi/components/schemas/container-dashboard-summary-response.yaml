@@ -1,9 +1,13 @@
 type: object
 required:
+  - collected_at
   - overview
   - hotspots
   - anomalies
 properties:
+  collected_at:
+    type: string
+    format: date-time
   overview:
     $ref: ./container-dashboard-overview.yaml
   hotspots:

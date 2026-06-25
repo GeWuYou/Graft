@@ -1,4 +1,9 @@
-import { buildContainerStatsTopicName, CONTAINER_REALTIME_TOPIC } from '../contract/realtime';
+import type { ContainerDashboardSummaryResponse } from '../contract/dashboard-summary';
+import {
+  buildContainerStatsTopicName,
+  CONTAINER_REALTIME_TOPIC,
+  getContainerDashboardSummaryTopicName,
+} from '../contract/realtime';
 import type { ContainerResourceSummary } from '../types/container';
 
 /**
@@ -9,6 +14,10 @@ import type { ContainerResourceSummary } from '../types/container';
  */
 function isObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === 'object');
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return isObject(value) && !Array.isArray(value);
 }
 
 /**
@@ -52,6 +61,15 @@ export function buildContainerListStatsTopic() {
   return CONTAINER_REALTIME_TOPIC.LIST_STATS;
 }
 
+/**
+ * 构建容器仪表盘汇总实时主题。
+ *
+ * @returns 容器仪表盘汇总实时主题名称
+ */
+export function buildContainerDashboardSummaryTopic() {
+  return getContainerDashboardSummaryTopicName();
+}
+
 export type ContainerListStatsRealtimeItem = {
   id: string;
   resource: ContainerResourceSummary;
@@ -87,7 +105,7 @@ export function parseContainerStatsPayload(raw: unknown) {
 /**
  * 解析容器实时统计列表载荷。
  *
- * 将有效的事件数据转换为包含条目列表的结果；当载荷格式不符合要求时返回 `null`。
+ * 仅保留包含有效 `id` 和 `resource` 的条目，并返回解析后的条目数组。
  *
  * @param raw - 原始事件载荷
  * @returns 解析后的列表数据；解析失败时返回 `null`
@@ -115,4 +133,42 @@ export function parseContainerListStatsPayload(raw: unknown): { items: Container
   } catch {
     return null;
   }
+}
+
+/**
+ * 解析容器仪表盘汇总实时载荷。
+ *
+ * @param raw - 原始事件载荷
+ * @returns 符合仪表盘汇总结构的数据；解析失败时返回 `null`
+ */
+export function parseContainerDashboardSummaryPayload(raw: unknown): ContainerDashboardSummaryResponse | null {
+  const eventData = parseRealtimeEventData(raw);
+  if (!eventData) {
+    return null;
+  }
+
+  const summaryData = isDashboardSummaryPayloadShape(eventData)
+    ? eventData
+    : isObject(eventData.data) && isDashboardSummaryPayloadShape(eventData.data)
+      ? eventData.data
+      : null;
+
+  return summaryData as ContainerDashboardSummaryResponse | null;
+}
+
+/**
+ * 判断值是否符合容器仪表盘汇总载荷结构。
+ *
+ * @param value - 待检查的值
+ * @returns `true` if `value` 符合容器仪表盘汇总结构，`false` otherwise.
+ */
+function isDashboardSummaryPayloadShape(value: unknown): value is ContainerDashboardSummaryResponse {
+  return (
+    isPlainObject(value) &&
+    isPlainObject(value.overview) &&
+    isPlainObject(value.hotspots) &&
+    Array.isArray(value.anomalies) &&
+    Array.isArray(value.hotspots.cpu_top) &&
+    Array.isArray(value.hotspots.memory_top)
+  );
 }

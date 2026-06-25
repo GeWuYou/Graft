@@ -1,16 +1,23 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { ContainerDashboardSummary } from '../contract/dashboard-summary';
 import type { ContainerDetailRecord, ContainerSummaryRecord } from '../types/container';
 import {
+  acquireContainerDashboardSummarySubscription,
   acquireContainerStatsSubscription,
   acquireContainerSummaryCollectionSubscription,
   applyContainerRealtimeStats,
+  clearContainerDashboardSummary,
   clearContainerSummaryCollection,
+  releaseContainerDashboardSummarySubscription,
   releaseContainerStatsSubscription,
   releaseContainerSummaryCollectionSubscription,
   resetContainerStatsManager,
+  seedContainerDashboardSummary,
   seedContainerDetail,
   seedContainerList,
+  selectContainerDashboardRealtimeState,
+  selectContainerDashboardSummaryView,
   selectContainerDetailView,
   selectContainerListViews,
   selectContainerStatsChangeState,
@@ -113,6 +120,61 @@ function createDetail(
   };
 }
 
+function createDashboardSummary(overrides?: Partial<ContainerDashboardSummary>): ContainerDashboardSummary {
+  return {
+    overview: {
+      runningContainers: 3,
+      abnormalContainers: 1,
+      cpuTotalPercent: 32.5,
+      memoryTotalUsageBytes: 2147483648,
+      memoryTotalLimitBytes: 4294967296,
+      memoryTotalPercent: 50,
+      collectedAt: '2026-06-14T01:09:00Z',
+      ...overrides?.overview,
+    },
+    hotspots: {
+      cpu: [
+        {
+          id: 'container-1',
+          name: 'graft-web',
+          shortId: 'container-1',
+          image: 'graft/web:latest',
+          state: 'running',
+          health: 'healthy',
+          restartCount: 0,
+          cpuPercent: 32.5,
+          memoryPercent: 40.2,
+          memoryUsageBytes: 268435456,
+          memoryLimitBytes: 536870912,
+          collectedAt: '2026-06-14T01:09:00Z',
+        },
+      ],
+      memory: [],
+      ...overrides?.hotspots,
+    },
+    anomalies: [
+      {
+        id: 'bad-1',
+        name: 'graft-worker',
+        shortId: 'bad-1',
+        image: 'graft/worker:latest',
+        state: 'restarting',
+        status: 'Restarting',
+        health: null,
+        reasonCode: 'state.restarting',
+        reasonLabel: 'Restarting',
+        restartCount: null,
+        cpuPercent: 2.1,
+        memoryPercent: 12.4,
+        memoryUsageBytes: null,
+        memoryLimitBytes: null,
+        collectedAt: '2026-06-14T01:09:00Z',
+      },
+    ],
+    ...overrides,
+  };
+}
+
 describe('container stats manager', () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -171,6 +233,178 @@ describe('container stats manager', () => {
     acquireContainerSummaryCollectionSubscription();
 
     expect(realtimeMocks.openRealtimeTopicSocket).toHaveBeenCalledTimes(1);
+  });
+
+  it('exposes seeded dashboard summary through the shared manager selector', () => {
+    seedContainerDashboardSummary(createDashboardSummary());
+
+    expect(selectContainerDashboardSummaryView()).toEqual(createDashboardSummary());
+  });
+
+  it('does not let an older dashboard http seed override a fresher realtime snapshot', () => {
+    seedContainerDashboardSummary(createDashboardSummary());
+    seedContainerDashboardSummary(
+      {
+        ...createDashboardSummary({
+          overview: {
+            ...createDashboardSummary().overview,
+            cpuTotalPercent: 61.3,
+            collectedAt: '2026-06-14T01:11:00Z',
+          },
+        }),
+      },
+      'realtime',
+    );
+
+    seedContainerDashboardSummary(
+      createDashboardSummary({
+        overview: {
+          ...createDashboardSummary().overview,
+          cpuTotalPercent: 8.2,
+          collectedAt: '2026-06-14T01:10:00Z',
+        },
+      }),
+    );
+
+    expect(selectContainerDashboardSummaryView()?.overview.cpuTotalPercent).toBe(61.3);
+    expect(selectContainerDashboardSummaryView()?.overview.collectedAt).toBe('2026-06-14T01:11:00Z');
+  });
+
+  it('applies dashboard summary topic payloads through the shared summary authority', () => {
+    seedContainerDashboardSummary(createDashboardSummary());
+    acquireContainerDashboardSummarySubscription();
+
+    const controller = realtimeMocks.controllers.at(-1)!;
+    controller.emitMessage(
+      JSON.stringify({
+        data: {
+          collected_at: '2026-06-14T01:12:00Z',
+          overview: {
+            running_containers: 5,
+            abnormal_containers: 2,
+            cpu_total_percent: 64.5,
+            memory_total_usage_bytes: 3221225472,
+            memory_total_limit_bytes: 4294967296,
+            memory_total_percent: 75,
+          },
+          hotspots: {
+            cpu_top: [],
+            memory_top: [],
+          },
+          anomalies: [],
+        },
+      }),
+    );
+
+    expect(selectContainerDashboardSummaryView()?.overview.cpuTotalPercent).toBe(64.5);
+    expect(selectContainerDashboardSummaryView()?.overview.collectedAt).toBe('2026-06-14T01:12:00Z');
+  });
+
+  it('accepts dashboard summary topic payloads wrapped by the server publish envelope', () => {
+    seedContainerDashboardSummary(createDashboardSummary());
+    acquireContainerDashboardSummarySubscription();
+
+    const controller = realtimeMocks.controllers.at(-1)!;
+    controller.emitMessage(
+      JSON.stringify({
+        data: {
+          topic: 'container.dashboard.summary',
+          collected_at: '2026-06-14T01:13:00Z',
+          data: {
+            collected_at: '2026-06-14T01:13:00Z',
+            overview: {
+              running_containers: 9,
+              abnormal_containers: 1,
+              cpu_total_percent: 71.4,
+              memory_total_usage_bytes: 2147483648,
+              memory_total_limit_bytes: 4294967296,
+              memory_total_percent: 50,
+            },
+            hotspots: {
+              cpu_top: [],
+              memory_top: [],
+            },
+            anomalies: [],
+          },
+        },
+      }),
+    );
+
+    expect(selectContainerDashboardSummaryView()?.overview.cpuTotalPercent).toBe(71.4);
+    expect(selectContainerDashboardSummaryView()?.overview.collectedAt).toBe('2026-06-14T01:13:00Z');
+  });
+
+  it('rejects dashboard summary topic payloads when hotspots cpu_top or memory_top are missing', () => {
+    seedContainerDashboardSummary(createDashboardSummary());
+    acquireContainerDashboardSummarySubscription();
+
+    const controller = realtimeMocks.controllers.at(-1)!;
+    controller.emitMessage(
+      JSON.stringify({
+        data: {
+          collected_at: '2026-06-14T01:14:00Z',
+          overview: {
+            running_containers: 7,
+            abnormal_containers: 2,
+            cpu_total_percent: 45.1,
+            memory_total_usage_bytes: 2147483648,
+            memory_total_limit_bytes: 4294967296,
+            memory_total_percent: 50,
+          },
+          hotspots: {
+            cpu_top: [],
+          },
+          anomalies: [],
+        },
+      }),
+    );
+
+    expect(selectContainerDashboardSummaryView()?.overview.cpuTotalPercent).toBe(32.5);
+    expect(selectContainerDashboardSummaryView()?.overview.collectedAt).toBe('2026-06-14T01:09:00Z');
+  });
+
+  it('rejects dashboard summary topic payloads when the payload root is an array', () => {
+    seedContainerDashboardSummary(createDashboardSummary());
+    acquireContainerDashboardSummarySubscription();
+
+    const controller = realtimeMocks.controllers.at(-1)!;
+    controller.emitMessage(JSON.stringify({ data: [] }));
+
+    expect(selectContainerDashboardSummaryView()?.overview.cpuTotalPercent).toBe(32.5);
+    expect(selectContainerDashboardSummaryView()?.overview.collectedAt).toBe('2026-06-14T01:09:00Z');
+  });
+
+  it('shares one dashboard summary realtime controller across repeated acquires', () => {
+    acquireContainerDashboardSummarySubscription();
+    acquireContainerDashboardSummarySubscription();
+
+    expect(realtimeMocks.openRealtimeTopicSocket).toHaveBeenCalledTimes(1);
+    expect(selectContainerDashboardRealtimeState()).toBe('connecting');
+  });
+
+  it('keeps the dashboard summary realtime socket alive until the last release', () => {
+    acquireContainerDashboardSummarySubscription();
+    acquireContainerDashboardSummarySubscription();
+    const controller = realtimeMocks.controllers.at(-1)!;
+
+    releaseContainerDashboardSummarySubscription();
+    expect(controller.close).not.toHaveBeenCalled();
+
+    releaseContainerDashboardSummarySubscription();
+    vi.runOnlyPendingTimers();
+
+    expect(controller.close).toHaveBeenCalledTimes(1);
+    expect(selectContainerDashboardRealtimeState()).toBe('idle');
+  });
+
+  it('clears dashboard summary state without touching list state', () => {
+    seedContainerList([createSummary()]);
+    seedContainerDashboardSummary(createDashboardSummary());
+
+    clearContainerDashboardSummary();
+
+    expect(selectContainerDashboardSummaryView()).toBeNull();
+    expect(selectContainerListViews()).toHaveLength(1);
   });
 
   it('applies list topic payloads through the shared stats authority', () => {

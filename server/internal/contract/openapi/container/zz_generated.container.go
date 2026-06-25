@@ -538,6 +538,33 @@ func (e GetContainerDashboardSummary200JSONResponseBodyDataAnomaliesHealth) Vali
 	}
 }
 
+// Defines values for GetContainerDashboardSummary200JSONResponseBodyDataAnomaliesReasonCode.
+const (
+	ContainerDashboardAnomalyReasonCodeHealthUnhealthy GetContainerDashboardSummary200JSONResponseBodyDataAnomaliesReasonCode = "health.unhealthy"
+	ContainerDashboardAnomalyReasonCodeStateDead       GetContainerDashboardSummary200JSONResponseBodyDataAnomaliesReasonCode = "state.dead"
+	ContainerDashboardAnomalyReasonCodeStateExited     GetContainerDashboardSummary200JSONResponseBodyDataAnomaliesReasonCode = "state.exited"
+	ContainerDashboardAnomalyReasonCodeStateRestarting GetContainerDashboardSummary200JSONResponseBodyDataAnomaliesReasonCode = "state.restarting"
+	ContainerDashboardAnomalyReasonCodeStateUnknown    GetContainerDashboardSummary200JSONResponseBodyDataAnomaliesReasonCode = "state.unknown"
+)
+
+// Valid indicates whether the value is a known member of the GetContainerDashboardSummary200JSONResponseBodyDataAnomaliesReasonCode enum.
+func (e GetContainerDashboardSummary200JSONResponseBodyDataAnomaliesReasonCode) Valid() bool {
+	switch e {
+	case ContainerDashboardAnomalyReasonCodeHealthUnhealthy:
+		return true
+	case ContainerDashboardAnomalyReasonCodeStateDead:
+		return true
+	case ContainerDashboardAnomalyReasonCodeStateExited:
+		return true
+	case ContainerDashboardAnomalyReasonCodeStateRestarting:
+		return true
+	case ContainerDashboardAnomalyReasonCodeStateUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetContainerDashboardSummary200JSONResponseBodyDataAnomaliesState.
 const (
 	ContainerDashboardAnomalyItemStateCreated    GetContainerDashboardSummary200JSONResponseBodyDataAnomaliesState = "created"
@@ -2334,6 +2361,9 @@ type GetContainerDashboardSummaryParams struct {
 
 // GetContainerDashboardSummary200JSONResponseBodyDataAnomaliesHealth defines parameters for GetContainerDashboardSummary.
 type GetContainerDashboardSummary200JSONResponseBodyDataAnomaliesHealth string
+
+// GetContainerDashboardSummary200JSONResponseBodyDataAnomaliesReasonCode defines parameters for GetContainerDashboardSummary.
+type GetContainerDashboardSummary200JSONResponseBodyDataAnomaliesReasonCode string
 
 // GetContainerDashboardSummary200JSONResponseBodyDataAnomaliesState defines parameters for GetContainerDashboardSummary.
 type GetContainerDashboardSummary200JSONResponseBodyDataAnomaliesState string

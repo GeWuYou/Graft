@@ -33,20 +33,20 @@ type statsCollector struct {
 }
 
 type containerStatsPublished struct {
-	Topic       string                                `json:"topic"`
-	ID          string                                `json:"id"`
-	Name        string                                `json:"name"`
-	ShortID     string                                `json:"short_id"`
-	Runtime     string                                `json:"runtime"`
+	Topic       string                                 `json:"topic"`
+	ID          string                                 `json:"id"`
+	Name        string                                 `json:"name"`
+	ShortID     string                                 `json:"short_id"`
+	Runtime     string                                 `json:"runtime"`
 	Resource    *containergen.ContainerResourceSummary `json:"resource,omitempty"`
-	CollectedAt time.Time                             `json:"collected_at"`
+	CollectedAt time.Time                              `json:"collected_at"`
 }
 
 type containerListStatsPublishedItem struct {
-	ID       string                                `json:"id"`
-	Name     string                                `json:"name"`
-	ShortID  string                                `json:"short_id"`
-	Runtime  string                                `json:"runtime"`
+	ID       string                                 `json:"id"`
+	Name     string                                 `json:"name"`
+	ShortID  string                                 `json:"short_id"`
+	Runtime  string                                 `json:"runtime"`
 	Resource *containergen.ContainerResourceSummary `json:"resource,omitempty"`
 }
 
@@ -56,6 +56,13 @@ type containerListStatsPublished struct {
 	CollectedAt time.Time                         `json:"collected_at"`
 }
 
+type containerDashboardSummaryPublished struct {
+	Topic       string                            `json:"topic"`
+	CollectedAt time.Time                         `json:"collected_at"`
+	Data        containerDashboardSummaryResponse `json:"data"`
+}
+
+// newStatsCollector 创建并返回一个 statsCollector。
 // 如果 logger 为空，会使用无操作日志器。
 func newStatsCollector(
 	collect func(context.Context) ([]StatsSnapshot, error),
@@ -151,6 +158,9 @@ func (c *statsCollector) collectAndPublish(ctx context.Context) {
 		c.logger.Warn("collect container stats snapshots failed", zap.Error(err))
 		return
 	}
+	if err := c.publishDashboardSummary(ctx, snapshots); err != nil {
+		c.logger.Warn("publish container dashboard summary snapshot failed", zap.Error(err))
+	}
 	if err := c.publishList(ctx, snapshots); err != nil {
 		c.logger.Warn("publish container stats list snapshot failed", zap.Error(err))
 	}
@@ -195,6 +205,36 @@ func (c *statsCollector) publishList(_ context.Context, snapshots []StatsSnapsho
 		Topic:       containercontract.ContainerListStatsTopic,
 		Items:       items,
 		CollectedAt: collectedAt,
+	})
+	return nil
+}
+
+func (c *statsCollector) publishDashboardSummary(_ context.Context, snapshots []StatsSnapshot) error {
+	if c.hub == nil {
+		return nil
+	}
+
+	items := make([]Summary, 0, len(snapshots))
+	var collectedAt time.Time
+	for _, snapshot := range snapshots {
+		if snapshot.CollectedAt.After(collectedAt) {
+			collectedAt = snapshot.CollectedAt
+		}
+		items = append(items, summaryFromStatsSnapshot(snapshot))
+	}
+	if collectedAt.IsZero() {
+		collectedAt = time.Now().UTC()
+	}
+
+	summary := buildContainerDashboardSummary(items)
+	if strings.TrimSpace(summary.CollectedAt) == "" {
+		summary.CollectedAt = collectedAt.Format(time.RFC3339)
+	}
+
+	c.hub.Publish(containercontract.ContainerDashboardSummaryTopic, containerDashboardSummaryPublished{
+		Topic:       containercontract.ContainerDashboardSummaryTopic,
+		CollectedAt: collectedAt,
+		Data:        toContainerDashboardSummaryResponse(summary),
 	})
 	return nil
 }

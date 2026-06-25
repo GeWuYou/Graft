@@ -29,8 +29,19 @@
       "collectedAt": "采集时间",
       "cpu": "CPU",
       "empty": "暂无容器资源数据",
+      "metricStateDescription": {
+        "notApplicable": "容器未运行时该指标不适用",
+        "notCollected": "等待下一次资源采样",
+        "running": "来自最新采样快照",
+        "unknown": "指标状态未知"
+      },
       "memoryUsage": "{usage} / {limit}",
       "memory": "内存",
+      "metrics": {
+        "cpuDescription": "当前 CPU 使用占比"
+      },
+      "notApplicable": "不适用",
+      "notCollected": "暂未采集",
       "overview": {
         "title": "容器资源概览",
         "running": {
@@ -52,24 +63,33 @@
           "description": "当前容器总体内存使用百分比"
         }
       },
-      "hotspots": {
-        "eyebrow": "热点容器",
-        "cpuTitle": "CPU TOP3",
-        "memoryTitle": "内存 TOP3",
-        "top3": "TOP3",
-        "empty": "暂无热点容器数据"
+      "consumers": {
+        "eyebrow": "资源热点",
+        "title": "资源消耗排行",
+        "topCount": "前 {count} 名",
+        "empty": "暂无可排名的容器资源数据",
+        "noRunning": "当前没有运行中的容器。",
+        "rankCpu": "CPU 第 {rank}",
+        "rankMemory": "内存第 {rank}"
       },
       "anomalies": {
         "eyebrow": "异常容器",
         "title": "异常容器列表",
         "count": "{count} 个异常",
         "empty": "暂无异常容器",
+        "resourceSummary": "CPU {cpu} / 内存 {memory}",
+        "restartCount": "{count} 次重启",
+        "reasonFallback": "请检查最近运行时状态",
+        "noCollectedAt": "采集时间未知",
         "kind": {
           "unhealthy": "不健康",
           "restarting": "重启中",
           "exited": "已退出",
           "dead": "已终止",
           "high_load": "高负载"
+        },
+        "reasonCode": {
+          "state_restarting": "重启退避"
         }
       },
       "source": "共享容器资源视图",
@@ -82,8 +102,7 @@
         "unknown": "未知",
         "unhealthy": "不健康"
       },
-      "title": "容器资源概览",
-      "unavailable": "不可用"
+      "title": "容器资源概览"
     },
     "empty": "暂无 Dashboard 数据",
     "error": {

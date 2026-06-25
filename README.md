@@ -315,12 +315,17 @@ Important deployment notes:
   same internal server port so the `web` container can still reach the `server` container.
 - `web` runtime proxying is controlled by `GRAFT_SERVER_UPSTREAM`, and the published host port defaults to `80` unless
   you override `GRAFT_WEB_HOST_PORT`.
-- When container shell is enabled, the root compose deployment also derives a default
-  `GRAFT_HTTPX_WEBSOCKET_ALLOWED_ORIGINS` allowlist from `GRAFT_WEB_HOST_PORT`, permitting
+- The bundled `web` nginx runtime proxies both `/api/*` HTTP traffic and the unified realtime `/ws` WebSocket gateway
+  to the `server` container. If you replace that proxy with your own ingress or reverse proxy, you must preserve
+  WebSocket upgrade handling for `/ws` in addition to the normal `/api/*` forwarding.
+- When the root compose deployment leaves `GRAFT_HTTPX_WEBSOCKET_ALLOWED_ORIGINS` unset, `compose.yml` derives a
+  default allowlist from `GRAFT_WEB_HOST_PORT`, permitting
   `http://127.0.0.1:<port>` and `http://localhost:<port>` by default so local browser access does not require an extra
   manual setting.
 - If the browser reaches the deployment through HTTPS, a custom hostname, or a reverse proxy, override
-  `GRAFT_HTTPX_WEBSOCKET_ALLOWED_ORIGINS` explicitly to match the real browser-visible web origin.
+  `GRAFT_HTTPX_WEBSOCKET_ALLOWED_ORIGINS` explicitly to match the real browser-visible web origin. The same allowlist
+  also gates the unified realtime `/ws` gateway, so LAN-IP or domain-based deployments must set it correctly for
+  container stats and other realtime subscriptions to connect.
 - The `web` container does not read the root `.env` file directly; only the server-side services receive those secrets.
 - Production docs are disabled by default. Set `GRAFT_DOCS_ENABLED=true` only when you intentionally want `/docs` and
   OpenAPI endpoints exposed.

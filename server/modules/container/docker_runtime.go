@@ -477,12 +477,17 @@ func (r *DockerRuntime) CollectStatsSnapshots(ctx context.Context) ([]StatsSnaps
 					resource.CollectedAt = collectedAt.Format(time.RFC3339)
 				}
 				snapshots[index] = StatsSnapshot{
-					ContainerID: summary.ID,
-					Name:        summary.Name,
-					ShortID:     summary.ShortID,
-					Runtime:     summary.Runtime,
-					Resource:    resource,
-					CollectedAt: snapshotCollectedAt,
+					ContainerID:  summary.ID,
+					Name:         summary.Name,
+					ShortID:      summary.ShortID,
+					Image:        summary.Image,
+					Runtime:      summary.Runtime,
+					State:        summary.State,
+					Status:       summary.Status,
+					Health:       summary.Health,
+					RestartCount: summary.RestartCount,
+					Resource:     resource,
+					CollectedAt:  snapshotCollectedAt,
 				}
 			}
 		}()
@@ -653,8 +658,9 @@ func (r *DockerRuntime) dockerCPUPercent(containerID string, stats container.Sta
 
 // dockerCurrentCPUStatsBaseline 提取用于计算 CPU 百分比的当前基线。
 // 当可用 CPU 数或系统 CPU 使用量为零时，返回 false。
-/*
-*/
+// dockerCurrentCPUStatsBaseline 提取当前容器 CPU 统计基线。
+// 当可用在线 CPU 数或系统 CPU 使用量为 0 时，返回无效基线。
+// @returns 有效的 CPU 基线及其是否可用。
 func dockerCurrentCPUStatsBaseline(stats container.StatsResponse) (dockerCPUStatsBaseline, bool) {
 	onlineCPUs := dockerStatsOnlineCPUs(stats)
 	if onlineCPUs == 0 || stats.CPUStats.SystemUsage == 0 {

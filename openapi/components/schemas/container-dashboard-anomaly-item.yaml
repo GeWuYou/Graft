@@ -41,5 +41,21 @@ properties:
     type: integer
     minimum: 0
     nullable: true
+  status:
+    type: string
+    nullable: true
+  reason_code:
+    type: string
+    nullable: true
+    enum: [health.unhealthy, state.restarting, state.exited, state.dead, state.unknown]
+    x-enum-varnames:
+      - ContainerDashboardAnomalyReasonCodeHealthUnhealthy
+      - ContainerDashboardAnomalyReasonCodeStateRestarting
+      - ContainerDashboardAnomalyReasonCodeStateExited
+      - ContainerDashboardAnomalyReasonCodeStateDead
+      - ContainerDashboardAnomalyReasonCodeStateUnknown
+  reason_label:
+    type: string
+    nullable: true
   resource:
     $ref: ./container-resource-summary.yaml

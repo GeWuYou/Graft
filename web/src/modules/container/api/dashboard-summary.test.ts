@@ -41,6 +41,7 @@ describe('container dashboard summary api', () => {
   it('maps the canonical dashboard summary response into the dashboard view model', () => {
     expect(
       mapContainerDashboardSummary({
+        collected_at: '2026-06-24T12:03:00Z',
         overview: {
           running_containers: 8,
           abnormal_containers: 3,
@@ -95,6 +96,9 @@ describe('container dashboard summary api', () => {
             short_id: 'bad-1',
             image: 'graft/scheduler:latest',
             state: 'restarting',
+            status: 'Restarting',
+            reason_code: 'state.restarting',
+            reason_label: 'Restarting',
             resource: {
               available: true,
               stats_available: true,
@@ -104,11 +108,11 @@ describe('container dashboard summary api', () => {
             },
           },
         ],
-      }),
+      } as never),
     ).toEqual({
       overview: {
         abnormalContainers: 3,
-        collectedAt: '2026-06-24T12:02:00Z',
+        collectedAt: '2026-06-24T12:03:00Z',
         cpuTotalPercent: 52.5,
         memoryTotalLimitBytes: 536870912,
         memoryTotalPercent: 61.2,
@@ -160,9 +164,12 @@ describe('container dashboard summary api', () => {
           memoryUsageBytes: null,
           memoryLimitBytes: null,
           name: 'scheduler',
+          reasonCode: 'state.restarting',
+          reasonLabel: 'Restarting',
           restartCount: null,
           shortId: 'bad-1',
           state: 'restarting',
+          status: 'Restarting',
         },
       ],
     });

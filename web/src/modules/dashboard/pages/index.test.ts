@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, ref } from 'vue';
 import type { RouteRecordRaw } from 'vue-router';
 
+import { resetContainerStatsManager } from '@/modules/container/shared/stats-manager';
 import { usePermissionStore } from '@/store/modules/permission';
 
 import type { DashboardQuickActionConfig } from '../contract/quick-actions';
@@ -27,6 +28,30 @@ const containerDashboardApiMocks = vi.hoisted(() => ({
   getContainerDashboardSummary: vi.fn(),
 }));
 
+const realtimeMocks = vi.hoisted(() => ({
+  controllers: [] as Array<{
+    close: ReturnType<typeof vi.fn>;
+    emitMessage: (payload: unknown) => void;
+    reconnect: ReturnType<typeof vi.fn>;
+  }>,
+  openRealtimeTopicSocket: vi.fn(
+    (options?: { onMessage?: (payload: unknown) => void; parseMessage?: (payload: unknown) => unknown }) => {
+      const controller = {
+        close: vi.fn(),
+        emitMessage: (payload: unknown) => {
+          const parsed = options?.parseMessage ? options.parseMessage(payload) : payload;
+          if (parsed) {
+            options?.onMessage?.(parsed);
+          }
+        },
+        reconnect: vi.fn(),
+      };
+      realtimeMocks.controllers.push(controller);
+      return controller;
+    },
+  ),
+}));
+
 const loggerMocks = vi.hoisted(() => ({
   error: vi.fn(),
 }));
@@ -42,6 +67,10 @@ vi.mock('../api/dashboard', () => ({
 
 vi.mock('../api/quick-actions-config', () => ({
   getDashboardSystemConfigs: quickActionConfigApiMocks.getDashboardSystemConfigs,
+}));
+
+vi.mock('@/shared/realtime', () => ({
+  openRealtimeTopicSocket: realtimeMocks.openRealtimeTopicSocket,
 }));
 
 vi.mock('@/modules/container', async (importOriginal) => {
@@ -610,6 +639,8 @@ function buildSidebarRoutes() {
 describe('DashboardHomePage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetContainerStatsManager();
+    realtimeMocks.controllers = [];
     setActivePinia(createPinia());
     quickActionConfigApiMocks.getDashboardSystemConfigs.mockResolvedValue({ items: [] });
     containerDashboardApiMocks.getContainerDashboardSummary.mockResolvedValue(containerDashboardSummaryResponse());
@@ -657,6 +688,7 @@ describe('DashboardHomePage', () => {
     await flushPromises();
 
     expect(containerDashboardApiMocks.getContainerDashboardSummary).toHaveBeenCalledTimes(2);
+    expect(realtimeMocks.openRealtimeTopicSocket).toHaveBeenCalledTimes(1);
   });
 
   it('skips container dashboard consumption when the permission is missing', async () => {
@@ -747,5 +779,59 @@ describe('DashboardHomePage', () => {
 
     expect(wrapper.text()).toContain('Dashboard load failed');
     expect(wrapper.text()).toContain('Network failed');
+  });
+
+  it('renders manager-owned dashboard summary state and updates after realtime summary messages', async () => {
+    dashboardApiMocks.getDashboardSummary.mockResolvedValueOnce(summaryResponse());
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.find('.dashboard-container-resources-stub').attributes('data-running')).toBe('10');
+    expect(realtimeMocks.controllers).toHaveLength(1);
+
+    realtimeMocks.controllers[0]!.emitMessage(
+      JSON.stringify({
+        data: {
+          collected_at: '2026-06-24T00:03:00Z',
+          overview: {
+            running_containers: 12,
+            abnormal_containers: 4,
+            cpu_total_percent: 61.2,
+            memory_total_usage_bytes: 3221225472,
+            memory_total_limit_bytes: 4294967296,
+            memory_total_percent: 75,
+          },
+          hotspots: {
+            cpu_top: [],
+            memory_top: [],
+          },
+          anomalies: [
+            {
+              id: 'bad-2',
+              name: 'graft-cron',
+              short_id: 'bad-2',
+              image: 'graft/cron:latest',
+              state: 'restarting',
+              status: 'Restarting',
+              reason_code: 'state.restarting',
+              reason_label: 'Restarting',
+              resource: {
+                available: true,
+                stats_available: true,
+                cpu_percent: 4.2,
+                memory_percent: 16.5,
+                collected_at: '2026-06-24T00:03:00Z',
+              },
+            },
+          ],
+        },
+      }),
+    );
+    await flushPromises();
+
+    expect(wrapper.find('.dashboard-container-resources-stub').attributes('data-running')).toBe('12');
+    expect(wrapper.find('.dashboard-container-resources-stub').attributes('data-abnormal')).toBe('4');
+    expect(wrapper.find('.dashboard-container-resources-stub').attributes('data-anomalies')).toBe('1');
   });
 });

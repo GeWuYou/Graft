@@ -12,14 +12,6 @@ Overlay note:
 
 ## Active Topics
 
-- `announcement-center-mvp`
-  - Recovery entry: `ai-plan/public/announcement-center-mvp/README.md`
-- `cache-governance-and-system-config-acceleration`
-  - Recovery entry: `ai-plan/public/cache-governance-and-system-config-acceleration/README.md`
-- `container-resource-stats-manager-foundation`
-  - Recovery entry: `ai-plan/public/container-resource-stats-manager-foundation/README.md`
-- `server-locale-ownership-migration`
-  - Recovery entry: `ai-plan/public/server-locale-ownership-migration/README.md`
 - `rbac-feature-and-nplusone-hardening`
   - Recovery entry: `ai-plan/public/rbac-feature-and-nplusone-hardening/README.md`
 - `rbac-further-development`

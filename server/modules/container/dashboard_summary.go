@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"slices"
 	"strings"
+	"time"
 )
 
 const (
@@ -15,9 +16,10 @@ const (
 )
 
 type dashboardSummaryResult struct {
-	Overview  containerDashboardOverview
-	Hotspots  containerDashboardHotspots
-	Anomalies []containerDashboardAnomalyItem
+	CollectedAt string
+	Overview    containerDashboardOverview
+	Hotspots    containerDashboardHotspots
+	Anomalies   []containerDashboardAnomalyItem
 }
 
 type containerDashboardOverview struct {
@@ -51,16 +53,29 @@ type containerDashboardAnomalyItem struct {
 	ShortID      string
 	Image        string
 	State        string
+	Status       string
 	Health       string
 	RestartCount *int
+	ReasonCode   string
+	ReasonLabel  string
 	Resource     ResourceSummary
 }
 
-// buildContainerDashboardSummary 构建容器仪表盘所需的汇总结果，包括概览、热点和异常列表。
+const (
+	containerDashboardReasonHealthUnhealthy = "health.unhealthy"
+	containerDashboardReasonStateRestarting = "state.restarting"
+	containerDashboardReasonStateExited     = "state.exited"
+	containerDashboardReasonStateDead       = "state.dead"
+	containerDashboardReasonStateUnknown    = "state.unknown"
+)
+
+// buildContainerDashboardSummary 构建容器仪表盘汇总结果。
+// 结果包含采集时间、概览信息、CPU 与内存热点列表以及异常列表。
 func buildContainerDashboardSummary(items []Summary) dashboardSummaryResult {
 	overview := accumulateDashboardOverview(items)
 	return dashboardSummaryResult{
-		Overview: overview,
+		CollectedAt: dashboardSummaryCollectedAt(items),
+		Overview:    overview,
 		Hotspots: containerDashboardHotspots{
 			CPUTop:    buildDashboardTopItems(items, dashboardSortByCPU),
 			MemoryTop: buildDashboardTopItems(items, dashboardSortByMemory),
@@ -161,16 +176,21 @@ func toDashboardTopItem(item Summary) containerDashboardTopItem {
 
 // toDashboardAnomalyItem 将 Summary 映射为容器异常列表项。
 //
-// 保留标识信息、状态、健康状况、重启次数和资源摘要。
+// toDashboardAnomalyItem 将摘要转换为异常项，并补充异常原因信息与资源摘要。
+// 它会保留身份、状态、健康状况和重启次数字段。
 func toDashboardAnomalyItem(item Summary) containerDashboardAnomalyItem {
+	reasonCode, reasonLabel := dashboardAnomalyReason(item)
 	return containerDashboardAnomalyItem{
 		ID:           item.ID,
 		Name:         item.Name,
 		ShortID:      item.ShortID,
 		Image:        item.Image,
 		State:        item.State,
+		Status:       item.Status,
 		Health:       item.Health,
 		RestartCount: item.RestartCount,
+		ReasonCode:   reasonCode,
+		ReasonLabel:  reasonLabel,
 		Resource:     item.Resource,
 	}
 }
@@ -259,8 +279,67 @@ func isDashboardRunningState(state string) bool {
 	return normalizeContainerState(state) == "running"
 }
 
+// dashboardSummaryCollectedAt 返回汇总数据的最新采集时间。
+// 它会从各项资源的采集时间中选择最新的有效值；如果没有可用时间，则使用当前 UTC 时间。
+// 返回 RFC3339 格式的时间字符串。
+func dashboardSummaryCollectedAt(items []Summary) string {
+	var latest time.Time
+	for _, item := range items {
+		parsed, ok := parseResourceCollectedAt(item.Resource.CollectedAt)
+		if !ok {
+			continue
+		}
+		if parsed.After(latest) {
+			latest = parsed
+		}
+	}
+	if latest.IsZero() {
+		latest = time.Now().UTC()
+	}
+	return latest.Format(time.RFC3339)
+}
+
+// dashboardAnomalyReason 为容器异常项生成原因编码和标签。
+// 当容器健康状态为不健康时，优先返回健康异常原因；否则按容器状态返回重启、退出或死亡原因。
+// 其他情况返回未知原因，并使用状态文本作为标签，若状态为空则使用“Unknown”。
+// @return 第一个值为原因编码，第二个值为原因标签。
+func dashboardAnomalyReason(item Summary) (string, string) {
+	switch {
+	case strings.EqualFold(item.Health, containerHealthUnhealthy):
+		return containerDashboardReasonHealthUnhealthy, "Unhealthy"
+	case normalizeContainerState(item.State) == "restarting":
+		return containerDashboardReasonStateRestarting, "Restarting"
+	case normalizeContainerState(item.State) == "exited":
+		return containerDashboardReasonStateExited, "Exited"
+	case normalizeContainerState(item.State) == "dead":
+		return containerDashboardReasonStateDead, "Dead"
+	default:
+		return containerDashboardReasonStateUnknown, firstNonEmpty(strings.TrimSpace(item.Status), "Unknown")
+	}
+}
+
+// 该函数会裁剪字符串字段空白，规范化容器状态，并在健康状态无效时清空 Health。
+func summaryFromStatsSnapshot(snapshot StatsSnapshot) Summary {
+	health := strings.TrimSpace(snapshot.Health)
+	if !isValidContainerHealth(health) {
+		health = ""
+	}
+	return Summary{
+		ID:           strings.TrimSpace(snapshot.ContainerID),
+		ShortID:      strings.TrimSpace(snapshot.ShortID),
+		Name:         strings.TrimSpace(snapshot.Name),
+		Image:        strings.TrimSpace(snapshot.Image),
+		Runtime:      strings.TrimSpace(snapshot.Runtime),
+		State:        normalizeContainerState(snapshot.State),
+		Status:       strings.TrimSpace(snapshot.Status),
+		Health:       health,
+		RestartCount: snapshot.RestartCount,
+		Resource:     snapshot.Resource,
+	}
+}
+
 // hasUsableDashboardResource 判断资源摘要是否包含可用于仪表盘展示的 CPU 或内存数据。
-// `true` 表示 CPU 使用率或内存使用量大于 0，`false` 表示两者都不可用。
+// 当 CPU 使用率或内存使用量大于 0 时返回 true。
 func hasUsableDashboardResource(resource ResourceSummary) bool {
 	return resourceCPUPercent(resource) > 0 || resourceMemoryUsage(resource) > 0
 }

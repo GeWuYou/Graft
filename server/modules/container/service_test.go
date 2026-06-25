@@ -26,6 +26,7 @@ import (
 )
 
 const testContainerListTopic = containercontract.ContainerListStatsTopic
+const testContainerDashboardSummaryTopic = containercontract.ContainerDashboardSummaryTopic
 
 func newTestService(options containerServiceOptions) (*service, error) {
 	if options.realtimeTickets == nil {
@@ -1695,33 +1696,19 @@ func TestIssueContainerListRealtimeSubscriptionRequiresAuthenticatedUser(t *test
 func TestIssueContainerListRealtimeSubscriptionReturnsForbiddenWhenRuntimeDisabled(t *testing.T) {
 	t.Parallel()
 
-	service, err := newTestService(containerServiceOptions{
+	assertIssueSubscriptionForbidden(t, testContainerListTopic, containerServiceOptions{
 		runtime:     fakeRuntime{},
 		enabled:     false,
 		authorizer:  fakeAuthorizer{},
 		defaultTail: defaultContainerLogsDefaultTail,
 		maxTail:     defaultContainerLogsMaxTail,
-	})
-	if err != nil {
-		t.Fatalf("new service: %v", err)
-	}
-
-	request := realtime.SubscriptionRequest{
-		Topic: testContainerListTopic,
-		RequestAuth: moduleapi.RequestAuthContext{
-			User: &moduleapi.CurrentUser{ID: 7, Username: "admin"},
-		},
-	}
-	_, err = service.IssueSubscription(context.Background(), request)
-	if !errors.Is(err, realtime.ErrTopicForbidden) {
-		t.Fatalf("expected forbidden when runtime access is disabled, got %v", err)
-	}
+	}, "expected forbidden when runtime access is disabled")
 }
 
 func TestIssueContainerListRealtimeSubscriptionReturnsForbiddenWhenAuthorizationFails(t *testing.T) {
 	t.Parallel()
 
-	service, err := newTestService(containerServiceOptions{
+	assertIssueSubscriptionForbidden(t, testContainerListTopic, containerServiceOptions{
 		runtime: fakeRuntime{},
 		enabled: true,
 		authorizer: rejectingAuthorizer{
@@ -1729,20 +1716,112 @@ func TestIssueContainerListRealtimeSubscriptionReturnsForbiddenWhenAuthorization
 		},
 		defaultTail: defaultContainerLogsDefaultTail,
 		maxTail:     defaultContainerLogsMaxTail,
+	}, "expected forbidden when authorizer rejects list topic subscription")
+}
+
+func TestIssueContainerDashboardSummaryRealtimeSubscriptionRequiresAuthenticatedUser(t *testing.T) {
+	t.Parallel()
+
+	service, err := newTestService(containerServiceOptions{
+		runtime:    fakeRuntime{},
+		enabled:    true,
+		authorizer: fakeAuthorizer{},
 	})
 	if err != nil {
 		t.Fatalf("new service: %v", err)
 	}
 
+	_, err = service.IssueSubscription(context.Background(), realtime.SubscriptionRequest{
+		Topic: testContainerDashboardSummaryTopic,
+	})
+	if !errors.Is(err, realtime.ErrTopicForbidden) {
+		t.Fatalf("expected forbidden for unauthenticated dashboard summary topic subscription, got %v", err)
+	}
+}
+
+func TestIssueContainerDashboardSummaryRealtimeSubscriptionReturnsForbiddenWhenRuntimeDisabled(t *testing.T) {
+	t.Parallel()
+
+	assertIssueSubscriptionForbidden(t, testContainerDashboardSummaryTopic, containerServiceOptions{
+		runtime:     fakeRuntime{},
+		enabled:     false,
+		authorizer:  fakeAuthorizer{},
+		defaultTail: defaultContainerLogsDefaultTail,
+		maxTail:     defaultContainerLogsMaxTail,
+	}, "expected forbidden when runtime access is disabled for dashboard summary topic subscription")
+}
+
+func TestIssueContainerDashboardSummaryRealtimeSubscriptionReturnsForbiddenWhenAuthorizationFails(t *testing.T) {
+	t.Parallel()
+
+	assertIssueSubscriptionForbidden(t, testContainerDashboardSummaryTopic, containerServiceOptions{
+		runtime: fakeRuntime{},
+		enabled: true,
+		authorizer: rejectingAuthorizer{
+			err: moduleapi.ErrPermissionDenied,
+		},
+		defaultTail: defaultContainerLogsDefaultTail,
+		maxTail:     defaultContainerLogsMaxTail,
+	}, "expected forbidden when authorizer rejects dashboard summary topic subscription")
+}
+
+func TestIssueContainerDashboardSummaryRealtimeSubscriptionSucceeds(t *testing.T) {
+	t.Parallel()
+
+	service, err := newTestService(containerServiceOptions{
+		runtime:                 fakeRuntime{},
+		enabled:                 true,
+		authorizer:              fakeAuthorizer{},
+		defaultTail:             defaultContainerLogsDefaultTail,
+		maxTail:                 defaultContainerLogsMaxTail,
+		dangerousActionsEnabled: true,
+	})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	response, err := service.IssueSubscription(context.Background(), realtime.SubscriptionRequest{
+		Topic: testContainerDashboardSummaryTopic,
+		RequestAuth: moduleapi.RequestAuthContext{
+			User: &moduleapi.CurrentUser{ID: 7, Username: "admin"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("issue subscription: %v", err)
+	}
+	if response.Topic != testContainerDashboardSummaryTopic {
+		t.Fatalf("expected topic %q, got %#v", testContainerDashboardSummaryTopic, response)
+	}
+	if strings.TrimSpace(response.Ticket) == "" || strings.TrimSpace(response.WebSocketURL) == "" {
+		t.Fatalf("expected ticket and websocket URL, got %#v", response)
+	}
+	if response.ExpiresAt.IsZero() {
+		t.Fatalf("expected expiration timestamp, got %#v", response)
+	}
+}
+
+func assertIssueSubscriptionForbidden(
+	t *testing.T,
+	topic string,
+	options containerServiceOptions,
+	failureMessage string,
+) {
+	t.Helper()
+
+	service, err := newTestService(options)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
 	request := realtime.SubscriptionRequest{
-		Topic: testContainerListTopic,
+		Topic: topic,
 		RequestAuth: moduleapi.RequestAuthContext{
 			User: &moduleapi.CurrentUser{ID: 7, Username: "admin"},
 		},
 	}
 	_, err = service.IssueSubscription(context.Background(), request)
 	if !errors.Is(err, realtime.ErrTopicForbidden) {
-		t.Fatalf("expected forbidden when authorizer rejects list topic subscription, got %v", err)
+		t.Fatalf("%s, got %v", failureMessage, err)
 	}
 }
 
