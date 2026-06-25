@@ -239,6 +239,68 @@ describe('DashboardContainerResources', () => {
     expect(wrapper.text()).toContain('Memory #1');
   });
 
+  it('keeps consumer skeletons visible while loading even when the seeded summary has no running or abnormal containers', () => {
+    const wrapper = mountComponent(
+      createSummary({
+        overview: {
+          ...createSummary().overview,
+          runningContainers: 0,
+          abnormalContainers: 0,
+        },
+      }),
+      true,
+    );
+
+    expect(wrapper.findAll('[data-title=""]').length).toBeGreaterThanOrEqual(9);
+  });
+
+  it('builds cpu and memory metrics from their own hotspot sources after unifying consumer cards', () => {
+    const wrapper = mountComponent(
+      createSummary({
+        hotspots: {
+          cpu: [
+            {
+              id: 'container-1',
+              name: 'api',
+              image: 'graft/api:latest',
+              shortId: 'api',
+              restartCount: null,
+              state: 'running',
+              health: null,
+              collectedAt: '2026-06-24T00:02:00Z',
+              cpuPercent: 92,
+              memoryPercent: 10,
+              memoryUsageBytes: 100,
+              memoryLimitBytes: 1000,
+            },
+          ],
+          memory: [
+            {
+              id: 'container-1',
+              name: 'api',
+              image: 'graft/api:latest',
+              shortId: 'api',
+              restartCount: null,
+              state: 'running',
+              health: null,
+              collectedAt: '2026-06-24T00:02:00Z',
+              cpuPercent: 12,
+              memoryPercent: 88,
+              memoryUsageBytes: 880,
+              memoryLimitBytes: 1000,
+            },
+          ],
+        },
+      }),
+    );
+
+    const metricCards = wrapper.findAll('[data-testid^="dashboard-container-resource-metric-"]');
+    expect(metricCards).toHaveLength(2);
+    expect(metricCards[0]?.text()).toContain('92%');
+    expect(metricCards[1]?.text()).toContain('88%');
+    expect(metricCards[1]?.text()).toContain('880 B / 1000 B');
+  });
+
   it('shows N/A instead of unavailable for stopped or paused resource metrics', () => {
     const wrapper = mountComponent();
 

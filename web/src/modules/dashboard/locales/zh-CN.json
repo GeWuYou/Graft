@@ -40,7 +40,7 @@
       "metrics": {
         "cpuDescription": "当前 CPU 使用占比"
       },
-      "notApplicable": "N/A",
+      "notApplicable": "不适用",
       "notCollected": "暂未采集",
       "overview": {
         "title": "容器资源概览",
@@ -65,8 +65,8 @@
       },
       "consumers": {
         "eyebrow": "资源热点",
-        "title": "Top Resource Consumers",
-        "topCount": "Top {count}",
+        "title": "资源消耗排行",
+        "topCount": "前 {count} 名",
         "empty": "暂无可排名的容器资源数据",
         "noRunning": "当前没有运行中的容器。",
         "rankCpu": "CPU 第 {rank}",

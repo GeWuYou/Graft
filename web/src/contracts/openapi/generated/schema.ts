@@ -1660,7 +1660,7 @@ export interface paths {
     };
     /**
      * Read container dashboard summary
-     * @description Returns the container-module-owned dashboard summary projection built from current runtime list snapshots.
+     * @description Returns the container-module-owned dashboard summary projection built from current runtime list snapshots. The canonical realtime companion topic is `container.dashboard.summary`, which reuses the unified realtime subscription and WebSocket flow.
      */
     get: operations['getContainerDashboardSummary'];
     put?: never;
@@ -4182,9 +4182,15 @@ export interface components {
       /** @enum {string|null} */
       health?: 'healthy' | 'unhealthy' | 'starting' | 'none' | 'unavailable' | null;
       restart_count?: number | null;
+      status?: string | null;
+      /** @enum {string|null} */
+      reason_code?: 'health.unhealthy' | 'state.restarting' | 'state.exited' | 'state.dead' | 'state.unknown' | null;
+      reason_label?: string | null;
       resource: components['schemas']['container-resource-summary'];
     };
     'container-dashboard-summary-response': {
+      /** Format: date-time */
+      collected_at: string;
       overview: components['schemas']['container-dashboard-overview'];
       hotspots: components['schemas']['container-dashboard-hotspots'];
       anomalies: components['schemas']['container-dashboard-anomaly-item'][];

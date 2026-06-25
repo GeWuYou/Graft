@@ -16,7 +16,7 @@
         <t-skeleton v-for="item in 4" :key="`summary-${item}`" animation="gradient" :row-col="summarySkeletonRowCol" />
       </section>
 
-      <section v-if="showConsumersSection" class="dashboard-container-resources__section">
+      <section class="dashboard-container-resources__section">
         <header class="dashboard-container-resources__section-header">
           <div>
             <span>{{ t('dashboard.containerResources.consumers.eyebrow') }}</span>
@@ -288,10 +288,6 @@ const isCompletelyEmpty = computed(
     props.summary.anomalies.length === 0,
 );
 
-const showConsumersSection = computed(
-  () => props.summary.overview.runningContainers > 0 || props.summary.overview.abnormalContainers > 0,
-);
-
 const showConsumersEmpty = computed(
   () => props.summary.overview.runningContainers <= 0 || unifiedConsumers.value.length === 0,
 );
@@ -379,26 +375,26 @@ const unifiedConsumers = computed<ConsumerCard[]>(() => {
 
   return [...byId.entries()]
     .map(([id, item]) => {
-      const source = item.cpuSource ?? item.memorySource;
-      if (!source) {
+      const displaySource = item.cpuSource ?? item.memorySource;
+      if (!displaySource) {
         return null;
       }
 
-      const cpuMetric = buildConsumerMetric('cpu', source);
-      const memoryMetric = buildConsumerMetric('memory', source);
+      const cpuMetric = buildConsumerMetric('cpu', item.cpuSource ?? item.memorySource ?? displaySource);
+      const memoryMetric = buildConsumerMetric('memory', item.memorySource ?? item.cpuSource ?? displaySource);
       const metrics = [cpuMetric, memoryMetric];
       const sortedMetrics = [...metrics].sort((left, right) => right.percentage - left.percentage);
       const leadingMetric = sortedMetrics.find((metric) => metric.showProgress) ?? null;
 
       return {
         id,
-        health: source.health,
-        image: source.image,
+        health: displaySource.health,
+        image: displaySource.image,
         leadingMetric,
         metrics,
-        name: source.name,
+        name: displaySource.name,
         rankBadge: buildRankBadge(item.cpuRank, item.memoryRank),
-        state: source.state,
+        state: displaySource.state,
         sortValue: Math.max(cpuMetric.percentage, memoryMetric.percentage),
         sortOrder: item.order,
       };

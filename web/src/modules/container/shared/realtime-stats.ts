@@ -16,6 +16,10 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === 'object');
 }
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return isObject(value) && !Array.isArray(value);
+}
+
 /**
  * 解析实时事件的数据部分。
  *
@@ -159,5 +163,12 @@ export function parseContainerDashboardSummaryPayload(raw: unknown): ContainerDa
  * @returns `true` if `value` 符合容器仪表盘汇总结构，`false` otherwise.
  */
 function isDashboardSummaryPayloadShape(value: unknown): value is ContainerDashboardSummaryResponse {
-  return isObject(value) && isObject(value.overview) && isObject(value.hotspots) && Array.isArray(value.anomalies);
+  return (
+    isPlainObject(value) &&
+    isPlainObject(value.overview) &&
+    isPlainObject(value.hotspots) &&
+    Array.isArray(value.anomalies) &&
+    Array.isArray(value.hotspots.cpu_top) &&
+    Array.isArray(value.hotspots.memory_top)
+  );
 }

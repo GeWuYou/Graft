@@ -247,8 +247,8 @@ async function loadQuickActionConfig() {
 
 async function loadDashboardContainerResources() {
   if (!canViewContainerOverview.value) {
-    clearContainerDashboardSummary();
     releaseDashboardContainerRealtimeSubscription();
+    clearContainerDashboardSummary();
     return;
   }
 
@@ -259,6 +259,9 @@ async function loadDashboardContainerResources() {
     acquireDashboardContainerRealtimeSubscription();
   } catch (error) {
     logger.warn('dashboard container resource seed request failed', error);
+    if (shouldResetContainerRealtimeState(error)) {
+      releaseDashboardContainerRealtimeSubscription();
+    }
     clearContainerDashboardSummary();
   } finally {
     containerResourcesLoading.value = false;
@@ -359,6 +362,19 @@ function requestErrorMessageKey(error: unknown) {
 
 function requestErrorCode(error: unknown) {
   return isApiRequestError(error) ? error.code : API_CODE.COMMON_INTERNAL_ERROR;
+}
+
+function shouldResetContainerRealtimeState(error: unknown) {
+  if (!isApiRequestError(error)) {
+    return false;
+  }
+
+  return (
+    error.status === 401 ||
+    error.status === 403 ||
+    error.code === API_CODE.AUTH_FORBIDDEN ||
+    error.code === API_CODE.AUTH_MISSING_PERMISSION
+  );
 }
 </script>
 <style lang="less" scoped>

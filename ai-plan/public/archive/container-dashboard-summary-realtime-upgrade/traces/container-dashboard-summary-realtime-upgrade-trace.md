@@ -19,12 +19,12 @@
   - CPU/Memory 双栏改为 unified `Top Resource Consumers`
   - 首次加载必须用 skeleton
   - 无运行容器时显示 `No running containers.`
-  - stopped/exited/dead 资源值统一显示 `N/A`
+  - stopped/exited/dead 等不适用资源值统一显示 `N/A`，并与 `Not Collected` / `Unavailable` / `Unknown` 的 canonical taxonomy 对齐
 - Phase 1 完成：
   - 新增 canonical realtime topic：`container.dashboard.summary`
   - container module realtime issuer 已注册 summary topic，并复用统一 websocket ticket/gateway
   - stats collector 现在会从既有采样链发布 dashboard summary snapshot
-  - OpenAPI 与 generated contracts 已同步 `collected_at`
+  - OpenAPI source 已将 `collected_at` 标记为 required；generated contracts 仍需保持同一契约版本同步
   - anomaly items 已补充 `status`、`reason_code`、`reason_label`
 - 验证补充：
   - `cd server && go test ./modules/container -run 'Test(BuildContainerDashboardSummary|ServiceDashboardSummaryUsesRuntimeList|IssueContainerDashboardSummaryRealtimeSubscription|ContainerStatsPublishedUsesOpenAPIResourceJSONShape|ContainerDashboardSummaryPublishedUsesRealtimeSummaryShape)'` 通过

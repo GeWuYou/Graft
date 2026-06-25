@@ -801,6 +801,33 @@ func (e ContainerDashboardAnomalyItemHealth) Valid() bool {
 	}
 }
 
+// Defines values for ContainerDashboardAnomalyItemReasonCode.
+const (
+	ContainerDashboardAnomalyReasonCodeHealthUnhealthy ContainerDashboardAnomalyItemReasonCode = "health.unhealthy"
+	ContainerDashboardAnomalyReasonCodeStateDead       ContainerDashboardAnomalyItemReasonCode = "state.dead"
+	ContainerDashboardAnomalyReasonCodeStateExited     ContainerDashboardAnomalyItemReasonCode = "state.exited"
+	ContainerDashboardAnomalyReasonCodeStateRestarting ContainerDashboardAnomalyItemReasonCode = "state.restarting"
+	ContainerDashboardAnomalyReasonCodeStateUnknown    ContainerDashboardAnomalyItemReasonCode = "state.unknown"
+)
+
+// Valid indicates whether the value is a known member of the ContainerDashboardAnomalyItemReasonCode enum.
+func (e ContainerDashboardAnomalyItemReasonCode) Valid() bool {
+	switch e {
+	case ContainerDashboardAnomalyReasonCodeHealthUnhealthy:
+		return true
+	case ContainerDashboardAnomalyReasonCodeStateDead:
+		return true
+	case ContainerDashboardAnomalyReasonCodeStateExited:
+		return true
+	case ContainerDashboardAnomalyReasonCodeStateRestarting:
+		return true
+	case ContainerDashboardAnomalyReasonCodeStateUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ContainerDashboardAnomalyItemState.
 const (
 	ContainerDashboardAnomalyItemStateCreated    ContainerDashboardAnomalyItemState = "created"
@@ -3529,20 +3556,26 @@ type ContainerBatchActionResponse struct {
 
 // ContainerDashboardAnomalyItem defines model for container-dashboard-anomaly-item.
 type ContainerDashboardAnomalyItem struct {
-	Health *ContainerDashboardAnomalyItemHealth `json:"health,omitempty"`
-	Id     string                               `json:"id"`
-	Image  string                               `json:"image"`
-	Name   string                               `json:"name"`
+	Health      *ContainerDashboardAnomalyItemHealth     `json:"health,omitempty"`
+	Id          string                                   `json:"id"`
+	Image       string                                   `json:"image"`
+	Name        string                                   `json:"name"`
+	ReasonCode  *ContainerDashboardAnomalyItemReasonCode `json:"reason_code,omitempty"`
+	ReasonLabel *string                                  `json:"reason_label,omitempty"`
 
 	// Resource Latest-known backend resource stats projection for one container. On HTTP list/detail responses this object is a seed snapshot for frontend stats state, not the final cross-page authority. Canonical stats authority remains the backend collector, cache, and `container.stats:{id}` topic chain.
 	Resource     ContainerResourceSummary           `json:"resource"`
 	RestartCount *int                               `json:"restart_count,omitempty"`
 	ShortId      string                             `json:"short_id"`
 	State        ContainerDashboardAnomalyItemState `json:"state"`
+	Status       *string                            `json:"status,omitempty"`
 }
 
 // ContainerDashboardAnomalyItemHealth defines model for ContainerDashboardAnomalyItem.Health.
 type ContainerDashboardAnomalyItemHealth string
+
+// ContainerDashboardAnomalyItemReasonCode defines model for ContainerDashboardAnomalyItem.ReasonCode.
+type ContainerDashboardAnomalyItemReasonCode string
 
 // ContainerDashboardAnomalyItemState defines model for ContainerDashboardAnomalyItem.State.
 type ContainerDashboardAnomalyItemState string
@@ -3565,9 +3598,10 @@ type ContainerDashboardOverview struct {
 
 // ContainerDashboardSummaryResponse defines model for container-dashboard-summary-response.
 type ContainerDashboardSummaryResponse struct {
-	Anomalies []ContainerDashboardAnomalyItem `json:"anomalies"`
-	Hotspots  ContainerDashboardHotspots      `json:"hotspots"`
-	Overview  ContainerDashboardOverview      `json:"overview"`
+	Anomalies   []ContainerDashboardAnomalyItem `json:"anomalies"`
+	CollectedAt time.Time                       `json:"collected_at"`
+	Hotspots    ContainerDashboardHotspots      `json:"hotspots"`
+	Overview    ContainerDashboardOverview      `json:"overview"`
 }
 
 // ContainerDashboardTopItem defines model for container-dashboard-top-item.

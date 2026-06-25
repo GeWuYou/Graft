@@ -114,11 +114,13 @@ Dashboard page
 
 ### 3.3 Realtime Topic
 
-推荐新增 canonical realtime topic，例如：
+新增 canonical summary realtime topic：
 
 ```text
 container.dashboard.summary
 ```
+
+该 topic 是与 `GET /api/ops/containers/dashboard-summary` 对齐的 canonical summary companion channel。
 
 topic payload 与 `dashboard-summary` API shape 对齐。
 

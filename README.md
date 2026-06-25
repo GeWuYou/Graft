@@ -318,8 +318,8 @@ Important deployment notes:
 - The bundled `web` nginx runtime proxies both `/api/*` HTTP traffic and the unified realtime `/ws` WebSocket gateway
   to the `server` container. If you replace that proxy with your own ingress or reverse proxy, you must preserve
   WebSocket upgrade handling for `/ws` in addition to the normal `/api/*` forwarding.
-- When container shell is enabled, the root compose deployment also derives a default
-  `GRAFT_HTTPX_WEBSOCKET_ALLOWED_ORIGINS` allowlist from `GRAFT_WEB_HOST_PORT`, permitting
+- When the root compose deployment leaves `GRAFT_HTTPX_WEBSOCKET_ALLOWED_ORIGINS` unset, `compose.yml` derives a
+  default allowlist from `GRAFT_WEB_HOST_PORT`, permitting
   `http://127.0.0.1:<port>` and `http://localhost:<port>` by default so local browser access does not require an extra
   manual setting.
 - If the browser reaches the deployment through HTTPS, a custom hostname, or a reverse proxy, override

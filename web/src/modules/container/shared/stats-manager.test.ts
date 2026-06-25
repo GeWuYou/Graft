@@ -334,6 +334,46 @@ describe('container stats manager', () => {
     expect(selectContainerDashboardSummaryView()?.overview.collectedAt).toBe('2026-06-14T01:13:00Z');
   });
 
+  it('rejects dashboard summary topic payloads when hotspots cpu_top or memory_top are missing', () => {
+    seedContainerDashboardSummary(createDashboardSummary());
+    acquireContainerDashboardSummarySubscription();
+
+    const controller = realtimeMocks.controllers.at(-1)!;
+    controller.emitMessage(
+      JSON.stringify({
+        data: {
+          collected_at: '2026-06-14T01:14:00Z',
+          overview: {
+            running_containers: 7,
+            abnormal_containers: 2,
+            cpu_total_percent: 45.1,
+            memory_total_usage_bytes: 2147483648,
+            memory_total_limit_bytes: 4294967296,
+            memory_total_percent: 50,
+          },
+          hotspots: {
+            cpu_top: [],
+          },
+          anomalies: [],
+        },
+      }),
+    );
+
+    expect(selectContainerDashboardSummaryView()?.overview.cpuTotalPercent).toBe(32.5);
+    expect(selectContainerDashboardSummaryView()?.overview.collectedAt).toBe('2026-06-14T01:09:00Z');
+  });
+
+  it('rejects dashboard summary topic payloads when the payload root is an array', () => {
+    seedContainerDashboardSummary(createDashboardSummary());
+    acquireContainerDashboardSummarySubscription();
+
+    const controller = realtimeMocks.controllers.at(-1)!;
+    controller.emitMessage(JSON.stringify({ data: [] }));
+
+    expect(selectContainerDashboardSummaryView()?.overview.cpuTotalPercent).toBe(32.5);
+    expect(selectContainerDashboardSummaryView()?.overview.collectedAt).toBe('2026-06-14T01:09:00Z');
+  });
+
   it('shares one dashboard summary realtime controller across repeated acquires', () => {
     acquireContainerDashboardSummarySubscription();
     acquireContainerDashboardSummarySubscription();
