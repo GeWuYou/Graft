@@ -57,7 +57,7 @@
     </t-alert>
     <t-alert v-if="truncated" theme="warning" :title="truncatedLabel" />
 
-    <div ref="viewport" :class="['log-viewer__viewport', { 'log-viewer__viewport--wrap': wrapLines }]">
+    <div ref="viewport" :class="['log-viewer__viewport graft-scrollbar', { 'log-viewer__viewport--wrap': wrapLines }]">
       <t-skeleton v-if="loading && !displayLines.length" animation="gradient" :row-col="skeletonRows" />
       <ol v-else-if="displayLines.length" class="log-viewer__lines">
         <li
@@ -257,7 +257,7 @@
               {{ copyJsonLabel }}
             </t-button>
           </div>
-          <pre class="log-viewer__code-block"><code>{{ formatJson(selectedLine.metadata) }}</code></pre>
+          <pre class="log-viewer__code-block graft-scrollbar"><code>{{ formatJson(selectedLine.metadata) }}</code></pre>
         </section>
 
         <section class="log-viewer__drawer-section">
@@ -267,7 +267,9 @@
               {{ copyLineLabel }}
             </t-button>
           </div>
-          <pre class="log-viewer__code-block log-viewer__code-block--raw"><code>{{ selectedLine.raw }}</code></pre>
+          <pre class="log-viewer__code-block log-viewer__code-block--raw graft-scrollbar">
+            <code>{{ selectedLine.raw }}</code>
+          </pre>
         </section>
       </div>
     </t-drawer>
@@ -617,26 +619,6 @@ async function copyTextWithFeedback(value: string) {
   min-width: 0;
   overflow: auto;
   padding: var(--graft-density-gap-6) var(--graft-density-gap-8);
-  scrollbar-color: var(--td-scrollbar-color) transparent;
-  scrollbar-gutter: stable;
-  scrollbar-width: thin;
-}
-
-.log-viewer__viewport::-webkit-scrollbar {
-  background: transparent;
-  height: 8px;
-  width: 8px;
-}
-
-.log-viewer__viewport::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.log-viewer__viewport::-webkit-scrollbar-thumb {
-  background-clip: content-box;
-  background-color: var(--td-scrollbar-color);
-  border: 2px solid transparent;
-  border-radius: 6px;
 }
 
 .log-viewer__lines {
@@ -1017,8 +999,6 @@ async function copyTextWithFeedback(value: string) {
   max-height: 260px;
   overflow: auto;
   padding: var(--graft-density-gap-12) var(--graft-density-gap-14);
-  scrollbar-color: var(--td-scrollbar-color) transparent;
-  scrollbar-width: thin;
   white-space: pre;
 }
 
@@ -1031,23 +1011,6 @@ async function copyTextWithFeedback(value: string) {
   overflow-wrap: anywhere;
   white-space: pre-wrap;
   word-break: normal;
-}
-
-.log-viewer__code-block::-webkit-scrollbar {
-  background: transparent;
-  height: 8px;
-  width: 8px;
-}
-
-.log-viewer__code-block::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.log-viewer__code-block::-webkit-scrollbar-thumb {
-  background-clip: content-box;
-  background-color: var(--td-scrollbar-color);
-  border: 2px solid transparent;
-  border-radius: 6px;
 }
 
 .log-viewer__token--keyword {

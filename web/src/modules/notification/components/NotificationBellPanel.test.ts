@@ -205,6 +205,7 @@ describe('NotificationBellPanel', () => {
     expect(wrapper.text()).toContain('审计日志保留清理已成功完成。');
     expect(wrapper.text()).toContain('任务 / 定时任务 · 2026/06/11 14:11');
     expect(wrapper.text()).not.toContain('标记已读');
+    expect(wrapper.find('.notification-bell-panel__list').classes()).toContain('graft-scrollbar');
     expect(wrapper.find('.notification-bell-panel__item-main').exists()).toBe(true);
     expect(wrapper.find('.notification-bell-panel__unread-dot').exists()).toBe(true);
   });

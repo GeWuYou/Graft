@@ -170,6 +170,7 @@ describe('AuditTable', () => {
     const operationColumn = wrapper.findAll('[data-testid="table-columns"] span').at(-1);
     expect(wrapper.get('[data-testid="table-columns"]').text()).toContain('operation');
     expect(operationColumn?.attributes('data-fixed')).toBe('right');
+    expect(wrapper.find('.audit-log-table__host').classes()).toContain('graft-scrollbar');
 
     await wrapper.get('[data-testid="row-click"]').trigger('click');
 

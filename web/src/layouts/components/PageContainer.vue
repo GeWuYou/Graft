@@ -29,6 +29,7 @@ const props = defineProps<{
 const containerClasses = computed(() => [
   'graft-page-container',
   'page-scroll',
+  'graft-scrollbar',
   `${prefix}-page-container`,
   `${prefix}-page-scroll`,
   `${prefix}-page-container--${props.surface ?? 'shell'}`,

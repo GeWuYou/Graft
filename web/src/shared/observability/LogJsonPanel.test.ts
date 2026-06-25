@@ -95,4 +95,28 @@ describe('LogJsonPanel', () => {
     expect(wrapper.text()).toContain('No data');
     expect(wrapper.text()).not.toContain('Copy JSON');
   });
+
+  it('marks the json viewport with the shared scrollbar utility', () => {
+    const wrapper = mount(LogJsonPanel, {
+      props: {
+        title: 'Metadata',
+        expandLabel: 'Expand JSON',
+        collapseLabel: 'Collapse JSON',
+        copyLabel: 'Copy JSON',
+        copySuccessLabel: 'Copied',
+        copyFailLabel: 'Failed',
+        emptyText: 'No data',
+        value: { request_id: 'req-1' },
+      },
+      global: {
+        stubs: {
+          't-collapse': collapseStub,
+          't-collapse-panel': collapsePanelStub,
+          't-button': buttonStub,
+        },
+      },
+    });
+
+    expect(wrapper.find('pre').classes()).toContain('graft-scrollbar');
+  });
 });

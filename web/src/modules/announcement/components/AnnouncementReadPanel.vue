@@ -36,7 +36,7 @@
             </div>
           </header>
 
-          <main class="announcement-read-panel__body">
+          <main class="announcement-read-panel__body graft-scrollbar">
             <markdown-viewer :source="announcement.content" />
           </main>
 
@@ -191,23 +191,6 @@ function emitOpenCenter() {
   min-height: 0;
   overflow: auto;
   padding: var(--td-comp-paddingTB-l) var(--td-comp-paddingLR-xl);
-  scrollbar-color: var(--td-scrollbar-color) transparent;
-  scrollbar-gutter: stable;
-  scrollbar-width: thin;
-}
-
-.announcement-read-panel__body::-webkit-scrollbar {
-  height: 8px;
-  width: 8px;
-}
-
-.announcement-read-panel__body::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.announcement-read-panel__body::-webkit-scrollbar-thumb {
-  background-color: var(--td-scrollbar-color);
-  border-radius: var(--td-radius-round);
 }
 
 .announcement-read-panel__footer {

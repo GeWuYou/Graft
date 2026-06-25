@@ -21,7 +21,7 @@
       </header>
 
       <div class="theme-workbench-panel__body">
-        <aside class="theme-workbench-panel__nav narrow-scrollbar">
+        <aside class="theme-workbench-panel__nav graft-scrollbar">
           <t-tooltip v-for="group in groups" :key="group.key" :content="t(group.labelKey)" placement="right" show-arrow>
             <button
               type="button"
@@ -37,7 +37,7 @@
           </t-tooltip>
         </aside>
 
-        <section class="theme-workbench-panel__content narrow-scrollbar">
+        <section class="theme-workbench-panel__content graft-scrollbar">
           <div v-if="activeGroup === 'overview'" class="overview-layout">
             <div class="section overview-layout__summary">
               <div class="section-title">{{ t('layout.setting.workbench.overview.currentConfig') }}</div>

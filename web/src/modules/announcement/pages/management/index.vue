@@ -261,7 +261,7 @@
       <t-form
         id="announcement-form"
         ref="formRef"
-        class="announcement-form"
+        class="announcement-form graft-scrollbar"
         :data="formState"
         :rules="formRules"
         label-align="top"
@@ -295,7 +295,7 @@
           </div>
           <section
             v-if="inlinePreviewVisible"
-            class="announcement-form__inline-preview"
+            class="announcement-form__inline-preview graft-scrollbar"
             :aria-label="t('announcement.management.form.markdownPreview')"
             aria-live="polite"
           >
@@ -407,7 +407,7 @@
             </t-tag>
           </div>
         </header>
-        <div class="announcement-preview-panel__body">
+        <div class="announcement-preview-panel__body graft-scrollbar">
           <template v-if="hasPreviewContent">
             <markdown-viewer :source="formState.content" />
           </template>
@@ -425,7 +425,7 @@
       destroy-on-close
       drawer-class-name="announcement-detail-drawer"
     >
-      <div v-if="detailRecord" class="announcement-detail">
+      <div v-if="detailRecord" class="announcement-detail graft-scrollbar">
         <section class="drawer-section">
           <h3>{{ t('announcement.management.detailDrawer.basic') }}</h3>
           <div class="detail-title-row">
@@ -1375,21 +1375,23 @@ function normalizeVisibleColumnKeys(keys: unknown[]) {
   display: flex;
   flex-direction: column;
   gap: var(--graft-density-gap-16);
+  height: 100%;
+  min-height: 0;
+  overflow: auto;
 }
 
-:deep(.announcement-form-drawer) {
+:deep(.announcement-form-drawer),
+:deep(.announcement-detail-drawer) {
   display: flex;
   flex-direction: column;
   max-height: 100vh;
 }
 
-:deep(.announcement-form-drawer .t-drawer__body) {
+:deep(.announcement-form-drawer .t-drawer__body),
+:deep(.announcement-detail-drawer .t-drawer__body) {
   flex: 1;
   min-height: 0;
-  overflow: auto;
-  scrollbar-color: var(--td-scrollbar-color) transparent;
-  scrollbar-gutter: stable;
-  scrollbar-width: thin;
+  overflow: hidden;
 }
 
 :deep(.announcement-form-drawer .t-drawer__footer) {
@@ -1446,9 +1448,6 @@ function normalizeVisibleColumnKeys(keys: unknown[]) {
   max-height: 260px;
   overflow: auto;
   padding: var(--graft-density-gap-12);
-  scrollbar-color: var(--td-scrollbar-color) transparent;
-  scrollbar-gutter: stable;
-  scrollbar-width: thin;
 }
 
 .announcement-form__inline-preview :deep(.t-empty) {
@@ -1482,9 +1481,6 @@ function normalizeVisibleColumnKeys(keys: unknown[]) {
   min-height: 0;
   overflow: auto;
   padding-right: var(--graft-density-gap-4);
-  scrollbar-color: var(--td-scrollbar-color) transparent;
-  scrollbar-gutter: stable;
-  scrollbar-width: thin;
 }
 
 .announcement-preview-panel__body :deep(.t-empty) {

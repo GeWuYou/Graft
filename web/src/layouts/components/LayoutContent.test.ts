@@ -447,6 +447,7 @@ describe('LayoutContent', () => {
     const footer = pageContainer.get('.tdesign-starter-footer-layout');
 
     expect(pageContainer.classes()).toContain('page-scroll');
+    expect(pageContainer.classes()).toContain('graft-scrollbar');
     expect(routeHost.element.compareDocumentPosition(footer.element) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(routeHost.element.parentElement).toBe(pageContent.element);
     expect(footer.element.parentElement).toBe(pageContainer.element);

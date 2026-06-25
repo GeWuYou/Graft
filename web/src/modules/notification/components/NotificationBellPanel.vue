@@ -19,7 +19,7 @@
             </t-button>
           </div>
 
-          <t-list v-if="items.length" class="notification-bell-panel__list" :split="false" size="small">
+          <t-list v-if="items.length" class="notification-bell-panel__list graft-scrollbar" :split="false" size="small">
             <t-list-item v-for="item in items" :key="item.delivery_id" @click="openDetail(item)">
               <div
                 class="notification-bell-panel__item"

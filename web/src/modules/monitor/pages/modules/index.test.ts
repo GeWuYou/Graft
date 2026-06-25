@@ -569,6 +569,7 @@ describe('monitor module runtime page', () => {
     expect(wrapper.find('[data-drawer="true"]').text()).toContain('ok');
     expect(wrapper.find('[data-drawer="true"]').text()).toContain('Raw runtime JSON');
     expect(wrapper.find('[data-drawer="true"]').text()).toContain('"module_key": "audit"');
+    expect(wrapper.find('[data-drawer="true"] pre').classes()).toContain('graft-scrollbar');
     expect(moduleRuntimeApiMocks.getModuleRuntimeDetail).toHaveBeenCalledWith('audit');
   });
 
