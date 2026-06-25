@@ -1,64 +1,76 @@
 <template>
   <section class="container-shell-panel" data-testid="container-shell-panel">
-    <header class="container-shell-panel__header">
-      <div class="container-shell-panel__title-block">
-        <div class="container-shell-panel__title-row">
-          <t-icon name="terminal-window" />
-          <h3>{{ t('container.detail.shell.title') }}</h3>
-          <t-tag :theme="statusTheme" variant="light-outline" size="small">
-            {{ statusLabel }}
-          </t-tag>
+    <content-viewer-frame
+      storage-key="graft.container-detail.viewer.shell.height"
+      :fullscreen-label="t('container.detail.viewer.enterFullscreen')"
+      :exit-fullscreen-label="t('container.detail.viewer.exitFullscreen')"
+      :resize-handle-label="t('container.detail.viewer.resizeHandle')"
+      surface-padding="none"
+      fullscreen-surface-padding="none"
+    >
+      <template #header>
+        <div class="container-shell-panel__title-block">
+          <div class="container-shell-panel__title-row">
+            <t-icon name="terminal-window" />
+            <h3>{{ t('container.detail.shell.title') }}</h3>
+            <t-tag :theme="statusTheme" variant="light-outline" size="small">
+              {{ statusLabel }}
+            </t-tag>
+          </div>
+          <p>{{ t('container.detail.shell.description') }}</p>
         </div>
-        <p>{{ t('container.detail.shell.description') }}</p>
+      </template>
+
+      <template #header-actions>
+        <div class="container-shell-panel__actions">
+          <t-select v-model="selectedCommand" class="container-shell-panel__command" :options="shellOptions" />
+          <t-button
+            theme="primary"
+            variant="outline"
+            :loading="sessionLoading"
+            :disabled="reconnectDisabled"
+            @click="handleReconnect"
+          >
+            {{ t('container.detail.shell.reconnect') }}
+          </t-button>
+        </div>
+      </template>
+
+      <t-alert v-if="availabilityState === 'disabled'" class="container-shell-panel__alert" theme="warning">
+        <template #title>{{ t('container.detail.shell.disabled') }}</template>
+        {{ t('container.detail.shell.disabledHint') }}
+      </t-alert>
+
+      <t-alert v-else-if="availabilityState === 'forbidden'" class="container-shell-panel__alert" theme="error">
+        <template #title>{{ t('container.detail.shell.forbidden') }}</template>
+        {{ t('container.detail.shell.forbiddenHint') }}
+      </t-alert>
+
+      <t-alert v-else-if="availabilityState === 'not-running'" class="container-shell-panel__alert" theme="info">
+        <template #title>{{ t('container.detail.shell.notRunning') }}</template>
+        {{ t('container.detail.shell.notRunningHint') }}
+      </t-alert>
+
+      <div v-else class="container-shell-panel__terminal">
+        <web-terminal
+          ref="terminalRef"
+          :model-value="terminalActive"
+          :connector="connector"
+          :auto-connect="false"
+          :connecting-description="t('container.detail.shell.connectingHint')"
+          :connecting-title="t('container.detail.shell.connecting')"
+          :disconnected-description="displayDisconnectedDescription"
+          :disconnected-title="t('container.detail.shell.disconnected')"
+          :empty-description="t('container.detail.shell.emptyHint')"
+          :empty-title="t('container.detail.shell.empty')"
+          :error-description="displayErrorDescription"
+          :error-title="t('container.detail.shell.connectionFailed')"
+          @close="handleTerminalClose"
+          @message="handleTerminalMessage"
+          @state-change="handleStateChange"
+        />
       </div>
-      <div class="container-shell-panel__actions">
-        <t-select v-model="selectedCommand" class="container-shell-panel__command" :options="shellOptions" />
-        <t-button
-          theme="primary"
-          variant="outline"
-          :loading="sessionLoading"
-          :disabled="reconnectDisabled"
-          @click="handleReconnect"
-        >
-          {{ t('container.detail.shell.reconnect') }}
-        </t-button>
-      </div>
-    </header>
-
-    <t-alert v-if="availabilityState === 'disabled'" class="container-shell-panel__alert" theme="warning">
-      <template #title>{{ t('container.detail.shell.disabled') }}</template>
-      {{ t('container.detail.shell.disabledHint') }}
-    </t-alert>
-
-    <t-alert v-else-if="availabilityState === 'forbidden'" class="container-shell-panel__alert" theme="error">
-      <template #title>{{ t('container.detail.shell.forbidden') }}</template>
-      {{ t('container.detail.shell.forbiddenHint') }}
-    </t-alert>
-
-    <t-alert v-else-if="availabilityState === 'not-running'" class="container-shell-panel__alert" theme="info">
-      <template #title>{{ t('container.detail.shell.notRunning') }}</template>
-      {{ t('container.detail.shell.notRunningHint') }}
-    </t-alert>
-
-    <div v-else class="container-shell-panel__terminal">
-      <web-terminal
-        ref="terminalRef"
-        :model-value="terminalActive"
-        :connector="connector"
-        :auto-connect="false"
-        :connecting-description="t('container.detail.shell.connectingHint')"
-        :connecting-title="t('container.detail.shell.connecting')"
-        :disconnected-description="displayDisconnectedDescription"
-        :disconnected-title="t('container.detail.shell.disconnected')"
-        :empty-description="t('container.detail.shell.emptyHint')"
-        :empty-title="t('container.detail.shell.empty')"
-        :error-description="displayErrorDescription"
-        :error-title="t('container.detail.shell.connectionFailed')"
-        @close="handleTerminalClose"
-        @message="handleTerminalMessage"
-        @state-change="handleStateChange"
-      />
-    </div>
+    </content-viewer-frame>
   </section>
 </template>
 <script setup lang="ts">
@@ -72,6 +84,7 @@ import type {
   TerminalSessionConnector,
 } from '@/shared/components/terminal/terminal-types';
 import WebTerminal from '@/shared/components/terminal/WebTerminal.vue';
+import ContentViewerFrame from '@/shared/components/viewer/ContentViewerFrame.vue';
 import { localizedApiErrorMessage } from '@/shared/localized-api-error';
 import { toRealtimeWebSocketUrl } from '@/shared/realtime';
 import { getPermissionStore } from '@/store';
@@ -338,17 +351,9 @@ defineExpose({
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
-  gap: var(--graft-density-gap-12);
   height: 100%;
   min-height: 0;
   min-width: 0;
-}
-
-.container-shell-panel__header {
-  align-items: flex-start;
-  display: flex;
-  gap: var(--graft-density-gap-12);
-  justify-content: space-between;
 }
 
 .container-shell-panel__title-block {
@@ -391,18 +396,12 @@ defineExpose({
 .container-shell-panel__terminal {
   display: flex;
   flex: 1 1 auto;
-  height: var(--container-shell-terminal-height);
-  min-height: var(--container-shell-terminal-height);
+  min-height: 0;
   min-width: 0;
   overflow: hidden;
 }
 
 @media (width <= 1024px) {
-  .container-shell-panel__header {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
   .container-shell-panel__actions {
     justify-content: flex-start;
   }

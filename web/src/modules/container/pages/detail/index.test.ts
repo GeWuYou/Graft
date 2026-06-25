@@ -468,6 +468,9 @@ const translations = vi.hoisted(
     'container.detail.tabs.raw': '原始 JSON',
     'container.detail.tabs.resources': '资源',
     'container.detail.tabs.storage': '挂载',
+    'container.detail.viewer.enterFullscreen': '全屏',
+    'container.detail.viewer.exitFullscreen': '退出全屏',
+    'container.detail.viewer.resizeHandle': '调整阅读器高度',
     'container.detail.title': '容器详情',
     'container.list.detail.command': '命令',
     'container.list.detail.entrypoint': '入口',
@@ -1333,18 +1336,16 @@ describe('container detail page', () => {
     expect(wrapper.get('[data-testid="container-shell-panel-stub"]').attributes('data-active')).toBe('true');
   });
 
-  it('keeps the shell tab on a bounded viewport height chain', () => {
+  it('routes the shell tab through the shared viewer shell instead of a fixed terminal height chain', () => {
     expect(sourceText).toContain('.container-detail-tabs-card :deep(.t-card__body) {');
     expect(sourceText).toContain('display: flex;');
-    expect(sourceText).toContain('container-detail-tab-body--terminal');
-    expect(sourceText).toContain('container-detail-tab-body--long');
     expect(sourceText).toContain(
-      '--container-detail-tab-body-min-height: clamp(420px, calc(100vh - var(--graft-page-bottom-safe-area) - 330px), 720px);',
+      'container-detail-section--shell container-detail-tab-body container-detail-tab-body--viewer',
     );
-    expect(sourceText).toContain('--container-shell-terminal-height: var(--container-detail-tab-body-min-height);');
+    expect(sourceText).not.toContain('container-detail-tab-body--terminal');
+    expect(sourceText).not.toContain('--container-shell-terminal-height: var(--container-detail-tab-body-min-height);');
     expect(shellPanelSourceText).toContain('.container-shell-panel__terminal {');
-    expect(shellPanelSourceText).toContain('height: var(--container-shell-terminal-height);');
-    expect(shellPanelSourceText).not.toContain('--container-shell-terminal-height: clamp(');
+    expect(shellPanelSourceText).not.toContain('height: var(--container-shell-terminal-height);');
   });
 
   it('pauses and resumes realtime subscription from the detail toolbar toggle', async () => {
@@ -2284,10 +2285,11 @@ describe('container detail page', () => {
   it('uses shared log and JSON viewers instead of raw pre blocks', () => {
     expect(sourceText).toContain('<log-viewer');
     expect(sourceText).toContain('<container-raw-json-panel');
+    expect(sourceText).toContain(':viewer-mode="true"');
     expect(sourceText).not.toContain('container-detail-code');
   });
 
-  it('routes long-form detail tabs through the shared long viewport height chain', () => {
+  it('keeps config tab on natural page flow while viewer tabs own their viewport shells', () => {
     expect(sourceText).toContain(
       'container-detail-section--config container-detail-tab-body container-detail-tab-body--long',
     );
@@ -2297,7 +2299,10 @@ describe('container detail page', () => {
     expect(sourceText).toContain(
       'container-detail-section--storage container-detail-tab-body container-detail-tab-body--long',
     );
-    expect(sourceText).toContain('container-detail-section--raw container-detail-tab-body');
+    expect(sourceText).toContain(
+      'container-detail-section container-detail-tab-body container-detail-tab-body--viewer',
+    );
+    expect(sourceText).toContain('container-detail-section container-detail-section--raw container-detail-tab-body');
   });
 
   it('keeps overview as a single-column grouped information flow without nested scrolling', () => {

@@ -1,72 +1,84 @@
 <template>
   <section class="container-raw-json-panel">
-    <header class="container-raw-json-panel__header">
-      <div class="container-raw-json-panel__heading">
-        <h3>{{ title }}</h3>
+    <content-viewer-frame
+      storage-key="graft.container-detail.viewer.raw.height"
+      :fullscreen-label="fullscreenLabel"
+      :exit-fullscreen-label="exitFullscreenLabel"
+      :resize-handle-label="resizeHandleLabel"
+      surface-padding="normal"
+      fullscreen-surface-padding="wide"
+    >
+      <template #header>
+        <div class="container-raw-json-panel__heading">
+          <h3>{{ title }}</h3>
+        </div>
+      </template>
+
+      <template #header-actions>
+        <t-alert :theme="policyAlertTheme" :message="policyMessage" />
+      </template>
+
+      <div v-if="hasError" class="container-raw-json-panel__empty">
+        <t-empty size="small" :description="errorLabel" />
       </div>
-      <t-alert :theme="policyAlertTheme" :message="policyMessage" />
-    </header>
-
-    <div v-if="hasError" class="container-raw-json-panel__empty">
-      <t-empty size="small" :description="errorLabel" />
-    </div>
-    <div v-else-if="isEmpty" class="container-raw-json-panel__empty">
-      <t-empty size="small" :description="emptyLabel" />
-    </div>
-    <template v-else>
-      <div class="container-raw-json-panel__meta">
-        <t-tag v-for="chip in chips" :key="chip.key" theme="default" variant="light-outline">
-          {{ chip.label }}
-        </t-tag>
+      <div v-else-if="isEmpty" class="container-raw-json-panel__empty">
+        <t-empty size="small" :description="emptyLabel" />
       </div>
-
-      <div class="container-raw-json-panel__viewer">
-        <json-viewer-toolbar
-          v-model:search-value="searchValue"
-          v-model:view-mode="viewMode"
-          :collapse-all-label="collapseAllLabel"
-          :copy-disabled="copyDisabled"
-          :copy-label="copyLabel"
-          :copy-tooltip="copyTooltip"
-          :expand-all-label="expandAllLabel"
-          :expand-disabled="expandActionDisabled"
-          :expanded-all="expandedAll"
-          :format-disabled="!formattedJson"
-          :format-label="formatLabel"
-          :search-placeholder="searchPlaceholder"
-          :source-label="sourceLabel"
-          :tree-label="treeLabel"
-          @copy="copyJson"
-          @format="handleFormat"
-          @toggle-expand-all="toggleExpandAll"
-        />
-
-        <div v-if="showSearchEmpty" class="container-raw-json-panel__search-empty">
-          <t-alert theme="warning" :message="searchEmptyLabel" />
+      <template v-else>
+        <div class="container-raw-json-panel__meta">
+          <t-tag v-for="chip in chips" :key="chip.key" theme="default" variant="light-outline">
+            {{ chip.label }}
+          </t-tag>
         </div>
 
-        <div class="container-raw-json-panel__surface">
-          <json-tree-viewer
-            v-if="viewMode === 'tree'"
-            :collapse-label="collapseTreeNodeLabel"
-            :empty-label="searchEmptyLabel"
-            :expand-label="expandTreeNodeLabel"
+        <div class="container-raw-json-panel__viewer">
+          <json-viewer-toolbar
+            v-model:search-value="searchValue"
+            v-model:view-mode="viewMode"
+            :collapse-all-label="collapseAllLabel"
+            :copy-disabled="copyDisabled"
+            :copy-label="copyLabel"
+            :copy-tooltip="copyTooltip"
+            :expand-all-label="expandAllLabel"
+            :expand-disabled="expandActionDisabled"
             :expanded-all="expandedAll"
-            :expand-all-token="expandAllToken"
-            :root-label="rootLabel"
-            :search-value="searchValue"
-            :sensitive-label="sensitiveLabel"
-            :value="maskedValue"
+            :format-disabled="!formattedJson"
+            :format-label="formatLabel"
+            :search-placeholder="searchPlaceholder"
+            :source-label="sourceLabel"
+            :tree-label="treeLabel"
+            @copy="copyJson"
+            @format="handleFormat"
+            @toggle-expand-all="toggleExpandAll"
           />
-          <json-source-viewer
-            v-else
-            :empty-label="searchEmptyLabel"
-            :formatted-json="formattedJson"
-            :search-value="searchValue"
-          />
+
+          <div v-if="showSearchEmpty" class="container-raw-json-panel__search-empty">
+            <t-alert theme="warning" :message="searchEmptyLabel" />
+          </div>
+
+          <div class="container-raw-json-panel__surface">
+            <json-tree-viewer
+              v-if="viewMode === 'tree'"
+              :collapse-label="collapseTreeNodeLabel"
+              :empty-label="searchEmptyLabel"
+              :expand-label="expandTreeNodeLabel"
+              :expanded-all="expandedAll"
+              :expand-all-token="expandAllToken"
+              :root-label="rootLabel"
+              :search-value="searchValue"
+              :sensitive-label="sensitiveLabel"
+              :value="maskedValue"
+            />
+            <json-source-viewer
+              v-else
+              :empty-label="searchEmptyLabel"
+              :formatted-json="formattedJson"
+              :search-value="searchValue"
+            />
+          </div>
         </div>
-      </div>
-    </template>
+      </template>
+    </content-viewer-frame>
   </section>
 </template>
 <script setup lang="ts">
@@ -74,6 +86,7 @@ import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import ContentViewerFrame from '@/shared/components/viewer/ContentViewerFrame.vue';
 import { copyText, formatLocaleDateTime } from '@/shared/observability';
 
 import JsonSourceViewer from './JsonSourceViewer.vue';
@@ -117,6 +130,9 @@ const props = defineProps<{
   title: string;
   treeLabel: string;
   updatedAtLabel: string;
+  fullscreenLabel: string;
+  exitFullscreenLabel: string;
+  resizeHandleLabel: string;
   policyAlertTheme?: 'info' | 'warning' | 'error' | 'success';
   policyMessage: string;
   rawCopyEnabled?: boolean;
@@ -293,16 +309,7 @@ function readString(value: unknown) {
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: var(--graft-density-gap-12);
   min-height: 0;
-  min-width: 0;
-  padding: 0 var(--graft-density-gap-16) var(--graft-density-gap-16);
-}
-
-.container-raw-json-panel__header {
-  display: flex;
-  flex-direction: column;
-  gap: var(--graft-density-gap-10);
   min-width: 0;
 }
 
@@ -319,9 +326,6 @@ function readString(value: unknown) {
 }
 
 .container-raw-json-panel__viewer {
-  background: color-mix(in srgb, var(--td-bg-color-page) 85%, var(--td-bg-color-container));
-  border: 1px solid color-mix(in srgb, var(--td-component-stroke) 78%, transparent);
-  border-radius: var(--td-radius-large);
   display: flex;
   flex: 1;
   flex-direction: column;
@@ -329,7 +333,6 @@ function readString(value: unknown) {
   height: 100%;
   min-height: 0;
   min-width: 0;
-  padding: var(--graft-density-gap-12);
 }
 
 .container-raw-json-panel__surface {
@@ -357,12 +360,8 @@ function readString(value: unknown) {
 }
 
 @media (width <= 720px) {
-  .container-raw-json-panel {
-    padding-inline: var(--graft-density-gap-12);
-  }
-
-  .container-raw-json-panel__viewer {
-    padding: var(--graft-density-gap-10);
+  .container-raw-json-panel__meta {
+    gap: var(--graft-density-gap-6);
   }
 }
 </style>

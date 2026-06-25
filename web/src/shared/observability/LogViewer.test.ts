@@ -46,6 +46,11 @@ const labels = {
   truncatedLabel: '日志已截断',
   viewDetailLabel: '查看详情',
   wrapLabel: '自动换行',
+  viewerMode: false,
+  viewerStorageKey: 'graft.test.log-viewer.height',
+  fullscreenLabel: '全屏',
+  exitFullscreenLabel: '退出全屏',
+  resizeHandleLabel: '调整阅读器高度',
 };
 
 describe('LogViewer', () => {
@@ -272,6 +277,20 @@ describe('LogViewer', () => {
     expect(wrapper.text()).not.toContain('查看详情');
     expect(wrapper.findAll('.log-viewer__icon-action')).toHaveLength(2);
   });
+
+  it('can render inside the shared viewer frame mode', () => {
+    const wrapper = mount(LogViewer, {
+      props: {
+        ...labels,
+        viewerMode: true,
+        lines: createLines(1),
+      },
+      global: { stubs: tdesignStubs },
+    });
+
+    expect(wrapper.find('.log-viewer--framed').exists()).toBe(true);
+    expect(wrapper.find('.log-viewer__body').exists()).toBe(true);
+  });
 });
 
 const tdesignStubs = {
@@ -296,6 +315,11 @@ const tdesignStubs = {
   't-empty': defineComponent({
     props: ['description'],
     setup: (props) => () => h('div', String(props.description ?? '')),
+  }),
+  'content-viewer-frame': defineComponent({
+    setup(_, { slots }) {
+      return () => h('section', { class: 'content-viewer-frame-stub' }, [slots.toolbar?.(), slots.default?.()]);
+    },
   }),
   't-drawer': defineComponent({
     props: ['header', 'visible'],

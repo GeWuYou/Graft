@@ -448,7 +448,7 @@
             </t-tab-panel>
 
             <t-tab-panel value="logs" :label="t('container.detail.tabs.logs')" :destroy-on-hide="false">
-              <section class="container-detail-section">
+              <section class="container-detail-section container-detail-tab-body container-detail-tab-body--viewer">
                 <log-viewer
                   v-model:line-limit="logLineLimit"
                   :lines="logs?.lines ?? []"
@@ -484,6 +484,11 @@
                   :copy-json-label="t('container.detail.logs.copyJson')"
                   :copy-success-label="t('container.detail.copySuccess')"
                   :copy-error-label="t('container.detail.copyError')"
+                  :viewer-mode="true"
+                  viewer-storage-key="graft.container-detail.viewer.logs.height"
+                  :fullscreen-label="t('container.detail.viewer.enterFullscreen')"
+                  :exit-fullscreen-label="t('container.detail.viewer.exitFullscreen')"
+                  :resize-handle-label="t('container.detail.viewer.resizeHandle')"
                   @refresh="loadLogs"
                 />
               </section>
@@ -491,7 +496,7 @@
 
             <t-tab-panel value="shell" :label="t('container.detail.tabs.shell')" :destroy-on-hide="false">
               <section
-                class="container-detail-section container-detail-section--shell container-detail-tab-body container-detail-tab-body--terminal"
+                class="container-detail-section container-detail-section--shell container-detail-tab-body container-detail-tab-body--viewer"
               >
                 <container-shell-panel
                   :active="activeTab === 'shell'"
@@ -1156,7 +1161,9 @@
             </t-tab-panel>
 
             <t-tab-panel value="raw" :label="t('container.detail.tabs.raw')" :destroy-on-hide="false">
-              <section class="container-detail-section container-detail-section--raw container-detail-tab-body">
+              <section
+                class="container-detail-section container-detail-section--raw container-detail-tab-body container-detail-tab-body--viewer"
+              >
                 <container-raw-json-panel
                   :copy-value="rawJsonCopyValue"
                   :value="rawJsonDisplayValue"
@@ -1175,6 +1182,9 @@
                   :raw-copy-enabled="rawJsonCopyEnabled"
                   :copy-success-label="t('container.detail.copySuccess')"
                   :copy-error-label="t('container.detail.copyError')"
+                  :fullscreen-label="t('container.detail.viewer.enterFullscreen')"
+                  :exit-fullscreen-label="t('container.detail.viewer.exitFullscreen')"
+                  :resize-handle-label="t('container.detail.viewer.resizeHandle')"
                   :expand-all-label="t('container.detail.raw.expandAll')"
                   :collapse-all-label="t('container.detail.raw.collapseAll')"
                   :format-label="t('container.detail.raw.format')"
@@ -3892,24 +3902,13 @@ function portLabel(port: ContainerDetail['ports'][number]) {
   min-height: 0;
 }
 
-/*
- * Short detail tabs use the page scrollbar. Long-form tabs such as logs and raw JSON own
- * their internal scrolling so the page does not fight a second nested scrollbar.
- */
 .container-detail-tab-body {
-  --container-detail-tab-body-min-height: clamp(360px, calc(100vh - var(--graft-page-bottom-safe-area) - 360px), 640px);
-
-  height: var(--container-detail-tab-body-min-height);
-  min-height: var(--container-detail-tab-body-min-height);
+  height: auto;
+  min-height: 0;
 }
 
-.container-detail-tab-body--long {
-  --container-detail-tab-body-min-height: clamp(420px, calc(100vh - var(--graft-page-bottom-safe-area) - 330px), 720px);
-}
-
-.container-detail-tab-body--terminal {
-  --container-detail-tab-body-min-height: clamp(320px, calc(100vh - var(--graft-page-bottom-safe-area) - 420px), 520px);
-  --container-shell-terminal-height: var(--container-detail-tab-body-min-height);
+.container-detail-tab-body--viewer {
+  min-height: 0;
 }
 
 .container-detail-section {
@@ -3926,9 +3925,7 @@ function portLabel(port: ContainerDetail['ports'][number]) {
 }
 
 .container-detail-section--shell {
-  height: auto;
   min-height: 0;
-  padding: 0 var(--graft-density-gap-16) var(--graft-density-gap-16);
 }
 
 .container-detail-section--config {

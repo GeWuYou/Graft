@@ -1,5 +1,190 @@
 <template>
-  <section class="log-viewer">
+  <content-viewer-frame
+    v-if="viewerMode"
+    class="log-viewer log-viewer--framed"
+    :storage-key="viewerStorageKey"
+    :fullscreen-label="fullscreenLabel"
+    :exit-fullscreen-label="exitFullscreenLabel"
+    :resize-handle-label="resizeHandleLabel"
+    surface-padding="none"
+    fullscreen-surface-padding="none"
+  >
+    <template #toolbar>
+      <div class="log-viewer__toolbar">
+        <div class="log-viewer__toolbar-group log-viewer__toolbar-left">
+          <t-button theme="primary" :loading="loading" @click="$emit('refresh')">
+            {{ refreshLabel }}
+          </t-button>
+          <t-button theme="default" variant="outline" :disabled="!displayLines.length" @click="copyContent">
+            {{ copyLabel }}
+          </t-button>
+          <t-button theme="default" variant="outline" :disabled="!displayLines.length" @click="downloadContent">
+            {{ downloadLabel }}
+          </t-button>
+          <span class="log-viewer__select-wrap">
+            <t-select
+              v-if="lineLimitOptions.length"
+              v-model:value="selectedLineLimit"
+              class="log-viewer__limit"
+              :options="lineLimitOptions"
+              size="small"
+              @change="emitLimit"
+            />
+          </span>
+          <t-select
+            v-model:value="selectedLevel"
+            class="log-viewer__level-filter"
+            :options="levelOptions"
+            size="small"
+          />
+        </div>
+
+        <div class="log-viewer__toolbar-group log-viewer__toolbar-right">
+          <t-input
+            v-model:value="searchKeyword"
+            class="log-viewer__search"
+            clearable
+            type="search"
+            :placeholder="searchPlaceholder"
+          />
+          <span v-if="normalizedSearchKeyword" class="log-viewer__match-count">
+            {{ matchCountLabel.replace('{count}', String(searchMatchCount)) }}
+          </span>
+          <label class="log-viewer__switch">
+            <span>{{ wrapLabel }}</span>
+            <t-switch v-model:value="wrapLines" size="small" />
+          </label>
+          <label class="log-viewer__switch">
+            <span>{{ refreshScrollLabel }}</span>
+            <t-tooltip :content="refreshScrollTooltipLabel" theme="light">
+              <t-switch v-model:value="scrollAfterRefresh" size="small" />
+            </t-tooltip>
+          </label>
+        </div>
+      </div>
+    </template>
+
+    <template #default>
+      <div class="log-viewer__body">
+        <t-alert v-if="error" theme="error" :title="error">
+          <template #operation>
+            <t-button size="small" theme="danger" variant="text" @click="$emit('refresh')">
+              {{ retryLabel }}
+            </t-button>
+          </template>
+        </t-alert>
+        <t-alert v-if="truncated" theme="warning" :title="truncatedLabel" />
+
+        <div
+          ref="viewport"
+          :class="['log-viewer__viewport graft-scrollbar', { 'log-viewer__viewport--wrap': wrapLines }]"
+        >
+          <t-skeleton v-if="loading && !displayLines.length" animation="gradient" :row-col="skeletonRows" />
+          <ol v-else-if="displayLines.length" class="log-viewer__lines">
+            <li
+              v-for="line in displayLines"
+              :key="line.lineNo"
+              tabindex="0"
+              :class="[
+                'log-viewer__line',
+                `log-viewer__line--${line.tone}`,
+                { 'log-viewer__line--active': isActive(line.lineNo) },
+              ]"
+              @click="openLineDetail(line)"
+              @keydown.enter.prevent="openLineDetail(line)"
+              @keydown.space.prevent="openLineDetail(line)"
+            >
+              <span class="log-viewer__line-number">{{ line.lineNo }}</span>
+              <div class="log-viewer__timestamp-cell">
+                <t-tooltip v-if="line.timestamp" :content="line.timestamp" placement="top-left" theme="light">
+                  <time class="log-viewer__timestamp">{{ shortTimestamp(line.timestamp) }}</time>
+                </t-tooltip>
+                <span v-else class="log-viewer__timestamp log-viewer__timestamp--empty"></span>
+              </div>
+              <div class="log-viewer__level-cell">
+                <t-tag class="log-viewer__level" :theme="levelTheme(line.level)" size="small" variant="light-outline">
+                  {{ line.level ?? 'LOG' }}
+                </t-tag>
+              </div>
+              <div class="log-viewer__source-cell">
+                <t-tooltip v-if="line.source" :content="line.source" placement="top-left" theme="light">
+                  <span class="log-viewer__source">{{ line.sourceShort || line.source }}</span>
+                </t-tooltip>
+                <span v-else class="log-viewer__source log-viewer__source--empty"></span>
+              </div>
+              <div class="log-viewer__content">
+                <div class="log-viewer__message-row">
+                  <code class="log-viewer__message">
+                    <span
+                      v-for="(token, tokenIndex) in line.messageTokens"
+                      :key="`${line.lineNo}-message-${tokenIndex}`"
+                      :class="tokenClass(token)"
+                      >{{ token.text }}</span
+                    >
+                  </code>
+                </div>
+                <div v-if="visibleMetadataTags(line).length" class="log-viewer__metadata-tags" @click.stop>
+                  <t-tag
+                    v-for="[key, value] in visibleMetadataTags(line)"
+                    :key="`${line.lineNo}-${key}`"
+                    size="small"
+                    theme="default"
+                    variant="light"
+                  >
+                    {{ key }}={{ formatMetadataValue(value) }}
+                  </t-tag>
+                  <t-button
+                    v-if="hiddenRowFieldCount(line)"
+                    size="small"
+                    theme="default"
+                    variant="text"
+                    @click="openLineDetail(line)"
+                  >
+                    +{{ hiddenRowFieldCount(line) }}
+                  </t-button>
+                </div>
+              </div>
+              <div class="log-viewer__row-actions" @click.stop>
+                <t-tooltip :content="viewDetailLabel" theme="light">
+                  <t-button
+                    :aria-label="viewDetailLabel"
+                    class="log-viewer__icon-action"
+                    shape="square"
+                    size="small"
+                    theme="default"
+                    variant="text"
+                    @click="openLineDetail(line)"
+                  >
+                    <template #icon>
+                      <browse-icon />
+                    </template>
+                  </t-button>
+                </t-tooltip>
+                <t-tooltip :content="copyLineLabel" theme="light">
+                  <t-button
+                    :aria-label="copyLineLabel"
+                    class="log-viewer__icon-action"
+                    shape="square"
+                    size="small"
+                    theme="default"
+                    variant="text"
+                    @click="copyLine(line.raw)"
+                  >
+                    <template #icon>
+                      <copy-icon />
+                    </template>
+                  </t-button>
+                </t-tooltip>
+              </div>
+            </li>
+          </ol>
+          <t-empty v-else size="small" :description="emptyLabel" />
+        </div>
+      </div>
+    </template>
+  </content-viewer-frame>
+
+  <section v-else class="log-viewer">
     <div class="log-viewer__toolbar">
       <div class="log-viewer__toolbar-group log-viewer__toolbar-left">
         <t-button theme="primary" :loading="loading" @click="$emit('refresh')">
@@ -159,127 +344,129 @@
       </ol>
       <t-empty v-else size="small" :description="emptyLabel" />
     </div>
-
-    <t-drawer
-      v-model:visible="detailDrawerVisible"
-      drawer-class-name="log-viewer__drawer"
-      :footer="false"
-      :header="detailTitleLabel"
-      placement="right"
-      size="min(600px, 100vw)"
-      @close="closeLineDetail"
-    >
-      <div v-if="selectedLine" class="log-viewer__detail-drawer">
-        <section class="log-viewer__summary">
-          <div class="log-viewer__summary-main">
-            <div class="log-viewer__summary-title">
-              <t-tag
-                class="log-viewer__summary-level"
-                :theme="levelTheme(selectedLine.parsed.display.level)"
-                size="small"
-                variant="light-outline"
-              >
-                {{ selectedLine.parsed.display.level ?? 'LOG' }}
-              </t-tag>
-              <span class="log-viewer__summary-message">{{ selectedLine.parsed.display.title }}</span>
-            </div>
-            <div v-if="selectedLine.parsed.display.subtitleParts.length" class="log-viewer__summary-meta">
-              <template
-                v-for="(part, partIndex) in selectedLine.parsed.display.subtitleParts"
-                :key="`${selectedLine.lineNo}-summary-${partIndex}`"
-              >
-                <span v-if="partIndex" aria-hidden="true">·</span>
-                <t-tooltip
-                  v-if="part === selectedLine.source"
-                  :content="selectedLine.source"
-                  placement="top-left"
-                  theme="light"
-                >
-                  <span class="log-viewer__summary-source">{{ part }}</span>
-                </t-tooltip>
-                <span v-else>{{ part }}</span>
-              </template>
-            </div>
-          </div>
-        </section>
-
-        <section v-if="selectedLine.parsed.importantFields.length" class="log-viewer__drawer-section">
-          <div class="log-viewer__drawer-section-title">{{ importantFieldsLabel }}</div>
-          <div class="log-viewer__field-chips">
-            <span v-for="field in selectedLine.parsed.importantFields" :key="field.key" class="log-viewer__field-chip">
-              <span class="log-viewer__field-key">{{ field.key }}</span>
-              <span class="log-viewer__field-equals">=</span>
-              <t-tooltip :content="field.value" placement="top-left" theme="light">
-                <span class="log-viewer__field-value">{{ field.value }}</span>
-              </t-tooltip>
-            </span>
-          </div>
-        </section>
-
-        <section class="log-viewer__drawer-section">
-          <div class="log-viewer__drawer-section-title">{{ basicInfoLabel }}</div>
-          <div class="log-viewer__basic">
-            <div class="log-viewer__descriptions">
-              <template v-if="selectedLine.timestamp">
-                <div class="log-viewer__description-label">{{ timeLabel }}</div>
-                <div class="log-viewer__description-value">{{ selectedLine.timestamp }}</div>
-              </template>
-
-              <template v-if="selectedLine.level">
-                <div class="log-viewer__description-label">{{ levelLabel }}</div>
-                <div class="log-viewer__description-value log-viewer__level-value">
-                  <t-tag
-                    class="log-viewer__detail-level"
-                    :theme="levelTheme(selectedLine.level)"
-                    size="small"
-                    variant="light-outline"
-                  >
-                    {{ selectedLine.level }}
-                  </t-tag>
-                </div>
-              </template>
-
-              <template v-if="selectedLine.source">
-                <div class="log-viewer__description-label">{{ sourceLabel }}</div>
-                <div class="log-viewer__description-value">{{ selectedLine.source }}</div>
-              </template>
-
-              <div class="log-viewer__description-label">{{ messageLabel }}</div>
-              <div class="log-viewer__description-value">{{ selectedLine.message }}</div>
-            </div>
-          </div>
-        </section>
-
-        <section v-if="selectedLine.metadata" class="log-viewer__drawer-section">
-          <div class="log-viewer__drawer-section-header">
-            <div class="log-viewer__drawer-section-title">{{ metadataLabel }}</div>
-            <t-button size="small" theme="default" variant="text" @click="copySelectedJson">
-              {{ copyJsonLabel }}
-            </t-button>
-          </div>
-          <pre class="log-viewer__code-block graft-scrollbar"><code>{{ formatJson(selectedLine.metadata) }}</code></pre>
-        </section>
-
-        <section class="log-viewer__drawer-section">
-          <div class="log-viewer__drawer-section-header">
-            <div class="log-viewer__drawer-section-title">{{ rawLabel }}</div>
-            <t-button size="small" theme="default" variant="text" @click="copySelectedLine">
-              {{ copyLineLabel }}
-            </t-button>
-          </div>
-          <pre class="log-viewer__code-block log-viewer__code-block--raw graft-scrollbar">
-            <code>{{ selectedLine.raw }}</code>
-          </pre>
-        </section>
-      </div>
-    </t-drawer>
   </section>
+
+  <t-drawer
+    v-model:visible="detailDrawerVisible"
+    drawer-class-name="log-viewer__drawer"
+    :footer="false"
+    :header="detailTitleLabel"
+    placement="right"
+    size="min(600px, 100vw)"
+    @close="closeLineDetail"
+  >
+    <div v-if="selectedLine" class="log-viewer__detail-drawer">
+      <section class="log-viewer__summary">
+        <div class="log-viewer__summary-main">
+          <div class="log-viewer__summary-title">
+            <t-tag
+              class="log-viewer__summary-level"
+              :theme="levelTheme(selectedLine.parsed.display.level)"
+              size="small"
+              variant="light-outline"
+            >
+              {{ selectedLine.parsed.display.level ?? 'LOG' }}
+            </t-tag>
+            <span class="log-viewer__summary-message">{{ selectedLine.parsed.display.title }}</span>
+          </div>
+          <div v-if="selectedLine.parsed.display.subtitleParts.length" class="log-viewer__summary-meta">
+            <template
+              v-for="(part, partIndex) in selectedLine.parsed.display.subtitleParts"
+              :key="`${selectedLine.lineNo}-summary-${partIndex}`"
+            >
+              <span v-if="partIndex" aria-hidden="true">·</span>
+              <t-tooltip
+                v-if="part === selectedLine.source"
+                :content="selectedLine.source"
+                placement="top-left"
+                theme="light"
+              >
+                <span class="log-viewer__summary-source">{{ part }}</span>
+              </t-tooltip>
+              <span v-else>{{ part }}</span>
+            </template>
+          </div>
+        </div>
+      </section>
+
+      <section v-if="selectedLine.parsed.importantFields.length" class="log-viewer__drawer-section">
+        <div class="log-viewer__drawer-section-title">{{ importantFieldsLabel }}</div>
+        <div class="log-viewer__field-chips">
+          <span v-for="field in selectedLine.parsed.importantFields" :key="field.key" class="log-viewer__field-chip">
+            <span class="log-viewer__field-key">{{ field.key }}</span>
+            <span class="log-viewer__field-equals">=</span>
+            <t-tooltip :content="field.value" placement="top-left" theme="light">
+              <span class="log-viewer__field-value">{{ field.value }}</span>
+            </t-tooltip>
+          </span>
+        </div>
+      </section>
+
+      <section class="log-viewer__drawer-section">
+        <div class="log-viewer__drawer-section-title">{{ basicInfoLabel }}</div>
+        <div class="log-viewer__basic">
+          <div class="log-viewer__descriptions">
+            <template v-if="selectedLine.timestamp">
+              <div class="log-viewer__description-label">{{ timeLabel }}</div>
+              <div class="log-viewer__description-value">{{ selectedLine.timestamp }}</div>
+            </template>
+
+            <template v-if="selectedLine.level">
+              <div class="log-viewer__description-label">{{ levelLabel }}</div>
+              <div class="log-viewer__description-value log-viewer__level-value">
+                <t-tag
+                  class="log-viewer__detail-level"
+                  :theme="levelTheme(selectedLine.level)"
+                  size="small"
+                  variant="light-outline"
+                >
+                  {{ selectedLine.level }}
+                </t-tag>
+              </div>
+            </template>
+
+            <template v-if="selectedLine.source">
+              <div class="log-viewer__description-label">{{ sourceLabel }}</div>
+              <div class="log-viewer__description-value">{{ selectedLine.source }}</div>
+            </template>
+
+            <div class="log-viewer__description-label">{{ messageLabel }}</div>
+            <div class="log-viewer__description-value">{{ selectedLine.message }}</div>
+          </div>
+        </div>
+      </section>
+
+      <section v-if="selectedLine.metadata" class="log-viewer__drawer-section">
+        <div class="log-viewer__drawer-section-header">
+          <div class="log-viewer__drawer-section-title">{{ metadataLabel }}</div>
+          <t-button size="small" theme="default" variant="text" @click="copySelectedJson">
+            {{ copyJsonLabel }}
+          </t-button>
+        </div>
+        <pre class="log-viewer__code-block graft-scrollbar"><code>{{ formatJson(selectedLine.metadata) }}</code></pre>
+      </section>
+
+      <section class="log-viewer__drawer-section">
+        <div class="log-viewer__drawer-section-header">
+          <div class="log-viewer__drawer-section-title">{{ rawLabel }}</div>
+          <t-button size="small" theme="default" variant="text" @click="copySelectedLine">
+            {{ copyLineLabel }}
+          </t-button>
+        </div>
+        <pre class="log-viewer__code-block log-viewer__code-block--raw graft-scrollbar">
+          <code>{{ selectedLine.raw }}</code>
+        </pre>
+      </section>
+    </div>
+  </t-drawer>
 </template>
 <script setup lang="ts">
 import { BrowseIcon, CopyIcon } from 'tdesign-icons-vue-next';
 import type { SelectProps } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { computed, nextTick, ref, watch } from 'vue';
+
+import ContentViewerFrame from '@/shared/components/viewer/ContentViewerFrame.vue';
 
 import { copyText } from './copy';
 import type { LogLevel, LogToken } from './log-highlight';
@@ -329,6 +516,11 @@ const props = withDefaults(
     copyJsonLabel: string;
     copySuccessLabel: string;
     copyErrorLabel: string;
+    viewerMode?: boolean;
+    viewerStorageKey?: string;
+    fullscreenLabel?: string;
+    exitFullscreenLabel?: string;
+    resizeHandleLabel?: string;
   }>(),
   {
     loading: false,
@@ -336,6 +528,11 @@ const props = withDefaults(
     truncated: false,
     lineLimit: 200,
     lineLimits: () => [100, 200, 500, 1000],
+    viewerMode: false,
+    viewerStorageKey: 'graft.log-viewer.height',
+    fullscreenLabel: 'Fullscreen',
+    exitFullscreenLabel: 'Exit Fullscreen',
+    resizeHandleLabel: 'Resize viewer',
   },
 );
 
@@ -551,19 +748,27 @@ async function copyTextWithFeedback(value: string) {
   min-width: 0;
 }
 
+.log-viewer--framed {
+  gap: 0;
+}
+
+.log-viewer__body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--graft-density-gap-10);
+  min-height: 0;
+  min-width: 0;
+  padding: var(--graft-density-gap-12);
+}
+
 .log-viewer__toolbar {
   align-items: center;
-  background: var(--td-bg-color-container);
-  border-bottom: 1px solid var(--td-border-level-1-color);
   display: flex;
   flex-wrap: wrap;
   gap: var(--graft-density-gap-12);
   justify-content: space-between;
   min-width: 0;
-  padding: var(--graft-density-gap-10) var(--graft-density-gap-14);
-  position: sticky;
-  top: 0;
-  z-index: 1;
 }
 
 .log-viewer__toolbar-group,
@@ -614,8 +819,8 @@ async function copyTextWithFeedback(value: string) {
   border: 1px solid var(--td-component-stroke);
   border-radius: var(--td-radius-medium);
   color: var(--td-text-color-primary);
-  max-height: min(62vh, 680px);
-  min-height: 360px;
+  flex: 1 1 auto;
+  min-height: 0;
   min-width: 0;
   overflow: auto;
   padding: var(--graft-density-gap-6) var(--graft-density-gap-8);

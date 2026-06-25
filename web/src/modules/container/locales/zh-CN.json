@@ -348,6 +348,11 @@
         "storage": "挂载",
         "raw": "原始 JSON"
       },
+      "viewer": {
+        "enterFullscreen": "全屏",
+        "exitFullscreen": "退出全屏",
+        "resizeHandle": "调整阅读器高度"
+      },
       "shell": {
         "title": "Shell",
         "description": "通过交互式终端访问当前容器，关闭页面后自动断开。",
