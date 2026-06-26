@@ -2,6 +2,8 @@ export { copyText } from './copy';
 export { buildLogListLocation, parseLogRouteQuery } from './deep-link';
 export { createLogDetailErrorReporter, createLogListErrorReporter } from './list-errors';
 export { openLogDetailRow, restartLogListQuery } from './list-interactions';
+export type { LogBatchBufferOptions } from './log-batch-buffer';
+export { LogBatchBuffer } from './log-batch-buffer';
 export type { LogRingBufferAppendResult, LogRingBufferView } from './log-ring-buffer';
 export { LogRingBuffer } from './log-ring-buffer';
 export { default as LogIdText } from './LogIdText.vue';

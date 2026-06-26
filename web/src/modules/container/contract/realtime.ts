@@ -1,5 +1,6 @@
 export const CONTAINER_REALTIME_TOPIC = {
   DASHBOARD_SUMMARY: 'container.dashboard.summary',
+  LOGS_PREFIX: 'container.logs:',
   LIST_STATS: 'container.stats.list',
   STATS_PREFIX: 'container.stats:',
 } as const;
@@ -14,6 +15,16 @@ export type ContainerRealtimeTopicPrefix = (typeof CONTAINER_REALTIME_TOPIC)[key
  */
 export function buildContainerStatsTopicName(containerId: string) {
   return `${CONTAINER_REALTIME_TOPIC.STATS_PREFIX}${containerId}`;
+}
+
+/**
+ * 生成容器日志实时主题名称。
+ *
+ * @param containerId - 容器标识
+ * @returns 拼接 `LOGS_PREFIX` 与 `containerId` 后得到的主题名称
+ */
+export function buildContainerLogsTopicName(containerId: string) {
+  return `${CONTAINER_REALTIME_TOPIC.LOGS_PREFIX}${containerId}`;
 }
 
 /**

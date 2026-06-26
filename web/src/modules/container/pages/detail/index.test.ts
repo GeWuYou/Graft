@@ -37,6 +37,7 @@ type RealtimeControllerMock = {
   reconnect: ReturnType<typeof vi.fn>;
   emitMessage: (payload: unknown) => void;
   emitStateChange: (state: 'idle' | 'connecting' | 'open' | 'closed' | 'error') => void;
+  topic?: string;
 };
 
 const realtimeMocks = vi.hoisted(() => ({
@@ -45,6 +46,8 @@ const realtimeMocks = vi.hoisted(() => ({
     (options?: {
       onMessage?: (payload: unknown) => void;
       onStateChange?: (state: 'idle' | 'connecting' | 'open' | 'closed' | 'error') => void;
+      parseMessage?: (payload: unknown) => unknown;
+      topic?: string;
     }) => {
       options?.onStateChange?.('open');
       const controller: RealtimeControllerMock = {
@@ -52,12 +55,17 @@ const realtimeMocks = vi.hoisted(() => ({
           options?.onStateChange?.('idle');
         }),
         emitMessage: (payload) => {
-          options?.onMessage?.(payload);
+          const shouldParse = options?.topic?.startsWith('container.logs:') ?? false;
+          const parsed = shouldParse && options?.parseMessage ? options.parseMessage(payload) : payload;
+          if (parsed) {
+            options?.onMessage?.(parsed);
+          }
         },
         emitStateChange: (state) => {
           options?.onStateChange?.(state);
         },
         reconnect: vi.fn(),
+        topic: options?.topic,
       };
       realtimeMocks.controllers.push(controller);
       return controller;
@@ -274,6 +282,10 @@ const translations = vi.hoisted(
     'container.detail.logs.source': '来源',
     'container.detail.logs.time': '时间',
     'container.detail.logs.truncated': '日志已按当前上限截断。',
+    'container.detail.logs.pauseRealtime': '暂停实时',
+    'container.detail.logs.resumeRealtime': '恢复实时',
+    'container.detail.logs.realtimePaused': '已暂停发布',
+    'container.detail.logs.realtimeStreaming': '实时发布中',
     'container.detail.logs.viewDetail': '查看详情',
     'container.detail.logs.wrap': '自动换行',
     'container.detail.missingId': '缺少容器标识。',
@@ -1306,6 +1318,157 @@ describe('container detail page', () => {
     expect(apiMocks.getContainerMountUsage).toHaveBeenCalledTimes(1);
     expect(apiMocks.postContainerMountUsageRefresh).not.toHaveBeenCalled();
     expect(messageMocks.success).toHaveBeenCalledWith('容器详情已刷新');
+  });
+
+  it('subscribes to container logs only while the logs tab is active and appends realtime lines', async () => {
+    vi.useFakeTimers();
+    routeState.route.query.tab = 'logs';
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const logController = realtimeMocks.controllers.find(
+      (controller) => controller.topic === 'container.logs:container-1',
+    );
+    expect(logController).toBeTruthy();
+    expect(wrapper.get('.log-viewer').text()).toContain('server started');
+    expect(wrapper.get('.log-viewer').text()).not.toContain('刷新日志');
+
+    logController!.emitMessage({
+      data: {
+        lines: ['server ready'],
+      },
+    });
+    vi.advanceTimersByTime(100);
+    await flushPromises();
+
+    expect(wrapper.get('.log-viewer').text()).toContain('server ready');
+
+    await wrapper.get('[data-testid="tab-shell"]').trigger('click');
+    await flushPromises();
+
+    expect(logController!.close).toHaveBeenCalled();
+  });
+
+  it('batches multiple realtime log messages into one timed commit window', async () => {
+    vi.useFakeTimers();
+    routeState.route.query.tab = 'logs';
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const logController = realtimeMocks.controllers.find(
+      (controller) => controller.topic === 'container.logs:container-1',
+    );
+    expect(logController).toBeTruthy();
+    expect(wrapper.get('.log-viewer').text()).toContain('server started');
+
+    logController!.emitMessage({
+      data: {
+        lines: ['line-2'],
+      },
+    });
+    logController!.emitMessage({
+      data: {
+        lines: ['line-3'],
+      },
+    });
+
+    await flushPromises();
+    expect(wrapper.get('.log-viewer').text()).not.toContain('line-2');
+    expect(wrapper.get('.log-viewer').text()).not.toContain('line-3');
+
+    vi.advanceTimersByTime(100);
+    await flushPromises();
+
+    const text = wrapper.get('.log-viewer').text();
+    expect(text).toContain('line-2');
+    expect(text).toContain('line-3');
+  });
+
+  it('suppresses log viewer refresh while paused and publishes accumulated logs once on resume', async () => {
+    vi.useFakeTimers();
+    routeState.route.query.tab = 'logs';
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const logController = realtimeMocks.controllers.find(
+      (controller) => controller.topic === 'container.logs:container-1',
+    );
+    expect(logController).toBeTruthy();
+    expect(wrapper.get('[data-testid="container-detail-logs-status"]').text()).toContain('实时发布中');
+
+    await wrapper.get('[data-testid="container-detail-logs-toggle"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.get('[data-testid="container-detail-logs-status"]').text()).toContain('已暂停发布');
+    expect(wrapper.get('[data-testid="container-detail-logs-toggle"]').text()).toContain('恢复实时');
+
+    logController!.emitMessage({
+      data: {
+        lines: ['paused-line-2'],
+      },
+    });
+    logController!.emitMessage({
+      data: {
+        lines: ['paused-line-3'],
+      },
+    });
+    vi.advanceTimersByTime(100);
+    await flushPromises();
+
+    const pausedText = wrapper.get('.log-viewer').text();
+    expect(pausedText).not.toContain('paused-line-2');
+    expect(pausedText).not.toContain('paused-line-3');
+
+    await wrapper.get('[data-testid="container-detail-logs-toggle"]').trigger('click');
+    await flushPromises();
+
+    const resumedText = wrapper.get('.log-viewer').text();
+    expect(wrapper.get('[data-testid="container-detail-logs-status"]').text()).toContain('实时发布中');
+    expect(wrapper.get('[data-testid="container-detail-logs-toggle"]').text()).toContain('暂停实时');
+    expect(resumedText).toContain('paused-line-2');
+    expect(resumedText).toContain('paused-line-3');
+  });
+
+  it('releases and recreates the log subscription when the route id changes on the logs tab', async () => {
+    routeState.route.query.tab = 'logs';
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const firstLogController = realtimeMocks.controllers.find(
+      (controller) => controller.topic === 'container.logs:container-1',
+    );
+    expect(firstLogController).toBeTruthy();
+
+    apiMocks.getContainer.mockResolvedValueOnce({
+      ...createContainerDetail(),
+      id: 'container-2',
+      short_id: 'container-2',
+      name: 'graft-api',
+      names: ['graft-api'],
+      image: 'graft/api:latest',
+    });
+    apiMocks.getContainerLogs.mockResolvedValueOnce({
+      id: 'container-2',
+      lines: ['api started'],
+      runtime: 'docker',
+      stderr: true,
+      stdout: true,
+      tail: 200,
+      timestamps: false,
+      truncated: false,
+    });
+
+    routeState.route.path = '/ops/containers/container-2';
+    routeState.route.fullPath = '/ops/containers/container-2?tab=logs';
+    routeState.route.params.id = 'container-2';
+    await wrapper.vm.$nextTick();
+    await flushPromises();
+
+    expect(firstLogController!.close).toHaveBeenCalled();
+    expect(realtimeMocks.controllers.some((controller) => controller.topic === 'container.logs:container-2')).toBe(
+      true,
+    );
+    expect(wrapper.get('.log-viewer').text()).toContain('api started');
   });
 
   it('renders the shell panel through the existing route query tab lifecycle', async () => {

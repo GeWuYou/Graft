@@ -12,7 +12,7 @@
     <template #toolbar>
       <div class="log-viewer__toolbar">
         <div class="log-viewer__toolbar-group log-viewer__toolbar-left">
-          <t-button theme="primary" :loading="loading" @click="$emit('refresh')">
+          <t-button v-if="showRefresh" theme="primary" :loading="loading" @click="$emit('refresh')">
             {{ refreshLabel }}
           </t-button>
           <t-button theme="default" variant="outline" :disabled="!displayLines.length" @click="copyContent">
@@ -78,18 +78,21 @@
         <div
           ref="viewport"
           :class="['log-viewer__viewport graft-scrollbar', { 'log-viewer__viewport--wrap': wrapLines }]"
+          @scroll="handleViewportScroll"
         >
           <t-skeleton v-if="loading && !displayLines.length" animation="gradient" :row-col="skeletonRows" />
-          <ol v-else-if="displayLines.length" class="log-viewer__lines">
+          <ol v-else-if="displayLines.length" class="log-viewer__lines" :style="virtualListStyle">
             <li
-              v-for="line in displayLines"
+              v-for="(line, lineIndex) in renderedLines"
               :key="line.lineNo"
+              :ref="(element) => setRenderedLineRef(line.lineNo, element)"
               tabindex="0"
               :class="[
                 'log-viewer__line',
                 `log-viewer__line--${line.tone}`,
                 { 'log-viewer__line--active': isActive(line.lineNo) },
               ]"
+              :style="virtualLineStyle(lineIndex)"
               @click="openLineDetail(line)"
               @keydown.enter.prevent="openLineDetail(line)"
               @keydown.space.prevent="openLineDetail(line)"
@@ -187,7 +190,7 @@
   <section v-else class="log-viewer">
     <div class="log-viewer__toolbar">
       <div class="log-viewer__toolbar-group log-viewer__toolbar-left">
-        <t-button theme="primary" :loading="loading" @click="$emit('refresh')">
+        <t-button v-if="showRefresh" theme="primary" :loading="loading" @click="$emit('refresh')">
           {{ refreshLabel }}
         </t-button>
         <t-button theme="default" variant="outline" :disabled="!displayLines.length" @click="copyContent">
@@ -242,18 +245,24 @@
     </t-alert>
     <t-alert v-if="truncated" theme="warning" :title="truncatedLabel" />
 
-    <div ref="viewport" :class="['log-viewer__viewport graft-scrollbar', { 'log-viewer__viewport--wrap': wrapLines }]">
+    <div
+      ref="viewport"
+      :class="['log-viewer__viewport graft-scrollbar', { 'log-viewer__viewport--wrap': wrapLines }]"
+      @scroll="handleViewportScroll"
+    >
       <t-skeleton v-if="loading && !displayLines.length" animation="gradient" :row-col="skeletonRows" />
-      <ol v-else-if="displayLines.length" class="log-viewer__lines">
+      <ol v-else-if="displayLines.length" class="log-viewer__lines" :style="virtualListStyle">
         <li
-          v-for="line in displayLines"
+          v-for="(line, lineIndex) in renderedLines"
           :key="line.lineNo"
+          :ref="(element) => setRenderedLineRef(line.lineNo, element)"
           tabindex="0"
           :class="[
             'log-viewer__line',
             `log-viewer__line--${line.tone}`,
             { 'log-viewer__line--active': isActive(line.lineNo) },
           ]"
+          :style="virtualLineStyle(lineIndex)"
           @click="openLineDetail(line)"
           @keydown.enter.prevent="openLineDetail(line)"
           @keydown.space.prevent="openLineDetail(line)"
@@ -464,30 +473,36 @@
 import { BrowseIcon, CopyIcon } from 'tdesign-icons-vue-next';
 import type { SelectProps } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
-import { computed, nextTick, ref, watch } from 'vue';
+import {
+  type ComponentPublicInstance,
+  computed,
+  nextTick,
+  onMounted,
+  onUnmounted,
+  ref,
+  shallowRef,
+  triggerRef,
+  watch,
+} from 'vue';
 
 import ContentViewerFrame from '@/shared/components/viewer/ContentViewerFrame.vue';
 
 import { copyText } from './copy';
 import type { LogLevel, LogToken } from './log-highlight';
-import {
-  buildDisplayLogLine,
-  type DisplayLogLine,
-  formatLogMetadataValue,
-  type ParsedLogMetadata,
-  parseLogLines,
-  summarizeMetadata,
-} from './log-parser';
+import { type DisplayLogLine, formatLogMetadataValue, type ParsedLogMetadata, summarizeMetadata } from './log-parser';
+import { LogViewCache } from './log-view-cache';
 
 const props = withDefaults(
   defineProps<{
-    lines: string[];
+    lines: readonly string[];
+    contentVersion?: number;
     loading?: boolean;
     error?: string;
     truncated?: boolean;
     lineLimit?: number;
     lineLimits?: number[];
     refreshLabel: string;
+    showRefresh?: boolean;
     copyLabel: string;
     downloadLabel: string;
     retryLabel: string;
@@ -523,11 +538,13 @@ const props = withDefaults(
     resizeHandleLabel?: string;
   }>(),
   {
+    contentVersion: undefined,
     loading: false,
     error: '',
     truncated: false,
     lineLimit: 200,
     lineLimits: () => [100, 200, 500, 1000],
+    showRefresh: true,
     viewerMode: false,
     viewerStorageKey: 'graft.log-viewer.height',
     fullscreenLabel: 'Fullscreen',
@@ -543,6 +560,18 @@ const emit = defineEmits<{
 
 type SelectOption = NonNullable<SelectProps['options']>[number];
 type LevelFilter = 'ALL' | LogLevel;
+type VirtualMetrics = Readonly<{
+  offsets: number[];
+  ends: number[];
+  totalHeight: number;
+}>;
+
+const DEFAULT_VIRTUAL_VIEWPORT_HEIGHT = 480;
+const DEFAULT_LOG_ROW_HEIGHT = 44;
+const DEFAULT_WRAPPED_LOG_ROW_HEIGHT = 72;
+const DEFAULT_VIRTUAL_OVERSCAN_PX = 240;
+const LOG_ROW_VERTICAL_MARGIN_PX = 2;
+const AUTO_SCROLL_BOTTOM_THRESHOLD_PX = 32;
 
 const searchKeyword = ref('');
 const wrapLines = ref(true);
@@ -550,7 +579,13 @@ const scrollAfterRefresh = ref(true);
 const selectedLineLimit = ref(props.lineLimit);
 const selectedLevel = ref<LevelFilter>('ALL');
 const viewport = ref<HTMLElement | null>(null);
+const viewportScrollTop = ref(0);
+const viewportHeight = ref(DEFAULT_VIRTUAL_VIEWPORT_HEIGHT);
+const viewportPinnedToBottom = ref(true);
 const selectedLineNo = ref<number | null>(null);
+const measuredHeights = shallowRef(new Map<number, number>());
+const logViewCache = new LogViewCache();
+let scrollToBottomFrameId: number | null = null;
 
 const skeletonRows = [
   { height: '22px', width: '96%' },
@@ -573,15 +608,67 @@ const levelOptions = computed<SelectOption[]>(() => [
 const lineLimitOptions = computed<SelectOption[]>(() =>
   props.lineLimits.map((value) => ({ label: String(value), value })),
 );
+const effectiveContentVersion = computed(() => props.contentVersion ?? props.lines.length);
 const normalizedSearchKeyword = computed(() => searchKeyword.value.trim());
-const parsedLines = computed(() => parseLogLines(props.lines));
-const visibleRawLines = computed(() => parsedLines.value.slice(-selectedLineLimit.value));
-const displayLines = computed(() =>
-  visibleRawLines.value
-    .filter((line) => selectedLevel.value === 'ALL' || line.level === selectedLevel.value)
-    .map((line) => buildDisplayLogLine(line, normalizedSearchKeyword.value)),
+const logView = computed(() =>
+  logViewCache.buildView({
+    lines: props.lines,
+    lineLimit: selectedLineLimit.value,
+    level: selectedLevel.value,
+    keyword: normalizedSearchKeyword.value,
+  }),
 );
-const searchMatchCount = computed(() => displayLines.value.reduce((total, line) => total + line.searchMatchCount, 0));
+const displayLines = computed(() => logView.value.displayLines);
+const defaultVirtualRowHeight = computed(() =>
+  wrapLines.value ? DEFAULT_WRAPPED_LOG_ROW_HEIGHT : DEFAULT_LOG_ROW_HEIGHT,
+);
+const virtualMetrics = computed<VirtualMetrics>(() => {
+  void measuredHeights.value;
+
+  const offsets: number[] = [];
+  const ends: number[] = [];
+  let totalHeight = 0;
+
+  for (const line of displayLines.value) {
+    offsets.push(totalHeight);
+    const rowHeight = measuredHeights.value.get(line.lineNo) ?? defaultVirtualRowHeight.value;
+    totalHeight += rowHeight;
+    ends.push(totalHeight);
+  }
+
+  return {
+    offsets,
+    ends,
+    totalHeight,
+  };
+});
+const visibleRange = computed(() => {
+  const totalLines = displayLines.value.length;
+  if (!totalLines) {
+    return {
+      start: 0,
+      end: 0,
+    };
+  }
+
+  const topBoundary = Math.max(0, viewportScrollTop.value - DEFAULT_VIRTUAL_OVERSCAN_PX);
+  const bottomBoundary = viewportScrollTop.value + viewportHeight.value + DEFAULT_VIRTUAL_OVERSCAN_PX;
+  const start = findFirstEndAfter(virtualMetrics.value.ends, topBoundary);
+  const end = Math.max(
+    start + 1,
+    Math.min(totalLines, findFirstOffsetAtOrAfter(virtualMetrics.value.offsets, bottomBoundary) + 1),
+  );
+
+  return {
+    start,
+    end,
+  };
+});
+const renderedLines = computed(() => displayLines.value.slice(visibleRange.value.start, visibleRange.value.end));
+const virtualListStyle = computed(() => ({
+  height: `${virtualMetrics.value.totalHeight}px`,
+}));
+const searchMatchCount = computed(() => logView.value.matchCount);
 const selectedLine = computed(() => displayLines.value.find((line) => line.lineNo === selectedLineNo.value) ?? null);
 const detailDrawerVisible = computed({
   get: () => selectedLine.value !== null,
@@ -600,13 +687,36 @@ watch(
 );
 
 watch(
-  () => [props.lines.length, scrollAfterRefresh.value],
+  () => [effectiveContentVersion.value, scrollAfterRefresh.value] as const,
   () => {
     if (!scrollAfterRefresh.value) return;
-    void nextTick(scrollToBottom);
+    if (!viewportPinnedToBottom.value) return;
+    scheduleScrollToBottom();
   },
   { flush: 'post' },
 );
+
+watch(
+  () => [props.lines, effectiveContentVersion.value, wrapLines.value] as const,
+  () => {
+    clearMeasuredHeights();
+    void nextTick(syncViewportMetrics);
+  },
+  { flush: 'post' },
+);
+
+onMounted(() => {
+  void nextTick(syncViewportMetrics);
+  window.addEventListener('resize', syncViewportMetrics);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('resize', syncViewportMetrics);
+  if (scrollToBottomFrameId !== null) {
+    cancelAnimationFrame(scrollToBottomFrameId);
+    scrollToBottomFrameId = null;
+  }
+});
 
 function emitLimit(value: SelectProps['value']) {
   if (typeof value === 'number') {
@@ -639,7 +749,75 @@ function scrollToBottom() {
   const node = viewport.value;
   if (node) {
     node.scrollTop = node.scrollHeight;
+    viewportScrollTop.value = node.scrollTop;
+    viewportHeight.value = node.clientHeight || DEFAULT_VIRTUAL_VIEWPORT_HEIGHT;
+    viewportPinnedToBottom.value = true;
   }
+}
+
+function handleViewportScroll(event: Event) {
+  const node = event.target;
+  if (!(node instanceof HTMLElement)) {
+    return;
+  }
+
+  viewportScrollTop.value = node.scrollTop;
+  viewportHeight.value = node.clientHeight || DEFAULT_VIRTUAL_VIEWPORT_HEIGHT;
+  viewportPinnedToBottom.value = isViewportNearBottom(node);
+}
+
+function syncViewportMetrics() {
+  const node = viewport.value;
+  if (!node) {
+    return;
+  }
+
+  viewportScrollTop.value = node.scrollTop;
+  viewportHeight.value = node.clientHeight || DEFAULT_VIRTUAL_VIEWPORT_HEIGHT;
+  viewportPinnedToBottom.value = isViewportNearBottom(node);
+}
+
+function virtualLineStyle(renderedIndex: number) {
+  const index = visibleRange.value.start + renderedIndex;
+  return {
+    transform: `translateY(${virtualMetrics.value.offsets[index] ?? 0}px)`,
+  };
+}
+
+function setRenderedLineRef(lineNo: number, element: Element | ComponentPublicInstance | null) {
+  if (!(element instanceof HTMLElement)) {
+    return;
+  }
+
+  const measuredHeight =
+    element.getBoundingClientRect().height ||
+    element.offsetHeight ||
+    element.clientHeight ||
+    defaultVirtualRowHeight.value;
+  const nextHeight = Math.max(defaultVirtualRowHeight.value, Math.ceil(measuredHeight) + LOG_ROW_VERTICAL_MARGIN_PX);
+  const currentHeight = measuredHeights.value.get(lineNo);
+  if (currentHeight === nextHeight) {
+    return;
+  }
+
+  measuredHeights.value.set(lineNo, nextHeight);
+  triggerRef(measuredHeights);
+}
+
+function clearMeasuredHeights() {
+  measuredHeights.value.clear();
+  triggerRef(measuredHeights);
+}
+
+function scheduleScrollToBottom() {
+  if (scrollToBottomFrameId !== null) {
+    return;
+  }
+
+  scrollToBottomFrameId = requestAnimationFrame(() => {
+    scrollToBottomFrameId = null;
+    scrollToBottom();
+  });
 }
 
 function openLineDetail(line: DisplayLogLine) {
@@ -739,6 +917,43 @@ async function copyTextWithFeedback(value: string) {
     MessagePlugin.error(props.copyErrorLabel);
   }
 }
+
+function findFirstEndAfter(ends: readonly number[], target: number) {
+  let low = 0;
+  let high = ends.length;
+
+  while (low < high) {
+    const mid = Math.floor((low + high) / 2);
+    if ((ends[mid] ?? 0) <= target) {
+      low = mid + 1;
+    } else {
+      high = mid;
+    }
+  }
+
+  return low;
+}
+
+function findFirstOffsetAtOrAfter(offsets: readonly number[], target: number) {
+  let low = 0;
+  let high = offsets.length;
+
+  while (low < high) {
+    const mid = Math.floor((low + high) / 2);
+    if ((offsets[mid] ?? 0) < target) {
+      low = mid + 1;
+    } else {
+      high = mid;
+    }
+  }
+
+  return low;
+}
+
+function isViewportNearBottom(node: HTMLElement) {
+  const remainingDistance = node.scrollHeight - (node.scrollTop + node.clientHeight);
+  return remainingDistance <= AUTO_SCROLL_BOTTOM_THRESHOLD_PX;
+}
 </script>
 <style scoped lang="less">
 .log-viewer {
@@ -832,6 +1047,7 @@ async function copyTextWithFeedback(value: string) {
   margin: 0;
   min-width: max(100%, 760px);
   padding: 0;
+  position: relative;
 }
 
 .log-viewer__line {
@@ -840,9 +1056,11 @@ async function copyTextWithFeedback(value: string) {
   column-gap: var(--graft-density-gap-6);
   display: grid;
   grid-template-columns: 44px 96px 58px minmax(140px, 180px) minmax(0, 1fr) 60px;
+  inset-inline: 0;
   margin-block: var(--graft-density-gap-1);
   min-height: 30px;
   padding: var(--graft-density-gap-4) var(--graft-density-gap-6);
+  position: absolute;
 }
 
 .log-viewer__line:hover,

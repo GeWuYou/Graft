@@ -467,7 +467,11 @@
         "copyLine": "复制本行",
         "copyJson": "复制 JSON",
         "empty": "暂无日志。",
-        "truncated": "日志已按当前上限截断。"
+        "truncated": "日志已按当前上限截断。",
+        "pauseRealtime": "暂停实时",
+        "resumeRealtime": "恢复实时",
+        "realtimePaused": "已暂停发布",
+        "realtimeStreaming": "实时发布中"
       },
       "raw": {
         "title": "原始 JSON",
