@@ -52,7 +52,10 @@ func shouldNotifyAuditRecord(record auditstore.AuditLog) bool {
 
 func auditNotificationInput(record auditstore.AuditLog) moduleapi.PublishNotificationInput {
 	kind := auditNotificationKind(record)
-	titleKey, title, messageKey, message, actionLabelKey, actionLabel := auditNotificationCopy(kind, record)
+	copyParts := auditNotificationCopy(kind, record)
+	titleKey, title := copyParts.titleKey, copyParts.title
+	messageKey, message := copyParts.messageKey, copyParts.message
+	actionLabelKey, actionLabel := copyParts.actionLabelKey, copyParts.actionLabel
 	severity := moduleapi.NotificationSeverity(notificationcontract.SeverityWarning)
 	if auditRecordRiskLevel(record) == auditstore.AuditRiskLevelCritical {
 		severity = moduleapi.NotificationSeverity(notificationcontract.SeverityCritical)
@@ -126,35 +129,52 @@ func auditNotificationKind(record auditstore.AuditLog) string {
 	}
 }
 
-func auditNotificationCopy(kind string, record auditstore.AuditLog) (string, string, string, string, string, string) {
+type auditNotificationCopyParts struct {
+	titleKey       string
+	title          string
+	messageKey     string
+	message        string
+	actionLabelKey string
+	actionLabel    string
+}
+
+func auditNotificationCopy(kind string, record auditstore.AuditLog) auditNotificationCopyParts {
 	target := firstNonEmptyTrimmed(record.ResourceName, record.ResourceID, record.Action, "Audit event")
 	switch kind {
 	case "login_failed":
-		return "notification.title.audit.loginFailed",
-			"Login failed",
-			"notification.message.audit.loginFailed",
-			"A failed login attempt needs review.",
-			"notification.action.openAuditLog",
-			"View audit log"
+		return auditNotificationCopyParts{
+		titleKey:       "notification.title.audit.loginFailed",
+		title:          "Login failed",
+		messageKey:     "notification.message.audit.loginFailed",
+		message:        "A failed login attempt needs review.",
+		actionLabelKey: "notification.action.openAuditLog",
+		actionLabel:    "View audit log",
+	}
 	case "permission_denied":
-		return "notification.title.audit.permissionDenied",
-			"Permission denied",
-			"notification.message.audit.permissionDenied",
-			"Permission was denied for " + target + ".",
-			"notification.action.openAuditLog",
-			"View audit log"
+		return auditNotificationCopyParts{
+		titleKey:       "notification.title.audit.permissionDenied",
+		title:          "Permission denied",
+		messageKey:     "notification.message.audit.permissionDenied",
+		message:        "Permission was denied for " + target + ".",
+		actionLabelKey: "notification.action.openAuditLog",
+		actionLabel:    "View audit log",
+	}
 	default:
-		return "notification.title.audit.highRisk",
-			"High-risk audit event",
-			"notification.message.audit.highRisk",
-			"High-risk audit activity needs review.",
-			"notification.action.openAuditLog",
-			"View audit log"
+		return auditNotificationCopyParts{
+		titleKey:       "notification.title.audit.highRisk",
+		title:          "High-risk audit event",
+		messageKey:     "notification.message.audit.highRisk",
+		message:        "High-risk audit activity needs review.",
+		actionLabelKey: "notification.action.openAuditLog",
+		actionLabel:    "View audit log",
+	}
 	}
 }
 
 func mustMarshalJSON(auditContext map[string]any, existing json.RawMessage) json.RawMessage {
-	metadata := make(map[string]any, len(auditContext)+4)
+	const auditMetadataExtraCapacity = 4
+
+	metadata := make(map[string]any, len(auditContext)+auditMetadataExtraCapacity)
 	for key, value := range auditContext {
 		metadata[key] = value
 	}
