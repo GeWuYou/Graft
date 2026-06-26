@@ -32,14 +32,7 @@ export type {
   StreamViewportState,
   StreamViewportStateResolverInput,
 } from './stream-viewport-state';
-export {
-  isStreamViewportBusyState,
-  isStreamViewportCursorState,
-  normalizeStreamViewportStateResolverInput,
-  resolveStreamViewportState,
-  STREAM_VIEWPORT_STATES,
-} from './stream-viewport-state';
-export { default as StreamViewportStateSurface } from './StreamViewportStateSurface.vue';
+export { resolveStreamViewportState } from './stream-viewport-state';
 export {
   formatLocaleDateOnly,
   formatLocaleDateTime,

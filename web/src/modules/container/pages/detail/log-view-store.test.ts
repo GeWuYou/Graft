@@ -39,8 +39,10 @@ describe('createContainerDetailLogViewStore', () => {
   it('derives immutable log responses from committed snapshots', () => {
     const store = createContainerDetailLogViewStore();
 
+    expect(store.hasSnapshot.value).toBe(false);
     store.commit(createSnapshot(['seed-1', 'seed-2']));
 
+    expect(store.hasSnapshot.value).toBe(true);
     expect(store.version.value).toBe(2);
     expect(store.entries.value.map((entry) => entry.line)).toEqual(['seed-1', 'seed-2']);
     expect(store.logs.value?.entries.map((entry) => entry.line)).toEqual(['seed-1', 'seed-2']);
@@ -60,6 +62,7 @@ describe('createContainerDetailLogViewStore', () => {
 
     store.reset();
 
+    expect(store.hasSnapshot.value).toBe(false);
     expect(store.version.value).toBe(0);
     expect(store.logs.value).toBeNull();
     expect(store.entries.value).toEqual([]);

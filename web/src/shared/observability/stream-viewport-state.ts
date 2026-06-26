@@ -1,15 +1,12 @@
-export const STREAM_VIEWPORT_STATES = [
-  'idle',
-  'connecting',
-  'streaming',
-  'paused',
-  'reconnecting',
-  'disconnected',
-  'error',
-  'empty',
-] as const;
-
-export type StreamViewportState = (typeof STREAM_VIEWPORT_STATES)[number];
+export type StreamViewportState =
+  | 'idle'
+  | 'connecting'
+  | 'streaming'
+  | 'paused'
+  | 'reconnecting'
+  | 'disconnected'
+  | 'error'
+  | 'empty';
 
 export type StreamViewportStateResolverInput = Readonly<{
   hasContent?: boolean | null;

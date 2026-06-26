@@ -103,6 +103,10 @@ const permissionStoreMock = vi.hoisted(() => ({
   hasPermission: vi.fn(() => true),
 }));
 
+const routeLoadingState = vi.hoisted(() => ({
+  ref: null as ReturnType<typeof ref<boolean>> | null,
+}));
+
 const routeState = vi.hoisted(
   (): {
     route: {
@@ -285,10 +289,36 @@ const translations = vi.hoisted(
     'container.detail.logs.source': '来源',
     'container.detail.logs.time': '时间',
     'container.detail.logs.truncated': '日志已按当前上限截断。',
+    'container.detail.logs.states.connecting': '连接中',
     'container.detail.logs.states.live': '实时',
     'container.detail.logs.states.paused': '暂停',
     'container.detail.logs.states.reconnecting': '重连中',
     'container.detail.logs.states.disconnected': '连接断开',
+    'container.detail.logs.states.error': '需要重试',
+    'container.detail.logs.states.empty': '等待输出',
+    'container.detail.logs.viewport.connectingBusy': '正在打开日志流',
+    'container.detail.logs.viewport.connectingTitle': '正在连接容器日志',
+    'container.detail.logs.viewport.connectingDescription': '日志视口正在建立初始连接，并等待第一条可见日志出现。',
+    'container.detail.logs.viewport.connectingHint': '收到新日志后会立即切换到内容视图。',
+    'container.detail.logs.viewport.streamingBusy': '正在跟随实时输出',
+    'container.detail.logs.viewport.streamingTitle': '正在持续接收容器日志',
+    'container.detail.logs.viewport.streamingDescription': '日志流已经连通，但当前视口里还没有可见日志行。',
+    'container.detail.logs.viewport.streamingHint': '保持当前视口开启，下一条日志会直接出现在这里。',
+    'container.detail.logs.viewport.pausedTitle': '日志流已暂停',
+    'container.detail.logs.viewport.pausedDescription': '暂停期间新的实时日志会先缓存在后台。',
+    'container.detail.logs.viewport.pausedHint': '继续后会把缓冲日志一次性发布到当前视口。',
+    'container.detail.logs.viewport.reconnectingBusy': '正在恢复日志流',
+    'container.detail.logs.viewport.reconnectingTitle': '正在重新连接容器日志',
+    'container.detail.logs.viewport.reconnectingDescription': '之前的日志连接已经中断，视口正在恢复实时日志传输。',
+    'container.detail.logs.viewport.reconnectingHint': '已显示的日志会保留在屏幕上，直到连接恢复。',
+    'container.detail.logs.viewport.disconnectedTitle': '日志流已断开',
+    'container.detail.logs.viewport.disconnectedDescription': '当前没有活动中的日志连接，也还没有开始新的重连。',
+    'container.detail.logs.viewport.disconnectedHint': '使用{action}重新打开日志流。',
+    'container.detail.logs.viewport.errorTitle': '日志流加载失败',
+    'container.detail.logs.viewport.errorDescription': '当前容器日志无法加载或刷新。',
+    'container.detail.logs.viewport.errorHint': '使用{action}重新请求日志。',
+    'container.detail.logs.viewport.emptyDescription': '日志流已经准备好，但当前容器还没有产生可见日志行。',
+    'container.detail.logs.viewport.emptyHint': '保持当前视口开启，首条日志会直接显示在这里。',
     'container.detail.logs.viewDetail': '查看详情',
     'container.detail.logs.wrap': '自动换行',
     'container.detail.missingId': '缺少容器标识。',
@@ -579,12 +609,21 @@ vi.mock('@/shared/realtime', () => ({
   openRealtimeTopicSocket: realtimeMocks.openRealtimeTopicSocket,
 }));
 
+vi.mock('@/router/route-loading', async () => {
+  const { ref: createRef } = await vi.importActual<typeof import('vue')>('vue');
+  routeLoadingState.ref = createRef(false);
+  return {
+    routeLoading: routeLoadingState.ref,
+  };
+});
+
 describe('container detail page', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     realtimeMocks.controllers = [];
     resetContainerStatsManager();
     vi.useRealTimers();
+    routeLoadingState.ref!.value = false;
     apiMocks.getContainer.mockReset();
     apiMocks.getContainerLogs.mockReset();
     apiMocks.getContainerMountUsage.mockReset();
@@ -796,14 +835,14 @@ describe('container detail page', () => {
     await flushPromises();
 
     expect(wrapper.find('.container-detail-state').exists()).toBe(true);
-    expect(wrapper.text()).toContain('loading');
+    expect(wrapper.find('.container-detail-loading-shell').exists()).toBe(true);
     expect(wrapper.text()).not.toContain('暂无容器详情。');
 
     resolveDetail(null);
     await flushPromises();
 
     expect(wrapper.text()).toContain('暂无容器详情。');
-    expect(wrapper.text()).not.toContain('loading');
+    expect(wrapper.find('.container-detail-loading-shell').exists()).toBe(false);
   });
 
   it('falls back to the short route id for direct URL entry', async () => {
@@ -1086,6 +1125,21 @@ describe('container detail page', () => {
     expect(wrapper.text()).toContain('自动换行');
   });
 
+  it('suppresses in-panel loading semantics while the route spinner still owns the transition', async () => {
+    routeState.route.query.tab = 'logs';
+    routeLoadingState.ref!.value = true;
+    apiMocks.getContainerLogs.mockReturnValue(
+      deferred<Awaited<ReturnType<typeof apiMocks.getContainerLogs>>>().promise,
+    );
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="container-detail-logs-status"]').exists()).toBe(false);
+    expect(wrapper.get('.log-viewer').text()).not.toContain('正在连接容器日志');
+    expect(wrapper.get('.log-viewer').text()).not.toContain('等待容器输出...');
+  });
+
   it('shows reconnect only for non-live logs socket states', async () => {
     routeState.route.query.tab = 'logs';
     const wrapper = mountPage();
@@ -1111,6 +1165,40 @@ describe('container detail page', () => {
     await flushPromises();
     expect(wrapper.get('[data-testid="container-detail-logs-status"]').text()).toBe('实时');
     expect(wrapper.find('[data-testid="log-viewer-reconnect"]').exists()).toBe(false);
+  });
+
+  it('shows connecting viewport semantics after route loading finishes and before the first line arrives', async () => {
+    routeState.route.query.tab = 'logs';
+    routeLoadingState.ref!.value = true;
+    const nextLogs = deferred<Awaited<ReturnType<typeof apiMocks.getContainerLogs>>>();
+    apiMocks.getContainerLogs.mockReturnValue(nextLogs.promise);
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    routeLoadingState.ref!.value = false;
+    await flushPromises();
+
+    expect(wrapper.get('[data-testid="container-detail-logs-status"]').text()).toBe('连接中');
+    expect(wrapper.get('.log-viewer').text()).toContain('正在连接容器日志');
+    expect(wrapper.get('.log-viewer').text()).toContain('日志视口正在建立初始连接');
+
+    nextLogs.resolve({
+      id: 'container-1',
+      entries: [],
+      runtime: 'docker',
+      stderr: true,
+      stdout: true,
+      tail: 200,
+      timestamps: true,
+      truncated: false,
+    });
+    await flushPromises();
+    await flushPromises();
+
+    expect(wrapper.get('[data-testid="container-detail-logs-status"]').text()).toBe('等待输出');
+    expect(wrapper.get('.log-viewer').text()).toContain('暂无日志。');
+    expect(wrapper.get('.log-viewer').text()).toContain('日志流已经准备好');
   });
 
   it('highlights summary and dashboard resource meters when realtime stats change', async () => {
@@ -1409,7 +1497,7 @@ describe('container detail page', () => {
     expect(text).not.toContain('wrong-id-line');
   });
 
-  it('does not auto-retry log loading after the initial failure until an explicit refresh path runs', async () => {
+  it('shows an error viewport after the initial logs bootstrap fails', async () => {
     routeState.route.query.tab = 'logs';
     apiMocks.getContainerLogs.mockReset();
     apiMocks.getContainerLogs.mockRejectedValue(new Error('boom'));
@@ -1419,7 +1507,41 @@ describe('container detail page', () => {
     await flushPromises();
 
     expect(apiMocks.getContainerLogs).toHaveBeenCalledTimes(1);
-    expect(wrapper.text()).toContain('重试');
+    expect(wrapper.get('[data-testid="container-detail-logs-status"]').text()).toBe('需要重试');
+    expect(wrapper.get('.log-viewer').text()).toContain('日志流加载失败');
+    expect(wrapper.get('.log-viewer').text()).toContain('boom');
+    expect(wrapper.get('.log-viewer').text()).toContain('重试');
+  });
+
+  it('retries the initial logs bootstrap when the logs route remounts after a failed first attempt', async () => {
+    routeState.route.query.tab = 'logs';
+    apiMocks.getContainerLogs.mockReset();
+    apiMocks.getContainerLogs.mockRejectedValueOnce(new Error('boom')).mockResolvedValueOnce({
+      id: 'container-1',
+      entries: [createLogEntry('remounted-line')],
+      runtime: 'docker',
+      stderr: true,
+      stdout: true,
+      tail: 200,
+      timestamps: true,
+      truncated: false,
+    });
+
+    const firstWrapper = mountPage();
+    await flushPromises();
+    await flushPromises();
+
+    expect(apiMocks.getContainerLogs).toHaveBeenCalledTimes(1);
+    expect(firstWrapper.text()).toContain('重试');
+
+    firstWrapper.unmount();
+
+    const secondWrapper = mountPage();
+    await flushPromises();
+    await flushPromises();
+
+    expect(apiMocks.getContainerLogs).toHaveBeenCalledTimes(2);
+    expect(secondWrapper.get('.log-viewer').text()).toContain('remounted-line');
   });
 
   it('batches multiple realtime log messages into one timed commit window', async () => {
@@ -1484,6 +1606,87 @@ describe('container detail page', () => {
     expect(wrapper.get('[data-testid="log-viewer-pause-toggle"]').text()).toContain('暂停');
     expect(resumedText).toContain('paused-line-2');
     expect(resumedText).toContain('paused-line-3');
+  });
+
+  it('switches from waiting surface to log content as soon as the first realtime line arrives', async () => {
+    vi.useFakeTimers();
+    routeState.route.query.tab = 'logs';
+    apiMocks.getContainerLogs.mockResolvedValueOnce({
+      id: 'container-1',
+      entries: [],
+      runtime: 'docker',
+      stderr: true,
+      stdout: true,
+      tail: 200,
+      timestamps: true,
+      truncated: false,
+    });
+
+    const wrapper = mountPage();
+    await flushPromises();
+    await flushPromises();
+
+    const logController = realtimeMocks.controllers.find(
+      (controller) => controller.topic === 'container.logs:container-1',
+    );
+    expect(logController).toBeTruthy();
+    expect(wrapper.get('[data-testid="container-detail-logs-status"]').text()).toBe('等待输出');
+    expect(wrapper.get('.log-viewer').text()).toContain('日志流已经准备好');
+
+    logController!.emitMessage(createRealtimeLogEvent('first-visible-line'));
+    vi.advanceTimersByTime(100);
+    await flushPromises();
+
+    expect(wrapper.get('[data-testid="container-detail-logs-status"]').text()).toBe('实时');
+    expect(wrapper.get('.log-viewer').text()).toContain('first-visible-line');
+    expect(wrapper.get('.log-viewer').text()).not.toContain('日志流已经准备好');
+  });
+
+  it('shows disconnected viewport semantics when the stream closes after logs were cleared', async () => {
+    routeState.route.query.tab = 'logs';
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const logController = realtimeMocks.controllers.find(
+      (controller) => controller.topic === 'container.logs:container-1',
+    );
+    expect(logController).toBeTruthy();
+
+    await wrapper.get('[data-testid="log-viewer-clear"]').trigger('click');
+    await flushPromises();
+
+    logController!.emitStateChange('closed');
+    await flushPromises();
+
+    expect(wrapper.get('[data-testid="container-detail-logs-status"]').text()).toBe('连接断开');
+    expect(wrapper.find('[data-testid="log-viewer-reconnect"]').exists()).toBe(true);
+    expect(wrapper.get('.log-viewer').text()).toContain('日志流已断开');
+    expect(wrapper.get('.log-viewer').text()).toContain('使用重试重新打开日志流。');
+  });
+
+  it('shows paused viewport semantics when the viewer is paused with no visible lines', async () => {
+    routeState.route.query.tab = 'logs';
+    apiMocks.getContainerLogs.mockResolvedValueOnce({
+      id: 'container-1',
+      entries: [],
+      runtime: 'docker',
+      stderr: true,
+      stdout: true,
+      tail: 200,
+      timestamps: true,
+      truncated: false,
+    });
+
+    const wrapper = mountPage();
+    await flushPromises();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="log-viewer-pause-toggle"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.get('[data-testid="container-detail-logs-status"]').text()).toBe('暂停');
+    expect(wrapper.get('.log-viewer').text()).toContain('日志流已暂停');
+    expect(wrapper.get('.log-viewer').text()).toContain('暂停期间新的实时日志会先缓存在后台。');
   });
 
   it('clears the visible logs buffer locally without breaking later realtime appends', async () => {
@@ -1553,6 +1756,40 @@ describe('container detail page', () => {
 
     await wrapper.get('[data-testid="log-viewer-reconnect"]').trigger('click');
     expect(logController!.reconnect).toHaveBeenCalledTimes(1);
+  });
+
+  it('refetches logs when the realtime socket closes after a failed bootstrap with no snapshot', async () => {
+    routeState.route.query.tab = 'logs';
+    apiMocks.getContainerLogs.mockReset();
+    apiMocks.getContainerLogs.mockRejectedValueOnce(new Error('boom')).mockResolvedValueOnce({
+      id: 'container-1',
+      entries: [createLogEntry('recovered-line')],
+      runtime: 'docker',
+      stderr: true,
+      stdout: true,
+      tail: 200,
+      timestamps: true,
+      truncated: false,
+    });
+
+    const wrapper = mountPage();
+    await flushPromises();
+    await flushPromises();
+
+    const logController = realtimeMocks.controllers.find(
+      (controller) => controller.topic === 'container.logs:container-1',
+    );
+    expect(logController).toBeTruthy();
+    expect(apiMocks.getContainerLogs).toHaveBeenCalledTimes(1);
+    expect(wrapper.get('[data-testid="container-detail-logs-status"]').text()).toBe('需要重试');
+    expect(wrapper.text()).toContain('重试');
+
+    logController!.emitStateChange('closed');
+    await flushPromises();
+    await flushPromises();
+
+    expect(apiMocks.getContainerLogs).toHaveBeenCalledTimes(2);
+    expect(wrapper.get('.log-viewer').text()).toContain('recovered-line');
   });
 
   it('releases and recreates the log subscription when the route id changes on the logs tab', async () => {

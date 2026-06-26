@@ -464,10 +464,38 @@
         "emptyDescription": "等待容器输出...",
         "truncated": "日志已按当前上限截断。",
         "states": {
+          "connecting": "连接中",
           "live": "实时",
           "paused": "暂停",
           "reconnecting": "重连中",
-          "disconnected": "连接断开"
+          "disconnected": "连接断开",
+          "error": "需要重试",
+          "empty": "等待输出"
+        },
+        "viewport": {
+          "connectingBusy": "正在打开日志流",
+          "connectingTitle": "正在连接容器日志",
+          "connectingDescription": "日志视口正在建立初始连接，并等待第一条可见日志出现。",
+          "connectingHint": "收到新日志后会立即切换到内容视图。",
+          "streamingBusy": "正在跟随实时输出",
+          "streamingTitle": "正在持续接收容器日志",
+          "streamingDescription": "日志流已经连通，但当前视口里还没有可见日志行。",
+          "streamingHint": "保持当前视口开启，下一条日志会直接出现在这里。",
+          "pausedTitle": "日志流已暂停",
+          "pausedDescription": "暂停期间新的实时日志会先缓存在后台。",
+          "pausedHint": "继续后会把缓冲日志一次性发布到当前视口。",
+          "reconnectingBusy": "正在恢复日志流",
+          "reconnectingTitle": "正在重新连接容器日志",
+          "reconnectingDescription": "之前的日志连接已经中断，视口正在恢复实时日志传输。",
+          "reconnectingHint": "已显示的日志会保留在屏幕上，直到连接恢复。",
+          "disconnectedTitle": "日志流已断开",
+          "disconnectedDescription": "当前没有活动中的日志连接，也还没有开始新的重连。",
+          "disconnectedHint": "使用{action}重新打开日志流。",
+          "errorTitle": "日志流加载失败",
+          "errorDescription": "当前容器日志无法加载或刷新。",
+          "errorHint": "使用{action}重新请求日志。",
+          "emptyDescription": "日志流已经准备好，但当前容器还没有产生可见日志行。",
+          "emptyHint": "保持当前视口开启，首条日志会直接显示在这里。"
         }
       },
       "raw": {

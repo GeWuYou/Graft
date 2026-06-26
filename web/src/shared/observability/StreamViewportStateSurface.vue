@@ -285,7 +285,7 @@ function normalizeFauxLineCount(value: number) {
 .stream-viewport-state-surface__badge,
 .stream-viewport-state-surface__busy-copy {
   color: var(--stream-viewport-copy-muted);
-  font-size: 12px;
+  font-size: var(--td-font-size-body-small);
   letter-spacing: 0.04em;
   line-height: 1.4;
 }
@@ -308,7 +308,7 @@ function normalizeFauxLineCount(value: number) {
 .stream-viewport-state-surface__title {
   color: var(--stream-viewport-copy);
   font-family: var(--td-font-family-monospace);
-  font-size: 18px;
+  font-size: var(--td-font-size-title-medium);
   font-weight: 600;
   line-height: 1.45;
   margin: 0;
@@ -317,7 +317,7 @@ function normalizeFauxLineCount(value: number) {
 
 .stream-viewport-state-surface__description {
   color: var(--stream-viewport-copy-muted);
-  font-size: 13px;
+  font-size: var(--td-font-size-body-medium);
   line-height: 1.7;
   margin: 0;
   max-width: 68ch;
@@ -335,7 +335,7 @@ function normalizeFauxLineCount(value: number) {
 
 .stream-viewport-state-surface__hint {
   color: color-mix(in srgb, var(--stream-viewport-copy) 82%, transparent);
-  font-size: 12px;
+  font-size: var(--td-font-size-body-small);
   line-height: 1.6;
   min-width: 0;
 }
@@ -361,7 +361,7 @@ function normalizeFauxLineCount(value: number) {
   }
 
   .stream-viewport-state-surface__title {
-    font-size: 16px;
+    font-size: var(--td-font-size-title-small);
   }
 }
 

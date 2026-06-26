@@ -48,6 +48,7 @@ export function createContainerDetailLogViewStore() {
   let pendingSnapshot: ContainerLogRealtimeBatcherSnapshot | null = null;
 
   const version = computed(() => state.value.snapshot?.version ?? 0);
+  const hasSnapshot = computed(() => state.value.snapshot !== null);
   const logs = computed(() => {
     void version.value;
     return buildLogResponse(state.value.snapshot);
@@ -76,6 +77,7 @@ export function createContainerDetailLogViewStore() {
   return {
     state,
     version,
+    hasSnapshot,
     logs,
     entries,
     truncated,

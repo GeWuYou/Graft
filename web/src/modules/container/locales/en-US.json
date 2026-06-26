@@ -464,10 +464,38 @@
         "emptyDescription": "Waiting for container output...",
         "truncated": "Logs Were Truncated by the Current Limit.",
         "states": {
+          "connecting": "Connecting",
           "live": "Live",
           "paused": "Paused",
           "reconnecting": "Reconnecting",
-          "disconnected": "Disconnected"
+          "disconnected": "Disconnected",
+          "error": "Retry Required",
+          "empty": "Waiting"
+        },
+        "viewport": {
+          "connectingBusy": "Opening log stream",
+          "connectingTitle": "Connecting to container logs",
+          "connectingDescription": "The log viewer is establishing the initial stream and waiting for the first visible line.",
+          "connectingHint": "New lines will replace this state immediately.",
+          "streamingBusy": "Following live output",
+          "streamingTitle": "Streaming container logs",
+          "streamingDescription": "The stream is live, but there are no visible lines in the current viewport yet.",
+          "streamingHint": "Keep the viewer open to follow the next line.",
+          "pausedTitle": "Log stream paused",
+          "pausedDescription": "Live updates are buffered while the viewer is paused.",
+          "pausedHint": "Resume to publish the buffered lines into this viewport.",
+          "reconnectingBusy": "Reopening log stream",
+          "reconnectingTitle": "Reconnecting to container logs",
+          "reconnectingDescription": "The previous stream ended and the viewer is restoring live log delivery.",
+          "reconnectingHint": "Visible lines stay on screen while the connection recovers.",
+          "disconnectedTitle": "Log stream disconnected",
+          "disconnectedDescription": "The live log connection is offline and no reconnect is running right now.",
+          "disconnectedHint": "Use {action} to open the stream again.",
+          "errorTitle": "Log stream failed",
+          "errorDescription": "The log viewer could not load or refresh the current container logs.",
+          "errorHint": "Use {action} to retry the log request.",
+          "emptyDescription": "The stream is ready, but this container has not emitted any visible log lines yet.",
+          "emptyHint": "Keep the viewer open and the first line will appear here."
         }
       },
       "raw": {
