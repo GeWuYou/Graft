@@ -238,7 +238,63 @@ describe('LogViewer', () => {
     wrapper.unmount();
   });
 
-  it('renders a titled empty state with description', () => {
+  it('renders the terminal-style loading surface instead of the legacy skeleton placeholder', () => {
+    const wrapper = mount(LogViewer, {
+      props: {
+        ...labels,
+        entries: [],
+        loading: true,
+      },
+      global: { components: tdesignComponents, plugins: [createTestI18n()] },
+    });
+
+    expect(wrapper.find('.stream-viewport-state-surface--connecting').exists()).toBe(true);
+    expect(wrapper.find('.legacy-skeleton-placeholder').exists()).toBe(false);
+    expect(wrapper.find('.legacy-empty-placeholder').exists()).toBe(false);
+  });
+
+  it('renders an explicit viewport state model when no displayed lines exist', () => {
+    const wrapper = mount(LogViewer, {
+      props: {
+        ...labels,
+        entries: [],
+        viewportState: {
+          state: 'paused',
+          badgeLabel: 'Stream paused',
+          title: 'Stream tail is paused',
+          description: 'Resume the upstream stream to receive fresh output.',
+          hint: 'Use the toolbar control to continue following the stream.',
+        },
+      },
+      global: { components: tdesignComponents, plugins: [createTestI18n()] },
+    });
+
+    expect(wrapper.find('.stream-viewport-state-surface--paused').exists()).toBe(true);
+    expect(wrapper.text()).toContain('Stream paused');
+    expect(wrapper.text()).toContain('Stream tail is paused');
+    expect(wrapper.find('.legacy-skeleton-placeholder').exists()).toBe(false);
+    expect(wrapper.find('.legacy-empty-placeholder').exists()).toBe(false);
+  });
+
+  it('keeps rendered log lines visible even when a viewport state model is provided', () => {
+    const wrapper = mount(LogViewer, {
+      props: {
+        ...labels,
+        entries: createEntries(2),
+        viewportState: {
+          state: 'paused',
+          title: 'Should not replace existing lines',
+        },
+      },
+      global: { components: tdesignComponents, plugins: [createTestI18n()] },
+    });
+
+    expect(wrapper.find('.log-viewer__header-row').exists()).toBe(true);
+    expect(wrapper.findAll('.log-viewer__line')).toHaveLength(2);
+    expect(wrapper.find('.stream-viewport-state-surface').exists()).toBe(false);
+  });
+
+  it('renders the default viewport state surface with empty copy', () => {
     const wrapper = mount(LogViewer, {
       props: {
         ...labels,
@@ -247,8 +303,10 @@ describe('LogViewer', () => {
       global: { components: tdesignComponents, plugins: [createTestI18n()] },
     });
 
+    expect(wrapper.find('.stream-viewport-state-surface--empty').exists()).toBe(true);
     expect(wrapper.text()).toContain('暂无日志');
     expect(wrapper.text()).toContain('等待容器输出...');
+    expect(wrapper.find('.legacy-empty-placeholder').exists()).toBe(false);
   });
 });
 
@@ -273,7 +331,8 @@ const tdesignComponents = {
   }),
   TEmpty: defineComponent({
     props: ['title', 'description'],
-    setup: (props) => () => h('div', [String(props.title ?? ''), String(props.description ?? '')]),
+    setup: (props) => () =>
+      h('div', { class: 'legacy-empty-placeholder' }, [String(props.title ?? ''), String(props.description ?? '')]),
   }),
   ContentViewerFrame: defineComponent({
     setup(_, { slots }) {
@@ -324,7 +383,7 @@ const tdesignComponents = {
         ),
   }),
   TSkeleton: defineComponent({
-    setup: () => () => h('div', 'loading'),
+    setup: () => () => h('div', { class: 'legacy-skeleton-placeholder' }, 'loading'),
   }),
   TSwitch: defineComponent({
     props: ['value'],

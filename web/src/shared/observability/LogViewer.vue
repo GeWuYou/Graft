@@ -122,8 +122,12 @@
           :class="['log-viewer__viewport graft-scrollbar', { 'log-viewer__viewport--wrap': wrapLines }]"
           @scroll="handleViewportScroll"
         >
-          <t-skeleton v-if="loading && !displayLines.length" animation="gradient" :row-col="skeletonRows" />
-          <template v-else-if="displayLines.length">
+          <stream-viewport-state-surface
+            v-if="shouldRenderViewportStateSurface"
+            class="log-viewer__viewport-state"
+            v-bind="viewportStateSurfaceModel"
+          />
+          <template v-else>
             <div class="log-viewer__header-row">
               <span class="log-viewer__header-cell">{{ timeLabel }}</span>
               <span class="log-viewer__header-cell">{{ levelLabel }}</span>
@@ -235,8 +239,6 @@
               </li>
             </ol>
           </template>
-          <t-empty v-else size="small" :title="emptyLabel" :description="emptyDescriptionLabel || emptyLabel" />
-
           <div v-if="showJumpBottom" class="log-viewer__jump-bottom-wrap">
             <t-button size="small" theme="primary" @click="jumpBottom">
               {{ jumpBottomLabel }}
@@ -352,8 +354,12 @@
       :class="['log-viewer__viewport graft-scrollbar', { 'log-viewer__viewport--wrap': wrapLines }]"
       @scroll="handleViewportScroll"
     >
-      <t-skeleton v-if="loading && !displayLines.length" animation="gradient" :row-col="skeletonRows" />
-      <template v-else-if="displayLines.length">
+      <stream-viewport-state-surface
+        v-if="shouldRenderViewportStateSurface"
+        class="log-viewer__viewport-state"
+        v-bind="viewportStateSurfaceModel"
+      />
+      <template v-else>
         <div class="log-viewer__header-row">
           <span class="log-viewer__header-cell">{{ timeLabel }}</span>
           <span class="log-viewer__header-cell">{{ levelLabel }}</span>
@@ -465,8 +471,6 @@
           </li>
         </ol>
       </template>
-      <t-empty v-else size="small" :title="emptyLabel" :description="emptyDescriptionLabel || emptyLabel" />
-
       <div v-if="showJumpBottom" class="log-viewer__jump-bottom-wrap">
         <t-button size="small" theme="primary" @click="jumpBottom">
           {{ jumpBottomLabel }}
@@ -630,6 +634,8 @@ import type { StructuredLogEntry } from './log-entry';
 import type { LogLevel, LogToken } from './log-highlight';
 import { type DisplayLogLine, formatLogMetadataValue, type ParsedLogMetadata, summarizeMetadata } from './log-parser';
 import { LogViewCache } from './log-view-cache';
+import type { StreamViewportState } from './stream-viewport-state';
+import StreamViewportStateSurface from './StreamViewportStateSurface.vue';
 import { formatLocaleDateTime, formatLogViewerTimestamp } from './time';
 
 const props = withDefaults(
@@ -681,6 +687,7 @@ const props = withDefaults(
     copyErrorLabel: string;
     paused?: boolean;
     showReconnect?: boolean;
+    viewportState?: LogViewerViewportState | null;
     viewerMode?: boolean;
     viewerStorageKey?: string;
     fullscreenLabel?: string;
@@ -696,6 +703,7 @@ const props = withDefaults(
     lineLimits: () => [100, 200, 500, 1000],
     paused: false,
     showReconnect: false,
+    viewportState: null,
     viewerMode: false,
     viewerStorageKey: 'graft.log-viewer.height',
     fullscreenLabel: 'Fullscreen',
@@ -723,6 +731,18 @@ type VirtualMetrics = Readonly<{
   ends: number[];
   totalHeight: number;
 }>;
+type LogViewerViewportState = Readonly<{
+  state: StreamViewportState;
+  ariaLabel?: string;
+  badgeLabel?: string;
+  busyLabel?: string;
+  description?: string;
+  fauxLineCount?: number;
+  hint?: string;
+  showBusy?: boolean | null;
+  showCursor?: boolean | null;
+  title?: string;
+}>;
 
 const DEFAULT_VIRTUAL_VIEWPORT_HEIGHT = 480;
 const DEFAULT_LOG_ROW_HEIGHT = 52;
@@ -746,13 +766,6 @@ const measuredHeights = shallowRef(new Map<number, number>());
 const logViewCache = new LogViewCache();
 let scrollToBottomFrameId: number | null = null;
 
-const skeletonRows = [
-  { height: '22px', width: '96%' },
-  { height: '22px', width: '88%' },
-  { height: '22px', width: '92%' },
-  { height: '22px', width: '76%' },
-  { height: '22px', width: '84%' },
-];
 const levelOptions = computed<SelectOption[]>(() => [
   { label: `${props.levelFilterLabel}: ${props.allLevelsLabel}`, value: 'ALL' },
   { label: 'FATAL', value: 'FATAL' },
@@ -830,6 +843,35 @@ const virtualListStyle = computed(() => ({
 }));
 const searchMatchCount = computed(() => logView.value.matchCount);
 const selectedLine = computed(() => displayLines.value.find((line) => line.lineNo === selectedLineNo.value) ?? null);
+const shouldRenderViewportStateSurface = computed(() => !displayLines.value.length);
+const viewportStateSurfaceModel = computed<LogViewerViewportState>(() => {
+  if (props.viewportState) {
+    return props.viewportState;
+  }
+
+  if (props.loading) {
+    return {
+      state: 'connecting',
+      busyLabel: props.emptyDescriptionLabel || props.emptyLabel,
+      description: props.emptyDescriptionLabel || '',
+      title: props.emptyLabel,
+    };
+  }
+
+  if (props.paused) {
+    return {
+      state: 'paused',
+      description: props.emptyDescriptionLabel || props.emptyLabel,
+      title: props.emptyLabel,
+    };
+  }
+
+  return {
+    state: 'empty',
+    description: props.emptyDescriptionLabel || props.emptyLabel,
+    title: props.emptyLabel,
+  };
+});
 const detailDrawerVisible = computed({
   get: () => selectedLine.value !== null,
   set: (visible: boolean) => {
@@ -1235,6 +1277,10 @@ function isViewportNearBottom(node: HTMLElement) {
   overflow: auto;
   padding: var(--graft-density-gap-8);
   position: relative;
+}
+
+.log-viewer__viewport-state {
+  min-height: 100%;
 }
 
 .log-viewer__header-row {
