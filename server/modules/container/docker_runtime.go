@@ -213,6 +213,33 @@ func (r *DockerRuntime) Logs(ctx context.Context, ref Ref, query LogQuery) (Logs
 	}, nil
 }
 
+// StreamLogs follows incremental Docker logs and emits one normalized log chunk
+// per line until the caller context is canceled or the runtime stream ends.
+func (r *DockerRuntime) StreamLogs(ctx context.Context, ref Ref, query LogQuery, emit func(LogChunk) error) error {
+	if emit == nil {
+		return errors.New("container log stream emitter is required")
+	}
+	since, err := parseLogSince(query.Since)
+	if err != nil {
+		return fmt.Errorf("%w: %v", errInvalidLogQuery, err)
+	}
+	reader, err := r.client.ContainerLogs(ctx, ref.Value, mobyclient.ContainerLogsOptions{
+		ShowStdout: query.Stdout,
+		ShowStderr: query.Stderr,
+		Since:      since,
+		Timestamps: query.Timestamps,
+		Follow:     true,
+		Tail:       strconv.Itoa(query.Tail),
+	})
+	if err != nil {
+		return mapDockerError(err)
+	}
+	defer func() {
+		_ = reader.Close()
+	}()
+	return streamDockerLogLines(ctx, reader, emit)
+}
+
 // Shell opens one interactive exec session inside the target container.
 func (r *DockerRuntime) Shell(ctx context.Context, ref Ref, command string) (terminal.Session, error) {
 	inspect, err := r.client.ContainerInspect(ctx, ref.Value)
@@ -1301,6 +1328,44 @@ func readDockerLogLines(reader io.Reader, tail int) ([]string, bool, error) {
 		return nil, false, err
 	}
 	return lines, truncated, nil
+}
+
+func streamDockerLogLines(ctx context.Context, reader io.Reader, emit func(LogChunk) error) error {
+	if reader == nil {
+		return nil
+	}
+	pr, pw := io.Pipe()
+	copyErrCh := make(chan error, 1)
+	go func() {
+		_, err := stdcopy.StdCopy(pw, pw, reader)
+		_ = pw.CloseWithError(err)
+		copyErrCh <- err
+	}()
+
+	scanner := bufio.NewScanner(pr)
+	scanner.Buffer(make([]byte, 0, dockerLogScannerInitSize), dockerLogScannerMaxSize)
+	for scanner.Scan() {
+		select {
+		case <-ctx.Done():
+			_ = pr.Close()
+			<-copyErrCh
+			return ctx.Err()
+		default:
+		}
+		if err := emit(LogChunk{Line: scanner.Text()}); err != nil {
+			_ = pr.Close()
+			<-copyErrCh
+			return err
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		<-copyErrCh
+		return err
+	}
+	if err := <-copyErrCh; err != nil && !errors.Is(err, io.EOF) {
+		return err
+	}
+	return nil
 }
 
 func actionResultFromDetail(detail Detail, ref Ref, action string, statusBefore string) ActionResult {

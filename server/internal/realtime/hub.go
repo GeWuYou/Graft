@@ -1,6 +1,7 @@
 package realtime
 
 import (
+	"errors"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -9,10 +10,13 @@ import (
 
 const defaultSubscriberBuffer = 8
 
+var errTopicObserverRequired = errors.New("realtime topic observer requires at least one callback")
+
 type memoryHub struct {
-	mu     sync.RWMutex
-	topics map[string]map[uint64]*subscriber
-	nextID uint64
+	mu        sync.RWMutex
+	topics    map[string]map[uint64]*subscriber
+	observers map[string]map[uint64]topicObserver
+	nextID    uint64
 }
 
 type subscriber struct {
@@ -20,10 +24,16 @@ type subscriber struct {
 	unsubscribed atomic.Bool
 }
 
+type topicObserver struct {
+	onActive   func(topic string)
+	onInactive func(topic string)
+}
+
 // NewHub 创建一个基于内存的实时话题 Hub，并初始化订阅映射。
 func NewHub() Hub {
 	return &memoryHub{
-		topics: make(map[string]map[uint64]*subscriber),
+		topics:    make(map[string]map[uint64]*subscriber),
+		observers: make(map[string]map[uint64]topicObserver),
 	}
 }
 
@@ -85,22 +95,29 @@ func (h *memoryHub) Subscribe(topic string) (<-chan Event, func()) {
 	}
 
 	h.mu.Lock()
-	defer h.mu.Unlock()
-
 	h.nextID++
 	id := h.nextID
+	wasInactive := len(h.topics[normalized]) == 0
 	if h.topics[normalized] == nil {
 		h.topics[normalized] = make(map[uint64]*subscriber)
 	}
 	sub := &subscriber{ch: ch}
 	h.topics[normalized][id] = sub
+	observers := copyTopicObservers(h.observers[normalized])
+	h.mu.Unlock()
+
+	if wasInactive {
+		notifyTopicObservers(normalized, observers, true)
+	}
 
 	return ch, func() {
-		h.mu.Lock()
-		defer h.mu.Unlock()
+		notifyInactive := false
+		observers := []topicObserver(nil)
 
+		h.mu.Lock()
 		subscribers := h.topics[normalized]
 		if subscribers == nil {
+			h.mu.Unlock()
 			return
 		}
 		if existing, ok := subscribers[id]; ok {
@@ -109,6 +126,79 @@ func (h *memoryHub) Subscribe(topic string) (<-chan Event, func()) {
 		}
 		if len(subscribers) == 0 {
 			delete(h.topics, normalized)
+			notifyInactive = true
+			observers = copyTopicObservers(h.observers[normalized])
+		}
+		h.mu.Unlock()
+
+		if notifyInactive {
+			notifyTopicObservers(normalized, observers, false)
+		}
+	}
+}
+
+func (h *memoryHub) RegisterTopicObserver(
+	topic string,
+	onActive func(topic string),
+	onInactive func(topic string),
+) (func(), error) {
+	normalized := strings.TrimSpace(topic)
+	if h == nil || normalized == "" {
+		return func() {}, nil
+	}
+	if onActive == nil && onInactive == nil {
+		return nil, errTopicObserverRequired
+	}
+
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	h.nextID++
+	id := h.nextID
+	if h.observers[normalized] == nil {
+		h.observers[normalized] = make(map[uint64]topicObserver)
+	}
+	h.observers[normalized][id] = topicObserver{
+		onActive:   onActive,
+		onInactive: onInactive,
+	}
+
+	return func() {
+		h.mu.Lock()
+		defer h.mu.Unlock()
+
+		observers := h.observers[normalized]
+		if observers == nil {
+			return
+		}
+		delete(observers, id)
+		if len(observers) == 0 {
+			delete(h.observers, normalized)
+		}
+	}, nil
+}
+
+func copyTopicObservers(observers map[uint64]topicObserver) []topicObserver {
+	if len(observers) == 0 {
+		return nil
+	}
+	copied := make([]topicObserver, 0, len(observers))
+	for _, observer := range observers {
+		copied = append(copied, observer)
+	}
+	return copied
+}
+
+func notifyTopicObservers(topic string, observers []topicObserver, active bool) {
+	for _, observer := range observers {
+		if active {
+			if observer.onActive != nil {
+				observer.onActive(topic)
+			}
+			continue
+		}
+		if observer.onInactive != nil {
+			observer.onInactive(topic)
 		}
 	}
 }

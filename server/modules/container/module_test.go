@@ -187,6 +187,9 @@ func (*moduleCloseRuntime) MountUsage(context.Context, Ref, string) (MountUsage,
 	return MountUsage{}, nil
 }
 func (*moduleCloseRuntime) Logs(context.Context, Ref, LogQuery) (Logs, error) { return Logs{}, nil }
+func (*moduleCloseRuntime) StreamLogs(context.Context, Ref, LogQuery, func(LogChunk) error) error {
+	return nil
+}
 func (*moduleCloseRuntime) Shell(context.Context, Ref, string) (terminal.Session, error) {
 	return nil, nil
 }

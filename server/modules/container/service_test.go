@@ -27,6 +27,7 @@ import (
 
 const testContainerListTopic = containercontract.ContainerListStatsTopic
 const testContainerDashboardSummaryTopic = containercontract.ContainerDashboardSummaryTopic
+const testContainerLogsTopic = containercontract.ContainerLogsTopicPrefix + "web"
 
 func newTestService(options containerServiceOptions) (*service, error) {
 	if options.realtimeTickets == nil {
@@ -66,6 +67,10 @@ func (fakeRealtimePublisher) Subscribe(string) (<-chan realtime.Event, func()) {
 	ch := make(chan realtime.Event)
 	close(ch)
 	return ch, func() {}
+}
+
+func (fakeRealtimePublisher) RegisterTopicObserver(string, func(string), func(string)) (func(), error) {
+	return func() {}, nil
 }
 
 func TestParseRefRejectsUnsafeValues(t *testing.T) {
@@ -1919,6 +1924,72 @@ func TestIssueContainerDashboardSummaryRealtimeSubscriptionSucceeds(t *testing.T
 	}
 }
 
+func TestIssueContainerLogsRealtimeSubscriptionSucceeds(t *testing.T) {
+	t.Parallel()
+
+	runtime := &countingRuntime{
+		detail: Detail{
+			Summary: Summary{
+				ID:      "web",
+				Name:    "web",
+				Runtime: runtimeNameDocker,
+			},
+		},
+	}
+	service, err := newTestService(containerServiceOptions{
+		runtime:                 runtime,
+		enabled:                 true,
+		authorizer:              fakeAuthorizer{},
+		defaultTail:             defaultContainerLogsDefaultTail,
+		maxTail:                 defaultContainerLogsMaxTail,
+		dangerousActionsEnabled: true,
+	})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	response, err := service.IssueSubscription(context.Background(), realtime.SubscriptionRequest{
+		Topic: testContainerLogsTopic,
+		RequestAuth: moduleapi.RequestAuthContext{
+			User: &moduleapi.CurrentUser{ID: 7, Username: "admin"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("issue log subscription: %v", err)
+	}
+	if response.Topic != testContainerLogsTopic {
+		t.Fatalf("expected topic %q, got %#v", testContainerLogsTopic, response)
+	}
+	if strings.TrimSpace(response.Ticket) == "" || strings.TrimSpace(response.WebSocketURL) == "" {
+		t.Fatalf("expected ticket and websocket URL, got %#v", response)
+	}
+}
+
+func TestIssueContainerLogsRealtimeSubscriptionUsesLogsPermission(t *testing.T) {
+	t.Parallel()
+
+	service, err := newTestService(containerServiceOptions{
+		runtime:     fakeRuntime{},
+		enabled:     true,
+		authorizer:  rejectingAuthorizer{err: moduleapi.ErrPermissionDenied},
+		defaultTail: defaultContainerLogsDefaultTail,
+		maxTail:     defaultContainerLogsMaxTail,
+	})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	_, err = service.IssueSubscription(context.Background(), realtime.SubscriptionRequest{
+		Topic: testContainerLogsTopic,
+		RequestAuth: moduleapi.RequestAuthContext{
+			User: &moduleapi.CurrentUser{ID: 7, Username: "admin"},
+		},
+	})
+	if !errors.Is(err, realtime.ErrTopicForbidden) {
+		t.Fatalf("expected forbidden for log topic, got %v", err)
+	}
+}
+
 func assertIssueSubscriptionForbidden(
 	t *testing.T,
 	topic string,
@@ -2024,6 +2095,11 @@ func (r *countingRuntime) MountUsage(context.Context, Ref, string) (MountUsage, 
 func (r *countingRuntime) Logs(context.Context, Ref, LogQuery) (Logs, error) {
 	r.calls.Add(1)
 	return Logs{}, nil
+}
+
+func (r *countingRuntime) StreamLogs(context.Context, Ref, LogQuery, func(LogChunk) error) error {
+	r.calls.Add(1)
+	return nil
 }
 
 func (r *countingRuntime) Shell(context.Context, Ref, string) (terminal.Session, error) {
@@ -2188,6 +2264,7 @@ func (listRuntime) MountUsage(context.Context, Ref, string) (MountUsage, error) 
 	return MountUsage{}, nil
 }
 func (listRuntime) Logs(context.Context, Ref, LogQuery) (Logs, error) { return Logs{}, nil }
+func (listRuntime) StreamLogs(context.Context, Ref, LogQuery, func(LogChunk) error) error { return nil }
 func (listRuntime) Shell(context.Context, Ref, string) (terminal.Session, error) {
 	return newStubTerminalSession(), nil
 }
@@ -2221,6 +2298,9 @@ func (r failingRuntime) MountUsage(context.Context, Ref, string) (MountUsage, er
 
 func (r failingRuntime) Logs(context.Context, Ref, LogQuery) (Logs, error) {
 	return Logs{}, r.err
+}
+func (r failingRuntime) StreamLogs(context.Context, Ref, LogQuery, func(LogChunk) error) error {
+	return r.err
 }
 
 func (r failingRuntime) Shell(context.Context, Ref, string) (terminal.Session, error) {
@@ -2266,6 +2346,9 @@ func (r selectiveRemoveRuntime) MountUsage(context.Context, Ref, string) (MountU
 }
 func (r selectiveRemoveRuntime) Logs(context.Context, Ref, LogQuery) (Logs, error) {
 	return Logs{}, nil
+}
+func (r selectiveRemoveRuntime) StreamLogs(context.Context, Ref, LogQuery, func(LogChunk) error) error {
+	return nil
 }
 func (r selectiveRemoveRuntime) Shell(context.Context, Ref, string) (terminal.Session, error) {
 	return newStubTerminalSession(), nil
@@ -2324,6 +2407,9 @@ func (r *managedActionRuntime) MountUsage(context.Context, Ref, string) (MountUs
 
 func (r *managedActionRuntime) Logs(context.Context, Ref, LogQuery) (Logs, error) {
 	return Logs{}, nil
+}
+func (r *managedActionRuntime) StreamLogs(context.Context, Ref, LogQuery, func(LogChunk) error) error {
+	return nil
 }
 
 func (r *managedActionRuntime) Shell(context.Context, Ref, string) (terminal.Session, error) {
@@ -2394,6 +2480,10 @@ func (fakeRuntime) Logs(_ context.Context, ref Ref, query LogQuery) (Logs, error
 		Stderr:     query.Stderr,
 		Timestamps: query.Timestamps,
 	}, nil
+}
+
+func (fakeRuntime) StreamLogs(context.Context, Ref, LogQuery, func(LogChunk) error) error {
+	return nil
 }
 
 func (fakeRuntime) Shell(context.Context, Ref, string) (terminal.Session, error) {

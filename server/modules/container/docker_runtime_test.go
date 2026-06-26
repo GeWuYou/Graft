@@ -122,6 +122,38 @@ func TestDockerRuntimeLogsReturnsInvalidLogQueryError(t *testing.T) {
 	}
 }
 
+func TestDockerRuntimeStreamLogsEmitsIncrementalLines(t *testing.T) {
+	t.Parallel()
+
+	client := &countingDockerClient{
+		logReader: dockerLogReadCloser(t, "one\n", "two\n"),
+	}
+	runtime := &DockerRuntime{
+		client:        client,
+		endpoint:      "unix:///var/run/docker.sock",
+		resourceStats: newResourceStatsCache(containerResourceStatsCacheTTL, containerResourceStatsCacheStaleWindow),
+	}
+
+	var lines []string
+	err := runtime.StreamLogs(context.Background(), Ref{Value: "web"}, LogQuery{
+		Tail:   2,
+		Stdout: true,
+		Stderr: true,
+	}, func(chunk LogChunk) error {
+		lines = append(lines, chunk.Line)
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("stream logs: %v", err)
+	}
+	if !reflect.DeepEqual(lines, []string{"one", "two"}) {
+		t.Fatalf("unexpected streamed lines %#v", lines)
+	}
+	if calls := client.logCalls.Load(); calls != 1 {
+		t.Fatalf("expected one docker log follow call, got %d", calls)
+	}
+}
+
 func TestMapDockerShellErrorPreservesMappedRuntimeErrors(t *testing.T) {
 	t.Parallel()
 

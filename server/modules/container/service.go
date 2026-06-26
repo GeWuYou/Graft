@@ -57,6 +57,7 @@ type service struct {
 	topicIssuers            realtime.TopicIssuerRegistry
 	authorizer              moduleapi.Authorizer
 	statsCollector          *statsCollector
+	logTopicStreamer        *logTopicStreamer
 }
 
 type containerServiceOptions struct {
@@ -228,6 +229,12 @@ func (s *service) Close() error {
 		return nil
 	}
 	var closeErr error
+	if s.logTopicStreamer != nil {
+		if err := s.logTopicStreamer.Close(context.Background()); err != nil {
+			closeErr = errors.Join(closeErr, err)
+		}
+		s.logTopicStreamer = nil
+	}
 	if s.statsCollector != nil {
 		if err := s.statsCollector.Stop(context.Background()); err != nil {
 			closeErr = errors.Join(closeErr, err)
@@ -1965,7 +1972,10 @@ func (s *service) registerRealtimeTopics() error {
 	if err := s.topicIssuers.Register(containercontract.ContainerDashboardSummaryTopic, s); err != nil {
 		return err
 	}
-	return s.topicIssuers.Register(containercontract.ContainerStatsTopicPrefix, s)
+	if err := s.topicIssuers.Register(containercontract.ContainerStatsTopicPrefix, s); err != nil {
+		return err
+	}
+	return s.topicIssuers.Register(containercontract.ContainerLogsTopicPrefix, s)
 }
 
 // IssueSubscription 为容器实时主题签发一次性订阅票据。
@@ -1989,17 +1999,68 @@ func (s *service) IssueSubscription(
 	if topic == containercontract.ContainerDashboardSummaryTopic {
 		return s.issueContainerDashboardSummaryRealtimeSubscription(ctx, request, topic)
 	}
-	if !strings.HasPrefix(topic, containercontract.ContainerStatsTopicPrefix) {
+	if !strings.HasPrefix(topic, containercontract.ContainerLogsTopicPrefix) &&
+		!strings.HasPrefix(topic, containercontract.ContainerStatsTopicPrefix) {
 		return realtime.SubscriptionResponse{}, realtime.ErrTopicNotFound
 	}
+	return s.issueProtectedContainerRealtimeSubscription(ctx, request, topic)
+}
+
+func (s *service) issueProtectedContainerRealtimeSubscription(
+	ctx context.Context,
+	request realtime.SubscriptionRequest,
+	topic string,
+) (realtime.SubscriptionResponse, error) {
 	if request.RequestAuth.User == nil {
 		return realtime.SubscriptionResponse{}, realtime.ErrTopicForbidden
 	}
 	if s.authorizer == nil {
 		return realtime.SubscriptionResponse{}, realtime.ErrTopicForbidden
 	}
+	if strings.HasPrefix(topic, containercontract.ContainerLogsTopicPrefix) {
+		return s.issueContainerLogsRealtimeSubscription(ctx, request, topic)
+	}
 
 	return s.issueContainerRealtimeSubscription(ctx, request, topic)
+}
+
+func (s *service) issueContainerLogsRealtimeSubscription(
+	ctx context.Context,
+	request realtime.SubscriptionRequest,
+	topic string,
+) (realtime.SubscriptionResponse, error) {
+	containerID := strings.TrimSpace(strings.TrimPrefix(topic, containercontract.ContainerLogsTopicPrefix))
+	ref, err := parseRef(containerID)
+	if err != nil {
+		return realtime.SubscriptionResponse{}, realtime.ErrTopicNotFound
+	}
+	if err := s.authorizer.Authorize(ctx, request.RequestAuth, containercontract.ContainerLogsPermission.String()); err != nil {
+		return realtime.SubscriptionResponse{}, realtime.ErrTopicForbidden
+	}
+	logQuery, err := s.normalizeLogQuery(ctx, LogQuery{})
+	if err != nil {
+		return realtime.SubscriptionResponse{}, realtime.ErrTopicConflict
+	}
+	if err := s.ensureLogTopicStreaming(ctx, topic, ref, logQuery); err != nil {
+		if errors.Is(err, errContainerNotFound) || errors.Is(err, errInvalidRef) {
+			return realtime.SubscriptionResponse{}, realtime.ErrTopicNotFound
+		}
+		if errors.Is(err, errRuntimeDisabled) {
+			return realtime.SubscriptionResponse{}, realtime.ErrTopicForbidden
+		}
+		return realtime.SubscriptionResponse{}, realtime.ErrTopicConflict
+	}
+
+	issued, err := (realtime.TicketIssuer{Tickets: s.realtimeTickets}).IssueTopicTicket(ctx, request)
+	if err != nil {
+		return realtime.SubscriptionResponse{}, realtime.ErrTopicConflict
+	}
+	return realtime.SubscriptionResponse{
+		Topic:        topic,
+		Ticket:       issued.Ticket,
+		WebSocketURL: realtime.BuildTopicWebSocketURL(topic, issued.Ticket),
+		ExpiresAt:    issued.ExpiresAt,
+	}, nil
 }
 
 func (s *service) issueContainerListRealtimeSubscription(
@@ -2553,6 +2614,9 @@ func (disabledRuntime) MountUsage(context.Context, Ref, string) (MountUsage, err
 }
 func (disabledRuntime) Logs(context.Context, Ref, LogQuery) (Logs, error) {
 	return Logs{}, errRuntimeDisabled
+}
+func (disabledRuntime) StreamLogs(context.Context, Ref, LogQuery, func(LogChunk) error) error {
+	return errRuntimeDisabled
 }
 func (disabledRuntime) Shell(context.Context, Ref, string) (terminal.Session, error) {
 	return nil, errRuntimeDisabled

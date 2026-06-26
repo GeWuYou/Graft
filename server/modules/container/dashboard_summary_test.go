@@ -159,6 +159,9 @@ func (r listOnlyRuntime) MountUsage(context.Context, Ref, string) (MountUsage, e
 	return MountUsage{}, nil
 }
 func (r listOnlyRuntime) Logs(context.Context, Ref, LogQuery) (Logs, error) { return Logs{}, nil }
+func (r listOnlyRuntime) StreamLogs(context.Context, Ref, LogQuery, func(LogChunk) error) error {
+	return nil
+}
 func (r listOnlyRuntime) Shell(context.Context, Ref, string) (terminal.Session, error) {
 	return newStubTerminalSession(), nil
 }

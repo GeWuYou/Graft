@@ -1,0 +1,249 @@
+package container
+
+import (
+	"context"
+	"errors"
+	"strings"
+	"sync"
+	"time"
+
+	"go.uber.org/zap"
+
+	"graft/server/internal/realtime"
+)
+
+type logTopicStreamer struct {
+	hub           realtime.Hub
+	monitor       realtime.TopicSubscriptionMonitor
+	logger        *zap.Logger
+	runtimeLoader func() (Runtime, error)
+
+	mu      sync.Mutex
+	streams map[string]*logTopicStream
+}
+
+type logTopicStream struct {
+	topic              string
+	ref                Ref
+	query              LogQuery
+	unregisterObserver func()
+	cancel             context.CancelFunc
+	done               chan struct{}
+	runID              uint64
+}
+
+type containerLogPublished struct {
+	Topic      string    `json:"topic"`
+	ID         string    `json:"id"`
+	Line       string    `json:"line"`
+	Stream     string    `json:"stream,omitempty"`
+	OccurredAt time.Time `json:"occurred_at"`
+}
+
+func newLogTopicStreamer(
+	hub realtime.Hub,
+	logger *zap.Logger,
+	runtimeLoader func() (Runtime, error),
+) (*logTopicStreamer, error) {
+	if hub == nil {
+		return nil, errors.New("realtime hub is unavailable")
+	}
+	monitor, ok := hub.(realtime.TopicSubscriptionMonitor)
+	if !ok {
+		return nil, errors.New("realtime hub does not support topic subscription monitoring")
+	}
+	if runtimeLoader == nil {
+		return nil, errors.New("container runtime loader is required")
+	}
+	if logger == nil {
+		logger = zap.NewNop()
+	}
+	return &logTopicStreamer{
+		hub:           hub,
+		monitor:       monitor,
+		logger:        logger,
+		runtimeLoader: runtimeLoader,
+		streams:       make(map[string]*logTopicStream),
+	}, nil
+}
+
+func (s *logTopicStreamer) EnsureTopic(ctx context.Context, topic string, ref Ref, query LogQuery) error {
+	if s == nil {
+		return errors.New("container log topic streamer is unavailable")
+	}
+	topic = strings.TrimSpace(topic)
+	if topic == "" {
+		return realtime.ErrTopicRequired
+	}
+
+	s.mu.Lock()
+	if existing := s.streams[topic]; existing != nil {
+		s.mu.Unlock()
+		return nil
+	}
+	s.mu.Unlock()
+
+	runtime, err := s.runtimeLoader()
+	if err != nil {
+		return err
+	}
+	if _, err := runtime.Detail(ctx, ref); err != nil {
+		return err
+	}
+
+	stream := &logTopicStream{
+		topic: topic,
+		ref:   ref,
+		query: query,
+	}
+	unregister, err := s.monitor.RegisterTopicObserver(topic, func(_ string) {
+		s.start(topic)
+	}, func(_ string) {
+		_ = s.stop(context.Background(), topic)
+	})
+	if err != nil {
+		return err
+	}
+	stream.unregisterObserver = unregister
+
+	s.mu.Lock()
+	if existing := s.streams[topic]; existing != nil {
+		s.mu.Unlock()
+		unregister()
+		return nil
+	}
+	s.streams[topic] = stream
+	s.mu.Unlock()
+	return nil
+}
+
+func (s *logTopicStreamer) Close(ctx context.Context) error {
+	if s == nil {
+		return nil
+	}
+	s.mu.Lock()
+	topics := make([]string, 0, len(s.streams))
+	for topic := range s.streams {
+		topics = append(topics, topic)
+	}
+	s.mu.Unlock()
+
+	var closeErr error
+	for _, topic := range topics {
+		if err := s.stop(ctx, topic); err != nil {
+			closeErr = errors.Join(closeErr, err)
+		}
+		s.mu.Lock()
+		stream := s.streams[topic]
+		delete(s.streams, topic)
+		s.mu.Unlock()
+		if stream != nil && stream.unregisterObserver != nil {
+			stream.unregisterObserver()
+		}
+	}
+	return closeErr
+}
+
+func (s *logTopicStreamer) start(topic string) {
+	s.mu.Lock()
+	stream := s.streams[topic]
+	if stream == nil || stream.cancel != nil {
+		s.mu.Unlock()
+		return
+	}
+	runCtx, cancel := context.WithCancel(context.Background())
+	stream.cancel = cancel
+	stream.done = make(chan struct{})
+	stream.runID++
+	runID := stream.runID
+	ref := stream.ref
+	query := stream.query
+	done := stream.done
+	s.mu.Unlock()
+
+	go func() {
+		defer close(done)
+		runtime, err := s.runtimeLoader()
+		if err != nil {
+			s.logger.Warn("start container log stream failed", zap.String("topic", topic), zap.Error(err))
+			s.clearRun(topic, runID)
+			return
+		}
+		err = runtime.StreamLogs(runCtx, ref, query, func(chunk LogChunk) error {
+			s.hub.Publish(topic, containerLogPublished{
+				Topic:      topic,
+				ID:         ref.Value,
+				Line:       chunk.Line,
+				Stream:     strings.TrimSpace(chunk.Stream),
+				OccurredAt: chunkTimestamp(chunk),
+			})
+			return nil
+		})
+		if err != nil && !errors.Is(err, context.Canceled) {
+			s.logger.Warn("container log stream stopped with error", zap.String("topic", topic), zap.Error(err))
+		}
+		s.clearRun(topic, runID)
+	}()
+}
+
+func (s *logTopicStreamer) stop(ctx context.Context, topic string) error {
+	s.mu.Lock()
+	stream := s.streams[topic]
+	if stream == nil || stream.cancel == nil {
+		s.mu.Unlock()
+		return nil
+	}
+	cancel := stream.cancel
+	done := stream.done
+	s.mu.Unlock()
+
+	cancel()
+	if done == nil {
+		return nil
+	}
+	if ctx == nil {
+		<-done
+		return nil
+	}
+	select {
+	case <-done:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func (s *logTopicStreamer) clearRun(topic string, runID uint64) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	stream := s.streams[topic]
+	if stream == nil || stream.runID != runID {
+		return
+	}
+	stream.cancel = nil
+	stream.done = nil
+}
+
+func chunkTimestamp(chunk LogChunk) time.Time {
+	if !chunk.Timestamp.IsZero() {
+		return chunk.Timestamp.UTC()
+	}
+	return time.Now().UTC()
+}
+
+func (s *service) ensureLogTopicStreaming(ctx context.Context, topic string, ref Ref, query LogQuery) error {
+	if s == nil {
+		return errors.New("container service is unavailable")
+	}
+	if s.realtimeHub == nil {
+		return errors.New("realtime hub is unavailable")
+	}
+	if s.logTopicStreamer == nil {
+		streamer, err := newLogTopicStreamer(s.realtimeHub, s.logger, s.runtimeForRequest)
+		if err != nil {
+			return err
+		}
+		s.logTopicStreamer = streamer
+	}
+	return s.logTopicStreamer.EnsureTopic(ctx, topic, ref, query)
+}

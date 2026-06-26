@@ -24,3 +24,14 @@ type Hub interface {
 	Publisher
 	Subscriber
 }
+
+// TopicSubscriptionMonitor exposes exact-topic subscriber lifecycle observation
+// for module-owned background producers that should only run while a topic has
+// at least one active websocket subscriber.
+type TopicSubscriptionMonitor interface {
+	RegisterTopicObserver(
+		topic string,
+		onActive func(topic string),
+		onInactive func(topic string),
+	) (unsubscribe func(), err error)
+}
