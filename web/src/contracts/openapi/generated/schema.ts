@@ -1760,7 +1760,7 @@ export interface paths {
     };
     /**
      * Read container logs
-     * @description Returns bounded container log lines from stdout and stderr. The canonical realtime companion topic is `container.logs:<id>`, which reuses the unified realtime subscription and WebSocket flow for incremental log delivery after the initial HTTP snapshot.
+     * @description Returns bounded structured container log entries from stdout and stderr. Each entry preserves canonical line, stream, and occurrence time authority. The canonical realtime companion topic is `container.logs:<id>`, which reuses the unified realtime subscription and WebSocket flow for incremental log delivery after the initial HTTP snapshot.
      */
     get: operations['getContainerLogs'];
     put?: never;
@@ -2072,6 +2072,7 @@ export interface components {
     ContainerMountUsage: components['schemas']['container-mount-usage'];
     ContainerMountUsageListResponse: components['schemas']['container-mount-usage-list-response'];
     ContainerNetwork: components['schemas']['container-network'];
+    ContainerLogEntry: components['schemas']['container-log-entry'];
     ContainerLogResponse: components['schemas']['container-log-response'];
     ContainerShellSessionRequest: components['schemas']['container-shell-session-request'];
     ContainerShellSessionResponse: components['schemas']['container-shell-session-response'];
@@ -4367,6 +4368,20 @@ export interface components {
     'enveloped-container-mount-usage': components['schemas']['api-envelope'] & {
       data: components['schemas']['container-mount-usage'];
     };
+    'container-log-entry': {
+      /** @description Canonical container log line content after runtime framing is removed. */
+      line: string;
+      /**
+       * @description Canonical runtime stream that produced the log entry.
+       * @enum {string}
+       */
+      stream: 'stdout' | 'stderr';
+      /**
+       * Format: date-time
+       * @description Canonical UTC occurrence time for the log entry.
+       */
+      occurred_at: string;
+    };
     'container-log-response': {
       id: string;
       name?: string;
@@ -4381,7 +4396,7 @@ export interface components {
       stdout: boolean;
       stderr: boolean;
       timestamps: boolean;
-      lines: string[];
+      entries: components['schemas']['container-log-entry'][];
     };
     'enveloped-container-log-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['container-log-response'];
@@ -4651,7 +4666,7 @@ export interface components {
     'container-logs-tail': number;
     /** @description Optional log lower bound. Accepts an RFC3339 timestamp or a duration such as 10m, 1h, or 24h. Invalid values must return a localized validation error. */
     'container-logs-since': string;
-    /** @description Whether each returned log line should include the runtime-provided timestamp. */
+    /** @description Whether the runtime should request per-entry timestamps so each returned log entry can preserve canonical occurrence time. */
     'container-logs-timestamps': boolean;
     /** @description Whether stdout stream lines should be included. */
     'container-logs-stdout': boolean;
@@ -9406,7 +9421,7 @@ export interface operations {
         tail?: components['parameters']['container-logs-tail'];
         /** @description Optional log lower bound. Accepts an RFC3339 timestamp or a duration such as 10m, 1h, or 24h. Invalid values must return a localized validation error. */
         since?: components['parameters']['container-logs-since'];
-        /** @description Whether each returned log line should include the runtime-provided timestamp. */
+        /** @description Whether the runtime should request per-entry timestamps so each returned log entry can preserve canonical occurrence time. */
         timestamps?: components['parameters']['container-logs-timestamps'];
         /** @description Whether stdout stream lines should be included. */
         stdout?: components['parameters']['container-logs-stdout'];

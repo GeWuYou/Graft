@@ -7,7 +7,7 @@ required:
   - stdout
   - stderr
   - timestamps
-  - lines
+  - entries
 properties:
   id:
     type: string
@@ -33,7 +33,7 @@ properties:
     type: boolean
   timestamps:
     type: boolean
-  lines:
+  entries:
     type: array
     items:
-      type: string
+      $ref: ./container-log-entry.yaml

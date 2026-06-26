@@ -187,7 +187,7 @@ func (r *DockerRuntime) Logs(ctx context.Context, ref Ref, query LogQuery) (Logs
 		_ = reader.Close()
 	}()
 
-	lines, truncated, err := readDockerLogLines(reader, query.Tail)
+	entries, truncated, err := readDockerLogEntries(reader, query.Tail, query.Timestamps)
 	if err != nil {
 		return Logs{}, mapDockerError(err)
 	}
@@ -203,7 +203,7 @@ func (r *DockerRuntime) Logs(ctx context.Context, ref Ref, query LogQuery) (Logs
 		ID:         id,
 		Name:       name,
 		Runtime:    runtimeNameDocker,
-		Lines:      lines,
+		Entries:    entries,
 		Tail:       query.Tail,
 		Since:      query.Since,
 		Timestamps: query.Timestamps,
@@ -1297,41 +1297,36 @@ func mapDockerMessageError(message string) error {
 	return errRuntimeDaemonUnavailable
 }
 
-// readDockerLogLines 读取并截取容器日志行。
+// readDockerLogEntries 读取并截取容器日志条目。
 //
-// 返回按时间顺序排列的日志行，以及是否因尾部截断而丢弃了更早的内容。
+// 返回按时间顺序排列的结构化日志条目，以及是否因尾部截断而丢弃了更早的内容。
 // 当读取或扫描日志失败时返回错误。
-func readDockerLogLines(reader io.Reader, tail int) ([]string, bool, error) {
-	var output bytes.Buffer
-	if _, err := stdcopy.StdCopy(&output, &output, reader); err != nil {
-		return nil, false, err
-	}
+func readDockerLogEntries(reader io.Reader, tail int, timestamps bool) ([]LogEntry, bool, error) {
 	limit := tail
 	if limit > defaultContainerLogsMaxTail {
 		limit = defaultContainerLogsMaxTail
 	}
-	scanner := bufio.NewScanner(&output)
-	scanner.Buffer(make([]byte, 0, dockerLogScannerInitSize), dockerLogScannerMaxSize)
-	lines := make([]string, 0)
+	var entries []LogEntry
 	truncated := false
-	for scanner.Scan() {
-		line := scanner.Text()
+	err := streamDockerLogLines(context.Background(), reader, timestamps, func(chunk LogChunk) error {
+		entry := logEntryFromChunk(chunk)
 		if limit <= 0 {
 			truncated = true
-			continue
+			return nil
 		}
-		if len(lines) == limit {
+		if len(entries) == limit {
 			truncated = true
-			copy(lines, lines[1:])
-			lines[limit-1] = line
-			continue
+			copy(entries, entries[1:])
+			entries[limit-1] = entry
+			return nil
 		}
-		lines = append(lines, line)
-	}
-	if err := scanner.Err(); err != nil {
+		entries = append(entries, entry)
+		return nil
+	})
+	if err != nil {
 		return nil, false, err
 	}
-	return lines, truncated, nil
+	return entries, truncated, nil
 }
 
 // 当上下文取消、回调返回错误或读取过程发生错误时返回相应错误。
@@ -1406,6 +1401,14 @@ func (e *dockerLogChunkEmitter) emitChunk(stream string, line string) error {
 		return err
 	}
 	return nil
+}
+
+func logEntryFromChunk(chunk LogChunk) LogEntry {
+	return LogEntry{
+		Line:       chunk.Line,
+		Stream:     strings.TrimSpace(chunk.Stream),
+		OccurredAt: chunk.Timestamp.UTC(),
+	}
 }
 
 func (e *dockerLogChunkEmitter) flush() error {

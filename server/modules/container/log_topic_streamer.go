@@ -5,7 +5,6 @@ import (
 	"errors"
 	"strings"
 	"sync"
-	"time"
 
 	"go.uber.org/zap"
 
@@ -27,6 +26,7 @@ type logTopicStream struct {
 	topic              string
 	ref                Ref
 	query              LogQuery
+	canonicalID        string
 	unregisterObserver func()
 	cancel             context.CancelFunc
 	done               chan struct{}
@@ -34,11 +34,9 @@ type logTopicStream struct {
 }
 
 type containerLogPublished struct {
-	Topic      string    `json:"topic"`
-	ID         string    `json:"id"`
-	Line       string    `json:"line"`
-	Stream     string    `json:"stream,omitempty"`
-	OccurredAt time.Time `json:"occurred_at"`
+	Topic string    `json:"topic"`
+	ID    string    `json:"id"`
+	Entry LogEntry  `json:"entry"`
 }
 
 // newLogTopicStreamer 创建一个用于按 topic 管理容器日志流的实例。
@@ -101,11 +99,16 @@ func (s *logTopicStreamer) EnsureTopic(ctx context.Context, topic string, ref Re
 		s.mu.Unlock()
 		return err
 	}
-	if _, err := runtime.Detail(ctx, ref); err != nil {
+	detail, err := runtime.Detail(ctx, ref)
+	if err != nil {
 		s.mu.Lock()
 		delete(s.streams, topic)
 		s.mu.Unlock()
 		return err
+	}
+	stream.canonicalID = strings.TrimSpace(detail.ID)
+	if stream.canonicalID == "" {
+		stream.canonicalID = strings.TrimSpace(ref.Value)
 	}
 
 	unregister, err := s.monitor.RegisterTopicObserver(topic, func(_ string) {
@@ -164,6 +167,7 @@ func (s *logTopicStreamer) start(topic string) {
 	runID := stream.runID
 	ref := stream.ref
 	query := stream.query
+	canonicalID := stream.canonicalID
 	done := stream.done
 	s.mu.Unlock()
 
@@ -181,11 +185,9 @@ func (s *logTopicStreamer) start(topic string) {
 		}
 		err = runtime.StreamLogs(runCtx, ref, query, func(chunk LogChunk) error {
 			s.hub.Publish(topic, containerLogPublished{
-				Topic:      topic,
-				ID:         ref.Value,
-				Line:       chunk.Line,
-				Stream:     strings.TrimSpace(chunk.Stream),
-				OccurredAt: chunkTimestamp(chunk),
+				Topic: topic,
+				ID:    canonicalID,
+				Entry: logEntryFromChunk(chunk),
 			})
 			return nil
 		})
@@ -236,17 +238,6 @@ func (s *logTopicStreamer) clearRun(topic string, runID uint64) {
 	}
 	stream.cancel = nil
 	stream.done = nil
-}
-
-// chunkTimestamp 返回日志块的 UTC 时间戳。
-// 当日志块未提供时间戳时，返回当前 UTC 时间。
-//
-// @returns 日志块的 UTC 时间；如果未提供时间戳，则返回当前 UTC 时间。
-func chunkTimestamp(chunk LogChunk) time.Time {
-	if !chunk.Timestamp.IsZero() {
-		return chunk.Timestamp.UTC()
-	}
-	return time.Now().UTC()
 }
 
 func (s *service) ensureLogTopicStreaming(ctx context.Context, topic string, ref Ref, query LogQuery) error {

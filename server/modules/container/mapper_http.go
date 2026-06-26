@@ -283,9 +283,17 @@ func toResourceSummary(resource ResourceSummary) *containergen.ContainerResource
 
 // toLogs converts a Logs domain model into a ContainerLogResponse.
 func toLogs(logs Logs) containergen.ContainerLogResponse {
+	entries := make([]containergen.ContainerLogEntry, 0, len(logs.Entries))
+	for _, entry := range logs.Entries {
+		entries = append(entries, containergen.ContainerLogEntry{
+			Line:       entry.Line,
+			OccurredAt: entry.OccurredAt.UTC(),
+			Stream:     containergen.ContainerLogEntryStream(strings.TrimSpace(entry.Stream)),
+		})
+	}
 	return containergen.ContainerLogResponse{
+		Entries:    entries,
 		Id:         logs.ID,
-		Lines:      logs.Lines,
 		Name:       optionalString(logs.Name),
 		Runtime:    logs.Runtime,
 		Since:      optionalString(logs.Since),

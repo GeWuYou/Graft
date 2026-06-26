@@ -1,0 +1,19 @@
+type: object
+required:
+  - line
+  - stream
+  - occurred_at
+properties:
+  line:
+    type: string
+    description: Canonical container log line content after runtime framing is removed.
+  stream:
+    type: string
+    description: Canonical runtime stream that produced the log entry.
+    enum:
+      - stdout
+      - stderr
+  occurred_at:
+    type: string
+    format: date-time
+    description: Canonical UTC occurrence time for the log entry.

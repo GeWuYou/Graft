@@ -9225,7 +9225,7 @@
         ],
         "summary": "Read container logs",
         "operationId": "getContainerLogs",
-        "description": "Returns bounded container log lines from stdout and stderr. The canonical realtime companion topic is `container.logs:<id>`, which reuses the unified realtime subscription and WebSocket flow for incremental log delivery after the initial HTTP snapshot.\n",
+        "description": "Returns bounded structured container log entries from stdout and stderr. Each entry preserves canonical line, stream, and occurrence time authority. The canonical realtime companion topic is `container.logs:<id>`, which reuses the unified realtime subscription and WebSocket flow for incremental log delivery after the initial HTTP snapshot.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -10474,6 +10474,9 @@
       },
       "ContainerNetwork": {
         "$ref": "#/components/schemas/container-network"
+      },
+      "ContainerLogEntry": {
+        "$ref": "#/components/schemas/container-log-entry"
       },
       "ContainerLogResponse": {
         "$ref": "#/components/schemas/container-log-response"
@@ -17593,6 +17596,33 @@
           }
         ]
       },
+      "container-log-entry": {
+        "type": "object",
+        "required": [
+          "line",
+          "stream",
+          "occurred_at"
+        ],
+        "properties": {
+          "line": {
+            "type": "string",
+            "description": "Canonical container log line content after runtime framing is removed."
+          },
+          "stream": {
+            "type": "string",
+            "description": "Canonical runtime stream that produced the log entry.",
+            "enum": [
+              "stdout",
+              "stderr"
+            ]
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Canonical UTC occurrence time for the log entry."
+          }
+        }
+      },
       "container-log-response": {
         "type": "object",
         "required": [
@@ -17603,7 +17633,7 @@
           "stdout",
           "stderr",
           "timestamps",
-          "lines"
+          "entries"
         ],
         "properties": {
           "id": {
@@ -17639,10 +17669,10 @@
           "timestamps": {
             "type": "boolean"
           },
-          "lines": {
+          "entries": {
             "type": "array",
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/container-log-entry"
             }
           }
         }
@@ -18694,7 +18724,7 @@
         "name": "timestamps",
         "in": "query",
         "required": false,
-        "description": "Whether each returned log line should include the runtime-provided timestamp.",
+        "description": "Whether the runtime should request per-entry timestamps so each returned log entry can preserve canonical occurrence time.",
         "schema": {
           "type": "boolean",
           "default": false

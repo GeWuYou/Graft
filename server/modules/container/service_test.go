@@ -2546,7 +2546,11 @@ func (fakeRuntime) Logs(_ context.Context, ref Ref, query LogQuery) (Logs, error
 	return Logs{
 		ID:         ref.Value,
 		Runtime:    runtimeNameDocker,
-		Lines:      []string{"line"},
+		Entries: []LogEntry{{
+			Line:       "line",
+			Stream:     "stdout",
+			OccurredAt: time.Date(2026, 6, 26, 10, 0, 0, 0, time.UTC),
+		}},
 		Tail:       query.Tail,
 		Stdout:     query.Stdout,
 		Stderr:     query.Stderr,

@@ -18,8 +18,11 @@ func TestLogTopicStreamerPublishesIncrementalLogEventsForActiveTopic(t *testing.
 
 	hub := realtime.NewHub()
 	streamRuntime := &streamingRuntime{
-		detail: Detail{Summary: Summary{ID: "web", Name: "web", Runtime: runtimeNameDocker}},
-		stream: []LogChunk{{Line: "line-1"}, {Line: "line-2"}},
+		detail: Detail{Summary: Summary{ID: "canonical-web", Name: "web", Runtime: runtimeNameDocker}},
+		stream: []LogChunk{
+			{Line: "line-1", Stream: "stdout", Timestamp: time.Date(2026, 6, 26, 10, 0, 0, 0, time.UTC)},
+			{Line: "line-2", Stream: "stderr", Timestamp: time.Date(2026, 6, 26, 10, 0, 1, 0, time.UTC)},
+		},
 	}
 	streamer, err := newLogTopicStreamer(hub, zap.NewNop(), func() (Runtime, error) {
 		return streamRuntime, nil
@@ -43,8 +46,11 @@ func TestLogTopicStreamerPublishesIncrementalLogEventsForActiveTopic(t *testing.
 			if !ok {
 				t.Fatalf("unexpected payload %T", event.Data)
 			}
-			if payload.Topic != topic || payload.ID != "web" {
+			if payload.Topic != topic || payload.ID != "canonical-web" {
 				t.Fatalf("unexpected payload %#v", payload)
+			}
+			if payload.Entry.Line == "" || payload.Entry.Stream == "" || payload.Entry.OccurredAt.IsZero() {
+				t.Fatalf("expected structured entry payload, got %#v", payload)
 			}
 		case <-time.After(2 * time.Second):
 			t.Fatalf("timed out waiting for streamed log event %d", i+1)

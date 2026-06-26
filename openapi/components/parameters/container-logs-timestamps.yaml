@@ -1,7 +1,7 @@
 name: timestamps
 in: query
 required: false
-description: Whether each returned log line should include the runtime-provided timestamp.
+description: Whether the runtime should request per-entry timestamps so each returned log entry can preserve canonical occurrence time.
 schema:
   type: boolean
   default: false
