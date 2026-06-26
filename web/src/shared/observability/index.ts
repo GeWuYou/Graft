@@ -27,6 +27,19 @@ export {
   withSorterDirectionFromInput,
   withSorterFieldFromInput,
 } from './sorters';
+export type {
+  NormalizedStreamViewportStateResolverInput,
+  StreamViewportState,
+  StreamViewportStateResolverInput,
+} from './stream-viewport-state';
+export {
+  isStreamViewportBusyState,
+  isStreamViewportCursorState,
+  normalizeStreamViewportStateResolverInput,
+  resolveStreamViewportState,
+  STREAM_VIEWPORT_STATES,
+} from './stream-viewport-state';
+export { default as StreamViewportStateSurface } from './StreamViewportStateSurface.vue';
 export {
   formatLocaleDateOnly,
   formatLocaleDateTime,
