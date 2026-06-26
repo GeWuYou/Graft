@@ -111,6 +111,15 @@ def select_tool(use_for: str, preferred: str | None, fallback: str | None) -> di
 
 
 def build_ai_inventory(raw: dict[str, Any]) -> dict[str, Any]:
+    """
+    根据原始环境描述构建 AI 环境清单。
+    
+    Parameters:
+    	raw (dict[str, Any]): 解析后的原始环境数据。
+    
+    Returns:
+    	dict[str, Any]: 用于生成 `.ai/environment/tools.ai.yaml` 的完整清单结构。
+    """
     has_go = available_tool(raw, "required_runtimes", "go")
     has_python = available_tool(raw, "required_runtimes", "python3")
     has_node = available_tool(raw, "required_runtimes", "node")

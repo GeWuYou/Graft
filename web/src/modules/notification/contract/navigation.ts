@@ -24,6 +24,12 @@ function payloadText(payload: Record<string, unknown>, key: string) {
   return typeof value === 'string' ? value.trim() : '';
 }
 
+/**
+ * 解析通知导航对应的路由位置。
+ *
+ * @param navigation - 通知导航信息
+ * @returns 匹配到的路由位置；对于不支持的类型返回 `null`
+ */
 export function resolveNotificationNavigationLocation(navigation: NotificationNavigation): RouteLocationRaw | null {
   const payload = navigation.payload ?? {};
 
@@ -66,6 +72,12 @@ export function resolveNotificationNavigationLocation(navigation: NotificationNa
   }
 }
 
+/**
+ * 构建审计日志的跳转位置。
+ *
+ * @param payload - 用于提取审计日志标识的负载数据
+ * @returns 根据 `audit_log_id`、`request_id` 或空条件生成的位置
+ */
 function buildAuditLogLocation(payload: Record<string, unknown>) {
   const auditLogId = payloadText(payload, 'audit_log_id');
   if (auditLogId) {

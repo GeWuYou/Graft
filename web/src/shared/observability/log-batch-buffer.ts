@@ -1,6 +1,13 @@
 const DEFAULT_FLUSH_INTERVAL_MS = 100;
 const DEFAULT_MAX_BATCH_SIZE = 32;
 
+/**
+ * 验证值是否为正整数。
+ *
+ * @param value - 要检查的数值
+ * @param label - 用于错误消息的字段名称
+ * @throws {RangeError} 当值不是正整数时抛出
+ */
 function assertPositiveInteger(value: number, label: string) {
   if (!Number.isInteger(value) || value <= 0) {
     throw new RangeError(`${label} must be a positive integer`);

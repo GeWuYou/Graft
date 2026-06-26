@@ -104,6 +104,13 @@ export class LogViewCache {
   }
 }
 
+/**
+ * 选取可见的日志行。
+ *
+ * @param lines - 原始日志行列表
+ * @param lineLimit - 可见行数量上限
+ * @returns 最多包含末尾 `lineLimit` 条日志行的数组；当 `lineLimit` 小于或等于 `0` 时返回空数组
+ */
 function selectVisibleLines(lines: readonly string[], lineLimit: number) {
   if (lineLimit <= 0) {
     return [] as readonly string[];

@@ -18,10 +18,10 @@ export function buildContainerStatsTopicName(containerId: string) {
 }
 
 /**
- * 生成容器日志实时主题名称。
+ * 生成容器日志的实时主题名称。
  *
- * @param containerId - 容器标识
- * @returns 拼接 `LOGS_PREFIX` 与 `containerId` 后得到的主题名称
+ * @param containerId - 容器 ID
+ * @returns 拼接日志主题前缀与 `containerId` 后得到的主题名称
  */
 export function buildContainerLogsTopicName(containerId: string) {
   return `${CONTAINER_REALTIME_TOPIC.LOGS_PREFIX}${containerId}`;

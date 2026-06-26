@@ -50,6 +50,9 @@ func shouldNotifyAuditRecord(record auditstore.AuditLog) bool {
 		auditRecordRiskLevel(record) == auditstore.AuditRiskLevelCritical
 }
 
+// auditNotificationInput 根据审计日志构建通知发布输入。
+// 它会选择通知文案与严重级别，合并审计上下文与现有元数据，并填充导航、资源和接收目标信息。
+// 返回用于发布审计通知的输入。
 func auditNotificationInput(record auditstore.AuditLog) moduleapi.PublishNotificationInput {
 	kind := auditNotificationKind(record)
 	copyParts := auditNotificationCopy(kind, record)
@@ -117,6 +120,8 @@ func auditNotificationInput(record auditstore.AuditLog) moduleapi.PublishNotific
 	}
 }
 
+// auditNotificationKind 根据审计记录的动作和结果确定通知类型。
+// 当动作包含权限拒绝或登录失败相关标记时返回对应类型；否则返回高风险类型。
 func auditNotificationKind(record auditstore.AuditLog) string {
 	action := strings.ToLower(strings.TrimSpace(record.Action))
 	switch {
@@ -138,6 +143,10 @@ type auditNotificationCopyParts struct {
 	actionLabel    string
 }
 
+// auditNotificationCopy 根据通知类型和审计记录生成标题、消息与操作按钮的本地化键和值。
+//
+// kind 决定返回登录失败、权限拒绝或高风险审计事件的文案；record 用于生成权限拒绝消息中的目标名称。
+// 返回对应的标题、消息和操作按钮文案及其本地化键。
 func auditNotificationCopy(kind string, record auditstore.AuditLog) auditNotificationCopyParts {
 	target := firstNonEmptyTrimmed(record.ResourceName, record.ResourceID, record.Action, "Audit event")
 	switch kind {
@@ -171,6 +180,8 @@ func auditNotificationCopy(kind string, record auditstore.AuditLog) auditNotific
 	}
 }
 
+// mustMarshalJSON 合并审计上下文字段与已有元数据，并将结果编码为 JSON。
+// 同名字段以审计上下文中的值为准；如果编码失败，则返回空对象 `{}`。
 func mustMarshalJSON(auditContext map[string]any, existing json.RawMessage) json.RawMessage {
 	const auditMetadataExtraCapacity = 4
 
@@ -195,6 +206,8 @@ func mustMarshalJSON(auditContext map[string]any, existing json.RawMessage) json
 	return json.RawMessage(payload)
 }
 
+// resultFallback 返回与成功状态对应的结果字符串。
+// 返回 "SUCCESS" 表示成功，返回 "FAILED" 表示失败。
 func resultFallback(success bool) string {
 	if success {
 		return "SUCCESS"
@@ -202,6 +215,7 @@ func resultFallback(success bool) string {
 	return "FAILED"
 }
 
+// auditRecordRiskLevel 返回审计日志的风险等级；如果记录已显式指定，则优先使用该值，否则根据记录内容推断。
 func auditRecordRiskLevel(record auditstore.AuditLog) auditstore.AuditRiskLevel {
 	if record.RiskLevel != "" {
 		return record.RiskLevel

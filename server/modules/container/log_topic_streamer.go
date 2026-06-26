@@ -40,6 +40,9 @@ type containerLogPublished struct {
 	OccurredAt time.Time `json:"occurred_at"`
 }
 
+// newLogTopicStreamer 创建一个用于按 topic 管理容器日志流的实例。
+// 它要求 realtime hub 可用且支持 topic 订阅监控，并且提供 runtime 加载器；
+// 当 logger 为空时会使用无操作 logger。
 func newLogTopicStreamer(
 	hub realtime.Hub,
 	logger *zap.Logger,
@@ -224,6 +227,10 @@ func (s *logTopicStreamer) clearRun(topic string, runID uint64) {
 	stream.done = nil
 }
 
+// chunkTimestamp 返回日志块的 UTC 时间戳。
+// 当日志块未提供时间戳时，返回当前 UTC 时间。
+//
+// @returns 日志块的 UTC 时间；如果未提供时间戳，则返回当前 UTC 时间。
 func chunkTimestamp(chunk LogChunk) time.Time {
 	if !chunk.Timestamp.IsZero() {
 		return chunk.Timestamp.UTC()

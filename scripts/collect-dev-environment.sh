@@ -285,6 +285,7 @@ repo_file_present() {
     fi
 }
 
+# collect_inventory 输出项目开发环境的原始 YAML 清单，包含平台、仓库、运行时、工具、MCP、Python 包和 Python 环境状态。
 collect_inventory() {
     local os_name distro version_id kernel shell_name wsl_enabled wsl_version timestamp
 

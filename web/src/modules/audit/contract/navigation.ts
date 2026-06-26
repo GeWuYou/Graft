@@ -91,6 +91,15 @@ export function buildAuditRelatedResourceLocation(
   );
 }
 
+/**
+ * 根据审计日志记录生成对应的审计导航位置。
+ *
+ * 当记录包含多个可用字段时，按优先级选择 `audit_log_id`、`request_id`、资源信息或操作者信息来构造目标位置，并附加监控来源上下文。
+ *
+ * @param row - 审计日志列表项
+ * @param monitorOrigin - 要附加到目标位置的监控来源上下文
+ * @returns 生成的审计相关路由位置
+ */
 export function buildAuditRelatedRecordLocation(
   row: AuditLogListItem,
   monitorOrigin?: MonitorOriginContext | null,

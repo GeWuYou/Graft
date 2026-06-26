@@ -10,6 +10,12 @@ type LogViewStoreState = Readonly<{
   paused: boolean;
 }>;
 
+/**
+ * 将实时日志快照转换为日志响应对象。
+ *
+ * @param snapshot - 实时日志快照
+ * @returns 转换后的日志响应对象；当 `snapshot` 为空时返回 `null`
+ */
 function buildLogResponse(snapshot: ContainerLogRealtimeBatcherSnapshot | null): ContainerLogResponse | null {
   if (!snapshot) {
     return null;
@@ -27,6 +33,11 @@ function buildLogResponse(snapshot: ContainerLogRealtimeBatcherSnapshot | null):
   });
 }
 
+/**
+ * 创建容器详情日志视图的状态管理 store。
+ *
+ * @returns 包含日志快照、派生视图状态及加载、错误、暂停、恢复和重置方法的 store
+ */
 export function createContainerDetailLogViewStore() {
   const state = shallowRef<LogViewStoreState>({
     snapshot: null,

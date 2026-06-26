@@ -604,6 +604,8 @@ func addAuditPresetRange(clauses *[]string, args *[]any, query auditstore.ListAu
 	addTimeFilter(clauses, args, "created_at >= $%d", &startedAt)
 }
 
+// auditPresetStart 根据时间预设计算查询起始时间。
+// 对于最近 24 小时、7 天、30 天分别返回对应的起始时间；其他预设返回零时间。
 func auditPresetStart(now time.Time, preset auditstore.AuditTimePreset) time.Time {
 	switch preset {
 	case auditstore.AuditTimePresetLast24Hours:
@@ -617,6 +619,8 @@ func auditPresetStart(now time.Time, preset auditstore.AuditTimePreset) time.Tim
 	}
 }
 
+// highRiskOperationsWhereClause 返回高风险操作分类对应的 SQL WHERE 子句。
+// 该条件匹配审计风险等级为 HIGH 或 CRITICAL 的记录，或资源类型为 container / container_batch 且 action 以 ops.container.action. 开头的记录。
 func highRiskOperationsWhereClause() string {
 	return `(` + auditRiskLevelExpression() + ` IN ('HIGH', 'CRITICAL')
 		OR (
@@ -625,6 +629,7 @@ func highRiskOperationsWhereClause() string {
 		))`
 }
 
+// failedOperationsWhereClause 返回用于筛选失败、拒绝或错误审计结果的 SQL WHERE 子句。
 func failedOperationsWhereClause() string {
 	return `(` + auditResultExpression() + ` IN ('FAILED', 'DENIED', 'ERROR'))`
 }
@@ -900,6 +905,9 @@ func addTimeFilter(clauses *[]string, args *[]any, format string, value *time.Ti
 	*clauses = append(*clauses, fmt.Sprintf(format, len(*args)))
 }
 
+// scanAuditLog 解析一条审计日志记录并补充派生字段。
+// 它会从扫描器中读取基础列，转换 actor_user_id，并完成元数据克隆与记录增强。
+// @returns 解析后的审计日志记录；扫描失败时返回错误。
 func scanAuditLog(
 	ctx context.Context,
 	localizer *i18n.Service,

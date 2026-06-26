@@ -1297,6 +1297,10 @@ func mapDockerMessageError(message string) error {
 	return errRuntimeDaemonUnavailable
 }
 
+// readDockerLogLines 读取并截取容器日志行。
+//
+// 返回按时间顺序排列的日志行，以及是否因尾部截断而丢弃了更早的内容。
+// 当读取或扫描日志失败时返回错误。
 func readDockerLogLines(reader io.Reader, tail int) ([]string, bool, error) {
 	var output bytes.Buffer
 	if _, err := stdcopy.StdCopy(&output, &output, reader); err != nil {
@@ -1330,6 +1334,7 @@ func readDockerLogLines(reader io.Reader, tail int) ([]string, bool, error) {
 	return lines, truncated, nil
 }
 
+// 当上下文取消、回调返回错误或读取过程发生错误时返回相应错误。
 func streamDockerLogLines(ctx context.Context, reader io.Reader, emit func(LogChunk) error) error {
 	if reader == nil {
 		return nil
@@ -1368,6 +1373,8 @@ func streamDockerLogLines(ctx context.Context, reader io.Reader, emit func(LogCh
 	return nil
 }
 
+// actionResultFromDetail 根据容器详情构造操作结果，并标记状态是否发生变化。
+// 当操作前状态与当前状态一致时，结果为未变化；否则为已完成。
 func actionResultFromDetail(detail Detail, ref Ref, action string, statusBefore string) ActionResult {
 	statusAfter := detail.State
 	result := actionResultCompleted

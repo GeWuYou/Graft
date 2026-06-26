@@ -2,6 +2,11 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { extname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+/**
+ * 解析当前模块所在项目的默认根目录。
+ *
+ * @returns 当前模块上一级目录的路径；若 URL 解析失败，则返回当前工作目录。
+ */
 function resolveDefaultRootDir() {
   try {
     return fileURLToPath(new URL('..', import.meta.url));
@@ -55,6 +60,12 @@ const ALLOWLIST: AllowlistEntry[] = [
   },
 ];
 
+/**
+ * 递归收集指定目录下符合扫描扩展名的文件路径。
+ *
+ * @param dir - 要遍历的目录
+ * @returns 匹配的文件路径数组
+ */
 function walk(dir: string): string[] {
   const entries = readdirSync(dir, { withFileTypes: true });
   const files: string[] = [];
@@ -80,6 +91,13 @@ function walk(dir: string): string[] {
   return files;
 }
 
+/**
+ * 判断文件是否应纳入扫描。
+ *
+ * @param rootDir - 仓库根目录
+ * @param file - 待检查的文件路径
+ * @returns `true` if the file should be scanned, `false` otherwise.
+ */
 function shouldScanFile(rootDir: string, file: string): boolean {
   const normalized = relative(rootDir, file).replaceAll('\\', '/');
   if (/\.d\.ts$/.test(normalized) || /\.(?:test|spec)\.(?:ts|tsx|vue)$/.test(normalized)) {
@@ -89,10 +107,24 @@ function shouldScanFile(rootDir: string, file: string): boolean {
   return !normalized.startsWith('src/contracts/openapi/generated/');
 }
 
+/**
+ * 将字符位置转换为行号。
+ *
+ * @param source - 源文本
+ * @param index - 字符索引
+ * @returns 对应的 1 基行号
+ */
 function lineNumberForIndex(source: string, index: number): number {
   return source.slice(0, index).split('\n').length;
 }
 
+/**
+ * 查找文件和选择器对应的白名单项。
+ *
+ * @param file - 相对文件路径
+ * @param selector - CSS 选择器
+ * @returns 匹配的白名单项；未找到时返回 `null`
+ */
 function resolveAllowlist(file: string, selector: string): AllowlistEntry | null {
   return (
     ALLOWLIST.find(
@@ -103,6 +135,13 @@ function resolveAllowlist(file: string, selector: string): AllowlistEntry | null
   );
 }
 
+/**
+ * 收集仓库中命中的滚动条样式清单。
+ *
+ * @param rootDir - 仓库根目录
+ * @param srcDir - 需要扫描的源代码目录
+ * @returns 命中的清单项数组
+ */
 function collectInventory(rootDir: string, srcDir: string): InventoryItem[] {
   const inventory: InventoryItem[] = [];
 
@@ -141,6 +180,12 @@ function collectInventory(rootDir: string, srcDir: string): InventoryItem[] {
   return inventory;
 }
 
+/**
+ * 审核仓库中的原生滚动条样式并生成汇总结果。
+ *
+ * @param options - 审核范围配置
+ * @returns 包含违规项、允许项和格式化输出的审核结果
+ */
 export function runScrollbarGovernanceAudit(options: ScrollbarGovernanceAuditOptions = {}) {
   const rootDir = options.rootDir ?? DEFAULT_ROOT_DIR;
   const srcDir = options.srcDir ?? join(rootDir, 'src');

@@ -29,7 +29,7 @@ type topicObserver struct {
 	onInactive func(topic string)
 }
 
-// NewHub 创建一个基于内存的实时话题 Hub，并初始化订阅映射。
+// NewHub 创建一个基于内存的实时话题 Hub，并初始化订阅与观察者映射。
 func NewHub() Hub {
 	return &memoryHub{
 		topics:    make(map[string]map[uint64]*subscriber),
@@ -178,6 +178,9 @@ func (h *memoryHub) RegisterTopicObserver(
 	}, nil
 }
 
+// copyTopicObservers 将主题观察者映射复制为切片。
+//
+// 返回包含所有观察者值的切片；当输入为空时返回 nil。
 func copyTopicObservers(observers map[uint64]topicObserver) []topicObserver {
 	if len(observers) == 0 {
 		return nil
@@ -189,6 +192,8 @@ func copyTopicObservers(observers map[uint64]topicObserver) []topicObserver {
 	return copied
 }
 
+// notifyTopicObservers 按主题状态变更调用观察者回调。
+// active 为 true 时调用各观察者的 onActive；否则调用 onInactive。
 func notifyTopicObservers(topic string, observers []topicObserver, active bool) {
 	for _, observer := range observers {
 		if active {

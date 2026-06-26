@@ -23,6 +23,12 @@ export type ContainerLogRealtimeBatcherSnapshot = Readonly<
   }
 >;
 
+/**
+ * 过滤并保留有效的日志行。
+ *
+ * @param lines - 待处理的行数组
+ * @returns 仅包含非空字符串的数组
+ */
 function normalizeLines(lines: readonly string[]) {
   return lines.filter((line) => typeof line === 'string' && line.length > 0);
 }

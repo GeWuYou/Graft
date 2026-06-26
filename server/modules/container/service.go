@@ -564,6 +564,7 @@ func (s *service) batchActionPolicyFailure(
 	return BatchActionItem{}, false
 }
 
+// actionAuditOrchestrator 在详情获取失败时返回空的编排器信息，否则返回容器详情中的编排器信息。
 func actionAuditOrchestrator(detail Detail, detailErr error) OrchestratorInfo {
 	if detailErr != nil {
 		return OrchestratorInfo{}
@@ -571,6 +572,8 @@ func actionAuditOrchestrator(detail Detail, detailErr error) OrchestratorInfo {
 	return detail.Orchestrator
 }
 
+// effectiveActionAuditOrchestratorType 返回用于动作审计的编排器类型；当获取容器详情失败时返回未知类型。
+```
 func effectiveActionAuditOrchestratorType(orchestrator OrchestratorInfo, detailErr error) string {
 	if detailErr != nil {
 		return containerOrchestratorUnknown
@@ -578,6 +581,8 @@ func effectiveActionAuditOrchestratorType(orchestrator OrchestratorInfo, detailE
 	return effectiveOrchestratorType(Summary{Orchestrator: orchestrator})
 }
 
+// blockedActionAuditResult 生成用于记录被阻止动作的结果信息。
+// 返回包含容器标识、镜像、动作、运行时和编排器信息的 ActionResult。
 func blockedActionAuditResult(ref Ref, detail Detail, action string, orchestrator OrchestratorInfo) ActionResult {
 	return ActionResult{
 		ID:           firstNonEmpty(ref.Value, detail.ID),
@@ -589,6 +594,9 @@ func blockedActionAuditResult(ref Ref, detail Detail, action string, orchestrato
 	}
 }
 
+// shouldBackfillActionAuditOrchestrator 判断是否需要回填动作审计中的编排器信息。
+// 当未返回详情错误且编排器信息为空时，返回 true。
+///** But Go comments must start with function name. Need valid comment. Use two lines starting with name.**
 func shouldBackfillActionAuditOrchestrator(orchestrator OrchestratorInfo, detailErr error) bool {
 	if detailErr != nil {
 		return false
@@ -1322,6 +1330,8 @@ func (s *service) publishBatchActionAudit(ctx context.Context, result BatchActio
 	}
 }
 
+// actionAuditContract 将容器动作字符串映射为审计动作类型。
+// 预定义动作会转换为对应的容器审计动作；其他值会按原字符串生成审计动作。
 func actionAuditContract(action string) containercontract.AuditAction {
 	switch strings.TrimSpace(action) {
 	case containerActionStart:
@@ -1335,6 +1345,7 @@ func actionAuditContract(action string) containercontract.AuditAction {
 	}
 }
 
+// 对已知动作返回对应的批量审计动作；其他值返回去除首尾空白后的原始动作。
 func batchActionAuditContract(action string) containercontract.AuditAction {
 	switch strings.TrimSpace(action) {
 	case containerActionStart:
@@ -1348,6 +1359,8 @@ func batchActionAuditContract(action string) containercontract.AuditAction {
 	}
 }
 
+// batchRequestedIDs 提取批量动作中每个条目的请求资源 ID。
+// 返回的每个 ID 优先使用条目结果中的 ID，若为空则使用条目自身的 ID。
 func batchRequestedIDs(items []BatchActionItem) []string {
 	ids := make([]string, 0, len(items))
 	for _, item := range items {
@@ -1356,6 +1369,8 @@ func batchRequestedIDs(items []BatchActionItem) []string {
 	return ids
 }
 
+// batchFailedIDs 返回批量动作中执行失败项的 ID 列表。
+// 每个失败项优先使用结果中的 ID，必要时使用请求中的 ID。
 func batchFailedIDs(items []BatchActionItem) []string {
 	ids := make([]string, 0, len(items))
 	for _, item := range items {
@@ -1367,6 +1382,8 @@ func batchFailedIDs(items []BatchActionItem) []string {
 	return ids
 }
 
+// batchAuditStatusCode 根据批量动作结果返回审计状态码。
+// 当存在失败项时返回 `409 Conflict`，否则返回 `200 OK`。
 func batchAuditStatusCode(result BatchActionResult) int {
 	if result.FailedCount > 0 {
 		return http.StatusConflict
@@ -1374,6 +1391,8 @@ func batchAuditStatusCode(result BatchActionResult) int {
 	return http.StatusOK
 }
 
+// currentAuditOperator 提取当前请求中的审计操作者信息。
+// 当请求上下文中存在用户时，返回其副本；否则返回 nil。
 func currentAuditOperator(ctx context.Context) *moduleapi.CurrentUser {
 	requestAuth, ok := moduleapi.RequestAuthContextFromContext(ctx)
 	if !ok || requestAuth.User == nil {
