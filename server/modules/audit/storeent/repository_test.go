@@ -1230,47 +1230,8 @@ func TestAuditResultAndRiskClassifiersCoverRepresentativeInputs(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			for _, builder := range []struct {
-				name    string
-				builder auditMetadataExpressionBuilder
-			}{
-				{name: "portable", builder: literalMetadataExpressionBuilderForTest(tc.metadata)},
-				{name: "postgres", builder: literalMetadataExpressionBuilderForTest(tc.metadata)},
-			} {
-				resultExpression := auditResultExpressionWith(
-					sqlBoolLiteralForTest(tc.success),
-					"metadata",
-					builder.builder,
-				)
-				if got := evalStringExpressionForTest(t, resultExpression); got != tc.wantResult {
-					t.Fatalf("%s result classifier mismatch: got %s want %s", builder.name, got, tc.wantResult)
-				}
-
-				riskExpression := auditRiskLevelExpressionWith(
-					sqlBoolLiteralForTest(tc.success),
-					sqlStringLiteralForTest(tc.action),
-					sqlStringLiteralForTest(tc.resourceType),
-					"metadata",
-					builder.builder,
-				)
-				if got := evalStringExpressionForTest(t, riskExpression); got != tc.wantRisk {
-					t.Fatalf("%s risk classifier mismatch: got %s want %s", builder.name, got, tc.wantRisk)
-				}
-			}
-
-			metadataAny := make(map[string]any, len(tc.metadata))
-			for key, value := range tc.metadata {
-				metadataAny[key] = value
-			}
-			record := auditstore.AuditLog{
-				Success:      tc.success,
-				Action:       tc.action,
-				ResourceType: tc.resourceType,
-			}
-			record.Result = classifyAuditResult(record, metadataAny)
-			if got := string(classifyAuditRiskLevel(record)); got != tc.wantRisk {
-				t.Fatalf("runtime risk classifier mismatch: got %s want %s", got, tc.wantRisk)
-			}
+			assertAuditClassifierExpressions(t, tc)
+			assertAuditClassifierRuntime(t, tc)
 		})
 	}
 }
@@ -1299,6 +1260,78 @@ func literalMetadataExpressionBuilderForTest(metadata map[string]string) auditMe
 			}
 			return "1 = 1"
 		},
+	}
+}
+
+func assertAuditClassifierExpressions(
+	t *testing.T,
+	tc struct {
+		name         string
+		success      bool
+		action       string
+		resourceType string
+		metadata     map[string]string
+		wantResult   string
+		wantRisk     string
+	},
+) {
+	t.Helper()
+
+	for _, builder := range []struct {
+		name    string
+		builder auditMetadataExpressionBuilder
+	}{
+		{name: "portable", builder: literalMetadataExpressionBuilderForTest(tc.metadata)},
+		{name: "postgres", builder: literalMetadataExpressionBuilderForTest(tc.metadata)},
+	} {
+		resultExpression := auditResultExpressionWith(
+			sqlBoolLiteralForTest(tc.success),
+			"metadata",
+			builder.builder,
+		)
+		if got := evalStringExpressionForTest(t, resultExpression); got != tc.wantResult {
+			t.Fatalf("%s result classifier mismatch: got %s want %s", builder.name, got, tc.wantResult)
+		}
+
+		riskExpression := auditRiskLevelExpressionWith(
+			sqlBoolLiteralForTest(tc.success),
+			sqlStringLiteralForTest(tc.action),
+			sqlStringLiteralForTest(tc.resourceType),
+			"metadata",
+			builder.builder,
+		)
+		if got := evalStringExpressionForTest(t, riskExpression); got != tc.wantRisk {
+			t.Fatalf("%s risk classifier mismatch: got %s want %s", builder.name, got, tc.wantRisk)
+		}
+	}
+}
+
+func assertAuditClassifierRuntime(
+	t *testing.T,
+	tc struct {
+		name         string
+		success      bool
+		action       string
+		resourceType string
+		metadata     map[string]string
+		wantResult   string
+		wantRisk     string
+	},
+) {
+	t.Helper()
+
+	metadataAny := make(map[string]any, len(tc.metadata))
+	for key, value := range tc.metadata {
+		metadataAny[key] = value
+	}
+	record := auditstore.AuditLog{
+		Success:      tc.success,
+		Action:       tc.action,
+		ResourceType: tc.resourceType,
+	}
+	record.Result = classifyAuditResult(record, metadataAny)
+	if got := string(classifyAuditRiskLevel(record)); got != tc.wantRisk {
+		t.Fatalf("runtime risk classifier mismatch: got %s want %s", got, tc.wantRisk)
 	}
 }
 

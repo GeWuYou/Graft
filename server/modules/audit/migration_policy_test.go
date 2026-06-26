@@ -58,7 +58,18 @@ type auditMigrationVariant struct {
 func auditMigrationVariants(t *testing.T, fileName string) []auditMigrationVariant {
 	t.Helper()
 
-	content, err := os.ReadFile("migrations/" + fileName)
+	var (
+		content []byte
+		err     error
+	)
+	switch fileName {
+	case "202605190003_audit_module_schema.sql":
+		content, err = os.ReadFile("migrations/202605190003_audit_module_schema.sql")
+	case "202606250001_audit_container_dangerous_action_policies.sql":
+		content, err = os.ReadFile("migrations/202606250001_audit_container_dangerous_action_policies.sql")
+	default:
+		t.Fatalf("unsupported audit migration file %s", fileName)
+	}
 	if err != nil {
 		t.Fatalf("read audit migration source %s: %v", fileName, err)
 	}
