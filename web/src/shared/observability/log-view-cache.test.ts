@@ -1,9 +1,12 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import * as logParser from './log-parser';
 import { LogViewCache } from './log-view-cache';
 
 describe('LogViewCache', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
   it('reuses parsed lines for retained tail rows and only parses newly visible rows', () => {
     const parseSpy = vi.spyOn(logParser, 'parseLogLine');
     const cache = new LogViewCache();
@@ -46,6 +49,35 @@ describe('LogViewCache', () => {
       keyword: 'request',
     });
 
+    expect(buildSpy).toHaveBeenCalledTimes(4);
+  });
+
+  it('drops prior keyword search payloads so keyword history does not accumulate unbounded cache entries', () => {
+    const buildSpy = vi.spyOn(logParser, 'buildDisplayLogLine');
+    const cache = new LogViewCache();
+
+    cache.buildView({
+      lines: ['request-a', 'request-b'],
+      lineLimit: 2,
+      level: 'ALL',
+      keyword: 'request',
+    });
+    expect(buildSpy).toHaveBeenCalledTimes(2);
+
+    cache.buildView({
+      lines: ['request-a', 'request-b'],
+      lineLimit: 2,
+      level: 'ALL',
+      keyword: 'error',
+    });
+    expect(buildSpy).toHaveBeenCalledTimes(4);
+
+    cache.buildView({
+      lines: ['request-a', 'request-b'],
+      lineLimit: 2,
+      level: 'ALL',
+      keyword: 'error',
+    });
     expect(buildSpy).toHaveBeenCalledTimes(4);
   });
 

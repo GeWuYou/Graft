@@ -67,3 +67,42 @@ func TestMemoryHubTopicObserverTracksActiveSubscriberTransitions(t *testing.T) {
 		t.Fatalf("expected one inactive transition, got %#v", inactiveCalls)
 	}
 }
+
+func TestMemoryHubDoesNotEmitStaleInactiveAfterTopicReactivation(t *testing.T) {
+	hub := NewHub()
+	memoryHub, ok := hub.(*memoryHub)
+	if !ok {
+		t.Fatal("expected memory hub implementation")
+	}
+
+	var inactiveCalls []string
+	memoryHub.states["topic.test"] = topicLifecycleState{generation: 2, active: false}
+	memoryHub.notifyInactiveIfCurrent("topic.test", 1, []topicObserver{{
+		onInactive: func(topic string) {
+			inactiveCalls = append(inactiveCalls, topic)
+		},
+	}})
+	if len(inactiveCalls) != 0 {
+		t.Fatalf("expected mismatched generation to suppress inactive callback, got %#v", inactiveCalls)
+	}
+
+	memoryHub.states["topic.test"] = topicLifecycleState{generation: 2, active: true}
+	memoryHub.notifyInactiveIfCurrent("topic.test", 2, []topicObserver{{
+		onInactive: func(topic string) {
+			inactiveCalls = append(inactiveCalls, topic)
+		},
+	}})
+	if len(inactiveCalls) != 0 {
+		t.Fatalf("expected active topic to suppress inactive callback, got %#v", inactiveCalls)
+	}
+
+	memoryHub.states["topic.test"] = topicLifecycleState{generation: 2, active: false}
+	memoryHub.notifyInactiveIfCurrent("topic.test", 2, []topicObserver{{
+		onInactive: func(topic string) {
+			inactiveCalls = append(inactiveCalls, topic)
+		},
+	}})
+	if len(inactiveCalls) != 1 || inactiveCalls[0] != "topic.test" {
+		t.Fatalf("expected one inactive callback for matching inactive generation, got %#v", inactiveCalls)
+	}
+}

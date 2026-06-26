@@ -1123,9 +1123,11 @@ func TestAuditRiskLevelExpressionsUseSharedClassificationBranches(t *testing.T) 
 			"OR COALESCE(metadata ->> 'error_kind', '') = 'system'",
 			"OR COALESCE(metadata ->> 'error', '') <> ''",
 			"THEN 'CRITICAL'",
-			"LOWER(action) LIKE '%%reset_password%%'",
+			"LOWER(TRIM(action)) LIKE '%%reset_password%%'",
+			"LOWER(TRIM(resource_type)) = 'container'",
+			"LOWER(TRIM(action)) LIKE 'ops.container.action.%'",
 			"THEN 'HIGH'",
-			"LOWER(action) LIKE '%%login_failed%%'",
+			"LOWER(TRIM(action)) LIKE '%%login_failed%%'",
 			"THEN 'MEDIUM'",
 			"ELSE 'LOW'",
 		} {
@@ -1144,68 +1146,85 @@ func TestAuditRiskLevelExpressionsUseSharedClassificationBranches(t *testing.T) 
 
 func TestAuditResultAndRiskClassifiersCoverRepresentativeInputs(t *testing.T) {
 	tests := []struct {
-		name       string
-		success    bool
-		action     string
-		metadata   map[string]string
-		wantResult string
-		wantRisk   string
+		name         string
+		success      bool
+		action       string
+		resourceType string
+		metadata     map[string]string
+		wantResult   string
+		wantRisk     string
 	}{
 		{
-			name:       "success",
-			success:    true,
-			action:     "user.update",
-			metadata:   map[string]string{"status_code": "200"},
-			wantResult: "SUCCESS",
-			wantRisk:   "LOW",
+			name:         "success",
+			success:      true,
+			action:       "user.update",
+			resourceType: "user",
+			metadata:     map[string]string{"status_code": "200"},
+			wantResult:   "SUCCESS",
+			wantRisk:     "LOW",
 		},
 		{
-			name:       "denied",
-			success:    false,
-			action:     "rbac.role.delete",
-			metadata:   map[string]string{"status_code": "403"},
-			wantResult: "DENIED",
-			wantRisk:   "CRITICAL",
+			name:         "denied",
+			success:      false,
+			action:       "rbac.role.delete",
+			resourceType: "role",
+			metadata:     map[string]string{"status_code": "403"},
+			wantResult:   "DENIED",
+			wantRisk:     "CRITICAL",
 		},
 		{
-			name:       "server error",
-			success:    false,
-			action:     "audit.export",
-			metadata:   map[string]string{"status_code": "500"},
-			wantResult: "ERROR",
-			wantRisk:   "CRITICAL",
+			name:         "server error",
+			success:      false,
+			action:       "audit.export",
+			resourceType: "audit",
+			metadata:     map[string]string{"status_code": "500"},
+			wantResult:   "ERROR",
+			wantRisk:     "CRITICAL",
 		},
 		{
-			name:       "system error kind",
-			success:    false,
-			action:     "audit.export",
-			metadata:   map[string]string{"error_kind": "system"},
-			wantResult: "ERROR",
-			wantRisk:   "CRITICAL",
+			name:         "system error kind",
+			success:      false,
+			action:       "audit.export",
+			resourceType: "audit",
+			metadata:     map[string]string{"error_kind": "system"},
+			wantResult:   "ERROR",
+			wantRisk:     "CRITICAL",
 		},
 		{
-			name:       "failed without error metadata",
-			success:    false,
-			action:     "audit.export",
-			metadata:   map[string]string{"status_code": "400"},
-			wantResult: "FAILED",
-			wantRisk:   "HIGH",
+			name:         "failed without error metadata",
+			success:      false,
+			action:       "audit.export",
+			resourceType: "audit",
+			metadata:     map[string]string{"status_code": "400"},
+			wantResult:   "FAILED",
+			wantRisk:     "HIGH",
 		},
 		{
-			name:       "critical action",
-			success:    true,
-			action:     "user.reset_password",
-			metadata:   map[string]string{"status_code": "200"},
-			wantResult: "SUCCESS",
-			wantRisk:   "CRITICAL",
+			name:         "critical action",
+			success:      true,
+			action:       "user.reset_password",
+			resourceType: "user",
+			metadata:     map[string]string{"status_code": "200"},
+			wantResult:   "SUCCESS",
+			wantRisk:     "CRITICAL",
 		},
 		{
-			name:       "medium auth action",
-			success:    true,
-			action:     "auth.login",
-			metadata:   map[string]string{"status_code": "200"},
-			wantResult: "SUCCESS",
-			wantRisk:   "MEDIUM",
+			name:         "medium auth action",
+			success:      true,
+			action:       "auth.login",
+			resourceType: "auth",
+			metadata:     map[string]string{"status_code": "200"},
+			wantResult:   "SUCCESS",
+			wantRisk:     "MEDIUM",
+		},
+		{
+			name:         "container dangerous action trims runtime values",
+			success:      true,
+			action:       "  OPS.CONTAINER.ACTION.START  ",
+			resourceType: "  Container_Batch  ",
+			metadata:     map[string]string{"status_code": "200"},
+			wantResult:   "SUCCESS",
+			wantRisk:     "HIGH",
 		},
 	}
 
@@ -1230,12 +1249,27 @@ func TestAuditResultAndRiskClassifiersCoverRepresentativeInputs(t *testing.T) {
 				riskExpression := auditRiskLevelExpressionWith(
 					sqlBoolLiteralForTest(tc.success),
 					sqlStringLiteralForTest(tc.action),
+					sqlStringLiteralForTest(tc.resourceType),
 					"metadata",
 					builder.builder,
 				)
 				if got := evalStringExpressionForTest(t, riskExpression); got != tc.wantRisk {
 					t.Fatalf("%s risk classifier mismatch: got %s want %s", builder.name, got, tc.wantRisk)
 				}
+			}
+
+			metadataAny := make(map[string]any, len(tc.metadata))
+			for key, value := range tc.metadata {
+				metadataAny[key] = value
+			}
+			record := auditstore.AuditLog{
+				Success:      tc.success,
+				Action:       tc.action,
+				ResourceType: tc.resourceType,
+			}
+			record.Result = classifyAuditResult(record, metadataAny)
+			if got := string(classifyAuditRiskLevel(record)); got != tc.wantRisk {
+				t.Fatalf("runtime risk classifier mismatch: got %s want %s", got, tc.wantRisk)
 			}
 		})
 	}
@@ -1303,7 +1337,8 @@ func TestOverviewTrendUsesCanonicalResultAndRiskExpressions(t *testing.T) {
 	resultExpression := auditOverviewTrendResultExpression()
 	riskExpression := auditOverviewTrendRiskLevelExpression()
 	if !strings.Contains(resultExpression, "logs.metadata ->> 'status_code'") ||
-		!strings.Contains(riskExpression, "LOWER(logs.action)") {
+		!strings.Contains(riskExpression, "LOWER(TRIM(logs.action))") ||
+		!strings.Contains(riskExpression, "LOWER(TRIM(logs.resource_type))") {
 		t.Fatalf("expected trend expressions to use table-qualified canonical fields, result=%s risk=%s", resultExpression, riskExpression)
 	}
 	trendSQL := overviewTrendSeriesSQL("1 hour")

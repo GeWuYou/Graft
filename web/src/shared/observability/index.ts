@@ -5,7 +5,7 @@ export { openLogDetailRow, restartLogListQuery } from './list-interactions';
 export type { LogBatchBufferOptions } from './log-batch-buffer';
 export { LogBatchBuffer } from './log-batch-buffer';
 export type { LogRingBufferAppendResult, LogRingBufferView } from './log-ring-buffer';
-export { LogRingBuffer } from './log-ring-buffer';
+export { cloneLogRingBufferView, LogRingBuffer } from './log-ring-buffer';
 export { default as LogIdText } from './LogIdText.vue';
 export { default as LogJsonPanel } from './LogJsonPanel.vue';
 export { default as LogViewer } from './LogViewer.vue';

@@ -146,6 +146,7 @@
       "openRelatedPage": "打开相关页面",
       "openRunRecord": "打开运行记录",
       "openTarget": "打开相关页面",
+      "openAuditIncident": "查看审计事件",
       "openAuditLog": "查看审计日志"
     },
     "message": {

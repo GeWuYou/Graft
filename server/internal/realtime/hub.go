@@ -15,6 +15,7 @@ var errTopicObserverRequired = errors.New("realtime topic observer requires at l
 type memoryHub struct {
 	mu        sync.RWMutex
 	topics    map[string]map[uint64]*subscriber
+	states    map[string]topicLifecycleState
 	observers map[string]map[uint64]topicObserver
 	nextID    uint64
 }
@@ -22,6 +23,11 @@ type memoryHub struct {
 type subscriber struct {
 	ch           chan Event
 	unsubscribed atomic.Bool
+}
+
+type topicLifecycleState struct {
+	generation uint64
+	active     bool
 }
 
 type topicObserver struct {
@@ -33,6 +39,7 @@ type topicObserver struct {
 func NewHub() Hub {
 	return &memoryHub{
 		topics:    make(map[string]map[uint64]*subscriber),
+		states:    make(map[string]topicLifecycleState),
 		observers: make(map[string]map[uint64]topicObserver),
 	}
 }
@@ -98,11 +105,17 @@ func (h *memoryHub) Subscribe(topic string) (<-chan Event, func()) {
 	h.nextID++
 	id := h.nextID
 	wasInactive := len(h.topics[normalized]) == 0
+	state := h.states[normalized]
 	if h.topics[normalized] == nil {
 		h.topics[normalized] = make(map[uint64]*subscriber)
 	}
 	sub := &subscriber{ch: ch}
 	h.topics[normalized][id] = sub
+	if wasInactive {
+		state.generation++
+		state.active = true
+		h.states[normalized] = state
+	}
 	observers := copyTopicObservers(h.observers[normalized])
 	h.mu.Unlock()
 
@@ -112,6 +125,7 @@ func (h *memoryHub) Subscribe(topic string) (<-chan Event, func()) {
 
 	return ch, func() {
 		notifyInactive := false
+		notifyGeneration := uint64(0)
 		observers := []topicObserver(nil)
 
 		h.mu.Lock()
@@ -126,13 +140,17 @@ func (h *memoryHub) Subscribe(topic string) (<-chan Event, func()) {
 		}
 		if len(subscribers) == 0 {
 			delete(h.topics, normalized)
+			state := h.states[normalized]
+			state.active = false
+			h.states[normalized] = state
 			notifyInactive = true
+			notifyGeneration = state.generation
 			observers = copyTopicObservers(h.observers[normalized])
 		}
 		h.mu.Unlock()
 
 		if notifyInactive {
-			notifyTopicObservers(normalized, observers, false)
+			h.notifyInactiveIfCurrent(normalized, notifyGeneration, observers)
 		}
 	}
 }
@@ -206,4 +224,16 @@ func notifyTopicObservers(topic string, observers []topicObserver, active bool) 
 			observer.onInactive(topic)
 		}
 	}
+}
+
+func (h *memoryHub) notifyInactiveIfCurrent(topic string, generation uint64, observers []topicObserver) {
+	h.mu.RLock()
+	state := h.states[topic]
+	h.mu.RUnlock()
+
+	if state.generation != generation || state.active {
+		return
+	}
+
+	notifyTopicObservers(topic, observers, false)
 }

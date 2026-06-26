@@ -13,7 +13,8 @@ export type LogViewResult = Readonly<{
 
 export class LogViewCache {
   readonly #parsedByRaw = new Map<string, CachedParsedLogLine>();
-  readonly #searchByRawKeyword = new Map<string, CachedSearchPayload>();
+  readonly #searchByRaw = new Map<string, CachedSearchPayload>();
+  #activeKeyword = '';
 
   buildView(options: {
     lines: readonly string[];
@@ -25,6 +26,7 @@ export class LogViewCache {
     const visibleRawSet = new Set(visibleLines);
 
     this.#pruneParsedCache(visibleRawSet);
+    this.#resetSearchCacheForKeyword(options.keyword);
     this.#pruneSearchCache(visibleRawSet);
 
     const lineNoOffset = options.lines.length - visibleLines.length;
@@ -69,8 +71,7 @@ export class LogViewCache {
   }
 
   #resolveSearchPayload(line: ParsedLogLine, keyword: string) {
-    const cacheKey = `${keyword}\u0000${line.raw}`;
-    const cached = this.#searchByRawKeyword.get(cacheKey);
+    const cached = this.#searchByRaw.get(line.raw);
     if (cached) {
       return cached;
     }
@@ -81,8 +82,17 @@ export class LogViewCache {
       rawTokens: next.rawTokens,
       searchMatchCount: next.searchMatchCount,
     };
-    this.#searchByRawKeyword.set(cacheKey, payload);
+    this.#searchByRaw.set(line.raw, payload);
     return payload;
+  }
+
+  #resetSearchCacheForKeyword(keyword: string) {
+    if (this.#activeKeyword === keyword) {
+      return;
+    }
+
+    this.#activeKeyword = keyword;
+    this.#searchByRaw.clear();
   }
 
   #pruneParsedCache(visibleRawSet: ReadonlySet<string>) {
@@ -94,11 +104,9 @@ export class LogViewCache {
   }
 
   #pruneSearchCache(visibleRawSet: ReadonlySet<string>) {
-    for (const cacheKey of this.#searchByRawKeyword.keys()) {
-      const separatorIndex = cacheKey.indexOf('\u0000');
-      const raw = separatorIndex >= 0 ? cacheKey.slice(separatorIndex + 1) : cacheKey;
+    for (const raw of this.#searchByRaw.keys()) {
       if (!visibleRawSet.has(raw)) {
-        this.#searchByRawKeyword.delete(cacheKey);
+        this.#searchByRaw.delete(raw);
       }
     }
   }

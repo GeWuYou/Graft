@@ -28,6 +28,32 @@ export function buildContainerLogsTopicName(containerId: string) {
 }
 
 /**
+ * 从日志 realtime topic 中解析容器 ID。
+ *
+ * @param topic - 待解析的 realtime topic
+ * @returns topic 对应的容器 ID；无效时返回空字符串
+ */
+export function parseContainerLogsTopicContainerId(topic: string) {
+  const normalizedTopic = topic.trim();
+  if (!normalizedTopic.startsWith(CONTAINER_REALTIME_TOPIC.LOGS_PREFIX)) {
+    return '';
+  }
+  return normalizedTopic.slice(CONTAINER_REALTIME_TOPIC.LOGS_PREFIX.length).trim();
+}
+
+/**
+ * 判断日志 realtime topic 是否与容器 ID 对应。
+ *
+ * @param topic - realtime topic
+ * @param containerId - 容器 ID
+ * @returns `true` if topic 与容器 ID 精确匹配；`false` otherwise
+ */
+export function isContainerLogsTopicForContainer(topic: string, containerId: string) {
+  const normalizedContainerId = containerId.trim();
+  return normalizedContainerId.length > 0 && parseContainerLogsTopicContainerId(topic) === normalizedContainerId;
+}
+
+/**
  * 获取容器仪表盘汇总的实时主题名称。
  *
  * @returns 容器仪表盘汇总的 canonical realtime 主题字符串

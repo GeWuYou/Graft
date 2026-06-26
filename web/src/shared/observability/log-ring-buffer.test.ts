@@ -114,6 +114,24 @@ describe('LogRingBuffer', () => {
     expect(snapshot.toArray()).toEqual(['line-1', 'line-2', 'line-3']);
   });
 
+  it('can clone a frozen point-in-time snapshot view', async () => {
+    const mod = await import('./log-ring-buffer');
+    const buffer = new LogRingBuffer<string>(3);
+
+    buffer.append('line-1');
+    buffer.append('line-2');
+
+    const live = buffer.snapshot();
+    const cloned = mod.cloneLogRingBufferView(live);
+
+    buffer.append('line-3');
+
+    expect(cloned.version).toBe(2);
+    expect(cloned.size).toBe(2);
+    expect(cloned.toArray()).toEqual(['line-1', 'line-2']);
+    expect(live.toArray()).toEqual(['line-1', 'line-2', 'line-3']);
+  });
+
   it('rejects invalid capacity values', () => {
     expect(() => new LogRingBuffer(0)).toThrow('RingBuffer capacity must be a positive integer');
     expect(() => new LogRingBuffer(1.5)).toThrow('RingBuffer capacity must be a positive integer');

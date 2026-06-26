@@ -529,6 +529,32 @@ describe('AuditLogsPage', () => {
     expect(wrapper.text()).toContain('1');
   });
 
+  it('opens a detail drawer from audit_log_id even when the current page rows do not include that record', async () => {
+    getAuditLogsMock.mockResolvedValueOnce(
+      createAuditLogsResponse({
+        items: [
+          {
+            ...createAuditLogsResponse().items[0],
+            id: 99,
+          },
+        ],
+      }),
+    );
+    getAuditLogDetailMock.mockResolvedValueOnce({
+      ...createAuditLogsResponse().items[0],
+      id: 1,
+      request_id: 'req-deeplink',
+    });
+
+    const { wrapper } = await mountPage({
+      audit_log_id: '1',
+    });
+
+    await flushPromises();
+    expect(getAuditLogDetailMock).toHaveBeenCalledWith(1);
+    expect(wrapper.text()).toContain('req-deeplink');
+  });
+
   it('keeps monitor return context when syncing log filters', async () => {
     const { replaceSpy, router, wrapper } = await mountPage({
       created_from: '2026-05-30T07:21:04.000Z',

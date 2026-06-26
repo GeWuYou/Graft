@@ -102,4 +102,21 @@ describe('check-scrollbar-governance blacklist scan', () => {
       'Only the shared `graft-scrollbar` utility and explicit allowlist entries may define native scrollbar styling.',
     );
   });
+
+  it('blocks page-local graft-scrollbar pseudo-element rules outside the shared utility', () => {
+    const result = runAuditWithSource(
+      'src/modules/demo/LooksSharedButIsLocal.vue',
+      `
+<template><div class="graft-scrollbar local-panel" /></template>
+<style scoped lang="less">
+.local-panel.graft-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+</style>
+`,
+    );
+
+    expect(result.debt).toHaveLength(1);
+    expect(result.debt[0]?.selector).toContain('.graft-scrollbar::-webkit-scrollbar');
+  });
 });

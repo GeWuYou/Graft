@@ -386,6 +386,39 @@ describe('LogViewer', () => {
     wrapper.unmount();
   });
 
+  it('clamps the virtual start after display lines shrink below the old scroll window', async () => {
+    const wrapper = mount(LogViewer, {
+      attachTo: document.body,
+      props: {
+        ...labels,
+        lines: createLines(200),
+        contentVersion: 200,
+      },
+      global: { stubs: tdesignStubs },
+    });
+
+    const viewport = wrapper.get('.log-viewer__viewport').element as HTMLDivElement;
+    Object.defineProperty(viewport, 'clientHeight', { configurable: true, value: 240 });
+    Object.defineProperty(viewport, 'scrollTop', { configurable: true, writable: true, value: 0 });
+
+    await nextTick();
+
+    viewport.scrollTop = 3200;
+    await wrapper.get('.log-viewer__viewport').trigger('scroll');
+    await nextTick();
+
+    await wrapper.setProps({
+      lines: createLines(1),
+      contentVersion: 1,
+    });
+    await nextTick();
+
+    const renderedLineNumbers = wrapper.findAll('.log-viewer__line-number').map((node) => Number(node.text()));
+    expect(renderedLineNumbers).toEqual([1]);
+
+    wrapper.unmount();
+  });
+
   it('auto-scrolls only when the viewport is already pinned near the bottom', async () => {
     const requestAnimationFrameSpy = vi
       .spyOn(window, 'requestAnimationFrame')

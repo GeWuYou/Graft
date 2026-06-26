@@ -21,7 +21,6 @@ const SCANNED_EXTENSIONS = new Set(['.vue', '.less', '.css', '.scss', '.sass']);
 const EXCLUDED_DIRS = new Set(['node_modules', 'dist', 'coverage', 'mock', '__mocks__', 'ai-libs', 'assets']);
 const CSS_BLOCK_PATTERN = /(?<selector>[^{}@;]+?)\s*\{(?<body>[\s\S]*?)\}/g;
 const NATIVE_SCROLLBAR_PATTERN = /scrollbar-(?:color|width|gutter)|::-webkit-scrollbar(?:-(?:track|thumb))?/;
-const GRAFT_SCROLLBAR_PATTERN = /\bgraft-scrollbar\b/;
 
 type AllowlistEntry = {
   file: string;
@@ -163,14 +162,16 @@ function collectInventory(rootDir: string, srcDir: string): InventoryItem[] {
       const index = match.index ?? 0;
       const snippet = `${selector} { ${body.trim().replace(/\s+/g, ' ')} }`;
       const allowlistEntry = resolveAllowlist(rel, selector);
+      const isSharedScrollbarUtility =
+        rel === 'src/style/scrollbar.less' &&
+        (selector === '.graft-scrollbar' || selector.includes('.graft-scrollbar::-webkit-scrollbar'));
 
       inventory.push({
         file: rel,
         line: lineNumberForIndex(source, index),
         selector,
         snippet,
-        allowlisted:
-          Boolean(allowlistEntry) || GRAFT_SCROLLBAR_PATTERN.test(selector) || GRAFT_SCROLLBAR_PATTERN.test(body),
+        allowlisted: Boolean(allowlistEntry) || isSharedScrollbarUtility,
         reason: allowlistEntry?.reason,
         cleanupTrigger: allowlistEntry?.cleanupTrigger,
       });

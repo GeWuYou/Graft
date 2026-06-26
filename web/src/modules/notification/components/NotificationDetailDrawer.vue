@@ -152,6 +152,7 @@ const navigationActionLabel = computed(() => {
   const kind = props.item?.navigation.kind;
   switch (kind) {
     case NOTIFICATION_NAVIGATION_KIND.AUDIT_INCIDENT:
+      return t('notification.action.openAuditIncident');
     case NOTIFICATION_NAVIGATION_KIND.AUDIT_LOG:
       return t('notification.action.openAuditLog');
     case NOTIFICATION_NAVIGATION_KIND.SCHEDULER_RUN:
@@ -168,14 +169,17 @@ const auditSummary = computed(() => {
     return null;
   }
 
+  const view = notificationView(props.item);
   return {
-    action: stringValue(context.action) || notificationView(props.item).actionLabel,
-    reason: stringValue(context.reason) || notificationView(props.item).message,
-    requestId: stringValue(context.requestId) || stringValue(props.item.navigation.payload?.request_id),
-    resource: stringValue(context.resourceName) || notificationView(props.item).resourceName,
-    result: stringValue(context.result) || notificationView(props.item).statusLabel,
-    riskLevel: stringValue(context.riskLevel) || notificationView(props.item).levelLabel,
-    traceId: stringValue(context.traceId) || stringValue(props.item.navigation.payload?.trace_id),
+    action: stringValue(context.action) || resolveEmptyLabel(),
+    reason: stringValue(context.reason) || view.message,
+    requestId:
+      stringValue(context.requestId) || stringValue(props.item.navigation.payload?.request_id) || resolveEmptyLabel(),
+    resource: stringValue(context.resourceName) || view.resourceName,
+    result: stringValue(context.result) || resolveNotificationResultSummary(props.item, t),
+    riskLevel: stringValue(context.riskLevel) || resolveEmptyLabel(),
+    traceId:
+      stringValue(context.traceId) || stringValue(props.item.navigation.payload?.trace_id) || resolveEmptyLabel(),
   };
 });
 
@@ -197,6 +201,10 @@ function notificationContext(item: NotificationItem | null) {
 
 function stringValue(value: unknown) {
   return typeof value === 'string' && value.trim() ? value.trim() : '';
+}
+
+function resolveEmptyLabel() {
+  return t('notification.emptyValue');
 }
 </script>
 <style scoped lang="less">

@@ -73,6 +73,23 @@ func (fakeRealtimePublisher) RegisterTopicObserver(string, func(string), func(st
 	return func() {}, nil
 }
 
+type countingRealtimePublisher struct {
+	registerCalls atomic.Int64
+}
+
+func (h *countingRealtimePublisher) Publish(string, any) {}
+
+func (h *countingRealtimePublisher) Subscribe(string) (<-chan realtime.Event, func()) {
+	ch := make(chan realtime.Event)
+	close(ch)
+	return ch, func() {}
+}
+
+func (h *countingRealtimePublisher) RegisterTopicObserver(string, func(string), func(string)) (func(), error) {
+	h.registerCalls.Add(1)
+	return func() {}, nil
+}
+
 func TestParseRefRejectsUnsafeValues(t *testing.T) {
 	t.Parallel()
 
@@ -1965,6 +1982,61 @@ func TestIssueContainerLogsRealtimeSubscriptionSucceeds(t *testing.T) {
 	}
 }
 
+func TestEnsureLogTopicStreamingInitializesStreamerOnceUnderConcurrentAccess(t *testing.T) {
+	t.Parallel()
+
+	realtimeHub := &countingRealtimePublisher{}
+	runtime := &countingRuntime{
+		detail: Detail{
+			Summary: Summary{
+				ID:      "web",
+				Name:    "web",
+				Runtime: runtimeNameDocker,
+			},
+		},
+	}
+	service, err := newTestService(containerServiceOptions{
+		runtime:                 runtime,
+		realtimeHub:             realtimeHub,
+		enabled:                 true,
+		defaultTail:             defaultContainerLogsDefaultTail,
+		maxTail:                 defaultContainerLogsMaxTail,
+		dangerousActionsEnabled: true,
+	})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	var wg sync.WaitGroup
+	errs := make(chan error, 16)
+	for range 16 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			errs <- service.ensureLogTopicStreaming(
+				context.Background(),
+				testContainerLogsTopic,
+				Ref{Value: "web"},
+				LogQuery{Tail: defaultContainerLogsDefaultTail, Stdout: true, Stderr: true},
+			)
+		}()
+	}
+	wg.Wait()
+	close(errs)
+
+	for err := range errs {
+		if err != nil {
+			t.Fatalf("ensure log topic streaming: %v", err)
+		}
+	}
+	if calls := realtimeHub.registerCalls.Load(); calls != 1 {
+		t.Fatalf("expected one observer registration, got %d", calls)
+	}
+	if service.logTopicStreamer == nil {
+		t.Fatal("expected log topic streamer to be initialized")
+	}
+}
+
 func TestIssueContainerLogsRealtimeSubscriptionUsesLogsPermission(t *testing.T) {
 	t.Parallel()
 
@@ -2263,7 +2335,7 @@ func (listRuntime) Mounts(context.Context, Ref) ([]Mount, error) { return nil, n
 func (listRuntime) MountUsage(context.Context, Ref, string) (MountUsage, error) {
 	return MountUsage{}, nil
 }
-func (listRuntime) Logs(context.Context, Ref, LogQuery) (Logs, error) { return Logs{}, nil }
+func (listRuntime) Logs(context.Context, Ref, LogQuery) (Logs, error)                     { return Logs{}, nil }
 func (listRuntime) StreamLogs(context.Context, Ref, LogQuery, func(LogChunk) error) error { return nil }
 func (listRuntime) Shell(context.Context, Ref, string) (terminal.Session, error) {
 	return newStubTerminalSession(), nil

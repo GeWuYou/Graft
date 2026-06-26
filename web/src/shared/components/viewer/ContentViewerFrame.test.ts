@@ -1,11 +1,16 @@
-import { mount } from '@vue/test-utils';
+import { mount, type VueWrapper } from '@vue/test-utils';
 import { afterEach, describe, expect, it } from 'vitest';
 import { defineComponent, h } from 'vue';
 
 import ContentViewerFrame from './ContentViewerFrame.vue';
 
+const mountedWrappers: VueWrapper[] = [];
+
 describe('ContentViewerFrame', () => {
   afterEach(() => {
+    for (const wrapper of mountedWrappers.splice(0)) {
+      wrapper.unmount();
+    }
     localStorage.clear();
     document.body.style.overflow = '';
     document.documentElement.style.overflow = '';
@@ -36,7 +41,7 @@ describe('ContentViewerFrame', () => {
 });
 
 function mountFrame() {
-  return mount(ContentViewerFrame, {
+  const wrapper = mount(ContentViewerFrame, {
     props: {
       storageKey: 'graft.test.viewer.height',
       fullscreenLabel: '全屏',
@@ -63,4 +68,6 @@ function mountFrame() {
       },
     },
   });
+  mountedWrappers.push(wrapper);
+  return wrapper;
 }

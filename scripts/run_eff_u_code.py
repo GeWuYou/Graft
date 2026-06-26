@@ -337,10 +337,12 @@ def main() -> int:
     args = parse_args()
 
     try:
-        tool = resolve_local_tool()
-        ensure_tree_sitter_wasms_layout()
         if args.init_config:
             init_local_config()
+            return 0
+
+        tool = resolve_local_tool()
+        ensure_tree_sitter_wasms_layout()
 
         config = load_config()
         scopes = resolve_scopes(args.scope)

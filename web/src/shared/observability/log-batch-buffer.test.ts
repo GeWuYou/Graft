@@ -53,6 +53,29 @@ describe('LogBatchBuffer', () => {
     expect(flushed).toEqual([[1, 2, 3]]);
   });
 
+  it('splits appendMany input into threshold-sized flushes and keeps only the remainder pending', () => {
+    const flushed: string[][] = [];
+    const buffer = new LogBatchBuffer<string>({
+      flushIntervalMs: 500,
+      maxBatchSize: 3,
+      onFlush: (batch) => {
+        flushed.push([...batch]);
+      },
+    });
+
+    const pendingSize = buffer.appendMany(['line-1', 'line-2', 'line-3', 'line-4', 'line-5', 'line-6', 'line-7']);
+
+    expect(flushed).toEqual([
+      ['line-1', 'line-2', 'line-3'],
+      ['line-4', 'line-5', 'line-6'],
+    ]);
+    expect(pendingSize).toBe(1);
+    expect(buffer.pendingSize()).toBe(1);
+
+    vi.advanceTimersByTime(500);
+    expect(flushed).toEqual([['line-1', 'line-2', 'line-3'], ['line-4', 'line-5', 'line-6'], ['line-7']]);
+  });
+
   it('supports manual flush and cancels the scheduled timer', () => {
     const flushed: string[][] = [];
     const buffer = new LogBatchBuffer<string>({

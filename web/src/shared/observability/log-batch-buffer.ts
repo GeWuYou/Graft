@@ -50,14 +50,15 @@ export class LogBatchBuffer<T> {
 
     for (const item of items) {
       this.#pending.push(item);
+      if (this.#pending.length >= this.#maxBatchSize) {
+        this.flush();
+      }
     }
 
-    if (this.#pending.length >= this.#maxBatchSize) {
-      this.flush();
-      return this.#pending.length;
+    if (this.#pending.length > 0) {
+      this.#scheduleFlush();
     }
 
-    this.#scheduleFlush();
     return this.#pending.length;
   }
 

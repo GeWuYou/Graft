@@ -521,7 +521,16 @@ async function openRouteAuditLog() {
   const row = rows.value.find((item) => item.id === auditLogId);
   if (row) {
     await openDetailDrawer(row);
+    return;
   }
+
+  await openLogDetailRow(
+    { id: auditLogId },
+    getAuditLogDetail,
+    detailRecord,
+    detailDrawerVisible,
+    reportDetailLoadError,
+  );
 }
 
 async function openDetailDrawer(row: AuditLogListItem) {

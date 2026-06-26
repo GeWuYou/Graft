@@ -75,4 +75,19 @@ describe('createContainerDetailLogViewStore', () => {
     expect(store.version.value).toBe(3);
     expect(store.lines.value).toEqual(['seed-1', 'line-2', 'line-3']);
   });
+
+  it('keeps paused snapshots stable after newer commits arrive', () => {
+    const store = createContainerDetailLogViewStore();
+
+    const initial = createSnapshot(['seed-1']);
+    store.commit(initial);
+    store.pause();
+
+    const pending = createSnapshot(['seed-1', 'line-2']);
+    store.commit(pending);
+
+    expect(store.lines.value).toEqual(['seed-1']);
+    expect(initial.lineView.toArray()).toEqual(['seed-1']);
+    expect(pending.lineView.toArray()).toEqual(['seed-1', 'line-2']);
+  });
 });

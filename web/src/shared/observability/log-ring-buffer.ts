@@ -9,6 +9,43 @@ export type LogRingBufferView<T> = Readonly<{
   toArray: () => readonly T[];
 }>;
 
+/**
+ * 冻结当前环形缓冲快照视图，避免后续写入继续影响既有读取者。
+ *
+ * @param view - 原始 live view
+ * @returns 基于当前内容克隆出的 immutable snapshot view
+ */
+export function cloneLogRingBufferView<T>(view: LogRingBufferView<T>): LogRingBufferView<T> {
+  const entries = view.toArray();
+  const seqs = entries.map((_, index) => view.seqAt(index) ?? null);
+  const version = view.version;
+  const size = view.size;
+  const capacity = view.capacity;
+  const oldestSeq = view.oldestSeq;
+  const newestSeq = view.newestSeq;
+
+  return Object.freeze({
+    version,
+    size,
+    capacity,
+    oldestSeq,
+    newestSeq,
+    at: (index: number) => {
+      if (!Number.isInteger(index) || index < 0 || index >= entries.length) {
+        return undefined;
+      }
+      return entries[index];
+    },
+    seqAt: (index: number) => {
+      if (!Number.isInteger(index) || index < 0 || index >= seqs.length) {
+        return undefined;
+      }
+      return seqs[index] ?? undefined;
+    },
+    toArray: () => entries.slice(),
+  });
+}
+
 export type LogRingBufferAppendResult<T> = Readonly<{
   overwritten: T | undefined;
   overwrittenSeq: number | undefined;

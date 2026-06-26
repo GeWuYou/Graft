@@ -79,44 +79,46 @@ func (s *logTopicStreamer) EnsureTopic(ctx context.Context, topic string, ref Re
 		return realtime.ErrTopicRequired
 	}
 
-	s.mu.Lock()
-	if existing := s.streams[topic]; existing != nil {
-		s.mu.Unlock()
-		return nil
-	}
-	s.mu.Unlock()
-
-	runtime, err := s.runtimeLoader()
-	if err != nil {
-		return err
-	}
-	if _, err := runtime.Detail(ctx, ref); err != nil {
-		return err
-	}
-
 	stream := &logTopicStream{
 		topic: topic,
 		ref:   ref,
 		query: query,
 	}
+
+	s.mu.Lock()
+	if existing := s.streams[topic]; existing != nil {
+		s.mu.Unlock()
+		return nil
+	}
+	s.streams[topic] = stream
+	s.mu.Unlock()
+
+	runtime, err := s.runtimeLoader()
+	if err != nil {
+		s.mu.Lock()
+		delete(s.streams, topic)
+		s.mu.Unlock()
+		return err
+	}
+	if _, err := runtime.Detail(ctx, ref); err != nil {
+		s.mu.Lock()
+		delete(s.streams, topic)
+		s.mu.Unlock()
+		return err
+	}
+
 	unregister, err := s.monitor.RegisterTopicObserver(topic, func(_ string) {
 		s.start(topic)
 	}, func(_ string) {
 		_ = s.stop(context.Background(), topic)
 	})
 	if err != nil {
+		s.mu.Lock()
+		delete(s.streams, topic)
+		s.mu.Unlock()
 		return err
 	}
 	stream.unregisterObserver = unregister
-
-	s.mu.Lock()
-	if existing := s.streams[topic]; existing != nil {
-		s.mu.Unlock()
-		unregister()
-		return nil
-	}
-	s.streams[topic] = stream
-	s.mu.Unlock()
 	return nil
 }
 
@@ -245,12 +247,21 @@ func (s *service) ensureLogTopicStreaming(ctx context.Context, topic string, ref
 	if s.realtimeHub == nil {
 		return errors.New("realtime hub is unavailable")
 	}
-	if s.logTopicStreamer == nil {
-		streamer, err := newLogTopicStreamer(s.realtimeHub, s.logger, s.runtimeForRequest)
+	s.logTopicStreamerMu.Lock()
+	streamer := s.logTopicStreamer
+	if streamer == nil {
+		factory := s.logTopicStreamerFactory
+		if factory == nil {
+			factory = newLogTopicStreamer
+		}
+		var err error
+		streamer, err = factory(s.realtimeHub, s.logger, s.runtimeForRequest)
 		if err != nil {
+			s.logTopicStreamerMu.Unlock()
 			return err
 		}
 		s.logTopicStreamer = streamer
 	}
-	return s.logTopicStreamer.EnsureTopic(ctx, topic, ref, query)
+	s.logTopicStreamerMu.Unlock()
+	return streamer.EnsureTopic(ctx, topic, ref, query)
 }

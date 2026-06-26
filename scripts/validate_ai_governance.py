@@ -312,13 +312,13 @@ def validate_environment_inventory() -> list[Finding]:
     findings: list[Finding] = []
     exact_terms = (
         "eff_u_code:",
-        "Keep eff-u-code as an optional developer-local helper; never treat it as a repository validation gate.",
+        "Keep eff-u-code developer-local only; the repository root package.json wrapper is allowed, but do not add it to server/go.mod, web/package.json, CI, hooks, runtime scripts, or completion gates.",
         "preferred: \"headroom mcp\"",
         ".ai/headroom/memory",
         ".ai/headroom/learn",
         "rtk instruction injection",
         "automatic instructions write",
-        "default_command:",
+        "default_command: \"bun run quality:eff-u-code --\"",
         "instructions_auto_write: \"disabled\"",
     )
     findings.extend(missing_exact_terms(text, TOOLS_AI, "AI environment inventory", exact_terms))
@@ -329,7 +329,7 @@ def validate_environment_inventory() -> list[Finding]:
             "AI environment inventory",
             (
                 ("Headroom CLI and MCP capabilities", (r"ai_headroom:\s*true", r"ai_headroom_mcp:\s*true")),
-                ("eff-u-code optional helper record", (r"ai_tools:", r"eff_u_code:", r"developer-local", r"validation flow|validation gate")),
+                ("eff-u-code optional helper record", (r"ai_tools:", r"eff_u_code:", r"developer-local", r"default_command:\s+\"bun run quality:eff-u-code --\"", r"repository root package\.json wrapper is allowed", r"server/go\.mod", r"web/package\.json", r"validation flow|validation gate")),
                 ("context compression tool selection", (r"context_compression:", r"preferred:\s+\"headroom mcp\"")),
                 ("controlled local Headroom directories", (r"controlled_local_dirs:", r"\.ai/headroom/memory", r"\.ai/headroom/learn")),
                 ("disallowed Headroom automation", (r"disallowed_by_default:", r"rtk instruction injection", r"automatic instructions write")),
@@ -338,6 +338,8 @@ def validate_environment_inventory() -> list[Finding]:
             ),
         )
     )
+    if "do not add it to package manifests" in text:
+        findings.append(Finding(TOOLS_AI, "eff-u-code guardrail is too broad; allow the repository root package.json wrapper and scope the ban to server/go.mod, web/package.json, CI, hooks, runtime scripts, and completion gates"))
     for disallowed in ("headroom wrap codex", "headroom proxy", "wrapper_available:", "proxy_available:"):
         if disallowed in text:
             findings.append(Finding(TOOLS_AI, f"AI environment inventory should keep only MCP entry content, found {disallowed!r}"))

@@ -283,9 +283,9 @@ def build_ai_inventory(raw: dict[str, Any]) -> dict[str, Any]:
                 "installed": has_eff_u_code,
                 "risk_level": "L1",
                 "use_for": "Optional developer-local code quality hotspot inspection outside the formal validation flow.",
-                "default_command": display_path(eff_u_code_path) if has_eff_u_code else "fuck-u-code",
+                "default_command": "bun run quality:eff-u-code --",
                 "version": eff_u_code_version,
-                "guardrail": "Keep eff-u-code developer-local only; do not add it to package manifests, CI, hooks, or completion gates.",
+                "guardrail": "Keep eff-u-code developer-local only; the repository root package.json wrapper is allowed, but do not add it to server/go.mod, web/package.json, CI, hooks, runtime scripts, or completion gates.",
             },
             "headroom": {
                 "installed": has_headroom,

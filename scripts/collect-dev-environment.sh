@@ -124,6 +124,38 @@ headroom_version() {
     "${binary}" --version 2>/dev/null | head -n 1 || printf '%s' "unknown"
 }
 
+eff_u_code_path() {
+    local local_binary="${ROOT_DIR}/node_modules/.bin/fuck-u-code"
+
+    if [[ -e "${local_binary}" ]]; then
+        printf '%s' "${local_binary}"
+    elif command -v fuck-u-code >/dev/null 2>&1; then
+        command -v fuck-u-code
+    else
+        printf '%s' ""
+    fi
+}
+
+eff_u_code_installed() {
+    if [[ -n "$(eff_u_code_path)" ]]; then
+        printf 'true'
+    else
+        printf 'false'
+    fi
+}
+
+eff_u_code_version() {
+    local binary
+
+    binary="$(eff_u_code_path)"
+    if [[ -z "${binary}" ]]; then
+        printf '%s' "not-installed"
+        return
+    fi
+
+    "${binary}" --version 2>/dev/null | head -n 1 || printf '%s' "unknown"
+}
+
 gh_authenticated() {
     if ! command -v gh >/dev/null 2>&1; then
         printf 'false'
@@ -400,10 +432,10 @@ project_tools:
 
 ai_tools:
   eff_u_code:
-    installed: $(command_installed fuck-u-code)
-    version: "$(command_version fuck-u-code)"
-    path: "$(command_path fuck-u-code)"
-    purpose: "Optional developer-local code quality analyzer for manual hotspot inspection."
+    installed: $(eff_u_code_installed)
+    version: "$(eff_u_code_version)"
+    path: "$(eff_u_code_path)"
+    purpose: "Optional developer-local code quality analyzer exposed through the repository root package.json wrapper for manual hotspot inspection."
   headroom:
     installed: $(headroom_installed)
     version: "$(headroom_version)"

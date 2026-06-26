@@ -1,5 +1,5 @@
 schema_version: 1
-generated_at_utc: "2026-06-25T05:02:44Z"
+generated_at_utc: "2026-06-26T02:43:52Z"
 generated_from: ".ai/environment/tools.raw.yaml"
 generator: "scripts/generate-ai-environment.py"
 platform:
@@ -88,9 +88,9 @@ ai_tools:
     installed: true
     risk_level: "L1"
     use_for: "Optional developer-local code quality hotspot inspection outside the formal validation flow."
-    default_command: "/root/.bun/bin/fuck-u-code"
+    default_command: "bun run quality:eff-u-code --"
     version: "2.2.2"
-    guardrail: "Keep eff-u-code developer-local only; do not add it to package manifests, CI, hooks, or completion gates."
+    guardrail: "Keep eff-u-code developer-local only; the repository root package.json wrapper is allowed, but do not add it to server/go.mod, web/package.json, CI, hooks, runtime scripts, or completion gates."
   headroom:
     installed: true
     risk_level: "L1"

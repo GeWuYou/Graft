@@ -1272,7 +1272,11 @@ import {
 } from '../../api/container';
 import ContainerRawJsonPanel from '../../components/ContainerRawJsonPanel.vue';
 import ContainerShellPanel from '../../components/ContainerShellPanel.vue';
-import { buildContainerLogsTopicName } from '../../contract/realtime';
+import {
+  buildContainerLogsTopicName,
+  isContainerLogsTopicForContainer,
+  parseContainerLogsTopicContainerId,
+} from '../../contract/realtime';
 import {
   acquireContainerStatsSubscription,
   clearContainerDetail,
@@ -1506,6 +1510,7 @@ let logsRefreshSeq = 0;
 let logsRealtimeController: RealtimeTopicSocketController | null = null;
 let logsRealtimeTopic = '';
 let logsRealtimeSeeded = false;
+let logsInitialLoadAttempted = false;
 let logsRealtimeBatcher = new ContainerLogRealtimeBatcher({
   lineLimit: DEFAULT_LOG_QUERY.tail,
   onCommit: (snapshot) => {
@@ -2295,9 +2300,11 @@ async function loadLogs() {
   if (!currentContainerId) {
     logViewStore.reset();
     logsRealtimeSeeded = false;
+    logsInitialLoadAttempted = false;
     return;
   }
   const requestSeq = ++logsRefreshSeq;
+  logsInitialLoadAttempted = true;
   logViewStore.setLoading(true);
   logViewStore.setError('');
   try {
@@ -2356,6 +2363,7 @@ function resetDetailState() {
   error.value = '';
   logViewStore.reset();
   logsRealtimeSeeded = false;
+  logsInitialLoadAttempted = false;
   logsRefreshSeq += 1;
   logsRealtimeBatcher.clear();
   refreshingMountKeys.value = new Set();
@@ -2433,7 +2441,7 @@ function syncLogsRealtimeSubscription() {
     return;
   }
 
-  if (!logsRealtimeSeeded && !logsLoading.value) {
+  if (!logsRealtimeSeeded && !logsLoading.value && !logsInitialLoadAttempted) {
     void loadLogs();
     return;
   }
@@ -2463,11 +2471,19 @@ function releaseLogsRealtimeSubscription() {
 }
 
 type ContainerLogsRealtimeMessage = {
+  containerId: string;
   lines: string[];
+  topic: string;
 };
 
 function applyLogsRealtimeMessage(message: ContainerLogsRealtimeMessage) {
   if (!detailPageActive.value || activeTab.value !== 'logs' || !containerId.value) {
+    return;
+  }
+  if (!isContainerLogsTopicForContainer(message.topic, containerId.value)) {
+    return;
+  }
+  if (message.containerId && message.containerId !== containerId.value) {
     return;
   }
 
@@ -2485,8 +2501,16 @@ function parseContainerLogsRealtimeMessage(raw: unknown): ContainerLogsRealtimeM
     return null;
   }
 
+  const topic = readRealtimeLogTopic(eventData);
+  const containerId = readRealtimeLogContainerId(eventData, topic);
+  if (!topic || !containerId) {
+    return null;
+  }
+
   return {
+    containerId,
     lines: candidateLines,
+    topic,
   };
 }
 
@@ -2554,6 +2578,46 @@ function normalizeRealtimeSingleLogLine(value: unknown) {
   }
 
   return typeof value.message === 'string' ? value.message : null;
+}
+
+function readRealtimeLogTopic(value: Record<string, unknown>) {
+  const directTopic = typeof value.topic === 'string' ? value.topic.trim() : '';
+  if (directTopic) {
+    return directTopic;
+  }
+
+  const nestedPayloads = [value.payload, value.snapshot, value.append, value.delta];
+  for (const candidate of nestedPayloads) {
+    if (!isPlainObject(candidate) || typeof candidate.topic !== 'string') {
+      continue;
+    }
+    const nestedTopic = candidate.topic.trim();
+    if (nestedTopic) {
+      return nestedTopic;
+    }
+  }
+
+  return '';
+}
+
+function readRealtimeLogContainerId(value: Record<string, unknown>, topic: string) {
+  const directId = typeof value.id === 'string' ? value.id.trim() : '';
+  if (directId) {
+    return directId;
+  }
+
+  const nestedPayloads = [value.payload, value.snapshot, value.append, value.delta];
+  for (const candidate of nestedPayloads) {
+    if (!isPlainObject(candidate) || typeof candidate.id !== 'string') {
+      continue;
+    }
+    const nestedId = candidate.id.trim();
+    if (nestedId) {
+      return nestedId;
+    }
+  }
+
+  return parseContainerLogsTopicContainerId(topic);
 }
 
 function safeParseJson(raw: string) {

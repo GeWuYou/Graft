@@ -729,7 +729,7 @@ const allColumns = computed<TdBaseTableProps['columns']>(() => [
   {
     title: t('container.list.columns.operation'),
     colKey: 'operation',
-    width: 192,
+    width: 288,
     fixed: 'right',
     align: 'center',
     ellipsis: false,

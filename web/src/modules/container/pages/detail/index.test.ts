@@ -1335,6 +1335,8 @@ describe('container detail page', () => {
 
     logController!.emitMessage({
       data: {
+        topic: 'container.logs:container-1',
+        id: 'container-1',
         lines: ['server ready'],
       },
     });
@@ -1347,6 +1349,52 @@ describe('container detail page', () => {
     await flushPromises();
 
     expect(logController!.close).toHaveBeenCalled();
+  });
+
+  it('ignores log realtime messages whose canonical topic or container id does not match the active container', async () => {
+    vi.useFakeTimers();
+    routeState.route.query.tab = 'logs';
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const logController = realtimeMocks.controllers.find(
+      (controller) => controller.topic === 'container.logs:container-1',
+    );
+    expect(logController).toBeTruthy();
+
+    logController!.emitMessage({
+      data: {
+        topic: 'container.logs:container-2',
+        id: 'container-1',
+        lines: ['wrong-topic-line'],
+      },
+    });
+    logController!.emitMessage({
+      data: {
+        topic: 'container.logs:container-1',
+        id: 'container-2',
+        lines: ['wrong-id-line'],
+      },
+    });
+    vi.advanceTimersByTime(100);
+    await flushPromises();
+
+    const text = wrapper.get('.log-viewer').text();
+    expect(text).not.toContain('wrong-topic-line');
+    expect(text).not.toContain('wrong-id-line');
+  });
+
+  it('does not auto-retry log loading after the initial failure until an explicit refresh path runs', async () => {
+    routeState.route.query.tab = 'logs';
+    apiMocks.getContainerLogs.mockReset();
+    apiMocks.getContainerLogs.mockRejectedValue(new Error('boom'));
+
+    const wrapper = mountPage();
+    await flushPromises();
+    await flushPromises();
+
+    expect(apiMocks.getContainerLogs).toHaveBeenCalledTimes(1);
+    expect(wrapper.text()).toContain('重试');
   });
 
   it('batches multiple realtime log messages into one timed commit window', async () => {
@@ -1363,11 +1411,15 @@ describe('container detail page', () => {
 
     logController!.emitMessage({
       data: {
+        topic: 'container.logs:container-1',
+        id: 'container-1',
         lines: ['line-2'],
       },
     });
     logController!.emitMessage({
       data: {
+        topic: 'container.logs:container-1',
+        id: 'container-1',
         lines: ['line-3'],
       },
     });
@@ -1404,11 +1456,15 @@ describe('container detail page', () => {
 
     logController!.emitMessage({
       data: {
+        topic: 'container.logs:container-1',
+        id: 'container-1',
         lines: ['paused-line-2'],
       },
     });
     logController!.emitMessage({
       data: {
+        topic: 'container.logs:container-1',
+        id: 'container-1',
         lines: ['paused-line-3'],
       },
     });

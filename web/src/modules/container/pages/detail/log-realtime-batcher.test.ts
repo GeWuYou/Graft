@@ -99,4 +99,25 @@ describe('ContainerLogRealtimeBatcher', () => {
 
     vi.useRealTimers();
   });
+
+  it('emits an immutable snapshot for paused consumers', () => {
+    const snapshots: Array<{ lines: readonly string[]; version: number }> = [];
+    const batcher = new ContainerLogRealtimeBatcher({
+      lineLimit: 4,
+      onCommit: (snapshot) => {
+        snapshots.push({
+          lines: snapshot.lineView.toArray(),
+          version: snapshot.version,
+        });
+      },
+    });
+
+    batcher.seed(createSeed({ lines: ['seed-1'] }));
+    batcher.enqueue(['line-2']);
+    batcher.flush();
+
+    expect(snapshots[0]?.lines).toEqual(['seed-1']);
+    expect(snapshots[1]?.lines).toEqual(['seed-1', 'line-2']);
+    expect(snapshots[0]?.version).toBe(1);
+  });
 });

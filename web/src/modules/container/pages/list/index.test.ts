@@ -1142,6 +1142,23 @@ describe('container list page', () => {
     expect(apiMocks.getContainerLogs).not.toHaveBeenCalled();
   });
 
+  it('reserves enough operation column width for the explicit audit action button', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const columns = JSON.parse(wrapper.get('[data-testid="container-table"]').attributes('data-columns')) as Array<{
+      colKey: string;
+      minWidth: number | null;
+      width: number | null;
+    }>;
+    const operationColumn = columns.find((column) => column.colKey === 'operation');
+
+    expect(operationColumn).toMatchObject({
+      colKey: 'operation',
+      width: 288,
+    });
+  });
+
   it('uses optional column settings without showing started time and restart policy by default', async () => {
     const wrapper = mountPage();
     await flushPromises();
@@ -2104,6 +2121,15 @@ function mountPage(component: object = ContainerListPage) {
                 {
                   'data-column-keys': JSON.stringify(
                     (props.columns as Array<{ colKey: string }> | undefined)?.map((column) => column.colKey) ?? [],
+                  ),
+                  'data-columns': JSON.stringify(
+                    (props.columns as Array<{ colKey: string; width?: number; minWidth?: number }> | undefined)?.map(
+                      (column) => ({
+                        colKey: column.colKey,
+                        minWidth: column.minWidth ?? null,
+                        width: column.width ?? null,
+                      }),
+                    ) ?? [],
                   ),
                   'data-size': props.size,
                   'data-selected-row-keys': JSON.stringify(props.selectedRowKeys ?? []),

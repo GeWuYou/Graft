@@ -1,5 +1,5 @@
 schema_version: 1
-generated_at_utc: "2026-06-25T05:02:40Z"
+generated_at_utc: "2026-06-26T02:43:26Z"
 generator: "scripts/collect-dev-environment.sh"
 
 platform:
@@ -91,8 +91,8 @@ ai_tools:
   eff_u_code:
     installed: true
     version: "2.2.2"
-    path: "/root/.bun/bin/fuck-u-code"
-    purpose: "Optional developer-local code quality analyzer for manual hotspot inspection."
+    path: "/home/gewuyou/project/go/Graft-wt/feat/wt-audit-plugin-mvp/node_modules/.bin/fuck-u-code"
+    purpose: "Optional developer-local code quality analyzer exposed through the repository root package.json wrapper for manual hotspot inspection."
   headroom:
     installed: true
     version: "headroom, version 0.24.0"

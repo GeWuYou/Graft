@@ -97,6 +97,7 @@ const dragStartY = ref(0);
 const dragStartHeight = ref(0);
 const storedBodyOverflow = ref('');
 const storedHtmlOverflow = ref('');
+const hasLockedDocumentOverflow = ref(false);
 let removeResizeListeners: (() => void) | null = null;
 
 const showHeaderBar = computed(() => Boolean(slots.header || slots['header-actions']) || true);
@@ -121,15 +122,18 @@ watch(isFullscreen, (fullscreen) => {
   }
 
   if (fullscreen) {
+    if (hasLockedDocumentOverflow.value) {
+      return;
+    }
     storedBodyOverflow.value = document.body.style.overflow;
     storedHtmlOverflow.value = document.documentElement.style.overflow;
     document.body.style.overflow = 'hidden';
     document.documentElement.style.overflow = 'hidden';
+    hasLockedDocumentOverflow.value = true;
     return;
   }
 
-  document.body.style.overflow = storedBodyOverflow.value;
-  document.documentElement.style.overflow = storedHtmlOverflow.value;
+  restoreDocumentOverflow();
 });
 
 onMounted(() => {
@@ -148,10 +152,7 @@ onBeforeUnmount(() => {
     window.removeEventListener('keydown', handleWindowKeydown);
   }
   stopResize();
-  if (typeof document !== 'undefined') {
-    document.body.style.overflow = storedBodyOverflow.value;
-    document.documentElement.style.overflow = storedHtmlOverflow.value;
-  }
+  restoreDocumentOverflow();
 });
 
 function resolveInitialHeight() {
@@ -167,7 +168,12 @@ function readStoredHeight() {
   if (typeof window === 'undefined') {
     return null;
   }
-  const raw = window.localStorage.getItem(props.storageKey);
+  let raw: string | null = null;
+  try {
+    raw = window.localStorage.getItem(props.storageKey);
+  } catch {
+    return null;
+  }
   if (!raw) {
     return null;
   }
@@ -182,7 +188,11 @@ function writeStoredHeight(value: number) {
   if (typeof window === 'undefined') {
     return;
   }
-  window.localStorage.setItem(props.storageKey, String(clampHeight(value)));
+  try {
+    window.localStorage.setItem(props.storageKey, String(clampHeight(value)));
+  } catch {
+    return;
+  }
 }
 
 function resolvePreferredHeight() {
@@ -261,6 +271,16 @@ function startResize(event: PointerEvent) {
 function stopResize() {
   removeResizeListeners?.();
   removeResizeListeners = null;
+}
+
+function restoreDocumentOverflow() {
+  if (typeof document === 'undefined' || !hasLockedDocumentOverflow.value) {
+    return;
+  }
+
+  document.body.style.overflow = storedBodyOverflow.value;
+  document.documentElement.style.overflow = storedHtmlOverflow.value;
+  hasLockedDocumentOverflow.value = false;
 }
 </script>
 <style scoped lang="less">

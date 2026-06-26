@@ -57,7 +57,9 @@ type service struct {
 	topicIssuers            realtime.TopicIssuerRegistry
 	authorizer              moduleapi.Authorizer
 	statsCollector          *statsCollector
+	logTopicStreamerMu      sync.Mutex
 	logTopicStreamer        *logTopicStreamer
+	logTopicStreamerFactory func(realtime.Hub, *zap.Logger, func() (Runtime, error)) (*logTopicStreamer, error)
 }
 
 type containerServiceOptions struct {
@@ -83,6 +85,7 @@ type containerServiceOptions struct {
 	realtimeHub                          realtime.Hub
 	topicIssuers                         realtime.TopicIssuerRegistry
 	authorizer                           moduleapi.Authorizer
+	logTopicStreamerFactory              func(realtime.Hub, *zap.Logger, func() (Runtime, error)) (*logTopicStreamer, error)
 }
 
 // newContainerService 根据模块上下文初始化容器服务，并解析运行时、实时订阅和鉴权依赖。
@@ -184,6 +187,7 @@ func newService(options containerServiceOptions) (*service, error) {
 		realtimeHub:             options.realtimeHub,
 		topicIssuers:            options.topicIssuers,
 		authorizer:              options.authorizer,
+		logTopicStreamerFactory: options.logTopicStreamerFactory,
 	}, nil
 }
 
@@ -229,11 +233,14 @@ func (s *service) Close() error {
 		return nil
 	}
 	var closeErr error
-	if s.logTopicStreamer != nil {
-		if err := s.logTopicStreamer.Close(context.Background()); err != nil {
+	s.logTopicStreamerMu.Lock()
+	logTopicStreamer := s.logTopicStreamer
+	s.logTopicStreamer = nil
+	s.logTopicStreamerMu.Unlock()
+	if logTopicStreamer != nil {
+		if err := logTopicStreamer.Close(context.Background()); err != nil {
 			closeErr = errors.Join(closeErr, err)
 		}
-		s.logTopicStreamer = nil
 	}
 	if s.statsCollector != nil {
 		if err := s.statsCollector.Stop(context.Background()); err != nil {
@@ -573,7 +580,6 @@ func actionAuditOrchestrator(detail Detail, detailErr error) OrchestratorInfo {
 }
 
 // effectiveActionAuditOrchestratorType 返回用于动作审计的编排器类型；当获取容器详情失败时返回未知类型。
-```
 func effectiveActionAuditOrchestratorType(orchestrator OrchestratorInfo, detailErr error) string {
 	if detailErr != nil {
 		return containerOrchestratorUnknown
@@ -595,8 +601,7 @@ func blockedActionAuditResult(ref Ref, detail Detail, action string, orchestrato
 }
 
 // shouldBackfillActionAuditOrchestrator 判断是否需要回填动作审计中的编排器信息。
-// 当未返回详情错误且编排器信息为空时，返回 true。
-///** But Go comments must start with function name. Need valid comment. Use two lines starting with name.**
+// 当详情读取成功但当前编排器字段仍全部为空时，返回 true。
 func shouldBackfillActionAuditOrchestrator(orchestrator OrchestratorInfo, detailErr error) bool {
 	if detailErr != nil {
 		return false

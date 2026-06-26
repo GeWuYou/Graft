@@ -653,7 +653,8 @@ const visibleRange = computed(() => {
 
   const topBoundary = Math.max(0, viewportScrollTop.value - DEFAULT_VIRTUAL_OVERSCAN_PX);
   const bottomBoundary = viewportScrollTop.value + viewportHeight.value + DEFAULT_VIRTUAL_OVERSCAN_PX;
-  const start = findFirstEndAfter(virtualMetrics.value.ends, topBoundary);
+  const rawStart = findFirstEndAfter(virtualMetrics.value.ends, topBoundary);
+  const start = Math.min(rawStart, Math.max(0, totalLines - 1));
   const end = Math.max(
     start + 1,
     Math.min(totalLines, findFirstOffsetAtOrAfter(virtualMetrics.value.offsets, bottomBoundary) + 1),

@@ -60,7 +60,7 @@ These tools are local-only convenience checks:
 
 - they do not enter the formal repository validation flow
 - they do not change `graft validate backend` or `bun run check`
-- they must not be introduced as runtime, CI, hook, or package-manifest dependencies
+- the repository root package.json wrapper may exist for local entrypoint consistency, but they must not be introduced into server/go.mod, web/package.json, runtime scripts, CI, hooks, or deployment flows
 
 ## Headroom
 

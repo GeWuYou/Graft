@@ -1,4 +1,4 @@
-import { LogBatchBuffer, LogRingBuffer, type LogRingBufferView } from '@/shared/observability';
+import { cloneLogRingBufferView, LogBatchBuffer, LogRingBuffer, type LogRingBufferView } from '@/shared/observability';
 
 import type { ContainerLogResponse } from '../../types/container';
 
@@ -131,7 +131,7 @@ export class ContainerLogRealtimeBatcher {
       return;
     }
 
-    const lineView = this.#lineBuffer.snapshot();
+    const lineView = cloneLogRingBufferView(this.#lineBuffer.snapshot());
 
     this.#onCommit(
       Object.freeze({
