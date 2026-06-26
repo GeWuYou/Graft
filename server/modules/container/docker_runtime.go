@@ -1404,10 +1404,14 @@ func (e *dockerLogChunkEmitter) emitChunk(stream string, line string) error {
 }
 
 func logEntryFromChunk(chunk LogChunk) LogEntry {
+	occurredAt := chunk.Timestamp.UTC()
+	if occurredAt.IsZero() {
+		occurredAt = time.Now().UTC()
+	}
 	return LogEntry{
 		Line:       chunk.Line,
 		Stream:     strings.TrimSpace(chunk.Stream),
-		OccurredAt: chunk.Timestamp.UTC(),
+		OccurredAt: occurredAt,
 	}
 }
 

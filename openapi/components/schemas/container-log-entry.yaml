@@ -16,4 +16,4 @@ properties:
   occurred_at:
     type: string
     format: date-time
-    description: Canonical UTC occurrence time for the log entry.
+    description: Canonical UTC occurrence time for the log entry, using the runtime timestamp when available and server receive time otherwise.

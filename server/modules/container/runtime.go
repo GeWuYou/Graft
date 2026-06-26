@@ -216,9 +216,9 @@ type LogChunk struct {
 // LogEntry is the canonical structured container log authority shared by
 // bounded snapshots and incremental realtime delivery.
 type LogEntry struct {
-	Line       string
-	Stream     string
-	OccurredAt time.Time
+	Line       string    `json:"line"`
+	Stream     string    `json:"stream"`
+	OccurredAt time.Time `json:"occurred_at"`
 }
 
 // RuntimeInfo is sanitized runtime metadata exposed by the container API.

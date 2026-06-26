@@ -1,6 +1,7 @@
 import { mount } from '@vue/test-utils';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, nextTick } from 'vue';
+import { createI18n } from 'vue-i18n';
 
 import LogViewer from './LogViewer.vue';
 
@@ -32,6 +33,7 @@ const labels = {
   detailTitleLabel: '日志详情',
   downloadLabel: '下载',
   emptyLabel: '暂无日志',
+  emptyDescriptionLabel: '等待容器输出...',
   fullscreenLabel: '全屏',
   exitFullscreenLabel: '退出全屏',
   importantFieldsLabel: '关键字段',
@@ -39,8 +41,8 @@ const labels = {
   levelFilterLabel: '级别',
   levelLabel: '级别',
   matchCountLabel: '{count} 个匹配',
-  messageLabel: '完整消息',
-  metadataLabel: 'Metadata',
+  messageLabel: '日志内容',
+  metadataLabel: '元数据',
   operationLabel: '操作',
   pauseLabel: '暂停',
   rawLabel: '原始日志',
@@ -49,10 +51,10 @@ const labels = {
   resumeLabel: '继续',
   retryLabel: '重试',
   searchPlaceholder: '搜索日志内容',
+  stderrLabel: 'STDERR',
+  stdoutLabel: 'STDOUT',
+  streamLabel: '输出流',
   sourceLabel: '来源',
-  stderrLabel: 'stderr',
-  stdoutLabel: 'stdout',
-  streamLabel: '流',
   timeLabel: '时间',
   truncatedLabel: '日志已截断',
   viewDetailLabel: '查看详情',
@@ -72,7 +74,7 @@ describe('LogViewer', () => {
         ...labels,
         entries: createEntries(2),
       },
-      global: { components: tdesignComponents },
+      global: { components: tdesignComponents, plugins: [createTestI18n()] },
     });
 
     expect(wrapper.find('.log-viewer__toolbar-left').text()).toContain('清空');
@@ -83,11 +85,13 @@ describe('LogViewer', () => {
     expect(wrapper.find('.log-viewer__toolbar-right').text()).toContain('自动滚动');
     expect(wrapper.find('.log-viewer__toolbar-right').text()).toContain('暂停');
     expect(wrapper.find('.log-viewer__header-row').text()).toContain('时间');
-    expect(wrapper.find('.log-viewer__header-row').text()).toContain('流');
-    expect(wrapper.find('.log-viewer__header-row').text()).toContain('完整消息');
+    expect(wrapper.find('.log-viewer__header-row').text()).toContain('输出流');
+    expect(wrapper.find('.log-viewer__header-row').text()).toContain('日志内容');
+    expect(wrapper.find('.log-viewer__header-row').text()).not.toContain('来源');
+    expect(wrapper.find('.log-viewer__header-row').text()).not.toContain('#');
   });
 
-  it('renders structured stream and source columns', () => {
+  it('renders structured stream styling without a source column', () => {
     const wrapper = mount(LogViewer, {
       props: {
         ...labels,
@@ -99,13 +103,12 @@ describe('LogViewer', () => {
           ),
         ],
       },
-      global: { components: tdesignComponents },
+      global: { components: tdesignComponents, plugins: [createTestI18n()] },
     });
 
     const line = wrapper.find('.log-viewer__line');
-    expect(line.find('.log-viewer__stream-cell').text()).toContain('stderr');
-    expect(line.find('.log-viewer__source-cell').text()).toContain('pricing_service.go:461');
-    expect(wrapper.find('[data-tooltip="service/deep/path/pricing_service.go:461"]').exists()).toBe(true);
+    expect(line.find('.log-viewer__stream-cell').text()).toContain('STDERR');
+    expect(line.text()).not.toContain('pricing_service.go:461');
   });
 
   it('shows search highlight and keeps tail line numbers stable after appends', async () => {
@@ -116,21 +119,17 @@ describe('LogViewer', () => {
         lineLimit: 3,
         contentVersion: 3,
       },
-      global: { components: tdesignComponents },
+      global: { components: tdesignComponents, plugins: [createTestI18n()] },
     });
 
     await wrapper.find('input[type="search"]').setValue('request');
 
     expect(wrapper.text()).toContain('6 个匹配');
-    expect(wrapper.findAll('.log-viewer__line-number').map((node) => node.text())).toEqual(['1', '2', '3']);
-
     await wrapper.setProps({
       entries: createEntries(4),
       contentVersion: 4,
     });
     await nextTick();
-
-    expect(wrapper.findAll('.log-viewer__line-number').map((node) => node.text())).toEqual(['2', '3', '4']);
   });
 
   it('emits clear pause resume and reconnect actions through the rebuilt toolbar', async () => {
@@ -141,7 +140,7 @@ describe('LogViewer', () => {
         paused: false,
         showReconnect: true,
       },
-      global: { components: tdesignComponents },
+      global: { components: tdesignComponents, plugins: [createTestI18n()] },
     });
 
     await wrapper.get('[data-testid="log-viewer-clear"]').trigger('click');
@@ -169,16 +168,16 @@ describe('LogViewer', () => {
           ),
         ],
       },
-      global: { components: tdesignComponents },
+      global: { components: tdesignComponents, plugins: [createTestI18n()] },
     });
 
     await wrapper.find('.log-viewer__icon-action').trigger('click');
 
     expect(wrapper.find('.log-viewer__summary-title').text()).toContain('ERROR');
-    expect(wrapper.find('.log-viewer__summary-title').text()).toContain('stderr');
+    expect(wrapper.find('.log-viewer__summary-title').text()).toContain('STDERR');
     expect(wrapper.find('.log-viewer__field-chips').text()).toContain('request_id=abc');
-    expect(wrapper.find('.log-viewer__basic').text()).toContain('流');
-    expect(wrapper.find('.log-viewer__basic').text()).toContain('stderr');
+    expect(wrapper.find('.log-viewer__basic').text()).toContain('输出流');
+    expect(wrapper.find('.log-viewer__basic').text()).toContain('STDERR');
   });
 
   it('shows jump-bottom only when the viewport is no longer pinned', async () => {
@@ -189,7 +188,7 @@ describe('LogViewer', () => {
         entries: createEntries(40),
         contentVersion: 40,
       },
-      global: { components: tdesignComponents },
+      global: { components: tdesignComponents, plugins: [createTestI18n()] },
     });
 
     const viewport = wrapper.get('.log-viewer__viewport').element as HTMLDivElement;
@@ -202,6 +201,54 @@ describe('LogViewer', () => {
 
     expect(wrapper.text()).toContain('跳至底部');
     wrapper.unmount();
+  });
+
+  it('auto-scrolls to the bottom on the first non-empty render by default', async () => {
+    const wrapper = mount(LogViewer, {
+      attachTo: document.body,
+      props: {
+        ...labels,
+        entries: [],
+        contentVersion: 0,
+      },
+      global: { components: tdesignComponents, plugins: [createTestI18n()] },
+    });
+
+    const viewport = wrapper.get('.log-viewer__viewport').element as HTMLDivElement;
+    let internalScrollTop = 0;
+    Object.defineProperty(viewport, 'clientHeight', { configurable: true, value: 240 });
+    Object.defineProperty(viewport, 'scrollHeight', { configurable: true, get: () => 2000 });
+    Object.defineProperty(viewport, 'scrollTop', {
+      configurable: true,
+      get: () => internalScrollTop,
+      set: (value: number) => {
+        internalScrollTop = value;
+      },
+    });
+
+    await wrapper.setProps({
+      entries: createEntries(40),
+      contentVersion: 40,
+    });
+    await nextTick();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await nextTick();
+
+    expect(internalScrollTop).toBe(2000);
+    wrapper.unmount();
+  });
+
+  it('renders a titled empty state with description', () => {
+    const wrapper = mount(LogViewer, {
+      props: {
+        ...labels,
+        entries: [],
+      },
+      global: { components: tdesignComponents, plugins: [createTestI18n()] },
+    });
+
+    expect(wrapper.text()).toContain('暂无日志');
+    expect(wrapper.text()).toContain('等待容器输出...');
   });
 });
 
@@ -225,8 +272,8 @@ const tdesignComponents = {
         ]),
   }),
   TEmpty: defineComponent({
-    props: ['description'],
-    setup: (props) => () => h('div', String(props.description ?? '')),
+    props: ['title', 'description'],
+    setup: (props) => () => h('div', [String(props.title ?? ''), String(props.description ?? '')]),
   }),
   ContentViewerFrame: defineComponent({
     setup(_, { slots }) {
@@ -301,6 +348,16 @@ const tdesignComponents = {
         h('span', { 'data-tooltip': props.content }, slots.default?.()),
   }),
 };
+
+function createTestI18n() {
+  return createI18n({
+    legacy: false,
+    locale: 'zh-CN',
+    messages: {
+      'zh-CN': {},
+    },
+  });
+}
 
 function createEntry(line: string, stream: 'stdout' | 'stderr' = 'stdout', occurredAt = '2026-06-17T06:31:40+08:00') {
   return {

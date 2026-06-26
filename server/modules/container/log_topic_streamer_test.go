@@ -2,6 +2,7 @@ package container
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"testing"
 	"time"
@@ -59,6 +60,44 @@ func TestLogTopicStreamerPublishesIncrementalLogEventsForActiveTopic(t *testing.
 
 	if err := streamer.Close(context.Background()); err != nil {
 		t.Fatalf("close streamer: %v", err)
+	}
+}
+
+func TestContainerLogPublishedUsesStableLogEntryJSONShape(t *testing.T) {
+	t.Parallel()
+
+	payload := containerLogPublished{
+		Topic: "container.logs:web",
+		ID:    "canonical-web",
+		Entry: LogEntry{
+			Line:       "line-1",
+			Stream:     "stdout",
+			OccurredAt: time.Date(2026, 6, 26, 10, 0, 0, 0, time.UTC),
+		},
+	}
+
+	encoded, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+
+	var decoded map[string]any
+	if err := json.Unmarshal(encoded, &decoded); err != nil {
+		t.Fatalf("unmarshal payload: %v", err)
+	}
+
+	entry, ok := decoded["entry"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected entry object, got %#v", decoded["entry"])
+	}
+	if _, exists := entry["Line"]; exists {
+		t.Fatalf("expected stable json field names, got %#v", entry)
+	}
+	if entry["line"] != "line-1" || entry["stream"] != "stdout" {
+		t.Fatalf("expected stable line/stream fields, got %#v", entry)
+	}
+	if _, exists := entry["occurred_at"]; !exists {
+		t.Fatalf("expected occurred_at field, got %#v", entry)
 	}
 }
 

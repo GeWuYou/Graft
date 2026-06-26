@@ -83,7 +83,8 @@ export interface TTabRouterType {
   tabRouterList: TRouterInfo[];
   closedTabStack: TRouterInfo[];
   activeTabKey: string;
-  isRefreshing: boolean;
+  refreshingTabKey?: string;
+  refreshNonceByTabKey: Record<string, number>;
   pageSnapshots: Record<string, TabPageSnapshot>;
 }
 

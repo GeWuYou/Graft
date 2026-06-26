@@ -32,13 +32,16 @@ describe('useTabsRouterStore', () => {
       },
     });
 
-    tabsRouterStore.startTabRefresh(1);
+    tabsRouterStore.startTabRefresh('/users');
     tabsRouterStore.setPageSnapshot('/users', { filters: { keyword: 'alice' } });
     expect(tabsRouterStore.refreshing).toBe(true);
+    expect(tabsRouterStore.refreshingTabKey).toBe('/users');
+    expect(tabsRouterStore.refreshNonceByTabKey['/users']).toBe(1);
     expect(tabsRouterStore.tabRouters[1]?.isAlive).toBe(false);
 
-    tabsRouterStore.finishTabRefresh(1);
+    tabsRouterStore.finishTabRefresh('/users');
     expect(tabsRouterStore.refreshing).toBe(false);
+    expect(tabsRouterStore.refreshingTabKey).toBeUndefined();
     expect(tabsRouterStore.tabRouters[1]?.isAlive).toBe(true);
   });
 
@@ -52,7 +55,7 @@ describe('useTabsRouterStore', () => {
     });
     tabsRouterStore.setPageSnapshot('/users', { filters: { keyword: 'alice' } });
 
-    tabsRouterStore.startTabRefresh(1);
+    tabsRouterStore.startTabRefresh('/users');
 
     expect(tabsRouterStore.getPageSnapshot('/users')).toBeUndefined();
   });
@@ -68,14 +71,32 @@ describe('useTabsRouterStore', () => {
       },
     });
 
-    tabsRouterStore.startTabRefresh(1);
+    tabsRouterStore.startTabRefresh('/users');
     expect(tabsRouterStore.refreshing).toBe(true);
     expect(tabsRouterStore.tabRouters[1]?.isAlive).toBe(false);
 
     tabsRouterStore.healPersistedState();
     expect(tabsRouterStore.refreshing).toBe(false);
+    expect(tabsRouterStore.refreshingTabKey).toBeUndefined();
     expect(tabsRouterStore.tabRouters[0]?.isAlive).toBe(true);
     expect(tabsRouterStore.tabRouters[1]?.isAlive).toBe(true);
+  });
+
+  it('drops refresh nonce for tabs removed from the router list', () => {
+    const tabsRouterStore = useTabsRouterStore();
+
+    tabsRouterStore.appendTabRouterList({
+      tabKey: '/users',
+      path: '/users',
+      name: 'UserList',
+    });
+
+    tabsRouterStore.startTabRefresh('/users');
+    tabsRouterStore.subtractCurrentTabRouter({ tabKey: '/users', path: '', routeIdx: 1 });
+    tabsRouterStore.healPersistedState();
+
+    expect(tabsRouterStore.refreshNonceByTabKey['/users']).toBeUndefined();
+    expect(tabsRouterStore.refreshingTabKey).toBeUndefined();
   });
 
   it('heals an empty persisted tab list back to home', () => {

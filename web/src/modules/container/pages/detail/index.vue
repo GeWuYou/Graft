@@ -213,47 +213,6 @@
           </t-card>
         </section>
 
-        <div
-          v-if="activeTab !== 'logs'"
-          class="container-detail-realtime-row"
-          data-testid="container-detail-realtime-row"
-        >
-          <t-tooltip :content="t('container.detail.refreshTooltip')">
-            <div class="container-detail-realtime-bar" data-testid="container-detail-realtime-bar">
-              <span class="container-detail-realtime-bar__label">{{ t('container.detail.realtime.label') }}</span>
-              <t-tag
-                :theme="realtimeStatusTheme"
-                variant="light-outline"
-                data-testid="container-detail-realtime-status"
-              >
-                {{ realtimeStatusLabel }}
-              </t-tag>
-              <span class="container-detail-realtime-bar__hint">{{ realtimeStatusHint }}</span>
-              <div class="container-detail-realtime-bar__actions">
-                <t-button
-                  size="small"
-                  theme="default"
-                  variant="outline"
-                  data-testid="container-detail-realtime-toggle"
-                  @click="toggleRealtimeSubscription"
-                >
-                  {{ realtimeToggleLabel }}
-                </t-button>
-                <t-button
-                  size="small"
-                  theme="primary"
-                  variant="outline"
-                  :loading="detailRefreshing"
-                  data-refresh-now="true"
-                  @click="handleManualRefresh"
-                >
-                  {{ t('container.detail.refreshNow') }}
-                </t-button>
-              </div>
-            </div>
-          </t-tooltip>
-        </div>
-
         <t-card class="container-detail-tabs-card" :bordered="true">
           <t-tabs v-model:value="activeTab" theme="card" @change="handleTabChange">
             <t-tab-panel value="overview" :label="t('container.detail.tabs.overview')" :destroy-on-hide="false">
@@ -484,6 +443,7 @@
                   :all-levels-label="t('container.detail.logs.allLevels')"
                   :match-count-label="t('container.detail.logs.matchCount')"
                   :empty-label="t('container.detail.logs.empty')"
+                  :empty-description-label="t('container.detail.logs.emptyDescription')"
                   :truncated-label="t('container.detail.logs.truncated')"
                   :detail-title-label="t('container.detail.logs.detailTitle')"
                   :important-fields-label="t('container.detail.logs.importantFields')"
@@ -775,10 +735,11 @@
                       </span>
                     </t-tooltip>
                     <t-button
+                      data-testid="detail-refresh"
                       theme="default"
                       variant="outline"
                       :loading="detailRefreshing"
-                      @click="refreshContainerDetail"
+                      @click="handleManualRefresh"
                     >
                       <template #icon>
                         <t-icon name="refresh" />
@@ -1289,7 +1250,6 @@ import {
   selectContainerDetailView,
   selectContainerStatsChangeState,
   selectContainerStatsHistory,
-  selectContainerStatsRealtimeState,
 } from '../../shared/stats-manager';
 import { metricChangedClass, metricProgressStatus } from '../../shared/stats-visual-state';
 import type {
@@ -1500,7 +1460,6 @@ const activeTab = ref<DetailTab>(normalizeTab(route.query.tab));
 const environmentKeyword = ref('');
 const environmentPolicyFilter = ref<EnvironmentPolicyFilter>('all');
 const refreshingMountKeys = ref<Set<string>>(new Set());
-const realtimeEnabled = ref(true);
 const activeRealtimeSubscriptionId = ref('');
 const detailPageActive = ref(false);
 const logViewStore = createContainerDetailLogViewStore();
@@ -1841,7 +1800,6 @@ const resourceMetrics = computed(() => {
     status,
   };
 });
-const realtimeSocketState = computed(() => selectContainerStatsRealtimeState(currentDetailStatsKey.value));
 const resourceChange = computed(() => {
   const change = selectContainerStatsChangeState(currentDetailStatsKey.value);
   return {
@@ -1851,42 +1809,6 @@ const resourceChange = computed(() => {
     memoryStatus: metricProgressStatus(change.memory),
   };
 });
-const realtimeStatusTheme = computed(() => {
-  if (!realtimeEnabled.value) {
-    return 'default';
-  }
-  if (realtimeSocketState.value === 'error') {
-    return 'danger';
-  }
-  if (realtimeSocketState.value === 'connecting' || realtimeSocketState.value === 'closed') {
-    return 'warning';
-  }
-  if (realtimeSocketState.value === 'open') {
-    return 'success';
-  }
-  return 'default';
-});
-const realtimeStatusLabel = computed(() => {
-  if (!realtimeEnabled.value) {
-    return t('container.detail.realtime.paused');
-  }
-  if (realtimeSocketState.value === 'error') {
-    return t('container.detail.realtime.degraded');
-  }
-  if (realtimeSocketState.value === 'connecting' || realtimeSocketState.value === 'closed') {
-    return t('container.detail.realtime.connecting');
-  }
-  if (realtimeSocketState.value === 'open') {
-    return t('container.detail.realtime.live');
-  }
-  return t('container.detail.realtime.idle');
-});
-const realtimeStatusHint = computed(() =>
-  realtimeEnabled.value ? t('container.detail.realtime.hint') : t('container.detail.realtime.pausedHint'),
-);
-const realtimeToggleLabel = computed(() =>
-  realtimeEnabled.value ? t('container.detail.realtime.pause') : t('container.detail.realtime.resume'),
-);
 const resourceHistoryPoints = computed<ContainerStatsHistoryPoint[]>(() => {
   const containerId = safeDetail.value?.id;
   if (!containerId) {
@@ -2418,17 +2340,6 @@ function resetDetailState() {
   updateCurrentTabTitle(fallbackTitle.value);
 }
 
-function toggleRealtimeSubscription() {
-  realtimeEnabled.value = !realtimeEnabled.value;
-  if (!realtimeEnabled.value) {
-    releaseCurrentRealtimeSubscription();
-    return;
-  }
-  if (safeDetail.value?.id) {
-    syncRealtimeSubscription(safeDetail.value.id);
-  }
-}
-
 function toggleLogsPause() {
   if (logsPaused.value) {
     logViewStore.resume();
@@ -2447,7 +2358,7 @@ function reconnectLogsRealtime() {
 }
 
 function syncRealtimeSubscription(nextContainerId: string) {
-  if (!detailPageActive.value || !realtimeEnabled.value) {
+  if (!detailPageActive.value) {
     releaseCurrentRealtimeSubscription();
     return;
   }

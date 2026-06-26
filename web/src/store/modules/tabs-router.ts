@@ -37,7 +37,8 @@ function createInitialState(): TTabRouterType {
     tabRouterList: homeRoute.map((route) => ({ ...route })),
     closedTabStack: [],
     activeTabKey: '/',
-    isRefreshing: false,
+    refreshingTabKey: undefined,
+    refreshNonceByTabKey: {},
     pageSnapshots: {},
   };
 }
@@ -218,35 +219,42 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
     tabRouters: (state: TTabRouterType) => state.tabRouterList,
     closedTabs: (state: TTabRouterType) => state.closedTabStack,
     canReopenClosedTab: (state: TTabRouterType) => state.closedTabStack.length > 0,
-    refreshing: (state: TTabRouterType) => state.isRefreshing,
+    refreshing: (state: TTabRouterType) => Boolean(state.refreshingTabKey),
   },
   actions: {
-    startTabRefresh(routeIdx: number) {
-      const route = this.tabRouters[routeIdx];
+    startTabRefresh(tabKey: string) {
+      const route = this.tabRouters.find((item) => getTabKey(item) === tabKey);
       if (!route) {
-        this.isRefreshing = false;
+        this.refreshingTabKey = undefined;
         return;
       }
 
-      this.isRefreshing = true;
+      this.refreshingTabKey = tabKey;
       route.isAlive = false;
-      this.clearPageSnapshot(getTabKey(route));
+      this.refreshNonceByTabKey = {
+        ...this.refreshNonceByTabKey,
+        [tabKey]: (this.refreshNonceByTabKey[tabKey] ?? 0) + 1,
+      };
+      this.clearPageSnapshot(tabKey);
     },
-    finishTabRefresh(routeIdx: number) {
-      const route = this.tabRouters[routeIdx];
+    finishTabRefresh(tabKey: string) {
+      const route = this.tabRouters.find((item) => getTabKey(item) === tabKey);
       if (route) {
         route.isAlive = shouldKeepTabAlive(route);
       }
 
-      this.isRefreshing = false;
+      if (this.refreshingTabKey === tabKey) {
+        this.refreshingTabKey = undefined;
+      }
     },
     healPersistedState() {
-      this.isRefreshing = false;
+      this.refreshingTabKey = undefined;
       this.tabRouterList = ensureNonEmptyTabs(this.tabRouters);
       if (!this.tabRouterList.some((route) => getTabKey(route) === this.activeTabKey)) {
         this.activeTabKey = getTabKey(this.tabRouterList[0]);
       }
       this.clearSnapshotsForMissingTabs();
+      this.clearRefreshNonceForMissingTabs();
       this.syncPinnedTabsStorage();
     },
     healPersistedRoutes(router: Router) {
@@ -260,6 +268,7 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
       }
       this.closedTabStack = this.closedTabStack.filter(canKeepRoute).slice(-MAX_CLOSED_TABS).map(cloneTab);
       this.clearSnapshotsForMissingTabs();
+      this.clearRefreshNonceForMissingTabs();
       this.syncPinnedTabsStorage();
     },
     // 处理新增
@@ -383,6 +392,8 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
     removeTabRouterList() {
       this.tabRouterList = [];
       this.closedTabStack = [];
+      this.refreshingTabKey = undefined;
+      this.refreshNonceByTabKey = {};
       this.pageSnapshots = {};
       this.syncPinnedTabsStorage();
     },
@@ -521,6 +532,21 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
       });
 
       this.pageSnapshots = nextSnapshots;
+    },
+    clearRefreshNonceForMissingTabs() {
+      const aliveKeys = new Set(this.tabRouterList.map(getTabKey));
+      const nextNonceByTabKey: Record<string, number> = {};
+
+      Object.entries(this.refreshNonceByTabKey).forEach(([tabKey, nonce]) => {
+        if (aliveKeys.has(tabKey)) {
+          nextNonceByTabKey[tabKey] = nonce;
+        }
+      });
+
+      this.refreshNonceByTabKey = nextNonceByTabKey;
+      if (this.refreshingTabKey && !aliveKeys.has(this.refreshingTabKey)) {
+        this.refreshingTabKey = undefined;
+      }
     },
   },
   persist: {

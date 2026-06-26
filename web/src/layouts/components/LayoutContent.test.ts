@@ -9,10 +9,6 @@ import { LOCALE } from '@/contracts/i18n/locales';
 
 import LayoutContent from './LayoutContent.vue';
 
-const tabRefreshMocks = vi.hoisted(() => ({
-  resolveTabRefreshHandler: vi.fn(),
-}));
-
 const layoutStyleSource = readFileSync(join(process.cwd(), 'src/style/layout.less'), 'utf8');
 
 type DropdownPopupProps = {
@@ -42,7 +38,6 @@ const routerMock = vi.hoisted(() => ({
     value: routeState,
   },
   push: vi.fn(),
-  replace: vi.fn(),
   resolve: vi.fn((target: { path?: string }) => ({
     href: target.path ?? '/',
   })),
@@ -57,6 +52,7 @@ const storeState = vi.hoisted(() => ({
   tabsRouterStore: {
     activeTabKey: '/server/runtime',
     canReopenClosedTab: false,
+    refreshNonceByTabKey: {} as Record<string, number>,
     tabRouters: [] as Array<{
       fullPath?: string;
       isAlive?: boolean;
@@ -112,10 +108,6 @@ vi.mock('@/locales/useLocale', () => ({
 
 vi.mock('@/shared/observability/copy', () => ({
   copyText: vi.fn(),
-}));
-
-vi.mock('@/shared/composables/useTabRefresh', () => ({
-  resolveTabRefreshHandler: tabRefreshMocks.resolveTabRefreshHandler,
 }));
 
 vi.mock('@/store', async () => ({
@@ -347,13 +339,13 @@ describe('LayoutContent', () => {
     routeState.fullPath = '/server/runtime';
     routerMock.currentRoute.value = routeState;
     routerMock.push.mockClear();
-    routerMock.replace.mockClear();
     routerMock.resolve.mockClear();
     storeState.settingStore.isUseTabsRouter = true;
     storeState.settingStore.showBreadcrumb = true;
     storeState.settingStore.showFooter = true;
     storeState.tabsRouterStore.activeTabKey = '/server/runtime';
     storeState.tabsRouterStore.canReopenClosedTab = false;
+    storeState.tabsRouterStore.refreshNonceByTabKey = {};
     storeState.tabsRouterStore.tabRouters = [
       createTab('/', 'RootEntry', true),
       createTab('/server/runtime', 'ServerRuntime'),
@@ -376,8 +368,6 @@ describe('LayoutContent', () => {
     storeState.tabsRouterStore.subtractTabRouterBehind.mockReset();
     storeState.tabsRouterStore.subtractTabRouterOther.mockReset();
     storeState.tabsRouterStore.togglePinnedTab.mockReset();
-    tabRefreshMocks.resolveTabRefreshHandler.mockReset();
-    tabRefreshMocks.resolveTabRefreshHandler.mockReturnValue(undefined);
   });
 
   it('opens the close-all dialog after the tab context menu is closed', async () => {
@@ -558,45 +548,35 @@ describe('LayoutContent', () => {
     expect(wrapper.find('[data-testid="close-all-dialog"]').exists()).toBe(false);
   });
 
-  it('finishes refresh when the custom handler throws synchronously', async () => {
+  it('refreshes the current tab by bumping its refresh state', async () => {
     const wrapper = mountLayoutContent();
-    tabRefreshMocks.resolveTabRefreshHandler.mockReturnValue(() => {
-      throw new Error('sync refresh failed');
-    });
 
     await openTabMenuByLabel(wrapper, 'ServerRuntime');
     await clickRefreshItemForTab(wrapper, 'ServerRuntime');
     await flushPromises();
 
-    expect(storeState.tabsRouterStore.startTabRefresh).toHaveBeenCalledWith(1);
-    expect(storeState.tabsRouterStore.finishTabRefresh).toHaveBeenCalledWith(1);
+    expect(storeState.tabsRouterStore.startTabRefresh).toHaveBeenCalledWith('/server/runtime');
+    expect(storeState.tabsRouterStore.finishTabRefresh).toHaveBeenCalledWith('/server/runtime');
+    expect(routerMock.push).not.toHaveBeenCalledWith({
+      path: '/server/runtime',
+      query: undefined,
+    });
   });
 
-  it('finishes refresh against the current tab index after tabs reorder during async refresh', async () => {
+  it('switches to a non-current tab before refreshing it', async () => {
     const wrapper = mountLayoutContent();
-    let resolveRefresh: (() => void) | undefined;
-    tabRefreshMocks.resolveTabRefreshHandler.mockReturnValue(
-      () =>
-        new Promise<void>((resolve) => {
-          resolveRefresh = resolve;
-        }),
-    );
 
-    await openTabMenuByLabel(wrapper, 'ServerRuntime');
-    await clickRefreshItemForTab(wrapper, 'ServerRuntime');
-
-    expect(storeState.tabsRouterStore.startTabRefresh).toHaveBeenCalledWith(1);
-
-    storeState.tabsRouterStore.tabRouters = [
-      createTab('/', 'RootEntry', true),
-      createTab('/audit/logs', 'AuditLogs'),
-      createTab('/server/runtime', 'ServerRuntime'),
-    ];
-
-    resolveRefresh?.();
+    await openTabMenuByLabel(wrapper, 'AuditLogs');
+    await clickRefreshItemForTab(wrapper, 'AuditLogs');
     await flushPromises();
     await nextTick();
 
-    expect(storeState.tabsRouterStore.finishTabRefresh).toHaveBeenCalledWith(2);
+    expect(storeState.tabsRouterStore.setActiveTabKey).toHaveBeenCalledWith('/audit/logs');
+    expect(routerMock.push).toHaveBeenCalledWith({
+      path: '/audit/logs',
+      query: undefined,
+    });
+    expect(storeState.tabsRouterStore.startTabRefresh).toHaveBeenCalledWith('/audit/logs');
+    expect(storeState.tabsRouterStore.finishTabRefresh).toHaveBeenCalledWith('/audit/logs');
   });
 });

@@ -125,11 +125,9 @@
           <t-skeleton v-if="loading && !displayLines.length" animation="gradient" :row-col="skeletonRows" />
           <template v-else-if="displayLines.length">
             <div class="log-viewer__header-row">
-              <span class="log-viewer__header-cell log-viewer__header-cell--line">#</span>
               <span class="log-viewer__header-cell">{{ timeLabel }}</span>
               <span class="log-viewer__header-cell">{{ levelLabel }}</span>
               <span class="log-viewer__header-cell">{{ streamLabel }}</span>
-              <span class="log-viewer__header-cell">{{ sourceLabel }}</span>
               <span class="log-viewer__header-cell">{{ messageLabel }}</span>
               <span class="log-viewer__header-cell log-viewer__header-cell--actions">{{ operationLabel }}</span>
             </div>
@@ -149,10 +147,14 @@
                 @keydown.enter.prevent="openLineDetail(line)"
                 @keydown.space.prevent="openLineDetail(line)"
               >
-                <span class="log-viewer__line-number">{{ line.lineNo }}</span>
                 <div class="log-viewer__timestamp-cell">
-                  <t-tooltip v-if="line.timestamp" :content="line.timestamp" placement="top-left" theme="light">
-                    <time class="log-viewer__timestamp">{{ shortTimestamp(line.timestamp) }}</time>
+                  <t-tooltip
+                    v-if="line.timestamp"
+                    :content="formattedFullTimestamp(line.timestamp)"
+                    placement="top-left"
+                    theme="light"
+                  >
+                    <time class="log-viewer__timestamp">{{ displayTimestamp(line.timestamp) }}</time>
                   </t-tooltip>
                   <span v-else class="log-viewer__timestamp log-viewer__timestamp--empty"></span>
                 </div>
@@ -165,12 +167,6 @@
                   <span class="log-viewer__stream-pill" :class="`log-viewer__stream-pill--${line.stream}`">
                     {{ line.stream === 'stderr' ? stderrLabel : stdoutLabel }}
                   </span>
-                </div>
-                <div class="log-viewer__source-cell">
-                  <t-tooltip v-if="line.source" :content="line.source" placement="top-left" theme="light">
-                    <span class="log-viewer__source">{{ line.sourceShort || line.source }}</span>
-                  </t-tooltip>
-                  <span v-else class="log-viewer__source log-viewer__source--empty"></span>
                 </div>
                 <div class="log-viewer__content">
                   <div class="log-viewer__message-row">
@@ -239,7 +235,7 @@
               </li>
             </ol>
           </template>
-          <t-empty v-else size="small" :description="emptyLabel" />
+          <t-empty v-else size="small" :title="emptyLabel" :description="emptyDescriptionLabel || emptyLabel" />
 
           <div v-if="showJumpBottom" class="log-viewer__jump-bottom-wrap">
             <t-button size="small" theme="primary" @click="jumpBottom">
@@ -359,11 +355,9 @@
       <t-skeleton v-if="loading && !displayLines.length" animation="gradient" :row-col="skeletonRows" />
       <template v-else-if="displayLines.length">
         <div class="log-viewer__header-row">
-          <span class="log-viewer__header-cell log-viewer__header-cell--line">#</span>
           <span class="log-viewer__header-cell">{{ timeLabel }}</span>
           <span class="log-viewer__header-cell">{{ levelLabel }}</span>
           <span class="log-viewer__header-cell">{{ streamLabel }}</span>
-          <span class="log-viewer__header-cell">{{ sourceLabel }}</span>
           <span class="log-viewer__header-cell">{{ messageLabel }}</span>
           <span class="log-viewer__header-cell log-viewer__header-cell--actions">{{ operationLabel }}</span>
         </div>
@@ -383,10 +377,14 @@
             @keydown.enter.prevent="openLineDetail(line)"
             @keydown.space.prevent="openLineDetail(line)"
           >
-            <span class="log-viewer__line-number">{{ line.lineNo }}</span>
             <div class="log-viewer__timestamp-cell">
-              <t-tooltip v-if="line.timestamp" :content="line.timestamp" placement="top-left" theme="light">
-                <time class="log-viewer__timestamp">{{ shortTimestamp(line.timestamp) }}</time>
+              <t-tooltip
+                v-if="line.timestamp"
+                :content="formattedFullTimestamp(line.timestamp)"
+                placement="top-left"
+                theme="light"
+              >
+                <time class="log-viewer__timestamp">{{ displayTimestamp(line.timestamp) }}</time>
               </t-tooltip>
               <span v-else class="log-viewer__timestamp log-viewer__timestamp--empty"></span>
             </div>
@@ -399,12 +397,6 @@
               <span class="log-viewer__stream-pill" :class="`log-viewer__stream-pill--${line.stream}`">
                 {{ line.stream === 'stderr' ? stderrLabel : stdoutLabel }}
               </span>
-            </div>
-            <div class="log-viewer__source-cell">
-              <t-tooltip v-if="line.source" :content="line.source" placement="top-left" theme="light">
-                <span class="log-viewer__source">{{ line.sourceShort || line.source }}</span>
-              </t-tooltip>
-              <span v-else class="log-viewer__source log-viewer__source--empty"></span>
             </div>
             <div class="log-viewer__content">
               <div class="log-viewer__message-row">
@@ -473,7 +465,7 @@
           </li>
         </ol>
       </template>
-      <t-empty v-else size="small" :description="emptyLabel" />
+      <t-empty v-else size="small" :title="emptyLabel" :description="emptyDescriptionLabel || emptyLabel" />
 
       <div v-if="showJumpBottom" class="log-viewer__jump-bottom-wrap">
         <t-button size="small" theme="primary" @click="jumpBottom">
@@ -516,7 +508,7 @@
             v-if="selectedLine.parsed.display.subtitleParts.length || selectedLine.timestamp"
             class="log-viewer__summary-meta"
           >
-            <span v-if="selectedLine.timestamp">{{ selectedLine.timestamp }}</span>
+            <span v-if="selectedLine.timestamp">{{ formattedFullTimestamp(selectedLine.timestamp) }}</span>
             <template
               v-for="(part, partIndex) in selectedLine.parsed.display.subtitleParts"
               :key="`${selectedLine.lineNo}-summary-${partIndex}`"
@@ -555,7 +547,7 @@
           <div class="log-viewer__descriptions">
             <template v-if="selectedLine.timestamp">
               <div class="log-viewer__description-label">{{ timeLabel }}</div>
-              <div class="log-viewer__description-value">{{ selectedLine.timestamp }}</div>
+              <div class="log-viewer__description-value">{{ formattedFullTimestamp(selectedLine.timestamp) }}</div>
             </template>
 
             <template v-if="selectedLine.level">
@@ -629,6 +621,7 @@ import {
   triggerRef,
   watch,
 } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import ContentViewerFrame from '@/shared/components/viewer/ContentViewerFrame.vue';
 
@@ -637,6 +630,7 @@ import type { StructuredLogEntry } from './log-entry';
 import type { LogLevel, LogToken } from './log-highlight';
 import { type DisplayLogLine, formatLogMetadataValue, type ParsedLogMetadata, summarizeMetadata } from './log-parser';
 import { LogViewCache } from './log-view-cache';
+import { formatLocaleDateTime, formatLogViewerTimestamp } from './time';
 
 const props = withDefaults(
   defineProps<{
@@ -663,6 +657,7 @@ const props = withDefaults(
     allLevelsLabel: string;
     matchCountLabel: string;
     emptyLabel: string;
+    emptyDescriptionLabel?: string;
     truncatedLabel: string;
     detailTitleLabel: string;
     importantFieldsLabel: string;
@@ -706,6 +701,7 @@ const props = withDefaults(
     fullscreenLabel: 'Fullscreen',
     exitFullscreenLabel: 'Exit Fullscreen',
     resizeHandleLabel: 'Resize viewer',
+    emptyDescriptionLabel: '',
   },
 );
 
@@ -717,6 +713,8 @@ const emit = defineEmits<{
   reconnect: [];
   'update:lineLimit': [value: number];
 }>();
+
+const { locale } = useI18n();
 
 type SelectOption = NonNullable<SelectProps['options']>[number];
 type LevelFilter = 'ALL' | LogLevel;
@@ -742,6 +740,7 @@ const viewport = ref<HTMLElement | null>(null);
 const viewportScrollTop = ref(0);
 const viewportHeight = ref(DEFAULT_VIRTUAL_VIEWPORT_HEIGHT);
 const viewportPinnedToBottom = ref(true);
+const hasAutoScrolledSinceLastEmpty = ref(false);
 const selectedLineNo = ref<number | null>(null);
 const measuredHeights = shallowRef(new Map<number, number>());
 const logViewCache = new LogViewCache();
@@ -849,13 +848,29 @@ watch(
 );
 
 watch(
+  () => displayLines.value.length,
+  (length) => {
+    if (length === 0) {
+      hasAutoScrolledSinceLastEmpty.value = false;
+    }
+  },
+  { flush: 'post', immediate: true },
+);
+
+watch(
   () => [effectiveContentVersion.value, scrollAfterRefresh.value] as const,
   () => {
     if (!scrollAfterRefresh.value) return;
+    if (!displayLines.value.length) return;
+    if (!hasAutoScrolledSinceLastEmpty.value) {
+      hasAutoScrolledSinceLastEmpty.value = true;
+      scheduleScrollToBottom();
+      return;
+    }
     if (!viewportPinnedToBottom.value) return;
     scheduleScrollToBottom();
   },
-  { flush: 'post' },
+  { flush: 'post', immediate: true },
 );
 
 watch(
@@ -1060,9 +1075,12 @@ function formatJson(value: unknown) {
   }
 }
 
-function shortTimestamp(timestamp: string) {
-  const timeMatch = /(?:T|\s)(\d{2}:\d{2}:\d{2}(?:[.,]\d+)?)/.exec(timestamp);
-  return timeMatch?.[1] ?? timestamp;
+function displayTimestamp(timestamp: string) {
+  return formatLogViewerTimestamp(timestamp, locale);
+}
+
+function formattedFullTimestamp(timestamp: string) {
+  return formatLocaleDateTime(timestamp, locale);
 }
 
 function levelTheme(level: LogLevel | null | undefined) {
@@ -1225,7 +1243,7 @@ function isViewportNearBottom(node: HTMLElement) {
   border-bottom: 1px solid var(--td-component-stroke);
   column-gap: var(--graft-density-gap-6);
   display: grid;
-  grid-template-columns: 44px 108px 60px 76px minmax(120px, 160px) minmax(0, 1fr) 60px;
+  grid-template-columns: 19ch 72px 80px minmax(0, 1fr) 48px;
   padding: 0 var(--graft-density-gap-6) var(--graft-density-gap-8);
   position: sticky;
   top: 0;
@@ -1239,10 +1257,6 @@ function isViewportNearBottom(node: HTMLElement) {
   line-height: 24px;
 }
 
-.log-viewer__header-cell--line {
-  text-align: right;
-}
-
 .log-viewer__header-cell--actions {
   text-align: right;
 }
@@ -1250,7 +1264,7 @@ function isViewportNearBottom(node: HTMLElement) {
 .log-viewer__lines {
   list-style: none;
   margin: 0;
-  min-width: max(100%, 860px);
+  min-width: max(100%, 760px);
   padding: var(--graft-density-gap-8) 0 0;
   position: relative;
 }
@@ -1260,7 +1274,7 @@ function isViewportNearBottom(node: HTMLElement) {
   border-radius: var(--td-radius-small);
   column-gap: var(--graft-density-gap-6);
   display: grid;
-  grid-template-columns: 44px 108px 60px 76px minmax(120px, 160px) minmax(0, 1fr) 60px;
+  grid-template-columns: 19ch 72px 80px minmax(0, 1fr) 48px;
   inset-inline: 0;
   margin-block: var(--graft-density-gap-1);
   min-height: 38px;
@@ -1288,20 +1302,9 @@ function isViewportNearBottom(node: HTMLElement) {
   border-left-color: var(--td-text-color-placeholder);
 }
 
-.log-viewer__line-number {
-  align-self: start;
-  color: var(--td-text-color-placeholder);
-  font-family: var(--td-font-family-monospace);
-  font-variant-numeric: tabular-nums;
-  line-height: var(--td-line-height-body-medium);
-  text-align: right;
-  user-select: none;
-}
-
 .log-viewer__timestamp-cell,
 .log-viewer__level-cell,
 .log-viewer__stream-cell,
-.log-viewer__source-cell,
 .log-viewer__content,
 .log-viewer__row-actions {
   align-self: start;
@@ -1309,21 +1312,17 @@ function isViewportNearBottom(node: HTMLElement) {
 }
 
 .log-viewer__timestamp,
-.log-viewer__source,
 .log-viewer__message {
   font-family: var(--td-font-family-monospace);
 }
 
-.log-viewer__timestamp,
-.log-viewer__source {
-  color: var(--td-text-color-placeholder);
-  font-variant-numeric: tabular-nums;
+.log-viewer__timestamp-cell {
+  width: 19ch;
 }
 
-.log-viewer__source {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.log-viewer__timestamp {
+  color: var(--td-text-color-placeholder);
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
@@ -1342,9 +1341,10 @@ function isViewportNearBottom(node: HTMLElement) {
   border-radius: 999px;
   display: inline-flex;
   font: var(--td-font-body-small);
-  font-weight: 600;
-  line-height: 20px;
-  padding: 0 var(--graft-density-gap-6);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  line-height: 18px;
+  padding: 0 var(--graft-density-gap-4);
 }
 
 .log-viewer__stream-pill--stdout {
@@ -1413,6 +1413,7 @@ function isViewportNearBottom(node: HTMLElement) {
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.16s ease;
+  width: 48px;
 }
 
 .log-viewer__line:hover .log-viewer__row-actions,
@@ -1699,13 +1700,13 @@ function isViewportNearBottom(node: HTMLElement) {
 @media (width <= 1024px) {
   .log-viewer__header-row,
   .log-viewer__line {
-    grid-template-columns: 40px 96px 58px 72px minmax(96px, 120px) minmax(0, 1fr) 54px;
+    grid-template-columns: 17ch 68px 76px minmax(0, 1fr) 44px;
   }
 }
 
 @media (width <= 760px) {
   .log-viewer__lines {
-    min-width: 760px;
+    min-width: 680px;
   }
 }
 </style>

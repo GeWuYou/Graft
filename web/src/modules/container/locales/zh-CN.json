@@ -263,21 +263,8 @@
       "description": "查看容器运行时详情、资源、日志、配置、网络和挂载信息。",
       "back": "返回",
       "refresh": "刷新",
-      "refreshNow": "立即刷新",
       "refreshSuccess": "容器详情已刷新",
       "refreshTooltip": "刷新容器详情、资源、网络、挂载列表和挂载用量最近一次统计结果，不重新扫描挂载空间。",
-      "realtime": {
-        "label": "资源实时订阅",
-        "live": "实时中",
-        "connecting": "连接中",
-        "degraded": "连接异常",
-        "idle": "待建立",
-        "paused": "已暂停",
-        "hint": "资源面板由统一 realtime topic 推送驱动，手动刷新仅同步详情结构与缓存挂载统计。",
-        "pausedHint": "当前已暂停资源实时订阅，页面保留最后一次成功资源值。",
-        "pause": "暂停实时",
-        "resume": "恢复实时"
-      },
       "autoRefresh": "自动刷新",
       "autoRefreshOff": "关闭",
       "autoRefreshPaused": "已暂停",
@@ -443,7 +430,7 @@
         "unavailable": "未采集"
       },
       "logs": {
-        "title": "Container Logs",
+        "title": "容器日志",
         "clear": "清空",
         "refresh": "刷新日志",
         "download": "下载",
@@ -463,23 +450,24 @@
         "basicInfo": "基础信息",
         "time": "时间",
         "level": "级别",
-        "stream": "流",
+        "stream": "输出流",
         "source": "来源",
         "viewDetail": "查看详情",
         "collapseDetail": "收起详情",
-        "metadata": "Metadata",
-        "message": "完整消息",
+        "metadata": "元数据",
+        "message": "日志内容",
         "raw": "原始日志",
         "copyMessage": "复制消息",
         "copyLine": "复制本行",
         "copyJson": "复制 JSON",
         "empty": "暂无日志。",
+        "emptyDescription": "等待容器输出...",
         "truncated": "日志已按当前上限截断。",
         "states": {
-          "live": "LIVE",
-          "paused": "PAUSED",
-          "reconnecting": "RECONNECTING",
-          "disconnected": "DISCONNECTED"
+          "live": "实时",
+          "paused": "暂停",
+          "reconnecting": "重连中",
+          "disconnected": "连接断开"
         }
       },
       "raw": {

@@ -39,7 +39,7 @@
             <t-icon v-else name="home" />
             <template #dropdown>
               <t-dropdown-menu>
-                <t-dropdown-item @click="() => handleRefresh(routeItem, index)">
+                <t-dropdown-item @click="() => handleRefresh(routeItem)">
                   <t-icon name="refresh" />
                   {{ t('layout.tagTabs.refresh') }}
                 </t-dropdown-item>
@@ -134,7 +134,6 @@ import type { LocalizedTitle } from '@/contracts/i18n/locales';
 import { LOCALE } from '@/contracts/i18n/locales';
 import { t } from '@/locales';
 import { useLocale } from '@/locales/useLocale';
-import { resolveTabRefreshHandler } from '@/shared/composables/useTabRefresh';
 import { copyText } from '@/shared/observability/copy';
 import { useSettingStore, useTabsRouterStore } from '@/store';
 import { type PageSurfaceType, renderLocalizedTitle, resolvePageSurfaceType } from '@/utils/route/meta';
@@ -195,11 +194,6 @@ const normalizeQuery = (query?: TRouterInfo['query']): LocationQueryRaw | undefi
 };
 
 const getTabKey = (route: TRouterInfo) => route.tabKey || route.path;
-const resolveCurrentTabIndex = (tabKey: string) =>
-  tabsRouterStore.tabRouters.findIndex((tabRoute) => getTabKey(tabRoute) === tabKey);
-const finishTabRefreshByKey = (tabKey: string) => {
-  tabsRouterStore.finishTabRefresh(resolveCurrentTabIndex(tabKey));
-};
 
 const resolveRouteLocation = (targetRoute: TRouterInfo): RouteLocationRaw => {
   return (
@@ -237,26 +231,22 @@ const handlePageSurfaceEnter = (surface: PageSurfaceType) => {
   pageSurfaceType.value = surface;
 };
 
-const handleRefresh = (route: TRouterInfo, routeIdx: number) => {
+const runTabRefresh = async (route: TRouterInfo) => {
   const tabKey = getTabKey(route);
-  const refreshHandler = resolveTabRefreshHandler(tabKey);
-  if (refreshHandler) {
-    tabsRouterStore.startTabRefresh(routeIdx);
-    void Promise.resolve()
-      .then(() => refreshHandler())
-      .catch(() => undefined)
-      .finally(() => {
-        finishTabRefreshByKey(tabKey);
-      });
-    activeTabKeyForMenu.value = null;
-    return;
+
+  if (tabsRouterStore.activeTabKey !== tabKey) {
+    tabsRouterStore.setActiveTabKey(tabKey);
+    await router.push(resolveRouteLocation(route));
   }
 
-  tabsRouterStore.startTabRefresh(routeIdx);
-  nextTick(() => {
-    finishTabRefreshByKey(tabKey);
-    void router.replace(resolveRouteLocation(route));
-  });
+  await nextTick();
+  tabsRouterStore.startTabRefresh(tabKey);
+  await nextTick();
+  tabsRouterStore.finishTabRefresh(tabKey);
+};
+
+const handleRefresh = (route: TRouterInfo) => {
+  void runTabRefresh(route);
   activeTabKeyForMenu.value = null;
 };
 const handleCloseAhead = (tabKey: string, routeIdx: number) => {

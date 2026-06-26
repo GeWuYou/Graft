@@ -128,10 +128,11 @@ export function parseContainerLogLine(rawLine: string): ParsedContainerLog {
 export function parseLogLine(entry: StructuredLogEntry, lineNo: number): ParsedLogLine {
   const parsed = parseContainerLogLine(entry.line);
   const level = parsed.level ?? null;
+  const timestamp = entry.occurredAt || parsed.time || '';
 
   return {
     lineNo,
-    timestamp: entry.occurredAt || parsed.time || '',
+    timestamp,
     level,
     source: parsed.source ?? '',
     sourceShort: shortenLogSource(parsed.source ?? ''),
@@ -143,7 +144,7 @@ export function parseLogLine(entry: StructuredLogEntry, lineNo: number): ParsedL
     parsed: {
       ...parsed,
       raw: entry.line,
-      time: entry.occurredAt || parsed.time,
+      time: timestamp,
     },
   };
 }

@@ -513,7 +513,6 @@ import {
   useTableHostWidth,
 } from '@/shared/components/management';
 import { AdvancedQueryColumnDrawer } from '@/shared/components/query-list';
-import { useCurrentTabRefresh } from '@/shared/composables/useTabRefresh';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { formatLocaleDateTime } from '@/shared/observability';
 import { usePermissionStore, useTabsRouterStore } from '@/store';
@@ -866,10 +865,6 @@ onActivated(() => {
 onDeactivated(() => {
   listRealtimeActive.value = false;
   releaseListRealtimeSubscription();
-});
-
-useCurrentTabRefresh(async () => {
-  await refreshContainers();
 });
 
 watch(
