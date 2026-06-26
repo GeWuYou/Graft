@@ -213,7 +213,11 @@
           </t-card>
         </section>
 
-        <div class="container-detail-realtime-row" data-testid="container-detail-realtime-row">
+        <div
+          v-if="activeTab !== 'logs'"
+          class="container-detail-realtime-row"
+          data-testid="container-detail-realtime-row"
+        >
           <t-tooltip :content="t('container.detail.refreshTooltip')">
             <div class="container-detail-realtime-bar" data-testid="container-detail-realtime-bar">
               <span class="container-detail-realtime-bar__label">{{ t('container.detail.realtime.label') }}</span>
@@ -449,44 +453,33 @@
 
             <t-tab-panel value="logs" :label="t('container.detail.tabs.logs')" :destroy-on-hide="false">
               <section class="container-detail-section container-detail-tab-body container-detail-tab-body--viewer">
-                <div class="container-detail-logs-toolbar" data-testid="container-detail-logs-toolbar">
-                  <t-tag
-                    :theme="logsPaused ? 'warning' : 'primary'"
-                    variant="light-outline"
-                    data-testid="container-detail-logs-status"
-                  >
-                    {{
-                      logsPaused
-                        ? t('container.detail.logs.realtimePaused')
-                        : t('container.detail.logs.realtimeStreaming')
-                    }}
+                <div class="container-detail-logs-header" data-testid="container-detail-logs-header">
+                  <div class="container-detail-logs-header__title-block">
+                    <h3 class="container-detail-logs-header__title">{{ t('container.detail.logs.title') }}</h3>
+                  </div>
+                  <t-tag :theme="logsLiveStateTheme" variant="light-outline" data-testid="container-detail-logs-status">
+                    {{ logsLiveStateLabel }}
                   </t-tag>
-                  <t-button
-                    size="small"
-                    theme="default"
-                    variant="outline"
-                    data-testid="container-detail-logs-toggle"
-                    @click="toggleLogsPause"
-                  >
-                    {{ logsRealtimeToggleLabel }}
-                  </t-button>
                 </div>
                 <log-viewer
                   v-model:line-limit="logLineLimit"
-                  :lines="[...logLines]"
+                  :entries="[...logEntries]"
                   :content-version="logContentVersion"
                   :loading="logsLoading"
                   :error="logsError"
                   :truncated="logsTruncated"
-                  :refresh-label="t('container.detail.logs.refresh')"
-                  :show-refresh="false"
+                  :clear-label="t('container.detail.logs.clear')"
                   :copy-label="t('container.detail.copy')"
                   :download-label="t('container.detail.logs.download')"
                   :retry-label="t('container.list.retry')"
                   :search-placeholder="t('container.detail.logs.searchPlaceholder')"
                   :wrap-label="t('container.detail.logs.wrap')"
-                  :refresh-scroll-label="t('container.detail.logs.refreshScroll')"
-                  :refresh-scroll-tooltip-label="t('container.detail.logs.refreshScrollTooltip')"
+                  :auto-scroll-label="t('container.detail.logs.autoScroll')"
+                  :auto-scroll-tooltip-label="t('container.detail.logs.autoScrollTooltip')"
+                  :pause-label="t('container.detail.logs.pause')"
+                  :resume-label="t('container.detail.logs.resume')"
+                  :reconnect-label="t('container.detail.logs.reconnect')"
+                  :jump-bottom-label="t('container.detail.logs.jumpBottom')"
                   :level-filter-label="t('container.detail.logs.levelFilter')"
                   :all-levels-label="t('container.detail.logs.allLevels')"
                   :match-count-label="t('container.detail.logs.matchCount')"
@@ -497,7 +490,11 @@
                   :basic-info-label="t('container.detail.logs.basicInfo')"
                   :time-label="t('container.detail.logs.time')"
                   :level-label="t('container.detail.logs.level')"
+                  :stream-label="t('container.detail.logs.stream')"
                   :source-label="t('container.detail.logs.source')"
+                  :operation-label="t('container.detail.operation')"
+                  :stdout-label="t('container.list.logs.stdout')"
+                  :stderr-label="t('container.list.logs.stderr')"
                   :view-detail-label="t('container.detail.logs.viewDetail')"
                   :collapse-detail-label="t('container.detail.logs.collapseDetail')"
                   :metadata-label="t('container.detail.logs.metadata')"
@@ -508,12 +505,18 @@
                   :copy-json-label="t('container.detail.logs.copyJson')"
                   :copy-success-label="t('container.detail.copySuccess')"
                   :copy-error-label="t('container.detail.copyError')"
+                  :paused="logsPaused"
+                  :show-reconnect="logsCanReconnect"
                   :viewer-mode="true"
                   viewer-storage-key="graft.container-detail.viewer.logs.height"
                   :fullscreen-label="t('container.detail.viewer.enterFullscreen')"
                   :exit-fullscreen-label="t('container.detail.viewer.exitFullscreen')"
                   :resize-handle-label="t('container.detail.viewer.resizeHandle')"
                   @refresh="loadLogs"
+                  @clear="clearLogsScreen"
+                  @pause="toggleLogsPause"
+                  @resume="toggleLogsPause"
+                  @reconnect="reconnectLogsRealtime"
                 />
               </section>
             </t-tab-panel>
@@ -1257,6 +1260,7 @@ import {
   formatNanosecondsAsDuration,
   formatPercent,
   LogViewer,
+  normalizeStructuredLogEntry,
   toProgressPercent,
 } from '@/shared/observability';
 import { openRealtimeTopicSocket, type RealtimeTopicSocketController } from '@/shared/realtime';
@@ -1294,6 +1298,7 @@ import type {
   ContainerDetailRecord,
   ContainerHealth,
   ContainerHealthcheck,
+  ContainerLogEntry,
   ContainerMount,
   ContainerMountUsage,
   ContainerOrchestratorType,
@@ -1474,7 +1479,7 @@ const DETAIL_TABS: DetailTab[] = [
 const DEFAULT_LOG_QUERY = {
   tail: 200,
   since: undefined,
-  timestamps: false,
+  timestamps: true,
   stdout: true,
   stderr: true,
 };
@@ -1499,12 +1504,17 @@ const realtimeEnabled = ref(true);
 const activeRealtimeSubscriptionId = ref('');
 const detailPageActive = ref(false);
 const logViewStore = createContainerDetailLogViewStore();
-const logLines = computed(() => logViewStore.lines.value);
+const logEntries = computed(() =>
+  logViewStore.entries.value
+    .map((entry) => normalizeStructuredLogEntry(entry))
+    .filter((entry): entry is NonNullable<ReturnType<typeof normalizeStructuredLogEntry>> => entry !== null),
+);
 const logContentVersion = computed(() => logViewStore.version.value);
 const logsLoading = computed(() => logViewStore.state.value.loading);
 const logsError = computed(() => logViewStore.state.value.error);
 const logsTruncated = computed(() => logViewStore.truncated.value);
 const logsPaused = computed(() => logViewStore.paused.value);
+const logsSocketState = ref<'idle' | 'connecting' | 'open' | 'closed' | 'error'>('idle');
 let detailRefreshSeq = 0;
 let logsRefreshSeq = 0;
 let logsRealtimeController: RealtimeTopicSocketController | null = null;
@@ -1517,8 +1527,44 @@ let logsRealtimeBatcher = new ContainerLogRealtimeBatcher({
     logViewStore.commit(snapshot);
   },
 });
-const logsRealtimeToggleLabel = computed(() =>
-  logsPaused.value ? t('container.detail.logs.resumeRealtime') : t('container.detail.logs.pauseRealtime'),
+const logsLiveState = computed<'paused' | 'live' | 'reconnecting' | 'disconnected'>(() => {
+  if (logsPaused.value) {
+    return 'paused';
+  }
+  if (logsSocketState.value === 'open') {
+    return 'live';
+  }
+  if (logsSocketState.value === 'connecting' || logsSocketState.value === 'closed') {
+    return 'reconnecting';
+  }
+  return 'disconnected';
+});
+const logsLiveStateTheme = computed(() => {
+  if (logsLiveState.value === 'paused') {
+    return 'warning';
+  }
+  if (logsLiveState.value === 'live') {
+    return 'success';
+  }
+  if (logsLiveState.value === 'reconnecting') {
+    return 'primary';
+  }
+  return 'danger';
+});
+const logsLiveStateLabel = computed(() => {
+  if (logsLiveState.value === 'paused') {
+    return t('container.detail.logs.states.paused');
+  }
+  if (logsLiveState.value === 'live') {
+    return t('container.detail.logs.states.live');
+  }
+  if (logsLiveState.value === 'reconnecting') {
+    return t('container.detail.logs.states.reconnecting');
+  }
+  return t('container.detail.logs.states.disconnected');
+});
+const logsCanReconnect = computed(
+  () => logsLiveState.value === 'reconnecting' || logsLiveState.value === 'disconnected',
 );
 
 const containerId = computed(() => String(route.params.id ?? '').trim());
@@ -2392,6 +2438,14 @@ function toggleLogsPause() {
   logViewStore.pause();
 }
 
+function clearLogsScreen() {
+  logsRealtimeBatcher.clearView();
+}
+
+function reconnectLogsRealtime() {
+  logsRealtimeController?.reconnect();
+}
+
 function syncRealtimeSubscription(nextContainerId: string) {
   if (!detailPageActive.value || !realtimeEnabled.value) {
     releaseCurrentRealtimeSubscription();
@@ -2456,7 +2510,9 @@ function syncLogsRealtimeSubscription() {
     topic: nextTopic,
     parseMessage: parseContainerLogsRealtimeMessage,
     onMessage: applyLogsRealtimeMessage,
-    onStateChange: () => undefined,
+    onStateChange: (state) => {
+      logsSocketState.value = state;
+    },
     onError: (message) => {
       logger.warn('container log realtime subscription error', { message, topic: nextTopic });
     },
@@ -2468,11 +2524,12 @@ function releaseLogsRealtimeSubscription() {
   logsRealtimeTopic = '';
   logsRealtimeController?.close();
   logsRealtimeController = null;
+  logsSocketState.value = 'idle';
 }
 
 type ContainerLogsRealtimeMessage = {
   containerId: string;
-  lines: string[];
+  entries: ContainerLogEntry[];
   topic: string;
 };
 
@@ -2487,7 +2544,7 @@ function applyLogsRealtimeMessage(message: ContainerLogsRealtimeMessage) {
     return;
   }
 
-  logsRealtimeBatcher.enqueue(message.lines);
+  logsRealtimeBatcher.enqueue(message.entries);
 }
 
 function parseContainerLogsRealtimeMessage(raw: unknown): ContainerLogsRealtimeMessage | null {
@@ -2496,8 +2553,8 @@ function parseContainerLogsRealtimeMessage(raw: unknown): ContainerLogsRealtimeM
     return null;
   }
 
-  const candidateLines = readRealtimeLogLines(eventData);
-  if (!candidateLines.length) {
+  const candidateEntries = readRealtimeLogEntries(eventData);
+  if (!candidateEntries.length) {
     return null;
   }
 
@@ -2509,7 +2566,7 @@ function parseContainerLogsRealtimeMessage(raw: unknown): ContainerLogsRealtimeM
 
   return {
     containerId,
-    lines: candidateLines,
+    entries: candidateEntries,
     topic,
   };
 }
@@ -2525,10 +2582,15 @@ function parseRealtimeEventData(raw: unknown): Record<string, unknown> | null {
   return parsed;
 }
 
-function readRealtimeLogLines(value: Record<string, unknown>) {
-  const directLines = normalizeRealtimeLogLines(value.lines);
-  if (directLines.length) {
-    return directLines;
+function readRealtimeLogEntries(value: Record<string, unknown>) {
+  const directEntries = normalizeRealtimeLogEntries(value.entries);
+  if (directEntries.length) {
+    return directEntries;
+  }
+
+  const directEntry = normalizeStructuredLogEntry(value.entry);
+  if (directEntry) {
+    return [toContainerLogEntry(directEntry)];
   }
 
   const nestedPayloads = [value.payload, value.snapshot, value.append, value.delta];
@@ -2536,48 +2598,28 @@ function readRealtimeLogLines(value: Record<string, unknown>) {
     if (!isPlainObject(candidate)) {
       continue;
     }
-    const nestedLines = normalizeRealtimeLogLines(candidate.lines);
-    if (nestedLines.length) {
-      return nestedLines;
+    const nestedEntries = normalizeRealtimeLogEntries(candidate.entries);
+    if (nestedEntries.length) {
+      return nestedEntries;
+    }
+    const nestedEntry = normalizeStructuredLogEntry(candidate.entry);
+    if (nestedEntry) {
+      return [toContainerLogEntry(nestedEntry)];
     }
   }
 
-  const directLine = normalizeRealtimeSingleLogLine(value);
-  return directLine ? [directLine] : [];
+  return [];
 }
 
-function normalizeRealtimeLogLines(value: unknown) {
+function normalizeRealtimeLogEntries(value: unknown) {
   if (!Array.isArray(value)) {
     return [];
   }
 
   return value
-    .map((line) => (typeof line === 'string' ? line : normalizeRealtimeSingleLogLine(line)))
-    .filter((line): line is string => typeof line === 'string' && line.length > 0);
-}
-
-function normalizeRealtimeSingleLogLine(value: unknown) {
-  if (typeof value === 'string') {
-    return value;
-  }
-  if (!isPlainObject(value)) {
-    return null;
-  }
-
-  const direct =
-    typeof value.raw === 'string'
-      ? value.raw
-      : typeof value.line === 'string'
-        ? value.line
-        : typeof value.content === 'string'
-          ? value.content
-          : null;
-
-  if (direct) {
-    return direct;
-  }
-
-  return typeof value.message === 'string' ? value.message : null;
+    .map((entry) => normalizeStructuredLogEntry(entry))
+    .filter((entry): entry is NonNullable<ReturnType<typeof normalizeStructuredLogEntry>> => entry !== null)
+    .map(toContainerLogEntry);
 }
 
 function readRealtimeLogTopic(value: Record<string, unknown>) {
@@ -2626,6 +2668,14 @@ function safeParseJson(raw: string) {
   } catch {
     return null;
   }
+}
+
+function toContainerLogEntry(entry: NonNullable<ReturnType<typeof normalizeStructuredLogEntry>>): ContainerLogEntry {
+  return {
+    line: entry.line,
+    occurred_at: entry.occurredAt,
+    stream: entry.stream,
+  };
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -4180,6 +4230,26 @@ function portLabel(port: ContainerDetail['ports'][number]) {
   min-height: 0;
 }
 
+.container-detail-logs-header {
+  align-items: center;
+  border-bottom: 1px solid var(--td-component-stroke);
+  display: flex;
+  gap: var(--graft-density-gap-12);
+  justify-content: space-between;
+  margin: 0 var(--graft-density-gap-16) var(--graft-density-gap-12);
+  padding-bottom: var(--graft-density-gap-10);
+}
+
+.container-detail-logs-header__title-block {
+  min-width: 0;
+}
+
+.container-detail-logs-header__title {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-title-medium);
+  margin: 0;
+}
+
 .container-detail-tab-body {
   height: auto;
   min-height: 0;
@@ -5359,6 +5429,11 @@ function portLabel(port: ContainerDetail['ports'][number]) {
 @media (width <= 767px) {
   .container-detail-realtime-row {
     padding-inline: var(--graft-density-gap-12);
+  }
+
+  .container-detail-logs-header {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
 </style>

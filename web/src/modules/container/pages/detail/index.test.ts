@@ -262,6 +262,7 @@ const translations = vi.hoisted(
     'container.detail.logs.empty': '暂无日志。',
     'container.detail.logs.allLevels': '全部',
     'container.detail.logs.basicInfo': '基础信息',
+    'container.detail.logs.clear': '清空',
     'container.detail.logs.collapseDetail': '收起详情',
     'container.detail.logs.copyJson': '复制 JSON',
     'container.detail.logs.copyLine': '复制本行',
@@ -273,19 +274,25 @@ const translations = vi.hoisted(
     'container.detail.logs.metadata': 'Metadata',
     'container.detail.logs.importantFields': '关键字段',
     'container.detail.logs.message': '完整消息',
+    'container.detail.logs.title': 'Container Logs',
     'container.detail.logs.raw': '原始日志',
     'container.detail.logs.copyMessage': '复制消息',
     'container.detail.logs.refresh': '刷新日志',
-    'container.detail.logs.refreshScroll': '跟随底部',
-    'container.detail.logs.refreshScrollTooltip': '刷新日志后自动滚动到底部',
+    'container.detail.logs.autoScroll': '自动滚动',
+    'container.detail.logs.autoScrollTooltip': '当视口位于底部附近时自动跟随最新日志',
+    'container.detail.logs.pause': '暂停',
+    'container.detail.logs.resume': '继续',
+    'container.detail.logs.reconnect': '重新连接',
+    'container.detail.logs.jumpBottom': '跳至底部',
     'container.detail.logs.searchPlaceholder': '搜索日志内容',
+    'container.detail.logs.stream': '流',
     'container.detail.logs.source': '来源',
     'container.detail.logs.time': '时间',
     'container.detail.logs.truncated': '日志已按当前上限截断。',
-    'container.detail.logs.pauseRealtime': '暂停实时',
-    'container.detail.logs.resumeRealtime': '恢复实时',
-    'container.detail.logs.realtimePaused': '已暂停发布',
-    'container.detail.logs.realtimeStreaming': '实时发布中',
+    'container.detail.logs.states.live': 'LIVE',
+    'container.detail.logs.states.paused': 'PAUSED',
+    'container.detail.logs.states.reconnecting': 'RECONNECTING',
+    'container.detail.logs.states.disconnected': 'DISCONNECTED',
     'container.detail.logs.viewDetail': '查看详情',
     'container.detail.logs.wrap': '自动换行',
     'container.detail.missingId': '缺少容器标识。',
@@ -615,12 +622,12 @@ describe('container detail page', () => {
     });
     apiMocks.getContainerLogs.mockResolvedValue({
       id: 'container-1',
-      lines: ['server started'],
+      entries: [createLogEntry('server started')],
       runtime: 'docker',
       stderr: true,
       stdout: true,
       tail: 200,
-      timestamps: false,
+      timestamps: true,
       truncated: true,
     });
   });
@@ -1070,6 +1077,57 @@ describe('container detail page', () => {
     expect(wrapper.get('[data-testid="container-detail-realtime-toggle"]').text()).toContain('恢复实时');
   });
 
+  it('hides the summary realtime row when the logs tab is active', async () => {
+    routeState.route.query.tab = 'logs';
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="container-detail-realtime-row"]').exists()).toBe(false);
+    expect(wrapper.get('[data-testid="container-detail-logs-header"]').text()).toContain('Container Logs');
+  });
+
+  it('renders the rebuilt logs viewer toolbar and single live-state chip on the logs tab', async () => {
+    routeState.route.query.tab = 'logs';
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="container-detail-realtime-row"]').exists()).toBe(false);
+    expect(wrapper.get('[data-testid="container-detail-logs-status"]').text()).toBe('LIVE');
+    expect(wrapper.get('[data-testid="log-viewer-clear"]').text()).toContain('清空');
+    expect(wrapper.get('[data-testid="log-viewer-copy"]').text()).toContain('复制');
+    expect(wrapper.get('[data-testid="log-viewer-download"]').text()).toContain('下载');
+    expect(wrapper.get('[data-testid="log-viewer-pause-toggle"]').text()).toContain('暂停');
+    expect(wrapper.text()).toContain('自动滚动');
+    expect(wrapper.text()).toContain('自动换行');
+  });
+
+  it('shows reconnect only for non-live logs socket states', async () => {
+    routeState.route.query.tab = 'logs';
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const logController = realtimeMocks.controllers.find(
+      (controller) => controller.topic === 'container.logs:container-1',
+    );
+    expect(logController).toBeTruthy();
+    expect(wrapper.find('[data-testid="log-viewer-reconnect"]').exists()).toBe(false);
+
+    logController!.emitStateChange('connecting');
+    await flushPromises();
+    expect(wrapper.get('[data-testid="container-detail-logs-status"]').text()).toBe('RECONNECTING');
+    expect(wrapper.find('[data-testid="log-viewer-reconnect"]').exists()).toBe(true);
+
+    logController!.emitStateChange('error');
+    await flushPromises();
+    expect(wrapper.get('[data-testid="container-detail-logs-status"]').text()).toBe('DISCONNECTED');
+    expect(wrapper.find('[data-testid="log-viewer-reconnect"]').exists()).toBe(true);
+
+    logController!.emitStateChange('open');
+    await flushPromises();
+    expect(wrapper.get('[data-testid="container-detail-logs-status"]').text()).toBe('LIVE');
+    expect(wrapper.find('[data-testid="log-viewer-reconnect"]').exists()).toBe(false);
+  });
+
   it('highlights summary and dashboard resource meters when realtime stats change', async () => {
     const wrapper = mountPage();
     await flushPromises();
@@ -1331,15 +1389,9 @@ describe('container detail page', () => {
     );
     expect(logController).toBeTruthy();
     expect(wrapper.get('.log-viewer').text()).toContain('server started');
-    expect(wrapper.get('.log-viewer').text()).not.toContain('刷新日志');
+    expect(wrapper.get('[data-testid="container-detail-logs-header"]').text()).toContain('Container Logs');
 
-    logController!.emitMessage({
-      data: {
-        topic: 'container.logs:container-1',
-        id: 'container-1',
-        lines: ['server ready'],
-      },
-    });
+    logController!.emitMessage(createRealtimeLogEvent('server ready'));
     vi.advanceTimersByTime(100);
     await flushPromises();
 
@@ -1362,20 +1414,8 @@ describe('container detail page', () => {
     );
     expect(logController).toBeTruthy();
 
-    logController!.emitMessage({
-      data: {
-        topic: 'container.logs:container-2',
-        id: 'container-1',
-        lines: ['wrong-topic-line'],
-      },
-    });
-    logController!.emitMessage({
-      data: {
-        topic: 'container.logs:container-1',
-        id: 'container-2',
-        lines: ['wrong-id-line'],
-      },
-    });
+    logController!.emitMessage(createRealtimeLogEvent('wrong-topic-line', 'container-1', 'container.logs:container-2'));
+    logController!.emitMessage(createRealtimeLogEvent('wrong-id-line', 'container-2', 'container.logs:container-1'));
     vi.advanceTimersByTime(100);
     await flushPromises();
 
@@ -1409,20 +1449,8 @@ describe('container detail page', () => {
     expect(logController).toBeTruthy();
     expect(wrapper.get('.log-viewer').text()).toContain('server started');
 
-    logController!.emitMessage({
-      data: {
-        topic: 'container.logs:container-1',
-        id: 'container-1',
-        lines: ['line-2'],
-      },
-    });
-    logController!.emitMessage({
-      data: {
-        topic: 'container.logs:container-1',
-        id: 'container-1',
-        lines: ['line-3'],
-      },
-    });
+    logController!.emitMessage(createRealtimeLogEvent('line-2'));
+    logController!.emitMessage(createRealtimeLogEvent('line-3'));
 
     await flushPromises();
     expect(wrapper.get('.log-viewer').text()).not.toContain('line-2');
@@ -1446,28 +1474,16 @@ describe('container detail page', () => {
       (controller) => controller.topic === 'container.logs:container-1',
     );
     expect(logController).toBeTruthy();
-    expect(wrapper.get('[data-testid="container-detail-logs-status"]').text()).toContain('实时发布中');
+    expect(wrapper.get('[data-testid="container-detail-logs-status"]').text()).toContain('LIVE');
 
-    await wrapper.get('[data-testid="container-detail-logs-toggle"]').trigger('click');
+    await wrapper.get('[data-testid="log-viewer-pause-toggle"]').trigger('click');
     await flushPromises();
 
-    expect(wrapper.get('[data-testid="container-detail-logs-status"]').text()).toContain('已暂停发布');
-    expect(wrapper.get('[data-testid="container-detail-logs-toggle"]').text()).toContain('恢复实时');
+    expect(wrapper.get('[data-testid="container-detail-logs-status"]').text()).toContain('PAUSED');
+    expect(wrapper.get('[data-testid="log-viewer-pause-toggle"]').text()).toContain('继续');
 
-    logController!.emitMessage({
-      data: {
-        topic: 'container.logs:container-1',
-        id: 'container-1',
-        lines: ['paused-line-2'],
-      },
-    });
-    logController!.emitMessage({
-      data: {
-        topic: 'container.logs:container-1',
-        id: 'container-1',
-        lines: ['paused-line-3'],
-      },
-    });
+    logController!.emitMessage(createRealtimeLogEvent('paused-line-2'));
+    logController!.emitMessage(createRealtimeLogEvent('paused-line-3'));
     vi.advanceTimersByTime(100);
     await flushPromises();
 
@@ -1475,14 +1491,55 @@ describe('container detail page', () => {
     expect(pausedText).not.toContain('paused-line-2');
     expect(pausedText).not.toContain('paused-line-3');
 
-    await wrapper.get('[data-testid="container-detail-logs-toggle"]').trigger('click');
+    await wrapper.get('[data-testid="log-viewer-pause-toggle"]').trigger('click');
     await flushPromises();
 
     const resumedText = wrapper.get('.log-viewer').text();
-    expect(wrapper.get('[data-testid="container-detail-logs-status"]').text()).toContain('实时发布中');
-    expect(wrapper.get('[data-testid="container-detail-logs-toggle"]').text()).toContain('暂停实时');
+    expect(wrapper.get('[data-testid="container-detail-logs-status"]').text()).toContain('LIVE');
+    expect(wrapper.get('[data-testid="log-viewer-pause-toggle"]').text()).toContain('暂停');
     expect(resumedText).toContain('paused-line-2');
     expect(resumedText).toContain('paused-line-3');
+  });
+
+  it('clears the visible logs buffer locally without breaking later realtime appends', async () => {
+    vi.useFakeTimers();
+    routeState.route.query.tab = 'logs';
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const logController = realtimeMocks.controllers.find(
+      (controller) => controller.topic === 'container.logs:container-1',
+    );
+    expect(logController).toBeTruthy();
+    expect(wrapper.get('.log-viewer').text()).toContain('server started');
+
+    await wrapper.get('[data-testid="log-viewer-clear"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.get('.log-viewer').text()).not.toContain('server started');
+
+    logController!.emitMessage(createRealtimeLogEvent('after-clear-line'));
+    vi.advanceTimersByTime(100);
+    await flushPromises();
+
+    expect(wrapper.get('.log-viewer').text()).toContain('after-clear-line');
+  });
+
+  it('calls reconnect on the log socket controller from the rebuilt toolbar', async () => {
+    routeState.route.query.tab = 'logs';
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const logController = realtimeMocks.controllers.find(
+      (controller) => controller.topic === 'container.logs:container-1',
+    );
+    expect(logController).toBeTruthy();
+
+    logController!.emitStateChange('error');
+    await flushPromises();
+
+    await wrapper.get('[data-testid="log-viewer-reconnect"]').trigger('click');
+    expect(logController!.reconnect).toHaveBeenCalledTimes(1);
   });
 
   it('releases and recreates the log subscription when the route id changes on the logs tab', async () => {
@@ -1505,12 +1562,12 @@ describe('container detail page', () => {
     });
     apiMocks.getContainerLogs.mockResolvedValueOnce({
       id: 'container-2',
-      lines: ['api started'],
+      entries: [createLogEntry('api started')],
       runtime: 'docker',
       stderr: true,
       stdout: true,
       tail: 200,
-      timestamps: false,
+      timestamps: true,
       truncated: false,
     });
 
@@ -2051,7 +2108,7 @@ describe('container detail page', () => {
       since: undefined,
       stderr: true,
       stdout: true,
-      timestamps: false,
+      timestamps: true,
     });
     expect(wrapper.text()).toContain('server started');
     expect(wrapper.text()).toContain('日志已按当前上限截断。');
@@ -2223,7 +2280,7 @@ describe('container detail page', () => {
     const nextDetail = deferred<ReturnType<typeof createContainerDetail>>();
     const nextLogs = deferred<{
       id: string;
-      lines: string[];
+      entries: Array<{ line: string; occurred_at: string; stream: 'stdout' | 'stderr' }>;
       runtime: string;
       stderr: boolean;
       stdout: boolean;
@@ -2244,12 +2301,12 @@ describe('container detail page', () => {
     };
     const container2Logs = {
       id: 'container-2',
-      lines: ['api started'],
+      entries: [createLogEntry('api started')],
       runtime: 'docker',
       stderr: true,
       stdout: true,
       tail: 200,
-      timestamps: false,
+      timestamps: true,
       truncated: false,
     };
 
@@ -2266,7 +2323,7 @@ describe('container detail page', () => {
       since: undefined,
       stderr: true,
       stdout: true,
-      timestamps: false,
+      timestamps: true,
     });
 
     expect(headingText()).toBe('container-2');
@@ -2730,8 +2787,8 @@ describe('container detail page', () => {
     expect(styleSource).toContain('@media (width <= 720px)');
     expect(styleSource).toContain('grid-template-columns: 1fr;');
     expect(styleSource).toContain('.container-detail-realtime-bar {');
-    expect(styleSource).toContain('.container-detail-realtime-bar__hint {');
-    expect(styleSource).toContain('.container-detail-realtime-bar__actions {');
+    expect(styleSource).toContain('.container-detail-logs-header {');
+    expect(styleSource).toContain('.container-detail-logs-header__title {');
   });
 
   it('renders memory and CPU as full-width detail cards before the lower metric cards', async () => {
@@ -2948,6 +3005,29 @@ function createContainerDetail() {
       runtime: 'docker',
       status: 'enabled',
       endpoint: 'unix:///var/run/docker.sock',
+    },
+  };
+}
+
+function createLogEntry(line: string, stream: 'stdout' | 'stderr' = 'stdout', occurredAt = '2026-06-26T03:00:00Z') {
+  return {
+    line,
+    occurred_at: occurredAt,
+    stream,
+  };
+}
+
+function createRealtimeLogEvent(
+  line: string,
+  containerId = 'container-1',
+  topic = `container.logs:${containerId}`,
+  stream: 'stdout' | 'stderr' = 'stdout',
+) {
+  return {
+    data: {
+      topic,
+      id: containerId,
+      entry: createLogEntry(line, stream),
     },
   };
 }

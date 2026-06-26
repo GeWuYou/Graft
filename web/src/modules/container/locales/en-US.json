@@ -443,12 +443,18 @@
         "unavailable": "Not Collected"
       },
       "logs": {
+        "title": "Container Logs",
+        "clear": "Clear",
         "refresh": "Refresh Logs",
         "download": "Download",
         "searchPlaceholder": "Search Logs",
         "wrap": "Auto Wrap",
-        "refreshScroll": "Follow Bottom",
-        "refreshScrollTooltip": "Scroll to the bottom automatically after refreshing logs",
+        "autoScroll": "Auto Scroll",
+        "autoScrollTooltip": "Follow the newest logs automatically when the viewport is near the bottom",
+        "pause": "Pause",
+        "resume": "Resume",
+        "reconnect": "Reconnect",
+        "jumpBottom": "Jump Bottom",
         "levelFilter": "Level",
         "allLevels": "All",
         "matchCount": "{count} Matches",
@@ -457,6 +463,7 @@
         "basicInfo": "Basic Info",
         "time": "Time",
         "level": "Level",
+        "stream": "Stream",
         "source": "Source",
         "viewDetail": "View Detail",
         "collapseDetail": "Collapse Detail",
@@ -468,10 +475,12 @@
         "copyJson": "Copy JSON",
         "empty": "No Logs.",
         "truncated": "Logs Were Truncated by the Current Limit.",
-        "pauseRealtime": "Pause Realtime",
-        "resumeRealtime": "Resume Realtime",
-        "realtimePaused": "Publishing Paused",
-        "realtimeStreaming": "Realtime Publishing"
+        "states": {
+          "live": "LIVE",
+          "paused": "PAUSED",
+          "reconnecting": "RECONNECTING",
+          "disconnected": "DISCONNECTED"
+        }
       },
       "raw": {
         "title": "Raw JSON",

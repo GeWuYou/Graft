@@ -8,10 +8,18 @@ import {
   summarizeMetadata,
 } from './log-parser';
 
+function createEntry(line: string, stream: 'stdout' | 'stderr' = 'stdout', occurredAt = '') {
+  return {
+    line,
+    occurredAt,
+    stream,
+  } as const;
+}
+
 describe('log-parser', () => {
   it('parses ordinary INFO logs into structured fields', () => {
     const line = parseLogLine(
-      '2026-06-17T06:31:40.491+0800 INFO service/pricing_service.go:145 [Pricing] Service initialized',
+      createEntry('2026-06-17T06:31:40.491+0800 INFO service/pricing_service.go:145 [Pricing] Service initialized'),
       8,
     );
 
@@ -27,7 +35,9 @@ describe('log-parser', () => {
 
   it('parses WARN logs and maps warning tone without strong row coloring', () => {
     const line = parseLogLine(
-      '2026-06-17T06:31:40.497+0800 WARN stdlog server/wire_gen.go:262 Warning: server.trusted_proxies is empty',
+      createEntry(
+        '2026-06-17T06:31:40.497+0800 WARN stdlog server/wire_gen.go:262 Warning: server.trusted_proxies is empty',
+      ),
       15,
     );
 
@@ -40,7 +50,9 @@ describe('log-parser', () => {
 
   it('extracts trailing JSON metadata and summarizes common fields first', () => {
     const line = parseLogLine(
-      '2026-06-17T06:31:42.585+0800 INFO middleware/logger.go:61 http request completed {"service":"sub2api","env":"production","component":"http","request_id":"abc","duration":"12ms","method":"GET","path":"/health","status":200}',
+      createEntry(
+        '2026-06-17T06:31:42.585+0800 INFO middleware/logger.go:61 http request completed {"service":"sub2api","env":"production","component":"http","request_id":"abc","duration":"12ms","method":"GET","path":"/health","status":200}',
+      ),
       29,
     );
     const metadata = line.metadata as ParsedLogMetadata;
@@ -102,7 +114,7 @@ describe('log-parser', () => {
   });
 
   it('falls back to plain text without empty metadata', () => {
-    const line = parseLogLine('GitHub MCP Server running on stdio', 1);
+    const line = parseLogLine(createEntry('GitHub MCP Server running on stdio'), 1);
 
     expect(line.parsed.format).toBe('plain');
     expect(line.level).toBe('LOG');
@@ -113,10 +125,10 @@ describe('log-parser', () => {
   });
 
   it('detects standalone severities in plain text fallback lines', () => {
-    const errorLine = parseLogLine('ERROR failed to connect upstream service', 1);
-    const warnLine = parseLogLine('warning cache is nearly full', 2);
-    const infoLine = parseLogLine('info background worker started', 3);
-    const unknownLine = parseLogLine('unknown host name after DNS lookup', 4);
+    const errorLine = parseLogLine(createEntry('ERROR failed to connect upstream service'), 1);
+    const warnLine = parseLogLine(createEntry('warning cache is nearly full'), 2);
+    const infoLine = parseLogLine(createEntry('info background worker started'), 3);
+    const unknownLine = parseLogLine(createEntry('unknown host name after DNS lookup'), 4);
 
     expect(errorLine.parsed.format).toBe('plain');
     expect(errorLine.level).toBe('ERROR');
@@ -126,7 +138,7 @@ describe('log-parser', () => {
   });
 
   it('keeps stack trace-like lines from gaining false time or source fields', () => {
-    const line = parseLogLine('github.com/xxx/service.(*PricingService).refresh', 1);
+    const line = parseLogLine(createEntry('github.com/xxx/service.(*PricingService).refresh'), 1);
 
     expect(line.parsed.format).toBe('stack');
     expect(line.message).toBe('github.com/xxx/service.(*PricingService).refresh');
@@ -145,7 +157,9 @@ describe('log-parser', () => {
 
   it('folds repeated low-signal metadata out of the default tag summary', () => {
     const line = parseLogLine(
-      '2026-06-17T06:43:20.498+0800 INFO stdlog service/timing_wheel.go:37 flushed {"service":"sub2api","env":"production","legacy_stdlog":true,"request_id":"req-1","component":"scheduler"}',
+      createEntry(
+        '2026-06-17T06:43:20.498+0800 INFO stdlog service/timing_wheel.go:37 flushed {"service":"sub2api","env":"production","legacy_stdlog":true,"request_id":"req-1","component":"scheduler"}',
+      ),
       171,
     );
     const summary = summarizeMetadata(line.metadata, 3);
@@ -157,7 +171,7 @@ describe('log-parser', () => {
   it('falls back to raw text when trailing JSON parsing fails', () => {
     const raw =
       '2026-06-17T06:31:40.491+0800 INFO service/pricing_service.go:145 [Pricing] Service initialized {"service":';
-    const line = parseLogLine(raw, 1);
+    const line = parseLogLine(createEntry(raw), 1);
 
     expect(line.metadata).toBeNull();
     expect(line.raw).toBe(raw);
@@ -167,7 +181,9 @@ describe('log-parser', () => {
   it('highlights search keywords without changing log order', () => {
     const line = buildDisplayLogLine(
       parseLogLine(
-        '2026-06-17T06:31:42.585+0800 INFO middleware/logger.go:61 http request completed {"request_id":"abc"}',
+        createEntry(
+          '2026-06-17T06:31:42.585+0800 INFO middleware/logger.go:61 http request completed {"request_id":"abc"}',
+        ),
         2,
       ),
       'request',

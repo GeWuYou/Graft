@@ -443,12 +443,18 @@
         "unavailable": "未采集"
       },
       "logs": {
+        "title": "Container Logs",
+        "clear": "清空",
         "refresh": "刷新日志",
         "download": "下载",
         "searchPlaceholder": "搜索日志内容",
         "wrap": "自动换行",
-        "refreshScroll": "跟随底部",
-        "refreshScrollTooltip": "刷新日志后自动滚动到底部",
+        "autoScroll": "自动滚动",
+        "autoScrollTooltip": "当视口位于底部附近时自动跟随最新日志",
+        "pause": "暂停",
+        "resume": "继续",
+        "reconnect": "重新连接",
+        "jumpBottom": "跳至底部",
         "levelFilter": "级别",
         "allLevels": "全部",
         "matchCount": "{count} 个匹配",
@@ -457,6 +463,7 @@
         "basicInfo": "基础信息",
         "time": "时间",
         "level": "级别",
+        "stream": "流",
         "source": "来源",
         "viewDetail": "查看详情",
         "collapseDetail": "收起详情",
@@ -468,10 +475,12 @@
         "copyJson": "复制 JSON",
         "empty": "暂无日志。",
         "truncated": "日志已按当前上限截断。",
-        "pauseRealtime": "暂停实时",
-        "resumeRealtime": "恢复实时",
-        "realtimePaused": "已暂停发布",
-        "realtimeStreaming": "实时发布中"
+        "states": {
+          "live": "LIVE",
+          "paused": "PAUSED",
+          "reconnecting": "RECONNECTING",
+          "disconnected": "DISCONNECTED"
+        }
       },
       "raw": {
         "title": "原始 JSON",

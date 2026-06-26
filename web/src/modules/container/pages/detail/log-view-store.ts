@@ -23,7 +23,7 @@ function buildLogResponse(snapshot: ContainerLogRealtimeBatcherSnapshot | null):
 
   return Object.freeze({
     id: snapshot.id,
-    lines: [...snapshot.lineView.toArray()],
+    entries: [...snapshot.entryView.toArray()],
     runtime: snapshot.runtime,
     stderr: snapshot.stderr,
     stdout: snapshot.stdout,
@@ -52,9 +52,9 @@ export function createContainerDetailLogViewStore() {
     void version.value;
     return buildLogResponse(state.value.snapshot);
   });
-  const lines = computed(() => {
+  const entries = computed(() => {
     void version.value;
-    return state.value.snapshot?.lineView.toArray() ?? [];
+    return state.value.snapshot?.entryView.toArray() ?? [];
   });
   const truncated = computed(() => {
     void version.value;
@@ -77,7 +77,7 @@ export function createContainerDetailLogViewStore() {
     state,
     version,
     logs,
-    lines,
+    entries,
     truncated,
     paused: computed(() => state.value.paused),
     setLoading(loading: boolean) {
@@ -88,6 +88,11 @@ export function createContainerDetailLogViewStore() {
     },
     commit(snapshot: ContainerLogRealtimeBatcherSnapshot) {
       if (state.value.paused) {
+        if (snapshot.entryView.size === 0) {
+          pendingSnapshot = null;
+          commitSnapshot(snapshot);
+          return;
+        }
         pendingSnapshot = snapshot;
         return;
       }

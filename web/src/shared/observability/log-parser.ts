@@ -1,3 +1,4 @@
+import type { LogStream, StructuredLogEntry } from './log-entry';
 import type { LogLevel, LogToken } from './log-highlight';
 import { detectLogLevel, getLogLevelTone, normalizeLogLevel, tokenizeLogLine } from './log-highlight';
 
@@ -29,6 +30,7 @@ export type ParsedLogLine = {
   level: LogLevel | null;
   source: string;
   sourceShort: string;
+  stream: LogStream;
   message: string;
   metadata: ParsedLogMetadata | null;
   raw: string;
@@ -123,21 +125,26 @@ export function parseContainerLogLine(rawLine: string): ParsedContainerLog {
  * @param lineNo - The line number in the source
  * @returns A parsed log line with extracted fields and computed tone
  */
-export function parseLogLine(raw: string, lineNo: number): ParsedLogLine {
-  const parsed = parseContainerLogLine(raw);
+export function parseLogLine(entry: StructuredLogEntry, lineNo: number): ParsedLogLine {
+  const parsed = parseContainerLogLine(entry.line);
   const level = parsed.level ?? null;
 
   return {
     lineNo,
-    timestamp: parsed.time ?? '',
+    timestamp: entry.occurredAt || parsed.time || '',
     level,
     source: parsed.source ?? '',
     sourceShort: shortenLogSource(parsed.source ?? ''),
+    stream: entry.stream,
     message: parsed.message || parsed.raw,
     metadata: hasFields(parsed.fields) ? parsed.fields : null,
-    raw: parsed.raw,
+    raw: entry.line,
     tone: getLogLevelTone(level),
-    parsed,
+    parsed: {
+      ...parsed,
+      raw: entry.line,
+      time: entry.occurredAt || parsed.time,
+    },
   };
 }
 
@@ -146,8 +153,8 @@ export function parseLogLine(raw: string, lineNo: number): ParsedLogLine {
  *
  * @returns An array of parsed log lines.
  */
-export function parseLogLines(lines: string[]): ParsedLogLine[] {
-  return lines.map((line, index) => parseLogLine(line, index + 1));
+export function parseLogLines(entries: StructuredLogEntry[]): ParsedLogLine[] {
+  return entries.map((entry, index) => parseLogLine(entry, index + 1));
 }
 
 /**
