@@ -342,7 +342,8 @@ def main() -> int:
             return 0
 
         tool = resolve_local_tool()
-        ensure_tree_sitter_wasms_layout()
+        if not args.dry_run:
+            ensure_tree_sitter_wasms_layout()
 
         config = load_config()
         scopes = resolve_scopes(args.scope)

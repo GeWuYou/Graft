@@ -101,12 +101,15 @@ describe('ContainerLogRealtimeBatcher', () => {
   });
 
   it('emits an immutable snapshot for paused consumers', () => {
-    const snapshots: Array<{ lines: readonly string[]; version: number }> = [];
+    const snapshots: Array<{
+      lineView: { readonly version: number; toArray(): readonly string[] };
+      version: number;
+    }> = [];
     const batcher = new ContainerLogRealtimeBatcher({
       lineLimit: 4,
       onCommit: (snapshot) => {
         snapshots.push({
-          lines: snapshot.lineView.toArray(),
+          lineView: snapshot.lineView,
           version: snapshot.version,
         });
       },
@@ -116,8 +119,9 @@ describe('ContainerLogRealtimeBatcher', () => {
     batcher.enqueue(['line-2']);
     batcher.flush();
 
-    expect(snapshots[0]?.lines).toEqual(['seed-1']);
-    expect(snapshots[1]?.lines).toEqual(['seed-1', 'line-2']);
+    expect(snapshots[0]?.lineView.toArray()).toEqual(['seed-1']);
+    expect(snapshots[1]?.lineView.toArray()).toEqual(['seed-1', 'line-2']);
+    expect(snapshots[0]?.lineView.version).toBe(1);
     expect(snapshots[0]?.version).toBe(1);
   });
 });

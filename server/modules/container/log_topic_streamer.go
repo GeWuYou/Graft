@@ -9,6 +9,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"graft/server/internal/logger/logsafe"
 	"graft/server/internal/realtime"
 )
 
@@ -170,7 +171,11 @@ func (s *logTopicStreamer) start(topic string) {
 		defer close(done)
 		runtime, err := s.runtimeLoader()
 		if err != nil {
-			s.logger.Warn("start container log stream failed", zap.String("topic", topic), zap.Error(err))
+			s.logger.Warn(
+				"start container log stream failed",
+				zap.String("topic", logsafe.SanitizeText(topic)),
+				zap.Error(err),
+			)
 			s.clearRun(topic, runID)
 			return
 		}
@@ -185,7 +190,11 @@ func (s *logTopicStreamer) start(topic string) {
 			return nil
 		})
 		if err != nil && !errors.Is(err, context.Canceled) {
-			s.logger.Warn("container log stream stopped with error", zap.String("topic", topic), zap.Error(err))
+			s.logger.Warn(
+				"container log stream stopped with error",
+				zap.String("topic", logsafe.SanitizeText(topic)),
+				zap.Error(err),
+			)
 		}
 		s.clearRun(topic, runID)
 	}()

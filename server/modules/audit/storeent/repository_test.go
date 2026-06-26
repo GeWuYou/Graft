@@ -1330,6 +1330,9 @@ func assertAuditClassifierRuntime(
 		ResourceType: tc.resourceType,
 	}
 	record.Result = classifyAuditResult(record, metadataAny)
+	if got := string(record.Result); got != tc.wantResult {
+		t.Fatalf("runtime result classifier mismatch: got %s want %s", got, tc.wantResult)
+	}
 	if got := string(classifyAuditRiskLevel(record)); got != tc.wantRisk {
 		t.Fatalf("runtime risk classifier mismatch: got %s want %s", got, tc.wantRisk)
 	}

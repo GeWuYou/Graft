@@ -79,6 +79,14 @@ describe('LogViewCache', () => {
       keyword: 'error',
     });
     expect(buildSpy).toHaveBeenCalledTimes(4);
+
+    cache.buildView({
+      lines: ['request-a', 'request-b'],
+      lineLimit: 2,
+      level: 'ALL',
+      keyword: 'request',
+    });
+    expect(buildSpy).toHaveBeenCalledTimes(6);
   });
 
   it('keeps visible line numbers aligned with the sliced tail', () => {

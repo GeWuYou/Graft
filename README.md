@@ -59,7 +59,8 @@ Guardrails:
 
 - It is not part of the formal validation flow.
 - It does not replace `graft validate backend` or `bun run check`.
-- It must not be added to CI, hooks, runtime dependencies, or package manifests.
+- It must not be added to CI, hooks, runtime dependencies, `server/go.mod`, or `web/package.json`.
+- The approved repository entrypoint is the root `package.json` wrapper plus the corresponding project-local install.
 - Only the local `analyze` workflow is adopted here; do not use its `mcp-install`, `ai-review`, `update`, or `uninstall`
   commands as part of repository workflow.
 

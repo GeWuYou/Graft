@@ -1146,12 +1146,21 @@ describe('container list page', () => {
     const wrapper = mountPage();
     await flushPromises();
 
-    const columns = JSON.parse(wrapper.get('[data-testid="container-table"]').attributes('data-columns')) as Array<{
+    const rawColumns = wrapper.get('[data-testid="container-table"]').attributes('data-columns');
+    expect(rawColumns).toBeTruthy();
+    if (!rawColumns) {
+      throw new Error('container table columns payload missing');
+    }
+    const columns = JSON.parse(rawColumns) as Array<{
       colKey: string;
       minWidth: number | null;
       width: number | null;
     }>;
     const operationColumn = columns.find((column) => column.colKey === 'operation');
+    expect(operationColumn).toBeDefined();
+    if (!operationColumn) {
+      throw new Error('operation column not found');
+    }
 
     expect(operationColumn).toMatchObject({
       colKey: 'operation',
