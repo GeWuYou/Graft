@@ -801,8 +801,8 @@ describe('system config list page', () => {
     expect(wrapper.find('.system-config-workspace').exists()).toBe(true);
     expect(wrapper.find('.system-config-layout').exists()).toBe(true);
     expect(wrapper.find('.system-config-groups__search').exists()).toBe(true);
-    expect(wrapper.find('.system-config-groups.system-config-scrollbar').exists()).toBe(true);
-    expect(wrapper.find('.system-config-content.system-config-scrollbar').exists()).toBe(true);
+    expect(wrapper.find('.system-config-groups.system-config-scrollbar.graft-scrollbar').exists()).toBe(true);
+    expect(wrapper.find('.system-config-content.system-config-scrollbar.graft-scrollbar').exists()).toBe(true);
     expect(wrapper.find('.system-config-list').exists()).toBe(true);
     expect(wrapper.find('.system-config-content__head').exists()).toBe(true);
     expect(wrapper.find('.system-config-content__head').text()).toContain('工作台快捷入口');
@@ -867,10 +867,10 @@ describe('system config list page', () => {
     expect(cssBlock('.system-config-content')).toContain('overflow-y: auto;');
     expect(cssBlock('.system-config-content__head')).toContain('position: sticky;');
     expect(cssBlock('.system-config-list')).toContain('padding-bottom: var(--graft-density-gap-24);');
-    expect(cssBlock('.system-config-scrollbar')).toContain('scrollbar-color: var(--td-scrollbar-color) transparent;');
-    expect(cssBlock('.system-config-scrollbar::-webkit-scrollbar-thumb')).toContain(
-      'background-color: var(--td-scrollbar-color);',
+    expect(cssBlock('.system-config-scrollbar')).not.toContain(
+      'scrollbar-color: var(--td-scrollbar-color) transparent;',
     );
+    expect(cssBlock('.system-config-scrollbar')).not.toContain('scrollbar-width: thin;');
   });
 
   it('falls back to user id when modified config has no username', async () => {

@@ -14,7 +14,10 @@
     @close="cancelDraft"
   >
     <div class="cron-schedule-dialog">
-      <aside class="cron-schedule-dialog__nav" :aria-label="t('scheduledTask.cronScheduleDialog.planTypeLabel')">
+      <aside
+        class="cron-schedule-dialog__nav graft-scrollbar"
+        :aria-label="t('scheduledTask.cronScheduleDialog.planTypeLabel')"
+      >
         <button
           v-for="option in planTypeOptions"
           :key="option.value"
@@ -473,20 +476,6 @@ function clampInteger(value: number | string, min: number, max: number) {
   .cron-schedule-dialog__nav {
     flex-direction: row;
     overflow-x: auto;
-    scrollbar-color: var(--td-scrollbar-color) transparent;
-    scrollbar-width: thin;
-  }
-
-  .cron-schedule-dialog__nav::-webkit-scrollbar {
-    background: transparent;
-    height: 8px;
-  }
-
-  .cron-schedule-dialog__nav::-webkit-scrollbar-thumb {
-    background-clip: content-box;
-    background-color: var(--td-scrollbar-color);
-    border: 2px solid transparent;
-    border-radius: 6px;
   }
 
   .cron-schedule-dialog__nav-item {

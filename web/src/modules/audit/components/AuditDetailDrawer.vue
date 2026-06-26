@@ -494,10 +494,6 @@ const sameResourceRows = computed(() => {
   text-align: left;
 }
 
-.audit-detail {
-  gap: var(--graft-density-gap-20);
-}
-
 .audit-detail__hero,
 .audit-detail__related-grid,
 .audit-detail__grid,

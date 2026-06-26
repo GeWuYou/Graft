@@ -109,6 +109,39 @@
                 "cd \"${workspaceFolder}/web\" && bun run dev"
             ],
             "console": "integratedTerminal"
+        },
+        {
+            "name": "quality: eff-u-code server",
+            "type": "node",
+            "request": "launch",
+            "runtimeExecutable": "bash",
+            "runtimeArgs": [
+                "-lc",
+                "cd \"${workspaceFolder}\" && bun run quality:eff-u-code -- server"
+            ],
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "quality: eff-u-code web",
+            "type": "node",
+            "request": "launch",
+            "runtimeExecutable": "bash",
+            "runtimeArgs": [
+                "-lc",
+                "cd \"${workspaceFolder}\" && bun run quality:eff-u-code -- web"
+            ],
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "quality: eff-u-code all",
+            "type": "node",
+            "request": "launch",
+            "runtimeExecutable": "bash",
+            "runtimeArgs": [
+                "-lc",
+                "cd \"${workspaceFolder}\" && bun run quality:eff-u-code -- all"
+            ],
+            "console": "integratedTerminal"
         }
     ],
     "compounds": [

@@ -124,6 +124,38 @@ headroom_version() {
     "${binary}" --version 2>/dev/null | head -n 1 || printf '%s' "unknown"
 }
 
+eff_u_code_path() {
+    local local_binary="${ROOT_DIR}/node_modules/.bin/fuck-u-code"
+
+    if [[ -e "${local_binary}" ]]; then
+        printf '%s' "${local_binary}"
+    elif command -v fuck-u-code >/dev/null 2>&1; then
+        command -v fuck-u-code
+    else
+        printf '%s' ""
+    fi
+}
+
+eff_u_code_installed() {
+    if [[ -n "$(eff_u_code_path)" ]]; then
+        printf 'true'
+    else
+        printf 'false'
+    fi
+}
+
+eff_u_code_version() {
+    local binary
+
+    binary="$(eff_u_code_path)"
+    if [[ -z "${binary}" ]]; then
+        printf '%s' "not-installed"
+        return
+    fi
+
+    "${binary}" --version 2>/dev/null | head -n 1 || printf '%s' "unknown"
+}
+
 gh_authenticated() {
     if ! command -v gh >/dev/null 2>&1; then
         printf 'false'
@@ -285,6 +317,7 @@ repo_file_present() {
     fi
 }
 
+# collect_inventory 输出项目开发环境的原始 YAML 清单，包含平台、仓库、运行时、工具、MCP、Python 包和 Python 环境状态。
 collect_inventory() {
     local os_name distro version_id kernel shell_name wsl_enabled wsl_version timestamp
 
@@ -398,6 +431,11 @@ project_tools:
     purpose: "GitHub CLI for authenticated PR automation and future environment bootstrap scripts."
 
 ai_tools:
+  eff_u_code:
+    installed: $(eff_u_code_installed)
+    version: "$(eff_u_code_version)"
+    path: "$(eff_u_code_path)"
+    purpose: "Optional developer-local code quality analyzer exposed through the repository root package.json wrapper for manual hotspot inspection."
   headroom:
     installed: $(headroom_installed)
     version: "$(headroom_version)"

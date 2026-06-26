@@ -1,5 +1,5 @@
 schema_version: 1
-generated_at_utc: "2026-06-11T04:49:13Z"
+generated_at_utc: "2026-06-26T02:43:26Z"
 generator: "scripts/collect-dev-environment.sh"
 
 platform:
@@ -38,13 +38,13 @@ required_runtimes:
     purpose: "Runs local automation and environment collection scripts."
   node:
     installed: true
-    version: "v20.20.1"
-    path: "/usr/bin/node"
+    version: "v22.23.0"
+    path: "/root/.nvm/versions/node/v22.23.0/bin/node"
     purpose: "Provides the JavaScript runtime used by the web toolchain."
   npm:
     installed: true
-    version: "10.8.2"
-    path: "/usr/bin/npm"
+    version: "10.9.8"
+    path: "/root/.nvm/versions/node/v22.23.0/bin/npm"
     purpose: "Fallback package manager for the web toolchain."
   bun:
     installed: true
@@ -88,6 +88,11 @@ project_tools:
     purpose: "GitHub CLI for authenticated PR automation and future environment bootstrap scripts."
 
 ai_tools:
+  eff_u_code:
+    installed: true
+    version: "2.2.2"
+    path: "/home/gewuyou/project/go/Graft-wt/feat/wt-audit-plugin-mvp/node_modules/.bin/fuck-u-code"
+    purpose: "Optional developer-local code quality analyzer exposed through the repository root package.json wrapper for manual hotspot inspection."
   headroom:
     installed: true
     version: "headroom, version 0.24.0"

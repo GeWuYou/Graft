@@ -104,6 +104,7 @@
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { computed, onActivated, onDeactivated, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import type { LocationQueryValue } from 'vue-router';
 import { useRoute, useRouter } from 'vue-router';
 
 import { buildAccessLogRequestLocation } from '@/modules/access-log/contract/deep-link';
@@ -215,6 +216,7 @@ const applyingRoute = ref(false);
 const isRouteSyncActive = ref(true);
 const routeHydrated = ref(false);
 const navigationContext = computed(() => resolveAuditNavigationContext(route.query));
+const routeAuditLogId = computed(() => firstRouteQueryValue(route.query.audit_log_id));
 const monitorReturnLocation = computed(() => buildMonitorReturnLocation(route.query));
 const activePreset = computed(() => inferPresetFromState(filters.value, routeScope.value));
 const scopeState = computed(() =>
@@ -293,6 +295,10 @@ const isCurrentAuditLogsRoute = computed(
 
 function serializeRouteQuery(query: Record<string, unknown> | undefined) {
   return JSON.stringify(query ?? {});
+}
+
+function firstRouteQueryValue(value: LocationQueryValue | LocationQueryValue[] | undefined) {
+  return Array.isArray(value) ? (value[0] ?? '') : (value ?? '');
 }
 
 function canSyncAuditRoute(reason: string) {
@@ -414,6 +420,7 @@ async function fetchAuditLogs() {
     appliedScope.value = response.applied_scope ?? null;
     scopeProjection.value = response.scope_projection ?? null;
     convertibleFilters.value = response.convertible_filters ?? null;
+    await openRouteAuditLog();
   } catch (error) {
     if (requestSeq !== latestRequestSeq.value) {
       return;
@@ -505,6 +512,27 @@ function createDefaultFilters(): AuditClientFilterState {
   };
 }
 
+async function openRouteAuditLog() {
+  const auditLogId = Number(routeAuditLogId.value);
+  if (!Number.isFinite(auditLogId)) {
+    return;
+  }
+
+  const row = rows.value.find((item) => item.id === auditLogId);
+  if (row) {
+    await openDetailDrawer(row);
+    return;
+  }
+
+  await openLogDetailRow(
+    { id: auditLogId },
+    getAuditLogDetail,
+    detailRecord,
+    detailDrawerVisible,
+    reportDetailLoadError,
+  );
+}
+
 async function openDetailDrawer(row: AuditLogListItem) {
   detailInitialTab.value = 'context';
   await openLogDetailRow(row, getAuditLogDetail, detailRecord, detailDrawerVisible, reportDetailLoadError);
@@ -583,6 +611,7 @@ function buildRouteQuery() {
   const [createdFrom = '', createdTo = ''] = normalizePageStateRangeForRoute(explicitCreatedRange);
 
   return {
+    audit_log_id: routeAuditLogId.value,
     preset: routePreset.value,
     scope: routeScope.value,
     keyword: filters.value.keyword,
@@ -865,6 +894,15 @@ function inferPresetFromState(value: AuditClientFilterState, scope: string): Aud
     return 'auth-failed';
   }
   if (
+    value.businessCategory === AUDIT_BUSINESS_CATEGORY.HIGH_RISK_OPERATIONS &&
+    value.actionPrefix === 'ops.container.action.' &&
+    !value.resourceType &&
+    value.resourceTypes.includes('container') &&
+    value.resourceTypes.includes('container_batch')
+  ) {
+    return 'container-dangerous-ops';
+  }
+  if (
     value.businessCategory === AUDIT_BUSINESS_CATEGORY.HIGH_RISK_OPERATIONS ||
     value.businessCategory === AUDIT_BUSINESS_CATEGORY.CRITICAL_SECURITY
   ) {
@@ -898,6 +936,12 @@ function applyQuickPresetFilters(preset: AuditQuickPresetKey) {
       return;
     case 'auth-failed':
       filters.value.businessCategory = AUDIT_BUSINESS_CATEGORY.AUTH_FAILURES;
+      return;
+    case 'container-dangerous-ops':
+      filters.value.actionPrefix = 'ops.container.action.';
+      filters.value.businessCategory = AUDIT_BUSINESS_CATEGORY.HIGH_RISK_OPERATIONS;
+      filters.value.resourceTypes = ['container', 'container_batch'];
+      filters.value.riskLevels = ['HIGH'];
       return;
     case 'high-risk':
       filters.value.riskLevels = ['HIGH', 'CRITICAL'];

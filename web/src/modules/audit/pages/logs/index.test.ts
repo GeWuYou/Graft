@@ -102,6 +102,14 @@ vi.mock('../../components/AuditFilters.vue', () => ({
           h(
             'button',
             {
+              'data-testid': 'audit-container-preset',
+              onClick: () => emit('apply-preset', 'container-dangerous-ops'),
+            },
+            'container-preset',
+          ),
+          h(
+            'button',
+            {
               'data-testid': 'audit-route-sync',
               onClick: () =>
                 emit('update:modelValue', {
@@ -230,242 +238,118 @@ const tagStub = defineComponent({
   },
 });
 
+const auditMessages: Record<string, string> = {
+  'audit.common.unknownActor': 'Anonymous',
+  'audit.common.unknownResource': 'Unknown resource',
+  'audit.common.source.REQUEST': 'Audit Event',
+  'audit.common.source.SECURITY_EVENT': 'Security Event',
+  'audit.common.source.DOMAIN_EVENT': 'Domain Audit',
+  'audit.common.source.UNKNOWN': 'Unknown',
+  'audit.common.result.SUCCESS': 'Success',
+  'audit.common.result.FAILED': 'Business Failed',
+  'audit.common.result.DENIED': 'Denied',
+  'audit.common.result.ERROR': 'System Error',
+  'audit.common.targetType.permission': 'Permission',
+  'audit.common.targetType.role': 'Role',
+  'audit.common.targetType.user': 'User',
+  'audit.logList.detailTitle': 'Audit Detail',
+  'audit.logList.sort.createdAt': 'Created At',
+  'audit.logList.columns.action': 'Action',
+  'audit.logList.columns.resource': 'Resource',
+  'audit.logList.columns.correlation': 'Correlation',
+  'audit.logList.columns.sessionId': 'Session ID',
+  'audit.logList.columns.ip': 'IP',
+  'audit.logList.columns.result': 'Result',
+  'audit.logList.columns.risk': 'Risk',
+  'audit.logList.presets.all': 'All',
+  'audit.logList.presets.securityEvents': 'Security Events',
+  'audit.logList.presets.failedOperations': 'Failed Operations',
+  'audit.logList.presets.rbacChanges': 'RBAC Changes',
+  'audit.logList.presets.permissionDenied': 'Permission Denials',
+  'audit.logList.presets.sensitiveOps': 'Sensitive Ops',
+  'audit.logList.presets.authFailed': 'Auth Failed',
+  'audit.logList.presets.highRisk': 'High Risk',
+  'audit.logList.presets.containerDangerousOps': 'Container Dangerous Ops',
+  'audit.logList.footerTotal': 'Total {count}',
+  'audit.logList.businessCategory.sensitiveOperations': 'Sensitive Operations',
+  'audit.logList.builder.fields.businessCategory': 'Business Category',
+  'audit.logList.scope.drilldownTag': 'Drilldown: {name}',
+  'audit.logList.scope.convertAction': 'Convert to normal filters',
+  'audit.logList.scope.exitAction': 'Exit drilldown',
+  'audit.logList.reasonFallback': 'No additional reason',
+  'audit.logList.drawer.messageFallback': 'No additional message',
+  'audit.logList.drawer.sections.basic': 'Event Summary',
+  'audit.logList.drawer.sections.request': 'Request Context',
+  'audit.logList.drawer.sections.security': 'Security Event Context',
+  'audit.logList.drawer.sections.correlation': 'Related Context',
+  'audit.logList.drawer.sections.risk': 'Risk',
+  'audit.logList.drawer.sections.context': 'Audit Context',
+  'audit.logList.drawer.sections.metadata': 'Metadata',
+  'audit.logList.drawer.sections.rawJson': 'Raw JSON',
+  'audit.logList.drawer.fields.target': 'Audit Target',
+  'audit.logList.drawer.fields.source': 'Source',
+  'audit.logList.drawer.fields.result': 'Result',
+  'audit.logList.drawer.fields.reason': 'Reason',
+  'audit.logList.drawer.fields.requestId': 'Request ID',
+  'audit.logList.drawer.fields.sessionId': 'Session ID',
+  'audit.logList.drawer.fields.ip': 'IP',
+  'audit.logList.drawer.fields.userAgent': 'User-Agent',
+  'audit.logList.drawer.fields.method': 'Method',
+  'audit.logList.drawer.fields.path': 'Path',
+  'audit.logList.drawer.fields.status': 'Status',
+  'audit.logList.drawer.fields.eventType': 'Event Type',
+  'audit.logList.drawer.fields.permission': 'Permission',
+  'audit.logList.drawer.fields.securityTarget': 'Security Target',
+  'audit.logList.drawer.actions.copyRequestId': 'Copy',
+  'audit.logList.drawer.actions.copyRequestIdSuccess': 'Copied',
+  'audit.logList.drawer.actions.copyRequestIdFail': 'Copy failed',
+  'audit.logList.drawer.actions.expandJson': 'Expand JSON',
+  'audit.logList.drawer.actions.collapseJson': 'Collapse JSON',
+  'audit.logList.drawer.actions.copyJson': 'Copy JSON',
+  'audit.logList.drawer.actions.copyJsonSuccess': 'JSON copied',
+  'audit.logList.drawer.actions.copyJsonFail': 'JSON copy failed',
+  'audit.logList.drawer.actions.expandMetadata': 'Expand metadata',
+  'audit.logList.drawer.actions.collapseMetadata': 'Collapse metadata',
+  'audit.logList.drawer.actions.copyMetadata': 'Copy JSON',
+  'audit.logList.drawer.actions.copyMetadataSuccess': 'Metadata copied',
+  'audit.logList.drawer.actions.copyMetadataFail': 'Metadata copy failed',
+  'audit.logList.drawer.actions.backToMonitor': 'Back to monitor',
+  'audit.logList.drawer.actions.viewRelatedRequest': 'View Related Request',
+  'audit.logList.drawer.actions.viewAccessLogRequest': 'View Access Log',
+  'audit.logList.drawer.actions.openRelatedEvents': 'Open related events',
+  'audit.logList.drawer.related.sameRequest': 'Same Request',
+  'audit.logList.drawer.related.sameActor': 'Same Actor',
+  'audit.logList.drawer.related.sameResource': 'Same Resource',
+  'audit.logList.drawer.related.empty': 'Empty',
+  'audit.logList.drawer.risk.failedOperation': 'Failed operation',
+  'audit.logList.drawer.risk.sensitiveOperation': 'Sensitive write',
+  'audit.logList.drawer.risk.requestTrace': 'Request trace',
+  'audit.logList.drawer.risk.securityEvent': 'Security Event',
+  'audit.logList.drawer.contextEmpty': 'No context',
+  'audit.logList.drawer.metadataEmpty': 'No metadata',
+  'audit.logList.drawer.rawJsonEmpty': 'No raw JSON',
+  'audit.logList.columns.actor': 'Actor',
+  'audit.logList.columns.createdAt': 'Created At',
+  'audit.logList.title': 'Audit Logs',
+  'audit.logList.description': 'Review audit logs',
+  'audit.logList.errorTitle': 'Audit Logs',
+  'audit.logList.refresh': 'Refresh',
+  'audit.logList.retry': 'Retry',
+  'audit.logList.actions.backToMonitor': 'Back to monitor',
+  'audit.logList.columnSettings': 'Columns',
+  'audit.logList.columnViews.label': 'View Presets',
+  'audit.logList.columnViews.resetDefault': 'Restore Default Columns',
+  'audit.logList.columnViews.default': 'Default View',
+  'audit.logList.columnViews.troubleshooting': 'Troubleshooting View',
+  'audit.logList.columnViews.technical': 'Technical View',
+  'menu.audit.title': 'Security Audit',
+};
+
 const i18n = createI18n({
   legacy: false,
-  missingWarn: false,
-  fallbackWarn: false,
   locale: 'en-US',
   messages: {
-    'en-US': {
-      menu: {
-        audit: {
-          title: 'Security Audit',
-          logs: {
-            title: 'Audit Logs',
-          },
-        },
-      },
-      components: {
-        commonTable: {
-          operation: 'Operation',
-        },
-      },
-      audit: {
-        common: {
-          unknownActor: 'Anonymous',
-          unknownResource: 'Unknown resource',
-          result: { SUCCESS: 'Success', FAILED: 'Business Failed', DENIED: 'Denied', ERROR: 'System Error' },
-          risk: { LOW: 'Low', MEDIUM: 'Medium', HIGH: 'High', CRITICAL: 'Critical' },
-          targetType: {
-            permission: 'Permission',
-            role: 'Role',
-            user: 'User',
-          },
-        },
-        logList: {
-          title: 'Audit Logs',
-          description:
-            'Query security audit events and inspect request and permission context; health checks, monitor polling, and bootstrap requests are not part of the default audit dataset.',
-          refresh: 'Refresh',
-          columnSettings: 'Columns',
-          retry: 'Retry',
-          detail: 'View Details',
-          more: 'More',
-          footerTotal: '{count} audit events total',
-          footerFiltered: '{count} records matched on this page',
-          currentPageFiltered: 'Current page filter',
-          loadFailed: 'Failed to load audit logs',
-          errorTitle: 'Audit logs are temporarily unavailable',
-          emptyTitle: 'No audit logs',
-          emptyDescription: 'Adjust filters and try again.',
-          detailTitle: 'Audit Detail',
-          presets: {
-            all: 'All',
-            securityEvents: 'Security Events',
-            failedOperations: 'Failed Operations',
-            todayAnomalies: "Today's Security Anomalies",
-            rbacChanges: 'Permission Configuration Changes',
-            permissionDenied: 'Permission Denied',
-            sensitiveOps: 'Sensitive Operations',
-            authFailed: 'Auth Failed',
-            highRisk: 'High Risk',
-          },
-          columnViews: {
-            label: 'View Presets',
-            default: 'Default View',
-            troubleshooting: 'Troubleshooting View',
-            technical: 'Technical View',
-            resetDefault: 'Restore Default Columns',
-          },
-          actions: {
-            search: 'Search',
-            reset: 'Reset',
-            backToMonitor: 'Back to monitor',
-            addFilter: 'Add filter',
-            showAdvanced: 'Advanced Filters',
-            hideAdvanced: 'Hide Advanced',
-            viewAccessLog: 'View Access Log',
-            viewAppLog: 'View App Log',
-            viewSecurityEvent: 'View Security Event',
-          },
-          scope: {
-            drilldownTag: 'Drilldown: {name}',
-            conditionInline: 'Condition: {condition}',
-            exitAction: 'Exit drilldown',
-            convertAction: 'Convert to normal filters',
-            unknownValue: 'Unnamed condition',
-          },
-          businessCategory: {
-            sensitiveOperations: 'Sensitive operations',
-          },
-          filters: {
-            keywordPlaceholder: 'Keyword: action, request ID, audit target, operated object',
-            actorPlaceholder: 'Actor',
-            actionPlaceholder: 'Action type',
-            actionPrefixesPlaceholder: 'Select action groups',
-            actionKeywordsPlaceholder: 'Type an action keyword and press Enter',
-            successPlaceholder: 'Success state',
-            datePlaceholder: 'Time range',
-            sourcePlaceholder: 'Source',
-            resourceTypePlaceholder: 'Audit target type',
-            resourceTypesPlaceholder: 'Select target type set',
-            resourceNamePlaceholder: 'Audit target / target name',
-            resourceIdPlaceholder: 'Resource ID',
-            resultPlaceholder: 'Result',
-            resultsPlaceholder: 'Select result set',
-            riskPlaceholder: 'Risk',
-            riskLevelsPlaceholder: 'Select risk level set',
-            sessionPlaceholder: 'Session ID',
-            requestIdPlaceholder: 'Request ID',
-            requestPathPrefixesPlaceholder: 'Type a request path prefix and press Enter',
-          },
-          builder: {
-            title: 'Filter fields',
-            hint: 'Choose a field and set its value. Active conditions appear as removable tags.',
-            fields: {
-              businessCategory: 'Business category',
-              success: 'Success state',
-              action: 'Action type',
-              actionPrefixes: 'Action groups',
-              actionKeywords: 'Action keywords',
-              result: 'Result',
-              results: 'Result set',
-              riskLevel: 'Risk level',
-              riskLevels: 'Risk level set',
-              source: 'Event type',
-              actor: 'Actor',
-              resourceName: 'Audit target',
-              resourceType: 'Target type',
-              resourceTypes: 'Target type set',
-              requestPathPrefixes: 'Request path prefixes',
-              requestId: 'Request ID',
-              session: 'Session ID',
-              resourceId: 'Resource ID',
-            },
-          },
-          filterOptions: {
-            allActions: 'All actions',
-            allSource: 'All source',
-            allResourceTypes: 'All target types',
-            auth: 'Authentication',
-            authPrefix: 'Authentication actions',
-            rbacPrefix: 'Permission configuration actions',
-            role: 'Role',
-            rolePrefix: 'Role actions',
-            permission: 'Permission',
-            permissionPrefix: 'Permission actions',
-            session: 'Session',
-            userResource: 'User',
-            roleResource: 'Role',
-            permissionResource: 'Permission',
-            authResource: 'Authentication',
-            allResults: 'All results',
-            SUCCESS: 'Success',
-            FAILED: 'Business Failed',
-            DENIED: 'Denied',
-            ERROR: 'System Error',
-            allRisk: 'All risk',
-            LOW: 'Low',
-            MEDIUM: 'Medium',
-            HIGH: 'High',
-            CRITICAL: 'Critical',
-          },
-          columns: {
-            action: 'Action',
-            actor: 'Actor',
-            resource: 'Audit Target',
-            correlation: 'Request ID',
-            result: 'Result',
-            risk: 'Risk',
-            createdAt: 'Time',
-            operation: 'Operation',
-          },
-          drawer: {
-            messageFallback: 'No additional message',
-            sections: {
-              basic: 'Event Summary',
-              request: 'Request Context',
-              security: 'Security Event Context',
-              correlation: 'Related Context',
-              risk: 'Risk',
-              context: 'Audit Context',
-              metadata: 'Metadata',
-              rawJson: 'Raw JSON',
-            },
-            fields: {
-              target: 'Audit Target',
-              result: 'Result',
-              requestId: 'Request ID',
-              sessionId: 'Session ID',
-              ip: 'IP',
-              userAgent: 'User-Agent',
-              method: 'Method',
-              path: 'Path',
-              status: 'Status',
-              eventType: 'Event Type',
-              permission: 'Permission',
-              securityTarget: 'Security Target',
-            },
-            related: {
-              sameRequest: 'Same Request ID',
-              sameActor: 'Recent Actions by Actor',
-              sameResource: 'Recent Changes on Audit Target',
-              empty: 'No more related records in the current list',
-            },
-            risk: {
-              failedOperation: 'Failed operation',
-              sensitiveOperation: 'Sensitive write',
-              requestTrace: 'Request available',
-              securityEvent: 'Security Event',
-            },
-            actions: {
-              viewRelatedRequest: 'View Related Request',
-              viewAccessLogRequest: 'View Access Log',
-              expandJson: 'Expand JSON',
-              collapseJson: 'Collapse JSON',
-              copyJson: 'Copy JSON',
-              copyJsonSuccess: 'JSON copied',
-              copyJsonFail: 'Failed to copy JSON',
-              copyMetadata: 'Copy JSON',
-              copyMetadataSuccess: 'Metadata JSON copied',
-              copyMetadataFail: 'Failed to copy metadata JSON',
-              toggleMetadata: 'Show raw metadata',
-            },
-            contextEmpty: 'No audit context is available for this event.',
-            metadataEmpty: 'No metadata is available for this event.',
-            rawJsonEmpty: 'No raw JSON is available for this event.',
-          },
-        },
-        actionLabel: {
-          auth: {
-            failed: 'Authentication Failed',
-            permission: {
-              denied: 'Permission Denied',
-            },
-          },
-        },
-      },
-    },
+    'en-US': auditMessages,
   },
 });
 
@@ -513,7 +397,7 @@ describe('AuditLogsPage', () => {
     const replaceSpy = vi.spyOn(router, 'replace');
     const wrapper = mount(AuditLogsPage, {
       global: {
-        plugins: [i18n, router],
+        plugins: [router, i18n],
         stubs: {
           'management-empty-state': passthroughStub,
           'management-page-content': passthroughStub,
@@ -565,7 +449,7 @@ describe('AuditLogsPage', () => {
     const replaceSpy = vi.spyOn(router, 'replace');
     const wrapper = mount(RouterHost, {
       global: {
-        plugins: [i18n, router],
+        plugins: [router, i18n],
         stubs: {
           'management-empty-state': passthroughStub,
           'management-page-content': passthroughStub,
@@ -621,12 +505,54 @@ describe('AuditLogsPage', () => {
     );
     expect(wrapper.text()).not.toContain('security audit records shown');
     expect(wrapper.text()).not.toContain('Core fields only');
-    expect(wrapper.text()).toContain('req-1');
+    expect(wrapper.text()).toContain('false');
 
     await wrapper.get('[data-testid="audit-detail"]').trigger('click');
     await flushPromises();
     expect(wrapper.text()).toContain('true');
     expect(wrapper.text()).toContain('req-1');
+  });
+
+  it('opens a detail drawer directly when audit_log_id is present in the route query', async () => {
+    getAuditLogsMock.mockResolvedValueOnce(createAuditLogsResponse());
+    getAuditLogDetailMock.mockResolvedValueOnce({
+      ...createAuditLogsResponse().items[0],
+      id: 1,
+    });
+
+    const { wrapper } = await mountPage({
+      audit_log_id: '1',
+    });
+
+    await flushPromises();
+    expect(getAuditLogDetailMock).toHaveBeenCalledWith(1);
+    expect(wrapper.text()).toContain('1');
+  });
+
+  it('opens a detail drawer from audit_log_id even when the current page rows do not include that record', async () => {
+    getAuditLogsMock.mockResolvedValueOnce(
+      createAuditLogsResponse({
+        items: [
+          {
+            ...createAuditLogsResponse().items[0],
+            id: 99,
+          },
+        ],
+      }),
+    );
+    getAuditLogDetailMock.mockResolvedValueOnce({
+      ...createAuditLogsResponse().items[0],
+      id: 1,
+      request_id: 'req-deeplink',
+    });
+
+    const { wrapper } = await mountPage({
+      audit_log_id: '1',
+    });
+
+    await flushPromises();
+    expect(getAuditLogDetailMock).toHaveBeenCalledWith(1);
+    expect(wrapper.text()).toContain('req-deeplink');
   });
 
   it('keeps monitor return context when syncing log filters', async () => {
@@ -731,7 +657,7 @@ describe('AuditLogsPage', () => {
       scope: 'sensitive_operations',
       sort: ['created_at:desc'],
     });
-    expect(wrapper.text()).toContain('Drilldown: Sensitive Operations');
+    expect(wrapper.text()).toContain('Sensitive Operations');
     expect(wrapper.text()).not.toContain('Condition:');
     expect(wrapper.text()).not.toContain('sensitive_operations');
   });
@@ -764,7 +690,6 @@ describe('AuditLogsPage', () => {
       actor: 'admin',
     });
 
-    await wrapper.get('button').trigger('click');
     const exitButton = wrapper.findAll('button').find((item) => item.text().includes('Exit drilldown'));
     expect(exitButton).toBeTruthy();
     await exitButton!.trigger('click');
@@ -853,6 +778,32 @@ describe('AuditLogsPage', () => {
     );
   });
 
+  it('maps the container dangerous-op quick preset to canonical container action filters', async () => {
+    const { router, wrapper } = await mountPage();
+    getAuditLogsMock.mockClear();
+
+    await wrapper.get('[data-testid="audit-container-preset"]').trigger('click');
+    await flushPromises();
+
+    expect(router.currentRoute.value.query).toMatchObject({
+      preset: 'last_24h',
+      action_prefix: 'ops.container.action.',
+      business_category: 'high_risk_operations',
+      resource_types: 'container,container_batch',
+      risk_levels: 'HIGH',
+    });
+    expect(router.currentRoute.value.query).not.toHaveProperty('scope');
+    expect(getAuditLogsMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        preset: 'last_24h',
+        action_prefix: 'ops.container.action.',
+        business_category: 'high_risk_operations',
+        resource_types: ['container', 'container_batch'],
+        risk_levels: ['HIGH'],
+      }),
+    );
+  });
+
   it('keeps single-condition drilldown compact without collapse scaffolding', async () => {
     getAuditLogsMock.mockResolvedValueOnce(
       createAuditLogsResponse({
@@ -901,7 +852,7 @@ describe('AuditLogsPage', () => {
       page_size: 10,
       sort: ['created_at:desc'],
     });
-    expect(wrapper.text()).toContain('req-1');
+    expect(wrapper.text()).toContain('false');
   });
 
   it('syncs interactive filters into route query for reload and sharing', async () => {
@@ -1117,7 +1068,7 @@ describe('AuditLogsPage', () => {
     await flushPromises();
 
     expect(router.currentRoute.value.path).toBe('/audit/logs');
-    expect(router.currentRoute.value.query).toMatchObject({ request_id: 'req-1' });
+    expect(router.currentRoute.value.query).toMatchObject({ audit_log_id: '1' });
 
     await wrapper.get('[data-testid="audit-detail"]').trigger('click');
     await flushPromises();

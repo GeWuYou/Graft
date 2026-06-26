@@ -148,11 +148,21 @@ def missing_concepts(
 
 
 def validate_ai_tooling_doc() -> list[Finding]:
+    """
+    校验 AI 工具治理文档是否包含必需的治理术语与约束。
+    
+    Returns:
+        list[Finding]: 缺失必需内容或包含禁用表述时对应的发现列表。
+    """
     if not AI_TOOLING_DOC.is_file():
         return []
     text = read_text(AI_TOOLING_DOC)
     findings: list[Finding] = []
     exact_terms = (
+        "eff-u-code",
+        "fuck-u-code",
+        "developer-local",
+        "not part of the formal validation flow",
         "codegraph",
         "tdesign",
         "context7",
@@ -196,6 +206,15 @@ def validate_ai_tooling_doc() -> list[Finding]:
                         r"user-level|用户级",
                         r"MCP",
                         r"context compression|上下文.*压缩",
+                    ),
+                ),
+                (
+                    "eff-u-code optional local helper",
+                    (
+                        r"eff-u-code|fuck-u-code",
+                        r"optional|可选",
+                        r"developer-local|本地",
+                        r"validation flow|完成态|CI|hook",
                     ),
                 ),
                 ("RTK prefix rule is forbidden", (r"不得|must not", r"always prefix with\s+`?rtk`?")),
@@ -281,17 +300,25 @@ def validate_sql_migration_governance() -> list[Finding]:
 
 
 def validate_environment_inventory() -> list[Finding]:
+    """
+    校验本地 AI 环境清单是否包含必需的工具记录与受控目录配置。
+    
+    Returns:
+        list[Finding]: 发现的治理缺失项列表；当清单文件不存在时返回空列表。
+    """
     if not TOOLS_AI.is_file():
         return []
     text = read_text(TOOLS_AI)
     findings: list[Finding] = []
     exact_terms = (
+        "eff_u_code:",
+        "Keep eff-u-code developer-local only; the repository root package.json wrapper is allowed, but do not add it to server/go.mod, web/package.json, CI, hooks, runtime scripts, or completion gates.",
         "preferred: \"headroom mcp\"",
         ".ai/headroom/memory",
         ".ai/headroom/learn",
         "rtk instruction injection",
         "automatic instructions write",
-        "default_command:",
+        "default_command: \"bun run quality:eff-u-code --\"",
         "instructions_auto_write: \"disabled\"",
     )
     findings.extend(missing_exact_terms(text, TOOLS_AI, "AI environment inventory", exact_terms))
@@ -302,6 +329,7 @@ def validate_environment_inventory() -> list[Finding]:
             "AI environment inventory",
             (
                 ("Headroom CLI and MCP capabilities", (r"ai_headroom:\s*true", r"ai_headroom_mcp:\s*true")),
+                ("eff-u-code optional helper record", (r"ai_tools:", r"eff_u_code:", r"developer-local", r"default_command:\s+\"bun run quality:eff-u-code --\"", r"repository root package\.json wrapper is allowed", r"server/go\.mod", r"web/package\.json", r"validation flow|validation gate")),
                 ("context compression tool selection", (r"context_compression:", r"preferred:\s+\"headroom mcp\"")),
                 ("controlled local Headroom directories", (r"controlled_local_dirs:", r"\.ai/headroom/memory", r"\.ai/headroom/learn")),
                 ("disallowed Headroom automation", (r"disallowed_by_default:", r"rtk instruction injection", r"automatic instructions write")),
@@ -310,6 +338,8 @@ def validate_environment_inventory() -> list[Finding]:
             ),
         )
     )
+    if "do not add it to package manifests" in text:
+        findings.append(Finding(TOOLS_AI, "eff-u-code guardrail is too broad; allow the repository root package.json wrapper and scope the ban to server/go.mod, web/package.json, CI, hooks, runtime scripts, and completion gates"))
     for disallowed in ("headroom wrap codex", "headroom proxy", "wrapper_available:", "proxy_available:"):
         if disallowed in text:
             findings.append(Finding(TOOLS_AI, f"AI environment inventory should keep only MCP entry content, found {disallowed!r}"))

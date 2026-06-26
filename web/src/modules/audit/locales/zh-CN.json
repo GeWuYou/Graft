@@ -255,7 +255,8 @@
         "permissionDenied": "权限拒绝",
         "sensitiveOps": "敏感操作",
         "authFailed": "认证失败",
-        "highRisk": "高风险"
+        "highRisk": "高风险",
+        "containerDangerousOps": "危险容器操作"
       },
       "columnViews": {
         "label": "视图预设",

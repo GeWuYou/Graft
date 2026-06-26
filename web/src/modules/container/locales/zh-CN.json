@@ -139,6 +139,7 @@
       "actions": {
         "detail": "详情",
         "logs": "日志",
+        "viewAudit": "查看审计",
         "start": "启动",
         "stop": "停止",
         "restart": "重启",
@@ -291,6 +292,7 @@
       "copy": "复制",
       "copySuccess": "内容已复制。",
       "copyError": "内容复制失败。",
+      "viewAudit": "查看审计",
       "empty": "暂无容器详情。",
       "missingId": "缺少容器标识。",
       "inspectUpdatedAt": "详情更新时间",
@@ -345,6 +347,11 @@
         "network": "网络",
         "storage": "挂载",
         "raw": "原始 JSON"
+      },
+      "viewer": {
+        "enterFullscreen": "全屏",
+        "exitFullscreen": "退出全屏",
+        "resizeHandle": "调整阅读器高度"
       },
       "shell": {
         "title": "Shell",
@@ -460,7 +467,11 @@
         "copyLine": "复制本行",
         "copyJson": "复制 JSON",
         "empty": "暂无日志。",
-        "truncated": "日志已按当前上限截断。"
+        "truncated": "日志已按当前上限截断。",
+        "pauseRealtime": "暂停实时",
+        "resumeRealtime": "恢复实时",
+        "realtimePaused": "已暂停发布",
+        "realtimeStreaming": "实时发布中"
       },
       "raw": {
         "title": "原始 JSON",

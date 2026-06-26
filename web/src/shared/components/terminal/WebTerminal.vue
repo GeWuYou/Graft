@@ -300,10 +300,6 @@ defineExpose({
   overscroll-behavior: contain;
 }
 
-.web-terminal__host :deep(.xterm-viewport.graft-scrollbar) {
-  scrollbar-gutter: stable;
-}
-
 .web-terminal__overlay {
   align-items: center;
   backdrop-filter: blur(2px);

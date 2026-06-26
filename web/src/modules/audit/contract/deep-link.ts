@@ -10,6 +10,7 @@ import { AUDIT_DRILLDOWN_SCOPE } from './presets';
 type AuditEvidenceContext = components['schemas']['AuditEvidenceContext'];
 
 export type AuditLogsRouteQuery = Partial<{
+  audit_log_id: string;
   preset: string;
   scope: string;
   keyword: string;
@@ -45,9 +46,16 @@ function firstQueryValue(value: LocationQueryValue | LocationQueryValue[] | unde
   return Array.isArray(value) ? value[0] : value;
 }
 
+/**
+ * 解析审计日志路由查询参数并统一为规范化对象。
+ *
+ * @param query - 路由查询参数
+ * @returns 解析后、已裁剪空白并按字段取首值的查询对象
+ */
 export function parseAuditLogsRouteQuery(query: LocationQuery | AuditLogsRouteQuery): AuditLogsRouteQuery {
   const rawSort = query.sort as LocationQueryValue | LocationQueryValue[] | undefined;
   return {
+    audit_log_id: trimQueryValue(firstQueryValue(query.audit_log_id)),
     keyword: trimQueryValue(firstQueryValue(query.keyword)),
     preset: trimQueryValue(firstQueryValue(query.preset)),
     scope: trimQueryValue(firstQueryValue(query.scope)),

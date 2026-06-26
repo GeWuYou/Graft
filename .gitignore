@@ -61,3 +61,5 @@ __linux
 
 # Project
 .playwright-mcp/
+.eff-u-code.local.json
+node_modules/

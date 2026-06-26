@@ -37,6 +37,7 @@ type RealtimeControllerMock = {
   reconnect: ReturnType<typeof vi.fn>;
   emitMessage: (payload: unknown) => void;
   emitStateChange: (state: 'idle' | 'connecting' | 'open' | 'closed' | 'error') => void;
+  topic?: string;
 };
 
 const realtimeMocks = vi.hoisted(() => ({
@@ -45,6 +46,8 @@ const realtimeMocks = vi.hoisted(() => ({
     (options?: {
       onMessage?: (payload: unknown) => void;
       onStateChange?: (state: 'idle' | 'connecting' | 'open' | 'closed' | 'error') => void;
+      parseMessage?: (payload: unknown) => unknown;
+      topic?: string;
     }) => {
       options?.onStateChange?.('open');
       const controller: RealtimeControllerMock = {
@@ -52,12 +55,17 @@ const realtimeMocks = vi.hoisted(() => ({
           options?.onStateChange?.('idle');
         }),
         emitMessage: (payload) => {
-          options?.onMessage?.(payload);
+          const shouldParse = options?.topic?.startsWith('container.logs:') ?? false;
+          const parsed = shouldParse && options?.parseMessage ? options.parseMessage(payload) : payload;
+          if (parsed) {
+            options?.onMessage?.(parsed);
+          }
         },
         emitStateChange: (state) => {
           options?.onStateChange?.(state);
         },
         reconnect: vi.fn(),
+        topic: options?.topic,
       };
       realtimeMocks.controllers.push(controller);
       return controller;
@@ -84,6 +92,10 @@ const tabStoreState = vi.hoisted(() => ({
     tabKey: string;
     title: { 'zh-CN': string; 'en-US': string };
   }>,
+}));
+
+const permissionStoreMock = vi.hoisted(() => ({
+  hasPermission: vi.fn(() => true),
 }));
 
 const routeState = vi.hoisted(
@@ -170,6 +182,7 @@ const translations = vi.hoisted(
     'container.detail.copyError': '内容复制失败。',
     'container.detail.copySuccess': '内容已复制。',
     'container.detail.description': '查看容器运行时详情、资源、日志、配置、网络和挂载信息。',
+    'container.detail.viewAudit': '查看审计',
     'container.detail.autoRefresh': '自动刷新',
     'container.detail.autoRefreshOff': '关闭',
     'container.detail.autoRefreshPaused': '已暂停',
@@ -269,6 +282,10 @@ const translations = vi.hoisted(
     'container.detail.logs.source': '来源',
     'container.detail.logs.time': '时间',
     'container.detail.logs.truncated': '日志已按当前上限截断。',
+    'container.detail.logs.pauseRealtime': '暂停实时',
+    'container.detail.logs.resumeRealtime': '恢复实时',
+    'container.detail.logs.realtimePaused': '已暂停发布',
+    'container.detail.logs.realtimeStreaming': '实时发布中',
     'container.detail.logs.viewDetail': '查看详情',
     'container.detail.logs.wrap': '自动换行',
     'container.detail.missingId': '缺少容器标识。',
@@ -463,6 +480,9 @@ const translations = vi.hoisted(
     'container.detail.tabs.raw': '原始 JSON',
     'container.detail.tabs.resources': '资源',
     'container.detail.tabs.storage': '挂载',
+    'container.detail.viewer.enterFullscreen': '全屏',
+    'container.detail.viewer.exitFullscreen': '退出全屏',
+    'container.detail.viewer.resizeHandle': '调整阅读器高度',
     'container.detail.title': '容器详情',
     'container.list.detail.command': '命令',
     'container.list.detail.entrypoint': '入口',
@@ -540,6 +560,7 @@ vi.mock('vue-router', async () => {
 });
 
 vi.mock('@/store', () => ({
+  usePermissionStore: () => permissionStoreMock,
   useTabsRouterStore: () => tabStoreState,
 }));
 
@@ -995,12 +1016,34 @@ describe('container detail page', () => {
 
     const headerMeta = wrapper.get('[data-testid="container-detail-header-meta-slot"]');
     const refreshRow = wrapper.get('[data-testid="container-detail-realtime-row"]');
+    const headerActions = wrapper.get('[data-testid="container-detail-header-actions-slot"]');
 
     expect(headerMeta.find('[data-testid="container-detail-realtime-bar"]').exists()).toBe(false);
-    expect(wrapper.find('[data-testid="container-detail-header-actions-slot"]').exists()).toBe(false);
+    expect(headerActions.find('[data-testid="container-detail-realtime-bar"]').exists()).toBe(false);
+    expect(headerActions.text()).toContain('查看审计');
     expect(wrapper.find('[data-testid="container-detail-tabs-action-slot"]').exists()).toBe(false);
     expect(refreshRow.find('[data-testid="container-detail-realtime-bar"]').exists()).toBe(true);
     expect(wrapper.findAll('[data-testid="container-detail-realtime-bar"]')).toHaveLength(1);
+  });
+
+  it('renders a fixed audit entry in the detail header and routes by container resource identity', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const actionSlot = wrapper.get('[data-testid="container-detail-header-actions-slot"]');
+    expect(actionSlot.text()).toContain('查看审计');
+
+    await wrapper.get('[data-testid="container-detail-view-audit"]').trigger('click');
+    await flushPromises();
+
+    expect(routerMocks.push).toHaveBeenCalledWith({
+      path: '/audit/logs',
+      query: {
+        resource_id: 'ff007d095ed9faafdf39957cf4e2134dc9644a935c0e8d94bc3e599bcc518edb',
+        resource_name: 'graft-web',
+        resource_type: 'container',
+      },
+    });
   });
 
   it('renders header meta as identity tags plus a separate updated-at line', async () => {
@@ -1277,6 +1320,213 @@ describe('container detail page', () => {
     expect(messageMocks.success).toHaveBeenCalledWith('容器详情已刷新');
   });
 
+  it('subscribes to container logs only while the logs tab is active and appends realtime lines', async () => {
+    vi.useFakeTimers();
+    routeState.route.query.tab = 'logs';
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const logController = realtimeMocks.controllers.find(
+      (controller) => controller.topic === 'container.logs:container-1',
+    );
+    expect(logController).toBeTruthy();
+    expect(wrapper.get('.log-viewer').text()).toContain('server started');
+    expect(wrapper.get('.log-viewer').text()).not.toContain('刷新日志');
+
+    logController!.emitMessage({
+      data: {
+        topic: 'container.logs:container-1',
+        id: 'container-1',
+        lines: ['server ready'],
+      },
+    });
+    vi.advanceTimersByTime(100);
+    await flushPromises();
+
+    expect(wrapper.get('.log-viewer').text()).toContain('server ready');
+
+    await wrapper.get('[data-testid="tab-shell"]').trigger('click');
+    await flushPromises();
+
+    expect(logController!.close).toHaveBeenCalled();
+  });
+
+  it('ignores log realtime messages whose canonical topic or container id does not match the active container', async () => {
+    vi.useFakeTimers();
+    routeState.route.query.tab = 'logs';
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const logController = realtimeMocks.controllers.find(
+      (controller) => controller.topic === 'container.logs:container-1',
+    );
+    expect(logController).toBeTruthy();
+
+    logController!.emitMessage({
+      data: {
+        topic: 'container.logs:container-2',
+        id: 'container-1',
+        lines: ['wrong-topic-line'],
+      },
+    });
+    logController!.emitMessage({
+      data: {
+        topic: 'container.logs:container-1',
+        id: 'container-2',
+        lines: ['wrong-id-line'],
+      },
+    });
+    vi.advanceTimersByTime(100);
+    await flushPromises();
+
+    const text = wrapper.get('.log-viewer').text();
+    expect(text).not.toContain('wrong-topic-line');
+    expect(text).not.toContain('wrong-id-line');
+  });
+
+  it('does not auto-retry log loading after the initial failure until an explicit refresh path runs', async () => {
+    routeState.route.query.tab = 'logs';
+    apiMocks.getContainerLogs.mockReset();
+    apiMocks.getContainerLogs.mockRejectedValue(new Error('boom'));
+
+    const wrapper = mountPage();
+    await flushPromises();
+    await flushPromises();
+
+    expect(apiMocks.getContainerLogs).toHaveBeenCalledTimes(1);
+    expect(wrapper.text()).toContain('重试');
+  });
+
+  it('batches multiple realtime log messages into one timed commit window', async () => {
+    vi.useFakeTimers();
+    routeState.route.query.tab = 'logs';
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const logController = realtimeMocks.controllers.find(
+      (controller) => controller.topic === 'container.logs:container-1',
+    );
+    expect(logController).toBeTruthy();
+    expect(wrapper.get('.log-viewer').text()).toContain('server started');
+
+    logController!.emitMessage({
+      data: {
+        topic: 'container.logs:container-1',
+        id: 'container-1',
+        lines: ['line-2'],
+      },
+    });
+    logController!.emitMessage({
+      data: {
+        topic: 'container.logs:container-1',
+        id: 'container-1',
+        lines: ['line-3'],
+      },
+    });
+
+    await flushPromises();
+    expect(wrapper.get('.log-viewer').text()).not.toContain('line-2');
+    expect(wrapper.get('.log-viewer').text()).not.toContain('line-3');
+
+    vi.advanceTimersByTime(100);
+    await flushPromises();
+
+    const text = wrapper.get('.log-viewer').text();
+    expect(text).toContain('line-2');
+    expect(text).toContain('line-3');
+  });
+
+  it('suppresses log viewer refresh while paused and publishes accumulated logs once on resume', async () => {
+    vi.useFakeTimers();
+    routeState.route.query.tab = 'logs';
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const logController = realtimeMocks.controllers.find(
+      (controller) => controller.topic === 'container.logs:container-1',
+    );
+    expect(logController).toBeTruthy();
+    expect(wrapper.get('[data-testid="container-detail-logs-status"]').text()).toContain('实时发布中');
+
+    await wrapper.get('[data-testid="container-detail-logs-toggle"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.get('[data-testid="container-detail-logs-status"]').text()).toContain('已暂停发布');
+    expect(wrapper.get('[data-testid="container-detail-logs-toggle"]').text()).toContain('恢复实时');
+
+    logController!.emitMessage({
+      data: {
+        topic: 'container.logs:container-1',
+        id: 'container-1',
+        lines: ['paused-line-2'],
+      },
+    });
+    logController!.emitMessage({
+      data: {
+        topic: 'container.logs:container-1',
+        id: 'container-1',
+        lines: ['paused-line-3'],
+      },
+    });
+    vi.advanceTimersByTime(100);
+    await flushPromises();
+
+    const pausedText = wrapper.get('.log-viewer').text();
+    expect(pausedText).not.toContain('paused-line-2');
+    expect(pausedText).not.toContain('paused-line-3');
+
+    await wrapper.get('[data-testid="container-detail-logs-toggle"]').trigger('click');
+    await flushPromises();
+
+    const resumedText = wrapper.get('.log-viewer').text();
+    expect(wrapper.get('[data-testid="container-detail-logs-status"]').text()).toContain('实时发布中');
+    expect(wrapper.get('[data-testid="container-detail-logs-toggle"]').text()).toContain('暂停实时');
+    expect(resumedText).toContain('paused-line-2');
+    expect(resumedText).toContain('paused-line-3');
+  });
+
+  it('releases and recreates the log subscription when the route id changes on the logs tab', async () => {
+    routeState.route.query.tab = 'logs';
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const firstLogController = realtimeMocks.controllers.find(
+      (controller) => controller.topic === 'container.logs:container-1',
+    );
+    expect(firstLogController).toBeTruthy();
+
+    apiMocks.getContainer.mockResolvedValueOnce({
+      ...createContainerDetail(),
+      id: 'container-2',
+      short_id: 'container-2',
+      name: 'graft-api',
+      names: ['graft-api'],
+      image: 'graft/api:latest',
+    });
+    apiMocks.getContainerLogs.mockResolvedValueOnce({
+      id: 'container-2',
+      lines: ['api started'],
+      runtime: 'docker',
+      stderr: true,
+      stdout: true,
+      tail: 200,
+      timestamps: false,
+      truncated: false,
+    });
+
+    routeState.route.path = '/ops/containers/container-2';
+    routeState.route.fullPath = '/ops/containers/container-2?tab=logs';
+    routeState.route.params.id = 'container-2';
+    await wrapper.vm.$nextTick();
+    await flushPromises();
+
+    expect(firstLogController!.close).toHaveBeenCalled();
+    expect(realtimeMocks.controllers.some((controller) => controller.topic === 'container.logs:container-2')).toBe(
+      true,
+    );
+    expect(wrapper.get('.log-viewer').text()).toContain('api started');
+  });
+
   it('renders the shell panel through the existing route query tab lifecycle', async () => {
     routeState.route.query.tab = 'shell';
     const wrapper = mountPage();
@@ -1305,18 +1555,16 @@ describe('container detail page', () => {
     expect(wrapper.get('[data-testid="container-shell-panel-stub"]').attributes('data-active')).toBe('true');
   });
 
-  it('keeps the shell tab on a bounded viewport height chain', () => {
+  it('routes the shell tab through the shared viewer shell instead of a fixed terminal height chain', () => {
     expect(sourceText).toContain('.container-detail-tabs-card :deep(.t-card__body) {');
     expect(sourceText).toContain('display: flex;');
-    expect(sourceText).toContain('container-detail-tab-body--terminal');
-    expect(sourceText).toContain('container-detail-tab-body--long');
     expect(sourceText).toContain(
-      '--container-detail-tab-body-min-height: clamp(420px, calc(100vh - var(--graft-page-bottom-safe-area) - 330px), 720px);',
+      'container-detail-section--shell container-detail-tab-body container-detail-tab-body--viewer',
     );
-    expect(sourceText).toContain('--container-shell-terminal-height: var(--container-detail-tab-body-min-height);');
+    expect(sourceText).not.toContain('container-detail-tab-body--terminal');
+    expect(sourceText).not.toContain('--container-shell-terminal-height: var(--container-detail-tab-body-min-height);');
     expect(shellPanelSourceText).toContain('.container-shell-panel__terminal {');
-    expect(shellPanelSourceText).toContain('height: var(--container-shell-terminal-height);');
-    expect(shellPanelSourceText).not.toContain('--container-shell-terminal-height: clamp(');
+    expect(shellPanelSourceText).not.toContain('height: var(--container-shell-terminal-height);');
   });
 
   it('pauses and resumes realtime subscription from the detail toolbar toggle', async () => {
@@ -2256,10 +2504,11 @@ describe('container detail page', () => {
   it('uses shared log and JSON viewers instead of raw pre blocks', () => {
     expect(sourceText).toContain('<log-viewer');
     expect(sourceText).toContain('<container-raw-json-panel');
+    expect(sourceText).toContain(':viewer-mode="true"');
     expect(sourceText).not.toContain('container-detail-code');
   });
 
-  it('routes long-form detail tabs through the shared long viewport height chain', () => {
+  it('keeps config tab on natural page flow while viewer tabs own their viewport shells', () => {
     expect(sourceText).toContain(
       'container-detail-section--config container-detail-tab-body container-detail-tab-body--long',
     );
@@ -2269,7 +2518,10 @@ describe('container detail page', () => {
     expect(sourceText).toContain(
       'container-detail-section--storage container-detail-tab-body container-detail-tab-body--long',
     );
-    expect(sourceText).toContain('container-detail-section--raw container-detail-tab-body');
+    expect(sourceText).toContain(
+      'container-detail-section container-detail-tab-body container-detail-tab-body--viewer',
+    );
+    expect(sourceText).toContain('container-detail-section container-detail-section--raw container-detail-tab-body');
   });
 
   it('keeps overview as a single-column grouped information flow without nested scrolling', () => {

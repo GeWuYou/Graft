@@ -47,19 +47,38 @@ a TDesign token cannot represent the requirement for this specific surface.
 
 ## Scroll Containers
 
-Business pages in `web` must not let internal scroll surfaces drift into page-local one-off behavior.
+Business pages in `web` must not let scroll surfaces drift into browser-default scrollbar styling or page-local one-off behavior.
 
-- Independent scroll viewports such as JSON viewers, log panes, drawer bodies, markdown tables, and embedded terminal
-  surfaces must reuse the shared project scrollbar styling rather than shipping browser-default scrollbars.
+- `graft-scrollbar` is the only approved visual scrollbar treatment for `web` runtime surfaces.
+- The repository may still contain two kinds of scroll responsibilities:
+  - page or shell boundary containers that own viewport height and route-level overflow
+  - internal scroll surfaces such as JSON viewers, log panes, drawer bodies, markdown tables, and embedded terminal panes
+- Both kinds must render through `graft-scrollbar` when a scrollbar is visible. Browser-default white scroll tracks are
+  not allowed in either class.
+- Do not change component-library-owned vertical scroll containers, especially `t-drawer__body` on tabbed detail drawers,
+  solely to force a `graft-scrollbar` class onto a custom child wrapper. Preserve the original scroll owner unless a
+  browser-verified bug proves the ownership itself is wrong.
 - When one page owns multiple internal scroll panels, the height authority must stay at the page or layout container
   boundary. Child components should fill the provided space and manage only their own internal overflow.
+- For drawer-based JSON/log detail views, the default owner of vertical scrolling is the drawer body. `pre`, JSON viewers,
+  log panes, and similar code surfaces may own their own local overflow, but they must not implicitly replace the
+  drawer's main vertical scroll surface.
 - Interactive embedded surfaces with their own scroll context, especially terminals and code/log viewers, must isolate
   scroll chaining so wheel input inside the surface does not continue scrolling the outer page container.
-- New local `scrollbar-color`, `scrollbar-width`, or `::-webkit-scrollbar*` rules are allowed only when the shared
-  scrollbar utility cannot represent a verified requirement for that surface.
+- New local `scrollbar-color`, `scrollbar-width`, `scrollbar-gutter`, or `::-webkit-scrollbar*` rules are forbidden
+  unless they are covered by an explicit allowlist entry in the scrollbar governance script and a documented reason in
+  the owning file or note.
+- The scrollbar governance script is a blacklist gate for browser-native scrollbar styling only. It must fail on
+  unallowlisted `scrollbar-*` or `::-webkit-scrollbar*` usage across `web/src`, but it must not infer scroll ownership
+  changes from Drawer, JSON, terminal, or other component structure by itself.
+- Scroll ownership remains a review/browser-QA concern. Page containers, JSON/code panes, and embedded terminals may
+  all own different legitimate scroll contexts as long as they do not reintroduce browser-default scrollbar styling.
 
 ### Review Checklist
 
-- Internal scroll viewports use the shared scrollbar utility instead of ad hoc scrollbar rules.
+- Internal scroll viewports use `graft-scrollbar` instead of ad hoc scrollbar rules.
 - Page-level containers, not child components, own viewport-height math for long-form tab or panel layouts.
+- Page-level boundary scroll containers also render through `graft-scrollbar` and do not expose browser-default white tracks.
+- Drawer-based JSON/log detail pages keep vertical scroll ownership on the drawer body unless there is explicit browser evidence for a different owner.
 - Embedded terminals, log viewers, and code/JSON panes prevent wheel chaining from unintentionally moving the page.
+- Any exception appears in the governance allowlist with a concrete reason and an expiry or cleanup trigger.

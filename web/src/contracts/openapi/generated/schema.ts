@@ -1760,7 +1760,7 @@ export interface paths {
     };
     /**
      * Read container logs
-     * @description Returns bounded container log lines from stdout and stderr.
+     * @description Returns bounded container log lines from stdout and stderr. The canonical realtime companion topic is `container.logs:<id>`, which reuses the unified realtime subscription and WebSocket flow for incremental log delivery after the initial HTTP snapshot.
      */
     get: operations['getContainerLogs'];
     put?: never;

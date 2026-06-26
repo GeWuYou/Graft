@@ -604,6 +604,8 @@ func addAuditPresetRange(clauses *[]string, args *[]any, query auditstore.ListAu
 	addTimeFilter(clauses, args, "created_at >= $%d", &startedAt)
 }
 
+// auditPresetStart 根据时间预设计算查询起始时间。
+// 对于最近 24 小时、7 天、30 天分别返回对应的起始时间；其他预设返回零时间。
 func auditPresetStart(now time.Time, preset auditstore.AuditTimePreset) time.Time {
 	switch preset {
 	case auditstore.AuditTimePresetLast24Hours:
@@ -617,10 +619,13 @@ func auditPresetStart(now time.Time, preset auditstore.AuditTimePreset) time.Tim
 	}
 }
 
+// highRiskOperationsWhereClause 返回高风险操作分类对应的 SQL WHERE 子句。
+// 该条件直接复用标准化风险等级表达式，避免与运行时分类规则漂移。
 func highRiskOperationsWhereClause() string {
 	return `(` + auditRiskLevelExpression() + ` IN ('HIGH', 'CRITICAL'))`
 }
 
+// failedOperationsWhereClause 返回用于筛选失败、拒绝或错误审计结果的 SQL WHERE 子句。
 func failedOperationsWhereClause() string {
 	return `(` + auditResultExpression() + ` IN ('FAILED', 'DENIED', 'ERROR'))`
 }
@@ -896,12 +901,15 @@ func addTimeFilter(clauses *[]string, args *[]any, format string, value *time.Ti
 	*clauses = append(*clauses, fmt.Sprintf(format, len(*args)))
 }
 
+// scanAuditLog 解析一条审计日志记录并补充派生字段。
+// 它会从扫描器中读取基础列，转换 actor_user_id，并完成元数据克隆与记录增强。
+// @returns 解析后的审计日志记录；扫描失败时返回错误。
 func scanAuditLog(
 	ctx context.Context,
 	localizer *i18n.Service,
 	scanner interface {
-	Scan(dest ...any) error
-},
+		Scan(dest ...any) error
+	},
 ) (auditstore.AuditLog, error) {
 	var (
 		record      auditstore.AuditLog
@@ -1482,10 +1490,14 @@ func classifyAuditResult(record auditstore.AuditLog, metadata map[string]any) au
 }
 
 func classifyAuditRiskLevel(record auditstore.AuditLog) auditstore.AuditRiskLevel {
-	action := strings.ToLower(strings.TrimSpace(record.Action))
+	action := normalizedAuditClassifierValue(record.Action)
+	resourceType := normalizedAuditClassifierValue(record.ResourceType)
 
 	if record.Result == auditstore.AuditResultError || record.Result == auditstore.AuditResultDenied {
 		return auditstore.AuditRiskLevelCritical
+	}
+	if isContainerDangerousAction(resourceType, action) {
+		return auditstore.AuditRiskLevelHigh
 	}
 	if containsAny(action, []string{"reset_password", "update_permission", "update_role", "assign_role", "token_revoke"}) {
 		return auditstore.AuditRiskLevelCritical
@@ -1514,6 +1526,28 @@ func sensitiveOperationAuthorityKeywords() []string {
 
 func sensitiveOperationMatch(action string) bool {
 	return containsAny(action, sensitiveOperationAuthorityKeywords())
+}
+
+func normalizedAuditClassifierValue(value string) string {
+	return strings.ToLower(strings.TrimSpace(value))
+}
+
+func normalizedAuditClassifierColumn(column string) string {
+	return "LOWER(TRIM(" + column + "))"
+}
+
+func isContainerDangerousAction(resourceType string, action string) bool {
+	return (resourceType == "container" || resourceType == "container_batch") &&
+		strings.HasPrefix(action, "ops.container.action.")
+}
+
+func containerDangerousActionExpression(actionColumn string, resourceTypeColumn string) string {
+	normalizedAction := normalizedAuditClassifierColumn(actionColumn)
+	normalizedResourceType := normalizedAuditClassifierColumn(resourceTypeColumn)
+	return `((
+		` + normalizedResourceType + ` = 'container'
+		OR ` + normalizedResourceType + ` = 'container_batch'
+	) AND ` + normalizedAction + ` LIKE 'ops.container.action.%')`
 }
 
 func normalizeAuditTargetType(resourceType string) string {
@@ -1646,19 +1680,21 @@ func riskLevelWhereClause() string {
 }
 
 func auditRiskLevelExpression() string {
-	return auditRiskLevelExpressionFor("success", "action", "metadata")
+	return auditRiskLevelExpressionFor("success", "action", "resource_type", "metadata")
 }
 
-func auditRiskLevelExpressionFor(successColumn string, actionColumn string, metadataColumn string) string {
-	return auditRiskLevelExpressionWith(successColumn, actionColumn, metadataColumn, auditPortableMetadataExpressions)
+func auditRiskLevelExpressionFor(successColumn string, actionColumn string, resourceTypeColumn string, metadataColumn string) string {
+	return auditRiskLevelExpressionWith(successColumn, actionColumn, resourceTypeColumn, metadataColumn, auditPortableMetadataExpressions)
 }
 
 func auditRiskLevelExpressionWith(
 	successColumn string,
 	actionColumn string,
+	resourceTypeColumn string,
 	metadataColumn string,
 	metadata auditMetadataExpressionBuilder,
 ) string {
+	normalizedAction := normalizedAuditClassifierColumn(actionColumn)
 	return `CASE
 		WHEN ` + successColumn + ` = false AND (
 			` + metadata.textValue(metadataColumn, "status_code") + ` = '403'
@@ -1666,15 +1702,16 @@ func auditRiskLevelExpressionWith(
 			OR ` + metadata.textValue(metadataColumn, "error_kind") + ` = 'system'
 			OR ` + metadata.textValue(metadataColumn, "error") + ` <> ''
 		) THEN 'CRITICAL'
-		WHEN LOWER(` + actionColumn + `) LIKE '%%reset_password%%' OR LOWER(` + actionColumn + `) LIKE '%%update_permission%%' OR LOWER(` + actionColumn + `) LIKE '%%update_role%%' OR LOWER(` + actionColumn + `) LIKE '%%assign_role%%' OR LOWER(` + actionColumn + `) LIKE '%%token_revoke%%' THEN 'CRITICAL'
-		WHEN ` + successColumn + ` = false OR LOWER(` + actionColumn + `) LIKE '%%delete%%' OR LOWER(` + actionColumn + `) LIKE '%%reset%%' OR LOWER(` + actionColumn + `) LIKE '%%grant%%' OR LOWER(` + actionColumn + `) LIKE '%%assign%%' OR LOWER(` + actionColumn + `) LIKE '%%revoke%%' OR LOWER(` + actionColumn + `) LIKE '%%remove%%' OR LOWER(` + actionColumn + `) LIKE '%%replace%%' THEN 'HIGH'
-		WHEN LOWER(` + actionColumn + `) LIKE '%%login_failed%%' OR LOWER(` + actionColumn + `) LIKE '%%login%%' OR LOWER(` + actionColumn + `) LIKE '%%permission%%' OR LOWER(` + actionColumn + `) LIKE '%%role%%' OR LOWER(` + actionColumn + `) LIKE '%%auth%%' THEN 'MEDIUM'
+		WHEN ` + containerDangerousActionExpression(actionColumn, resourceTypeColumn) + ` THEN 'HIGH'
+		WHEN ` + normalizedAction + ` LIKE '%%reset_password%%' OR ` + normalizedAction + ` LIKE '%%update_permission%%' OR ` + normalizedAction + ` LIKE '%%update_role%%' OR ` + normalizedAction + ` LIKE '%%assign_role%%' OR ` + normalizedAction + ` LIKE '%%token_revoke%%' THEN 'CRITICAL'
+		WHEN ` + successColumn + ` = false OR ` + normalizedAction + ` LIKE '%%delete%%' OR ` + normalizedAction + ` LIKE '%%reset%%' OR ` + normalizedAction + ` LIKE '%%grant%%' OR ` + normalizedAction + ` LIKE '%%assign%%' OR ` + normalizedAction + ` LIKE '%%revoke%%' OR ` + normalizedAction + ` LIKE '%%remove%%' OR ` + normalizedAction + ` LIKE '%%replace%%' THEN 'HIGH'
+		WHEN ` + normalizedAction + ` LIKE '%%login_failed%%' OR ` + normalizedAction + ` LIKE '%%login%%' OR ` + normalizedAction + ` LIKE '%%permission%%' OR ` + normalizedAction + ` LIKE '%%role%%' OR ` + normalizedAction + ` LIKE '%%auth%%' THEN 'MEDIUM'
 		ELSE 'LOW'
 	END`
 }
 
 func auditRiskLevelPostgresExpression() string {
-	return auditRiskLevelExpressionWith("success", "action", "metadata", auditPostgresMetadataExpressions)
+	return auditRiskLevelExpressionWith("success", "action", "resource_type", "metadata", auditPostgresMetadataExpressions)
 }
 
 func auditOverviewTrendResultExpression() string {
@@ -1682,7 +1719,7 @@ func auditOverviewTrendResultExpression() string {
 }
 
 func auditOverviewTrendRiskLevelExpression() string {
-	return auditRiskLevelExpressionFor("logs.success", "logs.action", "logs.metadata")
+	return auditRiskLevelExpressionFor("logs.success", "logs.action", "logs.resource_type", "logs.metadata")
 }
 
 func sourceWhereClause() string {

@@ -18,7 +18,7 @@
       <div v-if="$slots.header" class="assignment-drawer__header permission-drawer__header">
         <slot name="header" />
       </div>
-      <div ref="bodyRef" class="assignment-drawer__body permission-drawer__body">
+      <div ref="bodyRef" class="assignment-drawer__body permission-drawer__body graft-scrollbar">
         <slot />
       </div>
       <div v-if="$slots.footer" class="assignment-drawer__footer permission-drawer__footer">
@@ -113,8 +113,6 @@ watch(
   min-height: 0;
   overflow: hidden auto;
   padding: 0 var(--td-comp-paddingLR-l) var(--td-comp-paddingTB-l);
-  scrollbar-color: var(--td-scrollbar-color) transparent;
-  scrollbar-width: thin;
   width: 100%;
 }
 
@@ -126,19 +124,6 @@ watch(
   background: var(--td-bg-color-container);
   border-top: 1px solid var(--td-component-border);
   padding: 0 var(--td-comp-paddingLR-l) var(--td-comp-paddingTB-l);
-}
-
-.assignment-drawer__body::-webkit-scrollbar {
-  width: 8px;
-}
-
-.assignment-drawer__body::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.assignment-drawer__body::-webkit-scrollbar-thumb {
-  background: var(--td-scrollbar-color);
-  border-radius: 999px;
 }
 
 :deep(.t-drawer__content) {

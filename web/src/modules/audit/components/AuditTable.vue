@@ -15,7 +15,7 @@
       <slot name="toolbar" />
     </template>
 
-    <div ref="tableHostRef" class="audit-log-table__host" :data-table-mode="tableWidthPolicy.mode">
+    <div ref="tableHostRef" class="audit-log-table__host graft-scrollbar" :data-table-mode="tableWidthPolicy.mode">
       <t-table
         row-key="id"
         :columns="columns"

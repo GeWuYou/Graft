@@ -14,7 +14,9 @@
         </t-button>
       </t-space>
     </div>
-    <pre v-if="mode === 'preview'" class="scheduled-task-config-json-editor__preview">{{ previewText }}</pre>
+    <pre v-if="mode === 'preview'" class="scheduled-task-config-json-editor__preview graft-scrollbar">{{
+      previewText
+    }}</pre>
     <t-form-item
       v-else
       class="scheduled-task-config-json-editor__form-item"

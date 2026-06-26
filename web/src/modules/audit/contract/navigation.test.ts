@@ -72,4 +72,22 @@ describe('audit navigation context', () => {
       },
     });
   });
+
+  it('builds audit record locations from row id first', () => {
+    expect(
+      buildAuditLogsLocationWithOrigin(
+        { audit_log_id: '33' },
+        { view: 'overview', trendRange: '10m', anomalyKey: 'cpu_pressure', scopeRef: 'runtime:cpu' },
+      ),
+    ).toEqual({
+      path: '/audit/logs',
+      query: {
+        audit_log_id: '33',
+        monitorView: 'overview',
+        monitorTrendRange: '10m',
+        monitorAnomalyKey: 'cpu_pressure',
+        monitorScopeRef: 'runtime:cpu',
+      },
+    });
+  });
 });

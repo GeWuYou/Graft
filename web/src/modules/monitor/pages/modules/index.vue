@@ -307,7 +307,7 @@
         <section class="module-runtime-detail__section">
           <t-collapse borderless>
             <t-collapse-panel value="runtime-json" :header="t('monitor.moduleRuntime.detail.rawJson')">
-              <pre class="module-runtime-detail__json">{{ selectedModuleRuntimeJson }}</pre>
+              <pre class="module-runtime-detail__json graft-scrollbar">{{ selectedModuleRuntimeJson }}</pre>
             </t-collapse-panel>
           </t-collapse>
         </section>

@@ -83,6 +83,10 @@ const tabsRouterStoreMock = vi.hoisted(() => ({
   }),
 }));
 
+const permissionStoreMock = vi.hoisted(() => ({
+  hasPermission: vi.fn(() => true),
+}));
+
 const translations = vi.hoisted(
   (): Record<string, string> => ({
     'container.list.actionFailed': '容器操作失败。',
@@ -110,6 +114,7 @@ const translations = vi.hoisted(
     'container.list.actions.start': '启动',
     'container.list.actions.stop': '停止',
     'container.list.actions.unavailable': '该操作当前不可用。',
+    'container.list.actions.viewAudit': '查看审计',
     'container.list.actions.viewEnvironment': '查看环境变量',
     'container.list.actions.viewMounts': '查看挂载',
     'container.list.actions.viewNetworks': '查看网络',
@@ -366,6 +371,7 @@ vi.mock('vue-router', () => ({
 }));
 
 vi.mock('@/store', () => ({
+  usePermissionStore: () => permissionStoreMock,
   useTabsRouterStore: () => tabsRouterStoreMock,
 }));
 
@@ -1076,6 +1082,17 @@ describe('container list page', () => {
       query: { tab: 'logs' },
     });
 
+    await wrapper.get('[data-testid="container-action-audit"]').trigger('click');
+    await flushPromises();
+    expect(routerMocks.push).toHaveBeenLastCalledWith({
+      path: '/audit/logs',
+      query: {
+        resource_id: 'container-1',
+        resource_name: 'graft-web',
+        resource_type: 'container',
+      },
+    });
+
     await wrapper.get('[data-testid="container-action-view-mounts"]').trigger('click');
     await flushPromises();
     expect(tabsRouterStoreMock.appendTabRouterList).toHaveBeenLastCalledWith(
@@ -1123,6 +1140,32 @@ describe('container list page', () => {
 
     expect(apiMocks.getContainer).not.toHaveBeenCalled();
     expect(apiMocks.getContainerLogs).not.toHaveBeenCalled();
+  });
+
+  it('reserves enough operation column width for the explicit audit action button', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const rawColumns = wrapper.get('[data-testid="container-table"]').attributes('data-columns');
+    expect(rawColumns).toBeTruthy();
+    if (!rawColumns) {
+      throw new Error('container table columns payload missing');
+    }
+    const columns = JSON.parse(rawColumns) as Array<{
+      colKey: string;
+      minWidth: number | null;
+      width: number | null;
+    }>;
+    const operationColumn = columns.find((column) => column.colKey === 'operation');
+    expect(operationColumn).toBeDefined();
+    if (!operationColumn) {
+      throw new Error('operation column not found');
+    }
+
+    expect(operationColumn).toMatchObject({
+      colKey: 'operation',
+      width: 288,
+    });
   });
 
   it('uses optional column settings without showing started time and restart policy by default', async () => {
@@ -2087,6 +2130,15 @@ function mountPage(component: object = ContainerListPage) {
                 {
                   'data-column-keys': JSON.stringify(
                     (props.columns as Array<{ colKey: string }> | undefined)?.map((column) => column.colKey) ?? [],
+                  ),
+                  'data-columns': JSON.stringify(
+                    (props.columns as Array<{ colKey: string; width?: number; minWidth?: number }> | undefined)?.map(
+                      (column) => ({
+                        colKey: column.colKey,
+                        minWidth: column.minWidth ?? null,
+                        width: column.width ?? null,
+                      }),
+                    ) ?? [],
                   ),
                   'data-size': props.size,
                   'data-selected-row-keys': JSON.stringify(props.selectedRowKeys ?? []),

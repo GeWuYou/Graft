@@ -122,6 +122,79 @@ func TestDockerRuntimeLogsReturnsInvalidLogQueryError(t *testing.T) {
 	}
 }
 
+func TestDockerRuntimeStreamLogsEmitsIncrementalLines(t *testing.T) {
+	t.Parallel()
+
+	client := &countingDockerClient{
+		logReader: dockerLogReadCloser(t, "one\n", "two\n"),
+	}
+	runtime := &DockerRuntime{
+		client:        client,
+		endpoint:      "unix:///var/run/docker.sock",
+		resourceStats: newResourceStatsCache(containerResourceStatsCacheTTL, containerResourceStatsCacheStaleWindow),
+	}
+
+	var lines []string
+	err := runtime.StreamLogs(context.Background(), Ref{Value: "web"}, LogQuery{
+		Tail:   2,
+		Stdout: true,
+		Stderr: true,
+	}, func(chunk LogChunk) error {
+		lines = append(lines, chunk.Line)
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("stream logs: %v", err)
+	}
+	if !reflect.DeepEqual(lines, []string{"one", "two"}) {
+		t.Fatalf("unexpected streamed lines %#v", lines)
+	}
+	if calls := client.logCalls.Load(); calls != 1 {
+		t.Fatalf("expected one docker log follow call, got %d", calls)
+	}
+}
+
+func TestDockerRuntimeStreamLogsPreservesCanonicalChunkMetadata(t *testing.T) {
+	t.Parallel()
+
+	stdoutAt := time.Date(2026, 6, 26, 9, 30, 0, 123000000, time.UTC)
+	stderrAt := stdoutAt.Add(1500 * time.Millisecond)
+	client := &countingDockerClient{
+		logReader: dockerLogReadCloserFrames(t,
+			dockerLogFrame{stream: stdcopy.Stdout, payload: []byte(stdoutAt.Format(time.RFC3339Nano) + " stdout line\n")},
+			dockerLogFrame{stream: stdcopy.Stderr, payload: []byte(stderrAt.Format(time.RFC3339Nano) + " stderr line\n")},
+		),
+	}
+	runtime := &DockerRuntime{
+		client:        client,
+		endpoint:      "unix:///var/run/docker.sock",
+		resourceStats: newResourceStatsCache(containerResourceStatsCacheTTL, containerResourceStatsCacheStaleWindow),
+	}
+
+	var chunks []LogChunk
+	err := runtime.StreamLogs(context.Background(), Ref{Value: "web"}, LogQuery{
+		Tail:       2,
+		Stdout:     true,
+		Stderr:     true,
+		Timestamps: true,
+	}, func(chunk LogChunk) error {
+		chunks = append(chunks, chunk)
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("stream logs: %v", err)
+	}
+	if len(chunks) != 2 {
+		t.Fatalf("expected 2 chunks, got %#v", chunks)
+	}
+	if chunks[0].Stream != "stdout" || chunks[0].Line != "stdout line" || !chunks[0].Timestamp.Equal(stdoutAt) {
+		t.Fatalf("unexpected stdout chunk %#v", chunks[0])
+	}
+	if chunks[1].Stream != "stderr" || chunks[1].Line != "stderr line" || !chunks[1].Timestamp.Equal(stderrAt) {
+		t.Fatalf("unexpected stderr chunk %#v", chunks[1])
+	}
+}
+
 func TestMapDockerShellErrorPreservesMappedRuntimeErrors(t *testing.T) {
 	t.Parallel()
 
@@ -1367,6 +1440,21 @@ func dockerLogReadCloser(t *testing.T, chunks ...string) io.ReadCloser {
 	t.Helper()
 
 	return io.NopCloser(dockerLogStream(t, chunks...))
+}
+
+type dockerLogFrame struct {
+	stream  stdcopy.StdType
+	payload []byte
+}
+
+func dockerLogReadCloserFrames(t *testing.T, frames ...dockerLogFrame) io.ReadCloser {
+	t.Helper()
+
+	var output bytes.Buffer
+	for _, frame := range frames {
+		writeStdcopyFrame(t, &output, frame.stream, frame.payload)
+	}
+	return io.NopCloser(bytes.NewReader(output.Bytes()))
 }
 
 func richDockerStatsFixture() container.StatsResponse {

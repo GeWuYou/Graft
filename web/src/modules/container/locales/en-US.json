@@ -139,6 +139,7 @@
       "actions": {
         "detail": "Detail",
         "logs": "Logs",
+        "viewAudit": "View Audit",
         "start": "Start",
         "stop": "Stop",
         "restart": "Restart",
@@ -291,6 +292,7 @@
       "copy": "Copy",
       "copySuccess": "Content Copied.",
       "copyError": "Content Could Not Be Copied.",
+      "viewAudit": "View Audit",
       "empty": "No Container Detail.",
       "missingId": "Container ID Is Missing.",
       "inspectUpdatedAt": "Detail Updated At",
@@ -345,6 +347,11 @@
         "network": "Network",
         "storage": "Storage",
         "raw": "Raw JSON"
+      },
+      "viewer": {
+        "enterFullscreen": "Fullscreen",
+        "exitFullscreen": "Exit Fullscreen",
+        "resizeHandle": "Resize Viewer Height"
       },
       "shell": {
         "title": "Shell",
@@ -460,7 +467,11 @@
         "copyLine": "Copy Line",
         "copyJson": "Copy JSON",
         "empty": "No Logs.",
-        "truncated": "Logs Were Truncated by the Current Limit."
+        "truncated": "Logs Were Truncated by the Current Limit.",
+        "pauseRealtime": "Pause Realtime",
+        "resumeRealtime": "Resume Realtime",
+        "realtimePaused": "Publishing Paused",
+        "realtimeStreaming": "Realtime Publishing"
       },
       "raw": {
         "title": "Raw JSON",

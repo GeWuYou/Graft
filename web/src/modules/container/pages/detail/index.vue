@@ -5,6 +5,18 @@
       :description="safeDetail ? safeDetail.image : t('container.detail.description')"
       :source="{ labelKey: 'container.list.eyebrow', fallback: t('container.list.eyebrow') }"
     >
+      <template #actions>
+        <t-button
+          v-if="safeDetail && permissionStore.hasPermission(auditPermissionCodes.READ)"
+          data-testid="container-detail-view-audit"
+          theme="default"
+          variant="outline"
+          size="small"
+          @click="openAuditLogs"
+        >
+          {{ t('container.detail.viewAudit') }}
+        </t-button>
+      </template>
       <template #meta>
         <div class="container-detail-header-meta" data-testid="container-detail-header-meta">
           <t-space class="container-detail-header-meta__tags" break-line size="small">
@@ -436,14 +448,38 @@
             </t-tab-panel>
 
             <t-tab-panel value="logs" :label="t('container.detail.tabs.logs')" :destroy-on-hide="false">
-              <section class="container-detail-section">
+              <section class="container-detail-section container-detail-tab-body container-detail-tab-body--viewer">
+                <div class="container-detail-logs-toolbar" data-testid="container-detail-logs-toolbar">
+                  <t-tag
+                    :theme="logsPaused ? 'warning' : 'primary'"
+                    variant="light-outline"
+                    data-testid="container-detail-logs-status"
+                  >
+                    {{
+                      logsPaused
+                        ? t('container.detail.logs.realtimePaused')
+                        : t('container.detail.logs.realtimeStreaming')
+                    }}
+                  </t-tag>
+                  <t-button
+                    size="small"
+                    theme="default"
+                    variant="outline"
+                    data-testid="container-detail-logs-toggle"
+                    @click="toggleLogsPause"
+                  >
+                    {{ logsRealtimeToggleLabel }}
+                  </t-button>
+                </div>
                 <log-viewer
                   v-model:line-limit="logLineLimit"
-                  :lines="logs?.lines ?? []"
+                  :lines="[...logLines]"
+                  :content-version="logContentVersion"
                   :loading="logsLoading"
                   :error="logsError"
-                  :truncated="logs?.truncated"
+                  :truncated="logsTruncated"
                   :refresh-label="t('container.detail.logs.refresh')"
+                  :show-refresh="false"
                   :copy-label="t('container.detail.copy')"
                   :download-label="t('container.detail.logs.download')"
                   :retry-label="t('container.list.retry')"
@@ -472,6 +508,11 @@
                   :copy-json-label="t('container.detail.logs.copyJson')"
                   :copy-success-label="t('container.detail.copySuccess')"
                   :copy-error-label="t('container.detail.copyError')"
+                  :viewer-mode="true"
+                  viewer-storage-key="graft.container-detail.viewer.logs.height"
+                  :fullscreen-label="t('container.detail.viewer.enterFullscreen')"
+                  :exit-fullscreen-label="t('container.detail.viewer.exitFullscreen')"
+                  :resize-handle-label="t('container.detail.viewer.resizeHandle')"
                   @refresh="loadLogs"
                 />
               </section>
@@ -479,7 +520,7 @@
 
             <t-tab-panel value="shell" :label="t('container.detail.tabs.shell')" :destroy-on-hide="false">
               <section
-                class="container-detail-section container-detail-section--shell container-detail-tab-body container-detail-tab-body--terminal"
+                class="container-detail-section container-detail-section--shell container-detail-tab-body container-detail-tab-body--viewer"
               >
                 <container-shell-panel
                   :active="activeTab === 'shell'"
@@ -591,12 +632,12 @@
                             </t-button>
                           </t-tooltip>
                         </div>
-                        <code class="container-health-code">{{ healthcheckDetails.command }}</code>
+                        <code class="container-health-code graft-scrollbar">{{ healthcheckDetails.command }}</code>
                       </div>
                       <div class="container-health-block">
                         <span class="container-health-block__label">{{ t('container.detail.health.lastOutput') }}</span>
                         <pre
-                          class="container-health-output"
+                          class="container-health-output graft-scrollbar"
                           :class="{ 'container-health-output--error': healthcheckDetails.hasFailure }"
                           >{{ healthcheckDetails.output }}</pre
                         >
@@ -1144,7 +1185,9 @@
             </t-tab-panel>
 
             <t-tab-panel value="raw" :label="t('container.detail.tabs.raw')" :destroy-on-hide="false">
-              <section class="container-detail-section container-detail-section--raw container-detail-tab-body">
+              <section
+                class="container-detail-section container-detail-section--raw container-detail-tab-body container-detail-tab-body--viewer"
+              >
                 <container-raw-json-panel
                   :copy-value="rawJsonCopyValue"
                   :value="rawJsonDisplayValue"
@@ -1163,6 +1206,9 @@
                   :raw-copy-enabled="rawJsonCopyEnabled"
                   :copy-success-label="t('container.detail.copySuccess')"
                   :copy-error-label="t('container.detail.copyError')"
+                  :fullscreen-label="t('container.detail.viewer.enterFullscreen')"
+                  :exit-fullscreen-label="t('container.detail.viewer.exitFullscreen')"
+                  :resize-handle-label="t('container.detail.viewer.resizeHandle')"
                   :expand-all-label="t('container.detail.raw.expandAll')"
                   :collapse-all-label="t('container.detail.raw.collapseAll')"
                   :format-label="t('container.detail.raw.format')"
@@ -1199,6 +1245,8 @@ import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
 import { LOCALE, type LocalizedTitle } from '@/contracts/i18n/locales';
+import { buildAuditResourceLocation } from '@/modules/audit/contract/deep-link';
+import { AUDIT_PERMISSION_CODE } from '@/modules/audit/contract/permissions';
 import { ManagementPageHeader } from '@/shared/components/management';
 import { MetricCard } from '@/shared/components/metrics';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
@@ -1211,7 +1259,8 @@ import {
   LogViewer,
   toProgressPercent,
 } from '@/shared/observability';
-import { useTabsRouterStore } from '@/store';
+import { openRealtimeTopicSocket, type RealtimeTopicSocketController } from '@/shared/realtime';
+import { usePermissionStore, useTabsRouterStore } from '@/store';
 import { createLogger } from '@/utils/logger';
 import { localizeRouteTitleKey } from '@/utils/route/title';
 
@@ -1223,6 +1272,11 @@ import {
 } from '../../api/container';
 import ContainerRawJsonPanel from '../../components/ContainerRawJsonPanel.vue';
 import ContainerShellPanel from '../../components/ContainerShellPanel.vue';
+import {
+  buildContainerLogsTopicName,
+  isContainerLogsTopicForContainer,
+  parseContainerLogsTopicContainerId,
+} from '../../contract/realtime';
 import {
   acquireContainerStatsSubscription,
   clearContainerDetail,
@@ -1240,7 +1294,6 @@ import type {
   ContainerDetailRecord,
   ContainerHealth,
   ContainerHealthcheck,
-  ContainerLogResponse,
   ContainerMount,
   ContainerMountUsage,
   ContainerOrchestratorType,
@@ -1250,6 +1303,8 @@ import ContainerOverviewPanel from './components/ContainerOverviewPanel.vue';
 import CopyableDetailValue from './components/CopyableDetailValue.vue';
 import type { ContainerOverviewInfoSection } from './components/overview';
 import { buildCpuDetailMetrics, formatCpuCountText } from './components/resource-cpu-presenter';
+import { ContainerLogRealtimeBatcher } from './log-realtime-batcher';
+import { createContainerDetailLogViewStore } from './log-view-store';
 
 defineOptions({
   name: 'ContainerDetailIndex',
@@ -1427,15 +1482,14 @@ const DEFAULT_LOG_QUERY = {
 const { locale, t } = useI18n();
 const route = useRoute();
 const router = useRouter();
+const permissionStore = usePermissionStore();
 const tabsRouterStore = useTabsRouterStore();
 const logger = createLogger('container.detail');
+const auditPermissionCodes = AUDIT_PERMISSION_CODE;
 
 const detail = ref<ContainerDetailRecord | null>(null);
 const detailRefreshing = ref(false);
 const error = ref('');
-const logs = ref<ContainerLogResponse | null>(null);
-const logsLoading = ref(false);
-const logsError = ref('');
 const logLineLimit = ref(DEFAULT_LOG_QUERY.tail);
 const activeTab = ref<DetailTab>(normalizeTab(route.query.tab));
 const environmentKeyword = ref('');
@@ -1444,7 +1498,28 @@ const refreshingMountKeys = ref<Set<string>>(new Set());
 const realtimeEnabled = ref(true);
 const activeRealtimeSubscriptionId = ref('');
 const detailPageActive = ref(false);
+const logViewStore = createContainerDetailLogViewStore();
+const logLines = computed(() => logViewStore.lines.value);
+const logContentVersion = computed(() => logViewStore.version.value);
+const logsLoading = computed(() => logViewStore.state.value.loading);
+const logsError = computed(() => logViewStore.state.value.error);
+const logsTruncated = computed(() => logViewStore.truncated.value);
+const logsPaused = computed(() => logViewStore.paused.value);
 let detailRefreshSeq = 0;
+let logsRefreshSeq = 0;
+let logsRealtimeController: RealtimeTopicSocketController | null = null;
+let logsRealtimeTopic = '';
+let logsRealtimeSeeded = false;
+let logsInitialLoadAttempted = false;
+let logsRealtimeBatcher = new ContainerLogRealtimeBatcher({
+  lineLimit: DEFAULT_LOG_QUERY.tail,
+  onCommit: (snapshot) => {
+    logViewStore.commit(snapshot);
+  },
+});
+const logsRealtimeToggleLabel = computed(() =>
+  logsPaused.value ? t('container.detail.logs.resumeRealtime') : t('container.detail.logs.pauseRealtime'),
+);
 
 const containerId = computed(() => String(route.params.id ?? '').trim());
 const shortContainerIdFallback = computed(() => shortIdentifier(containerId.value, undefined, 12));
@@ -1678,6 +1753,15 @@ const inspectUpdatedRelative = computed(() => {
   }
   return t('container.detail.health.updatedFromInspect');
 });
+
+function openAuditLogs() {
+  if (!safeDetail.value) {
+    return;
+  }
+
+  void router.push(buildAuditResourceLocation('container', safeDetail.value.id, displayName(safeDetail.value)));
+}
+
 const runtimeStability = computed(() => {
   const current = safeDetail.value;
   const risk = resolveRuntimeStability(current);
@@ -2033,14 +2117,14 @@ onMounted(() => {
   detailPageActive.value = true;
   updateCurrentTabTitle(fallbackTitle.value);
   void refreshContainerDetail();
-  if (activeTab.value === 'logs') {
-    void loadLogs();
-  }
+  syncLogsRealtimeSubscription();
 });
 
 onUnmounted(() => {
   detailPageActive.value = false;
   releaseCurrentRealtimeSubscription();
+  releaseLogsRealtimeSubscription();
+  logsRealtimeBatcher.destroy();
 });
 
 onActivated(() => {
@@ -2048,11 +2132,13 @@ onActivated(() => {
   if (safeDetail.value?.id) {
     syncRealtimeSubscription(safeDetail.value.id);
   }
+  syncLogsRealtimeSubscription();
 });
 
 onDeactivated(() => {
   detailPageActive.value = false;
   releaseCurrentRealtimeSubscription();
+  releaseLogsRealtimeSubscription();
 });
 
 watch(
@@ -2060,9 +2146,7 @@ watch(
   () => {
     resetDetailState();
     void refreshContainerDetail();
-    if (activeTab.value === 'logs') {
-      void loadLogs();
-    }
+    syncLogsRealtimeSubscription();
   },
 );
 
@@ -2071,14 +2155,14 @@ watch(
   (tab) => {
     const normalized = normalizeTab(tab);
     activeTab.value = normalized;
-    if (normalized === 'logs' && !logs.value) {
-      void loadLogs();
-    }
+    syncLogsRealtimeSubscription();
   },
 );
 
 watch(logLineLimit, () => {
+  logsRealtimeBatcher.updateLineLimit(logLineLimit.value);
   if (activeTab.value === 'logs') {
+    releaseLogsRealtimeSubscription();
     void loadLogs();
   }
 });
@@ -2094,7 +2178,7 @@ async function refreshContainerDetail() {
   const currentContainerId = containerId.value;
   if (!currentContainerId) {
     detail.value = null;
-    logs.value = null;
+    logViewStore.reset();
     error.value = t('container.detail.missingId');
     return;
   }
@@ -2212,22 +2296,38 @@ function orderMountsByCurrentPosition(nextMounts: ContainerMount[], currentMount
 }
 
 async function loadLogs() {
-  if (!containerId.value) {
-    logs.value = null;
+  const currentContainerId = containerId.value;
+  if (!currentContainerId) {
+    logViewStore.reset();
+    logsRealtimeSeeded = false;
+    logsInitialLoadAttempted = false;
     return;
   }
-  logsLoading.value = true;
-  logsError.value = '';
+  const requestSeq = ++logsRefreshSeq;
+  logsInitialLoadAttempted = true;
+  logViewStore.setLoading(true);
+  logViewStore.setError('');
   try {
-    logs.value = await getContainerLogs(containerId.value, {
+    const nextLogs = await getContainerLogs(currentContainerId, {
       ...DEFAULT_LOG_QUERY,
       tail: logLineLimit.value,
     });
+    if (requestSeq !== logsRefreshSeq || currentContainerId !== containerId.value) {
+      return;
+    }
+    logsRealtimeBatcher.seed(nextLogs);
+    logsRealtimeSeeded = true;
   } catch (loadError) {
-    logsError.value = resolveLocalizedErrorMessage(t, loadError, t('container.list.logs.loadFailed'));
+    if (requestSeq !== logsRefreshSeq || currentContainerId !== containerId.value) {
+      return;
+    }
+    logViewStore.setError(resolveLocalizedErrorMessage(t, loadError, t('container.list.logs.loadFailed')));
     logger.warn('failed to fetch container logs', loadError);
   } finally {
-    logsLoading.value = false;
+    if (requestSeq === logsRefreshSeq) {
+      logViewStore.setLoading(false);
+      syncLogsRealtimeSubscription();
+    }
   }
 }
 
@@ -2261,10 +2361,14 @@ function resetDetailState() {
   clearContainerDetail(containerId.value);
   detail.value = null;
   error.value = '';
-  logs.value = null;
-  logsError.value = '';
+  logViewStore.reset();
+  logsRealtimeSeeded = false;
+  logsInitialLoadAttempted = false;
+  logsRefreshSeq += 1;
+  logsRealtimeBatcher.clear();
   refreshingMountKeys.value = new Set();
   releaseCurrentRealtimeSubscription();
+  releaseLogsRealtimeSubscription();
   updateCurrentTabTitle(fallbackTitle.value);
 }
 
@@ -2277,6 +2381,15 @@ function toggleRealtimeSubscription() {
   if (safeDetail.value?.id) {
     syncRealtimeSubscription(safeDetail.value.id);
   }
+}
+
+function toggleLogsPause() {
+  if (logsPaused.value) {
+    logViewStore.resume();
+    return;
+  }
+
+  logViewStore.pause();
 }
 
 function syncRealtimeSubscription(nextContainerId: string) {
@@ -2314,9 +2427,209 @@ function handleTabChange(value: string | number) {
       tab,
     },
   });
-  if (tab === 'logs' && !logs.value) {
-    void loadLogs();
+  syncLogsRealtimeSubscription();
+}
+
+function syncLogsRealtimeSubscription() {
+  const nextTopic =
+    detailPageActive.value && activeTab.value === 'logs' && containerId.value
+      ? buildContainerLogsTopicName(containerId.value)
+      : '';
+
+  if (!nextTopic) {
+    releaseLogsRealtimeSubscription();
+    return;
   }
+
+  if (!logsRealtimeSeeded && !logsLoading.value && !logsInitialLoadAttempted) {
+    void loadLogs();
+    return;
+  }
+
+  if (logsRealtimeTopic === nextTopic && logsRealtimeController) {
+    return;
+  }
+
+  releaseLogsRealtimeSubscription();
+  logsRealtimeTopic = nextTopic;
+  logsRealtimeController = openRealtimeTopicSocket<ContainerLogsRealtimeMessage>({
+    topic: nextTopic,
+    parseMessage: parseContainerLogsRealtimeMessage,
+    onMessage: applyLogsRealtimeMessage,
+    onStateChange: () => undefined,
+    onError: (message) => {
+      logger.warn('container log realtime subscription error', { message, topic: nextTopic });
+    },
+  });
+}
+
+function releaseLogsRealtimeSubscription() {
+  logsRealtimeBatcher.flush();
+  logsRealtimeTopic = '';
+  logsRealtimeController?.close();
+  logsRealtimeController = null;
+}
+
+type ContainerLogsRealtimeMessage = {
+  containerId: string;
+  lines: string[];
+  topic: string;
+};
+
+function applyLogsRealtimeMessage(message: ContainerLogsRealtimeMessage) {
+  if (!detailPageActive.value || activeTab.value !== 'logs' || !containerId.value) {
+    return;
+  }
+  if (!isContainerLogsTopicForContainer(message.topic, containerId.value)) {
+    return;
+  }
+  if (message.containerId && message.containerId !== containerId.value) {
+    return;
+  }
+
+  logsRealtimeBatcher.enqueue(message.lines);
+}
+
+function parseContainerLogsRealtimeMessage(raw: unknown): ContainerLogsRealtimeMessage | null {
+  const eventData = parseRealtimeEventData(raw);
+  if (!eventData) {
+    return null;
+  }
+
+  const candidateLines = readRealtimeLogLines(eventData);
+  if (!candidateLines.length) {
+    return null;
+  }
+
+  const topic = readRealtimeLogTopic(eventData);
+  const containerId = readRealtimeLogContainerId(eventData, topic);
+  if (!topic || !containerId) {
+    return null;
+  }
+
+  return {
+    containerId,
+    lines: candidateLines,
+    topic,
+  };
+}
+
+function parseRealtimeEventData(raw: unknown): Record<string, unknown> | null {
+  const parsed = typeof raw === 'string' ? safeParseJson(raw) : raw;
+  if (!isPlainObject(parsed)) {
+    return null;
+  }
+  if (isPlainObject(parsed.data)) {
+    return parsed.data;
+  }
+  return parsed;
+}
+
+function readRealtimeLogLines(value: Record<string, unknown>) {
+  const directLines = normalizeRealtimeLogLines(value.lines);
+  if (directLines.length) {
+    return directLines;
+  }
+
+  const nestedPayloads = [value.payload, value.snapshot, value.append, value.delta];
+  for (const candidate of nestedPayloads) {
+    if (!isPlainObject(candidate)) {
+      continue;
+    }
+    const nestedLines = normalizeRealtimeLogLines(candidate.lines);
+    if (nestedLines.length) {
+      return nestedLines;
+    }
+  }
+
+  const directLine = normalizeRealtimeSingleLogLine(value);
+  return directLine ? [directLine] : [];
+}
+
+function normalizeRealtimeLogLines(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((line) => (typeof line === 'string' ? line : normalizeRealtimeSingleLogLine(line)))
+    .filter((line): line is string => typeof line === 'string' && line.length > 0);
+}
+
+function normalizeRealtimeSingleLogLine(value: unknown) {
+  if (typeof value === 'string') {
+    return value;
+  }
+  if (!isPlainObject(value)) {
+    return null;
+  }
+
+  const direct =
+    typeof value.raw === 'string'
+      ? value.raw
+      : typeof value.line === 'string'
+        ? value.line
+        : typeof value.content === 'string'
+          ? value.content
+          : null;
+
+  if (direct) {
+    return direct;
+  }
+
+  return typeof value.message === 'string' ? value.message : null;
+}
+
+function readRealtimeLogTopic(value: Record<string, unknown>) {
+  const directTopic = typeof value.topic === 'string' ? value.topic.trim() : '';
+  if (directTopic) {
+    return directTopic;
+  }
+
+  const nestedPayloads = [value.payload, value.snapshot, value.append, value.delta];
+  for (const candidate of nestedPayloads) {
+    if (!isPlainObject(candidate) || typeof candidate.topic !== 'string') {
+      continue;
+    }
+    const nestedTopic = candidate.topic.trim();
+    if (nestedTopic) {
+      return nestedTopic;
+    }
+  }
+
+  return '';
+}
+
+function readRealtimeLogContainerId(value: Record<string, unknown>, topic: string) {
+  const directId = typeof value.id === 'string' ? value.id.trim() : '';
+  if (directId) {
+    return directId;
+  }
+
+  const nestedPayloads = [value.payload, value.snapshot, value.append, value.delta];
+  for (const candidate of nestedPayloads) {
+    if (!isPlainObject(candidate) || typeof candidate.id !== 'string') {
+      continue;
+    }
+    const nestedId = candidate.id.trim();
+    if (nestedId) {
+      return nestedId;
+    }
+  }
+
+  return parseContainerLogsTopicContainerId(topic);
+}
+
+function safeParseJson(raw: string) {
+  try {
+    return JSON.parse(raw) as unknown;
+  } catch {
+    return null;
+  }
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === 'object' && !Array.isArray(value));
 }
 
 async function copyEnvironmentValue(row: EnvironmentRow) {
@@ -3867,24 +4180,13 @@ function portLabel(port: ContainerDetail['ports'][number]) {
   min-height: 0;
 }
 
-/*
- * Short detail tabs use the page scrollbar. Long-form tabs such as logs and raw JSON own
- * their internal scrolling so the page does not fight a second nested scrollbar.
- */
 .container-detail-tab-body {
-  --container-detail-tab-body-min-height: clamp(360px, calc(100vh - var(--graft-page-bottom-safe-area) - 360px), 640px);
-
-  height: var(--container-detail-tab-body-min-height);
-  min-height: var(--container-detail-tab-body-min-height);
+  height: auto;
+  min-height: 0;
 }
 
-.container-detail-tab-body--long {
-  --container-detail-tab-body-min-height: clamp(420px, calc(100vh - var(--graft-page-bottom-safe-area) - 330px), 720px);
-}
-
-.container-detail-tab-body--terminal {
-  --container-detail-tab-body-min-height: clamp(320px, calc(100vh - var(--graft-page-bottom-safe-area) - 420px), 520px);
-  --container-shell-terminal-height: var(--container-detail-tab-body-min-height);
+.container-detail-tab-body--viewer {
+  min-height: 0;
 }
 
 .container-detail-section {
@@ -3901,9 +4203,7 @@ function portLabel(port: ContainerDetail['ports'][number]) {
 }
 
 .container-detail-section--shell {
-  height: auto;
   min-height: 0;
-  padding: 0 var(--graft-density-gap-16) var(--graft-density-gap-16);
 }
 
 .container-detail-section--config {
@@ -4567,7 +4867,6 @@ function portLabel(port: ContainerDetail['ports'][number]) {
   min-width: 0;
   overflow: auto;
   padding: var(--graft-density-gap-8) var(--graft-density-gap-10);
-  scrollbar-width: thin;
 }
 
 .container-health-code {

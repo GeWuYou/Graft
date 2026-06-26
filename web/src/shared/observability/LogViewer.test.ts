@@ -1,6 +1,6 @@
 import { mount } from '@vue/test-utils';
-import { describe, expect, it, vi } from 'vitest';
-import { defineComponent, h } from 'vue';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { defineComponent, h, nextTick } from 'vue';
 
 import LogViewer from './LogViewer.vue';
 
@@ -46,9 +46,18 @@ const labels = {
   truncatedLabel: '日志已截断',
   viewDetailLabel: '查看详情',
   wrapLabel: '自动换行',
+  viewerMode: false,
+  viewerStorageKey: 'graft.test.log-viewer.height',
+  fullscreenLabel: '全屏',
+  exitFullscreenLabel: '退出全屏',
+  resizeHandleLabel: '调整阅读器高度',
 };
 
 describe('LogViewer', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('enables wrapping by default and keeps horizontal scrolling inside the log viewport', () => {
     const wrapper = mount(LogViewer, {
       props: {
@@ -77,6 +86,20 @@ describe('LogViewer', () => {
     expect(wrapper.find('.log-viewer__toolbar-right').text()).toContain('自动换行');
     expect(wrapper.find('.log-viewer__toolbar-right').text()).toContain('跟随底部');
     expect(wrapper.find('[data-tooltip="刷新日志后自动滚动到底部"]').exists()).toBe(true);
+  });
+
+  it('can hide the built-in refresh action for page-owned refresh flows', () => {
+    const wrapper = mount(LogViewer, {
+      props: {
+        ...labels,
+        lines: createLines(2),
+        showRefresh: false,
+      },
+      global: { stubs: tdesignStubs },
+    });
+
+    expect(wrapper.find('.log-viewer__toolbar-left').text()).not.toContain('刷新日志');
+    expect(wrapper.find('.log-viewer__toolbar-left').text()).toContain('复制全部');
   });
 
   it('offers every parsed log level in the level filter', () => {
@@ -171,6 +194,29 @@ describe('LogViewer', () => {
     expect(wrapper.text()).toContain('6 个匹配');
     expect(wrapper.findAll('.log-viewer__token--keyword')).toHaveLength(3);
     expect(wrapper.findAll('.log-viewer__line-number').map((node) => node.text())).toEqual(['1', '2', '3']);
+  });
+
+  it('keeps search results stable when new logs append into a limited tail window', async () => {
+    const wrapper = mount(LogViewer, {
+      props: {
+        ...labels,
+        lineLimit: 3,
+        lines: createLines(3),
+        contentVersion: 3,
+      },
+      global: { stubs: tdesignStubs },
+    });
+
+    await wrapper.find('input[type="search"]').setValue('request');
+    await wrapper.setProps({
+      lines: createLines(4),
+      contentVersion: 4,
+    });
+    await nextTick();
+
+    expect(wrapper.text()).toContain('6 个匹配');
+    expect(wrapper.findAll('.log-viewer__line-number').map((node) => node.text())).toEqual(['2', '3', '4']);
+    expect(wrapper.findAll('.log-viewer__token--keyword')).toHaveLength(3);
   });
 
   it('opens a drawer with formatted JSON metadata and raw log text instead of expanding the stream', async () => {
@@ -272,6 +318,205 @@ describe('LogViewer', () => {
     expect(wrapper.text()).not.toContain('查看详情');
     expect(wrapper.findAll('.log-viewer__icon-action')).toHaveLength(2);
   });
+
+  it('can render inside the shared viewer frame mode', () => {
+    const wrapper = mount(LogViewer, {
+      props: {
+        ...labels,
+        viewerMode: true,
+        lines: createLines(1),
+      },
+      global: { stubs: tdesignStubs },
+    });
+
+    expect(wrapper.find('.log-viewer--framed').exists()).toBe(true);
+    expect(wrapper.find('.log-viewer__body').exists()).toBe(true);
+  });
+
+  it('bounds rendered log rows to the viewport window instead of mounting every line', async () => {
+    const wrapper = mount(LogViewer, {
+      attachTo: document.body,
+      props: {
+        ...labels,
+        lines: createLines(200),
+        contentVersion: 200,
+      },
+      global: { stubs: tdesignStubs },
+    });
+
+    const viewport = wrapper.get('.log-viewer__viewport').element as HTMLDivElement;
+    Object.defineProperty(viewport, 'clientHeight', { configurable: true, value: 240 });
+
+    await nextTick();
+
+    const renderedLineNumbers = wrapper.findAll('.log-viewer__line-number').map((node) => Number(node.text()));
+    expect(renderedLineNumbers.length).toBeLessThan(40);
+    expect(renderedLineNumbers[0]).toBe(1);
+    expect(renderedLineNumbers.at(-1)).toBeLessThan(200);
+
+    wrapper.unmount();
+  });
+
+  it('updates the virtualized window after scrolling', async () => {
+    const wrapper = mount(LogViewer, {
+      attachTo: document.body,
+      props: {
+        ...labels,
+        lines: createLines(200),
+        contentVersion: 200,
+      },
+      global: { stubs: tdesignStubs },
+    });
+
+    const viewport = wrapper.get('.log-viewer__viewport').element as HTMLDivElement;
+    Object.defineProperty(viewport, 'clientHeight', { configurable: true, value: 240 });
+    Object.defineProperty(viewport, 'scrollTop', { configurable: true, writable: true, value: 0 });
+
+    await nextTick();
+
+    viewport.scrollTop = 3200;
+    await wrapper.get('.log-viewer__viewport').trigger('scroll');
+    await nextTick();
+
+    const renderedLineNumbers = wrapper.findAll('.log-viewer__line-number').map((node) => Number(node.text()));
+    expect(renderedLineNumbers[0]).toBeGreaterThan(1);
+    expect(renderedLineNumbers.at(-1)).toBeGreaterThan(renderedLineNumbers[0]);
+    expect(renderedLineNumbers.length).toBeLessThan(40);
+
+    wrapper.unmount();
+  });
+
+  it('clamps the virtual start after display lines shrink below the old scroll window', async () => {
+    const wrapper = mount(LogViewer, {
+      attachTo: document.body,
+      props: {
+        ...labels,
+        lines: createLines(200),
+        contentVersion: 200,
+      },
+      global: { stubs: tdesignStubs },
+    });
+
+    const viewport = wrapper.get('.log-viewer__viewport').element as HTMLDivElement;
+    Object.defineProperty(viewport, 'clientHeight', { configurable: true, value: 240 });
+    Object.defineProperty(viewport, 'scrollTop', { configurable: true, writable: true, value: 0 });
+
+    await nextTick();
+
+    viewport.scrollTop = 3200;
+    await wrapper.get('.log-viewer__viewport').trigger('scroll');
+    await nextTick();
+
+    await wrapper.setProps({
+      lines: createLines(1),
+      contentVersion: 1,
+    });
+    await nextTick();
+
+    const renderedLineNumbers = wrapper.findAll('.log-viewer__line-number').map((node) => Number(node.text()));
+    expect(renderedLineNumbers).toEqual([1]);
+
+    wrapper.unmount();
+  });
+
+  it('auto-scrolls only when the viewport is already pinned near the bottom', async () => {
+    const requestAnimationFrameSpy = vi
+      .spyOn(window, 'requestAnimationFrame')
+      .mockImplementation((callback: FrameRequestCallback) => {
+        callback(0);
+        return 1;
+      });
+
+    const wrapper = mount(LogViewer, {
+      attachTo: document.body,
+      props: {
+        ...labels,
+        lines: createLines(40),
+        contentVersion: 40,
+      },
+      global: { stubs: tdesignStubs },
+    });
+
+    const viewport = wrapper.get('.log-viewer__viewport').element as HTMLDivElement;
+    Object.defineProperty(viewport, 'clientHeight', { configurable: true, value: 240 });
+    Object.defineProperty(viewport, 'scrollHeight', { configurable: true, writable: true, value: 1600 });
+    Object.defineProperty(viewport, 'scrollTop', { configurable: true, writable: true, value: 1368 });
+
+    await nextTick();
+    await wrapper.setProps({
+      lines: createLines(41),
+      contentVersion: 41,
+    });
+    await nextTick();
+
+    expect(requestAnimationFrameSpy).toHaveBeenCalledTimes(1);
+    expect(viewport.scrollTop).toBe(1600);
+
+    Object.defineProperty(viewport, 'scrollHeight', { configurable: true, writable: true, value: 2000 });
+    Object.defineProperty(viewport, 'scrollTop', { configurable: true, writable: true, value: 1000 });
+    await wrapper.get('.log-viewer__viewport').trigger('scroll');
+
+    await wrapper.setProps({
+      lines: createLines(42),
+      contentVersion: 42,
+    });
+    await nextTick();
+
+    expect(requestAnimationFrameSpy).toHaveBeenCalledTimes(1);
+    expect(viewport.scrollTop).toBe(1000);
+
+    wrapper.unmount();
+  });
+
+  it('coalesces repeated auto-scroll requests into one frame', async () => {
+    let pendingFrame: FrameRequestCallback | undefined;
+    const requestAnimationFrameSpy = vi
+      .spyOn(window, 'requestAnimationFrame')
+      .mockImplementation((callback: FrameRequestCallback) => {
+        pendingFrame = callback;
+        return 7;
+      });
+
+    const wrapper = mount(LogViewer, {
+      attachTo: document.body,
+      props: {
+        ...labels,
+        lines: createLines(50),
+        contentVersion: 50,
+      },
+      global: { stubs: tdesignStubs },
+    });
+
+    const viewport = wrapper.get('.log-viewer__viewport').element as HTMLDivElement;
+    Object.defineProperty(viewport, 'clientHeight', { configurable: true, value: 240 });
+    Object.defineProperty(viewport, 'scrollHeight', { configurable: true, writable: true, value: 2400 });
+    Object.defineProperty(viewport, 'scrollTop', { configurable: true, writable: true, value: 2168 });
+
+    await nextTick();
+
+    await wrapper.setProps({
+      lines: createLines(51),
+      contentVersion: 51,
+    });
+    await wrapper.setProps({
+      lines: createLines(52),
+      contentVersion: 52,
+    });
+    await nextTick();
+
+    expect(requestAnimationFrameSpy).toHaveBeenCalledTimes(1);
+    expect(viewport.scrollTop).toBe(2168);
+
+    Object.defineProperty(viewport, 'scrollHeight', { configurable: true, writable: true, value: 2600 });
+    if (pendingFrame) {
+      pendingFrame(0);
+    }
+    await nextTick();
+
+    expect(viewport.scrollTop).toBe(2600);
+
+    wrapper.unmount();
+  });
 });
 
 const tdesignStubs = {
@@ -296,6 +541,11 @@ const tdesignStubs = {
   't-empty': defineComponent({
     props: ['description'],
     setup: (props) => () => h('div', String(props.description ?? '')),
+  }),
+  'content-viewer-frame': defineComponent({
+    setup(_, { slots }) {
+      return () => h('section', { class: 'content-viewer-frame-stub' }, [slots.toolbar?.(), slots.default?.()]);
+    },
   }),
   't-drawer': defineComponent({
     props: ['header', 'visible'],

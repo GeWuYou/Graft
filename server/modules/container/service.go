@@ -26,6 +26,7 @@ import (
 
 const (
 	containerResourceType        = "container"
+	containerBatchResourceType   = "container_batch"
 	containerOperationTTL        = 30 * time.Second
 	containerAuditPublishTimeout = 3 * time.Second
 	maskedEnvironmentPlaceholder = "*****"
@@ -56,6 +57,9 @@ type service struct {
 	topicIssuers            realtime.TopicIssuerRegistry
 	authorizer              moduleapi.Authorizer
 	statsCollector          *statsCollector
+	logTopicStreamerMu      sync.Mutex
+	logTopicStreamer        *logTopicStreamer
+	logTopicStreamerFactory func(realtime.Hub, *zap.Logger, func() (Runtime, error)) (*logTopicStreamer, error)
 }
 
 type containerServiceOptions struct {
@@ -81,6 +85,7 @@ type containerServiceOptions struct {
 	realtimeHub                          realtime.Hub
 	topicIssuers                         realtime.TopicIssuerRegistry
 	authorizer                           moduleapi.Authorizer
+	logTopicStreamerFactory              func(realtime.Hub, *zap.Logger, func() (Runtime, error)) (*logTopicStreamer, error)
 }
 
 // newContainerService 根据模块上下文初始化容器服务，并解析运行时、实时订阅和鉴权依赖。
@@ -182,6 +187,7 @@ func newService(options containerServiceOptions) (*service, error) {
 		realtimeHub:             options.realtimeHub,
 		topicIssuers:            options.topicIssuers,
 		authorizer:              options.authorizer,
+		logTopicStreamerFactory: options.logTopicStreamerFactory,
 	}, nil
 }
 
@@ -227,6 +233,15 @@ func (s *service) Close() error {
 		return nil
 	}
 	var closeErr error
+	s.logTopicStreamerMu.Lock()
+	logTopicStreamer := s.logTopicStreamer
+	s.logTopicStreamer = nil
+	s.logTopicStreamerMu.Unlock()
+	if logTopicStreamer != nil {
+		if err := logTopicStreamer.Close(context.Background()); err != nil {
+			closeErr = errors.Join(closeErr, err)
+		}
+	}
 	if s.statsCollector != nil {
 		if err := s.statsCollector.Stop(context.Background()); err != nil {
 			closeErr = errors.Join(closeErr, err)
@@ -430,10 +445,20 @@ func (s *service) BatchAction(ctx context.Context, command BatchActionCommand) (
 	}
 	policy := s.effectiveActionPolicy(ctx)
 	if !policy.dangerousAllowed {
+		blocked := BatchActionResult{
+			Action:    normalized.Action,
+			Total:     len(normalized.IDs),
+			RequestID: requestIDFromContext(ctx),
+			Items:     make([]BatchActionItem, 0, len(normalized.IDs)),
+		}
 		for _, ref := range normalized.IDs {
 			result := ActionResult{ID: ref, Action: normalized.Action, Runtime: runtimeNameDocker}
 			s.publishActionAudit(ctx, result, ActionOptions{Force: normalized.Force}, errDangerousActionsDisabled)
+			blocked.Items = append(blocked.Items, batchActionFailure(ref, normalized.Action, errDangerousActionsDisabled))
 		}
+		blocked.FailedCount = len(blocked.Items)
+		blocked = withBatchActionMessage(blocked)
+		s.publishBatchActionAudit(ctx, blocked, ActionOptions{Force: normalized.Force})
 		return BatchActionResult{}, errDangerousActionsDisabled
 	}
 	result := BatchActionResult{
@@ -471,6 +496,7 @@ func (s *service) BatchAction(ctx context.Context, command BatchActionCommand) (
 		result.SuccessCount++
 	}
 	result = withBatchActionMessage(result)
+	s.publishBatchActionAudit(ctx, result, ActionOptions{Force: normalized.Force})
 	return result, nil
 }
 
@@ -494,18 +520,10 @@ func (s *service) runAction(
 	}
 	policy := s.effectiveActionPolicy(ctx)
 	detail, detailErr := runtime.Detail(ctx, ref)
-	orchestratorType := containerOrchestratorUnknown
-	if detailErr == nil {
-		orchestratorType = effectiveOrchestratorType(detail.Summary)
-	}
+	orchestrator := actionAuditOrchestrator(detail, detailErr)
+	orchestratorType := effectiveActionAuditOrchestratorType(orchestrator, detailErr)
 	if policy.singleBlockedFor(orchestratorType) {
-		result := ActionResult{
-			ID:      firstNonEmpty(ref.Value, detail.ID),
-			Name:    detail.Name,
-			Image:   detail.Image,
-			Action:  action,
-			Runtime: runtimeNameDocker,
-		}
+		result := blockedActionAuditResult(ref, detail, action, orchestrator)
 		s.publishActionAudit(ctx, result, options, errDangerousActionsDisabled)
 		return ActionResult{}, errDangerousActionsDisabled
 	}
@@ -514,6 +532,9 @@ func (s *service) runAction(
 	result, err := runWithRuntime(actionCtx, ref, action, options, runtime)
 	if result.Action == "" {
 		result.Action = action
+	}
+	if shouldBackfillActionAuditOrchestrator(result.Orchestrator, detailErr) {
+		result.Orchestrator = orchestrator
 	}
 	if err == nil {
 		result = withActionMessage(result)
@@ -540,22 +561,56 @@ func (s *service) batchActionPolicyFailure(
 	}
 	policy := s.effectiveActionPolicy(ctx)
 	detail, detailErr := runtime.Detail(ctx, ref)
-	orchestratorType := containerOrchestratorUnknown
-	if detailErr == nil {
-		orchestratorType = effectiveOrchestratorType(detail.Summary)
-	}
+	orchestrator := actionAuditOrchestrator(detail, detailErr)
+	orchestratorType := effectiveActionAuditOrchestratorType(orchestrator, detailErr)
 	if policy.singleBlockedFor(orchestratorType) || policy.batchBlockedFor(orchestratorType) {
-		result := ActionResult{
-			ID:      firstNonEmpty(ref.Value, detail.ID),
-			Name:    detail.Name,
-			Image:   detail.Image,
-			Action:  action,
-			Runtime: runtimeNameDocker,
-		}
+		result := blockedActionAuditResult(ref, detail, action, orchestrator)
 		s.publishActionAudit(ctx, result, options, errDangerousActionsDisabled)
 		return batchActionItem(ref.Value, action, result, errDangerousActionsDisabled), true
 	}
 	return BatchActionItem{}, false
+}
+
+// actionAuditOrchestrator 在详情获取失败时返回空的编排器信息，否则返回容器详情中的编排器信息。
+func actionAuditOrchestrator(detail Detail, detailErr error) OrchestratorInfo {
+	if detailErr != nil {
+		return OrchestratorInfo{}
+	}
+	return detail.Orchestrator
+}
+
+// effectiveActionAuditOrchestratorType 返回用于动作审计的编排器类型；当获取容器详情失败时返回未知类型。
+func effectiveActionAuditOrchestratorType(orchestrator OrchestratorInfo, detailErr error) string {
+	if detailErr != nil {
+		return containerOrchestratorUnknown
+	}
+	return effectiveOrchestratorType(Summary{Orchestrator: orchestrator})
+}
+
+// blockedActionAuditResult 生成用于记录被阻止动作的结果信息。
+// 返回包含容器标识、镜像、动作、运行时和编排器信息的 ActionResult。
+func blockedActionAuditResult(ref Ref, detail Detail, action string, orchestrator OrchestratorInfo) ActionResult {
+	return ActionResult{
+		ID:           firstNonEmpty(ref.Value, detail.ID),
+		Name:         detail.Name,
+		Image:        detail.Image,
+		Action:       action,
+		Runtime:      runtimeNameDocker,
+		Orchestrator: orchestrator,
+	}
+}
+
+// shouldBackfillActionAuditOrchestrator 判断是否需要回填动作审计中的编排器信息。
+// 当详情读取成功但当前编排器字段仍全部为空时，返回 true。
+func shouldBackfillActionAuditOrchestrator(orchestrator OrchestratorInfo, detailErr error) bool {
+	if detailErr != nil {
+		return false
+	}
+	return orchestrator.Type == "" &&
+		orchestrator.GroupScopeKind == "" &&
+		orchestrator.MemberScopeKind == "" &&
+		orchestrator.GroupValue == "" &&
+		orchestrator.MemberValue == ""
 }
 
 func (s *service) requireRuntimeAccess(ctx context.Context) error {
@@ -1166,7 +1221,7 @@ func (s *service) publishActionAudit(ctx context.Context, result ActionResult, o
 	}
 	auditCtx, cancel := detachedAuditContext(ctx)
 	defer cancel()
-	action := "ops.container." + strings.TrimSpace(result.Action)
+	action := actionAuditContract(result.Action).String()
 	messageKey := ""
 	message := ""
 	if err != nil {
@@ -1185,6 +1240,14 @@ func (s *service) publishActionAudit(ctx context.Context, result ActionResult, o
 		"error":          messageKey,
 		"status_before":  result.StatusBefore,
 		"status_after":   result.StatusAfter,
+		"orchestrator_type": firstNonEmpty(
+			result.Orchestrator.Type,
+			containerOrchestratorUnknown,
+		),
+		"source_group_kind":   strings.TrimSpace(result.Orchestrator.GroupScopeKind),
+		"source_group_value":  strings.TrimSpace(result.Orchestrator.GroupValue),
+		"source_member_kind":  strings.TrimSpace(result.Orchestrator.MemberScopeKind),
+		"source_member_value": strings.TrimSpace(result.Orchestrator.MemberValue),
 	}
 	if requestAudit, ok := httpx.RequestAuditContextFromContext(auditCtx); ok {
 		metadata["requestId"] = requestAudit.RequestID
@@ -1218,6 +1281,123 @@ func (s *service) publishActionAudit(ctx context.Context, result ActionResult, o
 	}
 }
 
+func (s *service) publishBatchActionAudit(ctx context.Context, result BatchActionResult, options ActionOptions) {
+	if s == nil || s.auditBus == nil {
+		return
+	}
+	auditCtx, cancel := detachedAuditContext(ctx)
+	defer cancel()
+
+	requestID := firstNonEmpty(strings.TrimSpace(result.RequestID), requestIDFromContext(ctx))
+	resourceID := requestID
+	if resourceID == "" {
+		resourceID = "batch:" + strings.TrimSpace(result.Action) + ":" + strconv.FormatInt(time.Now().UTC().UnixNano(), 10)
+	}
+	metadata := map[string]any{
+		"batch":           true,
+		"batch_action":    batchActionAuditContract(result.Action).String(),
+		"requested_total": result.Total,
+		"requested_ids":   batchRequestedIDs(result.Items),
+		"success_count":   result.SuccessCount,
+		"failed_count":    result.FailedCount,
+		"failed_ids":      batchFailedIDs(result.Items),
+		"force":           options.Force,
+	}
+	if requestAudit, ok := httpx.RequestAuditContextFromContext(auditCtx); ok {
+		metadata["requestId"] = firstNonEmpty(requestID, requestAudit.RequestID)
+		metadata["traceId"] = requestAudit.TraceID
+	} else if requestID != "" {
+		metadata["requestId"] = requestID
+	}
+	event := moduleapi.AuditEvent{
+		Kind:         moduleapi.AuditEventKindDomain,
+		Operator:     currentAuditOperator(auditCtx),
+		Action:       batchActionAuditContract(result.Action).String(),
+		ResourceType: containerBatchResourceType,
+		ResourceID:   resourceID,
+		ResourceName: strings.TrimSpace(result.Action) + " x" + strconv.Itoa(result.Total),
+		StatusCode:   batchAuditStatusCode(result),
+		Success:      result.FailedCount == 0,
+		MessageKey:   strings.TrimSpace(result.MessageKey),
+		Message:      strings.TrimSpace(result.Message),
+		Metadata:     metadata,
+	}
+	if publishErr := s.auditBus.Publish(auditCtx, eventbus.Event{
+		Name:    string(moduleapi.AuditRecordEventName),
+		Source:  s.moduleName,
+		Payload: event,
+	}); publishErr != nil && s.logger != nil {
+		s.logger.Warn("publish container batch audit event failed",
+			zap.String("module", s.moduleName),
+			zap.String("action", event.Action),
+			zap.Error(publishErr),
+		)
+	}
+}
+
+// actionAuditContract 将容器动作字符串映射为审计动作类型。
+// 预定义动作会转换为对应的容器审计动作；其他值会按原字符串生成审计动作。
+func actionAuditContract(action string) containercontract.AuditAction {
+	switch strings.TrimSpace(action) {
+	case containerActionStart:
+		return containercontract.ContainerAuditActionStart
+	case containerActionStop:
+		return containercontract.ContainerAuditActionStop
+	case containerActionRemove:
+		return containercontract.ContainerAuditActionRemove
+	default:
+		return containercontract.AuditAction(strings.TrimSpace(action))
+	}
+}
+
+// 对已知动作返回对应的批量审计动作；其他值返回去除首尾空白后的原始动作。
+func batchActionAuditContract(action string) containercontract.AuditAction {
+	switch strings.TrimSpace(action) {
+	case containerActionStart:
+		return containercontract.ContainerAuditActionBatchStart
+	case containerActionStop:
+		return containercontract.ContainerAuditActionBatchStop
+	case containerActionRemove:
+		return containercontract.ContainerAuditActionBatchRemove
+	default:
+		return containercontract.AuditAction(strings.TrimSpace(action))
+	}
+}
+
+// batchRequestedIDs 提取批量动作中每个条目的请求资源 ID。
+// 返回的每个 ID 优先使用条目结果中的 ID，若为空则使用条目自身的 ID。
+func batchRequestedIDs(items []BatchActionItem) []string {
+	ids := make([]string, 0, len(items))
+	for _, item := range items {
+		ids = append(ids, firstNonEmpty(item.Result.ID, item.ID))
+	}
+	return ids
+}
+
+// batchFailedIDs 返回批量动作中执行失败项的 ID 列表。
+// 每个失败项优先使用结果中的 ID，必要时使用请求中的 ID。
+func batchFailedIDs(items []BatchActionItem) []string {
+	ids := make([]string, 0, len(items))
+	for _, item := range items {
+		if item.Success {
+			continue
+		}
+		ids = append(ids, firstNonEmpty(item.Result.ID, item.ID))
+	}
+	return ids
+}
+
+// batchAuditStatusCode 根据批量动作结果返回审计状态码。
+// 当存在失败项时返回 `409 Conflict`，否则返回 `200 OK`。
+func batchAuditStatusCode(result BatchActionResult) int {
+	if result.FailedCount > 0 {
+		return http.StatusConflict
+	}
+	return http.StatusOK
+}
+
+// currentAuditOperator 提取当前请求中的审计操作者信息。
+// 当请求上下文中存在用户时，返回其副本；否则返回 nil。
 func currentAuditOperator(ctx context.Context) *moduleapi.CurrentUser {
 	requestAuth, ok := moduleapi.RequestAuthContextFromContext(ctx)
 	if !ok || requestAuth.User == nil {
@@ -1816,7 +1996,10 @@ func (s *service) registerRealtimeTopics() error {
 	if err := s.topicIssuers.Register(containercontract.ContainerDashboardSummaryTopic, s); err != nil {
 		return err
 	}
-	return s.topicIssuers.Register(containercontract.ContainerStatsTopicPrefix, s)
+	if err := s.topicIssuers.Register(containercontract.ContainerStatsTopicPrefix, s); err != nil {
+		return err
+	}
+	return s.topicIssuers.Register(containercontract.ContainerLogsTopicPrefix, s)
 }
 
 // IssueSubscription 为容器实时主题签发一次性订阅票据。
@@ -1840,17 +2023,68 @@ func (s *service) IssueSubscription(
 	if topic == containercontract.ContainerDashboardSummaryTopic {
 		return s.issueContainerDashboardSummaryRealtimeSubscription(ctx, request, topic)
 	}
-	if !strings.HasPrefix(topic, containercontract.ContainerStatsTopicPrefix) {
+	if !strings.HasPrefix(topic, containercontract.ContainerLogsTopicPrefix) &&
+		!strings.HasPrefix(topic, containercontract.ContainerStatsTopicPrefix) {
 		return realtime.SubscriptionResponse{}, realtime.ErrTopicNotFound
 	}
+	return s.issueProtectedContainerRealtimeSubscription(ctx, request, topic)
+}
+
+func (s *service) issueProtectedContainerRealtimeSubscription(
+	ctx context.Context,
+	request realtime.SubscriptionRequest,
+	topic string,
+) (realtime.SubscriptionResponse, error) {
 	if request.RequestAuth.User == nil {
 		return realtime.SubscriptionResponse{}, realtime.ErrTopicForbidden
 	}
 	if s.authorizer == nil {
 		return realtime.SubscriptionResponse{}, realtime.ErrTopicForbidden
 	}
+	if strings.HasPrefix(topic, containercontract.ContainerLogsTopicPrefix) {
+		return s.issueContainerLogsRealtimeSubscription(ctx, request, topic)
+	}
 
 	return s.issueContainerRealtimeSubscription(ctx, request, topic)
+}
+
+func (s *service) issueContainerLogsRealtimeSubscription(
+	ctx context.Context,
+	request realtime.SubscriptionRequest,
+	topic string,
+) (realtime.SubscriptionResponse, error) {
+	containerID := strings.TrimSpace(strings.TrimPrefix(topic, containercontract.ContainerLogsTopicPrefix))
+	ref, err := parseRef(containerID)
+	if err != nil {
+		return realtime.SubscriptionResponse{}, realtime.ErrTopicNotFound
+	}
+	if err := s.authorizer.Authorize(ctx, request.RequestAuth, containercontract.ContainerLogsPermission.String()); err != nil {
+		return realtime.SubscriptionResponse{}, realtime.ErrTopicForbidden
+	}
+	logQuery, err := s.normalizeLogQuery(ctx, LogQuery{})
+	if err != nil {
+		return realtime.SubscriptionResponse{}, realtime.ErrTopicConflict
+	}
+	if err := s.ensureLogTopicStreaming(ctx, topic, ref, logQuery); err != nil {
+		if errors.Is(err, errContainerNotFound) || errors.Is(err, errInvalidRef) {
+			return realtime.SubscriptionResponse{}, realtime.ErrTopicNotFound
+		}
+		if errors.Is(err, errRuntimeDisabled) {
+			return realtime.SubscriptionResponse{}, realtime.ErrTopicForbidden
+		}
+		return realtime.SubscriptionResponse{}, realtime.ErrTopicConflict
+	}
+
+	issued, err := (realtime.TicketIssuer{Tickets: s.realtimeTickets}).IssueTopicTicket(ctx, request)
+	if err != nil {
+		return realtime.SubscriptionResponse{}, realtime.ErrTopicConflict
+	}
+	return realtime.SubscriptionResponse{
+		Topic:        topic,
+		Ticket:       issued.Ticket,
+		WebSocketURL: realtime.BuildTopicWebSocketURL(topic, issued.Ticket),
+		ExpiresAt:    issued.ExpiresAt,
+	}, nil
 }
 
 func (s *service) issueContainerListRealtimeSubscription(
@@ -2404,6 +2638,9 @@ func (disabledRuntime) MountUsage(context.Context, Ref, string) (MountUsage, err
 }
 func (disabledRuntime) Logs(context.Context, Ref, LogQuery) (Logs, error) {
 	return Logs{}, errRuntimeDisabled
+}
+func (disabledRuntime) StreamLogs(context.Context, Ref, LogQuery, func(LogChunk) error) error {
+	return errRuntimeDisabled
 }
 func (disabledRuntime) Shell(context.Context, Ref, string) (terminal.Session, error) {
 	return nil, errRuntimeDisabled

@@ -32,7 +32,7 @@
 
     <teleport to="body">
       <div v-if="showPanel" ref="panelRef" class="global-menu-search__panel-layer" :style="panelStyle">
-        <div class="global-menu-search__panel">
+        <div class="global-menu-search__panel graft-scrollbar">
           <div v-if="!routesInitialized" class="global-menu-search__state">
             <t-loading :loading="true" size="small" />
           </div>
@@ -305,25 +305,7 @@ onBeforeUnmount(() => {
   max-height: min(60vh, 560px);
   overflow: auto;
   padding: var(--graft-density-gap-8);
-  scrollbar-color: var(--td-scrollbar-color) transparent;
-  scrollbar-width: thin;
   width: 100%;
-}
-
-.global-menu-search__panel::-webkit-scrollbar {
-  background: transparent;
-  width: 8px;
-}
-
-.global-menu-search__panel::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.global-menu-search__panel::-webkit-scrollbar-thumb {
-  background-clip: content-box;
-  background-color: var(--td-scrollbar-color);
-  border: 2px solid transparent;
-  border-radius: 6px;
 }
 
 .global-menu-search__state {

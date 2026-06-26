@@ -255,7 +255,8 @@
         "permissionDenied": "Permission Denied",
         "sensitiveOps": "Sensitive Operations",
         "authFailed": "Auth Failed",
-        "highRisk": "High Risk"
+        "highRisk": "High Risk",
+        "containerDangerousOps": "Dangerous Container Operations"
       },
       "columnViews": {
         "label": "View Presets",

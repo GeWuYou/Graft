@@ -740,11 +740,18 @@ func classifyCandidateResult(record auditstore.AuditLog, metadata map[string]any
 	return auditstore.AuditResultFailed
 }
 
+// classifyCandidateAuditRiskLevel 根据审计记录的结果、资源类型和操作动作计算风险等级。
+// 当结果为 Error 或 Denied 时返回 Critical；当资源类型为 container 或 container_batch 且动作为 ops.container.action.* 时返回 High。
+// @return 返回计算得到的审计风险等级。
 func classifyCandidateAuditRiskLevel(record auditstore.AuditLog) auditstore.AuditRiskLevel {
 	action := strings.ToLower(strings.TrimSpace(record.Action))
+	resourceType := strings.ToLower(strings.TrimSpace(record.ResourceType))
 
 	if record.Result == auditstore.AuditResultError || record.Result == auditstore.AuditResultDenied {
 		return auditstore.AuditRiskLevelCritical
+	}
+	if (resourceType == "container" || resourceType == "container_batch") && strings.HasPrefix(action, "ops.container.action.") {
+		return auditstore.AuditRiskLevelHigh
 	}
 	if containsAny(action, []string{"reset_password", "update_permission", "update_role", "assign_role", "token_revoke"}) {
 		return auditstore.AuditRiskLevelCritical

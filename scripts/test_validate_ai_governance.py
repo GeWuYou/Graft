@@ -7,6 +7,7 @@ import importlib.util
 from pathlib import Path
 import sys
 import unittest
+from unittest import mock
 
 
 SCRIPT_PATH = Path(__file__).with_name("validate_ai_governance.py")
@@ -47,6 +48,33 @@ class SkillMcpGuidanceTests(unittest.TestCase):
 class EnvironmentInventoryTests(unittest.TestCase):
     def test_environment_inventory_covers_adopted_and_pilot_mcp_servers(self) -> None:
         self.assertEqual(MODULE.validate_environment_inventory(), [])
+
+    def test_environment_inventory_covers_eff_u_code_optional_helper(self) -> None:
+        self.assertEqual(MODULE.validate_environment_inventory(), [])
+
+    def test_environment_inventory_rejects_overbroad_eff_u_code_manifest_guardrail(self) -> None:
+        text = MODULE.read_text(MODULE.TOOLS_AI).replace(
+            "Keep eff-u-code developer-local only; the repository root package.json wrapper is allowed, but do not add it to server/go.mod, web/package.json, CI, hooks, runtime scripts, or completion gates.",
+            "Keep eff-u-code developer-local only; do not add it to package manifests, CI, hooks, or completion gates.",
+            1,
+        )
+
+        with mock.patch.object(MODULE, "read_text", return_value=text):
+            findings = MODULE.validate_environment_inventory()
+
+        self.assertTrue(any("package.json wrapper" in finding.message for finding in findings))
+
+    def test_environment_inventory_requires_eff_u_code_repo_wrapper_command(self) -> None:
+        text = MODULE.read_text(MODULE.TOOLS_AI).replace(
+            'default_command: "bun run quality:eff-u-code --"',
+            'default_command: "/root/.bun/bin/fuck-u-code"',
+            1,
+        )
+
+        with mock.patch.object(MODULE, "read_text", return_value=text):
+            findings = MODULE.validate_environment_inventory()
+
+        self.assertTrue(any("bun run quality:eff-u-code --" in finding.message for finding in findings))
 
 
 class PushBranchGovernanceTests(unittest.TestCase):

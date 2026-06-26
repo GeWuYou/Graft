@@ -28,6 +28,21 @@ vi.mock('vue-i18n', () => ({
   }),
 }));
 
+vi.mock('@/shared/components/viewer/ContentViewerFrame.vue', () => ({
+  default: defineComponent({
+    name: 'ContentViewerFrameStub',
+    setup(_, { slots }) {
+      return () =>
+        h('section', { class: 'content-viewer-frame-stub' }, [
+          slots.header?.(),
+          slots['header-actions']?.(),
+          slots.toolbar?.(),
+          slots.default?.(),
+        ]);
+    },
+  }),
+}));
+
 describe('ContainerRawJsonPanel', () => {
   it('renders metadata chips and tree mode by default', () => {
     const wrapper = mountPanel();
@@ -171,6 +186,9 @@ describe('ContainerRawJsonPanel', () => {
       copyDisabledMessage: '当前系统配置禁止复制包含敏感字段的 JSON',
       copySuccessLabel: '内容已复制。',
       copyErrorLabel: '内容复制失败。',
+      fullscreenLabel: '全屏',
+      exitFullscreenLabel: '退出全屏',
+      resizeHandleLabel: '调整阅读器高度',
       expandAllLabel: '展开全部',
       collapseAllLabel: '折叠全部',
       formatLabel: '格式化',
@@ -217,6 +235,9 @@ function mountPanel(value: unknown = createRawValue(), copyValue: unknown = valu
       copyDisabledMessage: '当前系统配置禁止复制包含敏感字段的 JSON',
       copySuccessLabel: '内容已复制。',
       copyErrorLabel: '内容复制失败。',
+      fullscreenLabel: '全屏',
+      exitFullscreenLabel: '退出全屏',
+      resizeHandleLabel: '调整阅读器高度',
       expandAllLabel: '展开全部',
       collapseAllLabel: '折叠全部',
       formatLabel: '格式化',
@@ -258,6 +279,12 @@ function mountPanel(value: unknown = createRawValue(), copyValue: unknown = valu
                 },
                 slots.default?.(),
               ),
+        }),
+        't-tooltip': defineComponent({
+          props: ['content'],
+          setup(props, { slots }) {
+            return () => h('div', { 'data-tooltip': String(props.content ?? '') }, slots.default?.());
+          },
         }),
         't-empty': defineComponent({
           props: ['description'],

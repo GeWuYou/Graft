@@ -211,7 +211,7 @@
         </template>
       </t-alert>
 
-      <div ref="tableHostRef" class="container-table-host" :data-table-mode="tableWidthPolicy.mode">
+      <div ref="tableHostRef" class="container-table-host graft-scrollbar" :data-table-mode="tableWidthPolicy.mode">
         <t-table
           row-key="id"
           :columns="visibleColumns"
@@ -424,6 +424,16 @@
               >
                 {{ t('container.list.actions.logs') }}
               </t-button>
+              <t-button
+                v-if="permissionStore.hasPermission(auditPermissionCodes.READ)"
+                data-testid="container-action-audit"
+                theme="default"
+                variant="outline"
+                size="small"
+                @click="openAuditLogs(row)"
+              >
+                {{ t('container.list.actions.viewAudit') }}
+              </t-button>
               <t-dropdown
                 v-if="moreRowActions(row).length"
                 :options="moreRowActionOptions(row)"
@@ -490,6 +500,8 @@ import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
 import { LOCALE, type LocalizedTitle } from '@/contracts/i18n/locales';
+import { buildAuditResourceLocation } from '@/modules/audit/contract/deep-link';
+import { AUDIT_PERMISSION_CODE } from '@/modules/audit/contract/permissions';
 import {
   buildVisibleColumns,
   ManagementPageHeader,
@@ -504,7 +516,7 @@ import { AdvancedQueryColumnDrawer } from '@/shared/components/query-list';
 import { useCurrentTabRefresh } from '@/shared/composables/useTabRefresh';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { formatLocaleDateTime } from '@/shared/observability';
-import { useTabsRouterStore } from '@/store';
+import { usePermissionStore, useTabsRouterStore } from '@/store';
 import { createLogger } from '@/utils/logger';
 import { localizeRouteTitleKey } from '@/utils/route/title';
 import type { AppRouteMeta } from '@/utils/types';
@@ -554,8 +566,10 @@ defineOptions({
 
 const { locale, t, te } = useI18n();
 const router = useRouter();
+const permissionStore = usePermissionStore();
 const tabsRouterStore = useTabsRouterStore();
 const logger = createLogger('container.list');
+const auditPermissionCodes = AUDIT_PERMISSION_CODE;
 const permissionCodes = CONTAINER_PERMISSION_CODE;
 
 const statusOptions: ContainerState[] = [
@@ -715,7 +729,7 @@ const allColumns = computed<TdBaseTableProps['columns']>(() => [
   {
     title: t('container.list.columns.operation'),
     colKey: 'operation',
-    width: 192,
+    width: 288,
     fixed: 'right',
     align: 'center',
     ellipsis: false,
@@ -1066,6 +1080,10 @@ function defaultSourceScopeKind(orchestrator: ContainerOrchestratorType | 'all')
 
 function openDetail(row: ContainerSummaryRecord) {
   void navigateToDetail(row, 'overview');
+}
+
+function openAuditLogs(row: ContainerSummaryRecord) {
+  void router.push(buildAuditResourceLocation('container', row.id, displayName(row)));
 }
 
 async function copyContainerId(row: ContainerSummaryRecord) {

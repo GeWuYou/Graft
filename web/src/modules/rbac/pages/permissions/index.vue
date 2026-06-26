@@ -73,7 +73,7 @@
           </template>
         </management-empty-state>
 
-        <div v-else ref="tableHostRef" class="table-host" :data-table-mode="tableWidthPolicy.mode">
+        <div v-else ref="tableHostRef" class="table-host graft-scrollbar" :data-table-mode="tableWidthPolicy.mode">
           <t-table
             row-key="id"
             :data="pagedPermissions"

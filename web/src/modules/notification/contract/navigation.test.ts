@@ -18,12 +18,12 @@ describe('notification navigation resolver', () => {
     expect(
       resolveNotificationNavigationLocation({
         kind: NOTIFICATION_NAVIGATION_KIND.AUDIT_LOG,
-        payload: { request_id: 'req-1' },
+        payload: { audit_log_id: '12', request_id: 'req-1' },
       }),
     ).toEqual({
       path: '/audit/logs',
       query: {
-        request_id: 'req-1',
+        audit_log_id: '12',
       },
     });
   });

@@ -161,10 +161,6 @@ function copyValue(value: string) {
   gap: var(--graft-density-gap-24);
 }
 
-.access-log-detail :deep(.t-descriptions__content) {
-  overflow-wrap: anywhere;
-}
-
 .access-log-detail__copy-line {
   align-items: center;
   display: flex;
@@ -176,6 +172,10 @@ function copyValue(value: string) {
   display: flex;
   flex-wrap: wrap;
   gap: var(--graft-density-gap-8);
+}
+
+.access-log-detail :deep(.t-descriptions__content) {
+  overflow-wrap: anywhere;
 }
 
 .access-log-detail__mono {

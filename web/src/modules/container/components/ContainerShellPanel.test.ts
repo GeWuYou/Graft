@@ -26,6 +26,21 @@ vi.mock('@/store', () => ({
   }),
 }));
 
+vi.mock('@/shared/components/viewer/ContentViewerFrame.vue', () => ({
+  default: defineComponent({
+    name: 'ContentViewerFrameStub',
+    setup(_, { slots }) {
+      return () =>
+        h('section', { class: 'content-viewer-frame-stub' }, [
+          slots.header?.(),
+          slots['header-actions']?.(),
+          slots.toolbar?.(),
+          slots.default?.(),
+        ]);
+    },
+  }),
+}));
+
 vi.mock('@/shared/components/terminal/WebTerminal.vue', () => ({
   default: defineComponent({
     name: 'WebTerminalStub',
@@ -113,6 +128,11 @@ const i18n = createI18n({
     'en-US': {
       container: {
         detail: {
+          viewer: {
+            enterFullscreen: 'Fullscreen',
+            exitFullscreen: 'Exit Fullscreen',
+            resizeHandle: 'Resize Viewer Height',
+          },
           shell: {
             title: 'Shell',
             description:
@@ -275,6 +295,11 @@ describe('ContainerShellPanel', () => {
 
     expect(shellSessionMock).not.toHaveBeenCalled();
     expect(terminalStubState.connectCalls).toBe(0);
+  });
+
+  it('renders inside the shared viewer frame shell', () => {
+    const wrapper = mountPanel();
+    expect(wrapper.find('.content-viewer-frame-stub').exists()).toBe(true);
   });
 
   it('shows forbidden state without requesting a shell session when permission is missing', async () => {

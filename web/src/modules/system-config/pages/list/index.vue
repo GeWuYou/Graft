@@ -29,7 +29,7 @@
 
     <t-loading :loading="loading" class="system-config-workspace">
       <div class="system-config-layout">
-        <aside class="system-config-groups system-config-scrollbar">
+        <aside class="system-config-groups system-config-scrollbar graft-scrollbar">
           <t-input
             v-model="groupSearchKeyword"
             class="system-config-groups__search"
@@ -60,7 +60,7 @@
           </t-tree>
         </aside>
 
-        <main class="system-config-content system-config-scrollbar">
+        <main class="system-config-content system-config-scrollbar graft-scrollbar">
           <div v-if="activeGroup" class="system-config-content__head">
             <div>
               <h2>{{ activeGroup.label }}</h2>
@@ -1095,7 +1095,6 @@ function readableError(error: unknown, fallback: string) {
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: var(--graft-density-gap-12);
-  scrollbar-gutter: stable;
 }
 
 .system-config-groups__search {
@@ -1105,27 +1104,6 @@ function readableError(error: unknown, fallback: string) {
 .system-config-groups :deep(.t-tree) {
   background: transparent;
   min-height: 0;
-}
-
-.system-config-scrollbar {
-  scrollbar-color: var(--td-scrollbar-color) transparent;
-  scrollbar-width: thin;
-}
-
-.system-config-scrollbar::-webkit-scrollbar {
-  background: transparent;
-  width: 8px;
-}
-
-.system-config-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.system-config-scrollbar::-webkit-scrollbar-thumb {
-  background-clip: content-box;
-  background-color: var(--td-scrollbar-color);
-  border: 2px solid transparent;
-  border-radius: 6px;
 }
 
 .system-config-tree-node {
@@ -1152,7 +1130,6 @@ function readableError(error: unknown, fallback: string) {
   overflow-y: auto;
   overscroll-behavior: contain;
   padding-right: var(--graft-density-gap-4);
-  scrollbar-gutter: stable;
 }
 
 .system-config-content__head {

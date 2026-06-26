@@ -50,9 +50,15 @@ func shouldNotifyAuditRecord(record auditstore.AuditLog) bool {
 		auditRecordRiskLevel(record) == auditstore.AuditRiskLevelCritical
 }
 
+// auditNotificationInput 根据审计日志构建通知发布输入。
+// 它会选择通知文案与严重级别，合并审计上下文与现有元数据，并填充导航、资源和接收目标信息。
+// 返回用于发布审计通知的输入。
 func auditNotificationInput(record auditstore.AuditLog) moduleapi.PublishNotificationInput {
 	kind := auditNotificationKind(record)
-	title, message := auditNotificationCopy(kind, record)
+	copyParts := auditNotificationCopy(kind, record)
+	titleKey, title := copyParts.titleKey, copyParts.title
+	messageKey, message := copyParts.messageKey, copyParts.message
+	actionLabelKey, actionLabel := copyParts.actionLabelKey, copyParts.actionLabel
 	severity := moduleapi.NotificationSeverity(notificationcontract.SeverityWarning)
 	if auditRecordRiskLevel(record) == auditstore.AuditRiskLevelCritical {
 		severity = moduleapi.NotificationSeverity(notificationcontract.SeverityCritical)
@@ -64,11 +70,35 @@ func auditNotificationInput(record auditstore.AuditLog) moduleapi.PublishNotific
 	navigationPayload, _ := json.Marshal(map[string]any{
 		"audit_log_id": record.ID,
 		"request_id":   record.RequestID,
+		"trace_id":     record.TraceID,
 	})
+	auditContext := map[string]any{
+		"auditLogId":   record.ID,
+		"action":       record.Action,
+		"eventType":    kind,
+		"resourceType":  firstNonEmptyTrimmed(record.ResourceType, "audit_log"),
+		"resourceId":   firstNonEmptyTrimmed(record.ResourceID, strconv.FormatUint(record.ID, 10)),
+		"resourceName":  firstNonEmptyTrimmed(record.ResourceName, record.Action),
+		"result":       firstNonEmptyTrimmed(string(record.Result), resultFallback(record.Success)),
+		"riskLevel":    string(record.RiskLevel),
+		"requestId":    record.RequestID,
+		"traceId":      record.TraceID,
+		"reason":       firstNonEmptyTrimmed(record.Message, string(record.Result)),
+		"actionLabel":   actionLabel,
+		"title":        title,
+		"message":      message,
+	}
+	if record.StatusCode > 0 {
+		auditContext["statusCode"] = record.StatusCode
+	}
 
 	return moduleapi.PublishNotificationInput{
+		TitleKey:     titleKey,
 		Title:        title,
+		MessageKey:   messageKey,
 		Message:      message,
+		ActionLabelKey: actionLabelKey,
+		ActionLabel:    actionLabel,
 		Severity:     severity,
 		Category:     moduleapi.NotificationCategory(notificationcontract.CategorySecurity),
 		SourceModule: moduleID,
@@ -80,7 +110,7 @@ func auditNotificationInput(record auditstore.AuditLog) moduleapi.PublishNotific
 			Kind:    moduleapi.NotificationNavigationKind(notificationcontract.NavigationAuditLog),
 			Payload: navigationPayload,
 		},
-		Metadata:   metadata,
+		Metadata:   mustMarshalJSON(auditContext, metadata),
 		DedupeKey:  "audit:" + strconv.FormatUint(record.ID, 10),
 		OccurredAt: record.CreatedAt,
 		Target: moduleapi.NotificationTarget{
@@ -90,6 +120,8 @@ func auditNotificationInput(record auditstore.AuditLog) moduleapi.PublishNotific
 	}
 }
 
+// auditNotificationKind 根据审计记录的动作和结果确定通知类型。
+// 当动作包含权限拒绝或登录失败相关标记时返回对应类型；否则返回高风险类型。
 func auditNotificationKind(record auditstore.AuditLog) string {
 	action := strings.ToLower(strings.TrimSpace(record.Action))
 	switch {
@@ -102,21 +134,88 @@ func auditNotificationKind(record auditstore.AuditLog) string {
 	}
 }
 
-func auditNotificationCopy(kind string, record auditstore.AuditLog) (string, string) {
+type auditNotificationCopyParts struct {
+	titleKey       string
+	title          string
+	messageKey     string
+	message        string
+	actionLabelKey string
+	actionLabel    string
+}
+
+// auditNotificationCopy 根据通知类型和审计记录生成标题、消息与操作按钮的本地化键和值。
+//
+// kind 决定返回登录失败、权限拒绝或高风险审计事件的文案；record 用于生成权限拒绝消息中的目标名称。
+// 返回对应的标题、消息和操作按钮文案及其本地化键。
+func auditNotificationCopy(kind string, record auditstore.AuditLog) auditNotificationCopyParts {
 	target := firstNonEmptyTrimmed(record.ResourceName, record.ResourceID, record.Action, "Audit event")
 	switch kind {
 	case "login_failed":
-		return "Login failed",
-			"A failed login attempt needs review."
+		return auditNotificationCopyParts{
+		titleKey:       "notification.title.audit.loginFailed",
+		title:          "Login failed",
+		messageKey:     "notification.message.audit.loginFailed",
+		message:        "A failed login attempt needs review.",
+		actionLabelKey: "notification.action.openAuditLog",
+		actionLabel:    "View audit log",
+	}
 	case "permission_denied":
-		return "Permission denied",
-			"Permission was denied for " + target + "."
+		return auditNotificationCopyParts{
+		titleKey:       "notification.title.audit.permissionDenied",
+		title:          "Permission denied",
+		messageKey:     "notification.message.audit.permissionDenied",
+		message:        "Permission was denied for " + target + ".",
+		actionLabelKey: "notification.action.openAuditLog",
+		actionLabel:    "View audit log",
+	}
 	default:
-		return "High-risk audit event",
-			"High-risk audit activity needs review."
+		return auditNotificationCopyParts{
+		titleKey:       "notification.title.audit.highRisk",
+		title:          "High-risk audit event",
+		messageKey:     "notification.message.audit.highRisk",
+		message:        "High-risk audit activity needs review.",
+		actionLabelKey: "notification.action.openAuditLog",
+		actionLabel:    "View audit log",
+	}
 	}
 }
 
+// mustMarshalJSON 合并审计上下文字段与已有元数据，并将结果编码为 JSON。
+// 同名字段以审计上下文中的值为准；如果编码失败，则返回空对象 `{}`。
+func mustMarshalJSON(auditContext map[string]any, existing json.RawMessage) json.RawMessage {
+	const auditMetadataExtraCapacity = 4
+
+	metadata := make(map[string]any, len(auditContext)+auditMetadataExtraCapacity)
+	for key, value := range auditContext {
+		metadata[key] = value
+	}
+	if len(existing) > 0 {
+		var extra map[string]any
+		if err := json.Unmarshal(existing, &extra); err == nil {
+			for key, value := range extra {
+				if _, exists := metadata[key]; !exists {
+					metadata[key] = value
+				}
+			}
+		}
+	}
+	payload, err := json.Marshal(metadata)
+	if err != nil {
+		return json.RawMessage(`{}`)
+	}
+	return json.RawMessage(payload)
+}
+
+// resultFallback 返回与成功状态对应的结果字符串。
+// 返回 "SUCCESS" 表示成功，返回 "FAILED" 表示失败。
+func resultFallback(success bool) string {
+	if success {
+		return "SUCCESS"
+	}
+	return "FAILED"
+}
+
+// auditRecordRiskLevel 返回审计日志的风险等级；如果记录已显式指定，则优先使用该值，否则根据记录内容推断。
 func auditRecordRiskLevel(record auditstore.AuditLog) auditstore.AuditRiskLevel {
 	if record.RiskLevel != "" {
 		return record.RiskLevel

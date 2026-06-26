@@ -213,6 +213,33 @@ func (r *DockerRuntime) Logs(ctx context.Context, ref Ref, query LogQuery) (Logs
 	}, nil
 }
 
+// StreamLogs follows incremental Docker logs and emits one normalized log chunk
+// per line until the caller context is canceled or the runtime stream ends.
+func (r *DockerRuntime) StreamLogs(ctx context.Context, ref Ref, query LogQuery, emit func(LogChunk) error) error {
+	if emit == nil {
+		return errors.New("container log stream emitter is required")
+	}
+	since, err := parseLogSince(query.Since)
+	if err != nil {
+		return fmt.Errorf("%w: %v", errInvalidLogQuery, err)
+	}
+	reader, err := r.client.ContainerLogs(ctx, ref.Value, mobyclient.ContainerLogsOptions{
+		ShowStdout: query.Stdout,
+		ShowStderr: query.Stderr,
+		Since:      since,
+		Timestamps: query.Timestamps,
+		Follow:     true,
+		Tail:       strconv.Itoa(query.Tail),
+	})
+	if err != nil {
+		return mapDockerError(err)
+	}
+	defer func() {
+		_ = reader.Close()
+	}()
+	return streamDockerLogLines(ctx, reader, query.Timestamps, emit)
+}
+
 // Shell opens one interactive exec session inside the target container.
 func (r *DockerRuntime) Shell(ctx context.Context, ref Ref, command string) (terminal.Session, error) {
 	inspect, err := r.client.ContainerInspect(ctx, ref.Value)
@@ -1270,6 +1297,10 @@ func mapDockerMessageError(message string) error {
 	return errRuntimeDaemonUnavailable
 }
 
+// readDockerLogLines 读取并截取容器日志行。
+//
+// 返回按时间顺序排列的日志行，以及是否因尾部截断而丢弃了更早的内容。
+// 当读取或扫描日志失败时返回错误。
 func readDockerLogLines(reader io.Reader, tail int) ([]string, bool, error) {
 	var output bytes.Buffer
 	if _, err := stdcopy.StdCopy(&output, &output, reader); err != nil {
@@ -1303,6 +1334,139 @@ func readDockerLogLines(reader io.Reader, tail int) ([]string, bool, error) {
 	return lines, truncated, nil
 }
 
+// 当上下文取消、回调返回错误或读取过程发生错误时返回相应错误。
+func streamDockerLogLines(ctx context.Context, reader io.Reader, timestamps bool, emit func(LogChunk) error) error {
+	if reader == nil {
+		return nil
+	}
+	chunkEmitter := newDockerLogChunkEmitter(ctx, timestamps, emit)
+	_, err := stdcopy.StdCopy(chunkEmitter.stdoutWriter(), chunkEmitter.stderrWriter(), reader)
+	if flushErr := chunkEmitter.flush(); flushErr != nil {
+		return flushErr
+	}
+	if err != nil && !errors.Is(err, io.EOF) {
+		return err
+	}
+	return nil
+}
+
+type dockerLogChunkEmitter struct {
+	ctx        context.Context
+	timestamps bool
+	emit       func(LogChunk) error
+	err        error
+	stdout     dockerLogStreamWriter
+	stderr     dockerLogStreamWriter
+}
+
+type dockerLogStreamWriter struct {
+	parent *dockerLogChunkEmitter
+	stream string
+	buffer []byte
+}
+
+func newDockerLogChunkEmitter(ctx context.Context, timestamps bool, emit func(LogChunk) error) *dockerLogChunkEmitter {
+	emitter := &dockerLogChunkEmitter{
+		ctx:        ctx,
+		timestamps: timestamps,
+		emit:       emit,
+	}
+	emitter.stdout = dockerLogStreamWriter{parent: emitter, stream: "stdout", buffer: make([]byte, 0, dockerLogScannerInitSize)}
+	emitter.stderr = dockerLogStreamWriter{parent: emitter, stream: "stderr", buffer: make([]byte, 0, dockerLogScannerInitSize)}
+	return emitter
+}
+
+func (e *dockerLogChunkEmitter) stdoutWriter() io.Writer {
+	return &e.stdout
+}
+
+func (e *dockerLogChunkEmitter) stderrWriter() io.Writer {
+	return &e.stderr
+}
+
+func (e *dockerLogChunkEmitter) emitChunk(stream string, line string) error {
+	if e.err != nil {
+		return e.err
+	}
+	select {
+	case <-e.ctx.Done():
+		e.err = e.ctx.Err()
+		return e.err
+	default:
+	}
+	chunk := LogChunk{
+		Line:   line,
+		Stream: stream,
+	}
+	if e.timestamps {
+		chunk.Timestamp, chunk.Line = parseDockerLogChunkTimestamp(line)
+	}
+	if err := e.emit(chunk); err != nil {
+		e.err = err
+		return err
+	}
+	return nil
+}
+
+func (e *dockerLogChunkEmitter) flush() error {
+	if err := e.stdout.flushRemainder(); err != nil {
+		return err
+	}
+	if err := e.stderr.flushRemainder(); err != nil {
+		return err
+	}
+	return e.err
+}
+
+func (w *dockerLogStreamWriter) Write(p []byte) (int, error) {
+	if w.parent.err != nil {
+		return 0, w.parent.err
+	}
+	w.buffer = append(w.buffer, p...)
+	for {
+		index := bytes.IndexByte(w.buffer, '\n')
+		if index < 0 {
+			if len(w.buffer) > dockerLogScannerMaxSize {
+				w.parent.err = bufio.ErrTooLong
+				return 0, w.parent.err
+			}
+			return len(p), nil
+		}
+		line := string(w.buffer[:index])
+		w.buffer = w.buffer[index+1:]
+		if err := w.parent.emitChunk(w.stream, line); err != nil {
+			return 0, err
+		}
+	}
+}
+
+func (w *dockerLogStreamWriter) flushRemainder() error {
+	if len(w.buffer) == 0 {
+		return w.parent.err
+	}
+	if len(w.buffer) > dockerLogScannerMaxSize {
+		w.parent.err = bufio.ErrTooLong
+		return w.parent.err
+	}
+	line := string(w.buffer)
+	w.buffer = nil
+	return w.parent.emitChunk(w.stream, line)
+}
+
+func parseDockerLogChunkTimestamp(line string) (time.Time, string) {
+	rawTimestamp, rest, ok := strings.Cut(line, " ")
+	if !ok {
+		return time.Time{}, line
+	}
+	timestamp, err := time.Parse(time.RFC3339Nano, strings.TrimSpace(rawTimestamp))
+	if err != nil {
+		return time.Time{}, line
+	}
+	return timestamp.UTC(), rest
+}
+
+// actionResultFromDetail 根据容器详情构造操作结果，并标记状态是否发生变化。
+// 当操作前状态与当前状态一致时，结果为未变化；否则为已完成。
 func actionResultFromDetail(detail Detail, ref Ref, action string, statusBefore string) ActionResult {
 	statusAfter := detail.State
 	result := actionResultCompleted

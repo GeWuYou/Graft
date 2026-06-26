@@ -1,0 +1,37 @@
+INSERT INTO "audit_policy_rules" (
+  "name",
+  "description",
+  "source",
+  "enabled",
+  "priority",
+  "effect",
+  "match_type",
+  "method",
+  "path_pattern",
+  "event_type",
+  "risk_level",
+  "target_type",
+  "condition_expr"
+) VALUES
+  ('domain.container.action.start', 'Record dangerous container start events.', 'DOMAIN_EVENT', true, 50, 'include', 'exact', '', '', 'ops.container.action.start', '', '', ''),
+  ('domain.container.action.stop', 'Record dangerous container stop events.', 'DOMAIN_EVENT', true, 51, 'include', 'exact', '', '', 'ops.container.action.stop', '', '', ''),
+  ('domain.container.action.restart', 'Record dangerous container restart events.', 'DOMAIN_EVENT', true, 52, 'include', 'exact', '', '', 'ops.container.action.restart', '', '', ''),
+  ('domain.container.action.remove', 'Record dangerous container remove events.', 'DOMAIN_EVENT', true, 53, 'include', 'exact', '', '', 'ops.container.action.remove', '', '', ''),
+  ('domain.container.action.batch.start', 'Record dangerous container batch-start summary events.', 'DOMAIN_EVENT', true, 54, 'include', 'exact', '', '', 'ops.container.action.batch.start', '', '', ''),
+  ('domain.container.action.batch.stop', 'Record dangerous container batch-stop summary events.', 'DOMAIN_EVENT', true, 55, 'include', 'exact', '', '', 'ops.container.action.batch.stop', '', '', ''),
+  ('domain.container.action.batch.restart', 'Record dangerous container batch-restart summary events.', 'DOMAIN_EVENT', true, 56, 'include', 'exact', '', '', 'ops.container.action.batch.restart', '', '', ''),
+  ('domain.container.action.batch.remove', 'Record dangerous container batch-remove summary events.', 'DOMAIN_EVENT', true, 57, 'include', 'exact', '', '', 'ops.container.action.batch.remove', '', '', '')
+ON CONFLICT ("name") DO UPDATE SET
+  "description" = EXCLUDED."description",
+  "source" = EXCLUDED."source",
+  "enabled" = EXCLUDED."enabled",
+  "priority" = EXCLUDED."priority",
+  "effect" = EXCLUDED."effect",
+  "match_type" = EXCLUDED."match_type",
+  "method" = EXCLUDED."method",
+  "path_pattern" = EXCLUDED."path_pattern",
+  "event_type" = EXCLUDED."event_type",
+  "risk_level" = EXCLUDED."risk_level",
+  "target_type" = EXCLUDED."target_type",
+  "condition_expr" = EXCLUDED."condition_expr",
+  "updated_at" = NOW();

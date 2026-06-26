@@ -19,7 +19,7 @@
             </t-space>
           </template>
           <div v-if="isEmpty" class="log-json-panel__empty">{{ emptyText }}</div>
-          <pre v-else class="log-json-panel__code">{{ formattedJson }}</pre>
+          <pre v-else class="log-json-panel__code graft-scrollbar">{{ formattedJson }}</pre>
         </t-collapse-panel>
       </t-collapse>
     </t-card>

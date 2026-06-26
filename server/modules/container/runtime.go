@@ -135,6 +135,7 @@ type Runtime interface {
 	Mounts(ctx context.Context, id Ref) ([]Mount, error)
 	MountUsage(ctx context.Context, id Ref, mountID string) (MountUsage, error)
 	Logs(ctx context.Context, id Ref, query LogQuery) (Logs, error)
+	StreamLogs(ctx context.Context, id Ref, query LogQuery, emit func(LogChunk) error) error
 	Shell(ctx context.Context, ref Ref, command string) (terminal.Session, error)
 	Start(ctx context.Context, id Ref) (ActionResult, error)
 	Stop(ctx context.Context, id Ref) (ActionResult, error)
@@ -201,6 +202,15 @@ type LogQuery struct {
 	Timestamps bool
 	Stdout     bool
 	Stderr     bool
+}
+
+// LogChunk is one incremental container log message produced by a runtime
+// stream. It preserves the effective log selection semantics without coupling
+// consumers to Docker-specific frame details.
+type LogChunk struct {
+	Line      string
+	Stream    string
+	Timestamp time.Time
 }
 
 // RuntimeInfo is sanitized runtime metadata exposed by the container API.
@@ -441,6 +451,7 @@ type ActionResult struct {
 	StatusAfter  string
 	MessageKey   string
 	Message      string
+	Orchestrator OrchestratorInfo
 }
 
 // RemoveOptions describes guarded remove behavior passed to runtime adapters.

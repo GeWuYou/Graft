@@ -43,6 +43,26 @@
         </div>
       </section>
 
+      <section v-if="auditSummary" class="notification-detail__section">
+        <h4>{{ t('notification.detail.auditSummary') }}</h4>
+        <dl class="notification-detail__grid">
+          <dt>{{ t('notification.detail.auditAction') }}</dt>
+          <dd>{{ auditSummary.action }}</dd>
+          <dt>{{ t('notification.detail.auditResult') }}</dt>
+          <dd>{{ auditSummary.result }}</dd>
+          <dt>{{ t('notification.detail.auditResource') }}</dt>
+          <dd>{{ auditSummary.resource }}</dd>
+          <dt>{{ t('notification.detail.auditRequestId') }}</dt>
+          <dd>{{ auditSummary.requestId }}</dd>
+          <dt>{{ t('notification.detail.auditTraceId') }}</dt>
+          <dd>{{ auditSummary.traceId }}</dd>
+          <dt>{{ t('notification.detail.auditRiskLevel') }}</dt>
+          <dd>{{ auditSummary.riskLevel }}</dd>
+          <dt>{{ t('notification.detail.auditReason') }}</dt>
+          <dd>{{ auditSummary.reason }}</dd>
+        </dl>
+      </section>
+
       <section class="notification-detail__section">
         <h4>{{ t('notification.detail.basic') }}</h4>
         <dl class="notification-detail__grid">
@@ -84,7 +104,7 @@
         <div class="notification-detail__navigation">
           <t-tag variant="light">{{ navigationKindLabel }}</t-tag>
           <t-button v-if="canNavigate" theme="primary" @click="$emit('navigate', item)">
-            {{ notificationView(item).actionLabel }}
+            {{ navigationActionLabel }}
           </t-button>
           <span v-else>{{ t('notification.detail.unsupportedNavigation') }}</span>
         </div>
@@ -128,6 +148,40 @@ const navigationKindLabel = computed(() => {
   const key = NOTIFICATION_NAVIGATION_LABEL_KEYS[kind];
   return key ? t(key) : t('notification.navigation.unknown');
 });
+const navigationActionLabel = computed(() => {
+  const kind = props.item?.navigation.kind;
+  switch (kind) {
+    case NOTIFICATION_NAVIGATION_KIND.AUDIT_INCIDENT:
+      return t('notification.action.openAuditIncident');
+    case NOTIFICATION_NAVIGATION_KIND.AUDIT_LOG:
+      return t('notification.action.openAuditLog');
+    case NOTIFICATION_NAVIGATION_KIND.SCHEDULER_RUN:
+      return t('notification.action.openRunRecord');
+    case NOTIFICATION_NAVIGATION_KIND.SYSTEM_CONFIG_ITEM:
+    case NOTIFICATION_NAVIGATION_KIND.MODULE_RUNTIME_ITEM:
+    default:
+      return t('notification.action.openTarget');
+  }
+});
+const auditSummary = computed(() => {
+  const context = notificationContext(props.item);
+  if (!props.item || props.item.source_module !== 'audit') {
+    return null;
+  }
+
+  const view = notificationView(props.item);
+  return {
+    action: stringValue(context.action) || resolveEmptyLabel(),
+    reason: stringValue(context.reason) || view.message,
+    requestId:
+      stringValue(context.requestId) || stringValue(props.item.navigation.payload?.request_id) || resolveEmptyLabel(),
+    resource: stringValue(context.resourceName) || view.resourceName,
+    result: stringValue(context.result) || resolveNotificationResultSummary(props.item, t),
+    riskLevel: stringValue(context.riskLevel) || resolveEmptyLabel(),
+    traceId:
+      stringValue(context.traceId) || stringValue(props.item.navigation.payload?.trace_id) || resolveEmptyLabel(),
+  };
+});
 
 const NOTIFICATION_NAVIGATION_LABEL_KEYS = {
   [NOTIFICATION_NAVIGATION_KIND.AUDIT_INCIDENT]: 'notification.navigation.auditIncident',
@@ -139,6 +193,18 @@ const NOTIFICATION_NAVIGATION_LABEL_KEYS = {
 
 function notificationView(item: NotificationItem) {
   return presentNotification(item, t, locale.value);
+}
+
+function notificationContext(item: NotificationItem | null) {
+  return item && item.context && typeof item.context === 'object' ? (item.context as Record<string, unknown>) : {};
+}
+
+function stringValue(value: unknown) {
+  return typeof value === 'string' && value.trim() ? value.trim() : '';
+}
+
+function resolveEmptyLabel() {
+  return t('notification.emptyValue');
 }
 </script>
 <style scoped lang="less">

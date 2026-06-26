@@ -52,6 +52,16 @@ The environment inventory records whether these user-level Codex MCP servers are
 These entries are generated local capability facts. They do not make MCP a repository runtime dependency, CI gate, hook,
 or required contributor setup.
 
+## Optional Local Quality Helpers
+
+The environment inventory may also record optional developer-local helpers such as `eff-u-code`.
+
+These tools are local-only convenience checks:
+
+- they do not enter the formal repository validation flow
+- they do not change `graft validate backend` or `bun run check`
+- the repository root package.json wrapper may exist for local entrypoint consistency, but they must not be introduced into server/go.mod, web/package.json, runtime scripts, CI, hooks, or deployment flows
+
 ## Headroom
 
 Headroom is an optional local, user-level, MCP-based AI context compression tool. The inventory records both the
