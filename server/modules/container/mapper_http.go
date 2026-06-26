@@ -281,7 +281,8 @@ func toResourceSummary(resource ResourceSummary) *containergen.ContainerResource
 	}
 }
 
-// toLogs converts a Logs domain model into a ContainerLogResponse.
+// toLogs 将日志领域模型转换为 ContainerLogResponse。
+// 它会映射日志条目列表，并保留响应中的标识、名称、运行时、起始时间以及输出选项等字段。
 func toLogs(logs Logs) containergen.ContainerLogResponse {
 	entries := make([]containergen.ContainerLogEntry, 0, len(logs.Entries))
 	for _, entry := range logs.Entries {

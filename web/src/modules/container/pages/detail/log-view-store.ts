@@ -36,7 +36,7 @@ function buildLogResponse(snapshot: ContainerLogRealtimeBatcherSnapshot | null):
 /**
  * 创建容器详情日志视图的状态管理 store。
  *
- * @returns 包含日志快照、派生视图状态及加载、错误、暂停、恢复和重置方法的 store
+ * @returns 包含日志快照、派生视图状态以及加载、错误、暂停、恢复和重置方法的 store
  */
 export function createContainerDetailLogViewStore() {
   const state = shallowRef<LogViewStoreState>({

@@ -119,11 +119,11 @@ export function parseContainerLogLine(rawLine: string): ParsedContainerLog {
 }
 
 /**
- * Parses a log line and extracts its level, message, metadata, and source.
+ * 解析结构化日志条目并提取其级别、消息、元数据和来源信息。
  *
- * @param raw - The raw log line text
- * @param lineNo - The line number in the source
- * @returns A parsed log line with extracted fields and computed tone
+ * @param entry - 待解析的结构化日志条目
+ * @param lineNo - 在源内容中的行号
+ * @returns 包含提取字段、显示信息和计算结果的解析日志行
  */
 export function parseLogLine(entry: StructuredLogEntry, lineNo: number): ParsedLogLine {
   const parsed = parseContainerLogLine(entry.line);
@@ -150,9 +150,9 @@ export function parseLogLine(entry: StructuredLogEntry, lineNo: number): ParsedL
 }
 
 /**
- * Parses multiple raw log lines into structured log objects.
+ * 将多个结构化日志条目解析为结构化日志行。
  *
- * @returns An array of parsed log lines.
+ * @returns 解析后的日志行数组。
  */
 export function parseLogLines(entries: StructuredLogEntry[]): ParsedLogLine[] {
   return entries.map((entry, index) => parseLogLine(entry, index + 1));

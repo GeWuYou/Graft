@@ -7,10 +7,10 @@ export type StructuredLogEntry = Readonly<{
 }>;
 
 /**
- * 规范化单条结构化日志，丢弃空行并为缺失字段补安全默认值。
+ * 将候选值规范化为结构化日志条目。
  *
- * @param value - 待规范化的日志值
- * @returns 规范化后的结构化日志；无效时返回 `null`
+ * @param value - 待转换的值
+ * @returns 规范化后的结构化日志条目；输入无效或日志行为空时返回 `null`
  */
 export function normalizeStructuredLogEntry(value: unknown): StructuredLogEntry | null {
   if (!value || typeof value !== 'object') {

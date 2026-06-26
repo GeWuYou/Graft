@@ -1287,6 +1287,8 @@ func mapSyscallDockerError(err error) error {
 	}
 }
 
+// mapDockerMessageError 根据错误消息中的关键片段映射容器运行时错误。
+// 如果消息匹配已知规则，返回对应错误；否则返回运行时守护进程不可用错误。
 func mapDockerMessageError(message string) error {
 	normalized := strings.ToLower(message)
 	for _, rule := range dockerErrorMessageRules {
@@ -1300,7 +1302,8 @@ func mapDockerMessageError(message string) error {
 // readDockerLogEntries 读取并截取容器日志条目。
 //
 // 返回按时间顺序排列的结构化日志条目，以及是否因尾部截断而丢弃了更早的内容。
-// 当读取或扫描日志失败时返回错误。
+// readDockerLogEntries 读取 Docker 日志并将其转换为日志条目，按指定尾部条数保留最近的记录。
+// 读取过程中发生错误时返回错误，并指示结果是否被截断。
 func readDockerLogEntries(reader io.Reader, tail int, timestamps bool) ([]LogEntry, bool, error) {
 	limit := tail
 	if limit > defaultContainerLogsMaxTail {
@@ -1403,6 +1406,8 @@ func (e *dockerLogChunkEmitter) emitChunk(stream string, line string) error {
 	return nil
 }
 
+// logEntryFromChunk 将日志块转换为日志条目，并将发生时间规范为 UTC；
+// 当时间为空时，使用当前 UTC 时间。
 func logEntryFromChunk(chunk LogChunk) LogEntry {
 	occurredAt := chunk.Timestamp.UTC()
 	if occurredAt.IsZero() {

@@ -32,6 +32,11 @@ const homeRoute: Array<TRouterInfo> = [
 // const ignoreCacheRoutes = ['DashboardDetail'];
 const ignoreCacheRoutes: string[] = [AUTH_ROUTE_NAME.LOGIN];
 
+/**
+ * 创建标签路由存储的初始状态。
+ *
+ * @returns 包含首页标签、关闭栈、当前激活标签、刷新标记、刷新 nonce 映射和页面快照的初始状态对象。
+ */
 function createInitialState(): TTabRouterType {
   return {
     tabRouterList: homeRoute.map((route) => ({ ...route })),

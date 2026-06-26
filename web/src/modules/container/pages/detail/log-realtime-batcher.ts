@@ -30,10 +30,10 @@ export type ContainerLogRealtimeBatcherSnapshot = Readonly<
 >;
 
 /**
- * 过滤并保留有效的日志行。
+ * 标准化并筛选日志条目。
  *
- * @param lines - 待处理的行数组
- * @returns 仅包含非空字符串的数组
+ * @param entries - 待处理的结构化日志条目数组
+ * @returns 仅包含成功标准化后的条目视图数组，每项包含 `line`、`occurred_at` 和 `stream`
  */
 function normalizeEntries(entries: readonly ContainerLogEntry[]) {
   return entries

@@ -88,11 +88,23 @@ export function formatLocaleTimeOnly(value?: string | null, locale?: string | Re
   return formatLocaleDateTime(value, locale, TIME_ONLY_FORMAT_OPTIONS);
 }
 
+/**
+ * 格式化仅包含日期的本地化时间字符串。
+ *
+ * @returns 格式化后的日期字符串；当输入为空时返回空字符串。
+ */
 export function formatLocaleDateOnly(value?: string | null, locale?: string | Ref<string | undefined> | null) {
   const formatted = formatLocaleDateTime(value, locale, DATE_ONLY_FORMAT_OPTIONS);
   return formatted === '-' ? '' : formatted;
 }
 
+/**
+ * 格式化日志查看器中的时间戳。
+ *
+ * @param value - 要格式化的时间字符串
+ * @param locale - 用于格式化的区域设置
+ * @returns 格式化后的时间字符串；当 `value` 为空时返回空字符串，当 `value` 不是有效日期时返回原始值
+ */
 export function formatLogViewerTimestamp(value?: string | null, locale?: string | Ref<string | undefined> | null) {
   if (!value) {
     return '';
@@ -124,6 +136,13 @@ export function formatLogViewerTimestamp(value?: string | null, locale?: string 
   return new Intl.DateTimeFormat(currentLocale, YEAR_MONTH_DAY_TIME_FORMAT_OPTIONS).format(date);
 }
 
+/**
+ * 判断两个日期是否属于同一天。
+ *
+ * @param left - 左侧日期
+ * @param right - 右侧日期
+ * @returns `true` if `left` 和 `right` 在本地时区的年、月、日相同，`false` otherwise.
+ */
 function isSameLocalDay(left: Date, right: Date) {
   return (
     left.getFullYear() === right.getFullYear() &&
