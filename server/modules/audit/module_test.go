@@ -856,16 +856,22 @@ func TestAuditLogDetailRouteKeepsManageEscalationAuthFailuresAt401(t *testing.T)
 	t.Parallel()
 
 	testCases := []struct {
-		name   string
-		authErr error
+		name           string
+		authErr        error
+		wantMessageKey string
+		wantCode       string
 	}{
 		{
-			name:   "unauthenticated",
-			authErr: moduleapi.ErrUnauthenticated,
+			name:           "unauthenticated",
+			authErr:        moduleapi.ErrUnauthenticated,
+			wantMessageKey: "auth.token_missing",
+			wantCode:       "AUTH_TOKEN_MISSING",
 		},
 		{
-			name:   "invalid token",
-			authErr: moduleapi.ErrInvalidAccessToken,
+			name:           "invalid token",
+			authErr:        moduleapi.ErrInvalidAccessToken,
+			wantMessageKey: "auth.token_invalid",
+			wantCode:       "AUTH_TOKEN_INVALID",
 		},
 	}
 
@@ -898,6 +904,16 @@ func TestAuditLogDetailRouteKeepsManageEscalationAuthFailuresAt401(t *testing.T)
 
 			if recorder.Code != http.StatusUnauthorized {
 				t.Fatalf("expected status 401, got %d body=%s", recorder.Code, recorder.Body.String())
+			}
+			response := testassert.DecodeErrorResponse(t, recorder)
+			if response.MessageKey != tc.wantMessageKey || response.Code != tc.wantCode {
+				t.Fatalf(
+					"expected messageKey/code %q/%q, got %q/%q",
+					tc.wantMessageKey,
+					tc.wantCode,
+					response.MessageKey,
+					response.Code,
+				)
 			}
 			if len(repo.items) != 1 {
 				t.Fatalf("expected no permission denied audit record, got %#v", repo.items)

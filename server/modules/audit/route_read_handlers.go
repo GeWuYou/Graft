@@ -233,7 +233,11 @@ func handleAuditManageAuthorizationError(
 		httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusForbidden, messagecontract.AuthForbidden.String(), nil)
 		return
 	}
-	if errors.Is(err, moduleapi.ErrUnauthenticated) || errors.Is(err, moduleapi.ErrInvalidAccessToken) {
+	if errors.Is(err, moduleapi.ErrInvalidAccessToken) {
+		httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusUnauthorized, messagecontract.AuthTokenInvalid.String(), nil)
+		return
+	}
+	if errors.Is(err, moduleapi.ErrUnauthenticated) {
 		httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusUnauthorized, messagecontract.AuthTokenMissing.String(), nil)
 		return
 	}
