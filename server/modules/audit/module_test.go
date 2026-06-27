@@ -33,8 +33,10 @@ import (
 )
 
 type memoryAuditRepository struct {
-	items []store.AuditLog
-	rules []store.AuditPolicyRule
+	items               []store.AuditLog
+	rules               []store.AuditPolicyRule
+	visibilityDefault   store.AuditVisibilityDefault
+	visibilityOverrides []store.AuditVisibilityOverride
 }
 
 func (r *memoryAuditRepository) CreateAuditLog(_ context.Context, input store.CreateAuditLogInput) (store.AuditLog, error) {
@@ -44,6 +46,7 @@ func (r *memoryAuditRepository) CreateAuditLog(_ context.Context, input store.Cr
 		ActorUsername:    input.ActorUsername,
 		ActorDisplayName: input.ActorDisplayName,
 		Action:           input.Action,
+		Visibility:       input.Visibility,
 		ResourceType:     input.ResourceType,
 		ResourceID:       input.ResourceID,
 		ResourceName:     input.ResourceName,
@@ -164,6 +167,74 @@ func (r *memoryAuditRepository) ListAuditPolicyRules(_ context.Context) ([]store
 	return append([]store.AuditPolicyRule(nil), r.rules...), nil
 }
 
+func (r *memoryAuditRepository) GetAuditVisibilityDefault(_ context.Context, _ string) (store.AuditVisibilityDefault, error) {
+	if r.visibilityDefault.Key == "" {
+		r.visibilityDefault = store.AuditVisibilityDefault{
+			Key:      "global",
+			Strategy: store.AuditVisibilityStrategyVisible,
+		}
+	}
+	return r.visibilityDefault, nil
+}
+
+func (r *memoryAuditRepository) UpsertAuditVisibilityDefault(
+	_ context.Context,
+	key string,
+	strategy store.AuditVisibilityStrategy,
+	userID *uint64,
+	username string,
+) (store.AuditVisibilityDefault, error) {
+	r.visibilityDefault = store.AuditVisibilityDefault{
+		Key:           strings.TrimSpace(key),
+		Strategy:      strategy,
+		UpdatedBy:     userID,
+		UpdatedByName: strings.TrimSpace(username),
+		UpdatedAt:     time.Now().UTC(),
+	}
+	return r.visibilityDefault, nil
+}
+
+func (r *memoryAuditRepository) ListAuditVisibilityOverrides(_ context.Context) ([]store.AuditVisibilityOverride, error) {
+	return append([]store.AuditVisibilityOverride(nil), r.visibilityOverrides...), nil
+}
+
+func (r *memoryAuditRepository) UpsertAuditVisibilityOverride(
+	_ context.Context,
+	input store.UpsertAuditVisibilityOverrideInput,
+) (store.AuditVisibilityOverride, error) {
+	item := store.AuditVisibilityOverride{
+		ID:            1,
+		Source:        input.Source,
+		ActionKey:     strings.TrimSpace(input.ActionKey),
+		Strategy:      input.Strategy,
+		Description:   strings.TrimSpace(input.Description),
+		CreatedBy:     input.Actor.UserID,
+		CreatedByName: strings.TrimSpace(input.Actor.Username),
+		UpdatedBy:     input.Actor.UserID,
+		UpdatedByName: strings.TrimSpace(input.Actor.Username),
+		CreatedAt:     time.Now().UTC(),
+		UpdatedAt:     time.Now().UTC(),
+	}
+	r.visibilityOverrides = []store.AuditVisibilityOverride{item}
+	return item, nil
+}
+
+func (r *memoryAuditRepository) DeleteAuditVisibilityOverride(
+	_ context.Context,
+	source store.AuditSource,
+	actionKey string,
+) error {
+	filtered := r.visibilityOverrides[:0]
+	for _, item := range r.visibilityOverrides {
+		if item.Source == source && item.ActionKey == strings.TrimSpace(actionKey) {
+			continue
+		}
+		filtered = append(filtered, item)
+	}
+	r.visibilityOverrides = append([]store.AuditVisibilityOverride(nil), filtered...)
+	return nil
+}
+
 func (r *memoryAuditRepository) DeleteAuditLogsBefore(_ context.Context, createdBefore time.Time) (int64, error) {
 	kept := r.items[:0]
 	deleted := int64(0)
@@ -202,6 +273,35 @@ func (failingAuditRepository) ReadIncident(context.Context, uint64) (store.Audit
 
 func (failingAuditRepository) ListAuditPolicyRules(context.Context) ([]store.AuditPolicyRule, error) {
 	return defaultModuleTestPolicyRules(), nil
+}
+
+func (failingAuditRepository) GetAuditVisibilityDefault(context.Context, string) (store.AuditVisibilityDefault, error) {
+	return store.AuditVisibilityDefault{}, errors.New("visibility default failed")
+}
+
+func (failingAuditRepository) UpsertAuditVisibilityDefault(
+	context.Context,
+	string,
+	store.AuditVisibilityStrategy,
+	*uint64,
+	string,
+) (store.AuditVisibilityDefault, error) {
+	return store.AuditVisibilityDefault{}, errors.New("visibility default update failed")
+}
+
+func (failingAuditRepository) ListAuditVisibilityOverrides(context.Context) ([]store.AuditVisibilityOverride, error) {
+	return nil, errors.New("visibility overrides failed")
+}
+
+func (failingAuditRepository) UpsertAuditVisibilityOverride(
+	context.Context,
+	store.UpsertAuditVisibilityOverrideInput,
+) (store.AuditVisibilityOverride, error) {
+	return store.AuditVisibilityOverride{}, errors.New("visibility override update failed")
+}
+
+func (failingAuditRepository) DeleteAuditVisibilityOverride(context.Context, store.AuditSource, string) error {
+	return errors.New("visibility override delete failed")
 }
 
 func (failingAuditRepository) DeleteAuditLogsBefore(context.Context, time.Time) (int64, error) {

@@ -14,6 +14,7 @@ common.conjunction: 和
 common.copyright: Copyright (C) 2021-2026 Tencent. All Rights Reserved
 common.internal_error: 服务内部错误
 common.invalid_argument: 请求参数不合法
+common.not_found: 请求的资源不存在
 menu.server.title: 服务管理
 rbac.cannot_remove_own_admin_role: 不能移除当前登录用户自己的管理员角色
 rbac.builtin_admin_permissions_immutable: 内置管理员角色不允许变更权限

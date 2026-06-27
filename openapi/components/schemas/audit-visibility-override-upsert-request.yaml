@@ -1,0 +1,13 @@
+type: object
+required: [source, action_key, strategy]
+properties:
+  source:
+    type: string
+    enum: [REQUEST, SECURITY_EVENT, DOMAIN_EVENT]
+  action_key:
+    type: string
+  strategy:
+    type: string
+    enum: [visible, hidden, ignore]
+  description:
+    type: string

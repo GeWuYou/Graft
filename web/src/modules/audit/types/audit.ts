@@ -26,15 +26,23 @@ export type AuditDrilldownScope = components['schemas']['AuditDrilldownScope'];
 export type AuditRiskLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 export type AuditResult = 'SUCCESS' | 'FAILED' | 'DENIED' | 'ERROR';
 export type AuditSource = 'REQUEST' | 'SECURITY_EVENT' | 'DOMAIN_EVENT';
+export type AuditVisibilityStrategy = 'visible' | 'hidden' | 'ignore';
+export type AuditVisibilityScope = 'default' | 'all' | 'hidden_only';
 export type AuditSortBy = 'created_at';
 export type AuditSortOrder = 'asc' | 'desc';
 export type AuditSorter = QuerySorter<AuditSortBy>;
+
+export type AuditVisibilityDefaultResponse = components['schemas']['AuditVisibilityDefaultResponse'];
+export type AuditVisibilityOverrideResponse = components['schemas']['AuditVisibilityOverrideResponse'];
+export type AuditEventCatalogItem = components['schemas']['AuditEventCatalogItem'];
+export type AuditVisibilityPolicyResponse = components['schemas']['AuditVisibilityPolicyResponse'];
 
 export type AuditLogQuery = {
   page?: number;
   page_size?: number;
   preset?: AuditTimePreset;
   scope?: components['schemas']['AuditDrilldownScope'];
+  visibility_scope?: AuditVisibilityScope;
   keyword?: string;
   actor?: string;
   actor_user_id?: number;
@@ -64,3 +72,6 @@ export type AuditLogQuery = {
 export type AuditOverviewQuery = {
   preset?: AuditTimePreset;
 };
+
+export type AuditVisibilityDefaultUpdateRequest = components['schemas']['AuditVisibilityDefaultUpdateRequest'];
+export type AuditVisibilityOverrideUpsertRequest = components['schemas']['AuditVisibilityOverrideUpsertRequest'];

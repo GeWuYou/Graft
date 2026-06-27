@@ -1,0 +1,13 @@
+type: object
+required: [default, overrides, catalog]
+properties:
+  default:
+    $ref: ./audit-visibility-default-response.yaml
+  overrides:
+    type: array
+    items:
+      $ref: ./audit-visibility-override-response.yaml
+  catalog:
+    type: array
+    items:
+      $ref: ./audit-event-catalog-item.yaml

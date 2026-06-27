@@ -112,6 +112,10 @@ paths:
     $ref: ./paths/audit.overview.yaml
   /api/audit/incidents/{event_id}:
     $ref: ./paths/audit.incident.yaml
+  /api/audit/policies/visibility:
+    $ref: ./paths/audit.visibility-policy.yaml
+  /api/audit/policies/visibility/overrides:
+    $ref: ./paths/audit.visibility-overrides.yaml
   /api/monitor/server-status:
     $ref: ./paths/monitor.server-status.yaml
   /api/modules/runtime:
@@ -334,6 +338,24 @@ components:
       $ref: ./components/schemas/audit-incident-monitor-evidence.yaml
     EnvelopedAuditIncidentResponse:
       $ref: ./components/schemas/enveloped-audit-incident-response.yaml
+    AuditVisibilityDefaultResponse:
+      $ref: ./components/schemas/audit-visibility-default-response.yaml
+    AuditVisibilityOverrideResponse:
+      $ref: ./components/schemas/audit-visibility-override-response.yaml
+    AuditEventCatalogItem:
+      $ref: ./components/schemas/audit-event-catalog-item.yaml
+    AuditVisibilityPolicyResponse:
+      $ref: ./components/schemas/audit-visibility-policy-response.yaml
+    AuditVisibilityDefaultUpdateRequest:
+      $ref: ./components/schemas/audit-visibility-default-update-request.yaml
+    AuditVisibilityOverrideUpsertRequest:
+      $ref: ./components/schemas/audit-visibility-override-upsert-request.yaml
+    EnvelopedAuditVisibilityPolicyResponse:
+      $ref: ./components/schemas/enveloped-audit-visibility-policy-response.yaml
+    EnvelopedAuditVisibilityDefaultResponse:
+      $ref: ./components/schemas/enveloped-audit-visibility-default-response.yaml
+    EnvelopedAuditVisibilityOverrideResponse:
+      $ref: ./components/schemas/enveloped-audit-visibility-override-response.yaml
     ServerStatusConnectionPool:
       $ref: ./components/schemas/server-status-connection-pool.yaml
     ServerStatusDependency:

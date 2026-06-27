@@ -20,7 +20,7 @@ async function openLogDetailRecord<Row, Detail>(config: {
 }) {
   try {
     const id = Number(config.row.id);
-    if (!Number.isFinite(id)) {
+    if (!Number.isFinite(id) || id <= 0) {
       config.onError(new Error(`Invalid log id: ${String(config.row.id)}`));
       return;
     }

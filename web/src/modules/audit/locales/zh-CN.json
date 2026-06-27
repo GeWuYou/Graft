@@ -387,6 +387,37 @@
         "createdAt": "时间",
         "operation": "操作"
       },
+      "policy": {
+        "manage": "管理可见性",
+        "drawerTitle": "审计可见性策略",
+        "defaultStrategy": "全局默认策略",
+        "visibilityScope": "当前列表可见范围",
+        "overrideTitle": "单事件覆盖",
+        "overrideHint": "全局默认策略决定基础行为，单事件覆盖可对单个 source + action_key 做精确控制。",
+        "saveDefault": "保存默认策略",
+        "saveSuccess": "审计可见性默认策略已更新",
+        "saveFailed": "更新审计可见性默认策略失败",
+        "saveOverride": "保存覆盖",
+        "saveOverrideSuccess": "审计可见性覆盖已更新",
+        "saveOverrideFailed": "更新审计可见性覆盖失败",
+        "resetOverride": "恢复默认",
+        "resetOverrideSuccess": "审计可见性覆盖已移除",
+        "resetOverrideFailed": "移除审计可见性覆盖失败",
+        "overriddenTag": "已覆盖",
+        "descriptionFallback": "未提供说明",
+        "defaultState": "默认：{value}",
+        "effectiveState": "生效：{value}",
+        "scope": {
+          "default": "仅默认可见",
+          "all": "显示全部持久化记录",
+          "hiddenOnly": "仅隐藏记录"
+        },
+        "strategy": {
+          "visible": "显示",
+          "hidden": "隐藏",
+          "ignore": "忽略并丢弃"
+        }
+      },
       "drawer": {
         "messageFallback": "无补充说明",
         "sections": {

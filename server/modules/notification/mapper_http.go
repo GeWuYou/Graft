@@ -26,9 +26,9 @@ func toNotificationUnreadCountResponse(count int) generated.NotificationUnreadCo
 }
 
 func toNotificationItem(item notificationstore.Notification) generated.NotificationItem {
-	status := generated.Unread
+	status := generated.NotificationStatusUnread
 	if item.Delivery.ReadAt != nil {
-		status = generated.Read
+		status = generated.NotificationStatusRead
 	}
 
 	return generated.NotificationItem{

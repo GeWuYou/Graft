@@ -19,6 +19,32 @@ dashboard.widget.auditRiskEvents.authFailures.description: Review recent authent
 dashboard.widget.auditRiskEvents.authFailures.action: View Authentication Failures
 dashboard.widget.auditRiskEvents.empty: No audit risk events in the last 24 hours.
 audit.overview.riskGroups.authFailures: Authentication Failures
+audit.visibilityCatalog.auth.tokenExpired.description: Access token expired security event.
+audit.visibilityCatalog.auth.tokenInvalid.description: Access token invalid security event.
+audit.visibilityCatalog.auth.tokenMissing.description: Access token missing security event.
+audit.visibilityCatalog.auth.permissionDenied.description: Authorization denied security event.
+audit.visibilityCatalog.auth.login.description: Login request audit record.
+audit.visibilityCatalog.auth.refresh.description: Refresh-token rotation request audit record.
+audit.visibilityCatalog.auth.logout.description: Logout request audit record.
+audit.visibilityCatalog.user.create.description: Managed-user creation event.
+audit.visibilityCatalog.user.update.description: Managed-user update event.
+audit.visibilityCatalog.user.statusUpdate.description: Managed-user status change event.
+audit.visibilityCatalog.user.delete.description: Managed-user deletion event.
+audit.visibilityCatalog.user.passwordReset.description: Managed-user password reset event.
+audit.visibilityCatalog.rbac.role.create.description: RBAC role creation event.
+audit.visibilityCatalog.rbac.role.update.description: RBAC role update event.
+audit.visibilityCatalog.rbac.role.statusUpdate.description: RBAC role status change event.
+audit.visibilityCatalog.rbac.role.delete.description: RBAC role deletion event.
+audit.visibilityCatalog.rbac.role.permissionsReplace.description: RBAC role permission replacement event.
+audit.visibilityCatalog.rbac.user.rolesReplace.description: RBAC user role replacement event.
+audit.visibilityCatalog.container.action.start.description: Container start dangerous action event.
+audit.visibilityCatalog.container.action.stop.description: Container stop dangerous action event.
+audit.visibilityCatalog.container.action.restart.description: Container restart dangerous action event.
+audit.visibilityCatalog.container.action.remove.description: Container remove dangerous action event.
+audit.visibilityCatalog.container.action.batchStart.description: Container batch-start dangerous action event.
+audit.visibilityCatalog.container.action.batchStop.description: Container batch-stop dangerous action event.
+audit.visibilityCatalog.container.action.batchRestart.description: Container batch-restart dangerous action event.
+audit.visibilityCatalog.container.action.batchRemove.description: Container batch-remove dangerous action event.
 scheduler.job.auditLogRetentionCleanup.title: Audit Log Retention Cleanup
 scheduler.job.shortTitle.auditLog: Audit Logs
 scheduledTask.auditLogRetention.description: Deletes audit logs beyond the configured retention window.

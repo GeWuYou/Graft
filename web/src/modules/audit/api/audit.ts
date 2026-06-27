@@ -9,6 +9,11 @@ import type {
   AuditLogQuery,
   AuditOverviewQuery,
   AuditOverviewResponse,
+  AuditVisibilityDefaultResponse,
+  AuditVisibilityDefaultUpdateRequest,
+  AuditVisibilityOverrideResponse,
+  AuditVisibilityOverrideUpsertRequest,
+  AuditVisibilityPolicyResponse,
 } from '../types/audit';
 
 type AuditLogsPath = (typeof AUDIT_API_PATH)['LOGS'];
@@ -55,4 +60,34 @@ export function getAuditIncident(eventId: number) {
   return request.get<GetAuditIncidentResponseData>({
     url: AUDIT_API_PATH.INCIDENT_DETAIL.replace('{event_id}', String(eventId)),
   }) as Promise<AuditIncidentResponse>;
+}
+
+export function getAuditVisibilityPolicy() {
+  return request.get<AuditVisibilityPolicyResponse>({
+    url: AUDIT_API_PATH.VISIBILITY_POLICY,
+  });
+}
+
+export function updateAuditVisibilityDefault(payload: AuditVisibilityDefaultUpdateRequest) {
+  return request.put<AuditVisibilityDefaultResponse>({
+    url: AUDIT_API_PATH.VISIBILITY_POLICY,
+    data: payload,
+  });
+}
+
+export function upsertAuditVisibilityOverride(payload: AuditVisibilityOverrideUpsertRequest) {
+  return request.put<AuditVisibilityOverrideResponse>({
+    url: AUDIT_API_PATH.VISIBILITY_OVERRIDES,
+    data: payload,
+  });
+}
+
+export function deleteAuditVisibilityOverride(source: string, actionKey: string) {
+  return request.delete<Record<string, never>>({
+    url: AUDIT_API_PATH.VISIBILITY_OVERRIDES,
+    params: {
+      source,
+      action_key: actionKey,
+    },
+  });
 }

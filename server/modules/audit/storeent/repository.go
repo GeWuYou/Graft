@@ -93,6 +93,7 @@ func (r *repository) CreateAuditLog(ctx context.Context, input auditstore.Create
 		ActorUsername:    input.ActorUsername,
 		ActorDisplayName: input.ActorDisplayName,
 		Action:           input.Action,
+		Visibility:       normalizeStoredAuditVisibility(input.Visibility),
 		ResourceType:     input.ResourceType,
 		ResourceID:       input.ResourceID,
 		ResourceName:     input.ResourceName,
@@ -116,6 +117,7 @@ func (r *repository) CreateAuditLog(ctx context.Context, input auditstore.Create
 			actor_username,
 			actor_display_name,
 			action,
+			visibility,
 			resource_type,
 			resource_id,
 			resource_name,
@@ -126,12 +128,13 @@ func (r *repository) CreateAuditLog(ctx context.Context, input auditstore.Create
 			message,
 			metadata,
 			created_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
 		RETURNING id`,
 		actorUserID,
 		input.ActorUsername,
 		input.ActorDisplayName,
 		input.Action,
+		record.Visibility,
 		input.ResourceType,
 		input.ResourceID,
 		input.ResourceName,
@@ -177,6 +180,7 @@ func (r *repository) ListAuditLogs(ctx context.Context, query auditstore.ListAud
 	selectSQL := `SELECT
 		id,
 		COALESCE(metadata ->> 'auditSource', metadata ->> 'audit_source', '') AS source,
+		visibility,
 		actor_user_id,
 		actor_username,
 		actor_display_name,
@@ -528,6 +532,7 @@ func buildAuditLogFilters(query auditstore.ListAuditLogsQuery) (string, []any) {
 		clauses = append(clauses, fmt.Sprintf(format, len(args)))
 	}
 
+	addAuditVisibilityFilter(&clauses, &args, query.VisibilityScope)
 	addAuditPresetRange(&clauses, &args, query)
 	addUint64Filter(&clauses, &args, "actor_user_id = $%d", query.ActorUserID)
 	addKeywordFilter(&clauses, &args, query.Keyword)
@@ -602,6 +607,23 @@ func addAuditPresetRange(clauses *[]string, args *[]any, query auditstore.ListAu
 	now := time.Now().UTC()
 	startedAt := auditPresetStart(now, query.TimePreset)
 	addTimeFilter(clauses, args, "created_at >= $%d", &startedAt)
+}
+
+func addAuditVisibilityFilter(
+	clauses *[]string,
+	args *[]any,
+	scope auditstore.AuditVisibilityScope,
+) {
+	switch scope {
+	case auditstore.AuditVisibilityScopeAll:
+		return
+	case auditstore.AuditVisibilityScopeHiddenOnly:
+		*args = append(*args, string(auditstore.AuditVisibilityStrategyHidden))
+		*clauses = append(*clauses, fmt.Sprintf("visibility = $%d", len(*args)))
+	default:
+		*args = append(*args, string(auditstore.AuditVisibilityStrategyVisible))
+		*clauses = append(*clauses, fmt.Sprintf("visibility = $%d", len(*args)))
+	}
 }
 
 // auditPresetStart 根据时间预设计算查询起始时间。
@@ -919,6 +941,7 @@ func scanAuditLog(
 	if err := scanner.Scan(
 		&record.ID,
 		&record.Source,
+		&record.Visibility,
 		&actorUserID,
 		&record.ActorUsername,
 		&record.ActorDisplayName,
@@ -941,6 +964,7 @@ func scanAuditLog(
 		value := toStoreID(actorUserID.Int64)
 		record.ActorUserID = &value
 	}
+	record.Visibility = normalizeStoredAuditVisibility(record.Visibility)
 	record.Metadata = cloneRawMessage(metadata)
 	enrichAuditLog(ctx, &record, localizer)
 
@@ -1037,6 +1061,7 @@ func (r *repository) readAuditLogByID(ctx context.Context, eventID uint64) (audi
 	row := r.db.QueryRowContext(ctx, `SELECT
 		id,
 		COALESCE(metadata ->> 'auditSource', metadata ->> 'audit_source', '') AS source,
+		visibility,
 		actor_user_id,
 		actor_username,
 		actor_display_name,
@@ -1068,6 +1093,7 @@ func (r *repository) readIncidentCandidateLogs(ctx context.Context, windowStart 
 	rows, err := r.db.QueryContext(ctx, `SELECT
 		id,
 		COALESCE(metadata ->> 'auditSource', metadata ->> 'audit_source', '') AS source,
+		visibility,
 		actor_user_id,
 		actor_username,
 		actor_display_name,
@@ -1083,9 +1109,15 @@ func (r *repository) readIncidentCandidateLogs(ctx context.Context, windowStart 
 		metadata,
 		created_at
 	FROM audit_logs
-		WHERE created_at >= $1 AND created_at <= $2
+		WHERE visibility = $1
+		AND created_at >= $2 AND created_at <= $3
 		ORDER BY created_at DESC, id DESC
-		LIMIT $3`, windowStart, windowEnd, incidentCandidateScanLimit)
+		LIMIT $4`,
+		string(auditstore.AuditVisibilityStrategyVisible),
+		windowStart,
+		windowEnd,
+		incidentCandidateScanLimit,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("read audit incident candidates: %w", err)
 	}
@@ -1739,13 +1771,14 @@ SELECT
 		WHERE ` + sensitiveOperationsWhereClause() + `
 	) AS sensitive_operations
 FROM audit_logs
-WHERE created_at >= $1
+WHERE visibility = 'visible' AND created_at >= $1
 `
 
 const overviewRecentBaseSQL = `
 SELECT
 	id,
 	COALESCE(metadata ->> 'auditSource', metadata ->> 'audit_source', '') AS source,
+	visibility,
 	actor_user_id,
 	actor_username,
 	actor_display_name,
@@ -1759,7 +1792,7 @@ SELECT
 	metadata,
 	created_at
 FROM audit_logs
-WHERE created_at >= $1 AND %s
+WHERE visibility = 'visible' AND created_at >= $1 AND %s
 ORDER BY created_at DESC, id DESC
 LIMIT 3
 `
@@ -1837,7 +1870,7 @@ FROM (
 			  )
 		) AS count
 	FROM audit_logs
-	WHERE created_at >= $1
+	WHERE visibility = 'visible' AND created_at >= $1
 	UNION ALL
 	SELECT
 		'high_risk_operations',
@@ -1847,7 +1880,7 @@ FROM (
 			WHERE ` + auditRiskLevelExpression() + ` IN ('HIGH', 'CRITICAL')
 		)
 	FROM audit_logs
-	WHERE created_at >= $1
+	WHERE visibility = 'visible' AND created_at >= $1
 	UNION ALL
 	SELECT
 		'auth_failures',
@@ -1855,7 +1888,7 @@ FROM (
 		'HIGH',
 		COUNT(*) FILTER (WHERE ` + authFailuresWhereClause() + `)
 	FROM audit_logs
-	WHERE created_at >= $1
+	WHERE visibility = 'visible' AND created_at >= $1
 	UNION ALL
 	SELECT
 		'permission_denials',
@@ -1863,7 +1896,7 @@ FROM (
 		'CRITICAL',
 		COUNT(*) FILTER (WHERE ` + permissionDenialsWhereClause() + `)
 	FROM audit_logs
-	WHERE created_at >= $1
+	WHERE visibility = 'visible' AND created_at >= $1
 ) groups
 WHERE count > 0
 ORDER BY count DESC, key ASC
@@ -1885,7 +1918,8 @@ SELECT
 	message,
 	metadata
 FROM audit_logs
-WHERE created_at >= $1
+WHERE visibility = 'visible'
+  AND created_at >= $1
   AND (
 	COALESCE(metadata ->> 'auditSource', metadata ->> 'audit_source', '') = 'SECURITY_EVENT'
 	OR NOT success
@@ -1996,6 +2030,7 @@ FROM generate_series($1::timestamptz, $2::timestamptz - INTERVAL '%[1]s', INTERV
 LEFT JOIN audit_logs logs
 	ON logs.created_at >= bucket_start
 	AND logs.created_at < bucket_start + INTERVAL '%[1]s'
+	AND logs.visibility = 'visible'
 GROUP BY bucket_start
 ORDER BY bucket_start ASC
 `, step)
@@ -2058,7 +2093,8 @@ SELECT
 	metadata,
 	created_at
 FROM audit_logs
-WHERE created_at >= $1 AND created_at < $2
+WHERE visibility = 'visible'
+  AND created_at >= $1 AND created_at < $2
 ORDER BY created_at ASC, id ASC
 `, startedAt, now)
 	if err != nil {
@@ -2233,11 +2269,13 @@ func scanAuditOverviewItem(scanner interface {
 	var (
 		item        auditstore.OverviewItem
 		actorUserID sql.NullInt64
+		visibility  string
 		metadata    []byte
 	)
 	if err := scanner.Scan(
 		&item.ID,
 		&item.Source,
+		&visibility,
 		&actorUserID,
 		&item.ActorUsername,
 		&item.ActorDisplayName,
@@ -2259,7 +2297,19 @@ func scanAuditOverviewItem(scanner interface {
 		item.ActorUserID = &value
 	}
 	item.Metadata = cloneRawMessage(metadata)
+	_ = visibility
 	return item, nil
+}
+
+func normalizeStoredAuditVisibility(value auditstore.AuditVisibilityStrategy) auditstore.AuditVisibilityStrategy {
+	switch auditstore.AuditVisibilityStrategy(strings.TrimSpace(string(value))) {
+	case auditstore.AuditVisibilityStrategyHidden:
+		return auditstore.AuditVisibilityStrategyHidden
+	case auditstore.AuditVisibilityStrategyIgnore:
+		return auditstore.AuditVisibilityStrategyIgnore
+	default:
+		return auditstore.AuditVisibilityStrategyVisible
+	}
 }
 
 func nullableUint64(value *uint64) (any, error) {

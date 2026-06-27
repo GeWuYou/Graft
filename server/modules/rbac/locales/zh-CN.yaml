@@ -10,6 +10,8 @@ rbac.permissionCatalog.appLogDelete.display: 应用日志删除
 rbac.permissionCatalog.appLogDelete.description: 允许显式删除保留中的应用日志记录。
 rbac.permissionCatalog.auditRead.display: 审计日志读取
 rbac.permissionCatalog.auditRead.description: 允许读取审计日志记录及筛选结果。
+rbac.permissionCatalog.auditManage.display: 审计策略管理
+rbac.permissionCatalog.auditManage.description: 允许管理审计可见性默认策略和单事件覆盖策略。
 rbac.permissionCatalog.moduleRuntimeRead.display: 模块运行时读取
 rbac.permissionCatalog.moduleRuntimeRead.description: 允许读取核心模块运行时快照。
 rbac.permissionCatalog.monitorServerStatusRead.display: 服务器状态读取

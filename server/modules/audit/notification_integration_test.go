@@ -19,6 +19,7 @@ func TestPublishAuditNotificationTargetsAuditReaders(t *testing.T) {
 	publishAuditNotification(context.Background(), zap.NewNop(), publisher, auditstore.AuditLog{
 		ID:           12,
 		Action:       "auth.permission.denied",
+		Visibility:   auditstore.AuditVisibilityStrategyVisible,
 		ResourceType: "permission",
 		ResourceID:   "rbac.role.delete",
 		Success:      false,
@@ -51,6 +52,21 @@ func TestPublishAuditNotificationTargetsAuditReaders(t *testing.T) {
 	}
 	if string(input.Metadata) == "" || !strings.Contains(string(input.Metadata), `"action":"auth.permission.denied"`) {
 		t.Fatalf("expected audit metadata to carry action context, got %s", string(input.Metadata))
+	}
+}
+
+func TestPublishAuditNotificationSkipsHiddenAuditLogs(t *testing.T) {
+	publisher := &auditNotificationPublisherRecorder{}
+	publishAuditNotification(context.Background(), zap.NewNop(), publisher, auditstore.AuditLog{
+		ID:         22,
+		Action:     "auth.permission.denied",
+		Visibility: auditstore.AuditVisibilityStrategyHidden,
+		Success:    false,
+		CreatedAt:  time.Date(2026, 6, 9, 8, 0, 0, 0, time.UTC),
+	})
+
+	if len(publisher.inputs) != 0 {
+		t.Fatalf("expected hidden audit log to skip notification, got %d", len(publisher.inputs))
 	}
 }
 

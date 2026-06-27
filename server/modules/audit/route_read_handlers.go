@@ -27,6 +27,15 @@ type auditReader interface {
 	Detail(ctx context.Context, id uint64) (DetailResult, error)
 	Overview(ctx context.Context, preset auditstore.AuditTimePreset) (OverviewResult, error)
 	Incident(ctx context.Context, eventID uint64) (IncidentResult, error)
+	VisibilityPolicy(ctx context.Context) (VisibilityPolicyResult, error)
+	UpdateVisibilityDefault(
+		ctx context.Context,
+		strategy auditstore.AuditVisibilityStrategy,
+		userID *uint64,
+		username string,
+	) (auditstore.AuditVisibilityDefault, error)
+	UpdateVisibilityOverride(ctx context.Context, input auditstore.UpsertAuditVisibilityOverrideInput) (auditstore.AuditVisibilityOverride, error)
+	DeleteVisibilityOverride(ctx context.Context, source auditstore.AuditSource, actionKey string) error
 }
 
 type auditListResult = ListResult
@@ -35,7 +44,8 @@ type auditOverviewResult = OverviewResult
 type auditIncidentResult = IncidentResult
 
 type auditGuard struct {
-	read gin.HandlerFunc
+	read   gin.HandlerFunc
+	manage gin.HandlerFunc
 }
 
 func handleListAuditLogs(
@@ -305,6 +315,7 @@ var auditAllowedListQueryKeys = map[string]struct{}{
 	"risk_level":              {},
 	"risk_levels":             {},
 	"risk_levels[]":           {},
+	"visibility_scope":        {},
 	"success":                 {},
 	"created_from":            {},
 	"created_to":              {},
@@ -352,30 +363,12 @@ func bindGeneratedAuditListParams(
 	params := newAuditListParams(ginCtx)
 	query := ListQuery{}
 
-	if field := bindAuditPagination(ginCtx, &params, &query); field != "" {
-		return params, query, field
-	}
-	if field := bindAuditActorUserID(ginCtx, &params, &query); field != "" {
-		return params, query, field
-	}
-	if field := bindAuditPreset(ginCtx, &params, &query); field != "" {
-		return params, query, field
-	}
-	if field := bindAuditScope(ginCtx, &params, &query); field != "" {
+	if field := bindAuditPrimaryFilters(ginCtx, &params, &query); field != "" {
 		return params, query, field
 	}
 	bindAuditStringFilters(ginCtx, &params, &query)
 	bindAuditStringSliceFilters(ginCtx, &params, &query)
-	if field := bindAuditEnumFilters(ginCtx, &params, &query); field != "" {
-		return params, query, field
-	}
-	if field := bindAuditSuccessFilter(ginCtx, &params, &query); field != "" {
-		return params, query, field
-	}
-	if field := bindAuditCreatedRange(ginCtx, &params, &query); field != "" {
-		return params, query, field
-	}
-	if field := bindAuditSort(ginCtx, &params, &query); field != "" {
+	if field := bindAuditSecondaryFilters(ginCtx, &params, &query); field != "" {
 		return params, query, field
 	}
 	if field := rejectUnknownAuditListQueryKeys(ginCtx); field != "" {
@@ -383,6 +376,41 @@ func bindGeneratedAuditListParams(
 	}
 
 	return params, query, ""
+}
+
+func bindAuditPrimaryFilters(ginCtx *gin.Context, params *auditopenapi.GetAuditLogsParams, query *ListQuery) string {
+	if field := bindAuditPagination(ginCtx, params, query); field != "" {
+		return field
+	}
+	if field := bindAuditActorUserID(ginCtx, params, query); field != "" {
+		return field
+	}
+	if field := bindAuditPreset(ginCtx, params, query); field != "" {
+		return field
+	}
+	if field := bindAuditScope(ginCtx, params, query); field != "" {
+		return field
+	}
+	if field := bindAuditVisibilityScope(ginCtx, query); field != "" {
+		return field
+	}
+	return ""
+}
+
+func bindAuditSecondaryFilters(ginCtx *gin.Context, params *auditopenapi.GetAuditLogsParams, query *ListQuery) string {
+	if field := bindAuditEnumFilters(ginCtx, params, query); field != "" {
+		return field
+	}
+	if field := bindAuditSuccessFilter(ginCtx, params, query); field != "" {
+		return field
+	}
+	if field := bindAuditCreatedRange(ginCtx, params, query); field != "" {
+		return field
+	}
+	if field := bindAuditSort(ginCtx, params, query); field != "" {
+		return field
+	}
+	return ""
 }
 
 func newAuditListParams(ginCtx *gin.Context) auditopenapi.GetAuditLogsParams {
@@ -456,6 +484,22 @@ func bindAuditScope(ginCtx *gin.Context, params *auditopenapi.GetAuditLogsParams
 		query.Scope = raw
 	}
 	return ""
+}
+
+func bindAuditVisibilityScope(ginCtx *gin.Context, query *ListQuery) string {
+	raw := strings.TrimSpace(ginCtx.Query("visibility_scope"))
+	if raw == "" {
+		return ""
+	}
+	switch auditstore.AuditVisibilityScope(raw) {
+	case auditstore.AuditVisibilityScopeDefault,
+		auditstore.AuditVisibilityScopeAll,
+		auditstore.AuditVisibilityScopeHiddenOnly:
+		query.VisibilityScope = auditstore.AuditVisibilityScope(raw)
+		return ""
+	default:
+		return "visibility_scope"
+	}
 }
 
 func bindAuditStringFilters(ginCtx *gin.Context, params *auditopenapi.GetAuditLogsParams, query *ListQuery) {

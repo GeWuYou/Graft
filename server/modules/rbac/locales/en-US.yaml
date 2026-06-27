@@ -10,6 +10,8 @@ rbac.permissionCatalog.appLogDelete.display: App Log Delete
 rbac.permissionCatalog.appLogDelete.description: Allows explicit deletion of retained logger-owned app-log rows.
 rbac.permissionCatalog.auditRead.display: Audit Log Read
 rbac.permissionCatalog.auditRead.description: Allows reading audit-log records and filters.
+rbac.permissionCatalog.auditManage.display: Audit Policy Manage
+rbac.permissionCatalog.auditManage.description: Allows managing audit visibility defaults and per-event overrides.
 rbac.permissionCatalog.moduleRuntimeRead.display: Module Runtime Read
 rbac.permissionCatalog.moduleRuntimeRead.description: Allows reading the core module runtime snapshot.
 rbac.permissionCatalog.monitorServerStatusRead.display: Server Status Read

@@ -39,6 +39,9 @@ func publishAuditNotification(
 }
 
 func shouldNotifyAuditRecord(record auditstore.AuditLog) bool {
+	if record.Visibility != auditstore.AuditVisibilityStrategyVisible {
+		return false
+	}
 	action := strings.ToLower(strings.TrimSpace(record.Action))
 	if strings.Contains(action, "permission.denied") || strings.Contains(action, "permission_denied") {
 		return true

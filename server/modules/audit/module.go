@@ -256,7 +256,7 @@ func requestAuditMiddleware(
 				zap.String("method", candidate.RequestMethod),
 				zap.String("path", candidate.RequestPath),
 			)
-		} else {
+		} else if record.Visibility == auditstore.AuditVisibilityStrategyVisible {
 			publishAuditNotification(ctx.Request.Context(), logger, resolveNotificationPublisher(notifier), record)
 		}
 	}
@@ -274,7 +274,7 @@ func recordEvent(
 	if err != nil {
 		return err
 	}
-	if recorded {
+	if recorded && record.Visibility == auditstore.AuditVisibilityStrategyVisible {
 		publishAuditNotification(ctx, logger, resolveNotificationPublisher(notifier), record)
 	}
 	if recorded || candidate.Source != auditstore.AuditSourceSecurityEvent {

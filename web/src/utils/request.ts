@@ -12,7 +12,13 @@ import { AUTH_API_PATH } from '@/modules/auth/contract/paths';
 import { AUTH_ROUTE_PATH } from '@/modules/auth/contract/routes';
 import type { LoginResponse } from '@/modules/auth/contract/types';
 import type { ApiRequestError, AxiosRequestConfigRetry, RequestOptions } from '@/types/axios';
-import { clearAccessToken, getAccessToken, setAccessToken } from '@/utils/auth-state';
+import {
+  clearAccessToken,
+  getAccessToken,
+  getAccessTokenExpiresAt,
+  setAccessToken,
+  setAccessTokenExpiresAt,
+} from '@/utils/auth-state';
 import { patchGlobalLoggerContext } from '@/utils/logger';
 
 type RequestConfig = AxiosRequestConfigRetry & {
@@ -32,7 +38,9 @@ type AuthSessionBridge = {
 };
 
 const AUTH_REFRESH_URL = AUTH_API_PATH.REFRESH;
+const TOKEN_REFRESH_LEEWAY_MS = 60_000;
 let authSessionBridge: AuthSessionBridge | null = null;
+let inflightRefreshPromise: Promise<LoginResponse> | null = null;
 
 export function serializeRequestParams(params: Record<string, unknown>) {
   const searchParams = new URLSearchParams();
@@ -79,7 +87,13 @@ const client = axios.create({
   },
 });
 
-client.interceptors.request.use((config) => {
+client.interceptors.request.use(async (config) => {
+  const nextConfig = config as typeof config & AxiosRequestConfigRetry;
+
+  if (!nextConfig._skipAuthRefresh && nextConfig.url !== AUTH_REFRESH_URL && shouldRefreshBeforeRequest()) {
+    await refreshClientSession();
+  }
+
   const headers = config.headers ?? {};
   const accessToken = getAccessToken();
 
@@ -225,11 +239,7 @@ function shouldExitToLogin(error: ApiRequestError) {
 
 async function tryRefreshAndReplay<T>(config: AxiosRequestConfigRetry) {
   try {
-    const payload = await requestWithMethod<LoginResponse>('post', {
-      url: AUTH_REFRESH_URL,
-      _skipAuthRefresh: true,
-    } as RequestConfig);
-    await syncAuthStateAfterRefresh(payload);
+    await refreshClientSession();
   } catch (refreshError) {
     // 受限首次改密态会显式拒绝 refresh；此时保留当前受限会话，交给页面继续完成改密。
     if (isRestrictedPasswordChangeRefreshError(refreshError)) {
@@ -256,12 +266,16 @@ async function syncAuthStateAfterRefresh(payload: LoginResponse) {
   }
 
   setAccessToken(payload.access_token);
+  setAccessTokenExpiresAt(payload.expires_at);
 
   try {
     const raw = localStorage.getItem(STORAGE_KEY.USER_SESSION);
     if (raw) {
       const persisted = JSON.parse(raw) as Record<string, unknown>;
-      localStorage.setItem(STORAGE_KEY.USER_SESSION, JSON.stringify({ ...persisted, token: payload.access_token }));
+      localStorage.setItem(
+        STORAGE_KEY.USER_SESSION,
+        JSON.stringify({ ...persisted, token: payload.access_token, expiresAt: payload.expires_at }),
+      );
     }
   } catch {
     // 受限环境下允许只更新内存 token。
@@ -329,4 +343,36 @@ function isRestrictedPasswordChangeRefreshError(error: unknown) {
     error.code === API_CODE.AUTH_FORBIDDEN &&
     error.messageKey === MESSAGE_KEY.AUTH_FORBIDDEN
   );
+}
+
+function shouldRefreshBeforeRequest() {
+  const token = getAccessToken();
+  if (!token) {
+    return false;
+  }
+
+  const expiresAt = Date.parse(getAccessTokenExpiresAt());
+  if (!Number.isFinite(expiresAt)) {
+    return false;
+  }
+
+  return expiresAt - Date.now() <= TOKEN_REFRESH_LEEWAY_MS;
+}
+
+async function refreshClientSession() {
+  if (!inflightRefreshPromise) {
+    inflightRefreshPromise = requestWithMethod<LoginResponse>('post', {
+      url: AUTH_REFRESH_URL,
+      _skipAuthRefresh: true,
+    } as RequestConfig)
+      .then(async (payload) => {
+        await syncAuthStateAfterRefresh(payload);
+        return payload;
+      })
+      .finally(() => {
+        inflightRefreshPromise = null;
+      });
+  }
+
+  return inflightRefreshPromise;
 }

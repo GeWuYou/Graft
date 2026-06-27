@@ -12,27 +12,29 @@ import (
 )
 
 type stubAuditRepository struct {
-	createdInput  auditstore.CreateAuditLogInput
-	createdAction string
-	listQuery     auditstore.ListAuditLogsQuery
-	overviewWnd   auditstore.AuditTimePreset
-	incidentID    uint64
-	detailID      uint64
-	deletedBefore time.Time
-	deletedRows   int64
-	policyRules   []auditstore.AuditPolicyRule
-	createResult  auditstore.AuditLog
-	listResult    auditstore.ListAuditLogsResult
-	overview      auditstore.AuditOverview
-	incident      auditstore.AuditIncident
-	detail        auditstore.AuditLog
-	createErr     error
-	listErr       error
-	detailErr     error
-	overviewErr   error
-	incidentErr   error
-	policyErr     error
-	deleteErr     error
+	createdInput        auditstore.CreateAuditLogInput
+	createdAction       string
+	listQuery           auditstore.ListAuditLogsQuery
+	overviewWnd         auditstore.AuditTimePreset
+	incidentID          uint64
+	detailID            uint64
+	deletedBefore       time.Time
+	deletedRows         int64
+	policyRules         []auditstore.AuditPolicyRule
+	visibilityDefault   auditstore.AuditVisibilityDefault
+	visibilityOverrides []auditstore.AuditVisibilityOverride
+	createResult        auditstore.AuditLog
+	listResult          auditstore.ListAuditLogsResult
+	overview            auditstore.AuditOverview
+	incident            auditstore.AuditIncident
+	detail              auditstore.AuditLog
+	createErr           error
+	listErr             error
+	detailErr           error
+	overviewErr         error
+	incidentErr         error
+	policyErr           error
+	deleteErr           error
 }
 
 func (r *stubAuditRepository) CreateAuditLog(_ context.Context, input auditstore.CreateAuditLogInput) (auditstore.AuditLog, error) {
@@ -87,6 +89,85 @@ func (r *stubAuditRepository) ListAuditPolicyRules(_ context.Context) ([]auditst
 		return nil, r.policyErr
 	}
 	return append([]auditstore.AuditPolicyRule(nil), r.policyRules...), nil
+}
+
+func (r *stubAuditRepository) GetAuditVisibilityDefault(_ context.Context, _ string) (auditstore.AuditVisibilityDefault, error) {
+	if r.policyErr != nil {
+		return auditstore.AuditVisibilityDefault{}, r.policyErr
+	}
+	if r.visibilityDefault.Key == "" {
+		r.visibilityDefault = auditstore.AuditVisibilityDefault{
+			Key:      "global",
+			Strategy: auditstore.AuditVisibilityStrategyVisible,
+		}
+	}
+	return r.visibilityDefault, nil
+}
+
+func (r *stubAuditRepository) UpsertAuditVisibilityDefault(
+	_ context.Context,
+	key string,
+	strategy auditstore.AuditVisibilityStrategy,
+	userID *uint64,
+	username string,
+) (auditstore.AuditVisibilityDefault, error) {
+	if r.policyErr != nil {
+		return auditstore.AuditVisibilityDefault{}, r.policyErr
+	}
+	r.visibilityDefault = auditstore.AuditVisibilityDefault{
+		Key:           key,
+		Strategy:      strategy,
+		UpdatedBy:     userID,
+		UpdatedByName: username,
+		UpdatedAt:     time.Now().UTC(),
+	}
+	return r.visibilityDefault, nil
+}
+
+func (r *stubAuditRepository) ListAuditVisibilityOverrides(_ context.Context) ([]auditstore.AuditVisibilityOverride, error) {
+	if r.policyErr != nil {
+		return nil, r.policyErr
+	}
+	return append([]auditstore.AuditVisibilityOverride(nil), r.visibilityOverrides...), nil
+}
+
+func (r *stubAuditRepository) UpsertAuditVisibilityOverride(
+	_ context.Context,
+	input auditstore.UpsertAuditVisibilityOverrideInput,
+) (auditstore.AuditVisibilityOverride, error) {
+	if r.policyErr != nil {
+		return auditstore.AuditVisibilityOverride{}, r.policyErr
+	}
+	item := auditstore.AuditVisibilityOverride{
+		ID:            1,
+		Source:        input.Source,
+		ActionKey:     input.ActionKey,
+		Strategy:      input.Strategy,
+		Description:   input.Description,
+		CreatedBy:     input.Actor.UserID,
+		CreatedByName: input.Actor.Username,
+		UpdatedBy:     input.Actor.UserID,
+		UpdatedByName: input.Actor.Username,
+		CreatedAt:     time.Now().UTC(),
+		UpdatedAt:     time.Now().UTC(),
+	}
+	r.visibilityOverrides = []auditstore.AuditVisibilityOverride{item}
+	return item, nil
+}
+
+func (r *stubAuditRepository) DeleteAuditVisibilityOverride(_ context.Context, source auditstore.AuditSource, actionKey string) error {
+	if r.policyErr != nil {
+		return r.policyErr
+	}
+	filtered := r.visibilityOverrides[:0]
+	for _, item := range r.visibilityOverrides {
+		if item.Source == source && item.ActionKey == actionKey {
+			continue
+		}
+		filtered = append(filtered, item)
+	}
+	r.visibilityOverrides = append([]auditstore.AuditVisibilityOverride(nil), filtered...)
+	return nil
 }
 
 func (r *stubAuditRepository) DeleteAuditLogsBefore(_ context.Context, createdBefore time.Time) (int64, error) {

@@ -354,6 +354,99 @@ func toAuditLogListItem(item auditstore.AuditLog) (generated.AuditLogListItem, e
 	return converted, nil
 }
 
+func toAuditVisibilityPolicyResponse(result VisibilityPolicyResult) (map[string]any, error) {
+	defaultValue, err := toAuditVisibilityDefaultResponse(result.Default)
+	if err != nil {
+		return nil, err
+	}
+
+	overrides := make([]map[string]any, 0, len(result.Overrides))
+	for _, item := range result.Overrides {
+		converted, convErr := toAuditVisibilityOverrideResponse(item)
+		if convErr != nil {
+			return nil, convErr
+		}
+		overrides = append(overrides, converted)
+	}
+
+	catalog := make([]map[string]any, 0, len(result.Catalog))
+	for _, item := range result.Catalog {
+		catalog = append(catalog, map[string]any{
+			"source":             string(item.Source),
+			"action_key":         item.ActionKey,
+			"display_name":       item.DisplayName,
+			"description":        item.Description,
+			"category":           item.Category,
+			"default_strategy":   string(item.DefaultStrategy),
+			"effective_strategy": string(item.EffectiveStrategy),
+			"overridden":         item.Overridden,
+		})
+	}
+
+	return map[string]any{
+		"default":   defaultValue,
+		"overrides": overrides,
+		"catalog":   catalog,
+	}, nil
+}
+
+func toAuditVisibilityDefaultResponse(item auditstore.AuditVisibilityDefault) (map[string]any, error) {
+	response := map[string]any{
+		"key":        item.Key,
+		"strategy":   string(item.Strategy),
+		"updated_at": item.UpdatedAt.UTC(),
+	}
+	if item.UpdatedBy != nil {
+		convertedID, err := mustConvertAuditGeneratedID(*item.UpdatedBy, "audit visibility default updated_by")
+		if err != nil {
+			return nil, err
+		}
+		response["updated_by"] = convertedID
+	}
+	if item.UpdatedByName != "" {
+		response["updated_by_name"] = item.UpdatedByName
+	}
+	return response, nil
+}
+
+func toAuditVisibilityOverrideResponse(item auditstore.AuditVisibilityOverride) (map[string]any, error) {
+	id, err := mustConvertAuditGeneratedID(item.ID, "audit visibility override id")
+	if err != nil {
+		return nil, err
+	}
+
+	response := map[string]any{
+		"id":          id,
+		"source":      string(item.Source),
+		"action_key":  item.ActionKey,
+		"strategy":    string(item.Strategy),
+		"description": item.Description,
+		"created_at":  item.CreatedAt.UTC(),
+		"updated_at":  item.UpdatedAt.UTC(),
+	}
+	if item.CreatedBy != nil {
+		createdBy, convErr := mustConvertAuditGeneratedID(*item.CreatedBy, "audit visibility override created_by")
+		if convErr != nil {
+			return nil, convErr
+		}
+		response["created_by"] = createdBy
+	}
+	if item.CreatedByName != "" {
+		response["created_by_name"] = item.CreatedByName
+	}
+	if item.UpdatedBy != nil {
+		updatedBy, convErr := mustConvertAuditGeneratedID(*item.UpdatedBy, "audit visibility override updated_by")
+		if convErr != nil {
+			return nil, convErr
+		}
+		response["updated_by"] = updatedBy
+	}
+	if item.UpdatedByName != "" {
+		response["updated_by_name"] = item.UpdatedByName
+	}
+	return response, nil
+}
+
 func appendAuditLogTarget(converted *generated.AuditLogListItem, target auditstore.AuditTarget) {
 	if target.Kind == "" && target.Type == "" && target.Label == "" && target.ID == "" && target.RouteRef == "" {
 		return

@@ -4348,6 +4348,20 @@
             }
           },
           {
+            "name": "visibility_scope",
+            "in": "query",
+            "required": false,
+            "description": "Controls whether the read surface returns only default-visible records, all persisted records, or only hidden records.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "default",
+                "all",
+                "hidden_only"
+              ]
+            }
+          },
+          {
             "name": "business_category",
             "in": "query",
             "required": false,
@@ -4859,6 +4873,284 @@
                 }
               }
             }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/audit/policies/visibility": {
+      "get": {
+        "tags": [
+          "audit"
+        ],
+        "summary": "Read audit visibility policy",
+        "operationId": "getAuditVisibilityPolicy",
+        "description": "Returns the audit-owned visibility default and per-event override snapshot.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Audit visibility policy snapshot.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-audit-visibility-policy-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "audit"
+        ],
+        "summary": "Update audit visibility default",
+        "operationId": "putAuditVisibilityPolicy",
+        "description": "Updates the audit-owned global default visibility strategy.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/audit-visibility-default-update-request"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated audit visibility default.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-audit-visibility-default-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid strategy payload.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/audit/policies/visibility/overrides": {
+      "put": {
+        "tags": [
+          "audit"
+        ],
+        "summary": "Upsert audit visibility override",
+        "operationId": "putAuditVisibilityOverride",
+        "description": "Upserts one audit-owned source plus action visibility override.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/audit-visibility-override-upsert-request"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated audit visibility override.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-audit-visibility-override-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid override payload.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "audit"
+        ],
+        "summary": "Delete audit visibility override",
+        "operationId": "deleteAuditVisibilityOverride",
+        "description": "Deletes one audit-owned source plus action visibility override.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "name": "source",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "REQUEST",
+                "SECURITY_EVENT",
+                "DOMAIN_EVENT"
+              ]
+            }
+          },
+          {
+            "name": "action_key",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Audit visibility override deleted.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-empty-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid delete query.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
           },
           "500": {
             "$ref": "#/components/responses/internal-server-error"
@@ -10201,6 +10493,33 @@
       "EnvelopedAuditIncidentResponse": {
         "$ref": "#/components/schemas/enveloped-audit-incident-response"
       },
+      "AuditVisibilityDefaultResponse": {
+        "$ref": "#/components/schemas/audit-visibility-default-response"
+      },
+      "AuditVisibilityOverrideResponse": {
+        "$ref": "#/components/schemas/audit-visibility-override-response"
+      },
+      "AuditEventCatalogItem": {
+        "$ref": "#/components/schemas/audit-event-catalog-item"
+      },
+      "AuditVisibilityPolicyResponse": {
+        "$ref": "#/components/schemas/audit-visibility-policy-response"
+      },
+      "AuditVisibilityDefaultUpdateRequest": {
+        "$ref": "#/components/schemas/audit-visibility-default-update-request"
+      },
+      "AuditVisibilityOverrideUpsertRequest": {
+        "$ref": "#/components/schemas/audit-visibility-override-upsert-request"
+      },
+      "EnvelopedAuditVisibilityPolicyResponse": {
+        "$ref": "#/components/schemas/enveloped-audit-visibility-policy-response"
+      },
+      "EnvelopedAuditVisibilityDefaultResponse": {
+        "$ref": "#/components/schemas/enveloped-audit-visibility-default-response"
+      },
+      "EnvelopedAuditVisibilityOverrideResponse": {
+        "$ref": "#/components/schemas/enveloped-audit-visibility-override-response"
+      },
       "ServerStatusConnectionPool": {
         "$ref": "#/components/schemas/server-status-connection-pool"
       },
@@ -12765,6 +13084,272 @@
             "properties": {
               "data": {
                 "$ref": "#/components/schemas/audit-incident-response"
+              }
+            }
+          }
+        ]
+      },
+      "audit-visibility-default-response": {
+        "type": "object",
+        "required": [
+          "key",
+          "strategy",
+          "updated_at"
+        ],
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "strategy": {
+            "type": "string",
+            "enum": [
+              "visible",
+              "hidden"
+            ]
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_by": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "updated_by_name": {
+            "type": "string"
+          }
+        }
+      },
+      "audit-visibility-override-response": {
+        "type": "object",
+        "required": [
+          "id",
+          "source",
+          "action_key",
+          "strategy",
+          "description",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "REQUEST",
+              "SECURITY_EVENT",
+              "DOMAIN_EVENT"
+            ]
+          },
+          "action_key": {
+            "type": "string"
+          },
+          "strategy": {
+            "type": "string",
+            "enum": [
+              "visible",
+              "hidden",
+              "ignore"
+            ]
+          },
+          "description": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "created_by": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "created_by_name": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_by": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "updated_by_name": {
+            "type": "string"
+          }
+        }
+      },
+      "audit-event-catalog-item": {
+        "type": "object",
+        "required": [
+          "source",
+          "action_key",
+          "display_name",
+          "description",
+          "category",
+          "default_strategy",
+          "effective_strategy",
+          "overridden"
+        ],
+        "properties": {
+          "source": {
+            "type": "string",
+            "enum": [
+              "REQUEST",
+              "SECURITY_EVENT",
+              "DOMAIN_EVENT"
+            ]
+          },
+          "action_key": {
+            "type": "string"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "default_strategy": {
+            "type": "string",
+            "enum": [
+              "visible",
+              "hidden"
+            ]
+          },
+          "effective_strategy": {
+            "type": "string",
+            "enum": [
+              "visible",
+              "hidden",
+              "ignore"
+            ]
+          },
+          "overridden": {
+            "type": "boolean"
+          }
+        }
+      },
+      "audit-visibility-policy-response": {
+        "type": "object",
+        "required": [
+          "default",
+          "overrides",
+          "catalog"
+        ],
+        "properties": {
+          "default": {
+            "$ref": "#/components/schemas/audit-visibility-default-response"
+          },
+          "overrides": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/audit-visibility-override-response"
+            }
+          },
+          "catalog": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/audit-event-catalog-item"
+            }
+          }
+        }
+      },
+      "enveloped-audit-visibility-policy-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/audit-visibility-policy-response"
+              }
+            }
+          }
+        ]
+      },
+      "audit-visibility-default-update-request": {
+        "type": "object",
+        "required": [
+          "strategy"
+        ],
+        "properties": {
+          "strategy": {
+            "type": "string",
+            "enum": [
+              "visible",
+              "hidden"
+            ]
+          }
+        }
+      },
+      "enveloped-audit-visibility-default-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/audit-visibility-default-response"
+              }
+            }
+          }
+        ]
+      },
+      "audit-visibility-override-upsert-request": {
+        "type": "object",
+        "required": [
+          "source",
+          "action_key",
+          "strategy"
+        ],
+        "properties": {
+          "source": {
+            "type": "string",
+            "enum": [
+              "REQUEST",
+              "SECURITY_EVENT",
+              "DOMAIN_EVENT"
+            ]
+          },
+          "action_key": {
+            "type": "string"
+          },
+          "strategy": {
+            "type": "string",
+            "enum": [
+              "visible",
+              "hidden",
+              "ignore"
+            ]
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      },
+      "enveloped-audit-visibility-override-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/audit-visibility-override-response"
               }
             }
           }

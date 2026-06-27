@@ -50,6 +50,7 @@ func openTestDB(t *testing.T) *sql.DB {
 		actor_username TEXT NOT NULL DEFAULT '',
 		actor_display_name TEXT NOT NULL DEFAULT '',
 		action TEXT NOT NULL,
+		visibility TEXT NOT NULL DEFAULT 'visible',
 		resource_type TEXT NOT NULL DEFAULT '',
 		resource_id TEXT NOT NULL DEFAULT '',
 		resource_name TEXT NOT NULL DEFAULT '',
@@ -78,6 +79,27 @@ func openTestDB(t *testing.T) *sql.DB {
 		condition_expr TEXT NOT NULL DEFAULT '',
 		created_at DATETIME NOT NULL,
 		updated_at DATETIME NOT NULL
+	);
+	CREATE TABLE audit_visibility_defaults (
+		key TEXT PRIMARY KEY,
+		strategy TEXT NOT NULL DEFAULT 'visible',
+		updated_at DATETIME NOT NULL,
+		updated_by INTEGER NULL,
+		updated_by_name TEXT NOT NULL DEFAULT ''
+	);
+	CREATE TABLE audit_visibility_overrides (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		source TEXT NOT NULL,
+		action_key TEXT NOT NULL,
+		strategy TEXT NOT NULL DEFAULT 'visible',
+		description TEXT NOT NULL DEFAULT '',
+		created_at DATETIME NOT NULL,
+		created_by INTEGER NULL,
+		created_by_name TEXT NOT NULL DEFAULT '',
+		updated_at DATETIME NOT NULL,
+		updated_by INTEGER NULL,
+		updated_by_name TEXT NOT NULL DEFAULT '',
+		UNIQUE(source, action_key)
 	);`
 	if _, err := db.Exec(schema); err != nil {
 		t.Fatalf("create audit schema: %v", err)
@@ -1410,6 +1432,7 @@ func TestBuildAuditLogFiltersUsesSingleBackslashLikeEscape(t *testing.T) {
 	}
 
 	wantArgs := []string{
+		string(auditstore.AuditVisibilityStrategyVisible),
 		`audit\\prefix%`,
 		`%grant\_\%%`,
 		`/api/a\_b\%%`,

@@ -165,6 +165,66 @@ func (e AuditDrilldownScope) Valid() bool {
 	}
 }
 
+// Defines values for AuditEventCatalogItemDefaultStrategy.
+const (
+	AuditEventCatalogItemDefaultStrategyHidden  AuditEventCatalogItemDefaultStrategy = "hidden"
+	AuditEventCatalogItemDefaultStrategyVisible AuditEventCatalogItemDefaultStrategy = "visible"
+)
+
+// Valid indicates whether the value is a known member of the AuditEventCatalogItemDefaultStrategy enum.
+func (e AuditEventCatalogItemDefaultStrategy) Valid() bool {
+	switch e {
+	case AuditEventCatalogItemDefaultStrategyHidden:
+		return true
+	case AuditEventCatalogItemDefaultStrategyVisible:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AuditEventCatalogItemEffectiveStrategy.
+const (
+	AuditEventCatalogItemEffectiveStrategyHidden  AuditEventCatalogItemEffectiveStrategy = "hidden"
+	AuditEventCatalogItemEffectiveStrategyIgnore  AuditEventCatalogItemEffectiveStrategy = "ignore"
+	AuditEventCatalogItemEffectiveStrategyVisible AuditEventCatalogItemEffectiveStrategy = "visible"
+)
+
+// Valid indicates whether the value is a known member of the AuditEventCatalogItemEffectiveStrategy enum.
+func (e AuditEventCatalogItemEffectiveStrategy) Valid() bool {
+	switch e {
+	case AuditEventCatalogItemEffectiveStrategyHidden:
+		return true
+	case AuditEventCatalogItemEffectiveStrategyIgnore:
+		return true
+	case AuditEventCatalogItemEffectiveStrategyVisible:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AuditEventCatalogItemSource.
+const (
+	AuditEventCatalogItemSourceDOMAINEVENT   AuditEventCatalogItemSource = "DOMAIN_EVENT"
+	AuditEventCatalogItemSourceREQUEST       AuditEventCatalogItemSource = "REQUEST"
+	AuditEventCatalogItemSourceSECURITYEVENT AuditEventCatalogItemSource = "SECURITY_EVENT"
+)
+
+// Valid indicates whether the value is a known member of the AuditEventCatalogItemSource enum.
+func (e AuditEventCatalogItemSource) Valid() bool {
+	switch e {
+	case AuditEventCatalogItemSourceDOMAINEVENT:
+		return true
+	case AuditEventCatalogItemSourceREQUEST:
+		return true
+	case AuditEventCatalogItemSourceSECURITYEVENT:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AuditEvidenceContextResult.
 const (
 	AuditEvidenceContextResultDENIED  AuditEvidenceContextResult = "DENIED"
@@ -675,6 +735,126 @@ func (e AuditTargetKind) Valid() bool {
 	case AuditTargetKindResource:
 		return true
 	case AuditTargetKindSession:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AuditVisibilityDefaultResponseStrategy.
+const (
+	AuditVisibilityDefaultResponseStrategyHidden  AuditVisibilityDefaultResponseStrategy = "hidden"
+	AuditVisibilityDefaultResponseStrategyVisible AuditVisibilityDefaultResponseStrategy = "visible"
+)
+
+// Valid indicates whether the value is a known member of the AuditVisibilityDefaultResponseStrategy enum.
+func (e AuditVisibilityDefaultResponseStrategy) Valid() bool {
+	switch e {
+	case AuditVisibilityDefaultResponseStrategyHidden:
+		return true
+	case AuditVisibilityDefaultResponseStrategyVisible:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AuditVisibilityDefaultUpdateRequestStrategy.
+const (
+	AuditVisibilityDefaultUpdateRequestStrategyHidden  AuditVisibilityDefaultUpdateRequestStrategy = "hidden"
+	AuditVisibilityDefaultUpdateRequestStrategyVisible AuditVisibilityDefaultUpdateRequestStrategy = "visible"
+)
+
+// Valid indicates whether the value is a known member of the AuditVisibilityDefaultUpdateRequestStrategy enum.
+func (e AuditVisibilityDefaultUpdateRequestStrategy) Valid() bool {
+	switch e {
+	case AuditVisibilityDefaultUpdateRequestStrategyHidden:
+		return true
+	case AuditVisibilityDefaultUpdateRequestStrategyVisible:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AuditVisibilityOverrideResponseSource.
+const (
+	AuditVisibilityOverrideResponseSourceDOMAINEVENT   AuditVisibilityOverrideResponseSource = "DOMAIN_EVENT"
+	AuditVisibilityOverrideResponseSourceREQUEST       AuditVisibilityOverrideResponseSource = "REQUEST"
+	AuditVisibilityOverrideResponseSourceSECURITYEVENT AuditVisibilityOverrideResponseSource = "SECURITY_EVENT"
+)
+
+// Valid indicates whether the value is a known member of the AuditVisibilityOverrideResponseSource enum.
+func (e AuditVisibilityOverrideResponseSource) Valid() bool {
+	switch e {
+	case AuditVisibilityOverrideResponseSourceDOMAINEVENT:
+		return true
+	case AuditVisibilityOverrideResponseSourceREQUEST:
+		return true
+	case AuditVisibilityOverrideResponseSourceSECURITYEVENT:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AuditVisibilityOverrideResponseStrategy.
+const (
+	AuditVisibilityOverrideResponseStrategyHidden  AuditVisibilityOverrideResponseStrategy = "hidden"
+	AuditVisibilityOverrideResponseStrategyIgnore  AuditVisibilityOverrideResponseStrategy = "ignore"
+	AuditVisibilityOverrideResponseStrategyVisible AuditVisibilityOverrideResponseStrategy = "visible"
+)
+
+// Valid indicates whether the value is a known member of the AuditVisibilityOverrideResponseStrategy enum.
+func (e AuditVisibilityOverrideResponseStrategy) Valid() bool {
+	switch e {
+	case AuditVisibilityOverrideResponseStrategyHidden:
+		return true
+	case AuditVisibilityOverrideResponseStrategyIgnore:
+		return true
+	case AuditVisibilityOverrideResponseStrategyVisible:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AuditVisibilityOverrideUpsertRequestSource.
+const (
+	AuditVisibilityOverrideUpsertRequestSourceDOMAINEVENT   AuditVisibilityOverrideUpsertRequestSource = "DOMAIN_EVENT"
+	AuditVisibilityOverrideUpsertRequestSourceREQUEST       AuditVisibilityOverrideUpsertRequestSource = "REQUEST"
+	AuditVisibilityOverrideUpsertRequestSourceSECURITYEVENT AuditVisibilityOverrideUpsertRequestSource = "SECURITY_EVENT"
+)
+
+// Valid indicates whether the value is a known member of the AuditVisibilityOverrideUpsertRequestSource enum.
+func (e AuditVisibilityOverrideUpsertRequestSource) Valid() bool {
+	switch e {
+	case AuditVisibilityOverrideUpsertRequestSourceDOMAINEVENT:
+		return true
+	case AuditVisibilityOverrideUpsertRequestSourceREQUEST:
+		return true
+	case AuditVisibilityOverrideUpsertRequestSourceSECURITYEVENT:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AuditVisibilityOverrideUpsertRequestStrategy.
+const (
+	AuditVisibilityOverrideUpsertRequestStrategyHidden  AuditVisibilityOverrideUpsertRequestStrategy = "hidden"
+	AuditVisibilityOverrideUpsertRequestStrategyIgnore  AuditVisibilityOverrideUpsertRequestStrategy = "ignore"
+	AuditVisibilityOverrideUpsertRequestStrategyVisible AuditVisibilityOverrideUpsertRequestStrategy = "visible"
+)
+
+// Valid indicates whether the value is a known member of the AuditVisibilityOverrideUpsertRequestStrategy enum.
+func (e AuditVisibilityOverrideUpsertRequestStrategy) Valid() bool {
+	switch e {
+	case AuditVisibilityOverrideUpsertRequestStrategyHidden:
+		return true
+	case AuditVisibilityOverrideUpsertRequestStrategyIgnore:
+		return true
+	case AuditVisibilityOverrideUpsertRequestStrategyVisible:
 		return true
 	default:
 		return false
@@ -1907,16 +2087,16 @@ func (e NotificationSeverity) Valid() bool {
 
 // Defines values for NotificationStatus.
 const (
-	Read   NotificationStatus = "read"
-	Unread NotificationStatus = "unread"
+	NotificationStatusRead   NotificationStatus = "read"
+	NotificationStatusUnread NotificationStatus = "unread"
 )
 
 // Valid indicates whether the value is a known member of the NotificationStatus enum.
 func (e NotificationStatus) Valid() bool {
 	switch e {
-	case Read:
+	case NotificationStatusRead:
 		return true
-	case Unread:
+	case NotificationStatusUnread:
 		return true
 	default:
 		return false
@@ -2754,6 +2934,27 @@ func (e GetAuditLogsParamsPreset) Valid() bool {
 	}
 }
 
+// Defines values for GetAuditLogsParamsVisibilityScope.
+const (
+	GetAuditLogsParamsVisibilityScopeAll        GetAuditLogsParamsVisibilityScope = "all"
+	GetAuditLogsParamsVisibilityScopeDefault    GetAuditLogsParamsVisibilityScope = "default"
+	GetAuditLogsParamsVisibilityScopeHiddenOnly GetAuditLogsParamsVisibilityScope = "hidden_only"
+)
+
+// Valid indicates whether the value is a known member of the GetAuditLogsParamsVisibilityScope enum.
+func (e GetAuditLogsParamsVisibilityScope) Valid() bool {
+	switch e {
+	case GetAuditLogsParamsVisibilityScopeAll:
+		return true
+	case GetAuditLogsParamsVisibilityScopeDefault:
+		return true
+	case GetAuditLogsParamsVisibilityScopeHiddenOnly:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetAuditLogsParamsSource.
 const (
 	GetAuditLogsParamsSourceDOMAINEVENT   GetAuditLogsParamsSource = "DOMAIN_EVENT"
@@ -2886,6 +3087,27 @@ func (e GetAuditOverviewParamsPreset) Valid() bool {
 	case GetAuditOverviewParamsPresetLast30d:
 		return true
 	case GetAuditOverviewParamsPresetLast7d:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeleteAuditVisibilityOverrideParamsSource.
+const (
+	DeleteAuditVisibilityOverrideParamsSourceDOMAINEVENT   DeleteAuditVisibilityOverrideParamsSource = "DOMAIN_EVENT"
+	DeleteAuditVisibilityOverrideParamsSourceREQUEST       DeleteAuditVisibilityOverrideParamsSource = "REQUEST"
+	DeleteAuditVisibilityOverrideParamsSourceSECURITYEVENT DeleteAuditVisibilityOverrideParamsSource = "SECURITY_EVENT"
+)
+
+// Valid indicates whether the value is a known member of the DeleteAuditVisibilityOverrideParamsSource enum.
+func (e DeleteAuditVisibilityOverrideParamsSource) Valid() bool {
+	switch e {
+	case DeleteAuditVisibilityOverrideParamsSourceDOMAINEVENT:
+		return true
+	case DeleteAuditVisibilityOverrideParamsSourceREQUEST:
+		return true
+	case DeleteAuditVisibilityOverrideParamsSourceSECURITYEVENT:
 		return true
 	default:
 		return false
@@ -3236,6 +3458,27 @@ type AuditBusinessCategory string
 // AuditDrilldownScope defines model for audit-drilldown-scope.
 type AuditDrilldownScope string
 
+// AuditEventCatalogItem defines model for audit-event-catalog-item.
+type AuditEventCatalogItem struct {
+	ActionKey         string                                 `json:"action_key"`
+	Category          string                                 `json:"category"`
+	DefaultStrategy   AuditEventCatalogItemDefaultStrategy   `json:"default_strategy"`
+	Description       string                                 `json:"description"`
+	DisplayName       string                                 `json:"display_name"`
+	EffectiveStrategy AuditEventCatalogItemEffectiveStrategy `json:"effective_strategy"`
+	Overridden        bool                                   `json:"overridden"`
+	Source            AuditEventCatalogItemSource            `json:"source"`
+}
+
+// AuditEventCatalogItemDefaultStrategy defines model for AuditEventCatalogItem.DefaultStrategy.
+type AuditEventCatalogItemDefaultStrategy string
+
+// AuditEventCatalogItemEffectiveStrategy defines model for AuditEventCatalogItem.EffectiveStrategy.
+type AuditEventCatalogItemEffectiveStrategy string
+
+// AuditEventCatalogItemSource defines model for AuditEventCatalogItem.Source.
+type AuditEventCatalogItemSource string
+
 // AuditEvidenceContext Optional audit evidence filters used to correlate evidence links and narrow audit investigation context.
 type AuditEvidenceContext struct {
 	// Action Exact audit action identifier to match.
@@ -3536,6 +3779,68 @@ type AuditTarget struct {
 
 // AuditTargetKind defines model for AuditTarget.Kind.
 type AuditTargetKind string
+
+// AuditVisibilityDefaultResponse defines model for audit-visibility-default-response.
+type AuditVisibilityDefaultResponse struct {
+	Key           string                                 `json:"key"`
+	Strategy      AuditVisibilityDefaultResponseStrategy `json:"strategy"`
+	UpdatedAt     time.Time                              `json:"updated_at"`
+	UpdatedBy     *int64                                 `json:"updated_by,omitempty"`
+	UpdatedByName *string                                `json:"updated_by_name,omitempty"`
+}
+
+// AuditVisibilityDefaultResponseStrategy defines model for AuditVisibilityDefaultResponse.Strategy.
+type AuditVisibilityDefaultResponseStrategy string
+
+// AuditVisibilityDefaultUpdateRequest defines model for audit-visibility-default-update-request.
+type AuditVisibilityDefaultUpdateRequest struct {
+	Strategy AuditVisibilityDefaultUpdateRequestStrategy `json:"strategy"`
+}
+
+// AuditVisibilityDefaultUpdateRequestStrategy defines model for AuditVisibilityDefaultUpdateRequest.Strategy.
+type AuditVisibilityDefaultUpdateRequestStrategy string
+
+// AuditVisibilityOverrideResponse defines model for audit-visibility-override-response.
+type AuditVisibilityOverrideResponse struct {
+	ActionKey     string                                  `json:"action_key"`
+	CreatedAt     time.Time                               `json:"created_at"`
+	CreatedBy     *int64                                  `json:"created_by,omitempty"`
+	CreatedByName *string                                 `json:"created_by_name,omitempty"`
+	Description   string                                  `json:"description"`
+	Id            int64                                   `json:"id"`
+	Source        AuditVisibilityOverrideResponseSource   `json:"source"`
+	Strategy      AuditVisibilityOverrideResponseStrategy `json:"strategy"`
+	UpdatedAt     time.Time                               `json:"updated_at"`
+	UpdatedBy     *int64                                  `json:"updated_by,omitempty"`
+	UpdatedByName *string                                 `json:"updated_by_name,omitempty"`
+}
+
+// AuditVisibilityOverrideResponseSource defines model for AuditVisibilityOverrideResponse.Source.
+type AuditVisibilityOverrideResponseSource string
+
+// AuditVisibilityOverrideResponseStrategy defines model for AuditVisibilityOverrideResponse.Strategy.
+type AuditVisibilityOverrideResponseStrategy string
+
+// AuditVisibilityOverrideUpsertRequest defines model for audit-visibility-override-upsert-request.
+type AuditVisibilityOverrideUpsertRequest struct {
+	ActionKey   string                                       `json:"action_key"`
+	Description *string                                      `json:"description,omitempty"`
+	Source      AuditVisibilityOverrideUpsertRequestSource   `json:"source"`
+	Strategy    AuditVisibilityOverrideUpsertRequestStrategy `json:"strategy"`
+}
+
+// AuditVisibilityOverrideUpsertRequestSource defines model for AuditVisibilityOverrideUpsertRequest.Source.
+type AuditVisibilityOverrideUpsertRequestSource string
+
+// AuditVisibilityOverrideUpsertRequestStrategy defines model for AuditVisibilityOverrideUpsertRequest.Strategy.
+type AuditVisibilityOverrideUpsertRequestStrategy string
+
+// AuditVisibilityPolicyResponse defines model for audit-visibility-policy-response.
+type AuditVisibilityPolicyResponse struct {
+	Catalog   []AuditEventCatalogItem           `json:"catalog"`
+	Default   AuditVisibilityDefaultResponse    `json:"default"`
+	Overrides []AuditVisibilityOverrideResponse `json:"overrides"`
+}
 
 // BatchUserRolesRequest defines model for batch-user-roles-request.
 type BatchUserRolesRequest struct {
@@ -4717,6 +5022,66 @@ type EnvelopedAuditOverviewResponse struct {
 
 // EnvelopedAuditOverviewResponseSuccess defines model for EnvelopedAuditOverviewResponse.Success.
 type EnvelopedAuditOverviewResponseSuccess bool
+
+// EnvelopedAuditVisibilityDefaultResponse defines model for enveloped-audit-visibility-default-response.
+type EnvelopedAuditVisibilityDefaultResponse struct {
+	// Code Existing canonical response code.
+	Code string                         `json:"code"`
+	Data AuditVisibilityDefaultResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedAuditVisibilityOverrideResponse defines model for enveloped-audit-visibility-override-response.
+type EnvelopedAuditVisibilityOverrideResponse struct {
+	// Code Existing canonical response code.
+	Code string                          `json:"code"`
+	Data AuditVisibilityOverrideResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedAuditVisibilityPolicyResponse defines model for enveloped-audit-visibility-policy-response.
+type EnvelopedAuditVisibilityPolicyResponse struct {
+	// Code Existing canonical response code.
+	Code string                        `json:"code"`
+	Data AuditVisibilityPolicyResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
 
 // EnvelopedBootstrapResponse defines model for enveloped-bootstrap-response.
 type EnvelopedBootstrapResponse struct {
@@ -6950,6 +7315,9 @@ type GetAuditLogsParams struct {
 	// Scope Stable business drilldown scope. When present, scope-owned fields remain read-only until the client exits drilldown or converts to normal filters.
 	Scope *AuditDrilldownScope `form:"scope,omitempty" json:"scope,omitempty"`
 
+	// VisibilityScope Controls whether the read surface returns only default-visible records, all persisted records, or only hidden records.
+	VisibilityScope *GetAuditLogsParamsVisibilityScope `form:"visibility_scope,omitempty" json:"visibility_scope,omitempty"`
+
 	// BusinessCategory Backend-owned editable business category used by normal filters and scope conversion.
 	BusinessCategory    *AuditBusinessCategory          `form:"business_category,omitempty" json:"business_category,omitempty"`
 	ActionPrefix        *string                         `form:"action_prefix,omitempty" json:"action_prefix,omitempty"`
@@ -6984,6 +7352,9 @@ type GetAuditLogsParams struct {
 
 // GetAuditLogsParamsPreset defines parameters for GetAuditLogs.
 type GetAuditLogsParamsPreset string
+
+// GetAuditLogsParamsVisibilityScope defines parameters for GetAuditLogs.
+type GetAuditLogsParamsVisibilityScope string
 
 // GetAuditLogsParamsSource defines parameters for GetAuditLogs.
 type GetAuditLogsParamsSource string
@@ -7024,6 +7395,52 @@ type GetAuditOverviewParams struct {
 
 // GetAuditOverviewParamsPreset defines parameters for GetAuditOverview.
 type GetAuditOverviewParamsPreset string
+
+// GetAuditVisibilityPolicyParams defines parameters for GetAuditVisibilityPolicy.
+type GetAuditVisibilityPolicyParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PutAuditVisibilityPolicyParams defines parameters for PutAuditVisibilityPolicy.
+type PutAuditVisibilityPolicyParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// DeleteAuditVisibilityOverrideParams defines parameters for DeleteAuditVisibilityOverride.
+type DeleteAuditVisibilityOverrideParams struct {
+	Source    DeleteAuditVisibilityOverrideParamsSource `form:"source" json:"source"`
+	ActionKey string                                    `form:"action_key" json:"action_key"`
+
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// DeleteAuditVisibilityOverrideParamsSource defines parameters for DeleteAuditVisibilityOverride.
+type DeleteAuditVisibilityOverrideParamsSource string
+
+// PutAuditVisibilityOverrideParams defines parameters for PutAuditVisibilityOverride.
+type PutAuditVisibilityOverrideParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
 
 // GetAuthBootstrapParams defines parameters for GetAuthBootstrap.
 type GetAuthBootstrapParams struct {
@@ -7996,6 +8413,12 @@ type PostAnnouncementPublishJSONRequestBody = PublishAnnouncementRequest
 
 // PostAppLogBatchDeleteJSONRequestBody defines body for PostAppLogBatchDelete for application/json ContentType.
 type PostAppLogBatchDeleteJSONRequestBody = AppLogBatchDeleteRequest
+
+// PutAuditVisibilityPolicyJSONRequestBody defines body for PutAuditVisibilityPolicy for application/json ContentType.
+type PutAuditVisibilityPolicyJSONRequestBody = AuditVisibilityDefaultUpdateRequest
+
+// PutAuditVisibilityOverrideJSONRequestBody defines body for PutAuditVisibilityOverride for application/json ContentType.
+type PutAuditVisibilityOverrideJSONRequestBody = AuditVisibilityOverrideUpsertRequest
 
 // PostAuthChangePasswordJSONRequestBody defines body for PostAuthChangePassword for application/json ContentType.
 type PostAuthChangePasswordJSONRequestBody = ChangePasswordRequest

@@ -551,6 +551,27 @@ func (e GetAuditLogsParamsScope) Valid() bool {
 	}
 }
 
+// Defines values for GetAuditLogsParamsVisibilityScope.
+const (
+	All        GetAuditLogsParamsVisibilityScope = "all"
+	Default    GetAuditLogsParamsVisibilityScope = "default"
+	HiddenOnly GetAuditLogsParamsVisibilityScope = "hidden_only"
+)
+
+// Valid indicates whether the value is a known member of the GetAuditLogsParamsVisibilityScope enum.
+func (e GetAuditLogsParamsVisibilityScope) Valid() bool {
+	switch e {
+	case All:
+		return true
+	case Default:
+		return true
+	case HiddenOnly:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetAuditLogsParamsBusinessCategory.
 const (
 	GetAuditLogsParamsBusinessCategoryAuthFailures        GetAuditLogsParamsBusinessCategory = "auth_failures"
@@ -1309,19 +1330,19 @@ func (e GetAuditOverview200JSONResponseBodyDataSecurityTimelineSource) Valid() b
 
 // Defines values for GetAuditOverview200JSONResponseBodyDataSensitiveOperationsSource.
 const (
-	DOMAINEVENT   GetAuditOverview200JSONResponseBodyDataSensitiveOperationsSource = "DOMAIN_EVENT"
-	REQUEST       GetAuditOverview200JSONResponseBodyDataSensitiveOperationsSource = "REQUEST"
-	SECURITYEVENT GetAuditOverview200JSONResponseBodyDataSensitiveOperationsSource = "SECURITY_EVENT"
+	GetAuditOverview200JSONResponseBodyDataSensitiveOperationsSourceDOMAINEVENT   GetAuditOverview200JSONResponseBodyDataSensitiveOperationsSource = "DOMAIN_EVENT"
+	GetAuditOverview200JSONResponseBodyDataSensitiveOperationsSourceREQUEST       GetAuditOverview200JSONResponseBodyDataSensitiveOperationsSource = "REQUEST"
+	GetAuditOverview200JSONResponseBodyDataSensitiveOperationsSourceSECURITYEVENT GetAuditOverview200JSONResponseBodyDataSensitiveOperationsSource = "SECURITY_EVENT"
 )
 
 // Valid indicates whether the value is a known member of the GetAuditOverview200JSONResponseBodyDataSensitiveOperationsSource enum.
 func (e GetAuditOverview200JSONResponseBodyDataSensitiveOperationsSource) Valid() bool {
 	switch e {
-	case DOMAINEVENT:
+	case GetAuditOverview200JSONResponseBodyDataSensitiveOperationsSourceDOMAINEVENT:
 		return true
-	case REQUEST:
+	case GetAuditOverview200JSONResponseBodyDataSensitiveOperationsSourceREQUEST:
 		return true
-	case SECURITYEVENT:
+	case GetAuditOverview200JSONResponseBodyDataSensitiveOperationsSourceSECURITYEVENT:
 		return true
 	default:
 		return false
@@ -1414,13 +1435,499 @@ func (e GetAuditOverview403JSONResponseBodySuccess) Valid() bool {
 
 // Defines values for GetAuditOverview500JSONResponseBodySuccess.
 const (
-	False GetAuditOverview500JSONResponseBodySuccess = false
+	GetAuditOverview500JSONResponseBodySuccessFalse GetAuditOverview500JSONResponseBodySuccess = false
 )
 
 // Valid indicates whether the value is a known member of the GetAuditOverview500JSONResponseBodySuccess enum.
 func (e GetAuditOverview500JSONResponseBodySuccess) Valid() bool {
 	switch e {
-	case False:
+	case GetAuditOverview500JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetAuditVisibilityPolicy200JSONResponseBodyDataCatalogDefaultStrategy.
+const (
+	GetAuditVisibilityPolicy200JSONResponseBodyDataCatalogDefaultStrategyHidden  GetAuditVisibilityPolicy200JSONResponseBodyDataCatalogDefaultStrategy = "hidden"
+	GetAuditVisibilityPolicy200JSONResponseBodyDataCatalogDefaultStrategyVisible GetAuditVisibilityPolicy200JSONResponseBodyDataCatalogDefaultStrategy = "visible"
+)
+
+// Valid indicates whether the value is a known member of the GetAuditVisibilityPolicy200JSONResponseBodyDataCatalogDefaultStrategy enum.
+func (e GetAuditVisibilityPolicy200JSONResponseBodyDataCatalogDefaultStrategy) Valid() bool {
+	switch e {
+	case GetAuditVisibilityPolicy200JSONResponseBodyDataCatalogDefaultStrategyHidden:
+		return true
+	case GetAuditVisibilityPolicy200JSONResponseBodyDataCatalogDefaultStrategyVisible:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetAuditVisibilityPolicy200JSONResponseBodyDataCatalogEffectiveStrategy.
+const (
+	GetAuditVisibilityPolicy200JSONResponseBodyDataCatalogEffectiveStrategyHidden  GetAuditVisibilityPolicy200JSONResponseBodyDataCatalogEffectiveStrategy = "hidden"
+	GetAuditVisibilityPolicy200JSONResponseBodyDataCatalogEffectiveStrategyIgnore  GetAuditVisibilityPolicy200JSONResponseBodyDataCatalogEffectiveStrategy = "ignore"
+	GetAuditVisibilityPolicy200JSONResponseBodyDataCatalogEffectiveStrategyVisible GetAuditVisibilityPolicy200JSONResponseBodyDataCatalogEffectiveStrategy = "visible"
+)
+
+// Valid indicates whether the value is a known member of the GetAuditVisibilityPolicy200JSONResponseBodyDataCatalogEffectiveStrategy enum.
+func (e GetAuditVisibilityPolicy200JSONResponseBodyDataCatalogEffectiveStrategy) Valid() bool {
+	switch e {
+	case GetAuditVisibilityPolicy200JSONResponseBodyDataCatalogEffectiveStrategyHidden:
+		return true
+	case GetAuditVisibilityPolicy200JSONResponseBodyDataCatalogEffectiveStrategyIgnore:
+		return true
+	case GetAuditVisibilityPolicy200JSONResponseBodyDataCatalogEffectiveStrategyVisible:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetAuditVisibilityPolicy200JSONResponseBodyDataCatalogSource.
+const (
+	GetAuditVisibilityPolicy200JSONResponseBodyDataCatalogSourceDOMAINEVENT   GetAuditVisibilityPolicy200JSONResponseBodyDataCatalogSource = "DOMAIN_EVENT"
+	GetAuditVisibilityPolicy200JSONResponseBodyDataCatalogSourceREQUEST       GetAuditVisibilityPolicy200JSONResponseBodyDataCatalogSource = "REQUEST"
+	GetAuditVisibilityPolicy200JSONResponseBodyDataCatalogSourceSECURITYEVENT GetAuditVisibilityPolicy200JSONResponseBodyDataCatalogSource = "SECURITY_EVENT"
+)
+
+// Valid indicates whether the value is a known member of the GetAuditVisibilityPolicy200JSONResponseBodyDataCatalogSource enum.
+func (e GetAuditVisibilityPolicy200JSONResponseBodyDataCatalogSource) Valid() bool {
+	switch e {
+	case GetAuditVisibilityPolicy200JSONResponseBodyDataCatalogSourceDOMAINEVENT:
+		return true
+	case GetAuditVisibilityPolicy200JSONResponseBodyDataCatalogSourceREQUEST:
+		return true
+	case GetAuditVisibilityPolicy200JSONResponseBodyDataCatalogSourceSECURITYEVENT:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetAuditVisibilityPolicy200JSONResponseBodyDataDefaultStrategy.
+const (
+	GetAuditVisibilityPolicy200JSONResponseBodyDataDefaultStrategyHidden  GetAuditVisibilityPolicy200JSONResponseBodyDataDefaultStrategy = "hidden"
+	GetAuditVisibilityPolicy200JSONResponseBodyDataDefaultStrategyVisible GetAuditVisibilityPolicy200JSONResponseBodyDataDefaultStrategy = "visible"
+)
+
+// Valid indicates whether the value is a known member of the GetAuditVisibilityPolicy200JSONResponseBodyDataDefaultStrategy enum.
+func (e GetAuditVisibilityPolicy200JSONResponseBodyDataDefaultStrategy) Valid() bool {
+	switch e {
+	case GetAuditVisibilityPolicy200JSONResponseBodyDataDefaultStrategyHidden:
+		return true
+	case GetAuditVisibilityPolicy200JSONResponseBodyDataDefaultStrategyVisible:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetAuditVisibilityPolicy200JSONResponseBodyDataOverridesSource.
+const (
+	GetAuditVisibilityPolicy200JSONResponseBodyDataOverridesSourceDOMAINEVENT   GetAuditVisibilityPolicy200JSONResponseBodyDataOverridesSource = "DOMAIN_EVENT"
+	GetAuditVisibilityPolicy200JSONResponseBodyDataOverridesSourceREQUEST       GetAuditVisibilityPolicy200JSONResponseBodyDataOverridesSource = "REQUEST"
+	GetAuditVisibilityPolicy200JSONResponseBodyDataOverridesSourceSECURITYEVENT GetAuditVisibilityPolicy200JSONResponseBodyDataOverridesSource = "SECURITY_EVENT"
+)
+
+// Valid indicates whether the value is a known member of the GetAuditVisibilityPolicy200JSONResponseBodyDataOverridesSource enum.
+func (e GetAuditVisibilityPolicy200JSONResponseBodyDataOverridesSource) Valid() bool {
+	switch e {
+	case GetAuditVisibilityPolicy200JSONResponseBodyDataOverridesSourceDOMAINEVENT:
+		return true
+	case GetAuditVisibilityPolicy200JSONResponseBodyDataOverridesSourceREQUEST:
+		return true
+	case GetAuditVisibilityPolicy200JSONResponseBodyDataOverridesSourceSECURITYEVENT:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetAuditVisibilityPolicy200JSONResponseBodyDataOverridesStrategy.
+const (
+	GetAuditVisibilityPolicy200JSONResponseBodyDataOverridesStrategyHidden  GetAuditVisibilityPolicy200JSONResponseBodyDataOverridesStrategy = "hidden"
+	GetAuditVisibilityPolicy200JSONResponseBodyDataOverridesStrategyIgnore  GetAuditVisibilityPolicy200JSONResponseBodyDataOverridesStrategy = "ignore"
+	GetAuditVisibilityPolicy200JSONResponseBodyDataOverridesStrategyVisible GetAuditVisibilityPolicy200JSONResponseBodyDataOverridesStrategy = "visible"
+)
+
+// Valid indicates whether the value is a known member of the GetAuditVisibilityPolicy200JSONResponseBodyDataOverridesStrategy enum.
+func (e GetAuditVisibilityPolicy200JSONResponseBodyDataOverridesStrategy) Valid() bool {
+	switch e {
+	case GetAuditVisibilityPolicy200JSONResponseBodyDataOverridesStrategyHidden:
+		return true
+	case GetAuditVisibilityPolicy200JSONResponseBodyDataOverridesStrategyIgnore:
+		return true
+	case GetAuditVisibilityPolicy200JSONResponseBodyDataOverridesStrategyVisible:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetAuditVisibilityPolicy401JSONResponseBodySuccess.
+const (
+	GetAuditVisibilityPolicy401JSONResponseBodySuccessFalse GetAuditVisibilityPolicy401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetAuditVisibilityPolicy401JSONResponseBodySuccess enum.
+func (e GetAuditVisibilityPolicy401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetAuditVisibilityPolicy401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetAuditVisibilityPolicy403JSONResponseBodySuccess.
+const (
+	GetAuditVisibilityPolicy403JSONResponseBodySuccessFalse GetAuditVisibilityPolicy403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetAuditVisibilityPolicy403JSONResponseBodySuccess enum.
+func (e GetAuditVisibilityPolicy403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetAuditVisibilityPolicy403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetAuditVisibilityPolicy500JSONResponseBodySuccess.
+const (
+	GetAuditVisibilityPolicy500JSONResponseBodySuccessFalse GetAuditVisibilityPolicy500JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetAuditVisibilityPolicy500JSONResponseBodySuccess enum.
+func (e GetAuditVisibilityPolicy500JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetAuditVisibilityPolicy500JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PutAuditVisibilityPolicyJSONBodyStrategy.
+const (
+	PutAuditVisibilityPolicyJSONBodyStrategyHidden  PutAuditVisibilityPolicyJSONBodyStrategy = "hidden"
+	PutAuditVisibilityPolicyJSONBodyStrategyVisible PutAuditVisibilityPolicyJSONBodyStrategy = "visible"
+)
+
+// Valid indicates whether the value is a known member of the PutAuditVisibilityPolicyJSONBodyStrategy enum.
+func (e PutAuditVisibilityPolicyJSONBodyStrategy) Valid() bool {
+	switch e {
+	case PutAuditVisibilityPolicyJSONBodyStrategyHidden:
+		return true
+	case PutAuditVisibilityPolicyJSONBodyStrategyVisible:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PutAuditVisibilityPolicy200JSONResponseBodyDataStrategy.
+const (
+	PutAuditVisibilityPolicy200JSONResponseBodyDataStrategyHidden  PutAuditVisibilityPolicy200JSONResponseBodyDataStrategy = "hidden"
+	PutAuditVisibilityPolicy200JSONResponseBodyDataStrategyVisible PutAuditVisibilityPolicy200JSONResponseBodyDataStrategy = "visible"
+)
+
+// Valid indicates whether the value is a known member of the PutAuditVisibilityPolicy200JSONResponseBodyDataStrategy enum.
+func (e PutAuditVisibilityPolicy200JSONResponseBodyDataStrategy) Valid() bool {
+	switch e {
+	case PutAuditVisibilityPolicy200JSONResponseBodyDataStrategyHidden:
+		return true
+	case PutAuditVisibilityPolicy200JSONResponseBodyDataStrategyVisible:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PutAuditVisibilityPolicy400JSONResponseBodySuccess.
+const (
+	PutAuditVisibilityPolicy400JSONResponseBodySuccessFalse PutAuditVisibilityPolicy400JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PutAuditVisibilityPolicy400JSONResponseBodySuccess enum.
+func (e PutAuditVisibilityPolicy400JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PutAuditVisibilityPolicy400JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PutAuditVisibilityPolicy401JSONResponseBodySuccess.
+const (
+	PutAuditVisibilityPolicy401JSONResponseBodySuccessFalse PutAuditVisibilityPolicy401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PutAuditVisibilityPolicy401JSONResponseBodySuccess enum.
+func (e PutAuditVisibilityPolicy401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PutAuditVisibilityPolicy401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PutAuditVisibilityPolicy403JSONResponseBodySuccess.
+const (
+	PutAuditVisibilityPolicy403JSONResponseBodySuccessFalse PutAuditVisibilityPolicy403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PutAuditVisibilityPolicy403JSONResponseBodySuccess enum.
+func (e PutAuditVisibilityPolicy403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PutAuditVisibilityPolicy403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PutAuditVisibilityPolicy500JSONResponseBodySuccess.
+const (
+	PutAuditVisibilityPolicy500JSONResponseBodySuccessFalse PutAuditVisibilityPolicy500JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PutAuditVisibilityPolicy500JSONResponseBodySuccess enum.
+func (e PutAuditVisibilityPolicy500JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PutAuditVisibilityPolicy500JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeleteAuditVisibilityOverrideParamsSource.
+const (
+	DeleteAuditVisibilityOverrideParamsSourceDOMAINEVENT   DeleteAuditVisibilityOverrideParamsSource = "DOMAIN_EVENT"
+	DeleteAuditVisibilityOverrideParamsSourceREQUEST       DeleteAuditVisibilityOverrideParamsSource = "REQUEST"
+	DeleteAuditVisibilityOverrideParamsSourceSECURITYEVENT DeleteAuditVisibilityOverrideParamsSource = "SECURITY_EVENT"
+)
+
+// Valid indicates whether the value is a known member of the DeleteAuditVisibilityOverrideParamsSource enum.
+func (e DeleteAuditVisibilityOverrideParamsSource) Valid() bool {
+	switch e {
+	case DeleteAuditVisibilityOverrideParamsSourceDOMAINEVENT:
+		return true
+	case DeleteAuditVisibilityOverrideParamsSourceREQUEST:
+		return true
+	case DeleteAuditVisibilityOverrideParamsSourceSECURITYEVENT:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeleteAuditVisibilityOverride400JSONResponseBodySuccess.
+const (
+	DeleteAuditVisibilityOverride400JSONResponseBodySuccessFalse DeleteAuditVisibilityOverride400JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the DeleteAuditVisibilityOverride400JSONResponseBodySuccess enum.
+func (e DeleteAuditVisibilityOverride400JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case DeleteAuditVisibilityOverride400JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeleteAuditVisibilityOverride401JSONResponseBodySuccess.
+const (
+	DeleteAuditVisibilityOverride401JSONResponseBodySuccessFalse DeleteAuditVisibilityOverride401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the DeleteAuditVisibilityOverride401JSONResponseBodySuccess enum.
+func (e DeleteAuditVisibilityOverride401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case DeleteAuditVisibilityOverride401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeleteAuditVisibilityOverride403JSONResponseBodySuccess.
+const (
+	DeleteAuditVisibilityOverride403JSONResponseBodySuccessFalse DeleteAuditVisibilityOverride403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the DeleteAuditVisibilityOverride403JSONResponseBodySuccess enum.
+func (e DeleteAuditVisibilityOverride403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case DeleteAuditVisibilityOverride403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeleteAuditVisibilityOverride500JSONResponseBodySuccess.
+const (
+	DeleteAuditVisibilityOverride500JSONResponseBodySuccessFalse DeleteAuditVisibilityOverride500JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the DeleteAuditVisibilityOverride500JSONResponseBodySuccess enum.
+func (e DeleteAuditVisibilityOverride500JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case DeleteAuditVisibilityOverride500JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PutAuditVisibilityOverrideJSONBodySource.
+const (
+	PutAuditVisibilityOverrideJSONBodySourceDOMAINEVENT   PutAuditVisibilityOverrideJSONBodySource = "DOMAIN_EVENT"
+	PutAuditVisibilityOverrideJSONBodySourceREQUEST       PutAuditVisibilityOverrideJSONBodySource = "REQUEST"
+	PutAuditVisibilityOverrideJSONBodySourceSECURITYEVENT PutAuditVisibilityOverrideJSONBodySource = "SECURITY_EVENT"
+)
+
+// Valid indicates whether the value is a known member of the PutAuditVisibilityOverrideJSONBodySource enum.
+func (e PutAuditVisibilityOverrideJSONBodySource) Valid() bool {
+	switch e {
+	case PutAuditVisibilityOverrideJSONBodySourceDOMAINEVENT:
+		return true
+	case PutAuditVisibilityOverrideJSONBodySourceREQUEST:
+		return true
+	case PutAuditVisibilityOverrideJSONBodySourceSECURITYEVENT:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PutAuditVisibilityOverrideJSONBodyStrategy.
+const (
+	PutAuditVisibilityOverrideJSONBodyStrategyHidden  PutAuditVisibilityOverrideJSONBodyStrategy = "hidden"
+	PutAuditVisibilityOverrideJSONBodyStrategyIgnore  PutAuditVisibilityOverrideJSONBodyStrategy = "ignore"
+	PutAuditVisibilityOverrideJSONBodyStrategyVisible PutAuditVisibilityOverrideJSONBodyStrategy = "visible"
+)
+
+// Valid indicates whether the value is a known member of the PutAuditVisibilityOverrideJSONBodyStrategy enum.
+func (e PutAuditVisibilityOverrideJSONBodyStrategy) Valid() bool {
+	switch e {
+	case PutAuditVisibilityOverrideJSONBodyStrategyHidden:
+		return true
+	case PutAuditVisibilityOverrideJSONBodyStrategyIgnore:
+		return true
+	case PutAuditVisibilityOverrideJSONBodyStrategyVisible:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PutAuditVisibilityOverride200JSONResponseBodyDataSource.
+const (
+	PutAuditVisibilityOverride200JSONResponseBodyDataSourceDOMAINEVENT   PutAuditVisibilityOverride200JSONResponseBodyDataSource = "DOMAIN_EVENT"
+	PutAuditVisibilityOverride200JSONResponseBodyDataSourceREQUEST       PutAuditVisibilityOverride200JSONResponseBodyDataSource = "REQUEST"
+	PutAuditVisibilityOverride200JSONResponseBodyDataSourceSECURITYEVENT PutAuditVisibilityOverride200JSONResponseBodyDataSource = "SECURITY_EVENT"
+)
+
+// Valid indicates whether the value is a known member of the PutAuditVisibilityOverride200JSONResponseBodyDataSource enum.
+func (e PutAuditVisibilityOverride200JSONResponseBodyDataSource) Valid() bool {
+	switch e {
+	case PutAuditVisibilityOverride200JSONResponseBodyDataSourceDOMAINEVENT:
+		return true
+	case PutAuditVisibilityOverride200JSONResponseBodyDataSourceREQUEST:
+		return true
+	case PutAuditVisibilityOverride200JSONResponseBodyDataSourceSECURITYEVENT:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PutAuditVisibilityOverride200JSONResponseBodyDataStrategy.
+const (
+	PutAuditVisibilityOverride200JSONResponseBodyDataStrategyHidden  PutAuditVisibilityOverride200JSONResponseBodyDataStrategy = "hidden"
+	PutAuditVisibilityOverride200JSONResponseBodyDataStrategyIgnore  PutAuditVisibilityOverride200JSONResponseBodyDataStrategy = "ignore"
+	PutAuditVisibilityOverride200JSONResponseBodyDataStrategyVisible PutAuditVisibilityOverride200JSONResponseBodyDataStrategy = "visible"
+)
+
+// Valid indicates whether the value is a known member of the PutAuditVisibilityOverride200JSONResponseBodyDataStrategy enum.
+func (e PutAuditVisibilityOverride200JSONResponseBodyDataStrategy) Valid() bool {
+	switch e {
+	case PutAuditVisibilityOverride200JSONResponseBodyDataStrategyHidden:
+		return true
+	case PutAuditVisibilityOverride200JSONResponseBodyDataStrategyIgnore:
+		return true
+	case PutAuditVisibilityOverride200JSONResponseBodyDataStrategyVisible:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PutAuditVisibilityOverride400JSONResponseBodySuccess.
+const (
+	PutAuditVisibilityOverride400JSONResponseBodySuccessFalse PutAuditVisibilityOverride400JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PutAuditVisibilityOverride400JSONResponseBodySuccess enum.
+func (e PutAuditVisibilityOverride400JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PutAuditVisibilityOverride400JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PutAuditVisibilityOverride401JSONResponseBodySuccess.
+const (
+	PutAuditVisibilityOverride401JSONResponseBodySuccessFalse PutAuditVisibilityOverride401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PutAuditVisibilityOverride401JSONResponseBodySuccess enum.
+func (e PutAuditVisibilityOverride401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PutAuditVisibilityOverride401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PutAuditVisibilityOverride403JSONResponseBodySuccess.
+const (
+	PutAuditVisibilityOverride403JSONResponseBodySuccessFalse PutAuditVisibilityOverride403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PutAuditVisibilityOverride403JSONResponseBodySuccess enum.
+func (e PutAuditVisibilityOverride403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PutAuditVisibilityOverride403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PutAuditVisibilityOverride500JSONResponseBodySuccess.
+const (
+	PutAuditVisibilityOverride500JSONResponseBodySuccessFalse PutAuditVisibilityOverride500JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PutAuditVisibilityOverride500JSONResponseBodySuccess enum.
+func (e PutAuditVisibilityOverride500JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PutAuditVisibilityOverride500JSONResponseBodySuccessFalse:
 		return true
 	default:
 		return false
@@ -1522,6 +2029,9 @@ type GetAuditLogsParams struct {
 	// Scope Stable business drilldown scope. When present, scope-owned fields remain read-only until the client exits drilldown or converts to normal filters.
 	Scope *GetAuditLogsParamsScope `form:"scope,omitempty" json:"scope,omitempty"`
 
+	// VisibilityScope Controls whether the read surface returns only default-visible records, all persisted records, or only hidden records.
+	VisibilityScope *GetAuditLogsParamsVisibilityScope `form:"visibility_scope,omitempty" json:"visibility_scope,omitempty"`
+
 	// BusinessCategory Backend-owned editable business category used by normal filters and scope conversion.
 	BusinessCategory    *GetAuditLogsParamsBusinessCategory `form:"business_category,omitempty" json:"business_category,omitempty"`
 	ActionPrefix        *string                             `form:"action_prefix,omitempty" json:"action_prefix,omitempty"`
@@ -1559,6 +2069,9 @@ type GetAuditLogsParamsPreset string
 
 // GetAuditLogsParamsScope defines parameters for GetAuditLogs.
 type GetAuditLogsParamsScope string
+
+// GetAuditLogsParamsVisibilityScope defines parameters for GetAuditLogs.
+type GetAuditLogsParamsVisibilityScope string
 
 // GetAuditLogsParamsBusinessCategory defines parameters for GetAuditLogs.
 type GetAuditLogsParamsBusinessCategory string
@@ -1707,3 +2220,149 @@ type GetAuditOverview403JSONResponseBodySuccess bool
 
 // GetAuditOverview500JSONResponseBodySuccess defines parameters for GetAuditOverview.
 type GetAuditOverview500JSONResponseBodySuccess bool
+
+// GetAuditVisibilityPolicyParams defines parameters for GetAuditVisibilityPolicy.
+type GetAuditVisibilityPolicyParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// GetAuditVisibilityPolicy200JSONResponseBodyDataCatalogDefaultStrategy defines parameters for GetAuditVisibilityPolicy.
+type GetAuditVisibilityPolicy200JSONResponseBodyDataCatalogDefaultStrategy string
+
+// GetAuditVisibilityPolicy200JSONResponseBodyDataCatalogEffectiveStrategy defines parameters for GetAuditVisibilityPolicy.
+type GetAuditVisibilityPolicy200JSONResponseBodyDataCatalogEffectiveStrategy string
+
+// GetAuditVisibilityPolicy200JSONResponseBodyDataCatalogSource defines parameters for GetAuditVisibilityPolicy.
+type GetAuditVisibilityPolicy200JSONResponseBodyDataCatalogSource string
+
+// GetAuditVisibilityPolicy200JSONResponseBodyDataDefaultStrategy defines parameters for GetAuditVisibilityPolicy.
+type GetAuditVisibilityPolicy200JSONResponseBodyDataDefaultStrategy string
+
+// GetAuditVisibilityPolicy200JSONResponseBodyDataOverridesSource defines parameters for GetAuditVisibilityPolicy.
+type GetAuditVisibilityPolicy200JSONResponseBodyDataOverridesSource string
+
+// GetAuditVisibilityPolicy200JSONResponseBodyDataOverridesStrategy defines parameters for GetAuditVisibilityPolicy.
+type GetAuditVisibilityPolicy200JSONResponseBodyDataOverridesStrategy string
+
+// GetAuditVisibilityPolicy401JSONResponseBodySuccess defines parameters for GetAuditVisibilityPolicy.
+type GetAuditVisibilityPolicy401JSONResponseBodySuccess bool
+
+// GetAuditVisibilityPolicy403JSONResponseBodySuccess defines parameters for GetAuditVisibilityPolicy.
+type GetAuditVisibilityPolicy403JSONResponseBodySuccess bool
+
+// GetAuditVisibilityPolicy500JSONResponseBodySuccess defines parameters for GetAuditVisibilityPolicy.
+type GetAuditVisibilityPolicy500JSONResponseBodySuccess bool
+
+// PutAuditVisibilityPolicyJSONBody defines parameters for PutAuditVisibilityPolicy.
+type PutAuditVisibilityPolicyJSONBody struct {
+	Strategy PutAuditVisibilityPolicyJSONBodyStrategy `json:"strategy"`
+}
+
+// PutAuditVisibilityPolicyParams defines parameters for PutAuditVisibilityPolicy.
+type PutAuditVisibilityPolicyParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// PutAuditVisibilityPolicyJSONBodyStrategy defines parameters for PutAuditVisibilityPolicy.
+type PutAuditVisibilityPolicyJSONBodyStrategy string
+
+// PutAuditVisibilityPolicy200JSONResponseBodyDataStrategy defines parameters for PutAuditVisibilityPolicy.
+type PutAuditVisibilityPolicy200JSONResponseBodyDataStrategy string
+
+// PutAuditVisibilityPolicy400JSONResponseBodySuccess defines parameters for PutAuditVisibilityPolicy.
+type PutAuditVisibilityPolicy400JSONResponseBodySuccess bool
+
+// PutAuditVisibilityPolicy401JSONResponseBodySuccess defines parameters for PutAuditVisibilityPolicy.
+type PutAuditVisibilityPolicy401JSONResponseBodySuccess bool
+
+// PutAuditVisibilityPolicy403JSONResponseBodySuccess defines parameters for PutAuditVisibilityPolicy.
+type PutAuditVisibilityPolicy403JSONResponseBodySuccess bool
+
+// PutAuditVisibilityPolicy500JSONResponseBodySuccess defines parameters for PutAuditVisibilityPolicy.
+type PutAuditVisibilityPolicy500JSONResponseBodySuccess bool
+
+// DeleteAuditVisibilityOverrideParams defines parameters for DeleteAuditVisibilityOverride.
+type DeleteAuditVisibilityOverrideParams struct {
+	Source    DeleteAuditVisibilityOverrideParamsSource `form:"source" json:"source"`
+	ActionKey string                                    `form:"action_key" json:"action_key"`
+
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// DeleteAuditVisibilityOverrideParamsSource defines parameters for DeleteAuditVisibilityOverride.
+type DeleteAuditVisibilityOverrideParamsSource string
+
+// DeleteAuditVisibilityOverride400JSONResponseBodySuccess defines parameters for DeleteAuditVisibilityOverride.
+type DeleteAuditVisibilityOverride400JSONResponseBodySuccess bool
+
+// DeleteAuditVisibilityOverride401JSONResponseBodySuccess defines parameters for DeleteAuditVisibilityOverride.
+type DeleteAuditVisibilityOverride401JSONResponseBodySuccess bool
+
+// DeleteAuditVisibilityOverride403JSONResponseBodySuccess defines parameters for DeleteAuditVisibilityOverride.
+type DeleteAuditVisibilityOverride403JSONResponseBodySuccess bool
+
+// DeleteAuditVisibilityOverride500JSONResponseBodySuccess defines parameters for DeleteAuditVisibilityOverride.
+type DeleteAuditVisibilityOverride500JSONResponseBodySuccess bool
+
+// PutAuditVisibilityOverrideJSONBody defines parameters for PutAuditVisibilityOverride.
+type PutAuditVisibilityOverrideJSONBody struct {
+	ActionKey   string                                     `json:"action_key"`
+	Description *string                                    `json:"description,omitempty"`
+	Source      PutAuditVisibilityOverrideJSONBodySource   `json:"source"`
+	Strategy    PutAuditVisibilityOverrideJSONBodyStrategy `json:"strategy"`
+}
+
+// PutAuditVisibilityOverrideParams defines parameters for PutAuditVisibilityOverride.
+type PutAuditVisibilityOverrideParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// PutAuditVisibilityOverrideJSONBodySource defines parameters for PutAuditVisibilityOverride.
+type PutAuditVisibilityOverrideJSONBodySource string
+
+// PutAuditVisibilityOverrideJSONBodyStrategy defines parameters for PutAuditVisibilityOverride.
+type PutAuditVisibilityOverrideJSONBodyStrategy string
+
+// PutAuditVisibilityOverride200JSONResponseBodyDataSource defines parameters for PutAuditVisibilityOverride.
+type PutAuditVisibilityOverride200JSONResponseBodyDataSource string
+
+// PutAuditVisibilityOverride200JSONResponseBodyDataStrategy defines parameters for PutAuditVisibilityOverride.
+type PutAuditVisibilityOverride200JSONResponseBodyDataStrategy string
+
+// PutAuditVisibilityOverride400JSONResponseBodySuccess defines parameters for PutAuditVisibilityOverride.
+type PutAuditVisibilityOverride400JSONResponseBodySuccess bool
+
+// PutAuditVisibilityOverride401JSONResponseBodySuccess defines parameters for PutAuditVisibilityOverride.
+type PutAuditVisibilityOverride401JSONResponseBodySuccess bool
+
+// PutAuditVisibilityOverride403JSONResponseBodySuccess defines parameters for PutAuditVisibilityOverride.
+type PutAuditVisibilityOverride403JSONResponseBodySuccess bool
+
+// PutAuditVisibilityOverride500JSONResponseBodySuccess defines parameters for PutAuditVisibilityOverride.
+type PutAuditVisibilityOverride500JSONResponseBodySuccess bool
+
+// PutAuditVisibilityPolicyJSONRequestBody defines body for PutAuditVisibilityPolicy for application/json ContentType.
+type PutAuditVisibilityPolicyJSONRequestBody PutAuditVisibilityPolicyJSONBody
+
+// PutAuditVisibilityOverrideJSONRequestBody defines body for PutAuditVisibilityOverride for application/json ContentType.
+type PutAuditVisibilityOverrideJSONRequestBody PutAuditVisibilityOverrideJSONBody

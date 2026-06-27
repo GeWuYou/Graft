@@ -32,6 +32,13 @@ func registerAuditPermissions(registry *permission.Registry, moduleName string) 
 		Category:       "api",
 		Module:         moduleName,
 	})
+	registry.Register(permission.Item{
+		Code:           auditcontract.AuditManagePermission.String(),
+		DisplayKey:     "rbac.permissionCatalog.auditManage.display",
+		DescriptionKey: "rbac.permissionCatalog.auditManage.description",
+		Category:       "api",
+		Module:         moduleName,
+	})
 }
 
 func registerAuditMenu(registry *menu.Registry, moduleName string) {
@@ -126,7 +133,8 @@ func (p *Module) resolveRouteGuard(ctx *module.Context) (auditGuard, error) {
 
 	publisher := httpx.NewSecurityAuditPublisher(ctx.EventBus, ctx.Logger, moduleID)
 	return auditGuard{
-		read: httpx.RequirePermission(ctx.I18n, authService, authorizer, auditcontract.AuditReadPermission.String(), publisher),
+		read:   httpx.RequirePermission(ctx.I18n, authService, authorizer, auditcontract.AuditReadPermission.String(), publisher),
+		manage: httpx.RequirePermission(ctx.I18n, authService, authorizer, auditcontract.AuditManagePermission.String(), publisher),
 	}, nil
 }
 

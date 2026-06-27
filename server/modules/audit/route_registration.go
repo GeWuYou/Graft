@@ -14,6 +14,10 @@ func registerAuditRoutes(ctx *module.Context, moduleName string, reader auditRea
 	group.GET(auditcontract.AuditCollection, guard.read, handleListAuditLogs(ctx, moduleName, reader))
 	group.GET(auditcontract.AuditItem, guard.read, handleReadAuditLog(ctx, moduleName, reader))
 	group.GET(auditcontract.AuditIncidentItem, guard.read, handleReadAuditIncident(ctx, moduleName, reader))
+	group.GET(auditcontract.AuditVisibilityPolicyCollection, guard.manage, handleReadAuditVisibilityPolicy(ctx, moduleName, reader))
+	group.PUT(auditcontract.AuditVisibilityPolicyCollection, guard.manage, handleUpdateAuditVisibilityDefault(ctx, moduleName, reader))
+	group.PUT(auditcontract.AuditVisibilityOverrideCollection, guard.manage, handleUpsertAuditVisibilityOverride(ctx, moduleName, reader))
+	group.DELETE(auditcontract.AuditVisibilityOverrideCollection, guard.manage, handleDeleteAuditVisibilityOverride(ctx, moduleName, reader))
 }
 
 var _ auditopenapi.ReadServerInterface = auditReadGeneratedHandler{}

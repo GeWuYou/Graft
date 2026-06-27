@@ -845,6 +845,54 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/audit/policies/visibility': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Read audit visibility policy
+     * @description Returns the audit-owned visibility default and per-event override snapshot.
+     */
+    get: operations['getAuditVisibilityPolicy'];
+    /**
+     * Update audit visibility default
+     * @description Updates the audit-owned global default visibility strategy.
+     */
+    put: operations['putAuditVisibilityPolicy'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/audit/policies/visibility/overrides': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /**
+     * Upsert audit visibility override
+     * @description Upserts one audit-owned source plus action visibility override.
+     */
+    put: operations['putAuditVisibilityOverride'];
+    post?: never;
+    /**
+     * Delete audit visibility override
+     * @description Deletes one audit-owned source plus action visibility override.
+     */
+    delete: operations['deleteAuditVisibilityOverride'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/monitor/server-status': {
     parameters: {
       query?: never;
@@ -1973,6 +2021,15 @@ export interface components {
     AuditIncidentResponse: components['schemas']['audit-incident-response'];
     AuditIncidentMonitorEvidence: components['schemas']['audit-incident-monitor-evidence'];
     EnvelopedAuditIncidentResponse: components['schemas']['enveloped-audit-incident-response'];
+    AuditVisibilityDefaultResponse: components['schemas']['audit-visibility-default-response'];
+    AuditVisibilityOverrideResponse: components['schemas']['audit-visibility-override-response'];
+    AuditEventCatalogItem: components['schemas']['audit-event-catalog-item'];
+    AuditVisibilityPolicyResponse: components['schemas']['audit-visibility-policy-response'];
+    AuditVisibilityDefaultUpdateRequest: components['schemas']['audit-visibility-default-update-request'];
+    AuditVisibilityOverrideUpsertRequest: components['schemas']['audit-visibility-override-upsert-request'];
+    EnvelopedAuditVisibilityPolicyResponse: components['schemas']['enveloped-audit-visibility-policy-response'];
+    EnvelopedAuditVisibilityDefaultResponse: components['schemas']['enveloped-audit-visibility-default-response'];
+    EnvelopedAuditVisibilityOverrideResponse: components['schemas']['enveloped-audit-visibility-override-response'];
     ServerStatusConnectionPool: components['schemas']['server-status-connection-pool'];
     ServerStatusDependency: components['schemas']['server-status-dependency'];
     ServerStatusModule: components['schemas']['server-status-module'];
@@ -2764,6 +2821,75 @@ export interface components {
     };
     'enveloped-audit-incident-response': components['schemas']['api-envelope'] & {
       data?: components['schemas']['audit-incident-response'];
+    };
+    'audit-visibility-default-response': {
+      key: string;
+      /** @enum {string} */
+      strategy: 'visible' | 'hidden';
+      /** Format: date-time */
+      updated_at: string;
+      /** Format: int64 */
+      updated_by?: number | null;
+      updated_by_name?: string;
+    };
+    'audit-visibility-override-response': {
+      /** Format: int64 */
+      id: number;
+      /** @enum {string} */
+      source: 'REQUEST' | 'SECURITY_EVENT' | 'DOMAIN_EVENT';
+      action_key: string;
+      /** @enum {string} */
+      strategy: 'visible' | 'hidden' | 'ignore';
+      description: string;
+      /** Format: date-time */
+      created_at: string;
+      /** Format: int64 */
+      created_by?: number | null;
+      created_by_name?: string;
+      /** Format: date-time */
+      updated_at: string;
+      /** Format: int64 */
+      updated_by?: number | null;
+      updated_by_name?: string;
+    };
+    'audit-event-catalog-item': {
+      /** @enum {string} */
+      source: 'REQUEST' | 'SECURITY_EVENT' | 'DOMAIN_EVENT';
+      action_key: string;
+      display_name: string;
+      description: string;
+      category: string;
+      /** @enum {string} */
+      default_strategy: 'visible' | 'hidden';
+      /** @enum {string} */
+      effective_strategy: 'visible' | 'hidden' | 'ignore';
+      overridden: boolean;
+    };
+    'audit-visibility-policy-response': {
+      default: components['schemas']['audit-visibility-default-response'];
+      overrides: components['schemas']['audit-visibility-override-response'][];
+      catalog: components['schemas']['audit-event-catalog-item'][];
+    };
+    'enveloped-audit-visibility-policy-response': components['schemas']['api-envelope'] & {
+      data?: components['schemas']['audit-visibility-policy-response'];
+    };
+    'audit-visibility-default-update-request': {
+      /** @enum {string} */
+      strategy: 'visible' | 'hidden';
+    };
+    'enveloped-audit-visibility-default-response': components['schemas']['api-envelope'] & {
+      data?: components['schemas']['audit-visibility-default-response'];
+    };
+    'audit-visibility-override-upsert-request': {
+      /** @enum {string} */
+      source: 'REQUEST' | 'SECURITY_EVENT' | 'DOMAIN_EVENT';
+      action_key: string;
+      /** @enum {string} */
+      strategy: 'visible' | 'hidden' | 'ignore';
+      description?: string;
+    };
+    'enveloped-audit-visibility-override-response': components['schemas']['api-envelope'] & {
+      data?: components['schemas']['audit-visibility-override-response'];
     };
     /**
      * @example {
@@ -6836,6 +6962,8 @@ export interface operations {
         preset?: 'last_24h' | 'last_7d' | 'last_30d';
         /** @description Stable business drilldown scope. When present, scope-owned fields remain read-only until the client exits drilldown or converts to normal filters. */
         scope?: components['schemas']['audit-drilldown-scope'];
+        /** @description Controls whether the read surface returns only default-visible records, all persisted records, or only hidden records. */
+        visibility_scope?: 'default' | 'all' | 'hidden_only';
         /** @description Backend-owned editable business category used by normal filters and scope conversion. */
         business_category?: components['schemas']['audit-business-category'];
         action_prefix?: string;
@@ -7037,6 +7165,175 @@ export interface operations {
           'application/json': components['schemas']['error-response'];
         };
       };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getAuditVisibilityPolicy: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Audit visibility policy snapshot. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-audit-visibility-policy-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  putAuditVisibilityPolicy: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['audit-visibility-default-update-request'];
+      };
+    };
+    responses: {
+      /** @description Updated audit visibility default. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-audit-visibility-default-response'];
+        };
+      };
+      /** @description Invalid strategy payload. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  putAuditVisibilityOverride: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['audit-visibility-override-upsert-request'];
+      };
+    };
+    responses: {
+      /** @description Updated audit visibility override. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-audit-visibility-override-response'];
+        };
+      };
+      /** @description Invalid override payload. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  deleteAuditVisibilityOverride: {
+    parameters: {
+      query: {
+        source: 'REQUEST' | 'SECURITY_EVENT' | 'DOMAIN_EVENT';
+        action_key: string;
+      };
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Audit visibility override deleted. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-empty-response'];
+        };
+      };
+      /** @description Invalid delete query. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
       500: components['responses']['internal-server-error'];
     };
   };

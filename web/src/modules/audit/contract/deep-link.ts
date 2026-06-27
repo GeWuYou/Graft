@@ -13,6 +13,7 @@ export type AuditLogsRouteQuery = Partial<{
   audit_log_id: string;
   preset: string;
   scope: string;
+  visibility_scope: string;
   keyword: string;
   actor: string;
   success: string;
@@ -59,6 +60,7 @@ export function parseAuditLogsRouteQuery(query: LocationQuery | AuditLogsRouteQu
     keyword: trimQueryValue(firstQueryValue(query.keyword)),
     preset: trimQueryValue(firstQueryValue(query.preset)),
     scope: trimQueryValue(firstQueryValue(query.scope)),
+    visibility_scope: trimQueryValue(firstQueryValue(query.visibility_scope)),
     actor: trimQueryValue(firstQueryValue(query.actor)),
     success: trimQueryValue(firstQueryValue(query.success)),
     action: trimQueryValue(firstQueryValue(query.action)),

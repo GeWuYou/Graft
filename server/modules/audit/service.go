@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -15,10 +16,11 @@ import (
 )
 
 const (
-	defaultPage        = 1
-	defaultPageSize    = 20
-	maxPageSize        = 200
-	auditSortPartCount = 2
+	defaultPage                     = 1
+	defaultPageSize                 = 20
+	maxPageSize                     = 200
+	auditSortPartCount              = 2
+	auditVisibilityGlobalDefaultKey = "global"
 )
 
 var (
@@ -34,6 +36,7 @@ type RecordInput struct {
 	ActorUsername    string
 	ActorDisplayName string
 	Action           string
+	Visibility       auditstore.AuditVisibilityStrategy
 	ResourceType     string
 	ResourceID       string
 	ResourceName     string
@@ -51,6 +54,7 @@ type ListQuery struct {
 	Page                int
 	PageSize            int
 	Scope               string
+	VisibilityScope     auditstore.AuditVisibilityScope
 	ActorUserID         *uint64
 	Keyword             string
 	Actor               string
@@ -97,6 +101,9 @@ type OverviewResult = auditstore.AuditOverview
 
 // IncidentResult contains the audit-owned incident drilldown read model.
 type IncidentResult = auditstore.AuditIncident
+
+// VisibilityPolicyResult contains the audit-owned visibility policy snapshot.
+type VisibilityPolicyResult = auditstore.AuditVisibilityPolicySnapshot
 
 // Service writes and queries audit records through the module-owned repository boundary.
 type Service struct {
@@ -150,6 +157,7 @@ func (s *Service) Record(ctx context.Context, input RecordInput) (auditstore.Aud
 		ActorUsername:    strings.TrimSpace(input.ActorUsername),
 		ActorDisplayName: strings.TrimSpace(input.ActorDisplayName),
 		Action:           action,
+		Visibility:       normalizeAuditVisibilityStrategy(input.Visibility),
 		ResourceType:     strings.TrimSpace(input.ResourceType),
 		ResourceID:       strings.TrimSpace(input.ResourceID),
 		ResourceName:     strings.TrimSpace(input.ResourceName),
@@ -187,6 +195,7 @@ func (s *Service) List(ctx context.Context, query ListQuery) (ListResult, error)
 	}
 
 	result, err := s.repo.ListAuditLogs(ctx, auditstore.ListAuditLogsQuery{
+		VisibilityScope:     normalizeAuditVisibilityScope(effectiveQuery.VisibilityScope),
 		ActorUserID:         effectiveQuery.ActorUserID,
 		Keyword:             strings.TrimSpace(effectiveQuery.Keyword),
 		Actor:               strings.TrimSpace(effectiveQuery.Actor),
@@ -389,6 +398,43 @@ func normalizeAuditBusinessCategory(category auditstore.AuditBusinessCategory) a
 	}
 }
 
+func normalizeAuditVisibilityScope(scope auditstore.AuditVisibilityScope) auditstore.AuditVisibilityScope {
+	switch auditstore.AuditVisibilityScope(strings.TrimSpace(string(scope))) {
+	case auditstore.AuditVisibilityScopeAll:
+		return auditstore.AuditVisibilityScopeAll
+	case auditstore.AuditVisibilityScopeHiddenOnly:
+		return auditstore.AuditVisibilityScopeHiddenOnly
+	default:
+		return auditstore.AuditVisibilityScopeDefault
+	}
+}
+
+func normalizeAuditVisibilityStrategy(strategy auditstore.AuditVisibilityStrategy) auditstore.AuditVisibilityStrategy {
+	switch auditstore.AuditVisibilityStrategy(strings.TrimSpace(string(strategy))) {
+	case auditstore.AuditVisibilityStrategyVisible:
+		return auditstore.AuditVisibilityStrategyVisible
+	case auditstore.AuditVisibilityStrategyHidden:
+		return auditstore.AuditVisibilityStrategyHidden
+	case auditstore.AuditVisibilityStrategyIgnore:
+		return auditstore.AuditVisibilityStrategyIgnore
+	default:
+		return ""
+	}
+}
+
+func normalizeMutableAuditVisibilityStrategy(
+	strategy auditstore.AuditVisibilityStrategy,
+) auditstore.AuditVisibilityStrategy {
+	switch normalizeAuditVisibilityStrategy(strategy) {
+	case auditstore.AuditVisibilityStrategyVisible:
+		return auditstore.AuditVisibilityStrategyVisible
+	case auditstore.AuditVisibilityStrategyHidden:
+		return auditstore.AuditVisibilityStrategyHidden
+	default:
+		return ""
+	}
+}
+
 func normalizeAuditStringFilters(values []string) []string {
 	if len(values) == 0 {
 		return nil
@@ -538,6 +584,118 @@ func (s *Service) DeleteBefore(ctx context.Context, createdBefore time.Time) (in
 	return deleted, nil
 }
 
+// VisibilityPolicy returns the current audit-owned visibility policy snapshot.
+func (s *Service) VisibilityPolicy(ctx context.Context) (VisibilityPolicyResult, error) {
+	if s == nil || s.repo == nil {
+		return VisibilityPolicyResult{}, ErrAuditServiceUnavailable
+	}
+
+	defaultValue, err := s.repo.GetAuditVisibilityDefault(ctx, auditVisibilityGlobalDefaultKey)
+	if err != nil {
+		return VisibilityPolicyResult{}, fmt.Errorf("read audit visibility default: %w", err)
+	}
+	overrides, err := s.repo.ListAuditVisibilityOverrides(ctx)
+	if err != nil {
+		return VisibilityPolicyResult{}, fmt.Errorf("list audit visibility overrides: %w", err)
+	}
+
+	return auditstore.AuditVisibilityPolicySnapshot{
+		Default:   defaultValue,
+		Overrides: overrides,
+		Catalog:   buildAuditEventCatalog(defaultValue.Strategy, overrides),
+	}, nil
+}
+
+// UpdateVisibilityDefault updates the global audit visibility strategy.
+func (s *Service) UpdateVisibilityDefault(
+	ctx context.Context,
+	strategy auditstore.AuditVisibilityStrategy,
+	userID *uint64,
+	username string,
+) (auditstore.AuditVisibilityDefault, error) {
+	if s == nil || s.repo == nil {
+		return auditstore.AuditVisibilityDefault{}, ErrAuditServiceUnavailable
+	}
+
+	normalized := normalizeMutableAuditVisibilityStrategy(strategy)
+	if normalized == "" {
+		return auditstore.AuditVisibilityDefault{}, errors.New("audit visibility default strategy is required")
+	}
+
+	updated, err := s.repo.UpsertAuditVisibilityDefault(
+		ctx,
+		auditVisibilityGlobalDefaultKey,
+		normalized,
+		userID,
+		strings.TrimSpace(username),
+	)
+	if err != nil {
+		return auditstore.AuditVisibilityDefault{}, fmt.Errorf("upsert audit visibility default: %w", err)
+	}
+	return updated, nil
+}
+
+// UpdateVisibilityOverride updates one audit-owned source+action visibility override.
+func (s *Service) UpdateVisibilityOverride(
+	ctx context.Context,
+	input auditstore.UpsertAuditVisibilityOverrideInput,
+) (auditstore.AuditVisibilityOverride, error) {
+	if s == nil || s.repo == nil {
+		return auditstore.AuditVisibilityOverride{}, ErrAuditServiceUnavailable
+	}
+
+	normalizedSource := normalizeAuditSource(input.Source)
+	if normalizedSource == "" {
+		return auditstore.AuditVisibilityOverride{}, errors.New("audit visibility override source is required")
+	}
+	normalizedActionKey := strings.TrimSpace(input.ActionKey)
+	if normalizedActionKey == "" {
+		return auditstore.AuditVisibilityOverride{}, errors.New("audit visibility override action key is required")
+	}
+	normalizedStrategy := normalizeAuditVisibilityStrategy(input.Strategy)
+	if normalizedStrategy == "" {
+		return auditstore.AuditVisibilityOverride{}, errors.New("audit visibility override strategy is required")
+	}
+
+	updated, err := s.repo.UpsertAuditVisibilityOverride(
+		ctx,
+		auditstore.UpsertAuditVisibilityOverrideInput{
+			Source:      normalizedSource,
+			ActionKey:   normalizedActionKey,
+			Strategy:    normalizedStrategy,
+			Description: strings.TrimSpace(input.Description),
+			Actor: auditstore.AuditVisibilityActor{
+				UserID:   input.Actor.UserID,
+				Username: strings.TrimSpace(input.Actor.Username),
+			},
+		},
+	)
+	if err != nil {
+		return auditstore.AuditVisibilityOverride{}, fmt.Errorf("upsert audit visibility override: %w", err)
+	}
+	return updated, nil
+}
+
+// DeleteVisibilityOverride removes one audit-owned source+action visibility override.
+func (s *Service) DeleteVisibilityOverride(ctx context.Context, source auditstore.AuditSource, actionKey string) error {
+	if s == nil || s.repo == nil {
+		return ErrAuditServiceUnavailable
+	}
+
+	normalizedSource := normalizeAuditSource(source)
+	if normalizedSource == "" {
+		return errors.New("audit visibility override source is required")
+	}
+	normalizedActionKey := strings.TrimSpace(actionKey)
+	if normalizedActionKey == "" {
+		return errors.New("audit visibility override action key is required")
+	}
+	if err := s.repo.DeleteAuditVisibilityOverride(ctx, normalizedSource, normalizedActionKey); err != nil {
+		return fmt.Errorf("delete audit visibility override: %w", err)
+	}
+	return nil
+}
+
 // RecordCandidate writes one normalized candidate after policy evaluation approves it.
 func (s *Service) RecordCandidate(ctx context.Context, candidate auditstore.AuditCandidate) (auditstore.AuditLog, bool, error) {
 	if s == nil || s.repo == nil {
@@ -557,11 +715,21 @@ func (s *Service) RecordCandidate(ctx context.Context, candidate auditstore.Audi
 		return auditstore.AuditLog{}, false, nil
 	}
 
+	strategy, err := s.resolveCandidateVisibilityStrategy(ctx, candidate)
+	if err != nil {
+		return auditstore.AuditLog{}, false, err
+	}
+	if strategy == auditstore.AuditVisibilityStrategyIgnore {
+		return auditstore.AuditLog{}, false, nil
+	}
+	candidate.Visibility = strategy
+
 	record, err := s.Record(ctx, RecordInput{
 		ActorUserID:      candidate.ActorUserID,
 		ActorUsername:    candidate.ActorUsername,
 		ActorDisplayName: candidate.ActorDisplayName,
 		Action:           normalizeCandidateAction(candidate),
+		Visibility:       candidate.Visibility,
 		ResourceType:     candidate.ResourceType,
 		ResourceID:       candidate.ResourceID,
 		ResourceName:     candidate.ResourceName,
@@ -586,6 +754,158 @@ func normalizeCandidateAction(candidate auditstore.AuditCandidate) string {
 	}
 
 	return strings.TrimSpace(candidate.Action)
+}
+
+type auditEventCatalogSeed struct {
+	Source         auditstore.AuditSource
+	ActionKey      string
+	DisplayName    string
+	DescriptionKey string
+	Description    string
+	Category       string
+}
+
+func buildAuditEventCatalog(
+	defaultStrategy auditstore.AuditVisibilityStrategy,
+	overrides []auditstore.AuditVisibilityOverride,
+) []auditstore.AuditEventCatalogItem {
+	seeds := appendAuditEventCatalogSeeds()
+
+	overrideMap := make(map[string]auditstore.AuditVisibilityOverride, len(overrides))
+	for _, item := range overrides {
+		overrideMap[string(item.Source)+"|"+strings.TrimSpace(item.ActionKey)] = item
+	}
+
+	items := make([]auditstore.AuditEventCatalogItem, 0, len(seeds)+len(overrides))
+	seen := make(map[string]struct{}, len(seeds)+len(overrides))
+	for _, seed := range seeds {
+		appendAuditEventCatalogItem(&items, seen, overrideMap, defaultStrategy, seed)
+	}
+	for _, override := range overrides {
+		appendAuditEventCatalogItem(&items, seen, overrideMap, defaultStrategy, auditEventCatalogSeed{
+			Source:      override.Source,
+			ActionKey:   override.ActionKey,
+			DisplayName: override.ActionKey,
+			Description: override.Description,
+			Category:    "custom",
+		})
+	}
+
+	slices.SortStableFunc(items, func(a, b auditstore.AuditEventCatalogItem) int {
+		switch {
+		case a.Category < b.Category:
+			return -1
+		case a.Category > b.Category:
+			return 1
+		case a.Source < b.Source:
+			return -1
+		case a.Source > b.Source:
+			return 1
+		default:
+			return strings.Compare(a.ActionKey, b.ActionKey)
+		}
+	})
+	return items
+}
+
+func appendAuditEventCatalogSeeds() []auditEventCatalogSeed {
+	return []auditEventCatalogSeed{
+		{Source: auditstore.AuditSourceSecurityEvent, ActionKey: "auth.token.expired", DisplayName: "auth.token.expired", DescriptionKey: "audit.visibilityCatalog.auth.tokenExpired.description", Description: "Access token expired security event.", Category: "auth"},
+		{Source: auditstore.AuditSourceSecurityEvent, ActionKey: "auth.token.invalid", DisplayName: "auth.token.invalid", DescriptionKey: "audit.visibilityCatalog.auth.tokenInvalid.description", Description: "Access token invalid security event.", Category: "auth"},
+		{Source: auditstore.AuditSourceSecurityEvent, ActionKey: "auth.token.missing", DisplayName: "auth.token.missing", DescriptionKey: "audit.visibilityCatalog.auth.tokenMissing.description", Description: "Access token missing security event.", Category: "auth"},
+		{Source: auditstore.AuditSourceSecurityEvent, ActionKey: "auth.permission.denied", DisplayName: "auth.permission.denied", DescriptionKey: "audit.visibilityCatalog.auth.permissionDenied.description", Description: "Authorization denied security event.", Category: "auth"},
+		{Source: auditstore.AuditSourceRequest, ActionKey: "POST /api/auth/login", DisplayName: "POST /api/auth/login", DescriptionKey: "audit.visibilityCatalog.auth.login.description", Description: "Login request audit record.", Category: "auth"},
+		{Source: auditstore.AuditSourceRequest, ActionKey: "POST /api/auth/refresh", DisplayName: "POST /api/auth/refresh", DescriptionKey: "audit.visibilityCatalog.auth.refresh.description", Description: "Refresh-token rotation request audit record.", Category: "auth"},
+		{Source: auditstore.AuditSourceRequest, ActionKey: "POST /api/auth/logout", DisplayName: "POST /api/auth/logout", DescriptionKey: "audit.visibilityCatalog.auth.logout.description", Description: "Logout request audit record.", Category: "auth"},
+		{Source: auditstore.AuditSourceDomainEvent, ActionKey: "user.create", DisplayName: "user.create", DescriptionKey: "audit.visibilityCatalog.user.create.description", Description: "Managed-user creation event.", Category: "user"},
+		{Source: auditstore.AuditSourceDomainEvent, ActionKey: "user.update", DisplayName: "user.update", DescriptionKey: "audit.visibilityCatalog.user.update.description", Description: "Managed-user update event.", Category: "user"},
+		{Source: auditstore.AuditSourceDomainEvent, ActionKey: "user.status.update", DisplayName: "user.status.update", DescriptionKey: "audit.visibilityCatalog.user.statusUpdate.description", Description: "Managed-user status change event.", Category: "user"},
+		{Source: auditstore.AuditSourceDomainEvent, ActionKey: "user.delete", DisplayName: "user.delete", DescriptionKey: "audit.visibilityCatalog.user.delete.description", Description: "Managed-user deletion event.", Category: "user"},
+		{Source: auditstore.AuditSourceDomainEvent, ActionKey: "user.password.reset", DisplayName: "user.password.reset", DescriptionKey: "audit.visibilityCatalog.user.passwordReset.description", Description: "Managed-user password reset event.", Category: "user"},
+		{Source: auditstore.AuditSourceDomainEvent, ActionKey: "rbac.role.create", DisplayName: "rbac.role.create", DescriptionKey: "audit.visibilityCatalog.rbac.role.create.description", Description: "RBAC role creation event.", Category: "rbac"},
+		{Source: auditstore.AuditSourceDomainEvent, ActionKey: "rbac.role.update", DisplayName: "rbac.role.update", DescriptionKey: "audit.visibilityCatalog.rbac.role.update.description", Description: "RBAC role update event.", Category: "rbac"},
+		{Source: auditstore.AuditSourceDomainEvent, ActionKey: "rbac.role.status.update", DisplayName: "rbac.role.status.update", DescriptionKey: "audit.visibilityCatalog.rbac.role.statusUpdate.description", Description: "RBAC role status change event.", Category: "rbac"},
+		{Source: auditstore.AuditSourceDomainEvent, ActionKey: "rbac.role.delete", DisplayName: "rbac.role.delete", DescriptionKey: "audit.visibilityCatalog.rbac.role.delete.description", Description: "RBAC role deletion event.", Category: "rbac"},
+		{Source: auditstore.AuditSourceDomainEvent, ActionKey: "rbac.role.permissions.replace", DisplayName: "rbac.role.permissions.replace", DescriptionKey: "audit.visibilityCatalog.rbac.role.permissionsReplace.description", Description: "RBAC role permission replacement event.", Category: "rbac"},
+		{Source: auditstore.AuditSourceDomainEvent, ActionKey: "rbac.user.roles.replace", DisplayName: "rbac.user.roles.replace", DescriptionKey: "audit.visibilityCatalog.rbac.user.rolesReplace.description", Description: "RBAC user role replacement event.", Category: "rbac"},
+		{Source: auditstore.AuditSourceDomainEvent, ActionKey: "ops.container.action.start", DisplayName: "ops.container.action.start", DescriptionKey: "audit.visibilityCatalog.container.action.start.description", Description: "Container start dangerous action event.", Category: "container"},
+		{Source: auditstore.AuditSourceDomainEvent, ActionKey: "ops.container.action.stop", DisplayName: "ops.container.action.stop", DescriptionKey: "audit.visibilityCatalog.container.action.stop.description", Description: "Container stop dangerous action event.", Category: "container"},
+		{Source: auditstore.AuditSourceDomainEvent, ActionKey: "ops.container.action.restart", DisplayName: "ops.container.action.restart", DescriptionKey: "audit.visibilityCatalog.container.action.restart.description", Description: "Container restart dangerous action event.", Category: "container"},
+		{Source: auditstore.AuditSourceDomainEvent, ActionKey: "ops.container.action.remove", DisplayName: "ops.container.action.remove", DescriptionKey: "audit.visibilityCatalog.container.action.remove.description", Description: "Container remove dangerous action event.", Category: "container"},
+		{Source: auditstore.AuditSourceDomainEvent, ActionKey: "ops.container.action.batch.start", DisplayName: "ops.container.action.batch.start", DescriptionKey: "audit.visibilityCatalog.container.action.batchStart.description", Description: "Container batch-start dangerous action event.", Category: "container"},
+		{Source: auditstore.AuditSourceDomainEvent, ActionKey: "ops.container.action.batch.stop", DisplayName: "ops.container.action.batch.stop", DescriptionKey: "audit.visibilityCatalog.container.action.batchStop.description", Description: "Container batch-stop dangerous action event.", Category: "container"},
+		{Source: auditstore.AuditSourceDomainEvent, ActionKey: "ops.container.action.batch.restart", DisplayName: "ops.container.action.batch.restart", DescriptionKey: "audit.visibilityCatalog.container.action.batchRestart.description", Description: "Container batch-restart dangerous action event.", Category: "container"},
+		{Source: auditstore.AuditSourceDomainEvent, ActionKey: "ops.container.action.batch.remove", DisplayName: "ops.container.action.batch.remove", DescriptionKey: "audit.visibilityCatalog.container.action.batchRemove.description", Description: "Container batch-remove dangerous action event.", Category: "container"},
+	}
+}
+
+func appendAuditEventCatalogItem(
+	items *[]auditstore.AuditEventCatalogItem,
+	seen map[string]struct{},
+	overrideMap map[string]auditstore.AuditVisibilityOverride,
+	defaultStrategy auditstore.AuditVisibilityStrategy,
+	seed auditEventCatalogSeed,
+) {
+	normalizedActionKey := strings.TrimSpace(seed.ActionKey)
+	key := string(seed.Source) + "|" + normalizedActionKey
+	if _, exists := seen[key]; exists {
+		return
+	}
+	seen[key] = struct{}{}
+
+	effectiveStrategy := defaultStrategy
+	overridden := false
+	if override, ok := overrideMap[key]; ok {
+		effectiveStrategy = override.Strategy
+		overridden = true
+		if strings.TrimSpace(seed.Description) == "" {
+			seed.Description = override.Description
+		}
+	}
+
+	*items = append(*items, auditstore.AuditEventCatalogItem{
+		Source:            seed.Source,
+		ActionKey:         normalizedActionKey,
+		DisplayName:       seed.DisplayName,
+		Description:       seed.Description,
+		Category:          seed.Category,
+		DefaultStrategy:   defaultStrategy,
+		EffectiveStrategy: effectiveStrategy,
+		Overridden:        overridden,
+	})
+}
+
+func (s *Service) resolveCandidateVisibilityStrategy(
+	ctx context.Context,
+	candidate auditstore.AuditCandidate,
+) (auditstore.AuditVisibilityStrategy, error) {
+	defaultValue, err := s.repo.GetAuditVisibilityDefault(ctx, auditVisibilityGlobalDefaultKey)
+	if err != nil {
+		return "", fmt.Errorf("read audit visibility default: %w", err)
+	}
+	overrides, err := s.repo.ListAuditVisibilityOverrides(ctx)
+	if err != nil {
+		return "", fmt.Errorf("list audit visibility overrides: %w", err)
+	}
+
+	actionKey := normalizeCandidateAction(candidate)
+	normalizedSource := normalizeAuditSource(candidate.Source)
+	for _, item := range overrides {
+		if item.Source != normalizedSource {
+			continue
+		}
+		if strings.TrimSpace(item.ActionKey) != actionKey {
+			continue
+		}
+		if strategy := normalizeAuditVisibilityStrategy(item.Strategy); strategy != "" {
+			return strategy, nil
+		}
+	}
+
+	if strategy := normalizeAuditVisibilityStrategy(defaultValue.Strategy); strategy != "" {
+		return strategy, nil
+	}
+	return auditstore.AuditVisibilityStrategyVisible, nil
 }
 
 func candidateMetadata(candidate auditstore.AuditCandidate, decision auditstore.AuditPolicyDecision) any {
