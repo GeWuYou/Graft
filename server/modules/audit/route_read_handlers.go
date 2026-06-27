@@ -132,7 +132,7 @@ func ensureAuditVisibilityScopeAccess(
 
 // handleAuditListReadError 处理审计日志列表读取失败。
 // 当错误属于无效 scope 时，返回 400 并标记字段为 "scope"；否则记录错误并返回 500。
-// 
+//
 // @returns 始终返回 `true`。
 func handleAuditListReadError(
 	ginCtx *gin.Context,
@@ -220,17 +220,21 @@ func resolveAuditAuthorizer(ctx *module.Context) (moduleapi.Authorizer, bool) {
 }
 
 // handleAuditManageAuthorizationError 处理审计管理授权失败。
-// 当错误属于权限拒绝、未认证或访问令牌无效时，发布权限拒绝审计事件并返回 403；
-// 其他错误则返回内部错误。
+// 当错误属于权限拒绝时，发布权限拒绝审计事件并返回 403；
+// 当错误属于未认证或访问令牌无效时，保留 401 语义；其他错误返回内部错误。
 func handleAuditManageAuthorizationError(
 	ginCtx *gin.Context,
 	ctx *module.Context,
 	requestAuth moduleapi.RequestAuthContext,
 	err error,
 ) {
-	if errors.Is(err, moduleapi.ErrPermissionDenied) || errors.Is(err, moduleapi.ErrUnauthenticated) || errors.Is(err, moduleapi.ErrInvalidAccessToken) {
+	if errors.Is(err, moduleapi.ErrPermissionDenied) {
 		publishAuditManagePermissionDenied(ginCtx, ctx, requestAuth)
 		httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusForbidden, messagecontract.AuthForbidden.String(), nil)
+		return
+	}
+	if errors.Is(err, moduleapi.ErrUnauthenticated) || errors.Is(err, moduleapi.ErrInvalidAccessToken) {
+		httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusUnauthorized, messagecontract.AuthTokenMissing.String(), nil)
 		return
 	}
 	abortAuditReadInternal(ginCtx, ctx)

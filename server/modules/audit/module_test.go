@@ -379,9 +379,15 @@ func (allowAuthorizer) Authorize(_ context.Context, _ moduleapi.RequestAuthConte
 
 type selectiveAuthorizer struct {
 	allowed map[string]bool
+	errs    map[string]error
 }
 
 func (s selectiveAuthorizer) Authorize(_ context.Context, _ moduleapi.RequestAuthContext, permission string) error {
+	if s.errs != nil {
+		if err, ok := s.errs[permission]; ok {
+			return err
+		}
+	}
 	if s.allowed[permission] {
 		return nil
 	}
@@ -844,6 +850,60 @@ func TestAuditLogDetailRouteRejectsHiddenRecordWithoutManagePermission(t *testin
 		Visibility: store.AuditVisibilityStrategyHidden,
 		CreatedAt:  time.Date(2026, 6, 13, 12, 0, 0, 0, time.UTC),
 	})
+}
+
+func TestAuditLogDetailRouteKeepsManageEscalationAuthFailuresAt401(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name   string
+		authErr error
+	}{
+		{
+			name:   "unauthenticated",
+			authErr: moduleapi.ErrUnauthenticated,
+		},
+		{
+			name:   "invalid token",
+			authErr: moduleapi.ErrInvalidAccessToken,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			repo := &memoryAuditRepository{
+				items: []store.AuditLog{
+					{
+						ID:         42,
+						Action:     "auth.token.expired",
+						RequestID:  "req-42",
+						Visibility: store.AuditVisibilityStrategyHidden,
+						CreatedAt:  time.Date(2026, 6, 13, 12, 0, 0, 0, time.UTC),
+					},
+				},
+			}
+			_, engine, _ := newModuleTestContextWithAuthorizer(t, repo, zap.NewNop(), selectiveAuthorizer{
+				allowed: map[string]bool{
+					auditcontract.AuditReadPermission.String(): true,
+				},
+				errs: map[string]error{
+					auditcontract.AuditManagePermission.String(): tc.authErr,
+				},
+			})
+
+			request := httptest.NewRequest(http.MethodGet, "/api/audit/logs/42", nil)
+			request.Header.Set("Authorization", "Bearer token")
+			recorder := httptest.NewRecorder()
+			engine.ServeHTTP(recorder, request)
+
+			if recorder.Code != http.StatusUnauthorized {
+				t.Fatalf("expected status 401, got %d body=%s", recorder.Code, recorder.Body.String())
+			}
+			if len(repo.items) != 1 {
+				t.Fatalf("expected no permission denied audit record, got %#v", repo.items)
+			}
+		})
+	}
 }
 
 func TestAuditIncidentRouteRejectsHiddenSeedWithoutManagePermission(t *testing.T) {

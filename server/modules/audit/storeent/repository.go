@@ -2326,7 +2326,6 @@ func normalizeStoredAuditVisibility(value auditstore.AuditVisibilityStrategy) au
 
 // nullableUint64 将可选的 uint64 转换为可用于数据库参数绑定的值。
 // 当值为空时返回 nil；当值超过 bigint 可表示范围时返回错误。
-ક
 func nullableUint64(value *uint64) (any, error) {
 	if value == nil {
 		return nil, nil

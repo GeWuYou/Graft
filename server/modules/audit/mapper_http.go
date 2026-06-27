@@ -357,104 +357,101 @@ func toAuditLogListItem(item auditstore.AuditLog) (generated.AuditLogListItem, e
 }
 
 // toAuditVisibilityPolicyResponse 组装审计可见性策略响应。
-// 返回包含默认策略、覆盖策略和策略目录的映射。
-//
-// @returns 默认策略、覆盖策略和策略目录组成的响应映射；转换失败时返回错误。
-func toAuditVisibilityPolicyResponse(result VisibilityPolicyResult) (map[string]any, error) {
+// 返回包含默认策略、覆盖策略和策略目录的强类型响应。
+func toAuditVisibilityPolicyResponse(result VisibilityPolicyResult) (generated.AuditVisibilityPolicyResponse, error) {
 	defaultValue, err := toAuditVisibilityDefaultResponse(result.Default)
 	if err != nil {
-		return nil, err
+		return generated.AuditVisibilityPolicyResponse{}, err
 	}
 
-	overrides := make([]map[string]any, 0, len(result.Overrides))
+	overrides := make([]generated.AuditVisibilityOverrideResponse, 0, len(result.Overrides))
 	for _, item := range result.Overrides {
 		converted, convErr := toAuditVisibilityOverrideResponse(item)
 		if convErr != nil {
-			return nil, convErr
+			return generated.AuditVisibilityPolicyResponse{}, convErr
 		}
 		overrides = append(overrides, converted)
 	}
 
-	catalog := make([]map[string]any, 0, len(result.Catalog))
+	catalog := make([]generated.AuditEventCatalogItem, 0, len(result.Catalog))
 	for _, item := range result.Catalog {
-		catalog = append(catalog, map[string]any{
-			"source":             string(item.Source),
-			"action_key":         item.ActionKey,
-			"display_name":       item.DisplayName,
-			"description":        item.Description,
-			"category":           item.Category,
-			"default_strategy":   string(item.DefaultStrategy),
-			"effective_strategy": string(item.EffectiveStrategy),
-			"overridden":         item.Overridden,
+		catalog = append(catalog, generated.AuditEventCatalogItem{
+			Source:            generated.AuditEventCatalogItemSource(item.Source),
+			ActionKey:         item.ActionKey,
+			DisplayName:       item.DisplayName,
+			Description:       item.Description,
+			Category:          item.Category,
+			DefaultStrategy:   generated.AuditEventCatalogItemDefaultStrategy(item.DefaultStrategy),
+			EffectiveStrategy: generated.AuditEventCatalogItemEffectiveStrategy(item.EffectiveStrategy),
+			Overridden:        item.Overridden,
 		})
 	}
 
-	return map[string]any{
-		"default":   defaultValue,
-		"overrides": overrides,
-		"catalog":   catalog,
+	return generated.AuditVisibilityPolicyResponse{
+		Default:   defaultValue,
+		Overrides: overrides,
+		Catalog:   catalog,
 	}, nil
 }
 
-// toAuditVisibilityDefaultResponse 将审计可见性默认策略转换为响应映射。
-// 返回包含 key、strategy、updated_at 的映射；当存在更新者信息时，还包含 updated_by 和 updated_by_name。
-func toAuditVisibilityDefaultResponse(item auditstore.AuditVisibilityDefault) (map[string]any, error) {
-	response := map[string]any{
-		"key":        item.Key,
-		"strategy":   string(item.Strategy),
-		"updated_at": item.UpdatedAt.UTC(),
+// toAuditVisibilityDefaultResponse 将审计可见性默认策略转换为强类型响应。
+func toAuditVisibilityDefaultResponse(item auditstore.AuditVisibilityDefault) (generated.AuditVisibilityDefaultResponse, error) {
+	response := generated.AuditVisibilityDefaultResponse{
+		Key:       item.Key,
+		Strategy:  generated.AuditVisibilityDefaultResponseStrategy(item.Strategy),
+		UpdatedAt: item.UpdatedAt.UTC(),
 	}
 	if item.UpdatedBy != nil {
 		convertedID, err := mustConvertAuditGeneratedID(*item.UpdatedBy, "audit visibility default updated_by")
 		if err != nil {
-			return nil, err
+			return generated.AuditVisibilityDefaultResponse{}, err
 		}
-		response["updated_by"] = convertedID
+		response.UpdatedBy = &convertedID
 	}
 	if item.UpdatedByName != "" {
-		response["updated_by_name"] = item.UpdatedByName
+		updatedByName := item.UpdatedByName
+		response.UpdatedByName = &updatedByName
 	}
 	return response, nil
 }
 
-// toAuditVisibilityOverrideResponse 将审计可见性覆盖策略转换为响应映射。
-// 结果包含基础策略字段，以及存在时的创建者、更新者和对应名称。
-// @param item 审计可见性覆盖策略记录。
-// @returns 转换后的响应映射；如果 ID 或关联用户 ID 超出 int64 范围，则返回错误。
-func toAuditVisibilityOverrideResponse(item auditstore.AuditVisibilityOverride) (map[string]any, error) {
+// toAuditVisibilityOverrideResponse 将审计可见性覆盖策略转换为强类型响应。
+func toAuditVisibilityOverrideResponse(item auditstore.AuditVisibilityOverride) (generated.AuditVisibilityOverrideResponse, error) {
 	id, err := mustConvertAuditGeneratedID(item.ID, "audit visibility override id")
 	if err != nil {
-		return nil, err
+		return generated.AuditVisibilityOverrideResponse{}, err
 	}
 
-	response := map[string]any{
-		"id":          id,
-		"source":      string(item.Source),
-		"action_key":  item.ActionKey,
-		"strategy":    string(item.Strategy),
-		"description": item.Description,
-		"created_at":  item.CreatedAt.UTC(),
-		"updated_at":  item.UpdatedAt.UTC(),
+	response := generated.AuditVisibilityOverrideResponse{
+		Id:          id,
+		Source:      generated.AuditVisibilityOverrideResponseSource(item.Source),
+		ActionKey:   item.ActionKey,
+		Strategy:    generated.AuditVisibilityOverrideResponseStrategy(item.Strategy),
+		Description: item.Description,
+		CreatedAt:   item.CreatedAt.UTC(),
+		UpdatedAt:   item.UpdatedAt.UTC(),
 	}
 	if item.CreatedBy != nil {
 		createdBy, convErr := mustConvertAuditGeneratedID(*item.CreatedBy, "audit visibility override created_by")
 		if convErr != nil {
-			return nil, convErr
+			return generated.AuditVisibilityOverrideResponse{}, convErr
 		}
-		response["created_by"] = createdBy
+		response.CreatedBy = &createdBy
 	}
 	if item.CreatedByName != "" {
-		response["created_by_name"] = item.CreatedByName
+		createdByName := item.CreatedByName
+		response.CreatedByName = &createdByName
 	}
 	if item.UpdatedBy != nil {
 		updatedBy, convErr := mustConvertAuditGeneratedID(*item.UpdatedBy, "audit visibility override updated_by")
 		if convErr != nil {
-			return nil, convErr
+			return generated.AuditVisibilityOverrideResponse{}, convErr
 		}
-		response["updated_by"] = updatedBy
+		response.UpdatedBy = &updatedBy
 	}
 	if item.UpdatedByName != "" {
-		response["updated_by_name"] = item.UpdatedByName
+		updatedByName := item.UpdatedByName
+		response.UpdatedByName = &updatedByName
 	}
 	return response, nil
 }

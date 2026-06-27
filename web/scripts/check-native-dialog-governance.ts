@@ -36,6 +36,10 @@ type InventoryItem = {
   snippet: string;
 };
 
+type ParserFrame =
+  | { kind: 'code' | 'line-comment' | 'block-comment' | 'single-quote' | 'double-quote' | 'template' }
+  | { kind: 'template-expression'; braceDepth: number };
+
 /**
  * 递归收集目录中符合条件的文件路径。
  *
@@ -108,6 +112,7 @@ function snippetForIndex(source: string, index: number) {
 
 /**
  * 将源码中的注释和字面量内容替换为空格，同时保留换行结构。
+ * 模板字符串中的 `${...}` 表达式继续按代码处理，避免漏掉真实调用。
  *
  * @param source - 原始源码文本
  * @returns 处理后的源码文本
@@ -115,43 +120,64 @@ function snippetForIndex(source: string, index: number) {
 function sanitizeSource(source: string) {
   let result = '';
   let index = 0;
-  let state: 'code' | 'line-comment' | 'block-comment' | 'single-quote' | 'double-quote' | 'template' = 'code';
+  const frames: ParserFrame[] = [{ kind: 'code' }];
 
   while (index < source.length) {
     const char = source[index] ?? '';
     const next = source[index + 1] ?? '';
+    const current = frames[frames.length - 1] ?? { kind: 'code' as const };
 
-    switch (state) {
+    switch (current.kind) {
       case 'code':
+      case 'template-expression':
         if (char === '/' && next === '/') {
           result += '  ';
           index += 2;
-          state = 'line-comment';
+          frames.push({ kind: 'line-comment' });
           continue;
         }
         if (char === '/' && next === '*') {
           result += '  ';
           index += 2;
-          state = 'block-comment';
+          frames.push({ kind: 'block-comment' });
           continue;
         }
         if (char === "'") {
           result += ' ';
           index += 1;
-          state = 'single-quote';
+          frames.push({ kind: 'single-quote' });
           continue;
         }
         if (char === '"') {
           result += ' ';
           index += 1;
-          state = 'double-quote';
+          frames.push({ kind: 'double-quote' });
           continue;
         }
         if (char === '`') {
           result += ' ';
           index += 1;
-          state = 'template';
+          frames.push({ kind: 'template' });
           continue;
+        }
+        if (current.kind === 'template-expression') {
+          if (char === '{') {
+            result += '{';
+            current.braceDepth += 1;
+            index += 1;
+            continue;
+          }
+          if (char === '}') {
+            if (current.braceDepth === 1) {
+              result += ' ';
+              frames.pop();
+            } else {
+              result += '}';
+              current.braceDepth -= 1;
+            }
+            index += 1;
+            continue;
+          }
         }
         result += char;
         index += 1;
@@ -160,14 +186,14 @@ function sanitizeSource(source: string) {
         result += char === '\n' ? '\n' : ' ';
         index += 1;
         if (char === '\n') {
-          state = 'code';
+          frames.pop();
         }
         continue;
       case 'block-comment':
         if (char === '*' && next === '/') {
           result += '  ';
           index += 2;
-          state = 'code';
+          frames.pop();
           continue;
         }
         result += char === '\n' ? '\n' : ' ';
@@ -182,7 +208,7 @@ function sanitizeSource(source: string) {
         result += char === '\n' ? '\n' : ' ';
         index += 1;
         if (char === "'") {
-          state = 'code';
+          frames.pop();
         }
         continue;
       case 'double-quote':
@@ -194,7 +220,7 @@ function sanitizeSource(source: string) {
         result += char === '\n' ? '\n' : ' ';
         index += 1;
         if (char === '"') {
-          state = 'code';
+          frames.pop();
         }
         continue;
       case 'template':
@@ -203,10 +229,16 @@ function sanitizeSource(source: string) {
           index += Math.min(2, source.length - index);
           continue;
         }
+        if (char === '$' && next === '{') {
+          result += '  ';
+          index += 2;
+          frames.push({ kind: 'template-expression', braceDepth: 1 });
+          continue;
+        }
         result += char === '\n' ? '\n' : ' ';
         index += 1;
         if (char === '`') {
-          state = 'code';
+          frames.pop();
         }
         continue;
     }
@@ -216,15 +248,244 @@ function sanitizeSource(source: string) {
 }
 
 /**
- * 判断包含指定位置的行是否带有允许注释。
+ * 计算源码在指定位置之前的解析状态栈。
+ *
+ * @param source - 原始源码文本
+ * @param targetIndex - 目标字符位置
+ * @returns 解析到目标位置前的状态栈
+ */
+function parserFramesAtIndex(source: string, targetIndex: number): ParserFrame[] {
+  const frames: ParserFrame[] = [{ kind: 'code' }];
+  let index = 0;
+
+  while (index < targetIndex) {
+    const char = source[index] ?? '';
+    const next = source[index + 1] ?? '';
+    const current = frames[frames.length - 1] ?? { kind: 'code' as const };
+
+    switch (current.kind) {
+      case 'code':
+      case 'template-expression':
+        if (char === '/' && next === '/') {
+          index += 2;
+          frames.push({ kind: 'line-comment' });
+          continue;
+        }
+        if (char === '/' && next === '*') {
+          index += 2;
+          frames.push({ kind: 'block-comment' });
+          continue;
+        }
+        if (char === "'") {
+          index += 1;
+          frames.push({ kind: 'single-quote' });
+          continue;
+        }
+        if (char === '"') {
+          index += 1;
+          frames.push({ kind: 'double-quote' });
+          continue;
+        }
+        if (char === '`') {
+          index += 1;
+          frames.push({ kind: 'template' });
+          continue;
+        }
+        if (current.kind === 'template-expression') {
+          if (char === '{') {
+            current.braceDepth += 1;
+            index += 1;
+            continue;
+          }
+          if (char === '}') {
+            if (current.braceDepth === 1) {
+              frames.pop();
+            } else {
+              current.braceDepth -= 1;
+            }
+            index += 1;
+            continue;
+          }
+        }
+        index += 1;
+        continue;
+      case 'line-comment':
+        index += 1;
+        if (char === '\n') {
+          frames.pop();
+        }
+        continue;
+      case 'block-comment':
+        if (char === '*' && next === '/') {
+          index += 2;
+          frames.pop();
+          continue;
+        }
+        index += 1;
+        continue;
+      case 'single-quote':
+        if (char === '\\') {
+          index += Math.min(2, source.length - index);
+          continue;
+        }
+        index += 1;
+        if (char === "'") {
+          frames.pop();
+        }
+        continue;
+      case 'double-quote':
+        if (char === '\\') {
+          index += Math.min(2, source.length - index);
+          continue;
+        }
+        index += 1;
+        if (char === '"') {
+          frames.pop();
+        }
+        continue;
+      case 'template':
+        if (char === '\\') {
+          index += Math.min(2, source.length - index);
+          continue;
+        }
+        if (char === '$' && next === '{') {
+          index += 2;
+          frames.push({ kind: 'template-expression', braceDepth: 1 });
+          continue;
+        }
+        index += 1;
+        if (char === '`') {
+          frames.pop();
+        }
+        continue;
+    }
+  }
+
+  return frames;
+}
+
+/**
+ * 判断命中位置之后是否存在真实的行注释豁免标记。
+ *
+ * @param source - 原始源码文本
+ * @param index - 命中的字符位置
+ * @returns `true` if 匹配位置后的真实行注释包含 allow 标记，`false` otherwise.
+ */
+function hasAllowCommentAfterIndex(source: string, index: number) {
+  const frames = parserFramesAtIndex(source, index);
+  const lineEnd = source.indexOf('\n', index);
+  const end = lineEnd === -1 ? source.length : lineEnd;
+  let cursor = index;
+
+  while (cursor < end) {
+    const char = source[cursor] ?? '';
+    const next = source[cursor + 1] ?? '';
+    const current = frames[frames.length - 1] ?? { kind: 'code' as const };
+
+    switch (current.kind) {
+      case 'code':
+      case 'template-expression':
+        if (char === '/' && next === '/') {
+          return source.slice(cursor + 2, end).includes(NATIVE_DIALOG_ALLOW_COMMENT);
+        }
+        if (char === '/' && next === '*') {
+          cursor += 2;
+          frames.push({ kind: 'block-comment' });
+          continue;
+        }
+        if (char === "'") {
+          cursor += 1;
+          frames.push({ kind: 'single-quote' });
+          continue;
+        }
+        if (char === '"') {
+          cursor += 1;
+          frames.push({ kind: 'double-quote' });
+          continue;
+        }
+        if (char === '`') {
+          cursor += 1;
+          frames.push({ kind: 'template' });
+          continue;
+        }
+        if (current.kind === 'template-expression') {
+          if (char === '{') {
+            current.braceDepth += 1;
+            cursor += 1;
+            continue;
+          }
+          if (char === '}') {
+            if (current.braceDepth === 1) {
+              frames.pop();
+            } else {
+              current.braceDepth -= 1;
+            }
+            cursor += 1;
+            continue;
+          }
+        }
+        cursor += 1;
+        continue;
+      case 'line-comment':
+        return source.slice(cursor, end).includes(NATIVE_DIALOG_ALLOW_COMMENT);
+      case 'block-comment':
+        if (char === '*' && next === '/') {
+          cursor += 2;
+          frames.pop();
+          continue;
+        }
+        cursor += 1;
+        continue;
+      case 'single-quote':
+        if (char === '\\') {
+          cursor += Math.min(2, end - cursor);
+          continue;
+        }
+        cursor += 1;
+        if (char === "'") {
+          frames.pop();
+        }
+        continue;
+      case 'double-quote':
+        if (char === '\\') {
+          cursor += Math.min(2, end - cursor);
+          continue;
+        }
+        cursor += 1;
+        if (char === '"') {
+          frames.pop();
+        }
+        continue;
+      case 'template':
+        if (char === '\\') {
+          cursor += Math.min(2, end - cursor);
+          continue;
+        }
+        if (char === '$' && next === '{') {
+          cursor += 2;
+          frames.push({ kind: 'template-expression', braceDepth: 1 });
+          continue;
+        }
+        cursor += 1;
+        if (char === '`') {
+          frames.pop();
+        }
+        continue;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * 判断包含指定位置的真实行注释是否带有允许标记。
  *
  * @param source - 源码文本
  * @param index - 目标位置的字符索引
- * @returns `true` if the line containing `index` includes `NATIVE_DIALOG_ALLOW_COMMENT`, `false` otherwise.
+ * @returns `true` if 匹配位置后的真实行注释包含 `NATIVE_DIALOG_ALLOW_COMMENT`, `false` otherwise.
  */
 function shouldIgnoreLine(source: string, index: number) {
-  const line = source.split('\n')[lineNumberForIndex(source, index) - 1] ?? '';
-  return line.includes(NATIVE_DIALOG_ALLOW_COMMENT);
+  return hasAllowCommentAfterIndex(source, index);
 }
 
 /**

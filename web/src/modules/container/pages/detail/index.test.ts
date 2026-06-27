@@ -2783,6 +2783,9 @@ describe('container detail page', () => {
     const detailCallCount = apiMocks.getContainer.mock.calls.length;
     const logsCallCount = apiMocks.getContainerLogs.mock.calls.length;
 
+    routeState.route.path = '/ops/containers/container-2';
+    routeState.route.fullPath = '/ops/containers/container-2?tab=logs';
+    routeState.route.query.tab = 'logs';
     routeState.route.params.id = 'container-2';
     await wrapper.vm.$nextTick();
     expect(apiMocks.getContainer.mock.calls.length).toBeGreaterThan(detailCallCount);

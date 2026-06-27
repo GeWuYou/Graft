@@ -145,6 +145,47 @@ func TestManagementWriterBatchMutationsRequireAtomicBatchWriter(t *testing.T) {
 	}
 }
 
+func TestManagementWriterSingleRoleMutationsRequireInjectedDependencies(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name    string
+		writer  managementWriter
+		mutate  func(context.Context, managementWriter) error
+		wantErr string
+	}{
+		{
+			name:   "add roles requires user service",
+			writer: managementWriter{},
+			mutate: func(ctx context.Context, writer managementWriter) error {
+				return writer.AddRolesToUser(ctx, rbacstore.AddRolesToUserInput{UserID: 11, RoleIDs: []uint64{3}})
+			},
+			wantErr: "user service is unavailable",
+		},
+		{
+			name: "remove roles requires rbac repository",
+			writer: managementWriter{
+				users: testUserService{users: map[uint64]moduleapi.UserSummary{
+					11: {ID: 11, Username: "alice"},
+				}},
+			},
+			mutate: func(ctx context.Context, writer managementWriter) error {
+				return writer.RemoveRolesFromUser(ctx, rbacstore.RemoveRolesFromUserInput{UserID: 11, RoleIDs: []uint64{3}})
+			},
+			wantErr: "rbac repository is unavailable",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.mutate(context.Background(), tc.writer)
+			if err == nil || err.Error() != tc.wantErr {
+				t.Fatalf("expected %q, got %v", tc.wantErr, err)
+			}
+		})
+	}
+}
+
 type atomicBatchMutationTestCase struct {
 	mode string
 }

@@ -511,6 +511,12 @@ func (w managementWriter) ensureSingleRoleMutationPreconditions(
 	userID uint64,
 	roleIDs []uint64,
 ) (moduleapi.UserSummary, error) {
+	if w.users == nil {
+		return moduleapi.UserSummary{}, errors.New("user service is unavailable")
+	}
+	if w.rbac == nil {
+		return moduleapi.UserSummary{}, errors.New("rbac repository is unavailable")
+	}
 	user, err := w.requireRoleMutationUser(ctx, userID)
 	if err != nil {
 		return moduleapi.UserSummary{}, err

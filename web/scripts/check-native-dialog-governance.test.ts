@@ -125,6 +125,34 @@ export function run() {
     expect(result.debt).toHaveLength(0);
   });
 
+  it('blocks native dialogs inside template string expressions', () => {
+    const result = runAuditWithSource(
+      'src/modules/demo/TemplateExpressionConfirm.ts',
+      `
+export function run() {
+  return \`\${window.confirm('danger')}\`;
+}
+`,
+    );
+
+    expect(result.debt).toHaveLength(1);
+    expect(result.debt[0]?.callee).toBe('confirm');
+  });
+
+  it('does not let string literals spoof the inline allow marker', () => {
+    const result = runAuditWithSource(
+      'src/modules/demo/SpoofedAllowMarker.ts',
+      `
+export function run() {
+  return window.confirm('danger') + "native-dialog-governance: allow";
+}
+`,
+    );
+
+    expect(result.debt).toHaveLength(1);
+    expect(result.debt[0]?.callee).toBe('confirm');
+  });
+
   it('ignores test files and generated runtime artifacts', () => {
     const root = createScratchRoot();
     mkdirSync(join(root, 'src/contracts/openapi/generated'), { recursive: true });

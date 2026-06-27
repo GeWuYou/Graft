@@ -2642,6 +2642,10 @@ onDeactivated(() => {
 watch(
   () => route.params.id,
   (nextId, previousId) => {
+    const previousContainerId = String(previousId ?? '').trim();
+    if (previousContainerId && previousContainerId !== String(nextId ?? '').trim()) {
+      releaseContainerEventsSubscription(previousContainerId);
+    }
     resetDetailState(String(previousId ?? '').trim());
     void refreshContainerDetail();
     syncEventsRealtimeSubscription();
