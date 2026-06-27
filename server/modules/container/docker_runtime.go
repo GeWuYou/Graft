@@ -21,11 +21,13 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/pkg/stdcopy"
 	"github.com/moby/moby/api/types/container"
+	dockerevents "github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/network"
 	mobyclient "github.com/moby/moby/client"
 	"go.uber.org/zap"
 
 	"graft/server/internal/logger/logsafe"
+	containercontract "graft/server/modules/container/contract"
 	"graft/server/modules/container/terminal"
 )
 
@@ -240,6 +242,62 @@ func (r *DockerRuntime) StreamLogs(ctx context.Context, ref Ref, query LogQuery,
 	return streamDockerLogLines(ctx, reader, query.Timestamps, emit)
 }
 
+// StreamRuntimeEvents follows Docker daemon events and emits canonical container runtime event candidates.
+func (r *DockerRuntime) StreamRuntimeEvents(ctx context.Context, emit func(RuntimeEventCandidate) error) error {
+	if emit == nil {
+		return errors.New("container runtime event emitter is required")
+	}
+	eventClient, ok := any(r.client).(interface {
+		Events(context.Context, mobyclient.EventsListOptions) mobyclient.EventsResult
+	})
+	if !ok {
+		return errRuntimeEventHistoryUnavailable
+	}
+	result := eventClient.Events(ctx, mobyclient.EventsListOptions{Filters: dockerRuntimeEventFilters()})
+
+	for {
+		done, err := consumeDockerRuntimeEvents(ctx, &result, emit)
+		if done || err != nil {
+			return err
+		}
+	}
+}
+
+func dockerRuntimeEventFilters() mobyclient.Filters {
+	filters := mobyclient.Filters{}
+	return filters.Add("type", "container")
+}
+
+func consumeDockerRuntimeEvents(
+	ctx context.Context,
+	result *mobyclient.EventsResult,
+	emit func(RuntimeEventCandidate) error,
+) (bool, error) {
+	select {
+	case <-ctx.Done():
+		return true, ctx.Err()
+	case message, ok := <-result.Messages:
+		if !ok {
+			result.Messages = nil
+			return result.Err == nil, nil
+		}
+		candidate, matched := dockerRuntimeEventCandidate(message)
+		if !matched {
+			return false, nil
+		}
+		return false, emit(candidate)
+	case err, ok := <-result.Err:
+		if !ok {
+			result.Err = nil
+			return result.Messages == nil, nil
+		}
+		if err == io.EOF {
+			return true, nil
+		}
+		return true, mapDockerError(err)
+	}
+}
+
 // Shell opens one interactive exec session inside the target container.
 func (r *DockerRuntime) Shell(ctx context.Context, ref Ref, command string) (terminal.Session, error) {
 	inspect, err := r.client.ContainerInspect(ctx, ref.Value)
@@ -250,6 +308,102 @@ func (r *DockerRuntime) Shell(ctx context.Context, ref Ref, command string) (ter
 		return nil, errContainerNotFound
 	}
 	return newDockerExecSession(r.client, inspect.ID, command), nil
+}
+
+func dockerRuntimeEventCandidate(message dockerevents.Message) (RuntimeEventCandidate, bool) {
+	resourceID := strings.TrimSpace(message.Actor.ID)
+	if resourceID == "" {
+		return RuntimeEventCandidate{}, false
+	}
+
+	eventType, attributes, ok := dockerCanonicalRuntimeEvent(message)
+	if !ok {
+		return RuntimeEventCandidate{}, false
+	}
+
+	occurredAt := time.Unix(message.Time, 0).UTC()
+	if message.TimeNano > 0 {
+		occurredAt = time.Unix(0, message.TimeNano).UTC()
+	}
+
+	return RuntimeEventCandidate{
+		ResourceID: resourceID,
+		EventType:  eventType,
+		OccurredAt: occurredAt,
+		Attributes: attributes,
+	}, true
+}
+
+func dockerCanonicalRuntimeEvent(
+	message dockerevents.Message,
+) (containercontract.RuntimeEventType, map[string]string, bool) {
+	action := strings.ToLower(strings.TrimSpace(string(message.Action)))
+	attrs := dockerRuntimeEventBaseAttributes(message)
+	return dockerRuntimeEventFromAction(action, message, attrs)
+}
+
+func dockerRuntimeEventBaseAttributes(message dockerevents.Message) map[string]string {
+	attrs := make(map[string]string)
+	addRuntimeEventAttribute(attrs, "name", message.Actor.Attributes["name"])
+	return attrs
+}
+
+func dockerRuntimeEventFromAction(
+	action string,
+	message dockerevents.Message,
+	attrs map[string]string,
+) (containercontract.RuntimeEventType, map[string]string, bool) {
+	switch action {
+	case "create":
+		return containercontract.RuntimeEventTypeContainerCreated, attrs, true
+	case "start":
+		return containercontract.RuntimeEventTypeContainerStarted, attrs, true
+	case "restart":
+		return containercontract.RuntimeEventTypeContainerRestarted, attrs, true
+	case "destroy", "remove":
+		return containercontract.RuntimeEventTypeContainerRemoved, attrs, true
+	case "oom":
+		return containercontract.RuntimeEventTypeContainerOOMKilled, attrs, true
+	case "health_status":
+		addRuntimeEventAttribute(attrs, "health_status", message.Actor.Attributes["health_status"])
+		return containercontract.RuntimeEventTypeContainerHealthStatusChanged, attrs, true
+	case "exec_create", "exec_start":
+		addRuntimeEventAttribute(attrs, "exec_id", message.Actor.Attributes["execID"])
+		addRuntimeEventAttribute(attrs, "exec_command", message.Actor.Attributes["execCommand"])
+		return containercontract.RuntimeEventTypeContainerExecStarted, attrs, true
+	case "exec_die":
+		addRuntimeEventAttribute(attrs, "exec_id", message.Actor.Attributes["execID"])
+		addRuntimeEventAttribute(attrs, "exec_exit_code", message.Actor.Attributes["exitCode"])
+		return containercontract.RuntimeEventTypeContainerExecFinished, attrs, true
+	default:
+		return dockerStoppedRuntimeEvent(action, message, attrs)
+	}
+}
+
+func dockerStoppedRuntimeEvent(
+	action string,
+	message dockerevents.Message,
+	attrs map[string]string,
+) (containercontract.RuntimeEventType, map[string]string, bool) {
+	switch action {
+	case "stop", "die", "kill":
+		addRuntimeEventAttribute(attrs, "exit_code", message.Actor.Attributes["exitCode"])
+		return containercontract.RuntimeEventTypeContainerStopped, attrs, true
+	default:
+		return "", nil, false
+	}
+}
+
+func addRuntimeEventAttribute(attributes map[string]string, key string, value string) {
+	if attributes == nil {
+		return
+	}
+	key = strings.TrimSpace(key)
+	value = strings.TrimSpace(value)
+	if key == "" || value == "" {
+		return
+	}
+	attributes[key] = value
 }
 
 // mapDockerShellError 将 Docker Shell 执行错误映射为特定领域的错误类型。

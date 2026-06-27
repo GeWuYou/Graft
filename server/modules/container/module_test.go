@@ -231,6 +231,7 @@ func expectedPermissionCodes() []string {
 	return []string{
 		containercontract.ContainerViewPermission.String(),
 		containercontract.ContainerDetailPermission.String(),
+		containercontract.ContainerEventsPermission.String(),
 		containercontract.ContainerEnvironmentPermission.String(),
 		containercontract.ContainerLogsPermission.String(),
 		containercontract.ContainerShellPermission.String(),

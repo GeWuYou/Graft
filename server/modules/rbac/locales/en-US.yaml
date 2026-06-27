@@ -28,6 +28,8 @@ rbac.permissionCatalog.containerView.display: Container View
 rbac.permissionCatalog.containerView.description: Allows reading the container list.
 rbac.permissionCatalog.containerDetail.display: Container Detail View
 rbac.permissionCatalog.containerDetail.description: Allows reading container details.
+rbac.permissionCatalog.containerEvents.display: Container Event Read
+rbac.permissionCatalog.containerEvents.description: Allows reading bounded container runtime event history and live event streams.
 rbac.permissionCatalog.containerEnvironment.display: Container Environment Read
 rbac.permissionCatalog.containerEnvironment.description: Allows reading container environment variable values when display policy permits them.
 rbac.permissionCatalog.containerLogs.display: Container Log Read

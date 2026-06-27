@@ -1,0 +1,43 @@
+type: object
+required:
+  - id
+  - resource_type
+  - resource_id
+  - event_type
+  - severity
+  - occurred_at
+properties:
+  id:
+    type: string
+    description: Opaque event identifier stable within the bounded replay window.
+  resource_type:
+    type: string
+    enum:
+      - container
+    description: Canonical runtime event resource type.
+  resource_id:
+    type: string
+    description: Canonical container identifier.
+  event_type:
+    type: string
+    description: Canonical container runtime event type.
+    enum:
+      - container.created
+      - container.started
+      - container.restarted
+      - container.stopped
+      - container.removed
+      - container.oom_killed
+      - container.health_status_changed
+      - container.exec_started
+      - container.exec_finished
+  severity:
+    $ref: ./container-runtime-event-severity.yaml
+  occurred_at:
+    type: string
+    format: date-time
+  attributes:
+    type: object
+    additionalProperties:
+      type: string
+    description: Stable provider-normalized scalar metadata for rendering and local i18n.

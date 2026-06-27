@@ -1711,6 +1711,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/ops/containers/{id}/events': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Read container runtime events
+     * @description Returns bounded recent canonical runtime events for one container. Each record includes a manager-assigned `seq` used for reconnect-safe merge and dedupe with the companion realtime topic `container.events:{id}`.
+     */
+    get: operations['getContainerEvents'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/ops/containers/{id}/mounts/usage': {
     parameters: {
       query?: never;
@@ -2074,6 +2094,11 @@ export interface components {
     ContainerNetwork: components['schemas']['container-network'];
     ContainerLogEntry: components['schemas']['container-log-entry'];
     ContainerLogResponse: components['schemas']['container-log-response'];
+    ContainerRuntimeEventSeverity: components['schemas']['container-runtime-event-severity'];
+    ContainerRuntimeEvent: components['schemas']['container-runtime-event'];
+    ContainerRuntimeEventRecord: components['schemas']['container-runtime-event-record'];
+    ContainerRuntimeEventStreamContext: components['schemas']['container-runtime-event-stream-context'];
+    ContainerRuntimeEventsResponse: components['schemas']['container-runtime-events-response'];
     ContainerShellSessionRequest: components['schemas']['container-shell-session-request'];
     ContainerShellSessionResponse: components['schemas']['container-shell-session-response'];
     ContainerActionResponse: components['schemas']['container-action-response'];
@@ -2097,6 +2122,7 @@ export interface components {
     EnvelopedContainerMountUsage: components['schemas']['enveloped-container-mount-usage'];
     EnvelopedContainerMountUsageListResponse: components['schemas']['enveloped-container-mount-usage-list-response'];
     EnvelopedContainerLogResponse: components['schemas']['enveloped-container-log-response'];
+    EnvelopedContainerRuntimeEventsResponse: components['schemas']['enveloped-container-runtime-events-response'];
     EnvelopedContainerShellSessionResponse: components['schemas']['enveloped-container-shell-session-response'];
     EnvelopedContainerActionResponse: components['schemas']['enveloped-container-action-response'];
     EnvelopedContainerBatchActionResponse: components['schemas']['enveloped-container-batch-action-response'];
@@ -4359,6 +4385,63 @@ export interface components {
     'enveloped-container-detail': components['schemas']['api-envelope'] & {
       data: components['schemas']['container-detail'];
     };
+    'container-runtime-event-stream-context': {
+      /** @description Stream context runtime identifier. This is not part of the canonical event fact. */
+      runtime: string;
+    };
+    /**
+     * @description Canonical severity mapped by the container module rather than provider-authored values.
+     * @enum {string}
+     */
+    'container-runtime-event-severity': 'info' | 'warning' | 'error';
+    'container-runtime-event': {
+      /** @description Opaque event identifier stable within the bounded replay window. */
+      id: string;
+      /**
+       * @description Canonical runtime event resource type.
+       * @enum {string}
+       */
+      resource_type: 'container';
+      /** @description Canonical container identifier. */
+      resource_id: string;
+      /**
+       * @description Canonical container runtime event type.
+       * @enum {string}
+       */
+      event_type:
+        | 'container.created'
+        | 'container.started'
+        | 'container.restarted'
+        | 'container.stopped'
+        | 'container.removed'
+        | 'container.oom_killed'
+        | 'container.health_status_changed'
+        | 'container.exec_started'
+        | 'container.exec_finished';
+      severity: components['schemas']['container-runtime-event-severity'];
+      /** Format: date-time */
+      occurred_at: string;
+      /** @description Stable provider-normalized scalar metadata for rendering and local i18n. */
+      attributes?: {
+        [key: string]: string;
+      };
+    };
+    'container-runtime-event-record': {
+      /**
+       * Format: int64
+       * @description Monotonically increasing sequence within the container event stream.
+       */
+      seq: number;
+      event: components['schemas']['container-runtime-event'];
+    };
+    'container-runtime-events-response': {
+      resource_id: string;
+      context: components['schemas']['container-runtime-event-stream-context'];
+      items: components['schemas']['container-runtime-event-record'][];
+    };
+    'enveloped-container-runtime-events-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['container-runtime-events-response'];
+    };
     'container-mount-usage-list-response': {
       items: components['schemas']['container-mount-usage'][];
     };
@@ -4378,7 +4461,7 @@ export interface components {
       stream: 'stdout' | 'stderr';
       /**
        * Format: date-time
-       * @description Canonical UTC occurrence time for the log entry.
+       * @description Canonical UTC occurrence time for the log entry, using the runtime timestamp when available and server receive time otherwise.
        */
       occurred_at: string;
     };
@@ -9275,6 +9358,61 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['enveloped-container-detail'];
+        };
+      };
+      /** @description Invalid container reference. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Container was not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getContainerEvents: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Container id or name. Clients must call encodeURIComponent before placing this value in the path. The backend must PathUnescape the path parameter and reject empty values, slashes, and control characters with ops.container.error.invalidContainerRef. */
+        id: components['parameters']['container-id-path'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Container runtime events. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-container-runtime-events-response'];
         };
       };
       /** @description Invalid container reference. */

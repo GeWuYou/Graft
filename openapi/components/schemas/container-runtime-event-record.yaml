@@ -1,0 +1,12 @@
+type: object
+required:
+  - seq
+  - event
+properties:
+  seq:
+    type: integer
+    format: int64
+    minimum: 1
+    description: Monotonically increasing sequence within the container event stream.
+  event:
+    $ref: ./container-runtime-event.yaml

@@ -1,5 +1,8 @@
+import type { components } from '@/contracts/openapi/generated/schema';
+
 export const CONTAINER_REALTIME_TOPIC = {
   DASHBOARD_SUMMARY: 'container.dashboard.summary',
+  EVENTS_PREFIX: 'container.events:',
   LOGS_PREFIX: 'container.logs:',
   LIST_STATS: 'container.stats.list',
   STATS_PREFIX: 'container.stats:',
@@ -27,6 +30,10 @@ export function buildContainerLogsTopicName(containerId: string) {
   return `${CONTAINER_REALTIME_TOPIC.LOGS_PREFIX}${containerId}`;
 }
 
+export function buildContainerEventsTopicName(containerId: string) {
+  return `${CONTAINER_REALTIME_TOPIC.EVENTS_PREFIX}${containerId}`;
+}
+
 /**
  * 从日志 realtime topic 中解析容器 ID。
  *
@@ -51,6 +58,61 @@ export function parseContainerLogsTopicContainerId(topic: string) {
 export function isContainerLogsTopicForContainer(topic: string, containerId: string) {
   const normalizedContainerId = containerId.trim();
   return normalizedContainerId.length > 0 && parseContainerLogsTopicContainerId(topic) === normalizedContainerId;
+}
+
+export function isContainerEventsTopicForContainer(topic: string, containerId: string) {
+  const normalizedContainerId = containerId.trim();
+  if (!normalizedContainerId.length) {
+    return false;
+  }
+
+  const normalizedTopic = topic.trim();
+  if (!normalizedTopic.startsWith(CONTAINER_REALTIME_TOPIC.EVENTS_PREFIX)) {
+    return false;
+  }
+
+  return normalizedTopic.slice(CONTAINER_REALTIME_TOPIC.EVENTS_PREFIX.length).trim() === normalizedContainerId;
+}
+
+type ContainerRuntimeEventRecord = components['schemas']['ContainerRuntimeEventRecord'];
+type ContainerRuntimeEventStreamContext = components['schemas']['ContainerRuntimeEventStreamContext'];
+
+export type ContainerEventsRealtimePayload = {
+  topic: string;
+  resource_id: string;
+  context: ContainerRuntimeEventStreamContext;
+  record: ContainerRuntimeEventRecord;
+};
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === 'object');
+}
+
+export function parseContainerEventsPayload(raw: unknown): ContainerEventsRealtimePayload | null {
+  if (typeof raw !== 'string') {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(raw) as { data?: unknown };
+    if (!isObject(parsed) || !isObject(parsed.data)) {
+      return null;
+    }
+    const data = parsed.data;
+    if (
+      typeof data.topic !== 'string' ||
+      typeof data.resource_id !== 'string' ||
+      !isObject(data.context) ||
+      typeof data.context.runtime !== 'string' ||
+      !isObject(data.record) ||
+      typeof data.record.seq !== 'number' ||
+      !isObject(data.record.event)
+    ) {
+      return null;
+    }
+    return data as ContainerEventsRealtimePayload;
+  } catch {
+    return null;
+  }
 }
 
 /**

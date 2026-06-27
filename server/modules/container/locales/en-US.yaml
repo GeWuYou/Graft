@@ -10,6 +10,7 @@ ops.container.error.invalidContainerRef: Invalid container reference
 ops.container.error.invalidListQuery: Invalid container list query parameter
 ops.container.error.invalidBatchAction: Invalid container batch action request
 ops.container.error.invalidState: The container state does not allow this action
+ops.container.error.eventsUnavailable: Container runtime events are currently unavailable
 ops.container.error.logsTooLarge: Requested log tail exceeds the configured limit
 ops.container.error.invalidLogQuery: Invalid container log query parameter
 ops.container.error.shellDisabled: Container shell access is disabled

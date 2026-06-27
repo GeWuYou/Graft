@@ -1,0 +1,10 @@
+type: string
+enum:
+  - info
+  - warning
+  - error
+x-enum-varnames:
+  - ContainerRuntimeEventSeverityInfo
+  - ContainerRuntimeEventSeverityWarning
+  - ContainerRuntimeEventSeverityError
+description: Canonical severity mapped by the container module rather than provider-authored values.

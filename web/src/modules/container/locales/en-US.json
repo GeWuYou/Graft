@@ -327,6 +327,7 @@
       "tabs": {
         "overview": "Overview",
         "resources": "Resources",
+        "events": "Events",
         "logs": "Logs",
         "shell": "Shell",
         "health": "Health",
@@ -339,6 +340,22 @@
         "enterFullscreen": "Fullscreen",
         "exitFullscreen": "Exit Fullscreen",
         "resizeHandle": "Resize Viewer Height"
+      },
+      "events": {
+        "title": "Runtime Events",
+        "empty": "No Events in the Current Window.",
+        "permissionDenied": "The Current User Cannot Read Container Events.",
+        "runtime": "Runtime: {runtime}",
+        "states": {
+          "idle": "Idle",
+          "connecting": "Connecting",
+          "streaming": "Live",
+          "paused": "Paused",
+          "reconnecting": "Reconnecting",
+          "disconnected": "Disconnected",
+          "error": "Error",
+          "empty": "Empty"
+        }
       },
       "shell": {
         "title": "Shell",

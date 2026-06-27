@@ -52,6 +52,7 @@ var containerErrorMessageRules = []struct {
 	{err: errInvalidListQuery, key: containercontract.ContainerInvalidListQuery},
 	{err: errInvalidBatchAction, key: containercontract.ContainerInvalidBatchAction},
 	{err: errInvalidContainerState, key: containercontract.ContainerInvalidState},
+	{err: errRuntimeEventHistoryUnavailable, key: containercontract.ContainerEventsUnavailable},
 	{err: errLogsTooLarge, key: containercontract.ContainerLogsTooLarge},
 	{err: errInvalidLogQuery, key: containercontract.ContainerInvalidLogQuery},
 	{err: errShellDisabled, key: containercontract.ContainerShellDisabled},

@@ -3,6 +3,7 @@ import { request } from '@/utils/request';
 
 import {
   buildContainerDetailApiPath,
+  buildContainerEventsApiPath,
   buildContainerLogsApiPath,
   buildContainerMountUsageApiPath,
   buildContainerMountUsageRefreshApiPath,
@@ -26,6 +27,8 @@ import type {
   ContainerMountUsagePathParams,
   ContainerMountUsageRefreshPathParams,
   ContainerRemoveRequest,
+  ContainerRuntimeEventsPathParams,
+  ContainerRuntimeEventsResponse,
   ContainerShellSessionRequest,
   ContainerShellSessionResponse,
 } from '../types/container';
@@ -46,6 +49,11 @@ type GetContainerLogsOperation = paths[ContainerLogsPath]['get'];
 type GetContainerLogsEnvelope = GetContainerLogsOperation['responses'][200]['content']['application/json'];
 type GetContainerLogsData = NonNullable<GetContainerLogsEnvelope['data']>;
 type GetContainerLogsPathParams = GetContainerLogsOperation['parameters']['path'];
+
+type ContainerEventsPath = (typeof CONTAINER_API_PATH)['EVENTS'];
+type GetContainerEventsOperation = paths[ContainerEventsPath]['get'];
+type GetContainerEventsEnvelope = GetContainerEventsOperation['responses'][200]['content']['application/json'];
+type GetContainerEventsData = NonNullable<GetContainerEventsEnvelope['data']>;
 
 type ContainerMountUsagePath = (typeof CONTAINER_API_PATH)['MOUNTS_USAGE'];
 type GetContainerMountUsageOperation = paths[ContainerMountUsagePath]['get'];
@@ -143,6 +151,12 @@ export function getContainerLogs(containerId: GetContainerLogsPathParams['id'], 
     url: buildContainerLogsApiPath(containerId),
     params: query,
   }) as Promise<ContainerLogResponse>;
+}
+
+export function getContainerEvents(containerId: ContainerRuntimeEventsPathParams['id']) {
+  return request.get<GetContainerEventsData>({
+    url: buildContainerEventsApiPath(containerId),
+  }) as Promise<ContainerRuntimeEventsResponse>;
 }
 
 /**

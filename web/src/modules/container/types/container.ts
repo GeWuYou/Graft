@@ -11,6 +11,11 @@ export type ContainerHealthcheck = components['schemas']['ContainerHealthcheck']
 export type ContainerListSummary = components['schemas']['ContainerListSummary'];
 export type ContainerLogEntry = components['schemas']['ContainerLogEntry'];
 export type ContainerLogResponse = components['schemas']['ContainerLogResponse'];
+export type ContainerRuntimeEventSeverity = components['schemas']['ContainerRuntimeEventSeverity'];
+export type ContainerRuntimeEvent = components['schemas']['ContainerRuntimeEvent'];
+export type ContainerRuntimeEventRecord = components['schemas']['ContainerRuntimeEventRecord'];
+export type ContainerRuntimeEventStreamContext = components['schemas']['ContainerRuntimeEventStreamContext'];
+export type ContainerRuntimeEventsResponse = components['schemas']['ContainerRuntimeEventsResponse'];
 export type ContainerActionResponse = components['schemas']['ContainerActionResponse'];
 export type ContainerRemoveRequest = components['schemas']['ContainerRemoveRequest'];
 export type ContainerBatchActionRequest = components['schemas']['ContainerBatchActionRequest'];
@@ -40,6 +45,9 @@ type GetContainersOperation = paths[ContainerListPath]['get'];
 type ContainerLogsPath = (typeof CONTAINER_API_PATH)['LOGS'];
 type GetContainerLogsOperation = paths[ContainerLogsPath]['get'];
 
+type ContainerEventsPath = (typeof CONTAINER_API_PATH)['EVENTS'];
+type GetContainerEventsOperation = paths[ContainerEventsPath]['get'];
+
 type ContainerMountUsagePath = (typeof CONTAINER_API_PATH)['MOUNTS_USAGE'];
 type GetContainerMountUsageOperation = paths[ContainerMountUsagePath]['get'];
 
@@ -56,6 +64,7 @@ export type ContainerListSourceScopeQuery = Pick<
   Extract<'source_scope_kind' | 'source_scope', keyof ContainerListQuery>
 >;
 export type ContainerLogQuery = NonNullable<GetContainerLogsOperation['parameters']['query']>;
+export type ContainerRuntimeEventsPathParams = GetContainerEventsOperation['parameters']['path'];
 export type ContainerMountUsagePathParams = GetContainerMountUsageOperation['parameters']['path'];
 export type ContainerMountUsageRefreshPathParams = PostContainerMountUsageRefreshOperation['parameters']['path'];
 

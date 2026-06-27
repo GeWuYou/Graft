@@ -3,7 +3,7 @@
 ## Topic
 
 - Topic: `container-runtime-events`
-- Status: `active recovery entry`
+- Status: `phase-1 implemented`
 - Goal: 为容器模块建立 runtime-agnostic Runtime Events 设计、实施计划与分批恢复入口，随后按 `graft-multi-agent-loop`
   推进 bounded implementation batches。
 
@@ -38,36 +38,29 @@
 
 ## Current Recovery Point
 
-- 规划 authority 已落定，尚未开始产品代码实现。
-- 当前可复用基础设施结论：
-  - Logs、Stats、Dashboard summary 已使用统一 realtime topic pipeline。
-  - Shell 使用 module-private websocket，不可作为 Runtime Events transport authority。
-  - `LogRingBuffer<T>` 虽然命名偏日志，但实现已是 generic，可直接复用为 event replay buffer。
-  - `stream-viewport-state` 可直接复用为 Events page visual state primitive。
-- 当前 domain model 决议：
-  - `RuntimeEvent` 只承载 event fact
-  - `runtime` 属于 stream context，不属于 event fact
-  - `severity` 由 canonical mapping 决定
-  - 不维护 `category`
-  - 不维护 `message`
-- 当前 backend owner 决议：
-  - `RuntimeEventSource` 是新的 runtime extension interface
-  - `RuntimeEventManager` 不得直接知道 Docker
-  - reconnect 后必须重新拉取 bounded history，并按 `seq` merge / dedupe
-  - phase 1 默认新增 `ops.container.events`
-  - web 不得新建平行 realtime topic contract owner
+- Phase 1 已完成，当前 live recovery point：
+  - backend 已新增 canonical `RuntimeEvent` domain、source-agnostic `RuntimeEventManager`、bounded in-memory per-container history、`seq` replay record 和 history HTTP seed endpoint
+  - Docker runtime 已作为首个 `RuntimeEventSource` adapter 接入，上游不泄漏 Docker-specific event model，severity 仍由 canonical mapping 决定
+  - `ops.container.events` permission contract 与 `container.events:{id}` realtime topic 已落地
+  - frontend 已新增 module-owned `events-manager`，detail page `Events` tab 已消费 `history seed + live append`
+  - reconnect backfill 已落在 frontend manager，通过 `seq` merge / dedupe 避免重复和补洞
+- 当前仍待后续批次完成：
+  - Event Type / Severity filter
+  - Search / Copy JSON / Jump to Logs
+  - Timeline / timestamp UX hardening
+  - provider extensibility hardening
 
 ## Task Checklist
 
 - [x] Batch 0：建立 design authority
 - [x] Batch 0：建立 active topic recovery
 - [x] Batch 0：登记 phased rollout 与 compatibility analysis
-- [ ] Phase 1：backend `RuntimeEventSource` / `RuntimeEventManager` foundation
-- [ ] Phase 1：`ops.container.events` permission contract
-- [ ] Phase 1：Docker source adapter
-- [ ] Phase 1：bounded history + history API + realtime topic
-- [ ] Phase 1：reconnect backfill + `seq` merge strategy
-- [ ] Phase 1：frontend detail `Events` tab minimum slice
+- [x] Phase 1：backend `RuntimeEventSource` / `RuntimeEventManager` foundation
+- [x] Phase 1：`ops.container.events` permission contract
+- [x] Phase 1：Docker source adapter
+- [x] Phase 1：bounded history + history API + realtime topic
+- [x] Phase 1：reconnect backfill + `seq` merge strategy
+- [x] Phase 1：frontend detail `Events` tab minimum slice
 - [ ] Phase 2：Event Type Filter
 - [ ] Phase 2：Severity Filter
 - [ ] Phase 2：Search / Copy JSON / Jump to Logs
@@ -81,16 +74,16 @@
 {
   "loop_mode": "topic-completion-loop",
   "completed_batches": [
-    "batch-0-design-authority-and-topic-bootstrap"
+    "batch-0-design-authority-and-topic-bootstrap",
+    "phase-1-runtime-event-foundation"
   ],
   "pending_batches": [
-    "phase-1-runtime-event-foundation",
     "phase-2-container-events-ux",
     "phase-3-provider-extensibility-and-hardening",
     "final-archive-readiness-and-governance-sync"
   ],
-  "current_batch": "batch-0-design-authority-and-topic-bootstrap",
-  "next_batch": "phase-1-runtime-event-foundation",
-  "closeout_status": "batch-0-complete"
+  "current_batch": "phase-1-runtime-event-foundation",
+  "next_batch": "phase-2-container-events-ux",
+  "closeout_status": "phase-1-complete"
 }
 ```

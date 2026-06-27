@@ -68,6 +68,11 @@ func registerRoutes(ctx *module.Context, moduleName string, service *service) er
 		routes.handleDetail,
 	)
 	group.GET(
+		containercontract.ContainerEventsRoute,
+		httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerEventsPermission.String(), publisher),
+		routes.handleEvents,
+	)
+	group.GET(
 		containercontract.ContainerLogsRoute,
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerLogsPermission.String(), publisher),
 		routes.handleLogs,
@@ -179,6 +184,20 @@ func (r routeRuntime) handleLogs(ginCtx *gin.Context) {
 		return
 	}
 	httpx.WriteSuccess(ginCtx, http.StatusOK, toLogs(logs))
+}
+
+func (r routeRuntime) handleEvents(ginCtx *gin.Context) {
+	_ = bindGetContainerEventsParams(ginCtx)
+	ref, ok := readRef(ginCtx, r)
+	if !ok {
+		return
+	}
+	history, err := r.service.RuntimeEventHistory(ginCtx.Request.Context(), ref)
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, toRuntimeEventsHistoryResponse(history))
 }
 
 func (r routeRuntime) handleShellSessionCreate(ginCtx *gin.Context) {
@@ -549,6 +568,11 @@ func bindGetContainerLogsParams(ginCtx *gin.Context) containeropenapi.GetContain
 		params.Stderr = &value
 	}
 	return params
+}
+
+func bindGetContainerEventsParams(ginCtx *gin.Context) containeropenapi.GetContainerEventsParams {
+	locale, requestID := commonHeaders(ginCtx)
+	return containeropenapi.GetContainerEventsParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
 func bindPostContainerRemoveParams(ginCtx *gin.Context) containeropenapi.PostContainerRemoveParams {

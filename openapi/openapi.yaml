@@ -196,6 +196,8 @@ paths:
     $ref: ./paths/ops-containers.batch-actions.yaml
   /api/ops/containers/{id}:
     $ref: ./paths/ops-containers.detail.yaml
+  /api/ops/containers/{id}/events:
+    $ref: ./paths/ops-containers.events.yaml
   /api/ops/containers/{id}/mounts/usage:
     $ref: ./paths/ops-containers.mounts-usage.yaml
   /api/ops/containers/{id}/mounts/{mountId}/usage/refresh:
@@ -574,6 +576,16 @@ components:
       $ref: ./components/schemas/container-log-entry.yaml
     ContainerLogResponse:
       $ref: ./components/schemas/container-log-response.yaml
+    ContainerRuntimeEventSeverity:
+      $ref: ./components/schemas/container-runtime-event-severity.yaml
+    ContainerRuntimeEvent:
+      $ref: ./components/schemas/container-runtime-event.yaml
+    ContainerRuntimeEventRecord:
+      $ref: ./components/schemas/container-runtime-event-record.yaml
+    ContainerRuntimeEventStreamContext:
+      $ref: ./components/schemas/container-runtime-event-stream-context.yaml
+    ContainerRuntimeEventsResponse:
+      $ref: ./components/schemas/container-runtime-events-response.yaml
     ContainerShellSessionRequest:
       $ref: ./components/schemas/container-shell-session-request.yaml
     ContainerShellSessionResponse:
@@ -620,6 +632,8 @@ components:
       $ref: ./components/schemas/enveloped-container-mount-usage-list-response.yaml
     EnvelopedContainerLogResponse:
       $ref: ./components/schemas/enveloped-container-log-response.yaml
+    EnvelopedContainerRuntimeEventsResponse:
+      $ref: ./components/schemas/enveloped-container-runtime-events-response.yaml
     EnvelopedContainerShellSessionResponse:
       $ref: ./components/schemas/enveloped-container-shell-session-response.yaml
     EnvelopedContainerActionResponse:

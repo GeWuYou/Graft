@@ -327,6 +327,7 @@
       "tabs": {
         "overview": "概览",
         "resources": "资源",
+        "events": "事件",
         "logs": "日志",
         "shell": "Shell",
         "health": "健康",
@@ -339,6 +340,22 @@
         "enterFullscreen": "全屏",
         "exitFullscreen": "退出全屏",
         "resizeHandle": "调整阅读器高度"
+      },
+      "events": {
+        "title": "运行时事件",
+        "empty": "当前窗口内暂无事件。",
+        "permissionDenied": "当前账号无容器事件读取权限。",
+        "runtime": "运行时：{runtime}",
+        "states": {
+          "idle": "空闲",
+          "connecting": "连接中",
+          "streaming": "实时中",
+          "paused": "暂停",
+          "reconnecting": "重连中",
+          "disconnected": "已断开",
+          "error": "错误",
+          "empty": "空"
+        }
       },
       "shell": {
         "title": "Shell",

@@ -55,6 +55,7 @@ var containerMessageKeys = []string{
 	containercontract.ContainerInvalidListQuery.String(),
 	containercontract.ContainerInvalidBatchAction.String(),
 	containercontract.ContainerInvalidState.String(),
+	containercontract.ContainerEventsUnavailable.String(),
 	containercontract.ContainerLogsTooLarge.String(),
 	containercontract.ContainerInvalidLogQuery.String(),
 	containercontract.ContainerShellDisabled.String(),
@@ -97,7 +98,7 @@ func registerPermissions(registry *permission.Registry, moduleName string) error
 }
 
 // permissionItems 为容器管理操作构建 RBAC 权限项。
-// 返回包含 9 个权限项的切片，对应容器的查看、详情、环境、日志、Shell、启动、停止、重启和删除操作。
+// 返回包含 10 个权限项的切片，对应容器的查看、详情、事件、环境、日志、Shell、启动、停止、重启和删除操作。
 // 每个权限项均配置有国际化的显示和描述键，并被赋予指定的模块名称。
 func permissionItems(moduleName string) []permission.Item {
 	return []permission.Item{
@@ -116,6 +117,15 @@ func permissionItems(moduleName string) []permission.Item {
 			DisplayKey:     "rbac.permissionCatalog.containerDetail.display",
 			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.containerDetail.description",
+			Category:       "api",
+			Module:         moduleName,
+		},
+		{
+			Code:           containercontract.ContainerEventsPermission.String(),
+			Name:           "",
+			DisplayKey:     "rbac.permissionCatalog.containerEvents.display",
+			Description:    "",
+			DescriptionKey: "rbac.permissionCatalog.containerEvents.description",
 			Category:       "api",
 			Module:         moduleName,
 		},

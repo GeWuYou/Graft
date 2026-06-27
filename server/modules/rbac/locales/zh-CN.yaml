@@ -28,6 +28,8 @@ rbac.permissionCatalog.containerView.display: 容器查看
 rbac.permissionCatalog.containerView.description: 允许读取容器列表。
 rbac.permissionCatalog.containerDetail.display: 容器详情查看
 rbac.permissionCatalog.containerDetail.description: 允许读取容器详情。
+rbac.permissionCatalog.containerEvents.display: 容器事件读取
+rbac.permissionCatalog.containerEvents.description: 允许读取有界容器运行时事件历史与实时事件流。
 rbac.permissionCatalog.containerEnvironment.display: 容器环境变量读取
 rbac.permissionCatalog.containerEnvironment.description: 允许在展示策略允许时读取容器环境变量值。
 rbac.permissionCatalog.containerLogs.display: 容器日志读取

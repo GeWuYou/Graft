@@ -419,6 +419,71 @@
               </section>
             </t-tab-panel>
 
+            <t-tab-panel value="events" :label="t('container.detail.tabs.events')" :destroy-on-hide="false">
+              <section class="container-detail-section container-detail-tab-body">
+                <div class="container-detail-logs-header">
+                  <div class="container-detail-logs-header__title-block">
+                    <h3 class="container-detail-logs-header__title">{{ t('container.detail.events.title') }}</h3>
+                    <p class="container-detail-section__caption">
+                      {{ t('container.detail.events.runtime', { runtime: eventRuntimeLabel }) }}
+                    </p>
+                  </div>
+                  <t-tag
+                    :theme="
+                      eventViewportState === 'streaming'
+                        ? 'success'
+                        : eventViewportState === 'error'
+                          ? 'danger'
+                          : 'primary'
+                    "
+                    variant="light-outline"
+                  >
+                    {{ t(`container.detail.events.states.${eventViewportState}`) }}
+                  </t-tag>
+                </div>
+                <t-alert
+                  v-if="!eventCanView"
+                  theme="warning"
+                  :message="t('container.detail.events.permissionDenied')"
+                />
+                <t-empty
+                  v-else-if="!eventRecords.length"
+                  size="small"
+                  :description="t('container.detail.events.empty')"
+                />
+                <div v-else class="container-events-list">
+                  <article
+                    v-for="record in eventRecords"
+                    :key="record.seq"
+                    class="container-events-item"
+                    :data-testid="`container-event-${record.seq}`"
+                  >
+                    <div class="container-events-item__header">
+                      <t-tag
+                        :theme="
+                          record.event.severity === 'error'
+                            ? 'danger'
+                            : record.event.severity === 'warning'
+                              ? 'warning'
+                              : 'success'
+                        "
+                        variant="light-outline"
+                      >
+                        {{ record.event.severity }}
+                      </t-tag>
+                      <strong>{{ record.event.event_type }}</strong>
+                      <span>#{{ record.seq }}</span>
+                    </div>
+                    <div class="container-events-item__meta">
+                      <span>{{ formatTime(record.event.occurred_at) }}</span>
+                      <span>{{ record.event.resource_id }}</span>
+                    </div>
+                    <pre class="container-events-item__attributes">{{ stringifyEventAttributes(record) }}</pre>
+                  </article>
+                </div>
+              </section>
+            </t-tab-panel>
+
             <t-tab-panel value="logs" :label="t('container.detail.tabs.logs')" :destroy-on-hide="false">
               <section class="container-detail-section container-detail-tab-body container-detail-tab-body--viewer">
                 <div class="container-detail-logs-header" data-testid="container-detail-logs-header">
@@ -1255,11 +1320,19 @@ import {
 } from '../../api/container';
 import ContainerRawJsonPanel from '../../components/ContainerRawJsonPanel.vue';
 import ContainerShellPanel from '../../components/ContainerShellPanel.vue';
+import { CONTAINER_PERMISSION_CODE } from '../../contract/permissions';
 import {
   buildContainerLogsTopicName,
   isContainerLogsTopicForContainer,
   parseContainerLogsTopicContainerId,
 } from '../../contract/realtime';
+import {
+  acquireContainerEventsSubscription,
+  clearContainerEvents,
+  releaseContainerEventsSubscription,
+  selectContainerEventsView,
+  selectContainerEventsViewportState,
+} from '../../shared/events-manager';
 import {
   acquireContainerStatsSubscription,
   clearContainerDetail,
@@ -1280,6 +1353,7 @@ import type {
   ContainerMount,
   ContainerMountUsage,
   ContainerOrchestratorType,
+  ContainerRuntimeEventRecord,
   ContainerState,
 } from '../../types/container';
 import ContainerOverviewPanel from './components/ContainerOverviewPanel.vue';
@@ -1293,7 +1367,17 @@ defineOptions({
   name: 'ContainerDetailIndex',
 });
 
-type DetailTab = 'overview' | 'resources' | 'logs' | 'shell' | 'health' | 'config' | 'network' | 'storage' | 'raw';
+type DetailTab =
+  | 'overview'
+  | 'resources'
+  | 'events'
+  | 'logs'
+  | 'shell'
+  | 'health'
+  | 'config'
+  | 'network'
+  | 'storage'
+  | 'raw';
 type EnvironmentPolicy = 'plain' | 'masked' | 'hidden' | 'unknown';
 type EnvironmentPolicyFilter = EnvironmentPolicy | 'all' | 'sensitive';
 type EnvironmentRow = {
@@ -1459,6 +1543,7 @@ type ResourceMetricDefinition = [ResourceMetricKey, string, ResourceMetricFormat
 const DETAIL_TABS: DetailTab[] = [
   'overview',
   'resources',
+  'events',
   'logs',
   'shell',
   'health',
@@ -1482,6 +1567,7 @@ const permissionStore = usePermissionStore();
 const tabsRouterStore = useTabsRouterStore();
 const logger = createLogger('container.detail');
 const auditPermissionCodes = AUDIT_PERMISSION_CODE;
+const containerPermissionCodes = CONTAINER_PERMISSION_CODE;
 
 const detail = ref<ContainerDetailRecord | null>(null);
 const detailRefreshing = ref(false);
@@ -1736,6 +1822,10 @@ const logsCanReconnect = computed(
   () =>
     logsLiveState.value === 'reconnecting' || logsLiveState.value === 'disconnected' || logsLiveState.value === 'error',
 );
+const eventRecords = computed(() => selectContainerEventsView(containerId.value)?.items ?? []);
+const eventViewportState = computed(() => selectContainerEventsViewportState(containerId.value));
+const eventRuntimeLabel = computed(() => selectContainerEventsView(containerId.value)?.context.runtime ?? '-');
+const eventCanView = computed(() => permissionStore.hasPermission(containerPermissionCodes.EVENTS));
 
 const containerId = computed(() => String(route.params.id ?? '').trim());
 const shortContainerIdFallback = computed(() => shortIdentifier(containerId.value, undefined, 12));
@@ -2296,12 +2386,15 @@ onMounted(() => {
   detailPageActive.value = true;
   updateCurrentTabTitle(fallbackTitle.value);
   void refreshContainerDetail();
+  syncEventsRealtimeSubscription();
   syncLogsRealtimeSubscription();
 });
 
 onUnmounted(() => {
   detailPageActive.value = false;
+  clearContainerEvents(containerId.value);
   releaseCurrentRealtimeSubscription();
+  releaseContainerEventsSubscription(containerId.value);
   releaseLogsRealtimeSubscription();
   logsRealtimeBatcher.destroy();
 });
@@ -2311,11 +2404,13 @@ onActivated(() => {
   if (safeDetail.value?.id) {
     syncRealtimeSubscription(safeDetail.value.id);
   }
+  syncEventsRealtimeSubscription();
   syncLogsRealtimeSubscription();
 });
 
 onDeactivated(() => {
   detailPageActive.value = false;
+  releaseContainerEventsSubscription(containerId.value);
   releaseCurrentRealtimeSubscription();
   releaseLogsRealtimeSubscription();
 });
@@ -2334,6 +2429,7 @@ watch(
   (tab) => {
     const normalized = normalizeTab(tab);
     activeTab.value = normalized;
+    syncEventsRealtimeSubscription();
     syncLogsRealtimeSubscription();
   },
 );
@@ -2537,6 +2633,7 @@ async function copyRuntimeConfigValue(item: RuntimeConfigItem) {
 function resetDetailState() {
   clearContainerDetail(detail.value?.id);
   clearContainerDetail(containerId.value);
+  clearContainerEvents(containerId.value);
   detail.value = null;
   error.value = '';
   logViewStore.reset();
@@ -2607,7 +2704,18 @@ function handleTabChange(value: string | number) {
       tab,
     },
   });
+  syncEventsRealtimeSubscription();
   syncLogsRealtimeSubscription();
+}
+
+function syncEventsRealtimeSubscription() {
+  if (!detailPageActive.value || activeTab.value !== 'events' || !containerId.value || !eventCanView.value) {
+    if (containerId.value) {
+      releaseContainerEventsSubscription(containerId.value);
+    }
+    return;
+  }
+  acquireContainerEventsSubscription(containerId.value);
 }
 
 function syncLogsRealtimeSubscription() {
@@ -2677,6 +2785,10 @@ function releaseLogsRealtimeSubscription() {
   logsRealtimeController?.close();
   logsRealtimeController = null;
   logsSocketState.value = 'idle';
+}
+
+function stringifyEventAttributes(record: ContainerRuntimeEventRecord) {
+  return JSON.stringify(record.event.attributes ?? {}, null, 2);
 }
 
 type ContainerLogsRealtimeMessage = {

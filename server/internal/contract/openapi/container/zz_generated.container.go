@@ -1162,6 +1162,156 @@ func (e GetContainer500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
+// Defines values for GetContainerEvents200JSONResponseBodyDataItemsEventEventType.
+const (
+	ContainerCreated             GetContainerEvents200JSONResponseBodyDataItemsEventEventType = "container.created"
+	ContainerExecFinished        GetContainerEvents200JSONResponseBodyDataItemsEventEventType = "container.exec_finished"
+	ContainerExecStarted         GetContainerEvents200JSONResponseBodyDataItemsEventEventType = "container.exec_started"
+	ContainerHealthStatusChanged GetContainerEvents200JSONResponseBodyDataItemsEventEventType = "container.health_status_changed"
+	ContainerOomKilled           GetContainerEvents200JSONResponseBodyDataItemsEventEventType = "container.oom_killed"
+	ContainerRemoved             GetContainerEvents200JSONResponseBodyDataItemsEventEventType = "container.removed"
+	ContainerRestarted           GetContainerEvents200JSONResponseBodyDataItemsEventEventType = "container.restarted"
+	ContainerStarted             GetContainerEvents200JSONResponseBodyDataItemsEventEventType = "container.started"
+	ContainerStopped             GetContainerEvents200JSONResponseBodyDataItemsEventEventType = "container.stopped"
+)
+
+// Valid indicates whether the value is a known member of the GetContainerEvents200JSONResponseBodyDataItemsEventEventType enum.
+func (e GetContainerEvents200JSONResponseBodyDataItemsEventEventType) Valid() bool {
+	switch e {
+	case ContainerCreated:
+		return true
+	case ContainerExecFinished:
+		return true
+	case ContainerExecStarted:
+		return true
+	case ContainerHealthStatusChanged:
+		return true
+	case ContainerOomKilled:
+		return true
+	case ContainerRemoved:
+		return true
+	case ContainerRestarted:
+		return true
+	case ContainerStarted:
+		return true
+	case ContainerStopped:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetContainerEvents200JSONResponseBodyDataItemsEventResourceType.
+const (
+	Container GetContainerEvents200JSONResponseBodyDataItemsEventResourceType = "container"
+)
+
+// Valid indicates whether the value is a known member of the GetContainerEvents200JSONResponseBodyDataItemsEventResourceType enum.
+func (e GetContainerEvents200JSONResponseBodyDataItemsEventResourceType) Valid() bool {
+	switch e {
+	case Container:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetContainerEvents200JSONResponseBodyDataItemsEventSeverity.
+const (
+	ContainerRuntimeEventSeverityError   GetContainerEvents200JSONResponseBodyDataItemsEventSeverity = "error"
+	ContainerRuntimeEventSeverityInfo    GetContainerEvents200JSONResponseBodyDataItemsEventSeverity = "info"
+	ContainerRuntimeEventSeverityWarning GetContainerEvents200JSONResponseBodyDataItemsEventSeverity = "warning"
+)
+
+// Valid indicates whether the value is a known member of the GetContainerEvents200JSONResponseBodyDataItemsEventSeverity enum.
+func (e GetContainerEvents200JSONResponseBodyDataItemsEventSeverity) Valid() bool {
+	switch e {
+	case ContainerRuntimeEventSeverityError:
+		return true
+	case ContainerRuntimeEventSeverityInfo:
+		return true
+	case ContainerRuntimeEventSeverityWarning:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetContainerEvents400JSONResponseBodySuccess.
+const (
+	GetContainerEvents400JSONResponseBodySuccessFalse GetContainerEvents400JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetContainerEvents400JSONResponseBodySuccess enum.
+func (e GetContainerEvents400JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetContainerEvents400JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetContainerEvents401JSONResponseBodySuccess.
+const (
+	GetContainerEvents401JSONResponseBodySuccessFalse GetContainerEvents401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetContainerEvents401JSONResponseBodySuccess enum.
+func (e GetContainerEvents401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetContainerEvents401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetContainerEvents403JSONResponseBodySuccess.
+const (
+	GetContainerEvents403JSONResponseBodySuccessFalse GetContainerEvents403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetContainerEvents403JSONResponseBodySuccess enum.
+func (e GetContainerEvents403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetContainerEvents403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetContainerEvents404JSONResponseBodySuccess.
+const (
+	GetContainerEvents404JSONResponseBodySuccessFalse GetContainerEvents404JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetContainerEvents404JSONResponseBodySuccess enum.
+func (e GetContainerEvents404JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetContainerEvents404JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetContainerEvents500JSONResponseBodySuccess.
+const (
+	GetContainerEvents500JSONResponseBodySuccessFalse GetContainerEvents500JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetContainerEvents500JSONResponseBodySuccess enum.
+func (e GetContainerEvents500JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetContainerEvents500JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetContainerLogs200JSONResponseBodyDataEntriesStream.
 const (
 	Stderr GetContainerLogs200JSONResponseBodyDataEntriesStream = "stderr"
@@ -2211,13 +2361,13 @@ func (e PostContainerStop404JSONResponseBodySuccess) Valid() bool {
 
 // Defines values for PostContainerStop409JSONResponseBodySuccess.
 const (
-	PostContainerStop409JSONResponseBodySuccessFalse PostContainerStop409JSONResponseBodySuccess = false
+	False PostContainerStop409JSONResponseBodySuccess = false
 )
 
 // Valid indicates whether the value is a known member of the PostContainerStop409JSONResponseBodySuccess enum.
 func (e PostContainerStop409JSONResponseBodySuccess) Valid() bool {
 	switch e {
-	case PostContainerStop409JSONResponseBodySuccessFalse:
+	case False:
 		return true
 	default:
 		return false
@@ -2470,6 +2620,40 @@ type GetContainer404JSONResponseBodySuccess bool
 
 // GetContainer500JSONResponseBodySuccess defines parameters for GetContainer.
 type GetContainer500JSONResponseBodySuccess bool
+
+// GetContainerEventsParams defines parameters for GetContainerEvents.
+type GetContainerEventsParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// GetContainerEvents200JSONResponseBodyDataItemsEventEventType defines parameters for GetContainerEvents.
+type GetContainerEvents200JSONResponseBodyDataItemsEventEventType string
+
+// GetContainerEvents200JSONResponseBodyDataItemsEventResourceType defines parameters for GetContainerEvents.
+type GetContainerEvents200JSONResponseBodyDataItemsEventResourceType string
+
+// GetContainerEvents200JSONResponseBodyDataItemsEventSeverity defines parameters for GetContainerEvents.
+type GetContainerEvents200JSONResponseBodyDataItemsEventSeverity string
+
+// GetContainerEvents400JSONResponseBodySuccess defines parameters for GetContainerEvents.
+type GetContainerEvents400JSONResponseBodySuccess bool
+
+// GetContainerEvents401JSONResponseBodySuccess defines parameters for GetContainerEvents.
+type GetContainerEvents401JSONResponseBodySuccess bool
+
+// GetContainerEvents403JSONResponseBodySuccess defines parameters for GetContainerEvents.
+type GetContainerEvents403JSONResponseBodySuccess bool
+
+// GetContainerEvents404JSONResponseBodySuccess defines parameters for GetContainerEvents.
+type GetContainerEvents404JSONResponseBodySuccess bool
+
+// GetContainerEvents500JSONResponseBodySuccess defines parameters for GetContainerEvents.
+type GetContainerEvents500JSONResponseBodySuccess bool
 
 // GetContainerLogsParams defines parameters for GetContainerLogs.
 type GetContainerLogsParams struct {

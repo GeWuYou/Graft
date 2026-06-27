@@ -32,3 +32,28 @@
 - 后续实现应继续从 container module authority 出发，而不是先在 realtime core 或 provider 层扩散 contract。
 - 如果 phase 1 实现需要扩展 `server/internal/realtime/**` 或 `web/src/shared/observability/**`，必须保持为最小 primitive
   扩展，不得把 container event semantics 抬升为平台层真值。
+
+## 2026-06-27 Phase 1 runtime event foundation
+
+- backend foundation：
+  - 在 `server/modules/container/**` 新增 canonical `RuntimeEvent` domain model、`RuntimeEventSource` extension interface 和 source-agnostic `RuntimeEventManager`
+  - manager 维护 bounded per-container in-memory history，并以 `seq` 作为 reconnect-safe merge / dedupe authority
+  - 新增 `GET /api/ops/containers/{id}/events` history endpoint，history response 暴露 `seq`
+  - 新增 `ops.container.events` permission contract 与 `container.events:{id}` realtime topic ownership
+- Docker provider：
+  - 当前 Docker runtime 已接入 `StreamRuntimeEvents`
+  - provider 只上抬 canonical event type + attributes 输入，未把 Docker-specific event model、provider severity 或 provider message 暴露到上层
+- frontend minimum slice：
+  - 在 `web/src/modules/container/contract/realtime.ts` 扩展 container module-owned realtime contract
+  - 新增 module-owned `web/src/modules/container/shared/events-manager.ts`
+  - 在 detail page 新增 `Events` tab，并放在 `Logs` 前
+  - Events tab 已消费 HTTP history seed + realtime topic append，reconnect 后通过 `seq` merge / dedupe 回补
+- generated / required spill：
+  - OpenAPI source、server openapi generated artifact、web generated schema 已同步
+  - 为 RBAC permission catalog 补齐 `ops.container.events` 展示文案，形成最小 required spill
+- validation：
+  - `git diff --check`
+  - `cd server && go run ./cmd/graft validate backend`
+  - `cd web && bun run check`
+- next batch：
+  - `phase-2-container-events-ux`

@@ -3,7 +3,7 @@
 ## 当前状态摘要
 
 - 当前主题目标是为 `Graft` 容器模块建立 runtime-agnostic 的 `Runtime Events` 能力设计与实施入口。
-- 当前状态：设计 authority 已建立，active topic recovery 已建立，尚未开始 server / web 产品代码实现。
+- 当前状态：Phase 1 runtime event foundation 已完成并通过 server / web 完成态校验；下一批次进入 Phase 2 UX hardening。
 - 任务分类为 `cross-boundary`。
 - 当前设计 authority：
   - `ai-plan/design/容器运行时事件能力设计.md`
@@ -55,28 +55,24 @@
   - `GET /ws`
   - `TopicIssuerRegistry`
   - `Hub`
-- 当前 container module 已具备两类实时模式：
-  - Boot-started stats collector
-  - topic-observer-driven lazy logs streamer
-- 当前 frontend 已具备可复用 primitive：
-  - websocket reconnect client
-  - stream viewport state resolver
-  - generic ring buffer implementation
-  - module-owned `stats-manager` 模式
-- 当前主题的核心 architecture 决议已固定：
+- Phase 1 已交付以下 live slice：
+  - backend canonical model：`RuntimeEvent` / `RuntimeEventRecord` / `RuntimeEventsHistory`
+  - backend source-agnostic manager：`RuntimeEventSource -> RuntimeEventManager -> History -> Topic`
+  - Docker provider 已作为首个 `RuntimeEventSource` adapter 接入，且 severity 继续由 canonical mapping 决定
+  - `ops.container.events` permission、`container.events:{id}` topic、`GET /api/ops/containers/{id}/events` history endpoint 已落地
+  - frontend container module 已新增 module-owned `events-manager`，并在 detail 页中以 `Events` tab 方式消费 `history seed + live stream`
+  - reconnect backfill 语义已按 `seq` merge / dedupe 落在 manager 内
+- 当前主题的核心 architecture 决议继续保持：
   - `RuntimeEvent` 不包含 `runtime`
   - 不包含 `category`
   - 不包含 `message`
   - `severity` 由 canonical mapping 决定
-  - backend pipeline 为 `RuntimeEventSource -> RuntimeEventManager -> History -> Topic`
-  - phase 1 采用 `history seed + live stream + reconnect backfill by seq merge`
-  - phase 1 推荐直接新增 `ops.container.events`，不以 `ops.container.detail` 作为默认长期权限
   - frontend realtime topic authority 继续落在 `web/src/modules/container/contract/realtime.ts`
 
 ## Phase Plan
 
 - Batch 0：设计 authority、topic recovery、loop bootstrap。已完成。
-- Phase 1：backend runtime event foundation + detail Events tab minimum slice。未开始。
+- Phase 1：backend runtime event foundation + detail Events tab minimum slice。已完成。
 - Phase 2：container events UX hardening。未开始。
 - Phase 3：provider extensibility and hardening。未开始。
 - Final：archive readiness and governance sync。未开始。
@@ -93,5 +89,13 @@ git diff --check
 
 ```bash
 cd server && graft validate backend
+cd web && bun run check
+```
+
+本轮实际已运行：
+
+```bash
+git diff --check
+cd server && go run ./cmd/graft validate backend
 cd web && bun run check
 ```

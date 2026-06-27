@@ -7,6 +7,7 @@ export const CONTAINER_API_PATH = {
   LIST: '/api/ops/containers',
   DASHBOARD_SUMMARY: '/api/ops/containers/dashboard-summary',
   DETAIL: '/api/ops/containers/{id}',
+  EVENTS: '/api/ops/containers/{id}/events',
   LOGS: '/api/ops/containers/{id}/logs',
   SHELL_SESSIONS: '/api/ops/containers/{id}/shell/sessions',
   SHELL_WS: '/api/ops/containers/{id}/shell/ws',
@@ -31,6 +32,10 @@ export function buildContainerDetailApiPath(containerId: string) {
  */
 export function buildContainerLogsApiPath(containerId: string) {
   return CONTAINER_API_PATH.LOGS.replace('{id}', encodeContainerPathParam(containerId));
+}
+
+export function buildContainerEventsApiPath(containerId: string) {
+  return CONTAINER_API_PATH.EVENTS.replace('{id}', encodeContainerPathParam(containerId));
 }
 
 /**
