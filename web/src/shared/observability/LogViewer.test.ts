@@ -115,11 +115,14 @@ describe('LogViewer', () => {
   it('renders the relative-day timestamp label from the active locale', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-06-18T08:00:00+08:00'));
+    const previousDay = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
     const wrapper = mount(LogViewer, {
       props: {
         ...labels,
-        entries: [createEntry('2026-06-17T06:31:42.585+0800 INFO previous day {"request_id":"abc"}', 'stdout')],
+        entries: [
+          createEntry('2026-06-17T06:31:42.585+0800 INFO previous day {"request_id":"abc"}', 'stdout', previousDay),
+        ],
       },
       global: { components: tdesignComponents, plugins: [createTestI18n()] },
     });

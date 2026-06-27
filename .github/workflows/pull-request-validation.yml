@@ -147,7 +147,7 @@ jobs:
 
       - name: Publish web test report
         if: always()
-        uses: ctrf-io/github-test-reporter@v1
+        uses: ctrf-io/github-test-reporter@e500b992f936420eb633c91644cf10d4d71df700
         with:
           report-path: ./web/.tmp/test-results/ctrf-report.json
           github-report: true
@@ -336,7 +336,7 @@ jobs:
 
       - name: Publish server test report
         if: always()
-        uses: ctrf-io/github-test-reporter@v1
+        uses: ctrf-io/github-test-reporter@e500b992f936420eb633c91644cf10d4d71df700
         with:
           report-path: ./.tmp/test-results/server-go-test-ctrf.json
           github-report: true
