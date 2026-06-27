@@ -30,6 +30,7 @@
       "devDependencies": {
         "@commitlint/cli": "^20.5.3",
         "@commitlint/config-conventional": "^20.5.3",
+        "@d2t/vitest-ctrf-json-reporter": "1.3.0",
         "@eslint/js": "^9.27.0",
         "@tdesign-vue-next/auto-import-resolver": "^0.1.7",
         "@types/lodash": "^4.17.24",
@@ -198,6 +199,8 @@
     "@csstools/media-query-list-parser": ["@csstools/media-query-list-parser@4.0.3", "", { "peerDependencies": { "@csstools/css-parser-algorithms": "^3.0.5", "@csstools/css-tokenizer": "^3.0.4" } }, "sha512-HAYH7d3TLRHDOUQK4mZKf9k9Ph/m8Akstg66ywKR4SFAigjs3yBiUeZtFxywiTm5moZMAp/5W/ZuFnNXXYLuuQ=="],
 
     "@csstools/selector-specificity": ["@csstools/selector-specificity@5.0.0", "", { "peerDependencies": { "postcss-selector-parser": "^7.0.0" } }, "sha512-PCqQV3c4CoVm3kdPhyeZ07VmBRdH2EpMFA/pd9OASpOEC3aXNGoqPDAZ80D0cLpMBxnmk0+yNhGsEx31hq7Gtw=="],
+
+    "@d2t/vitest-ctrf-json-reporter": ["@d2t/vitest-ctrf-json-reporter@1.3.0", "", {}, "sha512-3Xgkay0Hubq1hA67IW2vM3YhX4TQgjOFW2TydB0ytAL97zOZI9xr/9vqCjo31bK1qUDNEdlKYLYHd8KR9YSCCw=="],
 
     "@dual-bundle/import-meta-resolve": ["@dual-bundle/import-meta-resolve@4.2.1", "", {}, "sha512-id+7YRUgoUX6CgV0DtuhirQWodeeA7Lf4i2x71JS/vtA5pRb/hIGWlw+G6MeXvsM+MXrz0VAydTGElX1rAfgPg=="],
 
