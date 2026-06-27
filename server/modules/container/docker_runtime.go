@@ -1324,28 +1324,23 @@ func readDockerLogEntries(ctx context.Context, reader io.Reader, tail int, times
 		return nil, truncated, nil
 	}
 
-	buffer := make([]LogEntry, limit)
-	count := 0
+	var buffer []LogEntry
 	head := 0
 	err := streamDockerLogLines(ctx, reader, timestamps, func(chunk LogChunk) error {
 		entry := logEntryFromChunk(chunk)
-		if count < limit {
-			buffer[count] = entry
-			count++
+		if len(buffer) < limit {
+			buffer = append(buffer, entry)
 			return nil
 		}
-		if count == limit {
-			truncated = true
-			buffer[head] = entry
-			head = (head + 1) % limit
-			return nil
-		}
+		truncated = true
+		buffer[head] = entry
+		head = (head + 1) % limit
 		return nil
 	})
 	if err != nil {
 		return nil, false, err
 	}
-	return materializeBoundedLogEntries(buffer, count, limit, head), truncated, nil
+	return materializeBoundedLogEntries(buffer, len(buffer), limit, head), truncated, nil
 }
 
 func materializeBoundedLogEntries(buffer []LogEntry, count int, limit int, head int) []LogEntry {
