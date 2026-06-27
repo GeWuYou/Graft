@@ -420,7 +420,7 @@
             </t-tab-panel>
 
             <t-tab-panel value="events" :label="t('container.detail.tabs.events')" :destroy-on-hide="false">
-              <section class="container-detail-section container-detail-tab-body">
+              <section class="container-detail-section container-detail-section--events container-detail-tab-body">
                 <div class="container-detail-logs-header">
                   <div class="container-detail-logs-header__title-block">
                     <h3 class="container-detail-logs-header__title">{{ t('container.detail.events.title') }}</h3>
@@ -451,36 +451,219 @@
                   size="small"
                   :description="t('container.detail.events.empty')"
                 />
-                <div v-else class="container-events-list">
-                  <article
-                    v-for="record in eventRecords"
-                    :key="record.seq"
-                    class="container-events-item"
-                    :data-testid="`container-event-${record.seq}`"
+                <template v-else>
+                  <div class="container-events-toolbar">
+                    <div class="container-events-toolbar__row">
+                      <t-input
+                        v-model="eventSearchKeyword"
+                        clearable
+                        class="container-events-toolbar__search"
+                        :placeholder="t('container.detail.events.searchPlaceholder')"
+                        data-testid="container-events-search"
+                      />
+                      <t-space size="small">
+                        <t-button
+                          size="small"
+                          :theme="eventTimeMode === 'relative' ? 'primary' : 'default'"
+                          :variant="eventTimeMode === 'relative' ? 'base' : 'outline'"
+                          data-testid="container-events-time-mode-relative"
+                          @click="setEventTimeMode('relative')"
+                        >
+                          {{ t('container.detail.events.showRelativeTime') }}
+                        </t-button>
+                        <t-button
+                          size="small"
+                          :theme="eventTimeMode === 'absolute' ? 'primary' : 'default'"
+                          :variant="eventTimeMode === 'absolute' ? 'base' : 'outline'"
+                          data-testid="container-events-time-mode-absolute"
+                          @click="setEventTimeMode('absolute')"
+                        >
+                          {{ t('container.detail.events.showAbsoluteTime') }}
+                        </t-button>
+                        <t-button
+                          size="small"
+                          variant="outline"
+                          data-testid="container-events-collapse-toggle"
+                          @click="toggleVisibleEventCollapse"
+                        >
+                          {{
+                            allVisibleEventsCollapsed
+                              ? t('container.detail.events.expandAll')
+                              : t('container.detail.events.collapseAll')
+                          }}
+                        </t-button>
+                        <t-button
+                          size="small"
+                          variant="text"
+                          :disabled="!eventFiltersActive"
+                          data-testid="container-events-clear-filters"
+                          @click="clearEventFilters"
+                        >
+                          {{ t('container.detail.events.clearFilters') }}
+                        </t-button>
+                      </t-space>
+                    </div>
+                    <div class="container-events-toolbar__filters">
+                      <div class="container-events-filter-group">
+                        <span class="container-events-filter-group__label">
+                          {{ t('container.detail.events.eventTypeFilter') }}
+                        </span>
+                        <t-space break-line size="small">
+                          <t-button
+                            size="small"
+                            :theme="selectedEventTypes.length ? 'default' : 'primary'"
+                            :variant="selectedEventTypes.length ? 'outline' : 'base'"
+                            data-testid="container-events-type-filter-all"
+                            @click="clearEventTypeFilters"
+                          >
+                            {{ t('container.detail.events.allEventTypes') }}
+                          </t-button>
+                          <t-button
+                            v-for="eventType in eventTypeOptions"
+                            :key="eventType"
+                            size="small"
+                            :theme="selectedEventTypes.includes(eventType) ? 'primary' : 'default'"
+                            :variant="selectedEventTypes.includes(eventType) ? 'base' : 'outline'"
+                            :data-testid="`container-events-type-filter-${eventType}`"
+                            @click="toggleEventTypeFilter(eventType)"
+                          >
+                            {{ eventType }}
+                          </t-button>
+                        </t-space>
+                      </div>
+                      <div class="container-events-filter-group">
+                        <span class="container-events-filter-group__label">
+                          {{ t('container.detail.events.severityFilter') }}
+                        </span>
+                        <t-space break-line size="small">
+                          <t-button
+                            size="small"
+                            :theme="selectedEventSeverities.length ? 'default' : 'primary'"
+                            :variant="selectedEventSeverities.length ? 'outline' : 'base'"
+                            data-testid="container-events-severity-filter-all"
+                            @click="clearEventSeverityFilters"
+                          >
+                            {{ t('container.detail.events.allSeverities') }}
+                          </t-button>
+                          <t-button
+                            v-for="severity in eventSeverityOptions"
+                            :key="severity"
+                            size="small"
+                            :theme="selectedEventSeverities.includes(severity) ? 'primary' : 'default'"
+                            :variant="selectedEventSeverities.includes(severity) ? 'base' : 'outline'"
+                            :data-testid="`container-events-severity-filter-${severity}`"
+                            @click="toggleEventSeverityFilter(severity)"
+                          >
+                            {{ t(`container.detail.events.severity.${severity}`) }}
+                          </t-button>
+                        </t-space>
+                      </div>
+                    </div>
+                  </div>
+                  <t-empty
+                    v-if="!filteredEventRecords.length"
+                    class="container-detail-empty-state container-detail-empty-state--compact"
+                    size="small"
+                    :title="t('container.detail.events.filterEmptyTitle')"
+                    :description="t('container.detail.events.filterEmptyDescription')"
                   >
-                    <div class="container-events-item__header">
-                      <t-tag
-                        :theme="
-                          record.event.severity === 'error'
-                            ? 'danger'
-                            : record.event.severity === 'warning'
-                              ? 'warning'
-                              : 'success'
-                        "
-                        variant="light-outline"
-                      >
-                        {{ record.event.severity }}
-                      </t-tag>
-                      <strong>{{ record.event.event_type }}</strong>
-                      <span>#{{ record.seq }}</span>
-                    </div>
-                    <div class="container-events-item__meta">
-                      <span>{{ formatTime(record.event.occurred_at) }}</span>
-                      <span>{{ record.event.resource_id }}</span>
-                    </div>
-                    <pre class="container-events-item__attributes">{{ stringifyEventAttributes(record) }}</pre>
-                  </article>
-                </div>
+                    <template #action>
+                      <t-button variant="outline" size="small" @click="clearEventFilters">
+                        {{ t('container.detail.events.clearFilters') }}
+                      </t-button>
+                    </template>
+                  </t-empty>
+                  <div v-else class="container-events-list">
+                    <article
+                      v-for="record in filteredEventRecords"
+                      :key="record.seq"
+                      class="container-events-item"
+                      :class="[
+                        `container-events-item--${record.event.severity}`,
+                        { 'container-events-item--collapsed': isEventCollapsed(record.seq) },
+                      ]"
+                      :data-testid="`container-event-${record.seq}`"
+                    >
+                      <div class="container-events-item__card">
+                        <div class="container-events-item__summary">
+                          <div class="container-events-item__summary-main">
+                            <div class="container-events-item__header">
+                              <t-tag :theme="resolveEventSeverityTheme(record.event.severity)" variant="light-outline">
+                                {{ t(`container.detail.events.severity.${record.event.severity}`) }}
+                              </t-tag>
+                              <strong>{{ record.event.event_type }}</strong>
+                              <span>#{{ record.seq }}</span>
+                            </div>
+                            <div class="container-events-item__meta">
+                              <t-tooltip :content="formatAlternateEventTimestamp(record.event.occurred_at)">
+                                <time
+                                  class="container-events-item__time"
+                                  :datetime="record.event.occurred_at || undefined"
+                                  :data-testid="`container-event-time-${record.seq}`"
+                                >
+                                  {{ formatEventTimestamp(record.event.occurred_at) }}
+                                </time>
+                              </t-tooltip>
+                              <span>{{ record.event.resource_id }}</span>
+                              <span v-if="record.event.id">{{ record.event.id }}</span>
+                            </div>
+                          </div>
+                          <t-space size="small">
+                            <t-button
+                              size="small"
+                              variant="text"
+                              :data-testid="`container-event-jump-${record.seq}`"
+                              @click="jumpToLogsFromEvent(record)"
+                            >
+                              {{ t('container.detail.events.jumpToLogs') }}
+                            </t-button>
+                            <t-button
+                              size="small"
+                              variant="text"
+                              :data-testid="`container-event-copy-${record.seq}`"
+                              @click="copyEventJson(record)"
+                            >
+                              {{ t('container.detail.events.copyJson') }}
+                            </t-button>
+                            <t-button
+                              size="small"
+                              variant="text"
+                              :data-testid="`container-event-toggle-${record.seq}`"
+                              @click="toggleEventCollapse(record.seq)"
+                            >
+                              {{
+                                isEventCollapsed(record.seq)
+                                  ? t('container.detail.events.expandDetails')
+                                  : t('container.detail.events.collapseDetails')
+                              }}
+                            </t-button>
+                          </t-space>
+                        </div>
+                        <div v-if="!isEventCollapsed(record.seq)" class="container-events-item__details">
+                          <div class="container-events-item__detail-grid">
+                            <div class="container-events-item__detail-field">
+                              <span>{{ t('container.detail.events.resource') }}</span>
+                              <strong>{{ record.event.resource_type }} / {{ record.event.resource_id }}</strong>
+                            </div>
+                            <div class="container-events-item__detail-field">
+                              <span>{{ t('container.detail.events.sequence') }}</span>
+                              <strong>{{ record.seq }}</strong>
+                            </div>
+                            <div v-if="record.event.id" class="container-events-item__detail-field">
+                              <span>{{ t('container.detail.events.id') }}</span>
+                              <strong>{{ record.event.id }}</strong>
+                            </div>
+                          </div>
+                          <pre
+                            class="container-events-item__attributes"
+                            :data-testid="`container-event-json-${record.seq}`"
+                            >{{ stringifyEventAttributes(record) }}</pre
+                          >
+                        </div>
+                      </div>
+                    </article>
+                  </div>
+                </template>
               </section>
             </t-tab-panel>
 
@@ -1354,6 +1537,7 @@ import type {
   ContainerMountUsage,
   ContainerOrchestratorType,
   ContainerRuntimeEventRecord,
+  ContainerRuntimeEventSeverity,
   ContainerState,
 } from '../../types/container';
 import ContainerOverviewPanel from './components/ContainerOverviewPanel.vue';
@@ -1402,6 +1586,7 @@ type RuntimeConfigItem = {
   value: string;
 };
 type LogsLiveState = 'paused' | 'live' | 'connecting' | 'reconnecting' | 'disconnected' | 'error' | 'empty';
+type EventTimeMode = 'relative' | 'absolute';
 type NetworkField = {
   copyValue: string;
   copyable: boolean;
@@ -1576,6 +1761,11 @@ const logLineLimit = ref(DEFAULT_LOG_QUERY.tail);
 const activeTab = ref<DetailTab>(normalizeTab(route.query.tab));
 const environmentKeyword = ref('');
 const environmentPolicyFilter = ref<EnvironmentPolicyFilter>('all');
+const eventSearchKeyword = ref('');
+const selectedEventTypes = ref<string[]>([]);
+const selectedEventSeverities = ref<ContainerRuntimeEventSeverity[]>([]);
+const collapsedEventSeqs = ref<Set<number>>(new Set());
+const eventTimeMode = ref<EventTimeMode>('relative');
 const refreshingMountKeys = ref<Set<string>>(new Set());
 const activeRealtimeSubscriptionId = ref('');
 const detailPageActive = ref(false);
@@ -1826,6 +2016,40 @@ const eventRecords = computed(() => selectContainerEventsView(containerId.value)
 const eventViewportState = computed(() => selectContainerEventsViewportState(containerId.value));
 const eventRuntimeLabel = computed(() => selectContainerEventsView(containerId.value)?.context.runtime ?? '-');
 const eventCanView = computed(() => permissionStore.hasPermission(containerPermissionCodes.EVENTS));
+const eventTypeOptions = computed(() =>
+  [...new Set(eventRecords.value.map((record) => record.event.event_type).filter((value) => Boolean(value)))].sort(
+    (left, right) => left.localeCompare(right),
+  ),
+);
+const eventSeverityOptions = computed<ContainerRuntimeEventSeverity[]>(() => ['info', 'warning', 'error']);
+const filteredEventRecords = computed(() => {
+  const keyword = eventSearchKeyword.value.trim().toLowerCase();
+
+  return eventRecords.value.filter((record) => {
+    if (selectedEventTypes.value.length && !selectedEventTypes.value.includes(record.event.event_type)) {
+      return false;
+    }
+    if (selectedEventSeverities.value.length && !selectedEventSeverities.value.includes(record.event.severity)) {
+      return false;
+    }
+    if (!keyword) {
+      return true;
+    }
+
+    return buildEventSearchText(record).includes(keyword);
+  });
+});
+const eventFiltersActive = computed(
+  () =>
+    Boolean(eventSearchKeyword.value.trim()) ||
+    selectedEventTypes.value.length > 0 ||
+    selectedEventSeverities.value.length > 0,
+);
+const allVisibleEventsCollapsed = computed(
+  () =>
+    filteredEventRecords.value.length > 0 &&
+    filteredEventRecords.value.every((record) => collapsedEventSeqs.value.has(record.seq)),
+);
 
 const containerId = computed(() => String(route.params.id ?? '').trim());
 const shortContainerIdFallback = computed(() => shortIdentifier(containerId.value, undefined, 12));
@@ -2434,6 +2658,14 @@ watch(
   },
 );
 
+watch(eventRecords, (records) => {
+  if (!records.length || !collapsedEventSeqs.value.size) {
+    return;
+  }
+  const liveSeqs = new Set(records.map((record) => record.seq));
+  collapsedEventSeqs.value = new Set([...collapsedEventSeqs.value].filter((seq) => liveSeqs.has(seq)));
+});
+
 watch(logLineLimit, () => {
   logsRealtimeBatcher.updateLineLimit(logLineLimit.value);
   if (activeTab.value === 'logs') {
@@ -2636,6 +2868,11 @@ function resetDetailState() {
   clearContainerEvents(containerId.value);
   detail.value = null;
   error.value = '';
+  eventSearchKeyword.value = '';
+  selectedEventTypes.value = [];
+  selectedEventSeverities.value = [];
+  collapsedEventSeqs.value = new Set();
+  eventTimeMode.value = 'relative';
   logViewStore.reset();
   logsBootstrapRequested.value = false;
   logsRecoveryLoadRequested.value = false;
@@ -2787,8 +3024,173 @@ function releaseLogsRealtimeSubscription() {
   logsSocketState.value = 'idle';
 }
 
+function resolveEventSeverityTheme(severity: ContainerRuntimeEventSeverity) {
+  if (severity === 'error') {
+    return 'danger';
+  }
+  if (severity === 'warning') {
+    return 'warning';
+  }
+  return 'primary';
+}
+
 function stringifyEventAttributes(record: ContainerRuntimeEventRecord) {
   return JSON.stringify(record.event.attributes ?? {}, null, 2);
+}
+
+function buildEventSearchText(record: ContainerRuntimeEventRecord) {
+  return [
+    record.event.event_type,
+    record.event.severity,
+    record.event.resource_type,
+    record.event.resource_id,
+    record.event.id,
+    record.event.occurred_at,
+    ...Object.entries(record.event.attributes ?? {}).flatMap(([key, value]) => [key, value]),
+  ]
+    .filter((value): value is string => typeof value === 'string' && value.length > 0)
+    .join(' ')
+    .toLowerCase();
+}
+
+function isEventCollapsed(seq: number) {
+  return collapsedEventSeqs.value.has(seq);
+}
+
+function toggleEventCollapse(seq: number) {
+  const next = new Set(collapsedEventSeqs.value);
+  if (next.has(seq)) {
+    next.delete(seq);
+  } else {
+    next.add(seq);
+  }
+  collapsedEventSeqs.value = next;
+}
+
+function toggleVisibleEventCollapse() {
+  const visibleSeqs = filteredEventRecords.value.map((record) => record.seq);
+  if (!visibleSeqs.length) {
+    return;
+  }
+  const next = new Set(collapsedEventSeqs.value);
+  if (allVisibleEventsCollapsed.value) {
+    visibleSeqs.forEach((seq) => next.delete(seq));
+  } else {
+    visibleSeqs.forEach((seq) => next.add(seq));
+  }
+  collapsedEventSeqs.value = next;
+}
+
+function toggleEventTypeFilter(eventType: string) {
+  if (!eventType) {
+    return;
+  }
+  selectedEventTypes.value = selectedEventTypes.value.includes(eventType)
+    ? selectedEventTypes.value.filter((item) => item !== eventType)
+    : [...selectedEventTypes.value, eventType];
+}
+
+function clearEventTypeFilters() {
+  selectedEventTypes.value = [];
+}
+
+function toggleEventSeverityFilter(severity: ContainerRuntimeEventSeverity) {
+  selectedEventSeverities.value = selectedEventSeverities.value.includes(severity)
+    ? selectedEventSeverities.value.filter((item: ContainerRuntimeEventSeverity) => item !== severity)
+    : [...selectedEventSeverities.value, severity];
+}
+
+function clearEventSeverityFilters() {
+  selectedEventSeverities.value = [];
+}
+
+function clearEventFilters() {
+  eventSearchKeyword.value = '';
+  clearEventTypeFilters();
+  clearEventSeverityFilters();
+}
+
+function setEventTimeMode(mode: EventTimeMode) {
+  eventTimeMode.value = mode;
+}
+
+function formatRelativeEventTimestamp(value?: string | null) {
+  if (!value) {
+    return '-';
+  }
+  const occurredAt = new Date(value);
+  if (Number.isNaN(occurredAt.getTime())) {
+    return formatTime(value);
+  }
+  const deltaMs = occurredAt.getTime() - Date.now();
+  const deltaMinutes = Math.round(deltaMs / 60000);
+  const deltaHours = Math.round(deltaMs / 3600000);
+  const deltaDays = Math.round(deltaMs / 86400000);
+  const formatter = new Intl.RelativeTimeFormat(locale.value, { numeric: 'auto' });
+
+  if (Math.abs(deltaMinutes) < 60) {
+    return formatter.format(deltaMinutes, 'minute');
+  }
+  if (Math.abs(deltaHours) < 24) {
+    return formatter.format(deltaHours, 'hour');
+  }
+  return formatter.format(deltaDays, 'day');
+}
+
+function formatEventTimestamp(value?: string | null) {
+  if (eventTimeMode.value === 'absolute') {
+    return formatTime(value);
+  }
+  return formatRelativeEventTimestamp(value);
+}
+
+function formatAlternateEventTimestamp(value?: string | null) {
+  if (eventTimeMode.value === 'absolute') {
+    return formatRelativeEventTimestamp(value);
+  }
+  return formatTime(value);
+}
+
+async function copyEventJson(record: ContainerRuntimeEventRecord) {
+  const copied = await copyTextToClipboard(JSON.stringify(record, null, 2));
+  if (copied) {
+    MessagePlugin.success(t('container.detail.copySuccess'));
+    return;
+  }
+  MessagePlugin.error(t('container.detail.copyError'));
+}
+
+async function jumpToLogsFromEvent(record: ContainerRuntimeEventRecord) {
+  const tab = 'logs';
+  activeTab.value = tab;
+  await router.replace({
+    params: route.params,
+    query: {
+      ...route.query,
+      tab,
+    },
+  });
+  syncEventsRealtimeSubscription();
+  releaseLogsRealtimeSubscription();
+  logsRefreshSeq += 1;
+  logViewStore.setLoading(true);
+  logViewStore.setError('');
+  try {
+    const nextLogs = await getContainerLogs(containerId.value, {
+      ...DEFAULT_LOG_QUERY,
+      tail: logLineLimit.value,
+      since: record.event.occurred_at,
+    });
+    logsRealtimeBatcher.seed(nextLogs);
+    logsBootstrapRequested.value = true;
+    logsRecoveryLoadRequested.value = false;
+  } catch (loadError) {
+    logViewStore.setError(resolveLocalizedErrorMessage(t, loadError, t('container.list.logs.loadFailed')));
+    logger.warn('failed to jump from event to logs', loadError);
+  } finally {
+    logViewStore.setLoading(false);
+    syncLogsRealtimeSubscription();
+  }
 }
 
 type ContainerLogsRealtimeMessage = {
@@ -4577,6 +4979,11 @@ function portLabel(port: ContainerDetail['ports'][number]) {
   padding: 0 var(--graft-density-gap-16) var(--graft-density-gap-16);
 }
 
+.container-detail-section--events {
+  gap: var(--graft-density-gap-16);
+  padding: 0 var(--graft-density-gap-16) var(--graft-density-gap-16);
+}
+
 .container-detail-section--network {
   gap: var(--graft-density-gap-16);
   padding: 0 var(--graft-density-gap-16) var(--graft-density-gap-16);
@@ -4617,6 +5024,156 @@ function portLabel(port: ContainerDetail['ports'][number]) {
 .container-detail-empty-state--inline {
   min-height: 180px;
   padding-block: var(--graft-density-gap-16);
+}
+
+.container-events-toolbar,
+.container-events-filter-group,
+.container-events-list,
+.container-events-item__card,
+.container-events-item__details,
+.container-events-item__detail-field {
+  min-width: 0;
+}
+
+.container-events-toolbar {
+  background: color-mix(in srgb, var(--td-bg-color-container) 92%, var(--td-bg-color-page));
+  border: 1px solid color-mix(in srgb, var(--td-component-stroke) 70%, transparent);
+  border-radius: var(--td-radius-medium);
+  display: grid;
+  gap: var(--graft-density-gap-12);
+  padding: var(--graft-density-gap-16);
+}
+
+.container-events-toolbar__row,
+.container-events-item__summary,
+.container-events-item__header,
+.container-events-item__meta {
+  align-items: center;
+  display: flex;
+  gap: var(--graft-density-gap-8);
+  min-width: 0;
+}
+
+.container-events-toolbar__row,
+.container-events-item__summary {
+  justify-content: space-between;
+}
+
+.container-events-toolbar__row {
+  flex-wrap: wrap;
+}
+
+.container-events-toolbar__filters {
+  display: grid;
+  gap: var(--graft-density-gap-12);
+}
+
+.container-events-toolbar__search {
+  flex: 1 1 260px;
+  min-width: min(100%, 220px);
+}
+
+.container-events-filter-group {
+  display: grid;
+  gap: var(--graft-density-gap-8);
+}
+
+.container-events-filter-group__label,
+.container-events-item__detail-field > span {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+}
+
+.container-events-list {
+  display: grid;
+  gap: var(--graft-density-gap-12);
+}
+
+.container-events-item {
+  min-width: 0;
+}
+
+.container-events-item__card {
+  background: color-mix(in srgb, var(--td-bg-color-container) 96%, var(--td-bg-color-page));
+  border: 1px solid color-mix(in srgb, var(--td-component-stroke) 72%, transparent);
+  border-radius: var(--td-radius-medium);
+  display: grid;
+  gap: var(--graft-density-gap-12);
+  padding: var(--graft-density-gap-16);
+}
+
+.container-events-item--info .container-events-item__card {
+  border-color: color-mix(in srgb, var(--td-brand-color) 18%, var(--td-component-stroke));
+}
+
+.container-events-item--warning .container-events-item__card {
+  border-color: color-mix(in srgb, var(--td-warning-color) 24%, var(--td-component-stroke));
+}
+
+.container-events-item--error .container-events-item__card {
+  border-color: color-mix(in srgb, var(--td-error-color) 24%, var(--td-component-stroke));
+}
+
+.container-events-item__summary {
+  flex-wrap: wrap;
+}
+
+.container-events-item__summary-main {
+  display: grid;
+  gap: var(--graft-density-gap-8);
+  min-width: 0;
+}
+
+.container-events-item__header {
+  color: var(--td-text-color-secondary);
+  flex-wrap: wrap;
+}
+
+.container-events-item__header strong,
+.container-events-item__detail-field strong {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-body-medium);
+}
+
+.container-events-item__meta {
+  color: var(--td-text-color-secondary);
+  flex-wrap: wrap;
+  font: var(--td-font-body-small);
+}
+
+.container-events-item__time {
+  color: var(--td-text-color-primary);
+}
+
+.container-events-item__details {
+  border-top: 1px solid color-mix(in srgb, var(--td-component-stroke) 64%, transparent);
+  display: grid;
+  gap: var(--graft-density-gap-12);
+  padding-top: var(--graft-density-gap-12);
+}
+
+.container-events-item__detail-grid {
+  display: grid;
+  gap: var(--graft-density-gap-12);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.container-events-item__detail-field {
+  display: grid;
+  gap: var(--graft-density-gap-4);
+}
+
+.container-events-item__attributes {
+  background: color-mix(in srgb, var(--td-bg-color-page) 72%, var(--td-bg-color-container));
+  border: 1px solid color-mix(in srgb, var(--td-component-stroke) 60%, transparent);
+  border-radius: var(--td-radius-default);
+  color: var(--td-text-color-primary);
+  line-height: 1.6;
+  margin: 0;
+  overflow: auto;
+  overflow-wrap: anywhere;
+  padding: var(--graft-density-gap-12);
+  white-space: pre-wrap;
 }
 
 .container-mount-card-grid {
@@ -5621,6 +6178,7 @@ function portLabel(port: ContainerDetail['ports'][number]) {
   .container-detail-resource-grid,
   .container-health-summary-grid,
   .container-mount-card-grid,
+  .container-events-item__detail-grid,
   .container-resource-dashboard-grid,
   .container-resource-detail-grid,
   .container-resource-detail-card__body--memory,
@@ -5662,6 +6220,7 @@ function portLabel(port: ContainerDetail['ports'][number]) {
 
   .container-detail-resource-grid,
   .container-health-summary-grid,
+  .container-events-item__detail-grid,
   .container-resource-dashboard-grid,
   .container-resource-detail-grid,
   .container-resource-detail-card__body--memory,
@@ -5697,6 +6256,12 @@ function portLabel(port: ContainerDetail['ports'][number]) {
 
   .container-mount-card__actions {
     justify-content: flex-start;
+  }
+
+  .container-events-toolbar__row,
+  .container-events-item__summary {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .container-mount-field {

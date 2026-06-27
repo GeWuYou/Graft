@@ -61,10 +61,10 @@
 - [x] Phase 1：bounded history + history API + realtime topic
 - [x] Phase 1：reconnect backfill + `seq` merge strategy
 - [x] Phase 1：frontend detail `Events` tab minimum slice
-- [ ] Phase 2：Event Type Filter
-- [ ] Phase 2：Severity Filter
-- [ ] Phase 2：Search / Copy JSON / Jump to Logs
-- [ ] Phase 2：Timeline Collapse / Relative-Absolute Time Toggle
+- [x] Phase 2：Event Type Filter
+- [x] Phase 2：Severity Filter
+- [x] Phase 2：Search / Copy JSON / Jump to Logs
+- [x] Phase 2：Timeline Collapse / Relative-Absolute Time Toggle
 - [ ] Phase 3：provider extensibility hardening
 - [ ] Final：archive readiness and governance sync
 
@@ -75,15 +75,15 @@
   "loop_mode": "topic-completion-loop",
   "completed_batches": [
     "batch-0-design-authority-and-topic-bootstrap",
-    "phase-1-runtime-event-foundation"
+    "phase-1-runtime-event-foundation",
+    "phase-2-container-events-ux"
   ],
   "pending_batches": [
-    "phase-2-container-events-ux",
     "phase-3-provider-extensibility-and-hardening",
     "final-archive-readiness-and-governance-sync"
   ],
-  "current_batch": "phase-1-runtime-event-foundation",
-  "next_batch": "phase-2-container-events-ux",
-  "closeout_status": "phase-1-complete"
+  "current_batch": "phase-2-container-events-ux",
+  "next_batch": "phase-3-provider-extensibility-and-hardening",
+  "closeout_status": "phase-2-complete"
 }
 ```

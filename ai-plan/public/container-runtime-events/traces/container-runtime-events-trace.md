@@ -57,3 +57,20 @@
   - `cd web && bun run check`
 - next batch：
   - `phase-2-container-events-ux`
+
+## 2026-06-27 Phase 2 container events UX
+
+- authority / scope
+  - 维持 `web/src/modules/container/**` 作为 Events UX owner；未新增 shared realtime path、compat DTO 或第二事件存储
+  - 继续复用 phase 1 `events-manager` 的 history seed + live stream + `seq` merge pipeline
+- implementation
+  - 在 container detail `Events` tab 补齐 presentation-level `Event Type` / `Severity` filter 与 search
+  - 新增事件时间 `Relative / Absolute` toggle、整表 `Timeline Collapse` 与单条 detail collapse
+  - 新增 `Copy JSON` 与 `Jump to Logs` 操作；`Jump to Logs` 复用现有 logs owner，以事件 `occurred_at` 回填现有 `since` 查询
+  - 维持 filter 为当前已加载窗口内的 presentation-level 处理，未扩为后端筛选参数
+- validation
+  - `git diff --check`
+  - `cd web && bunx vitest run src/modules/container/pages/detail/index.test.ts`
+  - `cd web && bun run check`
+- next batch：
+  - `phase-3-provider-extensibility-and-hardening`

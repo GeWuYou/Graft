@@ -21,6 +21,7 @@ const overviewPanelSourceText = readFileSync(
 
 const apiMocks = vi.hoisted(() => ({
   getContainer: vi.fn(),
+  getContainerEvents: vi.fn(),
   getContainerLogs: vi.fn(),
   getContainerMountUsage: vi.fn(),
   postContainerMountUsageRefresh: vi.fn(),
@@ -191,6 +192,40 @@ const translations = vi.hoisted(
     'container.detail.copyError': '内容复制失败。',
     'container.detail.copySuccess': '内容已复制。',
     'container.detail.description': '查看容器运行时详情、资源、日志、配置、网络和挂载信息。',
+    'container.detail.events.title': '运行时事件',
+    'container.detail.events.empty': '当前窗口内暂无事件。',
+    'container.detail.events.filterEmptyTitle': '没有匹配事件',
+    'container.detail.events.filterEmptyDescription': '请调整搜索词或筛选条件以扩大当前事件窗口。',
+    'container.detail.events.permissionDenied': '当前账号无容器事件读取权限。',
+    'container.detail.events.runtime': '运行时：{runtime}',
+    'container.detail.events.searchPlaceholder': '搜索事件类型、资源或属性',
+    'container.detail.events.eventTypeFilter': '事件类型',
+    'container.detail.events.severityFilter': '严重级别',
+    'container.detail.events.allEventTypes': '全部类型',
+    'container.detail.events.allSeverities': '全部级别',
+    'container.detail.events.clearFilters': '清空筛选',
+    'container.detail.events.showRelativeTime': '相对时间',
+    'container.detail.events.showAbsoluteTime': '绝对时间',
+    'container.detail.events.collapseAll': '折叠时间线',
+    'container.detail.events.expandAll': '展开时间线',
+    'container.detail.events.collapseDetails': '收起详情',
+    'container.detail.events.expandDetails': '展开详情',
+    'container.detail.events.copyJson': '复制 JSON',
+    'container.detail.events.jumpToLogs': '跳转日志',
+    'container.detail.events.resource': '资源',
+    'container.detail.events.sequence': '序号',
+    'container.detail.events.id': '事件 ID',
+    'container.detail.events.severity.info': '信息',
+    'container.detail.events.severity.warning': '警告',
+    'container.detail.events.severity.error': '错误',
+    'container.detail.events.states.idle': '空闲',
+    'container.detail.events.states.connecting': '连接中',
+    'container.detail.events.states.streaming': '实时中',
+    'container.detail.events.states.paused': '暂停',
+    'container.detail.events.states.reconnecting': '重连中',
+    'container.detail.events.states.disconnected': '已断开',
+    'container.detail.events.states.error': '错误',
+    'container.detail.events.states.empty': '空',
     'container.detail.viewAudit': '查看审计',
     'container.detail.autoRefresh': '自动刷新',
     'container.detail.autoRefreshOff': '关闭',
@@ -545,6 +580,7 @@ const translations = vi.hoisted(
 
 vi.mock('../../api/container', () => ({
   getContainer: apiMocks.getContainer,
+  getContainerEvents: apiMocks.getContainerEvents,
   getContainerLogs: apiMocks.getContainerLogs,
   getContainerMountUsage: apiMocks.getContainerMountUsage,
   postContainerMountUsageRefresh: apiMocks.postContainerMountUsageRefresh,
@@ -625,6 +661,7 @@ describe('container detail page', () => {
     vi.useRealTimers();
     routeLoadingState.ref!.value = false;
     apiMocks.getContainer.mockReset();
+    apiMocks.getContainerEvents.mockReset();
     apiMocks.getContainerLogs.mockReset();
     apiMocks.getContainerMountUsage.mockReset();
     apiMocks.postContainerMountUsageRefresh.mockReset();
@@ -659,6 +696,41 @@ describe('container detail page', () => {
       items: createContainerDetail()
         .mounts.map((mount) => mount.usage)
         .filter(Boolean),
+    });
+    apiMocks.getContainerEvents.mockResolvedValue({
+      context: { runtime: 'docker' },
+      items: [
+        {
+          seq: 22,
+          event: {
+            id: 'evt-22',
+            resource_type: 'container',
+            resource_id: 'container-1',
+            event_type: 'health_status_changed',
+            severity: 'warning',
+            occurred_at: '2026-06-14T01:09:00Z',
+            attributes: {
+              status: 'unhealthy',
+              check: 'http',
+            },
+          },
+        },
+        {
+          seq: 21,
+          event: {
+            id: 'evt-21',
+            resource_type: 'container',
+            resource_id: 'container-1',
+            event_type: 'started',
+            severity: 'info',
+            occurred_at: '2026-06-14T01:05:00Z',
+            attributes: {
+              actor: 'runtime',
+            },
+          },
+        },
+      ],
+      resource_id: 'container-1',
     });
     apiMocks.getContainerLogs.mockResolvedValue({
       id: 'container-1',
@@ -749,6 +821,59 @@ describe('container detail page', () => {
     expect(wrapper.text()).toContain('当前策略：敏感值按 脱敏 展示');
     expect(wrapper.text()).toContain('当前系统配置禁止复制包含敏感字段的环境变量。');
     expect(wrapper.text()).toContain('container');
+  });
+
+  it('supports event filters, time toggle, copy json, and jump to logs within the events tab', async () => {
+    routeState.route.query.tab = 'events';
+    routeState.route.fullPath = '/ops/containers/container-1?tab=events';
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(apiMocks.getContainerEvents).toHaveBeenCalledWith('container-1');
+    expect(wrapper.text()).toContain('运行时：docker');
+    expect(wrapper.text()).toContain('health_status_changed');
+    expect(wrapper.text()).toContain('started');
+    expect(wrapper.get('[data-testid="container-event-time-22"]').text()).not.toContain(
+      'formatted:2026-06-14T01:09:00Z',
+    );
+
+    await wrapper.get('[data-testid="container-events-time-mode-absolute"]').trigger('click');
+    await flushPromises();
+    expect(wrapper.get('[data-testid="container-event-time-22"]').text()).toContain('formatted:2026-06-14T01:09:00Z');
+
+    await wrapper.get('[data-testid="container-events-type-filter-started"]').trigger('click');
+    await flushPromises();
+    expect(wrapper.find('[data-testid="container-event-21"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="container-event-22"]').exists()).toBe(false);
+
+    await wrapper.get('[data-testid="container-events-clear-filters"]').trigger('click');
+    await flushPromises();
+    expect(wrapper.find('[data-testid="container-event-22"]').exists()).toBe(true);
+
+    await wrapper.get('[data-testid="container-events-severity-filter-warning"]').trigger('click');
+    await flushPromises();
+    expect(wrapper.find('[data-testid="container-event-22"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="container-event-21"]').exists()).toBe(false);
+
+    const { copyText } = await import('@/shared/observability');
+    await wrapper.get('[data-testid="container-event-copy-22"]').trigger('click');
+    await flushPromises();
+    expect(copyText).toHaveBeenCalledWith(expect.stringContaining('"event_type": "health_status_changed"'));
+    expect(messageMocks.success).toHaveBeenCalledWith('内容已复制。');
+
+    await wrapper.get('[data-testid="container-event-jump-22"]').trigger('click');
+    await flushPromises();
+    expect(routerMocks.replace).toHaveBeenLastCalledWith({
+      params: { id: 'container-1' },
+      query: { tab: 'logs' },
+    });
+    expect(apiMocks.getContainerLogs).toHaveBeenLastCalledWith(
+      'container-1',
+      expect.objectContaining({
+        since: '2026-06-14T01:09:00Z',
+        tail: 200,
+      }),
+    );
   });
 
   it('keeps cpu text above 100 percent while clamping progress controls', async () => {
