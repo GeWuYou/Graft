@@ -73,6 +73,7 @@ func rbacManagementLookupError(err error) rbacManagementErrorMapping {
 	}
 }
 
+// 内置管理员权限不可变或无效 ID 等情况时，返回对应的状态码、错误键和可选的字段信息。
 func rbacManagementMutationError(
 	err error,
 	invalidField string,

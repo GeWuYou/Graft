@@ -340,6 +340,8 @@ func (r *repository) DeleteAuditVisibilityOverride(ctx context.Context, source a
 	return nil
 }
 
+// scanAuditVisibilityOverride 将审计可见性覆盖规则的查询结果扫描并规范化为结构体。
+// 字符串字段会被去除首尾空白，来源和策略会被标准化，可空的创建者和更新者字段会被映射为对应 ID。
 func scanAuditVisibilityOverride(scanner interface {
 	Scan(dest ...any) error
 }) (auditstore.AuditVisibilityOverride, error) {

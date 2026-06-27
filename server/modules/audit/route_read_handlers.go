@@ -50,6 +50,8 @@ type auditGuard struct {
 	manage gin.HandlerFunc
 }
 
+// handleListAuditLogs 创建审计日志列表查询的处理器。
+// 它绑定列表查询参数，校验可见性范围访问权限，读取审计日志列表，并将结果转换为响应。
 func handleListAuditLogs(
 	ctx *module.Context,
 	moduleName string,
@@ -89,6 +91,10 @@ func handleListAuditLogs(
 	}
 }
 
+// ensureAuditListParamsBound 在审计日志列表参数绑定失败时中止请求。
+//
+// @param invalidField 绑定失败的字段名。
+// @returns 当参数绑定成功时返回 true；当存在无效字段并已中止请求时返回 false。
 func ensureAuditListParamsBound(ginCtx *gin.Context, ctx *module.Context, invalidField string) bool {
 	if invalidField == "" {
 		return true
@@ -99,6 +105,8 @@ func ensureAuditListParamsBound(ginCtx *gin.Context, ctx *module.Context, invali
 	return false
 }
 
+// requiresAuditManageVisibilityScope 判断给定可见性范围是否需要 manage 权限。
+// `true` 仅在范围为 `AuditVisibilityScopeAll` 或 `AuditVisibilityScopeHiddenOnly` 时返回。
 func requiresAuditManageVisibilityScope(scope auditstore.AuditVisibilityScope) bool {
 	switch scope {
 	case auditstore.AuditVisibilityScopeAll, auditstore.AuditVisibilityScopeHiddenOnly:
@@ -108,6 +116,9 @@ func requiresAuditManageVisibilityScope(scope auditstore.AuditVisibilityScope) b
 	}
 }
 
+// ensureAuditVisibilityScopeAccess 在需要管理权限时校验审计可见性范围访问。
+// 当可见性范围属于需要 manage 权限的策略时，执行相应的权限检查；否则直接允许访问。
+// 返回 `true` 表示允许访问，`false` 表示访问被拒绝。
 func ensureAuditVisibilityScopeAccess(
 	ginCtx *gin.Context,
 	ctx *module.Context,
@@ -119,6 +130,10 @@ func ensureAuditVisibilityScopeAccess(
 	return ensureAuditManageForVisibilityScope(ginCtx, ctx)
 }
 
+// handleAuditListReadError 处理审计日志列表读取失败。
+// 当错误属于无效 scope 时，返回 400 并标记字段为 "scope"；否则记录错误并返回 500。
+// 
+// @returns 始终返回 `true`。
 func handleAuditListReadError(
 	ginCtx *gin.Context,
 	ctx *module.Context,
@@ -140,6 +155,8 @@ func handleAuditListReadError(
 	return true
 }
 
+// isAuditInvalidScopeError 判断错误是否表示审计范围无效。
+// `true` if err 包装了 `drilldown.ErrScopeNotFound`、`drilldown.ErrScopeDisabled`、`drilldown.ErrTargetMismatch` 或 `drilldown.ErrScopeConflict`，否则为 `false`。
 func isAuditInvalidScopeError(err error) bool {
 	return errors.Is(err, drilldown.ErrScopeNotFound) ||
 		errors.Is(err, drilldown.ErrScopeDisabled) ||
@@ -147,6 +164,8 @@ func isAuditInvalidScopeError(err error) bool {
 		errors.Is(err, drilldown.ErrScopeConflict)
 }
 
+// ensureAuditManageForVisibilityScope 校验当前请求是否具有审计可见性管理权限。
+// 当授权信息解析失败或权限校验未通过时，返回 false 并完成相应的请求中止处理。
 func ensureAuditManageForVisibilityScope(ginCtx *gin.Context, ctx *module.Context) bool {
 	requestAuth, authorizer, ok := resolveAuditManageAuthorizationInputs(ginCtx, ctx)
 	if !ok {
@@ -159,6 +178,10 @@ func ensureAuditManageForVisibilityScope(ginCtx *gin.Context, ctx *module.Contex
 	return true
 }
 
+// resolveAuditManageAuthorizationInputs 获取审计管理权限校验所需的请求鉴权信息和授权器。
+// 当 gin 上下文、请求、模块上下文或服务容器缺失时，它会中止请求并返回失败；
+// 当请求中缺少鉴权信息时，它会返回未授权错误并返回失败。
+// @returns 请求鉴权上下文、授权器以及是否成功解析。
 func resolveAuditManageAuthorizationInputs(
 	ginCtx *gin.Context,
 	ctx *module.Context,
@@ -182,6 +205,8 @@ func resolveAuditManageAuthorizationInputs(
 	return requestAuth, authorizer, true
 }
 
+// resolveAuditAuthorizer 尝试从模块服务中解析授权器。
+// 成功时返回解析到的授权器及 true；否则返回 nil 和 false。
 func resolveAuditAuthorizer(ctx *module.Context) (moduleapi.Authorizer, bool) {
 	if ctx == nil || ctx.Services == nil {
 		return nil, false
@@ -194,6 +219,9 @@ func resolveAuditAuthorizer(ctx *module.Context) (moduleapi.Authorizer, bool) {
 	return authorizer, ok && authorizer != nil
 }
 
+// handleAuditManageAuthorizationError 处理审计管理授权失败。
+// 当错误属于权限拒绝、未认证或访问令牌无效时，发布权限拒绝审计事件并返回 403；
+// 其他错误则返回内部错误。
 func handleAuditManageAuthorizationError(
 	ginCtx *gin.Context,
 	ctx *module.Context,
@@ -208,10 +236,14 @@ func handleAuditManageAuthorizationError(
 	abortAuditReadInternal(ginCtx, ctx)
 }
 
+// abortAuditReadInternal 以内部错误中止审计读取请求。
 func abortAuditReadInternal(ginCtx *gin.Context, ctx *module.Context) {
 	httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
 }
 
+// publishAuditManagePermissionDenied 记录审计管理权限被拒绝事件。
+// 当请求缺少必要上下文时直接返回；否则构造一条权限拒绝审计事件并发布到事件总线。
+// 如果提供了用户鉴权信息，事件中会包含操作者信息。
 func publishAuditManagePermissionDenied(ginCtx *gin.Context, ctx *module.Context, requestAuth moduleapi.RequestAuthContext) {
 	if ginCtx == nil || ginCtx.Request == nil || ctx == nil || ctx.EventBus == nil {
 		return
@@ -264,6 +296,8 @@ func publishAuditManagePermissionDenied(ginCtx *gin.Context, ctx *module.Context
 	})
 }
 
+// handleReadAuditLog 返回用于读取审计日志详情的 Gin 处理器。
+// 当日志记录处于隐藏可见性策略时，处理器会要求相应的管理权限。
 func handleReadAuditLog(
 	ctx *module.Context,
 	moduleName string,
@@ -299,6 +333,8 @@ type auditReadByIDMeta struct {
 	mapLogMessage  string
 }
 
+// auditLogReadConfig 构造审计日志详情读取配置。
+// 当日志记录的可见性为隐藏时，会要求 manage 权限，并将不存在的日志视为未找到。
 func auditLogReadConfig(reader auditReader) auditReadByIDConfig[auditDetailResult] {
 	return newAuditReadConfig(
 		auditReadByIDMeta{
@@ -322,6 +358,9 @@ func auditLogReadConfig(reader auditReader) auditReadByIDConfig[auditDetailResul
 	)
 }
 
+// auditIncidentReadConfig 构造按事件 ID 读取审计事件详情的配置。
+// 当种子事件或任一关联事件的可见性为 hidden 时，要求管理权限后才能访问。
+// `auditstore.ErrIncidentNotFound` 会被视为未找到。
 func auditIncidentReadConfig(reader auditReader) auditReadByIDConfig[auditIncidentResult] {
 	return newAuditReadConfig(
 		auditReadByIDMeta{
@@ -353,6 +392,7 @@ func auditIncidentReadConfig(reader auditReader) auditReadByIDConfig[auditIncide
 	)
 }
 
+// newAuditReadConfig 根据给定的元信息和处理函数构建审计按 ID 读取配置。
 func newAuditReadConfig[T any](
 	meta auditReadByIDMeta,
 	read func(context.Context, uint64) (T, error),
@@ -373,6 +413,8 @@ func newAuditReadConfig[T any](
 	}
 }
 
+// handleAuditReadByID 返回一个用于按 ID 读取审计记录的 Gin 处理器。
+// 处理器会解析请求中的 ID、读取记录、校验访问权限、映射响应并写回成功结果。
 func handleAuditReadByID[T any](
 	ctx *module.Context,
 	moduleName string,
@@ -407,6 +449,8 @@ func handleAuditReadByID[T any](
 	}
 }
 
+// bindAuditReadID 解析用于按 ID 读取审计记录的参数。
+// 解析失败或参数缺失时，中止请求并返回 400。
 func bindAuditReadID[T any](
 	ginCtx *gin.Context,
 	ctx *module.Context,
@@ -422,6 +466,9 @@ func bindAuditReadID[T any](
 	return 0, false
 }
 
+// readAuditRecordByID 按 ID 读取审计记录，并在读取失败时返回相应的错误响应。
+// 读取未命中时返回 404；其他读取错误记录日志并返回 500。
+// 成功时返回读取到的记录和 true。
 func readAuditRecordByID[T any](
 	ginCtx *gin.Context,
 	ctx *module.Context,
@@ -446,6 +493,9 @@ func readAuditRecordByID[T any](
 	return record, false
 }
 
+// ensureAuditReadRecordAccess 在记录需要管理权限时校验可见性访问。
+// 当 config.requiresManage 未设置或对该记录返回 false 时，允许访问；否则执行管理权限校验。
+// `true` 表示允许继续处理，`false` 表示已被拒绝或中止。
 func ensureAuditReadRecordAccess[T any](
 	ginCtx *gin.Context,
 	ctx *module.Context,
@@ -458,6 +508,10 @@ func ensureAuditReadRecordAccess[T any](
 	return ensureAuditManageForVisibilityScope(ginCtx, ctx)
 }
 
+// mapAuditReadRecord 将审计记录映射为响应载荷，并在映射失败时中止请求。
+//
+// @param record 要转换的审计记录。
+// @returns 转换后的响应载荷及是否转换成功。
 func mapAuditReadRecord[T any](
 	ginCtx *gin.Context,
 	ctx *module.Context,
@@ -476,6 +530,8 @@ func mapAuditReadRecord[T any](
 	return nil, false
 }
 
+// handleReadAuditOverview 返回审计概览读取处理器。
+// 它会绑定概览查询参数，规范化时间预设，读取概览数据并转换为响应后返回成功结果。
 func handleReadAuditOverview(
 	ctx *module.Context,
 	moduleName string,
@@ -589,6 +645,8 @@ func (h auditReadGeneratedHandler) GetAuditIncident(params auditopenapi.GetAudit
 	_ = params
 }
 
+// bindGeneratedAuditListParams 绑定并校验审计日志列表查询参数。
+// 返回 OpenAPI 请求参数、内部查询条件，以及首个无效字段名；若校验通过则字段名为空。
 func bindGeneratedAuditListParams(
 	ginCtx *gin.Context,
 ) (auditopenapi.GetAuditLogsParams, ListQuery, string) {
@@ -610,6 +668,7 @@ func bindGeneratedAuditListParams(
 	return params, query, ""
 }
 
+// 发生校验失败时，返回首个无效字段名。
 func bindAuditPrimaryFilters(ginCtx *gin.Context, params *auditopenapi.GetAuditLogsParams, query *ListQuery) string {
 	if field := bindAuditPagination(ginCtx, params, query); field != "" {
 		return field
@@ -629,6 +688,8 @@ func bindAuditPrimaryFilters(ginCtx *gin.Context, params *auditopenapi.GetAuditL
 	return ""
 }
 
+// bindAuditSecondaryFilters 依次绑定审计日志的次级筛选条件：枚举类筛选、success、创建时间范围和排序。
+// 发生校验失败时返回对应的字段名；全部成功时返回空字符串。
 func bindAuditSecondaryFilters(ginCtx *gin.Context, params *auditopenapi.GetAuditLogsParams, query *ListQuery) string {
 	if field := bindAuditEnumFilters(ginCtx, params, query); field != "" {
 		return field
@@ -645,6 +706,7 @@ func bindAuditSecondaryFilters(ginCtx *gin.Context, params *auditopenapi.GetAudi
 	return ""
 }
 
+// newAuditListParams 从请求头构造审计日志列表参数，填充语言环境和请求 ID。
 func newAuditListParams(ginCtx *gin.Context) auditopenapi.GetAuditLogsParams {
 	locale, requestID := bindGeneratedAuditReadHeaders(ginCtx)
 	return auditopenapi.GetAuditLogsParams{
@@ -706,6 +768,8 @@ func bindAuditPreset(ginCtx *gin.Context, params *auditopenapi.GetAuditLogsParam
 	return ""
 }
 
+// bindAuditScope 解析并验证审计日志列表的 scope 查询参数。
+// 成功时将值写入请求参数和内部查询；无效时返回 "scope"。
 func bindAuditScope(ginCtx *gin.Context, params *auditopenapi.GetAuditLogsParams, query *ListQuery) string {
 	if raw := strings.TrimSpace(ginCtx.Query("scope")); raw != "" {
 		value := auditopenapi.GetAuditLogsParamsScope(raw)
@@ -718,6 +782,8 @@ func bindAuditScope(ginCtx *gin.Context, params *auditopenapi.GetAuditLogsParams
 	return ""
 }
 
+// bindAuditVisibilityScope 解析并校验审计列表的可见性范围。
+// 当请求中提供有效值时，会将其写入查询条件；无效时返回 "visibility_scope"。
 func bindAuditVisibilityScope(ginCtx *gin.Context, query *ListQuery) string {
 	raw := strings.TrimSpace(ginCtx.Query("visibility_scope"))
 	if raw == "" {
@@ -734,6 +800,7 @@ func bindAuditVisibilityScope(ginCtx *gin.Context, query *ListQuery) string {
 	}
 }
 
+// bindAuditStringFilters 绑定审计日志列表的字符串过滤条件，并同步写入 API 参数与内部查询。
 func bindAuditStringFilters(ginCtx *gin.Context, params *auditopenapi.GetAuditLogsParams, query *ListQuery) {
 	bindAuditStringFilter(ginCtx, "keyword", &params.Keyword, &query.Keyword)
 	bindAuditStringFilter(ginCtx, "actor", &params.Actor, &query.Actor)

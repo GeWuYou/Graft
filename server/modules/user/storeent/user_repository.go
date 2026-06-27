@@ -213,6 +213,7 @@ func normalizeStoredUserStatus(status string) string {
 	}
 }
 
+// 结果包含用户 ID、用户名、显示名、状态、受保护的默认管理员标记以及创建和更新时间。
 func toStoreUser(record *ent.User) userstore.User {
 	return userstore.User{
 		ID:                    toStoreID(record.ID),
@@ -225,6 +226,8 @@ func toStoreUser(record *ent.User) userstore.User {
 	}
 }
 
+// isProtectedDefaultAdminUsername 判断用户名是否属于受保护的默认管理员账号。
+// @return true 如果用户名属于受保护的默认管理员账号，false 否则。
 func isProtectedDefaultAdminUsername(username string) bool {
 	return userstore.IsProtectedDefaultAdminUsername(username)
 }

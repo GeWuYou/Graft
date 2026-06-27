@@ -56,18 +56,35 @@ export function getAuditOverview(query: AuditOverviewQuery) {
   }) as Promise<AuditOverviewResponse>;
 }
 
+/**
+ * 获取指定审计事件的事故详情。
+ *
+ * @param eventId - 审计事件 ID
+ * @returns 事故详情数据
+ */
 export function getAuditIncident(eventId: number) {
   return request.get<GetAuditIncidentResponseData>({
     url: AUDIT_API_PATH.INCIDENT_DETAIL.replace('{event_id}', String(eventId)),
   }) as Promise<AuditIncidentResponse>;
 }
 
+/**
+ * 获取审计可见性策略。
+ *
+ * @returns 审计可见性策略配置。
+ */
 export function getAuditVisibilityPolicy() {
   return request.get<AuditVisibilityPolicyResponse>({
     url: AUDIT_API_PATH.VISIBILITY_POLICY,
   });
 }
 
+/**
+ * 更新审计可见性默认策略。
+ *
+ * @param payload - 默认可见性设置的更新内容
+ * @returns 更新后的默认可见性策略
+ */
 export function updateAuditVisibilityDefault(payload: AuditVisibilityDefaultUpdateRequest) {
   return request.put<AuditVisibilityDefaultResponse>({
     url: AUDIT_API_PATH.VISIBILITY_POLICY,
@@ -75,6 +92,12 @@ export function updateAuditVisibilityDefault(payload: AuditVisibilityDefaultUpda
   });
 }
 
+/**
+ * 新增或更新审计可见性覆盖规则。
+ *
+ * @param payload - 要提交的覆盖规则内容
+ * @returns 可见性覆盖规则的更新结果
+ */
 export function upsertAuditVisibilityOverride(payload: AuditVisibilityOverrideUpsertRequest) {
   return request.put<AuditVisibilityOverrideResponse>({
     url: AUDIT_API_PATH.VISIBILITY_OVERRIDES,
@@ -82,6 +105,13 @@ export function upsertAuditVisibilityOverride(payload: AuditVisibilityOverrideUp
   });
 }
 
+/**
+ * 删除审计可见性覆盖规则。
+ *
+ * @param source - 覆盖规则所属来源
+ * @param actionKey - 覆盖规则对应的动作键
+ * @returns 空对象
+ */
 export function deleteAuditVisibilityOverride(source: string, actionKey: string) {
   return request.delete<Record<string, never>>({
     url: AUDIT_API_PATH.VISIBILITY_OVERRIDES,

@@ -41,6 +41,12 @@ const state = reactive<{
   subscriptionsById: new Map<string, RealtimeSubscriptionEntry>(),
 });
 
+/**
+ * 获取或创建指定容器的事件订阅条目。
+ *
+ * @param containerId - 容器 ID
+ * @returns 容器对应的订阅条目
+ */
 function ensureEntry(containerId: string) {
   let entry = state.subscriptionsById.get(containerId);
   if (!entry) {
@@ -58,6 +64,14 @@ function ensureEntry(containerId: string) {
   return entry;
 }
 
+/**
+ * 按 `seq` 合并两组运行时事件记录。
+ *
+ * @param current - 现有事件记录
+ * @param incoming - 新增事件记录
+ * @param source - 新增记录的来源标记
+ * @returns 合并后按 `seq` 降序排列的事件记录列表
+ */
 function mergeRecords(
   current: ContainerRuntimeEventRecord[],
   incoming: ContainerRuntimeEventRecord[],
@@ -76,6 +90,11 @@ function mergeRecords(
   return [...bySeq.values()].map((item) => item.record).sort((left, right) => right.seq - left.seq);
 }
 
+/**
+ * 拉取并初始化容器运行时事件历史。
+ *
+ * @param containerId - 容器 ID
+ */
 async function seedHistory(containerId: string) {
   const entry = ensureEntry(containerId);
   entry.loading = true;
@@ -96,6 +115,11 @@ async function seedHistory(containerId: string) {
   }
 }
 
+/**
+ * 建立容器运行时事件的实时订阅连接。
+ *
+ * @param containerId - 容器 ID
+ */
 function connectRealtime(containerId: string) {
   const entry = ensureEntry(containerId);
   const topic = buildContainerEventsTopicName(containerId);
@@ -129,6 +153,11 @@ function connectRealtime(containerId: string) {
   });
 }
 
+/**
+ * 关闭指定容器的实时事件连接。
+ *
+ * @param containerId - 容器 ID
+ */
 function closeRealtime(containerId: string) {
   const entry = state.subscriptionsById.get(containerId);
   if (!entry) {
@@ -139,6 +168,13 @@ function closeRealtime(containerId: string) {
   entry.socketState = 'idle';
 }
 
+/**
+ * 为指定容器获取运行时事件订阅。
+ *
+ * 会先去除 `containerId` 两端空白；当结果为空时不执行任何操作。首次获取时会增加引用计数，并在需要时拉取历史事件并建立实时连接。
+ *
+ * @param containerId - 容器 ID
+ */
 export function acquireContainerEventsSubscription(containerId: string) {
   const normalizedContainerId = containerId.trim();
   if (!normalizedContainerId) {
@@ -152,6 +188,13 @@ export function acquireContainerEventsSubscription(containerId: string) {
   connectRealtime(normalizedContainerId);
 }
 
+/**
+ * 释放指定容器运行时事件订阅的引用。
+ *
+ * 当引用计数降为 0 时，关闭对应的实时连接。
+ *
+ * @param containerId - 容器 ID
+ */
 export function releaseContainerEventsSubscription(containerId: string) {
   const normalizedContainerId = containerId.trim();
   const entry = state.subscriptionsById.get(normalizedContainerId);
@@ -164,12 +207,23 @@ export function releaseContainerEventsSubscription(containerId: string) {
   }
 }
 
+/**
+ * 清除指定容器的事件订阅和缓存状态。
+ *
+ * @param containerId - 容器 ID
+ */
 export function clearContainerEvents(containerId: string) {
   const normalizedContainerId = containerId.trim();
   closeRealtime(normalizedContainerId);
   state.subscriptionsById.delete(normalizedContainerId);
 }
 
+/**
+ * 获取容器当前合并后的运行时事件视图。
+ *
+ * @param containerId - 容器 ID
+ * @returns 当前事件视图；如果尚未加载则返回 `null`
+ */
 export function selectContainerEventsView(containerId: string): ContainerRuntimeEventsResponse | null {
   const entry = state.subscriptionsById.get(containerId.trim());
   if (!entry?.view) {
@@ -184,6 +238,12 @@ export function selectContainerEventsView(containerId: string): ContainerRuntime
   };
 }
 
+/**
+ * 获取容器运行时事件流的视口状态。
+ *
+ * @param containerId - 容器 ID
+ * @returns 根据当前加载、连接、重连、断开和错误状态计算得到的视口状态
+ */
 export function selectContainerEventsViewportState(containerId: string): StreamViewportState {
   const entry = state.subscriptionsById.get(containerId.trim());
   return resolveStreamViewportState({

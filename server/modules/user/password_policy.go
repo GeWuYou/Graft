@@ -13,6 +13,7 @@ const (
 
 type passwordPolicy struct{}
 
+// newPasswordPolicy 返回一个零值的 passwordPolicy。
 func newPasswordPolicy() passwordPolicy {
 	return passwordPolicy{}
 }

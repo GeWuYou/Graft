@@ -20,6 +20,7 @@ const (
 	auditMenuOrderLogs     = 202
 )
 
+// registerAuditPermissions 注册审计模块的权限条目。
 func registerAuditPermissions(registry *permission.Registry, moduleName string) {
 	if registry == nil {
 		return
@@ -41,6 +42,8 @@ func registerAuditPermissions(registry *permission.Registry, moduleName string) 
 	})
 }
 
+// registerAuditMenu 注册审计模块的菜单项。
+// 当 registry 为 nil 时直接返回。它会注册审计首页、概览和日志三个菜单项，并为概览和日志菜单配置审计读取权限。
 func registerAuditMenu(registry *menu.Registry, moduleName string) {
 	if registry == nil {
 		return

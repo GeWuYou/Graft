@@ -73,7 +73,8 @@ type UserRepository interface {
 	Delete(ctx context.Context, input DeleteUserInput) error
 }
 
-// IsProtectedDefaultAdminUsername reports whether the username belongs to the builtin protected default admin account.
+// IsProtectedDefaultAdminUsername 判断用户名是否属于内置的受保护默认管理员账号。
+// 如果用户名等于内置默认管理员用户名，则返回 `true`，否则返回 `false`。
 func IsProtectedDefaultAdminUsername(username string) bool {
 	return username == protectedDefaultAdminUsername
 }

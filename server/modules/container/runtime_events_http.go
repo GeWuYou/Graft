@@ -27,6 +27,9 @@ type containerRuntimeEventsHistoryResponse struct {
 	Items      []containerRuntimeEventRecordResponse      `json:"items"`
 }
 
+// toRuntimeEventsHistoryResponse 将运行时事件历史转换为 HTTP 历史响应。
+//
+// 返回值包含资源 ID、运行时上下文以及按顺序排列的事件记录；事件属性会被拷贝到响应中。
 func toRuntimeEventsHistoryResponse(history RuntimeEventsHistory) containerRuntimeEventsHistoryResponse {
 	items := make([]containerRuntimeEventRecordResponse, 0, len(history.Items))
 	for _, item := range history.Items {
@@ -52,6 +55,7 @@ func toRuntimeEventsHistoryResponse(history RuntimeEventsHistory) containerRunti
 	}
 }
 
+// 当输入为空时返回 nil。
 func mapStringValue(input map[string]string) map[string]string {
 	if len(input) == 0 {
 		return nil

@@ -523,6 +523,8 @@ func incidentEvidenceWindow(events []auditstore.AuditLog) *auditstore.EvidenceLi
 	}
 }
 
+// buildAuditLogFilters 根据查询条件构建审计日志过滤条件的 WHERE 子句及参数列表。
+// 当未生成任何过滤条件时，返回空字符串和参数列表；否则返回以 `WHERE` 开头的拼接结果。
 func buildAuditLogFilters(query auditstore.ListAuditLogsQuery) (string, []any) {
 	clauses := make([]string, 0, defaultFilterCapacity)
 	args := make([]any, 0, defaultFilterCapacity)
@@ -596,6 +598,7 @@ func isSupportedAuditTimePreset(preset auditstore.AuditTimePreset) bool {
 	}
 }
 
+// addAuditPresetRange 在未指定显式时间范围时，按时间预设添加创建时间下限过滤条件。
 func addAuditPresetRange(clauses *[]string, args *[]any, query auditstore.ListAuditLogsQuery) {
 	if query.CreatedFrom != nil || query.CreatedTo != nil {
 		return
@@ -609,6 +612,7 @@ func addAuditPresetRange(clauses *[]string, args *[]any, query auditstore.ListAu
 	addTimeFilter(clauses, args, "created_at >= $%d", &startedAt)
 }
 
+// 其他情况仅匹配可见审计日志。
 func addAuditVisibilityFilter(
 	clauses *[]string,
 	args *[]any,
@@ -627,7 +631,8 @@ func addAuditVisibilityFilter(
 }
 
 // auditPresetStart 根据时间预设计算查询起始时间。
-// 对于最近 24 小时、7 天、30 天分别返回对应的起始时间；其他预设返回零时间。
+// auditPresetStart 返回指定时间预设对应的起始时间。
+// 对于最近 24 小时、7 天、30 天分别返回相对于 now 的起点；其他预设返回零时间。
 func auditPresetStart(now time.Time, preset auditstore.AuditTimePreset) time.Time {
 	switch preset {
 	case auditstore.AuditTimePresetLast24Hours:
@@ -925,7 +930,8 @@ func addTimeFilter(clauses *[]string, args *[]any, format string, value *time.Ti
 
 // scanAuditLog 解析一条审计日志记录并补充派生字段。
 // 它会从扫描器中读取基础列，转换 actor_user_id，并完成元数据克隆与记录增强。
-// @returns 解析后的审计日志记录；扫描失败时返回错误。
+// scanAuditLog 扫描一条审计日志记录，并补充派生字段。
+// 解析成功时返回完整的审计日志；扫描失败时返回错误。
 func scanAuditLog(
 	ctx context.Context,
 	localizer *i18n.Service,
@@ -2008,6 +2014,8 @@ func (r *repository) readOverviewTrend(
 	}, nil
 }
 
+// overviewTrendSeriesSQL 生成按固定时间步长聚合审计日志概览趋势的 SQL。
+// 返回用于统计每个时间桶的总数、失败数、高风险数和安全事件数的查询语句。
 func overviewTrendSeriesSQL(step string) string {
 	//nolint:gosec // step comes from overviewTrendConfig and is limited to fixed internal interval literals.
 	return fmt.Sprintf(`
@@ -2263,6 +2271,9 @@ func (r *repository) readAuditOverviewItems(ctx context.Context, args []any, whe
 	return items, nil
 }
 
+// scanAuditOverviewItem 解析一条审计概览记录并补齐元数据。
+// 它会将 actor 用户 ID 转换为可选值，并复制 metadata 以避免共享底层字节。
+// @returns 解析后的概览条目；如果扫描失败，则返回错误。
 func scanAuditOverviewItem(scanner interface {
 	Scan(dest ...any) error
 }) (auditstore.OverviewItem, error) {
@@ -2301,6 +2312,7 @@ func scanAuditOverviewItem(scanner interface {
 	return item, nil
 }
 
+// 它会保留 hidden 和 ignore，其余值都归一为 visible。
 func normalizeStoredAuditVisibility(value auditstore.AuditVisibilityStrategy) auditstore.AuditVisibilityStrategy {
 	switch auditstore.AuditVisibilityStrategy(strings.TrimSpace(string(value))) {
 	case auditstore.AuditVisibilityStrategyHidden:
@@ -2312,6 +2324,9 @@ func normalizeStoredAuditVisibility(value auditstore.AuditVisibilityStrategy) au
 	}
 }
 
+// nullableUint64 将可选的 uint64 转换为可用于数据库参数绑定的值。
+// 当值为空时返回 nil；当值超过 bigint 可表示范围时返回错误。
+ક
 func nullableUint64(value *uint64) (any, error) {
 	if value == nil {
 		return nil, nil

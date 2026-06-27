@@ -321,6 +321,8 @@ func toAuditIncidentRequests(requests []auditstore.AuditIncidentRequest) []map[s
 	return relatedRequests
 }
 
+// toAuditLogListItem 将审计日志转换为列表响应项。
+// @returns 成功转换后的审计日志列表项；如果 ID 转换或元数据解析失败，则返回错误。
 func toAuditLogListItem(item auditstore.AuditLog) (generated.AuditLogListItem, error) {
 	id, err := mustConvertAuditGeneratedID(item.ID, "audit log id")
 	if err != nil {
@@ -354,6 +356,10 @@ func toAuditLogListItem(item auditstore.AuditLog) (generated.AuditLogListItem, e
 	return converted, nil
 }
 
+// toAuditVisibilityPolicyResponse 组装审计可见性策略响应。
+// 返回包含默认策略、覆盖策略和策略目录的映射。
+//
+// @returns 默认策略、覆盖策略和策略目录组成的响应映射；转换失败时返回错误。
 func toAuditVisibilityPolicyResponse(result VisibilityPolicyResult) (map[string]any, error) {
 	defaultValue, err := toAuditVisibilityDefaultResponse(result.Default)
 	if err != nil {
@@ -390,6 +396,8 @@ func toAuditVisibilityPolicyResponse(result VisibilityPolicyResult) (map[string]
 	}, nil
 }
 
+// toAuditVisibilityDefaultResponse 将审计可见性默认策略转换为响应映射。
+// 返回包含 key、strategy、updated_at 的映射；当存在更新者信息时，还包含 updated_by 和 updated_by_name。
 func toAuditVisibilityDefaultResponse(item auditstore.AuditVisibilityDefault) (map[string]any, error) {
 	response := map[string]any{
 		"key":        item.Key,
@@ -409,6 +417,10 @@ func toAuditVisibilityDefaultResponse(item auditstore.AuditVisibilityDefault) (m
 	return response, nil
 }
 
+// toAuditVisibilityOverrideResponse 将审计可见性覆盖策略转换为响应映射。
+// 结果包含基础策略字段，以及存在时的创建者、更新者和对应名称。
+// @param item 审计可见性覆盖策略记录。
+// @returns 转换后的响应映射；如果 ID 或关联用户 ID 超出 int64 范围，则返回错误。
 func toAuditVisibilityOverrideResponse(item auditstore.AuditVisibilityOverride) (map[string]any, error) {
 	id, err := mustConvertAuditGeneratedID(item.ID, "audit visibility override id")
 	if err != nil {
@@ -447,6 +459,7 @@ func toAuditVisibilityOverrideResponse(item auditstore.AuditVisibilityOverride) 
 	return response, nil
 }
 
+// appendAuditLogTarget 在目标信息存在时填充审计日志项的目标字段。
 func appendAuditLogTarget(converted *generated.AuditLogListItem, target auditstore.AuditTarget) {
 	if target.Kind == "" && target.Type == "" && target.Label == "" && target.ID == "" && target.RouteRef == "" {
 		return

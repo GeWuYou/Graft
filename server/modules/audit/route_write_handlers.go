@@ -16,6 +16,7 @@ import (
 	auditstore "graft/server/modules/audit/store"
 )
 
+// handleReadAuditVisibilityPolicy 读取指定模块的审计可见性策略。
 func handleReadAuditVisibilityPolicy(
 	ctx *module.Context,
 	moduleName string,
@@ -42,6 +43,7 @@ func handleReadAuditVisibilityPolicy(
 	}
 }
 
+// handleUpdateAuditVisibilityDefault 处理审计可见性默认策略的更新请求。
 func handleUpdateAuditVisibilityDefault(
 	ctx *module.Context,
 	moduleName string,
@@ -81,6 +83,8 @@ func handleUpdateAuditVisibilityDefault(
 	}
 }
 
+// handleUpsertAuditVisibilityOverride 处理审计可见性覆盖的新增或更新请求。
+// 它会绑定请求体，提取当前审计操作者，调用读写器保存覆盖配置，并在成功时返回映射后的结果。
 func handleUpsertAuditVisibilityOverride(
 	ctx *module.Context,
 	moduleName string,
@@ -131,6 +135,8 @@ func handleUpsertAuditVisibilityOverride(
 	}
 }
 
+// handleDeleteAuditVisibilityOverride 删除指定源和操作键的审计可见性覆盖配置。
+// 当 source 或 action_key 缺失时返回本地化的 400 InvalidArgument；删除成功后返回空对象。
 func handleDeleteAuditVisibilityOverride(
 	ctx *module.Context,
 	moduleName string,
@@ -165,6 +171,10 @@ func handleDeleteAuditVisibilityOverride(
 	}
 }
 
+// currentAuditActor 从请求上下文中提取当前审计操作者的 ID 和用户名。
+//
+// 当 Gin 上下文、请求对象或认证信息缺失时，返回 nil 和空字符串。
+// 用户名优先使用 DisplayName；如果为空，则回退到 Username。
 func currentAuditActor(ginCtx *gin.Context) (*uint64, string) {
 	if ginCtx == nil || ginCtx.Request == nil {
 		return nil, ""
@@ -181,6 +191,8 @@ func currentAuditActor(ginCtx *gin.Context) (*uint64, string) {
 	return &userID, username
 }
 
+// handleAuditVisibilityWriteError 根据写入错误返回对应的本地化 HTTP 错误响应。
+// 当错误属于审计可见性校验错误时，返回 400；否则记录日志并返回 500。
 func handleAuditVisibilityWriteError(
 	ginCtx *gin.Context,
 	ctx *module.Context,
@@ -197,6 +209,8 @@ func handleAuditVisibilityWriteError(
 	httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
 }
 
+// auditRouteLogger 返回审计路由使用的日志器。
+// 当提供了有效的上下文且其中包含日志器时，返回该日志器；否则返回一个空日志器。
 func auditRouteLogger(ctx *module.Context) *zap.Logger {
 	if ctx != nil && ctx.Logger != nil {
 		return ctx.Logger

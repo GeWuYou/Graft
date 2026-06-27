@@ -377,6 +377,8 @@ func normalizeAuditSource(source auditstore.AuditSource) auditstore.AuditSource 
 	}
 }
 
+// normalizeAuditBusinessCategory 规范化审计业务分类。
+// 返回已知的业务分类值；未识别时返回空字符串。
 func normalizeAuditBusinessCategory(category auditstore.AuditBusinessCategory) auditstore.AuditBusinessCategory {
 	switch auditstore.AuditBusinessCategory(strings.TrimSpace(string(category))) {
 	case auditstore.AuditBusinessCategoryFailedOperations:
@@ -398,6 +400,7 @@ func normalizeAuditBusinessCategory(category auditstore.AuditBusinessCategory) a
 	}
 }
 
+// normalizeAuditVisibilityScope 将可见性范围归一化为允许的取值之一。
 func normalizeAuditVisibilityScope(scope auditstore.AuditVisibilityScope) auditstore.AuditVisibilityScope {
 	switch auditstore.AuditVisibilityScope(strings.TrimSpace(string(scope))) {
 	case auditstore.AuditVisibilityScopeAll:
@@ -409,6 +412,8 @@ func normalizeAuditVisibilityScope(scope auditstore.AuditVisibilityScope) audits
 	}
 }
 
+// normalizeAuditVisibilityStrategy 归一化审计可见性策略。
+// 返回允许的可见性策略值之一；如果输入无效，则返回空值。
 func normalizeAuditVisibilityStrategy(strategy auditstore.AuditVisibilityStrategy) auditstore.AuditVisibilityStrategy {
 	switch auditstore.AuditVisibilityStrategy(strings.TrimSpace(string(strategy))) {
 	case auditstore.AuditVisibilityStrategyVisible:
@@ -422,6 +427,8 @@ func normalizeAuditVisibilityStrategy(strategy auditstore.AuditVisibilityStrateg
 	}
 }
 
+// normalizeMutableAuditVisibilityStrategy 规范化可修改的审计可见性策略。
+// 仅保留可写入的可见和隐藏策略。
 func normalizeMutableAuditVisibilityStrategy(
 	strategy auditstore.AuditVisibilityStrategy,
 ) auditstore.AuditVisibilityStrategy {
@@ -435,6 +442,7 @@ func normalizeMutableAuditVisibilityStrategy(
 	}
 }
 
+// normalizeAuditStringFilters 去除字符串筛选值两侧空白并丢弃空项。
 func normalizeAuditStringFilters(values []string) []string {
 	if len(values) == 0 {
 		return nil
@@ -748,6 +756,8 @@ func (s *Service) RecordCandidate(ctx context.Context, candidate auditstore.Audi
 	return record, true, nil
 }
 
+// normalizeCandidateAction 返回候选记录的规范化动作标识。
+// 优先使用事件类型；若事件类型为空，则使用动作字段。
 func normalizeCandidateAction(candidate auditstore.AuditCandidate) string {
 	if eventType := strings.TrimSpace(candidate.EventType); eventType != "" {
 		return eventType
@@ -765,6 +775,8 @@ type auditEventCatalogSeed struct {
 	Category       string
 }
 
+// buildAuditEventCatalog 构建审计事件可见性目录，并合并全局默认策略与覆盖项。
+// 结果按分类、来源和 actionKey 稳定排序。
 func buildAuditEventCatalog(
 	defaultStrategy auditstore.AuditVisibilityStrategy,
 	overrides []auditstore.AuditVisibilityOverride,
@@ -808,6 +820,8 @@ func buildAuditEventCatalog(
 	return items
 }
 
+// appendAuditEventCatalogSeeds 返回审计可见性目录的内置种子项列表。
+// 这些种子项用于构建默认的事件目录条目。
 func appendAuditEventCatalogSeeds() []auditEventCatalogSeed {
 	return []auditEventCatalogSeed{
 		{Source: auditstore.AuditSourceSecurityEvent, ActionKey: "auth.token.expired", DisplayName: "auth.token.expired", DescriptionKey: "audit.visibilityCatalog.auth.tokenExpired.description", Description: "Access token expired security event.", Category: "auth"},
@@ -839,6 +853,7 @@ func appendAuditEventCatalogSeeds() []auditEventCatalogSeed {
 	}
 }
 
+// appendAuditEventCatalogItem 将一个审计事件目录项合并到结果列表中，并应用对应的可见性覆盖策略。
 func appendAuditEventCatalogItem(
 	items *[]auditstore.AuditEventCatalogItem,
 	seen map[string]struct{},
@@ -921,6 +936,7 @@ func (s *Service) findCandidateVisibilityOverrideStrategy(
 	return strategy, true, nil
 }
 
+// candidateMetadata 规范化并补充候选审计记录的元数据，写入统一字段、会话 ID 别名、策略规则信息和兼容的旧字段别名。
 func candidateMetadata(candidate auditstore.AuditCandidate, decision auditstore.AuditPolicyDecision) any {
 	metadata := decodeCandidateMetadata(candidate.Metadata)
 	resolved := resolveCandidateMetadataFields(candidate, metadata)

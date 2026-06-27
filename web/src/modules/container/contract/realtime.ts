@@ -30,6 +30,12 @@ export function buildContainerLogsTopicName(containerId: string) {
   return `${CONTAINER_REALTIME_TOPIC.LOGS_PREFIX}${containerId}`;
 }
 
+/**
+ * 生成容器事件实时主题名称。
+ *
+ * @param containerId - 容器标识
+ * @returns 由事件主题前缀和 `containerId` 拼接得到的主题名称
+ */
 export function buildContainerEventsTopicName(containerId: string) {
   return `${CONTAINER_REALTIME_TOPIC.EVENTS_PREFIX}${containerId}`;
 }
@@ -49,17 +55,24 @@ export function parseContainerLogsTopicContainerId(topic: string) {
 }
 
 /**
- * 判断日志 realtime topic 是否与容器 ID 对应。
+ * 判断日志实时主题是否对应指定容器。
  *
  * @param topic - realtime topic
  * @param containerId - 容器 ID
- * @returns `true` if topic 与容器 ID 精确匹配；`false` otherwise
+ * @returns `true` if topic 与容器 ID 精确匹配，`false` otherwise
  */
 export function isContainerLogsTopicForContainer(topic: string, containerId: string) {
   const normalizedContainerId = containerId.trim();
   return normalizedContainerId.length > 0 && parseContainerLogsTopicContainerId(topic) === normalizedContainerId;
 }
 
+/**
+ * 判断事件实时主题是否对应指定容器。
+ *
+ * @param topic - 实时主题名称
+ * @param containerId - 容器标识
+ * @returns `true` if the topic 对应该容器，`false` otherwise.
+ */
 export function isContainerEventsTopicForContainer(topic: string, containerId: string) {
   const normalizedContainerId = containerId.trim();
   if (!normalizedContainerId.length) {
@@ -84,10 +97,22 @@ export type ContainerEventsRealtimePayload = {
   record: ContainerRuntimeEventRecord;
 };
 
+/**
+ * 判断值是否为对象。
+ *
+ * @param value - 待检查的值
+ * @returns `true` if `value` 为真值且类型为 `object`，`false` otherwise.
+ */
 function isObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === 'object');
 }
 
+/**
+ * 解析容器事件实时载荷。
+ *
+ * @param raw - 原始 JSON 字符串
+ * @returns 解析并通过字段校验后的载荷；解析失败或校验失败时返回 `null`
+ */
 export function parseContainerEventsPayload(raw: unknown): ContainerEventsRealtimePayload | null {
   if (typeof raw !== 'string') {
     return null;

@@ -21,10 +21,14 @@ func toNotificationListResponse(result ListResult) generated.NotificationListRes
 	}
 }
 
+// toNotificationUnreadCountResponse 将未读通知数量转换为响应对象。
+// 返回一个将 Count 设置为给定数量的 NotificationUnreadCountResponse。
 func toNotificationUnreadCountResponse(count int) generated.NotificationUnreadCountResponse {
 	return generated.NotificationUnreadCountResponse{Count: count}
 }
 
+// toNotificationItem 将通知数据转换为生成的通知项响应，并根据已读时间设置状态。
+// 它会映射事件、投递、导航和可选字段到响应结构中。
 func toNotificationItem(item notificationstore.Notification) generated.NotificationItem {
 	status := generated.NotificationStatusUnread
 	if item.Delivery.ReadAt != nil {

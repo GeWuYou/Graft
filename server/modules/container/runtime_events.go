@@ -66,6 +66,8 @@ type RuntimeEventCandidate struct {
 	Attributes map[string]string
 }
 
+// canonicalRuntimeEventSeverity 根据事件类型和健康状态属性确定运行时事件的规范严重级别。
+// 对容器重启返回 Warning，对 OOMKilled 返回 Error；对健康状态变更事件，health_status 为 "unhealthy" 时返回 Warning，否则返回 Info；其他事件返回 Info。
 func canonicalRuntimeEventSeverity(
 	eventType containercontract.RuntimeEventType,
 	attributes map[string]string,
@@ -87,6 +89,8 @@ func canonicalRuntimeEventSeverity(
 	}
 }
 
+// normalizeRuntimeEventCandidate 规范化并校验运行时事件候选值。
+// 它会裁剪资源 ID 和事件类型，校验事件类型是否允许，将时间统一为 UTC（零值则使用当前 UTC 时间），并清理属性键值对后返回规范化结果；任一必填字段无效时返回错误。
 func normalizeRuntimeEventCandidate(candidate RuntimeEventCandidate) (RuntimeEventCandidate, error) {
 	resourceID := strings.TrimSpace(candidate.ResourceID)
 	if resourceID == "" {
@@ -122,6 +126,7 @@ func normalizeRuntimeEventCandidate(candidate RuntimeEventCandidate) (RuntimeEve
 	}, nil
 }
 
+// newRuntimeEvent 将候选事件转换为规范化的运行时事件。
 func newRuntimeEvent(candidate RuntimeEventCandidate) (RuntimeEvent, error) {
 	normalized, err := normalizeRuntimeEventCandidate(candidate)
 	if err != nil {
@@ -141,6 +146,8 @@ func newRuntimeEvent(candidate RuntimeEventCandidate) (RuntimeEvent, error) {
 	return event, nil
 }
 
+// runtimeEventOpaqueID 为运行时事件生成确定性的不透明标识。
+// 该标识由事件的资源 ID、事件类型、发生时间和属性内容计算得出。
 func runtimeEventOpaqueID(event RuntimeEvent) string {
 	body, _ := json.Marshal(struct {
 		ResourceID string            `json:"resource_id"`

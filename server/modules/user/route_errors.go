@@ -248,6 +248,10 @@ func errorCodeFromMessageKey(key messagecontract.Key) string {
 	return errorcode.FromMessageKey(key).String()
 }
 
+// mapUserManagementError 将用户管理相关错误映射为 HTTP 状态码、消息键和可选的字段信息。
+// 对于部分密码相关错误，会附带 `new_password` 字段；默认返回内部错误。
+//
+// @return HTTP 状态码、对应的本地化消息键以及可选的错误详情。
 func mapUserManagementError(err error) (int, messagecontract.Key, map[string]any) {
 	switch {
 	case errors.Is(err, userstore.ErrUserNotFound), errors.Is(err, moduleapi.ErrUserNotFound):

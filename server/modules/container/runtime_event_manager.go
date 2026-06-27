@@ -55,6 +55,9 @@ type runtimeEventManager struct {
 	started bool
 }
 
+// newRuntimeEventManager 创建并初始化一个运行时事件管理器。
+// 它会在 logger 为空时使用无操作日志器，将历史上限至少设为 1，规范化默认流上下文，并复制来源注册配置。
+// 返回配置好的 runtimeEventManager。
 func newRuntimeEventManager(
 	hub realtime.Publisher,
 	logger *zap.Logger,
@@ -393,11 +396,14 @@ func (m *runtimeEventManager) effectiveStreamContext(streamContext RuntimeEventS
 	return m.defaultStreamContext
 }
 
+// normalizeRuntimeEventStreamContext 去除运行时流上下文中 Runtime 字段的首尾空白。
 func normalizeRuntimeEventStreamContext(streamContext RuntimeEventStreamContext) RuntimeEventStreamContext {
 	streamContext.Runtime = strings.TrimSpace(streamContext.Runtime)
 	return streamContext
 }
 
+// normalizeRuntimeEventSourceName 清理运行时事件源名称并提供默认值。
+// 它会去除首尾空白；若结果为空，则返回 "runtime"。
 func normalizeRuntimeEventSourceName(name string) string {
 	name = strings.TrimSpace(name)
 	if name == "" {

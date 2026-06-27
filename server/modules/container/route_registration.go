@@ -550,6 +550,9 @@ func bindGetContainerParams(ginCtx *gin.Context) containeropenapi.GetContainerPa
 	return containeropenapi.GetContainerParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
+// bindGetContainerLogsParams 从请求中提取容器日志查询参数。
+// 它会填充通用请求头以及可选的日志筛选项：tail、since、timestamps、stdout 和 stderr。
+// 返回用于查询容器日志的参数对象。
 func bindGetContainerLogsParams(ginCtx *gin.Context) containeropenapi.GetContainerLogsParams {
 	locale, requestID := commonHeaders(ginCtx)
 	params := containeropenapi.GetContainerLogsParams{XGraftLocale: locale, XRequestId: requestID}
@@ -571,11 +574,13 @@ func bindGetContainerLogsParams(ginCtx *gin.Context) containeropenapi.GetContain
 	return params
 }
 
+// bindGetContainerEventsParams 提取容器事件查询所需的通用请求头参数。
 func bindGetContainerEventsParams(ginCtx *gin.Context) containeropenapi.GetContainerEventsParams {
 	locale, requestID := commonHeaders(ginCtx)
 	return containeropenapi.GetContainerEventsParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
+// bindPostContainerRemoveParams 提取删除容器请求的通用请求头参数。
 func bindPostContainerRemoveParams(ginCtx *gin.Context) containeropenapi.PostContainerRemoveParams {
 	locale, requestID := commonHeaders(ginCtx)
 	return containeropenapi.PostContainerRemoveParams{XGraftLocale: locale, XRequestId: requestID}
