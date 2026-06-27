@@ -3,25 +3,20 @@
 ## Topic
 
 - Topic: `container-runtime-events`
-- Status: `phase-3 implemented`
-- Goal: 为容器模块建立 runtime-agnostic Runtime Events 设计、实施计划与分批恢复入口，随后按 `graft-multi-agent-loop`
-  推进 bounded implementation batches。
+- Status: `archived`
+- Goal: 为容器模块建立 runtime-agnostic Runtime Events 设计、实施计划、分批恢复入口与最终治理收口。
 
 ## Scope
 
-- 当前批次 owned scope：
-  - `ai-plan/design/容器运行时事件能力设计.md`
+- 本次 final closeout owned scope：
   - `ai-plan/public/container-runtime-events/**`
+  - `ai-plan/public/archive/container-runtime-events/**`
   - `ai-plan/public/README.md`
 - 主题级长期 owned scope：
   - `server/modules/container/**`
   - `openapi/**`
   - `server/internal/contract/openapi/**`
   - `web/src/modules/container/**`
-- shared hotspot 仅在明确 bounded batch 下允许触达：
-  - `server/internal/realtime/**`
-  - `web/src/shared/realtime/**`
-  - `web/src/shared/observability/**`
 
 ## Repository Truth
 
@@ -38,14 +33,13 @@
 
 ## Current Recovery Point
 
-- Phase 1 已完成，当前 live recovery point：
-  - backend 已新增 canonical `RuntimeEvent` domain、source-agnostic `RuntimeEventManager`、bounded in-memory per-container history、`seq` replay record 和 history HTTP seed endpoint
-  - Docker runtime 已作为首个 `RuntimeEventSource` adapter 接入，上游不泄漏 Docker-specific event model，severity 仍由 canonical mapping 决定
-  - `ops.container.events` permission contract 与 `container.events:{id}` realtime topic 已落地
-  - frontend 已新增 module-owned `events-manager`，detail page `Events` tab 已消费 `history seed + live append`
-  - reconnect backfill 已落在 frontend manager，通过 `seq` merge / dedupe 避免重复和补洞
-- 当前仍待后续批次完成：
-  - final archive readiness and governance sync
+- Phase 1 live at `561a9021`：runtime event foundation 已完成。
+- Phase 2 live at `1ce24b39`：container events UX 已完成。
+- Phase 3 live at `076a3576`：provider extensibility and hardening 已完成。
+- Final closeout 结论：
+  - 已完成 archive-readiness audit
+  - 未发现需要继续回到实现层的真实 drift
+  - 主题已移入 archive，并从 active topic index 清理
 
 ## Task Checklist
 
@@ -63,7 +57,7 @@
 - [x] Phase 2：Search / Copy JSON / Jump to Logs
 - [x] Phase 2：Timeline Collapse / Relative-Absolute Time Toggle
 - [x] Phase 3：provider extensibility hardening
-- [ ] Final：archive readiness and governance sync
+- [x] Final：archive readiness and governance sync
 
 ## Loop Batch State
 
@@ -74,13 +68,12 @@
     "batch-0-design-authority-and-topic-bootstrap",
     "phase-1-runtime-event-foundation",
     "phase-2-container-events-ux",
-    "phase-3-provider-extensibility-and-hardening"
-  ],
-  "pending_batches": [
+    "phase-3-provider-extensibility-and-hardening",
     "final-archive-readiness-and-governance-sync"
   ],
-  "current_batch": "phase-3-provider-extensibility-and-hardening",
-  "next_batch": "final-archive-readiness-and-governance-sync",
-  "closeout_status": "phase-3-complete"
+  "pending_batches": [],
+  "current_batch": null,
+  "next_batch": null,
+  "closeout_status": "archive-ready"
 }
 ```

@@ -12,8 +12,6 @@ Overlay note:
 
 ## Active Topics
 
-- `container-runtime-events`
-  - Recovery entry: `ai-plan/public/container-runtime-events/README.md`
 - `rbac-feature-and-nplusone-hardening`
   - Recovery entry: `ai-plan/public/rbac-feature-and-nplusone-hardening/README.md`
 - `rbac-further-development`

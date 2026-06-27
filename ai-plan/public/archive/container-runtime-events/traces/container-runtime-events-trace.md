@@ -20,12 +20,6 @@
   - phase 1 推荐直接新增 `ops.container.events` permission contract
   - phase 1 detail 页签与 topic contract 必须复用 live owner：`raw` tab naming 与
     `web/src/modules/container/contract/realtime.ts`
-- 当前已固定以下 compatibility 结论：
-  - 可直接复用 unified realtime topic pipeline
-  - 可直接复用 frontend websocket reconnect
-  - 可直接复用 stream viewport state primitive
-  - 可直接复用 generic ring buffer implementation
-  - 不复用 shell websocket
 
 ## Recovery Notes
 
@@ -55,8 +49,6 @@
   - `git diff --check`
   - `cd server && go run ./cmd/graft validate backend`
   - `cd web && bun run check`
-- next batch：
-  - `phase-2-container-events-ux`
 
 ## 2026-06-27 Phase 2 container events UX
 
@@ -72,8 +64,6 @@
   - `git diff --check`
   - `cd web && bunx vitest run src/modules/container/pages/detail/index.test.ts`
   - `cd web && bun run check`
-- next batch：
-  - `phase-3-provider-extensibility-and-hardening`
 
 ## 2026-06-27 Phase 3 provider extensibility and hardening
 
@@ -90,5 +80,45 @@
 - validation
   - `git diff --check`
   - `cd server && go run ./cmd/graft validate backend`
-- next batch：
-  - `final-archive-readiness-and-governance-sync`
+
+## 2026-06-27 Final archive readiness and governance sync
+
+- final audit：
+  - 复核 design authority、topic recovery 与 live implementation，未发现需要继续回到
+    `server/modules/container/**`、`openapi/**`、`web/src/modules/container/**` 的真实 bounded drift
+  - 复核 Phase 1 / 2 / 3 目标结果均已在 live implementation 中存在：
+    - canonical severity 仍由 container module mapping 决定
+    - history HTTP seed 与 `container.events:{id}` realtime topic 仍共用 `seq` merge / dedupe 语义
+    - detail `Events` tab 的 filter / search / copy JSON / jump to logs 仍在 module-owned UI 中
+    - provider seam、TTL read eviction、duplicate suppression、source diagnostics 仍有 direct tests 覆盖
+- governance sync：
+  - 将 topic 从 active topic index 移出
+  - 将 recovery 资料迁入 `ai-plan/public/archive/container-runtime-events/`
+  - 当前主题终态改记为 `archive-ready` / `archived`
+- final validation baseline：
+  - `git diff --check`
+  - `cd server && go run ./cmd/graft validate backend`
+  - `cd web && bun run check`
+- terminal verdict：
+  - 本主题已 `archive-ready`
+  - 当前无剩余 pending batch
+  - 后续如需继续扩展 Podman / containerd / Kubernetes provider，必须另开新 topic，而不是重新打开本归档主题
+
+## Loop Batch State
+
+```json
+{
+  "loop_mode": "topic-completion-loop",
+  "completed_batches": [
+    "batch-0-design-authority-and-topic-bootstrap",
+    "phase-1-runtime-event-foundation",
+    "phase-2-container-events-ux",
+    "phase-3-provider-extensibility-and-hardening",
+    "final-archive-readiness-and-governance-sync"
+  ],
+  "pending_batches": [],
+  "current_batch": null,
+  "next_batch": null,
+  "closeout_status": "archive-ready"
+}
+```
