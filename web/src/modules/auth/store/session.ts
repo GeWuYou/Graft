@@ -8,7 +8,7 @@ import { getBootstrap, login as loginApi, logout as logoutApi, refresh as refres
 import type { BootstrapResponse, LoginResponse } from '@/modules/auth/contract/types';
 import { usePermissionStore } from '@/store/modules/permission';
 import type { ApiRequestError } from '@/types/axios';
-import { clearAccessToken, setAccessToken } from '@/utils/auth-state';
+import { clearAccessToken, setAccessToken, setAccessTokenExpiresAt } from '@/utils/auth-state';
 import { isApiRequestError, registerAuthSessionBridge } from '@/utils/request';
 import type { UserInfo } from '@/utils/types';
 
@@ -27,6 +27,7 @@ export type LoginFormSubmission = {
 export const useAuthSessionStore = defineStore('auth-session', {
   state: () => ({
     token: '',
+    expiresAt: '',
     bootstrapLoaded: false,
     bootstrapSnapshot: null as BootstrapResponse | null,
     mustChangePassword: false,
@@ -44,8 +45,10 @@ export const useAuthSessionStore = defineStore('auth-session', {
   actions: {
     applyLoginResponse(payload: LoginResponse) {
       this.token = payload.access_token;
+      this.expiresAt = payload.expires_at;
       this.mustChangePassword = payload.must_change_password;
       setAccessToken(payload.access_token);
+      setAccessTokenExpiresAt(payload.expires_at);
       this.userInfo = {
         name: payload.user.display_name || payload.user.username,
         username: payload.user.username,
@@ -110,6 +113,7 @@ export const useAuthSessionStore = defineStore('auth-session', {
     },
     clearSessionState() {
       this.token = '';
+      this.expiresAt = '';
       clearAccessToken();
       this.bootstrapLoaded = false;
       this.bootstrapSnapshot = null;
@@ -143,11 +147,12 @@ export const useAuthSessionStore = defineStore('auth-session', {
   persist: {
     afterHydrate: ({ store }) => {
       setAccessToken(store.token);
+      setAccessTokenExpiresAt(store.expiresAt);
       const permissionStore = usePermissionStore();
       permissionStore.initRoutes();
     },
     key: STORAGE_KEY.USER_SESSION,
-    pick: ['token'],
+    pick: ['token', 'expiresAt'],
   },
 });
 

@@ -21,11 +21,13 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/pkg/stdcopy"
 	"github.com/moby/moby/api/types/container"
+	dockerevents "github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/network"
 	mobyclient "github.com/moby/moby/client"
 	"go.uber.org/zap"
 
 	"graft/server/internal/logger/logsafe"
+	containercontract "graft/server/modules/container/contract"
 	"graft/server/modules/container/terminal"
 )
 
@@ -240,6 +242,68 @@ func (r *DockerRuntime) StreamLogs(ctx context.Context, ref Ref, query LogQuery,
 	return streamDockerLogLines(ctx, reader, query.Timestamps, emit)
 }
 
+// StreamRuntimeEvents follows Docker daemon events and emits canonical container runtime event candidates.
+func (r *DockerRuntime) StreamRuntimeEvents(ctx context.Context, emit func(RuntimeEventCandidate) error) error {
+	if emit == nil {
+		return errors.New("container runtime event emitter is required")
+	}
+	eventClient, ok := any(r.client).(interface {
+		Events(context.Context, mobyclient.EventsListOptions) mobyclient.EventsResult
+	})
+	if !ok {
+		return errRuntimeEventHistoryUnavailable
+	}
+	result := eventClient.Events(ctx, mobyclient.EventsListOptions{Filters: dockerRuntimeEventFilters()})
+
+	for {
+		done, err := consumeDockerRuntimeEvents(ctx, &result, emit)
+		if done || err != nil {
+			return err
+		}
+	}
+}
+
+// dockerRuntimeEventFilters 返回用于筛选容器运行时事件的 Docker 过滤条件。
+func dockerRuntimeEventFilters() mobyclient.Filters {
+	filters := mobyclient.Filters{}
+	return filters.Add("type", "container")
+}
+
+// consumeDockerRuntimeEvents 从 Docker 事件流中消费一条消息或终止信号，并在匹配时回调输出事件候选。
+// 返回的布尔值表示是否应结束消费；当返回错误时，表示本次消费失败。
+/**
+ * @returns `true` if 消费应结束，`false` otherwise. 返回的错误表示消费过程中的失败。
+ */
+func consumeDockerRuntimeEvents(
+	ctx context.Context,
+	result *mobyclient.EventsResult,
+	emit func(RuntimeEventCandidate) error,
+) (bool, error) {
+	select {
+	case <-ctx.Done():
+		return true, ctx.Err()
+	case message, ok := <-result.Messages:
+		if !ok {
+			result.Messages = nil
+			return result.Err == nil, nil
+		}
+		candidate, matched := dockerRuntimeEventCandidate(message)
+		if !matched {
+			return false, nil
+		}
+		return false, emit(candidate)
+	case err, ok := <-result.Err:
+		if !ok {
+			result.Err = nil
+			return result.Messages == nil, nil
+		}
+		if err == io.EOF {
+			return true, nil
+		}
+		return true, mapDockerError(err)
+	}
+}
+
 // Shell opens one interactive exec session inside the target container.
 func (r *DockerRuntime) Shell(ctx context.Context, ref Ref, command string) (terminal.Session, error) {
 	inspect, err := r.client.ContainerInspect(ctx, ref.Value)
@@ -252,7 +316,146 @@ func (r *DockerRuntime) Shell(ctx context.Context, ref Ref, command string) (ter
 	return newDockerExecSession(r.client, inspect.ID, command), nil
 }
 
+// dockerRuntimeEventCandidate 将 Docker 事件转换为运行时事件候选项。
+//
+// 当事件没有资源 ID 或无法归一化为已支持的运行时事件时，返回 false。
+//
+// @param message Docker 容器事件消息。
+// @returns 资源 ID、事件类型、发生时间和属性组成的候选项，以及是否成功匹配。
+func dockerRuntimeEventCandidate(message dockerevents.Message) (RuntimeEventCandidate, bool) {
+	resourceID := strings.TrimSpace(message.Actor.ID)
+	if resourceID == "" {
+		return RuntimeEventCandidate{}, false
+	}
+
+	eventType, attributes, ok := dockerCanonicalRuntimeEvent(message)
+	if !ok {
+		return RuntimeEventCandidate{}, false
+	}
+
+	occurredAt := time.Unix(message.Time, 0).UTC()
+	if message.TimeNano > 0 {
+		occurredAt = time.Unix(0, message.TimeNano).UTC()
+	}
+
+	return RuntimeEventCandidate{
+		ResourceID: resourceID,
+		EventType:  eventType,
+		OccurredAt: occurredAt,
+		Attributes: attributes,
+	}, true
+}
+
+// dockerCanonicalRuntimeEvent 将 Docker 事件归一化为模块事件类型和属性。
+// 返回事件类型、属性映射以及是否成功匹配到可识别的运行时事件。
+func dockerCanonicalRuntimeEvent(
+	message dockerevents.Message,
+) (containercontract.RuntimeEventType, map[string]string, bool) {
+	action, actionDetail := normalizeDockerRuntimeEventAction(message.Action)
+	attrs := dockerRuntimeEventBaseAttributes(message)
+	return dockerRuntimeEventFromAction(action, actionDetail, message, attrs)
+}
+
+// dockerRuntimeEventBaseAttributes 提取 Docker 运行时事件的基础属性。
+// 返回的属性包含事件参与对象的名称。
+func dockerRuntimeEventBaseAttributes(message dockerevents.Message) map[string]string {
+	attrs := make(map[string]string)
+	addRuntimeEventAttribute(attrs, "name", message.Actor.Attributes["name"])
+	return attrs
+}
+
+// normalizeDockerRuntimeEventAction 规范化容器事件动作并拆分主动作与详情。
+// 返回小写且去除首尾空白后的动作；如果包含 `:`，则返回其前缀和详情两部分。
+func normalizeDockerRuntimeEventAction(action dockerevents.Action) (string, string) {
+	normalized := strings.ToLower(strings.TrimSpace(string(action)))
+	if normalized == "" {
+		return "", ""
+	}
+	prefix, detail, found := strings.Cut(normalized, ":")
+	if !found {
+		return normalized, ""
+	}
+	return strings.TrimSpace(prefix), strings.TrimSpace(detail)
+}
+
+// dockerRuntimeEventFromAction 将 Docker 事件动作转换为运行时事件类型，并补充相关属性。
+// 对健康状态和 exec 相关事件，会写入对应的状态、命令、ID 或退出码属性；未直接匹配的停止类动作会委托给停止事件映射。
+func dockerRuntimeEventFromAction(
+	action string,
+	actionDetail string,
+	message dockerevents.Message,
+	attrs map[string]string,
+) (containercontract.RuntimeEventType, map[string]string, bool) {
+	switch action {
+	case "create":
+		return containercontract.RuntimeEventTypeContainerCreated, attrs, true
+	case "start":
+		return containercontract.RuntimeEventTypeContainerStarted, attrs, true
+	case "restart":
+		return containercontract.RuntimeEventTypeContainerRestarted, attrs, true
+	case "destroy", "remove":
+		return containercontract.RuntimeEventTypeContainerRemoved, attrs, true
+	case "oom":
+		return containercontract.RuntimeEventTypeContainerOOMKilled, attrs, true
+	case "health_status":
+		addRuntimeEventAttribute(
+			attrs,
+			"health_status",
+			firstNonEmpty(message.Actor.Attributes["health_status"], actionDetail),
+		)
+		return containercontract.RuntimeEventTypeContainerHealthStatusChanged, attrs, true
+	case "exec_create", "exec_start":
+		addRuntimeEventAttribute(attrs, "exec_id", message.Actor.Attributes["execID"])
+		addRuntimeEventAttribute(
+			attrs,
+			"exec_command",
+			firstNonEmpty(message.Actor.Attributes["execCommand"], actionDetail),
+		)
+		return containercontract.RuntimeEventTypeContainerExecStarted, attrs, true
+	case "exec_die":
+		addRuntimeEventAttribute(attrs, "exec_id", message.Actor.Attributes["execID"])
+		addRuntimeEventAttribute(attrs, "exec_exit_code", message.Actor.Attributes["exitCode"])
+		return containercontract.RuntimeEventTypeContainerExecFinished, attrs, true
+	default:
+		return dockerStoppedRuntimeEvent(action, message, attrs)
+	}
+}
+
+// dockerStoppedRuntimeEvent 将 stop、die 和 kill 事件归一化为容器停止事件，并补充退出码属性。
+// @param action Docker 事件动作。
+// @param message Docker 事件消息。
+// @param attrs 事件属性。
+// @returns 事件类型、补充后的属性映射，以及是否成功匹配该动作。
+func dockerStoppedRuntimeEvent(
+	action string,
+	message dockerevents.Message,
+	attrs map[string]string,
+) (containercontract.RuntimeEventType, map[string]string, bool) {
+	switch action {
+	case "stop", "die", "kill":
+		addRuntimeEventAttribute(attrs, "exit_code", message.Actor.Attributes["exitCode"])
+		return containercontract.RuntimeEventTypeContainerStopped, attrs, true
+	default:
+		return "", nil, false
+	}
+}
+
+// addRuntimeEventAttribute 向属性映射中写入非空且已修剪的键值对。
+func addRuntimeEventAttribute(attributes map[string]string, key string, value string) {
+	if attributes == nil {
+		return
+	}
+	key = strings.TrimSpace(key)
+	value = strings.TrimSpace(value)
+	if key == "" || value == "" {
+		return
+	}
+	attributes[key] = value
+}
+
 // mapDockerShellError 将 Docker Shell 执行错误映射为特定领域的错误类型。
+// 容器不存在时返回 errContainerNotFound；命令可执行文件缺失时返回 errShellCommandNotFound；
+// 其他可识别的 Docker 错误保持映射结果，否则返回 errShellSessionFailed。
 func mapDockerShellError(err error) error {
 	if err == nil {
 		return nil

@@ -12,27 +12,31 @@ import (
 )
 
 type stubAuditRepository struct {
-	createdInput  auditstore.CreateAuditLogInput
-	createdAction string
-	listQuery     auditstore.ListAuditLogsQuery
-	overviewWnd   auditstore.AuditTimePreset
-	incidentID    uint64
-	detailID      uint64
-	deletedBefore time.Time
-	deletedRows   int64
-	policyRules   []auditstore.AuditPolicyRule
-	createResult  auditstore.AuditLog
-	listResult    auditstore.ListAuditLogsResult
-	overview      auditstore.AuditOverview
-	incident      auditstore.AuditIncident
-	detail        auditstore.AuditLog
-	createErr     error
-	listErr       error
-	detailErr     error
-	overviewErr   error
-	incidentErr   error
-	policyErr     error
-	deleteErr     error
+	createdInput        auditstore.CreateAuditLogInput
+	createdAction       string
+	listQuery           auditstore.ListAuditLogsQuery
+	overviewWnd         auditstore.AuditTimePreset
+	incidentID          uint64
+	detailID            uint64
+	deletedBefore       time.Time
+	deletedRows         int64
+	policyRules         []auditstore.AuditPolicyRule
+	visibilityDefault   auditstore.AuditVisibilityDefault
+	visibilityOverrides []auditstore.AuditVisibilityOverride
+	createResult        auditstore.AuditLog
+	listResult          auditstore.ListAuditLogsResult
+	overview            auditstore.AuditOverview
+	incident            auditstore.AuditIncident
+	detail              auditstore.AuditLog
+	createErr           error
+	listErr             error
+	detailErr           error
+	overviewErr         error
+	incidentErr         error
+	policyErr           error
+	deleteErr           error
+	findOverrideCalls   int
+	listOverrideCalls   int
 }
 
 func (r *stubAuditRepository) CreateAuditLog(_ context.Context, input auditstore.CreateAuditLogInput) (auditstore.AuditLog, error) {
@@ -87,6 +91,120 @@ func (r *stubAuditRepository) ListAuditPolicyRules(_ context.Context) ([]auditst
 		return nil, r.policyErr
 	}
 	return append([]auditstore.AuditPolicyRule(nil), r.policyRules...), nil
+}
+
+func (r *stubAuditRepository) GetAuditVisibilityDefault(_ context.Context, _ string) (auditstore.AuditVisibilityDefault, error) {
+	if r.policyErr != nil {
+		return auditstore.AuditVisibilityDefault{}, r.policyErr
+	}
+	if r.visibilityDefault.Key == "" {
+		r.visibilityDefault = auditstore.AuditVisibilityDefault{
+			Key:      "global",
+			Strategy: auditstore.AuditVisibilityStrategyVisible,
+		}
+	}
+	return r.visibilityDefault, nil
+}
+
+func (r *stubAuditRepository) UpsertAuditVisibilityDefault(
+	_ context.Context,
+	key string,
+	strategy auditstore.AuditVisibilityStrategy,
+	userID *uint64,
+	username string,
+) (auditstore.AuditVisibilityDefault, error) {
+	if r.policyErr != nil {
+		return auditstore.AuditVisibilityDefault{}, r.policyErr
+	}
+	r.visibilityDefault = auditstore.AuditVisibilityDefault{
+		Key:           key,
+		Strategy:      strategy,
+		UpdatedBy:     userID,
+		UpdatedByName: username,
+		UpdatedAt:     time.Now().UTC(),
+	}
+	return r.visibilityDefault, nil
+}
+
+func (r *stubAuditRepository) ListAuditVisibilityOverrides(_ context.Context) ([]auditstore.AuditVisibilityOverride, error) {
+	r.listOverrideCalls++
+	if r.policyErr != nil {
+		return nil, r.policyErr
+	}
+	return append([]auditstore.AuditVisibilityOverride(nil), r.visibilityOverrides...), nil
+}
+
+func (r *stubAuditRepository) FindAuditVisibilityOverride(
+	_ context.Context,
+	source auditstore.AuditSource,
+	actionKey string,
+) (auditstore.AuditVisibilityOverride, bool, error) {
+	r.findOverrideCalls++
+	if r.policyErr != nil {
+		return auditstore.AuditVisibilityOverride{}, false, r.policyErr
+	}
+	for _, item := range r.visibilityOverrides {
+		if item.Source == source && item.ActionKey == actionKey {
+			return item, true, nil
+		}
+	}
+	return auditstore.AuditVisibilityOverride{}, false, nil
+}
+
+func (r *stubAuditRepository) UpsertAuditVisibilityOverride(
+	_ context.Context,
+	input auditstore.UpsertAuditVisibilityOverrideInput,
+) (auditstore.AuditVisibilityOverride, error) {
+	if r.policyErr != nil {
+		return auditstore.AuditVisibilityOverride{}, r.policyErr
+	}
+	item := auditstore.AuditVisibilityOverride{
+		ID:            1,
+		Source:        input.Source,
+		ActionKey:     input.ActionKey,
+		Strategy:      input.Strategy,
+		Description:   input.Description,
+		CreatedBy:     input.Actor.UserID,
+		CreatedByName: input.Actor.Username,
+		UpdatedBy:     input.Actor.UserID,
+		UpdatedByName: input.Actor.Username,
+		CreatedAt:     time.Now().UTC(),
+		UpdatedAt:     time.Now().UTC(),
+	}
+	replaced := false
+	next := make([]auditstore.AuditVisibilityOverride, 0, len(r.visibilityOverrides)+1)
+	for _, existing := range r.visibilityOverrides {
+		if existing.Source == item.Source && existing.ActionKey == item.ActionKey {
+			item.ID = existing.ID
+			item.CreatedAt = existing.CreatedAt
+			item.CreatedBy = existing.CreatedBy
+			item.CreatedByName = existing.CreatedByName
+			next = append(next, item)
+			replaced = true
+			continue
+		}
+		next = append(next, existing)
+	}
+	if !replaced {
+		next = append(next, item)
+	}
+	r.visibilityOverrides = next
+	return item, nil
+}
+
+func (r *stubAuditRepository) DeleteAuditVisibilityOverride(_ context.Context, source auditstore.AuditSource, actionKey string) error {
+	if r.policyErr != nil {
+		return r.policyErr
+	}
+	filtered := r.visibilityOverrides[:0]
+	for _, item := range r.visibilityOverrides {
+		if item.Source == source && item.ActionKey == actionKey {
+			continue
+		}
+		filtered = append(filtered, item)
+	}
+	r.visibilityOverrides = append([]auditstore.AuditVisibilityOverride(nil), filtered...)
+	return nil
 }
 
 func (r *stubAuditRepository) DeleteAuditLogsBefore(_ context.Context, createdBefore time.Time) (int64, error) {
@@ -475,6 +593,93 @@ func TestServiceRecordCandidateIncludesContainerDangerousDomainEvent(t *testing.
 	}
 	if repo.createdInput.Action != "ops.container.action.stop" {
 		t.Fatalf("expected persisted action to be preserved, got %q", repo.createdInput.Action)
+	}
+}
+
+func TestServiceRecordCandidateUsesExactVisibilityOverrideLookup(t *testing.T) {
+	repo := &stubAuditRepository{
+		policyRules: []auditstore.AuditPolicyRule{
+			{
+				Name:        "request.auth.refresh.include",
+				Source:      auditstore.AuditSourceRequest,
+				Enabled:     true,
+				Priority:    1,
+				Effect:      auditstore.AuditPolicyEffectInclude,
+				Method:      "POST",
+				PathPattern: "/api/auth/refresh",
+				MatchType:   auditstore.AuditPolicyMatchTypeExact,
+			},
+		},
+		visibilityDefault: auditstore.AuditVisibilityDefault{
+			Key:      "global",
+			Strategy: auditstore.AuditVisibilityStrategyVisible,
+		},
+		visibilityOverrides: []auditstore.AuditVisibilityOverride{
+			{
+				ID:        9,
+				Source:    auditstore.AuditSourceRequest,
+				ActionKey: "POST /api/auth/refresh",
+				Strategy:  auditstore.AuditVisibilityStrategyHidden,
+			},
+		},
+	}
+	service, err := NewService(repo)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	record, recorded, err := service.RecordCandidate(context.Background(), auditstore.AuditCandidate{
+		Source:        auditstore.AuditSourceRequest,
+		Action:        "POST /api/auth/refresh",
+		RequestMethod: "POST",
+		RequestPath:   "/api/auth/refresh",
+		Success:       true,
+	})
+	if err != nil {
+		t.Fatalf("record candidate: %v", err)
+	}
+	if !recorded {
+		t.Fatal("expected candidate to be recorded")
+	}
+	if record.ID == 0 {
+		t.Fatalf("expected persisted audit record id, got %#v", record)
+	}
+	if repo.createdInput.Visibility != auditstore.AuditVisibilityStrategyHidden {
+		t.Fatalf("expected hidden visibility to be persisted, got %q", repo.createdInput.Visibility)
+	}
+	if repo.findOverrideCalls != 1 {
+		t.Fatalf("expected exact override lookup once, got %d", repo.findOverrideCalls)
+	}
+	if repo.listOverrideCalls != 0 {
+		t.Fatalf("expected no full override list scan, got %d", repo.listOverrideCalls)
+	}
+}
+
+func TestStubAuditRepositoryUpsertVisibilityOverrideKeepsOtherOverrides(t *testing.T) {
+	repo := &stubAuditRepository{
+		visibilityOverrides: []auditstore.AuditVisibilityOverride{
+			{ID: 1, Source: auditstore.AuditSourceRequest, ActionKey: "POST /api/auth/refresh", Strategy: auditstore.AuditVisibilityStrategyHidden},
+			{ID: 2, Source: auditstore.AuditSourceSecurityEvent, ActionKey: "auth.token.expired", Strategy: auditstore.AuditVisibilityStrategyHidden},
+		},
+	}
+
+	_, err := repo.UpsertAuditVisibilityOverride(context.Background(), auditstore.UpsertAuditVisibilityOverrideInput{
+		Source:    auditstore.AuditSourceRequest,
+		ActionKey: "POST /api/auth/refresh",
+		Strategy:  auditstore.AuditVisibilityStrategyVisible,
+	})
+	if err != nil {
+		t.Fatalf("upsert visibility override: %v", err)
+	}
+
+	if len(repo.visibilityOverrides) != 2 {
+		t.Fatalf("expected in-place upsert, got %#v", repo.visibilityOverrides)
+	}
+	if repo.visibilityOverrides[0].Strategy != auditstore.AuditVisibilityStrategyVisible {
+		t.Fatalf("expected matched override to update, got %#v", repo.visibilityOverrides[0])
+	}
+	if repo.visibilityOverrides[1].ActionKey != "auth.token.expired" {
+		t.Fatalf("expected unmatched override to remain, got %#v", repo.visibilityOverrides[1])
 	}
 }
 

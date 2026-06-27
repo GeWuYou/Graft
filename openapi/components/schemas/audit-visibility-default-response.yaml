@@ -1,0 +1,17 @@
+type: object
+required: [key, strategy, updated_at]
+properties:
+  key:
+    type: string
+  strategy:
+    type: string
+    enum: [visible, hidden]
+  updated_at:
+    type: string
+    format: date-time
+  updated_by:
+    type: integer
+    format: int64
+    nullable: true
+  updated_by_name:
+    type: string

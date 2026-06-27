@@ -387,6 +387,37 @@
         "createdAt": "Time",
         "operation": "Operation"
       },
+      "policy": {
+        "manage": "Manage Visibility",
+        "drawerTitle": "Audit Visibility Policy",
+        "defaultStrategy": "Global default strategy",
+        "visibilityScope": "Current list visibility scope",
+        "overrideTitle": "Per-event overrides",
+        "overrideHint": "The global default defines the baseline. Per-event overrides let you control one source + action_key precisely.",
+        "saveDefault": "Save Default",
+        "saveSuccess": "Audit visibility default updated",
+        "saveFailed": "Failed to update audit visibility default",
+        "saveOverride": "Save Override",
+        "saveOverrideSuccess": "Audit visibility override updated",
+        "saveOverrideFailed": "Failed to update audit visibility override",
+        "resetOverride": "Reset Override",
+        "resetOverrideSuccess": "Audit visibility override removed",
+        "resetOverrideFailed": "Failed to remove audit visibility override",
+        "overriddenTag": "Overridden",
+        "descriptionFallback": "No description provided",
+        "defaultState": "Default: {value}",
+        "effectiveState": "Effective: {value}",
+        "scope": {
+          "default": "Default visible only",
+          "all": "Show all persisted",
+          "hiddenOnly": "Hidden only"
+        },
+        "strategy": {
+          "visible": "Visible",
+          "hidden": "Hidden",
+          "ignore": "Ignore and drop"
+        }
+      },
       "drawer": {
         "messageFallback": "No additional message",
         "sections": {

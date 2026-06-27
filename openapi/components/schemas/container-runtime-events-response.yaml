@@ -1,0 +1,14 @@
+type: object
+required:
+  - resource_id
+  - context
+  - items
+properties:
+  resource_id:
+    type: string
+  context:
+    $ref: ./container-runtime-event-stream-context.yaml
+  items:
+    type: array
+    items:
+      $ref: ./container-runtime-event-record.yaml

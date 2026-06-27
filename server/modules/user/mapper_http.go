@@ -83,6 +83,8 @@ func toUserListResponse(
 	return userListResponse{Items: items}, nil
 }
 
+// toUserListItem 将用户信息和角色摘要转换为生成的用户列表项。
+// 当用户或角色的 ID 超出 `int64` 范围时返回错误。
 func toUserListItem(user userstore.User, roles []moduleapi.RoleSummary) (userListItem, error) {
 	id, err := mustConvertGeneratedUserID(user.ID)
 	if err != nil {
@@ -103,13 +105,14 @@ func toUserListItem(user userstore.User, roles []moduleapi.RoleSummary) (userLis
 	}
 
 	return userListItem{
-		Id:        id,
-		Username:  user.Username,
-		Display:   user.Display,
-		Status:    normalizeUserStatus(user.Status),
-		Roles:     roleItems,
-		CreatedAt: user.CreatedAt.UTC().Format(time.RFC3339),
-		UpdatedAt: user.UpdatedAt.UTC().Format(time.RFC3339),
+		Id:                    id,
+		Username:              user.Username,
+		Display:               user.Display,
+		Status:                normalizeUserStatus(user.Status),
+		ProtectedDefaultAdmin: user.ProtectedDefaultAdmin,
+		Roles:                 roleItems,
+		CreatedAt:             user.CreatedAt.UTC().Format(time.RFC3339),
+		UpdatedAt:             user.UpdatedAt.UTC().Format(time.RFC3339),
 	}, nil
 }
 

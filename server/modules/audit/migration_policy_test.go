@@ -50,6 +50,22 @@ func TestContainerDangerousActionPolicyUpgradeSeedExists(t *testing.T) {
 	}
 }
 
+func TestAuditVisibilityPolicySeedDoesNotOverwriteOverrides(t *testing.T) {
+	t.Parallel()
+
+	content, err := os.ReadFile("migrations/202606270001_audit_visibility_policies.sql")
+	if err != nil {
+		t.Fatalf("read audit visibility migration source: %v", err)
+	}
+	sql := string(content)
+	if !strings.Contains(sql, `ON CONFLICT ("source", "action_key") DO NOTHING`) {
+		t.Fatal("expected visibility override seed to preserve operator customizations")
+	}
+	if strings.Contains(sql, `ON CONFLICT ("source", "action_key") DO UPDATE SET`) {
+		t.Fatal("expected no overwrite upsert for seeded overrides")
+	}
+}
+
 type auditMigrationVariant struct {
 	name     string
 	contents string

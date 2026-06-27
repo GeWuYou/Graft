@@ -10,6 +10,7 @@ ops.container.error.invalidContainerRef: 容器标识不合法
 ops.container.error.invalidListQuery: 容器列表查询参数不合法
 ops.container.error.invalidBatchAction: 批量容器操作请求不合法
 ops.container.error.invalidState: 容器当前状态不允许执行该操作
+ops.container.error.eventsUnavailable: 当前暂无法读取容器运行时事件
 ops.container.error.logsTooLarge: 日志读取数量超过限制
 ops.container.error.invalidLogQuery: 日志查询参数不合法
 ops.container.error.shellDisabled: 容器 Shell 功能未启用

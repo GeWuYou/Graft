@@ -53,6 +53,13 @@ get:
       description: Stable business drilldown scope. When present, scope-owned fields remain read-only until the client exits drilldown or converts to normal filters.
       schema:
         $ref: ../components/schemas/audit-drilldown-scope.yaml
+    - name: visibility_scope
+      in: query
+      required: false
+      description: Controls whether the read surface returns only default-visible records, all persisted records, or only hidden records.
+      schema:
+        type: string
+        enum: [default, all, hidden_only]
     - name: business_category
       in: query
       required: false

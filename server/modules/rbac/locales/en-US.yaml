@@ -10,6 +10,8 @@ rbac.permissionCatalog.appLogDelete.display: App Log Delete
 rbac.permissionCatalog.appLogDelete.description: Allows explicit deletion of retained logger-owned app-log rows.
 rbac.permissionCatalog.auditRead.display: Audit Log Read
 rbac.permissionCatalog.auditRead.description: Allows reading audit-log records and filters.
+rbac.permissionCatalog.auditManage.display: Audit Policy Manage
+rbac.permissionCatalog.auditManage.description: Allows managing audit visibility defaults and per-event overrides.
 rbac.permissionCatalog.moduleRuntimeRead.display: Module Runtime Read
 rbac.permissionCatalog.moduleRuntimeRead.description: Allows reading the core module runtime snapshot.
 rbac.permissionCatalog.monitorServerStatusRead.display: Server Status Read
@@ -28,6 +30,8 @@ rbac.permissionCatalog.containerView.display: Container View
 rbac.permissionCatalog.containerView.description: Allows reading the container list.
 rbac.permissionCatalog.containerDetail.display: Container Detail View
 rbac.permissionCatalog.containerDetail.description: Allows reading container details.
+rbac.permissionCatalog.containerEvents.display: Container Event Read
+rbac.permissionCatalog.containerEvents.description: Allows reading bounded container runtime event history and live event streams.
 rbac.permissionCatalog.containerEnvironment.display: Container Environment Read
 rbac.permissionCatalog.containerEnvironment.description: Allows reading container environment variable values when display policy permits them.
 rbac.permissionCatalog.containerLogs.display: Container Log Read

@@ -82,6 +82,7 @@
                 theme="primary"
                 variant="outline"
                 data-testid="user-batch-manage-roles"
+                :disabled="selectedBatchUsersContainProtectedDefaultAdmin"
                 @click="openBatchUserRoleDrawer"
               >
                 {{ t('user.userList.batch.assignRoles') }}
@@ -125,6 +126,15 @@
                   <span class="user-cell__display">{{ row.display || row.username }}</span>
                   <span class="user-cell__username">{{ row.email || `@${row.username}` }}</span>
                 </div>
+                <t-tag
+                  v-if="isProtectedDefaultAdminUser(row)"
+                  theme="warning"
+                  variant="light-outline"
+                  size="small"
+                  data-testid="user-protected-badge"
+                >
+                  {{ t('user.userList.protectedDefaultAdmin.badge') }}
+                </t-tag>
               </div>
             </template>
 
@@ -229,8 +239,15 @@
       <div class="drawer-panel">
         <t-form ref="userFormRef" :data="userForm" :rules="userFormRules" label-align="top" @submit="handleUserSubmit">
           <t-form-item :label="t('user.userList.form.username')" name="username">
-            <t-input v-model="userForm.username" :placeholder="t('user.userList.form.usernamePlaceholder')" />
+            <t-input
+              v-model="userForm.username"
+              :placeholder="t('user.userList.form.usernamePlaceholder')"
+              :readonly="editingProtectedDefaultAdmin"
+            />
           </t-form-item>
+          <p v-if="editingProtectedDefaultAdmin" class="table-head__description" data-testid="protected-user-edit-hint">
+            {{ t('user.userList.protectedDefaultAdmin.usernameImmutable') }}
+          </p>
           <t-form-item :label="t('user.userList.form.display')" name="display">
             <t-input v-model="userForm.display" :placeholder="t('user.userList.form.displayPlaceholder')" />
           </t-form-item>
@@ -332,11 +349,43 @@
       </div>
     </t-dialog>
 
+    <t-dialog
+      v-model:visible="statusDialogVisible"
+      :header="t('user.userList.statusDialog.title')"
+      :body="pendingStatusDialogBody"
+      :confirm-btn="{
+        content: t('user.userList.statusDialog.confirm'),
+        theme: 'warning',
+        loading: pendingStatusSubmit,
+      }"
+      :cancel-btn="t('user.userList.statusDialog.cancel')"
+      @confirm="submitStatusDialog"
+      @close="closeStatusDialog"
+    />
+
+    <t-dialog
+      v-model:visible="deleteDialogVisible"
+      :header="t('user.userList.deleteDialog.title')"
+      :body="pendingDeleteDialogBody"
+      :confirm-btn="{ content: t('user.userList.deleteDialog.confirm'), theme: 'danger', loading: pendingDeleteSubmit }"
+      :cancel-btn="t('user.userList.deleteDialog.cancel')"
+      @confirm="submitDeleteDialog"
+      @close="closeDeleteDialog"
+    />
+
+    <t-dialog
+      v-model:visible="discardRoleChangesDialogVisible"
+      :header="t('user.userList.roleDialog.unsavedChangesTitle')"
+      :body="t('user.userList.roleDialog.unsavedChangesConfirm')"
+      :confirm-btn="{ content: t('user.userList.roleDialog.discardChanges'), theme: 'danger' }"
+      :cancel-btn="t('user.userList.roleDialog.continueEditing')"
+      @confirm="confirmCloseUserRoleDrawer"
+      @close="discardRoleChangesDialogVisible = false"
+    />
+
     <assignment-drawer
       v-model:visible="userRoleDrawerVisible"
-      :title="
-        roleDialogMode === 'batch' ? t('user.userList.roleDialog.batchTitle') : t('user.userList.roleDialog.title')
-      "
+      :title="userRoleDrawerTitle"
       size="760px"
       @close="requestCloseUserRoleDrawer"
     >
@@ -346,16 +395,27 @@
             :avatar-text="userAssignmentAvatar"
             :badges="userAssignmentBadges"
             :description="userAssignmentDescription"
-            :eyebrow="t('user.userList.roleDialog.headerEyebrow')"
+            :eyebrow="userRoleDrawerEyebrow"
             :stats="userAssignmentStats"
             :subtitle="userAssignmentSubtitle"
             :title="userAssignmentTitle"
           />
 
+          <t-alert
+            v-if="userRoleDrawerReadonly"
+            theme="info"
+            :title="t('user.userList.roleDialog.readonlyProtectionTitle')"
+            data-testid="user-role-readonly-protection"
+          >
+            <template #message>
+              {{ t('user.userList.roleDialog.readonlyProtectionBody') }}
+            </template>
+          </t-alert>
+
           <assignment-toolbar
             v-model:mode-value="roleMutationMode"
             v-model:search-value="roleSearchKeyword"
-            :disabled="submittingRoles || loadingRoleDialogData"
+            :disabled="submittingRoles || loadingRoleDialogData || userRoleDrawerReadonly"
             :mode-label="t('user.userList.roleDialog.saveStrategyLabel')"
             :mode-options="roleMutationOptions"
             :search-placeholder="t('user.userList.roleDialog.searchPlaceholder')"
@@ -380,7 +440,7 @@
         <t-checkbox-group
           v-model="selectedRoleIds"
           class="sr-only"
-          :disabled="loadingRoleDialogData || !roleSelectionReady"
+          :disabled="loadingRoleDialogData || !roleSelectionReady || userRoleDrawerReadonly"
           data-testid="role-checkbox-group"
         />
         <div class="assignment-card-grid permission-card-grid">
@@ -391,7 +451,7 @@
             :assigned-label="t('user.userList.roleDialog.assignedBadge')"
             :code="role.name"
             :description="role.description || t('user.userList.roleDialog.emptyDescription')"
-            :disabled="loadingRoleDialogData || !roleSelectionReady"
+            :disabled="loadingRoleDialogData || !roleSelectionReady || userRoleDrawerReadonly"
             :selected="selectedRoleIds.includes(role.id)"
             :tags="[
               {
@@ -409,13 +469,14 @@
 
       <template #footer>
         <assignment-footer
-          :cancel-label="t('user.userList.roleDialog.cancel')"
+          :cancel-label="userRoleDrawerCancelLabel"
           cancel-test-id="user-role-cancel"
           :confirm-disabled="!canSubmitRoleAssignment"
           :confirm-label="t('user.userList.roleDialog.confirm')"
           :confirm-loading="submittingRoles"
           :details="userAssignmentFooterDetails"
           confirm-test-id="user-role-save"
+          :show-confirm="!userRoleDrawerReadonly"
           :summary="userAssignmentFooterSummary"
           @cancel="requestCloseUserRoleDrawer"
           @confirm="submitUserRoleAssignment"
@@ -565,6 +626,14 @@ const passwordFieldError = ref('');
 const submittingUser = ref(false);
 const resetPasswordDialogVisible = ref(false);
 const resetPasswordTarget = ref<UserRow | null>(null);
+const statusDialogVisible = ref(false);
+const pendingStatusTarget = ref<UserRow | null>(null);
+const pendingStatusNext = ref<UserStatus>(USER_STATUS.ENABLED);
+const pendingStatusSubmit = ref(false);
+const deleteDialogVisible = ref(false);
+const pendingDeleteTarget = ref<UserRow | null>(null);
+const pendingDeleteSubmit = ref(false);
+const discardRoleChangesDialogVisible = ref(false);
 const detailDrawerVisible = ref(false);
 const detailUser = ref<UserRow | null>(null);
 const resetPasswordFormRef = ref<ResetPasswordFormInstance | null>(null);
@@ -641,6 +710,7 @@ const hasUserRoleSelectionChanges = computed(() => {
 });
 const canSubmitRoleAssignment = computed(
   () =>
+    !userRoleDrawerReadonly.value &&
     canManageUserRoles() &&
     hasUserRoleSelectionChanges.value &&
     (roleDialogMode.value === 'batch' ? selectedRowKeys.value.length > 0 : selectedUser.value !== null) &&
@@ -656,6 +726,33 @@ const selectedBatchUsers = computed(() => {
   const ids = new Set(selectedBatchUserIds.value);
   return users.value.filter((item) => ids.has(item.id));
 });
+const selectedBatchUsersContainProtectedDefaultAdmin = computed(() =>
+  selectedBatchUsers.value.some((item) => isProtectedDefaultAdminUser(item)),
+);
+const editingProtectedDefaultAdmin = computed(
+  () => userDrawerMode.value === 'edit' && isProtectedDefaultAdminUser(userDrawerTarget.value),
+);
+const userRoleDrawerReadonly = computed(
+  () => roleDialogMode.value === 'single' && isProtectedDefaultAdminUser(selectedUser.value),
+);
+const pendingStatusDialogBody = computed(() =>
+  pendingStatusTarget.value
+    ? t('user.userList.statusConfirmDescription', {
+        user: pendingStatusTarget.value.display || pendingStatusTarget.value.username,
+        action:
+          pendingStatusNext.value === USER_STATUS.DISABLED
+            ? t('user.userList.moreActions.disable')
+            : t('user.userList.moreActions.enable'),
+      })
+    : '',
+);
+const pendingDeleteDialogBody = computed(() =>
+  pendingDeleteTarget.value
+    ? t('user.userList.deleteConfirmDescription', {
+        user: pendingDeleteTarget.value.display || pendingDeleteTarget.value.username,
+      })
+    : '',
+);
 
 const statusOptions = computed(() => [
   { label: t('user.userList.toolbar.statusAll'), value: '' },
@@ -758,6 +855,21 @@ const filteredAssignableRoles = computed(() => {
     return `${role.display} ${role.name} ${role.description ?? ''}`.toLowerCase().includes(keyword);
   });
 });
+const userRoleDrawerTitle = computed(() =>
+  roleDialogMode.value === 'batch'
+    ? t('user.userList.roleDialog.batchTitle')
+    : userRoleDrawerReadonly.value
+      ? t('user.userList.roleDialog.readonlyTitle')
+      : t('user.userList.roleDialog.title'),
+);
+const userRoleDrawerEyebrow = computed(() =>
+  userRoleDrawerReadonly.value
+    ? t('user.userList.roleDialog.readonlyHeaderEyebrow')
+    : t('user.userList.roleDialog.headerEyebrow'),
+);
+const userRoleDrawerCancelLabel = computed(() =>
+  userRoleDrawerReadonly.value ? t('user.userList.roleDialog.close') : t('user.userList.roleDialog.cancel'),
+);
 const userAssignmentTitle = computed(() =>
   roleDialogMode.value === 'batch'
     ? t('user.userList.roleDialog.batchSummary', { count: selectedBatchUserIds.value.length })
@@ -771,26 +883,39 @@ const userAssignmentSubtitle = computed(() =>
 const userAssignmentDescription = computed(() =>
   roleDialogMode.value === 'batch'
     ? t('user.userList.roleDialog.batchDescription')
-    : t('user.userList.roleDialog.singleDescription'),
+    : userRoleDrawerReadonly.value
+      ? t('user.userList.roleDialog.readonlyDescription')
+      : t('user.userList.roleDialog.singleDescription'),
 );
 const userAssignmentAvatar = computed(() =>
   roleDialogMode.value === 'batch'
     ? String(selectedBatchUserIds.value.length)
     : userInitial(selectedUser.value?.display || selectedUser.value?.username),
 );
-const userAssignmentBadges = computed(() =>
-  roleDialogMode.value === 'batch'
-    ? [{ label: t('user.userList.roleDialog.batchBadge'), theme: 'primary' as const }]
-    : [
-        {
-          label:
-            normalizeUserStatus(selectedUser.value?.status) === USER_STATUS.DISABLED
-              ? t('user.userList.status.disabled')
-              : t('user.userList.status.enabled'),
-          theme: statusTheme(selectedUser.value?.status) as 'danger' | 'success',
-        },
-      ],
-);
+const userAssignmentBadges = computed(() => {
+  if (roleDialogMode.value === 'batch') {
+    return [{ label: t('user.userList.roleDialog.batchBadge'), theme: 'primary' as const }];
+  }
+
+  const badges: Array<{ label: string; theme: 'danger' | 'success' | 'warning' }> = [
+    {
+      label:
+        normalizeUserStatus(selectedUser.value?.status) === USER_STATUS.DISABLED
+          ? t('user.userList.status.disabled')
+          : t('user.userList.status.enabled'),
+      theme: statusTheme(selectedUser.value?.status) as 'danger' | 'success',
+    },
+  ];
+
+  if (isProtectedDefaultAdminUser(selectedUser.value)) {
+    badges.push({
+      label: t('user.userList.protectedDefaultAdmin.badge'),
+      theme: 'warning' as const,
+    });
+  }
+
+  return badges;
+});
 const userAssignmentStats = computed(() => [
   {
     label: t('user.userList.roleDialog.stats.availableRoles'),
@@ -826,10 +951,12 @@ const userAssignmentSummaryItems = computed(() => [
 const userAssignmentHint = computed(() =>
   roleDialogMode.value === 'batch'
     ? batchRoleOperationHint.value
-    : t('user.userList.roleDialog.inlineHint', {
-        assigned: currentRoleIds.value.length,
-        total: roles.value.length,
-      }),
+    : userRoleDrawerReadonly.value
+      ? t('user.userList.roleDialog.readonlyHelp')
+      : t('user.userList.roleDialog.inlineHint', {
+          assigned: currentRoleIds.value.length,
+          total: roles.value.length,
+        }),
 );
 const userRoleAddedCount = computed(() => {
   const current = new Set(currentRoleIds.value);
@@ -846,6 +973,10 @@ const userAssignmentFooterSummary = computed(() =>
   }),
 );
 const userAssignmentFooterDetails = computed(() => {
+  if (userRoleDrawerReadonly.value) {
+    return [t('user.userList.roleDialog.readonlyFooterDetail')];
+  }
+
   const details = [
     t('user.userList.roleDialog.modeSummary', {
       mode: t(`user.userList.roleDialog.modeValue.${roleMutationMode.value}`),
@@ -891,7 +1022,8 @@ const userAssignmentFooterDetails = computed(() => {
 });
 
 const userRowMoreOptions = (user: UserRow) => {
-  const options: Array<{ content: string; fallbackLabel: string; value: string }> = [];
+  const protectedDefaultAdmin = isProtectedDefaultAdminUser(user);
+  const options: Array<{ content: string; disabled?: boolean; fallbackLabel: string; value: string }> = [];
 
   if (permissionStore.hasPermission(userPermissionCodes.UPDATE)) {
     options.push({
@@ -903,10 +1035,12 @@ const userRowMoreOptions = (user: UserRow) => {
 
   if (permissionStore.hasPermission(userPermissionCodes.DISABLE)) {
     options.push({
-      content:
-        normalizeUserStatus(user.status) === USER_STATUS.DISABLED
+      content: protectedDefaultAdmin
+        ? protectedDefaultAdminActionHint()
+        : normalizeUserStatus(user.status) === USER_STATUS.DISABLED
           ? t('user.userList.moreActions.enable')
           : t('user.userList.moreActions.disable'),
+      disabled: protectedDefaultAdmin,
       fallbackLabel:
         normalizeUserStatus(user.status) === USER_STATUS.DISABLED
           ? t('user.userList.moreActions.enable')
@@ -925,7 +1059,8 @@ const userRowMoreOptions = (user: UserRow) => {
 
   if (permissionStore.hasPermission(userPermissionCodes.DISABLE)) {
     options.push({
-      content: t('user.userList.moreActions.delete'),
+      content: protectedDefaultAdmin ? protectedDefaultAdminActionHint() : t('user.userList.moreActions.delete'),
+      disabled: protectedDefaultAdmin,
       fallbackLabel: t('user.userList.moreActions.delete'),
       value: 'delete',
     });
@@ -1080,6 +1215,14 @@ function statusTheme(status?: string | null) {
   return normalizeUserStatus(status) === USER_STATUS.DISABLED ? 'danger' : 'success';
 }
 
+function isProtectedDefaultAdminUser(user?: Pick<UserRow, 'protected_default_admin'> | null) {
+  return Boolean(user?.protected_default_admin);
+}
+
+function protectedDefaultAdminActionHint() {
+  return t('user.userList.protectedDefaultAdmin.actionDisabled');
+}
+
 function canManageUserRoles() {
   return permissionStore.hasAllPermissions(userRoleManagePermissionCodes);
 }
@@ -1096,10 +1239,11 @@ function hasVisibleUserOperationActions() {
 function userRowActions(user: UserRow) {
   const actions: Array<{ disabled?: boolean; fallbackLabel?: string; label: string; testId?: string; value: string }> =
     [];
+  const protectedDefaultAdmin = isProtectedDefaultAdminUser(user);
 
   if (canManageUserRoles()) {
     actions.push({
-      label: t('user.userList.assignRoles'),
+      label: protectedDefaultAdmin ? t('user.userList.viewRoles') : t('user.userList.assignRoles'),
       testId: 'user-manage-roles',
       value: 'manage-roles',
     });
@@ -1123,7 +1267,7 @@ function userRowActions(user: UserRow) {
 
   userRowMoreOptions(user).forEach((option) => {
     actions.push({
-      disabled: false,
+      disabled: option.disabled,
       fallbackLabel: option.fallbackLabel,
       label: option.content,
       testId: option.value === 'edit' ? 'user-edit' : undefined,
@@ -1355,6 +1499,19 @@ function closeResetPasswordDialog() {
   submittingResetPassword.value = false;
 }
 
+function closeStatusDialog() {
+  statusDialogVisible.value = false;
+  pendingStatusTarget.value = null;
+  pendingStatusNext.value = USER_STATUS.ENABLED;
+  pendingStatusSubmit.value = false;
+}
+
+function closeDeleteDialog() {
+  deleteDialogVisible.value = false;
+  pendingDeleteTarget.value = null;
+  pendingDeleteSubmit.value = false;
+}
+
 async function submitResetPassword() {
   if (!resetPasswordTarget.value) {
     return;
@@ -1420,24 +1577,28 @@ async function toggleUserStatus(user: UserRow) {
   ) {
     return;
   }
-
-  const nextStatus =
-    normalizeUserStatus(user.status) === USER_STATUS.DISABLED ? USER_STATUS.ENABLED : USER_STATUS.DISABLED;
-  const actionLabel =
-    nextStatus === USER_STATUS.DISABLED
-      ? t('user.userList.moreActions.disable')
-      : t('user.userList.moreActions.enable');
-  const confirmed = window.confirm(
-    t('user.userList.statusConfirmDescription', { user: user.display || user.username, action: actionLabel }),
-  );
-  if (!confirmed) {
+  if (isProtectedDefaultAdminUser(user)) {
+    MessagePlugin.warning(protectedDefaultAdminActionHint());
     return;
   }
 
+  pendingStatusTarget.value = user;
+  pendingStatusNext.value =
+    normalizeUserStatus(user.status) === USER_STATUS.DISABLED ? USER_STATUS.ENABLED : USER_STATUS.DISABLED;
+  statusDialogVisible.value = true;
+}
+
+async function submitStatusDialog() {
+  if (!pendingStatusTarget.value || pendingStatusSubmit.value) {
+    return;
+  }
+
+  pendingStatusSubmit.value = true;
   try {
-    const updated = await updateUserStatus(user.id, { status: nextStatus });
+    const updated = await updateUserStatus(pendingStatusTarget.value.id, { status: pendingStatusNext.value });
     users.value = users.value.map((item) => (item.id === updated.id ? { ...item, ...updated } : item));
     MessagePlugin.success(formatHintedMessage(t('user.userList.statusUpdateSuccess')));
+    closeStatusDialog();
   } catch (error) {
     logger.error('failed to update status', error);
     if (isApiRequestError(error)) {
@@ -1454,6 +1615,8 @@ async function toggleUserStatus(user: UserRow) {
     }
 
     MessagePlugin.error(formatHintedMessage(t('user.userList.statusUpdateFailed')));
+  } finally {
+    pendingStatusSubmit.value = false;
   }
 }
 
@@ -1466,19 +1629,28 @@ async function confirmDeleteUser(user: UserRow) {
   ) {
     return;
   }
-
-  const confirmed = window.confirm(
-    t('user.userList.deleteConfirmDescription', { user: user.display || user.username }),
-  );
-  if (!confirmed) {
+  if (isProtectedDefaultAdminUser(user)) {
+    MessagePlugin.warning(protectedDefaultAdminActionHint());
     return;
   }
 
+  pendingDeleteTarget.value = user;
+  deleteDialogVisible.value = true;
+}
+
+async function submitDeleteDialog() {
+  if (!pendingDeleteTarget.value || pendingDeleteSubmit.value) {
+    return;
+  }
+
+  const deleteTargetId = pendingDeleteTarget.value.id;
+  pendingDeleteSubmit.value = true;
   try {
-    await deleteUser(user.id);
-    users.value = users.value.filter((item) => item.id !== user.id);
-    selectedRowKeys.value = selectedRowKeys.value.filter((item) => item !== user.id);
+    await deleteUser(deleteTargetId);
+    users.value = users.value.filter((item) => item.id !== deleteTargetId);
+    selectedRowKeys.value = selectedRowKeys.value.filter((item) => item !== deleteTargetId);
     MessagePlugin.success(formatHintedMessage(t('user.userList.deleteSuccess')));
+    closeDeleteDialog();
   } catch (error) {
     logger.error('failed to delete user', error);
     const message = resolveErrorMessageWithCorrelation(t, error, t('user.userList.deleteFailed'));
@@ -1490,6 +1662,8 @@ async function confirmDeleteUser(user: UserRow) {
       requestId: requestIdFromError(error),
       translate: t,
     });
+  } finally {
+    pendingDeleteSubmit.value = false;
   }
 }
 
@@ -1544,15 +1718,16 @@ function requestCloseUserRoleDrawer() {
     return;
   }
 
-  if (!hasUserRoleSelectionChanges.value) {
+  if (userRoleDrawerReadonly.value || !hasUserRoleSelectionChanges.value) {
     closeUserRoleDrawer();
     return;
   }
+  discardRoleChangesDialogVisible.value = true;
+}
 
-  const confirmed = window.confirm(t('user.userList.roleDialog.unsavedChangesConfirm'));
-  if (confirmed) {
-    closeUserRoleDrawer();
-  }
+function confirmCloseUserRoleDrawer() {
+  discardRoleChangesDialogVisible.value = false;
+  closeUserRoleDrawer();
 }
 
 function isActiveDrawerSession(session: number) {
@@ -1623,6 +1798,10 @@ async function openBatchUserRoleDrawer() {
   if (!ensureUserPermission(canManageUserRoles(), t('user.userList.unavailable.manageRoles'))) {
     return;
   }
+  if (selectedBatchUsersContainProtectedDefaultAdmin.value) {
+    MessagePlugin.warning(protectedDefaultAdminActionHint());
+    return;
+  }
 
   const session = drawerSession.value + 1;
 
@@ -1656,7 +1835,12 @@ async function openBatchUserRoleDrawer() {
 }
 
 function toggleUserRoleSelection(roleId: number) {
-  if (loadingRoleDialogData.value || !roleSelectionReady.value || !canManageUserRoles()) {
+  if (
+    loadingRoleDialogData.value ||
+    !roleSelectionReady.value ||
+    userRoleDrawerReadonly.value ||
+    !canManageUserRoles()
+  ) {
     return;
   }
 
@@ -1683,7 +1867,7 @@ async function submitUserRoleAssignment() {
     return;
   }
 
-  if (!canSubmitRoleAssignment.value) {
+  if (userRoleDrawerReadonly.value || !canSubmitRoleAssignment.value) {
     return;
   }
 

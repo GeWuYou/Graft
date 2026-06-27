@@ -93,6 +93,7 @@ func (r *repository) CreateAuditLog(ctx context.Context, input auditstore.Create
 		ActorUsername:    input.ActorUsername,
 		ActorDisplayName: input.ActorDisplayName,
 		Action:           input.Action,
+		Visibility:       normalizeStoredAuditVisibility(input.Visibility),
 		ResourceType:     input.ResourceType,
 		ResourceID:       input.ResourceID,
 		ResourceName:     input.ResourceName,
@@ -116,6 +117,7 @@ func (r *repository) CreateAuditLog(ctx context.Context, input auditstore.Create
 			actor_username,
 			actor_display_name,
 			action,
+			visibility,
 			resource_type,
 			resource_id,
 			resource_name,
@@ -126,12 +128,13 @@ func (r *repository) CreateAuditLog(ctx context.Context, input auditstore.Create
 			message,
 			metadata,
 			created_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
 		RETURNING id`,
 		actorUserID,
 		input.ActorUsername,
 		input.ActorDisplayName,
 		input.Action,
+		record.Visibility,
 		input.ResourceType,
 		input.ResourceID,
 		input.ResourceName,
@@ -177,6 +180,7 @@ func (r *repository) ListAuditLogs(ctx context.Context, query auditstore.ListAud
 	selectSQL := `SELECT
 		id,
 		COALESCE(metadata ->> 'auditSource', metadata ->> 'audit_source', '') AS source,
+		visibility,
 		actor_user_id,
 		actor_username,
 		actor_display_name,
@@ -519,6 +523,8 @@ func incidentEvidenceWindow(events []auditstore.AuditLog) *auditstore.EvidenceLi
 	}
 }
 
+// buildAuditLogFilters 根据查询条件构建审计日志过滤条件的 WHERE 子句及参数列表。
+// 当未生成任何过滤条件时，返回空字符串和参数列表；否则返回以 `WHERE` 开头的拼接结果。
 func buildAuditLogFilters(query auditstore.ListAuditLogsQuery) (string, []any) {
 	clauses := make([]string, 0, defaultFilterCapacity)
 	args := make([]any, 0, defaultFilterCapacity)
@@ -528,6 +534,7 @@ func buildAuditLogFilters(query auditstore.ListAuditLogsQuery) (string, []any) {
 		clauses = append(clauses, fmt.Sprintf(format, len(args)))
 	}
 
+	addAuditVisibilityFilter(&clauses, &args, query.VisibilityScope)
 	addAuditPresetRange(&clauses, &args, query)
 	addUint64Filter(&clauses, &args, "actor_user_id = $%d", query.ActorUserID)
 	addKeywordFilter(&clauses, &args, query.Keyword)
@@ -591,6 +598,7 @@ func isSupportedAuditTimePreset(preset auditstore.AuditTimePreset) bool {
 	}
 }
 
+// addAuditPresetRange 在未指定显式时间范围时，按时间预设添加创建时间下限过滤条件。
 func addAuditPresetRange(clauses *[]string, args *[]any, query auditstore.ListAuditLogsQuery) {
 	if query.CreatedFrom != nil || query.CreatedTo != nil {
 		return
@@ -604,8 +612,27 @@ func addAuditPresetRange(clauses *[]string, args *[]any, query auditstore.ListAu
 	addTimeFilter(clauses, args, "created_at >= $%d", &startedAt)
 }
 
+// 其他情况仅匹配可见审计日志。
+func addAuditVisibilityFilter(
+	clauses *[]string,
+	args *[]any,
+	scope auditstore.AuditVisibilityScope,
+) {
+	switch scope {
+	case auditstore.AuditVisibilityScopeAll:
+		return
+	case auditstore.AuditVisibilityScopeHiddenOnly:
+		*args = append(*args, string(auditstore.AuditVisibilityStrategyHidden))
+		*clauses = append(*clauses, fmt.Sprintf("visibility = $%d", len(*args)))
+	default:
+		*args = append(*args, string(auditstore.AuditVisibilityStrategyVisible))
+		*clauses = append(*clauses, fmt.Sprintf("visibility = $%d", len(*args)))
+	}
+}
+
 // auditPresetStart 根据时间预设计算查询起始时间。
-// 对于最近 24 小时、7 天、30 天分别返回对应的起始时间；其他预设返回零时间。
+// auditPresetStart 返回指定时间预设对应的起始时间。
+// 对于最近 24 小时、7 天、30 天分别返回相对于 now 的起点；其他预设返回零时间。
 func auditPresetStart(now time.Time, preset auditstore.AuditTimePreset) time.Time {
 	switch preset {
 	case auditstore.AuditTimePresetLast24Hours:
@@ -903,7 +930,8 @@ func addTimeFilter(clauses *[]string, args *[]any, format string, value *time.Ti
 
 // scanAuditLog 解析一条审计日志记录并补充派生字段。
 // 它会从扫描器中读取基础列，转换 actor_user_id，并完成元数据克隆与记录增强。
-// @returns 解析后的审计日志记录；扫描失败时返回错误。
+// scanAuditLog 扫描一条审计日志记录，并补充派生字段。
+// 解析成功时返回完整的审计日志；扫描失败时返回错误。
 func scanAuditLog(
 	ctx context.Context,
 	localizer *i18n.Service,
@@ -919,6 +947,7 @@ func scanAuditLog(
 	if err := scanner.Scan(
 		&record.ID,
 		&record.Source,
+		&record.Visibility,
 		&actorUserID,
 		&record.ActorUsername,
 		&record.ActorDisplayName,
@@ -941,6 +970,7 @@ func scanAuditLog(
 		value := toStoreID(actorUserID.Int64)
 		record.ActorUserID = &value
 	}
+	record.Visibility = normalizeStoredAuditVisibility(record.Visibility)
 	record.Metadata = cloneRawMessage(metadata)
 	enrichAuditLog(ctx, &record, localizer)
 
@@ -1037,6 +1067,7 @@ func (r *repository) readAuditLogByID(ctx context.Context, eventID uint64) (audi
 	row := r.db.QueryRowContext(ctx, `SELECT
 		id,
 		COALESCE(metadata ->> 'auditSource', metadata ->> 'audit_source', '') AS source,
+		visibility,
 		actor_user_id,
 		actor_username,
 		actor_display_name,
@@ -1068,6 +1099,7 @@ func (r *repository) readIncidentCandidateLogs(ctx context.Context, windowStart 
 	rows, err := r.db.QueryContext(ctx, `SELECT
 		id,
 		COALESCE(metadata ->> 'auditSource', metadata ->> 'audit_source', '') AS source,
+		visibility,
 		actor_user_id,
 		actor_username,
 		actor_display_name,
@@ -1083,9 +1115,15 @@ func (r *repository) readIncidentCandidateLogs(ctx context.Context, windowStart 
 		metadata,
 		created_at
 	FROM audit_logs
-		WHERE created_at >= $1 AND created_at <= $2
+		WHERE visibility = $1
+		AND created_at >= $2 AND created_at <= $3
 		ORDER BY created_at DESC, id DESC
-		LIMIT $3`, windowStart, windowEnd, incidentCandidateScanLimit)
+		LIMIT $4`,
+		string(auditstore.AuditVisibilityStrategyVisible),
+		windowStart,
+		windowEnd,
+		incidentCandidateScanLimit,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("read audit incident candidates: %w", err)
 	}
@@ -1739,13 +1777,14 @@ SELECT
 		WHERE ` + sensitiveOperationsWhereClause() + `
 	) AS sensitive_operations
 FROM audit_logs
-WHERE created_at >= $1
+WHERE visibility = 'visible' AND created_at >= $1
 `
 
 const overviewRecentBaseSQL = `
 SELECT
 	id,
 	COALESCE(metadata ->> 'auditSource', metadata ->> 'audit_source', '') AS source,
+	visibility,
 	actor_user_id,
 	actor_username,
 	actor_display_name,
@@ -1759,7 +1798,7 @@ SELECT
 	metadata,
 	created_at
 FROM audit_logs
-WHERE created_at >= $1 AND %s
+WHERE visibility = 'visible' AND created_at >= $1 AND %s
 ORDER BY created_at DESC, id DESC
 LIMIT 3
 `
@@ -1837,7 +1876,7 @@ FROM (
 			  )
 		) AS count
 	FROM audit_logs
-	WHERE created_at >= $1
+	WHERE visibility = 'visible' AND created_at >= $1
 	UNION ALL
 	SELECT
 		'high_risk_operations',
@@ -1847,7 +1886,7 @@ FROM (
 			WHERE ` + auditRiskLevelExpression() + ` IN ('HIGH', 'CRITICAL')
 		)
 	FROM audit_logs
-	WHERE created_at >= $1
+	WHERE visibility = 'visible' AND created_at >= $1
 	UNION ALL
 	SELECT
 		'auth_failures',
@@ -1855,7 +1894,7 @@ FROM (
 		'HIGH',
 		COUNT(*) FILTER (WHERE ` + authFailuresWhereClause() + `)
 	FROM audit_logs
-	WHERE created_at >= $1
+	WHERE visibility = 'visible' AND created_at >= $1
 	UNION ALL
 	SELECT
 		'permission_denials',
@@ -1863,7 +1902,7 @@ FROM (
 		'CRITICAL',
 		COUNT(*) FILTER (WHERE ` + permissionDenialsWhereClause() + `)
 	FROM audit_logs
-	WHERE created_at >= $1
+	WHERE visibility = 'visible' AND created_at >= $1
 ) groups
 WHERE count > 0
 ORDER BY count DESC, key ASC
@@ -1885,7 +1924,8 @@ SELECT
 	message,
 	metadata
 FROM audit_logs
-WHERE created_at >= $1
+WHERE visibility = 'visible'
+  AND created_at >= $1
   AND (
 	COALESCE(metadata ->> 'auditSource', metadata ->> 'audit_source', '') = 'SECURITY_EVENT'
 	OR NOT success
@@ -1974,6 +2014,8 @@ func (r *repository) readOverviewTrend(
 	}, nil
 }
 
+// overviewTrendSeriesSQL 生成按固定时间步长聚合审计日志概览趋势的 SQL。
+// 返回用于统计每个时间桶的总数、失败数、高风险数和安全事件数的查询语句。
 func overviewTrendSeriesSQL(step string) string {
 	//nolint:gosec // step comes from overviewTrendConfig and is limited to fixed internal interval literals.
 	return fmt.Sprintf(`
@@ -1996,6 +2038,7 @@ FROM generate_series($1::timestamptz, $2::timestamptz - INTERVAL '%[1]s', INTERV
 LEFT JOIN audit_logs logs
 	ON logs.created_at >= bucket_start
 	AND logs.created_at < bucket_start + INTERVAL '%[1]s'
+	AND logs.visibility = 'visible'
 GROUP BY bucket_start
 ORDER BY bucket_start ASC
 `, step)
@@ -2058,7 +2101,8 @@ SELECT
 	metadata,
 	created_at
 FROM audit_logs
-WHERE created_at >= $1 AND created_at < $2
+WHERE visibility = 'visible'
+  AND created_at >= $1 AND created_at < $2
 ORDER BY created_at ASC, id ASC
 `, startedAt, now)
 	if err != nil {
@@ -2227,17 +2271,22 @@ func (r *repository) readAuditOverviewItems(ctx context.Context, args []any, whe
 	return items, nil
 }
 
+// scanAuditOverviewItem 解析一条审计概览记录并补齐元数据。
+// 它会将 actor 用户 ID 转换为可选值，并复制 metadata 以避免共享底层字节。
+// @returns 解析后的概览条目；如果扫描失败，则返回错误。
 func scanAuditOverviewItem(scanner interface {
 	Scan(dest ...any) error
 }) (auditstore.OverviewItem, error) {
 	var (
 		item        auditstore.OverviewItem
 		actorUserID sql.NullInt64
+		visibility  string
 		metadata    []byte
 	)
 	if err := scanner.Scan(
 		&item.ID,
 		&item.Source,
+		&visibility,
 		&actorUserID,
 		&item.ActorUsername,
 		&item.ActorDisplayName,
@@ -2259,9 +2308,24 @@ func scanAuditOverviewItem(scanner interface {
 		item.ActorUserID = &value
 	}
 	item.Metadata = cloneRawMessage(metadata)
+	_ = visibility
 	return item, nil
 }
 
+// 它会保留 hidden 和 ignore，其余值都归一为 visible。
+func normalizeStoredAuditVisibility(value auditstore.AuditVisibilityStrategy) auditstore.AuditVisibilityStrategy {
+	switch auditstore.AuditVisibilityStrategy(strings.TrimSpace(string(value))) {
+	case auditstore.AuditVisibilityStrategyHidden:
+		return auditstore.AuditVisibilityStrategyHidden
+	case auditstore.AuditVisibilityStrategyIgnore:
+		return auditstore.AuditVisibilityStrategyIgnore
+	default:
+		return auditstore.AuditVisibilityStrategyVisible
+	}
+}
+
+// nullableUint64 将可选的 uint64 转换为可用于数据库参数绑定的值。
+// 当值为空时返回 nil；当值超过 bigint 可表示范围时返回错误。
 func nullableUint64(value *uint64) (any, error) {
 	if value == nil {
 		return nil, nil

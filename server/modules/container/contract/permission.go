@@ -18,6 +18,9 @@ const (
 	// ContainerDetailPermission identifies container detail access.
 	// Lifecycle: stable.
 	ContainerDetailPermission PermissionCode = "ops.container.detail"
+	// ContainerEventsPermission identifies container runtime event access.
+	// Lifecycle: stable.
+	ContainerEventsPermission PermissionCode = "ops.container.events"
 	// ContainerEnvironmentPermission identifies container environment variable value access.
 	// Lifecycle: stable.
 	ContainerEnvironmentPermission PermissionCode = "ops.container.environment"

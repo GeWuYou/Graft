@@ -1,8 +1,6 @@
 package user
 
-import (
-	"unicode"
-)
+import "unicode"
 
 const (
 	defaultAdminUsername  = "graft"
@@ -12,8 +10,10 @@ const (
 	minimumPasswordLength = 12
 )
 
+
 type passwordPolicy struct{}
 
+// newPasswordPolicy 返回一个零值的 passwordPolicy。
 func newPasswordPolicy() passwordPolicy {
 	return passwordPolicy{}
 }

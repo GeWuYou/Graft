@@ -20,6 +20,7 @@ const (
 	auditMenuOrderLogs     = 202
 )
 
+// registerAuditPermissions 注册审计模块的权限条目。
 func registerAuditPermissions(registry *permission.Registry, moduleName string) {
 	if registry == nil {
 		return
@@ -32,8 +33,17 @@ func registerAuditPermissions(registry *permission.Registry, moduleName string) 
 		Category:       "api",
 		Module:         moduleName,
 	})
+	registry.Register(permission.Item{
+		Code:           auditcontract.AuditManagePermission.String(),
+		DisplayKey:     "rbac.permissionCatalog.auditManage.display",
+		DescriptionKey: "rbac.permissionCatalog.auditManage.description",
+		Category:       "api",
+		Module:         moduleName,
+	})
 }
 
+// registerAuditMenu 注册审计模块的菜单项。
+// 当 registry 为 nil 时直接返回。它会注册审计首页、概览和日志三个菜单项，并为概览和日志菜单配置审计读取权限。
 func registerAuditMenu(registry *menu.Registry, moduleName string) {
 	if registry == nil {
 		return
@@ -126,7 +136,8 @@ func (p *Module) resolveRouteGuard(ctx *module.Context) (auditGuard, error) {
 
 	publisher := httpx.NewSecurityAuditPublisher(ctx.EventBus, ctx.Logger, moduleID)
 	return auditGuard{
-		read: httpx.RequirePermission(ctx.I18n, authService, authorizer, auditcontract.AuditReadPermission.String(), publisher),
+		read:   httpx.RequirePermission(ctx.I18n, authService, authorizer, auditcontract.AuditReadPermission.String(), publisher),
+		manage: httpx.RequirePermission(ctx.I18n, authService, authorizer, auditcontract.AuditManagePermission.String(), publisher),
 	}, nil
 }
 

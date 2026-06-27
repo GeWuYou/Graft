@@ -3,6 +3,7 @@ package container
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -79,6 +80,42 @@ func TestModuleShutdownUsesServiceClosePath(t *testing.T) {
 
 	if runtime.closeCalls.Load() != 1 {
 		t.Fatalf("expected shutdown to close runtime exactly once, got %d", runtime.closeCalls.Load())
+	}
+}
+
+func TestModuleBootRollsBackStatsCollectorWhenRuntimeEventManagerStartFails(t *testing.T) {
+	t.Parallel()
+
+	realtimeHub := realtime.NewHub()
+	factoryCalls := atomic.Int64{}
+	service, err := newTestService(containerServiceOptions{
+		runtime: Runtime(disabledRuntime{}),
+		runtimeFactory: func(containerRuntimeOptions) (Runtime, error) {
+			factoryCalls.Add(1)
+			return nil, errors.New("runtime source unavailable")
+		},
+		realtimeHub: realtimeHub,
+		enabled:     true,
+		defaultTail: defaultContainerLogsDefaultTail,
+		maxTail:     defaultContainerLogsMaxTail,
+	})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	containerModule := &Module{service: service}
+
+	err = containerModule.Boot(&module.Context{LifecycleContext: context.Background()})
+	if err == nil || !strings.Contains(err.Error(), "runtime source unavailable") {
+		t.Fatalf("expected runtime event manager start failure, got %v", err)
+	}
+	if service.statsCollector == nil {
+		t.Fatal("expected stats collector instance to remain allocated for reuse")
+	}
+	if service.statsCollector.started {
+		t.Fatal("expected stats collector to be stopped after runtime event manager start failure")
+	}
+	if factoryCalls.Load() < 1 {
+		t.Fatalf("expected runtime factory to be consulted during boot, got %d", factoryCalls.Load())
 	}
 }
 
@@ -231,6 +268,7 @@ func expectedPermissionCodes() []string {
 	return []string{
 		containercontract.ContainerViewPermission.String(),
 		containercontract.ContainerDetailPermission.String(),
+		containercontract.ContainerEventsPermission.String(),
 		containercontract.ContainerEnvironmentPermission.String(),
 		containercontract.ContainerLogsPermission.String(),
 		containercontract.ContainerShellPermission.String(),

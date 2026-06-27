@@ -14,9 +14,11 @@ common.conjunction: and
 common.copyright: Copyright (C) 2021-2026 Tencent. All Rights Reserved
 common.internal_error: Internal server error
 common.invalid_argument: Invalid request parameters
+common.not_found: Requested resource not found
 menu.server.title: Service Management
 rbac.cannot_remove_own_admin_role: You cannot remove your own admin role from the current session
 rbac.builtin_admin_permissions_immutable: Builtin administrator permissions cannot be changed
 permission.not_found: Permission not found
 role.not_found: Role not found
 user.not_found: User not found
+user.protected_default_admin_immutable: The builtin default administrator cannot be changed in this way

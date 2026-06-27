@@ -14,6 +14,9 @@ import (
 	notificationcontract "graft/server/modules/notification/contract"
 )
 
+// publishAuditNotification 在满足条件时发布审计通知，并在发布失败时记录警告日志。
+// 当 publisher 为空或审计记录不符合通知条件时，函数直接返回。否则会构建通知输入并尝试发布；
+// 发布失败时会使用非空 logger 记录包含模块、事件类型、严重级别、审计日志 ID 和错误信息的警告日志。
 func publishAuditNotification(
 	ctx context.Context,
 	logger *zap.Logger,
@@ -38,7 +41,11 @@ func publishAuditNotification(
 	}
 }
 
+// 仅对可见的记录进行判断；当操作包含权限拒绝、登录失败，或登录类操作且执行失败时返回 true。风险级别为高或严重时也返回 true。
 func shouldNotifyAuditRecord(record auditstore.AuditLog) bool {
+	if record.Visibility != auditstore.AuditVisibilityStrategyVisible {
+		return false
+	}
 	action := strings.ToLower(strings.TrimSpace(record.Action))
 	if strings.Contains(action, "permission.denied") || strings.Contains(action, "permission_denied") {
 		return true

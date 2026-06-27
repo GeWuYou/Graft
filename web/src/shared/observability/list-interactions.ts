@@ -11,6 +11,13 @@ export function restartLogListQuery(config: {
   return config.updateRouteQuery();
 }
 
+/**
+ * 打开日志详情记录。
+ *
+ * 当日志 ID 无效或小于等于 0 时，会通过 `onError` 报错并停止处理；否则会拉取详情并显示记录。
+ *
+ * @param config - 详情加载与显示所需配置
+ */
 async function openLogDetailRecord<Row, Detail>(config: {
   fetchDetail: (id: number) => Promise<Detail>;
   onError: (error: unknown) => void;
@@ -20,7 +27,7 @@ async function openLogDetailRecord<Row, Detail>(config: {
 }) {
   try {
     const id = Number(config.row.id);
-    if (!Number.isFinite(id)) {
+    if (!Number.isFinite(id) || id <= 0) {
       config.onError(new Error(`Invalid log id: ${String(config.row.id)}`));
       return;
     }

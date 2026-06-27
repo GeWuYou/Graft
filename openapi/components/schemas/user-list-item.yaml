@@ -1,5 +1,5 @@
 type: object
-required: [id, username, display, status, roles, created_at, updated_at]
+required: [id, username, display, status, protected_default_admin, roles, created_at, updated_at]
 properties:
   id:
     type: integer
@@ -11,6 +11,9 @@ properties:
     type: string
   status:
     type: string
+  protected_default_admin:
+    type: boolean
+    description: True only for the builtin protected default administrator account.
   roles:
     type: array
     description: Minimal role summaries embedded in the user list to avoid row-level role fetch fanout.

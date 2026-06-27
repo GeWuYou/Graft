@@ -321,6 +321,8 @@ func toAuditIncidentRequests(requests []auditstore.AuditIncidentRequest) []map[s
 	return relatedRequests
 }
 
+// toAuditLogListItem 将审计日志转换为列表响应项。
+// @returns 成功转换后的审计日志列表项；如果 ID 转换或元数据解析失败，则返回错误。
 func toAuditLogListItem(item auditstore.AuditLog) (generated.AuditLogListItem, error) {
 	id, err := mustConvertAuditGeneratedID(item.ID, "audit log id")
 	if err != nil {
@@ -354,6 +356,107 @@ func toAuditLogListItem(item auditstore.AuditLog) (generated.AuditLogListItem, e
 	return converted, nil
 }
 
+// toAuditVisibilityPolicyResponse 组装审计可见性策略响应。
+// 返回包含默认策略、覆盖策略和策略目录的强类型响应。
+func toAuditVisibilityPolicyResponse(result VisibilityPolicyResult) (generated.AuditVisibilityPolicyResponse, error) {
+	defaultValue, err := toAuditVisibilityDefaultResponse(result.Default)
+	if err != nil {
+		return generated.AuditVisibilityPolicyResponse{}, err
+	}
+
+	overrides := make([]generated.AuditVisibilityOverrideResponse, 0, len(result.Overrides))
+	for _, item := range result.Overrides {
+		converted, convErr := toAuditVisibilityOverrideResponse(item)
+		if convErr != nil {
+			return generated.AuditVisibilityPolicyResponse{}, convErr
+		}
+		overrides = append(overrides, converted)
+	}
+
+	catalog := make([]generated.AuditEventCatalogItem, 0, len(result.Catalog))
+	for _, item := range result.Catalog {
+		catalog = append(catalog, generated.AuditEventCatalogItem{
+			Source:            generated.AuditEventCatalogItemSource(item.Source),
+			ActionKey:         item.ActionKey,
+			DisplayName:       item.DisplayName,
+			Description:       item.Description,
+			Category:          item.Category,
+			DefaultStrategy:   generated.AuditEventCatalogItemDefaultStrategy(item.DefaultStrategy),
+			EffectiveStrategy: generated.AuditEventCatalogItemEffectiveStrategy(item.EffectiveStrategy),
+			Overridden:        item.Overridden,
+		})
+	}
+
+	return generated.AuditVisibilityPolicyResponse{
+		Default:   defaultValue,
+		Overrides: overrides,
+		Catalog:   catalog,
+	}, nil
+}
+
+// toAuditVisibilityDefaultResponse 将审计可见性默认策略转换为强类型响应。
+func toAuditVisibilityDefaultResponse(item auditstore.AuditVisibilityDefault) (generated.AuditVisibilityDefaultResponse, error) {
+	response := generated.AuditVisibilityDefaultResponse{
+		Key:       item.Key,
+		Strategy:  generated.AuditVisibilityDefaultResponseStrategy(item.Strategy),
+		UpdatedAt: item.UpdatedAt.UTC(),
+	}
+	if item.UpdatedBy != nil {
+		convertedID, err := mustConvertAuditGeneratedID(*item.UpdatedBy, "audit visibility default updated_by")
+		if err != nil {
+			return generated.AuditVisibilityDefaultResponse{}, err
+		}
+		response.UpdatedBy = &convertedID
+	}
+	if item.UpdatedByName != "" {
+		updatedByName := item.UpdatedByName
+		response.UpdatedByName = &updatedByName
+	}
+	return response, nil
+}
+
+// toAuditVisibilityOverrideResponse 将审计可见性覆盖策略转换为强类型响应。
+func toAuditVisibilityOverrideResponse(item auditstore.AuditVisibilityOverride) (generated.AuditVisibilityOverrideResponse, error) {
+	id, err := mustConvertAuditGeneratedID(item.ID, "audit visibility override id")
+	if err != nil {
+		return generated.AuditVisibilityOverrideResponse{}, err
+	}
+
+	response := generated.AuditVisibilityOverrideResponse{
+		Id:          id,
+		Source:      generated.AuditVisibilityOverrideResponseSource(item.Source),
+		ActionKey:   item.ActionKey,
+		Strategy:    generated.AuditVisibilityOverrideResponseStrategy(item.Strategy),
+		Description: item.Description,
+		CreatedAt:   item.CreatedAt.UTC(),
+		UpdatedAt:   item.UpdatedAt.UTC(),
+	}
+	if item.CreatedBy != nil {
+		createdBy, convErr := mustConvertAuditGeneratedID(*item.CreatedBy, "audit visibility override created_by")
+		if convErr != nil {
+			return generated.AuditVisibilityOverrideResponse{}, convErr
+		}
+		response.CreatedBy = &createdBy
+	}
+	if item.CreatedByName != "" {
+		createdByName := item.CreatedByName
+		response.CreatedByName = &createdByName
+	}
+	if item.UpdatedBy != nil {
+		updatedBy, convErr := mustConvertAuditGeneratedID(*item.UpdatedBy, "audit visibility override updated_by")
+		if convErr != nil {
+			return generated.AuditVisibilityOverrideResponse{}, convErr
+		}
+		response.UpdatedBy = &updatedBy
+	}
+	if item.UpdatedByName != "" {
+		updatedByName := item.UpdatedByName
+		response.UpdatedByName = &updatedByName
+	}
+	return response, nil
+}
+
+// appendAuditLogTarget 在目标信息存在时填充审计日志项的目标字段。
 func appendAuditLogTarget(converted *generated.AuditLogListItem, target auditstore.AuditTarget) {
 	if target.Kind == "" && target.Type == "" && target.Label == "" && target.ID == "" && target.RouteRef == "" {
 		return

@@ -12,7 +12,13 @@ import { AUTH_API_PATH } from '@/modules/auth/contract/paths';
 import { AUTH_ROUTE_PATH } from '@/modules/auth/contract/routes';
 import type { LoginResponse } from '@/modules/auth/contract/types';
 import type { ApiRequestError, AxiosRequestConfigRetry, RequestOptions } from '@/types/axios';
-import { clearAccessToken, getAccessToken, setAccessToken } from '@/utils/auth-state';
+import {
+  clearAccessToken,
+  getAccessToken,
+  getAccessTokenExpiresAt,
+  setAccessToken,
+  setAccessTokenExpiresAt,
+} from '@/utils/auth-state';
 import { patchGlobalLoggerContext } from '@/utils/logger';
 
 type RequestConfig = AxiosRequestConfigRetry & {
@@ -32,8 +38,16 @@ type AuthSessionBridge = {
 };
 
 const AUTH_REFRESH_URL = AUTH_API_PATH.REFRESH;
+const TOKEN_REFRESH_LEEWAY_MS = 60_000;
 let authSessionBridge: AuthSessionBridge | null = null;
+let inflightRefreshPromise: Promise<LoginResponse> | null = null;
 
+/**
+ * 将请求参数序列化为查询字符串。
+ *
+ * @param params - 需要转换的参数对象
+ * @returns 编码后的查询字符串
+ */
 export function serializeRequestParams(params: Record<string, unknown>) {
   const searchParams = new URLSearchParams();
 
@@ -79,7 +93,13 @@ const client = axios.create({
   },
 });
 
-client.interceptors.request.use((config) => {
+client.interceptors.request.use(async (config) => {
+  const nextConfig = config as typeof config & AxiosRequestConfigRetry;
+
+  if (!nextConfig._skipAuthRefresh && nextConfig.url !== AUTH_REFRESH_URL && shouldRefreshBeforeRequest()) {
+    await refreshClientSessionWithFailureHandling();
+  }
+
   const headers = config.headers ?? {};
   const accessToken = getAccessToken();
 
@@ -217,19 +237,39 @@ function shouldRefresh(error: ApiRequestError, config?: AxiosRequestConfigRetry)
   return error.status === 401 && error.code === API_CODE.AUTH_TOKEN_EXPIRED;
 }
 
+/**
+ * 判断错误是否需要退出到登录页。
+ *
+ * @returns `true` if the error indicates an invalid or missing authentication token with a `401` status, `false` otherwise.
+ */
 function shouldExitToLogin(error: ApiRequestError) {
   return (
     error.status === 401 && (error.code === API_CODE.AUTH_TOKEN_INVALID || error.code === API_CODE.AUTH_TOKEN_MISSING)
   );
 }
 
+/**
+ * 刷新会话后重放原请求。
+ *
+ * @returns 重放后的请求结果。
+ */
 async function tryRefreshAndReplay<T>(config: AxiosRequestConfigRetry) {
+  await refreshClientSessionWithFailureHandling();
+
+  return client.request<T>({
+    ...config,
+    _authRefreshAttempted: true,
+  } as AxiosRequestConfigRetry);
+}
+
+/**
+ * 处理会话刷新失败后的清理逻辑。
+ *
+ * 在刷新被受限改密场景拒绝时保留当前会话，其余失败情况下按需清理会话状态。
+ */
+async function refreshClientSessionWithFailureHandling() {
   try {
-    const payload = await requestWithMethod<LoginResponse>('post', {
-      url: AUTH_REFRESH_URL,
-      _skipAuthRefresh: true,
-    } as RequestConfig);
-    await syncAuthStateAfterRefresh(payload);
+    await refreshClientSession();
   } catch (refreshError) {
     // 受限首次改密态会显式拒绝 refresh；此时保留当前受限会话，交给页面继续完成改密。
     if (isRestrictedPasswordChangeRefreshError(refreshError)) {
@@ -242,13 +282,13 @@ async function tryRefreshAndReplay<T>(config: AxiosRequestConfigRetry) {
     }
     throw refreshError;
   }
-
-  return client.request<T>({
-    ...config,
-    _authRefreshAttempted: true,
-  } as AxiosRequestConfigRetry);
 }
 
+/**
+ * 刷新后同步登录态。
+ *
+ * @param payload - 刷新返回的登录响应
+ */
 async function syncAuthStateAfterRefresh(payload: LoginResponse) {
   if (authSessionBridge) {
     await authSessionBridge.applyLoginResponse(payload);
@@ -256,12 +296,16 @@ async function syncAuthStateAfterRefresh(payload: LoginResponse) {
   }
 
   setAccessToken(payload.access_token);
+  setAccessTokenExpiresAt(payload.expires_at);
 
   try {
     const raw = localStorage.getItem(STORAGE_KEY.USER_SESSION);
     if (raw) {
       const persisted = JSON.parse(raw) as Record<string, unknown>;
-      localStorage.setItem(STORAGE_KEY.USER_SESSION, JSON.stringify({ ...persisted, token: payload.access_token }));
+      localStorage.setItem(
+        STORAGE_KEY.USER_SESSION,
+        JSON.stringify({ ...persisted, token: payload.access_token, expiresAt: payload.expires_at }),
+      );
     }
   } catch {
     // 受限环境下允许只更新内存 token。
@@ -322,6 +366,12 @@ export function shouldAttemptRefreshByError(status: number, code: ApiResponseCod
   return status === 401 && code === API_CODE.AUTH_TOKEN_EXPIRED;
 }
 
+/**
+ * 判断是否为受限密码修改场景的刷新失败错误。
+ *
+ * @param error - 待检查的错误
+ * @returns `true` if the error indicates a restricted password change refresh failure, `false` otherwise.
+ */
 function isRestrictedPasswordChangeRefreshError(error: unknown) {
   return (
     isApiRequestError(error) &&
@@ -329,4 +379,48 @@ function isRestrictedPasswordChangeRefreshError(error: unknown) {
     error.code === API_CODE.AUTH_FORBIDDEN &&
     error.messageKey === MESSAGE_KEY.AUTH_FORBIDDEN
   );
+}
+
+/**
+ * 判断当前请求发送前是否需要预先刷新访问令牌。
+ *
+ * @returns `true` 如果存在可解析的过期时间且剩余有效期不超过预刷新阈值，`false` 否则。
+ */
+function shouldRefreshBeforeRequest() {
+  const token = getAccessToken();
+  if (!token) {
+    return false;
+  }
+
+  const expiresAt = Date.parse(getAccessTokenExpiresAt());
+  if (!Number.isFinite(expiresAt)) {
+    return false;
+  }
+
+  return expiresAt - Date.now() <= TOKEN_REFRESH_LEEWAY_MS;
+}
+
+/**
+ * 刷新当前会话并同步认证状态。
+ *
+ * 该操作会复用进行中的刷新请求，并在刷新成功后更新访问令牌与过期时间。
+ *
+ * @returns 刷新后的登录响应数据
+ */
+async function refreshClientSession() {
+  if (!inflightRefreshPromise) {
+    inflightRefreshPromise = requestWithMethod<LoginResponse>('post', {
+      url: AUTH_REFRESH_URL,
+      _skipAuthRefresh: true,
+    } as RequestConfig)
+      .then(async (payload) => {
+        await syncAuthStateAfterRefresh(payload);
+        return payload;
+      })
+      .finally(() => {
+        inflightRefreshPromise = null;
+      });
+  }
+
+  return inflightRefreshPromise;
 }

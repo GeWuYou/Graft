@@ -1,0 +1,30 @@
+type: object
+required:
+  - source
+  - action_key
+  - display_name
+  - description
+  - category
+  - default_strategy
+  - effective_strategy
+  - overridden
+properties:
+  source:
+    type: string
+    enum: [REQUEST, SECURITY_EVENT, DOMAIN_EVENT]
+  action_key:
+    type: string
+  display_name:
+    type: string
+  description:
+    type: string
+  category:
+    type: string
+  default_strategy:
+    type: string
+    enum: [visible, hidden]
+  effective_strategy:
+    type: string
+    enum: [visible, hidden, ignore]
+  overridden:
+    type: boolean

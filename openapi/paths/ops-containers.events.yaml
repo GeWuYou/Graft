@@ -1,0 +1,47 @@
+get:
+  tags: [container]
+  summary: Read container runtime events
+  operationId: getContainerEvents
+  description: >
+    Returns bounded recent canonical runtime events for one container. Each record includes a manager-assigned `seq`
+    used for reconnect-safe merge and dedupe with the companion realtime topic `container.events:{id}`.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - $ref: ../components/parameters/container-id-path.yaml
+  security:
+    - bearerAuth: []
+  responses:
+    '200':
+      description: Container runtime events.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-container-runtime-events-response.yaml
+    '400':
+      description: Invalid container reference.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      $ref: ../components/responses/forbidden.yaml
+    '404':
+      description: Container was not found.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml

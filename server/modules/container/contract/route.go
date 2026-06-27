@@ -9,6 +9,8 @@ const (
 	ContainerDashboardSummaryRoute = "/dashboard-summary"
 	// ContainerDetailRoute is the detail route fragment.
 	ContainerDetailRoute = "/:id"
+	// ContainerEventsRoute is the runtime events route fragment.
+	ContainerEventsRoute = "/:id/events"
 	// ContainerLogsRoute is the log route fragment.
 	ContainerLogsRoute = "/:id/logs"
 	// ContainerShellSessionsRoute is the shell session issue route fragment.

@@ -14,6 +14,9 @@
     @reload="fetchAuditLogs"
   >
     <template #actions>
+      <t-button v-if="canManageAuditPolicy" theme="default" variant="outline" @click="openPolicyDrawer">
+        {{ t('audit.logList.policy.manage') }}
+      </t-button>
       <t-button v-if="monitorReturnLocation" theme="primary" variant="outline" @click="returnToMonitor">
         {{ t('audit.logList.actions.backToMonitor') }}
       </t-button>
@@ -97,6 +100,89 @@
         :rows="rows"
         :monitor-origin="navigationContext.monitorOrigin"
       />
+      <t-drawer v-model:visible="policyDrawerVisible" :header="t('audit.logList.policy.drawerTitle')" size="720px">
+        <div class="audit-policy-drawer">
+          <div class="audit-policy-drawer__section">
+            <label class="audit-policy-drawer__label">{{ t('audit.logList.policy.defaultStrategy') }}</label>
+            <t-select v-model="policyDefaultStrategy" :options="visibilityStrategyOptions" />
+            <t-button theme="primary" class="audit-policy-drawer__action" @click="savePolicyDefault">
+              {{ t('audit.logList.policy.saveDefault') }}
+            </t-button>
+          </div>
+          <div class="audit-policy-drawer__section">
+            <label class="audit-policy-drawer__label">{{ t('audit.logList.policy.visibilityScope') }}</label>
+            <t-select
+              v-model="visibilityScope"
+              :options="visibilityScopeOptions"
+              @change="handleVisibilityScopeChange"
+            />
+          </div>
+          <div class="audit-policy-drawer__section">
+            <div class="audit-policy-drawer__section-header">
+              <div>
+                <div class="audit-policy-drawer__label">{{ t('audit.logList.policy.overrideTitle') }}</div>
+                <p class="audit-policy-drawer__hint">
+                  {{ t('audit.logList.policy.overrideHint') }}
+                </p>
+              </div>
+            </div>
+            <div class="audit-policy-drawer__catalog">
+              <div
+                v-for="item in policyCatalog"
+                :key="`${item.source}:${item.action_key}`"
+                class="audit-policy-drawer__catalog-item"
+              >
+                <div class="audit-policy-drawer__catalog-meta">
+                  <div class="audit-policy-drawer__catalog-title">
+                    <span>{{ resolvePolicyCatalogDisplayName(item) }}</span>
+                    <t-tag v-if="item.overridden" theme="warning" variant="light-outline" size="small">
+                      {{ t('audit.logList.policy.overriddenTag') }}
+                    </t-tag>
+                  </div>
+                  <div class="audit-policy-drawer__catalog-key">{{ item.source }} / {{ item.action_key }}</div>
+                  <p class="audit-policy-drawer__catalog-description">
+                    {{ resolvePolicyCatalogDescription(item) }}
+                  </p>
+                  <div class="audit-policy-drawer__catalog-state">
+                    <span>{{
+                      t('audit.logList.policy.defaultState', { value: visibilityStrategyLabel(item.default_strategy) })
+                    }}</span>
+                    <span>{{
+                      t('audit.logList.policy.effectiveState', {
+                        value: visibilityStrategyLabel(item.effective_strategy),
+                      })
+                    }}</span>
+                  </div>
+                </div>
+                <div class="audit-policy-drawer__catalog-actions">
+                  <t-select
+                    :model-value="overrideDrafts[item.source]?.[item.action_key] ?? item.effective_strategy"
+                    :options="overrideStrategyOptions"
+                    @update:model-value="handleOverrideDraftChange(item.source, item.action_key, $event)"
+                  />
+                  <div class="audit-policy-drawer__catalog-buttons">
+                    <t-button
+                      theme="primary"
+                      variant="outline"
+                      @click="savePolicyOverride(item.source, item.action_key)"
+                    >
+                      {{ t('audit.logList.policy.saveOverride') }}
+                    </t-button>
+                    <t-button
+                      theme="default"
+                      variant="text"
+                      :disabled="!item.overridden"
+                      @click="resetPolicyOverride(item.source, item.action_key)"
+                    >
+                      {{ t('audit.logList.policy.resetOverride') }}
+                    </t-button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </t-drawer>
     </template>
   </advanced-query-list-page>
 </template>
@@ -124,9 +210,17 @@ import {
   normalizeSorters,
   openLogDetailRow,
 } from '@/shared/observability';
+import { getPermissionStore } from '@/store/modules/permission';
 import { createLogger } from '@/utils/logger';
 
-import { getAuditLogDetail, getAuditLogs } from '../../api/audit';
+import {
+  deleteAuditVisibilityOverride,
+  getAuditLogDetail,
+  getAuditLogs,
+  getAuditVisibilityPolicy,
+  updateAuditVisibilityDefault,
+  upsertAuditVisibilityOverride,
+} from '../../api/audit';
 import AuditDetailDrawer from '../../components/AuditDetailDrawer.vue';
 import AuditFilters from '../../components/AuditFilters.vue';
 import AuditTable from '../../components/AuditTable.vue';
@@ -138,6 +232,7 @@ import {
   resolveAuditNavigationContext,
   withMonitorOrigin,
 } from '../../contract/navigation';
+import { AUDIT_PERMISSION_CODE } from '../../contract/permissions';
 import {
   AUDIT_BUSINESS_CATEGORY,
   AUDIT_DRILLDOWN_SCOPE,
@@ -150,11 +245,16 @@ import type { AuditClientFilterState } from '../../shared/presentation';
 import type {
   AppliedDrilldownScope,
   AuditDrilldownScope,
+  AuditEventCatalogItem,
   AuditLogConvertibleFilters,
   AuditLogListItem,
   AuditLogQuery,
   AuditResult,
   AuditSortBy,
+  AuditSource,
+  AuditVisibilityOverrideResponse,
+  AuditVisibilityScope,
+  AuditVisibilityStrategy,
   DrilldownScopeProjection,
 } from '../../types/audit';
 
@@ -209,6 +309,12 @@ const filters = ref<AuditClientFilterState>({
 });
 const routePreset = ref<AuditTimePreset | ''>('');
 const routeScope = ref<AuditDrilldownScope | ''>('');
+const visibilityScope = ref<AuditVisibilityScope>('default');
+const policyDrawerVisible = ref(false);
+const policyDefaultStrategy = ref<'visible' | 'hidden'>('visible');
+const policyCatalog = ref<AuditEventCatalogItem[]>([]);
+const policyOverrides = ref<AuditVisibilityOverrideResponse[]>([]);
+const overrideDrafts = ref<Record<string, Record<string, AuditVisibilityStrategy>>>({});
 const appliedScope = ref<AppliedDrilldownScope | null>(null);
 const scopeProjection = ref<DrilldownScopeProjection | null>(null);
 const convertibleFilters = ref<AuditLogConvertibleFilters | null>(null);
@@ -277,6 +383,21 @@ const columnViewPresets = computed(() => [
 ]);
 
 const hasClientOnlyFilters = computed(() => false);
+const canManageAuditPolicy = computed(() => getPermissionStore().hasPermission(AUDIT_PERMISSION_CODE.MANAGE));
+const visibilityScopeOptions = computed(() => [
+  { label: t('audit.logList.policy.scope.default'), value: 'default' },
+  { label: t('audit.logList.policy.scope.all'), value: 'all' },
+  { label: t('audit.logList.policy.scope.hiddenOnly'), value: 'hidden_only' },
+]);
+const visibilityStrategyOptions = computed(() => [
+  { label: t('audit.logList.policy.strategy.visible'), value: 'visible' },
+  { label: t('audit.logList.policy.strategy.hidden'), value: 'hidden' },
+]);
+const overrideStrategyOptions = computed(() => [
+  { label: t('audit.logList.policy.strategy.visible'), value: 'visible' },
+  { label: t('audit.logList.policy.strategy.hidden'), value: 'hidden' },
+  { label: t('audit.logList.policy.strategy.ignore'), value: 'ignore' },
+]);
 
 const displayRows = computed(() => rows.value);
 const tableTotal = computed(() => total.value);
@@ -330,6 +451,7 @@ function buildQuery(): AuditLogQuery {
   if (routeScope.value) {
     query.scope = routeScope.value;
   }
+  query.visibility_scope = visibilityScope.value;
   if (filters.value.keyword) {
     query.keyword = filters.value.keyword;
   }
@@ -445,6 +567,155 @@ async function fetchAuditLogs() {
   }
 }
 
+async function openPolicyDrawer() {
+  if (!canManageAuditPolicy.value) {
+    return;
+  }
+
+  try {
+    await loadPolicySnapshot();
+    policyDrawerVisible.value = true;
+  } catch (error) {
+    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('audit.logList.loadFailed')));
+  }
+}
+
+async function savePolicyDefault() {
+  try {
+    await updateAuditVisibilityDefault({ strategy: policyDefaultStrategy.value });
+    await loadPolicySnapshot();
+    MessagePlugin.success(t('audit.logList.policy.saveSuccess'));
+    await fetchAuditLogs();
+  } catch (error) {
+    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('audit.logList.policy.saveFailed')));
+  }
+}
+
+async function loadPolicySnapshot() {
+  const response = await getAuditVisibilityPolicy();
+  policyDefaultStrategy.value = response.default.strategy;
+  policyCatalog.value = response.catalog;
+  policyOverrides.value = response.overrides;
+  overrideDrafts.value = buildOverrideDrafts(response.catalog, response.overrides);
+}
+
+function buildOverrideDrafts(
+  catalog: AuditEventCatalogItem[],
+  overrides: AuditVisibilityOverrideResponse[],
+): Record<string, Record<string, AuditVisibilityStrategy>> {
+  const drafts: Record<string, Record<string, AuditVisibilityStrategy>> = {};
+  const overrideIndex = new Map(overrides.map((item) => [`${item.source}:${item.action_key}`, item.strategy]));
+
+  catalog.forEach((item) => {
+    const sourceDrafts = (drafts[item.source] ??= {});
+    sourceDrafts[item.action_key] = overrideIndex.get(`${item.source}:${item.action_key}`) ?? item.effective_strategy;
+  });
+
+  return drafts;
+}
+
+function normalizePolicyCatalogKeyFragment(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+}
+
+function buildPolicyCatalogLocaleKey(item: AuditEventCatalogItem, field: 'displayName' | 'description') {
+  const source = normalizePolicyCatalogKeyFragment(item.source);
+  const actionKey = normalizePolicyCatalogKeyFragment(item.action_key);
+  if (!source || !actionKey) {
+    return '';
+  }
+  return `audit.logList.policy.catalog.${source}.${actionKey}.${field}`;
+}
+
+function resolvePolicyCatalogDisplayName(item: AuditEventCatalogItem) {
+  const localeKey = buildPolicyCatalogLocaleKey(item, 'displayName');
+  if (localeKey) {
+    const localized = t(localeKey);
+    if (localized !== localeKey) {
+      return localized;
+    }
+  }
+  return item.display_name || item.action_key;
+}
+
+function resolvePolicyCatalogDescription(item: AuditEventCatalogItem) {
+  const localeKey = buildPolicyCatalogLocaleKey(item, 'description');
+  if (localeKey) {
+    const localized = t(localeKey);
+    if (localized !== localeKey) {
+      return localized;
+    }
+  }
+  return item.description || t('audit.logList.policy.descriptionFallback');
+}
+
+function handleOverrideDraftChange(source: string, actionKey: string, value: string | number | undefined) {
+  const next = normalizeOverrideStrategy(value);
+  if (!next) {
+    return;
+  }
+  overrideDrafts.value = {
+    ...overrideDrafts.value,
+    [source]: {
+      ...(overrideDrafts.value[source] ?? {}),
+      [actionKey]: next,
+    },
+  };
+}
+
+function normalizeOverrideStrategy(value: string | number | undefined): AuditVisibilityStrategy | '' {
+  if (value === 'visible' || value === 'hidden' || value === 'ignore') {
+    return value;
+  }
+  return '';
+}
+
+async function savePolicyOverride(source: AuditSource, actionKey: string) {
+  const strategy = overrideDrafts.value[source]?.[actionKey];
+  const catalogItem = policyCatalog.value.find((item) => item.source === source && item.action_key === actionKey);
+  if (!strategy || !catalogItem) {
+    return;
+  }
+
+  try {
+    await upsertAuditVisibilityOverride({
+      source,
+      action_key: actionKey,
+      strategy,
+      description: catalogItem.description,
+    });
+    await loadPolicySnapshot();
+    MessagePlugin.success(t('audit.logList.policy.saveOverrideSuccess'));
+    await fetchAuditLogs();
+  } catch (error) {
+    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('audit.logList.policy.saveOverrideFailed')));
+  }
+}
+
+async function resetPolicyOverride(source: AuditSource, actionKey: string) {
+  try {
+    await deleteAuditVisibilityOverride(source, actionKey);
+    await loadPolicySnapshot();
+    MessagePlugin.success(t('audit.logList.policy.resetOverrideSuccess'));
+    await fetchAuditLogs();
+  } catch (error) {
+    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('audit.logList.policy.resetOverrideFailed')));
+  }
+}
+
+function visibilityStrategyLabel(strategy: AuditVisibilityStrategy) {
+  return t(`audit.logList.policy.strategy.${strategy}`);
+}
+
+function handleVisibilityScopeChange() {
+  pagination.value.current = 1;
+  updateRouteQuery();
+}
+
 function applyPreset(preset: AuditQuickPresetKey) {
   filters.value = createDefaultFilters();
   routePreset.value = resolvePresetTimeWindow(preset);
@@ -513,10 +784,11 @@ function createDefaultFilters(): AuditClientFilterState {
 }
 
 async function openRouteAuditLog() {
-  const auditLogId = Number(routeAuditLogId.value);
-  if (!Number.isFinite(auditLogId)) {
+  const rawAuditLogID = String(routeAuditLogId.value ?? '').trim();
+  if (!/^[1-9]\d*$/.test(rawAuditLogID)) {
     return;
   }
+  const auditLogId = Number(rawAuditLogID);
 
   const row = rows.value.find((item) => item.id === auditLogId);
   if (row) {
@@ -570,6 +842,7 @@ function applyRouteFilters() {
   const query = parseAuditLogsRouteQuery(route.query);
   routePreset.value = normalizePreset(query.preset);
   routeScope.value = normalizeScope(query.scope);
+  visibilityScope.value = normalizeVisibilityScope(query.visibility_scope);
   const nextFilters: AuditClientFilterState = {
     ...createDefaultFilters(),
     keyword: query.keyword ?? '',
@@ -614,6 +887,7 @@ function buildRouteQuery() {
     audit_log_id: routeAuditLogId.value,
     preset: routePreset.value,
     scope: routeScope.value,
+    visibility_scope: visibilityScope.value,
     keyword: filters.value.keyword,
     actor: filters.value.actor,
     success: filters.value.success === 'all' ? '' : filters.value.success,
@@ -777,6 +1051,16 @@ function normalizeBusinessCategory(value?: string): AuditClientFilterState['busi
       return value;
     default:
       return '';
+  }
+}
+
+function normalizeVisibilityScope(value?: string): AuditVisibilityScope {
+  switch (value) {
+    case 'all':
+    case 'hidden_only':
+      return value;
+    default:
+      return 'default';
   }
 }
 
@@ -1067,6 +1351,108 @@ function resolveNonRedundantScopeValue(localizedValue: string, key: string) {
   justify-content: flex-end;
 }
 
+.audit-policy-drawer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--graft-density-gap-16);
+}
+
+.audit-policy-drawer__section {
+  background: var(--td-bg-color-container);
+  border: 1px solid var(--td-component-stroke);
+  border-radius: var(--td-radius-medium);
+  display: flex;
+  flex-direction: column;
+  gap: var(--graft-density-gap-12);
+  padding: var(--graft-density-gap-12);
+}
+
+.audit-policy-drawer__section-header {
+  align-items: flex-start;
+  display: flex;
+  justify-content: space-between;
+}
+
+.audit-policy-drawer__label {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-title-small);
+}
+
+.audit-policy-drawer__hint {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+  margin: var(--graft-density-gap-4) 0 0;
+}
+
+.audit-policy-drawer__action {
+  align-self: flex-start;
+}
+
+.audit-policy-drawer__catalog {
+  display: flex;
+  flex-direction: column;
+  gap: var(--graft-density-gap-12);
+}
+
+.audit-policy-drawer__catalog-item {
+  align-items: flex-start;
+  border: 1px solid var(--td-component-stroke);
+  border-radius: var(--td-radius-default);
+  display: flex;
+  gap: var(--graft-density-gap-16);
+  justify-content: space-between;
+  padding: var(--graft-density-gap-12);
+}
+
+.audit-policy-drawer__catalog-meta {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--graft-density-gap-6);
+  min-width: 0;
+}
+
+.audit-policy-drawer__catalog-title {
+  align-items: center;
+  color: var(--td-text-color-primary);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--graft-density-gap-8);
+  overflow-wrap: anywhere;
+}
+
+.audit-policy-drawer__catalog-key {
+  color: var(--td-text-color-placeholder);
+  font: var(--td-font-body-small);
+  word-break: break-all;
+}
+
+.audit-policy-drawer__catalog-description,
+.audit-policy-drawer__catalog-state {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+  margin: 0;
+}
+
+.audit-policy-drawer__catalog-state {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--graft-density-gap-12);
+}
+
+.audit-policy-drawer__catalog-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--graft-density-gap-8);
+  min-width: 220px;
+}
+
+.audit-policy-drawer__catalog-buttons {
+  display: flex;
+  gap: var(--graft-density-gap-8);
+  justify-content: flex-end;
+}
+
 @media (width <= 768px) {
   .audit-scope-banner {
     flex-direction: column;
@@ -1074,6 +1460,19 @@ function resolveNonRedundantScopeValue(localizedValue: string, key: string) {
 
   .audit-scope-banner__actions {
     width: 100%;
+  }
+
+  .audit-policy-drawer__catalog-item {
+    flex-direction: column;
+  }
+
+  .audit-policy-drawer__catalog-actions {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .audit-policy-drawer__catalog-buttons {
+    justify-content: flex-start;
   }
 }
 </style>

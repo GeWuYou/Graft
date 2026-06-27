@@ -1,0 +1,87 @@
+put:
+  tags: [audit]
+  summary: Upsert audit visibility override
+  operationId: putAuditVisibilityOverride
+  description: Upserts one audit-owned source plus action visibility override.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../components/schemas/audit-visibility-override-upsert-request.yaml
+  security:
+    - bearerAuth: []
+  responses:
+    '200':
+      description: Updated audit visibility override.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-audit-visibility-override-response.yaml
+    '400':
+      description: Invalid override payload.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      $ref: ../components/responses/forbidden.yaml
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml
+delete:
+  tags: [audit]
+  summary: Delete audit visibility override
+  operationId: deleteAuditVisibilityOverride
+  description: Deletes one audit-owned source plus action visibility override.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - name: source
+      in: query
+      required: true
+      schema:
+        type: string
+        enum: [REQUEST, SECURITY_EVENT, DOMAIN_EVENT]
+    - name: action_key
+      in: query
+      required: true
+      schema:
+        type: string
+  security:
+    - bearerAuth: []
+  responses:
+    '200':
+      description: Audit visibility override deleted.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-empty-response.yaml
+    '400':
+      description: Invalid delete query.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      $ref: ../components/responses/forbidden.yaml
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml

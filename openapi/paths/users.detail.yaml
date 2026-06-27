@@ -42,6 +42,7 @@ get:
                   username: alice
                   display: Alice
                   status: enabled
+                  protected_default_admin: false
                   roles:
                     - id: 1
                       name: admin

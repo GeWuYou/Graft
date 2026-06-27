@@ -22,6 +22,12 @@
       "deleteSuccess": "User deleted",
       "deleteFailed": "Failed to delete user",
       "assignRoles": "Manage Roles",
+      "viewRoles": "View Roles",
+      "protectedDefaultAdmin": {
+        "badge": "Builtin Admin",
+        "actionDisabled": "This action is not allowed for the builtin default administrator",
+        "usernameImmutable": "The builtin default administrator username is protected and cannot be edited here."
+      },
       "columnSettings": "Columns",
       "emptyDescription": "No data matches the current filters. Clear filters or create a new record.",
       "loadFailed": "Failed to load users",
@@ -100,7 +106,17 @@
         "delete": "Delete User"
       },
       "statusConfirmDescription": "Confirm {action} for {user}?",
+      "statusDialog": {
+        "title": "Confirm Status Change",
+        "cancel": "Cancel",
+        "confirm": "Confirm"
+      },
       "deleteConfirmDescription": "Delete user {user}? This also revokes the user's sessions.",
+      "deleteDialog": {
+        "title": "Confirm Delete User",
+        "cancel": "Cancel",
+        "confirm": "Delete"
+      },
       "resetPasswordDialog": {
         "title": "Reset User Password",
         "description": "Set a new password for {user}. After saving, the user must log in again and complete password change.",
@@ -112,8 +128,10 @@
       },
       "roleDialog": {
         "title": "Manage User Roles",
+        "readonlyTitle": "View User Roles",
         "batchTitle": "Manage Selected User Roles",
         "headerEyebrow": "User roles",
+        "readonlyHeaderEyebrow": "Role View",
         "saveStrategyLabel": "Save Strategy",
         "searchPlaceholder": "Search role name, role code, or role description",
         "assignedBadge": "Assigned",
@@ -121,6 +139,10 @@
         "batchSummary": "{count} selected users",
         "batchDescription": "Apply role changes to the selected users together.",
         "singleDescription": "Review and update the roles assigned to this user.",
+        "readonlyDescription": "Review the roles currently assigned to this user.",
+        "readonlyHelp": "Builtin default admin roles are protected. This drawer is view-only from user management.",
+        "readonlyProtectionTitle": "Builtin Default Admin Roles Are Protected",
+        "readonlyProtectionBody": "Use this drawer to inspect current assignments. Role changes for this account cannot be submitted from user management.",
         "inlineHint": "{assigned} roles are currently assigned. Adjust them in the candidate list below; {total} roles are available.",
         "selectionCount": "{selected} / {total} roles selected",
         "modeSummary": "Mode: {mode}",
@@ -138,7 +160,10 @@
         "empty": "No roles available",
         "roleLoadFailed": "Failed to load available roles",
         "selectionLoadFailed": "Failed to load the current role assignments. Retry before saving.",
+        "unsavedChangesTitle": "Discard Unsaved Role Changes",
         "unsavedChangesConfirm": "Role assignment changes have not been saved. Discard them?",
+        "continueEditing": "Continue Editing",
+        "discardChanges": "Discard Changes",
         "batchOperationHint": {
           "replace": "Replace overwrites each selected user's roles with the checked roles.",
           "replaceEmpty": "No roles selected. Saving replace will clear all roles for the selected users.",
@@ -157,6 +182,8 @@
         },
         "retry": "Retry",
         "cancel": "Cancel",
+        "close": "Close",
+        "readonlyFooterDetail": "This drawer is in read-only mode. Role changes cannot be saved here.",
         "confirm": "Save Assignment"
       },
       "detailTitle": "User Details",

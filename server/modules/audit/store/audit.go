@@ -13,6 +13,8 @@ var (
 	ErrAuditLogNotFound = errors.New("audit log not found")
 	// ErrIncidentNotFound indicates that the requested audit-owned incident seed does not exist.
 	ErrIncidentNotFound = errors.New("audit incident not found")
+	// ErrAuditValidation indicates audit-owned invalid input at the service boundary.
+	ErrAuditValidation = errors.New("audit validation failed")
 )
 
 // AuditSource identifies where one audit candidate originated.
@@ -35,6 +37,30 @@ const (
 	AuditPolicyEffectInclude AuditPolicyEffect = "include"
 	// AuditPolicyEffectExclude drops a candidate before audit persistence.
 	AuditPolicyEffectExclude AuditPolicyEffect = "exclude"
+)
+
+// AuditVisibilityStrategy describes how one audit event should be persisted and exposed.
+type AuditVisibilityStrategy string
+
+const (
+	// AuditVisibilityStrategyVisible persists the event and includes it in default read surfaces.
+	AuditVisibilityStrategyVisible AuditVisibilityStrategy = "visible"
+	// AuditVisibilityStrategyHidden persists the event but excludes it from default read surfaces.
+	AuditVisibilityStrategyHidden AuditVisibilityStrategy = "hidden"
+	// AuditVisibilityStrategyIgnore drops the event before persistence.
+	AuditVisibilityStrategyIgnore AuditVisibilityStrategy = "ignore"
+)
+
+// AuditVisibilityScope describes which visibility slice a list query wants to read.
+type AuditVisibilityScope string
+
+const (
+	// AuditVisibilityScopeDefault returns only default-visible audit records.
+	AuditVisibilityScopeDefault AuditVisibilityScope = "default"
+	// AuditVisibilityScopeAll returns both visible and hidden records.
+	AuditVisibilityScopeAll AuditVisibilityScope = "all"
+	// AuditVisibilityScopeHiddenOnly returns only hidden records.
+	AuditVisibilityScopeHiddenOnly AuditVisibilityScope = "hidden_only"
 )
 
 // AuditPolicyMatchType describes the route/event match mode supported in MVP.
@@ -99,6 +125,7 @@ const (
 type AuditLog struct {
 	ID               uint64
 	Source           AuditSource
+	Visibility       AuditVisibilityStrategy
 	ActorUserID      *uint64
 	ActorUsername    string
 	ActorDisplayName string
@@ -140,6 +167,7 @@ type CreateAuditLogInput struct {
 	ActorUsername    string
 	ActorDisplayName string
 	Action           string
+	Visibility       AuditVisibilityStrategy
 	ResourceType     string
 	ResourceID       string
 	ResourceName     string
@@ -155,6 +183,7 @@ type CreateAuditLogInput struct {
 // AuditCandidate is the normalized input evaluated before one audit record is written.
 type AuditCandidate struct {
 	Source           AuditSource
+	Visibility       AuditVisibilityStrategy
 	ActorUserID      *uint64
 	ActorUsername    string
 	ActorDisplayName string
@@ -205,6 +234,64 @@ type AuditPolicyDecision struct {
 	Rule    *AuditPolicyRule
 }
 
+// AuditVisibilityDefault stores the module-owned global default strategy for audit events.
+type AuditVisibilityDefault struct {
+	Key           string
+	Strategy      AuditVisibilityStrategy
+	UpdatedAt     time.Time
+	UpdatedBy     *uint64
+	UpdatedByName string
+}
+
+// AuditVisibilityActor records the operator metadata attached to a visibility policy write.
+type AuditVisibilityActor struct {
+	UserID   *uint64
+	Username string
+}
+
+// AuditVisibilityOverride stores one source+action visibility override owned by the audit module.
+type AuditVisibilityOverride struct {
+	ID            uint64
+	Source        AuditSource
+	ActionKey     string
+	Strategy      AuditVisibilityStrategy
+	Description   string
+	CreatedAt     time.Time
+	CreatedBy     *uint64
+	CreatedByName string
+	UpdatedAt     time.Time
+	UpdatedBy     *uint64
+	UpdatedByName string
+}
+
+// UpsertAuditVisibilityOverrideInput describes one audit-owned source+action visibility override mutation.
+type UpsertAuditVisibilityOverrideInput struct {
+	Source      AuditSource
+	ActionKey   string
+	Strategy    AuditVisibilityStrategy
+	Description string
+	Actor       AuditVisibilityActor
+}
+
+// AuditEventCatalogItem describes one selectable event/action in the audit strategy editor.
+type AuditEventCatalogItem struct {
+	Source            AuditSource
+	ActionKey         string
+	DisplayName       string
+	Description       string
+	Category          string
+	DefaultStrategy   AuditVisibilityStrategy
+	EffectiveStrategy AuditVisibilityStrategy
+	Overridden        bool
+}
+
+// AuditVisibilityPolicySnapshot is the audit-owned read model for strategy management.
+type AuditVisibilityPolicySnapshot struct {
+	Default   AuditVisibilityDefault
+	Overrides []AuditVisibilityOverride
+	Catalog   []AuditEventCatalogItem
+}
+
 // ListAuditLogsQuery describes the audit module's stable repository-side query contract.
 type ListAuditLogsQuery struct {
 	ActorUserID         *uint64
@@ -225,6 +312,7 @@ type ListAuditLogsQuery struct {
 	Success             *bool
 	SessionID           string
 	RequestID           string
+	VisibilityScope     AuditVisibilityScope
 	Result              AuditResult
 	Results             []AuditResult
 	RiskLevel           AuditRiskLevel
@@ -451,6 +539,25 @@ type AuditRepository interface {
 	ReadAuditLog(ctx context.Context, id uint64) (AuditLog, error)
 	ReadAuditOverview(ctx context.Context, preset AuditTimePreset) (AuditOverview, error)
 	ReadIncident(ctx context.Context, eventID uint64) (AuditIncident, error)
+	// ListAuditPolicyRules returns all audit policy rules in runtime evaluation order.
 	ListAuditPolicyRules(ctx context.Context) ([]AuditPolicyRule, error)
+	// GetAuditVisibilityDefault returns the named default audit visibility strategy.
+	GetAuditVisibilityDefault(ctx context.Context, key string) (AuditVisibilityDefault, error)
+	// UpsertAuditVisibilityDefault creates or updates one named default audit visibility strategy.
+	UpsertAuditVisibilityDefault(
+		ctx context.Context,
+		key string,
+		strategy AuditVisibilityStrategy,
+		userID *uint64,
+		username string,
+	) (AuditVisibilityDefault, error)
+	// ListAuditVisibilityOverrides returns all source+action visibility overrides.
+	ListAuditVisibilityOverrides(ctx context.Context) ([]AuditVisibilityOverride, error)
+	// FindAuditVisibilityOverride returns one exact source+action override when it exists.
+	FindAuditVisibilityOverride(ctx context.Context, source AuditSource, actionKey string) (AuditVisibilityOverride, bool, error)
+	// UpsertAuditVisibilityOverride creates or updates one source+action visibility override.
+	UpsertAuditVisibilityOverride(ctx context.Context, input UpsertAuditVisibilityOverrideInput) (AuditVisibilityOverride, error)
+	// DeleteAuditVisibilityOverride removes one source+action visibility override.
+	DeleteAuditVisibilityOverride(ctx context.Context, source AuditSource, actionKey string) error
 	DeleteAuditLogsBefore(ctx context.Context, createdBefore time.Time) (int64, error)
 }

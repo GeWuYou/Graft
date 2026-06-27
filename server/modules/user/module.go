@@ -38,6 +38,7 @@ var (
 	errCannotDeleteOwnUser  = errors.New("cannot delete own user")
 	errInvalidUserStatus    = errors.New("invalid user status")
 	errInvalidUserPayload   = errors.New("invalid user payload")
+	errProtectedDefaultAdminImmutable = errors.New("protected default admin is immutable for this operation")
 )
 
 // NewModule 创建示例用户模块。
@@ -199,9 +200,10 @@ func (s userService) GetUserByID(ctx context.Context, id uint64) (moduleapi.User
 	}
 
 	return moduleapi.UserSummary{
-		ID:       record.ID,
-		Username: record.Username,
-		Display:  record.Display,
+		ID:                    record.ID,
+		Username:              record.Username,
+		Display:               record.Display,
+		ProtectedDefaultAdmin: record.ProtectedDefaultAdmin,
 	}, nil
 }
 
@@ -306,10 +308,17 @@ func (s userService) UpdateUser(ctx context.Context, command UpdateUserCommand) 
 	if s.users == nil {
 		return userstore.User{}, errors.New("user repository is unavailable")
 	}
+	current, err := s.users.GetByID(ctx, command.ID)
+	if err != nil {
+		return userstore.User{}, err
+	}
 	username := strings.TrimSpace(command.Username)
 	display := strings.TrimSpace(command.Display)
 	if username == "" || display == "" {
 		return userstore.User{}, errInvalidUserPayload
+	}
+	if current.ProtectedDefaultAdmin && username != current.Username {
+		return userstore.User{}, errProtectedDefaultAdminImmutable
 	}
 
 	updated, err := s.users.Update(ctx, userstore.UpdateUserInput{
@@ -352,12 +361,9 @@ func (s userService) SetUserStatus(
 		return userstore.User{}, errors.New("auth repository is unavailable")
 	}
 
-	status := normalizeExplicitManagedUserStatus(command.Status)
-	if status == "" {
-		return userstore.User{}, errInvalidUserStatus
-	}
-	if status == usercontract.UserStatusDisabled && requestActorOwnsUser(ctx, command.ID) {
-		return userstore.User{}, errCannotDisableOwnUser
+	status, err := s.validateSetUserStatusPreconditions(ctx, command)
+	if err != nil {
+		return userstore.User{}, err
 	}
 
 	input := userstore.SetUserStatusInput{
@@ -396,6 +402,29 @@ func (s userService) SetUserStatus(
 	return updated, nil
 }
 
+func (s userService) validateSetUserStatusPreconditions(
+	ctx context.Context,
+	command UpdateUserStatusCommand,
+) (string, error) {
+	status := normalizeExplicitManagedUserStatus(command.Status)
+	if status == "" {
+		return "", errInvalidUserStatus
+	}
+	if status == usercontract.UserStatusDisabled && requestActorOwnsUser(ctx, command.ID) {
+		return "", errCannotDisableOwnUser
+	}
+
+	current, err := s.users.GetByID(ctx, command.ID)
+	if err != nil {
+		return "", err
+	}
+	if current.ProtectedDefaultAdmin && status != current.Status {
+		return "", errProtectedDefaultAdminImmutable
+	}
+
+	return status, nil
+}
+
 func (s userService) DeleteUser(ctx context.Context, authRepo userstore.AuthRepository, userID uint64) error {
 	if s.users == nil {
 		return errors.New("user repository is unavailable")
@@ -405,6 +434,13 @@ func (s userService) DeleteUser(ctx context.Context, authRepo userstore.AuthRepo
 	}
 	if requestActorOwnsUser(ctx, userID) {
 		return errCannotDeleteOwnUser
+	}
+	current, err := s.users.GetByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+	if current.ProtectedDefaultAdmin {
+		return errProtectedDefaultAdminImmutable
 	}
 
 	if err := s.users.Delete(ctx, userstore.DeleteUserInput{

@@ -71,6 +71,9 @@ const (
 	// UserNotFound identifies missing-user failures surfaced by auth-adjacent flows.
 	UserNotFound Key = "user.not_found"
 
+	// UserProtectedDefaultAdminImmutable identifies protected default-admin mutations blocked by server authority.
+	UserProtectedDefaultAdminImmutable Key = "user.protected_default_admin_immutable"
+
 	// RoleNotFound identifies missing-role failures surfaced by RBAC management flows.
 	RoleNotFound Key = "role.not_found"
 

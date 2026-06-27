@@ -151,6 +151,13 @@ type StatsCollectorRuntime interface {
 	CollectStatsSnapshots(ctx context.Context) ([]StatsSnapshot, error)
 }
 
+// RuntimeEventSource exposes one continuous runtime event stream for runtimes
+// that support canonical container event publication.
+type RuntimeEventSource interface {
+	Runtime
+	StreamRuntimeEvents(ctx context.Context, emit func(RuntimeEventCandidate) error) error
+}
+
 // StatsSnapshot is one collector-produced resource snapshot ready for publish.
 type StatsSnapshot struct {
 	ContainerID  string

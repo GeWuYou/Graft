@@ -50,12 +50,13 @@ func (r *userRepository) GetByID(ctx context.Context, id uint64) (userstore.User
 	}
 
 	return userstore.User{
-		ID:        toStoreID(record.ID),
-		Username:  record.Username,
-		Display:   record.Display,
-		Status:    normalizeStoredUserStatus(record.Status),
-		CreatedAt: record.CreatedAt,
-		UpdatedAt: record.UpdatedAt,
+		ID:                    toStoreID(record.ID),
+		Username:              record.Username,
+		Display:               record.Display,
+		Status:                normalizeStoredUserStatus(record.Status),
+		ProtectedDefaultAdmin: isProtectedDefaultAdminUsername(record.Username),
+		CreatedAt:             record.CreatedAt,
+		UpdatedAt:             record.UpdatedAt,
 	}, nil
 }
 
@@ -71,12 +72,13 @@ func (r *userRepository) List(ctx context.Context) ([]userstore.User, error) {
 	users := make([]userstore.User, 0, len(records))
 	for _, record := range records {
 		users = append(users, userstore.User{
-			ID:        toStoreID(record.ID),
-			Username:  record.Username,
-			Display:   record.Display,
-			Status:    normalizeStoredUserStatus(record.Status),
-			CreatedAt: record.CreatedAt,
-			UpdatedAt: record.UpdatedAt,
+			ID:                    toStoreID(record.ID),
+			Username:              record.Username,
+			Display:               record.Display,
+			Status:                normalizeStoredUserStatus(record.Status),
+			ProtectedDefaultAdmin: isProtectedDefaultAdminUsername(record.Username),
+			CreatedAt:             record.CreatedAt,
+			UpdatedAt:             record.UpdatedAt,
 		})
 	}
 
@@ -211,13 +213,21 @@ func normalizeStoredUserStatus(status string) string {
 	}
 }
 
+// 结果包含用户 ID、用户名、显示名、状态、受保护的默认管理员标记以及创建和更新时间。
 func toStoreUser(record *ent.User) userstore.User {
 	return userstore.User{
-		ID:        toStoreID(record.ID),
-		Username:  record.Username,
-		Display:   record.Display,
-		Status:    normalizeStoredUserStatus(record.Status),
-		CreatedAt: record.CreatedAt,
-		UpdatedAt: record.UpdatedAt,
+		ID:                    toStoreID(record.ID),
+		Username:              record.Username,
+		Display:               record.Display,
+		Status:                normalizeStoredUserStatus(record.Status),
+		ProtectedDefaultAdmin: isProtectedDefaultAdminUsername(record.Username),
+		CreatedAt:             record.CreatedAt,
+		UpdatedAt:             record.UpdatedAt,
 	}
+}
+
+// isProtectedDefaultAdminUsername 判断用户名是否属于受保护的默认管理员账号。
+// @return true 如果用户名属于受保护的默认管理员账号，false 否则。
+func isProtectedDefaultAdminUsername(username string) bool {
+	return userstore.IsProtectedDefaultAdminUsername(username)
 }

@@ -3,6 +3,7 @@ import { request } from '@/utils/request';
 
 import {
   buildContainerDetailApiPath,
+  buildContainerEventsApiPath,
   buildContainerLogsApiPath,
   buildContainerMountUsageApiPath,
   buildContainerMountUsageRefreshApiPath,
@@ -26,6 +27,8 @@ import type {
   ContainerMountUsagePathParams,
   ContainerMountUsageRefreshPathParams,
   ContainerRemoveRequest,
+  ContainerRuntimeEventsPathParams,
+  ContainerRuntimeEventsResponse,
   ContainerShellSessionRequest,
   ContainerShellSessionResponse,
 } from '../types/container';
@@ -46,6 +49,11 @@ type GetContainerLogsOperation = paths[ContainerLogsPath]['get'];
 type GetContainerLogsEnvelope = GetContainerLogsOperation['responses'][200]['content']['application/json'];
 type GetContainerLogsData = NonNullable<GetContainerLogsEnvelope['data']>;
 type GetContainerLogsPathParams = GetContainerLogsOperation['parameters']['path'];
+
+type ContainerEventsPath = (typeof CONTAINER_API_PATH)['EVENTS'];
+type GetContainerEventsOperation = paths[ContainerEventsPath]['get'];
+type GetContainerEventsEnvelope = GetContainerEventsOperation['responses'][200]['content']['application/json'];
+type GetContainerEventsData = NonNullable<GetContainerEventsEnvelope['data']>;
 
 type ContainerMountUsagePath = (typeof CONTAINER_API_PATH)['MOUNTS_USAGE'];
 type GetContainerMountUsageOperation = paths[ContainerMountUsagePath]['get'];
@@ -132,17 +140,29 @@ export function getContainer(containerId: GetContainerPathParams['id']) {
 }
 
 /**
- * Retrieves logs for a container.
+ * 获取容器日志。
  *
- * @param containerId - The ID of the container
- * @param query - Query parameters to filter or paginate the logs
- * @returns The container's log response data
+ * @param containerId - 容器 ID
+ * @param query - 用于筛选、分页或限制日志范围的查询条件
+ * @returns 容器日志响应数据
  */
 export function getContainerLogs(containerId: GetContainerLogsPathParams['id'], query: ContainerLogQuery) {
   return request.get<GetContainerLogsData>({
     url: buildContainerLogsApiPath(containerId),
     params: query,
   }) as Promise<ContainerLogResponse>;
+}
+
+/**
+ * 获取容器的运行时事件。
+ *
+ * @param containerId - 容器 ID
+ * @returns 容器运行时事件列表
+ */
+export function getContainerEvents(containerId: ContainerRuntimeEventsPathParams['id']) {
+  return request.get<GetContainerEventsData>({
+    url: buildContainerEventsApiPath(containerId),
+  }) as Promise<ContainerRuntimeEventsResponse>;
 }
 
 /**

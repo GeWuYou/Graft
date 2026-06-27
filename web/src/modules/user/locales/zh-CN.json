@@ -22,6 +22,12 @@
       "deleteSuccess": "用户删除成功",
       "deleteFailed": "用户删除失败",
       "assignRoles": "管理角色",
+      "viewRoles": "查看角色",
+      "protectedDefaultAdmin": {
+        "badge": "内置管理员",
+        "actionDisabled": "内置默认管理员不允许执行该操作",
+        "usernameImmutable": "内置默认管理员用户名受保护，不能在前端编辑中修改。"
+      },
       "columnSettings": "列设置",
       "emptyDescription": "当前筛选条件下没有数据，可清空筛选或创建新数据。",
       "loadFailed": "用户列表加载失败",
@@ -100,7 +106,17 @@
         "delete": "删除用户"
       },
       "statusConfirmDescription": "确认将 {user} {action}吗？",
+      "statusDialog": {
+        "title": "确认状态变更",
+        "cancel": "取消",
+        "confirm": "确认"
+      },
       "deleteConfirmDescription": "确认删除用户 {user} 吗？该操作会同步清退其会话。",
+      "deleteDialog": {
+        "title": "确认删除用户",
+        "cancel": "取消",
+        "confirm": "删除"
+      },
       "resetPasswordDialog": {
         "title": "重置用户密码",
         "description": "为 {user} 设置新密码，保存后该用户需要重新登录并完成改密。",
@@ -112,8 +128,10 @@
       },
       "roleDialog": {
         "title": "管理用户角色",
+        "readonlyTitle": "查看用户角色",
         "batchTitle": "管理已选用户角色",
         "headerEyebrow": "用户角色",
+        "readonlyHeaderEyebrow": "角色查看",
         "saveStrategyLabel": "保存方式",
         "searchPlaceholder": "搜索角色名称、角色编码、角色描述",
         "assignedBadge": "已分配",
@@ -121,6 +139,10 @@
         "batchSummary": "已选择 {count} 位用户",
         "batchDescription": "将角色变更统一应用到已选用户。",
         "singleDescription": "查看并更新该用户已分配的角色。",
+        "readonlyDescription": "查看该用户当前已分配的角色。",
+        "readonlyHelp": "内置默认管理员的角色受保护，当前仅支持查看，不支持在用户管理中修改。",
+        "readonlyProtectionTitle": "内置默认管理员角色受保护",
+        "readonlyProtectionBody": "如需核对角色，请在此查看当前分配结果；该账号的角色变更不允许在用户管理中直接提交。",
         "inlineHint": "当前已分配 {assigned} 个角色，可在下方候选列表里直接调整关系，共 {total} 个角色可选。",
         "selectionCount": "已选择 {selected} / {total} 个角色",
         "modeSummary": "当前模式：{mode}",
@@ -138,7 +160,10 @@
         "empty": "暂无可用角色",
         "roleLoadFailed": "角色定义加载失败",
         "selectionLoadFailed": "当前角色分配数据加载失败，请重试后再保存",
+        "unsavedChangesTitle": "放弃未保存的角色变更",
         "unsavedChangesConfirm": "当前角色分配尚未保存，确认取消吗？",
+        "continueEditing": "继续编辑",
+        "discardChanges": "放弃变更",
         "batchOperationHint": {
           "replace": "替换会将每位已选用户的角色整体改为当前勾选结果。",
           "replaceEmpty": "当前未勾选任何角色，保存替换后会清空已选用户的全部角色。",
@@ -157,6 +182,8 @@
         },
         "retry": "重试",
         "cancel": "取消",
+        "close": "关闭",
+        "readonlyFooterDetail": "当前为只读查看模式，不能保存角色变更。",
         "confirm": "保存角色分配"
       },
       "detailTitle": "用户详情",

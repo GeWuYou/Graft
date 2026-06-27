@@ -33,6 +33,8 @@ const (
 	ContainerInvalidBatchAction MessageKey = "ops.container.error.invalidBatchAction"
 	// ContainerInvalidState identifies invalid action state errors.
 	ContainerInvalidState MessageKey = "ops.container.error.invalidState"
+	// ContainerEventsUnavailable identifies runtime event history read failures.
+	ContainerEventsUnavailable MessageKey = "ops.container.error.eventsUnavailable"
 	// ContainerLogsTooLarge identifies log limit errors.
 	ContainerLogsTooLarge MessageKey = "ops.container.error.logsTooLarge"
 	// ContainerInvalidLogQuery identifies invalid log query parameter errors.

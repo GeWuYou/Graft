@@ -15,11 +15,12 @@ import (
 )
 
 var (
-	errBuiltinRoleNameImmutable = errors.New("builtin role name is immutable")
-	errCannotRemoveOwnAdminRole = errors.New("cannot remove own admin role")
-	errInvalidPermissionIDs     = errors.New("invalid permission ids")
-	errInvalidRoleIDs           = errors.New("invalid role ids")
-	errAtomicBatchWriterMissing = errors.New("rbac atomic batch writer is unavailable")
+	errBuiltinRoleNameImmutable  = errors.New("builtin role name is immutable")
+	errCannotRemoveOwnAdminRole  = errors.New("cannot remove own admin role")
+	errInvalidPermissionIDs      = errors.New("invalid permission ids")
+	errInvalidRoleIDs            = errors.New("invalid role ids")
+	errAtomicBatchWriterMissing  = errors.New("rbac atomic batch writer is unavailable")
+	errProtectedUserRoleMutation = errors.New("protected user role mutation is forbidden")
 )
 
 const builtinAdminRoleName = "admin"
@@ -306,6 +307,9 @@ func (w managementWriter) ReplaceRolesForUser(ctx context.Context, input rbacsto
 	if err != nil {
 		return err
 	}
+	if user.ProtectedDefaultAdmin {
+		return errProtectedUserRoleMutation
+	}
 	if err := w.ensureActorKeepsBuiltinAdminRole(ctx, input); err != nil {
 		return err
 	}
@@ -339,10 +343,7 @@ func (w managementWriter) ReplaceRolesForUser(ctx context.Context, input rbacsto
 }
 
 func (w managementWriter) AddRolesToUser(ctx context.Context, input rbacstore.AddRolesToUserInput) error {
-	if err := w.ensureRoleMutationPreconditions(ctx, []uint64{input.UserID}, input.RoleIDs); err != nil {
-		return err
-	}
-	user, err := w.users.GetUserByID(ctx, input.UserID)
+	user, err := w.ensureSingleRoleMutationPreconditions(ctx, input.UserID, input.RoleIDs)
 	if err != nil {
 		return err
 	}
@@ -367,10 +368,7 @@ func (w managementWriter) AddRolesToUser(ctx context.Context, input rbacstore.Ad
 }
 
 func (w managementWriter) RemoveRolesFromUser(ctx context.Context, input rbacstore.RemoveRolesFromUserInput) error {
-	if err := w.ensureRoleMutationPreconditions(ctx, []uint64{input.UserID}, input.RoleIDs); err != nil {
-		return err
-	}
-	user, err := w.users.GetUserByID(ctx, input.UserID)
+	user, err := w.ensureSingleRoleMutationPreconditions(ctx, input.UserID, input.RoleIDs)
 	if err != nil {
 		return err
 	}
@@ -498,7 +496,7 @@ func (w managementWriter) ensureRoleMutationPreconditions(ctx context.Context, u
 		return errors.New("rbac repository is unavailable")
 	}
 	for _, userID := range userIDs {
-		if _, err := w.users.GetUserByID(ctx, userID); err != nil {
+		if _, err := w.requireRoleMutationUser(ctx, userID); err != nil {
 			return err
 		}
 	}
@@ -506,6 +504,38 @@ func (w managementWriter) ensureRoleMutationPreconditions(ctx context.Context, u
 		return err
 	}
 	return nil
+}
+
+func (w managementWriter) ensureSingleRoleMutationPreconditions(
+	ctx context.Context,
+	userID uint64,
+	roleIDs []uint64,
+) (moduleapi.UserSummary, error) {
+	if w.users == nil {
+		return moduleapi.UserSummary{}, errors.New("user service is unavailable")
+	}
+	if w.rbac == nil {
+		return moduleapi.UserSummary{}, errors.New("rbac repository is unavailable")
+	}
+	user, err := w.requireRoleMutationUser(ctx, userID)
+	if err != nil {
+		return moduleapi.UserSummary{}, err
+	}
+	if err := ensureRoleIDsExist(ctx, w.rbac, roleIDs); err != nil {
+		return moduleapi.UserSummary{}, err
+	}
+	return user, nil
+}
+
+func (w managementWriter) requireRoleMutationUser(ctx context.Context, userID uint64) (moduleapi.UserSummary, error) {
+	user, err := w.users.GetUserByID(ctx, userID)
+	if err != nil {
+		return moduleapi.UserSummary{}, err
+	}
+	if user.ProtectedDefaultAdmin {
+		return moduleapi.UserSummary{}, errProtectedUserRoleMutation
+	}
+	return user, nil
 }
 
 func (w managementWriter) ensureBatchRoleMutationAllowed(

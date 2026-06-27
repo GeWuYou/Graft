@@ -57,6 +57,8 @@ type service struct {
 	topicIssuers            realtime.TopicIssuerRegistry
 	authorizer              moduleapi.Authorizer
 	statsCollector          *statsCollector
+	runtimeEventManagerMu   sync.RWMutex
+	runtimeEventManager     *runtimeEventManager
 	logTopicStreamerMu      sync.Mutex
 	logTopicStreamer        *logTopicStreamer
 	logTopicStreamerFactory func(realtime.Hub, *zap.Logger, func() (Runtime, error)) (*logTopicStreamer, error)
@@ -247,6 +249,15 @@ func (s *service) Close() error {
 			closeErr = errors.Join(closeErr, err)
 		}
 		s.statsCollector = nil
+	}
+	s.runtimeEventManagerMu.Lock()
+	runtimeEventManager := s.runtimeEventManager
+	s.runtimeEventManager = nil
+	s.runtimeEventManagerMu.Unlock()
+	if runtimeEventManager != nil {
+		if err := runtimeEventManager.Stop(context.Background()); err != nil {
+			closeErr = errors.Join(closeErr, err)
+		}
 	}
 	s.runtimeMu.Lock()
 	defer s.runtimeMu.Unlock()
@@ -1968,6 +1979,74 @@ func (s *service) startStatsCollector(ctx context.Context) error {
 	return s.statsCollector.Start(ctx)
 }
 
+func (s *service) stopStatsCollector(ctx context.Context) error {
+	if s == nil || s.statsCollector == nil {
+		return nil
+	}
+	return s.statsCollector.Stop(ctx)
+}
+
+func (s *service) startRuntimeEventManager(ctx context.Context) error {
+	if s == nil || s.realtimeHub == nil {
+		return nil
+	}
+	s.runtimeEventManagerMu.Lock()
+	if s.runtimeEventManager == nil {
+		s.runtimeEventManager = newRuntimeEventManager(
+			s.realtimeHub,
+			s.logger,
+			s.runtimeEventSourceRegistrations(),
+			RuntimeEventStreamContext{Runtime: s.defaultRuntimeEventStreamRuntime()},
+		)
+	}
+	manager := s.runtimeEventManager
+	s.runtimeEventManagerMu.Unlock()
+	return manager.Start(ctx)
+}
+
+func (s *service) runtimeEventManagerForRead() *runtimeEventManager {
+	if s == nil {
+		return nil
+	}
+	s.runtimeEventManagerMu.RLock()
+	defer s.runtimeEventManagerMu.RUnlock()
+	return s.runtimeEventManager
+}
+
+func (s *service) runtimeEventSourceRegistrations() []runtimeEventSourceRegistration {
+	if s == nil {
+		return nil
+	}
+	return []runtimeEventSourceRegistration{
+		{
+			name:          s.defaultRuntimeEventSourceName(),
+			streamContext: RuntimeEventStreamContext{Runtime: s.defaultRuntimeEventStreamRuntime()},
+			load: func() (RuntimeEventSource, error) {
+				runtime, err := s.runtimeForRequest()
+				if err != nil {
+					if errors.Is(err, errRuntimeDisabled) {
+						return nil, nil
+					}
+					return nil, err
+				}
+				source, ok := runtime.(RuntimeEventSource)
+				if !ok {
+					return nil, nil
+				}
+				return source, nil
+			},
+		},
+	}
+}
+
+func (s *service) defaultRuntimeEventSourceName() string {
+	return firstNonEmpty(strings.TrimSpace(s.runtimeOptions.runtime), runtimeNameDocker)
+}
+
+func (s *service) defaultRuntimeEventStreamRuntime() string {
+	return s.defaultRuntimeEventSourceName()
+}
+
 func (s *service) collectStatsSnapshots(ctx context.Context) ([]StatsSnapshot, error) {
 	if s == nil || !s.runtimeAccessEnabled(ctx) {
 		return nil, nil
@@ -1999,6 +2078,9 @@ func (s *service) registerRealtimeTopics() error {
 	if err := s.topicIssuers.Register(containercontract.ContainerStatsTopicPrefix, s); err != nil {
 		return err
 	}
+	if err := s.topicIssuers.Register(containercontract.ContainerEventsTopicPrefix, s); err != nil {
+		return err
+	}
 	return s.topicIssuers.Register(containercontract.ContainerLogsTopicPrefix, s)
 }
 
@@ -2024,7 +2106,8 @@ func (s *service) IssueSubscription(
 		return s.issueContainerDashboardSummaryRealtimeSubscription(ctx, request, topic)
 	}
 	if !strings.HasPrefix(topic, containercontract.ContainerLogsTopicPrefix) &&
-		!strings.HasPrefix(topic, containercontract.ContainerStatsTopicPrefix) {
+		!strings.HasPrefix(topic, containercontract.ContainerStatsTopicPrefix) &&
+		!strings.HasPrefix(topic, containercontract.ContainerEventsTopicPrefix) {
 		return realtime.SubscriptionResponse{}, realtime.ErrTopicNotFound
 	}
 	return s.issueProtectedContainerRealtimeSubscription(ctx, request, topic)
@@ -2044,8 +2127,46 @@ func (s *service) issueProtectedContainerRealtimeSubscription(
 	if strings.HasPrefix(topic, containercontract.ContainerLogsTopicPrefix) {
 		return s.issueContainerLogsRealtimeSubscription(ctx, request, topic)
 	}
+	if strings.HasPrefix(topic, containercontract.ContainerEventsTopicPrefix) {
+		return s.issueContainerEventsRealtimeSubscription(ctx, request, topic)
+	}
 
 	return s.issueContainerRealtimeSubscription(ctx, request, topic)
+}
+
+func (s *service) issueContainerEventsRealtimeSubscription(
+	ctx context.Context,
+	request realtime.SubscriptionRequest,
+	topic string,
+) (realtime.SubscriptionResponse, error) {
+	containerID := strings.TrimSpace(strings.TrimPrefix(topic, containercontract.ContainerEventsTopicPrefix))
+	ref, err := parseRef(containerID)
+	if err != nil {
+		return realtime.SubscriptionResponse{}, realtime.ErrTopicNotFound
+	}
+	if err := s.authorizer.Authorize(ctx, request.RequestAuth, containercontract.ContainerEventsPermission.String()); err != nil {
+		return realtime.SubscriptionResponse{}, realtime.ErrTopicForbidden
+	}
+	if _, err := s.Detail(ctx, ref); err != nil {
+		if errors.Is(err, errContainerNotFound) {
+			return realtime.SubscriptionResponse{}, realtime.ErrTopicNotFound
+		}
+		if errors.Is(err, errRuntimeDisabled) {
+			return realtime.SubscriptionResponse{}, realtime.ErrTopicForbidden
+		}
+		return realtime.SubscriptionResponse{}, realtime.ErrTopicConflict
+	}
+
+	issued, err := (realtime.TicketIssuer{Tickets: s.realtimeTickets}).IssueTopicTicket(ctx, request)
+	if err != nil {
+		return realtime.SubscriptionResponse{}, realtime.ErrTopicConflict
+	}
+	return realtime.SubscriptionResponse{
+		Topic:        topic,
+		Ticket:       issued.Ticket,
+		WebSocketURL: realtime.BuildTopicWebSocketURL(topic, issued.Ticket),
+		ExpiresAt:    issued.ExpiresAt,
+	}, nil
 }
 
 func (s *service) issueContainerLogsRealtimeSubscription(
@@ -2640,6 +2761,9 @@ func (disabledRuntime) Logs(context.Context, Ref, LogQuery) (Logs, error) {
 	return Logs{}, errRuntimeDisabled
 }
 func (disabledRuntime) StreamLogs(context.Context, Ref, LogQuery, func(LogChunk) error) error {
+	return errRuntimeDisabled
+}
+func (disabledRuntime) StreamRuntimeEvents(context.Context, func(RuntimeEventCandidate) error) error {
 	return errRuntimeDisabled
 }
 func (disabledRuntime) Shell(context.Context, Ref, string) (terminal.Session, error) {

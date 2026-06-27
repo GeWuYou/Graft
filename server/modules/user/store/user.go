@@ -17,14 +17,17 @@ var (
 	ErrUsernameConflict = errors.New("username already exists")
 )
 
+const protectedDefaultAdminUsername = "graft"
+
 // User is the stable user DTO visible inside the user module.
 type User struct {
-	ID        uint64
-	Username  string
-	Display   string
-	Status    string
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID                    uint64
+	Username              string
+	Display               string
+	Status                string
+	ProtectedDefaultAdmin bool
+	CreatedAt             time.Time
+	UpdatedAt             time.Time
 }
 
 // CreateUserInput describes the minimal user creation input.
@@ -68,4 +71,10 @@ type UserRepository interface {
 	Update(ctx context.Context, input UpdateUserInput) (User, error)
 	SetStatus(ctx context.Context, input SetUserStatusInput) (User, error)
 	Delete(ctx context.Context, input DeleteUserInput) error
+}
+
+// IsProtectedDefaultAdminUsername 判断用户名是否属于内置的受保护默认管理员账号。
+// 如果用户名等于内置默认管理员用户名，则返回 `true`，否则返回 `false`。
+func IsProtectedDefaultAdminUsername(username string) bool {
+	return username == protectedDefaultAdminUsername
 }

@@ -23,6 +23,10 @@ const (
 
 	// AuditOverviewCollection identifies the audit overview route fragment.
 	AuditOverviewCollection = "/overview"
+	// AuditVisibilityPolicyCollection identifies the audit visibility policy route fragment.
+	AuditVisibilityPolicyCollection = "/policies/visibility"
+	// AuditVisibilityOverrideCollection identifies the audit visibility override route fragment.
+	AuditVisibilityOverrideCollection = AuditVisibilityPolicyCollection + "/overrides"
 
 	// AuditIncidentItem identifies the audit incident route fragment.
 	AuditIncidentItem = "/incidents/:" + AuditIncidentParam
@@ -41,6 +45,10 @@ const (
 
 	// AuditOverviewAPIPath identifies the canonical audit overview API path.
 	AuditOverviewAPIPath = AuditGroup + AuditOverviewCollection
+	// AuditVisibilityPolicyAPIPath identifies the canonical audit visibility policy API path.
+	AuditVisibilityPolicyAPIPath = AuditGroup + AuditVisibilityPolicyCollection
+	// AuditVisibilityOverrideAPIPath identifies the canonical audit visibility override API path.
+	AuditVisibilityOverrideAPIPath = AuditGroup + AuditVisibilityOverrideCollection
 
 	// AuditIncidentAPIPath identifies the canonical audit incident API path template.
 	AuditIncidentAPIPath = AuditGroup + "/incidents/{" + AuditIncidentParam + "}"

@@ -1155,6 +1155,7 @@
                         "username": "alice",
                         "display": "Alice",
                         "status": "enabled",
+                        "protected_default_admin": false,
                         "roles": [
                           {
                             "id": 1,
@@ -4347,6 +4348,20 @@
             }
           },
           {
+            "name": "visibility_scope",
+            "in": "query",
+            "required": false,
+            "description": "Controls whether the read surface returns only default-visible records, all persisted records, or only hidden records.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "default",
+                "all",
+                "hidden_only"
+              ]
+            }
+          },
+          {
             "name": "business_category",
             "in": "query",
             "required": false,
@@ -4858,6 +4873,284 @@
                 }
               }
             }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/audit/policies/visibility": {
+      "get": {
+        "tags": [
+          "audit"
+        ],
+        "summary": "Read audit visibility policy",
+        "operationId": "getAuditVisibilityPolicy",
+        "description": "Returns the audit-owned visibility default and per-event override snapshot.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Audit visibility policy snapshot.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-audit-visibility-policy-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "audit"
+        ],
+        "summary": "Update audit visibility default",
+        "operationId": "putAuditVisibilityPolicy",
+        "description": "Updates the audit-owned global default visibility strategy.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/audit-visibility-default-update-request"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated audit visibility default.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-audit-visibility-default-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid strategy payload.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/audit/policies/visibility/overrides": {
+      "put": {
+        "tags": [
+          "audit"
+        ],
+        "summary": "Upsert audit visibility override",
+        "operationId": "putAuditVisibilityOverride",
+        "description": "Upserts one audit-owned source plus action visibility override.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/audit-visibility-override-upsert-request"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated audit visibility override.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-audit-visibility-override-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid override payload.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "audit"
+        ],
+        "summary": "Delete audit visibility override",
+        "operationId": "deleteAuditVisibilityOverride",
+        "description": "Deletes one audit-owned source plus action visibility override.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "name": "source",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "REQUEST",
+                "SECURITY_EVENT",
+                "DOMAIN_EVENT"
+              ]
+            }
+          },
+          {
+            "name": "action_key",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Audit visibility override deleted.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-empty-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid delete query.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
           },
           "500": {
             "$ref": "#/components/responses/internal-server-error"
@@ -9051,6 +9344,88 @@
         }
       }
     },
+    "/api/ops/containers/{id}/events": {
+      "get": {
+        "tags": [
+          "container"
+        ],
+        "summary": "Read container runtime events",
+        "operationId": "getContainerEvents",
+        "description": "Returns bounded recent canonical runtime events for one container. Each record includes a manager-assigned `seq` used for reconnect-safe merge and dedupe with the companion realtime topic `container.events:{id}`.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/container-id-path"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Container runtime events.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-container-runtime-events-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid container reference.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Container was not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
     "/api/ops/containers/{id}/mounts/usage": {
       "get": {
         "tags": [
@@ -10118,6 +10493,33 @@
       "EnvelopedAuditIncidentResponse": {
         "$ref": "#/components/schemas/enveloped-audit-incident-response"
       },
+      "AuditVisibilityDefaultResponse": {
+        "$ref": "#/components/schemas/audit-visibility-default-response"
+      },
+      "AuditVisibilityOverrideResponse": {
+        "$ref": "#/components/schemas/audit-visibility-override-response"
+      },
+      "AuditEventCatalogItem": {
+        "$ref": "#/components/schemas/audit-event-catalog-item"
+      },
+      "AuditVisibilityPolicyResponse": {
+        "$ref": "#/components/schemas/audit-visibility-policy-response"
+      },
+      "AuditVisibilityDefaultUpdateRequest": {
+        "$ref": "#/components/schemas/audit-visibility-default-update-request"
+      },
+      "AuditVisibilityOverrideUpsertRequest": {
+        "$ref": "#/components/schemas/audit-visibility-override-upsert-request"
+      },
+      "EnvelopedAuditVisibilityPolicyResponse": {
+        "$ref": "#/components/schemas/enveloped-audit-visibility-policy-response"
+      },
+      "EnvelopedAuditVisibilityDefaultResponse": {
+        "$ref": "#/components/schemas/enveloped-audit-visibility-default-response"
+      },
+      "EnvelopedAuditVisibilityOverrideResponse": {
+        "$ref": "#/components/schemas/enveloped-audit-visibility-override-response"
+      },
       "ServerStatusConnectionPool": {
         "$ref": "#/components/schemas/server-status-connection-pool"
       },
@@ -10481,6 +10883,21 @@
       "ContainerLogResponse": {
         "$ref": "#/components/schemas/container-log-response"
       },
+      "ContainerRuntimeEventSeverity": {
+        "$ref": "#/components/schemas/container-runtime-event-severity"
+      },
+      "ContainerRuntimeEvent": {
+        "$ref": "#/components/schemas/container-runtime-event"
+      },
+      "ContainerRuntimeEventRecord": {
+        "$ref": "#/components/schemas/container-runtime-event-record"
+      },
+      "ContainerRuntimeEventStreamContext": {
+        "$ref": "#/components/schemas/container-runtime-event-stream-context"
+      },
+      "ContainerRuntimeEventsResponse": {
+        "$ref": "#/components/schemas/container-runtime-events-response"
+      },
       "ContainerShellSessionRequest": {
         "$ref": "#/components/schemas/container-shell-session-request"
       },
@@ -10549,6 +10966,9 @@
       },
       "EnvelopedContainerLogResponse": {
         "$ref": "#/components/schemas/enveloped-container-log-response"
+      },
+      "EnvelopedContainerRuntimeEventsResponse": {
+        "$ref": "#/components/schemas/enveloped-container-runtime-events-response"
       },
       "EnvelopedContainerShellSessionResponse": {
         "$ref": "#/components/schemas/enveloped-container-shell-session-response"
@@ -10992,6 +11412,7 @@
           "username",
           "display",
           "status",
+          "protected_default_admin",
           "roles",
           "created_at",
           "updated_at"
@@ -11010,6 +11431,10 @@
           },
           "status": {
             "type": "string"
+          },
+          "protected_default_admin": {
+            "type": "boolean",
+            "description": "True only for the builtin protected default administrator account."
           },
           "roles": {
             "type": "array",
@@ -12659,6 +13084,272 @@
             "properties": {
               "data": {
                 "$ref": "#/components/schemas/audit-incident-response"
+              }
+            }
+          }
+        ]
+      },
+      "audit-visibility-default-response": {
+        "type": "object",
+        "required": [
+          "key",
+          "strategy",
+          "updated_at"
+        ],
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "strategy": {
+            "type": "string",
+            "enum": [
+              "visible",
+              "hidden"
+            ]
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_by": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "updated_by_name": {
+            "type": "string"
+          }
+        }
+      },
+      "audit-visibility-override-response": {
+        "type": "object",
+        "required": [
+          "id",
+          "source",
+          "action_key",
+          "strategy",
+          "description",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "REQUEST",
+              "SECURITY_EVENT",
+              "DOMAIN_EVENT"
+            ]
+          },
+          "action_key": {
+            "type": "string"
+          },
+          "strategy": {
+            "type": "string",
+            "enum": [
+              "visible",
+              "hidden",
+              "ignore"
+            ]
+          },
+          "description": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "created_by": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "created_by_name": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_by": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "updated_by_name": {
+            "type": "string"
+          }
+        }
+      },
+      "audit-event-catalog-item": {
+        "type": "object",
+        "required": [
+          "source",
+          "action_key",
+          "display_name",
+          "description",
+          "category",
+          "default_strategy",
+          "effective_strategy",
+          "overridden"
+        ],
+        "properties": {
+          "source": {
+            "type": "string",
+            "enum": [
+              "REQUEST",
+              "SECURITY_EVENT",
+              "DOMAIN_EVENT"
+            ]
+          },
+          "action_key": {
+            "type": "string"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "default_strategy": {
+            "type": "string",
+            "enum": [
+              "visible",
+              "hidden"
+            ]
+          },
+          "effective_strategy": {
+            "type": "string",
+            "enum": [
+              "visible",
+              "hidden",
+              "ignore"
+            ]
+          },
+          "overridden": {
+            "type": "boolean"
+          }
+        }
+      },
+      "audit-visibility-policy-response": {
+        "type": "object",
+        "required": [
+          "default",
+          "overrides",
+          "catalog"
+        ],
+        "properties": {
+          "default": {
+            "$ref": "#/components/schemas/audit-visibility-default-response"
+          },
+          "overrides": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/audit-visibility-override-response"
+            }
+          },
+          "catalog": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/audit-event-catalog-item"
+            }
+          }
+        }
+      },
+      "enveloped-audit-visibility-policy-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/audit-visibility-policy-response"
+              }
+            }
+          }
+        ]
+      },
+      "audit-visibility-default-update-request": {
+        "type": "object",
+        "required": [
+          "strategy"
+        ],
+        "properties": {
+          "strategy": {
+            "type": "string",
+            "enum": [
+              "visible",
+              "hidden"
+            ]
+          }
+        }
+      },
+      "enveloped-audit-visibility-default-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/audit-visibility-default-response"
+              }
+            }
+          }
+        ]
+      },
+      "audit-visibility-override-upsert-request": {
+        "type": "object",
+        "required": [
+          "source",
+          "action_key",
+          "strategy"
+        ],
+        "properties": {
+          "source": {
+            "type": "string",
+            "enum": [
+              "REQUEST",
+              "SECURITY_EVENT",
+              "DOMAIN_EVENT"
+            ]
+          },
+          "action_key": {
+            "type": "string"
+          },
+          "strategy": {
+            "type": "string",
+            "enum": [
+              "visible",
+              "hidden",
+              "ignore"
+            ]
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      },
+      "enveloped-audit-visibility-override-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/audit-visibility-override-response"
               }
             }
           }
@@ -17546,6 +18237,147 @@
           }
         ]
       },
+      "container-runtime-event-stream-context": {
+        "type": "object",
+        "required": [
+          "runtime"
+        ],
+        "properties": {
+          "runtime": {
+            "type": "string",
+            "description": "Stream context runtime identifier. This is not part of the canonical event fact."
+          }
+        }
+      },
+      "container-runtime-event-severity": {
+        "type": "string",
+        "enum": [
+          "info",
+          "warning",
+          "error"
+        ],
+        "x-enum-varnames": [
+          "ContainerRuntimeEventSeverityInfo",
+          "ContainerRuntimeEventSeverityWarning",
+          "ContainerRuntimeEventSeverityError"
+        ],
+        "description": "Canonical severity mapped by the container module rather than provider-authored values."
+      },
+      "container-runtime-event": {
+        "type": "object",
+        "required": [
+          "id",
+          "resource_type",
+          "resource_id",
+          "event_type",
+          "severity",
+          "occurred_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Opaque event identifier stable within the bounded replay window."
+          },
+          "resource_type": {
+            "type": "string",
+            "enum": [
+              "container"
+            ],
+            "description": "Canonical runtime event resource type."
+          },
+          "resource_id": {
+            "type": "string",
+            "description": "Canonical container identifier."
+          },
+          "event_type": {
+            "type": "string",
+            "description": "Canonical container runtime event type.",
+            "enum": [
+              "container.created",
+              "container.started",
+              "container.restarted",
+              "container.stopped",
+              "container.removed",
+              "container.oom_killed",
+              "container.health_status_changed",
+              "container.exec_started",
+              "container.exec_finished"
+            ]
+          },
+          "severity": {
+            "$ref": "#/components/schemas/container-runtime-event-severity"
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "attributes": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Stable provider-normalized scalar metadata for rendering and local i18n."
+          }
+        }
+      },
+      "container-runtime-event-record": {
+        "type": "object",
+        "required": [
+          "seq",
+          "event"
+        ],
+        "properties": {
+          "seq": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1,
+            "description": "Monotonically increasing sequence within the container event stream."
+          },
+          "event": {
+            "$ref": "#/components/schemas/container-runtime-event"
+          }
+        }
+      },
+      "container-runtime-events-response": {
+        "type": "object",
+        "required": [
+          "resource_id",
+          "context",
+          "items"
+        ],
+        "properties": {
+          "resource_id": {
+            "type": "string"
+          },
+          "context": {
+            "$ref": "#/components/schemas/container-runtime-event-stream-context"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/container-runtime-event-record"
+            }
+          }
+        }
+      },
+      "enveloped-container-runtime-events-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/container-runtime-events-response"
+              }
+            }
+          }
+        ]
+      },
       "container-mount-usage-list-response": {
         "type": "object",
         "required": [
@@ -17619,7 +18451,7 @@
           "occurred_at": {
             "type": "string",
             "format": "date-time",
-            "description": "Canonical UTC occurrence time for the log entry."
+            "description": "Canonical UTC occurrence time for the log entry, using the runtime timestamp when available and server receive time otherwise."
           }
         }
       },

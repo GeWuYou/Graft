@@ -1,0 +1,34 @@
+type: object
+required: [id, source, action_key, strategy, description, created_at, updated_at]
+properties:
+  id:
+    type: integer
+    format: int64
+  source:
+    type: string
+    enum: [REQUEST, SECURITY_EVENT, DOMAIN_EVENT]
+  action_key:
+    type: string
+  strategy:
+    type: string
+    enum: [visible, hidden, ignore]
+  description:
+    type: string
+  created_at:
+    type: string
+    format: date-time
+  created_by:
+    type: integer
+    format: int64
+    nullable: true
+  created_by_name:
+    type: string
+  updated_at:
+    type: string
+    format: date-time
+  updated_by:
+    type: integer
+    format: int64
+    nullable: true
+  updated_by_name:
+    type: string

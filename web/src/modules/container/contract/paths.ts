@@ -7,6 +7,7 @@ export const CONTAINER_API_PATH = {
   LIST: '/api/ops/containers',
   DASHBOARD_SUMMARY: '/api/ops/containers/dashboard-summary',
   DETAIL: '/api/ops/containers/{id}',
+  EVENTS: '/api/ops/containers/{id}/events',
   LOGS: '/api/ops/containers/{id}/logs',
   SHELL_SESSIONS: '/api/ops/containers/{id}/shell/sessions',
   SHELL_WS: '/api/ops/containers/{id}/shell/ws',
@@ -24,13 +25,23 @@ export function buildContainerDetailApiPath(containerId: string) {
 }
 
 /**
- * Builds the API path for retrieving logs of a specific container.
+ * 构建指定容器日志的 API 路径。
  *
- * @param containerId - The ID of the container
- * @returns The API path for fetching the container's logs
+ * @param containerId - 容器 ID
+ * @returns 容器日志的 API 路径
  */
 export function buildContainerLogsApiPath(containerId: string) {
   return CONTAINER_API_PATH.LOGS.replace('{id}', encodeContainerPathParam(containerId));
+}
+
+/**
+ * 构造容器事件的 API 路径。
+ *
+ * @param containerId - 容器 ID
+ * @returns 替换了 `{id}` 占位符的事件接口路径
+ */
+export function buildContainerEventsApiPath(containerId: string) {
+  return CONTAINER_API_PATH.EVENTS.replace('{id}', encodeContainerPathParam(containerId));
 }
 
 /**

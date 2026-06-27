@@ -231,6 +231,7 @@ func (p *Module) bindNotificationPublisher(ctx *module.Context) error {
 	return nil
 }
 
+// 当审计记录可见时，会发布审计通知。
 func requestAuditMiddleware(
 	logger *zap.Logger,
 	recorder *Service,
@@ -256,12 +257,13 @@ func requestAuditMiddleware(
 				zap.String("method", candidate.RequestMethod),
 				zap.String("path", candidate.RequestPath),
 			)
-		} else {
+		} else if record.Visibility == auditstore.AuditVisibilityStrategyVisible {
 			publishAuditNotification(ctx.Request.Context(), logger, resolveNotificationPublisher(notifier), record)
 		}
 	}
 }
 
+// 当安全事件因策略未被记录时，它会记录一条告警日志。
 func recordEvent(
 	ctx context.Context,
 	logger *zap.Logger,
@@ -274,7 +276,7 @@ func recordEvent(
 	if err != nil {
 		return err
 	}
-	if recorded {
+	if recorded && record.Visibility == auditstore.AuditVisibilityStrategyVisible {
 		publishAuditNotification(ctx, logger, resolveNotificationPublisher(notifier), record)
 	}
 	if recorded || candidate.Source != auditstore.AuditSourceSecurityEvent {

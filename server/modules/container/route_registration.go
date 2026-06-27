@@ -68,6 +68,11 @@ func registerRoutes(ctx *module.Context, moduleName string, service *service) er
 		routes.handleDetail,
 	)
 	group.GET(
+		containercontract.ContainerEventsRoute,
+		httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerEventsPermission.String(), publisher),
+		routes.handleEvents,
+	)
+	group.GET(
 		containercontract.ContainerLogsRoute,
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerLogsPermission.String(), publisher),
 		routes.handleLogs,
@@ -179,6 +184,21 @@ func (r routeRuntime) handleLogs(ginCtx *gin.Context) {
 		return
 	}
 	httpx.WriteSuccess(ginCtx, http.StatusOK, toLogs(logs))
+}
+
+func (r routeRuntime) handleEvents(ginCtx *gin.Context) {
+	// Keep generated binding on routes with OpenAPI header parameters even when the handler does not read them.
+	_ = bindGetContainerEventsParams(ginCtx)
+	ref, ok := readRef(ginCtx, r)
+	if !ok {
+		return
+	}
+	history, err := r.service.RuntimeEventHistory(ginCtx.Request.Context(), ref)
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, toRuntimeEventsHistoryResponse(history))
 }
 
 func (r routeRuntime) handleShellSessionCreate(ginCtx *gin.Context) {
@@ -530,6 +550,9 @@ func bindGetContainerParams(ginCtx *gin.Context) containeropenapi.GetContainerPa
 	return containeropenapi.GetContainerParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
+// bindGetContainerLogsParams 从请求中提取容器日志查询参数。
+// 它会填充通用请求头以及可选的日志筛选项：tail、since、timestamps、stdout 和 stderr。
+// 返回用于查询容器日志的参数对象。
 func bindGetContainerLogsParams(ginCtx *gin.Context) containeropenapi.GetContainerLogsParams {
 	locale, requestID := commonHeaders(ginCtx)
 	params := containeropenapi.GetContainerLogsParams{XGraftLocale: locale, XRequestId: requestID}
@@ -551,6 +574,13 @@ func bindGetContainerLogsParams(ginCtx *gin.Context) containeropenapi.GetContain
 	return params
 }
 
+// bindGetContainerEventsParams 提取容器事件查询所需的通用请求头参数。
+func bindGetContainerEventsParams(ginCtx *gin.Context) containeropenapi.GetContainerEventsParams {
+	locale, requestID := commonHeaders(ginCtx)
+	return containeropenapi.GetContainerEventsParams{XGraftLocale: locale, XRequestId: requestID}
+}
+
+// bindPostContainerRemoveParams 提取删除容器请求的通用请求头参数。
 func bindPostContainerRemoveParams(ginCtx *gin.Context) containeropenapi.PostContainerRemoveParams {
 	locale, requestID := commonHeaders(ginCtx)
 	return containeropenapi.PostContainerRemoveParams{XGraftLocale: locale, XRequestId: requestID}

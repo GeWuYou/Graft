@@ -1,0 +1,6 @@
+type: object
+required: [strategy]
+properties:
+  strategy:
+    type: string
+    enum: [visible, hidden]

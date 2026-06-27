@@ -28,13 +28,16 @@ import (
 	"graft/server/internal/moduleapi"
 	"graft/server/internal/permission"
 	"graft/server/internal/testassert"
+	auditcontract "graft/server/modules/audit/contract"
 	auditlocales "graft/server/modules/audit/locales"
 	"graft/server/modules/audit/store"
 )
 
 type memoryAuditRepository struct {
-	items []store.AuditLog
-	rules []store.AuditPolicyRule
+	items               []store.AuditLog
+	rules               []store.AuditPolicyRule
+	visibilityDefault   store.AuditVisibilityDefault
+	visibilityOverrides []store.AuditVisibilityOverride
 }
 
 func (r *memoryAuditRepository) CreateAuditLog(_ context.Context, input store.CreateAuditLogInput) (store.AuditLog, error) {
@@ -44,6 +47,7 @@ func (r *memoryAuditRepository) CreateAuditLog(_ context.Context, input store.Cr
 		ActorUsername:    input.ActorUsername,
 		ActorDisplayName: input.ActorDisplayName,
 		Action:           input.Action,
+		Visibility:       input.Visibility,
 		ResourceType:     input.ResourceType,
 		ResourceID:       input.ResourceID,
 		ResourceName:     input.ResourceName,
@@ -164,6 +168,104 @@ func (r *memoryAuditRepository) ListAuditPolicyRules(_ context.Context) ([]store
 	return append([]store.AuditPolicyRule(nil), r.rules...), nil
 }
 
+func (r *memoryAuditRepository) GetAuditVisibilityDefault(_ context.Context, _ string) (store.AuditVisibilityDefault, error) {
+	if r.visibilityDefault.Key == "" {
+		r.visibilityDefault = store.AuditVisibilityDefault{
+			Key:      "global",
+			Strategy: store.AuditVisibilityStrategyVisible,
+		}
+	}
+	return r.visibilityDefault, nil
+}
+
+func (r *memoryAuditRepository) UpsertAuditVisibilityDefault(
+	_ context.Context,
+	key string,
+	strategy store.AuditVisibilityStrategy,
+	userID *uint64,
+	username string,
+) (store.AuditVisibilityDefault, error) {
+	r.visibilityDefault = store.AuditVisibilityDefault{
+		Key:           strings.TrimSpace(key),
+		Strategy:      strategy,
+		UpdatedBy:     userID,
+		UpdatedByName: strings.TrimSpace(username),
+		UpdatedAt:     time.Now().UTC(),
+	}
+	return r.visibilityDefault, nil
+}
+
+func (r *memoryAuditRepository) ListAuditVisibilityOverrides(_ context.Context) ([]store.AuditVisibilityOverride, error) {
+	return append([]store.AuditVisibilityOverride(nil), r.visibilityOverrides...), nil
+}
+
+func (r *memoryAuditRepository) FindAuditVisibilityOverride(
+	_ context.Context,
+	source store.AuditSource,
+	actionKey string,
+) (store.AuditVisibilityOverride, bool, error) {
+	for _, item := range r.visibilityOverrides {
+		if item.Source == source && item.ActionKey == strings.TrimSpace(actionKey) {
+			return item, true, nil
+		}
+	}
+	return store.AuditVisibilityOverride{}, false, nil
+}
+
+func (r *memoryAuditRepository) UpsertAuditVisibilityOverride(
+	_ context.Context,
+	input store.UpsertAuditVisibilityOverrideInput,
+) (store.AuditVisibilityOverride, error) {
+	item := store.AuditVisibilityOverride{
+		ID:            1,
+		Source:        input.Source,
+		ActionKey:     strings.TrimSpace(input.ActionKey),
+		Strategy:      input.Strategy,
+		Description:   strings.TrimSpace(input.Description),
+		CreatedBy:     input.Actor.UserID,
+		CreatedByName: strings.TrimSpace(input.Actor.Username),
+		UpdatedBy:     input.Actor.UserID,
+		UpdatedByName: strings.TrimSpace(input.Actor.Username),
+		CreatedAt:     time.Now().UTC(),
+		UpdatedAt:     time.Now().UTC(),
+	}
+	replaced := false
+	next := make([]store.AuditVisibilityOverride, 0, len(r.visibilityOverrides)+1)
+	for _, existing := range r.visibilityOverrides {
+		if existing.Source == item.Source && existing.ActionKey == item.ActionKey {
+			item.ID = existing.ID
+			item.CreatedAt = existing.CreatedAt
+			item.CreatedBy = existing.CreatedBy
+			item.CreatedByName = existing.CreatedByName
+			next = append(next, item)
+			replaced = true
+			continue
+		}
+		next = append(next, existing)
+	}
+	if !replaced {
+		next = append(next, item)
+	}
+	r.visibilityOverrides = next
+	return item, nil
+}
+
+func (r *memoryAuditRepository) DeleteAuditVisibilityOverride(
+	_ context.Context,
+	source store.AuditSource,
+	actionKey string,
+) error {
+	filtered := r.visibilityOverrides[:0]
+	for _, item := range r.visibilityOverrides {
+		if item.Source == source && item.ActionKey == strings.TrimSpace(actionKey) {
+			continue
+		}
+		filtered = append(filtered, item)
+	}
+	r.visibilityOverrides = append([]store.AuditVisibilityOverride(nil), filtered...)
+	return nil
+}
+
 func (r *memoryAuditRepository) DeleteAuditLogsBefore(_ context.Context, createdBefore time.Time) (int64, error) {
 	kept := r.items[:0]
 	deleted := int64(0)
@@ -204,6 +306,39 @@ func (failingAuditRepository) ListAuditPolicyRules(context.Context) ([]store.Aud
 	return defaultModuleTestPolicyRules(), nil
 }
 
+func (failingAuditRepository) GetAuditVisibilityDefault(context.Context, string) (store.AuditVisibilityDefault, error) {
+	return store.AuditVisibilityDefault{}, errors.New("visibility default failed")
+}
+
+func (failingAuditRepository) UpsertAuditVisibilityDefault(
+	context.Context,
+	string,
+	store.AuditVisibilityStrategy,
+	*uint64,
+	string,
+) (store.AuditVisibilityDefault, error) {
+	return store.AuditVisibilityDefault{}, errors.New("visibility default update failed")
+}
+
+func (failingAuditRepository) ListAuditVisibilityOverrides(context.Context) ([]store.AuditVisibilityOverride, error) {
+	return nil, errors.New("visibility overrides failed")
+}
+
+func (failingAuditRepository) FindAuditVisibilityOverride(context.Context, store.AuditSource, string) (store.AuditVisibilityOverride, bool, error) {
+	return store.AuditVisibilityOverride{}, false, errors.New("visibility override lookup failed")
+}
+
+func (failingAuditRepository) UpsertAuditVisibilityOverride(
+	context.Context,
+	store.UpsertAuditVisibilityOverrideInput,
+) (store.AuditVisibilityOverride, error) {
+	return store.AuditVisibilityOverride{}, errors.New("visibility override update failed")
+}
+
+func (failingAuditRepository) DeleteAuditVisibilityOverride(context.Context, store.AuditSource, string) error {
+	return errors.New("visibility override delete failed")
+}
+
 func (failingAuditRepository) DeleteAuditLogsBefore(context.Context, time.Time) (int64, error) {
 	return 0, errors.New("delete failed")
 }
@@ -242,6 +377,23 @@ func (allowAuthorizer) Authorize(_ context.Context, _ moduleapi.RequestAuthConte
 	return nil
 }
 
+type selectiveAuthorizer struct {
+	allowed map[string]bool
+	errs    map[string]error
+}
+
+func (s selectiveAuthorizer) Authorize(_ context.Context, _ moduleapi.RequestAuthContext, permission string) error {
+	if s.errs != nil {
+		if err, ok := s.errs[permission]; ok {
+			return err
+		}
+	}
+	if s.allowed[permission] {
+		return nil
+	}
+	return moduleapi.ErrPermissionDenied
+}
+
 type denyAuthorizer struct{}
 
 func (denyAuthorizer) Authorize(_ context.Context, _ moduleapi.RequestAuthContext, _ string) error {
@@ -253,6 +405,15 @@ func newModuleTestContext(t *testing.T, repo store.AuditRepository) (*module.Con
 }
 
 func newModuleTestContextWithLogger(t *testing.T, repo store.AuditRepository, logger *zap.Logger) (*module.Context, *gin.Engine, eventbus.Bus) {
+	return newModuleTestContextWithAuthorizer(t, repo, logger, allowAuthorizer{})
+}
+
+func newModuleTestContextWithAuthorizer(
+	t *testing.T,
+	repo store.AuditRepository,
+	logger *zap.Logger,
+	authorizer moduleapi.Authorizer,
+) (*module.Context, *gin.Engine, eventbus.Bus) {
 	t.Helper()
 
 	gin.SetMode(gin.TestMode)
@@ -286,7 +447,7 @@ func newModuleTestContextWithLogger(t *testing.T, repo store.AuditRepository, lo
 		t.Fatalf("register auth service: %v", err)
 	}
 	if err := ctx.Services.RegisterSingleton((*moduleapi.Authorizer)(nil), func(container.Resolver) (any, error) {
-		return allowAuthorizer{}, nil
+		return authorizer, nil
 	}); err != nil {
 		t.Fatalf("register authorizer: %v", err)
 	}
@@ -662,6 +823,132 @@ func TestAuditLogDetailRouteReturnsEvidenceRecord(t *testing.T) {
 	data := testassert.DecodeSuccessData[map[string]any](t, recorder)
 	if data["id"] != float64(42) || data["request_id"] != "req-42" || data["action"] != "auth.token.expired" {
 		t.Fatalf("expected audit detail record, got %#v", data)
+	}
+}
+
+func TestAuditLogsRouteRejectsHiddenVisibilityScopeWithoutManagePermission(t *testing.T) {
+	repo := &memoryAuditRepository{}
+	_, engine, _ := newModuleTestContextWithAuthorizer(t, repo, zap.NewNop(), selectiveAuthorizer{allowed: map[string]bool{
+		auditcontract.AuditReadPermission.String(): true,
+	}})
+
+	request := httptest.NewRequest(http.MethodGet, "/api/audit/logs?visibility_scope=hidden_only", nil)
+	request.Header.Set("Authorization", "Bearer token")
+	recorder := httptest.NewRecorder()
+	engine.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("expected status 403, got %d body=%s", recorder.Code, recorder.Body.String())
+	}
+}
+
+func TestAuditLogDetailRouteRejectsHiddenRecordWithoutManagePermission(t *testing.T) {
+	assertHiddenAuditReadRequiresManagePermission(t, "/api/audit/logs/42", store.AuditLog{
+		ID:         42,
+		Action:     "auth.token.expired",
+		RequestID:  "req-42",
+		Visibility: store.AuditVisibilityStrategyHidden,
+		CreatedAt:  time.Date(2026, 6, 13, 12, 0, 0, 0, time.UTC),
+	})
+}
+
+func TestAuditLogDetailRouteKeepsManageEscalationAuthFailuresAt401(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name           string
+		authErr        error
+		wantMessageKey string
+		wantCode       string
+	}{
+		{
+			name:           "unauthenticated",
+			authErr:        moduleapi.ErrUnauthenticated,
+			wantMessageKey: "auth.token_missing",
+			wantCode:       "AUTH_TOKEN_MISSING",
+		},
+		{
+			name:           "invalid token",
+			authErr:        moduleapi.ErrInvalidAccessToken,
+			wantMessageKey: "auth.token_invalid",
+			wantCode:       "AUTH_TOKEN_INVALID",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			repo := &memoryAuditRepository{
+				items: []store.AuditLog{
+					{
+						ID:         42,
+						Action:     "auth.token.expired",
+						RequestID:  "req-42",
+						Visibility: store.AuditVisibilityStrategyHidden,
+						CreatedAt:  time.Date(2026, 6, 13, 12, 0, 0, 0, time.UTC),
+					},
+				},
+			}
+			_, engine, _ := newModuleTestContextWithAuthorizer(t, repo, zap.NewNop(), selectiveAuthorizer{
+				allowed: map[string]bool{
+					auditcontract.AuditReadPermission.String(): true,
+				},
+				errs: map[string]error{
+					auditcontract.AuditManagePermission.String(): tc.authErr,
+				},
+			})
+
+			request := httptest.NewRequest(http.MethodGet, "/api/audit/logs/42", nil)
+			request.Header.Set("Authorization", "Bearer token")
+			recorder := httptest.NewRecorder()
+			engine.ServeHTTP(recorder, request)
+
+			if recorder.Code != http.StatusUnauthorized {
+				t.Fatalf("expected status 401, got %d body=%s", recorder.Code, recorder.Body.String())
+			}
+			response := testassert.DecodeErrorResponse(t, recorder)
+			if response.MessageKey != tc.wantMessageKey || response.Code != tc.wantCode {
+				t.Fatalf(
+					"expected messageKey/code %q/%q, got %q/%q",
+					tc.wantMessageKey,
+					tc.wantCode,
+					response.MessageKey,
+					response.Code,
+				)
+			}
+			if len(repo.items) != 1 {
+				t.Fatalf("expected no permission denied audit record, got %#v", repo.items)
+			}
+		})
+	}
+}
+
+func TestAuditIncidentRouteRejectsHiddenSeedWithoutManagePermission(t *testing.T) {
+	assertHiddenAuditReadRequiresManagePermission(t, "/api/audit/incidents/77", store.AuditLog{
+		ID:         77,
+		Action:     "auth.permission.denied",
+		RequestID:  "req-77",
+		Visibility: store.AuditVisibilityStrategyHidden,
+		CreatedAt:  time.Date(2026, 6, 13, 12, 0, 0, 0, time.UTC),
+	})
+}
+
+func assertHiddenAuditReadRequiresManagePermission(t *testing.T, route string, item store.AuditLog) {
+	t.Helper()
+
+	repo := &memoryAuditRepository{
+		items: []store.AuditLog{item},
+	}
+	_, engine, _ := newModuleTestContextWithAuthorizer(t, repo, zap.NewNop(), selectiveAuthorizer{allowed: map[string]bool{
+		auditcontract.AuditReadPermission.String(): true,
+	}})
+
+	request := httptest.NewRequest(http.MethodGet, route, nil)
+	request.Header.Set("Authorization", "Bearer token")
+	recorder := httptest.NewRecorder()
+	engine.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("expected status 403, got %d body=%s", recorder.Code, recorder.Body.String())
 	}
 }
 

@@ -1,0 +1,7 @@
+type: object
+required:
+  - runtime
+properties:
+  runtime:
+    type: string
+    description: Stream context runtime identifier. This is not part of the canonical event fact.

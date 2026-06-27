@@ -9,9 +9,20 @@ import { localDateTimeToUtcIso, normalizeRouteRangeForPageState } from '@/shared
 import type { AuditLogListResponse } from '../../types/audit';
 import AuditLogsPage from './index.vue';
 
-const { getAuditLogDetailMock, getAuditLogsMock } = vi.hoisted(() => ({
+const {
+  deleteAuditVisibilityOverrideMock,
+  getAuditLogDetailMock,
+  getAuditLogsMock,
+  getAuditVisibilityPolicyMock,
+  updateAuditVisibilityDefaultMock,
+  upsertAuditVisibilityOverrideMock,
+} = vi.hoisted(() => ({
+  deleteAuditVisibilityOverrideMock: vi.fn(),
   getAuditLogDetailMock: vi.fn(),
   getAuditLogsMock: vi.fn(),
+  getAuditVisibilityPolicyMock: vi.fn(),
+  updateAuditVisibilityDefaultMock: vi.fn(),
+  upsertAuditVisibilityOverrideMock: vi.fn(),
 }));
 
 function createAuditLogsResponse(overrides: Partial<AuditLogListResponse> = {}): AuditLogListResponse {
@@ -62,8 +73,12 @@ function createAuditLogsResponse(overrides: Partial<AuditLogListResponse> = {}):
 }
 
 vi.mock('../../api/audit', () => ({
+  deleteAuditVisibilityOverride: deleteAuditVisibilityOverrideMock,
   getAuditLogDetail: getAuditLogDetailMock,
   getAuditLogs: getAuditLogsMock,
+  getAuditVisibilityPolicy: getAuditVisibilityPolicyMock,
+  updateAuditVisibilityDefault: updateAuditVisibilityDefaultMock,
+  upsertAuditVisibilityOverride: upsertAuditVisibilityOverrideMock,
 }));
 
 vi.mock('@/shared/localized-api-error', () => ({
@@ -238,6 +253,36 @@ const tagStub = defineComponent({
   },
 });
 
+const selectStub = defineComponent({
+  name: 'TSelectStub',
+  props: ['modelValue', 'options'],
+  emits: ['update:modelValue', 'change'],
+  setup(props, { emit, slots }) {
+    return () =>
+      h('div', [
+        h('span', { 'data-testid': 't-select-model' }, String(props.modelValue ?? '')),
+        h(
+          'button',
+          {
+            'data-testid': 't-select-next',
+            onClick: () => {
+              const options = Array.isArray(props.options) ? props.options : [];
+              const currentIndex = options.findIndex((item) => item?.value === props.modelValue);
+              const next = options[(currentIndex + 1 + options.length) % options.length];
+              if (!next) {
+                return;
+              }
+              emit('update:modelValue', next.value);
+              emit('change', next.value);
+            },
+          },
+          'next',
+        ),
+        slots.default?.(),
+      ]);
+  },
+});
+
 const auditMessages: Record<string, string> = {
   'audit.common.unknownActor': 'Anonymous',
   'audit.common.unknownResource': 'Unknown resource',
@@ -342,6 +387,33 @@ const auditMessages: Record<string, string> = {
   'audit.logList.columnViews.default': 'Default View',
   'audit.logList.columnViews.troubleshooting': 'Troubleshooting View',
   'audit.logList.columnViews.technical': 'Technical View',
+  'audit.logList.policy.manage': 'Manage Visibility',
+  'audit.logList.policy.drawerTitle': 'Audit Visibility Policy',
+  'audit.logList.policy.defaultStrategy': 'Global default strategy',
+  'audit.logList.policy.visibilityScope': 'Current list visibility scope',
+  'audit.logList.policy.saveDefault': 'Save Default',
+  'audit.logList.policy.saveSuccess': 'Audit visibility default updated',
+  'audit.logList.policy.saveFailed': 'Failed to update audit visibility default',
+  'audit.logList.policy.overrideTitle': 'Per-event overrides',
+  'audit.logList.policy.overrideHint': 'Override hint',
+  'audit.logList.policy.saveOverride': 'Save Override',
+  'audit.logList.policy.saveOverrideSuccess': 'Audit visibility override updated',
+  'audit.logList.policy.saveOverrideFailed': 'Failed to update audit visibility override',
+  'audit.logList.policy.resetOverride': 'Reset Override',
+  'audit.logList.policy.resetOverrideSuccess': 'Audit visibility override removed',
+  'audit.logList.policy.resetOverrideFailed': 'Failed to remove audit visibility override',
+  'audit.logList.policy.overriddenTag': 'Overridden',
+  'audit.logList.policy.descriptionFallback': 'No description',
+  'audit.logList.policy.catalog.request.post_api_auth_refresh.displayName': 'Refresh Session Token',
+  'audit.logList.policy.catalog.request.post_api_auth_refresh.description': 'Frontend-owned refresh token description',
+  'audit.logList.policy.defaultState': 'Default: {value}',
+  'audit.logList.policy.effectiveState': 'Effective: {value}',
+  'audit.logList.policy.scope.default': 'Default visible only',
+  'audit.logList.policy.scope.all': 'Show all persisted',
+  'audit.logList.policy.scope.hiddenOnly': 'Hidden only',
+  'audit.logList.policy.strategy.visible': 'Visible',
+  'audit.logList.policy.strategy.hidden': 'Hidden',
+  'audit.logList.policy.strategy.ignore': 'Ignore and drop',
   'menu.audit.title': 'Security Audit',
 };
 
@@ -355,8 +427,12 @@ const i18n = createI18n({
 
 describe('AuditLogsPage', () => {
   beforeEach(() => {
+    deleteAuditVisibilityOverrideMock.mockReset();
     getAuditLogsMock.mockReset();
     getAuditLogDetailMock.mockReset();
+    getAuditVisibilityPolicyMock.mockReset();
+    updateAuditVisibilityDefaultMock.mockReset();
+    upsertAuditVisibilityOverrideMock.mockReset();
     getAuditLogsMock.mockResolvedValue(createAuditLogsResponse());
     getAuditLogDetailMock.mockImplementation(async (id: number) => ({
       ...createAuditLogsResponse().items[0],
@@ -365,6 +441,51 @@ describe('AuditLogsPage', () => {
         detail: true,
       },
     }));
+    getAuditVisibilityPolicyMock.mockResolvedValue({
+      default: {
+        key: 'global',
+        strategy: 'visible',
+        updated_at: '2026-05-27T08:00:00Z',
+      },
+      overrides: [
+        {
+          id: 1,
+          source: 'REQUEST',
+          action_key: 'POST /api/auth/refresh',
+          strategy: 'hidden',
+          description: 'Refresh token request',
+          created_at: '2026-05-27T08:00:00Z',
+          updated_at: '2026-05-27T08:00:00Z',
+        },
+      ],
+      catalog: [
+        {
+          source: 'REQUEST',
+          action_key: 'POST /api/auth/refresh',
+          display_name: 'Refresh token',
+          description: 'Refresh token request',
+          category: 'auth',
+          default_strategy: 'visible',
+          effective_strategy: 'hidden',
+          overridden: true,
+        },
+      ],
+    });
+    updateAuditVisibilityDefaultMock.mockResolvedValue({
+      key: 'global',
+      strategy: 'hidden',
+      updated_at: '2026-05-27T08:00:00Z',
+    });
+    upsertAuditVisibilityOverrideMock.mockResolvedValue({
+      id: 1,
+      source: 'REQUEST',
+      action_key: 'POST /api/auth/refresh',
+      strategy: 'ignore',
+      description: 'Refresh token request',
+      created_at: '2026-05-27T08:00:00Z',
+      updated_at: '2026-05-27T08:00:00Z',
+    });
+    deleteAuditVisibilityOverrideMock.mockResolvedValue({});
   });
 
   afterEach(() => {
@@ -407,6 +528,7 @@ describe('AuditLogsPage', () => {
           't-checkbox-group': checkboxGroupStub,
           't-drawer': drawerStub,
           't-space': passthroughStub,
+          't-select': selectStub,
           't-tag': tagStub,
         },
       },
@@ -459,6 +581,7 @@ describe('AuditLogsPage', () => {
           't-checkbox-group': checkboxGroupStub,
           't-drawer': drawerStub,
           't-space': passthroughStub,
+          't-select': selectStub,
           't-tag': tagStub,
         },
       },
@@ -484,6 +607,7 @@ describe('AuditLogsPage', () => {
     expect(getAuditLogsMock).toHaveBeenLastCalledWith({
       page: 1,
       page_size: 10,
+      visibility_scope: 'default',
       actor: 'alice',
       result: 'FAILED',
       created_from: '2026-05-01T10:00:00.000Z',
@@ -511,6 +635,17 @@ describe('AuditLogsPage', () => {
     await flushPromises();
     expect(wrapper.text()).toContain('true');
     expect(wrapper.text()).toContain('req-1');
+  });
+
+  it('prefers frontend locale mapping over backend policy catalog display text when a source-action key exists', async () => {
+    const { wrapper } = await mountPage();
+
+    await (wrapper.vm as unknown as { loadPolicySnapshot: () => Promise<void> }).loadPolicySnapshot();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('Refresh Session Token');
+    expect(wrapper.text()).toContain('Frontend-owned refresh token description');
+    expect(wrapper.text()).not.toContain('Refresh token request');
   });
 
   it('opens a detail drawer directly when audit_log_id is present in the route query', async () => {
@@ -605,6 +740,7 @@ describe('AuditLogsPage', () => {
     expect(getAuditLogsMock).toHaveBeenCalledWith({
       page: 1,
       page_size: 10,
+      visibility_scope: 'default',
       business_category: 'high_risk_operations',
       created_from: '2026-05-30T07:21:04.000Z',
       created_to: '2026-05-31T07:21:04.000Z',
@@ -653,6 +789,7 @@ describe('AuditLogsPage', () => {
     expect(getAuditLogsMock).toHaveBeenLastCalledWith({
       page: 1,
       page_size: 10,
+      visibility_scope: 'default',
       preset: 'last_24h',
       scope: 'sensitive_operations',
       sort: ['created_at:desc'],
@@ -850,6 +987,7 @@ describe('AuditLogsPage', () => {
     expect(getAuditLogsMock).toHaveBeenLastCalledWith({
       page: 1,
       page_size: 10,
+      visibility_scope: 'default',
       sort: ['created_at:desc'],
     });
     expect(wrapper.text()).toContain('false');
@@ -944,6 +1082,7 @@ describe('AuditLogsPage', () => {
     expect(getAuditLogsMock).toHaveBeenLastCalledWith({
       page: 1,
       page_size: 10,
+      visibility_scope: 'default',
       preset: 'last_24h',
       created_from: '2026-05-03T10:00:00.000Z',
       created_to: '2026-05-04T18:30:00.000Z',
@@ -1036,6 +1175,7 @@ describe('AuditLogsPage', () => {
     expect(getAuditLogsMock).toHaveBeenLastCalledWith({
       page: 1,
       page_size: 10,
+      visibility_scope: 'default',
       resource_type: 'user',
       resource_name: 'Graft Admin',
       resource_id: '1',

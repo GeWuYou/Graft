@@ -19,6 +19,32 @@ dashboard.widget.auditRiskEvents.authFailures.description: 查看最近的认证
 dashboard.widget.auditRiskEvents.authFailures.action: 查看认证失败
 dashboard.widget.auditRiskEvents.empty: 最近 24 小时内没有审计风险事件。
 audit.overview.riskGroups.authFailures: 认证失败
+audit.visibilityCatalog.auth.tokenExpired.description: 访问令牌已过期的安全事件。
+audit.visibilityCatalog.auth.tokenInvalid.description: 访问令牌无效的安全事件。
+audit.visibilityCatalog.auth.tokenMissing.description: 缺少访问令牌的安全事件。
+audit.visibilityCatalog.auth.permissionDenied.description: 权限校验被拒绝的安全事件。
+audit.visibilityCatalog.auth.login.description: 登录请求产生的审计记录。
+audit.visibilityCatalog.auth.refresh.description: 刷新令牌轮转请求产生的审计记录。
+audit.visibilityCatalog.auth.logout.description: 登出请求产生的审计记录。
+audit.visibilityCatalog.user.create.description: 托管用户创建事件。
+audit.visibilityCatalog.user.update.description: 托管用户更新事件。
+audit.visibilityCatalog.user.statusUpdate.description: 托管用户状态变更事件。
+audit.visibilityCatalog.user.delete.description: 托管用户删除事件。
+audit.visibilityCatalog.user.passwordReset.description: 托管用户密码重置事件。
+audit.visibilityCatalog.rbac.role.create.description: RBAC 角色创建事件。
+audit.visibilityCatalog.rbac.role.update.description: RBAC 角色更新事件。
+audit.visibilityCatalog.rbac.role.statusUpdate.description: RBAC 角色状态变更事件。
+audit.visibilityCatalog.rbac.role.delete.description: RBAC 角色删除事件。
+audit.visibilityCatalog.rbac.role.permissionsReplace.description: RBAC 角色权限替换事件。
+audit.visibilityCatalog.rbac.user.rolesReplace.description: RBAC 用户角色替换事件。
+audit.visibilityCatalog.container.action.start.description: 容器启动危险操作事件。
+audit.visibilityCatalog.container.action.stop.description: 容器停止危险操作事件。
+audit.visibilityCatalog.container.action.restart.description: 容器重启危险操作事件。
+audit.visibilityCatalog.container.action.remove.description: 容器删除危险操作事件。
+audit.visibilityCatalog.container.action.batchStart.description: 容器批量启动危险操作事件。
+audit.visibilityCatalog.container.action.batchStop.description: 容器批量停止危险操作事件。
+audit.visibilityCatalog.container.action.batchRestart.description: 容器批量重启危险操作事件。
+audit.visibilityCatalog.container.action.batchRemove.description: 容器批量删除危险操作事件。
 scheduler.job.auditLogRetentionCleanup.title: 审计日志保留清理
 scheduler.job.shortTitle.auditLog: 审计日志
 scheduledTask.auditLogRetention.description: 删除超过保留周期的审计日志。
