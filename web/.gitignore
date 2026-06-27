@@ -37,3 +37,6 @@ yarn-error.log
 # keep Bun lockfile in repo; ignore alternative package manager locks
 yarn.lock
 pnpm-lock.yaml
+
+# test
+.tmp/

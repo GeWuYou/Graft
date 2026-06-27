@@ -148,7 +148,7 @@
         {
             "name": "fullstack: dev",
             "configurations": [
-                "server: 开发监督器",
+                "server: Air 热重载",
                 "web: dev"
             ]
         }
