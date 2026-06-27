@@ -61,6 +61,29 @@ describe('LogViewCache', () => {
     expect(buildSpy).toHaveBeenCalledTimes(4);
   });
 
+  it('reuses search payloads when occurredAt is empty but the line carries a parseable inline timestamp', () => {
+    const buildSpy = vi.spyOn(logParser, 'buildDisplayLogLine');
+    const cache = new LogViewCache();
+    const inlineTimestampLine = '2026-06-26T03:00:00Z INFO request-a';
+
+    cache.buildView({
+      entries: [createEntry(inlineTimestampLine, 'stdout', '')],
+      lineLimit: 1,
+      level: 'ALL',
+      keyword: 'request',
+    });
+    expect(buildSpy).toHaveBeenCalledTimes(1);
+
+    cache.buildView({
+      entries: [createEntry(inlineTimestampLine, 'stdout', '')],
+      lineLimit: 1,
+      level: 'ALL',
+      keyword: 'request',
+    });
+
+    expect(buildSpy).toHaveBeenCalledTimes(1);
+  });
+
   it('drops prior keyword search payloads so keyword history does not accumulate unbounded cache entries', () => {
     const buildSpy = vi.spyOn(logParser, 'buildDisplayLogLine');
     const cache = new LogViewCache();

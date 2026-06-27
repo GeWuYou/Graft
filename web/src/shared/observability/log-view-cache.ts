@@ -6,6 +6,10 @@ type LevelFilter = 'ALL' | LogLevel;
 
 type CachedParsedLogLine = Omit<ParsedLogLine, 'lineNo'>;
 type CachedSearchPayload = Pick<DisplayLogLine, 'messageTokens' | 'rawTokens' | 'searchMatchCount'>;
+type CachedLineMaterialization = Readonly<{
+  cacheKey: string;
+  parsedLine: ParsedLogLine;
+}>;
 
 export type LogViewResult = Readonly<{
   displayLines: DisplayLogLine[];
@@ -35,12 +39,12 @@ export class LogViewCache {
     let matchCount = 0;
 
     visibleEntries.forEach((entry, index) => {
-      const parsedLine = this.#materializeParsedLine(entry, lineNoOffset + index + 1);
+      const { cacheKey, parsedLine } = this.#materializeParsedLine(entry, lineNoOffset + index + 1);
       if (options.level !== 'ALL' && parsedLine.level !== options.level) {
         return;
       }
 
-      const searchPayload = this.#resolveSearchPayload(parsedLine, options.keyword);
+      const searchPayload = this.#resolveSearchPayload(parsedLine, cacheKey, options.keyword);
       matchCount += searchPayload.searchMatchCount;
       displayLines.push({
         ...parsedLine,
@@ -54,12 +58,15 @@ export class LogViewCache {
     };
   }
 
-  #materializeParsedLine(entry: StructuredLogEntry, lineNo: number): ParsedLogLine {
+  #materializeParsedLine(entry: StructuredLogEntry, lineNo: number): CachedLineMaterialization {
     const cacheKey = buildEntryCacheKey(entry);
     const cached = this.#parsedByKey.get(cacheKey) ?? this.#cacheParsedLine(entry, cacheKey);
     return {
-      ...cached,
-      lineNo,
+      cacheKey,
+      parsedLine: {
+        ...cached,
+        lineNo,
+      },
     };
   }
 
@@ -72,12 +79,7 @@ export class LogViewCache {
     return cached;
   }
 
-  #resolveSearchPayload(line: ParsedLogLine, keyword: string) {
-    const cacheKey = buildEntryCacheKey({
-      line: line.raw,
-      occurredAt: line.timestamp,
-      stream: line.stream,
-    });
+  #resolveSearchPayload(line: ParsedLogLine, cacheKey: string, keyword: string) {
     const cached = this.#searchByKey.get(cacheKey);
     if (cached) {
       return cached;

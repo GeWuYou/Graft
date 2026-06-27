@@ -1,24 +1,18 @@
 import { describe, expect, it } from 'vitest';
 
-import { LogRingBuffer } from '@/shared/observability';
+import { LogRingBuffer, type StructuredLogEntry } from '@/shared/observability';
 
 import type { ContainerLogRealtimeBatcherSnapshot } from './log-realtime-batcher';
 import { createContainerDetailLogViewStore } from './log-view-store';
 
-function createEntry(line: string, stream: 'stdout' | 'stderr' = 'stdout', occurredAt = '2026-06-26T03:00:00Z') {
-  return {
-    line,
-    occurred_at: occurredAt,
-    stream,
-  } as const;
-}
-
 function createSnapshot(lines: readonly string[], truncated = false): ContainerLogRealtimeBatcherSnapshot {
-  const buffer = new LogRingBuffer<{ line: string; occurred_at: string; stream: 'stdout' | 'stderr' }>(
-    Math.max(lines.length, 1),
-  );
+  const buffer = new LogRingBuffer<StructuredLogEntry>(Math.max(lines.length, 1));
   for (const line of lines) {
-    buffer.append(createEntry(line));
+    buffer.append({
+      line,
+      occurredAt: '2026-06-26T03:00:00Z',
+      stream: 'stdout',
+    });
   }
   const entryView = buffer.snapshot();
 
@@ -46,6 +40,10 @@ describe('createContainerDetailLogViewStore', () => {
     expect(store.version.value).toBe(2);
     expect(store.entries.value.map((entry) => entry.line)).toEqual(['seed-1', 'seed-2']);
     expect(store.logs.value?.entries.map((entry) => entry.line)).toEqual(['seed-1', 'seed-2']);
+    expect(store.logs.value?.entries.map((entry) => entry.occurred_at)).toEqual([
+      '2026-06-26T03:00:00Z',
+      '2026-06-26T03:00:00Z',
+    ]);
     expect(store.truncated.value).toBe(false);
   });
 

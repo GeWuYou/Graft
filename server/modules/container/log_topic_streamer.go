@@ -34,9 +34,9 @@ type logTopicStream struct {
 }
 
 type containerLogPublished struct {
-	Topic string    `json:"topic"`
-	ID    string    `json:"id"`
-	Entry LogEntry  `json:"entry"`
+	Topic string   `json:"topic"`
+	ID    string   `json:"id"`
+	Entry LogEntry `json:"entry"`
 }
 
 // newLogTopicStreamer 创建一个用于按 topic 管理容器日志流的实例。
@@ -99,16 +99,12 @@ func (s *logTopicStreamer) EnsureTopic(ctx context.Context, topic string, ref Re
 		s.mu.Unlock()
 		return err
 	}
+	stream.canonicalID = strings.TrimSpace(ref.Value)
 	detail, err := runtime.Detail(ctx, ref)
-	if err != nil {
-		s.mu.Lock()
-		delete(s.streams, topic)
-		s.mu.Unlock()
-		return err
-	}
-	stream.canonicalID = strings.TrimSpace(detail.ID)
-	if stream.canonicalID == "" {
-		stream.canonicalID = strings.TrimSpace(ref.Value)
+	if err == nil {
+		if canonicalID := strings.TrimSpace(detail.ID); canonicalID != "" {
+			stream.canonicalID = canonicalID
+		}
 	}
 
 	unregister, err := s.monitor.RegisterTopicObserver(topic, func(_ string) {

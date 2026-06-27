@@ -1,5 +1,7 @@
 import { computed, shallowRef, triggerRef } from 'vue';
 
+import type { StructuredLogEntry } from '@/shared/observability';
+
 import type { ContainerLogResponse } from '../../types/container';
 import type { ContainerLogRealtimeBatcherSnapshot } from './log-realtime-batcher';
 
@@ -23,7 +25,11 @@ function buildLogResponse(snapshot: ContainerLogRealtimeBatcherSnapshot | null):
 
   return Object.freeze({
     id: snapshot.id,
-    entries: [...snapshot.entryView.toArray()],
+    entries: snapshot.entryView.toArray().map((entry) => ({
+      line: entry.line,
+      occurred_at: entry.occurredAt,
+      stream: entry.stream,
+    })),
     runtime: snapshot.runtime,
     stderr: snapshot.stderr,
     stdout: snapshot.stdout,
@@ -55,7 +61,7 @@ export function createContainerDetailLogViewStore() {
   });
   const entries = computed(() => {
     void version.value;
-    return state.value.snapshot?.entryView.toArray() ?? [];
+    return (state.value.snapshot?.entryView.toArray() ?? []) as readonly StructuredLogEntry[];
   });
   const truncated = computed(() => {
     void version.value;

@@ -57,12 +57,13 @@ describe('ContainerLogRealtimeBatcher', () => {
   });
 
   it('supports manual flush and ignores empty or invalid lines', () => {
-    const commits: Array<{ lines: readonly string[]; truncated: boolean }> = [];
+    const commits: Array<{ lines: readonly string[]; occurredAt: readonly string[]; truncated: boolean }> = [];
     const batcher = new ContainerLogRealtimeBatcher({
       lineLimit: 4,
       onCommit: (snapshot) => {
         commits.push({
           lines: snapshot.entryView.toArray().map((entry) => entry.line),
+          occurredAt: snapshot.entryView.toArray().map((entry) => entry.occurredAt),
           truncated: snapshot.truncated,
         });
       },
@@ -74,6 +75,7 @@ describe('ContainerLogRealtimeBatcher', () => {
 
     expect(commits).toHaveLength(2);
     expect(commits[1]?.lines).toEqual(['seed-1', 'line-2', 'line-3']);
+    expect(commits[1]?.occurredAt).toEqual(['2026-06-26T03:00:00Z', '2026-06-26T03:00:00Z', '2026-06-26T03:00:00Z']);
     expect(commits[1]?.truncated).toBe(false);
   });
 

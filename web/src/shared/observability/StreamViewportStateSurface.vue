@@ -112,10 +112,24 @@ function normalizeFauxLineCount(value: number) {
 <style scoped lang="less">
 .stream-viewport-state-surface {
   --stream-viewport-accent: var(--td-brand-color-6);
-  --stream-viewport-accent-soft: #89c2ff;
-  --stream-viewport-copy: #d9e2ec;
-  --stream-viewport-copy-muted: rgb(217 226 236 / 72%);
-  --stream-viewport-panel: rgb(9 14 21 / 84%);
+  --stream-viewport-accent-soft: color-mix(in srgb, var(--stream-viewport-accent) 42%, var(--td-text-color-anti));
+  --stream-viewport-base-surface: color-mix(in srgb, var(--td-bg-color-container) 72%, var(--td-bg-color-page));
+  --stream-viewport-top-surface: color-mix(
+    in srgb,
+    var(--stream-viewport-base-surface) 86%,
+    var(--td-text-color-primary)
+  );
+  --stream-viewport-bottom-surface: color-mix(in srgb, var(--stream-viewport-base-surface) 76%, #08121a);
+  --stream-viewport-copy: var(--td-text-color-primary);
+  --stream-viewport-copy-muted: color-mix(in srgb, var(--td-text-color-secondary) 88%, transparent);
+  --stream-viewport-panel: color-mix(in srgb, var(--stream-viewport-base-surface) 90%, #08111a);
+  --stream-viewport-chrome-gloss: color-mix(in srgb, var(--td-text-color-anti) 7%, transparent);
+  --stream-viewport-chrome-border: color-mix(in srgb, var(--td-component-stroke) 54%, transparent);
+  --stream-viewport-shadow: color-mix(in srgb, var(--td-mask-active) 22%, transparent);
+  --stream-viewport-viewport-shadow: color-mix(in srgb, var(--td-mask-active) 18%, transparent);
+  --stream-viewport-line-fade: color-mix(in srgb, var(--td-text-color-anti) 12%, transparent);
+  --stream-viewport-marker-glow: color-mix(in srgb, var(--td-text-color-anti) 18%, transparent);
+  --stream-viewport-prompt-glow: color-mix(in srgb, var(--td-text-color-anti) 24%, transparent);
 
   background:
     radial-gradient(
@@ -123,12 +137,12 @@ function normalizeFauxLineCount(value: number) {
       color-mix(in srgb, var(--stream-viewport-accent) 16%, transparent),
       transparent 34%
     ),
-    linear-gradient(180deg, #111923 0%, #0a1017 100%);
-  border: 1px solid color-mix(in srgb, var(--stream-viewport-accent) 18%, rgb(129 150 173 / 26%));
+    linear-gradient(180deg, var(--stream-viewport-top-surface) 0%, var(--stream-viewport-bottom-surface) 100%);
+  border: 1px solid color-mix(in srgb, var(--stream-viewport-accent) 18%, var(--td-component-stroke));
   border-radius: var(--td-radius-large);
   box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 4%),
-    0 14px 40px rgb(7 11 16 / 20%);
+    inset 0 1px 0 color-mix(in srgb, var(--td-text-color-anti) 5%, transparent),
+    0 14px 40px var(--stream-viewport-shadow);
   color: var(--stream-viewport-copy);
   display: flex;
   flex: 1 1 auto;
@@ -142,24 +156,24 @@ function normalizeFauxLineCount(value: number) {
 .stream-viewport-state-surface--idle,
 .stream-viewport-state-surface--empty {
   --stream-viewport-accent: var(--td-text-color-placeholder);
-  --stream-viewport-accent-soft: #95a9bf;
+  --stream-viewport-accent-soft: color-mix(in srgb, var(--stream-viewport-accent) 52%, var(--td-text-color-primary));
 }
 
 .stream-viewport-state-surface--paused,
 .stream-viewport-state-surface--disconnected {
   --stream-viewport-accent: var(--td-warning-color-6);
-  --stream-viewport-accent-soft: #ffda94;
+  --stream-viewport-accent-soft: color-mix(in srgb, var(--stream-viewport-accent) 48%, var(--td-text-color-anti));
 }
 
 .stream-viewport-state-surface--error {
   --stream-viewport-accent: var(--td-error-color-6);
-  --stream-viewport-accent-soft: #ffb7aa;
+  --stream-viewport-accent-soft: color-mix(in srgb, var(--stream-viewport-accent) 48%, var(--td-text-color-anti));
 }
 
 .stream-viewport-state-surface__chrome {
   align-items: center;
-  background: linear-gradient(180deg, rgb(255 255 255 / 6%), rgb(255 255 255 / 1%));
-  border-bottom: 1px solid rgb(255 255 255 / 6%);
+  background: linear-gradient(180deg, var(--stream-viewport-chrome-gloss), transparent);
+  border-bottom: 1px solid var(--stream-viewport-chrome-border);
   display: flex;
   gap: var(--graft-density-gap-12);
   justify-content: space-between;
@@ -171,10 +185,16 @@ function normalizeFauxLineCount(value: number) {
   gap: var(--graft-density-gap-6);
 }
 
-.stream-viewport-state-surface__chrome-light {
-  background: color-mix(in srgb, var(--stream-viewport-accent-soft) 78%, rgb(255 255 255 / 18%));
+.stream-viewport-state-surface__chrome-light,
+.stream-viewport-state-surface__faux-line-marker {
+  background: color-mix(in srgb, var(--stream-viewport-accent-soft) 78%, var(--stream-viewport-marker-glow));
   border-radius: 999px;
   display: block;
+  height: 10px;
+  width: 10px;
+}
+
+.stream-viewport-state-surface__chrome-light {
   height: 10px;
   opacity: 0.72;
   width: 10px;
@@ -184,7 +204,7 @@ function normalizeFauxLineCount(value: number) {
   background: linear-gradient(
     90deg,
     color-mix(in srgb, var(--stream-viewport-accent) 30%, transparent),
-    rgb(255 255 255 / 6%)
+    var(--stream-viewport-chrome-border)
   );
   border-radius: 999px;
   display: block;
@@ -203,7 +223,7 @@ function normalizeFauxLineCount(value: number) {
 }
 
 .stream-viewport-state-surface__viewport::after {
-  background: linear-gradient(180deg, rgb(0 0 0 / 0%) 0%, rgb(0 0 0 / 18%) 100%);
+  background: linear-gradient(180deg, transparent 0%, var(--stream-viewport-viewport-shadow) 100%);
   content: '';
   inset: 0;
   pointer-events: none;
@@ -227,19 +247,11 @@ function normalizeFauxLineCount(value: number) {
   grid-template-columns: 10px minmax(0, 1fr);
 }
 
-.stream-viewport-state-surface__faux-line-marker {
-  background: color-mix(in srgb, var(--stream-viewport-accent-soft) 78%, rgb(255 255 255 / 16%));
-  border-radius: 999px;
-  display: block;
-  height: 10px;
-  width: 10px;
-}
-
 .stream-viewport-state-surface__faux-line-bar {
   background: linear-gradient(
     90deg,
-    color-mix(in srgb, var(--stream-viewport-accent) 26%, rgb(255 255 255 / 12%)) 0%,
-    rgb(255 255 255 / 4%) 100%
+    color-mix(in srgb, var(--stream-viewport-accent) 26%, var(--stream-viewport-line-fade)) 0%,
+    color-mix(in srgb, var(--stream-viewport-line-fade) 48%, transparent) 100%
   );
   border-radius: 999px;
   display: block;
@@ -249,8 +261,12 @@ function normalizeFauxLineCount(value: number) {
 
 .stream-viewport-state-surface__panel {
   align-self: end;
-  background: linear-gradient(180deg, rgb(8 12 18 / 18%), var(--stream-viewport-panel));
-  border-top: 1px solid color-mix(in srgb, var(--stream-viewport-accent) 18%, rgb(255 255 255 / 8%));
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--stream-viewport-panel) 26%, transparent),
+    var(--stream-viewport-panel)
+  );
+  border-top: 1px solid color-mix(in srgb, var(--stream-viewport-accent) 18%, var(--stream-viewport-chrome-border));
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
@@ -325,7 +341,7 @@ function normalizeFauxLineCount(value: number) {
 }
 
 .stream-viewport-state-surface__prompt-marker {
-  background: color-mix(in srgb, var(--stream-viewport-accent-soft) 84%, rgb(255 255 255 / 22%));
+  background: color-mix(in srgb, var(--stream-viewport-accent-soft) 84%, var(--stream-viewport-prompt-glow));
   border-radius: 3px;
   display: inline-flex;
   flex: 0 0 auto;

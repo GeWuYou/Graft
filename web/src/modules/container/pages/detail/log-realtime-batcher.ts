@@ -4,6 +4,7 @@ import {
   LogRingBuffer,
   type LogRingBufferView,
   normalizeStructuredLogEntry,
+  type StructuredLogEntry,
 } from '@/shared/observability';
 
 import type { ContainerLogEntry, ContainerLogResponse } from '../../types/container';
@@ -22,7 +23,7 @@ type ContainerLogBase = Omit<ContainerLogResponse, 'entries' | 'tail' | 'truncat
 
 export type ContainerLogRealtimeBatcherSnapshot = Readonly<
   ContainerLogBase & {
-    entryView: LogRingBufferView<ContainerLogEntry>;
+    entryView: LogRingBufferView<StructuredLogEntry>;
     tail: number;
     truncated: boolean;
     version: number;
@@ -33,17 +34,12 @@ export type ContainerLogRealtimeBatcherSnapshot = Readonly<
  * 标准化并筛选日志条目。
  *
  * @param entries - 待处理的结构化日志条目数组
- * @returns 仅包含成功标准化后的条目视图数组，每项包含 `line`、`occurred_at` 和 `stream`
+ * @returns 仅包含成功标准化后的条目视图数组，每项包含 `line`、`occurredAt` 和 `stream`
  */
 function normalizeEntries(entries: readonly ContainerLogEntry[]) {
   return entries
     .map((entry) => normalizeStructuredLogEntry(entry))
-    .filter((entry): entry is NonNullable<ReturnType<typeof normalizeStructuredLogEntry>> => entry !== null)
-    .map((entry) => ({
-      line: entry.line,
-      occurred_at: entry.occurredAt,
-      stream: entry.stream,
-    }));
+    .filter((entry): entry is StructuredLogEntry => entry !== null);
 }
 
 export class ContainerLogRealtimeBatcher {
@@ -53,21 +49,21 @@ export class ContainerLogRealtimeBatcher {
   #lineLimit: number;
   #base: ContainerLogBase | null = null;
   #truncated = false;
-  #lineBuffer: LogRingBuffer<ContainerLogEntry>;
-  #batchBuffer: LogBatchBuffer<ContainerLogEntry>;
+  #lineBuffer: LogRingBuffer<StructuredLogEntry>;
+  #batchBuffer: LogBatchBuffer<StructuredLogEntry>;
 
   constructor(options: ContainerLogRealtimeBatcherOptions) {
     this.#lineLimit = options.lineLimit;
     this.#flushIntervalMs = options.flushIntervalMs ?? DEFAULT_LOG_BATCH_FLUSH_INTERVAL_MS;
     this.#maxBatchSize = options.maxBatchSize ?? DEFAULT_LOG_BATCH_MAX_SIZE;
     this.#onCommit = options.onCommit;
-    this.#lineBuffer = new LogRingBuffer<ContainerLogEntry>(this.#lineLimit);
+    this.#lineBuffer = new LogRingBuffer<StructuredLogEntry>(this.#lineLimit);
     this.#batchBuffer = this.#createBatchBuffer();
   }
 
   seed(nextLogs: ContainerLogResponse) {
     this.#batchBuffer.clear();
-    this.#lineBuffer = new LogRingBuffer<ContainerLogEntry>(this.#lineLimit);
+    this.#lineBuffer = new LogRingBuffer<StructuredLogEntry>(this.#lineLimit);
     this.#base = {
       id: nextLogs.id,
       runtime: nextLogs.runtime,
@@ -119,11 +115,11 @@ export class ContainerLogRealtimeBatcher {
     this.clear();
     this.#batchBuffer.destroy();
     this.#batchBuffer = this.#createBatchBuffer();
-    this.#lineBuffer = new LogRingBuffer<ContainerLogEntry>(this.#lineLimit);
+    this.#lineBuffer = new LogRingBuffer<StructuredLogEntry>(this.#lineLimit);
   }
 
   #createBatchBuffer() {
-    return new LogBatchBuffer<ContainerLogEntry>({
+    return new LogBatchBuffer<StructuredLogEntry>({
       flushIntervalMs: this.#flushIntervalMs,
       maxBatchSize: this.#maxBatchSize,
       onFlush: (batch) => {
@@ -137,7 +133,7 @@ export class ContainerLogRealtimeBatcher {
     });
   }
 
-  #appendDirect(entries: readonly ContainerLogEntry[]) {
+  #appendDirect(entries: readonly StructuredLogEntry[]) {
     for (const entry of entries) {
       const result = this.#lineBuffer.append(entry);
       if (result.overwritten !== undefined) {

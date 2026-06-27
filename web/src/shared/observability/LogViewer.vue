@@ -750,6 +750,7 @@ const DEFAULT_WRAPPED_LOG_ROW_HEIGHT = 88;
 const DEFAULT_VIRTUAL_OVERSCAN_PX = 240;
 const LOG_ROW_VERTICAL_MARGIN_PX = 2;
 const AUTO_SCROLL_BOTTOM_THRESHOLD_PX = 32;
+const TIMESTAMP_YESTERDAY_DAY_OFFSET = -1;
 
 const searchKeyword = ref('');
 const wrapLines = ref(true);
@@ -1118,11 +1119,34 @@ function formatJson(value: unknown) {
 }
 
 function displayTimestamp(timestamp: string) {
-  return formatLogViewerTimestamp(timestamp, locale);
+  const formatted = formatLogViewerTimestamp(timestamp, locale);
+  const date = new Date(timestamp);
+
+  if (Number.isNaN(date.getTime()) || !isYesterday(date)) {
+    return formatted;
+  }
+
+  return `${formatRelativeDayLabel(TIMESTAMP_YESTERDAY_DAY_OFFSET)} ${formatted}`;
 }
 
 function formattedFullTimestamp(timestamp: string) {
   return formatLocaleDateTime(timestamp, locale);
+}
+
+function formatRelativeDayLabel(dayOffset: number) {
+  return new Intl.RelativeTimeFormat(locale.value, { numeric: 'auto' }).format(dayOffset, 'day');
+}
+
+function isYesterday(date: Date) {
+  const now = new Date();
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+
+  return (
+    date.getFullYear() === yesterday.getFullYear() &&
+    date.getMonth() === yesterday.getMonth() &&
+    date.getDate() === yesterday.getDate()
+  );
 }
 
 function levelTheme(level: LogLevel | null | undefined) {

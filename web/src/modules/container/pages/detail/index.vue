@@ -1511,8 +1511,8 @@ let detailRefreshSeq = 0;
 let logsRefreshSeq = 0;
 let logsRealtimeController: RealtimeTopicSocketController | null = null;
 let logsRealtimeTopic = '';
-let logsBootstrapRequested = false;
-let logsRecoveryLoadRequested = false;
+const logsBootstrapRequested = ref(false);
+const logsRecoveryLoadRequested = ref(false);
 let logsRealtimeBatcher = new ContainerLogRealtimeBatcher({
   lineLimit: DEFAULT_LOG_QUERY.tail,
   onCommit: (snapshot) => {
@@ -1521,7 +1521,7 @@ let logsRealtimeBatcher = new ContainerLogRealtimeBatcher({
 });
 const logsRouteSpinnerActive = computed(() => routeLoading.value && !logsHasVisibleContent.value);
 const logsHasStarted = computed(
-  () => logsHasSnapshot.value || logsBootstrapRequested || logsRecoveryLoadRequested || logsLoading.value,
+  () => logsHasSnapshot.value || logsBootstrapRequested.value || logsRecoveryLoadRequested.value || logsLoading.value,
 );
 const logsHasHistory = computed(
   () => logsHasSnapshot.value || logsHasVisibleContent.value || logsSocketState.value === 'open',
@@ -1532,7 +1532,7 @@ const logsIsConnecting = computed(
     logsLoading.value &&
     !logsHasVisibleContent.value &&
     !logsError.value &&
-    !logsRecoveryLoadRequested &&
+    !logsRecoveryLoadRequested.value &&
     !logsHasSnapshot.value,
 );
 const logsIsReconnecting = computed(
@@ -1540,7 +1540,7 @@ const logsIsReconnecting = computed(
     !logsRouteSpinnerActive.value &&
     !logsPaused.value &&
     !logsError.value &&
-    ((logsLoading.value && logsRecoveryLoadRequested) ||
+    ((logsLoading.value && logsRecoveryLoadRequested.value) ||
       (logsSocketState.value === 'connecting' && logsHasHistory.value)),
 );
 const logsIsStreaming = computed(
@@ -2478,8 +2478,8 @@ async function loadLogs() {
   const currentContainerId = containerId.value;
   if (!currentContainerId) {
     logViewStore.reset();
-    logsBootstrapRequested = false;
-    logsRecoveryLoadRequested = false;
+    logsBootstrapRequested.value = false;
+    logsRecoveryLoadRequested.value = false;
     return;
   }
   const requestSeq = ++logsRefreshSeq;
@@ -2494,7 +2494,7 @@ async function loadLogs() {
       return;
     }
     logsRealtimeBatcher.seed(nextLogs);
-    logsRecoveryLoadRequested = false;
+    logsRecoveryLoadRequested.value = false;
   } catch (loadError) {
     if (requestSeq !== logsRefreshSeq || currentContainerId !== containerId.value) {
       return;
@@ -2540,8 +2540,8 @@ function resetDetailState() {
   detail.value = null;
   error.value = '';
   logViewStore.reset();
-  logsBootstrapRequested = false;
-  logsRecoveryLoadRequested = false;
+  logsBootstrapRequested.value = false;
+  logsRecoveryLoadRequested.value = false;
   logsRefreshSeq += 1;
   logsRealtimeBatcher.clear();
   refreshingMountKeys.value = new Set();
@@ -2565,7 +2565,7 @@ function clearLogsScreen() {
 
 function reconnectLogsRealtime() {
   if (!logsHasSnapshot.value && !logsLoading.value) {
-    logsRecoveryLoadRequested = true;
+    logsRecoveryLoadRequested.value = true;
     void loadLogs();
     return;
   }
@@ -2621,8 +2621,8 @@ function syncLogsRealtimeSubscription() {
     return;
   }
 
-  if (!logsHasSnapshot.value && !logsLoading.value && !logsBootstrapRequested) {
-    logsBootstrapRequested = true;
+  if (!logsHasSnapshot.value && !logsLoading.value && !logsBootstrapRequested.value) {
+    logsBootstrapRequested.value = true;
     void loadLogs();
     return;
   }
@@ -2631,9 +2631,9 @@ function syncLogsRealtimeSubscription() {
     !logsHasSnapshot.value &&
     !logsLoading.value &&
     (logsSocketState.value === 'closed' || logsSocketState.value === 'error') &&
-    !logsRecoveryLoadRequested;
+    !logsRecoveryLoadRequested.value;
   if (needsRecoveryLoad) {
-    logsRecoveryLoadRequested = true;
+    logsRecoveryLoadRequested.value = true;
     void loadLogs();
     return;
   }
@@ -2651,7 +2651,7 @@ function syncLogsRealtimeSubscription() {
     onStateChange: (state) => {
       logsSocketState.value = state;
       if (state === 'open') {
-        logsRecoveryLoadRequested = false;
+        logsRecoveryLoadRequested.value = false;
       }
       if (
         detailPageActive.value &&
@@ -2659,9 +2659,9 @@ function syncLogsRealtimeSubscription() {
         !logsHasSnapshot.value &&
         !logsLoading.value &&
         (state === 'closed' || state === 'error') &&
-        !logsRecoveryLoadRequested
+        !logsRecoveryLoadRequested.value
       ) {
-        logsRecoveryLoadRequested = true;
+        logsRecoveryLoadRequested.value = true;
         void loadLogs();
       }
     },

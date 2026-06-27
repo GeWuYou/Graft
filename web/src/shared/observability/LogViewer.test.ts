@@ -66,6 +66,7 @@ const labels = {
 describe('LogViewer', () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.useRealTimers();
   });
 
   it('renders the rebuilt toolbar groups and sticky header columns', () => {
@@ -109,6 +110,21 @@ describe('LogViewer', () => {
     const line = wrapper.find('.log-viewer__line');
     expect(line.find('.log-viewer__stream-cell').text()).toContain('STDERR');
     expect(line.text()).not.toContain('pricing_service.go:461');
+  });
+
+  it('renders the relative-day timestamp label from the active locale', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-18T08:00:00+08:00'));
+
+    const wrapper = mount(LogViewer, {
+      props: {
+        ...labels,
+        entries: [createEntry('2026-06-17T06:31:42.585+0800 INFO previous day {"request_id":"abc"}', 'stdout')],
+      },
+      global: { components: tdesignComponents, plugins: [createTestI18n()] },
+    });
+
+    expect(wrapper.find('.log-viewer__timestamp').text()).toContain('昨天');
   });
 
   it('shows search highlight and keeps tail line numbers stable after appends', async () => {

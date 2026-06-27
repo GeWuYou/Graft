@@ -125,8 +125,7 @@ export function formatLogViewerTimestamp(value?: string | null, locale?: string 
   const yesterday = new Date(now);
   yesterday.setDate(now.getDate() - 1);
   if (isSameLocalDay(date, yesterday)) {
-    const yesterdayLabel = currentLocale.startsWith('zh') ? '昨天' : 'Yesterday';
-    return `${yesterdayLabel} ${new Intl.DateTimeFormat(currentLocale, TIME_ONLY_FORMAT_OPTIONS).format(date)}`;
+    return new Intl.DateTimeFormat(currentLocale, TIME_ONLY_FORMAT_OPTIONS).format(date);
   }
 
   if (date.getFullYear() === now.getFullYear()) {

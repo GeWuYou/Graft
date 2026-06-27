@@ -187,7 +187,7 @@ func (r *DockerRuntime) Logs(ctx context.Context, ref Ref, query LogQuery) (Logs
 		_ = reader.Close()
 	}()
 
-	entries, truncated, err := readDockerLogEntries(reader, query.Tail, query.Timestamps)
+	entries, truncated, err := readDockerLogEntries(ctx, reader, query.Tail, query.Timestamps)
 	if err != nil {
 		return Logs{}, mapDockerError(err)
 	}
@@ -1299,37 +1299,71 @@ func mapDockerMessageError(message string) error {
 	return errRuntimeDaemonUnavailable
 }
 
-// readDockerLogEntries 读取并截取容器日志条目。
+// readDockerLogEntries 使用调用方上下文读取并截取容器日志条目。
 //
 // 返回按时间顺序排列的结构化日志条目，以及是否因尾部截断而丢弃了更早的内容。
 // readDockerLogEntries 读取 Docker 日志并将其转换为日志条目，按指定尾部条数保留最近的记录。
 // 读取过程中发生错误时返回错误，并指示结果是否被截断。
-func readDockerLogEntries(reader io.Reader, tail int, timestamps bool) ([]LogEntry, bool, error) {
+func readDockerLogEntries(ctx context.Context, reader io.Reader, tail int, timestamps bool) ([]LogEntry, bool, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	limit := tail
 	if limit > defaultContainerLogsMaxTail {
 		limit = defaultContainerLogsMaxTail
 	}
-	var entries []LogEntry
 	truncated := false
-	err := streamDockerLogLines(context.Background(), reader, timestamps, func(chunk LogChunk) error {
+	if limit <= 0 {
+		err := streamDockerLogLines(ctx, reader, timestamps, func(_ LogChunk) error {
+			truncated = true
+			return nil
+		})
+		if err != nil {
+			return nil, false, err
+		}
+		return nil, truncated, nil
+	}
+
+	buffer := make([]LogEntry, limit)
+	count := 0
+	head := 0
+	err := streamDockerLogLines(ctx, reader, timestamps, func(chunk LogChunk) error {
 		entry := logEntryFromChunk(chunk)
-		if limit <= 0 {
-			truncated = true
+		if count < limit {
+			buffer[count] = entry
+			count++
 			return nil
 		}
-		if len(entries) == limit {
+		if count == limit {
 			truncated = true
-			copy(entries, entries[1:])
-			entries[limit-1] = entry
+			buffer[head] = entry
+			head = (head + 1) % limit
 			return nil
 		}
-		entries = append(entries, entry)
 		return nil
 	})
 	if err != nil {
 		return nil, false, err
 	}
-	return entries, truncated, nil
+	return materializeBoundedLogEntries(buffer, count, limit, head), truncated, nil
+}
+
+func materializeBoundedLogEntries(buffer []LogEntry, count int, limit int, head int) []LogEntry {
+	if count == 0 {
+		return nil
+	}
+	if count < limit {
+		entries := make([]LogEntry, count)
+		copy(entries, buffer[:count])
+		return entries
+	}
+
+	entries := make([]LogEntry, limit)
+	// Reconstruct the full ring so callers still receive oldest-to-newest order.
+	for index := range entries {
+		entries[index] = buffer[(head+index)%limit]
+	}
+	return entries
 }
 
 // 当上下文取消、回调返回错误或读取过程发生错误时返回相应错误。

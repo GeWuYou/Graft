@@ -111,7 +111,7 @@ func TestRepositoryCreateAndListAuditLogs(t *testing.T) {
 
 	ctx := context.Background()
 	actorID := uint64(7)
-	firstCreatedAt := time.Date(2026, 5, 27, 12, 0, 0, 0, time.UTC)
+	firstCreatedAt := time.Now().UTC().Add(-2 * time.Hour).Truncate(time.Second)
 	secondCreatedAt := firstCreatedAt.Add(time.Minute)
 	_, err = repo.CreateAuditLog(ctx, auditstore.CreateAuditLogInput{
 		ActorUserID:      &actorID,
@@ -527,7 +527,7 @@ func TestRepositoryListAuditLogsAppliesFilters(t *testing.T) {
 
 	ctx := context.Background()
 	success := true
-	now := time.Date(2026, 5, 27, 12, 0, 0, 0, time.UTC)
+	now := time.Now().UTC().Add(-2 * time.Hour).Truncate(time.Second)
 	for _, entry := range []auditstore.CreateAuditLogInput{
 		{
 			Action:       "user.update",
