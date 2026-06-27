@@ -3,6 +3,7 @@ package container
 import (
 	"context"
 	"errors"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -47,6 +48,19 @@ func TestNewRuntimeEventAppliesCanonicalSeverity(t *testing.T) {
 	}
 	if event.ID == "" {
 		t.Fatal("expected opaque runtime event id")
+	}
+}
+
+func TestNewRuntimeEventRejectsUnknownEventType(t *testing.T) {
+	t.Parallel()
+
+	_, err := newRuntimeEvent(RuntimeEventCandidate{
+		ResourceID: "container-1",
+		EventType:  containercontract.RuntimeEventType("container.unknown"),
+		OccurredAt: time.Date(2026, time.June, 27, 5, 0, 0, 0, time.UTC),
+	})
+	if err == nil || !strings.Contains(err.Error(), `runtime event type "container.unknown" is invalid`) {
+		t.Fatalf("expected invalid runtime event type error, got %v", err)
 	}
 }
 
@@ -152,6 +166,67 @@ func TestRuntimeEventManagerStartLoadsRegisteredSourcesOnceAndTracksDiagnostics(
 	assertRuntimeEventSourceExecutionCounts(t, loadCalls, streamCalls)
 	assertRuntimeEventSourceHistory(t, manager)
 	assertRuntimeEventSourceDiagnostics(t, manager.Diagnostics())
+}
+
+func TestRuntimeEventManagerStartWrapsSourceLoadError(t *testing.T) {
+	t.Parallel()
+
+	manager := newRuntimeEventManager(nil, nil, []runtimeEventSourceRegistration{
+		{
+			name: "docker-primary",
+			load: func() (RuntimeEventSource, error) {
+				return nil, errors.New("socket unavailable")
+			},
+		},
+	}, RuntimeEventStreamContext{Runtime: runtimeNameDocker})
+
+	err := manager.Start(context.Background())
+	if err == nil || !strings.Contains(err.Error(), `load container runtime event source "docker-primary": socket unavailable`) {
+		t.Fatalf("expected wrapped source load error, got %v", err)
+	}
+}
+
+func TestRuntimeEventManagerCanRestartAfterRunLoopExit(t *testing.T) {
+	t.Parallel()
+
+	var loadCalls atomic.Int64
+	var streamCalls atomic.Int64
+	manager := newRuntimeEventManager(nil, nil, []runtimeEventSourceRegistration{
+		{
+			name: "docker-primary",
+			load: func() (RuntimeEventSource, error) {
+				loadCalls.Add(1)
+				return runtimeEventSourceStub{
+					stream: func(_ context.Context, emit func(RuntimeEventCandidate) error) error {
+						streamCalls.Add(1)
+						if err := emit(startedRuntimeEventCandidate("container-restart")); err != nil {
+							return err
+						}
+						return nil
+					},
+				}, nil
+			},
+		},
+	}, RuntimeEventStreamContext{Runtime: runtimeNameDocker})
+
+	if err := manager.Start(context.Background()); err != nil {
+		t.Fatalf("start manager first run: %v", err)
+	}
+	if err := manager.Stop(context.Background()); err != nil {
+		t.Fatalf("stop manager first run: %v", err)
+	}
+	if err := manager.Start(context.Background()); err != nil {
+		t.Fatalf("start manager second run: %v", err)
+	}
+	if err := manager.Stop(context.Background()); err != nil {
+		t.Fatalf("stop manager second run: %v", err)
+	}
+	if loadCalls.Load() != 2 {
+		t.Fatalf("expected two source load calls across restarts, got %d", loadCalls.Load())
+	}
+	if streamCalls.Load() != 2 {
+		t.Fatalf("expected two stream runs across restarts, got %d", streamCalls.Load())
+	}
 }
 
 func newRuntimeEventManagerWithFailingSource() (*runtimeEventManager, *atomic.Int64, *atomic.Int64) {

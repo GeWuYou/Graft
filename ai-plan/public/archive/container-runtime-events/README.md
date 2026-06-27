@@ -96,6 +96,6 @@
 
 ```bash
 git diff --check
-cd server && go run ./cmd/graft validate backend
+cd server && graft validate backend
 cd web && bun run check
 ```

@@ -57,6 +57,7 @@ type service struct {
 	topicIssuers            realtime.TopicIssuerRegistry
 	authorizer              moduleapi.Authorizer
 	statsCollector          *statsCollector
+	runtimeEventManagerMu   sync.RWMutex
 	runtimeEventManager     *runtimeEventManager
 	logTopicStreamerMu      sync.Mutex
 	logTopicStreamer        *logTopicStreamer
@@ -249,11 +250,14 @@ func (s *service) Close() error {
 		}
 		s.statsCollector = nil
 	}
-	if s.runtimeEventManager != nil {
-		if err := s.runtimeEventManager.Stop(context.Background()); err != nil {
+	s.runtimeEventManagerMu.Lock()
+	runtimeEventManager := s.runtimeEventManager
+	s.runtimeEventManager = nil
+	s.runtimeEventManagerMu.Unlock()
+	if runtimeEventManager != nil {
+		if err := runtimeEventManager.Stop(context.Background()); err != nil {
 			closeErr = errors.Join(closeErr, err)
 		}
-		s.runtimeEventManager = nil
 	}
 	s.runtimeMu.Lock()
 	defer s.runtimeMu.Unlock()
@@ -1975,10 +1979,18 @@ func (s *service) startStatsCollector(ctx context.Context) error {
 	return s.statsCollector.Start(ctx)
 }
 
+func (s *service) stopStatsCollector(ctx context.Context) error {
+	if s == nil || s.statsCollector == nil {
+		return nil
+	}
+	return s.statsCollector.Stop(ctx)
+}
+
 func (s *service) startRuntimeEventManager(ctx context.Context) error {
 	if s == nil || s.realtimeHub == nil {
 		return nil
 	}
+	s.runtimeEventManagerMu.Lock()
 	if s.runtimeEventManager == nil {
 		s.runtimeEventManager = newRuntimeEventManager(
 			s.realtimeHub,
@@ -1987,7 +1999,18 @@ func (s *service) startRuntimeEventManager(ctx context.Context) error {
 			RuntimeEventStreamContext{Runtime: s.defaultRuntimeEventStreamRuntime()},
 		)
 	}
-	return s.runtimeEventManager.Start(ctx)
+	manager := s.runtimeEventManager
+	s.runtimeEventManagerMu.Unlock()
+	return manager.Start(ctx)
+}
+
+func (s *service) runtimeEventManagerForRead() *runtimeEventManager {
+	if s == nil {
+		return nil
+	}
+	s.runtimeEventManagerMu.RLock()
+	defer s.runtimeEventManagerMu.RUnlock()
+	return s.runtimeEventManager
 }
 
 func (s *service) runtimeEventSourceRegistrations() []runtimeEventSourceRegistration {

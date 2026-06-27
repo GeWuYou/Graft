@@ -57,7 +57,13 @@ func (m *Module) Boot(ctx *module.Context) error {
 	if err := m.service.startStatsCollector(lifecycleCtx); err != nil {
 		return err
 	}
-	return m.service.startRuntimeEventManager(lifecycleCtx)
+	if err := m.service.startRuntimeEventManager(lifecycleCtx); err != nil {
+		if stopErr := m.service.stopStatsCollector(lifecycleCtx); stopErr != nil {
+			return errors.Join(err, stopErr)
+		}
+		return err
+	}
+	return nil
 }
 
 // Shutdown stops module-owned background work and releases the runtime client.

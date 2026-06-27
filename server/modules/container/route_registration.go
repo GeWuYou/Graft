@@ -187,6 +187,7 @@ func (r routeRuntime) handleLogs(ginCtx *gin.Context) {
 }
 
 func (r routeRuntime) handleEvents(ginCtx *gin.Context) {
+	// Keep generated binding on routes with OpenAPI header parameters even when the handler does not read them.
 	_ = bindGetContainerEventsParams(ginCtx)
 	ref, ok := readRef(ginCtx, r)
 	if !ok {

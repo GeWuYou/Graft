@@ -99,6 +99,32 @@ globalThis.prompt('name');
     expect(result.output).toContain('prompt');
   });
 
+  it('ignores comment and string literal matches', () => {
+    const result = runAuditWithSource(
+      'src/modules/demo/CommentOnly.ts',
+      `
+// alert('comment only');
+const label = "window.confirm('copy')";
+const promptName = 'prompt(';
+`,
+    );
+
+    expect(result.debt).toHaveLength(0);
+  });
+
+  it('supports explicit inline exemptions for approved occurrences', () => {
+    const result = runAuditWithSource(
+      'src/modules/demo/ExemptedConfirm.ts',
+      `
+export function run() {
+  return window.confirm('danger'); // native-dialog-governance: allow
+}
+`,
+    );
+
+    expect(result.debt).toHaveLength(0);
+  });
+
   it('ignores test files and generated runtime artifacts', () => {
     const root = createScratchRoot();
     mkdirSync(join(root, 'src/contracts/openapi/generated'), { recursive: true });

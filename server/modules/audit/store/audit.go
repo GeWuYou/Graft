@@ -13,6 +13,8 @@ var (
 	ErrAuditLogNotFound = errors.New("audit log not found")
 	// ErrIncidentNotFound indicates that the requested audit-owned incident seed does not exist.
 	ErrIncidentNotFound = errors.New("audit incident not found")
+	// ErrAuditValidation indicates audit-owned invalid input at the service boundary.
+	ErrAuditValidation = errors.New("audit validation failed")
 )
 
 // AuditSource identifies where one audit candidate originated.
@@ -537,8 +539,11 @@ type AuditRepository interface {
 	ReadAuditLog(ctx context.Context, id uint64) (AuditLog, error)
 	ReadAuditOverview(ctx context.Context, preset AuditTimePreset) (AuditOverview, error)
 	ReadIncident(ctx context.Context, eventID uint64) (AuditIncident, error)
+	// ListAuditPolicyRules returns all audit policy rules in runtime evaluation order.
 	ListAuditPolicyRules(ctx context.Context) ([]AuditPolicyRule, error)
+	// GetAuditVisibilityDefault returns the named default audit visibility strategy.
 	GetAuditVisibilityDefault(ctx context.Context, key string) (AuditVisibilityDefault, error)
+	// UpsertAuditVisibilityDefault creates or updates one named default audit visibility strategy.
 	UpsertAuditVisibilityDefault(
 		ctx context.Context,
 		key string,
@@ -546,8 +551,13 @@ type AuditRepository interface {
 		userID *uint64,
 		username string,
 	) (AuditVisibilityDefault, error)
+	// ListAuditVisibilityOverrides returns all source+action visibility overrides.
 	ListAuditVisibilityOverrides(ctx context.Context) ([]AuditVisibilityOverride, error)
+	// FindAuditVisibilityOverride returns one exact source+action override when it exists.
+	FindAuditVisibilityOverride(ctx context.Context, source AuditSource, actionKey string) (AuditVisibilityOverride, bool, error)
+	// UpsertAuditVisibilityOverride creates or updates one source+action visibility override.
 	UpsertAuditVisibilityOverride(ctx context.Context, input UpsertAuditVisibilityOverrideInput) (AuditVisibilityOverride, error)
+	// DeleteAuditVisibilityOverride removes one source+action visibility override.
 	DeleteAuditVisibilityOverride(ctx context.Context, source AuditSource, actionKey string) error
 	DeleteAuditLogsBefore(ctx context.Context, createdBefore time.Time) (int64, error)
 }

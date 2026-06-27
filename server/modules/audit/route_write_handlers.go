@@ -1,6 +1,7 @@
 package audit
 
 import (
+	"errors"
 	"net/http"
 	"strings"
 
@@ -187,7 +188,7 @@ func handleAuditVisibilityWriteError(
 	moduleName string,
 	err error,
 ) {
-	if strings.Contains(err.Error(), "is required") {
+	if errors.Is(err, auditstore.ErrAuditValidation) {
 		httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), nil)
 		return
 	}

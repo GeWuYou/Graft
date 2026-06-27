@@ -13,6 +13,7 @@ function resolveDefaultRootDir() {
 const DEFAULT_ROOT_DIR = resolveDefaultRootDir();
 const SCANNED_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.vue']);
 const EXCLUDED_DIRS = new Set(['node_modules', 'dist', 'coverage', 'mock', '__mocks__', 'assets', 'ai-libs']);
+const NATIVE_DIALOG_ALLOW_COMMENT = 'native-dialog-governance: allow';
 const NATIVE_DIALOG_PATTERNS = [
   /(?<![\w$.])(?<callee>alert|confirm|prompt)\s*\(/g,
   /(?<![\w$])(?:window|globalThis)\.(?<callee>alert|confirm|prompt)\s*\(/g,
@@ -73,6 +74,114 @@ function snippetForIndex(source: string, index: number) {
   return line.trim();
 }
 
+function sanitizeSource(source: string) {
+  let result = '';
+  let index = 0;
+  let state: 'code' | 'line-comment' | 'block-comment' | 'single-quote' | 'double-quote' | 'template' = 'code';
+
+  while (index < source.length) {
+    const char = source[index] ?? '';
+    const next = source[index + 1] ?? '';
+
+    switch (state) {
+      case 'code':
+        if (char === '/' && next === '/') {
+          result += '  ';
+          index += 2;
+          state = 'line-comment';
+          continue;
+        }
+        if (char === '/' && next === '*') {
+          result += '  ';
+          index += 2;
+          state = 'block-comment';
+          continue;
+        }
+        if (char === "'") {
+          result += ' ';
+          index += 1;
+          state = 'single-quote';
+          continue;
+        }
+        if (char === '"') {
+          result += ' ';
+          index += 1;
+          state = 'double-quote';
+          continue;
+        }
+        if (char === '`') {
+          result += ' ';
+          index += 1;
+          state = 'template';
+          continue;
+        }
+        result += char;
+        index += 1;
+        continue;
+      case 'line-comment':
+        result += char === '\n' ? '\n' : ' ';
+        index += 1;
+        if (char === '\n') {
+          state = 'code';
+        }
+        continue;
+      case 'block-comment':
+        if (char === '*' && next === '/') {
+          result += '  ';
+          index += 2;
+          state = 'code';
+          continue;
+        }
+        result += char === '\n' ? '\n' : ' ';
+        index += 1;
+        continue;
+      case 'single-quote':
+        if (char === '\\') {
+          result += next === '\n' ? ' \n' : '  ';
+          index += Math.min(2, source.length - index);
+          continue;
+        }
+        result += char === '\n' ? '\n' : ' ';
+        index += 1;
+        if (char === "'") {
+          state = 'code';
+        }
+        continue;
+      case 'double-quote':
+        if (char === '\\') {
+          result += next === '\n' ? ' \n' : '  ';
+          index += Math.min(2, source.length - index);
+          continue;
+        }
+        result += char === '\n' ? '\n' : ' ';
+        index += 1;
+        if (char === '"') {
+          state = 'code';
+        }
+        continue;
+      case 'template':
+        if (char === '\\') {
+          result += next === '\n' ? ' \n' : '  ';
+          index += Math.min(2, source.length - index);
+          continue;
+        }
+        result += char === '\n' ? '\n' : ' ';
+        index += 1;
+        if (char === '`') {
+          state = 'code';
+        }
+        continue;
+    }
+  }
+
+  return result;
+}
+
+function shouldIgnoreLine(source: string, index: number) {
+  const line = source.split('\n')[lineNumberForIndex(source, index) - 1] ?? '';
+  return line.includes(NATIVE_DIALOG_ALLOW_COMMENT);
+}
+
 function collectInventory(rootDir: string, srcDir: string): InventoryItem[] {
   const inventory: InventoryItem[] = [];
 
@@ -83,9 +192,13 @@ function collectInventory(rootDir: string, srcDir: string): InventoryItem[] {
 
     const rel = relative(rootDir, file).replaceAll('\\', '/');
     const source = readFileSync(file, 'utf8');
+    const sanitizedSource = sanitizeSource(source);
     for (const pattern of NATIVE_DIALOG_PATTERNS) {
-      for (const match of source.matchAll(pattern)) {
+      for (const match of sanitizedSource.matchAll(pattern)) {
         const index = match.index ?? 0;
+        if (shouldIgnoreLine(source, index)) {
+          continue;
+        }
         inventory.push({
           callee: match.groups?.callee ?? '<unknown>',
           file: rel,

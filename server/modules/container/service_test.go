@@ -3,6 +3,7 @@ package container
 import (
 	"context"
 	"errors"
+	"fmt"
 	"slices"
 	"strings"
 	"sync"
@@ -1855,6 +1856,54 @@ func TestRuntimeEventSourceRegistrationsReturnSourceAgnosticLoader(t *testing.T)
 	}
 }
 
+func TestRuntimeEventHistoryUsesStableManagerSnapshot(t *testing.T) {
+	t.Parallel()
+
+	manager := newRuntimeEventManager(nil, nil, nil, RuntimeEventStreamContext{Runtime: runtimeNameDocker})
+	if err := manager.Append(RuntimeEventCandidate{
+		ResourceID: "abc123",
+		EventType:  containercontract.RuntimeEventTypeContainerStarted,
+		OccurredAt: time.Date(2026, time.June, 27, 6, 0, 0, 0, time.UTC),
+	}); err != nil {
+		t.Fatalf("append runtime event: %v", err)
+	}
+
+	service, err := newTestService(containerServiceOptions{
+		runtime: blockingDetailRuntime{
+			detailStarted: make(chan struct{}),
+			releaseDetail: make(chan struct{}),
+		},
+		enabled: true,
+	})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	service.runtimeEventManager = manager
+
+	runtime := service.runtime.(blockingDetailRuntime)
+	done := make(chan error, 1)
+	go func() {
+		history, historyErr := service.RuntimeEventHistory(context.Background(), Ref{Value: "abc123"})
+		if historyErr != nil {
+			done <- historyErr
+			return
+		}
+		if len(history.Items) != 1 {
+			done <- fmt.Errorf("expected one runtime event record, got %#v", history.Items)
+			return
+		}
+		done <- nil
+	}()
+	<-runtime.detailStarted
+	service.runtimeEventManagerMu.Lock()
+	service.runtimeEventManager = nil
+	service.runtimeEventManagerMu.Unlock()
+	close(runtime.releaseDetail)
+	if err := <-done; err != nil {
+		t.Fatalf("runtime event history: %v", err)
+	}
+}
+
 func TestIssueContainerListRealtimeSubscriptionRequiresAuthenticatedUser(t *testing.T) {
 	t.Parallel()
 
@@ -2626,6 +2675,67 @@ func (fakeRuntime) Remove(context.Context, Ref, RemoveOptions) (ActionResult, er
 }
 
 func (fakeRuntime) Close() error { return nil }
+
+type blockingDetailRuntime struct {
+	detailStarted chan struct{}
+	releaseDetail chan struct{}
+}
+
+func (r blockingDetailRuntime) Info(ctx context.Context) (RuntimeInfo, error) {
+	return fakeRuntime{}.Info(ctx)
+}
+
+func (r blockingDetailRuntime) List(ctx context.Context, query ListQuery) ([]Summary, error) {
+	return fakeRuntime{}.List(ctx, query)
+}
+
+func (r blockingDetailRuntime) Detail(ctx context.Context, ref Ref) (Detail, error) {
+	close(r.detailStarted)
+	select {
+	case <-r.releaseDetail:
+	case <-ctx.Done():
+		return Detail{}, ctx.Err()
+	}
+	return fakeRuntime{}.Detail(ctx, ref)
+}
+
+func (r blockingDetailRuntime) Mounts(ctx context.Context, ref Ref) ([]Mount, error) {
+	return fakeRuntime{}.Mounts(ctx, ref)
+}
+
+func (r blockingDetailRuntime) MountUsage(ctx context.Context, ref Ref, mountID string) (MountUsage, error) {
+	return fakeRuntime{}.MountUsage(ctx, ref, mountID)
+}
+
+func (r blockingDetailRuntime) Logs(ctx context.Context, ref Ref, query LogQuery) (Logs, error) {
+	return fakeRuntime{}.Logs(ctx, ref, query)
+}
+
+func (r blockingDetailRuntime) StreamLogs(context.Context, Ref, LogQuery, func(LogChunk) error) error {
+	return nil
+}
+
+func (r blockingDetailRuntime) Shell(context.Context, Ref, string) (terminal.Session, error) {
+	return nil, nil
+}
+
+func (r blockingDetailRuntime) Start(context.Context, Ref) (ActionResult, error) {
+	return ActionResult{}, nil
+}
+
+func (r blockingDetailRuntime) Stop(context.Context, Ref) (ActionResult, error) {
+	return ActionResult{}, nil
+}
+
+func (r blockingDetailRuntime) Restart(context.Context, Ref) (ActionResult, error) {
+	return ActionResult{}, nil
+}
+
+func (r blockingDetailRuntime) Remove(context.Context, Ref, RemoveOptions) (ActionResult, error) {
+	return ActionResult{}, nil
+}
+
+func (r blockingDetailRuntime) Close() error { return nil }
 
 type runtimeEventServiceSourceStub struct{}
 

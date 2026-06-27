@@ -619,7 +619,7 @@ func (s *Service) UpdateVisibilityDefault(
 
 	normalized := normalizeMutableAuditVisibilityStrategy(strategy)
 	if normalized == "" {
-		return auditstore.AuditVisibilityDefault{}, errors.New("audit visibility default strategy is required")
+		return auditstore.AuditVisibilityDefault{}, fmt.Errorf("%w: audit visibility default strategy is required", auditstore.ErrAuditValidation)
 	}
 
 	updated, err := s.repo.UpsertAuditVisibilityDefault(
@@ -646,15 +646,15 @@ func (s *Service) UpdateVisibilityOverride(
 
 	normalizedSource := normalizeAuditSource(input.Source)
 	if normalizedSource == "" {
-		return auditstore.AuditVisibilityOverride{}, errors.New("audit visibility override source is required")
+		return auditstore.AuditVisibilityOverride{}, fmt.Errorf("%w: audit visibility override source is required", auditstore.ErrAuditValidation)
 	}
 	normalizedActionKey := strings.TrimSpace(input.ActionKey)
 	if normalizedActionKey == "" {
-		return auditstore.AuditVisibilityOverride{}, errors.New("audit visibility override action key is required")
+		return auditstore.AuditVisibilityOverride{}, fmt.Errorf("%w: audit visibility override action key is required", auditstore.ErrAuditValidation)
 	}
 	normalizedStrategy := normalizeAuditVisibilityStrategy(input.Strategy)
 	if normalizedStrategy == "" {
-		return auditstore.AuditVisibilityOverride{}, errors.New("audit visibility override strategy is required")
+		return auditstore.AuditVisibilityOverride{}, fmt.Errorf("%w: audit visibility override strategy is required", auditstore.ErrAuditValidation)
 	}
 
 	updated, err := s.repo.UpsertAuditVisibilityOverride(
@@ -684,11 +684,11 @@ func (s *Service) DeleteVisibilityOverride(ctx context.Context, source auditstor
 
 	normalizedSource := normalizeAuditSource(source)
 	if normalizedSource == "" {
-		return errors.New("audit visibility override source is required")
+		return fmt.Errorf("%w: audit visibility override source is required", auditstore.ErrAuditValidation)
 	}
 	normalizedActionKey := strings.TrimSpace(actionKey)
 	if normalizedActionKey == "" {
-		return errors.New("audit visibility override action key is required")
+		return fmt.Errorf("%w: audit visibility override action key is required", auditstore.ErrAuditValidation)
 	}
 	if err := s.repo.DeleteAuditVisibilityOverride(ctx, normalizedSource, normalizedActionKey); err != nil {
 		return fmt.Errorf("delete audit visibility override: %w", err)
@@ -879,33 +879,46 @@ func (s *Service) resolveCandidateVisibilityStrategy(
 	ctx context.Context,
 	candidate auditstore.AuditCandidate,
 ) (auditstore.AuditVisibilityStrategy, error) {
+	if strategy, ok, err := s.findCandidateVisibilityOverrideStrategy(ctx, candidate); err != nil {
+		return "", err
+	} else if ok {
+		return strategy, nil
+	}
+
 	defaultValue, err := s.repo.GetAuditVisibilityDefault(ctx, auditVisibilityGlobalDefaultKey)
 	if err != nil {
 		return "", fmt.Errorf("read audit visibility default: %w", err)
-	}
-	overrides, err := s.repo.ListAuditVisibilityOverrides(ctx)
-	if err != nil {
-		return "", fmt.Errorf("list audit visibility overrides: %w", err)
-	}
-
-	actionKey := normalizeCandidateAction(candidate)
-	normalizedSource := normalizeAuditSource(candidate.Source)
-	for _, item := range overrides {
-		if item.Source != normalizedSource {
-			continue
-		}
-		if strings.TrimSpace(item.ActionKey) != actionKey {
-			continue
-		}
-		if strategy := normalizeAuditVisibilityStrategy(item.Strategy); strategy != "" {
-			return strategy, nil
-		}
 	}
 
 	if strategy := normalizeAuditVisibilityStrategy(defaultValue.Strategy); strategy != "" {
 		return strategy, nil
 	}
 	return auditstore.AuditVisibilityStrategyVisible, nil
+}
+
+func (s *Service) findCandidateVisibilityOverrideStrategy(
+	ctx context.Context,
+	candidate auditstore.AuditCandidate,
+) (auditstore.AuditVisibilityStrategy, bool, error) {
+	normalizedSource := normalizeAuditSource(candidate.Source)
+	actionKey := normalizeCandidateAction(candidate)
+	if normalizedSource == "" || actionKey == "" {
+		return "", false, nil
+	}
+
+	override, found, err := s.repo.FindAuditVisibilityOverride(ctx, normalizedSource, actionKey)
+	if err != nil {
+		return "", false, fmt.Errorf("find audit visibility override: %w", err)
+	}
+	if !found {
+		return "", false, nil
+	}
+
+	strategy := normalizeAuditVisibilityStrategy(override.Strategy)
+	if strategy == "" {
+		return "", false, nil
+	}
+	return strategy, true, nil
 }
 
 func candidateMetadata(candidate auditstore.AuditCandidate, decision auditstore.AuditPolicyDecision) any {

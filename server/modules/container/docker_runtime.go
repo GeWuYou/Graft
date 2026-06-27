@@ -337,9 +337,9 @@ func dockerRuntimeEventCandidate(message dockerevents.Message) (RuntimeEventCand
 func dockerCanonicalRuntimeEvent(
 	message dockerevents.Message,
 ) (containercontract.RuntimeEventType, map[string]string, bool) {
-	action := strings.ToLower(strings.TrimSpace(string(message.Action)))
+	action, actionDetail := normalizeDockerRuntimeEventAction(message.Action)
 	attrs := dockerRuntimeEventBaseAttributes(message)
-	return dockerRuntimeEventFromAction(action, message, attrs)
+	return dockerRuntimeEventFromAction(action, actionDetail, message, attrs)
 }
 
 func dockerRuntimeEventBaseAttributes(message dockerevents.Message) map[string]string {
@@ -348,8 +348,21 @@ func dockerRuntimeEventBaseAttributes(message dockerevents.Message) map[string]s
 	return attrs
 }
 
+func normalizeDockerRuntimeEventAction(action dockerevents.Action) (string, string) {
+	normalized := strings.ToLower(strings.TrimSpace(string(action)))
+	if normalized == "" {
+		return "", ""
+	}
+	prefix, detail, found := strings.Cut(normalized, ":")
+	if !found {
+		return normalized, ""
+	}
+	return strings.TrimSpace(prefix), strings.TrimSpace(detail)
+}
+
 func dockerRuntimeEventFromAction(
 	action string,
+	actionDetail string,
 	message dockerevents.Message,
 	attrs map[string]string,
 ) (containercontract.RuntimeEventType, map[string]string, bool) {
@@ -365,11 +378,19 @@ func dockerRuntimeEventFromAction(
 	case "oom":
 		return containercontract.RuntimeEventTypeContainerOOMKilled, attrs, true
 	case "health_status":
-		addRuntimeEventAttribute(attrs, "health_status", message.Actor.Attributes["health_status"])
+		addRuntimeEventAttribute(
+			attrs,
+			"health_status",
+			firstNonEmpty(message.Actor.Attributes["health_status"], actionDetail),
+		)
 		return containercontract.RuntimeEventTypeContainerHealthStatusChanged, attrs, true
 	case "exec_create", "exec_start":
 		addRuntimeEventAttribute(attrs, "exec_id", message.Actor.Attributes["execID"])
-		addRuntimeEventAttribute(attrs, "exec_command", message.Actor.Attributes["execCommand"])
+		addRuntimeEventAttribute(
+			attrs,
+			"exec_command",
+			firstNonEmpty(message.Actor.Attributes["execCommand"], actionDetail),
+		)
 		return containercontract.RuntimeEventTypeContainerExecStarted, attrs, true
 	case "exec_die":
 		addRuntimeEventAttribute(attrs, "exec_id", message.Actor.Attributes["execID"])

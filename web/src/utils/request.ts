@@ -91,7 +91,7 @@ client.interceptors.request.use(async (config) => {
   const nextConfig = config as typeof config & AxiosRequestConfigRetry;
 
   if (!nextConfig._skipAuthRefresh && nextConfig.url !== AUTH_REFRESH_URL && shouldRefreshBeforeRequest()) {
-    await refreshClientSession();
+    await refreshClientSessionWithFailureHandling();
   }
 
   const headers = config.headers ?? {};
@@ -238,6 +238,15 @@ function shouldExitToLogin(error: ApiRequestError) {
 }
 
 async function tryRefreshAndReplay<T>(config: AxiosRequestConfigRetry) {
+  await refreshClientSessionWithFailureHandling();
+
+  return client.request<T>({
+    ...config,
+    _authRefreshAttempted: true,
+  } as AxiosRequestConfigRetry);
+}
+
+async function refreshClientSessionWithFailureHandling() {
   try {
     await refreshClientSession();
   } catch (refreshError) {
@@ -252,11 +261,6 @@ async function tryRefreshAndReplay<T>(config: AxiosRequestConfigRetry) {
     }
     throw refreshError;
   }
-
-  return client.request<T>({
-    ...config,
-    _authRefreshAttempted: true,
-  } as AxiosRequestConfigRetry);
 }
 
 async function syncAuthStateAfterRefresh(payload: LoginResponse) {

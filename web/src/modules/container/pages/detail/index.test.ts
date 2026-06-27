@@ -706,7 +706,7 @@ describe('container detail page', () => {
             id: 'evt-22',
             resource_type: 'container',
             resource_id: 'container-1',
-            event_type: 'health_status_changed',
+            event_type: 'container.health_status_changed',
             severity: 'warning',
             occurred_at: '2026-06-14T01:09:00Z',
             attributes: {
@@ -721,7 +721,7 @@ describe('container detail page', () => {
             id: 'evt-21',
             resource_type: 'container',
             resource_id: 'container-1',
-            event_type: 'started',
+            event_type: 'container.started',
             severity: 'info',
             occurred_at: '2026-06-14T01:05:00Z',
             attributes: {
@@ -831,8 +831,8 @@ describe('container detail page', () => {
 
     expect(apiMocks.getContainerEvents).toHaveBeenCalledWith('container-1');
     expect(wrapper.text()).toContain('运行时：docker');
-    expect(wrapper.text()).toContain('health_status_changed');
-    expect(wrapper.text()).toContain('started');
+    expect(wrapper.text()).toContain('container.health_status_changed');
+    expect(wrapper.text()).toContain('container.started');
     expect(wrapper.get('[data-testid="container-event-time-22"]').text()).not.toContain(
       'formatted:2026-06-14T01:09:00Z',
     );
@@ -841,7 +841,7 @@ describe('container detail page', () => {
     await flushPromises();
     expect(wrapper.get('[data-testid="container-event-time-22"]').text()).toContain('formatted:2026-06-14T01:09:00Z');
 
-    await wrapper.get('[data-testid="container-events-type-filter-started"]').trigger('click');
+    await wrapper.get('[data-testid="container-events-type-filter-container.started"]').trigger('click');
     await flushPromises();
     expect(wrapper.find('[data-testid="container-event-21"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="container-event-22"]').exists()).toBe(false);
@@ -854,11 +854,12 @@ describe('container detail page', () => {
     await flushPromises();
     expect(wrapper.find('[data-testid="container-event-22"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="container-event-21"]').exists()).toBe(false);
+    expect(wrapper.get('[data-testid="container-event-json-22"]').classes()).toContain('graft-scrollbar');
 
     const { copyText } = await import('@/shared/observability');
     await wrapper.get('[data-testid="container-event-copy-22"]').trigger('click');
     await flushPromises();
-    expect(copyText).toHaveBeenCalledWith(expect.stringContaining('"event_type": "health_status_changed"'));
+    expect(copyText).toHaveBeenCalledWith(expect.stringContaining('"event_type": "container.health_status_changed"'));
     expect(messageMocks.success).toHaveBeenCalledWith('内容已复制。');
 
     await wrapper.get('[data-testid="container-event-jump-22"]').trigger('click');
@@ -1957,6 +1958,127 @@ describe('container detail page', () => {
       true,
     );
     expect(wrapper.get('.log-viewer').text()).toContain('api started');
+  });
+
+  it('guards jump-to-logs responses when the route container id changes before logs resolve', async () => {
+    routeState.route.query.tab = 'events';
+    routeState.route.fullPath = '/ops/containers/container-1?tab=events';
+    const nextLogs = deferred<Awaited<ReturnType<typeof apiMocks.getContainerLogs>>>();
+    const nextDetail = deferred<ReturnType<typeof createContainerDetail>>();
+    const wrapper = mountPage();
+    await flushPromises();
+
+    apiMocks.getContainerLogs.mockReturnValueOnce(nextLogs.promise);
+    apiMocks.getContainer.mockReturnValueOnce(nextDetail.promise);
+    apiMocks.getContainerEvents.mockResolvedValueOnce({
+      context: { runtime: 'docker' },
+      items: [
+        {
+          seq: 7,
+          event: {
+            id: 'evt-7',
+            resource_type: 'container',
+            resource_id: 'container-2',
+            event_type: 'container.started',
+            severity: 'info',
+            occurred_at: '2026-06-14T02:05:00Z',
+            attributes: { actor: 'runtime' },
+          },
+        },
+      ],
+      resource_id: 'container-2',
+    });
+
+    await wrapper.get('[data-testid="container-event-jump-22"]').trigger('click');
+    await flushPromises();
+
+    routeState.route.path = '/ops/containers/container-2';
+    routeState.route.fullPath = '/ops/containers/container-2?tab=logs';
+    routeState.route.params.id = 'container-2';
+    await wrapper.vm.$nextTick();
+    await flushPromises();
+
+    nextLogs.resolve({
+      id: 'container-1',
+      entries: [createLogEntry('stale container-1 log')],
+      runtime: 'docker',
+      stderr: true,
+      stdout: true,
+      tail: 200,
+      timestamps: true,
+      truncated: false,
+    });
+    nextDetail.resolve({
+      ...createContainerDetail(),
+      id: 'container-2',
+      short_id: 'container-2',
+      name: 'graft-api',
+      names: ['graft-api'],
+      image: 'graft/api:latest',
+    });
+    await flushPromises();
+
+    expect(wrapper.text()).not.toContain('stale container-1 log');
+    expect(apiMocks.getContainerLogs).toHaveBeenCalledWith(
+      'container-1',
+      expect.objectContaining({
+        since: '2026-06-14T01:09:00Z',
+        tail: 200,
+      }),
+    );
+    expect(apiMocks.getContainer).toHaveBeenLastCalledWith('container-2');
+  });
+
+  it('releases the previous events subscription and acquires the next container stream when the route id changes on the events tab', async () => {
+    routeState.route.query.tab = 'events';
+    routeState.route.fullPath = '/ops/containers/container-1?tab=events';
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const firstEventsController = realtimeMocks.controllers.find(
+      (controller) => controller.topic === 'container.events:container-1',
+    );
+    expect(firstEventsController).toBeTruthy();
+
+    apiMocks.getContainer.mockResolvedValueOnce({
+      ...createContainerDetail(),
+      id: 'container-2',
+      short_id: 'container-2',
+      name: 'graft-api',
+      names: ['graft-api'],
+      image: 'graft/api:latest',
+    });
+    apiMocks.getContainerEvents.mockResolvedValueOnce({
+      context: { runtime: 'docker' },
+      items: [
+        {
+          seq: 7,
+          event: {
+            id: 'evt-7',
+            resource_type: 'container',
+            resource_id: 'container-2',
+            event_type: 'container.started',
+            severity: 'info',
+            occurred_at: '2026-06-14T02:05:00Z',
+            attributes: { actor: 'runtime' },
+          },
+        },
+      ],
+      resource_id: 'container-2',
+    });
+
+    routeState.route.path = '/ops/containers/container-2';
+    routeState.route.fullPath = '/ops/containers/container-2?tab=events';
+    routeState.route.params.id = 'container-2';
+    await wrapper.vm.$nextTick();
+    await flushPromises();
+
+    expect(firstEventsController!.close).toHaveBeenCalled();
+    expect(apiMocks.getContainerEvents).toHaveBeenLastCalledWith('container-2');
+    expect(realtimeMocks.controllers.some((controller) => controller.topic === 'container.events:container-2')).toBe(
+      true,
+    );
+    expect(wrapper.text()).toContain('container.started');
   });
 
   it('renders the shell panel through the existing route query tab lifecycle', async () => {

@@ -84,9 +84,4 @@ INSERT INTO "audit_visibility_overrides" (
 ) VALUES
   ('REQUEST', 'POST /api/auth/refresh', 'hidden', '默认隐藏刷新令牌轮换请求，减少审计页面中的令牌刷新噪音。', NOW(), NULL, 'system', NOW(), NULL, 'system'),
   ('SECURITY_EVENT', 'auth.token.expired', 'hidden', '默认隐藏可自动恢复的访问令牌过期事件，保留证据但不进入默认审计读面。', NOW(), NULL, 'system', NOW(), NULL, 'system')
-ON CONFLICT ("source", "action_key") DO UPDATE SET
-  "strategy" = EXCLUDED."strategy",
-  "description" = EXCLUDED."description",
-  "updated_at" = NOW(),
-  "updated_by" = EXCLUDED."updated_by",
-  "updated_by_name" = EXCLUDED."updated_by_name";
+ON CONFLICT ("source", "action_key") DO NOTHING;

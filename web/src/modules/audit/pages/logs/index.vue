@@ -134,14 +134,14 @@
               >
                 <div class="audit-policy-drawer__catalog-meta">
                   <div class="audit-policy-drawer__catalog-title">
-                    <span>{{ item.display_name }}</span>
+                    <span>{{ resolvePolicyCatalogDisplayName(item) }}</span>
                     <t-tag v-if="item.overridden" theme="warning" variant="light-outline" size="small">
                       {{ t('audit.logList.policy.overriddenTag') }}
                     </t-tag>
                   </div>
                   <div class="audit-policy-drawer__catalog-key">{{ item.source }} / {{ item.action_key }}</div>
                   <p class="audit-policy-drawer__catalog-description">
-                    {{ item.description || t('audit.logList.policy.descriptionFallback') }}
+                    {{ resolvePolicyCatalogDescription(item) }}
                   </p>
                   <div class="audit-policy-drawer__catalog-state">
                     <span>{{
@@ -612,6 +612,45 @@ function buildOverrideDrafts(
   });
 
   return drafts;
+}
+
+function normalizePolicyCatalogKeyFragment(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+}
+
+function buildPolicyCatalogLocaleKey(item: AuditEventCatalogItem, field: 'displayName' | 'description') {
+  const source = normalizePolicyCatalogKeyFragment(item.source);
+  const actionKey = normalizePolicyCatalogKeyFragment(item.action_key);
+  if (!source || !actionKey) {
+    return '';
+  }
+  return `audit.logList.policy.catalog.${source}.${actionKey}.${field}`;
+}
+
+function resolvePolicyCatalogDisplayName(item: AuditEventCatalogItem) {
+  const localeKey = buildPolicyCatalogLocaleKey(item, 'displayName');
+  if (localeKey) {
+    const localized = t(localeKey);
+    if (localized !== localeKey) {
+      return localized;
+    }
+  }
+  return item.display_name || item.action_key;
+}
+
+function resolvePolicyCatalogDescription(item: AuditEventCatalogItem) {
+  const localeKey = buildPolicyCatalogLocaleKey(item, 'description');
+  if (localeKey) {
+    const localized = t(localeKey);
+    if (localized !== localeKey) {
+      return localized;
+    }
+  }
+  return item.description || t('audit.logList.policy.descriptionFallback');
 }
 
 function handleOverrideDraftChange(source: string, actionKey: string, value: string | number | undefined) {

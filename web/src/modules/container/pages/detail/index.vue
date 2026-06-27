@@ -655,7 +655,7 @@
                             </div>
                           </div>
                           <pre
-                            class="container-events-item__attributes"
+                            class="container-events-item__attributes graft-scrollbar"
                             :data-testid="`container-event-json-${record.seq}`"
                             >{{ stringifyEventAttributes(record) }}</pre
                           >
@@ -2641,9 +2641,10 @@ onDeactivated(() => {
 
 watch(
   () => route.params.id,
-  () => {
-    resetDetailState();
+  (nextId, previousId) => {
+    resetDetailState(String(previousId ?? '').trim());
     void refreshContainerDetail();
+    syncEventsRealtimeSubscription();
     syncLogsRealtimeSubscription();
   },
 );
@@ -2862,10 +2863,16 @@ async function copyRuntimeConfigValue(item: RuntimeConfigItem) {
   MessagePlugin.error(t('container.detail.copyError'));
 }
 
-function resetDetailState() {
+function resetDetailState(previousContainerId = containerId.value) {
+  const currentContainerId = containerId.value;
   clearContainerDetail(detail.value?.id);
-  clearContainerDetail(containerId.value);
-  clearContainerEvents(containerId.value);
+  clearContainerDetail(currentContainerId);
+  new Set([detail.value?.id, previousContainerId, currentContainerId]).forEach((value) => {
+    const eventContainerId = String(value ?? '').trim();
+    if (eventContainerId) {
+      clearContainerEvents(eventContainerId);
+    }
+  });
   detail.value = null;
   error.value = '';
   eventSearchKeyword.value = '';
@@ -3161,6 +3168,10 @@ async function copyEventJson(record: ContainerRuntimeEventRecord) {
 }
 
 async function jumpToLogsFromEvent(record: ContainerRuntimeEventRecord) {
+  const currentContainerId = containerId.value;
+  if (!currentContainerId) {
+    return;
+  }
   const tab = 'logs';
   activeTab.value = tab;
   await router.replace({
@@ -3172,24 +3183,32 @@ async function jumpToLogsFromEvent(record: ContainerRuntimeEventRecord) {
   });
   syncEventsRealtimeSubscription();
   releaseLogsRealtimeSubscription();
-  logsRefreshSeq += 1;
+  const requestSeq = ++logsRefreshSeq;
   logViewStore.setLoading(true);
   logViewStore.setError('');
   try {
-    const nextLogs = await getContainerLogs(containerId.value, {
+    const nextLogs = await getContainerLogs(currentContainerId, {
       ...DEFAULT_LOG_QUERY,
       tail: logLineLimit.value,
       since: record.event.occurred_at,
     });
+    if (requestSeq !== logsRefreshSeq || currentContainerId !== containerId.value) {
+      return;
+    }
     logsRealtimeBatcher.seed(nextLogs);
     logsBootstrapRequested.value = true;
     logsRecoveryLoadRequested.value = false;
   } catch (loadError) {
+    if (requestSeq !== logsRefreshSeq || currentContainerId !== containerId.value) {
+      return;
+    }
     logViewStore.setError(resolveLocalizedErrorMessage(t, loadError, t('container.list.logs.loadFailed')));
     logger.warn('failed to jump from event to logs', loadError);
   } finally {
-    logViewStore.setLoading(false);
-    syncLogsRealtimeSubscription();
+    if (requestSeq === logsRefreshSeq && currentContainerId === containerId.value) {
+      logViewStore.setLoading(false);
+      syncLogsRealtimeSubscription();
+    }
   }
 }
 

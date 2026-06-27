@@ -3,6 +3,7 @@ package storeent
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -84,6 +85,7 @@ func (r *repository) ListAuditPolicyRules(ctx context.Context) ([]auditstore.Aud
 	return rules, nil
 }
 
+// GetAuditVisibilityDefault returns the named default audit visibility strategy.
 func (r *repository) GetAuditVisibilityDefault(ctx context.Context, key string) (auditstore.AuditVisibilityDefault, error) {
 	if r == nil || r.db == nil {
 		return auditstore.AuditVisibilityDefault{}, fmt.Errorf("audit repository is unavailable")
@@ -121,6 +123,7 @@ func (r *repository) GetAuditVisibilityDefault(ctx context.Context, key string) 
 	return item, nil
 }
 
+// UpsertAuditVisibilityDefault creates or updates one global audit visibility default.
 func (r *repository) UpsertAuditVisibilityDefault(
 	ctx context.Context,
 	key string,
@@ -175,6 +178,7 @@ func (r *repository) UpsertAuditVisibilityDefault(
 	return item, nil
 }
 
+// ListAuditVisibilityOverrides returns all source+action visibility overrides.
 func (r *repository) ListAuditVisibilityOverrides(ctx context.Context) ([]auditstore.AuditVisibilityOverride, error) {
 	if r == nil || r.db == nil {
 		return nil, fmt.Errorf("audit repository is unavailable")
@@ -218,6 +222,47 @@ func (r *repository) ListAuditVisibilityOverrides(ctx context.Context) ([]audits
 	return items, nil
 }
 
+// FindAuditVisibilityOverride returns one exact source+action visibility override when it exists.
+func (r *repository) FindAuditVisibilityOverride(
+	ctx context.Context,
+	source auditstore.AuditSource,
+	actionKey string,
+) (auditstore.AuditVisibilityOverride, bool, error) {
+	if r == nil || r.db == nil {
+		return auditstore.AuditVisibilityOverride{}, false, fmt.Errorf("audit repository is unavailable")
+	}
+
+	row := r.db.QueryRowContext(
+		ctx,
+		`SELECT
+			id,
+			source,
+			action_key,
+			strategy,
+			description,
+			created_at,
+			created_by,
+			created_by_name,
+			updated_at,
+			updated_by,
+			updated_by_name
+		FROM audit_visibility_overrides
+		WHERE source = $1 AND action_key = $2`,
+		string(source),
+		strings.TrimSpace(actionKey),
+	)
+
+	item, err := scanAuditVisibilityOverride(row)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return auditstore.AuditVisibilityOverride{}, false, nil
+		}
+		return auditstore.AuditVisibilityOverride{}, false, fmt.Errorf("find audit visibility override: %w", err)
+	}
+	return item, true, nil
+}
+
+// UpsertAuditVisibilityOverride creates or updates one source+action visibility override.
 func (r *repository) UpsertAuditVisibilityOverride(
 	ctx context.Context,
 	input auditstore.UpsertAuditVisibilityOverrideInput,
@@ -278,6 +323,7 @@ func (r *repository) UpsertAuditVisibilityOverride(
 	return item, nil
 }
 
+// DeleteAuditVisibilityOverride removes one source+action visibility override.
 func (r *repository) DeleteAuditVisibilityOverride(ctx context.Context, source auditstore.AuditSource, actionKey string) error {
 	if r == nil || r.db == nil {
 		return fmt.Errorf("audit repository is unavailable")

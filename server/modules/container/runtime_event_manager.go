@@ -3,6 +3,7 @@ package container
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -103,7 +104,11 @@ func (m *runtimeEventManager) Start(ctx context.Context) error {
 		}
 		source, err := registration.load()
 		if err != nil {
-			return err
+			return fmt.Errorf(
+				"load container runtime event source %q: %w",
+				normalizeRuntimeEventSourceName(registration.name),
+				err,
+			)
 		}
 		if source == nil {
 			continue
@@ -177,7 +182,7 @@ type runtimeEventAppendResult struct {
 }
 
 func (m *runtimeEventManager) run(ctx context.Context, done chan struct{}, sources []loadedRuntimeEventSource) {
-	defer close(done)
+	defer m.finishRun(done)
 	var waitGroup sync.WaitGroup
 	for _, source := range sources {
 		waitGroup.Add(1)
@@ -187,6 +192,20 @@ func (m *runtimeEventManager) run(ctx context.Context, done chan struct{}, sourc
 		}(source)
 	}
 	waitGroup.Wait()
+}
+
+func (m *runtimeEventManager) finishRun(done chan struct{}) {
+	if done == nil {
+		return
+	}
+	m.runMu.Lock()
+	if m.done == done {
+		m.cancel = nil
+		m.done = nil
+		m.started = false
+	}
+	close(done)
+	m.runMu.Unlock()
 }
 
 func (m *runtimeEventManager) runSource(ctx context.Context, source loadedRuntimeEventSource) {

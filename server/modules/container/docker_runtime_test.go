@@ -19,9 +19,12 @@ import (
 
 	"github.com/moby/moby/api/pkg/stdcopy"
 	"github.com/moby/moby/api/types/container"
+	dockerevents "github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/mount"
 	"github.com/moby/moby/api/types/network"
 	mobyclient "github.com/moby/moby/client"
+
+	containercontract "graft/server/modules/container/contract"
 )
 
 func TestReadDockerLogEntriesDoesNotReportExactTailAsTruncated(t *testing.T) {
@@ -238,6 +241,67 @@ func TestDockerRuntimeStreamLogsPreservesCanonicalChunkMetadata(t *testing.T) {
 	}
 	if chunks[1].Stream != "stderr" || chunks[1].Line != "stderr line" || !chunks[1].Timestamp.Equal(stderrAt) {
 		t.Fatalf("unexpected stderr chunk %#v", chunks[1])
+	}
+}
+
+func TestDockerCanonicalRuntimeEventNormalizesActionSuffixes(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name           string
+		action         dockerevents.Action
+		attributes     map[string]string
+		expectedType   containercontract.RuntimeEventType
+		expectedFields map[string]string
+	}{
+		{
+			name:         "health status suffix",
+			action:       dockerevents.Action("health_status: healthy"),
+			expectedType: containercontract.RuntimeEventTypeContainerHealthStatusChanged,
+			expectedFields: map[string]string{
+				"health_status": "healthy",
+			},
+		},
+		{
+			name:         "exec start suffix",
+			action:       dockerevents.Action("exec_start: /bin/sh"),
+			attributes:   map[string]string{"execID": "exec-1"},
+			expectedType: containercontract.RuntimeEventTypeContainerExecStarted,
+			expectedFields: map[string]string{
+				"exec_id":      "exec-1",
+				"exec_command": "/bin/sh",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			actorAttributes := map[string]string{
+				"name": "web",
+			}
+			for key, value := range tt.attributes {
+				actorAttributes[key] = value
+			}
+			candidate, ok := dockerRuntimeEventCandidate(dockerevents.Message{
+				Action: tt.action,
+				Actor: dockerevents.Actor{
+					ID:         "container-1",
+					Attributes: actorAttributes,
+				},
+				TimeNano: time.Date(2026, time.June, 27, 10, 0, 0, 0, time.UTC).UnixNano(),
+			})
+			if !ok {
+				t.Fatal("expected docker runtime event candidate to match")
+			}
+			if candidate.EventType != tt.expectedType {
+				t.Fatalf("expected event type %q, got %q", tt.expectedType, candidate.EventType)
+			}
+			for key, expected := range tt.expectedFields {
+				if candidate.Attributes[key] != expected {
+					t.Fatalf("expected attribute %s=%q, got %#v", key, expected, candidate.Attributes)
+				}
+			}
+		})
 	}
 }
 

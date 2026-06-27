@@ -404,6 +404,8 @@ const auditMessages: Record<string, string> = {
   'audit.logList.policy.resetOverrideFailed': 'Failed to remove audit visibility override',
   'audit.logList.policy.overriddenTag': 'Overridden',
   'audit.logList.policy.descriptionFallback': 'No description',
+  'audit.logList.policy.catalog.request.post_api_auth_refresh.displayName': 'Refresh Session Token',
+  'audit.logList.policy.catalog.request.post_api_auth_refresh.description': 'Frontend-owned refresh token description',
   'audit.logList.policy.defaultState': 'Default: {value}',
   'audit.logList.policy.effectiveState': 'Effective: {value}',
   'audit.logList.policy.scope.default': 'Default visible only',
@@ -633,6 +635,17 @@ describe('AuditLogsPage', () => {
     await flushPromises();
     expect(wrapper.text()).toContain('true');
     expect(wrapper.text()).toContain('req-1');
+  });
+
+  it('prefers frontend locale mapping over backend policy catalog display text when a source-action key exists', async () => {
+    const { wrapper } = await mountPage();
+
+    await (wrapper.vm as unknown as { loadPolicySnapshot: () => Promise<void> }).loadPolicySnapshot();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('Refresh Session Token');
+    expect(wrapper.text()).toContain('Frontend-owned refresh token description');
+    expect(wrapper.text()).not.toContain('Refresh token request');
   });
 
   it('opens a detail drawer directly when audit_log_id is present in the route query', async () => {

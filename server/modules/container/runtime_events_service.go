@@ -16,7 +16,8 @@ func (s *service) RuntimeEventHistory(ctx context.Context, ref Ref) (RuntimeEven
 	if err := s.requireRuntimeAccess(ctx); err != nil {
 		return RuntimeEventsHistory{}, err
 	}
-	if s.runtimeEventManager == nil {
+	manager := s.runtimeEventManagerForRead()
+	if manager == nil {
 		return RuntimeEventsHistory{}, errRuntimeEventHistoryUnavailable
 	}
 	detail, err := s.Detail(ctx, ref)
@@ -30,5 +31,5 @@ func (s *service) RuntimeEventHistory(ctx context.Context, ref Ref) (RuntimeEven
 	if resourceID == "" {
 		return RuntimeEventsHistory{}, errRuntimeEventHistoryUnavailable
 	}
-	return s.runtimeEventManager.History(resourceID), nil
+	return manager.History(resourceID), nil
 }

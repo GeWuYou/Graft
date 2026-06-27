@@ -1643,11 +1643,12 @@ async function submitDeleteDialog() {
     return;
   }
 
+  const deleteTargetId = pendingDeleteTarget.value.id;
   pendingDeleteSubmit.value = true;
   try {
-    await deleteUser(pendingDeleteTarget.value.id);
-    users.value = users.value.filter((item) => item.id !== pendingDeleteTarget.value?.id);
-    selectedRowKeys.value = selectedRowKeys.value.filter((item) => item !== pendingDeleteTarget.value?.id);
+    await deleteUser(deleteTargetId);
+    users.value = users.value.filter((item) => item.id !== deleteTargetId);
+    selectedRowKeys.value = selectedRowKeys.value.filter((item) => item !== deleteTargetId);
     MessagePlugin.success(formatHintedMessage(t('user.userList.deleteSuccess')));
     closeDeleteDialog();
   } catch (error) {

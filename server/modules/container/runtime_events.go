@@ -17,6 +17,18 @@ const (
 	defaultRuntimeEventsHistoryTTL    = 30 * time.Minute
 )
 
+var allowedRuntimeEventTypes = map[containercontract.RuntimeEventType]struct{}{
+	containercontract.RuntimeEventTypeContainerCreated:             {},
+	containercontract.RuntimeEventTypeContainerStarted:             {},
+	containercontract.RuntimeEventTypeContainerRestarted:           {},
+	containercontract.RuntimeEventTypeContainerStopped:             {},
+	containercontract.RuntimeEventTypeContainerRemoved:             {},
+	containercontract.RuntimeEventTypeContainerOOMKilled:           {},
+	containercontract.RuntimeEventTypeContainerHealthStatusChanged: {},
+	containercontract.RuntimeEventTypeContainerExecStarted:         {},
+	containercontract.RuntimeEventTypeContainerExecFinished:        {},
+}
+
 // RuntimeEvent is the canonical container runtime event domain fact.
 type RuntimeEvent struct {
 	ID           string            `json:"id"`
@@ -83,6 +95,9 @@ func normalizeRuntimeEventCandidate(candidate RuntimeEventCandidate) (RuntimeEve
 	eventType := containercontract.RuntimeEventType(strings.TrimSpace(candidate.EventType.String()))
 	if eventType == "" {
 		return RuntimeEventCandidate{}, fmt.Errorf("runtime event type is required")
+	}
+	if _, ok := allowedRuntimeEventTypes[eventType]; !ok {
+		return RuntimeEventCandidate{}, fmt.Errorf("runtime event type %q is invalid", eventType)
 	}
 	occurredAt := candidate.OccurredAt.UTC()
 	if occurredAt.IsZero() {

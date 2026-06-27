@@ -35,6 +35,8 @@ type stubAuditRepository struct {
 	incidentErr         error
 	policyErr           error
 	deleteErr           error
+	findOverrideCalls   int
+	listOverrideCalls   int
 }
 
 func (r *stubAuditRepository) CreateAuditLog(_ context.Context, input auditstore.CreateAuditLogInput) (auditstore.AuditLog, error) {
@@ -125,10 +127,28 @@ func (r *stubAuditRepository) UpsertAuditVisibilityDefault(
 }
 
 func (r *stubAuditRepository) ListAuditVisibilityOverrides(_ context.Context) ([]auditstore.AuditVisibilityOverride, error) {
+	r.listOverrideCalls++
 	if r.policyErr != nil {
 		return nil, r.policyErr
 	}
 	return append([]auditstore.AuditVisibilityOverride(nil), r.visibilityOverrides...), nil
+}
+
+func (r *stubAuditRepository) FindAuditVisibilityOverride(
+	_ context.Context,
+	source auditstore.AuditSource,
+	actionKey string,
+) (auditstore.AuditVisibilityOverride, bool, error) {
+	r.findOverrideCalls++
+	if r.policyErr != nil {
+		return auditstore.AuditVisibilityOverride{}, false, r.policyErr
+	}
+	for _, item := range r.visibilityOverrides {
+		if item.Source == source && item.ActionKey == actionKey {
+			return item, true, nil
+		}
+	}
+	return auditstore.AuditVisibilityOverride{}, false, nil
 }
 
 func (r *stubAuditRepository) UpsertAuditVisibilityOverride(
@@ -151,7 +171,24 @@ func (r *stubAuditRepository) UpsertAuditVisibilityOverride(
 		CreatedAt:     time.Now().UTC(),
 		UpdatedAt:     time.Now().UTC(),
 	}
-	r.visibilityOverrides = []auditstore.AuditVisibilityOverride{item}
+	replaced := false
+	next := make([]auditstore.AuditVisibilityOverride, 0, len(r.visibilityOverrides)+1)
+	for _, existing := range r.visibilityOverrides {
+		if existing.Source == item.Source && existing.ActionKey == item.ActionKey {
+			item.ID = existing.ID
+			item.CreatedAt = existing.CreatedAt
+			item.CreatedBy = existing.CreatedBy
+			item.CreatedByName = existing.CreatedByName
+			next = append(next, item)
+			replaced = true
+			continue
+		}
+		next = append(next, existing)
+	}
+	if !replaced {
+		next = append(next, item)
+	}
+	r.visibilityOverrides = next
 	return item, nil
 }
 
@@ -556,6 +593,93 @@ func TestServiceRecordCandidateIncludesContainerDangerousDomainEvent(t *testing.
 	}
 	if repo.createdInput.Action != "ops.container.action.stop" {
 		t.Fatalf("expected persisted action to be preserved, got %q", repo.createdInput.Action)
+	}
+}
+
+func TestServiceRecordCandidateUsesExactVisibilityOverrideLookup(t *testing.T) {
+	repo := &stubAuditRepository{
+		policyRules: []auditstore.AuditPolicyRule{
+			{
+				Name:        "request.auth.refresh.include",
+				Source:      auditstore.AuditSourceRequest,
+				Enabled:     true,
+				Priority:    1,
+				Effect:      auditstore.AuditPolicyEffectInclude,
+				Method:      "POST",
+				PathPattern: "/api/auth/refresh",
+				MatchType:   auditstore.AuditPolicyMatchTypeExact,
+			},
+		},
+		visibilityDefault: auditstore.AuditVisibilityDefault{
+			Key:      "global",
+			Strategy: auditstore.AuditVisibilityStrategyVisible,
+		},
+		visibilityOverrides: []auditstore.AuditVisibilityOverride{
+			{
+				ID:        9,
+				Source:    auditstore.AuditSourceRequest,
+				ActionKey: "POST /api/auth/refresh",
+				Strategy:  auditstore.AuditVisibilityStrategyHidden,
+			},
+		},
+	}
+	service, err := NewService(repo)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	record, recorded, err := service.RecordCandidate(context.Background(), auditstore.AuditCandidate{
+		Source:        auditstore.AuditSourceRequest,
+		Action:        "POST /api/auth/refresh",
+		RequestMethod: "POST",
+		RequestPath:   "/api/auth/refresh",
+		Success:       true,
+	})
+	if err != nil {
+		t.Fatalf("record candidate: %v", err)
+	}
+	if !recorded {
+		t.Fatal("expected candidate to be recorded")
+	}
+	if record.ID == 0 {
+		t.Fatalf("expected persisted audit record id, got %#v", record)
+	}
+	if repo.createdInput.Visibility != auditstore.AuditVisibilityStrategyHidden {
+		t.Fatalf("expected hidden visibility to be persisted, got %q", repo.createdInput.Visibility)
+	}
+	if repo.findOverrideCalls != 1 {
+		t.Fatalf("expected exact override lookup once, got %d", repo.findOverrideCalls)
+	}
+	if repo.listOverrideCalls != 0 {
+		t.Fatalf("expected no full override list scan, got %d", repo.listOverrideCalls)
+	}
+}
+
+func TestStubAuditRepositoryUpsertVisibilityOverrideKeepsOtherOverrides(t *testing.T) {
+	repo := &stubAuditRepository{
+		visibilityOverrides: []auditstore.AuditVisibilityOverride{
+			{ID: 1, Source: auditstore.AuditSourceRequest, ActionKey: "POST /api/auth/refresh", Strategy: auditstore.AuditVisibilityStrategyHidden},
+			{ID: 2, Source: auditstore.AuditSourceSecurityEvent, ActionKey: "auth.token.expired", Strategy: auditstore.AuditVisibilityStrategyHidden},
+		},
+	}
+
+	_, err := repo.UpsertAuditVisibilityOverride(context.Background(), auditstore.UpsertAuditVisibilityOverrideInput{
+		Source:    auditstore.AuditSourceRequest,
+		ActionKey: "POST /api/auth/refresh",
+		Strategy:  auditstore.AuditVisibilityStrategyVisible,
+	})
+	if err != nil {
+		t.Fatalf("upsert visibility override: %v", err)
+	}
+
+	if len(repo.visibilityOverrides) != 2 {
+		t.Fatalf("expected in-place upsert, got %#v", repo.visibilityOverrides)
+	}
+	if repo.visibilityOverrides[0].Strategy != auditstore.AuditVisibilityStrategyVisible {
+		t.Fatalf("expected matched override to update, got %#v", repo.visibilityOverrides[0])
+	}
+	if repo.visibilityOverrides[1].ActionKey != "auth.token.expired" {
+		t.Fatalf("expected unmatched override to remain, got %#v", repo.visibilityOverrides[1])
 	}
 }
 
