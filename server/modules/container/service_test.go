@@ -1814,6 +1814,47 @@ func TestRuntimeForRequestInitializesOnceUnderConcurrentAccess(t *testing.T) {
 	}
 }
 
+func TestRuntimeEventSourceRegistrationsReturnSourceAgnosticLoader(t *testing.T) {
+	t.Parallel()
+
+	sourceRuntime := runtimeEventServiceSourceStub{}
+	service, err := newTestService(containerServiceOptions{
+		runtime: sourceRuntime,
+		runtimeOptions: containerRuntimeOptions{
+			runtime: "podman",
+		},
+		enabled:     true,
+		defaultTail: defaultContainerLogsDefaultTail,
+		maxTail:     defaultContainerLogsMaxTail,
+	})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	registrations := service.runtimeEventSourceRegistrations()
+	if len(registrations) != 1 {
+		t.Fatalf("expected one runtime event source registration, got %d", len(registrations))
+	}
+	registration := registrations[0]
+	if registration.name != "podman" {
+		t.Fatalf("expected source name podman, got %q", registration.name)
+	}
+	if registration.streamContext.Runtime != "podman" {
+		t.Fatalf("expected stream runtime podman, got %q", registration.streamContext.Runtime)
+	}
+	if registration.load == nil {
+		t.Fatalf("expected source loader to be configured")
+	}
+
+	loadedSource, err := registration.load()
+	if err != nil {
+		t.Fatalf("load source: %v", err)
+	}
+	if loadedSource == nil {
+		t.Fatalf("expected runtime event source to be returned")
+	}
+}
+
 func TestIssueContainerListRealtimeSubscriptionRequiresAuthenticatedUser(t *testing.T) {
 	t.Parallel()
 
@@ -2544,8 +2585,8 @@ func (fakeRuntime) MountUsage(context.Context, Ref, string) (MountUsage, error) 
 
 func (fakeRuntime) Logs(_ context.Context, ref Ref, query LogQuery) (Logs, error) {
 	return Logs{
-		ID:         ref.Value,
-		Runtime:    runtimeNameDocker,
+		ID:      ref.Value,
+		Runtime: runtimeNameDocker,
 		Entries: []LogEntry{{
 			Line:       "line",
 			Stream:     "stdout",
@@ -2585,6 +2626,47 @@ func (fakeRuntime) Remove(context.Context, Ref, RemoveOptions) (ActionResult, er
 }
 
 func (fakeRuntime) Close() error { return nil }
+
+type runtimeEventServiceSourceStub struct{}
+
+func (runtimeEventServiceSourceStub) Info(context.Context) (RuntimeInfo, error) {
+	return RuntimeInfo{Runtime: "podman", Status: "enabled"}, nil
+}
+func (runtimeEventServiceSourceStub) List(context.Context, ListQuery) ([]Summary, error) {
+	return nil, nil
+}
+func (runtimeEventServiceSourceStub) Detail(context.Context, Ref) (Detail, error) {
+	return Detail{}, nil
+}
+func (runtimeEventServiceSourceStub) Mounts(context.Context, Ref) ([]Mount, error) { return nil, nil }
+func (runtimeEventServiceSourceStub) MountUsage(context.Context, Ref, string) (MountUsage, error) {
+	return MountUsage{}, nil
+}
+func (runtimeEventServiceSourceStub) Logs(context.Context, Ref, LogQuery) (Logs, error) {
+	return Logs{}, nil
+}
+func (runtimeEventServiceSourceStub) StreamLogs(context.Context, Ref, LogQuery, func(LogChunk) error) error {
+	return nil
+}
+func (runtimeEventServiceSourceStub) StreamRuntimeEvents(context.Context, func(RuntimeEventCandidate) error) error {
+	return nil
+}
+func (runtimeEventServiceSourceStub) Shell(context.Context, Ref, string) (terminal.Session, error) {
+	return nil, nil
+}
+func (runtimeEventServiceSourceStub) Start(context.Context, Ref) (ActionResult, error) {
+	return ActionResult{}, nil
+}
+func (runtimeEventServiceSourceStub) Stop(context.Context, Ref) (ActionResult, error) {
+	return ActionResult{}, nil
+}
+func (runtimeEventServiceSourceStub) Restart(context.Context, Ref) (ActionResult, error) {
+	return ActionResult{}, nil
+}
+func (runtimeEventServiceSourceStub) Remove(context.Context, Ref, RemoveOptions) (ActionResult, error) {
+	return ActionResult{}, nil
+}
+func (runtimeEventServiceSourceStub) Close() error { return nil }
 
 func fakeSummary() Summary {
 	return Summary{

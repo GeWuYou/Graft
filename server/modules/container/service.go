@@ -1980,18 +1980,48 @@ func (s *service) startRuntimeEventManager(ctx context.Context) error {
 		return nil
 	}
 	if s.runtimeEventManager == nil {
-		runtimeName := strings.TrimSpace(s.runtimeOptions.runtime)
-		if runtimeName == "" {
-			runtimeName = runtimeNameDocker
-		}
 		s.runtimeEventManager = newRuntimeEventManager(
 			s.realtimeHub,
 			s.logger,
-			s.runtimeForRequest,
-			RuntimeEventStreamContext{Runtime: runtimeName},
+			s.runtimeEventSourceRegistrations(),
+			RuntimeEventStreamContext{Runtime: s.defaultRuntimeEventStreamRuntime()},
 		)
 	}
 	return s.runtimeEventManager.Start(ctx)
+}
+
+func (s *service) runtimeEventSourceRegistrations() []runtimeEventSourceRegistration {
+	if s == nil {
+		return nil
+	}
+	return []runtimeEventSourceRegistration{
+		{
+			name:          s.defaultRuntimeEventSourceName(),
+			streamContext: RuntimeEventStreamContext{Runtime: s.defaultRuntimeEventStreamRuntime()},
+			load: func() (RuntimeEventSource, error) {
+				runtime, err := s.runtimeForRequest()
+				if err != nil {
+					if errors.Is(err, errRuntimeDisabled) {
+						return nil, nil
+					}
+					return nil, err
+				}
+				source, ok := runtime.(RuntimeEventSource)
+				if !ok {
+					return nil, nil
+				}
+				return source, nil
+			},
+		},
+	}
+}
+
+func (s *service) defaultRuntimeEventSourceName() string {
+	return firstNonEmpty(strings.TrimSpace(s.runtimeOptions.runtime), runtimeNameDocker)
+}
+
+func (s *service) defaultRuntimeEventStreamRuntime() string {
+	return s.defaultRuntimeEventSourceName()
 }
 
 func (s *service) collectStatsSnapshots(ctx context.Context) ([]StatsSnapshot, error) {

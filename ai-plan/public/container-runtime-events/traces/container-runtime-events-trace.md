@@ -74,3 +74,21 @@
   - `cd web && bun run check`
 - next batch：
   - `phase-3-provider-extensibility-and-hardening`
+
+## 2026-06-27 Phase 3 provider extensibility and hardening
+
+- backend provider seam hardening
+  - `runtimeEventManager` 现已接收显式 `runtimeEventSourceRegistration` 列表，而不是在 manager 内部隐式依赖 `runtimeLoader -> RuntimeEventSource` 的单点 type assert
+  - `service.startRuntimeEventManager()` 继续保持当前单 runtime 行为，但已把 source ownership 收敛到 registration seam，后续 Podman / containerd 仅需新增 registration
+- ordering / dedupe / retention hardening
+  - manager 现在会在当前 bounded history window 内按 canonical event id 抑制重复事件，避免重复 source 输入导致 `seq` 无意义递增
+  - `History()` 读取路径会执行 TTL 驱逐，避免 removed / inactive container 仅在后续追加事件时才被清理
+  - per-resource stream context 现在与 history 一起保存，避免未来多 source / runtime 扩展时把默认 runtime 假设泄漏到历史读取面
+- diagnostics and tests
+  - 新增 source diagnostics：`streamStarts`、`streamErrors`、`invalidDrops`、`duplicateDrops`、`lastError`、`lastEventAt`
+  - 新增 direct tests 覆盖 duplicate suppression、TTL read eviction、source registration start idempotency 和 diagnostics 记录
+- validation
+  - `git diff --check`
+  - `cd server && go run ./cmd/graft validate backend`
+- next batch：
+  - `final-archive-readiness-and-governance-sync`

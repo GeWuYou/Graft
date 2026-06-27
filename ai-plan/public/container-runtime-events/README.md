@@ -3,7 +3,7 @@
 ## 当前状态摘要
 
 - 当前主题目标是为 `Graft` 容器模块建立 runtime-agnostic 的 `Runtime Events` 能力设计与实施入口。
-- 当前状态：Phase 2 container events UX 已完成实现并通过前端完成态校验；下一批次进入 Phase 3 provider extensibility and hardening。
+- 当前状态：Phase 3 provider extensibility and hardening 已完成实现并通过后端完成态校验；下一批次进入 Final archive readiness and governance sync。
 - 任务分类为 `cross-boundary`。
 - 当前设计 authority：
   - `ai-plan/design/容器运行时事件能力设计.md`
@@ -62,6 +62,12 @@
   - `ops.container.events` permission、`container.events:{id}` topic、`GET /api/ops/containers/{id}/events` history endpoint 已落地
   - frontend container module 已新增 module-owned `events-manager`，并在 detail 页中以 `Events` tab 方式消费 `history seed + live stream`
   - reconnect backfill 语义已按 `seq` merge / dedupe 落在 manager 内
+ - Phase 3 已补齐以下 hardening slice：
+  - backend runtime event manager 改为显式 source registration seam，后续 Podman / containerd 只需新增 registration，不再让 manager 依赖隐式 runtime type assert
+  - manager 现在对等价事件做窗口内去重，避免重复 source / reconnect 桥接导致 `seq` 无意义增长
+  - history 读取路径会执行 TTL 驱逐，避免 removed / inactive container 仅在追加写入时才被回收
+  - 新增 source diagnostics，记录 stream start / error / invalid drop / duplicate drop / last event time，便于后续 provider health 扩展
+  - 新增 direct tests 覆盖 source registration、history TTL、duplicate suppression 与 source diagnostics
 - 当前主题的核心 architecture 决议继续保持：
   - `RuntimeEvent` 不包含 `runtime`
   - 不包含 `category`
@@ -74,7 +80,7 @@
 - Batch 0：设计 authority、topic recovery、loop bootstrap。已完成。
 - Phase 1：backend runtime event foundation + detail Events tab minimum slice。已完成。
 - Phase 2：container events UX hardening。已完成。
-- Phase 3：provider extensibility and hardening。未开始。
+- Phase 3：provider extensibility and hardening。已完成。
 - Final：archive readiness and governance sync。未开始。
 
 ## Validation Targets
@@ -97,5 +103,4 @@ cd web && bun run check
 ```bash
 git diff --check
 cd server && go run ./cmd/graft validate backend
-cd web && bun run check
 ```

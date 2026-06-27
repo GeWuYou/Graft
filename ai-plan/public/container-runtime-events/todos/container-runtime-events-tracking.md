@@ -3,7 +3,7 @@
 ## Topic
 
 - Topic: `container-runtime-events`
-- Status: `phase-1 implemented`
+- Status: `phase-3 implemented`
 - Goal: 为容器模块建立 runtime-agnostic Runtime Events 设计、实施计划与分批恢复入口，随后按 `graft-multi-agent-loop`
   推进 bounded implementation batches。
 
@@ -45,10 +45,7 @@
   - frontend 已新增 module-owned `events-manager`，detail page `Events` tab 已消费 `history seed + live append`
   - reconnect backfill 已落在 frontend manager，通过 `seq` merge / dedupe 避免重复和补洞
 - 当前仍待后续批次完成：
-  - Event Type / Severity filter
-  - Search / Copy JSON / Jump to Logs
-  - Timeline / timestamp UX hardening
-  - provider extensibility hardening
+  - final archive readiness and governance sync
 
 ## Task Checklist
 
@@ -65,7 +62,7 @@
 - [x] Phase 2：Severity Filter
 - [x] Phase 2：Search / Copy JSON / Jump to Logs
 - [x] Phase 2：Timeline Collapse / Relative-Absolute Time Toggle
-- [ ] Phase 3：provider extensibility hardening
+- [x] Phase 3：provider extensibility hardening
 - [ ] Final：archive readiness and governance sync
 
 ## Loop Batch State
@@ -76,14 +73,14 @@
   "completed_batches": [
     "batch-0-design-authority-and-topic-bootstrap",
     "phase-1-runtime-event-foundation",
-    "phase-2-container-events-ux"
+    "phase-2-container-events-ux",
+    "phase-3-provider-extensibility-and-hardening"
   ],
   "pending_batches": [
-    "phase-3-provider-extensibility-and-hardening",
     "final-archive-readiness-and-governance-sync"
   ],
-  "current_batch": "phase-2-container-events-ux",
-  "next_batch": "phase-3-provider-extensibility-and-hardening",
-  "closeout_status": "phase-2-complete"
+  "current_batch": "phase-3-provider-extensibility-and-hardening",
+  "next_batch": "final-archive-readiness-and-governance-sync",
+  "closeout_status": "phase-3-complete"
 }
 ```
