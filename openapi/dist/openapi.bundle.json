@@ -1155,6 +1155,7 @@
                         "username": "alice",
                         "display": "Alice",
                         "status": "enabled",
+                        "protected_default_admin": false,
                         "roles": [
                           {
                             "id": 1,
@@ -11092,6 +11093,7 @@
           "username",
           "display",
           "status",
+          "protected_default_admin",
           "roles",
           "created_at",
           "updated_at"
@@ -11110,6 +11112,10 @@
           },
           "status": {
             "type": "string"
+          },
+          "protected_default_admin": {
+            "type": "boolean",
+            "description": "True only for the builtin protected default administrator account."
           },
           "roles": {
             "type": "array",

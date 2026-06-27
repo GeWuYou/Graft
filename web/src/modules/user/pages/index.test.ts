@@ -30,8 +30,6 @@ const messageMocks = vi.hoisted(() => ({
   warning: vi.fn(),
 }));
 
-const confirmMock = vi.hoisted(() => vi.fn(() => true));
-
 const permissionState = vi.hoisted(() => ({
   grantedCodes: [] as string[],
 }));
@@ -101,8 +99,6 @@ vi.mock('tdesign-vue-next/es/message', () => ({
     warning: messageMocks.warning,
   },
 }));
-
-vi.stubGlobal('confirm', confirmMock);
 
 const passthroughStub = defineComponent({
   name: 'PassthroughStub',
@@ -343,6 +339,20 @@ const formItemStub = defineComponent({
   },
 });
 
+const alertStub = defineComponent({
+  name: 'TAlertStub',
+  props: {
+    title: {
+      type: String,
+      default: '',
+    },
+  },
+  setup(props, { attrs, slots }) {
+    return () =>
+      h('div', { ...attrs }, [props.title ? h('strong', props.title) : null, slots.default?.(), slots.message?.()]);
+  },
+});
+
 const selectStub = defineComponent({
   name: 'TSelectStub',
   props: {
@@ -440,6 +450,18 @@ const drawerStub = defineComponent({
 const dialogStub = defineComponent({
   name: 'TDialogStub',
   props: {
+    body: {
+      type: String,
+      default: '',
+    },
+    cancelBtn: {
+      type: [String, Object],
+      default: '',
+    },
+    confirmBtn: {
+      type: [String, Object],
+      default: '',
+    },
     visible: {
       type: Boolean,
       default: false,
@@ -454,15 +476,25 @@ const dialogStub = defineComponent({
     return () =>
       props.visible
         ? h('section', { 'data-testid': 'dialog', 'data-header': props.header }, [
+            props.body ? h('p', { 'data-testid': `dialog-body-${props.header}` }, props.body) : null,
             slots.default?.(),
             h(
               'button',
               {
                 type: 'button',
-                'data-testid': 'dialog-confirm',
+                'data-testid': `dialog-confirm-${props.header}`,
                 onClick: () => emit('confirm'),
               },
               'confirm',
+            ),
+            h(
+              'button',
+              {
+                type: 'button',
+                'data-testid': `dialog-close-${props.header}`,
+                onClick: () => emit('close'),
+              },
+              'close',
             ),
           ])
         : null;
@@ -533,7 +565,32 @@ function createUserListResponse() {
         id: 7,
         username: 'alice',
         display: 'Alice',
+        protected_default_admin: false,
         status: 'enabled',
+        roles: [],
+        created_at: '2026-05-17T00:00:00Z',
+        updated_at: '2026-05-17T00:00:00Z',
+      },
+    ],
+  };
+}
+
+function createProtectedUserListResponse() {
+  return {
+    items: [
+      {
+        id: 1,
+        username: 'graft',
+        display: 'Graft Admin',
+        protected_default_admin: true,
+        status: 'enabled',
+        roles: [
+          {
+            id: 1,
+            name: 'admin',
+            display: 'Admin',
+          },
+        ],
         created_at: '2026-05-17T00:00:00Z',
         updated_at: '2026-05-17T00:00:00Z',
       },
@@ -621,6 +678,7 @@ function mountUserPage() {
         },
       },
       stubs: {
+        't-alert': alertStub,
         't-button': buttonStub,
         't-checkbox': checkboxStub,
         't-checkbox-group': checkboxGroupStub,
@@ -658,8 +716,6 @@ function setRoleMutationMode(wrapper: ReturnType<typeof mountUserPage>, mode: 'r
 describe('UserPage', () => {
   beforeEach(() => {
     permissionState.grantedCodes = [];
-    confirmMock.mockReset();
-    confirmMock.mockReturnValue(true);
     userApiMocks.createUser.mockReset();
     userApiMocks.deleteUser.mockReset();
     userApiMocks.getUsers.mockReset();
@@ -713,8 +769,6 @@ describe('UserPage', () => {
     userApiMocks.getUsers.mockResolvedValue(createUserListResponse());
     roleApiMocks.getRoles.mockResolvedValue(createRoleListResponse());
     roleApiMocks.getUserRoleBindings.mockResolvedValue({ role_ids: [1] });
-    confirmMock.mockReturnValueOnce(false);
-
     const wrapper = mountUserPage();
     await flushPromises();
 
@@ -726,7 +780,12 @@ describe('UserPage', () => {
     await wrapper.get('[data-testid="user-role-cancel"]').trigger('click');
     await flushPromises();
 
-    expect(confirmMock).toHaveBeenCalledWith('user.userList.roleDialog.unsavedChangesConfirm');
+    expect(wrapper.find('[data-testid="dialog"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="user-role-drawer"]').exists()).toBe(true);
+
+    await wrapper.get('[data-testid="dialog-close-user.userList.roleDialog.unsavedChangesTitle"]').trigger('click');
+    await flushPromises();
+
     expect(wrapper.find('[data-testid="user-role-drawer"]').exists()).toBe(true);
   });
 
@@ -909,7 +968,7 @@ describe('UserPage', () => {
     await wrapper.get('[data-testid="dropdown-option-reset-password"]').trigger('click');
     await flushPromises();
     await wrapper.get('input[placeholder="user.userList.resetPasswordDialog.passwordPlaceholder"]').setValue('short');
-    await wrapper.get('[data-testid="dialog-confirm"]').trigger('click');
+    await wrapper.get('[data-testid="dialog-confirm-user.userList.resetPasswordDialog.title"]').trigger('click');
     await flushPromises();
 
     expect(wrapper.get('[data-testid="validate-password"]').text()).toContain('新密码不符合安全要求');
@@ -927,18 +986,132 @@ describe('UserPage', () => {
       messageKey: 'user.not_found',
       responseData: {},
     });
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const wrapper = mountUserPage();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="dropdown-option-toggle-status"]').trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-testid="dialog-confirm-user.userList.statusDialog.title"]').trigger('click');
+    await flushPromises();
+
+    expect(messageMocks.error).toHaveBeenCalledWith('用户不存在');
+    expect(messageMocks.error).not.toHaveBeenCalledWith('user.userList.statusUpdateFailed');
+  });
+
+  it('renders protected default-admin affordances from the server flag', async () => {
+    permissionState.grantedCodes = [
+      USER_PERMISSION_CODE.UPDATE,
+      USER_PERMISSION_CODE.DISABLE,
+      RBAC_PERMISSION_CODE.USER_ROLE_READ,
+      RBAC_PERMISSION_CODE.USER_ROLE_ASSIGN,
+    ];
+    userApiMocks.getUsers.mockResolvedValue(createProtectedUserListResponse());
+    roleApiMocks.getRoles.mockResolvedValue(createRoleListResponse());
+    roleApiMocks.getUserRoleBindings.mockResolvedValue({ role_ids: [1] });
+
+    const wrapper = mountUserPage();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('user.userList.protectedDefaultAdmin.badge');
+    expect(wrapper.get('[data-testid="user-manage-roles"]').text()).toContain('user.userList.viewRoles');
+    expect(wrapper.get('[data-testid="user-manage-roles"]').attributes('disabled')).toBeUndefined();
+    expect(wrapper.get('[data-testid="dropdown-option-toggle-status"]').attributes('disabled')).toBeDefined();
+    expect(wrapper.get('[data-testid="dropdown-option-delete"]').attributes('disabled')).toBeDefined();
+
+    await wrapper.get('[data-testid="user-manage-roles"]').trigger('click');
+    await flushPromises();
+
+    expect(roleApiMocks.getUserRoleBindings).toHaveBeenCalledWith(1);
+    expect(wrapper.get('[data-testid="drawer"]').attributes('data-header')).toBe(
+      'user.userList.roleDialog.readonlyTitle',
+    );
+    expect(wrapper.find('[data-testid="user-role-readonly-protection"]').exists()).toBe(true);
+    expect(wrapper.get('[data-testid="role-checkbox-group"]').attributes('data-disabled')).toBe('true');
+    expect(wrapper.find('[data-testid="user-role-save"]').exists()).toBe(false);
+    expect(wrapper.get('[data-testid="user-role-cancel"]').text()).toContain('user.userList.roleDialog.close');
+  });
+
+  it('keeps the protected default-admin username readonly in edit mode', async () => {
+    permissionState.grantedCodes = [USER_PERMISSION_CODE.UPDATE];
+    userApiMocks.getUsers.mockResolvedValue(createProtectedUserListResponse());
+
+    const wrapper = mountUserPage();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="dropdown-option-edit"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.get('input[placeholder="user.userList.form.usernamePlaceholder"]').attributes('readonly')).toBe('');
+    expect(wrapper.text()).toContain('user.userList.protectedDefaultAdmin.usernameImmutable');
+  });
+
+  it('disables batch role management when the selection contains the protected default admin', async () => {
+    permissionState.grantedCodes = [RBAC_PERMISSION_CODE.USER_ROLE_READ, RBAC_PERMISSION_CODE.USER_ROLE_ASSIGN];
+    userApiMocks.getUsers.mockResolvedValue({
+      items: [
+        ...createProtectedUserListResponse().items,
+        {
+          id: 2,
+          username: 'alice',
+          display: 'Alice',
+          protected_default_admin: false,
+          status: 'enabled',
+          roles: [],
+          created_at: '2026-05-17T00:00:00Z',
+          updated_at: '2026-05-17T00:00:00Z',
+        },
+      ],
+    });
+    roleApiMocks.getRoles.mockResolvedValue(createRoleListResponse());
+
+    const wrapper = mountUserPage();
+    await flushPromises();
+
+    await wrapper.getComponent(UserPage).vm.handleSelectChange?.([1, 2]);
+    await flushPromises();
+
+    expect(wrapper.get('[data-testid="user-batch-manage-roles"]').attributes('disabled')).toBeDefined();
+  });
+
+  it('submits status changes through the TDesign dialog flow', async () => {
+    permissionState.grantedCodes = [USER_PERMISSION_CODE.DISABLE];
+    userApiMocks.getUsers.mockResolvedValue(createUserListResponse());
+    userApiMocks.updateUserStatus.mockResolvedValue({
+      ...createUserListResponse().items[0],
+      status: 'disabled',
+    });
 
     const wrapper = mountUserPage();
     await flushPromises();
 
     await wrapper.get('[data-testid="dropdown-option-toggle-status"]').trigger('click');
     await flushPromises();
+    expect(wrapper.find('[data-testid="dialog-body-user.userList.statusDialog.title"]').exists()).toBe(true);
 
-    expect(messageMocks.error).toHaveBeenCalledWith('用户不存在');
-    expect(messageMocks.error).not.toHaveBeenCalledWith('user.userList.statusUpdateFailed');
+    await wrapper.get('[data-testid="dialog-confirm-user.userList.statusDialog.title"]').trigger('click');
+    await flushPromises();
 
-    confirmSpy.mockRestore();
+    expect(userApiMocks.updateUserStatus).toHaveBeenCalledWith(7, { status: 'disabled' });
+    expect(messageMocks.success).toHaveBeenCalledWith('user.userList.statusUpdateSuccess');
+  });
+
+  it('submits delete through the TDesign dialog flow', async () => {
+    permissionState.grantedCodes = [USER_PERMISSION_CODE.DISABLE];
+    userApiMocks.getUsers.mockResolvedValue(createUserListResponse());
+    userApiMocks.deleteUser.mockResolvedValue(null);
+
+    const wrapper = mountUserPage();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="dropdown-option-delete"]').trigger('click');
+    await flushPromises();
+    expect(wrapper.find('[data-testid="dialog-body-user.userList.deleteDialog.title"]').exists()).toBe(true);
+
+    await wrapper.get('[data-testid="dialog-confirm-user.userList.deleteDialog.title"]').trigger('click');
+    await flushPromises();
+
+    expect(userApiMocks.deleteUser).toHaveBeenCalledWith(7);
+    expect(messageMocks.success).toHaveBeenCalledWith('user.userList.deleteSuccess');
   });
 
   it('keeps role assignment blocked when the current snapshot fails to load', async () => {

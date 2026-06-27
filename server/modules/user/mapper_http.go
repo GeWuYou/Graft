@@ -103,13 +103,14 @@ func toUserListItem(user userstore.User, roles []moduleapi.RoleSummary) (userLis
 	}
 
 	return userListItem{
-		Id:        id,
-		Username:  user.Username,
-		Display:   user.Display,
-		Status:    normalizeUserStatus(user.Status),
-		Roles:     roleItems,
-		CreatedAt: user.CreatedAt.UTC().Format(time.RFC3339),
-		UpdatedAt: user.UpdatedAt.UTC().Format(time.RFC3339),
+		Id:                    id,
+		Username:              user.Username,
+		Display:               user.Display,
+		Status:                normalizeUserStatus(user.Status),
+		ProtectedDefaultAdmin: user.ProtectedDefaultAdmin,
+		Roles:                 roleItems,
+		CreatedAt:             user.CreatedAt.UTC().Format(time.RFC3339),
+		UpdatedAt:             user.UpdatedAt.UTC().Format(time.RFC3339),
 	}, nil
 }
 

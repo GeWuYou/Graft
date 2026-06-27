@@ -1239,6 +1239,81 @@ func (e ContainerPortType) Valid() bool {
 	}
 }
 
+// Defines values for ContainerRuntimeEventEventType.
+const (
+	ContainerCreated             ContainerRuntimeEventEventType = "container.created"
+	ContainerExecFinished        ContainerRuntimeEventEventType = "container.exec_finished"
+	ContainerExecStarted         ContainerRuntimeEventEventType = "container.exec_started"
+	ContainerHealthStatusChanged ContainerRuntimeEventEventType = "container.health_status_changed"
+	ContainerOomKilled           ContainerRuntimeEventEventType = "container.oom_killed"
+	ContainerRemoved             ContainerRuntimeEventEventType = "container.removed"
+	ContainerRestarted           ContainerRuntimeEventEventType = "container.restarted"
+	ContainerStarted             ContainerRuntimeEventEventType = "container.started"
+	ContainerStopped             ContainerRuntimeEventEventType = "container.stopped"
+)
+
+// Valid indicates whether the value is a known member of the ContainerRuntimeEventEventType enum.
+func (e ContainerRuntimeEventEventType) Valid() bool {
+	switch e {
+	case ContainerCreated:
+		return true
+	case ContainerExecFinished:
+		return true
+	case ContainerExecStarted:
+		return true
+	case ContainerHealthStatusChanged:
+		return true
+	case ContainerOomKilled:
+		return true
+	case ContainerRemoved:
+		return true
+	case ContainerRestarted:
+		return true
+	case ContainerStarted:
+		return true
+	case ContainerStopped:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ContainerRuntimeEventResourceType.
+const (
+	Container ContainerRuntimeEventResourceType = "container"
+)
+
+// Valid indicates whether the value is a known member of the ContainerRuntimeEventResourceType enum.
+func (e ContainerRuntimeEventResourceType) Valid() bool {
+	switch e {
+	case Container:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ContainerRuntimeEventSeverity.
+const (
+	ContainerRuntimeEventSeverityError   ContainerRuntimeEventSeverity = "error"
+	ContainerRuntimeEventSeverityInfo    ContainerRuntimeEventSeverity = "info"
+	ContainerRuntimeEventSeverityWarning ContainerRuntimeEventSeverity = "warning"
+)
+
+// Valid indicates whether the value is a known member of the ContainerRuntimeEventSeverity enum.
+func (e ContainerRuntimeEventSeverity) Valid() bool {
+	switch e {
+	case ContainerRuntimeEventSeverityError:
+		return true
+	case ContainerRuntimeEventSeverityInfo:
+		return true
+	case ContainerRuntimeEventSeverityWarning:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ContainerRuntimeInfoStatus.
 const (
 	ContainerRuntimeInfoStatusDisabled    ContainerRuntimeInfoStatus = "disabled"
@@ -3811,7 +3886,7 @@ type ContainerLogEntry struct {
 	// Line Canonical container log line content after runtime framing is removed.
 	Line string `json:"line"`
 
-	// OccurredAt Canonical UTC occurrence time for the log entry.
+	// OccurredAt Canonical UTC occurrence time for the log entry, using the runtime timestamp when available and server receive time otherwise.
 	OccurredAt time.Time `json:"occurred_at"`
 
 	// Stream Canonical runtime stream that produced the log entry.
@@ -4054,6 +4129,58 @@ type ContainerResourceSummary struct {
 
 	// UnavailableReason Compatibility mirror of stats_error_key for existing clients.
 	UnavailableReason *string `json:"unavailable_reason,omitempty"`
+}
+
+// ContainerRuntimeEvent defines model for container-runtime-event.
+type ContainerRuntimeEvent struct {
+	// Attributes Stable provider-normalized scalar metadata for rendering and local i18n.
+	Attributes *map[string]string `json:"attributes,omitempty"`
+
+	// EventType Canonical container runtime event type.
+	EventType ContainerRuntimeEventEventType `json:"event_type"`
+
+	// Id Opaque event identifier stable within the bounded replay window.
+	Id         string    `json:"id"`
+	OccurredAt time.Time `json:"occurred_at"`
+
+	// ResourceId Canonical container identifier.
+	ResourceId string `json:"resource_id"`
+
+	// ResourceType Canonical runtime event resource type.
+	ResourceType ContainerRuntimeEventResourceType `json:"resource_type"`
+
+	// Severity Canonical severity mapped by the container module rather than provider-authored values.
+	Severity ContainerRuntimeEventSeverity `json:"severity"`
+}
+
+// ContainerRuntimeEventEventType Canonical container runtime event type.
+type ContainerRuntimeEventEventType string
+
+// ContainerRuntimeEventResourceType Canonical runtime event resource type.
+type ContainerRuntimeEventResourceType string
+
+// ContainerRuntimeEventRecord defines model for container-runtime-event-record.
+type ContainerRuntimeEventRecord struct {
+	Event ContainerRuntimeEvent `json:"event"`
+
+	// Seq Monotonically increasing sequence within the container event stream.
+	Seq int64 `json:"seq"`
+}
+
+// ContainerRuntimeEventSeverity Canonical severity mapped by the container module rather than provider-authored values.
+type ContainerRuntimeEventSeverity string
+
+// ContainerRuntimeEventStreamContext defines model for container-runtime-event-stream-context.
+type ContainerRuntimeEventStreamContext struct {
+	// Runtime Stream context runtime identifier. This is not part of the canonical event fact.
+	Runtime string `json:"runtime"`
+}
+
+// ContainerRuntimeEventsResponse defines model for container-runtime-events-response.
+type ContainerRuntimeEventsResponse struct {
+	Context    ContainerRuntimeEventStreamContext `json:"context"`
+	Items      []ContainerRuntimeEventRecord      `json:"items"`
+	ResourceId string                             `json:"resource_id"`
 }
 
 // ContainerRuntimeInfo defines model for container-runtime-info.
@@ -4760,6 +4887,26 @@ type EnvelopedContainerMountUsageListResponse struct {
 	// Code Existing canonical response code.
 	Code string                          `json:"code"`
 	Data ContainerMountUsageListResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedContainerRuntimeEventsResponse defines model for enveloped-container-runtime-events-response.
+type EnvelopedContainerRuntimeEventsResponse struct {
+	// Code Existing canonical response code.
+	Code string                         `json:"code"`
+	Data ContainerRuntimeEventsResponse `json:"data"`
 
 	// Locale Present on localized error flows and omitted on normal success.
 	Locale *string `json:"locale,omitempty"`
@@ -6432,6 +6579,9 @@ type UserListItem struct {
 	Display   string `json:"display"`
 	Id        int64  `json:"id"`
 
+	// ProtectedDefaultAdmin True only for the builtin protected default administrator account.
+	ProtectedDefaultAdmin bool `json:"protected_default_admin"`
+
 	// Roles Minimal role summaries embedded in the user list to avoid row-level role fetch fanout.
 	Roles     []UserRoleSummary `json:"roles"`
 	Status    string            `json:"status"`
@@ -7208,6 +7358,16 @@ type GetContainerDashboardSummaryParams struct {
 
 // GetContainerParams defines parameters for GetContainer.
 type GetContainerParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetContainerEventsParams defines parameters for GetContainerEvents.
+type GetContainerEventsParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 

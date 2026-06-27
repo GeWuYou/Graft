@@ -15,9 +15,10 @@ var (
 //
 // 该 DTO 只能承载其他模块明确可依赖的字段，避免把用户模块的内部模型直接泄漏出去。
 type UserSummary struct {
-	ID       uint64
-	Username string
-	Display  string
+	ID                    uint64
+	Username              string
+	Display               string
+	ProtectedDefaultAdmin bool
 }
 
 // UserService 暴露其他模块可依赖的最小用户能力接口。

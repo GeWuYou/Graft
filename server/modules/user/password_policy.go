@@ -1,8 +1,6 @@
 package user
 
-import (
-	"unicode"
-)
+import "unicode"
 
 const (
 	defaultAdminUsername  = "graft"
@@ -11,6 +9,7 @@ const (
 	defaultAdminRoleName  = "admin"
 	minimumPasswordLength = 12
 )
+
 
 type passwordPolicy struct{}
 

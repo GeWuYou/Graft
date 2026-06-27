@@ -20,3 +20,4 @@ rbac.builtin_admin_permissions_immutable: Builtin administrator permissions cann
 permission.not_found: Permission not found
 role.not_found: Role not found
 user.not_found: User not found
+user.protected_default_admin_immutable: The builtin default administrator cannot be changed in this way

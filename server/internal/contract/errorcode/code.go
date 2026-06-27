@@ -71,6 +71,9 @@ const (
 	// UserNotFound identifies missing-user failures surfaced by auth-adjacent flows.
 	UserNotFound Code = "USER_NOT_FOUND"
 
+	// UserProtectedDefaultAdminImmutable identifies protected default-admin mutations blocked by server authority.
+	UserProtectedDefaultAdminImmutable Code = "USER_PROTECTED_DEFAULT_ADMIN_IMMUTABLE"
+
 	// RoleNotFound identifies missing-role failures surfaced by RBAC management flows.
 	RoleNotFound Code = "ROLE_NOT_FOUND"
 
@@ -98,6 +101,7 @@ var messageKeyCodes = map[messagecontract.Key]Code{
 	messagecontract.PermissionNotFound:                   PermissionNotFound,
 	messagecontract.RoleNotFound:                         RoleNotFound,
 	messagecontract.UserNotFound:                         UserNotFound,
+	messagecontract.UserProtectedDefaultAdminImmutable:   UserProtectedDefaultAdminImmutable,
 }
 
 // FromMessageKey resolves the canonical response code for a stable message key.

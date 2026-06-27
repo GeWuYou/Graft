@@ -92,6 +92,8 @@ func rbacManagementMutationError(
 		)
 	case errors.Is(err, errCannotRemoveOwnAdminRole):
 		return knownRBACManagementError(http.StatusForbidden, messagecontract.RbacCannotRemoveOwnAdminRole, nil)
+	case errors.Is(err, errProtectedUserRoleMutation):
+		return knownRBACManagementError(http.StatusForbidden, messagecontract.UserProtectedDefaultAdminImmutable, nil)
 	case errors.Is(err, rbacstore.ErrRolePermissionsImmutable):
 		return knownRBACManagementError(http.StatusForbidden, messagecontract.RbacBuiltinAdminPermissionsImmutable, nil)
 	case isInvalidIDMutationError(err):

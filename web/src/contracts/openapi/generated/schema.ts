@@ -2268,6 +2268,8 @@ export interface components {
       username: string;
       display: string;
       status: string;
+      /** @description True only for the builtin protected default administrator account. */
+      protected_default_admin: boolean;
       /** @description Minimal role summaries embedded in the user list to avoid row-level role fetch fanout. */
       roles: components['schemas']['user-role-summary'][];
       created_at: string;

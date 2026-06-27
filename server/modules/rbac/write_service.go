@@ -20,6 +20,7 @@ var (
 	errInvalidPermissionIDs     = errors.New("invalid permission ids")
 	errInvalidRoleIDs           = errors.New("invalid role ids")
 	errAtomicBatchWriterMissing = errors.New("rbac atomic batch writer is unavailable")
+	errProtectedUserRoleMutation = errors.New("protected user role mutation is forbidden")
 )
 
 const builtinAdminRoleName = "admin"
@@ -306,6 +307,9 @@ func (w managementWriter) ReplaceRolesForUser(ctx context.Context, input rbacsto
 	if err != nil {
 		return err
 	}
+	if user.ProtectedDefaultAdmin {
+		return errProtectedUserRoleMutation
+	}
 	if err := w.ensureActorKeepsBuiltinAdminRole(ctx, input); err != nil {
 		return err
 	}
@@ -346,6 +350,9 @@ func (w managementWriter) AddRolesToUser(ctx context.Context, input rbacstore.Ad
 	if err != nil {
 		return err
 	}
+	if user.ProtectedDefaultAdmin {
+		return errProtectedUserRoleMutation
+	}
 	if err := w.rbac.AddRolesToUser(ctx, input); err != nil {
 		return err
 	}
@@ -373,6 +380,9 @@ func (w managementWriter) RemoveRolesFromUser(ctx context.Context, input rbacsto
 	user, err := w.users.GetUserByID(ctx, input.UserID)
 	if err != nil {
 		return err
+	}
+	if user.ProtectedDefaultAdmin {
+		return errProtectedUserRoleMutation
 	}
 	if err := w.ensureActorCanRemoveRoles(ctx, input.UserID, input.RoleIDs); err != nil {
 		return err
@@ -498,8 +508,12 @@ func (w managementWriter) ensureRoleMutationPreconditions(ctx context.Context, u
 		return errors.New("rbac repository is unavailable")
 	}
 	for _, userID := range userIDs {
-		if _, err := w.users.GetUserByID(ctx, userID); err != nil {
+		user, err := w.users.GetUserByID(ctx, userID)
+		if err != nil {
 			return err
+		}
+		if user.ProtectedDefaultAdmin {
+			return errProtectedUserRoleMutation
 		}
 	}
 	if err := ensureRoleIDsExist(ctx, w.rbac, roleIDs); err != nil {

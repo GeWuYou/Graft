@@ -327,6 +327,12 @@ UI 约束：
 - 新增或修改滚动容器时，必须同步更新滚动治理测试与 `web/scripts/check-scrollbar-governance.ts`，不能只改视图样式。
 - 滚动治理门禁必须扫描整个 `web/src`，并对未允许的历史债与新增债一起报错，不能退化成只检查当前改动文件。
 
+原生弹窗治理规则：
+
+- `web/src` 运行时代码禁止使用浏览器原生 `window.alert`、`window.confirm`、`window.prompt`，以及对应 bare call 或 `globalThis.*` 调用。
+- 确认、告警、输入类交互必须统一使用 `TDesign Vue Next` 的 `t-dialog` 或 `DialogPlugin`。
+- 原生弹窗治理门禁必须扫描整个 `web/src`，并排除 tests、mocks、generated 等非运行时边界；不得退化成只检查当前改动文件。
+
 可见文案治理规则：
 
 - 文案禁词治理只作用于用户可见 UI 文案、菜单、按钮、空态、帮助提示与页面说明
