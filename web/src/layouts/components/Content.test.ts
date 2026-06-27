@@ -12,6 +12,9 @@ const routeState = vi.hoisted(() => ({
 const tabStoreState = vi.hoisted(() => ({
   activeTabKey: '/access-control/roles',
   refreshing: false,
+  refreshNonceByTabKey: {
+    '/access-control/roles': 0,
+  } as Record<string, number>,
   tabRouters: [
     {
       fullPath: '/access-control/roles',
@@ -99,6 +102,9 @@ describe('Content', () => {
     routeState.meta = {};
     tabStoreState.activeTabKey = '/access-control/roles';
     tabStoreState.refreshing = false;
+    tabStoreState.refreshNonceByTabKey = {
+      '/access-control/roles': 0,
+    };
     tabStoreState.tabRouters = [
       {
         fullPath: '/access-control/roles',
@@ -135,7 +141,7 @@ describe('Content', () => {
       },
     });
 
-    expect(wrapper.findComponent({ name: 'RouteContentProbe' }).vm.$.vnode.key).toBe('/access-control/roles');
+    expect(wrapper.findComponent({ name: 'RouteContentProbe' }).vm.$.vnode.key).toBe('/access-control/roles::0');
 
     tabStoreProxy.value!.activeTabKey = '/access-control/roles#copy-1';
     tabStoreProxy.value!.tabRouters = [
@@ -151,7 +157,7 @@ describe('Content', () => {
     ];
     await wrapper.vm.$nextTick();
 
-    expect(wrapper.findComponent({ name: 'RouteContentProbe' }).vm.$.vnode.key).toBe('/access-control/roles#copy-1');
+    expect(wrapper.findComponent({ name: 'RouteContentProbe' }).vm.$.vnode.key).toBe('/access-control/roles#copy-1::0');
   });
 
   it('uses the entering route key when the active tab still points at the leaving route', async () => {
@@ -281,5 +287,40 @@ describe('Content', () => {
     expect(wrapper.find('.route-loading-host').exists()).toBe(true);
     expect(wrapper.find('.route-refresh-placeholder').exists()).toBe(false);
     expect(wrapper.findComponent({ name: 'RouteContentProbe' }).exists()).toBe(true);
+  });
+
+  it('changes the rendered route key when the active tab refresh nonce changes', async () => {
+    const wrapper = mount(Content, {
+      global: {
+        stubs: {
+          RouterView: {
+            template: '<slot :Component="Component" :route="route" />',
+            data() {
+              return {
+                Component: RouteContentProbe,
+                route: routeState,
+              };
+            },
+          },
+          transition: TransitionStub,
+          KeepAlive: {
+            props: ['include'],
+            template: '<div data-testid="keep-alive" :data-include="include"><slot /></div>',
+          },
+          FramePage: true,
+          TLoading: LoadingStub,
+        },
+      },
+    });
+
+    expect(wrapper.findComponent({ name: 'RouteContentProbe' }).vm.$.vnode.key).toBe('/access-control/roles::0');
+
+    tabStoreProxy.value!.refreshNonceByTabKey = {
+      ...tabStoreProxy.value!.refreshNonceByTabKey,
+      '/access-control/roles': 1,
+    };
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.findComponent({ name: 'RouteContentProbe' }).vm.$.vnode.key).toBe('/access-control/roles::1');
   });
 });

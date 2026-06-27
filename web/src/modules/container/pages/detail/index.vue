@@ -39,8 +39,17 @@
     </management-page-header>
 
     <section class="container-detail-body">
-      <t-loading v-if="detailRefreshing && !safeDetail && !error" class="container-detail-state" :loading="true">
-        <t-skeleton animation="gradient" theme="article" />
+      <t-loading
+        v-if="detailRefreshing && !safeDetail && !error"
+        class="container-detail-state"
+        :loading="true"
+        size="small"
+      >
+        <div class="container-detail-loading-shell" aria-hidden="true">
+          <span class="container-detail-loading-shell__line container-detail-loading-shell__line--title"></span>
+          <span class="container-detail-loading-shell__line"></span>
+          <span class="container-detail-loading-shell__line container-detail-loading-shell__line--short"></span>
+        </div>
       </t-loading>
 
       <t-alert v-else-if="error" class="container-detail-state-alert" theme="error" :title="error">
@@ -212,43 +221,6 @@
             </div>
           </t-card>
         </section>
-
-        <div class="container-detail-realtime-row" data-testid="container-detail-realtime-row">
-          <t-tooltip :content="t('container.detail.refreshTooltip')">
-            <div class="container-detail-realtime-bar" data-testid="container-detail-realtime-bar">
-              <span class="container-detail-realtime-bar__label">{{ t('container.detail.realtime.label') }}</span>
-              <t-tag
-                :theme="realtimeStatusTheme"
-                variant="light-outline"
-                data-testid="container-detail-realtime-status"
-              >
-                {{ realtimeStatusLabel }}
-              </t-tag>
-              <span class="container-detail-realtime-bar__hint">{{ realtimeStatusHint }}</span>
-              <div class="container-detail-realtime-bar__actions">
-                <t-button
-                  size="small"
-                  theme="default"
-                  variant="outline"
-                  data-testid="container-detail-realtime-toggle"
-                  @click="toggleRealtimeSubscription"
-                >
-                  {{ realtimeToggleLabel }}
-                </t-button>
-                <t-button
-                  size="small"
-                  theme="primary"
-                  variant="outline"
-                  :loading="detailRefreshing"
-                  data-refresh-now="true"
-                  @click="handleManualRefresh"
-                >
-                  {{ t('container.detail.refreshNow') }}
-                </t-button>
-              </div>
-            </div>
-          </t-tooltip>
-        </div>
 
         <t-card class="container-detail-tabs-card" :bordered="true">
           <t-tabs v-model:value="activeTab" theme="card" @change="handleTabChange">
@@ -449,55 +421,54 @@
 
             <t-tab-panel value="logs" :label="t('container.detail.tabs.logs')" :destroy-on-hide="false">
               <section class="container-detail-section container-detail-tab-body container-detail-tab-body--viewer">
-                <div class="container-detail-logs-toolbar" data-testid="container-detail-logs-toolbar">
+                <div class="container-detail-logs-header" data-testid="container-detail-logs-header">
+                  <div class="container-detail-logs-header__title-block">
+                    <h3 class="container-detail-logs-header__title">{{ t('container.detail.logs.title') }}</h3>
+                  </div>
                   <t-tag
-                    :theme="logsPaused ? 'warning' : 'primary'"
+                    v-if="!logsRouteSpinnerActive"
+                    :theme="logsLiveStateTheme"
                     variant="light-outline"
                     data-testid="container-detail-logs-status"
                   >
-                    {{
-                      logsPaused
-                        ? t('container.detail.logs.realtimePaused')
-                        : t('container.detail.logs.realtimeStreaming')
-                    }}
+                    {{ logsLiveStateLabel }}
                   </t-tag>
-                  <t-button
-                    size="small"
-                    theme="default"
-                    variant="outline"
-                    data-testid="container-detail-logs-toggle"
-                    @click="toggleLogsPause"
-                  >
-                    {{ logsRealtimeToggleLabel }}
-                  </t-button>
                 </div>
                 <log-viewer
                   v-model:line-limit="logLineLimit"
-                  :lines="[...logLines]"
+                  :entries="[...logEntries]"
                   :content-version="logContentVersion"
-                  :loading="logsLoading"
+                  :loading="logsViewerLoading"
                   :error="logsError"
                   :truncated="logsTruncated"
-                  :refresh-label="t('container.detail.logs.refresh')"
-                  :show-refresh="false"
+                  :clear-label="t('container.detail.logs.clear')"
                   :copy-label="t('container.detail.copy')"
                   :download-label="t('container.detail.logs.download')"
                   :retry-label="t('container.list.retry')"
                   :search-placeholder="t('container.detail.logs.searchPlaceholder')"
                   :wrap-label="t('container.detail.logs.wrap')"
-                  :refresh-scroll-label="t('container.detail.logs.refreshScroll')"
-                  :refresh-scroll-tooltip-label="t('container.detail.logs.refreshScrollTooltip')"
+                  :auto-scroll-label="t('container.detail.logs.autoScroll')"
+                  :auto-scroll-tooltip-label="t('container.detail.logs.autoScrollTooltip')"
+                  :pause-label="t('container.detail.logs.pause')"
+                  :resume-label="t('container.detail.logs.resume')"
+                  :reconnect-label="t('container.detail.logs.reconnect')"
+                  :jump-bottom-label="t('container.detail.logs.jumpBottom')"
                   :level-filter-label="t('container.detail.logs.levelFilter')"
                   :all-levels-label="t('container.detail.logs.allLevels')"
                   :match-count-label="t('container.detail.logs.matchCount')"
                   :empty-label="t('container.detail.logs.empty')"
+                  :empty-description-label="t('container.detail.logs.emptyDescription')"
                   :truncated-label="t('container.detail.logs.truncated')"
                   :detail-title-label="t('container.detail.logs.detailTitle')"
                   :important-fields-label="t('container.detail.logs.importantFields')"
                   :basic-info-label="t('container.detail.logs.basicInfo')"
                   :time-label="t('container.detail.logs.time')"
                   :level-label="t('container.detail.logs.level')"
+                  :stream-label="t('container.detail.logs.stream')"
                   :source-label="t('container.detail.logs.source')"
+                  :operation-label="t('container.detail.operation')"
+                  :stdout-label="t('container.list.logs.stdout')"
+                  :stderr-label="t('container.list.logs.stderr')"
                   :view-detail-label="t('container.detail.logs.viewDetail')"
                   :collapse-detail-label="t('container.detail.logs.collapseDetail')"
                   :metadata-label="t('container.detail.logs.metadata')"
@@ -508,12 +479,19 @@
                   :copy-json-label="t('container.detail.logs.copyJson')"
                   :copy-success-label="t('container.detail.copySuccess')"
                   :copy-error-label="t('container.detail.copyError')"
+                  :paused="logsPaused"
+                  :show-reconnect="logsCanReconnect"
+                  :viewport-state="logsViewportState"
                   :viewer-mode="true"
                   viewer-storage-key="graft.container-detail.viewer.logs.height"
                   :fullscreen-label="t('container.detail.viewer.enterFullscreen')"
                   :exit-fullscreen-label="t('container.detail.viewer.exitFullscreen')"
                   :resize-handle-label="t('container.detail.viewer.resizeHandle')"
                   @refresh="loadLogs"
+                  @clear="clearLogsScreen"
+                  @pause="toggleLogsPause"
+                  @resume="toggleLogsPause"
+                  @reconnect="reconnectLogsRealtime"
                 />
               </section>
             </t-tab-panel>
@@ -772,10 +750,11 @@
                       </span>
                     </t-tooltip>
                     <t-button
+                      data-testid="detail-refresh"
                       theme="default"
                       variant="outline"
                       :loading="detailRefreshing"
-                      @click="refreshContainerDetail"
+                      @click="handleManualRefresh"
                     >
                       <template #icon>
                         <t-icon name="refresh" />
@@ -1247,6 +1226,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { LOCALE, type LocalizedTitle } from '@/contracts/i18n/locales';
 import { buildAuditResourceLocation } from '@/modules/audit/contract/deep-link';
 import { AUDIT_PERMISSION_CODE } from '@/modules/audit/contract/permissions';
+import { routeLoading } from '@/router/route-loading';
 import { ManagementPageHeader } from '@/shared/components/management';
 import { MetricCard } from '@/shared/components/metrics';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
@@ -1257,6 +1237,9 @@ import {
   formatNanosecondsAsDuration,
   formatPercent,
   LogViewer,
+  normalizeStructuredLogEntry,
+  resolveStreamViewportState,
+  type StreamViewportState,
   toProgressPercent,
 } from '@/shared/observability';
 import { openRealtimeTopicSocket, type RealtimeTopicSocketController } from '@/shared/realtime';
@@ -1285,7 +1268,6 @@ import {
   selectContainerDetailView,
   selectContainerStatsChangeState,
   selectContainerStatsHistory,
-  selectContainerStatsRealtimeState,
 } from '../../shared/stats-manager';
 import { metricChangedClass, metricProgressStatus } from '../../shared/stats-visual-state';
 import type {
@@ -1294,6 +1276,7 @@ import type {
   ContainerDetailRecord,
   ContainerHealth,
   ContainerHealthcheck,
+  ContainerLogEntry,
   ContainerMount,
   ContainerMountUsage,
   ContainerOrchestratorType,
@@ -1334,6 +1317,7 @@ type RuntimeConfigItem = {
   rawValue: string;
   value: string;
 };
+type LogsLiveState = 'paused' | 'live' | 'connecting' | 'reconnecting' | 'disconnected' | 'error' | 'empty';
 type NetworkField = {
   copyValue: string;
   copyable: boolean;
@@ -1459,6 +1443,18 @@ type ResourceDetailGroup = {
   rows: ResourceDetailRow[];
   title: string;
 };
+type LogViewerViewportStateModel = Readonly<{
+  state: StreamViewportState;
+  ariaLabel?: string;
+  badgeLabel?: string;
+  busyLabel?: string;
+  description?: string;
+  fauxLineCount?: number;
+  hint?: string;
+  showBusy?: boolean | null;
+  showCursor?: boolean | null;
+  title?: string;
+}>;
 type ResourceMetricDefinition = [ResourceMetricKey, string, ResourceMetricFormat];
 const DETAIL_TABS: DetailTab[] = [
   'overview',
@@ -1474,7 +1470,7 @@ const DETAIL_TABS: DetailTab[] = [
 const DEFAULT_LOG_QUERY = {
   tail: 200,
   since: undefined,
-  timestamps: false,
+  timestamps: true,
   stdout: true,
   stderr: true,
 };
@@ -1495,30 +1491,250 @@ const activeTab = ref<DetailTab>(normalizeTab(route.query.tab));
 const environmentKeyword = ref('');
 const environmentPolicyFilter = ref<EnvironmentPolicyFilter>('all');
 const refreshingMountKeys = ref<Set<string>>(new Set());
-const realtimeEnabled = ref(true);
 const activeRealtimeSubscriptionId = ref('');
 const detailPageActive = ref(false);
 const logViewStore = createContainerDetailLogViewStore();
-const logLines = computed(() => logViewStore.lines.value);
+const logEntries = computed(() =>
+  logViewStore.entries.value
+    .map((entry) => normalizeStructuredLogEntry(entry))
+    .filter((entry): entry is NonNullable<ReturnType<typeof normalizeStructuredLogEntry>> => entry !== null),
+);
 const logContentVersion = computed(() => logViewStore.version.value);
 const logsLoading = computed(() => logViewStore.state.value.loading);
 const logsError = computed(() => logViewStore.state.value.error);
 const logsTruncated = computed(() => logViewStore.truncated.value);
 const logsPaused = computed(() => logViewStore.paused.value);
+const logsHasSnapshot = computed(() => logViewStore.hasSnapshot.value);
+const logsHasVisibleContent = computed(() => logEntries.value.length > 0);
+const logsSocketState = ref<'idle' | 'connecting' | 'open' | 'closed' | 'error'>('idle');
 let detailRefreshSeq = 0;
 let logsRefreshSeq = 0;
 let logsRealtimeController: RealtimeTopicSocketController | null = null;
 let logsRealtimeTopic = '';
-let logsRealtimeSeeded = false;
-let logsInitialLoadAttempted = false;
+const logsBootstrapRequested = ref(false);
+const logsRecoveryLoadRequested = ref(false);
 let logsRealtimeBatcher = new ContainerLogRealtimeBatcher({
   lineLimit: DEFAULT_LOG_QUERY.tail,
   onCommit: (snapshot) => {
     logViewStore.commit(snapshot);
   },
 });
-const logsRealtimeToggleLabel = computed(() =>
-  logsPaused.value ? t('container.detail.logs.resumeRealtime') : t('container.detail.logs.pauseRealtime'),
+const logsRouteSpinnerActive = computed(() => routeLoading.value && !logsHasVisibleContent.value);
+const logsHasStarted = computed(
+  () => logsHasSnapshot.value || logsBootstrapRequested.value || logsRecoveryLoadRequested.value || logsLoading.value,
+);
+const logsHasHistory = computed(
+  () => logsHasSnapshot.value || logsHasVisibleContent.value || logsSocketState.value === 'open',
+);
+const logsIsConnecting = computed(
+  () =>
+    !logsRouteSpinnerActive.value &&
+    logsLoading.value &&
+    !logsHasVisibleContent.value &&
+    !logsError.value &&
+    !logsRecoveryLoadRequested.value &&
+    !logsHasSnapshot.value,
+);
+const logsIsReconnecting = computed(
+  () =>
+    !logsRouteSpinnerActive.value &&
+    !logsPaused.value &&
+    !logsError.value &&
+    ((logsLoading.value && logsRecoveryLoadRequested.value) ||
+      (logsSocketState.value === 'connecting' && logsHasHistory.value)),
+);
+const logsIsStreaming = computed(
+  () =>
+    logsSocketState.value === 'open' &&
+    !logsPaused.value &&
+    logsHasVisibleContent.value &&
+    !logsLoading.value &&
+    !logsError.value,
+);
+const logsViewportStateKind = computed<StreamViewportState>(() => {
+  if (logsRouteSpinnerActive.value) {
+    return 'idle';
+  }
+
+  return resolveStreamViewportState({
+    hasContent: logsHasVisibleContent.value,
+    hasStarted: logsHasStarted.value,
+    isConnecting: logsIsConnecting.value,
+    isStreaming: logsIsStreaming.value,
+    isPaused: logsPaused.value,
+    isReconnecting: logsIsReconnecting.value,
+    isDisconnected:
+      !logsLoading.value &&
+      !logsError.value &&
+      !logsPaused.value &&
+      logsHasHistory.value &&
+      (logsSocketState.value === 'closed' || logsSocketState.value === 'error'),
+    error: logsError.value,
+  });
+});
+const logsViewportState = computed<LogViewerViewportStateModel | null>(() => {
+  if (logsRouteSpinnerActive.value) {
+    return {
+      state: 'idle',
+      showBusy: false,
+      showCursor: false,
+    };
+  }
+
+  if (logsHasVisibleContent.value) {
+    return null;
+  }
+
+  const state = logsViewportStateKind.value;
+  const emptyTitle = t('container.detail.logs.empty');
+  const retryHint = t('container.list.retry');
+
+  switch (state) {
+    case 'idle':
+      return {
+        state,
+        showBusy: false,
+        showCursor: false,
+      };
+    case 'connecting':
+      return {
+        state,
+        badgeLabel: t('container.detail.logs.states.connecting'),
+        busyLabel: t('container.detail.logs.viewport.connectingBusy'),
+        title: t('container.detail.logs.viewport.connectingTitle'),
+        description: t('container.detail.logs.viewport.connectingDescription'),
+        hint: t('container.detail.logs.viewport.connectingHint'),
+      };
+    case 'streaming':
+      return {
+        state,
+        badgeLabel: t('container.detail.logs.states.live'),
+        busyLabel: t('container.detail.logs.viewport.streamingBusy'),
+        title: t('container.detail.logs.viewport.streamingTitle'),
+        description: t('container.detail.logs.viewport.streamingDescription'),
+        hint: t('container.detail.logs.viewport.streamingHint'),
+      };
+    case 'paused':
+      return {
+        state,
+        badgeLabel: t('container.detail.logs.states.paused'),
+        title: t('container.detail.logs.viewport.pausedTitle'),
+        description: t('container.detail.logs.viewport.pausedDescription'),
+        hint: t('container.detail.logs.viewport.pausedHint'),
+      };
+    case 'reconnecting':
+      return {
+        state,
+        badgeLabel: t('container.detail.logs.states.reconnecting'),
+        busyLabel: t('container.detail.logs.viewport.reconnectingBusy'),
+        title: t('container.detail.logs.viewport.reconnectingTitle'),
+        description: t('container.detail.logs.viewport.reconnectingDescription'),
+        hint: t('container.detail.logs.viewport.reconnectingHint'),
+      };
+    case 'disconnected':
+      return {
+        state,
+        badgeLabel: t('container.detail.logs.states.disconnected'),
+        title: t('container.detail.logs.viewport.disconnectedTitle'),
+        description: t('container.detail.logs.viewport.disconnectedDescription'),
+        hint: t('container.detail.logs.viewport.disconnectedHint', { action: retryHint }),
+      };
+    case 'error':
+      return {
+        state,
+        badgeLabel: t('container.detail.logs.states.error'),
+        title: t('container.detail.logs.viewport.errorTitle'),
+        description: logsError.value || t('container.detail.logs.viewport.errorDescription'),
+        hint: t('container.detail.logs.viewport.errorHint', { action: retryHint }),
+      };
+    case 'empty':
+      return {
+        state,
+        badgeLabel: t('container.detail.logs.states.empty'),
+        title: emptyTitle,
+        description: t('container.detail.logs.viewport.emptyDescription'),
+        hint: t('container.detail.logs.viewport.emptyHint'),
+        showCursor: false,
+      };
+  }
+
+  return {
+    state: 'idle',
+    showBusy: false,
+    showCursor: false,
+  };
+});
+const logsViewerLoading = computed(
+  () => logsLoading.value && !logsRouteSpinnerActive.value && !logsViewportState.value,
+);
+const logsLiveState = computed<LogsLiveState>(() => {
+  const viewportState = logsViewportStateKind.value;
+
+  if (viewportState === 'idle') {
+    return 'connecting';
+  }
+  if (viewportState === 'paused') {
+    return 'paused';
+  }
+  if (viewportState === 'streaming') {
+    return 'live';
+  }
+  if (viewportState === 'connecting') {
+    return 'connecting';
+  }
+  if (viewportState === 'reconnecting') {
+    return 'reconnecting';
+  }
+  if (viewportState === 'error') {
+    return 'error';
+  }
+  if (viewportState === 'empty') {
+    return 'empty';
+  }
+  return 'disconnected';
+});
+const logsLiveStateTheme = computed(() => {
+  if (logsLiveState.value === 'paused') {
+    return 'warning';
+  }
+  if (logsLiveState.value === 'live') {
+    return 'success';
+  }
+  if (logsLiveState.value === 'connecting' || logsLiveState.value === 'reconnecting') {
+    return 'primary';
+  }
+  if (logsLiveState.value === 'empty') {
+    return 'default';
+  }
+  if (logsLiveState.value === 'error') {
+    return 'danger';
+  }
+  return 'warning';
+});
+const logsLiveStateLabel = computed(() => {
+  if (logsLiveState.value === 'paused') {
+    return t('container.detail.logs.states.paused');
+  }
+  if (logsLiveState.value === 'live') {
+    return t('container.detail.logs.states.live');
+  }
+  if (logsLiveState.value === 'connecting') {
+    return t('container.detail.logs.states.connecting');
+  }
+  if (logsLiveState.value === 'reconnecting') {
+    return t('container.detail.logs.states.reconnecting');
+  }
+  if (logsLiveState.value === 'disconnected') {
+    return t('container.detail.logs.states.disconnected');
+  }
+  if (logsLiveState.value === 'error') {
+    return t('container.detail.logs.states.error');
+  }
+  return t('container.detail.logs.states.empty');
+});
+const logsCanReconnect = computed(
+  () =>
+    logsLiveState.value === 'reconnecting' || logsLiveState.value === 'disconnected' || logsLiveState.value === 'error',
 );
 
 const containerId = computed(() => String(route.params.id ?? '').trim());
@@ -1795,7 +2011,6 @@ const resourceMetrics = computed(() => {
     status,
   };
 });
-const realtimeSocketState = computed(() => selectContainerStatsRealtimeState(currentDetailStatsKey.value));
 const resourceChange = computed(() => {
   const change = selectContainerStatsChangeState(currentDetailStatsKey.value);
   return {
@@ -1805,42 +2020,6 @@ const resourceChange = computed(() => {
     memoryStatus: metricProgressStatus(change.memory),
   };
 });
-const realtimeStatusTheme = computed(() => {
-  if (!realtimeEnabled.value) {
-    return 'default';
-  }
-  if (realtimeSocketState.value === 'error') {
-    return 'danger';
-  }
-  if (realtimeSocketState.value === 'connecting' || realtimeSocketState.value === 'closed') {
-    return 'warning';
-  }
-  if (realtimeSocketState.value === 'open') {
-    return 'success';
-  }
-  return 'default';
-});
-const realtimeStatusLabel = computed(() => {
-  if (!realtimeEnabled.value) {
-    return t('container.detail.realtime.paused');
-  }
-  if (realtimeSocketState.value === 'error') {
-    return t('container.detail.realtime.degraded');
-  }
-  if (realtimeSocketState.value === 'connecting' || realtimeSocketState.value === 'closed') {
-    return t('container.detail.realtime.connecting');
-  }
-  if (realtimeSocketState.value === 'open') {
-    return t('container.detail.realtime.live');
-  }
-  return t('container.detail.realtime.idle');
-});
-const realtimeStatusHint = computed(() =>
-  realtimeEnabled.value ? t('container.detail.realtime.hint') : t('container.detail.realtime.pausedHint'),
-);
-const realtimeToggleLabel = computed(() =>
-  realtimeEnabled.value ? t('container.detail.realtime.pause') : t('container.detail.realtime.resume'),
-);
 const resourceHistoryPoints = computed<ContainerStatsHistoryPoint[]>(() => {
   const containerId = safeDetail.value?.id;
   if (!containerId) {
@@ -2299,12 +2478,11 @@ async function loadLogs() {
   const currentContainerId = containerId.value;
   if (!currentContainerId) {
     logViewStore.reset();
-    logsRealtimeSeeded = false;
-    logsInitialLoadAttempted = false;
+    logsBootstrapRequested.value = false;
+    logsRecoveryLoadRequested.value = false;
     return;
   }
   const requestSeq = ++logsRefreshSeq;
-  logsInitialLoadAttempted = true;
   logViewStore.setLoading(true);
   logViewStore.setError('');
   try {
@@ -2316,7 +2494,7 @@ async function loadLogs() {
       return;
     }
     logsRealtimeBatcher.seed(nextLogs);
-    logsRealtimeSeeded = true;
+    logsRecoveryLoadRequested.value = false;
   } catch (loadError) {
     if (requestSeq !== logsRefreshSeq || currentContainerId !== containerId.value) {
       return;
@@ -2362,25 +2540,14 @@ function resetDetailState() {
   detail.value = null;
   error.value = '';
   logViewStore.reset();
-  logsRealtimeSeeded = false;
-  logsInitialLoadAttempted = false;
+  logsBootstrapRequested.value = false;
+  logsRecoveryLoadRequested.value = false;
   logsRefreshSeq += 1;
   logsRealtimeBatcher.clear();
   refreshingMountKeys.value = new Set();
   releaseCurrentRealtimeSubscription();
   releaseLogsRealtimeSubscription();
   updateCurrentTabTitle(fallbackTitle.value);
-}
-
-function toggleRealtimeSubscription() {
-  realtimeEnabled.value = !realtimeEnabled.value;
-  if (!realtimeEnabled.value) {
-    releaseCurrentRealtimeSubscription();
-    return;
-  }
-  if (safeDetail.value?.id) {
-    syncRealtimeSubscription(safeDetail.value.id);
-  }
 }
 
 function toggleLogsPause() {
@@ -2392,8 +2559,21 @@ function toggleLogsPause() {
   logViewStore.pause();
 }
 
+function clearLogsScreen() {
+  logsRealtimeBatcher.clearView();
+}
+
+function reconnectLogsRealtime() {
+  if (!logsHasSnapshot.value && !logsLoading.value) {
+    logsRecoveryLoadRequested.value = true;
+    void loadLogs();
+    return;
+  }
+  logsRealtimeController?.reconnect();
+}
+
 function syncRealtimeSubscription(nextContainerId: string) {
-  if (!detailPageActive.value || !realtimeEnabled.value) {
+  if (!detailPageActive.value) {
     releaseCurrentRealtimeSubscription();
     return;
   }
@@ -2441,7 +2621,19 @@ function syncLogsRealtimeSubscription() {
     return;
   }
 
-  if (!logsRealtimeSeeded && !logsLoading.value && !logsInitialLoadAttempted) {
+  if (!logsHasSnapshot.value && !logsLoading.value && !logsBootstrapRequested.value) {
+    logsBootstrapRequested.value = true;
+    void loadLogs();
+    return;
+  }
+
+  const needsRecoveryLoad =
+    !logsHasSnapshot.value &&
+    !logsLoading.value &&
+    (logsSocketState.value === 'closed' || logsSocketState.value === 'error') &&
+    !logsRecoveryLoadRequested.value;
+  if (needsRecoveryLoad) {
+    logsRecoveryLoadRequested.value = true;
     void loadLogs();
     return;
   }
@@ -2456,7 +2648,23 @@ function syncLogsRealtimeSubscription() {
     topic: nextTopic,
     parseMessage: parseContainerLogsRealtimeMessage,
     onMessage: applyLogsRealtimeMessage,
-    onStateChange: () => undefined,
+    onStateChange: (state) => {
+      logsSocketState.value = state;
+      if (state === 'open') {
+        logsRecoveryLoadRequested.value = false;
+      }
+      if (
+        detailPageActive.value &&
+        activeTab.value === 'logs' &&
+        !logsHasSnapshot.value &&
+        !logsLoading.value &&
+        (state === 'closed' || state === 'error') &&
+        !logsRecoveryLoadRequested.value
+      ) {
+        logsRecoveryLoadRequested.value = true;
+        void loadLogs();
+      }
+    },
     onError: (message) => {
       logger.warn('container log realtime subscription error', { message, topic: nextTopic });
     },
@@ -2468,11 +2676,12 @@ function releaseLogsRealtimeSubscription() {
   logsRealtimeTopic = '';
   logsRealtimeController?.close();
   logsRealtimeController = null;
+  logsSocketState.value = 'idle';
 }
 
 type ContainerLogsRealtimeMessage = {
   containerId: string;
-  lines: string[];
+  entries: ContainerLogEntry[];
   topic: string;
 };
 
@@ -2487,7 +2696,7 @@ function applyLogsRealtimeMessage(message: ContainerLogsRealtimeMessage) {
     return;
   }
 
-  logsRealtimeBatcher.enqueue(message.lines);
+  logsRealtimeBatcher.enqueue(message.entries);
 }
 
 function parseContainerLogsRealtimeMessage(raw: unknown): ContainerLogsRealtimeMessage | null {
@@ -2496,8 +2705,8 @@ function parseContainerLogsRealtimeMessage(raw: unknown): ContainerLogsRealtimeM
     return null;
   }
 
-  const candidateLines = readRealtimeLogLines(eventData);
-  if (!candidateLines.length) {
+  const candidateEntries = readRealtimeLogEntries(eventData);
+  if (!candidateEntries.length) {
     return null;
   }
 
@@ -2509,7 +2718,7 @@ function parseContainerLogsRealtimeMessage(raw: unknown): ContainerLogsRealtimeM
 
   return {
     containerId,
-    lines: candidateLines,
+    entries: candidateEntries,
     topic,
   };
 }
@@ -2525,10 +2734,15 @@ function parseRealtimeEventData(raw: unknown): Record<string, unknown> | null {
   return parsed;
 }
 
-function readRealtimeLogLines(value: Record<string, unknown>) {
-  const directLines = normalizeRealtimeLogLines(value.lines);
-  if (directLines.length) {
-    return directLines;
+function readRealtimeLogEntries(value: Record<string, unknown>) {
+  const directEntries = normalizeRealtimeLogEntries(value.entries);
+  if (directEntries.length) {
+    return directEntries;
+  }
+
+  const directEntry = normalizeStructuredLogEntry(value.entry);
+  if (directEntry) {
+    return [toContainerLogEntry(directEntry)];
   }
 
   const nestedPayloads = [value.payload, value.snapshot, value.append, value.delta];
@@ -2536,48 +2750,28 @@ function readRealtimeLogLines(value: Record<string, unknown>) {
     if (!isPlainObject(candidate)) {
       continue;
     }
-    const nestedLines = normalizeRealtimeLogLines(candidate.lines);
-    if (nestedLines.length) {
-      return nestedLines;
+    const nestedEntries = normalizeRealtimeLogEntries(candidate.entries);
+    if (nestedEntries.length) {
+      return nestedEntries;
+    }
+    const nestedEntry = normalizeStructuredLogEntry(candidate.entry);
+    if (nestedEntry) {
+      return [toContainerLogEntry(nestedEntry)];
     }
   }
 
-  const directLine = normalizeRealtimeSingleLogLine(value);
-  return directLine ? [directLine] : [];
+  return [];
 }
 
-function normalizeRealtimeLogLines(value: unknown) {
+function normalizeRealtimeLogEntries(value: unknown) {
   if (!Array.isArray(value)) {
     return [];
   }
 
   return value
-    .map((line) => (typeof line === 'string' ? line : normalizeRealtimeSingleLogLine(line)))
-    .filter((line): line is string => typeof line === 'string' && line.length > 0);
-}
-
-function normalizeRealtimeSingleLogLine(value: unknown) {
-  if (typeof value === 'string') {
-    return value;
-  }
-  if (!isPlainObject(value)) {
-    return null;
-  }
-
-  const direct =
-    typeof value.raw === 'string'
-      ? value.raw
-      : typeof value.line === 'string'
-        ? value.line
-        : typeof value.content === 'string'
-          ? value.content
-          : null;
-
-  if (direct) {
-    return direct;
-  }
-
-  return typeof value.message === 'string' ? value.message : null;
+    .map((entry) => normalizeStructuredLogEntry(entry))
+    .filter((entry): entry is NonNullable<ReturnType<typeof normalizeStructuredLogEntry>> => entry !== null)
+    .map(toContainerLogEntry);
 }
 
 function readRealtimeLogTopic(value: Record<string, unknown>) {
@@ -2626,6 +2820,14 @@ function safeParseJson(raw: string) {
   } catch {
     return null;
   }
+}
+
+function toContainerLogEntry(entry: NonNullable<ReturnType<typeof normalizeStructuredLogEntry>>): ContainerLogEntry {
+  return {
+    line: entry.line,
+    occurred_at: entry.occurredAt,
+    stream: entry.stream,
+  };
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -3881,6 +4083,38 @@ function portLabel(port: ContainerDetail['ports'][number]) {
   width: min(100%, 760px);
 }
 
+.container-detail-loading-shell {
+  background: color-mix(in srgb, var(--td-bg-color-container) 92%, transparent);
+  border: 1px solid color-mix(in srgb, var(--td-component-stroke) 64%, transparent);
+  border-radius: var(--td-radius-large);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 32%);
+  display: grid;
+  gap: var(--graft-density-gap-12);
+  padding: var(--graft-density-gap-20);
+  width: min(100%, 760px);
+}
+
+.container-detail-loading-shell__line {
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--td-brand-color-2) 62%, transparent),
+    color-mix(in srgb, var(--td-bg-color-secondarycontainer) 84%, transparent)
+  );
+  border-radius: 999px;
+  display: block;
+  height: 12px;
+  width: 100%;
+}
+
+.container-detail-loading-shell__line--title {
+  height: 18px;
+  width: 42%;
+}
+
+.container-detail-loading-shell__line--short {
+  width: 68%;
+}
+
 .container-detail-state-alert {
   flex: 0 0 auto;
 }
@@ -4178,6 +4412,26 @@ function portLabel(port: ContainerDetail['ports'][number]) {
 
 .container-detail-tabs-card :deep(.t-tabs__panel) {
   min-height: 0;
+}
+
+.container-detail-logs-header {
+  align-items: center;
+  border-bottom: 1px solid var(--td-component-stroke);
+  display: flex;
+  gap: var(--graft-density-gap-12);
+  justify-content: space-between;
+  margin: 0 var(--graft-density-gap-16) var(--graft-density-gap-12);
+  padding-bottom: var(--graft-density-gap-10);
+}
+
+.container-detail-logs-header__title-block {
+  min-width: 0;
+}
+
+.container-detail-logs-header__title {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-title-medium);
+  margin: 0;
 }
 
 .container-detail-tab-body {
@@ -5359,6 +5613,11 @@ function portLabel(port: ContainerDetail['ports'][number]) {
 @media (width <= 767px) {
   .container-detail-realtime-row {
     padding-inline: var(--graft-density-gap-12);
+  }
+
+  .container-detail-logs-header {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
 </style>

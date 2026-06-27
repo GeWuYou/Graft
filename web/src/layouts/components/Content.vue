@@ -64,8 +64,7 @@ const shouldKeepActiveViewAlive = computed(() => {
 
 const isRefreshing = computed(() => {
   const tabsRouterStore = useTabsRouterStore();
-  const { refreshing } = tabsRouterStore;
-  return refreshing;
+  return tabsRouterStore.refreshing;
 });
 const isPageLoading = computed(() => routeLoading.value || isRefreshing.value);
 
@@ -75,7 +74,9 @@ const activeViewKey = computed(() => {
     (tabRoute) => tabRoute.tabKey === tabsRouterStore.activeTabKey,
   );
   if (activeTabRoute?.path === route.path || activeTabRoute?.fullPath === route.fullPath) {
-    return tabsRouterStore.activeTabKey;
+    const tabKey = tabsRouterStore.activeTabKey;
+    const refreshNonce = tabsRouterStore.refreshNonceByTabKey[tabKey] ?? 0;
+    return `${tabKey}::${refreshNonce}`;
   }
 
   return route.fullPath || route.path;

@@ -1,5 +1,7 @@
 import { computed, shallowRef, triggerRef } from 'vue';
 
+import type { StructuredLogEntry } from '@/shared/observability';
+
 import type { ContainerLogResponse } from '../../types/container';
 import type { ContainerLogRealtimeBatcherSnapshot } from './log-realtime-batcher';
 
@@ -23,7 +25,11 @@ function buildLogResponse(snapshot: ContainerLogRealtimeBatcherSnapshot | null):
 
   return Object.freeze({
     id: snapshot.id,
-    lines: [...snapshot.lineView.toArray()],
+    entries: snapshot.entryView.toArray().map((entry) => ({
+      line: entry.line,
+      occurred_at: entry.occurredAt,
+      stream: entry.stream,
+    })),
     runtime: snapshot.runtime,
     stderr: snapshot.stderr,
     stdout: snapshot.stdout,
@@ -36,7 +42,7 @@ function buildLogResponse(snapshot: ContainerLogRealtimeBatcherSnapshot | null):
 /**
  * 创建容器详情日志视图的状态管理 store。
  *
- * @returns 包含日志快照、派生视图状态及加载、错误、暂停、恢复和重置方法的 store
+ * @returns 包含日志快照、派生视图状态以及加载、错误、暂停、恢复和重置方法的 store
  */
 export function createContainerDetailLogViewStore() {
   const state = shallowRef<LogViewStoreState>({
@@ -48,13 +54,14 @@ export function createContainerDetailLogViewStore() {
   let pendingSnapshot: ContainerLogRealtimeBatcherSnapshot | null = null;
 
   const version = computed(() => state.value.snapshot?.version ?? 0);
+  const hasSnapshot = computed(() => state.value.snapshot !== null);
   const logs = computed(() => {
     void version.value;
     return buildLogResponse(state.value.snapshot);
   });
-  const lines = computed(() => {
+  const entries = computed(() => {
     void version.value;
-    return state.value.snapshot?.lineView.toArray() ?? [];
+    return (state.value.snapshot?.entryView.toArray() ?? []) as readonly StructuredLogEntry[];
   });
   const truncated = computed(() => {
     void version.value;
@@ -76,8 +83,9 @@ export function createContainerDetailLogViewStore() {
   return {
     state,
     version,
+    hasSnapshot,
     logs,
-    lines,
+    entries,
     truncated,
     paused: computed(() => state.value.paused),
     setLoading(loading: boolean) {
@@ -88,6 +96,11 @@ export function createContainerDetailLogViewStore() {
     },
     commit(snapshot: ContainerLogRealtimeBatcherSnapshot) {
       if (state.value.paused) {
+        if (snapshot.entryView.size === 0) {
+          pendingSnapshot = null;
+          commitSnapshot(snapshot);
+          return;
+        }
         pendingSnapshot = snapshot;
         return;
       }

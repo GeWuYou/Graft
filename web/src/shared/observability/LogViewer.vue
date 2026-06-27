@@ -12,34 +12,53 @@
     <template #toolbar>
       <div class="log-viewer__toolbar">
         <div class="log-viewer__toolbar-group log-viewer__toolbar-left">
-          <t-button v-if="showRefresh" theme="primary" :loading="loading" @click="$emit('refresh')">
-            {{ refreshLabel }}
+          <t-button
+            theme="default"
+            variant="outline"
+            size="small"
+            :disabled="!displayLines.length"
+            data-testid="log-viewer-clear"
+            @click="$emit('clear')"
+          >
+            {{ clearLabel }}
           </t-button>
-          <t-button theme="default" variant="outline" :disabled="!displayLines.length" @click="copyContent">
+          <t-button
+            theme="default"
+            variant="outline"
+            size="small"
+            :disabled="!displayLines.length"
+            data-testid="log-viewer-copy"
+            @click="copyContent"
+          >
             {{ copyLabel }}
           </t-button>
-          <t-button theme="default" variant="outline" :disabled="!displayLines.length" @click="downloadContent">
+          <t-button
+            theme="default"
+            variant="outline"
+            size="small"
+            :disabled="!displayLines.length"
+            data-testid="log-viewer-download"
+            @click="downloadContent"
+          >
             {{ downloadLabel }}
           </t-button>
-          <span class="log-viewer__select-wrap">
-            <t-select
-              v-if="lineLimitOptions.length"
-              v-model:value="selectedLineLimit"
-              class="log-viewer__limit"
-              :options="lineLimitOptions"
-              size="small"
-              @change="emitLimit"
-            />
-          </span>
+        </div>
+
+        <div class="log-viewer__toolbar-group log-viewer__toolbar-middle">
+          <t-select
+            v-if="lineLimitOptions.length"
+            v-model:value="selectedLineLimit"
+            class="log-viewer__limit"
+            :options="lineLimitOptions"
+            size="small"
+            @change="emitLimit"
+          />
           <t-select
             v-model:value="selectedLevel"
             class="log-viewer__level-filter"
             :options="levelOptions"
             size="small"
           />
-        </div>
-
-        <div class="log-viewer__toolbar-group log-viewer__toolbar-right">
           <t-input
             v-model:value="searchKeyword"
             class="log-viewer__search"
@@ -50,16 +69,39 @@
           <span v-if="normalizedSearchKeyword" class="log-viewer__match-count">
             {{ matchCountLabel.replace('{count}', String(searchMatchCount)) }}
           </span>
+        </div>
+
+        <div class="log-viewer__toolbar-group log-viewer__toolbar-right">
           <label class="log-viewer__switch">
             <span>{{ wrapLabel }}</span>
             <t-switch v-model:value="wrapLines" size="small" />
           </label>
           <label class="log-viewer__switch">
-            <span>{{ refreshScrollLabel }}</span>
-            <t-tooltip :content="refreshScrollTooltipLabel" theme="light">
+            <span>{{ autoScrollLabel }}</span>
+            <t-tooltip v-if="autoScrollTooltipLabel" :content="autoScrollTooltipLabel" theme="light">
               <t-switch v-model:value="scrollAfterRefresh" size="small" />
             </t-tooltip>
+            <t-switch v-else v-model:value="scrollAfterRefresh" size="small" />
           </label>
+          <t-button
+            size="small"
+            theme="default"
+            variant="outline"
+            data-testid="log-viewer-pause-toggle"
+            @click="togglePause"
+          >
+            {{ paused ? resumeLabel : pauseLabel }}
+          </t-button>
+          <t-button
+            v-if="showReconnect"
+            size="small"
+            theme="primary"
+            variant="outline"
+            data-testid="log-viewer-reconnect"
+            @click="$emit('reconnect')"
+          >
+            {{ reconnectLabel }}
+          </t-button>
         </div>
       </div>
     </template>
@@ -80,108 +122,128 @@
           :class="['log-viewer__viewport graft-scrollbar', { 'log-viewer__viewport--wrap': wrapLines }]"
           @scroll="handleViewportScroll"
         >
-          <t-skeleton v-if="loading && !displayLines.length" animation="gradient" :row-col="skeletonRows" />
-          <ol v-else-if="displayLines.length" class="log-viewer__lines" :style="virtualListStyle">
-            <li
-              v-for="(line, lineIndex) in renderedLines"
-              :key="line.lineNo"
-              :ref="(element) => setRenderedLineRef(line.lineNo, element)"
-              tabindex="0"
-              :class="[
-                'log-viewer__line',
-                `log-viewer__line--${line.tone}`,
-                { 'log-viewer__line--active': isActive(line.lineNo) },
-              ]"
-              :style="virtualLineStyle(lineIndex)"
-              @click="openLineDetail(line)"
-              @keydown.enter.prevent="openLineDetail(line)"
-              @keydown.space.prevent="openLineDetail(line)"
-            >
-              <span class="log-viewer__line-number">{{ line.lineNo }}</span>
-              <div class="log-viewer__timestamp-cell">
-                <t-tooltip v-if="line.timestamp" :content="line.timestamp" placement="top-left" theme="light">
-                  <time class="log-viewer__timestamp">{{ shortTimestamp(line.timestamp) }}</time>
-                </t-tooltip>
-                <span v-else class="log-viewer__timestamp log-viewer__timestamp--empty"></span>
-              </div>
-              <div class="log-viewer__level-cell">
-                <t-tag class="log-viewer__level" :theme="levelTheme(line.level)" size="small" variant="light-outline">
-                  {{ line.level ?? 'LOG' }}
-                </t-tag>
-              </div>
-              <div class="log-viewer__source-cell">
-                <t-tooltip v-if="line.source" :content="line.source" placement="top-left" theme="light">
-                  <span class="log-viewer__source">{{ line.sourceShort || line.source }}</span>
-                </t-tooltip>
-                <span v-else class="log-viewer__source log-viewer__source--empty"></span>
-              </div>
-              <div class="log-viewer__content">
-                <div class="log-viewer__message-row">
-                  <code class="log-viewer__message">
-                    <span
-                      v-for="(token, tokenIndex) in line.messageTokens"
-                      :key="`${line.lineNo}-message-${tokenIndex}`"
-                      :class="tokenClass(token)"
-                      >{{ token.text }}</span
-                    >
-                  </code>
-                </div>
-                <div v-if="visibleMetadataTags(line).length" class="log-viewer__metadata-tags" @click.stop>
-                  <t-tag
-                    v-for="[key, value] in visibleMetadataTags(line)"
-                    :key="`${line.lineNo}-${key}`"
-                    size="small"
-                    theme="default"
-                    variant="light"
+          <stream-viewport-state-surface
+            v-if="shouldRenderViewportStateSurface"
+            class="log-viewer__viewport-state"
+            v-bind="viewportStateSurfaceModel"
+          />
+          <template v-else>
+            <div class="log-viewer__header-row">
+              <span class="log-viewer__header-cell">{{ timeLabel }}</span>
+              <span class="log-viewer__header-cell">{{ levelLabel }}</span>
+              <span class="log-viewer__header-cell">{{ streamLabel }}</span>
+              <span class="log-viewer__header-cell">{{ messageLabel }}</span>
+              <span class="log-viewer__header-cell log-viewer__header-cell--actions">{{ operationLabel }}</span>
+            </div>
+            <ol class="log-viewer__lines" :style="virtualListStyle">
+              <li
+                v-for="(line, lineIndex) in renderedLines"
+                :key="line.lineNo"
+                :ref="(element) => setRenderedLineRef(line.lineNo, element)"
+                tabindex="0"
+                :class="[
+                  'log-viewer__line',
+                  `log-viewer__line--${line.tone}`,
+                  { 'log-viewer__line--active': isActive(line.lineNo) },
+                ]"
+                :style="virtualLineStyle(lineIndex)"
+                @click="openLineDetail(line)"
+                @keydown.enter.prevent="openLineDetail(line)"
+                @keydown.space.prevent="openLineDetail(line)"
+              >
+                <div class="log-viewer__timestamp-cell">
+                  <t-tooltip
+                    v-if="line.timestamp"
+                    :content="formattedFullTimestamp(line.timestamp)"
+                    placement="top-left"
+                    theme="light"
                   >
-                    {{ key }}={{ formatMetadataValue(value) }}
+                    <time class="log-viewer__timestamp">{{ displayTimestamp(line.timestamp) }}</time>
+                  </t-tooltip>
+                  <span v-else class="log-viewer__timestamp log-viewer__timestamp--empty"></span>
+                </div>
+                <div class="log-viewer__level-cell">
+                  <t-tag class="log-viewer__level" :theme="levelTheme(line.level)" size="small" variant="light-outline">
+                    {{ line.level ?? 'LOG' }}
                   </t-tag>
-                  <t-button
-                    v-if="hiddenRowFieldCount(line)"
-                    size="small"
-                    theme="default"
-                    variant="text"
-                    @click="openLineDetail(line)"
-                  >
-                    +{{ hiddenRowFieldCount(line) }}
-                  </t-button>
                 </div>
-              </div>
-              <div class="log-viewer__row-actions" @click.stop>
-                <t-tooltip :content="viewDetailLabel" theme="light">
-                  <t-button
-                    :aria-label="viewDetailLabel"
-                    class="log-viewer__icon-action"
-                    shape="square"
-                    size="small"
-                    theme="default"
-                    variant="text"
-                    @click="openLineDetail(line)"
-                  >
-                    <template #icon>
-                      <browse-icon />
-                    </template>
-                  </t-button>
-                </t-tooltip>
-                <t-tooltip :content="copyLineLabel" theme="light">
-                  <t-button
-                    :aria-label="copyLineLabel"
-                    class="log-viewer__icon-action"
-                    shape="square"
-                    size="small"
-                    theme="default"
-                    variant="text"
-                    @click="copyLine(line.raw)"
-                  >
-                    <template #icon>
-                      <copy-icon />
-                    </template>
-                  </t-button>
-                </t-tooltip>
-              </div>
-            </li>
-          </ol>
-          <t-empty v-else size="small" :description="emptyLabel" />
+                <div class="log-viewer__stream-cell">
+                  <span class="log-viewer__stream-pill" :class="`log-viewer__stream-pill--${line.stream}`">
+                    {{ line.stream === 'stderr' ? stderrLabel : stdoutLabel }}
+                  </span>
+                </div>
+                <div class="log-viewer__content">
+                  <div class="log-viewer__message-row">
+                    <code class="log-viewer__message">
+                      <span
+                        v-for="(token, tokenIndex) in line.messageTokens"
+                        :key="`${line.lineNo}-message-${tokenIndex}`"
+                        :class="tokenClass(token)"
+                        >{{ token.text }}</span
+                      >
+                    </code>
+                  </div>
+                  <div v-if="visibleMetadataTags(line).length" class="log-viewer__metadata-tags" @click.stop>
+                    <t-tag
+                      v-for="[key, value] in visibleMetadataTags(line)"
+                      :key="`${line.lineNo}-${key}`"
+                      size="small"
+                      theme="default"
+                      variant="light"
+                    >
+                      {{ key }}={{ formatMetadataValue(value) }}
+                    </t-tag>
+                    <t-button
+                      v-if="hiddenRowFieldCount(line)"
+                      size="small"
+                      theme="default"
+                      variant="text"
+                      @click="openLineDetail(line)"
+                    >
+                      +{{ hiddenRowFieldCount(line) }}
+                    </t-button>
+                  </div>
+                </div>
+                <div class="log-viewer__row-actions" @click.stop>
+                  <t-tooltip :content="viewDetailLabel" theme="light">
+                    <t-button
+                      :aria-label="viewDetailLabel"
+                      class="log-viewer__icon-action"
+                      shape="square"
+                      size="small"
+                      theme="default"
+                      variant="text"
+                      @click="openLineDetail(line)"
+                    >
+                      <template #icon>
+                        <browse-icon />
+                      </template>
+                    </t-button>
+                  </t-tooltip>
+                  <t-tooltip :content="copyLineLabel" theme="light">
+                    <t-button
+                      :aria-label="copyLineLabel"
+                      class="log-viewer__icon-action"
+                      shape="square"
+                      size="small"
+                      theme="default"
+                      variant="text"
+                      @click="copyLine(line.raw)"
+                    >
+                      <template #icon>
+                        <copy-icon />
+                      </template>
+                    </t-button>
+                  </t-tooltip>
+                </div>
+              </li>
+            </ol>
+          </template>
+          <div v-if="showJumpBottom" class="log-viewer__jump-bottom-wrap">
+            <t-button size="small" theme="primary" @click="jumpBottom">
+              {{ jumpBottomLabel }}
+            </t-button>
+          </div>
         </div>
       </div>
     </template>
@@ -190,29 +252,48 @@
   <section v-else class="log-viewer">
     <div class="log-viewer__toolbar">
       <div class="log-viewer__toolbar-group log-viewer__toolbar-left">
-        <t-button v-if="showRefresh" theme="primary" :loading="loading" @click="$emit('refresh')">
-          {{ refreshLabel }}
+        <t-button
+          theme="default"
+          variant="outline"
+          size="small"
+          :disabled="!displayLines.length"
+          data-testid="log-viewer-clear"
+          @click="$emit('clear')"
+        >
+          {{ clearLabel }}
         </t-button>
-        <t-button theme="default" variant="outline" :disabled="!displayLines.length" @click="copyContent">
+        <t-button
+          theme="default"
+          variant="outline"
+          size="small"
+          :disabled="!displayLines.length"
+          data-testid="log-viewer-copy"
+          @click="copyContent"
+        >
           {{ copyLabel }}
         </t-button>
-        <t-button theme="default" variant="outline" :disabled="!displayLines.length" @click="downloadContent">
+        <t-button
+          theme="default"
+          variant="outline"
+          size="small"
+          :disabled="!displayLines.length"
+          data-testid="log-viewer-download"
+          @click="downloadContent"
+        >
           {{ downloadLabel }}
         </t-button>
-        <span class="log-viewer__select-wrap">
-          <t-select
-            v-if="lineLimitOptions.length"
-            v-model:value="selectedLineLimit"
-            class="log-viewer__limit"
-            :options="lineLimitOptions"
-            size="small"
-            @change="emitLimit"
-          />
-        </span>
-        <t-select v-model:value="selectedLevel" class="log-viewer__level-filter" :options="levelOptions" size="small" />
       </div>
 
-      <div class="log-viewer__toolbar-group log-viewer__toolbar-right">
+      <div class="log-viewer__toolbar-group log-viewer__toolbar-middle">
+        <t-select
+          v-if="lineLimitOptions.length"
+          v-model:value="selectedLineLimit"
+          class="log-viewer__limit"
+          :options="lineLimitOptions"
+          size="small"
+          @change="emitLimit"
+        />
+        <t-select v-model:value="selectedLevel" class="log-viewer__level-filter" :options="levelOptions" size="small" />
         <t-input
           v-model:value="searchKeyword"
           class="log-viewer__search"
@@ -223,16 +304,39 @@
         <span v-if="normalizedSearchKeyword" class="log-viewer__match-count">
           {{ matchCountLabel.replace('{count}', String(searchMatchCount)) }}
         </span>
+      </div>
+
+      <div class="log-viewer__toolbar-group log-viewer__toolbar-right">
         <label class="log-viewer__switch">
           <span>{{ wrapLabel }}</span>
           <t-switch v-model:value="wrapLines" size="small" />
         </label>
         <label class="log-viewer__switch">
-          <span>{{ refreshScrollLabel }}</span>
-          <t-tooltip :content="refreshScrollTooltipLabel" theme="light">
+          <span>{{ autoScrollLabel }}</span>
+          <t-tooltip v-if="autoScrollTooltipLabel" :content="autoScrollTooltipLabel" theme="light">
             <t-switch v-model:value="scrollAfterRefresh" size="small" />
           </t-tooltip>
+          <t-switch v-else v-model:value="scrollAfterRefresh" size="small" />
         </label>
+        <t-button
+          size="small"
+          theme="default"
+          variant="outline"
+          data-testid="log-viewer-pause-toggle"
+          @click="togglePause"
+        >
+          {{ paused ? resumeLabel : pauseLabel }}
+        </t-button>
+        <t-button
+          v-if="showReconnect"
+          size="small"
+          theme="primary"
+          variant="outline"
+          data-testid="log-viewer-reconnect"
+          @click="$emit('reconnect')"
+        >
+          {{ reconnectLabel }}
+        </t-button>
       </div>
     </div>
 
@@ -250,108 +354,128 @@
       :class="['log-viewer__viewport graft-scrollbar', { 'log-viewer__viewport--wrap': wrapLines }]"
       @scroll="handleViewportScroll"
     >
-      <t-skeleton v-if="loading && !displayLines.length" animation="gradient" :row-col="skeletonRows" />
-      <ol v-else-if="displayLines.length" class="log-viewer__lines" :style="virtualListStyle">
-        <li
-          v-for="(line, lineIndex) in renderedLines"
-          :key="line.lineNo"
-          :ref="(element) => setRenderedLineRef(line.lineNo, element)"
-          tabindex="0"
-          :class="[
-            'log-viewer__line',
-            `log-viewer__line--${line.tone}`,
-            { 'log-viewer__line--active': isActive(line.lineNo) },
-          ]"
-          :style="virtualLineStyle(lineIndex)"
-          @click="openLineDetail(line)"
-          @keydown.enter.prevent="openLineDetail(line)"
-          @keydown.space.prevent="openLineDetail(line)"
-        >
-          <span class="log-viewer__line-number">{{ line.lineNo }}</span>
-          <div class="log-viewer__timestamp-cell">
-            <t-tooltip v-if="line.timestamp" :content="line.timestamp" placement="top-left" theme="light">
-              <time class="log-viewer__timestamp">{{ shortTimestamp(line.timestamp) }}</time>
-            </t-tooltip>
-            <span v-else class="log-viewer__timestamp log-viewer__timestamp--empty"></span>
-          </div>
-          <div class="log-viewer__level-cell">
-            <t-tag class="log-viewer__level" :theme="levelTheme(line.level)" size="small" variant="light-outline">
-              {{ line.level ?? 'LOG' }}
-            </t-tag>
-          </div>
-          <div class="log-viewer__source-cell">
-            <t-tooltip v-if="line.source" :content="line.source" placement="top-left" theme="light">
-              <span class="log-viewer__source">{{ line.sourceShort || line.source }}</span>
-            </t-tooltip>
-            <span v-else class="log-viewer__source log-viewer__source--empty"></span>
-          </div>
-          <div class="log-viewer__content">
-            <div class="log-viewer__message-row">
-              <code class="log-viewer__message">
-                <span
-                  v-for="(token, tokenIndex) in line.messageTokens"
-                  :key="`${line.lineNo}-message-${tokenIndex}`"
-                  :class="tokenClass(token)"
-                  >{{ token.text }}</span
-                >
-              </code>
-            </div>
-            <div v-if="visibleMetadataTags(line).length" class="log-viewer__metadata-tags" @click.stop>
-              <t-tag
-                v-for="[key, value] in visibleMetadataTags(line)"
-                :key="`${line.lineNo}-${key}`"
-                size="small"
-                theme="default"
-                variant="light"
+      <stream-viewport-state-surface
+        v-if="shouldRenderViewportStateSurface"
+        class="log-viewer__viewport-state"
+        v-bind="viewportStateSurfaceModel"
+      />
+      <template v-else>
+        <div class="log-viewer__header-row">
+          <span class="log-viewer__header-cell">{{ timeLabel }}</span>
+          <span class="log-viewer__header-cell">{{ levelLabel }}</span>
+          <span class="log-viewer__header-cell">{{ streamLabel }}</span>
+          <span class="log-viewer__header-cell">{{ messageLabel }}</span>
+          <span class="log-viewer__header-cell log-viewer__header-cell--actions">{{ operationLabel }}</span>
+        </div>
+        <ol class="log-viewer__lines" :style="virtualListStyle">
+          <li
+            v-for="(line, lineIndex) in renderedLines"
+            :key="line.lineNo"
+            :ref="(element) => setRenderedLineRef(line.lineNo, element)"
+            tabindex="0"
+            :class="[
+              'log-viewer__line',
+              `log-viewer__line--${line.tone}`,
+              { 'log-viewer__line--active': isActive(line.lineNo) },
+            ]"
+            :style="virtualLineStyle(lineIndex)"
+            @click="openLineDetail(line)"
+            @keydown.enter.prevent="openLineDetail(line)"
+            @keydown.space.prevent="openLineDetail(line)"
+          >
+            <div class="log-viewer__timestamp-cell">
+              <t-tooltip
+                v-if="line.timestamp"
+                :content="formattedFullTimestamp(line.timestamp)"
+                placement="top-left"
+                theme="light"
               >
-                {{ key }}={{ formatMetadataValue(value) }}
+                <time class="log-viewer__timestamp">{{ displayTimestamp(line.timestamp) }}</time>
+              </t-tooltip>
+              <span v-else class="log-viewer__timestamp log-viewer__timestamp--empty"></span>
+            </div>
+            <div class="log-viewer__level-cell">
+              <t-tag class="log-viewer__level" :theme="levelTheme(line.level)" size="small" variant="light-outline">
+                {{ line.level ?? 'LOG' }}
               </t-tag>
-              <t-button
-                v-if="hiddenRowFieldCount(line)"
-                size="small"
-                theme="default"
-                variant="text"
-                @click="openLineDetail(line)"
-              >
-                +{{ hiddenRowFieldCount(line) }}
-              </t-button>
             </div>
-          </div>
-          <div class="log-viewer__row-actions" @click.stop>
-            <t-tooltip :content="viewDetailLabel" theme="light">
-              <t-button
-                :aria-label="viewDetailLabel"
-                class="log-viewer__icon-action"
-                shape="square"
-                size="small"
-                theme="default"
-                variant="text"
-                @click="openLineDetail(line)"
-              >
-                <template #icon>
-                  <browse-icon />
-                </template>
-              </t-button>
-            </t-tooltip>
-            <t-tooltip :content="copyLineLabel" theme="light">
-              <t-button
-                :aria-label="copyLineLabel"
-                class="log-viewer__icon-action"
-                shape="square"
-                size="small"
-                theme="default"
-                variant="text"
-                @click="copyLine(line.raw)"
-              >
-                <template #icon>
-                  <copy-icon />
-                </template>
-              </t-button>
-            </t-tooltip>
-          </div>
-        </li>
-      </ol>
-      <t-empty v-else size="small" :description="emptyLabel" />
+            <div class="log-viewer__stream-cell">
+              <span class="log-viewer__stream-pill" :class="`log-viewer__stream-pill--${line.stream}`">
+                {{ line.stream === 'stderr' ? stderrLabel : stdoutLabel }}
+              </span>
+            </div>
+            <div class="log-viewer__content">
+              <div class="log-viewer__message-row">
+                <code class="log-viewer__message">
+                  <span
+                    v-for="(token, tokenIndex) in line.messageTokens"
+                    :key="`${line.lineNo}-message-${tokenIndex}`"
+                    :class="tokenClass(token)"
+                    >{{ token.text }}</span
+                  >
+                </code>
+              </div>
+              <div v-if="visibleMetadataTags(line).length" class="log-viewer__metadata-tags" @click.stop>
+                <t-tag
+                  v-for="[key, value] in visibleMetadataTags(line)"
+                  :key="`${line.lineNo}-${key}`"
+                  size="small"
+                  theme="default"
+                  variant="light"
+                >
+                  {{ key }}={{ formatMetadataValue(value) }}
+                </t-tag>
+                <t-button
+                  v-if="hiddenRowFieldCount(line)"
+                  size="small"
+                  theme="default"
+                  variant="text"
+                  @click="openLineDetail(line)"
+                >
+                  +{{ hiddenRowFieldCount(line) }}
+                </t-button>
+              </div>
+            </div>
+            <div class="log-viewer__row-actions" @click.stop>
+              <t-tooltip :content="viewDetailLabel" theme="light">
+                <t-button
+                  :aria-label="viewDetailLabel"
+                  class="log-viewer__icon-action"
+                  shape="square"
+                  size="small"
+                  theme="default"
+                  variant="text"
+                  @click="openLineDetail(line)"
+                >
+                  <template #icon>
+                    <browse-icon />
+                  </template>
+                </t-button>
+              </t-tooltip>
+              <t-tooltip :content="copyLineLabel" theme="light">
+                <t-button
+                  :aria-label="copyLineLabel"
+                  class="log-viewer__icon-action"
+                  shape="square"
+                  size="small"
+                  theme="default"
+                  variant="text"
+                  @click="copyLine(line.raw)"
+                >
+                  <template #icon>
+                    <copy-icon />
+                  </template>
+                </t-button>
+              </t-tooltip>
+            </div>
+          </li>
+        </ol>
+      </template>
+      <div v-if="showJumpBottom" class="log-viewer__jump-bottom-wrap">
+        <t-button size="small" theme="primary" @click="jumpBottom">
+          {{ jumpBottomLabel }}
+        </t-button>
+      </div>
     </div>
   </section>
 
@@ -376,14 +500,24 @@
             >
               {{ selectedLine.parsed.display.level ?? 'LOG' }}
             </t-tag>
+            <span
+              class="log-viewer__stream-pill log-viewer__stream-pill--detail"
+              :class="`log-viewer__stream-pill--${selectedLine.stream}`"
+            >
+              {{ selectedLine.stream === 'stderr' ? stderrLabel : stdoutLabel }}
+            </span>
             <span class="log-viewer__summary-message">{{ selectedLine.parsed.display.title }}</span>
           </div>
-          <div v-if="selectedLine.parsed.display.subtitleParts.length" class="log-viewer__summary-meta">
+          <div
+            v-if="selectedLine.parsed.display.subtitleParts.length || selectedLine.timestamp"
+            class="log-viewer__summary-meta"
+          >
+            <span v-if="selectedLine.timestamp">{{ formattedFullTimestamp(selectedLine.timestamp) }}</span>
             <template
               v-for="(part, partIndex) in selectedLine.parsed.display.subtitleParts"
               :key="`${selectedLine.lineNo}-summary-${partIndex}`"
             >
-              <span v-if="partIndex" aria-hidden="true">·</span>
+              <span aria-hidden="true">·</span>
               <t-tooltip
                 v-if="part === selectedLine.source"
                 :content="selectedLine.source"
@@ -417,7 +551,7 @@
           <div class="log-viewer__descriptions">
             <template v-if="selectedLine.timestamp">
               <div class="log-viewer__description-label">{{ timeLabel }}</div>
-              <div class="log-viewer__description-value">{{ selectedLine.timestamp }}</div>
+              <div class="log-viewer__description-value">{{ formattedFullTimestamp(selectedLine.timestamp) }}</div>
             </template>
 
             <template v-if="selectedLine.level">
@@ -433,6 +567,13 @@
                 </t-tag>
               </div>
             </template>
+
+            <div class="log-viewer__description-label">{{ streamLabel }}</div>
+            <div class="log-viewer__description-value">
+              <span class="log-viewer__stream-pill" :class="`log-viewer__stream-pill--${selectedLine.stream}`">
+                {{ selectedLine.stream === 'stderr' ? stderrLabel : stdoutLabel }}
+              </span>
+            </div>
 
             <template v-if="selectedLine.source">
               <div class="log-viewer__description-label">{{ sourceLabel }}</div>
@@ -484,43 +625,56 @@ import {
   triggerRef,
   watch,
 } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import ContentViewerFrame from '@/shared/components/viewer/ContentViewerFrame.vue';
 
 import { copyText } from './copy';
+import type { StructuredLogEntry } from './log-entry';
 import type { LogLevel, LogToken } from './log-highlight';
 import { type DisplayLogLine, formatLogMetadataValue, type ParsedLogMetadata, summarizeMetadata } from './log-parser';
 import { LogViewCache } from './log-view-cache';
+import type { StreamViewportState } from './stream-viewport-state';
+import StreamViewportStateSurface from './StreamViewportStateSurface.vue';
+import { formatLocaleDateTime, formatLogViewerTimestamp } from './time';
 
 const props = withDefaults(
   defineProps<{
-    lines: readonly string[];
+    entries: readonly StructuredLogEntry[];
     contentVersion?: number;
     loading?: boolean;
     error?: string;
     truncated?: boolean;
     lineLimit?: number;
     lineLimits?: number[];
-    refreshLabel: string;
-    showRefresh?: boolean;
+    clearLabel: string;
     copyLabel: string;
     downloadLabel: string;
     retryLabel: string;
     searchPlaceholder: string;
     wrapLabel: string;
-    refreshScrollLabel: string;
-    refreshScrollTooltipLabel: string;
+    autoScrollLabel: string;
+    autoScrollTooltipLabel: string;
+    pauseLabel: string;
+    resumeLabel: string;
+    reconnectLabel: string;
+    jumpBottomLabel: string;
     levelFilterLabel: string;
     allLevelsLabel: string;
     matchCountLabel: string;
     emptyLabel: string;
+    emptyDescriptionLabel?: string;
     truncatedLabel: string;
     detailTitleLabel: string;
     importantFieldsLabel: string;
     basicInfoLabel: string;
     timeLabel: string;
     levelLabel: string;
+    streamLabel: string;
     sourceLabel: string;
+    operationLabel: string;
+    stdoutLabel: string;
+    stderrLabel: string;
     viewDetailLabel: string;
     collapseDetailLabel: string;
     metadataLabel: string;
@@ -531,6 +685,9 @@ const props = withDefaults(
     copyJsonLabel: string;
     copySuccessLabel: string;
     copyErrorLabel: string;
+    paused?: boolean;
+    showReconnect?: boolean;
+    viewportState?: LogViewerViewportState | null;
     viewerMode?: boolean;
     viewerStorageKey?: string;
     fullscreenLabel?: string;
@@ -544,19 +701,28 @@ const props = withDefaults(
     truncated: false,
     lineLimit: 200,
     lineLimits: () => [100, 200, 500, 1000],
-    showRefresh: true,
+    paused: false,
+    showReconnect: false,
+    viewportState: null,
     viewerMode: false,
     viewerStorageKey: 'graft.log-viewer.height',
     fullscreenLabel: 'Fullscreen',
     exitFullscreenLabel: 'Exit Fullscreen',
     resizeHandleLabel: 'Resize viewer',
+    emptyDescriptionLabel: '',
   },
 );
 
 const emit = defineEmits<{
   refresh: [];
+  clear: [];
+  pause: [];
+  resume: [];
+  reconnect: [];
   'update:lineLimit': [value: number];
 }>();
+
+const { locale } = useI18n();
 
 type SelectOption = NonNullable<SelectProps['options']>[number];
 type LevelFilter = 'ALL' | LogLevel;
@@ -565,13 +731,26 @@ type VirtualMetrics = Readonly<{
   ends: number[];
   totalHeight: number;
 }>;
+type LogViewerViewportState = Readonly<{
+  state: StreamViewportState;
+  ariaLabel?: string;
+  badgeLabel?: string;
+  busyLabel?: string;
+  description?: string;
+  fauxLineCount?: number;
+  hint?: string;
+  showBusy?: boolean | null;
+  showCursor?: boolean | null;
+  title?: string;
+}>;
 
 const DEFAULT_VIRTUAL_VIEWPORT_HEIGHT = 480;
-const DEFAULT_LOG_ROW_HEIGHT = 44;
-const DEFAULT_WRAPPED_LOG_ROW_HEIGHT = 72;
+const DEFAULT_LOG_ROW_HEIGHT = 52;
+const DEFAULT_WRAPPED_LOG_ROW_HEIGHT = 88;
 const DEFAULT_VIRTUAL_OVERSCAN_PX = 240;
 const LOG_ROW_VERTICAL_MARGIN_PX = 2;
 const AUTO_SCROLL_BOTTOM_THRESHOLD_PX = 32;
+const TIMESTAMP_YESTERDAY_DAY_OFFSET = -1;
 
 const searchKeyword = ref('');
 const wrapLines = ref(true);
@@ -582,18 +761,12 @@ const viewport = ref<HTMLElement | null>(null);
 const viewportScrollTop = ref(0);
 const viewportHeight = ref(DEFAULT_VIRTUAL_VIEWPORT_HEIGHT);
 const viewportPinnedToBottom = ref(true);
+const hasAutoScrolledSinceLastEmpty = ref(false);
 const selectedLineNo = ref<number | null>(null);
 const measuredHeights = shallowRef(new Map<number, number>());
 const logViewCache = new LogViewCache();
 let scrollToBottomFrameId: number | null = null;
 
-const skeletonRows = [
-  { height: '22px', width: '96%' },
-  { height: '22px', width: '88%' },
-  { height: '22px', width: '92%' },
-  { height: '22px', width: '76%' },
-  { height: '22px', width: '84%' },
-];
 const levelOptions = computed<SelectOption[]>(() => [
   { label: `${props.levelFilterLabel}: ${props.allLevelsLabel}`, value: 'ALL' },
   { label: 'FATAL', value: 'FATAL' },
@@ -608,11 +781,11 @@ const levelOptions = computed<SelectOption[]>(() => [
 const lineLimitOptions = computed<SelectOption[]>(() =>
   props.lineLimits.map((value) => ({ label: String(value), value })),
 );
-const effectiveContentVersion = computed(() => props.contentVersion ?? props.lines.length);
+const effectiveContentVersion = computed(() => props.contentVersion ?? props.entries.length);
 const normalizedSearchKeyword = computed(() => searchKeyword.value.trim());
 const logView = computed(() =>
   logViewCache.buildView({
-    lines: props.lines,
+    entries: props.entries,
     lineLimit: selectedLineLimit.value,
     level: selectedLevel.value,
     keyword: normalizedSearchKeyword.value,
@@ -671,6 +844,35 @@ const virtualListStyle = computed(() => ({
 }));
 const searchMatchCount = computed(() => logView.value.matchCount);
 const selectedLine = computed(() => displayLines.value.find((line) => line.lineNo === selectedLineNo.value) ?? null);
+const shouldRenderViewportStateSurface = computed(() => !displayLines.value.length);
+const viewportStateSurfaceModel = computed<LogViewerViewportState>(() => {
+  if (props.viewportState) {
+    return props.viewportState;
+  }
+
+  if (props.loading) {
+    return {
+      state: 'connecting',
+      busyLabel: props.emptyDescriptionLabel || props.emptyLabel,
+      description: props.emptyDescriptionLabel || '',
+      title: props.emptyLabel,
+    };
+  }
+
+  if (props.paused) {
+    return {
+      state: 'paused',
+      description: props.emptyDescriptionLabel || props.emptyLabel,
+      title: props.emptyLabel,
+    };
+  }
+
+  return {
+    state: 'empty',
+    description: props.emptyDescriptionLabel || props.emptyLabel,
+    title: props.emptyLabel,
+  };
+});
 const detailDrawerVisible = computed({
   get: () => selectedLine.value !== null,
   set: (visible: boolean) => {
@@ -679,6 +881,7 @@ const detailDrawerVisible = computed({
     }
   },
 });
+const showJumpBottom = computed(() => Boolean(displayLines.value.length) && !viewportPinnedToBottom.value);
 
 watch(
   () => props.lineLimit,
@@ -688,17 +891,33 @@ watch(
 );
 
 watch(
-  () => [effectiveContentVersion.value, scrollAfterRefresh.value] as const,
-  () => {
-    if (!scrollAfterRefresh.value) return;
-    if (!viewportPinnedToBottom.value) return;
-    scheduleScrollToBottom();
+  () => displayLines.value.length,
+  (length) => {
+    if (length === 0) {
+      hasAutoScrolledSinceLastEmpty.value = false;
+    }
   },
-  { flush: 'post' },
+  { flush: 'post', immediate: true },
 );
 
 watch(
-  () => [props.lines, effectiveContentVersion.value, wrapLines.value] as const,
+  () => [effectiveContentVersion.value, scrollAfterRefresh.value] as const,
+  () => {
+    if (!scrollAfterRefresh.value) return;
+    if (!displayLines.value.length) return;
+    if (!hasAutoScrolledSinceLastEmpty.value) {
+      hasAutoScrolledSinceLastEmpty.value = true;
+      scheduleScrollToBottom();
+      return;
+    }
+    if (!viewportPinnedToBottom.value) return;
+    scheduleScrollToBottom();
+  },
+  { flush: 'post', immediate: true },
+);
+
+watch(
+  () => [props.entries, effectiveContentVersion.value, wrapLines.value] as const,
   () => {
     clearMeasuredHeights();
     void nextTick(syncViewportMetrics);
@@ -744,6 +963,19 @@ function downloadContent() {
   link.download = `container-logs-${new Date().toISOString().replace(/[:.]/g, '-')}.log`;
   link.click();
   URL.revokeObjectURL(link.href);
+}
+
+function togglePause() {
+  if (props.paused) {
+    emit('resume');
+    return;
+  }
+
+  emit('pause');
+}
+
+function jumpBottom() {
+  scrollToBottom();
 }
 
 function scrollToBottom() {
@@ -886,9 +1118,35 @@ function formatJson(value: unknown) {
   }
 }
 
-function shortTimestamp(timestamp: string) {
-  const timeMatch = /(?:T|\s)(\d{2}:\d{2}:\d{2}(?:[.,]\d+)?)/.exec(timestamp);
-  return timeMatch?.[1] ?? timestamp;
+function displayTimestamp(timestamp: string) {
+  const formatted = formatLogViewerTimestamp(timestamp, locale);
+  const date = new Date(timestamp);
+
+  if (Number.isNaN(date.getTime()) || !isYesterday(date)) {
+    return formatted;
+  }
+
+  return `${formatRelativeDayLabel(TIMESTAMP_YESTERDAY_DAY_OFFSET)} ${formatted}`;
+}
+
+function formattedFullTimestamp(timestamp: string) {
+  return formatLocaleDateTime(timestamp, locale);
+}
+
+function formatRelativeDayLabel(dayOffset: number) {
+  return new Intl.RelativeTimeFormat(locale.value, { numeric: 'auto' }).format(dayOffset, 'day');
+}
+
+function isYesterday(date: Date) {
+  const now = new Date();
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+
+  return (
+    date.getFullYear() === yesterday.getFullYear() &&
+    date.getMonth() === yesterday.getMonth() &&
+    date.getDate() === yesterday.getDate()
+  );
 }
 
 function levelTheme(level: LogLevel | null | undefined) {
@@ -1000,8 +1258,12 @@ function isViewportNearBottom(node: HTMLElement) {
   flex: 0 0 auto;
 }
 
-.log-viewer__toolbar-right {
+.log-viewer__toolbar-middle {
   flex: 1 1 420px;
+}
+
+.log-viewer__toolbar-right {
+  flex: 0 0 auto;
   justify-content: flex-end;
 }
 
@@ -1014,10 +1276,8 @@ function isViewportNearBottom(node: HTMLElement) {
 }
 
 .log-viewer__search {
-  flex: 0 0 auto;
-  max-width: 36vw;
+  flex: 1 1 280px;
   min-width: 220px;
-  width: 320px;
 }
 
 .log-viewer__match-count,
@@ -1039,15 +1299,43 @@ function isViewportNearBottom(node: HTMLElement) {
   min-height: 0;
   min-width: 0;
   overflow: auto;
-  padding: var(--graft-density-gap-6) var(--graft-density-gap-8);
+  padding: var(--graft-density-gap-8);
+  position: relative;
+}
+
+.log-viewer__viewport-state {
+  min-height: 100%;
+}
+
+.log-viewer__header-row {
+  backdrop-filter: blur(12px);
+  background: color-mix(in srgb, var(--td-bg-color-container) 92%, transparent);
+  border-bottom: 1px solid var(--td-component-stroke);
+  column-gap: var(--graft-density-gap-6);
+  display: grid;
+  grid-template-columns: 19ch 72px 80px minmax(0, 1fr) 48px;
+  padding: 0 var(--graft-density-gap-6) var(--graft-density-gap-8);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.log-viewer__header-cell {
+  color: var(--td-text-color-placeholder);
+  font: var(--td-font-body-small);
+  font-weight: 600;
+  line-height: 24px;
+}
+
+.log-viewer__header-cell--actions {
+  text-align: right;
 }
 
 .log-viewer__lines {
-  counter-reset: none;
   list-style: none;
   margin: 0;
   min-width: max(100%, 760px);
-  padding: 0;
+  padding: var(--graft-density-gap-8) 0 0;
   position: relative;
 }
 
@@ -1056,11 +1344,11 @@ function isViewportNearBottom(node: HTMLElement) {
   border-radius: var(--td-radius-small);
   column-gap: var(--graft-density-gap-6);
   display: grid;
-  grid-template-columns: 44px 96px 58px minmax(140px, 180px) minmax(0, 1fr) 60px;
+  grid-template-columns: 19ch 72px 80px minmax(0, 1fr) 48px;
   inset-inline: 0;
   margin-block: var(--graft-density-gap-1);
-  min-height: 30px;
-  padding: var(--graft-density-gap-4) var(--graft-density-gap-6);
+  min-height: 38px;
+  padding: var(--graft-density-gap-6);
   position: absolute;
 }
 
@@ -1084,80 +1372,71 @@ function isViewportNearBottom(node: HTMLElement) {
   border-left-color: var(--td-text-color-placeholder);
 }
 
-.log-viewer__line-number {
-  align-self: start;
-  color: var(--td-text-color-placeholder);
-  font-family: var(--td-font-family-monospace);
-  font-variant-numeric: tabular-nums;
-  line-height: var(--td-line-height-body-medium);
-  text-align: right;
-  user-select: none;
-}
-
 .log-viewer__timestamp-cell,
 .log-viewer__level-cell,
-.log-viewer__source-cell,
+.log-viewer__stream-cell,
 .log-viewer__content,
 .log-viewer__row-actions {
   align-self: start;
-}
-
-.log-viewer__timestamp-cell,
-.log-viewer__level-cell,
-.log-viewer__source-cell,
-.log-viewer__content {
   min-width: 0;
 }
 
-.log-viewer__timestamp-cell,
-.log-viewer__source-cell {
-  line-height: var(--td-line-height-body-medium);
+.log-viewer__timestamp,
+.log-viewer__message {
+  font-family: var(--td-font-family-monospace);
+}
+
+.log-viewer__timestamp-cell {
+  width: 19ch;
+}
+
+.log-viewer__timestamp {
+  color: var(--td-text-color-placeholder);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .log-viewer__level-cell {
   display: flex;
   justify-content: flex-start;
-  width: 58px;
-}
-
-.log-viewer__level {
-  flex: 0 0 auto;
-  max-width: max-content;
-  width: auto;
 }
 
 .log-viewer__level-cell :deep(.t-tag) {
-  flex: 0 0 auto;
-  max-width: max-content;
   padding-inline: var(--graft-density-gap-4);
-  width: auto;
+}
+
+.log-viewer__stream-pill {
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  display: inline-flex;
+  font: var(--td-font-body-small);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  line-height: 18px;
+  padding: 0 var(--graft-density-gap-4);
+}
+
+.log-viewer__stream-pill--stdout {
+  background: color-mix(in srgb, var(--td-success-color-1) 92%, transparent);
+  border-color: color-mix(in srgb, var(--td-success-color-5) 30%, transparent);
+  color: var(--td-success-color-7);
+}
+
+.log-viewer__stream-pill--stderr {
+  background: color-mix(in srgb, var(--td-error-color-1) 92%, transparent);
+  border-color: color-mix(in srgb, var(--td-error-color-5) 30%, transparent);
+  color: var(--td-error-color-7);
+}
+
+.log-viewer__stream-pill--detail {
+  flex: 0 0 auto;
 }
 
 .log-viewer__message-row {
   align-items: center;
   display: flex;
   min-width: 0;
-}
-
-.log-viewer__timestamp,
-.log-viewer__source,
-.log-viewer__message,
-.log-viewer__raw,
-.log-viewer__json {
-  font-family: var(--td-font-family-monospace);
-}
-
-.log-viewer__timestamp,
-.log-viewer__source {
-  color: var(--td-text-color-placeholder);
-  font-variant-numeric: tabular-nums;
-}
-
-.log-viewer__source {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .log-viewer__message {
@@ -1204,6 +1483,7 @@ function isViewportNearBottom(node: HTMLElement) {
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.16s ease;
+  width: 48px;
 }
 
 .log-viewer__line:hover .log-viewer__row-actions,
@@ -1242,6 +1522,20 @@ function isViewportNearBottom(node: HTMLElement) {
   color: var(--td-text-color-secondary);
 }
 
+.log-viewer__jump-bottom-wrap {
+  bottom: var(--graft-density-gap-12);
+  display: flex;
+  justify-content: flex-end;
+  pointer-events: none;
+  position: sticky;
+  z-index: 3;
+}
+
+.log-viewer__jump-bottom-wrap :deep(.t-button) {
+  box-shadow: var(--td-shadow-2);
+  pointer-events: auto;
+}
+
 .log-viewer :deep(.log-viewer__drawer .t-drawer__body) {
   padding: var(--graft-density-gap-24);
 }
@@ -1266,8 +1560,6 @@ function isViewportNearBottom(node: HTMLElement) {
 .log-viewer__summary-level,
 .log-viewer__detail-level {
   flex: 0 0 auto;
-  max-width: max-content;
-  width: fit-content;
 }
 
 .log-viewer__summary-title {
@@ -1401,15 +1693,6 @@ function isViewportNearBottom(node: HTMLElement) {
   align-items: center;
   display: inline-flex;
   justify-self: start;
-  max-width: max-content;
-  width: fit-content;
-}
-
-.log-viewer__summary-title :deep(.t-tag),
-.log-viewer__level-value :deep(.t-tag) {
-  flex: 0 0 auto;
-  max-width: max-content;
-  width: auto;
 }
 
 .log-viewer__code-block {
@@ -1472,12 +1755,9 @@ function isViewportNearBottom(node: HTMLElement) {
   color: var(--td-text-color-placeholder);
 }
 
-@media (width <= 1200px) {
-  .log-viewer__toolbar {
-    align-items: flex-start;
-  }
-
+@media (width <= 1280px) {
   .log-viewer__toolbar-left,
+  .log-viewer__toolbar-middle,
   .log-viewer__toolbar-right {
     width: 100%;
   }
@@ -1485,30 +1765,18 @@ function isViewportNearBottom(node: HTMLElement) {
   .log-viewer__toolbar-right {
     justify-content: flex-start;
   }
-
-  .log-viewer__search {
-    max-width: 100%;
-    width: min(360px, 100%);
-  }
 }
 
 @media (width <= 1024px) {
+  .log-viewer__header-row,
   .log-viewer__line {
-    grid-template-columns: 40px 92px 56px minmax(108px, 132px) minmax(0, 1fr) 56px;
-  }
-
-  .log-viewer__level-cell {
-    width: 56px;
+    grid-template-columns: 17ch 68px 76px minmax(0, 1fr) 44px;
   }
 }
 
 @media (width <= 760px) {
   .log-viewer__lines {
     min-width: 680px;
-  }
-
-  .log-viewer__line {
-    grid-template-columns: 38px 88px 54px 112px minmax(0, 1fr) 52px;
   }
 }
 </style>

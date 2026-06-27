@@ -3,7 +3,6 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import type { RefreshControlStatus } from '@/shared/components/refresh';
-import { useCurrentTabRefresh } from '@/shared/composables/useTabRefresh';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { formatLocaleDateTime } from '@/shared/observability';
 
@@ -16,9 +15,9 @@ import type { ServerStatusResponse } from '../types/server-status';
 export type DependencyDisplayStatus = 'healthy' | 'abnormal' | 'notConfigured' | 'unknown';
 
 /**
- * Creates reactive state and automatic scheduling for fetching and refreshing server status data.
+ * 创建服务器状态快照的响应式状态与自动刷新调度。
  *
- * @returns An object with reactive state for server status and loading indicators, configurable auto-refresh controls, and methods to manually trigger refreshes.
+ * @returns 包含服务器状态、加载状态、自动刷新配置、倒计时信息以及手动刷新方法的响应式对象。
  */
 export function useServerStatusSnapshot() {
   const { t } = useI18n();
@@ -124,10 +123,6 @@ export function useServerStatusSnapshot() {
   onMounted(() => {
     void refreshSnapshot();
     document.addEventListener('visibilitychange', handleVisibilityChange, false);
-  });
-
-  useCurrentTabRefresh(async () => {
-    await refreshSnapshot();
   });
 
   onUnmounted(() => {

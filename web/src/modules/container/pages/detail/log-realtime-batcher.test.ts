@@ -3,10 +3,18 @@ import { describe, expect, it, vi } from 'vitest';
 import type { ContainerLogResponse } from '../../types/container';
 import { ContainerLogRealtimeBatcher } from './log-realtime-batcher';
 
+function createEntry(line: string, stream: 'stdout' | 'stderr' = 'stdout', occurredAt = '2026-06-26T03:00:00Z') {
+  return {
+    line,
+    occurred_at: occurredAt,
+    stream,
+  } as const;
+}
+
 function createSeed(overrides?: Partial<ContainerLogResponse>): ContainerLogResponse {
   return {
     id: 'container-1',
-    lines: ['seed-1', 'seed-2'],
+    entries: [createEntry('seed-1'), createEntry('seed-2', 'stderr', '2026-06-26T03:00:01Z')],
     runtime: 'docker',
     stderr: true,
     stdout: true,
@@ -25,7 +33,7 @@ describe('ContainerLogRealtimeBatcher', () => {
       lineLimit: 3,
       onCommit: (snapshot) => {
         commits.push({
-          lines: snapshot.lineView.toArray(),
+          lines: snapshot.entryView.toArray().map((entry) => entry.line),
           truncated: snapshot.truncated,
           version: snapshot.version,
         });
@@ -33,8 +41,8 @@ describe('ContainerLogRealtimeBatcher', () => {
     });
 
     batcher.seed(createSeed());
-    batcher.enqueue(['line-3']);
-    batcher.enqueue(['line-4']);
+    batcher.enqueue([createEntry('line-3')]);
+    batcher.enqueue([createEntry('line-4', 'stderr', '2026-06-26T03:00:04Z')]);
 
     expect(commits).toHaveLength(1);
     vi.advanceTimersByTime(100);
@@ -49,23 +57,25 @@ describe('ContainerLogRealtimeBatcher', () => {
   });
 
   it('supports manual flush and ignores empty or invalid lines', () => {
-    const commits: Array<{ lines: readonly string[]; truncated: boolean }> = [];
+    const commits: Array<{ lines: readonly string[]; occurredAt: readonly string[]; truncated: boolean }> = [];
     const batcher = new ContainerLogRealtimeBatcher({
       lineLimit: 4,
       onCommit: (snapshot) => {
         commits.push({
-          lines: snapshot.lineView.toArray(),
+          lines: snapshot.entryView.toArray().map((entry) => entry.line),
+          occurredAt: snapshot.entryView.toArray().map((entry) => entry.occurredAt),
           truncated: snapshot.truncated,
         });
       },
     });
 
-    batcher.seed(createSeed({ lines: ['seed-1'] }));
-    batcher.enqueue(['', 'line-2', 'line-3']);
+    batcher.seed(createSeed({ entries: [createEntry('seed-1')] }));
+    batcher.enqueue([createEntry('', 'stdout'), createEntry('line-2'), createEntry('line-3')]);
     batcher.flush();
 
     expect(commits).toHaveLength(2);
     expect(commits[1]?.lines).toEqual(['seed-1', 'line-2', 'line-3']);
+    expect(commits[1]?.occurredAt).toEqual(['2026-06-26T03:00:00Z', '2026-06-26T03:00:00Z', '2026-06-26T03:00:00Z']);
     expect(commits[1]?.truncated).toBe(false);
   });
 
@@ -77,20 +87,20 @@ describe('ContainerLogRealtimeBatcher', () => {
       onCommit: (snapshot) => {
         commits.push({
           id: snapshot.id,
-          lines: snapshot.lineView.toArray(),
+          lines: snapshot.entryView.toArray().map((entry) => entry.line),
           truncated: snapshot.truncated,
         });
       },
     });
 
-    batcher.seed(createSeed({ lines: ['seed-1'] }));
-    batcher.enqueue(['line-2']);
+    batcher.seed(createSeed({ entries: [createEntry('seed-1')] }));
+    batcher.enqueue([createEntry('line-2')]);
     batcher.clear();
     vi.runOnlyPendingTimers();
 
     expect(commits).toHaveLength(1);
 
-    batcher.seed(createSeed({ id: 'container-2', lines: ['api-started'], tail: 2, truncated: true }));
+    batcher.seed(createSeed({ id: 'container-2', entries: [createEntry('api-started')], tail: 2, truncated: true }));
 
     expect(commits).toHaveLength(2);
     expect(commits[1]?.id).toBe('container-2');
@@ -102,26 +112,26 @@ describe('ContainerLogRealtimeBatcher', () => {
 
   it('emits an immutable snapshot for paused consumers', () => {
     const snapshots: Array<{
-      lineView: { readonly version: number; toArray(): readonly string[] };
+      entryView: { readonly version: number; toArray(): readonly { line: string }[] };
       version: number;
     }> = [];
     const batcher = new ContainerLogRealtimeBatcher({
       lineLimit: 4,
       onCommit: (snapshot) => {
         snapshots.push({
-          lineView: snapshot.lineView,
+          entryView: snapshot.entryView,
           version: snapshot.version,
         });
       },
     });
 
-    batcher.seed(createSeed({ lines: ['seed-1'] }));
-    batcher.enqueue(['line-2']);
+    batcher.seed(createSeed({ entries: [createEntry('seed-1')] }));
+    batcher.enqueue([createEntry('line-2')]);
     batcher.flush();
 
-    expect(snapshots[0]?.lineView.toArray()).toEqual(['seed-1']);
-    expect(snapshots[1]?.lineView.toArray()).toEqual(['seed-1', 'line-2']);
-    expect(snapshots[0]?.lineView.version).toBe(1);
+    expect(snapshots[0]?.entryView.toArray().map((entry) => entry.line)).toEqual(['seed-1']);
+    expect(snapshots[1]?.entryView.toArray().map((entry) => entry.line)).toEqual(['seed-1', 'line-2']);
+    expect(snapshots[0]?.entryView.version).toBe(1);
     expect(snapshots[0]?.version).toBe(1);
   });
 });

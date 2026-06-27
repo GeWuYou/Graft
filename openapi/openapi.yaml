@@ -570,6 +570,8 @@ components:
       $ref: ./components/schemas/container-mount-usage-list-response.yaml
     ContainerNetwork:
       $ref: ./components/schemas/container-network.yaml
+    ContainerLogEntry:
+      $ref: ./components/schemas/container-log-entry.yaml
     ContainerLogResponse:
       $ref: ./components/schemas/container-log-response.yaml
     ContainerShellSessionRequest:

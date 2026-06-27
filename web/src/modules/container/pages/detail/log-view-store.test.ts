@@ -1,16 +1,20 @@
 import { describe, expect, it } from 'vitest';
 
-import { LogRingBuffer } from '@/shared/observability';
+import { LogRingBuffer, type StructuredLogEntry } from '@/shared/observability';
 
 import type { ContainerLogRealtimeBatcherSnapshot } from './log-realtime-batcher';
 import { createContainerDetailLogViewStore } from './log-view-store';
 
 function createSnapshot(lines: readonly string[], truncated = false): ContainerLogRealtimeBatcherSnapshot {
-  const buffer = new LogRingBuffer<string>(Math.max(lines.length, 1));
+  const buffer = new LogRingBuffer<StructuredLogEntry>(Math.max(lines.length, 1));
   for (const line of lines) {
-    buffer.append(line);
+    buffer.append({
+      line,
+      occurredAt: '2026-06-26T03:00:00Z',
+      stream: 'stdout',
+    });
   }
-  const lineView = buffer.snapshot();
+  const entryView = buffer.snapshot();
 
   return Object.freeze({
     id: 'container-1',
@@ -18,10 +22,10 @@ function createSnapshot(lines: readonly string[], truncated = false): ContainerL
     stderr: true,
     stdout: true,
     timestamps: false,
-    lineView,
+    entryView,
     tail: buffer.capacity(),
     truncated,
-    version: lineView.version,
+    version: entryView.version,
   });
 }
 
@@ -29,11 +33,17 @@ describe('createContainerDetailLogViewStore', () => {
   it('derives immutable log responses from committed snapshots', () => {
     const store = createContainerDetailLogViewStore();
 
+    expect(store.hasSnapshot.value).toBe(false);
     store.commit(createSnapshot(['seed-1', 'seed-2']));
 
+    expect(store.hasSnapshot.value).toBe(true);
     expect(store.version.value).toBe(2);
-    expect(store.lines.value).toEqual(['seed-1', 'seed-2']);
-    expect(store.logs.value?.lines).toEqual(['seed-1', 'seed-2']);
+    expect(store.entries.value.map((entry) => entry.line)).toEqual(['seed-1', 'seed-2']);
+    expect(store.logs.value?.entries.map((entry) => entry.line)).toEqual(['seed-1', 'seed-2']);
+    expect(store.logs.value?.entries.map((entry) => entry.occurred_at)).toEqual([
+      '2026-06-26T03:00:00Z',
+      '2026-06-26T03:00:00Z',
+    ]);
     expect(store.truncated.value).toBe(false);
   });
 
@@ -50,9 +60,10 @@ describe('createContainerDetailLogViewStore', () => {
 
     store.reset();
 
+    expect(store.hasSnapshot.value).toBe(false);
     expect(store.version.value).toBe(0);
     expect(store.logs.value).toBeNull();
-    expect(store.lines.value).toEqual([]);
+    expect(store.entries.value).toEqual([]);
     expect(store.state.value.loading).toBe(false);
     expect(store.state.value.error).toBe('');
   });
@@ -67,13 +78,13 @@ describe('createContainerDetailLogViewStore', () => {
 
     expect(store.paused.value).toBe(true);
     expect(store.version.value).toBe(1);
-    expect(store.lines.value).toEqual(['seed-1']);
+    expect(store.entries.value.map((entry) => entry.line)).toEqual(['seed-1']);
 
     store.resume();
 
     expect(store.paused.value).toBe(false);
     expect(store.version.value).toBe(3);
-    expect(store.lines.value).toEqual(['seed-1', 'line-2', 'line-3']);
+    expect(store.entries.value.map((entry) => entry.line)).toEqual(['seed-1', 'line-2', 'line-3']);
   });
 
   it('keeps paused snapshots stable after newer commits arrive', () => {
@@ -86,8 +97,20 @@ describe('createContainerDetailLogViewStore', () => {
     const pending = createSnapshot(['seed-1', 'line-2']);
     store.commit(pending);
 
-    expect(store.lines.value).toEqual(['seed-1']);
-    expect(initial.lineView.toArray()).toEqual(['seed-1']);
-    expect(pending.lineView.toArray()).toEqual(['seed-1', 'line-2']);
+    expect(store.entries.value.map((entry) => entry.line)).toEqual(['seed-1']);
+    expect(initial.entryView.toArray().map((entry) => entry.line)).toEqual(['seed-1']);
+    expect(pending.entryView.toArray().map((entry) => entry.line)).toEqual(['seed-1', 'line-2']);
+  });
+
+  it('applies an empty clear snapshot immediately while paused', () => {
+    const store = createContainerDetailLogViewStore();
+
+    store.commit(createSnapshot(['seed-1', 'seed-2']));
+    store.pause();
+    store.commit(createSnapshot([]));
+
+    expect(store.paused.value).toBe(true);
+    expect(store.entries.value).toEqual([]);
+    expect(store.logs.value?.entries).toEqual([]);
   });
 });

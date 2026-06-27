@@ -24,49 +24,87 @@ import (
 	mobyclient "github.com/moby/moby/client"
 )
 
-func TestReadDockerLogLinesDoesNotReportExactTailAsTruncated(t *testing.T) {
+func TestReadDockerLogEntriesDoesNotReportExactTailAsTruncated(t *testing.T) {
 	t.Parallel()
 
-	lines, truncated, err := readDockerLogLines(dockerLogStream(t, "one\n", "two\n"), 2)
+	entries, truncated, err := readDockerLogEntries(context.Background(), dockerLogStream(t, "one\n", "two\n"), 2, false)
 	if err != nil {
-		t.Fatalf("read log lines: %v", err)
+		t.Fatalf("read log entries: %v", err)
 	}
 	if truncated {
 		t.Fatalf("expected exactly tail lines to avoid truncation")
 	}
-	if !reflect.DeepEqual(lines, []string{"one", "two"}) {
-		t.Fatalf("unexpected lines %#v", lines)
+	if len(entries) != 2 {
+		t.Fatalf("expected 2 entries, got %#v", entries)
+	}
+	for index, entry := range entries {
+		if entry.Line != []string{"one", "two"}[index] || entry.Stream != "stdout" || entry.OccurredAt.IsZero() {
+			t.Fatalf("unexpected entry %d %#v", index, entry)
+		}
 	}
 }
 
-func TestReadDockerLogLinesTruncatesOnlyAfterDiscardingLines(t *testing.T) {
+func TestReadDockerLogEntriesTruncatesOnlyAfterDiscardingLines(t *testing.T) {
 	t.Parallel()
 
-	lines, truncated, err := readDockerLogLines(dockerLogStream(t, "one\n", "two\n", "three\n"), 2)
+	entries, truncated, err := readDockerLogEntries(context.Background(), dockerLogStream(t, "one\n", "two\n", "three\n"), 2, false)
 	if err != nil {
-		t.Fatalf("read log lines: %v", err)
+		t.Fatalf("read log entries: %v", err)
 	}
 	if !truncated {
 		t.Fatalf("expected more than tail lines to report truncation")
 	}
-	if !reflect.DeepEqual(lines, []string{"two", "three"}) {
-		t.Fatalf("unexpected lines %#v", lines)
+	if len(entries) != 2 {
+		t.Fatalf("expected 2 entries, got %#v", entries)
+	}
+	for index, entry := range entries {
+		if entry.Line != []string{"two", "three"}[index] || entry.Stream != "stdout" || entry.OccurredAt.IsZero() {
+			t.Fatalf("unexpected entry %d %#v", index, entry)
+		}
 	}
 }
 
-func TestReadDockerLogLinesAvoidsUserSizedPreallocation(t *testing.T) {
+func TestReadDockerLogEntriesPreservesOrderAcrossMultipleRingWraps(t *testing.T) {
+	t.Parallel()
+
+	entries, truncated, err := readDockerLogEntries(
+		context.Background(),
+		dockerLogStream(t, "one\n", "two\n", "three\n", "four\n", "five\n"),
+		2,
+		false,
+	)
+	if err != nil {
+		t.Fatalf("read log entries: %v", err)
+	}
+	if !truncated {
+		t.Fatalf("expected truncation after retaining only the tail window")
+	}
+	if len(entries) != 2 {
+		t.Fatalf("expected 2 entries, got %#v", entries)
+	}
+	for index, entry := range entries {
+		if entry.Line != []string{"four", "five"}[index] || entry.Stream != "stdout" || entry.OccurredAt.IsZero() {
+			t.Fatalf("unexpected entry %d %#v", index, entry)
+		}
+	}
+}
+
+func TestReadDockerLogEntriesAvoidsUserSizedPreallocation(t *testing.T) {
 	t.Parallel()
 
 	const excessiveTail = int(^uint(0) >> 1)
-	lines, truncated, err := readDockerLogLines(dockerLogStream(t, "one\n"), excessiveTail)
+	entries, truncated, err := readDockerLogEntries(context.Background(), dockerLogStream(t, "one\n"), excessiveTail, false)
 	if err != nil {
-		t.Fatalf("read log lines: %v", err)
+		t.Fatalf("read log entries: %v", err)
 	}
 	if truncated {
 		t.Fatalf("expected one line to avoid truncation")
 	}
-	if !reflect.DeepEqual(lines, []string{"one"}) {
-		t.Fatalf("unexpected lines %#v", lines)
+	if len(entries) != 1 {
+		t.Fatalf("expected one entry, got %#v", entries)
+	}
+	if entries[0].Line != "one" || entries[0].Stream != "stdout" || entries[0].OccurredAt.IsZero() {
+		t.Fatalf("unexpected entry %#v", entries[0])
 	}
 }
 
@@ -95,6 +133,14 @@ func TestDockerRuntimeLogsAvoidsRuntimeInfoCall(t *testing.T) {
 	}
 	if logs.ID != "full-id" || logs.Name != "web" {
 		t.Fatalf("unexpected log metadata %#v", logs)
+	}
+	if len(logs.Entries) != 2 {
+		t.Fatalf("expected 2 log entries, got %#v", logs.Entries)
+	}
+	for index, entry := range logs.Entries {
+		if entry.Line != []string{"one", "two"}[index] || entry.Stream != "stdout" || entry.OccurredAt.IsZero() {
+			t.Fatalf("unexpected log entry %d %#v", index, entry)
+		}
 	}
 	if calls := client.infoCalls.Load(); calls != 0 {
 		t.Fatalf("expected logs to avoid Info calls, got %d", calls)
@@ -192,6 +238,75 @@ func TestDockerRuntimeStreamLogsPreservesCanonicalChunkMetadata(t *testing.T) {
 	}
 	if chunks[1].Stream != "stderr" || chunks[1].Line != "stderr line" || !chunks[1].Timestamp.Equal(stderrAt) {
 		t.Fatalf("unexpected stderr chunk %#v", chunks[1])
+	}
+}
+
+func TestReadDockerLogEntriesPreservesCanonicalEntryMetadata(t *testing.T) {
+	t.Parallel()
+
+	stdoutAt := time.Date(2026, 6, 26, 9, 30, 0, 123000000, time.UTC)
+	stderrAt := stdoutAt.Add(1500 * time.Millisecond)
+	entries, truncated, err := readDockerLogEntries(
+		context.Background(),
+		dockerLogReadCloserFrames(t,
+			dockerLogFrame{stream: stdcopy.Stdout, payload: []byte(stdoutAt.Format(time.RFC3339Nano) + " stdout line\n")},
+			dockerLogFrame{stream: stdcopy.Stderr, payload: []byte(stderrAt.Format(time.RFC3339Nano) + " stderr line\n")},
+		),
+		2,
+		true,
+	)
+	if err != nil {
+		t.Fatalf("read log entries: %v", err)
+	}
+	if truncated {
+		t.Fatalf("expected exact tail window to avoid truncation")
+	}
+	expected := []LogEntry{
+		{Line: "stdout line", Stream: "stdout", OccurredAt: stdoutAt},
+		{Line: "stderr line", Stream: "stderr", OccurredAt: stderrAt},
+	}
+	if !reflect.DeepEqual(entries, expected) {
+		t.Fatalf("unexpected entries %#v", entries)
+	}
+}
+
+func TestReadDockerLogEntriesFallsBackToServerReceiveTimeWhenChunkTimestampMissing(t *testing.T) {
+	t.Parallel()
+
+	before := time.Now().UTC()
+	entries, truncated, err := readDockerLogEntries(context.Background(), dockerLogStream(t, "one\n", "two\n"), 2, false)
+	after := time.Now().UTC()
+	if err != nil {
+		t.Fatalf("read log entries: %v", err)
+	}
+	if truncated {
+		t.Fatalf("expected exact tail window to avoid truncation")
+	}
+	if len(entries) != 2 {
+		t.Fatalf("expected 2 entries, got %#v", entries)
+	}
+	for index, entry := range entries {
+		if entry.OccurredAt.IsZero() {
+			t.Fatalf("expected fallback occurred_at for entry %d, got %#v", index, entry)
+		}
+		if entry.OccurredAt.Before(before) || entry.OccurredAt.After(after) {
+			t.Fatalf("expected fallback occurred_at within receive window, got %#v", entry)
+		}
+	}
+}
+
+func TestReadDockerLogEntriesPropagatesCallerContextCancellation(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, truncated, err := readDockerLogEntries(ctx, dockerLogStream(t, "one\n"), 1, false)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected context cancellation, got %v", err)
+	}
+	if truncated {
+		t.Fatalf("expected canceled read to avoid reporting truncation")
 	}
 }
 

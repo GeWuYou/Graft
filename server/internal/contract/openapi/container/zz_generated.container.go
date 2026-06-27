@@ -1162,6 +1162,24 @@ func (e GetContainer500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
+// Defines values for GetContainerLogs200JSONResponseBodyDataEntriesStream.
+const (
+	Stderr GetContainerLogs200JSONResponseBodyDataEntriesStream = "stderr"
+	Stdout GetContainerLogs200JSONResponseBodyDataEntriesStream = "stdout"
+)
+
+// Valid indicates whether the value is a known member of the GetContainerLogs200JSONResponseBodyDataEntriesStream enum.
+func (e GetContainerLogs200JSONResponseBodyDataEntriesStream) Valid() bool {
+	switch e {
+	case Stderr:
+		return true
+	case Stdout:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetContainerLogs400JSONResponseBodySuccess.
 const (
 	GetContainerLogs400JSONResponseBodySuccessFalse GetContainerLogs400JSONResponseBodySuccess = false
@@ -2461,7 +2479,7 @@ type GetContainerLogsParams struct {
 	// Since Optional log lower bound. Accepts an RFC3339 timestamp or a duration such as 10m, 1h, or 24h. Invalid values must return a localized validation error.
 	Since *string `form:"since,omitempty" json:"since,omitempty"`
 
-	// Timestamps Whether each returned log line should include the runtime-provided timestamp.
+	// Timestamps Whether the runtime should request per-entry timestamps so each returned log entry can preserve canonical occurrence time.
 	Timestamps *bool `form:"timestamps,omitempty" json:"timestamps,omitempty"`
 
 	// Stdout Whether stdout stream lines should be included.
@@ -2477,6 +2495,9 @@ type GetContainerLogsParams struct {
 	// through the response header and envelope traceId field.
 	XRequestId *string `json:"X-Request-Id,omitempty"`
 }
+
+// GetContainerLogs200JSONResponseBodyDataEntriesStream defines parameters for GetContainerLogs.
+type GetContainerLogs200JSONResponseBodyDataEntriesStream string
 
 // GetContainerLogs400JSONResponseBodySuccess defines parameters for GetContainerLogs.
 type GetContainerLogs400JSONResponseBodySuccess bool

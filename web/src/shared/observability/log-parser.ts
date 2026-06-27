@@ -1,3 +1,4 @@
+import type { LogStream, StructuredLogEntry } from './log-entry';
 import type { LogLevel, LogToken } from './log-highlight';
 import { detectLogLevel, getLogLevelTone, normalizeLogLevel, tokenizeLogLine } from './log-highlight';
 
@@ -29,6 +30,7 @@ export type ParsedLogLine = {
   level: LogLevel | null;
   source: string;
   sourceShort: string;
+  stream: LogStream;
   message: string;
   metadata: ParsedLogMetadata | null;
   raw: string;
@@ -117,37 +119,43 @@ export function parseContainerLogLine(rawLine: string): ParsedContainerLog {
 }
 
 /**
- * Parses a log line and extracts its level, message, metadata, and source.
+ * 解析结构化日志条目并提取其级别、消息、元数据和来源信息。
  *
- * @param raw - The raw log line text
- * @param lineNo - The line number in the source
- * @returns A parsed log line with extracted fields and computed tone
+ * @param entry - 待解析的结构化日志条目
+ * @param lineNo - 在源内容中的行号
+ * @returns 包含提取字段、显示信息和计算结果的解析日志行
  */
-export function parseLogLine(raw: string, lineNo: number): ParsedLogLine {
-  const parsed = parseContainerLogLine(raw);
+export function parseLogLine(entry: StructuredLogEntry, lineNo: number): ParsedLogLine {
+  const parsed = parseContainerLogLine(entry.line);
   const level = parsed.level ?? null;
+  const timestamp = entry.occurredAt || parsed.time || '';
 
   return {
     lineNo,
-    timestamp: parsed.time ?? '',
+    timestamp,
     level,
     source: parsed.source ?? '',
     sourceShort: shortenLogSource(parsed.source ?? ''),
+    stream: entry.stream,
     message: parsed.message || parsed.raw,
     metadata: hasFields(parsed.fields) ? parsed.fields : null,
-    raw: parsed.raw,
+    raw: entry.line,
     tone: getLogLevelTone(level),
-    parsed,
+    parsed: {
+      ...parsed,
+      raw: entry.line,
+      time: timestamp,
+    },
   };
 }
 
 /**
- * Parses multiple raw log lines into structured log objects.
+ * 将多个结构化日志条目解析为结构化日志行。
  *
- * @returns An array of parsed log lines.
+ * @returns 解析后的日志行数组。
  */
-export function parseLogLines(lines: string[]): ParsedLogLine[] {
-  return lines.map((line, index) => parseLogLine(line, index + 1));
+export function parseLogLines(entries: StructuredLogEntry[]): ParsedLogLine[] {
+  return entries.map((entry, index) => parseLogLine(entry, index + 1));
 }
 
 /**

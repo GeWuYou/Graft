@@ -3,9 +3,10 @@ get:
   summary: Read container logs
   operationId: getContainerLogs
   description: >
-    Returns bounded container log lines from stdout and stderr. The canonical realtime companion topic is
-    `container.logs:<id>`, which reuses the unified realtime subscription and WebSocket flow for incremental log
-    delivery after the initial HTTP snapshot.
+    Returns bounded structured container log entries from stdout and stderr. Each entry preserves canonical line,
+    stream, and occurrence time authority. The canonical realtime companion topic is `container.logs:<id>`, which
+    reuses the unified realtime subscription and WebSocket flow for incremental log delivery after the initial HTTP
+    snapshot.
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml

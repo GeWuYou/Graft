@@ -4,6 +4,8 @@ export { createLogDetailErrorReporter, createLogListErrorReporter } from './list
 export { openLogDetailRow, restartLogListQuery } from './list-interactions';
 export type { LogBatchBufferOptions } from './log-batch-buffer';
 export { LogBatchBuffer } from './log-batch-buffer';
+export type { LogStream, StructuredLogEntry } from './log-entry';
+export { normalizeStructuredLogEntry } from './log-entry';
 export type { LogRingBufferAppendResult, LogRingBufferView } from './log-ring-buffer';
 export { cloneLogRingBufferView, LogRingBuffer } from './log-ring-buffer';
 export { default as LogIdText } from './LogIdText.vue';
@@ -25,6 +27,12 @@ export {
   withSorterDirectionFromInput,
   withSorterFieldFromInput,
 } from './sorters';
+export type {
+  NormalizedStreamViewportStateResolverInput,
+  StreamViewportState,
+  StreamViewportStateResolverInput,
+} from './stream-viewport-state';
+export { resolveStreamViewportState } from './stream-viewport-state';
 export {
   formatLocaleDateOnly,
   formatLocaleDateTime,

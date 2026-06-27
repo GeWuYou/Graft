@@ -187,7 +187,7 @@ func (r *DockerRuntime) Logs(ctx context.Context, ref Ref, query LogQuery) (Logs
 		_ = reader.Close()
 	}()
 
-	lines, truncated, err := readDockerLogLines(reader, query.Tail)
+	entries, truncated, err := readDockerLogEntries(ctx, reader, query.Tail, query.Timestamps)
 	if err != nil {
 		return Logs{}, mapDockerError(err)
 	}
@@ -203,7 +203,7 @@ func (r *DockerRuntime) Logs(ctx context.Context, ref Ref, query LogQuery) (Logs
 		ID:         id,
 		Name:       name,
 		Runtime:    runtimeNameDocker,
-		Lines:      lines,
+		Entries:    entries,
 		Tail:       query.Tail,
 		Since:      query.Since,
 		Timestamps: query.Timestamps,
@@ -1287,6 +1287,8 @@ func mapSyscallDockerError(err error) error {
 	}
 }
 
+// mapDockerMessageError 根据错误消息中的关键片段映射容器运行时错误。
+// 如果消息匹配已知规则，返回对应错误；否则返回运行时守护进程不可用错误。
 func mapDockerMessageError(message string) error {
 	normalized := strings.ToLower(message)
 	for _, rule := range dockerErrorMessageRules {
@@ -1297,41 +1299,66 @@ func mapDockerMessageError(message string) error {
 	return errRuntimeDaemonUnavailable
 }
 
-// readDockerLogLines 读取并截取容器日志行。
+// readDockerLogEntries 使用调用方上下文读取并截取容器日志条目。
 //
-// 返回按时间顺序排列的日志行，以及是否因尾部截断而丢弃了更早的内容。
-// 当读取或扫描日志失败时返回错误。
-func readDockerLogLines(reader io.Reader, tail int) ([]string, bool, error) {
-	var output bytes.Buffer
-	if _, err := stdcopy.StdCopy(&output, &output, reader); err != nil {
-		return nil, false, err
+// 返回按时间顺序排列的结构化日志条目，以及是否因尾部截断而丢弃了更早的内容。
+// readDockerLogEntries 读取 Docker 日志并将其转换为日志条目，按指定尾部条数保留最近的记录。
+// 读取过程中发生错误时返回错误，并指示结果是否被截断。
+func readDockerLogEntries(ctx context.Context, reader io.Reader, tail int, timestamps bool) ([]LogEntry, bool, error) {
+	if ctx == nil {
+		ctx = context.Background()
 	}
 	limit := tail
 	if limit > defaultContainerLogsMaxTail {
 		limit = defaultContainerLogsMaxTail
 	}
-	scanner := bufio.NewScanner(&output)
-	scanner.Buffer(make([]byte, 0, dockerLogScannerInitSize), dockerLogScannerMaxSize)
-	lines := make([]string, 0)
 	truncated := false
-	for scanner.Scan() {
-		line := scanner.Text()
-		if limit <= 0 {
+	if limit <= 0 {
+		err := streamDockerLogLines(ctx, reader, timestamps, func(_ LogChunk) error {
 			truncated = true
-			continue
+			return nil
+		})
+		if err != nil {
+			return nil, false, err
 		}
-		if len(lines) == limit {
-			truncated = true
-			copy(lines, lines[1:])
-			lines[limit-1] = line
-			continue
-		}
-		lines = append(lines, line)
+		return nil, truncated, nil
 	}
-	if err := scanner.Err(); err != nil {
+
+	var buffer []LogEntry
+	head := 0
+	err := streamDockerLogLines(ctx, reader, timestamps, func(chunk LogChunk) error {
+		entry := logEntryFromChunk(chunk)
+		if len(buffer) < limit {
+			buffer = append(buffer, entry)
+			return nil
+		}
+		truncated = true
+		buffer[head] = entry
+		head = (head + 1) % limit
+		return nil
+	})
+	if err != nil {
 		return nil, false, err
 	}
-	return lines, truncated, nil
+	return materializeBoundedLogEntries(buffer, len(buffer), limit, head), truncated, nil
+}
+
+func materializeBoundedLogEntries(buffer []LogEntry, count int, limit int, head int) []LogEntry {
+	if count == 0 {
+		return nil
+	}
+	if count < limit {
+		entries := make([]LogEntry, count)
+		copy(entries, buffer[:count])
+		return entries
+	}
+
+	entries := make([]LogEntry, limit)
+	// Reconstruct the full ring so callers still receive oldest-to-newest order.
+	for index := range entries {
+		entries[index] = buffer[(head+index)%limit]
+	}
+	return entries
 }
 
 // 当上下文取消、回调返回错误或读取过程发生错误时返回相应错误。
@@ -1406,6 +1433,20 @@ func (e *dockerLogChunkEmitter) emitChunk(stream string, line string) error {
 		return err
 	}
 	return nil
+}
+
+// logEntryFromChunk 将日志块转换为日志条目，并将发生时间规范为 UTC；
+// 当时间为空时，使用当前 UTC 时间。
+func logEntryFromChunk(chunk LogChunk) LogEntry {
+	occurredAt := chunk.Timestamp.UTC()
+	if occurredAt.IsZero() {
+		occurredAt = time.Now().UTC()
+	}
+	return LogEntry{
+		Line:       chunk.Line,
+		Stream:     strings.TrimSpace(chunk.Stream),
+		OccurredAt: occurredAt,
+	}
 }
 
 func (e *dockerLogChunkEmitter) flush() error {

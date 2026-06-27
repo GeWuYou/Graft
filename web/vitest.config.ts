@@ -21,6 +21,16 @@ export default mergeConfig(
       },
     ],
     test: {
+      reporters: [
+        'default',
+        [
+          '@d2t/vitest-ctrf-json-reporter',
+          {
+            outputDir: '.tmp/test-results',
+            outputFile: 'ctrf-report.json',
+          },
+        ],
+      ],
       passWithNoTests: true,
       coverage: {
         provider: 'v8',

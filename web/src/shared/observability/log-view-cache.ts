@@ -1,3 +1,4 @@
+import type { StructuredLogEntry } from './log-entry';
 import type { LogLevel } from './log-highlight';
 import { buildDisplayLogLine, type DisplayLogLine, type ParsedLogLine, parseLogLine } from './log-parser';
 
@@ -5,6 +6,10 @@ type LevelFilter = 'ALL' | LogLevel;
 
 type CachedParsedLogLine = Omit<ParsedLogLine, 'lineNo'>;
 type CachedSearchPayload = Pick<DisplayLogLine, 'messageTokens' | 'rawTokens' | 'searchMatchCount'>;
+type CachedLineMaterialization = Readonly<{
+  cacheKey: string;
+  parsedLine: ParsedLogLine;
+}>;
 
 export type LogViewResult = Readonly<{
   displayLines: DisplayLogLine[];
@@ -12,34 +17,34 @@ export type LogViewResult = Readonly<{
 }>;
 
 export class LogViewCache {
-  readonly #parsedByRaw = new Map<string, CachedParsedLogLine>();
-  readonly #searchByRaw = new Map<string, CachedSearchPayload>();
+  readonly #parsedByKey = new Map<string, CachedParsedLogLine>();
+  readonly #searchByKey = new Map<string, CachedSearchPayload>();
   #activeKeyword = '';
 
   buildView(options: {
-    lines: readonly string[];
+    entries: readonly StructuredLogEntry[];
     lineLimit: number;
     level: LevelFilter;
     keyword: string;
   }): LogViewResult {
-    const visibleLines = selectVisibleLines(options.lines, options.lineLimit);
-    const visibleRawSet = new Set(visibleLines);
+    const visibleEntries = selectVisibleEntries(options.entries, options.lineLimit);
+    const visibleKeySet = new Set(visibleEntries.map(buildEntryCacheKey));
 
-    this.#pruneParsedCache(visibleRawSet);
+    this.#pruneParsedCache(visibleKeySet);
     this.#resetSearchCacheForKeyword(options.keyword);
-    this.#pruneSearchCache(visibleRawSet);
+    this.#pruneSearchCache(visibleKeySet);
 
-    const lineNoOffset = options.lines.length - visibleLines.length;
+    const lineNoOffset = options.entries.length - visibleEntries.length;
     const displayLines: DisplayLogLine[] = [];
     let matchCount = 0;
 
-    visibleLines.forEach((raw, index) => {
-      const parsedLine = this.#materializeParsedLine(raw, lineNoOffset + index + 1);
+    visibleEntries.forEach((entry, index) => {
+      const { cacheKey, parsedLine } = this.#materializeParsedLine(entry, lineNoOffset + index + 1);
       if (options.level !== 'ALL' && parsedLine.level !== options.level) {
         return;
       }
 
-      const searchPayload = this.#resolveSearchPayload(parsedLine, options.keyword);
+      const searchPayload = this.#resolveSearchPayload(parsedLine, cacheKey, options.keyword);
       matchCount += searchPayload.searchMatchCount;
       displayLines.push({
         ...parsedLine,
@@ -53,25 +58,29 @@ export class LogViewCache {
     };
   }
 
-  #materializeParsedLine(raw: string, lineNo: number): ParsedLogLine {
-    const cached = this.#parsedByRaw.get(raw) ?? this.#cacheParsedLine(raw);
+  #materializeParsedLine(entry: StructuredLogEntry, lineNo: number): CachedLineMaterialization {
+    const cacheKey = buildEntryCacheKey(entry);
+    const cached = this.#parsedByKey.get(cacheKey) ?? this.#cacheParsedLine(entry, cacheKey);
     return {
-      ...cached,
-      lineNo,
+      cacheKey,
+      parsedLine: {
+        ...cached,
+        lineNo,
+      },
     };
   }
 
-  #cacheParsedLine(raw: string) {
-    const parsedLine = parseLogLine(raw, 0);
+  #cacheParsedLine(entry: StructuredLogEntry, cacheKey: string) {
+    const parsedLine = parseLogLine(entry, 0);
     const cached: CachedParsedLogLine = {
       ...parsedLine,
     };
-    this.#parsedByRaw.set(raw, cached);
+    this.#parsedByKey.set(cacheKey, cached);
     return cached;
   }
 
-  #resolveSearchPayload(line: ParsedLogLine, keyword: string) {
-    const cached = this.#searchByRaw.get(line.raw);
+  #resolveSearchPayload(line: ParsedLogLine, cacheKey: string, keyword: string) {
+    const cached = this.#searchByKey.get(cacheKey);
     if (cached) {
       return cached;
     }
@@ -82,7 +91,7 @@ export class LogViewCache {
       rawTokens: next.rawTokens,
       searchMatchCount: next.searchMatchCount,
     };
-    this.#searchByRaw.set(line.raw, payload);
+    this.#searchByKey.set(cacheKey, payload);
     return payload;
   }
 
@@ -92,37 +101,47 @@ export class LogViewCache {
     }
 
     this.#activeKeyword = keyword;
-    this.#searchByRaw.clear();
+    this.#searchByKey.clear();
   }
 
-  #pruneParsedCache(visibleRawSet: ReadonlySet<string>) {
-    for (const raw of this.#parsedByRaw.keys()) {
-      if (!visibleRawSet.has(raw)) {
-        this.#parsedByRaw.delete(raw);
+  #pruneParsedCache(visibleKeySet: ReadonlySet<string>) {
+    for (const key of this.#parsedByKey.keys()) {
+      if (!visibleKeySet.has(key)) {
+        this.#parsedByKey.delete(key);
       }
     }
   }
 
-  #pruneSearchCache(visibleRawSet: ReadonlySet<string>) {
-    for (const raw of this.#searchByRaw.keys()) {
-      if (!visibleRawSet.has(raw)) {
-        this.#searchByRaw.delete(raw);
+  #pruneSearchCache(visibleKeySet: ReadonlySet<string>) {
+    for (const key of this.#searchByKey.keys()) {
+      if (!visibleKeySet.has(key)) {
+        this.#searchByKey.delete(key);
       }
     }
   }
 }
 
 /**
- * 选取可见的日志行。
+ * 选取末尾的可见日志条目。
  *
- * @param lines - 原始日志行列表
- * @param lineLimit - 可见行数量上限
- * @returns 最多包含末尾 `lineLimit` 条日志行的数组；当 `lineLimit` 小于或等于 `0` 时返回空数组
+ * @param entries - 日志条目列表
+ * @param lineLimit - 可见条目数量上限
+ * @returns 最多包含末尾 `lineLimit` 条日志条目的数组；当 `lineLimit` 小于或等于 `0` 时返回空数组
  */
-function selectVisibleLines(lines: readonly string[], lineLimit: number) {
+function selectVisibleEntries(entries: readonly StructuredLogEntry[], lineLimit: number) {
   if (lineLimit <= 0) {
-    return [] as readonly string[];
+    return [] as readonly StructuredLogEntry[];
   }
 
-  return lines.slice(-lineLimit);
+  return entries.slice(-lineLimit);
+}
+
+/**
+ * 生成日志条目的稳定缓存键。
+ *
+ * @param entry - 要生成缓存键的结构化日志条目
+ * @returns 由 `occurredAt`、`stream` 和 `line` 组成的字符串缓存键
+ */
+function buildEntryCacheKey(entry: StructuredLogEntry) {
+  return `${entry.occurredAt}\u0000${entry.stream}\u0000${entry.line}`;
 }

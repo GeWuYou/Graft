@@ -1053,6 +1053,24 @@ func (e ContainerHealthcheckStatus) Valid() bool {
 	}
 }
 
+// Defines values for ContainerLogEntryStream.
+const (
+	Stderr ContainerLogEntryStream = "stderr"
+	Stdout ContainerLogEntryStream = "stdout"
+)
+
+// Valid indicates whether the value is a known member of the ContainerLogEntryStream enum.
+func (e ContainerLogEntryStream) Valid() bool {
+	switch e {
+	case Stderr:
+		return true
+	case Stdout:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ContainerMountUsageStatus.
 const (
 	ContainerMountUsageStatusError            ContainerMountUsageStatus = "error"
@@ -3788,11 +3806,26 @@ type ContainerListSummary struct {
 	Unhealthy         int `json:"unhealthy"`
 }
 
+// ContainerLogEntry defines model for container-log-entry.
+type ContainerLogEntry struct {
+	// Line Canonical container log line content after runtime framing is removed.
+	Line string `json:"line"`
+
+	// OccurredAt Canonical UTC occurrence time for the log entry.
+	OccurredAt time.Time `json:"occurred_at"`
+
+	// Stream Canonical runtime stream that produced the log entry.
+	Stream ContainerLogEntryStream `json:"stream"`
+}
+
+// ContainerLogEntryStream Canonical runtime stream that produced the log entry.
+type ContainerLogEntryStream string
+
 // ContainerLogResponse defines model for container-log-response.
 type ContainerLogResponse struct {
-	Id    string   `json:"id"`
-	Lines []string `json:"lines"`
-	Name  *string  `json:"name,omitempty"`
+	Entries []ContainerLogEntry `json:"entries"`
+	Id      string              `json:"id"`
+	Name    *string             `json:"name,omitempty"`
 
 	// Runtime Container runtime adapter key.
 	Runtime string `json:"runtime"`
@@ -7191,7 +7224,7 @@ type GetContainerLogsParams struct {
 	// Since Optional log lower bound. Accepts an RFC3339 timestamp or a duration such as 10m, 1h, or 24h. Invalid values must return a localized validation error.
 	Since *ContainerLogsSince `form:"since,omitempty" json:"since,omitempty"`
 
-	// Timestamps Whether each returned log line should include the runtime-provided timestamp.
+	// Timestamps Whether the runtime should request per-entry timestamps so each returned log entry can preserve canonical occurrence time.
 	Timestamps *ContainerLogsTimestamps `form:"timestamps,omitempty" json:"timestamps,omitempty"`
 
 	// Stdout Whether stdout stream lines should be included.
