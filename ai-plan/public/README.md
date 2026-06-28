@@ -17,6 +17,8 @@ Overlay note:
 
 - `compose-project-management`
   - Recovery entry: `ai-plan/public/compose-project-management/README.md`
+- `design-ia-governance`
+  - Recovery entry: `ai-plan/public/design-ia-governance/README.md`
 - `rbac-feature-and-nplusone-hardening`
   - Recovery entry: `ai-plan/public/rbac-feature-and-nplusone-hardening/README.md`
 - `rbac-further-development`
