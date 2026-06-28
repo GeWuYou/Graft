@@ -16,5 +16,5 @@ This directory is for repository-wide structural design truth.
 
 ## Current Scope Note
 
-The target directory exists now so later batches can move baseline architecture documents here without changing their
-authority. Until those migrations land, some architecture documents still live at `ai-plan/design/`.
+The baseline architecture authorities now live in this directory. Keep new repository-wide structural design documents
+here instead of restoring them to the `ai-plan/design/` root.

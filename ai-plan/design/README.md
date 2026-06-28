@@ -28,8 +28,7 @@ for phased implementation sequencing, and use `ai-plan/public/<topic>/` for topi
 - Put content in `ai-plan/public/<topic>/design/` only when the note is specific to one active topic and should not yet
   become repository-wide authority.
 
-## Migration Note
+## Current State
 
-The target IA is being introduced in phases. After Batch 4, repository-wide design authorities now route through the
-child directories and the `ai-plan/design/` root remains a router-only entry. Batch 5 is reserved for archive, naming,
-and governance-sync closeout rather than additional root-level design-document moves.
+The Phase 1 IA migration is complete. Repository-wide design authorities now route through the child directories and
+the `ai-plan/design/` root remains a router-only entry.
