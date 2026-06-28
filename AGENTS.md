@@ -30,42 +30,42 @@ Before changing code or structure, read the relevant documents in `ai-plan/`.
 
 Authoritative repository documents:
 
-- [ai-plan/design/项目设计.md](ai-plan/design/项目设计.md)
-- [ai-plan/design/模块与依赖注入设计.md](ai-plan/design/模块与依赖注入设计.md)
-- [ai-plan/design/前端架构设计.md](ai-plan/design/前端架构设计.md)
-- [ai-plan/design/契约治理与魔法值治理规范.md](ai-plan/design/契约治理与魔法值治理规范.md) when the task changes
+- [ai-plan/design/architecture/项目设计.md](ai-plan/design/architecture/项目设计.md)
+- [ai-plan/design/architecture/模块与依赖注入设计.md](ai-plan/design/architecture/模块与依赖注入设计.md)
+- [ai-plan/design/architecture/前端架构设计.md](ai-plan/design/architecture/前端架构设计.md)
+- [ai-plan/design/governance/platform/契约治理与魔法值治理规范.md](ai-plan/design/governance/platform/契约治理与魔法值治理规范.md) when the task changes
   typed contracts, magic-value governance, contract lifecycle, ownership, compatibility, drift handling, or shared
   `server` / `web` semantics
-- [ai-plan/design/代码注释与模块文档规范.md](ai-plan/design/代码注释与模块文档规范.md) when the task changes
+- [ai-plan/design/governance/ai/代码注释与模块文档规范.md](ai-plan/design/governance/ai/代码注释与模块文档规范.md) when the task changes
   code comments, package docs, module README rules, or AI documentation behavior
-- [ai-plan/design/TDesign-MCP-辅助开发规范.md](ai-plan/design/TDesign-MCP-辅助开发规范.md) when the task changes
+- [ai-plan/design/governance/frontend/TDesign-MCP-辅助开发规范.md](ai-plan/design/governance/frontend/TDesign-MCP-辅助开发规范.md) when the task changes
   TDesign Vue Next pages, components, styles, or frontend AI-assisted development workflow
-- [ai-plan/design/CodeGraph-MCP-辅助开发规范.md](ai-plan/design/CodeGraph-MCP-辅助开发规范.md) when the task changes
+- [ai-plan/design/governance/ai/CodeGraph-MCP-辅助开发规范.md](ai-plan/design/governance/ai/CodeGraph-MCP-辅助开发规范.md) when the task changes
   CodeGraph MCP setup, repository code-navigation assistance, local code index handling, or AI-assisted discovery
   workflow
-- [ai-plan/design/AI工具与MCP接入治理规范.md](ai-plan/design/AI工具与MCP接入治理规范.md) when the task changes
+- [ai-plan/design/governance/ai/AI工具与MCP接入治理规范.md](ai-plan/design/governance/ai/AI工具与MCP接入治理规范.md) when the task changes
   AI tooling, MCP adoption, repository skills, Python helper scripts, or AI governance drift checks
 - [ai-plan/roadmap/MVP实施计划.md](ai-plan/roadmap/MVP实施计划.md)
-- [ai-plan/design/AI任务追踪与恢复设计.md](ai-plan/design/AI任务追踪与恢复设计.md) when the task changes
+- [ai-plan/design/governance/ai/AI任务追踪与恢复设计.md](ai-plan/design/governance/ai/AI任务追踪与恢复设计.md) when the task changes
   tracking, recovery, or documentation-governance rules
 - [ai-plan/design/通知中心设计.md](ai-plan/design/通知中心设计.md) when the task changes Notification Center
   sources, delivery semantics, notification configuration, notification routes, or shell notification UI behavior
-- [ai-plan/design/数据库表设计与迁移规范.md](ai-plan/design/数据库表设计与迁移规范.md) when the task changes
+- [ai-plan/design/governance/backend/数据库表设计与迁移规范.md](ai-plan/design/governance/backend/数据库表设计与迁移规范.md) when the task changes
   database table design, Ent schema, Atlas migration, audit fields, soft delete semantics, indexes, store query
   semantics, or database table / column comments
-- [ai-plan/design/后端查询与数据库访问治理规范.md](ai-plan/design/后端查询与数据库访问治理规范.md) when the task changes
+- [ai-plan/design/governance/backend/后端查询与数据库访问治理规范.md](ai-plan/design/governance/backend/后端查询与数据库访问治理规范.md) when the task changes
   backend query shape, pagination, count strategy, SQL field selection, query timeout, batch writes, repository query
   cost, or Explain evidence expectations
-- [ai-plan/design/服务端API边界与兼容治理规范.md](ai-plan/design/服务端API边界与兼容治理规范.md) when the task changes
+- [ai-plan/design/governance/backend/服务端API边界与兼容治理规范.md](ai-plan/design/governance/backend/服务端API边界与兼容治理规范.md) when the task changes
   server HTTP request/response boundaries, Entity/DTO/VO separation, OpenAPI authority, backward compatibility, or
   API deprecation policy
-- [ai-plan/design/后端安全与信任边界治理规范.md](ai-plan/design/后端安全与信任边界治理规范.md) when the task changes
+- [ai-plan/design/governance/backend/后端安全与信任边界治理规范.md](ai-plan/design/governance/backend/后端安全与信任边界治理规范.md) when the task changes
   backend authorization, audit requirements, dangerous operation protection, actor/resource trust boundaries, or
   frontend/backend security responsibility split
-- [ai-plan/design/后端测试与可维护性治理规范.md](ai-plan/design/后端测试与可维护性治理规范.md) when the task changes
+- [ai-plan/design/governance/backend/后端测试与可维护性治理规范.md](ai-plan/design/governance/backend/后端测试与可维护性治理规范.md) when the task changes
   backend test minimums, regression strategy, query-count regression, public API comments, service responsibility
   notes, magic-number governance, or complexity guardrails
-- [ai-plan/design/AI代码生成与Review规范.md](ai-plan/design/AI代码生成与Review规范.md) when the task changes
+- [ai-plan/design/governance/ai/AI代码生成与Review规范.md](ai-plan/design/governance/ai/AI代码生成与Review规范.md) when the task changes
   agent-generated code scope, multi-agent review workflow, closeout evidence, opportunistic fixes, or AI coding
   guardrails
 
@@ -117,7 +117,7 @@ Before choosing runtimes, package managers, or CLI tools:
 - prefer repository-relevant installed tools over assumptions about what is available on the system
 - follow .ai/environment/ for repository toolchain preferences instead of guessing from the current shell alone
 - when using CodeGraph MCP as an AI navigation aid, follow
-  [ai-plan/design/CodeGraph-MCP-辅助开发规范.md](ai-plan/design/CodeGraph-MCP-辅助开发规范.md); CodeGraph is a
+  [ai-plan/design/governance/ai/CodeGraph-MCP-辅助开发规范.md](ai-plan/design/governance/ai/CodeGraph-MCP-辅助开发规范.md); CodeGraph is a
   developer-local knowledge source, not a repository runtime, CI, hook, or package dependency
 - if a change affects repository toolchain expectations or environment guidance, refresh the `.ai/environment/`
   inventory in the same change instead of leaving generated environment truth stale
@@ -954,9 +954,9 @@ rules.
 High-level documentation rules:
 
 - `server` code follows the detailed comment and GoDoc requirements in `server/AGENTS.md` and
-  `ai-plan/design/代码注释与模块文档规范.md`
+  `ai-plan/design/governance/ai/代码注释与模块文档规范.md`
 - `web` code follows the detailed frontend comment requirements in `web/AGENTS.md` and
-  `ai-plan/design/代码注释与模块文档规范.md`
+  `ai-plan/design/governance/ai/代码注释与模块文档规范.md`
 - architecture, lifecycle, compatibility, and ownership comments take priority over mechanical restatement
 - module-level `README.md` files are navigation documents, not replacements for `ai-plan/design/`
 
@@ -1002,7 +1002,7 @@ A task is done only when all relevant items below are satisfied:
 - `server` and `web` boundaries are still clear
 - new module work keeps the `menu + route + page + api + permission` path explicit
 - any new or changed high-risk contract follows the canonical ownership, lifecycle, and compatibility rules in
-  `ai-plan/design/契约治理与魔法值治理规范.md`
+  `ai-plan/design/governance/platform/契约治理与魔法值治理规范.md`
 - any introduced compatibility branch records why direct authority repair was not completed in the same slice
 - affected code has the required comments and documentation
 - affected code follows the applicable subdomain execution-truth document

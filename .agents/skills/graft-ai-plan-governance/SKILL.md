@@ -16,8 +16,8 @@ validation, commit, closeout, or runtime authority.
 2. Read `ai-plan/AGENTS.md`.
 3. Read `.ai/environment/tools.ai.yaml`.
 4. Read `ai-plan/README.md`.
-5. Read `ai-plan/design/AI任务追踪与恢复设计.md`.
-6. Read `ai-plan/design/AI工具与MCP接入治理规范.md`.
+5. Read `ai-plan/design/governance/ai/AI任务追踪与恢复设计.md`.
+6. Read `ai-plan/design/governance/ai/AI工具与MCP接入治理规范.md`.
 7. Read `ai-plan/public/README.md` after startup preflight.
 8. Read the touched topic's `README.md`, `startup-prompt.md`, tracking, and trace files.
 9. If the same slice also changes `.agents/skills/**` or `scripts/**`, pair this skill with `graft-ai-governance-audit`.
@@ -94,7 +94,7 @@ python3 scripts/validate_ai_governance.py
 ```
 
 when the slice touches `.agents/skills/**`, `scripts/**`, or
-`ai-plan/design/AI工具与MCP接入治理规范.md`.
+`ai-plan/design/governance/ai/AI工具与MCP接入治理规范.md`.
 
 Run:
 

@@ -29,8 +29,8 @@
 - `ai-plan/public/README.md`
 - `ai-plan/public/archive/observability-development-governance/README.md`
 - `ai-plan/design/日志治理开发规范.md`
-- `ai-plan/design/契约治理与魔法值治理规范.md`
-- `ai-plan/design/AI任务追踪与恢复设计.md`
+- `ai-plan/design/governance/platform/契约治理与魔法值治理规范.md`
+- `ai-plan/design/governance/ai/AI任务追踪与恢复设计.md`
 
 ## Scope
 

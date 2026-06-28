@@ -168,7 +168,7 @@
 
 ## 2026-05-15 signals evaluation documentation
 
-- Updated `ai-plan/design/前端架构设计.md` to lock `Pinia` as the only formal shared state layer and to constrain
+- Updated `ai-plan/design/architecture/前端架构设计.md` to lock `Pinia` as the only formal shared state layer and to constrain
   any future `signals` exploration to a document-first, `setting/theme`-only boundary.
 - Added `ai-plan/public/mvp-extension-path/subtopics/web/design/signals-theme-runtime-evaluation.md` to capture the
   evidence review, the current no-go conclusion, the forbidden domains, and the future admission/exit criteria for a

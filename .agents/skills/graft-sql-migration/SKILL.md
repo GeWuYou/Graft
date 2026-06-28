@@ -8,7 +8,7 @@ description: Repository-specific workflow for creating or modifying Graft live A
 Use this skill whenever a task creates or modifies migration SQL in `Graft`.
 
 This skill owns SQL comment and migration validation workflow details. It does not replace root `AGENTS.md`,
-`server/AGENTS.md`, `ai-plan/design/数据库表设计与迁移规范.md`, `graft-table-design`, Ent generation, Atlas migration
+`server/AGENTS.md`, `ai-plan/design/governance/backend/数据库表设计与迁移规范.md`, `graft-table-design`, Ent generation, Atlas migration
 generation, or backend validation.
 
 ## Trigger
@@ -28,7 +28,7 @@ Use this skill when the task touches any of:
 
 1. Complete the startup preflight from root `AGENTS.md`.
 2. Read `server/AGENTS.md`.
-3. Read `ai-plan/design/数据库表设计与迁移规范.md`.
+3. Read `ai-plan/design/governance/backend/数据库表设计与迁移规范.md`.
 4. Read the current module's related migration files.
 5. If the task also requires table design decisions, use `graft-table-design` first.
 

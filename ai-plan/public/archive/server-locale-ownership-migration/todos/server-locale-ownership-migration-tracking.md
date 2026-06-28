@@ -12,10 +12,10 @@ Server Locale Ownership Migration
 
 - `AGENTS.md`
 - `server/AGENTS.md`
-- `ai-plan/design/本地化与i18n治理规范.md`
-- `ai-plan/design/服务端Locale资源归属与迁移设计.md`
-- `ai-plan/design/模块与依赖注入设计.md`
-- `ai-plan/design/契约治理与魔法值治理规范.md`
+- `ai-plan/design/governance/platform/本地化与i18n治理规范.md`
+- `ai-plan/design/governance/platform/服务端Locale资源归属与迁移设计.md`
+- `ai-plan/design/architecture/模块与依赖注入设计.md`
+- `ai-plan/design/governance/platform/契约治理与魔法值治理规范.md`
 - `.agents/skills/graft-localization-governance/SKILL.md`
 - `.agents/skills/graft-multi-agent-loop/SKILL.md`
 

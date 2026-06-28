@@ -10,8 +10,8 @@ Round context:
   - `ai-plan/AGENTS.md`
   - `ai-plan/README.md`
 - design authority：
-  - `ai-plan/design/AI任务追踪与恢复设计.md`
-  - `ai-plan/design/AI工具与MCP接入治理规范.md`
+  - `ai-plan/design/governance/ai/AI任务追踪与恢复设计.md`
+  - `ai-plan/design/governance/ai/AI工具与MCP接入治理规范.md`
   - `ai-plan/design/decisions/ADR-001-ai-plan-authority-and-metadata-model.md`
   - `ai-plan/design/decisions/ADR-002-ai-plan-lifecycle-and-archive-model.md`
 - AI skills：

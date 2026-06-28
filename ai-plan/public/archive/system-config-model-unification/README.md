@@ -7,7 +7,7 @@
 - Goal: promote the System Config information architecture, object/scalar boundary, field renderer baseline, and phased
   optimization route into repository design truth.
 - Primary design authority:
-  - `ai-plan/design/系统配置模型与渲染设计.md`
+  - `ai-plan/design/governance/platform/系统配置模型与渲染设计.md`
 - Loop mode: `topic-completion-loop`.
 - Completed commits:
   - `1cec4212` - Phase 1 UI consistency

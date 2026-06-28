@@ -7,8 +7,8 @@ manager 接入方式、布局模型、资源状态语义和异常容器信息层
 
 - `ai-plan/design/容器管理设计.md`
 - `ai-plan/design/容器资源状态与订阅治理设计.md`
-- `ai-plan/design/服务端API边界与兼容治理规范.md`
-- `ai-plan/design/前端架构设计.md`
+- `ai-plan/design/governance/backend/服务端API边界与兼容治理规范.md`
+- `ai-plan/design/architecture/前端架构设计.md`
 
 ## 1. 背景与问题
 

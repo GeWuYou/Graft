@@ -221,11 +221,11 @@
   - `graft serve` + `/healthz`
 - `graft validate smoke` 已经作为下一次最小闭环验证入口存在；本次文档同步没有新增运行时校验。
 - 本次默认管理员/首次改密 server 跟踪同步一致性检查：
-  - `rg -n "graft-admin|must_change_password|change-password|全局.*拦截|受限态" ai-plan/design/项目设计.md server/plugins/user/README.md ai-plan/public/mvp-extension-path/subtopics/server`
-  - `git diff -- server/plugins/user/README.md ai-plan/public/mvp-extension-path/subtopics/server ai-plan/design/项目设计.md`
+  - `rg -n "graft-admin|must_change_password|change-password|全局.*拦截|受限态" ai-plan/design/architecture/项目设计.md server/plugins/user/README.md ai-plan/public/mvp-extension-path/subtopics/server`
+  - `git diff -- server/plugins/user/README.md ai-plan/public/mvp-extension-path/subtopics/server ai-plan/design/architecture/项目设计.md`
 - 本次 backend lint 治理文档切片一致性检查：
-  - `rg -n "golangci-lint|graft validate backend|controlled exception|revive|stylecheck" AGENTS.md README.md ai-plan/design/项目设计.md ai-plan/design/代码注释与模块文档规范.md ai-plan/public/mvp-extension-path/todos/mvp-extension-path-tracking.md ai-plan/public/mvp-extension-path/subtopics/server/todos/server-tracking.md`
-  - `git diff -- AGENTS.md README.md ai-plan/design/项目设计.md ai-plan/design/代码注释与模块文档规范.md ai-plan/public/mvp-extension-path/todos/mvp-extension-path-tracking.md ai-plan/public/mvp-extension-path/subtopics/server/todos/server-tracking.md`
+  - `rg -n "golangci-lint|graft validate backend|controlled exception|revive|stylecheck" AGENTS.md README.md ai-plan/design/architecture/项目设计.md ai-plan/design/governance/ai/代码注释与模块文档规范.md ai-plan/public/mvp-extension-path/todos/mvp-extension-path-tracking.md ai-plan/public/mvp-extension-path/subtopics/server/todos/server-tracking.md`
+  - `git diff -- AGENTS.md README.md ai-plan/design/architecture/项目设计.md ai-plan/design/governance/ai/代码注释与模块文档规范.md ai-plan/public/mvp-extension-path/todos/mvp-extension-path-tracking.md ai-plan/public/mvp-extension-path/subtopics/server/todos/server-tracking.md`
 - 本次 `AGENTS.md` Go 治理章节扩展一致性检查：
   - `rg -n "Go 代码组织与命名规范|Context 规范|API 与 DTO 规范|Runtime Wiring 与依赖注入规范|安全与鉴权规范|AI 生成代码约束" AGENTS.md`
   - `git diff -- AGENTS.md ai-plan/public/mvp-extension-path/subtopics/server/todos/server-tracking.md ai-plan/public/mvp-extension-path/subtopics/server/traces/server-trace.md`

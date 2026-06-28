@@ -69,8 +69,8 @@
   - `ai-plan/public/archive/backend-rbac-contract-audit/README.md`
   - `ai-plan/public/archive/backend-rbac-contract-audit/todos/backend-rbac-contract-audit-tracking.md`
   - `ai-plan/public/archive/backend-rbac-contract-audit/traces/backend-rbac-contract-audit-trace.md`
-  - `ai-plan/design/契约治理与魔法值治理规范.md`
-  - `ai-plan/design/AI任务追踪与恢复设计.md`
+  - `ai-plan/design/governance/platform/契约治理与魔法值治理规范.md`
+  - `ai-plan/design/governance/ai/AI任务追踪与恢复设计.md`
 - Confirmed the worktree was clean before Batch 1 writes.
 - Audited the owned backend RBAC contract and guard surfaces in detail:
   - `server/plugins/rbac/contract/permission.go`
@@ -118,11 +118,11 @@
   - `ai-plan/public/archive/backend-rbac-contract-audit/README.md`
   - `ai-plan/public/archive/backend-rbac-contract-audit/todos/backend-rbac-contract-audit-tracking.md`
   - `ai-plan/public/archive/backend-rbac-contract-audit/traces/backend-rbac-contract-audit-trace.md`
-  - `ai-plan/design/契约治理与魔法值治理规范.md`
-  - `ai-plan/design/AI任务追踪与恢复设计.md`
-  - `ai-plan/design/前端架构设计.md`
-  - `ai-plan/design/前端视觉设计规范.md`
-  - `ai-plan/design/TDesign-MCP-辅助开发规范.md`
+  - `ai-plan/design/governance/platform/契约治理与魔法值治理规范.md`
+  - `ai-plan/design/governance/ai/AI任务追踪与恢复设计.md`
+  - `ai-plan/design/architecture/前端架构设计.md`
+  - `ai-plan/design/governance/frontend/前端视觉设计规范.md`
+  - `ai-plan/design/governance/frontend/TDesign-MCP-辅助开发规范.md`
 - Confirmed the worktree was clean before Batch 2 writes.
 - Audited the owned frontend permission and route surfaces in detail:
   - `web/src/modules/rbac/contract/permissions.ts`
@@ -183,8 +183,8 @@
   - `ai-plan/public/archive/backend-rbac-contract-audit/README.md`
   - `ai-plan/public/archive/backend-rbac-contract-audit/todos/backend-rbac-contract-audit-tracking.md`
   - `ai-plan/public/archive/backend-rbac-contract-audit/traces/backend-rbac-contract-audit-trace.md`
-  - `ai-plan/design/契约治理与魔法值治理规范.md`
-  - `ai-plan/design/AI任务追踪与恢复设计.md`
+  - `ai-plan/design/governance/platform/契约治理与魔法值治理规范.md`
+  - `ai-plan/design/governance/ai/AI任务追踪与恢复设计.md`
 - Confirmed the worktree was clean before Batch 3 writes.
 - Re-verified the backend-to-frontend closure surfaces instead of assuming Batch 1 and Batch 2 conclusions:
   - `server/plugins/rbac/contract/permission.go`
@@ -245,8 +245,8 @@
   - `ai-plan/public/archive/backend-rbac-contract-audit/README.md`
   - `ai-plan/public/archive/backend-rbac-contract-audit/todos/backend-rbac-contract-audit-tracking.md`
   - `ai-plan/public/archive/backend-rbac-contract-audit/traces/backend-rbac-contract-audit-trace.md`
-  - `ai-plan/design/契约治理与魔法值治理规范.md`
-  - `ai-plan/design/AI任务追踪与恢复设计.md`
+  - `ai-plan/design/governance/platform/契约治理与魔法值治理规范.md`
+  - `ai-plan/design/governance/ai/AI任务追踪与恢复设计.md`
 - Confirmed the worktree was clean before Batch 4 archive writes.
 - Reused accepted evidence from prior completed batches:
   - Batch 1 backend permission/menu/API/guard audit

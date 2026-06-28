@@ -17,8 +17,8 @@ Treat root `AGENTS.md` as startup truth. This skill does not define a second val
    - server-only i18n work: `server/AGENTS.md`
    - web-only locale work: `web/AGENTS.md`
    - shared keys, menu, permissions, routes, OpenAPI, or schema metadata: both files
-3. Read `ai-plan/design/本地化与i18n治理规范.md`.
-4. Read `ai-plan/design/契约治理与魔法值治理规范.md` when adding or changing stable keys.
+3. Read `ai-plan/design/governance/platform/本地化与i18n治理规范.md`.
+4. Read `ai-plan/design/governance/platform/契约治理与魔法值治理规范.md` when adding or changing stable keys.
 5. Read `ai-plan/public/localization-governance/README.md` when continuing the localization migration topic.
 6. Read `ai-plan/public/server-locale-ownership-migration/README.md` when the task is specifically about server locale physical ownership, owner-local embedded resources, or the final drift audit for that migration.
 

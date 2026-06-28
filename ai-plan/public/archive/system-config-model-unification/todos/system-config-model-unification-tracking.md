@@ -17,7 +17,7 @@ Convert the System Config exploration and planning discussion into durable repos
 
 ## Authority Discovery
 
-- Design truth owner: `ai-plan/design/系统配置模型与渲染设计.md`.
+- Design truth owner: `ai-plan/design/governance/platform/系统配置模型与渲染设计.md`.
 - Runtime definition authority: module-owned `ConfigDefinition` and `config_schema`.
 - Override persistence authority: `server/modules/system-config`.
 - Wire contract authority: OpenAPI source under `openapi/**`.

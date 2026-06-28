@@ -2,7 +2,7 @@
 
 ## 2026-06-18 Phase 0 governance persistence
 
-- 建立本地化长期设计 authority：`ai-plan/design/本地化与i18n治理规范.md`。
+- 建立本地化长期设计 authority：`ai-plan/design/governance/platform/本地化与i18n治理规范.md`。
 - 建立 public recovery topic：`ai-plan/public/localization-governance/README.md`。
 - 建立任务追踪：`ai-plan/public/localization-governance/todos/localization-governance-tracking.md`。
 - 建立 trace：`ai-plan/public/localization-governance/traces/localization-governance-trace.md`。

@@ -16,9 +16,9 @@ Container Resource Stats Manager Foundation
 - `web/AGENTS.md`
 - `ai-plan/design/容器管理设计.md`
 - `ai-plan/design/容器资源状态与订阅治理设计.md`
-- `ai-plan/design/服务端API边界与兼容治理规范.md`
-- `ai-plan/design/前端架构设计.md`
-- `ai-plan/design/契约治理与魔法值治理规范.md`
+- `ai-plan/design/governance/backend/服务端API边界与兼容治理规范.md`
+- `ai-plan/design/architecture/前端架构设计.md`
+- `ai-plan/design/governance/platform/契约治理与魔法值治理规范.md`
 
 ## Current Recovery Point
 

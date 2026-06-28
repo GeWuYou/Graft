@@ -18,9 +18,9 @@ workflow; it does not replace repository startup, validation, closeout, or commi
    runtime contracts.
 3. Read:
    - `.ai/environment/tools.ai.yaml`
-   - `ai-plan/design/AI工具与MCP接入治理规范.md`
-   - `ai-plan/design/CodeGraph-MCP-辅助开发规范.md` when CodeGraph is involved
-   - `ai-plan/design/TDesign-MCP-辅助开发规范.md` when TDesign or frontend component generation is involved
+   - `ai-plan/design/governance/ai/AI工具与MCP接入治理规范.md`
+   - `ai-plan/design/governance/ai/CodeGraph-MCP-辅助开发规范.md` when CodeGraph is involved
+   - `ai-plan/design/governance/frontend/TDesign-MCP-辅助开发规范.md` when TDesign or frontend component generation is involved
 4. Inspect concurrent work before edits:
    - `git status --short`
    - keep ownership limited to AI governance docs, `.agents/skills/**` governance files, and `scripts/**` audit helpers

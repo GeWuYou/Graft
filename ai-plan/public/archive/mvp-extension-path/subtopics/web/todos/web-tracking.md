@@ -103,7 +103,7 @@
   - `git status --short --branch`
   - `git tag --list`
   - `git worktree list --porcelain`
-- 本次文档同步通过 `rg`、`sed` 与 `git diff -- ai-plan/design/前端架构设计.md ai-plan/public/mvp-extension-path/subtopics/web` 进行一致性检查。
+- 本次文档同步通过 `rg`、`sed` 与 `git diff -- ai-plan/design/architecture/前端架构设计.md ai-plan/public/mvp-extension-path/subtopics/web` 进行一致性检查。
 - 本次登录页控制台报错修复预期直接校验：
   - `cd web && bun run typecheck`
   - `cd web && bun run build`
@@ -120,11 +120,11 @@
 - 本次 PR #10 review follow-up 实际直接校验：
   - `cd web && bun run check`
 - 本次默认管理员/首次改密 web 跟踪同步一致性检查：
-  - `rg -n "graft-admin|must_change_password|change-password|受限态|bootstrap" ai-plan/design/项目设计.md server/plugins/user/README.md ai-plan/public/mvp-extension-path/subtopics/web`
-  - `git diff -- ai-plan/public/mvp-extension-path/subtopics/web ai-plan/design/项目设计.md server/plugins/user/README.md`
+  - `rg -n "graft-admin|must_change_password|change-password|受限态|bootstrap" ai-plan/design/architecture/项目设计.md server/plugins/user/README.md ai-plan/public/mvp-extension-path/subtopics/web`
+  - `git diff -- ai-plan/public/mvp-extension-path/subtopics/web ai-plan/design/architecture/项目设计.md server/plugins/user/README.md`
 - 本次 docs/automation 治理收口同步一致性检查：
-  - `rg -n "starter|运行基线|bun run check|host Windows Bun|第二真值|execution-layer" ai-plan/design/前端架构设计.md README.md .agents/skills/graft-validation-runner/SKILL.md .github/workflows/pull-request-validation.yml .ai/environment/README.md ai-plan/public/mvp-extension-path/subtopics/web/todos/web-tracking.md`
-  - `git diff -- ai-plan/design/前端架构设计.md README.md .agents/skills/graft-validation-runner/SKILL.md .github/workflows/pull-request-validation.yml .ai/environment/README.md ai-plan/public/mvp-extension-path/subtopics/web/todos/web-tracking.md`
+  - `rg -n "starter|运行基线|bun run check|host Windows Bun|第二真值|execution-layer" ai-plan/design/architecture/前端架构设计.md README.md .agents/skills/graft-validation-runner/SKILL.md .github/workflows/pull-request-validation.yml .ai/environment/README.md ai-plan/public/mvp-extension-path/subtopics/web/todos/web-tracking.md`
+  - `git diff -- ai-plan/design/architecture/前端架构设计.md README.md .agents/skills/graft-validation-runner/SKILL.md .github/workflows/pull-request-validation.yml .ai/environment/README.md ai-plan/public/mvp-extension-path/subtopics/web/todos/web-tracking.md`
 - 本次 web 主运行面收口预期直接校验：
   - `rg -n "dashboard/base|vite-plugin-mock|permission-fe|tabs-router" web/src web/package.json web/vite.config.ts`
   - `cd web && bun run typecheck`

@@ -10,7 +10,7 @@
   - `ai-plan/public/README.md`
   - `ai-plan/public/rbac-further-development/traces/rbac-further-development-trace.md`
   - `ai-plan/public/rbac-further-development/todos/rbac-further-development-tracking.md`
-  - `ai-plan/design/AI任务追踪与恢复设计.md`
+  - `ai-plan/design/governance/ai/AI任务追踪与恢复设计.md`
 - Confirmed the recovery index still listed no active topic even though the active implementation line had shifted to an RBAC visibility-governance direction on branch `feat/wt-rbac-further-development`.
 - Opened `rbac-visibility-governance` as the new active topic for this worktree and branch pair.
 - Recorded explicit guardrails for the topic:

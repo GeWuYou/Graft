@@ -78,7 +78,7 @@ startup-governance source.
 - When a task changes `ai-plan/**`, read `ai-plan/AGENTS.md` after root `AGENTS.md`.
 - After that startup preflight, prefer `$graft-ai-plan-governance` for `ai-plan/**` governance slices; pair
   `$graft-ai-governance-audit` only when the same change also touches repo-local skills, scripts, or
-  `ai-plan/design/AI工具与MCP接入治理规范.md`.
+  `ai-plan/design/governance/ai/AI工具与MCP接入治理规范.md`.
 - Let `ai-plan/AGENTS.md` act as the router for choosing `design/`, `roadmap/`, `public/`, `public/archive/`,
   `lessons/`, or `templates/`; this README stays descriptive rather than becoming a second governance source.
 - If `catalog.json` exists, treat it as a bounded machine index only. `public/README.md` and topic-local recovery files

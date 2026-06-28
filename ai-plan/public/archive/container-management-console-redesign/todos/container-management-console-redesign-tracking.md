@@ -15,10 +15,10 @@ experience, then close backend/OpenAPI fields, controlled operations, validation
 - `server/AGENTS.md`
 - `web/AGENTS.md`
 - `ai-plan/design/容器管理设计.md`
-- `ai-plan/design/分页列表页统一规范与收敛计划.md`
-- `ai-plan/design/契约治理与魔法值治理规范.md`
-- `ai-plan/design/系统配置模型与渲染设计.md`
-- `ai-plan/design/TDesign-MCP-辅助开发规范.md`
+- `ai-plan/design/governance/frontend/分页列表页统一规范与收敛计划.md`
+- `ai-plan/design/governance/platform/契约治理与魔法值治理规范.md`
+- `ai-plan/design/governance/platform/系统配置模型与渲染设计.md`
+- `ai-plan/design/governance/frontend/TDesign-MCP-辅助开发规范.md`
 - `web/docs/frontend-i18n-guidelines.md`
 - `web/docs/frontend-log-page-guidelines.md`
 

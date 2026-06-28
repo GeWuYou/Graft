@@ -11,7 +11,7 @@
   - archived `ai-plan/public/archive/logging-governance/**`
   - archived `ai-plan/public/archive/request-correlation-access-logging/**`
   - `temp/logging-governance-assessment.md`
-  - `ai-plan/design/契约治理与魔法值治理规范.md`
+  - `ai-plan/design/governance/platform/契约治理与魔法值治理规范.md`
 - Renamed the worktree branch from `feat/request-correlation-access-logging` to
   `feat/logging-unification-rollout`.
 - Reconfirmed current authority and bounded gaps:

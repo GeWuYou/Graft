@@ -10,8 +10,8 @@
   - `AGENTS.md`
   - `ai-plan/AGENTS.md`
   - `ai-plan/README.md`
-  - `ai-plan/design/AI任务追踪与恢复设计.md`
-  - `ai-plan/design/AI工具与MCP接入治理规范.md`
+  - `ai-plan/design/governance/ai/AI任务追踪与恢复设计.md`
+  - `ai-plan/design/governance/ai/AI工具与MCP接入治理规范.md`
   - `ai-plan/design/decisions/ADR-001-ai-plan-authority-and-metadata-model.md`
   - `ai-plan/design/decisions/ADR-002-ai-plan-lifecycle-and-archive-model.md`
 
@@ -62,6 +62,7 @@
 - Phase 1 Batch 1：design inventory、分类矩阵、目标目录骨架与 README 责任模型
 - Phase 1 Batch 2：建立 `ai-plan/design` 目标目录与各目录 README
 - Phase 1 Batch 3：迁移 architecture / governance / release / design-system 等低耦合文档
+- Phase 1 Batch 3b：同步 shared-asset registry 中被移动 design authority 的路径
 - Phase 1 Batch 4：迁移 domain-oriented 文档并处理交叉引用
 - Phase 1 Batch 5：archive / naming / README / catalog / validator / skill sync closeout
 
@@ -84,11 +85,19 @@
   - `architecture/`、`governance/**`、`domains/**` 目标目录已建立
   - `decisions/` 与 `release/` 已补齐 README 路由
   - 本轮未批量迁移 existing design docs，保留后续分批移动空间
-- 当前下一步：执行 Batch 3，开始迁移低耦合 design 文档并按新目录修复最小引用。
+- Batch 3 已完成：
+  - architecture / governance 下的低耦合 design authority 已迁入目标目录
+  - 根层 canonical design path 引用已在 governance docs、active / archived recovery materials、skills 与 validator 中完成最小修复
+  - `compose-project-management` recovery docs 已同步新 canonical 路径，保持可启动
+- Batch 3b 已完成：
+  - `.ai/registries/cross-boundary-assets.yaml` 中的旧 design authority path 已同步到 `ai-plan/design/governance/**`
+  - `scripts/plugin_residual/allowlist.json`、`ai-plan/lessons/**` 与列出的 `server/internal/**/README.md` 已补齐同批次遗留引用
+  - `python3 scripts/validate_ai_governance.py` 与 `python3 scripts/validate_ai_plan_structure.py` 已恢复通过
+- 当前下一步：执行 Batch 4，迁移 domain-oriented design docs 并收敛剩余交叉引用。
 
 ## Pending Batch Direction
 
-- `phase-1-batch-3-migrate-low-coupling-design-docs`
+- `phase-1-batch-4-migrate-domain-design-docs-and-fix-references`
 
 ## Validation Targets
 
@@ -99,7 +108,7 @@ git diff --check
 python3 scripts/validate_ai_plan_structure.py
 ```
 
-如触及 `.agents/skills/**`、`scripts/**` 或 `ai-plan/design/AI工具与MCP接入治理规范.md`，再追加：
+如触及 `.agents/skills/**`、`scripts/**` 或 `ai-plan/design/governance/ai/AI工具与MCP接入治理规范.md`，再追加：
 
 ```bash
 python3 scripts/validate_ai_governance.py

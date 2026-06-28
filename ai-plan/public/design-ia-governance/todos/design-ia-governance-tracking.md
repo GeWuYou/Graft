@@ -14,8 +14,8 @@ Design IA Governance
 - `AGENTS.md`
 - `ai-plan/AGENTS.md`
 - `ai-plan/README.md`
-- `ai-plan/design/AI任务追踪与恢复设计.md`
-- `ai-plan/design/AI工具与MCP接入治理规范.md`
+- `ai-plan/design/governance/ai/AI任务追踪与恢复设计.md`
+- `ai-plan/design/governance/ai/AI工具与MCP接入治理规范.md`
 - `ai-plan/design/decisions/ADR-001-ai-plan-authority-and-metadata-model.md`
 - `ai-plan/design/decisions/ADR-002-ai-plan-lifecycle-and-archive-model.md`
 - `.agents/skills/graft-ai-plan-governance/SKILL.md`
@@ -46,15 +46,23 @@ Design IA Governance
   - 一级/二级 README skeleton 已落地为 router，而不是重复设计正文
   - `decisions/`、`release/` 目录已补齐 README
   - 本批次未移动 existing design docs，保持后续低耦合迁移批次边界清晰
+- Batch 3 已完成：
+  - 低耦合 architecture / governance 设计文档已迁入 `architecture/` 与 `governance/**`
+  - 根层 canonical path 消费方已在最小必要范围内同步，包括 active / archived recovery、repo skills、plugin skill 与 AI governance validator
+  - `compose-project-management` recovery docs 已同步新 authority 路径，保持 startability
+- Batch 3b 已完成：
+  - shared-asset registry 中被 Batch 3 移动的 design authority path 已同步
+  - `scripts/plugin_residual/allowlist.json`、`ai-plan/lessons/**` 与列出的 `server/internal/**/README.md` 已修复同批次遗留旧路径
+  - `python3 scripts/validate_ai_governance.py` 与 `python3 scripts/validate_ai_plan_structure.py` 已恢复通过
 - 当前下一步：
-  - 在 Batch 3 中迁移低耦合 design 文档
-  - 保持 `compose-project-management` recovery state 不变
+  - 进入 Batch 4 迁移 domain / cross-cutting design 文档与剩余交叉引用
 
 ## Task Checklist
 
 - [x] phase-1-batch-1：design inventory、分类矩阵、目标目录骨架、README 责任模型
 - [x] phase-1-batch-2：建立 design 目标目录与 README
-- [ ] phase-1-batch-3：迁移低耦合 design 文档
+- [x] phase-1-batch-3：迁移低耦合 design 文档
+- [x] phase-1-batch-3b：同步 shared-asset registry path
 - [ ] phase-1-batch-4：迁移 domain / cross-cutting design 文档并修复引用
 - [ ] phase-1-batch-5：archive / naming / governance sync closeout
 
@@ -73,15 +81,16 @@ Design IA Governance
   "loop_mode": "topic-completion-loop",
   "completed_batches": [
     "phase-1-batch-1-design-inventory-and-target-ia-skeleton",
-    "phase-1-batch-2-create-target-design-directories-and-readmes"
+    "phase-1-batch-2-create-target-design-directories-and-readmes",
+    "phase-1-batch-3-migrate-low-coupling-design-docs",
+    "phase-1-batch-3b-sync-shared-asset-registry-paths"
   ],
   "pending_batches": [
-    "phase-1-batch-3-migrate-low-coupling-design-docs",
     "phase-1-batch-4-migrate-domain-design-docs-and-fix-references",
     "phase-1-batch-5-design-archive-naming-and-governance-sync-closeout"
   ],
-  "current_batch": "phase-1-batch-2-create-target-design-directories-and-readmes",
-  "next_batch": "phase-1-batch-3-migrate-low-coupling-design-docs",
-  "closeout_status": "batch-2-complete"
+  "current_batch": "phase-1-batch-3b-sync-shared-asset-registry-paths",
+  "next_batch": "phase-1-batch-4-migrate-domain-design-docs-and-fix-references",
+  "closeout_status": "batch-3b-complete"
 }
 ```

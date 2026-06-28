@@ -69,6 +69,80 @@
   - 迁移 low-coupling design docs 到 `architecture/`、`governance/`、`release/` 等目标目录
   - 在最小范围内修复引用，不扩大到 domain-heavy 文档迁移
 
+## 2026-06-28 Batch 3 completed: low-coupling design-doc migration and path repair
+
+- 使用 `git mv` 迁移低耦合 canonical design docs：
+  - `architecture/`：
+    - `项目设计.md`
+    - `模块与依赖注入设计.md`
+    - `前端架构设计.md`
+  - `governance/ai/`：
+    - `AI任务追踪与恢复设计.md`
+    - `AI工具与MCP接入治理规范.md`
+    - `AI代码生成与Review规范.md`
+    - `代码注释与模块文档规范.md`
+    - `CodeGraph-MCP-辅助开发规范.md`
+  - `governance/backend/`：
+    - `后端安全与信任边界治理规范.md`
+    - `后端查询与数据库访问治理规范.md`
+    - `后端测试与可维护性治理规范.md`
+    - `服务端API边界与兼容治理规范.md`
+    - `数据库表设计与迁移规范.md`
+  - `governance/frontend/`：
+    - `前端视觉设计规范.md`
+    - `分页列表页统一规范与收敛计划.md`
+    - `TDesign-MCP-辅助开发规范.md`
+  - `governance/platform/`：
+    - `共享资产复用治理规范.md`
+    - `本地化与i18n治理规范.md`
+    - `服务端Locale资源归属与迁移设计.md`
+    - `系统配置模型与渲染设计.md`
+    - `缓存治理与系统配置读取加速规范.md`
+    - `契约治理与魔法值治理规范.md`
+- 在最小必要范围内修复 repository path 引用：
+  - root / subdomain governance docs
+  - `ai-plan/public/**` active 与 archive recovery materials
+  - `.agents/skills/**` 与 `plugins/graft-frontend-vibe-toolchain/skills/**`
+  - `scripts/validate_ai_governance.py`
+- `compose-project-management` recovery docs 已同步新 canonical 设计路径，保持 startability。
+- 验证结果显示一个额外 authority owner：
+  - `.ai/registries/cross-boundary-assets.yaml` 仍保留旧 design authority path
+  - 该 path drift 会导致 `python3 scripts/validate_ai_governance.py` 失败
+  - 因该 registry 不在当前 batch 继承 owned scope 内，本轮不越界修复，改为新增一个最小 follow-up batch
+- 本批次未移动 domain-heavy docs：
+  - `通知中心设计.md`
+  - `公告中心设计.md`
+  - 容器 / compose / access-log / 日志治理文档
+- 下一批方向：
+  - 先同步 shared-asset registry path
+  - 再迁移 domain-oriented design docs 并收敛剩余 cross-reference repair
+
+## 2026-06-28 Batch 3b completed: shared-asset registry path sync
+
+- 修复 `.ai/registries/cross-boundary-assets.yaml` 中三处 stale low-coupling design authority path：
+  - `graft-shared-asset-reuse-skill` example 指向 `ai-plan/design/governance/platform/共享资产复用治理规范.md`
+  - `cache-governance-design` canonical path 指向 `ai-plan/design/governance/platform/缓存治理与系统配置读取加速规范.md`
+  - `graft-cache-governance-skill` example 指向 `ai-plan/design/governance/platform/缓存治理与系统配置读取加速规范.md`
+- 同步 `scripts/plugin_residual/allowlist.json` 中已迁移 low-coupling design truth 的 allowlist path：
+  - `项目设计.md`
+  - `模块与依赖注入设计.md`
+  - `契约治理与魔法值治理规范.md`
+- 修复同批次遗留的下游文档引用：
+  - `ai-plan/lessons/governance.md`
+  - `ai-plan/lessons/index.md`
+  - `ai-plan/lessons/web-ui.md`
+  - `server/internal/app/README.md`
+  - `server/internal/store/README.md`
+  - `server/internal/module/README.md`
+  - `server/internal/container/README.md`
+  - `server/internal/eventbus/README.md`
+- 验证恢复通过：
+  - `git diff --check`
+  - `python3 scripts/validate_ai_governance.py`
+  - `python3 scripts/validate_ai_plan_structure.py`
+- 下一批方向：
+  - 进入 Batch 4，迁移 domain-oriented design docs 并收敛剩余 cross-reference repair
+
 ## Loop Batch State
 
 ```json
@@ -76,15 +150,16 @@
   "loop_mode": "topic-completion-loop",
   "completed_batches": [
     "phase-1-batch-1-design-inventory-and-target-ia-skeleton",
-    "phase-1-batch-2-create-target-design-directories-and-readmes"
+    "phase-1-batch-2-create-target-design-directories-and-readmes",
+    "phase-1-batch-3-migrate-low-coupling-design-docs",
+    "phase-1-batch-3b-sync-shared-asset-registry-paths"
   ],
   "pending_batches": [
-    "phase-1-batch-3-migrate-low-coupling-design-docs",
     "phase-1-batch-4-migrate-domain-design-docs-and-fix-references",
     "phase-1-batch-5-design-archive-naming-and-governance-sync-closeout"
   ],
-  "current_batch": "phase-1-batch-2-create-target-design-directories-and-readmes",
-  "next_batch": "phase-1-batch-3-migrate-low-coupling-design-docs",
-  "closeout_status": "batch-2-complete"
+  "current_batch": "phase-1-batch-3b-sync-shared-asset-registry-paths",
+  "next_batch": "phase-1-batch-4-migrate-domain-design-docs-and-fix-references",
+  "closeout_status": "batch-3b-complete"
 }
 ```

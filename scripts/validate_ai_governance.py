@@ -15,9 +15,9 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SKILLS_DIR = REPO_ROOT / ".agents" / "skills"
-AI_TOOLING_DOC = REPO_ROOT / "ai-plan" / "design" / "AI工具与MCP接入治理规范.md"
-CODEGRAPH_DOC = REPO_ROOT / "ai-plan" / "design" / "CodeGraph-MCP-辅助开发规范.md"
-TDESIGN_DOC = REPO_ROOT / "ai-plan" / "design" / "TDesign-MCP-辅助开发规范.md"
+AI_TOOLING_DOC = REPO_ROOT / "ai-plan" / "design" / "governance" / "ai" / "AI工具与MCP接入治理规范.md"
+CODEGRAPH_DOC = REPO_ROOT / "ai-plan" / "design" / "governance" / "ai" / "CodeGraph-MCP-辅助开发规范.md"
+TDESIGN_DOC = REPO_ROOT / "ai-plan" / "design" / "governance" / "frontend" / "TDesign-MCP-辅助开发规范.md"
 TOOLS_AI = REPO_ROOT / ".ai" / "environment" / "tools.ai.yaml"
 GITIGNORE = REPO_ROOT / ".gitignore"
 AGENTS = REPO_ROOT / "AGENTS.md"
@@ -32,13 +32,13 @@ PUSH_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-push" / "SKILL.md"
 TABLE_DESIGN_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-table-design" / "SKILL.md"
 SQL_MIGRATION_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-sql-migration" / "SKILL.md"
 SHARED_ASSET_REUSE_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-shared-asset-reuse" / "SKILL.md"
-SHARED_ASSET_DOC = REPO_ROOT / "ai-plan" / "design" / "共享资产复用治理规范.md"
+SHARED_ASSET_DOC = REPO_ROOT / "ai-plan" / "design" / "governance" / "platform" / "共享资产复用治理规范.md"
 SHARED_ASSET_VALIDATOR = REPO_ROOT / "scripts" / "validate_shared_asset_registries.py"
-BACKEND_QUERY_DOC = REPO_ROOT / "ai-plan" / "design" / "后端查询与数据库访问治理规范.md"
-SERVER_API_GOVERNANCE_DOC = REPO_ROOT / "ai-plan" / "design" / "服务端API边界与兼容治理规范.md"
-BACKEND_SECURITY_DOC = REPO_ROOT / "ai-plan" / "design" / "后端安全与信任边界治理规范.md"
-BACKEND_TEST_MAINTAIN_DOC = REPO_ROOT / "ai-plan" / "design" / "后端测试与可维护性治理规范.md"
-AI_CODE_REVIEW_DOC = REPO_ROOT / "ai-plan" / "design" / "AI代码生成与Review规范.md"
+BACKEND_QUERY_DOC = REPO_ROOT / "ai-plan" / "design" / "governance" / "backend" / "后端查询与数据库访问治理规范.md"
+SERVER_API_GOVERNANCE_DOC = REPO_ROOT / "ai-plan" / "design" / "governance" / "backend" / "服务端API边界与兼容治理规范.md"
+BACKEND_SECURITY_DOC = REPO_ROOT / "ai-plan" / "design" / "governance" / "backend" / "后端安全与信任边界治理规范.md"
+BACKEND_TEST_MAINTAIN_DOC = REPO_ROOT / "ai-plan" / "design" / "governance" / "backend" / "后端测试与可维护性治理规范.md"
+AI_CODE_REVIEW_DOC = REPO_ROOT / "ai-plan" / "design" / "governance" / "ai" / "AI代码生成与Review规范.md"
 SERVER_AGENTS = REPO_ROOT / "server" / "AGENTS.md"
 
 FRONTMATTER_RE = re.compile(r"\A---\n(?P<body>.*?)\n---\n", re.DOTALL)
@@ -423,8 +423,8 @@ def validate_ai_plan_governance_skill() -> list[Finding]:
         "`ai-plan/AGENTS.md`",
         "`ai-plan/README.md`",
         "`ai-plan/public/README.md`",
-        "`ai-plan/design/AI任务追踪与恢复设计.md`",
-        "`ai-plan/design/AI工具与MCP接入治理规范.md`",
+        "`ai-plan/design/governance/ai/AI任务追踪与恢复设计.md`",
+        "`ai-plan/design/governance/ai/AI工具与MCP接入治理规范.md`",
         "python3 scripts/validate_ai_plan_structure.py",
         "python3 scripts/validate_ai_governance.py",
         "compose-project-management",

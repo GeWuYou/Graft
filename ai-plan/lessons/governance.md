@@ -43,7 +43,7 @@
   - AGENTS.md: no
   - Design doc: no
 - Related:
-  - `ai-plan/design/契约治理与魔法值治理规范.md`
+  - `ai-plan/design/governance/platform/契约治理与魔法值治理规范.md`
   - `server/internal/scheduler/config_schema.go`
   - `server/internal/configregistry/definition.go`
   - `web/scripts/check-i18n-governance.ts`

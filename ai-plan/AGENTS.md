@@ -6,7 +6,7 @@ repository-level startup-governance, validation, commit, and closeout authority.
 After root startup preflight, prefer `graft-ai-plan-governance` when a `docs/automation` task changes `ai-plan`
 router documents, active-topic recovery materials, templates, catalog coverage, or bounded `ai-plan` validators.
 Pair `graft-ai-governance-audit` only when the same slice also changes `.agents/skills/**`, `scripts/**`, or
-`ai-plan/design/AI工具与MCP接入治理规范.md`.
+`ai-plan/design/governance/ai/AI工具与MCP接入治理规范.md`.
 
 ## 1. Scope
 

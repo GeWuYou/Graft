@@ -34,7 +34,7 @@ Hard order：
 - archived `ai-plan/public/archive/logging-unification-rollout/**`
 - archived `ai-plan/public/archive/plugin-audit-correlation-governance/**`
 - `ai-plan/design/日志治理开发规范.md`
-- `ai-plan/design/契约治理与魔法值治理规范.md`
+- `ai-plan/design/governance/platform/契约治理与魔法值治理规范.md`
 
 ## Scope
 

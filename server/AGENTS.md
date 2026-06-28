@@ -39,27 +39,27 @@ authority-first overlay：
 后端任务至少以这些材料为真相来源：
 
 - 根 `AGENTS.md`
-- `ai-plan/design/项目设计.md`
-- `ai-plan/design/模块与依赖注入设计.md`
+- `ai-plan/design/architecture/项目设计.md`
+- `ai-plan/design/architecture/模块与依赖注入设计.md`
 
 按任务类型追加读取：
 
-- 改动稳定契约、魔法值、shared semantics 时，读 `ai-plan/design/契约治理与魔法值治理规范.md`
-- 新增、移动、重命名或删除可复用后端 / 跨模块资产时，读 `ai-plan/design/共享资产复用治理规范.md`，并按
+- 改动稳定契约、魔法值、shared semantics 时，读 `ai-plan/design/governance/platform/契约治理与魔法值治理规范.md`
+- 新增、移动、重命名或删除可复用后端 / 跨模块资产时，读 `ai-plan/design/governance/platform/共享资产复用治理规范.md`，并按
   `.agents/skills/graft-shared-asset-reuse/SKILL.md` 执行 Shared Asset Reuse Preflight
-- 改动注释、包文档、模块 README 或 AI 文档行为时，读 `ai-plan/design/代码注释与模块文档规范.md`
+- 改动注释、包文档、模块 README 或 AI 文档行为时，读 `ai-plan/design/governance/ai/代码注释与模块文档规范.md`
 - 改动数据库表设计、Ent schema、migration、审计字段、软删除、索引、store query 语义或数据库注释时，读
-  `ai-plan/design/数据库表设计与迁移规范.md`
+  `ai-plan/design/governance/backend/数据库表设计与迁移规范.md`
 - 改动查询形状、分页、Count 策略、原始 SQL、查询超时、大字段读取、批量写入、Explain 证据或 repository 查询成本时，读
-  `ai-plan/design/后端查询与数据库访问治理规范.md`
+  `ai-plan/design/governance/backend/后端查询与数据库访问治理规范.md`
 - 改动 HTTP request / response、DTO / VO / Entity 边界、OpenAPI authority、兼容策略或弃用路径时，读
-  `ai-plan/design/服务端API边界与兼容治理规范.md`
+  `ai-plan/design/governance/backend/服务端API边界与兼容治理规范.md`
 - 改动权限校验、信任边界、危险操作保护、审计要求或前后端安全职责分界时，读
-  `ai-plan/design/后端安全与信任边界治理规范.md`
+  `ai-plan/design/governance/backend/后端安全与信任边界治理规范.md`
 - 改动后端测试最小集、回归测试、query-count regression、导出符号注释、service 职责说明、复杂度或魔法数字治理时，读
-  `ai-plan/design/后端测试与可维护性治理规范.md`
+  `ai-plan/design/governance/backend/后端测试与可维护性治理规范.md`
 - 任务主要由 agent 生成、重构、review 或多 agent 协作完成，且需要限制超范围修改、偷修、自动迁移、自动升级依赖或
-  closeout 证据时，读 `ai-plan/design/AI代码生成与Review规范.md`
+  closeout 证据时，读 `ai-plan/design/governance/ai/AI代码生成与Review规范.md`
 
 如果代码、文档与本文件冲突：
 
@@ -404,7 +404,7 @@ Observability authority overlay：
 Ent 与 Atlas 是后端数据库真相链路的一部分。
 
 数据库表设计、审计字段、软删除、索引、store query 语义、migration 版本和表 / 列中文注释的详细治理以
-`ai-plan/design/数据库表设计与迁移规范.md` 为准；新表默认使用 `deleted_at BIGINT NOT NULL DEFAULT 0`，
+`ai-plan/design/governance/backend/数据库表设计与迁移规范.md` 为准；新表默认使用 `deleted_at BIGINT NOT NULL DEFAULT 0`，
 `deleted_at = 0` 表示 live row，并按需要补 `deleted_by`。
 
 多工作树 Phase 1 治理补充：

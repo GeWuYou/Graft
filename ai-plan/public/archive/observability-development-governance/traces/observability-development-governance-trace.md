@@ -8,11 +8,11 @@
   - `server/AGENTS.md`
   - `web/AGENTS.md`
   - `ai-plan/public/README.md`
-  - `ai-plan/design/项目设计.md`
+  - `ai-plan/design/architecture/项目设计.md`
   - `ai-plan/design/插件与依赖注入设计.md`
-  - `ai-plan/design/前端架构设计.md`
-  - `ai-plan/design/契约治理与魔法值治理规范.md`
-  - `ai-plan/design/AI任务追踪与恢复设计.md`
+  - `ai-plan/design/architecture/前端架构设计.md`
+  - `ai-plan/design/governance/platform/契约治理与魔法值治理规范.md`
+  - `ai-plan/design/governance/ai/AI任务追踪与恢复设计.md`
   - archived `request-correlation-access-logging`
   - archived `logging-unification-rollout`
   - archived `plugin-audit-correlation-governance`
@@ -95,9 +95,9 @@
   - `server/AGENTS.md`
   - `ai-plan/public/README.md`
   - this topic's `README`, tracking, and trace files
-  - `ai-plan/design/前端架构设计.md`
-  - `ai-plan/design/契约治理与魔法值治理规范.md`
-  - `ai-plan/design/TDesign-MCP-辅助开发规范.md`
+  - `ai-plan/design/architecture/前端架构设计.md`
+  - `ai-plan/design/governance/platform/契约治理与魔法值治理规范.md`
+  - `ai-plan/design/governance/frontend/TDesign-MCP-辅助开发规范.md`
 - Confirmed this work is a bounded follow-up after Phase C, not a reopening of the original three-phase governance loop.
 - Confirmed current backend authority status:
   - `summary.high_risk_events` already exists and remains the canonical high-risk summary count

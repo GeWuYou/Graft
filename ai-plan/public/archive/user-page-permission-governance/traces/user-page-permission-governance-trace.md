@@ -10,7 +10,7 @@
   - `ai-plan/public/archive/rbac-visibility-governance/README.md`
   - `ai-plan/public/archive/rbac-visibility-governance/todos/rbac-visibility-governance-tracking.md`
   - `ai-plan/public/archive/rbac-visibility-governance/traces/rbac-visibility-governance-trace.md`
-  - `ai-plan/design/AI任务追踪与恢复设计.md`
+  - `ai-plan/design/governance/ai/AI任务追踪与恢复设计.md`
 - Confirmed the shared recovery index currently lists no active topic and keeps archived RBAC visibility governance as
   the immediate predecessor for this work.
 - Created the new topic document set:

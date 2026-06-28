@@ -13,12 +13,12 @@
 
 ## Repository Truth
 
-- `ai-plan/design/项目设计.md`
+- `ai-plan/design/architecture/项目设计.md`
 - `ai-plan/design/插件与依赖注入设计.md`
-- `ai-plan/design/前端架构设计.md`
-- `ai-plan/design/代码注释与模块文档规范.md`
+- `ai-plan/design/architecture/前端架构设计.md`
+- `ai-plan/design/governance/ai/代码注释与模块文档规范.md`
 - `ai-plan/roadmap/MVP实施计划.md`
-- `ai-plan/design/AI任务追踪与恢复设计.md`
+- `ai-plan/design/governance/ai/AI任务追踪与恢复设计.md`
 
 ## Stages
 
@@ -172,7 +172,7 @@
 - `cd server && go build ./cmd/graft`
 - `cd web && bun run typecheck`
 - `cd web && bun run build`
-- Documentation-only validation for the frontend-governance baseline update: `git diff --check`, `rg -n "format:check|Stylelint|Vitest|lint-staged|commitlint|ai-libs|\\\\n|\\\\t" AGENTS.md ai-plan/design/前端架构设计.md ai-plan/public/mvp-extension-path/todos/mvp-extension-path-tracking.md ai-plan/public/mvp-extension-path/traces/mvp-extension-path-trace.md -S`, and manual `sed -n` review of the touched sections.
+- Documentation-only validation for the frontend-governance baseline update: `git diff --check`, `rg -n "format:check|Stylelint|Vitest|lint-staged|commitlint|ai-libs|\\\\n|\\\\t" AGENTS.md ai-plan/design/architecture/前端架构设计.md ai-plan/public/mvp-extension-path/todos/mvp-extension-path-tracking.md ai-plan/public/mvp-extension-path/traces/mvp-extension-path-trace.md -S`, and manual `sed -n` review of the touched sections.
 - PR-review follow-up validation target for this update: verify only the still-valid `server` + `web` findings from
   PR `#5`, then run the smallest cross-boundary checks that cover the touched packages, i18n contracts, and frontend
   test helpers without widening into live Atlas or database execution.

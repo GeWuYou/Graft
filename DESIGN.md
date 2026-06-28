@@ -138,5 +138,5 @@ For simple copy/style/interaction fixes, direct implementation is allowed, but t
 
 ## References
 
-- Detailed spec: `ai-plan/design/前端视觉设计规范.md`
+- Detailed spec: `ai-plan/design/governance/frontend/前端视觉设计规范.md`
 - Reference templates: `ai-plan/design/graft-design-system/`

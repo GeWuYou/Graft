@@ -14,11 +14,11 @@ Treat root `AGENTS.md` as startup truth. This skill does not replace startup, va
 1. Complete root `AGENTS.md` startup preflight.
 2. Read `server/AGENTS.md`.
 3. Read `web/AGENTS.md` only when the task changes `web`-visible menu/bootstrap/config semantics or shared authority.
-4. Read `ai-plan/design/缓存治理与系统配置读取加速规范.md`.
-5. Read `ai-plan/design/系统配置模型与渲染设计.md` when the task changes system-config metadata or UI semantics.
+4. Read `ai-plan/design/governance/platform/缓存治理与系统配置读取加速规范.md`.
+5. Read `ai-plan/design/governance/platform/系统配置模型与渲染设计.md` when the task changes system-config metadata or UI semantics.
 6. Read `ai-plan/design/通知中心设计.md` when the task changes notification gating or delivery config semantics.
 7. Read `ai-plan/design/容器管理设计.md` when the task changes container runtime config reads or runtime-hot semantics.
-8. Read `ai-plan/design/共享资产复用治理规范.md` before adding any shared helper or shared cache mechanism.
+8. Read `ai-plan/design/governance/platform/共享资产复用治理规范.md` before adding any shared helper or shared cache mechanism.
 
 ## When To Use
 

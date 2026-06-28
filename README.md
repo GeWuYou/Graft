@@ -18,12 +18,12 @@ Current baseline:
 
 ## Documentation
 
-- [Project design](ai-plan/design/项目设计.md)
-- [Module and dependency injection design](ai-plan/design/模块与依赖注入设计.md)
-- [Frontend architecture design](ai-plan/design/前端架构设计.md)
-- [Contract and magic-value governance](ai-plan/design/契约治理与魔法值治理规范.md)
+- [Project design](ai-plan/design/architecture/项目设计.md)
+- [Module and dependency injection design](ai-plan/design/architecture/模块与依赖注入设计.md)
+- [Frontend architecture design](ai-plan/design/architecture/前端架构设计.md)
+- [Contract and magic-value governance](ai-plan/design/governance/platform/契约治理与魔法值治理规范.md)
 - [MVP implementation plan](ai-plan/roadmap/MVP实施计划.md)
-- [AI task tracking and recovery design](ai-plan/design/AI任务追踪与恢复设计.md)
+- [AI task tracking and recovery design](ai-plan/design/governance/ai/AI任务追踪与恢复设计.md)
 - [AI Plan recovery index](ai-plan/public/README.md)
 - [AI environment inventory](.ai/environment/README.md)
 

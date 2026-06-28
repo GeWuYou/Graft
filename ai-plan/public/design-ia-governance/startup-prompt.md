@@ -11,8 +11,8 @@ Round context:
   - `ai-plan/README.md`
 - design authority：
   - `ai-plan/design/**`
-  - `ai-plan/design/AI任务追踪与恢复设计.md`
-  - `ai-plan/design/AI工具与MCP接入治理规范.md`
+  - `ai-plan/design/governance/ai/AI任务追踪与恢复设计.md`
+  - `ai-plan/design/governance/ai/AI工具与MCP接入治理规范.md`
   - `ai-plan/design/decisions/ADR-001-ai-plan-authority-and-metadata-model.md`
   - `ai-plan/design/decisions/ADR-002-ai-plan-lifecycle-and-archive-model.md`
 - AI skills：
@@ -48,8 +48,9 @@ Current batch plan:
    - 明确后续迁移批次边界
 2. `phase-1-batch-2-create-target-design-directories-and-readmes`
 3. `phase-1-batch-3-migrate-low-coupling-design-docs`
-4. `phase-1-batch-4-migrate-domain-design-docs-and-fix-references`
-5. `phase-1-batch-5-design-archive-naming-and-governance-sync-closeout`
+4. `phase-1-batch-3b-sync-shared-asset-registry-paths`
+5. `phase-1-batch-4-migrate-domain-design-docs-and-fix-references`
+6. `phase-1-batch-5-design-archive-naming-and-governance-sync-closeout`
 
 Loop instructions:
 

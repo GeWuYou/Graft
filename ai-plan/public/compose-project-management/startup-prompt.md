@@ -9,11 +9,11 @@ Round context:
 - design authority：
   - `ai-plan/design/Compose项目管理设计.md`
   - `ai-plan/design/容器管理设计.md`
-  - `ai-plan/design/模块与依赖注入设计.md`
-  - `ai-plan/design/前端架构设计.md`
-  - `ai-plan/design/契约治理与魔法值治理规范.md`
-  - `ai-plan/design/服务端API边界与兼容治理规范.md`
-  - `ai-plan/design/后端安全与信任边界治理规范.md`
+  - `ai-plan/design/architecture/模块与依赖注入设计.md`
+  - `ai-plan/design/architecture/前端架构设计.md`
+  - `ai-plan/design/governance/platform/契约治理与魔法值治理规范.md`
+  - `ai-plan/design/governance/backend/服务端API边界与兼容治理规范.md`
+  - `ai-plan/design/governance/backend/后端安全与信任边界治理规范.md`
 - AI skills：
   - `$graft-multi-agent-loop`
 

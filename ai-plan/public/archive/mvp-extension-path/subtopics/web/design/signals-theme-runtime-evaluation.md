@@ -127,7 +127,7 @@
 
 仓库级规则落点：
 
-* `ai-plan/design/前端架构设计.md`
+* `ai-plan/design/architecture/前端架构设计.md`
 
 当前具体评估与候选 POC 落点：
 

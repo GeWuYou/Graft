@@ -65,7 +65,7 @@
   `graft-ai-governance-audit` 的使用边界。
 - 更新 `ai-plan/AGENTS.md` 与 `ai-plan/README.md`，让 future `ai-plan/**` governance work 能在 startup preflight
   后发现该 skill，同时不形成第二套 startup 或 validation path。
-- 更新 `ai-plan/design/AI工具与MCP接入治理规范.md`，把该 skill 纳入 repo-local AI governance skill contract，并保留
+- 更新 `ai-plan/design/governance/ai/AI工具与MCP接入治理规范.md`，把该 skill 纳入 repo-local AI governance skill contract，并保留
   `graft-ai-governance-audit` 作为 broader tooling / MCP / inventory drift audit。
 - 最小更新 `scripts/validate_ai_governance.py`，守护新 skill 在 root `AGENTS.md`、`ai-plan/AGENTS.md`、
   `ai-plan/README.md` 与 AI tooling governance doc 的必要 reference。

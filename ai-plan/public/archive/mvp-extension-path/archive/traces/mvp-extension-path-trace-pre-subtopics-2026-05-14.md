@@ -6,7 +6,7 @@
 - Bound the topic to branch `feat/mvp-extension-path` so future MVP work has a stable recovery entrypoint.
 - Migrated repository-wide design documents from `plan/` into `ai-plan/design/`.
 - Migrated the MVP execution document from `plan/` into `ai-plan/roadmap/`.
-- Added `ai-plan/design/AI任务追踪与恢复设计.md` to define the boundary between repository truth and topic recovery
+- Added `ai-plan/design/governance/ai/AI任务追踪与恢复设计.md` to define the boundary between repository truth and topic recovery
   documents.
 - Updated `AGENTS.md`, `README.md`, and `graft-boot` so boot and implementation rules now point at `ai-plan/`.
 - Validation target for this change is documentation governance consistency rather than runtime compilation.
@@ -117,7 +117,7 @@
 
 ## 2026-05-13 comment governance baseline
 
-- Added `ai-plan/design/代码注释与模块文档规范.md` as repository truth for Chinese comments, module navigation
+- Added `ai-plan/design/governance/ai/代码注释与模块文档规范.md` as repository truth for Chinese comments, module navigation
   READMEs, comment priority ordering, and exemption boundaries.
 - Updated `AGENTS.md` so repository execution rules now require Chinese documentation for hand-written Go comments,
   reject mechanical comments, and keep module `README.md` scoped to navigation rather than detailed design.
@@ -235,7 +235,7 @@
   repository, resource-bootstrap, and sample plugin packages.
 - Kept the final rule set conservative: exported Go symbols require Chinese Go doc comments, while complex
   orchestration or lifecycle functions use `参数：` / `返回值：` sections only when the signature alone is not enough.
-- Updated `AGENTS.md` and `ai-plan/design/代码注释与模块文档规范.md` so repository truth now explains when to use the
+- Updated `AGENTS.md` and `ai-plan/design/governance/ai/代码注释与模块文档规范.md` so repository truth now explains when to use the
   `server/internal/cli/dev.go` style and when to prefer shorter responsibility-and-boundary comments.
 - Used a bounded multi-agent wave to split comment work across disjoint `server` package sets while keeping docs,
   validation, and final integration on the main agent.
@@ -248,7 +248,7 @@
 - Tightened frontend AI rules so `web/ai-libs/tdesign-vue-next-starter` is documented as a local reference source
   only, while starter-specific mock, tabs-router, and frontend-only permission patterns remain out of the production
   `web` shell unless repository design truth changes first.
-- Added a dedicated governance section to `ai-plan/design/前端架构设计.md` that fixes the intended `check` order,
+- Added a dedicated governance section to `ai-plan/design/architecture/前端架构设计.md` that fixes the intended `check` order,
   keeps `pre-commit` lightweight through staged-file hooks, and records the narrow boundary where `any` is still
   tolerated during early TypeScript hardening.
 - Tightened Git workflow rules so commit titles and bodies must use actual line breaks; literal escaped control text

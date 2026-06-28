@@ -5,7 +5,7 @@
 - 当前主题目标是建立 `Graft` 前后端本地化长期治理，并分阶段把 server / web 的用户可见文案收敛到受治理的 locale 资源。
 - 当前状态：broad localization governance baseline 已闭环；server locale ownership follow-up 也已在独立 topic 完成 archive-readiness 审计。
 - 任务分类为 `cross-boundary`；当前主题同时处理 backend locale authority、web locale catalog 与 scanner 治理收口。
-- Canonical design：`ai-plan/design/本地化与i18n治理规范.md`。
+- Canonical design：`ai-plan/design/governance/platform/本地化与i18n治理规范.md`。
 - AI 执行 skill：`.agents/skills/graft-localization-governance/SKILL.md`。
 - server ownership follow-up 记录：`ai-plan/public/server-locale-ownership-migration/README.md`。
 
@@ -14,13 +14,13 @@
 - governance source：root `AGENTS.md`
 - task class：`cross-boundary`
 - recovery source：`parent topic`
-- authority summary：`ai-plan/design/本地化与i18n治理规范.md` + `server/internal/i18n.Service` facade + embedded locale YAML under `server/internal/i18n/locales/**` + web locale catalogs under `web/src/locales/**`
+- authority summary：`ai-plan/design/governance/platform/本地化与i18n治理规范.md` + `server/internal/i18n.Service` facade + embedded locale YAML under `server/internal/i18n/locales/**` + web locale catalogs under `web/src/locales/**`
 
 ## Owned Scope
 
 允许修改：
 
-- `ai-plan/design/本地化与i18n治理规范.md`
+- `ai-plan/design/governance/platform/本地化与i18n治理规范.md`
 - `ai-plan/public/localization-governance/**`
 - `ai-plan/public/README.md`
 - `.agents/skills/graft-localization-governance/**`
