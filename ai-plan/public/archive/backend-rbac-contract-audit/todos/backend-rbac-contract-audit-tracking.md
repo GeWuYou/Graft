@@ -37,8 +37,8 @@
 - `server/AGENTS.md`
 - `web/AGENTS.md`
 - `.ai/environment/tools.ai.yaml`
-- `ai-plan/design/契约治理与魔法值治理规范.md`
-- `ai-plan/design/AI任务追踪与恢复设计.md`
+- `ai-plan/design/governance/platform/契约治理与魔法值治理规范.md`
+- `ai-plan/design/governance/ai/AI任务追踪与恢复设计.md`
 - archived:
   - `rbac-visibility-governance`
   - `user-page-permission-governance`

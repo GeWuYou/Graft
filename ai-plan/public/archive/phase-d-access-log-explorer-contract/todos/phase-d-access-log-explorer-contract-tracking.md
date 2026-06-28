@@ -11,7 +11,7 @@
 1. Re-ran startup preflight from root `AGENTS.md`.
 2. Read root `AGENTS.md`, `.ai/environment/tools.ai.yaml`, `web/AGENTS.md`, and `server/AGENTS.md`.
 3. Treated `phase-d-access-log-runtime-storage` as archive-ready evidence for runtime/storage baseline.
-4. Read `ai-plan/design/Access-Log-Authority-Contract.md`.
+4. Read `ai-plan/design/domains/audit/Access-Log-Authority-Contract.md`.
 5. Reviewed current `server/internal/httpx/**` access-log runtime and storage implementation.
 6. Reviewed current observability governance and log-explorer authority docs.
 7. Reviewed current `audit`, `monitor`, `user`, and `rbac` explorer UX patterns in `web`.

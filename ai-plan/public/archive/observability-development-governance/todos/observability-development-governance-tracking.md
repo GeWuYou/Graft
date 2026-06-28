@@ -32,7 +32,7 @@
 ## Scope
 
 - Owned scope:
-  - `ai-plan/design/日志治理开发规范.md`
+  - `ai-plan/design/domains/audit/日志治理开发规范.md`
   - `ai-plan/public/archive/observability-development-governance/**`
   - `ai-plan/public/README.md`
   - later Phase B/Phase C bounded files only after inventory
@@ -77,7 +77,7 @@
 
 - Phase B must start with inventory only
 - no code changes before inventory table exists
-- every Phase B fix must map back to a clause in `ai-plan/design/日志治理开发规范.md`
+- every Phase B fix must map back to a clause in `ai-plan/design/domains/audit/日志治理开发规范.md`
 
 ## Phase B Inventory
 
@@ -217,7 +217,7 @@
     - backed by the existing backend `AuditSource` authority values
     - initial enum remains bounded to `REQUEST`, `SECURITY_EVENT`, and `DOMAIN_EVENT`
 - Query/governance note:
-  - no update to `ai-plan/design/契约治理与魔法值治理规范.md` is required in this batch because the governance model is unchanged; this round only records the accepted canonical owner and the smallest new contract fields under existing authority-first rules.
+  - no update to `ai-plan/design/governance/platform/契约治理与魔法值治理规范.md` is required in this batch because the governance model is unchanged; this round only records the accepted canonical owner and the smallest new contract fields under existing authority-first rules.
 
 ## Expected Batch 3 Implementation Scope
 

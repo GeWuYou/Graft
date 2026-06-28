@@ -27,7 +27,7 @@
 - `temp/logging-governance-assessment.md`
 - `server/AGENTS.md`
 - `web/AGENTS.md`
-- `ai-plan/design/契约治理与魔法值治理规范.md`
+- `ai-plan/design/governance/platform/契约治理与魔法值治理规范.md`
 
 ## Scope
 

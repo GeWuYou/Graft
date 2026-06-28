@@ -16,5 +16,5 @@
 
 ## 维护提示
 
-如需扩展跨模块可见的数据访问能力，先确认 `ai-plan/design/模块与依赖注入设计.md` 与
+如需扩展跨模块可见的数据访问能力，先确认 `ai-plan/design/architecture/模块与依赖注入设计.md` 与
 `server/AGENTS.md` 中关于 module-local persistence 的约束，再决定是否允许新增 shared 契约。

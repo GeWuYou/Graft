@@ -3,7 +3,7 @@
 ## 2026-06-27 Batch 0 design authority and topic bootstrap
 
 - 建立 design authority：
-  - `ai-plan/design/容器运行时事件能力设计.md`
+  - `ai-plan/design/domains/container/容器运行时事件能力设计.md`
 - 建立 active topic recovery：
   - `ai-plan/public/container-runtime-events/README.md`
   - `ai-plan/public/container-runtime-events/todos/container-runtime-events-tracking.md`

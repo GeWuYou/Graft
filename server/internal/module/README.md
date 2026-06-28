@@ -38,4 +38,4 @@
 
 ## 维护提示
 
-如果新增能力会让模块直接依赖其它模块内部实现，或让核心开始承载业务判断，应先回看 `ai-plan/design/项目设计.md` 与 `ai-plan/design/模块与依赖注入设计.md`，再调整边界。
+如果新增能力会让模块直接依赖其它模块内部实现，或让核心开始承载业务判断，应先回看 `ai-plan/design/architecture/项目设计.md` 与 `ai-plan/design/architecture/模块与依赖注入设计.md`，再调整边界。

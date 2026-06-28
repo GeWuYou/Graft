@@ -7,7 +7,7 @@
 - Task class: `cross-boundary`
 - Recovery source: `subtopic`
   - `ai-plan/public/archive/phase-d-access-log-runtime-storage/README.md`
-  - `ai-plan/design/Access-Log-Authority-Contract.md`
+  - `ai-plan/design/domains/audit/Access-Log-Authority-Contract.md`
   - `server/internal/httpx/**`
   - current observability governance docs
   - current audit/monitor/admin explorer UX patterns
@@ -41,7 +41,7 @@ This round is authority-first exploration and contract design only.
 | Surface | Canonical owner | Responsibility | Must not own |
 | --- | --- | --- | --- |
 | Access Log runtime/storage baseline | `server/internal/httpx/**` | request-fact capture, normalization, current durable storage | audit result taxonomy, monitor anomaly semantics, frontend query semantics |
-| Access Log Explorer contract | `ai-plan/design/Access-Log-Explorer-Authority.md` -> future backend implementation topic | canonical filter/sort/pagination/detail semantics | app-log explorer, retention policy, tracing, metrics |
+| Access Log Explorer contract | `ai-plan/design/domains/audit/Access-Log-Explorer-Authority.md` -> future backend implementation topic | canonical filter/sort/pagination/detail semantics | app-log explorer, retention policy, tracing, metrics |
 | Shared HTTP explorer contract | `openapi/**` in next topic only | wire schema after implementation approval | authority discovery for field meaning |
 | Web explorer module | future `web/src/modules/<access-log-explorer>/**` | UI consumption, route-query sync, drawer state, presets as UI-only context | backend filter/sort authority |
 

@@ -24,8 +24,8 @@ with conflicting wording in this skill.
    - `cross-boundary` when table changes alter shared contracts, OpenAPI, web bootstrap semantics, or frontend-visible behavior.
 3. Read:
    - `server/AGENTS.md`
-   - `ai-plan/design/数据库表设计与迁移规范.md`
-   - `ai-plan/design/契约治理与魔法值治理规范.md` when table semantics affect shared contracts, status values, permission codes, or API-visible fields
+   - `ai-plan/design/governance/backend/数据库表设计与迁移规范.md`
+   - `ai-plan/design/governance/platform/契约治理与魔法值治理规范.md` when table semantics affect shared contracts, status values, permission codes, or API-visible fields
 4. Identify the owner before proposing fields:
    - owner module or core owner
    - table name

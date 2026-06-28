@@ -7,7 +7,7 @@
   - read `.ai/environment/tools.ai.yaml`
   - read `server/AGENTS.md`
   - read `web/AGENTS.md`
-  - read `ai-plan/design/AI任务追踪与恢复设计.md`
+  - read `ai-plan/design/governance/ai/AI任务追踪与恢复设计.md`
   - read `ai-plan/public/README.md`
 - Used `$graft-system-config-field-renderer` as the System Config field-renderer governance source.
 - Reused prior exploration findings:
@@ -16,7 +16,7 @@
   - current OpenAPI exposes `config_schema` but not an explicit `fields` derived view
   - current web module consumes generated OpenAPI types and has shared schema-form primitives
   - TDesign Vue Next covers the baseline field editor matrix with Select, Switch, InputNumber, Textarea, and Input
-- Created `ai-plan/design/系统配置模型与渲染设计.md` as repository-level design truth.
+- Created `ai-plan/design/governance/platform/系统配置模型与渲染设计.md` as repository-level design truth.
 - Created active topic recovery files under `ai-plan/public/system-config-model-unification/`.
 - Updated `ai-plan/public/README.md` so future startup recovery can find this active topic.
 

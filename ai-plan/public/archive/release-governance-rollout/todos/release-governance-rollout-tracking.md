@@ -14,8 +14,8 @@ Release Governance Rollout
 - `server/AGENTS.md`
 - `web/AGENTS.md`
 - `README.md`
-- `ai-plan/design/数据库表设计与迁移规范.md`
-- `ai-plan/design/服务端API边界与兼容治理规范.md`
+- `ai-plan/design/governance/backend/数据库表设计与迁移规范.md`
+- `ai-plan/design/governance/backend/服务端API边界与兼容治理规范.md`
 - `ai-plan/design/release/build-identity-contract.md`
 - `ai-plan/design/release/migration-policy.md`
 - `ai-plan/design/release/config-policy.md`

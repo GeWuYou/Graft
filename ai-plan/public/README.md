@@ -4,6 +4,9 @@
 list only active topics, and help the current branch or worktree land on the right recovery documents without scanning
 every public artifact.
 
+If `ai-plan/catalog.json` exists, treat it as a bounded machine index only. This file remains the authoritative
+active-topic router and may cover more topics than the current catalog rollout.
+
 Overlay note:
 
 - archived topic wording is historical evidence, not current normative governance
@@ -12,6 +15,8 @@ Overlay note:
 
 ## Active Topics
 
+- `compose-project-management`
+  - Recovery entry: `ai-plan/public/compose-project-management/README.md`
 - `rbac-feature-and-nplusone-hardening`
   - Recovery entry: `ai-plan/public/rbac-feature-and-nplusone-hardening/README.md`
 - `rbac-further-development`

@@ -8,7 +8,7 @@ description: Use before adding, moving, renaming, removing, or replacing reusabl
 Use this skill when a task may add, move, rename, remove, replace, or duplicate reusable assets in `web`, `server`,
 OpenAPI, validation scripts, or repository skills.
 
-Treat root `AGENTS.md` and `ai-plan/design/共享资产复用治理规范.md` as the governance sources. This skill does not replace
+Treat root `AGENTS.md` and `ai-plan/design/governance/platform/共享资产复用治理规范.md` as the governance sources. This skill does not replace
 startup, validation, commit, closeout, OpenAPI, web, server, or lessons-learned governance.
 
 ## 1. Purpose
@@ -58,14 +58,14 @@ If not applicable, closeout still reports `shared_asset_preflight.status: not_ap
 
 After normal startup preflight, read:
 
-- `ai-plan/design/共享资产复用治理规范.md`
+- `ai-plan/design/governance/platform/共享资产复用治理规范.md`
 - the relevant registry files:
   - `.ai/registries/web-shared-assets.yaml`
   - `.ai/registries/server-shared-assets.yaml`
   - `.ai/registries/cross-boundary-assets.yaml`
 - `web/AGENTS.md` for frontend work
 - `server/AGENTS.md` for backend work
-- `ai-plan/design/契约治理与魔法值治理规范.md` for stable contracts or cross-boundary values
+- `ai-plan/design/governance/platform/契约治理与魔法值治理规范.md` for stable contracts or cross-boundary values
 
 Read only the registries relevant to the current class when scope is narrow; read all three for cross-boundary or
 governance changes.

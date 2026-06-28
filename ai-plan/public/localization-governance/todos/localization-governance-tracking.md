@@ -13,10 +13,10 @@ Localization Governance
 - `AGENTS.md`
 - `server/AGENTS.md`
 - `web/AGENTS.md`
-- `ai-plan/design/本地化与i18n治理规范.md`
-- `ai-plan/design/项目设计.md`
-- `ai-plan/design/前端架构设计.md`
-- `ai-plan/design/契约治理与魔法值治理规范.md`
+- `ai-plan/design/governance/platform/本地化与i18n治理规范.md`
+- `ai-plan/design/architecture/项目设计.md`
+- `ai-plan/design/architecture/前端架构设计.md`
+- `ai-plan/design/governance/platform/契约治理与魔法值治理规范.md`
 - `.agents/skills/graft-localization-governance/SKILL.md`
 
 ## Current Recovery Point

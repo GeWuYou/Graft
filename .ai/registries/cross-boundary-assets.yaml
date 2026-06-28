@@ -1,5 +1,5 @@
 schema_version: 1
-updated_at: "2026-06-21"
+updated_at: "2026-06-28"
 assets:
   - name: "openapi-contracts"
     type: "cross-boundary-contract"
@@ -127,7 +127,7 @@ assets:
     do_not_use_when:
       - "The task is a pure runtime bugfix with no reusable asset impact."
     examples:
-      - "ai-plan/design/共享资产复用治理规范.md"
+      - "ai-plan/design/governance/platform/共享资产复用治理规范.md"
     related_assets:
       - "shared-asset-registry-validator"
     validation_commands:
@@ -171,7 +171,7 @@ assets:
 
   - name: "cache-governance-design"
     type: "cross-boundary-contract"
-    path: "ai-plan/design/缓存治理与系统配置读取加速规范.md"
+    path: "ai-plan/design/governance/platform/缓存治理与系统配置读取加速规范.md"
     owner: "docs/automation + server runtime governance"
     purpose: "Canonical cache-governance and system-config acceleration design for deciding cache layers, TTL, invalidation, and hotspot handling across server runtime paths and minimal web visibility semantics."
     use_when:
@@ -203,7 +203,7 @@ assets:
     do_not_use_when:
       - "The task is a pure low-frequency path with no hotspot risk or cache relevance."
     examples:
-      - "ai-plan/design/缓存治理与系统配置读取加速规范.md"
+      - "ai-plan/design/governance/platform/缓存治理与系统配置读取加速规范.md"
     related_assets:
       - "cache-governance-design"
       - "graft-shared-asset-reuse-skill"

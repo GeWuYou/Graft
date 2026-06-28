@@ -14,11 +14,11 @@ Release Readiness Governance Audit
 - `server/AGENTS.md`
 - `web/AGENTS.md`
 - `README.md`
-- `ai-plan/design/AI任务追踪与恢复设计.md`
-- `ai-plan/design/项目设计.md`
-- `ai-plan/design/模块与依赖注入设计.md`
-- `ai-plan/design/数据库表设计与迁移规范.md`
-- `ai-plan/design/服务端API边界与兼容治理规范.md`
+- `ai-plan/design/governance/ai/AI任务追踪与恢复设计.md`
+- `ai-plan/design/architecture/项目设计.md`
+- `ai-plan/design/architecture/模块与依赖注入设计.md`
+- `ai-plan/design/governance/backend/数据库表设计与迁移规范.md`
+- `ai-plan/design/governance/backend/服务端API边界与兼容治理规范.md`
 - `server/internal/config/config.go`
 - `server/internal/cli/serve.go`
 - `server/internal/cli/dev.go`

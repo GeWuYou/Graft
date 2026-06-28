@@ -150,7 +150,7 @@ func (s *Service) RegisterEmbeddedLocaleResources(resources []EmbeddedLocaleReso
 
 ### Slice 5：治理收尾与回归阻断
 
-- 更新 `ai-plan/design/本地化与i18n治理规范.md`
+- 更新 `ai-plan/design/governance/platform/本地化与i18n治理规范.md`
 - 更新 `.agents/skills/graft-localization-governance/SKILL.md`
 - 更新 public recovery topic
 - 增加脚本或 CI 规则阻止新增 `server/internal/i18n/locales/modules/*.yaml`

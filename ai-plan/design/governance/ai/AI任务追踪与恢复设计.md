@@ -10,6 +10,7 @@
 - `design`、`roadmap`、`public topic` 的职责如何划分
 - 长期主题、长期工作树、长分支、追踪文件、轨迹文件、归档如何协作
 - 什么时候应该新增 topic，什么时候应该归档 topic
+- 新的长期工作应该如何进入这套体系
 
 ---
 
@@ -23,6 +24,8 @@
 - 让另一个贡献者或后续会话无需翻完整聊天历史即可继续工作
 
 因此需要把“仓库真值”和“主题恢复状态”分离。
+
+同样也需要把“工作进入系统的入口判断”与“进入之后的恢复材料”分离。
 
 ---
 
@@ -71,6 +74,24 @@ authority-first overlay 补充：
 
 `ai-plan/` 只提供恢复材料与恢复入口，不负责定义第二套 boot 链、关闭流程或启动闸门，也不应再承担
 `server` / `web` 的日常执行级规则清单。
+
+对于新的长期工作，`ai-plan/` 的推荐进入顺序是：
+
+- startup preflight
+- Work Intake
+- Work Contract
+- contract-driven minimal bootstrap
+- specialized skill execution
+- closeout / archive
+
+这里的关键约束是：
+
+- `design`
+- `roadmap`
+- `topic`
+- `ADR`
+
+都不是新的长期工作的并列入口；它们是 intake 决策之后派生出的 artifact。
 
 当仓库使用 `graft-multi-agent-loop` 时，它是同一主会话内的串行 subagent 编排模式，而不是外部 fresh-session
 runner：
@@ -190,6 +211,7 @@ runner：
 - authority discovery 结论
 - 当前 authority owner / downstream consumer 关系
 - 是否需要 authority escalation
+- 该 topic 若来自 `Work Intake`，则其 persisted `Work Contract`
 
 `ai-plan/public/<topic>/traces/` 用于主题级执行轨迹：
 
@@ -231,6 +253,33 @@ active topic 下继续维护子主题恢复材料：
 - `ai-plan/public/<topic>/roadmap/`
 
 默认不要创建重复的 topic 专属设计；只有在确实存在 topic-only 规则时才新增。
+
+### 3.4 Work Intake 与 Work Contract
+
+新的长期工作先进入 `Work Intake`，而不是先决定“我要写 design”或“我要建 topic”。
+
+`Work Intake` 负责：
+
+- 分类这是什么工作
+- 判断是否属于长期工作
+- 判断是否需要 `design`
+- 判断是否需要 `topic`
+- 判断是否需要 `roadmap`
+- 判断是否需要 `ADR`
+- 决定执行引擎与 dispatch skill
+
+`Work Intake` 不负责：
+
+- 写领域正文
+- 代替 design / roadmap / ADR skill 产出内容
+- 发明第二套 startup receipt
+- 发明第二套 recovery truth
+
+对于需要 active topic 的长期工作，`Work Intake` 产出的 `Work Contract` 应持久化到 topic tracking 文件，作为后续
+bootstrap、loop、closeout 和归档消费的统一输入。
+
+`Work Contract` 不是独立文件，不进入 `catalog.json`，也不要求所有请求都持久化。短任务和一次性工作可在 intake 后直接执行，
+不必生成 topic 级 contract。
 
 ---
 

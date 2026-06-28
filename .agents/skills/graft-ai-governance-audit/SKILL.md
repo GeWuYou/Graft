@@ -18,9 +18,9 @@ workflow; it does not replace repository startup, validation, closeout, or commi
    runtime contracts.
 3. Read:
    - `.ai/environment/tools.ai.yaml`
-   - `ai-plan/design/AI工具与MCP接入治理规范.md`
-   - `ai-plan/design/CodeGraph-MCP-辅助开发规范.md` when CodeGraph is involved
-   - `ai-plan/design/TDesign-MCP-辅助开发规范.md` when TDesign or frontend component generation is involved
+   - `ai-plan/design/governance/ai/AI工具与MCP接入治理规范.md`
+   - `ai-plan/design/governance/ai/CodeGraph-MCP-辅助开发规范.md` when CodeGraph is involved
+   - `ai-plan/design/governance/frontend/TDesign-MCP-辅助开发规范.md` when TDesign or frontend component generation is involved
 4. Inspect concurrent work before edits:
    - `git status --short`
    - keep ownership limited to AI governance docs, `.agents/skills/**` governance files, and `scripts/**` audit helpers
@@ -49,6 +49,7 @@ python3 -m unittest discover -s scripts -p 'test_*.py'
    - startup receipt
    - MCP adoption status
    - skill coverage or drift
+   - workflow-level drift such as `graft-work-intake` inventing rules outside document authority
    - Python helper status
    - validation commands and results
    - any rejected tool and concrete reason
@@ -65,6 +66,8 @@ python3 -m unittest discover -s scripts -p 'test_*.py'
 - Use Context7 for current external library documentation, GitHub MCP for read-only PR/Actions context, and Playwright
   MCP as browser exploration before `graft-web-browser-agent` captures reproducible evidence.
 - Keep new skills concise and prefer scripts for deterministic checks.
+- If a thin workflow skill such as `graft-work-intake` exists, verify that it routes through documented `Work Intake`
+  and `Work Contract` rules instead of creating a second intake authority.
 
 ## Closeout Evidence
 

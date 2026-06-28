@@ -33,7 +33,7 @@ Implemented behavior:
 
 ## Files Changed
 
-- `ai-plan/design/日志治理开发规范.md`
+- `ai-plan/design/domains/audit/日志治理开发规范.md`
 - `openapi/components/schemas/access-log-detail-response.yaml`
 - `openapi/dist/openapi.bundle.json`
 - `openapi/paths/access-log.logs.yaml`

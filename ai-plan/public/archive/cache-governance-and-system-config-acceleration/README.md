@@ -3,7 +3,7 @@
 本 README 只承载 topic recovery、阶段历史和 archive-ready 边界，不是仓库规范正文。
 
 稳定缓存治理规则、shared mechanism policy、允许/禁止事项和 closeout evidence 以
-`ai-plan/design/缓存治理与系统配置读取加速规范.md` 为准。
+`ai-plan/design/governance/platform/缓存治理与系统配置读取加速规范.md` 为准。
 
 ## 当前状态摘要
 
@@ -13,7 +13,7 @@
 - 边界说明：上述完成态仅表示本主题负责的 `system-config` 与已登记热点缓存治理已收口，不表示仓库全部缓存热点都已完成治理。仓库级缓存治理仍需按 authority-first 热点清单逐项推进。
 - 未完成范围：仓库级其它热点仍不因本主题 closeout 自动完成；系统配置页若继续追加高级提示或调试展示，也属于独立 UX / operability follow-up，而不是新的 display-authority 缺口。
 - 任务分类为 `cross-boundary`，但本主题以 `backend-first` 为主；前端仅涉及系统配置页面的生效语义与高级信息展示建议。
-- Canonical design：`ai-plan/design/缓存治理与系统配置读取加速规范.md`。
+- Canonical design：`ai-plan/design/governance/platform/缓存治理与系统配置读取加速规范.md`。
 - AI 执行 skill：`.agents/skills/graft-cache-governance/SKILL.md`。
 
 ## Recovery Receipt
@@ -21,13 +21,13 @@
 - governance source：root `AGENTS.md`
 - task class：`cross-boundary`
 - recovery source：`parent topic`
-- authority summary：`ai-plan/design/缓存治理与系统配置读取加速规范.md` + `server/modules/system-config/service.go` + `server/internal/configregistry` + `server/internal/moduleapi/notification.go`
+- authority summary：`ai-plan/design/governance/platform/缓存治理与系统配置读取加速规范.md` + `server/modules/system-config/service.go` + `server/internal/configregistry` + `server/internal/moduleapi/notification.go`
 
 ## Owned Scope
 
 允许修改：
 
-- `ai-plan/design/缓存治理与系统配置读取加速规范.md`
+- `ai-plan/design/governance/platform/缓存治理与系统配置读取加速规范.md`
 - `ai-plan/public/cache-governance-and-system-config-acceleration/**`
 - `ai-plan/public/README.md`
 - `.agents/skills/graft-cache-governance/**`

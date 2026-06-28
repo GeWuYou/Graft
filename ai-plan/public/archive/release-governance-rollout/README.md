@@ -8,8 +8,8 @@
 - 任务分类：`cross-boundary`
 - 本主题不实现 release workflow、`server/**`、`web/**` 或部署资产。
 - 本主题的 live authority 已固定到：
-  - `ai-plan/design/数据库表设计与迁移规范.md`
-  - `ai-plan/design/服务端API边界与兼容治理规范.md`
+  - `ai-plan/design/governance/backend/数据库表设计与迁移规范.md`
+  - `ai-plan/design/governance/backend/服务端API边界与兼容治理规范.md`
   - `ai-plan/design/release/build-identity-contract.md`
   - `ai-plan/design/release/migration-policy.md`
   - `ai-plan/design/release/config-policy.md`

@@ -27,10 +27,10 @@ authority-first overlay：
 
 - `../AGENTS.md`
 - `../DESIGN.md`
-- `../ai-plan/design/前端架构设计.md`
-- `../ai-plan/design/前端视觉设计规范.md`
-- `../ai-plan/design/TDesign-MCP-辅助开发规范.md`
-- `../ai-plan/design/契约治理与魔法值治理规范.md`
+- `../ai-plan/design/architecture/前端架构设计.md`
+- `../ai-plan/design/governance/frontend/前端视觉设计规范.md`
+- `../ai-plan/design/governance/frontend/TDesign-MCP-辅助开发规范.md`
+- `../ai-plan/design/governance/platform/契约治理与魔法值治理规范.md`
   - 当任务涉及路由名、路径、权限码、存储键、请求头、认证方案、错误码、稳定状态枚举或跨模块 typed contract 时必须读取
 
 如代码与文档分叉，先更新文档或在同一改动中一起更新。
@@ -170,7 +170,7 @@ web/src/
 - 带有 `user`、`rbac`、`plugin`、权限码、路由名、DTO、API path、模块文案语义的资产，不得进入 `shared/**`
 - 业务相关但需要跨模块稳定复用时，继续由所属模块持有，并通过 `contract/**` 暴露
 - `shared/**` 不是临时存放区；无法说明复用边界和无业务语义时，不得放入
-- 新增、移动、重命名或删除可复用前端资产时，先按 `ai-plan/design/共享资产复用治理规范.md` 和
+- 新增、移动、重命名或删除可复用前端资产时，先按 `ai-plan/design/governance/platform/共享资产复用治理规范.md` 和
   `.agents/skills/graft-shared-asset-reuse/SKILL.md` 执行 Shared Asset Reuse Preflight；registry 是策展索引，
   不是全量源码清单，不登记每个 helper、组件或模块私有文件
 
@@ -313,7 +313,7 @@ UI 约束：
 - 前端交互异常、路由跳转异常、菜单展开/选中异常、图表或布局只在特定操作序列下失效时，默认先做最小化诊断，再决定实现修复
 - 默认优先使用结构化控制台日志、路由守卫日志、事件链路日志或最小可复现测试来确认真实运行路径，不要只凭静态阅读代码猜测交互行为
 - 诊断日志应放在实际交互边界，例如 `layouts/**`、`router/**`、页面事件处理器、图表同步点或 store action，而不是分散打印噪音日志
-- 临时诊断日志必须遵守 `ai-plan/design/前端架构设计.md` 的日志治理约束；问题确认后，应在提交前删除、降级或收口到明确开关下
+- 临时诊断日志必须遵守 `ai-plan/design/architecture/前端架构设计.md` 的日志治理约束；问题确认后，应在提交前删除、降级或收口到明确开关下
 - 当用户能够提供浏览器控制台、录屏、复现步骤或截图时，优先结合这些运行时证据收敛问题，再决定是否修改路由、状态或布局实现
 
 滚动条治理规则：

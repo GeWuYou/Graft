@@ -7,7 +7,7 @@ description: Repository-specific frontend workflow for Graft web pages, shell su
 
 Use this skill for `web` page work that needs design governance, prompt discipline, or visible UI cleanup.
 
-Follow root `AGENTS.md`, `web/AGENTS.md`, `DESIGN.md`, `ai-plan/design/前端视觉设计规范.md`, and the relevant
+Follow root `AGENTS.md`, `web/AGENTS.md`, `DESIGN.md`, `ai-plan/design/governance/frontend/前端视觉设计规范.md`, and the relevant
 template under `ai-plan/design/graft-design-system/`.
 
 ## 1. Run TDesign MCP preflight before coding

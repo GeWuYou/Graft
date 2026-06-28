@@ -6,9 +6,9 @@ Round context:
 - recovery source: `parent topic`
 - recovery entry: `ai-plan/public/server-locale-ownership-migration/README.md`
 - design authority:
-  - `ai-plan/design/本地化与i18n治理规范.md`
-  - `ai-plan/design/服务端Locale资源归属与迁移设计.md`
-  - `ai-plan/design/模块与依赖注入设计.md`
+  - `ai-plan/design/governance/platform/本地化与i18n治理规范.md`
+  - `ai-plan/design/governance/platform/服务端Locale资源归属与迁移设计.md`
+  - `ai-plan/design/architecture/模块与依赖注入设计.md`
 - AI skills:
   - `$graft-localization-governance`
   - `$graft-multi-agent-loop`

@@ -9,7 +9,7 @@ Use this skill for real Graft admin UI work, not standalone websites. The output
 
 ## Workflow
 
-1. Complete repository startup preflight and read `web/AGENTS.md`, root `DESIGN.md`, `ai-plan/design/前端架构设计.md`, `ai-plan/design/前端视觉设计规范.md`, `ai-plan/design/TDesign-MCP-辅助开发规范.md`, and `ai-plan/design/契约治理与魔法值治理规范.md` before implementation.
+1. Complete repository startup preflight and read `web/AGENTS.md`, root `DESIGN.md`, `ai-plan/design/architecture/前端架构设计.md`, `ai-plan/design/governance/frontend/前端视觉设计规范.md`, `ai-plan/design/governance/frontend/TDesign-MCP-辅助开发规范.md`, and `ai-plan/design/governance/platform/契约治理与魔法值治理规范.md` before implementation.
 2. Classify the page type through existing Graft frontend governance, especially `$graft-web-vibe-coding` when page, shell, visual, copy, or prompt shaping is involved.
 3. For new pages, page redesigns, or complex page changes, write the page type and structure plan before coding; include the page header, primary action area, main content surface, feedback surface, theme dependencies, and i18n boundary.
 4. Use TDesign Vue Next components through `$graft-web-vibe-coding` and the TDesign MCP docs when component API, DOM, or changelog detail is needed.

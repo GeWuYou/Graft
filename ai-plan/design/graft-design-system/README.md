@@ -16,7 +16,7 @@ This folder stores non-runtime reference templates for Graft admin pages.
 - `list-form-detail.md` - CRUD-style list, form, drawer, and detail patterns.
 
 These are the first-stage built-in page masters, not the full page-type universe. Extension page types are registered in
-`ai-plan/design/前端视觉设计规范.md`.
+`ai-plan/design/governance/frontend/前端视觉设计规范.md`.
 
 ## Rules
 

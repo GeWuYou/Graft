@@ -14,7 +14,7 @@
   - root `AGENTS.md`
   - `server/AGENTS.md` for implementation
 - Design source:
-  - `ai-plan/design/通知中心设计.md`
+  - `ai-plan/design/domains/notification/通知中心设计.md`
 - Stable cross-module port:
   - `server/internal/moduleapi.NotificationPublisher`
 - Scheduler runtime boundary:

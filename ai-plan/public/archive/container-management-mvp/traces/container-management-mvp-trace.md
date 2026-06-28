@@ -4,7 +4,7 @@
 
 - 启动任务并确认 task class 为 `cross-boundary`。
 - 当前分支从 `feat/frontend-vibe-toolchain-ui-fixes` 重命名为 `feat/container-management-mvp`。
-- 建立容器管理设计 authority：`ai-plan/design/容器管理设计.md`。
+- 建立容器管理设计 authority：`ai-plan/design/domains/container/容器管理设计.md`。
 - 建立 public recovery topic：`ai-plan/public/container-management-mvp/README.md`。
 - 明确菜单 IA 为 `运维管理 / 容器管理`，不复用既有 `服务器管理`。
 - 明确业务命名使用 `container` / `ops.container`，特定运行时只作为第一版 adapter 名称 `DockerRuntime` 或配置键

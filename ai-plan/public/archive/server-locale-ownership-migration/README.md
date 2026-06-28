@@ -6,9 +6,9 @@
 - 当前状态：`archive-ready`。
 - 任务分类：`server`。
 - Canonical design：
-  - `ai-plan/design/本地化与i18n治理规范.md`
-  - `ai-plan/design/服务端Locale资源归属与迁移设计.md`
-  - `ai-plan/design/模块与依赖注入设计.md`
+  - `ai-plan/design/governance/platform/本地化与i18n治理规范.md`
+  - `ai-plan/design/governance/platform/服务端Locale资源归属与迁移设计.md`
+  - `ai-plan/design/architecture/模块与依赖注入设计.md`
 - AI 执行 skills：
   - `.agents/skills/graft-localization-governance/SKILL.md`
   - `.agents/skills/graft-multi-agent-loop/SKILL.md`
@@ -24,9 +24,9 @@
 
 允许修改：
 
-- `ai-plan/design/本地化与i18n治理规范.md`
-- `ai-plan/design/服务端Locale资源归属与迁移设计.md`
-- `ai-plan/design/模块与依赖注入设计.md`
+- `ai-plan/design/governance/platform/本地化与i18n治理规范.md`
+- `ai-plan/design/governance/platform/服务端Locale资源归属与迁移设计.md`
+- `ai-plan/design/architecture/模块与依赖注入设计.md`
 - `ai-plan/public/server-locale-ownership-migration/**`
 - `ai-plan/public/README.md`
 - `ai-plan/public/localization-governance/**`

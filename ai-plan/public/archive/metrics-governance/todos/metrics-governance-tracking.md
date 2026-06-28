@@ -19,7 +19,7 @@
   - `server/plugins/monitor/**` owns the current `server-status` read model
   - `openapi/**` owns the cross-boundary HTTP schema for that read model
   - `web/src/modules/monitor/**` consumes those fields and does not define their semantics
-- `ai-plan/design/日志治理开发规范.md` remains the only repository-wide normative source that mentions `Metric Candidate / Metric Placeholder`.
+- `ai-plan/design/domains/audit/日志治理开发规范.md` remains the only repository-wide normative source that mentions `Metric Candidate / Metric Placeholder`.
 - No repo-wide metrics emitter, scrape contract, retention model, label policy, or aggregation authority exists yet.
 - Batch 2 inventory confirms the current bounded surface in more detail:
   - `server/plugins/monitor/plugin.go` is the only owned runtime path that samples and stores metric-like points

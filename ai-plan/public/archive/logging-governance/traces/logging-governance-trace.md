@@ -10,10 +10,10 @@
   - `server/AGENTS.md`
   - `web/AGENTS.md`
   - `ai-plan/public/README.md`
-  - `ai-plan/design/项目设计.md`
+  - `ai-plan/design/architecture/项目设计.md`
   - `ai-plan/design/插件与依赖注入设计.md`
   - `ai-plan/roadmap/MVP实施计划.md`
-  - `ai-plan/design/AI任务追踪与恢复设计.md`
+  - `ai-plan/design/governance/ai/AI任务追踪与恢复设计.md`
 - Confirmed this round stays read-only for runtime code and is scoped to exploration, design, and topic recovery docs.
 
 ## 2026-05-28 Batch 1 completed

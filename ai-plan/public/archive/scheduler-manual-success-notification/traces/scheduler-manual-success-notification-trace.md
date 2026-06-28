@@ -2,7 +2,7 @@
 
 ## 2026-06-11 architecture refinement recorded
 
-- Updated `ai-plan/design/通知中心设计.md` with the scheduler notification boundary:
+- Updated `ai-plan/design/domains/notification/通知中心设计.md` with the scheduler notification boundary:
   - scheduler runtime stays domain-only
   - API handler may read current user context, but runtime receives `RunTrigger`
   - runtime uses `RunSuccessNotifier` and `RunFailureNotifier`

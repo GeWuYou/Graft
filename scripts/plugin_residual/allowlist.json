@@ -37,31 +37,31 @@
       "reason": "Frontend governance still references historical backend naming and literal token examples."
     },
     {
-      "path": "ai-plan/design/项目设计.md",
+      "path": "ai-plan/design/architecture/项目设计.md",
       "regex": "runtime plugin platform|server/plugins/\\*|internal/plugin\\*|历史 plugin 命名|plugin 命名",
       "category": "historical_governance",
       "reason": "Design truth explicitly records historical rename context and anti-goal plugin-platform wording."
     },
     {
-      "path": "ai-plan/design/项目设计.md",
+      "path": "ai-plan/design/architecture/项目设计.md",
       "regex": "历史 `plugin` 命名仅作迁移证据",
       "category": "historical_governance",
       "reason": "Design truth explicitly documents the retained historical naming note."
     },
     {
-      "path": "ai-plan/design/模块与依赖注入设计.md",
+      "path": "ai-plan/design/architecture/模块与依赖注入设计.md",
       "regex": "runtime plugin platform|runtime plugin loading|runtime plugin discovery|external plugin marketplace|distributed plugin protocol|plugin system|历史插件命名目录",
       "category": "historical_governance",
       "reason": "Architecture design retains anti-goal plugin-platform wording and historical explanations."
     },
     {
-      "path": "ai-plan/design/契约治理与魔法值治理规范.md",
+      "path": "ai-plan/design/governance/platform/契约治理与魔法值治理规范.md",
       "regex": "同历史插件命名目录",
       "category": "historical_governance",
       "reason": "Contract governance still documents historical lookup order wording."
     },
     {
-      "path": "ai-plan/design/Access-Log-Retention-Authority.md",
+      "path": "ai-plan/design/domains/audit/Access-Log-Retention-Authority.md",
       "regex": "historical plugin-registry metadata|historical plugin registry",
       "category": "historical_governance",
       "reason": "This design doc explicitly distinguishes historical plugin-registry ownership from current authority."

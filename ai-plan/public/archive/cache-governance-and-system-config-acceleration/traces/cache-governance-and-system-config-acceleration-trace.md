@@ -2,7 +2,7 @@
 
 ## 2026-06-21 Phase 0 governance persistence
 
-- 建立缓存治理长期设计 authority：`ai-plan/design/缓存治理与系统配置读取加速规范.md`。
+- 建立缓存治理长期设计 authority：`ai-plan/design/governance/platform/缓存治理与系统配置读取加速规范.md`。
 - 建立 public recovery topic：`ai-plan/public/cache-governance-and-system-config-acceleration/README.md`。
 - 建立任务追踪：`ai-plan/public/cache-governance-and-system-config-acceleration/todos/cache-governance-and-system-config-acceleration-tracking.md`。
 - 建立 trace：`ai-plan/public/cache-governance-and-system-config-acceleration/traces/cache-governance-and-system-config-acceleration-trace.md`。

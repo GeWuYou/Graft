@@ -5,7 +5,7 @@
 - Established `mvp-extension-path` as the first long-lived active topic for Graft and bound it to branch
   `feat/mvp-extension-path`.
 - Migrated repository-wide design and roadmap truth from `plan/` into `ai-plan/`.
-- Added `ai-plan/design/AI任务追踪与恢复设计.md` and aligned `AGENTS.md`, `README.md`, and `graft-boot` with the new
+- Added `ai-plan/design/governance/ai/AI任务追踪与恢复设计.md` and aligned `AGENTS.md`, `README.md`, and `graft-boot` with the new
   recovery model.
 
 ## 2026-05-12 to 2026-05-14 shared MVP milestones
@@ -67,7 +67,7 @@
 - Reduced `graft-boot` to an executor of `AGENTS.md` startup rules instead of a parallel boot definition, and updated
   `graft-multi-agent-batch` so subagent delegation now requires inherited startup context rather than objective-only
   dispatch.
-- Repositioned `ai-plan/README.md`, `ai-plan/public/README.md`, and `ai-plan/design/AI任务追踪与恢复设计.md` as
+- Repositioned `ai-plan/README.md`, `ai-plan/public/README.md`, and `ai-plan/design/governance/ai/AI任务追踪与恢复设计.md` as
   recovery-system documents only, explicitly separating repository recovery from repository startup governance.
 - Synchronized the parent topic tracking entry so future governance drift can be observed through the active topic
   instead of reintroducing ad-hoc startup notes elsewhere.
@@ -89,7 +89,7 @@
 
 ## 2026-05-16 contract-governance phase-1 foundation
 
-- Added `ai-plan/design/契约治理与魔法值治理规范.md` as the repository design truth for canonical contract ownership,
+- Added `ai-plan/design/governance/platform/契约治理与魔法值治理规范.md` as the repository design truth for canonical contract ownership,
   typed boundaries, lifecycle, compatibility windows, and phase-1 magic-value governance.
 - Extended `AGENTS.md`, `项目设计`, `前端架构设计`, and `插件与依赖注入设计` so high-risk contract changes now
   explicitly require canonical reuse, lifecycle clarity, and same-change doc alignment across `server` / `web`.

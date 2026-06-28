@@ -30,42 +30,42 @@ Before changing code or structure, read the relevant documents in `ai-plan/`.
 
 Authoritative repository documents:
 
-- [ai-plan/design/项目设计.md](ai-plan/design/项目设计.md)
-- [ai-plan/design/模块与依赖注入设计.md](ai-plan/design/模块与依赖注入设计.md)
-- [ai-plan/design/前端架构设计.md](ai-plan/design/前端架构设计.md)
-- [ai-plan/design/契约治理与魔法值治理规范.md](ai-plan/design/契约治理与魔法值治理规范.md) when the task changes
+- [ai-plan/design/architecture/项目设计.md](ai-plan/design/architecture/项目设计.md)
+- [ai-plan/design/architecture/模块与依赖注入设计.md](ai-plan/design/architecture/模块与依赖注入设计.md)
+- [ai-plan/design/architecture/前端架构设计.md](ai-plan/design/architecture/前端架构设计.md)
+- [ai-plan/design/governance/platform/契约治理与魔法值治理规范.md](ai-plan/design/governance/platform/契约治理与魔法值治理规范.md) when the task changes
   typed contracts, magic-value governance, contract lifecycle, ownership, compatibility, drift handling, or shared
   `server` / `web` semantics
-- [ai-plan/design/代码注释与模块文档规范.md](ai-plan/design/代码注释与模块文档规范.md) when the task changes
+- [ai-plan/design/governance/ai/代码注释与模块文档规范.md](ai-plan/design/governance/ai/代码注释与模块文档规范.md) when the task changes
   code comments, package docs, module README rules, or AI documentation behavior
-- [ai-plan/design/TDesign-MCP-辅助开发规范.md](ai-plan/design/TDesign-MCP-辅助开发规范.md) when the task changes
+- [ai-plan/design/governance/frontend/TDesign-MCP-辅助开发规范.md](ai-plan/design/governance/frontend/TDesign-MCP-辅助开发规范.md) when the task changes
   TDesign Vue Next pages, components, styles, or frontend AI-assisted development workflow
-- [ai-plan/design/CodeGraph-MCP-辅助开发规范.md](ai-plan/design/CodeGraph-MCP-辅助开发规范.md) when the task changes
+- [ai-plan/design/governance/ai/CodeGraph-MCP-辅助开发规范.md](ai-plan/design/governance/ai/CodeGraph-MCP-辅助开发规范.md) when the task changes
   CodeGraph MCP setup, repository code-navigation assistance, local code index handling, or AI-assisted discovery
   workflow
-- [ai-plan/design/AI工具与MCP接入治理规范.md](ai-plan/design/AI工具与MCP接入治理规范.md) when the task changes
+- [ai-plan/design/governance/ai/AI工具与MCP接入治理规范.md](ai-plan/design/governance/ai/AI工具与MCP接入治理规范.md) when the task changes
   AI tooling, MCP adoption, repository skills, Python helper scripts, or AI governance drift checks
 - [ai-plan/roadmap/MVP实施计划.md](ai-plan/roadmap/MVP实施计划.md)
-- [ai-plan/design/AI任务追踪与恢复设计.md](ai-plan/design/AI任务追踪与恢复设计.md) when the task changes
+- [ai-plan/design/governance/ai/AI任务追踪与恢复设计.md](ai-plan/design/governance/ai/AI任务追踪与恢复设计.md) when the task changes
   tracking, recovery, or documentation-governance rules
-- [ai-plan/design/通知中心设计.md](ai-plan/design/通知中心设计.md) when the task changes Notification Center
+- [ai-plan/design/domains/notification/通知中心设计.md](ai-plan/design/domains/notification/通知中心设计.md) when the task changes Notification Center
   sources, delivery semantics, notification configuration, notification routes, or shell notification UI behavior
-- [ai-plan/design/数据库表设计与迁移规范.md](ai-plan/design/数据库表设计与迁移规范.md) when the task changes
+- [ai-plan/design/governance/backend/数据库表设计与迁移规范.md](ai-plan/design/governance/backend/数据库表设计与迁移规范.md) when the task changes
   database table design, Ent schema, Atlas migration, audit fields, soft delete semantics, indexes, store query
   semantics, or database table / column comments
-- [ai-plan/design/后端查询与数据库访问治理规范.md](ai-plan/design/后端查询与数据库访问治理规范.md) when the task changes
+- [ai-plan/design/governance/backend/后端查询与数据库访问治理规范.md](ai-plan/design/governance/backend/后端查询与数据库访问治理规范.md) when the task changes
   backend query shape, pagination, count strategy, SQL field selection, query timeout, batch writes, repository query
   cost, or Explain evidence expectations
-- [ai-plan/design/服务端API边界与兼容治理规范.md](ai-plan/design/服务端API边界与兼容治理规范.md) when the task changes
+- [ai-plan/design/governance/backend/服务端API边界与兼容治理规范.md](ai-plan/design/governance/backend/服务端API边界与兼容治理规范.md) when the task changes
   server HTTP request/response boundaries, Entity/DTO/VO separation, OpenAPI authority, backward compatibility, or
   API deprecation policy
-- [ai-plan/design/后端安全与信任边界治理规范.md](ai-plan/design/后端安全与信任边界治理规范.md) when the task changes
+- [ai-plan/design/governance/backend/后端安全与信任边界治理规范.md](ai-plan/design/governance/backend/后端安全与信任边界治理规范.md) when the task changes
   backend authorization, audit requirements, dangerous operation protection, actor/resource trust boundaries, or
   frontend/backend security responsibility split
-- [ai-plan/design/后端测试与可维护性治理规范.md](ai-plan/design/后端测试与可维护性治理规范.md) when the task changes
+- [ai-plan/design/governance/backend/后端测试与可维护性治理规范.md](ai-plan/design/governance/backend/后端测试与可维护性治理规范.md) when the task changes
   backend test minimums, regression strategy, query-count regression, public API comments, service responsibility
   notes, magic-number governance, or complexity guardrails
-- [ai-plan/design/AI代码生成与Review规范.md](ai-plan/design/AI代码生成与Review规范.md) when the task changes
+- [ai-plan/design/governance/ai/AI代码生成与Review规范.md](ai-plan/design/governance/ai/AI代码生成与Review规范.md) when the task changes
   agent-generated code scope, multi-agent review workflow, closeout evidence, opportunistic fixes, or AI coding
   guardrails
 
@@ -87,6 +87,7 @@ Reading order:
 - `web` tasks must also read `web/AGENTS.md`
 - `server` tasks must also read `server/AGENTS.md`
 - `cross-boundary` tasks must read both subdomain `AGENTS.md` files before edits or validation conclusions
+- `docs/automation` tasks that modify `ai-plan/**` must also read `ai-plan/AGENTS.md`
 
 If code and docs diverge, update the docs first or in the same change.
 
@@ -116,7 +117,7 @@ Before choosing runtimes, package managers, or CLI tools:
 - prefer repository-relevant installed tools over assumptions about what is available on the system
 - follow .ai/environment/ for repository toolchain preferences instead of guessing from the current shell alone
 - when using CodeGraph MCP as an AI navigation aid, follow
-  [ai-plan/design/CodeGraph-MCP-辅助开发规范.md](ai-plan/design/CodeGraph-MCP-辅助开发规范.md); CodeGraph is a
+  [ai-plan/design/governance/ai/CodeGraph-MCP-辅助开发规范.md](ai-plan/design/governance/ai/CodeGraph-MCP-辅助开发规范.md); CodeGraph is a
   developer-local knowledge source, not a repository runtime, CI, hook, or package dependency
 - if a change affects repository toolchain expectations or environment guidance, refresh the `.ai/environment/`
   inventory in the same change instead of leaving generated environment truth stale
@@ -164,6 +165,8 @@ The minimum startup preflight is:
    - `docs/automation`
 6. read the required subdomain `AGENTS.md` files for the chosen task class
 7. decide whether the current turn needs recovery context from `ai-plan/public/README.md`
+8. if the request proposes new long-running work and no active topic already owns it, route through the
+   `graft-work-intake` workflow before creating a new `topic`, `design`, `roadmap`, or `ADR`
 
 The minimum startup receipt is:
 
@@ -299,6 +302,13 @@ Prefer the repository skills below when their trigger matches the task:
   - use for short startup prompts, resume prompts, or when the first step should be to run the startup preflight
     defined in `4.1 Startup Governance`, assess whether `graft-multi-agent-batch` is justified, and enter repository
     recovery or direct execution when needed
+  - when startup discovers new long-running work that is not yet owned by an active topic, `graft-boot` should route
+    through `graft-work-intake` before starting topic-local execution
+- `graft-work-intake`
+  - use as the only workflow-level entry for new long-running work that may need `design`, `topic`, `roadmap`, `ADR`,
+    bootstrap, or loop dispatch
+  - it produces one `Work Contract`, performs contract-driven minimal bootstrap, and dispatches to specialized skills
+  - it must not become a second startup authority or a content-authoring skill
 - `graft-multi-agent-batch`
   - use when the user explicitly wants subagent delegation or when the work cleanly splits into disjoint parallel
     slices; `graft-boot` should perform the suitability assessment before delegation starts
@@ -368,9 +378,15 @@ Prefer the repository skills below when their trigger matches the task:
     and enforce token/theme/i18n/visible-copy constraints before implementation
 - `graft-validation-runner`
   - use when choosing the smallest correct validation for `server`, `web`, or cross-boundary work
+- `graft-ai-plan-governance`
+  - use when changing `ai-plan/**` router documents, active-topic recovery materials, templates, catalog coverage, or
+    bounded `ai-plan` validators; it keeps root `AGENTS.md` as startup truth and `ai-plan/AGENTS.md` as
+    `ai-plan/**` local execution truth
+  - it also owns `Work Intake`, `Work Contract`, and contract-driven bootstrap governance under `ai-plan/**`
 - `graft-ai-governance-audit`
-  - use when evaluating or changing AI tooling, MCP adoption, repository skills, `ai-plan` governance, Python helper
-    scripts, environment inventory, or drift between AGENTS and AI workflow documents
+  - use when evaluating or changing AI tooling, MCP adoption, repository skills, Python helper scripts, environment
+    inventory, or drift between AGENTS and AI workflow documents; pair it with `graft-ai-plan-governance` when the
+    same slice also changes `ai-plan/**` governance
 
 If a repository skill and this document diverge, follow `AGENTS.md` first and update the skill in the same change.
 
@@ -921,6 +937,11 @@ For complex, multi-step, or multi-agent work:
 Use these workflow rules:
 
 - `ai-plan/public/README.md` must list only active topics
+- new long-running work must pass through `Work Intake` before a new active topic, roadmap, design authority, or ADR
+  is created
+- `Work Intake` outputs one `Work Contract`; later design, roadmap, topic, ADR, bootstrap, loop, and closeout steps
+  consume that contract instead of re-deciding entry conditions independently
+- `Work Contract` is persisted only for work that actually becomes an active topic
 - when a branch or worktree has an active-topic mapping, read its tracking and trace files after startup preflight and
   before substantive recovery work
 - when an active topic defines subtopics, read the parent topic first and then continue into the relevant subtopic based
@@ -930,6 +951,8 @@ Use these workflow rules:
   parent topic focused on cross-boundary milestones, shared risks, and shared next steps
 - tracking and trace documents must record authority discovery when it materially changes task classification, owned
   scope interpretation, or compatibility decisions
+- tracking is the authority location for a persisted `Work Contract`; topic `README.md` stays navigation-oriented and
+  must not become the full workflow-state store
 - for complex work, maintain a matching trace that records the current date, key decisions, validation milestones, and
   the immediate next step
 - keep active tracking and trace files concise enough to serve as recovery entrypoints
@@ -948,9 +971,9 @@ rules.
 High-level documentation rules:
 
 - `server` code follows the detailed comment and GoDoc requirements in `server/AGENTS.md` and
-  `ai-plan/design/代码注释与模块文档规范.md`
+  `ai-plan/design/governance/ai/代码注释与模块文档规范.md`
 - `web` code follows the detailed frontend comment requirements in `web/AGENTS.md` and
-  `ai-plan/design/代码注释与模块文档规范.md`
+  `ai-plan/design/governance/ai/代码注释与模块文档规范.md`
 - architecture, lifecycle, compatibility, and ownership comments take priority over mechanical restatement
 - module-level `README.md` files are navigation documents, not replacements for `ai-plan/design/`
 
@@ -996,7 +1019,7 @@ A task is done only when all relevant items below are satisfied:
 - `server` and `web` boundaries are still clear
 - new module work keeps the `menu + route + page + api + permission` path explicit
 - any new or changed high-risk contract follows the canonical ownership, lifecycle, and compatibility rules in
-  `ai-plan/design/契约治理与魔法值治理规范.md`
+  `ai-plan/design/governance/platform/契约治理与魔法值治理规范.md`
 - any introduced compatibility branch records why direct authority repair was not completed in the same slice
 - affected code has the required comments and documentation
 - affected code follows the applicable subdomain execution-truth document

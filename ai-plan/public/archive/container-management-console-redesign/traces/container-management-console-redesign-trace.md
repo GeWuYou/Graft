@@ -8,7 +8,7 @@
   - governance source: root `AGENTS.md`
   - task class: `cross-boundary`
   - recovery source: `none` for the planning turn, now `parent topic` for continuation
-  - authority summary: `ai-plan/design/容器管理设计.md` + OpenAPI source + `server/modules/container/**` +
+  - authority summary: `ai-plan/design/domains/container/容器管理设计.md` + OpenAPI source + `server/modules/container/**` +
     `web/src/modules/container/**`
 - Read relevant governance:
   - root `AGENTS.md`
@@ -43,7 +43,7 @@
   - governance source: root `AGENTS.md`
   - task class: `cross-boundary`
   - recovery source: `parent topic`
-  - authority summary: `ai-plan/design/容器管理设计.md` + `openapi/**` + `server/modules/container/**` +
+  - authority summary: `ai-plan/design/domains/container/容器管理设计.md` + `openapi/**` + `server/modules/container/**` +
     `web/src/modules/container/**` + shared management table components
 - Updated `web/src/modules/container/pages/list/index.vue`:
   - removed PageHeader refresh and kept refresh in `TableViewToolbar`
@@ -75,7 +75,7 @@
   - governance source: root `AGENTS.md`
   - task class: `cross-boundary`
   - recovery source: `parent topic`
-  - authority summary: `ai-plan/design/容器管理设计.md` + `openapi/**` + `server/modules/container/**` +
+  - authority summary: `ai-plan/design/domains/container/容器管理设计.md` + `openapi/**` + `server/modules/container/**` +
     `web/src/modules/container/**` + shared management table components
 - Updated `web/src/modules/container/pages/list/index.vue`:
   - widened the Detail Drawer to `960px` and enabled `attach="body"` plus `destroy-on-close`
@@ -104,7 +104,7 @@
   - governance source: root `AGENTS.md`
   - task class: `cross-boundary`
   - recovery source: `parent topic`
-  - authority summary: `ai-plan/design/容器管理设计.md` + `openapi/**` + `server/modules/container/**` +
+  - authority summary: `ai-plan/design/domains/container/容器管理设计.md` + `openapi/**` + `server/modules/container/**` +
     `web/src/modules/container/**` + shared management table components
 - Updated OpenAPI source:
   - added container list `limit` / `offset` / `keyword` / `state` / `health` query parameters
@@ -148,7 +148,7 @@
   - governance source: root `AGENTS.md`
   - task class: `cross-boundary`
   - recovery source: `parent topic`
-  - authority summary: `ai-plan/design/容器管理设计.md` + `openapi/**` + `server/modules/container/**` +
+  - authority summary: `ai-plan/design/domains/container/容器管理设计.md` + `openapi/**` + `server/modules/container/**` +
     `web/src/modules/container/**` + shared management table components
 - Backend container module updates:
   - kept dangerous action gating as the server authority for start / stop / restart
@@ -161,7 +161,7 @@
   - changed confirmations to include the container display name
   - added frontend locale entries for server-owned action success keys
 - Deferrals:
-  - remove/delete remains deferred because `ai-plan/design/容器管理设计.md` still excludes container deletion from MVP
+  - remove/delete remains deferred because `ai-plan/design/domains/container/容器管理设计.md` still excludes container deletion from MVP
   - batch operations remain deferred with remove/delete because no full backend permission, dangerous gate, audit,
     OpenAPI, UI, and test chain was introduced in this bounded batch
 - TDesign MCP preflight:
@@ -205,7 +205,7 @@
   - governance source: root `AGENTS.md`
   - task class: `cross-boundary`
   - recovery source: `parent topic`
-  - authority summary: `ai-plan/design/容器管理设计.md` + `openapi/**` + `server/modules/container/**` +
+  - authority summary: `ai-plan/design/domains/container/容器管理设计.md` + `openapi/**` + `server/modules/container/**` +
     `web/src/modules/container/**` + shared management table components
 - Final acceptance review:
   - capability name remains `容器管理`; Docker appears only as runtime adapter/config information
@@ -225,7 +225,7 @@
     `body.clientWidth=1920`, and `hasPageHorizontalScroll=false`
   - the table host uses internal scroll mode when needed
 - Governance updates:
-  - updated `ai-plan/design/容器管理设计.md` to match the final implementation and deferrals
+  - updated `ai-plan/design/domains/container/容器管理设计.md` to match the final implementation and deferrals
   - removed active topic entry from `ai-plan/public/README.md`
   - deleted `ai-plan/dolist/container-management-console-redesign-plan.md`
   - archived this topic under `ai-plan/public/archive/container-management-console-redesign/`

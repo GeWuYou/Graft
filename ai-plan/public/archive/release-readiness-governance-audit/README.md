@@ -13,7 +13,7 @@
 - governance source：root `AGENTS.md`
 - task class：`cross-boundary`
 - recovery source：`parent topic`
-- authority summary：root `AGENTS.md` + `README.md` + `server/internal/config/**` + `server/internal/cli/{serve,migrate,validate}.go` + `web/package.json` + `.github/workflows/release-related` + `ai-plan/design/AI任务追踪与恢复设计.md`
+- authority summary：root `AGENTS.md` + `README.md` + `server/internal/config/**` + `server/internal/cli/{serve,migrate,validate}.go` + `web/package.json` + `.github/workflows/release-related` + `ai-plan/design/governance/ai/AI任务追踪与恢复设计.md`
 
 ## Owned Scope
 

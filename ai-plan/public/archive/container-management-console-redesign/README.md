@@ -5,7 +5,7 @@
 - Topic goal: reshape the existing container management page into a usable operations-console list experience.
 - Status: `archive-ready`.
 - Task class: `cross-boundary`.
-- Canonical design authority: `ai-plan/design/容器管理设计.md`.
+- Canonical design authority: `ai-plan/design/domains/container/容器管理设计.md`.
 - Temporary implementation checklist: deleted at final closeout after design authority was updated.
 - This topic starts from the already widened page layout; do not treat page width as the primary solution.
 
@@ -14,13 +14,13 @@
 - governance source: root `AGENTS.md`
 - task class: `cross-boundary`
 - recovery source: `parent topic`
-- authority summary: `ai-plan/design/容器管理设计.md` + OpenAPI source + `server/modules/container/**` + `web/src/modules/container/**` + shared management table components
+- authority summary: `ai-plan/design/domains/container/容器管理设计.md` + OpenAPI source + `server/modules/container/**` + `web/src/modules/container/**` + shared management table components
 
 ## Owned Scope
 
 Allowed scopes:
 
-- `ai-plan/design/容器管理设计.md`
+- `ai-plan/design/domains/container/容器管理设计.md`
 - `ai-plan/dolist/container-management-console-redesign-plan.md` (deleted during final closeout)
 - `ai-plan/public/archive/container-management-console-redesign/**`
 - `ai-plan/public/README.md`
@@ -84,7 +84,7 @@ Do not expand into:
 - Detail/log entry points remain usable and do not preload logs or raw inspect data.
 - Backend/OpenAPI changes stay authority-first and do not rely on frontend compatibility patches.
 - Permissions, dangerous action gates, audit, system config, and i18n stay aligned with repository governance.
-- Final closeout updated `ai-plan/design/容器管理设计.md`, archived this topic, and deleted the temporary dolist file.
+- Final closeout updated `ai-plan/design/domains/container/容器管理设计.md`, archived this topic, and deleted the temporary dolist file.
 
 ## Validation Targets
 

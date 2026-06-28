@@ -7,7 +7,7 @@ description: Repository-specific workflow for installing, registering, initializ
 
 Use this skill to set up or verify CodeGraph MCP as a developer-local AI navigation aid for `Graft`.
 
-Treat root `AGENTS.md` and `ai-plan/design/CodeGraph-MCP-辅助开发规范.md` as the source of truth. This skill does not
+Treat root `AGENTS.md` and `ai-plan/design/governance/ai/CodeGraph-MCP-辅助开发规范.md` as the source of truth. This skill does not
 replace startup governance, authority discovery, direct source reads, or repository validation entrypoints.
 
 ## Startup
@@ -17,7 +17,7 @@ replace startup governance, authority discovery, direct source reads, or reposit
 3. Read:
    - root `AGENTS.md`
    - `.ai/environment/tools.ai.yaml`
-   - `ai-plan/design/CodeGraph-MCP-辅助开发规范.md`
+   - `ai-plan/design/governance/ai/CodeGraph-MCP-辅助开发规范.md`
 4. Inspect `git status --short` before edits. If other agents have changes, keep this skill's scope limited to
    `.agents/skills/graft-codegraph-mcp/**`, CodeGraph governance docs, `.gitignore`, and confirmed CodeGraph-only
    hunks.
@@ -102,14 +102,14 @@ replace startup governance, authority discovery, direct source reads, or reposit
   validation, or commit scope.
 - Always read real files before modifying code or making a final technical claim.
 - When a task touches TDesign Vue Next components, still use TDesign MCP according to
-  `ai-plan/design/TDesign-MCP-辅助开发规范.md`; CodeGraph does not replace component docs.
+  `ai-plan/design/governance/frontend/TDesign-MCP-辅助开发规范.md`; CodeGraph does not replace component docs.
 
 ## Validation
 
 For this skill's own setup or docs changes, use the strongest honest docs/automation checks:
 
 ```bash
-git diff --check -- .agents/skills/graft-codegraph-mcp AGENTS.md ai-plan/design/CodeGraph-MCP-辅助开发规范.md .gitignore
+git diff --check -- .agents/skills/graft-codegraph-mcp AGENTS.md ai-plan/design/governance/ai/CodeGraph-MCP-辅助开发规范.md .gitignore
 command -v codegraph
 codegraph --version
 codex mcp list

@@ -12,11 +12,11 @@
 
 ## Repository Truth
 
-- `ai-plan/design/项目设计.md`
+- `ai-plan/design/architecture/项目设计.md`
 - `ai-plan/design/插件与依赖注入设计.md`
-- `ai-plan/design/前端架构设计.md`
-- `ai-plan/design/代码注释与模块文档规范.md`
-- `ai-plan/design/AI任务追踪与恢复设计.md`
+- `ai-plan/design/architecture/前端架构设计.md`
+- `ai-plan/design/governance/ai/代码注释与模块文档规范.md`
+- `ai-plan/design/governance/ai/AI任务追踪与恢复设计.md`
 - `ai-plan/roadmap/MVP实施计划.md`
 
 ## Topic Roadmap
@@ -162,11 +162,11 @@
   - `cd web && bun run check`
 - 本次 topic 级同步通过 `sed`、`rg`、`git diff -- ai-plan/public/mvp-extension-path` 与对应直接校验结果完成一致性检查。
 - 本次 startup governance 最小迁移切片一致性检查：
-  - `rg -n "Startup Governance|startup preflight|startup receipt|recovery index|subagent" AGENTS.md .agents/skills/graft-boot/SKILL.md .agents/skills/graft-multi-agent-batch/SKILL.md ai-plan/README.md ai-plan/public/README.md ai-plan/design/AI任务追踪与恢复设计.md ai-plan/public/mvp-extension-path`
-  - `git diff -- AGENTS.md .agents/skills/graft-boot/SKILL.md .agents/skills/graft-multi-agent-batch/SKILL.md ai-plan/README.md ai-plan/public/README.md ai-plan/design/AI任务追踪与恢复设计.md ai-plan/public/mvp-extension-path`
+  - `rg -n "Startup Governance|startup preflight|startup receipt|recovery index|subagent" AGENTS.md .agents/skills/graft-boot/SKILL.md .agents/skills/graft-multi-agent-batch/SKILL.md ai-plan/README.md ai-plan/public/README.md ai-plan/design/governance/ai/AI任务追踪与恢复设计.md ai-plan/public/mvp-extension-path`
+  - `git diff -- AGENTS.md .agents/skills/graft-boot/SKILL.md .agents/skills/graft-multi-agent-batch/SKILL.md ai-plan/README.md ai-plan/public/README.md ai-plan/design/governance/ai/AI任务追踪与恢复设计.md ai-plan/public/mvp-extension-path`
 - 本次 boot-orchestration / closeout / commit 治理切片一致性检查：
-  - `rg -n "graft-boot|graft-task-closeout|graft-commit|graft-multi-agent-batch|closeout|handoff|commit eligibility" AGENTS.md .agents/skills/graft-boot/SKILL.md .agents/skills/graft-task-closeout/SKILL.md .agents/skills/graft-commit/SKILL.md .agents/skills/graft-multi-agent-batch/SKILL.md ai-plan/design/AI任务追踪与恢复设计.md ai-plan/public/mvp-extension-path`
-  - `git diff -- AGENTS.md .agents/skills/graft-boot/SKILL.md .agents/skills/graft-task-closeout/SKILL.md .agents/skills/graft-commit/SKILL.md .agents/skills/graft-multi-agent-batch/SKILL.md ai-plan/design/AI任务追踪与恢复设计.md ai-plan/public/mvp-extension-path`
+  - `rg -n "graft-boot|graft-task-closeout|graft-commit|graft-multi-agent-batch|closeout|handoff|commit eligibility" AGENTS.md .agents/skills/graft-boot/SKILL.md .agents/skills/graft-task-closeout/SKILL.md .agents/skills/graft-commit/SKILL.md .agents/skills/graft-multi-agent-batch/SKILL.md ai-plan/design/governance/ai/AI任务追踪与恢复设计.md ai-plan/public/mvp-extension-path`
+  - `git diff -- AGENTS.md .agents/skills/graft-boot/SKILL.md .agents/skills/graft-task-closeout/SKILL.md .agents/skills/graft-commit/SKILL.md .agents/skills/graft-multi-agent-batch/SKILL.md ai-plan/design/governance/ai/AI任务追踪与恢复设计.md ai-plan/public/mvp-extension-path`
 - 本次 auth / RBAC 响应收敛切片直接校验：
   - `cd server && go test ./internal/httpx ./plugins/user`
   - `cd server && go build ./cmd/graft`
@@ -179,20 +179,20 @@
   - `cd web && bun run test:run -- src/store/modules/user.test.ts src/utils/request.test.ts src/layouts/components/force-password-change.test.ts src/permission.test.ts`
   - `cd web && bun run typecheck`
 - 本次默认管理员/首次改密文档与跟踪同步一致性检查：
-  - `rg -n "graft-admin|must_change_password|change-password|bootstrap|受限态" ai-plan/design/项目设计.md server/plugins/user/README.md ai-plan/public/mvp-extension-path`
-  - `git diff -- ai-plan/design/项目设计.md server/plugins/user/README.md ai-plan/public/mvp-extension-path`
+  - `rg -n "graft-admin|must_change_password|change-password|bootstrap|受限态" ai-plan/design/architecture/项目设计.md server/plugins/user/README.md ai-plan/public/mvp-extension-path`
+  - `git diff -- ai-plan/design/architecture/项目设计.md server/plugins/user/README.md ai-plan/public/mvp-extension-path`
 - 本次 backend lint 治理文档切片一致性检查：
-  - `rg -n "golangci-lint|graft validate backend|controlled exception|revive|stylecheck" AGENTS.md README.md ai-plan/design/项目设计.md ai-plan/design/代码注释与模块文档规范.md ai-plan/public/mvp-extension-path/todos/mvp-extension-path-tracking.md ai-plan/public/mvp-extension-path/subtopics/server/todos/server-tracking.md`
-  - `git diff -- AGENTS.md README.md ai-plan/design/项目设计.md ai-plan/design/代码注释与模块文档规范.md ai-plan/public/mvp-extension-path/todos/mvp-extension-path-tracking.md ai-plan/public/mvp-extension-path/subtopics/server/todos/server-tracking.md`
+  - `rg -n "golangci-lint|graft validate backend|controlled exception|revive|stylecheck" AGENTS.md README.md ai-plan/design/architecture/项目设计.md ai-plan/design/governance/ai/代码注释与模块文档规范.md ai-plan/public/mvp-extension-path/todos/mvp-extension-path-tracking.md ai-plan/public/mvp-extension-path/subtopics/server/todos/server-tracking.md`
+  - `git diff -- AGENTS.md README.md ai-plan/design/architecture/项目设计.md ai-plan/design/governance/ai/代码注释与模块文档规范.md ai-plan/public/mvp-extension-path/todos/mvp-extension-path-tracking.md ai-plan/public/mvp-extension-path/subtopics/server/todos/server-tracking.md`
 - 本次 workflow/lint 直接校验：
   - `cd server && go test ./internal/httpx ./internal/store/entstore ./plugins/user`
   - `cd server && golangci-lint run --config .golangci.yml ./cmd/graft ./cmd/graft-jwt-secret ./cmd/graft-signing-key ./internal/app ./internal/cli ./internal/config ./internal/database ./internal/httpx ./internal/i18n ./internal/plugin ./internal/redisx ./internal/store/entstore ./plugins/audit ./plugins/rbac ./plugins/scheduler ./plugins/user`
   - `cd server && go run ./cmd/graft validate backend --stage lint`
   - 结果：生产配置通过；测试配置已回到统一验证口径，不再被既有 test-lint backlog 阻断。
 - 本次 docs/automation 治理收口一致性检查：
-  - `rg -n "runtime surface|module lifecycle|service locator|feature boundary|第二真值|bun run check|host Windows Bun|execution-layer|临时运行基线" AGENTS.md README.md ai-plan/design/前端架构设计.md .agents/skills/graft-validation-runner/SKILL.md .github/workflows/pull-request-validation.yml .ai/environment/README.md ai-plan/public/mvp-extension-path/todos/mvp-extension-path-tracking.md ai-plan/public/mvp-extension-path/subtopics/web/todos/web-tracking.md`
+  - `rg -n "runtime surface|module lifecycle|service locator|feature boundary|第二真值|bun run check|host Windows Bun|execution-layer|临时运行基线" AGENTS.md README.md ai-plan/design/architecture/前端架构设计.md .agents/skills/graft-validation-runner/SKILL.md .github/workflows/pull-request-validation.yml .ai/environment/README.md ai-plan/public/mvp-extension-path/todos/mvp-extension-path-tracking.md ai-plan/public/mvp-extension-path/subtopics/web/todos/web-tracking.md`
   - `python3 -c "import pathlib, yaml; yaml.safe_load(pathlib.Path('.github/workflows/pull-request-validation.yml').read_text())"`
-  - `git diff -- AGENTS.md README.md ai-plan/design/前端架构设计.md .agents/skills/graft-validation-runner/SKILL.md .github/workflows/pull-request-validation.yml .ai/environment/README.md ai-plan/public/mvp-extension-path/todos/mvp-extension-path-tracking.md ai-plan/public/mvp-extension-path/subtopics/web/todos/web-tracking.md`
+  - `git diff -- AGENTS.md README.md ai-plan/design/architecture/前端架构设计.md .agents/skills/graft-validation-runner/SKILL.md .github/workflows/pull-request-validation.yml .ai/environment/README.md ai-plan/public/mvp-extension-path/todos/mvp-extension-path-tracking.md ai-plan/public/mvp-extension-path/subtopics/web/todos/web-tracking.md`
 - 本次 CI backend lint base-ref / worktree 治理直接校验：
   - `python3 -c "import pathlib, yaml; yaml.safe_load(pathlib.Path('.github/workflows/pull-request-validation.yml').read_text())"`
   - `cd server && go test ./internal/cli`

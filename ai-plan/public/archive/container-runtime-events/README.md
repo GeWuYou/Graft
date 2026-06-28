@@ -6,9 +6,9 @@
 - 状态：`archived`。
 - 任务分类为 `cross-boundary`。
 - Canonical design：
-  - `ai-plan/design/容器运行时事件能力设计.md`
-  - `ai-plan/design/容器管理设计.md`
-  - `ai-plan/design/容器资源状态与订阅治理设计.md`
+  - `ai-plan/design/domains/container/容器运行时事件能力设计.md`
+  - `ai-plan/design/domains/container/容器管理设计.md`
+  - `ai-plan/design/domains/container/容器资源状态与订阅治理设计.md`
 - 已完成 Phase 1 runtime event foundation、Phase 2 container events UX、Phase 3 provider extensibility and hardening，以及 Final archive readiness and governance sync。
 - 本主题已从 active topic index 移入 `ai-plan/public/archive/container-runtime-events/`。
 
@@ -28,7 +28,7 @@
 
 允许修改：
 
-- `ai-plan/design/容器运行时事件能力设计.md`
+- `ai-plan/design/domains/container/容器运行时事件能力设计.md`
 - `ai-plan/public/container-runtime-events/**`
 - `ai-plan/public/archive/container-runtime-events/**`
 - `ai-plan/public/README.md`

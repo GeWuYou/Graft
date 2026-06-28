@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "catalog_kind": "ai-plan-machine-index",
+  "coverage": {
+    "mode": "bounded-governance-set",
+    "note": "Initial machine index for the ai-plan IA governance rollout only. This is not a whole-repository retrofit mandate.",
+    "included_paths": [
+      "ai-plan/AGENTS.md",
+      "ai-plan/README.md",
+      "ai-plan/public/README.md",
+      "ai-plan/design/decisions/ADR-001-ai-plan-authority-and-metadata-model.md",
+      "ai-plan/design/decisions/ADR-002-ai-plan-lifecycle-and-archive-model.md",
+      "ai-plan/public/archive/ai-plan-ia-governance/README.md",
+      "ai-plan/public/archive/ai-plan-ia-governance/startup-prompt.md",
+      "ai-plan/public/archive/ai-plan-ia-governance/todos/ai-plan-ia-governance-tracking.md",
+      "ai-plan/public/archive/ai-plan-ia-governance/traces/ai-plan-ia-governance-trace.md"
+    ],
+    "excluded_by_design": [
+      "whole-repository ai-plan inventory",
+      "per-document frontmatter retrofit",
+      "projection or graph/search derivative files"
+    ]
+  },
+  "authority_rules": {
+    "repository_startup": "AGENTS.md",
+    "ai_plan_execution": "ai-plan/AGENTS.md",
+    "active_topic_router": "ai-plan/public/README.md",
+    "topic_metadata_source": "topic-local README/startup-prompt/tracking/trace files"
+  },
+  "entries": [
+    {
+      "path": "ai-plan/AGENTS.md",
+      "kind": "governance",
+      "role": "local-execution-truth"
+    },
+    {
+      "path": "ai-plan/README.md",
+      "kind": "governance",
+      "role": "directory-readme"
+    },
+    {
+      "path": "ai-plan/public/README.md",
+      "kind": "recovery-router",
+      "role": "active-topic-index"
+    },
+    {
+      "path": "ai-plan/design/decisions/ADR-001-ai-plan-authority-and-metadata-model.md",
+      "kind": "adr",
+      "role": "metadata-model-authority"
+    },
+    {
+      "path": "ai-plan/design/decisions/ADR-002-ai-plan-lifecycle-and-archive-model.md",
+      "kind": "adr",
+      "role": "lifecycle-model-authority"
+    },
+    {
+      "path": "ai-plan/public/archive/ai-plan-ia-governance/README.md",
+      "kind": "archive-topic-doc",
+      "role": "topic-readme",
+      "topic": "ai-plan-ia-governance",
+      "topic_state": "archived"
+    },
+    {
+      "path": "ai-plan/public/archive/ai-plan-ia-governance/startup-prompt.md",
+      "kind": "archive-topic-doc",
+      "role": "startup-prompt",
+      "topic": "ai-plan-ia-governance",
+      "topic_state": "archived"
+    },
+    {
+      "path": "ai-plan/public/archive/ai-plan-ia-governance/todos/ai-plan-ia-governance-tracking.md",
+      "kind": "archive-topic-doc",
+      "role": "tracking",
+      "topic": "ai-plan-ia-governance",
+      "topic_state": "archived"
+    },
+    {
+      "path": "ai-plan/public/archive/ai-plan-ia-governance/traces/ai-plan-ia-governance-trace.md",
+      "kind": "archive-topic-doc",
+      "role": "trace",
+      "topic": "ai-plan-ia-governance",
+      "topic_state": "archived"
+    }
+  ]
+}

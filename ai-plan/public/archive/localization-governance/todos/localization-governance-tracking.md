@@ -31,11 +31,11 @@
 - `AGENTS.md`
 - `server/AGENTS.md`
 - `web/AGENTS.md`
-- `ai-plan/design/项目设计.md`
+- `ai-plan/design/architecture/项目设计.md`
 - `ai-plan/design/插件与依赖注入设计.md`
-- `ai-plan/design/前端架构设计.md`
-- `ai-plan/design/契约治理与魔法值治理规范.md`
-- `ai-plan/design/AI任务追踪与恢复设计.md`
+- `ai-plan/design/architecture/前端架构设计.md`
+- `ai-plan/design/governance/platform/契约治理与魔法值治理规范.md`
+- `ai-plan/design/governance/ai/AI任务追踪与恢复设计.md`
 
 ## Current Recovery Point
 
@@ -88,9 +88,9 @@
 ## Shared Hotspots
 
 - `ai-plan/public/README.md`
-- `ai-plan/design/契约治理与魔法值治理规范.md`
-- `ai-plan/design/前端架构设计.md`
-- `ai-plan/design/项目设计.md`
+- `ai-plan/design/governance/platform/契约治理与魔法值治理规范.md`
+- `ai-plan/design/architecture/前端架构设计.md`
+- `ai-plan/design/architecture/项目设计.md`
 - `server/internal/contract/**`
 - `server/internal/i18n/**`
 - `web/src/locales/**`

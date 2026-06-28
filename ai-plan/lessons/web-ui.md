@@ -70,8 +70,8 @@
   - Design doc: yes
 - Related:
   - `web/AGENTS.md`
-  - `ai-plan/design/前端架构设计.md`
-  - `ai-plan/design/契约治理与魔法值治理规范.md`
+  - `ai-plan/design/architecture/前端架构设计.md`
+  - `ai-plan/design/governance/platform/契约治理与魔法值治理规范.md`
   - `web/scripts/check-i18n-governance.ts`
   - `web/src/shared/observability/time.ts`
 - Updated at:
@@ -219,7 +219,7 @@
   - AGENTS.md: no
   - Design doc: yes
 - Related:
-  - `ai-plan/design/前端视觉设计规范.md`
+  - `ai-plan/design/governance/frontend/前端视觉设计规范.md`
   - `web/src/shared/components/management/ManagementPageContent.vue`
 - Updated at:
   2026-05-22

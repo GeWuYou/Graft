@@ -67,7 +67,7 @@
 | --- | --- | --- | --- |
 | 当前用户权限 | 已有 | `server/modules/rbac/plugin_registration.go` `authorizer.Authorize` 读取 `ListPermissionsByUserID`；`web/src/store/modules/permission.ts` 消费 `bootstrapSnapshot.permissions` | 权限快照由 bootstrap 提供给前端，服务端按请求态重新判定 |
 | 当前用户菜单 | 已有 | `web/src/store/modules/permission.ts` `buildAsyncRoutes`；`web/src/utils/route/bootstrap.ts` | 菜单来自 bootstrap `menus` |
-| 动态菜单 `title_key` / fallback | 已有兼容治理 | `web/src/utils/route/bootstrap.ts` 以 `title_key` 为主，保留 `title` 兼容回退；`ai-plan/design/前端架构设计.md` 与 `契约治理` 已冻结规则 | 现状不是第二真值，但仍保留兼容 fallback |
+| 动态菜单 `title_key` / fallback | 已有兼容治理 | `web/src/utils/route/bootstrap.ts` 以 `title_key` 为主，保留 `title` 兼容回退；`ai-plan/design/architecture/前端架构设计.md` 与 `契约治理` 已冻结规则 | 现状不是第二真值，但仍保留兼容 fallback |
 
 ## 接口覆盖矩阵
 
