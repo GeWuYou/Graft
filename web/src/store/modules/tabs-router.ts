@@ -8,12 +8,14 @@ import {
 
 import { LOCALE } from '@/contracts/i18n/locales';
 import { AUTH_ROUTE_NAME } from '@/modules/auth/contract/routes';
+import { createLogger } from '@/utils/logger';
 import { localizeRouteTitleKey } from '@/utils/route/title';
 import type { TabPageSnapshot, TRouterInfo, TTabRouterType } from '@/utils/types';
 
 const PINNED_TABS_STORAGE_KEY = 'tabs:pinned';
 const MAX_CLOSED_TABS = 20;
 const ROOT_ENTRY_TITLE_KEY = 'app.home.title';
+const logger = createLogger('store.tabsRouter');
 
 const homeRoute: Array<TRouterInfo> = [
   {
@@ -78,7 +80,14 @@ function writePinnedTabKeys(keys: string[]) {
     return;
   }
 
-  window.localStorage.setItem(PINNED_TABS_STORAGE_KEY, JSON.stringify([...new Set(keys)]));
+  try {
+    window.localStorage.setItem(PINNED_TABS_STORAGE_KEY, JSON.stringify([...new Set(keys)]));
+  } catch (error) {
+    logger.warn('pinned tabs storage write failed', {
+      storageKey: PINNED_TABS_STORAGE_KEY,
+      error,
+    });
+  }
 }
 
 function normalizeTabKey(value?: string) {

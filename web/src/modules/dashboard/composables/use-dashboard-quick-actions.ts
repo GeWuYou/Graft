@@ -82,7 +82,14 @@ function writeUsageMap(value: DashboardQuickActionUsageMap) {
     return;
   }
 
-  window.localStorage.setItem(DASHBOARD_QUICK_ACTION_STORAGE_KEY.ROUTE_USAGE, JSON.stringify(value));
+  try {
+    window.localStorage.setItem(DASHBOARD_QUICK_ACTION_STORAGE_KEY.ROUTE_USAGE, JSON.stringify(value));
+  } catch (error) {
+    logger.warn('dashboard quick-action usage storage write failed', {
+      storageKey: DASHBOARD_QUICK_ACTION_STORAGE_KEY.ROUTE_USAGE,
+      error,
+    });
+  }
 }
 
 function lastAccessTime(value: string) {

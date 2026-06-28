@@ -110,7 +110,13 @@ func (s *logTopicStreamer) EnsureTopic(ctx context.Context, topic string, ref Re
 	unregister, err := s.monitor.RegisterTopicObserver(topic, func(_ string) {
 		s.start(topic)
 	}, func(_ string) {
-		_ = s.stop(context.Background(), topic)
+		if err := s.stop(context.Background(), topic); err != nil {
+			s.logger.Warn(
+				"stop container log stream failed",
+				zap.String("topic", logsafe.SanitizeText(topic)),
+				zap.Error(err),
+			)
+		}
 	})
 	if err != nil {
 		s.mu.Lock()
