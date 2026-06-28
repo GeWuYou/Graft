@@ -59,7 +59,7 @@ class EnvironmentInventoryTests(unittest.TestCase):
 
     def test_environment_inventory_rejects_overbroad_eff_u_code_manifest_guardrail(self) -> None:
         text = MODULE.read_text(MODULE.TOOLS_AI).replace(
-            "Keep eff-u-code developer-local only; the repository root package.json wrapper is allowed, but do not add it to server/go.mod, web/package.json, CI, hooks, runtime scripts, or completion gates.",
+            "Keep eff-u-code as a local helper and raw JSON source; the repository root package.json wrapper and repository-owned evaluator are allowed, but do not add eff-u-code directly to server/go.mod, web/package.json, runtime scripts, deployment flows, or completion gates, and do not use the upstream total score as the gate contract.",
             "Keep eff-u-code developer-local only; do not add it to package manifests, CI, hooks, or completion gates.",
             1,
         )
@@ -80,6 +80,18 @@ class EnvironmentInventoryTests(unittest.TestCase):
             findings = MODULE.validate_environment_inventory()
 
         self.assertTrue(any("bun run quality:eff-u-code --" in finding.message for finding in findings))
+
+    def test_environment_inventory_rejects_stale_never_gate_rule(self) -> None:
+        text = MODULE.read_text(MODULE.TOOLS_AI).replace(
+            "Keep eff-u-code as an optional developer-local helper and raw JSON source; when quality gating is needed, gate through a repository-owned evaluator rather than the upstream total score.",
+            "Keep eff-u-code as an optional developer-local helper; never treat it as a repository validation gate.",
+            1,
+        )
+
+        with mock.patch.object(MODULE, "read_text", return_value=text):
+            findings = MODULE.validate_environment_inventory()
+
+        self.assertTrue(any("stale" in finding.message for finding in findings))
 
 
 class PushBranchGovernanceTests(unittest.TestCase):

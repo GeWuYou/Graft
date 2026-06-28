@@ -2,7 +2,11 @@
   "name": "graft-tools",
   "private": true,
   "scripts": {
-    "quality:eff-u-code": "python3 scripts/run_eff_u_code.py"
+    "quality:eff-u-code": "python3 scripts/run_eff_u_code.py",
+    "quality:eff-u-code:gate": "python3 scripts/evaluate_eff_u_code_gate.py",
+    "quality:eff-u-code:gate:server": "python3 scripts/evaluate_eff_u_code_gate.py --scan-mode project --scopes server --output-json .tmp/eff-u-code-gate/server/report.json --report-dir .tmp/eff-u-code-gate/server/raw",
+    "quality:eff-u-code:gate:web": "python3 scripts/evaluate_eff_u_code_gate.py --scan-mode project --scopes web --output-json .tmp/eff-u-code-gate/web/report.json --report-dir .tmp/eff-u-code-gate/web/raw",
+    "quality:eff-u-code:gate:all": "python3 scripts/evaluate_eff_u_code_gate.py --scan-mode project --scopes server web --output-json .tmp/eff-u-code-gate/all/report.json --report-dir .tmp/eff-u-code-gate/all/raw"
   },
   "devDependencies": {
     "eff-u-code": "2.2.2"

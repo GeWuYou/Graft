@@ -113,6 +113,77 @@ jobs:
           path: /tmp/contract-governance-report.json
           if-no-files-found: ignore
 
+  eff-u-code-quality-gate:
+    name: Graft Quality Policy Gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: "3.12"
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
+        with:
+          bun-version: 1.3.13
+
+      - name: Install repository root quality tool dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Resolve quality gate base branch
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            base_branch="${{ github.event.pull_request.base.ref }}"
+          else
+            base_branch="main"
+          fi
+
+          if [[ -z "${base_branch}" ]]; then
+            echo "::error title=Quality gate base branch missing::Unable to resolve the base branch for Graft Quality Policy."
+            exit 1
+          fi
+
+          if ! git fetch --no-tags --prune origin "${base_branch}"; then
+            echo "::error title=Quality gate base fetch failed::Run 'git fetch origin ${base_branch}' and retry."
+            exit 1
+          fi
+
+          base_ref="refs/remotes/origin/${base_branch}"
+          if ! git rev-parse --verify "${base_ref}" >/dev/null 2>&1; then
+            if ! fetched_sha="$(git rev-parse --verify FETCH_HEAD 2>/dev/null)"; then
+              echo "::error title=Quality gate base ref verify failed::Fetched ${base_branch} but neither ${base_ref} nor FETCH_HEAD is available in the current checkout."
+              exit 1
+            fi
+            base_ref="${fetched_sha}"
+          fi
+
+          echo "GRAFT_QUALITY_BASE_SHA=${base_ref}" >> "$GITHUB_ENV"
+          echo "GITHUB_BASE_REF=${base_branch}" >> "$GITHUB_ENV"
+
+      - name: Run Graft Quality Policy evaluator
+        run: |
+          bun run quality:eff-u-code:gate -- \
+            --scan-mode changed \
+            --base-ref "${GITHUB_BASE_REF}" \
+            --output-json .tmp/eff-u-code-gate/report.json \
+            --report-dir .tmp/eff-u-code-gate/raw
+
+      - name: Upload Graft Quality Policy report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: eff-u-code-gate-report
+          path: .tmp/eff-u-code-gate
+          if-no-files-found: ignore
+
   web-check:
     name: Web Check
     runs-on: ubuntu-latest

@@ -142,6 +142,39 @@
                 "cd \"${workspaceFolder}\" && bun run quality:eff-u-code -- all"
             ],
             "console": "integratedTerminal"
+        },
+        {
+            "name": "quality: Graft Quality Policy server",
+            "type": "node",
+            "request": "launch",
+            "runtimeExecutable": "bash",
+            "runtimeArgs": [
+                "-lc",
+                "cd \"${workspaceFolder}\" && bun run quality:eff-u-code:gate:server"
+            ],
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "quality: Graft Quality Policy web",
+            "type": "node",
+            "request": "launch",
+            "runtimeExecutable": "bash",
+            "runtimeArgs": [
+                "-lc",
+                "cd \"${workspaceFolder}\" && bun run quality:eff-u-code:gate:web"
+            ],
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "quality: Graft Quality Policy all",
+            "type": "node",
+            "request": "launch",
+            "runtimeExecutable": "bash",
+            "runtimeArgs": [
+                "-lc",
+                "cd \"${workspaceFolder}\" && bun run quality:eff-u-code:gate:all"
+            ],
+            "console": "integratedTerminal"
         }
     ],
     "compounds": [

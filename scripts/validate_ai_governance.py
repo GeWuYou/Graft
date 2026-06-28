@@ -167,6 +167,9 @@ def validate_ai_tooling_doc() -> list[Finding]:
         "fuck-u-code",
         "developer-local",
         "not part of the formal validation flow",
+        "bun run quality:eff-u-code:gate --",
+        "Graft Quality Policy",
+        "Curated Score",
         "codegraph",
         "tdesign",
         "context7",
@@ -220,6 +223,33 @@ def validate_ai_tooling_doc() -> list[Finding]:
                         r"optional|可选",
                         r"developer-local|本地",
                         r"validation flow|完成态|CI|hook",
+                    ),
+                ),
+                (
+                    "repository-owned quality evaluator",
+                    (
+                        r"repository-owned|仓库自定义评估器|仓库自定义",
+                        r"Graft Quality Policy",
+                        r"JSON",
+                        r"gate|门禁",
+                    ),
+                ),
+                (
+                    "curated score display only",
+                    (
+                        r"Curated Score",
+                        r"display-only|仅用于展示",
+                        r"不参与阻断|not.*participat",
+                    ),
+                ),
+                (
+                    "governance gate independent from eff-u-code",
+                    (
+                        r"README",
+                        r"ADR",
+                        r"Contract",
+                        r"OpenAPI",
+                        r"Public API Comment|公开 API 注释",
                     ),
                 ),
                 ("RTK prefix rule is forbidden", (r"不得|must not", r"always prefix with\s+`?rtk`?")),
@@ -317,13 +347,14 @@ def validate_environment_inventory() -> list[Finding]:
     findings: list[Finding] = []
     exact_terms = (
         "eff_u_code:",
-        "Keep eff-u-code developer-local only; the repository root package.json wrapper is allowed, but do not add it to server/go.mod, web/package.json, CI, hooks, runtime scripts, or completion gates.",
+        "Keep eff-u-code as a local helper and raw JSON source; the repository root package.json wrapper and repository-owned evaluator are allowed, but do not add eff-u-code directly to server/go.mod, web/package.json, runtime scripts, deployment flows, or completion gates, and do not use the upstream total score as the gate contract.",
         "preferred: \"headroom mcp\"",
         ".ai/headroom/memory",
         ".ai/headroom/learn",
         "rtk instruction injection",
         "automatic instructions write",
         "default_command: \"bun run quality:eff-u-code --\"",
+        "gate_entrypoint: \"bun run quality:eff-u-code:gate --\"",
         "instructions_auto_write: \"disabled\"",
     )
     findings.extend(missing_exact_terms(text, TOOLS_AI, "AI environment inventory", exact_terms))
@@ -334,7 +365,7 @@ def validate_environment_inventory() -> list[Finding]:
             "AI environment inventory",
             (
                 ("Headroom CLI and MCP capabilities", (r"ai_headroom:\s*true", r"ai_headroom_mcp:\s*true")),
-                ("eff-u-code optional helper record", (r"ai_tools:", r"eff_u_code:", r"developer-local", r"default_command:\s+\"bun run quality:eff-u-code --\"", r"repository root package\.json wrapper is allowed", r"server/go\.mod", r"web/package\.json", r"validation flow|validation gate")),
+                ("eff-u-code optional helper record", (r"ai_tools:", r"eff_u_code:", r"quality policy evaluator|repository-owned evaluator|raw JSON source", r"default_command:\s+\"bun run quality:eff-u-code --\"", r"gate_entrypoint:\s+\"bun run quality:eff-u-code:gate --\"", r"server/go\.mod", r"web/package\.json", r"validation flow|validation gate")),
                 ("context compression tool selection", (r"context_compression:", r"preferred:\s+\"headroom mcp\"")),
                 ("controlled local Headroom directories", (r"controlled_local_dirs:", r"\.ai/headroom/memory", r"\.ai/headroom/learn")),
                 ("disallowed Headroom automation", (r"disallowed_by_default:", r"rtk instruction injection", r"automatic instructions write")),
@@ -345,6 +376,8 @@ def validate_environment_inventory() -> list[Finding]:
     )
     if "do not add it to package manifests" in text:
         findings.append(Finding(TOOLS_AI, "eff-u-code guardrail is too broad; allow the repository root package.json wrapper and scope the ban to server/go.mod, web/package.json, CI, hooks, runtime scripts, and completion gates"))
+    if "never treat it as a repository validation gate" in text:
+        findings.append(Finding(TOOLS_AI, "eff-u-code guidance is stale; quality gating must be owned by the repository evaluator rather than banned as a whole"))
     for disallowed in ("headroom wrap codex", "headroom proxy", "wrapper_available:", "proxy_available:"):
         if disallowed in text:
             findings.append(Finding(TOOLS_AI, f"AI environment inventory should keep only MCP entry content, found {disallowed!r}"))

@@ -295,6 +295,10 @@ def parse_args() -> argparse.Namespace:
         help="check scope: server, web, or all",
     )
     parser.add_argument(
+        "--config",
+        help="use an alternate eff-u-code JSON config file instead of the tracked/local merge",
+    )
+    parser.add_argument(
         "--format",
         choices=("console", "markdown", "json", "html"),
         help="override report format",
@@ -345,7 +349,10 @@ def main() -> int:
         if not args.dry_run:
             ensure_tree_sitter_wasms_layout()
 
-        config = load_config()
+        if args.config:
+            config = load_json(Path(args.config).resolve())
+        else:
+            config = load_config()
         scopes = resolve_scopes(args.scope)
         output_dir = Path(args.output_dir).resolve() if args.output_dir else None
         if output_dir is not None and not args.dry_run:
