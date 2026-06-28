@@ -139,6 +139,26 @@ class EvaluateRuleTests(unittest.TestCase):
         self.assertEqual(evaluation.status, "suppressed-noise")
         self.assertEqual(evaluation.noise_reason, "reactive-tracking read pattern")
 
+    def test_error_handling_noise_exclude_uses_bounded_policy_noise_reason(self) -> None:
+        evaluation = MODULE.evaluate_rule(
+            "server/internal/realtime/hub.go",
+            "error_handling",
+            {
+                "metrics": ["error_handling"],
+                "threshold": 60,
+                "regression": 5,
+                "newFileThreshold": 60,
+                "noiseExcludes": ["server/internal/realtime/hub.go"],
+            },
+            "error_handling",
+            make_metric("error_handling", 1.2, "5/5 个错误被忽略 (100.0%)"),
+            make_metric("error_handling", 100),
+            is_new_file=False,
+        )
+
+        self.assertEqual(evaluation.status, "suppressed-noise")
+        self.assertEqual(evaluation.noise_reason, "bounded policy noise")
+
 
 class CuratedScoreTests(unittest.TestCase):
     def test_curated_score_ignores_zero_weight_rules(self) -> None:

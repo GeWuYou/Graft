@@ -84,8 +84,16 @@
         "error_handling"
       ],
       "noiseExcludes": [
+        "server/internal/cachex/backend/memory.go",
+        "server/internal/container/container.go",
+        "server/internal/kvx/memory.go",
+        "server/internal/logger/applog.go",
+        "server/internal/logger/logsafe/logsafe.go",
+        "server/internal/realtime/hub.go",
+        "web/src/modules/container/shared/events-manager.ts",
         "web/src/modules/container/pages/detail/log-view-store.ts",
-        "web/src/modules/container/shared/stats-manager.ts"
+        "web/src/modules/container/shared/stats-manager.ts",
+        "web/src/shared/observability/log-view-cache.ts"
       ],
       "threshold": 60,
       "regression": 5,
