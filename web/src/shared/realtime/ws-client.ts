@@ -93,15 +93,14 @@ export function openRealtimeTopicSocket<TMessage>(
     reconnectAttempts = 0;
   }
 
-  function scheduleReconnect(terminalErrorMessage?: string) {
+  function scheduleReconnect(terminalErrorMessage = MAX_RECONNECT_ERROR_MESSAGE) {
     clearReconnectTimer();
     if (closed) {
       return false;
     }
     if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-      if (terminalErrorMessage) {
-        options.onError?.(terminalErrorMessage);
-      }
+      emitState('error');
+      options.onError?.(terminalErrorMessage);
       return false;
     }
 
@@ -173,7 +172,7 @@ export function openRealtimeTopicSocket<TMessage>(
           return;
         }
         emitState('closed');
-        scheduleReconnect(MAX_RECONNECT_ERROR_MESSAGE);
+        scheduleReconnect();
       };
     } catch (error) {
       if (closed || currentConnectionId !== connectionId) {
