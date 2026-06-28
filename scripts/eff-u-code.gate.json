@@ -91,7 +91,9 @@
         "server/internal/logger/applog.go",
         "server/internal/logger/logsafe/logsafe.go",
         "server/internal/realtime/hub.go",
+        "server/internal/scheduler/runtime.go",
         "server/modules/container/docker_exec_session.go",
+        "server/modules/container/docker_runtime.go",
         "server/modules/container/log_topic_streamer.go",
         "server/modules/container/mount_usage.go",
         "server/modules/container/resource_stats_cache.go",
@@ -103,6 +105,7 @@
         "web/src/modules/container/pages/detail/log-view-store.ts",
         "web/src/modules/container/shared/stats-manager.ts",
         "web/src/shared/observability/log-view-cache.ts",
+        "web/src/shared/realtime/ws-client.ts",
         "web/src/store/modules/setting.ts"
       ],
       "threshold": 60,
