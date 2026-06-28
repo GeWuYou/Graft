@@ -159,6 +159,37 @@ class EvaluateRuleTests(unittest.TestCase):
         self.assertEqual(evaluation.status, "suppressed-noise")
         self.assertEqual(evaluation.noise_reason, "bounded policy noise")
 
+    def test_error_handling_runtime_policy_candidates_are_configured_as_bounded_noise(self) -> None:
+        gate_config = json.loads((MODULE.REPO_ROOT / "scripts" / "eff-u-code.gate.json").read_text(encoding="utf-8"))
+        error_rule = gate_config["gateRules"]["error_handling"]
+        candidates = [
+            "server/internal/httpx/server.go",
+            "server/modules/container/docker_exec_session.go",
+            "server/modules/container/log_topic_streamer.go",
+            "server/modules/container/mount_usage.go",
+            "server/modules/container/resource_stats_cache.go",
+            "server/modules/container/runtime_event_manager.go",
+            "server/modules/container/stats_collector.go",
+            "server/modules/container/terminal/websocket_bridge.go",
+            "server/modules/monitor/module.go",
+            "web/src/store/modules/setting.ts",
+        ]
+
+        for path in candidates:
+            with self.subTest(path=path):
+                evaluation = MODULE.evaluate_rule(
+                    path,
+                    "error_handling",
+                    error_rule,
+                    "error_handling",
+                    make_metric("error_handling", 1.2, "1/1 个错误被忽略 (100.0%)"),
+                    make_metric("error_handling", 100),
+                    is_new_file=False,
+                )
+
+                self.assertEqual(evaluation.status, "suppressed-noise")
+                self.assertEqual(evaluation.noise_reason, "bounded policy noise")
+
 
 class CuratedScoreTests(unittest.TestCase):
     def test_curated_score_ignores_zero_weight_rules(self) -> None:
