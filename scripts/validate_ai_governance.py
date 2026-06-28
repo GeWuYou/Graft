@@ -21,10 +21,13 @@ TDESIGN_DOC = REPO_ROOT / "ai-plan" / "design" / "TDesign-MCP-辅助开发规范
 TOOLS_AI = REPO_ROOT / ".ai" / "environment" / "tools.ai.yaml"
 GITIGNORE = REPO_ROOT / ".gitignore"
 AGENTS = REPO_ROOT / "AGENTS.md"
+AI_PLAN_AGENTS = REPO_ROOT / "ai-plan" / "AGENTS.md"
+AI_PLAN_README = REPO_ROOT / "ai-plan" / "README.md"
 WEB_BROWSER_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-web-browser-agent" / "SKILL.md"
 PR_REVIEW_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-pr-review" / "SKILL.md"
 PR_CREATE_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-pr-create" / "SKILL.md"
 AI_AUDIT_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-ai-governance-audit" / "SKILL.md"
+AI_PLAN_GOVERNANCE_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-ai-plan-governance" / "SKILL.md"
 PUSH_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-push" / "SKILL.md"
 TABLE_DESIGN_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-table-design" / "SKILL.md"
 SQL_MIGRATION_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-sql-migration" / "SKILL.md"
@@ -181,6 +184,7 @@ def validate_ai_tooling_doc() -> list[Finding]:
         "headroom learn",
         ".ai/headroom/memory",
         ".ai/headroom/learn",
+        "graft-ai-plan-governance",
         "ai-plan/public/**",
         "Codex `instructions.md`",
         "CLAUDE.md",
@@ -407,6 +411,44 @@ def validate_skills() -> list[Finding]:
     return findings
 
 
+def validate_ai_plan_governance_skill() -> list[Finding]:
+    findings: list[Finding] = []
+
+    if not AI_PLAN_GOVERNANCE_SKILL.is_file():
+        return [Finding(AI_PLAN_GOVERNANCE_SKILL, "AI plan governance skill is missing")]
+
+    skill_text = read_text(AI_PLAN_GOVERNANCE_SKILL)
+    for term in (
+        "root `AGENTS.md`",
+        "`ai-plan/AGENTS.md`",
+        "`ai-plan/README.md`",
+        "`ai-plan/public/README.md`",
+        "`ai-plan/design/AI任务追踪与恢复设计.md`",
+        "`ai-plan/design/AI工具与MCP接入治理规范.md`",
+        "python3 scripts/validate_ai_plan_structure.py",
+        "python3 scripts/validate_ai_governance.py",
+        "compose-project-management",
+        "second startup",
+        "second validation",
+    ):
+        if term not in skill_text:
+            findings.append(Finding(AI_PLAN_GOVERNANCE_SKILL, f"missing ai-plan governance skill term {term!r}"))
+
+    findings.extend(validate_openai_yaml(AI_PLAN_GOVERNANCE_SKILL.parent, tracked_files()))
+
+    reference_checks = (
+        (AGENTS, "graft-ai-plan-governance"),
+        (AI_PLAN_AGENTS, "graft-ai-plan-governance"),
+        (AI_PLAN_README, "graft-ai-plan-governance"),
+        (AI_TOOLING_DOC, "graft-ai-plan-governance"),
+    )
+    for path, term in reference_checks:
+        if path.is_file() and term not in read_text(path):
+            findings.append(Finding(path, f"missing ai-plan governance skill reference {term!r}"))
+
+    return findings
+
+
 def validate_agents_skill_list() -> list[Finding]:
     """
     验证 AGENTS.md 中的技能清单与治理约束。
@@ -421,6 +463,7 @@ def validate_agents_skill_list() -> list[Finding]:
     for skill_name in (
         "graft-codegraph-mcp",
         "graft-ai-governance-audit",
+        "graft-ai-plan-governance",
         "graft-validation-runner",
         "graft-sql-migration",
         "graft-shared-asset-reuse",
@@ -694,6 +737,7 @@ def run_validation() -> list[Finding]:
     findings.extend(validate_gitignore())
     findings.extend(validate_ai_tooling_doc())
     findings.extend(validate_skills())
+    findings.extend(validate_ai_plan_governance_skill())
     findings.extend(validate_skill_mcp_guidance())
     findings.extend(validate_sql_migration_governance())
     findings.extend(validate_shared_asset_governance())

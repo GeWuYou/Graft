@@ -1,0 +1,4 @@
+interface:
+  display_name: "Graft AI Plan Governance"
+  short_description: "Guide bounded ai-plan governance changes"
+  default_prompt: "Use $graft-ai-plan-governance for ai-plan router, recovery, template, catalog, and bounded validator governance work without creating a second startup or validation path."

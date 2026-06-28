@@ -87,6 +87,7 @@ Reading order:
 - `web` tasks must also read `web/AGENTS.md`
 - `server` tasks must also read `server/AGENTS.md`
 - `cross-boundary` tasks must read both subdomain `AGENTS.md` files before edits or validation conclusions
+- `docs/automation` tasks that modify `ai-plan/**` must also read `ai-plan/AGENTS.md`
 
 If code and docs diverge, update the docs first or in the same change.
 
@@ -368,9 +369,14 @@ Prefer the repository skills below when their trigger matches the task:
     and enforce token/theme/i18n/visible-copy constraints before implementation
 - `graft-validation-runner`
   - use when choosing the smallest correct validation for `server`, `web`, or cross-boundary work
+- `graft-ai-plan-governance`
+  - use when changing `ai-plan/**` router documents, active-topic recovery materials, templates, catalog coverage, or
+    bounded `ai-plan` validators; it keeps root `AGENTS.md` as startup truth and `ai-plan/AGENTS.md` as
+    `ai-plan/**` local execution truth
 - `graft-ai-governance-audit`
-  - use when evaluating or changing AI tooling, MCP adoption, repository skills, `ai-plan` governance, Python helper
-    scripts, environment inventory, or drift between AGENTS and AI workflow documents
+  - use when evaluating or changing AI tooling, MCP adoption, repository skills, Python helper scripts, environment
+    inventory, or drift between AGENTS and AI workflow documents; pair it with `graft-ai-plan-governance` when the
+    same slice also changes `ai-plan/**` governance
 
 If a repository skill and this document diverge, follow `AGENTS.md` first and update the skill in the same change.
 
