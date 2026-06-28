@@ -79,11 +79,16 @@
   - 后续迁移批次边界已收敛
 - Batch 1 输出：
   - `ai-plan/public/design-ia-governance/design/phase-1-design-inventory-and-target-ia.md`
-- 当前下一步：执行 Batch 2，先建立 `ai-plan/design/**` 目标目录与 README 骨架，不在本轮批量迁移 design 文档。
+- Batch 2 已完成：
+  - `ai-plan/design/README.md` 已建立根路由
+  - `architecture/`、`governance/**`、`domains/**` 目标目录已建立
+  - `decisions/` 与 `release/` 已补齐 README 路由
+  - 本轮未批量迁移 existing design docs，保留后续分批移动空间
+- 当前下一步：执行 Batch 3，开始迁移低耦合 design 文档并按新目录修复最小引用。
 
 ## Pending Batch Direction
 
-- `phase-1-batch-2-create-target-design-directories-and-readmes`
+- `phase-1-batch-3-migrate-low-coupling-design-docs`
 
 ## Validation Targets
 

@@ -41,13 +41,19 @@ Design IA Governance
   - `governance/platform/`
   - `domains/<domain>/`
   - 保留 `decisions/`、`release/`、`graft-design-system/`
-- 本批次结论：无需为 Batch 1 追加 shared router、catalog 或 validator 变更；下一批再把 README 骨架落到
-  `ai-plan/design/**`
+- Batch 2 已完成：
+  - `ai-plan/design/**` 目标目录已建立
+  - 一级/二级 README skeleton 已落地为 router，而不是重复设计正文
+  - `decisions/`、`release/` 目录已补齐 README
+  - 本批次未移动 existing design docs，保持后续低耦合迁移批次边界清晰
+- 当前下一步：
+  - 在 Batch 3 中迁移低耦合 design 文档
+  - 保持 `compose-project-management` recovery state 不变
 
 ## Task Checklist
 
 - [x] phase-1-batch-1：design inventory、分类矩阵、目标目录骨架、README 责任模型
-- [ ] phase-1-batch-2：建立 design 目标目录与 README
+- [x] phase-1-batch-2：建立 design 目标目录与 README
 - [ ] phase-1-batch-3：迁移低耦合 design 文档
 - [ ] phase-1-batch-4：迁移 domain / cross-cutting design 文档并修复引用
 - [ ] phase-1-batch-5：archive / naming / governance sync closeout
@@ -66,16 +72,16 @@ Design IA Governance
 {
   "loop_mode": "topic-completion-loop",
   "completed_batches": [
-    "phase-1-batch-1-design-inventory-and-target-ia-skeleton"
+    "phase-1-batch-1-design-inventory-and-target-ia-skeleton",
+    "phase-1-batch-2-create-target-design-directories-and-readmes"
   ],
   "pending_batches": [
-    "phase-1-batch-2-create-target-design-directories-and-readmes",
     "phase-1-batch-3-migrate-low-coupling-design-docs",
     "phase-1-batch-4-migrate-domain-design-docs-and-fix-references",
     "phase-1-batch-5-design-archive-naming-and-governance-sync-closeout"
   ],
-  "current_batch": "phase-1-batch-1-design-inventory-and-target-ia-skeleton",
-  "next_batch": "phase-1-batch-2-create-target-design-directories-and-readmes",
-  "closeout_status": "batch-1-complete"
+  "current_batch": "phase-1-batch-2-create-target-design-directories-and-readmes",
+  "next_batch": "phase-1-batch-3-migrate-low-coupling-design-docs",
+  "closeout_status": "batch-2-complete"
 }
 ```

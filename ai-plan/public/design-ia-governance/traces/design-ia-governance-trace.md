@@ -43,22 +43,48 @@
   - 在 `ai-plan/design/**` 下创建目标目录与 README 骨架
   - 仍不批量移动 design 文档
 
+## 2026-06-28 Batch 2 completed: target design directories and router readmes
+
+- 在 `ai-plan/design/**` 下建立目标目录骨架：
+  - `architecture/`
+  - `governance/ai/`
+  - `governance/backend/`
+  - `governance/frontend/`
+  - `governance/platform/`
+  - `domains/compose/`
+  - `domains/container/`
+  - `domains/notification/`
+  - `domains/audit/`
+- 新增或补齐 router README：
+  - `ai-plan/design/README.md`
+  - `ai-plan/design/architecture/README.md`
+  - `ai-plan/design/governance/**/README.md`
+  - `ai-plan/design/domains/**/README.md`
+  - `ai-plan/design/decisions/README.md`
+  - `ai-plan/design/release/README.md`
+- README 责任保持为目录路由与边界定义，不复制现有 design 正文。
+- 保留已有目录 `decisions/`、`release/`、`graft-design-system/`，本批次不移动 existing design docs。
+- `compose-project-management` 与其他 active topic 的 recovery entry 未改动。
+- 下一批方向：
+  - 迁移 low-coupling design docs 到 `architecture/`、`governance/`、`release/` 等目标目录
+  - 在最小范围内修复引用，不扩大到 domain-heavy 文档迁移
+
 ## Loop Batch State
 
 ```json
 {
   "loop_mode": "topic-completion-loop",
   "completed_batches": [
-    "phase-1-batch-1-design-inventory-and-target-ia-skeleton"
+    "phase-1-batch-1-design-inventory-and-target-ia-skeleton",
+    "phase-1-batch-2-create-target-design-directories-and-readmes"
   ],
   "pending_batches": [
-    "phase-1-batch-2-create-target-design-directories-and-readmes",
     "phase-1-batch-3-migrate-low-coupling-design-docs",
     "phase-1-batch-4-migrate-domain-design-docs-and-fix-references",
     "phase-1-batch-5-design-archive-naming-and-governance-sync-closeout"
   ],
-  "current_batch": "phase-1-batch-1-design-inventory-and-target-ia-skeleton",
-  "next_batch": "phase-1-batch-2-create-target-design-directories-and-readmes",
-  "closeout_status": "batch-1-complete"
+  "current_batch": "phase-1-batch-2-create-target-design-directories-and-readmes",
+  "next_batch": "phase-1-batch-3-migrate-low-coupling-design-docs",
+  "closeout_status": "batch-2-complete"
 }
 ```
