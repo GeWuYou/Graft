@@ -1,0 +1,129 @@
+{
+  "version": 1,
+  "changedFiles": {
+    "mode": "git-diff",
+    "diffFilter": "ACMR"
+  },
+  "targets": {
+    "server": {
+      "root": "server",
+      "include": [
+        "server/**/*.go"
+      ],
+      "exclude": [
+        "server/**/ent/**",
+        "server/**/internal/contract/openapi/**",
+        "server/**/*_generated.go",
+        "server/**/zz_*generated*.go",
+        "server/**/*_test.go"
+      ]
+    },
+    "web": {
+      "root": "web/src",
+      "include": [
+        "web/src/**/*.ts",
+        "web/src/**/*.tsx",
+        "web/src/**/*.vue"
+      ],
+      "exclude": [
+        "web/src/**/contracts/openapi/generated/**",
+        "web/src/**/*.test.ts",
+        "web/src/**/*.d.ts"
+      ]
+    }
+  },
+  "advisoryRules": [
+    "parameter_count",
+    "naming"
+  ],
+  "gateRules": {
+    "complexity": {
+      "metrics": [
+        "cyclomatic_complexity",
+        "cognitive_complexity",
+        "nesting_depth"
+      ],
+      "threshold": 75,
+      "regression": 5,
+      "newFileThreshold": 75
+    },
+    "duplication": {
+      "metrics": [
+        "code_duplication"
+      ],
+      "noiseExcludes": [
+        "server/modules/**/mapper_http.go",
+        "server/modules/**/route_registration.go",
+        "server/modules/**/module.go",
+        "web/src/modules/**/resource-*-presenter.ts",
+        "web/src/shared/observability/stream-viewport-state.ts",
+        "web/src/shared/schema-form/json.ts"
+      ],
+      "threshold": 75,
+      "regression": 5,
+      "newFileThreshold": 75
+    },
+    "file_size": {
+      "metrics": [
+        "file_length"
+      ],
+      "threshold": 70,
+      "regression": 5,
+      "newFileThreshold": 70
+    },
+    "structure": {
+      "metrics": [
+        "structure_analysis"
+      ],
+      "threshold": 75,
+      "regression": 5,
+      "newFileThreshold": 75
+    },
+    "error_handling": {
+      "metrics": [
+        "error_handling"
+      ],
+      "noiseExcludes": [
+        "web/src/modules/container/pages/detail/log-view-store.ts",
+        "web/src/modules/container/shared/stats-manager.ts"
+      ],
+      "threshold": 60,
+      "regression": 5,
+      "newFileThreshold": 60
+    },
+    "documentation": {
+      "metrics": [
+        "comment_ratio"
+      ],
+      "mode": "display-only"
+    },
+    "naming": {
+      "metrics": [
+        "naming_convention"
+      ],
+      "mode": "advisory"
+    },
+    "parameter_count": {
+      "metrics": [
+        "parameter_count"
+      ],
+      "mode": "advisory"
+    }
+  },
+  "curatedScore": {
+    "participatesInGate": false,
+    "weights": {
+      "complexity": 0.35,
+      "duplication": 0.25,
+      "file_size": 0.2,
+      "structure": 0.1,
+      "error_handling": 0.1,
+      "documentation": 0.0,
+      "naming": 0.0,
+      "parameter_count": 0.0
+    }
+  },
+  "report": {
+    "topChangedFiles": 20
+  }
+}
