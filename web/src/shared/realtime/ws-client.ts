@@ -196,7 +196,11 @@ export function openRealtimeTopicSocket<TMessage>(
       socket.onerror = null;
       socket.onclose = null;
       if (socket.readyState < WebSocket.CLOSING) {
-        socket.close();
+        try {
+          socket.close();
+        } catch (error) {
+          options.onError?.(error instanceof Error ? error.message : 'Failed to close realtime socket');
+        }
       }
     }
     socket = null;
@@ -209,7 +213,11 @@ export function openRealtimeTopicSocket<TMessage>(
     clearReconnectTimer();
     resetReconnectAttempts();
     if (socket && socket.readyState < WebSocket.CLOSING) {
-      socket.close();
+      try {
+        socket.close();
+      } catch (error) {
+        options.onError?.(error instanceof Error ? error.message : 'Failed to reset realtime socket');
+      }
     }
     socket = null;
     void connect().catch((error) => {

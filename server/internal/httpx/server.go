@@ -132,7 +132,13 @@ func (s *Server) Run(ctx context.Context, addr string) error {
 		defer cancel()
 
 		shutdownErr := s.Shutdown(shutdownCtx)
-		<-errCh
+		listenErr, ok := <-errCh
+		if ok && listenErr != nil {
+			if shutdownErr == nil {
+				return fmt.Errorf("listen and serve: %w", listenErr)
+			}
+			return errors.Join(shutdownErr, fmt.Errorf("listen and serve: %w", listenErr))
+		}
 		return shutdownErr
 	}
 }

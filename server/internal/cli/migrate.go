@@ -121,7 +121,7 @@ func newMigrateCommand() *cobra.Command {
 // 返回值：
 // runMigrateUp 应用待处理的迁移到数据库。
 // 迁移成功时返回 nil（包括不存在待处理迁移的情况）；否则返回错误。
-func runMigrateUp(cmd *cobra.Command, opts migrateUpOptions) error {
+func runMigrateUp(cmd *cobra.Command, opts migrateUpOptions) (err error) {
 	cfg, err := config.Load()
 	if err != nil {
 		return fmt.Errorf("load config: %w", err)
@@ -145,9 +145,18 @@ func runMigrateUp(cmd *cobra.Command, opts migrateUpOptions) error {
 		return err
 	}
 	defer func() {
-		if handle.close != nil {
-			_ = handle.close()
+		if handle.close == nil {
+			return
 		}
+		closeErr := handle.close()
+		if closeErr == nil {
+			return
+		}
+		if err == nil {
+			err = fmt.Errorf("close atlas executor: %w", closeErr)
+			return
+		}
+		err = errors.Join(err, fmt.Errorf("close atlas executor: %w", closeErr))
 	}()
 
 	if err := handle.executor.ExecuteN(commandContext, 0); err != nil {
