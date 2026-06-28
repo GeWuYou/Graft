@@ -49,6 +49,7 @@ python3 -m unittest discover -s scripts -p 'test_*.py'
    - startup receipt
    - MCP adoption status
    - skill coverage or drift
+   - workflow-level drift such as `graft-work-intake` inventing rules outside document authority
    - Python helper status
    - validation commands and results
    - any rejected tool and concrete reason
@@ -65,6 +66,8 @@ python3 -m unittest discover -s scripts -p 'test_*.py'
 - Use Context7 for current external library documentation, GitHub MCP for read-only PR/Actions context, and Playwright
   MCP as browser exploration before `graft-web-browser-agent` captures reproducible evidence.
 - Keep new skills concise and prefer scripts for deterministic checks.
+- If a thin workflow skill such as `graft-work-intake` exists, verify that it routes through documented `Work Intake`
+  and `Work Contract` rules instead of creating a second intake authority.
 
 ## Closeout Evidence
 

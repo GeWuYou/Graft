@@ -43,6 +43,7 @@ startup-governance source.
 - `public/<topic>/todos/`
   - Repository-safe recovery documents for one active topic.
   - Use these for durable task state that another contributor or worktree may need to resume safely.
+  - When the topic came through `Work Intake`, this is also where the persisted `Work Contract` lives.
 - `public/<topic>/traces/`
   - Repository-safe execution traces for one active topic.
   - Record decisions, validation milestones, and the immediate next step.
@@ -79,8 +80,14 @@ startup-governance source.
 - After that startup preflight, prefer `$graft-ai-plan-governance` for `ai-plan/**` governance slices; pair
   `$graft-ai-governance-audit` only when the same change also touches repo-local skills, scripts, or
   `ai-plan/design/governance/ai/AI工具与MCP接入治理规范.md`.
+- When startup discovers new long-running work that is not yet owned by an active topic, route through
+  `$graft-work-intake` before creating new `ai-plan` artifacts.
 - Let `ai-plan/AGENTS.md` act as the router for choosing `design/`, `roadmap/`, `public/`, `public/archive/`,
   `lessons/`, or `templates/`; this README stays descriptive rather than becoming a second governance source.
+- For new long-running work, use `Work Intake` as the only entry workflow before creating a new `topic`, `design`,
+  `roadmap`, or `ADR`.
+- Treat `design`, `roadmap`, `topic`, and `ADR` as artifacts selected by `Work Contract`, not as independent intake
+  paths.
 - If `catalog.json` exists, treat it as a bounded machine index only. `public/README.md` and topic-local recovery files
   remain the authoritative router and metadata sources.
 - After startup preflight, recovery may read `public/README.md` before scanning active topics directly.
@@ -92,6 +99,8 @@ startup-governance source.
 - If an active topic defines subtopics, read the parent topic first and then continue into the relevant subtopic based
   on the current `server`, `web`, or cross-boundary task shape.
 - When a topic is active, update its tracking document in the same change as substantive work.
+- When a topic was created through `Work Intake`, keep the persisted `Work Contract` in the tracking document and keep
+  topic `README.md` limited to navigation, status summary, and recovery entry guidance.
 - When work is clearly scoped to one subtopic, update that subtopic tracking document in the same change and keep the
   parent topic limited to cross-boundary summaries, shared risks, and shared milestones.
 - Keep active tracking and trace files concise enough to serve as recovery entrypoints.

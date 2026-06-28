@@ -8,6 +8,7 @@ not live authority.
 - Topic objective: <describe the topic objective>
 - Current status: `active`
 - Task class: `<server | web | cross-boundary | docs/automation>`
+- Intake summary: `<one-line Work Intake result for this topic>`
 - Canonical authority:
   - `<authority file or document 1>`
   - `<authority file or document 2>`
@@ -46,6 +47,12 @@ Out of scope:
 - <current recovery point>
 - <current risk, dependency, or escalation status>
 - Next step: `<next batch or next milestone>`
+
+## Work Intake
+
+- This topic was created through `Work Intake`.
+- Persist the full `Work Contract` in the tracking file, not here.
+- Use this README for navigation, summary, and recovery entry only.
 
 ## Pending Batch Direction
 

@@ -94,7 +94,8 @@ Minimum expectations:
 - `README.md`
   - states the topic objective, recovery receipt, authority summary, owned scope, and pending batch direction
 - tracking file
-  - records the current recovery point, checklist, acceptance conditions, and loop batch state
+  - records the current recovery point, checklist, acceptance conditions, loop batch state, and persisted
+    `Work Contract` when the topic came through `Work Intake`
 - trace file
   - records dated decisions, validation milestones, and batch transitions
 - `startup-prompt.md`
@@ -114,6 +115,18 @@ index entry in the same change that creates or archives the topic.
 
 When creating new active-topic materials, prefer the minimal starters under `ai-plan/templates/active-topic/`, then
 adapt them to the live topic instead of copying placeholders forward unchanged.
+
+## 4.1 Work Intake Contract
+
+For new long-running work:
+
+- `Work Intake` is the only allowed workflow entry before creating a new `topic`, `design`, `roadmap`, or `ADR`
+- `design`, `roadmap`, `topic`, and `ADR` are derived artifacts, not peer intake paths
+- `Work Contract` is the authority decision payload for that intake
+- persist `Work Contract` only when the work actually becomes an active topic
+- persist it in the topic tracking file, not as a standalone `work-contract.yaml`, not in topic `README.md`, and not
+  in `ai-plan/catalog.json`
+- use contract-driven minimal bootstrap: create only the minimal skeleton explicitly required by the contract
 
 ## 5. ADR, Template, And Archive Rules
 
@@ -147,6 +160,8 @@ Archive rules:
 - do not add validator scripts or new skills until the batch plan explicitly reaches those steps
 - do not retrofit frontmatter across existing `ai-plan/**` documents just to satisfy machine-readable indexing
 - do not treat topic `owned scope` as permission to ignore upstream authority drift
+- do not let a thin workflow skill such as `graft-work-intake` invent independent intake rules outside the documented
+  authority chain
 
 ## 7. Validation
 

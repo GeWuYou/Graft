@@ -45,6 +45,11 @@ class SkillMcpGuidanceTests(unittest.TestCase):
         self.assertEqual(MODULE.validate_skill_mcp_guidance(), [])
 
 
+class WorkIntakeGovernanceTests(unittest.TestCase):
+    def test_work_intake_governance_is_currently_satisfied(self) -> None:
+        self.assertEqual(MODULE.validate_work_intake_skill(), [])
+
+
 class EnvironmentInventoryTests(unittest.TestCase):
     def test_environment_inventory_covers_adopted_and_pilot_mcp_servers(self) -> None:
         self.assertEqual(MODULE.validate_environment_inventory(), [])

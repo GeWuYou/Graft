@@ -17,6 +17,32 @@ sections instead of carrying template text forward.
 - `<authority path 1>`
 - `<authority path 2>`
 
+## Work Contract
+
+```yaml
+version: 1
+kind: <feature | bug | refactor | audit | research | spike | docs>
+scope: <short-lived | long-running>
+authority_summary: <one-line canonical authority summary>
+requires:
+  design: <true | false>
+  topic: true
+  roadmap: <true | false>
+  adr: <true | false>
+execution:
+  engine: <graft-multi-agent-loop | direct-specialized-skill>
+  dispatch_skill: <skill name>
+bootstrap:
+  targets:
+    - <topic>
+    - <design if needed>
+    - <roadmap if needed>
+    - <adr if needed>
+closeout:
+  archive: <true | false>
+  lessons_review: true
+```
+
 ## Current Recovery Point
 
 - <current state summary>

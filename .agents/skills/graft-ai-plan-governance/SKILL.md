@@ -33,6 +33,7 @@ Use this skill when the task changes any of:
 - `ai-plan/public/README.md`
 - `ai-plan/public/<topic>/**` recovery materials
 - `ai-plan/templates/**`
+- `Work Intake`, `Work Contract`, or contract-driven bootstrap governance under `ai-plan/**`
 - bounded `docs/automation` validators under `scripts/**` that guard `ai-plan` governance structure
 - repo-local skills under `.agents/skills/**` only when they are part of the same `ai-plan` governance slice
 
@@ -54,6 +55,8 @@ Do not use this skill for:
 - choose the narrowest `ai-plan` owner: `design/`, `design/decisions/`, `roadmap/`, `public/`, `public/archive/`,
   `lessons/`, or `templates/`
 - treat `ai-plan/catalog.json` as supplementary, single-file, and bounded
+- treat `Work Intake` as the only approved entry workflow for new long-running work
+- treat `design`, `roadmap`, `topic`, and `ADR` as artifacts selected by `Work Contract`, not peer intake paths
 - escalate outside `ai-plan/**` only when authority discovery proves it is required
 
 ### 2. Topic Safety
@@ -62,6 +65,8 @@ Do not use this skill for:
 - do not break another topic's startup entry while updating shared router docs
 - keep `startup-prompt.md` aligned with root startup governance; do not invent a second receipt format
 - when substantive work changes an active topic, update its tracking and trace files in the same change
+- when a topic comes from `Work Intake`, keep the persisted `Work Contract` in tracking rather than inventing a new
+  topic-level metadata file
 
 ### 3. Skill And Script Coupling
 
@@ -107,6 +112,8 @@ only when `scripts/validate_ai_plan_structure.py` or its tests change.
 ## Guardrails
 
 - do not create a second startup path, second validation truth, or hidden recovery store
+- do not let `graft-work-intake` own independent intake rules outside root `AGENTS.md`, `ai-plan/AGENTS.md`, and
+  the approved ADRs
 - do not start `compose-project-management` implementation from `ai-plan` governance work
 - do not mass-retrofit existing topics to match template wording
 - do not widen bounded validators into a whole-repo `ai-plan` linter

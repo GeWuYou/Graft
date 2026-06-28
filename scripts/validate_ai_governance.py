@@ -28,6 +28,7 @@ PR_REVIEW_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-pr-review" / "SKILL.
 PR_CREATE_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-pr-create" / "SKILL.md"
 AI_AUDIT_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-ai-governance-audit" / "SKILL.md"
 AI_PLAN_GOVERNANCE_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-ai-plan-governance" / "SKILL.md"
+WORK_INTAKE_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-work-intake" / "SKILL.md"
 PUSH_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-push" / "SKILL.md"
 TABLE_DESIGN_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-table-design" / "SKILL.md"
 SQL_MIGRATION_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-sql-migration" / "SKILL.md"
@@ -449,6 +450,46 @@ def validate_ai_plan_governance_skill() -> list[Finding]:
     return findings
 
 
+def validate_work_intake_skill() -> list[Finding]:
+    findings: list[Finding] = []
+
+    if not WORK_INTAKE_SKILL.is_file():
+        return [Finding(WORK_INTAKE_SKILL, "work intake skill is missing")]
+
+    text = read_text(WORK_INTAKE_SKILL)
+    for term in (
+        "root `AGENTS.md`",
+        "`ai-plan/AGENTS.md`",
+        "`ai-plan/README.md`",
+        "`ai-plan/design/governance/ai/AI任务追踪与恢复设计.md`",
+        "`ai-plan/design/governance/ai/AI工具与MCP接入治理规范.md`",
+        "`ai-plan/design/decisions/ADR-003-work-intake-and-bootstrap-model.md`",
+        "Work Contract",
+        "contract-driven minimal bootstrap",
+        "do not define independent business rules",
+        "do not create a second startup path",
+        "do not create a standalone `work-contract.yaml`",
+        "do not put the full contract in `ai-plan/catalog.json`",
+        "graft-multi-agent-loop",
+    ):
+        if term not in text:
+            findings.append(Finding(WORK_INTAKE_SKILL, f"missing work intake governance term {term!r}"))
+
+    findings.extend(validate_openai_yaml(WORK_INTAKE_SKILL.parent, tracked_files()))
+
+    reference_checks = (
+        (AGENTS, "graft-work-intake"),
+        (AI_PLAN_AGENTS, "graft-work-intake"),
+        (AI_PLAN_README, "graft-work-intake"),
+        (AI_TOOLING_DOC, "graft-work-intake"),
+    )
+    for path, term in reference_checks:
+        if path.is_file() and term not in read_text(path):
+            findings.append(Finding(path, f"missing work intake skill reference {term!r}"))
+
+    return findings
+
+
 def validate_agents_skill_list() -> list[Finding]:
     """
     验证 AGENTS.md 中的技能清单与治理约束。
@@ -464,6 +505,7 @@ def validate_agents_skill_list() -> list[Finding]:
         "graft-codegraph-mcp",
         "graft-ai-governance-audit",
         "graft-ai-plan-governance",
+        "graft-work-intake",
         "graft-validation-runner",
         "graft-sql-migration",
         "graft-shared-asset-reuse",
@@ -738,6 +780,7 @@ def run_validation() -> list[Finding]:
     findings.extend(validate_ai_tooling_doc())
     findings.extend(validate_skills())
     findings.extend(validate_ai_plan_governance_skill())
+    findings.extend(validate_work_intake_skill())
     findings.extend(validate_skill_mcp_guidance())
     findings.extend(validate_sql_migration_governance())
     findings.extend(validate_shared_asset_governance())

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Graft Work Intake"
+  short_description: "Route new long-running work through one intake workflow"
+  default_prompt: "Use $graft-work-intake to classify new long-running work, build one Work Contract, apply contract-driven minimal bootstrap, and dispatch to the correct specialized skill without creating a second intake authority."

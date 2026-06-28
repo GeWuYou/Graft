@@ -23,7 +23,42 @@ class ValidateAiPlanStructureTest(unittest.TestCase):
         for relative in validator.REQUIRED_ROOT_FILES:
             self.write_file(root, relative, "# stub\n")
         for relative in validator.REQUIRED_TEMPLATE_FILES:
-            self.write_file(root, relative, "# template\n")
+            if relative == "ai-plan/templates/active-topic/todos/topic-tracking.md":
+                self.write_file(
+                    root,
+                    relative,
+                    "\n".join(
+                        (
+                            "# Tracking",
+                            "",
+                            "## Work Contract",
+                            "",
+                            "```yaml",
+                            "version: 1",
+                            "kind: <feature>",
+                            "scope: <long-running>",
+                            "authority_summary: <authority>",
+                            "requires:",
+                            "  design: <true | false>",
+                            "  topic: true",
+                            "  roadmap: <true | false>",
+                            "  adr: <true | false>",
+                            "execution:",
+                            "  engine: <graft-multi-agent-loop>",
+                            "  dispatch_skill: <skill>",
+                            "bootstrap:",
+                            "  targets:",
+                            "    - <topic>",
+                            "closeout:",
+                            "  archive: <true | false>",
+                            "  lessons_review: true",
+                            "```",
+                            "",
+                        )
+                    ),
+                )
+            else:
+                self.write_file(root, relative, "# template\n")
         for relative in validator.EXPECTED_CATALOG_INCLUDED_PATHS:
             if relative not in validator.REQUIRED_ROOT_FILES:
                 self.write_file(root, relative, "# catalog target\n")
@@ -107,6 +142,18 @@ class ValidateAiPlanStructureTest(unittest.TestCase):
         findings = validator.run_validation(root)
 
         self.assertTrue(any("must point at" in finding.message for finding in findings))
+
+    def test_rejects_missing_work_contract_section_in_tracking_template(self) -> None:
+        tmp, root = self.create_repo()
+        self.addCleanup(tmp.cleanup)
+        (root / "ai-plan/templates/active-topic/todos/topic-tracking.md").write_text(
+            "# Tracking\n",
+            encoding="utf-8",
+        )
+
+        findings = validator.run_validation(root)
+
+        self.assertTrue(any("Work Contract" in finding.message for finding in findings))
 
     def test_rejects_archived_topic_left_in_active_index(self) -> None:
         tmp, root = self.create_repo()

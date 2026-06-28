@@ -165,6 +165,8 @@ The minimum startup preflight is:
    - `docs/automation`
 6. read the required subdomain `AGENTS.md` files for the chosen task class
 7. decide whether the current turn needs recovery context from `ai-plan/public/README.md`
+8. if the request proposes new long-running work and no active topic already owns it, route through the
+   `graft-work-intake` workflow before creating a new `topic`, `design`, `roadmap`, or `ADR`
 
 The minimum startup receipt is:
 
@@ -300,6 +302,13 @@ Prefer the repository skills below when their trigger matches the task:
   - use for short startup prompts, resume prompts, or when the first step should be to run the startup preflight
     defined in `4.1 Startup Governance`, assess whether `graft-multi-agent-batch` is justified, and enter repository
     recovery or direct execution when needed
+  - when startup discovers new long-running work that is not yet owned by an active topic, `graft-boot` should route
+    through `graft-work-intake` before starting topic-local execution
+- `graft-work-intake`
+  - use as the only workflow-level entry for new long-running work that may need `design`, `topic`, `roadmap`, `ADR`,
+    bootstrap, or loop dispatch
+  - it produces one `Work Contract`, performs contract-driven minimal bootstrap, and dispatches to specialized skills
+  - it must not become a second startup authority or a content-authoring skill
 - `graft-multi-agent-batch`
   - use when the user explicitly wants subagent delegation or when the work cleanly splits into disjoint parallel
     slices; `graft-boot` should perform the suitability assessment before delegation starts
@@ -373,6 +382,7 @@ Prefer the repository skills below when their trigger matches the task:
   - use when changing `ai-plan/**` router documents, active-topic recovery materials, templates, catalog coverage, or
     bounded `ai-plan` validators; it keeps root `AGENTS.md` as startup truth and `ai-plan/AGENTS.md` as
     `ai-plan/**` local execution truth
+  - it also owns `Work Intake`, `Work Contract`, and contract-driven bootstrap governance under `ai-plan/**`
 - `graft-ai-governance-audit`
   - use when evaluating or changing AI tooling, MCP adoption, repository skills, Python helper scripts, environment
     inventory, or drift between AGENTS and AI workflow documents; pair it with `graft-ai-plan-governance` when the
@@ -927,6 +937,11 @@ For complex, multi-step, or multi-agent work:
 Use these workflow rules:
 
 - `ai-plan/public/README.md` must list only active topics
+- new long-running work must pass through `Work Intake` before a new active topic, roadmap, design authority, or ADR
+  is created
+- `Work Intake` outputs one `Work Contract`; later design, roadmap, topic, ADR, bootstrap, loop, and closeout steps
+  consume that contract instead of re-deciding entry conditions independently
+- `Work Contract` is persisted only for work that actually becomes an active topic
 - when a branch or worktree has an active-topic mapping, read its tracking and trace files after startup preflight and
   before substantive recovery work
 - when an active topic defines subtopics, read the parent topic first and then continue into the relevant subtopic based
@@ -936,6 +951,8 @@ Use these workflow rules:
   parent topic focused on cross-boundary milestones, shared risks, and shared next steps
 - tracking and trace documents must record authority discovery when it materially changes task classification, owned
   scope interpretation, or compatibility decisions
+- tracking is the authority location for a persisted `Work Contract`; topic `README.md` stays navigation-oriented and
+  must not become the full workflow-state store
 - for complex work, maintain a matching trace that records the current date, key decisions, validation milestones, and
   the immediate next step
 - keep active tracking and trace files concise enough to serve as recovery entrypoints

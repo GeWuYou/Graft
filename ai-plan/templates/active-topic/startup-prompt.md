@@ -22,6 +22,10 @@ Topic objective:
 
 - <describe the topic objective>
 
+Work contract summary:
+
+- <kind / scope / required artifacts / execution engine>
+
 Locked decisions:
 
 1. <decision>
@@ -32,6 +36,8 @@ Implementation guardrails:
 - Repair the highest available authority first.
 - Keep work inside the owned scope and record any required escalation.
 - Do not add future-batch artifacts early.
+- Consume the existing `Work Contract`; do not re-decide whether this topic needs `design`, `roadmap`, `ADR`, or
+  `topic` creation inside ordinary execution rounds.
 
 Current batch plan:
 

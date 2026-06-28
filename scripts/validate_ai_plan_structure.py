@@ -108,6 +108,8 @@ EXPECTED_CATALOG_ENTRIES = (
 
 ACTIVE_TOPIC_SECTION_RE = re.compile(r"^## Active Topics\n(?P<body>.*?)(?:\n## |\Z)", re.MULTILINE | re.DOTALL)
 ACTIVE_TOPIC_ENTRY_RE = re.compile(r"^- `(?P<topic>[^`]+)`\n  - Recovery entry: `(?P<entry>[^`]+)`", re.MULTILINE)
+WORK_CONTRACT_SECTION_RE = re.compile(r"^## Work Contract\n(?P<body>.*?)(?:\n## |\Z)", re.MULTILINE | re.DOTALL)
+WORK_CONTRACT_FENCE_RE = re.compile(r"```yaml\n(?P<body>.*?)\n```", re.DOTALL)
 
 
 @dataclass(frozen=True)
@@ -155,6 +157,47 @@ def validate_template_files(root: Path) -> list[Finding]:
         path = root / relative
         if not path.is_file():
             findings.append(Finding(path, "required ai-plan template file is missing"))
+    return findings
+
+
+def validate_work_contract_template(root: Path) -> list[Finding]:
+    path = root / "ai-plan/templates/active-topic/todos/topic-tracking.md"
+    if not path.is_file():
+        return []
+
+    text = read_text(path)
+    section_match = WORK_CONTRACT_SECTION_RE.search(text)
+    if section_match is None:
+        return [Finding(path, "active-topic tracking template must include a '## Work Contract' section")]
+
+    fence_match = WORK_CONTRACT_FENCE_RE.search(section_match.group("body"))
+    if fence_match is None:
+        return [Finding(path, "Work Contract section must include one fenced yaml block")]
+
+    body = fence_match.group("body")
+    required_terms = (
+        "version:",
+        "kind:",
+        "scope:",
+        "authority_summary:",
+        "requires:",
+        "design:",
+        "topic:",
+        "roadmap:",
+        "adr:",
+        "execution:",
+        "engine:",
+        "dispatch_skill:",
+        "bootstrap:",
+        "targets:",
+        "closeout:",
+        "archive:",
+        "lessons_review:",
+    )
+    findings: list[Finding] = []
+    for term in required_terms:
+        if term not in body:
+            findings.append(Finding(path, f"Work Contract template is missing required term {term!r}"))
     return findings
 
 
@@ -336,6 +379,7 @@ def run_validation(root: Path) -> list[Finding]:
     findings: list[Finding] = []
     findings.extend(validate_required_files(root))
     findings.extend(validate_template_files(root))
+    findings.extend(validate_work_contract_template(root))
     findings.extend(validate_active_topic_index(root))
     for topic in ACTIVE_INDEX_GUARD_TOPICS:
         findings.extend(validate_topic_contract(root, topic))
