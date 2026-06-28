@@ -61,7 +61,7 @@
       "reason": "Contract governance still documents historical lookup order wording."
     },
     {
-      "path": "ai-plan/design/Access-Log-Retention-Authority.md",
+      "path": "ai-plan/design/domains/audit/Access-Log-Retention-Authority.md",
       "regex": "historical plugin-registry metadata|historical plugin registry",
       "category": "historical_governance",
       "reason": "This design doc explicitly distinguishes historical plugin-registry ownership from current authority."

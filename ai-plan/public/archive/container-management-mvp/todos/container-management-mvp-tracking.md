@@ -14,7 +14,7 @@ Container Management MVP
 - `AGENTS.md`
 - `server/AGENTS.md`
 - `web/AGENTS.md`
-- `ai-plan/design/容器管理设计.md`
+- `ai-plan/design/domains/container/容器管理设计.md`
 - `ai-plan/design/architecture/项目设计.md`
 - `ai-plan/design/architecture/模块与依赖注入设计.md`
 - `ai-plan/design/architecture/前端架构设计.md`

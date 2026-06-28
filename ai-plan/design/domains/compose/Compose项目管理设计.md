@@ -19,9 +19,9 @@
 - OpenAPI authority：future `openapi/**`
 - 容器运行时 authority：现有 `server/modules/container/**` + `web/src/modules/container/**`
 - 相关治理文档：
-  - `ai-plan/design/容器管理设计.md`
-  - `ai-plan/design/容器运行时事件能力设计.md`
-  - `ai-plan/design/容器资源状态与订阅治理设计.md`
+  - `ai-plan/design/domains/container/容器管理设计.md`
+  - `ai-plan/design/domains/container/容器运行时事件能力设计.md`
+  - `ai-plan/design/domains/container/容器资源状态与订阅治理设计.md`
   - `ai-plan/design/architecture/模块与依赖注入设计.md`
   - `ai-plan/design/architecture/前端架构设计.md`
   - `ai-plan/design/governance/platform/契约治理与魔法值治理规范.md`

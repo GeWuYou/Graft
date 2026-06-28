@@ -1,6 +1,13 @@
 # Audit Domain
 
-This directory is reserved for audit and access-log authority design documents.
+This directory stores the canonical audit and access-log domain design authorities.
+
+## Canonical Docs
+
+- `日志治理开发规范.md`
+- `Access-Log-Authority-Contract.md`
+- `Access-Log-Explorer-Authority.md`
+- `Access-Log-Retention-Authority.md`
 
 ## Intended Scope
 
@@ -14,7 +21,7 @@ This directory is reserved for audit and access-log authority design documents.
 - `../../governance/platform/`
   - cross-cutting platform governance when the design intersects shared operating rules
 
-## Migration Note
+## Scope Note
 
-The directory exists now so later batches can move audit-oriented design docs here without forcing broader document
-renames in this batch.
+Keep audit and access-log semantic ownership here. Put repository-wide backend/platform governance rules in the related
+governance directories instead of duplicating them in this domain folder.

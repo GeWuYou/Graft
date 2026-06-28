@@ -30,7 +30,7 @@ Design IA Governance
   - structure guard
   - `graft-ai-plan-governance`
 - `compose-project-management` 已作为 active topic 保留，当前主题不得影响其可启动状态。
-- `ai-plan/design/**` 当前仍主要平铺，只有 `decisions/`、`release/`、`graft-design-system/` 等少量目录。
+- `ai-plan/design/**` 的根层 canonical docs 已迁移完成，当前根层只保留 `ai-plan/design/README.md` 作为 router。
 - Batch 1 已产出 topic-local 执行文档：
   - `ai-plan/public/design-ia-governance/design/phase-1-design-inventory-and-target-ia.md`
 - 当前推荐 target IA 已确定为：
@@ -54,8 +54,12 @@ Design IA Governance
   - shared-asset registry 中被 Batch 3 移动的 design authority path 已同步
   - `scripts/plugin_residual/allowlist.json`、`ai-plan/lessons/**` 与列出的 `server/internal/**/README.md` 已修复同批次遗留旧路径
   - `python3 scripts/validate_ai_governance.py` 与 `python3 scripts/validate_ai_plan_structure.py` 已恢复通过
+- Batch 4 已完成：
+  - notification / container / compose / audit 领域设计 authority 已迁入 `ai-plan/design/domains/**`
+  - live docs、recovery materials、`AGENTS.md`、`graft-cache-governance` skill 与 allowlist 旧路径已完成最小修复
+  - `compose-project-management` recovery docs 已改指向新 canonical design path，保持 startability
 - 当前下一步：
-  - 进入 Batch 4 迁移 domain / cross-cutting design 文档与剩余交叉引用
+  - 进入 Batch 5 完成 archive / naming / governance sync closeout
 
 ## Task Checklist
 
@@ -63,7 +67,7 @@ Design IA Governance
 - [x] phase-1-batch-2：建立 design 目标目录与 README
 - [x] phase-1-batch-3：迁移低耦合 design 文档
 - [x] phase-1-batch-3b：同步 shared-asset registry path
-- [ ] phase-1-batch-4：迁移 domain / cross-cutting design 文档并修复引用
+- [x] phase-1-batch-4：迁移 domain / cross-cutting design 文档并修复引用
 - [ ] phase-1-batch-5：archive / naming / governance sync closeout
 
 ## Acceptance Conditions
@@ -83,14 +87,14 @@ Design IA Governance
     "phase-1-batch-1-design-inventory-and-target-ia-skeleton",
     "phase-1-batch-2-create-target-design-directories-and-readmes",
     "phase-1-batch-3-migrate-low-coupling-design-docs",
-    "phase-1-batch-3b-sync-shared-asset-registry-paths"
+    "phase-1-batch-3b-sync-shared-asset-registry-paths",
+    "phase-1-batch-4-migrate-domain-design-docs-and-fix-references"
   ],
   "pending_batches": [
-    "phase-1-batch-4-migrate-domain-design-docs-and-fix-references",
     "phase-1-batch-5-design-archive-naming-and-governance-sync-closeout"
   ],
-  "current_batch": "phase-1-batch-3b-sync-shared-asset-registry-paths",
-  "next_batch": "phase-1-batch-4-migrate-domain-design-docs-and-fix-references",
-  "closeout_status": "batch-3b-complete"
+  "current_batch": "phase-1-batch-4-migrate-domain-design-docs-and-fix-references",
+  "next_batch": "phase-1-batch-5-design-archive-naming-and-governance-sync-closeout",
+  "closeout_status": "batch-4-complete"
 }
 ```

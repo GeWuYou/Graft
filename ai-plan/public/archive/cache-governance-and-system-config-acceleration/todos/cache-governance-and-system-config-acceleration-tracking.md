@@ -15,8 +15,8 @@ Cache Governance And System Config Acceleration
 - `web/AGENTS.md`
 - `ai-plan/design/governance/platform/缓存治理与系统配置读取加速规范.md`
 - `ai-plan/design/governance/platform/系统配置模型与渲染设计.md`
-- `ai-plan/design/通知中心设计.md`
-- `ai-plan/design/容器管理设计.md`
+- `ai-plan/design/domains/notification/通知中心设计.md`
+- `ai-plan/design/domains/container/容器管理设计.md`
 - `ai-plan/design/governance/platform/共享资产复用治理规范.md`
 - `.agents/skills/graft-cache-governance/SKILL.md`
 

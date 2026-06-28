@@ -5,7 +5,7 @@
 - 当前主题目标是在 `Graft` 增加 Docker Compose Project 管理能力。
 - 当前状态：`active`。
 - 任务分类为 `cross-boundary`，涉及 `ai-plan/design`、future OpenAPI、future `server/modules/project/**`、future `web/src/modules/project/**`，并与现有 `container` runtime authority 协作。
-- Canonical design：`ai-plan/design/Compose项目管理设计.md`。
+- Canonical design：`ai-plan/design/domains/compose/Compose项目管理设计.md`。
 - 当前已完成 Phase 0：设计 authority、topic recovery 与 loop 启动提示持久化。
 - 当前尚未开始业务实现。
 
@@ -14,13 +14,13 @@
 - governance source：root `AGENTS.md`
 - task class：`cross-boundary`
 - recovery source：`parent topic`
-- authority summary：`ai-plan/design/Compose项目管理设计.md` + `ai-plan/design/容器管理设计.md` + future OpenAPI source + future `server/modules/project/**` + future `web/src/modules/project/**`
+- authority summary：`ai-plan/design/domains/compose/Compose项目管理设计.md` + `ai-plan/design/domains/container/容器管理设计.md` + future OpenAPI source + future `server/modules/project/**` + future `web/src/modules/project/**`
 
 ## Owned Scope
 
 当前 topic 允许修改：
 
-- `ai-plan/design/Compose项目管理设计.md`
+- `ai-plan/design/domains/compose/Compose项目管理设计.md`
 - `ai-plan/public/compose-project-management/**`
 - `ai-plan/public/README.md`
 - future `openapi/**` project contract source
@@ -60,7 +60,7 @@
 
 ## Current Recovery Point
 
-- 设计 authority 已创建：`ai-plan/design/Compose项目管理设计.md`
+- 设计 authority 已创建：`ai-plan/design/domains/compose/Compose项目管理设计.md`
 - active topic 已创建：`ai-plan/public/compose-project-management/`
 - 当前共识：
   - 推荐新增独立 `project` module，而不是扩展 `container` module 承担项目注册。

@@ -4,7 +4,7 @@
 
 - 启动任务并确认 task class 为 `cross-boundary`。
 - 当前分支从 `build/web-tdesign-on-demand-imports` 重命名为 `feat/announcement-center-mvp`。
-- 建立公告中心设计 authority：`ai-plan/design/公告中心设计.md`。
+- 建立公告中心设计 authority：`ai-plan/design/domains/notification/公告中心设计.md`。
 - 建立 public recovery topic：`ai-plan/public/announcement-center-mvp/README.md`。
 - 明确公告中心不复用 notification domain model，MVP 不做 notification fan-out。
 - Phase 0 已提交：`fc01e643 docs(announcement): define announcement center MVP`。

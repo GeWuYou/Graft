@@ -143,6 +143,39 @@
 - 下一批方向：
   - 进入 Batch 4，迁移 domain-oriented design docs 并收敛剩余 cross-reference repair
 
+## 2026-06-28 Batch 4 completed: domain design-doc migration and path repair
+
+- 使用 `git mv` 迁移剩余 domain-oriented canonical design docs：
+  - `domains/notification/`
+    - `通知中心设计.md`
+    - `公告中心设计.md`
+  - `domains/container/`
+    - `容器管理设计.md`
+    - `容器Dashboard汇总与实时一致性升级设计.md`
+    - `容器资源状态与订阅治理设计.md`
+    - `容器运行时事件能力设计.md`
+  - `domains/compose/`
+    - `Compose项目管理设计.md`
+  - `domains/audit/`
+    - `日志治理开发规范.md`
+    - `Access-Log-Authority-Contract.md`
+    - `Access-Log-Explorer-Authority.md`
+    - `Access-Log-Retention-Authority.md`
+- 在最小必要范围内修复 downstream canonical path 消费方：
+  - root `AGENTS.md`
+  - `.agents/skills/graft-cache-governance/SKILL.md`
+  - `scripts/plugin_residual/allowlist.json`
+  - `ai-plan/public/compose-project-management/**`
+  - 仍引用这些 authority 的 archived recovery materials
+- 同步 moved-doc 自引用与 sibling domain cross-links，避免保留已失效的旧根层路径。
+- 更新 `ai-plan/design/README.md`、`ai-plan/design/domains/README.md` 与四个 domain README，使 `design/` 根层回到 router-only 角色，并把 `domains/*/README.md` 升级为当前 canonical 文档入口。
+- 验证恢复通过：
+  - `git diff --check`
+  - `python3 scripts/validate_ai_plan_structure.py`
+  - `python3 scripts/validate_ai_governance.py`
+- 下一批方向：
+  - 进入 Batch 5，完成 archive / naming / governance sync closeout
+
 ## Loop Batch State
 
 ```json
@@ -152,14 +185,14 @@
     "phase-1-batch-1-design-inventory-and-target-ia-skeleton",
     "phase-1-batch-2-create-target-design-directories-and-readmes",
     "phase-1-batch-3-migrate-low-coupling-design-docs",
-    "phase-1-batch-3b-sync-shared-asset-registry-paths"
+    "phase-1-batch-3b-sync-shared-asset-registry-paths",
+    "phase-1-batch-4-migrate-domain-design-docs-and-fix-references"
   ],
   "pending_batches": [
-    "phase-1-batch-4-migrate-domain-design-docs-and-fix-references",
     "phase-1-batch-5-design-archive-naming-and-governance-sync-closeout"
   ],
-  "current_batch": "phase-1-batch-3b-sync-shared-asset-registry-paths",
-  "next_batch": "phase-1-batch-4-migrate-domain-design-docs-and-fix-references",
-  "closeout_status": "batch-3b-complete"
+  "current_batch": "phase-1-batch-4-migrate-domain-design-docs-and-fix-references",
+  "next_batch": "phase-1-batch-5-design-archive-naming-and-governance-sync-closeout",
+  "closeout_status": "batch-4-complete"
 }
 ```

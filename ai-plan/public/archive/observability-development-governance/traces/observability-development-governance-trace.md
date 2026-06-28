@@ -20,7 +20,7 @@
   - `server/internal/logger/**` owns backend app/error logging baseline
   - `server/internal/httpx/**` owns request correlation, structured access logging, and HTTP security-event bridge
   - `server/internal/audit/**` plus `server/plugins/audit/**` own audit persistence and metadata normalization
-- Produced `ai-plan/design/日志治理开发规范.md`.
+- Produced `ai-plan/design/domains/audit/日志治理开发规范.md`.
 - Marked Phase A done in the topic tracking docs.
 - Explicitly deferred:
   - code inventory for Phase B

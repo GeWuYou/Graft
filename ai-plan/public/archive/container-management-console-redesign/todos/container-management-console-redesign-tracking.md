@@ -14,7 +14,7 @@ experience, then close backend/OpenAPI fields, controlled operations, validation
 - `AGENTS.md`
 - `server/AGENTS.md`
 - `web/AGENTS.md`
-- `ai-plan/design/容器管理设计.md`
+- `ai-plan/design/domains/container/容器管理设计.md`
 - `ai-plan/design/governance/frontend/分页列表页统一规范与收敛计划.md`
 - `ai-plan/design/governance/platform/契约治理与魔法值治理规范.md`
 - `ai-plan/design/governance/platform/系统配置模型与渲染设计.md`
@@ -51,7 +51,7 @@ experience, then close backend/OpenAPI fields, controlled operations, validation
 - Phase 5 final governance closeout is complete.
 - Browser evidence for the 1920-wide no body/page horizontal-scroll check was captured under
   `.ai/artifacts/browser/container-page-width-check/`.
-- `ai-plan/design/容器管理设计.md` now reflects the final implementation and defers remove / batch operations.
+- `ai-plan/design/domains/container/容器管理设计.md` now reflects the final implementation and defers remove / batch operations.
 - The active topic is ready for archive under `ai-plan/public/archive/container-management-console-redesign/`.
 
 ## Task Checklist
@@ -94,7 +94,7 @@ experience, then close backend/OpenAPI fields, controlled operations, validation
   - [x] Runtime extension copy and field names.
   - [x] Final validation.
   - [x] Browser evidence under `.ai/artifacts/browser/container-page-width-check`.
-  - [x] Update `ai-plan/design/容器管理设计.md`.
+  - [x] Update `ai-plan/design/domains/container/容器管理设计.md`.
   - [x] Archive this topic.
   - [x] Delete `ai-plan/dolist/container-management-console-redesign-plan.md`.
 

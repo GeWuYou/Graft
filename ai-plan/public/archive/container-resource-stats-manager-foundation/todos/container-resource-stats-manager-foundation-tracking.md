@@ -14,8 +14,8 @@ Container Resource Stats Manager Foundation
 - `AGENTS.md`
 - `server/AGENTS.md`
 - `web/AGENTS.md`
-- `ai-plan/design/容器管理设计.md`
-- `ai-plan/design/容器资源状态与订阅治理设计.md`
+- `ai-plan/design/domains/container/容器管理设计.md`
+- `ai-plan/design/domains/container/容器资源状态与订阅治理设计.md`
 - `ai-plan/design/governance/backend/服务端API边界与兼容治理规范.md`
 - `ai-plan/design/architecture/前端架构设计.md`
 - `ai-plan/design/governance/platform/契约治理与魔法值治理规范.md`
@@ -24,7 +24,7 @@ Container Resource Stats Manager Foundation
 
 - Phase 0 已完成：
   - 已完成 Arcane 与 Graft 资源数据流审计
-  - 已落盘仓库级设计 authority：`ai-plan/design/容器资源状态与订阅治理设计.md`
+  - 已落盘仓库级设计 authority：`ai-plan/design/domains/container/容器资源状态与订阅治理设计.md`
   - 已建立 active topic recovery 入口
 - 当前确认事实：
   - backend authority 主链为 `statsCollector -> resourceStatsCache -> container.stats:{id}`

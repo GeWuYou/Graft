@@ -28,7 +28,7 @@
 - `web/AGENTS.md`
 - `ai-plan/public/README.md`
 - `ai-plan/public/archive/observability-development-governance/README.md`
-- `ai-plan/design/日志治理开发规范.md`
+- `ai-plan/design/domains/audit/日志治理开发规范.md`
 - `ai-plan/design/governance/platform/契约治理与魔法值治理规范.md`
 - `ai-plan/design/governance/ai/AI任务追踪与恢复设计.md`
 
@@ -41,7 +41,7 @@
   - `web/src/shared/**`
   - `openapi/**`
   - `ai-plan/public/README.md`
-  - `ai-plan/design/日志治理开发规范.md`
+  - `ai-plan/design/domains/audit/日志治理开发规范.md`
   - `ai-plan/public/observability-development-governance/**`
   - `ai-plan/public/archive/metrics-governance/**`
 - Forbidden scope:
@@ -56,7 +56,7 @@
 - Repository governance source:
   - root `AGENTS.md`
 - Topic authority baseline:
-  - `ai-plan/design/日志治理开发规范.md` defines the current canonical boundary for `Metric Candidate / Metric Placeholder`
+  - `ai-plan/design/domains/audit/日志治理开发规范.md` defines the current canonical boundary for `Metric Candidate / Metric Placeholder`
 - Current backend runtime authority:
   - `server/plugins/monitor/**` owns the existing `monitor/server-status` runtime read model, including current trend data
   - `server/plugins/monitor/contract/**` owns monitor-specific stable route, menu, permission, and trend-range semantics
@@ -102,7 +102,7 @@
 - Other trend-like fields were inspected and are not accidental metrics authority:
   - `server/plugins/audit/**` plus `openapi/components/schemas/audit-overview-response.yaml` expose audit analytics fields such as `risk_groups`, `trend`, and `security_timeline`
   - those fields are audit-domain read models for event aggregation, not repo-wide metrics authority and not reusable monitor metrics contracts
-- Repo-wide metric placeholder governance still lives only in `ai-plan/design/日志治理开发规范.md`
+- Repo-wide metric placeholder governance still lives only in `ai-plan/design/domains/audit/日志治理开发规范.md`
   - no canonical metrics emitter exists
   - no label policy exists
   - no retention or export strategy exists outside the bounded monitor trend payload
@@ -144,7 +144,7 @@
 - Current downstream-only consumer:
   - `web/src/modules/monitor/**`
 - Current repo-wide metrics governance stance:
-  - outside the bounded monitor plugin read model, metrics remain placeholder-only governance under `ai-plan/design/日志治理开发规范.md`
+  - outside the bounded monitor plugin read model, metrics remain placeholder-only governance under `ai-plan/design/domains/audit/日志治理开发规范.md`
 - A future non-placeholder metrics topic must first define:
   - canonical owner
   - allowed metric/label taxonomy

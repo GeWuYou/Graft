@@ -9,7 +9,7 @@
   - `ai-plan/public/archive/scheduler-manual-success-notification/todos/scheduler-manual-success-notification-tracking.md`
   - `ai-plan/public/archive/scheduler-manual-success-notification/traces/scheduler-manual-success-notification-trace.md`
 - Design authority:
-  - `ai-plan/design/通知中心设计.md`
+  - `ai-plan/design/domains/notification/通知中心设计.md`
   - `server/internal/moduleapi.NotificationPublisher`
   - `server/internal/scheduler` runtime notifier boundary
 
@@ -84,7 +84,7 @@ Startup receipt:
 - owned scope: server/internal/scheduler/**, server/modules/scheduler/**, focused tests under server/modules/notification/** and server/modules/system-config/** only if needed, ai-plan/public/scheduler-manual-success-notification/** for trace updates
 
 Task:
-Implement manual scheduled task success in-app notifications according to ai-plan/design/通知中心设计.md.
+Implement manual scheduled task success in-app notifications according to ai-plan/design/domains/notification/通知中心设计.md.
 
 Constraints:
 - Do not introduce EventBus.

@@ -48,7 +48,7 @@ Authoritative repository documents:
 - [ai-plan/roadmap/MVP实施计划.md](ai-plan/roadmap/MVP实施计划.md)
 - [ai-plan/design/governance/ai/AI任务追踪与恢复设计.md](ai-plan/design/governance/ai/AI任务追踪与恢复设计.md) when the task changes
   tracking, recovery, or documentation-governance rules
-- [ai-plan/design/通知中心设计.md](ai-plan/design/通知中心设计.md) when the task changes Notification Center
+- [ai-plan/design/domains/notification/通知中心设计.md](ai-plan/design/domains/notification/通知中心设计.md) when the task changes Notification Center
   sources, delivery semantics, notification configuration, notification routes, or shell notification UI behavior
 - [ai-plan/design/governance/backend/数据库表设计与迁移规范.md](ai-plan/design/governance/backend/数据库表设计与迁移规范.md) when the task changes
   database table design, Ent schema, Atlas migration, audit fields, soft delete semantics, indexes, store query

@@ -33,13 +33,13 @@ Hard order：
 - archived `ai-plan/public/archive/request-correlation-access-logging/**`
 - archived `ai-plan/public/archive/logging-unification-rollout/**`
 - archived `ai-plan/public/archive/plugin-audit-correlation-governance/**`
-- `ai-plan/design/日志治理开发规范.md`
+- `ai-plan/design/domains/audit/日志治理开发规范.md`
 - `ai-plan/design/governance/platform/契约治理与魔法值治理规范.md`
 
 ## Scope
 
 - Owned scope:
-  - `ai-plan/design/日志治理开发规范.md`
+  - `ai-plan/design/domains/audit/日志治理开发规范.md`
   - `ai-plan/public/archive/observability-development-governance/**`
   - `ai-plan/public/README.md`
   - Phase B inventory and bounded fixes under approved server/web authority paths
@@ -58,7 +58,7 @@ Hard order：
 
 ## Phase A Acceptance
 
-- `ai-plan/design/日志治理开发规范.md` completed
+- `ai-plan/design/domains/audit/日志治理开发规范.md` completed
 - topic tracking updated to mark Phase A done
 - no runtime code changes required in this phase
 

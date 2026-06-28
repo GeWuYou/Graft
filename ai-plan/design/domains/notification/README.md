@@ -1,11 +1,16 @@
 # Notification Domain
 
-This directory is reserved for notification and announcement domain design documents.
+This directory stores the canonical notification and announcement domain design authorities.
+
+## Canonical Docs
+
+- `通知中心设计.md`
+- `公告中心设计.md`
 
 ## Intended Scope
 
-- notification center design
-- announcement-center design
+- notification center design and delivery semantics
+- announcement-center design and user-facing publication semantics
 - nearby authority notes that are specific to notification-oriented capabilities
 
 ## Related Repository-Wide Docs
@@ -15,7 +20,7 @@ This directory is reserved for notification and announcement domain design docum
 - `../../governance/frontend/`
   - shared frontend shell and page-governance rules
 
-## Migration Note
+## Scope Note
 
-The directory exists now so later batches can move notification-oriented design docs here without mixing them into
-broader governance paths.
+Keep notification- and announcement-specific product/design truth here. Put repository-wide API, security, frontend,
+and cache rules in the related governance directories instead of duplicating them in this domain folder.

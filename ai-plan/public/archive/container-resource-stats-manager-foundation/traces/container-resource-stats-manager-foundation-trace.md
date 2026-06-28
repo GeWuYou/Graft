@@ -21,7 +21,7 @@
   - 前端新增 module-owned `ContainerStatsManager`
   - manager 由 `Metadata Store`、`Stats Store`、`Subscription Manager` 组成
 - 新增仓库级设计 authority：
-  - `ai-plan/design/容器资源状态与订阅治理设计.md`
+  - `ai-plan/design/domains/container/容器资源状态与订阅治理设计.md`
 - 新增 active topic：
   - `ai-plan/public/container-resource-stats-manager-foundation/README.md`
 - Phase 1 authority repair：

@@ -30,5 +30,6 @@ for phased implementation sequencing, and use `ai-plan/public/<topic>/` for topi
 
 ## Migration Note
 
-The target IA is being introduced in phases. During this convergence window, some existing design documents still remain
-at the `ai-plan/design/` root and will move in later batches.
+The target IA is being introduced in phases. After Batch 4, repository-wide design authorities now route through the
+child directories and the `ai-plan/design/` root remains a router-only entry. Batch 5 is reserved for archive, naming,
+and governance-sync closeout rather than additional root-level design-document moves.

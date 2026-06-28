@@ -1,6 +1,10 @@
 # Compose Domain
 
-This directory is reserved for Compose-project domain design documents.
+This directory stores the canonical Compose-project domain design authorities.
+
+## Canonical Docs
+
+- `Compose项目管理设计.md`
 
 ## Intended Scope
 
@@ -14,7 +18,7 @@ This directory is reserved for Compose-project domain design documents.
 - `../../governance/backend/`
   - backend API, contract, database, and security guardrails
 
-## Migration Note
+## Scope Note
 
-The directory exists now so later batches can move Compose domain documents here without changing authority during this
-batch.
+Keep Compose project registry, lifecycle, and aggregation design truth here. Related container runtime ownership should
+stay in `../container/`, while repository-wide API/security rules stay in the related governance directories.

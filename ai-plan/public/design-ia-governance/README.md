@@ -69,10 +69,7 @@
 ## Current Recovery Point
 
 - `ai-plan` 治理基线已完成，`graft-ai-plan-governance` 已可用于本主题。
-- `ai-plan/design/**` 当前仍以平铺为主，仅有少量已有子目录：
-  - `design/decisions/`
-  - `design/release/`
-  - `design/graft-design-system/`
+- `ai-plan/design/**` 的根层 canonical docs 已完成迁移收敛，当前根层只保留 `ai-plan/design/README.md` 作为目录路由入口。
 - Batch 1 已完成：
   - 当前 design inventory 已盘点
   - 目标 IA 骨架已定义
@@ -93,11 +90,15 @@
   - `.ai/registries/cross-boundary-assets.yaml` 中的旧 design authority path 已同步到 `ai-plan/design/governance/**`
   - `scripts/plugin_residual/allowlist.json`、`ai-plan/lessons/**` 与列出的 `server/internal/**/README.md` 已补齐同批次遗留引用
   - `python3 scripts/validate_ai_governance.py` 与 `python3 scripts/validate_ai_plan_structure.py` 已恢复通过
-- 当前下一步：执行 Batch 4，迁移 domain-oriented design docs 并收敛剩余交叉引用。
+- Batch 4 已完成：
+  - notification / container / compose / audit 领域设计 authority 已通过 `git mv` 迁入 `ai-plan/design/domains/**`
+  - live docs、active / archived recovery materials、`AGENTS.md`、`graft-cache-governance` skill 与 allowlist 旧路径已完成最小修复
+  - `compose-project-management` recovery docs 已同步新 canonical 设计路径，保持可启动
+- 当前下一步：执行 Batch 5，完成 archive / naming / governance sync closeout。
 
 ## Pending Batch Direction
 
-- `phase-1-batch-4-migrate-domain-design-docs-and-fix-references`
+- `phase-1-batch-5-design-archive-naming-and-governance-sync-closeout`
 
 ## Validation Targets
 

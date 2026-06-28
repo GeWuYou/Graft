@@ -5,7 +5,7 @@
 - 当前主题目标是在 `Graft` 增加公告中心能力，覆盖管理端公告发布和用户侧公告阅读。
 - 状态：`archive-ready`。
 - 任务分类为 `cross-boundary`，涉及 OpenAPI、server module、migration、RBAC/menu、web module、shell/global route 和 i18n。
-- Canonical design：`ai-plan/design/公告中心设计.md`。
+- Canonical design：`ai-plan/design/domains/notification/公告中心设计.md`。
 - 公告中心 MVP 已完成 Phase 0 到 Phase 6；后续不应在本主题下继续追加功能行为。
 
 ## Recovery Receipt
@@ -13,13 +13,13 @@
 - governance source：root `AGENTS.md`
 - task class：`cross-boundary`
 - recovery source：`parent topic`
-- authority summary：OpenAPI source + `server/modules/announcement` module contract/descriptor + `web/src/modules/announcement` bootstrap routes + `ai-plan/design/公告中心设计.md`
+- authority summary：OpenAPI source + `server/modules/announcement` module contract/descriptor + `web/src/modules/announcement` bootstrap routes + `ai-plan/design/domains/notification/公告中心设计.md`
 
 ## Owned Scope
 
 允许修改：
 
-- `ai-plan/design/公告中心设计.md`
+- `ai-plan/design/domains/notification/公告中心设计.md`
 - `ai-plan/public/announcement-center-mvp/**`
 - `ai-plan/public/README.md`
 - `openapi/**`
@@ -49,7 +49,7 @@
 ## Current Recovery Point
 
 - 分支为 `feat/announcement-center-mvp`。
-- 设计 authority 已落到 `ai-plan/design/公告中心设计.md`。
+- 设计 authority 已落到 `ai-plan/design/domains/notification/公告中心设计.md`。
 - Phase 6 最终验证和治理收尾已完成。
 - Archive-ready 判定：`confirmed`。
 - 无后续同主题批次；未来公告功能扩展应开启新的 bounded topic。

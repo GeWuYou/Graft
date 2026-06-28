@@ -2,7 +2,7 @@
 
 ## 2026-06-28 Phase 0 authority and recovery persistence
 
-- 建立 Compose Project 设计 authority：`ai-plan/design/Compose项目管理设计.md`。
+- 建立 Compose Project 设计 authority：`ai-plan/design/domains/compose/Compose项目管理设计.md`。
 - 建立 active topic：`ai-plan/public/compose-project-management/README.md`。
 - 建立 tracking：`ai-plan/public/compose-project-management/todos/compose-project-management-tracking.md`。
 - 建立 trace：`ai-plan/public/compose-project-management/traces/compose-project-management-trace.md`。

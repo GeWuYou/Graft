@@ -11,5 +11,6 @@ This directory groups capability-specific design documents by bounded domain.
 
 ## Current Scope Note
 
-The domain directories are being created before broad document moves. Existing domain design docs may still temporarily
-live at the `ai-plan/design/` root until later migration batches.
+Batch 4 moved the current notification, container, compose, and audit design authorities into their matching
+`domains/*/` directories. New domain-oriented repository design truth should land in the matching child directory
+instead of being restored to the `ai-plan/design/` root.

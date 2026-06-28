@@ -7,8 +7,8 @@ Round context:
 - recovery source：`parent topic`
 - recovery entry：`ai-plan/public/compose-project-management/README.md`
 - design authority：
-  - `ai-plan/design/Compose项目管理设计.md`
-  - `ai-plan/design/容器管理设计.md`
+  - `ai-plan/design/domains/compose/Compose项目管理设计.md`
+  - `ai-plan/design/domains/container/容器管理设计.md`
   - `ai-plan/design/architecture/模块与依赖注入设计.md`
   - `ai-plan/design/architecture/前端架构设计.md`
   - `ai-plan/design/governance/platform/契约治理与魔法值治理规范.md`

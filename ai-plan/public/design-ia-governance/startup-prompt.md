@@ -38,19 +38,17 @@ Implementation guardrails:
 - 不得一开始就大规模移动所有 `ai-plan/design/*.md`。
 - 不得把 validator 扩成 whole-repo `ai-plan` linter。
 
-Current batch plan:
+Current loop state:
 
-1. `phase-1-batch-1-design-inventory-and-target-ia-skeleton`
-   - 盘点当前 design 文档
-   - 建立分类矩阵
-   - 定义目标目录骨架
-   - 定义一级/二级 README 责任模型
-   - 明确后续迁移批次边界
-2. `phase-1-batch-2-create-target-design-directories-and-readmes`
-3. `phase-1-batch-3-migrate-low-coupling-design-docs`
-4. `phase-1-batch-3b-sync-shared-asset-registry-paths`
-5. `phase-1-batch-4-migrate-domain-design-docs-and-fix-references`
-6. `phase-1-batch-5-design-archive-naming-and-governance-sync-closeout`
+- 已完成批次：
+  - `phase-1-batch-1-design-inventory-and-target-ia-skeleton`
+  - `phase-1-batch-2-create-target-design-directories-and-readmes`
+  - `phase-1-batch-3-migrate-low-coupling-design-docs`
+  - `phase-1-batch-3b-sync-shared-asset-registry-paths`
+  - `phase-1-batch-4-migrate-domain-design-docs-and-fix-references`
+- 下一批：
+  - `phase-1-batch-5-design-archive-naming-and-governance-sync-closeout`
+    - archive / naming / README / catalog / validator / skill sync closeout
 
 Loop instructions:
 

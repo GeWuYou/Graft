@@ -2,14 +2,14 @@
 
 本 README 只承载 topic recovery、阶段边界和 archive-ready 判定，不是仓库规范正文。
 
-稳定设计 authority 以 `ai-plan/design/容器Dashboard汇总与实时一致性升级设计.md` 为准。
+稳定设计 authority 以 `ai-plan/design/domains/container/容器Dashboard汇总与实时一致性升级设计.md` 为准。
 
 ## 当前状态摘要
 
 - 当前主题目标是升级 `Dashboard` 容器概览的布局、realtime 一致性、资源语义和异常信息层级。
 - 当前状态：`archive-ready`。
 - 任务分类为 `cross-boundary`，涉及 backend summary authority、realtime contract、OpenAPI consumer 和 frontend dashboard/container module state architecture。
-- Canonical design：`ai-plan/design/容器Dashboard汇总与实时一致性升级设计.md`。
+- Canonical design：`ai-plan/design/domains/container/容器Dashboard汇总与实时一致性升级设计.md`。
 - 推荐执行技能：`$graft-multi-agent-loop`，loop mode 默认 `topic-completion-loop`。
 
 ## Recovery Receipt
@@ -17,13 +17,13 @@
 - governance source：root `AGENTS.md`
 - task class：`cross-boundary`
 - recovery source：`parent topic`
-- authority summary：`ai-plan/design/容器Dashboard汇总与实时一致性升级设计.md` + `server/modules/container/**` + `openapi/**` + `web/src/modules/container/**` + `web/src/modules/dashboard/**`
+- authority summary：`ai-plan/design/domains/container/容器Dashboard汇总与实时一致性升级设计.md` + `server/modules/container/**` + `openapi/**` + `web/src/modules/container/**` + `web/src/modules/dashboard/**`
 
 ## Owned Scope
 
 允许修改：
 
-- `ai-plan/design/容器Dashboard汇总与实时一致性升级设计.md`
+- `ai-plan/design/domains/container/容器Dashboard汇总与实时一致性升级设计.md`
 - `ai-plan/public/container-dashboard-summary-realtime-upgrade/**`
 - `ai-plan/public/README.md`
 - `openapi/**`

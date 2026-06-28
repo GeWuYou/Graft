@@ -32,7 +32,7 @@
 ## Scope
 
 - Owned scope:
-  - `ai-plan/design/日志治理开发规范.md`
+  - `ai-plan/design/domains/audit/日志治理开发规范.md`
   - `ai-plan/public/archive/observability-development-governance/**`
   - `ai-plan/public/README.md`
   - later Phase B/Phase C bounded files only after inventory
@@ -77,7 +77,7 @@
 
 - Phase B must start with inventory only
 - no code changes before inventory table exists
-- every Phase B fix must map back to a clause in `ai-plan/design/日志治理开发规范.md`
+- every Phase B fix must map back to a clause in `ai-plan/design/domains/audit/日志治理开发规范.md`
 
 ## Phase B Inventory
 

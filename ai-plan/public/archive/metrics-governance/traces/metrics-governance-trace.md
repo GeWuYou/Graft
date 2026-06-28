@@ -27,7 +27,7 @@
   - the current gap is upstream metrics lifecycle governance, not downstream implementation breakage
   - Batch 3 should decide whether the smallest justified MVP is doc-only closure or one bounded authority repair
 - Re-ran the Batch 3 authority decision against the current design docs and live code surfaces:
-  - `ai-plan/design/日志治理开发规范.md` still defines metrics outside monitor as placeholder-only governance
+  - `ai-plan/design/domains/audit/日志治理开发规范.md` still defines metrics outside monitor as placeholder-only governance
   - `server/plugins/monitor/**` plus `openapi/paths/monitor.server-status.yaml` are already aligned as the only current canonical metric-like surfaces
   - no OpenAPI drift, generated-artifact drift, or frontend consumer drift was found
 - Batch 3 conclusion:
