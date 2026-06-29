@@ -2,6 +2,7 @@ import { reactive } from 'vue';
 
 import { resolveStreamViewportState, type StreamViewportState } from '@/shared/observability';
 import { openRealtimeTopicSocket, type RealtimeTopicSocketController } from '@/shared/realtime';
+import { createLogger } from '@/utils/logger';
 
 import { getContainerEvents } from '../api/container';
 import {
@@ -34,6 +35,8 @@ type RealtimeSubscriptionEntry = {
   loading: boolean;
   view: ContainerEventsView | null;
 };
+
+const logger = createLogger('container.eventsManager');
 
 const state = reactive<{
   subscriptionsById: Map<string, RealtimeSubscriptionEntry>;
@@ -115,6 +118,15 @@ async function seedHistory(containerId: string) {
   }
 }
 
+function seedHistoryInBackground(containerId: string) {
+  void seedHistory(containerId).catch((error) => {
+    logger.warn('container events history refresh failed', {
+      containerId,
+      error,
+    });
+  });
+}
+
 /**
  * 建立容器运行时事件的实时订阅连接。
  *
@@ -144,7 +156,7 @@ function connectRealtime(containerId: string) {
       const previousState = entry.socketState;
       entry.socketState = nextState;
       if (previousState === 'open' && (nextState === 'connecting' || nextState === 'open') && entry.started) {
-        void seedHistory(containerId);
+        seedHistoryInBackground(containerId);
       }
     },
     onError: (message) => {
@@ -183,7 +195,7 @@ export function acquireContainerEventsSubscription(containerId: string) {
   const entry = ensureEntry(normalizedContainerId);
   entry.refCount += 1;
   if (!entry.started && !entry.loading) {
-    void seedHistory(normalizedContainerId);
+    seedHistoryInBackground(normalizedContainerId);
   }
   connectRealtime(normalizedContainerId);
 }

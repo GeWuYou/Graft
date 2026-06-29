@@ -295,6 +295,10 @@ def parse_args() -> argparse.Namespace:
         help="check scope: server, web, or all",
     )
     parser.add_argument(
+        "--config",
+        help="use an alternate eff-u-code JSON config file instead of the tracked/local merge",
+    )
+    parser.add_argument(
         "--format",
         choices=("console", "markdown", "json", "html"),
         help="override report format",
@@ -331,8 +335,10 @@ def main() -> int:
     """
     运行本地 `eff-u-code` 检查并返回退出码。
     
+    当指定 `--init-config` 时会创建本地配置；否则会解析配置、构建各个 scope 的命令并执行检查。若发生配置或本地环境错误，返回 `2`。
+    
     Returns:
-    	exit_code (int): 成功时为 `0`；配置或本地环境错误时为 `2`；任一 scope 执行失败时为该进程的返回码。
+        exit_code (int): 成功时为 `0`；配置或本地环境错误时为 `2`；任一 scope 执行失败时为该进程的返回码。
     """
     args = parse_args()
 
@@ -345,7 +351,10 @@ def main() -> int:
         if not args.dry_run:
             ensure_tree_sitter_wasms_layout()
 
-        config = load_config()
+        if args.config:
+            config = load_json(Path(args.config).resolve())
+        else:
+            config = load_config()
         scopes = resolve_scopes(args.scope)
         output_dir = Path(args.output_dir).resolve() if args.output_dir else None
         if output_dir is not None and not args.dry_run:

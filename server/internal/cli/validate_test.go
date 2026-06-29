@@ -224,16 +224,22 @@ func TestRunValidateOpenAPIInvokesFreshnessCheck(t *testing.T) {
 	backendReadFile = os.ReadFile
 
 	called := 0
-	backendOpenAPIFreshnessRunner = func() error {
+	var receivedCmd *cobra.Command
+	backendOpenAPIFreshnessRunner = func(cmd *cobra.Command) error {
+		receivedCmd = cmd
 		called++
 		return nil
 	}
 
-	if err := runValidateOpenAPI(&cobra.Command{}, defaultOpenAPIRootSpec); err != nil {
+	command := &cobra.Command{}
+	if err := runValidateOpenAPI(command, defaultOpenAPIRootSpec); err != nil {
 		t.Fatalf("run validate openapi: %v", err)
 	}
 	if called != 1 {
 		t.Fatalf("expected freshness check to run once, got %d", called)
+	}
+	if receivedCmd != command {
+		t.Fatalf("expected freshness runner to receive original command")
 	}
 }
 
@@ -526,7 +532,7 @@ func TestRunValidateOpenAPIFreshnessInvokesBoundaryAudit(t *testing.T) {
 		return nil
 	}
 
-	if err := runValidateOpenAPIFreshness(); err != nil {
+	if err := runValidateOpenAPIFreshness(&cobra.Command{}); err != nil {
 		t.Fatalf("run validate openapi freshness: %v", err)
 	}
 
@@ -569,7 +575,7 @@ func TestRunValidateOpenAPIFreshnessPropagatesBoundaryAuditFailure(t *testing.T)
 		return nil
 	}
 
-	err := runValidateOpenAPIFreshness()
+	err := runValidateOpenAPIFreshness(&cobra.Command{})
 	if err == nil {
 		t.Fatal("expected boundary audit failure")
 	}

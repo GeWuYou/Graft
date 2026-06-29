@@ -1,3 +1,5 @@
+import { createLogger } from '@/utils/logger';
+
 import type { RealtimeSubscriptionResponse } from './api';
 import { postRealtimeSubscription } from './api';
 import { toRealtimeWebSocketUrl } from './url';
@@ -8,6 +10,7 @@ const NON_RETRYABLE_STATUS_CODES = new Set([400, 401, 403, 404]);
 const RECONNECT_DELAYS_MS = [1000, 2000, 4000, 8000, 16000] as const;
 const MAX_RECONNECT_ATTEMPTS = RECONNECT_DELAYS_MS.length;
 const MAX_RECONNECT_ERROR_MESSAGE = 'Realtime reconnect stopped after maximum retry attempts';
+const logger = createLogger('shared.realtime.wsClient');
 
 type OpenRealtimeTopicSocketOptions<TMessage> = {
   topic: string;
@@ -90,22 +93,27 @@ export function openRealtimeTopicSocket<TMessage>(
     reconnectAttempts = 0;
   }
 
-  function scheduleReconnect(terminalErrorMessage?: string) {
+  function scheduleReconnect(terminalErrorMessage = MAX_RECONNECT_ERROR_MESSAGE) {
     clearReconnectTimer();
     if (closed) {
       return false;
     }
     if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-      if (terminalErrorMessage) {
-        options.onError?.(terminalErrorMessage);
-      }
+      emitState('error');
+      options.onError?.(terminalErrorMessage);
       return false;
     }
 
     const delay = RECONNECT_DELAYS_MS[Math.min(reconnectAttempts, RECONNECT_DELAYS_MS.length - 1)];
     reconnectAttempts += 1;
     reconnectTimer = window.setTimeout(() => {
-      void connect();
+      void connect().catch((error) => {
+        logger.warn('unexpected realtime reconnect failure', {
+          topic: options.topic,
+          attempt: reconnectAttempts,
+          error,
+        });
+      });
     }, delay);
     return true;
   }
@@ -164,7 +172,7 @@ export function openRealtimeTopicSocket<TMessage>(
           return;
         }
         emitState('closed');
-        scheduleReconnect(MAX_RECONNECT_ERROR_MESSAGE);
+        scheduleReconnect();
       };
     } catch (error) {
       if (closed || currentConnectionId !== connectionId) {
@@ -187,7 +195,11 @@ export function openRealtimeTopicSocket<TMessage>(
       socket.onerror = null;
       socket.onclose = null;
       if (socket.readyState < WebSocket.CLOSING) {
-        socket.close();
+        try {
+          socket.close();
+        } catch (error) {
+          options.onError?.(error instanceof Error ? error.message : 'Failed to close realtime socket');
+        }
       }
     }
     socket = null;
@@ -200,13 +212,27 @@ export function openRealtimeTopicSocket<TMessage>(
     clearReconnectTimer();
     resetReconnectAttempts();
     if (socket && socket.readyState < WebSocket.CLOSING) {
-      socket.close();
+      try {
+        socket.close();
+      } catch (error) {
+        options.onError?.(error instanceof Error ? error.message : 'Failed to reset realtime socket');
+      }
     }
     socket = null;
-    void connect();
+    void connect().catch((error) => {
+      logger.warn('manual realtime reconnect failed', {
+        topic: options.topic,
+        error,
+      });
+    });
   }
 
-  void connect();
+  void connect().catch((error) => {
+    logger.warn('initial realtime connect failed unexpectedly', {
+      topic: options.topic,
+      error,
+    });
+  });
 
   return {
     close,

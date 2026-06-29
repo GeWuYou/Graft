@@ -3,13 +3,10 @@ package config
 import (
 	"errors"
 	"fmt"
-	"net/url"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
-	"github.com/joho/godotenv"
 	"github.com/spf13/viper"
 )
 
@@ -209,7 +206,7 @@ type LogConfig struct {
 
 // RuntimeConfig 描述 core runtime 启动前必须冻结的进程级框架行为。
 type RuntimeConfig struct {
-	GinMode                          GinMode
+	GinMode                         GinMode
 	DevAllowDirtyMigrationBootstrap bool
 }
 
@@ -252,7 +249,9 @@ type ContainerConfig struct {
 //
 // 失败语义：
 //   - 当显式指定的 `GRAFT_ENV_FILE` 无法读取时直接返回错误，避免启动时误用过期默认值。
-// 当最终配置不满足运行时最小要求时返回验证错误。
+//
+// Load 读取环境配置并返回经过校验的配置快照。
+// 当 dotenv 载入失败或配置不满足校验要求时返回错误。
 func Load() (*Config, error) {
 	if err := loadDotenv(); err != nil {
 		return nil, err
@@ -265,85 +264,7 @@ func Load() (*Config, error) {
 
 	setDefaults(reader)
 
-	cfg := &Config{
-		App: AppConfig{
-			Name: reader.GetString("app.name"),
-			Env:  reader.GetString("app.env"),
-		},
-		HTTP: HTTPConfig{
-			Addr: reader.GetString("http.addr"),
-		},
-		HTTPX: HTTPXConfig{
-			AccessLogRetention:       reader.GetDuration("httpx.access_log_retention"),
-			AccessLogConsole:         AccessLogConsolePolicy(reader.GetString("access_log.console")),
-			AccessLogSlowThresholdMS: reader.GetInt64("access_log.slow_threshold_ms"),
-			WebSocketAllowedOrigins:  parseCommaSeparatedList(reader.GetString("httpx.websocket.allowed_origins")),
-		},
-		Audit: AuditConfig{
-			LogRetention: reader.GetDuration("audit.log_retention"),
-		},
-		Docs: DocsConfig{
-			Enabled: resolveDocsEnabled(reader),
-		},
-		Modules: ModulesConfig{
-			Enabled: parseModuleList(reader.GetString("modules.enabled")),
-		},
-		Database: DatabaseConfig{
-			Driver:          reader.GetString("database.driver"),
-			URL:             reader.GetString("database.url"),
-			MaxOpenConns:    reader.GetInt("database.max_open_conns"),
-			MaxIdleConns:    reader.GetInt("database.max_idle_conns"),
-			ConnMaxLifetime: reader.GetDuration("database.conn_max_lifetime"),
-			ConnMaxIdleTime: reader.GetDuration("database.conn_max_idle_time"),
-		},
-		Redis: RedisConfig{
-			Addr:            reader.GetString("redis.addr"),
-			Password:        reader.GetString("redis.password"),
-			DB:              reader.GetInt("redis.db"),
-			PoolSize:        reader.GetInt("redis.pool_size"),
-			MinIdleConns:    reader.GetInt("redis.min_idle_conns"),
-			MaxIdleConns:    reader.GetInt("redis.max_idle_conns"),
-			MaxActiveConns:  reader.GetInt("redis.max_active_conns"),
-			PoolTimeout:     reader.GetDuration("redis.pool_timeout"),
-			ConnMaxIdleTime: reader.GetDuration("redis.conn_max_idle_time"),
-			ConnMaxLifetime: reader.GetDuration("redis.conn_max_lifetime"),
-		},
-		Log: LogConfig{
-			Level:           reader.GetString("log.level"),
-			Format:          LogFormat(reader.GetString("log.format")),
-			Color:           LogColor(reader.GetString("log.color")),
-			AppLogPersist:   reader.GetBool("log.app_log_persist"),
-			AppLogRetention: reader.GetDuration("log.app_log_retention"),
-		},
-		Runtime: RuntimeConfig{
-			GinMode:                          GinMode(reader.GetString("gin.mode")),
-			DevAllowDirtyMigrationBootstrap: reader.GetBool("runtime.dev_allow_dirty_migration_bootstrap"),
-		},
-		I18n: I18nConfig{
-			DefaultLocale:    reader.GetString("i18n.default_locale"),
-			FallbackLocale:   reader.GetString("i18n.fallback_locale"),
-			SupportedLocales: parseLocaleList(reader.GetString("i18n.supported_locales")),
-		},
-		Auth: AuthConfig{
-			AccessTokenTTL:        reader.GetDuration("auth.access_token_ttl"),
-			RefreshTokenTTL:       reader.GetDuration("auth.refresh_token_ttl"),
-			JWTSecret:             reader.GetString("auth.jwt_secret"),
-			SigningKey:            reader.GetString("auth.signing_key"),
-			RefreshCookieName:     reader.GetString("auth.refresh_cookie_name"),
-			RefreshCookieSecure:   reader.GetBool("auth.refresh_cookie_secure"),
-			RefreshCookieSameSite: reader.GetString("auth.refresh_cookie_same_site"),
-			RefreshCookiePath:     reader.GetString("auth.refresh_cookie_path"),
-		},
-		Container: ContainerConfig{
-			Runtime:                 reader.GetString("ops.container.runtime"),
-			DockerEndpoint:          reader.GetString("ops.container.docker.endpoint"),
-			LogsDefaultTail:         reader.GetInt("ops.container.logs.default_tail"),
-			LogsMaxTail:             reader.GetInt("ops.container.logs.max_tail"),
-			RuntimeEnabled:          reader.GetBool("ops.container.runtime.enabled"),
-			DangerousActionsEnabled: reader.GetBool("ops.container.actions.dangerous_enabled"),
-			ShellEnabled:            reader.GetBool("ops.container.shell.enabled"),
-		},
-	}
+	cfg := readConfig(reader)
 
 	if err := cfg.Validate(); err != nil {
 		return nil, err
@@ -450,16 +371,9 @@ func validateHTTPXConfig(c *Config) error {
 	return nil
 }
 
-func validateWebSocketAllowedOrigins(origins []string) error {
-	for _, origin := range origins {
-		parsed, err := url.Parse(origin)
-		if err != nil || parsed.Scheme == "" || parsed.Host == "" || parsed.Path != "" || parsed.RawQuery != "" || parsed.Fragment != "" {
-			return fmt.Errorf("invalid GRAFT_HTTPX_WEBSOCKET_ALLOWED_ORIGINS entry %q", origin)
-		}
-	}
-	return nil
-}
-
+// validateAuditConfig 校验审计日志保留时长配置。
+// 当 GRAFT_AUDIT_LOG_RETENTION 小于或等于 0 时返回错误；否则返回 nil。
+// @returns 校验失败时返回错误，校验通过时返回 nil。
 func validateAuditConfig(c *Config) error {
 	if c.Audit.LogRetention <= 0 {
 		return errors.New("GRAFT_AUDIT_LOG_RETENTION must be greater than zero")
@@ -584,6 +498,8 @@ func validateRedisConfig(c *Config) error {
 	return nil
 }
 
+// validateI18nConfig 校验并规范化 i18n 配置。
+// 它要求默认语言、回退语言和支持语言列表都已配置，并确保默认语言、回退语言以及内置必需语言都包含在支持列表中。
 func validateI18nConfig(c *Config) error {
 	defaultLocaleValue := strings.TrimSpace(c.I18n.DefaultLocale)
 	if defaultLocaleValue == "" {
@@ -617,46 +533,20 @@ func validateI18nConfig(c *Config) error {
 	return nil
 }
 
+// normalizeLocaleList 规范化语言区域列表并返回去重集合。
+// 返回规范化后的区域列表及其去重映射。
 func normalizeLocaleList(locales []string) ([]string, map[string]struct{}) {
-	items := make([]string, 0, len(locales))
-	seen := make(map[string]struct{}, len(locales))
-
-	for _, raw := range locales {
-		locale := strings.TrimSpace(raw)
-		if locale == "" {
-			continue
-		}
-		if _, ok := seen[locale]; ok {
-			continue
-		}
-
-		seen[locale] = struct{}{}
-		items = append(items, locale)
-	}
-
-	return items, seen
+	return normalizeIndexedStringList(locales)
 }
 
+// normalizeModuleList 规范化模块 ID 列表，并返回去重后的结果及索引集合。
+// 返回规范化后的模块 ID 列表，以及以规范化值为键的集合。
 func normalizeModuleList(modules []string) ([]string, map[string]struct{}) {
-	items := make([]string, 0, len(modules))
-	seen := make(map[string]struct{}, len(modules))
-
-	for _, raw := range modules {
-		moduleID := strings.TrimSpace(raw)
-		if moduleID == "" {
-			continue
-		}
-		if _, ok := seen[moduleID]; ok {
-			continue
-		}
-
-		seen[moduleID] = struct{}{}
-		items = append(items, moduleID)
-	}
-
-	return items, seen
+	return normalizeIndexedStringList(modules)
 }
 
+// validateAuthConfig 检查认证相关配置是否有效。
+// 当访问令牌或刷新令牌的 TTL 无效，JWT 密钥缺失，刷新 Cookie 策略不合法，或刷新 Cookie 名称/路径为空时返回错误。
 func validateAuthConfig(c *Config) error {
 	if c.Auth.AccessTokenTTL <= 0 {
 		return errors.New("GRAFT_AUTH_ACCESS_TOKEN_TTL must be greater than zero")
@@ -710,6 +600,8 @@ func validateContainerConfig(c *Config) error {
 	return nil
 }
 
+// validateRefreshCookiePolicy 验证刷新 Cookie 的 SameSite 和 Secure 组合约束。
+// 当 SameSite 为 none 时，要求 Secure 为 true。
 func validateRefreshCookiePolicy(cfg AuthConfig) error {
 	switch strings.ToLower(strings.TrimSpace(cfg.RefreshCookieSameSite)) {
 	case "lax", "strict":
@@ -724,237 +616,34 @@ func validateRefreshCookiePolicy(cfg AuthConfig) error {
 	}
 }
 
-func loadDotenv() error {
-	if explicit := strings.TrimSpace(os.Getenv("GRAFT_ENV_FILE")); explicit != "" {
-		if err := godotenv.Load(explicit); err != nil {
-			return fmt.Errorf("load %s: %w", explicit, err)
-		}
-		return nil
-	}
-
-	dotenvPath, err := findDotenvPath()
-	if err != nil {
-		return err
-	}
-	if dotenvPath != "" {
-		return godotenv.Load(dotenvPath)
-	}
-
-	return nil
-}
-
-func findDotenvPath() (string, error) {
-	workingDir, err := os.Getwd()
-	if err != nil {
-		return "", fmt.Errorf("resolve working directory: %w", err)
-	}
-
-	for _, dir := range dotenvSearchDirs(workingDir) {
-		for _, candidate := range []string{
-			filepath.Join(dir, ".env"),
-			filepath.Join(dir, "server", ".env"),
-		} {
-			if _, err := os.Stat(candidate); err == nil {
-				return candidate, nil
-			} else if err != nil && !errors.Is(err, os.ErrNotExist) {
-				return "", fmt.Errorf("stat dotenv candidate %s: %w", candidate, err)
-			}
-		}
-	}
-
-	return "", nil
-}
-
-func dotenvSearchDirs(start string) []string {
-	if strings.TrimSpace(start) == "" {
-		return nil
-	}
-
-	dirs := []string{}
-	current := filepath.Clean(start)
-	for {
-		dirs = append(dirs, current)
-
-		if isDotenvSearchBoundary(current) {
-			return dirs
-		}
-
-		parent := filepath.Dir(current)
-		if parent == current {
-			return dirs
-		}
-		current = parent
-	}
-}
-
-func isDotenvSearchBoundary(dir string) bool {
-	if filepath.Base(dir) == "server" {
-		return true
-	}
-
-	for _, marker := range []string{".git", "server"} {
-		info, err := os.Stat(filepath.Join(dir, marker))
-		if err != nil {
-			continue
-		}
-		if marker == "server" && !info.IsDir() {
-			continue
-		}
-		return true
-	}
-
-	return false
-}
-
-// setDefaults sets default configuration values for all supported configuration keys, including environment-dependent retention durations for logging and auditing.
-func setDefaults(reader *viper.Viper) {
-	reader.SetDefault("app.name", defaultAppName)
-	reader.SetDefault("app.env", defaultAppEnv)
-	reader.SetDefault("http.addr", defaultHTTPAddr)
-	reader.SetDefault("httpx.access_log_retention", defaultAccessLogRetentionForEnv(reader.GetString("app.env")))
-	reader.SetDefault("access_log.console", string(AccessLogConsoleAuto))
-	reader.SetDefault("access_log.slow_threshold_ms", defaultAccessLogSlowThreshold/time.Millisecond)
-	reader.SetDefault("httpx.websocket.allowed_origins", defaultRealtimeAllowedOrigins)
-	reader.SetDefault("audit.log_retention", defaultAuditLogRetentionForEnv(reader.GetString("app.env")))
-	reader.SetDefault("modules.enabled", "")
-	reader.SetDefault("database.driver", defaultDatabaseDriver)
-	reader.SetDefault("database.url", defaultDatabaseURL)
-	reader.SetDefault("database.max_open_conns", defaultDatabaseMaxOpenConns)
-	reader.SetDefault("database.max_idle_conns", defaultDatabaseMaxIdleConns)
-	reader.SetDefault("database.conn_max_lifetime", defaultDatabaseConnMaxLifetime)
-	reader.SetDefault("database.conn_max_idle_time", defaultDatabaseConnMaxIdleTime)
-	reader.SetDefault("redis.addr", defaultRedisAddr)
-	reader.SetDefault("redis.password", "")
-	reader.SetDefault("redis.db", 0)
-	reader.SetDefault("redis.pool_size", defaultRedisPoolSize)
-	reader.SetDefault("redis.min_idle_conns", defaultRedisMinIdleConns)
-	reader.SetDefault("redis.max_idle_conns", defaultRedisMaxIdleConns)
-	reader.SetDefault("redis.max_active_conns", defaultRedisMaxActiveConns)
-	reader.SetDefault("redis.pool_timeout", defaultRedisPoolTimeout)
-	reader.SetDefault("redis.conn_max_idle_time", defaultRedisConnMaxIdleTime)
-	reader.SetDefault("redis.conn_max_lifetime", defaultRedisConnMaxLifetime)
-	reader.SetDefault("log.level", defaultLogLevel)
-	reader.SetDefault("log.format", string(LogFormatAuto))
-	reader.SetDefault("log.color", string(LogColorAuto))
-	reader.SetDefault("log.app_log_persist", defaultAppLogPersistence)
-	reader.SetDefault("log.app_log_retention", defaultAppLogRetentionForEnv(reader.GetString("app.env")))
-	reader.SetDefault("gin.mode", string(GinModeAuto))
-	reader.SetDefault("runtime.dev_allow_dirty_migration_bootstrap", defaultDevAllowDirtyMigrationBootstrapForEnv(reader.GetString("app.env")))
-	reader.SetDefault("i18n.default_locale", defaultLocale)
-	reader.SetDefault("i18n.fallback_locale", defaultLocale)
-	reader.SetDefault("i18n.supported_locales", defaultSupported)
-	reader.SetDefault("auth.access_token_ttl", defaultAccessTokenTTL)
-	reader.SetDefault("auth.refresh_token_ttl", defaultRefreshTokenTTL)
-	reader.SetDefault("auth.refresh_cookie_name", defaultRefreshCookieName)
-	reader.SetDefault("auth.refresh_cookie_secure", false)
-	reader.SetDefault("auth.refresh_cookie_same_site", defaultRefreshCookieSameSite)
-	reader.SetDefault("auth.refresh_cookie_path", defaultRefreshCookiePath)
-	reader.SetDefault("ops.container.runtime.enabled", false)
-	reader.SetDefault("ops.container.runtime", defaultContainerRuntime)
-	reader.SetDefault("ops.container.docker.endpoint", defaultContainerDockerEndpoint)
-	reader.SetDefault("ops.container.logs.default_tail", defaultContainerLogsDefaultTail)
-	reader.SetDefault("ops.container.logs.max_tail", defaultContainerLogsMaxTail)
-	reader.SetDefault("ops.container.actions.dangerous_enabled", false)
-	reader.SetDefault("ops.container.shell.enabled", false)
-}
-
-// parseLocaleList 将逗号分隔的地域字符串解析为规范化的地域值。
-// 结果已去除首尾空白、空项和重复值。
-func parseLocaleList(raw string) []string {
-	items, _ := normalizeLocaleList(strings.Split(raw, ","))
-	return items
-}
-
-// parseCommaSeparatedList parses a comma-separated string into a normalized slice, trimming whitespace, removing empty values, and deduplicating.
-func parseCommaSeparatedList(raw string) []string {
-	return normalizeStringList(strings.Split(raw, ","))
-}
-
-// parseModuleList parses a comma-separated string into a normalized list of module identifiers.
-func parseModuleList(raw string) []string {
-	items, _ := normalizeModuleList(strings.Split(raw, ","))
-	return items
-}
-
-// normalizeStringList removes empty strings and deduplicates the input list while preserving the order of first occurrence.
-func normalizeStringList(items []string) []string {
-	normalized := make([]string, 0, len(items))
-	seen := make(map[string]struct{}, len(items))
-	for _, raw := range items {
-		value := strings.TrimSpace(raw)
-		if value == "" {
-			continue
-		}
-		if _, ok := seen[value]; ok {
-			continue
-		}
-		seen[value] = struct{}{}
-		normalized = append(normalized, value)
-	}
-	return normalized
-}
-
-// resolveDocsEnabled determines whether documentation should be enabled based on explicit configuration or environment default.
-func resolveDocsEnabled(reader *viper.Viper) bool {
-	if reader == nil {
-		return defaultDocsEnabledForEnv(defaultAppEnv)
-	}
-
-	if reader.IsSet("docs.enabled") {
-		return reader.GetBool("docs.enabled")
-	}
-
-	return defaultDocsEnabledForEnv(reader.GetString("app.env"))
-}
-
+// defaultDocsEnabledForEnv 根据应用环境判断是否启用文档页面。
+// @returns 在本地类环境或测试环境下返回 true，其他环境返回 false。
 func defaultDocsEnabledForEnv(env string) bool {
-	switch normalizeAppEnv(env) {
-	case "", "local", "development", "dev", "test":
+	switch classifyAppEnv(env) {
+	case appEnvLocalLike, appEnvTest:
 		return true
-	case "prod", "production":
-		return false
 	default:
 		return false
 	}
 }
 
+// defaultAccessLogRetentionForEnv 根据应用环境返回默认的访问日志保留时长。
+// 本地类和测试环境返回 3 天，预发布环境返回 7 天，生产环境返回 30 天，其余环境返回 7 天。
 func defaultAccessLogRetentionForEnv(env string) time.Duration {
-	switch normalizeAppEnv(env) {
-	case "prod", "production":
-		return 30 * 24 * time.Hour
-	case "staging", "stage":
-		return 7 * 24 * time.Hour
-	case "", "local", "development", "dev", "test":
-		return 3 * 24 * time.Hour
-	default:
-		return 7 * 24 * time.Hour
-	}
+	return durationByAppEnv(env, 3*24*time.Hour, 7*24*time.Hour, 30*24*time.Hour, 7*24*time.Hour)
 }
 
+// defaultAuditLogRetentionForEnv 根据应用环境返回审计日志的默认保留时长。
+// 本地/测试环境为 30 天，预发布环境为 90 天，生产环境为 180 天，其它环境为 90 天。
 func defaultAuditLogRetentionForEnv(env string) time.Duration {
-	switch normalizeAppEnv(env) {
-	case "prod", "production":
-		return 180 * 24 * time.Hour
-	case "staging", "stage":
-		return 90 * 24 * time.Hour
-	case "", "local", "development", "dev", "test":
-		return 30 * 24 * time.Hour
-	default:
-		return 90 * 24 * time.Hour
-	}
+	return durationByAppEnv(env, 30*24*time.Hour, 90*24*time.Hour, 180*24*time.Hour, 90*24*time.Hour)
 }
 
+// defaultAppLogRetentionForEnv 返回给定应用环境下的应用日志保留时长。
+// 本地类和测试环境为 3 天，预发环境为 7 天，生产环境为 14 天，其它环境为 7 天。
+// 返回对应环境的应用日志保留时长。
 func defaultAppLogRetentionForEnv(env string) time.Duration {
-	switch normalizeAppEnv(env) {
-	case "prod", "production":
-		return 14 * 24 * time.Hour
-	case "staging", "stage":
-		return 7 * 24 * time.Hour
-	case "", "local", "development", "dev", "test":
-		return 3 * 24 * time.Hour
-	default:
-		return 7 * 24 * time.Hour
-	}
+	return durationByAppEnv(env, 3*24*time.Hour, 7*24*time.Hour, 14*24*time.Hour, 7*24*time.Hour)
 }
 
 // ResolveLogFormat returns the concrete zap encoder format for the app environment and requested policy.
@@ -988,7 +677,8 @@ func ResolveLogColor(appEnv string, format LogFormat, color LogColor) bool {
 	}
 }
 
-// ResolveGinMode returns the concrete Gin mode for the app environment and requested policy.
+// ResolveGinMode 根据应用环境和请求策略确定 Gin 的实际运行模式。
+// 显式指定为 debug、release 或 test 时返回对应模式；否则根据应用环境在 debug、test 和 release 之间选择。
 func ResolveGinMode(appEnv string, mode GinMode) GinMode {
 	switch normalizeGinMode(mode) {
 	case GinModeDebug:
@@ -998,10 +688,10 @@ func ResolveGinMode(appEnv string, mode GinMode) GinMode {
 	case GinModeTest:
 		return GinModeTest
 	default:
-		switch normalizeAppEnv(appEnv) {
-		case "local", "development", "dev":
+		switch classifyAppEnv(appEnv) {
+		case appEnvLocalLike:
 			return GinModeDebug
-		case "test":
+		case appEnvTest:
 			return GinModeTest
 		default:
 			return GinModeRelease
@@ -1009,7 +699,8 @@ func ResolveGinMode(appEnv string, mode GinMode) GinMode {
 	}
 }
 
-// ResolveAccessLogConsolePolicy returns the concrete request-log console policy for the app environment.
+// ResolveAccessLogConsolePolicy returns the effective access-log console policy.
+// 当未显式指定策略时，局部环境返回 error_only，其它环境返回 never。
 func ResolveAccessLogConsolePolicy(appEnv string, policy AccessLogConsolePolicy) AccessLogConsolePolicy {
 	switch normalizeAccessLogConsolePolicy(policy) {
 	case AccessLogConsoleAlways:
@@ -1019,8 +710,8 @@ func ResolveAccessLogConsolePolicy(appEnv string, policy AccessLogConsolePolicy)
 	case AccessLogConsoleErrorOnly:
 		return AccessLogConsoleErrorOnly
 	default:
-		switch normalizeAppEnv(appEnv) {
-		case "local", "development", "dev":
+		switch classifyAppEnv(appEnv) {
+		case appEnvLocalLike:
 			return AccessLogConsoleErrorOnly
 		default:
 			return AccessLogConsoleNever
@@ -1028,63 +719,101 @@ func ResolveAccessLogConsolePolicy(appEnv string, policy AccessLogConsolePolicy)
 	}
 }
 
+// normalizeAppEnv 将应用环境字符串转换为小写并去除首尾空白。
 func normalizeAppEnv(env string) string {
 	return strings.ToLower(strings.TrimSpace(env))
 }
 
+// normalizeLogFormat 规范化日志格式配置并返回有效值。
+// 当输入匹配 `auto`、`console` 或 `json` 时返回对应值，否则返回 `auto`。
 func normalizeLogFormat(format LogFormat) LogFormat {
-	switch LogFormat(strings.ToLower(strings.TrimSpace(string(format)))) {
-	case LogFormatConsole:
-		return LogFormatConsole
-	case LogFormatJSON:
-		return LogFormatJSON
-	default:
-		return LogFormatAuto
-	}
+	return normalizeStringEnum(format, LogFormatAuto, LogFormatConsole, LogFormatJSON)
 }
 
+// normalizeLogColor 规范化日志颜色策略，返回受支持的取值或默认值。
 func normalizeLogColor(color LogColor) LogColor {
-	switch LogColor(strings.ToLower(strings.TrimSpace(string(color)))) {
-	case LogColorAlways:
-		return LogColorAlways
-	case LogColorNever:
-		return LogColorNever
-	default:
-		return LogColorAuto
-	}
+	return normalizeStringEnum(color, LogColorAuto, LogColorAlways, LogColorNever)
 }
 
+// normalizeGinMode 将输入规范化为支持的 Gin 模式值。
+// @returns 规范化后的 GinMode；当输入不匹配任何支持值时返回 `auto`。
 func normalizeGinMode(mode GinMode) GinMode {
-	switch GinMode(strings.ToLower(strings.TrimSpace(string(mode)))) {
-	case GinModeDebug:
-		return GinModeDebug
-	case GinModeRelease:
-		return GinModeRelease
-	case GinModeTest:
-		return GinModeTest
-	default:
-		return GinModeAuto
-	}
+	return normalizeStringEnum(mode, GinModeAuto, GinModeDebug, GinModeRelease, GinModeTest)
 }
 
+// normalizeAccessLogConsolePolicy 将访问日志控制台策略归一为受支持的取值。
+// 无法识别的值会回退为 `auto`。
 func normalizeAccessLogConsolePolicy(policy AccessLogConsolePolicy) AccessLogConsolePolicy {
-	switch AccessLogConsolePolicy(strings.ToLower(strings.TrimSpace(string(policy)))) {
-	case AccessLogConsoleAlways:
-		return AccessLogConsoleAlways
-	case AccessLogConsoleNever:
-		return AccessLogConsoleNever
-	case AccessLogConsoleErrorOnly:
-		return AccessLogConsoleErrorOnly
+	return normalizeStringEnum(policy, AccessLogConsoleAuto, AccessLogConsoleAlways, AccessLogConsoleNever, AccessLogConsoleErrorOnly)
+}
+
+// isLocalLikeEnv 判断应用环境是否属于本地开发类或测试类环境。
+func isLocalLikeEnv(env string) bool {
+	return classifyAppEnv(env) == appEnvLocalLike || classifyAppEnv(env) == appEnvTest
+}
+
+type appEnvClass uint8
+
+const (
+	appEnvOther appEnvClass = iota
+	appEnvLocalLike
+	appEnvTest
+	appEnvStaging
+	appEnvProduction
+)
+
+// normalizeIndexedStringList 规范化字符串列表并返回去重索引集。
+//
+// @param items 待规范化的字符串列表。
+// @returns 规范化后的字符串列表，以及以规范化值为键的集合。
+func normalizeIndexedStringList(items []string) ([]string, map[string]struct{}) {
+	normalized := normalizeStringList(items)
+	seen := make(map[string]struct{}, len(normalized))
+	for _, item := range normalized {
+		seen[item] = struct{}{}
+	}
+	return normalized, seen
+}
+
+// durationByAppEnv 根据应用环境分类返回对应的时长。
+// 本地类和测试环境返回 localLike，预发环境返回 staging，生产环境返回 production，其它环境返回 fallback。
+func durationByAppEnv(env string, localLike, staging, production, fallback time.Duration) time.Duration {
+	switch classifyAppEnv(env) {
+	case appEnvLocalLike, appEnvTest:
+		return localLike
+	case appEnvStaging:
+		return staging
+	case appEnvProduction:
+		return production
 	default:
-		return AccessLogConsoleAuto
+		return fallback
 	}
 }
 
-func isLocalLikeEnv(env string) bool {
+// classifyAppEnv 将应用环境归类为本地类、测试、预发布、生产或其他类别。
+func classifyAppEnv(env string) appEnvClass {
 	switch normalizeAppEnv(env) {
-	case "", "local", "development", "dev", "test":
-		return true
+	case "", "local", "development", "dev":
+		return appEnvLocalLike
+	case "test":
+		return appEnvTest
+	case "staging", "stage":
+		return appEnvStaging
+	case "prod", "production":
+		return appEnvProduction
 	default:
-		return false
+		return appEnvOther
 	}
+}
+
+// normalizeStringEnum 规范化字符串枚举值，并在不匹配允许值时返回回退值。
+// 它会对输入进行去首尾空白和小写化处理后再进行匹配。
+func normalizeStringEnum[T ~string](raw T, fallback T, allowed ...T) T {
+	value := T(strings.ToLower(strings.TrimSpace(string(raw))))
+	for _, candidate := range allowed {
+		if value == candidate {
+			return candidate
+		}
+	}
+	return fallback
 }

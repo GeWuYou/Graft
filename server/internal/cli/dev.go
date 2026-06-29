@@ -11,9 +11,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
-	"runtime"
 	"slices"
-	"strings"
 	"syscall"
 	"time"
 
@@ -358,38 +356,22 @@ func (s *devSupervisor) restartServe(cmd *cobra.Command) error {
 		return fmt.Errorf("resolve serve binary: %w", err)
 	}
 
-	commandContext := cmd.Context()
-	if commandContext == nil {
-		commandContext = context.Background()
-	}
-
-	child := devCommandContext(commandContext, serveBinary, "serve")
-	child.Dir = s.moduleRoot
-	child.Stdout = cmd.OutOrStdout()
-	child.Stderr = cmd.ErrOrStderr()
-	child.Stdin = os.Stdin
-	child.Env, err = devCommandEnv()
+	s.serveCmd, s.serveExit, err = startDevManagedChild(
+		cmd.Context(),
+		cmd,
+		devManagedChildSpec{
+			moduleRoot: s.moduleRoot,
+			binary:     serveBinary,
+			args:       []string{"serve"},
+			pidPath:    s.servePID,
+			label:      "serve",
+		},
+	)
 	if err != nil {
-		return fmt.Errorf("prepare serve env: %w", err)
-	}
-
-	if err := child.Start(); err != nil {
 		return fmt.Errorf("start development server: %w", err)
 	}
 
-	s.serveCmd = child
-	s.serveExit = make(chan error, 1)
-	if err := writeDevPIDFile(s.servePID, child.Process.Pid); err != nil {
-		_ = child.Process.Kill()
-		_, _ = child.Process.Wait()
-		return fmt.Errorf("write serve pid: %w", err)
-	}
-
-	go func() {
-		s.serveExit <- child.Wait()
-	}()
-
-	s.log(cmd, "server started pid=%d", child.Process.Pid)
+	s.log(cmd, "server started pid=%d", s.serveCmd.Process.Pid)
 	return nil
 }
 
@@ -442,33 +424,22 @@ func (s *devSupervisor) startAir(ctx context.Context, cmd *cobra.Command, config
 		return fmt.Errorf("find go for Air: %w", err)
 	}
 
-	child := devCommandContext(ctx, airPath, "tool", "air", "-c", configPath)
-	child.Dir = s.moduleRoot
-	child.Stdout = cmd.OutOrStdout()
-	child.Stderr = cmd.ErrOrStderr()
-	child.Stdin = os.Stdin
-	child.Env, err = devCommandEnv()
+	s.airCmd, s.airExit, err = startDevManagedChild(
+		ctx,
+		cmd,
+		devManagedChildSpec{
+			moduleRoot: s.moduleRoot,
+			binary:     airPath,
+			args:       []string{"tool", "air", "-c", configPath},
+			pidPath:    s.airPID,
+			label:      "Air",
+		},
+	)
 	if err != nil {
-		return fmt.Errorf("prepare air env: %w", err)
-	}
-
-	if err := child.Start(); err != nil {
 		return fmt.Errorf("start Air live reload: %w", err)
 	}
 
-	s.airCmd = child
-	s.airExit = make(chan error, 1)
-	if err := writeDevPIDFile(s.airPID, child.Process.Pid); err != nil {
-		_ = child.Process.Kill()
-		_, _ = child.Process.Wait()
-		return fmt.Errorf("write Air pid: %w", err)
-	}
-
-	go func() {
-		s.airExit <- child.Wait()
-	}()
-
-	s.log(cmd, "air started pid=%d", child.Process.Pid)
+	s.log(cmd, "air started pid=%d", s.airCmd.Process.Pid)
 	return nil
 }
 
@@ -566,131 +537,4 @@ func (s *devSupervisor) airExitChannel() <-chan error {
 
 func (s *devSupervisor) log(cmd *cobra.Command, format string, args ...any) {
 	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "[DEV] %s\n", fmt.Sprintf(format, args...))
-}
-
-func resolveDevAirConfigPath(configPath string) (string, error) {
-	moduleRoot, err := devAirModuleRootResolver()
-	if err != nil {
-		return "", fmt.Errorf("resolve backend module root: %w", err)
-	}
-	return normalizeDevAirConfigPath(moduleRoot, configPath), nil
-}
-
-func normalizeDevAirConfigPath(baseDir string, configPath string) string {
-	if filepath.IsAbs(configPath) {
-		return filepath.Clean(configPath)
-	}
-	return filepath.Clean(filepath.Join(baseDir, configPath))
-}
-
-func ensureNoLiveDevSupervisor(supervisorPID string) error {
-	pid, err := readDevPIDFile(supervisorPID)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return nil
-		}
-		return fmt.Errorf("read supervisor pid: %w", err)
-	}
-
-	alive, err := devPIDAliveChecker(pid)
-	if err != nil {
-		return fmt.Errorf("check supervisor pid %d: %w", pid, err)
-	}
-	if !alive {
-		removeDevPIDFile(supervisorPID)
-		return nil
-	}
-
-	return fmt.Errorf("another development supervisor is already running (pid=%d); stop it with `graft dev stop-air` before starting a new one", pid)
-}
-
-func resolveDevPIDPaths() (devPIDPaths, error) {
-	moduleRoot, err := devAirModuleRootResolver()
-	if err != nil {
-		return devPIDPaths{}, fmt.Errorf("resolve backend module root: %w", err)
-	}
-
-	tmpDir := filepath.Join(moduleRoot, "tmp")
-	return devPIDPaths{
-		supervisor: filepath.Join(tmpDir, devSupervisorPIDName),
-		air:        filepath.Join(tmpDir, devAirPIDName),
-		serve:      filepath.Join(tmpDir, devServePIDName),
-		notify:     filepath.Join(tmpDir, devNotifyPIDName),
-	}, nil
-}
-
-func writeDevPIDFile(path string, pid int) error {
-	if err := devMkdirAll(filepath.Dir(path), devPIDDirPerm); err != nil {
-		return err
-	}
-	return devWriteFile(path, []byte(fmt.Sprintf("%d\n", pid)), devPIDFilePerm)
-}
-
-func readDevPIDFile(path string) (int, error) {
-	content, err := devReadFile(path)
-	if err != nil {
-		return 0, err
-	}
-
-	var pid int
-	if _, err := fmt.Sscanf(strings.TrimSpace(string(content)), "%d", &pid); err != nil {
-		return 0, fmt.Errorf("parse pid file %s: %w", path, err)
-	}
-	if pid <= 0 {
-		return 0, fmt.Errorf("invalid pid %d in %s", pid, path)
-	}
-	return pid, nil
-}
-
-func removeDevPIDFile(path string) {
-	if err := devRemove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return
-	}
-}
-
-func isDevPIDAlive(pid int) (bool, error) {
-	process, err := devProcessFinder(pid)
-	if err != nil {
-		return false, err
-	}
-	if err := process.Signal(syscall.Signal(0)); err != nil {
-		if errors.Is(err, os.ErrProcessDone) || errors.Is(err, syscall.ESRCH) {
-			return false, nil
-		}
-		return false, err
-	}
-	return true, nil
-}
-
-func signalDevPID(pid int, sig syscall.Signal) error {
-	process, err := devProcessFinder(pid)
-	if err != nil {
-		return fmt.Errorf("find process: %w", err)
-	}
-	if err := process.Signal(sig); err != nil {
-		if errors.Is(err, os.ErrProcessDone) || errors.Is(err, syscall.ESRCH) {
-			return nil
-		}
-		return err
-	}
-	return nil
-}
-
-func resolveDevServeBinary(moduleRoot string) (string, error) {
-	candidate := filepath.Join(moduleRoot, "tmp", "graft")
-	if runtime.GOOS == "windows" {
-		candidate += ".exe"
-	}
-	if _, err := devStat(candidate); err == nil {
-		return candidate, nil
-	}
-	if _, err := devStat(candidate); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return "", fmt.Errorf("stat %s: %w", candidate, err)
-	}
-
-	current, err := devExecutablePath()
-	if err != nil {
-		return "", fmt.Errorf("resolve current executable: %w", err)
-	}
-	return current, nil
 }

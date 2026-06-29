@@ -723,6 +723,14 @@ Repository automation should follow the same boundary rules as local development
 - when CI keeps split jobs or stage flags, document them as execution-layer decomposition of the same repository
   validation truth, not as independent acceptance contracts
 - prefer a fast quality or security track plus a build or test track instead of one opaque monolithic job
+- a repository-owned policy evaluator may run as its own PR-only quality job when it consumes local helper JSON and
+  enforces repository rules instead of a third-party tool's upstream total score
+- helper-backed PR quality jobs must keep thresholds and regression windows in repository configuration, not hard-coded
+  workflow YAML or script constants
+- helper-backed PR quality jobs may publish display-only summary scores, but blocking decisions must remain rule-based
+  rather than score-based
+- documentation and governance gates such as README / ADR / Contract / OpenAPI / Public API Comment must remain
+  independent from any one code-quality helper
 - cache dependencies by ecosystem, such as Go modules and frontend package manager caches
 - upload useful failure artifacts or summaries when they materially improve debugging
 - keep current-stage workflows honest about repository maturity; prefer smoke validation over fake full builds when the

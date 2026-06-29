@@ -63,3 +63,4 @@ __linux
 .playwright-mcp/
 .eff-u-code.local.json
 node_modules/
+.tmp/

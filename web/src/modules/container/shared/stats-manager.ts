@@ -1,6 +1,4 @@
-import { reactive } from 'vue';
-
-import { openRealtimeTopicSocket, type RealtimeTopicSocketController } from '@/shared/realtime';
+import { openRealtimeTopicSocket } from '@/shared/realtime';
 
 import { mapContainerDashboardSummary } from '../api/dashboard-summary';
 import type { ContainerDashboardSummary } from '../contract/dashboard-summary';
@@ -13,263 +11,39 @@ import {
   parseContainerListStatsPayload,
   parseContainerStatsPayload,
 } from './realtime-stats';
+import {
+  attachLatestResource,
+  buildChangeState,
+  createEmptyChangeState,
+  hasSameCollectedAt,
+  isChangeStateFresh,
+  isNewerDashboardSummarySnapshot,
+  isNewerStatsSnapshot,
+  splitDetailRecord,
+  splitSummaryRecord,
+} from './stats-manager-snapshot';
+import type {
+  ContainerMetadataRecord,
+  ContainerStatsChangeState,
+  ContainerStatsEntry,
+  ContainerStatsSnapshot,
+  RealtimeSocketState,
+  RealtimeSubscriptionEntry,
+  StatsSnapshotSource,
+} from './stats-manager-state';
+import {
+  CONTAINER_STATS_CHANGE_HIGHLIGHT_MS,
+  CONTAINER_STATS_HISTORY_LIMIT,
+  DEFAULT_CONTAINER_LIST_COLLECTION_KEY,
+  state,
+  SUBSCRIPTION_IDLE_GRACE_MS,
+} from './stats-manager-state';
 
-type ContainerMetadataRecord = Omit<ContainerSummaryRecord, 'resource'>;
-type ContainerDetailMetadataRecord = Omit<ContainerDetailRecord, 'resource'>;
-type ContainerSummaryCollectionKey = string;
-
-type StatsSnapshotSource = 'http-seed' | 'realtime';
-type RealtimeSocketState = 'idle' | 'connecting' | 'open' | 'closed' | 'error';
-
-export type ContainerStatsSnapshot = {
-  resource: ContainerResourceSummary;
-  source: StatsSnapshotSource;
-};
-
-export type ContainerStatsChangeDirection = 'down' | 'none' | 'up';
-
-export type ContainerStatsChangeState = {
-  changedAt: number | null;
-  cpu: ContainerStatsChangeDirection;
-  memory: ContainerStatsChangeDirection;
-};
-
-type ContainerStatsEntry = {
-  change: ContainerStatsChangeState;
-  changeTick: number;
-  highlightTimer: number | null;
-  history: ContainerStatsSnapshot[];
-  previousSnapshot: ContainerStatsSnapshot | null;
-  snapshot: ContainerStatsSnapshot | null;
-};
-
-type RealtimeSubscriptionEntry = {
-  controller: RealtimeTopicSocketController | null;
-  idleTimer: number | null;
-  refCount: number;
-  state: RealtimeSocketState;
-};
-
-type ContainerDashboardSummarySnapshot = {
-  source: StatsSnapshotSource;
-  summary: ContainerDashboardSummary;
-};
-
-type ContainerStatsManagerState = {
-  dashboardSummary: ContainerDashboardSummarySnapshot | null;
-  dashboardSummarySubscription: RealtimeSubscriptionEntry;
-  detailMetadataById: Map<string, ContainerDetailMetadataRecord>;
-  listCollections: Map<ContainerSummaryCollectionKey, string[]>;
-  listTopicSubscription: RealtimeSubscriptionEntry;
-  listMetadataByCollection: Map<ContainerSummaryCollectionKey, Map<string, ContainerMetadataRecord>>;
-  statsById: Map<string, ContainerStatsEntry>;
-  subscriptionsById: Map<string, RealtimeSubscriptionEntry>;
-};
-
-type SnapshotWithSource<TSnapshot> = {
-  source: StatsSnapshotSource;
-  summary: TSnapshot;
-};
-
-const SUBSCRIPTION_IDLE_GRACE_MS = 10_000;
-const DEFAULT_CONTAINER_LIST_COLLECTION_KEY = 'container:list';
-const CONTAINER_STATS_HISTORY_LIMIT = 12;
-const CONTAINER_STATS_CHANGE_HIGHLIGHT_MS = 800;
-
-const state = reactive<ContainerStatsManagerState>({
-  dashboardSummary: null,
-  dashboardSummarySubscription: {
-    controller: null,
-    idleTimer: null,
-    refCount: 0,
-    state: 'idle',
-  },
-  detailMetadataById: new Map<string, ContainerDetailMetadataRecord>(),
-  listCollections: new Map<ContainerSummaryCollectionKey, string[]>(),
-  listTopicSubscription: {
-    controller: null,
-    idleTimer: null,
-    refCount: 0,
-    state: 'idle',
-  },
-  listMetadataByCollection: new Map<ContainerSummaryCollectionKey, Map<string, ContainerMetadataRecord>>(),
-  statsById: new Map<string, ContainerStatsEntry>(),
-  subscriptionsById: new Map<string, RealtimeSubscriptionEntry>(),
-});
-
-/**
- * 规范化采集时间字符串。
- *
- * @param value - 待处理的采集时间
- * @returns 去除首尾空白后的字符串；当值缺失或为空时返回 `null`
- */
-function normalizeCollectedAt(value?: string | null) {
-  return value?.trim() || null;
-}
-
-/**
- * 获取资源的采集时间。
- *
- * @param resource - 容器资源摘要
- * @returns 规范化后的采集时间，缺失或为空时为 `null`
- */
-function getCollectedAtValue(resource?: ContainerResourceSummary | null) {
-  return normalizeCollectedAt(resource?.collected_at);
-}
-
-/**
- * 获取仪表盘汇总快照的采集时间。
- *
- * @param summary - 容器仪表盘汇总
- * @returns 规范化后的汇总采集时间，缺失时为 `null`
- */
-function getDashboardSummaryCollectedAt(summary?: ContainerDashboardSummary | null) {
-  return normalizeCollectedAt(summary?.overview.collectedAt);
-}
-
-/**
- * 判断候选快照是否应覆盖当前快照。
- *
- * @param current - 当前快照及其来源
- * @param candidate - 待比较的候选快照
- * @param source - 候选快照来源
- * @param readCollectedAt - 读取快照采集时间的函数
- * @returns `true` 表示候选快照应覆盖当前快照，`false` otherwise.
- */
-function isNewerSnapshot<TSnapshot>(
-  current: SnapshotWithSource<TSnapshot> | null,
-  candidate: TSnapshot,
-  source: StatsSnapshotSource,
-  readCollectedAt: (snapshot: TSnapshot) => string | null,
-) {
-  if (!current) {
-    return true;
-  }
-
-  const currentCollectedAt = readCollectedAt(current.summary);
-  const candidateCollectedAt = readCollectedAt(candidate);
-
-  if (candidateCollectedAt && currentCollectedAt) {
-    return candidateCollectedAt >= currentCollectedAt;
-  }
-  if (candidateCollectedAt && !currentCollectedAt) {
-    return true;
-  }
-  if (!candidateCollectedAt && currentCollectedAt) {
-    return false;
-  }
-
-  if (current.source === 'realtime' && source === 'http-seed') {
-    return false;
-  }
-
-  return true;
-}
-
-/**
- * 比较两个指标值的变化方向。
- *
- * @param previous - 之前的指标值
- * @param next - 之后的指标值
- * @returns `up` 表示升高，`down` 表示降低，`none` 表示保持不变或值无效
- */
-function compareMetricDirection(previous?: number | null, next?: number | null): ContainerStatsChangeDirection {
-  if (typeof previous !== 'number' || Number.isNaN(previous) || typeof next !== 'number' || Number.isNaN(next)) {
-    return 'none';
-  }
-  if (next > previous) {
-    return 'up';
-  }
-  if (next < previous) {
-    return 'down';
-  }
-  return 'none';
-}
-
-/**
- * 生成容器统计变化状态。
- *
- * @param current - 当前快照
- * @param nextSnapshot - 新快照
- * @param source - 快照来源
- * @returns 包含 CPU、内存变化方向及高亮时间戳的状态
- */
-function buildChangeState(
-  current: ContainerStatsSnapshot | null,
-  nextSnapshot: ContainerStatsSnapshot,
-  source: StatsSnapshotSource,
-): ContainerStatsChangeState {
-  const currentTime = source === 'realtime' ? Date.now() : null;
-  const cpu = compareMetricDirection(current?.resource.cpu_percent, nextSnapshot.resource.cpu_percent);
-  const memory = compareMetricDirection(current?.resource.memory_percent, nextSnapshot.resource.memory_percent);
-  const changed = source === 'realtime' && (cpu !== 'none' || memory !== 'none');
-
-  return {
-    changedAt: changed ? currentTime : null,
-    cpu,
-    memory,
-  };
-}
-
-/**
- * 判断两个统计快照是否指向同一采集时刻。
- *
- * @param current - 当前快照
- * @param nextSnapshot - 待写入的快照
- * @returns `true` 表示两个快照拥有相同的采集时间且该时间有效
- */
-function hasSameCollectedAt(current: ContainerStatsSnapshot | null, nextSnapshot: ContainerStatsSnapshot) {
-  const currentCollectedAt = getCollectedAtValue(current?.resource);
-  const nextCollectedAt = getCollectedAtValue(nextSnapshot.resource);
-  return Boolean(currentCollectedAt && nextCollectedAt && currentCollectedAt === nextCollectedAt);
-}
-
-/**
- * 判断变化状态是否仍处于高亮窗口内。
- *
- * @param change - 变化状态
- * @returns `true` if `changedAt` 存在且未超过高亮时长，`false` otherwise.
- */
-function isChangeStateFresh(change: ContainerStatsChangeState) {
-  return typeof change.changedAt === 'number' && Date.now() - change.changedAt <= CONTAINER_STATS_CHANGE_HIGHLIGHT_MS;
-}
-
-/**
- * 判断统计快照是否应覆盖当前记录。
- *
- * @param current - 当前已保存的统计快照
- * @param candidate - 待比较的统计资源
- * @param source - 候选快照来源
- * @returns `true` 如果候选快照应覆盖当前快照，`false` 否则
- */
-function isNewerStatsSnapshot(
-  current: ContainerStatsSnapshot | null,
-  candidate: ContainerResourceSummary,
-  source: StatsSnapshotSource,
-) {
-  return isNewerSnapshot(
-    current ? { source: current.source, summary: current.resource } : null,
-    candidate,
-    source,
-    getCollectedAtValue,
-  );
-}
-
-/**
- * 判断候选仪表盘汇总快照是否应覆盖当前快照。
- *
- * @param current - 当前已保存的汇总快照
- * @param candidate - 待写入的汇总数据
- * @param source - 候选快照来源
- * @returns `true` 表示候选数据更新，`false`  otherwise.
- */
-function isNewerDashboardSummarySnapshot(
-  current: ContainerDashboardSummarySnapshot | null,
-  candidate: ContainerDashboardSummary,
-  source: StatsSnapshotSource,
-) {
-  return isNewerSnapshot(current, candidate, source, getDashboardSummaryCollectedAt);
-}
+export type {
+  ContainerStatsChangeDirection,
+  ContainerStatsChangeState,
+  ContainerStatsSnapshot,
+} from './stats-manager-state';
 
 /**
  * 更新容器的统计快照。
@@ -562,56 +336,6 @@ function upsertDashboardSummarySnapshot(summary: ContainerDashboardSummary, sour
 }
 
 /**
- * 拆分容器摘要记录中的资源与元数据。
- *
- * @param record - 容器摘要记录
- * @returns 包含 `metadata` 和 `resource` 的对象
- */
-function splitSummaryRecord(record: ContainerSummaryRecord) {
-  const { resource, ...metadata } = record;
-  return {
-    metadata: metadata as ContainerMetadataRecord,
-    resource,
-  };
-}
-
-/**
- * 将容器详情记录拆分为元数据和资源部分。
- *
- * @param record - 容器详情记录
- * @returns 拆分后的元数据与资源对象
- */
-function splitDetailRecord(record: ContainerDetailRecord) {
-  const { resource, ...metadata } = record;
-  return {
-    metadata: metadata as ContainerDetailMetadataRecord,
-    resource,
-  };
-}
-
-/**
- * 将容器元数据附加为带最新资源信息的视图对象。
- *
- * @param containerId - 容器 ID
- * @param metadata - 要附加资源信息的元数据
- * @returns 合并了当前统计快照中资源信息的对象；当元数据缺失时返回 `null`
- */
-function attachLatestResource<TMetadata extends ContainerMetadataRecord | ContainerDetailMetadataRecord>(
-  containerId: string,
-  metadata: TMetadata | undefined,
-) {
-  if (!metadata) {
-    return null;
-  }
-
-  const snapshot = state.statsById.get(containerId)?.snapshot ?? null;
-  return {
-    ...metadata,
-    resource: snapshot?.resource,
-  };
-}
-
-/**
  * 重置容器统计管理器的全部运行状态。
  *
  * 会关闭共享订阅和按容器订阅，清除统计高亮定时器，并清空仪表盘汇总、列表、详情和统计缓存。
@@ -859,7 +583,7 @@ export function selectContainerDashboardRealtimeState(): RealtimeSocketState {
  */
 function selectContainerSummaryView(containerId: string): ContainerSummaryRecord | null {
   const metadata = state.listMetadataByCollection.get(DEFAULT_CONTAINER_LIST_COLLECTION_KEY)?.get(containerId);
-  return attachLatestResource(containerId, metadata);
+  return attachLatestResource(state.statsById.get(containerId)?.snapshot?.resource, metadata);
 }
 
 /**
@@ -894,7 +618,7 @@ export function selectContainerSummaryCollectionViews(collectionKey: string): Co
 
   return order.reduce<ContainerSummaryRecord[]>((items, containerId) => {
     const metadata = metadataById.get(containerId);
-    const next = attachLatestResource(containerId, metadata);
+    const next = attachLatestResource(state.statsById.get(containerId)?.snapshot?.resource, metadata);
     if (!next) {
       return items;
     }
@@ -912,7 +636,7 @@ export function selectContainerSummaryCollectionViews(collectionKey: string): Co
  */
 export function selectContainerDetailView(containerId: string): ContainerDetailRecord | null {
   const metadata = state.detailMetadataById.get(containerId);
-  return attachLatestResource(containerId, metadata);
+  return attachLatestResource(state.statsById.get(containerId)?.snapshot?.resource, metadata);
 }
 
 /**
@@ -934,19 +658,11 @@ export function selectContainerStatsHistory(containerId: string): ContainerStats
 export function selectContainerStatsChangeState(containerId: string): ContainerStatsChangeState {
   const entry = state.statsById.get(containerId);
   if (!entry) {
-    return {
-      changedAt: null,
-      cpu: 'none',
-      memory: 'none',
-    };
+    return createEmptyChangeState();
   }
   void entry.changeTick;
   if (!isChangeStateFresh(entry.change)) {
-    return {
-      changedAt: null,
-      cpu: 'none',
-      memory: 'none',
-    };
+    return createEmptyChangeState();
   }
   return entry.change;
 }
