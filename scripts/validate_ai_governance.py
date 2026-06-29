@@ -156,7 +156,7 @@ def validate_ai_tooling_doc() -> list[Finding]:
     校验 AI 工具治理文档是否包含必需的治理术语与约束。
     
     Returns:
-        list[Finding]: 缺失必需内容或包含禁用表述时对应的发现列表。
+        list[Finding]: 缺失必需内容或包含禁用表述时的发现列表。
     """
     if not AI_TOOLING_DOC.is_file():
         return []
@@ -167,6 +167,9 @@ def validate_ai_tooling_doc() -> list[Finding]:
         "fuck-u-code",
         "developer-local",
         "not part of the formal validation flow",
+        "bun run quality:eff-u-code:gate --",
+        "Graft Quality Policy",
+        "Curated Score",
         "codegraph",
         "tdesign",
         "context7",
@@ -194,6 +197,7 @@ def validate_ai_tooling_doc() -> list[Finding]:
         "memory",
         "postgres",
         "AI tooling evidence",
+        "文档 / 治理 Gate 必须独立于 `eff-u-code`",
     )
     findings.extend(missing_exact_terms(text, AI_TOOLING_DOC, "AI tooling governance", exact_terms))
     findings.extend(
@@ -220,6 +224,31 @@ def validate_ai_tooling_doc() -> list[Finding]:
                         r"optional|可选",
                         r"developer-local|本地",
                         r"validation flow|完成态|CI|hook",
+                    ),
+                ),
+                (
+                    "repository-owned quality evaluator",
+                    (
+                        r"repository-owned|仓库自定义评估器|仓库自定义",
+                        r"Graft Quality Policy",
+                        r"JSON",
+                        r"gate|门禁",
+                    ),
+                ),
+                (
+                    "curated score display only",
+                    (
+                        r"Curated Score",
+                        r"display-only|仅用于展示",
+                        r"不参与阻断|not.*participat",
+                    ),
+                ),
+                (
+                    "governance gate independent from eff-u-code",
+                    (
+                        r"(文档\s*/\s*治理\s*Gate|governance gate).{0,80}(独立于|independent from).{0,40}eff-u-code",
+                        r"README.{0,80}ADR.{0,80}Contract.{0,80}OpenAPI.{0,80}(Public API Comment|公开 API 注释)",
+                        r"(属于|belongs to).{0,60}Graft.{0,80}(不是|not).{0,40}eff-u-code",
                     ),
                 ),
                 ("RTK prefix rule is forbidden", (r"不得|must not", r"always prefix with\s+`?rtk`?")),
@@ -306,7 +335,7 @@ def validate_sql_migration_governance() -> list[Finding]:
 
 def validate_environment_inventory() -> list[Finding]:
     """
-    校验本地 AI 环境清单是否包含必需的工具记录与受控目录配置。
+    校验本地 AI 环境清单是否包含受控的工具记录与目录配置。
     
     Returns:
         list[Finding]: 发现的治理缺失项列表；当清单文件不存在时返回空列表。
@@ -317,13 +346,15 @@ def validate_environment_inventory() -> list[Finding]:
     findings: list[Finding] = []
     exact_terms = (
         "eff_u_code:",
-        "Keep eff-u-code developer-local only; the repository root package.json wrapper is allowed, but do not add it to server/go.mod, web/package.json, CI, hooks, runtime scripts, or completion gates.",
+        "Keep eff-u-code as a local helper and raw JSON source; the repository root package.json wrapper and repository-owned evaluator are allowed, but do not add eff-u-code directly to server/go.mod, web/package.json, runtime scripts, deployment flows, or completion gates, and do not use the upstream total score as the gate contract.",
+        "repository_gate_role: \"When quality gating is enabled, the repository-owned evaluator and CI job own the gate contract; eff-u-code remains a raw JSON source only and is not itself the acceptance contract.\"",
         "preferred: \"headroom mcp\"",
         ".ai/headroom/memory",
         ".ai/headroom/learn",
         "rtk instruction injection",
         "automatic instructions write",
         "default_command: \"bun run quality:eff-u-code --\"",
+        "gate_entrypoint: \"bun run quality:eff-u-code:gate --\"",
         "instructions_auto_write: \"disabled\"",
     )
     findings.extend(missing_exact_terms(text, TOOLS_AI, "AI environment inventory", exact_terms))
@@ -334,7 +365,8 @@ def validate_environment_inventory() -> list[Finding]:
             "AI environment inventory",
             (
                 ("Headroom CLI and MCP capabilities", (r"ai_headroom:\s*true", r"ai_headroom_mcp:\s*true")),
-                ("eff-u-code optional helper record", (r"ai_tools:", r"eff_u_code:", r"developer-local", r"default_command:\s+\"bun run quality:eff-u-code --\"", r"repository root package\.json wrapper is allowed", r"server/go\.mod", r"web/package\.json", r"validation flow|validation gate")),
+                ("eff-u-code optional helper record", (r"ai_tools:", r"eff_u_code:", r"raw JSON source", r"default_command:\s+\"bun run quality:eff-u-code --\"", r"gate_entrypoint:\s+\"bun run quality:eff-u-code:gate --\"", r"server/go\.mod", r"web/package\.json", r"validation flow|validation gate")),
+                ("eff-u-code split local helper and repository gate roles", (r"use_for:\s+\".*developer-local.*raw JSON report.*formal validation flow", r"repository_gate_role:\s+\".*repository-owned evaluator.*CI job.*gate contract.*not itself the acceptance contract")),
                 ("context compression tool selection", (r"context_compression:", r"preferred:\s+\"headroom mcp\"")),
                 ("controlled local Headroom directories", (r"controlled_local_dirs:", r"\.ai/headroom/memory", r"\.ai/headroom/learn")),
                 ("disallowed Headroom automation", (r"disallowed_by_default:", r"rtk instruction injection", r"automatic instructions write")),
@@ -345,6 +377,8 @@ def validate_environment_inventory() -> list[Finding]:
     )
     if "do not add it to package manifests" in text:
         findings.append(Finding(TOOLS_AI, "eff-u-code guardrail is too broad; allow the repository root package.json wrapper and scope the ban to server/go.mod, web/package.json, CI, hooks, runtime scripts, and completion gates"))
+    if "never treat it as a repository validation gate" in text:
+        findings.append(Finding(TOOLS_AI, "eff-u-code guidance is stale; quality gating must be owned by the repository evaluator rather than banned as a whole"))
     for disallowed in ("headroom wrap codex", "headroom proxy", "wrapper_available:", "proxy_available:"):
         if disallowed in text:
             findings.append(Finding(TOOLS_AI, f"AI environment inventory should keep only MCP entry content, found {disallowed!r}"))

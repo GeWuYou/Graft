@@ -59,10 +59,11 @@ Guardrails:
 
 - It is not part of the formal validation flow.
 - It does not replace `graft validate backend` or `bun run check`.
-- It must not be added to CI, hooks, runtime dependencies, `server/go.mod`, or `web/package.json`.
+- It must not be added directly to `server/go.mod`, `web/package.json`, runtime dependencies, or deployment flows.
 - The approved repository entrypoint is the root `package.json` wrapper plus the corresponding project-local install.
 - Only the local `analyze` workflow is adopted here; do not use its `mcp-install`, `ai-review`, `update`, or `uninstall`
   commands as part of repository workflow.
+- When the repository needs a blocking quality decision, the blocking unit is the repository-owned evaluator and `Graft Quality Policy`, not the upstream `eff-u-code` total score.
 
 Recommended usage:
 
@@ -70,12 +71,17 @@ Recommended usage:
 python3 scripts/run_eff_u_code.py server
 python3 scripts/run_eff_u_code.py web
 python3 scripts/run_eff_u_code.py all
+bun run quality:eff-u-code:gate -- --output-json .tmp/eff-u-code-gate/report.json
+bun run quality:eff-u-code:gate:server
+bun run quality:eff-u-code:gate:web
+bun run quality:eff-u-code:gate:all
 ```
 
 Local configuration:
 
 - The tracked template is `scripts/eff-u-code.example.json`.
 - The optional local override file is `.eff-u-code.local.json`.
+- The tracked repository gate policy is `scripts/eff-u-code.gate.json`.
 - To create the local override file:
 
 ```bash
@@ -84,6 +90,10 @@ python3 scripts/run_eff_u_code.py --init-config
 
 - If `.eff-u-code.local.json` is missing, the helper falls back to the tracked recommended defaults.
 - Keep `.eff-u-code.local.json` untracked.
+- Gate thresholds and regression windows belong in `scripts/eff-u-code.gate.json`; they must stay configurable instead of being hard-coded in the evaluator.
+- `bun run quality:eff-u-code:gate -- ...` defaults to `--scan-mode changed`, which is the PR/incremental gate semantic.
+- `bun run quality:eff-u-code:gate:server`, `:web`, and `:all` are optional full-project local governance scans.
+- Full-project scans are for concentrated debt cleanup. They evaluate all in-scope files for the selected scope and do not replace the PR incremental gate.
 
 ## Local Server
 
@@ -294,7 +304,7 @@ format:check -> typecheck -> openapi:frontend-governance:check -> lint:i18n -> l
 Focused commands are fine during development, but completion, handoff, and merge readiness should use `bun run check`
 unless the task explicitly reports why a narrower validation was used.
 
-`eff-u-code` remains outside this flow even when it is installed locally. It is a manual optional hotspot check only.
+`eff-u-code` remains outside this flow and is not a direct acceptance contract even when it is installed locally. Blocking quality decisions, when enabled, must go through the repository-owned `Graft Quality Policy` evaluator instead of the upstream total score.
 
 ## Container Deployment
 

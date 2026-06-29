@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"sync"
 	"time"
@@ -111,7 +112,10 @@ func (b *Bridge) Run(ctx context.Context, initialSize Size) error {
 
 func (b *Bridge) readLoop(ctx context.Context, errCh chan<- error) {
 	b.conn.SetReadLimit(readLimitBytes)
-	_ = b.conn.SetReadDeadline(time.Now().Add(pongWait))
+	if err := b.conn.SetReadDeadline(time.Now().Add(pongWait)); err != nil {
+		errCh <- fmt.Errorf("set websocket read deadline: %w", err)
+		return
+	}
 	b.conn.SetPongHandler(func(string) error {
 		return b.conn.SetReadDeadline(time.Now().Add(pongWait))
 	})
@@ -160,7 +164,10 @@ func (b *Bridge) writeLoop(ctx context.Context, errCh chan<- error) {
 				errCh <- nil
 				return
 			}
-			_ = b.writeJSON(ServerMessage{Type: ServerMessageError, Message: err.Error()})
+			if writeErr := b.writeJSON(ServerMessage{Type: ServerMessageError, Message: err.Error()}); writeErr != nil {
+				errCh <- errors.Join(err, writeErr)
+				return
+			}
 			errCh <- err
 			return
 		}
@@ -194,7 +201,9 @@ func (b *Bridge) writeJSON(message ServerMessage) error {
 func (b *Bridge) writeControl(messageType int, payload []byte) error {
 	b.writeMu.Lock()
 	defer b.writeMu.Unlock()
-	_ = b.conn.SetWriteDeadline(time.Now().Add(writeWait))
+	if err := b.conn.SetWriteDeadline(time.Now().Add(writeWait)); err != nil {
+		return fmt.Errorf("set websocket write deadline: %w", err)
+	}
 	return b.conn.WriteMessage(messageType, payload)
 }
 
@@ -203,8 +212,7 @@ func (b *Bridge) close(ctx context.Context) {
 		close(b.closed)
 		closeCtx, cancel := context.WithTimeout(ctx, closeGrace)
 		defer cancel()
-		_ = b.session.Close(closeCtx)
-		_ = b.conn.Close()
+		_ = errors.Join(b.session.Close(closeCtx), b.conn.Close())
 	})
 }
 

@@ -60,7 +60,9 @@ These tools are local-only convenience checks:
 
 - they do not enter the formal repository validation flow
 - they do not change `graft validate backend` or `bun run check`
-- the repository root package.json wrapper may exist for local entrypoint consistency, but they must not be introduced into server/go.mod, web/package.json, runtime scripts, CI, hooks, or deployment flows
+- the repository root package.json wrapper may exist for local entrypoint consistency, but they must not be introduced directly into server/go.mod, web/package.json, runtime scripts, or deployment flows
+- if a repository-owned evaluator consumes their JSON output inside a dedicated CI job, the blocking contract still belongs to repository policy rather than the helper's upstream score
+- when a repository-owned evaluator offers project scans for local governance, keep explicit `server`, `web`, and `all` entrypoints separate from the PR incremental gate semantics
 
 ## Headroom
 

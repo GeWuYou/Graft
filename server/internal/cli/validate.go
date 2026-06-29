@@ -16,10 +16,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/spf13/cobra"
 
-	"graft/server/internal/app"
 	"graft/server/internal/buildinfo"
 	"graft/server/internal/config"
 )
@@ -75,7 +73,9 @@ var backendGoTestRunner = runBackendGoTest
 var backendGoBuildRunner = runBackendGoBuild
 var backendSmokeRunner = runValidateSmoke
 var backendOpenAPIRunner = runValidateOpenAPI
-var backendOpenAPIFreshnessRunner = runValidateOpenAPIFreshness
+var backendOpenAPIFreshnessRunner = func(cmd *cobra.Command) error {
+	return runValidateOpenAPIFreshness(cmd)
+}
 var backendMigrationVersionRunner = runValidateMigrationVersions
 var backendReleaseRunner = runValidateRelease
 var buildReleaseInfoSnapshot = buildinfo.Current
@@ -254,6 +254,10 @@ func validateBackendStageOptions(stage string, smoke bool) error {
 	return errors.New("`--smoke` requires `--stage full` so lint, test, and build stay in a fixed order")
 }
 
+// runFullBackendValidation 按顺序执行完整的后端校验链。
+// 仅在 opts.smoke 为 true 时附加运行烟雾测试。
+// @param opts 后端校验所用的配置，包括 OpenAPI 规范、lint 配置、测试目标和烟雾测试开关。
+// @returns 执行过程中任一步骤失败时返回对应错误。
 func runFullBackendValidation(cmd *cobra.Command, opts backendValidateOptions) error {
 	if err := backendMigrationVersionRunner(cmd); err != nil {
 		return err
@@ -284,144 +288,10 @@ func runFullBackendValidation(cmd *cobra.Command, opts backendValidateOptions) e
 	return nil
 }
 
-func runValidateMigrationVersions(cmd *cobra.Command) error {
-	repoRoot, err := resolveRepositoryRoot()
-	if err != nil {
-		return fmt.Errorf("resolve repository root for migration version validation: %w", err)
-	}
-
-	scriptPath := filepath.Join(repoRoot, "scripts", "check_migration_versions.py")
-	if err := backendCommandRunner(cmd, "python3", scriptPath, "--mode", "all"); err != nil {
-		return fmt.Errorf("run migration version validation: %w", err)
-	}
-
-	return nil
-}
-
-func runValidateOpenAPI(_ *cobra.Command, specPath string) error {
-	specPath = strings.TrimSpace(specPath)
-	if specPath == "" {
-		specPath = defaultOpenAPIRootSpec
-	}
-
-	repoRoot, err := resolveRepositoryRoot()
-	if err != nil {
-		return fmt.Errorf("resolve repository root for openapi validation: %w", err)
-	}
-
-	rootSpec := filepath.Join(repoRoot, filepath.FromSlash(specPath))
-	loader := openapi3.NewLoader()
-	loader.IsExternalRefsAllowed = true
-
-	document, err := loader.LoadFromFile(rootSpec)
-	if err != nil {
-		return fmt.Errorf("load openapi spec %q: %w", rootSpec, err)
-	}
-	if err := document.Validate(loader.Context); err != nil {
-		return fmt.Errorf("validate openapi spec %q: %w", rootSpec, err)
-	}
-
-	if err := backendOpenAPIFreshnessRunner(); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// runValidateOpenAPIFreshness 验证嵌入式 OpenAPI 规范包和生成的后端规范是否为最新状态。
-func runValidateOpenAPIFreshness() error {
-	repoRoot, err := resolveRepositoryRoot()
-	if err != nil {
-		return fmt.Errorf("resolve repository root for generated freshness validation: %w", err)
-	}
-
-	if err := validateEmbeddedOpenAPIBundleFreshness(repoRoot); err != nil {
-		return err
-	}
-
-	scriptPath := filepath.Join(repoRoot, "scripts", "openapi_generated_freshness_check.py")
-	cmd := &cobra.Command{}
-	if err := backendCommandRunner(cmd, "python3", scriptPath, "--target", "backend-monitor", "--mode", "check"); err != nil {
-		return fmt.Errorf("run backend generated freshness check: %w", err)
-	}
-	if err := backendCommandRunner(cmd, "python3", scriptPath, "--target", "backend-health", "--mode", "check"); err != nil {
-		return fmt.Errorf("run backend generated freshness check: %w", err)
-	}
-	if err := backendCommandRunner(cmd, "python3", scriptPath, "--target", "backend-rbac-management", "--mode", "check"); err != nil {
-		return fmt.Errorf("run backend generated freshness check: %w", err)
-	}
-	if err := backendCommandRunner(cmd, "python3", scriptPath, "--target", "backend-user-write", "--mode", "check"); err != nil {
-		return fmt.Errorf("run backend generated freshness check: %w", err)
-	}
-	if err := backendCommandRunner(cmd, "python3", scriptPath, "--target", "backend-auth-session", "--mode", "check"); err != nil {
-		return fmt.Errorf("run backend generated freshness check: %w", err)
-	}
-	if err := backendCommandRunner(cmd, "python3", scriptPath, "--target", "backend-modules-runtime", "--mode", "check"); err != nil {
-		return fmt.Errorf("run backend generated freshness check: %w", err)
-	}
-	boundaryAuditPath := filepath.Join(repoRoot, "scripts", "openapi_generated_backend_boundary_audit.py")
-	if err := backendCommandRunner(cmd, "python3", boundaryAuditPath); err != nil {
-		return fmt.Errorf("run backend generated DTO boundary audit: %w", err)
-	}
-
-	return nil
-}
-
-// RunValidateRelease validates that the repository is ready for release.
-func runValidateRelease(_ *cobra.Command) error {
-	info := buildinfo.Normalize(buildReleaseInfoSnapshot())
-	if !info.IsOfficialRelease() || info.GitCommit == "unknown" || info.BuildTimeUTC == "unknown" {
-		return fmt.Errorf(
-			"`graft validate release` requires release-grade BuildInfo; current version=%q git_commit=%q build_time_utc=%q git_tree_state=%q",
-			info.Version,
-			info.GitCommit,
-			info.BuildTimeUTC,
-			info.GitTreeState,
-		)
-	}
-	if info.GitTreeState != "clean" {
-		return fmt.Errorf("`graft validate release` requires a clean release build; current git_tree_state=%q", info.GitTreeState)
-	}
-
-	repoRoot, err := resolveRepositoryRoot()
-	if err != nil {
-		return fmt.Errorf("resolve repository root for release validation: %w", err)
-	}
-
-	if err := validateEmbeddedOpenAPIBundleFreshness(repoRoot); err != nil {
-		return err
-	}
-
-	if _, err := buildAtlasMigrationDir(repoRoot, defaultMigrationDir); err != nil {
-		return fmt.Errorf("validate embedded default migration chain: %w", err)
-	}
-
-	return nil
-}
-
-// validateEmbeddedOpenAPIBundleFreshness checks that the runtime-embedded OpenAPI bundle matches the canonical source by comparing their SHA-256 digests. Returns an error if the digests do not match, including instructions to regenerate the bundle via `go generate`.
-func validateEmbeddedOpenAPIBundleFreshness(repoRoot string) error {
-	canonicalPath := filepath.Join(repoRoot, filepath.FromSlash(app.OpenAPIDocsBundleSourcePath()))
-
-	canonicalBundle, err := backendReadFile(canonicalPath)
-	if err != nil {
-		return fmt.Errorf("read canonical bundled openapi spec %q: %w", canonicalPath, err)
-	}
-	canonicalDigest := sha256.Sum256(canonicalBundle)
-	generatedDigest := app.OpenAPIDocsBundleSHA256()
-	if hex.EncodeToString(canonicalDigest[:]) == generatedDigest {
-		return nil
-	}
-
-	return fmt.Errorf(
-		"runtime generated bundled openapi spec is stale: server/internal/app generated sha256=%s does not match %s (sha256=%s); run `cd server && go generate ./internal/app` to sync runtime docs asset",
-		generatedDigest,
-		app.OpenAPIDocsBundleSourcePath(),
-		hex.EncodeToString(canonicalDigest[:]),
-	)
-}
-
-// runBackendBuildTest 执行 `go test -> go build ./cmd/graft` 的后端编译验证链。
+// runBackendBuildTest 执行后端的测试和构建验证链。
+// 若未提供测试目标，则默认对 `./...` 运行测试。
+//
+// testTargets 指定要运行 `go test` 的目标列表。
 func runBackendBuildTest(cmd *cobra.Command, testTargets []string) error {
 	targets := append([]string(nil), testTargets...)
 	if len(targets) == 0 {
@@ -437,216 +307,7 @@ func runBackendBuildTest(cmd *cobra.Command, testTargets []string) error {
 	return nil
 }
 
-// runBackendLint 通过统一入口执行后端 lint。
-//
-// 这里不直接维护第二套 lint 参数，而是回到仓库统一 CLI，让本地、CI 和 agent
-// 共用同一条入口和同一套配置文件约束。
-func runBackendLint(cmd *cobra.Command, lintConfig string, testLintConfig string) error {
-	lintPath, err := findGolangCILint()
-	if err != nil {
-		return err
-	}
-
-	lintArgs, err := buildBackendLintGateArgs(cmd)
-	if err != nil {
-		return err
-	}
-
-	if err := backendCommandRunner(cmd, lintPath, append([]string{"run", "--config", lintConfig}, lintArgs...)...); err != nil {
-		return fmt.Errorf("run production golangci-lint config %q: %w", lintConfig, err)
-	}
-	if err := backendCommandRunner(cmd, lintPath, append([]string{"run", "--config", testLintConfig}, lintArgs...)...); err != nil {
-		return fmt.Errorf("run test golangci-lint config %q: %w", testLintConfig, err)
-	}
-	return nil
-}
-
-func runValidateServerLocaleOwnership(cmd *cobra.Command) error {
-	repoRoot, err := resolveRepositoryRoot()
-	if err != nil {
-		return fmt.Errorf("resolve repository root for server locale ownership guard: %w", err)
-	}
-
-	scriptPath := filepath.Join(repoRoot, "scripts", "check_server_locale_ownership.py")
-	if err := backendCommandRunner(cmd, "python3", scriptPath); err != nil {
-		return fmt.Errorf("run server locale ownership guard: %w", err)
-	}
-
-	return nil
-}
-
-func buildBackendLintGateArgs(cmd *cobra.Command) ([]string, error) {
-	workingDir, err := resolveBackendModuleRoot()
-	if err != nil {
-		return nil, fmt.Errorf("resolve backend lint working directory: %w", err)
-	}
-
-	headRef := currentBackendGitHead(cmd, workingDir)
-	baseRef, baseRefSource, err := resolveBackendLintBaseRef(cmd, workingDir)
-	if err != nil {
-		return nil, err
-	}
-
-	mergeBase, err := resolveBackendLintMergeBase(cmd, workingDir, baseRef, baseRefSource)
-	if err != nil {
-		return nil, err
-	}
-	if strings.TrimSpace(mergeBase) == "" {
-		return nil, fmt.Errorf(
-			"resolve backend lint merge-base for HEAD %q and base %q (source: %s): empty merge-base result",
-			headRef,
-			baseRef,
-			baseRefSource,
-		)
-	}
-
-	return []string{
-		"--new-from-rev=" + mergeBase,
-		"--whole-files",
-	}, nil
-}
-
-func resolveBackendLintBaseRef(cmd *cobra.Command, workingDir string) (string, string, error) {
-	if baseRef := strings.TrimSpace(backendGetenv(defaultLintBaseRefEnv)); baseRef != "" {
-		return normalizeBackendLintBaseRef(baseRef), defaultLintBaseRefEnv, nil
-	}
-	if baseRef := strings.TrimSpace(backendGetenv(githubBaseRefEnv)); baseRef != "" {
-		return normalizeBackendLintBaseRef(baseRef), githubBaseRefEnv, nil
-	}
-
-	remoteHead, err := backendGitOutputRunner(cmd, workingDir, "symbolic-ref", defaultRemoteHeadRef)
-	if err != nil {
-		return "", "", fmt.Errorf(
-			"resolve backend lint base branch: %w; origin/HEAD is not available, run `git remote set-head %s -a` or set %s",
-			err,
-			defaultRemoteName,
-			defaultLintBaseRefEnv,
-		)
-	}
-
-	return strings.TrimSpace(remoteHead), "origin/HEAD", nil
-}
-
-func normalizeBackendLintBaseRef(baseRef string) string {
-	trimmed := strings.TrimSpace(baseRef)
-	switch {
-	case isBackendGitRevision(trimmed):
-		return trimmed
-	case strings.HasPrefix(trimmed, "refs/remotes/"):
-		return trimmed
-	case strings.HasPrefix(trimmed, "refs/"):
-		return trimmed
-	case strings.Contains(trimmed, "/"):
-		if strings.HasPrefix(trimmed, defaultRemoteName+"/") {
-			return "refs/remotes/" + trimmed
-		}
-		return "refs/remotes/" + defaultRemoteName + "/" + trimmed
-	default:
-		return "refs/remotes/" + defaultRemoteName + "/" + trimmed
-	}
-}
-
-func resolveBackendLintMergeBase(cmd *cobra.Command, workingDir string, baseRef string, baseRefSource string) (string, error) {
-	if _, err := backendGitOutputRunner(cmd, workingDir, "rev-parse", "--verify", baseRef); err != nil {
-		headRef := currentBackendGitHead(cmd, workingDir)
-		if isBackendGitRevision(baseRef) {
-			return "", fmt.Errorf(
-				"backend lint base revision %q (source: %s) is not available locally for HEAD %q: %w; update %s to a reachable commit or ref",
-				baseRef,
-				baseRefSource,
-				headRef,
-				err,
-				defaultLintBaseRefEnv,
-			)
-		}
-		return "", fmt.Errorf(
-			"backend lint base branch %q (source: %s) is not available locally for HEAD %q: %w; run `git fetch %s %s`",
-			baseRef,
-			baseRefSource,
-			headRef,
-			err,
-			defaultRemoteName,
-			backendLintFetchTarget(baseRef),
-		)
-	}
-
-	mergeBase, err := backendGitOutputRunner(cmd, workingDir, "merge-base", "HEAD", baseRef)
-	if err != nil {
-		headRef := currentBackendGitHead(cmd, workingDir)
-		if isBackendGitRevision(baseRef) {
-			return "", fmt.Errorf(
-				"resolve backend lint merge-base for HEAD %q and base %q (source: %s): %w; verify branch ancestry or set %s to a different reachable commit or ref",
-				headRef,
-				baseRef,
-				baseRefSource,
-				err,
-				defaultLintBaseRefEnv,
-			)
-		}
-		return "", fmt.Errorf(
-			"resolve backend lint merge-base for HEAD %q and base %q (source: %s): %w; run `git fetch %s %s`, verify branch ancestry, or set %s",
-			headRef,
-			baseRef,
-			baseRefSource,
-			err,
-			defaultRemoteName,
-			backendLintFetchTarget(baseRef),
-			defaultLintBaseRefEnv,
-		)
-	}
-
-	return strings.TrimSpace(mergeBase), nil
-}
-
-func isBackendGitRevision(baseRef string) bool {
-	trimmed := strings.TrimSpace(baseRef)
-	if len(trimmed) != shaLength40 && len(trimmed) != shaLength64 {
-		return false
-	}
-	return backendGitRevisionPattern.MatchString(trimmed)
-}
-
-func backendLintFetchTarget(baseRef string) string {
-	trimmed := strings.TrimSpace(baseRef)
-	trimmed = strings.TrimPrefix(trimmed, "refs/remotes/"+defaultRemoteName+"/")
-	trimmed = strings.TrimPrefix(trimmed, "refs/heads/")
-	trimmed = strings.TrimPrefix(trimmed, defaultRemoteName+"/")
-	if trimmed == "" {
-		return baseRef
-	}
-
-	return trimmed
-}
-
-func currentBackendGitHead(cmd *cobra.Command, workingDir string) string {
-	headRef, err := backendGitOutputRunner(cmd, workingDir, "rev-parse", "HEAD")
-	if err != nil {
-		return "unknown"
-	}
-	return strings.TrimSpace(headRef)
-}
-
-func runBackendGitOutput(cmd *cobra.Command, workingDir string, args ...string) (string, error) {
-	commandContext := cmd.Context()
-	if commandContext == nil {
-		commandContext = context.Background()
-	}
-
-	command := backendCommandContext(commandContext, "git", args...)
-	command.Dir = workingDir
-	command.Stderr = cmd.ErrOrStderr()
-	command.Stdin = os.Stdin
-	command.Env = os.Environ()
-
-	output, err := command.Output()
-	if err != nil {
-		return "", fmt.Errorf("git %s: %w", strings.Join(args, " "), err)
-	}
-
-	return strings.TrimSpace(string(output)), nil
-}
-
-// runBackendGoTest 执行显式的 `go test` 验证。
+// targets 为空时，由调用方决定测试范围。
 func runBackendGoTest(cmd *cobra.Command, targets []string) error {
 	args := append([]string{"test"}, targets...)
 	if err := backendCommandRunner(cmd, "go", args...); err != nil {
@@ -655,7 +316,8 @@ func runBackendGoTest(cmd *cobra.Command, targets []string) error {
 	return nil
 }
 
-// runBackendGoBuild 执行显式的 `go build ./cmd/graft` 编译验证。
+// runBackendGoBuild 执行 `go build ./cmd/graft` 编译验证。
+// @return 执行失败时返回错误。
 func runBackendGoBuild(cmd *cobra.Command) error {
 	if err := backendCommandRunner(cmd, "go", "build", "./cmd/graft"); err != nil {
 		return fmt.Errorf("run go build ./cmd/graft: %w", err)
@@ -663,24 +325,8 @@ func runBackendGoBuild(cmd *cobra.Command) error {
 	return nil
 }
 
-// findGolangCILint 解析本地可执行的 golangci-lint 路径。
-//
-// 仓库固定使用同一版本，缺失时直接给出带版本号的下一步提示，避免开发者和
-// agent 回退到 `latest` 或一组漂移的本地安装方式。
-func findGolangCILint() (string, error) {
-	lintPath, err := backendLookPath("golangci-lint")
-	if err == nil {
-		return lintPath, nil
-	}
-
-	return "", fmt.Errorf(
-		"golangci-lint %s is required for `graft validate backend`; install the pinned version before rerunning: %w",
-		defaultGolangCILintVersion,
-		err,
-	)
-}
-
-// runBackendCommand 以 `server` 模块根目录执行后端显式验证子命令。
+// runBackendCommand 在 server 模块根目录执行指定的后端验证命令，并将其输出连接到当前命令。
+// 命令环境会基于仓库缓存目录进行准备；如果上下文在执行期间被取消，返回上下文错误。
 func runBackendCommand(cmd *cobra.Command, name string, args ...string) error {
 	commandContext := cmd.Context()
 	if commandContext == nil {

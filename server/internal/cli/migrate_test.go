@@ -812,6 +812,24 @@ func TestResolveMigrationDirsKeepsExplicitDirWithoutAtlasState(t *testing.T) {
 	}
 }
 
+func TestResolveMigrationDirsUsesExplicitExternalPath(t *testing.T) {
+	root := t.TempDir()
+	externalDir := filepath.Join(root, "tmp-migrations")
+	if err := os.MkdirAll(externalDir, 0o750); err != nil {
+		t.Fatalf("mkdir %s: %v", externalDir, err)
+	}
+
+	resolved, err := resolveMigrationDirs(root, "file:tmp-migrations")
+	if err != nil {
+		t.Fatalf("resolve migration dirs: %v", err)
+	}
+
+	expected := []string{externalDir}
+	if !reflect.DeepEqual(resolved, expected) {
+		t.Fatalf("expected %v, got %v", expected, resolved)
+	}
+}
+
 func TestDefaultMigrationRegistrySQLDirsHaveAtlasState(t *testing.T) {
 	workingDir, err := os.Getwd()
 	if err != nil {
@@ -1003,6 +1021,73 @@ func TestBuildAtlasMigrationDirSynthesizesDefaultChainFromEmbeddedSources(t *tes
 
 	if err := atlasmigrate.Validate(dir); err != nil {
 		t.Fatalf("validate synthesized dir: %v", err)
+	}
+}
+
+func TestBuildAtlasMigrationDirSynthesizesDefaultChainWithoutCopiedAtlasSumFiles(t *testing.T) {
+	hooks := captureMigrateTestHooks()
+	defer hooks.restore()
+
+	migrateRegistryMigrationDirs = func() ([]string, error) {
+		return []string{"modules/user/migrations", "modules/rbac/migrations"}, nil
+	}
+	migrateEmbeddedMigrationDirByPath = func(path string) (moduleregistry.EmbeddedMigrationDir, bool) {
+		switch path {
+		case "modules/user/migrations":
+			return embeddedMigrationDir(t, path, map[string]string{
+				"202605190001_user.sql": "CREATE TABLE users (id bigint);\n",
+			}), true
+		case "modules/rbac/migrations":
+			return embeddedMigrationDir(t, path, map[string]string{
+				"202605190002_rbac.sql": "CREATE TABLE roles (id bigint);\n",
+			}), true
+		default:
+			return moduleregistry.EmbeddedMigrationDir{}, false
+		}
+	}
+
+	dir, err := buildAtlasMigrationDir(t.TempDir(), defaultMigrationDir)
+	if err != nil {
+		t.Fatalf("build default atlas migration dir: %v", err)
+	}
+
+	sumFile, err := dir.Open(atlasmigrate.HashFileName)
+	if err != nil {
+		t.Fatalf("open synthesized atlas.sum: %v", err)
+	}
+	defer func() {
+		_ = sumFile.Close()
+	}()
+
+	sumContent, err := io.ReadAll(sumFile)
+	if err != nil {
+		t.Fatalf("read synthesized atlas.sum: %v", err)
+	}
+	if len(sumContent) == 0 {
+		t.Fatal("expected synthesized atlas.sum content")
+	}
+	if strings.Contains(string(sumContent), "h1:test") {
+		t.Fatalf("expected synthesized atlas.sum to be recomputed, got raw embedded content %q", string(sumContent))
+	}
+
+	sumFiles, err := dir.Files()
+	if err != nil {
+		t.Fatalf("read synthesized migration files: %v", err)
+	}
+	if len(sumFiles) != 2 {
+		t.Fatalf("expected synthesized SQL migration files only, got %#v", sumFiles)
+	}
+
+	synthesizedSum, err := dir.Checksum()
+	if err != nil {
+		t.Fatalf("compute synthesized checksum: %v", err)
+	}
+	expectedSum, err := synthesizedSum.MarshalText()
+	if err != nil {
+		t.Fatalf("marshal synthesized checksum: %v", err)
+	}
+	if string(sumContent) != string(expectedSum) {
+		t.Fatalf("expected synthesized atlas.sum %q, got %q", expectedSum, string(sumContent))
 	}
 }
 

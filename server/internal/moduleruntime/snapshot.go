@@ -121,13 +121,11 @@ func BuildSnapshot(cfg *config.Config, specs []module.Spec) Snapshot {
 	}
 }
 
+// cloneSpecs 复制一组模块规格，并为每个规格创建独立副本。
 func cloneSpecs(specs []module.Spec) []module.Spec {
 	cloned := make([]module.Spec, 0, len(specs))
 	for _, spec := range specs {
-		current := spec
-		current.Dependencies = append([]string(nil), spec.Dependencies...)
-		current.MigrationPath = append([]string(nil), spec.MigrationPath...)
-		cloned = append(cloned, current)
+		cloned = append(cloned, cloneSpec(spec))
 	}
 	return cloned
 }
@@ -170,11 +168,14 @@ func buildDependencies(
 	return items
 }
 
+// buildMigrationStatus 汇总迁移目录并生成迁移状态。
+// 它会去重、去除空白后的目录值，并根据是否存在已声明目录设置状态。
+// 返回包含已声明目录和对应迁移状态的 MigrationStatus。
 func buildMigrationStatus(dirs []string) MigrationStatus {
 	declaredDirs := make([]string, 0, len(dirs))
 	for _, dir := range dirs {
 		dir = strings.TrimSpace(dir)
-		if dir == "" || slices.Contains(declaredDirs, dir) {
+		if dir == "" || containsString(declaredDirs, dir) {
 			continue
 		}
 		declaredDirs = append(declaredDirs, dir)
@@ -219,6 +220,7 @@ func resolveModuleStatus(enabled bool, dependencies []Dependency) (
 		generated.ModuleRuntimeItemHealth(healthHealthy)
 }
 
+// 它统计模块总数、已启用数量、已注册数量以及各健康状态数量。
 func buildSummary(items []Item) Summary {
 	summary := Summary{TotalModules: len(items)}
 	for _, item := range items {
@@ -240,4 +242,17 @@ func buildSummary(items []Item) Summary {
 	}
 
 	return summary
+}
+
+// cloneSpec 返回一个 module.Spec 的副本，并独立复制依赖和迁移路径切片。
+func cloneSpec(spec module.Spec) module.Spec {
+	current := spec
+	current.Dependencies = append([]string(nil), spec.Dependencies...)
+	current.MigrationPath = append([]string(nil), spec.MigrationPath...)
+	return current
+}
+
+// containsString reports whether items contains target.
+func containsString(items []string, target string) bool {
+	return slices.Contains(items, target)
 }

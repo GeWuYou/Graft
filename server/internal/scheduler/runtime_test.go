@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"sort"
 	"strings"
 	"sync"
 	"testing"
@@ -88,6 +90,8 @@ type taskRepositoryRecorder struct {
 	listErr      error
 	afterList    func()
 	afterListErr error
+	deleteErr    error
+	replaceErr   error
 }
 
 type defaultConfigResolverRecorder struct {
@@ -132,6 +136,14 @@ func (r *taskRepositoryRecorder) CreateTask(_ context.Context, task TaskDefiniti
 	return task, nil
 }
 
+func (r *taskRepositoryRecorder) ReplaceTask(_ context.Context, task TaskDefinition) (TaskDefinition, error) {
+	if r.replaceErr != nil {
+		return TaskDefinition{}, r.replaceErr
+	}
+	r.tasks[task.TaskKey] = task
+	return task, nil
+}
+
 func (r *taskRepositoryRecorder) UpdateTask(_ context.Context, key string, patch TaskMutation) (TaskDefinition, error) {
 	task, ok := r.tasks[key]
 	if !ok {
@@ -158,6 +170,9 @@ func (r *taskRepositoryRecorder) UpdateTask(_ context.Context, key string, patch
 }
 
 func (r *taskRepositoryRecorder) DeleteTask(_ context.Context, key string) error {
+	if r.deleteErr != nil {
+		return r.deleteErr
+	}
 	if _, ok := r.tasks[key]; !ok {
 		return ErrTaskNotFound
 	}
@@ -186,9 +201,14 @@ func (r *taskRepositoryRecorder) ListTasks(_ context.Context, query TaskListQuer
 	if r.afterListErr != nil {
 		return nil, 0, r.afterListErr
 	}
-	items := make([]TaskDefinition, 0, len(r.tasks))
-	for _, task := range r.tasks {
-		items = append(items, task)
+	keys := make([]string, 0, len(r.tasks))
+	for key := range r.tasks {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	items := make([]TaskDefinition, 0, len(keys))
+	for _, key := range keys {
+		items = append(items, r.tasks[key])
 	}
 	total := len(items)
 	if query.Limit > 0 {
@@ -859,6 +879,47 @@ func TestRunOncePersistsManualRunHistory(t *testing.T) {
 	}
 }
 
+func TestRunOnceRejectsInvalidEffectiveConfigBeforePersistingRun(t *testing.T) {
+	repo := newRunRepositoryRecorder()
+	runtime := New(zap.NewNop(), repo)
+	taskRepo := newTaskRepositoryRecorder()
+	runtime.SetTaskRepository(taskRepo)
+
+	called := false
+	seedRuntimeJob(t, runtime, cronx.Job{
+		Name:          "manual-invalid",
+		Schedule:      "*/1 * * * * *",
+		DefaultConfig: `{"batchSize":10}`,
+		ConfigSchema:  `{"type":"object","properties":{"batchSize":{"type":"integer","minimum":1}},"additionalProperties":false}`,
+		Handler: func(context.Context, string) (cronx.JobRunResult, error) {
+			called = true
+			return cronx.JobRunResult{Summary: "ok"}, nil
+		},
+	})
+	taskRepo.tasks["manual-invalid"] = TaskDefinition{
+		TaskKey:        "manual-invalid",
+		JobKey:         "manual-invalid",
+		Title:          "manual-invalid",
+		CronExpression: "*/1 * * * * *",
+		Enabled:        true,
+		Builtin:        false,
+		ConfigJSON:     `{"batchSize":0}`,
+		ConfigSource:   taskConfigSourceUser,
+	}
+
+	_, err := runtime.RunOnce(context.Background(), "manual-invalid")
+	var configErr ConfigValidationError
+	if !errors.As(err, &configErr) || configErr.Field != "config_json.batchSize" {
+		t.Fatalf("expected config validation error, got %v", err)
+	}
+	if called {
+		t.Fatal("expected invalid effective config to skip handler execution")
+	}
+	if len(repo.created) != 0 || len(repo.updated) != 0 {
+		t.Fatalf("expected invalid effective config to skip run persistence, got created=%d updated=%d", len(repo.created), len(repo.updated))
+	}
+}
+
 func TestRunOnceNotifiesAfterPersistedFailure(t *testing.T) {
 	repo := newRunRepositoryRecorder()
 	runtime := New(zap.NewNop(), repo)
@@ -1295,6 +1356,15 @@ func TestRunActionValidatesMergedConfigBeforeExecution(t *testing.T) {
 	}
 }
 
+func TestIsJSONObjectRejectsJSONNull(t *testing.T) {
+	if isJSONObject("null") {
+		t.Fatal("expected null not to be treated as a JSON object")
+	}
+	if sameJSONObject("null", "{}") {
+		t.Fatal("expected null not to compare equal to an object")
+	}
+}
+
 // TestRunOnceRejectsConcurrentSameTask 验证同一任务运行中再次手动触发会返回冲突式错误。
 func TestRunOnceRejectsConcurrentSameTask(t *testing.T) {
 	repo := newRunRepositoryRecorder()
@@ -1411,6 +1481,42 @@ func TestStartRejectsCanceledContextAfterRepositoryLoad(t *testing.T) {
 	}
 }
 
+func TestStartLoadsAllPersistedTaskPages(t *testing.T) {
+	runtime := New(zap.NewNop(), newRunRepositoryRecorder())
+	taskRepo := newTaskRepositoryRecorder()
+	runtime.SetTaskRepository(taskRepo)
+	for i := 0; i < maxTaskListLimit+5; i++ {
+		key := fmt.Sprintf("task-%03d", i)
+		taskRepo.tasks[key] = TaskDefinition{
+			TaskKey:        key,
+			JobKey:         key,
+			Title:          key,
+			CronExpression: "*/1 * * * * *",
+			Enabled:        true,
+			ConfigJSON:     "{}",
+		}
+		seedRuntimeJob(t, runtime, cronx.Job{
+			Name:     key,
+			Schedule: "*/1 * * * * *",
+			Run:      func(context.Context) error { return nil },
+		})
+	}
+
+	if err := runtime.Start(context.Background()); err != nil {
+		t.Fatalf("start runtime: %v", err)
+	}
+	defer func() {
+		_ = runtime.Stop(context.Background())
+	}()
+
+	if taskRepo.listCalls < 2 {
+		t.Fatalf("expected paged startup loading, got %d list calls", taskRepo.listCalls)
+	}
+	if len(runtime.entries) != maxTaskListLimit+5 {
+		t.Fatalf("expected all persisted tasks to be scheduled, got %d", len(runtime.entries))
+	}
+}
+
 // TestStartKeepsRuntimeUnstartedWhenRepositoryLoadFails 验证持久化任务加载失败时不会
 // 留下半初始化的 lifecycle 状态。
 func TestStartKeepsRuntimeUnstartedWhenRepositoryLoadFails(t *testing.T) {
@@ -1428,6 +1534,106 @@ func TestStartKeepsRuntimeUnstartedWhenRepositoryLoadFails(t *testing.T) {
 	}
 	if runtime.started || runtime.lifecycleCtx != nil || runtime.lifecycleCancel != nil {
 		t.Fatal("expected failed start to leave runtime unstarted")
+	}
+}
+
+func TestCreateTaskRollsBackPersistenceWhenScheduleRefreshFails(t *testing.T) {
+	runtime := New(zap.NewNop(), newRunRepositoryRecorder())
+	taskRepo := newTaskRepositoryRecorder()
+	runtime.SetTaskRepository(taskRepo)
+	runtime.addSchedule = func(string, string, func(context.Context) (TaskRun, error)) (cron.EntryID, error) {
+		return 0, errors.New("schedule failed")
+	}
+
+	seedRuntimeJob(t, runtime, cronx.Job{
+		Name:     "custom-job",
+		Schedule: "*/1 * * * * *",
+		Handler: func(context.Context, string) (cronx.JobRunResult, error) {
+			return cronx.JobRunResult{Summary: "ok"}, nil
+		},
+	})
+
+	_, err := runtime.CreateTask(context.Background(), TaskMutation{
+		TaskKey:        "custom",
+		JobKey:         "custom-job",
+		Title:          "Custom",
+		CronExpression: "*/5 * * * * *",
+		Enabled:        true,
+		EnabledSet:     true,
+		ConfigJSON:     `{}`,
+	})
+	if err == nil || !strings.Contains(err.Error(), "schedule failed") {
+		t.Fatalf("expected schedule error, got %v", err)
+	}
+	if _, ok := taskRepo.tasks["custom"]; ok {
+		t.Fatalf("expected failed schedule refresh to remove persisted task, got %#v", taskRepo.tasks["custom"])
+	}
+}
+
+func TestUpdateTaskRestoresPreviousDefinitionWhenScheduleRefreshFails(t *testing.T) {
+	runtime := New(zap.NewNop(), newRunRepositoryRecorder())
+	taskRepo := newTaskRepositoryRecorder()
+	runtime.SetTaskRepository(taskRepo)
+	taskRepo.tasks["custom"] = TaskDefinition{
+		TaskKey:        "custom",
+		JobKey:         "custom-job",
+		Title:          "Custom",
+		CronExpression: "*/5 * * * * *",
+		Enabled:        true,
+		ConfigJSON:     `{}`,
+	}
+	runtime.entries["custom"] = cron.EntryID(1)
+	runtime.addSchedule = func(string, string, func(context.Context) (TaskRun, error)) (cron.EntryID, error) {
+		return 0, errors.New("schedule failed")
+	}
+
+	seedRuntimeJob(t, runtime, cronx.Job{
+		Name:     "custom-job",
+		Schedule: "*/1 * * * * *",
+		Handler: func(context.Context, string) (cronx.JobRunResult, error) {
+			return cronx.JobRunResult{Summary: "ok"}, nil
+		},
+	})
+
+	_, err := runtime.UpdateTask(context.Background(), "custom", TaskMutation{
+		CronExpression: "*/10 * * * * *",
+	})
+	if err == nil || !strings.Contains(err.Error(), "schedule failed") {
+		t.Fatalf("expected schedule error, got %v", err)
+	}
+	if taskRepo.tasks["custom"].CronExpression != "*/5 * * * * *" {
+		t.Fatalf("expected failed refresh to restore previous task definition, got %#v", taskRepo.tasks["custom"])
+	}
+	if runtime.entries["custom"] != cron.EntryID(1) {
+		t.Fatalf("expected failed refresh to keep previous cron entry, got %#v", runtime.entries)
+	}
+}
+
+func TestSetTaskEnabledRestoresPreviousDefinitionWhenScheduleRefreshFails(t *testing.T) {
+	runtime := New(zap.NewNop(), newRunRepositoryRecorder())
+	taskRepo := newTaskRepositoryRecorder()
+	runtime.SetTaskRepository(taskRepo)
+	taskRepo.tasks["custom"] = TaskDefinition{
+		TaskKey:        "custom",
+		JobKey:         "custom-job",
+		Title:          "Custom",
+		CronExpression: "*/5 * * * * *",
+		Enabled:        false,
+		ConfigJSON:     `{}`,
+	}
+	runtime.addSchedule = func(string, string, func(context.Context) (TaskRun, error)) (cron.EntryID, error) {
+		return 0, errors.New("schedule failed")
+	}
+
+	updated, err := runtime.SetTaskEnabled(context.Background(), "custom", true)
+	if err == nil || !strings.Contains(err.Error(), "schedule failed") {
+		t.Fatalf("expected schedule error, got result=%#v err=%v", updated, err)
+	}
+	if taskRepo.tasks["custom"].Enabled {
+		t.Fatalf("expected failed refresh to restore previous enabled state, got %#v", taskRepo.tasks["custom"])
+	}
+	if _, ok := runtime.entries["custom"]; ok {
+		t.Fatalf("expected failed enable refresh not to leave a new cron entry, got %#v", runtime.entries)
 	}
 }
 

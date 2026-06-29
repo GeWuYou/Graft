@@ -2,6 +2,7 @@ package logger
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -45,6 +46,8 @@ const (
 	appLogPersistQueueSize = 1024
 	appLogPersistTimeout   = 2 * time.Second
 )
+
+var errAppLogPersistQueueFull = errors.New("app log persistence queue is full")
 
 // AppLogger defines the canonical application-log contract for runtime and modules.
 type AppLogger interface {
@@ -232,9 +235,10 @@ func (s *asyncAppLogPersistSink) CreateAppLog(ctx context.Context, record Create
 
 	select {
 	case s.queue <- appLogPersistRequest{ctx: ctx, record: record}:
+		return AppLogRecord{}, nil
 	default:
+		return AppLogRecord{}, errAppLogPersistQueueFull
 	}
-	return AppLogRecord{}, nil
 }
 
 func (s *asyncAppLogPersistSink) run() {

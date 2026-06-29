@@ -155,13 +155,25 @@ export function useTerminalSession(options: UseTerminalSessionOptions) {
       current.onmessage = null;
       current.onerror = null;
       current.onclose = null;
-      current.close(1000, reason);
+      try {
+        current.close(1000, reason);
+      } catch (error) {
+        const normalized = normalizeError(error, 'Failed to close terminal session');
+        lastError.value = normalized.message;
+        options.onTransportError?.(normalized);
+      }
     } else if (current && current.readyState < WebSocket.CLOSING) {
       current.onopen = null;
       current.onmessage = null;
       current.onerror = null;
       current.onclose = null;
-      current.close();
+      try {
+        current.close();
+      } catch (error) {
+        const normalized = normalizeError(error, 'Failed to close terminal session');
+        lastError.value = normalized.message;
+        options.onTransportError?.(normalized);
+      }
     }
     if (current) {
       activeClose?.(reason);
@@ -190,7 +202,14 @@ export function useTerminalSession(options: UseTerminalSessionOptions) {
     if (!socket.value || socket.value.readyState !== WebSocket.OPEN) {
       return;
     }
-    socket.value.send(JSON.stringify(message));
+    try {
+      socket.value.send(JSON.stringify(message));
+    } catch (error) {
+      const normalized = normalizeError(error, 'Failed to send terminal message');
+      lastError.value = normalized.message;
+      setState('error');
+      options.onTransportError?.(normalized);
+    }
   }
 
   return {

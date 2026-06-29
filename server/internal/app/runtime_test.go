@@ -34,6 +34,7 @@ import (
 	"graft/server/internal/moduleregistry"
 	"graft/server/internal/moduleruntime"
 	"graft/server/internal/permission"
+	"graft/server/internal/realtime"
 	"graft/server/internal/realtimeauth"
 	"graft/server/internal/redisx"
 	"graft/server/internal/statex"
@@ -309,11 +310,14 @@ func (p *eventBusRecorderModule) Boot(ctx *module.Context) error {
 func (p *eventBusRecorderModule) Shutdown(_ *module.Context) error { return nil }
 
 type lifecycleContextRecorderModule struct {
-	registerLifecycleContext context.Context
-	bootLifecycleContext     context.Context
-	shutdownLifecycleContext context.Context
-	shutdownLifecycleErr     error
-	cancelOnBoot             context.CancelFunc
+	registerLifecycleContext     context.Context
+	bootLifecycleContext         context.Context
+	shutdownLifecycleContext     context.Context
+	shutdownLifecycleErr         error
+	shutdownLifecycleValue       string
+	shutdownLifecycleDeadline    time.Time
+	shutdownLifecycleHasDeadline bool
+	cancelOnBoot                 context.CancelFunc
 }
 
 func (p *lifecycleContextRecorderModule) Register(ctx *module.Context) error {
@@ -333,9 +337,13 @@ func (p *lifecycleContextRecorderModule) Shutdown(ctx *module.Context) error {
 	p.shutdownLifecycleContext = ctx.LifecycleContext
 	if ctx.LifecycleContext != nil {
 		p.shutdownLifecycleErr = ctx.LifecycleContext.Err()
+		p.shutdownLifecycleValue, _ = ctx.LifecycleContext.Value(runtimeTestContextKey("shutdown-value")).(string)
+		p.shutdownLifecycleDeadline, p.shutdownLifecycleHasDeadline = ctx.LifecycleContext.Deadline()
 	}
 	return nil
 }
+
+type runtimeTestContextKey string
 
 type i18nFreezeRecorderModule struct {
 	registerFrozen  bool
@@ -901,7 +909,8 @@ func TestRunPassesEventBusIntoModuleContext(t *testing.T) {
 func TestRunPassesLifecycleContextIntoModulePhases(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	runCtx, cancel := context.WithCancel(context.Background())
+	baseCtx := context.WithValue(context.Background(), runtimeTestContextKey("shutdown-value"), "preserved")
+	runCtx, cancel := context.WithTimeout(baseCtx, 30*time.Second)
 	defer cancel()
 
 	recorder := &lifecycleContextRecorderModule{cancelOnBoot: cancel}
@@ -943,6 +952,15 @@ func TestRunPassesLifecycleContextIntoModulePhases(t *testing.T) {
 	}
 	if recorder.shutdownLifecycleErr != nil {
 		t.Fatalf("expected shutdown lifecycle context to remain usable, got %v", recorder.shutdownLifecycleErr)
+	}
+	if recorder.shutdownLifecycleValue != "preserved" {
+		t.Fatalf("expected shutdown context value preservation, got %q", recorder.shutdownLifecycleValue)
+	}
+	if !recorder.shutdownLifecycleHasDeadline {
+		t.Fatal("expected shutdown lifecycle context to keep a deadline")
+	}
+	if !recorder.shutdownLifecycleDeadline.Before(time.Now().Add(time.Minute)) {
+		t.Fatalf("expected bounded shutdown deadline, got %v", recorder.shutdownLifecycleDeadline)
 	}
 }
 
@@ -1118,6 +1136,7 @@ func TestRegisterCoreRoutesHealthzReportsRegistryCounts(t *testing.T) {
 	cronRegistry.Register(cronx.Job{Name: "audit", Schedule: "0 0 * * *"})
 
 	runtime := &Runtime{
+		config:             &config.Config{},
 		i18n:               i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "en-US", SupportedLocales: []string{"zh-CN", "en-US"}}),
 		menuRegistry:       menuRegistry,
 		permissionRegistry: permissionRegistry,
@@ -1264,6 +1283,57 @@ func TestRegisterCoreRoutesReturnsRealtimeGatewayRegistrationError(t *testing.T)
 	}
 	if !strings.Contains(err.Error(), "register realtime websocket gateway") {
 		t.Fatalf("expected wrapped realtime gateway registration error, got %v", err)
+	}
+}
+
+func TestRegisterCoreRoutesReturnsRealtimeTicketResolutionError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	resolveErr := errors.New("redis offline")
+	runtime := &Runtime{
+		config: &config.Config{
+			HTTPX: config.HTTPXConfig{},
+		},
+		i18n:               i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "en-US", SupportedLocales: []string{"zh-CN", "en-US"}}),
+		services:           container.New(),
+		menuRegistry:       menu.NewRegistry(),
+		permissionRegistry: permission.NewRegistry(),
+		cronRegistry:       cronx.NewRegistry(),
+		realtimeHub:        realtime.NewHub(),
+	}
+	if err := runtime.services.RegisterSingleton((*realtimeauth.Service)(nil), func(container.Resolver) (any, error) {
+		return nil, resolveErr
+	}); err != nil {
+		t.Fatalf("register realtime ticket service: %v", err)
+	}
+
+	engine := gin.New()
+	err := runtime.registerCoreRoutes(engine)
+	if err == nil {
+		t.Fatal("expected realtime ticket resolution error")
+	}
+	if !strings.Contains(err.Error(), "resolve realtime websocket gateway ticket service") {
+		t.Fatalf("expected realtime ticket resolution wrapper, got %v", err)
+	}
+	if !errors.Is(err, resolveErr) {
+		t.Fatalf("expected realtime resolution error to wrap provider failure, got %v", err)
+	}
+}
+
+func TestInjectedRealtimeTicketServiceReturnsUnexpectedTypeError(t *testing.T) {
+	runtime := &Runtime{services: container.New()}
+	if err := runtime.services.RegisterSingleton((*realtimeauth.Service)(nil), func(container.Resolver) (any, error) {
+		return "not-a-ticket-service", nil
+	}); err != nil {
+		t.Fatalf("register realtime ticket service: %v", err)
+	}
+
+	_, err := runtime.injectedRealtimeTicketService()
+	if err == nil {
+		t.Fatal("expected unexpected realtime ticket service type error")
+	}
+	if !strings.Contains(err.Error(), "resolve realtime ticket service: unexpected type string") {
+		t.Fatalf("unexpected realtime ticket service type error: %v", err)
 	}
 }
 

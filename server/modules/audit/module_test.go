@@ -17,6 +17,7 @@ import (
 	"graft/server/internal/config"
 	"graft/server/internal/configregistry"
 	"graft/server/internal/container"
+	messagecontract "graft/server/internal/contract/message"
 	"graft/server/internal/cronx"
 	"graft/server/internal/dashboard"
 	"graft/server/internal/drilldown"
@@ -1014,6 +1015,10 @@ func TestAuditLogDetailRouteReturnsNotFound(t *testing.T) {
 	}
 }
 
+func TestAuditLogDetailRouteRejectsZeroID(t *testing.T) {
+	assertAuditReadRouteRejectsInvalidArgument(t, "/api/audit/logs/0", "id")
+}
+
 func TestAuditLogsRouteAcceptsRegisteredDrilldownScopes(t *testing.T) {
 	repo := &memoryAuditRepository{}
 	scopes := []string{
@@ -1225,6 +1230,10 @@ func TestAuditIncidentEndpointReturnsAuditOwnedIncident(t *testing.T) {
 	if !strings.Contains(body, "\"request_id\":\"req-incident-1\"") {
 		t.Fatalf("expected stable request id in response body, got %s", body)
 	}
+}
+
+func TestAuditIncidentRouteRejectsZeroEventID(t *testing.T) {
+	assertAuditReadRouteRejectsInvalidArgument(t, "/api/audit/incidents/0", "event_id")
 }
 
 // TestRegisterSubscribesActiveAuditEvents 验证主动审计事件会通过 event bus
@@ -1601,4 +1610,41 @@ func TestAuditOverviewRouteReturnsPayload(t *testing.T) {
 	if !strings.Contains(recorder.Body.String(), `"failed_auth"`) {
 		t.Fatalf("expected failed_auth in response, got %s", recorder.Body.String())
 	}
+}
+
+func TestAuditOverviewRouteRejectsInvalidPreset(t *testing.T) {
+	assertAuditReadRouteRejectsInvalidArgument(t, "/api/audit/overview?preset=invalid", "preset")
+}
+
+func assertAuditReadRouteRejectsInvalidArgument(t *testing.T, route string, field string) {
+	t.Helper()
+
+	repo := &memoryAuditRepository{}
+	_, engine, _ := newModuleTestContext(t, repo)
+
+	request := httptest.NewRequest(http.MethodGet, route, nil)
+	request.Header.Set("Authorization", "Bearer token")
+	recorder := httptest.NewRecorder()
+	engine.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400, got %d body=%s", recorder.Code, recorder.Body.String())
+	}
+	response := testassert.DecodeErrorResponse(t, recorder)
+	testassert.AssertContractErrorPayload(t, response, messagecontract.CommonInvalidArgument, "zh-CN")
+	testassert.AssertErrorFieldDetail(t, response, field)
+}
+
+func TestAbortAuditReadInternalWithNilModuleContext(t *testing.T) {
+	recorder := httptest.NewRecorder()
+	ginCtx, _ := gin.CreateTestContext(recorder)
+	ginCtx.Request = httptest.NewRequest(http.MethodGet, "/api/audit/logs/1", nil)
+
+	abortAuditReadInternal(ginCtx, nil)
+
+	if recorder.Code != http.StatusInternalServerError {
+		t.Fatalf("expected status 500, got %d body=%s", recorder.Code, recorder.Body.String())
+	}
+	response := testassert.DecodeErrorResponse(t, recorder)
+	testassert.AssertContractErrorPayload(t, response, messagecontract.CommonInternalError, "zh-CN")
 }

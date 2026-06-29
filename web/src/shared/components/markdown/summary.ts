@@ -5,12 +5,19 @@ const MARKDOWN_TABLE_SEPARATOR = /^\s*\|?(?:\s*:?-{3,}:?\s*\|)+\s*$/u;
 const markdown = new MarkdownIt({ html: false, linkify: false, typographer: false });
 
 export function markdownToPlainTextSummary(source: string | null | undefined, maxLength = 160) {
-  const normalized = markdown
-    .parse(source ?? '', {})
-    .flatMap((token) => tokenToSummaryText(token))
-    .join(' ')
-    .replace(/\s+/gu, ' ')
-    .trim();
+  let normalized = '';
+  try {
+    normalized = markdown
+      .parse(source ?? '', {})
+      .flatMap((token) => tokenToSummaryText(token))
+      .join(' ')
+      .replace(/\s+/gu, ' ')
+      .trim();
+  } catch {
+    normalized = String(source ?? '')
+      .replace(/\s+/gu, ' ')
+      .trim();
+  }
 
   if (normalized.length <= maxLength) {
     return normalized;

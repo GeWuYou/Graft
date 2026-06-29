@@ -20,36 +20,46 @@ type RuntimeMetadata struct {
 	buildInfo                buildinfo.Info
 }
 
-// NewRuntimeMetadata constructs a RuntimeMetadata snapshot from module definitions and the current build information, normalizing the build identity.
+// NewRuntimeMetadata 根据模块定义和当前构建信息构造 RuntimeMetadata，并规范化构建标识。
+// descriptors 提供模块定义；currentBuildInfo 提供当前构建信息。
 func NewRuntimeMetadata(descriptors []Spec, currentBuildInfo buildinfo.Info) RuntimeMetadata {
-	snapshots := make([]DescriptorSnapshot, 0, len(descriptors))
-	for _, descriptor := range descriptors {
-		snapshots = append(snapshots, DescriptorSnapshot{
-			Name:      descriptor.Name(),
-			DependsOn: append([]string(nil), descriptor.DependsOn()...),
-		})
-	}
-
 	return RuntimeMetadata{
-		orderedModuleDescriptors: snapshots,
-		buildInfo:                buildinfo.Normalize(currentBuildInfo),
+		orderedModuleDescriptors: collectDescriptorSnapshots(descriptors, func(descriptor Spec) (string, []string) {
+			return descriptor.Name(), descriptor.DependsOn()
+		}),
+		buildInfo: buildinfo.Normalize(currentBuildInfo),
 	}
 }
 
 // OrderedModuleDescriptors 返回运行时可见的 canonical 有序描述符快照。
 func (m RuntimeMetadata) OrderedModuleDescriptors() []DescriptorSnapshot {
-	snapshots := make([]DescriptorSnapshot, 0, len(m.orderedModuleDescriptors))
-	for _, descriptor := range m.orderedModuleDescriptors {
-		snapshots = append(snapshots, DescriptorSnapshot{
-			Name:      descriptor.Name,
-			DependsOn: append([]string(nil), descriptor.DependsOn...),
-		})
-	}
-
-	return snapshots
+	return collectDescriptorSnapshots(m.orderedModuleDescriptors, func(descriptor DescriptorSnapshot) (string, []string) {
+		return descriptor.Name, descriptor.DependsOn
+	})
 }
 
 // BuildInfo 返回运行时可见的 canonical 构建身份快照。
 func (m RuntimeMetadata) BuildInfo() buildinfo.Info {
 	return buildinfo.Normalize(m.buildInfo)
+}
+
+// newDescriptorSnapshot 创建一个 DescriptorSnapshot，并复制依赖项列表以避免共享底层数组。
+func newDescriptorSnapshot(name string, dependsOn []string) DescriptorSnapshot {
+	return DescriptorSnapshot{
+		Name:      name,
+		DependsOn: append([]string(nil), dependsOn...),
+	}
+}
+
+// project 用于从每个输入对象提取名称和依赖项。
+func collectDescriptorSnapshots[T any](
+	descriptors []T,
+	project func(T) (string, []string),
+) []DescriptorSnapshot {
+	snapshots := make([]DescriptorSnapshot, 0, len(descriptors))
+	for _, descriptor := range descriptors {
+		name, dependsOn := project(descriptor)
+		snapshots = append(snapshots, newDescriptorSnapshot(name, dependsOn))
+	}
+	return snapshots
 }

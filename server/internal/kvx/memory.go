@@ -47,10 +47,7 @@ func (m *Memory) Put(_ context.Context, key string, value []byte, ttl time.Durat
 	}
 
 	now := m.clock.Now()
-	entry := memoryEntry{value: cloneBytes(value)}
-	if ttl > 0 {
-		entry.expiresAt = now.Add(ttl)
-	}
+	entry := newMemoryEntry(value, ttl, now)
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -111,16 +108,11 @@ func (m *Memory) CompareAndSwap(_ context.Context, key string, oldValue []byte, 
 	defer m.mu.Unlock()
 	m.pruneExpiredLocked(now)
 
-	entry, ok := m.store[key]
-	if !ok || !bytes.Equal(entry.value, oldValue) {
+	if _, ok := m.matchEntryLocked(key, oldValue); !ok {
 		return false, nil
 	}
 
-	entry = memoryEntry{value: cloneBytes(newValue)}
-	if ttl > 0 {
-		entry.expiresAt = now.Add(ttl)
-	}
-	m.store[key] = entry
+	m.store[key] = newMemoryEntry(newValue, ttl, now)
 
 	return true, nil
 }
@@ -137,8 +129,7 @@ func (m *Memory) CompareAndDelete(_ context.Context, key string, oldValue []byte
 	defer m.mu.Unlock()
 	m.pruneExpiredLocked(now)
 
-	entry, ok := m.store[key]
-	if !ok || !bytes.Equal(entry.value, oldValue) {
+	if _, ok := m.matchEntryLocked(key, oldValue); !ok {
 		return false, nil
 	}
 
@@ -152,4 +143,21 @@ func (m *Memory) pruneExpiredLocked(now time.Time) {
 			delete(m.store, key)
 		}
 	}
+}
+
+func (m *Memory) matchEntryLocked(key string, expected []byte) (memoryEntry, bool) {
+	entry, ok := m.store[key]
+	if !ok || !bytes.Equal(entry.value, expected) {
+		return memoryEntry{}, false
+	}
+	return entry, true
+}
+
+// newMemoryEntry 克隆值并按 TTL 生成 memoryEntry；当 ttl 大于 0 时设置过期时间。
+func newMemoryEntry(value []byte, ttl time.Duration, now time.Time) memoryEntry {
+	entry := memoryEntry{value: cloneBytes(value)}
+	if ttl > 0 {
+		entry.expiresAt = now.Add(ttl)
+	}
+	return entry
 }

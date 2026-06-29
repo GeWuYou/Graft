@@ -91,7 +91,10 @@ func (r routeRuntime) runShellWebSocketBridge(
 
 	session, err := r.service.OpenShellTerminalSession(requestCtx, ref, handshake)
 	if err != nil {
-		_ = conn.Close()
+		if closeErr := conn.Close(); closeErr != nil {
+			err = errors.Join(err, closeErr)
+		}
+		r.service.publishShellSessionFailed(requestCtx, handshake, "session_open_failed", err)
 		return
 	}
 
