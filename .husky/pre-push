@@ -122,3 +122,8 @@ if printf '%s\n' "$changed_files" | grep -q '^server/'; then
 else
   echo "backend buildtest gate: no server/** changes detected; skipping."
 fi
+
+cd "$repo_root"
+bun run quality:eff-u-code:score:changed
+bun run quality:eff-u-code:score:server
+bun run quality:eff-u-code:score:web

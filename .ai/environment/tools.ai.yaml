@@ -91,6 +91,7 @@ ai_tools:
     repository_gate_role: "When quality gating is enabled, the repository-owned evaluator and CI job own the gate contract; eff-u-code remains a raw JSON source only and is not itself the acceptance contract."
     default_command: "bun run quality:eff-u-code --"
     gate_entrypoint: "bun run quality:eff-u-code:gate --"
+    score_entrypoint: "bun run quality:eff-u-code:score:changed"
     version: "2.2.2"
     guardrail: "Keep eff-u-code as a local helper and raw JSON source; the repository root package.json wrapper and repository-owned evaluator are allowed, but do not add eff-u-code directly to server/go.mod, web/package.json, runtime scripts, deployment flows, or completion gates, and do not use the upstream total score as the gate contract."
   headroom:

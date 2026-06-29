@@ -6,7 +6,11 @@
     "quality:eff-u-code:gate": "python3 scripts/evaluate_eff_u_code_gate.py",
     "quality:eff-u-code:gate:server": "python3 scripts/evaluate_eff_u_code_gate.py --scan-mode project --scopes server --output-json .tmp/eff-u-code-gate/server/report.json --report-dir .tmp/eff-u-code-gate/server/raw",
     "quality:eff-u-code:gate:web": "python3 scripts/evaluate_eff_u_code_gate.py --scan-mode project --scopes web --output-json .tmp/eff-u-code-gate/web/report.json --report-dir .tmp/eff-u-code-gate/web/raw",
-    "quality:eff-u-code:gate:all": "python3 scripts/evaluate_eff_u_code_gate.py --scan-mode project --scopes server web --output-json .tmp/eff-u-code-gate/all/report.json --report-dir .tmp/eff-u-code-gate/all/raw"
+    "quality:eff-u-code:gate:all": "python3 scripts/evaluate_eff_u_code_gate.py --scan-mode project --scopes server web --output-json .tmp/eff-u-code-gate/all/report.json --report-dir .tmp/eff-u-code-gate/all/raw",
+    "quality:eff-u-code:score:changed": "python3 scripts/evaluate_eff_u_code_gate.py --gate-profile score-changed --scan-mode changed --output-json .tmp/eff-u-code-score/changed/report.json --report-dir .tmp/eff-u-code-score/changed/raw",
+    "quality:eff-u-code:score:server": "python3 scripts/evaluate_eff_u_code_gate.py --gate-profile score-project --scan-mode project --scopes server --output-json .tmp/eff-u-code-score/server/report.json --report-dir .tmp/eff-u-code-score/server/raw",
+    "quality:eff-u-code:score:web": "python3 scripts/evaluate_eff_u_code_gate.py --gate-profile score-project --scan-mode project --scopes web --output-json .tmp/eff-u-code-score/web/report.json --report-dir .tmp/eff-u-code-score/web/raw",
+    "quality:eff-u-code:score:all": "python3 scripts/evaluate_eff_u_code_gate.py --gate-profile score-project --scan-mode project --scopes server web --output-json .tmp/eff-u-code-score/all/report.json --report-dir .tmp/eff-u-code-score/all/raw"
   },
   "devDependencies": {
     "eff-u-code": "2.2.2"

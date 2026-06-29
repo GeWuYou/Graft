@@ -285,6 +285,7 @@ def build_ai_inventory(raw: dict[str, Any]) -> dict[str, Any]:
                 "use_for": "Optional developer-local code quality hotspot inspection and raw JSON input for a repository-owned quality policy evaluator outside the formal validation flow.",
                 "default_command": "bun run quality:eff-u-code --",
                 "gate_entrypoint": "bun run quality:eff-u-code:gate --",
+                "score_entrypoint": "bun run quality:eff-u-code:score:changed",
                 "version": eff_u_code_version,
                 "guardrail": "Keep eff-u-code as a local helper and raw JSON source; the repository root package.json wrapper and repository-owned evaluator are allowed, but do not add eff-u-code directly to server/go.mod, web/package.json, runtime scripts, deployment flows, or completion gates, and do not use the upstream total score as the gate contract.",
             },

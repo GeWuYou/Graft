@@ -119,6 +119,15 @@ class AiToolingDocTests(unittest.TestCase):
 
         self.assertTrue(any("independent from eff-u-code" in finding.message for finding in findings))
 
+    def test_ai_tooling_doc_requires_score_gate_layered_diagnostics(self) -> None:
+        text = MODULE.read_text(MODULE.AI_TOOLING_DOC).replace("bun run quality:eff-u-code:score:changed", "", 1)
+        text = text.replace("Project Score Gate 的终端输出应采用 layered diagnostics：默认先给 Scope / Project Score、Threshold、Coverage、Top Contributors、Rule Category Summary、Severity Summary 和 Potential Score Gain，再按 Top N 展开详情；避免直接输出“最差代码排行榜”或全量规则刷屏。", "", 1)
+
+        with mock.patch.object(MODULE, "read_text", return_value=text):
+            findings = MODULE.validate_ai_tooling_doc()
+
+        self.assertTrue(any("layered diagnostics" in finding.message or "score:changed" in finding.message for finding in findings))
+
 
 class PushBranchGovernanceTests(unittest.TestCase):
     def test_push_branch_governance_is_currently_satisfied(self) -> None:

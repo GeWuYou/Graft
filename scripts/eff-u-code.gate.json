@@ -154,6 +154,52 @@
       "parameter_count": 0.0
     }
   },
+  "scoreGate": {
+    "profiles": {
+      "score-changed": {
+        "enabled": true,
+        "enabledScanModes": [
+          "changed"
+        ],
+        "threshold": 90,
+        "topContributors": 10,
+        "detailLimit": 10,
+        "potentialGainSteps": [
+          3,
+          5,
+          10
+        ],
+        "categoryOrder": [
+          "complexity",
+          "duplication",
+          "error_handling",
+          "structure",
+          "file_size"
+        ]
+      },
+      "score-project": {
+        "enabled": true,
+        "enabledScanModes": [
+          "project"
+        ],
+        "threshold": 85,
+        "topContributors": 20,
+        "detailLimit": 10,
+        "potentialGainSteps": [
+          3,
+          5,
+          10
+        ],
+        "categoryOrder": [
+          "complexity",
+          "duplication",
+          "error_handling",
+          "structure",
+          "file_size"
+        ]
+      }
+    }
+  },
   "report": {
     "topChangedFiles": 20
   }
