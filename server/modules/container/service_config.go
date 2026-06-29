@@ -29,6 +29,10 @@ type containerRuntimeOptions struct {
 	logger                               *zap.Logger
 }
 
+type configStringSetter func(string)
+type configIntSetter func(int)
+type configValueLoader[T any] func(*module.Context, string) (T, bool)
+
 // containerOptionsFromConfig 从模块上下文构建容器运行时选项，并按默认值、配置注册表和显式模块配置的顺序应用覆盖。
 func containerOptionsFromConfig(ctx *module.Context) containerRuntimeOptions {
 	options := containerRuntimeOptions{
@@ -53,27 +57,25 @@ func containerOptionsFromConfig(ctx *module.Context) containerRuntimeOptions {
 		return options
 	}
 	applyContainerBoolDefault(ctx, containercontract.ContainerRuntimeEnabledConfig.String(), &options.enabled)
-	applyContainerStringDefault(ctx, containercontract.ContainerRuntimeConfig.String(), &options.runtime)
-	applyContainerStringDefault(ctx, containercontract.ContainerDockerEndpointConfig.String(), &options.endpoint)
-	applyContainerIntDefault(ctx, containercontract.ContainerLogsDefaultTailConfig.String(), &options.defaultTail)
-	applyContainerIntDefault(ctx, containercontract.ContainerLogsMaxTailConfig.String(), &options.maxTail)
-	applyContainerIntDefault(ctx, containercontract.ContainerResourceStatsCacheTTLConfig.String(), &options.resourceStatsCacheTTLSeconds)
-	applyContainerIntDefault(
-		ctx,
-		containercontract.ContainerResourceStatsCacheStaleWindowConfig.String(),
-		&options.resourceStatsCacheStaleWindowSeconds,
+	applyContainerStringDefaults(ctx,
+		stringDefaultBinding{key: containercontract.ContainerRuntimeConfig.String(), set: func(value string) { options.runtime = value }},
+		stringDefaultBinding{key: containercontract.ContainerDockerEndpointConfig.String(), set: func(value string) { options.endpoint = value }},
 	)
-	applyContainerIntDefault(
-		ctx,
-		containercontract.ContainerResourceStatsCollectIntervalConfig.String(),
-		&options.resourceStatsCollectIntervalSeconds,
+	applyContainerIntDefaults(ctx,
+		intDefaultBinding{key: containercontract.ContainerLogsDefaultTailConfig.String(), set: func(value int) { options.defaultTail = value }},
+		intDefaultBinding{key: containercontract.ContainerLogsMaxTailConfig.String(), set: func(value int) { options.maxTail = value }},
+		intDefaultBinding{key: containercontract.ContainerResourceStatsCacheTTLConfig.String(), set: func(value int) { options.resourceStatsCacheTTLSeconds = value }},
+		intDefaultBinding{key: containercontract.ContainerResourceStatsCacheStaleWindowConfig.String(), set: func(value int) { options.resourceStatsCacheStaleWindowSeconds = value }},
+		intDefaultBinding{key: containercontract.ContainerResourceStatsCollectIntervalConfig.String(), set: func(value int) { options.resourceStatsCollectIntervalSeconds = value }},
 	)
 	applyContainerBoolDefault(ctx, containercontract.ContainerDangerousActionsEnabledConfig.String(), &options.dangerousActionsEnabled)
 	applyContainerEnvironmentPolicyDefault(ctx, containercontract.ContainerEnvironmentPolicyConfig.String(), &options.environmentPolicy)
-	applyContainerOrchestratorActionLevelDefault(ctx, containercontract.ContainerComposeActionLevelConfig.String(), &options.orchestratorPolicies.Compose)
-	applyContainerOrchestratorActionLevelDefault(ctx, containercontract.ContainerSwarmActionLevelConfig.String(), &options.orchestratorPolicies.Swarm)
-	applyContainerOrchestratorActionLevelDefault(ctx, containercontract.ContainerKubernetesActionLevelConfig.String(), &options.orchestratorPolicies.Kubernetes)
-	applyContainerOrchestratorActionLevelDefault(ctx, containercontract.ContainerUnknownActionLevelConfig.String(), &options.orchestratorPolicies.Unknown)
+	applyContainerOrchestratorActionLevelDefaults(ctx,
+		orchestratorActionLevelBinding{key: containercontract.ContainerComposeActionLevelConfig.String(), target: &options.orchestratorPolicies.Compose},
+		orchestratorActionLevelBinding{key: containercontract.ContainerSwarmActionLevelConfig.String(), target: &options.orchestratorPolicies.Swarm},
+		orchestratorActionLevelBinding{key: containercontract.ContainerKubernetesActionLevelConfig.String(), target: &options.orchestratorPolicies.Kubernetes},
+		orchestratorActionLevelBinding{key: containercontract.ContainerUnknownActionLevelConfig.String(), target: &options.orchestratorPolicies.Unknown},
+	)
 	if ctx.Config != nil {
 		options.enabled = ctx.Config.Container.RuntimeEnabled
 		options.runtime = ctx.Config.Container.Runtime
@@ -91,76 +93,99 @@ func applyContainerOrchestratorActionLevelDefault(
 	key string,
 	target *containercontract.OrchestratorActionLevel,
 ) {
-	if target == nil {
-		return
+	if target != nil {
+		applyContainerLoadedDefault(ctx, key, containerDefaultStringValue, func(value string) {
+			*target = normalizeOrchestratorActionLevel(value)
+		})
 	}
-	raw, ok := containerDefaultValue(ctx, key)
-	if !ok {
-		return
-	}
-	var value string
-	if err := json.Unmarshal(raw, &value); err == nil {
-		*target = normalizeOrchestratorActionLevel(value)
+}
+
+type orchestratorActionLevelBinding struct {
+	key    string
+	target *containercontract.OrchestratorActionLevel
+}
+
+func applyContainerOrchestratorActionLevelDefaults(ctx *module.Context, bindings ...orchestratorActionLevelBinding) {
+	for _, binding := range bindings {
+		applyContainerOrchestratorActionLevelDefault(ctx, binding.key, binding.target)
 	}
 }
 
 // applyContainerEnvironmentPolicyDefault 从配置注册表中读取默认容器环境策略，并应用到 target，对缺失或无效值无声忽略。
 func applyContainerEnvironmentPolicyDefault(ctx *module.Context, key string, target *containercontract.EnvironmentPolicy) {
-	if target == nil {
-		return
-	}
-	raw, ok := containerDefaultValue(ctx, key)
-	if !ok {
-		return
-	}
-	var value string
-	if err := json.Unmarshal(raw, &value); err == nil {
-		*target = normalizeEnvironmentPolicy(value)
+	if target != nil {
+		applyContainerLoadedDefault(ctx, key, containerDefaultStringValue, func(value string) {
+			*target = normalizeEnvironmentPolicy(value)
+		})
 	}
 }
 
 func applyContainerBoolDefault(ctx *module.Context, key string, target *bool) {
-	if target == nil {
-		return
-	}
-	raw, ok := containerDefaultValue(ctx, key)
-	if !ok {
-		return
-	}
-	var value bool
-	if err := json.Unmarshal(raw, &value); err == nil {
-		*target = value
+	if target != nil {
+		applyContainerLoadedDefault(ctx, key, containerDefaultJSONValue[bool], func(value bool) {
+			*target = value
+		})
 	}
 }
 
-// applyContainerStringDefault 从容器配置注册表为目标指针应用字符串默认值。
-func applyContainerStringDefault(ctx *module.Context, key string, target *string) {
-	if target == nil {
-		return
-	}
-	raw, ok := containerDefaultValue(ctx, key)
-	if !ok {
-		return
-	}
-	var value string
-	if err := json.Unmarshal(raw, &value); err == nil && strings.TrimSpace(value) != "" {
-		*target = strings.TrimSpace(value)
+type stringDefaultBinding struct {
+	key string
+	set configStringSetter
+}
+
+func applyContainerStringDefaults(ctx *module.Context, bindings ...stringDefaultBinding) {
+	for _, binding := range bindings {
+		applyContainerStringDefaultWithSetter(ctx, binding.key, binding.set)
 	}
 }
 
-// applyContainerIntDefault 从配置注册表应用正整数默认值至目标。
-func applyContainerIntDefault(ctx *module.Context, key string, target *int) {
-	if target == nil {
+func applyContainerStringDefaultWithSetter(ctx *module.Context, key string, set configStringSetter) {
+	if set == nil {
 		return
 	}
-	raw, ok := containerDefaultValue(ctx, key)
+	value, ok := containerDefaultStringValue(ctx, key)
 	if !ok {
 		return
 	}
-	var value int
-	if err := json.Unmarshal(raw, &value); err == nil && value > 0 {
-		*target = value
+	set(value)
+}
+
+type intDefaultBinding struct {
+	key string
+	set configIntSetter
+}
+
+func applyContainerIntDefaults(ctx *module.Context, bindings ...intDefaultBinding) {
+	for _, binding := range bindings {
+		applyContainerIntDefaultWithSetter(ctx, binding.key, binding.set)
 	}
+}
+
+func applyContainerIntDefaultWithSetter(ctx *module.Context, key string, set configIntSetter) {
+	if set == nil {
+		return
+	}
+	value, ok := containerDefaultPositiveIntValue(ctx, key)
+	if !ok {
+		return
+	}
+	set(value)
+}
+
+func applyContainerLoadedDefault[T any](
+	ctx *module.Context,
+	key string,
+	load configValueLoader[T],
+	set func(T),
+) {
+	if load == nil || set == nil {
+		return
+	}
+	value, ok := load(ctx, key)
+	if !ok {
+		return
+	}
+	set(value)
 }
 
 // systemConfigReadContext selects an appropriate context for system configuration operations.
@@ -219,34 +244,16 @@ func resolveStringConfigValue(
 	key string,
 	fallback string,
 ) string {
-	if resolver == nil {
-		return strings.TrimSpace(fallback)
-	}
-	raw, err := resolver.ResolveDefaultConfig(ctx, key)
-	if err != nil {
-		return strings.TrimSpace(fallback)
-	}
-	var value string
-	if err := json.Unmarshal([]byte(raw), &value); err != nil {
-		return strings.TrimSpace(fallback)
-	}
-	value = strings.TrimSpace(value)
-	if value == "" {
+	value, ok := resolveSystemConfigStringValue(ctx, resolver, key)
+	if !ok {
 		return strings.TrimSpace(fallback)
 	}
 	return value
 }
 
 func (s *service) resolveIntegerConfig(ctx context.Context, key string, fallback int) int {
-	if s == nil || s.systemConfig == nil {
-		return fallback
-	}
-	raw, err := s.systemConfig.ResolveDefaultConfig(ctx, key)
-	if err != nil {
-		return fallback
-	}
-	var value int
-	if err := json.Unmarshal([]byte(raw), &value); err != nil || value <= 0 {
+	value, ok := resolveSystemConfigPositiveIntValue(ctx, systemConfigResolverOfService(s), key)
+	if !ok {
 		return fallback
 	}
 	return value
@@ -447,18 +454,110 @@ func (s *service) resolveOrchestratorActionLevel(
 	key string,
 	fallback containercontract.OrchestratorActionLevel,
 ) containercontract.OrchestratorActionLevel {
-	if s == nil || s.systemConfig == nil {
-		return fallback
-	}
-	raw, err := s.systemConfig.ResolveDefaultConfig(ctx, key)
-	if err != nil {
-		return fallback
-	}
-	var value string
-	if err := json.Unmarshal([]byte(raw), &value); err != nil {
+	value, ok := resolveSystemConfigStringValue(ctx, systemConfigResolverOfService(s), key)
+	if !ok {
 		return fallback
 	}
 	return normalizeOrchestratorActionLevel(value)
+}
+
+func containerDefaultJSONValue[T any](ctx *module.Context, key string) (T, bool) {
+	raw, ok := containerDefaultValue(ctx, key)
+	if !ok {
+		var zero T
+		return zero, false
+	}
+	return unmarshalConfigValue[T](raw)
+}
+
+func containerDefaultStringValue(ctx *module.Context, key string) (string, bool) {
+	return nonEmptyTrimmedStringValue(func() (string, bool) {
+		return containerDefaultJSONValue[string](ctx, key)
+	})
+}
+
+func containerDefaultPositiveIntValue(ctx *module.Context, key string) (int, bool) {
+	return positiveIntValue(func() (int, bool) {
+		return containerDefaultJSONValue[int](ctx, key)
+	})
+}
+
+func systemConfigResolverOfService(s *service) moduleapi.SystemConfigResolver {
+	if s == nil {
+		return nil
+	}
+	return s.systemConfig
+}
+
+func resolveSystemConfigValue[T any](
+	ctx context.Context,
+	resolver moduleapi.SystemConfigResolver,
+	key string,
+) (T, bool) {
+	var zero T
+	if resolver == nil {
+		return zero, false
+	}
+	raw, err := resolver.ResolveDefaultConfig(ctx, key)
+	if err != nil {
+		return zero, false
+	}
+	return unmarshalConfigValue[T]([]byte(raw))
+}
+
+func resolveSystemConfigStringValue(
+	ctx context.Context,
+	resolver moduleapi.SystemConfigResolver,
+	key string,
+) (string, bool) {
+	return nonEmptyTrimmedStringValue(func() (string, bool) {
+		return resolveSystemConfigValue[string](ctx, resolver, key)
+	})
+}
+
+func resolveSystemConfigPositiveIntValue(
+	ctx context.Context,
+	resolver moduleapi.SystemConfigResolver,
+	key string,
+) (int, bool) {
+	return positiveIntValue(func() (int, bool) {
+		return resolveSystemConfigValue[int](ctx, resolver, key)
+	})
+}
+
+func unmarshalConfigValue[T any](raw []byte) (T, bool) {
+	var value T
+	if err := json.Unmarshal(raw, &value); err != nil {
+		var zero T
+		return zero, false
+	}
+	return value, true
+}
+
+func nonEmptyTrimmedStringValue(load func() (string, bool)) (string, bool) {
+	if load == nil {
+		return "", false
+	}
+	value, ok := load()
+	if !ok {
+		return "", false
+	}
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "", false
+	}
+	return value, true
+}
+
+func positiveIntValue(load func() (int, bool)) (int, bool) {
+	if load == nil {
+		return 0, false
+	}
+	value, ok := load()
+	if !ok || value <= 0 {
+		return 0, false
+	}
+	return value, true
 }
 
 func (s *service) shellAllowed(ctx context.Context) bool {

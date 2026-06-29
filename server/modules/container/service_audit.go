@@ -22,12 +22,7 @@ func (s *service) publishActionAudit(ctx context.Context, result ActionResult, o
 	auditCtx, cancel := detachedAuditContext(ctx)
 	defer cancel()
 	action := actionAuditContract(result.Action).String()
-	messageKey := ""
-	message := ""
-	if err != nil {
-		messageKey = messageKeyForError(err).String()
-		message = fallbackMessageForError(err)
-	}
+	messageKey, message := auditErrorMessageFields(err)
 	metadata := map[string]any{
 		"container_id":   result.ID,
 		"container_name": result.Name,
@@ -49,10 +44,7 @@ func (s *service) publishActionAudit(ctx context.Context, result ActionResult, o
 		"source_member_kind":  strings.TrimSpace(result.Orchestrator.MemberScopeKind),
 		"source_member_value": strings.TrimSpace(result.Orchestrator.MemberValue),
 	}
-	if requestAudit, ok := httpx.RequestAuditContextFromContext(auditCtx); ok {
-		metadata["requestId"] = requestAudit.RequestID
-		metadata["traceId"] = requestAudit.TraceID
-	}
+	enrichAuditMetadataWithRequestContext(auditCtx, metadata, "")
 	event := moduleapi.AuditEvent{
 		Kind:          moduleapi.AuditEventKindDomain,
 		Operator:      currentAuditOperator(auditCtx),
@@ -68,17 +60,7 @@ func (s *service) publishActionAudit(ctx context.Context, result ActionResult, o
 		RequestMethod: "",
 		RequestPath:   "",
 	}
-	if publishErr := s.auditBus.Publish(auditCtx, eventbus.Event{
-		Name:    string(moduleapi.AuditRecordEventName),
-		Source:  s.moduleName,
-		Payload: event,
-	}); publishErr != nil && s.logger != nil {
-		s.logger.Warn("publish container audit event failed",
-			zap.String("module", s.moduleName),
-			zap.String("action", action),
-			zap.Error(publishErr),
-		)
-	}
+	s.publishAuditEvent(auditCtx, event, "publish container audit event failed")
 }
 
 func (s *service) publishBatchActionAudit(ctx context.Context, result BatchActionResult, options ActionOptions) {
@@ -103,12 +85,7 @@ func (s *service) publishBatchActionAudit(ctx context.Context, result BatchActio
 		"failed_ids":      batchFailedIDs(result.Items),
 		"force":           options.Force,
 	}
-	if requestAudit, ok := httpx.RequestAuditContextFromContext(auditCtx); ok {
-		metadata["requestId"] = firstNonEmpty(requestID, requestAudit.RequestID)
-		metadata["traceId"] = requestAudit.TraceID
-	} else if requestID != "" {
-		metadata["requestId"] = requestID
-	}
+	enrichAuditMetadataWithRequestContext(auditCtx, metadata, requestID)
 	event := moduleapi.AuditEvent{
 		Kind:         moduleapi.AuditEventKindDomain,
 		Operator:     currentAuditOperator(auditCtx),
@@ -122,12 +99,40 @@ func (s *service) publishBatchActionAudit(ctx context.Context, result BatchActio
 		Message:      strings.TrimSpace(result.Message),
 		Metadata:     metadata,
 	}
-	if publishErr := s.auditBus.Publish(auditCtx, eventbus.Event{
+	s.publishAuditEvent(auditCtx, event, "publish container batch audit event failed")
+}
+
+func enrichAuditMetadataWithRequestContext(auditCtx context.Context, metadata map[string]any, fallbackRequestID string) {
+	if metadata == nil {
+		return
+	}
+	if requestAudit, ok := httpx.RequestAuditContextFromContext(auditCtx); ok {
+		metadata["requestId"] = firstNonEmpty(fallbackRequestID, requestAudit.RequestID)
+		metadata["traceId"] = requestAudit.TraceID
+		return
+	}
+	if strings.TrimSpace(fallbackRequestID) != "" {
+		metadata["requestId"] = strings.TrimSpace(fallbackRequestID)
+	}
+}
+
+func auditErrorMessageFields(err error) (string, string) {
+	if err == nil {
+		return "", ""
+	}
+	return messageKeyForError(err).String(), fallbackMessageForError(err)
+}
+
+func (s *service) publishAuditEvent(ctx context.Context, event moduleapi.AuditEvent, failureMessage string) {
+	if s == nil || s.auditBus == nil {
+		return
+	}
+	if publishErr := s.auditBus.Publish(ctx, eventbus.Event{
 		Name:    string(moduleapi.AuditRecordEventName),
 		Source:  s.moduleName,
 		Payload: event,
 	}); publishErr != nil && s.logger != nil {
-		s.logger.Warn("publish container batch audit event failed",
+		s.logger.Warn(failureMessage,
 			zap.String("module", s.moduleName),
 			zap.String("action", event.Action),
 			zap.Error(publishErr),
@@ -138,7 +143,29 @@ func (s *service) publishBatchActionAudit(ctx context.Context, result BatchActio
 // actionAuditContract 将容器动作字符串映射为审计动作类型。
 // 预定义动作会转换为对应的容器审计动作；其他值会按原字符串生成审计动作。
 func actionAuditContract(action string) containercontract.AuditAction {
-	switch strings.TrimSpace(action) {
+	return auditActionContract(action, false)
+}
+
+// 对已知动作返回对应的批量审计动作；其他值返回去除首尾空白后的原始动作。
+func batchActionAuditContract(action string) containercontract.AuditAction {
+	return auditActionContract(action, true)
+}
+
+func auditActionContract(action string, batch bool) containercontract.AuditAction {
+	normalized := strings.TrimSpace(action)
+	if batch {
+		switch normalized {
+		case containerActionStart:
+			return containercontract.ContainerAuditActionBatchStart
+		case containerActionStop:
+			return containercontract.ContainerAuditActionBatchStop
+		case containerActionRemove:
+			return containercontract.ContainerAuditActionBatchRemove
+		default:
+			return containercontract.AuditAction(normalized)
+		}
+	}
+	switch normalized {
 	case containerActionStart:
 		return containercontract.ContainerAuditActionStart
 	case containerActionStop:
@@ -146,21 +173,7 @@ func actionAuditContract(action string) containercontract.AuditAction {
 	case containerActionRemove:
 		return containercontract.ContainerAuditActionRemove
 	default:
-		return containercontract.AuditAction(strings.TrimSpace(action))
-	}
-}
-
-// 对已知动作返回对应的批量审计动作；其他值返回去除首尾空白后的原始动作。
-func batchActionAuditContract(action string) containercontract.AuditAction {
-	switch strings.TrimSpace(action) {
-	case containerActionStart:
-		return containercontract.ContainerAuditActionBatchStart
-	case containerActionStop:
-		return containercontract.ContainerAuditActionBatchStop
-	case containerActionRemove:
-		return containercontract.ContainerAuditActionBatchRemove
-	default:
-		return containercontract.AuditAction(strings.TrimSpace(action))
+		return containercontract.AuditAction(normalized)
 	}
 }
 

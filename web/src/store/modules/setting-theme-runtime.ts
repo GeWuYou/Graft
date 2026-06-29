@@ -29,24 +29,29 @@ function resolveThemeTransitionOrigin(event?: MouseEvent) {
   return { x, y };
 }
 
+function safelyApplyThemeChange(applyThemeChange: () => void) {
+  applyThemeChange();
+}
+
 async function runThemeCssFallbackTransition(applyThemeChange: () => void) {
   const root = document.documentElement;
 
   root.classList.add(THEME_CSS_TRANSITION_CLASS);
-  applyThemeChange();
-
-  await new Promise((resolve) => {
-    window.setTimeout(resolve, THEME_TRANSITION_DURATION_MS);
-  });
-
-  root.classList.remove(THEME_CSS_TRANSITION_CLASS);
+  try {
+    safelyApplyThemeChange(applyThemeChange);
+    await new Promise((resolve) => {
+      window.setTimeout(resolve, THEME_TRANSITION_DURATION_MS);
+    });
+  } finally {
+    root.classList.remove(THEME_CSS_TRANSITION_CLASS);
+  }
 }
 
 async function runThemeViewTransition(applyThemeChange: () => void, event?: MouseEvent) {
   const transitionDocument = document as ThemeViewTransitionDocument;
 
   if (!transitionDocument.startViewTransition || prefersReducedMotion()) {
-    applyThemeChange();
+    safelyApplyThemeChange(applyThemeChange);
     return;
   }
 
@@ -56,23 +61,26 @@ async function runThemeViewTransition(applyThemeChange: () => void, event?: Mous
 
   root.classList.add(THEME_VIEW_TRANSITION_CLASS);
 
-  const transition = transitionDocument.startViewTransition(() => {
-    applyThemeChange();
-  });
-
   try {
+    const transition = transitionDocument.startViewTransition(() => {
+      safelyApplyThemeChange(applyThemeChange);
+    });
     await transition.ready;
-    root.animate(
-      {
-        clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${endRadius}px at ${x}px ${y}px)`],
-      },
-      {
-        duration: THEME_TRANSITION_DURATION_MS,
-        easing: THEME_TRANSITION_EASING,
-        pseudoElement: '::view-transition-new(root)',
-      },
-    );
+    root
+      .animate(
+        {
+          clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${endRadius}px at ${x}px ${y}px)`],
+        },
+        {
+          duration: THEME_TRANSITION_DURATION_MS,
+          easing: THEME_TRANSITION_EASING,
+          pseudoElement: '::view-transition-new(root)',
+        },
+      )
+      .finished.catch(() => undefined);
     await transition.finished;
+  } catch {
+    safelyApplyThemeChange(applyThemeChange);
   } finally {
     root.classList.remove(THEME_VIEW_TRANSITION_CLASS);
   }
@@ -82,7 +90,7 @@ export async function runThemeTransition(applyThemeChange: () => void, event?: M
   const transitionDocument = document as ThemeViewTransitionDocument;
 
   if (prefersReducedMotion()) {
-    applyThemeChange();
+    safelyApplyThemeChange(applyThemeChange);
     return;
   }
 

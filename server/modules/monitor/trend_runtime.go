@@ -91,7 +91,7 @@ func (p *Module) startTrendSampler(ctx *module.Context) {
 
 	storageKey := trendStorageKey(resolveAppName(ctx), resolveHostName())
 	go func() {
-		defer close(done)
+		defer close /* sampler done */ (done)
 		p.runTrendSampler(runCtx, p.trendStore, storageKey)
 	}()
 }
@@ -260,6 +260,11 @@ func loadTrendPoints(
 	for _, sample := range samples {
 		var point generated.ServerStatusTrendPoint
 		if err := json.Unmarshal(sample.Payload, &point); err != nil {
+			zap.L().Warn("decode stored monitor trend point failed",
+				zap.Time("observedAt", sample.ObservedAt),
+				zap.String("storageKey", storageKey),
+				zap.Error(err),
+			)
 			continue
 		}
 		points = append(points, point)

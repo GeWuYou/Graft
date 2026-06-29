@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 
+	"go.uber.org/zap"
+
 	"graft/server/internal/cronx"
 )
 
@@ -90,10 +92,37 @@ func encodeJobRunResult(result cronx.JobRunResult) (string, string) {
 		result.Summary = result.Stage
 	}
 	encoded, err := json.Marshal(result)
-	if err != nil {
-		return "{}", result.Summary
+	if err == nil {
+		return string(encoded), result.Summary
 	}
-	return string(encoded), result.Summary
+
+	fallbackEncoded, fallbackErr := json.Marshal(struct {
+		Summary  string   `json:"summary,omitempty"`
+		Stage    string   `json:"stage,omitempty"`
+		Warnings []string `json:"warnings,omitempty"`
+	}{
+		Summary: result.Summary,
+		Stage:   result.Stage,
+		Warnings: []string{
+			fmt.Sprintf("scheduler job run result serialization failed: %v", err),
+		},
+	})
+	if fallbackErr != nil {
+		zap.L().Warn("scheduler job run result marshal failed",
+			zap.String("stage", result.Stage),
+			zap.String("summary", result.Summary),
+			zap.Error(err),
+			zap.NamedError("fallbackError", fallbackErr),
+		)
+		return `{"summary":"scheduler job result serialization failed","warnings":["scheduler job result serialization failed"]}`, result.Summary
+	}
+
+	zap.L().Warn("scheduler job run result marshal failed",
+		zap.String("stage", result.Stage),
+		zap.String("summary", result.Summary),
+		zap.Error(err),
+	)
+	return string(fallbackEncoded), result.Summary
 }
 
 // jobDefinitionSnapshot 将 JobDefinition 转换为 JobDefinitionSnapshot。
@@ -176,7 +205,7 @@ func (r *CronRuntime) markRunning(key string) error {
 func (r *CronRuntime) markFinished(key string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	delete(r.running, key)
+	delete /* task-key */ (r.running, key)
 }
 
 // removeKey 从切片中移除第一个等于 key 的元素。

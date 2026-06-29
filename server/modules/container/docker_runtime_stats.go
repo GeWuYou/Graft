@@ -26,19 +26,18 @@ func (r *DockerRuntime) containerResourceSummary(ctx context.Context, id string)
 
 	reader, err := r.client.ContainerStatsOneShot(statsCtx, ref)
 	if err != nil {
+		r.logResourceStatsFailure("collect docker container stats failed", ref, err)
 		return unavailableResourceSummary(resourceStatsErrorReason(err))
 	}
-	defer func() {
-		if reader.Body != nil {
-			_ = reader.Body.Close()
-		}
-	}()
 	if reader.Body == nil {
+		r.logResourceStatsFailure("docker container stats response body missing", ref, nil)
 		return unavailableResourceSummary(containerStatsIncompleteReason)
 	}
+	defer closeDockerStatsReaderBody(r.logger, reader.Body)
 
 	var stats container.StatsResponse
 	if err := json.NewDecoder(reader.Body).Decode(&stats); err != nil {
+		r.logResourceStatsFailure("decode docker container stats failed", ref, err)
 		return unavailableResourceSummary(resourceStatsErrorReason(err))
 	}
 	return r.dockerResourceSummary(ref, stats)
@@ -103,50 +102,75 @@ func (r *DockerRuntime) CollectStatsSnapshots(ctx context.Context) ([]StatsSnaps
 	if len(items) == 0 {
 		return snapshots, nil
 	}
+	r.populateStatsSnapshots(ctx, items, snapshots, collectedAt)
+	return snapshots, nil
+}
 
-	workers := min(len(items), dockerStatsListWorkers)
-	if workers < 1 {
-		workers = 1
-	}
-
+func (r *DockerRuntime) populateStatsSnapshots(
+	ctx context.Context,
+	items []container.Summary,
+	snapshots []StatsSnapshot,
+	collectedAt time.Time,
+) {
 	indexes := make(chan int, len(items))
 	for index := range items {
 		indexes <- index
 	}
-	close(indexes)
+	close /* work queue */ (indexes)
 
 	var wg sync.WaitGroup
+	workers := dockerStatsWorkerCount(len(items))
 	wg.Add(workers)
 	for range workers {
 		go func() {
 			defer wg.Done()
 			for index := range indexes {
-				summary := dockerSummary(items[index])
-				resource := r.collectCachedResourceSummary(ctx, summary.ID)
-				snapshotCollectedAt := collectedAt
-				if parsedCollectedAt, ok := parseResourceCollectedAt(resource.CollectedAt); ok {
-					snapshotCollectedAt = parsedCollectedAt
-				} else if strings.TrimSpace(resource.CollectedAt) == "" {
-					resource.CollectedAt = collectedAt.Format(time.RFC3339)
-				}
-				snapshots[index] = StatsSnapshot{
-					ContainerID:  summary.ID,
-					Name:         summary.Name,
-					ShortID:      summary.ShortID,
-					Image:        summary.Image,
-					Runtime:      summary.Runtime,
-					State:        summary.State,
-					Status:       summary.Status,
-					Health:       summary.Health,
-					RestartCount: summary.RestartCount,
-					Resource:     resource,
-					CollectedAt:  snapshotCollectedAt,
-				}
+				snapshots[index] = r.collectStatsSnapshot(ctx, items[index], collectedAt)
 			}
 		}()
 	}
 	wg.Wait()
-	return snapshots, nil
+}
+
+func dockerStatsWorkerCount(itemCount int) int {
+	workers := min(itemCount, dockerStatsListWorkers)
+	if workers < 1 {
+		return 1
+	}
+	return workers
+}
+
+func (r *DockerRuntime) collectStatsSnapshot(
+	ctx context.Context,
+	item container.Summary,
+	collectedAt time.Time,
+) StatsSnapshot {
+	summary := dockerSummary(item)
+	resource := r.collectCachedResourceSummary(ctx, summary.ID)
+	snapshotCollectedAt, resource := normalizeResourceCollectedAt(resource, collectedAt)
+	return StatsSnapshot{
+		ContainerID:  summary.ID,
+		Name:         summary.Name,
+		ShortID:      summary.ShortID,
+		Image:        summary.Image,
+		Runtime:      summary.Runtime,
+		State:        summary.State,
+		Status:       summary.Status,
+		Health:       summary.Health,
+		RestartCount: summary.RestartCount,
+		Resource:     resource,
+		CollectedAt:  snapshotCollectedAt,
+	}
+}
+
+func normalizeResourceCollectedAt(resource ResourceSummary, fallback time.Time) (time.Time, ResourceSummary) {
+	if parsedCollectedAt, ok := parseResourceCollectedAt(resource.CollectedAt); ok {
+		return parsedCollectedAt, resource
+	}
+	if strings.TrimSpace(resource.CollectedAt) == "" {
+		resource.CollectedAt = fallback.Format(time.RFC3339)
+	}
+	return fallback, resource
 }
 
 func (r *DockerRuntime) collectCachedResourceSummary(ctx context.Context, id string) ResourceSummary {
@@ -352,7 +376,7 @@ func (r *DockerRuntime) clearCPUStatsBaselines(ids ...string) {
 		if normalizedID == "" {
 			continue
 		}
-		delete(r.cpuBaselines, normalizedID)
+		delete /* cpu baseline */ (r.cpuBaselines, normalizedID)
 	}
 }
 
@@ -437,6 +461,28 @@ func resourceStatsErrorReason(err error) string {
 		return containerStatsTimeoutReason
 	}
 	return containerStatsUnavailableReason
+}
+
+func closeDockerStatsReaderBody(logger *zap.Logger, body interface{ Close() error }) {
+	if body == nil {
+		return
+	}
+	if err := body.Close(); err != nil && logger != nil {
+		logsafe.Debug(logger, "close docker stats reader failed", zap.Error(err))
+	}
+}
+
+func (r *DockerRuntime) logResourceStatsFailure(message string, containerID string, err error) {
+	if r == nil || r.logger == nil {
+		return
+	}
+	fields := []zap.Field{
+		zap.String("container", strings.TrimSpace(containerID)),
+	}
+	if err != nil {
+		fields = append(fields, zap.Error(err))
+	}
+	logsafe.Debug(r.logger, message, fields...)
 }
 
 // resourceStatsErrorMessage 将资源统计原因转换为用户可读的错误消息。
