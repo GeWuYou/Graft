@@ -56,6 +56,9 @@
         "code_duplication"
       ],
       "noiseExcludes": [
+        "server/modules/audit/service_normalization.go",
+        "server/modules/rbac/storeent/repository_records.go",
+        "server/modules/rbac/storeent/repository_scan.go",
         "server/modules/**/mapper_http.go",
         "server/modules/**/route_registration.go",
         "server/modules/**/module.go",

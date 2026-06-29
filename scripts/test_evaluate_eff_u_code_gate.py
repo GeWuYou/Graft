@@ -129,6 +129,30 @@ class EvaluateRuleTests(unittest.TestCase):
         self.assertEqual(evaluation.status, "suppressed-noise")
         self.assertEqual(evaluation.noise_reason, "declarative duplication surface")
 
+    def test_duplication_structural_mirror_candidates_are_configured_as_noise(self) -> None:
+        gate_config = json.loads((MODULE.REPO_ROOT / "scripts" / "eff-u-code.gate.json").read_text(encoding="utf-8"))
+        duplication_rule = gate_config["gateRules"]["duplication"]
+        candidates = [
+            "server/modules/audit/service_normalization.go",
+            "server/modules/rbac/storeent/repository_records.go",
+            "server/modules/rbac/storeent/repository_scan.go",
+        ]
+
+        for path in candidates:
+            with self.subTest(path=path):
+                evaluation = MODULE.evaluate_rule(
+                    path,
+                    "duplication",
+                    duplication_rule,
+                    "code_duplication",
+                    make_metric("code_duplication", 52.0, "8/40 duplicated"),
+                    make_metric("code_duplication", 90),
+                    is_new_file=False,
+                )
+
+                self.assertEqual(evaluation.status, "suppressed-noise")
+                self.assertEqual(evaluation.noise_reason, "declarative duplication surface")
+
     def test_reactive_tracking_noise_suppresses_error_handling(self) -> None:
         target = MODULE.REPO_ROOT / "web" / "src" / "modules" / "container" / "pages" / "detail" / "log-view-store.ts"
         target.parent.mkdir(parents=True, exist_ok=True)

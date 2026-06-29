@@ -165,6 +165,7 @@ workflow 级 thin skill 也不得定义第二套 intake truth；如果存在 `gr
     - `Curated Score` 仅用于展示，不参与阻断；阻断必须完全由仓库规则集决定。
     - 文档 / 治理 Gate 必须独立于 `eff-u-code`：README、ADR、Contract、OpenAPI、Public API Comment 等结构化治理规则属于 `Graft`，不是 `eff-u-code` 的一部分。
     - PR 门禁默认使用 changed / incremental 语义；本地全项目扫描是可选的集中治理入口，不得把二者混成同一套阻断语义。
+    - PR 门禁应优先拦截可操作的高价值问题；对仓库已接受的声明式镜像、扫描器/映射器对称实现、受治理允许的结构性重复，应通过仓库规则集显式降噪，而不是让其长期作为阻断噪声存在。
     - 全项目扫描应至少支持 `server`、`web` 和 `all` 三个本地入口，便于按前后端分治或集中治理。
 
 ### 4.3 Rejected By Default

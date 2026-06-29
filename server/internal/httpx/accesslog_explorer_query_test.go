@@ -8,7 +8,11 @@ import (
 )
 
 func TestBindAccessLogListQueryRejectsOutOfRangeNumericFilters(t *testing.T) {
+	prevMode := gin.Mode()
 	gin.SetMode(gin.TestMode)
+	t.Cleanup(func() {
+		gin.SetMode(prevMode)
+	})
 
 	testCases := []struct {
 		name         string
@@ -36,7 +40,11 @@ func TestBindAccessLogListQueryRejectsOutOfRangeNumericFilters(t *testing.T) {
 }
 
 func TestBindAccessLogListQueryAcceptsValidNumericFilters(t *testing.T) {
+	prevMode := gin.Mode()
 	gin.SetMode(gin.TestMode)
+	t.Cleanup(func() {
+		gin.SetMode(prevMode)
+	})
 
 	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 	ctx.Request = httptest.NewRequest("GET", "/access-log?status_code=404&duration_min_ms=10&duration_max_ms=50", nil)
