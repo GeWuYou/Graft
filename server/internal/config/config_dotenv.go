@@ -61,12 +61,14 @@ func dotenvSearchDirs(start string) []string {
 	for {
 		dirs = append(dirs, current)
 
-		if isDotenvSearchBoundary(current) {
-			return dirs
-		}
-
 		parent := filepath.Dir(current)
 		if parent == current {
+			return dirs
+		}
+		if isDotenvSearchBoundary(current) {
+			if filepath.Base(current) == "server" {
+				dirs = append(dirs, parent)
+			}
 			return dirs
 		}
 		current = parent

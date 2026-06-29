@@ -149,6 +149,13 @@ func handleAuditManageAuthorizationError(
 }
 
 func abortAuditReadInternal(ginCtx *gin.Context, ctx *module.Context) {
+	if ginCtx == nil || ginCtx.Request == nil {
+		return
+	}
+	if ctx == nil {
+		httpx.AbortLocalizedError(ginCtx, nil, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+		return
+	}
 	httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
 }
 
@@ -353,7 +360,7 @@ func bindAuditReadID[T any](
 	config auditReadByIDConfig[T],
 ) (uint64, bool) {
 	id, ok, err := parseOptionalUint64Param(ginCtx, config.param)
-	if err == nil && ok {
+	if err == nil && ok && id > 0 {
 		return id, true
 	}
 	httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), map[string]any{

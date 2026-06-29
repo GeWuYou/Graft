@@ -311,6 +311,7 @@ type RunFinishCommand struct {
 type TaskRepository interface {
 	SeedBuiltinTasks(ctx context.Context, tasks []TaskDefinition) error
 	CreateTask(ctx context.Context, task TaskDefinition) (TaskDefinition, error)
+	ReplaceTask(ctx context.Context, task TaskDefinition) (TaskDefinition, error)
 	UpdateTask(ctx context.Context, key string, patch TaskMutation) (TaskDefinition, error)
 	DeleteTask(ctx context.Context, key string) error
 	SetTaskEnabled(ctx context.Context, key string, enabled bool) (TaskDefinition, error)
@@ -346,6 +347,7 @@ type CronRuntime struct {
 	defaultConfigs  DefaultConfigResolver
 	failureNotifier RunFailureNotifier
 	successNotifier RunSuccessNotifier
+	addSchedule     func(key string, schedule string, run func(context.Context) (TaskRun, error)) (cron.EntryID, error)
 	now             func() time.Time
 }
 

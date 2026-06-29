@@ -197,6 +197,7 @@ def validate_ai_tooling_doc() -> list[Finding]:
         "memory",
         "postgres",
         "AI tooling evidence",
+        "文档 / 治理 Gate 必须独立于 `eff-u-code`",
     )
     findings.extend(missing_exact_terms(text, AI_TOOLING_DOC, "AI tooling governance", exact_terms))
     findings.extend(
@@ -245,11 +246,9 @@ def validate_ai_tooling_doc() -> list[Finding]:
                 (
                     "governance gate independent from eff-u-code",
                     (
-                        r"README",
-                        r"ADR",
-                        r"Contract",
-                        r"OpenAPI",
-                        r"Public API Comment|公开 API 注释",
+                        r"(文档\s*/\s*治理\s*Gate|governance gate).{0,80}(独立于|independent from).{0,40}eff-u-code",
+                        r"README.{0,80}ADR.{0,80}Contract.{0,80}OpenAPI.{0,80}(Public API Comment|公开 API 注释)",
+                        r"(属于|belongs to).{0,60}Graft.{0,80}(不是|not).{0,40}eff-u-code",
                     ),
                 ),
                 ("RTK prefix rule is forbidden", (r"不得|must not", r"always prefix with\s+`?rtk`?")),
@@ -348,6 +347,7 @@ def validate_environment_inventory() -> list[Finding]:
     exact_terms = (
         "eff_u_code:",
         "Keep eff-u-code as a local helper and raw JSON source; the repository root package.json wrapper and repository-owned evaluator are allowed, but do not add eff-u-code directly to server/go.mod, web/package.json, runtime scripts, deployment flows, or completion gates, and do not use the upstream total score as the gate contract.",
+        "repository_gate_role: \"When quality gating is enabled, the repository-owned evaluator and CI job own the gate contract; eff-u-code remains a raw JSON source only and is not itself the acceptance contract.\"",
         "preferred: \"headroom mcp\"",
         ".ai/headroom/memory",
         ".ai/headroom/learn",
@@ -365,7 +365,8 @@ def validate_environment_inventory() -> list[Finding]:
             "AI environment inventory",
             (
                 ("Headroom CLI and MCP capabilities", (r"ai_headroom:\s*true", r"ai_headroom_mcp:\s*true")),
-                ("eff-u-code optional helper record", (r"ai_tools:", r"eff_u_code:", r"quality policy evaluator|repository-owned evaluator|raw JSON source", r"default_command:\s+\"bun run quality:eff-u-code --\"", r"gate_entrypoint:\s+\"bun run quality:eff-u-code:gate --\"", r"server/go\.mod", r"web/package\.json", r"validation flow|validation gate")),
+                ("eff-u-code optional helper record", (r"ai_tools:", r"eff_u_code:", r"raw JSON source", r"default_command:\s+\"bun run quality:eff-u-code --\"", r"gate_entrypoint:\s+\"bun run quality:eff-u-code:gate --\"", r"server/go\.mod", r"web/package\.json", r"validation flow|validation gate")),
+                ("eff-u-code split local helper and repository gate roles", (r"use_for:\s+\".*developer-local.*raw JSON report.*formal validation flow", r"repository_gate_role:\s+\".*repository-owned evaluator.*CI job.*gate contract.*not itself the acceptance contract")),
                 ("context compression tool selection", (r"context_compression:", r"preferred:\s+\"headroom mcp\"")),
                 ("controlled local Headroom directories", (r"controlled_local_dirs:", r"\.ai/headroom/memory", r"\.ai/headroom/learn")),
                 ("disallowed Headroom automation", (r"disallowed_by_default:", r"rtk instruction injection", r"automatic instructions write")),

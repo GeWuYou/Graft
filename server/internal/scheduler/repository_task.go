@@ -154,6 +154,53 @@ func (r *SQLTaskRepository) CreateTask(ctx context.Context, task TaskDefinition)
 	return taskDefinition, nil
 }
 
+// ReplaceTask restores one active scheduled task definition after a failed runtime refresh.
+func (r *SQLTaskRepository) ReplaceTask(ctx context.Context, task TaskDefinition) (TaskDefinition, error) {
+	if err := r.ensureTaskAvailable(); err != nil {
+		return TaskDefinition{}, err
+	}
+	if err := validateDefinition(task); err != nil {
+		return TaskDefinition{}, err
+	}
+	row := r.db.QueryRowContext(ctx, `UPDATE scheduled_tasks
+		SET job_key = $1,
+			title_key = $2,
+			title = $3,
+			description_key = $4,
+			description = $5,
+			cron_expression = $6,
+			enabled = $7,
+			builtin = $8,
+			config_json = $9,
+			config_source = $10,
+			created_at = $11,
+			updated_at = $12
+		WHERE task_key = $13 AND deleted_at = 0
+		RETURNING id, task_key, job_key, title_key, title, description_key, description, cron_expression, enabled, builtin, config_json, config_source, created_at, updated_at, deleted_at`,
+		task.JobKey,
+		task.TitleKey,
+		task.Title,
+		task.DescriptionKey,
+		task.Description,
+		task.CronExpression,
+		task.Enabled,
+		task.Builtin,
+		task.ConfigJSON,
+		task.ConfigSource,
+		task.CreatedAt.UTC(),
+		task.UpdatedAt.UTC(),
+		task.TaskKey,
+	)
+	taskDefinition, err := scanTaskDefinition(row)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return TaskDefinition{}, ErrTaskNotFound
+		}
+		return TaskDefinition{}, mapScheduledTaskWriteError(err)
+	}
+	return taskDefinition, nil
+}
+
 // UpdateTask applies mutable field changes to a scheduled task.
 func (r *SQLTaskRepository) UpdateTask(ctx context.Context, key string, patch TaskMutation) (TaskDefinition, error) {
 	if err := r.ensureTaskAvailable(); err != nil {

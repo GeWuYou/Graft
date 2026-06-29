@@ -162,21 +162,17 @@ func (r *Runtime) registerRealtimeSubscriptionRoutes() error {
 	})
 }
 
-func (r *Runtime) injectedRealtimeTicketService() realtimeauth.Service {
+func (r *Runtime) injectedRealtimeTicketService() (realtimeauth.Service, error) {
 	if r == nil || r.services == nil {
-		return nil
+		return nil, nil
 	}
 
-	resolved, err := r.services.Resolve((*realtimeauth.Service)(nil))
-	if err != nil {
-		return nil
-	}
-
-	service, ok := resolved.(realtimeauth.Service)
-	if !ok {
-		return nil
-	}
-	return service
+	return resolveRuntimeService[realtimeauth.Service](
+		r.services,
+		(*realtimeauth.Service)(nil),
+		"realtime ticket service",
+		"realtime ticket service",
+	)
 }
 
 func resolveRuntimeService[T any](

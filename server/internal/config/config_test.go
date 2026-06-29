@@ -262,6 +262,30 @@ func TestLoadStopsDotenvSearchAtWorkspaceBoundary(t *testing.T) {
 	assertEqual(t, "app name from workspace server/.env", cfg.App.Name, "project-server-dotenv")
 }
 
+func TestLoadReadsRepoRootDotenvFromServerRoot(t *testing.T) {
+	restoreEnv := clearGraftEnv(t)
+	t.Cleanup(restoreEnv)
+
+	root := t.TempDir()
+	serverRoot := filepath.Join(root, "server")
+	if err := os.MkdirAll(serverRoot, 0o750); err != nil {
+		t.Fatalf("create server root: %v", err)
+	}
+	chdir(t, serverRoot)
+
+	if err := os.WriteFile(filepath.Join(root, ".env"), []byte("GRAFT_APP_NAME=repo-root-dotenv\n"), 0o600); err != nil {
+		t.Fatalf("write repo root .env: %v", err)
+	}
+	t.Setenv("GRAFT_AUTH_JWT_SECRET", "repo-root-secret")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+
+	assertEqual(t, "app name from repo root .env", cfg.App.Name, "repo-root-dotenv")
+}
+
 // TestLoadKeepsRealEnvironmentBeforeDotenv 验证真实环境变量优先于 .env 中的默认值。
 func TestLoadKeepsRealEnvironmentBeforeDotenv(t *testing.T) {
 	restoreEnv := clearGraftEnv(t)

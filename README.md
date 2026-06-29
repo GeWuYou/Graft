@@ -304,7 +304,7 @@ format:check -> typecheck -> openapi:frontend-governance:check -> lint:i18n -> l
 Focused commands are fine during development, but completion, handoff, and merge readiness should use `bun run check`
 unless the task explicitly reports why a narrower validation was used.
 
-`eff-u-code` remains outside this flow as a direct acceptance contract even when it is installed locally. Blocking quality decisions, when enabled, must go through the repository-owned `Graft Quality Policy` evaluator instead of the upstream total score.
+`eff-u-code` remains outside this flow and is not a direct acceptance contract even when it is installed locally. Blocking quality decisions, when enabled, must go through the repository-owned `Graft Quality Policy` evaluator instead of the upstream total score.
 
 ## Container Deployment
 

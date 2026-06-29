@@ -87,7 +87,8 @@ ai_tools:
   eff_u_code:
     installed: true
     risk_level: "L1"
-    use_for: "Optional developer-local code quality hotspot inspection and raw JSON input for a repository-owned quality policy evaluator outside the formal validation flow."
+    use_for: "Optional developer-local code quality hotspot inspection and raw JSON report generation outside the formal validation flow."
+    repository_gate_role: "When quality gating is enabled, the repository-owned evaluator and CI job own the gate contract; eff-u-code remains a raw JSON source only and is not itself the acceptance contract."
     default_command: "bun run quality:eff-u-code --"
     gate_entrypoint: "bun run quality:eff-u-code:gate --"
     version: "2.2.2"
@@ -156,7 +157,7 @@ rules:
   - "Prefer gh-authenticated access for GitHub PR automation when gh is installed and logged in."
   - "Prefer python3 over complex bash for non-trivial scripting when python3 is available."
   - "Prefer bun for web installs when web/bun.lock exists; otherwise fall back to npm."
-  - "Keep eff-u-code as an optional developer-local helper and raw JSON source; when quality gating is needed, gate through a repository-owned evaluator rather than the upstream total score."
+  - "Keep eff-u-code as an optional developer-local helper and raw JSON source; when a repository quality gate or CI job is enabled, the repository-owned evaluator owns the gate contract rather than the upstream total score."
   - "Use graft-web-browser-agent for AI-assisted frontend screenshots and interactions; do not treat it as the web validation entrypoint."
   - "Use Playwright MCP only as a browser exploration aid; keep graft-web-browser-agent artifacts as auditable evidence."
   - "Use Context7 MCP for current third-party library documentation when repository truth is insufficient."

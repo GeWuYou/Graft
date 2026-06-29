@@ -36,7 +36,7 @@ func runValidateMigrationVersions(cmd *cobra.Command) error {
 	return nil
 }
 
-func runValidateOpenAPI(_ *cobra.Command, specPath string) error {
+func runValidateOpenAPI(cmd *cobra.Command, specPath string) error {
 	specPath = strings.TrimSpace(specPath)
 	if specPath == "" {
 		specPath = defaultOpenAPIRootSpec
@@ -59,7 +59,7 @@ func runValidateOpenAPI(_ *cobra.Command, specPath string) error {
 		return fmt.Errorf("validate openapi spec %q: %w", rootSpec, err)
 	}
 
-	if err := backendOpenAPIFreshnessRunner(); err != nil {
+	if err := backendOpenAPIFreshnessRunner(cmd); err != nil {
 		return err
 	}
 
@@ -67,7 +67,7 @@ func runValidateOpenAPI(_ *cobra.Command, specPath string) error {
 }
 
 // runValidateOpenAPIFreshness 验证嵌入式 OpenAPI 规范包和生成的后端规范是否为最新状态。
-func runValidateOpenAPIFreshness() error {
+func runValidateOpenAPIFreshness(cmd *cobra.Command) error {
 	repoRoot, err := resolveRepositoryRoot()
 	if err != nil {
 		return fmt.Errorf("resolve repository root for generated freshness validation: %w", err)
@@ -78,7 +78,9 @@ func runValidateOpenAPIFreshness() error {
 	}
 
 	scriptPath := filepath.Join(repoRoot, "scripts", "openapi_generated_freshness_check.py")
-	cmd := &cobra.Command{}
+	if cmd == nil {
+		cmd = &cobra.Command{}
+	}
 	for _, target := range backendOpenAPIFreshnessTargets {
 		if err := backendCommandRunner(cmd, "python3", scriptPath, "--target", target, "--mode", "check"); err != nil {
 			return fmt.Errorf("run backend generated freshness check: %w", err)

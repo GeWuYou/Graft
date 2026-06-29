@@ -47,15 +47,20 @@ func scanAccessLog(scanner accessLogScanner) (AccessLog, error) {
 	); err != nil {
 		return AccessLog{}, err
 	}
-	if id >= 0 {
-		record.ID = uint64(id)
+	if id < 0 {
+		return AccessLog{}, fmt.Errorf("access log id must be non-negative: %d", id)
+	}
+	record.ID = uint64(id)
+	userIDValue, err := nullableScannedUint64(userID)
+	if err != nil {
+		return AccessLog{}, err
 	}
 	record.TraceID = traceID.String
 	record.Route = route.String
 	record.ClientIP = clientIP.String
 	record.UserAgent = userAgent.String
 	record.Username = username.String
-	record.UserID = nullableScannedUint64(userID)
+	record.UserID = userIDValue
 	record.RequestSize = nullableScannedInt64(requestSize)
 	record.ResponseSize = nullableScannedInt64(responseSize)
 	record.StartedAt = startedAt.UTC()
@@ -106,12 +111,15 @@ func cloneInt64Pointer(value *int64) *int64 {
 	return &cloned
 }
 
-func nullableScannedUint64(value sql.NullInt64) *uint64 {
-	if !value.Valid || value.Int64 < 0 {
-		return nil
+func nullableScannedUint64(value sql.NullInt64) (*uint64, error) {
+	if !value.Valid {
+		return nil, nil
+	}
+	if value.Int64 < 0 {
+		return nil, fmt.Errorf("access log user id must be non-negative: %d", value.Int64)
 	}
 	converted := uint64(value.Int64)
-	return &converted
+	return &converted, nil
 }
 
 func nullableScannedInt64(value sql.NullInt64) *int64 {

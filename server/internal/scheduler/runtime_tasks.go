@@ -3,6 +3,7 @@ package scheduler
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"graft/server/internal/cronx"
 )
@@ -108,6 +109,9 @@ func (r *CronRuntime) CreateTask(ctx context.Context, command TaskMutation) (Tas
 		return TaskSnapshot{}, err
 	}
 	if err := r.refreshDefinitionSchedule(created); err != nil {
+		if rollbackErr := r.tasks.DeleteTask(ctx, created.TaskKey); rollbackErr != nil {
+			return TaskSnapshot{}, fmt.Errorf("refresh scheduler task %s: %w (rollback failed: %v)", created.TaskKey, err, rollbackErr)
+		}
 		return TaskSnapshot{}, err
 	}
 	return r.snapshotDefinition(ctx, created)
@@ -142,7 +146,7 @@ func (r *CronRuntime) UpdateTask(ctx context.Context, key string, command TaskMu
 		return TaskSnapshot{}, err
 	}
 	if err := r.refreshDefinitionSchedule(updated); err != nil {
-		return TaskSnapshot{}, err
+		return TaskSnapshot{}, r.revertTaskDefinition(ctx, existing, err)
 	}
 	return r.snapshotDefinition(ctx, updated)
 }
@@ -189,12 +193,16 @@ func (r *CronRuntime) SetTaskEnabled(ctx context.Context, key string, enabled bo
 	if r.tasks == nil {
 		return TaskSnapshot{}, errors.New("scheduler task repository is unavailable")
 	}
+	existing, err := r.tasks.GetTask(ctx, key)
+	if err != nil {
+		return TaskSnapshot{}, err
+	}
 	updated, err := r.tasks.SetTaskEnabled(ctx, key, enabled)
 	if err != nil {
 		return TaskSnapshot{}, err
 	}
 	if err := r.refreshDefinitionSchedule(updated); err != nil {
-		return TaskSnapshot{}, err
+		return TaskSnapshot{}, r.revertTaskDefinition(ctx, existing, err)
 	}
 	return r.snapshotDefinition(ctx, updated)
 }

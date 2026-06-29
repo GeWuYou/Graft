@@ -228,6 +228,63 @@ class CuratedScoreTests(unittest.TestCase):
             MODULE.curated_score([], gate_config)
 
 
+class OverrideConfigTests(unittest.TestCase):
+    def test_build_eff_u_code_overrides_preserves_defaults_and_expands_scope_top(self) -> None:
+        base_eff_config = {
+            "defaults": {"locale": "zh", "format": "console", "top": 20},
+            "targets": {
+                "server": {"path": "server", "exclude": ["**/*_test.go"]},
+            },
+        }
+        gate_config = {
+            "targets": {
+                "server": {
+                    "root": "server",
+                    "include": ["server/*.go", "server/**/*.go"],
+                    "exclude": ["server/**/*_test.go"],
+                }
+            }
+        }
+        scoped_candidates = {"server": [f"server/file-{index}.go" for index in range(25)]}
+
+        overrides = MODULE.build_eff_u_code_overrides(base_eff_config, gate_config, scoped_candidates, ["server"])
+
+        self.assertEqual(overrides["defaults"]["locale"], "zh")
+        self.assertEqual(overrides["targets"]["server"]["path"], "server")
+        self.assertEqual(overrides["targets"]["server"]["top"], 25)
+        self.assertEqual(overrides["targets"]["server"]["exclude"], ["**/*_test.go"])
+
+    def test_build_snapshot_eff_config_keeps_required_defaults(self) -> None:
+        base_eff_config = {
+            "defaults": {"locale": "zh", "format": "console", "top": 20},
+            "targets": {
+                "server": {"path": "server", "exclude": ["**/*_test.go"]},
+            },
+        }
+        gate_config = {
+            "targets": {
+                "server": {
+                    "root": "server",
+                    "include": ["server/*.go", "server/**/*.go"],
+                    "exclude": ["server/**/*_test.go"],
+                }
+            }
+        }
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            snapshot = MODULE.build_snapshot_eff_config(
+                base_eff_config,
+                gate_config,
+                Path(tmp_dir),
+                {"server": ["server/main.go"]},
+                ["server"],
+            )
+
+        self.assertEqual(snapshot["defaults"]["locale"], "zh")
+        self.assertEqual(snapshot["targets"]["server"]["top"], 20)
+        self.assertTrue(snapshot["targets"]["server"]["path"].endswith("/server"))
+
+
 class MainFlowTests(unittest.TestCase):
     def test_gate_passes_when_only_documentation_is_low(self) -> None:
         gate_config = {
@@ -422,7 +479,8 @@ class MainFlowTests(unittest.TestCase):
                 return path
 
             try:
-                with mock.patch.object(MODULE, "run_eff_u_code", side_effect=fake_run):
+                with mock.patch.object(MODULE, "run_eff_u_code", side_effect=fake_run), \
+                    mock.patch.object(MODULE, "list_scope_files_on_disk", return_value=["server/internal/runtime.go", "server/modules/foo/service.go"]):
                     argv = [
                         "evaluate_eff_u_code_gate.py",
                         "--config",
@@ -518,7 +576,8 @@ class MainFlowTests(unittest.TestCase):
                 return path
 
             try:
-                with mock.patch.object(MODULE, "run_eff_u_code", side_effect=fake_run):
+                with mock.patch.object(MODULE, "run_eff_u_code", side_effect=fake_run), \
+                    mock.patch.object(MODULE, "list_scope_files_on_disk", return_value=["web/src/pages/home.ts"]):
                     argv = [
                         "evaluate_eff_u_code_gate.py",
                         "--config",
@@ -541,6 +600,79 @@ class MainFlowTests(unittest.TestCase):
             self.assertEqual(result, 0)
             payload = json.loads(output_path.read_text(encoding="utf-8"))
             self.assertEqual(sorted(payload["scopes"].keys()), ["web"])
+
+    def test_gate_fails_when_candidate_file_is_unreported(self) -> None:
+        gate_config = {
+            "changedFiles": {"mode": "git-diff", "diffFilter": "ACMR"},
+            "targets": {
+                "server": {
+                    "root": "server",
+                    "include": ["server/*.go", "server/**/*.go"],
+                    "exclude": [],
+                }
+            },
+            "gateRules": {
+                "complexity": {
+                    "metrics": ["cyclomatic_complexity"],
+                    "threshold": 75,
+                    "regression": 5,
+                    "newFileThreshold": 75,
+                }
+            },
+            "curatedScore": {"participatesInGate": False, "weights": {"complexity": 1.0}},
+        }
+        report = {
+            "files": [
+                make_file("main.go", [make_metric("cyclomatic_complexity", 85)]),
+            ]
+        }
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            config_path = Path(tmp_dir) / "gate.json"
+            eff_path = Path(tmp_dir) / "eff.json"
+            report_path = Path(tmp_dir) / "report.json"
+            config_path.write_text(json.dumps(gate_config), encoding="utf-8")
+            eff_path.write_text(
+                json.dumps({"defaults": {"locale": "zh", "format": "console", "top": 20}, "targets": {"server": {"path": "server", "exclude": []}}}),
+                encoding="utf-8",
+            )
+
+            def fake_run(scope: str, *, output_dir: Path, eff_config_override: Path | None, base_ref: str | None = None) -> Path:
+                path = output_dir / f"eff-u-code-{scope}.json"
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(json.dumps(report), encoding="utf-8")
+                return path
+
+            def fake_run_git(args: list[str]) -> str:
+                if args[:2] == ["rev-parse", "HEAD"]:
+                    return "head-sha"
+                raise RuntimeError("skip base")
+
+            with mock.patch.object(MODULE, "ci_changed_files", return_value=["server/main.go", "server/extra.go"]), \
+                mock.patch.object(MODULE, "run_eff_u_code", side_effect=fake_run), \
+                mock.patch.object(MODULE, "run_git", side_effect=fake_run_git), \
+                mock.patch.object(MODULE, "export_git_snapshot", return_value=Path(tmp_dir) / "baseline-snapshot"):
+                (Path(tmp_dir) / "baseline-snapshot").mkdir(parents=True, exist_ok=True)
+                argv = [
+                    "evaluate_eff_u_code_gate.py",
+                    "--config",
+                    str(config_path),
+                    "--eff-u-code-config",
+                    str(eff_path),
+                    "--output-json",
+                    str(report_path),
+                    "--scopes",
+                    "server",
+                ]
+                with mock.patch.object(sys, "argv", argv):
+                    result = MODULE.main()
+
+            self.assertEqual(result, 1)
+            payload = json.loads(report_path.read_text(encoding="utf-8"))
+            self.assertEqual(payload["status"], "fail")
+            self.assertEqual(payload["summary"]["ruleFailures"], 0)
+            self.assertEqual(payload["summary"]["coverageFailures"], 1)
+            self.assertEqual(payload["scopes"]["server"]["unreportedFiles"], ["server/extra.go"])
 
 
 if __name__ == "__main__":

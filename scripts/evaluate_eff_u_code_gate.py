@@ -258,15 +258,35 @@ def scope_relative_excludes(scope: str, gate_config: dict[str, Any]) -> list[str
     return [to_scope_relative_pattern(pattern, scope, gate_config) for pattern in exclude]
 
 
-def build_eff_u_code_overrides(gate_config: dict[str, Any]) -> dict[str, Any]:
-    overrides = {"defaults": {}, "targets": {}}
-    targets = require_dict(gate_config, "targets", context="gate_config")
-    for scope, target in targets.items():
-        target_dict = require_dict(targets, scope, context="gate_config.targets")
-        overrides["targets"][scope] = {
-            "path": scope_root(scope, gate_config),
-            "exclude": scope_relative_excludes(scope, gate_config),
-        }
+def positive_int(value: Any) -> int:
+    if isinstance(value, bool):
+        return 0
+    if isinstance(value, int) and value > 0:
+        return value
+    return 0
+
+
+def build_eff_u_code_overrides(
+    base_eff_config: dict[str, Any],
+    gate_config: dict[str, Any],
+    scoped_candidates: dict[str, list[str]],
+    scopes: list[str],
+) -> dict[str, Any]:
+    defaults = dict(require_dict(base_eff_config, "defaults", context="eff_u_code_config"))
+    base_targets = require_dict(base_eff_config, "targets", context="eff_u_code_config")
+    overrides = {"defaults": defaults, "targets": {}}
+    defaults_top = positive_int(defaults.get("top"))
+
+    for scope in scopes:
+        base_target = base_targets.get(scope)
+        if not isinstance(base_target, dict):
+            raise GateConfigError(f"eff_u_code_config.targets.{scope} must be an object")
+        candidate_top = max(1, len(scoped_candidates.get(scope, [])))
+        merged_target = dict(base_target)
+        merged_target["path"] = scope_root(scope, gate_config)
+        merged_target["exclude"] = scope_relative_excludes(scope, gate_config)
+        merged_target["top"] = max(defaults_top, positive_int(base_target.get("top")), candidate_top)
+        overrides["targets"][scope] = merged_target
     return overrides
 
 
@@ -313,16 +333,17 @@ def export_git_snapshot(revision: str, destination: pathlib.Path) -> pathlib.Pat
     return extract_dir
 
 
-def build_snapshot_eff_config(gate_config: dict[str, Any], snapshot_root: pathlib.Path) -> dict[str, Any]:
-    config = {"defaults": {}, "targets": {}}
-    targets = require_dict(gate_config, "targets", context="gate_config")
-    for scope, raw_target in targets.items():
-        target = require_dict(targets, scope, context="gate_config.targets")
-        root = require_string(target, "root", context=f"gate_config.targets.{scope}")
-        config["targets"][scope] = {
-            "path": str((snapshot_root / root).resolve()),
-            "exclude": scope_relative_excludes(scope, gate_config),
-        }
+def build_snapshot_eff_config(
+    base_eff_config: dict[str, Any],
+    gate_config: dict[str, Any],
+    snapshot_root: pathlib.Path,
+    scoped_candidates: dict[str, list[str]],
+    scopes: list[str],
+) -> dict[str, Any]:
+    config = build_eff_u_code_overrides(base_eff_config, gate_config, scoped_candidates, scopes)
+    for scope in scopes:
+        root = require_string(target_config(scope, gate_config), "root", context=f"gate_config.targets.{scope}")
+        config["targets"][scope]["path"] = str((snapshot_root / root).resolve())
     return config
 
 
@@ -528,20 +549,7 @@ def main() -> int:
             return 0
 
         base_eff_config = load_json(pathlib.Path(args.eff_u_code_config))
-        override = build_eff_u_code_overrides(gate_config)
-        merged_eff_config = dict(base_eff_config)
-        merged_defaults = base_eff_config.get("defaults")
-        if not isinstance(merged_defaults, dict):
-            merged_defaults = {}
-        else:
-            merged_defaults = dict(merged_defaults)
-        if args.scan_mode == "project":
-            project_top = max((len(paths) for paths in scoped_candidates.values() if paths), default=1)
-            existing_top = merged_defaults.get("top")
-            existing_top_value = existing_top if isinstance(existing_top, int) and existing_top > 0 else 0
-            merged_defaults["top"] = max(existing_top_value, project_top)
-        merged_eff_config["defaults"] = merged_defaults
-        merged_eff_config["targets"] = override["targets"]
+        merged_eff_config = build_eff_u_code_overrides(base_eff_config, gate_config, scoped_candidates, selected_scopes)
 
         if args.report_dir:
             report_dir = pathlib.Path(args.report_dir).resolve()
@@ -578,7 +586,13 @@ def main() -> int:
                 merge_base = ""
             if merge_base:
                 snapshot_root = export_git_snapshot(merge_base, report_dir / "baseline")
-                snapshot_eff_config = build_snapshot_eff_config(gate_config, snapshot_root)
+                snapshot_eff_config = build_snapshot_eff_config(
+                    base_eff_config,
+                    gate_config,
+                    snapshot_root,
+                    scoped_candidates,
+                    selected_scopes,
+                )
                 snapshot_eff_config_path = report_dir / "eff-u-code-gate.baseline.override.json"
                 snapshot_eff_config_path.write_text(
                     json.dumps(snapshot_eff_config, ensure_ascii=False, indent=2) + "\n",
@@ -595,7 +609,8 @@ def main() -> int:
 
         gate_rules = require_dict(gate_config, "gateRules", context="gate_config")
         scope_results: dict[str, Any] = {}
-        overall_failures = 0
+        overall_rule_failures = 0
+        overall_unreported_failures = 0
 
         for scope in selected_scopes:
             head_index = build_file_index(head_reports[scope])
@@ -636,7 +651,7 @@ def main() -> int:
                 file_curated = curated_score(evaluations, gate_config)
                 failures = [evaluation for evaluation in evaluations if evaluation.status == "fail"]
                 advisories = [evaluation for evaluation in evaluations if evaluation.status not in {"pass", "display-only"}]
-                overall_failures += len(failures)
+                overall_rule_failures += len(failures)
                 file_results.append(
                     {
                         "path": candidate_path,
@@ -673,13 +688,16 @@ def main() -> int:
                         ],
                     }
                 )
+            overall_unreported_failures += len(unreported_files)
             scope_results[scope] = {
                 "changedFiles": scoped_candidates[scope] if args.scan_mode == "changed" else [],
                 "candidateFiles": scoped_candidates[scope],
                 "unreportedFiles": unreported_files,
+                "coverageStatus": "fail" if unreported_files else "pass",
                 "files": file_results,
             }
 
+        overall_failures = overall_rule_failures + overall_unreported_failures
         result = {
             "status": "fail" if overall_failures else "pass",
             "policy": "Graft Quality Policy",
@@ -692,6 +710,8 @@ def main() -> int:
             "summary": {
                 "filesEvaluated": sum(len(scope_results[scope]["files"]) for scope in scope_results),
                 "failures": overall_failures,
+                "ruleFailures": overall_rule_failures,
+                "coverageFailures": overall_unreported_failures,
                 "unreportedFiles": sum(len(scope_results[scope]["unreportedFiles"]) for scope in scope_results),
             },
         }
@@ -713,7 +733,7 @@ def main() -> int:
                     f"failing={len(scope_file_results)} "
                     f"unreported={len(scope_results[scope]['unreportedFiles'])}"
                 )
-                if not scope_file_results:
+                if not scope_file_results and not scope_results[scope]["unreportedFiles"]:
                     continue
             for file_result in scope_file_results:
                 print(file_result["path"])
@@ -746,8 +766,10 @@ def main() -> int:
                         f"  FAIL {failing['rule']}::{failing['metric']} "
                         f"current={failing['currentScore']:.1f} baseline={baseline} threshold={threshold} {failing['details']}"
                     )
-            if args.scan_mode != "project" and scope_results[scope]["unreportedFiles"]:
+            if scope_results[scope]["unreportedFiles"]:
                 print(f"  unreported by eff-u-code: {len(scope_results[scope]['unreportedFiles'])}")
+                for path in scope_results[scope]["unreportedFiles"]:
+                    print(f"  UNREPORTED {path}")
 
         return 1 if overall_failures else 0
     except GateConfigError as exc:

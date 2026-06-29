@@ -3,6 +3,7 @@ package scheduler
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -35,8 +36,11 @@ func (r *CronRuntime) RunAction(ctx context.Context, taskKey string, actionKey s
 		return JobActionResult{}, validationErr
 	}
 	result, runErr := invokeJobAction(ctx, execution.job, execution.action.Key, effectiveConfig)
-	_, _ = completeJobRunResult(&result, runErr)
+	status, errorMessage := completeJobRunResult(&result, runErr)
 	if runErr != nil {
+		if status != RunStatusFailed || errorMessage == "" {
+			return JobActionResult{}, fmt.Errorf("scheduler action failure normalization mismatch")
+		}
 		return jobActionResult(execution, result, effectiveConfig), runErr
 	}
 	return jobActionResult(execution, result, effectiveConfig), nil
@@ -58,7 +62,7 @@ func (r *CronRuntime) Start(ctx context.Context) error {
 		return nil
 	}
 	if r.tasks != nil {
-		definitions, _, err := r.tasks.ListTasks(ctx, TaskListQuery{})
+		definitions, err := r.listAllTaskDefinitions(ctx)
 		if err != nil {
 			return err
 		}
@@ -159,7 +163,9 @@ func (r *CronRuntime) snapshotDefinition(ctx context.Context, definition TaskDef
 		UpdatedAt:      definition.UpdatedAt,
 		DeletedAt:      definition.DeletedAt,
 	}
-	if jobDefinition, err := r.requireKnownJob(ctx, definition.JobKey); err == nil {
+	jobDefinition, err := r.requireKnownJob(ctx, definition.JobKey)
+	switch {
+	case err == nil:
 		taskConfig, taskConfigErr := r.taskConfigForEffective(definition)
 		if taskConfigErr != nil {
 			return TaskSnapshot{}, taskConfigErr
@@ -171,6 +177,8 @@ func (r *CronRuntime) snapshotDefinition(ctx context.Context, definition TaskDef
 		snapshot.EffectiveConfig = effectiveConfig
 		jobSnapshot := jobDefinitionSnapshot(jobDefinition)
 		snapshot.JobDefinition = &jobSnapshot
+	case !errors.Is(err, ErrJobDefinitionNotFound):
+		return TaskSnapshot{}, err
 	}
 	r.mu.RLock()
 	_, snapshot.Running = r.running[definition.TaskKey]
@@ -187,6 +195,23 @@ func (r *CronRuntime) snapshotDefinition(ctx context.Context, definition TaskDef
 		snapshot.LastRun = &latest
 	}
 	return snapshot, nil
+}
+
+func (r *CronRuntime) listAllTaskDefinitions(ctx context.Context) ([]TaskDefinition, error) {
+	pageSize := maxTaskListLimit
+	definitions := make([]TaskDefinition, 0)
+	offset := 0
+	for {
+		page, total, err := r.tasks.ListTasks(ctx, TaskListQuery{Limit: pageSize, Offset: offset})
+		if err != nil {
+			return nil, err
+		}
+		definitions = append(definitions, page...)
+		offset += len(page)
+		if len(page) == 0 || offset >= total {
+			return definitions, nil
+		}
+	}
 }
 
 func (r *CronRuntime) nextRunAtLocked(key string) *time.Time {
@@ -217,12 +242,11 @@ func (r *CronRuntime) runDefinition(ctx context.Context, definition TaskDefiniti
 	}
 	defer r.markFinished(definition.TaskKey)
 
-	run, err := r.createStartedRun(ctx, definition, trigger.Type)
+	effectiveConfig, err := r.effectiveConfigForRun(ctx, definition)
 	if err != nil {
 		return TaskRun{}, err
 	}
-
-	effectiveConfig, err := r.effectiveConfigForRun(ctx, definition)
+	run, err := r.createStartedRun(ctx, definition, trigger.Type)
 	if err != nil {
 		return TaskRun{}, err
 	}
@@ -285,13 +309,16 @@ func (r *CronRuntime) effectiveConfigForRun(ctx context.Context, definition Task
 func (r *CronRuntime) finishRun(ctx context.Context, id uint64, trigger RunTrigger, result cronx.JobRunResult, runErr error) (TaskRun, error) {
 	command := r.runFinishCommand(id, result, runErr)
 	finished, err := r.runs.FinishRun(finishRunContext(ctx), command)
-	if err == nil && finished.Status == RunStatusFailed {
+	if err != nil {
+		return finished, err
+	}
+	if finished.Status == RunStatusFailed {
 		r.notifyRunFailed(ctx, finished)
 	}
-	if err == nil && finished.Status == RunStatusSuccess && trigger.Type == TriggerTypeManual {
+	if finished.Status == RunStatusSuccess && trigger.Type == TriggerTypeManual {
 		r.notifyRunSucceeded(ctx, finished, trigger)
 	}
-	return finished, err
+	return finished, nil
 }
 
 func (r *CronRuntime) runFinishCommand(id uint64, result cronx.JobRunResult, runErr error) RunFinishCommand {
@@ -390,24 +417,31 @@ func (r *CronRuntime) refreshDefinitionSchedule(definition TaskDefinition) error
 
 func (r *CronRuntime) refreshDefinitionScheduleLocked(definition TaskDefinition) error {
 	key := definition.TaskKey
-	if entryID, ok := r.entries[key]; ok {
-		r.cron.Remove(entryID)
-		delete(r.entries, key)
-	}
+	entryID, hadExisting := r.entries[key]
 	if !definition.Enabled || definition.DeletedAt != nil {
+		if hadExisting {
+			r.cron.Remove(entryID)
+			r.entries = entriesWithoutKey(r.entries, key)
+		}
 		return nil
 	}
-	entryID, err := r.addCronFuncLocked(key, definition.CronExpression, func(runCtx context.Context) (TaskRun, error) {
+	nextEntryID, err := r.addCronFuncLocked(key, definition.CronExpression, func(runCtx context.Context) (TaskRun, error) {
 		return r.runDefinition(runCtx, definition, RunTrigger{Type: TriggerTypeCron})
 	})
 	if err != nil {
 		return err
 	}
-	r.entries[key] = entryID
+	if hadExisting {
+		r.cron.Remove(entryID)
+	}
+	r.entries[key] = nextEntryID
 	return nil
 }
 
 func (r *CronRuntime) addCronFuncLocked(key string, schedule string, run func(context.Context) (TaskRun, error)) (cron.EntryID, error) {
+	if r.addSchedule != nil {
+		return r.addSchedule(key, schedule, run)
+	}
 	return r.cron.AddFunc(schedule, func() {
 		runCtx := r.jobContext()
 		if runCtx == nil {
@@ -429,9 +463,30 @@ func (r *CronRuntime) removeScheduleIfExists(key string) error {
 	defer r.mu.Unlock()
 	if entryID, ok := r.entries[key]; ok {
 		r.cron.Remove(entryID)
-		delete(r.entries, key)
+		r.entries = entriesWithoutKey(r.entries, key)
 	}
 	return nil
+}
+
+func entriesWithoutKey(entries map[string]cron.EntryID, key string) map[string]cron.EntryID {
+	if len(entries) == 0 {
+		return entries
+	}
+	nextEntries := make(map[string]cron.EntryID, len(entries)-1)
+	for existingKey, entryID := range entries {
+		if existingKey == key {
+			continue
+		}
+		nextEntries[existingKey] = entryID
+	}
+	return nextEntries
+}
+
+func (r *CronRuntime) revertTaskDefinition(ctx context.Context, previous TaskDefinition, refreshErr error) error {
+	if _, err := r.tasks.ReplaceTask(ctx, previous); err != nil {
+		return fmt.Errorf("refresh scheduler task %s: %w (rollback failed: %v)", previous.TaskKey, refreshErr, err)
+	}
+	return refreshErr
 }
 
 func (r *CronRuntime) ensureKnownTask(ctx context.Context, key string) error {

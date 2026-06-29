@@ -8,6 +8,7 @@
     "server": {
       "root": "server",
       "include": [
+        "server/*.go",
         "server/**/*.go"
       ],
       "exclude": [
@@ -21,6 +22,9 @@
     "web": {
       "root": "web/src",
       "include": [
+        "web/src/*.ts",
+        "web/src/*.tsx",
+        "web/src/*.vue",
         "web/src/**/*.ts",
         "web/src/**/*.tsx",
         "web/src/**/*.vue"

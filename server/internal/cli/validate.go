@@ -73,7 +73,9 @@ var backendGoTestRunner = runBackendGoTest
 var backendGoBuildRunner = runBackendGoBuild
 var backendSmokeRunner = runValidateSmoke
 var backendOpenAPIRunner = runValidateOpenAPI
-var backendOpenAPIFreshnessRunner = runValidateOpenAPIFreshness
+var backendOpenAPIFreshnessRunner = func(cmd *cobra.Command) error {
+	return runValidateOpenAPIFreshness(cmd)
+}
 var backendMigrationVersionRunner = runValidateMigrationVersions
 var backendReleaseRunner = runValidateRelease
 var buildReleaseInfoSnapshot = buildinfo.Current

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"go.uber.org/zap"
 
@@ -293,7 +294,18 @@ func shutdownModules(ctx *module.Context, ordered []module.RuntimeModule) error 
 }
 
 func withModuleShutdownContext(ctx *module.Context) (*module.Context, context.CancelFunc) {
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), moduleShutdownTimeout)
+	parent := context.Background()
+	if ctx != nil && ctx.LifecycleContext != nil {
+		parent = ctx.LifecycleContext
+	}
+
+	base := context.WithoutCancel(parent)
+	deadline := time.Now().Add(moduleShutdownTimeout)
+	if parentDeadline, ok := parent.Deadline(); ok && parentDeadline.After(time.Now()) && parentDeadline.Before(deadline) {
+		deadline = parentDeadline
+	}
+
+	shutdownCtx, cancel := context.WithDeadline(base, deadline)
 	if ctx == nil {
 		return &module.Context{LifecycleContext: shutdownCtx}, cancel
 	}

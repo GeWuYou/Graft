@@ -36,6 +36,12 @@ type migrationDirSource struct {
 	hasAtlasState bool
 }
 
+type migrationDirResolutionPlan struct {
+	dirs                   []string
+	alreadyResolved        bool
+	includeAllResolvedDirs bool
+}
+
 // buildAtlasMigrationDir 根据迁移目录规范构造 Atlas 迁移目录。
 // 规范可指定默认链、仓库拥有目录或外部路径（"file:" 前缀）。baseDir 用于解析外部路径。
 func buildAtlasMigrationDir(baseDir string, migrationDir string) (atlasmigrate.Dir, error) {
@@ -291,6 +297,9 @@ func copyMigrationSourceFiles(
 
 	copiedCount := 0
 	for _, file := range files {
+		if file.Name() == atlasmigrate.HashFileName {
+			continue
+		}
 		if err := validateSynthesizedMigrationFile(sourceDir.path, file.Name(), copiedNames, copiedVersions); err != nil {
 			return 0, err
 		}
@@ -339,32 +348,30 @@ func migrationFileVersion(name string) string {
 // 默认目录不再直接等同于单个 core 迁移路径；它会先回到 compile-time
 // registry 读取当前进程声明的完整目录集合，再逐一解析为绝对路径。
 func resolveMigrationDirs(baseDir string, migrationDir string) ([]string, error) {
-	if strings.TrimSpace(migrationDir) == "" {
-		return nil, fmt.Errorf("migration dir is required")
+	input, err := parseMigrationDirInput(migrationDir)
+	if err != nil {
+		return nil, err
 	}
 
-	includeAllResolvedDirs := true
-	searchDirs := []string{migrationDir}
-	if migrationDir == defaultMigrationDir {
-		var err error
-		searchDirs, err = migrateRegistryMigrationDirs()
-		if err != nil {
-			return nil, fmt.Errorf("load compile-time migration registry: %w", err)
-		}
-		includeAllResolvedDirs = false
+	plan, err := planMigrationDirResolution(baseDir, input)
+	if err != nil {
+		return nil, err
+	}
+	if plan.alreadyResolved {
+		return plan.dirs, nil
 	}
 
-	resolved := make([]string, 0, len(searchDirs))
-	for _, current := range searchDirs {
+	resolved := make([]string, 0, len(plan.dirs))
+	for _, current := range plan.dirs {
 		absDir, err := resolveMigrationDir(baseDir, current)
 		if err != nil {
-			if shouldSkipMissingMigrationDir(includeAllResolvedDirs, err) {
+			if shouldSkipMissingMigrationDir(plan.includeAllResolvedDirs, err) {
 				continue
 			}
 			return nil, err
 		}
 
-		resolved, err = appendResolvedMigrationDir(resolved, absDir, includeAllResolvedDirs)
+		resolved, err = appendResolvedMigrationDir(resolved, absDir, plan.includeAllResolvedDirs)
 		if err != nil {
 			return nil, err
 		}
@@ -375,6 +382,36 @@ func resolveMigrationDirs(baseDir string, migrationDir string) ([]string, error)
 	}
 
 	return resolved, nil
+}
+
+func planMigrationDirResolution(baseDir string, input migrationDirInput) (migrationDirResolutionPlan, error) {
+	switch input.kind {
+	case migrationDirInputKindDefault:
+		searchDirs, err := migrateRegistryMigrationDirs()
+		if err != nil {
+			return migrationDirResolutionPlan{}, fmt.Errorf("load compile-time migration registry: %w", err)
+		}
+		return migrationDirResolutionPlan{
+			dirs:                   searchDirs,
+			includeAllResolvedDirs: false,
+		}, nil
+	case migrationDirInputKindRepoOwned:
+		return migrationDirResolutionPlan{
+			dirs:                   []string{input.selector},
+			includeAllResolvedDirs: true,
+		}, nil
+	case migrationDirInputKindExternal:
+		absDir, err := resolveExternalMigrationDir(baseDir, input.externalPath)
+		if err != nil {
+			return migrationDirResolutionPlan{}, err
+		}
+		return migrationDirResolutionPlan{
+			dirs:            []string{absDir},
+			alreadyResolved: true,
+		}, nil
+	default:
+		return migrationDirResolutionPlan{}, fmt.Errorf("unsupported migration dir input %q", input.displayValue)
+	}
 }
 
 func shouldSkipMissingMigrationDir(includeAllResolvedDirs bool, err error) bool {

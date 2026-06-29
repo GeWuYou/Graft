@@ -235,7 +235,7 @@ func validateCronExpression(expression string) error {
 
 func isJSONObject(value string) bool {
 	var decoded map[string]any
-	return json.Unmarshal([]byte(strings.TrimSpace(value)), &decoded) == nil
+	return json.Unmarshal([]byte(strings.TrimSpace(value)), &decoded) == nil && decoded != nil
 }
 
 func sameJSONObject(left string, right string) bool {
@@ -245,6 +245,9 @@ func sameJSONObject(left string, right string) bool {
 		return false
 	}
 	if json.Unmarshal([]byte(strings.TrimSpace(right)), &rightDecoded) != nil {
+		return false
+	}
+	if leftDecoded == nil || rightDecoded == nil {
 		return false
 	}
 	return reflect.DeepEqual(leftDecoded, rightDecoded)

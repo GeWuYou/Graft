@@ -65,6 +65,20 @@ func TestSQLRunRepositoryPersistsRunLifecycle(t *testing.T) {
 	assertLatestBuiltinRun(t, latest, ok, run.ID)
 }
 
+func TestSQLRunRepositoryGetAndFinishRequireAvailableRepository(t *testing.T) {
+	var repo *SQLRunRepository
+	if _, err := repo.GetRun(context.Background(), 1); err == nil || err.Error() != "scheduler run repository is unavailable" {
+		t.Fatalf("expected unavailable repository error from GetRun, got %v", err)
+	}
+	if _, err := repo.FinishRun(context.Background(), RunFinishCommand{
+		ID:         1,
+		Status:     RunStatusSuccess,
+		FinishedAt: time.Now().UTC(),
+	}); err == nil || err.Error() != "scheduler run repository is unavailable" {
+		t.Fatalf("expected unavailable repository error from FinishRun, got %v", err)
+	}
+}
+
 func assertFinishedSuccessRun(t *testing.T, run TaskRun) {
 	t.Helper()
 	if run.Status != RunStatusSuccess || run.DurationMS == nil || *run.DurationMS != 1500 {
@@ -432,6 +446,51 @@ func TestSQLTaskRepositoryListTasksNormalizesPagination(t *testing.T) {
 	}
 	if total != maxTaskListLimit+5 || len(items) != maxTaskListLimit {
 		t.Fatalf("expected capped limit to keep bounded query and return available tasks, got total=%d items=%d", total, len(items))
+	}
+}
+
+func TestSQLTaskRepositoryReplaceTaskRestoresPersistedDefinition(t *testing.T) {
+	db := newSchedulerRepositoryTestDB(t)
+	repo, err := NewSQLTaskRepository(db)
+	if err != nil {
+		t.Fatalf("new task repository: %v", err)
+	}
+
+	ctx := context.Background()
+	created, err := repo.CreateTask(ctx, TaskDefinition{
+		TaskKey:        "custom",
+		JobKey:         "custom-job",
+		Title:          "Custom",
+		CronExpression: "*/5 * * * * *",
+		Enabled:        true,
+		ConfigJSON:     `{}`,
+		ConfigSource:   taskConfigSourceUser,
+		CreatedAt:      time.Date(2026, 6, 5, 8, 0, 0, 0, time.UTC),
+		UpdatedAt:      time.Date(2026, 6, 5, 8, 0, 0, 0, time.UTC),
+	})
+	if err != nil {
+		t.Fatalf("create task: %v", err)
+	}
+	if _, err := repo.UpdateTask(ctx, "custom", TaskMutation{
+		CronExpression: "*/10 * * * * *",
+	}); err != nil {
+		t.Fatalf("update task: %v", err)
+	}
+
+	replaced, err := repo.ReplaceTask(ctx, created)
+	if err != nil {
+		t.Fatalf("replace task: %v", err)
+	}
+	if replaced.CronExpression != created.CronExpression || replaced.Title != created.Title {
+		t.Fatalf("expected replace to restore original definition, got %#v", replaced)
+	}
+
+	got, err := repo.GetTask(ctx, "custom")
+	if err != nil {
+		t.Fatalf("get task: %v", err)
+	}
+	if got.CronExpression != created.CronExpression || got.Title != created.Title {
+		t.Fatalf("expected persisted definition to be restored, got %#v", got)
 	}
 }
 

@@ -2,12 +2,14 @@ package app
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"gopkg.in/yaml.v3"
 
+	"graft/server/internal/container"
 	healthopenapi "graft/server/internal/contract/openapi/health"
 	"graft/server/internal/logger"
 	"graft/server/internal/realtime"
@@ -41,7 +43,13 @@ func (r *Runtime) registerCoreRoutes(engine *gin.Engine) error {
 }
 
 func (r *Runtime) registerRealtimeGatewayRoute(engine *gin.Engine) error {
-	ticketService := r.injectedRealtimeTicketService()
+	ticketService, err := r.injectedRealtimeTicketService()
+	if errors.Is(err, container.ErrServiceNotRegistered) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("resolve realtime websocket gateway ticket service: %w", err)
+	}
 	if ticketService == nil {
 		return nil
 	}

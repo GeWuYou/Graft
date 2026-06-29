@@ -80,6 +80,9 @@ func (r *SQLRunRepository) CreateRun(ctx context.Context, run TaskRun) (TaskRun,
 
 // FinishRun marks a running execution record as finished and returns the updated row.
 func (r *SQLRunRepository) FinishRun(ctx context.Context, command RunFinishCommand) (TaskRun, error) {
+	if err := r.ensureAvailable(); err != nil {
+		return TaskRun{}, err
+	}
 	sqlID, err := r.sqlRunID(command.ID)
 	if err != nil {
 		return TaskRun{}, err
@@ -214,6 +217,9 @@ func (r *SQLRunRepository) LatestRunByTask(ctx context.Context, taskKey string) 
 
 // GetRun returns one run-history record by id.
 func (r *SQLRunRepository) GetRun(ctx context.Context, id uint64) (TaskRun, error) {
+	if err := r.ensureAvailable(); err != nil {
+		return TaskRun{}, err
+	}
 	sqlID, err := r.sqlRunID(id)
 	if err != nil {
 		return TaskRun{}, err
