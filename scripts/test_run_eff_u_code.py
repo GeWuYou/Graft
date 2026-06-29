@@ -57,6 +57,11 @@ class CleanNodeDebugEnvironmentTests(unittest.TestCase):
         cleaned = MODULE.clean_node_debug_environment(env)
         self.assertNotIn("NODE_OPTIONS", cleaned)
 
+    def test_drops_malformed_node_options_instead_of_raising(self) -> None:
+        env = {"NODE_OPTIONS": '--require "/tmp/js-debug/bootloader.js --max-old-space-size=4096'}
+        cleaned = MODULE.clean_node_debug_environment(env)
+        self.assertNotIn("NODE_OPTIONS", cleaned)
+
 
 class MainEnvironmentPropagationTests(unittest.TestCase):
     @mock.patch.object(MODULE.subprocess, "run")

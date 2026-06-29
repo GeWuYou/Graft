@@ -391,6 +391,57 @@ class ChangedFileResolutionTests(unittest.TestCase):
 
         self.assertEqual(changed, ["server/main.go", "scripts/evaluate_eff_u_code_gate.py"])
 
+    def test_normalize_remote_base_ref_accepts_common_forms(self) -> None:
+        self.assertEqual(MODULE.normalize_remote_base_ref("main"), "refs/remotes/origin/main")
+        self.assertEqual(MODULE.normalize_remote_base_ref("origin/main"), "refs/remotes/origin/main")
+        self.assertEqual(MODULE.normalize_remote_base_ref("refs/heads/main"), "refs/remotes/origin/main")
+        self.assertEqual(MODULE.normalize_remote_base_ref("refs/remotes/origin/main"), "refs/remotes/origin/main")
+
+    def test_fetch_target_from_base_ref_accepts_common_forms(self) -> None:
+        self.assertEqual(MODULE.fetch_target_from_base_ref("main"), "main")
+        self.assertEqual(MODULE.fetch_target_from_base_ref("origin/main"), "main")
+        self.assertEqual(MODULE.fetch_target_from_base_ref("refs/heads/main"), "main")
+        self.assertEqual(MODULE.fetch_target_from_base_ref("refs/remotes/origin/main"), "main")
+
+
+class ScoreDiagnosticsTests(unittest.TestCase):
+    def test_build_file_diagnostics_only_accumulates_contributing_categories(self) -> None:
+        gate_config = {
+            "curatedScore": {
+                "participatesInGate": False,
+                "weights": {"complexity": 1.0, "documentation": 1.0},
+            }
+        }
+        diagnostics = MODULE.build_file_diagnostics(
+            "server/internal/runtime.go",
+            [
+                MODULE.RuleEvaluation("complexity", "cyclomatic_complexity", "fail", 75, 5, 60, 90, "complex code"),
+                MODULE.RuleEvaluation("documentation", "comment_ratio", "display-only", None, None, 0, None, "missing comments"),
+            ],
+            gate_config,
+            ("complexity", "documentation"),
+        )
+
+        self.assertEqual(diagnostics["issueCount"], 1)
+        self.assertEqual(diagnostics["categoryImpacts"], [{"rule": "complexity", "impact": 40.0}])
+
+
+class ScoreGateConfigTests(unittest.TestCase):
+    def test_score_gate_gain_steps_returns_sorted_unique_values(self) -> None:
+        gate_config = {
+            "scoreGate": {
+                "profiles": {
+                    "score-project": {
+                        "potentialGainSteps": [10, 3, 5, 3],
+                    }
+                }
+            }
+        }
+
+        steps = MODULE.score_gate_gain_steps(gate_config, "score-project")
+
+        self.assertEqual(steps, [3, 5, 10])
+
 
 class MainFlowTests(unittest.TestCase):
     def test_gate_passes_when_only_documentation_is_low(self) -> None:
@@ -567,6 +618,9 @@ class MainFlowTests(unittest.TestCase):
             payload = json.loads(report_path.read_text(encoding="utf-8"))
             self.assertEqual(payload["gateProfile"], "score-changed")
             self.assertEqual(payload["status"], "fail")
+            self.assertEqual(payload["summary"]["failures"], 1)
+            self.assertEqual(payload["summary"]["rawFailures"], 0)
+            self.assertEqual(payload["summary"]["scoreGateFailures"], 1)
             self.assertEqual(payload["scopes"]["server"]["scoreGateStatus"], "fail")
             self.assertGreater(len(payload["scopes"]["server"]["topContributors"]), 0)
 
@@ -939,6 +993,7 @@ class MainFlowTests(unittest.TestCase):
             self.assertEqual(payload["scanMode"], "project")
             self.assertEqual(payload["summary"]["filesEvaluated"], 2)
             self.assertEqual(payload["summary"]["failures"], 1)
+            self.assertEqual(payload["summary"]["rawFailures"], 1)
             self.assertEqual(
                 [item["path"] for item in payload["scopes"]["server"]["files"]],
                 ["server/internal/runtime.go", "server/modules/foo/service.go"],

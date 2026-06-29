@@ -49,7 +49,12 @@ def clean_node_debug_environment(env: dict[str, str]) -> dict[str, str]:
     if not node_options:
         return sanitized
 
-    parts = shlex.split(node_options, posix=(sys.platform != "win32"))
+    try:
+        parts = shlex.split(node_options, posix=(sys.platform != "win32"))
+    except ValueError:
+        # Malformed debugger-injected NODE_OPTIONS should not block local wrapper execution.
+        sanitized.pop("NODE_OPTIONS", None)
+        return sanitized
     filtered: list[str] = []
     skip_next = False
     for index, part in enumerate(parts):

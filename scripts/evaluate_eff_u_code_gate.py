@@ -282,7 +282,7 @@ def ci_changed_files(diff_filter: str, base_ref_override: str | None = None) -> 
             return [line for line in changed.splitlines() if line]
 
     if base_ref:
-        base_revision = base_ref if base_ref.startswith(("refs/", "origin/")) else f"origin/{base_ref}"
+        base_revision = normalize_remote_base_ref(base_ref)
         try:
             merge_base = run_git(["merge-base", "HEAD", base_revision])
         except RuntimeError:
@@ -305,6 +305,50 @@ def ci_changed_files(diff_filter: str, base_ref_override: str | None = None) -> 
 
     tracked = run_git(["ls-files"])
     return [line for line in tracked.splitlines() if line]
+
+
+def normalize_remote_base_ref(base_ref: str) -> str:
+    """
+    统一将各种 base ref 形式规范化为可用于 merge-base 的远端引用。
+
+    Parameters:
+        base_ref (str): 用户参数、环境变量或 workflow 提供的基准引用。
+
+    Returns:
+        str: 规范化后的远端 ref。
+    """
+    ref = base_ref.strip()
+    if not ref:
+        return ref
+    if ref.startswith("refs/remotes/"):
+        return ref
+    if ref.startswith("refs/heads/"):
+        return f"refs/remotes/origin/{ref.removeprefix('refs/heads/')}"
+    if ref.startswith("origin/"):
+        return f"refs/remotes/{ref}"
+    if ref.startswith("refs/"):
+        return ref
+    return f"refs/remotes/origin/{ref}"
+
+
+def fetch_target_from_base_ref(base_ref: str) -> str:
+    """
+    从规范化或未规范化的 base ref 推导 `git fetch origin` 目标。
+
+    Parameters:
+        base_ref (str): 基准引用。
+
+    Returns:
+        str: 适合传给 `git fetch origin <target>` 的目标字符串。
+    """
+    normalized = normalize_remote_base_ref(base_ref)
+    if normalized.startswith("refs/remotes/origin/"):
+        return normalized.removeprefix("refs/remotes/origin/")
+    if normalized.startswith("refs/remotes/"):
+        return normalized.removeprefix("refs/remotes/")
+    if normalized.startswith("refs/heads/"):
+        return normalized.removeprefix("refs/heads/")
+    return normalized
 
 
 def matches_any(path: str, patterns: list[str]) -> bool:
@@ -1010,7 +1054,7 @@ def score_gate_gain_steps(gate_config: dict[str, Any], profile: str) -> list[int
         profile (str): 评分 profile。
     
     Returns:
-        list[int]: 去重后的正整数列表；未配置时返回 [3, 5, 10]。
+        list[int]: 升序去重后的正整数列表；未配置时返回 [3, 5, 10]。
     """
     profile_config = score_profile_config(gate_config, profile)
     raw = profile_config.get("potentialGainSteps")
@@ -1018,13 +1062,12 @@ def score_gate_gain_steps(gate_config: dict[str, Any], profile: str) -> list[int
         return [3, 5, 10]
     if not isinstance(raw, list):
         raise GateConfigError(f"gate_config.scoreGate.profiles.{profile}.potentialGainSteps must be an array when provided")
-    steps: list[int] = []
+    steps: set[int] = set()
     for item in raw:
         if not isinstance(item, int) or item <= 0:
             raise GateConfigError(f"gate_config.scoreGate.profiles.{profile}.potentialGainSteps must contain positive integers")
-        if item not in steps:
-            steps.append(item)
-    return steps or [3, 5, 10]
+        steps.add(item)
+    return sorted(steps) or [3, 5, 10]
 
 
 def score_gate_rule_order(gate_config: dict[str, Any], profile: str) -> tuple[str, ...]:
@@ -1180,11 +1223,11 @@ def build_file_diagnostics(
 
     for evaluation in evaluations:
         impact = estimate_rule_impact(evaluation.rule, evaluation.current_score, gate_config)
-        category_impacts[evaluation.rule] += impact
         severity = issue_severity(evaluation.rule, evaluation.current_score, evaluation.threshold)
         status = evaluation.status
         contributes = status not in {"display-only", "advisory", "suppressed-noise"}
         if contributes and impact > 0:
+            category_impacts[evaluation.rule] += impact
             file_impact += impact
             issue_count += 1
             if severity_rank(severity) < severity_rank(highest_severity):
@@ -1647,7 +1690,14 @@ def main() -> int:
 
         head_reports: dict[str, dict[str, Any]] = {}
         base_reports: dict[str, dict[str, Any]] = {}
-        base_ref = args.base_ref or os.environ.get("GITHUB_BASE_REF", "").strip() or "main"
+        base_ref = (
+            args.base_ref
+            or os.environ.get("GRAFT_LINT_BASE_REF", "").strip()
+            or os.environ.get("GITHUB_BASE_REF", "").strip()
+            or "main"
+        )
+        normalized_base_ref = normalize_remote_base_ref(base_ref) if args.scan_mode == "changed" and base_ref else ""
+        fetch_target = fetch_target_from_base_ref(base_ref) if args.scan_mode == "changed" and base_ref else ""
 
         for scope in selected_scopes:
             head_path = run_eff_u_code(scope, output_dir=report_dir, eff_config_override=eff_override_path)
@@ -1655,7 +1705,7 @@ def main() -> int:
 
         if args.scan_mode == "changed" and base_ref:
             subprocess.run(
-                ["git", "fetch", "--no-tags", "--prune", "origin", base_ref],
+                ["git", "fetch", "--no-tags", "--prune", "origin", fetch_target],
                 cwd=REPO_ROOT,
                 check=False,
                 stdout=subprocess.PIPE,
@@ -1665,7 +1715,7 @@ def main() -> int:
 
             current_head = run_git(["rev-parse", "HEAD"])
             try:
-                merge_base = run_git(["merge-base", current_head, f"origin/{base_ref}"])
+                merge_base = run_git(["merge-base", current_head, normalized_base_ref])
             except RuntimeError:
                 merge_base = ""
             if merge_base:
@@ -1687,7 +1737,7 @@ def main() -> int:
                         scope,
                         output_dir=report_dir / "baseline-reports",
                         eff_config_override=snapshot_eff_config_path,
-                        base_ref=base_ref,
+                        base_ref=normalized_base_ref,
                     )
                     base_reports[scope] = load_report(base_path)
 
@@ -1845,7 +1895,8 @@ def main() -> int:
             "scopes": scope_results,
             "summary": {
                 "filesEvaluated": sum(len(scope_results[scope]["files"]) for scope in scope_results),
-                "failures": overall_failures,
+                "failures": effective_failures,
+                "rawFailures": overall_failures,
                 "ruleFailures": overall_rule_failures,
                 "coverageFailures": overall_unreported_failures,
                 "unreportedFiles": sum(len(scope_results[scope]["unreportedFiles"]) for scope in scope_results),

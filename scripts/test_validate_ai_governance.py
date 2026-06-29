@@ -81,6 +81,18 @@ class EnvironmentInventoryTests(unittest.TestCase):
 
         self.assertTrue(any("bun run quality:eff-u-code --" in finding.message for finding in findings))
 
+    def test_environment_inventory_requires_structured_score_entrypoint(self) -> None:
+        text = MODULE.read_text(MODULE.TOOLS_AI).replace(
+            'score_entrypoint: "bun run quality:eff-u-code:score:changed"',
+            'quality:eff-u-code:score:changed',
+            1,
+        )
+
+        with mock.patch.object(MODULE, "read_text", return_value=text):
+            findings = MODULE.validate_environment_inventory()
+
+        self.assertTrue(any('score_entrypoint: "bun run quality:eff-u-code:score:changed"' in finding.message for finding in findings))
+
     def test_environment_inventory_rejects_stale_never_gate_rule(self) -> None:
         text = MODULE.read_text(MODULE.TOOLS_AI).replace(
             "Keep eff-u-code as an optional developer-local helper and raw JSON source; when a repository quality gate or CI job is enabled, the repository-owned evaluator owns the gate contract rather than the upstream total score.",
@@ -120,13 +132,16 @@ class AiToolingDocTests(unittest.TestCase):
         self.assertTrue(any("independent from eff-u-code" in finding.message for finding in findings))
 
     def test_ai_tooling_doc_requires_score_gate_layered_diagnostics(self) -> None:
-        text = MODULE.read_text(MODULE.AI_TOOLING_DOC).replace("bun run quality:eff-u-code:score:changed", "", 1)
-        text = text.replace("Project Score Gate 的终端输出应采用 layered diagnostics：默认先给 Scope / Project Score、Threshold、Coverage、Top Contributors、Rule Category Summary、Severity Summary 和 Potential Score Gain，再按 Top N 展开详情；避免直接输出“最差代码排行榜”或全量规则刷屏。", "", 1)
+        text = MODULE.read_text(MODULE.AI_TOOLING_DOC).replace(
+            "Project Score Gate 的终端输出应采用 layered diagnostics：默认先给 Scope / Project Score、Threshold、Coverage、Top Contributors、Rule Category Summary、Severity Summary 和 Potential Score Gain，再按 Top N 展开详情；避免直接输出“最差代码排行榜”或全量规则刷屏。",
+            "",
+            1,
+        )
 
         with mock.patch.object(MODULE, "read_text", return_value=text):
             findings = MODULE.validate_ai_tooling_doc()
 
-        self.assertTrue(any("layered diagnostics" in finding.message or "score:changed" in finding.message for finding in findings))
+        self.assertTrue(any("layered diagnostics" in finding.message for finding in findings))
 
 
 class PushBranchGovernanceTests(unittest.TestCase):

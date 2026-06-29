@@ -366,7 +366,7 @@ def validate_environment_inventory() -> list[Finding]:
         "automatic instructions write",
         "default_command: \"bun run quality:eff-u-code --\"",
         "gate_entrypoint: \"bun run quality:eff-u-code:gate --\"",
-        "quality:eff-u-code:score:changed",
+        "score_entrypoint: \"bun run quality:eff-u-code:score:changed\"",
         "instructions_auto_write: \"disabled\"",
     )
     findings.extend(missing_exact_terms(text, TOOLS_AI, "AI environment inventory", exact_terms))

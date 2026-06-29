@@ -125,5 +125,10 @@ fi
 
 cd "$repo_root"
 bun run quality:eff-u-code:score:changed
-bun run quality:eff-u-code:score:server
-bun run quality:eff-u-code:score:web
+
+if [ "${GRAFT_EFF_U_CODE_FULL_SCAN:-0}" = "1" ]; then
+  bun run quality:eff-u-code:score:server
+  bun run quality:eff-u-code:score:web
+else
+  echo "eff-u-code full scan: skipped by default; set GRAFT_EFF_U_CODE_FULL_SCAN=1 to run server/web diagnostics." >&2
+fi
