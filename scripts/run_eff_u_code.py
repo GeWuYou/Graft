@@ -5,6 +5,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -22,10 +25,62 @@ EFF_U_CODE_DIR = LOCAL_NODE_MODULES_DIR / "eff-u-code"
 TREE_SITTER_WASMS_DIR = LOCAL_NODE_MODULES_DIR / "tree-sitter-wasms"
 EFF_U_CODE_WASMS_DIR = EFF_U_CODE_DIR / "node_modules" / "tree-sitter-wasms"
 LOCAL_TOOL_NAME = "fuck-u-code.cmd" if sys.platform == "win32" else "fuck-u-code"
+NODE_DEBUG_REQUIRE_PATTERN = re.compile(r"bootloader|js-debug", re.IGNORECASE)
 
 
 class ConfigError(RuntimeError):
     """Raised when the optional local configuration is invalid."""
+
+
+def clean_node_debug_environment(env: dict[str, str]) -> dict[str, str]:
+    """
+    清理会把 VS Code / Node 调试附着传播到子进程的环境变量。
+
+    仅移除调试相关注入，保留普通运行所需的其它环境配置。
+
+    Parameters:
+        env (dict[str, str]): 原始环境变量映射。
+
+    Returns:
+        dict[str, str]: 清理后的环境变量映射。
+    """
+    sanitized = dict(env)
+    sanitized.pop("VSCODE_INSPECTOR_OPTIONS", None)
+
+    node_options = sanitized.get("NODE_OPTIONS")
+    if not node_options:
+        return sanitized
+
+    parts = shlex.split(node_options, posix=(sys.platform != "win32"))
+    filtered: list[str] = []
+    skip_next = False
+    for index, part in enumerate(parts):
+        if skip_next:
+            skip_next = False
+            continue
+        if part.startswith("--inspect"):
+            continue
+        if part.startswith("--inspect-publish-uid"):
+            continue
+        if part == "--require":
+            next_part = parts[index + 1] if index + 1 < len(parts) else ""
+            if NODE_DEBUG_REQUIRE_PATTERN.search(next_part):
+                skip_next = True
+                continue
+        if part.startswith("--require="):
+            _, _, value = part.partition("=")
+            if NODE_DEBUG_REQUIRE_PATTERN.search(value):
+                continue
+        filtered.append(part)
+
+    if filtered:
+        if sys.platform == "win32":
+            sanitized["NODE_OPTIONS"] = subprocess.list2cmdline(filtered)
+        else:
+            sanitized["NODE_OPTIONS"] = " ".join(shlex.quote(part) for part in filtered)
+    else:
+        sanitized.pop("NODE_OPTIONS", None)
+    return sanitized
 
 
 def load_json(path: Path) -> dict[str, Any]:
@@ -350,6 +405,7 @@ def main() -> int:
         tool = resolve_local_tool()
         if not args.dry_run:
             ensure_tree_sitter_wasms_layout()
+        child_env = clean_node_debug_environment(dict(os.environ))
 
         if args.config:
             config = load_json(Path(args.config).resolve())
@@ -370,7 +426,7 @@ def main() -> int:
             print(f"[eff-u-code:{scope}] {' '.join(command)}")
             if args.dry_run:
                 continue
-            completed = subprocess.run(command, cwd=ROOT_DIR)
+            completed = subprocess.run(command, cwd=ROOT_DIR, env=child_env)
             if completed.returncode != 0:
                 return completed.returncode
 
