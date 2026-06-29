@@ -29,6 +29,8 @@ func (s *Service) resolveScope(
 	return &resolved, effectiveQuery, nil
 }
 
+// mergeListQueryStringField 合并两个字符串切片并去重，保留原有顺序。
+// 返回合并后的字符串切片。base 先保留原顺序，patch 中已存在于结果中的值不会重复追加。
 func mergeListQueryStringField(base []string, patch []string) []string {
 	if len(patch) == 0 {
 		return base

@@ -112,7 +112,7 @@ def select_tool(use_for: str, preferred: str | None, fallback: str | None) -> di
 
 def build_ai_inventory(raw: dict[str, Any]) -> dict[str, Any]:
     """
-    根据原始环境描述构建 AI 环境清单。
+    根据原始环境描述构建用于生成 AI 环境清单的数据结构。
     
     Parameters:
     	raw (dict[str, Any]): 解析后的原始环境数据。

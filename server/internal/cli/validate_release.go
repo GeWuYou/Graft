@@ -9,6 +9,9 @@ import (
 	"graft/server/internal/buildinfo"
 )
 
+// runValidateServerLocaleOwnership 校验服务器本地化所有权守卫。
+// 
+// @return 成功时返回 nil；否则返回带上下文的错误。
 func runValidateServerLocaleOwnership(cmd *cobra.Command) error {
 	repoRoot, err := resolveRepositoryRoot()
 	if err != nil {
@@ -23,7 +26,8 @@ func runValidateServerLocaleOwnership(cmd *cobra.Command) error {
 	return nil
 }
 
-// RunValidateRelease validates that the repository is ready for release.
+// runValidateRelease 校验仓库是否满足发布要求。
+// 它要求构建信息为正式发布版本，且 Git 提交、构建时间和 Git 工作区状态均满足发布约束；随后检查仓库根目录、嵌入式 OpenAPI bundle 的新鲜度以及默认 Atlas migration 链的完整性。成功时返回 nil，任一校验失败时返回错误。
 func runValidateRelease(_ *cobra.Command) error {
 	info := buildinfo.Normalize(buildReleaseInfoSnapshot())
 	if !info.IsOfficialRelease() || info.GitCommit == "unknown" || info.BuildTimeUTC == "unknown" {

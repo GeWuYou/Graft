@@ -153,6 +153,7 @@ func (m *Memory) matchEntryLocked(key string, expected []byte) (memoryEntry, boo
 	return entry, true
 }
 
+// newMemoryEntry 克隆值并按 TTL 生成 memoryEntry；当 ttl 大于 0 时设置过期时间。
 func newMemoryEntry(value []byte, ttl time.Duration, now time.Time) memoryEntry {
 	entry := memoryEntry{value: cloneBytes(value)}
 	if ttl > 0 {

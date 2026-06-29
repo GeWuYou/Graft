@@ -19,7 +19,8 @@ type auditEventCatalogSeed struct {
 }
 
 // buildAuditEventCatalog 构建审计事件可见性目录，并合并全局默认策略与覆盖项。
-// 结果按分类、来源和 actionKey 稳定排序。
+// buildAuditEventCatalog 合并内置审计事件种子和覆盖项，生成去重后的目录条目列表，并按分类、来源和 actionKey 稳定排序。
+// 覆盖项会优先应用其策略；当种子描述为空时，使用对应覆盖项的描述补全。
 func buildAuditEventCatalog(
 	defaultStrategy auditstore.AuditVisibilityStrategy,
 	overrides []auditstore.AuditVisibilityOverride,
@@ -64,7 +65,7 @@ func buildAuditEventCatalog(
 }
 
 // appendAuditEventCatalogSeeds 返回审计可见性目录的内置种子项列表。
-// 这些种子项用于构建默认的事件目录条目。
+// appendAuditEventCatalogSeeds 返回用于构建默认事件目录条目的内置种子项列表。
 func appendAuditEventCatalogSeeds() []auditEventCatalogSeed {
 	return []auditEventCatalogSeed{
 		{Source: auditstore.AuditSourceSecurityEvent, ActionKey: "auth.token.expired", DisplayName: "auth.token.expired", DescriptionKey: "audit.visibilityCatalog.auth.tokenExpired.description", Description: "Access token expired security event.", Category: "auth"},
@@ -96,7 +97,8 @@ func appendAuditEventCatalogSeeds() []auditEventCatalogSeed {
 	}
 }
 
-// appendAuditEventCatalogItem 将一个审计事件目录项合并到结果列表中，并应用对应的可见性覆盖策略。
+// appendAuditEventCatalogItem 将一个审计事件目录项加入结果列表，并按覆盖配置确定其可见性策略。
+// 它会基于源与动作键去重；当存在匹配的覆盖项时，使用覆盖策略，并在种子描述为空时用覆盖描述补全条目。
 func appendAuditEventCatalogItem(
 	items *[]auditstore.AuditEventCatalogItem,
 	seen map[string]struct{},

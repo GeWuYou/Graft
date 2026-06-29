@@ -23,7 +23,7 @@ type SQLJobDefinitionRepository struct {
 	db *sql.DB
 }
 
-// NewSQLJobDefinitionRepository creates the SQL-backed job definition repository.
+// NewSQLJobDefinitionRepository 创建一个基于 SQL 的作业定义仓库。若 db 为空，则返回错误。
 func NewSQLJobDefinitionRepository(db *sql.DB) (*SQLJobDefinitionRepository, error) {
 	if db == nil {
 		return nil, errors.New("scheduler job definition repository requires a non-nil sql db")
@@ -43,7 +43,7 @@ type SQLTaskRepository struct {
 	db *sql.DB
 }
 
-// NewSQLTaskRepository creates the SQL-backed scheduled task repository.
+// 当 db 为空时返回错误；否则返回已初始化的仓库。
 func NewSQLTaskRepository(db *sql.DB) (*SQLTaskRepository, error) {
 	if db == nil {
 		return nil, errors.New("scheduler task repository requires a non-nil sql db")
@@ -63,7 +63,7 @@ type SQLRunRepository struct {
 	db *sql.DB
 }
 
-// NewSQLRunRepository creates the SQL-backed run-history repository.
+// db 不能为空。
 func NewSQLRunRepository(db *sql.DB) (*SQLRunRepository, error) {
 	if db == nil {
 		return nil, errors.New("scheduler run repository requires a non-nil sql db")
@@ -105,6 +105,9 @@ func validateRunFinish(status RunStatus, finishedAt time.Time) error {
 	return nil
 }
 
+// normalizeRunListQuery 验证并规范化运行列表查询条件。
+// 当 TaskKey 为空时返回错误；当 Limit 小于等于 0 时使用默认值；当 Offset 小于 0 时将其设为 0。
+```
 func normalizeRunListQuery(query RunListQuery) (RunListQuery, error) {
 	if query.TaskKey == "" {
 		return RunListQuery{}, errors.New("scheduler run task key is required")
@@ -118,6 +121,8 @@ func normalizeRunListQuery(query RunListQuery) (RunListQuery, error) {
 	return query, nil
 }
 
+// normalizeTaskListQuery 规范化任务列表查询参数，补齐默认分页并限制偏移量范围。
+// 返回处理后的查询参数。
 func normalizeTaskListQuery(query TaskListQuery) TaskListQuery {
 	if query.Limit <= 0 {
 		query.Limit = defaultTaskListLimit
@@ -141,6 +146,11 @@ type rowsScanner interface {
 	Next() bool
 }
 
+// collectRows 迭代 rows 并将扫描结果收集到切片中。
+//
+// 当扫描过程或行迭代出现错误时返回相应错误；迭代结束后会检查 rows 的错误状态。
+//
+// 返回收集到的元素切片，或在发生错误时返回 nil 和错误。
 func collectRows[T any](rows rowsScanner, scan func(rowScanner) (T, error), iterateLabel string) ([]T, error) {
 	defer func() {
 		_ = rows.Close()
@@ -160,6 +170,8 @@ func collectRows[T any](rows rowsScanner, scan func(rowScanner) (T, error), iter
 	return items, nil
 }
 
+// taskRunIDFromSQL 将数据库中的任务运行 ID 转换为 uint64。
+// 当 ID 无效或转换失败时返回错误。
 func taskRunIDFromSQL(id int64) (uint64, error) {
 	if id <= 0 {
 		return 0, errors.New("scheduler id from database is invalid")
@@ -171,6 +183,12 @@ func taskRunIDFromSQL(id int64) (uint64, error) {
 	return runID, nil
 }
 
+// mapScheduledTaskWriteError 将调度任务写入冲突错误映射为领域错误。
+// 当错误对应任务键或任务标题的唯一约束冲突时，返回相应的冲突错误；
+// 其他错误原样返回。
+//
+// @returns
+// 映射后的错误，或原始错误。
 func mapScheduledTaskWriteError(err error) error {
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
@@ -210,11 +228,16 @@ func containsTaskTitleConstraint(message string) bool {
 		strings.Contains(message, "scheduled_tasks_title_live_key")
 }
 
+// isUniqueConstraintErrorText 判断消息是否包含唯一约束冲突文本。
+// 当消息包含“duplicate key”或“violates unique constraint”时，返回 true，否则返回 false。
 func isUniqueConstraintErrorText(message string) bool {
 	return strings.Contains(message, "duplicate key") ||
 		strings.Contains(message, "violates unique constraint")
 }
 
+// requireAffectedScheduledTask 检查写入操作是否影响了至少一条调度任务记录。
+//
+// 当未影响任何行时返回 ErrTaskNotFound；当读取受影响行数失败时返回带上下文的错误。
 func requireAffectedScheduledTask(result sql.Result) error {
 	affected, err := result.RowsAffected()
 	if err != nil {

@@ -276,7 +276,9 @@ func (r *Runtime) registerSingleton(key any, provider func() (any, error)) error
 // shutdownModules 按启动逆序关闭模块，并聚合所有关闭错误。
 //
 // 这里不在首个失败处提前返回，因为关闭阶段的目标是尽最大努力释放资源，
-// 而不是维持“全部成功或立即退出”的启动语义。
+// shutdownModules 按启动顺序的逆序关闭模块，并汇总关闭过程中出现的错误。
+// 它会为模块停机创建一个带超时的上下文，并继续关闭后续模块，即使前面的模块关闭失败。
+// 返回聚合后的关闭错误；如果全部关闭成功，则返回 nil。
 func shutdownModules(ctx *module.Context, ordered []module.RuntimeModule) error {
 	shutdownCtx, cancel := withModuleShutdownContext(ctx)
 	defer cancel()
@@ -293,6 +295,9 @@ func shutdownModules(ctx *module.Context, ordered []module.RuntimeModule) error 
 	return shutdownErr
 }
 
+// withModuleShutdownContext 基于给定的模块上下文创建一个带截止时间的关闭上下文，并返回可取消函数。
+// 如果提供的上下文包含生命周期上下文，则会沿用其父上下文；否则使用后台上下文。
+// 返回的上下文会保留原始上下文的其他字段。
 func withModuleShutdownContext(ctx *module.Context) (*module.Context, context.CancelFunc) {
 	parent := context.Background()
 	if ctx != nil && ctx.LifecycleContext != nil {

@@ -40,6 +40,8 @@ func (r *accessLogRepository) buildAccessLogListSelectQuery(
 	return builder.String()
 }
 
+// buildAccessLogOrderByClause 生成访问日志列表查询的 ORDER BY 子句。
+// 当未提供有效排序时，使用 `occurred_at DESC, id DESC` 作为默认排序。
 func buildAccessLogOrderByClause(sorts []AccessLogSort) string {
 	normalized := normalizeAccessLogSorts(sorts)
 	if len(normalized) == 0 {
@@ -89,6 +91,7 @@ func (r *accessLogRepository) buildAccessLogWhereClause(query AccessLogListQuery
 	return " WHERE " + strings.Join(conditions, " AND "), args
 }
 
+// appendAccessLogEqualityFilter 在值非空时追加等值筛选条件及其绑定参数。
 func appendAccessLogEqualityFilter(
 	conditions *[]string,
 	args *[]any,
@@ -103,6 +106,7 @@ func appendAccessLogEqualityFilter(
 	*conditions = append(*conditions, operator+" "+repo.placeholder(len(*args)))
 }
 
+// appendAccessLogOptionalUint64Filter 在值存在时追加一个 uint64 条件及其绑定参数。
 func appendAccessLogOptionalUint64Filter(
 	conditions *[]string,
 	args *[]any,
@@ -117,6 +121,8 @@ func appendAccessLogOptionalUint64Filter(
 	*conditions = append(*conditions, operator+" "+repo.placeholder(len(*args)))
 }
 
+// appendAccessLogOptionalIntFilter 根据可选整数值追加 SQL 条件和绑定参数。
+// 当 value 为 nil 时不追加任何内容；否则会将其加入 args，并向 conditions 添加一条使用占位符的条件。
 func appendAccessLogOptionalIntFilter(
 	conditions *[]string,
 	args *[]any,
@@ -131,6 +137,8 @@ func appendAccessLogOptionalIntFilter(
 	*conditions = append(*conditions, operator+" "+repo.placeholder(len(*args)))
 }
 
+// appendAccessLogOptionalInt64Filter appends an int64 filter when a value is provided.
+// If value is nil, it leaves conditions and args unchanged.
 func appendAccessLogOptionalInt64Filter(
 	conditions *[]string,
 	args *[]any,
@@ -145,6 +153,8 @@ func appendAccessLogOptionalInt64Filter(
 	*conditions = append(*conditions, operator+" "+repo.placeholder(len(*args)))
 }
 
+// appendAccessLogOptionalTimeFilter 在值存在时追加时间比较条件，并将参数转换为 UTC。
+// 当 value 为 nil 时不添加任何条件或参数。
 func appendAccessLogOptionalTimeFilter(
 	conditions *[]string,
 	args *[]any,
@@ -159,6 +169,8 @@ func appendAccessLogOptionalTimeFilter(
 	*conditions = append(*conditions, operator+" "+repo.placeholder(len(*args)))
 }
 
+// appendAccessLogPathFilter 为访问日志路径添加过滤条件。
+// 当匹配模式为前缀匹配时，使用带转义的 LIKE 条件；否则使用精确匹配。
 func appendAccessLogPathFilter(
 	conditions *[]string,
 	args *[]any,
@@ -177,6 +189,8 @@ func appendAccessLogPathFilter(
 	appendAccessLogEqualityFilter(conditions, args, repo, "path =", query.Path)
 }
 
+// appendAccessLogKeywordFilter 添加访问日志关键字过滤条件。
+// 关键字会同时匹配 request_id、path 和 username，并以大小写不敏感的方式进行包含匹配。
 func appendAccessLogKeywordFilter(
 	conditions *[]string,
 	args *[]any,
@@ -201,6 +215,8 @@ func appendAccessLogKeywordFilter(
 	*conditions = append(*conditions, "("+strings.Join(orClauses, " OR ")+")")
 }
 
+// appendAccessLogStatusGroupFilter 将状态组条件追加到查询条件中。
+// 将 4xx 和 5xx 状态组展开为 `status_code` 的区间条件，并以 `OR` 组合后追加到 `conditions`，同时将对应的绑定参数追加到 `args`。
 func appendAccessLogStatusGroupFilter(
 	conditions *[]string,
 	args *[]any,
@@ -235,6 +251,9 @@ func appendAccessLogStatusGroupFilter(
 	}
 }
 
+// escapeAccessLogLikePattern 转义用于 SQL LIKE 的模式字符。
+// 它会将反斜杠、百分号和下划线替换为带转义前缀的形式，便于配合 ESCAPE '\' 使用。
+// 返回转义后的字符串。
 func escapeAccessLogLikePattern(value string) string {
 	replacer := strings.NewReplacer(
 		"\\", "\\\\",

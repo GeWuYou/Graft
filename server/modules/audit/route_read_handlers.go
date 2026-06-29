@@ -40,7 +40,8 @@ type auditGuard struct {
 }
 
 // handleListAuditLogs 创建审计日志列表查询的处理器。
-// 它绑定列表查询参数，校验可见性范围访问权限，读取审计日志列表，并将结果转换为响应。
+// handleListAuditLogs 返回一个用于查询审计日志列表的 Gin 处理器。
+// 处理器会校验列表查询参数和可见性范围访问权限，读取审计日志列表，并将结果写回响应。
 func handleListAuditLogs(
 	ctx *module.Context,
 	moduleName string,

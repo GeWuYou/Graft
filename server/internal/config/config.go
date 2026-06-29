@@ -250,7 +250,8 @@ type ContainerConfig struct {
 // 失败语义：
 //   - 当显式指定的 `GRAFT_ENV_FILE` 无法读取时直接返回错误，避免启动时误用过期默认值。
 //
-// 当最终配置不满足运行时最小要求时返回验证错误。
+// Load 读取环境配置并返回经过校验的配置快照。
+// 当 dotenv 载入失败或配置不满足校验要求时返回错误。
 func Load() (*Config, error) {
 	if err := loadDotenv(); err != nil {
 		return nil, err
@@ -370,6 +371,9 @@ func validateHTTPXConfig(c *Config) error {
 	return nil
 }
 
+// validateAuditConfig 校验审计日志保留时长配置。
+// 当 GRAFT_AUDIT_LOG_RETENTION 小于或等于 0 时返回错误；否则返回 nil。
+// @returns 校验失败时返回错误，校验通过时返回 nil。
 func validateAuditConfig(c *Config) error {
 	if c.Audit.LogRetention <= 0 {
 		return errors.New("GRAFT_AUDIT_LOG_RETENTION must be greater than zero")
@@ -494,6 +498,8 @@ func validateRedisConfig(c *Config) error {
 	return nil
 }
 
+// validateI18nConfig 校验并规范化 i18n 配置。
+// 它要求默认语言、回退语言和支持语言列表都已配置，并确保默认语言、回退语言以及内置必需语言都包含在支持列表中。
 func validateI18nConfig(c *Config) error {
 	defaultLocaleValue := strings.TrimSpace(c.I18n.DefaultLocale)
 	if defaultLocaleValue == "" {
@@ -527,14 +533,20 @@ func validateI18nConfig(c *Config) error {
 	return nil
 }
 
+// normalizeLocaleList 规范化语言区域列表并返回去重集合。
+// 返回规范化后的区域列表及其去重映射。
 func normalizeLocaleList(locales []string) ([]string, map[string]struct{}) {
 	return normalizeIndexedStringList(locales)
 }
 
+// normalizeModuleList 规范化模块 ID 列表，并返回去重后的结果及索引集合。
+// 返回规范化后的模块 ID 列表，以及以规范化值为键的集合。
 func normalizeModuleList(modules []string) ([]string, map[string]struct{}) {
 	return normalizeIndexedStringList(modules)
 }
 
+// validateAuthConfig 检查认证相关配置是否有效。
+// 当访问令牌或刷新令牌的 TTL 无效，JWT 密钥缺失，刷新 Cookie 策略不合法，或刷新 Cookie 名称/路径为空时返回错误。
 func validateAuthConfig(c *Config) error {
 	if c.Auth.AccessTokenTTL <= 0 {
 		return errors.New("GRAFT_AUTH_ACCESS_TOKEN_TTL must be greater than zero")
@@ -588,6 +600,8 @@ func validateContainerConfig(c *Config) error {
 	return nil
 }
 
+// validateRefreshCookiePolicy 验证刷新 Cookie 的 SameSite 和 Secure 组合约束。
+// 当 SameSite 为 none 时，要求 Secure 为 true。
 func validateRefreshCookiePolicy(cfg AuthConfig) error {
 	switch strings.ToLower(strings.TrimSpace(cfg.RefreshCookieSameSite)) {
 	case "lax", "strict":
@@ -602,6 +616,8 @@ func validateRefreshCookiePolicy(cfg AuthConfig) error {
 	}
 }
 
+// defaultDocsEnabledForEnv 根据应用环境判断是否启用文档页面。
+// @returns 在本地类环境或测试环境下返回 true，其他环境返回 false。
 func defaultDocsEnabledForEnv(env string) bool {
 	switch classifyAppEnv(env) {
 	case appEnvLocalLike, appEnvTest:
@@ -611,14 +627,21 @@ func defaultDocsEnabledForEnv(env string) bool {
 	}
 }
 
+// defaultAccessLogRetentionForEnv 根据应用环境返回默认的访问日志保留时长。
+// 本地类和测试环境返回 3 天，预发布环境返回 7 天，生产环境返回 30 天，其余环境返回 7 天。
 func defaultAccessLogRetentionForEnv(env string) time.Duration {
 	return durationByAppEnv(env, 3*24*time.Hour, 7*24*time.Hour, 30*24*time.Hour, 7*24*time.Hour)
 }
 
+// defaultAuditLogRetentionForEnv 根据应用环境返回审计日志的默认保留时长。
+// 本地/测试环境为 30 天，预发布环境为 90 天，生产环境为 180 天，其它环境为 90 天。
 func defaultAuditLogRetentionForEnv(env string) time.Duration {
 	return durationByAppEnv(env, 30*24*time.Hour, 90*24*time.Hour, 180*24*time.Hour, 90*24*time.Hour)
 }
 
+// defaultAppLogRetentionForEnv 返回给定应用环境下的应用日志保留时长。
+// 本地类和测试环境为 3 天，预发环境为 7 天，生产环境为 14 天，其它环境为 7 天。
+// 返回对应环境的应用日志保留时长。
 func defaultAppLogRetentionForEnv(env string) time.Duration {
 	return durationByAppEnv(env, 3*24*time.Hour, 7*24*time.Hour, 14*24*time.Hour, 7*24*time.Hour)
 }
@@ -654,7 +677,8 @@ func ResolveLogColor(appEnv string, format LogFormat, color LogColor) bool {
 	}
 }
 
-// ResolveGinMode returns the concrete Gin mode for the app environment and requested policy.
+// ResolveGinMode 根据应用环境和请求策略确定 Gin 的实际运行模式。
+// 显式指定为 debug、release 或 test 时返回对应模式；否则根据应用环境在 debug、test 和 release 之间选择。
 func ResolveGinMode(appEnv string, mode GinMode) GinMode {
 	switch normalizeGinMode(mode) {
 	case GinModeDebug:
@@ -675,7 +699,7 @@ func ResolveGinMode(appEnv string, mode GinMode) GinMode {
 	}
 }
 
-// ResolveAccessLogConsolePolicy returns the concrete request-log console policy for the app environment.
+// 当未显式指定策略时，局部环境返回 error_only，其它环境返回 never。
 func ResolveAccessLogConsolePolicy(appEnv string, policy AccessLogConsolePolicy) AccessLogConsolePolicy {
 	switch normalizeAccessLogConsolePolicy(policy) {
 	case AccessLogConsoleAlways:
@@ -694,26 +718,35 @@ func ResolveAccessLogConsolePolicy(appEnv string, policy AccessLogConsolePolicy)
 	}
 }
 
+// normalizeAppEnv 将应用环境字符串转换为小写并去除首尾空白。
 func normalizeAppEnv(env string) string {
 	return strings.ToLower(strings.TrimSpace(env))
 }
 
+// normalizeLogFormat 规范化日志格式配置并返回有效值。
+// 当输入匹配 `auto`、`console` 或 `json` 时返回对应值，否则返回 `auto`。
 func normalizeLogFormat(format LogFormat) LogFormat {
 	return normalizeStringEnum(format, LogFormatAuto, LogFormatConsole, LogFormatJSON)
 }
 
+// normalizeLogColor 规范化日志颜色策略，返回受支持的取值或默认值。
 func normalizeLogColor(color LogColor) LogColor {
 	return normalizeStringEnum(color, LogColorAuto, LogColorAlways, LogColorNever)
 }
 
+// normalizeGinMode 将输入规范化为支持的 Gin 模式值。
+// @returns 规范化后的 GinMode；当输入不匹配任何支持值时返回 `auto`。
 func normalizeGinMode(mode GinMode) GinMode {
 	return normalizeStringEnum(mode, GinModeAuto, GinModeDebug, GinModeRelease, GinModeTest)
 }
 
+// normalizeAccessLogConsolePolicy 将访问日志控制台策略归一为受支持的取值。
+// 无法识别的值会回退为 `auto`。
 func normalizeAccessLogConsolePolicy(policy AccessLogConsolePolicy) AccessLogConsolePolicy {
 	return normalizeStringEnum(policy, AccessLogConsoleAuto, AccessLogConsoleAlways, AccessLogConsoleNever, AccessLogConsoleErrorOnly)
 }
 
+// isLocalLikeEnv 判断应用环境是否属于本地开发类或测试类环境。
 func isLocalLikeEnv(env string) bool {
 	return classifyAppEnv(env) == appEnvLocalLike || classifyAppEnv(env) == appEnvTest
 }
@@ -728,6 +761,10 @@ const (
 	appEnvProduction
 )
 
+// normalizeIndexedStringList 规范化字符串列表并返回去重索引集。
+//
+// @param items 待规范化的字符串列表。
+// @returns 规范化后的字符串列表，以及以规范化值为键的集合。
 func normalizeIndexedStringList(items []string) ([]string, map[string]struct{}) {
 	normalized := normalizeStringList(items)
 	seen := make(map[string]struct{}, len(normalized))
@@ -737,6 +774,8 @@ func normalizeIndexedStringList(items []string) ([]string, map[string]struct{}) 
 	return normalized, seen
 }
 
+// durationByAppEnv 根据应用环境分类返回对应的时长。
+// 本地类和测试环境返回 localLike，预发环境返回 staging，生产环境返回 production，其它环境返回 fallback。
 func durationByAppEnv(env string, localLike, staging, production, fallback time.Duration) time.Duration {
 	switch classifyAppEnv(env) {
 	case appEnvLocalLike, appEnvTest:
@@ -750,6 +789,7 @@ func durationByAppEnv(env string, localLike, staging, production, fallback time.
 	}
 }
 
+// classifyAppEnv 将应用环境归类为本地类、测试、预发布、生产或其他类别。
 func classifyAppEnv(env string) appEnvClass {
 	switch normalizeAppEnv(env) {
 	case "", "local", "development", "dev":
@@ -765,6 +805,8 @@ func classifyAppEnv(env string) appEnvClass {
 	}
 }
 
+// normalizeStringEnum 规范化字符串枚举值，并在不匹配允许值时返回回退值。
+// 它会对输入进行去首尾空白和小写化处理后再进行匹配。
 func normalizeStringEnum[T ~string](raw T, fallback T, allowed ...T) T {
 	value := T(strings.ToLower(strings.TrimSpace(string(raw))))
 	for _, candidate := range allowed {

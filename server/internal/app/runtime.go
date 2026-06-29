@@ -109,7 +109,7 @@ type Runtime struct {
 //   - *Runtime: 已完成 core 资源装配和模块登记的运行时对象。
 //
 // NewRuntime 加载配置并构建运行时实例，完成核心资源、服务、路由和模块注册。
-// 在装配过程中任一步骤失败时返回错误，并在部分失败场景下尽力回收已创建的核心资源。
+// 任一步骤失败时返回错误，部分失败场景下会尽力回收已创建的核心资源。
 func NewRuntime() (*Runtime, error) {
 	cfg, err := config.Load()
 	if err != nil {
@@ -295,7 +295,7 @@ func newRuntimeCoreWithDeps(cfg *config.Config, deps runtimeCoreDeps) (*Runtime,
 	return runtime, nil
 }
 
-// normalizeRuntimeCoreDeps replaces nil constructor functions with default implementations.
+// normalizeRuntimeCoreDeps 为缺失的构造函数和打开函数填充默认实现。
 func normalizeRuntimeCoreDeps(deps runtimeCoreDeps) runtimeCoreDeps {
 	if deps.newAccessLogRepository == nil {
 		deps.newAccessLogRepository = httpx.NewAccessLogRepository
@@ -309,7 +309,8 @@ func normalizeRuntimeCoreDeps(deps runtimeCoreDeps) runtimeCoreDeps {
 	return deps
 }
 
-// newRuntimeCacheManager creates a cache manager backed by Redis, with namespace derived from the application name in the configuration or defaulting to "graft".
+// newRuntimeCacheManager 创建一个以 Redis 为后端的缓存管理器，并使用应用名称作为命名空间，默认回落为 "graft"。
+// 缓存键前缀为命名空间加上 ":cache"。
 func newRuntimeCacheManager(cfg *config.Config, client *redis.Client) (*cachex.Manager, error) {
 	namespace := "graft"
 	if cfg != nil {
@@ -333,6 +334,7 @@ func newRuntimeCacheManager(cfg *config.Config, client *redis.Client) (*cachex.M
 	})
 }
 
+// applyGinMode 根据配置设置 Gin 运行模式。
 func applyGinMode(cfg *config.Config) {
 	appEnv := ""
 	mode := config.GinModeAuto

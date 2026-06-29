@@ -125,6 +125,10 @@ func (h coreHealthGeneratedHandler) GetHealthz() {
 	_ = h
 }
 
+// buildLegacyOpenAPIYAML 将 OpenAPI JSON 规范转换为 YAML。
+// 输入为空时返回错误；当 JSON 解析或 YAML 编码失败时返回带阶段信息的错误。
+// @param spec OpenAPI 规范的 JSON 内容。
+// @returns 转换后的 YAML 字节和错误。
 func buildLegacyOpenAPIYAML(spec []byte) ([]byte, error) {
 	if len(spec) == 0 {
 		return nil, fmt.Errorf("generated bundled openapi spec is empty")

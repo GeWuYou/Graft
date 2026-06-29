@@ -157,6 +157,9 @@ func (r *Runtime) mustLookupCoreDisplay(key string) string {
 	})
 }
 
+// moduleRuntimeStatusDescriptionKey 返回模块运行状态对应的本地化描述键。
+//
+// @returns 运行状态对应的本地化键；未知状态返回 `dashboard.widget.moduleRuntimeHealth.runtimeStatus.unknown`。
 func moduleRuntimeStatusDescriptionKey(status generated.ModuleRuntimeItemRuntimeStatus) string {
 	switch status {
 	case generated.ModuleRuntimeItemRuntimeStatusRegistered:

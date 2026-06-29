@@ -12,7 +12,8 @@ import (
 // runBackendLint 通过统一入口执行后端 lint。
 //
 // 这里不直接维护第二套 lint 参数，而是回到仓库统一 CLI，让本地、CI 和 agent
-// 共用同一条入口和同一套配置文件约束。
+// runBackendLint 使用同一组变更范围参数分别执行生产和测试两套 golangci-lint 配置。
+// 其中任一配置执行失败时，都会返回带配置名上下文的错误。
 func runBackendLint(cmd *cobra.Command, lintConfig string, testLintConfig string) error {
 	lintPath, err := findGolangCILint()
 	if err != nil {
@@ -33,6 +34,9 @@ func runBackendLint(cmd *cobra.Command, lintConfig string, testLintConfig string
 	return nil
 }
 
+// buildBackendLintGateArgs 生成后端 lint 的变更范围门控参数。
+// 它会解析当前 HEAD、确定 base ref，并计算 merge-base 作为扫描起点。
+// @return 以 `--new-from-rev=<mergeBase>` 和 `--whole-files` 组成的参数列表；或在解析失败时返回错误。
 func buildBackendLintGateArgs(cmd *cobra.Command) ([]string, error) {
 	workingDir, err := resolveBackendModuleRoot()
 	if err != nil {
@@ -64,6 +68,9 @@ func buildBackendLintGateArgs(cmd *cobra.Command) ([]string, error) {
 	}, nil
 }
 
+// resolveBackendLintBaseRef 解析后端 lint 使用的基准引用及其来源。
+// 优先读取 `defaultLintBaseRefEnv`，其次读取 `githubBaseRefEnv`；否则从 `origin/HEAD` 解析默认远程分支。
+// @returns 规范化后的基准引用、其来源标识，以及错误。
 func resolveBackendLintBaseRef(cmd *cobra.Command, workingDir string) (string, string, error) {
 	if baseRef := strings.TrimSpace(backendGetenv(defaultLintBaseRefEnv)); baseRef != "" {
 		return normalizeBackendLintBaseRef(baseRef), defaultLintBaseRefEnv, nil
@@ -85,6 +92,8 @@ func resolveBackendLintBaseRef(cmd *cobra.Command, workingDir string) (string, s
 	return strings.TrimSpace(remoteHead), "origin/HEAD", nil
 }
 
+// normalizeBackendLintBaseRef 将 baseRef 规范化为可用于 Git 的引用形式。
+// 它会保留已是提交哈希或完整引用的值，并为简写分支名补全远端前缀。
 func normalizeBackendLintBaseRef(baseRef string) string {
 	trimmed := strings.TrimSpace(baseRef)
 	switch {
@@ -104,6 +113,8 @@ func normalizeBackendLintBaseRef(baseRef string) string {
 	}
 }
 
+// resolveBackendLintMergeBase 计算 `HEAD` 与指定基准引用的 merge-base。
+// 当基准引用无法在本地解析或无法计算 merge-base 时，返回包含 `baseRefSource`、当前 `HEAD` 以及相应修复建议的错误。
 func resolveBackendLintMergeBase(cmd *cobra.Command, workingDir string, baseRef string, baseRefSource string) (string, error) {
 	if _, err := backendGitOutputRunner(cmd, workingDir, "rev-parse", "--verify", baseRef); err != nil {
 		headRef := currentBackendGitHead(cmd, workingDir)
@@ -156,6 +167,7 @@ func resolveBackendLintMergeBase(cmd *cobra.Command, workingDir string, baseRef 
 	return strings.TrimSpace(mergeBase), nil
 }
 
+// 它要求去除首尾空白后的长度为 40 或 64，且匹配预定义的 revision 模式。
 func isBackendGitRevision(baseRef string) bool {
 	trimmed := strings.TrimSpace(baseRef)
 	if len(trimmed) != shaLength40 && len(trimmed) != shaLength64 {
@@ -164,6 +176,8 @@ func isBackendGitRevision(baseRef string) bool {
 	return backendGitRevisionPattern.MatchString(trimmed)
 }
 
+// backendLintFetchTarget 将 baseRef 规范化为适合 `git fetch` 的目标。
+// 它会去除常见的远端引用前缀；如果去除后为空，则返回原始值。
 func backendLintFetchTarget(baseRef string) string {
 	trimmed := strings.TrimSpace(baseRef)
 	trimmed = strings.TrimPrefix(trimmed, "refs/remotes/"+defaultRemoteName+"/")
@@ -176,6 +190,8 @@ func backendLintFetchTarget(baseRef string) string {
 	return trimmed
 }
 
+// currentBackendGitHead 获取工作目录中的当前 Git HEAD 引用。
+// 解析失败时返回 "unknown"。
 func currentBackendGitHead(cmd *cobra.Command, workingDir string) string {
 	headRef, err := backendGitOutputRunner(cmd, workingDir, "rev-parse", "HEAD")
 	if err != nil {
@@ -184,6 +200,8 @@ func currentBackendGitHead(cmd *cobra.Command, workingDir string) string {
 	return strings.TrimSpace(headRef)
 }
 
+// runBackendGitOutput 在指定工作目录中执行 `git` 命令并返回标准输出。
+// 其中 `workingDir` 是命令执行目录。命令失败时返回包含 `git` 参数和底层错误的包装错误。
 func runBackendGitOutput(cmd *cobra.Command, workingDir string, args ...string) (string, error) {
 	commandContext := cmd.Context()
 	if commandContext == nil {
@@ -207,7 +225,8 @@ func runBackendGitOutput(cmd *cobra.Command, workingDir string, args ...string) 
 // findGolangCILint 解析本地可执行的 golangci-lint 路径。
 //
 // 仓库固定使用同一版本，缺失时直接给出带版本号的下一步提示，避免开发者和
-// agent 回退到 `latest` 或一组漂移的本地安装方式。
+// findGolangCILint 查找 `golangci-lint` 可执行文件。
+// 成功时返回可执行文件路径；如果未找到，则返回包含建议安装固定版本的错误。
 func findGolangCILint() (string, error) {
 	lintPath, err := backendLookPath("golangci-lint")
 	if err == nil {

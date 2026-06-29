@@ -28,6 +28,7 @@ type accessLogDetailResponse struct {
 	OccurredAt   string  `json:"occurred_at"`
 }
 
+// toAccessLogListResponse 将访问日志分页结果转换为列表响应。
 func toAccessLogListResponse(result AccessLogListResult) accessLogListResponse {
 	return accessLogListResponse{
 		Items:    toAccessLogDetailResponses(result.Items),
@@ -37,6 +38,7 @@ func toAccessLogListResponse(result AccessLogListResult) accessLogListResponse {
 	}
 }
 
+// toAccessLogDetailResponses 将访问日志记录转换为明细响应列表。
 func toAccessLogDetailResponses(records []AccessLog) []accessLogDetailResponse {
 	items := make([]accessLogDetailResponse, 0, len(records))
 	for _, record := range records {
@@ -45,6 +47,9 @@ func toAccessLogDetailResponses(records []AccessLog) []accessLogDetailResponse {
 	return items
 }
 
+// toAccessLogDetailResponse 将访问日志记录转换为明细响应。
+//
+// 返回的响应会复制请求、响应、客户端和用户信息，并将时间字段格式化为 UTC 的 RFC3339 字符串。
 func toAccessLogDetailResponse(record AccessLog) accessLogDetailResponse {
 	return accessLogDetailResponse{
 		ID:           record.ID,

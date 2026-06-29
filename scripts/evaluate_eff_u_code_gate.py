@@ -38,6 +38,18 @@ class RuleEvaluation:
 
 
 def load_json(path: pathlib.Path) -> dict[str, Any]:
+    """
+    从指定路径读取并解析 JSON 对象。
+    
+    Parameters:
+    	path (pathlib.Path): JSON 文件路径。
+    
+    Returns:
+    	dict[str, Any]: 解析得到的对象根值。
+    
+    Raises:
+    	GateConfigError: 当文件缺失、JSON 无效或根值不是对象时。
+    """
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError as exc:
@@ -50,6 +62,20 @@ def load_json(path: pathlib.Path) -> dict[str, Any]:
 
 
 def require_dict(container: dict[str, Any], key: str, *, context: str) -> dict[str, Any]:
+    """
+    获取指定键对应的对象值。
+    
+    Parameters:
+    	container (dict[str, Any]): 待检查的容器。
+    	key (str): 要读取的键名。
+    	context (str): 用于错误信息的上下文名称。
+    
+    Returns:
+    	dict[str, Any]: 指定键对应的字典。
+    
+    Raises:
+    	GateConfigError: 当键不存在或对应值不是字典时抛出。
+    """
     value = container.get(key)
     if not isinstance(value, dict):
         raise GateConfigError(f"{context}.{key} must be an object")
@@ -57,6 +83,20 @@ def require_dict(container: dict[str, Any], key: str, *, context: str) -> dict[s
 
 
 def require_string(container: dict[str, Any], key: str, *, context: str) -> str:
+    """
+    获取并验证容器中的非空字符串值。
+    
+    参数:
+    	container (dict[str, Any]): 待检查的映射。
+    	key (str): 要读取的键名。
+    	context (str): 用于错误信息的配置上下文名称。
+    
+    返回:
+    	str: 对应键的字符串值。
+    
+    异常:
+    	GateConfigError: 当键不存在、值不是字符串或为空白字符串时抛出。
+    """
     value = container.get(key)
     if not isinstance(value, str) or not value.strip():
         raise GateConfigError(f"{context}.{key} must be a non-empty string")
@@ -64,6 +104,20 @@ def require_string(container: dict[str, Any], key: str, *, context: str) -> str:
 
 
 def require_string_list(container: dict[str, Any], key: str, *, context: str) -> list[str]:
+    """
+    验证并返回指定键对应的字符串数组。
+    
+    Parameters:
+    	container (dict[str, Any]): 待检查的映射。
+    	key (str): 要读取的键名。
+    	context (str): 错误信息中的上下文名称。
+    
+    Returns:
+    	list[str]: 指定键对应的非空字符串列表。
+    
+    Raises:
+    	GateConfigError: 当键不存在、值不是列表或列表中包含空字符串时抛出。
+    """
     value = container.get(key)
     if not isinstance(value, list) or not all(isinstance(item, str) and item.strip() for item in value):
         raise GateConfigError(f"{context}.{key} must be a string array")
@@ -71,6 +125,17 @@ def require_string_list(container: dict[str, Any], key: str, *, context: str) ->
 
 
 def optional_string_list(container: dict[str, Any], key: str, *, context: str) -> list[str]:
+    """
+    获取可选字符串数组配置。
+    
+    Parameters:
+    	container (dict[str, Any]): 配置容器。
+    	key (str): 要读取的字段名。
+    	context (str): 用于错误信息的上下文路径。
+    
+    Returns:
+    	list[str]: 字段缺失或为 `None` 时返回空列表；否则返回已验证的字符串数组。
+    """
     value = container.get(key)
     if value is None:
         return []
@@ -80,6 +145,17 @@ def optional_string_list(container: dict[str, Any], key: str, *, context: str) -
 
 
 def optional_number(container: dict[str, Any], key: str, *, context: str) -> float | None:
+    """
+    获取可选数值字段，并在存在时将其转换为浮点数。
+    
+    参数：
+    	container (dict[str, Any]): 待读取的容器。
+    	key (str): 字段名。
+    	context (str): 用于错误信息的上下文名称。
+    
+    返回：
+    	float | None: 字段存在时返回其数值的浮点表示；字段缺失或为 None 时返回 None。
+    """
     value = container.get(key)
     if value is None:
         return None
@@ -89,6 +165,18 @@ def optional_number(container: dict[str, Any], key: str, *, context: str) -> flo
 
 
 def run_git(args: list[str]) -> str:
+    """
+    在仓库根目录执行 Git 命令并返回标准输出。
+    
+    Parameters:
+    	args (list[str]): 传递给 `git` 的参数列表。
+    
+    Returns:
+    	str: 去除首尾空白后的标准输出。
+    
+    Raises:
+    	RuntimeError: 当 Git 命令执行失败时抛出。
+    """
     completed = subprocess.run(
         ["git", *args],
         cwd=REPO_ROOT,
@@ -103,6 +191,15 @@ def run_git(args: list[str]) -> str:
 
 
 def staged_or_changed_files(diff_filter: str) -> list[str]:
+    """
+    获取与给定 diff 过滤条件匹配的暂存或已修改文件列表。
+    
+    参数:
+    	diff_filter (str): 传递给 `git diff --diff-filter` 的筛选条件。
+    
+    返回:
+    	list[str]: 按行分割得到的文件路径列表；若没有匹配文件则返回空列表。
+    """
     staged = run_git(["diff", "--cached", "--name-only", f"--diff-filter={diff_filter}"])
     if staged:
         return [line for line in staged.splitlines() if line]
@@ -115,6 +212,16 @@ def staged_or_changed_files(diff_filter: str) -> list[str]:
 
 
 def ci_changed_files(diff_filter: str, base_ref_override: str | None = None) -> list[str]:
+    """
+    获取用于 CI 的候选变更文件列表。
+    
+    Parameters:
+    	diff_filter (str): Git diff 的文件状态过滤条件。
+    	base_ref_override (str | None): 覆盖用于解析基准分支的名称。
+    
+    Returns:
+    	list[str]: 按优先级解析得到的变更文件路径列表；若未找到变更，则返回已跟踪文件列表。
+    """
     local_changed = staged_or_changed_files(diff_filter)
     if local_changed:
         return local_changed
@@ -152,10 +259,25 @@ def ci_changed_files(diff_filter: str, base_ref_override: str | None = None) -> 
 
 
 def matches_any(path: str, patterns: list[str]) -> bool:
+    """
+    判断路径是否匹配任一模式。
+    
+    Returns:
+    	如果路径匹配给定模式列表中的任一模式，则为 `True`，否则为 `False`。
+    """
     return any(fnmatch.fnmatch(path, pattern) for pattern in patterns)
 
 
 def load_file_text(repo_path: str) -> str:
+    """
+    读取仓库内指定路径的文件文本。
+    
+    Parameters:
+    	repo_path (str): 相对于仓库根目录的文件路径。
+    
+    Returns:
+    	str: 文件内容；如果文件不存在则返回空字符串。
+    """
     try:
         return (REPO_ROOT / repo_path).read_text(encoding="utf-8")
     except FileNotFoundError:
@@ -163,6 +285,17 @@ def load_file_text(repo_path: str) -> str:
 
 
 def is_reactive_tracking_noise(repo_path: str, metric_name: str, details: str) -> bool:
+    """
+    判断给定指标是否属于反应式跟踪噪声。
+    
+    参数:
+        repo_path (str): 仓库内文件的相对路径。
+        metric_name (str): 指标名称。
+        details (str): 指标详情文本。
+    
+    返回:
+        bool: 如果该指标命中反应式跟踪噪声条件，则为 `true`，否则为 `false`。
+    """
     if metric_name != "error_handling":
         return False
     if "错误被忽略" not in details and "ignored" not in details.lower():
@@ -174,6 +307,12 @@ def is_reactive_tracking_noise(repo_path: str, metric_name: str, details: str) -
 
 
 def noise_reason(repo_path: str, rule_name: str, metric_name: str, rule_config: dict[str, Any], details: str) -> str | None:
+    """
+    判断规则是否应按噪声原因抑制。
+    
+    Returns:
+        str | None: 命中抑制时返回对应的噪声原因，否则返回 `None`。
+    """
     patterns = optional_string_list(rule_config, "noiseExcludes", context=f"gateRules.{rule_name}")
     if not matches_any(repo_path, patterns):
         return None
@@ -185,15 +324,45 @@ def noise_reason(repo_path: str, rule_name: str, metric_name: str, rule_config: 
 
 
 def target_config(scope: str, gate_config: dict[str, Any]) -> dict[str, Any]:
+    """
+    获取指定 scope 的目标配置。
+    
+    Parameters:
+    	scope (str): 目标范围名称。
+    	gate_config (dict[str, Any]): 门禁配置对象。
+    
+    Returns:
+    	dict[str, Any]: 对应 scope 的目标配置字典。
+    """
     targets = require_dict(gate_config, "targets", context="gate_config")
     return require_dict(targets, scope, context="gate_config.targets")
 
 
 def scope_root(scope: str, gate_config: dict[str, Any]) -> str:
+    """
+    获取指定 scope 的根目录。
+    
+    Parameters:
+    	scope (str): scope 名称。
+    	gate_config (dict[str, Any]): 门禁配置对象。
+    
+    Returns:
+    	str: 该 scope 的根目录路径。
+    """
     return require_string(target_config(scope, gate_config), "root", context=f"gate_config.targets.{scope}")
 
 
 def scope_patterns(scope: str, gate_config: dict[str, Any]) -> tuple[list[str], list[str]]:
+    """
+    获取指定作用域的包含与排除模式。
+    
+    Parameters:
+    	scope (str): 作用域名称。
+    	gate_config (dict[str, Any]): 门禁配置。
+    
+    Returns:
+    	tuple[list[str], list[str]]: 依次返回包含模式和排除模式。
+    """
     target = target_config(scope, gate_config)
     include = require_string_list(target, "include", context=f"gate_config.targets.{scope}")
     exclude = require_string_list(target, "exclude", context=f"gate_config.targets.{scope}")
@@ -201,6 +370,17 @@ def scope_patterns(scope: str, gate_config: dict[str, Any]) -> tuple[list[str], 
 
 
 def path_matches_scope(path: str, scope: str, gate_config: dict[str, Any]) -> bool:
+    """
+    判断路径是否属于指定的作用域。
+    
+    Parameters:
+    	path (str): 待检查的仓库相对路径。
+    	scope (str): 作用域名称。
+    	gate_config (dict[str, Any]): 门禁配置。
+    
+    Returns:
+    	bool: `true` 表示路径未命中排除规则且命中包含规则，`false`  otherwise.
+    """
     include, exclude = scope_patterns(scope, gate_config)
     if matches_any(path, exclude):
         return False
@@ -208,6 +388,12 @@ def path_matches_scope(path: str, scope: str, gate_config: dict[str, Any]) -> bo
 
 
 def classify_scope(path: str, gate_config: dict[str, Any]) -> str | None:
+    """
+    按网格配置中的目标规则为路径确定所属的 scope。
+    
+    Returns:
+    	scope (str | None): 首个匹配该路径的 scope；如果没有任何 scope 匹配，则返回 None。
+    """
     targets = require_dict(gate_config, "targets", context="gate_config")
     for scope, target in targets.items():
         if not isinstance(target, dict):
@@ -218,6 +404,17 @@ def classify_scope(path: str, gate_config: dict[str, Any]) -> str | None:
 
 
 def relative_path_for_scope(path: str, scope: str, gate_config: dict[str, Any]) -> str:
+    """
+    将仓库路径转换为相对于指定作用域根目录的路径。
+    
+    Parameters:
+    	path (str): 仓库相对路径。
+    	scope (str): 作用域名称。
+    	gate_config (dict[str, Any]): 门禁配置。
+    
+    Returns:
+    	str: 相对于作用域根目录的路径；如果输入不在该根目录下，则返回原始路径。
+    """
     root_path = pathlib.PurePosixPath(scope_root(scope, gate_config))
     full_path = pathlib.PurePosixPath(path)
     try:
@@ -227,10 +424,27 @@ def relative_path_for_scope(path: str, scope: str, gate_config: dict[str, Any]) 
 
 
 def repository_path_for_scope(relative_path: str, scope: str, gate_config: dict[str, Any]) -> str:
+    """
+    将范围内的相对路径转换为仓库相对路径。
+    
+    Parameters:
+    	relative_path (str): 范围内的相对路径。
+    	scope (str): 目标范围名称。
+    	gate_config (dict[str, Any]): 门禁配置。
+    
+    Returns:
+    	str: 组合后的仓库相对 POSIX 路径。
+    """
     return (pathlib.PurePosixPath(scope_root(scope, gate_config)) / pathlib.PurePosixPath(relative_path)).as_posix()
 
 
 def list_scope_files_on_disk(scope: str, gate_config: dict[str, Any]) -> list[str]:
+    """
+    列出磁盘上属于指定作用域的文件。
+    
+    返回：
+        list[str]: 仓库相对路径列表，按字典序排序；如果作用域根目录不存在，则返回空列表。
+    """
     root_dir = REPO_ROOT / scope_root(scope, gate_config)
     if not root_dir.is_dir():
         return []
@@ -246,6 +460,17 @@ def list_scope_files_on_disk(scope: str, gate_config: dict[str, Any]) -> list[st
 
 
 def to_scope_relative_pattern(pattern: str, scope: str, gate_config: dict[str, Any]) -> str:
+    """
+    将仓库相对匹配模式转换为 scope 相对模式。
+    
+    Parameters:
+    	pattern (str): 仓库相对的匹配模式。
+    	scope (str): 目标作用域名称。
+    	gate_config (dict[str, Any]): 门禁配置。
+    
+    Returns:
+    	str: 去除作用域根路径前缀后的模式；若未匹配前缀则返回原模式。
+    """
     root = scope_root(scope, gate_config)
     prefix = f"{root}/"
     if pattern.startswith(prefix):
@@ -254,11 +479,30 @@ def to_scope_relative_pattern(pattern: str, scope: str, gate_config: dict[str, A
 
 
 def scope_relative_excludes(scope: str, gate_config: dict[str, Any]) -> list[str]:
+    """
+    将作用域级排除模式转换为相对该作用域根目录的模式列表。
+    
+    Parameters:
+    	scope (str): 作用域名称。
+    	gate_config (dict[str, Any]): 门禁配置。
+    
+    Returns:
+    	list[str]: 相对作用域根目录的排除模式列表。
+    """
     _, exclude = scope_patterns(scope, gate_config)
     return [to_scope_relative_pattern(pattern, scope, gate_config) for pattern in exclude]
 
 
 def positive_int(value: Any) -> int:
+    """
+    返回一个大于 0 的整数值。
+    
+    Parameters:
+    	value (Any): 待转换的值。
+    
+    Returns:
+    	int: 当值本身是大于 0 的整数时返回该值；否则返回 0。
+    """
     if isinstance(value, bool):
         return 0
     if isinstance(value, int) and value > 0:
@@ -272,6 +516,18 @@ def build_eff_u_code_overrides(
     scoped_candidates: dict[str, list[str]],
     scopes: list[str],
 ) -> dict[str, Any]:
+    """
+    构建适用于 eff-u-code 的覆盖配置。
+    
+    参数:
+    	base_eff_config (dict[str, Any]): 基础 eff-u-code 配置。
+    	gate_config (dict[str, Any]): 门禁配置。
+    	scoped_candidates (dict[str, list[str]]): 各 scope 的候选文件列表。
+    	scopes (list[str]): 需要生成覆盖项的 scope 列表。
+    
+    返回:
+    	dict[str, Any]: 包含更新后的 defaults 和 targets 的覆盖配置。
+    """
     defaults = dict(require_dict(base_eff_config, "defaults", context="eff_u_code_config"))
     base_targets = require_dict(base_eff_config, "targets", context="eff_u_code_config")
     overrides = {"defaults": defaults, "targets": {}}
@@ -291,6 +547,21 @@ def build_eff_u_code_overrides(
 
 
 def run_eff_u_code(scope: str, *, output_dir: pathlib.Path, eff_config_override: pathlib.Path | None, base_ref: str | None = None) -> pathlib.Path:
+    """
+    运行 eff-u-code 并返回生成的报告路径。
+    
+    Parameters:
+    	scope (str): 要评估的 scope 名称。
+    	output_dir (pathlib.Path): 报告输出目录。
+    	eff_config_override (pathlib.Path | None): 传递给 eff-u-code 的配置覆盖文件路径；为 `None` 时不传该参数。
+    	base_ref (str | None): 用于设置 `GRAFT_EFF_U_CODE_BASE_REF` 的基准引用。
+    
+    Returns:
+    	pathlib.Path: 对应 scope 的 JSON 报告路径。
+    
+    Raises:
+    	RuntimeError: 当 eff-u-code 进程以非零退出码结束时。
+    """
     command = [
         sys.executable,
         str(REPO_ROOT / "scripts" / "run_eff_u_code.py"),
@@ -312,6 +583,16 @@ def run_eff_u_code(scope: str, *, output_dir: pathlib.Path, eff_config_override:
 
 
 def export_git_snapshot(revision: str, destination: pathlib.Path) -> pathlib.Path:
+    """
+    将指定 Git 修订版本导出为快照目录。
+    
+    Parameters:
+    	revision (str): 要导出的 Git 修订版本。
+    	destination (pathlib.Path): 快照输出目录。
+    
+    Returns:
+    	pathlib.Path: 解压后的快照目录路径。
+    """
     destination.mkdir(parents=True, exist_ok=True)
     archive = subprocess.run(
         ["git", "archive", "--format=tar", revision],
@@ -340,6 +621,19 @@ def build_snapshot_eff_config(
     scoped_candidates: dict[str, list[str]],
     scopes: list[str],
 ) -> dict[str, Any]:
+    """
+    生成用于基线快照的 eff-u-code 配置覆盖。
+    
+    Parameters:
+    	base_eff_config (dict[str, Any]): eff-u-code 基础配置。
+    	gate_config (dict[str, Any]): 门禁配置。
+    	snapshot_root (pathlib.Path): 快照导出目录。
+    	scoped_candidates (dict[str, list[str]]): 各 scope 的候选文件列表。
+    	scopes (list[str]): 需要生成配置的 scope 列表。
+    
+    Returns:
+    	dict[str, Any]: 可用于基线扫描的 eff-u-code 配置覆盖。
+    """
     config = build_eff_u_code_overrides(base_eff_config, gate_config, scoped_candidates, scopes)
     for scope in scopes:
         root = require_string(target_config(scope, gate_config), "root", context=f"gate_config.targets.{scope}")
@@ -348,6 +642,15 @@ def build_snapshot_eff_config(
 
 
 def load_report(path: pathlib.Path) -> dict[str, Any]:
+    """
+    加载并解析 eff-u-code 报告。
+    
+    Returns:
+    	report (dict[str, Any]): 解析后的 JSON 对象。
+    
+    Raises:
+    	RuntimeError: 当报告文件不存在时抛出。
+    """
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError as exc:
@@ -355,6 +658,18 @@ def load_report(path: pathlib.Path) -> dict[str, Any]:
 
 
 def build_file_index(report: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    """
+    按文件路径构建报告索引。
+    
+    Parameters:
+    	report (dict[str, Any]): eff-u-code 报告对象。
+    
+    Returns:
+    	dict[str, dict[str, Any]]: 以文件路径为键的文件报告索引。
+    
+    Raises:
+    	GateConfigError: 当报告中缺少 files 数组时抛出。
+    """
     files = report.get("files")
     if not isinstance(files, list):
         raise GateConfigError("eff-u-code report must contain a files array")
@@ -369,6 +684,15 @@ def build_file_index(report: dict[str, Any]) -> dict[str, dict[str, Any]]:
 
 
 def metric_scores(file_report: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    """
+    按指标名称索引文件报告中的指标。
+    
+    Parameters:
+    	file_report (dict[str, Any]): 单个文件的报告对象。
+    
+    Returns:
+    	dict[str, dict[str, Any]]: 以非空指标名称为键、对应指标对象为值的字典；当指标列表缺失或格式不正确时返回空字典。
+    """
     metrics = file_report.get("metrics")
     if not isinstance(metrics, list):
         return {}
@@ -393,6 +717,22 @@ def evaluate_rule(
     is_new_file: bool,
     scan_mode: str = "changed",
 ) -> RuleEvaluation:
+    """
+    评估单个文件的单条规则与指标结果。
+    
+    Parameters:
+    	repo_path (str): 仓库内文件路径。
+    	rule_name (str): 规则名称。
+    	rule_config (dict[str, Any]): 规则配置。
+    	metric_name (str): 指标名称。
+    	current_metric (dict[str, Any]): 当前评估文件的指标数据。
+    	baseline_metric (dict[str, Any] | None): 基线文件对应的指标数据。
+    	is_new_file (bool): 是否为新增文件。
+    	scan_mode (str): 扫描模式。
+    
+    Returns:
+    	RuleEvaluation: 该规则与指标的评估结果。
+    """
     current_score = float(current_metric.get("normalizedScore", 0))
     details = str(current_metric.get("details", ""))
     mode = rule_config.get("mode")
@@ -455,6 +795,14 @@ def evaluate_rule(
 
 
 def curated_score(file_evaluations: list[RuleEvaluation], gate_config: dict[str, Any]) -> float | None:
+    """
+    计算文件的展示用 Curated Score。
+    
+    从每个规则在当前文件中的最佳得分按权重求加权平均；当没有可用权重或可用分数时返回空值。
+    
+    Returns:
+        float | None: Curated Score；当没有可参与计算的规则权重或分数时为 ``None``。
+    """
     curated = require_dict(gate_config, "curatedScore", context="gate_config")
     participates_in_gate = curated.get("participatesInGate")
     if participates_in_gate not in (False, None):
@@ -482,6 +830,12 @@ def curated_score(file_evaluations: list[RuleEvaluation], gate_config: dict[str,
 
 
 def parse_args() -> argparse.Namespace:
+    """
+    解析命令行参数。
+    
+    返回：
+    	argparse.Namespace: 包含配置路径、扫描模式、基准分支、输出路径、报告目录和作用域限制等参数。
+    """
     parser = argparse.ArgumentParser(description="Evaluate Graft Quality Policy from eff-u-code reports.")
     parser.add_argument("--config", default=str(DEFAULT_GATE_CONFIG), help="path to gate config JSON")
     parser.add_argument(
@@ -503,6 +857,12 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> int:
+    """
+    执行 Graft Quality Policy 门禁评估并输出结果。
+    
+    Returns:
+        int: 退出码；无失败时为 0，存在评估失败时为 1，配置或运行错误时为 2。
+    """
     args = parse_args()
     temp_ctx: tempfile.TemporaryDirectory[str] | None = None
 

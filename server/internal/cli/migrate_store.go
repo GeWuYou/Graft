@@ -183,6 +183,7 @@ func (s *atlasRevisionStore) ensureTable(ctx context.Context) error {
 	return nil
 }
 
+// isAtlasRevisionTableMissingError 判断错误是否表示 atlas_schema_revisions 表不存在。
 func isAtlasRevisionTableMissingError(err error) bool {
 	if err == nil {
 		return false
@@ -196,7 +197,7 @@ func isAtlasRevisionTableMissingError(err error) bool {
 		strings.Contains(message, "relation \"atlas_schema_revisions\" does not exist")
 }
 
-// scanAtlasRevision 将数据库行数据扫描并映射为一个 Atlas 迁移版本记录。
+// 当 partial_hashes 存在时，会将其解析为字符串列表；当类型值无法转换时返回错误。
 func scanAtlasRevision(scan func(dest ...any) error) (*atlasmigrate.Revision, error) {
 	var (
 		version         string
@@ -257,7 +258,8 @@ func scanAtlasRevision(scan func(dest ...any) error) (*atlasmigrate.Revision, er
 	}, nil
 }
 
-// revisionTypeToInt64 converts a revision type value to an int64, returning an error if the value exceeds math.MaxInt64.
+// revisionTypeToInt64 将修订类型转换为 int64。
+// @returns 成功时返回对应的 int64；若值超出 int64 可表示范围，则返回错误。
 func revisionTypeToInt64(value atlasmigrate.RevisionType) (int64, error) {
 	raw := uint64(value)
 	if raw > math.MaxInt64 {
@@ -266,7 +268,7 @@ func revisionTypeToInt64(value atlasmigrate.RevisionType) (int64, error) {
 	return int64(raw), nil
 }
 
-// revisionTypeFromInt64 将 int64 值转换为 RevisionType，如果该值为负则返回错误。
+// revisionTypeFromInt64 将 int64 值转换为 RevisionType，并在值为负时返回错误。
 func revisionTypeFromInt64(value int64) (atlasmigrate.RevisionType, error) {
 	if value < 0 {
 		return 0, fmt.Errorf("revision type %d cannot be negative", value)

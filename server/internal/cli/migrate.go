@@ -89,7 +89,8 @@ func newMigrateCommand() *cobra.Command {
 //
 // 返回值：
 // runMigrateUp 应用待处理的迁移到数据库。
-// 迁移成功时返回 nil（包括不存在待处理迁移的情况）；否则返回错误。
+// runMigrateUp 执行一次 Atlas 迁移并关闭相关资源。
+// 迁移目录解析、执行或关闭过程中发生错误时返回错误；当没有待处理迁移时返回 nil。
 func runMigrateUp(cmd *cobra.Command, opts migrateUpOptions) (err error) {
 	cfg, err := config.Load()
 	if err != nil {
@@ -170,7 +171,7 @@ func resolveAtlasMigrationDir(opts migrateResolveOptions) (atlasmigrate.Dir, err
 }
 
 // openAtlasExecutor 为指定的数据库和迁移目录创建一个 Atlas 迁移执行器。
-// 返回的执行器句柄包含迁移执行器和数据库连接的关闭函数。
+// 返回的句柄包含执行器以及用于关闭数据库连接的函数。
 func openAtlasExecutor(databaseURL string, dir atlasmigrate.Dir, logger atlasmigrate.Logger, allowDirty bool) (*atlasExecutorHandle, error) {
 	sqlDB, err := sql.Open("pgx", databaseURL)
 	if err != nil {

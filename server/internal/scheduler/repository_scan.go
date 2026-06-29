@@ -7,6 +7,7 @@ import (
 	"graft/server/internal/cronx"
 )
 
+// 该函数会填充任务、作业、分类、模块、触发类型、运行状态、结果、错误信息、开始与结束时间、时长以及创建时间等字段；可空的结束时间和时长仅在有效时写入。若扫描或 ID 转换失败，返回空的 TaskRun 和错误。
 func scanTaskRun(scanner rowScanner) (TaskRun, error) {
 	var run TaskRun
 	var id int64
@@ -65,6 +66,13 @@ func scanTaskRun(scanner rowScanner) (TaskRun, error) {
 	return run, nil
 }
 
+// scanTaskDefinition 扫描数据库行并构建任务定义。
+// 若配置来源为空，则根据是否为内置任务补充默认来源；若删除时间戳有效且大于 0，则设置删除时间。
+/*
+@returns
+- TaskDefinition：填充后的任务定义。
+- error：扫描或 ID 转换失败时返回的错误。
+*/
 func scanTaskDefinition(scanner rowScanner) (TaskDefinition, error) {
 	var task TaskDefinition
 	var id int64
@@ -107,6 +115,7 @@ func scanTaskDefinition(scanner rowScanner) (TaskDefinition, error) {
 	return task, nil
 }
 
+// 返回填充后的 JobDefinition；如果扫描、ID 转换或字段映射失败，则返回错误。
 func scanJobDefinition(scanner rowScanner) (JobDefinition, error) {
 	var definition JobDefinition
 	var id int64

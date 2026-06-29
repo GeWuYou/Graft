@@ -335,8 +335,10 @@ def main() -> int:
     """
     运行本地 `eff-u-code` 检查并返回退出码。
     
+    当指定 `--init-config` 时会创建本地配置；否则会解析配置、构建各个 scope 的命令并执行检查。若发生配置或本地环境错误，返回 `2`。
+    
     Returns:
-    	exit_code (int): 成功时为 `0`；配置或本地环境错误时为 `2`；任一 scope 执行失败时为该进程的返回码。
+        exit_code (int): 成功时为 `0`；配置或本地环境错误时为 `2`；任一 scope 执行失败时为该进程的返回码。
     """
     args = parse_args()
 

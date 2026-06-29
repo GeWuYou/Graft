@@ -138,6 +138,8 @@ func handleListAccessLogs(localizer *i18n.Service, repo AccessLogRepository) gin
 	}
 }
 
+// handleGetAccessLogDetail 返回一个按 ID 查询访问日志详情的处理器，并将查询结果写回响应。
+// 当路径参数 `id` 无效、记录不存在或查询失败时，返回相应的本地化错误响应。
 func handleGetAccessLogDetail(localizer *i18n.Service, repo AccessLogRepository) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		rawID := strings.TrimSpace(ctx.Param(accessLogRouteItemParam))

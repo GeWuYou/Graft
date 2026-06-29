@@ -6,7 +6,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-// setDefaults sets default configuration values for all supported configuration keys, including environment-dependent retention durations for logging and auditing.
+// 它会为应用标识、HTTP、WebSocket、模块开关、数据库、Redis、日志、Gin 模式、i18n、鉴权以及容器运维相关配置设置默认值。
 func setDefaults(reader *viper.Viper) {
 	reader.SetDefault("app.name", defaultAppName)
 	reader.SetDefault("app.env", defaultAppEnv)
@@ -58,7 +58,8 @@ func setDefaults(reader *viper.Viper) {
 	reader.SetDefault("ops.container.shell.enabled", false)
 }
 
-// resolveDocsEnabled determines whether documentation should be enabled based on explicit configuration or environment default.
+// resolveDocsEnabled 根据显式配置或环境默认值确定是否启用文档。
+// 当未设置 `docs.enabled` 时，使用 `app.env` 对应的默认值；如果 `reader` 为空，则使用默认应用环境的默认值。
 func resolveDocsEnabled(reader *viper.Viper) bool {
 	if reader == nil {
 		return defaultDocsEnabledForEnv(defaultAppEnv)

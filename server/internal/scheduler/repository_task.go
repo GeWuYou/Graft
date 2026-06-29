@@ -248,6 +248,7 @@ func (r *SQLTaskRepository) UpdateTask(ctx context.Context, key string, patch Ta
 	return taskDefinition, nil
 }
 
+// 当补丁中的任务键与当前键不一致、作业键与现有任务不一致，或内置任务尝试修改标题或描述时，返回 ErrTaskImmutable。
 func validateTaskPatch(key string, existing TaskDefinition, patch TaskMutation) error {
 	if patch.TaskKey != "" && patch.TaskKey != key {
 		return ErrTaskImmutable
@@ -261,6 +262,9 @@ func validateTaskPatch(key string, existing TaskDefinition, patch TaskMutation) 
 	return nil
 }
 
+// applyTaskPatch 根据补丁更新任务定义中的可变字段。
+//
+// @returns 更新后的任务定义。
 func applyTaskPatch(existing TaskDefinition, patch TaskMutation) TaskDefinition {
 	next := existing
 	if patch.Title != "" {

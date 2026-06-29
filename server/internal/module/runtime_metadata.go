@@ -20,7 +20,8 @@ type RuntimeMetadata struct {
 	buildInfo                buildinfo.Info
 }
 
-// NewRuntimeMetadata constructs a RuntimeMetadata snapshot from module definitions and the current build information, normalizing the build identity.
+// NewRuntimeMetadata 根据模块定义和当前构建信息构造 RuntimeMetadata，并规范化构建标识。
+// descriptors 提供模块定义；currentBuildInfo 提供当前构建信息。
 func NewRuntimeMetadata(descriptors []Spec, currentBuildInfo buildinfo.Info) RuntimeMetadata {
 	return RuntimeMetadata{
 		orderedModuleDescriptors: collectDescriptorSnapshots(descriptors, func(descriptor Spec) (string, []string) {
@@ -42,6 +43,7 @@ func (m RuntimeMetadata) BuildInfo() buildinfo.Info {
 	return buildinfo.Normalize(m.buildInfo)
 }
 
+// newDescriptorSnapshot 创建一个 DescriptorSnapshot，并复制依赖项列表以避免共享底层数组。
 func newDescriptorSnapshot(name string, dependsOn []string) DescriptorSnapshot {
 	return DescriptorSnapshot{
 		Name:      name,
@@ -49,6 +51,7 @@ func newDescriptorSnapshot(name string, dependsOn []string) DescriptorSnapshot {
 	}
 }
 
+// project 用于从每个输入对象提取名称和依赖项。
 func collectDescriptorSnapshots[T any](
 	descriptors []T,
 	project func(T) (string, []string),

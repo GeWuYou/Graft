@@ -10,6 +10,9 @@ import (
 	"github.com/joho/godotenv"
 )
 
+// loadDotenv 从显式指定或自动发现的 .env 文件加载环境变量。
+// 当 `GRAFT_ENV_FILE` 有值时优先加载该路径；否则会在工作目录向上查找可用的 `.env` 文件并加载。
+// 返回加载过程中的错误。
 func loadDotenv() error {
 	if explicit := strings.TrimSpace(os.Getenv("GRAFT_ENV_FILE")); explicit != "" {
 		if err := godotenv.Load(explicit); err != nil {
@@ -29,6 +32,9 @@ func loadDotenv() error {
 	return nil
 }
 
+// findDotenvPath 查找可加载的 .env 文件路径。
+// 它从当前工作目录向上搜索，优先匹配 `<dir>/.env`，其次匹配 `<dir>/server/.env`；
+// 找到第一个存在的文件路径并返回，未找到时返回空字符串和 nil。
 func findDotenvPath() (string, error) {
 	workingDir, err := os.Getwd()
 	if err != nil {
@@ -51,6 +57,10 @@ func findDotenvPath() (string, error) {
 	return "", nil
 }
 
+// dotenvSearchDirs 生成从起始目录向上用于查找 dotenv 文件的目录列表。
+// 当起始目录为空白时，返回 nil；当到达文件系统根目录或命中边界目录时停止。
+// @param start 起始目录。
+// @returns 可用于搜索 dotenv 文件的目录列表。
 func dotenvSearchDirs(start string) []string {
 	if strings.TrimSpace(start) == "" {
 		return nil
@@ -75,6 +85,8 @@ func dotenvSearchDirs(start string) []string {
 	}
 }
 
+// isDotenvSearchBoundary 判断目录是否为 dotenv 搜索边界。
+// 当目录名为 `server`，或目录下存在 `.git` 标记，或存在名为 `server` 的子目录时，返回 true。
 func isDotenvSearchBoundary(dir string) bool {
 	if filepath.Base(dir) == "server" {
 		return true

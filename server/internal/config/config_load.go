@@ -2,6 +2,11 @@ package config
 
 import "github.com/spf13/viper"
 
+// readConfig 从 viper 配置读取并组装 Config。
+//
+// 它会填充应用、HTTP、HTTPX、审计、文档、模块、数据库、Redis、日志、运行时、i18n、鉴权和容器相关配置。
+//
+// @returns 读取并组装后的 Config 指针。
 func readConfig(reader *viper.Viper) *Config {
 	return &Config{
 		App: AppConfig{

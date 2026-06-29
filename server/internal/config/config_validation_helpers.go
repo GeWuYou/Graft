@@ -5,6 +5,7 @@ import (
 	"net/url"
 )
 
+// 返回首个无效条目的错误信息，全部通过时返回 nil。
 func validateWebSocketAllowedOrigins(origins []string) error {
 	for _, origin := range origins {
 		parsed, err := url.Parse(origin)

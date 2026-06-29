@@ -334,6 +334,12 @@ func (r *CronRuntime) runFinishCommand(id uint64, result cronx.JobRunResult, run
 	}
 }
 
+// completeJobRunResult 规范化作业运行结果并补全默认状态字段。
+//
+// 当运行成功时，若结果的 Stage 为空则将其设为 "completed"；当运行失败时，若 Summary 为空则使用错误信息填充，若 Stage 为空则将其设为 "failed"。
+// @param result 用于写入默认阶段和摘要的运行结果。
+// @param runErr 运行过程中返回的错误。
+// @returns 运行状态与错误信息；成功时返回 RunStatusSuccess 和空字符串，失败时返回 RunStatusFailed 和错误信息。
 func completeJobRunResult(result *cronx.JobRunResult, runErr error) (RunStatus, string) {
 	if runErr == nil {
 		if result.Stage == "" {
@@ -351,11 +357,14 @@ func completeJobRunResult(result *cronx.JobRunResult, runErr error) (RunStatus, 
 	return RunStatusFailed, errorMessage
 }
 
+// normalizeManualRunTrigger 将触发器类型强制设为手动并返回更新后的触发器。
 func normalizeManualRunTrigger(trigger RunTrigger) RunTrigger {
 	trigger.Type = TriggerTypeManual
 	return trigger
 }
 
+// finishRunContext 返回一个不会随原始上下文取消而结束的运行上下文。
+// 当 ctx 为空时，返回 context.Background()。
 func finishRunContext(ctx context.Context) context.Context {
 	if ctx == nil {
 		return context.Background()
@@ -468,6 +477,7 @@ func (r *CronRuntime) removeScheduleIfExists(key string) error {
 	return nil
 }
 
+// entriesWithoutKey 返回一个不包含指定键的新映射；当输入映射为空时直接返回原映射。
 func entriesWithoutKey(entries map[string]cron.EntryID, key string) map[string]cron.EntryID {
 	if len(entries) == 0 {
 		return entries

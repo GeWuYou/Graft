@@ -22,6 +22,7 @@ var backendOpenAPIFreshnessTargets = []string{
 	"backend-modules-runtime",
 }
 
+// runValidateMigrationVersions 执行迁移版本校验。它会解析仓库根目录，并运行 `scripts/check_migration_versions.py` 的 `--mode all` 校验。
 func runValidateMigrationVersions(cmd *cobra.Command) error {
 	repoRoot, err := resolveRepositoryRoot()
 	if err != nil {
@@ -36,6 +37,9 @@ func runValidateMigrationVersions(cmd *cobra.Command) error {
 	return nil
 }
 
+// runValidateOpenAPI 校验 OpenAPI 规范并执行后续新鲜度检查。
+// specPath 为空时使用默认根规范路径。
+// 返回校验过程中的错误。
 func runValidateOpenAPI(cmd *cobra.Command, specPath string) error {
 	specPath = strings.TrimSpace(specPath)
 	if specPath == "" {
@@ -66,7 +70,8 @@ func runValidateOpenAPI(cmd *cobra.Command, specPath string) error {
 	return nil
 }
 
-// runValidateOpenAPIFreshness 验证嵌入式 OpenAPI 规范包和生成的后端规范是否为最新状态。
+// runValidateOpenAPIFreshness 验证嵌入式 OpenAPI 规范包以及生成的后端 OpenAPI 产物是否保持最新。
+// 它会先检查运行时嵌入的 OpenAPI bundle 与源文件是否一致，再对各个后端目标执行新鲜度检查和边界审计。
 func runValidateOpenAPIFreshness(cmd *cobra.Command) error {
 	repoRoot, err := resolveRepositoryRoot()
 	if err != nil {
@@ -95,7 +100,8 @@ func runValidateOpenAPIFreshness(cmd *cobra.Command) error {
 	return nil
 }
 
-// validateEmbeddedOpenAPIBundleFreshness checks that the runtime-embedded OpenAPI bundle matches the canonical source by comparing their SHA-256 digests. Returns an error if the digests do not match, including instructions to regenerate the bundle via `go generate`.
+// validateEmbeddedOpenAPIBundleFreshness 校验运行时嵌入的 OpenAPI bundle 是否与规范源一致。
+// 它会比较两者的 SHA-256 摘要；如果不一致，则返回包含重新生成 bundle 指引的错误。
 func validateEmbeddedOpenAPIBundleFreshness(repoRoot string) error {
 	canonicalPath := filepath.Join(repoRoot, filepath.FromSlash(app.OpenAPIDocsBundleSourcePath()))
 

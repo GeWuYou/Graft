@@ -156,7 +156,7 @@ def validate_ai_tooling_doc() -> list[Finding]:
     校验 AI 工具治理文档是否包含必需的治理术语与约束。
     
     Returns:
-        list[Finding]: 缺失必需内容或包含禁用表述时对应的发现列表。
+        list[Finding]: 缺失必需内容或包含禁用表述时的发现列表。
     """
     if not AI_TOOLING_DOC.is_file():
         return []
@@ -335,7 +335,7 @@ def validate_sql_migration_governance() -> list[Finding]:
 
 def validate_environment_inventory() -> list[Finding]:
     """
-    校验本地 AI 环境清单是否包含必需的工具记录与受控目录配置。
+    校验本地 AI 环境清单是否包含受控的工具记录与目录配置。
     
     Returns:
         list[Finding]: 发现的治理缺失项列表；当清单文件不存在时返回空列表。

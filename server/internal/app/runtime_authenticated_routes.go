@@ -175,6 +175,7 @@ func (r *Runtime) injectedRealtimeTicketService() (realtimeauth.Service, error) 
 	)
 }
 
+// 若对应标签为空，则直接返回底层错误信息。
 func resolveRuntimeService[T any](
 	services *container.Container,
 	key any,

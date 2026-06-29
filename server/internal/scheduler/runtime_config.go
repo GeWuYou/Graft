@@ -52,10 +52,14 @@ func (r *CronRuntime) taskConfigForEffective(definition TaskDefinition) (string,
 	return configJSON, nil
 }
 
+// effectiveConfigJSON 合并默认配置和任务配置为最终配置 JSON。
+// @returns 合并后的 JSON 字符串；当任一输入无效或编码失败时返回错误。
 func effectiveConfigJSON(defaultConfig string, taskConfig string) (string, error) {
 	return mergeConfigJSONObjects(defaultConfig, taskConfig)
 }
 
+// mergeConfigJSONObjects 合并多个 JSON 对象字符串并返回结果。
+// 空字符串按 `{}` 处理，后面的键会覆盖前面的键。
 func mergeConfigJSONObjects(items ...string) (string, error) {
 	merged := make(map[string]any)
 	for _, item := range items {
@@ -78,6 +82,9 @@ func mergeConfigJSONObjects(items ...string) (string, error) {
 	return string(encoded), nil
 }
 
+// encodeJobRunResult 将作业运行结果编码为 JSON，并返回摘要文本。
+//
+// 如果 result.Summary 为空，则使用 result.Stage 作为摘要；若 JSON 编码失败，则返回 "{}" 和摘要。
 func encodeJobRunResult(result cronx.JobRunResult) (string, string) {
 	if result.Summary == "" {
 		result.Summary = result.Stage
@@ -89,6 +96,7 @@ func encodeJobRunResult(result cronx.JobRunResult) (string, string) {
 	return string(encoded), result.Summary
 }
 
+// jobDefinitionSnapshot 将 JobDefinition 转换为 JobDefinitionSnapshot。
 func jobDefinitionSnapshot(definition JobDefinition) JobDefinitionSnapshot {
 	return JobDefinitionSnapshot(definition)
 }
@@ -105,6 +113,8 @@ func (r *CronRuntime) enrichJobDefinition(ctx context.Context, definition JobDef
 	return definition, nil
 }
 
+// jobActionsFromJob 将 job.Actions 转换为 JobActionSnapshot 切片，并去除各字段两端空白。
+// 返回按原顺序生成的动作快照列表。
 func jobActionsFromJob(job cronx.Job) []JobActionSnapshot {
 	actions := make([]JobActionSnapshot, 0, len(job.Actions))
 	for _, action := range job.Actions {
@@ -119,6 +129,11 @@ func jobActionsFromJob(job cronx.Job) []JobActionSnapshot {
 	return actions
 }
 
+// findJobAction 按键名从动作列表中查找匹配的作业动作。
+//
+// @param actions 待查找的作业动作列表。
+// @param key 需要匹配的动作键名。
+// @returns 找到的作业动作及 `true`；如果键名为空或未找到匹配项，则返回零值和 `false`。
 func findJobAction(actions []JobActionSnapshot, key string) (JobActionSnapshot, bool) {
 	key = strings.TrimSpace(key)
 	if key == "" {
@@ -132,6 +147,9 @@ func findJobAction(actions []JobActionSnapshot, key string) (JobActionSnapshot, 
 	return JobActionSnapshot{}, false
 }
 
+// invokeJobAction 执行指定作业动作，未匹配时回退到作业默认执行逻辑。
+// 当匹配到的动作未提供处理函数时，返回带有 ErrTaskValidation 的错误。
+// @returns 任务运行结果或执行错误。
 func invokeJobAction(ctx context.Context, job cronx.Job, actionKey string, configJSON string) (cronx.JobRunResult, error) {
 	actionKey = strings.TrimSpace(actionKey)
 	for _, action := range job.Actions {
@@ -161,6 +179,7 @@ func (r *CronRuntime) markFinished(key string) {
 	delete(r.running, key)
 }
 
+// removeKey 从切片中移除第一个等于 key 的元素。
 func removeKey(values []string, key string) []string {
 	for index, value := range values {
 		if value == key {

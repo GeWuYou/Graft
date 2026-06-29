@@ -23,6 +23,17 @@ MODULE_SPEC.loader.exec_module(MODULE)
 
 
 def make_metric(name: str, score: float, details: str = "detail") -> dict[str, object]:
+    """
+    构造一条指标记录。
+    
+    Parameters:
+    	name (str): 指标名称。
+    	score (float): 归一化分数。
+    	details (str): 指标详情。
+    
+    Returns:
+    	dict[str, object]: 包含 `name`、`normalizedScore` 和 `details` 的指标字典。
+    """
     return {
         "name": name,
         "normalizedScore": score,
@@ -31,6 +42,16 @@ def make_metric(name: str, score: float, details: str = "detail") -> dict[str, o
 
 
 def make_file(path: str, metrics: list[dict[str, object]]) -> dict[str, object]:
+    """
+    构造一个包含路径和指标列表的文件记录。
+    
+    Parameters:
+    	path (str): 文件路径。
+    	metrics (list[dict[str, object]]): 该文件的指标列表。
+    
+    Returns:
+    	dict[str, object]: 包含 `path` 和 `metrics` 的文件字典。
+    """
     return {"path": path, "metrics": metrics}
 
 
@@ -323,12 +344,33 @@ class MainFlowTests(unittest.TestCase):
             report_path = Path(tmp_dir) / "report.json"
 
             def fake_run(scope: str, *, output_dir: Path, eff_config_override: Path | None, base_ref: str | None = None) -> Path:
+                """
+                为指定 scope 写入模拟的 eff-u-code 报告文件。
+                
+                Parameters:
+                	scope (str): 作用域名称。
+                	output_dir (Path): 报告输出目录。
+                	eff_config_override (Path | None): 覆盖配置文件路径。
+                	base_ref (str | None): 基准引用。
+                """
                 path = output_dir / f"eff-u-code-{scope}.json"
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text(json.dumps(report), encoding="utf-8")
                 return path
 
             def fake_run_git(args: list[str]) -> str:
+                """
+                模拟 `git` 命令的返回值。
+                
+                Parameters:
+                	args (list[str]): 传入的 Git 参数。
+                
+                Returns:
+                	str: 当参数为 `rev-parse HEAD` 时返回的提交哈希。
+                
+                Raises:
+                	RuntimeError: 当参数不匹配预设调用时抛出。
+                """
                 if args[:2] == ["rev-parse", "HEAD"]:
                     return "head-sha"
                 raise RuntimeError("skip base")
@@ -394,12 +436,33 @@ class MainFlowTests(unittest.TestCase):
             eff_path.write_text(json.dumps({"defaults": {}, "targets": {"server": {"path": "server", "exclude": []}}}), encoding="utf-8")
 
             def fake_run(scope: str, *, output_dir: Path, eff_config_override: Path | None, base_ref: str | None = None) -> Path:
+                """
+                为指定 scope 写入模拟的 eff-u-code 报告文件。
+                
+                Parameters:
+                	scope (str): 作用域名称。
+                	output_dir (Path): 报告输出目录。
+                	eff_config_override (Path | None): 覆盖配置文件路径。
+                	base_ref (str | None): 基准引用。
+                """
                 path = output_dir / f"eff-u-code-{scope}.json"
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text(json.dumps(report), encoding="utf-8")
                 return path
 
             def fake_run_git(args: list[str]) -> str:
+                """
+                模拟 `git` 命令的返回值。
+                
+                Parameters:
+                	args (list[str]): 传入的 Git 参数。
+                
+                Returns:
+                	str: 当参数为 `rev-parse HEAD` 时返回的提交哈希。
+                
+                Raises:
+                	RuntimeError: 当参数不匹配预设调用时抛出。
+                """
                 if args[:2] == ["rev-parse", "HEAD"]:
                     return "head-sha"
                 raise RuntimeError("skip base")
@@ -473,6 +536,15 @@ class MainFlowTests(unittest.TestCase):
             )
 
             def fake_run(scope: str, *, output_dir: Path, eff_config_override: Path | None, base_ref: str | None = None) -> Path:
+                """
+                为指定 scope 写入模拟的 eff-u-code 报告文件。
+                
+                Parameters:
+                	scope (str): 作用域名称。
+                	output_dir (Path): 报告输出目录。
+                	eff_config_override (Path | None): 覆盖配置文件路径。
+                	base_ref (str | None): 基准引用。
+                """
                 path = output_dir / f"eff-u-code-{scope}.json"
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text(json.dumps(report), encoding="utf-8")
@@ -570,6 +642,18 @@ class MainFlowTests(unittest.TestCase):
             )
 
             def fake_run(scope: str, *, output_dir: Path, eff_config_override: Path | None, base_ref: str | None = None) -> Path:
+                """
+                为指定范围写入模拟的 eff-u-code 报告。
+                
+                Parameters:
+                	scope (str): 范围名称。
+                	output_dir (Path): 报告输出目录。
+                	eff_config_override (Path | None): 覆盖配置路径。
+                	base_ref (str | None): 基线引用。
+                
+                Returns:
+                	Path: 生成的报告文件路径。
+                """
                 path = output_dir / f"eff-u-code-{scope}.json"
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text(json.dumps(reports[scope]), encoding="utf-8")
@@ -638,12 +722,33 @@ class MainFlowTests(unittest.TestCase):
             )
 
             def fake_run(scope: str, *, output_dir: Path, eff_config_override: Path | None, base_ref: str | None = None) -> Path:
+                """
+                为指定 scope 写入模拟的 eff-u-code 报告文件。
+                
+                Parameters:
+                	scope (str): 作用域名称。
+                	output_dir (Path): 报告输出目录。
+                	eff_config_override (Path | None): 覆盖配置文件路径。
+                	base_ref (str | None): 基准引用。
+                """
                 path = output_dir / f"eff-u-code-{scope}.json"
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text(json.dumps(report), encoding="utf-8")
                 return path
 
             def fake_run_git(args: list[str]) -> str:
+                """
+                模拟 `git` 命令的返回值。
+                
+                Parameters:
+                	args (list[str]): 传入的 Git 参数。
+                
+                Returns:
+                	str: 当参数为 `rev-parse HEAD` 时返回的提交哈希。
+                
+                Raises:
+                	RuntimeError: 当参数不匹配预设调用时抛出。
+                """
                 if args[:2] == ["rev-parse", "HEAD"]:
                     return "head-sha"
                 raise RuntimeError("skip base")
