@@ -118,7 +118,7 @@ def build_ai_inventory(raw: dict[str, Any]) -> dict[str, Any]:
     	raw (dict[str, Any]): 解析后的原始环境数据。
     
     Returns:
-    	dict[str, Any]: 用于生成 `.ai/environment/tools.ai.yaml` 的完整清单结构。
+    	dict[str, Any]: 用于生成 `.ai/environment/tools.ai.yaml` 的完整清单结构，包含平台信息、仓库特征、能力标记、工具选择、AI 工具配置、MCP 服务器配置、Python 环境信息、偏好和规则。
     """
     has_go = available_tool(raw, "required_runtimes", "go")
     has_python = available_tool(raw, "required_runtimes", "python3")

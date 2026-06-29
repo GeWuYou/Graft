@@ -16,6 +16,8 @@ func (s *Service) repository() (auditstore.AuditRepository, error) {
 	return s.repo, nil
 }
 
+// normalizeAuditPagination 规范列表分页参数，返回有效的页码和每页数量。
+// 当页码小于 1 时使用默认页码；当每页数量小于 1 时使用默认值，大于上限时截断为最大值。
 func normalizeAuditPagination(query ListQuery) (page int, pageSize int) {
 	page = query.Page
 	if page < 1 {
@@ -33,6 +35,8 @@ func normalizeAuditPagination(query ListQuery) (page int, pageSize int) {
 	return page, pageSize
 }
 
+// normalizedAuditListQuery 将查询条件归一化为审计日志列表查询。
+// 它会修剪字符串筛选条件、规范化枚举和列表型过滤项，并设置分页偏移与数量。
 func normalizedAuditListQuery(query ListQuery, page int, pageSize int) auditstore.ListAuditLogsQuery {
 	return auditstore.ListAuditLogsQuery{
 		VisibilityScope:     normalizeAuditVisibilityScope(query.VisibilityScope),
@@ -66,6 +70,8 @@ func normalizedAuditListQuery(query ListQuery, page int, pageSize int) auditstor
 	}
 }
 
+// normalizeVisibilityOverrideRef 归一化并校验可见性覆盖引用。
+// 它会规范化来源并裁剪动作键，且在任一字段缺失时返回校验错误。
 func normalizeVisibilityOverrideRef(
 	source auditstore.AuditSource,
 	actionKey string,
@@ -83,6 +89,10 @@ func normalizeVisibilityOverrideRef(
 	return normalizedSource, normalizedActionKey, nil
 }
 
+// normalizeAuditRecordInput 将审计记录输入规范化为创建参数。
+// 它会校验并裁剪操作名，清洗元数据，补充默认创建时间，并对文本字段做裁剪与内容清理。
+// @param input 审计记录输入。
+// @returns 规范化后的创建审计日志输入，以及在操作名缺失或元数据清洗失败时返回的错误。
 func normalizeAuditRecordInput(input RecordInput) (auditstore.CreateAuditLogInput, error) {
 	action := strings.TrimSpace(input.Action)
 	if action == "" {

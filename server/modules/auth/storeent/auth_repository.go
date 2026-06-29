@@ -22,6 +22,7 @@ func NewAuthRepository(client *ent.Client) (authstore.AuthRepository, error) {
 	return newAuthRepository(client)
 }
 
+// 如果 client 为空，则返回错误。
 func newAuthRepository(client *ent.Client) (*authRepository, error) {
 	if client == nil {
 		return nil, fmt.Errorf("auth storeent requires a non-nil ent client")
@@ -321,6 +322,8 @@ func (r *authRepository) ResetPasswordAndRevokeRefreshSessions(
 	})
 }
 
+// toStoreUserCredential 将 Ent 用户记录映射为存储层用户凭据。
+// UserID 使用存储层标识转换，其他字段保持记录中的值。
 func toStoreUserCredential(record *ent.User) authstore.UserCredential {
 	return authstore.UserCredential{
 		UserID:             toStoreID(record.ID),

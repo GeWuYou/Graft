@@ -499,6 +499,8 @@ func buildIncidentMonitorEvidenceLinks(seed auditstore.AuditLog, relatedEvents [
 	return []auditstore.EvidenceLink{link}
 }
 
+// incidentEvidenceWindow 返回事件集合对应的证据时间窗口。
+// 当事件为空，或无法确定开始/结束时间时，返回 nil。
 func incidentEvidenceWindow(events []auditstore.AuditLog) *auditstore.EvidenceLinkTimeWindow {
 	if len(events) == 0 {
 		return nil
@@ -514,18 +516,24 @@ func incidentEvidenceWindow(events []auditstore.AuditLog) *auditstore.EvidenceLi
 	}
 }
 
+// auditResultWhereClause 返回用于按审计结果筛选的 SQL 条件片段。
+// 它将审计结果表达式与参数占位符组合为可直接拼接到 WHERE 子句中的比较表达式。
 func auditResultWhereClause() string {
 	return auditResultPostgresExpression() + ` = $%d`
 }
 
+// auditResultExpression 返回用于从 success 和 metadata 推导审计结果分类的 SQL 表达式。
 func auditResultExpression() string {
 	return auditResultExpressionFor("success", "metadata")
 }
 
+// auditResultExpressionFor 生成基于成功列和元数据列的审计结果分类 SQL 表达式。
+// 它使用可移植的元数据解析规则，将记录归类为 SUCCESS、DENIED、ERROR 或 FAILED。
 func auditResultExpressionFor(successColumn string, metadataColumn string) string {
 	return auditResultExpressionWith(successColumn, metadataColumn, auditPortableMetadataExpressions)
 }
 
+// 当成功列为真时返回 'SUCCESS'；否则根据 metadata 中的状态码、错误类型和错误内容分别归类为 'DENIED'、'ERROR' 或 'FAILED'。
 func auditResultExpressionWith(
 	successColumn string,
 	metadataColumn string,
@@ -543,22 +551,31 @@ func auditResultExpressionWith(
 	END`
 }
 
+// auditResultPostgresExpression 生成用于 PostgreSQL 审计记录结果分类的 SQL 表达式。
+// @returns 基于 `success` 和 `metadata` 的结果分类表达式。
 func auditResultPostgresExpression() string {
 	return auditResultExpressionWith("success", "metadata", auditPostgresMetadataExpressions)
 }
 
+// riskLevelWhereClause 返回用于按风险等级筛选的 SQL 条件表达式。
 func riskLevelWhereClause() string {
 	return auditRiskLevelPostgresExpression() + ` = $%d`
 }
 
+// auditRiskLevelExpression 返回用于推导审计风险等级的 SQL 表达式。
+//
+// @returns 基于 success、action、resource_type 和 metadata 生成的风险等级分类 SQL。
 func auditRiskLevelExpression() string {
 	return auditRiskLevelExpressionFor("success", "action", "resource_type", "metadata")
 }
 
+// 该表达式使用可移植的元数据解析方式，适用于不同数据库方言。
 func auditRiskLevelExpressionFor(successColumn string, actionColumn string, resourceTypeColumn string, metadataColumn string) string {
 	return auditRiskLevelExpressionWith(successColumn, actionColumn, resourceTypeColumn, metadataColumn, auditPortableMetadataExpressions)
 }
 
+// auditRiskLevelExpressionWith 生成用于推导审计风险等级的 CASE SQL 表达式。
+// 该表达式会结合成功标记、操作类型、资源类型和元数据，将记录分类为 CRITICAL、HIGH、MEDIUM 或 LOW。
 func auditRiskLevelExpressionWith(
 	successColumn string,
 	actionColumn string,
@@ -582,22 +599,30 @@ func auditRiskLevelExpressionWith(
 	END`
 }
 
+// auditRiskLevelPostgresExpression 返回用于 PostgreSQL 审计日志风险等级分类的 SQL 表达式。
 func auditRiskLevelPostgresExpression() string {
 	return auditRiskLevelExpressionWith("success", "action", "resource_type", "metadata", auditPostgresMetadataExpressions)
 }
 
+// auditOverviewTrendResultExpression 生成审计概览趋势使用的结果分类 SQL 表达式。
+// 它根据日志记录的 success 和 metadata 字段推导审计结果。
 func auditOverviewTrendResultExpression() string {
 	return auditResultExpressionFor("logs.success", "logs.metadata")
 }
 
+// auditOverviewTrendRiskLevelExpression 返回用于审计概览趋势统计的风险等级分类 SQL 表达式。
 func auditOverviewTrendRiskLevelExpression() string {
 	return auditRiskLevelExpressionFor("logs.success", "logs.action", "logs.resource_type", "logs.metadata")
 }
 
+// sourceWhereClause 返回用于按审计来源筛选的 SQL 条件表达式。
 func sourceWhereClause() string {
 	return `COALESCE(metadata ->> 'auditSource', metadata ->> 'audit_source', '') = $%d`
 }
 
+// metadataTextValueSQL 返回从 JSON 列中提取指定键文本值并以空字符串兜底的 SQL 片段。
+// @param column JSON 列名。
+// @param key JSON 键名。
 func metadataTextValueSQL(column string, key string) string {
 	return fmt.Sprintf("COALESCE(%s ->> '%s', '')", column, key)
 }
@@ -618,10 +643,14 @@ var (
 	}
 )
 
+// metadataNumericAtLeastSQL 生成用于判断元数据数值是否达到阈值的 SQL 表达式。
+// @returns 与阈值进行大于等于比较的 SQL 片段。
 func metadataNumericAtLeastSQL(column string, key string, threshold int) string {
 	return fmt.Sprintf("%s >= %d", metadataNumericValueSQL(column, key), threshold)
 }
 
+// metadataPostgresNumericAtLeastSQL 返回用于判断 JSON 元数据中指定字段是否大于等于阈值的 PostgreSQL 表达式。
+// 该表达式会先确认字段值仅包含数字，再将其转换为整数进行比较。
 func metadataPostgresNumericAtLeastSQL(column string, key string, threshold int) string {
 	return fmt.Sprintf(`(
 				COALESCE(%[1]s ->> '%[2]s', '') ~ '^[0-9]+$'
@@ -629,6 +658,8 @@ func metadataPostgresNumericAtLeastSQL(column string, key string, threshold int)
 			)`, column, key, threshold)
 }
 
+// metadataNumericValueSQL 返回将 JSON 元数据字段解析为整数的 SQL 表达式。
+// 当字段值为空或包含非数字字符时，表达式结果为 0。
 func metadataNumericValueSQL(column string, key string) string {
 	return fmt.Sprintf(`CASE
 		WHEN COALESCE(NULLIF(%[1]s ->> '%[2]s', ''), '') <> ''
@@ -647,7 +678,8 @@ var (
 )
 
 // nullableUint64 将可选的 uint64 转换为可用于数据库参数绑定的值。
-// 当值为空时返回 nil；当值超过 bigint 可表示范围时返回错误。
+// nullableUint64 将 uint64 指针转换为数据库可绑定值。
+// 当 value 为 nil 时返回 nil；当值大于 bigint 可表示范围时返回错误。
 func nullableUint64(value *uint64) (any, error) {
 	if value == nil {
 		return nil, nil
@@ -659,6 +691,7 @@ func nullableUint64(value *uint64) (any, error) {
 	return *value, nil
 }
 
+// toStoreID 将数据库中的 ID 转为 uint64。
 func toStoreID(id int64) uint64 {
 	//nolint:gosec // 数据库 ID 来自受控 schema，并保持为正数。
 	return uint64(id)

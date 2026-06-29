@@ -109,6 +109,8 @@ type detachedAuditRuntime struct {
 	now    time.Time
 }
 
+// startDetachedAuditContext 创建用于审计发布的独立上下文。
+// 当服务或审计总线不可用时，返回零值结果。
 func startDetachedAuditContext(ctx context.Context, s *service) detachedAuditRuntime {
 	if s == nil || s.auditBus == nil {
 		return detachedAuditRuntime{}
@@ -122,10 +124,14 @@ func startDetachedAuditContext(ctx context.Context, s *service) detachedAuditRun
 	}
 }
 
+// batchAuditResourceID 生成批量审计资源 ID。
+// 返回格式为 `batch:<action>:<unixNano>`，其中 `action` 会去除首尾空白。
 func batchAuditResourceID(action string, now time.Time) string {
 	return "batch:" + strings.TrimSpace(action) + ":" + strconv.FormatInt(now.UnixNano(), 10)
 }
 
+// enrichAuditMetadataWithRequestContext 补充审计元数据中的请求和追踪标识。
+// 如果上下文中存在请求审计信息，则写入 requestId 和 traceId；否则在提供了 fallbackRequestID 时写入 requestId。
 func enrichAuditMetadataWithRequestContext(auditCtx context.Context, metadata map[string]any, fallbackRequestID string) {
 	if metadata == nil {
 		return

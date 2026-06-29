@@ -134,6 +134,7 @@ func (q ListQuery) toStoreFilter(status string) notificationstore.ListQuery {
 	}
 }
 
+// defaultUTCTimestamp 返回零值时刻对应的当前 UTC 时间，非零值则原样返回。
 func defaultUTCTimestamp(value time.Time) time.Time {
 	if value.IsZero() {
 		return time.Now().UTC()
@@ -141,6 +142,8 @@ func defaultUTCTimestamp(value time.Time) time.Time {
 	return value
 }
 
+// normalizePage 规范分页参数。
+// 它确保页码至少为 1，页大小在默认值与最大值范围内。
 func normalizePage(page int, size int) (int, int) {
 	if page <= 0 {
 		page = 1

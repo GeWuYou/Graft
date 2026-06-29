@@ -44,13 +44,13 @@ DEFAULT_DISPLAY_ORDER = ("complexity", "duplication", "file_size", "structure", 
 
 def severity_rank(level: str) -> int:
     """
-    返回严重程度的排序权重，未知等级按最低优先级处理。
-
+    获取严重程度的排序权重。
+    
     Parameters:
         level (str): 严重程度名称。
-
+    
     Returns:
-        int: 越小优先级越高。
+        int: 严重程度在排序中的索引；未知等级返回最低优先级的索引。
     """
     try:
         return SEVERITY_ORDER.index(level)
@@ -167,7 +167,7 @@ def optional_string_list(container: dict[str, Any], key: str, *, context: str) -
 
 def optional_number(container: dict[str, Any], key: str, *, context: str) -> float | None:
     """
-    获取可选数值字段，并在存在时将其转换为浮点数。
+    读取可选数值字段，并在提供时转换为浮点数。
     
     参数：
     	container (dict[str, Any]): 待读取的容器。
@@ -175,7 +175,10 @@ def optional_number(container: dict[str, Any], key: str, *, context: str) -> flo
     	context (str): 用于错误信息的上下文名称。
     
     返回：
-    	float | None: 字段存在时返回其数值的浮点表示；字段缺失或为 None 时返回 None。
+    	float | None: 字段存在且为数值时返回其浮点值；字段缺失或为 None 时返回 None。
+    
+    异常：
+    	GateConfigError: 当字段存在但不是数值时抛出。
     """
     value = container.get(key)
     if value is None:
@@ -187,15 +190,15 @@ def optional_number(container: dict[str, Any], key: str, *, context: str) -> flo
 
 def optional_bool(container: dict[str, Any], key: str, *, context: str) -> bool | None:
     """
-    获取可选布尔字段。
-
+    获取可选布尔配置项。
+    
     Parameters:
         container (dict[str, Any]): 配置容器。
         key (str): 字段名。
         context (str): 错误信息上下文。
-
+    
     Returns:
-        bool | None: 字段缺失时返回 None。
+        bool | None: 提供时返回对应布尔值；字段缺失或为 None 时返回 None。
     """
     value = container.get(key)
     if value is None:
@@ -207,10 +210,10 @@ def optional_bool(container: dict[str, Any], key: str, *, context: str) -> bool 
 
 def run_git(args: list[str]) -> str:
     """
-    在仓库根目录执行 Git 命令并返回标准输出。
+    在仓库根目录执行 Git 命令并返回输出。
     
     Parameters:
-    	args (list[str]): 传递给 `git` 的参数列表。
+    	args (list[str]): 传递给 `git` 的参数。
     
     Returns:
     	str: 去除首尾空白后的标准输出。
@@ -842,12 +845,16 @@ def evaluate_rule(
 
 def curated_score(file_evaluations: list[RuleEvaluation], gate_config: dict[str, Any]) -> float | None:
     """
-    计算文件的展示用 Curated Score。
+    计算文件的 Curated Score。
     
-    从每个规则在当前文件中的最佳得分按权重求加权平均；当没有可用权重或可用分数时返回空值。
+    按规则在当前文件中的最佳得分结合配置权重计算加权平均值；仅用于展示，不参与门禁判定。
     
-    Returns:
-        float | None: Curated Score；当没有可参与计算的规则权重或分数时为 ``None``。
+    参数:
+    	file_evaluations (list[RuleEvaluation]): 文件的规则评估结果。
+    	gate_config (dict[str, Any]): 门禁配置，其中必须包含 `curatedScore.weights`。
+    
+    返回:
+    	float | None: Curated Score；当没有可参与计算的正权重或对应分数时为 `None`。
     """
     curated = require_dict(gate_config, "curatedScore", context="gate_config")
     participates_in_gate = curated.get("participatesInGate")
@@ -877,11 +884,11 @@ def curated_score(file_evaluations: list[RuleEvaluation], gate_config: dict[str,
 
 def score_gate_config(gate_config: dict[str, Any]) -> dict[str, Any]:
     """
-    返回评分门禁配置。
-
+    获取评分门禁配置。
+    
     Parameters:
         gate_config (dict[str, Any]): 门禁配置。
-
+    
     Returns:
         dict[str, Any]: 评分门禁配置；缺失时返回空对象。
     """
@@ -895,14 +902,14 @@ def score_gate_config(gate_config: dict[str, Any]) -> dict[str, Any]:
 
 def score_profile_config(gate_config: dict[str, Any], profile: str) -> dict[str, Any]:
     """
-    读取指定评分 profile 的配置。
-
+    读取指定评分 profile 的配置对象。
+    
     Parameters:
         gate_config (dict[str, Any]): 门禁配置。
         profile (str): profile 名称。
-
+    
     Returns:
-        dict[str, Any]: profile 配置。
+        dict[str, Any]: 指定 profile 的配置对象；未配置时返回空字典。
     """
     config = score_gate_config(gate_config)
     profiles = config.get("profiles")
@@ -920,15 +927,15 @@ def score_profile_config(gate_config: dict[str, Any], profile: str) -> dict[str,
 
 def score_gate_enabled(gate_config: dict[str, Any], profile: str, scan_mode: str) -> bool:
     """
-    判断当前运行是否启用评分门禁。
-
+    判断评分门禁在当前 profile 和扫描模式下是否启用。
+    
     Parameters:
         gate_config (dict[str, Any]): 门禁配置。
-        profile (str): 评分 profile。
-        scan_mode (str): 扫描模式。
-
+        profile (str): 评分门禁 profile。
+        scan_mode (str): 当前扫描模式。
+    
     Returns:
-        bool: 是否启用。
+        bool: `true` 如果该 profile 已启用且允许当前扫描模式，`false` 其他情况。
     """
     if profile == "legacy":
         return False
@@ -946,14 +953,14 @@ def score_gate_enabled(gate_config: dict[str, Any], profile: str, scan_mode: str
 
 def score_gate_threshold(gate_config: dict[str, Any], profile: str) -> float:
     """
-    获取评分门禁阈值。
-
+    获取指定评分 profile 的门禁阈值。
+    
     Parameters:
         gate_config (dict[str, Any]): 门禁配置。
-        profile (str): 评分 profile。
-
+        profile (str): 评分 profile 名称。
+    
     Returns:
-        float: 阈值。
+        float: 该 profile 的阈值。
     """
     profile_config = score_profile_config(gate_config, profile)
     threshold = optional_number(profile_config, "threshold", context=f"gate_config.scoreGate.profiles.{profile}")
@@ -964,14 +971,14 @@ def score_gate_threshold(gate_config: dict[str, Any], profile: str) -> float:
 
 def score_gate_top_contributors(gate_config: dict[str, Any], profile: str) -> int:
     """
-    获取 Top Contributors 展示数量。
-
+    获取评分门禁配置中的 Top Contributors 数量。
+    
     Parameters:
         gate_config (dict[str, Any]): 门禁配置。
-        profile (str): 评分 profile。
-
+        profile (str): 评分配置档位名称。
+    
     Returns:
-        int: 正整数，默认 10。
+        int: Top Contributors 的显示数量；未配置或无效时为 10。
     """
     profile_config = score_profile_config(gate_config, profile)
     top = positive_int(profile_config.get("topContributors"))
@@ -996,14 +1003,14 @@ def score_gate_detail_limit(gate_config: dict[str, Any], profile: str) -> int:
 
 def score_gate_gain_steps(gate_config: dict[str, Any], profile: str) -> list[int]:
     """
-    获取预计收益展示的 TopN 列表。
-
+    获取评分门禁的预计收益展示步长列表。
+    
     Parameters:
         gate_config (dict[str, Any]): 门禁配置。
         profile (str): 评分 profile。
-
+    
     Returns:
-        list[int]: 有序正整数列表。
+        list[int]: 去重后的正整数列表；未配置时返回 [3, 5, 10]。
     """
     profile_config = score_profile_config(gate_config, profile)
     raw = profile_config.get("potentialGainSteps")
@@ -1022,14 +1029,14 @@ def score_gate_gain_steps(gate_config: dict[str, Any], profile: str) -> list[int
 
 def score_gate_rule_order(gate_config: dict[str, Any], profile: str) -> tuple[str, ...]:
     """
-    获取输出中的规则分类顺序。
-
+    确定输出中规则分类的顺序。
+    
     Parameters:
         gate_config (dict[str, Any]): 门禁配置。
-        profile (str): 评分 profile。
-
+        profile (str): 评分配置档位。
+    
     Returns:
-        tuple[str, ...]: 输出顺序。
+        tuple[str, ...]: 规则分类名称的输出顺序；未配置时返回默认顺序。
     """
     profile_config = score_profile_config(gate_config, profile)
     categories = optional_string_list(profile_config, "categoryOrder", context=f"gate_config.scoreGate.profiles.{profile}")
@@ -1047,15 +1054,15 @@ def score_gate_rule_order(gate_config: dict[str, Any], profile: str) -> tuple[st
 
 def estimate_rule_impact(rule_name: str, current_score: float, gate_config: dict[str, Any]) -> float:
     """
-    估算单条规则对 Project Score 的扣分影响。
-
+    估算单条规则对项目评分的影响值。
+    
     Parameters:
         rule_name (str): 规则名称。
         current_score (float): 当前得分。
         gate_config (dict[str, Any]): 门禁配置。
-
+    
     Returns:
-        float: 非负扣分值。
+        float: 该规则对应的非负影响值。
     """
     curated = require_dict(gate_config, "curatedScore", context="gate_config")
     weights = require_dict(curated, "weights", context="gate_config.curatedScore")
@@ -1071,15 +1078,15 @@ def estimate_rule_impact(rule_name: str, current_score: float, gate_config: dict
 
 def issue_severity(rule_name: str, current_score: float, threshold: float | None) -> str:
     """
-    基于规则类别和偏离程度估算问题严重程度。
-
+    根据规则类别和偏离程度估算问题严重程度。
+    
     Parameters:
         rule_name (str): 规则名称。
         current_score (float): 当前得分。
-        threshold (float | None): 规则阈值。
-
+        threshold (float | None): 规则阈值；为 `None` 时按满分基准计算偏离程度。
+    
     Returns:
-        str: critical/high/medium/low 之一。
+        str: `critical`、`high`、`medium` 或 `low`。
     """
     if rule_name == "error_handling" and current_score < 40:
         return "critical"
@@ -1098,13 +1105,13 @@ def issue_severity(rule_name: str, current_score: float, threshold: float | None
 
 def format_score(value: float | None) -> str:
     """
-    格式化得分。
-
+    将得分格式化为终端显示文本。
+    
     Parameters:
-        value (float | None): 分数。
-
+        value (float | None): 需要格式化的得分。
+    
     Returns:
-        str: 供终端输出的文本。
+        str: `value` 为 `None` 时返回 `n/a`，否则返回保留一位小数的字符串。
     """
     if value is None:
         return "n/a"
@@ -1113,14 +1120,14 @@ def format_score(value: float | None) -> str:
 
 def truncate_detail(text: str, limit: int = 120) -> str:
     """
-    截断长详情，避免终端输出失控。
-
+    压缩文本中连续的空白字符，并在超长时截断。
+    
     Parameters:
-        text (str): 原始详情。
-        limit (int): 最大长度。
-
+        text (str): 原始文本。
+        limit (int): 最大长度；默认 120。
+    
     Returns:
-        str: 截断后的文本。
+        str: 去除多余空白后的文本，若超过长度限制则被截断并在末尾加省略号。
     """
     compact = " ".join(text.split())
     if len(compact) <= limit:
@@ -1130,13 +1137,13 @@ def truncate_detail(text: str, limit: int = 120) -> str:
 
 def extract_subject(details: str) -> str | None:
     """
-    从指标详情中提取首个主体信息。
-
+    提取指标详情中的首个有效主体文本。
+    
     Parameters:
-        details (str): 指标详情。
-
+        details (str): 指标详情文本。
+    
     Returns:
-        str | None: 提取到的主体文本。
+        str | None: 提取并截断后的主体文本；如果无法提取则返回 `None`。
     """
     for line in details.splitlines():
         stripped = line.strip(" -•\t")
@@ -1154,16 +1161,16 @@ def build_file_diagnostics(
     category_order: tuple[str, ...],
 ) -> dict[str, Any]:
     """
-    为单个文件构建评分诊断摘要。
-
+    为单个文件生成评分诊断摘要。
+    
     Parameters:
         repo_path (str): 仓库相对路径。
-        evaluations (list[RuleEvaluation]): 规则评估列表。
-        gate_config (dict[str, Any]): 门禁配置。
-        category_order (tuple[str, ...]): 规则分类输出顺序。
-
+        evaluations (list[RuleEvaluation]): 该文件的规则评估结果。
+        gate_config (dict[str, Any]): 门禁配置，用于计算分类影响度。
+        category_order (tuple[str, ...]): 分类汇总的输出顺序。
+    
     Returns:
-        dict[str, Any]: 文件诊断摘要。
+        dict[str, Any]: 包含文件路径、总影响度、问题数、最高严重度、分类影响度和严重度汇总的诊断摘要。
     """
     file_impact = 0.0
     issue_count = 0
@@ -1219,13 +1226,13 @@ def build_file_diagnostics(
 
 def average(values: list[float]) -> float | None:
     """
-    计算平均值。
-
+    计算数值列表的平均值。
+    
     Parameters:
-        values (list[float]): 数值列表。
-
+        values (list[float]): 要计算平均值的数值列表。
+    
     Returns:
-        float | None: 平均值；空列表返回 None。
+        float | None: 平均值；列表为空时返回 `None`。
     """
     if not values:
         return None
@@ -1234,11 +1241,11 @@ def average(values: list[float]) -> float | None:
 
 def print_section_divider(char: str, width: int = 46) -> None:
     """
-    打印简单分割线。
-
+    打印由指定字符重复组成的分割线。
+    
     Parameters:
-        char (str): 使用的字符。
-        width (int): 宽度。
+        char (str): 用于生成分割线的字符。
+        width (int): 分割线长度。
     """
     print(char * width)
 
@@ -1281,27 +1288,27 @@ def display_rule_name(rule_name: str) -> str:
 
 def display_severity(level: str) -> str:
     """
-    返回严重程度展示名称。
-
+    将严重程度转换为展示名称。
+    
     Parameters:
-        level (str): 严重程度。
-
+        level (str): 严重程度标识。
+    
     Returns:
-        str: 展示名称。
+        str: 大写后的展示名称。
     """
     return level.upper()
 
 
 def strip_scope_root(path: str, root: str) -> str:
     """
-    去掉仓库路径中的 scope 根前缀，便于摘要展示。
-
+    将路径中的 scope 根目录前缀去掉。
+    
     Parameters:
         path (str): 仓库相对路径。
         root (str): scope 根目录。
-
+    
     Returns:
-        str: 去前缀后的路径。
+        str: 去除前缀后的路径。
     """
     prefix = f"{root}/"
     if path.startswith(prefix):
@@ -1311,14 +1318,14 @@ def strip_scope_root(path: str, root: str) -> str:
 
 def summarize_category_impacts(file_results: list[dict[str, Any]], category_order: tuple[str, ...]) -> list[dict[str, Any]]:
     """
-    汇总 scope 级规则类别扣分。
-
+    汇总文件结果中的类别影响总和。
+    
     Parameters:
         file_results (list[dict[str, Any]]): 文件结果列表。
-        category_order (tuple[str, ...]): 类别顺序。
-
+        category_order (tuple[str, ...]): 类别输出顺序。
+    
     Returns:
-        list[dict[str, Any]]: 每类累计扣分。
+        list[dict[str, Any]]: 按指定顺序返回累计影响大于 0 的类别项，每项包含 `rule` 和 `impact`。
     """
     totals: dict[str, float] = collections.defaultdict(float)
     for file_result in file_results:
@@ -1337,13 +1344,13 @@ def summarize_category_impacts(file_results: list[dict[str, Any]], category_orde
 
 def summarize_severity(file_results: list[dict[str, Any]]) -> dict[str, Any]:
     """
-    汇总 scope 级严重程度分布。
-
+    汇总文件结果中的严重程度分布。
+    
     Parameters:
-        file_results (list[dict[str, Any]]): 文件结果列表。
-
+        file_results (list[dict[str, Any]]): 文件评估结果列表。
+    
     Returns:
-        dict[str, Any]: 严重程度统计与对应文件摘要。
+        dict[str, Any]: 包含各严重程度计数与对应高亮文件摘要的统计结果。
     """
     counts = {level: 0 for level in SEVERITY_ORDER}
     highlights: dict[str, list[dict[str, Any]]] = {level: [] for level in SEVERITY_ORDER}
@@ -1371,14 +1378,14 @@ def summarize_severity(file_results: list[dict[str, Any]]) -> dict[str, Any]:
 
 def top_contributors(file_results: list[dict[str, Any]], limit: int) -> list[dict[str, Any]]:
     """
-    返回对分数影响最大的文件。
-
+    按影响度从高到低选出文件贡献者。
+    
     Parameters:
         file_results (list[dict[str, Any]]): 文件结果列表。
-        limit (int): 返回上限。
-
+        limit (int): 返回的最大条目数。
+    
     Returns:
-        list[dict[str, Any]]: Top contributors。
+        list[dict[str, Any]]: 按影响度降序排列的文件结果列表，仅包含影响度大于 0 的条目。
     """
     ranked = sorted(
         file_results,
@@ -1428,14 +1435,14 @@ def render_score_gate_summary(
 ) -> None:
     """
     打印评分门禁的分层摘要。
-
+    
     Parameters:
         scope (str): scope 名称。
-        scope_result (dict[str, Any]): scope 结果。
-        threshold (float): 阈值。
-        top_limit (int): Top Contributors 上限。
-        detail_limit (int): 详情展开上限。
-        gain_steps (list[int]): 预计收益档位。
+        scope_result (dict[str, Any]): scope 的评估结果。
+        threshold (float): 评分门禁阈值。
+        top_limit (int): Top Contributors 的显示数量上限。
+        detail_limit (int): 详细展开的文件数量上限。
+        gain_steps (list[int]): 计算潜在得分收益的档位。
     """
     file_results = scope_result["files"]
     scope_score = scope_result.get("scopeQualityScore")
@@ -1534,10 +1541,10 @@ def render_score_gate_summary(
 
 def parse_args() -> argparse.Namespace:
     """
-    解析命令行参数。
+    解析并返回命令行参数。
     
-    返回：
-    	argparse.Namespace: 包含配置路径、扫描模式、基准分支、输出路径、报告目录和作用域限制等参数。
+    Returns:
+        argparse.Namespace: 包含配置文件路径、eff-u-code 配置路径、扫描模式、基准分支、输出路径、报告目录、作用域限制和门禁配置档位的参数。
     """
     parser = argparse.ArgumentParser(description="Evaluate Graft Quality Policy from eff-u-code reports.")
     parser.add_argument("--config", default=str(DEFAULT_GATE_CONFIG), help="path to gate config JSON")
@@ -1569,8 +1576,10 @@ def main() -> int:
     """
     执行 Graft Quality Policy 门禁评估并输出结果。
     
+    根据配置和扫描模式汇总 eff-u-code 报告，计算规则失败、覆盖缺失与可选的评分门禁结果，并在需要时输出 JSON 与终端诊断信息。
+    
     Returns:
-        int: 退出码；无失败时为 0，存在评估失败时为 1，配置或运行错误时为 2。
+        int: 退出码；成功为 0，存在评估失败为 1，配置或运行错误为 2。
     """
     args = parse_args()
     temp_ctx: tempfile.TemporaryDirectory[str] | None = None

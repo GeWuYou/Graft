@@ -26,7 +26,9 @@ type auditNotificationRecordView struct {
 
 // publishAuditNotification 在满足条件时发布审计通知，并在发布失败时记录警告日志。
 // 当 publisher 为空或审计记录不符合通知条件时，函数直接返回。否则会构建通知输入并尝试发布；
-// 发布失败时会使用非空 logger 记录包含模块、事件类型、严重级别、审计日志 ID 和错误信息的警告日志。
+// publishAuditNotification 在允许通知时发布审计通知，并在发布失败时记录警告日志。
+//
+// 当发布失败时，会使用可用的 logger 记录包含模块、事件类型、严重级别、审计日志 ID 和错误信息的警告日志。
 func publishAuditNotification(
 	ctx context.Context,
 	logger *zap.Logger,
@@ -51,7 +53,7 @@ func publishAuditNotification(
 	}
 }
 
-// 仅对可见的记录进行判断；当操作包含权限拒绝、登录失败，或登录类操作且执行失败时返回 true。风险级别为高或严重时也返回 true。
+// 对可见记录进行判断；当操作属于权限拒绝或登录失败，或风险级别为高/严重时返回 true。
 func shouldNotifyAuditRecord(record auditstore.AuditLog) bool {
 	if record.Visibility != auditstore.AuditVisibilityStrategyVisible {
 		return false
@@ -66,7 +68,8 @@ func shouldNotifyAuditRecord(record auditstore.AuditLog) bool {
 
 // auditNotificationInput 根据审计日志构建通知发布输入。
 // 它会选择通知文案与严重级别，合并审计上下文与现有元数据，并填充导航、资源和接收目标信息。
-// 返回用于发布审计通知的输入。
+// auditNotificationInput 构建用于发布审计通知的输入。
+// 它会根据审计记录派生通知类型、资源信息、结果、风险等级和本地化文案，并合并通知元数据。
 func auditNotificationInput(record auditstore.AuditLog) moduleapi.PublishNotificationInput {
 	view := buildAuditNotificationRecordView(record)
 	copyParts := auditNotificationCopy(view.kind, record)
@@ -135,11 +138,13 @@ func auditNotificationInput(record auditstore.AuditLog) moduleapi.PublishNotific
 }
 
 // auditNotificationKind 根据审计记录的动作和结果确定通知类型。
-// 当动作包含权限拒绝或登录失败相关标记时返回对应类型；否则返回高风险类型。
+// 当动作标记为权限拒绝或登录失败时返回对应类型，否则返回高风险类型。
 func auditNotificationKind(record auditstore.AuditLog) string {
 	return auditNotificationKindFromAction(strings.ToLower(strings.TrimSpace(record.Action)), record.Success)
 }
 
+// auditNotificationKindFromAction 根据动作和成功状态归类审计通知类型。
+// 当动作包含权限拒绝标记时返回 "permission_denied"；当动作表示登录失败，或动作包含登录且执行未成功时返回 "login_failed"；其余情况返回 "high_risk"。
 func auditNotificationKindFromAction(action string, success bool) string {
 	switch {
 	case strings.Contains(action, "permission.denied") || strings.Contains(action, "permission_denied"):
@@ -151,6 +156,7 @@ func auditNotificationKindFromAction(action string, success bool) string {
 	}
 }
 
+// buildAuditNotificationRecordView 从审计日志构建用于通知的派生视图，填充通知类型、风险等级、资源信息、结果和原因等字段。
 func buildAuditNotificationRecordView(record auditstore.AuditLog) auditNotificationRecordView {
 	riskLevel := auditRecordRiskLevel(record)
 	return auditNotificationRecordView{
@@ -176,7 +182,7 @@ type auditNotificationCopyParts struct {
 // auditNotificationCopy 根据通知类型和审计记录生成标题、消息与操作按钮的本地化键和值。
 //
 // kind 决定返回登录失败、权限拒绝或高风险审计事件的文案；record 用于生成权限拒绝消息中的目标名称。
-// 返回对应的标题、消息和操作按钮文案及其本地化键。
+// 对于权限拒绝场景，消息会包含资源名称、资源 ID、操作或默认文案中的首个可用值。
 func auditNotificationCopy(kind string, record auditstore.AuditLog) auditNotificationCopyParts {
 	target := firstNonEmptyTrimmed(record.ResourceName, record.ResourceID, record.Action, "Audit event")
 	switch kind {

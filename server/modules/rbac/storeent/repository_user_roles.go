@@ -246,6 +246,11 @@ func (r *repository) ListRolesByUserIDs(ctx context.Context, userIDs []uint64) (
 	return rolesByUserID, nil
 }
 
+// insertUserRole 将用户和角色的绑定记录写入 user_roles，并设置创建时间为 UTC。
+// @param userID 用户 ID。
+// @param roleID 角色 ID。
+// @param target 执行数据库操作的对象。
+// @returns 执行插入时返回的错误；成功时为 nil。
 func insertUserRole(ctx context.Context, userID int64, roleID int64, target execQuerier) error {
 	_, err := target.ExecContext(
 		ctx,

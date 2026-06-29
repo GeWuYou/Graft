@@ -20,6 +20,8 @@ func NewAuthRepository(client *ent.Client) (userstore.AuthRepository, error) {
 	return newAuthRepository(client)
 }
 
+// newAuthRepository 使用给定的 Ent 客户端创建 authRepository。
+// 当 client 为空时返回错误。
 func newAuthRepository(client *ent.Client) (*authRepository, error) {
 	if client == nil {
 		return nil, fmt.Errorf("user storeent requires a non-nil ent client")

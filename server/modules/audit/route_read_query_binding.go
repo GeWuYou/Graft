@@ -519,7 +519,12 @@ func normalizeAuditStringQuerySlice(values []string) []string {
 //
 // 当 `key[]` 形式存在时，会同时返回 `key` 和 `key[]` 的值；否则只返回 `key` 的值。
 //
+// queryArrayCompat 返回指定查询参数及其方括号形式的所有值。
+//
+// 当同时存在 `key` 和 `key[]` 时，结果按 `key` 的值在前、`key[]` 的值在后合并。
+//
 // @param key 查询参数名。
+// @returns 合并后的查询参数值列表。
 func queryArrayCompat(ginCtx *gin.Context, key string) []string {
 	values := ginCtx.QueryArray(key)
 	bracketValues := ginCtx.QueryArray(key + "[]")
@@ -681,7 +686,7 @@ func parseOptionalTimeQuery(ginCtx *gin.Context, key string) (time.Time, bool, e
 }
 
 // bindGeneratedAuditReadHeaders 提取请求中的语言环境和请求 ID 头。
-// 仅在对应头值非空时返回指针。
+// bindGeneratedAuditReadHeaders 从请求头提取区域设置和请求 ID 指针。
 func bindGeneratedAuditReadHeaders(ginCtx *gin.Context) (locale *string, requestID *string) {
 	return auditHeaderPointer(ginCtx.GetHeader(string(httpheader.Locale))),
 		auditHeaderPointer(ginCtx.GetHeader(httpx.RequestIDHeader))
@@ -731,6 +736,9 @@ func bindGeneratedAuditOverviewParams(ginCtx *gin.Context) (auditopenapi.GetAudi
 // normalizeAuditOverviewPreset 将概览预设规范化为存储层时间预设。
 // 当值为空、为空白或不受支持时，返回默认的最近 24 小时预设。
 //
+// normalizeAuditOverviewPreset 将概览参数中的预设转换为审计时间预设。
+// 当未提供预设时，返回默认的最近 24 小时预设。
+//
 // 返回对应的审计时间预设。
 func normalizeAuditOverviewPreset(value *auditopenapi.GetAuditOverviewParamsPreset) auditstore.AuditTimePreset {
 	if value == nil {
@@ -739,6 +747,7 @@ func normalizeAuditOverviewPreset(value *auditopenapi.GetAuditOverviewParamsPres
 	return normalizeAuditOverviewTimePreset(auditstore.AuditTimePreset(strings.TrimSpace(string(*value))))
 }
 
+// auditHeaderPointer 将空白字符串转换为 nil，否则返回其指针。
 func auditHeaderPointer(value string) *string {
 	if strings.TrimSpace(value) == "" {
 		return nil

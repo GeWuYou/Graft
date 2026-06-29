@@ -12,6 +12,9 @@ import (
 	userstore "graft/server/modules/user/store"
 )
 
+// userAuthUserID 将外部用户 ID 转换为内部 Ent 用户 ID。
+//
+// @returns 转换后的用户 ID；当输入 ID 无效时返回 userstore.ErrUserNotFound，其他转换错误原样返回。
 func userAuthUserID(inputUserID uint64) (int, error) {
 	userID, err := toEntID(inputUserID)
 	if err != nil {
@@ -57,6 +60,8 @@ func (r *authRepository) updatePasswordHash(ctx context.Context, userID int, inp
 	return nil
 }
 
+// beginUserAuthTx 启动用户认证事务并返回回滚清理函数。
+// 清理函数会尝试回滚事务，用于在后续步骤失败时释放资源。
 func beginUserAuthTx(ctx context.Context, client *ent.Client, action string) (*ent.Tx, func(), error) {
 	tx, err := client.Tx(ctx)
 	if err != nil {
@@ -69,6 +74,8 @@ func beginUserAuthTx(ctx context.Context, client *ent.Client, action string) (*e
 	return tx, cleanup, nil
 }
 
+// commitUserAuthTx 提交用户认证事务。
+// 提交失败时，`context.Canceled` 和 `context.DeadlineExceeded` 会直接返回，其余错误会附带操作名包装。
 func commitUserAuthTx(tx *ent.Tx, action string) error {
 	if commitErr := tx.Commit(); commitErr != nil {
 		if errors.Is(commitErr, context.Canceled) || errors.Is(commitErr, context.DeadlineExceeded) {
@@ -89,6 +96,8 @@ type passwordUpdateTxInput struct {
 	contextMessage     string
 }
 
+// setUserPasswordInTx 在事务中更新用户密码信息，必要时仅作用于未删除用户。
+// 找不到用户时返回 userstore.ErrUserNotFound，其余错误按 input.contextMessage 包装后返回。
 func setUserPasswordInTx(
 	ctx context.Context,
 	tx *ent.Tx,
@@ -113,6 +122,9 @@ func setUserPasswordInTx(
 	return nil
 }
 
+// revokeRefreshSessionsInTx 撤销指定用户的未撤销刷新会话。
+// 当 currentTokenID 不为 nil 时，会保留该 token 对应的会话不作撤销。
+// 返回保存更新时的错误。
 func revokeRefreshSessionsInTx(
 	ctx context.Context,
 	tx *ent.Tx,
@@ -137,6 +149,7 @@ func revokeRefreshSessionsInTx(
 	return nil
 }
 
+// loadActiveRefreshSessionForRotation 加载可用于刷新令牌轮换的当前刷新会话，要求会话未撤销且未过期。
 func loadActiveRefreshSessionForRotation(
 	ctx context.Context,
 	tx *ent.Tx,
@@ -159,6 +172,7 @@ func loadActiveRefreshSessionForRotation(
 	return current, nil
 }
 
+// input 提供撤销时间、替换 token ID 和判定是否仍有效的当前时间。
 func revokeRefreshSessionForRotation(
 	ctx context.Context,
 	tx *ent.Tx,
@@ -184,6 +198,8 @@ func revokeRefreshSessionForRotation(
 	return nil
 }
 
+// createRotatedRefreshSession 在事务中创建轮换后的刷新会话。
+// 它会设置用户 ID、新的令牌 ID 和过期时间；创建失败时返回包装后的错误。
 func createRotatedRefreshSession(
 	ctx context.Context,
 	tx *ent.Tx,
@@ -202,14 +218,19 @@ func createRotatedRefreshSession(
 	return next, nil
 }
 
+// commitRefreshRotation 提交刷新会话轮换事务。
+//
+// @returns 提交成功时为 nil；提交失败时返回错误。
 func commitRefreshRotation(tx *ent.Tx) error {
 	return commitUserAuthTx(tx, "refresh session rotation")
 }
 
+// commitPasswordChange 提交密码修改事务。
 func commitPasswordChange(tx *ent.Tx) error {
 	return commitUserAuthTx(tx, "password change")
 }
 
+// commitResetPassword 提交重置密码事务，并返回提交结果。
 func commitResetPassword(tx *ent.Tx) error {
 	return commitUserAuthTx(tx, "reset password")
 }

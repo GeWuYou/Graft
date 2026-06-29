@@ -520,6 +520,18 @@ class MainFlowTests(unittest.TestCase):
             eff_path.write_text(json.dumps({"defaults": {}, "targets": {"server": {"path": "server", "exclude": []}}}), encoding="utf-8")
 
             def fake_run(scope: str, *, output_dir: Path, eff_config_override: Path | None, base_ref: str | None = None) -> Path:
+                """
+                为指定范围写入模拟的 eff-u-code 报告文件。
+                
+                Parameters:
+                	scope (str): 范围名称。
+                	output_dir (Path): 报告输出目录。
+                	eff_config_override (Path | None): 覆盖配置路径。
+                	base_ref (str | None): 基准引用。
+                
+                Returns:
+                	Path: 生成的报告文件路径。
+                """
                 path = output_dir / f"eff-u-code-{scope}.json"
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text(json.dumps(report), encoding="utf-8")
@@ -609,6 +621,18 @@ class MainFlowTests(unittest.TestCase):
             eff_path.write_text(json.dumps({"defaults": {"top": 20}, "targets": {"web": {"path": "web/src", "exclude": []}}}), encoding="utf-8")
 
             def fake_run(scope: str, *, output_dir: Path, eff_config_override: Path | None, base_ref: str | None = None) -> Path:
+                """
+                为指定范围写入模拟的 eff-u-code 报告文件。
+                
+                Parameters:
+                	scope (str): 范围名称。
+                	output_dir (Path): 报告输出目录。
+                	eff_config_override (Path | None): 覆盖配置路径。
+                	base_ref (str | None): 基准引用。
+                
+                Returns:
+                	Path: 生成的报告文件路径。
+                """
                 path = output_dir / f"eff-u-code-{scope}.json"
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text(json.dumps(report), encoding="utf-8")
@@ -693,6 +717,18 @@ class MainFlowTests(unittest.TestCase):
             )
 
             def fake_run(scope: str, *, output_dir: Path, eff_config_override: Path | None, base_ref: str | None = None) -> Path:
+                """
+                为指定范围写入模拟的 eff-u-code 报告文件。
+                
+                Parameters:
+                	scope (str): 范围名称。
+                	output_dir (Path): 报告输出目录。
+                	eff_config_override (Path | None): 覆盖配置路径。
+                	base_ref (str | None): 基准引用。
+                
+                Returns:
+                	Path: 生成的报告文件路径。
+                """
                 path = output_dir / f"eff-u-code-{scope}.json"
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text(json.dumps(report), encoding="utf-8")

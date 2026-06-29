@@ -310,6 +310,9 @@ func (q execQuerier) ExecContext(ctx context.Context, query string, args ...any)
 	}
 }
 
+// insertRolePermission 向 role_permissions 中插入角色与权限绑定记录。
+//
+// 记录的 created_at 使用当前 UTC 时间。
 func insertRolePermission(ctx context.Context, roleID int64, permissionID int64, target execQuerier) error {
 	_, err := target.ExecContext(
 		ctx,

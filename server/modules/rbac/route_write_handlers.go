@@ -82,6 +82,8 @@ func handleCreateRoleRoute(
 	httpx.WriteSuccess(ginCtx, http.StatusOK, payload)
 }
 
+// handleUpdateRoleRoute 处理角色更新请求并返回更新后的角色信息。
+// 它会解析角色 ID 和请求体，校验必要字段后更新角色，并写回更新结果。
 func handleUpdateRoleRoute(
 	ginCtx *gin.Context,
 	ctx *module.Context,
@@ -136,6 +138,8 @@ func handleUpdateRoleRoute(
 	httpx.WriteSuccess(ginCtx, http.StatusOK, payload)
 }
 
+// handleUpdateRoleStatusRoute 处理角色状态更新请求，并返回更新后的角色信息。
+// 该处理器会校验角色 ID、请求体和状态字段，更新指定角色的状态后写回结果。
 func handleUpdateRoleStatusRoute(ginCtx *gin.Context, ctx *module.Context, moduleName string, writer writeManagementService) {
 	requestCtx := ginCtx.Request.Context()
 	roleID, err := parseManagementID(ginCtx.Param("id"))
@@ -170,6 +174,7 @@ func handleUpdateRoleStatusRoute(ginCtx *gin.Context, ctx *module.Context, modul
 	httpx.WriteSuccess(ginCtx, http.StatusOK, payload)
 }
 
+// handleDeleteRoleRoute 处理角色删除请求并执行软删除。
 func handleDeleteRoleRoute(ginCtx *gin.Context, ctx *module.Context, moduleName string, writer writeManagementService) {
 	requestCtx := ginCtx.Request.Context()
 	roleID, err := parseManagementID(ginCtx.Param("id"))

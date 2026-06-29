@@ -140,10 +140,13 @@ func (r *DockerRuntime) populateStatsSnapshots(
 	wg.Wait()
 }
 
+// dockerStatsWorkQueue 返回一个容量等于 itemCount 的整数队列。
 func dockerStatsWorkQueue(itemCount int) chan int {
 	return make(chan int, itemCount)
 }
 
+// dockerStatsWorkerCount 返回用于采集 Docker 统计信息的 worker 数量。
+// 数量不会超过 dockerStatsListWorkers，且至少为 1。
 func dockerStatsWorkerCount(itemCount int) int {
 	workers := min(itemCount, dockerStatsListWorkers)
 	if workers < 1 {

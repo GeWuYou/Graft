@@ -212,7 +212,7 @@ func (r *repository) readOverviewTrend(
 }
 
 // overviewTrendSeriesSQL 生成按固定时间步长聚合审计日志概览趋势的 SQL。
-// 返回用于统计每个时间桶的总数、失败数、高风险数和安全事件数的查询语句。
+// 查询结果按时间桶返回每个区间的起始和结束时间，以及该区间内的总数、失败数、高风险数和安全事件数。
 func overviewTrendSeriesSQL(step string) string {
 	//nolint:gosec // step comes from overviewTrendConfig and is limited to fixed internal interval literals.
 	return fmt.Sprintf(`
@@ -241,6 +241,8 @@ ORDER BY bucket_start ASC
 `, step)
 }
 
+// buildOverviewTrendPoints 生成从 startedAt 到 now 之前的连续趋势桶。
+// 每个桶的结束时间不会超过 now。
 func buildOverviewTrendPoints(startedAt time.Time, now time.Time, stepDuration time.Duration) []auditstore.OverviewTrendPoint {
 	points := make([]auditstore.OverviewTrendPoint, 0, overviewTrendPointLimit)
 	for bucketStart := startedAt; bucketStart.Before(now); bucketStart = bucketStart.Add(stepDuration) {
@@ -257,6 +259,8 @@ func buildOverviewTrendPoints(startedAt time.Time, now time.Time, stepDuration t
 	return points
 }
 
+// applyOverviewTrendRecord 将审计日志累加到对应的趋势桶中。
+// 统计项包括总数、失败数、高风险数和安全事件数。
 func applyOverviewTrendRecord(points []auditstore.OverviewTrendPoint, record auditstore.AuditLog, startedAt time.Time, stepDuration time.Duration) {
 	index := int(record.CreatedAt.Sub(startedAt) / stepDuration)
 	if index < 0 || index >= len(points) {
@@ -331,6 +335,8 @@ ORDER BY created_at ASC, id ASC
 	}, nil
 }
 
+// parseOverviewTrendStep 将趋势步长标识映射为对应的时间间隔。
+// @return 对应的时间间隔；`overviewTrendDayStep` 返回 `overviewTrendOneDayDuration`，`overviewTrendThreeDayStep` 返回 `overviewTrendThreeDayDuration`，其他值返回 `overviewTrendTwoHourDuration`。
 func parseOverviewTrendStep(step string) time.Duration {
 	switch step {
 	case overviewTrendDayStep:
@@ -342,6 +348,8 @@ func parseOverviewTrendStep(step string) time.Duration {
 	}
 }
 
+// scanAuditTrendRecord 从行数据中解析一条审计趋势记录，并保留原始元数据。
+// @returns auditstore.AuditLog 解析得到的审计日志记录；error 扫描失败时返回的错误。
 func scanAuditTrendRecord(scanner interface {
 	Scan(dest ...any) error
 }) (auditstore.AuditLog, error) {
@@ -369,6 +377,9 @@ func scanAuditTrendRecord(scanner interface {
 	return record, nil
 }
 
+// overviewTrendConfig 根据时间预设选择趋势图的桶单位、桶大小和步长。
+//
+// @returns 桶单位、桶大小和步长。
 func overviewTrendConfig(preset auditstore.AuditTimePreset) (string, int, string) {
 	switch preset {
 	case auditstore.AuditTimePresetLast7Days:
@@ -470,7 +481,9 @@ func (r *repository) readAuditOverviewItems(ctx context.Context, args []any, whe
 
 // scanAuditOverviewItem 解析一条审计概览记录并补齐元数据。
 // 它会将 actor 用户 ID 转换为可选值，并复制 metadata 以避免共享底层字节。
-// @returns 解析后的概览条目；如果扫描失败，则返回错误。
+// scanAuditOverviewItem 解析一条概览条目记录，并补充可选的演员用户 ID 和元数据副本。
+// 当 actor_user_id 有值时，将其转换后写入 ActorUserID；metadata 会被克隆后保存到结果中。
+// 解析失败时返回包装后的错误。
 func scanAuditOverviewItem(scanner interface {
 	Scan(dest ...any) error
 }) (auditstore.OverviewItem, error) {

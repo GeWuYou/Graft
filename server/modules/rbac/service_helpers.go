@@ -16,6 +16,8 @@ var (
 	errRBACUserServiceUnavailable = errors.New("user service is unavailable")
 )
 
+// runRBACQuery 执行一个 RBAC 仓库查询并处理仓库不可用错误。
+// 当 repository 为 nil 时返回零值和 errRBACRepositoryUnavailable；查询失败时返回零值和原始错误。
 func runRBACQuery[T any](repository rbacstore.Repository, query func(rbacstore.Repository) (T, error)) (T, error) {
 	var zero T
 	if repository == nil {
@@ -30,6 +32,8 @@ func runRBACQuery[T any](repository rbacstore.Repository, query func(rbacstore.R
 	return result, nil
 }
 
+// runNamedRBACQuery 执行带名称的 RBAC 查询，并在失败时包装错误信息。
+// 当仓库不可用时，直接返回该错误；其他错误会附加 action 作为上下文。
 func runNamedRBACQuery[T any](repository rbacstore.Repository, action string, query func(rbacstore.Repository) (T, error)) (T, error) {
 	result, err := runRBACQuery(repository, query)
 	if err == nil {
@@ -44,6 +48,8 @@ func runNamedRBACQuery[T any](repository rbacstore.Repository, action string, qu
 	return zero, fmt.Errorf("%s: %w", action, err)
 }
 
+// requireRBACUserService 确保用户服务可用。
+// 当传入的用户服务为 nil 时返回 errRBACUserServiceUnavailable。
 func requireRBACUserService(users moduleapi.UserService) (moduleapi.UserService, error) {
 	if users == nil {
 		return nil, errRBACUserServiceUnavailable
@@ -52,6 +58,8 @@ func requireRBACUserService(users moduleapi.UserService) (moduleapi.UserService,
 	return users, nil
 }
 
+// listStableStringsByUserID 获取指定用户相关条目的稳定字符串列表。
+// 它会先从仓储读取条目，再通过 extract 提取字符串，去除首尾空白、过滤空值、去重并排序后返回。
 func listStableStringsByUserID[T any](
 	ctx context.Context,
 	repository rbacstore.Repository,
@@ -69,6 +77,7 @@ func listStableStringsByUserID[T any](
 	return stableStrings(items, extract), nil
 }
 
+// listStableUserIDsByPermissionCode 根据权限码查询用户 ID，并返回去重、过滤零值且按升序排列的结果。
 func listStableUserIDsByPermissionCode(ctx context.Context, repository rbacstore.Repository, permissionCode string) ([]uint64, error) {
 	userIDs, err := runNamedRBACQuery(repository, fmt.Sprintf("list user ids by permission %q", permissionCode), func(repo rbacstore.Repository) ([]uint64, error) {
 		return repo.ListUserIDsByPermissionCode(ctx, permissionCode)
@@ -80,6 +89,8 @@ func listStableUserIDsByPermissionCode(ctx context.Context, repository rbacstore
 	return stableUint64s(userIDs), nil
 }
 
+// listRoleSummariesByUserIDs 获取每个用户 ID 对应的角色摘要列表，并保证输入中的每个用户 ID 都在结果中有键。
+// 对于没有角色的用户，返回空切片。
 func listRoleSummariesByUserIDs(ctx context.Context, repository rbacstore.Repository, userIDs []uint64) (map[uint64][]moduleapi.RoleSummary, error) {
 	rolesByUserID, err := runRBACQuery(repository, func(repo rbacstore.Repository) (map[uint64][]rbacstore.Role, error) {
 		return repo.ListRolesByUserIDs(ctx, userIDs)
@@ -102,6 +113,11 @@ func listRoleSummariesByUserIDs(ctx context.Context, repository rbacstore.Reposi
 	return summaries, nil
 }
 
+// listRoleIDsByUserID 返回指定用户拥有的角色 ID，并按升序排序。
+//
+// 在查询前会校验用户服务可用，并确认用户存在。
+//
+// @returns 按升序排列的角色 ID 列表，或查询失败时返回错误。
 func listRoleIDsByUserID(
 	ctx context.Context,
 	users moduleapi.UserService,
@@ -132,6 +148,7 @@ func listRoleIDsByUserID(
 	return sortedUint64s(roleIDs), nil
 }
 
+// getRBACRecordByID 使用指定查询从 RBAC 仓储中按 ID 获取单条记录，并为错误添加操作名称上下文。
 func getRBACRecordByID[T any](
 	ctx context.Context,
 	repository rbacstore.Repository,
@@ -144,6 +161,7 @@ func getRBACRecordByID[T any](
 	})
 }
 
+// action 参数用于包装查询错误时的操作名称，fetch 函数执行实际的检索操作。
 func listRBACRecords[Filter any, Record any](
 	ctx context.Context,
 	repository rbacstore.Repository,
@@ -156,14 +174,18 @@ func listRBACRecords[Filter any, Record any](
 	})
 }
 
+// roleName 返回角色名称。
 func roleName(role rbacstore.Role) string {
 	return role.Name
 }
 
+// permissionCode 返回权限对象中的代码字段。
 func permissionCode(permission rbacstore.Permission) string {
 	return permission.Code
 }
 
+// stableStrings 提取、清理并稳定化字符串列表。
+// 它会对每个元素应用提取函数，去除首尾空白，跳过空字符串，去重并按字典序排序后返回。
 func stableStrings[T any](items []T, extract func(T) string) []string {
 	values := make([]string, 0, len(items))
 	seen := make(map[string]struct{}, len(items))
@@ -184,6 +206,7 @@ func stableStrings[T any](items []T, extract func(T) string) []string {
 	return values
 }
 
+// stableUint64s 返回去重、过滤 0 且按升序排列的 uint64 列表。
 func stableUint64s(values []uint64) []uint64 {
 	stable := make([]uint64, 0, len(values))
 	seen := make(map[uint64]struct{}, len(values))
@@ -203,12 +226,15 @@ func stableUint64s(values []uint64) []uint64 {
 	return stable
 }
 
+// sortedUint64s 返回 values 的排序副本。
 func sortedUint64s(values []uint64) []uint64 {
 	sorted := append([]uint64(nil), values...)
 	slices.Sort(sorted)
 	return sorted
 }
 
+// roleSummaries 将角色转换为摘要并按 ID 和名称排序。
+// 结果中的名称和显示文本会去除首尾空白。
 func roleSummaries(roles []rbacstore.Role) []moduleapi.RoleSummary {
 	summaries := make([]moduleapi.RoleSummary, 0, len(roles))
 	for _, role := range roles {
