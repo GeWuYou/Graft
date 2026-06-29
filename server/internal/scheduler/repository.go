@@ -43,6 +43,7 @@ type SQLTaskRepository struct {
 	db *sql.DB
 }
 
+// NewSQLTaskRepository builds a SQL-backed task repository.
 // 当 db 为空时返回错误；否则返回已初始化的仓库。
 func NewSQLTaskRepository(db *sql.DB) (*SQLTaskRepository, error) {
 	if db == nil {
@@ -63,6 +64,7 @@ type SQLRunRepository struct {
 	db *sql.DB
 }
 
+// NewSQLRunRepository builds a SQL-backed scheduler run repository.
 // db 不能为空。
 func NewSQLRunRepository(db *sql.DB) (*SQLRunRepository, error) {
 	if db == nil {
@@ -107,7 +109,6 @@ func validateRunFinish(status RunStatus, finishedAt time.Time) error {
 
 // normalizeRunListQuery 验证并规范化运行列表查询条件。
 // 当 TaskKey 为空时返回错误；当 Limit 小于等于 0 时使用默认值；当 Offset 小于 0 时将其设为 0。
-```
 func normalizeRunListQuery(query RunListQuery) (RunListQuery, error) {
 	if query.TaskKey == "" {
 		return RunListQuery{}, errors.New("scheduler run task key is required")

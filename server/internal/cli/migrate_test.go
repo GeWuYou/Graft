@@ -1066,6 +1066,29 @@ func TestBuildAtlasMigrationDirSynthesizesDefaultChainWithoutCopiedAtlasSumFiles
 	if len(sumContent) == 0 {
 		t.Fatal("expected synthesized atlas.sum content")
 	}
+	if strings.Contains(string(sumContent), "h1:test") {
+		t.Fatalf("expected synthesized atlas.sum to be recomputed, got raw embedded content %q", string(sumContent))
+	}
+
+	sumFiles, err := dir.Files()
+	if err != nil {
+		t.Fatalf("read synthesized migration files: %v", err)
+	}
+	if len(sumFiles) != 2 {
+		t.Fatalf("expected synthesized SQL migration files only, got %#v", sumFiles)
+	}
+
+	synthesizedSum, err := dir.Checksum()
+	if err != nil {
+		t.Fatalf("compute synthesized checksum: %v", err)
+	}
+	expectedSum, err := synthesizedSum.MarshalText()
+	if err != nil {
+		t.Fatalf("marshal synthesized checksum: %v", err)
+	}
+	if string(sumContent) != string(expectedSum) {
+		t.Fatalf("expected synthesized atlas.sum %q, got %q", expectedSum, string(sumContent))
+	}
 }
 
 func TestBuildAtlasMigrationDirRejectsDuplicateMigrationFilename(t *testing.T) {

@@ -517,17 +517,14 @@ class MainFlowTests(unittest.TestCase):
             config_path = Path(tmp_dir) / "gate.json"
             eff_path = Path(tmp_dir) / "eff.json"
             output_path = Path(tmp_dir) / "out" / "report.json"
-            server_root = MODULE.REPO_ROOT / "server"
+            repo_root = Path(tmp_dir) / "repo"
+            server_root = repo_root / "server"
             runtime_path = server_root / "internal" / "runtime.go"
             service_path = server_root / "modules" / "foo" / "service.go"
             runtime_path.parent.mkdir(parents=True, exist_ok=True)
             service_path.parent.mkdir(parents=True, exist_ok=True)
-            created_paths: list[Path] = []
-
             for path in (runtime_path, service_path):
-                if not path.exists():
-                    path.write_text("package test\n", encoding="utf-8")
-                    created_paths.append(path)
+                path.write_text("package test\n", encoding="utf-8")
 
             config_path.write_text(json.dumps(gate_config), encoding="utf-8")
             eff_path.write_text(
@@ -550,27 +547,24 @@ class MainFlowTests(unittest.TestCase):
                 path.write_text(json.dumps(report), encoding="utf-8")
                 return path
 
-            try:
-                with mock.patch.object(MODULE, "run_eff_u_code", side_effect=fake_run), \
-                    mock.patch.object(MODULE, "list_scope_files_on_disk", return_value=["server/internal/runtime.go", "server/modules/foo/service.go"]):
-                    argv = [
-                        "evaluate_eff_u_code_gate.py",
-                        "--config",
-                        str(config_path),
-                        "--eff-u-code-config",
-                        str(eff_path),
-                        "--scan-mode",
-                        "project",
-                        "--output-json",
-                        str(output_path),
-                        "--scopes",
-                        "server",
-                    ]
-                    with mock.patch.object(sys, "argv", argv):
-                        result = MODULE.main()
-            finally:
-                for path in created_paths:
-                    path.unlink(missing_ok=True)
+            with mock.patch.object(MODULE, "REPO_ROOT", repo_root), \
+                mock.patch.object(MODULE, "run_eff_u_code", side_effect=fake_run), \
+                mock.patch.object(MODULE, "list_scope_files_on_disk", return_value=["server/internal/runtime.go", "server/modules/foo/service.go"]):
+                argv = [
+                    "evaluate_eff_u_code_gate.py",
+                    "--config",
+                    str(config_path),
+                    "--eff-u-code-config",
+                    str(eff_path),
+                    "--scan-mode",
+                    "project",
+                    "--output-json",
+                    str(output_path),
+                    "--scopes",
+                    "server",
+                ]
+                with mock.patch.object(sys, "argv", argv):
+                    result = MODULE.main()
 
             self.assertEqual(result, 1)
             payload = json.loads(output_path.read_text(encoding="utf-8"))
@@ -616,16 +610,13 @@ class MainFlowTests(unittest.TestCase):
             config_path = Path(tmp_dir) / "gate.json"
             eff_path = Path(tmp_dir) / "eff.json"
             output_path = Path(tmp_dir) / "report.json"
-            server_file = MODULE.REPO_ROOT / "server" / "internal" / "runtime.go"
-            web_file = MODULE.REPO_ROOT / "web" / "src" / "pages" / "home.ts"
+            repo_root = Path(tmp_dir) / "repo"
+            server_file = repo_root / "server" / "internal" / "runtime.go"
+            web_file = repo_root / "web" / "src" / "pages" / "home.ts"
             server_file.parent.mkdir(parents=True, exist_ok=True)
             web_file.parent.mkdir(parents=True, exist_ok=True)
-            created_paths: list[Path] = []
-
             for path in (server_file, web_file):
-                if not path.exists():
-                    path.write_text("// test\n", encoding="utf-8")
-                    created_paths.append(path)
+                path.write_text("// test\n", encoding="utf-8")
 
             config_path.write_text(json.dumps(gate_config), encoding="utf-8")
             eff_path.write_text(
@@ -654,32 +645,29 @@ class MainFlowTests(unittest.TestCase):
                 Returns:
                 	Path: 生成的报告文件路径。
                 """
-                path = output_dir / f"eff-u-code-{scope}.json"
-                path.parent.mkdir(parents=True, exist_ok=True)
-                path.write_text(json.dumps(reports[scope]), encoding="utf-8")
-                return path
+                report_path = output_dir / f"eff-u-code-{scope}.json"
+                report_path.parent.mkdir(parents=True, exist_ok=True)
+                report_path.write_text(json.dumps(reports[scope]), encoding="utf-8")
+                return report_path
 
-            try:
-                with mock.patch.object(MODULE, "run_eff_u_code", side_effect=fake_run), \
-                    mock.patch.object(MODULE, "list_scope_files_on_disk", return_value=["web/src/pages/home.ts"]):
-                    argv = [
-                        "evaluate_eff_u_code_gate.py",
-                        "--config",
-                        str(config_path),
-                        "--eff-u-code-config",
-                        str(eff_path),
-                        "--scan-mode",
-                        "project",
-                        "--scopes",
-                        "web",
-                        "--output-json",
-                        str(output_path),
-                    ]
-                    with mock.patch.object(sys, "argv", argv):
-                        result = MODULE.main()
-            finally:
-                for path in created_paths:
-                    path.unlink(missing_ok=True)
+            with mock.patch.object(MODULE, "REPO_ROOT", repo_root), \
+                mock.patch.object(MODULE, "run_eff_u_code", side_effect=fake_run), \
+                mock.patch.object(MODULE, "list_scope_files_on_disk", return_value=["web/src/pages/home.ts"]):
+                argv = [
+                    "evaluate_eff_u_code_gate.py",
+                    "--config",
+                    str(config_path),
+                    "--eff-u-code-config",
+                    str(eff_path),
+                    "--scan-mode",
+                    "project",
+                    "--scopes",
+                    "web",
+                    "--output-json",
+                    str(output_path),
+                ]
+                with mock.patch.object(sys, "argv", argv):
+                    result = MODULE.main()
 
             self.assertEqual(result, 0)
             payload = json.loads(output_path.read_text(encoding="utf-8"))

@@ -699,6 +699,7 @@ func ResolveGinMode(appEnv string, mode GinMode) GinMode {
 	}
 }
 
+// ResolveAccessLogConsolePolicy returns the effective access-log console policy.
 // 当未显式指定策略时，局部环境返回 error_only，其它环境返回 never。
 func ResolveAccessLogConsolePolicy(appEnv string, policy AccessLogConsolePolicy) AccessLogConsolePolicy {
 	switch normalizeAccessLogConsolePolicy(policy) {

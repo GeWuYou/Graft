@@ -144,7 +144,6 @@ func resolveAuditAuthorizer(ctx *module.Context) (moduleapi.Authorizer, bool) {
 }
 
 // handleAuditManageAuthorizationError 根据授权错误类型中止审计管理访问请求。
-```
 func handleAuditManageAuthorizationError(
 	ginCtx *gin.Context,
 	ctx *module.Context,

@@ -1,6 +1,7 @@
 package httpx
 
 import (
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -104,6 +105,10 @@ func bindAccessLogNumericFilters(ctx *gin.Context, query *AccessLogListQuery) st
 		if invalidKey := bind(ctx, query); invalidKey != "" {
 			return invalidKey
 		}
+	}
+
+	if invalidKey := validateAccessLogNumericFilters(query); invalidKey != "" {
+		return invalidKey
 	}
 
 	return ""
@@ -353,6 +358,41 @@ func bindAccessLogDurationMaxFilter(ctx *gin.Context, query *AccessLogListQuery)
 	return bindOptionalQueryValue(ctx.Query("duration_max_ms"), "duration_max_ms", func(value int64) {
 		query.DurationMaxMS = &value
 	}, parseOptionalInt64QueryValue)
+}
+
+// validateAccessLogNumericFilters 校验数值筛选条件的业务边界。
+// 返回第一个无效字段名；全部有效时返回空字符串。
+func validateAccessLogNumericFilters(query *AccessLogListQuery) string {
+	if query == nil {
+		return ""
+	}
+	if invalidKey := validateAccessLogStatusCodeFilter(query.StatusCode); invalidKey != "" {
+		return invalidKey
+	}
+	if invalidKey := validateAccessLogDurationFilter("duration_min_ms", query.DurationMinMS); invalidKey != "" {
+		return invalidKey
+	}
+	if invalidKey := validateAccessLogDurationFilter("duration_max_ms", query.DurationMaxMS); invalidKey != "" {
+		return invalidKey
+	}
+	if query.DurationMinMS != nil && query.DurationMaxMS != nil && *query.DurationMinMS > *query.DurationMaxMS {
+		return "duration_min_ms"
+	}
+	return ""
+}
+
+func validateAccessLogStatusCodeFilter(statusCode *int) string {
+	if statusCode != nil && (*statusCode < http.StatusContinue || *statusCode > http.StatusNetworkAuthenticationRequired) {
+		return "status_code"
+	}
+	return ""
+}
+
+func validateAccessLogDurationFilter(key string, value *int64) string {
+	if value != nil && *value < 0 {
+		return key
+	}
+	return ""
 }
 
 // bindOptionalQueryValue 解析可选字符串并在成功时赋值。

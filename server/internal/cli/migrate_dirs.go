@@ -222,7 +222,6 @@ func loadEmbeddedMigrationDirSource(migrationDir string) (migrationDirSource, bo
 // loadExternalAtlasMigrationDir 加载外部文件系统路径中的迁移目录。
 // loadExternalAtlasMigrationDir 解析外部迁移目录并打开对应的本地迁移目录。
 // 它会先将 externalPath 解析为绝对路径，然后以该路径创建 atlasmigrate.Dir。
-য
 func loadExternalAtlasMigrationDir(baseDir string, externalPath string) (atlasmigrate.Dir, error) {
 	absDir, err := resolveExternalMigrationDir(baseDir, externalPath)
 	if err != nil {
