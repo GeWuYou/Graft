@@ -124,10 +124,7 @@ func BuildSnapshot(cfg *config.Config, specs []module.Spec) Snapshot {
 func cloneSpecs(specs []module.Spec) []module.Spec {
 	cloned := make([]module.Spec, 0, len(specs))
 	for _, spec := range specs {
-		current := spec
-		current.Dependencies = append([]string(nil), spec.Dependencies...)
-		current.MigrationPath = append([]string(nil), spec.MigrationPath...)
-		cloned = append(cloned, current)
+		cloned = append(cloned, cloneSpec(spec))
 	}
 	return cloned
 }
@@ -174,7 +171,7 @@ func buildMigrationStatus(dirs []string) MigrationStatus {
 	declaredDirs := make([]string, 0, len(dirs))
 	for _, dir := range dirs {
 		dir = strings.TrimSpace(dir)
-		if dir == "" || slices.Contains(declaredDirs, dir) {
+		if dir == "" || containsString(declaredDirs, dir) {
 			continue
 		}
 		declaredDirs = append(declaredDirs, dir)
@@ -240,4 +237,15 @@ func buildSummary(items []Item) Summary {
 	}
 
 	return summary
+}
+
+func cloneSpec(spec module.Spec) module.Spec {
+	current := spec
+	current.Dependencies = append([]string(nil), spec.Dependencies...)
+	current.MigrationPath = append([]string(nil), spec.MigrationPath...)
+	return current
+}
+
+func containsString(items []string, target string) bool {
+	return slices.Contains(items, target)
 }

@@ -995,7 +995,7 @@ func validConfigForValidateTests() *Config {
 			AppLogRetention: 3 * 24 * time.Hour,
 		},
 		Runtime: RuntimeConfig{
-			GinMode:                          GinModeAuto,
+			GinMode:                         GinModeAuto,
 			DevAllowDirtyMigrationBootstrap: false,
 		},
 		Database: DatabaseConfig{
