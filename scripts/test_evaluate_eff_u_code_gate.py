@@ -210,7 +210,9 @@ class EvaluateRuleTests(unittest.TestCase):
         candidates = [
             "server/internal/httpx/server.go",
             "server/internal/scheduler/runtime.go",
+            "server/modules/auth/storeent/auth_repository.go",
             "server/modules/container/docker_exec_session.go",
+            "server/modules/container/docker_runtime_stats.go",
             "server/modules/container/docker_runtime.go",
             "server/modules/container/log_topic_streamer.go",
             "server/modules/container/mount_usage.go",
@@ -219,6 +221,7 @@ class EvaluateRuleTests(unittest.TestCase):
             "server/modules/container/stats_collector.go",
             "server/modules/container/terminal/websocket_bridge.go",
             "server/modules/monitor/module.go",
+            "server/modules/user/storeent/auth_repository.go",
             "web/src/shared/realtime/ws-client.ts",
             "web/src/store/modules/setting.ts",
         ]

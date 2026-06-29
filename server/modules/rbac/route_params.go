@@ -24,6 +24,21 @@ type batchStableIDsHandlerConfig struct {
 	write                func(ctx context.Context, userIDs []uint64, roleIDs []uint64) error
 }
 
+type generatedStableIDsRouteConfig[Body any, Params any] struct {
+	invalidField string
+	read         func(*gin.Context) (Body, []uint64, error)
+	bindParams   func(*gin.Context) Params
+	record       func(uint64, Params, Body)
+	write        func(context.Context, uint64, []uint64) error
+}
+
+type batchGeneratedStableIDsRouteConfig[Body any, Params any] struct {
+	read       func(*gin.Context) (Body, batchStableIDSet, error)
+	bindParams func(*gin.Context) Params
+	record     func(Params, Body)
+	write      func(context.Context, []uint64, []uint64) error
+}
+
 type batchStableIDSet struct {
 	userIDs []uint64
 	roleIDs []uint64

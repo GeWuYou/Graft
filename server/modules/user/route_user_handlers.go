@@ -5,9 +5,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"go.uber.org/zap"
 
-	httpheader "graft/server/internal/contract/httpheader"
 	messagecontract "graft/server/internal/contract/message"
 	useropenapi "graft/server/internal/contract/openapi/user"
 	"graft/server/internal/httpx"
@@ -69,13 +67,7 @@ func (r userRouteRegistrar) registerUserReadRoutes(group *gin.RouterGroup) {
 			return
 		}
 
-		payload, mapErr := toUserListItem(record, nil)
-		if mapErr != nil {
-			r.runtime().writeResponseMappingError(ginCtx, "map user detail response failed", mapErr, zap.Uint64("userID", rawID))
-			return
-		}
-
-		httpx.WriteSuccess(ginCtx, http.StatusOK, payload)
+		r.writeUserItemResponse(ginCtx, "map user detail response failed", record)
 	})
 }
 
@@ -121,13 +113,7 @@ func (r userRouteRegistrar) registerCreateUserRoute(group *gin.RouterGroup) {
 			return
 		}
 
-		payload, mapErr := toUserListItem(created, nil)
-		if mapErr != nil {
-			r.runtime().writeResponseMappingError(ginCtx, "map created user response failed", mapErr, zap.Uint64("userID", created.ID))
-			return
-		}
-
-		httpx.WriteSuccess(ginCtx, http.StatusOK, payload)
+		r.writeUserItemResponse(ginCtx, "map created user response failed", created)
 	})
 }
 
@@ -166,13 +152,7 @@ func (r userRouteRegistrar) registerUpdateUserRoute(group *gin.RouterGroup) {
 			return
 		}
 
-		payload, mapErr := toUserListItem(updated, nil)
-		if mapErr != nil {
-			r.runtime().writeResponseMappingError(ginCtx, "map updated user response failed", mapErr, zap.Uint64("userID", updated.ID))
-			return
-		}
-
-		httpx.WriteSuccess(ginCtx, http.StatusOK, payload)
+		r.writeUserItemResponse(ginCtx, "map updated user response failed", updated)
 	})
 }
 
@@ -229,75 +209,6 @@ func (h userWriteGeneratedHandler) PostUserDelete(
 	_ = params
 }
 
-func bindGeneratedUserCreateParams(ginCtx *gin.Context) useropenapi.PostUsersParams {
-	locale, requestID := bindGeneratedHeaders(ginCtx)
-	return useropenapi.PostUsersParams{
-		XGraftLocale: locale,
-		XRequestId:   requestID,
-	}
-}
-
-func bindGeneratedUserListParams(ginCtx *gin.Context) useropenapi.GetUsersParams {
-	locale, requestID := bindGeneratedHeaders(ginCtx)
-	return useropenapi.GetUsersParams{
-		XGraftLocale: locale,
-		XRequestId:   requestID,
-	}
-}
-
-func bindGeneratedUserDetailParams(ginCtx *gin.Context) useropenapi.GetUserByIdParams {
-	locale, requestID := bindGeneratedHeaders(ginCtx)
-	return useropenapi.GetUserByIdParams{
-		XGraftLocale: locale,
-		XRequestId:   requestID,
-	}
-}
-
-func bindGeneratedUserUpdateParams(ginCtx *gin.Context) useropenapi.PostUserUpdateParams {
-	locale, requestID := bindGeneratedHeaders(ginCtx)
-	return useropenapi.PostUserUpdateParams{
-		XGraftLocale: locale,
-		XRequestId:   requestID,
-	}
-}
-
-func bindGeneratedUserStatusParams(ginCtx *gin.Context) useropenapi.PostUserStatusParams {
-	locale, requestID := bindGeneratedHeaders(ginCtx)
-	return useropenapi.PostUserStatusParams{
-		XGraftLocale: locale,
-		XRequestId:   requestID,
-	}
-}
-
-func bindGeneratedUserResetPasswordParams(ginCtx *gin.Context) useropenapi.PostUserResetPasswordParams {
-	locale, requestID := bindGeneratedHeaders(ginCtx)
-	return useropenapi.PostUserResetPasswordParams{
-		XGraftLocale: locale,
-		XRequestId:   requestID,
-	}
-}
-
-func bindGeneratedUserDeleteParams(ginCtx *gin.Context) useropenapi.PostUserDeleteParams {
-	locale, requestID := bindGeneratedHeaders(ginCtx)
-	return useropenapi.PostUserDeleteParams{
-		XGraftLocale: locale,
-		XRequestId:   requestID,
-	}
-}
-
-func bindGeneratedHeaders(ginCtx *gin.Context) (*string, *string) {
-	locale := headerPointer(ginCtx.GetHeader(string(httpheader.Locale)))
-	requestID := headerPointer(ginCtx.GetHeader(httpx.RequestIDHeader))
-	return locale, requestID
-}
-
-func headerPointer(value string) *string {
-	if strings.TrimSpace(value) == "" {
-		return nil
-	}
-	return &value
-}
-
 func (r userRouteRegistrar) registerSetUserStatusRoute(group *gin.RouterGroup) {
 	group.POST(usercontract.UserStatusRoute, r.guards.userDisable, r.guards.restrictedSession, func(ginCtx *gin.Context) {
 		requestCtx := ginCtx.Request.Context()
@@ -324,13 +235,7 @@ func (r userRouteRegistrar) registerSetUserStatusRoute(group *gin.RouterGroup) {
 			return
 		}
 
-		payload, mapErr := toUserListItem(updated, nil)
-		if mapErr != nil {
-			r.runtime().writeResponseMappingError(ginCtx, "map user status response failed", mapErr, zap.Uint64("userID", updated.ID))
-			return
-		}
-
-		httpx.WriteSuccess(ginCtx, http.StatusOK, payload)
+		r.writeUserItemResponse(ginCtx, "map user status response failed", updated)
 	})
 }
 

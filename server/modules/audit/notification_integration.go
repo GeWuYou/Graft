@@ -14,6 +14,16 @@ import (
 	notificationcontract "graft/server/modules/notification/contract"
 )
 
+type auditNotificationRecordView struct {
+	kind         string
+	riskLevel    auditstore.AuditRiskLevel
+	resourceType string
+	resourceID   string
+	resourceName string
+	result       string
+	reason       string
+}
+
 // publishAuditNotification 在满足条件时发布审计通知，并在发布失败时记录警告日志。
 // 当 publisher 为空或审计记录不符合通知条件时，函数直接返回。否则会构建通知输入并尝试发布；
 // 发布失败时会使用非空 logger 记录包含模块、事件类型、严重级别、审计日志 ID 和错误信息的警告日志。
@@ -46,28 +56,25 @@ func shouldNotifyAuditRecord(record auditstore.AuditLog) bool {
 	if record.Visibility != auditstore.AuditVisibilityStrategyVisible {
 		return false
 	}
-	action := strings.ToLower(strings.TrimSpace(record.Action))
-	if strings.Contains(action, "permission.denied") || strings.Contains(action, "permission_denied") {
+	kind := auditNotificationKind(record)
+	if kind == "permission_denied" || kind == "login_failed" {
 		return true
 	}
-	if strings.Contains(action, "login_failed") || (strings.Contains(action, "login") && !record.Success) {
-		return true
-	}
-	return auditRecordRiskLevel(record) == auditstore.AuditRiskLevelHigh ||
-		auditRecordRiskLevel(record) == auditstore.AuditRiskLevelCritical
+	riskLevel := auditRecordRiskLevel(record)
+	return riskLevel == auditstore.AuditRiskLevelHigh || riskLevel == auditstore.AuditRiskLevelCritical
 }
 
 // auditNotificationInput 根据审计日志构建通知发布输入。
 // 它会选择通知文案与严重级别，合并审计上下文与现有元数据，并填充导航、资源和接收目标信息。
 // 返回用于发布审计通知的输入。
 func auditNotificationInput(record auditstore.AuditLog) moduleapi.PublishNotificationInput {
-	kind := auditNotificationKind(record)
-	copyParts := auditNotificationCopy(kind, record)
+	view := buildAuditNotificationRecordView(record)
+	copyParts := auditNotificationCopy(view.kind, record)
 	titleKey, title := copyParts.titleKey, copyParts.title
 	messageKey, message := copyParts.messageKey, copyParts.message
 	actionLabelKey, actionLabel := copyParts.actionLabelKey, copyParts.actionLabel
 	severity := moduleapi.NotificationSeverity(notificationcontract.SeverityWarning)
-	if auditRecordRiskLevel(record) == auditstore.AuditRiskLevelCritical {
+	if view.riskLevel == auditstore.AuditRiskLevelCritical {
 		severity = moduleapi.NotificationSeverity(notificationcontract.SeverityCritical)
 	}
 	metadata := json.RawMessage(record.Metadata)
@@ -82,16 +89,16 @@ func auditNotificationInput(record auditstore.AuditLog) moduleapi.PublishNotific
 	auditContext := map[string]any{
 		"auditLogId":   record.ID,
 		"action":       record.Action,
-		"eventType":    kind,
-		"resourceType":  firstNonEmptyTrimmed(record.ResourceType, "audit_log"),
-		"resourceId":   firstNonEmptyTrimmed(record.ResourceID, strconv.FormatUint(record.ID, 10)),
-		"resourceName":  firstNonEmptyTrimmed(record.ResourceName, record.Action),
-		"result":       firstNonEmptyTrimmed(string(record.Result), resultFallback(record.Success)),
-		"riskLevel":    string(record.RiskLevel),
+		"eventType":    view.kind,
+		"resourceType": view.resourceType,
+		"resourceId":   view.resourceID,
+		"resourceName": view.resourceName,
+		"result":       view.result,
+		"riskLevel":    string(view.riskLevel),
 		"requestId":    record.RequestID,
 		"traceId":      record.TraceID,
-		"reason":       firstNonEmptyTrimmed(record.Message, string(record.Result)),
-		"actionLabel":   actionLabel,
+		"reason":       view.reason,
+		"actionLabel":  actionLabel,
 		"title":        title,
 		"message":      message,
 	}
@@ -100,19 +107,19 @@ func auditNotificationInput(record auditstore.AuditLog) moduleapi.PublishNotific
 	}
 
 	return moduleapi.PublishNotificationInput{
-		TitleKey:     titleKey,
-		Title:        title,
-		MessageKey:   messageKey,
-		Message:      message,
+		TitleKey:       titleKey,
+		Title:          title,
+		MessageKey:     messageKey,
+		Message:        message,
 		ActionLabelKey: actionLabelKey,
 		ActionLabel:    actionLabel,
-		Severity:     severity,
-		Category:     moduleapi.NotificationCategory(notificationcontract.CategorySecurity),
-		SourceModule: moduleID,
-		EventType:    kind,
-		ResourceType: firstNonEmptyTrimmed(record.ResourceType, "audit_log"),
-		ResourceID:   firstNonEmptyTrimmed(record.ResourceID, strconv.FormatUint(record.ID, 10)),
-		ResourceName: firstNonEmptyTrimmed(record.ResourceName, record.Action),
+		Severity:       severity,
+		Category:       moduleapi.NotificationCategory(notificationcontract.CategorySecurity),
+		SourceModule:   moduleID,
+		EventType:      view.kind,
+		ResourceType:   view.resourceType,
+		ResourceID:     view.resourceID,
+		ResourceName:   view.resourceName,
 		Navigation: moduleapi.NotificationNavigation{
 			Kind:    moduleapi.NotificationNavigationKind(notificationcontract.NavigationAuditLog),
 			Payload: navigationPayload,
@@ -130,14 +137,30 @@ func auditNotificationInput(record auditstore.AuditLog) moduleapi.PublishNotific
 // auditNotificationKind 根据审计记录的动作和结果确定通知类型。
 // 当动作包含权限拒绝或登录失败相关标记时返回对应类型；否则返回高风险类型。
 func auditNotificationKind(record auditstore.AuditLog) string {
-	action := strings.ToLower(strings.TrimSpace(record.Action))
+	return auditNotificationKindFromAction(strings.ToLower(strings.TrimSpace(record.Action)), record.Success)
+}
+
+func auditNotificationKindFromAction(action string, success bool) string {
 	switch {
 	case strings.Contains(action, "permission.denied") || strings.Contains(action, "permission_denied"):
 		return "permission_denied"
-	case strings.Contains(action, "login_failed") || (strings.Contains(action, "login") && !record.Success):
+	case strings.Contains(action, "login_failed") || (strings.Contains(action, "login") && !success):
 		return "login_failed"
 	default:
 		return "high_risk"
+	}
+}
+
+func buildAuditNotificationRecordView(record auditstore.AuditLog) auditNotificationRecordView {
+	riskLevel := auditRecordRiskLevel(record)
+	return auditNotificationRecordView{
+		kind:         auditNotificationKind(record),
+		riskLevel:    riskLevel,
+		resourceType: firstNonEmptyTrimmed(record.ResourceType, "audit_log"),
+		resourceID:   firstNonEmptyTrimmed(record.ResourceID, strconv.FormatUint(record.ID, 10)),
+		resourceName: firstNonEmptyTrimmed(record.ResourceName, record.Action),
+		result:       firstNonEmptyTrimmed(string(record.Result), resultFallback(record.Success)),
+		reason:       firstNonEmptyTrimmed(record.Message, string(record.Result)),
 	}
 }
 
@@ -159,31 +182,31 @@ func auditNotificationCopy(kind string, record auditstore.AuditLog) auditNotific
 	switch kind {
 	case "login_failed":
 		return auditNotificationCopyParts{
-		titleKey:       "notification.title.audit.loginFailed",
-		title:          "Login failed",
-		messageKey:     "notification.message.audit.loginFailed",
-		message:        "A failed login attempt needs review.",
-		actionLabelKey: "notification.action.openAuditLog",
-		actionLabel:    "View audit log",
-	}
+			titleKey:       "notification.title.audit.loginFailed",
+			title:          "Login failed",
+			messageKey:     "notification.message.audit.loginFailed",
+			message:        "A failed login attempt needs review.",
+			actionLabelKey: "notification.action.openAuditLog",
+			actionLabel:    "View audit log",
+		}
 	case "permission_denied":
 		return auditNotificationCopyParts{
-		titleKey:       "notification.title.audit.permissionDenied",
-		title:          "Permission denied",
-		messageKey:     "notification.message.audit.permissionDenied",
-		message:        "Permission was denied for " + target + ".",
-		actionLabelKey: "notification.action.openAuditLog",
-		actionLabel:    "View audit log",
-	}
+			titleKey:       "notification.title.audit.permissionDenied",
+			title:          "Permission denied",
+			messageKey:     "notification.message.audit.permissionDenied",
+			message:        "Permission was denied for " + target + ".",
+			actionLabelKey: "notification.action.openAuditLog",
+			actionLabel:    "View audit log",
+		}
 	default:
 		return auditNotificationCopyParts{
-		titleKey:       "notification.title.audit.highRisk",
-		title:          "High-risk audit event",
-		messageKey:     "notification.message.audit.highRisk",
-		message:        "High-risk audit activity needs review.",
-		actionLabelKey: "notification.action.openAuditLog",
-		actionLabel:    "View audit log",
-	}
+			titleKey:       "notification.title.audit.highRisk",
+			title:          "High-risk audit event",
+			messageKey:     "notification.message.audit.highRisk",
+			message:        "High-risk audit activity needs review.",
+			actionLabelKey: "notification.action.openAuditLog",
+			actionLabel:    "View audit log",
+		}
 	}
 }
 

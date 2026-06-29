@@ -14,6 +14,8 @@ const (
 	maxPageSize     = 100
 )
 
+var errNotificationServiceUnavailable = errors.New("notification service is unavailable")
+
 // ListQuery describes current-user notification filters.
 type ListQuery struct {
 	RecipientUserID uint64
@@ -50,98 +52,93 @@ func NewService(repository notificationstore.Repository) (*Service, error) {
 
 // List returns one page of current-user notifications.
 func (s *Service) List(ctx context.Context, query ListQuery) (ListResult, error) {
-	if s == nil || s.repository == nil {
-		return ListResult{}, errors.New("notification service is unavailable")
-	}
 	page, size := normalizePage(query.Page, query.PageSize)
-	result, err := s.repository.List(ctx, notificationstore.ListQuery{
-		RecipientUserID: query.RecipientUserID,
-		Status:          query.Status,
-		Severity:        query.Severity,
-		Category:        query.Category,
-		SourceModule:    query.SourceModule,
-		OccurredFrom:    query.OccurredFrom,
-		OccurredTo:      query.OccurredTo,
-		Limit:           size,
-		Offset:          (page - 1) * size,
+	result, err := withNotificationRepository(s, func(repository notificationstore.Repository) (notificationstore.ListResult, error) {
+		return repository.List(ctx, query.toStoreListQuery(page, size))
 	})
 	if err != nil {
-		return ListResult{}, mapStoreError(err)
+		return ListResult{}, err
 	}
 	return ListResult{Items: result.Items, Total: result.Total, Page: page, Size: size}, nil
 }
 
 // Get returns one current-user notification by delivery id.
 func (s *Service) Get(ctx context.Context, recipientUserID uint64, deliveryID uint64) (notificationstore.Notification, error) {
-	if s == nil || s.repository == nil {
-		return notificationstore.Notification{}, errors.New("notification service is unavailable")
-	}
-	item, err := s.repository.Get(ctx, recipientUserID, deliveryID)
-	return item, mapStoreError(err)
+	return withNotificationRepository(s, func(repository notificationstore.Repository) (notificationstore.Notification, error) {
+		return repository.Get(ctx, recipientUserID, deliveryID)
+	})
 }
 
 // UnreadCount returns the current user's unread notification count.
 func (s *Service) UnreadCount(ctx context.Context, recipientUserID uint64) (int, error) {
-	if s == nil || s.repository == nil {
-		return 0, errors.New("notification service is unavailable")
-	}
-	count, err := s.repository.UnreadCount(ctx, recipientUserID)
-	return count, mapStoreError(err)
+	return withNotificationRepository(s, func(repository notificationstore.Repository) (int, error) {
+		return repository.UnreadCount(ctx, recipientUserID)
+	})
 }
 
 // MarkRead marks one current-user delivery as read.
 func (s *Service) MarkRead(ctx context.Context, recipientUserID uint64, deliveryID uint64, readAt time.Time) (notificationstore.Delivery, error) {
-	if s == nil || s.repository == nil {
-		return notificationstore.Delivery{}, errors.New("notification service is unavailable")
-	}
-	if readAt.IsZero() {
-		readAt = time.Now().UTC()
-	}
-	delivery, err := s.repository.MarkRead(ctx, recipientUserID, deliveryID, readAt)
-	return delivery, mapStoreError(err)
+	return withNotificationRepository(s, func(repository notificationstore.Repository) (notificationstore.Delivery, error) {
+		return repository.MarkRead(ctx, recipientUserID, deliveryID, defaultUTCTimestamp(readAt))
+	})
 }
 
 // MarkAllRead marks all current-user unread deliveries as read.
 func (s *Service) MarkAllRead(ctx context.Context, recipientUserID uint64, readAt time.Time) (int, error) {
-	if s == nil || s.repository == nil {
-		return 0, errors.New("notification service is unavailable")
-	}
-	if readAt.IsZero() {
-		readAt = time.Now().UTC()
-	}
-	count, err := s.repository.MarkAllRead(ctx, recipientUserID, readAt)
-	return count, mapStoreError(err)
+	return withNotificationRepository(s, func(repository notificationstore.Repository) (int, error) {
+		return repository.MarkAllRead(ctx, recipientUserID, defaultUTCTimestamp(readAt))
+	})
 }
 
 // MarkAllReadMatching marks all current-user unread deliveries matching the optional filters as read.
 func (s *Service) MarkAllReadMatching(ctx context.Context, query ListQuery, readAt time.Time) (int, error) {
-	if s == nil || s.repository == nil {
-		return 0, errors.New("notification service is unavailable")
-	}
-	if readAt.IsZero() {
-		readAt = time.Now().UTC()
-	}
-	count, err := s.repository.MarkAllReadMatching(ctx, notificationstore.ListQuery{
-		RecipientUserID: query.RecipientUserID,
-		Status:          "unread",
-		Severity:        query.Severity,
-		Category:        query.Category,
-		SourceModule:    query.SourceModule,
-		OccurredFrom:    query.OccurredFrom,
-		OccurredTo:      query.OccurredTo,
-	}, readAt)
-	return count, mapStoreError(err)
+	return withNotificationRepository(s, func(repository notificationstore.Repository) (int, error) {
+		return repository.MarkAllReadMatching(ctx, query.toStoreFilter("unread"), defaultUTCTimestamp(readAt))
+	})
 }
 
 // DeleteDelivery soft-deletes one current-user delivery.
 func (s *Service) DeleteDelivery(ctx context.Context, recipientUserID uint64, deliveryID uint64, deletedAt time.Time) error {
+	return runNotificationRepository(s, func(repository notificationstore.Repository) error {
+		return repository.DeleteDelivery(ctx, recipientUserID, deliveryID, defaultUTCTimestamp(deletedAt))
+	})
+}
+
+func (s *Service) repositoryOrErr() (notificationstore.Repository, error) {
 	if s == nil || s.repository == nil {
-		return errors.New("notification service is unavailable")
+		return nil, errNotificationServiceUnavailable
 	}
-	if deletedAt.IsZero() {
-		deletedAt = time.Now().UTC()
+	return s.repository, nil
+}
+
+func (q ListQuery) toStoreListQuery(page int, size int) notificationstore.ListQuery {
+	query := q.toStoreFilter("")
+	query.Limit = size
+	query.Offset = (page - 1) * size
+	return query
+}
+
+func (q ListQuery) toStoreFilter(status string) notificationstore.ListQuery {
+	if status == "" {
+		status = q.Status
 	}
-	return mapStoreError(s.repository.DeleteDelivery(ctx, recipientUserID, deliveryID, deletedAt))
+
+	return notificationstore.ListQuery{
+		RecipientUserID: q.RecipientUserID,
+		Status:          status,
+		Severity:        q.Severity,
+		Category:        q.Category,
+		SourceModule:    q.SourceModule,
+		OccurredFrom:    q.OccurredFrom,
+		OccurredTo:      q.OccurredTo,
+	}
+}
+
+func defaultUTCTimestamp(value time.Time) time.Time {
+	if value.IsZero() {
+		return time.Now().UTC()
+	}
+	return value
 }
 
 func normalizePage(page int, size int) (int, int) {

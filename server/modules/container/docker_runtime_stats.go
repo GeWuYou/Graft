@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"math"
 	"strings"
 	"sync"
@@ -35,12 +36,20 @@ func (r *DockerRuntime) containerResourceSummary(ctx context.Context, id string)
 	}
 	defer closeDockerStatsReaderBody(r.logger, reader.Body)
 
-	var stats container.StatsResponse
-	if err := json.NewDecoder(reader.Body).Decode(&stats); err != nil {
-		r.logResourceStatsFailure("decode docker container stats failed", ref, err)
+	stats, err := r.decodeDockerStatsResponse(ref, reader.Body)
+	if err != nil {
 		return unavailableResourceSummary(resourceStatsErrorReason(err))
 	}
 	return r.dockerResourceSummary(ref, stats)
+}
+
+func (r *DockerRuntime) decodeDockerStatsResponse(containerID string, reader io.Reader) (container.StatsResponse, error) {
+	var stats container.StatsResponse
+	if err := json.NewDecoder(reader).Decode(&stats); err != nil {
+		r.logResourceStatsFailure("decode docker container stats failed", containerID, err)
+		return container.StatsResponse{}, err
+	}
+	return stats, nil
 }
 
 func (r *DockerRuntime) currentResourceSummary(id string) ResourceSummary {
@@ -81,8 +90,7 @@ func (r *DockerRuntime) updateResourceStatsCachePolicy(ttl time.Duration, staleW
 	r.resourceStats = newResourceStatsCache(ttl, staleWindow)
 }
 
-func (r *DockerRuntime) collectListResourceSummaries(ctx context.Context, summaries []Summary) {
-	_ = ctx
+func (r *DockerRuntime) collectListResourceSummaries(_ context.Context, summaries []Summary) {
 	if len(summaries) == 0 {
 		return
 	}
@@ -112,16 +120,16 @@ func (r *DockerRuntime) populateStatsSnapshots(
 	snapshots []StatsSnapshot,
 	collectedAt time.Time,
 ) {
-	indexes := make(chan int, len(items))
+	indexes := dockerStatsWorkQueue(len(items))
 	for index := range items {
 		indexes <- index
 	}
-	close /* work queue */ (indexes)
+	close(indexes)
 
 	var wg sync.WaitGroup
 	workers := dockerStatsWorkerCount(len(items))
 	wg.Add(workers)
-	for range workers {
+	for workerIndex := 0; workerIndex < workers; workerIndex++ {
 		go func() {
 			defer wg.Done()
 			for index := range indexes {
@@ -130,6 +138,10 @@ func (r *DockerRuntime) populateStatsSnapshots(
 		}()
 	}
 	wg.Wait()
+}
+
+func dockerStatsWorkQueue(itemCount int) chan int {
+	return make(chan int, itemCount)
 }
 
 func dockerStatsWorkerCount(itemCount int) int {

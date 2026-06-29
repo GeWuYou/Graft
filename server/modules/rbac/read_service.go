@@ -2,9 +2,7 @@ package rbac
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"sort"
 
 	"graft/server/internal/moduleapi"
 	rbacstore "graft/server/modules/rbac/store"
@@ -25,85 +23,31 @@ type managementReader struct {
 }
 
 func (r managementReader) GetRole(ctx context.Context, roleID uint64) (rbacstore.Role, error) {
-	if r.rbac == nil {
-		return rbacstore.Role{}, errors.New("rbac repository is unavailable")
-	}
-
-	role, err := r.rbac.GetRoleByID(ctx, roleID)
-	if err != nil {
-		return rbacstore.Role{}, fmt.Errorf("get role by id %d: %w", roleID, err)
-	}
-	return role, nil
+	return getRBACRecordByID(ctx, r.rbac, roleID, fmt.Sprintf("get role by id %d", roleID), rbacstore.Repository.GetRoleByID)
 }
 
 func (r managementReader) GetPermission(ctx context.Context, permissionID uint64) (rbacstore.Permission, error) {
-	if r.rbac == nil {
-		return rbacstore.Permission{}, errors.New("rbac repository is unavailable")
-	}
-
-	permission, err := r.rbac.GetPermissionByID(ctx, permissionID)
-	if err != nil {
-		return rbacstore.Permission{}, fmt.Errorf("get permission by id %d: %w", permissionID, err)
-	}
-	return permission, nil
+	return getRBACRecordByID(ctx, r.rbac, permissionID, fmt.Sprintf("get permission by id %d", permissionID), rbacstore.Repository.GetPermissionByID)
 }
 
 func (r managementReader) ListRoles(ctx context.Context, filter rbacstore.RoleFilter) ([]rbacstore.Role, error) {
-	if r.rbac == nil {
-		return nil, errors.New("rbac repository is unavailable")
-	}
-
-	roles, err := r.rbac.ListRoles(ctx, filter)
-	if err != nil {
-		return nil, fmt.Errorf("list roles: %w", err)
-	}
-	return roles, nil
+	return listRBACRecords(ctx, r.rbac, filter, "list roles", rbacstore.Repository.ListRoles)
 }
 
 func (r managementReader) ListPermissions(ctx context.Context, filter rbacstore.PermissionFilter) ([]rbacstore.Permission, error) {
-	if r.rbac == nil {
-		return nil, errors.New("rbac repository is unavailable")
-	}
-
-	permissions, err := r.rbac.ListPermissions(ctx, filter)
-	if err != nil {
-		return nil, fmt.Errorf("list permissions: %w", err)
-	}
-	return permissions, nil
+	return listRBACRecords(ctx, r.rbac, filter, "list permissions", rbacstore.Repository.ListPermissions)
 }
 
 func (r managementReader) ListRolePermissionBindings(ctx context.Context, roleID uint64) ([]rbacstore.RolePermissionBinding, error) {
-	if r.rbac == nil {
-		return nil, errors.New("rbac repository is unavailable")
-	}
-
-	return r.rbac.ListRolePermissionBindings(ctx, roleID)
+	return getRBACRecordByID(
+		ctx,
+		r.rbac,
+		roleID,
+		fmt.Sprintf("list role permission bindings for role %d", roleID),
+		rbacstore.Repository.ListRolePermissionBindings,
+	)
 }
 
 func (r managementReader) ListRoleIDsByUserID(ctx context.Context, userID uint64) ([]uint64, error) {
-	if r.users == nil {
-		return nil, errors.New("user service is unavailable")
-	}
-	if r.rbac == nil {
-		return nil, errors.New("rbac repository is unavailable")
-	}
-
-	if _, err := r.users.GetUserByID(ctx, userID); err != nil {
-		return nil, err
-	}
-
-	roles, err := r.rbac.ListRolesByUserID(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
-
-	roleIDs := make([]uint64, 0, len(roles))
-	for _, role := range roles {
-		roleIDs = append(roleIDs, role.ID)
-	}
-	sort.Slice(roleIDs, func(i, j int) bool {
-		return roleIDs[i] < roleIDs[j]
-	})
-
-	return roleIDs, nil
+	return listRoleIDsByUserID(ctx, r.users, r.rbac, userID)
 }

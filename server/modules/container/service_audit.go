@@ -16,11 +16,11 @@ import (
 )
 
 func (s *service) publishActionAudit(ctx context.Context, result ActionResult, options ActionOptions, err error) {
-	if s == nil || s.auditBus == nil {
+	detached := startDetachedAuditContext(ctx, s)
+	if !detached.ok {
 		return
 	}
-	auditCtx, cancel := detachedAuditContext(ctx)
-	defer cancel()
+	defer detached.cancel()
 	action := actionAuditContract(result.Action).String()
 	messageKey, message := auditErrorMessageFields(err)
 	metadata := map[string]any{
@@ -44,10 +44,10 @@ func (s *service) publishActionAudit(ctx context.Context, result ActionResult, o
 		"source_member_kind":  strings.TrimSpace(result.Orchestrator.MemberScopeKind),
 		"source_member_value": strings.TrimSpace(result.Orchestrator.MemberValue),
 	}
-	enrichAuditMetadataWithRequestContext(auditCtx, metadata, "")
+	enrichAuditMetadataWithRequestContext(detached.ctx, metadata, "")
 	event := moduleapi.AuditEvent{
 		Kind:          moduleapi.AuditEventKindDomain,
-		Operator:      currentAuditOperator(auditCtx),
+		Operator:      currentAuditOperator(detached.ctx),
 		Action:        action,
 		ResourceType:  containerResourceType,
 		ResourceID:    firstNonEmpty(result.ID, result.Name),
@@ -60,20 +60,20 @@ func (s *service) publishActionAudit(ctx context.Context, result ActionResult, o
 		RequestMethod: "",
 		RequestPath:   "",
 	}
-	s.publishAuditEvent(auditCtx, event, "publish container audit event failed")
+	s.publishAuditEvent(detached.ctx, event, "publish container audit event failed")
 }
 
 func (s *service) publishBatchActionAudit(ctx context.Context, result BatchActionResult, options ActionOptions) {
-	if s == nil || s.auditBus == nil {
+	detached := startDetachedAuditContext(ctx, s)
+	if !detached.ok {
 		return
 	}
-	auditCtx, cancel := detachedAuditContext(ctx)
-	defer cancel()
+	defer detached.cancel()
 
 	requestID := firstNonEmpty(strings.TrimSpace(result.RequestID), requestIDFromContext(ctx))
 	resourceID := requestID
 	if resourceID == "" {
-		resourceID = "batch:" + strings.TrimSpace(result.Action) + ":" + strconv.FormatInt(time.Now().UTC().UnixNano(), 10)
+		resourceID = batchAuditResourceID(result.Action, detached.now)
 	}
 	metadata := map[string]any{
 		"batch":           true,
@@ -85,10 +85,10 @@ func (s *service) publishBatchActionAudit(ctx context.Context, result BatchActio
 		"failed_ids":      batchFailedIDs(result.Items),
 		"force":           options.Force,
 	}
-	enrichAuditMetadataWithRequestContext(auditCtx, metadata, requestID)
+	enrichAuditMetadataWithRequestContext(detached.ctx, metadata, requestID)
 	event := moduleapi.AuditEvent{
 		Kind:         moduleapi.AuditEventKindDomain,
-		Operator:     currentAuditOperator(auditCtx),
+		Operator:     currentAuditOperator(detached.ctx),
 		Action:       batchActionAuditContract(result.Action).String(),
 		ResourceType: containerBatchResourceType,
 		ResourceID:   resourceID,
@@ -99,7 +99,31 @@ func (s *service) publishBatchActionAudit(ctx context.Context, result BatchActio
 		Message:      strings.TrimSpace(result.Message),
 		Metadata:     metadata,
 	}
-	s.publishAuditEvent(auditCtx, event, "publish container batch audit event failed")
+	s.publishAuditEvent(detached.ctx, event, "publish container batch audit event failed")
+}
+
+type detachedAuditRuntime struct {
+	ctx    context.Context
+	cancel context.CancelFunc
+	ok     bool
+	now    time.Time
+}
+
+func startDetachedAuditContext(ctx context.Context, s *service) detachedAuditRuntime {
+	if s == nil || s.auditBus == nil {
+		return detachedAuditRuntime{}
+	}
+	auditCtx, cancel := detachedAuditContext(ctx)
+	return detachedAuditRuntime{
+		ctx:    auditCtx,
+		cancel: cancel,
+		ok:     true,
+		now:    time.Now().UTC(),
+	}
+}
+
+func batchAuditResourceID(action string, now time.Time) string {
+	return "batch:" + strings.TrimSpace(action) + ":" + strconv.FormatInt(now.UnixNano(), 10)
 }
 
 func enrichAuditMetadataWithRequestContext(auditCtx context.Context, metadata map[string]any, fallbackRequestID string) {

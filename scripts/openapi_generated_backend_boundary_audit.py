@@ -51,6 +51,8 @@ HANDLER_BOUNDARY_CHECKS = {
         "rbacopenapi.PostRolesJSONRequestBody",
         "rbacopenapi.PostRoleUpdateJSONRequestBody",
         "rbacopenapi.PostRoleStatusJSONRequestBody",
+    ),
+    "server/modules/rbac/route_write_generated.go": (
         "rbacopenapi.PostRolePermissionsReplaceJSONRequestBody",
         "rbacopenapi.PostRolePermissionsAddJSONRequestBody",
         "rbacopenapi.PostRolePermissionsRemoveJSONRequestBody",
@@ -63,7 +65,6 @@ HANDLER_BOUNDARY_CHECKS = {
     ),
     "server/modules/monitor/module.go": (
         "monitoropenapi.GetMonitorServerStatusParams",
-        "generated.ServerStatusResponse",
     ),
 }
 
@@ -84,7 +85,7 @@ RESPONSE_MAPPER_CHECKS = {
         "generated.PermissionListResponse",
         "generated.UserRoleBindingResponse",
     ),
-    "server/modules/monitor/module.go": (
+    "server/modules/monitor/server_status_response.go": (
         "generated.ServerStatusResponse",
         "generated.ServerStatusServer",
         "generated.ServerStatusDependencies",

@@ -512,22 +512,7 @@ func isAllowedAuditRiskLevel(value auditstore.AuditRiskLevel) bool {
 
 // normalizeAuditStringQuerySlice 规范化字符串查询值切片，去除首尾空白并丢弃空项。
 func normalizeAuditStringQuerySlice(values []string) []string {
-	if len(values) == 0 {
-		return nil
-	}
-
-	normalized := make([]string, 0, len(values))
-	for _, raw := range values {
-		trimmed := strings.TrimSpace(raw)
-		if trimmed == "" {
-			continue
-		}
-		normalized = append(normalized, trimmed)
-	}
-	if len(normalized) == 0 {
-		return nil
-	}
-	return normalized
+	return normalizeAuditStringFilters(values)
 }
 
 // queryArrayCompat 读取指定键的数组查询参数，并兼容带 `[]` 后缀的写法。
@@ -535,7 +520,6 @@ func normalizeAuditStringQuerySlice(values []string) []string {
 // 当 `key[]` 形式存在时，会同时返回 `key` 和 `key[]` 的值；否则只返回 `key` 的值。
 //
 // @param key 查询参数名。
-//
 func queryArrayCompat(ginCtx *gin.Context, key string) []string {
 	values := ginCtx.QueryArray(key)
 	bracketValues := ginCtx.QueryArray(key + "[]")
@@ -699,14 +683,8 @@ func parseOptionalTimeQuery(ginCtx *gin.Context, key string) (time.Time, bool, e
 // bindGeneratedAuditReadHeaders 提取请求中的语言环境和请求 ID 头。
 // 仅在对应头值非空时返回指针。
 func bindGeneratedAuditReadHeaders(ginCtx *gin.Context) (locale *string, requestID *string) {
-	if raw := strings.TrimSpace(ginCtx.GetHeader(httpx.RequestIDHeader)); raw != "" {
-		requestID = &raw
-	}
-	if raw := strings.TrimSpace(ginCtx.GetHeader(string(httpheader.Locale))); raw != "" {
-		locale = &raw
-	}
-
-	return locale, requestID
+	return auditHeaderPointer(ginCtx.GetHeader(string(httpheader.Locale))),
+		auditHeaderPointer(ginCtx.GetHeader(httpx.RequestIDHeader))
 }
 
 // bindAuditPresetValue 解析并校验 `preset` 查询参数。
@@ -758,12 +736,12 @@ func normalizeAuditOverviewPreset(value *auditopenapi.GetAuditOverviewParamsPres
 	if value == nil {
 		return auditstore.AuditTimePresetLast24Hours
 	}
-	switch strings.TrimSpace(string(*value)) {
-	case string(auditstore.AuditTimePresetLast7Days):
-		return auditstore.AuditTimePresetLast7Days
-	case string(auditstore.AuditTimePresetLast30Days):
-		return auditstore.AuditTimePresetLast30Days
-	default:
-		return auditstore.AuditTimePresetLast24Hours
+	return normalizeAuditOverviewTimePreset(auditstore.AuditTimePreset(strings.TrimSpace(string(*value))))
+}
+
+func auditHeaderPointer(value string) *string {
+	if strings.TrimSpace(value) == "" {
+		return nil
 	}
+	return &value
 }
