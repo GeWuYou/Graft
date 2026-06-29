@@ -2,6 +2,7 @@ package storeent
 
 import (
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -64,6 +65,9 @@ func validateListAuditLogsQuery(query auditstore.ListAuditLogsQuery) error {
 	}
 	if query.TimePreset != "" && !isSupportedAuditTimePreset(query.TimePreset) {
 		return fmt.Errorf("list audit logs: invalid time preset %q", query.TimePreset)
+	}
+	if query.ActorUserID != nil && *query.ActorUserID > math.MaxInt64 {
+		return fmt.Errorf("list audit logs: actor user id %d exceeds int64 range", *query.ActorUserID)
 	}
 	for _, raw := range query.Sorts {
 		switch strings.TrimSpace(raw) {

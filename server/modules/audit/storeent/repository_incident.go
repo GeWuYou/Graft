@@ -171,7 +171,7 @@ func incidentMatches(seed auditstore.AuditLog, candidate auditstore.AuditLog) bo
 }
 
 // matchIncidentRequest 在种子事件存在请求 ID 时，按请求 ID 判断两个事件是否属于同一请求。
-// 
+//
 // @return 如果种子事件的 RequestID 非空且与候选事件相同，则返回 true，否则返回 false。
 func matchIncidentRequest(seed auditstore.AuditLog, candidate auditstore.AuditLog) bool {
 	return seed.RequestID != "" && seed.RequestID == candidate.RequestID
@@ -225,8 +225,12 @@ func summarizeIncidentActors(events []auditstore.AuditLog) []auditstore.AuditInc
 			return -1
 		case a.EventCount < b.EventCount:
 			return 1
+		case incidentActorSortKey(a) < incidentActorSortKey(b):
+			return -1
+		case incidentActorSortKey(a) > incidentActorSortKey(b):
+			return 1
 		default:
-			return strings.Compare(a.ActorUsername+a.ActorDisplayName, b.ActorUsername+b.ActorDisplayName)
+			return 0
 		}
 	})
 	if len(result) > incidentActorLimit {
@@ -251,6 +255,14 @@ func incidentActorKeyFromLog(event auditstore.AuditLog) actorKey {
 		key.id = *event.ActorUserID
 	}
 	return key
+}
+
+func incidentActorSortKey(actor auditstore.AuditIncidentActor) string {
+	idPart := ""
+	if actor.ActorUserID != nil {
+		idPart = strconv.FormatUint(*actor.ActorUserID, 10)
+	}
+	return idPart + "\x00" + actor.ActorUsername + "\x00" + actor.ActorDisplayName
 }
 
 // summarizeIncidentResources 按资源身份汇总事件并按相关性排序。
@@ -392,7 +404,7 @@ func incidentRiskLevel(events []auditstore.AuditLog) auditstore.AuditRiskLevel {
 	return level
 }
 
-// riskRank 返回审计风险等级的排序权重。 
+// riskRank 返回审计风险等级的排序权重。
 // Critical 为 4，High 为 3，Medium 为 2，Low 及其他值为 1。
 func riskRank(level auditstore.AuditRiskLevel) int {
 	const (

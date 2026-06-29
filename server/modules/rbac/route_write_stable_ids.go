@@ -249,7 +249,11 @@ func handleBatchStableIDsRoute(
 		writeLocalizedContractError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument, map[string]any{"field": "body"})
 		return
 	}
-	if request.userIDs == nil || request.roleIDs == nil || hasInvalidStableIDs(request.userIDs) || hasInvalidStableIDs(request.roleIDs) {
+	switch {
+	case request.userIDs == nil || hasInvalidStableIDs(request.userIDs):
+		writeLocalizedContractError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument, map[string]any{"field": "user_ids"})
+		return
+	case request.roleIDs == nil || hasInvalidStableIDs(request.roleIDs):
 		writeLocalizedContractError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument, map[string]any{"field": config.invalidField})
 		return
 	}

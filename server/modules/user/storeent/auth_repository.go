@@ -71,7 +71,7 @@ func (r *authRepository) ChangePasswordAndRevokeOtherRefreshSessions(
 			passwordHash:       input.PasswordHash,
 			mustChangePassword: input.MustChangePassword,
 			changedAt:          input.ChangedAt,
-			requireActiveUser:  false,
+			requireActiveUser:  true,
 			contextMessage:     "set user password hash during password change",
 		},
 	); err != nil {

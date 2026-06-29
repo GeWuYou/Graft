@@ -14,12 +14,13 @@ import (
 )
 
 // userHeaderPointer 将非空白的头部值转换为字符串指针。
-// 如果去除空白后为空，则返回 nil；否则返回原始值的指针。
+// 如果去除空白后为空，则返回 nil；否则返回去除空白后的值指针。
 func userHeaderPointer(value string) *string {
-	if strings.TrimSpace(value) == "" {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
 		return nil
 	}
-	return &value
+	return &trimmed
 }
 
 // 返回的 locale 和 requestID 会在空白时置为 nil。

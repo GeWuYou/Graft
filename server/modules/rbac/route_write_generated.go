@@ -8,6 +8,9 @@ import (
 
 type rbacWriteGeneratedHandler struct{}
 
+// rbacWriteGeneratedHandler 保留 OpenAPI 生成的写入接口绑定点。
+// 这些方法只负责让手写路由继续显式记录生成请求参数；真正的 RBAC 写入生命周期由 route_write_stable_ids.go 中的手写 handler 拥有。
+
 func (h rbacWriteGeneratedHandler) PostRoles(
 	params rbacopenapi.PostRolesParams,
 	body rbacopenapi.PostRolesJSONRequestBody,

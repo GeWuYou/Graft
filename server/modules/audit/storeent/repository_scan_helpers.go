@@ -323,7 +323,8 @@ func containerDangerousActionExpression(actionColumn string, resourceTypeColumn 
 // normalizeAuditTargetType 将资源类型规范化为审计目标类型。
 // 支持常见别名映射，并在无法识别时保留原值的标准化形式。
 func normalizeAuditTargetType(resourceType string) string {
-	switch strings.ToLower(strings.TrimSpace(resourceType)) {
+	trimmed := strings.TrimSpace(resourceType)
+	switch strings.ToLower(trimmed) {
 	case "user", "users":
 		return "USER"
 	case "role", "roles":
@@ -337,10 +338,10 @@ func normalizeAuditTargetType(resourceType string) string {
 	case "auth", "session", "sessions", "login":
 		return "AUTH"
 	default:
-		if resourceType == "" {
+		if trimmed == "" {
 			return "AUDIT"
 		}
-		return strings.ToUpper(strings.ReplaceAll(strings.TrimSpace(resourceType), "-", "_"))
+		return strings.ToUpper(strings.ReplaceAll(trimmed, "-", "_"))
 	}
 }
 

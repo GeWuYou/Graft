@@ -36,29 +36,14 @@ func (r *repository) EnsurePermission(ctx context.Context, input rbacstore.Ensur
 }
 
 func (r *repository) AssignPermissionsToRole(ctx context.Context, input rbacstore.AssignPermissionsToRoleInput) error {
-	roleID, err := toDBID(input.RoleID)
-	if err != nil {
-		return err
-	}
-
-	for _, permissionIDValue := range input.PermissionIDs {
-		permissionID, err := toDBID(permissionIDValue)
-		if err != nil {
-			return err
-		}
-
-		if err := insertRolePermission(ctx, roleID, permissionID, execQuerier{db: r.db}); err != nil {
-			if isUniqueViolation(err) {
-				continue
-			}
-			return fmt.Errorf("assign permission %d to role %d: %w", permissionIDValue, input.RoleID, err)
-		}
-	}
-
-	return nil
+	return r.addPermissionsToRole(ctx, input.RoleID, input.PermissionIDs, "assign")
 }
 
 func (r *repository) ReplacePermissionsForRole(ctx context.Context, input rbacstore.ReplacePermissionsForRoleInput) error {
+	if _, err := r.requireRoleForPermissionBindingMutation(ctx, input.RoleID, len(input.PermissionIDs) == 0, "replace role permissions"); err != nil {
+		return err
+	}
+
 	return r.replaceStableAssignments(
 		ctx,
 		input.RoleID,
@@ -74,7 +59,7 @@ func (r *repository) ReplacePermissionsForRole(ctx context.Context, input rbacst
 			targetMissing:        rbacstore.ErrRoleNotFound,
 			relationMissing:      rbacstore.ErrPermissionNotFound,
 			checkTargetExists: func(ctx context.Context, tx *sql.Tx, targetID int64) (bool, error) {
-				return recordExists(ctx, tx, "SELECT 1 FROM roles WHERE id = $1 AND deleted_at = 0", targetID)
+				return recordExists(ctx, tx, "SELECT 1 FROM roles WHERE id = $1", targetID)
 			},
 			countRelationRecords: func(ctx context.Context, tx *sql.Tx, ids []int64) (int, error) {
 				return countRecordsByIDsWhere(ctx, tx, "permissions", "deleted_at = 0", ids)
@@ -93,38 +78,49 @@ func (r *repository) ReplacePermissionsForRole(ctx context.Context, input rbacst
 }
 
 func (r *repository) AddPermissionsToRole(ctx context.Context, input rbacstore.AddPermissionsToRoleInput) error {
-	if _, err := r.GetRoleByID(ctx, input.RoleID); err != nil {
-		return err
-	}
-	permissionIDs, err := toUniqueDBIDs(input.PermissionIDs)
+	return r.addPermissionsToRole(ctx, input.RoleID, input.PermissionIDs, "add")
+}
+
+func (r *repository) addPermissionsToRole(
+	ctx context.Context,
+	roleID uint64,
+	permissionIDs []uint64,
+	action string,
+) error {
+	boundRoleID, err := r.requireRoleForPermissionBindingMutation(ctx, roleID, false, action+" role permissions")
 	if err != nil {
 		return err
 	}
-	if err := r.ensurePermissionsExist(ctx, permissionIDs); err != nil {
+	dbPermissionIDs, err := toUniqueDBIDs(permissionIDs)
+	if err != nil {
+		return err
+	}
+	if err := r.ensurePermissionsExist(ctx, dbPermissionIDs); err != nil {
 		return err
 	}
 
-	roleID, err := toDBID(input.RoleID)
+	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("start %s role permissions tx for role %d: %w", action, roleID, err)
 	}
-	for _, permissionID := range permissionIDs {
-		if err := insertRolePermission(ctx, roleID, permissionID, execQuerier{db: r.db}); err != nil {
-			if isUniqueViolation(err) {
-				continue
-			}
-			return fmt.Errorf("add permission %d to role %d: %w", permissionID, input.RoleID, err)
+	committed := false
+	defer rollbackUncommitted(tx, &committed)
+
+	for _, permissionID := range dbPermissionIDs {
+		if err := insertRolePermission(ctx, boundRoleID, permissionID, execQuerier{tx: tx}); err != nil {
+			return fmt.Errorf("%s permission %d to role %d: %w", action, permissionID, roleID, err)
 		}
 	}
 
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit %s role permissions for role %d: %w", action, roleID, err)
+	}
+	committed = true
 	return nil
 }
 
 func (r *repository) RemovePermissionsFromRole(ctx context.Context, input rbacstore.RemovePermissionsFromRoleInput) error {
-	if _, err := r.GetRoleByID(ctx, input.RoleID); err != nil {
-		return err
-	}
-	roleID, err := toDBID(input.RoleID)
+	roleID, _, err := r.requireRoleForPermissionBindingPresence(ctx, input.RoleID, "remove role permissions")
 	if err != nil {
 		return err
 	}
@@ -250,16 +246,9 @@ func (r *repository) ListUserIDsByPermissionCode(ctx context.Context, permission
 }
 
 func (r *repository) ListRolePermissionBindings(ctx context.Context, roleID uint64) ([]rbacstore.RolePermissionBinding, error) {
-	id, err := toDBID(roleID)
+	id, _, err := r.requireRoleForPermissionBindingPresence(ctx, roleID, "list role permission bindings")
 	if err != nil {
 		return nil, err
-	}
-
-	if _, err := r.queryRoleByID(ctx, id); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, rbacstore.ErrRoleNotFound
-		}
-		return nil, fmt.Errorf("get role for permission bindings: %w", err)
 	}
 
 	rows, err := r.db.QueryContext(
@@ -310,6 +299,34 @@ func (q execQuerier) ExecContext(ctx context.Context, query string, args ...any)
 	}
 }
 
+func (r *repository) requireRoleForPermissionBindingPresence(ctx context.Context, roleID uint64, action string) (int64, rbacstore.Role, error) {
+	id, err := toDBID(roleID)
+	if err != nil {
+		return 0, rbacstore.Role{}, err
+	}
+
+	role, err := r.queryRoleByIDIncludingDisabled(ctx, id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, rbacstore.Role{}, rbacstore.ErrRoleNotFound
+		}
+		return 0, rbacstore.Role{}, fmt.Errorf("%s: get role %d: %w", action, roleID, err)
+	}
+
+	return id, role, nil
+}
+
+func (r *repository) requireRoleForPermissionBindingMutation(ctx context.Context, roleID uint64, allowDisabled bool, action string) (int64, error) {
+	id, role, err := r.requireRoleForPermissionBindingPresence(ctx, roleID, action)
+	if err != nil {
+		return 0, err
+	}
+	if !allowDisabled && role.Status == rbacstore.RoleStatusDisabled {
+		return 0, rbacstore.ErrRoleDisabledAssignmentForbidden
+	}
+	return id, nil
+}
+
 // insertRolePermission 向 role_permissions 中插入角色与权限绑定记录。
 //
 // 记录的 created_at 使用当前 UTC 时间。
@@ -317,7 +334,8 @@ func insertRolePermission(ctx context.Context, roleID int64, permissionID int64,
 	_, err := target.ExecContext(
 		ctx,
 		`INSERT INTO role_permissions (role_id, permission_id, created_at)
-		VALUES ($1, $2, $3)`,
+		VALUES ($1, $2, $3)
+		ON CONFLICT (role_id, permission_id) DO NOTHING`,
 		roleID,
 		permissionID,
 		time.Now().UTC(),

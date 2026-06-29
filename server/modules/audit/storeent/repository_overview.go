@@ -48,6 +48,14 @@ ORDER BY created_at DESC, id DESC
 LIMIT 3
 `
 
+type overviewRecentKind string
+
+const (
+	overviewRecentKindAuthFailures        overviewRecentKind = "auth_failures"
+	overviewRecentKindPermissionDenials   overviewRecentKind = "permission_denials"
+	overviewRecentKindSensitiveOperations overviewRecentKind = "sensitive_operations"
+)
+
 //nolint:gosec // Query text is assembled from fixed SQL fragments; all dynamic values stay parameterized.
 var overviewRiskGroupsSQL = `
 SELECT key, label_key, risk_level, count
@@ -62,6 +70,7 @@ FROM (
 				(metadata ->> 'status_code') = '403'
 				OR (
 					COALESCE(NULLIF(metadata ->> 'status_code', ''), '') <> ''
+					AND LENGTH(metadata ->> 'status_code') <= ` + fmt.Sprintf("%d", metadataNumericMaxDigits) + `
 					AND REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(
 						metadata ->> 'status_code',
 						'0', ''
@@ -455,8 +464,8 @@ func (r *repository) readOverviewSecurityTimeline(ctx context.Context, args []an
 	return items, nil
 }
 
-func (r *repository) readAuditOverviewItems(ctx context.Context, args []any, where string) ([]auditstore.OverviewItem, error) {
-	rows, err := r.db.QueryContext(ctx, fmt.Sprintf(overviewRecentBaseSQL, where), args...)
+func (r *repository) readAuditOverviewItems(ctx context.Context, args []any, kind overviewRecentKind) ([]auditstore.OverviewItem, error) {
+	rows, err := r.db.QueryContext(ctx, fmt.Sprintf(overviewRecentBaseSQL, overviewRecentWhereClause(kind)), args...)
 	if err != nil {
 		return nil, fmt.Errorf("read audit overview items: %w", err)
 	}
@@ -477,6 +486,19 @@ func (r *repository) readAuditOverviewItems(ctx context.Context, args []any, whe
 	}
 
 	return items, nil
+}
+
+func overviewRecentWhereClause(kind overviewRecentKind) string {
+	switch kind {
+	case overviewRecentKindAuthFailures:
+		return authFailuresWhereClause()
+	case overviewRecentKindPermissionDenials:
+		return permissionDenialsWhereClause()
+	case overviewRecentKindSensitiveOperations:
+		return sensitiveOperationsWhereClause()
+	default:
+		panic("unsupported audit overview recent kind")
+	}
 }
 
 // scanAuditOverviewItem 解析一条审计概览记录并补齐元数据。

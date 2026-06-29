@@ -3,6 +3,7 @@ package notification
 import (
 	"context"
 	"errors"
+	"math"
 	"time"
 
 	"graft/server/internal/moduleapi"
@@ -145,14 +146,18 @@ func defaultUTCTimestamp(value time.Time) time.Time {
 // normalizePage 规范分页参数。
 // 它确保页码至少为 1，页大小在默认值与最大值范围内。
 func normalizePage(page int, size int) (int, int) {
-	if page <= 0 {
-		page = 1
-	}
 	if size <= 0 {
 		size = defaultPageSize
 	}
 	if size > maxPageSize {
 		size = maxPageSize
+	}
+	if page <= 0 {
+		page = 1
+	}
+	maxPage := math.MaxInt/size + 1
+	if page > maxPage {
+		page = maxPage
 	}
 	return page, size
 }

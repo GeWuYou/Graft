@@ -18,6 +18,9 @@ func (r *repository) AssignRoleToUser(ctx context.Context, input rbacstore.Assig
 	if err != nil {
 		return err
 	}
+	if err := r.ensureAssignableRoles(ctx, []int64{roleID}); err != nil {
+		return err
+	}
 
 	if err := insertUserRole(ctx, userID, roleID, execQuerier{db: r.db}); err != nil {
 		if isUniqueViolation(err) {

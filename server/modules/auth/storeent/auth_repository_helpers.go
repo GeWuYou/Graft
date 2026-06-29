@@ -46,6 +46,7 @@ func (r *authRepository) queryUserCredentialByUsername(ctx context.Context, user
 
 func (r *authRepository) updatePasswordHash(ctx context.Context, userID int, input authstore.SetPasswordHashInput) error {
 	updater := r.client.User.UpdateOneID(userID).
+		Where(userent.DeletedAtEQ(0)).
 		SetPasswordHash(input.PasswordHash).
 		SetMustChangePassword(input.MustChangePassword)
 	if input.ChangedAt != nil {
@@ -104,6 +105,7 @@ func setUserPasswordInTx(
 	input passwordUpdateTxInput,
 ) error {
 	updater := tx.User.UpdateOneID(input.userID).
+		Where(userent.DeletedAtEQ(0)).
 		SetPasswordHash(input.passwordHash).
 		SetMustChangePassword(input.mustChangePassword).
 		SetPasswordChangedAt(input.changedAt)

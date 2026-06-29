@@ -52,6 +52,7 @@ const overviewTrendThreeDayDuration = 72 * time.Hour
 const overviewTrendTwoHourDuration = 2 * time.Hour
 const incidentCorrelationWindow = 30 * time.Minute
 const incidentCandidateScanLimit = 200
+const metadataNumericMaxDigits = 5
 const sqlLikeEscapeClause = " ESCAPE '\\'"
 
 // NewRepository 基于共享连接池构建 audit 模块的 SQL repository。
@@ -293,15 +294,15 @@ func (r *repository) ReadAuditOverview(ctx context.Context, preset auditstore.Au
 	if err != nil {
 		return auditstore.AuditOverview{}, err
 	}
-	failedAuth, err := r.readAuditOverviewItems(ctx, args, authFailuresWhereClause())
+	failedAuth, err := r.readAuditOverviewItems(ctx, args, overviewRecentKindAuthFailures)
 	if err != nil {
 		return auditstore.AuditOverview{}, err
 	}
-	permissionDenied, err := r.readAuditOverviewItems(ctx, args, permissionDenialsWhereClause())
+	permissionDenied, err := r.readAuditOverviewItems(ctx, args, overviewRecentKindPermissionDenials)
 	if err != nil {
 		return auditstore.AuditOverview{}, err
 	}
-	sensitiveOps, err := r.readAuditOverviewItems(ctx, args, sensitiveOperationsWhereClause())
+	sensitiveOps, err := r.readAuditOverviewItems(ctx, args, overviewRecentKindSensitiveOperations)
 	if err != nil {
 		return auditstore.AuditOverview{}, err
 	}
@@ -653,9 +654,9 @@ func metadataNumericAtLeastSQL(column string, key string, threshold int) string 
 // 该表达式会先确认字段值仅包含数字，再将其转换为整数进行比较。
 func metadataPostgresNumericAtLeastSQL(column string, key string, threshold int) string {
 	return fmt.Sprintf(`(
-				COALESCE(%[1]s ->> '%[2]s', '') ~ '^[0-9]+$'
-				AND (%[1]s ->> '%[2]s')::int >= %[3]d
-			)`, column, key, threshold)
+					COALESCE(%[1]s ->> '%[2]s', '') ~ '^[0-9]{1,%[4]d}$'
+					AND (%[1]s ->> '%[2]s')::int >= %[3]d
+				)`, column, key, threshold, metadataNumericMaxDigits)
 }
 
 // metadataNumericValueSQL 返回将 JSON 元数据字段解析为整数的 SQL 表达式。
@@ -663,13 +664,14 @@ func metadataPostgresNumericAtLeastSQL(column string, key string, threshold int)
 func metadataNumericValueSQL(column string, key string) string {
 	return fmt.Sprintf(`CASE
 		WHEN COALESCE(NULLIF(%[1]s ->> '%[2]s', ''), '') <> ''
+			AND LENGTH(%[1]s ->> '%[2]s') <= %[3]d
 			AND REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(
 				%[1]s ->> '%[2]s',
 				'0', ''
 			), '1', ''), '2', ''), '3', ''), '4', ''), '5', ''), '6', ''), '7', ''), '8', ''), '9', '') = ''
 		THEN CAST(%[1]s ->> '%[2]s' AS INTEGER)
 		ELSE 0
-	END`, column, key)
+	END`, column, key, metadataNumericMaxDigits)
 }
 
 var (

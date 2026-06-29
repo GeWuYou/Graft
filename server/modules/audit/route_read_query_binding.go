@@ -749,8 +749,9 @@ func normalizeAuditOverviewPreset(value *auditopenapi.GetAuditOverviewParamsPres
 
 // auditHeaderPointer 将空白字符串转换为 nil，否则返回其指针。
 func auditHeaderPointer(value string) *string {
-	if strings.TrimSpace(value) == "" {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
 		return nil
 	}
-	return &value
+	return &trimmed
 }
