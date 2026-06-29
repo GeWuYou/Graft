@@ -1,6 +1,6 @@
 module graft/server
 
-go 1.26.0
+go 1.26.4
 
 require (
 	github.com/getkin/kin-openapi v0.140.0
@@ -11,7 +11,7 @@ require (
 	github.com/joho/godotenv v1.5.1
 
 	// go-redis 是 server 核心 Redis client，用于缓存、会话和后续调度基础能力。
-	github.com/redis/go-redis/v9 v9.20.1
+	github.com/redis/go-redis/v9 v9.21.0
 
 	// Viper 负责读取 GRAFT_* 环境变量并提供默认值解析。
 	github.com/spf13/viper v1.21.0
@@ -101,7 +101,7 @@ require (
 )
 
 require (
-	ariga.io/atlas v1.2.0
+	ariga.io/atlas v1.2.3
 	github.com/agext/levenshtein v1.2.3 // indirect
 	github.com/apparentlymart/go-textseg/v15 v15.0.0 // indirect
 	github.com/bmatcuk/doublestar v1.3.4 // indirect
