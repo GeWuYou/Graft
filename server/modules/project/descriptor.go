@@ -31,6 +31,10 @@ func NewModuleSpec() module.Spec {
 			if runtimeErr == nil && runtimeReader != nil {
 				options = append(options, WithRuntimeReader(runtimeReader))
 			}
+			configResolver, configErr := module.ResolveService[moduleapi.SystemConfigResolver](ctx.Services, (*moduleapi.SystemConfigResolver)(nil))
+			if configErr == nil && configResolver != nil {
+				options = append(options, WithSystemConfigResolver(configResolver))
+			}
 			service, err := NewService(repository, options...)
 			if err != nil {
 				return nil, fmt.Errorf("build project service: %w", err)

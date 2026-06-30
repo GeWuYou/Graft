@@ -1,6 +1,9 @@
 package project
 
-import generated "graft/server/internal/contract/openapi/generated"
+import (
+	generated "graft/server/internal/contract/openapi/generated"
+	projectcontract "graft/server/modules/project/contract"
+)
 
 func toProjectListResponse(result ListResult) generated.ProjectListResponse {
 	return generated.ProjectListResponse{
@@ -90,6 +93,87 @@ func toActionResponse(result ActionResult) generated.ProjectActionResponse {
 		response.GuardResults = &items
 	}
 	return response
+}
+
+func toManagedRootResponse(info ManagedRootInfo) generated.ProjectManagedRootResponse {
+	response := generated.ProjectManagedRootResponse{
+		Status:                generated.ProjectManagedRootStatus(info.Status),
+		ConfigKey:             info.ConfigKey,
+		OwnershipMode:         generated.ProjectOwnershipMode(info.OwnershipMode),
+		CreatePermission:      info.CreatePermission,
+		SupportsManagedCreate: info.SupportsManagedCreate,
+	}
+	if info.ConfiguredRootDirectory != nil {
+		response.ConfiguredRootDirectory = info.ConfiguredRootDirectory
+	}
+	if info.StatusReason != nil {
+		response.StatusReason = info.StatusReason
+	}
+	return response
+}
+
+func toManagedCreateValidateResponse(result ManagedProjectCreateValidationResult) generated.ProjectCreateValidateResponse {
+	response := generated.ProjectCreateValidateResponse{
+		ManagedRoot:             toManagedRootResponse(result.ManagedRoot),
+		DisplayName:             result.DisplayName,
+		CanonicalProjectName:    result.CanonicalProjectName,
+		OwnershipMode:           generated.ProjectOwnershipMode(result.OwnershipMode),
+		WorkingDirectory:        result.WorkingDirectory,
+		ComposeFileName:         result.ComposeFileName,
+		ComposeFileAbsolutePath: result.ComposeFileAbsolutePath,
+	}
+	if result.EnvFileName != nil {
+		response.EnvFileName = result.EnvFileName
+	}
+	if result.EnvFileAbsolutePath != nil {
+		response.EnvFileAbsolutePath = result.EnvFileAbsolutePath
+	}
+	if len(result.Warnings) > 0 {
+		warnings := append([]string(nil), result.Warnings...)
+		response.Warnings = &warnings
+	}
+	return response
+}
+
+func toManagedCreateResponse(result ManagedProjectCreateValidationResult) generated.ProjectCreateResponse {
+	response := generated.ProjectCreateResponse{
+		ManagedRoot:          toManagedRootResponse(result.ManagedRoot),
+		DisplayName:          result.DisplayName,
+		CanonicalProjectName: result.CanonicalProjectName,
+		OwnershipMode:        generated.ProjectOwnershipMode(result.OwnershipMode),
+		WorkingDirectory:     result.WorkingDirectory,
+		ComposeFileName:      result.ComposeFileName,
+		Action:               generated.ProjectCreateResponseAction("create"),
+		Result:               generated.ProjectCreateResponseResultAccepted,
+		MessageKey:           optionalString(projectcontract.ProjectManagedCreateAccepted.String()),
+		Message:              optionalString(projectcontract.ProjectManagedCreateAccepted.String()),
+	}
+	if result.EnvFileName != nil {
+		response.EnvFileName = result.EnvFileName
+	}
+	if result.EnvFileAbsolutePath != nil {
+		response.EnvFileAbsolutePath = result.EnvFileAbsolutePath
+	}
+	if len(result.Warnings) > 0 {
+		warnings := append([]string(nil), result.Warnings...)
+		response.Warnings = &warnings
+	}
+	return response
+}
+
+func toManagedCreateRequest(request generated.PostProjectCreateValidateJSONRequestBody) ManagedProjectCreateRequest {
+	var envFileName *string
+	if request.EnvFileName != nil {
+		value := *request.EnvFileName
+		envFileName = &value
+	}
+	return ManagedProjectCreateRequest{
+		DisplayName:              request.DisplayName,
+		CanonicalProjectName:     request.CanonicalProjectName,
+		RelativeProjectDirectory: request.RelativeProjectDirectory,
+		ComposeFileName:          request.ComposeFileName,
+		EnvFileName:              envFileName,
+	}
 }
 
 func optionalStringSlice(items []string) *[]string {

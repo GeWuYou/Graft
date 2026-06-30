@@ -46,20 +46,23 @@ func registerRoutes(ctx *module.Context, moduleName string, service *Service) er
 	publisher := httpx.NewSecurityAuditPublisher(ctx.EventBus, ctx.Logger, moduleName)
 	group := ctx.Router.Group(projectcontract.ProjectAPIGroup)
 	group.Use(httpx.RequestIDMiddleware())
-	group.GET(projectcontract.ProjectCollectionRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, "", publisher), routes.handleList)
-	group.POST(projectcontract.ProjectImportValidateRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, "", publisher), routes.handleImportValidate)
-	group.POST(projectcontract.ProjectImportRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, "", publisher), routes.handleImport)
-	group.GET(projectcontract.ProjectDetailRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, "", publisher), routes.handleDetail)
-	group.GET(projectcontract.ProjectServicesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, "", publisher), routes.handleServices)
-	group.GET(projectcontract.ProjectConfigurationRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, "", publisher), routes.handleConfiguration)
-	group.GET(projectcontract.ProjectConfigurationPreviewRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, "", publisher), routes.handleConfigurationPreview)
-	group.GET(projectcontract.ProjectConfigurationFileRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, "", publisher), routes.handleConfigurationFile)
-	group.POST(projectcontract.ProjectRefreshRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, "", publisher), routes.handleRefresh)
-	group.POST(projectcontract.ProjectUpRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, "", publisher), routes.handleUp)
-	group.POST(projectcontract.ProjectDownRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, "", publisher), routes.handleDown)
-	group.POST(projectcontract.ProjectRestartRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, "", publisher), routes.handleRestart)
-	group.POST(projectcontract.ProjectUnregisterRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, "", publisher), routes.handleUnregister)
-	group.POST(projectcontract.ProjectDestroyRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, "", publisher), routes.handleDestroy)
+	group.GET(projectcontract.ProjectCollectionRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectViewPermission.String(), publisher), routes.handleList)
+	group.POST(projectcontract.ProjectImportValidateRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectImportPermission.String(), publisher), routes.handleImportValidate)
+	group.POST(projectcontract.ProjectImportRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectImportPermission.String(), publisher), routes.handleImport)
+	group.GET(projectcontract.ProjectManagedRootRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectCreatePermission.String(), publisher), routes.handleManagedRoot)
+	group.POST(projectcontract.ProjectCreateValidateRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectCreatePermission.String(), publisher), routes.handleCreateValidate)
+	group.POST(projectcontract.ProjectCreateRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectCreatePermission.String(), publisher), routes.handleCreate)
+	group.GET(projectcontract.ProjectDetailRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectViewPermission.String(), publisher), routes.handleDetail)
+	group.GET(projectcontract.ProjectServicesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectViewPermission.String(), publisher), routes.handleServices)
+	group.GET(projectcontract.ProjectConfigurationRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectViewPermission.String(), publisher), routes.handleConfiguration)
+	group.GET(projectcontract.ProjectConfigurationPreviewRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectViewPermission.String(), publisher), routes.handleConfigurationPreview)
+	group.GET(projectcontract.ProjectConfigurationFileRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectViewPermission.String(), publisher), routes.handleConfigurationFile)
+	group.POST(projectcontract.ProjectRefreshRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectRefreshPermission.String(), publisher), routes.handleRefresh)
+	group.POST(projectcontract.ProjectUpRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectLifecyclePermission.String(), publisher), routes.handleUp)
+	group.POST(projectcontract.ProjectDownRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectLifecyclePermission.String(), publisher), routes.handleDown)
+	group.POST(projectcontract.ProjectRestartRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectLifecyclePermission.String(), publisher), routes.handleRestart)
+	group.POST(projectcontract.ProjectUnregisterRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectDestroyPermission.String(), publisher), routes.handleUnregister)
+	group.POST(projectcontract.ProjectDestroyRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectDestroyPermission.String(), publisher), routes.handleDestroy)
 	return nil
 }
 
@@ -109,6 +112,44 @@ func (r routeRuntime) handleImport(ginCtx *gin.Context) {
 		return
 	}
 	httpx.WriteSuccess(ginCtx, http.StatusOK, result)
+}
+
+func (r routeRuntime) handleManagedRoot(ginCtx *gin.Context) {
+	projectGeneratedHandler{}.GetProjectManagedRoot(bindGetProjectManagedRootParams(ginCtx))
+	result, err := r.service.ManagedRoot(ginCtx.Request.Context())
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, toManagedRootResponse(result))
+}
+
+func (r routeRuntime) handleCreateValidate(ginCtx *gin.Context) {
+	var request generated.PostProjectCreateValidateJSONRequestBody
+	if !bindJSON(ginCtx, r.ctx, &request) {
+		return
+	}
+	projectGeneratedHandler{}.PostProjectCreateValidate(bindPostProjectCreateValidateParams(ginCtx), request)
+	result, err := r.service.ValidateManagedCreate(ginCtx.Request.Context(), toManagedCreateRequest(request))
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, toManagedCreateValidateResponse(result))
+}
+
+func (r routeRuntime) handleCreate(ginCtx *gin.Context) {
+	var request generated.PostProjectCreateJSONRequestBody
+	if !bindJSON(ginCtx, r.ctx, &request) {
+		return
+	}
+	projectGeneratedHandler{}.PostProjectCreate(bindPostProjectCreateParams(ginCtx), request)
+	result, err := r.service.ValidateManagedCreate(ginCtx.Request.Context(), toManagedCreateRequest(generated.PostProjectCreateValidateJSONRequestBody(request)))
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusAccepted, toManagedCreateResponse(result))
 }
 
 func (r routeRuntime) handleDetail(ginCtx *gin.Context) {
@@ -266,10 +307,10 @@ func (r routeRuntime) handleDestroy(ginCtx *gin.Context) {
 	}
 	projectGeneratedHandler{}.PostProjectDestroy(generatedID, bindPostProjectDestroyParams(ginCtx), request)
 	result, err := r.service.Destroy(ginCtx.Request.Context(), projectID, DestroyRequest{
-		RemoveNamedVolumes:         request.RemoveNamedVolumes,
-		DeleteWorkingDirectory:     request.DeleteWorkingDirectory,
+		RemoveNamedVolumes:          request.RemoveNamedVolumes,
+		DeleteWorkingDirectory:      request.DeleteWorkingDirectory,
 		ConfirmCanonicalProjectName: request.ConfirmCanonicalProjectName,
-		ActorID:                    currentUserIDPointer(ginCtx),
+		ActorID:                     currentUserIDPointer(ginCtx),
 	})
 	if err != nil {
 		r.writeRouteErrorWithAction(ginCtx, err, result)
@@ -311,6 +352,11 @@ func (projectGeneratedHandler) GetProjects(generated.GetProjectsParams) {}
 func (projectGeneratedHandler) PostProjectImportValidate(generated.PostProjectImportValidateParams, generated.PostProjectImportValidateJSONRequestBody) {
 }
 func (projectGeneratedHandler) PostProjectImport(generated.PostProjectImportParams, generated.PostProjectImportJSONRequestBody) {
+}
+func (projectGeneratedHandler) GetProjectManagedRoot(generated.GetProjectManagedRootParams) {}
+func (projectGeneratedHandler) PostProjectCreateValidate(generated.PostProjectCreateValidateParams, generated.PostProjectCreateValidateJSONRequestBody) {
+}
+func (projectGeneratedHandler) PostProjectCreate(generated.PostProjectCreateParams, generated.PostProjectCreateJSONRequestBody) {
 }
 func (projectGeneratedHandler) GetProject(int64, generated.GetProjectParams)                 {}
 func (projectGeneratedHandler) GetProjectServices(int64, generated.GetProjectServicesParams) {}
@@ -419,6 +465,21 @@ func bindGetProjectConfigurationPreviewParams(ginCtx *gin.Context) generated.Get
 func bindGetProjectConfigurationFileParams(ginCtx *gin.Context) generated.GetProjectConfigurationFileParams {
 	locale, requestID := commonHeaders(ginCtx)
 	return generated.GetProjectConfigurationFileParams{XGraftLocale: locale, XRequestId: requestID}
+}
+
+func bindGetProjectManagedRootParams(ginCtx *gin.Context) generated.GetProjectManagedRootParams {
+	locale, requestID := commonHeaders(ginCtx)
+	return generated.GetProjectManagedRootParams{XGraftLocale: locale, XRequestId: requestID}
+}
+
+func bindPostProjectCreateValidateParams(ginCtx *gin.Context) generated.PostProjectCreateValidateParams {
+	locale, requestID := commonHeaders(ginCtx)
+	return generated.PostProjectCreateValidateParams{XGraftLocale: locale, XRequestId: requestID}
+}
+
+func bindPostProjectCreateParams(ginCtx *gin.Context) generated.PostProjectCreateParams {
+	locale, requestID := commonHeaders(ginCtx)
+	return generated.PostProjectCreateParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
 func bindPostProjectRefreshParams(ginCtx *gin.Context) generated.PostProjectRefreshParams {

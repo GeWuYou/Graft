@@ -10,11 +10,34 @@ type ErrorCode string
 // Canonical owner: server/modules/project/contract.
 type MessageKey string
 
+// PermissionCode identifies a stable project module permission contract.
+//
+// Canonical owner: server/modules/project/contract.
+type PermissionCode string
+
+// ConfigKey identifies a stable project module system-config contract.
+//
+// Canonical owner: server/modules/project/contract.
+type ConfigKey string
+
+// ConfigMessageKey identifies a stable project system-config localization key contract.
+//
+// Canonical owner: server/modules/project/contract.
+type ConfigMessageKey string
+
 func (c ErrorCode) String() string { return string(c) }
 
 func (c MessageKey) String() string { return string(c) }
 
+func (c PermissionCode) String() string { return string(c) }
+
+func (c ConfigKey) String() string { return string(c) }
+
+func (c ConfigMessageKey) String() string { return string(c) }
+
 const (
+	// ProjectMenuTitle identifies the project-management menu title.
+	ProjectMenuTitle MessageKey = "menu.ops.project.title"
 	// ProjectInvalidID identifies path or payload project identifiers that fail validation.
 	ProjectInvalidID ErrorCode = "ops.project.error.invalidProjectId"
 	// ProjectInvalidFileID identifies path file identifiers that fail validation.
@@ -29,6 +52,10 @@ const (
 	ProjectUnsupportedLifecycle ErrorCode = "ops.project.error.unsupportedLifecycle"
 	// ProjectImportValidationFailed identifies invalid Compose import payloads or parse failures.
 	ProjectImportValidationFailed ErrorCode = "ops.project.error.importValidationFailed"
+	// ProjectManagedRootUnconfigured identifies managed-create flows blocked by missing managed-root authority.
+	ProjectManagedRootUnconfigured ErrorCode = "ops.project.error.managedRootUnconfigured"
+	// ProjectManagedRootInvalid identifies managed-create flows blocked by invalid managed-root authority.
+	ProjectManagedRootInvalid ErrorCode = "ops.project.error.managedRootInvalid"
 )
 
 const (
@@ -52,4 +79,35 @@ const (
 	ProjectUnregisterCompleted MessageKey = "ops.project.unregister.completed"
 	// ProjectDestroyCompleted identifies a successful guarded destroy response.
 	ProjectDestroyCompleted MessageKey = "ops.project.destroy.completed"
+	// ProjectManagedCreateValidated identifies a successful managed-create validation response.
+	ProjectManagedCreateValidated MessageKey = "ops.project.create.validated"
+	// ProjectManagedCreateAccepted identifies an accepted managed-create response.
+	ProjectManagedCreateAccepted MessageKey = "ops.project.create.accepted"
+)
+
+const (
+	// ProjectViewPermission identifies read access to project registry and readonly detail surfaces.
+	ProjectViewPermission PermissionCode = "ops.project.view"
+	// ProjectImportPermission identifies import validate and import registration access.
+	ProjectImportPermission PermissionCode = "ops.project.import"
+	// ProjectRefreshPermission identifies static refresh access.
+	ProjectRefreshPermission PermissionCode = "ops.project.refresh"
+	// ProjectLifecyclePermission identifies lifecycle action access.
+	ProjectLifecyclePermission PermissionCode = "ops.project.lifecycle"
+	// ProjectDestroyPermission identifies unregister and destroy access.
+	ProjectDestroyPermission PermissionCode = "ops.project.destroy"
+	// ProjectCreatePermission identifies managed-create contract and future create execution access.
+	ProjectCreatePermission PermissionCode = "ops.project.create"
+)
+
+const (
+	// ProjectManagedRootConfig stores the canonical managed-project root directory.
+	ProjectManagedRootConfig ConfigKey = "ops.project.managed.root_directory"
+)
+
+const (
+	// ProjectManagedRootConfigTitle identifies the managed-root config title localization key.
+	ProjectManagedRootConfigTitle ConfigMessageKey = "systemConfig.project.ops.project.managed.root_directory.title"
+	// ProjectManagedRootConfigDescription identifies the managed-root config description localization key.
+	ProjectManagedRootConfigDescription ConfigMessageKey = "systemConfig.project.ops.project.managed.root_directory.description"
 )

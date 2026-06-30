@@ -1,0 +1,15 @@
+menu.ops.project.title: Compose 项目管理
+rbac.permissionCatalog.projectView.display: 查看 Compose 项目
+rbac.permissionCatalog.projectView.description: 读取已注册 Compose 项目的摘要和只读详情。
+rbac.permissionCatalog.projectImport.display: 导入 Compose 项目
+rbac.permissionCatalog.projectImport.description: 校验并导入外部 Compose 项目到项目注册表。
+rbac.permissionCatalog.projectRefresh.display: 刷新 Compose 项目
+rbac.permissionCatalog.projectRefresh.description: 刷新项目快照和只读配置投影视图。
+rbac.permissionCatalog.projectLifecycle.display: 管理 Compose 项目生命周期
+rbac.permissionCatalog.projectLifecycle.description: 执行受限的 Compose 生命周期动作，例如 up、down 和 restart。
+rbac.permissionCatalog.projectDestroy.display: 注销或销毁 Compose 项目
+rbac.permissionCatalog.projectDestroy.description: 对项目记录执行注销和受保护的销毁动作。
+rbac.permissionCatalog.projectCreate.display: 创建受管 Compose 项目
+rbac.permissionCatalog.projectCreate.description: 检查受管根目录 authority，并访问后续的 managed create 工作流。
+systemConfig.project.ops.project.managed.root_directory.title: 受管项目根目录
+systemConfig.project.ops.project.managed.root_directory.description: Managed Compose 项目创建流程使用的 canonical 根目录。空字符串表示 managed create 尚未配置。

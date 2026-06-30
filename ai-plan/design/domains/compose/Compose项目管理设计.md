@@ -687,6 +687,41 @@ Phase 1 的 canonical OpenAPI authority 已收口到 `openapi/**`，本节继续
 - 快照摘要
 - 初次 refresh 结果
 
+## 10.2A Phase 2 managed root 与 create contract
+
+`phase-2-batch-1-managed-root-and-create-contracts` 只落 authority owner，不落真实 file write create flow。
+
+新增 canonical contract owner：
+
+| Method | Path | 语义 |
+| --- | --- | --- |
+| `GET` | `/api/ops/projects/managed-root` | 返回 managed create 的 system-config authority、ownership mode 与 readiness |
+| `POST` | `/api/ops/projects/create/validate` | 只校验 managed create 输入、目标目录推导与 bounded authority，不写文件 |
+| `POST` | `/api/ops/projects/create` | 保留 managed create canonical route；本 batch 只返回 accepted contract，不执行真实创建 |
+
+managed root authority 约束：
+
+- canonical config key 固定为 `ops.project.managed.root_directory`
+- config owner 固定为 `server/modules/project/**`
+- root directory 必须是绝对路径
+- empty string 表示 managed create 尚未配置，不允许把“未配置”降级成 request payload fallback
+- Phase 2 真实 create 只能在该 managed root 下创建 `managed-root-dedicated` 目录
+
+managed create request 建议至少包含：
+
+- `display_name`
+- `canonical_project_name`
+- `relative_project_directory`
+- `compose_file_name`
+- `env_file_name?`
+
+本批次明确不做：
+
+- 实际目录创建
+- compose/env 文件写入
+- editor / diff / validate / deploy flow
+- 下游兼容字段或用 import contract 冒充 create contract
+
 ## 10.3 配置
 
 为支持未来 Monaco / Diff / Download / Version，Configuration API 建议拆分：
@@ -774,6 +809,30 @@ Phase 1 的单文件内容返回建议包含：
 - `web/src/modules/project/**`
 - backend project logs/events aggregation
 - managed create / editor / diff / deploy / validate UI
+
+## 10.6A Batch 2.1 authority 落地说明
+
+`phase-2-batch-1-managed-root-and-create-contracts` 已把以下 authority owner 固定到仓库运行面：
+
+- OpenAPI contract owner：`openapi/**`
+  - 新增 `/api/ops/projects/managed-root`
+  - 新增 `/api/ops/projects/create/validate`
+  - 新增 `/api/ops/projects/create`
+- Project module contract owner：`server/modules/project/contract/**`
+  - 新增 managed-root status typed contract
+  - 新增 managed-create permission contract
+  - 新增 managed-root config key contract
+  - 新增 create route fragments
+- Project module config-definition owner：`server/modules/project/config.go`
+  - `ops.project.managed.root_directory` 成为 managed create 的 canonical system-config authority
+  - empty string 表示未配置，而不是隐式回退到仓库路径或用户 home
+
+本批次仍明确不做：
+
+- managed create file write path
+- managed create persistence bootstrap
+- web managed create UI / editors
+- diff / validate / deploy flow
 
 ## 10.7 Batch 4 authority 落地说明
 

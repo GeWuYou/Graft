@@ -2019,6 +2019,66 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/ops/projects/managed-root': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get managed project root authority
+     * @description Returns the canonical managed-root system-config authority used by future managed create flows.
+     */
+    get: operations['getProjectManagedRoot'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/projects/create/validate': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Validate a managed Compose project create request
+     * @description Validates managed-root authority, target paths, and bounded create inputs without writing files or registering a project.
+     */
+    post: operations['postProjectCreateValidate'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/projects/create': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Submit a managed Compose project create request
+     * @description Reserves the canonical managed-create route space. Phase 2 batch 1 returns an accepted contract response without writing files yet.
+     */
+    post: operations['postProjectCreate'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/ops/projects/{id}': {
     parameters: {
       query?: never;
@@ -5077,6 +5137,63 @@ export interface components {
     'enveloped-project-import-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['project-import-response'];
     };
+    /** @enum {string} */
+    'project-managed-root-status': 'unconfigured' | 'ready' | 'invalid';
+    'project-managed-root-response': {
+      status: components['schemas']['project-managed-root-status'];
+      config_key: string;
+      configured_root_directory?: string | null;
+      ownership_mode: components['schemas']['project-ownership-mode'];
+      create_permission: string;
+      supports_managed_create: boolean;
+      status_reason?: string | null;
+    };
+    'enveloped-project-managed-root-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['project-managed-root-response'];
+    };
+    'project-create-validate-request': {
+      display_name: string;
+      canonical_project_name: string;
+      /** @description Relative project directory under the canonical managed root. */
+      relative_project_directory: string;
+      compose_file_name: string;
+      env_file_name?: string | null;
+    };
+    'project-create-validate-response': {
+      managed_root: components['schemas']['project-managed-root-response'];
+      display_name: string;
+      canonical_project_name: string;
+      ownership_mode: components['schemas']['project-ownership-mode'];
+      working_directory: string;
+      compose_file_name: string;
+      env_file_name?: string | null;
+      compose_file_absolute_path: string;
+      env_file_absolute_path?: string | null;
+      warnings?: string[];
+    };
+    'enveloped-project-create-validate-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['project-create-validate-response'];
+    };
+    'project-create-response': {
+      managed_root: components['schemas']['project-managed-root-response'];
+      /** @enum {string} */
+      action: 'create';
+      /** @enum {string} */
+      result: 'accepted';
+      display_name: string;
+      canonical_project_name: string;
+      ownership_mode: components['schemas']['project-ownership-mode'];
+      working_directory: string;
+      compose_file_name: string;
+      env_file_name?: string | null;
+      env_file_absolute_path?: string | null;
+      message_key?: string | null;
+      message?: string | null;
+      warnings?: string[];
+    };
+    'enveloped-project-create-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['project-create-response'];
+    };
     'enveloped-project-detail-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['project-detail-response'];
     };
@@ -5151,7 +5268,7 @@ export interface components {
       /** Format: int64 */
       project_id: number;
       /** @enum {string} */
-      action: 'refresh' | 'up' | 'down' | 'restart' | 'unregister' | 'destroy';
+      action: 'refresh' | 'up' | 'down' | 'restart' | 'unregister' | 'destroy' | 'create';
       /** @enum {string} */
       result: 'accepted' | 'completed' | 'blocked';
       message_key?: string;
@@ -10994,6 +11111,130 @@ export interface operations {
           'application/json': components['schemas']['error-response'];
         };
       };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getProjectManagedRoot: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Managed-root authority status. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-project-managed-root-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postProjectCreateValidate: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['project-create-validate-request'];
+      };
+    };
+    responses: {
+      /** @description Managed create validation result. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-project-create-validate-response'];
+        };
+      };
+      /** @description Invalid managed create request. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postProjectCreate: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['project-create-validate-request'];
+      };
+    };
+    responses: {
+      /** @description Managed create request accepted by the bounded contract owner. */
+      202: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-project-create-response'];
+        };
+      };
+      /** @description Invalid managed create request. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
       500: components['responses']['internal-server-error'];
     };
   };

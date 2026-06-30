@@ -1,0 +1,49 @@
+type: object
+required:
+  - managed_root
+  - action
+  - result
+  - display_name
+  - canonical_project_name
+  - ownership_mode
+  - working_directory
+  - compose_file_name
+properties:
+  managed_root:
+    $ref: ./project-managed-root-response.yaml
+  action:
+    type: string
+    enum: [create]
+    x-enum-varnames:
+      - ProjectCreateResponseActionCreate
+  result:
+    type: string
+    enum: [accepted]
+    x-enum-varnames:
+      - ProjectCreateResponseResultAccepted
+  display_name:
+    type: string
+  canonical_project_name:
+    type: string
+  ownership_mode:
+    $ref: ./project-ownership-mode.yaml
+  working_directory:
+    type: string
+  compose_file_name:
+    type: string
+  env_file_name:
+    type: string
+    nullable: true
+  env_file_absolute_path:
+    type: string
+    nullable: true
+  message_key:
+    type: string
+    nullable: true
+  message:
+    type: string
+    nullable: true
+  warnings:
+    type: array
+    items:
+      type: string

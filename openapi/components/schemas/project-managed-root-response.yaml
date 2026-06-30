@@ -1,0 +1,24 @@
+type: object
+required:
+  - status
+  - config_key
+  - ownership_mode
+  - create_permission
+  - supports_managed_create
+properties:
+  status:
+    $ref: ./project-managed-root-status.yaml
+  config_key:
+    type: string
+  configured_root_directory:
+    type: string
+    nullable: true
+  ownership_mode:
+    $ref: ./project-ownership-mode.yaml
+  create_permission:
+    type: string
+  supports_managed_create:
+    type: boolean
+  status_reason:
+    type: string
+    nullable: true

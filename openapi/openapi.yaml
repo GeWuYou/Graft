@@ -228,6 +228,12 @@ paths:
     $ref: ./paths/ops-projects.import-validate.yaml
   /api/ops/projects/import:
     $ref: ./paths/ops-projects.import.yaml
+  /api/ops/projects/managed-root:
+    $ref: ./paths/ops-projects.managed-root.yaml
+  /api/ops/projects/create/validate:
+    $ref: ./paths/ops-projects.create-validate.yaml
+  /api/ops/projects/create:
+    $ref: ./paths/ops-projects.create.yaml
   /api/ops/projects/{id}:
     $ref: ./paths/ops-projects.detail.yaml
   /api/ops/projects/{id}/services:

@@ -2129,6 +2129,7 @@ func (e NotificationTargetType) Valid() bool {
 
 // Defines values for ProjectActionResponseAction.
 const (
+	ProjectActionCreate     ProjectActionResponseAction = "create"
 	ProjectActionDestroy    ProjectActionResponseAction = "destroy"
 	ProjectActionDown       ProjectActionResponseAction = "down"
 	ProjectActionRefresh    ProjectActionResponseAction = "refresh"
@@ -2140,6 +2141,8 @@ const (
 // Valid indicates whether the value is a known member of the ProjectActionResponseAction enum.
 func (e ProjectActionResponseAction) Valid() bool {
 	switch e {
+	case ProjectActionCreate:
+		return true
 	case ProjectActionDestroy:
 		return true
 	case ProjectActionDown:
@@ -2226,6 +2229,36 @@ func (e ProjectConfigurationFileResponseReadOnly) Valid() bool {
 	}
 }
 
+// Defines values for ProjectCreateResponseAction.
+const (
+	ProjectCreateResponseActionCreate ProjectCreateResponseAction = "create"
+)
+
+// Valid indicates whether the value is a known member of the ProjectCreateResponseAction enum.
+func (e ProjectCreateResponseAction) Valid() bool {
+	switch e {
+	case ProjectCreateResponseActionCreate:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProjectCreateResponseResult.
+const (
+	ProjectCreateResponseResultAccepted ProjectCreateResponseResult = "accepted"
+)
+
+// Valid indicates whether the value is a known member of the ProjectCreateResponseResult enum.
+func (e ProjectCreateResponseResult) Valid() bool {
+	switch e {
+	case ProjectCreateResponseResultAccepted:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ProjectDriftStatus.
 const (
 	ProjectDriftStatusChanged ProjectDriftStatus = "changed"
@@ -2298,6 +2331,27 @@ const (
 func (e ProjectHostScope) Valid() bool {
 	switch e {
 	case ProjectHostScopeLocal:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProjectManagedRootStatus.
+const (
+	ProjectManagedRootStatusInvalid      ProjectManagedRootStatus = "invalid"
+	ProjectManagedRootStatusReady        ProjectManagedRootStatus = "ready"
+	ProjectManagedRootStatusUnconfigured ProjectManagedRootStatus = "unconfigured"
+)
+
+// Valid indicates whether the value is a known member of the ProjectManagedRootStatus enum.
+func (e ProjectManagedRootStatus) Valid() bool {
+	switch e {
+	case ProjectManagedRootStatusInvalid:
+		return true
+	case ProjectManagedRootStatusReady:
+		return true
+	case ProjectManagedRootStatusUnconfigured:
 		return true
 	default:
 		return false
@@ -5867,6 +5921,46 @@ type EnvelopedProjectConfigurationPreviewResponse struct {
 	TraceId string `json:"traceId"`
 }
 
+// EnvelopedProjectCreateResponse defines model for enveloped-project-create-response.
+type EnvelopedProjectCreateResponse struct {
+	// Code Existing canonical response code.
+	Code string                `json:"code"`
+	Data ProjectCreateResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedProjectCreateValidateResponse defines model for enveloped-project-create-validate-response.
+type EnvelopedProjectCreateValidateResponse struct {
+	// Code Existing canonical response code.
+	Code string                        `json:"code"`
+	Data ProjectCreateValidateResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
 // EnvelopedProjectDetailResponse defines model for enveloped-project-detail-response.
 type EnvelopedProjectDetailResponse struct {
 	// Code Existing canonical response code.
@@ -5932,6 +6026,26 @@ type EnvelopedProjectListResponse struct {
 	// Code Existing canonical response code.
 	Code string              `json:"code"`
 	Data ProjectListResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedProjectManagedRootResponse defines model for enveloped-project-managed-root-response.
+type EnvelopedProjectManagedRootResponse struct {
+	// Code Existing canonical response code.
+	Code string                     `json:"code"`
+	Data ProjectManagedRootResponse `json:"data"`
 
 	// Locale Present on localized error flows and omitted on normal success.
 	Locale *string `json:"locale,omitempty"`
@@ -6737,6 +6851,54 @@ type ProjectContainerCounts struct {
 	Total   int `json:"total"`
 }
 
+// ProjectCreateResponse defines model for project-create-response.
+type ProjectCreateResponse struct {
+	Action               ProjectCreateResponseAction `json:"action"`
+	CanonicalProjectName string                      `json:"canonical_project_name"`
+	ComposeFileName      string                      `json:"compose_file_name"`
+	DisplayName          string                      `json:"display_name"`
+	EnvFileAbsolutePath  *string                     `json:"env_file_absolute_path,omitempty"`
+	EnvFileName          *string                     `json:"env_file_name,omitempty"`
+	ManagedRoot          ProjectManagedRootResponse  `json:"managed_root"`
+	Message              *string                     `json:"message,omitempty"`
+	MessageKey           *string                     `json:"message_key,omitempty"`
+	OwnershipMode        ProjectOwnershipMode        `json:"ownership_mode"`
+	Result               ProjectCreateResponseResult `json:"result"`
+	Warnings             *[]string                   `json:"warnings,omitempty"`
+	WorkingDirectory     string                      `json:"working_directory"`
+}
+
+// ProjectCreateResponseAction defines model for ProjectCreateResponse.Action.
+type ProjectCreateResponseAction string
+
+// ProjectCreateResponseResult defines model for ProjectCreateResponse.Result.
+type ProjectCreateResponseResult string
+
+// ProjectCreateValidateRequest defines model for project-create-validate-request.
+type ProjectCreateValidateRequest struct {
+	CanonicalProjectName string  `json:"canonical_project_name"`
+	ComposeFileName      string  `json:"compose_file_name"`
+	DisplayName          string  `json:"display_name"`
+	EnvFileName          *string `json:"env_file_name,omitempty"`
+
+	// RelativeProjectDirectory Relative project directory under the canonical managed root.
+	RelativeProjectDirectory string `json:"relative_project_directory"`
+}
+
+// ProjectCreateValidateResponse defines model for project-create-validate-response.
+type ProjectCreateValidateResponse struct {
+	CanonicalProjectName    string                     `json:"canonical_project_name"`
+	ComposeFileAbsolutePath string                     `json:"compose_file_absolute_path"`
+	ComposeFileName         string                     `json:"compose_file_name"`
+	DisplayName             string                     `json:"display_name"`
+	EnvFileAbsolutePath     *string                    `json:"env_file_absolute_path,omitempty"`
+	EnvFileName             *string                    `json:"env_file_name,omitempty"`
+	ManagedRoot             ProjectManagedRootResponse `json:"managed_root"`
+	OwnershipMode           ProjectOwnershipMode       `json:"ownership_mode"`
+	Warnings                *[]string                  `json:"warnings,omitempty"`
+	WorkingDirectory        string                     `json:"working_directory"`
+}
+
 // ProjectDestroyRequest defines model for project-destroy-request.
 type ProjectDestroyRequest struct {
 	ConfirmCanonicalProjectName string `json:"confirm_canonical_project_name"`
@@ -6865,6 +7027,20 @@ type ProjectListResponse struct {
 	Offset int               `json:"offset"`
 	Total  int               `json:"total"`
 }
+
+// ProjectManagedRootResponse defines model for project-managed-root-response.
+type ProjectManagedRootResponse struct {
+	ConfigKey               string                   `json:"config_key"`
+	ConfiguredRootDirectory *string                  `json:"configured_root_directory,omitempty"`
+	CreatePermission        string                   `json:"create_permission"`
+	OwnershipMode           ProjectOwnershipMode     `json:"ownership_mode"`
+	Status                  ProjectManagedRootStatus `json:"status"`
+	StatusReason            *string                  `json:"status_reason,omitempty"`
+	SupportsManagedCreate   bool                     `json:"supports_managed_create"`
+}
+
+// ProjectManagedRootStatus defines model for project-managed-root-status.
+type ProjectManagedRootStatus string
 
 // ProjectOwnershipMode defines model for project-ownership-mode.
 type ProjectOwnershipMode string
@@ -8594,6 +8770,26 @@ type GetProjectsParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
+// PostProjectCreateParams defines parameters for PostProjectCreate.
+type PostProjectCreateParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostProjectCreateValidateParams defines parameters for PostProjectCreateValidate.
+type PostProjectCreateValidateParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
 // PostProjectImportParams defines parameters for PostProjectImport.
 type PostProjectImportParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -8606,6 +8802,16 @@ type PostProjectImportParams struct {
 
 // PostProjectImportValidateParams defines parameters for PostProjectImportValidate.
 type PostProjectImportValidateParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetProjectManagedRootParams defines parameters for GetProjectManagedRoot.
+type GetProjectManagedRootParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
@@ -9266,6 +9472,12 @@ type PostContainerRemoveJSONRequestBody = ContainerRemoveRequest
 
 // PostContainerShellSessionJSONRequestBody defines body for PostContainerShellSession for application/json ContentType.
 type PostContainerShellSessionJSONRequestBody = ContainerShellSessionRequest
+
+// PostProjectCreateJSONRequestBody defines body for PostProjectCreate for application/json ContentType.
+type PostProjectCreateJSONRequestBody = ProjectCreateValidateRequest
+
+// PostProjectCreateValidateJSONRequestBody defines body for PostProjectCreateValidate for application/json ContentType.
+type PostProjectCreateValidateJSONRequestBody = ProjectCreateValidateRequest
 
 // PostProjectImportJSONRequestBody defines body for PostProjectImport for application/json ContentType.
 type PostProjectImportJSONRequestBody = ProjectImportValidateRequest

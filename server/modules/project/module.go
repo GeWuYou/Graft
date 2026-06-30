@@ -6,7 +6,7 @@ import (
 	"graft/server/internal/module"
 )
 
-// Module owns batch-2 project registry, import, refresh, and readonly configuration routes.
+// Module owns project registry, lifecycle, and managed-create contract surfaces.
 type Module struct {
 	service *Service
 }
@@ -16,10 +16,19 @@ func NewModule(service *Service) *Module {
 	return &Module{service: service}
 }
 
-// Register wires batch-2 project routes.
+// Register wires project module messages, permissions, menu, config definitions, and routes.
 func (m *Module) Register(ctx *module.Context) error {
 	if m == nil || m.service == nil {
 		return errors.New("project module service is unavailable")
+	}
+	if err := registerPermissions(ctx.PermissionRegistry, moduleID); err != nil {
+		return err
+	}
+	if err := registerMenu(ctx.MenuRegistry, moduleID); err != nil {
+		return err
+	}
+	if err := registerConfig(ctx.ConfigRegistry); err != nil {
+		return err
 	}
 	return registerRoutes(ctx, moduleID, m.service)
 }

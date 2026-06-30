@@ -10562,6 +10562,203 @@
         }
       }
     },
+    "/api/ops/projects/managed-root": {
+      "get": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Get managed project root authority",
+        "operationId": "getProjectManagedRoot",
+        "description": "Returns the canonical managed-root system-config authority used by future managed create flows.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Managed-root authority status.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-project-managed-root-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/ops/projects/create/validate": {
+      "post": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Validate a managed Compose project create request",
+        "operationId": "postProjectCreateValidate",
+        "description": "Validates managed-root authority, target paths, and bounded create inputs without writing files or registering a project.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/project-create-validate-request"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Managed create validation result.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-project-create-validate-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid managed create request.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/ops/projects/create": {
+      "post": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Submit a managed Compose project create request",
+        "operationId": "postProjectCreate",
+        "description": "Reserves the canonical managed-create route space. Phase 2 batch 1 returns an accepted contract response without writing files yet.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/project-create-validate-request"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Managed create request accepted by the bounded contract owner.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-project-create-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid managed create request.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
     "/api/ops/projects/{id}": {
       "get": {
         "tags": [
@@ -20569,6 +20766,267 @@
           }
         ]
       },
+      "project-managed-root-status": {
+        "type": "string",
+        "enum": [
+          "unconfigured",
+          "ready",
+          "invalid"
+        ],
+        "x-enum-varnames": [
+          "ProjectManagedRootStatusUnconfigured",
+          "ProjectManagedRootStatusReady",
+          "ProjectManagedRootStatusInvalid"
+        ]
+      },
+      "project-managed-root-response": {
+        "type": "object",
+        "required": [
+          "status",
+          "config_key",
+          "ownership_mode",
+          "create_permission",
+          "supports_managed_create"
+        ],
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/project-managed-root-status"
+          },
+          "config_key": {
+            "type": "string"
+          },
+          "configured_root_directory": {
+            "type": "string",
+            "nullable": true
+          },
+          "ownership_mode": {
+            "$ref": "#/components/schemas/project-ownership-mode"
+          },
+          "create_permission": {
+            "type": "string"
+          },
+          "supports_managed_create": {
+            "type": "boolean"
+          },
+          "status_reason": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "enveloped-project-managed-root-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/project-managed-root-response"
+              }
+            }
+          }
+        ]
+      },
+      "project-create-validate-request": {
+        "type": "object",
+        "required": [
+          "display_name",
+          "canonical_project_name",
+          "relative_project_directory",
+          "compose_file_name"
+        ],
+        "properties": {
+          "display_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "canonical_project_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "relative_project_directory": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Relative project directory under the canonical managed root."
+          },
+          "compose_file_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "env_file_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255,
+            "nullable": true
+          }
+        }
+      },
+      "project-create-validate-response": {
+        "type": "object",
+        "required": [
+          "managed_root",
+          "display_name",
+          "canonical_project_name",
+          "ownership_mode",
+          "working_directory",
+          "compose_file_name",
+          "compose_file_absolute_path"
+        ],
+        "properties": {
+          "managed_root": {
+            "$ref": "#/components/schemas/project-managed-root-response"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "canonical_project_name": {
+            "type": "string"
+          },
+          "ownership_mode": {
+            "$ref": "#/components/schemas/project-ownership-mode"
+          },
+          "working_directory": {
+            "type": "string"
+          },
+          "compose_file_name": {
+            "type": "string"
+          },
+          "env_file_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "compose_file_absolute_path": {
+            "type": "string"
+          },
+          "env_file_absolute_path": {
+            "type": "string",
+            "nullable": true
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "enveloped-project-create-validate-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/project-create-validate-response"
+              }
+            }
+          }
+        ]
+      },
+      "project-create-response": {
+        "type": "object",
+        "required": [
+          "managed_root",
+          "action",
+          "result",
+          "display_name",
+          "canonical_project_name",
+          "ownership_mode",
+          "working_directory",
+          "compose_file_name"
+        ],
+        "properties": {
+          "managed_root": {
+            "$ref": "#/components/schemas/project-managed-root-response"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "create"
+            ],
+            "x-enum-varnames": [
+              "ProjectCreateResponseActionCreate"
+            ]
+          },
+          "result": {
+            "type": "string",
+            "enum": [
+              "accepted"
+            ],
+            "x-enum-varnames": [
+              "ProjectCreateResponseResultAccepted"
+            ]
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "canonical_project_name": {
+            "type": "string"
+          },
+          "ownership_mode": {
+            "$ref": "#/components/schemas/project-ownership-mode"
+          },
+          "working_directory": {
+            "type": "string"
+          },
+          "compose_file_name": {
+            "type": "string"
+          },
+          "env_file_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "env_file_absolute_path": {
+            "type": "string",
+            "nullable": true
+          },
+          "message_key": {
+            "type": "string",
+            "nullable": true
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "enveloped-project-create-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/project-create-response"
+              }
+            }
+          }
+        ]
+      },
       "enveloped-project-detail-response": {
         "allOf": [
           {
@@ -20901,7 +21359,8 @@
               "down",
               "restart",
               "unregister",
-              "destroy"
+              "destroy",
+              "create"
             ],
             "x-enum-varnames": [
               "ProjectActionRefresh",
@@ -20909,7 +21368,8 @@
               "ProjectActionDown",
               "ProjectActionRestart",
               "ProjectActionUnregister",
-              "ProjectActionDestroy"
+              "ProjectActionDestroy",
+              "ProjectActionCreate"
             ]
           },
           "result": {

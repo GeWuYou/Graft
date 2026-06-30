@@ -5,6 +5,9 @@ export const PROJECT_ROUTE_PATH = {
 
 export const PROJECT_API_PATH = {
   LIST: '/api/ops/projects',
+  MANAGED_ROOT: '/api/ops/projects/managed-root',
+  CREATE_VALIDATE: '/api/ops/projects/create/validate',
+  CREATE: '/api/ops/projects/create',
   DETAIL: '/api/ops/projects/{id}',
   SERVICES: '/api/ops/projects/{id}/services',
   CONFIGURATION: '/api/ops/projects/{id}/configuration',
