@@ -227,6 +227,77 @@ func TestRepositorySetRoleStatusDoesNotReviveSoftDeletedRole(t *testing.T) {
 	})
 }
 
+func TestRepositorySetRoleStatusEnableRoleIsIdempotentForEnabledRole(t *testing.T) {
+	db := openTestDB(t)
+	repo := &repository{db: db}
+
+	roleID := seedRole(t, db, seededRoleRecord{
+		name: "already-enabled-role",
+	})
+
+	record, err := repo.SetRoleStatus(context.Background(), rbacstore.SetRoleStatusInput{
+		ID:     toStoreID(roleID),
+		Status: rbacstore.RoleStatusEnabled,
+	})
+	if err != nil {
+		t.Fatalf("expected enable role to be idempotent for enabled role, got %v", err)
+	}
+	if record.Status != rbacstore.RoleStatusEnabled {
+		t.Fatalf("expected enabled role status, got %#v", record)
+	}
+
+	assertRoleLifecycleFields(t, db, roleID, lifecycleSnapshot{
+		disabledAtNonZero: false,
+		deletedAtNonZero:  false,
+	})
+}
+
+func TestRepositorySoftDeleteRoleRejectsDisabledRoleWithBindings(t *testing.T) {
+	db := openTestDB(t)
+	repo := &repository{db: db}
+
+	roleID := seedRole(t, db, seededRoleRecord{
+		name:       "disabled-bound-role",
+		disabledAt: time.Now().UTC().Add(-time.Minute).Unix(),
+	})
+	permissionID := seedPermission(t, db, "rbac.delete.race")
+	seedRolePermissionBinding(t, db, roleID, permissionID)
+
+	err := repo.SoftDeleteRole(context.Background(), rbacstore.SoftDeleteRoleInput{
+		ID: toStoreID(roleID),
+	})
+	if !errors.Is(err, rbacstore.ErrRoleBindingsExist) {
+		t.Fatalf("expected disabled role bindings to block soft delete with ErrRoleBindingsExist, got %v", err)
+	}
+
+	assertRoleLifecycleFields(t, db, roleID, lifecycleSnapshot{
+		disabledAtNonZero: true,
+		deletedAtNonZero:  false,
+	})
+	if count := countRows(t, db, "SELECT COUNT(*) FROM role_permissions"); count != 1 {
+		t.Fatalf("expected role binding to remain visible after blocked delete, got %d", count)
+	}
+}
+
+func TestRepositorySoftDeleteRoleRejectsEnabledRole(t *testing.T) {
+	db := openTestDB(t)
+	repo := &repository{db: db}
+
+	roleID := seedRole(t, db, seededRoleRecord{name: "enabled-delete-target"})
+
+	err := repo.SoftDeleteRole(context.Background(), rbacstore.SoftDeleteRoleInput{
+		ID: toStoreID(roleID),
+	})
+	if !errors.Is(err, rbacstore.ErrRoleEnabledDeletionForbidden) {
+		t.Fatalf("expected enabled role delete to return ErrRoleEnabledDeletionForbidden, got %v", err)
+	}
+
+	assertRoleLifecycleFields(t, db, roleID, lifecycleSnapshot{
+		disabledAtNonZero: false,
+		deletedAtNonZero:  false,
+	})
+}
+
 func TestRepositoryListRolesByUserIDAndPermissionsSkipDisabledAndSoftDeletedRoles(t *testing.T) {
 	db := openTestDB(t)
 	repo := &repository{db: db}
@@ -498,6 +569,7 @@ func stringPtr(value string) *string {
 
 type seededRoleRecord struct {
 	name       string
+	builtin    bool
 	disabledAt int64
 	deletedAt  int64
 }
@@ -514,7 +586,7 @@ func seedRole(t *testing.T, db *sql.DB, record seededRoleRecord) int64 {
 	result, err := db.ExecContext(context.Background(),
 		`INSERT INTO roles (name, display, description, builtin, created_at, updated_at, disabled_at, deleted_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		record.name, record.name, nil, false, now, now, record.disabledAt, record.deletedAt,
+		record.name, record.name, nil, record.builtin, now, now, record.disabledAt, record.deletedAt,
 	)
 	if err != nil {
 		t.Fatalf("seed role %s: %v", record.name, err)

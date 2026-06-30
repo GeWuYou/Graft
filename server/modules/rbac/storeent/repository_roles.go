@@ -121,7 +121,7 @@ func (r *repository) SoftDeleteRole(ctx context.Context, input rbacstore.SoftDel
 		return err
 	}
 
-	if err := r.ensureSoftDeletableRole(ctx, input.ID, roleID); err != nil {
+	if _, err := r.loadRoleIncludingDisabled(ctx, input.ID, roleID, "soft delete"); err != nil {
 		return err
 	}
 
@@ -133,7 +133,12 @@ func (r *repository) SoftDeleteRole(ctx context.Context, input rbacstore.SoftDel
 			deleted_by = 0,
 			updated_at = $3,
 			updated_by = 0
-		WHERE id = $1 AND deleted_at = 0`,
+		WHERE id = $1
+			AND deleted_at = 0
+			AND builtin = FALSE
+			AND disabled_at <> 0
+			AND NOT EXISTS (SELECT 1 FROM role_permissions rp WHERE rp.role_id = roles.id)
+			AND NOT EXISTS (SELECT 1 FROM user_roles ur WHERE ur.role_id = roles.id)`,
 		roleID,
 		now.Unix(),
 		now,
@@ -145,11 +150,11 @@ func (r *repository) SoftDeleteRole(ctx context.Context, input rbacstore.SoftDel
 	if execErr != nil {
 		return fmt.Errorf("read soft delete role %d rows affected: %w", input.ID, execErr)
 	}
-	if affected == 0 {
-		return rbacstore.ErrRoleNotFound
+	if affected > 0 {
+		return nil
 	}
 
-	return nil
+	return r.ensureSoftDeletableRole(ctx, input.ID, roleID)
 }
 
 func (r *repository) GetRoleByID(ctx context.Context, roleID uint64) (rbacstore.Role, error) {
@@ -208,6 +213,9 @@ func (r *repository) enableRole(ctx context.Context, inputID uint64, roleID int6
 	if err != nil {
 		return rbacstore.Role{}, err
 	}
+	if existing.Status == rbacstore.RoleStatusEnabled {
+		return existing, nil
+	}
 
 	updatedAt := time.Now().UTC()
 	record, err := scanRole(r.db.QueryRowContext(
@@ -227,7 +235,7 @@ func (r *repository) enableRole(ctx context.Context, inputID uint64, roleID int6
 	if !errors.Is(err, sql.ErrNoRows) {
 		return rbacstore.Role{}, fmt.Errorf("enable role %d: %w", inputID, err)
 	}
-	return existing, nil
+	return r.loadRoleIncludingDisabled(ctx, inputID, roleID, "enable")
 }
 
 func (r *repository) disableRole(ctx context.Context, inputID uint64, roleID int64) (rbacstore.Role, error) {

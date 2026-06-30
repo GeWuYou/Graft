@@ -313,6 +313,16 @@ def resolve_changed_mode_files(
         if changed_files:
             return changed_files, candidate
 
+    if fetch_target:
+        subprocess.run(
+            ["git", "fetch", "--no-tags", "--prune", "origin", fetch_target],
+            cwd=REPO_ROOT,
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+
     if normalized_base_ref:
         try:
             merge_base = run_git(["merge-base", "HEAD", normalized_base_ref])
@@ -1773,16 +1783,6 @@ def main() -> int:
         for scope in selected_scopes:
             head_path = run_eff_u_code(scope, output_dir=report_dir, eff_config_override=eff_override_path)
             head_reports[scope] = load_report(head_path)
-
-        if args.scan_mode == "changed" and changed_baseline.fetch_target:
-            subprocess.run(
-                ["git", "fetch", "--no-tags", "--prune", "origin", changed_baseline.fetch_target],
-                cwd=REPO_ROOT,
-                check=False,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-            )
 
         if args.scan_mode == "changed" and changed_baseline.revision:
             snapshot_root = export_git_snapshot(changed_baseline.revision, report_dir / "baseline")

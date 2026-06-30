@@ -376,6 +376,36 @@ class OverrideConfigTests(unittest.TestCase):
 
 
 class ChangedFileResolutionTests(unittest.TestCase):
+    def test_resolve_changed_mode_files_fetches_base_ref_before_merge_base(self) -> None:
+        calls: list[tuple[str, ...]] = []
+
+        def fake_run_git(args: list[str]) -> str:
+            calls.append(tuple(args))
+            if args == ["merge-base", "HEAD", "refs/remotes/origin/main"]:
+                return "base-sha"
+            if args == ["diff", "--name-only", "--diff-filter=ACMR", "base-sha...HEAD"]:
+                return "server/main.go\n"
+            raise AssertionError(f"unexpected git args: {args}")
+
+        with mock.patch.object(MODULE, "staged_or_changed_files", return_value=[]), \
+            mock.patch.object(MODULE, "run_git", side_effect=fake_run_git), \
+            mock.patch.object(MODULE.subprocess, "run") as mock_run, \
+            mock.patch.dict("os.environ", {"GRAFT_LINT_BASE_REF": "main"}, clear=False):
+            changed, baseline = MODULE.resolve_changed_mode_files("ACMR")
+
+        self.assertEqual(changed, ["server/main.go"])
+        self.assertEqual(baseline.revision, "base-sha")
+        self.assertEqual(baseline.source, "merge-base")
+        mock_run.assert_called_once_with(
+            ["git", "fetch", "--no-tags", "--prune", "origin", "main"],
+            cwd=MODULE.REPO_ROOT,
+            check=False,
+            stdout=MODULE.subprocess.PIPE,
+            stderr=MODULE.subprocess.PIPE,
+            text=True,
+        )
+        self.assertEqual(calls[0], ("merge-base", "HEAD", "refs/remotes/origin/main"))
+
     def test_resolve_changed_mode_files_prefers_explicit_sha_for_files_and_baseline(self) -> None:
         def fake_run_git(args: list[str]) -> str:
             if args == ["diff", "--name-only", "--diff-filter=ACMR", "explicit-base...HEAD"]:
