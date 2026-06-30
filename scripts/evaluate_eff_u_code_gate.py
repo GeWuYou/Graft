@@ -439,7 +439,21 @@ def matches_any(path: str, patterns: list[str]) -> bool:
     Returns:
     	如果路径匹配给定模式列表中的任一模式，则为 `True`，否则为 `False`。
     """
-    return any(fnmatch.fnmatch(path, pattern) for pattern in patterns)
+    for pattern in patterns:
+        variants = {pattern}
+        pending = [pattern]
+        while pending:
+            current = pending.pop()
+            marker = "/**/"
+            if marker not in current:
+                continue
+            collapsed = current.replace(marker, "/", 1)
+            if collapsed not in variants:
+                variants.add(collapsed)
+                pending.append(collapsed)
+        if any(fnmatch.fnmatch(path, variant) for variant in variants):
+            return True
+    return False
 
 
 def load_file_text(repo_path: str) -> str:
@@ -1739,7 +1753,10 @@ def main() -> int:
                 if scope is None:
                     continue
                 scoped_changed.setdefault(scope, []).append(path)
-            scoped_candidates = {scope: scoped_changed.get(scope, []) for scope in requested_scopes}
+            scoped_candidates = {
+                scope: [path for path in scoped_changed.get(scope, []) if path_matches_scope(path, scope, gate_config)]
+                for scope in requested_scopes
+            }
         else:
             scoped_candidates = {scope: list_scope_files_on_disk(scope, gate_config) for scope in requested_scopes}
 
