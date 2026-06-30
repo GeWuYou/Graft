@@ -23,10 +23,15 @@
           </t-space>
         </template>
         <template #actions>
-          <t-button theme="primary" :loading="loading" @click="fetchProjects">
-            <template #icon><refresh-icon /></template>
-            {{ t('project.list.refresh') }}
-          </t-button>
+          <t-space size="small" break-line>
+            <t-button theme="primary" variant="outline" @click="navigateToCreate">
+              {{ t('project.list.actions.create') }}
+            </t-button>
+            <t-button theme="primary" :loading="loading" @click="fetchProjects">
+              <template #icon><refresh-icon /></template>
+              {{ t('project.list.refresh') }}
+            </t-button>
+          </t-space>
         </template>
       </management-page-header>
 
@@ -199,9 +204,14 @@
                   "
                 >
                   <template #action>
-                    <t-button v-if="hasActiveFilters" theme="default" variant="outline" @click="resetFilters">
-                      {{ t('project.list.clearFilters') }}
-                    </t-button>
+                    <t-space size="small" break-line>
+                      <t-button theme="primary" variant="outline" @click="navigateToCreate">
+                        {{ t('project.list.actions.create') }}
+                      </t-button>
+                      <t-button v-if="hasActiveFilters" theme="default" variant="outline" @click="resetFilters">
+                        {{ t('project.list.clearFilters') }}
+                      </t-button>
+                    </t-space>
                   </template>
                 </t-empty>
               </div>
@@ -251,6 +261,7 @@ import {
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { useTabsRouterStore } from '@/store/modules/tabs-router';
 import { createLogger } from '@/utils/logger';
+import { localizeRouteTitleKey } from '@/utils/route/title';
 
 import {
   getProjects,
@@ -431,6 +442,15 @@ function navigateToDetail(row: ProjectListItem, tab: string) {
     buildDetailTitleWithFallback('project.route.detail.title', row.display_name),
   );
   return router.push(target);
+}
+
+function navigateToCreate() {
+  const target = {
+    name: PROJECT_BOOTSTRAP_ROUTE.CREATE.pageRouteName,
+  };
+  const resolved = router.resolve(target);
+  appendResolvedTab(tabsRouterStore, resolved, localizeRouteTitleKey('project.route.create.title'));
+  void router.push(target);
 }
 
 async function runAction(

@@ -5,6 +5,8 @@ import { PROJECT_BOOTSTRAP_ROUTE } from './contract/bootstrap';
 
 const listRouteTitle = localizeRouteTitleKey('project.route.list.title');
 const listBreadcrumbTitle = localizeRouteTitleKey('project.route.list.breadcrumb');
+const createRouteTitle = localizeRouteTitleKey('project.route.create.title');
+const createBreadcrumbTitle = localizeRouteTitleKey('project.route.create.breadcrumb');
 const detailRouteTitle = localizeRouteTitleKey('project.route.detail.title');
 const detailBreadcrumbTitle = localizeRouteTitleKey('project.route.detail.breadcrumb');
 
@@ -24,6 +26,24 @@ export const projectBootstrapRouteRegistrations: BootstrapRouteRegistration[] = 
 ];
 
 export const projectGlobalRouteRegistrations: GlobalRouteRegistration[] = [
+  {
+    ...PROJECT_BOOTSTRAP_ROUTE.CREATE,
+    loadPage: () => import('./pages/create/index.vue'),
+    meta: {
+      hidden: false,
+      hiddenMenu: true,
+      keepAlive: true,
+      pageKind: 'detail',
+      pageSurface: 'form-detail',
+      semanticTitle: createRouteTitle,
+      breadcrumbTitle: createBreadcrumbTitle,
+      domainTitle: listRouteTitle,
+      tabGroup: 'ops',
+      tabTitle: createRouteTitle,
+      title: createRouteTitle,
+      titleKey: 'project.route.create.title',
+    },
+  },
   {
     ...PROJECT_BOOTSTRAP_ROUTE.DETAIL,
     loadPage: () => import('./pages/detail/index.vue'),

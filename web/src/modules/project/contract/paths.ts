@@ -1,5 +1,6 @@
 export const PROJECT_ROUTE_PATH = {
   LIST: '/ops/projects',
+  CREATE: '/ops/projects/create',
   DETAIL: '/ops/projects/:id',
 } as const;
 

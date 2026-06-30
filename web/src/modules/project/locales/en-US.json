@@ -12,6 +12,10 @@
         "title": "Operations - Projects",
         "breadcrumb": "Projects"
       },
+      "create": {
+        "title": "Create Managed Project",
+        "breadcrumb": "Create Managed Project"
+      },
       "detail": {
         "title": "Project Detail",
         "breadcrumb": "Project Detail"
@@ -88,6 +92,7 @@
         "services": "Services",
         "configuration": "Configuration",
         "activity": "Activity",
+        "create": "Create Managed Project",
         "refresh": "Refresh",
         "up": "Up",
         "down": "Down",
@@ -101,6 +106,84 @@
         "actionFailed": "Project Action Failed.",
         "unregisterConfirm": "Unregister {name}? Runtime Containers Stay Untouched.",
         "destroyConfirm": "Destroy {name}? This Only Works When Ownership Guard Allows It."
+      }
+    },
+    "create": {
+      "eyebrow": "Managed Create",
+      "title": "Create Managed Compose Project",
+      "description": "Write Compose and Env Files Under the Managed Root and Register the Result as Project Authority Immediately.",
+      "actions": {
+        "backToList": "Back to List",
+        "refreshAuthority": "Refresh Authority",
+        "validate": "Validate Create Input",
+        "create": "Create and Open Project",
+        "reset": "Reset Form"
+      },
+      "root": {
+        "status": {
+          "ready": "Managed Root Ready",
+          "invalid": "Managed Root Invalid",
+          "unconfigured": "Managed Root Unconfigured",
+          "unknown": "Managed Root Unknown"
+        },
+        "readyHint": "This Create Flow Will Materialize Files Under {directory}, and Project Authority Will Own the Working Directory and Snapshot.",
+        "unavailableHint": "The Managed Root Authority Is Not Available Yet. Repair the Upstream System Config Before Creating Projects."
+      },
+      "form": {
+        "title": "Project Basics",
+        "displayName": "Display Name",
+        "displayNamePlaceholder": "Example: Orders Service Dev",
+        "canonicalProjectName": "Canonical Project Name",
+        "canonicalProjectNamePlaceholder": "Example: orders-dev",
+        "relativeProjectDirectory": "Relative Project Directory",
+        "relativeProjectDirectoryPlaceholder": "Example: orders/dev",
+        "composeFileName": "Compose File Name",
+        "composeFileNamePlaceholder": "Example: compose.yaml",
+        "envFileName": "Env File Name",
+        "envFileNamePlaceholder": "Leave Blank to Skip Writing an Env File"
+      },
+      "validation": {
+        "title": "Authority and Path Preview",
+        "rootDirectory": "Managed Root",
+        "configKey": "System Config Key",
+        "createPermission": "Create Permission",
+        "workingDirectory": "Resolved Working Directory",
+        "composePath": "Compose Absolute Path",
+        "envPath": "Env Absolute Path",
+        "noWarnings": "No Additional Warnings Were Returned.",
+        "displayNameRequired": "Display Name Is Required.",
+        "canonicalProjectNameRequired": "Canonical Project Name Is Required.",
+        "canonicalProjectNamePattern": "Canonical Project Name May Only Use Letters, Numbers, Dots, Underscores, and Hyphens.",
+        "relativeDirectoryRequired": "Relative Project Directory Is Required.",
+        "relativeDirectoryPattern": "The Relative Project Directory Must Stay Under the Managed Root and Cannot Traverse Upward.",
+        "composeFileNameRequired": "Compose File Name Is Required.",
+        "envFileNamePattern": "Env File Name Cannot Include Path Separators."
+      },
+      "editors": {
+        "title": "Compose and Env Editors",
+        "composeTab": "Compose",
+        "envTab": "Env",
+        "composeTitle": "Compose File Editor",
+        "composeDescription": "This Editor Owns the Initial Phase 2 Compose YAML Without Pulling in Diff, Deploy, or Runtime Persistence.",
+        "composePlaceholder": "Enter Compose YAML Content",
+        "composeEmpty": "No Compose Content Yet.",
+        "envTitle": "Env File Editor",
+        "envDescription": "The Env File Is Optional. Leave the File Name Blank to Skip Writing It in This Round.",
+        "envPlaceholder": "Enter Env File Content, for Example KEY=value",
+        "envEmpty": "No Env Content Yet. It Can Stay Empty.",
+        "preview": "Preview",
+        "backToEditor": "Back to Editor",
+        "format": "Format Content",
+        "fullscreen": "Fullscreen",
+        "exitFullscreen": "Exit Fullscreen",
+        "resize": "Resize Editor Height"
+      },
+      "messages": {
+        "rootLoadFailed": "Managed Root Authority Could Not Be Loaded.",
+        "validateSuccess": "Create Input Validated.",
+        "validateFailed": "Create Input Validation Failed.",
+        "createSuccess": "Managed Project Created.",
+        "createFailed": "Managed Project Creation Failed."
       }
     },
     "detail": {

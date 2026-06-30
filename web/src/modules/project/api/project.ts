@@ -19,9 +19,14 @@ import type {
   ProjectConfigurationFileResponse,
   ProjectConfigurationMetadataResponse,
   ProjectConfigurationPreviewResponse,
+  ProjectCreateRequest,
+  ProjectCreateResponse,
+  ProjectCreateValidateRequest,
+  ProjectCreateValidateResponse,
   ProjectDetailResponse,
   ProjectListQuery,
   ProjectListResponse,
+  ProjectManagedRootResponse,
   ProjectServicesResponse,
 } from '../types/project';
 
@@ -63,6 +68,23 @@ type GetProjectConfigurationFileEnvelope =
   GetProjectConfigurationFileOperation['responses'][200]['content']['application/json'];
 type GetProjectConfigurationFileData = NonNullable<GetProjectConfigurationFileEnvelope['data']>;
 type GetProjectConfigurationFilePathParams = GetProjectConfigurationFileOperation['parameters']['path'];
+
+type ProjectManagedRootPath = (typeof PROJECT_API_PATH)['MANAGED_ROOT'];
+type GetProjectManagedRootOperation = paths[ProjectManagedRootPath]['get'];
+type GetProjectManagedRootEnvelope = GetProjectManagedRootOperation['responses'][200]['content']['application/json'];
+type GetProjectManagedRootData = NonNullable<GetProjectManagedRootEnvelope['data']>;
+
+type ProjectCreateValidatePath = (typeof PROJECT_API_PATH)['CREATE_VALIDATE'];
+type ProjectCreateValidateOperation = paths[ProjectCreateValidatePath]['post'];
+type ProjectCreateValidateEnvelope = ProjectCreateValidateOperation['responses'][200]['content']['application/json'];
+type ProjectCreateValidateData = NonNullable<ProjectCreateValidateEnvelope['data']>;
+type ProjectCreateValidatePayload = ProjectCreateValidateOperation['requestBody']['content']['application/json'];
+
+type ProjectCreatePath = (typeof PROJECT_API_PATH)['CREATE'];
+type ProjectCreateOperation = paths[ProjectCreatePath]['post'];
+type ProjectCreateEnvelope = ProjectCreateOperation['responses'][201]['content']['application/json'];
+type ProjectCreateData = NonNullable<ProjectCreateEnvelope['data']>;
+type ProjectCreatePayload = ProjectCreateOperation['requestBody']['content']['application/json'];
 
 type ProjectRefreshOperation = paths[(typeof PROJECT_API_PATH)['REFRESH']]['post'];
 type ProjectRefreshEnvelope = ProjectRefreshOperation['responses'][200]['content']['application/json'];
@@ -135,6 +157,26 @@ export function getProjectConfigurationFile(
   return request.get<GetProjectConfigurationFileData>({
     url: buildProjectConfigurationFileApiPath(id, fileId),
   }) as Promise<ProjectConfigurationFileResponse>;
+}
+
+export function getProjectManagedRoot() {
+  return request.get<GetProjectManagedRootData>({
+    url: PROJECT_API_PATH.MANAGED_ROOT,
+  }) as Promise<ProjectManagedRootResponse>;
+}
+
+export function postProjectCreateValidate(payload: ProjectCreateValidateRequest) {
+  return postProjectAction<ProjectCreateValidateData>(
+    PROJECT_API_PATH.CREATE_VALIDATE,
+    payload as ProjectCreateValidatePayload,
+  ) as Promise<ProjectCreateValidateResponse>;
+}
+
+export function postProjectCreate(payload: ProjectCreateRequest) {
+  return postProjectAction<ProjectCreateData>(
+    PROJECT_API_PATH.CREATE,
+    payload as ProjectCreatePayload,
+  ) as Promise<ProjectCreateResponse>;
 }
 
 function postProjectAction<T>(url: string, data?: unknown) {

@@ -12,6 +12,10 @@
         "title": "运维管理 - 项目管理",
         "breadcrumb": "项目管理"
       },
+      "create": {
+        "title": "创建托管项目",
+        "breadcrumb": "创建托管项目"
+      },
       "detail": {
         "title": "项目详情",
         "breadcrumb": "项目详情"
@@ -88,6 +92,7 @@
         "services": "服务",
         "configuration": "配置",
         "activity": "活动",
+        "create": "创建托管项目",
         "refresh": "刷新",
         "up": "启动项目",
         "down": "停止项目",
@@ -101,6 +106,84 @@
         "actionFailed": "项目操作失败。",
         "unregisterConfirm": "确认取消注册 {name}？不会触碰运行中的容器。",
         "destroyConfirm": "确认销毁 {name}？只有 ownership guard 允许时才会执行。"
+      }
+    },
+    "create": {
+      "eyebrow": "托管创建",
+      "title": "创建托管 Compose 项目",
+      "description": "在受管根目录下写入 Compose 与 Env 文件，并立即注册为 Project authority。",
+      "actions": {
+        "backToList": "返回列表",
+        "refreshAuthority": "刷新 authority",
+        "validate": "校验创建输入",
+        "create": "创建并打开项目",
+        "reset": "重置表单"
+      },
+      "root": {
+        "status": {
+          "ready": "受管根目录就绪",
+          "invalid": "受管根目录异常",
+          "unconfigured": "受管根目录未配置",
+          "unknown": "受管根目录未知"
+        },
+        "readyHint": "当前创建会落到 {directory}，创建后的 working directory 与 snapshot 由 Project authority 持有。",
+        "unavailableHint": "当前 managed root authority 不可用，需先修复上游系统配置后再创建项目。"
+      },
+      "form": {
+        "title": "项目基础信息",
+        "displayName": "展示名",
+        "displayNamePlaceholder": "例如：订单服务开发环境",
+        "canonicalProjectName": "Canonical Project Name",
+        "canonicalProjectNamePlaceholder": "例如：orders-dev",
+        "relativeProjectDirectory": "相对项目目录",
+        "relativeProjectDirectoryPlaceholder": "例如：orders/dev",
+        "composeFileName": "Compose 文件名",
+        "composeFileNamePlaceholder": "例如：compose.yaml",
+        "envFileName": "Env 文件名",
+        "envFileNamePlaceholder": "留空表示本次不写入 Env 文件"
+      },
+      "validation": {
+        "title": "Authority 与路径预览",
+        "rootDirectory": "Managed Root",
+        "configKey": "系统配置键",
+        "createPermission": "创建权限",
+        "workingDirectory": "推导工作目录",
+        "composePath": "Compose 文件绝对路径",
+        "envPath": "Env 文件绝对路径",
+        "noWarnings": "当前没有返回额外警告。",
+        "displayNameRequired": "请输入展示名。",
+        "canonicalProjectNameRequired": "请输入 Canonical Project Name。",
+        "canonicalProjectNamePattern": "Canonical Project Name 只能包含字母、数字、点、下划线和中横线。",
+        "relativeDirectoryRequired": "请输入相对项目目录。",
+        "relativeDirectoryPattern": "相对项目目录必须位于 managed root 下，且不能包含上级回退。",
+        "composeFileNameRequired": "请输入 Compose 文件名。",
+        "envFileNamePattern": "Env 文件名不能包含路径分隔符。"
+      },
+      "editors": {
+        "title": "Compose 与 Env 编辑面",
+        "composeTab": "Compose",
+        "envTab": "Env",
+        "composeTitle": "Compose 文件编辑器",
+        "composeDescription": "这里维护 Phase 2 初始 Compose YAML，不引入 diff / deploy / runtime 持久化。",
+        "composePlaceholder": "输入 Compose YAML 内容",
+        "composeEmpty": "当前还没有 Compose 内容。",
+        "envTitle": "Env 文件编辑器",
+        "envDescription": "Env 文件是可选的；留空文件名时本轮不会写入 Env 文件。",
+        "envPlaceholder": "输入 Env 文件内容，例如 KEY=value",
+        "envEmpty": "当前没有 Env 内容，可保持为空。",
+        "preview": "预览",
+        "backToEditor": "返回编辑",
+        "format": "整理内容",
+        "fullscreen": "全屏",
+        "exitFullscreen": "退出全屏",
+        "resize": "调整编辑器高度"
+      },
+      "messages": {
+        "rootLoadFailed": "受管根目录 authority 加载失败。",
+        "validateSuccess": "创建输入校验通过。",
+        "validateFailed": "创建输入校验失败。",
+        "createSuccess": "托管项目创建成功。",
+        "createFailed": "托管项目创建失败。"
       }
     },
     "detail": {
