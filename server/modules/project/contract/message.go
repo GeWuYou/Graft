@@ -40,4 +40,16 @@ const (
 	ProjectRefreshCompleted MessageKey = "ops.project.refresh.completed"
 	// ProjectLifecycleAccepted identifies an accepted future lifecycle execution response.
 	ProjectLifecycleAccepted MessageKey = "ops.project.lifecycle.accepted"
+	// ProjectLifecycleBlocked identifies a guarded lifecycle response.
+	ProjectLifecycleBlocked MessageKey = "ops.project.lifecycle.blocked"
+	// ProjectUpCompleted identifies a successful compose up response.
+	ProjectUpCompleted MessageKey = "ops.project.up.completed"
+	// ProjectDownCompleted identifies a successful compose down response.
+	ProjectDownCompleted MessageKey = "ops.project.down.completed"
+	// ProjectRestartCompleted identifies a successful compose restart response.
+	ProjectRestartCompleted MessageKey = "ops.project.restart.completed"
+	// ProjectUnregisterCompleted identifies a successful unregister response.
+	ProjectUnregisterCompleted MessageKey = "ops.project.unregister.completed"
+	// ProjectDestroyCompleted identifies a successful guarded destroy response.
+	ProjectDestroyCompleted MessageKey = "ops.project.destroy.completed"
 )

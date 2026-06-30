@@ -124,6 +124,13 @@ func validateRefreshInput(input RefreshProjectInput) (RefreshProjectInput, error
 	return input, nil
 }
 
+func validateUnregisterInput(input UnregisterProjectInput) (UnregisterProjectInput, error) {
+	if input.ProjectID == 0 {
+		return UnregisterProjectInput{}, ErrInvalidInput
+	}
+	return input, nil
+}
+
 func normalizeFiles(files []ProjectFile) ([]ProjectFile, error) {
 	if len(files) == 0 {
 		return nil, ErrInvalidInput

@@ -200,27 +200,59 @@ func (r routeRuntime) handleRefresh(ginCtx *gin.Context) {
 }
 
 func (r routeRuntime) handleUp(ginCtx *gin.Context) {
-	r.handleUnsupportedAction(ginCtx, generated.ProjectActionUp, func(id int64) {
-		projectGeneratedHandler{}.PostProjectUp(id, bindPostProjectUpParams(ginCtx))
-	})
+	projectID, generatedID, ok := bindProjectID(ginCtx, r.ctx)
+	if !ok {
+		return
+	}
+	projectGeneratedHandler{}.PostProjectUp(generatedID, bindPostProjectUpParams(ginCtx))
+	result, err := r.service.Up(ginCtx.Request.Context(), projectID, currentUserIDPointer(ginCtx))
+	if err != nil {
+		r.writeRouteErrorWithAction(ginCtx, err, result)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, toActionResponse(result))
 }
 
 func (r routeRuntime) handleDown(ginCtx *gin.Context) {
-	r.handleUnsupportedAction(ginCtx, generated.ProjectActionDown, func(id int64) {
-		projectGeneratedHandler{}.PostProjectDown(id, bindPostProjectDownParams(ginCtx))
-	})
+	projectID, generatedID, ok := bindProjectID(ginCtx, r.ctx)
+	if !ok {
+		return
+	}
+	projectGeneratedHandler{}.PostProjectDown(generatedID, bindPostProjectDownParams(ginCtx))
+	result, err := r.service.Down(ginCtx.Request.Context(), projectID, currentUserIDPointer(ginCtx))
+	if err != nil {
+		r.writeRouteErrorWithAction(ginCtx, err, result)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, toActionResponse(result))
 }
 
 func (r routeRuntime) handleRestart(ginCtx *gin.Context) {
-	r.handleUnsupportedAction(ginCtx, generated.ProjectActionRestart, func(id int64) {
-		projectGeneratedHandler{}.PostProjectRestart(id, bindPostProjectRestartParams(ginCtx))
-	})
+	projectID, generatedID, ok := bindProjectID(ginCtx, r.ctx)
+	if !ok {
+		return
+	}
+	projectGeneratedHandler{}.PostProjectRestart(generatedID, bindPostProjectRestartParams(ginCtx))
+	result, err := r.service.Restart(ginCtx.Request.Context(), projectID, currentUserIDPointer(ginCtx))
+	if err != nil {
+		r.writeRouteErrorWithAction(ginCtx, err, result)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, toActionResponse(result))
 }
 
 func (r routeRuntime) handleUnregister(ginCtx *gin.Context) {
-	r.handleUnsupportedAction(ginCtx, generated.ProjectActionUnregister, func(id int64) {
-		projectGeneratedHandler{}.PostProjectUnregister(id, bindPostProjectUnregisterParams(ginCtx))
-	})
+	projectID, generatedID, ok := bindProjectID(ginCtx, r.ctx)
+	if !ok {
+		return
+	}
+	projectGeneratedHandler{}.PostProjectUnregister(generatedID, bindPostProjectUnregisterParams(ginCtx))
+	result, err := r.service.Unregister(ginCtx.Request.Context(), projectID, currentUserIDPointer(ginCtx))
+	if err != nil {
+		r.writeRouteErrorWithAction(ginCtx, err, result)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, toActionResponse(result))
 }
 
 func (r routeRuntime) handleDestroy(ginCtx *gin.Context) {
@@ -233,25 +265,12 @@ func (r routeRuntime) handleDestroy(ginCtx *gin.Context) {
 		return
 	}
 	projectGeneratedHandler{}.PostProjectDestroy(generatedID, bindPostProjectDestroyParams(ginCtx), request)
-	result, err := r.service.UnsupportedLifecycleAction(projectID, generated.ProjectActionDestroy)
-	if err != nil {
-		r.writeRouteErrorWithAction(ginCtx, err, result)
-		return
-	}
-	httpx.WriteSuccess(ginCtx, http.StatusOK, toActionResponse(result))
-}
-
-func (r routeRuntime) handleUnsupportedAction(
-	ginCtx *gin.Context,
-	action generated.ProjectActionResponseAction,
-	recordGenerated func(int64),
-) {
-	projectID, generatedID, ok := bindProjectID(ginCtx, r.ctx)
-	if !ok {
-		return
-	}
-	recordGenerated(generatedID)
-	result, err := r.service.UnsupportedLifecycleAction(projectID, action)
+	result, err := r.service.Destroy(ginCtx.Request.Context(), projectID, DestroyRequest{
+		RemoveNamedVolumes:         request.RemoveNamedVolumes,
+		DeleteWorkingDirectory:     request.DeleteWorkingDirectory,
+		ConfirmCanonicalProjectName: request.ConfirmCanonicalProjectName,
+		ActorID:                    currentUserIDPointer(ginCtx),
+	})
 	if err != nil {
 		r.writeRouteErrorWithAction(ginCtx, err, result)
 		return

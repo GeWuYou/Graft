@@ -129,6 +129,12 @@ type RefreshProjectInput struct {
 	ActorID                 *uint64
 }
 
+// UnregisterProjectInput soft-deletes one existing project registry row without touching host files.
+type UnregisterProjectInput struct {
+	ProjectID uint64
+	ActorID   *uint64
+}
+
 // Repository persists project registry, file inventory, and snapshots.
 type Repository interface {
 	List(ctx context.Context, query ListQuery) (ListResult, error)
@@ -136,4 +142,5 @@ type Repository interface {
 	GetFile(ctx context.Context, projectID uint64, fileID uint64) (ProjectFile, error)
 	ImportProject(ctx context.Context, input ImportProjectInput) (ProjectAggregate, error)
 	RefreshProject(ctx context.Context, input RefreshProjectInput) (ProjectAggregate, error)
+	UnregisterProject(ctx context.Context, input UnregisterProjectInput) error
 }

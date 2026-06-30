@@ -236,6 +236,55 @@ func (r *SQLRepository) RefreshProject(ctx context.Context, input RefreshProject
 	return r.Get(ctx, input.ProjectID)
 }
 
+// UnregisterProject soft-deletes one live project registry row without deleting host files.
+func (r *SQLRepository) UnregisterProject(ctx context.Context, input UnregisterProjectInput) error {
+	if err := r.ensureReady(); err != nil {
+		return err
+	}
+	input, err := validateUnregisterInput(input)
+	if err != nil {
+		return err
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin project unregister tx: %w", err)
+	}
+	defer rollbackTx(tx)
+
+	if err := r.ensureProjectExists(ctx, tx, input.ProjectID); err != nil {
+		return err
+	}
+	now := time.Now().UTC().Unix()
+	projectDBID, err := toDBID(input.ProjectID)
+	if err != nil {
+		return err
+	}
+	var deletedBy any
+	if input.ActorID != nil {
+		actorID, convErr := toDBID(*input.ActorID)
+		if convErr != nil {
+			return convErr
+		}
+		deletedBy = actorID
+	}
+	if _, err := tx.ExecContext(
+		ctx,
+		r.placeholder.rebind(`UPDATE compose_projects
+		SET deleted_at = ?, deleted_by = ?, updated_at = NOW(), updated_by = ?
+		WHERE id = ? AND deleted_at = 0`),
+		now,
+		deletedBy,
+		deletedBy,
+		projectDBID,
+	); err != nil {
+		return fmt.Errorf("unregister project: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit project unregister: %w", err)
+	}
+	return nil
+}
+
 func buildListWhere(query ListQuery) ([]string, []any) {
 	where := []string{"deleted_at = 0"}
 	args := make([]any, 0, projectListWhereArgCapacity)

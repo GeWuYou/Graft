@@ -1,6 +1,7 @@
 package project
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -9,11 +10,14 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
 
 	generated "graft/server/internal/contract/openapi/generated"
+	"graft/server/internal/moduleapi"
 	projectcompose "graft/server/modules/project/compose"
 	projectcontract "graft/server/modules/project/contract"
 	projectstore "graft/server/modules/project/store"
@@ -25,14 +29,17 @@ var (
 	errProjectNotFound             = errors.New("project not found")
 	errProjectConflict             = errors.New("project conflict")
 	errProjectImportValidation     = errors.New("project import validation failed")
-	errProjectUnsupportedLifecycle = errors.New("project lifecycle is not implemented in batch 2")
+	errProjectUnsupportedLifecycle = errors.New("project lifecycle is unsupported")
 	errProjectFileNotFound         = errors.New("project file not found")
+	errProjectDestroyBlocked       = errors.New("project destroy blocked by ownership guard")
 )
 
 const (
 	defaultProjectListLimit = 20
 	maxProjectListLimit     = 100
 	projectConflictScanSize = 100
+	minLifecycleArgCount    = 2
+	maxCommandOutputSummary = 120
 )
 
 // ListQuery describes project list filters.
@@ -116,17 +123,48 @@ type ActionResult struct {
 	GuardResults []string
 }
 
+// DestroyRequest describes guarded destroy options.
+type DestroyRequest struct {
+	RemoveNamedVolumes        bool
+	DeleteWorkingDirectory    bool
+	ConfirmCanonicalProjectName string
+	ActorID                   *uint64
+}
+
 // Service owns project registry, import, and readonly refresh/configuration use cases.
 type Service struct {
-	repository projectstore.Repository
+	repository     projectstore.Repository
+	runtimeReader  moduleapi.ContainerProjectRuntimeReader
 }
 
 // NewService creates the project service boundary.
-func NewService(repository projectstore.Repository) (*Service, error) {
+func NewService(repository projectstore.Repository, options ...ServiceOption) (*Service, error) {
 	if repository == nil {
 		return nil, errors.New("project repository is unavailable")
 	}
-	return &Service{repository: repository}, nil
+	service := &Service{
+		repository: repository,
+	}
+	for _, option := range options {
+		if option != nil {
+			option.apply(service)
+		}
+	}
+	return service, nil
+}
+
+// ServiceOption customizes project service dependencies.
+type ServiceOption interface{ apply(*Service) }
+
+type serviceOptionFunc func(*Service)
+
+func (f serviceOptionFunc) apply(s *Service) { f(s) }
+
+// WithRuntimeReader injects the narrow container runtime aggregation boundary.
+func WithRuntimeReader(reader moduleapi.ContainerProjectRuntimeReader) ServiceOption {
+	return serviceOptionFunc(func(s *Service) {
+		s.runtimeReader = reader
+	})
 }
 
 // List returns one page of registered projects.
@@ -147,7 +185,8 @@ func (s *Service) List(ctx context.Context, query ListQuery) (ListResult, error)
 	}
 	items := make([]generated.ProjectListItem, 0, len(storeResult.Items))
 	for _, item := range storeResult.Items {
-		items = append(items, toProjectListItem(item))
+		runtimeSummary, _ := s.runtimeSummary(ctx, item)
+		items = append(items, toProjectListItem(item, runtimeSummary))
 	}
 	return ListResult{Items: items, Total: storeResult.Total, Limit: normalizeListLimit(query.Limit), Offset: maxInt(query.Offset, 0)}, nil
 }
@@ -158,7 +197,8 @@ func (s *Service) Get(ctx context.Context, projectID uint64) (generated.ProjectD
 	if err != nil {
 		return generated.ProjectDetailResponse{}, err
 	}
-	return toProjectDetailResponse(aggregate), nil
+	runtimeSummary, _ := s.runtimeSummary(ctx, aggregate)
+	return toProjectDetailResponse(aggregate, runtimeSummary), nil
 }
 
 // ValidateImport resolves static compose inputs and reports bounded import validation results.
@@ -310,14 +350,15 @@ func (s *Service) Services(ctx context.Context, projectID uint64) (generated.Pro
 	if err != nil {
 		return generated.ProjectServicesResponse{}, err
 	}
+	runtimeSummary, _ := s.runtimeSummary(ctx, aggregate)
+	serviceMembers := membersByService(runtimeSummary.Members)
 	items := make([]generated.ProjectServiceItem, 0, len(parseResult.Services))
 	for _, item := range parseResult.Services {
+		members := serviceMembers[item.ServiceName]
 		generatedItem := generated.ProjectServiceItem{
 			ServiceName:  item.ServiceName,
-			RunningCount: 0,
-			StoppedCount: 0,
 		}
-		generatedItem.ContainerMembers = generatedItem.ContainerMembers[:0]
+		applyGeneratedServiceMembers(&generatedItem, members)
 		if item.Image != nil {
 			generatedItem.Image = item.Image
 		}
@@ -342,6 +383,125 @@ func (s *Service) Services(ctx context.Context, projectID uint64) (generated.Pro
 		CanonicalProjectName: aggregate.Project.CanonicalProjectName,
 		Items:                items,
 		ProjectId:            mustGeneratedID(projectID),
+	}, nil
+}
+
+// Up executes docker compose up -d within the project's registered working directory.
+func (s *Service) Up(ctx context.Context, projectID uint64, actorID *uint64) (ActionResult, error) {
+	return s.runLifecycleAction(ctx, projectID, actorID, generated.ProjectActionUp, []string{"compose", "up", "-d"})
+}
+
+// Down executes docker compose down for the registered project without removing volumes by default.
+func (s *Service) Down(ctx context.Context, projectID uint64, actorID *uint64) (ActionResult, error) {
+	return s.runLifecycleAction(ctx, projectID, actorID, generated.ProjectActionDown, []string{"compose", "down"})
+}
+
+// Restart executes docker compose restart for the registered project.
+func (s *Service) Restart(ctx context.Context, projectID uint64, actorID *uint64) (ActionResult, error) {
+	return s.runLifecycleAction(ctx, projectID, actorID, generated.ProjectActionRestart, []string{"compose", "restart"})
+}
+
+// Unregister removes the project registry record without touching host files.
+func (s *Service) Unregister(ctx context.Context, projectID uint64, actorID *uint64) (ActionResult, error) {
+	if _, err := s.getAggregate(ctx, projectID); err != nil {
+		return ActionResult{}, err
+	}
+	repository, err := s.repositoryOrErr()
+	if err != nil {
+		return ActionResult{}, err
+	}
+	if err := repository.UnregisterProject(ctx, projectstore.UnregisterProjectInput{
+		ProjectID: projectID,
+		ActorID:   actorID,
+	}); err != nil {
+		return ActionResult{}, mapStoreError(err)
+	}
+	messageKey := projectcontract.ProjectUnregisterCompleted.String()
+	return ActionResult{
+		ProjectID:    projectID,
+		Action:       generated.ProjectActionUnregister,
+		Result:       generated.ProjectActionResultCompleted,
+		MessageKey:   &messageKey,
+		Message:      &messageKey,
+		GuardResults: []string{"registry_deleted", "working_directory_preserved", "runtime_state_not_persisted"},
+	}, nil
+}
+
+// Destroy executes guarded teardown steps and then unregisters the project record.
+func (s *Service) Destroy(ctx context.Context, projectID uint64, request DestroyRequest) (ActionResult, error) {
+	aggregate, err := s.getAggregate(ctx, projectID)
+	if err != nil {
+		return ActionResult{}, err
+	}
+	if result, blockErr := validateDestroyRequest(projectID, aggregate, request); blockErr != nil {
+		return result, blockErr
+	}
+	return s.destroyAfterGuard(ctx, aggregate, request)
+}
+
+func validateDestroyRequest(
+	projectID uint64,
+	aggregate projectstore.ProjectAggregate,
+	request DestroyRequest,
+) (ActionResult, error) {
+	guardResults := []string{}
+	if strings.TrimSpace(request.ConfirmCanonicalProjectName) != aggregate.Project.CanonicalProjectName {
+		return blockedActionResult(projectID, generated.ProjectActionDestroy, append(guardResults, "confirm_canonical_project_name_mismatch")), errProjectDestroyBlocked
+	}
+	guardResults = append(guardResults, "confirm_canonical_project_name_matched")
+
+	if request.RemoveNamedVolumes {
+		guardResults = append(guardResults, "remove_named_volumes_blocked:phase1_volume_exclusivity_not_proven")
+		return blockedActionResult(projectID, generated.ProjectActionDestroy, guardResults), errProjectDestroyBlocked
+	}
+
+	if request.DeleteWorkingDirectory && aggregate.Project.OwnershipMode != projectcontract.OwnershipModeManagedRootDedicated.String() {
+		guardResults = append(guardResults, "delete_working_directory_blocked:ownership_mode_external")
+		return blockedActionResult(projectID, generated.ProjectActionDestroy, guardResults), errProjectDestroyBlocked
+	}
+	return ActionResult{}, nil
+}
+
+func (s *Service) destroyAfterGuard(
+	ctx context.Context,
+	aggregate projectstore.ProjectAggregate,
+	request DestroyRequest,
+) (ActionResult, error) {
+	projectID := aggregate.Project.ID
+	guardResults := []string{"confirm_canonical_project_name_matched"}
+	if _, err := s.runLifecycleActionWithAggregate(ctx, aggregate, request.ActorID, generated.ProjectActionDown, []string{"compose", "down"}); err != nil {
+		return ActionResult{}, err
+	}
+	guardResults = append(guardResults, "compose_down_completed")
+
+	if request.DeleteWorkingDirectory {
+		if err := os.RemoveAll(filepath.Clean(aggregate.Project.WorkingDirectory)); err != nil {
+			return ActionResult{}, fmt.Errorf("%w: %v", errProjectUnsupportedLifecycle, err)
+		}
+		guardResults = append(guardResults, "working_directory_deleted")
+	} else {
+		guardResults = append(guardResults, "working_directory_preserved")
+	}
+
+	repository, err := s.repositoryOrErr()
+	if err != nil {
+		return ActionResult{}, err
+	}
+	if err := repository.UnregisterProject(ctx, projectstore.UnregisterProjectInput{
+		ProjectID: projectID,
+		ActorID:   request.ActorID,
+	}); err != nil {
+		return ActionResult{}, mapStoreError(err)
+	}
+	guardResults = append(guardResults, "registry_deleted")
+	messageKey := projectcontract.ProjectDestroyCompleted.String()
+	return ActionResult{
+		ProjectID:    projectID,
+		Action:       generated.ProjectActionDestroy,
+		Result:       generated.ProjectActionResultCompleted,
+		MessageKey:   &messageKey,
+		Message:      &messageKey,
+		GuardResults: guardResults,
 	}, nil
 }
 
@@ -415,6 +575,171 @@ func (s *Service) UnsupportedLifecycleAction(projectID uint64, action generated.
 		Message:      stringPointer(projectcontract.ProjectLifecycleAccepted.String()),
 		GuardResults: []string{"batch-2-scope: lifecycle execution is deferred to phase-1-batch-3"},
 	}, errProjectUnsupportedLifecycle
+}
+
+func (s *Service) runLifecycleAction(
+	ctx context.Context,
+	projectID uint64,
+	actorID *uint64,
+	action generated.ProjectActionResponseAction,
+	args []string,
+) (ActionResult, error) {
+	aggregate, err := s.getAggregate(ctx, projectID)
+	if err != nil {
+		return ActionResult{}, err
+	}
+	return s.runLifecycleActionWithAggregate(ctx, aggregate, actorID, action, args)
+}
+
+func (s *Service) runLifecycleActionWithAggregate(
+	ctx context.Context,
+	aggregate projectstore.ProjectAggregate,
+	_ *uint64,
+	action generated.ProjectActionResponseAction,
+	args []string,
+) (ActionResult, error) {
+	if err := ensureProjectLifecycleReady(aggregate); err != nil {
+		return blockedActionResult(aggregate.Project.ID, action, []string{"lifecycle_blocked:refresh_required"}), err
+	}
+	if err := ensureLifecycleCommandArgs(args); err != nil {
+		return blockedActionResult(aggregate.Project.ID, action, []string{"lifecycle_blocked:invalid_command"}), err
+	}
+	commandOutput, err := s.runComposeCommand(ctx, aggregate, args)
+	if err != nil {
+		result := blockedActionResult(aggregate.Project.ID, action, []string{"lifecycle_failed:" + summarizeCommandOutput(commandOutput)})
+		return result, fmt.Errorf("%w: %v", errProjectUnsupportedLifecycle, err)
+	}
+	messageKey := lifecycleMessageKey(action).String()
+	return ActionResult{
+		ProjectID:    aggregate.Project.ID,
+		Action:       action,
+		Result:       generated.ProjectActionResultCompleted,
+		MessageKey:   &messageKey,
+		Message:      &messageKey,
+		GuardResults: []string{"command=" + strings.Join(args, " "), "host_scope=" + aggregate.Project.HostScope},
+	}, nil
+}
+
+func (s *Service) runComposeCommand(ctx context.Context, aggregate projectstore.ProjectAggregate, args []string) (string, error) {
+	// #nosec G204 -- binary is fixed to docker and args are validated command fragments, not shell-expanded input.
+	command := exec.CommandContext(ctx, "docker", args...)
+	command.Dir = aggregate.Project.WorkingDirectory
+	command.Env = os.Environ()
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	command.Stdout = &stdout
+	command.Stderr = &stderr
+	err := command.Run()
+	return strings.TrimSpace(stdout.String() + "\n" + stderr.String()), err
+}
+
+func ensureLifecycleCommandArgs(args []string) error {
+	if len(args) < minLifecycleArgCount {
+		return errProjectInvalidArgument
+	}
+	for _, arg := range args {
+		if strings.TrimSpace(arg) == "" {
+			return errProjectInvalidArgument
+		}
+	}
+	return nil
+}
+
+func ensureProjectLifecycleReady(aggregate projectstore.ProjectAggregate) error {
+	if strings.TrimSpace(aggregate.Project.HostScope) != projectcontract.HostScopeLocal.String() {
+		return errProjectUnsupportedLifecycle
+	}
+	if aggregate.Project.LastRefreshStatus != projectcontract.RefreshStatusSuccess.String() {
+		return errProjectUnsupportedLifecycle
+	}
+	return nil
+}
+
+func blockedActionResult(projectID uint64, action generated.ProjectActionResponseAction, guardResults []string) ActionResult {
+	messageKey := projectcontract.ProjectLifecycleBlocked.String()
+	return ActionResult{
+		ProjectID:    projectID,
+		Action:       action,
+		Result:       generated.ProjectActionResultBlocked,
+		MessageKey:   &messageKey,
+		Message:      &messageKey,
+		GuardResults: append([]string(nil), guardResults...),
+	}
+}
+
+func lifecycleMessageKey(action generated.ProjectActionResponseAction) projectcontract.MessageKey {
+	switch action {
+	case generated.ProjectActionUp:
+		return projectcontract.ProjectUpCompleted
+	case generated.ProjectActionDown:
+		return projectcontract.ProjectDownCompleted
+	case generated.ProjectActionRestart:
+		return projectcontract.ProjectRestartCompleted
+	case generated.ProjectActionDestroy:
+		return projectcontract.ProjectDestroyCompleted
+	case generated.ProjectActionUnregister:
+		return projectcontract.ProjectUnregisterCompleted
+	default:
+		return projectcontract.ProjectLifecycleAccepted
+	}
+}
+
+func summarizeCommandOutput(output string) string {
+	trimmed := strings.TrimSpace(output)
+	if trimmed == "" {
+		return "command_failed"
+	}
+	if len(trimmed) > maxCommandOutputSummary {
+		return trimmed[:maxCommandOutputSummary]
+	}
+	return trimmed
+}
+
+func (s *Service) runtimeSummary(
+	ctx context.Context,
+	aggregate projectstore.ProjectAggregate,
+) (moduleapi.ContainerProjectRuntimeSummary, error) {
+	if s == nil || s.runtimeReader == nil {
+		return moduleapi.ContainerProjectRuntimeSummary{
+			CanonicalProjectName: aggregate.Project.CanonicalProjectName,
+			Members:              []moduleapi.ContainerProjectMember{},
+		}, nil
+	}
+	return s.runtimeReader.ListProjectMembers(ctx, aggregate.Project.HostScope, aggregate.Project.CanonicalProjectName)
+}
+
+func membersByService(items []moduleapi.ContainerProjectMember) map[string][]moduleapi.ContainerProjectMember {
+	result := make(map[string][]moduleapi.ContainerProjectMember)
+	for _, item := range items {
+		result[item.ServiceName] = append(result[item.ServiceName], item)
+	}
+	return result
+}
+
+func applyGeneratedServiceMembers(target *generated.ProjectServiceItem, items []moduleapi.ContainerProjectMember) {
+	if target == nil {
+		return
+	}
+	//nolint:revive // OpenAPI generated anonymous member field is ContainerId.
+	type generatedProjectServiceMember = struct {
+		ContainerId   string `json:"container_id"`
+		ContainerName string `json:"container_name"`
+		State         string `json:"state"`
+	}
+	members := make([]generatedProjectServiceMember, 0, len(items))
+	for _, item := range items {
+		members = append(members, generatedProjectServiceMember{
+			ContainerId:   item.ContainerID,
+			ContainerName: item.ContainerName,
+			State:         item.CanonicalState,
+		})
+		if item.CanonicalState == "running" {
+			target.RunningCount++
+		} else {
+			target.StoppedCount++
+		}
+	}
+	target.ContainerMembers = members
 }
 
 func (s *Service) repositoryOrErr() (projectstore.Repository, error) {
@@ -506,10 +831,19 @@ func sameWorkingDirectory(left string, right string) bool {
 	return strings.EqualFold(strings.TrimSpace(left), strings.TrimSpace(right))
 }
 
-func toProjectListItem(aggregate projectstore.ProjectAggregate) generated.ProjectListItem {
+func toProjectListItem(
+	aggregate projectstore.ProjectAggregate,
+	runtimeSummary ...moduleapi.ContainerProjectRuntimeSummary,
+) generated.ProjectListItem {
 	serviceCount := 0
 	if aggregate.Snapshot != nil {
 		serviceCount = aggregate.Snapshot.DeclaredServiceCount
+	}
+	counts := generated.ProjectContainerCounts{}
+	if len(runtimeSummary) > 0 {
+		counts.Running = runtimeSummary[0].RunningCount
+		counts.Stopped = runtimeSummary[0].StoppedCount
+		counts.Total = runtimeSummary[0].RunningCount + runtimeSummary[0].StoppedCount
 	}
 	return generated.ProjectListItem{
 		Id:                         mustGeneratedID(aggregate.Project.ID),
@@ -521,19 +855,28 @@ func toProjectListItem(aggregate projectstore.ProjectAggregate) generated.Projec
 		OwnershipMode:              generated.ProjectOwnershipMode(aggregate.Project.OwnershipMode),
 		WorkingDirectory:           aggregate.Project.WorkingDirectory,
 		ServiceCount:               serviceCount,
-		ContainerCounts:            generated.ProjectContainerCounts{},
+		ContainerCounts:            counts,
 		LastRefreshStatus:          generated.ProjectRefreshStatus(aggregate.Project.LastRefreshStatus),
 		LastRefreshAt:              aggregate.Project.LastRefreshAt,
 		DriftStatus:                generated.ProjectDriftStatus(aggregate.Project.DriftStatus),
 	}
 }
 
-func toProjectDetailResponse(aggregate projectstore.ProjectAggregate) generated.ProjectDetailResponse {
+func toProjectDetailResponse(
+	aggregate projectstore.ProjectAggregate,
+	runtimeSummary ...moduleapi.ContainerProjectRuntimeSummary,
+) generated.ProjectDetailResponse {
+	counts := generated.ProjectContainerCounts{}
+	if len(runtimeSummary) > 0 {
+		counts.Running = runtimeSummary[0].RunningCount
+		counts.Stopped = runtimeSummary[0].StoppedCount
+		counts.Total = runtimeSummary[0].RunningCount + runtimeSummary[0].StoppedCount
+	}
 	item := generated.ProjectDetailResponse{
 		CanonicalProjectName:       aggregate.Project.CanonicalProjectName,
 		CanonicalProjectNameSource: generated.ProjectCanonicalNameSource(aggregate.Project.CanonicalProjectNameSource),
 		ComposeFiles:               toGeneratedFiles(filterFiles(aggregate.Files, projectcontract.FileKindCompose.String())),
-		ContainerCounts:            generated.ProjectContainerCounts{},
+		ContainerCounts:            counts,
 		DisplayName:                aggregate.Project.DisplayName,
 		DriftStatus:                generated.ProjectDriftStatus(aggregate.Project.DriftStatus),
 		EnvFiles:                   toGeneratedFiles(filterFiles(aggregate.Files, projectcontract.FileKindEnv.String())),

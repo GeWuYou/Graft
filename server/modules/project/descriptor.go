@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"graft/server/internal/module"
+	"graft/server/internal/moduleapi"
 	projectstore "graft/server/modules/project/store"
 )
 
@@ -25,7 +26,12 @@ func NewModuleSpec() module.Spec {
 			if err != nil {
 				return nil, fmt.Errorf("build project repository: %w", err)
 			}
-			service, err := NewService(repository)
+			var options []ServiceOption
+			runtimeReader, runtimeErr := module.ResolveService[moduleapi.ContainerProjectRuntimeReader](ctx.Services, (*moduleapi.ContainerProjectRuntimeReader)(nil))
+			if runtimeErr == nil && runtimeReader != nil {
+				options = append(options, WithRuntimeReader(runtimeReader))
+			}
+			service, err := NewService(repository, options...)
 			if err != nil {
 				return nil, fmt.Errorf("build project service: %w", err)
 			}

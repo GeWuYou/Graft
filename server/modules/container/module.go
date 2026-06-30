@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 
+	containerdi "graft/server/internal/container"
 	"graft/server/internal/module"
+	"graft/server/internal/moduleapi"
 )
 
 // Module declares the container management module foundation.
@@ -41,6 +43,9 @@ func (m *Module) Register(ctx *module.Context) error {
 	if err := service.registerRealtimeTopics(); err != nil {
 		return err
 	}
+	if err := registerModuleServices(ctx, service); err != nil {
+		return err
+	}
 	m.service = service
 	return registerRoutes(ctx, moduleID, service)
 }
@@ -72,4 +77,16 @@ func (m *Module) Shutdown(_ *module.Context) error {
 		return nil
 	}
 	return m.service.Close()
+}
+
+func registerModuleServices(ctx *module.Context, service *service) error {
+	if ctx == nil || ctx.Services == nil {
+		return errors.New("container service registry is unavailable")
+	}
+	if service == nil {
+		return errors.New("container runtime reader is unavailable")
+	}
+	return ctx.Services.RegisterSingleton((*moduleapi.ContainerProjectRuntimeReader)(nil), func(_ containerdi.Resolver) (any, error) {
+		return containerProjectRuntimeReader{service: service}, nil
+	})
 }
