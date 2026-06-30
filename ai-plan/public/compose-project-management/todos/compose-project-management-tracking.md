@@ -48,6 +48,21 @@ Compose Project Management
   - Phase 1 validation chain 已重新跑通，包含 OpenAPI bundle、project migration SQL 校验、backend entrypoint 与 web entrypoint。
   - Compose 设计 authority 已同步 batch 4 前端 owner 落点。
   - Phase 1 acceptance conditions 已满足，主题继续推进到 Phase 2，而不是停在 Phase 1 closeout。
+- Phase 2 Batch 1 已完成：
+  - `project` 模块已拥有 managed root 系统配置键、managed create 权限与路由合同，以及 OpenAPI create/create-validate/managed-root 合同源。
+  - 本批只修上游 authority owner，没有越界实现实际文件写入、editor、diff、validate UI 或 deploy。
+- Phase 2 Batch 2 已完成：
+  - `project` 模块已拥有 managed create 的服务端 file-write path：在 managed root 下创建 working directory、写 compose/env 文件、解析配置、持久化 registry 与 snapshot bootstrap。
+  - create flow 在 registry 失败时会清理本轮新建目录和文件，避免留下无主目录。
+  - 本批同步修正 create request/response 的 canonical OpenAPI authority，使其与真实同步创建语义一致。
+- Phase 2 Batch 3 已完成：
+  - `web/src/modules/project/**` 已建立 managed create route、create 表单流和 Compose/Env editor surface。
+  - 本批继续使用 Phase 2 的 create authority，没有越界进入 diff/deploy flow、remote host 或 backend runtime-state persistence。
+  - TDesign MCP preflight 已执行并用于 create form、editor surface、tabs 与 summary card 设计落地。
+- Phase 2 Batch 4 已完成：
+  - `openapi/**`、`server/modules/project/**`、`web/src/modules/project/**` 已共同落地 managed compose project 的 `diff / validate / deploy` 流程。
+  - `Project` 仍只拥有配置草稿、差异、校验和部署编排，没有引入项目级 runtime 持久化，也没有越界到 container 私有实现或后端 project logs/events 聚合。
+  - 前端仍在 `project detail` 的 `list-form-detail` 页型中承接 Configuration tab 下的编辑、diff、validate、deploy 流程。
 - 当前 authority 决议：
   - `Project` 不得持久化容器运行时信息。
   - `Project` 不得新增自己的 container detail。
@@ -66,7 +81,11 @@ Compose Project Management
 - [x] phase-1-batch-3：lifecycle executor、ownership guard、container aggregation shared boundary
 - [x] phase-1-batch-4：web project module list/detail/overview/services/configuration/activity
 - [x] phase-1-batch-5：Phase 1 validation、drift guard、docs sync、Phase 1 archive-readiness check
-- [ ] Phase 2：managed create、editor、diff、validate、deploy
+- [x] phase-2-batch-1：managed root、create contract、system config / permission / route authority
+- [x] phase-2-batch-2：server managed create、compose/env file write path、snapshot bootstrap
+- [x] phase-2-batch-3：web managed create、compose/env editors
+- [x] phase-2-batch-4：diff、validate、deploy flow
+- [ ] phase-2-batch-5：Phase 2 validation、drift guard、docs sync、Phase 2 archive-readiness check
 - [ ] Phase 3：git/template/scan/discovery/remote-host/backend activity aggregation
 
 ## Phase 1 Acceptance Conditions
@@ -103,14 +122,18 @@ Compose Project Management
     "phase-1-batch-2-server-project-module-import-and-refresh",
     "phase-1-batch-3-server-lifecycle-and-container-aggregation-boundary",
     "phase-1-batch-4-web-project-list-detail-and-readonly-configuration",
-    "phase-1-batch-5-phase-1-validation-drift-guard-and-governance-sync"
+    "phase-1-batch-5-phase-1-validation-drift-guard-and-governance-sync",
+    "phase-2-batch-1-managed-root-and-create-contracts",
+    "phase-2-batch-2-server-managed-create-and-file-write-path",
+    "phase-2-batch-3-web-managed-create-and-editors",
+    "phase-2-batch-4-diff-validate-and-deploy-flow"
   ],
   "pending_batches": [
-    "phase-2-managed-create-editor-and-deploy",
+    "phase-2-batch-5-phase-2-validation-drift-guard-and-governance-sync",
     "phase-3-discovery-git-template-and-remote-host"
   ],
-  "current_batch": "phase-1-batch-5-phase-1-validation-drift-guard-and-governance-sync",
-  "next_batch": "phase-2-managed-create-editor-and-deploy",
-  "closeout_status": "phase-1-complete-phase-2-ready"
+  "current_batch": "phase-2-batch-4-diff-validate-and-deploy-flow",
+  "next_batch": "phase-2-batch-5-phase-2-validation-drift-guard-and-governance-sync",
+  "closeout_status": "phase-2-batch-4-completed"
 }
 ```

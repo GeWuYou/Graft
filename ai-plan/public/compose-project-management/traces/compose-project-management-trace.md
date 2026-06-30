@@ -107,7 +107,71 @@
 - 完成 Phase 1 archive-readiness check：
   - local import / registry / snapshot / lifecycle / readonly configuration / frontend activity fan-out 路径都已落地。
   - `Project` 与 `Container` authority 边界保持稳定，没有引入 project-level runtime persistence 或 backend logs/events aggregation。
-- Topic 未进入 `archive-ready`，因为 `Phase 2` 与 `Phase 3` 仍为明确的后续 bounded work；loop state 前移到 `phase-2-managed-create-editor-and-deploy`。
+- Topic 未进入 `archive-ready`，因为 `Phase 2` 与 `Phase 3` 仍为明确的后续 bounded work。
+
+## 2026-06-30 Phase 2 loop rebatching
+
+- 未接受“Phase 2 仍是大阶段占位符，因此 loop 必须 blocked”这一过早终止结论。
+- 在同一 `topic-completion-loop` 下把 Phase 2 重新拆成可执行 bounded batches：
+  - `phase-2-batch-1-managed-root-and-create-contracts`
+  - `phase-2-batch-2-server-managed-create-and-file-write-path`
+  - `phase-2-batch-3-web-managed-create-and-editors`
+  - `phase-2-batch-4-diff-validate-and-deploy-flow`
+  - `phase-2-batch-5-phase-2-validation-drift-guard-and-governance-sync`
+- 保持同一 active topic，不创建新主题，不切换 recovery source。
+- loop state 前移到 `phase-2-batch-1-managed-root-and-create-contracts`。
+
+## 2026-06-30 Phase 2 Batch 1 managed root and create contracts
+
+- 落地 managed create 的上游 authority owner，而不是下游兼容层：
+  - `openapi/**` 新增 `managed-root`、`create-validate`、`create` canonical contract source。
+  - `server/modules/project/**` 新增 managed root system config、create route/permission/message 合同与模块注册接入。
+  - `web/src/modules/project/contract/**` 只同步最小稳定消费路径常量。
+- 本批明确不实现实际文件写入、editor、diff、validate UI 或 deploy flow。
+- 本批验证通过：
+  - `git diff --check`
+  - `node scripts/openapi-bundle.mjs`
+  - `cd server && go run ./cmd/graft validate backend`
+  - `cd web && bun run check`
+- 本批已提交：`f1f5a72d` `feat(project): define managed create root and contracts`
+
+## 2026-06-30 Phase 2 Batch 2 server managed create and file write path
+
+- 落地 `server/modules/project/**` authority owner：实现 managed create 的服务端 file-write path，在 managed root 下创建 working directory、写 compose/env 文件、解析配置、持久化 registry 与 snapshot bootstrap。
+- 同步 `openapi/**` authority owner：为 `POST /api/ops/projects/create` 增加实际 create request payload，并把 create response 修正为同步创建结果语义，去除 batch 1 阶段遗留的 accepted-only 语义。
+- create 流程在 registry 失败时清理本轮新建目录和文件，避免留下无主目录。
+- 本批验证通过：
+  - `git diff --check`
+  - `node scripts/openapi-bundle.mjs`
+  - `cd server && go test ./modules/project/...`
+  - `cd server && go run ./cmd/graft validate backend`
+  - `cd web && bun run check`
+- 本批已提交：`9ec8da91` `feat(project): add managed create file write path`
+
+## 2026-06-30 Phase 2 Batch 3 web managed create and editors
+
+- 落地 `web/src/modules/project/**` authority owner：建立 managed create route、managed-root/create/create-validate API 消费、create 页面，以及 Compose/Env editor surface。
+- 本批保持在 web authority owner 内，没有进入 diff/deploy flow、remote host、backend runtime-state persistence，也没有改动 `server/**` / `openapi/**`。
+- TDesign MCP preflight 已执行并采用：
+  - components: `Form`, `Input`, `Textarea`, `Button`, `Card`, `Tabs`, `Alert`, `Drawer`, `Dialog`, `Space`, `Descriptions`, `Tag`, `Empty`
+  - queries: `get_component_list`, `get_component_docs`, `get_component_dom`
+- 本批验证通过：
+  - `git diff --check`
+  - `cd web && bun run check`
+  - `cd server && go run ./cmd/graft validate backend`
+- 本批已提交：`db8c4bf1` `feat(project): add managed create web workflow`
+
+## 2026-06-30 Phase 2 Batch 4 diff validate and deploy flow
+
+- 落地 `openapi/**` + `server/modules/project/**` + `web/src/modules/project/**` authority owner：实现 managed compose project 的 `diff / validate / deploy` 流程。
+- `Project` 继续只拥有配置草稿、差异、校验和部署编排，没有引入项目级 runtime 持久化，也没有越界到 container 私有实现或后端 project logs/events 聚合。
+- 前端继续保持 `project detail` 的 `list-form-detail` 页型，在 `Configuration` tab 内承接编辑、diff、validate、deploy 流程。
+- 本批验证通过：
+  - `git diff --check`
+  - `node scripts/openapi-bundle.mjs`
+  - `cd server && go run ./cmd/graft validate backend`
+  - `cd web && bun run check`
+- 本批已提交：`beb75a48` `feat(project): add managed diff validate deploy flow`
 
 ## Loop Batch State
 
@@ -120,14 +184,18 @@
     "phase-1-batch-2-server-project-module-import-and-refresh",
     "phase-1-batch-3-server-lifecycle-and-container-aggregation-boundary",
     "phase-1-batch-4-web-project-list-detail-and-readonly-configuration",
-    "phase-1-batch-5-phase-1-validation-drift-guard-and-governance-sync"
+    "phase-1-batch-5-phase-1-validation-drift-guard-and-governance-sync",
+    "phase-2-batch-1-managed-root-and-create-contracts",
+    "phase-2-batch-2-server-managed-create-and-file-write-path",
+    "phase-2-batch-3-web-managed-create-and-editors",
+    "phase-2-batch-4-diff-validate-and-deploy-flow"
   ],
   "pending_batches": [
-    "phase-2-managed-create-editor-and-deploy",
+    "phase-2-batch-5-phase-2-validation-drift-guard-and-governance-sync",
     "phase-3-discovery-git-template-and-remote-host"
   ],
-  "current_batch": "phase-1-batch-5-phase-1-validation-drift-guard-and-governance-sync",
-  "next_batch": "phase-2-managed-create-editor-and-deploy",
-  "closeout_status": "phase-1-complete-phase-2-ready"
+  "current_batch": "phase-2-batch-4-diff-validate-and-deploy-flow",
+  "next_batch": "phase-2-batch-5-phase-2-validation-drift-guard-and-governance-sync",
+  "closeout_status": "phase-2-batch-4-completed"
 }
 ```

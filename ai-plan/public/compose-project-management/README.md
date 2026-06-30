@@ -6,8 +6,8 @@
 - 当前状态：`active`。
 - 任务分类为 `cross-boundary`，涉及 `ai-plan/design`、future OpenAPI、future `server/modules/project/**`、future `web/src/modules/project/**`，并与现有 `container` runtime authority 协作。
 - Canonical design：`ai-plan/design/domains/compose/Compose项目管理设计.md`。
-- 当前已完成 Phase 0：设计 authority、topic recovery 与 loop 启动提示持久化。
-- 当前尚未开始业务实现。
+- 当前已完成 Phase 0 与 Phase 1。
+- 当前处于同一个 `topic-completion-loop` 下的 Phase 2 batching 重定义后继续执行状态，而不是新主题。
 
 ## Recovery Receipt
 
@@ -69,16 +69,12 @@
   - 推荐为 `project` 与 `container` 之间新增 narrow stable shared boundary，而不是直接 import container private service。
   - Phase 1 的 Activity 仍由前端复用现有 container APIs 聚合。
   - Phase 1 的配置页只读。
-- 当前下一步：按 topic-completion-loop 推进 Phase 1 的第一个实现 batch。
+  - Phase 2 继续在同一 topic 内推进，但必须先拆成安全 bounded batches，而不是直接把整阶段当一个 batch 执行。
+- 当前下一步：按 topic-completion-loop 推进 `phase-2-batch-5-phase-2-validation-drift-guard-and-governance-sync`。
 
 ## Pending Batch Direction
 
-- `phase-1-batch-1-project-contract-and-data-model`
-- `phase-1-batch-2-server-project-module-import-and-refresh`
-- `phase-1-batch-3-server-lifecycle-and-container-aggregation-boundary`
-- `phase-1-batch-4-web-project-list-detail-and-readonly-configuration`
-- `phase-1-batch-5-phase-1-validation-drift-guard-and-governance-sync`
-- `phase-2-managed-create-editor-and-deploy`
+- `phase-2-batch-5-phase-2-validation-drift-guard-and-governance-sync`
 - `phase-3-discovery-git-template-and-remote-host`
 
 ## Validation Targets
