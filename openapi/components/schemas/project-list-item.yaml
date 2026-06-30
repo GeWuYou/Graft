@@ -32,7 +32,7 @@ properties:
   working_directory:
     type: string
   runtime_status:
-    type: string
+    $ref: ./project-runtime-status.yaml
     nullable: true
     description: >
       Bounded runtime summary status for overview consumption only. It must not become a replacement

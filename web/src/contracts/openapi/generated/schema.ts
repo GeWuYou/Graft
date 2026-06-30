@@ -2019,7 +2019,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/ops/projects/managed-root': {
+  '/api/ops/projects/managed/root': {
     parameters: {
       query?: never;
       header?: never;
@@ -2566,6 +2566,7 @@ export interface components {
     ProjectFileRole: components['schemas']['project-file-role'];
     ProjectFileItem: components['schemas']['project-file-item'];
     ProjectContainerCounts: components['schemas']['project-container-counts'];
+    ProjectRuntimeStatus: components['schemas']['project-runtime-status'];
     ProjectListItem: components['schemas']['project-list-item'];
     ProjectListResponse: components['schemas']['project-list-response'];
     ProjectDetailResponse: components['schemas']['project-detail-response'];
@@ -5100,6 +5101,11 @@ export interface components {
     'project-host-scope': 'local';
     /** @enum {string} */
     'project-ownership-mode': 'external' | 'managed-root-dedicated';
+    /**
+     * @description Stable bounded runtime summary status for project overview consumers. Unknown or not-yet-derived runtime state should be expressed as null instead of a free-form string.
+     * @enum {string}
+     */
+    'project-runtime-status': 'running' | 'partial' | 'stopped' | 'empty';
     'project-container-counts': {
       running: number;
       stopped: number;
@@ -5116,7 +5122,7 @@ export interface components {
       ownership_mode: components['schemas']['project-ownership-mode'];
       working_directory: string;
       /** @description Bounded runtime summary status for overview consumption only. It must not become a replacement for container runtime detail authority. */
-      runtime_status?: string | null;
+      runtime_status?: components['schemas']['project-runtime-status'];
       service_count: number;
       container_counts: components['schemas']['project-container-counts'];
       last_refresh_status: components['schemas']['project-refresh-status'];
@@ -5394,6 +5400,11 @@ export interface components {
       compose_file_content: string;
       env_file_content?: string | null;
     };
+    'project-guard-result': {
+      code: string;
+      message_key?: string | null;
+      detail?: string | null;
+    };
     'project-deploy-response': {
       /** Format: int64 */
       project_id: number;
@@ -5409,7 +5420,7 @@ export interface components {
       declared_service_count?: number;
       message_key?: string | null;
       message?: string | null;
-      guard_results?: string[];
+      guard_results?: components['schemas']['project-guard-result'][];
     };
     'enveloped-project-deploy-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['project-deploy-response'];
@@ -5424,7 +5435,7 @@ export interface components {
       message_key?: string;
       message?: string;
       /** @description Structured guard outcomes such as ownership blocks or skipped destructive steps. */
-      guard_results?: string[];
+      guard_results?: components['schemas']['project-guard-result'][];
     };
     'enveloped-project-action-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['project-action-response'];
@@ -11339,6 +11350,16 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
+      /** @description Managed create validation blocked by managed-root authority, ownership, or runtime guard. */
+      409: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
       500: components['responses']['internal-server-error'];
     };
   };
@@ -11385,6 +11406,16 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
+      /** @description Managed create request blocked by managed-root authority, ownership, or runtime guard. */
+      409: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
       500: components['responses']['internal-server-error'];
     };
   };

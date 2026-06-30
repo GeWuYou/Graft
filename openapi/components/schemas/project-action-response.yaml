@@ -34,5 +34,5 @@ properties:
   guard_results:
     type: array
     items:
-      type: string
+      $ref: ./project-guard-result.yaml
     description: Structured guard outcomes such as ownership blocks or skipped destructive steps.

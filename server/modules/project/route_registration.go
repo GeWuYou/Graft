@@ -393,6 +393,11 @@ func (r routeRuntime) writeRouteErrorWithAction(ginCtx *gin.Context, err error, 
 		httpx.WriteLocalizedErrorCode(ginCtx, r.ctx.I18n, http.StatusNotFound, projectcontract.ProjectNotFound.String(), messagecontract.CommonInvalidArgument.String(), map[string]any{"code": projectcontract.ProjectNotFound.String()})
 	case errors.Is(err, errProjectConflict):
 		httpx.WriteLocalizedErrorCode(ginCtx, r.ctx.I18n, http.StatusConflict, projectcontract.ProjectConflict.String(), messagecontract.CommonInvalidArgument.String(), map[string]any{"code": projectcontract.ProjectConflict.String()})
+	case errors.Is(err, errProjectDestroyBlocked):
+		httpx.WriteLocalizedErrorCode(ginCtx, r.ctx.I18n, http.StatusConflict, projectcontract.ProjectConflict.String(), messagecontract.CommonInvalidArgument.String(), map[string]any{
+			"code":         projectcontract.ProjectConflict.String(),
+			"actionResult": toActionResponse(action),
+		})
 	case errors.Is(err, errProjectUnsupportedLifecycle), errors.Is(err, errProjectManagedFlow):
 		httpx.WriteLocalizedErrorCode(ginCtx, r.ctx.I18n, http.StatusConflict, projectcontract.ProjectUnsupportedLifecycle.String(), messagecontract.CommonInvalidArgument.String(), map[string]any{
 			"code":         mapLifecycleErrorCode(err),
@@ -445,13 +450,27 @@ func bindListParams(ginCtx *gin.Context, ctx *module.Context) (generated.GetProj
 	locale, requestID := commonHeaders(ginCtx)
 	query := ginCtx.Request.URL.Query()
 	params := generated.GetProjectsParams{
-		XGraftLocale:      locale,
-		XRequestId:        requestID,
-		SourceKind:        optionalTypedQuery[generated.ProjectSourceKind](query.Get("source_kind")),
-		DriftStatus:       optionalTypedQuery[generated.ProjectDriftStatus](query.Get("drift_status")),
-		LastRefreshStatus: optionalTypedQuery[generated.ProjectRefreshStatus](query.Get("last_refresh_status")),
+		XGraftLocale: locale,
+		XRequestId:   requestID,
 	}
-	var ok bool
+	sourceKind, ok := optionalValidatedEnumQuery(query.Get("source_kind"), generated.ProjectSourceKind.Valid)
+	if !ok {
+		abortInvalidQuery(ginCtx, ctx)
+		return generated.GetProjectsParams{}, false
+	}
+	driftStatus, ok := optionalValidatedEnumQuery(query.Get("drift_status"), generated.ProjectDriftStatus.Valid)
+	if !ok {
+		abortInvalidQuery(ginCtx, ctx)
+		return generated.GetProjectsParams{}, false
+	}
+	lastRefreshStatus, ok := optionalValidatedEnumQuery(query.Get("last_refresh_status"), generated.ProjectRefreshStatus.Valid)
+	if !ok {
+		abortInvalidQuery(ginCtx, ctx)
+		return generated.GetProjectsParams{}, false
+	}
+	params.SourceKind = sourceKind
+	params.DriftStatus = driftStatus
+	params.LastRefreshStatus = lastRefreshStatus
 	if params.Limit, ok = optionalIntQuery[generated.ProjectListLimit](query.Get("limit"), minimumProjectListLimit, maxProjectListLimit); !ok {
 		abortInvalidQuery(ginCtx, ctx)
 		return generated.GetProjectsParams{}, false
@@ -667,7 +686,6 @@ func bindPostProjectUnregisterParams(ginCtx *gin.Context) generated.PostProjectU
 }
 
 // bindPostProjectDestroyParams 构造项目销毁接口的公共请求参数。
-package project
 func bindPostProjectDestroyParams(ginCtx *gin.Context) generated.PostProjectDestroyParams {
 	locale, requestID := commonHeaders(ginCtx)
 	return generated.PostProjectDestroyParams{XGraftLocale: locale, XRequestId: requestID}
@@ -689,6 +707,17 @@ func optionalTypedQuery[T ~string](raw string) *T {
 	}
 	value := T(trimmed)
 	return &value
+}
+
+func optionalValidatedEnumQuery[T ~string](raw string, validate func(T) bool) (*T, bool) {
+	value := optionalTypedQuery[T](raw)
+	if value == nil {
+		return nil, true
+	}
+	if validate == nil || !validate(*value) {
+		return nil, false
+	}
+	return value, true
 }
 
 // optionalIntQuery 将原始字符串解析为整数类型的可选查询值，并校验其取值范围。

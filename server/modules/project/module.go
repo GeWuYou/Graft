@@ -2,8 +2,10 @@ package project
 
 import (
 	"errors"
+	"fmt"
 
 	"graft/server/internal/module"
+	"graft/server/internal/moduleapi"
 )
 
 // Module owns project registry, lifecycle, and managed-create contract surfaces.
@@ -21,6 +23,16 @@ func (m *Module) Register(ctx *module.Context) error {
 	if m == nil || m.service == nil {
 		return errors.New("project module service is unavailable")
 	}
+	runtimeReader, err := module.ResolveService[moduleapi.ContainerProjectRuntimeReader](ctx.Services, (*moduleapi.ContainerProjectRuntimeReader)(nil))
+	if err != nil {
+		return fmt.Errorf("resolve container project runtime reader: %w", err)
+	}
+	configResolver, err := module.ResolveService[moduleapi.SystemConfigResolver](ctx.Services, (*moduleapi.SystemConfigResolver)(nil))
+	if err != nil {
+		return fmt.Errorf("resolve system config resolver: %w", err)
+	}
+	m.service.SetRuntimeReader(runtimeReader)
+	m.service.SetSystemConfigResolver(configResolver)
 	if err := registerPermissions(ctx.PermissionRegistry, moduleID); err != nil {
 		return err
 	}

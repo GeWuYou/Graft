@@ -81,7 +81,6 @@ func (m *Module) Shutdown(_ *module.Context) error {
 
 // registerModuleServices 向模块服务注册器登记容器项目运行时读取器的单例实现。
 // 它要求模块上下文、服务注册器和运行时服务都可用。
-స
 func registerModuleServices(ctx *module.Context, service *service) error {
 	if ctx == nil || ctx.Services == nil {
 		return errors.New("container service registry is unavailable")

@@ -1,0 +1,12 @@
+type: object
+required:
+  - code
+properties:
+  code:
+    type: string
+  message_key:
+    type: string
+    nullable: true
+  detail:
+    type: string
+    nullable: true

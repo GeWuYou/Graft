@@ -33,7 +33,11 @@ func (r *SQLRepository) List(ctx context.Context, query ListQuery) (ListResult, 
 	if err := r.ensureReady(); err != nil {
 		return ListResult{}, err
 	}
-	query = normalizeListQuery(query)
+	var err error
+	query, err = normalizeListQuery(query)
+	if err != nil {
+		return ListResult{}, err
+	}
 
 	where, args := buildListWhere(query)
 	countSQL := r.placeholder.rebind(`SELECT COUNT(*)
@@ -44,6 +48,26 @@ func (r *SQLRepository) List(ctx context.Context, query ListQuery) (ListResult, 
 		return ListResult{}, fmt.Errorf("count projects: %w", err)
 	}
 
+	projects, projectIDs, err := r.listProjectsPage(ctx, where, args, query, total)
+	if err != nil {
+		return ListResult{}, err
+	}
+
+	fileMap, snapshotMap, err := r.loadFilesAndSnapshots(ctx, projectIDs)
+	if err != nil {
+		return ListResult{}, err
+	}
+	items := buildProjectAggregates(projects, fileMap, snapshotMap)
+	return ListResult{Items: items, Total: total}, nil
+}
+
+func (r *SQLRepository) listProjectsPage(
+	ctx context.Context,
+	where []string,
+	args []any,
+	query ListQuery,
+	total int,
+) ([]Project, []uint64, error) {
 	argsWithPage := append(append([]any(nil), args...), query.Limit, query.Offset)
 	rows, err := r.db.QueryContext(
 		ctx,
@@ -59,29 +83,32 @@ func (r *SQLRepository) List(ctx context.Context, query ListQuery) (ListResult, 
 		argsWithPage...,
 	)
 	if err != nil {
-		return ListResult{}, fmt.Errorf("list projects: %w", err)
+		return nil, nil, fmt.Errorf("list projects: %w", err)
 	}
 	defer closeRows(rows)
 
-	projects := make([]Project, 0, query.Limit)
-	projectIDs := make([]uint64, 0, query.Limit)
+	pageCap := listPageCapacity(total, query.Offset, query.Limit)
+	projects := make([]Project, 0, pageCap)
+	projectIDs := make([]uint64, 0, pageCap)
 	for rows.Next() {
 		item, scanErr := scanProject(rows)
 		if scanErr != nil {
-			return ListResult{}, fmt.Errorf("scan project row: %w", scanErr)
+			return nil, nil, fmt.Errorf("scan project row: %w", scanErr)
 		}
 		projects = append(projects, item)
 		projectIDs = append(projectIDs, item.ID)
 	}
 	if err := rows.Err(); err != nil {
-		return ListResult{}, fmt.Errorf("iterate projects: %w", err)
+		return nil, nil, fmt.Errorf("iterate projects: %w", err)
 	}
+	return projects, projectIDs, nil
+}
 
-	fileMap, snapshotMap, err := r.loadFilesAndSnapshots(ctx, projectIDs)
-	if err != nil {
-		return ListResult{}, err
-	}
-
+func buildProjectAggregates(
+	projects []Project,
+	fileMap map[uint64][]ProjectFile,
+	snapshotMap map[uint64]Snapshot,
+) []ProjectAggregate {
 	items := make([]ProjectAggregate, 0, len(projects))
 	for _, item := range projects {
 		aggregate := ProjectAggregate{
@@ -94,7 +121,7 @@ func (r *SQLRepository) List(ctx context.Context, query ListQuery) (ListResult, 
 		}
 		items = append(items, aggregate)
 	}
-	return ListResult{Items: items, Total: total}, nil
+	return items
 }
 
 // Get returns one registered project aggregate.
@@ -158,10 +185,11 @@ func (r *SQLRepository) GetFile(ctx context.Context, projectID uint64, fileID ui
 	item, err := scanProjectFile(r.db.QueryRowContext(
 		ctx,
 		r.placeholder.rebind(`SELECT
-			id, project_id, kind, role, absolute_path, display_path, order_index,
-			exists_on_last_refresh, last_observed_hash, created_at, updated_at
-		FROM compose_project_files
-		WHERE id = ? AND project_id = ?`),
+			f.id, f.project_id, f.kind, f.role, f.absolute_path, f.display_path, f.order_index,
+			f.exists_on_last_refresh, f.last_observed_hash, f.created_at, f.updated_at
+		FROM compose_project_files f
+		INNER JOIN compose_projects p ON p.id = f.project_id
+		WHERE f.id = ? AND f.project_id = ? AND p.deleted_at = 0`),
 		fileDBID,
 		projectDBID,
 	))
@@ -387,21 +415,101 @@ func (r *SQLRepository) loadFilesAndSnapshots(
 ) (map[uint64][]ProjectFile, map[uint64]Snapshot, error) {
 	fileMap := make(map[uint64][]ProjectFile, len(projectIDs))
 	snapshotMap := make(map[uint64]Snapshot, len(projectIDs))
-	for _, id := range projectIDs {
-		files, err := r.listFiles(ctx, id)
-		if err != nil {
-			return nil, nil, err
-		}
-		fileMap[id] = files
-		snapshot, err := r.getSnapshot(ctx, id)
-		if err != nil {
-			return nil, nil, err
-		}
-		if snapshot != nil {
-			snapshotMap[id] = *snapshot
-		}
+	if len(projectIDs) == 0 {
+		return fileMap, snapshotMap, nil
+	}
+	fileMap, err := r.loadFilesByProjectIDs(ctx, projectIDs)
+	if err != nil {
+		return nil, nil, err
+	}
+	snapshotMap, err = r.loadSnapshotsByProjectIDs(ctx, projectIDs)
+	if err != nil {
+		return nil, nil, err
 	}
 	return fileMap, snapshotMap, nil
+}
+
+func (r *SQLRepository) loadFilesByProjectIDs(
+	ctx context.Context,
+	projectIDs []uint64,
+) (map[uint64][]ProjectFile, error) {
+	for _, id := range projectIDs {
+		if id == 0 {
+			return nil, ErrInvalidInput
+		}
+	}
+	args, err := toDBArgs(projectIDs)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := r.db.QueryContext(
+		ctx,
+		r.placeholder.rebind(`SELECT
+			id, project_id, kind, role, absolute_path, display_path, order_index,
+			exists_on_last_refresh, last_observed_hash, created_at, updated_at
+		FROM compose_project_files
+		WHERE project_id IN (`+placeholderList(len(args))+`)
+		ORDER BY project_id ASC, order_index ASC, id ASC`),
+		args...,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list project files: %w", err)
+	}
+	defer closeRows(rows)
+
+	fileMap := make(map[uint64][]ProjectFile, len(projectIDs))
+	for rows.Next() {
+		item, scanErr := scanProjectFile(rows)
+		if scanErr != nil {
+			return nil, fmt.Errorf("scan project file: %w", scanErr)
+		}
+		fileMap[item.ProjectID] = append(fileMap[item.ProjectID], item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate project files: %w", err)
+	}
+	return fileMap, nil
+}
+
+func (r *SQLRepository) loadSnapshotsByProjectIDs(
+	ctx context.Context,
+	projectIDs []uint64,
+) (map[uint64]Snapshot, error) {
+	for _, id := range projectIDs {
+		if id == 0 {
+			return nil, ErrInvalidInput
+		}
+	}
+	args, err := toDBArgs(projectIDs)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := r.db.QueryContext(
+		ctx,
+		r.placeholder.rebind(`SELECT
+			project_id, normalized_compose_json, config_hash, declared_service_count, declared_services_digest, refreshed_at
+		FROM compose_project_snapshots
+		WHERE project_id IN (`+placeholderList(len(args))+`)
+		ORDER BY project_id ASC`),
+		args...,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list project snapshots: %w", err)
+	}
+	defer closeRows(rows)
+
+	snapshotMap := make(map[uint64]Snapshot, len(projectIDs))
+	for rows.Next() {
+		item, scanErr := scanSnapshot(rows)
+		if scanErr != nil {
+			return nil, fmt.Errorf("scan project snapshot: %w", scanErr)
+		}
+		snapshotMap[item.ProjectID] = item
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate project snapshots: %w", err)
+	}
+	return snapshotMap, nil
 }
 
 func (r *SQLRepository) upsertProject(

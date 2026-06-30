@@ -24,7 +24,7 @@ const (
 	// ProjectImportRoute identifies the import-and-register route fragment.
 	ProjectImportRoute = "/import"
 	// ProjectManagedRootRoute identifies the managed-root metadata route fragment.
-	ProjectManagedRootRoute = "/managed-root"
+	ProjectManagedRootRoute = "/managed/root"
 	// ProjectCreateValidateRoute identifies the managed-create validation route fragment.
 	ProjectCreateValidateRoute = "/create/validate"
 	// ProjectCreateRoute identifies the managed-create route fragment.

@@ -711,6 +711,7 @@ const expandedDiffPanels = ref<Array<string | number>>([]);
 const activityMembers = ref<ActivityMember[]>([]);
 const activityLoading = ref(false);
 const activityError = ref('');
+const configurationLoadRequestId = ref(0);
 const activeTab = ref(String(route.query.tab || 'overview'));
 const actionLoading = ref<ProjectActionResponse['action'] | ''>('');
 const activitySince = ref('1h');
@@ -856,34 +857,51 @@ async function loadServices() {
 
 async function loadConfiguration() {
   if (!Number.isFinite(projectId.value)) return;
+  const requestId = configurationLoadRequestId.value + 1;
+  configurationLoadRequestId.value = requestId;
   configurationLoading.value = true;
+  resetConfigurationState();
   try {
     const [metadata, preview] = await Promise.all([
       getProjectConfiguration(projectId.value),
       getProjectConfigurationPreview(projectId.value),
     ]);
+    if (requestId !== configurationLoadRequestId.value) {
+      return;
+    }
     configurationMetadata.value = metadata;
     configurationPreview.value = preview;
     const firstFile = metadata.compose_files[0]?.id ?? metadata.env_files[0]?.id;
     if (typeof firstFile === 'number') {
-      await selectConfigurationFile(firstFile);
+      await selectConfigurationFile(firstFile, requestId);
     }
-    hydrateDraftFromCurrent(metadata);
+    await hydrateDraftFromCurrent(metadata, requestId);
   } catch (error) {
     logger.error('failed to load project configuration', error);
+    if (requestId === configurationLoadRequestId.value) {
+      resetConfigurationState();
+    }
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.list.retry')));
   } finally {
-    configurationLoading.value = false;
+    if (requestId === configurationLoadRequestId.value) {
+      configurationLoading.value = false;
+    }
   }
 }
 
-async function selectConfigurationFile(fileId: number) {
+async function selectConfigurationFile(fileId: number, requestId?: number) {
   if (!Number.isFinite(projectId.value)) return;
   try {
-    selectedConfigurationFile.value = await getProjectConfigurationFile(projectId.value, fileId);
+    const response = await getProjectConfigurationFile(projectId.value, fileId);
+    if (typeof requestId === 'number' && requestId !== configurationLoadRequestId.value) {
+      return;
+    }
+    selectedConfigurationFile.value = response;
   } catch (error) {
     logger.error('failed to load project configuration file', error);
-    selectedConfigurationFile.value = null;
+    if (typeof requestId !== 'number' || requestId === configurationLoadRequestId.value) {
+      selectedConfigurationFile.value = null;
+    }
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.list.retry')));
   }
 }
@@ -898,34 +916,42 @@ async function copyConfigurationContent() {
   }
 }
 
-function hydrateDraftFromCurrent(metadata: ProjectConfigurationMetadataResponse) {
+async function hydrateDraftFromCurrent(metadata: ProjectConfigurationMetadataResponse, requestId?: number) {
   const composeFileId = metadata.compose_files[0]?.id;
   const envFileId = metadata.env_files[0]?.id;
-  const tasks: Promise<unknown>[] = [];
-  if (typeof composeFileId === 'number') {
-    tasks.push(
-      getProjectConfigurationFile(projectId.value, composeFileId).then((response) => {
-        configurationDraft.compose_file_content = response.content;
-      }),
-    );
-  }
-  if (typeof envFileId === 'number') {
-    tasks.push(
-      getProjectConfigurationFile(projectId.value, envFileId).then((response) => {
-        configurationDraft.env_file_content = response.content;
-      }),
-    );
-  } else {
-    configurationDraft.env_file_content = '';
-  }
-  void Promise.all(tasks).catch((error) => {
+  try {
+    const [composeResponse, envResponse] = await Promise.all([
+      typeof composeFileId === 'number'
+        ? getProjectConfigurationFile(projectId.value, composeFileId)
+        : Promise.resolve(null),
+      typeof envFileId === 'number' ? getProjectConfigurationFile(projectId.value, envFileId) : Promise.resolve(null),
+    ]);
+    if (typeof requestId === 'number' && requestId !== configurationLoadRequestId.value) {
+      return;
+    }
+    configurationDraft.compose_file_content = composeResponse?.content || '';
+    configurationDraft.env_file_content = envResponse?.content || '';
+  } catch (error) {
+    resetConfigurationState();
     logger.error('failed to hydrate project draft', error);
-  });
+    throw error;
+  }
+}
+
+function resetConfigurationState() {
+  configurationMetadata.value = null;
+  configurationPreview.value = null;
+  selectedConfigurationFile.value = null;
+  configurationDiffResult.value = null;
+  configurationValidateResult.value = null;
+  expandedDiffPanels.value = [];
+  configurationDraft.compose_file_content = '';
+  configurationDraft.env_file_content = '';
 }
 
 function resetDraftFromCurrent() {
   if (configurationMetadata.value) {
-    hydrateDraftFromCurrent(configurationMetadata.value);
+    void hydrateDraftFromCurrent(configurationMetadata.value);
   }
   configurationDiffResult.value = null;
   configurationValidateResult.value = null;

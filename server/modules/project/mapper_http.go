@@ -201,7 +201,7 @@ func toDeployResponse(result DeployResult) generated.ProjectDeployResponse {
 		response.Message = result.Message
 	}
 	if len(result.GuardResults) > 0 {
-		items := append([]string(nil), result.GuardResults...)
+		items := toGeneratedGuardResults(result.GuardResults)
 		response.GuardResults = &items
 	}
 	return response
@@ -221,10 +221,25 @@ func toActionResponse(result ActionResult) generated.ProjectActionResponse {
 		response.Message = result.Message
 	}
 	if len(result.GuardResults) > 0 {
-		items := append([]string(nil), result.GuardResults...)
+		items := toGeneratedGuardResults(result.GuardResults)
 		response.GuardResults = &items
 	}
 	return response
+}
+
+func toGeneratedGuardResults(items []GuardResult) []generated.ProjectGuardResult {
+	result := make([]generated.ProjectGuardResult, 0, len(items))
+	for _, item := range items {
+		mapped := generated.ProjectGuardResult{Code: item.Code}
+		if item.MessageKey != nil {
+			mapped.MessageKey = item.MessageKey
+		}
+		if item.Detail != nil {
+			mapped.Detail = item.Detail
+		}
+		result = append(result, mapped)
+	}
+	return result
 }
 
 // toManagedRootResponse 将托管根信息转换为项目托管根响应。

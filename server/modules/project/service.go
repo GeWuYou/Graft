@@ -172,7 +172,7 @@ type DeployResult struct {
 	DeclaredServiceCount int
 	MessageKey           *string
 	Message              *string
-	GuardResults         []string
+	GuardResults         []GuardResult
 }
 
 type preparedConfigurationDraft struct {
@@ -188,7 +188,14 @@ type ActionResult struct {
 	Result       generated.ProjectActionResponseResult
 	MessageKey   *string
 	Message      *string
-	GuardResults []string
+	GuardResults []GuardResult
+}
+
+// GuardResult is the stable structured contract for blocked/guarded project actions.
+type GuardResult struct {
+	Code       string
+	MessageKey *string
+	Detail     *string
 }
 
 // DestroyRequest describes guarded destroy options.
@@ -237,11 +244,11 @@ type ManagedProjectCreateValidationResult struct {
 
 // ManagedProjectCreateResult returns the created managed project bootstrap after write + persist.
 type ManagedProjectCreateResult struct {
-	Validation            ManagedProjectCreateValidationResult
-	ProjectID             uint64
-	ConfigHash            string
-	DeclaredServiceCount  int
-	RefreshedAt           time.Time
+	Validation           ManagedProjectCreateValidationResult
+	ProjectID            uint64
+	ConfigHash           string
+	DeclaredServiceCount int
+	RefreshedAt          time.Time
 }
 
 // Service owns project registry, import, and readonly refresh/configuration use cases.
@@ -288,6 +295,22 @@ func WithSystemConfigResolver(resolver moduleapi.SystemConfigResolver) ServiceOp
 	return serviceOptionFunc(func(s *Service) {
 		s.configResolver = resolver
 	})
+}
+
+// SetRuntimeReader injects the runtime reader after module registration resolves cross-module services.
+func (s *Service) SetRuntimeReader(reader moduleapi.ContainerProjectRuntimeReader) {
+	if s == nil {
+		return
+	}
+	s.runtimeReader = reader
+}
+
+// SetSystemConfigResolver injects the system-config resolver after module registration.
+func (s *Service) SetSystemConfigResolver(resolver moduleapi.SystemConfigResolver) {
+	if s == nil {
+		return
+	}
+	s.configResolver = resolver
 }
 
 // List returns one page of registered projects.
@@ -666,7 +689,7 @@ type normalizedManagedCreateRequest struct {
 	EnvFileContent           *string
 }
 
-// normalizeManagedCreateRequest 规范化受控创建请求并校验必填字段。  
+// normalizeManagedCreateRequest 规范化受控创建请求并校验必填字段。
 // 它会修剪显示名、规范名、compose 内容和文件名，校验相对目录、compose 文件名以及可选 env 文件信息，并在必填项缺失时返回错误。
 func normalizeManagedCreateRequest(request ManagedProjectCreateRequest) (normalizedManagedCreateRequest, error) {
 	displayName := strings.TrimSpace(request.DisplayName)
@@ -703,7 +726,7 @@ func normalizeManagedCreateRequest(request ManagedProjectCreateRequest) (normali
 }
 
 // normalizeManagedRelativeDirectory 规范化并校验 managed-create 的相对项目目录。
-// 它会去除首尾空白、统一路径分隔符并清理路径，同时确保目录保持在 managed root 下。  
+// 它会去除首尾空白、统一路径分隔符并清理路径，同时确保目录保持在 managed root 下。
 // @param value 待规范化的相对目录。
 // @returns 规范化后的相对目录；当目录为空、为绝对路径或会逃逸 managed root 时返回错误。
 func normalizeManagedRelativeDirectory(value string) (string, error) {
@@ -726,8 +749,15 @@ func normalizeManagedRelativeDirectory(value string) (string, error) {
 
 // 它会去除首尾空白并提取最后一个路径段；当结果为空、`.` 或路径分隔符时返回错误。
 func normalizeManagedFileName(value string, label string) (string, error) {
-	fileName := filepath.Base(strings.TrimSpace(value))
-	if fileName == "" || fileName == "." || fileName == string(filepath.Separator) {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" || trimmed == "." || trimmed == string(filepath.Separator) {
+		return "", fmt.Errorf("%w: invalid %s file name", errProjectInvalidArgument, label)
+	}
+	if filepath.IsAbs(trimmed) || strings.Contains(trimmed, "/") || strings.Contains(trimmed, `\`) {
+		return "", fmt.Errorf("%w: invalid %s file name", errProjectInvalidArgument, label)
+	}
+	fileName := filepath.Base(trimmed)
+	if fileName == "" || fileName == "." || fileName != trimmed {
 		return "", fmt.Errorf("%w: invalid %s file name", errProjectInvalidArgument, label)
 	}
 	return fileName, nil
@@ -832,6 +862,15 @@ func managedCreateEnvFileList(envFileAbsolutePath *string) []string {
 	return []string{*envFileAbsolutePath}
 }
 
+func guardCode(code string) GuardResult {
+	return GuardResult{Code: code}
+}
+
+func guardDetail(code string, detail string) GuardResult {
+	detail = strings.TrimSpace(detail)
+	return GuardResult{Code: code, Detail: &detail}
+}
+
 // Up executes docker compose up -d within the project's registered working directory.
 func (s *Service) Up(ctx context.Context, projectID uint64, actorID *uint64) (ActionResult, error) {
 	return s.runLifecycleAction(ctx, projectID, actorID, generated.ProjectActionUp, []string{"compose", "up", "-d"})
@@ -864,12 +903,16 @@ func (s *Service) Unregister(ctx context.Context, projectID uint64, actorID *uin
 	}
 	messageKey := projectcontract.ProjectUnregisterCompleted.String()
 	return ActionResult{
-		ProjectID:    projectID,
-		Action:       generated.ProjectActionUnregister,
-		Result:       generated.ProjectActionResultCompleted,
-		MessageKey:   &messageKey,
-		Message:      &messageKey,
-		GuardResults: []string{"registry_deleted", "working_directory_preserved", "runtime_state_not_persisted"},
+		ProjectID:  projectID,
+		Action:     generated.ProjectActionUnregister,
+		Result:     generated.ProjectActionResultCompleted,
+		MessageKey: &messageKey,
+		Message:    &messageKey,
+		GuardResults: []GuardResult{
+			guardCode("registry_deleted"),
+			guardCode("working_directory_preserved"),
+			guardCode("runtime_state_not_persisted"),
+		},
 	}, nil
 }
 
@@ -897,19 +940,19 @@ func validateDestroyRequest(
 	aggregate projectstore.ProjectAggregate,
 	request DestroyRequest,
 ) (ActionResult, error) {
-	guardResults := []string{}
+	guardResults := []GuardResult{}
 	if strings.TrimSpace(request.ConfirmCanonicalProjectName) != aggregate.Project.CanonicalProjectName {
-		return blockedActionResult(projectID, generated.ProjectActionDestroy, append(guardResults, "confirm_canonical_project_name_mismatch")), errProjectDestroyBlocked
+		return blockedActionResult(projectID, generated.ProjectActionDestroy, append(guardResults, guardCode("confirm_canonical_project_name_mismatch"))), errProjectDestroyBlocked
 	}
-	guardResults = append(guardResults, "confirm_canonical_project_name_matched")
+	guardResults = append(guardResults, guardCode("confirm_canonical_project_name_matched"))
 
 	if request.RemoveNamedVolumes {
-		guardResults = append(guardResults, "remove_named_volumes_blocked:phase1_volume_exclusivity_not_proven")
+		guardResults = append(guardResults, guardDetail("remove_named_volumes_blocked", "phase1_volume_exclusivity_not_proven"))
 		return blockedActionResult(projectID, generated.ProjectActionDestroy, guardResults), errProjectDestroyBlocked
 	}
 
 	if request.DeleteWorkingDirectory && aggregate.Project.OwnershipMode != projectcontract.OwnershipModeManagedRootDedicated.String() {
-		guardResults = append(guardResults, "delete_working_directory_blocked:ownership_mode_external")
+		guardResults = append(guardResults, guardDetail("delete_working_directory_blocked", "ownership_mode_external"))
 		return blockedActionResult(projectID, generated.ProjectActionDestroy, guardResults), errProjectDestroyBlocked
 	}
 	return ActionResult{}, nil
@@ -921,19 +964,19 @@ func (s *Service) destroyAfterGuard(
 	request DestroyRequest,
 ) (ActionResult, error) {
 	projectID := aggregate.Project.ID
-	guardResults := []string{"confirm_canonical_project_name_matched"}
+	guardResults := []GuardResult{guardCode("confirm_canonical_project_name_matched")}
 	if _, err := s.runLifecycleActionWithAggregate(ctx, aggregate, request.ActorID, generated.ProjectActionDown, []string{"compose", "down"}); err != nil {
 		return ActionResult{}, err
 	}
-	guardResults = append(guardResults, "compose_down_completed")
+	guardResults = append(guardResults, guardCode("compose_down_completed"))
 
 	if request.DeleteWorkingDirectory {
 		if err := os.RemoveAll(filepath.Clean(aggregate.Project.WorkingDirectory)); err != nil {
 			return ActionResult{}, fmt.Errorf("%w: %v", errProjectUnsupportedLifecycle, err)
 		}
-		guardResults = append(guardResults, "working_directory_deleted")
+		guardResults = append(guardResults, guardCode("working_directory_deleted"))
 	} else {
-		guardResults = append(guardResults, "working_directory_preserved")
+		guardResults = append(guardResults, guardCode("working_directory_preserved"))
 	}
 
 	repository, err := s.repositoryOrErr()
@@ -946,7 +989,7 @@ func (s *Service) destroyAfterGuard(
 	}); err != nil {
 		return ActionResult{}, mapStoreError(err)
 	}
-	guardResults = append(guardResults, "registry_deleted")
+	guardResults = append(guardResults, guardCode("registry_deleted"))
 	messageKey := projectcontract.ProjectDestroyCompleted.String()
 	return ActionResult{
 		ProjectID:    projectID,
@@ -1097,39 +1140,33 @@ func (s *Service) DeployConfiguration(ctx context.Context, projectID uint64, dra
 	if err != nil {
 		return DeployResult{}, err
 	}
-	restoreItems, err := writeManagedDraft(prepared.Proposal)
-	if err != nil {
-		return DeployResult{}, fmt.Errorf("%w: %v", errProjectImportValidation, err)
-	}
-	shouldRestore := true
-	defer func() {
-		if shouldRestore {
-			restoreManagedDraft(restoreItems)
-		}
-	}()
-
 	repository, err := s.repositoryOrErr()
 	if err != nil {
 		return DeployResult{}, err
 	}
+	restoreItems, err := writeManagedDraft(prepared.Proposal)
+	if err != nil {
+		return DeployResult{}, fmt.Errorf("%w: %v", errProjectImportValidation, err)
+	}
+	defer restoreManagedDraft(restoreItems)
+
 	now := time.Now().UTC()
+	if _, err := s.runLifecycleActionWithAggregate(ctx, aggregate, actorID, generated.ProjectActionDeploy, []string{"compose", "up", "-d"}); err != nil {
+		return DeployResult{}, err
+	}
 	updated, err := repository.RefreshProject(ctx, buildRefreshProjectInput(projectID, prepared.ParseResult, now, actorID))
 	if err != nil {
 		return DeployResult{}, mapStoreError(err)
 	}
-	if _, err := s.runLifecycleActionWithAggregate(ctx, updated, actorID, generated.ProjectActionDeploy, []string{"compose", "up", "-d"}); err != nil {
-		return DeployResult{}, err
-	}
-	shouldRestore = false
 	messageKey := projectcontract.ProjectDeployCompleted.String()
-	guardResults := []string{
-		"managed_project=true",
-		"draft_written=true",
-		"snapshot_refreshed=true",
-		"command=docker compose up -d",
+	guardResults := []GuardResult{
+		guardCode("managed_project"),
+		guardCode("draft_written"),
+		guardDetail("command", "docker compose up -d"),
+		guardCode("snapshot_refreshed"),
 	}
 	if len(prepared.Warnings) > 0 {
-		guardResults = append(guardResults, "warnings="+strings.Join(prepared.Warnings, "|"))
+		guardResults = append(guardResults, guardDetail("warnings", strings.Join(prepared.Warnings, "|")))
 	}
 	return DeployResult{
 		ProjectID:            projectID,
@@ -1154,7 +1191,7 @@ func (s *Service) UnsupportedLifecycleAction(projectID uint64, action generated.
 		Result:       generated.ProjectActionResultBlocked,
 		MessageKey:   stringPointer(projectcontract.ProjectLifecycleAccepted.String()),
 		Message:      stringPointer(projectcontract.ProjectLifecycleAccepted.String()),
-		GuardResults: []string{"batch-2-scope: lifecycle execution is deferred to phase-1-batch-3"},
+		GuardResults: []GuardResult{guardDetail("batch-2-scope", "lifecycle execution is deferred to phase-1-batch-3")},
 	}, errProjectUnsupportedLifecycle
 }
 
@@ -1180,24 +1217,27 @@ func (s *Service) runLifecycleActionWithAggregate(
 	args []string,
 ) (ActionResult, error) {
 	if err := ensureProjectLifecycleReady(aggregate); err != nil {
-		return blockedActionResult(aggregate.Project.ID, action, []string{"lifecycle_blocked:refresh_required"}), err
+		return blockedActionResult(aggregate.Project.ID, action, []GuardResult{guardDetail("lifecycle_blocked", "refresh_required")}), err
 	}
 	if err := ensureLifecycleCommandArgs(args); err != nil {
-		return blockedActionResult(aggregate.Project.ID, action, []string{"lifecycle_blocked:invalid_command"}), err
+		return blockedActionResult(aggregate.Project.ID, action, []GuardResult{guardDetail("lifecycle_blocked", "invalid_command")}), err
 	}
 	commandOutput, err := s.runComposeCommand(ctx, aggregate, args)
 	if err != nil {
-		result := blockedActionResult(aggregate.Project.ID, action, []string{"lifecycle_failed:" + summarizeCommandOutput(commandOutput)})
+		result := blockedActionResult(aggregate.Project.ID, action, []GuardResult{guardDetail("lifecycle_failed", summarizeCommandOutput(commandOutput))})
 		return result, fmt.Errorf("%w: %v", errProjectUnsupportedLifecycle, err)
 	}
 	messageKey := lifecycleMessageKey(action).String()
 	return ActionResult{
-		ProjectID:    aggregate.Project.ID,
-		Action:       action,
-		Result:       generated.ProjectActionResultCompleted,
-		MessageKey:   &messageKey,
-		Message:      &messageKey,
-		GuardResults: []string{"command=" + strings.Join(args, " "), "host_scope=" + aggregate.Project.HostScope},
+		ProjectID:  aggregate.Project.ID,
+		Action:     action,
+		Result:     generated.ProjectActionResultCompleted,
+		MessageKey: &messageKey,
+		Message:    &messageKey,
+		GuardResults: []GuardResult{
+			guardDetail("command", strings.Join(args, " ")),
+			guardDetail("host_scope", aggregate.Project.HostScope),
+		},
 	}, nil
 }
 
@@ -1245,7 +1285,7 @@ func ensureProjectLifecycleReady(aggregate projectstore.ProjectAggregate) error 
 // @param action 操作类型。
 // @param guardResults 守卫结果列表。
 // @returns 标记为 blocked 的 ActionResult，包含项目 ID、操作类型、阻止消息以及守卫结果副本。
-func blockedActionResult(projectID uint64, action generated.ProjectActionResponseAction, guardResults []string) ActionResult {
+func blockedActionResult(projectID uint64, action generated.ProjectActionResponseAction, guardResults []GuardResult) ActionResult {
 	messageKey := projectcontract.ProjectLifecycleBlocked.String()
 	return ActionResult{
 		ProjectID:    projectID,
@@ -1253,7 +1293,7 @@ func blockedActionResult(projectID uint64, action generated.ProjectActionRespons
 		Result:       generated.ProjectActionResultBlocked,
 		MessageKey:   &messageKey,
 		Message:      &messageKey,
-		GuardResults: append([]string(nil), guardResults...),
+		GuardResults: append([]GuardResult(nil), guardResults...),
 	}
 }
 
@@ -1422,7 +1462,7 @@ func (s *Service) computeConflicts(
 }
 
 // sameDisplayName 判断给定名称与已有名称在去除首尾空白后是否一致。
-// 
+//
 // @param value 待比较的名称。
 // @param existing 已存在的名称。
 // @returns 当两者去除首尾空白后相等时返回 true，否则返回 false。
@@ -1775,13 +1815,11 @@ func (s *Service) prepareConfigurationDraft(
 		content := current.EnvContent
 		proposal.EnvContent = &content
 	}
-	restoreItems, err := writeManagedDraft(proposal)
+	draftInput, err := buildManagedDraftInput(aggregate.Project.WorkingDirectory, proposal)
 	if err != nil {
 		return preparedConfigurationDraft{}, err
 	}
-	defer restoreManagedDraft(restoreItems)
-
-	parseResult, err := s.loadFromAggregate(aggregate)
+	parseResult, err := projectcompose.Load(draftInput)
 	if err != nil {
 		return preparedConfigurationDraft{}, err
 	}
@@ -1795,6 +1833,27 @@ func (s *Service) prepareConfigurationDraft(
 		ParseResult: parseResult,
 		Warnings:    warnings,
 	}, nil
+}
+
+func buildManagedDraftInput(workingDirectory string, proposal managedDraftProposal) (projectcompose.Input, error) {
+	input := projectcompose.Input{
+		WorkingDirectory: workingDirectory,
+		ComposeFiles:     []string{proposal.ComposePath},
+	}
+	if proposal.EnvPath != "" && proposal.EnvContent != nil {
+		input.EnvFiles = []string{proposal.EnvPath}
+	}
+	return input.WithContentOverrides(map[string][]byte{
+		proposal.ComposePath: []byte(proposal.ComposeContent),
+		proposal.EnvPath:     optionalDraftBytes(proposal.EnvPath, proposal.EnvContent),
+	}), nil
+}
+
+func optionalDraftBytes(path string, content *string) []byte {
+	if path == "" || content == nil {
+		return nil
+	}
+	return []byte(*content)
 }
 
 // writeManagedDraft 写入托管草案的 compose 文件，并在需要时写入 env 文件，同时返回用于恢复原状态的记录。

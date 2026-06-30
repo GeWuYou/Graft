@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
+
+	projectcontract "graft/server/modules/project/contract"
 )
 
 const (
@@ -26,11 +28,21 @@ func (r *SQLRepository) ensureReady() error {
 }
 
 // normalizeListQuery 规范化列表查询参数。
-// 它会去除筛选字段首尾空白，并将分页参数限制在允许范围内。
-func normalizeListQuery(query ListQuery) ListQuery {
-	query.SourceKind = strings.TrimSpace(query.SourceKind)
-	query.DriftStatus = strings.TrimSpace(query.DriftStatus)
-	query.LastRefreshStatus = strings.TrimSpace(query.LastRefreshStatus)
+// 它会去除筛选字段首尾空白、校验可选 typed-contract 过滤值，并将分页参数限制在允许范围内。
+func normalizeListQuery(query ListQuery) (ListQuery, error) {
+	var err error
+	query.SourceKind, err = normalizeOptionalContractValue(query.SourceKind, isValidSourceKind)
+	if err != nil {
+		return ListQuery{}, err
+	}
+	query.DriftStatus, err = normalizeOptionalContractValue(query.DriftStatus, isValidDriftStatus)
+	if err != nil {
+		return ListQuery{}, err
+	}
+	query.LastRefreshStatus, err = normalizeOptionalContractValue(query.LastRefreshStatus, isValidRefreshStatus)
+	if err != nil {
+		return ListQuery{}, err
+	}
 	if query.Limit <= 0 {
 		query.Limit = defaultListLimit
 	}
@@ -40,7 +52,7 @@ func normalizeListQuery(query ListQuery) ListQuery {
 	if query.Offset < 0 {
 		query.Offset = 0
 	}
-	return query
+	return query, nil
 }
 
 // validateImportInput 规范化并校验导入项目输入，返回可直接使用的输入值。
@@ -49,6 +61,9 @@ func validateImportInput(input ImportProjectInput) (ImportProjectInput, error) {
 	input = trimImportInput(input)
 	if err := validateRequiredImportFields(input); err != nil {
 		return ImportProjectInput{}, ErrInvalidInput
+	}
+	if err := validateImportContracts(input); err != nil {
+		return ImportProjectInput{}, err
 	}
 	files, err := normalizeFiles(input.Files)
 	if err != nil {
@@ -121,6 +136,9 @@ func validateRefreshInput(input RefreshProjectInput) (RefreshProjectInput, error
 	if input.LastRefreshStatus == "" || input.DriftStatus == "" {
 		return RefreshProjectInput{}, ErrInvalidInput
 	}
+	if err := validateRefreshContracts(input); err != nil {
+		return RefreshProjectInput{}, err
+	}
 	files, err := normalizeFiles(input.Files)
 	if err != nil {
 		return RefreshProjectInput{}, err
@@ -181,6 +199,9 @@ func normalizeProjectFile(item ProjectFile, index int) (ProjectFile, error) {
 	if item.Kind == "" || item.Role == "" || item.AbsolutePath == "" || item.DisplayPath == "" {
 		return ProjectFile{}, ErrInvalidInput
 	}
+	if !isValidFileKind(item.Kind) || !isValidFileRole(item.Role) {
+		return ProjectFile{}, ErrInvalidInput
+	}
 	if item.OrderIndex < 0 {
 		return ProjectFile{}, ErrInvalidInput
 	}
@@ -219,11 +240,166 @@ func normalizeTemporalPointers(values ...**time.Time) {
 	}
 }
 
+func validateImportContracts(input ImportProjectInput) error {
+	switch {
+	case !isValidCanonicalProjectNameSource(input.CanonicalProjectNameSource):
+		return ErrInvalidInput
+	case !isValidSourceKind(input.SourceKind):
+		return ErrInvalidInput
+	case !isValidHostScope(input.HostScope):
+		return ErrInvalidInput
+	case !isValidOwnershipMode(input.OwnershipMode):
+		return ErrInvalidInput
+	case !isValidRefreshStatus(input.LastRefreshStatus):
+		return ErrInvalidInput
+	case !isValidDriftStatus(input.DriftStatus):
+		return ErrInvalidInput
+	default:
+		return nil
+	}
+}
+
+func validateRefreshContracts(input RefreshProjectInput) error {
+	if !isValidRefreshStatus(input.LastRefreshStatus) || !isValidDriftStatus(input.DriftStatus) {
+		return ErrInvalidInput
+	}
+	return nil
+}
+
+func normalizeOptionalContractValue(value string, valid func(string) bool) (string, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "", nil
+	}
+	if !valid(value) {
+		return "", ErrInvalidInput
+	}
+	return value, nil
+}
+
+func isValidSourceKind(value string) bool {
+	switch value {
+	case projectcontract.SourceKindImported.String(),
+		projectcontract.SourceKindManaged.String(),
+		projectcontract.SourceKindGit.String(),
+		projectcontract.SourceKindTemplate.String():
+		return true
+	default:
+		return false
+	}
+}
+
+func isValidHostScope(value string) bool {
+	return value == projectcontract.HostScopeLocal.String()
+}
+
+func isValidOwnershipMode(value string) bool {
+	switch value {
+	case projectcontract.OwnershipModeExternal.String(),
+		projectcontract.OwnershipModeManagedRootDedicated.String():
+		return true
+	default:
+		return false
+	}
+}
+
+func isValidRefreshStatus(value string) bool {
+	switch value {
+	case projectcontract.RefreshStatusNever.String(),
+		projectcontract.RefreshStatusSuccess.String(),
+		projectcontract.RefreshStatusFailed.String():
+		return true
+	default:
+		return false
+	}
+}
+
+func isValidDriftStatus(value string) bool {
+	switch value {
+	case projectcontract.DriftStatusUnknown.String(),
+		projectcontract.DriftStatusClean.String(),
+		projectcontract.DriftStatusChanged.String(),
+		projectcontract.DriftStatusMissing.String():
+		return true
+	default:
+		return false
+	}
+}
+
+func isValidCanonicalProjectNameSource(value string) bool {
+	switch value {
+	case projectcontract.CanonicalProjectNameSourceComputed.String(),
+		projectcontract.CanonicalProjectNameSourceOverride.String():
+		return true
+	default:
+		return false
+	}
+}
+
+func isValidFileKind(value string) bool {
+	switch value {
+	case projectcontract.FileKindCompose.String(),
+		projectcontract.FileKindEnv.String():
+		return true
+	default:
+		return false
+	}
+}
+
+func isValidFileRole(value string) bool {
+	switch value {
+	case projectcontract.FileRolePrimary.String(),
+		projectcontract.FileRoleOverride.String(),
+		projectcontract.FileRoleEnv.String():
+		return true
+	default:
+		return false
+	}
+}
+
 // closeRows 关闭 rows 并忽略关闭过程中返回的错误。
 func closeRows(rows *sql.Rows) {
 	if rows != nil {
 		_ = rows.Close()
 	}
+}
+
+func listPageCapacity(total int, offset int, limit int) int {
+	if total <= offset {
+		return 0
+	}
+	remaining := total - offset
+	if remaining > limit {
+		return limit
+	}
+	return remaining
+}
+
+func toDBArgs(values []uint64) ([]any, error) {
+	args := make([]any, 0, len(values))
+	for _, value := range values {
+		dbID, err := toDBID(value)
+		if err != nil {
+			return nil, err
+		}
+		args = append(args, dbID)
+	}
+	return args, nil
+}
+
+func placeholderList(count int) string {
+	if count <= 0 {
+		return ""
+	}
+	var builder strings.Builder
+	builder.Grow(count*2 - 1)
+	for i := 0; i < count; i++ {
+		if i > 0 {
+			builder.WriteByte(',')
+		}
+		builder.WriteByte('?')
+	}
+	return builder.String()
 }
 
 // rollbackTx 回滚事务并忽略回滚过程中出现的错误。
@@ -361,6 +537,9 @@ func detectPlaceholderStyle(db *sql.DB) placeholderStyle {
 		pkgPath := driverType.PkgPath()
 		if strings.Contains(pkgPath, "pgx") || strings.Contains(pkgPath, "pq") {
 			return placeholderDollar
+		}
+		if driverType.Kind() != reflect.Pointer {
+			break
 		}
 		driverType = driverType.Elem()
 	}

@@ -31,17 +31,24 @@ func (r containerProjectRuntimeReader) ListProjectMembers(
 	if err != nil {
 		return summary, err
 	}
-	items, err := runtime.List(ctx, ListQuery{
-		Limit:           maxContainerListLimit,
-		Offset:          0,
-		Orchestrator:    containerOrchestratorCompose,
-		SourceScopeKind: composeProjectScopeKind,
-		SourceScope:     canonicalProjectName,
-	})
-	if err != nil {
-		return summary, err
+	offset := 0
+	for {
+		items, listErr := runtime.List(ctx, ListQuery{
+			Limit:           maxContainerListLimit,
+			Offset:          offset,
+			Orchestrator:    containerOrchestratorCompose,
+			SourceScopeKind: composeProjectScopeKind,
+			SourceScope:     canonicalProjectName,
+		})
+		if listErr != nil {
+			return summary, listErr
+		}
+		appendProjectMembers(&summary, items, canonicalProjectName)
+		if len(items) < maxContainerListLimit {
+			break
+		}
+		offset += len(items)
 	}
-	appendProjectMembers(&summary, items, canonicalProjectName)
 	sort.Slice(summary.Members, func(i, j int) bool {
 		if summary.Members[i].ServiceName == summary.Members[j].ServiceName {
 			if summary.Members[i].ContainerName == summary.Members[j].ContainerName {

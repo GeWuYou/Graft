@@ -37,5 +37,14 @@ post:
       $ref: ../components/responses/unauthorized.yaml
     '403':
       $ref: ../components/responses/forbidden.yaml
+    '409':
+      description: Managed create validation blocked by managed-root authority, ownership, or runtime guard.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
     '500':
       $ref: ../components/responses/internal-server-error.yaml

@@ -42,7 +42,7 @@
             class="management-list-search"
             clearable
             :placeholder="t('project.list.filters.searchPlaceholder')"
-            @enter="fetchProjects"
+            @enter="handleFilterQuery"
           />
           <t-select
             v-model="filters.sourceKind"
@@ -83,7 +83,7 @@
               :label="refreshStatusLabel(option)"
             />
           </t-select>
-          <t-button theme="primary" @click="fetchProjects">{{ t('project.list.filters.query') }}</t-button>
+          <t-button theme="primary" @click="handleFilterQuery">{{ t('project.list.filters.query') }}</t-button>
           <t-button theme="default" variant="text" @click="resetFilters">{{
             t('project.list.filters.reset')
           }}</t-button>
@@ -218,6 +218,19 @@
             </template>
           </t-table>
         </div>
+
+        <template #footer>
+          <management-table-pagination :summary="paginationSummary">
+            <t-pagination
+              v-model:current="pagination.current"
+              v-model:page-size="pagination.pageSize"
+              :total="pagination.total"
+              :page-size-options="[10, 20, 50, 100]"
+              :show-page-number="true"
+              @change="handlePageChange"
+            />
+          </management-table-pagination>
+        </template>
       </management-table-card>
 
       <t-drawer
@@ -252,6 +265,7 @@ import {
   ManagementPageContent,
   ManagementPageHeader,
   ManagementTableCard,
+  ManagementTablePagination,
   ManagementToolbar,
   resolveTableWidthPolicy,
   TableActionMenu,
@@ -289,6 +303,7 @@ import type {
   ProjectFilters,
   ProjectListItem,
   ProjectRefreshStatus,
+  ProjectRuntimeStatus,
   ProjectSourceKind,
 } from '../../types/project';
 
@@ -304,6 +319,11 @@ const logger = createLogger('project.list');
 const loading = ref(false);
 const errorMessage = ref('');
 const rows = ref<ProjectListItem[]>([]);
+const pagination = ref({
+  current: 1,
+  pageSize: 20,
+  total: 0,
+});
 const filters = ref<ProjectFilters>({
   keyword: '',
   sourceKind: 'all',
@@ -333,7 +353,7 @@ const visibleColumns = computed(() =>
 );
 const tableWidthPolicy = computed(() => resolveTableWidthPolicy(visibleColumns.value ?? [], tableHostWidth.value));
 
-const totalCount = computed(() => rows.value.length);
+const totalCount = computed(() => pagination.value.total);
 const runningContainerCount = computed(() => rows.value.reduce((sum, item) => sum + item.container_counts.running, 0));
 const stoppedContainerCount = computed(() => rows.value.reduce((sum, item) => sum + item.container_counts.stopped, 0));
 const warningProjectCount = computed(
@@ -350,6 +370,14 @@ const hasActiveFilters = computed(
     filters.value.driftStatus !== 'all' ||
     filters.value.lastRefreshStatus !== 'all',
 );
+const paginationSummary = computed(() => {
+  if (!pagination.value.total || rows.value.length === 0) {
+    return t('project.list.tableSummary', { count: rows.value.length });
+  }
+  const start = (pagination.value.current - 1) * pagination.value.pageSize + 1;
+  const end = start + rows.value.length - 1;
+  return `${start}-${end} / ${pagination.value.total}`;
+});
 
 onMounted(() => {
   void fetchProjects();
@@ -379,11 +407,11 @@ function refreshStatusTheme(value: ProjectRefreshStatus) {
   return projectRefreshStatusTheme(value);
 }
 
-function runtimeStatusTheme(value?: string | null) {
+function runtimeStatusTheme(value?: ProjectRuntimeStatus | null) {
   return projectRuntimeStatusTheme(value);
 }
 
-function runtimeStatusLabel(value?: string | null) {
+function runtimeStatusLabel(value?: ProjectRuntimeStatus | null) {
   return projectRuntimeStatusLabel(t, value);
 }
 
@@ -396,12 +424,13 @@ async function fetchProjects() {
   errorMessage.value = '';
   try {
     const response = await getProjects({
-      limit: 100,
-      offset: 0,
+      limit: pagination.value.pageSize,
+      offset: (pagination.value.current - 1) * pagination.value.pageSize,
       ...(filters.value.sourceKind !== 'all' ? { source_kind: filters.value.sourceKind } : {}),
       ...(filters.value.driftStatus !== 'all' ? { drift_status: filters.value.driftStatus } : {}),
       ...(filters.value.lastRefreshStatus !== 'all' ? { last_refresh_status: filters.value.lastRefreshStatus } : {}),
     });
+    syncPaginationFromResponse(response);
     const keyword = filters.value.keyword.trim().toLowerCase();
     rows.value = keyword
       ? response.items.filter((item) =>
@@ -413,9 +442,21 @@ async function fetchProjects() {
   } catch (error) {
     logger.error('failed to fetch projects', error);
     rows.value = [];
+    pagination.value.total = 0;
     errorMessage.value = resolveLocalizedErrorMessage(t, error, t('project.list.retry'));
   } finally {
     loading.value = false;
+  }
+}
+
+function syncPaginationFromResponse(response: { total?: number; limit?: number; offset?: number }) {
+  pagination.value.total =
+    typeof response.total === 'number' && response.total >= 0 ? response.total : rows.value.length;
+  if (typeof response.limit === 'number' && response.limit > 0) {
+    pagination.value.pageSize = response.limit;
+  }
+  if (typeof response.offset === 'number' && response.offset >= 0) {
+    pagination.value.current = Math.floor(response.offset / pagination.value.pageSize) + 1;
   }
 }
 
@@ -426,6 +467,18 @@ function resetFilters() {
     driftStatus: 'all',
     lastRefreshStatus: 'all',
   };
+  pagination.value.current = 1;
+  void fetchProjects();
+}
+
+function handleFilterQuery() {
+  pagination.value.current = 1;
+  void fetchProjects();
+}
+
+function handlePageChange(pageInfo: { current: number; pageSize: number }) {
+  pagination.value.current = pageInfo.current;
+  pagination.value.pageSize = pageInfo.pageSize;
   void fetchProjects();
 }
 

@@ -17,11 +17,14 @@ properties:
   relative_project_directory:
     type: string
     minLength: 1
+    maxLength: 255
+    pattern: '^[^./\\\\][^\\\\]*(/[^./\\\\][^\\\\]*)*$'
     description: Relative project directory under the canonical managed root.
   compose_file_name:
     type: string
     minLength: 1
     maxLength: 255
+    pattern: '^[^/\\\\]+$'
   compose_file_content:
     type: string
     minLength: 1
@@ -30,6 +33,7 @@ properties:
     type: string
     minLength: 1
     maxLength: 255
+    pattern: '^[^/\\\\]+$'
     nullable: true
   env_file_content:
     type: string

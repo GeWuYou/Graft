@@ -10562,7 +10562,7 @@
         }
       }
     },
-    "/api/ops/projects/managed-root": {
+    "/api/ops/projects/managed/root": {
       "get": {
         "tags": [
           "project"
@@ -10679,6 +10679,21 @@
           "403": {
             "$ref": "#/components/responses/forbidden"
           },
+          "409": {
+            "description": "Managed create validation blocked by managed-root authority, ownership, or runtime guard.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
           "500": {
             "$ref": "#/components/responses/internal-server-error"
           }
@@ -10752,6 +10767,21 @@
           },
           "403": {
             "$ref": "#/components/responses/forbidden"
+          },
+          "409": {
+            "description": "Managed create request blocked by managed-root authority, ownership, or runtime guard.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
           },
           "500": {
             "$ref": "#/components/responses/internal-server-error"
@@ -12738,6 +12768,9 @@
       },
       "ProjectContainerCounts": {
         "$ref": "#/components/schemas/project-container-counts"
+      },
+      "ProjectRuntimeStatus": {
+        "$ref": "#/components/schemas/project-runtime-status"
       },
       "ProjectListItem": {
         "$ref": "#/components/schemas/project-list-item"
@@ -20669,6 +20702,22 @@
           "ProjectOwnershipModeManagedRootDedicated"
         ]
       },
+      "project-runtime-status": {
+        "type": "string",
+        "enum": [
+          "running",
+          "partial",
+          "stopped",
+          "empty"
+        ],
+        "x-enum-varnames": [
+          "ProjectRuntimeStatusRunning",
+          "ProjectRuntimeStatusPartial",
+          "ProjectRuntimeStatusStopped",
+          "ProjectRuntimeStatusEmpty"
+        ],
+        "description": "Stable bounded runtime summary status for project overview consumers. Unknown or not-yet-derived runtime state should be expressed as null instead of a free-form string.\n"
+      },
       "project-container-counts": {
         "type": "object",
         "required": [
@@ -20735,7 +20784,7 @@
             "type": "string"
           },
           "runtime_status": {
-            "type": "string",
+            "$ref": "#/components/schemas/project-runtime-status",
             "nullable": true,
             "description": "Bounded runtime summary status for overview consumption only. It must not become a replacement for container runtime detail authority.\n"
           },
@@ -21178,17 +21227,21 @@
           "relative_project_directory": {
             "type": "string",
             "minLength": 1,
+            "maxLength": 255,
+            "pattern": "^[^./\\\\\\\\][^\\\\\\\\]*(/[^./\\\\\\\\][^\\\\\\\\]*)*$",
             "description": "Relative project directory under the canonical managed root."
           },
           "compose_file_name": {
             "type": "string",
             "minLength": 1,
-            "maxLength": 255
+            "maxLength": 255,
+            "pattern": "^[^/\\\\\\\\]+$"
           },
           "env_file_name": {
             "type": "string",
             "minLength": 1,
             "maxLength": 255,
+            "pattern": "^[^/\\\\\\\\]+$",
             "nullable": true
           }
         }
@@ -21283,12 +21336,15 @@
           "relative_project_directory": {
             "type": "string",
             "minLength": 1,
+            "maxLength": 255,
+            "pattern": "^[^./\\\\\\\\][^\\\\\\\\]*(/[^./\\\\\\\\][^\\\\\\\\]*)*$",
             "description": "Relative project directory under the canonical managed root."
           },
           "compose_file_name": {
             "type": "string",
             "minLength": 1,
-            "maxLength": 255
+            "maxLength": 255,
+            "pattern": "^[^/\\\\\\\\]+$"
           },
           "compose_file_content": {
             "type": "string",
@@ -21299,6 +21355,7 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 255,
+            "pattern": "^[^/\\\\\\\\]+$",
             "nullable": true
           },
           "env_file_content": {
@@ -21948,6 +22005,25 @@
           }
         }
       },
+      "project-guard-result": {
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message_key": {
+            "type": "string",
+            "nullable": true
+          },
+          "detail": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
       "project-deploy-response": {
         "type": "object",
         "required": [
@@ -22011,7 +22087,7 @@
           "guard_results": {
             "type": "array",
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/project-guard-result"
             }
           }
         }
@@ -22092,7 +22168,7 @@
           "guard_results": {
             "type": "array",
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/project-guard-result"
             },
             "description": "Structured guard outcomes such as ownership blocks or skipped destructive steps."
           }

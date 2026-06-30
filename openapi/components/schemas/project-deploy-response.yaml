@@ -43,4 +43,4 @@ properties:
   guard_results:
     type: array
     items:
-      type: string
+      $ref: ./project-guard-result.yaml

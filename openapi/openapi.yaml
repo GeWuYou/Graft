@@ -228,7 +228,7 @@ paths:
     $ref: ./paths/ops-projects.import-validate.yaml
   /api/ops/projects/import:
     $ref: ./paths/ops-projects.import.yaml
-  /api/ops/projects/managed-root:
+  /api/ops/projects/managed/root:
     $ref: ./paths/ops-projects.managed-root.yaml
   /api/ops/projects/create/validate:
     $ref: ./paths/ops-projects.create-validate.yaml
@@ -724,6 +724,8 @@ components:
       $ref: ./components/schemas/project-file-item.yaml
     ProjectContainerCounts:
       $ref: ./components/schemas/project-container-counts.yaml
+    ProjectRuntimeStatus:
+      $ref: ./components/schemas/project-runtime-status.yaml
     ProjectListItem:
       $ref: ./components/schemas/project-list-item.yaml
     ProjectListResponse:

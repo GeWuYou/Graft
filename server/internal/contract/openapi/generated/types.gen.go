@@ -2430,6 +2430,30 @@ func (e ProjectRefreshStatus) Valid() bool {
 	}
 }
 
+// Defines values for ProjectRuntimeStatus.
+const (
+	ProjectRuntimeStatusEmpty   ProjectRuntimeStatus = "empty"
+	ProjectRuntimeStatusPartial ProjectRuntimeStatus = "partial"
+	ProjectRuntimeStatusRunning ProjectRuntimeStatus = "running"
+	ProjectRuntimeStatusStopped ProjectRuntimeStatus = "stopped"
+)
+
+// Valid indicates whether the value is a known member of the ProjectRuntimeStatus enum.
+func (e ProjectRuntimeStatus) Valid() bool {
+	switch e {
+	case ProjectRuntimeStatusEmpty:
+		return true
+	case ProjectRuntimeStatusPartial:
+		return true
+	case ProjectRuntimeStatusRunning:
+		return true
+	case ProjectRuntimeStatusStopped:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ProjectSourceKind.
 const (
 	ProjectSourceKindGit      ProjectSourceKind = "git"
@@ -6881,7 +6905,7 @@ type ProjectActionResponse struct {
 	Action ProjectActionResponseAction `json:"action"`
 
 	// GuardResults Structured guard outcomes such as ownership blocks or skipped destructive steps.
-	GuardResults *[]string                   `json:"guard_results,omitempty"`
+	GuardResults *[]ProjectGuardResult       `json:"guard_results,omitempty"`
 	Message      *string                     `json:"message,omitempty"`
 	MessageKey   *string                     `json:"message_key,omitempty"`
 	ProjectId    int64                       `json:"project_id"`
@@ -7074,7 +7098,7 @@ type ProjectDeployResponse struct {
 	CanonicalProjectName string                      `json:"canonical_project_name"`
 	ConfigHash           string                      `json:"config_hash"`
 	DeclaredServiceCount *int                        `json:"declared_service_count,omitempty"`
-	GuardResults         *[]string                   `json:"guard_results,omitempty"`
+	GuardResults         *[]ProjectGuardResult       `json:"guard_results,omitempty"`
 	Message              *string                     `json:"message,omitempty"`
 	MessageKey           *string                     `json:"message_key,omitempty"`
 	OwnershipMode        ProjectOwnershipMode        `json:"ownership_mode"`
@@ -7121,10 +7145,10 @@ type ProjectDetailResponse struct {
 	OwnershipMode           ProjectOwnershipMode `json:"ownership_mode"`
 
 	// RuntimeStatus Bounded runtime summary status for overview consumption only. It must not become a replacement for container runtime detail authority.
-	RuntimeStatus    *string           `json:"runtime_status,omitempty"`
-	ServiceCount     int               `json:"service_count"`
-	SourceKind       ProjectSourceKind `json:"source_kind"`
-	WorkingDirectory string            `json:"working_directory"`
+	RuntimeStatus    *ProjectRuntimeStatus `json:"runtime_status,omitempty"`
+	ServiceCount     int                   `json:"service_count"`
+	SourceKind       ProjectSourceKind     `json:"source_kind"`
+	WorkingDirectory string                `json:"working_directory"`
 }
 
 // ProjectDriftStatus defines model for project-drift-status.
@@ -7149,6 +7173,13 @@ type ProjectFileKind string
 
 // ProjectFileRole defines model for project-file-role.
 type ProjectFileRole string
+
+// ProjectGuardResult defines model for project-guard-result.
+type ProjectGuardResult struct {
+	Code       string  `json:"code"`
+	Detail     *string `json:"detail,omitempty"`
+	MessageKey *string `json:"message_key,omitempty"`
+}
 
 // ProjectHostScope defines model for project-host-scope.
 type ProjectHostScope string
@@ -7204,10 +7235,10 @@ type ProjectListItem struct {
 	OwnershipMode              ProjectOwnershipMode       `json:"ownership_mode"`
 
 	// RuntimeStatus Bounded runtime summary status for overview consumption only. It must not become a replacement for container runtime detail authority.
-	RuntimeStatus    *string           `json:"runtime_status,omitempty"`
-	ServiceCount     int               `json:"service_count"`
-	SourceKind       ProjectSourceKind `json:"source_kind"`
-	WorkingDirectory string            `json:"working_directory"`
+	RuntimeStatus    *ProjectRuntimeStatus `json:"runtime_status,omitempty"`
+	ServiceCount     int                   `json:"service_count"`
+	SourceKind       ProjectSourceKind     `json:"source_kind"`
+	WorkingDirectory string                `json:"working_directory"`
 }
 
 // ProjectListResponse defines model for project-list-response.
@@ -7237,6 +7268,9 @@ type ProjectOwnershipMode string
 
 // ProjectRefreshStatus defines model for project-refresh-status.
 type ProjectRefreshStatus string
+
+// ProjectRuntimeStatus Stable bounded runtime summary status for project overview consumers. Unknown or not-yet-derived runtime state should be expressed as null instead of a free-form string.
+type ProjectRuntimeStatus string
 
 // ProjectServiceItem defines model for project-service-item.
 type ProjectServiceItem struct {

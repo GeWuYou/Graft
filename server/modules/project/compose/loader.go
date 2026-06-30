@@ -4,6 +4,7 @@ package compose
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -18,6 +19,23 @@ type Input struct {
 	WorkingDirectory string
 	ComposeFiles     []string
 	EnvFiles         []string
+	ContentOverrides map[string][]byte
+}
+
+// WithContentOverrides clones the input and applies absolute-path content overrides for bounded draft parsing.
+func (in Input) WithContentOverrides(overrides map[string][]byte) Input {
+	if len(overrides) == 0 {
+		return in
+	}
+	cloned := make(map[string][]byte, len(overrides))
+	for path, content := range overrides {
+		if strings.TrimSpace(path) == "" || content == nil {
+			continue
+		}
+		cloned[path] = append([]byte(nil), content...)
+	}
+	in.ContentOverrides = cloned
+	return in
 }
 
 // FileProjection stores one resolved project file input.
@@ -64,11 +82,11 @@ func Load(input Input) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
-	composeFiles, err := resolveComposeFiles(workingDirectory, input.ComposeFiles)
+	composeFiles, err := resolveComposeFiles(workingDirectory, input.ComposeFiles, input.ContentOverrides)
 	if err != nil {
 		return Result{}, err
 	}
-	envFiles, err := resolveEnvFiles(workingDirectory, input.EnvFiles)
+	envFiles, err := resolveEnvFiles(workingDirectory, input.EnvFiles, input.ContentOverrides)
 	if err != nil {
 		return Result{}, err
 	}
@@ -112,7 +130,7 @@ func Load(input Input) (Result, error) {
 //
 // 它按输入顺序处理每个文件，合并同名服务的静态信息，并返回服务首次出现的顺序和最终的服务映射。
 // 当文件内容写入哈希器失败或 Compose 文档解析失败时返回错误。
-// 
+//
 // @param composeFiles 已解析的 Compose 文件。
 // @param configHasher 用于累计配置内容哈希的写入器。
 // @returns 服务首次出现的顺序、按名称合并后的服务映射，以及错误。
@@ -232,13 +250,14 @@ func resolveWorkingDirectory(raw string) (string, error) {
 // @param workingDirectory 用于解析相对路径的工作目录。
 // @param requested 请求的 Compose 文件路径列表。
 // @returns 解析后的 Compose 文件投影列表。
-func resolveComposeFiles(workingDirectory string, requested []string) ([]FileProjection, error) {
+func resolveComposeFiles(workingDirectory string, requested []string, overrides map[string][]byte) ([]FileProjection, error) {
 	if len(requested) == 0 {
 		requested = []string{"compose.yaml"}
 	}
+	resolvedOverrides := inputOverrides(workingDirectory, overrides)
 	items := make([]FileProjection, 0, len(requested))
 	for index, path := range requested {
-		item, err := resolveFileProjection(workingDirectory, path, "compose", composeRole(index), index)
+		item, err := resolveFileProjection(workingDirectory, path, "compose", composeRole(index), index, resolvedOverrides)
 		if err != nil {
 			return nil, err
 		}
@@ -250,11 +269,11 @@ func resolveComposeFiles(workingDirectory string, requested []string) ([]FilePro
 // resolveEnvFiles 按顺序解析并读取环境文件投影。
 //
 // requested 为空时不添加默认文件；返回的切片保持请求顺序。
-```
-func resolveEnvFiles(workingDirectory string, requested []string) ([]FileProjection, error) {
+func resolveEnvFiles(workingDirectory string, requested []string, overrides map[string][]byte) ([]FileProjection, error) {
+	resolvedOverrides := inputOverrides(workingDirectory, overrides)
 	items := make([]FileProjection, 0, len(requested))
 	for index, path := range requested {
-		item, err := resolveFileProjection(workingDirectory, path, "env", "env", index)
+		item, err := resolveFileProjection(workingDirectory, path, "env", "env", index, resolvedOverrides)
 		if err != nil {
 			return nil, err
 		}
@@ -272,19 +291,23 @@ func resolveFileProjection(
 	kind string,
 	role string,
 	orderIndex int,
+	overrides map[string][]byte,
 ) (FileProjection, error) {
 	trimmed := strings.TrimSpace(path)
 	if trimmed == "" {
 		return FileProjection{}, fmt.Errorf("project file path is required")
 	}
-	absolute := trimmed
-	if !filepath.IsAbs(absolute) {
-		absolute = filepath.Join(workingDirectory, trimmed)
-	}
-	absolute = filepath.Clean(absolute)
-	content, err := os.ReadFile(absolute)
+	absolute, err := resolveBoundedPath(workingDirectory, trimmed)
 	if err != nil {
-		return FileProjection{}, fmt.Errorf("read project file %s: %w", absolute, err)
+		return FileProjection{}, err
+	}
+	content, ok := overrides[absolute]
+	if !ok {
+		// #nosec G304 -- absolute is normalized and constrained by resolveBoundedPath to stay under workingDirectory.
+		content, err = os.ReadFile(absolute)
+		if err != nil {
+			return FileProjection{}, fmt.Errorf("read project file %s: %w", absolute, err)
+		}
 	}
 	hash := sha256.Sum256(content)
 	return FileProjection{
@@ -297,6 +320,48 @@ func resolveFileProjection(
 		Hash:         hex.EncodeToString(hash[:]),
 		Exists:       true,
 	}, nil
+}
+
+func inputOverrides(workingDirectory string, overrides map[string][]byte) map[string][]byte {
+	if len(overrides) == 0 {
+		return nil
+	}
+	result := make(map[string][]byte, len(overrides))
+	for rawPath, content := range overrides {
+		absolute, err := resolveBoundedPath(workingDirectory, rawPath)
+		if err != nil {
+			continue
+		}
+		result[absolute] = append([]byte(nil), content...)
+	}
+	return result
+}
+
+func resolveBoundedPath(workingDirectory string, rawPath string) (string, error) {
+	trimmed := strings.TrimSpace(rawPath)
+	if trimmed == "" {
+		return "", fmt.Errorf("project file path is required")
+	}
+	if filepath.IsAbs(trimmed) {
+		absolute := filepath.Clean(trimmed)
+		relative, err := filepath.Rel(workingDirectory, absolute)
+		if err != nil {
+			return "", fmt.Errorf("resolve project file path %s: %w", trimmed, err)
+		}
+		if relative == "." || strings.HasPrefix(relative, "..") {
+			return "", fmt.Errorf("project file path must stay under working directory")
+		}
+		return absolute, nil
+	}
+	absolute := filepath.Clean(filepath.Join(workingDirectory, trimmed))
+	relative, err := filepath.Rel(workingDirectory, absolute)
+	if err != nil {
+		return "", fmt.Errorf("resolve project file path %s: %w", trimmed, err)
+	}
+	if relative == "." || strings.HasPrefix(relative, "..") {
+		return "", fmt.Errorf("project file path must stay under working directory")
+	}
+	return absolute, nil
 }
 
 // composeRole 返回 Compose 文件在请求顺序中的角色。
@@ -464,7 +529,7 @@ func marshalNormalized(root map[string]any) (string, []byte, error) {
 	if err != nil {
 		return "", nil, err
 	}
-	normalizedJSON, err := yaml.Marshal(jsonCompat)
+	normalizedJSON, err := json.Marshal(jsonCompat)
 	if err != nil {
 		return "", nil, fmt.Errorf("marshal normalized compose snapshot: %w", err)
 	}
