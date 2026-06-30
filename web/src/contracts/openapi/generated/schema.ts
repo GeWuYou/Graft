@@ -2167,6 +2167,66 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/ops/projects/{id}/configuration/diff': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Diff a managed project configuration draft
+     * @description Compares one managed project draft against the current tracked Compose and optional env files without writing files, changing runtime state, or introducing project-level runtime persistence.
+     */
+    post: operations['postProjectConfigurationDiff'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/projects/{id}/configuration/validate': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Validate a managed project configuration draft
+     * @description Validates one managed project draft against the current project authority without writing tracked files or changing runtime state.
+     */
+    post: operations['postProjectConfigurationValidate'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/projects/{id}/deploy': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Deploy a managed project configuration draft
+     * @description Writes one managed project draft to the tracked Compose and optional env files, refreshes the project snapshot, and runs `docker compose up -d` through project-owned lifecycle execution without introducing runtime-state persistence in the project module.
+     */
+    post: operations['postProjectDeploy'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/ops/projects/{id}/refresh': {
     parameters: {
       query?: never;
@@ -5286,11 +5346,79 @@ export interface components {
     'enveloped-project-configuration-file-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['project-configuration-file-response'];
     };
+    'project-configuration-diff-request': {
+      compose_file_content: string;
+      env_file_content?: string | null;
+    };
+    'project-configuration-diff-file': {
+      kind: components['schemas']['project-file-kind'];
+      path: string;
+      changed: boolean;
+      current_hash: string;
+      proposed_hash: string;
+      current_content: string;
+      proposed_content: string;
+    };
+    'project-configuration-diff-response': {
+      /** Format: int64 */
+      project_id: number;
+      canonical_project_name: string;
+      ownership_mode: components['schemas']['project-ownership-mode'];
+      current_config_hash: string;
+      proposed_config_hash: string;
+      has_changes: boolean;
+      files: components['schemas']['project-configuration-diff-file'][];
+      warnings?: string[];
+    };
+    'enveloped-project-configuration-diff-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['project-configuration-diff-response'];
+    };
+    'project-configuration-validate-request': {
+      compose_file_content: string;
+      env_file_content?: string | null;
+    };
+    'project-configuration-validate-response': {
+      /** Format: int64 */
+      project_id: number;
+      canonical_project_name: string;
+      ownership_mode: components['schemas']['project-ownership-mode'];
+      proposed_config_hash: string;
+      normalized_compose_yaml: string;
+      declared_service_names: string[];
+      warnings?: string[];
+    };
+    'enveloped-project-configuration-validate-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['project-configuration-validate-response'];
+    };
+    'project-deploy-request': {
+      compose_file_content: string;
+      env_file_content?: string | null;
+    };
+    'project-deploy-response': {
+      /** Format: int64 */
+      project_id: number;
+      /** @enum {string} */
+      action: 'deploy';
+      /** @enum {string} */
+      result: 'completed';
+      canonical_project_name: string;
+      ownership_mode: components['schemas']['project-ownership-mode'];
+      config_hash: string;
+      /** Format: date-time */
+      refreshed_at: string;
+      declared_service_count?: number;
+      message_key?: string | null;
+      message?: string | null;
+      guard_results?: string[];
+    };
+    'enveloped-project-deploy-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['project-deploy-response'];
+    };
     'project-action-response': {
       /** Format: int64 */
       project_id: number;
       /** @enum {string} */
-      action: 'refresh' | 'up' | 'down' | 'restart' | 'unregister' | 'destroy' | 'create';
+      action: 'refresh' | 'up' | 'down' | 'restart' | 'unregister' | 'destroy' | 'create' | 'deploy';
       /** @enum {string} */
       result: 'accepted' | 'completed' | 'blocked';
       message_key?: string;
@@ -11526,6 +11654,213 @@ export interface operations {
       403: components['responses']['forbidden'];
       /** @description Project record or file record not found. */
       404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postProjectConfigurationDiff: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
+        id: components['parameters']['project-id-path'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['project-configuration-diff-request'];
+      };
+    };
+    responses: {
+      /** @description Managed project configuration diff generated. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-project-configuration-diff-response'];
+        };
+      };
+      /** @description Invalid project id or draft payload. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Project record not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      /** @description The project is outside the bounded managed diff flow. */
+      409: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postProjectConfigurationValidate: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
+        id: components['parameters']['project-id-path'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['project-configuration-validate-request'];
+      };
+    };
+    responses: {
+      /** @description Managed project configuration draft validated. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-project-configuration-validate-response'];
+        };
+      };
+      /** @description Invalid project id or draft payload. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Project record not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      /** @description The project is outside the bounded managed validate flow. */
+      409: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postProjectDeploy: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
+        id: components['parameters']['project-id-path'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['project-deploy-request'];
+      };
+    };
+    responses: {
+      /** @description Managed project draft deployed. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-project-deploy-response'];
+        };
+      };
+      /** @description Invalid project id or deploy payload. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Project record not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      /** @description Deploy was blocked by project authority, bounded scope, or lifecycle execution. */
+      409: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;

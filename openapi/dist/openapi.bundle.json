@@ -11168,6 +11168,327 @@
         }
       }
     },
+    "/api/ops/projects/{id}/configuration/diff": {
+      "post": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Diff a managed project configuration draft",
+        "operationId": "postProjectConfigurationDiff",
+        "description": "Compares one managed project draft against the current tracked Compose and optional env files without writing files, changing runtime state, or introducing project-level runtime persistence.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/project-id-path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/project-configuration-diff-request"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Managed project configuration diff generated.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-project-configuration-diff-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid project id or draft payload.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Project record not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The project is outside the bounded managed diff flow.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/ops/projects/{id}/configuration/validate": {
+      "post": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Validate a managed project configuration draft",
+        "operationId": "postProjectConfigurationValidate",
+        "description": "Validates one managed project draft against the current project authority without writing tracked files or changing runtime state.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/project-id-path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/project-configuration-validate-request"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Managed project configuration draft validated.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-project-configuration-validate-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid project id or draft payload.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Project record not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The project is outside the bounded managed validate flow.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/ops/projects/{id}/deploy": {
+      "post": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Deploy a managed project configuration draft",
+        "operationId": "postProjectDeploy",
+        "description": "Writes one managed project draft to the tracked Compose and optional env files, refreshes the project snapshot, and runs `docker compose up -d` through project-owned lifecycle execution without introducing runtime-state persistence in the project module.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/project-id-path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/project-deploy-request"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Managed project draft deployed.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-project-deploy-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid project id or deploy payload.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Project record not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Deploy was blocked by project authority, bounded scope, or lifecycle execution.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
     "/api/ops/projects/{id}/refresh": {
       "post": {
         "tags": [
@@ -21420,6 +21741,299 @@
           }
         ]
       },
+      "project-configuration-diff-request": {
+        "type": "object",
+        "required": [
+          "compose_file_content"
+        ],
+        "properties": {
+          "compose_file_content": {
+            "type": "string",
+            "minLength": 1
+          },
+          "env_file_content": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "project-configuration-diff-file": {
+        "type": "object",
+        "required": [
+          "kind",
+          "path",
+          "changed",
+          "current_hash",
+          "proposed_hash",
+          "current_content",
+          "proposed_content"
+        ],
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/project-file-kind"
+          },
+          "path": {
+            "type": "string"
+          },
+          "changed": {
+            "type": "boolean"
+          },
+          "current_hash": {
+            "type": "string"
+          },
+          "proposed_hash": {
+            "type": "string"
+          },
+          "current_content": {
+            "type": "string"
+          },
+          "proposed_content": {
+            "type": "string"
+          }
+        }
+      },
+      "project-configuration-diff-response": {
+        "type": "object",
+        "required": [
+          "project_id",
+          "canonical_project_name",
+          "ownership_mode",
+          "current_config_hash",
+          "proposed_config_hash",
+          "has_changes",
+          "files"
+        ],
+        "properties": {
+          "project_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "canonical_project_name": {
+            "type": "string"
+          },
+          "ownership_mode": {
+            "$ref": "#/components/schemas/project-ownership-mode"
+          },
+          "current_config_hash": {
+            "type": "string"
+          },
+          "proposed_config_hash": {
+            "type": "string"
+          },
+          "has_changes": {
+            "type": "boolean"
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/project-configuration-diff-file"
+            }
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "enveloped-project-configuration-diff-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/project-configuration-diff-response"
+              }
+            }
+          }
+        ]
+      },
+      "project-configuration-validate-request": {
+        "type": "object",
+        "required": [
+          "compose_file_content"
+        ],
+        "properties": {
+          "compose_file_content": {
+            "type": "string",
+            "minLength": 1
+          },
+          "env_file_content": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "project-configuration-validate-response": {
+        "type": "object",
+        "required": [
+          "project_id",
+          "canonical_project_name",
+          "ownership_mode",
+          "proposed_config_hash",
+          "normalized_compose_yaml",
+          "declared_service_names"
+        ],
+        "properties": {
+          "project_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "canonical_project_name": {
+            "type": "string"
+          },
+          "ownership_mode": {
+            "$ref": "#/components/schemas/project-ownership-mode"
+          },
+          "proposed_config_hash": {
+            "type": "string"
+          },
+          "normalized_compose_yaml": {
+            "type": "string"
+          },
+          "declared_service_names": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "enveloped-project-configuration-validate-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/project-configuration-validate-response"
+              }
+            }
+          }
+        ]
+      },
+      "project-deploy-request": {
+        "type": "object",
+        "required": [
+          "compose_file_content"
+        ],
+        "properties": {
+          "compose_file_content": {
+            "type": "string",
+            "minLength": 1
+          },
+          "env_file_content": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "project-deploy-response": {
+        "type": "object",
+        "required": [
+          "project_id",
+          "action",
+          "result",
+          "canonical_project_name",
+          "ownership_mode",
+          "config_hash",
+          "refreshed_at"
+        ],
+        "properties": {
+          "project_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "deploy"
+            ],
+            "x-enum-varnames": [
+              "ProjectDeployResponseActionDeploy"
+            ]
+          },
+          "result": {
+            "type": "string",
+            "enum": [
+              "completed"
+            ],
+            "x-enum-varnames": [
+              "ProjectDeployResponseResultCompleted"
+            ]
+          },
+          "canonical_project_name": {
+            "type": "string"
+          },
+          "ownership_mode": {
+            "$ref": "#/components/schemas/project-ownership-mode"
+          },
+          "config_hash": {
+            "type": "string"
+          },
+          "refreshed_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "declared_service_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "message_key": {
+            "type": "string",
+            "nullable": true
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "guard_results": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "enveloped-project-deploy-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/project-deploy-response"
+              }
+            }
+          }
+        ]
+      },
       "project-action-response": {
         "type": "object",
         "required": [
@@ -21442,7 +22056,8 @@
               "restart",
               "unregister",
               "destroy",
-              "create"
+              "create",
+              "deploy"
             ],
             "x-enum-varnames": [
               "ProjectActionRefresh",
@@ -21451,7 +22066,8 @@
               "ProjectActionRestart",
               "ProjectActionUnregister",
               "ProjectActionDestroy",
-              "ProjectActionCreate"
+              "ProjectActionCreate",
+              "ProjectActionDeploy"
             ]
           },
           "result": {

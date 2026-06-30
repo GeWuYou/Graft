@@ -16,6 +16,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sergi/go-diff/diffmatchpatch"
+
 	generated "graft/server/internal/contract/openapi/generated"
 	"graft/server/internal/moduleapi"
 	projectcompose "graft/server/modules/project/compose"
@@ -32,6 +34,7 @@ var (
 	errProjectUnsupportedLifecycle = errors.New("project lifecycle is unsupported")
 	errProjectFileNotFound         = errors.New("project file not found")
 	errProjectDestroyBlocked       = errors.New("project destroy blocked by ownership guard")
+	errProjectManagedFlow          = errors.New("project managed flow is unsupported")
 )
 
 const (
@@ -41,6 +44,7 @@ const (
 	minLifecycleArgCount     = 2
 	maxCommandOutputSummary  = 120
 	managedCreateWarningsCap = 2
+	draftWarningsCap         = 2
 	managedCreateDirMode     = 0o750
 	managedCreateFileMode    = 0o600
 )
@@ -114,6 +118,67 @@ type ConfigurationFileResult struct {
 	Path         string
 	Content      string
 	DownloadName string
+}
+
+// ConfigurationDraft describes one Phase 2.4 managed configuration draft.
+type ConfigurationDraft struct {
+	ComposeFileContent string
+	EnvFileContent     *string
+}
+
+// ConfigurationDiffFile describes one file-level diff projection.
+type ConfigurationDiffFile struct {
+	Kind            string
+	Path            string
+	Changed         bool
+	CurrentHash     string
+	ProposedHash    string
+	CurrentContent  string
+	ProposedContent string
+}
+
+// ConfigurationDiffResult returns bounded managed draft diff output.
+type ConfigurationDiffResult struct {
+	ProjectID            uint64
+	CanonicalProjectName string
+	OwnershipMode        string
+	CurrentConfigHash    string
+	ProposedConfigHash   string
+	HasChanges           bool
+	Files                []ConfigurationDiffFile
+	Warnings             []string
+}
+
+// ConfigurationValidateResult returns bounded managed draft validation output.
+type ConfigurationValidateResult struct {
+	ProjectID             uint64
+	CanonicalProjectName  string
+	OwnershipMode         string
+	ProposedConfigHash    string
+	NormalizedComposeYAML string
+	DeclaredServiceNames  []string
+	Warnings              []string
+}
+
+// DeployResult returns bounded managed deploy output.
+type DeployResult struct {
+	ProjectID            uint64
+	Action               string
+	Result               string
+	CanonicalProjectName string
+	OwnershipMode        string
+	ConfigHash           string
+	RefreshedAt          time.Time
+	DeclaredServiceCount int
+	MessageKey           *string
+	Message              *string
+	GuardResults         []string
+}
+
+type preparedConfigurationDraft struct {
+	Proposal    managedDraftProposal
+	ParseResult projectcompose.Result
+	Warnings    []string
 }
 
 // ActionResult returns bounded phase-1 action status.
@@ -364,25 +429,7 @@ func (s *Service) Refresh(ctx context.Context, projectID uint64, actorID *uint64
 		return ActionResult{}, err
 	}
 	now := time.Now().UTC()
-	updated, err := repository.RefreshProject(ctx, projectstore.RefreshProjectInput{
-		ProjectID:              projectID,
-		LastRefreshStatus:      projectcontract.RefreshStatusSuccess.String(),
-		LastRefreshAt:          &now,
-		LastRefreshConfigHash:  parseResult.ConfigHash,
-		LastObservedConfigHash: parseResult.ConfigHash,
-		LastDriftCheckedAt:     &now,
-		DriftStatus:            projectcontract.DriftStatusClean.String(),
-		Files:                  toStoreFiles(parseResult.ComposeFiles, parseResult.EnvFiles),
-		Snapshot: &projectstore.Snapshot{
-			ProjectID:              projectID,
-			ConfigHash:             parseResult.ConfigHash,
-			NormalizedComposeJSON:  normalizeSnapshotJSON(parseResult.NormalizedComposeJSON),
-			DeclaredServiceCount:   len(parseResult.ServiceNames),
-			DeclaredServicesDigest: digestServiceNames(parseResult.ServiceNames),
-			RefreshedAt:            now,
-		},
-		ActorID: actorID,
-	})
+	updated, err := repository.RefreshProject(ctx, buildRefreshProjectInput(projectID, parseResult, now, actorID))
 	if err != nil {
 		return ActionResult{}, mapStoreError(err)
 	}
@@ -934,6 +981,134 @@ func (s *Service) ConfigurationFile(ctx context.Context, projectID uint64, fileI
 	}, nil
 }
 
+// DiffConfiguration compares a managed draft against current tracked project files without writing persistent changes.
+func (s *Service) DiffConfiguration(ctx context.Context, projectID uint64, draft ConfigurationDraft) (ConfigurationDiffResult, error) {
+	aggregate, err := s.getAggregate(ctx, projectID)
+	if err != nil {
+		return ConfigurationDiffResult{}, err
+	}
+	if err := ensureManagedProjectAggregate(aggregate); err != nil {
+		return ConfigurationDiffResult{}, err
+	}
+	current, err := loadManagedDraftContent(aggregate)
+	if err != nil {
+		return ConfigurationDiffResult{}, err
+	}
+	prepared, err := s.prepareConfigurationDraft(aggregate, draft)
+	if err != nil {
+		return ConfigurationDiffResult{}, err
+	}
+	files := []ConfigurationDiffFile{
+		buildConfigurationDiffFile(projectcontract.FileKindCompose.String(), current.ComposePath, current.ComposeContent, prepared.Proposal.ComposeContent),
+	}
+	if current.EnvPath != "" || prepared.Proposal.EnvPath != "" {
+		files = append(files, buildConfigurationDiffFile(projectcontract.FileKindEnv.String(), nonEmptyString(current.EnvPath, prepared.Proposal.EnvPath), current.EnvContent, derefString(prepared.Proposal.EnvContent)))
+	}
+	hasChanges := false
+	for _, item := range files {
+		if item.Changed {
+			hasChanges = true
+			break
+		}
+	}
+	return ConfigurationDiffResult{
+		ProjectID:            projectID,
+		CanonicalProjectName: aggregate.Project.CanonicalProjectName,
+		OwnershipMode:        aggregate.Project.OwnershipMode,
+		CurrentConfigHash:    nonEmptyString(aggregate.Project.LastRefreshConfigHash, current.CurrentConfigHash),
+		ProposedConfigHash:   prepared.ParseResult.ConfigHash,
+		HasChanges:           hasChanges,
+		Files:                files,
+		Warnings:             prepared.Warnings,
+	}, nil
+}
+
+// ValidateConfiguration validates a managed draft without persisting any file changes.
+func (s *Service) ValidateConfiguration(ctx context.Context, projectID uint64, draft ConfigurationDraft) (ConfigurationValidateResult, error) {
+	aggregate, err := s.getAggregate(ctx, projectID)
+	if err != nil {
+		return ConfigurationValidateResult{}, err
+	}
+	if err := ensureManagedProjectAggregate(aggregate); err != nil {
+		return ConfigurationValidateResult{}, err
+	}
+	prepared, err := s.prepareConfigurationDraft(aggregate, draft)
+	if err != nil {
+		return ConfigurationValidateResult{}, err
+	}
+	return ConfigurationValidateResult{
+		ProjectID:             projectID,
+		CanonicalProjectName:  aggregate.Project.CanonicalProjectName,
+		OwnershipMode:         aggregate.Project.OwnershipMode,
+		ProposedConfigHash:    prepared.ParseResult.ConfigHash,
+		NormalizedComposeYAML: prepared.ParseResult.NormalizedComposeYAML,
+		DeclaredServiceNames:  append([]string(nil), prepared.ParseResult.ServiceNames...),
+		Warnings:              prepared.Warnings,
+	}, nil
+}
+
+// DeployConfiguration writes one managed draft, refreshes the snapshot, and runs docker compose up -d.
+func (s *Service) DeployConfiguration(ctx context.Context, projectID uint64, draft ConfigurationDraft, actorID *uint64) (DeployResult, error) {
+	aggregate, err := s.getAggregate(ctx, projectID)
+	if err != nil {
+		return DeployResult{}, err
+	}
+	if err := ensureManagedProjectAggregate(aggregate); err != nil {
+		return DeployResult{}, err
+	}
+	prepared, err := s.prepareConfigurationDraft(aggregate, draft)
+	if err != nil {
+		return DeployResult{}, err
+	}
+	restoreItems, err := writeManagedDraft(prepared.Proposal)
+	if err != nil {
+		return DeployResult{}, fmt.Errorf("%w: %v", errProjectImportValidation, err)
+	}
+	shouldRestore := true
+	defer func() {
+		if shouldRestore {
+			restoreManagedDraft(restoreItems)
+		}
+	}()
+
+	repository, err := s.repositoryOrErr()
+	if err != nil {
+		return DeployResult{}, err
+	}
+	now := time.Now().UTC()
+	updated, err := repository.RefreshProject(ctx, buildRefreshProjectInput(projectID, prepared.ParseResult, now, actorID))
+	if err != nil {
+		return DeployResult{}, mapStoreError(err)
+	}
+	if _, err := s.runLifecycleActionWithAggregate(ctx, updated, actorID, generated.ProjectActionDeploy, []string{"compose", "up", "-d"}); err != nil {
+		return DeployResult{}, err
+	}
+	shouldRestore = false
+	messageKey := projectcontract.ProjectDeployCompleted.String()
+	guardResults := []string{
+		"managed_project=true",
+		"draft_written=true",
+		"snapshot_refreshed=true",
+		"command=docker compose up -d",
+	}
+	if len(prepared.Warnings) > 0 {
+		guardResults = append(guardResults, "warnings="+strings.Join(prepared.Warnings, "|"))
+	}
+	return DeployResult{
+		ProjectID:            projectID,
+		Action:               "deploy",
+		Result:               "completed",
+		CanonicalProjectName: updated.Project.CanonicalProjectName,
+		OwnershipMode:        updated.Project.OwnershipMode,
+		ConfigHash:           prepared.ParseResult.ConfigHash,
+		RefreshedAt:          now,
+		DeclaredServiceCount: len(prepared.ParseResult.ServiceNames),
+		MessageKey:           &messageKey,
+		Message:              &messageKey,
+		GuardResults:         guardResults,
+	}, nil
+}
+
 // UnsupportedLifecycleAction returns an explicit batch-2 blocked action result.
 func (s *Service) UnsupportedLifecycleAction(projectID uint64, action generated.ProjectActionResponseAction) (ActionResult, error) {
 	return ActionResult{
@@ -1046,6 +1221,8 @@ func lifecycleMessageKey(action generated.ProjectActionResponseAction) projectco
 		return projectcontract.ProjectRestartCompleted
 	case generated.ProjectActionDestroy:
 		return projectcontract.ProjectDestroyCompleted
+	case generated.ProjectActionDeploy:
+		return projectcontract.ProjectDeployCompleted
 	case generated.ProjectActionUnregister:
 		return projectcontract.ProjectUnregisterCompleted
 	default:
@@ -1390,6 +1567,33 @@ func digestServiceNames(names []string) string {
 	return hex.EncodeToString(hasher.Sum(nil))
 }
 
+func buildRefreshProjectInput(
+	projectID uint64,
+	parseResult projectcompose.Result,
+	now time.Time,
+	actorID *uint64,
+) projectstore.RefreshProjectInput {
+	return projectstore.RefreshProjectInput{
+		ProjectID:              projectID,
+		LastRefreshStatus:      projectcontract.RefreshStatusSuccess.String(),
+		LastRefreshAt:          &now,
+		LastRefreshConfigHash:  parseResult.ConfigHash,
+		LastObservedConfigHash: parseResult.ConfigHash,
+		LastDriftCheckedAt:     &now,
+		DriftStatus:            projectcontract.DriftStatusClean.String(),
+		Files:                  toStoreFiles(parseResult.ComposeFiles, parseResult.EnvFiles),
+		Snapshot: &projectstore.Snapshot{
+			ProjectID:              projectID,
+			ConfigHash:             parseResult.ConfigHash,
+			NormalizedComposeJSON:  normalizeSnapshotJSON(parseResult.NormalizedComposeJSON),
+			DeclaredServiceCount:   len(parseResult.ServiceNames),
+			DeclaredServicesDigest: digestServiceNames(parseResult.ServiceNames),
+			RefreshedAt:            now,
+		},
+		ActorID: actorID,
+	}
+}
+
 func displayNameOrCanonical(displayName *string, canonical string) string {
 	if displayName != nil && strings.TrimSpace(*displayName) != "" {
 		return strings.TrimSpace(*displayName)
@@ -1400,6 +1604,203 @@ func displayNameOrCanonical(displayName *string, canonical string) string {
 func fileName(path string) string {
 	parts := strings.Split(path, "/")
 	return parts[len(parts)-1]
+}
+
+type managedDraftContent struct {
+	ComposePath       string
+	ComposeContent    string
+	EnvPath           string
+	EnvContent        string
+	CurrentConfigHash string
+}
+
+type managedDraftProposal struct {
+	ComposePath    string
+	ComposeContent string
+	EnvPath        string
+	EnvContent     *string
+}
+
+type managedDraftRestore struct {
+	Path    string
+	Content []byte
+	Exists  bool
+}
+
+func ensureManagedProjectAggregate(aggregate projectstore.ProjectAggregate) error {
+	if aggregate.Project.OwnershipMode != projectcontract.OwnershipModeManagedRootDedicated.String() {
+		return errProjectManagedFlow
+	}
+	return nil
+}
+
+func loadManagedDraftContent(aggregate projectstore.ProjectAggregate) (managedDraftContent, error) {
+	composeFiles := filterFiles(aggregate.Files, projectcontract.FileKindCompose.String())
+	if len(composeFiles) == 0 {
+		return managedDraftContent{}, fmt.Errorf("%w: missing compose file authority", errProjectImportValidation)
+	}
+	composeContent, err := os.ReadFile(composeFiles[0].AbsolutePath)
+	if err != nil {
+		return managedDraftContent{}, fmt.Errorf("%w: %v", errProjectImportValidation, err)
+	}
+	result := managedDraftContent{
+		ComposePath:       composeFiles[0].AbsolutePath,
+		ComposeContent:    normalizeTextBlock(string(composeContent)),
+		CurrentConfigHash: aggregate.Project.LastRefreshConfigHash,
+	}
+	envFiles := filterFiles(aggregate.Files, projectcontract.FileKindEnv.String())
+	if len(envFiles) > 0 {
+		envContent, readErr := os.ReadFile(envFiles[0].AbsolutePath)
+		if readErr != nil {
+			return managedDraftContent{}, fmt.Errorf("%w: %v", errProjectImportValidation, readErr)
+		}
+		result.EnvPath = envFiles[0].AbsolutePath
+		result.EnvContent = normalizeTextBlock(string(envContent))
+	}
+	return result, nil
+}
+
+func (s *Service) prepareConfigurationDraft(
+	aggregate projectstore.ProjectAggregate,
+	draft ConfigurationDraft,
+) (preparedConfigurationDraft, error) {
+	current, err := loadManagedDraftContent(aggregate)
+	if err != nil {
+		return preparedConfigurationDraft{}, err
+	}
+	composeContent := normalizeTextBlock(draft.ComposeFileContent)
+	if strings.TrimSpace(composeContent) == "" {
+		return preparedConfigurationDraft{}, errProjectInvalidArgument
+	}
+	proposal := managedDraftProposal{
+		ComposePath:    current.ComposePath,
+		ComposeContent: composeContent,
+		EnvPath:        current.EnvPath,
+	}
+	if draft.EnvFileContent != nil {
+		content := normalizeTextBlock(*draft.EnvFileContent)
+		proposal.EnvContent = &content
+	} else if current.EnvPath != "" {
+		content := current.EnvContent
+		proposal.EnvContent = &content
+	}
+	restoreItems, err := writeManagedDraft(proposal)
+	if err != nil {
+		return preparedConfigurationDraft{}, err
+	}
+	defer restoreManagedDraft(restoreItems)
+
+	parseResult, err := s.loadFromAggregate(aggregate)
+	if err != nil {
+		return preparedConfigurationDraft{}, err
+	}
+	warnings := make([]string, 0, draftWarningsCap)
+	if strings.TrimSpace(current.ComposeContent) == strings.TrimSpace(proposal.ComposeContent) &&
+		strings.TrimSpace(current.EnvContent) == strings.TrimSpace(derefString(proposal.EnvContent)) {
+		warnings = append(warnings, "Draft matches the current tracked managed project files.")
+	}
+	return preparedConfigurationDraft{
+		Proposal:    proposal,
+		ParseResult: parseResult,
+		Warnings:    warnings,
+	}, nil
+}
+
+func writeManagedDraft(proposal managedDraftProposal) ([]managedDraftRestore, error) {
+	targets := []struct {
+		path    string
+		content string
+	}{
+		{path: proposal.ComposePath, content: proposal.ComposeContent},
+	}
+	if proposal.EnvPath != "" && proposal.EnvContent != nil {
+		targets = append(targets, struct {
+			path    string
+			content string
+		}{path: proposal.EnvPath, content: *proposal.EnvContent})
+	}
+	restoreItems := make([]managedDraftRestore, 0, len(targets))
+	for _, target := range targets {
+		original, err := os.ReadFile(target.path)
+		exists := err == nil
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
+			return nil, err
+		}
+		restoreItems = append(restoreItems, managedDraftRestore{
+			Path:    target.path,
+			Content: append([]byte(nil), original...),
+			Exists:  exists,
+		})
+		if err := os.WriteFile(target.path, []byte(target.content), managedCreateFileMode); err != nil {
+			return nil, err
+		}
+	}
+	return restoreItems, nil
+}
+
+func restoreManagedDraft(items []managedDraftRestore) {
+	for index := len(items) - 1; index >= 0; index-- {
+		item := items[index]
+		if item.Exists {
+			_ = os.WriteFile(item.Path, item.Content, managedCreateFileMode)
+			continue
+		}
+		_ = os.Remove(item.Path)
+	}
+}
+
+func buildConfigurationDiffFile(kind string, path string, current string, proposed string) ConfigurationDiffFile {
+	return ConfigurationDiffFile{
+		Kind:            kind,
+		Path:            path,
+		Changed:         normalizeTextBlock(current) != normalizeTextBlock(proposed),
+		CurrentHash:     hashString(current),
+		ProposedHash:    hashString(proposed),
+		CurrentContent:  normalizeTextBlock(current),
+		ProposedContent: buildUnifiedDiff(current, proposed),
+	}
+}
+
+func buildUnifiedDiff(current string, proposed string) string {
+	differ := diffmatchpatch.New()
+	patches := differ.PatchMake(current, proposed)
+	text := differ.PatchToText(patches)
+	if strings.TrimSpace(text) == "" {
+		return normalizeTextBlock(proposed)
+	}
+	return text
+}
+
+func hashString(value string) string {
+	sum := sha256.Sum256([]byte(normalizeTextBlock(value)))
+	return hex.EncodeToString(sum[:])
+}
+
+func normalizeTextBlock(value string) string {
+	normalized := strings.ReplaceAll(value, "\r\n", "\n")
+	lines := strings.Split(normalized, "\n")
+	for index, line := range lines {
+		lines[index] = strings.TrimRight(line, " \t")
+	}
+	joined := strings.TrimSpace(strings.Join(lines, "\n"))
+	if joined == "" {
+		return ""
+	}
+	return joined + "\n"
+}
+
+func derefString(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
+}
+
+func nonEmptyString(primary string, fallback string) string {
+	if strings.TrimSpace(primary) != "" {
+		return primary
+	}
+	return fallback
 }
 
 func stringPointer(value string) *string {

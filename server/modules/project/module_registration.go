@@ -79,6 +79,15 @@ func permissionItems(moduleName string) []permission.Item {
 			Category:       "api",
 			Module:         moduleName,
 		},
+		{
+			Code:           projectcontract.ProjectDeployPermission.String(),
+			Name:           "Deploy managed compose project drafts",
+			DisplayKey:     "rbac.permissionCatalog.projectDeploy.display",
+			Description:    "Diff, validate, and deploy managed project configuration drafts.",
+			DescriptionKey: "rbac.permissionCatalog.projectDeploy.description",
+			Category:       "api",
+			Module:         moduleName,
+		},
 	}
 }
 

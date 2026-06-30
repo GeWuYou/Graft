@@ -11,5 +11,7 @@ rbac.permissionCatalog.projectDestroy.display: 注销或销毁 Compose 项目
 rbac.permissionCatalog.projectDestroy.description: 对项目记录执行注销和受保护的销毁动作。
 rbac.permissionCatalog.projectCreate.display: 创建受管 Compose 项目
 rbac.permissionCatalog.projectCreate.description: 检查受管根目录 authority，并访问后续的 managed create 工作流。
+rbac.permissionCatalog.projectDeploy.display: 部署受管 Compose 项目草稿
+rbac.permissionCatalog.projectDeploy.description: 在 bounded project authority 内对受管项目配置草稿执行 diff、validate 和 deploy。
 systemConfig.project.ops.project.managed.root_directory.title: 受管项目根目录
 systemConfig.project.ops.project.managed.root_directory.description: Managed Compose 项目创建流程使用的 canonical 根目录。空字符串表示 managed create 尚未配置。

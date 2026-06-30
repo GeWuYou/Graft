@@ -26,6 +26,12 @@ export type ProjectCreateResponse = components['schemas']['project-create-respon
 export type ProjectConfigurationMetadataResponse = components['schemas']['ProjectConfigurationMetadataResponse'];
 export type ProjectConfigurationPreviewResponse = components['schemas']['ProjectConfigurationPreviewResponse'];
 export type ProjectConfigurationFileResponse = components['schemas']['ProjectConfigurationFileResponse'];
+export type ProjectConfigurationDiffRequest = components['schemas']['project-configuration-diff-request'];
+export type ProjectConfigurationDiffResponse = components['schemas']['project-configuration-diff-response'];
+export type ProjectConfigurationValidateRequest = components['schemas']['project-configuration-validate-request'];
+export type ProjectConfigurationValidateResponse = components['schemas']['project-configuration-validate-response'];
+export type ProjectDeployRequest = components['schemas']['project-deploy-request'];
+export type ProjectDeployResponse = components['schemas']['project-deploy-response'];
 export type ProjectActionResponse = components['schemas']['ProjectActionResponse'];
 export type ProjectRuntimeStatus = ProjectDetailResponse['runtime_status'];
 

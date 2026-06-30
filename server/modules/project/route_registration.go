@@ -26,6 +26,12 @@ type routeRuntime struct {
 
 const minimumProjectListLimit = 1
 
+type boundProjectConfigurationDraft[T any] struct {
+	projectID   uint64
+	generatedID int64
+	request     T
+}
+
 func registerRoutes(ctx *module.Context, moduleName string, service *Service) error {
 	if ctx == nil || ctx.Router == nil {
 		return nil
@@ -57,7 +63,10 @@ func registerRoutes(ctx *module.Context, moduleName string, service *Service) er
 	group.GET(projectcontract.ProjectConfigurationRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectViewPermission.String(), publisher), routes.handleConfiguration)
 	group.GET(projectcontract.ProjectConfigurationPreviewRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectViewPermission.String(), publisher), routes.handleConfigurationPreview)
 	group.GET(projectcontract.ProjectConfigurationFileRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectViewPermission.String(), publisher), routes.handleConfigurationFile)
+	group.POST(projectcontract.ProjectConfigurationDiffRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectDeployPermission.String(), publisher), routes.handleConfigurationDiff)
+	group.POST(projectcontract.ProjectConfigurationValidateRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectDeployPermission.String(), publisher), routes.handleConfigurationValidate)
 	group.POST(projectcontract.ProjectRefreshRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectRefreshPermission.String(), publisher), routes.handleRefresh)
+	group.POST(projectcontract.ProjectDeployRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectDeployPermission.String(), publisher), routes.handleDeploy)
 	group.POST(projectcontract.ProjectUpRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectLifecyclePermission.String(), publisher), routes.handleUp)
 	group.POST(projectcontract.ProjectDownRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectLifecyclePermission.String(), publisher), routes.handleDown)
 	group.POST(projectcontract.ProjectRestartRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectLifecyclePermission.String(), publisher), routes.handleRestart)
@@ -226,6 +235,34 @@ func (r routeRuntime) handleConfigurationFile(ginCtx *gin.Context) {
 	httpx.WriteSuccess(ginCtx, http.StatusOK, toConfigurationFileResponse(result))
 }
 
+func (r routeRuntime) handleConfigurationDiff(ginCtx *gin.Context) {
+	bound, ok := bindProjectConfigurationDiffRequest(ginCtx, r)
+	if !ok {
+		return
+	}
+	projectGeneratedHandler{}.PostProjectConfigurationDiff(bound.generatedID, bindPostProjectConfigurationDiffParams(ginCtx), bound.request)
+	result, err := r.service.DiffConfiguration(ginCtx.Request.Context(), bound.projectID, toConfigurationDiffRequest(bound.request))
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, toConfigurationDiffResponse(result))
+}
+
+func (r routeRuntime) handleConfigurationValidate(ginCtx *gin.Context) {
+	bound, ok := bindProjectConfigurationValidateRequest(ginCtx, r)
+	if !ok {
+		return
+	}
+	projectGeneratedHandler{}.PostProjectConfigurationValidate(bound.generatedID, bindPostProjectConfigurationValidateParams(ginCtx), bound.request)
+	result, err := r.service.ValidateConfiguration(ginCtx.Request.Context(), bound.projectID, toConfigurationValidateRequest(bound.request))
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, toConfigurationValidateResponse(result))
+}
+
 func (r routeRuntime) handleRefresh(ginCtx *gin.Context) {
 	projectID, generatedID, ok := bindProjectID(ginCtx, r.ctx)
 	if !ok {
@@ -238,6 +275,24 @@ func (r routeRuntime) handleRefresh(ginCtx *gin.Context) {
 		return
 	}
 	httpx.WriteSuccess(ginCtx, http.StatusOK, toActionResponse(result))
+}
+
+func (r routeRuntime) handleDeploy(ginCtx *gin.Context) {
+	projectID, generatedID, ok := bindProjectID(ginCtx, r.ctx)
+	if !ok {
+		return
+	}
+	var request generated.ProjectDeployRequest
+	if !bindJSON(ginCtx, r.ctx, &request) {
+		return
+	}
+	projectGeneratedHandler{}.PostProjectDeploy(generatedID, bindPostProjectDeployParams(ginCtx), request)
+	result, err := r.service.DeployConfiguration(ginCtx.Request.Context(), projectID, toDeployRequest(request), currentUserIDPointer(ginCtx))
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, toDeployResponse(result))
 }
 
 func (r routeRuntime) handleUp(ginCtx *gin.Context) {
@@ -335,9 +390,9 @@ func (r routeRuntime) writeRouteErrorWithAction(ginCtx *gin.Context, err error, 
 		httpx.WriteLocalizedErrorCode(ginCtx, r.ctx.I18n, http.StatusNotFound, projectcontract.ProjectNotFound.String(), messagecontract.CommonInvalidArgument.String(), map[string]any{"code": projectcontract.ProjectNotFound.String()})
 	case errors.Is(err, errProjectConflict):
 		httpx.WriteLocalizedErrorCode(ginCtx, r.ctx.I18n, http.StatusConflict, projectcontract.ProjectConflict.String(), messagecontract.CommonInvalidArgument.String(), map[string]any{"code": projectcontract.ProjectConflict.String()})
-	case errors.Is(err, errProjectUnsupportedLifecycle):
+	case errors.Is(err, errProjectUnsupportedLifecycle), errors.Is(err, errProjectManagedFlow):
 		httpx.WriteLocalizedErrorCode(ginCtx, r.ctx.I18n, http.StatusConflict, projectcontract.ProjectUnsupportedLifecycle.String(), messagecontract.CommonInvalidArgument.String(), map[string]any{
-			"code":         projectcontract.ProjectUnsupportedLifecycle.String(),
+			"code":         mapLifecycleErrorCode(err),
 			"actionResult": toActionResponse(action),
 		})
 	default:
@@ -366,7 +421,13 @@ func (projectGeneratedHandler) GetProjectConfigurationPreview(int64, generated.G
 }
 func (projectGeneratedHandler) GetProjectConfigurationFile(int64, int64, generated.GetProjectConfigurationFileParams) {
 }
+func (projectGeneratedHandler) PostProjectConfigurationDiff(int64, generated.PostProjectConfigurationDiffParams, generated.ProjectConfigurationDiffRequest) {
+}
+func (projectGeneratedHandler) PostProjectConfigurationValidate(int64, generated.PostProjectConfigurationValidateParams, generated.ProjectConfigurationValidateRequest) {
+}
 func (projectGeneratedHandler) PostProjectRefresh(int64, generated.PostProjectRefreshParams) {}
+func (projectGeneratedHandler) PostProjectDeploy(int64, generated.PostProjectDeployParams, generated.ProjectDeployRequest) {
+}
 func (projectGeneratedHandler) PostProjectUp(int64, generated.PostProjectUpParams)           {}
 func (projectGeneratedHandler) PostProjectDown(int64, generated.PostProjectDownParams)       {}
 func (projectGeneratedHandler) PostProjectRestart(int64, generated.PostProjectRestartParams) {}
@@ -395,6 +456,43 @@ func bindListParams(ginCtx *gin.Context, ctx *module.Context) (generated.GetProj
 		return generated.GetProjectsParams{}, false
 	}
 	return params, true
+}
+
+func bindProjectConfigurationDiffRequest(ginCtx *gin.Context, r routeRuntime) (boundProjectConfigurationDraft[generated.ProjectConfigurationDiffRequest], bool) {
+	var request generated.ProjectConfigurationDiffRequest
+	projectID, generatedID, ok := bindProjectConfigurationDraftRequest(ginCtx, r, &request)
+	if !ok {
+		return boundProjectConfigurationDraft[generated.ProjectConfigurationDiffRequest]{}, false
+	}
+	return boundProjectConfigurationDraft[generated.ProjectConfigurationDiffRequest]{
+		projectID:   projectID,
+		generatedID: generatedID,
+		request:     request,
+	}, true
+}
+
+func bindProjectConfigurationValidateRequest(ginCtx *gin.Context, r routeRuntime) (boundProjectConfigurationDraft[generated.ProjectConfigurationValidateRequest], bool) {
+	var request generated.ProjectConfigurationValidateRequest
+	projectID, generatedID, ok := bindProjectConfigurationDraftRequest(ginCtx, r, &request)
+	if !ok {
+		return boundProjectConfigurationDraft[generated.ProjectConfigurationValidateRequest]{}, false
+	}
+	return boundProjectConfigurationDraft[generated.ProjectConfigurationValidateRequest]{
+		projectID:   projectID,
+		generatedID: generatedID,
+		request:     request,
+	}, true
+}
+
+func bindProjectConfigurationDraftRequest[T any](ginCtx *gin.Context, r routeRuntime, request *T) (uint64, int64, bool) {
+	projectID, generatedID, ok := bindProjectID(ginCtx, r.ctx)
+	if !ok {
+		return 0, 0, false
+	}
+	if !bindJSON(ginCtx, r.ctx, request) {
+		return 0, 0, false
+	}
+	return projectID, generatedID, true
 }
 
 func bindJSON[T any](ginCtx *gin.Context, ctx *module.Context, target *T) bool {
@@ -467,6 +565,16 @@ func bindGetProjectConfigurationFileParams(ginCtx *gin.Context) generated.GetPro
 	return generated.GetProjectConfigurationFileParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
+func bindPostProjectConfigurationDiffParams(ginCtx *gin.Context) generated.PostProjectConfigurationDiffParams {
+	locale, requestID := commonHeaders(ginCtx)
+	return generated.PostProjectConfigurationDiffParams{XGraftLocale: locale, XRequestId: requestID}
+}
+
+func bindPostProjectConfigurationValidateParams(ginCtx *gin.Context) generated.PostProjectConfigurationValidateParams {
+	locale, requestID := commonHeaders(ginCtx)
+	return generated.PostProjectConfigurationValidateParams{XGraftLocale: locale, XRequestId: requestID}
+}
+
 func bindGetProjectManagedRootParams(ginCtx *gin.Context) generated.GetProjectManagedRootParams {
 	locale, requestID := commonHeaders(ginCtx)
 	return generated.GetProjectManagedRootParams{XGraftLocale: locale, XRequestId: requestID}
@@ -485,6 +593,11 @@ func bindPostProjectCreateParams(ginCtx *gin.Context) generated.PostProjectCreat
 func bindPostProjectRefreshParams(ginCtx *gin.Context) generated.PostProjectRefreshParams {
 	locale, requestID := commonHeaders(ginCtx)
 	return generated.PostProjectRefreshParams{XGraftLocale: locale, XRequestId: requestID}
+}
+
+func bindPostProjectDeployParams(ginCtx *gin.Context) generated.PostProjectDeployParams {
+	locale, requestID := commonHeaders(ginCtx)
+	return generated.PostProjectDeployParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
 func bindPostProjectUpParams(ginCtx *gin.Context) generated.PostProjectUpParams {
@@ -592,6 +705,13 @@ func currentUserIDPointer(ginCtx *gin.Context) *uint64 {
 	}
 	userID := auth.User.ID
 	return &userID
+}
+
+func mapLifecycleErrorCode(err error) string {
+	if errors.Is(err, errProjectManagedFlow) {
+		return projectcontract.ProjectManagedFlowUnsupported.String()
+	}
+	return projectcontract.ProjectUnsupportedLifecycle.String()
 }
 
 func resolveAuthService(ctx *module.Context) (moduleapi.AuthService, error) {

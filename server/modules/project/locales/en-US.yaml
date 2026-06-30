@@ -11,5 +11,7 @@ rbac.permissionCatalog.projectDestroy.display: Unregister Or Destroy Compose Pro
 rbac.permissionCatalog.projectDestroy.description: Run unregister and guarded destroy actions for project records.
 rbac.permissionCatalog.projectCreate.display: Create Managed Compose Projects
 rbac.permissionCatalog.projectCreate.description: Inspect managed-root authority and access future managed project create workflows.
+rbac.permissionCatalog.projectDeploy.display: Deploy Managed Compose Project Drafts
+rbac.permissionCatalog.projectDeploy.description: Diff, validate, and deploy managed project configuration drafts within the bounded project authority.
 systemConfig.project.ops.project.managed.root_directory.title: Managed Project Root Directory
 systemConfig.project.ops.project.managed.root_directory.description: Canonical root directory used by managed Compose project create workflows. Empty means managed create is not configured yet.

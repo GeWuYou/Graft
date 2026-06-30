@@ -14,7 +14,10 @@ export const PROJECT_API_PATH = {
   CONFIGURATION: '/api/ops/projects/{id}/configuration',
   CONFIGURATION_PREVIEW: '/api/ops/projects/{id}/configuration/preview',
   CONFIGURATION_FILE: '/api/ops/projects/{id}/configuration/files/{fileId}',
+  CONFIGURATION_DIFF: '/api/ops/projects/{id}/configuration/diff',
+  CONFIGURATION_VALIDATE: '/api/ops/projects/{id}/configuration/validate',
   REFRESH: '/api/ops/projects/{id}/refresh',
+  DEPLOY: '/api/ops/projects/{id}/deploy',
   UP: '/api/ops/projects/{id}/up',
   DOWN: '/api/ops/projects/{id}/down',
   RESTART: '/api/ops/projects/{id}/restart',
@@ -48,8 +51,20 @@ export function buildProjectConfigurationFileApiPath(id: number, fileId: number)
   );
 }
 
+export function buildProjectConfigurationDiffApiPath(id: number) {
+  return PROJECT_API_PATH.CONFIGURATION_DIFF.replace('{id}', encodeProjectPathParam(id));
+}
+
+export function buildProjectConfigurationValidateApiPath(id: number) {
+  return PROJECT_API_PATH.CONFIGURATION_VALIDATE.replace('{id}', encodeProjectPathParam(id));
+}
+
 export function buildProjectRefreshApiPath(id: number) {
   return PROJECT_API_PATH.REFRESH.replace('{id}', encodeProjectPathParam(id));
+}
+
+export function buildProjectDeployApiPath(id: number) {
+  return PROJECT_API_PATH.DEPLOY.replace('{id}', encodeProjectPathParam(id));
 }
 
 export function buildProjectUpApiPath(id: number) {

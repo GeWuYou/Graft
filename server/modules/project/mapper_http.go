@@ -78,6 +78,114 @@ func toConfigurationFileResponse(result ConfigurationFileResult) generated.Proje
 	}
 }
 
+func toConfigurationDiffRequest(request generated.ProjectConfigurationDiffRequest) ConfigurationDraft {
+	var envFileContent *string
+	if request.EnvFileContent != nil {
+		value := *request.EnvFileContent
+		envFileContent = &value
+	}
+	return ConfigurationDraft{
+		ComposeFileContent: request.ComposeFileContent,
+		EnvFileContent:     envFileContent,
+	}
+}
+
+func toConfigurationDiffResponse(result ConfigurationDiffResult) generated.ProjectConfigurationDiffResponse {
+	files := make([]generated.ProjectConfigurationDiffFile, 0, len(result.Files))
+	for _, item := range result.Files {
+		files = append(files, generated.ProjectConfigurationDiffFile{
+			Kind:            generated.ProjectFileKind(item.Kind),
+			Path:            item.Path,
+			Changed:         item.Changed,
+			CurrentHash:     item.CurrentHash,
+			ProposedHash:    item.ProposedHash,
+			CurrentContent:  item.CurrentContent,
+			ProposedContent: item.ProposedContent,
+		})
+	}
+	response := generated.ProjectConfigurationDiffResponse{
+		ProjectId:            mustGeneratedID(result.ProjectID),
+		CanonicalProjectName: result.CanonicalProjectName,
+		OwnershipMode:        generated.ProjectOwnershipMode(result.OwnershipMode),
+		CurrentConfigHash:    result.CurrentConfigHash,
+		ProposedConfigHash:   result.ProposedConfigHash,
+		HasChanges:           result.HasChanges,
+		Files:                files,
+	}
+	if len(result.Warnings) > 0 {
+		warnings := append([]string(nil), result.Warnings...)
+		response.Warnings = &warnings
+	}
+	return response
+}
+
+func toConfigurationValidateRequest(request generated.ProjectConfigurationValidateRequest) ConfigurationDraft {
+	var envFileContent *string
+	if request.EnvFileContent != nil {
+		value := *request.EnvFileContent
+		envFileContent = &value
+	}
+	return ConfigurationDraft{
+		ComposeFileContent: request.ComposeFileContent,
+		EnvFileContent:     envFileContent,
+	}
+}
+
+func toConfigurationValidateResponse(result ConfigurationValidateResult) generated.ProjectConfigurationValidateResponse {
+	response := generated.ProjectConfigurationValidateResponse{
+		ProjectId:             mustGeneratedID(result.ProjectID),
+		CanonicalProjectName:  result.CanonicalProjectName,
+		OwnershipMode:         generated.ProjectOwnershipMode(result.OwnershipMode),
+		ProposedConfigHash:    result.ProposedConfigHash,
+		NormalizedComposeYaml: result.NormalizedComposeYAML,
+		DeclaredServiceNames:  append([]string(nil), result.DeclaredServiceNames...),
+	}
+	if len(result.Warnings) > 0 {
+		warnings := append([]string(nil), result.Warnings...)
+		response.Warnings = &warnings
+	}
+	return response
+}
+
+func toDeployRequest(request generated.ProjectDeployRequest) ConfigurationDraft {
+	var envFileContent *string
+	if request.EnvFileContent != nil {
+		value := *request.EnvFileContent
+		envFileContent = &value
+	}
+	return ConfigurationDraft{
+		ComposeFileContent: request.ComposeFileContent,
+		EnvFileContent:     envFileContent,
+	}
+}
+
+func toDeployResponse(result DeployResult) generated.ProjectDeployResponse {
+	response := generated.ProjectDeployResponse{
+		ProjectId:            mustGeneratedID(result.ProjectID),
+		Action:               generated.ProjectDeployResponseAction(result.Action),
+		Result:               generated.ProjectDeployResponseResult(result.Result),
+		CanonicalProjectName: result.CanonicalProjectName,
+		OwnershipMode:        generated.ProjectOwnershipMode(result.OwnershipMode),
+		ConfigHash:           result.ConfigHash,
+		RefreshedAt:          result.RefreshedAt,
+	}
+	if result.DeclaredServiceCount >= 0 {
+		count := result.DeclaredServiceCount
+		response.DeclaredServiceCount = &count
+	}
+	if result.MessageKey != nil {
+		response.MessageKey = result.MessageKey
+	}
+	if result.Message != nil {
+		response.Message = result.Message
+	}
+	if len(result.GuardResults) > 0 {
+		items := append([]string(nil), result.GuardResults...)
+		response.GuardResults = &items
+	}
+	return response
+}
+
 func toActionResponse(result ActionResult) generated.ProjectActionResponse {
 	response := generated.ProjectActionResponse{
 		ProjectId: mustGeneratedID(result.ProjectID),

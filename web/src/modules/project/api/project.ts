@@ -3,8 +3,11 @@ import { request } from '@/utils/request';
 
 import {
   buildProjectConfigurationApiPath,
+  buildProjectConfigurationDiffApiPath,
   buildProjectConfigurationFileApiPath,
   buildProjectConfigurationPreviewApiPath,
+  buildProjectConfigurationValidateApiPath,
+  buildProjectDeployApiPath,
   buildProjectDetailApiPath,
   buildProjectDownApiPath,
   buildProjectRefreshApiPath,
@@ -16,13 +19,19 @@ import {
 } from '../contract/paths';
 import type {
   ProjectActionResponse,
+  ProjectConfigurationDiffRequest,
+  ProjectConfigurationDiffResponse,
   ProjectConfigurationFileResponse,
   ProjectConfigurationMetadataResponse,
   ProjectConfigurationPreviewResponse,
+  ProjectConfigurationValidateRequest,
+  ProjectConfigurationValidateResponse,
   ProjectCreateRequest,
   ProjectCreateResponse,
   ProjectCreateValidateRequest,
   ProjectCreateValidateResponse,
+  ProjectDeployRequest,
+  ProjectDeployResponse,
   ProjectDetailResponse,
   ProjectListQuery,
   ProjectListResponse,
@@ -69,6 +78,23 @@ type GetProjectConfigurationFileEnvelope =
 type GetProjectConfigurationFileData = NonNullable<GetProjectConfigurationFileEnvelope['data']>;
 type GetProjectConfigurationFilePathParams = GetProjectConfigurationFileOperation['parameters']['path'];
 
+type ProjectConfigurationDiffPath = (typeof PROJECT_API_PATH)['CONFIGURATION_DIFF'];
+type ProjectConfigurationDiffOperation = paths[ProjectConfigurationDiffPath]['post'];
+type ProjectConfigurationDiffEnvelope =
+  ProjectConfigurationDiffOperation['responses'][200]['content']['application/json'];
+type ProjectConfigurationDiffData = NonNullable<ProjectConfigurationDiffEnvelope['data']>;
+type ProjectConfigurationDiffPayload = ProjectConfigurationDiffOperation['requestBody']['content']['application/json'];
+type ProjectConfigurationDiffPathParams = ProjectConfigurationDiffOperation['parameters']['path'];
+
+type ProjectConfigurationValidatePath = (typeof PROJECT_API_PATH)['CONFIGURATION_VALIDATE'];
+type ProjectConfigurationValidateOperation = paths[ProjectConfigurationValidatePath]['post'];
+type ProjectConfigurationValidateEnvelope =
+  ProjectConfigurationValidateOperation['responses'][200]['content']['application/json'];
+type ProjectConfigurationValidateData = NonNullable<ProjectConfigurationValidateEnvelope['data']>;
+type ProjectConfigurationValidatePayload =
+  ProjectConfigurationValidateOperation['requestBody']['content']['application/json'];
+type ProjectConfigurationValidatePathParams = ProjectConfigurationValidateOperation['parameters']['path'];
+
 type ProjectManagedRootPath = (typeof PROJECT_API_PATH)['MANAGED_ROOT'];
 type GetProjectManagedRootOperation = paths[ProjectManagedRootPath]['get'];
 type GetProjectManagedRootEnvelope = GetProjectManagedRootOperation['responses'][200]['content']['application/json'];
@@ -90,6 +116,12 @@ type ProjectRefreshOperation = paths[(typeof PROJECT_API_PATH)['REFRESH']]['post
 type ProjectRefreshEnvelope = ProjectRefreshOperation['responses'][200]['content']['application/json'];
 type ProjectRefreshData = NonNullable<ProjectRefreshEnvelope['data']>;
 type ProjectRefreshPathParams = ProjectRefreshOperation['parameters']['path'];
+
+type ProjectDeployOperation = paths[(typeof PROJECT_API_PATH)['DEPLOY']]['post'];
+type ProjectDeployEnvelope = ProjectDeployOperation['responses'][200]['content']['application/json'];
+type ProjectDeployData = NonNullable<ProjectDeployEnvelope['data']>;
+type ProjectDeployPayload = ProjectDeployOperation['requestBody']['content']['application/json'];
+type ProjectDeployPathParams = ProjectDeployOperation['parameters']['path'];
 
 type ProjectUpOperation = paths[(typeof PROJECT_API_PATH)['UP']]['post'];
 type ProjectUpEnvelope = ProjectUpOperation['responses'][200]['content']['application/json'];
@@ -159,6 +191,26 @@ export function getProjectConfigurationFile(
   }) as Promise<ProjectConfigurationFileResponse>;
 }
 
+export function postProjectConfigurationDiff(
+  id: ProjectConfigurationDiffPathParams['id'],
+  payload: ProjectConfigurationDiffRequest,
+) {
+  return postProjectAction<ProjectConfigurationDiffData>(
+    buildProjectConfigurationDiffApiPath(id),
+    payload as ProjectConfigurationDiffPayload,
+  ) as Promise<ProjectConfigurationDiffResponse>;
+}
+
+export function postProjectConfigurationValidate(
+  id: ProjectConfigurationValidatePathParams['id'],
+  payload: ProjectConfigurationValidateRequest,
+) {
+  return postProjectAction<ProjectConfigurationValidateData>(
+    buildProjectConfigurationValidateApiPath(id),
+    payload as ProjectConfigurationValidatePayload,
+  ) as Promise<ProjectConfigurationValidateResponse>;
+}
+
 export function getProjectManagedRoot() {
   return request.get<GetProjectManagedRootData>({
     url: PROJECT_API_PATH.MANAGED_ROOT,
@@ -188,6 +240,13 @@ function postProjectAction<T>(url: string, data?: unknown) {
 
 export function postProjectRefresh(id: ProjectRefreshPathParams['id']) {
   return postProjectAction<ProjectRefreshData>(buildProjectRefreshApiPath(id)) as Promise<ProjectActionResponse>;
+}
+
+export function postProjectDeploy(id: ProjectDeployPathParams['id'], payload: ProjectDeployRequest) {
+  return postProjectAction<ProjectDeployData>(
+    buildProjectDeployApiPath(id),
+    payload as ProjectDeployPayload,
+  ) as Promise<ProjectDeployResponse>;
 }
 
 export function postProjectUp(id: ProjectUpPathParams['id']) {

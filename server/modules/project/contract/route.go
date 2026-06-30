@@ -15,6 +15,10 @@ const (
 	ProjectConfigurationPreviewRoute = "/:id/configuration/preview"
 	// ProjectConfigurationFileRoute identifies the single-file content route fragment.
 	ProjectConfigurationFileRoute = "/:id/configuration/files/:fileId"
+	// ProjectConfigurationDiffRoute identifies the managed configuration draft diff route fragment.
+	ProjectConfigurationDiffRoute = "/:id/configuration/diff"
+	// ProjectConfigurationValidateRoute identifies the managed configuration draft validate route fragment.
+	ProjectConfigurationValidateRoute = "/:id/configuration/validate"
 	// ProjectImportValidateRoute identifies the import validation route fragment.
 	ProjectImportValidateRoute = "/import/validate"
 	// ProjectImportRoute identifies the import-and-register route fragment.
@@ -37,6 +41,8 @@ const (
 	ProjectUnregisterRoute = "/:id/unregister"
 	// ProjectDestroyRoute identifies the guarded destroy route fragment.
 	ProjectDestroyRoute = "/:id/destroy"
+	// ProjectDeployRoute identifies the managed configuration deploy route fragment.
+	ProjectDeployRoute = "/:id/deploy"
 	// ProjectMenuRootPath identifies the web menu root path for operations.
 	ProjectMenuRootPath = "/ops"
 	// ProjectMenuPath identifies the canonical web menu path for Compose project management.

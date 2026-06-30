@@ -56,6 +56,8 @@ const (
 	ProjectManagedRootUnconfigured ErrorCode = "ops.project.error.managedRootUnconfigured"
 	// ProjectManagedRootInvalid identifies managed-create flows blocked by invalid managed-root authority.
 	ProjectManagedRootInvalid ErrorCode = "ops.project.error.managedRootInvalid"
+	// ProjectManagedFlowUnsupported identifies flows blocked because the project is not a managed project.
+	ProjectManagedFlowUnsupported ErrorCode = "ops.project.error.managedFlowUnsupported"
 )
 
 const (
@@ -83,6 +85,10 @@ const (
 	ProjectManagedCreateValidated MessageKey = "ops.project.create.validated"
 	// ProjectManagedCreateAccepted identifies an accepted managed-create response.
 	ProjectManagedCreateAccepted MessageKey = "ops.project.create.accepted"
+	// ProjectConfigurationValidated identifies a successful managed configuration validation response.
+	ProjectConfigurationValidated MessageKey = "ops.project.configuration.validated"
+	// ProjectDeployCompleted identifies a successful managed configuration deploy response.
+	ProjectDeployCompleted MessageKey = "ops.project.deploy.completed"
 )
 
 const (
@@ -98,6 +104,8 @@ const (
 	ProjectDestroyPermission PermissionCode = "ops.project.destroy"
 	// ProjectCreatePermission identifies managed-create contract and future create execution access.
 	ProjectCreatePermission PermissionCode = "ops.project.create"
+	// ProjectDeployPermission identifies managed configuration diff, validate, and deploy access.
+	ProjectDeployPermission PermissionCode = "ops.project.deploy"
 )
 
 const (

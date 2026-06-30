@@ -244,6 +244,12 @@ paths:
     $ref: ./paths/ops-projects.configuration-preview.yaml
   /api/ops/projects/{id}/configuration/files/{fileId}:
     $ref: ./paths/ops-projects.configuration-file.yaml
+  /api/ops/projects/{id}/configuration/diff:
+    $ref: ./paths/ops-projects.configuration-diff.yaml
+  /api/ops/projects/{id}/configuration/validate:
+    $ref: ./paths/ops-projects.configuration-validate.yaml
+  /api/ops/projects/{id}/deploy:
+    $ref: ./paths/ops-projects.deploy.yaml
   /api/ops/projects/{id}/refresh:
     $ref: ./paths/ops-projects.refresh.yaml
   /api/ops/projects/{id}/up:

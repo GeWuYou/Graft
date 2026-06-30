@@ -310,6 +310,188 @@
                     <t-empty v-else :description="t('project.detail.configuration.previewEmpty')" />
                   </t-card>
 
+                  <t-card size="small" :title="t('project.detail.configuration.editorTitle')">
+                    <template #actions>
+                      <t-space size="small" break-line>
+                        <t-button
+                          size="small"
+                          theme="default"
+                          variant="outline"
+                          :loading="configurationLoading"
+                          @click="resetDraftFromCurrent"
+                        >
+                          {{ t('project.detail.configuration.resetDraft') }}
+                        </t-button>
+                        <t-button
+                          size="small"
+                          theme="primary"
+                          variant="outline"
+                          :loading="configurationDiffLoading"
+                          :disabled="!managedConfigurationEnabled"
+                          @click="runConfigurationDiff"
+                        >
+                          {{ t('project.detail.configuration.runDiff') }}
+                        </t-button>
+                        <t-button
+                          size="small"
+                          theme="primary"
+                          variant="outline"
+                          :loading="configurationValidateLoading"
+                          :disabled="!managedConfigurationEnabled"
+                          @click="runConfigurationValidate"
+                        >
+                          {{ t('project.detail.configuration.runValidate') }}
+                        </t-button>
+                        <t-button
+                          size="small"
+                          theme="primary"
+                          :loading="configurationDeployLoading"
+                          :disabled="!managedConfigurationEnabled"
+                          @click="runConfigurationDeploy"
+                        >
+                          {{ t('project.detail.configuration.deploy') }}
+                        </t-button>
+                      </t-space>
+                    </template>
+                    <t-alert
+                      v-if="configurationAuthorityNotice"
+                      :theme="managedConfigurationEnabled ? 'info' : 'warning'"
+                      :message="configurationAuthorityNotice"
+                      class="project-configuration-alert"
+                    />
+                    <t-tabs v-model:value="configurationEditorTab" theme="card">
+                      <t-tab-panel value="compose" :label="t('project.detail.configuration.composeEditorTab')">
+                        <project-file-editor
+                          v-model="configurationDraft.compose_file_content"
+                          v-model:mode="composeEditorMode"
+                          :title="t('project.detail.configuration.composeEditorTitle')"
+                          :description="t('project.detail.configuration.composeEditorDescription')"
+                          :placeholder="t('project.detail.configuration.composeEditorPlaceholder')"
+                          :empty-label="t('project.detail.configuration.composeEditorEmpty')"
+                          :edit-label="t('project.detail.configuration.backToEditor')"
+                          :preview-label="t('project.detail.configuration.previewDraft')"
+                          :format-label="t('project.detail.configuration.formatDraft')"
+                          :fullscreen-label="t('project.detail.configuration.fullscreen')"
+                          :exit-fullscreen-label="t('project.detail.configuration.exitFullscreen')"
+                          :resize-handle-label="t('project.detail.configuration.resizeEditor')"
+                          storage-key="graft.project.detail.compose.editor.height"
+                          @format="formatComposeDraft"
+                        />
+                      </t-tab-panel>
+                      <t-tab-panel value="env" :label="t('project.detail.configuration.envEditorTab')">
+                        <project-file-editor
+                          v-model="envDraftContent"
+                          v-model:mode="envEditorMode"
+                          :title="t('project.detail.configuration.envEditorTitle')"
+                          :description="t('project.detail.configuration.envEditorDescription')"
+                          :placeholder="t('project.detail.configuration.envEditorPlaceholder')"
+                          :empty-label="t('project.detail.configuration.envEditorEmpty')"
+                          :edit-label="t('project.detail.configuration.backToEditor')"
+                          :preview-label="t('project.detail.configuration.previewDraft')"
+                          :format-label="t('project.detail.configuration.formatDraft')"
+                          :fullscreen-label="t('project.detail.configuration.fullscreen')"
+                          :exit-fullscreen-label="t('project.detail.configuration.exitFullscreen')"
+                          :resize-handle-label="t('project.detail.configuration.resizeEditor')"
+                          storage-key="graft.project.detail.env.editor.height"
+                          @format="formatEnvDraft"
+                        />
+                      </t-tab-panel>
+                    </t-tabs>
+                  </t-card>
+
+                  <t-card size="small" :title="t('project.detail.configuration.diffTitle')">
+                    <t-loading :loading="configurationDiffLoading">
+                      <div v-if="configurationDiffResult" class="project-diff-list">
+                        <t-alert
+                          :theme="configurationDiffResult.has_changes ? 'warning' : 'success'"
+                          :message="
+                            configurationDiffResult.has_changes
+                              ? t('project.detail.configuration.diffHasChanges')
+                              : t('project.detail.configuration.diffNoChanges')
+                          "
+                        />
+                        <t-space break-line size="small">
+                          <t-tag theme="default" variant="light-outline">
+                            {{ t('project.detail.configuration.currentHash') }}:
+                            {{ configurationDiffResult.current_config_hash }}
+                          </t-tag>
+                          <t-tag theme="primary" variant="light-outline">
+                            {{ t('project.detail.configuration.proposedHash') }}:
+                            {{ configurationDiffResult.proposed_config_hash }}
+                          </t-tag>
+                        </t-space>
+                        <t-collapse :value="expandedDiffPanels" @change="handleDiffPanelChange">
+                          <t-collapse-panel
+                            v-for="file in configurationDiffResult.files"
+                            :key="`${file.kind}-${file.path}`"
+                            :value="file.path"
+                            :header="file.path"
+                          >
+                            <template #headerRightContent>
+                              <t-tag :theme="file.changed ? 'warning' : 'success'" variant="light-outline">
+                                {{
+                                  file.changed
+                                    ? t('project.detail.configuration.diffFileChanged')
+                                    : t('project.detail.configuration.diffFileUnchanged')
+                                }}
+                              </t-tag>
+                            </template>
+                            <div class="project-diff-panel">
+                              <div class="project-diff-meta">
+                                <span
+                                  >{{ t('project.detail.configuration.currentHash') }}: {{ file.current_hash }}</span
+                                >
+                                <span
+                                  >{{ t('project.detail.configuration.proposedHash') }}: {{ file.proposed_hash }}</span
+                                >
+                              </div>
+                              <pre>{{ file.proposed_content }}</pre>
+                            </div>
+                          </t-collapse-panel>
+                        </t-collapse>
+                        <div v-if="configurationDiffResult.warnings?.length" class="project-configuration-warning-list">
+                          <t-alert
+                            v-for="warning in configurationDiffResult.warnings"
+                            :key="warning"
+                            theme="warning"
+                            :message="warning"
+                          />
+                        </div>
+                      </div>
+                      <t-empty v-else :description="t('project.detail.configuration.diffEmpty')" />
+                    </t-loading>
+                  </t-card>
+
+                  <t-card size="small" :title="t('project.detail.configuration.validationTitle')">
+                    <t-loading :loading="configurationValidateLoading">
+                      <div v-if="configurationValidateResult" class="project-code-panel">
+                        <div class="project-code-panel__meta">
+                          <t-tag theme="primary" variant="light-outline">
+                            {{ t('project.detail.configuration.proposedHash') }}:
+                            {{ configurationValidateResult.proposed_config_hash }}
+                          </t-tag>
+                          <span>
+                            {{ t('project.detail.configuration.declaredServices') }}:
+                            {{ configurationValidateResult.declared_service_names.join(', ') || '-' }}
+                          </span>
+                        </div>
+                        <pre>{{ configurationValidateResult.normalized_compose_yaml }}</pre>
+                        <div
+                          v-if="configurationValidateResult.warnings?.length"
+                          class="project-configuration-warning-list"
+                        >
+                          <t-alert
+                            v-for="warning in configurationValidateResult.warnings"
+                            :key="warning"
+                            theme="warning"
+                            :message="warning"
+                          />
+                        </div>
+                      </div>
+                      <t-empty v-else :description="t('project.detail.configuration.validationEmpty')" />
+                    </t-loading>
+                  </t-card>
+
                   <t-card size="small" :title="t('project.detail.configuration.fileContentTitle')">
                     <div v-if="selectedConfigurationFile?.content" class="project-code-panel">
                       <div class="project-code-panel__meta">
@@ -433,8 +615,9 @@
 </template>
 <script setup lang="ts">
 import { RefreshIcon } from 'tdesign-icons-vue-next';
+import { DialogPlugin } from 'tdesign-vue-next/es/dialog';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
@@ -454,11 +637,15 @@ import {
   getProjectConfigurationFile,
   getProjectConfigurationPreview,
   getProjectServices,
+  postProjectConfigurationDiff,
+  postProjectConfigurationValidate,
+  postProjectDeploy,
   postProjectDown,
   postProjectRestart,
   postProjectUnregister,
   postProjectUp,
 } from '../../api/project';
+import ProjectFileEditor from '../../components/ProjectFileEditor.vue';
 import {
   formatProjectTime,
   projectDriftStatusLabel,
@@ -472,9 +659,14 @@ import {
 import { appendResolvedTab, buildDetailTitleWithFallback } from '../../shared/navigation';
 import type {
   ProjectActionResponse,
+  ProjectConfigurationDiffRequest,
+  ProjectConfigurationDiffResponse,
   ProjectConfigurationFileResponse,
   ProjectConfigurationMetadataResponse,
   ProjectConfigurationPreviewResponse,
+  ProjectConfigurationValidateRequest,
+  ProjectConfigurationValidateResponse,
+  ProjectDeployRequest,
   ProjectDetailResponse,
   ProjectServiceContainerMember,
   ProjectServiceItem,
@@ -488,6 +680,8 @@ type ActivityMember = ProjectServiceContainerMember & {
   events: ContainerRuntimeEventRecord[];
   logs: ContainerLogEntry[];
 };
+type EditorMode = 'edit' | 'preview';
+type ConfigurationEditorTab = 'compose' | 'env';
 
 const { locale, t } = useI18n();
 const route = useRoute();
@@ -504,6 +698,16 @@ const serviceItems = ref<ProjectServiceItem[]>([]);
 const configurationMetadata = ref<ProjectConfigurationMetadataResponse | null>(null);
 const configurationPreview = ref<ProjectConfigurationPreviewResponse | null>(null);
 const selectedConfigurationFile = ref<ProjectConfigurationFileResponse | null>(null);
+const configurationDiffResult = ref<ProjectConfigurationDiffResponse | null>(null);
+const configurationValidateResult = ref<ProjectConfigurationValidateResponse | null>(null);
+const configurationEditorTab = ref<ConfigurationEditorTab>('compose');
+const composeEditorMode = ref<EditorMode>('edit');
+const envEditorMode = ref<EditorMode>('edit');
+const configurationLoading = ref(false);
+const configurationDiffLoading = ref(false);
+const configurationValidateLoading = ref(false);
+const configurationDeployLoading = ref(false);
+const expandedDiffPanels = ref<Array<string | number>>([]);
 const activityMembers = ref<ActivityMember[]>([]);
 const activityLoading = ref(false);
 const activityError = ref('');
@@ -511,6 +715,10 @@ const activeTab = ref(String(route.query.tab || 'overview'));
 const actionLoading = ref<ProjectActionResponse['action'] | ''>('');
 const activitySince = ref('1h');
 const activityTail = ref('40');
+const configurationDraft = reactive<ProjectDeployRequest>({
+  compose_file_content: '',
+  env_file_content: '',
+});
 
 const projectId = computed(() => Number(route.params.id));
 const activeTabRoute = computed(() =>
@@ -528,6 +736,22 @@ const fallbackCanonicalName = computed(() => fallbackDisplayName.value);
 const pageTitle = computed(
   () => detailRecord.value?.display_name || fallbackDisplayName.value || t('project.detail.titleFallback'),
 );
+const managedConfigurationEnabled = computed(() => detailRecord.value?.ownership_mode === 'managed-root-dedicated');
+const configurationAuthorityNotice = computed(() => {
+  if (!detailRecord.value) {
+    return '';
+  }
+  if (managedConfigurationEnabled.value) {
+    return t('project.detail.configuration.managedAuthorityHint');
+  }
+  return t('project.detail.configuration.externalAuthorityHint');
+});
+const envDraftContent = computed({
+  get: () => configurationDraft.env_file_content || '',
+  set: (value: string) => {
+    configurationDraft.env_file_content = value;
+  },
+});
 
 watch(
   () => route.query.tab,
@@ -632,6 +856,7 @@ async function loadServices() {
 
 async function loadConfiguration() {
   if (!Number.isFinite(projectId.value)) return;
+  configurationLoading.value = true;
   try {
     const [metadata, preview] = await Promise.all([
       getProjectConfiguration(projectId.value),
@@ -643,9 +868,12 @@ async function loadConfiguration() {
     if (typeof firstFile === 'number') {
       await selectConfigurationFile(firstFile);
     }
+    hydrateDraftFromCurrent(metadata);
   } catch (error) {
     logger.error('failed to load project configuration', error);
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.list.retry')));
+  } finally {
+    configurationLoading.value = false;
   }
 }
 
@@ -668,6 +896,136 @@ async function copyConfigurationContent() {
   } catch {
     MessagePlugin.error(t('project.detail.configuration.copyError'));
   }
+}
+
+function hydrateDraftFromCurrent(metadata: ProjectConfigurationMetadataResponse) {
+  const composeFileId = metadata.compose_files[0]?.id;
+  const envFileId = metadata.env_files[0]?.id;
+  const tasks: Promise<unknown>[] = [];
+  if (typeof composeFileId === 'number') {
+    tasks.push(
+      getProjectConfigurationFile(projectId.value, composeFileId).then((response) => {
+        configurationDraft.compose_file_content = response.content;
+      }),
+    );
+  }
+  if (typeof envFileId === 'number') {
+    tasks.push(
+      getProjectConfigurationFile(projectId.value, envFileId).then((response) => {
+        configurationDraft.env_file_content = response.content;
+      }),
+    );
+  } else {
+    configurationDraft.env_file_content = '';
+  }
+  void Promise.all(tasks).catch((error) => {
+    logger.error('failed to hydrate project draft', error);
+  });
+}
+
+function resetDraftFromCurrent() {
+  if (configurationMetadata.value) {
+    hydrateDraftFromCurrent(configurationMetadata.value);
+  }
+  configurationDiffResult.value = null;
+  configurationValidateResult.value = null;
+  expandedDiffPanels.value = [];
+  configurationEditorTab.value = 'compose';
+  composeEditorMode.value = 'edit';
+  envEditorMode.value = 'edit';
+}
+
+function buildConfigurationDraftRequest(): ProjectConfigurationDiffRequest &
+  ProjectConfigurationValidateRequest &
+  ProjectDeployRequest {
+  return {
+    compose_file_content: normalizeTextBlock(configurationDraft.compose_file_content || ''),
+    env_file_content: normalizeTextBlock(configurationDraft.env_file_content || ''),
+  };
+}
+
+function formatComposeDraft() {
+  configurationDraft.compose_file_content = normalizeTextBlock(configurationDraft.compose_file_content || '');
+}
+
+function formatEnvDraft() {
+  configurationDraft.env_file_content = normalizeTextBlock(configurationDraft.env_file_content || '');
+}
+
+async function runConfigurationDiff() {
+  if (!Number.isFinite(projectId.value) || !managedConfigurationEnabled.value) {
+    MessagePlugin.warning(configurationAuthorityNotice.value);
+    return;
+  }
+  configurationDiffLoading.value = true;
+  try {
+    configurationDiffResult.value = await postProjectConfigurationDiff(
+      projectId.value,
+      buildConfigurationDraftRequest(),
+    );
+    expandedDiffPanels.value = configurationDiffResult.value.files
+      .filter((item) => item.changed)
+      .map((item) => item.path);
+  } catch (error) {
+    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.detail.configuration.diffFailed')));
+  } finally {
+    configurationDiffLoading.value = false;
+  }
+}
+
+async function runConfigurationValidate() {
+  if (!Number.isFinite(projectId.value) || !managedConfigurationEnabled.value) {
+    MessagePlugin.warning(configurationAuthorityNotice.value);
+    return;
+  }
+  configurationValidateLoading.value = true;
+  try {
+    configurationValidateResult.value = await postProjectConfigurationValidate(
+      projectId.value,
+      buildConfigurationDraftRequest(),
+    );
+    MessagePlugin.success(t('project.detail.configuration.validateSuccess'));
+  } catch (error) {
+    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.detail.configuration.validateFailed')));
+  } finally {
+    configurationValidateLoading.value = false;
+  }
+}
+
+async function runConfigurationDeploy() {
+  if (!Number.isFinite(projectId.value) || !managedConfigurationEnabled.value) {
+    MessagePlugin.warning(configurationAuthorityNotice.value);
+    return;
+  }
+  const dialog = DialogPlugin.confirm({
+    header: t('project.detail.configuration.deployConfirmTitle'),
+    body: t('project.detail.configuration.deployConfirmDescription'),
+    confirmBtn: {
+      content: t('project.detail.configuration.deploy'),
+      theme: 'primary',
+    },
+    cancelBtn: t('project.list.actions.cancel'),
+    onConfirm: async () => {
+      configurationDeployLoading.value = true;
+      try {
+        const response = await postProjectDeploy(projectId.value, buildConfigurationDraftRequest());
+        MessagePlugin.success(response.message || t('project.detail.configuration.deploySuccess'));
+        configurationDiffResult.value = null;
+        configurationValidateResult.value = null;
+        await refreshDetail();
+        await loadConfiguration();
+      } catch (error) {
+        MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.detail.configuration.deployFailed')));
+      } finally {
+        configurationDeployLoading.value = false;
+        dialog.destroy();
+      }
+    },
+  });
+}
+
+function handleDiffPanelChange(value: Array<string | number>) {
+  expandedDiffPanels.value = value;
 }
 
 async function loadActivity() {
@@ -754,6 +1112,16 @@ async function copyPath(path: string) {
   } catch {
     MessagePlugin.error(t('project.detail.actions.copyPathError'));
   }
+}
+
+function normalizeTextBlock(value: string) {
+  const normalized = String(value ?? '')
+    .replace(/\r\n/g, '\n')
+    .split('\n')
+    .map((line) => line.replace(/\s+$/g, ''))
+    .join('\n')
+    .trim();
+  return normalized ? `${normalized}\n` : '';
 }
 
 function buildDetailTitle(name: string): LocalizedTitle {
@@ -909,10 +1277,28 @@ function openContainerDetail(member: ProjectServiceContainerMember) {
 
 .project-diagnostics-list,
 .project-services-list,
-.project-activity-list {
+.project-activity-list,
+.project-diff-list,
+.project-configuration-warning-list {
   display: flex;
   flex-direction: column;
   gap: var(--graft-density-gap-12);
+}
+
+.project-configuration-alert,
+.project-diff-panel {
+  margin-bottom: var(--graft-density-gap-12);
+}
+
+.project-diff-panel,
+.project-diff-meta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--graft-density-gap-8);
+}
+
+.project-diff-meta {
+  color: var(--td-text-color-secondary);
 }
 
 .project-activity-grid {

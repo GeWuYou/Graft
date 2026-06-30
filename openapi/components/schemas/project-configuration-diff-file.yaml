@@ -1,0 +1,24 @@
+type: object
+required:
+  - kind
+  - path
+  - changed
+  - current_hash
+  - proposed_hash
+  - current_content
+  - proposed_content
+properties:
+  kind:
+    $ref: ./project-file-kind.yaml
+  path:
+    type: string
+  changed:
+    type: boolean
+  current_hash:
+    type: string
+  proposed_hash:
+    type: string
+  current_content:
+    type: string
+  proposed_content:
+    type: string

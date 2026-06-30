@@ -10,7 +10,7 @@ properties:
     minimum: 1
   action:
     type: string
-    enum: [refresh, up, down, restart, unregister, destroy, create]
+    enum: [refresh, up, down, restart, unregister, destroy, create, deploy]
     x-enum-varnames:
       - ProjectActionRefresh
       - ProjectActionUp
@@ -19,6 +19,7 @@ properties:
       - ProjectActionUnregister
       - ProjectActionDestroy
       - ProjectActionCreate
+      - ProjectActionDeploy
   result:
     type: string
     enum: [accepted, completed, blocked]

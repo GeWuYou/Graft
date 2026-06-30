@@ -1,0 +1,10 @@
+type: object
+required:
+  - compose_file_content
+properties:
+  compose_file_content:
+    type: string
+    minLength: 1
+  env_file_content:
+    type: string
+    nullable: true

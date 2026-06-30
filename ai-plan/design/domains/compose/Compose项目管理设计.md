@@ -1177,6 +1177,22 @@ Configuration：
 - Validate
 - Deploy
 
+## 16.3A Batch 2.4 authority 落地说明
+
+`phase-2-batch-4-diff-validate-and-deploy-flow` 把以下 authority owner 固定到仓库运行面：
+
+- OpenAPI contract owner：`openapi/**`
+  - 新增 `POST /api/ops/projects/{id}/configuration/diff`
+  - 新增 `POST /api/ops/projects/{id}/configuration/validate`
+  - 新增 `POST /api/ops/projects/{id}/deploy`
+- Project module execution owner：`server/modules/project/**`
+  - diff 与 validate 只针对 managed project 当前 tracked files 和 draft content 做 bounded 对比与静态解析
+  - deploy 只允许写回当前 tracked managed files、刷新 project snapshot，并复用 project-owned lifecycle 执行 `docker compose up -d`
+  - 不新增 project runtime persistence、project logs/events aggregation 或 project-owned container detail
+- Frontend module owner：`web/src/modules/project/**`
+  - 在 `detail -> configuration` 页签内承载 Compose/Env draft editor、diff、validate 和 deploy flow
+  - 仍保持 `detail` 页属于 `list-form-detail` page type，不把 Overview 变成 runtime dashboard
+
 ## 16.4 Phase 3
 
 Management：
