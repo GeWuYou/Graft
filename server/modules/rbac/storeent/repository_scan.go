@@ -25,6 +25,7 @@ func scanRole(scanner roleScanner) (rbacstore.Role, error) {
 		display         string
 		description     sql.NullString
 		builtin         bool
+		disabledAt      int64
 		deletedAt       int64
 		createdAt       time.Time
 		updatedAt       time.Time
@@ -37,6 +38,7 @@ func scanRole(scanner roleScanner) (rbacstore.Role, error) {
 		&display,
 		&description,
 		&builtin,
+		&disabledAt,
 		&deletedAt,
 		&createdAt,
 		&updatedAt,
@@ -52,7 +54,7 @@ func scanRole(scanner roleScanner) (rbacstore.Role, error) {
 		Display:         display,
 		Description:     nullStringPtr(description),
 		Builtin:         builtin,
-		Status:          roleStatusFromDeletedAt(deletedAt),
+		Status:          roleStatusFromDisabledAt(disabledAt),
 		CreatedAt:       createdAt,
 		UpdatedAt:       updatedAt,
 		PermissionCount: permissionCount,
@@ -88,6 +90,7 @@ func scanRoleWithUserID(scanner interface {
 		&record.Display,
 		&description,
 		&record.Builtin,
+		new(int64),
 		new(int64),
 		&record.CreatedAt,
 		&record.UpdatedAt,
@@ -233,8 +236,8 @@ func toUniqueDBIDs(ids []uint64) ([]int64, error) {
 	return converted, nil
 }
 
-func roleStatusFromDeletedAt(deletedAt int64) string {
-	if deletedAt != 0 {
+func roleStatusFromDisabledAt(disabledAt int64) string {
+	if disabledAt != 0 {
 		return rbacstore.RoleStatusDisabled
 	}
 	return rbacstore.RoleStatusEnabled
@@ -256,7 +259,7 @@ func countEnabledRolesByIDs(ctx context.Context, tx *sql.Tx, ids []int64) (int, 
 	if len(ids) == 0 {
 		return 0, nil
 	}
-	query := `SELECT COUNT(*) FROM roles WHERE id IN (` + placeholders(len(ids)) + `) AND deleted_at = 0`
+	query := `SELECT COUNT(*) FROM roles WHERE id IN (` + placeholders(len(ids)) + `) AND deleted_at = 0 AND disabled_at = 0`
 	args := make([]any, 0, len(ids))
 	for _, id := range ids {
 		args = append(args, id)
@@ -302,6 +305,9 @@ func validateAssignableRoles(rows []roleAssignmentState, roleIDs []int64) error 
 	}
 	for _, item := range rows {
 		if item.deletedAt != 0 {
+			return rbacstore.ErrRoleNotFound
+		}
+		if item.disabledAt != 0 {
 			return rbacstore.ErrRoleDisabledAssignmentForbidden
 		}
 	}
@@ -309,8 +315,9 @@ func validateAssignableRoles(rows []roleAssignmentState, roleIDs []int64) error 
 }
 
 type roleAssignmentState struct {
-	id        int64
-	deletedAt int64
+	id         int64
+	disabledAt int64
+	deletedAt  int64
 }
 
 func queryRoleAssignmentStates(ctx context.Context, db *sql.DB, roleIDs []int64) ([]roleAssignmentState, error) {
@@ -318,7 +325,7 @@ func queryRoleAssignmentStates(ctx context.Context, db *sql.DB, roleIDs []int64)
 		return []roleAssignmentState{}, nil
 	}
 	query, args := buildDollarInQuery(
-		`SELECT id, deleted_at FROM roles WHERE id IN (?)`,
+		`SELECT id, disabled_at, deleted_at FROM roles WHERE id IN (?)`,
 		roleIDs,
 	)
 	rows, err := db.QueryContext(ctx, query, args...)
@@ -334,7 +341,7 @@ func queryRoleAssignmentStatesTx(ctx context.Context, tx *sql.Tx, roleIDs []int6
 		return []roleAssignmentState{}, nil
 	}
 	query, args := buildDollarInQuery(
-		`SELECT id, deleted_at FROM roles WHERE id IN (?)`,
+		`SELECT id, disabled_at, deleted_at FROM roles WHERE id IN (?)`,
 		roleIDs,
 	)
 	rows, err := tx.QueryContext(ctx, query, args...)
@@ -349,7 +356,7 @@ func scanRoleAssignmentStates(rows *sql.Rows) ([]roleAssignmentState, error) {
 	result := make([]roleAssignmentState, 0)
 	for rows.Next() {
 		var item roleAssignmentState
-		if scanErr := rows.Scan(&item.id, &item.deletedAt); scanErr != nil {
+		if scanErr := rows.Scan(&item.id, &item.disabledAt, &item.deletedAt); scanErr != nil {
 			return nil, fmt.Errorf("scan role assignment states: %w", scanErr)
 		}
 		result = append(result, item)

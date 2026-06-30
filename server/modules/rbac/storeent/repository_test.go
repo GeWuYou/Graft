@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -43,6 +44,7 @@ func openTestDB(t *testing.T) *sql.DB {
 			updated_at DATETIME NOT NULL,
 			created_by INTEGER NOT NULL DEFAULT 0,
 			updated_by INTEGER NOT NULL DEFAULT 0,
+			disabled_at INTEGER NOT NULL DEFAULT 0,
 			deleted_at INTEGER NOT NULL DEFAULT 0,
 			deleted_by INTEGER NOT NULL DEFAULT 0
 		);`,
@@ -115,7 +117,7 @@ func TestRepositoryUserRoleWriteOperations(t *testing.T) {
 	db := openTestDB(t)
 	repo := &repository{db: db}
 
-	roleID := seedRole(t, db, "editor", 0)
+	roleID := seedRole(t, db, seededRoleRecord{name: "editor"})
 	userID := seedUser(t, db, "alice")
 
 	if err := repo.AssignRoleToUser(context.Background(), rbacstore.AssignRoleToUserInput{
@@ -149,7 +151,7 @@ func TestRepositoryAssignRoleToUserRejectsDisabledRole(t *testing.T) {
 	db := openTestDB(t)
 	repo := &repository{db: db}
 
-	roleID := seedRole(t, db, "disabled-editor", time.Now().UTC().Unix())
+	roleID := seedRole(t, db, seededRoleRecord{name: "disabled-editor", disabledAt: time.Now().UTC().Unix()})
 	userID := seedUser(t, db, "disabled-user")
 
 	err := repo.AssignRoleToUser(context.Background(), rbacstore.AssignRoleToUserInput{
@@ -161,6 +163,107 @@ func TestRepositoryAssignRoleToUserRejectsDisabledRole(t *testing.T) {
 	}
 	if count := countRows(t, db, "SELECT COUNT(*) FROM user_roles"); count != 0 {
 		t.Fatalf("expected no user-role bindings after rejected disabled role assignment, got %d", count)
+	}
+}
+
+func TestRepositoryListRolesSeparatesDisabledFromSoftDeleted(t *testing.T) {
+	db := openTestDB(t)
+	repo := &repository{db: db}
+
+	enabledRoleID := seedRole(t, db, seededRoleRecord{name: "enabled"})
+	disabledRoleID := seedRole(t, db, seededRoleRecord{name: "disabled", disabledAt: time.Now().UTC().Unix()})
+	softDeletedRoleID := seedRole(t, db, seededRoleRecord{name: "soft-deleted", disabledAt: time.Now().UTC().Unix(), deletedAt: time.Now().UTC().Unix()})
+
+	enabledRoles, err := repo.ListRoles(context.Background(), rbacstore.RoleFilter{})
+	if err != nil {
+		t.Fatalf("list enabled roles: %v", err)
+	}
+	assertRoleIDs(t, enabledRoles, []uint64{toStoreID(enabledRoleID)})
+	if enabledRoles[0].Status != rbacstore.RoleStatusEnabled {
+		t.Fatalf("expected enabled role status, got %#v", enabledRoles[0])
+	}
+
+	disabledRoles, err := repo.ListRoles(context.Background(), rbacstore.RoleFilter{Status: rbacstore.RoleStatusDisabled})
+	if err != nil {
+		t.Fatalf("list disabled roles: %v", err)
+	}
+	assertRoleIDs(t, disabledRoles, []uint64{toStoreID(disabledRoleID)})
+	if disabledRoles[0].Status != rbacstore.RoleStatusDisabled {
+		t.Fatalf("expected disabled role status, got %#v", disabledRoles[0])
+	}
+
+	if _, err := repo.GetRoleByID(context.Background(), toStoreID(softDeletedRoleID)); !errors.Is(err, rbacstore.ErrRoleNotFound) {
+		t.Fatalf("expected soft-deleted role lookup to return ErrRoleNotFound, got %v", err)
+	}
+}
+
+func TestRepositorySetRoleStatusDoesNotReviveSoftDeletedRole(t *testing.T) {
+	db := openTestDB(t)
+	repo := &repository{db: db}
+
+	roleID := seedRole(t, db, seededRoleRecord{
+		name:       "archived-editor",
+		disabledAt: time.Now().UTC().Add(-time.Minute).Unix(),
+		deletedAt:  time.Now().UTC().Unix(),
+	})
+
+	if _, err := repo.SetRoleStatus(context.Background(), rbacstore.SetRoleStatusInput{
+		ID:     toStoreID(roleID),
+		Status: rbacstore.RoleStatusEnabled,
+	}); !errors.Is(err, rbacstore.ErrRoleNotFound) {
+		t.Fatalf("expected enable soft-deleted role to return ErrRoleNotFound, got %v", err)
+	}
+
+	if _, err := repo.SetRoleStatus(context.Background(), rbacstore.SetRoleStatusInput{
+		ID:     toStoreID(roleID),
+		Status: rbacstore.RoleStatusDisabled,
+	}); !errors.Is(err, rbacstore.ErrRoleNotFound) {
+		t.Fatalf("expected disable soft-deleted role to return ErrRoleNotFound, got %v", err)
+	}
+
+	assertRoleLifecycleFields(t, db, roleID, lifecycleSnapshot{
+		disabledAtNonZero: true,
+		deletedAtNonZero:  true,
+	})
+}
+
+func TestRepositoryListRolesByUserIDAndPermissionsSkipDisabledAndSoftDeletedRoles(t *testing.T) {
+	db := openTestDB(t)
+	repo := &repository{db: db}
+
+	userID := seedUser(t, db, "role-reader")
+	enabledRoleID := seedRole(t, db, seededRoleRecord{name: "enabled-reader"})
+	disabledRoleID := seedRole(t, db, seededRoleRecord{name: "disabled-reader", disabledAt: time.Now().UTC().Unix()})
+	softDeletedRoleID := seedRole(t, db, seededRoleRecord{name: "deleted-reader", disabledAt: time.Now().UTC().Unix(), deletedAt: time.Now().UTC().Add(time.Minute).Unix()})
+	permissionID := seedPermission(t, db, "audit.read")
+
+	seedUserRoleBinding(t, db, userID, enabledRoleID)
+	seedUserRoleBinding(t, db, userID, disabledRoleID)
+	seedUserRoleBinding(t, db, userID, softDeletedRoleID)
+	seedRolePermissionBinding(t, db, enabledRoleID, permissionID)
+	seedRolePermissionBinding(t, db, disabledRoleID, permissionID)
+	seedRolePermissionBinding(t, db, softDeletedRoleID, permissionID)
+
+	roles, err := repo.ListRolesByUserID(context.Background(), toStoreID(userID))
+	if err != nil {
+		t.Fatalf("list roles by user id: %v", err)
+	}
+	assertRoleIDs(t, roles, []uint64{toStoreID(enabledRoleID)})
+
+	permissions, err := repo.ListPermissionsByUserID(context.Background(), toStoreID(userID))
+	if err != nil {
+		t.Fatalf("list permissions by user id: %v", err)
+	}
+	if len(permissions) != 1 || permissions[0].Code != "audit.read" {
+		t.Fatalf("expected one permission from enabled role only, got %#v", permissions)
+	}
+
+	userIDs, err := repo.ListUserIDsByPermissionCode(context.Background(), "audit.read")
+	if err != nil {
+		t.Fatalf("list user ids by permission code: %v", err)
+	}
+	if len(userIDs) != 1 || userIDs[0] != toStoreID(userID) {
+		t.Fatalf("expected enabled-role permission lookup to return only target user, got %#v", userIDs)
 	}
 }
 
@@ -206,7 +309,7 @@ func assertRolePermissionMutationIsAtomic(
 	db := openTestDB(t)
 	repo := &repository{db: db}
 
-	roleID := seedRole(t, db, roleName, 0)
+	roleID := seedRole(t, db, seededRoleRecord{name: roleName})
 	firstPermissionID := seedPermission(t, db, permissionPrefix+".first")
 	secondPermissionID := seedPermission(t, db, permissionPrefix+".second")
 	installRolePermissionAbortTrigger(t, db, secondPermissionID)
@@ -220,54 +323,90 @@ func assertRolePermissionMutationIsAtomic(
 	}
 }
 
-func TestRepositoryDisabledRolePermissionBindingsKeepCleanupPathsConsistent(t *testing.T) {
-	db := openTestDB(t)
-	repo := &repository{db: db}
+func TestRepositoryRemovePermissionsFromRoleAllowsDisabledRoleCleanup(t *testing.T) {
+	fixture := setupDisabledRolePermissionBindingFixture(t, "disabled-binding-remove-role", "permission.disabled.binding.remove")
 
-	roleID := seedRole(t, db, "disabled-binding-role", time.Now().UTC().Unix())
-	permissionID := seedPermission(t, db, "permission.disabled.binding")
-	seedRolePermissionBinding(t, db, roleID, permissionID)
-
-	addErr := repo.AddPermissionsToRole(context.Background(), rbacstore.AddPermissionsToRoleInput{
-		RoleID:        toStoreID(roleID),
-		PermissionIDs: []uint64{toStoreID(permissionID)},
+	addErr := fixture.repo.AddPermissionsToRole(context.Background(), rbacstore.AddPermissionsToRoleInput{
+		RoleID:        fixture.roleID,
+		PermissionIDs: []uint64{fixture.permissionID},
 	})
 	if !errors.Is(addErr, rbacstore.ErrRoleDisabledAssignmentForbidden) {
 		t.Fatalf("expected AddPermissionsToRole to reject disabled role mutations, got %v", addErr)
 	}
 
-	replaceErr := repo.ReplacePermissionsForRole(context.Background(), rbacstore.ReplacePermissionsForRoleInput{
-		RoleID:        toStoreID(roleID),
-		PermissionIDs: []uint64{toStoreID(permissionID)},
+	assertRolePermissionBindingSnapshot(t, fixture.repo, fixture.roleID, fixture.permissionID)
+
+	if err := fixture.repo.RemovePermissionsFromRole(context.Background(), rbacstore.RemovePermissionsFromRoleInput{
+		RoleID:        fixture.roleID,
+		PermissionIDs: []uint64{fixture.permissionID},
+	}); err != nil {
+		t.Fatalf("expected RemovePermissionsFromRole to allow disabled role cleanup, got %v", err)
+	}
+
+	if count := countRows(t, fixture.db, "SELECT COUNT(*) FROM role_permissions"); count != 0 {
+		t.Fatalf("expected disabled role cleanup to remove bindings, got %d", count)
+	}
+}
+
+func TestRepositoryReplacePermissionsForRoleAllowsDisabledRoleCleanupToEmptySet(t *testing.T) {
+	fixture := setupDisabledRolePermissionBindingFixture(t, "disabled-binding-replace-role", "permission.disabled.binding.replace")
+
+	replaceErr := fixture.repo.ReplacePermissionsForRole(context.Background(), rbacstore.ReplacePermissionsForRoleInput{
+		RoleID:        fixture.roleID,
+		PermissionIDs: []uint64{fixture.permissionID},
 	})
 	if !errors.Is(replaceErr, rbacstore.ErrRoleDisabledAssignmentForbidden) {
 		t.Fatalf("expected ReplacePermissionsForRole to reject disabled role non-empty mutations, got %v", replaceErr)
 	}
 
-	bindings, listErr := repo.ListRolePermissionBindings(context.Background(), toStoreID(roleID))
-	if listErr != nil {
-		t.Fatalf("expected ListRolePermissionBindings to keep disabled role snapshot readable, got %v", listErr)
-	}
-	if len(bindings) != 1 || bindings[0].PermissionID != toStoreID(permissionID) {
-		t.Fatalf("unexpected bindings for disabled role: %#v", bindings)
-	}
+	assertRolePermissionBindingSnapshot(t, fixture.repo, fixture.roleID, fixture.permissionID)
 
-	if err := repo.RemovePermissionsFromRole(context.Background(), rbacstore.RemovePermissionsFromRoleInput{
-		RoleID:        toStoreID(roleID),
-		PermissionIDs: []uint64{toStoreID(permissionID)},
-	}); err != nil {
-		t.Fatalf("expected RemovePermissionsFromRole to allow disabled role cleanup, got %v", err)
-	}
-
-	if err := repo.ReplacePermissionsForRole(context.Background(), rbacstore.ReplacePermissionsForRoleInput{
-		RoleID:        toStoreID(roleID),
+	if err := fixture.repo.ReplacePermissionsForRole(context.Background(), rbacstore.ReplacePermissionsForRoleInput{
+		RoleID:        fixture.roleID,
 		PermissionIDs: nil,
 	}); err != nil {
 		t.Fatalf("expected ReplacePermissionsForRole to allow disabled role cleanup to empty set, got %v", err)
 	}
 
-	if count := countRows(t, db, "SELECT COUNT(*) FROM role_permissions"); count != 0 {
+	if count := countRows(t, fixture.db, "SELECT COUNT(*) FROM role_permissions"); count != 0 {
 		t.Fatalf("expected disabled role cleanup to remove bindings, got %d", count)
+	}
+}
+
+type disabledRolePermissionBindingFixture struct {
+	db           *sql.DB
+	repo         *repository
+	roleID       uint64
+	permissionID uint64
+}
+
+func setupDisabledRolePermissionBindingFixture(t *testing.T, roleName string, permissionCode string) disabledRolePermissionBindingFixture {
+	t.Helper()
+
+	db := openTestDB(t)
+	repo := &repository{db: db}
+
+	roleID := seedRole(t, db, seededRoleRecord{name: roleName, disabledAt: time.Now().UTC().Unix()})
+	permissionID := seedPermission(t, db, permissionCode)
+	seedRolePermissionBinding(t, db, roleID, permissionID)
+
+	return disabledRolePermissionBindingFixture{
+		db:           db,
+		repo:         repo,
+		roleID:       toStoreID(roleID),
+		permissionID: toStoreID(permissionID),
+	}
+}
+
+func assertRolePermissionBindingSnapshot(t *testing.T, repo *repository, roleID uint64, permissionID uint64) {
+	t.Helper()
+
+	bindings, err := repo.ListRolePermissionBindings(context.Background(), roleID)
+	if err != nil {
+		t.Fatalf("expected ListRolePermissionBindings to keep disabled role snapshot readable, got %v", err)
+	}
+	if len(bindings) != 1 || bindings[0].PermissionID != permissionID {
+		t.Fatalf("unexpected bindings for disabled role: %#v", bindings)
 	}
 }
 
@@ -357,24 +496,76 @@ func stringPtr(value string) *string {
 	return &value
 }
 
-func seedRole(t *testing.T, db *sql.DB, name string, deletedAt int64) int64 {
+type seededRoleRecord struct {
+	name       string
+	disabledAt int64
+	deletedAt  int64
+}
+
+type lifecycleSnapshot struct {
+	disabledAtNonZero bool
+	deletedAtNonZero  bool
+}
+
+func seedRole(t *testing.T, db *sql.DB, record seededRoleRecord) int64 {
 	t.Helper()
 
 	now := time.Now().UTC()
 	result, err := db.ExecContext(context.Background(),
-		`INSERT INTO roles (name, display, description, builtin, created_at, updated_at, deleted_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		name, name, nil, false, now, now, deletedAt,
+		`INSERT INTO roles (name, display, description, builtin, created_at, updated_at, disabled_at, deleted_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		record.name, record.name, nil, false, now, now, record.disabledAt, record.deletedAt,
 	)
 	if err != nil {
-		t.Fatalf("seed role %s: %v", name, err)
+		t.Fatalf("seed role %s: %v", record.name, err)
 	}
 
 	id, err := result.LastInsertId()
 	if err != nil {
-		t.Fatalf("read role id for %s: %v", name, err)
+		t.Fatalf("read role id for %s: %v", record.name, err)
 	}
 	return id
+}
+
+func seedUserRoleBinding(t *testing.T, db *sql.DB, userID int64, roleID int64) {
+	t.Helper()
+
+	if _, err := db.ExecContext(context.Background(),
+		`INSERT INTO user_roles (user_id, role_id, created_at) VALUES (?, ?, ?)`,
+		userID,
+		roleID,
+		time.Now().UTC(),
+	); err != nil {
+		t.Fatalf("seed user role binding user=%d role=%d: %v", userID, roleID, err)
+	}
+}
+
+func assertRoleIDs(t *testing.T, roles []rbacstore.Role, expected []uint64) {
+	t.Helper()
+
+	actual := make([]uint64, 0, len(roles))
+	for _, role := range roles {
+		actual = append(actual, role.ID)
+	}
+	if !reflect.DeepEqual(actual, expected) {
+		t.Fatalf("unexpected role order/content: got=%v want=%v", actual, expected)
+	}
+}
+
+func assertRoleLifecycleFields(t *testing.T, db *sql.DB, roleID int64, expected lifecycleSnapshot) {
+	t.Helper()
+
+	var disabledAt int64
+	var deletedAt int64
+	if err := db.QueryRowContext(context.Background(), `SELECT disabled_at, deleted_at FROM roles WHERE id = ?`, roleID).Scan(&disabledAt, &deletedAt); err != nil {
+		t.Fatalf("read role lifecycle fields: %v", err)
+	}
+	if (disabledAt != 0) != expected.disabledAtNonZero {
+		t.Fatalf("unexpected disabled_at for role %d: %d", roleID, disabledAt)
+	}
+	if (deletedAt != 0) != expected.deletedAtNonZero {
+		t.Fatalf("unexpected deleted_at for role %d: %d", roleID, deletedAt)
+	}
 }
 
 func seedUser(t *testing.T, db *sql.DB, username string) int64 {

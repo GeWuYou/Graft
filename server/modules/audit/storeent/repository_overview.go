@@ -465,7 +465,12 @@ func (r *repository) readOverviewSecurityTimeline(ctx context.Context, args []an
 }
 
 func (r *repository) readAuditOverviewItems(ctx context.Context, args []any, kind overviewRecentKind) ([]auditstore.OverviewItem, error) {
-	rows, err := r.db.QueryContext(ctx, fmt.Sprintf(overviewRecentBaseSQL, overviewRecentWhereClause(kind)), args...)
+	whereClause, err := overviewRecentWhereClause(kind)
+	if err != nil {
+		return nil, fmt.Errorf("read audit overview items: %w", err)
+	}
+
+	rows, err := r.db.QueryContext(ctx, fmt.Sprintf(overviewRecentBaseSQL, whereClause), args...)
 	if err != nil {
 		return nil, fmt.Errorf("read audit overview items: %w", err)
 	}
@@ -488,16 +493,16 @@ func (r *repository) readAuditOverviewItems(ctx context.Context, args []any, kin
 	return items, nil
 }
 
-func overviewRecentWhereClause(kind overviewRecentKind) string {
+func overviewRecentWhereClause(kind overviewRecentKind) (string, error) {
 	switch kind {
 	case overviewRecentKindAuthFailures:
-		return authFailuresWhereClause()
+		return authFailuresWhereClause(), nil
 	case overviewRecentKindPermissionDenials:
-		return permissionDenialsWhereClause()
+		return permissionDenialsWhereClause(), nil
 	case overviewRecentKindSensitiveOperations:
-		return sensitiveOperationsWhereClause()
+		return sensitiveOperationsWhereClause(), nil
 	default:
-		panic("unsupported audit overview recent kind")
+		return "", fmt.Errorf("unsupported audit overview recent kind %q", kind)
 	}
 }
 

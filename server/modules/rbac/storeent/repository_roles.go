@@ -125,6 +125,7 @@ func (r *repository) SoftDeleteRole(ctx context.Context, input rbacstore.SoftDel
 		return err
 	}
 
+	now := time.Now().UTC()
 	result, execErr := r.db.ExecContext(
 		ctx,
 		`UPDATE roles
@@ -132,10 +133,10 @@ func (r *repository) SoftDeleteRole(ctx context.Context, input rbacstore.SoftDel
 			deleted_by = 0,
 			updated_at = $3,
 			updated_by = 0
-		WHERE id = $1`,
+		WHERE id = $1 AND deleted_at = 0`,
 		roleID,
-		time.Now().UTC().Unix(),
-		time.Now().UTC(),
+		now.Unix(),
+		now,
 	)
 	if execErr != nil {
 		return fmt.Errorf("soft delete role %d: %w", input.ID, execErr)
@@ -173,9 +174,9 @@ func (r *repository) ListRoles(ctx context.Context, filter rbacstore.RoleFilter)
 	var args []any
 	switch strings.TrimSpace(filter.Status) {
 	case "", rbacstore.RoleStatusEnabled:
-		where = append(where, "deleted_at = 0")
+		where = append(where, "deleted_at = 0", "disabled_at = 0")
 	case rbacstore.RoleStatusDisabled:
-		where = append(where, "deleted_at <> 0")
+		where = append(where, "deleted_at = 0", "disabled_at <> 0")
 	default:
 		return nil, rbacstore.ErrInvalidID
 	}
@@ -191,7 +192,7 @@ func (r *repository) ListRoles(ctx context.Context, filter rbacstore.RoleFilter)
 		ctx,
 		r.db,
 		"list roles",
-		fmt.Sprintf(`SELECT id, name, display, description, builtin, deleted_at, created_at, updated_at,
+		fmt.Sprintf(`SELECT id, name, display, description, builtin, disabled_at, deleted_at, created_at, updated_at,
 			(SELECT COUNT(*) FROM role_permissions rp WHERE rp.role_id = roles.id) AS permission_count,
 			(SELECT COUNT(*) FROM user_roles ur WHERE ur.role_id = roles.id) AS user_count
 		FROM roles
@@ -203,13 +204,18 @@ func (r *repository) ListRoles(ctx context.Context, filter rbacstore.RoleFilter)
 }
 
 func (r *repository) enableRole(ctx context.Context, inputID uint64, roleID int64) (rbacstore.Role, error) {
+	existing, err := r.loadRoleIncludingDisabled(ctx, inputID, roleID, "enable")
+	if err != nil {
+		return rbacstore.Role{}, err
+	}
+
 	updatedAt := time.Now().UTC()
 	record, err := scanRole(r.db.QueryRowContext(
 		ctx,
 		`UPDATE roles
-		SET deleted_at = 0, deleted_by = 0, updated_at = $2, updated_by = 0
-		WHERE id = $1 AND deleted_at <> 0
-		RETURNING id, name, display, description, builtin, deleted_at, created_at, updated_at,
+		SET disabled_at = 0, updated_at = $2, updated_by = 0
+		WHERE id = $1 AND deleted_at = 0 AND disabled_at <> 0
+		RETURNING id, name, display, description, builtin, disabled_at, deleted_at, created_at, updated_at,
 			(SELECT COUNT(*) FROM role_permissions rp WHERE rp.role_id = roles.id) AS permission_count,
 			(SELECT COUNT(*) FROM user_roles ur WHERE ur.role_id = roles.id) AS user_count`,
 		roleID,
@@ -221,12 +227,7 @@ func (r *repository) enableRole(ctx context.Context, inputID uint64, roleID int6
 	if !errors.Is(err, sql.ErrNoRows) {
 		return rbacstore.Role{}, fmt.Errorf("enable role %d: %w", inputID, err)
 	}
-
-	record, err = r.loadRoleIncludingDisabled(ctx, inputID, roleID, "enable")
-	if err != nil {
-		return rbacstore.Role{}, err
-	}
-	return record, nil
+	return existing, nil
 }
 
 func (r *repository) disableRole(ctx context.Context, inputID uint64, roleID int64) (rbacstore.Role, error) {
@@ -238,21 +239,20 @@ func (r *repository) disableRole(ctx context.Context, inputID uint64, roleID int
 		return rbacstore.Role{}, rbacstore.ErrRoleBuiltinImmutable
 	}
 
-	deletedAt := time.Now().UTC().Unix()
+	disabledAt := time.Now().UTC().Unix()
 	updatedAt := time.Now().UTC()
 	record, err = scanRole(r.db.QueryRowContext(
 		ctx,
 		`UPDATE roles
-		SET deleted_at = CASE WHEN deleted_at = 0 THEN $2 ELSE deleted_at END,
-			deleted_by = CASE WHEN deleted_at = 0 THEN 0 ELSE deleted_by END,
+		SET disabled_at = CASE WHEN disabled_at = 0 THEN $2 ELSE disabled_at END,
 			updated_at = $3,
 			updated_by = 0
-		WHERE id = $1
-		RETURNING id, name, display, description, builtin, deleted_at, created_at, updated_at,
+		WHERE id = $1 AND deleted_at = 0
+		RETURNING id, name, display, description, builtin, disabled_at, deleted_at, created_at, updated_at,
 			(SELECT COUNT(*) FROM role_permissions rp WHERE rp.role_id = roles.id) AS permission_count,
 			(SELECT COUNT(*) FROM user_roles ur WHERE ur.role_id = roles.id) AS user_count`,
 		roleID,
-		deletedAt,
+		disabledAt,
 		updatedAt,
 	))
 	if err != nil {
@@ -297,8 +297,8 @@ func (r *repository) updateRoleRecord(ctx context.Context, roleID int64, record 
 		ctx,
 		`UPDATE roles
 		SET name = $2, display = $3, description = $4, updated_at = $5, updated_by = 0
-		WHERE id = $1
-		RETURNING id, name, display, description, builtin, deleted_at, created_at, updated_at,
+		WHERE id = $1 AND deleted_at = 0
+		RETURNING id, name, display, description, builtin, disabled_at, deleted_at, created_at, updated_at,
 			(SELECT COUNT(*) FROM role_permissions rp WHERE rp.role_id = roles.id) AS permission_count,
 			(SELECT COUNT(*) FROM user_roles ur WHERE ur.role_id = roles.id) AS user_count`,
 		roleID,

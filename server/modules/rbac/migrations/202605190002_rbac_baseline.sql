@@ -8,11 +8,13 @@ CREATE TABLE "roles" (
   "created_by" bigint NOT NULL DEFAULT 0,
   "updated_at" timestamptz NOT NULL,
   "updated_by" bigint NOT NULL DEFAULT 0,
+  "disabled_at" bigint NOT NULL DEFAULT 0,
   "deleted_at" bigint NOT NULL DEFAULT 0,
   "deleted_by" bigint NOT NULL DEFAULT 0,
   PRIMARY KEY ("id")
 );
 CREATE UNIQUE INDEX "roles_name_key" ON "roles" ("name");
+CREATE INDEX "roles_disabled_at_idx" ON "roles" ("disabled_at");
 CREATE INDEX "roles_deleted_at_idx" ON "roles" ("deleted_at");
 
 CREATE TABLE "permissions" (
@@ -72,6 +74,7 @@ COMMENT ON COLUMN "roles"."created_at" IS '创建时间';
 COMMENT ON COLUMN "roles"."created_by" IS '创建人用户 ID，0 表示系统';
 COMMENT ON COLUMN "roles"."updated_at" IS '更新时间';
 COMMENT ON COLUMN "roles"."updated_by" IS '最后更新人用户 ID，0 表示系统';
+COMMENT ON COLUMN "roles"."disabled_at" IS '禁用时间戳，0 表示启用';
 COMMENT ON COLUMN "roles"."deleted_at" IS '软删除时间戳，0 表示未删除';
 COMMENT ON COLUMN "roles"."deleted_by" IS '删除人用户 ID，0 表示未删除';
 

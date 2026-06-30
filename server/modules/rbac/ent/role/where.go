@@ -95,6 +95,11 @@ func UpdatedBy(v uint64) predicate.Role {
 	return predicate.Role(sql.FieldEQ(FieldUpdatedBy, v))
 }
 
+// DisabledAt applies equality check predicate on the "disabled_at" field. It's identical to DisabledAtEQ.
+func DisabledAt(v int64) predicate.Role {
+	return predicate.Role(sql.FieldEQ(FieldDisabledAt, v))
+}
+
 // DeletedAt applies equality check predicate on the "deleted_at" field. It's identical to DeletedAtEQ.
 func DeletedAt(v int64) predicate.Role {
 	return predicate.Role(sql.FieldEQ(FieldDeletedAt, v))
@@ -478,6 +483,46 @@ func UpdatedByLT(v uint64) predicate.Role {
 // UpdatedByLTE applies the LTE predicate on the "updated_by" field.
 func UpdatedByLTE(v uint64) predicate.Role {
 	return predicate.Role(sql.FieldLTE(FieldUpdatedBy, v))
+}
+
+// DisabledAtEQ applies the EQ predicate on the "disabled_at" field.
+func DisabledAtEQ(v int64) predicate.Role {
+	return predicate.Role(sql.FieldEQ(FieldDisabledAt, v))
+}
+
+// DisabledAtNEQ applies the NEQ predicate on the "disabled_at" field.
+func DisabledAtNEQ(v int64) predicate.Role {
+	return predicate.Role(sql.FieldNEQ(FieldDisabledAt, v))
+}
+
+// DisabledAtIn applies the In predicate on the "disabled_at" field.
+func DisabledAtIn(vs ...int64) predicate.Role {
+	return predicate.Role(sql.FieldIn(FieldDisabledAt, vs...))
+}
+
+// DisabledAtNotIn applies the NotIn predicate on the "disabled_at" field.
+func DisabledAtNotIn(vs ...int64) predicate.Role {
+	return predicate.Role(sql.FieldNotIn(FieldDisabledAt, vs...))
+}
+
+// DisabledAtGT applies the GT predicate on the "disabled_at" field.
+func DisabledAtGT(v int64) predicate.Role {
+	return predicate.Role(sql.FieldGT(FieldDisabledAt, v))
+}
+
+// DisabledAtGTE applies the GTE predicate on the "disabled_at" field.
+func DisabledAtGTE(v int64) predicate.Role {
+	return predicate.Role(sql.FieldGTE(FieldDisabledAt, v))
+}
+
+// DisabledAtLT applies the LT predicate on the "disabled_at" field.
+func DisabledAtLT(v int64) predicate.Role {
+	return predicate.Role(sql.FieldLT(FieldDisabledAt, v))
+}
+
+// DisabledAtLTE applies the LTE predicate on the "disabled_at" field.
+func DisabledAtLTE(v int64) predicate.Role {
+	return predicate.Role(sql.FieldLTE(FieldDisabledAt, v))
 }
 
 // DeletedAtEQ applies the EQ predicate on the "deleted_at" field.

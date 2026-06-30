@@ -119,6 +119,27 @@ func (_u *RoleUpdate) AddUpdatedBy(v int64) *RoleUpdate {
 	return _u
 }
 
+// SetDisabledAt sets the "disabled_at" field.
+func (_u *RoleUpdate) SetDisabledAt(v int64) *RoleUpdate {
+	_u.mutation.ResetDisabledAt()
+	_u.mutation.SetDisabledAt(v)
+	return _u
+}
+
+// SetNillableDisabledAt sets the "disabled_at" field if the given value is not nil.
+func (_u *RoleUpdate) SetNillableDisabledAt(v *int64) *RoleUpdate {
+	if v != nil {
+		_u.SetDisabledAt(*v)
+	}
+	return _u
+}
+
+// AddDisabledAt adds value to the "disabled_at" field.
+func (_u *RoleUpdate) AddDisabledAt(v int64) *RoleUpdate {
+	_u.mutation.AddDisabledAt(v)
+	return _u
+}
+
 // SetDeletedAt sets the "deleted_at" field.
 func (_u *RoleUpdate) SetDeletedAt(v int64) *RoleUpdate {
 	_u.mutation.ResetDeletedAt()
@@ -324,6 +345,12 @@ func (_u *RoleUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.AddedUpdatedBy(); ok {
 		_spec.AddField(role.FieldUpdatedBy, field.TypeUint64, value)
+	}
+	if value, ok := _u.mutation.DisabledAt(); ok {
+		_spec.SetField(role.FieldDisabledAt, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedDisabledAt(); ok {
+		_spec.AddField(role.FieldDisabledAt, field.TypeInt64, value)
 	}
 	if value, ok := _u.mutation.DeletedAt(); ok {
 		_spec.SetField(role.FieldDeletedAt, field.TypeInt64, value)
@@ -533,6 +560,27 @@ func (_u *RoleUpdateOne) SetNillableUpdatedBy(v *uint64) *RoleUpdateOne {
 // AddUpdatedBy adds value to the "updated_by" field.
 func (_u *RoleUpdateOne) AddUpdatedBy(v int64) *RoleUpdateOne {
 	_u.mutation.AddUpdatedBy(v)
+	return _u
+}
+
+// SetDisabledAt sets the "disabled_at" field.
+func (_u *RoleUpdateOne) SetDisabledAt(v int64) *RoleUpdateOne {
+	_u.mutation.ResetDisabledAt()
+	_u.mutation.SetDisabledAt(v)
+	return _u
+}
+
+// SetNillableDisabledAt sets the "disabled_at" field if the given value is not nil.
+func (_u *RoleUpdateOne) SetNillableDisabledAt(v *int64) *RoleUpdateOne {
+	if v != nil {
+		_u.SetDisabledAt(*v)
+	}
+	return _u
+}
+
+// AddDisabledAt adds value to the "disabled_at" field.
+func (_u *RoleUpdateOne) AddDisabledAt(v int64) *RoleUpdateOne {
+	_u.mutation.AddDisabledAt(v)
 	return _u
 }
 
@@ -771,6 +819,12 @@ func (_u *RoleUpdateOne) sqlSave(ctx context.Context) (_node *Role, err error) {
 	}
 	if value, ok := _u.mutation.AddedUpdatedBy(); ok {
 		_spec.AddField(role.FieldUpdatedBy, field.TypeUint64, value)
+	}
+	if value, ok := _u.mutation.DisabledAt(); ok {
+		_spec.SetField(role.FieldDisabledAt, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedDisabledAt(); ok {
+		_spec.AddField(role.FieldDisabledAt, field.TypeInt64, value)
 	}
 	if value, ok := _u.mutation.DeletedAt(); ok {
 		_spec.SetField(role.FieldDeletedAt, field.TypeInt64, value)

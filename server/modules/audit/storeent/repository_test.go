@@ -1461,14 +1461,38 @@ func TestOverviewRiskGroupsSQLBoundsStatusCodeDigits(t *testing.T) {
 }
 
 func TestOverviewRecentWhereClauseUsesAllowlist(t *testing.T) {
-	if got := overviewRecentWhereClause(overviewRecentKindAuthFailures); got != authFailuresWhereClause() {
+	if got, err := overviewRecentWhereClause(overviewRecentKindAuthFailures); err != nil || got != authFailuresWhereClause() {
 		t.Fatalf("unexpected auth failures clause %q", got)
 	}
-	if got := overviewRecentWhereClause(overviewRecentKindPermissionDenials); got != permissionDenialsWhereClause() {
+	if got, err := overviewRecentWhereClause(overviewRecentKindPermissionDenials); err != nil || got != permissionDenialsWhereClause() {
 		t.Fatalf("unexpected permission denials clause %q", got)
 	}
-	if got := overviewRecentWhereClause(overviewRecentKindSensitiveOperations); got != sensitiveOperationsWhereClause() {
+	if got, err := overviewRecentWhereClause(overviewRecentKindSensitiveOperations); err != nil || got != sensitiveOperationsWhereClause() {
 		t.Fatalf("unexpected sensitive operations clause %q", got)
+	}
+}
+
+func TestOverviewRecentWhereClauseRejectsUnsupportedKind(t *testing.T) {
+	got, err := overviewRecentWhereClause(overviewRecentKind("unexpected"))
+	if err == nil {
+		t.Fatal("expected unsupported kind error")
+	}
+	if got != "" {
+		t.Fatalf("expected empty clause on unsupported kind, got %q", got)
+	}
+	if !strings.Contains(err.Error(), `unsupported audit overview recent kind "unexpected"`) {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestReadAuditOverviewItemsRejectsUnsupportedKindBeforeQuery(t *testing.T) {
+	repo := &repository{}
+	_, err := repo.readAuditOverviewItems(context.Background(), []any{time.Now()}, overviewRecentKind("unexpected"))
+	if err == nil {
+		t.Fatal("expected unsupported kind error")
+	}
+	if !strings.Contains(err.Error(), `read audit overview items: unsupported audit overview recent kind "unexpected"`) {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 

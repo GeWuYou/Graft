@@ -204,7 +204,7 @@ func (r *repository) ListPermissionsByUserID(ctx context.Context, userID uint64)
 		INNER JOIN roles r ON r.id = ur.role_id
 		INNER JOIN role_permissions rp ON rp.role_id = ur.role_id
 		INNER JOIN permissions p ON p.id = rp.permission_id
-		WHERE ur.user_id = $1 AND r.deleted_at = 0 AND p.deleted_at = 0
+		WHERE ur.user_id = $1 AND r.deleted_at = 0 AND r.disabled_at = 0 AND p.deleted_at = 0
 		ORDER BY p.id ASC`,
 		scanPermissionRows,
 		id,
@@ -222,7 +222,7 @@ func (r *repository) ListUserIDsByPermissionCode(ctx context.Context, permission
 		INNER JOIN roles r ON r.id = ur.role_id
 		INNER JOIN role_permissions rp ON rp.role_id = ur.role_id
 		INNER JOIN permissions p ON p.id = rp.permission_id
-		WHERE p.code = $1 AND r.deleted_at = 0 AND p.deleted_at = 0
+		WHERE p.code = $1 AND r.deleted_at = 0 AND r.disabled_at = 0 AND p.deleted_at = 0
 		ORDER BY ur.user_id ASC`, code)
 	if err != nil {
 		return nil, fmt.Errorf("list user ids by permission code: %w", err)

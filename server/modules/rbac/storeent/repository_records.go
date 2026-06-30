@@ -12,7 +12,7 @@ import (
 func (r *repository) queryRoleByID(ctx context.Context, id int64) (rbacstore.Role, error) {
 	return scanRole(r.db.QueryRowContext(
 		ctx,
-		`SELECT id, name, display, description, builtin, deleted_at, created_at, updated_at,
+		`SELECT id, name, display, description, builtin, disabled_at, deleted_at, created_at, updated_at,
 			(SELECT COUNT(*) FROM role_permissions rp WHERE rp.role_id = roles.id) AS permission_count,
 			(SELECT COUNT(*) FROM user_roles ur WHERE ur.role_id = roles.id) AS user_count
 		FROM roles
@@ -24,11 +24,11 @@ func (r *repository) queryRoleByID(ctx context.Context, id int64) (rbacstore.Rol
 func (r *repository) queryRoleByIDIncludingDisabled(ctx context.Context, id int64) (rbacstore.Role, error) {
 	return scanRole(r.db.QueryRowContext(
 		ctx,
-		`SELECT id, name, display, description, builtin, deleted_at, created_at, updated_at,
+		`SELECT id, name, display, description, builtin, disabled_at, deleted_at, created_at, updated_at,
 			(SELECT COUNT(*) FROM role_permissions rp WHERE rp.role_id = roles.id) AS permission_count,
 			(SELECT COUNT(*) FROM user_roles ur WHERE ur.role_id = roles.id) AS user_count
 		FROM roles
-		WHERE id = $1`,
+		WHERE id = $1 AND deleted_at = 0`,
 		id,
 	))
 }
@@ -36,7 +36,7 @@ func (r *repository) queryRoleByIDIncludingDisabled(ctx context.Context, id int6
 func (r *repository) findRoleByName(ctx context.Context, name string) (rbacstore.Role, error) {
 	return scanRole(r.db.QueryRowContext(
 		ctx,
-		`SELECT id, name, display, description, builtin, deleted_at, created_at, updated_at,
+		`SELECT id, name, display, description, builtin, disabled_at, deleted_at, created_at, updated_at,
 			(SELECT COUNT(*) FROM role_permissions rp WHERE rp.role_id = roles.id) AS permission_count,
 			(SELECT COUNT(*) FROM user_roles ur WHERE ur.role_id = roles.id) AS user_count
 		FROM roles
@@ -49,9 +49,9 @@ func (r *repository) createRoleRecord(ctx context.Context, input rbacstore.Ensur
 	now := time.Now().UTC()
 	return scanRole(r.db.QueryRowContext(
 		ctx,
-		`INSERT INTO roles (name, display, description, builtin, created_at, created_by, updated_at, updated_by, deleted_at, deleted_by)
-		VALUES ($1, $2, $3, $4, $5, 0, $6, 0, 0, 0)
-		RETURNING id, name, display, description, builtin, deleted_at, created_at, updated_at,
+		`INSERT INTO roles (name, display, description, builtin, created_at, created_by, updated_at, updated_by, disabled_at, deleted_at, deleted_by)
+		VALUES ($1, $2, $3, $4, $5, 0, $6, 0, 0, 0, 0)
+		RETURNING id, name, display, description, builtin, disabled_at, deleted_at, created_at, updated_at,
 			0 AS permission_count,
 			0 AS user_count`,
 		strings.TrimSpace(input.Name),
@@ -74,7 +74,7 @@ func (r *repository) setRoleBuiltin(ctx context.Context, id uint64, builtin bool
 		`UPDATE roles
 		SET builtin = $2, updated_at = $3, updated_by = 0
 		WHERE id = $1
-		RETURNING id, name, display, description, builtin, deleted_at, created_at, updated_at,
+		RETURNING id, name, display, description, builtin, disabled_at, deleted_at, created_at, updated_at,
 			(SELECT COUNT(*) FROM role_permissions rp WHERE rp.role_id = roles.id) AS permission_count,
 			(SELECT COUNT(*) FROM user_roles ur WHERE ur.role_id = roles.id) AS user_count`,
 		dbID,

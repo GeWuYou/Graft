@@ -155,7 +155,10 @@ func normalizePage(page int, size int) (int, int) {
 	if page <= 0 {
 		page = 1
 	}
-	maxPage := math.MaxInt/size + 1
+	maxPage := math.MaxInt / size
+	if maxPage < math.MaxInt {
+		maxPage++
+	}
 	if page > maxPage {
 		page = maxPage
 	}

@@ -80,3 +80,31 @@ func TestNormalizePageClampsOversizedPageBeforeOffsetOverflow(t *testing.T) {
 		t.Fatalf("expected non-negative offset, got %d", repository.listQuery.Offset)
 	}
 }
+
+func TestNormalizePageClampsPageSizeOneWithoutOverflow(t *testing.T) {
+	repository := &serviceTestRepository{}
+	service, err := NewService(repository)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	result, err := service.List(context.Background(), ListQuery{
+		RecipientUserID: 42,
+		Page:            math.MaxInt,
+		PageSize:        1,
+	})
+	if err != nil {
+		t.Fatalf("list notifications: %v", err)
+	}
+
+	if result.Page != math.MaxInt {
+		t.Fatalf("expected clamped page %d, got %d", math.MaxInt, result.Page)
+	}
+	expectedOffset := math.MaxInt - 1
+	if repository.listQuery.Offset != expectedOffset {
+		t.Fatalf("expected clamped offset %d, got %d", expectedOffset, repository.listQuery.Offset)
+	}
+	if repository.listQuery.Offset < 0 {
+		t.Fatalf("expected non-negative offset, got %d", repository.listQuery.Offset)
+	}
+}
