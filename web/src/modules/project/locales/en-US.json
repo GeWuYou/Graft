@@ -1,0 +1,207 @@
+{
+  "menu": {
+    "ops": {
+      "project": {
+        "title": "Projects"
+      }
+    }
+  },
+  "project": {
+    "route": {
+      "list": {
+        "title": "Operations - Projects",
+        "breadcrumb": "Projects"
+      },
+      "detail": {
+        "title": "Project Detail",
+        "breadcrumb": "Project Detail"
+      }
+    },
+    "list": {
+      "eyebrow": "Operations",
+      "title": "Compose Projects",
+      "description": "Manage Imported Compose Projects Without Duplicating Runtime Authority.",
+      "refresh": "Refresh",
+      "retry": "Retry",
+      "tableSummary": "{count} Projects",
+      "tableHint": "Project Registry Owns Files and Lifecycle; Runtime Facts Stay in Container Authority.",
+      "emptyTitle": "No Projects",
+      "emptyDescription": "Import an Existing Compose Project to Start Reviewing Overview, Services, Configuration, and Activity.",
+      "emptyFilteredDescription": "No Projects Match the Current Filters.",
+      "clearFilters": "Clear Filters",
+      "columnSettings": "Column Settings",
+      "columnDrawerTitle": "Project Columns",
+      "projectCount": "Total {count}",
+      "runningContainers": "Running {count}",
+      "stoppedContainers": "Stopped {count}",
+      "warningProjects": "Needs Attention {count}",
+      "filters": {
+        "searchPlaceholder": "Search Display Name, Canonical Name, or Working Directory",
+        "sourceKind": "Source",
+        "driftStatus": "Drift",
+        "refreshStatus": "Refresh",
+        "allSourceKinds": "All Sources",
+        "allDriftStatuses": "All Drift States",
+        "allRefreshStatuses": "All Refresh States",
+        "query": "Query",
+        "reset": "Reset"
+      },
+      "columns": {
+        "name": "Project",
+        "source": "Source",
+        "runtime": "Runtime Summary",
+        "services": "Services",
+        "containers": "Container Counts",
+        "drift": "Drift",
+        "refresh": "Refresh",
+        "workingDirectory": "Working Directory",
+        "updatedAt": "Last Refresh",
+        "operation": "Operation"
+      },
+      "status": {
+        "runtimeUnknown": "Runtime Unknown",
+        "runtimeRunning": "Runtime Running",
+        "runtimePartial": "Runtime Partial",
+        "runtimeStopped": "Runtime Stopped",
+        "runtimeEmpty": "No Members"
+      },
+      "sourceKinds": {
+        "imported": "Imported",
+        "managed": "Managed",
+        "git": "Git",
+        "template": "Template"
+      },
+      "driftStatus": {
+        "unknown": "Unknown",
+        "clean": "Clean",
+        "changed": "Changed",
+        "missing": "Missing"
+      },
+      "refreshStatus": {
+        "never": "Never",
+        "success": "Success",
+        "failed": "Failed"
+      },
+      "actions": {
+        "detail": "Detail",
+        "overview": "Overview",
+        "services": "Services",
+        "configuration": "Configuration",
+        "activity": "Activity",
+        "refresh": "Refresh",
+        "up": "Up",
+        "down": "Down",
+        "restart": "Restart",
+        "unregister": "Unregister",
+        "destroy": "Destroy",
+        "confirm": "Confirm",
+        "cancel": "Cancel",
+        "refreshSuccess": "Project Refreshed.",
+        "actionSuccess": "Project Action Completed.",
+        "actionFailed": "Project Action Failed.",
+        "unregisterConfirm": "Unregister {name}? Runtime Containers Stay Untouched.",
+        "destroyConfirm": "Destroy {name}? This Only Works When Ownership Guard Allows It."
+      }
+    },
+    "detail": {
+      "ownershipMode": {
+        "managed-root-dedicated": "Managed Root Dedicated",
+        "external": "External"
+      },
+      "eyebrow": "Compose Project",
+      "description": "Project Summary, Runtime Member Links, Read-only Configuration, and Frontend Activity Fan-out.",
+      "refresh": "Refresh Snapshot",
+      "openWorkingDirectory": "Working Directory",
+      "titleFallback": "Project Detail",
+      "tabs": {
+        "overview": "Overview",
+        "services": "Services",
+        "configuration": "Configuration",
+        "activity": "Activity"
+      },
+      "overview": {
+        "summaryTitle": "Registry Summary",
+        "lifecycleTitle": "Lifecycle",
+        "snapshotTitle": "Snapshot",
+        "diagnosticsTitle": "Diagnostics",
+        "canonicalName": "Canonical Project Name",
+        "displayName": "Display Name",
+        "workingDirectory": "Working Directory",
+        "sourceKind": "Source Kind",
+        "ownershipMode": "Ownership Mode",
+        "hostScope": "Host Scope",
+        "serviceCount": "Declared Services",
+        "runtimeStatus": "Runtime Summary",
+        "lastRefreshStatus": "Last Refresh",
+        "lastRefreshAt": "Last Refresh Time",
+        "lastRefreshHash": "Last Refresh Hash",
+        "lastObservedHash": "Observed Hash",
+        "driftStatus": "Drift Status",
+        "lastDriftCheckedAt": "Last Drift Check",
+        "errorCode": "Last Error Code",
+        "errorMessage": "Last Error Message",
+        "containerCounts": "Container Counts",
+        "diagnosticsEmpty": "No Configuration Diagnostics Were Returned."
+      },
+      "services": {
+        "title": "Declared Services",
+        "summary": "{count} Services Declared in the Latest Snapshot.",
+        "emptyTitle": "No Services",
+        "emptyDescription": "Refresh the Project Snapshot to Inspect Declared Services.",
+        "declaredPorts": "Ports",
+        "declaredVolumes": "Volumes",
+        "declaredNetworks": "Networks",
+        "members": "Runtime Members",
+        "runningCount": "Running {count}",
+        "stoppedCount": "Stopped {count}",
+        "openContainer": "Open Container Detail"
+      },
+      "configuration": {
+        "title": "Read-only Configuration",
+        "summary": "Metadata, Normalized Preview, and Single-file Content Stay Split for Phase 1.",
+        "composeFiles": "Compose Files",
+        "envFiles": "Env Files",
+        "ownershipMode": "Ownership",
+        "driftStatus": "Drift",
+        "refreshStatus": "Refresh Status",
+        "previewTitle": "Normalized Preview",
+        "previewHash": "Config Hash",
+        "previewUpdatedAt": "Preview Refreshed At",
+        "fileContentTitle": "File Content",
+        "downloadName": "Download Name",
+        "copyContent": "Copy Content",
+        "copySuccess": "Configuration Content Copied.",
+        "copyError": "Configuration Content Could Not Be Copied.",
+        "previewEmpty": "No Normalized Preview Is Available Yet.",
+        "fileEmpty": "Select One Compose or Env File to Preview Its Content."
+      },
+      "activity": {
+        "title": "Frontend Activity Fan-out",
+        "summary": "This View Fans Out Existing Container Logs and Events Without Adding Project-level Backend Aggregation.",
+        "emptyTitle": "No Runtime Members",
+        "emptyDescription": "This Project Currently Has No Runtime Container Members to Fan Out.",
+        "eventCount": "{count} Events",
+        "logCount": "{count} Log Lines",
+        "streamLabel": "Stream",
+        "sinceLabel": "Since",
+        "tailLabel": "Tail",
+        "eventSection": "Events",
+        "logSection": "Logs",
+        "loadFailed": "Project Activity Could Not Be Loaded."
+      },
+      "actions": {
+        "up": "Compose Up",
+        "down": "Compose Down",
+        "restart": "Compose Restart",
+        "unregister": "Unregister",
+        "destroy": "Destroy",
+        "copyPath": "Copy Path",
+        "copyPathSuccess": "Path Copied.",
+        "copyPathError": "Path Could Not Be Copied.",
+        "confirmDestroy": "Confirm Canonical Project Name",
+        "removeNamedVolumes": "Also Remove Named Volumes",
+        "deleteWorkingDirectory": "Also Delete Working Directory"
+      }
+    }
+  }
+}
