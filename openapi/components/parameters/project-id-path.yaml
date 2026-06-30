@@ -1,0 +1,13 @@
+name: id
+in: path
+required: true
+description: >
+  Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name.
+schema:
+  type: integer
+  format: int64
+  minimum: 1
+examples:
+  projectId:
+    summary: Imported project id
+    value: 42

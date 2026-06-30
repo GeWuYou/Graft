@@ -1,0 +1,36 @@
+type: object
+required:
+  - project_id
+  - action
+  - result
+properties:
+  project_id:
+    type: integer
+    format: int64
+    minimum: 1
+  action:
+    type: string
+    enum: [refresh, up, down, restart, unregister, destroy]
+    x-enum-varnames:
+      - ProjectActionRefresh
+      - ProjectActionUp
+      - ProjectActionDown
+      - ProjectActionRestart
+      - ProjectActionUnregister
+      - ProjectActionDestroy
+  result:
+    type: string
+    enum: [accepted, completed, blocked]
+    x-enum-varnames:
+      - ProjectActionResultAccepted
+      - ProjectActionResultCompleted
+      - ProjectActionResultBlocked
+  message_key:
+    type: string
+  message:
+    type: string
+  guard_results:
+    type: array
+    items:
+      type: string
+    description: Structured guard outcomes such as ownership blocks or skipped destructive steps.

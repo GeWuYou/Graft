@@ -1,0 +1,16 @@
+type: object
+required:
+  - project_id
+  - canonical_project_name
+  - items
+properties:
+  project_id:
+    type: integer
+    format: int64
+    minimum: 1
+  canonical_project_name:
+    type: string
+  items:
+    type: array
+    items:
+      $ref: ./project-service-item.yaml

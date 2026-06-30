@@ -1,0 +1,52 @@
+type: object
+required:
+  - id
+  - display_name
+  - canonical_project_name
+  - canonical_project_name_source
+  - source_kind
+  - host_scope
+  - ownership_mode
+  - working_directory
+  - last_refresh_status
+  - drift_status
+  - service_count
+  - container_counts
+properties:
+  id:
+    type: integer
+    format: int64
+    minimum: 1
+  display_name:
+    type: string
+  canonical_project_name:
+    type: string
+  canonical_project_name_source:
+    $ref: ./project-canonical-name-source.yaml
+  source_kind:
+    $ref: ./project-source-kind.yaml
+  host_scope:
+    $ref: ./project-host-scope.yaml
+  ownership_mode:
+    $ref: ./project-ownership-mode.yaml
+  working_directory:
+    type: string
+  runtime_status:
+    type: string
+    nullable: true
+    description: >
+      Bounded runtime summary status for overview consumption only. It must not become a replacement
+      for container runtime detail authority.
+  service_count:
+    type: integer
+    minimum: 0
+  container_counts:
+    $ref: ./project-container-counts.yaml
+  last_refresh_status:
+    $ref: ./project-refresh-status.yaml
+  last_refresh_at:
+    type: string
+    format: date-time
+    nullable: true
+  drift_status:
+    $ref: ./project-drift-status.yaml

@@ -1,0 +1,15 @@
+type: object
+required:
+  - running
+  - stopped
+  - total
+properties:
+  running:
+    type: integer
+    minimum: 0
+  stopped:
+    type: integer
+    minimum: 0
+  total:
+    type: integer
+    minimum: 0

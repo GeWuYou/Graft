@@ -639,7 +639,8 @@ Phase 1 规则：
 
 ## 10. API 提案
 
-Phase 1 只提 contract，不在本文件中定义最终 OpenAPI schema。
+Phase 1 的 canonical OpenAPI authority 已收口到 `openapi/**`，本节继续保留 IA 与语义设计真相，不能与
+`openapi/**` 漂移。
 
 ## 10.1 项目列表与详情
 
@@ -744,6 +745,35 @@ Phase 1 的单文件内容返回建议包含：
 - 不提供 `/api/ops/projects/{id}/events`
 - 不提供项目级 realtime topic
 - 不提供配置编辑保存接口
+
+## 10.6 Batch 1 authority 落地说明
+
+`phase-1-batch-1-project-contract-and-data-model` 已把以下 authority owner 固定到仓库运行面：
+
+- OpenAPI contract owner：`openapi/**`
+  - route space 固定为 `/api/ops/projects/**`
+  - Phase 1 只读 Configuration 固定拆为 metadata、preview、single-file content
+  - 明确保留 lifecycle routes 的 contract owner，但不在本 batch 落 runtime handler
+- Project module contract owner：`server/modules/project/contract/**`
+  - canonical route fragments
+  - source / ownership / drift / refresh / file kind 等 typed contracts
+- Project module data-model owner：`server/modules/project/model.go`
+  - 只定义 registry、file list、snapshot 三类 module-owned persistence model
+  - 不引入容器 logs / events / stats / inspect 等 runtime 字段
+- Project module migration owner：`server/modules/project/migrations/**`
+  - `compose_projects`
+  - `compose_project_files`
+  - `compose_project_snapshots`
+- Narrow shared boundary owner：`server/internal/moduleapi/container_project.go`
+  - 仅为后续 `Services` 聚合预留 project->container 的最小稳定只读边界
+  - 不暴露 container detail、logs、events、stats、shell、inspect 私有实现
+
+本批次仍明确不做：
+
+- `server/modules/project` runtime wiring、handler、repository、service
+- `web/src/modules/project/**`
+- backend project logs/events aggregation
+- managed create / editor / diff / deploy / validate UI
 
 ## 11. UI 信息架构
 

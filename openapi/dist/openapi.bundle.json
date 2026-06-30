@@ -61,6 +61,10 @@
     {
       "name": "container",
       "description": "容器管理"
+    },
+    {
+      "name": "project",
+      "description": "Compose 项目管理"
     }
   ],
   "paths": {
@@ -10315,6 +10319,1214 @@
           }
         }
       }
+    },
+    "/api/ops/projects": {
+      "get": {
+        "tags": [
+          "project"
+        ],
+        "summary": "List Compose projects",
+        "operationId": "getProjects",
+        "description": "Returns registered Compose projects without introducing a second runtime authority.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/project-list-limit"
+          },
+          {
+            "$ref": "#/components/parameters/project-list-offset"
+          },
+          {
+            "$ref": "#/components/parameters/project-list-source-kind"
+          },
+          {
+            "$ref": "#/components/parameters/project-list-drift-status"
+          },
+          {
+            "$ref": "#/components/parameters/project-list-refresh-status"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Compose project list.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-project-list-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/ops/projects/import/validate": {
+      "post": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Validate a Compose project import",
+        "operationId": "postProjectImportValidate",
+        "description": "Validates Compose import inputs, file discovery, and static parsing without persisting a project record.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/project-import-validate-request"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Import validation result.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-project-import-validate-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid import validation request.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "409": {
+            "description": "Import conflicts with an existing registered project.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/ops/projects/import": {
+      "post": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Import and register a Compose project",
+        "operationId": "postProjectImport",
+        "description": "Imports an existing Compose project into the Graft project registry.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/project-import-validate-request"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Imported and registered project.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-project-import-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid import request.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "409": {
+            "description": "Import conflicts with an existing registered project.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/ops/projects/{id}": {
+      "get": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Get one Compose project summary",
+        "operationId": "getProject",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/project-id-path"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Compose project summary.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-project-detail-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid project id.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Project record not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/ops/projects/{id}/services": {
+      "get": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Get Compose project service aggregation",
+        "operationId": "getProjectServices",
+        "description": "Returns Project-owned static service definitions plus bounded container membership counts. Container remains the runtime authority for detail, logs, events, stats, and shell.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/project-id-path"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Compose project service aggregation.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-project-services-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid project id.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Project record not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/ops/projects/{id}/configuration": {
+      "get": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Get Compose project configuration metadata",
+        "operationId": "getProjectConfiguration",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/project-id-path"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Configuration metadata summary.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-project-configuration-metadata-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid project id.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Project record not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/ops/projects/{id}/configuration/preview": {
+      "get": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Get normalized Compose configuration preview",
+        "operationId": "getProjectConfigurationPreview",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/project-id-path"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Normalized Compose preview.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-project-configuration-preview-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid project id.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Project record not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/ops/projects/{id}/configuration/files/{fileId}": {
+      "get": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Get one readonly Compose project file",
+        "operationId": "getProjectConfigurationFile",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/project-id-path"
+          },
+          {
+            "$ref": "#/components/parameters/project-file-id-path"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One readonly configuration file content payload.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-project-configuration-file-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid project or file id.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Project record or file record not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/ops/projects/{id}/refresh": {
+      "post": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Refresh a Compose project snapshot",
+        "operationId": "postProjectRefresh",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/project-id-path"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Refresh action result.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-project-action-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid project id.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Project record not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/ops/projects/{id}/up": {
+      "post": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Run docker compose up for a registered project",
+        "operationId": "postProjectUp",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/project-id-path"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Project up action result.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-project-action-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid project id.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Project record not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Lifecycle request blocked by ownership, phase scope, or runtime guard.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/ops/projects/{id}/down": {
+      "post": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Run docker compose down for a registered project",
+        "operationId": "postProjectDown",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/project-id-path"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Project down action result.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-project-action-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid project id.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Project record not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Lifecycle request blocked by ownership, phase scope, or runtime guard.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/ops/projects/{id}/restart": {
+      "post": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Run docker compose restart for a registered project",
+        "operationId": "postProjectRestart",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/project-id-path"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Project restart action result.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-project-action-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid project id.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Project record not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Lifecycle request blocked by ownership, phase scope, or runtime guard.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/ops/projects/{id}/unregister": {
+      "post": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Unregister a Compose project",
+        "operationId": "postProjectUnregister",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/project-id-path"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Project unregister action result.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-project-action-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid project id.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Project record not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/ops/projects/{id}/destroy": {
+      "post": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Destroy a Compose project with ownership guards",
+        "operationId": "postProjectDestroy",
+        "description": "Destroys a registered project only when ownership guards allow the requested destructive steps. The project module must not bypass container runtime authority or delete external directories by default.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/project-id-path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/project-destroy-request"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Project destroy action result.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-project-action-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid project id or destroy request body.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Project record not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Destroy request blocked by ownership guards or phase scope.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -10978,6 +12190,102 @@
       },
       "EnvelopedContainerBatchActionResponse": {
         "$ref": "#/components/schemas/enveloped-container-batch-action-response"
+      },
+      "ProjectSourceKind": {
+        "$ref": "#/components/schemas/project-source-kind"
+      },
+      "ProjectHostScope": {
+        "$ref": "#/components/schemas/project-host-scope"
+      },
+      "ProjectOwnershipMode": {
+        "$ref": "#/components/schemas/project-ownership-mode"
+      },
+      "ProjectRefreshStatus": {
+        "$ref": "#/components/schemas/project-refresh-status"
+      },
+      "ProjectDriftStatus": {
+        "$ref": "#/components/schemas/project-drift-status"
+      },
+      "ProjectCanonicalNameSource": {
+        "$ref": "#/components/schemas/project-canonical-name-source"
+      },
+      "ProjectFileKind": {
+        "$ref": "#/components/schemas/project-file-kind"
+      },
+      "ProjectFileRole": {
+        "$ref": "#/components/schemas/project-file-role"
+      },
+      "ProjectFileItem": {
+        "$ref": "#/components/schemas/project-file-item"
+      },
+      "ProjectContainerCounts": {
+        "$ref": "#/components/schemas/project-container-counts"
+      },
+      "ProjectListItem": {
+        "$ref": "#/components/schemas/project-list-item"
+      },
+      "ProjectListResponse": {
+        "$ref": "#/components/schemas/project-list-response"
+      },
+      "ProjectDetailResponse": {
+        "$ref": "#/components/schemas/project-detail-response"
+      },
+      "ProjectServiceItem": {
+        "$ref": "#/components/schemas/project-service-item"
+      },
+      "ProjectServicesResponse": {
+        "$ref": "#/components/schemas/project-services-response"
+      },
+      "ProjectImportValidateRequest": {
+        "$ref": "#/components/schemas/project-import-validate-request"
+      },
+      "ProjectImportValidateResponse": {
+        "$ref": "#/components/schemas/project-import-validate-response"
+      },
+      "ProjectImportResponse": {
+        "$ref": "#/components/schemas/project-import-response"
+      },
+      "ProjectConfigurationMetadataResponse": {
+        "$ref": "#/components/schemas/project-configuration-metadata-response"
+      },
+      "ProjectConfigurationPreviewResponse": {
+        "$ref": "#/components/schemas/project-configuration-preview-response"
+      },
+      "ProjectConfigurationFileResponse": {
+        "$ref": "#/components/schemas/project-configuration-file-response"
+      },
+      "ProjectDestroyRequest": {
+        "$ref": "#/components/schemas/project-destroy-request"
+      },
+      "ProjectActionResponse": {
+        "$ref": "#/components/schemas/project-action-response"
+      },
+      "EnvelopedProjectListResponse": {
+        "$ref": "#/components/schemas/enveloped-project-list-response"
+      },
+      "EnvelopedProjectDetailResponse": {
+        "$ref": "#/components/schemas/enveloped-project-detail-response"
+      },
+      "EnvelopedProjectServicesResponse": {
+        "$ref": "#/components/schemas/enveloped-project-services-response"
+      },
+      "EnvelopedProjectConfigurationMetadataResponse": {
+        "$ref": "#/components/schemas/enveloped-project-configuration-metadata-response"
+      },
+      "EnvelopedProjectConfigurationPreviewResponse": {
+        "$ref": "#/components/schemas/enveloped-project-configuration-preview-response"
+      },
+      "EnvelopedProjectConfigurationFileResponse": {
+        "$ref": "#/components/schemas/enveloped-project-configuration-file-response"
+      },
+      "EnvelopedProjectImportValidateResponse": {
+        "$ref": "#/components/schemas/enveloped-project-import-validate-response"
+      },
+      "EnvelopedProjectImportResponse": {
+        "$ref": "#/components/schemas/enveloped-project-import-response"
+      },
+      "EnvelopedProjectActionResponse": {
+        "$ref": "#/components/schemas/enveloped-project-action-response"
       },
       "health-response": {
         "type": "object",
@@ -18766,6 +20074,912 @@
         },
         "additionalProperties": false
       },
+      "project-source-kind": {
+        "type": "string",
+        "enum": [
+          "imported",
+          "managed",
+          "git",
+          "template"
+        ],
+        "x-enum-varnames": [
+          "ProjectSourceKindImported",
+          "ProjectSourceKindManaged",
+          "ProjectSourceKindGit",
+          "ProjectSourceKindTemplate"
+        ]
+      },
+      "project-drift-status": {
+        "type": "string",
+        "enum": [
+          "unknown",
+          "clean",
+          "changed",
+          "missing"
+        ],
+        "x-enum-varnames": [
+          "ProjectDriftStatusUnknown",
+          "ProjectDriftStatusClean",
+          "ProjectDriftStatusChanged",
+          "ProjectDriftStatusMissing"
+        ]
+      },
+      "project-refresh-status": {
+        "type": "string",
+        "enum": [
+          "never",
+          "success",
+          "failed"
+        ],
+        "x-enum-varnames": [
+          "ProjectRefreshStatusNever",
+          "ProjectRefreshStatusSuccess",
+          "ProjectRefreshStatusFailed"
+        ]
+      },
+      "project-canonical-name-source": {
+        "type": "string",
+        "enum": [
+          "computed",
+          "override"
+        ],
+        "x-enum-varnames": [
+          "ProjectCanonicalNameSourceComputed",
+          "ProjectCanonicalNameSourceOverride"
+        ]
+      },
+      "project-host-scope": {
+        "type": "string",
+        "enum": [
+          "local"
+        ],
+        "x-enum-varnames": [
+          "ProjectHostScopeLocal"
+        ]
+      },
+      "project-ownership-mode": {
+        "type": "string",
+        "enum": [
+          "external",
+          "managed-root-dedicated"
+        ],
+        "x-enum-varnames": [
+          "ProjectOwnershipModeExternal",
+          "ProjectOwnershipModeManagedRootDedicated"
+        ]
+      },
+      "project-container-counts": {
+        "type": "object",
+        "required": [
+          "running",
+          "stopped",
+          "total"
+        ],
+        "properties": {
+          "running": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "stopped": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "project-list-item": {
+        "type": "object",
+        "required": [
+          "id",
+          "display_name",
+          "canonical_project_name",
+          "canonical_project_name_source",
+          "source_kind",
+          "host_scope",
+          "ownership_mode",
+          "working_directory",
+          "last_refresh_status",
+          "drift_status",
+          "service_count",
+          "container_counts"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "canonical_project_name": {
+            "type": "string"
+          },
+          "canonical_project_name_source": {
+            "$ref": "#/components/schemas/project-canonical-name-source"
+          },
+          "source_kind": {
+            "$ref": "#/components/schemas/project-source-kind"
+          },
+          "host_scope": {
+            "$ref": "#/components/schemas/project-host-scope"
+          },
+          "ownership_mode": {
+            "$ref": "#/components/schemas/project-ownership-mode"
+          },
+          "working_directory": {
+            "type": "string"
+          },
+          "runtime_status": {
+            "type": "string",
+            "nullable": true,
+            "description": "Bounded runtime summary status for overview consumption only. It must not become a replacement for container runtime detail authority.\n"
+          },
+          "service_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "container_counts": {
+            "$ref": "#/components/schemas/project-container-counts"
+          },
+          "last_refresh_status": {
+            "$ref": "#/components/schemas/project-refresh-status"
+          },
+          "last_refresh_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "drift_status": {
+            "$ref": "#/components/schemas/project-drift-status"
+          }
+        }
+      },
+      "project-list-response": {
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/project-list-item"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "enveloped-project-list-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/project-list-response"
+              }
+            }
+          }
+        ]
+      },
+      "project-import-validate-request": {
+        "type": "object",
+        "required": [
+          "working_directory"
+        ],
+        "properties": {
+          "working_directory": {
+            "type": "string",
+            "minLength": 1
+          },
+          "compose_files": {
+            "type": "array",
+            "description": "Ordered Compose file list. Phase 1 UI may submit one file, but the authority contract stays multi-file.",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "env_files": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "display_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "canonical_project_name_override": {
+            "type": "string",
+            "minLength": 1,
+            "nullable": true
+          }
+        }
+      },
+      "project-file-kind": {
+        "type": "string",
+        "enum": [
+          "compose",
+          "env"
+        ],
+        "x-enum-varnames": [
+          "ProjectFileKindCompose",
+          "ProjectFileKindEnv"
+        ]
+      },
+      "project-file-role": {
+        "type": "string",
+        "enum": [
+          "primary",
+          "override",
+          "env"
+        ],
+        "x-enum-varnames": [
+          "ProjectFileRolePrimary",
+          "ProjectFileRoleOverride",
+          "ProjectFileRoleEnv"
+        ]
+      },
+      "project-file-item": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "role",
+          "absolute_path",
+          "display_path",
+          "order_index",
+          "exists_on_last_refresh"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "kind": {
+            "$ref": "#/components/schemas/project-file-kind"
+          },
+          "role": {
+            "$ref": "#/components/schemas/project-file-role"
+          },
+          "absolute_path": {
+            "type": "string"
+          },
+          "display_path": {
+            "type": "string"
+          },
+          "order_index": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "exists_on_last_refresh": {
+            "type": "boolean"
+          },
+          "last_observed_hash": {
+            "type": "string",
+            "description": "Most recently observed file hash. Empty string means the system has not observed one yet."
+          }
+        }
+      },
+      "project-import-validate-response": {
+        "type": "object",
+        "required": [
+          "working_directory",
+          "compose_files",
+          "env_files",
+          "canonical_project_name",
+          "canonical_project_name_source",
+          "service_count",
+          "warnings",
+          "conflicts"
+        ],
+        "properties": {
+          "working_directory": {
+            "type": "string"
+          },
+          "compose_files": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/project-file-item"
+            }
+          },
+          "env_files": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/project-file-item"
+            }
+          },
+          "canonical_project_name": {
+            "type": "string"
+          },
+          "canonical_project_name_source": {
+            "$ref": "#/components/schemas/project-canonical-name-source"
+          },
+          "normalized_preview_summary": {
+            "type": "object",
+            "properties": {
+              "config_hash": {
+                "type": "string"
+              },
+              "declared_service_names": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "service_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "conflicts": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "enveloped-project-import-validate-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/project-import-validate-response"
+              }
+            }
+          }
+        ]
+      },
+      "project-detail-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/project-list-item"
+          },
+          {
+            "type": "object",
+            "required": [
+              "compose_files",
+              "env_files"
+            ],
+            "properties": {
+              "last_refresh_error_code": {
+                "type": "string",
+                "description": "Stable error code from the latest failed refresh. Empty string means no recorded failure."
+              },
+              "last_refresh_error_message": {
+                "type": "string",
+                "description": "Fallback error message from the latest failed refresh."
+              },
+              "last_refresh_config_hash": {
+                "type": "string"
+              },
+              "last_observed_config_hash": {
+                "type": "string"
+              },
+              "last_drift_checked_at": {
+                "type": "string",
+                "format": "date-time",
+                "nullable": true
+              },
+              "compose_files": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/project-file-item"
+                }
+              },
+              "env_files": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/project-file-item"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "project-import-response": {
+        "type": "object",
+        "required": [
+          "project",
+          "snapshot_summary"
+        ],
+        "properties": {
+          "project": {
+            "$ref": "#/components/schemas/project-detail-response"
+          },
+          "snapshot_summary": {
+            "type": "object",
+            "required": [
+              "config_hash",
+              "refreshed_at"
+            ],
+            "properties": {
+              "config_hash": {
+                "type": "string"
+              },
+              "refreshed_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "declared_service_count": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          }
+        }
+      },
+      "enveloped-project-import-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/project-import-response"
+              }
+            }
+          }
+        ]
+      },
+      "enveloped-project-detail-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/project-detail-response"
+              }
+            }
+          }
+        ]
+      },
+      "project-service-item": {
+        "type": "object",
+        "required": [
+          "service_name",
+          "container_members",
+          "running_count",
+          "stopped_count"
+        ],
+        "properties": {
+          "service_name": {
+            "type": "string"
+          },
+          "image": {
+            "type": "string",
+            "nullable": true
+          },
+          "build_context": {
+            "type": "string",
+            "nullable": true
+          },
+          "declared_ports": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "declared_volumes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "declared_networks": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "container_members": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "container_id",
+                "container_name",
+                "state"
+              ],
+              "properties": {
+                "container_id": {
+                  "type": "string"
+                },
+                "container_name": {
+                  "type": "string"
+                },
+                "state": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "running_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "stopped_count": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "project-services-response": {
+        "type": "object",
+        "required": [
+          "project_id",
+          "canonical_project_name",
+          "items"
+        ],
+        "properties": {
+          "project_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "canonical_project_name": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/project-service-item"
+            }
+          }
+        }
+      },
+      "enveloped-project-services-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/project-services-response"
+              }
+            }
+          }
+        ]
+      },
+      "project-configuration-metadata-response": {
+        "type": "object",
+        "required": [
+          "project_id",
+          "compose_files",
+          "env_files",
+          "ownership_mode",
+          "drift_status",
+          "last_refresh_status"
+        ],
+        "properties": {
+          "project_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "compose_files": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/project-file-item"
+            }
+          },
+          "env_files": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/project-file-item"
+            }
+          },
+          "ownership_mode": {
+            "$ref": "#/components/schemas/project-ownership-mode"
+          },
+          "drift_status": {
+            "$ref": "#/components/schemas/project-drift-status"
+          },
+          "last_refresh_status": {
+            "$ref": "#/components/schemas/project-refresh-status"
+          },
+          "last_refresh_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "diagnostics_summary": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Bounded configuration diagnostics summary for readonly UI display."
+          }
+        }
+      },
+      "enveloped-project-configuration-metadata-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/project-configuration-metadata-response"
+              }
+            }
+          }
+        ]
+      },
+      "project-configuration-preview-response": {
+        "type": "object",
+        "required": [
+          "project_id",
+          "canonical_project_name",
+          "normalized_compose_yaml",
+          "config_hash"
+        ],
+        "properties": {
+          "project_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "canonical_project_name": {
+            "type": "string"
+          },
+          "normalized_compose_yaml": {
+            "type": "string"
+          },
+          "config_hash": {
+            "type": "string"
+          },
+          "refreshed_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
+      "enveloped-project-configuration-preview-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/project-configuration-preview-response"
+              }
+            }
+          }
+        ]
+      },
+      "project-configuration-file-response": {
+        "type": "object",
+        "required": [
+          "file_id",
+          "kind",
+          "path",
+          "content",
+          "encoding",
+          "read_only",
+          "download_name"
+        ],
+        "properties": {
+          "file_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "kind": {
+            "$ref": "#/components/schemas/project-file-kind"
+          },
+          "path": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "encoding": {
+            "type": "string",
+            "enum": [
+              "utf-8"
+            ],
+            "x-enum-varnames": [
+              "ProjectConfigurationEncodingUTF8"
+            ]
+          },
+          "read_only": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "download_name": {
+            "type": "string"
+          }
+        }
+      },
+      "enveloped-project-configuration-file-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/project-configuration-file-response"
+              }
+            }
+          }
+        ]
+      },
+      "project-action-response": {
+        "type": "object",
+        "required": [
+          "project_id",
+          "action",
+          "result"
+        ],
+        "properties": {
+          "project_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "refresh",
+              "up",
+              "down",
+              "restart",
+              "unregister",
+              "destroy"
+            ],
+            "x-enum-varnames": [
+              "ProjectActionRefresh",
+              "ProjectActionUp",
+              "ProjectActionDown",
+              "ProjectActionRestart",
+              "ProjectActionUnregister",
+              "ProjectActionDestroy"
+            ]
+          },
+          "result": {
+            "type": "string",
+            "enum": [
+              "accepted",
+              "completed",
+              "blocked"
+            ],
+            "x-enum-varnames": [
+              "ProjectActionResultAccepted",
+              "ProjectActionResultCompleted",
+              "ProjectActionResultBlocked"
+            ]
+          },
+          "message_key": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "guard_results": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Structured guard outcomes such as ownership blocks or skipped destructive steps."
+          }
+        }
+      },
+      "enveloped-project-action-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/project-action-response"
+              }
+            }
+          }
+        ]
+      },
+      "project-destroy-request": {
+        "type": "object",
+        "required": [
+          "remove_named_volumes",
+          "delete_working_directory",
+          "confirm_canonical_project_name"
+        ],
+        "properties": {
+          "remove_named_volumes": {
+            "type": "boolean",
+            "default": false
+          },
+          "delete_working_directory": {
+            "type": "boolean",
+            "default": false
+          },
+          "confirm_canonical_project_name": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
       "dashboard-stat-group-payload": {
         "type": "object",
         "required": [
@@ -19508,6 +21722,104 @@
           "mountId": {
             "summary": "Stable mount id",
             "value": "m_9f4a2c1b"
+          }
+        }
+      },
+      "project-list-limit": {
+        "name": "limit",
+        "in": "query",
+        "required": false,
+        "description": "Optional maximum number of projects to return. The runtime accepts values from 1 to 100.",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "examples": {
+          "defaultWindow": {
+            "summary": "Fetch the default project list window",
+            "value": 20
+          },
+          "maxWindow": {
+            "summary": "Fetch up to the maximum supported window",
+            "value": 100
+          }
+        }
+      },
+      "project-list-offset": {
+        "name": "offset",
+        "in": "query",
+        "required": false,
+        "description": "Optional zero-based offset for projects.",
+        "schema": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "examples": {
+          "firstPage": {
+            "summary": "Start from the first project",
+            "value": 0
+          }
+        }
+      },
+      "project-list-source-kind": {
+        "name": "source_kind",
+        "in": "query",
+        "required": false,
+        "description": "Optional project source filter.",
+        "schema": {
+          "$ref": "#/components/schemas/project-source-kind"
+        }
+      },
+      "project-list-drift-status": {
+        "name": "drift_status",
+        "in": "query",
+        "required": false,
+        "description": "Optional project drift-status filter.",
+        "schema": {
+          "$ref": "#/components/schemas/project-drift-status"
+        }
+      },
+      "project-list-refresh-status": {
+        "name": "last_refresh_status",
+        "in": "query",
+        "required": false,
+        "description": "Optional latest-refresh-status filter.",
+        "schema": {
+          "$ref": "#/components/schemas/project-refresh-status"
+        }
+      },
+      "project-id-path": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "description": "Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name.\n",
+        "schema": {
+          "type": "integer",
+          "format": "int64",
+          "minimum": 1
+        },
+        "examples": {
+          "projectId": {
+            "summary": "Imported project id",
+            "value": 42
+          }
+        }
+      },
+      "project-file-id-path": {
+        "name": "fileId",
+        "in": "path",
+        "required": true,
+        "description": "Project file record id returned by the configuration metadata endpoint.\n",
+        "schema": {
+          "type": "integer",
+          "format": "int64",
+          "minimum": 1
+        },
+        "examples": {
+          "fileId": {
+            "summary": "Compose file record id",
+            "value": 101
           }
         }
       },

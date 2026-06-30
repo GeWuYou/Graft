@@ -1,0 +1,5 @@
+type: string
+enum: [compose, env]
+x-enum-varnames:
+  - ProjectFileKindCompose
+  - ProjectFileKindEnv

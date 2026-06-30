@@ -1,0 +1,4 @@
+type: string
+enum: [local]
+x-enum-varnames:
+  - ProjectHostScopeLocal

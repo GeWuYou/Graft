@@ -1,0 +1,6 @@
+type: string
+enum: [never, success, failed]
+x-enum-varnames:
+  - ProjectRefreshStatusNever
+  - ProjectRefreshStatusSuccess
+  - ProjectRefreshStatusFailed

@@ -1,0 +1,6 @@
+name: last_refresh_status
+in: query
+required: false
+description: Optional latest-refresh-status filter.
+schema:
+  $ref: ../schemas/project-refresh-status.yaml

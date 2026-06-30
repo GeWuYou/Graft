@@ -1,0 +1,6 @@
+name: source_kind
+in: query
+required: false
+description: Optional project source filter.
+schema:
+  $ref: ../schemas/project-source-kind.yaml

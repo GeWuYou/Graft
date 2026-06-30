@@ -1,0 +1,13 @@
+name: fileId
+in: path
+required: true
+description: >
+  Project file record id returned by the configuration metadata endpoint.
+schema:
+  type: integer
+  format: int64
+  minimum: 1
+examples:
+  fileId:
+    summary: Compose file record id
+    value: 101

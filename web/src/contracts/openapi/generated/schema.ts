@@ -1959,6 +1959,259 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/ops/projects': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Compose projects
+     * @description Returns registered Compose projects without introducing a second runtime authority.
+     */
+    get: operations['getProjects'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/projects/import/validate': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Validate a Compose project import
+     * @description Validates Compose import inputs, file discovery, and static parsing without persisting a project record.
+     */
+    post: operations['postProjectImportValidate'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/projects/import': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Import and register a Compose project
+     * @description Imports an existing Compose project into the Graft project registry.
+     */
+    post: operations['postProjectImport'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/projects/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get one Compose project summary */
+    get: operations['getProject'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/projects/{id}/services': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Compose project service aggregation
+     * @description Returns Project-owned static service definitions plus bounded container membership counts. Container remains the runtime authority for detail, logs, events, stats, and shell.
+     */
+    get: operations['getProjectServices'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/projects/{id}/configuration': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get Compose project configuration metadata */
+    get: operations['getProjectConfiguration'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/projects/{id}/configuration/preview': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get normalized Compose configuration preview */
+    get: operations['getProjectConfigurationPreview'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/projects/{id}/configuration/files/{fileId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get one readonly Compose project file */
+    get: operations['getProjectConfigurationFile'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/projects/{id}/refresh': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Refresh a Compose project snapshot */
+    post: operations['postProjectRefresh'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/projects/{id}/up': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Run docker compose up for a registered project */
+    post: operations['postProjectUp'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/projects/{id}/down': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Run docker compose down for a registered project */
+    post: operations['postProjectDown'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/projects/{id}/restart': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Run docker compose restart for a registered project */
+    post: operations['postProjectRestart'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/projects/{id}/unregister': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Unregister a Compose project */
+    post: operations['postProjectUnregister'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/projects/{id}/destroy': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Destroy a Compose project with ownership guards
+     * @description Destroys a registered project only when ownership guards allow the requested destructive steps. The project module must not bypass container runtime authority or delete external directories by default.
+     */
+    post: operations['postProjectDestroy'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2183,6 +2436,38 @@ export interface components {
     EnvelopedContainerShellSessionResponse: components['schemas']['enveloped-container-shell-session-response'];
     EnvelopedContainerActionResponse: components['schemas']['enveloped-container-action-response'];
     EnvelopedContainerBatchActionResponse: components['schemas']['enveloped-container-batch-action-response'];
+    ProjectSourceKind: components['schemas']['project-source-kind'];
+    ProjectHostScope: components['schemas']['project-host-scope'];
+    ProjectOwnershipMode: components['schemas']['project-ownership-mode'];
+    ProjectRefreshStatus: components['schemas']['project-refresh-status'];
+    ProjectDriftStatus: components['schemas']['project-drift-status'];
+    ProjectCanonicalNameSource: components['schemas']['project-canonical-name-source'];
+    ProjectFileKind: components['schemas']['project-file-kind'];
+    ProjectFileRole: components['schemas']['project-file-role'];
+    ProjectFileItem: components['schemas']['project-file-item'];
+    ProjectContainerCounts: components['schemas']['project-container-counts'];
+    ProjectListItem: components['schemas']['project-list-item'];
+    ProjectListResponse: components['schemas']['project-list-response'];
+    ProjectDetailResponse: components['schemas']['project-detail-response'];
+    ProjectServiceItem: components['schemas']['project-service-item'];
+    ProjectServicesResponse: components['schemas']['project-services-response'];
+    ProjectImportValidateRequest: components['schemas']['project-import-validate-request'];
+    ProjectImportValidateResponse: components['schemas']['project-import-validate-response'];
+    ProjectImportResponse: components['schemas']['project-import-response'];
+    ProjectConfigurationMetadataResponse: components['schemas']['project-configuration-metadata-response'];
+    ProjectConfigurationPreviewResponse: components['schemas']['project-configuration-preview-response'];
+    ProjectConfigurationFileResponse: components['schemas']['project-configuration-file-response'];
+    ProjectDestroyRequest: components['schemas']['project-destroy-request'];
+    ProjectActionResponse: components['schemas']['project-action-response'];
+    EnvelopedProjectListResponse: components['schemas']['enveloped-project-list-response'];
+    EnvelopedProjectDetailResponse: components['schemas']['enveloped-project-detail-response'];
+    EnvelopedProjectServicesResponse: components['schemas']['enveloped-project-services-response'];
+    EnvelopedProjectConfigurationMetadataResponse: components['schemas']['enveloped-project-configuration-metadata-response'];
+    EnvelopedProjectConfigurationPreviewResponse: components['schemas']['enveloped-project-configuration-preview-response'];
+    EnvelopedProjectConfigurationFileResponse: components['schemas']['enveloped-project-configuration-file-response'];
+    EnvelopedProjectImportValidateResponse: components['schemas']['enveloped-project-import-validate-response'];
+    EnvelopedProjectImportResponse: components['schemas']['enveloped-project-import-response'];
+    EnvelopedProjectActionResponse: components['schemas']['enveloped-project-action-response'];
     'health-response': {
       /** @enum {string} */
       status: 'ok';
@@ -4682,6 +4967,208 @@ export interface components {
        */
       force: boolean;
     };
+    /** @enum {string} */
+    'project-source-kind': 'imported' | 'managed' | 'git' | 'template';
+    /** @enum {string} */
+    'project-drift-status': 'unknown' | 'clean' | 'changed' | 'missing';
+    /** @enum {string} */
+    'project-refresh-status': 'never' | 'success' | 'failed';
+    /** @enum {string} */
+    'project-canonical-name-source': 'computed' | 'override';
+    /** @enum {string} */
+    'project-host-scope': 'local';
+    /** @enum {string} */
+    'project-ownership-mode': 'external' | 'managed-root-dedicated';
+    'project-container-counts': {
+      running: number;
+      stopped: number;
+      total: number;
+    };
+    'project-list-item': {
+      /** Format: int64 */
+      id: number;
+      display_name: string;
+      canonical_project_name: string;
+      canonical_project_name_source: components['schemas']['project-canonical-name-source'];
+      source_kind: components['schemas']['project-source-kind'];
+      host_scope: components['schemas']['project-host-scope'];
+      ownership_mode: components['schemas']['project-ownership-mode'];
+      working_directory: string;
+      /** @description Bounded runtime summary status for overview consumption only. It must not become a replacement for container runtime detail authority. */
+      runtime_status?: string | null;
+      service_count: number;
+      container_counts: components['schemas']['project-container-counts'];
+      last_refresh_status: components['schemas']['project-refresh-status'];
+      /** Format: date-time */
+      last_refresh_at?: string | null;
+      drift_status: components['schemas']['project-drift-status'];
+    };
+    'project-list-response': {
+      items: components['schemas']['project-list-item'][];
+      total: number;
+      limit: number;
+      offset: number;
+    };
+    'enveloped-project-list-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['project-list-response'];
+    };
+    'project-import-validate-request': {
+      working_directory: string;
+      /** @description Ordered Compose file list. Phase 1 UI may submit one file, but the authority contract stays multi-file. */
+      compose_files?: string[];
+      env_files?: string[];
+      display_name?: string;
+      canonical_project_name_override?: string | null;
+    };
+    /** @enum {string} */
+    'project-file-kind': 'compose' | 'env';
+    /** @enum {string} */
+    'project-file-role': 'primary' | 'override' | 'env';
+    'project-file-item': {
+      /** Format: int64 */
+      id: number;
+      kind: components['schemas']['project-file-kind'];
+      role: components['schemas']['project-file-role'];
+      absolute_path: string;
+      display_path: string;
+      order_index: number;
+      exists_on_last_refresh: boolean;
+      /** @description Most recently observed file hash. Empty string means the system has not observed one yet. */
+      last_observed_hash?: string;
+    };
+    'project-import-validate-response': {
+      working_directory: string;
+      compose_files: components['schemas']['project-file-item'][];
+      env_files: components['schemas']['project-file-item'][];
+      canonical_project_name: string;
+      canonical_project_name_source: components['schemas']['project-canonical-name-source'];
+      normalized_preview_summary?: {
+        config_hash?: string;
+        declared_service_names?: string[];
+      };
+      service_count: number;
+      warnings: string[];
+      conflicts: string[];
+    };
+    'enveloped-project-import-validate-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['project-import-validate-response'];
+    };
+    'project-detail-response': components['schemas']['project-list-item'] & {
+      /** @description Stable error code from the latest failed refresh. Empty string means no recorded failure. */
+      last_refresh_error_code?: string;
+      /** @description Fallback error message from the latest failed refresh. */
+      last_refresh_error_message?: string;
+      last_refresh_config_hash?: string;
+      last_observed_config_hash?: string;
+      /** Format: date-time */
+      last_drift_checked_at?: string | null;
+      compose_files: components['schemas']['project-file-item'][];
+      env_files: components['schemas']['project-file-item'][];
+    };
+    'project-import-response': {
+      project: components['schemas']['project-detail-response'];
+      snapshot_summary: {
+        config_hash: string;
+        /** Format: date-time */
+        refreshed_at: string;
+        declared_service_count?: number;
+      };
+    };
+    'enveloped-project-import-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['project-import-response'];
+    };
+    'enveloped-project-detail-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['project-detail-response'];
+    };
+    'project-service-item': {
+      service_name: string;
+      image?: string | null;
+      build_context?: string | null;
+      declared_ports?: string[];
+      declared_volumes?: string[];
+      declared_networks?: string[];
+      container_members: {
+        container_id: string;
+        container_name: string;
+        state: string;
+      }[];
+      running_count: number;
+      stopped_count: number;
+    };
+    'project-services-response': {
+      /** Format: int64 */
+      project_id: number;
+      canonical_project_name: string;
+      items: components['schemas']['project-service-item'][];
+    };
+    'enveloped-project-services-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['project-services-response'];
+    };
+    'project-configuration-metadata-response': {
+      /** Format: int64 */
+      project_id: number;
+      compose_files: components['schemas']['project-file-item'][];
+      env_files: components['schemas']['project-file-item'][];
+      ownership_mode: components['schemas']['project-ownership-mode'];
+      drift_status: components['schemas']['project-drift-status'];
+      last_refresh_status: components['schemas']['project-refresh-status'];
+      /** Format: date-time */
+      last_refresh_at?: string | null;
+      /** @description Bounded configuration diagnostics summary for readonly UI display. */
+      diagnostics_summary?: string[];
+    };
+    'enveloped-project-configuration-metadata-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['project-configuration-metadata-response'];
+    };
+    'project-configuration-preview-response': {
+      /** Format: int64 */
+      project_id: number;
+      canonical_project_name: string;
+      normalized_compose_yaml: string;
+      config_hash: string;
+      /** Format: date-time */
+      refreshed_at?: string | null;
+    };
+    'enveloped-project-configuration-preview-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['project-configuration-preview-response'];
+    };
+    'project-configuration-file-response': {
+      /** Format: int64 */
+      file_id: number;
+      kind: components['schemas']['project-file-kind'];
+      path: string;
+      content: string;
+      /** @enum {string} */
+      encoding: 'utf-8';
+      /** @enum {boolean} */
+      read_only: true;
+      download_name: string;
+    };
+    'enveloped-project-configuration-file-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['project-configuration-file-response'];
+    };
+    'project-action-response': {
+      /** Format: int64 */
+      project_id: number;
+      /** @enum {string} */
+      action: 'refresh' | 'up' | 'down' | 'restart' | 'unregister' | 'destroy';
+      /** @enum {string} */
+      result: 'accepted' | 'completed' | 'blocked';
+      message_key?: string;
+      message?: string;
+      /** @description Structured guard outcomes such as ownership blocks or skipped destructive steps. */
+      guard_results?: string[];
+    };
+    'enveloped-project-action-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['project-action-response'];
+    };
+    'project-destroy-request': {
+      /** @default false */
+      remove_named_volumes: boolean;
+      /** @default false */
+      delete_working_directory: boolean;
+      confirm_canonical_project_name: string;
+    };
     'dashboard-stat-group-payload': {
       items: {
         key: string;
@@ -4873,6 +5360,20 @@ export interface components {
     'container-id-path': string;
     /** @description Stable mount id returned by the container detail or mount usage APIs. It is generated from the inspected mount destination, source, and type, and must not be replaced by a raw source path. */
     'container-mount-id-path': string;
+    /** @description Optional maximum number of projects to return. The runtime accepts values from 1 to 100. */
+    'project-list-limit': number;
+    /** @description Optional zero-based offset for projects. */
+    'project-list-offset': number;
+    /** @description Optional project source filter. */
+    'project-list-source-kind': components['schemas']['project-source-kind'];
+    /** @description Optional project drift-status filter. */
+    'project-list-drift-status': components['schemas']['project-drift-status'];
+    /** @description Optional latest-refresh-status filter. */
+    'project-list-refresh-status': components['schemas']['project-refresh-status'];
+    /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
+    'project-id-path': number;
+    /** @description Project file record id returned by the configuration metadata endpoint. */
+    'project-file-id-path': number;
     /** @description Number of log lines to return from the end of the stream. */
     'container-logs-tail': number;
     /** @description Optional log lower bound. Accepts an RFC3339 timestamp or a duration such as 10m, 1h, or 24h. Invalid values must return a localized validation error. */
@@ -10329,6 +10830,812 @@ export interface operations {
         };
       };
       /** @description Container state does not allow this action. */
+      409: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getProjects: {
+    parameters: {
+      query?: {
+        /** @description Optional maximum number of projects to return. The runtime accepts values from 1 to 100. */
+        limit?: components['parameters']['project-list-limit'];
+        /** @description Optional zero-based offset for projects. */
+        offset?: components['parameters']['project-list-offset'];
+        /** @description Optional project source filter. */
+        source_kind?: components['parameters']['project-list-source-kind'];
+        /** @description Optional project drift-status filter. */
+        drift_status?: components['parameters']['project-list-drift-status'];
+        /** @description Optional latest-refresh-status filter. */
+        last_refresh_status?: components['parameters']['project-list-refresh-status'];
+      };
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Compose project list. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-project-list-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postProjectImportValidate: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['project-import-validate-request'];
+      };
+    };
+    responses: {
+      /** @description Import validation result. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-project-import-validate-response'];
+        };
+      };
+      /** @description Invalid import validation request. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Import conflicts with an existing registered project. */
+      409: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postProjectImport: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['project-import-validate-request'];
+      };
+    };
+    responses: {
+      /** @description Imported and registered project. */
+      201: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-project-import-response'];
+        };
+      };
+      /** @description Invalid import request. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Import conflicts with an existing registered project. */
+      409: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getProject: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
+        id: components['parameters']['project-id-path'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Compose project summary. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-project-detail-response'];
+        };
+      };
+      /** @description Invalid project id. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Project record not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getProjectServices: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
+        id: components['parameters']['project-id-path'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Compose project service aggregation. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-project-services-response'];
+        };
+      };
+      /** @description Invalid project id. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Project record not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getProjectConfiguration: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
+        id: components['parameters']['project-id-path'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Configuration metadata summary. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-project-configuration-metadata-response'];
+        };
+      };
+      /** @description Invalid project id. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Project record not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getProjectConfigurationPreview: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
+        id: components['parameters']['project-id-path'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Normalized Compose preview. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-project-configuration-preview-response'];
+        };
+      };
+      /** @description Invalid project id. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Project record not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getProjectConfigurationFile: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
+        id: components['parameters']['project-id-path'];
+        /** @description Project file record id returned by the configuration metadata endpoint. */
+        fileId: components['parameters']['project-file-id-path'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description One readonly configuration file content payload. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-project-configuration-file-response'];
+        };
+      };
+      /** @description Invalid project or file id. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Project record or file record not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postProjectRefresh: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
+        id: components['parameters']['project-id-path'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Refresh action result. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-project-action-response'];
+        };
+      };
+      /** @description Invalid project id. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Project record not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postProjectUp: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
+        id: components['parameters']['project-id-path'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Project up action result. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-project-action-response'];
+        };
+      };
+      /** @description Invalid project id. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Project record not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      /** @description Lifecycle request blocked by ownership, phase scope, or runtime guard. */
+      409: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postProjectDown: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
+        id: components['parameters']['project-id-path'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Project down action result. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-project-action-response'];
+        };
+      };
+      /** @description Invalid project id. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Project record not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      /** @description Lifecycle request blocked by ownership, phase scope, or runtime guard. */
+      409: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postProjectRestart: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
+        id: components['parameters']['project-id-path'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Project restart action result. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-project-action-response'];
+        };
+      };
+      /** @description Invalid project id. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Project record not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      /** @description Lifecycle request blocked by ownership, phase scope, or runtime guard. */
+      409: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postProjectUnregister: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
+        id: components['parameters']['project-id-path'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Project unregister action result. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-project-action-response'];
+        };
+      };
+      /** @description Invalid project id. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Project record not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postProjectDestroy: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
+        id: components['parameters']['project-id-path'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['project-destroy-request'];
+      };
+    };
+    responses: {
+      /** @description Project destroy action result. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-project-action-response'];
+        };
+      };
+      /** @description Invalid project id or destroy request body. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Project record not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      /** @description Destroy request blocked by ownership guards or phase scope. */
       409: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];

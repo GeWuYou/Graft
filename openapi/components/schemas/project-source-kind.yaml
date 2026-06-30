@@ -1,0 +1,7 @@
+type: string
+enum: [imported, managed, git, template]
+x-enum-varnames:
+  - ProjectSourceKindImported
+  - ProjectSourceKindManaged
+  - ProjectSourceKindGit
+  - ProjectSourceKindTemplate

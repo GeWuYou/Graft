@@ -27,6 +27,8 @@ tags:
   - name: announcements
   - name: container
     description: 容器管理
+  - name: project
+    description: Compose 项目管理
 paths:
   /healthz:
     $ref: ./paths/healthz.yaml
@@ -220,6 +222,34 @@ paths:
     $ref: ./paths/ops-containers.restart.yaml
   /api/ops/containers/{id}/remove:
     $ref: ./paths/ops-containers.remove.yaml
+  /api/ops/projects:
+    $ref: ./paths/ops-projects.collection.yaml
+  /api/ops/projects/import/validate:
+    $ref: ./paths/ops-projects.import-validate.yaml
+  /api/ops/projects/import:
+    $ref: ./paths/ops-projects.import.yaml
+  /api/ops/projects/{id}:
+    $ref: ./paths/ops-projects.detail.yaml
+  /api/ops/projects/{id}/services:
+    $ref: ./paths/ops-projects.services.yaml
+  /api/ops/projects/{id}/configuration:
+    $ref: ./paths/ops-projects.configuration.yaml
+  /api/ops/projects/{id}/configuration/preview:
+    $ref: ./paths/ops-projects.configuration-preview.yaml
+  /api/ops/projects/{id}/configuration/files/{fileId}:
+    $ref: ./paths/ops-projects.configuration-file.yaml
+  /api/ops/projects/{id}/refresh:
+    $ref: ./paths/ops-projects.refresh.yaml
+  /api/ops/projects/{id}/up:
+    $ref: ./paths/ops-projects.up.yaml
+  /api/ops/projects/{id}/down:
+    $ref: ./paths/ops-projects.down.yaml
+  /api/ops/projects/{id}/restart:
+    $ref: ./paths/ops-projects.restart.yaml
+  /api/ops/projects/{id}/unregister:
+    $ref: ./paths/ops-projects.unregister.yaml
+  /api/ops/projects/{id}/destroy:
+    $ref: ./paths/ops-projects.destroy.yaml
 components:
   schemas:
     ApiEnvelope:
@@ -662,6 +692,70 @@ components:
       $ref: ./components/schemas/enveloped-container-action-response.yaml
     EnvelopedContainerBatchActionResponse:
       $ref: ./components/schemas/enveloped-container-batch-action-response.yaml
+    ProjectSourceKind:
+      $ref: ./components/schemas/project-source-kind.yaml
+    ProjectHostScope:
+      $ref: ./components/schemas/project-host-scope.yaml
+    ProjectOwnershipMode:
+      $ref: ./components/schemas/project-ownership-mode.yaml
+    ProjectRefreshStatus:
+      $ref: ./components/schemas/project-refresh-status.yaml
+    ProjectDriftStatus:
+      $ref: ./components/schemas/project-drift-status.yaml
+    ProjectCanonicalNameSource:
+      $ref: ./components/schemas/project-canonical-name-source.yaml
+    ProjectFileKind:
+      $ref: ./components/schemas/project-file-kind.yaml
+    ProjectFileRole:
+      $ref: ./components/schemas/project-file-role.yaml
+    ProjectFileItem:
+      $ref: ./components/schemas/project-file-item.yaml
+    ProjectContainerCounts:
+      $ref: ./components/schemas/project-container-counts.yaml
+    ProjectListItem:
+      $ref: ./components/schemas/project-list-item.yaml
+    ProjectListResponse:
+      $ref: ./components/schemas/project-list-response.yaml
+    ProjectDetailResponse:
+      $ref: ./components/schemas/project-detail-response.yaml
+    ProjectServiceItem:
+      $ref: ./components/schemas/project-service-item.yaml
+    ProjectServicesResponse:
+      $ref: ./components/schemas/project-services-response.yaml
+    ProjectImportValidateRequest:
+      $ref: ./components/schemas/project-import-validate-request.yaml
+    ProjectImportValidateResponse:
+      $ref: ./components/schemas/project-import-validate-response.yaml
+    ProjectImportResponse:
+      $ref: ./components/schemas/project-import-response.yaml
+    ProjectConfigurationMetadataResponse:
+      $ref: ./components/schemas/project-configuration-metadata-response.yaml
+    ProjectConfigurationPreviewResponse:
+      $ref: ./components/schemas/project-configuration-preview-response.yaml
+    ProjectConfigurationFileResponse:
+      $ref: ./components/schemas/project-configuration-file-response.yaml
+    ProjectDestroyRequest:
+      $ref: ./components/schemas/project-destroy-request.yaml
+    ProjectActionResponse:
+      $ref: ./components/schemas/project-action-response.yaml
+    EnvelopedProjectListResponse:
+      $ref: ./components/schemas/enveloped-project-list-response.yaml
+    EnvelopedProjectDetailResponse:
+      $ref: ./components/schemas/enveloped-project-detail-response.yaml
+    EnvelopedProjectServicesResponse:
+      $ref: ./components/schemas/enveloped-project-services-response.yaml
+    EnvelopedProjectConfigurationMetadataResponse:
+      $ref: ./components/schemas/enveloped-project-configuration-metadata-response.yaml
+    EnvelopedProjectConfigurationPreviewResponse:
+      $ref: ./components/schemas/enveloped-project-configuration-preview-response.yaml
+    EnvelopedProjectConfigurationFileResponse:
+      $ref: ./components/schemas/enveloped-project-configuration-file-response.yaml
+    EnvelopedProjectImportValidateResponse:
+      $ref: ./components/schemas/enveloped-project-import-validate-response.yaml
+    EnvelopedProjectImportResponse:
+      $ref: ./components/schemas/enveloped-project-import-response.yaml
+    EnvelopedProjectActionResponse:
+      $ref: ./components/schemas/enveloped-project-action-response.yaml
   securitySchemes:
     bearerAuth:
       $ref: ./components/security/bearer-auth.yaml
@@ -714,6 +808,20 @@ components:
       $ref: ./components/parameters/container-id-path.yaml
     container-mount-id-path:
       $ref: ./components/parameters/container-mount-id-path.yaml
+    project-list-limit:
+      $ref: ./components/parameters/project-list-limit.yaml
+    project-list-offset:
+      $ref: ./components/parameters/project-list-offset.yaml
+    project-list-source-kind:
+      $ref: ./components/parameters/project-list-source-kind.yaml
+    project-list-drift-status:
+      $ref: ./components/parameters/project-list-drift-status.yaml
+    project-list-refresh-status:
+      $ref: ./components/parameters/project-list-refresh-status.yaml
+    project-id-path:
+      $ref: ./components/parameters/project-id-path.yaml
+    project-file-id-path:
+      $ref: ./components/parameters/project-file-id-path.yaml
     container-logs-tail:
       $ref: ./components/parameters/container-logs-tail.yaml
     container-logs-since:
