@@ -27,7 +27,27 @@ Compose Project Management
 - Phase 0 已完成：
   - Compose Project authority 文档已落地
   - active topic / tracking / trace / startup prompt 已落地
-- 当前实现尚未开始，仓库中仍无 `project` module。
+- Phase 1 Batch 1 已完成：
+  - `openapi/**` 已建立 `/api/ops/projects/**` route space、import / lifecycle / readonly configuration contract source。
+  - `server/modules/project/**` 已建立 module-owned typed contract、数据模型与 SQL migration baseline。
+  - `server/internal/moduleapi/container_project.go` 已建立后续项目服务聚合所需的最小稳定 container shared boundary。
+  - Compose 设计 authority 已同步 Batch 1 的 canonical owner 落点。
+- Phase 1 Batch 2 已完成：
+  - `server/modules/project/**` 已建立 module skeleton、repository、Compose import validate/import/register/refresh 服务与 route wiring。
+  - `server/internal/moduleregistry/generated.go` 已同步 compile-time registry 派生产物。
+  - `server/internal/moduleregistry/registry_test.go` 已完成最小上游 authority repair，使 project migration baseline 纳入 owner-aligned registry 预期。
+- Phase 1 Batch 3 已完成：
+  - `server/modules/project/**` 已建立 `up/down/restart/unregister/destroy` 生命周期路径、ownership guard、services/runtime summary 映射和 soft-delete repository 能力。
+  - `server/modules/container/**` 已提供最小稳定 `ContainerProjectRuntimeReader` 实现，供 project 聚合 runtime member/counts 使用。
+  - `container` 仍保持 runtime authority，未引入 project-level logs/events backend aggregation。
+- Phase 1 Batch 4 已完成：
+  - `web/src/modules/project/**` 已建立 project module registration、typed API consumer、locale owner，以及 list/detail 页面。
+  - `Overview`、`Services`、`Configuration`、`Activity` 四个页签已按 design authority 落地，且未把 Overview 做成 runtime dashboard。
+  - `Configuration` 继续保持只读三段式消费；`Activity` 继续只做前端 fan-out，复用现有 container logs/events。
+- Phase 1 Batch 5 已完成：
+  - Phase 1 validation chain 已重新跑通，包含 OpenAPI bundle、project migration SQL 校验、backend entrypoint 与 web entrypoint。
+  - Compose 设计 authority 已同步 batch 4 前端 owner 落点。
+  - Phase 1 acceptance conditions 已满足，主题继续推进到 Phase 2，而不是停在 Phase 1 closeout。
 - 当前 authority 决议：
   - `Project` 不得持久化容器运行时信息。
   - `Project` 不得新增自己的 container detail。
@@ -41,11 +61,11 @@ Compose Project Management
 - [x] Phase 0：Compose Project 设计 authority
 - [x] Phase 0：public topic recovery materials
 - [x] Phase 0：`$graft-multi-agent-loop` startup prompt
-- [ ] phase-1-batch-1：project contract、route space、data model、migration plan
-- [ ] phase-1-batch-2：server project module skeleton、repository、import validate/import/register/refresh
-- [ ] phase-1-batch-3：lifecycle executor、ownership guard、container aggregation shared boundary
-- [ ] phase-1-batch-4：web project module list/detail/overview/services/configuration/activity
-- [ ] phase-1-batch-5：Phase 1 validation、drift guard、docs sync、Phase 1 archive-readiness check
+- [x] phase-1-batch-1：project contract、route space、data model、migration plan
+- [x] phase-1-batch-2：server project module skeleton、repository、import validate/import/register/refresh
+- [x] phase-1-batch-3：lifecycle executor、ownership guard、container aggregation shared boundary
+- [x] phase-1-batch-4：web project module list/detail/overview/services/configuration/activity
+- [x] phase-1-batch-5：Phase 1 validation、drift guard、docs sync、Phase 1 archive-readiness check
 - [ ] Phase 2：managed create、editor、diff、validate、deploy
 - [ ] Phase 3：git/template/scan/discovery/remote-host/backend activity aggregation
 
@@ -78,19 +98,19 @@ Compose Project Management
 {
   "loop_mode": "topic-completion-loop",
   "completed_batches": [
-    "phase-0-design-authority-and-topic-persistence"
-  ],
-  "pending_batches": [
+    "phase-0-design-authority-and-topic-persistence",
     "phase-1-batch-1-project-contract-and-data-model",
     "phase-1-batch-2-server-project-module-import-and-refresh",
     "phase-1-batch-3-server-lifecycle-and-container-aggregation-boundary",
     "phase-1-batch-4-web-project-list-detail-and-readonly-configuration",
-    "phase-1-batch-5-phase-1-validation-drift-guard-and-governance-sync",
+    "phase-1-batch-5-phase-1-validation-drift-guard-and-governance-sync"
+  ],
+  "pending_batches": [
     "phase-2-managed-create-editor-and-deploy",
     "phase-3-discovery-git-template-and-remote-host"
   ],
-  "current_batch": "phase-0-design-authority-and-topic-persistence",
-  "next_batch": "phase-1-batch-1-project-contract-and-data-model",
-  "closeout_status": "phase-0-completed"
+  "current_batch": "phase-1-batch-5-phase-1-validation-drift-guard-and-governance-sync",
+  "next_batch": "phase-2-managed-create-editor-and-deploy",
+  "closeout_status": "phase-1-complete-phase-2-ready"
 }
 ```

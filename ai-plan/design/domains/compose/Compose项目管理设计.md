@@ -775,6 +775,27 @@ Phase 1 的单文件内容返回建议包含：
 - backend project logs/events aggregation
 - managed create / editor / diff / deploy / validate UI
 
+## 10.7 Batch 4 authority 落地说明
+
+`phase-1-batch-4-web-project-list-detail-and-readonly-configuration` 已把以下前端 authority owner 固定到仓库运行面：
+
+- Frontend module owner：`web/src/modules/project/**`
+  - module registration：`index.ts`、`bootstrap-routes.ts`
+  - route contract consumer：`contract/bootstrap.ts`、`contract/paths.ts`
+  - typed API consumer：`api/project.ts`、`types/project.ts`
+  - locale owner：`locales/en-US.json`、`locales/zh-CN.json`
+  - page owner：`pages/list/index.vue`、`pages/detail/index.vue`
+  - module-local shared UI helpers：`shared/display.ts`、`shared/navigation.ts`
+- List / Detail IA owner：
+  - `list` 页面固定承载 project registry list、筛选、summary、危险动作入口与 detail tab 导航
+  - `detail` 页面固定承载 `Overview`、`Services`、`Configuration`、`Activity` 四个页签
+- Authority guard 已落地：
+  - `Overview` 只承载 summary，不引入 runtime dashboard 指标或 timeline
+  - `Services` 只消费静态定义与 container member/count 聚合，并回跳现有 Container Detail
+  - `Configuration` 保持 metadata、preview、single-file content 三段只读消费
+  - `Activity` 继续只做前端 fan-out，复用现有 container logs/events API
+  - 未新增 backend project logs/events aggregation、managed create/editor/diff/deploy/validate UI
+
 ## 11. UI 信息架构
 
 ## 11.1 推荐层级
