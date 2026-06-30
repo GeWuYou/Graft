@@ -1064,6 +1064,112 @@ class MainFlowTests(unittest.TestCase):
             self.assertEqual(payload["scopes"]["server"]["coverageStatus"], "pass")
             self.assertEqual(payload["scopes"]["server"]["unreportedFiles"], [])
 
+    def test_changed_mode_web_vue_files_outside_eff_u_code_coverage_are_ignored(self) -> None:
+        gate_config = {
+            "changedFiles": {"mode": "git-diff", "diffFilter": "ACMR"},
+            "targets": {
+                "web": {
+                    "root": "web/src",
+                    "include": ["web/src/**/*.ts", "web/src/**/*.tsx"],
+                    "exclude": ["web/src/**/*.test.ts", "web/src/**/*.d.ts"],
+                }
+            },
+            "gateRules": {
+                "complexity": {
+                    "metrics": ["cyclomatic_complexity"],
+                    "threshold": 75,
+                    "regression": 5,
+                    "newFileThreshold": 75,
+                }
+            },
+            "curatedScore": {"participatesInGate": False, "weights": {"complexity": 1.0}},
+            "scoreGate": {
+                "profiles": {
+                    "score-changed": {
+                        "enabled": True,
+                        "enabledScanModes": ["changed"],
+                        "threshold": 90,
+                        "topContributors": 5,
+                        "detailLimit": 5,
+                        "potentialGainSteps": [3],
+                        "categoryOrder": ["complexity"],
+                    }
+                }
+            },
+        }
+        report = {
+            "files": [
+                make_file(
+                    "modules/project/shared/display.ts",
+                    [
+                        make_metric("cyclomatic_complexity", 90),
+                    ],
+                )
+            ]
+        }
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            config_path = Path(tmp_dir) / "gate.json"
+            eff_path = Path(tmp_dir) / "eff.json"
+            output_path = Path(tmp_dir) / "result.json"
+            config_path.write_text(json.dumps(gate_config), encoding="utf-8")
+            eff_path.write_text(
+                json.dumps({"defaults": {"top": 20}, "targets": {"web": {"path": "web/src", "exclude": []}}}),
+                encoding="utf-8",
+            )
+
+            def fake_run(scope: str, *, output_dir: Path, eff_config_override: Path | None, base_ref: str | None = None) -> Path:
+                path = output_dir / f"eff-u-code-{scope}.json"
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(json.dumps(report), encoding="utf-8")
+                return path
+
+            baseline_resolution = MODULE.ChangedBaselineResolution(
+                revision=None,
+                compare_revision="HEAD",
+                base_ref="",
+                normalized_base_ref="",
+                fetch_target="",
+                source="local-changes",
+            )
+
+            with mock.patch.object(MODULE, "run_eff_u_code", side_effect=fake_run), \
+                mock.patch.object(
+                    MODULE,
+                    "resolve_changed_mode_files",
+                    return_value=(
+                        [
+                            "web/src/modules/project/shared/display.ts",
+                            "web/src/modules/project/pages/list/index.vue",
+                        ],
+                        baseline_resolution,
+                    ),
+                ):
+                argv = [
+                    "evaluate_eff_u_code_gate.py",
+                    "--config",
+                    str(config_path),
+                    "--eff-u-code-config",
+                    str(eff_path),
+                    "--gate-profile",
+                    "score-changed",
+                    "--scan-mode",
+                    "changed",
+                    "--scopes",
+                    "web",
+                    "--output-json",
+                    str(output_path),
+                ]
+                with mock.patch.object(sys, "argv", argv):
+                    result = MODULE.main()
+
+            self.assertEqual(result, 0)
+            payload = json.loads(output_path.read_text(encoding="utf-8"))
+            self.assertEqual(payload["status"], "pass")
+            self.assertEqual(payload["scopes"]["web"]["candidateFiles"], ["web/src/modules/project/shared/display.ts"])
+            self.assertEqual(payload["scopes"]["web"]["coverageStatus"], "pass")
+            self.assertEqual(payload["scopes"]["web"]["unreportedFiles"], [])
+
     def test_gate_fails_when_new_file_breaks_complexity_rule(self) -> None:
         gate_config = {
             "changedFiles": {"mode": "git-diff", "diffFilter": "ACMR"},
