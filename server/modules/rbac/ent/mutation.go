@@ -1257,6 +1257,8 @@ type RoleMutation struct {
 	updated_at              *time.Time
 	updated_by              *uint64
 	addupdated_by           *int64
+	disabled_at             *int64
+	adddisabled_at          *int64
 	deleted_at              *int64
 	adddeleted_at           *int64
 	deleted_by              *uint64
@@ -1712,6 +1714,62 @@ func (m *RoleMutation) ResetUpdatedBy() {
 	m.addupdated_by = nil
 }
 
+// SetDisabledAt sets the "disabled_at" field.
+func (m *RoleMutation) SetDisabledAt(i int64) {
+	m.disabled_at = &i
+	m.adddisabled_at = nil
+}
+
+// DisabledAt returns the value of the "disabled_at" field in the mutation.
+func (m *RoleMutation) DisabledAt() (r int64, exists bool) {
+	v := m.disabled_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDisabledAt returns the old "disabled_at" field's value of the Role entity.
+// If the Role object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoleMutation) OldDisabledAt(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDisabledAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDisabledAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDisabledAt: %w", err)
+	}
+	return oldValue.DisabledAt, nil
+}
+
+// AddDisabledAt adds i to the "disabled_at" field.
+func (m *RoleMutation) AddDisabledAt(i int64) {
+	if m.adddisabled_at != nil {
+		*m.adddisabled_at += i
+	} else {
+		m.adddisabled_at = &i
+	}
+}
+
+// AddedDisabledAt returns the value that was added to the "disabled_at" field in this mutation.
+func (m *RoleMutation) AddedDisabledAt() (r int64, exists bool) {
+	v := m.adddisabled_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetDisabledAt resets all changes to the "disabled_at" field.
+func (m *RoleMutation) ResetDisabledAt() {
+	m.disabled_at = nil
+	m.adddisabled_at = nil
+}
+
 // SetDeletedAt sets the "deleted_at" field.
 func (m *RoleMutation) SetDeletedAt(i int64) {
 	m.deleted_at = &i
@@ -1966,7 +2024,7 @@ func (m *RoleMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *RoleMutation) Fields() []string {
-	fields := make([]string, 0, 10)
+	fields := make([]string, 0, 11)
 	if m.name != nil {
 		fields = append(fields, role.FieldName)
 	}
@@ -1990,6 +2048,9 @@ func (m *RoleMutation) Fields() []string {
 	}
 	if m.updated_by != nil {
 		fields = append(fields, role.FieldUpdatedBy)
+	}
+	if m.disabled_at != nil {
+		fields = append(fields, role.FieldDisabledAt)
 	}
 	if m.deleted_at != nil {
 		fields = append(fields, role.FieldDeletedAt)
@@ -2021,6 +2082,8 @@ func (m *RoleMutation) Field(name string) (ent.Value, bool) {
 		return m.UpdatedAt()
 	case role.FieldUpdatedBy:
 		return m.UpdatedBy()
+	case role.FieldDisabledAt:
+		return m.DisabledAt()
 	case role.FieldDeletedAt:
 		return m.DeletedAt()
 	case role.FieldDeletedBy:
@@ -2050,6 +2113,8 @@ func (m *RoleMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldUpdatedAt(ctx)
 	case role.FieldUpdatedBy:
 		return m.OldUpdatedBy(ctx)
+	case role.FieldDisabledAt:
+		return m.OldDisabledAt(ctx)
 	case role.FieldDeletedAt:
 		return m.OldDeletedAt(ctx)
 	case role.FieldDeletedBy:
@@ -2119,6 +2184,13 @@ func (m *RoleMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetUpdatedBy(v)
 		return nil
+	case role.FieldDisabledAt:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDisabledAt(v)
+		return nil
 	case role.FieldDeletedAt:
 		v, ok := value.(int64)
 		if !ok {
@@ -2147,6 +2219,9 @@ func (m *RoleMutation) AddedFields() []string {
 	if m.addupdated_by != nil {
 		fields = append(fields, role.FieldUpdatedBy)
 	}
+	if m.adddisabled_at != nil {
+		fields = append(fields, role.FieldDisabledAt)
+	}
 	if m.adddeleted_at != nil {
 		fields = append(fields, role.FieldDeletedAt)
 	}
@@ -2165,6 +2240,8 @@ func (m *RoleMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedCreatedBy()
 	case role.FieldUpdatedBy:
 		return m.AddedUpdatedBy()
+	case role.FieldDisabledAt:
+		return m.AddedDisabledAt()
 	case role.FieldDeletedAt:
 		return m.AddedDeletedAt()
 	case role.FieldDeletedBy:
@@ -2191,6 +2268,13 @@ func (m *RoleMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddUpdatedBy(v)
+		return nil
+	case role.FieldDisabledAt:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddDisabledAt(v)
 		return nil
 	case role.FieldDeletedAt:
 		v, ok := value.(int64)
@@ -2265,6 +2349,9 @@ func (m *RoleMutation) ResetField(name string) error {
 		return nil
 	case role.FieldUpdatedBy:
 		m.ResetUpdatedBy()
+		return nil
+	case role.FieldDisabledAt:
+		m.ResetDisabledAt()
 		return nil
 	case role.FieldDeletedAt:
 		m.ResetDeletedAt()

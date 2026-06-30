@@ -210,7 +210,9 @@ class EvaluateRuleTests(unittest.TestCase):
         candidates = [
             "server/internal/httpx/server.go",
             "server/internal/scheduler/runtime.go",
+            "server/modules/auth/storeent/auth_repository.go",
             "server/modules/container/docker_exec_session.go",
+            "server/modules/container/docker_runtime_stats.go",
             "server/modules/container/docker_runtime.go",
             "server/modules/container/log_topic_streamer.go",
             "server/modules/container/mount_usage.go",
@@ -219,6 +221,7 @@ class EvaluateRuleTests(unittest.TestCase):
             "server/modules/container/stats_collector.go",
             "server/modules/container/terminal/websocket_bridge.go",
             "server/modules/monitor/module.go",
+            "server/modules/user/storeent/auth_repository.go",
             "web/src/shared/realtime/ws-client.ts",
             "web/src/store/modules/setting.ts",
         ]
@@ -271,6 +274,48 @@ class CuratedScoreTests(unittest.TestCase):
 
         with self.assertRaises(MODULE.GateConfigError):
             MODULE.curated_score([], gate_config)
+
+
+class ScoreGateConfigTests(unittest.TestCase):
+    def test_score_gate_enabled_for_matching_profile_and_scan_mode(self) -> None:
+        gate_config = {
+            "scoreGate": {
+                "profiles": {
+                    "score-project": {
+                        "enabled": True,
+                        "enabledScanModes": ["project"],
+                        "threshold": 85,
+                    }
+                }
+            }
+        }
+
+        self.assertTrue(MODULE.score_gate_enabled(gate_config, "score-project", "project"))
+        self.assertFalse(MODULE.score_gate_enabled(gate_config, "score-project", "changed"))
+
+    def test_build_file_diagnostics_tracks_impact_and_severity(self) -> None:
+        gate_config = {
+            "curatedScore": {
+                "participatesInGate": False,
+                "weights": {
+                    "complexity": 0.5,
+                    "duplication": 0.5,
+                },
+            }
+        }
+        diagnostics = MODULE.build_file_diagnostics(
+            "server/modules/foo/service.go",
+            [
+                MODULE.RuleEvaluation("complexity", "cognitive_complexity", "fail", 75, 5, 60, 80, "collectFoo()"),
+                MODULE.RuleEvaluation("duplication", "code_duplication", "fail", 75, 5, 70, 90, "duplicate block"),
+            ],
+            gate_config,
+            ("complexity", "duplication"),
+        )
+
+        self.assertGreater(diagnostics["impact"], 0)
+        self.assertEqual(diagnostics["highestSeverity"], "critical")
+        self.assertEqual(diagnostics["severitySummary"]["critical"]["count"], 1)
 
 
 class OverrideConfigTests(unittest.TestCase):
@@ -330,7 +375,199 @@ class OverrideConfigTests(unittest.TestCase):
         self.assertTrue(snapshot["targets"]["server"]["path"].endswith("/server"))
 
 
+class ChangedFileResolutionTests(unittest.TestCase):
+    def test_resolve_changed_mode_files_fetches_base_ref_before_merge_base(self) -> None:
+        calls: list[tuple[str, ...]] = []
+
+        def fake_run_git(args: list[str]) -> str:
+            calls.append(tuple(args))
+            if args == ["merge-base", "HEAD", "refs/remotes/origin/main"]:
+                return "base-sha"
+            if args == ["diff", "--name-only", "--diff-filter=ACMR", "base-sha...HEAD"]:
+                return "server/main.go\n"
+            raise AssertionError(f"unexpected git args: {args}")
+
+        with mock.patch.object(MODULE, "staged_or_changed_files", return_value=[]), \
+            mock.patch.object(MODULE, "run_git", side_effect=fake_run_git), \
+            mock.patch.object(MODULE.subprocess, "run") as mock_run, \
+            mock.patch.dict("os.environ", {"GRAFT_LINT_BASE_REF": "main"}, clear=False):
+            changed, baseline = MODULE.resolve_changed_mode_files("ACMR")
+
+        self.assertEqual(changed, ["server/main.go"])
+        self.assertEqual(baseline.revision, "base-sha")
+        self.assertEqual(baseline.source, "merge-base")
+        mock_run.assert_called_once_with(
+            ["git", "fetch", "--no-tags", "--prune", "origin", "main"],
+            cwd=MODULE.REPO_ROOT,
+            check=False,
+            stdout=MODULE.subprocess.PIPE,
+            stderr=MODULE.subprocess.PIPE,
+            text=True,
+        )
+        self.assertEqual(calls[0], ("merge-base", "HEAD", "refs/remotes/origin/main"))
+
+    def test_resolve_changed_mode_files_prefers_explicit_sha_for_files_and_baseline(self) -> None:
+        def fake_run_git(args: list[str]) -> str:
+            if args == ["diff", "--name-only", "--diff-filter=ACMR", "explicit-base...HEAD"]:
+                return "server/main.go\nscripts/evaluate_eff_u_code_gate.py\n"
+            raise AssertionError(f"unexpected git args: {args}")
+
+        with mock.patch.object(MODULE, "staged_or_changed_files", return_value=[]), \
+            mock.patch.object(MODULE, "run_git", side_effect=fake_run_git), \
+            mock.patch.dict(
+                "os.environ",
+                {
+                    "GRAFT_QUALITY_BASE_SHA": "explicit-base",
+                    "GRAFT_LINT_BASE_REF": "refs/remotes/origin/main",
+                },
+                clear=False,
+            ):
+            changed, baseline = MODULE.resolve_changed_mode_files("ACMR")
+
+        self.assertEqual(changed, ["server/main.go", "scripts/evaluate_eff_u_code_gate.py"])
+        self.assertEqual(baseline.revision, "explicit-base")
+        self.assertEqual(baseline.source, "explicit-sha")
+        self.assertEqual(baseline.normalized_base_ref, "refs/remotes/origin/main")
+
+    def test_ci_changed_files_uses_graft_lint_base_ref_before_falling_back_to_tracked_files(self) -> None:
+        def fake_run_git(args: list[str]) -> str:
+            if args == ["merge-base", "HEAD", "refs/remotes/origin/main"]:
+                return "base-sha"
+            if args == ["diff", "--name-only", "--diff-filter=ACMR", "base-sha...HEAD"]:
+                return "server/main.go\nscripts/evaluate_eff_u_code_gate.py\n"
+            raise AssertionError(f"unexpected git args: {args}")
+
+        with mock.patch.object(MODULE, "staged_or_changed_files", return_value=[]), \
+            mock.patch.object(MODULE, "run_git", side_effect=fake_run_git), \
+            mock.patch.dict("os.environ", {"GRAFT_LINT_BASE_REF": "refs/remotes/origin/main"}, clear=False):
+            changed = MODULE.ci_changed_files("ACMR")
+
+        self.assertEqual(changed, ["server/main.go", "scripts/evaluate_eff_u_code_gate.py"])
+
+    def test_normalize_remote_base_ref_accepts_common_forms(self) -> None:
+        self.assertEqual(MODULE.normalize_remote_base_ref("main"), "refs/remotes/origin/main")
+        self.assertEqual(MODULE.normalize_remote_base_ref("origin/main"), "refs/remotes/origin/main")
+        self.assertEqual(MODULE.normalize_remote_base_ref("refs/heads/main"), "refs/remotes/origin/main")
+        self.assertEqual(MODULE.normalize_remote_base_ref("refs/remotes/origin/main"), "refs/remotes/origin/main")
+
+    def test_fetch_target_from_base_ref_accepts_common_forms(self) -> None:
+        self.assertEqual(MODULE.fetch_target_from_base_ref("main"), "main")
+        self.assertEqual(MODULE.fetch_target_from_base_ref("origin/main"), "main")
+        self.assertEqual(MODULE.fetch_target_from_base_ref("refs/heads/main"), "main")
+        self.assertEqual(MODULE.fetch_target_from_base_ref("refs/remotes/origin/main"), "main")
+
+
+class ScoreDiagnosticsTests(unittest.TestCase):
+    def test_build_file_diagnostics_only_accumulates_contributing_categories(self) -> None:
+        gate_config = {
+            "curatedScore": {
+                "participatesInGate": False,
+                "weights": {"complexity": 1.0, "documentation": 1.0},
+            }
+        }
+        diagnostics = MODULE.build_file_diagnostics(
+            "server/internal/runtime.go",
+            [
+                MODULE.RuleEvaluation("complexity", "cyclomatic_complexity", "fail", 75, 5, 60, 90, "complex code"),
+                MODULE.RuleEvaluation("documentation", "comment_ratio", "display-only", None, None, 0, None, "missing comments"),
+            ],
+            gate_config,
+            ("complexity", "documentation"),
+        )
+
+        self.assertEqual(diagnostics["issueCount"], 1)
+        self.assertEqual(diagnostics["categoryImpacts"], [{"rule": "complexity", "impact": 40.0}])
+
+
+class ScoreGateConfigTests(unittest.TestCase):
+    def test_score_gate_gain_steps_returns_sorted_unique_values(self) -> None:
+        gate_config = {
+            "scoreGate": {
+                "profiles": {
+                    "score-project": {
+                        "potentialGainSteps": [10, 3, 5, 3],
+                    }
+                }
+            }
+        }
+
+        steps = MODULE.score_gate_gain_steps(gate_config, "score-project")
+
+        self.assertEqual(steps, [3, 5, 10])
+
+
 class MainFlowTests(unittest.TestCase):
+    def test_changed_mode_reuses_resolved_baseline_for_snapshot_export(self) -> None:
+        gate_config = {
+            "changedFiles": {"mode": "git-diff", "diffFilter": "ACMR"},
+            "targets": {
+                "server": {
+                    "root": "server",
+                    "include": ["server/**/*.go"],
+                    "exclude": [],
+                }
+            },
+            "gateRules": {
+                "complexity": {"metrics": ["cyclomatic_complexity"], "threshold": 75, "regression": 5, "newFileThreshold": 75},
+            },
+            "curatedScore": {"participatesInGate": False, "weights": {"complexity": 1.0}},
+        }
+        head_report = {"files": [make_file("internal/runtime.go", [make_metric("cyclomatic_complexity", 90, "collectFoo()")])]}
+        baseline_report = {"files": [make_file("internal/runtime.go", [make_metric("cyclomatic_complexity", 88, "collectFoo()")])]}
+        baseline_resolution = MODULE.ChangedBaselineResolution(
+            revision="explicit-base",
+            compare_revision="HEAD",
+            base_ref="main",
+            normalized_base_ref="refs/remotes/origin/main",
+            fetch_target="main",
+            source="explicit-sha",
+        )
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            config_path = Path(tmp_dir) / "gate.json"
+            eff_path = Path(tmp_dir) / "eff.json"
+            report_path = Path(tmp_dir) / "report.json"
+            baseline_snapshot = Path(tmp_dir) / "baseline-snapshot"
+            baseline_snapshot.mkdir(parents=True, exist_ok=True)
+            config_path.write_text(json.dumps(gate_config), encoding="utf-8")
+            eff_path.write_text(json.dumps({"defaults": {}, "targets": {"server": {"path": "server", "exclude": []}}}), encoding="utf-8")
+
+            seen_base_refs: list[str | None] = []
+
+            def fake_run(scope: str, *, output_dir: Path, eff_config_override: Path | None, base_ref: str | None = None) -> Path:
+                seen_base_refs.append(base_ref)
+                payload = baseline_report if "baseline-reports" in str(output_dir) else head_report
+                path = output_dir / f"eff-u-code-{scope}.json"
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(json.dumps(payload), encoding="utf-8")
+                return path
+
+            with mock.patch.object(MODULE, "resolve_changed_mode_files", return_value=(["server/internal/runtime.go"], baseline_resolution)), \
+                mock.patch.object(MODULE, "run_eff_u_code", side_effect=fake_run), \
+                mock.patch.object(MODULE, "export_git_snapshot", return_value=baseline_snapshot) as export_snapshot, \
+                mock.patch("subprocess.run") as subprocess_run:
+                subprocess_run.return_value = mock.Mock(returncode=0, stdout="", stderr="")
+                argv = [
+                    "evaluate_eff_u_code_gate.py",
+                    "--config",
+                    str(config_path),
+                    "--eff-u-code-config",
+                    str(eff_path),
+                    "--output-json",
+                    str(report_path),
+                    "--scopes",
+                    "server",
+                ]
+                with mock.patch.object(sys, "argv", argv):
+                    result = MODULE.main()
+
+            self.assertEqual(result, 0)
+            export_snapshot.assert_called_once_with("explicit-base", mock.ANY)
+            self.assertEqual(seen_base_refs, [None, "refs/remotes/origin/main"])
+            payload = json.loads(report_path.read_text(encoding="utf-8"))
+            self.assertEqual(payload["changedBaseline"]["revision"], "explicit-base")
+            self.assertEqual(payload["changedBaseline"]["source"], "explicit-sha")
+
     def test_gate_passes_when_only_documentation_is_low(self) -> None:
         gate_config = {
             "changedFiles": {"mode": "git-diff", "diffFilter": "ACMR"},
@@ -399,7 +636,14 @@ class MainFlowTests(unittest.TestCase):
                     return "head-sha"
                 raise RuntimeError("skip base")
 
-            with mock.patch.object(MODULE, "ci_changed_files", return_value=["web/src/utils/foo.ts"]), \
+            with mock.patch.object(
+                MODULE,
+                "resolve_changed_mode_files",
+                return_value=(
+                    ["web/src/utils/foo.ts"],
+                    MODULE.ChangedBaselineResolution(None, "HEAD", "", "", "", "local-changes"),
+                ),
+            ), \
                 mock.patch.object(MODULE, "run_eff_u_code", side_effect=fake_run), \
                 mock.patch.object(MODULE, "run_git", side_effect=fake_run_git), \
                 mock.patch.object(MODULE, "export_git_snapshot", return_value=Path(tmp_dir) / "baseline-snapshot"):
@@ -421,6 +665,298 @@ class MainFlowTests(unittest.TestCase):
             self.assertEqual(result, 0)
             payload = json.loads(report_path.read_text(encoding="utf-8"))
             self.assertEqual(payload["status"], "pass")
+
+    def test_score_changed_gate_fails_when_scope_score_below_threshold(self) -> None:
+        gate_config = {
+            "changedFiles": {"mode": "git-diff", "diffFilter": "ACMR"},
+            "targets": {
+                "server": {
+                    "root": "server",
+                    "include": ["server/**/*.go"],
+                    "exclude": [],
+                }
+            },
+            "gateRules": {
+                "complexity": {"metrics": ["cyclomatic_complexity"], "threshold": 75, "regression": 5, "newFileThreshold": 75},
+            },
+            "curatedScore": {"participatesInGate": False, "weights": {"complexity": 1.0}},
+            "scoreGate": {
+                "profiles": {
+                    "score-changed": {
+                        "enabled": True,
+                        "enabledScanModes": ["changed"],
+                        "threshold": 90,
+                        "topContributors": 5,
+                        "detailLimit": 3,
+                    }
+                }
+            },
+        }
+        report = {"files": [make_file("internal/runtime.go", [make_metric("cyclomatic_complexity", 82, "collectFoo()")])]}
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            config_path = Path(tmp_dir) / "gate.json"
+            eff_path = Path(tmp_dir) / "eff.json"
+            report_path = Path(tmp_dir) / "report.json"
+            config_path.write_text(json.dumps(gate_config), encoding="utf-8")
+            eff_path.write_text(json.dumps({"defaults": {}, "targets": {"server": {"path": "server", "exclude": []}}}), encoding="utf-8")
+
+            def fake_run(scope: str, *, output_dir: Path, eff_config_override: Path | None, base_ref: str | None = None) -> Path:
+                """
+                为指定范围写入模拟的 eff-u-code 报告文件。
+                
+                Parameters:
+                	scope (str): 范围名称。
+                	output_dir (Path): 报告输出目录。
+                	eff_config_override (Path | None): 覆盖配置路径。
+                	base_ref (str | None): 基准引用。
+                
+                Returns:
+                	Path: 生成的报告文件路径。
+                """
+                path = output_dir / f"eff-u-code-{scope}.json"
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(json.dumps(report), encoding="utf-8")
+                return path
+
+            def fake_run_git(args: list[str]) -> str:
+                if args[:2] == ["rev-parse", "HEAD"]:
+                    return "head-sha"
+                raise RuntimeError("skip base")
+
+            with mock.patch.object(
+                MODULE,
+                "resolve_changed_mode_files",
+                return_value=(
+                    ["server/internal/runtime.go"],
+                    MODULE.ChangedBaselineResolution(None, "HEAD", "", "", "", "local-changes"),
+                ),
+            ), \
+                mock.patch.object(MODULE, "run_eff_u_code", side_effect=fake_run), \
+                mock.patch.object(MODULE, "run_git", side_effect=fake_run_git), \
+                mock.patch.object(MODULE, "export_git_snapshot", return_value=Path(tmp_dir) / "baseline-snapshot"):
+                (Path(tmp_dir) / "baseline-snapshot").mkdir(parents=True, exist_ok=True)
+                argv = [
+                    "evaluate_eff_u_code_gate.py",
+                    "--config",
+                    str(config_path),
+                    "--eff-u-code-config",
+                    str(eff_path),
+                    "--gate-profile",
+                    "score-changed",
+                    "--output-json",
+                    str(report_path),
+                    "--scopes",
+                    "server",
+                ]
+                with mock.patch.object(sys, "argv", argv):
+                    result = MODULE.main()
+
+            self.assertEqual(result, 1)
+            payload = json.loads(report_path.read_text(encoding="utf-8"))
+            self.assertEqual(payload["gateProfile"], "score-changed")
+            self.assertEqual(payload["status"], "fail")
+            self.assertEqual(payload["summary"]["failures"], 1)
+            self.assertEqual(payload["summary"]["rawFailures"], 0)
+            self.assertEqual(payload["summary"]["scoreGateFailures"], 1)
+            self.assertEqual(payload["scopes"]["server"]["scoreGateStatus"], "fail")
+            self.assertGreater(len(payload["scopes"]["server"]["topContributors"]), 0)
+
+    def test_score_project_gate_passes_with_project_score_fields(self) -> None:
+        gate_config = {
+            "changedFiles": {"mode": "git-diff", "diffFilter": "ACMR"},
+            "targets": {
+                "web": {
+                    "root": "web/src",
+                    "include": ["web/src/**/*.ts"],
+                    "exclude": [],
+                }
+            },
+            "gateRules": {
+                "complexity": {"metrics": ["cyclomatic_complexity"], "threshold": 75, "regression": 5, "newFileThreshold": 75},
+                "duplication": {"metrics": ["code_duplication"], "threshold": 75, "regression": 5, "newFileThreshold": 75},
+            },
+            "curatedScore": {"participatesInGate": False, "weights": {"complexity": 0.5, "duplication": 0.5}},
+            "scoreGate": {
+                "profiles": {
+                    "score-project": {
+                        "enabled": True,
+                        "enabledScanModes": ["project"],
+                        "threshold": 85,
+                        "topContributors": 10,
+                        "detailLimit": 5,
+                        "potentialGainSteps": [3, 5],
+                    }
+                }
+            },
+        }
+        report = {
+            "files": [
+                make_file("pages/home.ts", [make_metric("cyclomatic_complexity", 92, "buildHome()"), make_metric("code_duplication", 90, "duplicate block")]),
+                make_file("pages/list.ts", [make_metric("cyclomatic_complexity", 88, "buildList()"), make_metric("code_duplication", 87, "duplicate list block")]),
+            ]
+        }
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            config_path = Path(tmp_dir) / "gate.json"
+            eff_path = Path(tmp_dir) / "eff.json"
+            output_path = Path(tmp_dir) / "out" / "report.json"
+            repo_root = Path(tmp_dir) / "repo"
+            first = repo_root / "web" / "src" / "pages" / "home.ts"
+            second = repo_root / "web" / "src" / "pages" / "list.ts"
+            first.parent.mkdir(parents=True, exist_ok=True)
+            second.parent.mkdir(parents=True, exist_ok=True)
+            first.write_text("// test\n", encoding="utf-8")
+            second.write_text("// test\n", encoding="utf-8")
+
+            config_path.write_text(json.dumps(gate_config), encoding="utf-8")
+            eff_path.write_text(json.dumps({"defaults": {"top": 20}, "targets": {"web": {"path": "web/src", "exclude": []}}}), encoding="utf-8")
+
+            def fake_run(scope: str, *, output_dir: Path, eff_config_override: Path | None, base_ref: str | None = None) -> Path:
+                """
+                为指定范围写入模拟的 eff-u-code 报告文件。
+                
+                Parameters:
+                	scope (str): 范围名称。
+                	output_dir (Path): 报告输出目录。
+                	eff_config_override (Path | None): 覆盖配置路径。
+                	base_ref (str | None): 基准引用。
+                
+                Returns:
+                	Path: 生成的报告文件路径。
+                """
+                path = output_dir / f"eff-u-code-{scope}.json"
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(json.dumps(report), encoding="utf-8")
+                return path
+
+            with mock.patch.object(MODULE, "REPO_ROOT", repo_root), \
+                mock.patch.object(MODULE, "run_eff_u_code", side_effect=fake_run), \
+                mock.patch.object(MODULE, "list_scope_files_on_disk", return_value=["web/src/pages/home.ts", "web/src/pages/list.ts"]):
+                argv = [
+                    "evaluate_eff_u_code_gate.py",
+                    "--config",
+                    str(config_path),
+                    "--eff-u-code-config",
+                    str(eff_path),
+                    "--gate-profile",
+                    "score-project",
+                    "--scan-mode",
+                    "project",
+                    "--scopes",
+                    "web",
+                    "--output-json",
+                    str(output_path),
+                ]
+                with mock.patch.object(sys, "argv", argv):
+                    result = MODULE.main()
+
+            self.assertEqual(result, 0)
+            payload = json.loads(output_path.read_text(encoding="utf-8"))
+            self.assertEqual(payload["status"], "pass")
+            self.assertEqual(payload["gateProfile"], "score-project")
+            self.assertIsNotNone(payload["overallQualityScore"])
+            self.assertIn("potentialScoreGain", payload["scopes"]["web"])
+            self.assertIn("categorySummary", payload["scopes"]["web"])
+
+    def test_score_project_gate_reports_unreported_files_without_blocking_score(self) -> None:
+        gate_config = {
+            "changedFiles": {"mode": "git-diff", "diffFilter": "ACMR"},
+            "targets": {
+                "server": {
+                    "root": "server",
+                    "include": ["server/**/*.go"],
+                    "exclude": [],
+                }
+            },
+            "gateRules": {
+                "complexity": {"metrics": ["cyclomatic_complexity"], "threshold": 75, "regression": 5, "newFileThreshold": 75},
+            },
+            "curatedScore": {"participatesInGate": False, "weights": {"complexity": 1.0}},
+            "scoreGate": {
+                "profiles": {
+                    "score-project": {
+                        "enabled": True,
+                        "enabledScanModes": ["project"],
+                        "threshold": 85,
+                        "topContributors": 10,
+                        "detailLimit": 5,
+                    }
+                }
+            },
+        }
+        report = {
+            "files": [
+                make_file("internal/runtime.go", [make_metric("cyclomatic_complexity", 96, "collectFoo()")]),
+            ]
+        }
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            config_path = Path(tmp_dir) / "gate.json"
+            eff_path = Path(tmp_dir) / "eff.json"
+            output_path = Path(tmp_dir) / "out" / "report.json"
+            repo_root = Path(tmp_dir) / "repo"
+            runtime_path = repo_root / "server" / "internal" / "runtime.go"
+            extra_path = repo_root / "server" / "internal" / "extra.go"
+            runtime_path.parent.mkdir(parents=True, exist_ok=True)
+            runtime_path.write_text("package test\n", encoding="utf-8")
+            extra_path.write_text("package test\n", encoding="utf-8")
+
+            config_path.write_text(json.dumps(gate_config), encoding="utf-8")
+            eff_path.write_text(
+                json.dumps({"defaults": {"top": 20}, "targets": {"server": {"path": "server", "exclude": []}}}),
+                encoding="utf-8",
+            )
+
+            def fake_run(scope: str, *, output_dir: Path, eff_config_override: Path | None, base_ref: str | None = None) -> Path:
+                """
+                为指定范围写入模拟的 eff-u-code 报告文件。
+                
+                Parameters:
+                	scope (str): 范围名称。
+                	output_dir (Path): 报告输出目录。
+                	eff_config_override (Path | None): 覆盖配置路径。
+                	base_ref (str | None): 基准引用。
+                
+                Returns:
+                	Path: 生成的报告文件路径。
+                """
+                path = output_dir / f"eff-u-code-{scope}.json"
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(json.dumps(report), encoding="utf-8")
+                return path
+
+            with mock.patch.object(MODULE, "REPO_ROOT", repo_root), \
+                mock.patch.object(MODULE, "run_eff_u_code", side_effect=fake_run), \
+                mock.patch.object(
+                    MODULE,
+                    "list_scope_files_on_disk",
+                    return_value=["server/internal/runtime.go", "server/internal/extra.go"],
+                ):
+                argv = [
+                    "evaluate_eff_u_code_gate.py",
+                    "--config",
+                    str(config_path),
+                    "--eff-u-code-config",
+                    str(eff_path),
+                    "--gate-profile",
+                    "score-project",
+                    "--scan-mode",
+                    "project",
+                    "--scopes",
+                    "server",
+                    "--output-json",
+                    str(output_path),
+                ]
+                with mock.patch.object(sys, "argv", argv):
+                    result = MODULE.main()
+
+            self.assertEqual(result, 0)
+            payload = json.loads(output_path.read_text(encoding="utf-8"))
+            self.assertEqual(payload["status"], "pass")
+            self.assertEqual(payload["scopes"]["server"]["scoreGateStatus"], "pass")
+            self.assertEqual(payload["scopes"]["server"]["coverageStatus"], "pass")
+            self.assertEqual(payload["scopes"]["server"]["unreportedFiles"], ["server/internal/extra.go"])
 
     def test_gate_fails_when_new_file_breaks_complexity_rule(self) -> None:
         gate_config = {
@@ -491,7 +1027,14 @@ class MainFlowTests(unittest.TestCase):
                     return "head-sha"
                 raise RuntimeError("skip base")
 
-            with mock.patch.object(MODULE, "ci_changed_files", return_value=["server/internal/runtime.go"]), \
+            with mock.patch.object(
+                MODULE,
+                "resolve_changed_mode_files",
+                return_value=(
+                    ["server/internal/runtime.go"],
+                    MODULE.ChangedBaselineResolution(None, "HEAD", "", "", "", "local-changes"),
+                ),
+            ), \
                 mock.patch.object(MODULE, "run_eff_u_code", side_effect=fake_run), \
                 mock.patch.object(MODULE, "run_git", side_effect=fake_run_git), \
                 mock.patch.object(MODULE, "export_git_snapshot", return_value=Path(tmp_dir) / "baseline-snapshot"):
@@ -595,6 +1138,7 @@ class MainFlowTests(unittest.TestCase):
             self.assertEqual(payload["scanMode"], "project")
             self.assertEqual(payload["summary"]["filesEvaluated"], 2)
             self.assertEqual(payload["summary"]["failures"], 1)
+            self.assertEqual(payload["summary"]["rawFailures"], 1)
             self.assertEqual(
                 [item["path"] for item in payload["scopes"]["server"]["files"]],
                 ["server/internal/runtime.go", "server/modules/foo/service.go"],
@@ -765,7 +1309,14 @@ class MainFlowTests(unittest.TestCase):
                     return "head-sha"
                 raise RuntimeError("skip base")
 
-            with mock.patch.object(MODULE, "ci_changed_files", return_value=["server/main.go", "server/extra.go"]), \
+            with mock.patch.object(
+                MODULE,
+                "resolve_changed_mode_files",
+                return_value=(
+                    ["server/main.go", "server/extra.go"],
+                    MODULE.ChangedBaselineResolution(None, "HEAD", "", "", "", "local-changes"),
+                ),
+            ), \
                 mock.patch.object(MODULE, "run_eff_u_code", side_effect=fake_run), \
                 mock.patch.object(MODULE, "run_git", side_effect=fake_run_git), \
                 mock.patch.object(MODULE, "export_git_snapshot", return_value=Path(tmp_dir) / "baseline-snapshot"):

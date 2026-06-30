@@ -56,6 +56,9 @@ func (Role) Fields() []ent.Field {
 		field.Uint64("updated_by").
 			Comment("最后更新人用户 ID，0 表示系统").
 			Default(0),
+		field.Int64("disabled_at").
+			Comment("禁用时间戳，0 表示启用").
+			Default(0),
 		field.Int64("deleted_at").
 			Comment("软删除时间戳，0 表示未删除").
 			Default(0),

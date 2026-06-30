@@ -43,6 +43,7 @@ var (
 		{Name: "created_by", Type: field.TypeUint64, Comment: "创建人用户 ID，0 表示系统", Default: 0},
 		{Name: "updated_at", Type: field.TypeTime, Comment: "更新时间"},
 		{Name: "updated_by", Type: field.TypeUint64, Comment: "最后更新人用户 ID，0 表示系统", Default: 0},
+		{Name: "disabled_at", Type: field.TypeInt64, Comment: "禁用时间戳，0 表示启用", Default: 0},
 		{Name: "deleted_at", Type: field.TypeInt64, Comment: "软删除时间戳，0 表示未删除", Default: 0},
 		{Name: "deleted_by", Type: field.TypeUint64, Comment: "删除人用户 ID，0 表示未删除", Default: 0},
 	}

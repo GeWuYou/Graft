@@ -100,6 +100,7 @@
         "server/internal/realtime/hub.go",
         "server/internal/scheduler/runtime.go",
         "server/modules/container/docker_exec_session.go",
+        "server/modules/container/docker_runtime_stats.go",
         "server/modules/container/docker_runtime.go",
         "server/modules/container/log_topic_streamer.go",
         "server/modules/container/mount_usage.go",
@@ -107,7 +108,9 @@
         "server/modules/container/runtime_event_manager.go",
         "server/modules/container/stats_collector.go",
         "server/modules/container/terminal/websocket_bridge.go",
+        "server/modules/auth/storeent/auth_repository.go",
         "server/modules/monitor/module.go",
+        "server/modules/user/storeent/auth_repository.go",
         "web/src/modules/container/shared/events-manager.ts",
         "web/src/modules/container/pages/detail/log-view-store.ts",
         "web/src/modules/container/shared/stats-manager.ts",
@@ -149,6 +152,52 @@
       "documentation": 0.0,
       "naming": 0.0,
       "parameter_count": 0.0
+    }
+  },
+  "scoreGate": {
+    "profiles": {
+      "score-changed": {
+        "enabled": true,
+        "enabledScanModes": [
+          "changed"
+        ],
+        "threshold": 90,
+        "topContributors": 10,
+        "detailLimit": 10,
+        "potentialGainSteps": [
+          3,
+          5,
+          10
+        ],
+        "categoryOrder": [
+          "complexity",
+          "duplication",
+          "error_handling",
+          "structure",
+          "file_size"
+        ]
+      },
+      "score-project": {
+        "enabled": true,
+        "enabledScanModes": [
+          "project"
+        ],
+        "threshold": 85,
+        "topContributors": 20,
+        "detailLimit": 10,
+        "potentialGainSteps": [
+          3,
+          5,
+          10
+        ],
+        "categoryOrder": [
+          "complexity",
+          "duplication",
+          "error_handling",
+          "structure",
+          "file_size"
+        ]
+      }
     }
   },
   "report": {

@@ -5,13 +5,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	authstore "graft/server/modules/auth/store"
 	usercontract "graft/server/modules/user/contract"
 	ent "graft/server/modules/user/ent"
 	refreshsessionent "graft/server/modules/user/ent/refreshsession"
-	userent "graft/server/modules/user/ent/user"
 	userstore "graft/server/modules/user/store"
 )
 
@@ -24,6 +22,7 @@ func NewAuthRepository(client *ent.Client) (authstore.AuthRepository, error) {
 	return newAuthRepository(client)
 }
 
+// 如果 client 为空，则返回错误。
 func newAuthRepository(client *ent.Client) (*authRepository, error) {
 	if client == nil {
 		return nil, fmt.Errorf("auth storeent requires a non-nil ent client")
@@ -33,112 +32,67 @@ func newAuthRepository(client *ent.Client) (*authRepository, error) {
 }
 
 func (r *authRepository) GetUserCredentialByUsername(ctx context.Context, username string) (authstore.UserCredential, error) {
-	record, err := r.client.User.Query().
-		Where(
-			userent.UsernameEQ(username),
-			userent.DeletedAtEQ(0),
-		).
-		Only(ctx)
+	record, err := r.queryUserCredentialByUsername(ctx, username)
 	if err != nil {
-		if ent.IsNotFound(err) {
-			return authstore.UserCredential{}, userstore.ErrUserNotFound
-		}
-		return authstore.UserCredential{}, fmt.Errorf("query user credential by username: %w", err)
+		return authstore.UserCredential{}, err
 	}
 
 	return toStoreUserCredential(record), nil
 }
 
 func (r *authRepository) SetPasswordHash(ctx context.Context, input authstore.SetPasswordHashInput) error {
-	id, err := toEntID(input.UserID)
+	userID, err := authUserID(input.UserID)
 	if err != nil {
-		if errors.Is(err, userstore.ErrInvalidID) {
-			return userstore.ErrUserNotFound
-		}
 		return err
 	}
 
-	updater := r.client.User.UpdateOneID(id).
-		SetPasswordHash(input.PasswordHash).
-		SetMustChangePassword(input.MustChangePassword)
-	if input.ChangedAt != nil {
-		updater = updater.SetPasswordChangedAt(*input.ChangedAt)
-	}
-
-	if err := updater.Exec(ctx); err != nil {
-		if ent.IsNotFound(err) {
-			return userstore.ErrUserNotFound
-		}
-		return fmt.Errorf("set user password hash: %w", err)
-	}
-
-	return nil
+	return r.updatePasswordHash(ctx, userID, input)
 }
 
 func (r *authRepository) ChangePasswordAndRevokeOtherRefreshSessions(
 	ctx context.Context,
 	input authstore.ChangePasswordAndRevokeOtherRefreshSessionsInput,
 ) error {
-	userID, err := toEntID(input.UserID)
+	userID, err := authUserID(input.UserID)
 	if err != nil {
-		if errors.Is(err, userstore.ErrInvalidID) {
-			return userstore.ErrUserNotFound
-		}
 		return err
 	}
 
-	tx, err := r.client.Tx(ctx)
-	if err != nil {
-		return fmt.Errorf("begin password change transaction: %w", err)
-	}
-	committed := false
-	defer func() {
-		if !committed {
-			_ = tx.Rollback()
+	return runAuthTx(ctx, r.client, "password change", func(tx *ent.Tx) error {
+		if err := setUserPasswordInTx(
+			ctx,
+			tx,
+			passwordUpdateTxInput{
+				userID:             userID,
+				passwordHash:       input.PasswordHash,
+				mustChangePassword: input.MustChangePassword,
+				changedAt:          input.ChangedAt,
+				contextMessage:     "set user password hash during password change",
+			},
+		); err != nil {
+			return err
 		}
-	}()
-
-	if err := tx.User.UpdateOneID(userID).
-		SetPasswordHash(input.PasswordHash).
-		SetMustChangePassword(input.MustChangePassword).
-		SetPasswordChangedAt(input.ChangedAt).
-		Exec(ctx); err != nil {
-		if ent.IsNotFound(err) {
-			return userstore.ErrUserNotFound
+		if err := revokeOtherRefreshSessionsInTx(
+			ctx,
+			tx,
+			userID,
+			input.CurrentTokenID,
+			input.ChangedAt,
+			"revoke other refresh sessions during password change",
+		); err != nil {
+			return err
 		}
-		return fmt.Errorf("set user password hash during password change: %w", err)
-	}
 
-	if _, err := tx.RefreshSession.Update().
-		Where(
-			refreshsessionent.UserIDEQ(userID),
-			refreshsessionent.RevokedAtIsNil(),
-			refreshsessionent.TokenIDNEQ(input.CurrentTokenID),
-		).
-		SetRevokedAt(input.ChangedAt).
-		Save(ctx); err != nil {
-		return fmt.Errorf("revoke other refresh sessions during password change: %w", err)
-	}
-
-	if err := commitPasswordChange(tx); err != nil {
-		return err
-	}
-	committed = true
-
-	return nil
+		return nil
+	})
 }
 
 func (r *authRepository) EnsureUserCredential(ctx context.Context, input authstore.EnsureUserCredentialInput) (authstore.UserCredential, error) {
-	record, err := r.client.User.Query().
-		Where(
-			userent.UsernameEQ(input.Username),
-			userent.DeletedAtEQ(0),
-		).
-		Only(ctx)
+	record, err := r.queryUserCredentialByUsername(ctx, input.Username)
 	if err == nil {
 		return toStoreUserCredential(record), nil
 	}
-	if !ent.IsNotFound(err) {
+	if !errors.Is(err, userstore.ErrUserNotFound) {
 		return authstore.UserCredential{}, fmt.Errorf("query ensured user credential by username: %w", err)
 	}
 
@@ -306,16 +260,11 @@ func (r *authRepository) ListActiveRefreshSessionsByUserID(ctx context.Context, 
 }
 
 func (r *authRepository) RotateRefreshSession(ctx context.Context, input authstore.RotateRefreshSessionInput) (authstore.RefreshSession, error) {
-	tx, err := r.client.Tx(ctx)
+	tx, rollback, err := beginAuthTx(ctx, r.client, "refresh session rotation")
 	if err != nil {
-		return authstore.RefreshSession{}, fmt.Errorf("begin refresh session rotation transaction: %w", err)
+		return authstore.RefreshSession{}, err
 	}
-	committed := false
-	defer func() {
-		if !committed {
-			_ = tx.Rollback()
-		}
-	}()
+	defer rollback()
 
 	current, err := loadActiveRefreshSessionForRotation(ctx, tx, input.CurrentTokenID, input.Now)
 	if err != nil {
@@ -331,150 +280,50 @@ func (r *authRepository) RotateRefreshSession(ctx context.Context, input authsto
 	if err := commitRefreshRotation(tx); err != nil {
 		return authstore.RefreshSession{}, err
 	}
-	committed = true
 
 	return toStoreRefreshSession(next), nil
-}
-
-func loadActiveRefreshSessionForRotation(
-	ctx context.Context,
-	tx *ent.Tx,
-	currentTokenID string,
-	now time.Time,
-) (*ent.RefreshSession, error) {
-	current, err := tx.RefreshSession.Query().
-		Where(refreshsessionent.TokenIDEQ(currentTokenID)).
-		Only(ctx)
-	if err != nil {
-		if ent.IsNotFound(err) {
-			return nil, authstore.ErrRefreshSessionNotFound
-		}
-		return nil, fmt.Errorf("query current refresh session for rotation: %w", err)
-	}
-	if current.RevokedAt != nil || !current.ExpiresAt.After(now) {
-		return nil, authstore.ErrRefreshSessionNotFound
-	}
-
-	return current, nil
-}
-
-func revokeRefreshSessionForRotation(
-	ctx context.Context,
-	tx *ent.Tx,
-	sessionID int,
-	input authstore.RotateRefreshSessionInput,
-) error {
-	affected, err := tx.RefreshSession.Update().
-		Where(
-			refreshsessionent.IDEQ(sessionID),
-			refreshsessionent.RevokedAtIsNil(),
-			refreshsessionent.ExpiresAtGT(input.Now),
-		).
-		SetRevokedAt(input.RevokedAt).
-		SetReplacedByTokenID(input.NewTokenID).
-		Save(ctx)
-	if err != nil {
-		return fmt.Errorf("revoke current refresh session during rotation: %w", err)
-	}
-	if affected == 0 {
-		return authstore.ErrRefreshSessionNotFound
-	}
-
-	return nil
-}
-
-func createRotatedRefreshSession(
-	ctx context.Context,
-	tx *ent.Tx,
-	userID int,
-	input authstore.RotateRefreshSessionInput,
-) (*ent.RefreshSession, error) {
-	next, err := tx.RefreshSession.Create().
-		SetUserID(userID).
-		SetTokenID(input.NewTokenID).
-		SetExpiresAt(input.NewExpiresAt).
-		Save(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("create rotated refresh session: %w", err)
-	}
-
-	return next, nil
-}
-
-func commitRefreshRotation(tx *ent.Tx) error {
-	if commitErr := tx.Commit(); commitErr != nil {
-		if errors.Is(commitErr, context.Canceled) || errors.Is(commitErr, context.DeadlineExceeded) {
-			return commitErr
-		}
-		return fmt.Errorf("commit refresh session rotation transaction: %w", commitErr)
-	}
-
-	return nil
 }
 
 func (r *authRepository) ResetPasswordAndRevokeRefreshSessions(
 	ctx context.Context,
 	input authstore.ResetPasswordAndRevokeSessionsInput,
 ) error {
-	userID, err := toEntID(input.UserID)
+	userID, err := authUserID(input.UserID)
 	if err != nil {
-		if errors.Is(err, userstore.ErrInvalidID) {
-			return userstore.ErrUserNotFound
-		}
 		return err
 	}
 
-	tx, err := r.client.Tx(ctx)
-	if err != nil {
-		return fmt.Errorf("begin reset password transaction: %w", err)
-	}
-	committed := false
-	defer func() {
-		if !committed {
-			_ = tx.Rollback()
+	return runAuthTx(ctx, r.client, "reset password", func(tx *ent.Tx) error {
+		if err := setUserPasswordInTx(
+			ctx,
+			tx,
+			passwordUpdateTxInput{
+				userID:             userID,
+				passwordHash:       input.PasswordHash,
+				mustChangePassword: input.MustChangePassword,
+				changedAt:          input.ChangedAt,
+				contextMessage:     "set user password hash during reset",
+			},
+		); err != nil {
+			return err
 		}
-	}()
-
-	if err := tx.User.UpdateOneID(userID).
-		SetPasswordHash(input.PasswordHash).
-		SetMustChangePassword(input.MustChangePassword).
-		SetPasswordChangedAt(input.ChangedAt).
-		Exec(ctx); err != nil {
-		if ent.IsNotFound(err) {
-			return userstore.ErrUserNotFound
+		if err := revokeOtherRefreshSessionsInTx(
+			ctx,
+			tx,
+			userID,
+			"",
+			input.ChangedAt,
+			"revoke refresh sessions during reset",
+		); err != nil {
+			return err
 		}
-		return fmt.Errorf("set user password hash during reset: %w", err)
-	}
 
-	if _, err := tx.RefreshSession.Update().
-		Where(
-			refreshsessionent.UserIDEQ(userID),
-			refreshsessionent.RevokedAtIsNil(),
-		).
-		SetRevokedAt(input.ChangedAt).
-		Save(ctx); err != nil {
-		return fmt.Errorf("revoke refresh sessions during reset: %w", err)
-	}
-
-	if err := commitPasswordChange(tx); err != nil {
-		return err
-	}
-	committed = true
-
-	return nil
+		return nil
+	})
 }
 
-func commitPasswordChange(tx *ent.Tx) error {
-	if commitErr := tx.Commit(); commitErr != nil {
-		if errors.Is(commitErr, context.Canceled) || errors.Is(commitErr, context.DeadlineExceeded) {
-			return commitErr
-		}
-		return fmt.Errorf("commit password change transaction: %w", commitErr)
-	}
-
-	return nil
-}
-
+// toStoreUserCredential 将 Ent 用户记录映射为存储层用户凭据。
+// UserID 使用存储层标识转换，其他字段保持记录中的值。
 func toStoreUserCredential(record *ent.User) authstore.UserCredential {
 	return authstore.UserCredential{
 		UserID:             toStoreID(record.ID),

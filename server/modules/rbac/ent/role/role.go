@@ -30,6 +30,8 @@ const (
 	FieldUpdatedAt = "updated_at"
 	// FieldUpdatedBy holds the string denoting the updated_by field in the database.
 	FieldUpdatedBy = "updated_by"
+	// FieldDisabledAt holds the string denoting the disabled_at field in the database.
+	FieldDisabledAt = "disabled_at"
 	// FieldDeletedAt holds the string denoting the deleted_at field in the database.
 	FieldDeletedAt = "deleted_at"
 	// FieldDeletedBy holds the string denoting the deleted_by field in the database.
@@ -67,6 +69,7 @@ var Columns = []string{
 	FieldCreatedBy,
 	FieldUpdatedAt,
 	FieldUpdatedBy,
+	FieldDisabledAt,
 	FieldDeletedAt,
 	FieldDeletedBy,
 }
@@ -98,6 +101,8 @@ var (
 	UpdateDefaultUpdatedAt func() time.Time
 	// DefaultUpdatedBy holds the default value on creation for the "updated_by" field.
 	DefaultUpdatedBy uint64
+	// DefaultDisabledAt holds the default value on creation for the "disabled_at" field.
+	DefaultDisabledAt int64
 	// DefaultDeletedAt holds the default value on creation for the "deleted_at" field.
 	DefaultDeletedAt int64
 	// DefaultDeletedBy holds the default value on creation for the "deleted_by" field.
@@ -150,6 +155,11 @@ func ByUpdatedAt(opts ...sql.OrderTermOption) OrderOption {
 // ByUpdatedBy orders the results by the updated_by field.
 func ByUpdatedBy(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldUpdatedBy, opts...).ToFunc()
+}
+
+// ByDisabledAt orders the results by the disabled_at field.
+func ByDisabledAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDisabledAt, opts...).ToFunc()
 }
 
 // ByDeletedAt orders the results by the deleted_at field.

@@ -75,6 +75,10 @@ bun run quality:eff-u-code:gate -- --output-json .tmp/eff-u-code-gate/report.jso
 bun run quality:eff-u-code:gate:server
 bun run quality:eff-u-code:gate:web
 bun run quality:eff-u-code:gate:all
+bun run quality:eff-u-code:score:changed
+bun run quality:eff-u-code:score:server
+bun run quality:eff-u-code:score:web
+bun run quality:eff-u-code:score:all
 ```
 
 Local configuration:
@@ -94,6 +98,10 @@ python3 scripts/run_eff_u_code.py --init-config
 - `bun run quality:eff-u-code:gate -- ...` defaults to `--scan-mode changed`, which is the PR/incremental gate semantic.
 - `bun run quality:eff-u-code:gate:server`, `:web`, and `:all` are optional full-project local governance scans.
 - Full-project scans are for concentrated debt cleanup. They evaluate all in-scope files for the selected scope and do not replace the PR incremental gate.
+- `bun run quality:eff-u-code:score:changed` is the repository-owned changed-file score gate used by hooks and CI.
+- `bun run quality:eff-u-code:score:server`, `:web`, and `:all` are repository-owned Project Score gate entrypoints for full scans.
+- The score gate keeps file-level `Curated Score` as a display ingredient, then derives scope/project gate scores from the repository evaluator instead of using the upstream total score.
+- Project Score output uses layered diagnostics by default: summary first, then Top Contributors, category impact, severity aggregation, and estimated score gain; full rule detail remains in the JSON report.
 
 ## Local Server
 

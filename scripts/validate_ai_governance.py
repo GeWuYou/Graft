@@ -168,8 +168,10 @@ def validate_ai_tooling_doc() -> list[Finding]:
         "developer-local",
         "not part of the formal validation flow",
         "bun run quality:eff-u-code:gate --",
+        "bun run quality:eff-u-code:score:changed",
         "Graft Quality Policy",
         "Curated Score",
+        "Project Score Gate",
         "codegraph",
         "tdesign",
         "context7",
@@ -241,6 +243,15 @@ def validate_ai_tooling_doc() -> list[Finding]:
                         r"Curated Score",
                         r"display-only|仅用于展示",
                         r"不参与阻断|not.*participat",
+                    ),
+                ),
+                (
+                    "project score gate layered diagnostics",
+                    (
+                        r"Project Score Gate|Project Score",
+                        r"Top Contributors",
+                        r"Potential Score Gain|Estimated score",
+                        r"layered diagnostics|分层摘要",
                     ),
                 ),
                 (
@@ -335,10 +346,10 @@ def validate_sql_migration_governance() -> list[Finding]:
 
 def validate_environment_inventory() -> list[Finding]:
     """
-    校验本地 AI 环境清单是否包含受控的工具记录与目录配置。
+    校验本地 AI 环境清单是否记录了受控的工具配置、Headroom/MCP 选项和目录约束。
     
     Returns:
-        list[Finding]: 发现的治理缺失项列表；当清单文件不存在时返回空列表。
+        list[Finding]: 发现的治理缺失项列表；清单文件不存在时返回空列表。
     """
     if not TOOLS_AI.is_file():
         return []
@@ -355,6 +366,7 @@ def validate_environment_inventory() -> list[Finding]:
         "automatic instructions write",
         "default_command: \"bun run quality:eff-u-code --\"",
         "gate_entrypoint: \"bun run quality:eff-u-code:gate --\"",
+        "score_entrypoint: \"bun run quality:eff-u-code:score:changed\"",
         "instructions_auto_write: \"disabled\"",
     )
     findings.extend(missing_exact_terms(text, TOOLS_AI, "AI environment inventory", exact_terms))

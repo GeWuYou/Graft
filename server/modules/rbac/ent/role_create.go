@@ -118,6 +118,20 @@ func (_c *RoleCreate) SetNillableUpdatedBy(v *uint64) *RoleCreate {
 	return _c
 }
 
+// SetDisabledAt sets the "disabled_at" field.
+func (_c *RoleCreate) SetDisabledAt(v int64) *RoleCreate {
+	_c.mutation.SetDisabledAt(v)
+	return _c
+}
+
+// SetNillableDisabledAt sets the "disabled_at" field if the given value is not nil.
+func (_c *RoleCreate) SetNillableDisabledAt(v *int64) *RoleCreate {
+	if v != nil {
+		_c.SetDisabledAt(*v)
+	}
+	return _c
+}
+
 // SetDeletedAt sets the "deleted_at" field.
 func (_c *RoleCreate) SetDeletedAt(v int64) *RoleCreate {
 	_c.mutation.SetDeletedAt(v)
@@ -231,6 +245,10 @@ func (_c *RoleCreate) defaults() {
 		v := role.DefaultUpdatedBy
 		_c.mutation.SetUpdatedBy(v)
 	}
+	if _, ok := _c.mutation.DisabledAt(); !ok {
+		v := role.DefaultDisabledAt
+		_c.mutation.SetDisabledAt(v)
+	}
 	if _, ok := _c.mutation.DeletedAt(); !ok {
 		v := role.DefaultDeletedAt
 		_c.mutation.SetDeletedAt(v)
@@ -273,6 +291,9 @@ func (_c *RoleCreate) check() error {
 	}
 	if _, ok := _c.mutation.UpdatedBy(); !ok {
 		return &ValidationError{Name: "updated_by", err: errors.New(`ent: missing required field "Role.updated_by"`)}
+	}
+	if _, ok := _c.mutation.DisabledAt(); !ok {
+		return &ValidationError{Name: "disabled_at", err: errors.New(`ent: missing required field "Role.disabled_at"`)}
 	}
 	if _, ok := _c.mutation.DeletedAt(); !ok {
 		return &ValidationError{Name: "deleted_at", err: errors.New(`ent: missing required field "Role.deleted_at"`)}
@@ -337,6 +358,10 @@ func (_c *RoleCreate) createSpec() (*Role, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.UpdatedBy(); ok {
 		_spec.SetField(role.FieldUpdatedBy, field.TypeUint64, value)
 		_node.UpdatedBy = value
+	}
+	if value, ok := _c.mutation.DisabledAt(); ok {
+		_spec.SetField(role.FieldDisabledAt, field.TypeInt64, value)
+		_node.DisabledAt = value
 	}
 	if value, ok := _c.mutation.DeletedAt(); ok {
 		_spec.SetField(role.FieldDeletedAt, field.TypeInt64, value)

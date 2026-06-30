@@ -103,12 +103,16 @@ func init() {
 	roleDescUpdatedBy := roleFields[7].Descriptor()
 	// role.DefaultUpdatedBy holds the default value on creation for the updated_by field.
 	role.DefaultUpdatedBy = roleDescUpdatedBy.Default.(uint64)
+	// roleDescDisabledAt is the schema descriptor for disabled_at field.
+	roleDescDisabledAt := roleFields[8].Descriptor()
+	// role.DefaultDisabledAt holds the default value on creation for the disabled_at field.
+	role.DefaultDisabledAt = roleDescDisabledAt.Default.(int64)
 	// roleDescDeletedAt is the schema descriptor for deleted_at field.
-	roleDescDeletedAt := roleFields[8].Descriptor()
+	roleDescDeletedAt := roleFields[9].Descriptor()
 	// role.DefaultDeletedAt holds the default value on creation for the deleted_at field.
 	role.DefaultDeletedAt = roleDescDeletedAt.Default.(int64)
 	// roleDescDeletedBy is the schema descriptor for deleted_by field.
-	roleDescDeletedBy := roleFields[9].Descriptor()
+	roleDescDeletedBy := roleFields[10].Descriptor()
 	// role.DefaultDeletedBy holds the default value on creation for the deleted_by field.
 	role.DefaultDeletedBy = roleDescDeletedBy.Default.(uint64)
 	rolepermissionMixin := schema.RolePermission{}.Mixin()

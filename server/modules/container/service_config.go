@@ -342,20 +342,14 @@ func (s *service) runtimeAccessEnabled(ctx context.Context) bool {
 	if s == nil {
 		return false
 	}
-	if s.systemConfig == nil {
-		return s.enabled
-	}
-	return s.systemConfig.IsBooleanConfigEnabled(ctx, containercontract.ContainerRuntimeEnabledConfig.String(), s.enabled)
+	return s.boolConfigEnabled(ctx, containercontract.ContainerRuntimeEnabledConfig.String(), s.enabled)
 }
 
 func (s *service) dangerousActionsAllowed(ctx context.Context) bool {
 	if s == nil {
 		return false
 	}
-	if s.systemConfig == nil {
-		return s.dangerousActionsEnabled
-	}
-	return s.systemConfig.IsBooleanConfigEnabled(
+	return s.boolConfigEnabled(
 		ctx,
 		containercontract.ContainerDangerousActionsEnabledConfig.String(),
 		s.dangerousActionsEnabled,
@@ -564,10 +558,7 @@ func (s *service) shellAllowed(ctx context.Context) bool {
 	if s == nil {
 		return false
 	}
-	if s.systemConfig == nil {
-		return s.shellEnabled
-	}
-	return s.systemConfig.IsBooleanConfigEnabled(
+	return s.boolConfigEnabled(
 		ctx,
 		containercontract.ContainerShellEnabledConfig.String(),
 		s.shellEnabled,
@@ -575,17 +566,24 @@ func (s *service) shellAllowed(ctx context.Context) bool {
 }
 
 func (s *service) maskedEnvironmentCopyEnabled(ctx context.Context) bool {
-	if s == nil || s.systemConfig == nil {
+	if s == nil {
 		return defaultContainerEnvironmentMaskedCopy
 	}
-	return s.systemConfig.IsBooleanConfigEnabled(
+	return s.boolConfigEnabled(
 		ctx,
 		containercontract.ContainerEnvironmentMaskedCopyEnabledConfig.String(),
 		defaultContainerEnvironmentMaskedCopy,
 	)
 }
 
-// 当容器运行被禁用时返回禁用运行时；当运行时类型为 Docker 或默认值时返回 Docker 运行时；其他类型返回错误。
+func (s *service) boolConfigEnabled(ctx context.Context, key string, fallback bool) bool {
+	if s.systemConfig == nil {
+		return fallback
+	}
+	return s.systemConfig.IsBooleanConfigEnabled(ctx, key, fallback)
+}
+
+// newContainerRuntime 在容器运行被禁用时返回禁用运行时；当运行时类型为 Docker 或默认值时创建 Docker 运行时；其他类型返回错误。
 func newContainerRuntime(options containerRuntimeOptions) (Runtime, error) {
 	if !options.enabled {
 		return disabledRuntime{}, nil

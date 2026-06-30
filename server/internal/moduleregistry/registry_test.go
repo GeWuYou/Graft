@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"sort"
 	"testing"
 
@@ -105,6 +106,22 @@ func TestEmbeddedMigrationDirByPathReturnsClonedFiles(t *testing.T) {
 	}
 	if again.Files[contentIndex].Contents[0] != originalByte {
 		t.Fatal("expected cloned contents to remain immutable")
+	}
+}
+
+func TestEmbeddedMigrationDirByPathIncludesRbacForwardOnlyDisabledAtMigration(t *testing.T) {
+	dir, ok := EmbeddedMigrationDirByPath("modules/rbac/migrations")
+	if !ok {
+		t.Fatal("expected embedded migration dir for RBAC module")
+	}
+
+	names := make([]string, 0, len(dir.Files))
+	for _, file := range dir.Files {
+		names = append(names, file.Name)
+	}
+
+	if !slices.Contains(names, "202606300001_rbac_role_disabled_at.sql") {
+		t.Fatalf("expected RBAC embedded migrations to include disabled_at forward migration, got %v", names)
 	}
 }
 

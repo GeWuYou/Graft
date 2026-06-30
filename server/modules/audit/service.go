@@ -131,95 +131,33 @@ func NewServiceWithDrilldown(
 
 // Record writes one audit record after normalizing stable fields and redacting sensitive data.
 func (s *Service) Record(ctx context.Context, input RecordInput) (auditstore.AuditLog, error) {
-	if s == nil || s.repo == nil {
-		return auditstore.AuditLog{}, ErrAuditServiceUnavailable
-	}
-
-	action := strings.TrimSpace(input.Action)
-	if action == "" {
-		return auditstore.AuditLog{}, errors.New("audit action is required")
-	}
-	if input.CreatedAt.IsZero() {
-		input.CreatedAt = time.Now().UTC()
-	}
-
-	metadata, err := sanitizeMetadata(input.Metadata)
+	repo, err := s.repository()
 	if err != nil {
 		return auditstore.AuditLog{}, err
 	}
 
-	return s.repo.CreateAuditLog(ctx, auditstore.CreateAuditLogInput{
-		ActorUserID:      input.ActorUserID,
-		ActorUsername:    strings.TrimSpace(input.ActorUsername),
-		ActorDisplayName: strings.TrimSpace(input.ActorDisplayName),
-		Action:           action,
-		Visibility:       normalizeAuditVisibilityStrategy(input.Visibility),
-		ResourceType:     strings.TrimSpace(input.ResourceType),
-		ResourceID:       strings.TrimSpace(input.ResourceID),
-		ResourceName:     strings.TrimSpace(input.ResourceName),
-		Success:          input.Success,
-		RequestID:        strings.TrimSpace(input.RequestID),
-		IP:               strings.TrimSpace(input.IP),
-		UserAgent:        strings.TrimSpace(input.UserAgent),
-		Message:          sanitizeFreeText(strings.TrimSpace(input.Message)),
-		Metadata:         metadata,
-		CreatedAt:        input.CreatedAt.UTC(),
-	})
+	createInput, err := normalizeAuditRecordInput(input)
+	if err != nil {
+		return auditstore.AuditLog{}, err
+	}
+
+	return repo.CreateAuditLog(ctx, createInput)
 }
 
 // List returns a bounded page of audit records.
 func (s *Service) List(ctx context.Context, query ListQuery) (ListResult, error) {
-	if s == nil || s.repo == nil {
-		return ListResult{}, ErrAuditServiceUnavailable
+	repo, err := s.repository()
+	if err != nil {
+		return ListResult{}, err
 	}
-
-	page := query.Page
-	if page < 1 {
-		page = defaultPage
-	}
-	pageSize := query.PageSize
-	switch {
-	case pageSize < 1:
-		pageSize = defaultPageSize
-	case pageSize > maxPageSize:
-		pageSize = maxPageSize
-	}
+	page, pageSize := normalizeAuditPagination(query)
 
 	resolvedScope, effectiveQuery, err := s.resolveScope(ctx, query)
 	if err != nil {
 		return ListResult{}, fmt.Errorf("resolve audit list scope: %w", err)
 	}
 
-	result, err := s.repo.ListAuditLogs(ctx, auditstore.ListAuditLogsQuery{
-		VisibilityScope:     normalizeAuditVisibilityScope(effectiveQuery.VisibilityScope),
-		ActorUserID:         effectiveQuery.ActorUserID,
-		Keyword:             strings.TrimSpace(effectiveQuery.Keyword),
-		Actor:               strings.TrimSpace(effectiveQuery.Actor),
-		Action:              strings.TrimSpace(effectiveQuery.Action),
-		ActionPrefix:        strings.TrimSpace(effectiveQuery.ActionPrefix),
-		ActionPrefixes:      normalizeAuditStringFilters(effectiveQuery.ActionPrefixes),
-		ActionKeywords:      normalizeAuditStringFilters(effectiveQuery.ActionKeywords),
-		TimePreset:          normalizeAuditTimePreset(effectiveQuery.TimePreset),
-		Source:              normalizeAuditSource(effectiveQuery.Source),
-		BusinessCategory:    normalizeAuditBusinessCategory(effectiveQuery.BusinessCategory),
-		ResourceType:        strings.TrimSpace(effectiveQuery.ResourceType),
-		ResourceTypes:       normalizeAuditStringFilters(effectiveQuery.ResourceTypes),
-		ResourceID:          strings.TrimSpace(effectiveQuery.ResourceID),
-		ResourceName:        strings.TrimSpace(effectiveQuery.ResourceName),
-		RequestPathPrefixes: normalizeAuditStringFilters(effectiveQuery.RequestPathPrefixes),
-		Success:             effectiveQuery.Success,
-		SessionID:           strings.TrimSpace(effectiveQuery.SessionID),
-		RequestID:           strings.TrimSpace(effectiveQuery.RequestID),
-		Result:              normalizeAuditResult(effectiveQuery.Result),
-		Results:             normalizeAuditResults(effectiveQuery.Results),
-		RiskLevel:           normalizeAuditRiskLevel(effectiveQuery.RiskLevel),
-		RiskLevels:          normalizeAuditRiskLevels(effectiveQuery.RiskLevels),
-		CreatedFrom:         normalizeAuditCreatedFrom(effectiveQuery.CreatedFrom),
-		CreatedTo:           normalizeAuditCreatedTo(effectiveQuery.CreatedTo),
-		Sorts:               normalizeAuditSorts(effectiveQuery.Sorts),
-		Limit:               pageSize,
-		Offset:              (page - 1) * pageSize,
-	})
+	result, err := repo.ListAuditLogs(ctx, normalizedAuditListQuery(effectiveQuery, page, pageSize))
 	if err != nil {
 		return ListResult{}, fmt.Errorf("list audit logs: %w", err)
 	}
@@ -241,14 +179,15 @@ func (s *Service) List(ctx context.Context, query ListQuery) (ListResult, error)
 
 // Detail returns one immutable audit record by id.
 func (s *Service) Detail(ctx context.Context, id uint64) (DetailResult, error) {
-	if s == nil || s.repo == nil {
-		return DetailResult{}, ErrAuditServiceUnavailable
+	repo, err := s.repository()
+	if err != nil {
+		return DetailResult{}, err
 	}
 	if id == 0 {
 		return DetailResult{}, auditstore.ErrAuditLogNotFound
 	}
 
-	record, err := s.repo.ReadAuditLog(ctx, id)
+	record, err := repo.ReadAuditLog(ctx, id)
 	if err != nil {
 		return DetailResult{}, fmt.Errorf("read audit log detail: %w", err)
 	}
@@ -257,35 +196,38 @@ func (s *Service) Detail(ctx context.Context, id uint64) (DetailResult, error) {
 
 // Overview returns the aggregated overview payload for the selected window.
 func (s *Service) Overview(ctx context.Context, preset auditstore.AuditTimePreset) (OverviewResult, error) {
-	if s == nil || s.repo == nil {
-		return OverviewResult{}, ErrAuditServiceUnavailable
+	repo, err := s.repository()
+	if err != nil {
+		return OverviewResult{}, err
 	}
 
-	return s.repo.ReadAuditOverview(ctx, normalizeAuditOverviewTimePreset(preset))
+	return repo.ReadAuditOverview(ctx, normalizeAuditOverviewTimePreset(preset))
 }
 
 // Incident returns the audit-owned incident drilldown for one stable seed event.
 func (s *Service) Incident(ctx context.Context, eventID uint64) (IncidentResult, error) {
-	if s == nil || s.repo == nil {
-		return IncidentResult{}, ErrAuditServiceUnavailable
+	repo, err := s.repository()
+	if err != nil {
+		return IncidentResult{}, err
 	}
 	if eventID == 0 {
 		return IncidentResult{}, errors.New("audit incident event id is required")
 	}
 
-	return s.repo.ReadIncident(ctx, eventID)
+	return repo.ReadIncident(ctx, eventID)
 }
 
 // DeleteBefore deletes audit records older than an explicit audit-owned retention cutoff.
 func (s *Service) DeleteBefore(ctx context.Context, createdBefore time.Time) (int64, error) {
-	if s == nil || s.repo == nil {
-		return 0, ErrAuditServiceUnavailable
+	repo, err := s.repository()
+	if err != nil {
+		return 0, err
 	}
 	if createdBefore.IsZero() {
 		return 0, errors.New("audit log cleanup cutoff is required")
 	}
 
-	deleted, err := s.repo.DeleteAuditLogsBefore(ctx, createdBefore.UTC())
+	deleted, err := repo.DeleteAuditLogsBefore(ctx, createdBefore.UTC())
 	if err != nil {
 		return 0, fmt.Errorf("delete audit logs before cutoff: %w", err)
 	}
@@ -295,24 +237,12 @@ func (s *Service) DeleteBefore(ctx context.Context, createdBefore time.Time) (in
 
 // VisibilityPolicy returns the current audit-owned visibility policy snapshot.
 func (s *Service) VisibilityPolicy(ctx context.Context) (VisibilityPolicyResult, error) {
-	if s == nil || s.repo == nil {
-		return VisibilityPolicyResult{}, ErrAuditServiceUnavailable
+	repo, err := s.repository()
+	if err != nil {
+		return VisibilityPolicyResult{}, err
 	}
 
-	defaultValue, err := s.repo.GetAuditVisibilityDefault(ctx, auditVisibilityGlobalDefaultKey)
-	if err != nil {
-		return VisibilityPolicyResult{}, fmt.Errorf("read audit visibility default: %w", err)
-	}
-	overrides, err := s.repo.ListAuditVisibilityOverrides(ctx)
-	if err != nil {
-		return VisibilityPolicyResult{}, fmt.Errorf("list audit visibility overrides: %w", err)
-	}
-
-	return auditstore.AuditVisibilityPolicySnapshot{
-		Default:   defaultValue,
-		Overrides: overrides,
-		Catalog:   buildAuditEventCatalog(defaultValue.Strategy, overrides),
-	}, nil
+	return s.readAuditVisibilityPolicy(ctx, repo)
 }
 
 // UpdateVisibilityDefault updates the global audit visibility strategy.
@@ -322,8 +252,9 @@ func (s *Service) UpdateVisibilityDefault(
 	userID *uint64,
 	username string,
 ) (auditstore.AuditVisibilityDefault, error) {
-	if s == nil || s.repo == nil {
-		return auditstore.AuditVisibilityDefault{}, ErrAuditServiceUnavailable
+	repo, err := s.repository()
+	if err != nil {
+		return auditstore.AuditVisibilityDefault{}, err
 	}
 
 	normalized := normalizeMutableAuditVisibilityStrategy(strategy)
@@ -331,7 +262,7 @@ func (s *Service) UpdateVisibilityDefault(
 		return auditstore.AuditVisibilityDefault{}, fmt.Errorf("%w: audit visibility default strategy is required", auditstore.ErrAuditValidation)
 	}
 
-	updated, err := s.repo.UpsertAuditVisibilityDefault(
+	updated, err := repo.UpsertAuditVisibilityDefault(
 		ctx,
 		auditVisibilityGlobalDefaultKey,
 		normalized,
@@ -349,24 +280,21 @@ func (s *Service) UpdateVisibilityOverride(
 	ctx context.Context,
 	input auditstore.UpsertAuditVisibilityOverrideInput,
 ) (auditstore.AuditVisibilityOverride, error) {
-	if s == nil || s.repo == nil {
-		return auditstore.AuditVisibilityOverride{}, ErrAuditServiceUnavailable
+	repo, err := s.repository()
+	if err != nil {
+		return auditstore.AuditVisibilityOverride{}, err
 	}
 
-	normalizedSource := normalizeAuditSource(input.Source)
-	if normalizedSource == "" {
-		return auditstore.AuditVisibilityOverride{}, fmt.Errorf("%w: audit visibility override source is required", auditstore.ErrAuditValidation)
-	}
-	normalizedActionKey := strings.TrimSpace(input.ActionKey)
-	if normalizedActionKey == "" {
-		return auditstore.AuditVisibilityOverride{}, fmt.Errorf("%w: audit visibility override action key is required", auditstore.ErrAuditValidation)
+	normalizedSource, normalizedActionKey, err := normalizeVisibilityOverrideRef(input.Source, input.ActionKey)
+	if err != nil {
+		return auditstore.AuditVisibilityOverride{}, err
 	}
 	normalizedStrategy := normalizeAuditVisibilityStrategy(input.Strategy)
 	if normalizedStrategy == "" {
 		return auditstore.AuditVisibilityOverride{}, fmt.Errorf("%w: audit visibility override strategy is required", auditstore.ErrAuditValidation)
 	}
 
-	updated, err := s.repo.UpsertAuditVisibilityOverride(
+	updated, err := repo.UpsertAuditVisibilityOverride(
 		ctx,
 		auditstore.UpsertAuditVisibilityOverrideInput{
 			Source:      normalizedSource,
@@ -387,19 +315,16 @@ func (s *Service) UpdateVisibilityOverride(
 
 // DeleteVisibilityOverride removes one audit-owned source+action visibility override.
 func (s *Service) DeleteVisibilityOverride(ctx context.Context, source auditstore.AuditSource, actionKey string) error {
-	if s == nil || s.repo == nil {
-		return ErrAuditServiceUnavailable
+	repo, err := s.repository()
+	if err != nil {
+		return err
 	}
 
-	normalizedSource := normalizeAuditSource(source)
-	if normalizedSource == "" {
-		return fmt.Errorf("%w: audit visibility override source is required", auditstore.ErrAuditValidation)
+	normalizedSource, normalizedActionKey, err := normalizeVisibilityOverrideRef(source, actionKey)
+	if err != nil {
+		return err
 	}
-	normalizedActionKey := strings.TrimSpace(actionKey)
-	if normalizedActionKey == "" {
-		return fmt.Errorf("%w: audit visibility override action key is required", auditstore.ErrAuditValidation)
-	}
-	if err := s.repo.DeleteAuditVisibilityOverride(ctx, normalizedSource, normalizedActionKey); err != nil {
+	if err := repo.DeleteAuditVisibilityOverride(ctx, normalizedSource, normalizedActionKey); err != nil {
 		return fmt.Errorf("delete audit visibility override: %w", err)
 	}
 	return nil
@@ -407,11 +332,12 @@ func (s *Service) DeleteVisibilityOverride(ctx context.Context, source auditstor
 
 // RecordCandidate writes one normalized candidate after policy evaluation approves it.
 func (s *Service) RecordCandidate(ctx context.Context, candidate auditstore.AuditCandidate) (auditstore.AuditLog, bool, error) {
-	if s == nil || s.repo == nil {
-		return auditstore.AuditLog{}, false, ErrAuditServiceUnavailable
+	repo, err := s.repository()
+	if err != nil {
+		return auditstore.AuditLog{}, false, err
 	}
 
-	evaluator, err := NewPolicyEvaluator(s.repo)
+	evaluator, err := NewPolicyEvaluator(repo)
 	if err != nil {
 		return auditstore.AuditLog{}, false, err
 	}

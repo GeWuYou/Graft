@@ -33,6 +33,8 @@ type Role struct {
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
 	// 最后更新人用户 ID，0 表示系统
 	UpdatedBy uint64 `json:"updated_by,omitempty"`
+	// 禁用时间戳，0 表示启用
+	DisabledAt int64 `json:"disabled_at,omitempty"`
 	// 软删除时间戳，0 表示未删除
 	DeletedAt int64 `json:"deleted_at,omitempty"`
 	// 删除人用户 ID，0 表示未删除
@@ -79,7 +81,7 @@ func (*Role) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case role.FieldBuiltin:
 			values[i] = new(sql.NullBool)
-		case role.FieldID, role.FieldCreatedBy, role.FieldUpdatedBy, role.FieldDeletedAt, role.FieldDeletedBy:
+		case role.FieldID, role.FieldCreatedBy, role.FieldUpdatedBy, role.FieldDisabledAt, role.FieldDeletedAt, role.FieldDeletedBy:
 			values[i] = new(sql.NullInt64)
 		case role.FieldName, role.FieldDisplay, role.FieldDescription:
 			values[i] = new(sql.NullString)
@@ -154,6 +156,12 @@ func (_m *Role) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field updated_by", values[i])
 			} else if value.Valid {
 				_m.UpdatedBy = uint64(value.Int64)
+			}
+		case role.FieldDisabledAt:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field disabled_at", values[i])
+			} else if value.Valid {
+				_m.DisabledAt = value.Int64
 			}
 		case role.FieldDeletedAt:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -238,6 +246,9 @@ func (_m *Role) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("updated_by=")
 	builder.WriteString(fmt.Sprintf("%v", _m.UpdatedBy))
+	builder.WriteString(", ")
+	builder.WriteString("disabled_at=")
+	builder.WriteString(fmt.Sprintf("%v", _m.DisabledAt))
 	builder.WriteString(", ")
 	builder.WriteString("deleted_at=")
 	builder.WriteString(fmt.Sprintf("%v", _m.DeletedAt))

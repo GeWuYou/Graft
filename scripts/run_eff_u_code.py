@@ -5,6 +5,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -22,10 +25,65 @@ EFF_U_CODE_DIR = LOCAL_NODE_MODULES_DIR / "eff-u-code"
 TREE_SITTER_WASMS_DIR = LOCAL_NODE_MODULES_DIR / "tree-sitter-wasms"
 EFF_U_CODE_WASMS_DIR = EFF_U_CODE_DIR / "node_modules" / "tree-sitter-wasms"
 LOCAL_TOOL_NAME = "fuck-u-code.cmd" if sys.platform == "win32" else "fuck-u-code"
+NODE_DEBUG_REQUIRE_PATTERN = re.compile(r"bootloader|js-debug", re.IGNORECASE)
 
 
 class ConfigError(RuntimeError):
     """Raised when the optional local configuration is invalid."""
+
+
+def clean_node_debug_environment(env: dict[str, str]) -> dict[str, str]:
+    """
+    清理会将 VS Code 或 Node 调试注入传播到子进程的环境变量。
+    
+    Parameters:
+        env (dict[str, str]): 原始环境变量映射。
+    
+    Returns:
+        dict[str, str]: 清理后的环境变量映射。
+    """
+    sanitized = dict(env)
+    sanitized.pop("VSCODE_INSPECTOR_OPTIONS", None)
+
+    node_options = sanitized.get("NODE_OPTIONS")
+    if not node_options:
+        return sanitized
+
+    try:
+        parts = shlex.split(node_options, posix=(sys.platform != "win32"))
+    except ValueError:
+        # Malformed debugger-injected NODE_OPTIONS should not block local wrapper execution.
+        sanitized.pop("NODE_OPTIONS", None)
+        return sanitized
+    filtered: list[str] = []
+    skip_next = False
+    for index, part in enumerate(parts):
+        if skip_next:
+            skip_next = False
+            continue
+        if part.startswith("--inspect"):
+            continue
+        if part.startswith("--inspect-publish-uid"):
+            continue
+        if part == "--require":
+            next_part = parts[index + 1] if index + 1 < len(parts) else ""
+            if NODE_DEBUG_REQUIRE_PATTERN.search(next_part):
+                skip_next = True
+                continue
+        if part.startswith("--require="):
+            _, _, value = part.partition("=")
+            if NODE_DEBUG_REQUIRE_PATTERN.search(value):
+                continue
+        filtered.append(part)
+
+    if filtered:
+        if sys.platform == "win32":
+            sanitized["NODE_OPTIONS"] = subprocess.list2cmdline(filtered)
+        else:
+            sanitized["NODE_OPTIONS"] = " ".join(shlex.quote(part) for part in filtered)
+    else:
+        sanitized.pop("NODE_OPTIONS", None)
+    return sanitized
 
 
 def load_json(path: Path) -> dict[str, Any]:
@@ -33,10 +91,10 @@ def load_json(path: Path) -> dict[str, Any]:
     读取 UTF-8 编码的 JSON 文件并返回其对象根值。
     
     Returns:
-    	value (dict[str, Any]): 解析得到的 JSON 对象。
+        value (dict[str, Any]): 解析得到的 JSON 对象。
     
     Raises:
-    	ConfigError: 当配置文件缺失、JSON 无法解析或根值不是对象时。
+        ConfigError: 当文件缺失、JSON 无法解析或根值不是对象时。
     """
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
@@ -335,10 +393,10 @@ def main() -> int:
     """
     运行本地 `eff-u-code` 检查并返回退出码。
     
-    当指定 `--init-config` 时会创建本地配置；否则会解析配置、构建各个 scope 的命令并执行检查。若发生配置或本地环境错误，返回 `2`。
+    支持初始化本地配置、按 scope 执行检查、`--dry-run` 预览命令，以及将输出写入指定目录。发生配置或本地环境错误时会写入错误信息并返回 `2`。
     
     Returns:
-        exit_code (int): 成功时为 `0`；配置或本地环境错误时为 `2`；任一 scope 执行失败时为该进程的返回码。
+        exit_code (int): 成功时为 `0`；配置或本地环境错误时为 `2`；任一 scope 执行失败时为对应进程的返回码。
     """
     args = parse_args()
 
@@ -350,6 +408,7 @@ def main() -> int:
         tool = resolve_local_tool()
         if not args.dry_run:
             ensure_tree_sitter_wasms_layout()
+        child_env = clean_node_debug_environment(dict(os.environ))
 
         if args.config:
             config = load_json(Path(args.config).resolve())
@@ -370,7 +429,7 @@ def main() -> int:
             print(f"[eff-u-code:{scope}] {' '.join(command)}")
             if args.dry_run:
                 continue
-            completed = subprocess.run(command, cwd=ROOT_DIR)
+            completed = subprocess.run(command, cwd=ROOT_DIR, env=child_env)
             if completed.returncode != 0:
                 return completed.returncode
 

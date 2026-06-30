@@ -472,6 +472,27 @@ func TestRepositoryCreateAuditLogRejectsActorUserIDOutsideBigIntRange(t *testing
 	}
 }
 
+func TestRepositoryListAuditLogsRejectsActorUserIDOutsideInt64Range(t *testing.T) {
+	db := openTestDB(t)
+	repo, err := NewRepository(db, newTestLocalizer(), nil)
+	if err != nil {
+		t.Fatalf("new repository: %v", err)
+	}
+
+	overflow := uint64(math.MaxInt64) + 1
+	_, err = repo.ListAuditLogs(context.Background(), auditstore.ListAuditLogsQuery{
+		ActorUserID: &overflow,
+		Limit:       10,
+		Offset:      0,
+	})
+	if err == nil {
+		t.Fatalf("expected int64 range error")
+	}
+	if !strings.Contains(err.Error(), "exceeds int64 range") {
+		t.Fatalf("expected int64 range error, got %v", err)
+	}
+}
+
 func TestRepositoryListAuditLogsSupportsActionPrefix(t *testing.T) {
 	db := openTestDB(t)
 	repo, err := NewRepository(db, newTestLocalizer(), nil)
@@ -1100,6 +1121,9 @@ func TestAuditResultWhereClauseHandlesServerErrors(t *testing.T) {
 	if !strings.Contains(clause, "(metadata ->> 'status_code')::int >= 500") {
 		t.Fatalf("expected 5xx branch in audit result clause, got %s", clause)
 	}
+	if !strings.Contains(clause, "{1,5}") {
+		t.Fatalf("expected bounded status_code digit guard in audit result clause, got %s", clause)
+	}
 }
 
 func TestAuditResultExpressionsUseSharedClassificationBranches(t *testing.T) {
@@ -1127,8 +1151,14 @@ func TestAuditResultExpressionsUseSharedClassificationBranches(t *testing.T) {
 	if !strings.Contains(auditResultExpression(), "THEN CAST(metadata ->> 'status_code' AS INTEGER)") {
 		t.Fatalf("expected portable result expression to keep guarded cast branch, got %s", auditResultExpression())
 	}
+	if !strings.Contains(auditResultExpression(), "LENGTH(metadata ->> 'status_code') <= 5") {
+		t.Fatalf("expected portable result expression to bound digit length, got %s", auditResultExpression())
+	}
 	if !strings.Contains(auditResultPostgresExpression(), "(metadata ->> 'status_code')::int >= 500") {
 		t.Fatalf("expected postgres result expression to keep postgres cast branch, got %s", auditResultPostgresExpression())
+	}
+	if !strings.Contains(auditResultPostgresExpression(), "{1,5}") {
+		t.Fatalf("expected postgres result expression to bound digit length, got %s", auditResultPostgresExpression())
 	}
 }
 
@@ -1161,8 +1191,14 @@ func TestAuditRiskLevelExpressionsUseSharedClassificationBranches(t *testing.T) 
 	if !strings.Contains(auditRiskLevelExpression(), "THEN CAST(metadata ->> 'status_code' AS INTEGER)") {
 		t.Fatalf("expected portable risk expression to keep guarded cast branch, got %s", auditRiskLevelExpression())
 	}
+	if !strings.Contains(auditRiskLevelExpression(), "LENGTH(metadata ->> 'status_code') <= 5") {
+		t.Fatalf("expected portable risk expression to bound digit length, got %s", auditRiskLevelExpression())
+	}
 	if !strings.Contains(auditRiskLevelPostgresExpression(), "(metadata ->> 'status_code')::int >= 500") {
 		t.Fatalf("expected postgres risk expression to keep postgres cast branch, got %s", auditRiskLevelPostgresExpression())
+	}
+	if !strings.Contains(auditRiskLevelPostgresExpression(), "{1,5}") {
+		t.Fatalf("expected postgres risk expression to bound digit length, got %s", auditRiskLevelPostgresExpression())
 	}
 }
 
@@ -1412,6 +1448,72 @@ func TestRiskLevelWhereClauseKeepsEscapedLikePatterns(t *testing.T) {
 	}
 	if !strings.Contains(clause, "(metadata ->> 'status_code')::int >= 500") {
 		t.Fatalf("expected 5xx branch in risk level clause, got %s", clause)
+	}
+	if !strings.Contains(clause, "{1,5}") {
+		t.Fatalf("expected bounded status_code digit guard in risk level clause, got %s", clause)
+	}
+}
+
+func TestOverviewRiskGroupsSQLBoundsStatusCodeDigits(t *testing.T) {
+	if !strings.Contains(overviewRiskGroupsSQL, "LENGTH(metadata ->> 'status_code') <= 5") {
+		t.Fatalf("expected overview risk groups SQL to bound digit length, got %s", overviewRiskGroupsSQL)
+	}
+}
+
+func TestOverviewRecentWhereClauseUsesAllowlist(t *testing.T) {
+	if got, err := overviewRecentWhereClause(overviewRecentKindAuthFailures); err != nil || got != authFailuresWhereClause() {
+		t.Fatalf("unexpected auth failures clause %q", got)
+	}
+	if got, err := overviewRecentWhereClause(overviewRecentKindPermissionDenials); err != nil || got != permissionDenialsWhereClause() {
+		t.Fatalf("unexpected permission denials clause %q", got)
+	}
+	if got, err := overviewRecentWhereClause(overviewRecentKindSensitiveOperations); err != nil || got != sensitiveOperationsWhereClause() {
+		t.Fatalf("unexpected sensitive operations clause %q", got)
+	}
+}
+
+func TestOverviewRecentWhereClauseRejectsUnsupportedKind(t *testing.T) {
+	got, err := overviewRecentWhereClause(overviewRecentKind("unexpected"))
+	if err == nil {
+		t.Fatal("expected unsupported kind error")
+	}
+	if got != "" {
+		t.Fatalf("expected empty clause on unsupported kind, got %q", got)
+	}
+	if !strings.Contains(err.Error(), `unsupported audit overview recent kind "unexpected"`) {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestReadAuditOverviewItemsRejectsUnsupportedKindBeforeQuery(t *testing.T) {
+	repo := &repository{}
+	_, err := repo.readAuditOverviewItems(context.Background(), []any{time.Now()}, overviewRecentKind("unexpected"))
+	if err == nil {
+		t.Fatal("expected unsupported kind error")
+	}
+	if !strings.Contains(err.Error(), `read audit overview items: unsupported audit overview recent kind "unexpected"`) {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestNormalizeAuditTargetTypeTreatsWhitespaceAsAudit(t *testing.T) {
+	if got := normalizeAuditTargetType("   "); got != "AUDIT" {
+		t.Fatalf("expected whitespace resource type to fall back to AUDIT, got %q", got)
+	}
+}
+
+func TestSummarizeIncidentActorsUsesStableUniqueTieBreaker(t *testing.T) {
+	actorIDSeven := uint64(7)
+	actorIDNine := uint64(9)
+	actors := summarizeIncidentActors([]auditstore.AuditLog{
+		{ActorUserID: &actorIDNine, ActorUsername: "same", ActorDisplayName: "same"},
+		{ActorUserID: &actorIDSeven, ActorUsername: "same", ActorDisplayName: "same"},
+	})
+	if len(actors) != 2 {
+		t.Fatalf("expected two actor summaries, got %#v", actors)
+	}
+	if actors[0].ActorUserID == nil || *actors[0].ActorUserID != actorIDSeven {
+		t.Fatalf("expected stable tie-breaker to sort by unique actor identity, got %#v", actors)
 	}
 }
 
