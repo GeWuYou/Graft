@@ -251,7 +251,8 @@ type Service struct {
 	configResolver moduleapi.SystemConfigResolver
 }
 
-// NewService creates the project service boundary.
+// NewService 创建项目服务边界并应用可选配置。
+// 当 repository 为空时返回错误。
 func NewService(repository projectstore.Repository, options ...ServiceOption) (*Service, error) {
 	if repository == nil {
 		return nil, errors.New("project repository is unavailable")
@@ -274,14 +275,15 @@ type serviceOptionFunc func(*Service)
 
 func (f serviceOptionFunc) apply(s *Service) { f(s) }
 
-// WithRuntimeReader injects the narrow container runtime aggregation boundary.
+// WithRuntimeReader 设置容器运行时聚合读取器。
+// 用于提供项目成员运行态汇总所需的运行时边界。
 func WithRuntimeReader(reader moduleapi.ContainerProjectRuntimeReader) ServiceOption {
 	return serviceOptionFunc(func(s *Service) {
 		s.runtimeReader = reader
 	})
 }
 
-// WithSystemConfigResolver injects the stable system-config read boundary for managed-create authority checks.
+// WithSystemConfigResolver 注入用于 managed-create 权限校验的系统配置读取边界。
 func WithSystemConfigResolver(resolver moduleapi.SystemConfigResolver) ServiceOption {
 	return serviceOptionFunc(func(s *Service) {
 		s.configResolver = resolver
@@ -664,6 +666,8 @@ type normalizedManagedCreateRequest struct {
 	EnvFileContent           *string
 }
 
+// normalizeManagedCreateRequest 规范化受控创建请求并校验必填字段。  
+// 它会修剪显示名、规范名、compose 内容和文件名，校验相对目录、compose 文件名以及可选 env 文件信息，并在必填项缺失时返回错误。
 func normalizeManagedCreateRequest(request ManagedProjectCreateRequest) (normalizedManagedCreateRequest, error) {
 	displayName := strings.TrimSpace(request.DisplayName)
 	canonicalName := strings.TrimSpace(request.CanonicalProjectName)
@@ -698,6 +702,10 @@ func normalizeManagedCreateRequest(request ManagedProjectCreateRequest) (normali
 	}, nil
 }
 
+// normalizeManagedRelativeDirectory 规范化并校验 managed-create 的相对项目目录。
+// 它会去除首尾空白、统一路径分隔符并清理路径，同时确保目录保持在 managed root 下。  
+// @param value 待规范化的相对目录。
+// @returns 规范化后的相对目录；当目录为空、为绝对路径或会逃逸 managed root 时返回错误。
 func normalizeManagedRelativeDirectory(value string) (string, error) {
 	relativeDir := strings.TrimSpace(value)
 	if relativeDir == "" {
@@ -716,6 +724,7 @@ func normalizeManagedRelativeDirectory(value string) (string, error) {
 	return relativeDir, nil
 }
 
+// 它会去除首尾空白并提取最后一个路径段；当结果为空、`.` 或路径分隔符时返回错误。
 func normalizeManagedFileName(value string, label string) (string, error) {
 	fileName := filepath.Base(strings.TrimSpace(value))
 	if fileName == "" || fileName == "." || fileName == string(filepath.Separator) {
@@ -724,6 +733,9 @@ func normalizeManagedFileName(value string, label string) (string, error) {
 	return fileName, nil
 }
 
+// normalizeManagedOptionalFileName 规范化可选文件名，空值或纯空白时返回 nil。
+//
+// 返回规范化后的文件名指针；当输入为空、仅包含空白字符或校验失败时分别返回 nil 或错误。
 func normalizeManagedOptionalFileName(value *string, label string) (*string, error) {
 	if value == nil || strings.TrimSpace(*value) == "" {
 		return nil, nil
@@ -735,6 +747,9 @@ func normalizeManagedOptionalFileName(value *string, label string) (*string, err
 	return &fileName, nil
 }
 
+// managedCreateEnvAbsolutePath 生成受控项目环境文件的绝对路径。
+//
+// 当未提供环境文件名时返回 nil；否则返回工作目录下对应环境文件的绝对路径。
 func managedCreateEnvAbsolutePath(workingDirectory string, envFileName *string) *string {
 	if envFileName == nil {
 		return nil
@@ -743,6 +758,10 @@ func managedCreateEnvAbsolutePath(workingDirectory string, envFileName *string) 
 	return &envAbs
 }
 
+// normalizeManagedOptionalContent 去除可选内容两端的空白字符并返回结果。
+//
+// @param value 待规范化的内容指针。
+// @returns 规范化后的内容指针；当输入为 nil 时返回 nil。
 func normalizeManagedOptionalContent(value *string) *string {
 	if value == nil {
 		return nil
@@ -751,6 +770,8 @@ func normalizeManagedOptionalContent(value *string) *string {
 	return &content
 }
 
+// ensureManagedCreatePathsUnderRoot 验证托管项目工作目录位于已配置的 managed root 下。
+// 当工作目录缺少有效根目录关系或超出 managed root 时，返回 errProjectInvalidArgument。
 func ensureManagedCreatePathsUnderRoot(validation ManagedProjectCreateValidationResult) error {
 	if validation.ManagedRoot.ConfiguredRootDirectory == nil {
 		return errProjectInvalidArgument
@@ -767,6 +788,8 @@ func ensureManagedCreatePathsUnderRoot(validation ManagedProjectCreateValidation
 	return nil
 }
 
+// writeManagedProjectFiles 在受控工作目录中写入 compose 文件和可选的 env 文件，并返回创建的目录与文件路径。
+// 成功时返回清理所需的工作目录和已写入文件列表。
 func writeManagedProjectFiles(validation ManagedProjectCreateValidationResult, normalized normalizedManagedCreateRequest) (string, []string, error) {
 	workingDirectory := filepath.Clean(validation.WorkingDirectory)
 	if err := os.MkdirAll(workingDirectory, managedCreateDirMode); err != nil {
@@ -786,6 +809,7 @@ func writeManagedProjectFiles(validation ManagedProjectCreateValidationResult, n
 	return workingDirectory, createdFiles, nil
 }
 
+// cleanupManagedCreate 依次删除已创建的文件，并在目录路径非空时删除创建的目录。
 func cleanupManagedCreate(createdDir string, createdFiles []string) {
 	for i := len(createdFiles) - 1; i >= 0; i-- {
 		_ = os.Remove(createdFiles[i])
@@ -795,6 +819,12 @@ func cleanupManagedCreate(createdDir string, createdFiles []string) {
 	}
 }
 
+// managedCreateEnvFileList 返回受管创建流程中的 env 文件路径列表。
+//
+// 当提供 env 文件绝对路径时，返回仅包含该路径的切片；否则返回 nil。
+//
+// @param envFileAbsolutePath env 文件的绝对路径。
+// @returns env 文件路径列表。
 func managedCreateEnvFileList(envFileAbsolutePath *string) []string {
 	if envFileAbsolutePath == nil {
 		return nil
@@ -855,6 +885,13 @@ func (s *Service) Destroy(ctx context.Context, projectID uint64, request Destroy
 	return s.destroyAfterGuard(ctx, aggregate, request)
 }
 
+// validateDestroyRequest 校验销毁请求是否允许继续执行，并在违反保护条件时返回阻断结果。
+// 当确认名称不匹配、请求删除命名卷，或请求删除工作目录但项目并非受控根专属所有权时，
+// 返回带有相应守卫结果的阻断动作结果和销毁阻断错误。
+// @param projectID 项目标识。
+// @param aggregate 项目聚合数据。
+// @param request 销毁请求。
+// @returns 允许继续销毁时返回空动作结果和 nil；否则返回阻断动作结果和销毁阻断错误。
 func validateDestroyRequest(
 	projectID uint64,
 	aggregate projectstore.ProjectAggregate,
@@ -1177,6 +1214,8 @@ func (s *Service) runComposeCommand(ctx context.Context, aggregate projectstore.
 	return strings.TrimSpace(stdout.String() + "\n" + stderr.String()), err
 }
 
+// ensureLifecycleCommandArgs 校验生命周期命令参数。
+// 只有当参数数量满足要求且每个参数都包含非空白内容时才通过。
 func ensureLifecycleCommandArgs(args []string) error {
 	if len(args) < minLifecycleArgCount {
 		return errProjectInvalidArgument
@@ -1189,6 +1228,7 @@ func ensureLifecycleCommandArgs(args []string) error {
 	return nil
 }
 
+// ensureProjectLifecycleReady 检查项目是否满足执行生命周期操作的条件。
 func ensureProjectLifecycleReady(aggregate projectstore.ProjectAggregate) error {
 	if strings.TrimSpace(aggregate.Project.HostScope) != projectcontract.HostScopeLocal.String() {
 		return errProjectUnsupportedLifecycle
@@ -1199,6 +1239,12 @@ func ensureProjectLifecycleReady(aggregate projectstore.ProjectAggregate) error 
 	return nil
 }
 
+// blockedActionResult 返回一个标记为阻止的项目操作结果，并保留给定的守卫结果。
+//
+// @param projectID 项目 ID。
+// @param action 操作类型。
+// @param guardResults 守卫结果列表。
+// @returns 标记为 blocked 的 ActionResult，包含项目 ID、操作类型、阻止消息以及守卫结果副本。
 func blockedActionResult(projectID uint64, action generated.ProjectActionResponseAction, guardResults []string) ActionResult {
 	messageKey := projectcontract.ProjectLifecycleBlocked.String()
 	return ActionResult{
@@ -1211,6 +1257,7 @@ func blockedActionResult(projectID uint64, action generated.ProjectActionRespons
 	}
 }
 
+// lifecycleMessageKey 返回指定生命周期动作对应的完成消息键。
 func lifecycleMessageKey(action generated.ProjectActionResponseAction) projectcontract.MessageKey {
 	switch action {
 	case generated.ProjectActionUp:
@@ -1230,6 +1277,10 @@ func lifecycleMessageKey(action generated.ProjectActionResponseAction) projectco
 	}
 }
 
+// summarizeCommandOutput 归一化并截断命令输出摘要。
+// 它会去除首尾空白，空输出返回 "command_failed"，并将过长内容截断到最大摘要长度。
+// @param output 原始命令输出。
+// @returns 处理后的输出摘要。
 func summarizeCommandOutput(output string) string {
 	trimmed := strings.TrimSpace(output)
 	if trimmed == "" {
@@ -1254,6 +1305,8 @@ func (s *Service) runtimeSummary(
 	return s.runtimeReader.ListProjectMembers(ctx, aggregate.Project.HostScope, aggregate.Project.CanonicalProjectName)
 }
 
+// membersByService 按服务名称对容器运行时成员进行分组。
+// @return 按服务名称索引的成员列表。
 func membersByService(items []moduleapi.ContainerProjectMember) map[string][]moduleapi.ContainerProjectMember {
 	result := make(map[string][]moduleapi.ContainerProjectMember)
 	for _, item := range items {
@@ -1262,6 +1315,8 @@ func membersByService(items []moduleapi.ContainerProjectMember) map[string][]mod
 	return result
 }
 
+// applyGeneratedServiceMembers 将运行时成员填充到服务项中，并统计运行与停止数量。
+// 当 target 为空时不执行任何操作。
 func applyGeneratedServiceMembers(target *generated.ProjectServiceItem, items []moduleapi.ContainerProjectMember) {
 	if target == nil {
 		return
@@ -1366,6 +1421,11 @@ func (s *Service) computeConflicts(
 	return uniqueStrings(conflicts), nil
 }
 
+// sameDisplayName 判断给定名称与已有名称在去除首尾空白后是否一致。
+// 
+// @param value 待比较的名称。
+// @param existing 已存在的名称。
+// @returns 当两者去除首尾空白后相等时返回 true，否则返回 false。
 func sameDisplayName(value *string, existing string) bool {
 	if value == nil {
 		return false
@@ -1373,10 +1433,14 @@ func sameDisplayName(value *string, existing string) bool {
 	return strings.TrimSpace(*value) == strings.TrimSpace(existing)
 }
 
+// sameWorkingDirectory 判断两个工作目录在去除首尾空白后是否相同。
+// @returns 去除首尾空白并忽略大小写后路径相同则为 `true`，否则为 `false`。
 func sameWorkingDirectory(left string, right string) bool {
 	return strings.EqualFold(strings.TrimSpace(left), strings.TrimSpace(right))
 }
 
+// toProjectListItem 将项目聚合转换为列表项，并在提供运行时摘要时补充容器运行统计。
+// 它包含项目标识、名称、来源、工作目录、声明服务数，以及最近刷新和漂移状态。
 func toProjectListItem(
 	aggregate projectstore.ProjectAggregate,
 	runtimeSummary ...moduleapi.ContainerProjectRuntimeSummary,
@@ -1408,6 +1472,9 @@ func toProjectListItem(
 	}
 }
 
+// toProjectDetailResponse 将项目聚合数据转换为详情响应。
+//
+// 当提供运行时汇总时，会填充容器运行与停止数量；当聚合包含快照时，会填充服务数。项目的错误信息和配置哈希仅在存在时写入响应。
 func toProjectDetailResponse(
 	aggregate projectstore.ProjectAggregate,
 	runtimeSummary ...moduleapi.ContainerProjectRuntimeSummary,
@@ -1453,6 +1520,7 @@ func toProjectDetailResponse(
 	return item
 }
 
+// toGeneratedFiles 将存储的文件记录转换为生成的文件项列表。
 func toGeneratedFiles(files []projectstore.ProjectFile) []generated.ProjectFileItem {
 	items := make([]generated.ProjectFileItem, 0, len(files))
 	for _, item := range files {
@@ -1470,6 +1538,7 @@ func toGeneratedFiles(files []projectstore.ProjectFile) []generated.ProjectFileI
 	return items
 }
 
+// 将 compose 投影文件转换为生成的项目文件项列表。
 func toGeneratedFilesFromCompose(files []projectcompose.FileProjection) []generated.ProjectFileItem {
 	items := make([]generated.ProjectFileItem, 0, len(files))
 	for index, item := range files {
@@ -1488,6 +1557,7 @@ func toGeneratedFilesFromCompose(files []projectcompose.FileProjection) []genera
 	return items
 }
 
+// toStoreFiles 将 compose 和 env 文件投影转换为存储层文件记录。
 func toStoreFiles(composeFiles []projectcompose.FileProjection, envFiles []projectcompose.FileProjection) []projectstore.ProjectFile {
 	items := make([]projectstore.ProjectFile, 0, len(composeFiles)+len(envFiles))
 	for _, item := range append(append([]projectcompose.FileProjection(nil), composeFiles...), envFiles...) {
@@ -1504,6 +1574,7 @@ func toStoreFiles(composeFiles []projectcompose.FileProjection, envFiles []proje
 	return items
 }
 
+// 返回的文件先按 OrderIndex 升序排列，OrderIndex 相同时按 ID 升序排列。
 func filterFiles(files []projectstore.ProjectFile, kind string) []projectstore.ProjectFile {
 	items := make([]projectstore.ProjectFile, 0)
 	for _, item := range files {
@@ -1520,6 +1591,7 @@ func filterFiles(files []projectstore.ProjectFile, kind string) []projectstore.P
 	return items
 }
 
+// collectFilesByKind 返回指定类型的文件绝对路径列表。
 func collectFilesByKind(files []projectstore.ProjectFile, kind string) []string {
 	filtered := filterFiles(files, kind)
 	paths := make([]string, 0, len(filtered))
@@ -1537,6 +1609,8 @@ func (s *Service) loadFromAggregate(aggregate projectstore.ProjectAggregate) (pr
 	})
 }
 
+// normalizeSnapshotJSON 将输入内容规范化为 JSON 表示。
+// 输入为空时返回 "{}"；当解析或重新编码失败时，返回原始内容。
 func normalizeSnapshotJSON(raw []byte) []byte {
 	if len(raw) == 0 {
 		return []byte("{}")
@@ -1552,10 +1626,17 @@ func normalizeSnapshotJSON(raw []byte) []byte {
 	return encoded
 }
 
+// yamlJSONRoundTrip 将 JSON 数据解析到目标值。
+//
+// @param raw 要解析的数据。
+// @param target 接收解析结果的目标值。
+// @returns 解析过程中返回的错误。
 func yamlJSONRoundTrip(raw []byte, target any) error {
 	return json.Unmarshal(raw, target)
 }
 
+// digestServiceNames 计算服务名称集合的稳定摘要。
+// 它会按字典序规范化名称后生成 SHA-256 十六进制字符串。
 func digestServiceNames(names []string) string {
 	normalized := append([]string(nil), names...)
 	sort.Strings(normalized)
@@ -1567,6 +1648,8 @@ func digestServiceNames(names []string) string {
 	return hex.EncodeToString(hasher.Sum(nil))
 }
 
+// buildRefreshProjectInput 组装项目刷新持久化输入，包含刷新状态、快照、文件与操作者信息。
+// 该输入将刷新时间、配置哈希、归一化后的 compose 快照和声明服务摘要写入存储层。
 func buildRefreshProjectInput(
 	projectID uint64,
 	parseResult projectcompose.Result,
@@ -1594,6 +1677,9 @@ func buildRefreshProjectInput(
 	}
 }
 
+// displayNameOrCanonical 返回修剪后的显示名称或规范名称。
+//
+// 当显示名称存在且非空时，返回其去除首尾空白后的值；否则返回规范名称。
 func displayNameOrCanonical(displayName *string, canonical string) string {
 	if displayName != nil && strings.TrimSpace(*displayName) != "" {
 		return strings.TrimSpace(*displayName)
@@ -1601,6 +1687,7 @@ func displayNameOrCanonical(displayName *string, canonical string) string {
 	return canonical
 }
 
+// fileName 返回路径中的最后一个段。
 func fileName(path string) string {
 	parts := strings.Split(path, "/")
 	return parts[len(parts)-1]
@@ -1627,6 +1714,8 @@ type managedDraftRestore struct {
 	Exists  bool
 }
 
+// ensureManagedProjectAggregate 仅允许受控根目录专用归属模式的项目进入受控草案流程。
+// 当项目归属模式不是 managed-root-dedicated 时返回 errProjectManagedFlow。
 func ensureManagedProjectAggregate(aggregate projectstore.ProjectAggregate) error {
 	if aggregate.Project.OwnershipMode != projectcontract.OwnershipModeManagedRootDedicated.String() {
 		return errProjectManagedFlow
@@ -1634,6 +1723,8 @@ func ensureManagedProjectAggregate(aggregate projectstore.ProjectAggregate) erro
 	return nil
 }
 
+// loadManagedDraftContent 读取托管草案所需的当前 compose 和 env 内容。
+// 它要求至少存在一个 compose 文件，并返回首个 compose 文件的绝对路径、归一化后的文件内容、当前配置哈希，以及可选的 env 文件路径和内容。
 func loadManagedDraftContent(aggregate projectstore.ProjectAggregate) (managedDraftContent, error) {
 	composeFiles := filterFiles(aggregate.Files, projectcontract.FileKindCompose.String())
 	if len(composeFiles) == 0 {
@@ -1706,6 +1797,8 @@ func (s *Service) prepareConfigurationDraft(
 	}, nil
 }
 
+// writeManagedDraft 写入托管草案的 compose 文件，并在需要时写入 env 文件，同时返回用于恢复原状态的记录。
+// 它会先保存目标文件的原始内容和是否存在，以便后续恢复。
 func writeManagedDraft(proposal managedDraftProposal) ([]managedDraftRestore, error) {
 	targets := []struct {
 		path    string
@@ -1738,6 +1831,7 @@ func writeManagedDraft(proposal managedDraftProposal) ([]managedDraftRestore, er
 	return restoreItems, nil
 }
 
+// restoreManagedDraft 按相反顺序恢复受控草案写入前的文件状态。
 func restoreManagedDraft(items []managedDraftRestore) {
 	for index := len(items) - 1; index >= 0; index-- {
 		item := items[index]
@@ -1749,6 +1843,9 @@ func restoreManagedDraft(items []managedDraftRestore) {
 	}
 }
 
+// buildConfigurationDiffFile 构建配置文件的差异结果，包含内容变更、哈希和统一 diff。
+//
+// 返回的结果会反映当前内容与提议内容的归一化比较，并保留对应的文件类型和路径。
 func buildConfigurationDiffFile(kind string, path string, current string, proposed string) ConfigurationDiffFile {
 	return ConfigurationDiffFile{
 		Kind:            kind,
@@ -1761,6 +1858,8 @@ func buildConfigurationDiffFile(kind string, path string, current string, propos
 	}
 }
 
+// buildUnifiedDiff 生成当前内容与提议内容之间的统一差异文本。
+// 当差异文本为空或仅包含空白字符时，返回规范化后的提议内容。
 func buildUnifiedDiff(current string, proposed string) string {
 	differ := diffmatchpatch.New()
 	patches := differ.PatchMake(current, proposed)
@@ -1771,11 +1870,13 @@ func buildUnifiedDiff(current string, proposed string) string {
 	return text
 }
 
+// hashString 返回归一化文本块的 SHA-256 十六进制摘要。
 func hashString(value string) string {
 	sum := sha256.Sum256([]byte(normalizeTextBlock(value)))
 	return hex.EncodeToString(sum[:])
 }
 
+// normalizeTextBlock 规范化文本块的换行、行尾空白和整体边界，并在非空时补充结尾换行符。
 func normalizeTextBlock(value string) string {
 	normalized := strings.ReplaceAll(value, "\r\n", "\n")
 	lines := strings.Split(normalized, "\n")
@@ -1789,6 +1890,8 @@ func normalizeTextBlock(value string) string {
 	return joined + "\n"
 }
 
+// derefString 返回指针指向的字符串值。
+// 如果指针为空，则返回空字符串。
 func derefString(value *string) string {
 	if value == nil {
 		return ""
@@ -1796,6 +1899,9 @@ func derefString(value *string) string {
 	return *value
 }
 
+// nonEmptyString 在 primary 为空白时返回 fallback。
+//
+// @return primary 经修剪后非空时返回其原值；否则返回 fallback。
 func nonEmptyString(primary string, fallback string) string {
 	if strings.TrimSpace(primary) != "" {
 		return primary
@@ -1803,6 +1909,9 @@ func nonEmptyString(primary string, fallback string) string {
 	return fallback
 }
 
+// stringPointer 返回一个指向非空白字符串的指针。
+//
+// 如果输入经修剪后为空，则返回 nil。
 func stringPointer(value string) *string {
 	trimmed := strings.TrimSpace(value)
 	if trimmed == "" {
@@ -1811,10 +1920,12 @@ func stringPointer(value string) *string {
 	return &trimmed
 }
 
+// optionalString 将字符串包装为可选字符串指针。
 func optionalString(value string) *string {
 	return stringPointer(value)
 }
 
+// uniqueStrings 返回去重后的字符串切片，保留首次出现的顺序。
 func uniqueStrings(items []string) []string {
 	if len(items) == 0 {
 		return nil
@@ -1831,6 +1942,9 @@ func uniqueStrings(items []string) []string {
 	return result
 }
 
+// normalizeListLimit 将列表限制值规范到默认值或最大值范围内。
+//
+// @returns 规范后的列表限制值：当输入小于等于 0 时返回默认值，超过最大值时返回最大值，否则返回原值。
 func normalizeListLimit(value int) int {
 	switch {
 	case value <= 0:
@@ -1842,6 +1956,8 @@ func normalizeListLimit(value int) int {
 	}
 }
 
+// mustGeneratedID 将生成的无符号 ID 转换为 int64。
+// 当值为 0 或超出 int64 可表示范围时会 panic。
 func mustGeneratedID(value uint64) int64 {
 	if value == 0 || value > math.MaxInt64 {
 		panic("project generated id out of range")
@@ -1849,6 +1965,7 @@ func mustGeneratedID(value uint64) int64 {
 	return int64(value)
 }
 
+// maxInt 返回 value 与 minimum 中较大的值。
 func maxInt(value int, minimum int) int {
 	if value < minimum {
 		return minimum
@@ -1856,6 +1973,8 @@ func maxInt(value int, minimum int) int {
 	return value
 }
 
+// mapStoreError 将存储层错误映射为本包使用的错误。
+// 已知的无效输入、未找到、冲突和文件不存在错误会转换为对应的本地哨兵错误；其他错误原样返回。
 func mapStoreError(err error) error {
 	switch {
 	case err == nil:

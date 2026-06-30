@@ -54,6 +54,8 @@ func (r containerProjectRuntimeReader) ListProjectMembers(
 	return summary, nil
 }
 
+// appendProjectMembers 将匹配指定项目的运行时摘要转换为成员列表，并更新运行与停止数量。
+// 仅会追加与 canonicalProjectName 对应的条目；状态为 running 的成员计入运行数，其余成员计入停止数。
 func appendProjectMembers(
 	summary *moduleapi.ContainerProjectRuntimeSummary,
 	items []Summary,
@@ -73,6 +75,8 @@ func appendProjectMembers(
 	}
 }
 
+// toProjectMember 将运行时摘要项转换为指定项目的成员信息。
+// 仅当 item 的 ComposeProject 去除空格后与 canonicalProjectName 忽略大小写相等时，才返回转换后的成员信息。
 func toProjectMember(item Summary, canonicalProjectName string) (moduleapi.ContainerProjectMember, bool) {
 	if !strings.EqualFold(strings.TrimSpace(item.ComposeProject), canonicalProjectName) {
 		return moduleapi.ContainerProjectMember{}, false

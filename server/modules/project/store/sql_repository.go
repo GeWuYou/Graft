@@ -17,7 +17,10 @@ type SQLRepository struct {
 
 const projectListWhereArgCapacity = 3
 
-// NewSQLRepository creates a SQL-backed project repository.
+// NewSQLRepository 创建一个基于 SQL 的项目仓库。
+// 当 db 为空时返回错误；否则返回可用于访问项目数据的仓库实例，并根据数据库类型确定占位符样式。
+// @param db 数据库连接池。
+// @returns SQL 仓库实例及错误信息。
 func NewSQLRepository(db *sql.DB) (*SQLRepository, error) {
 	if db == nil {
 		return nil, errors.New("project repository requires a non-nil sql db")
@@ -285,6 +288,8 @@ func (r *SQLRepository) UnregisterProject(ctx context.Context, input UnregisterP
 	return nil
 }
 
+// buildListWhere 构建项目列表查询的 WHERE 条件和参数。
+// 它始终包含已删除过滤，并按需附加来源类型、漂移状态和最近刷新状态条件。
 func buildListWhere(query ListQuery) ([]string, []any) {
 	where := []string{"deleted_at = 0"}
 	args := make([]any, 0, projectListWhereArgCapacity)

@@ -1013,6 +1013,18 @@ class MainFlowTests(unittest.TestCase):
             )
 
             def fake_run(scope: str, *, output_dir: Path, eff_config_override: Path | None, base_ref: str | None = None) -> Path:
+                """
+                写入并返回模拟的 eff-u-code 报告文件路径。
+                
+                Parameters:
+                	scope (str): 作用域名称。
+                	output_dir (Path): 报告输出目录。
+                	eff_config_override (Path | None): eff 配置覆盖文件路径。
+                	base_ref (str | None): 基线引用。
+                
+                Returns:
+                	Path: 生成的报告文件路径。
+                """
                 path = output_dir / f"eff-u-code-{scope}.json"
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text(json.dumps(report), encoding="utf-8")
@@ -1119,6 +1131,18 @@ class MainFlowTests(unittest.TestCase):
             )
 
             def fake_run(scope: str, *, output_dir: Path, eff_config_override: Path | None, base_ref: str | None = None) -> Path:
+                """
+                写入并返回模拟的 eff-u-code 报告文件路径。
+                
+                Parameters:
+                	scope (str): 作用域名称。
+                	output_dir (Path): 报告输出目录。
+                	eff_config_override (Path | None): eff 配置覆盖文件路径。
+                	base_ref (str | None): 基线引用。
+                
+                Returns:
+                	Path: 生成的报告文件路径。
+                """
                 path = output_dir / f"eff-u-code-{scope}.json"
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text(json.dumps(report), encoding="utf-8")

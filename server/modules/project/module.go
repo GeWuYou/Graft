@@ -11,7 +11,7 @@ type Module struct {
 	service *Service
 }
 
-// NewModule creates the project module instance.
+// NewModule 创建并返回项目模块实例。
 func NewModule(service *Service) *Module {
 	return &Module{service: service}
 }

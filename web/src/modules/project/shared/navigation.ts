@@ -2,6 +2,13 @@ import { LOCALE, type LocalizedTitle } from '@/contracts/i18n/locales';
 import { localizeRouteTitleKey } from '@/utils/route/title';
 import type { AppRouteMeta, TRouterInfo } from '@/utils/types';
 
+/**
+ * 生成带回退规则的详情页标题。
+ *
+ * @param routeTitleKey - 路由标题的本地化键
+ * @param name - 用于拼接到基础标题后的名称
+ * @returns 基础标题；当 `name` 为空、或与中文/英文基础标题一致时直接返回基础标题，否则返回追加了 `name` 的中英文标题
+ */
 export function buildDetailTitleWithFallback(routeTitleKey: string, name: string): LocalizedTitle {
   const normalizedName = name.trim();
   const baseTitle = localizeRouteTitleKey(routeTitleKey);
@@ -15,6 +22,13 @@ export function buildDetailTitleWithFallback(routeTitleKey: string, name: string
   };
 }
 
+/**
+ * 将解析后的路由信息追加到标签页列表并激活对应标签。
+ *
+ * @param tabs - 标签页管理器
+ * @param resolved - 解析后的路由信息
+ * @param title - 要写入标签页的标题
+ */
 export function appendResolvedTab(
   tabs: { appendTabRouterList: (route: TRouterInfo) => void; setActiveTabKey: (key: string) => void },
   resolved: {

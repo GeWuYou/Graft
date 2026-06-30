@@ -13,6 +13,8 @@ const (
 	projectMenuOrderList    = 52
 )
 
+// registerPermissions 注册项目模块的权限项。
+// 当权限注册器不可用时返回错误。
 func registerPermissions(registry *permission.Registry, moduleName string) error {
 	if registry == nil {
 		return errors.New("permission registry is unavailable")
@@ -23,6 +25,7 @@ func registerPermissions(registry *permission.Registry, moduleName string) error
 	return nil
 }
 
+// 列表包含查看、导入、刷新、生命周期管理、销毁、创建和部署相关的权限。
 func permissionItems(moduleName string) []permission.Item {
 	return []permission.Item{
 		{
@@ -91,6 +94,10 @@ func permissionItems(moduleName string) []permission.Item {
 	}
 }
 
+// registerMenu 为项目模块注册菜单项。
+// 当 registry 为空时，返回错误；否则注册“Operations”根菜单和“Compose Projects”列表菜单，并将 moduleName 作为模块标识写入菜单项。
+// @param moduleName 模块名称。
+// @returns 注册失败时返回错误，成功时返回 nil。
 func registerMenu(registry *menu.Registry, moduleName string) error {
 	if registry == nil {
 		return errors.New("menu registry is unavailable")

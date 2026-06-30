@@ -11,7 +11,7 @@ import (
 
 const moduleID = "project"
 
-// NewModuleSpec exposes the project module's stable compile-time metadata and builder.
+// 它声明模块 ID、依赖项和迁移路径，并提供在运行时构建模块实例的入口。
 func NewModuleSpec() module.Spec {
 	return module.Spec{
 		ID:            moduleID,

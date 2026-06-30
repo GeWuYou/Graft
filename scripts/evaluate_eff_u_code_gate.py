@@ -436,6 +436,8 @@ def matches_any(path: str, patterns: list[str]) -> bool:
     """
     判断路径是否匹配任一模式。
     
+    支持包含 `/**/` 的模式，并将其视为可折叠的目录跳过片段。
+    
     Returns:
     	如果路径匹配给定模式列表中的任一模式，则为 `True`，否则为 `False`。
     """
@@ -1714,10 +1716,10 @@ def main() -> int:
     """
     执行 Graft Quality Policy 门禁评估并输出结果。
     
-    根据配置和扫描模式汇总 eff-u-code 报告，计算规则失败、覆盖缺失与可选的评分门禁结果，并在需要时输出 JSON 与终端诊断信息。
+    根据门禁配置、扫描模式和已变更文件或仓库文件生成 eff-u-code 评估结果，汇总规则失败、覆盖缺失与可选的评分门禁状态，并在需要时写出 JSON 报告和终端诊断。
     
     Returns:
-        int: 退出码；成功为 0，存在评估失败为 1，配置或运行错误为 2。
+    	(int): 退出码；0 表示通过或跳过，1 表示存在评估失败，2 表示配置或运行错误。
     """
     args = parse_args()
     temp_ctx: tempfile.TemporaryDirectory[str] | None = None

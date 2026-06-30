@@ -32,6 +32,9 @@ type boundProjectConfigurationDraft[T any] struct {
 	request     T
 }
 
+// registerRoutes 为项目模块注册路由并挂载权限校验与请求追踪中间件。
+// 当路由器不可用时直接返回；当服务缺失时返回错误。
+// 注册的接口覆盖项目列表、导入、创建、详情、配置、刷新、部署及生命周期和销毁操作。
 func registerRoutes(ctx *module.Context, moduleName string, service *Service) error {
 	if ctx == nil || ctx.Router == nil {
 		return nil
@@ -436,6 +439,8 @@ func (projectGeneratedHandler) PostProjectUnregister(int64, generated.PostProjec
 func (projectGeneratedHandler) PostProjectDestroy(int64, generated.PostProjectDestroyParams, generated.PostProjectDestroyJSONRequestBody) {
 }
 
+// bindListParams 绑定项目列表查询参数和公共请求头。
+// 它解析 source_kind、drift_status、last_refresh_status、limit 和 offset，并在分页参数无效时中止请求。
 func bindListParams(ginCtx *gin.Context, ctx *module.Context) (generated.GetProjectsParams, bool) {
 	locale, requestID := commonHeaders(ginCtx)
 	query := ginCtx.Request.URL.Query()
@@ -458,6 +463,8 @@ func bindListParams(ginCtx *gin.Context, ctx *module.Context) (generated.GetProj
 	return params, true
 }
 
+// bindProjectConfigurationDiffRequest 绑定配置差异请求及其项目标识。
+// 成功时返回包含项目 ID、生成 ID 和请求体的结果；绑定失败时返回 false。
 func bindProjectConfigurationDiffRequest(ginCtx *gin.Context, r routeRuntime) (boundProjectConfigurationDraft[generated.ProjectConfigurationDiffRequest], bool) {
 	var request generated.ProjectConfigurationDiffRequest
 	projectID, generatedID, ok := bindProjectConfigurationDraftRequest(ginCtx, r, &request)
@@ -471,6 +478,8 @@ func bindProjectConfigurationDiffRequest(ginCtx *gin.Context, r routeRuntime) (b
 	}, true
 }
 
+// bindProjectConfigurationValidateRequest 绑定项目配置校验请求及其路径标识。
+// 成功时返回包含 projectID、generatedID 和请求体的绑定结果；绑定失败时返回 false。
 func bindProjectConfigurationValidateRequest(ginCtx *gin.Context, r routeRuntime) (boundProjectConfigurationDraft[generated.ProjectConfigurationValidateRequest], bool) {
 	var request generated.ProjectConfigurationValidateRequest
 	projectID, generatedID, ok := bindProjectConfigurationDraftRequest(ginCtx, r, &request)
@@ -484,6 +493,8 @@ func bindProjectConfigurationValidateRequest(ginCtx *gin.Context, r routeRuntime
 	}, true
 }
 
+// bindProjectConfigurationDraftRequest 绑定项目标识和配置草稿请求体。
+// 成功时返回项目 ID、生成 ID 和 true。
 func bindProjectConfigurationDraftRequest[T any](ginCtx *gin.Context, r routeRuntime, request *T) (uint64, int64, bool) {
 	projectID, generatedID, ok := bindProjectID(ginCtx, r.ctx)
 	if !ok {
@@ -495,6 +506,9 @@ func bindProjectConfigurationDraftRequest[T any](ginCtx *gin.Context, r routeRun
 	return projectID, generatedID, true
 }
 
+// bindJSON 绑定请求体中的 JSON 到目标对象。
+//
+// 绑定失败时，会中止当前请求并返回 400 Bad Request 的本地化参数错误，错误字段为 `body`。
 func bindJSON[T any](ginCtx *gin.Context, ctx *module.Context, target *T) bool {
 	if err := ginCtx.ShouldBindJSON(target); err != nil {
 		httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), map[string]any{"field": "body"})
@@ -503,6 +517,8 @@ func bindJSON[T any](ginCtx *gin.Context, ctx *module.Context, target *T) bool {
 	return true
 }
 
+// bindProjectID 解析并校验项目路由参数 id。
+// 解析失败、值为 0 或超出 int64 范围时，会返回本地化的参数错误并中止请求。
 func bindProjectID(ginCtx *gin.Context, ctx *module.Context) (uint64, int64, bool) {
 	raw := strings.TrimSpace(ginCtx.Param("id"))
 	value, err := strconv.ParseUint(raw, 10, 64)
@@ -519,6 +535,8 @@ func bindProjectID(ginCtx *gin.Context, ctx *module.Context) (uint64, int64, boo
 	return value, int64(value), true
 }
 
+// bindProjectFileID 解析并校验路由参数中的文件 ID。
+// 成功时返回文件 ID 及其 int64 形式；校验失败时写入本地化错误并中止请求。
 func bindProjectFileID(ginCtx *gin.Context, ctx *module.Context) (uint64, int64, bool) {
 	raw := strings.TrimSpace(ginCtx.Param("fileId"))
 	value, err := strconv.ParseUint(raw, 10, 64)
@@ -530,107 +548,140 @@ func bindProjectFileID(ginCtx *gin.Context, ctx *module.Context) (uint64, int64,
 	return value, int64(value), true
 }
 
+// bindCommonParams 从请求头构造项目导入接口的公共参数。
 func bindCommonParams(ginCtx *gin.Context) generated.PostProjectImportParams {
 	locale, requestID := commonHeaders(ginCtx)
 	return generated.PostProjectImportParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
+// 返回包含请求语言和请求 ID 的参数结构体。
 func bindImportValidateParams(ginCtx *gin.Context) generated.PostProjectImportValidateParams {
 	locale, requestID := commonHeaders(ginCtx)
 	return generated.PostProjectImportValidateParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
+// bindGetProjectParams 生成获取项目接口的请求参数，包含语言和请求 ID。
 func bindGetProjectParams(ginCtx *gin.Context) generated.GetProjectParams {
 	locale, requestID := commonHeaders(ginCtx)
 	return generated.GetProjectParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
+// bindGetProjectServicesParams 构造获取项目服务列表请求的公共参数。
 func bindGetProjectServicesParams(ginCtx *gin.Context) generated.GetProjectServicesParams {
 	locale, requestID := commonHeaders(ginCtx)
 	return generated.GetProjectServicesParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
+// bindGetProjectConfigurationParams 组装获取项目配置接口的请求参数。
+//
+// 它从请求头提取 locale 和 request ID，并填充到对应的生成参数中。
 func bindGetProjectConfigurationParams(ginCtx *gin.Context) generated.GetProjectConfigurationParams {
 	locale, requestID := commonHeaders(ginCtx)
 	return generated.GetProjectConfigurationParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
+// bindGetProjectConfigurationPreviewParams 构造项目配置预览接口的公共请求参数。
+// 它包含从请求头提取的语言区域和请求 ID。
 func bindGetProjectConfigurationPreviewParams(ginCtx *gin.Context) generated.GetProjectConfigurationPreviewParams {
 	locale, requestID := commonHeaders(ginCtx)
 	return generated.GetProjectConfigurationPreviewParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
+// bindGetProjectConfigurationFileParams 构造获取项目配置文件接口的请求参数。
+// 该参数包含语言环境和请求 ID。
 func bindGetProjectConfigurationFileParams(ginCtx *gin.Context) generated.GetProjectConfigurationFileParams {
 	locale, requestID := commonHeaders(ginCtx)
 	return generated.GetProjectConfigurationFileParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
+// bindPostProjectConfigurationDiffParams 组装项目配置 diff 请求的公共请求头参数。
 func bindPostProjectConfigurationDiffParams(ginCtx *gin.Context) generated.PostProjectConfigurationDiffParams {
 	locale, requestID := commonHeaders(ginCtx)
 	return generated.PostProjectConfigurationDiffParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
+// bindPostProjectConfigurationValidateParams 构造配置校验接口的公共请求参数。
+// 它包含从请求头提取的语言和请求 ID。
 func bindPostProjectConfigurationValidateParams(ginCtx *gin.Context) generated.PostProjectConfigurationValidateParams {
 	locale, requestID := commonHeaders(ginCtx)
 	return generated.PostProjectConfigurationValidateParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
+// bindGetProjectManagedRootParams 构造获取托管根信息请求的公共参数。
 func bindGetProjectManagedRootParams(ginCtx *gin.Context) generated.GetProjectManagedRootParams {
 	locale, requestID := commonHeaders(ginCtx)
 	return generated.GetProjectManagedRootParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
+// bindPostProjectCreateValidateParams 构造项目创建校验接口的公共请求参数。
+// 它包含语言信息和请求 ID。
 func bindPostProjectCreateValidateParams(ginCtx *gin.Context) generated.PostProjectCreateValidateParams {
 	locale, requestID := commonHeaders(ginCtx)
 	return generated.PostProjectCreateValidateParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
+// bindPostProjectCreateParams 构造创建项目请求的公共请求头参数。
+// @returns 包含 `XGraftLocale` 和 `XRequestId` 的创建项目请求参数。
 func bindPostProjectCreateParams(ginCtx *gin.Context) generated.PostProjectCreateParams {
 	locale, requestID := commonHeaders(ginCtx)
 	return generated.PostProjectCreateParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
+// bindPostProjectRefreshParams 构造项目刷新接口的请求头参数。
 func bindPostProjectRefreshParams(ginCtx *gin.Context) generated.PostProjectRefreshParams {
 	locale, requestID := commonHeaders(ginCtx)
 	return generated.PostProjectRefreshParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
+// bindPostProjectDeployParams 构造项目部署接口的通用请求参数。
 func bindPostProjectDeployParams(ginCtx *gin.Context) generated.PostProjectDeployParams {
 	locale, requestID := commonHeaders(ginCtx)
 	return generated.PostProjectDeployParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
+// bindPostProjectUpParams 组装项目启动接口的请求参数，包含语言环境和请求 ID。
 func bindPostProjectUpParams(ginCtx *gin.Context) generated.PostProjectUpParams {
 	locale, requestID := commonHeaders(ginCtx)
 	return generated.PostProjectUpParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
+// bindPostProjectDownParams 组装项目下线接口的公共请求参数。
+// 它包含请求的语言标识和请求 ID。
 func bindPostProjectDownParams(ginCtx *gin.Context) generated.PostProjectDownParams {
 	locale, requestID := commonHeaders(ginCtx)
 	return generated.PostProjectDownParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
+// bindPostProjectRestartParams 构造重启项目接口的公共请求参数。
+// 其中包含从请求头提取的语言环境和请求 ID。
 func bindPostProjectRestartParams(ginCtx *gin.Context) generated.PostProjectRestartParams {
 	locale, requestID := commonHeaders(ginCtx)
 	return generated.PostProjectRestartParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
+// bindPostProjectUnregisterParams 构造项目取消注册接口的请求参数。
+// 它包含请求语言和请求 ID。
 func bindPostProjectUnregisterParams(ginCtx *gin.Context) generated.PostProjectUnregisterParams {
 	locale, requestID := commonHeaders(ginCtx)
 	return generated.PostProjectUnregisterParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
+// bindPostProjectDestroyParams 构造项目销毁接口的公共请求参数。
+package project
 func bindPostProjectDestroyParams(ginCtx *gin.Context) generated.PostProjectDestroyParams {
 	locale, requestID := commonHeaders(ginCtx)
 	return generated.PostProjectDestroyParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
+// 返回语言环境头与请求 ID 的指针；请求 ID 会在缺失时生成并写回请求上下文。
 func commonHeaders(ginCtx *gin.Context) (*string, *string) {
 	locale := ginCtx.GetHeader(string(httpheader.Locale))
 	requestID := httpx.EnsureRequestID(ginCtx)
 	return &locale, &requestID
 }
 
+// optionalTypedQuery 将查询字符串转换为指定字符串类型的指针。
+// 空白字符串返回 nil。
 func optionalTypedQuery[T ~string](raw string) *T {
 	trimmed := strings.TrimSpace(raw)
 	if trimmed == "" {
@@ -640,6 +691,8 @@ func optionalTypedQuery[T ~string](raw string) *T {
 	return &value
 }
 
+// optionalIntQuery 将原始字符串解析为整数类型的可选查询值，并校验其取值范围。
+// 为空字符串时返回 nil 和 true；解析失败、低于最小值或高于最大值时返回 false。
 func optionalIntQuery[T ~int](raw string, min int, max int) (*T, bool) {
 	trimmed := strings.TrimSpace(raw)
 	if trimmed == "" {
@@ -659,10 +712,12 @@ func optionalIntQuery[T ~int](raw string, min int, max int) (*T, bool) {
 	return &typed, true
 }
 
+// abortInvalidQuery 以“查询参数无效”返回本地化的 400 错误并中止请求。
 func abortInvalidQuery(ginCtx *gin.Context, ctx *module.Context) {
 	httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), map[string]any{"field": "query"})
 }
 
+// intPtrValue 将整数指针转换为 int，并在为空时返回 0。
 func intPtrValue[T ~int](value *T) int {
 	if value == nil {
 		return 0
@@ -670,6 +725,8 @@ func intPtrValue[T ~int](value *T) int {
 	return int(*value)
 }
 
+// stringPtrValue 将字符串指针转换为字符串值。
+// 当指针为 nil 时返回空字符串。
 func stringPtrValue[T ~string](value *T) string {
 	if value == nil {
 		return ""
@@ -677,6 +734,8 @@ func stringPtrValue[T ~string](value *T) string {
 	return string(*value)
 }
 
+// toImportRequest 将导入校验请求转换为 ImportRequest。
+// 它会复制配置文件与环境文件列表，并附带当前请求中的操作者 ID。
 func toImportRequest(ginCtx *gin.Context, request generated.ProjectImportValidateRequest) ImportRequest {
 	return ImportRequest{
 		WorkingDirectory:             request.WorkingDirectory,
@@ -688,6 +747,8 @@ func toImportRequest(ginCtx *gin.Context, request generated.ProjectImportValidat
 	}
 }
 
+// slicePtrValue 将字符串切片指针转换为字符串切片，并复制底层数据。
+// 当输入为 nil 时，返回 nil。
 func slicePtrValue(value *[]string) []string {
 	if value == nil {
 		return nil
@@ -695,6 +756,9 @@ func slicePtrValue(value *[]string) []string {
 	return append([]string(nil), (*value)...)
 }
 
+// currentUserIDPointer 从请求上下文中提取当前认证用户的 ID。
+// 当请求、认证上下文或用户信息不可用时，返回 nil。
+// 否则返回用户 ID 的指针。
 func currentUserIDPointer(ginCtx *gin.Context) *uint64 {
 	if ginCtx == nil || ginCtx.Request == nil {
 		return nil
@@ -707,6 +771,9 @@ func currentUserIDPointer(ginCtx *gin.Context) *uint64 {
 	return &userID
 }
 
+// mapLifecycleErrorCode 将生命周期错误映射为对应的错误码字符串。
+// 当错误为 errProjectManagedFlow 时返回 ProjectManagedFlowUnsupported，
+// 否则返回 ProjectUnsupportedLifecycle。
 func mapLifecycleErrorCode(err error) string {
 	if errors.Is(err, errProjectManagedFlow) {
 		return projectcontract.ProjectManagedFlowUnsupported.String()
@@ -714,10 +781,16 @@ func mapLifecycleErrorCode(err error) string {
 	return projectcontract.ProjectUnsupportedLifecycle.String()
 }
 
+// resolveAuthService 从服务容器中解析 AuthService。
+// 它返回解析到的认证服务实例或错误。
 func resolveAuthService(ctx *module.Context) (moduleapi.AuthService, error) {
 	return module.ResolveService[moduleapi.AuthService](ctx.Services, (*moduleapi.AuthService)(nil))
 }
 
+// resolveAuthorizer 从服务容器中解析鉴权器。
+// 它返回注册到 ctx.Services 中的 moduleapi.Authorizer 实现。
+//
+// @returns 解析到的 moduleapi.Authorizer 实例，或解析失败时的错误。
 func resolveAuthorizer(ctx *module.Context) (moduleapi.Authorizer, error) {
 	return module.ResolveService[moduleapi.Authorizer](ctx.Services, (*moduleapi.Authorizer)(nil))
 }

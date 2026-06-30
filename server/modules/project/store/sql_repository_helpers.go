@@ -25,6 +25,8 @@ func (r *SQLRepository) ensureReady() error {
 	return nil
 }
 
+// normalizeListQuery 规范化列表查询参数。
+// 它会去除筛选字段首尾空白，并将分页参数限制在允许范围内。
 func normalizeListQuery(query ListQuery) ListQuery {
 	query.SourceKind = strings.TrimSpace(query.SourceKind)
 	query.DriftStatus = strings.TrimSpace(query.DriftStatus)
@@ -41,6 +43,8 @@ func normalizeListQuery(query ListQuery) ListQuery {
 	return query
 }
 
+// validateImportInput 规范化并校验导入项目输入，返回可直接使用的输入值。
+// 该函数会修剪字符串字段、校验必填字段、规范化文件和快照，并将时间指针统一转换为 UTC。
 func validateImportInput(input ImportProjectInput) (ImportProjectInput, error) {
 	input = trimImportInput(input)
 	if err := validateRequiredImportFields(input); err != nil {
@@ -60,6 +64,7 @@ func validateImportInput(input ImportProjectInput) (ImportProjectInput, error) {
 	return input, nil
 }
 
+// trimImportInput 去除导入项目输入中字符串字段首尾空白。
 func trimImportInput(input ImportProjectInput) ImportProjectInput {
 	input.DisplayName = strings.TrimSpace(input.DisplayName)
 	input.CanonicalProjectName = strings.TrimSpace(input.CanonicalProjectName)
@@ -77,6 +82,8 @@ func trimImportInput(input ImportProjectInput) ImportProjectInput {
 	return input
 }
 
+// validateRequiredImportFields 检查导入项目所需的必填字段是否已提供。
+// 若任一必填字段为空，返回 ErrInvalidInput。
 func validateRequiredImportFields(input ImportProjectInput) error {
 	required := []string{
 		input.DisplayName,
@@ -97,6 +104,10 @@ func validateRequiredImportFields(input ImportProjectInput) error {
 	return nil
 }
 
+// validateRefreshInput 规范化并校验项目刷新输入。
+// 它会校验项目 ID，清理刷新状态与漂移状态字段，规范化文件和快照信息，并将时间字段转换为 UTC。
+// @param input 待校验的刷新输入。
+// @returns 规范化后的刷新输入，或在输入无效时返回 ErrInvalidInput。
 func validateRefreshInput(input RefreshProjectInput) (RefreshProjectInput, error) {
 	if input.ProjectID == 0 {
 		return RefreshProjectInput{}, ErrInvalidInput
@@ -124,6 +135,8 @@ func validateRefreshInput(input RefreshProjectInput) (RefreshProjectInput, error
 	return input, nil
 }
 
+// validateUnregisterInput 校验注销项目请求输入。
+// ProjectID 为空时返回 ErrInvalidInput。
 func validateUnregisterInput(input UnregisterProjectInput) (UnregisterProjectInput, error) {
 	if input.ProjectID == 0 {
 		return UnregisterProjectInput{}, ErrInvalidInput
@@ -131,6 +144,8 @@ func validateUnregisterInput(input UnregisterProjectInput) (UnregisterProjectInp
 	return input, nil
 }
 
+// normalizeFiles 规范化项目文件列表并校验路径唯一性。
+// 返回规范化后的文件切片；当输入为空、任一文件无效或存在重复的绝对路径时返回 `ErrInvalidInput`。
 func normalizeFiles(files []ProjectFile) ([]ProjectFile, error) {
 	if len(files) == 0 {
 		return nil, ErrInvalidInput
@@ -151,6 +166,12 @@ func normalizeFiles(files []ProjectFile) ([]ProjectFile, error) {
 	return normalized, nil
 }
 
+// normalizeProjectFile 规范化并校验单个项目文件。
+// 它会裁剪关键字段的空白，检查必填字段是否为空，并确保顺序索引不小于 0。
+// 当文件顺序索引为 0 且位于后续位置时，会使用其在输入中的位置作为顺序索引。
+// @param item 要规范化的项目文件。
+// @param index 文件在输入列表中的位置。
+// @returns 规范化后的项目文件，或 ErrInvalidInput。
 func normalizeProjectFile(item ProjectFile, index int) (ProjectFile, error) {
 	item.Kind = strings.TrimSpace(item.Kind)
 	item.Role = strings.TrimSpace(item.Role)
@@ -169,6 +190,9 @@ func normalizeProjectFile(item ProjectFile, index int) (ProjectFile, error) {
 	return item, nil
 }
 
+// normalizeSnapshot 规范化并校验快照信息。
+// @param snapshot 待规范化的快照。
+// @returns 规范化后的快照；当 snapshot 为空时返回 nil, nil。若 ConfigHash 为空或 RefreshedAt 为空时间，则返回 ErrInvalidInput。
 func normalizeSnapshot(snapshot *Snapshot) (*Snapshot, error) {
 	if snapshot == nil {
 		return nil, nil
@@ -182,6 +206,9 @@ func normalizeSnapshot(snapshot *Snapshot) (*Snapshot, error) {
 	return snapshot, nil
 }
 
+// normalizeTemporalPointers 将提供的时间指针统一转换为 UTC。
+//
+// 对每个非 nil 的时间指针，都会将其指向的时间值转换为 UTC 并写回。
 func normalizeTemporalPointers(values ...**time.Time) {
 	for _, value := range values {
 		if value == nil || *value == nil {
@@ -192,18 +219,24 @@ func normalizeTemporalPointers(values ...**time.Time) {
 	}
 }
 
+// closeRows 关闭 rows 并忽略关闭过程中返回的错误。
 func closeRows(rows *sql.Rows) {
 	if rows != nil {
 		_ = rows.Close()
 	}
 }
 
+// rollbackTx 回滚事务并忽略回滚过程中出现的错误。
 func rollbackTx(tx *sql.Tx) {
 	if tx != nil {
 		_ = tx.Rollback()
 	}
 }
 
+// scanProject 读取并组装项目记录。
+//
+// 将查询结果中的可空时间和可空用户 ID 转换为对应的指针字段。
+// @returns 组装后的项目记录；扫描失败时返回错误。
 func scanProject(scanner interface{ Scan(dest ...any) error }) (Project, error) {
 	var item Project
 	var lastRefreshAt sql.NullTime
@@ -245,6 +278,9 @@ func scanProject(scanner interface{ Scan(dest ...any) error }) (Project, error) 
 	return item, nil
 }
 
+// scanProjectFile 扫描并构造项目文件记录。
+//
+// 返回从数据库行中读取的 ProjectFile；扫描失败时返回错误。
 func scanProjectFile(scanner interface{ Scan(dest ...any) error }) (ProjectFile, error) {
 	var item ProjectFile
 	if err := scanner.Scan(
@@ -265,6 +301,11 @@ func scanProjectFile(scanner interface{ Scan(dest ...any) error }) (ProjectFile,
 	return item, nil
 }
 
+// scanSnapshot 扫描并返回快照记录。
+//
+// 扫描项目 ID、规范化 Compose JSON、配置哈希、声明的服务数量、声明的服务摘要和刷新时间。
+//
+// @returns 成功时返回扫描得到的 Snapshot；扫描失败时返回错误。
 func scanSnapshot(scanner interface{ Scan(dest ...any) error }) (Snapshot, error) {
 	var item Snapshot
 	if err := scanner.Scan(
@@ -280,6 +321,9 @@ func scanSnapshot(scanner interface{ Scan(dest ...any) error }) (Snapshot, error
 	return item, nil
 }
 
+// nullableTime 将有效的数据库时间转换为 UTC 时间指针。
+//
+// @return 有效时返回指向 UTC 时间的指针；无效时返回 nil。
 func nullableTime(value sql.NullTime) *time.Time {
 	if !value.Valid {
 		return nil
@@ -288,6 +332,9 @@ func nullableTime(value sql.NullTime) *time.Time {
 	return &t
 }
 
+// nullableUint64 将可空整数转换为 uint64 指针。
+// 当值无效或小于等于 0 时，返回 nil。
+// @returns 有效且大于 0 时对应的 uint64 指针，否则为 nil。
 func nullableUint64(value sql.NullInt64) *uint64 {
 	if !value.Valid || value.Int64 <= 0 {
 		return nil
@@ -303,6 +350,8 @@ const (
 	placeholderQuestion
 )
 
+// detectPlaceholderStyle 根据数据库驱动选择参数占位符风格。
+// 当 db 为空，或驱动类型不匹配 PostgreSQL 驱动时，返回 `?` 风格；当驱动包路径包含 `pgx` 或 `pq` 时，返回 `$1` 风格。
 func detectPlaceholderStyle(db *sql.DB) placeholderStyle {
 	if db == nil {
 		return placeholderQuestion
@@ -336,6 +385,9 @@ func (s placeholderStyle) rebind(query string) string {
 	return builder.String()
 }
 
+// toDBID 将 uint64 主键值转换为数据库可用的 int64。
+// 当值为 0 或超出 int64 可表示范围时，返回 ErrInvalidInput。
+// @returns 转换后的 int64 值；当输入无效时返回 0 和 ErrInvalidInput。
 func toDBID(value uint64) (int64, error) {
 	if value == 0 || value > math.MaxInt64 {
 		return 0, ErrInvalidInput
@@ -343,6 +395,8 @@ func toDBID(value uint64) (int64, error) {
 	return int64(value), nil
 }
 
+// isUniqueViolation 判断错误是否为 PostgreSQL 唯一约束冲突。
+// 当错误可解析为 `pgconn.PgError` 且错误码为 `23505` 时返回 `true`，否则返回 `false`。
 func isUniqueViolation(err error) bool {
 	if err == nil {
 		return false
@@ -351,6 +405,8 @@ func isUniqueViolation(err error) bool {
 	return errors.As(err, &pgErr) && pgErr.Code == "23505"
 }
 
+// mapWriteErr 为写入操作错误添加动作前缀，并将唯一约束冲突映射为项目冲突错误。
+// 当检测到 PostgreSQL 唯一约束冲突时，返回包装了 ErrProjectConflict 的错误；否则返回包装原始错误的结果。
 func mapWriteErr(action string, err error) error {
 	if err == nil {
 		return nil
