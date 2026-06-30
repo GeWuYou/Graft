@@ -38,6 +38,16 @@ class RuleEvaluation:
     noise_reason: str | None = None
 
 
+@dataclass(frozen=True)
+class ChangedBaselineResolution:
+    revision: str | None
+    compare_revision: str
+    base_ref: str
+    normalized_base_ref: str
+    fetch_target: str
+    source: str
+
+
 SEVERITY_ORDER = ("critical", "high", "medium", "low")
 DEFAULT_DISPLAY_ORDER = ("complexity", "duplication", "file_size", "structure", "error_handling")
 
@@ -255,6 +265,104 @@ def staged_or_changed_files(diff_filter: str) -> list[str]:
     return []
 
 
+def resolve_changed_mode_files(
+    diff_filter: str,
+    base_ref_override: str | None = None,
+) -> tuple[list[str], ChangedBaselineResolution]:
+    """
+    解析 changed 模式下的候选文件，并返回与之对应的基线解析结果。
+
+    Parameters:
+        diff_filter (str): Git diff 的文件状态过滤条件。
+        base_ref_override (str | None): 覆盖用于解析基准分支的名称。
+
+    Returns:
+        tuple[list[str], ChangedBaselineResolution]: 变更文件列表与实际采用的基线结果。
+    """
+    base_ref = (
+        base_ref_override
+        or os.environ.get("GRAFT_LINT_BASE_REF", "")
+        or os.environ.get("GITHUB_BASE_REF", "")
+    ).strip()
+    normalized_base_ref = normalize_remote_base_ref(base_ref) if base_ref else ""
+    fetch_target = fetch_target_from_base_ref(base_ref) if base_ref else ""
+
+    local_changed = staged_or_changed_files(diff_filter)
+    if local_changed:
+        return local_changed, ChangedBaselineResolution(
+            revision=None,
+            compare_revision="HEAD",
+            base_ref=base_ref,
+            normalized_base_ref=normalized_base_ref,
+            fetch_target=fetch_target,
+            source="local-changes",
+        )
+
+    explicit_base_sha = os.environ.get("GRAFT_QUALITY_BASE_SHA", "").strip()
+    if explicit_base_sha:
+        candidate = ChangedBaselineResolution(
+            revision=explicit_base_sha,
+            compare_revision="HEAD",
+            base_ref=base_ref,
+            normalized_base_ref=normalized_base_ref,
+            fetch_target=fetch_target,
+            source="explicit-sha",
+        )
+        changed = run_git(["diff", "--name-only", f"--diff-filter={diff_filter}", f"{candidate.revision}...{candidate.compare_revision}"])
+        changed_files = [line for line in changed.splitlines() if line]
+        if changed_files:
+            return changed_files, candidate
+
+    if normalized_base_ref:
+        try:
+            merge_base = run_git(["merge-base", "HEAD", normalized_base_ref])
+        except RuntimeError:
+            merge_base = ""
+        if merge_base:
+            candidate = ChangedBaselineResolution(
+                revision=merge_base,
+                compare_revision="HEAD",
+                base_ref=base_ref,
+                normalized_base_ref=normalized_base_ref,
+                fetch_target=fetch_target,
+                source="merge-base",
+            )
+            changed = run_git(["diff", "--name-only", f"--diff-filter={diff_filter}", f"{candidate.revision}...{candidate.compare_revision}"])
+            changed_files = [line for line in changed.splitlines() if line]
+            if changed_files:
+                return changed_files, candidate
+
+    head_sha = os.environ.get("GITHUB_SHA", "").strip()
+    if head_sha:
+        try:
+            previous = run_git(["rev-parse", f"{head_sha}^"])
+        except RuntimeError:
+            previous = ""
+        if previous:
+            candidate = ChangedBaselineResolution(
+                revision=previous,
+                compare_revision=head_sha,
+                base_ref=base_ref,
+                normalized_base_ref=normalized_base_ref,
+                fetch_target=fetch_target,
+                source="previous-head",
+            )
+            changed = run_git(["diff", "--name-only", f"--diff-filter={diff_filter}", f"{candidate.revision}...{candidate.compare_revision}"])
+            changed_files = [line for line in changed.splitlines() if line]
+            if changed_files:
+                return changed_files, candidate
+
+    tracked = run_git(["ls-files"])
+    return [line for line in tracked.splitlines() if line], ChangedBaselineResolution(
+        revision=None,
+        compare_revision="HEAD",
+        base_ref=base_ref,
+        normalized_base_ref=normalized_base_ref,
+        fetch_target=fetch_target,
+        source="tracked",
+    )
+
+
 def ci_changed_files(diff_filter: str, base_ref_override: str | None = None) -> list[str]:
     """
     获取用于 CI 的候选变更文件列表。
@@ -266,45 +374,8 @@ def ci_changed_files(diff_filter: str, base_ref_override: str | None = None) -> 
     Returns:
     	list[str]: 按优先级解析得到的变更文件路径列表；若未找到变更，则返回已跟踪文件列表。
     """
-    local_changed = staged_or_changed_files(diff_filter)
-    if local_changed:
-        return local_changed
-
-    base_ref = (
-        base_ref_override
-        or os.environ.get("GRAFT_LINT_BASE_REF", "")
-        or os.environ.get("GITHUB_BASE_REF", "")
-    ).strip()
-    explicit_base_sha = os.environ.get("GRAFT_QUALITY_BASE_SHA", "").strip()
-    if explicit_base_sha:
-        changed = run_git(["diff", "--name-only", f"--diff-filter={diff_filter}", f"{explicit_base_sha}...HEAD"])
-        if changed:
-            return [line for line in changed.splitlines() if line]
-
-    if base_ref:
-        base_revision = normalize_remote_base_ref(base_ref)
-        try:
-            merge_base = run_git(["merge-base", "HEAD", base_revision])
-        except RuntimeError:
-            merge_base = ""
-        if merge_base:
-            changed = run_git(["diff", "--name-only", f"--diff-filter={diff_filter}", f"{merge_base}...HEAD"])
-            if changed:
-                return [line for line in changed.splitlines() if line]
-
-    head_sha = os.environ.get("GITHUB_SHA", "").strip()
-    if head_sha:
-        try:
-            previous = run_git(["rev-parse", f"{head_sha}^"])
-        except RuntimeError:
-            previous = ""
-        if previous:
-            changed = run_git(["diff", "--name-only", f"--diff-filter={diff_filter}", f"{previous}...{head_sha}"])
-            if changed:
-                return [line for line in changed.splitlines() if line]
-
-    tracked = run_git(["ls-files"])
-    return [line for line in tracked.splitlines() if line]
+    files, _ = resolve_changed_mode_files(diff_filter, base_ref_override)
+    return files
 
 
 def normalize_remote_base_ref(base_ref: str) -> str:
@@ -1637,12 +1708,20 @@ def main() -> int:
         category_order = score_gate_rule_order(gate_config, args.gate_profile) if score_enabled else DEFAULT_DISPLAY_ORDER
         requested_scopes = args.scopes or ["server", "web"]
         changed_files: list[str] = []
+        changed_baseline = ChangedBaselineResolution(
+            revision=None,
+            compare_revision="HEAD",
+            base_ref="",
+            normalized_base_ref="",
+            fetch_target="",
+            source="unused",
+        )
         scoped_candidates: dict[str, list[str]] = {}
 
         if args.scan_mode == "changed":
             diff_config = require_dict(gate_config, "changedFiles", context="gate_config")
             diff_filter = require_string(diff_config, "diffFilter", context="gate_config.changedFiles")
-            changed_files = ci_changed_files(diff_filter, args.base_ref)
+            changed_files, changed_baseline = resolve_changed_mode_files(diff_filter, args.base_ref)
 
             scoped_changed: dict[str, list[str]] = {}
             for path in changed_files:
@@ -1690,22 +1769,14 @@ def main() -> int:
 
         head_reports: dict[str, dict[str, Any]] = {}
         base_reports: dict[str, dict[str, Any]] = {}
-        base_ref = (
-            args.base_ref
-            or os.environ.get("GRAFT_LINT_BASE_REF", "").strip()
-            or os.environ.get("GITHUB_BASE_REF", "").strip()
-            or "main"
-        )
-        normalized_base_ref = normalize_remote_base_ref(base_ref) if args.scan_mode == "changed" and base_ref else ""
-        fetch_target = fetch_target_from_base_ref(base_ref) if args.scan_mode == "changed" and base_ref else ""
 
         for scope in selected_scopes:
             head_path = run_eff_u_code(scope, output_dir=report_dir, eff_config_override=eff_override_path)
             head_reports[scope] = load_report(head_path)
 
-        if args.scan_mode == "changed" and base_ref:
+        if args.scan_mode == "changed" and changed_baseline.fetch_target:
             subprocess.run(
-                ["git", "fetch", "--no-tags", "--prune", "origin", fetch_target],
+                ["git", "fetch", "--no-tags", "--prune", "origin", changed_baseline.fetch_target],
                 cwd=REPO_ROOT,
                 check=False,
                 stdout=subprocess.PIPE,
@@ -1713,33 +1784,28 @@ def main() -> int:
                 text=True,
             )
 
-            current_head = run_git(["rev-parse", "HEAD"])
-            try:
-                merge_base = run_git(["merge-base", current_head, normalized_base_ref])
-            except RuntimeError:
-                merge_base = ""
-            if merge_base:
-                snapshot_root = export_git_snapshot(merge_base, report_dir / "baseline")
-                snapshot_eff_config = build_snapshot_eff_config(
-                    base_eff_config,
-                    gate_config,
-                    snapshot_root,
-                    scoped_candidates,
-                    selected_scopes,
+        if args.scan_mode == "changed" and changed_baseline.revision:
+            snapshot_root = export_git_snapshot(changed_baseline.revision, report_dir / "baseline")
+            snapshot_eff_config = build_snapshot_eff_config(
+                base_eff_config,
+                gate_config,
+                snapshot_root,
+                scoped_candidates,
+                selected_scopes,
+            )
+            snapshot_eff_config_path = report_dir / "eff-u-code-gate.baseline.override.json"
+            snapshot_eff_config_path.write_text(
+                json.dumps(snapshot_eff_config, ensure_ascii=False, indent=2) + "\n",
+                encoding="utf-8",
+            )
+            for scope in selected_scopes:
+                base_path = run_eff_u_code(
+                    scope,
+                    output_dir=report_dir / "baseline-reports",
+                    eff_config_override=snapshot_eff_config_path,
+                    base_ref=changed_baseline.normalized_base_ref or changed_baseline.base_ref or None,
                 )
-                snapshot_eff_config_path = report_dir / "eff-u-code-gate.baseline.override.json"
-                snapshot_eff_config_path.write_text(
-                    json.dumps(snapshot_eff_config, ensure_ascii=False, indent=2) + "\n",
-                    encoding="utf-8",
-                )
-                for scope in selected_scopes:
-                    base_path = run_eff_u_code(
-                        scope,
-                        output_dir=report_dir / "baseline-reports",
-                        eff_config_override=snapshot_eff_config_path,
-                        base_ref=normalized_base_ref,
-                    )
-                    base_reports[scope] = load_report(base_path)
+                base_reports[scope] = load_report(base_path)
 
         gate_rules = require_dict(gate_config, "gateRules", context="gate_config")
         scope_results: dict[str, Any] = {}
@@ -1890,6 +1956,15 @@ def main() -> int:
             "gateProfile": args.gate_profile,
             "scanMode": args.scan_mode,
             "changedFiles": changed_files,
+            "changedBaseline": {
+                "revision": changed_baseline.revision,
+                "compareRevision": changed_baseline.compare_revision,
+                "baseRef": changed_baseline.base_ref,
+                "normalizedBaseRef": changed_baseline.normalized_base_ref,
+                "source": changed_baseline.source,
+            }
+            if args.scan_mode == "changed"
+            else None,
             "overallQualityScore": overall_quality_score,
             "scoreThreshold": score_threshold,
             "scopes": scope_results,

@@ -376,6 +376,29 @@ class OverrideConfigTests(unittest.TestCase):
 
 
 class ChangedFileResolutionTests(unittest.TestCase):
+    def test_resolve_changed_mode_files_prefers_explicit_sha_for_files_and_baseline(self) -> None:
+        def fake_run_git(args: list[str]) -> str:
+            if args == ["diff", "--name-only", "--diff-filter=ACMR", "explicit-base...HEAD"]:
+                return "server/main.go\nscripts/evaluate_eff_u_code_gate.py\n"
+            raise AssertionError(f"unexpected git args: {args}")
+
+        with mock.patch.object(MODULE, "staged_or_changed_files", return_value=[]), \
+            mock.patch.object(MODULE, "run_git", side_effect=fake_run_git), \
+            mock.patch.dict(
+                "os.environ",
+                {
+                    "GRAFT_QUALITY_BASE_SHA": "explicit-base",
+                    "GRAFT_LINT_BASE_REF": "refs/remotes/origin/main",
+                },
+                clear=False,
+            ):
+            changed, baseline = MODULE.resolve_changed_mode_files("ACMR")
+
+        self.assertEqual(changed, ["server/main.go", "scripts/evaluate_eff_u_code_gate.py"])
+        self.assertEqual(baseline.revision, "explicit-base")
+        self.assertEqual(baseline.source, "explicit-sha")
+        self.assertEqual(baseline.normalized_base_ref, "refs/remotes/origin/main")
+
     def test_ci_changed_files_uses_graft_lint_base_ref_before_falling_back_to_tracked_files(self) -> None:
         def fake_run_git(args: list[str]) -> str:
             if args == ["merge-base", "HEAD", "refs/remotes/origin/main"]:
@@ -444,6 +467,77 @@ class ScoreGateConfigTests(unittest.TestCase):
 
 
 class MainFlowTests(unittest.TestCase):
+    def test_changed_mode_reuses_resolved_baseline_for_snapshot_export(self) -> None:
+        gate_config = {
+            "changedFiles": {"mode": "git-diff", "diffFilter": "ACMR"},
+            "targets": {
+                "server": {
+                    "root": "server",
+                    "include": ["server/**/*.go"],
+                    "exclude": [],
+                }
+            },
+            "gateRules": {
+                "complexity": {"metrics": ["cyclomatic_complexity"], "threshold": 75, "regression": 5, "newFileThreshold": 75},
+            },
+            "curatedScore": {"participatesInGate": False, "weights": {"complexity": 1.0}},
+        }
+        head_report = {"files": [make_file("internal/runtime.go", [make_metric("cyclomatic_complexity", 90, "collectFoo()")])]}
+        baseline_report = {"files": [make_file("internal/runtime.go", [make_metric("cyclomatic_complexity", 88, "collectFoo()")])]}
+        baseline_resolution = MODULE.ChangedBaselineResolution(
+            revision="explicit-base",
+            compare_revision="HEAD",
+            base_ref="main",
+            normalized_base_ref="refs/remotes/origin/main",
+            fetch_target="main",
+            source="explicit-sha",
+        )
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            config_path = Path(tmp_dir) / "gate.json"
+            eff_path = Path(tmp_dir) / "eff.json"
+            report_path = Path(tmp_dir) / "report.json"
+            baseline_snapshot = Path(tmp_dir) / "baseline-snapshot"
+            baseline_snapshot.mkdir(parents=True, exist_ok=True)
+            config_path.write_text(json.dumps(gate_config), encoding="utf-8")
+            eff_path.write_text(json.dumps({"defaults": {}, "targets": {"server": {"path": "server", "exclude": []}}}), encoding="utf-8")
+
+            seen_base_refs: list[str | None] = []
+
+            def fake_run(scope: str, *, output_dir: Path, eff_config_override: Path | None, base_ref: str | None = None) -> Path:
+                seen_base_refs.append(base_ref)
+                payload = baseline_report if "baseline-reports" in str(output_dir) else head_report
+                path = output_dir / f"eff-u-code-{scope}.json"
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(json.dumps(payload), encoding="utf-8")
+                return path
+
+            with mock.patch.object(MODULE, "resolve_changed_mode_files", return_value=(["server/internal/runtime.go"], baseline_resolution)), \
+                mock.patch.object(MODULE, "run_eff_u_code", side_effect=fake_run), \
+                mock.patch.object(MODULE, "export_git_snapshot", return_value=baseline_snapshot) as export_snapshot, \
+                mock.patch("subprocess.run") as subprocess_run:
+                subprocess_run.return_value = mock.Mock(returncode=0, stdout="", stderr="")
+                argv = [
+                    "evaluate_eff_u_code_gate.py",
+                    "--config",
+                    str(config_path),
+                    "--eff-u-code-config",
+                    str(eff_path),
+                    "--output-json",
+                    str(report_path),
+                    "--scopes",
+                    "server",
+                ]
+                with mock.patch.object(sys, "argv", argv):
+                    result = MODULE.main()
+
+            self.assertEqual(result, 0)
+            export_snapshot.assert_called_once_with("explicit-base", mock.ANY)
+            self.assertEqual(seen_base_refs, [None, "refs/remotes/origin/main"])
+            payload = json.loads(report_path.read_text(encoding="utf-8"))
+            self.assertEqual(payload["changedBaseline"]["revision"], "explicit-base")
+            self.assertEqual(payload["changedBaseline"]["source"], "explicit-sha")
+
     def test_gate_passes_when_only_documentation_is_low(self) -> None:
         gate_config = {
             "changedFiles": {"mode": "git-diff", "diffFilter": "ACMR"},
@@ -512,7 +606,14 @@ class MainFlowTests(unittest.TestCase):
                     return "head-sha"
                 raise RuntimeError("skip base")
 
-            with mock.patch.object(MODULE, "ci_changed_files", return_value=["web/src/utils/foo.ts"]), \
+            with mock.patch.object(
+                MODULE,
+                "resolve_changed_mode_files",
+                return_value=(
+                    ["web/src/utils/foo.ts"],
+                    MODULE.ChangedBaselineResolution(None, "HEAD", "", "", "", "local-changes"),
+                ),
+            ), \
                 mock.patch.object(MODULE, "run_eff_u_code", side_effect=fake_run), \
                 mock.patch.object(MODULE, "run_git", side_effect=fake_run_git), \
                 mock.patch.object(MODULE, "export_git_snapshot", return_value=Path(tmp_dir) / "baseline-snapshot"):
@@ -593,7 +694,14 @@ class MainFlowTests(unittest.TestCase):
                     return "head-sha"
                 raise RuntimeError("skip base")
 
-            with mock.patch.object(MODULE, "ci_changed_files", return_value=["server/internal/runtime.go"]), \
+            with mock.patch.object(
+                MODULE,
+                "resolve_changed_mode_files",
+                return_value=(
+                    ["server/internal/runtime.go"],
+                    MODULE.ChangedBaselineResolution(None, "HEAD", "", "", "", "local-changes"),
+                ),
+            ), \
                 mock.patch.object(MODULE, "run_eff_u_code", side_effect=fake_run), \
                 mock.patch.object(MODULE, "run_git", side_effect=fake_run_git), \
                 mock.patch.object(MODULE, "export_git_snapshot", return_value=Path(tmp_dir) / "baseline-snapshot"):
@@ -889,7 +997,14 @@ class MainFlowTests(unittest.TestCase):
                     return "head-sha"
                 raise RuntimeError("skip base")
 
-            with mock.patch.object(MODULE, "ci_changed_files", return_value=["server/internal/runtime.go"]), \
+            with mock.patch.object(
+                MODULE,
+                "resolve_changed_mode_files",
+                return_value=(
+                    ["server/internal/runtime.go"],
+                    MODULE.ChangedBaselineResolution(None, "HEAD", "", "", "", "local-changes"),
+                ),
+            ), \
                 mock.patch.object(MODULE, "run_eff_u_code", side_effect=fake_run), \
                 mock.patch.object(MODULE, "run_git", side_effect=fake_run_git), \
                 mock.patch.object(MODULE, "export_git_snapshot", return_value=Path(tmp_dir) / "baseline-snapshot"):
@@ -1164,7 +1279,14 @@ class MainFlowTests(unittest.TestCase):
                     return "head-sha"
                 raise RuntimeError("skip base")
 
-            with mock.patch.object(MODULE, "ci_changed_files", return_value=["server/main.go", "server/extra.go"]), \
+            with mock.patch.object(
+                MODULE,
+                "resolve_changed_mode_files",
+                return_value=(
+                    ["server/main.go", "server/extra.go"],
+                    MODULE.ChangedBaselineResolution(None, "HEAD", "", "", "", "local-changes"),
+                ),
+            ), \
                 mock.patch.object(MODULE, "run_eff_u_code", side_effect=fake_run), \
                 mock.patch.object(MODULE, "run_git", side_effect=fake_run_git), \
                 mock.patch.object(MODULE, "export_git_snapshot", return_value=Path(tmp_dir) / "baseline-snapshot"):
