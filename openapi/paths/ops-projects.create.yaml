@@ -2,7 +2,7 @@ post:
   tags: [project]
   summary: Submit a managed Compose project create request
   operationId: postProjectCreate
-  description: Reserves the canonical managed-create route space. Phase 2 batch 1 returns an accepted contract response without writing files yet.
+  description: Creates one managed Compose project under the configured managed root, writes the requested Compose and optional env files, and persists the project registry bootstrap.
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml
@@ -11,12 +11,12 @@ post:
     content:
       application/json:
         schema:
-          $ref: ../components/schemas/project-create-validate-request.yaml
+          $ref: ../components/schemas/project-create-request.yaml
   security:
     - bearerAuth: []
   responses:
-    '202':
-      description: Managed create request accepted by the bounded contract owner.
+    '201':
+      description: Managed Compose project created and registered.
       headers:
         X-Request-Id:
           $ref: ../components/headers/request-id.yaml

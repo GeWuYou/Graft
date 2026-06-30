@@ -41,6 +41,8 @@ const (
 	minLifecycleArgCount     = 2
 	maxCommandOutputSummary  = 120
 	managedCreateWarningsCap = 2
+	managedCreateDirMode     = 0o750
+	managedCreateFileMode    = 0o600
 )
 
 // ListQuery describes project list filters.
@@ -149,7 +151,9 @@ type ManagedProjectCreateRequest struct {
 	CanonicalProjectName     string
 	RelativeProjectDirectory string
 	ComposeFileName          string
+	ComposeFileContent       string
 	EnvFileName              *string
+	EnvFileContent           *string
 }
 
 // ManagedProjectCreateValidationResult returns create-contract validation metadata without writing files.
@@ -164,6 +168,15 @@ type ManagedProjectCreateValidationResult struct {
 	ComposeFileAbsolutePath string
 	EnvFileAbsolutePath     *string
 	Warnings                []string
+}
+
+// ManagedProjectCreateResult returns the created managed project bootstrap after write + persist.
+type ManagedProjectCreateResult struct {
+	Validation            ManagedProjectCreateValidationResult
+	ProjectID             uint64
+	ConfigHash            string
+	DeclaredServiceCount  int
+	RefreshedAt           time.Time
 }
 
 // Service owns project registry, import, and readonly refresh/configuration use cases.
@@ -498,9 +511,9 @@ func (s *Service) ValidateManagedCreate(ctx context.Context, request ManagedProj
 	composeFileAbsolutePath := filepath.Join(workingDirectory, normalized.ComposeFileName)
 	envFileAbsolutePath := managedCreateEnvAbsolutePath(workingDirectory, normalized.EnvFileName)
 	warnings := make([]string, 0, managedCreateWarningsCap)
-	warnings = append(warnings, "Phase 2 batch 1 validates managed-create contracts only; no files are written in this round.")
+	warnings = append(warnings, "Managed create validation checks authority, normalized names, and target paths before any file-write execution.")
 	if normalized.EnvFileName == nil {
-		warnings = append(warnings, "No env file is declared; later create batches must decide whether to materialize one.")
+		warnings = append(warnings, "No env file is declared; create execution will only materialize the compose file.")
 	}
 
 	return ManagedProjectCreateValidationResult{
@@ -517,17 +530,97 @@ func (s *Service) ValidateManagedCreate(ctx context.Context, request ManagedProj
 	}, nil
 }
 
+// CreateManagedProject writes managed project files under the configured managed root and persists the registry bootstrap.
+func (s *Service) CreateManagedProject(ctx context.Context, request ManagedProjectCreateRequest, actorID *uint64) (ManagedProjectCreateResult, error) {
+	repository, err := s.repositoryOrErr()
+	if err != nil {
+		return ManagedProjectCreateResult{}, err
+	}
+	validation, err := s.ValidateManagedCreate(ctx, request)
+	if err != nil {
+		return ManagedProjectCreateResult{}, err
+	}
+	normalized, err := normalizeManagedCreateRequest(request)
+	if err != nil {
+		return ManagedProjectCreateResult{}, err
+	}
+	if err := ensureManagedCreatePathsUnderRoot(validation); err != nil {
+		return ManagedProjectCreateResult{}, err
+	}
+
+	createdDir, createdFiles, err := writeManagedProjectFiles(validation, normalized)
+	if err != nil {
+		return ManagedProjectCreateResult{}, fmt.Errorf("%w: %v", errProjectImportValidation, err)
+	}
+	shouldCleanup := true
+	defer func() {
+		if shouldCleanup {
+			cleanupManagedCreate(createdDir, createdFiles)
+		}
+	}()
+
+	parseResult, err := projectcompose.Load(projectcompose.Input{
+		WorkingDirectory: validation.WorkingDirectory,
+		ComposeFiles:     []string{validation.ComposeFileAbsolutePath},
+		EnvFiles:         managedCreateEnvFileList(validation.EnvFileAbsolutePath),
+	})
+	if err != nil {
+		return ManagedProjectCreateResult{}, fmt.Errorf("%w: %v", errProjectImportValidation, err)
+	}
+
+	now := time.Now().UTC()
+	aggregate, err := repository.ImportProject(ctx, projectstore.ImportProjectInput{
+		DisplayName:                normalized.DisplayName,
+		CanonicalProjectName:       normalized.CanonicalProjectName,
+		CanonicalProjectNameSource: projectcontract.CanonicalProjectNameSourceOverride.String(),
+		SourceKind:                 projectcontract.SourceKindManaged.String(),
+		HostScope:                  projectcontract.HostScopeLocal.String(),
+		WorkingDirectory:           validation.WorkingDirectory,
+		OwnershipMode:              projectcontract.OwnershipModeManagedRootDedicated.String(),
+		LastRefreshStatus:          projectcontract.RefreshStatusSuccess.String(),
+		LastRefreshAt:              &now,
+		LastRefreshConfigHash:      parseResult.ConfigHash,
+		LastObservedConfigHash:     parseResult.ConfigHash,
+		LastDriftCheckedAt:         &now,
+		DriftStatus:                projectcontract.DriftStatusClean.String(),
+		Files:                      toStoreFiles(parseResult.ComposeFiles, parseResult.EnvFiles),
+		Snapshot: &projectstore.Snapshot{
+			ConfigHash:             parseResult.ConfigHash,
+			NormalizedComposeJSON:  normalizeSnapshotJSON(parseResult.NormalizedComposeJSON),
+			DeclaredServiceCount:   len(parseResult.ServiceNames),
+			DeclaredServicesDigest: digestServiceNames(parseResult.ServiceNames),
+			RefreshedAt:            now,
+		},
+		ActorID: actorID,
+	})
+	if err != nil {
+		return ManagedProjectCreateResult{}, mapStoreError(err)
+	}
+	shouldCleanup = false
+
+	return ManagedProjectCreateResult{
+		Validation:           validation,
+		ProjectID:            aggregate.Project.ID,
+		ConfigHash:           parseResult.ConfigHash,
+		DeclaredServiceCount: len(parseResult.ServiceNames),
+		RefreshedAt:          now,
+	}, nil
+}
+
 type normalizedManagedCreateRequest struct {
 	DisplayName              string
 	CanonicalProjectName     string
 	RelativeProjectDirectory string
 	ComposeFileName          string
+	ComposeFileContent       string
 	EnvFileName              *string
+	EnvFileContent           *string
 }
 
 func normalizeManagedCreateRequest(request ManagedProjectCreateRequest) (normalizedManagedCreateRequest, error) {
 	displayName := strings.TrimSpace(request.DisplayName)
 	canonicalName := strings.TrimSpace(request.CanonicalProjectName)
+	composeFileContent := strings.TrimSpace(request.ComposeFileContent)
 	relativeDir, err := normalizeManagedRelativeDirectory(request.RelativeProjectDirectory)
 	if err != nil {
 		return normalizedManagedCreateRequest{}, err
@@ -536,19 +629,25 @@ func normalizeManagedCreateRequest(request ManagedProjectCreateRequest) (normali
 	if err != nil {
 		return normalizedManagedCreateRequest{}, err
 	}
-	if displayName == "" || canonicalName == "" {
+	if displayName == "" || canonicalName == "" || composeFileContent == "" {
 		return normalizedManagedCreateRequest{}, fmt.Errorf("%w: missing required managed-create fields", errProjectInvalidArgument)
 	}
 	envFileName, err := normalizeManagedOptionalFileName(request.EnvFileName, "env")
 	if err != nil {
 		return normalizedManagedCreateRequest{}, err
 	}
+	envFileContent := normalizeManagedOptionalContent(request.EnvFileContent)
+	if envFileName == nil {
+		envFileContent = nil
+	}
 	return normalizedManagedCreateRequest{
 		DisplayName:              displayName,
 		CanonicalProjectName:     canonicalName,
 		RelativeProjectDirectory: relativeDir,
 		ComposeFileName:          composeFileName,
+		ComposeFileContent:       composeFileContent,
 		EnvFileName:              envFileName,
+		EnvFileContent:           envFileContent,
 	}, nil
 }
 
@@ -595,6 +694,65 @@ func managedCreateEnvAbsolutePath(workingDirectory string, envFileName *string) 
 	}
 	envAbs := filepath.Join(workingDirectory, *envFileName)
 	return &envAbs
+}
+
+func normalizeManagedOptionalContent(value *string) *string {
+	if value == nil {
+		return nil
+	}
+	content := strings.TrimSpace(*value)
+	return &content
+}
+
+func ensureManagedCreatePathsUnderRoot(validation ManagedProjectCreateValidationResult) error {
+	if validation.ManagedRoot.ConfiguredRootDirectory == nil {
+		return errProjectInvalidArgument
+	}
+	root := filepath.Clean(*validation.ManagedRoot.ConfiguredRootDirectory)
+	workingDirectory := filepath.Clean(validation.WorkingDirectory)
+	relative, err := filepath.Rel(root, workingDirectory)
+	if err != nil {
+		return fmt.Errorf("%w: invalid managed root relationship", errProjectInvalidArgument)
+	}
+	if relative == "." || relative == "" || strings.HasPrefix(relative, "..") {
+		return fmt.Errorf("%w: managed project directory must stay under managed root", errProjectInvalidArgument)
+	}
+	return nil
+}
+
+func writeManagedProjectFiles(validation ManagedProjectCreateValidationResult, normalized normalizedManagedCreateRequest) (string, []string, error) {
+	workingDirectory := filepath.Clean(validation.WorkingDirectory)
+	if err := os.MkdirAll(workingDirectory, managedCreateDirMode); err != nil {
+		return "", nil, fmt.Errorf("create working directory: %w", err)
+	}
+	createdFiles := []string{}
+	if err := os.WriteFile(validation.ComposeFileAbsolutePath, []byte(normalized.ComposeFileContent), managedCreateFileMode); err != nil {
+		return workingDirectory, createdFiles, fmt.Errorf("write compose file: %w", err)
+	}
+	createdFiles = append(createdFiles, validation.ComposeFileAbsolutePath)
+	if validation.EnvFileAbsolutePath != nil && normalized.EnvFileContent != nil {
+		if err := os.WriteFile(*validation.EnvFileAbsolutePath, []byte(*normalized.EnvFileContent), managedCreateFileMode); err != nil {
+			return workingDirectory, createdFiles, fmt.Errorf("write env file: %w", err)
+		}
+		createdFiles = append(createdFiles, *validation.EnvFileAbsolutePath)
+	}
+	return workingDirectory, createdFiles, nil
+}
+
+func cleanupManagedCreate(createdDir string, createdFiles []string) {
+	for i := len(createdFiles) - 1; i >= 0; i-- {
+		_ = os.Remove(createdFiles[i])
+	}
+	if createdDir != "" {
+		_ = os.Remove(createdDir)
+	}
+}
+
+func managedCreateEnvFileList(envFileAbsolutePath *string) []string {
+	if envFileAbsolutePath == nil {
+		return nil
+	}
+	return []string{*envFileAbsolutePath}
 }
 
 // Up executes docker compose up -d within the project's registered working directory.

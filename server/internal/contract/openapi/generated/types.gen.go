@@ -2246,13 +2246,13 @@ func (e ProjectCreateResponseAction) Valid() bool {
 
 // Defines values for ProjectCreateResponseResult.
 const (
-	ProjectCreateResponseResultAccepted ProjectCreateResponseResult = "accepted"
+	ProjectCreateResponseResultCreated ProjectCreateResponseResult = "created"
 )
 
 // Valid indicates whether the value is a known member of the ProjectCreateResponseResult enum.
 func (e ProjectCreateResponseResult) Valid() bool {
 	switch e {
-	case ProjectCreateResponseResultAccepted:
+	case ProjectCreateResponseResultCreated:
 		return true
 	default:
 		return false
@@ -6851,21 +6851,45 @@ type ProjectContainerCounts struct {
 	Total   int `json:"total"`
 }
 
+// ProjectCreateRequest defines model for project-create-request.
+type ProjectCreateRequest struct {
+	CanonicalProjectName string `json:"canonical_project_name"`
+
+	// ComposeFileContent Initial Compose YAML content to materialize in the managed project directory.
+	ComposeFileContent string `json:"compose_file_content"`
+	ComposeFileName    string `json:"compose_file_name"`
+	DisplayName        string `json:"display_name"`
+
+	// EnvFileContent Optional initial env file content. It is ignored when env_file_name is omitted.
+	EnvFileContent *string `json:"env_file_content,omitempty"`
+	EnvFileName    *string `json:"env_file_name,omitempty"`
+
+	// RelativeProjectDirectory Relative project directory under the canonical managed root.
+	RelativeProjectDirectory string `json:"relative_project_directory"`
+}
+
 // ProjectCreateResponse defines model for project-create-response.
 type ProjectCreateResponse struct {
-	Action               ProjectCreateResponseAction `json:"action"`
-	CanonicalProjectName string                      `json:"canonical_project_name"`
-	ComposeFileName      string                      `json:"compose_file_name"`
-	DisplayName          string                      `json:"display_name"`
-	EnvFileAbsolutePath  *string                     `json:"env_file_absolute_path,omitempty"`
-	EnvFileName          *string                     `json:"env_file_name,omitempty"`
-	ManagedRoot          ProjectManagedRootResponse  `json:"managed_root"`
-	Message              *string                     `json:"message,omitempty"`
-	MessageKey           *string                     `json:"message_key,omitempty"`
-	OwnershipMode        ProjectOwnershipMode        `json:"ownership_mode"`
-	Result               ProjectCreateResponseResult `json:"result"`
-	Warnings             *[]string                   `json:"warnings,omitempty"`
-	WorkingDirectory     string                      `json:"working_directory"`
+	Action                  ProjectCreateResponseAction `json:"action"`
+	CanonicalProjectName    string                      `json:"canonical_project_name"`
+	ComposeFileAbsolutePath string                      `json:"compose_file_absolute_path"`
+	ComposeFileName         string                      `json:"compose_file_name"`
+	DisplayName             string                      `json:"display_name"`
+	EnvFileAbsolutePath     *string                     `json:"env_file_absolute_path,omitempty"`
+	EnvFileName             *string                     `json:"env_file_name,omitempty"`
+	ManagedRoot             ProjectManagedRootResponse  `json:"managed_root"`
+	Message                 *string                     `json:"message,omitempty"`
+	MessageKey              *string                     `json:"message_key,omitempty"`
+	OwnershipMode           ProjectOwnershipMode        `json:"ownership_mode"`
+	ProjectId               int64                       `json:"project_id"`
+	Result                  ProjectCreateResponseResult `json:"result"`
+	SnapshotSummary         struct {
+		ConfigHash           string    `json:"config_hash"`
+		DeclaredServiceCount *int      `json:"declared_service_count,omitempty"`
+		RefreshedAt          time.Time `json:"refreshed_at"`
+	} `json:"snapshot_summary"`
+	Warnings         *[]string `json:"warnings,omitempty"`
+	WorkingDirectory string    `json:"working_directory"`
 }
 
 // ProjectCreateResponseAction defines model for ProjectCreateResponse.Action.
@@ -9474,7 +9498,7 @@ type PostContainerRemoveJSONRequestBody = ContainerRemoveRequest
 type PostContainerShellSessionJSONRequestBody = ContainerShellSessionRequest
 
 // PostProjectCreateJSONRequestBody defines body for PostProjectCreate for application/json ContentType.
-type PostProjectCreateJSONRequestBody = ProjectCreateValidateRequest
+type PostProjectCreateJSONRequestBody = ProjectCreateRequest
 
 // PostProjectCreateValidateJSONRequestBody defines body for PostProjectCreateValidate for application/json ContentType.
 type PostProjectCreateValidateJSONRequestBody = ProjectCreateValidateRequest

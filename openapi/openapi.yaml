@@ -728,6 +728,8 @@ components:
       $ref: ./components/schemas/project-service-item.yaml
     ProjectServicesResponse:
       $ref: ./components/schemas/project-services-response.yaml
+    ProjectCreateRequest:
+      $ref: ./components/schemas/project-create-request.yaml
     ProjectImportValidateRequest:
       $ref: ./components/schemas/project-import-validate-request.yaml
     ProjectImportValidateResponse:

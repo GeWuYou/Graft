@@ -697,7 +697,7 @@ Phase 1 的 canonical OpenAPI authority 已收口到 `openapi/**`，本节继续
 | --- | --- | --- |
 | `GET` | `/api/ops/projects/managed-root` | 返回 managed create 的 system-config authority、ownership mode 与 readiness |
 | `POST` | `/api/ops/projects/create/validate` | 只校验 managed create 输入、目标目录推导与 bounded authority，不写文件 |
-| `POST` | `/api/ops/projects/create` | 保留 managed create canonical route；本 batch 只返回 accepted contract，不执行真实创建 |
+| `POST` | `/api/ops/projects/create` | 在 managed root 下写入 compose/env 文件并注册 managed project |
 
 managed root authority 约束：
 
@@ -717,8 +717,6 @@ managed create request 建议至少包含：
 
 本批次明确不做：
 
-- 实际目录创建
-- compose/env 文件写入
 - editor / diff / validate / deploy flow
 - 下游兼容字段或用 import contract 冒充 create contract
 
@@ -829,10 +827,28 @@ Phase 1 的单文件内容返回建议包含：
 
 本批次仍明确不做：
 
-- managed create file write path
-- managed create persistence bootstrap
 - web managed create UI / editors
 - diff / validate / deploy flow
+
+## 10.6B Batch 2.2 authority 落地说明
+
+`phase-2-batch-2-server-managed-create-and-file-write-path` 已把以下 authority owner 固定到仓库运行面：
+
+- OpenAPI contract owner：`openapi/**`
+  - `POST /api/ops/projects/create` 不再复用 validate request
+  - create request 拥有独立 compose/env file content payload
+  - create response 改为同步创建结果，显式返回 `project_id`、目标文件路径和 snapshot summary
+- Project module execution owner：`server/modules/project/**`
+  - 在 managed root 下创建 bounded working directory
+  - 写入 compose file 与可选 env file
+  - 复用 project-owned parse + snapshot + repository import path 持久化 managed project
+  - 若 registry 持久化失败，回滚本轮新建的 managed directory/file bootstrap，避免留下无主目录
+
+本批次仍明确不做：
+
+- web managed create form / editor 交互
+- diff / validate / deploy flow
+- remote host / git / template source
 
 ## 10.7 Batch 4 authority 落地说明
 

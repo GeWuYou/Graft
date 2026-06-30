@@ -1,0 +1,37 @@
+type: object
+required:
+  - display_name
+  - canonical_project_name
+  - relative_project_directory
+  - compose_file_name
+  - compose_file_content
+properties:
+  display_name:
+    type: string
+    minLength: 1
+    maxLength: 120
+  canonical_project_name:
+    type: string
+    minLength: 1
+    maxLength: 120
+  relative_project_directory:
+    type: string
+    minLength: 1
+    description: Relative project directory under the canonical managed root.
+  compose_file_name:
+    type: string
+    minLength: 1
+    maxLength: 255
+  compose_file_content:
+    type: string
+    minLength: 1
+    description: Initial Compose YAML content to materialize in the managed project directory.
+  env_file_name:
+    type: string
+    minLength: 1
+    maxLength: 255
+    nullable: true
+  env_file_content:
+    type: string
+    nullable: true
+    description: Optional initial env file content. It is ignored when env_file_name is omitted.

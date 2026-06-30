@@ -2070,7 +2070,7 @@ export interface paths {
     put?: never;
     /**
      * Submit a managed Compose project create request
-     * @description Reserves the canonical managed-create route space. Phase 2 batch 1 returns an accepted contract response without writing files yet.
+     * @description Creates one managed Compose project under the configured managed root, writes the requested Compose and optional env files, and persists the project registry bootstrap.
      */
     post: operations['postProjectCreate'];
     delete?: never;
@@ -2511,6 +2511,7 @@ export interface components {
     ProjectDetailResponse: components['schemas']['project-detail-response'];
     ProjectServiceItem: components['schemas']['project-service-item'];
     ProjectServicesResponse: components['schemas']['project-services-response'];
+    ProjectCreateRequest: components['schemas']['project-create-request'];
     ProjectImportValidateRequest: components['schemas']['project-import-validate-request'];
     ProjectImportValidateResponse: components['schemas']['project-import-validate-response'];
     ProjectImportResponse: components['schemas']['project-import-response'];
@@ -5174,19 +5175,40 @@ export interface components {
     'enveloped-project-create-validate-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['project-create-validate-response'];
     };
+    'project-create-request': {
+      display_name: string;
+      canonical_project_name: string;
+      /** @description Relative project directory under the canonical managed root. */
+      relative_project_directory: string;
+      compose_file_name: string;
+      /** @description Initial Compose YAML content to materialize in the managed project directory. */
+      compose_file_content: string;
+      env_file_name?: string | null;
+      /** @description Optional initial env file content. It is ignored when env_file_name is omitted. */
+      env_file_content?: string | null;
+    };
     'project-create-response': {
       managed_root: components['schemas']['project-managed-root-response'];
+      /** Format: int64 */
+      project_id: number;
       /** @enum {string} */
       action: 'create';
       /** @enum {string} */
-      result: 'accepted';
+      result: 'created';
       display_name: string;
       canonical_project_name: string;
       ownership_mode: components['schemas']['project-ownership-mode'];
       working_directory: string;
       compose_file_name: string;
+      compose_file_absolute_path: string;
       env_file_name?: string | null;
       env_file_absolute_path?: string | null;
+      snapshot_summary: {
+        config_hash: string;
+        /** Format: date-time */
+        refreshed_at: string;
+        declared_service_count?: number;
+      };
       message_key?: string | null;
       message?: string | null;
       warnings?: string[];
@@ -11209,12 +11231,12 @@ export interface operations {
     };
     requestBody: {
       content: {
-        'application/json': components['schemas']['project-create-validate-request'];
+        'application/json': components['schemas']['project-create-request'];
       };
     };
     responses: {
-      /** @description Managed create request accepted by the bounded contract owner. */
-      202: {
+      /** @description Managed Compose project created and registered. */
+      201: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;

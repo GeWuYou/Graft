@@ -10692,7 +10692,7 @@
         ],
         "summary": "Submit a managed Compose project create request",
         "operationId": "postProjectCreate",
-        "description": "Reserves the canonical managed-create route space. Phase 2 batch 1 returns an accepted contract response without writing files yet.",
+        "description": "Creates one managed Compose project under the configured managed root, writes the requested Compose and optional env files, and persists the project registry bootstrap.",
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -10706,7 +10706,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/project-create-validate-request"
+                "$ref": "#/components/schemas/project-create-request"
               }
             }
           }
@@ -10717,8 +10717,8 @@
           }
         ],
         "responses": {
-          "202": {
-            "description": "Managed create request accepted by the bounded contract owner.",
+          "201": {
+            "description": "Managed Compose project created and registered.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -12432,6 +12432,9 @@
       },
       "ProjectServicesResponse": {
         "$ref": "#/components/schemas/project-services-response"
+      },
+      "ProjectCreateRequest": {
+        "$ref": "#/components/schemas/project-create-request"
       },
       "ProjectImportValidateRequest": {
         "$ref": "#/components/schemas/project-import-validate-request"
@@ -20936,21 +20939,77 @@
           }
         ]
       },
+      "project-create-request": {
+        "type": "object",
+        "required": [
+          "display_name",
+          "canonical_project_name",
+          "relative_project_directory",
+          "compose_file_name",
+          "compose_file_content"
+        ],
+        "properties": {
+          "display_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "canonical_project_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "relative_project_directory": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Relative project directory under the canonical managed root."
+          },
+          "compose_file_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "compose_file_content": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Initial Compose YAML content to materialize in the managed project directory."
+          },
+          "env_file_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255,
+            "nullable": true
+          },
+          "env_file_content": {
+            "type": "string",
+            "nullable": true,
+            "description": "Optional initial env file content. It is ignored when env_file_name is omitted."
+          }
+        }
+      },
       "project-create-response": {
         "type": "object",
         "required": [
           "managed_root",
+          "project_id",
           "action",
           "result",
           "display_name",
           "canonical_project_name",
           "ownership_mode",
           "working_directory",
-          "compose_file_name"
+          "compose_file_name",
+          "compose_file_absolute_path",
+          "snapshot_summary"
         ],
         "properties": {
           "managed_root": {
             "$ref": "#/components/schemas/project-managed-root-response"
+          },
+          "project_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
           },
           "action": {
             "type": "string",
@@ -20964,10 +21023,10 @@
           "result": {
             "type": "string",
             "enum": [
-              "accepted"
+              "created"
             ],
             "x-enum-varnames": [
-              "ProjectCreateResponseResultAccepted"
+              "ProjectCreateResponseResultCreated"
             ]
           },
           "display_name": {
@@ -20985,6 +21044,9 @@
           "compose_file_name": {
             "type": "string"
           },
+          "compose_file_absolute_path": {
+            "type": "string"
+          },
           "env_file_name": {
             "type": "string",
             "nullable": true
@@ -20992,6 +21054,26 @@
           "env_file_absolute_path": {
             "type": "string",
             "nullable": true
+          },
+          "snapshot_summary": {
+            "type": "object",
+            "required": [
+              "config_hash",
+              "refreshed_at"
+            ],
+            "properties": {
+              "config_hash": {
+                "type": "string"
+              },
+              "refreshed_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "declared_service_count": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
           },
           "message_key": {
             "type": "string",

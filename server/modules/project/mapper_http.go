@@ -1,6 +1,8 @@
 package project
 
 import (
+	"time"
+
 	generated "graft/server/internal/contract/openapi/generated"
 	projectcontract "graft/server/modules/project/contract"
 )
@@ -135,27 +137,41 @@ func toManagedCreateValidateResponse(result ManagedProjectCreateValidationResult
 	return response
 }
 
-func toManagedCreateResponse(result ManagedProjectCreateValidationResult) generated.ProjectCreateResponse {
+func toManagedCreateResponse(result ManagedProjectCreateResult) generated.ProjectCreateResponse {
 	response := generated.ProjectCreateResponse{
-		ManagedRoot:          toManagedRootResponse(result.ManagedRoot),
-		DisplayName:          result.DisplayName,
-		CanonicalProjectName: result.CanonicalProjectName,
-		OwnershipMode:        generated.ProjectOwnershipMode(result.OwnershipMode),
-		WorkingDirectory:     result.WorkingDirectory,
-		ComposeFileName:      result.ComposeFileName,
-		Action:               generated.ProjectCreateResponseAction("create"),
-		Result:               generated.ProjectCreateResponseResultAccepted,
-		MessageKey:           optionalString(projectcontract.ProjectManagedCreateAccepted.String()),
-		Message:              optionalString(projectcontract.ProjectManagedCreateAccepted.String()),
+		ManagedRoot:             toManagedRootResponse(result.Validation.ManagedRoot),
+		ProjectId:               mustGeneratedID(result.ProjectID),
+		DisplayName:             result.Validation.DisplayName,
+		CanonicalProjectName:    result.Validation.CanonicalProjectName,
+		OwnershipMode:           generated.ProjectOwnershipMode(result.Validation.OwnershipMode),
+		WorkingDirectory:        result.Validation.WorkingDirectory,
+		ComposeFileName:         result.Validation.ComposeFileName,
+		ComposeFileAbsolutePath: result.Validation.ComposeFileAbsolutePath,
+		Action:                  generated.ProjectCreateResponseAction("create"),
+		Result:                  generated.ProjectCreateResponseResult("created"),
+		MessageKey:              optionalString(projectcontract.ProjectImported.String()),
+		Message:                 optionalString(projectcontract.ProjectImported.String()),
+		SnapshotSummary: struct {
+			ConfigHash           string    `json:"config_hash"`
+			DeclaredServiceCount *int      `json:"declared_service_count,omitempty"`
+			RefreshedAt          time.Time `json:"refreshed_at"`
+		}{
+			ConfigHash:  result.ConfigHash,
+			RefreshedAt: result.RefreshedAt,
+		},
 	}
-	if result.EnvFileName != nil {
-		response.EnvFileName = result.EnvFileName
+	if result.DeclaredServiceCount >= 0 {
+		count := result.DeclaredServiceCount
+		response.SnapshotSummary.DeclaredServiceCount = &count
 	}
-	if result.EnvFileAbsolutePath != nil {
-		response.EnvFileAbsolutePath = result.EnvFileAbsolutePath
+	if result.Validation.EnvFileName != nil {
+		response.EnvFileName = result.Validation.EnvFileName
 	}
-	if len(result.Warnings) > 0 {
-		warnings := append([]string(nil), result.Warnings...)
+	if result.Validation.EnvFileAbsolutePath != nil {
+		response.EnvFileAbsolutePath = result.Validation.EnvFileAbsolutePath
+	}
+	if len(result.Validation.Warnings) > 0 {
+		warnings := append([]string(nil), result.Validation.Warnings...)
 		response.Warnings = &warnings
 	}
 	return response
@@ -173,6 +189,28 @@ func toManagedCreateRequest(request generated.PostProjectCreateValidateJSONReque
 		RelativeProjectDirectory: request.RelativeProjectDirectory,
 		ComposeFileName:          request.ComposeFileName,
 		EnvFileName:              envFileName,
+	}
+}
+
+func toManagedCreateExecuteRequest(request generated.PostProjectCreateJSONRequestBody) ManagedProjectCreateRequest {
+	var envFileName *string
+	if request.EnvFileName != nil {
+		value := *request.EnvFileName
+		envFileName = &value
+	}
+	var envFileContent *string
+	if request.EnvFileContent != nil {
+		value := *request.EnvFileContent
+		envFileContent = &value
+	}
+	return ManagedProjectCreateRequest{
+		DisplayName:              request.DisplayName,
+		CanonicalProjectName:     request.CanonicalProjectName,
+		RelativeProjectDirectory: request.RelativeProjectDirectory,
+		ComposeFileName:          request.ComposeFileName,
+		ComposeFileContent:       request.ComposeFileContent,
+		EnvFileName:              envFileName,
+		EnvFileContent:           envFileContent,
 	}
 }
 

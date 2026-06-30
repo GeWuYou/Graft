@@ -144,12 +144,12 @@ func (r routeRuntime) handleCreate(ginCtx *gin.Context) {
 		return
 	}
 	projectGeneratedHandler{}.PostProjectCreate(bindPostProjectCreateParams(ginCtx), request)
-	result, err := r.service.ValidateManagedCreate(ginCtx.Request.Context(), toManagedCreateRequest(generated.PostProjectCreateValidateJSONRequestBody(request)))
+	result, err := r.service.CreateManagedProject(ginCtx.Request.Context(), toManagedCreateExecuteRequest(request), currentUserIDPointer(ginCtx))
 	if err != nil {
 		r.writeRouteError(ginCtx, err)
 		return
 	}
-	httpx.WriteSuccess(ginCtx, http.StatusAccepted, toManagedCreateResponse(result))
+	httpx.WriteSuccess(ginCtx, http.StatusCreated, toManagedCreateResponse(result))
 }
 
 func (r routeRuntime) handleDetail(ginCtx *gin.Context) {

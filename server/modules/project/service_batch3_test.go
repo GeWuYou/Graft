@@ -2,6 +2,7 @@ package project
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -16,6 +17,7 @@ import (
 type stubProjectRepository struct {
 	aggregate        projectstore.ProjectAggregate
 	unregisterCalled bool
+	importInput      *projectstore.ImportProjectInput
 }
 
 func (s *stubProjectRepository) List(context.Context, projectstore.ListQuery) (projectstore.ListResult, error) {
@@ -33,8 +35,27 @@ func (s *stubProjectRepository) GetFile(context.Context, uint64, uint64) (projec
 	return projectstore.ProjectFile{}, projectstore.ErrFileNotFound
 }
 
-func (s *stubProjectRepository) ImportProject(context.Context, projectstore.ImportProjectInput) (projectstore.ProjectAggregate, error) {
-	return projectstore.ProjectAggregate{}, errors.New("not implemented")
+func (s *stubProjectRepository) ImportProject(_ context.Context, input projectstore.ImportProjectInput) (projectstore.ProjectAggregate, error) {
+	s.importInput = &input
+	if s.aggregate.Project.ID == 0 {
+		s.aggregate.Project.ID = 99
+	}
+	s.aggregate.Project.DisplayName = input.DisplayName
+	s.aggregate.Project.CanonicalProjectName = input.CanonicalProjectName
+	s.aggregate.Project.CanonicalProjectNameSource = input.CanonicalProjectNameSource
+	s.aggregate.Project.SourceKind = input.SourceKind
+	s.aggregate.Project.HostScope = input.HostScope
+	s.aggregate.Project.WorkingDirectory = input.WorkingDirectory
+	s.aggregate.Project.OwnershipMode = input.OwnershipMode
+	s.aggregate.Project.LastRefreshStatus = input.LastRefreshStatus
+	s.aggregate.Project.LastRefreshAt = input.LastRefreshAt
+	s.aggregate.Project.LastRefreshConfigHash = input.LastRefreshConfigHash
+	s.aggregate.Project.LastObservedConfigHash = input.LastObservedConfigHash
+	s.aggregate.Project.LastDriftCheckedAt = input.LastDriftCheckedAt
+	s.aggregate.Project.DriftStatus = input.DriftStatus
+	s.aggregate.Files = input.Files
+	s.aggregate.Snapshot = input.Snapshot
+	return s.aggregate, nil
 }
 
 func (s *stubProjectRepository) RefreshProject(context.Context, projectstore.RefreshProjectInput) (projectstore.ProjectAggregate, error) {
@@ -48,6 +69,24 @@ func (s *stubProjectRepository) UnregisterProject(context.Context, projectstore.
 
 type stubRuntimeReader struct {
 	summary moduleapi.ContainerProjectRuntimeSummary
+}
+
+type stubSystemConfigResolver struct {
+	value string
+	err   error
+}
+
+func (s stubSystemConfigResolver) IsBooleanConfigEnabled(context.Context, string, bool) bool { return false }
+
+func (s stubSystemConfigResolver) ResolveDefaultConfig(context.Context, string) (string, error) {
+	if s.err != nil {
+		return "", s.err
+	}
+	payload, err := json.Marshal(s.value)
+	if err != nil {
+		return "", err
+	}
+	return string(payload), nil
 }
 
 func (s stubRuntimeReader) ListProjectMembers(context.Context, string, string) (moduleapi.ContainerProjectRuntimeSummary, error) {
@@ -157,5 +196,73 @@ func TestDestroyBlocksExternalWorkingDirectoryDeletion(t *testing.T) {
 	}
 	if repo.unregisterCalled {
 		t.Fatalf("unregister should not be called when destroy is blocked")
+	}
+}
+
+func TestCreateManagedProjectWritesFilesAndPersistsRegistry(t *testing.T) {
+	t.Parallel()
+
+	managedRoot := t.TempDir()
+	repo := &stubProjectRepository{}
+	service, err := NewService(repo, WithSystemConfigResolver(stubSystemConfigResolver{value: managedRoot}))
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	envName := ".env"
+	result, err := service.CreateManagedProject(context.Background(), ManagedProjectCreateRequest{
+		DisplayName:              "Demo",
+		CanonicalProjectName:     "demo",
+		RelativeProjectDirectory: "demo",
+		ComposeFileName:          "compose.yaml",
+		ComposeFileContent:       "services:\n  web:\n    image: nginx:latest\n",
+		EnvFileName:              &envName,
+		EnvFileContent:           stringPointer("FOO=bar\n"),
+	}, nil)
+	if err != nil {
+		t.Fatalf("create managed project: %v", err)
+	}
+
+	composePath := filepath.Join(managedRoot, "demo", "compose.yaml")
+	if _, err := os.Stat(composePath); err != nil {
+		t.Fatalf("expected compose file written: %v", err)
+	}
+	envPath := filepath.Join(managedRoot, "demo", ".env")
+	if _, err := os.Stat(envPath); err != nil {
+		t.Fatalf("expected env file written: %v", err)
+	}
+	if repo.importInput == nil {
+		t.Fatalf("expected repository import input to be recorded")
+	}
+	if repo.importInput.SourceKind != "managed" {
+		t.Fatalf("expected managed source kind, got %q", repo.importInput.SourceKind)
+	}
+	if result.ProjectID == 0 {
+		t.Fatalf("expected created project id")
+	}
+	if result.DeclaredServiceCount != 1 {
+		t.Fatalf("expected one declared service, got %d", result.DeclaredServiceCount)
+	}
+}
+
+func TestCreateManagedProjectRejectsManagedRootBaseDirectory(t *testing.T) {
+	t.Parallel()
+
+	managedRoot := t.TempDir()
+	repo := &stubProjectRepository{}
+	service, err := NewService(repo, WithSystemConfigResolver(stubSystemConfigResolver{value: managedRoot}))
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	_, err = service.CreateManagedProject(context.Background(), ManagedProjectCreateRequest{
+		DisplayName:              "Demo",
+		CanonicalProjectName:     "demo",
+		RelativeProjectDirectory: ".",
+		ComposeFileName:          "compose.yaml",
+		ComposeFileContent:       "services:\n  web:\n    image: nginx:latest\n",
+	}, nil)
+	if !errors.Is(err, errProjectInvalidArgument) {
+		t.Fatalf("expected invalid argument, got %v", err)
 	}
 }
