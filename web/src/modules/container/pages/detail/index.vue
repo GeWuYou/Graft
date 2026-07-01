@@ -657,8 +657,7 @@
                           <pre
                             class="container-events-item__attributes graft-scrollbar"
                             :data-testid="`container-event-json-${record.seq}`"
-                            >{{ stringifyEventAttributes(record) }}</pre
-                          >
+                            >{{ stringifyEventAttributes(record) }}</pre>
                         </div>
                       </div>
                     </article>
@@ -865,8 +864,7 @@
                         <pre
                           class="container-health-output graft-scrollbar"
                           :class="{ 'container-health-output--error': healthcheckDetails.hasFailure }"
-                          >{{ healthcheckDetails.output }}</pre
-                        >
+                          >{{ healthcheckDetails.output }}</pre>
                       </div>
                       <p class="container-health-last-check">
                         {{
@@ -1552,16 +1550,7 @@ defineOptions({
 });
 
 type DetailTab =
-  | 'overview'
-  | 'resources'
-  | 'events'
-  | 'logs'
-  | 'shell'
-  | 'health'
-  | 'config'
-  | 'network'
-  | 'storage'
-  | 'raw';
+  'overview' | 'resources' | 'events' | 'logs' | 'shell' | 'health' | 'config' | 'network' | 'storage' | 'raw';
 type EnvironmentPolicy = 'plain' | 'masked' | 'hidden' | 'unknown';
 type EnvironmentPolicyFilter = EnvironmentPolicy | 'all' | 'sensitive';
 type EnvironmentRow = {

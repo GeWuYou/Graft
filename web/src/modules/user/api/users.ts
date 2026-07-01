@@ -59,12 +59,10 @@ export function getUsers() {
     .get<GetUsersResponseData>({
       url: USER_API_PATH.USERS,
     })
-    .then(
-      (response): UserListResponse => ({
-        ...response,
-        items: response.items.map(normalizeUserListItem),
-      }),
-    );
+    .then((response): UserListResponse => ({
+      ...response,
+      items: response.items.map(normalizeUserListItem),
+    }));
 }
 
 /**

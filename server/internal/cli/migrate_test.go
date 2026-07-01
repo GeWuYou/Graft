@@ -842,11 +842,33 @@ func TestDefaultMigrationRegistrySQLDirsHaveAtlasState(t *testing.T) {
 	}
 
 	for _, dir := range dirs {
-		assertSQLMigrationDirHasAtlasState(t, workingDir, dir)
+		assertSQLMigrationDirHasValidAtlasState(t, workingDir, dir)
 	}
 }
 
-func assertSQLMigrationDirHasAtlasState(t *testing.T, workingDir string, dir string) {
+func TestEmbeddedMigrationRegistryDirsHaveValidAtlasState(t *testing.T) {
+	for _, embedded := range moduleregistry.EmbeddedMigrationDirs() {
+		source, found, err := loadEmbeddedMigrationDirSource(embedded.Path)
+		if err != nil {
+			t.Fatalf("load embedded migration dir %s: %v", embedded.Path, err)
+		}
+		if !found {
+			t.Fatalf("embedded migration dir %s not found", embedded.Path)
+		}
+		hasSQL, hasAtlasState := migrationFilesState(embedded.Files)
+		if hasSQL && !hasAtlasState {
+			t.Fatalf("embedded migration dir %s has SQL files but no atlas.sum", embedded.Path)
+		}
+		if !source.hasAtlasState {
+			continue
+		}
+		if err := atlasmigrate.Validate(source.dir); err != nil {
+			t.Fatalf("validate embedded migration dir %s: %v", embedded.Path, err)
+		}
+	}
+}
+
+func assertSQLMigrationDirHasValidAtlasState(t *testing.T, workingDir string, dir string) {
 	t.Helper()
 
 	absDir, err := resolveMigrationDir(workingDir, dir)
@@ -860,6 +882,17 @@ func assertSQLMigrationDirHasAtlasState(t *testing.T, workingDir string, dir str
 	hasSQL, hasAtlasState := migrationDirState(t, absDir)
 	if hasSQL && !hasAtlasState {
 		t.Fatalf("migration dir %s has SQL files but no atlas.sum", dir)
+	}
+	if !hasAtlasState {
+		return
+	}
+
+	atlasDir, err := atlasmigrate.NewLocalDir(absDir)
+	if err != nil {
+		t.Fatalf("open atlas dir %s: %v", absDir, err)
+	}
+	if err := atlasmigrate.Validate(atlasDir); err != nil {
+		t.Fatalf("validate atlas dir %s: %v", dir, err)
 	}
 }
 
@@ -879,6 +912,17 @@ func migrationDirState(t *testing.T, absDir string) (bool, bool) {
 		}
 		hasSQL = hasSQL || filepath.Ext(entry.Name()) == ".sql"
 		hasAtlasState = hasAtlasState || entry.Name() == atlasmigrate.HashFileName
+	}
+
+	return hasSQL, hasAtlasState
+}
+
+func migrationFilesState(files []moduleregistry.EmbeddedMigrationFile) (bool, bool) {
+	hasSQL := false
+	hasAtlasState := false
+	for _, file := range files {
+		hasSQL = hasSQL || filepath.Ext(file.Name) == ".sql"
+		hasAtlasState = hasAtlasState || file.Name == atlasmigrate.HashFileName
 	}
 
 	return hasSQL, hasAtlasState

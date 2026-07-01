@@ -10,6 +10,7 @@ import (
 	auditlocales "graft/server/modules/audit/locales"
 	containerlocales "graft/server/modules/container/locales"
 	monitorlocales "graft/server/modules/monitor/locales"
+	projectlocales "graft/server/modules/project/locales"
 	rbaclocales "graft/server/modules/rbac/locales"
 	schedulerlocales "graft/server/modules/scheduler/locales"
 	systemconfiglocales "graft/server/modules/system-config/locales"
@@ -38,9 +39,8 @@ type EmbeddedMigrationDir struct {
 	Files []EmbeddedMigrationFile
 }
 
-// EmbeddedLocaleResources returns compile-time owner-local locale resources.
-// Slice 1 only establishes the runtime slot, so later module migrations can
-// populate this without changing the registration flow again.
+// EmbeddedLocaleResources 返回按固定模块顺序聚合后的编译期本地化资源。
+// 任一模块资源加载失败时直接 panic，避免运行时带着不完整资源启动。
 func EmbeddedLocaleResources() []i18n.EmbeddedLocaleResource {
 	providers := []struct {
 		name string
@@ -50,6 +50,7 @@ func EmbeddedLocaleResources() []i18n.EmbeddedLocaleResource {
 		{name: "audit", load: auditlocales.EmbeddedLocaleResources},
 		{name: "container", load: containerlocales.EmbeddedLocaleResources},
 		{name: "monitor", load: monitorlocales.EmbeddedLocaleResources},
+		{name: "project", load: projectlocales.EmbeddedLocaleResources},
 		{name: "rbac", load: rbaclocales.EmbeddedLocaleResources},
 		{name: "scheduler", load: schedulerlocales.EmbeddedLocaleResources},
 		{name: "system-config", load: systemconfiglocales.EmbeddedLocaleResources},

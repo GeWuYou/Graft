@@ -628,15 +628,7 @@ type ListErrorState = {
 };
 type DangerousContainerAction = Extract<ContainerAction, 'remove' | 'restart' | 'start' | 'stop'>;
 type RowAction =
-  | 'copy-id'
-  | 'inspect'
-  | 'remove'
-  | 'restart'
-  | 'start'
-  | 'stop'
-  | 'view-env'
-  | 'view-mounts'
-  | 'view-networks';
+  'copy-id' | 'inspect' | 'remove' | 'restart' | 'start' | 'stop' | 'view-env' | 'view-mounts' | 'view-networks';
 type ResourceMetric = {
   available: boolean;
   changeClass: Record<string, boolean>;

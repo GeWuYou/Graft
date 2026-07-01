@@ -1,12 +1,5 @@
 export type StreamViewportState =
-  | 'idle'
-  | 'connecting'
-  | 'streaming'
-  | 'paused'
-  | 'reconnecting'
-  | 'disconnected'
-  | 'error'
-  | 'empty';
+  'idle' | 'connecting' | 'streaming' | 'paused' | 'reconnecting' | 'disconnected' | 'error' | 'empty';
 
 export type StreamViewportStateResolverInput = Readonly<{
   hasContent?: boolean | null;

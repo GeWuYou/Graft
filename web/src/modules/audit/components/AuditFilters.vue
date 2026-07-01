@@ -338,13 +338,10 @@ const activeFilterTags = computed<AdvancedQueryFilterTag[]>(() => {
     normalizedSorters.value,
     sortFieldOptions.value,
     t('audit.logList.sort.tagPrefix'),
-  ).map(
-    (tag): AdvancedQueryFilterTag => ({
-      ...tag,
-      closable:
-        tag.key === 'createdRange' || tag.key.startsWith('sorter:') ? true : !isLocked(tag.key as AuditFilterKey),
-    }),
-  );
+  ).map((tag): AdvancedQueryFilterTag => ({
+    ...tag,
+    closable: tag.key === 'createdRange' || tag.key.startsWith('sorter:') ? true : !isLocked(tag.key as AuditFilterKey),
+  }));
 });
 
 function updateField<Key extends keyof AuditClientFilterState>(key: Key, value: AuditClientFilterState[Key]) {
