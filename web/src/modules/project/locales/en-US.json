@@ -285,10 +285,10 @@
     },
     "createSource": {
       "descriptions": {
-        "managed": "Create a managed Compose project under the canonical managed root owned by project authority.",
-        "git": "Reserve the canonical git-backed project source boundary without introducing clone, scan, or remote-host execution in this batch.",
-        "template": "Reserve the canonical template-backed project source boundary without introducing template instantiation, discovery, or remote-host execution in this batch.",
-        "remoteHost": "Reserve the canonical remote-host project boundary without introducing remote execution, secret persistence, or runtime ownership in this batch."
+        "managed": "Create a managed Compose project in the configured managed root directory.",
+        "git": "Git-based project creation is not available yet.",
+        "template": "Template-based project creation is not available yet.",
+        "remoteHost": "Remote host project creation is not available yet."
       },
       "routePath": "Route Path",
       "permission": "Permission",

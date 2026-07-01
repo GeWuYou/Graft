@@ -285,10 +285,10 @@
     },
     "createSource": {
       "descriptions": {
-        "managed": "在 project authority 拥有的 canonical managed root 下创建受管 Compose 项目。",
-        "git": "预留 canonical git-backed 项目来源边界，但本批次不引入 clone、scan 或 remote-host 执行。",
-        "template": "预留 canonical template-backed 项目来源边界，但本批次不引入模板实例化、发现或 remote-host 执行。",
-        "remoteHost": "预留 canonical remote-host 项目边界，但本批次不引入远程执行、密钥持久化或 runtime ownership。"
+        "managed": "在已配置的受管根目录中创建受管 Compose 项目。",
+        "git": "基于 Git 的项目创建暂未提供。",
+        "template": "基于模板的项目创建暂未提供。",
+        "remoteHost": "基于远程主机的项目创建暂未提供。"
       },
       "routePath": "路由路径",
       "permission": "权限",
