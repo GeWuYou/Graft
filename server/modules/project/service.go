@@ -25,6 +25,11 @@ import (
 	projectstore "graft/server/modules/project/store"
 )
 
+type managedRootFS struct {
+	root    *os.Root
+	rootDir string
+}
+
 var (
 	errProjectServiceUnavailable   = errors.New("project service is unavailable")
 	errProjectInvalidArgument      = errors.New("project invalid argument")
@@ -841,11 +846,26 @@ func writeManagedProjectFiles(validation ManagedProjectCreateValidationResult, n
 
 // cleanupManagedCreate 依次删除已创建的文件，并在目录路径非空时删除创建的目录。
 func cleanupManagedCreate(createdDir string, createdFiles []string) {
+	if len(createdFiles) == 0 && createdDir == "" {
+		return
+	}
+	fsRoot, err := openManagedRootFSForPaths(createdDir, createdFiles...)
+	if err != nil {
+		return
+	}
+	defer fsRoot.close()
 	for i := len(createdFiles) - 1; i >= 0; i-- {
-		_ = os.Remove(createdFiles[i])
+		relative, relErr := fsRoot.relative(createdFiles[i])
+		if relErr != nil {
+			continue
+		}
+		_ = fsRoot.root.Remove(relative)
 	}
 	if createdDir != "" {
-		_ = os.Remove(createdDir)
+		relative, relErr := fsRoot.relative(createdDir)
+		if relErr == nil {
+			_ = fsRoot.root.Remove(relative)
+		}
 	}
 }
 
@@ -971,7 +991,15 @@ func (s *Service) destroyAfterGuard(
 	guardResults = append(guardResults, guardCode("compose_down_completed"))
 
 	if request.DeleteWorkingDirectory {
-		if err := os.RemoveAll(filepath.Clean(aggregate.Project.WorkingDirectory)); err != nil {
+		fsRoot, err := openManagedRootFS(filepath.Clean(aggregate.Project.WorkingDirectory))
+		if err != nil {
+			return ActionResult{}, fmt.Errorf("%w: %v", errProjectUnsupportedLifecycle, err)
+		}
+		if err := fsRoot.root.RemoveAll("."); err != nil {
+			fsRoot.close()
+			return ActionResult{}, fmt.Errorf("%w: %v", errProjectUnsupportedLifecycle, err)
+		}
+		if err := fsRoot.close(); err != nil {
 			return ActionResult{}, fmt.Errorf("%w: %v", errProjectUnsupportedLifecycle, err)
 		}
 		guardResults = append(guardResults, guardCode("working_directory_deleted"))
@@ -1144,11 +1172,11 @@ func (s *Service) DeployConfiguration(ctx context.Context, projectID uint64, dra
 	if err != nil {
 		return DeployResult{}, err
 	}
-	restoreItems, err := writeManagedDraft(prepared.Proposal)
+	restoreItems, err := writeManagedDraft(aggregate.Project.WorkingDirectory, prepared.Proposal)
 	if err != nil {
 		return DeployResult{}, fmt.Errorf("%w: %v", errProjectImportValidation, err)
 	}
-	defer restoreManagedDraft(restoreItems)
+	defer restoreManagedDraft(aggregate.Project.WorkingDirectory, restoreItems)
 
 	now := time.Now().UTC()
 	if _, err := s.runLifecycleActionWithAggregate(ctx, aggregate, actorID, generated.ProjectActionDeploy, []string{"compose", "up", "-d"}); err != nil {
@@ -1770,7 +1798,16 @@ func loadManagedDraftContent(aggregate projectstore.ProjectAggregate) (managedDr
 	if len(composeFiles) == 0 {
 		return managedDraftContent{}, fmt.Errorf("%w: missing compose file authority", errProjectImportValidation)
 	}
-	composeContent, err := os.ReadFile(composeFiles[0].AbsolutePath)
+	fsRoot, err := openManagedRootFS(filepath.Clean(aggregate.Project.WorkingDirectory))
+	if err != nil {
+		return managedDraftContent{}, fmt.Errorf("%w: %v", errProjectImportValidation, err)
+	}
+	defer fsRoot.close()
+	composeRelativePath, err := fsRoot.relative(composeFiles[0].AbsolutePath)
+	if err != nil {
+		return managedDraftContent{}, fmt.Errorf("%w: %v", errProjectImportValidation, err)
+	}
+	composeContent, err := fsRoot.root.ReadFile(composeRelativePath)
 	if err != nil {
 		return managedDraftContent{}, fmt.Errorf("%w: %v", errProjectImportValidation, err)
 	}
@@ -1781,7 +1818,11 @@ func loadManagedDraftContent(aggregate projectstore.ProjectAggregate) (managedDr
 	}
 	envFiles := filterFiles(aggregate.Files, projectcontract.FileKindEnv.String())
 	if len(envFiles) > 0 {
-		envContent, readErr := os.ReadFile(envFiles[0].AbsolutePath)
+		envRelativePath, relErr := fsRoot.relative(envFiles[0].AbsolutePath)
+		if relErr != nil {
+			return managedDraftContent{}, fmt.Errorf("%w: %v", errProjectImportValidation, relErr)
+		}
+		envContent, readErr := fsRoot.root.ReadFile(envRelativePath)
 		if readErr != nil {
 			return managedDraftContent{}, fmt.Errorf("%w: %v", errProjectImportValidation, readErr)
 		}
@@ -1858,7 +1899,7 @@ func optionalDraftBytes(path string, content *string) []byte {
 
 // writeManagedDraft 写入托管草案的 compose 文件，并在需要时写入 env 文件，同时返回用于恢复原状态的记录。
 // 它会先保存目标文件的原始内容和是否存在，以便后续恢复。
-func writeManagedDraft(proposal managedDraftProposal) ([]managedDraftRestore, error) {
+func writeManagedDraft(workingDirectory string, proposal managedDraftProposal) ([]managedDraftRestore, error) {
 	targets := []struct {
 		path    string
 		content string
@@ -1871,9 +1912,18 @@ func writeManagedDraft(proposal managedDraftProposal) ([]managedDraftRestore, er
 			content string
 		}{path: proposal.EnvPath, content: *proposal.EnvContent})
 	}
+	fsRoot, err := openManagedRootFS(filepath.Clean(workingDirectory))
+	if err != nil {
+		return nil, err
+	}
+	defer fsRoot.close()
 	restoreItems := make([]managedDraftRestore, 0, len(targets))
 	for _, target := range targets {
-		original, err := os.ReadFile(target.path)
+		relative, err := fsRoot.relative(target.path)
+		if err != nil {
+			return nil, err
+		}
+		original, err := fsRoot.root.ReadFile(relative)
 		exists := err == nil
 		if err != nil && !errors.Is(err, os.ErrNotExist) {
 			return nil, err
@@ -1883,7 +1933,7 @@ func writeManagedDraft(proposal managedDraftProposal) ([]managedDraftRestore, er
 			Content: append([]byte(nil), original...),
 			Exists:  exists,
 		})
-		if err := os.WriteFile(target.path, []byte(target.content), managedCreateFileMode); err != nil {
+		if err := fsRoot.root.WriteFile(relative, []byte(target.content), managedCreateFileMode); err != nil {
 			return nil, err
 		}
 	}
@@ -1891,15 +1941,74 @@ func writeManagedDraft(proposal managedDraftProposal) ([]managedDraftRestore, er
 }
 
 // restoreManagedDraft 按相反顺序恢复受控草案写入前的文件状态。
-func restoreManagedDraft(items []managedDraftRestore) {
+func restoreManagedDraft(workingDirectory string, items []managedDraftRestore) {
+	fsRoot, err := openManagedRootFS(filepath.Clean(workingDirectory))
+	if err != nil {
+		return
+	}
+	defer fsRoot.close()
 	for index := len(items) - 1; index >= 0; index-- {
 		item := items[index]
-		if item.Exists {
-			_ = os.WriteFile(item.Path, item.Content, managedCreateFileMode)
+		relative, relErr := fsRoot.relative(item.Path)
+		if relErr != nil {
 			continue
 		}
-		_ = os.Remove(item.Path)
+		if item.Exists {
+			_ = fsRoot.root.WriteFile(relative, item.Content, managedCreateFileMode)
+			continue
+		}
+		_ = fsRoot.root.Remove(relative)
 	}
+}
+
+func openManagedRootFS(rootDir string) (*managedRootFS, error) {
+	absolute := filepath.Clean(strings.TrimSpace(rootDir))
+	if absolute == "" {
+		return nil, fmt.Errorf("managed root directory is required")
+	}
+	root, err := os.OpenRoot(absolute)
+	if err != nil {
+		return nil, err
+	}
+	return &managedRootFS{root: root, rootDir: absolute}, nil
+}
+
+func openManagedRootFSForPaths(rootDir string, paths ...string) (*managedRootFS, error) {
+	if strings.TrimSpace(rootDir) != "" {
+		return openManagedRootFS(rootDir)
+	}
+	for _, path := range paths {
+		trimmed := strings.TrimSpace(path)
+		if trimmed == "" {
+			continue
+		}
+		return openManagedRootFS(filepath.Dir(filepath.Clean(trimmed)))
+	}
+	return nil, fmt.Errorf("managed root directory is required")
+}
+
+func (fsRoot *managedRootFS) relative(path string) (string, error) {
+	if fsRoot == nil || fsRoot.root == nil {
+		return "", fmt.Errorf("managed root is unavailable")
+	}
+	relative, err := filepath.Rel(fsRoot.rootDir, filepath.Clean(strings.TrimSpace(path)))
+	if err != nil {
+		return "", err
+	}
+	if relative == "." || relative == "" {
+		return ".", nil
+	}
+	if strings.HasPrefix(relative, "..") {
+		return "", fmt.Errorf("path escapes managed root")
+	}
+	return relative, nil
+}
+
+func (fsRoot *managedRootFS) close() error {
+	if fsRoot == nil || fsRoot.root == nil {
+		return nil
+	}
+	return fsRoot.root.Close()
 }
 
 // buildConfigurationDiffFile 构建配置文件的差异结果，包含内容变更、哈希和统一 diff。

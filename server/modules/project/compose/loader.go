@@ -254,7 +254,10 @@ func resolveComposeFiles(workingDirectory string, requested []string, overrides 
 	if len(requested) == 0 {
 		requested = []string{"compose.yaml"}
 	}
-	resolvedOverrides := inputOverrides(workingDirectory, overrides)
+	resolvedOverrides, err := inputOverrides(workingDirectory, overrides)
+	if err != nil {
+		return nil, err
+	}
 	items := make([]FileProjection, 0, len(requested))
 	for index, path := range requested {
 		item, err := resolveFileProjection(workingDirectory, path, "compose", composeRole(index), index, resolvedOverrides)
@@ -270,7 +273,10 @@ func resolveComposeFiles(workingDirectory string, requested []string, overrides 
 //
 // requested 为空时不添加默认文件；返回的切片保持请求顺序。
 func resolveEnvFiles(workingDirectory string, requested []string, overrides map[string][]byte) ([]FileProjection, error) {
-	resolvedOverrides := inputOverrides(workingDirectory, overrides)
+	resolvedOverrides, err := inputOverrides(workingDirectory, overrides)
+	if err != nil {
+		return nil, err
+	}
 	items := make([]FileProjection, 0, len(requested))
 	for index, path := range requested {
 		item, err := resolveFileProjection(workingDirectory, path, "env", "env", index, resolvedOverrides)
@@ -322,19 +328,19 @@ func resolveFileProjection(
 	}, nil
 }
 
-func inputOverrides(workingDirectory string, overrides map[string][]byte) map[string][]byte {
+func inputOverrides(workingDirectory string, overrides map[string][]byte) (map[string][]byte, error) {
 	if len(overrides) == 0 {
-		return nil
+		return nil, nil
 	}
 	result := make(map[string][]byte, len(overrides))
 	for rawPath, content := range overrides {
 		absolute, err := resolveBoundedPath(workingDirectory, rawPath)
 		if err != nil {
-			continue
+			return nil, fmt.Errorf("resolve content override %q: %w", rawPath, err)
 		}
 		result[absolute] = append([]byte(nil), content...)
 	}
-	return result
+	return result, nil
 }
 
 func resolveBoundedPath(workingDirectory string, rawPath string) (string, error) {
