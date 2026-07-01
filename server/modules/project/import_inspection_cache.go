@@ -10,6 +10,7 @@ type importInspectionCache struct {
 	sessions map[string]importInspectionSession
 }
 
+// newImportInspectionCache 创建并返回一个新的导入检查缓存，并初始化空的会话映射。
 func newImportInspectionCache() *importInspectionCache {
 	return &importInspectionCache{sessions: make(map[string]importInspectionSession)}
 }

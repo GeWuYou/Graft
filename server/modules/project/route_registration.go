@@ -34,7 +34,7 @@ type boundProjectConfigurationDraft[T any] struct {
 
 // registerRoutes 为项目模块注册路由并挂载权限校验与请求追踪中间件。
 // 当路由器不可用时直接返回；当服务缺失时返回错误。
-// 注册的接口覆盖项目列表、导入、创建、详情、配置、刷新、部署及生命周期和销毁操作。
+// 当上下文或路由器为空时直接返回；当服务或权限依赖无法解析时返回错误。
 func registerRoutes(ctx *module.Context, moduleName string, service *Service) error {
 	if ctx == nil || ctx.Router == nil {
 		return nil
@@ -652,7 +652,10 @@ func bindProjectID(ginCtx *gin.Context, ctx *module.Context) (uint64, int64, boo
 }
 
 // bindProjectFileID 解析并校验路由参数中的文件 ID。
-// 成功时返回文件 ID 及其 int64 形式；校验失败时写入本地化错误并中止请求。
+// bindProjectFileID 提取并校验路径中的文件 ID。
+// 成功时返回文件 ID 及其 int64 形式；当参数无效时写入本地化错误并中止请求。
+//
+// @return 成功时返回文件 ID、其 int64 形式以及 true；校验失败时返回 0、0 和 false。
 func bindProjectFileID(ginCtx *gin.Context, ctx *module.Context) (uint64, int64, bool) {
 	raw := strings.TrimSpace(ginCtx.Param("fileId"))
 	value, err := strconv.ParseUint(raw, 10, 64)
@@ -664,32 +667,42 @@ func bindProjectFileID(ginCtx *gin.Context, ctx *module.Context) (uint64, int64,
 	return value, int64(value), true
 }
 
-// 返回包含请求语言和请求 ID 的参数结构体。
+// bindImportValidateParams 组装导入校验接口的请求参数，包含请求语言和请求 ID。
 func bindImportValidateParams(ginCtx *gin.Context) generated.PostProjectImportValidateParams {
 	locale, requestID := commonHeaders(ginCtx)
 	return generated.PostProjectImportValidateParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
+// bindPostProjectImportParams 组装项目导入接口的请求参数。
+// 它从请求头中提取 `XGraftLocale` 和 `XRequestId` 并填充到返回值中。
 func bindPostProjectImportParams(ginCtx *gin.Context) generated.PostProjectImportParams {
 	locale, requestID := commonHeaders(ginCtx)
 	return generated.PostProjectImportParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
+// bindPostProjectImportInspectParams 组装项目导入检查请求所需的公共头参数。
+// 它会填充 `XGraftLocale` 和 `XRequestId`。
 func bindPostProjectImportInspectParams(ginCtx *gin.Context) generated.PostProjectImportInspectParams {
 	locale, requestID := commonHeaders(ginCtx)
 	return generated.PostProjectImportInspectParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
+// bindGetProjectSourcesParams 组装项目来源接口的公共请求参数。
+// 它从请求中提取语言和请求 ID，并填充到生成的参数结构中。
 func bindGetProjectSourcesParams(ginCtx *gin.Context) generated.GetProjectSourcesParams {
 	locale, requestID := commonHeaders(ginCtx)
 	return generated.GetProjectSourcesParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
+// bindGetProjectDiscoveryCandidatesParams 构造项目发现候选列表请求参数。
+//
+// 它从请求头中提取语言和请求 ID，并填充到生成的参数中。
 func bindGetProjectDiscoveryCandidatesParams(ginCtx *gin.Context) generated.GetProjectDiscoveryCandidatesParams {
 	locale, requestID := commonHeaders(ginCtx)
 	return generated.GetProjectDiscoveryCandidatesParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
+// 当分页参数无效时会中止当前请求并返回 false。
 func bindImportDirectoryBrowseQuery(ginCtx *gin.Context, ctx *module.Context) (ImportDirectoryBrowseQuery, bool) {
 	query := ginCtx.Request.URL.Query()
 	limit, ok := optionalIntQuery[int](query.Get("limit"), 1, importDirectoryBrowseMaxLimit)

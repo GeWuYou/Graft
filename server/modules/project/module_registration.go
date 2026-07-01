@@ -25,7 +25,7 @@ func registerPermissions(registry *permission.Registry, moduleName string) error
 	return nil
 }
 
-// 列表包含查看、导入、刷新、生命周期管理、销毁、创建和部署相关的权限。
+// permissionItems 返回项目模块的权限目录条目列表，包含查看、导入、刷新、生命周期管理、销毁、创建、源入口、发现候选和部署相关权限。
 func permissionItems(moduleName string) []permission.Item {
 	return []permission.Item{
 		{

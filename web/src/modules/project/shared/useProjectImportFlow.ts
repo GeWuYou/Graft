@@ -8,6 +8,12 @@ import { buildSuggestedDisplayName, hasBlockingImportConflicts } from './import'
 
 type Translate = (key: string, params?: Record<string, unknown>) => string;
 
+/**
+ * 管理项目导入流程的目录选择、预览检查和导入提交状态。
+ *
+ * @param t - 用于生成本地化错误消息的翻译函数
+ * @returns 包含导入流程状态、计算结果和操作方法的对象
+ */
 export function useProjectImportFlow(t: Translate) {
   const selectedDirectory = ref<ProjectImportDirectoryRef | null>(null);
   const inspectLoading = ref(false);

@@ -292,12 +292,22 @@ export function getProjectManagedRoot() {
   }) as Promise<ProjectManagedRootResponse>;
 }
 
+/**
+ * 获取项目来源目录。
+ *
+ * @returns 项目来源目录信息。
+ */
 export function getProjectSources() {
   return request.get<GetProjectSourcesData>({
     url: PROJECT_API_PATH.SOURCES,
   }) as Promise<ProjectSourceCatalogResponse>;
 }
 
+/**
+ * 获取项目的发现候选列表。
+ *
+ * @returns 项目发现候选列表。
+ */
 export function getProjectDiscoveryCandidates() {
   return request.get<GetProjectDiscoveryCandidatesData>({
     url: PROJECT_API_PATH.DISCOVERY_CANDIDATES,

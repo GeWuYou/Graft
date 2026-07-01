@@ -176,6 +176,9 @@ type importRootDefinition struct {
 	managed     bool
 }
 
+// normalizeDirectoryBrowseQuery 规范化目录浏览查询参数。
+// 它会修剪 provider 和 root_id，默认使用本地 provider，
+// 并对路径、分页、排序字段和排序顺序应用标准化规则。
 func normalizeDirectoryBrowseQuery(query ImportDirectoryBrowseQuery) ImportDirectoryBrowseQuery {
 	query.Provider = strings.TrimSpace(query.Provider)
 	if query.Provider == "" {
@@ -190,6 +193,8 @@ func normalizeDirectoryBrowseQuery(query ImportDirectoryBrowseQuery) ImportDirec
 	return query
 }
 
+// normalizedBrowseLimit 将浏览条目数量限制归一到允许范围内。
+// 当 limit 小于等于 0 或大于最大值时，返回默认浏览数量。
 func normalizedBrowseLimit(limit int) int {
 	if limit <= 0 || limit > importDirectoryBrowseMaxLimit {
 		return importDirectoryBrowseDefault
@@ -197,6 +202,7 @@ func normalizedBrowseLimit(limit int) int {
 	return limit
 }
 
+// normalizedBrowseOffset 将浏览偏移量限制为不小于 0。
 func normalizedBrowseOffset(offset int) int {
 	if offset < 0 {
 		return 0
@@ -204,6 +210,8 @@ func normalizedBrowseOffset(offset int) int {
 	return offset
 }
 
+// normalizedBrowseSort 规范化目录浏览的排序字段。
+// 仅保留按修改时间排序，其余值统一使用名称排序。
 func normalizedBrowseSort(sortBy string) string {
 	switch strings.TrimSpace(sortBy) {
 	case importDirectorySortByModified:
@@ -213,6 +221,8 @@ func normalizedBrowseSort(sortBy string) string {
 	}
 }
 
+// normalizedBrowseOrder 规范化目录浏览的排序方向。
+// 当输入为 `desc`（忽略大小写和首尾空白）时返回 `desc`，否则返回 `asc`。
 func normalizedBrowseOrder(order string) string {
 	if strings.EqualFold(strings.TrimSpace(order), importDirectoryOrderDesc) {
 		return importDirectoryOrderDesc
@@ -220,6 +230,7 @@ func normalizedBrowseOrder(order string) string {
 	return importDirectoryOrderAsc
 }
 
+// normalizeBrowsePath 规范化用于浏览的路径，去除空白并将根路径表示为一个空字符串。
 func normalizeBrowsePath(path string) string {
 	trimmed := strings.TrimSpace(path)
 	if trimmed == "" || trimmed == "." || trimmed == "/" {
@@ -233,6 +244,8 @@ func normalizeBrowsePath(path string) string {
 	return cleaned
 }
 
+// inspectionSessionID 生成导入检查会话的标识符。
+// 该标识符由目录引用、配置哈希和创建时间共同决定。
 func inspectionSessionID(ref ImportDirectoryReference, configHash string, createdAt time.Time) string {
 	sum := sha256.Sum256([]byte(strings.Join([]string{
 		ref.Provider,
@@ -244,6 +257,7 @@ func inspectionSessionID(ref ImportDirectoryReference, configHash string, create
 	return "inspect_" + hex.EncodeToString(sum[:12])
 }
 
+// toFileViews 将文件投影转换为 FileView 列表，并保留其元数据与最后观测到的哈希。
 func toFileViews(files []projectcompose.FileProjection) []FileView {
 	result := make([]FileView, 0, len(files))
 	for _, item := range files {
@@ -261,6 +275,7 @@ func toFileViews(files []projectcompose.FileProjection) []FileView {
 	return result
 }
 
+// 它返回一个以绝对路径为键、文件哈希为值的映射。
 func snapshotFileHashes(parseResult projectcompose.Result) map[string]string {
 	hashes := make(map[string]string, len(parseResult.ComposeFiles)+len(parseResult.EnvFiles))
 	for _, file := range append(append([]projectcompose.FileProjection(nil), parseResult.ComposeFiles...), parseResult.EnvFiles...) {
@@ -269,6 +284,8 @@ func snapshotFileHashes(parseResult projectcompose.Result) map[string]string {
 	return hashes
 }
 
+// sameFileHashes 判断当前解析结果中的文件哈希是否与预期一致。
+// 当路径数量一致且每个路径对应的哈希值都匹配时返回 true，否则返回 false。
 func sameFileHashes(expected map[string]string, parseResult projectcompose.Result) bool {
 	actual := snapshotFileHashes(parseResult)
 	if len(actual) != len(expected) {
@@ -282,6 +299,7 @@ func sameFileHashes(expected map[string]string, parseResult projectcompose.Resul
 	return true
 }
 
+// minInt 返回两个整数中较小的值。
 func minInt(a int, b int) int {
 	if a < b {
 		return a
@@ -289,6 +307,9 @@ func minInt(a int, b int) int {
 	return b
 }
 
+// decodeAllowedImportRoots 解析允许导入根目录的配置。
+// 输入可以是直接编码的 JSON 数组，或包含该 JSON 数组的 JSON 字符串；空白输入返回空结果。
+// @returns 解析后的根目录配置列表；当输入为空时返回 nil 和 nil，解析失败时返回错误。
 func decodeAllowedImportRoots(raw string) ([]importAllowedRootConfig, error) {
 	trimmed := strings.TrimSpace(raw)
 	if trimmed == "" {
@@ -315,6 +336,10 @@ func decodeAllowedImportRoots(raw string) ([]importAllowedRootConfig, error) {
 	return items, nil
 }
 
+// decodeAllowedImportRootItems 将 JSON 数组解析为允许的导入根配置列表。
+//
+// @param raw 要解析的 JSON 数组字符串。
+// @returns 解析得到的导入根配置列表，或解析失败时的错误。
 func decodeAllowedImportRootItems(raw string) ([]importAllowedRootConfig, error) {
 	var items []importAllowedRootConfig
 	if err := json.Unmarshal([]byte(raw), &items); err != nil {
@@ -323,6 +348,8 @@ func decodeAllowedImportRootItems(raw string) ([]importAllowedRootConfig, error)
 	return items, nil
 }
 
+// decodeAllowedImportRootString 解析包含嵌套 JSON 的字符串值。
+// 返回解码后的字符串；解析失败时返回带上下文的错误。
 func decodeAllowedImportRootString(raw string) (string, error) {
 	var nested string
 	if err := json.Unmarshal([]byte(raw), &nested); err != nil {
@@ -331,6 +358,7 @@ func decodeAllowedImportRootString(raw string) (string, error) {
 	return nested, nil
 }
 
+// configured 提供可导入的根配置，managedRoot 提供可选的受管根路径；函数会清理路径、过滤空值和非绝对路径、按绝对路径去重，并在缺少 ID 或标签时补全默认值。
 func normalizeImportRootDefinitions(configured []importAllowedRootConfig, managedRoot *string) []importRootDefinition {
 	result := make([]importRootDefinition, 0, len(configured)+1)
 	seenByPath := make(map[string]struct{})
@@ -377,6 +405,8 @@ func normalizeImportRootDefinitions(configured []importAllowedRootConfig, manage
 	return result
 }
 
+// injectFallbackImportRoot 在未配置导入根目录时注入一个本地文件系统根目录。
+// 当已有根目录时直接返回原值；否则根据工作目录或环境变量计算初始路径，并在可用时返回一个默认根目录。
 func injectFallbackImportRoot(roots []importRootDefinition, workingDirectory string) []importRootDefinition {
 	if len(roots) > 0 {
 		return roots
@@ -396,6 +426,9 @@ func injectFallbackImportRoot(roots []importRootDefinition, workingDirectory str
 	}
 }
 
+// fallbackImportInitialPath 返回导入流程的默认初始目录路径。
+// 它优先使用环境变量 `GRAFT_PROJECT_IMPORT_DEFAULT_PATH`，仅在其为绝对路径时生效；
+// 否则使用 workingDirectory，在其为绝对路径时返回规范化后的路径。
 func fallbackImportInitialPath(workingDirectory string) string {
 	if configured := strings.TrimSpace(os.Getenv("GRAFT_PROJECT_IMPORT_DEFAULT_PATH")); configured != "" {
 		cleaned := filepath.Clean(configured)
@@ -414,6 +447,8 @@ func fallbackImportInitialPath(workingDirectory string) string {
 	return cleaned
 }
 
+// rootIDFromPath 将路径转换为稳定的根标识符。
+// 空路径返回 "root"；其余路径会清理后将路径分隔符和空格替换为连字符。
 func rootIDFromPath(path string) string {
 	cleaned := strings.Trim(filepath.Clean(path), string(filepath.Separator))
 	if cleaned == "" {
@@ -423,6 +458,7 @@ func rootIDFromPath(path string) string {
 	return replacer.Replace(cleaned)
 }
 
+// 当路径试图逃离根目录时返回 errProjectInvalidArgument。
 func resolveRootPath(root importRootDefinition, relative string) (string, error) {
 	normalized := normalizeBrowsePath(relative)
 	joined := filepath.Join(root.path, normalized)
@@ -436,6 +472,9 @@ func resolveRootPath(root importRootDefinition, relative string) (string, error)
 	return joined, nil
 }
 
+// parentBrowsePath 返回路径的父级浏览路径。
+//
+// 当输入为空或仅包含空白字符时，返回 nil。若父级位于根目录，则返回指向空字符串的指针，以表示根的父级；否则返回规范化后的父级路径。
 func parentBrowsePath(path string) *string {
 	if strings.TrimSpace(path) == "" {
 		return nil
@@ -449,6 +488,7 @@ func parentBrowsePath(path string) *string {
 	return &parent
 }
 
+// 如果未发现任何主 Compose 文件，则返回错误。
 func discoverImportFiles(workingDirectory string) (discoveredImportFiles, error) {
 	entries, err := os.ReadDir(workingDirectory)
 	if err != nil {
@@ -474,6 +514,8 @@ func discoverImportFiles(workingDirectory string) (discoveredImportFiles, error)
 	}, nil
 }
 
+// discoverPrimaryComposeFiles 返回工作目录中存在的首选 Compose 文件名列表。
+// 返回值按候选项顺序排列，只包含实际存在的文件名。
 func discoverPrimaryComposeFiles(workingDirectory string) []string {
 	foundPrimary := make([]string, 0, len(defaultPrimaryComposeCandidates))
 	for _, candidate := range defaultPrimaryComposeCandidates {
@@ -484,6 +526,10 @@ func discoverPrimaryComposeFiles(workingDirectory string) []string {
 	return foundPrimary
 }
 
+// discoverEnvFiles 收集工作目录中的环境文件名，按优先级去重后返回。
+// 如果存在 `.env`，会优先包含它，再追加 `.env.*` 和 `*.env` 变体。
+//
+// 返回按发现顺序排列的环境文件名列表。
 func discoverEnvFiles(workingDirectory string, entries []os.DirEntry) []string {
 	envFiles := make([]string, 0)
 	envSet := make(map[string]struct{})
@@ -511,6 +557,8 @@ func discoverEnvFiles(workingDirectory string, entries []os.DirEntry) []string {
 	return envFiles
 }
 
+// collectEnvVariants 收集目录中的环境变量变体文件名。
+// 第一个返回值包含以 `.env.` 开头的文件名，第二个返回值包含以 `.env` 结尾的文件名；两组结果都会按字典序排序。
 func collectEnvVariants(entries []os.DirEntry) ([]string, []string) {
 	dotEnvVariants := make([]string, 0)
 	suffixEnvVariants := make([]string, 0)

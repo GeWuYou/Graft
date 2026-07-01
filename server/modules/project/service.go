@@ -1026,7 +1026,7 @@ func normalizeManagedFileName(value string, label string) (string, error) {
 
 // normalizeManagedOptionalFileName 规范化可选文件名，空值或纯空白时返回 nil。
 //
-// 返回规范化后的文件名指针；当输入为空、仅包含空白字符或校验失败时分别返回 nil 或错误。
+// 当输入为空或仅包含空白字符时，返回 nil。
 func normalizeManagedOptionalFileName(value *string, label string) (*string, error) {
 	if value == nil || strings.TrimSpace(*value) == "" {
 		return nil, nil
@@ -1062,7 +1062,9 @@ func normalizeManagedOptionalContent(value *string) *string {
 }
 
 // ensureManagedCreatePathsUnderRoot 验证托管项目工作目录位于已配置的 managed root 下。
-// 当工作目录缺少有效根目录关系或超出 managed root 时，返回 errProjectInvalidArgument。
+// ensureManagedCreatePathsUnderRoot 验证托管项目工作目录位于已配置的 managed root 内。
+//
+// 当未配置根目录，或工作目录与根目录之间不存在有效的相对关系，或工作目录超出 managed root 时，返回 errProjectInvalidArgument。
 func ensureManagedCreatePathsUnderRoot(validation ManagedProjectCreateValidationResult) error {
 	if validation.ManagedRoot.ConfiguredRootDirectory == nil {
 		return errProjectInvalidArgument
@@ -1079,6 +1081,7 @@ func ensureManagedCreatePathsUnderRoot(validation ManagedProjectCreateValidation
 	return nil
 }
 
+// guardCode 返回仅包含指定代码的守卫结果。
 func guardCode(code string) GuardResult {
 	return GuardResult{Code: code}
 }
@@ -1838,6 +1841,8 @@ func (s *Service) scanDiscoveryCandidates(
 	return candidates, nil
 }
 
+// buildImportDirectoryItems 构建可浏览的子目录条目列表。
+// 仅包含目录条目，并为每个条目填充规范化路径；如果可获取修改时间，则同时记录其 UTC 时间。
 func buildImportDirectoryItems(currentPath string, entries []os.DirEntry) []ImportDirectoryItem {
 	items := make([]ImportDirectoryItem, 0, len(entries))
 	for _, entry := range entries {
@@ -1861,6 +1866,8 @@ func buildImportDirectoryItems(currentPath string, entries []os.DirEntry) []Impo
 	return items
 }
 
+// sortImportDirectoryItems 按指定字段和顺序排列导入目录项。
+// 当按修改时间排序时，会优先比较修改时间；无法区分时按名称排序。
 func sortImportDirectoryItems(items []ImportDirectoryItem, sortBy string, order string) {
 	sort.Slice(items, func(i, j int) bool {
 		if sortBy == importDirectorySortByModified {
@@ -1872,6 +1879,9 @@ func sortImportDirectoryItems(items []ImportDirectoryItem, sortBy string, order 
 	})
 }
 
+// compareModifiedTime 根据修改时间和排序方向比较两个时间。
+// 左右时间为空时按零值时间处理；当时间相同时返回 false, false。
+// 返回的第一个值表示左侧是否应排在右侧之前，第二个值表示两者是否可比较。
 func compareModifiedTime(leftAt *time.Time, rightAt *time.Time, order string) (bool, bool) {
 	left := time.Time{}
 	right := time.Time{}
@@ -1890,6 +1900,9 @@ func compareModifiedTime(leftAt *time.Time, rightAt *time.Time, order string) (b
 	return left.Before(right), true
 }
 
+// compareDirectoryNames 按指定顺序比较两个目录名的先后。
+//
+// 当 order 为降序时，左值大于右值返回 true；否则左值小于右值返回 true。
 func compareDirectoryNames(left string, right string, order string) bool {
 	if order == importDirectoryOrderDesc {
 		return strings.Compare(left, right) > 0
@@ -1897,6 +1910,10 @@ func compareDirectoryNames(left string, right string, order string) bool {
 	return strings.Compare(left, right) < 0
 }
 
+// visibleDirectoryEntryName 返回可见目录项的名称。
+//
+// 它仅接受目录项，并过滤掉空名称、以 `.` 开头的名称以及非目录项。
+// 当目录项可用时返回其修剪后的名称。
 func visibleDirectoryEntryName(entry os.DirEntry) (string, bool) {
 	if !entry.IsDir() {
 		return "", false
@@ -1962,6 +1979,9 @@ func (s *Service) buildDiscoveryCandidate(
 	}, nil
 }
 
+// discoveryCandidateStatus 根据冲突列表返回发现候选的状态、建议操作和状态原因。
+// 当不存在冲突时返回“ready”和“import”；当存在冲突时返回“conflict”和“review”，并提供原因说明。
+// @returns 状态字符串、建议操作字符串，以及在存在冲突时指向状态原因的指针。
 func discoveryCandidateStatus(conflicts []string) (string, string, *string) {
 	if len(conflicts) == 0 {
 		return "ready", "import", nil
@@ -1970,11 +1990,14 @@ func discoveryCandidateStatus(conflicts []string) (string, string, *string) {
 	return "conflict", "review", &reason
 }
 
+// candidateKeyForWorkingDirectory 生成工作目录的扫描候选键。
+// @returns 基于修剪后的工作目录生成的键，格式为 `scan:` 加上 SHA-256 摘要前 8 字节的十六进制值。
 func candidateKeyForWorkingDirectory(workingDirectory string) string {
 	sum := sha256.Sum256([]byte(strings.TrimSpace(workingDirectory)))
 	return "scan:" + hex.EncodeToString(sum[:8])
 }
 
+// firstProjectFileDisplayName 返回首个项目文件展示路径的基名；当列表为空时返回空字符串。
 func firstProjectFileDisplayName(items []generated.ProjectFileItem) string {
 	if len(items) == 0 {
 		return ""
@@ -1982,6 +2005,9 @@ func firstProjectFileDisplayName(items []generated.ProjectFileItem) string {
 	return filepath.Base(items[0].DisplayPath)
 }
 
+// displayPathsFromCompose 返回一组 compose 文件投影的显示路径列表。
+// 
+// @returns 按输入顺序提取的显示路径；当输入为空时返回 nil。
 func displayPathsFromCompose(files []projectcompose.FileProjection) []string {
 	if len(files) == 0 {
 		return nil
@@ -1997,7 +2023,8 @@ func displayPathsFromCompose(files []projectcompose.FileProjection) []string {
 //
 // @param value 待比较的名称。
 // @param existing 已存在的名称。
-// @returns 当两者去除首尾空白后相等时返回 true，否则返回 false。
+// sameDisplayName 判断两个显示名称去除首尾空白后是否相等。
+// @returns 两者去除首尾空白后相等时返回 true，否则返回 false。
 func sameDisplayName(value *string, existing string) bool {
 	if value == nil {
 		return false
@@ -2028,6 +2055,8 @@ func (s *Service) importRootDefinitions(ctx context.Context) ([]importRootDefini
 	return fallbackImportRoots(normalizeImportRootDefinitions(decoded, managedRoot)), nil
 }
 
+// fallbackImportRoots 尝试为导入根列表补充当前工作目录作为回退根。
+// 如果无法获取当前工作目录，则直接返回原列表。
 func fallbackImportRoots(roots []importRootDefinition) []importRootDefinition {
 	workingDirectory, err := os.Getwd()
 	if err != nil {
@@ -2053,13 +2082,15 @@ func (s *Service) resolveImportRoot(ctx context.Context, provider string, rootID
 }
 
 // sameWorkingDirectory 判断两个工作目录在去除首尾空白后是否相同。
+// sameWorkingDirectory 判断两个工作目录路径是否相同。
 // @returns 去除首尾空白并忽略大小写后路径相同则为 `true`，否则为 `false`。
 func sameWorkingDirectory(left string, right string) bool {
 	return strings.EqualFold(strings.TrimSpace(left), strings.TrimSpace(right))
 }
 
 // toProjectListItem 将项目聚合转换为列表项，并在提供运行时摘要时补充容器运行统计。
-// 它包含项目标识、名称、来源、工作目录、声明服务数，以及最近刷新和漂移状态。
+// toProjectListItem 将聚合信息映射为项目列表项，并在提供运行时摘要时补充容器数量。
+// 结果包含项目标识、名称、来源、工作目录、声明服务数，以及最近刷新和漂移状态。
 func toProjectListItem(
 	aggregate projectstore.ProjectAggregate,
 	runtimeSummary ...moduleapi.ContainerProjectRuntimeSummary,
@@ -2095,7 +2126,8 @@ func toProjectListItem(
 
 // toProjectDetailResponse 将项目聚合数据转换为详情响应。
 //
-// 当提供运行时汇总时，会填充容器运行与停止数量；当聚合包含快照时，会填充服务数。项目的错误信息和配置哈希仅在存在时写入响应。
+// toProjectDetailResponse 将项目聚合转换为详情响应，并在提供运行时汇总时填充容器运行与停止数量。
+// 当聚合包含快照时，会写入服务数；刷新错误信息和配置哈希仅在存在时写入响应。
 func toProjectDetailResponse(
 	aggregate projectstore.ProjectAggregate,
 	runtimeSummary ...moduleapi.ContainerProjectRuntimeSummary,
@@ -2259,7 +2291,8 @@ func yamlJSONRoundTrip(raw []byte, target any) error {
 }
 
 // digestServiceNames 计算服务名称集合的稳定摘要。
-// 它会按字典序规范化名称后生成 SHA-256 十六进制字符串。
+// digestServiceNames 对服务名按字典序排序后计算摘要。
+// 返回排序后的名称序列对应的 SHA-256 十六进制字符串。
 func digestServiceNames(names []string) string {
 	normalized := append([]string(nil), names...)
 	sort.Strings(normalized)
@@ -2271,6 +2304,8 @@ func digestServiceNames(names []string) string {
 	return hex.EncodeToString(hasher.Sum(nil))
 }
 
+// mustWriteDigestFragment 将摘要片段写入给定写入器。
+// 写入失败时会 panic。
 func mustWriteDigestFragment(writer io.Writer, value []byte) {
 	if _, err := writer.Write(value); err != nil {
 		panic(fmt.Sprintf("project digest writer failed: %v", err))
@@ -2278,7 +2313,8 @@ func mustWriteDigestFragment(writer io.Writer, value []byte) {
 }
 
 // buildRefreshProjectInput 组装项目刷新持久化输入，包含刷新状态、快照、文件与操作者信息。
-// 该输入将刷新时间、配置哈希、归一化后的 compose 快照和声明服务摘要写入存储层。
+// buildRefreshProjectInput 构建用于刷新项目存储记录的输入。
+// 它写入刷新状态、刷新时间、配置哈希、归一化后的 compose 快照和声明服务摘要，并保留操作者信息。
 func buildRefreshProjectInput(
 	projectID uint64,
 	parseResult projectcompose.Result,
@@ -2316,14 +2352,15 @@ func displayNameOrCanonical(displayName *string, canonical string) string {
 	return canonical
 }
 
-// fileName 返回路径中的最后一个段。
+// fileName 返回路径的最后一个段。
+// 它按正斜杠分割路径并取最后一项。
 func fileName(path string) string {
 	parts := strings.Split(path, "/")
 	return parts[len(parts)-1]
 }
 
 // ensureManagedProjectAggregate 仅允许受控根目录专用归属模式的项目进入受控草案流程。
-// 当项目归属模式不是 managed-root-dedicated 时返回 errProjectManagedFlow。
+// ensureManagedProjectAggregate 检查聚合是否处于 managed-root-dedicated 归属模式，并在不满足时返回 errProjectManagedFlow。
 func ensureManagedProjectAggregate(aggregate projectstore.ProjectAggregate) error {
 	if aggregate.Project.OwnershipMode != projectcontract.OwnershipModeManagedRootDedicated.String() {
 		return errProjectManagedFlow
@@ -2457,6 +2494,7 @@ func optionalString(value string) *string {
 	return stringPointer(value)
 }
 
+// stringValue 返回指针指向的字符串；当指针为 nil 时返回空字符串。
 func stringValue(value *string) string {
 	if value == nil {
 		return ""
@@ -2464,6 +2502,10 @@ func stringValue(value *string) string {
 	return *value
 }
 
+// mapManagedSourceCatalogStatus 将托管根状态映射为来源目录状态。
+//
+// @param status 托管根状态字符串。
+// @returns 目录状态值；当状态为 ready 时返回 "ready"，其余情况返回 "blocked"。
 func mapManagedSourceCatalogStatus(status string) string {
 	switch strings.TrimSpace(status) {
 	case projectcontract.ManagedRootStatusReady.String():
@@ -2475,6 +2517,8 @@ func mapManagedSourceCatalogStatus(status string) string {
 	}
 }
 
+// managedRootStatusReasonKey 将托管根状态映射为状态原因键。
+// 返回与给定托管根状态对应的原因键；当状态为就绪时返回 nil。
 func managedRootStatusReasonKey(status string) *string {
 	switch strings.TrimSpace(status) {
 	case projectcontract.ManagedRootStatusReady.String():
@@ -2488,6 +2532,9 @@ func managedRootStatusReasonKey(status string) *string {
 	}
 }
 
+// toGeneratedSourceMetadata 将源元数据映射为生成的项目来源元数据。
+//
+// 仅在至少有一个已知字段可映射时返回结果；否则返回 nil。
 func toGeneratedSourceMetadata(metadata map[string]string) *generated.ProjectSourceMetadata {
 	if len(metadata) == 0 {
 		return nil
@@ -2509,6 +2556,8 @@ func toGeneratedSourceMetadata(metadata map[string]string) *generated.ProjectSou
 	return &result
 }
 
+// assignSourceMetadataField 将来源元数据中的指定值去除首尾空白后写入目标指针。
+// 当对应值为空时保持目标不变。
 func assignSourceMetadataField(metadata map[string]string, key string, target **string) {
 	value := strings.TrimSpace(metadata[key])
 	if value == "" {
@@ -2517,6 +2566,9 @@ func assignSourceMetadataField(metadata map[string]string, key string, target **
 	*target = &value
 }
 
+// buildListSourceMetadata 为项目列表构建来源元数据。
+//
+// 当来源类型为受托管根或远程主机时返回对应的来源元数据；其他来源类型返回 nil。
 func buildListSourceMetadata(aggregate projectstore.ProjectAggregate) *generated.ProjectSourceMetadata {
 	switch strings.TrimSpace(aggregate.Project.SourceKind) {
 	case projectcontract.SourceKindManaged.String():
@@ -2528,6 +2580,7 @@ func buildListSourceMetadata(aggregate projectstore.ProjectAggregate) *generated
 	}
 }
 
+// 返回项目来源元数据；如果没有可映射的来源信息，则返回 nil。
 func buildDetailSourceMetadata(aggregate projectstore.ProjectAggregate) *generated.ProjectSourceMetadata {
 	switch strings.TrimSpace(aggregate.Project.SourceKind) {
 	case projectcontract.SourceKindManaged.String():
@@ -2539,6 +2592,9 @@ func buildDetailSourceMetadata(aggregate projectstore.ProjectAggregate) *generat
 	}
 }
 
+// buildManagedSourceMetadata 生成托管项目的来源元数据。
+//
+// 结果包含托管根标识、相对目录，以及已登记的 Compose 和环境文件名。
 func buildManagedSourceMetadata(aggregate projectstore.ProjectAggregate) *generated.ProjectSourceMetadata {
 	composeFiles := filterFiles(aggregate.Files, projectcontract.FileKindCompose.String())
 	envFiles := filterFiles(aggregate.Files, projectcontract.FileKindEnv.String())
@@ -2557,6 +2613,8 @@ func buildManagedSourceMetadata(aggregate projectstore.ProjectAggregate) *genera
 	return toGeneratedSourceMetadata(metadata)
 }
 
+// buildRemoteHostSourceMetadata 构建远程主机来源元数据。
+// 元数据包含活动权威和汇总范围。
 func buildRemoteHostSourceMetadata(aggregate projectstore.ProjectAggregate) *generated.ProjectSourceMetadata {
 	activityAuthority := string(resolveActivityAuthority(aggregate))
 	rollupScope := "planned-remote-summary"
@@ -2566,6 +2624,8 @@ func buildRemoteHostSourceMetadata(aggregate projectstore.ProjectAggregate) *gen
 	}
 }
 
+// resolveActivityAuthority 根据项目主机范围确定活动执行方式。
+// 当项目的 HostScope 为 remote 时返回 `ProjectActivityAuthorityBackendPlanned`，否则返回 `ProjectActivityAuthorityFrontendFanout`。
 func resolveActivityAuthority(aggregate projectstore.ProjectAggregate) ActivityAuthority {
 	if strings.TrimSpace(aggregate.Project.HostScope) == projectcontract.HostScopeRemote.String() {
 		return ProjectActivityAuthorityBackendPlanned
@@ -2573,6 +2633,8 @@ func resolveActivityAuthority(aggregate projectstore.ProjectAggregate) ActivityA
 	return ProjectActivityAuthorityFrontendFanout
 }
 
+// deriveManagedRelativeDirectory 从工作目录推导托管相对目录名。
+// 当输入为空、`.` 或根目录时返回空字符串；否则返回清理后的路径基名。
 func deriveManagedRelativeDirectory(workingDirectory string) string {
 	cleaned := filepath.Clean(strings.TrimSpace(workingDirectory))
 	if cleaned == "" || cleaned == "." || cleaned == string(filepath.Separator) {
