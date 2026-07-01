@@ -56,7 +56,7 @@ func projectManagedRootDefinition() configregistry.Definition {
 		TitleKey:         projectcontract.ProjectManagedRootConfigTitle.String(),
 		DescriptionKey:   projectcontract.ProjectManagedRootConfigDescription.String(),
 		Type:             configregistry.ValueTypeString,
-		Schema:           mustRawJSON(projectManagedRootSchema()),
+		Schema:           json.RawMessage(projectManagedRootSchema()),
 		DefaultValue:     mustRawJSON(defaultManagedRootDirectory),
 		RuntimeApplyMode: configregistry.RuntimeApplyModeRuntimeHot,
 		Permission:       projectcontract.ProjectCreatePermission.String(),
