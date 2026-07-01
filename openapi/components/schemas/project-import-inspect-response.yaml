@@ -1,0 +1,63 @@
+type: object
+required:
+  - inspection_id
+  - directory_ref
+  - resolved_working_directory
+  - canonical_project_name
+  - canonical_project_name_source
+  - display_name_suggested
+  - compose_files
+  - env_files
+  - services
+  - networks
+  - volumes
+  - config_hash
+  - warnings
+  - conflicts
+  - validation_status
+properties:
+  inspection_id:
+    type: string
+  directory_ref:
+    $ref: ./project-import-directory-reference.yaml
+  resolved_working_directory:
+    type: string
+  canonical_project_name:
+    type: string
+  canonical_project_name_source:
+    $ref: ./project-canonical-name-source.yaml
+  display_name_suggested:
+    type: string
+  compose_files:
+    type: array
+    items:
+      $ref: ./project-import-inspect-file-item.yaml
+  env_files:
+    type: array
+    items:
+      $ref: ./project-import-inspect-file-item.yaml
+  services:
+    type: array
+    items:
+      type: string
+  networks:
+    type: array
+    items:
+      type: string
+  volumes:
+    type: array
+    items:
+      type: string
+  config_hash:
+    type: string
+  warnings:
+    type: array
+    items:
+      type: string
+  conflicts:
+    type: array
+    items:
+      type: string
+  validation_status:
+    type: string
+    enum: [ready, conflict]

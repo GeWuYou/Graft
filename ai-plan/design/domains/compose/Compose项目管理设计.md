@@ -555,21 +555,30 @@ Volume 删除要单独判断：
 
 ## 9.1 输入
 
-Phase 1 导入表单建议包含：
+当前 live import flow 已从手填表单收口为目录选择 + inspect authority：
+
+1. 用户打开 `Import Existing Project`
+2. 用户通过 folder picker 选择一个 import directory
+3. backend 在 allowlisted root / managed-root injection 边界内解析该目录
+4. backend 自动发现 Compose / Env 文件并执行一次静态 inspect
+5. frontend 展示 inspect preview
+6. 用户只允许编辑：
+   - `display_name`
+   - `canonical_project_name_override`
+7. frontend 提交 `inspection_id` 驱动最终 import
+
+当前 import confirmation 表单固定只包含：
+
+- `display_name`
+- `canonical_project_name_override`
+
+当前不再要求用户手填：
 
 - `working_directory`
 - `compose_files[]`
-  - UI 默认自动发现；Phase 1 可只选择一个主文件，但 contract 必须支持有序多文件
 - `env_files[]`
-  - 默认自动识别 `.env`
-- `display_name`
-- `canonical_project_name_override`
-  - 高级选项，可空
 
-说明：
-
-- 如果用户只输入 `working_directory`，系统先尝试自动发现标准 Compose 文件。
-- `display_name` 与 `canonical_project_name` 必须分离，不再使用一个字段混合两种语义。
+这些字段都必须来自 inspect authority，而不是前端二次拼装。
 
 ## 9.2 文件发现
 
@@ -579,24 +588,30 @@ Phase 1 导入表单建议包含：
 2. `compose.yml`
 3. `docker-compose.yaml`
 4. `docker-compose.yml`
+5. `docker-compose.override.yml`
 
-Phase 1 规则：
+当前 live 规则：
 
-- 如果未显式选择文件，按上述顺序自动选取首个存在文件。
-- 如果存在多个候选文件，UI 应允许用户显式确认。
-- 合同层支持有序多文件；若 Phase 1 UI 只落单文件，数据模型也不能被锁死成单文件。
+- inspect 自动扫描：
+  - 上述 compose primary / override candidates
+  - `*.env`
+  - `.env.*`
+- 若发现多个 primary compose candidates，backend 仍按固定优先级选主文件并返回 warning。
+- 合同层继续支持有序多文件；当前 folder-pick import UI 不再暴露手工文件确认。
 
 ## 9.3 校验
 
-导入前必须校验：
+inspect / import 前必须校验：
 
-- `working_directory` 存在且可访问
-- 选定 Compose 文件存在
+- selected directory 在 provider/root allowlist 边界内
+- selected directory 存在且可访问
+- 自动发现的 Compose 文件存在
 - 路径解析后仍在允许边界内
 - Compose 语法与规范化解析成功
 - env file 可读取
 - Canonical Project Name 可计算
 - 唯一性校验通过
+- import 时 inspection snapshot 未过期、未 stale
 
 ## 9.4 冲突检测
 
@@ -604,20 +619,29 @@ Phase 1 规则：
 
 - 同一 `host_scope + canonical_project_name` 已存在
 - 同一 `working_directory + compose file set` 已存在
-- 选定文件缺失
+- inspect 后文件 hash 与 import 时重算结果不一致
+- 自动发现文件缺失
 - 文件内容不是有效 Compose 配置
 
 ## 9.5 导入步骤
 
-1. 解析并规范化输入路径
-2. 自动发现或确认 Compose 文件列表
-3. 读取 env file 集合
-4. 用 `compose-go` 做静态解析、合并与标准化
-5. 计算 `canonical_project_name`、`config_hash`、`normalized_compose_json`
-6. 执行唯一性与 ownership 预检查
-7. 持久化 `compose_projects`、`compose_project_files`、`compose_project_snapshots`
-8. 触发一次初始 `refresh` 结果写回
-9. 返回项目详情摘要
+1. frontend 请求 `GET /api/ops/projects/import/directory-sources`
+2. frontend 在一个 source root 下请求 `GET /api/ops/projects/import/directories`
+3. 用户选择 root-relative directory
+4. frontend 提交 `POST /api/ops/projects/import/inspect`
+5. backend 自动发现 compose/env files，并只解析一次 compose authority
+6. backend 生成：
+   - `inspection_id`
+   - `canonical_project_name`
+   - `display_name_suggested`
+   - `compose_files`
+   - `env_files`
+   - `services / networks / volumes`
+   - `warnings / conflicts`
+7. frontend 只提交 `inspection_id + editable overrides` 到 `POST /api/ops/projects/import`
+8. backend 校验 inspection TTL 与 file hash freshness
+9. backend 持久化 `compose_projects`、`compose_project_files`、`compose_project_snapshots`
+10. 返回项目详情摘要
 
 ## 9.6 输出
 
@@ -669,10 +693,52 @@ Phase 1 的 canonical OpenAPI authority 已收口到 `openapi/**`，本节继续
 
 | Method | Path | 语义 |
 | --- | --- | --- |
+| `GET` | `/api/ops/projects/import/directory-sources` | 返回 import flow 可用的 directory roots |
+| `GET` | `/api/ops/projects/import/directories` | 在一个 allowed root 下分页浏览目录 |
+| `POST` | `/api/ops/projects/import/inspect` | 自动发现并 inspect 一个 selected directory |
 | `POST` | `/api/ops/projects/import/validate` | 只校验输入与 Compose 解析，不持久化 |
 | `POST` | `/api/ops/projects/import` | 导入并注册项目 |
 
-`validate` 返回建议包含：
+`directory-sources` 返回：
+
+- `provider`
+- `root_id`
+- `label`
+- `path`
+- `managed`
+
+`directories` 返回：
+
+- `provider`
+- `root_id`
+- `current_path`
+- `parent_path`
+- `limit`
+- `offset`
+- `has_more`
+- `sort_by`
+- `order`
+- `directories[]`
+
+`inspect` 返回建议包含：
+
+- `inspection_id`
+- `directory_ref`
+- `resolved_working_directory`
+- `canonical_project_name`
+- `canonical_project_name_source`
+- `display_name_suggested`
+- `compose_files`
+- `env_files`
+- `services`
+- `networks`
+- `volumes`
+- `config_hash`
+- `warnings`
+- `conflicts`
+- `validation_status`
+
+legacy `validate` 返回建议包含：
 
 - 自动发现的 compose / env 文件
 - 解析到的 `canonical_project_name`
@@ -685,7 +751,7 @@ Phase 1 的 canonical OpenAPI authority 已收口到 `openapi/**`，本节继续
 
 - 项目主记录
 - 快照摘要
-- 初次 refresh 结果
+- import 使用的 inspect authority 已被消费，不接受前端重复提交 working directory / compose/env file sets
 
 ## 10.2A Phase 2 managed root 与 create contract
 
@@ -1193,6 +1259,16 @@ Configuration：
   - 在 `detail -> configuration` 页签内承载 Compose/Env draft editor、diff、validate 和 deploy flow
   - 仍保持 `detail` 页属于 `list-form-detail` page type，不把 Overview 变成 runtime dashboard
 
+## 16.3B Phase 2 archive-readiness check
+
+`phase-2-batch-5-phase-2-validation-drift-guard-and-governance-sync` 完成后，Phase 2 以同一 topic 内的 bounded batches 达到可审计验收状态：
+
+- managed root create、Compose/Env editor、diff、validate、deploy 路径均已落地并通过完整验证链
+- `Project` 继续只拥有 project registry、draft editor、静态 diff/validate 与 deploy orchestration
+- 不新增 project runtime persistence、project logs/events aggregation 或 project-owned container detail
+- `Container` 继续保持 runtime authority
+- Topic 不进入 `archive-ready`，因为 Phase 3 仍需按更小的 bounded batches 继续推进
+
 ## 16.4 Phase 3
 
 Management：
@@ -1211,6 +1287,132 @@ Configuration：
 
 - Multi-file override UX 强化
 - Git / template source metadata 深化
+
+## 16.4A Phase 3 rebatching建议
+
+为保持 `topic-completion-loop` 可继续执行，Phase 3 不应再保留单个大阶段占位，建议至少拆成以下安全 batches：
+
+- `phase-3-batch-1-git-template-source-contract-and-boundary`
+  - 只固定 git/template source metadata、route/permission/menu contract 与 authority boundary
+  - 不落 directory scan、auto discovery、remote host 或 backend activity aggregation
+- `phase-3-batch-2-directory-scan-and-auto-discovery-candidates`
+  - 只落 scan/discovery candidate model、候选结果 contract 与 bounded authority
+  - candidate 只产出发现结果，不直接注册 project，不改变 runtime authority
+- `phase-3-batch-3-remote-host-boundary-and-activity-authority`
+  - 先收敛 remote host 扩展边界与 project activity backend aggregation authority
+  - 未完成该批之前，不应把 project activity backend aggregation 当作 implementation-ready scope
+
+## 16.4D Phase 3 Batch 3 authority 落地说明
+
+`phase-3-batch-3-remote-host-boundary-and-activity-authority` 只收敛 remote-host 扩展边界与 project activity authority，不直接实现 remote execution 或 backend aggregation：
+
+- OpenAPI contract owner：`openapi/**`
+  - `project source catalog` 增加 `remote-host` planned entry，固定其 `host_scope=remote`
+  - `project list/detail` 固定 `activity_authority` 字段，明确当前是 `frontend-fanout` 还是 `backend-planned`
+  - `source_metadata` 允许的新增 planned 字段仅包括：
+    - `remote_host_key`
+    - `remote_compose_path`
+    - `activity_authority`
+    - `activity_rollup_scope`
+- Project module owner：`server/modules/project/**`
+  - `remote-host` 只作为 source selector / route / permission / metadata owner 进入 source catalog
+  - 不新增 remote host credential persistence、remote command execution、backend project logs/events aggregation、project realtime topic 或 project-level runtime cache
+  - 当前本机 `local` project 的 `activity_authority` 仍固定为 `frontend-fanout`
+  - future `remote` project 或 backend aggregation 只保留 `backend-planned` authority 标识，不视为 implementation-ready
+- Web module owner：`web/src/modules/project/**`
+  - `/ops/projects/create/remote-host` 只保留 planned boundary 页面
+  - project detail 明确展示当前 `activity authority`
+  - 当前 Activity tab 继续只做前端 fan-out；若 authority 为 `backend-planned`，UI 只提示 future boundary，不伪造后端数据
+
+当前 batch 的 hard boundary：
+
+- 不新增 remote host 持久化或连接测试
+- 不执行 remote `docker compose`
+- 不新增 backend project logs/events aggregation endpoint
+- 不新增 project realtime topic
+- 不把 discovery candidate 扩大成 auto-registration 或 unmanaged runtime ownership
+
+## 16.4B Phase 3 Batch 1 authority 落地说明
+
+`phase-3-batch-1-git-template-source-contract-and-boundary` 只收敛 source entry authority，不实现 source-specific materialization：
+
+- OpenAPI contract owner：`openapi/**`
+  - 新增 `GET /api/ops/projects/sources` 作为 source catalog authority
+  - `project list/detail`、`managed root`、`managed create validate/create` 增加最小 `source_metadata` / `source_type` 字段
+- Project module owner：`server/modules/project/**`
+  - source catalog 只声明 `managed | git | template` entrypoint、route path、permission、metadata field 列表与当前状态
+  - managed source 继续沿用现有执行逻辑，但路由边界收口到 `/create/managed`
+  - git/template 仅返回 `planned` entry，不执行 clone、模板实例化、目录扫描、remote host 或 backend activity aggregation
+- Web module owner：`web/src/modules/project/**`
+  - `/ops/projects/create` 固定为 source selector
+  - `/ops/projects/create/managed` 承接现有 managed create 页面
+  - `/ops/projects/create/git` 与 `/ops/projects/create/template` 只保留 planned boundary 占位页
+
+IA guardrail:
+
+- `source selector` 只是 Phase 3 boundary inspection surface，不得替代 Phase 1 `Import Existing Project` 主入口。
+- `managed create` 是 Phase 2 的真实入口，应继续由 `/ops/projects/create/managed` 承载。
+- 如果列表页或空态只能给一个主按钮，默认必须先给 `Import Existing Project`，不能默认把用户送进 planned boundary。
+
+当前批次允许的 `source_metadata` 范围：
+
+- managed
+  - `managed_root_key`
+  - `managed_relative_directory`
+  - `managed_compose_file_name`
+  - `managed_env_file_name`
+- git
+  - `git_repository_url`
+  - `git_reference`
+  - `git_compose_subpath`
+- template
+  - `template_key`
+  - `template_version`
+  - `template_instance_name`
+
+禁止把这些 metadata 提前扩大成：
+
+- project-level runtime persistence
+- git clone state / sync state
+- template materialization job state
+- backend project logs/events aggregation state
+
+## 16.4C Phase 3 Batch 2 authority 落地说明
+
+`phase-3-batch-2-directory-scan-and-auto-discovery-candidates` 只收敛 discovery candidate authority，不引入 project registry 自动写入或后台发现任务：
+
+- OpenAPI contract owner：`openapi/**`
+  - 新增 `GET /api/ops/projects/discovery-candidates`
+  - 固定 candidate 只读 contract：`candidate_key`、`candidate_kind`、`source_kind/source_type`、`working_directory`、`compose/env file list`、`declared_service_names`、`config_hash`、`warnings`、`conflicts`、`recommended_action`
+- Project module owner：`server/modules/project/**`
+  - 以当前 `managed root` 作为 bounded local scan authority
+  - 本批只做本机受限目录扫描和 auto-discovery preview 结果投影
+  - candidate 只作为 discovery/preview surface，不写 registry、不自动调用 import、不产生 project-level runtime persistence
+  - candidate 冲突只复用现有 registry conflict 规则进行 `review/import` 建议，不新增 compatibility layer
+- Web module owner：`web/src/modules/project/**`
+  - 在 `/ops/projects/create` source selector 下新增 hidden discovery preview surface
+  - UI 只展示 authority root、候选状态、建议动作和冲突/文件预览，不直接注册项目
+
+当前 batch 固定的 candidate 字段语义：
+
+- `candidate_kind`
+  - `directory-scan`
+  - `auto-discovery`
+- `status`
+  - `ready`
+  - `conflict`
+  - `skipped`
+- `recommended_action`
+  - `import`
+  - `review`
+
+当前 batch 的 hard boundary：
+
+- 不自动注册 project
+- 不写数据库 candidate 持久化
+- 不新增后台 auto discovery scheduler / watcher
+- 不扩展到 remote host
+- 不引入 backend project activity aggregation
 
 ## 17. 最终结论
 

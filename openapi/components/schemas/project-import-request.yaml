@@ -1,0 +1,15 @@
+type: object
+required:
+  - inspection_id
+properties:
+  inspection_id:
+    type: string
+    minLength: 1
+  display_name:
+    type: string
+    minLength: 1
+    maxLength: 120
+  canonical_project_name_override:
+    type: string
+    minLength: 1
+    nullable: true

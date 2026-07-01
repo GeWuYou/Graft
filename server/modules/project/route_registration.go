@@ -34,7 +34,7 @@ type boundProjectConfigurationDraft[T any] struct {
 
 // registerRoutes 为项目模块注册路由并挂载权限校验与请求追踪中间件。
 // 当路由器不可用时直接返回；当服务缺失时返回错误。
-// 注册的接口覆盖项目列表、导入、创建、详情、配置、刷新、部署及生命周期和销毁操作。
+// 当上下文或路由器为空时直接返回；当服务或权限依赖无法解析时返回错误。
 func registerRoutes(ctx *module.Context, moduleName string, service *Service) error {
 	if ctx == nil || ctx.Router == nil {
 		return nil
@@ -57,7 +57,12 @@ func registerRoutes(ctx *module.Context, moduleName string, service *Service) er
 	group.Use(httpx.RequestIDMiddleware())
 	group.GET(projectcontract.ProjectCollectionRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectViewPermission.String(), publisher), routes.handleList)
 	group.POST(projectcontract.ProjectImportValidateRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectImportPermission.String(), publisher), routes.handleImportValidate)
+	group.POST(projectcontract.ProjectImportInspectRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectImportPermission.String(), publisher), routes.handleImportInspect)
 	group.POST(projectcontract.ProjectImportRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectImportPermission.String(), publisher), routes.handleImport)
+	group.GET(projectcontract.ProjectImportDirectorySourcesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectImportPermission.String(), publisher), routes.handleImportDirectorySources)
+	group.GET(projectcontract.ProjectImportDirectoriesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectImportPermission.String(), publisher), routes.handleImportDirectories)
+	group.GET(projectcontract.ProjectSourcesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectSourceViewPermission.String(), publisher), routes.handleSources)
+	group.GET(projectcontract.ProjectDiscoveryCandidatesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectDiscoveryViewPermission.String(), publisher), routes.handleDiscoveryCandidates)
 	group.GET(projectcontract.ProjectManagedRootRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectCreatePermission.String(), publisher), routes.handleManagedRoot)
 	group.POST(projectcontract.ProjectCreateValidateRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectCreatePermission.String(), publisher), routes.handleCreateValidate)
 	group.POST(projectcontract.ProjectCreateRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectCreatePermission.String(), publisher), routes.handleCreate)
@@ -117,13 +122,82 @@ func (r routeRuntime) handleImport(ginCtx *gin.Context) {
 	if !bindJSON(ginCtx, r.ctx, &request) {
 		return
 	}
-	projectGeneratedHandler{}.PostProjectImport(bindCommonParams(ginCtx), request)
-	result, err := r.service.Import(ginCtx.Request.Context(), toImportRequest(ginCtx, request))
+	projectGeneratedHandler{}.PostProjectImport(bindPostProjectImportParams(ginCtx), request)
+	result, err := r.service.ImportByInspection(ginCtx.Request.Context(), ImportExecuteRequest{
+		InspectionID:                 request.InspectionId,
+		DisplayName:                  request.DisplayName,
+		CanonicalProjectNameOverride: request.CanonicalProjectNameOverride,
+		ActorID:                      currentUserIDPointer(ginCtx),
+	})
 	if err != nil {
 		r.writeRouteError(ginCtx, err)
 		return
 	}
 	httpx.WriteSuccess(ginCtx, http.StatusOK, result)
+}
+
+func (r routeRuntime) handleImportInspect(ginCtx *gin.Context) {
+	var request generated.PostProjectImportInspectJSONRequestBody
+	if !bindJSON(ginCtx, r.ctx, &request) {
+		return
+	}
+	projectGeneratedHandler{}.PostProjectImportInspect(bindPostProjectImportInspectParams(ginCtx), request)
+	result, err := r.service.InspectImportDirectory(ginCtx.Request.Context(), ImportInspectRequest{
+		DirectoryRef: ImportDirectoryReference{
+			Provider: request.DirectoryRef.Provider,
+			RootID:   request.DirectoryRef.RootId,
+			Path:     request.DirectoryRef.Path,
+		},
+		DisplayName:                  request.DisplayName,
+		CanonicalProjectNameOverride: request.CanonicalProjectNameOverride,
+	})
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, result)
+}
+
+func (r routeRuntime) handleImportDirectorySources(ginCtx *gin.Context) {
+	result, err := r.service.ImportDirectorySources(ginCtx.Request.Context())
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, result)
+}
+
+func (r routeRuntime) handleImportDirectories(ginCtx *gin.Context) {
+	query, ok := bindImportDirectoryBrowseQuery(ginCtx, r.ctx)
+	if !ok {
+		return
+	}
+	result, err := r.service.BrowseImportDirectories(ginCtx.Request.Context(), query)
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, result)
+}
+
+func (r routeRuntime) handleSources(ginCtx *gin.Context) {
+	projectGeneratedHandler{}.GetProjectSources(bindGetProjectSourcesParams(ginCtx))
+	result, err := r.service.SourceCatalog(ginCtx.Request.Context())
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, toSourceCatalogResponse(result))
+}
+
+func (r routeRuntime) handleDiscoveryCandidates(ginCtx *gin.Context) {
+	projectGeneratedHandler{}.GetProjectDiscoveryCandidates(bindGetProjectDiscoveryCandidatesParams(ginCtx))
+	result, err := r.service.DiscoveryCandidates(ginCtx.Request.Context())
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, toDiscoveryCandidatesResponse(result))
 }
 
 func (r routeRuntime) handleManagedRoot(ginCtx *gin.Context) {
@@ -384,22 +458,24 @@ func (r routeRuntime) writeRouteError(ginCtx *gin.Context, err error) {
 func (r routeRuntime) writeRouteErrorWithAction(ginCtx *gin.Context, err error, action ActionResult) {
 	switch {
 	case errors.Is(err, errProjectInvalidArgument), errors.Is(err, errProjectImportValidation), errors.Is(err, errProjectFileNotFound):
-		details := map[string]any{"code": projectcontract.ProjectInvalidArgument.String()}
-		if errors.Is(err, errProjectFileNotFound) {
-			details["code"] = projectcontract.ProjectInvalidFileID.String()
-		}
-		httpx.WriteLocalizedErrorCode(ginCtx, r.ctx.I18n, http.StatusBadRequest, projectcontract.ProjectInvalidArgument.String(), messagecontract.CommonInvalidArgument.String(), details)
+		r.writeInvalidArgumentError(ginCtx, err)
 	case errors.Is(err, errProjectNotFound):
-		httpx.WriteLocalizedErrorCode(ginCtx, r.ctx.I18n, http.StatusNotFound, projectcontract.ProjectNotFound.String(), messagecontract.CommonInvalidArgument.String(), map[string]any{"code": projectcontract.ProjectNotFound.String()})
+		r.writeLocalizedProjectError(ginCtx, http.StatusNotFound, projectcontract.ProjectNotFound.String())
 	case errors.Is(err, errProjectConflict):
-		httpx.WriteLocalizedErrorCode(ginCtx, r.ctx.I18n, http.StatusConflict, projectcontract.ProjectConflict.String(), messagecontract.CommonInvalidArgument.String(), map[string]any{"code": projectcontract.ProjectConflict.String()})
+		r.writeLocalizedProjectError(ginCtx, http.StatusConflict, projectcontract.ProjectConflict.String())
+	case errors.Is(err, errProjectDirectoryForbidden):
+		r.writeLocalizedProjectError(ginCtx, http.StatusForbidden, projectcontract.ProjectDirectoryBrowseForbidden.String())
+	case errors.Is(err, errProjectInspectionExpired):
+		r.writeLocalizedProjectError(ginCtx, http.StatusConflict, projectcontract.ProjectInspectionExpired.String())
+	case errors.Is(err, errProjectInspectionStale):
+		r.writeLocalizedProjectError(ginCtx, http.StatusConflict, projectcontract.ProjectInspectionStale.String())
 	case errors.Is(err, errProjectDestroyBlocked):
-		httpx.WriteLocalizedErrorCode(ginCtx, r.ctx.I18n, http.StatusConflict, projectcontract.ProjectConflict.String(), messagecontract.CommonInvalidArgument.String(), map[string]any{
+		r.writeLocalizedActionError(ginCtx, http.StatusConflict, projectcontract.ProjectConflict.String(), map[string]any{
 			"code":         projectcontract.ProjectConflict.String(),
 			"actionResult": toActionResponse(action),
 		})
 	case errors.Is(err, errProjectUnsupportedLifecycle), errors.Is(err, errProjectManagedFlow):
-		httpx.WriteLocalizedErrorCode(ginCtx, r.ctx.I18n, http.StatusConflict, projectcontract.ProjectUnsupportedLifecycle.String(), messagecontract.CommonInvalidArgument.String(), map[string]any{
+		r.writeLocalizedActionError(ginCtx, http.StatusConflict, projectcontract.ProjectUnsupportedLifecycle.String(), map[string]any{
 			"code":         mapLifecycleErrorCode(err),
 			"actionResult": toActionResponse(action),
 		})
@@ -409,12 +485,33 @@ func (r routeRuntime) writeRouteErrorWithAction(ginCtx *gin.Context, err error, 
 	ginCtx.Abort()
 }
 
+func (r routeRuntime) writeInvalidArgumentError(ginCtx *gin.Context, err error) {
+	code := projectcontract.ProjectInvalidArgument.String()
+	if errors.Is(err, errProjectFileNotFound) {
+		code = projectcontract.ProjectInvalidFileID.String()
+	}
+	r.writeLocalizedActionError(ginCtx, http.StatusBadRequest, projectcontract.ProjectInvalidArgument.String(), map[string]any{"code": code})
+}
+
+func (r routeRuntime) writeLocalizedProjectError(ginCtx *gin.Context, status int, code string) {
+	r.writeLocalizedActionError(ginCtx, status, code, map[string]any{"code": code})
+}
+
+func (r routeRuntime) writeLocalizedActionError(ginCtx *gin.Context, status int, code string, details map[string]any) {
+	httpx.WriteLocalizedErrorCode(ginCtx, r.ctx.I18n, status, code, projectErrorMessageKey(code), details)
+}
+
 type projectGeneratedHandler struct{}
 
-func (projectGeneratedHandler) GetProjects(generated.GetProjectsParams) {}
+func (projectGeneratedHandler) GetProjects(generated.GetProjectsParams)             {}
+func (projectGeneratedHandler) GetProjectSources(generated.GetProjectSourcesParams) {}
+func (projectGeneratedHandler) GetProjectDiscoveryCandidates(generated.GetProjectDiscoveryCandidatesParams) {
+}
 func (projectGeneratedHandler) PostProjectImportValidate(generated.PostProjectImportValidateParams, generated.PostProjectImportValidateJSONRequestBody) {
 }
 func (projectGeneratedHandler) PostProjectImport(generated.PostProjectImportParams, generated.PostProjectImportJSONRequestBody) {
+}
+func (projectGeneratedHandler) PostProjectImportInspect(generated.PostProjectImportInspectParams, generated.PostProjectImportInspectJSONRequestBody) {
 }
 func (projectGeneratedHandler) GetProjectManagedRoot(generated.GetProjectManagedRootParams) {}
 func (projectGeneratedHandler) PostProjectCreateValidate(generated.PostProjectCreateValidateParams, generated.PostProjectCreateValidateJSONRequestBody) {
@@ -555,7 +652,10 @@ func bindProjectID(ginCtx *gin.Context, ctx *module.Context) (uint64, int64, boo
 }
 
 // bindProjectFileID 解析并校验路由参数中的文件 ID。
-// 成功时返回文件 ID 及其 int64 形式；校验失败时写入本地化错误并中止请求。
+// bindProjectFileID 提取并校验路径中的文件 ID。
+// 成功时返回文件 ID 及其 int64 形式；当参数无效时写入本地化错误并中止请求。
+//
+// @return 成功时返回文件 ID、其 int64 形式以及 true；校验失败时返回 0、0 和 false。
 func bindProjectFileID(ginCtx *gin.Context, ctx *module.Context) (uint64, int64, bool) {
 	raw := strings.TrimSpace(ginCtx.Param("fileId"))
 	value, err := strconv.ParseUint(raw, 10, 64)
@@ -567,16 +667,63 @@ func bindProjectFileID(ginCtx *gin.Context, ctx *module.Context) (uint64, int64,
 	return value, int64(value), true
 }
 
-// bindCommonParams 从请求头构造项目导入接口的公共参数。
-func bindCommonParams(ginCtx *gin.Context) generated.PostProjectImportParams {
+// bindImportValidateParams 组装导入校验接口的请求参数，包含请求语言和请求 ID。
+func bindImportValidateParams(ginCtx *gin.Context) generated.PostProjectImportValidateParams {
+	locale, requestID := commonHeaders(ginCtx)
+	return generated.PostProjectImportValidateParams{XGraftLocale: locale, XRequestId: requestID}
+}
+
+// bindPostProjectImportParams 组装项目导入接口的请求参数。
+// 它从请求头中提取 `XGraftLocale` 和 `XRequestId` 并填充到返回值中。
+func bindPostProjectImportParams(ginCtx *gin.Context) generated.PostProjectImportParams {
 	locale, requestID := commonHeaders(ginCtx)
 	return generated.PostProjectImportParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
-// 返回包含请求语言和请求 ID 的参数结构体。
-func bindImportValidateParams(ginCtx *gin.Context) generated.PostProjectImportValidateParams {
+// bindPostProjectImportInspectParams 组装项目导入检查请求所需的公共头参数。
+// 它会填充 `XGraftLocale` 和 `XRequestId`。
+func bindPostProjectImportInspectParams(ginCtx *gin.Context) generated.PostProjectImportInspectParams {
 	locale, requestID := commonHeaders(ginCtx)
-	return generated.PostProjectImportValidateParams{XGraftLocale: locale, XRequestId: requestID}
+	return generated.PostProjectImportInspectParams{XGraftLocale: locale, XRequestId: requestID}
+}
+
+// bindGetProjectSourcesParams 组装项目来源接口的公共请求参数。
+// 它从请求中提取语言和请求 ID，并填充到生成的参数结构中。
+func bindGetProjectSourcesParams(ginCtx *gin.Context) generated.GetProjectSourcesParams {
+	locale, requestID := commonHeaders(ginCtx)
+	return generated.GetProjectSourcesParams{XGraftLocale: locale, XRequestId: requestID}
+}
+
+// bindGetProjectDiscoveryCandidatesParams 构造项目发现候选列表请求参数。
+//
+// 它从请求头中提取语言和请求 ID，并填充到生成的参数中。
+func bindGetProjectDiscoveryCandidatesParams(ginCtx *gin.Context) generated.GetProjectDiscoveryCandidatesParams {
+	locale, requestID := commonHeaders(ginCtx)
+	return generated.GetProjectDiscoveryCandidatesParams{XGraftLocale: locale, XRequestId: requestID}
+}
+
+// 当分页参数无效时会中止当前请求并返回 false。
+func bindImportDirectoryBrowseQuery(ginCtx *gin.Context, ctx *module.Context) (ImportDirectoryBrowseQuery, bool) {
+	query := ginCtx.Request.URL.Query()
+	limit, ok := optionalIntQuery[int](query.Get("limit"), 1, importDirectoryBrowseMaxLimit)
+	if !ok {
+		abortInvalidQuery(ginCtx, ctx)
+		return ImportDirectoryBrowseQuery{}, false
+	}
+	offset, ok := optionalIntQuery[int](query.Get("offset"), 0, 0)
+	if !ok {
+		abortInvalidQuery(ginCtx, ctx)
+		return ImportDirectoryBrowseQuery{}, false
+	}
+	return ImportDirectoryBrowseQuery{
+		Provider: strings.TrimSpace(query.Get("provider")),
+		RootID:   strings.TrimSpace(query.Get("root_id")),
+		Path:     strings.TrimSpace(query.Get("path")),
+		Limit:    intPtrValue(limit),
+		Offset:   intPtrValue(offset),
+		SortBy:   strings.TrimSpace(query.Get("sort")),
+		Order:    strings.TrimSpace(query.Get("order")),
+	}, true
 }
 
 // bindGetProjectParams 生成获取项目接口的请求参数，包含语言和请求 ID。
@@ -808,6 +955,14 @@ func mapLifecycleErrorCode(err error) string {
 		return projectcontract.ProjectManagedFlowUnsupported.String()
 	}
 	return projectcontract.ProjectUnsupportedLifecycle.String()
+}
+
+func projectErrorMessageKey(code string) string {
+	code = strings.TrimSpace(code)
+	if code == "" {
+		return messagecontract.CommonInvalidArgument.String()
+	}
+	return code
 }
 
 // resolveAuthService 从服务容器中解析 AuthService。

@@ -1,4 +1,18 @@
 menu.ops.project.title: Compose 项目管理
+ops.project.error.invalidProjectId: 项目标识不合法。
+ops.project.error.invalidFileId: 项目文件标识不合法。
+ops.project.error.invalidArgument: 项目请求参数不合法。
+ops.project.error.conflict: 当前项目状态存在冲突，无法执行该操作。
+ops.project.error.notFound: 未找到对应的项目。
+ops.project.error.unsupportedLifecycle: 当前项目状态不支持该生命周期操作。
+ops.project.error.importValidationFailed: 项目导入检查未通过校验。
+ops.project.error.managedRootUnconfigured: 受管项目根目录尚未配置。
+ops.project.error.managedRootInvalid: 受管项目根目录配置无效。
+ops.project.error.managedFlowUnsupported: 当前项目不支持该受管流程操作。
+ops.project.error.sourceUnsupported: 当前阶段不支持该项目来源。
+ops.project.error.directoryBrowseForbidden: 项目导入目录超出允许的根目录范围。
+ops.project.error.inspectionExpired: 项目导入检查已过期。
+ops.project.error.inspectionStale: 项目导入检查结果已与文件系统不一致。
 rbac.permissionCatalog.projectView.display: 查看 Compose 项目
 rbac.permissionCatalog.projectView.description: 读取已注册 Compose 项目的摘要和只读详情。
 rbac.permissionCatalog.projectImport.display: 导入 Compose 项目
@@ -10,8 +24,17 @@ rbac.permissionCatalog.projectLifecycle.description: 执行受限的 Compose 生
 rbac.permissionCatalog.projectDestroy.display: 注销或销毁 Compose 项目
 rbac.permissionCatalog.projectDestroy.description: 对项目记录执行注销和受保护的销毁动作。
 rbac.permissionCatalog.projectCreate.display: 创建受管 Compose 项目
-rbac.permissionCatalog.projectCreate.description: 检查受管根目录 authority，并访问后续的 managed create 工作流。
+rbac.permissionCatalog.projectCreate.description: 查看受管根目录设置，并创建受管 Compose 项目。
+rbac.permissionCatalog.projectSourceView.display: 查看项目来源目录
+rbac.permissionCatalog.projectSourceView.description: 查看可用的项目来源，以及 managed、git、template 工作流的入口路由。
+rbac.permissionCatalog.projectDiscoveryView.display: 查看项目发现候选项
+rbac.permissionCatalog.projectDiscoveryView.description: 预览本机发现到的 Compose 目录，不直接注册项目。
 rbac.permissionCatalog.projectDeploy.display: 部署受管 Compose 项目草稿
-rbac.permissionCatalog.projectDeploy.description: 在 bounded project authority 内对受管项目配置草稿执行 diff、validate 和 deploy。
+rbac.permissionCatalog.projectDeploy.description: 对受管项目配置草稿执行 diff、validate 和 deploy。
+ops.project.source.managed.description: 在已配置的受管根目录中创建受管 Compose 项目。
+ops.project.source.git.description: 基于 Git 的项目创建暂未提供。
+ops.project.source.template.description: 基于模板的项目创建暂未提供。
+ops.project.source.remoteHost.description: 基于远程主机的项目创建暂未提供。
+ops.project.discovery.candidates.ready: 项目发现候选预览已就绪。
 systemConfig.project.ops.project.managed.root_directory.title: 受管项目根目录
-systemConfig.project.ops.project.managed.root_directory.description: Managed Compose 项目创建流程使用的 canonical 根目录。空字符串表示 managed create 尚未配置。
+systemConfig.project.ops.project.managed.root_directory.description: 受管 Compose 项目创建使用的根目录。留空表示暂未开放受管创建。

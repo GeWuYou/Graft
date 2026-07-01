@@ -63,6 +63,10 @@ Compose Project Management
   - `openapi/**`、`server/modules/project/**`、`web/src/modules/project/**` 已共同落地 managed compose project 的 `diff / validate / deploy` 流程。
   - `Project` 仍只拥有配置草稿、差异、校验和部署编排，没有引入项目级 runtime 持久化，也没有越界到 container 私有实现或后端 project logs/events 聚合。
   - 前端仍在 `project detail` 的 `list-form-detail` 页型中承接 Configuration tab 下的编辑、diff、validate、deploy 流程。
+- Phase 2 Batch 5 已完成：
+  - Phase 2 managed create/edit/diff/validate/deploy slice 的验证链已重新跑通，未发现 contract、generated、validation 或 governance drift 需要额外实现修补。
+  - Phase 2 archive-readiness check 已通过：`Project` 继续只拥有 project registry、draft editor、静态 diff/validate 与 deploy orchestration，没有引入 project-level runtime persistence 或 backend project logs/events aggregation。
+  - 原有过宽的 `phase-3-discovery-git-template-and-remote-host` 已重切为安全 bounded batches，并把下一步前移到 `phase-3-batch-1-git-template-source-contract-and-boundary`。
 - 当前 authority 决议：
   - `Project` 不得持久化容器运行时信息。
   - `Project` 不得新增自己的 container detail。
@@ -85,8 +89,11 @@ Compose Project Management
 - [x] phase-2-batch-2：server managed create、compose/env file write path、snapshot bootstrap
 - [x] phase-2-batch-3：web managed create、compose/env editors
 - [x] phase-2-batch-4：diff、validate、deploy flow
-- [ ] phase-2-batch-5：Phase 2 validation、drift guard、docs sync、Phase 2 archive-readiness check
-- [ ] Phase 3：git/template/scan/discovery/remote-host/backend activity aggregation
+- [x] phase-2-batch-5：Phase 2 validation、drift guard、docs sync、Phase 2 archive-readiness check
+- [x] phase-3-batch-1：git/template source contract、metadata boundary、route/permission owner
+- [x] phase-3-batch-2：directory scan、candidate model、auto discovery bounded authority
+- [ ] phase-3-batch-3：remote host boundary、project activity authority decision
+- [ ] drift-repair：恢复 Phase 1 import 主入口、托管创建次入口、source selector 边界定位，以及 topic truth
 
 ## Phase 1 Acceptance Conditions
 
@@ -106,10 +113,45 @@ Compose Project Management
 - 支持 Compose / Env 编辑
 - 支持 diff / validate / deploy
 
+2026-07-01 archive-readiness check：
+
+- 通过完整验证链：`git diff --check`、`node scripts/openapi-bundle.mjs`、`python3 scripts/validate_sql_migrations.py --paths server/modules/project/migrations/202606300002_project_registry_baseline.sql`、`cd server && go run ./cmd/graft validate backend`、`cd web && bun run check`
+- `Project` 与 `Container` authority 边界保持稳定，没有引入 project-level runtime persistence、project-owned container detail 或 backend project logs/events aggregation
+- Topic 未进入 `archive-ready`，因为安全重切后的 Phase 3 bounded work 仍明确存在
+
 ## Phase 3 Acceptance Conditions
 
 - 支持 git/template/scan/discovery/remote-host 扩展路径
 - 支持后端 project activity aggregation authority
+
+当前 batch-1 已完成的前置条件：
+
+- source catalog authority 已固定到 `openapi/** + server/modules/project/** + web/src/modules/project/**`
+- source selector 与 `managed/git/template` route boundary 已固定
+- git/template 仍保持 planned，不存在 runtime persistence、directory scan、remote host 或 backend activity aggregation 越界
+
+当前 batch-2 已完成的前置条件：
+
+- `openapi/**` 已固定 discovery candidate 只读 contract 与 `/api/ops/projects/discovery-candidates` route owner
+- `server/modules/project/**` 已把 managed root 收口为 bounded local scan authority，只返回 candidate preview，不自动注册 project
+- `web/src/modules/project/**` 已在 source selector 下提供 hidden discovery preview surface，不越界到 remote host 或 backend activity aggregation
+
+当前 batch-3 的当前状态：
+
+- `openapi/**` 已把 `remote-host` 固定为 planned source entry，并为 project list/detail 固定 `activity_authority` contract
+- `server/modules/project/**` 已把 remote-host 收口为 source catalog / route / metadata owner，不引入 remote execution、credential persistence 或 backend activity aggregation
+- `web/src/modules/project/**` 已提供 `/ops/projects/create/remote-host` planned boundary，并在 detail 页面显式提示当前 activity authority
+
+## Topic Archive-Readiness Check
+
+- Phase 1 acceptance conditions：已满足
+- Phase 2 acceptance conditions：已满足
+- Phase 3 acceptance conditions：未满足
+  - git/template/scan/discovery/remote-host 扩展路径目前只完成了部分 authority boundary
+  - 后端 project activity aggregation authority 仍停留在 `backend-planned`
+- 当前 topic 不是 `archive-ready`：
+  - 主入口 IA 已从 Phase 1/2 设计偏移到 Phase 3 boundary surface，必须先修复入口 truth
+  - `compose-project-management` 的 recovery docs 与实际可用性需要重新对齐
 
 ## Loop Batch State
 
@@ -126,14 +168,17 @@ Compose Project Management
     "phase-2-batch-1-managed-root-and-create-contracts",
     "phase-2-batch-2-server-managed-create-and-file-write-path",
     "phase-2-batch-3-web-managed-create-and-editors",
-    "phase-2-batch-4-diff-validate-and-deploy-flow"
+    "phase-2-batch-4-diff-validate-and-deploy-flow",
+    "phase-2-batch-5-phase-2-validation-drift-guard-and-governance-sync",
+    "phase-3-batch-1-git-template-source-contract-and-boundary",
+    "phase-3-batch-2-directory-scan-and-auto-discovery-candidates"
   ],
   "pending_batches": [
-    "phase-2-batch-5-phase-2-validation-drift-guard-and-governance-sync",
-    "phase-3-discovery-git-template-and-remote-host"
+    "drift-repair-import-primary-entry-and-topic-truth",
+    "phase-3-batch-3-remote-host-boundary-and-activity-authority"
   ],
-  "current_batch": "phase-2-batch-4-diff-validate-and-deploy-flow",
-  "next_batch": "phase-2-batch-5-phase-2-validation-drift-guard-and-governance-sync",
-  "closeout_status": "phase-2-batch-4-completed"
+  "current_batch": "drift-repair-import-primary-entry-and-topic-truth",
+  "next_batch": "phase-3-batch-3-remote-host-boundary-and-activity-authority",
+  "closeout_status": "drift-repair-in-progress"
 }
 ```

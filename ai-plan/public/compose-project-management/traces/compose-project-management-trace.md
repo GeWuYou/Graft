@@ -173,6 +173,107 @@
   - `cd web && bun run check`
 - 本批已提交：`beb75a48` `feat(project): add managed diff validate deploy flow`
 
+## 2026-07-01 Phase 2 Batch 5 validation drift guard and governance sync
+
+- 重新运行 Phase 2 closeout validation chain，确认 managed create/edit/diff/validate/deploy slice 与 generated/runtime consumers 没有新增 drift：
+  - `git diff --check`
+  - `node scripts/openapi-bundle.mjs`
+  - `python3 scripts/validate_sql_migrations.py --paths server/modules/project/migrations/202606300002_project_registry_baseline.sql`
+  - `cd server && go run ./cmd/graft validate backend`
+  - `cd web && bun run check`
+- 本批未新增实现 authority owner；本轮只同步 `ai-plan/design/**` 与 active topic recovery materials，记录 Phase 2 acceptance 已可审计、可验收。
+- 完成 Phase 2 archive-readiness check：
+  - managed root create、Compose/Env editor、diff、validate、deploy 路径均已落地并通过完整验证链。
+  - `Project` 与 `Container` authority 边界保持稳定，没有引入 project-level runtime persistence、project-owned container detail 或 backend project logs/events aggregation。
+- Topic 未进入 `archive-ready`，因为 `Phase 3` 仍存在明确后续 bounded work。
+- 将原来的 `phase-3-discovery-git-template-and-remote-host` 重切为安全的 Phase 3 batches：
+  - `phase-3-batch-1-git-template-source-contract-and-boundary`
+  - `phase-3-batch-2-directory-scan-and-auto-discovery-candidates`
+  - `phase-3-batch-3-remote-host-boundary-and-activity-authority`
+
+## 2026-07-01 Phase 3 Batch 1 git/template source contract and boundary
+
+- 落地 `openapi/**` authority owner：
+  - 新增 `GET /api/ops/projects/sources` source catalog contract。
+  - 为 project list/detail 以及 managed source 响应补充最小 `source_metadata` / `source_type` contract。
+- 落地 `server/modules/project/**` authority owner：
+  - 新增 source catalog service 与 route。
+  - 现有 managed create 路由收口到 `/create/managed`。
+  - git/template 只保留 `planned` source entry，不执行 clone、template instantiate、directory scan、remote host 或 backend activity aggregation。
+- 落地 `web/src/modules/project/**` authority owner：
+  - `/ops/projects/create` 固定为 source selector。
+  - `/ops/projects/create/managed` 承接现有 managed create 页面。
+  - `/ops/projects/create/git` 和 `/ops/projects/create/template` 只保留 planned boundary 占位页。
+
+## 2026-07-01 Phase 3 Batch 2 directory scan and auto-discovery candidates
+
+- 落地 `openapi/**` authority owner：
+  - 新增 `GET /api/ops/projects/discovery-candidates` 作为 discovery candidate 只读 contract source。
+  - 固定 candidate preview 的字段边界：`candidate_key`、`candidate_kind`、`status`、`recommended_action`、`working_directory`、`compose/env files`、`declared_service_names`、`config_hash`、`warnings`、`conflicts`。
+- 落地 `server/modules/project/**` authority owner：
+  - 以 `managed root` 作为 bounded local directory scan authority。
+  - 只返回 directory-scan / auto-discovery candidate preview，不写 registry、不自动 import、不引入后台发现任务。
+  - 冲突复用现有 registry conflict 规则，仅返回 `review/import` 建议。
+- 落地 `web/src/modules/project/**` authority owner：
+  - 在 source selector 下新增 hidden discovery preview 页面。
+  - UI 只展示 authority root、候选状态、建议动作与冲突/文件预览，不越界到 remote host 或 backend activity aggregation。
+
+## 2026-07-01 Phase 3 Batch 3 remote-host boundary and activity authority
+
+- 落地 `openapi/**` authority owner：
+  - source catalog 新增 `remote-host` planned entry，并固定 `host_scope=remote`。
+  - project list/detail 新增 `activity_authority` canonical contract。
+  - `source_metadata` 新增 bounded planned 字段：`remote_host_key`、`remote_compose_path`、`activity_authority`、`activity_rollup_scope`。
+- 落地 `server/modules/project/**` authority owner：
+  - source catalog 新增 remote-host entry，但只保留 route/permission/metadata owner。
+  - 本机 project 的 `activity_authority` 固定为 `frontend-fanout`；future remote / backend aggregation 固定为 `backend-planned`。
+  - 未引入 remote execution、credential persistence、backend project logs/events aggregation 或 project realtime topic。
+- 落地 `web/src/modules/project/**` authority owner：
+  - source selector 展示 `remote-host` planned entry 与 host scope。
+  - `/ops/projects/create/remote-host` 作为 planned boundary 页面接入。
+  - detail 页面显式展示 `activity authority`，并在 Activity tab 提示当前 canonical authority。
+
+## 2026-07-01 Topic archive readiness
+
+- 当前 topic 的 Phase 1、Phase 2、Phase 3 bounded batches 均已完成。
+- 主题达到 `archive-ready`：
+  - `Project` 继续只拥有 registry、configuration、lifecycle、services aggregation 与 activity entry。
+
+## 2026-07-01 Import Existing Project folder-picker and inspect flow sync
+
+- 收口 `openapi/**` authority owner：
+  - 新增 `GET /api/ops/projects/import/directory-sources`
+  - 新增 `GET /api/ops/projects/import/directories`
+  - 新增 `POST /api/ops/projects/import/inspect`
+  - `POST /api/ops/projects/import` contract 改为 `inspection_id + editable overrides`
+- 收口 `server/modules/project/**` authority owner：
+  - 新增 import directory browse / inspect flow
+  - 通过短 TTL inspection cache 复用 inspect parse 结果并校验 file hash freshness
+  - import 阶段不再信任前端回传 working directory / compose / env file 集合
+- 收口 `web/src/modules/project/**` authority owner：
+  - 新增 `FolderPicker.vue`
+  - import 页面改为 `select directory -> inspect -> preview -> import`
+  - compose/env/services/networks/volumes 改为 inspect readonly preview
+- 同步 generated artifacts：
+  - `openapi/dist/openapi.bundle.json`
+  - `server/internal/contract/openapi/generated/types.gen.go`
+  - `server/internal/app/zz_openapi_bundle_generated.go`
+  - `web/src/contracts/openapi/generated/schema.ts`
+- 本轮验证通过：
+  - `node scripts/openapi-bundle.mjs`
+  - `cd server && go generate ./internal/contract/openapi ./internal/app`
+  - `cd server && go test ./modules/project/...`
+  - `cd web && bunx vitest run src/modules/project/shared/useProjectImportFlow.test.ts`
+  - `cd web && bun run typecheck`
+  - `Container` 继续拥有 runtime state、logs、events、stats、shell、inspect、networks、mounts。
+  - remote-host 与 backend activity aggregation 仅保留 canonical planned boundary，没有半实现下游兼容层或 runtime 越权。
+
+## 2026-07-01 Drift repair reopened
+
+- 实机检查 `/ops/projects/create` 发现该页面已被 source selector 占用，并直接向用户暴露 raw i18n key 与内部 Phase 3 batch 文案。
+- 复核 `Compose项目管理设计.md` 后确认 Phase 1 主入口应为 `Import Existing Project`，而不是 Phase 3 boundary surface。
+- 主题从错误的 `archive-ready` 结论回滚到 `active`，先执行 `drift-repair-import-primary-entry-and-topic-truth`。
+
 ## Loop Batch State
 
 ```json
@@ -188,14 +289,16 @@
     "phase-2-batch-1-managed-root-and-create-contracts",
     "phase-2-batch-2-server-managed-create-and-file-write-path",
     "phase-2-batch-3-web-managed-create-and-editors",
-    "phase-2-batch-4-diff-validate-and-deploy-flow"
+    "phase-2-batch-4-diff-validate-and-deploy-flow",
+    "phase-2-batch-5-phase-2-validation-drift-guard-and-governance-sync",
+    "phase-3-batch-1-git-template-source-contract-and-boundary",
+    "phase-3-batch-2-directory-scan-and-auto-discovery-candidates"
   ],
   "pending_batches": [
-    "phase-2-batch-5-phase-2-validation-drift-guard-and-governance-sync",
-    "phase-3-discovery-git-template-and-remote-host"
+    "phase-3-batch-3-remote-host-boundary-and-activity-authority"
   ],
-  "current_batch": "phase-2-batch-4-diff-validate-and-deploy-flow",
-  "next_batch": "phase-2-batch-5-phase-2-validation-drift-guard-and-governance-sync",
-  "closeout_status": "phase-2-batch-4-completed"
+  "current_batch": "phase-3-batch-2-directory-scan-and-auto-discovery-candidates",
+  "next_batch": "phase-3-batch-3-remote-host-boundary-and-activity-authority",
+  "closeout_status": "phase-3-batch-2-completed"
 }
 ```

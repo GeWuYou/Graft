@@ -11,11 +11,11 @@ post:
     content:
       application/json:
         schema:
-          $ref: ../components/schemas/project-import-validate-request.yaml
+          $ref: ../components/schemas/project-import-request.yaml
   security:
     - bearerAuth: []
   responses:
-    '201':
+    '200':
       description: Imported and registered project.
       headers:
         X-Request-Id:

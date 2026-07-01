@@ -1,6 +1,7 @@
 type: object
 required:
   - status
+  - source_type
   - config_key
   - ownership_mode
   - create_permission
@@ -8,6 +9,8 @@ required:
 properties:
   status:
     $ref: ./project-managed-root-status.yaml
+  source_type:
+    $ref: ./project-source-entry-type.yaml
   config_key:
     type: string
   configured_root_directory:

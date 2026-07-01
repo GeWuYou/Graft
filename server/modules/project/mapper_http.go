@@ -7,7 +7,7 @@ import (
 	projectcontract "graft/server/modules/project/contract"
 )
 
-// toProjectListResponse 将 ListResult 映射为 ProjectListResponse。
+// toProjectListResponse 将列表结果转换为项目列表响应，并复制分页信息和条目集合。
 func toProjectListResponse(result ListResult) generated.ProjectListResponse {
 	return generated.ProjectListResponse{
 		Items:  result.Items,
@@ -17,7 +17,69 @@ func toProjectListResponse(result ListResult) generated.ProjectListResponse {
 	}
 }
 
-// 当配置哈希或声明的服务名存在时，会附带归一化预览摘要。
+// toSourceCatalogResponse 将源目录结果转换为源目录响应，并复制条目列表。
+//
+// @return Items 复制后的源目录条目列表。
+func toSourceCatalogResponse(result SourceCatalogResult) generated.ProjectSourceCatalogResponse {
+	return generated.ProjectSourceCatalogResponse{
+		Items: append([]generated.ProjectSourceEntry(nil), result.Items...),
+	}
+}
+
+// toDiscoveryCandidatesResponse 将内部发现候选结果转换为 OpenAPI 响应。
+// 它会复制候选项及其切片字段，并在对应值存在时写入可选的来源信息、状态原因和结果级字段。
+func toDiscoveryCandidatesResponse(result DiscoveryCandidatesResult) generated.ProjectDiscoveryCandidatesResponse {
+	items := make([]generated.ProjectDiscoveryCandidate, 0, len(result.Items))
+	for _, item := range result.Items {
+		candidate := generated.ProjectDiscoveryCandidate{
+			CandidateKey:               item.CandidateKey,
+			CandidateKind:              generated.ProjectDiscoveryCandidateKind(item.CandidateKind),
+			SourceKind:                 generated.ProjectSourceKind(item.SourceKind),
+			DisplayName:                item.DisplayName,
+			CanonicalProjectName:       item.CanonicalProjectName,
+			CanonicalProjectNameSource: generated.ProjectCanonicalNameSource(item.CanonicalProjectNameSource),
+			WorkingDirectory:           item.WorkingDirectory,
+			OwnershipMode:              generated.ProjectOwnershipMode(item.OwnershipMode),
+			HostScope:                  generated.ProjectHostScope(item.HostScope),
+			Status:                     generated.ProjectDiscoveryCandidateStatus(item.Status),
+			RecommendedAction:          generated.ProjectDiscoveryCandidateRecommendedAction(item.RecommendedAction),
+			ComposeFiles:               append([]generated.ProjectFileItem(nil), item.ComposeFiles...),
+			EnvFiles:                   append([]generated.ProjectFileItem(nil), item.EnvFiles...),
+			DeclaredServiceNames:       append([]string(nil), item.DeclaredServiceNames...),
+			ServiceCount:               item.ServiceCount,
+			ConfigHash:                 item.ConfigHash,
+			Warnings:                   append([]string(nil), item.Warnings...),
+			Conflicts:                  append([]string(nil), item.Conflicts...),
+		}
+		if metadata := toGeneratedSourceMetadata(item.SourceMetadata); metadata != nil {
+			candidate.SourceMetadata = metadata
+		}
+		if item.SourceType != "" {
+			sourceType := generated.ProjectSourceEntryType(item.SourceType)
+			candidate.SourceType = &sourceType
+		}
+		if item.StatusReason != nil {
+			candidate.StatusReason = item.StatusReason
+		}
+		items = append(items, candidate)
+	}
+	response := generated.ProjectDiscoveryCandidatesResponse{
+		SourceType:            generated.ProjectSourceEntryType(result.SourceType),
+		SupportsScan:          result.SupportsScan,
+		SupportsAutoDiscovery: result.SupportsAutoDiscovery,
+		Items:                 items,
+	}
+	if result.AuthorityRoot != nil {
+		response.AuthorityRoot = result.AuthorityRoot
+	}
+	if result.StatusReason != nil {
+		response.StatusReason = result.StatusReason
+	}
+	return response
+}
+
+// toImportValidateResponse 将导入校验结果转换为 OpenAPI 响应，并在存在配置哈希或声明的服务名时附带归一化预览摘要。
+// 该响应会复制冲突和告警列表，以避免与输入数据共享底层切片。
 func toImportValidateResponse(result ImportValidationResult) generated.ProjectImportValidateResponse {
 	response := generated.ProjectImportValidateResponse{
 		CanonicalProjectName:       result.CanonicalProjectName,
@@ -244,9 +306,10 @@ func toGeneratedGuardResults(items []GuardResult) []generated.ProjectGuardResult
 
 // toManagedRootResponse 将托管根信息转换为项目托管根响应。
 //
-// 当可配置根目录或状态原因存在时，会将其一并写入响应。
+// toManagedRootResponse 将托管根目录信息映射为 OpenAPI 响应，并在可用时附加可配置根目录和状态原因。
 func toManagedRootResponse(info ManagedRootInfo) generated.ProjectManagedRootResponse {
 	response := generated.ProjectManagedRootResponse{
+		SourceType:            generated.ProjectSourceEntryType(info.SourceType),
 		Status:                generated.ProjectManagedRootStatus(info.Status),
 		ConfigKey:             info.ConfigKey,
 		OwnershipMode:         generated.ProjectOwnershipMode(info.OwnershipMode),
@@ -263,10 +326,12 @@ func toManagedRootResponse(info ManagedRootInfo) generated.ProjectManagedRootRes
 }
 
 // toManagedCreateValidateResponse 将托管项目创建校验结果映射为创建校验响应。
-// 它会保留托管根信息、显示名、规范名、所有权模式、工作目录以及 compose 文件相关路径，并在有内容时附带环境文件字段和警告列表。
+// toManagedCreateValidateResponse 将托管项目创建校验结果转换为生成的创建校验响应。
+// 它包含托管根信息、源类型、显示名、规范项目名、所有权模式、工作目录以及 compose 文件信息，并在存在时附带环境文件路径、源元数据和警告列表。
 func toManagedCreateValidateResponse(result ManagedProjectCreateValidationResult) generated.ProjectCreateValidateResponse {
 	response := generated.ProjectCreateValidateResponse{
 		ManagedRoot:             toManagedRootResponse(result.ManagedRoot),
+		SourceType:              generated.ProjectSourceEntryType(result.SourceType),
 		DisplayName:             result.DisplayName,
 		CanonicalProjectName:    result.CanonicalProjectName,
 		OwnershipMode:           generated.ProjectOwnershipMode(result.OwnershipMode),
@@ -280,6 +345,9 @@ func toManagedCreateValidateResponse(result ManagedProjectCreateValidationResult
 	if result.EnvFileAbsolutePath != nil {
 		response.EnvFileAbsolutePath = result.EnvFileAbsolutePath
 	}
+	if metadata := toGeneratedSourceMetadata(result.SourceMetadata); metadata != nil {
+		response.SourceMetadata = metadata
+	}
 	if len(result.Warnings) > 0 {
 		warnings := append([]string(nil), result.Warnings...)
 		response.Warnings = &warnings
@@ -288,10 +356,11 @@ func toManagedCreateValidateResponse(result ManagedProjectCreateValidationResult
 }
 
 // toManagedCreateResponse 将托管项目创建结果转换为创建响应。
-// 返回创建后的项目信息、托管根状态、快照摘要以及可选的环境文件信息和警告。
+// toManagedCreateResponse 将托管项目创建结果转换为创建响应，包含托管根状态、项目信息、快照摘要以及可选的环境文件信息、源元数据和警告。
 func toManagedCreateResponse(result ManagedProjectCreateResult) generated.ProjectCreateResponse {
 	response := generated.ProjectCreateResponse{
 		ManagedRoot:             toManagedRootResponse(result.Validation.ManagedRoot),
+		SourceType:              generated.ProjectSourceEntryType(result.SourceType),
 		ProjectId:               mustGeneratedID(result.ProjectID),
 		DisplayName:             result.Validation.DisplayName,
 		CanonicalProjectName:    result.Validation.CanonicalProjectName,
@@ -321,6 +390,9 @@ func toManagedCreateResponse(result ManagedProjectCreateResult) generated.Projec
 	}
 	if result.Validation.EnvFileAbsolutePath != nil {
 		response.EnvFileAbsolutePath = result.Validation.EnvFileAbsolutePath
+	}
+	if metadata := toGeneratedSourceMetadata(result.Validation.SourceMetadata); metadata != nil {
+		response.SourceMetadata = metadata
 	}
 	if len(result.Validation.Warnings) > 0 {
 		warnings := append([]string(nil), result.Validation.Warnings...)

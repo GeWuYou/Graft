@@ -12,9 +12,33 @@
         "title": "运维管理 - 项目管理",
         "breadcrumb": "项目管理"
       },
+      "import": {
+        "title": "导入现有项目",
+        "breadcrumb": "导入现有项目"
+      },
       "create": {
+        "title": "项目来源边界",
+        "breadcrumb": "项目来源边界"
+      },
+      "createManaged": {
         "title": "创建托管项目",
         "breadcrumb": "创建托管项目"
+      },
+      "createDiscovery": {
+        "title": "发现候选预览",
+        "breadcrumb": "发现候选预览"
+      },
+      "createGit": {
+        "title": "Git 项目边界",
+        "breadcrumb": "Git 项目边界"
+      },
+      "createTemplate": {
+        "title": "模板项目边界",
+        "breadcrumb": "模板项目边界"
+      },
+      "createRemoteHost": {
+        "title": "Remote Host 项目边界",
+        "breadcrumb": "Remote Host 项目边界"
       },
       "detail": {
         "title": "项目详情",
@@ -73,7 +97,8 @@
         "imported": "导入项目",
         "managed": "受管项目",
         "git": "Git 项目",
-        "template": "模板项目"
+        "template": "模板项目",
+        "remote-host": "Remote Host"
       },
       "driftStatus": {
         "unknown": "未知",
@@ -92,7 +117,8 @@
         "services": "服务",
         "configuration": "配置",
         "activity": "活动",
-        "create": "创建托管项目",
+        "import": "导入现有项目",
+        "create": "选择项目来源",
         "refresh": "刷新",
         "up": "启动项目",
         "down": "停止项目",
@@ -108,10 +134,81 @@
         "destroyConfirm": "确认销毁 {name}？只有 ownership guard 允许时才会执行。"
       }
     },
+    "import": {
+      "eyebrow": "导入项目",
+      "description": "选择服务器目录后自动扫描 Compose 与 Env 文件，完成发现预览后再导入项目。",
+      "actions": {
+        "backToList": "返回列表",
+        "selectDirectory": "选择目录",
+        "changeDirectory": "更换目录",
+        "refreshInspect": "刷新发现结果",
+        "retryInspect": "重试发现",
+        "import": "导入并打开项目",
+        "reset": "重置表单"
+      },
+      "directory": {
+        "title": "项目目录",
+        "workingDirectory": "已选目录",
+        "readonlyHint": "自动发现"
+      },
+      "form": {
+        "title": "项目信息",
+        "displayName": "展示名",
+        "displayNamePlaceholder": "例如：订单服务开发环境",
+        "canonicalProjectNameOverride": "Canonical Project Name 覆盖",
+        "canonicalProjectNameOverridePlaceholder": "留空表示沿用发现结果"
+      },
+      "validation": {
+        "displayNameRequired": "请输入展示名。"
+      },
+      "picker": {
+        "title": "选择服务器目录",
+        "sourceLabel": "目录来源",
+        "pathLabel": "当前位置",
+        "actionsLabel": "操作",
+        "sourceLoading": "正在加载目录来源…",
+        "refresh": "刷新目录",
+        "parentDirectory": "返回上级目录",
+        "openDirectory": "进入目录",
+        "emptyTitle": "当前目录下没有可浏览的子目录",
+        "emptyDescription": "可以选择当前目录继续导入，或返回上一级目录查看其他路径。",
+        "truncatedNotice": "当前仅展示前 {count} 个目录，请继续进入子目录浏览更多内容。",
+        "confirm": "选择当前目录"
+      },
+      "preview": {
+        "title": "导入预览",
+        "discoveryTitle": "发现结果",
+        "canonicalProjectName": "Canonical Project Name",
+        "canonicalNameSource": "名称来源",
+        "validationStatus": "校验状态",
+        "serviceCount": "声明服务数",
+        "configHash": "配置哈希",
+        "composeFiles": "Compose 文件",
+        "envFiles": "Env 文件",
+        "services": "服务",
+        "networks": "网络",
+        "volumes": "卷",
+        "noDiagnostics": "当前没有额外 warning 或 conflict。",
+        "none": "无"
+      },
+      "state": {
+        "awaitingSelectionTitle": "先选择服务器目录",
+        "awaitingSelectionDescription": "目录选择后会自动执行 Inspect，回填可导入的 Compose 项目信息。",
+        "inspectErrorTitle": "目录发现失败"
+      },
+      "messages": {
+        "directorySourceLoadFailed": "目录来源加载失败。",
+        "directoryLoadFailed": "目录列表加载失败。",
+        "inspectSuccess": "目录发现结果已刷新。",
+        "inspectFailed": "目录发现失败。",
+        "importSuccess": "Compose 项目导入成功。",
+        "importFailed": "Compose 项目导入失败。"
+      }
+    },
     "create": {
-      "eyebrow": "托管创建",
-      "title": "创建托管 Compose 项目",
-      "description": "在受管根目录下写入 Compose 与 Env 文件，并立即注册为 Project authority。",
+      "eyebrow": "来源边界",
+      "title": "项目来源边界",
+      "description": "查看托管、Git、模板和远程主机来源的边界状态；真正的用户入口仍以导入和托管创建为准。",
       "actions": {
         "backToList": "返回列表",
         "refreshAuthority": "刷新 authority",
@@ -186,6 +283,79 @@
         "createFailed": "托管项目创建失败。"
       }
     },
+    "createSource": {
+      "descriptions": {
+        "managed": "在已配置的受管根目录中创建受管 Compose 项目。",
+        "git": "基于 Git 的项目创建暂未提供。",
+        "template": "基于模板的项目创建暂未提供。",
+        "remoteHost": "基于远程主机的项目创建暂未提供。"
+      },
+      "routePath": "路由路径",
+      "permission": "权限",
+      "discovery": "发现候选",
+      "metadataFields": "元数据字段",
+      "hostScope": "宿主范围",
+      "status": {
+        "ready": "已就绪",
+        "blocked": "待配置",
+        "planned": "规划中"
+      },
+      "statusReason": {
+        "managedUnconfigured": "Managed root 尚未配置；托管创建能力已经实现，但当前环境不能直接创建项目。",
+        "managedInvalid": "Managed root 配置无效；需要先修复上游系统配置，再使用托管创建。",
+        "managedUnknown": "Managed root 状态未知；请先检查系统配置或刷新 authority。",
+        "planned": "该来源边界仅完成契约和路由占位，真正物化执行仍留在后续 bounded batch。"
+      },
+      "actions": {
+        "open": "打开入口",
+        "configure": "先修复配置",
+        "reviewBoundary": "查看边界",
+        "reviewCandidates": "查看候选",
+        "openImport": "前往导入入口"
+      },
+      "messages": {
+        "loadFailed": "项目来源目录加载失败。"
+      }
+    },
+    "discovery": {
+      "description": "只读展示 managed root 下的目录扫描和自动发现候选预览，不自动注册项目，也不改变 runtime authority。",
+      "refresh": "刷新候选",
+      "loadFailed": "项目发现候选加载失败。",
+      "authorityRoot": "Authority 根目录",
+      "capabilities": "能力状态",
+      "capabilitiesReady": "已启用本机扫描与自动发现预览",
+      "capabilitiesBlocked": "当前 authority 不允许扫描候选",
+      "candidateKind": "候选类型",
+      "recommendedAction": "建议动作",
+      "serviceCount": "声明服务数",
+      "workingDirectory": "工作目录",
+      "composeFiles": "Compose 文件",
+      "emptyTitle": "暂无候选项",
+      "emptyDescription": "当前 authority 根目录下没有可预览的 Compose 项目候选项。",
+      "unavailableTitle": "发现预览暂不可用",
+      "unavailableDescription": "当前没有返回发现预览载荷，请刷新 authority 后重试。",
+      "conflictsValue": "冲突字段：{value}",
+      "status": {
+        "ready": "可导入",
+        "conflict": "需人工审查",
+        "skipped": "已跳过"
+      },
+      "kinds": {
+        "directory-scan": "目录扫描",
+        "auto-discovery": "自动发现"
+      },
+      "actions": {
+        "import": "建议导入",
+        "review": "先审查"
+      }
+    },
+    "createPlanned": {
+      "description": "当前批次只注册该来源边界；真正的物化执行留到后续 bounded batch。",
+      "notice": "这里仅固定 route、permission 和 metadata owner，不执行 Git clone、模板实例化、目录扫描、remote host 执行、密钥持久化或后端活动聚合。",
+      "routePath": "路由路径",
+      "boundary": "边界说明",
+      "boundaryValue": "当前页面只声明 contract 与 route owner，不执行任何超出当前 bounded batch 的实现动作。"
+    },
     "detail": {
       "ownershipMode": {
         "managed-root-dedicated": "托管根目录专属",
@@ -213,6 +383,7 @@
         "sourceKind": "来源类型",
         "ownershipMode": "所有权模式",
         "hostScope": "宿主范围",
+        "activityAuthority": "活动 Authority",
         "serviceCount": "声明服务数",
         "runtimeStatus": "运行时摘要",
         "lastRefreshStatus": "最近刷新状态",
@@ -302,6 +473,8 @@
       "activity": {
         "title": "前端 Activity Fan-out",
         "summary": "该视图只前端 fan-out 现有 container logs/events，不新增 project 级后端聚合。",
+        "authorityFrontendFanout": "本机项目继续以前端 fan-out 复用现有 container logs/events，作为当前 canonical activity authority。",
+        "authorityBackendPlanned": "后端 project activity aggregation 仍仅处于 planned 状态；本批不实现 remote-host 或跨容器汇总后端。",
         "emptyTitle": "暂无运行时成员",
         "emptyDescription": "当前项目还没有可供 fan-out 的运行时容器成员。",
         "eventCount": "{count} 条事件",

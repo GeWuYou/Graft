@@ -21,14 +21,32 @@ const (
 	ProjectConfigurationValidateRoute = "/:id/configuration/validate"
 	// ProjectImportValidateRoute identifies the import validation route fragment.
 	ProjectImportValidateRoute = "/import/validate"
+	// ProjectImportInspectRoute identifies the import inspection route fragment.
+	ProjectImportInspectRoute = "/import/inspect"
 	// ProjectImportRoute identifies the import-and-register route fragment.
 	ProjectImportRoute = "/import"
+	// ProjectImportDirectorySourcesRoute identifies the available import directory source roots route fragment.
+	ProjectImportDirectorySourcesRoute = "/import/directory-sources"
+	// ProjectImportDirectoriesRoute identifies the root-relative import directory browse route fragment.
+	ProjectImportDirectoriesRoute = "/import/directories"
+	// ProjectSourcesRoute identifies the project source catalog route fragment.
+	ProjectSourcesRoute = "/sources"
+	// ProjectDiscoveryCandidatesRoute identifies the bounded discovery-candidate preview route fragment.
+	ProjectDiscoveryCandidatesRoute = "/discovery-candidates"
+	// ProjectCreateSourceSelectorRoute identifies the source selector route fragment.
+	ProjectCreateSourceSelectorRoute = "/create"
 	// ProjectManagedRootRoute identifies the managed-root metadata route fragment.
 	ProjectManagedRootRoute = "/managed/root"
 	// ProjectCreateValidateRoute identifies the managed-create validation route fragment.
-	ProjectCreateValidateRoute = "/create/validate"
+	ProjectCreateValidateRoute = "/create/managed/validate"
 	// ProjectCreateRoute identifies the managed-create route fragment.
-	ProjectCreateRoute = "/create"
+	ProjectCreateRoute = "/create/managed"
+	// ProjectCreateGitRoute identifies the future git source route fragment.
+	ProjectCreateGitRoute = "/create/git"
+	// ProjectCreateTemplateRoute identifies the future template source route fragment.
+	ProjectCreateTemplateRoute = "/create/template"
+	// ProjectCreateRemoteHostRoute identifies the future remote-host source route fragment.
+	ProjectCreateRemoteHostRoute = "/create/remote-host"
 	// ProjectRefreshRoute identifies the static refresh route fragment.
 	ProjectRefreshRoute = "/:id/refresh"
 	// ProjectUpRoute identifies the compose up route fragment.
@@ -47,4 +65,16 @@ const (
 	ProjectMenuRootPath = "/ops"
 	// ProjectMenuPath identifies the canonical web menu path for Compose project management.
 	ProjectMenuPath = "/ops/projects"
+	// ProjectSourceMenuPath identifies the global source selector route path.
+	ProjectSourceMenuPath = "/ops/projects/create"
+	// ProjectManagedCreateMenuPath identifies the managed source create route path.
+	ProjectManagedCreateMenuPath = "/ops/projects/create/managed"
+	// ProjectGitCreateMenuPath identifies the git source create route path.
+	ProjectGitCreateMenuPath = "/ops/projects/create/git"
+	// ProjectTemplateCreateMenuPath identifies the template source create route path.
+	ProjectTemplateCreateMenuPath = "/ops/projects/create/template"
+	// ProjectRemoteHostCreateMenuPath identifies the remote-host source create route path.
+	ProjectRemoteHostCreateMenuPath = "/ops/projects/create/remote-host"
+	// ProjectDiscoveryCandidatesMenuPath identifies the hidden discovery-candidate preview route path.
+	ProjectDiscoveryCandidatesMenuPath = "/ops/projects/create/discovery"
 )

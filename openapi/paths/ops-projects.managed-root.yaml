@@ -1,8 +1,8 @@
 get:
   tags: [project]
-  summary: Get managed project root authority
+  summary: Get managed project source authority
   operationId: getProjectManagedRoot
-  description: Returns the canonical managed-root system-config authority used by future managed create flows.
+  description: Returns the canonical managed source authority used by the managed project create flow.
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml

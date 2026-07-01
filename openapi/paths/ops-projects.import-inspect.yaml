@@ -1,0 +1,41 @@
+post:
+  tags: [project]
+  summary: Inspect one import directory
+  operationId: postProjectImportInspect
+  description: Discovers compose and env files under the selected directory, parses the Compose project once, and returns a short-lived inspection snapshot for later import confirmation. Previewable naming or ownership conflicts are reported inside the 200 response body rather than as transport-level 409 errors.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../components/schemas/project-import-inspect-request.yaml
+  security:
+    - bearerAuth: []
+  responses:
+    '200':
+      description: Import inspection result.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-project-import-inspect-response.yaml
+    '400':
+      description: Invalid inspection request.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      $ref: ../components/responses/forbidden.yaml
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml

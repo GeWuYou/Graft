@@ -1,14 +1,27 @@
 export const PROJECT_ROUTE_PATH = {
   LIST: '/ops/projects',
+  IMPORT: '/ops/projects/import',
   CREATE: '/ops/projects/create',
+  CREATE_DISCOVERY: '/ops/projects/create/discovery',
+  CREATE_MANAGED: '/ops/projects/create/managed',
+  CREATE_GIT: '/ops/projects/create/git',
+  CREATE_TEMPLATE: '/ops/projects/create/template',
+  CREATE_REMOTE_HOST: '/ops/projects/create/remote-host',
   DETAIL: '/ops/projects/:id',
 } as const;
 
 export const PROJECT_API_PATH = {
   LIST: '/api/ops/projects',
+  IMPORT_DIRECTORY_SOURCES: '/api/ops/projects/import/directory-sources',
+  IMPORT_DIRECTORIES: '/api/ops/projects/import/directories',
+  IMPORT_INSPECT: '/api/ops/projects/import/inspect',
+  IMPORT_VALIDATE: '/api/ops/projects/import/validate',
+  IMPORT: '/api/ops/projects/import',
+  SOURCES: '/api/ops/projects/sources',
+  DISCOVERY_CANDIDATES: '/api/ops/projects/discovery-candidates',
   MANAGED_ROOT: '/api/ops/projects/managed/root',
-  CREATE_VALIDATE: '/api/ops/projects/create/validate',
-  CREATE: '/api/ops/projects/create',
+  CREATE_VALIDATE: '/api/ops/projects/create/managed/validate',
+  CREATE: '/api/ops/projects/create/managed',
   DETAIL: '/api/ops/projects/{id}',
   SERVICES: '/api/ops/projects/{id}/services',
   CONFIGURATION: '/api/ops/projects/{id}/configuration',
@@ -166,4 +179,13 @@ export function buildProjectRestartApiPath(id: number) {
  */
 export function buildProjectUnregisterApiPath(id: number) {
   return PROJECT_API_PATH.UNREGISTER.replace('{id}', encodeProjectPathParam(id));
+}
+
+/**
+ * 构建项目导入目录浏览接口路径。
+ *
+ * @returns 项目导入目录浏览接口路径
+ */
+export function buildProjectImportDirectoriesApiPath() {
+  return PROJECT_API_PATH.IMPORT_DIRECTORIES;
 }

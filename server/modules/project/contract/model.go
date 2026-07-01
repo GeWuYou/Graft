@@ -38,9 +38,13 @@ const (
 	SourceKindGit SourceKind = "git"
 	// SourceKindTemplate marks a future template-derived project source.
 	SourceKindTemplate SourceKind = "template"
+	// SourceKindRemoteHost marks a future remote-host project entry boundary.
+	SourceKindRemoteHost SourceKind = "remote-host"
 
 	// HostScopeLocal marks the Phase 1 local-host-only project scope.
 	HostScopeLocal HostScope = "local"
+	// HostScopeRemote marks a future remote-host project scope.
+	HostScopeRemote HostScope = "remote"
 
 	// OwnershipModeExternal marks a project backed by an external working directory.
 	OwnershipModeExternal OwnershipMode = "external"

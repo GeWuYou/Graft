@@ -1,0 +1,5 @@
+type: string
+enum: [frontend-fanout, backend-planned]
+x-enum-varnames:
+  - ProjectActivityAuthorityFrontendFanout
+  - ProjectActivityAuthorityBackendPlanned

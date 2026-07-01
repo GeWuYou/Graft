@@ -1999,6 +1999,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/ops/projects/import/inspect': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Inspect one import directory
+     * @description Discovers compose and env files under the selected directory, parses the Compose project once, and returns a short-lived inspection snapshot for later import confirmation.
+     */
+    post: operations['postProjectImportInspect'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/ops/projects/import': {
     parameters: {
       query?: never;
@@ -2019,6 +2039,86 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/ops/projects/import/directory-sources': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List allowed import directory roots
+     * @description Returns operator-allowlisted local directory roots plus managed-root injection for the managed project import flow.
+     */
+    get: operations['getProjectImportDirectorySources'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/projects/import/directories': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Browse import directories under one allowed root
+     * @description Returns a bounded root-relative directory listing for import flows. The backend only returns directories and rejects traversal outside configured roots.
+     */
+    get: operations['getProjectImportDirectories'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/projects/sources': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Compose project source entrypoints
+     * @description Returns the canonical Phase 3 source catalog for managed, git, and template project entrypoints without executing source-specific provisioning flows.
+     */
+    get: operations['getProjectSources'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/projects/discovery-candidates': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List bounded project discovery candidates
+     * @description Returns local directory-scan and auto-discovery candidate previews under the current project authority without auto-registering projects or changing runtime ownership.
+     */
+    get: operations['getProjectDiscoveryCandidates'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/ops/projects/managed/root': {
     parameters: {
       query?: never;
@@ -2027,8 +2127,8 @@ export interface paths {
       cookie?: never;
     };
     /**
-     * Get managed project root authority
-     * @description Returns the canonical managed-root system-config authority used by future managed create flows.
+     * Get managed project source authority
+     * @description Returns the canonical managed source authority used by the managed project create flow.
      */
     get: operations['getProjectManagedRoot'];
     put?: never;
@@ -2039,7 +2139,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/ops/projects/create/validate': {
+  '/api/ops/projects/create/managed/validate': {
     parameters: {
       query?: never;
       header?: never;
@@ -2059,7 +2159,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/ops/projects/create': {
+  '/api/ops/projects/create/managed': {
     parameters: {
       query?: never;
       header?: never;
@@ -2557,6 +2657,11 @@ export interface components {
     EnvelopedContainerActionResponse: components['schemas']['enveloped-container-action-response'];
     EnvelopedContainerBatchActionResponse: components['schemas']['enveloped-container-batch-action-response'];
     ProjectSourceKind: components['schemas']['project-source-kind'];
+    ProjectSourceEntryType: components['schemas']['project-source-entry-type'];
+    ProjectSourceEntryStatus: components['schemas']['project-source-entry-status'];
+    ProjectSourceEntry: components['schemas']['project-source-entry'];
+    ProjectSourceCatalogResponse: components['schemas']['project-source-catalog-response'];
+    ProjectSourceMetadata: components['schemas']['project-source-metadata'];
     ProjectHostScope: components['schemas']['project-host-scope'];
     ProjectOwnershipMode: components['schemas']['project-ownership-mode'];
     ProjectRefreshStatus: components['schemas']['project-refresh-status'];
@@ -2576,12 +2681,22 @@ export interface components {
     ProjectImportValidateRequest: components['schemas']['project-import-validate-request'];
     ProjectImportValidateResponse: components['schemas']['project-import-validate-response'];
     ProjectImportResponse: components['schemas']['project-import-response'];
+    ProjectImportDirectorySource: components['schemas']['project-import-directory-source'];
+    ProjectImportDirectorySourcesResponse: components['schemas']['project-import-directory-sources-response'];
+    ProjectImportDirectoryReference: components['schemas']['project-import-directory-reference'];
+    ProjectImportDirectoryItem: components['schemas']['project-import-directory-item'];
+    ProjectImportDirectoriesResponse: components['schemas']['project-import-directories-response'];
+    ProjectImportInspectFileItem: components['schemas']['project-import-inspect-file-item'];
+    ProjectImportInspectRequest: components['schemas']['project-import-inspect-request'];
+    ProjectImportInspectResponse: components['schemas']['project-import-inspect-response'];
+    ProjectImportRequest: components['schemas']['project-import-request'];
     ProjectConfigurationMetadataResponse: components['schemas']['project-configuration-metadata-response'];
     ProjectConfigurationPreviewResponse: components['schemas']['project-configuration-preview-response'];
     ProjectConfigurationFileResponse: components['schemas']['project-configuration-file-response'];
     ProjectDestroyRequest: components['schemas']['project-destroy-request'];
     ProjectActionResponse: components['schemas']['project-action-response'];
     EnvelopedProjectListResponse: components['schemas']['enveloped-project-list-response'];
+    EnvelopedProjectSourceCatalogResponse: components['schemas']['enveloped-project-source-catalog-response'];
     EnvelopedProjectDetailResponse: components['schemas']['enveloped-project-detail-response'];
     EnvelopedProjectServicesResponse: components['schemas']['enveloped-project-services-response'];
     EnvelopedProjectConfigurationMetadataResponse: components['schemas']['enveloped-project-configuration-metadata-response'];
@@ -2589,6 +2704,9 @@ export interface components {
     EnvelopedProjectConfigurationFileResponse: components['schemas']['enveloped-project-configuration-file-response'];
     EnvelopedProjectImportValidateResponse: components['schemas']['enveloped-project-import-validate-response'];
     EnvelopedProjectImportResponse: components['schemas']['enveloped-project-import-response'];
+    EnvelopedProjectImportDirectorySourcesResponse: components['schemas']['enveloped-project-import-directory-sources-response'];
+    EnvelopedProjectImportDirectoriesResponse: components['schemas']['enveloped-project-import-directories-response'];
+    EnvelopedProjectImportInspectResponse: components['schemas']['enveloped-project-import-inspect-response'];
     EnvelopedProjectActionResponse: components['schemas']['enveloped-project-action-response'];
     'health-response': {
       /** @enum {string} */
@@ -5093,8 +5211,40 @@ export interface components {
     'project-refresh-status': 'never' | 'success' | 'failed';
     /** @enum {string} */
     'project-canonical-name-source': 'computed' | 'override';
+    'project-source-metadata': {
+      /** @description Canonical config key that owns the managed project root. */
+      managed_root_key?: string;
+      /** @description Relative directory currently owned by the managed project root. */
+      managed_relative_directory?: string;
+      /** @description Canonical managed compose file name tracked by project authority. */
+      managed_compose_file_name?: string;
+      /** @description Optional managed env file name tracked by project authority. */
+      managed_env_file_name?: string | null;
+      /** @description Planned canonical git repository URL for a future git-backed project source. */
+      git_repository_url?: string;
+      /** @description Planned git branch, tag, or commit ref for a future git-backed project source. */
+      git_reference?: string;
+      /** @description Planned repository-relative compose working directory or file subpath. */
+      git_compose_subpath?: string;
+      /** @description Planned stable template identifier for a future template-backed project source. */
+      template_key?: string;
+      /** @description Planned template version or release channel. */
+      template_version?: string;
+      /** @description Planned template instance name used to derive a managed working directory. */
+      template_instance_name?: string;
+      /** @description Planned stable remote host connection identifier owned by future remote-host project authority. */
+      remote_host_key?: string;
+      /** @description Planned remote compose working directory or entry compose file path under the remote-host boundary. */
+      remote_compose_path?: string;
+      /** @description Canonical project activity authority mode. Current bounded values describe whether activity stays frontend fan-out or moves to a future backend aggregation owner. */
+      activity_authority?: string;
+      /** @description Planned bounded summary scope for future project activity authority, such as container-member fan-out or aggregated timeline summary. */
+      activity_rollup_scope?: string;
+    };
     /** @enum {string} */
-    'project-host-scope': 'local';
+    'project-activity-authority': 'frontend-fanout' | 'backend-planned';
+    /** @enum {string} */
+    'project-host-scope': 'local' | 'remote';
     /** @enum {string} */
     'project-ownership-mode': 'external' | 'managed-root-dedicated';
     /**
@@ -5114,6 +5264,8 @@ export interface components {
       canonical_project_name: string;
       canonical_project_name_source: components['schemas']['project-canonical-name-source'];
       source_kind: components['schemas']['project-source-kind'];
+      source_metadata?: components['schemas']['project-source-metadata'];
+      activity_authority: components['schemas']['project-activity-authority'];
       host_scope: components['schemas']['project-host-scope'];
       ownership_mode: components['schemas']['project-ownership-mode'];
       working_directory: string;
@@ -5176,7 +5328,53 @@ export interface components {
     'enveloped-project-import-validate-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['project-import-validate-response'];
     };
+    'project-import-directory-reference': {
+      provider: string;
+      root_id: string;
+      path: string;
+    };
+    'project-import-inspect-request': {
+      directory_ref: components['schemas']['project-import-directory-reference'];
+      display_name?: string;
+      canonical_project_name_override?: string | null;
+    };
+    'project-import-inspect-file-item': {
+      kind: components['schemas']['project-file-kind'];
+      role: components['schemas']['project-file-role'];
+      absolute_path: string;
+      display_path: string;
+      order_index: number;
+      exists_on_last_refresh: boolean;
+      last_observed_hash?: string | null;
+    };
+    'project-import-inspect-response': {
+      inspection_id: string;
+      directory_ref: components['schemas']['project-import-directory-reference'];
+      resolved_working_directory: string;
+      canonical_project_name: string;
+      canonical_project_name_source: components['schemas']['project-canonical-name-source'];
+      display_name_suggested: string;
+      compose_files: components['schemas']['project-import-inspect-file-item'][];
+      env_files: components['schemas']['project-import-inspect-file-item'][];
+      services: string[];
+      networks: string[];
+      volumes: string[];
+      config_hash: string;
+      warnings: string[];
+      conflicts: string[];
+      /** @enum {string} */
+      validation_status: 'ready' | 'conflict';
+    };
+    'enveloped-project-import-inspect-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['project-import-inspect-response'];
+    };
+    'project-import-request': {
+      inspection_id: string;
+      display_name?: string;
+      canonical_project_name_override?: string | null;
+    };
     'project-detail-response': components['schemas']['project-list-item'] & {
+      source_metadata?: components['schemas']['project-source-metadata'];
       /** @description Stable error code from the latest failed refresh. Empty string means no recorded failure. */
       last_refresh_error_code?: string;
       /** @description Fallback error message from the latest failed refresh. */
@@ -5200,10 +5398,115 @@ export interface components {
     'enveloped-project-import-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['project-import-response'];
     };
+    'project-import-directory-source': {
+      provider: string;
+      root_id: string;
+      /** @description Stable root label shown in the folder picker source selector. */
+      label: string;
+      /** @description Absolute browse root resolved by the backend for this import source. */
+      path: string;
+      /** @description Absolute preferred starting path shown first in the folder picker while staying under the source browse root. */
+      initial_path: string;
+      /** @description Whether this source is the managed-root injection rather than a static allowlisted root. */
+      managed: boolean;
+    };
+    'project-import-directory-sources-response': {
+      items: components['schemas']['project-import-directory-source'][];
+    };
+    'enveloped-project-import-directory-sources-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['project-import-directory-sources-response'];
+    };
+    'project-import-directory-item': {
+      name: string;
+      path: string;
+      /** Format: date-time */
+      modified_at?: string;
+    };
+    'project-import-directories-response': {
+      provider: string;
+      root_id: string;
+      current_path: string;
+      parent_path?: string | null;
+      limit: number;
+      offset: number;
+      has_more: boolean;
+      sort_by: string;
+      order: string;
+      directories: components['schemas']['project-import-directory-item'][];
+    };
+    'enveloped-project-import-directories-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['project-import-directories-response'];
+    };
+    /** @enum {string} */
+    'project-source-entry-type': 'managed' | 'git' | 'template' | 'remote-host';
+    /** @enum {string} */
+    'project-source-entry-status': 'ready' | 'blocked' | 'planned';
+    'project-source-entry': {
+      type: components['schemas']['project-source-entry-type'];
+      status: components['schemas']['project-source-entry-status'];
+      display_name: string;
+      title_key: string;
+      route_path: string;
+      route_name: string;
+      permission: string;
+      menu_group: string;
+      description: string;
+      description_key: string;
+      metadata_fields: string[];
+      host_scope: components['schemas']['project-host-scope'];
+      status_reason?: string | null;
+      status_reason_key?: string | null;
+    };
+    'project-source-catalog-response': {
+      items: components['schemas']['project-source-entry'][];
+    };
+    'enveloped-project-source-catalog-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['project-source-catalog-response'];
+    };
+    /** @enum {string} */
+    'project-discovery-candidate-kind': 'directory-scan' | 'auto-discovery';
+    /** @enum {string} */
+    'project-discovery-candidate-status': 'ready' | 'conflict' | 'skipped';
+    'project-discovery-candidate': {
+      candidate_key: string;
+      candidate_kind: components['schemas']['project-discovery-candidate-kind'];
+      source_kind: components['schemas']['project-source-kind'];
+      source_type?: components['schemas']['project-source-entry-type'];
+      source_metadata?: components['schemas']['project-source-metadata'];
+      display_name: string;
+      canonical_project_name: string;
+      canonical_project_name_source: components['schemas']['project-canonical-name-source'];
+      working_directory: string;
+      ownership_mode: components['schemas']['project-ownership-mode'];
+      host_scope: components['schemas']['project-host-scope'];
+      status: components['schemas']['project-discovery-candidate-status'];
+      /** @enum {string} */
+      recommended_action: 'review' | 'import';
+      status_reason?: string | null;
+      compose_files: components['schemas']['project-file-item'][];
+      env_files: components['schemas']['project-file-item'][];
+      declared_service_names: string[];
+      service_count: number;
+      config_hash: string;
+      warnings: string[];
+      conflicts: string[];
+    };
+    'project-discovery-candidates-response': {
+      source_type: components['schemas']['project-source-entry-type'];
+      authority_root: string | null;
+      supports_scan: boolean;
+      supports_auto_discovery: boolean;
+      status_reason?: string | null;
+      items: components['schemas']['project-discovery-candidate'][];
+    };
+    'enveloped-project-discovery-candidates-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['project-discovery-candidates-response'];
+    };
     /** @enum {string} */
     'project-managed-root-status': 'unconfigured' | 'ready' | 'invalid';
     'project-managed-root-response': {
       status: components['schemas']['project-managed-root-status'];
+      source_type: components['schemas']['project-source-entry-type'];
       config_key: string;
       configured_root_directory?: string | null;
       ownership_mode: components['schemas']['project-ownership-mode'];
@@ -5224,6 +5527,7 @@ export interface components {
     };
     'project-create-validate-response': {
       managed_root: components['schemas']['project-managed-root-response'];
+      source_type: components['schemas']['project-source-entry-type'];
       display_name: string;
       canonical_project_name: string;
       ownership_mode: components['schemas']['project-ownership-mode'];
@@ -5232,6 +5536,7 @@ export interface components {
       env_file_name?: string | null;
       compose_file_absolute_path: string;
       env_file_absolute_path?: string | null;
+      source_metadata?: components['schemas']['project-source-metadata'];
       warnings?: string[];
     };
     'enveloped-project-create-validate-response': components['schemas']['api-envelope'] & {
@@ -5251,6 +5556,7 @@ export interface components {
     };
     'project-create-response': {
       managed_root: components['schemas']['project-managed-root-response'];
+      source_type: components['schemas']['project-source-entry-type'];
       /** Format: int64 */
       project_id: number;
       /** @enum {string} */
@@ -5265,6 +5571,7 @@ export interface components {
       compose_file_absolute_path: string;
       env_file_name?: string | null;
       env_file_absolute_path?: string | null;
+      source_metadata?: components['schemas']['project-source-metadata'];
       snapshot_summary: {
         config_hash: string;
         /** Format: date-time */
@@ -11198,6 +11505,62 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
+  postProjectImportInspect: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['project-import-inspect-request'];
+      };
+    };
+    responses: {
+      /** @description Import inspection result. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-project-import-inspect-response'];
+        };
+      };
+      /** @description Invalid inspection request. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Inspection conflicts with existing registry ownership or canonical naming. */
+      409: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
   postProjectImport: {
     parameters: {
       query?: never;
@@ -11215,12 +11578,12 @@ export interface operations {
     };
     requestBody: {
       content: {
-        'application/json': components['schemas']['project-import-validate-request'];
+        'application/json': components['schemas']['project-import-request'];
       };
     };
     responses: {
       /** @description Imported and registered project. */
-      201: {
+      200: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;
@@ -11251,6 +11614,154 @@ export interface operations {
           'application/json': components['schemas']['error-response'];
         };
       };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getProjectImportDirectorySources: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Import directory source roots. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-project-import-directory-sources-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getProjectImportDirectories: {
+    parameters: {
+      query: {
+        /** @description Import directory provider key. MVP supports only `local`. */
+        provider?: string;
+        root_id: string;
+        /** @description Root-relative directory path. */
+        path?: string;
+        limit?: number;
+        offset?: number;
+        sort?: 'name' | 'modified_at';
+        order?: 'asc' | 'desc';
+      };
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Import directory browse result. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-project-import-directories-response'];
+        };
+      };
+      /** @description Invalid browse query. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getProjectSources: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Project source catalog. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-project-source-catalog-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getProjectDiscoveryCandidates: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Project discovery candidate preview list. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-project-discovery-candidates-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
       500: components['responses']['internal-server-error'];
     };
   };

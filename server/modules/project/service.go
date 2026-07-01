@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"math"
 	"os"
 	"os/exec"
@@ -25,11 +26,6 @@ import (
 	projectstore "graft/server/modules/project/store"
 )
 
-type managedRootFS struct {
-	root    *os.Root
-	rootDir string
-}
-
 var (
 	errProjectServiceUnavailable   = errors.New("project service is unavailable")
 	errProjectInvalidArgument      = errors.New("project invalid argument")
@@ -40,12 +36,16 @@ var (
 	errProjectFileNotFound         = errors.New("project file not found")
 	errProjectDestroyBlocked       = errors.New("project destroy blocked by ownership guard")
 	errProjectManagedFlow          = errors.New("project managed flow is unsupported")
+	errProjectDirectoryForbidden   = errors.New("project directory browse forbidden")
+	errProjectInspectionExpired    = errors.New("project inspection expired")
+	errProjectInspectionStale      = errors.New("project inspection stale")
 )
 
 const (
 	defaultProjectListLimit  = 20
 	maxProjectListLimit      = 100
 	projectConflictScanSize  = 100
+	projectDiscoveryScanSize = 8
 	minLifecycleArgCount     = 2
 	maxCommandOutputSummary  = 120
 	managedCreateWarningsCap = 2
@@ -81,6 +81,56 @@ type ListResult struct {
 	Offset int
 }
 
+// SourceCatalogResult returns the bounded project source entrypoints owned by project authority.
+type SourceCatalogResult struct {
+	Items []generated.ProjectSourceEntry
+}
+
+// ActivityAuthority identifies the stable project activity authority contract.
+type ActivityAuthority string
+
+const (
+	// ProjectActivityAuthorityFrontendFanout keeps project activity in frontend fan-out over container authority.
+	ProjectActivityAuthorityFrontendFanout ActivityAuthority = "frontend-fanout"
+	// ProjectActivityAuthorityBackendPlanned reserves a future backend aggregation owner without implementing it yet.
+	ProjectActivityAuthorityBackendPlanned ActivityAuthority = "backend-planned"
+)
+
+// DiscoveryCandidateResult returns one bounded directory-scan or auto-discovery preview candidate.
+type DiscoveryCandidateResult struct {
+	CandidateKey               string
+	CandidateKind              string
+	SourceKind                 string
+	SourceType                 string
+	SourceMetadata             map[string]string
+	DisplayName                string
+	CanonicalProjectName       string
+	CanonicalProjectNameSource string
+	WorkingDirectory           string
+	OwnershipMode              string
+	HostScope                  string
+	Status                     string
+	RecommendedAction          string
+	StatusReason               *string
+	ComposeFiles               []generated.ProjectFileItem
+	EnvFiles                   []generated.ProjectFileItem
+	DeclaredServiceNames       []string
+	ServiceCount               int
+	ConfigHash                 string
+	Warnings                   []string
+	Conflicts                  []string
+}
+
+// DiscoveryCandidatesResult returns the bounded scan/discovery candidate authority surface.
+type DiscoveryCandidatesResult struct {
+	SourceType            string
+	AuthorityRoot         *string
+	SupportsScan          bool
+	SupportsAutoDiscovery bool
+	StatusReason          *string
+	Items                 []DiscoveryCandidateResult
+}
+
 // ImportValidationResult returns the static import validation result.
 type ImportValidationResult struct {
 	CanonicalProjectName       string
@@ -89,10 +139,13 @@ type ImportValidationResult struct {
 	ComposeFiles               []generated.ProjectFileItem
 	EnvFiles                   []generated.ProjectFileItem
 	ServiceCount               int
+	NetworkNames               []string
+	VolumeNames                []string
 	Warnings                   []string
 	Conflicts                  []string
 	ConfigHash                 string
 	DeclaredServiceNames       []string
+	InspectionID               *string
 }
 
 // ConfigurationMetadataResult returns readonly configuration metadata.
@@ -213,6 +266,7 @@ type DestroyRequest struct {
 
 // ManagedRootInfo returns bounded managed-root contract metadata.
 type ManagedRootInfo struct {
+	SourceType              string
 	Status                  string
 	ConfigKey               string
 	ConfiguredRootDirectory *string
@@ -236,6 +290,7 @@ type ManagedProjectCreateRequest struct {
 // ManagedProjectCreateValidationResult returns create-contract validation metadata without writing files.
 type ManagedProjectCreateValidationResult struct {
 	ManagedRoot             ManagedRootInfo
+	SourceType              string
 	DisplayName             string
 	CanonicalProjectName    string
 	OwnershipMode           string
@@ -244,12 +299,14 @@ type ManagedProjectCreateValidationResult struct {
 	EnvFileName             *string
 	ComposeFileAbsolutePath string
 	EnvFileAbsolutePath     *string
+	SourceMetadata          map[string]string
 	Warnings                []string
 }
 
 // ManagedProjectCreateResult returns the created managed project bootstrap after write + persist.
 type ManagedProjectCreateResult struct {
 	Validation           ManagedProjectCreateValidationResult
+	SourceType           string
 	ProjectID            uint64
 	ConfigHash           string
 	DeclaredServiceCount int
@@ -261,6 +318,7 @@ type Service struct {
 	repository     projectstore.Repository
 	runtimeReader  moduleapi.ContainerProjectRuntimeReader
 	configResolver moduleapi.SystemConfigResolver
+	inspectCache   *importInspectionCache
 }
 
 // NewService 创建项目服务边界并应用可选配置。
@@ -270,7 +328,8 @@ func NewService(repository projectstore.Repository, options ...ServiceOption) (*
 		return nil, errors.New("project repository is unavailable")
 	}
 	service := &Service{
-		repository: repository,
+		repository:   repository,
+		inspectCache: newImportInspectionCache(),
 	}
 	for _, option := range options {
 		if option != nil {
@@ -334,12 +393,256 @@ func (s *Service) List(ctx context.Context, query ListQuery) (ListResult, error)
 	if err != nil {
 		return ListResult{}, mapStoreError(err)
 	}
+	managedRootDirectory := s.readyManagedRootDirectory(ctx)
 	items := make([]generated.ProjectListItem, 0, len(storeResult.Items))
 	for _, item := range storeResult.Items {
 		runtimeSummary, _ := s.runtimeSummary(ctx, item)
-		items = append(items, toProjectListItem(item, runtimeSummary))
+		items = append(items, toProjectListItemWithManagedRoot(item, managedRootDirectory, runtimeSummary))
 	}
 	return ListResult{Items: items, Total: storeResult.Total, Limit: normalizeListLimit(query.Limit), Offset: maxInt(query.Offset, 0)}, nil
+}
+
+// SourceCatalog returns the bounded Phase 3 source entrypoints without executing source-specific provisioning.
+func (s *Service) SourceCatalog(ctx context.Context) (SourceCatalogResult, error) {
+	managedRoot, err := s.ManagedRoot(ctx)
+	if err != nil {
+		return SourceCatalogResult{}, err
+	}
+	items := []generated.ProjectSourceEntry{
+		{
+			Type:            generated.ProjectSourceEntryType("managed"),
+			Status:          generated.ProjectSourceEntryStatus(mapManagedSourceCatalogStatus(managedRoot.Status)),
+			DisplayName:     "Managed Project",
+			TitleKey:        "project.list.sourceKinds.managed",
+			HostScope:       generated.ProjectHostScope(projectcontract.HostScopeLocal),
+			RoutePath:       projectcontract.ProjectManagedCreateMenuPath,
+			RouteName:       "ProjectManagedCreate",
+			Permission:      projectcontract.ProjectCreatePermission.String(),
+			MenuGroup:       projectcontract.ProjectMenuPath,
+			Description:     "Create a managed Compose project under the canonical managed root owned by project authority.",
+			DescriptionKey:  "project.createSource.descriptions.managed",
+			MetadataFields:  []string{"managed_root_key", "managed_relative_directory", "managed_compose_file_name", "managed_env_file_name"},
+			StatusReason:    managedRoot.StatusReason,
+			StatusReasonKey: managedRootStatusReasonKey(managedRoot.Status),
+		},
+		{
+			Type:            generated.ProjectSourceEntryType("git"),
+			Status:          generated.ProjectSourceEntryStatus("planned"),
+			DisplayName:     "Git Project",
+			TitleKey:        "project.list.sourceKinds.git",
+			HostScope:       generated.ProjectHostScope(projectcontract.HostScopeLocal),
+			RoutePath:       projectcontract.ProjectGitCreateMenuPath,
+			RouteName:       "ProjectGitCreate",
+			Permission:      projectcontract.ProjectCreatePermission.String(),
+			MenuGroup:       projectcontract.ProjectMenuPath,
+			Description:     "Reserve the canonical git-backed project source boundary without introducing clone, scan, or remote-host execution in this batch.",
+			DescriptionKey:  "project.createSource.descriptions.git",
+			MetadataFields:  []string{"git_repository_url", "git_reference", "git_compose_subpath"},
+			StatusReason:    stringPointer("This source remains planned. Materialization will land in a later bounded batch."),
+			StatusReasonKey: stringPointer("project.createSource.statusReason.planned"),
+		},
+		{
+			Type:            generated.ProjectSourceEntryType("template"),
+			Status:          generated.ProjectSourceEntryStatus("planned"),
+			DisplayName:     "Template Project",
+			TitleKey:        "project.list.sourceKinds.template",
+			HostScope:       generated.ProjectHostScope(projectcontract.HostScopeLocal),
+			RoutePath:       projectcontract.ProjectTemplateCreateMenuPath,
+			RouteName:       "ProjectTemplateCreate",
+			Permission:      projectcontract.ProjectCreatePermission.String(),
+			MenuGroup:       projectcontract.ProjectMenuPath,
+			Description:     "Reserve the canonical template-backed project source boundary without introducing template instantiation, discovery, or remote-host execution in this batch.",
+			DescriptionKey:  "project.createSource.descriptions.template",
+			MetadataFields:  []string{"template_key", "template_version", "template_instance_name"},
+			StatusReason:    stringPointer("This source remains planned. Materialization will land in a later bounded batch."),
+			StatusReasonKey: stringPointer("project.createSource.statusReason.planned"),
+		},
+		{
+			Type:            generated.ProjectSourceEntryType("remote-host"),
+			Status:          generated.ProjectSourceEntryStatus("planned"),
+			DisplayName:     "Remote Host Project",
+			TitleKey:        "project.list.sourceKinds.remote-host",
+			HostScope:       generated.ProjectHostScope(projectcontract.HostScopeRemote),
+			RoutePath:       projectcontract.ProjectRemoteHostCreateMenuPath,
+			RouteName:       "ProjectRemoteHostCreate",
+			Permission:      projectcontract.ProjectCreatePermission.String(),
+			MenuGroup:       projectcontract.ProjectMenuPath,
+			Description:     "Reserve the canonical remote-host project boundary without introducing remote execution, secret persistence, or runtime ownership in this batch.",
+			DescriptionKey:  "project.createSource.descriptions.remoteHost",
+			MetadataFields:  []string{"remote_host_key", "remote_compose_path", "activity_authority", "activity_rollup_scope"},
+			StatusReason:    stringPointer("This source remains planned. Remote execution and backend activity aggregation are still out of scope."),
+			StatusReasonKey: stringPointer("project.createSource.statusReason.planned"),
+		},
+	}
+	return SourceCatalogResult{Items: items}, nil
+}
+
+// DiscoveryCandidates returns bounded local discovery candidates without auto-registering projects.
+func (s *Service) DiscoveryCandidates(ctx context.Context) (DiscoveryCandidatesResult, error) {
+	managedRoot, err := s.ManagedRoot(ctx)
+	if err != nil {
+		return DiscoveryCandidatesResult{}, err
+	}
+	result := DiscoveryCandidatesResult{
+		SourceType:            string(generated.ProjectSourceEntryTypeManaged),
+		SupportsScan:          false,
+		SupportsAutoDiscovery: false,
+		StatusReason:          managedRoot.StatusReason,
+	}
+	if managedRoot.ConfiguredRootDirectory != nil {
+		root := *managedRoot.ConfiguredRootDirectory
+		result.AuthorityRoot = &root
+	}
+	if managedRoot.Status != projectcontract.ManagedRootStatusReady.String() || managedRoot.ConfiguredRootDirectory == nil {
+		return result, nil
+	}
+	result.SupportsScan = true
+	result.SupportsAutoDiscovery = true
+
+	repository, err := s.repositoryOrErr()
+	if err != nil {
+		return DiscoveryCandidatesResult{}, err
+	}
+	items, err := s.scanDiscoveryCandidates(ctx, repository, *managedRoot.ConfiguredRootDirectory, managedRoot.ConfigKey)
+	if err != nil {
+		return DiscoveryCandidatesResult{}, err
+	}
+	result.Items = items
+	return result, nil
+}
+
+// ImportDirectorySources returns operator-allowlisted import roots plus managed-root injection.
+func (s *Service) ImportDirectorySources(ctx context.Context) (ImportDirectorySourceResult, error) {
+	roots, err := s.importRootDefinitions(ctx)
+	if err != nil {
+		return ImportDirectorySourceResult{}, err
+	}
+	result := ImportDirectorySourceResult{Items: make([]ImportDirectorySource, 0, len(roots))}
+	for _, root := range roots {
+		result.Items = append(result.Items, ImportDirectorySource{
+			Provider:    importProviderLocal,
+			RootID:      root.id,
+			Label:       root.label,
+			Path:        root.path,
+			InitialPath: normalizeBrowsePath(root.initialPath),
+			Managed:     root.managed,
+		})
+	}
+	return result, nil
+}
+
+// BrowseImportDirectories returns a bounded root-relative directory listing for import flows.
+func (s *Service) BrowseImportDirectories(ctx context.Context, query ImportDirectoryBrowseQuery) (ImportDirectoryBrowseResult, error) {
+	query = normalizeDirectoryBrowseQuery(query)
+	root, err := s.resolveImportRoot(ctx, query.Provider, query.RootID)
+	if err != nil {
+		return ImportDirectoryBrowseResult{}, err
+	}
+	absolute, err := resolveRootPath(root, query.Path)
+	if err != nil {
+		return ImportDirectoryBrowseResult{}, fmt.Errorf("%w: invalid relative path", errProjectDirectoryForbidden)
+	}
+	entries, err := os.ReadDir(absolute)
+	if err != nil {
+		return ImportDirectoryBrowseResult{}, fmt.Errorf("%w: %v", errProjectImportValidation, err)
+	}
+	items := buildImportDirectoryItems(query.Path, entries)
+	sortImportDirectoryItems(items, query.SortBy, query.Order)
+	start := minInt(query.Offset, len(items))
+	end := minInt(start+query.Limit, len(items))
+	resultItems := append([]ImportDirectoryItem(nil), items[start:end]...)
+	return ImportDirectoryBrowseResult{
+		Provider:    query.Provider,
+		RootID:      root.id,
+		CurrentPath: query.Path,
+		ParentPath:  parentBrowsePath(query.Path),
+		Limit:       query.Limit,
+		Offset:      query.Offset,
+		HasMore:     end < len(items),
+		SortBy:      query.SortBy,
+		Order:       query.Order,
+		Items:       resultItems,
+	}, nil
+}
+
+// InspectImportDirectory discovers files, parses compose once, and stores a short-lived inspection session.
+func (s *Service) InspectImportDirectory(ctx context.Context, request ImportInspectRequest) (ImportInspectResult, error) {
+	repository, err := s.repositoryOrErr()
+	if err != nil {
+		return ImportInspectResult{}, err
+	}
+	root, err := s.resolveImportRoot(ctx, request.DirectoryRef.Provider, request.DirectoryRef.RootID)
+	if err != nil {
+		return ImportInspectResult{}, err
+	}
+	absolute, err := resolveRootPath(root, request.DirectoryRef.Path)
+	if err != nil {
+		return ImportInspectResult{}, fmt.Errorf("%w: invalid relative path", errProjectDirectoryForbidden)
+	}
+	discovered, err := discoverImportFiles(absolute)
+	if err != nil {
+		return ImportInspectResult{}, fmt.Errorf("%w: %v", errProjectImportValidation, err)
+	}
+	session, err := s.inspectImportRequest(ctx, repository, ImportRequest{
+		WorkingDirectory:             absolute,
+		ComposeFiles:                 discovered.composeFiles,
+		EnvFiles:                     discovered.envFiles,
+		DisplayName:                  request.DisplayName,
+		CanonicalProjectNameOverride: request.CanonicalProjectNameOverride,
+	})
+	if err != nil {
+		return ImportInspectResult{}, err
+	}
+	if len(discovered.warnings) > 0 {
+		session.Warnings = append(session.Warnings, discovered.warnings...)
+		if s.inspectCache != nil {
+			s.inspectCache.storeSession(session)
+		}
+	}
+	status := "ready"
+	if len(session.Conflicts) > 0 {
+		status = "conflict"
+	}
+	return ImportInspectResult{
+		InspectionID:               session.ID,
+		DirectoryRef:               request.DirectoryRef,
+		ResolvedWorkingDirectory:   session.WorkingDir,
+		CanonicalProjectName:       session.CanonicalName,
+		CanonicalProjectNameSource: session.CanonicalSource,
+		DisplayNameSuggested:       session.DisplayName,
+		ComposeFiles:               toFileViews(session.ParseResult.ComposeFiles),
+		EnvFiles:                   toFileViews(session.ParseResult.EnvFiles),
+		ServiceNames:               append([]string(nil), session.ParseResult.ServiceNames...),
+		NetworkNames:               append([]string(nil), session.ParseResult.NetworkNames...),
+		VolumeNames:                append([]string(nil), session.ParseResult.VolumeNames...),
+		ConfigHash:                 session.ParseResult.ConfigHash,
+		Warnings:                   append([]string(nil), session.Warnings...),
+		Conflicts:                  append([]string(nil), session.Conflicts...),
+		ValidationStatus:           status,
+	}, nil
+}
+
+// ImportByInspection validates inspection freshness and persists the inspected project.
+func (s *Service) ImportByInspection(ctx context.Context, request ImportExecuteRequest) (generated.ProjectImportResponse, error) {
+	repository, err := s.repositoryOrErr()
+	if err != nil {
+		return generated.ProjectImportResponse{}, err
+	}
+	if s.inspectCache == nil {
+		return generated.ProjectImportResponse{}, errProjectInspectionExpired
+	}
+	session, ok := s.inspectCache.lookupSession(strings.TrimSpace(request.InspectionID))
+	if !ok {
+		return generated.ProjectImportResponse{}, errProjectInspectionExpired
+	}
+	response, importErr := s.importInspectionSession(ctx, repository, session, request.DisplayName, request.CanonicalProjectNameOverride, request.ActorID)
+	if importErr != nil {
+		if errors.Is(importErr, errProjectConflict) && strings.Contains(importErr.Error(), "file hash mismatch") {
+			return generated.ProjectImportResponse{}, errProjectInspectionStale
+		}
+		return generated.ProjectImportResponse{}, importErr
+	}
+	return response, nil
 }
 
 // Get returns one project detail payload.
@@ -349,7 +652,7 @@ func (s *Service) Get(ctx context.Context, projectID uint64) (generated.ProjectD
 		return generated.ProjectDetailResponse{}, err
 	}
 	runtimeSummary, _ := s.runtimeSummary(ctx, aggregate)
-	return toProjectDetailResponse(aggregate, runtimeSummary), nil
+	return toProjectDetailResponseWithManagedRoot(aggregate, s.readyManagedRootDirectory(ctx), runtimeSummary), nil
 }
 
 // ValidateImport resolves static compose inputs and reports bounded import validation results.
@@ -358,26 +661,11 @@ func (s *Service) ValidateImport(ctx context.Context, request ImportRequest) (Im
 	if err != nil {
 		return ImportValidationResult{}, err
 	}
-	parseResult, validation, err := s.parseImportRequest(request)
+	session, err := s.inspectImportRequest(ctx, repository, request)
 	if err != nil {
 		return ImportValidationResult{}, err
 	}
-	conflicts, err := s.computeConflicts(ctx, repository, request, validation)
-	if err != nil {
-		return ImportValidationResult{}, err
-	}
-	return ImportValidationResult{
-		CanonicalProjectName:       validation.CanonicalProjectName,
-		CanonicalProjectNameSource: validation.CanonicalProjectNameSource,
-		WorkingDirectory:           parseResult.WorkingDirectory,
-		ComposeFiles:               validation.ComposeFiles,
-		EnvFiles:                   validation.EnvFiles,
-		ServiceCount:               len(parseResult.ServiceNames),
-		Warnings:                   append([]string(nil), parseResult.Warnings...),
-		Conflicts:                  conflicts,
-		ConfigHash:                 parseResult.ConfigHash,
-		DeclaredServiceNames:       append([]string(nil), parseResult.ServiceNames...),
-	}, nil
+	return s.validationResultFromSession(session), nil
 }
 
 // Import validates and registers one project.
@@ -386,55 +674,11 @@ func (s *Service) Import(ctx context.Context, request ImportRequest) (generated.
 	if err != nil {
 		return generated.ProjectImportResponse{}, err
 	}
-	parseResult, validation, err := s.parseImportRequest(request)
+	session, err := s.inspectImportRequest(ctx, repository, request)
 	if err != nil {
 		return generated.ProjectImportResponse{}, err
 	}
-	conflicts, err := s.computeConflicts(ctx, repository, request, validation)
-	if err != nil {
-		return generated.ProjectImportResponse{}, err
-	}
-	if len(conflicts) > 0 {
-		return generated.ProjectImportResponse{}, fmt.Errorf("%w: %s", errProjectConflict, strings.Join(conflicts, ", "))
-	}
-
-	now := time.Now().UTC()
-	aggregate, err := repository.ImportProject(ctx, projectstore.ImportProjectInput{
-		DisplayName:                displayNameOrCanonical(request.DisplayName, validation.CanonicalProjectName),
-		CanonicalProjectName:       validation.CanonicalProjectName,
-		CanonicalProjectNameSource: validation.CanonicalProjectNameSource,
-		SourceKind:                 projectcontract.SourceKindImported.String(),
-		HostScope:                  projectcontract.HostScopeLocal.String(),
-		WorkingDirectory:           parseResult.WorkingDirectory,
-		OwnershipMode:              projectcontract.OwnershipModeExternal.String(),
-		LastRefreshStatus:          projectcontract.RefreshStatusSuccess.String(),
-		LastRefreshAt:              &now,
-		LastRefreshConfigHash:      parseResult.ConfigHash,
-		LastObservedConfigHash:     parseResult.ConfigHash,
-		LastDriftCheckedAt:         &now,
-		DriftStatus:                projectcontract.DriftStatusClean.String(),
-		Files:                      toStoreFiles(parseResult.ComposeFiles, parseResult.EnvFiles),
-		Snapshot: &projectstore.Snapshot{
-			ConfigHash:             parseResult.ConfigHash,
-			NormalizedComposeJSON:  normalizeSnapshotJSON(parseResult.NormalizedComposeJSON),
-			DeclaredServiceCount:   len(parseResult.ServiceNames),
-			DeclaredServicesDigest: digestServiceNames(parseResult.ServiceNames),
-			RefreshedAt:            now,
-		},
-		ActorID: request.ActorID,
-	})
-	if err != nil {
-		return generated.ProjectImportResponse{}, mapStoreError(err)
-	}
-
-	response := generated.ProjectImportResponse{
-		Project: toProjectDetailResponse(aggregate),
-	}
-	response.SnapshotSummary.ConfigHash = parseResult.ConfigHash
-	response.SnapshotSummary.RefreshedAt = now
-	serviceCount := len(parseResult.ServiceNames)
-	response.SnapshotSummary.DeclaredServiceCount = &serviceCount
-	return response, nil
+	return s.importInspectionSession(ctx, repository, session, request.DisplayName, request.CanonicalProjectNameOverride, request.ActorID)
 }
 
 // Refresh reparses and persists the latest static compose snapshot.
@@ -523,6 +767,7 @@ func (s *Service) Services(ctx context.Context, projectID uint64) (generated.Pro
 func (s *Service) ManagedRoot(ctx context.Context) (ManagedRootInfo, error) {
 	definitionKey := projectcontract.ProjectManagedRootConfig.String()
 	info := ManagedRootInfo{
+		SourceType:            "managed",
 		Status:                projectcontract.ManagedRootStatusUnconfigured.String(),
 		ConfigKey:             definitionKey,
 		OwnershipMode:         projectcontract.OwnershipModeManagedRootDedicated.String(),
@@ -595,6 +840,7 @@ func (s *Service) ValidateManagedCreate(ctx context.Context, request ManagedProj
 
 	return ManagedProjectCreateValidationResult{
 		ManagedRoot:             rootInfo,
+		SourceType:              "managed",
 		DisplayName:             normalized.DisplayName,
 		CanonicalProjectName:    normalized.CanonicalProjectName,
 		OwnershipMode:           projectcontract.OwnershipModeManagedRootDedicated.String(),
@@ -603,12 +849,22 @@ func (s *Service) ValidateManagedCreate(ctx context.Context, request ManagedProj
 		EnvFileName:             normalized.EnvFileName,
 		ComposeFileAbsolutePath: composeFileAbsolutePath,
 		EnvFileAbsolutePath:     envFileAbsolutePath,
-		Warnings:                warnings,
+		SourceMetadata: map[string]string{
+			"managed_root_key":           rootInfo.ConfigKey,
+			"managed_relative_directory": normalized.RelativeProjectDirectory,
+			"managed_compose_file_name":  normalized.ComposeFileName,
+			"managed_env_file_name":      stringValue(normalized.EnvFileName),
+		},
+		Warnings: warnings,
 	}, nil
 }
 
 // CreateManagedProject writes managed project files under the configured managed root and persists the registry bootstrap.
-func (s *Service) CreateManagedProject(ctx context.Context, request ManagedProjectCreateRequest, actorID *uint64) (ManagedProjectCreateResult, error) {
+func (s *Service) CreateManagedProject(
+	ctx context.Context,
+	request ManagedProjectCreateRequest,
+	actorID *uint64,
+) (result ManagedProjectCreateResult, err error) {
 	repository, err := s.repositoryOrErr()
 	if err != nil {
 		return ManagedProjectCreateResult{}, err
@@ -632,7 +888,7 @@ func (s *Service) CreateManagedProject(ctx context.Context, request ManagedProje
 	shouldCleanup := true
 	defer func() {
 		if shouldCleanup {
-			cleanupManagedCreate(createdDir, createdFiles)
+			err = errors.Join(err, cleanupManagedCreate(createdDir, createdFiles))
 		}
 	}()
 
@@ -674,14 +930,15 @@ func (s *Service) CreateManagedProject(ctx context.Context, request ManagedProje
 		return ManagedProjectCreateResult{}, mapStoreError(err)
 	}
 	shouldCleanup = false
-
-	return ManagedProjectCreateResult{
+	result = ManagedProjectCreateResult{
 		Validation:           validation,
+		SourceType:           "managed",
 		ProjectID:            aggregate.Project.ID,
 		ConfigHash:           parseResult.ConfigHash,
 		DeclaredServiceCount: len(parseResult.ServiceNames),
 		RefreshedAt:          now,
-	}, nil
+	}
+	return result, nil
 }
 
 type normalizedManagedCreateRequest struct {
@@ -770,14 +1027,14 @@ func normalizeManagedFileName(value string, label string) (string, error) {
 
 // normalizeManagedOptionalFileName 规范化可选文件名，空值或纯空白时返回 nil。
 //
-// 返回规范化后的文件名指针；当输入为空、仅包含空白字符或校验失败时分别返回 nil 或错误。
+// 当输入为空或仅包含空白字符时，返回 nil。
 func normalizeManagedOptionalFileName(value *string, label string) (*string, error) {
 	if value == nil || strings.TrimSpace(*value) == "" {
 		return nil, nil
 	}
 	fileName, err := normalizeManagedFileName(*value, label)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("normalize %s file name: %w", label, err)
 	}
 	return &fileName, nil
 }
@@ -806,7 +1063,9 @@ func normalizeManagedOptionalContent(value *string) *string {
 }
 
 // ensureManagedCreatePathsUnderRoot 验证托管项目工作目录位于已配置的 managed root 下。
-// 当工作目录缺少有效根目录关系或超出 managed root 时，返回 errProjectInvalidArgument。
+// ensureManagedCreatePathsUnderRoot 验证托管项目工作目录位于已配置的 managed root 内。
+//
+// 当未配置根目录，或工作目录与根目录之间不存在有效的相对关系，或工作目录超出 managed root 时，返回 errProjectInvalidArgument。
 func ensureManagedCreatePathsUnderRoot(validation ManagedProjectCreateValidationResult) error {
 	if validation.ManagedRoot.ConfiguredRootDirectory == nil {
 		return errProjectInvalidArgument
@@ -823,85 +1082,7 @@ func ensureManagedCreatePathsUnderRoot(validation ManagedProjectCreateValidation
 	return nil
 }
 
-// writeManagedProjectFiles 在受控工作目录中写入 compose 文件和可选的 env 文件，并返回创建的目录与文件路径。
-// 成功时返回清理所需的工作目录和已写入文件列表。
-func writeManagedProjectFiles(validation ManagedProjectCreateValidationResult, normalized normalizedManagedCreateRequest) (string, []string, error) {
-	workingDirectory := filepath.Clean(validation.WorkingDirectory)
-	parentRoot, relativeWorkingDirectory, err := openManagedProjectParentRoot(workingDirectory)
-	if err != nil {
-		return "", nil, err
-	}
-	defer closeManagedRootFSQuietly(parentRoot)
-	if err := parentRoot.root.MkdirAll(relativeWorkingDirectory, managedCreateDirMode); err != nil {
-		return "", nil, fmt.Errorf("create working directory: %w", err)
-	}
-	workingRoot, err := parentRoot.root.OpenRoot(relativeWorkingDirectory)
-	if err != nil {
-		return workingDirectory, nil, fmt.Errorf("open working directory: %w", err)
-	}
-	defer func() {
-		_ = workingRoot.Close()
-	}()
-	createdFiles := []string{}
-	composeRelativePath, err := relativePathWithinRoot(workingDirectory, validation.ComposeFileAbsolutePath)
-	if err != nil {
-		return workingDirectory, createdFiles, fmt.Errorf("resolve compose file path: %w", err)
-	}
-	if err := workingRoot.WriteFile(composeRelativePath, []byte(normalized.ComposeFileContent), managedCreateFileMode); err != nil {
-		return workingDirectory, createdFiles, fmt.Errorf("write compose file: %w", err)
-	}
-	createdFiles = append(createdFiles, validation.ComposeFileAbsolutePath)
-	if validation.EnvFileAbsolutePath != nil && normalized.EnvFileContent != nil {
-		envRelativePath, relErr := relativePathWithinRoot(workingDirectory, *validation.EnvFileAbsolutePath)
-		if relErr != nil {
-			return workingDirectory, createdFiles, fmt.Errorf("resolve env file path: %w", relErr)
-		}
-		if err := workingRoot.WriteFile(envRelativePath, []byte(*normalized.EnvFileContent), managedCreateFileMode); err != nil {
-			return workingDirectory, createdFiles, fmt.Errorf("write env file: %w", err)
-		}
-		createdFiles = append(createdFiles, *validation.EnvFileAbsolutePath)
-	}
-	return workingDirectory, createdFiles, nil
-}
-
-// cleanupManagedCreate 依次删除已创建的文件，并在目录路径非空时删除创建的目录。
-func cleanupManagedCreate(createdDir string, createdFiles []string) {
-	if len(createdFiles) == 0 && createdDir == "" {
-		return
-	}
-	fsRoot, err := openManagedRootFSForPaths(createdDir, createdFiles...)
-	if err != nil {
-		return
-	}
-	defer closeManagedRootFSQuietly(fsRoot)
-	for i := len(createdFiles) - 1; i >= 0; i-- {
-		relative, relErr := fsRoot.relative(createdFiles[i])
-		if relErr != nil {
-			continue
-		}
-		_ = fsRoot.root.Remove(relative)
-	}
-	if createdDir != "" {
-		relative, relErr := fsRoot.relative(createdDir)
-		if relErr == nil {
-			_ = fsRoot.root.Remove(relative)
-		}
-	}
-}
-
-// managedCreateEnvFileList 返回受管创建流程中的 env 文件路径列表。
-//
-// 当提供 env 文件绝对路径时，返回仅包含该路径的切片；否则返回 nil。
-//
-// @param envFileAbsolutePath env 文件的绝对路径。
-// @returns env 文件路径列表。
-func managedCreateEnvFileList(envFileAbsolutePath *string) []string {
-	if envFileAbsolutePath == nil {
-		return nil
-	}
-	return []string{*envFileAbsolutePath}
-}
-
+// guardCode 返回仅包含指定代码的守卫结果。
 func guardCode(code string) GuardResult {
 	return GuardResult{Code: code}
 }
@@ -1168,7 +1349,12 @@ func (s *Service) ValidateConfiguration(ctx context.Context, projectID uint64, d
 }
 
 // DeployConfiguration writes one managed draft, refreshes the snapshot, and runs docker compose up -d.
-func (s *Service) DeployConfiguration(ctx context.Context, projectID uint64, draft ConfigurationDraft, actorID *uint64) (DeployResult, error) {
+func (s *Service) DeployConfiguration(
+	ctx context.Context,
+	projectID uint64,
+	draft ConfigurationDraft,
+	actorID *uint64,
+) (result DeployResult, err error) {
 	aggregate, err := s.getAggregate(ctx, projectID)
 	if err != nil {
 		return DeployResult{}, err
@@ -1188,7 +1374,9 @@ func (s *Service) DeployConfiguration(ctx context.Context, projectID uint64, dra
 	if err != nil {
 		return DeployResult{}, fmt.Errorf("%w: %v", errProjectImportValidation, err)
 	}
-	defer restoreManagedDraft(aggregate.Project.WorkingDirectory, restoreItems)
+	defer func() {
+		err = errors.Join(err, restoreManagedDraft(aggregate.Project.WorkingDirectory, restoreItems))
+	}()
 
 	now := time.Now().UTC()
 	if _, err := s.runLifecycleActionWithAggregate(ctx, aggregate, actorID, generated.ProjectActionDeploy, []string{"compose", "up", "-d"}); err != nil {
@@ -1208,7 +1396,7 @@ func (s *Service) DeployConfiguration(ctx context.Context, projectID uint64, dra
 	if len(prepared.Warnings) > 0 {
 		guardResults = append(guardResults, guardDetail("warnings", strings.Join(prepared.Warnings, "|")))
 	}
-	return DeployResult{
+	result = DeployResult{
 		ProjectID:            projectID,
 		Action:               "deploy",
 		Result:               "completed",
@@ -1220,7 +1408,8 @@ func (s *Service) DeployConfiguration(ctx context.Context, projectID uint64, dra
 		MessageKey:           &messageKey,
 		Message:              &messageKey,
 		GuardResults:         guardResults,
-	}, nil
+	}
+	return result, nil
 }
 
 // UnsupportedLifecycleAction returns an explicit batch-2 blocked action result.
@@ -1476,6 +1665,127 @@ func (s *Service) parseImportRequest(
 	return parseResult, validation, nil
 }
 
+func (s *Service) inspectImportRequest(
+	ctx context.Context,
+	repository projectstore.Repository,
+	request ImportRequest,
+) (importInspectionSession, error) {
+	parseResult, validation, err := s.parseImportRequest(request)
+	if err != nil {
+		return importInspectionSession{}, err
+	}
+	conflicts, err := s.computeConflicts(ctx, repository, request, validation)
+	if err != nil {
+		return importInspectionSession{}, err
+	}
+	createdAt := time.Now().UTC()
+	session := importInspectionSession{
+		DirectoryRef: ImportDirectoryReference{
+			Provider: importProviderLocal,
+			Path:     parseResult.WorkingDirectory,
+		},
+		WorkingDir:      parseResult.WorkingDirectory,
+		CanonicalName:   validation.CanonicalProjectName,
+		CanonicalSource: validation.CanonicalProjectNameSource,
+		DisplayName:     displayNameOrCanonical(request.DisplayName, validation.CanonicalProjectName),
+		ParseResult:     parseResult,
+		Conflicts:       append([]string(nil), conflicts...),
+		Warnings:        append([]string(nil), parseResult.Warnings...),
+		CreatedAt:       createdAt,
+		ExpiresAt:       createdAt.Add(importInspectionSessionTTL),
+		FileHashes:      snapshotFileHashes(parseResult),
+	}
+	session.ID = inspectionSessionID(session.DirectoryRef, parseResult.ConfigHash, createdAt)
+	if s.inspectCache != nil {
+		s.inspectCache.storeSession(session)
+	}
+	return session, nil
+}
+
+func (s *Service) validationResultFromSession(session importInspectionSession) ImportValidationResult {
+	inspectionID := session.ID
+	return ImportValidationResult{
+		CanonicalProjectName:       session.CanonicalName,
+		CanonicalProjectNameSource: session.CanonicalSource,
+		WorkingDirectory:           session.WorkingDir,
+		ComposeFiles:               toGeneratedFilesFromCompose(session.ParseResult.ComposeFiles),
+		EnvFiles:                   toGeneratedFilesFromCompose(session.ParseResult.EnvFiles),
+		ServiceCount:               len(session.ParseResult.ServiceNames),
+		NetworkNames:               append([]string(nil), session.ParseResult.NetworkNames...),
+		VolumeNames:                append([]string(nil), session.ParseResult.VolumeNames...),
+		Warnings:                   append([]string(nil), session.Warnings...),
+		Conflicts:                  append([]string(nil), session.Conflicts...),
+		ConfigHash:                 session.ParseResult.ConfigHash,
+		DeclaredServiceNames:       append([]string(nil), session.ParseResult.ServiceNames...),
+		InspectionID:               &inspectionID,
+	}
+}
+
+func (s *Service) importInspectionSession(
+	ctx context.Context,
+	repository projectstore.Repository,
+	session importInspectionSession,
+	displayName *string,
+	canonicalOverride *string,
+	actorID *uint64,
+) (generated.ProjectImportResponse, error) {
+	if len(session.Conflicts) > 0 {
+		return generated.ProjectImportResponse{}, fmt.Errorf("%w: %s", errProjectConflict, strings.Join(session.Conflicts, ", "))
+	}
+	currentRequest := ImportRequest{
+		WorkingDirectory:             session.WorkingDir,
+		ComposeFiles:                 displayPathsFromCompose(session.ParseResult.ComposeFiles),
+		EnvFiles:                     displayPathsFromCompose(session.ParseResult.EnvFiles),
+		DisplayName:                  displayName,
+		CanonicalProjectNameOverride: canonicalOverride,
+		ActorID:                      actorID,
+	}
+	freshParse, freshValidation, err := s.parseImportRequest(currentRequest)
+	if err != nil {
+		return generated.ProjectImportResponse{}, err
+	}
+	if !sameFileHashes(session.FileHashes, freshParse) {
+		return generated.ProjectImportResponse{}, fmt.Errorf("%w: file hash mismatch", errProjectConflict)
+	}
+	now := time.Now().UTC()
+	aggregate, err := repository.ImportProject(ctx, projectstore.ImportProjectInput{
+		DisplayName:                displayNameOrCanonical(displayName, freshValidation.CanonicalProjectName),
+		CanonicalProjectName:       freshValidation.CanonicalProjectName,
+		CanonicalProjectNameSource: freshValidation.CanonicalProjectNameSource,
+		SourceKind:                 projectcontract.SourceKindImported.String(),
+		HostScope:                  projectcontract.HostScopeLocal.String(),
+		WorkingDirectory:           freshParse.WorkingDirectory,
+		OwnershipMode:              projectcontract.OwnershipModeExternal.String(),
+		LastRefreshStatus:          projectcontract.RefreshStatusSuccess.String(),
+		LastRefreshAt:              &now,
+		LastRefreshConfigHash:      freshParse.ConfigHash,
+		LastObservedConfigHash:     freshParse.ConfigHash,
+		LastDriftCheckedAt:         &now,
+		DriftStatus:                projectcontract.DriftStatusClean.String(),
+		Files:                      toStoreFiles(freshParse.ComposeFiles, freshParse.EnvFiles),
+		Snapshot: &projectstore.Snapshot{
+			ConfigHash:             freshParse.ConfigHash,
+			NormalizedComposeJSON:  normalizeSnapshotJSON(freshParse.NormalizedComposeJSON),
+			DeclaredServiceCount:   len(freshParse.ServiceNames),
+			DeclaredServicesDigest: digestServiceNames(freshParse.ServiceNames),
+			RefreshedAt:            now,
+		},
+		ActorID: actorID,
+	})
+	if err != nil {
+		return generated.ProjectImportResponse{}, mapStoreError(err)
+	}
+
+	response := generated.ProjectImportResponse{
+		Project: toProjectDetailResponse(aggregate),
+	}
+	response.SnapshotSummary.ConfigHash = freshParse.ConfigHash
+	response.SnapshotSummary.RefreshedAt = now
+	serviceCount := len(freshParse.ServiceNames)
+	response.SnapshotSummary.DeclaredServiceCount = &serviceCount
+	return response, nil
+}
+
 func (s *Service) computeConflicts(
 	ctx context.Context,
 	repository projectstore.Repository,
@@ -1501,11 +1811,221 @@ func (s *Service) computeConflicts(
 	return uniqueStrings(conflicts), nil
 }
 
+func (s *Service) scanDiscoveryCandidates(
+	ctx context.Context,
+	repository projectstore.Repository,
+	rootDirectory string,
+	configKey string,
+) ([]DiscoveryCandidateResult, error) {
+	entries, err := os.ReadDir(rootDirectory)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", errProjectImportValidation, err)
+	}
+	candidates := make([]DiscoveryCandidateResult, 0, projectDiscoveryScanSize)
+	for _, entry := range entries {
+		if len(candidates) >= projectDiscoveryScanSize {
+			break
+		}
+		name, ok := visibleDirectoryEntryName(entry)
+		if !ok {
+			continue
+		}
+		candidate, err := s.buildDiscoveryCandidate(ctx, repository, rootDirectory, name, configKey)
+		if err != nil {
+			continue
+		}
+		candidates = append(candidates, candidate)
+	}
+	sort.Slice(candidates, func(i, j int) bool {
+		return strings.Compare(candidates[i].WorkingDirectory, candidates[j].WorkingDirectory) < 0
+	})
+	return candidates, nil
+}
+
+// buildImportDirectoryItems 构建可浏览的子目录条目列表。
+// 仅包含目录条目，并为每个条目填充规范化路径；如果可获取修改时间，则同时记录其 UTC 时间。
+func buildImportDirectoryItems(currentPath string, entries []os.DirEntry) []ImportDirectoryItem {
+	items := make([]ImportDirectoryItem, 0, len(entries))
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		name := strings.TrimSpace(entry.Name())
+		if name == "" {
+			continue
+		}
+		item := ImportDirectoryItem{
+			Name: name,
+			Path: normalizeBrowsePath(filepath.Join(currentPath, name)),
+		}
+		if info, infoErr := entry.Info(); infoErr == nil {
+			modifiedAt := info.ModTime().UTC()
+			item.ModifiedAt = &modifiedAt
+		}
+		items = append(items, item)
+	}
+	return items
+}
+
+// sortImportDirectoryItems 按指定字段和顺序排列导入目录项。
+// 当按修改时间排序时，会优先比较修改时间；无法区分时按名称排序。
+func sortImportDirectoryItems(items []ImportDirectoryItem, sortBy string, order string) {
+	sort.Slice(items, func(i, j int) bool {
+		if sortBy == importDirectorySortByModified {
+			if decided, ok := compareModifiedTime(items[i].ModifiedAt, items[j].ModifiedAt, order); ok {
+				return decided
+			}
+		}
+		return compareDirectoryNames(items[i].Name, items[j].Name, order)
+	})
+}
+
+// compareModifiedTime 根据修改时间和排序方向比较两个时间。
+// 左右时间为空时按零值时间处理；当时间相同时返回 false, false。
+// 返回的第一个值表示左侧是否应排在右侧之前，第二个值表示两者是否可比较。
+func compareModifiedTime(leftAt *time.Time, rightAt *time.Time, order string) (bool, bool) {
+	left := time.Time{}
+	right := time.Time{}
+	if leftAt != nil {
+		left = *leftAt
+	}
+	if rightAt != nil {
+		right = *rightAt
+	}
+	if left.Equal(right) {
+		return false, false
+	}
+	if order == importDirectoryOrderDesc {
+		return left.After(right), true
+	}
+	return left.Before(right), true
+}
+
+// compareDirectoryNames 按指定顺序比较两个目录名的先后。
+//
+// 当 order 为降序时，左值大于右值返回 true；否则左值小于右值返回 true。
+func compareDirectoryNames(left string, right string, order string) bool {
+	if order == importDirectoryOrderDesc {
+		return strings.Compare(left, right) > 0
+	}
+	return strings.Compare(left, right) < 0
+}
+
+// visibleDirectoryEntryName 返回可见目录项的名称。
+//
+// 它仅接受目录项，并过滤掉空名称、以 `.` 开头的名称以及非目录项。
+// 当目录项可用时返回其修剪后的名称。
+func visibleDirectoryEntryName(entry os.DirEntry) (string, bool) {
+	if !entry.IsDir() {
+		return "", false
+	}
+	name := strings.TrimSpace(entry.Name())
+	if name == "" || strings.HasPrefix(name, ".") {
+		return "", false
+	}
+	return name, true
+}
+
+func (s *Service) buildDiscoveryCandidate(
+	ctx context.Context,
+	repository projectstore.Repository,
+	rootDirectory string,
+	name string,
+	configKey string,
+) (DiscoveryCandidateResult, error) {
+	workingDirectory := filepath.Join(rootDirectory, name)
+	discovered, err := discoverImportFiles(workingDirectory)
+	if err != nil {
+		return DiscoveryCandidateResult{}, err
+	}
+	session, err := s.inspectImportRequest(ctx, repository, ImportRequest{
+		WorkingDirectory: workingDirectory,
+		ComposeFiles:     discovered.composeFiles,
+		EnvFiles:         discovered.envFiles,
+	})
+	if err != nil {
+		return DiscoveryCandidateResult{}, err
+	}
+	if len(discovered.warnings) > 0 {
+		session.Warnings = append(session.Warnings, discovered.warnings...)
+	}
+	status, recommendedAction, statusReason := discoveryCandidateStatus(session.Conflicts)
+	return DiscoveryCandidateResult{
+		CandidateKey:  candidateKeyForWorkingDirectory(workingDirectory),
+		CandidateKind: "directory-scan",
+		SourceKind:    projectcontract.SourceKindManaged.String(),
+		SourceType:    string(generated.ProjectSourceEntryTypeManaged),
+		SourceMetadata: map[string]string{
+			"managed_root_key":           configKey,
+			"managed_relative_directory": name,
+			"managed_compose_file_name":  firstProjectFileDisplayName(toGeneratedFilesFromCompose(session.ParseResult.ComposeFiles)),
+			"managed_env_file_name":      firstProjectFileDisplayName(toGeneratedFilesFromCompose(session.ParseResult.EnvFiles)),
+		},
+		DisplayName:                session.CanonicalName,
+		CanonicalProjectName:       session.CanonicalName,
+		CanonicalProjectNameSource: session.CanonicalSource,
+		WorkingDirectory:           session.WorkingDir,
+		OwnershipMode:              projectcontract.OwnershipModeManagedRootDedicated.String(),
+		HostScope:                  projectcontract.HostScopeLocal.String(),
+		Status:                     status,
+		RecommendedAction:          recommendedAction,
+		StatusReason:               statusReason,
+		ComposeFiles:               toGeneratedFilesFromCompose(session.ParseResult.ComposeFiles),
+		EnvFiles:                   toGeneratedFilesFromCompose(session.ParseResult.EnvFiles),
+		DeclaredServiceNames:       append([]string(nil), session.ParseResult.ServiceNames...),
+		ServiceCount:               len(session.ParseResult.ServiceNames),
+		ConfigHash:                 session.ParseResult.ConfigHash,
+		Warnings:                   append([]string(nil), session.Warnings...),
+		Conflicts:                  append([]string(nil), session.Conflicts...),
+	}, nil
+}
+
+// discoveryCandidateStatus 根据冲突列表返回发现候选的状态、建议操作和状态原因。
+// 当不存在冲突时返回“ready”和“import”；当存在冲突时返回“conflict”和“review”，并提供原因说明。
+// @returns 状态字符串、建议操作字符串，以及在存在冲突时指向状态原因的指针。
+func discoveryCandidateStatus(conflicts []string) (string, string, *string) {
+	if len(conflicts) == 0 {
+		return "ready", "import", nil
+	}
+	reason := "Existing registry ownership or canonical-name conflicts require review before import."
+	return "conflict", "review", &reason
+}
+
+// candidateKeyForWorkingDirectory 生成工作目录的扫描候选键。
+// @returns 基于修剪后的工作目录生成的键，格式为 `scan:` 加上 SHA-256 摘要前 8 字节的十六进制值。
+func candidateKeyForWorkingDirectory(workingDirectory string) string {
+	sum := sha256.Sum256([]byte(strings.TrimSpace(workingDirectory)))
+	return "scan:" + hex.EncodeToString(sum[:8])
+}
+
+// firstProjectFileDisplayName 返回首个项目文件展示路径的基名；当列表为空时返回空字符串。
+func firstProjectFileDisplayName(items []generated.ProjectFileItem) string {
+	if len(items) == 0 {
+		return ""
+	}
+	return filepath.Base(items[0].DisplayPath)
+}
+
+// displayPathsFromCompose 返回一组 compose 文件投影的显示路径列表。
+//
+// @returns 按输入顺序提取的显示路径；当输入为空时返回 nil。
+func displayPathsFromCompose(files []projectcompose.FileProjection) []string {
+	if len(files) == 0 {
+		return nil
+	}
+	result := make([]string, 0, len(files))
+	for _, file := range files {
+		result = append(result, file.DisplayPath)
+	}
+	return result
+}
+
 // sameDisplayName 判断给定名称与已有名称在去除首尾空白后是否一致。
 //
 // @param value 待比较的名称。
 // @param existing 已存在的名称。
-// @returns 当两者去除首尾空白后相等时返回 true，否则返回 false。
+// sameDisplayName 判断两个显示名称去除首尾空白后是否相等。
+// @returns 两者去除首尾空白后相等时返回 true，否则返回 false。
 func sameDisplayName(value *string, existing string) bool {
 	if value == nil {
 		return false
@@ -1513,16 +2033,63 @@ func sameDisplayName(value *string, existing string) bool {
 	return strings.TrimSpace(*value) == strings.TrimSpace(existing)
 }
 
+func (s *Service) importRootDefinitions(ctx context.Context) ([]importRootDefinition, error) {
+	managedRootInfo, err := s.ManagedRoot(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("resolve managed root info: %w", err)
+	}
+	var managedRoot *string
+	if managedRootInfo.Status == projectcontract.ManagedRootStatusReady.String() {
+		managedRoot = managedRootInfo.ConfiguredRootDirectory
+	}
+	if s.configResolver == nil {
+		return fallbackImportRoots(normalizeImportRootDefinitions(nil, managedRoot)), nil
+	}
+	raw, err := s.configResolver.ResolveDefaultConfig(ctx, projectcontract.ProjectImportAllowedRootsConfig.String())
+	if err != nil {
+		return fallbackImportRoots(normalizeImportRootDefinitions(nil, managedRoot)), nil
+	}
+	decoded, decodeErr := decodeAllowedImportRoots(raw)
+	if decodeErr != nil {
+		return nil, fmt.Errorf("%w: invalid import root config", errProjectInvalidArgument)
+	}
+	return fallbackImportRoots(normalizeImportRootDefinitions(decoded, managedRoot)), nil
+}
+
+// fallbackImportRoots 尝试为导入根列表补充当前工作目录作为回退根。
+// 如果无法获取当前工作目录，则直接返回原列表。
+func fallbackImportRoots(roots []importRootDefinition) []importRootDefinition {
+	return injectFallbackImportRoot(roots, "")
+}
+
+func (s *Service) resolveImportRoot(ctx context.Context, provider string, rootID string) (importRootDefinition, error) {
+	if strings.TrimSpace(provider) != "" && strings.TrimSpace(provider) != importProviderLocal {
+		return importRootDefinition{}, fmt.Errorf("%w: unsupported provider", errProjectDirectoryForbidden)
+	}
+	roots, err := s.importRootDefinitions(ctx)
+	if err != nil {
+		return importRootDefinition{}, err
+	}
+	for _, root := range roots {
+		if root.id == strings.TrimSpace(rootID) {
+			return root, nil
+		}
+	}
+	return importRootDefinition{}, fmt.Errorf("%w: unknown root", errProjectDirectoryForbidden)
+}
+
 // sameWorkingDirectory 判断两个工作目录在去除首尾空白后是否相同。
+// sameWorkingDirectory 判断两个工作目录路径是否相同。
 // @returns 去除首尾空白并忽略大小写后路径相同则为 `true`，否则为 `false`。
 func sameWorkingDirectory(left string, right string) bool {
 	return strings.EqualFold(strings.TrimSpace(left), strings.TrimSpace(right))
 }
 
-// toProjectListItem 将项目聚合转换为列表项，并在提供运行时摘要时补充容器运行统计。
-// 它包含项目标识、名称、来源、工作目录、声明服务数，以及最近刷新和漂移状态。
-func toProjectListItem(
+// toProjectListItemWithManagedRoot 将聚合信息映射为项目列表项，并在提供运行时摘要时补充容器数量。
+// 结果包含项目标识、名称、来源、工作目录、声明服务数，以及最近刷新和漂移状态。
+func toProjectListItemWithManagedRoot(
 	aggregate projectstore.ProjectAggregate,
+	managedRootDirectory string,
 	runtimeSummary ...moduleapi.ContainerProjectRuntimeSummary,
 ) generated.ProjectListItem {
 	serviceCount := 0
@@ -1541,6 +2108,8 @@ func toProjectListItem(
 		CanonicalProjectName:       aggregate.Project.CanonicalProjectName,
 		CanonicalProjectNameSource: generated.ProjectCanonicalNameSource(aggregate.Project.CanonicalProjectNameSource),
 		SourceKind:                 generated.ProjectSourceKind(aggregate.Project.SourceKind),
+		SourceMetadata:             buildListSourceMetadataWithManagedRoot(aggregate, managedRootDirectory),
+		ActivityAuthority:          generated.ProjectActivityAuthority(resolveActivityAuthority(aggregate)),
 		HostScope:                  generated.ProjectHostScope(aggregate.Project.HostScope),
 		OwnershipMode:              generated.ProjectOwnershipMode(aggregate.Project.OwnershipMode),
 		WorkingDirectory:           aggregate.Project.WorkingDirectory,
@@ -1554,9 +2123,18 @@ func toProjectListItem(
 
 // toProjectDetailResponse 将项目聚合数据转换为详情响应。
 //
-// 当提供运行时汇总时，会填充容器运行与停止数量；当聚合包含快照时，会填充服务数。项目的错误信息和配置哈希仅在存在时写入响应。
+// toProjectDetailResponse 将项目聚合转换为详情响应，并在提供运行时汇总时填充容器运行与停止数量。
+// 当聚合包含快照时，会写入服务数；刷新错误信息和配置哈希仅在存在时写入响应。
 func toProjectDetailResponse(
 	aggregate projectstore.ProjectAggregate,
+	runtimeSummary ...moduleapi.ContainerProjectRuntimeSummary,
+) generated.ProjectDetailResponse {
+	return toProjectDetailResponseWithManagedRoot(aggregate, "", runtimeSummary...)
+}
+
+func toProjectDetailResponseWithManagedRoot(
+	aggregate projectstore.ProjectAggregate,
+	managedRootDirectory string,
 	runtimeSummary ...moduleapi.ContainerProjectRuntimeSummary,
 ) generated.ProjectDetailResponse {
 	counts := generated.ProjectContainerCounts{}
@@ -1580,6 +2158,8 @@ func toProjectDetailResponse(
 		LastRefreshStatus:          generated.ProjectRefreshStatus(aggregate.Project.LastRefreshStatus),
 		OwnershipMode:              generated.ProjectOwnershipMode(aggregate.Project.OwnershipMode),
 		SourceKind:                 generated.ProjectSourceKind(aggregate.Project.SourceKind),
+		SourceMetadata:             buildDetailSourceMetadataWithManagedRoot(aggregate, managedRootDirectory),
+		ActivityAuthority:          generated.ProjectActivityAuthority(resolveActivityAuthority(aggregate)),
 		WorkingDirectory:           aggregate.Project.WorkingDirectory,
 	}
 	if aggregate.Project.LastRefreshErrorCode != "" {
@@ -1716,20 +2296,30 @@ func yamlJSONRoundTrip(raw []byte, target any) error {
 }
 
 // digestServiceNames 计算服务名称集合的稳定摘要。
-// 它会按字典序规范化名称后生成 SHA-256 十六进制字符串。
+// digestServiceNames 对服务名按字典序排序后计算摘要。
+// 返回排序后的名称序列对应的 SHA-256 十六进制字符串。
 func digestServiceNames(names []string) string {
 	normalized := append([]string(nil), names...)
 	sort.Strings(normalized)
 	hasher := sha256.New()
 	for _, item := range normalized {
-		hasher.Write([]byte(item))
-		hasher.Write([]byte{0})
+		mustWriteDigestFragment(hasher, []byte(item))
+		mustWriteDigestFragment(hasher, []byte{0})
 	}
 	return hex.EncodeToString(hasher.Sum(nil))
 }
 
+// mustWriteDigestFragment 将摘要片段写入给定写入器。
+// 写入失败时会 panic。
+func mustWriteDigestFragment(writer io.Writer, value []byte) {
+	if _, err := writer.Write(value); err != nil {
+		panic(fmt.Sprintf("project digest writer failed: %v", err))
+	}
+}
+
 // buildRefreshProjectInput 组装项目刷新持久化输入，包含刷新状态、快照、文件与操作者信息。
-// 该输入将刷新时间、配置哈希、归一化后的 compose 快照和声明服务摘要写入存储层。
+// buildRefreshProjectInput 构建用于刷新项目存储记录的输入。
+// 它写入刷新状态、刷新时间、配置哈希、归一化后的 compose 快照和声明服务摘要，并保留操作者信息。
 func buildRefreshProjectInput(
 	projectID uint64,
 	parseResult projectcompose.Result,
@@ -1767,81 +2357,20 @@ func displayNameOrCanonical(displayName *string, canonical string) string {
 	return canonical
 }
 
-// fileName 返回路径中的最后一个段。
+// fileName 返回路径的最后一个段。
+// 它按正斜杠分割路径并取最后一项。
 func fileName(path string) string {
 	parts := strings.Split(path, "/")
 	return parts[len(parts)-1]
 }
 
-type managedDraftContent struct {
-	ComposePath       string
-	ComposeContent    string
-	EnvPath           string
-	EnvContent        string
-	CurrentConfigHash string
-}
-
-type managedDraftProposal struct {
-	ComposePath    string
-	ComposeContent string
-	EnvPath        string
-	EnvContent     *string
-}
-
-type managedDraftRestore struct {
-	Path    string
-	Content []byte
-	Exists  bool
-}
-
 // ensureManagedProjectAggregate 仅允许受控根目录专用归属模式的项目进入受控草案流程。
-// 当项目归属模式不是 managed-root-dedicated 时返回 errProjectManagedFlow。
+// ensureManagedProjectAggregate 检查聚合是否处于 managed-root-dedicated 归属模式，并在不满足时返回 errProjectManagedFlow。
 func ensureManagedProjectAggregate(aggregate projectstore.ProjectAggregate) error {
 	if aggregate.Project.OwnershipMode != projectcontract.OwnershipModeManagedRootDedicated.String() {
 		return errProjectManagedFlow
 	}
 	return nil
-}
-
-// loadManagedDraftContent 读取托管草案所需的当前 compose 和 env 内容。
-// 它要求至少存在一个 compose 文件，并返回首个 compose 文件的绝对路径、归一化后的文件内容、当前配置哈希，以及可选的 env 文件路径和内容。
-func loadManagedDraftContent(aggregate projectstore.ProjectAggregate) (managedDraftContent, error) {
-	composeFiles := filterFiles(aggregate.Files, projectcontract.FileKindCompose.String())
-	if len(composeFiles) == 0 {
-		return managedDraftContent{}, fmt.Errorf("%w: missing compose file authority", errProjectImportValidation)
-	}
-	fsRoot, err := openManagedRootFS(filepath.Clean(aggregate.Project.WorkingDirectory))
-	if err != nil {
-		return managedDraftContent{}, fmt.Errorf("%w: %v", errProjectImportValidation, err)
-	}
-	defer closeManagedRootFSQuietly(fsRoot)
-	composeRelativePath, err := fsRoot.relative(composeFiles[0].AbsolutePath)
-	if err != nil {
-		return managedDraftContent{}, fmt.Errorf("%w: %v", errProjectImportValidation, err)
-	}
-	composeContent, err := fsRoot.root.ReadFile(composeRelativePath)
-	if err != nil {
-		return managedDraftContent{}, fmt.Errorf("%w: %v", errProjectImportValidation, err)
-	}
-	result := managedDraftContent{
-		ComposePath:       composeFiles[0].AbsolutePath,
-		ComposeContent:    normalizeTextBlock(string(composeContent)),
-		CurrentConfigHash: aggregate.Project.LastRefreshConfigHash,
-	}
-	envFiles := filterFiles(aggregate.Files, projectcontract.FileKindEnv.String())
-	if len(envFiles) > 0 {
-		envRelativePath, relErr := fsRoot.relative(envFiles[0].AbsolutePath)
-		if relErr != nil {
-			return managedDraftContent{}, fmt.Errorf("%w: %v", errProjectImportValidation, relErr)
-		}
-		envContent, readErr := fsRoot.root.ReadFile(envRelativePath)
-		if readErr != nil {
-			return managedDraftContent{}, fmt.Errorf("%w: %v", errProjectImportValidation, readErr)
-		}
-		result.EnvPath = envFiles[0].AbsolutePath
-		result.EnvContent = normalizeTextBlock(string(envContent))
-	}
-	return result, nil
 }
 
 func (s *Service) prepareConfigurationDraft(
@@ -1886,185 +2415,6 @@ func (s *Service) prepareConfigurationDraft(
 		ParseResult: parseResult,
 		Warnings:    warnings,
 	}, nil
-}
-
-func buildManagedDraftInput(workingDirectory string, proposal managedDraftProposal) (projectcompose.Input, error) {
-	input := projectcompose.Input{
-		WorkingDirectory: workingDirectory,
-		ComposeFiles:     []string{proposal.ComposePath},
-	}
-	if proposal.EnvPath != "" && proposal.EnvContent != nil {
-		input.EnvFiles = []string{proposal.EnvPath}
-	}
-	return input.WithContentOverrides(map[string][]byte{
-		proposal.ComposePath: []byte(proposal.ComposeContent),
-		proposal.EnvPath:     optionalDraftBytes(proposal.EnvPath, proposal.EnvContent),
-	}), nil
-}
-
-func optionalDraftBytes(path string, content *string) []byte {
-	if path == "" || content == nil {
-		return nil
-	}
-	return []byte(*content)
-}
-
-// writeManagedDraft 写入托管草案的 compose 文件，并在需要时写入 env 文件，同时返回用于恢复原状态的记录。
-// 它会先保存目标文件的原始内容和是否存在，以便后续恢复。
-func writeManagedDraft(workingDirectory string, proposal managedDraftProposal) ([]managedDraftRestore, error) {
-	targets := []struct {
-		path    string
-		content string
-	}{
-		{path: proposal.ComposePath, content: proposal.ComposeContent},
-	}
-	if proposal.EnvPath != "" && proposal.EnvContent != nil {
-		targets = append(targets, struct {
-			path    string
-			content string
-		}{path: proposal.EnvPath, content: *proposal.EnvContent})
-	}
-	fsRoot, err := openManagedRootFS(filepath.Clean(workingDirectory))
-	if err != nil {
-		return nil, err
-	}
-	defer closeManagedRootFSQuietly(fsRoot)
-	restoreItems := make([]managedDraftRestore, 0, len(targets))
-	for _, target := range targets {
-		relative, err := fsRoot.relative(target.path)
-		if err != nil {
-			return nil, err
-		}
-		original, err := fsRoot.root.ReadFile(relative)
-		exists := err == nil
-		if err != nil && !errors.Is(err, os.ErrNotExist) {
-			return nil, err
-		}
-		restoreItems = append(restoreItems, managedDraftRestore{
-			Path:    target.path,
-			Content: append([]byte(nil), original...),
-			Exists:  exists,
-		})
-		if err := fsRoot.root.WriteFile(relative, []byte(target.content), managedCreateFileMode); err != nil {
-			return nil, err
-		}
-	}
-	return restoreItems, nil
-}
-
-// restoreManagedDraft 按相反顺序恢复受控草案写入前的文件状态。
-func restoreManagedDraft(workingDirectory string, items []managedDraftRestore) {
-	fsRoot, err := openManagedRootFS(filepath.Clean(workingDirectory))
-	if err != nil {
-		return
-	}
-	defer closeManagedRootFSQuietly(fsRoot)
-	for index := len(items) - 1; index >= 0; index-- {
-		item := items[index]
-		relative, relErr := fsRoot.relative(item.Path)
-		if relErr != nil {
-			continue
-		}
-		if item.Exists {
-			_ = fsRoot.root.WriteFile(relative, item.Content, managedCreateFileMode)
-			continue
-		}
-		_ = fsRoot.root.Remove(relative)
-	}
-}
-
-func openManagedRootFS(rootDir string) (*managedRootFS, error) {
-	absolute := filepath.Clean(strings.TrimSpace(rootDir))
-	if absolute == "" {
-		return nil, fmt.Errorf("managed root directory is required")
-	}
-	root, err := os.OpenRoot(absolute)
-	if err != nil {
-		return nil, err
-	}
-	return &managedRootFS{root: root, rootDir: absolute}, nil
-}
-
-func openManagedProjectParentRoot(workingDirectory string) (*managedRootFS, string, error) {
-	absolute := filepath.Clean(strings.TrimSpace(workingDirectory))
-	if absolute == "" {
-		return nil, "", fmt.Errorf("working directory is required")
-	}
-	parentDir := filepath.Dir(absolute)
-	relativeWorkingDirectory := filepath.Base(absolute)
-	if relativeWorkingDirectory == "." || relativeWorkingDirectory == string(filepath.Separator) || relativeWorkingDirectory == "" {
-		return nil, "", fmt.Errorf("working directory is invalid")
-	}
-	fsRoot, err := openManagedRootFS(parentDir)
-	if err != nil {
-		return nil, "", err
-	}
-	return fsRoot, relativeWorkingDirectory, nil
-}
-
-func openManagedRootFSForPaths(rootDir string, paths ...string) (*managedRootFS, error) {
-	if strings.TrimSpace(rootDir) != "" {
-		return openManagedRootFS(rootDir)
-	}
-	for _, path := range paths {
-		trimmed := strings.TrimSpace(path)
-		if trimmed == "" {
-			continue
-		}
-		return openManagedRootFS(filepath.Dir(filepath.Clean(trimmed)))
-	}
-	return nil, fmt.Errorf("managed root directory is required")
-}
-
-func (fsRoot *managedRootFS) relative(path string) (string, error) {
-	if fsRoot == nil || fsRoot.root == nil {
-		return "", fmt.Errorf("managed root is unavailable")
-	}
-	relative, err := relativePathWithinRoot(fsRoot.rootDir, path)
-	if err != nil {
-		return "", err
-	}
-	if relative == "." {
-		return ".", nil
-	}
-	return relative, nil
-}
-
-func relativePathWithinRoot(rootDir string, path string) (string, error) {
-	relative, err := filepath.Rel(filepath.Clean(strings.TrimSpace(rootDir)), filepath.Clean(strings.TrimSpace(path)))
-	if err != nil {
-		return "", err
-	}
-	if relative == "." || relative == "" {
-		return ".", nil
-	}
-	if strings.HasPrefix(relative, "..") {
-		return "", fmt.Errorf("path escapes managed root")
-	}
-	return relative, nil
-}
-
-func (fsRoot *managedRootFS) close() error {
-	if fsRoot == nil || fsRoot.root == nil {
-		return nil
-	}
-	return fsRoot.root.Close()
-}
-
-func closeManagedRootFSQuietly(fsRoot *managedRootFS) {
-	if fsRoot == nil {
-		return
-	}
-	_ = fsRoot.close()
-}
-
-func deleteManagedWorkingDirectory(workingDirectory string) error {
-	fsRoot, err := openManagedRootFS(filepath.Clean(workingDirectory))
-	if err != nil {
-		return err
-	}
-	defer closeManagedRootFSQuietly(fsRoot)
-	return fsRoot.root.RemoveAll(".")
 }
 
 // buildConfigurationDiffFile 构建配置文件的差异结果，包含内容变更、哈希和统一 diff。
@@ -2147,6 +2497,184 @@ func stringPointer(value string) *string {
 // optionalString 将字符串包装为可选字符串指针。
 func optionalString(value string) *string {
 	return stringPointer(value)
+}
+
+// stringValue 返回指针指向的字符串；当指针为 nil 时返回空字符串。
+func stringValue(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
+}
+
+// mapManagedSourceCatalogStatus 将托管根状态映射为来源目录状态。
+//
+// @param status 托管根状态字符串。
+// @returns 目录状态值；当状态为 ready 时返回 "ready"，其余情况返回 "blocked"。
+func mapManagedSourceCatalogStatus(status string) string {
+	switch strings.TrimSpace(status) {
+	case projectcontract.ManagedRootStatusReady.String():
+		return "ready"
+	case projectcontract.ManagedRootStatusUnconfigured.String(), projectcontract.ManagedRootStatusInvalid.String():
+		return "blocked"
+	default:
+		return "blocked"
+	}
+}
+
+// managedRootStatusReasonKey 将托管根状态映射为状态原因键。
+// 返回与给定托管根状态对应的原因键；当状态为就绪时返回 nil。
+func managedRootStatusReasonKey(status string) *string {
+	switch strings.TrimSpace(status) {
+	case projectcontract.ManagedRootStatusReady.String():
+		return nil
+	case projectcontract.ManagedRootStatusUnconfigured.String():
+		return stringPointer("project.createSource.statusReason.managedUnconfigured")
+	case projectcontract.ManagedRootStatusInvalid.String():
+		return stringPointer("project.createSource.statusReason.managedInvalid")
+	default:
+		return stringPointer("project.createSource.statusReason.managedUnknown")
+	}
+}
+
+// toGeneratedSourceMetadata 将源元数据映射为生成的项目来源元数据。
+//
+// 仅在至少有一个已知字段可映射时返回结果；否则返回 nil。
+func toGeneratedSourceMetadata(metadata map[string]string) *generated.ProjectSourceMetadata {
+	if len(metadata) == 0 {
+		return nil
+	}
+	result := generated.ProjectSourceMetadata{}
+	assignSourceMetadataField(metadata, "managed_root_key", &result.ManagedRootKey)
+	assignSourceMetadataField(metadata, "managed_relative_directory", &result.ManagedRelativeDirectory)
+	assignSourceMetadataField(metadata, "managed_compose_file_name", &result.ManagedComposeFileName)
+	assignSourceMetadataField(metadata, "managed_env_file_name", &result.ManagedEnvFileName)
+	assignSourceMetadataField(metadata, "git_repository_url", &result.GitRepositoryUrl)
+	assignSourceMetadataField(metadata, "git_reference", &result.GitReference)
+	assignSourceMetadataField(metadata, "git_compose_subpath", &result.GitComposeSubpath)
+	assignSourceMetadataField(metadata, "template_key", &result.TemplateKey)
+	assignSourceMetadataField(metadata, "template_version", &result.TemplateVersion)
+	assignSourceMetadataField(metadata, "template_instance_name", &result.TemplateInstanceName)
+	if result == (generated.ProjectSourceMetadata{}) {
+		return nil
+	}
+	return &result
+}
+
+// assignSourceMetadataField 将来源元数据中的指定值去除首尾空白后写入目标指针。
+// 当对应值为空时保持目标不变。
+func assignSourceMetadataField(metadata map[string]string, key string, target **string) {
+	value := strings.TrimSpace(metadata[key])
+	if value == "" {
+		return
+	}
+	*target = &value
+}
+
+// buildListSourceMetadataWithManagedRoot 为项目列表构建来源元数据。
+// 当来源类型为受托管根或远程主机时返回对应的来源元数据；其他来源类型返回 nil。
+func buildListSourceMetadataWithManagedRoot(aggregate projectstore.ProjectAggregate, managedRootDirectory string) *generated.ProjectSourceMetadata {
+	switch strings.TrimSpace(aggregate.Project.SourceKind) {
+	case projectcontract.SourceKindManaged.String():
+		return buildManagedSourceMetadata(aggregate, managedRootDirectory)
+	case projectcontract.SourceKindRemoteHost.String():
+		return buildRemoteHostSourceMetadata(aggregate)
+	default:
+		return nil
+	}
+}
+
+// buildDetailSourceMetadataWithManagedRoot 返回项目详情来源元数据。
+// 如果没有可映射的来源信息，则返回 nil。
+func buildDetailSourceMetadataWithManagedRoot(aggregate projectstore.ProjectAggregate, managedRootDirectory string) *generated.ProjectSourceMetadata {
+	switch strings.TrimSpace(aggregate.Project.SourceKind) {
+	case projectcontract.SourceKindManaged.String():
+		return buildManagedSourceMetadata(aggregate, managedRootDirectory)
+	case projectcontract.SourceKindRemoteHost.String():
+		return buildRemoteHostSourceMetadata(aggregate)
+	default:
+		return nil
+	}
+}
+
+// buildManagedSourceMetadata 生成托管项目的来源元数据。
+// 结果包含托管根标识、相对目录，以及已登记的 Compose 和环境文件名。
+func buildManagedSourceMetadata(aggregate projectstore.ProjectAggregate, managedRootDirectory string) *generated.ProjectSourceMetadata {
+	composeFiles := filterFiles(aggregate.Files, projectcontract.FileKindCompose.String())
+	envFiles := filterFiles(aggregate.Files, projectcontract.FileKindEnv.String())
+	metadata := map[string]string{
+		"managed_root_key": projectcontract.ProjectManagedRootConfig.String(),
+	}
+	if relativePath := deriveManagedRelativeDirectory(managedRootDirectory, aggregate.Project.WorkingDirectory); relativePath != "" {
+		metadata["managed_relative_directory"] = relativePath
+	}
+	if len(composeFiles) > 0 {
+		metadata["managed_compose_file_name"] = filepath.Base(composeFiles[0].AbsolutePath)
+	}
+	if len(envFiles) > 0 {
+		metadata["managed_env_file_name"] = filepath.Base(envFiles[0].AbsolutePath)
+	}
+	return toGeneratedSourceMetadata(metadata)
+}
+
+// buildRemoteHostSourceMetadata 构建远程主机来源元数据。
+// 元数据包含活动权威和汇总范围。
+func buildRemoteHostSourceMetadata(aggregate projectstore.ProjectAggregate) *generated.ProjectSourceMetadata {
+	activityAuthority := string(resolveActivityAuthority(aggregate))
+	rollupScope := "planned-remote-summary"
+	return &generated.ProjectSourceMetadata{
+		ActivityAuthority:   &activityAuthority,
+		ActivityRollupScope: &rollupScope,
+	}
+}
+
+// resolveActivityAuthority 根据项目主机范围确定活动执行方式。
+// 当项目的 HostScope 为 remote 时返回 `ProjectActivityAuthorityBackendPlanned`，否则返回 `ProjectActivityAuthorityFrontendFanout`。
+func resolveActivityAuthority(aggregate projectstore.ProjectAggregate) ActivityAuthority {
+	if strings.TrimSpace(aggregate.Project.HostScope) == projectcontract.HostScopeRemote.String() {
+		return ProjectActivityAuthorityBackendPlanned
+	}
+	return ProjectActivityAuthorityFrontendFanout
+}
+
+// deriveManagedRelativeDirectory 从工作目录推导托管相对目录。
+// 当存在可用 managed root 时返回其相对路径；否则回退到清理后的路径基名。
+func deriveManagedRelativeDirectory(managedRootDirectory string, workingDirectory string) string {
+	cleaned := filepath.Clean(strings.TrimSpace(workingDirectory))
+	if cleaned == "" || cleaned == "." || cleaned == string(filepath.Separator) {
+		return ""
+	}
+	root := filepath.Clean(strings.TrimSpace(managedRootDirectory))
+	if !hasUsableManagedRoot(root) {
+		return filepath.Base(cleaned)
+	}
+	relative, err := filepath.Rel(root, cleaned)
+	if err == nil && isUsableManagedRelativePath(relative) {
+		return filepath.ToSlash(relative)
+	}
+	return filepath.Base(cleaned)
+}
+
+func hasUsableManagedRoot(root string) bool {
+	return root != "" && root != "." && root != string(filepath.Separator)
+}
+
+func isUsableManagedRelativePath(relative string) bool {
+	if relative == "" || relative == "." || relative == ".." {
+		return false
+	}
+	return !strings.HasPrefix(relative, ".."+string(filepath.Separator))
+}
+
+func (s *Service) readyManagedRootDirectory(ctx context.Context) string {
+	if s == nil {
+		return ""
+	}
+	managedRoot, err := s.ManagedRoot(ctx)
+	if err != nil || managedRoot.Status != projectcontract.ManagedRootStatusReady.String() || managedRoot.ConfiguredRootDirectory == nil {
+		return ""
+	}
+	return filepath.Clean(strings.TrimSpace(*managedRoot.ConfiguredRootDirectory))
 }
 
 // uniqueStrings 返回去重后的字符串切片，保留首次出现的顺序。

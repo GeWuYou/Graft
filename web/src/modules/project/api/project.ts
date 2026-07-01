@@ -33,10 +33,12 @@ import type {
   ProjectDeployRequest,
   ProjectDeployResponse,
   ProjectDetailResponse,
+  ProjectDiscoveryCandidatesResponse,
   ProjectListQuery,
   ProjectListResponse,
   ProjectManagedRootResponse,
   ProjectServicesResponse,
+  ProjectSourceCatalogResponse,
 } from '../types/project';
 
 type ProjectListPath = (typeof PROJECT_API_PATH)['LIST'];
@@ -99,6 +101,17 @@ type ProjectManagedRootPath = (typeof PROJECT_API_PATH)['MANAGED_ROOT'];
 type GetProjectManagedRootOperation = paths[ProjectManagedRootPath]['get'];
 type GetProjectManagedRootEnvelope = GetProjectManagedRootOperation['responses'][200]['content']['application/json'];
 type GetProjectManagedRootData = NonNullable<GetProjectManagedRootEnvelope['data']>;
+
+type ProjectSourcesPath = (typeof PROJECT_API_PATH)['SOURCES'];
+type GetProjectSourcesOperation = paths[ProjectSourcesPath]['get'];
+type GetProjectSourcesEnvelope = GetProjectSourcesOperation['responses'][200]['content']['application/json'];
+type GetProjectSourcesData = NonNullable<GetProjectSourcesEnvelope['data']>;
+
+type ProjectDiscoveryCandidatesPath = (typeof PROJECT_API_PATH)['DISCOVERY_CANDIDATES'];
+type GetProjectDiscoveryCandidatesOperation = paths[ProjectDiscoveryCandidatesPath]['get'];
+type GetProjectDiscoveryCandidatesEnvelope =
+  GetProjectDiscoveryCandidatesOperation['responses'][200]['content']['application/json'];
+type GetProjectDiscoveryCandidatesData = NonNullable<GetProjectDiscoveryCandidatesEnvelope['data']>;
 
 type ProjectCreateValidatePath = (typeof PROJECT_API_PATH)['CREATE_VALIDATE'];
 type ProjectCreateValidateOperation = paths[ProjectCreateValidatePath]['post'];
@@ -277,6 +290,28 @@ export function getProjectManagedRoot() {
   return request.get<GetProjectManagedRootData>({
     url: PROJECT_API_PATH.MANAGED_ROOT,
   }) as Promise<ProjectManagedRootResponse>;
+}
+
+/**
+ * 获取项目来源目录。
+ *
+ * @returns 项目来源目录信息。
+ */
+export function getProjectSources() {
+  return request.get<GetProjectSourcesData>({
+    url: PROJECT_API_PATH.SOURCES,
+  }) as Promise<ProjectSourceCatalogResponse>;
+}
+
+/**
+ * 获取项目的发现候选列表。
+ *
+ * @returns 项目发现候选列表。
+ */
+export function getProjectDiscoveryCandidates() {
+  return request.get<GetProjectDiscoveryCandidatesData>({
+    url: PROJECT_API_PATH.DISCOVERY_CANDIDATES,
+  }) as Promise<ProjectDiscoveryCandidatesResponse>;
 }
 
 /**

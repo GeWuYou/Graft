@@ -72,11 +72,16 @@ type Result struct {
 	EnvFiles              []FileProjection
 	ServiceNames          []string
 	Services              []ServiceProjection
+	NetworkNames          []string
+	VolumeNames           []string
 	Warnings              []string
 }
 
 // Load 解析项目文件并返回归一化的 Compose 服务投影结果与输入摘要。
-// 它会解析工作目录、Compose 文件和 Env 文件，汇总服务定义，生成配置哈希，并输出归一化的 Compose 快照以及解析后的文件和服务列表。
+// Load 解析工作目录、Compose 文件和 Env 文件，汇总静态服务信息并生成归一化快照。
+// 它返回工作目录、计算得到的项目名与配置哈希，以及解析后的文件、服务、网络和卷名称列表。
+// @param input 解析输入。
+// @returns 解析结果和错误。
 func Load(input Input) (Result, error) {
 	workingDirectory, err := resolveWorkingDirectory(input.WorkingDirectory)
 	if err != nil {
@@ -92,7 +97,7 @@ func Load(input Input) (Result, error) {
 	}
 
 	configHasher := sha256.New()
-	serviceOrder, serviceMap, err := collectServices(composeFiles, configHasher)
+	collected, err := collectServices(composeFiles, configHasher)
 	if err != nil {
 		return Result{}, err
 	}
@@ -103,14 +108,14 @@ func Load(input Input) (Result, error) {
 	}
 
 	root := map[string]any{
-		"services": renderServicesMap(serviceOrder, serviceMap),
+		"services": renderServicesMap(collected.serviceOrder, collected.serviceMap),
 	}
 	normalizedYAML, normalizedJSON, err := marshalNormalized(root)
 	if err != nil {
 		return Result{}, err
 	}
 
-	services, serviceNames := buildServiceProjections(serviceOrder, serviceMap)
+	services, serviceNames := buildServiceProjections(collected.serviceOrder, collected.serviceMap)
 
 	return Result{
 		WorkingDirectory:      workingDirectory,
@@ -123,7 +128,16 @@ func Load(input Input) (Result, error) {
 		EnvFiles:              envFiles,
 		ServiceNames:          serviceNames,
 		Services:              services,
+		NetworkNames:          collected.networkNames,
+		VolumeNames:           collected.volumeNames,
 	}, nil
+}
+
+type collectedServices struct {
+	serviceOrder []string
+	serviceMap   map[string]ServiceProjection
+	networkNames []string
+	volumeNames  []string
 }
 
 // collectServices 处理已解析的 Compose 文件，汇总服务投影并计算配置哈希。
@@ -133,27 +147,37 @@ func Load(input Input) (Result, error) {
 //
 // @param composeFiles 已解析的 Compose 文件。
 // @param configHasher 用于累计配置内容哈希的写入器。
-// @returns 服务首次出现的顺序、按名称合并后的服务映射，以及错误。
+// collectServices 聚合 Compose 文件中的服务、网络和卷定义。
+// @returns 按首次出现顺序记录的服务名、按名称合并后的服务映射、排序后的网络名列表、排序后的卷名列表，以及错误。
 func collectServices(
 	composeFiles []FileProjection,
 	configHasher hashWriter,
-) ([]string, map[string]ServiceProjection, error) {
+) (collectedServices, error) {
 	serviceOrder := make([]string, 0)
 	serviceSet := make(map[string]struct{})
 	serviceMap := make(map[string]ServiceProjection)
+	networkSet := make(map[string]struct{})
+	volumeSet := make(map[string]struct{})
 
 	for _, file := range composeFiles {
 		if _, err := configHasher.Write(file.Content); err != nil {
-			return nil, nil, fmt.Errorf("hash compose file %s: %w", file.AbsolutePath, err)
+			return collectedServices{}, fmt.Errorf("hash compose file %s: %w", file.AbsolutePath, err)
 		}
 		doc, err := parseComposeDocument(file)
 		if err != nil {
-			return nil, nil, err
+			return collectedServices{}, err
 		}
 		serviceOrder = collectServicesFromDocument(doc, serviceOrder, serviceSet, serviceMap)
+		collectTopLevelKeys(doc, "networks", networkSet)
+		collectTopLevelKeys(doc, "volumes", volumeSet)
 	}
 
-	return serviceOrder, serviceMap, nil
+	return collectedServices{
+		serviceOrder: serviceOrder,
+		serviceMap:   serviceMap,
+		networkNames: sortedKeys(networkSet),
+		volumeNames:  sortedKeys(volumeSet),
+	}, nil
 }
 
 type hashWriter interface {
@@ -213,13 +237,50 @@ func buildServiceProjections(
 	return services, sortedNames
 }
 
-// buildServiceProjection 设置服务名并对声明的端口、卷和网络列表按字典序排序。
+// buildServiceProjection 为服务投影设置服务名，并按字典序排序其声明的端口、卷和网络列表。
 func buildServiceProjection(name string, projection ServiceProjection) ServiceProjection {
 	projection.ServiceName = name
 	sort.Strings(projection.DeclaredPorts)
 	sort.Strings(projection.DeclaredVolumes)
 	sort.Strings(projection.DeclaredNetworks)
 	return projection
+}
+
+// collectTopLevelKeys 从指定顶层键收集非空白子键到目标集合中。
+// 当目标集合为 nil、指定键不存在或对应值不是对象时，函数不执行任何操作。
+func collectTopLevelKeys(doc map[string]any, key string, target map[string]struct{}) {
+	if target == nil {
+		return
+	}
+	raw, ok := doc[key]
+	if !ok {
+		return
+	}
+	items, ok := raw.(map[string]any)
+	if !ok {
+		return
+	}
+	for name := range items {
+		trimmed := strings.TrimSpace(name)
+		if trimmed == "" {
+			continue
+		}
+		target[trimmed] = struct{}{}
+	}
+}
+
+// sortedKeys 返回按字典序排序的键名列表。
+// 当输入集合为空时返回 nil。
+func sortedKeys(items map[string]struct{}) []string {
+	if len(items) == 0 {
+		return nil
+	}
+	result := make([]string, 0, len(items))
+	for item := range items {
+		result = append(result, item)
+	}
+	sort.Strings(result)
+	return result
 }
 
 // resolveWorkingDirectory 解析并校验工作目录路径。

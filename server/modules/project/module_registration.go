@@ -25,7 +25,7 @@ func registerPermissions(registry *permission.Registry, moduleName string) error
 	return nil
 }
 
-// 列表包含查看、导入、刷新、生命周期管理、销毁、创建和部署相关的权限。
+// permissionItems 返回项目模块的权限目录条目列表，包含查看、导入、刷新、生命周期管理、销毁、创建、源入口、发现候选和部署相关权限。
 func permissionItems(moduleName string) []permission.Item {
 	return []permission.Item{
 		{
@@ -79,6 +79,24 @@ func permissionItems(moduleName string) []permission.Item {
 			DisplayKey:     "rbac.permissionCatalog.projectCreate.display",
 			Description:    "Inspect managed-root authority and access future managed project create workflows.",
 			DescriptionKey: "rbac.permissionCatalog.projectCreate.description",
+			Category:       "api",
+			Module:         moduleName,
+		},
+		{
+			Code:           projectcontract.ProjectSourceViewPermission.String(),
+			Name:           "View compose project source entrypoints",
+			DisplayKey:     "rbac.permissionCatalog.projectSourceView.display",
+			Description:    "Inspect the Phase 3 source catalog and source-selector routes for managed, git, and template project flows.",
+			DescriptionKey: "rbac.permissionCatalog.projectSourceView.description",
+			Category:       "api",
+			Module:         moduleName,
+		},
+		{
+			Code:           projectcontract.ProjectDiscoveryViewPermission.String(),
+			Name:           "View compose project discovery candidates",
+			DisplayKey:     "rbac.permissionCatalog.projectDiscoveryView.display",
+			Description:    "Inspect bounded local directory-scan and auto-discovery candidate previews without registering projects.",
+			DescriptionKey: "rbac.permissionCatalog.projectDiscoveryView.description",
 			Category:       "api",
 			Module:         moduleName,
 		},

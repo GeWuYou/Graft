@@ -184,17 +184,15 @@
 import type { FormInstanceFunctions, FormProps } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { computed, reactive, ref } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { useRouter } from 'vue-router';
 
 import { ManagementPageContent, ManagementPageHeader } from '@/shared/components/management';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
-import { useTabsRouterStore } from '@/store/modules/tabs-router';
 
 import { getProjectManagedRoot, postProjectCreate, postProjectCreateValidate } from '../../api/project';
 import ProjectFileEditor from '../../components/ProjectFileEditor.vue';
 import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import { appendResolvedTab, buildDetailTitleWithFallback } from '../../shared/navigation';
+import { useProjectPageContext } from '../../shared/page-context';
 import type {
   ProjectCreateRequest,
   ProjectCreateResponse,
@@ -204,15 +202,13 @@ import type {
 } from '../../types/project';
 
 defineOptions({
-  name: 'ProjectCreateIndex',
+  name: 'ProjectManagedCreateIndex',
 });
 
 type EditorTab = 'compose' | 'env';
 type EditorMode = 'edit' | 'preview';
 
-const router = useRouter();
-const tabsRouterStore = useTabsRouterStore();
-const { t } = useI18n();
+const { router, tabsRouterStore, t } = useProjectPageContext();
 
 const formRef = ref<FormInstanceFunctions | null>(null);
 const rootLoading = ref(false);

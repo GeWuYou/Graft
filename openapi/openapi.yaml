@@ -226,13 +226,23 @@ paths:
     $ref: ./paths/ops-projects.collection.yaml
   /api/ops/projects/import/validate:
     $ref: ./paths/ops-projects.import-validate.yaml
+  /api/ops/projects/import/inspect:
+    $ref: ./paths/ops-projects.import-inspect.yaml
   /api/ops/projects/import:
     $ref: ./paths/ops-projects.import.yaml
+  /api/ops/projects/import/directory-sources:
+    $ref: ./paths/ops-projects.import-directory-sources.yaml
+  /api/ops/projects/import/directories:
+    $ref: ./paths/ops-projects.import-directories.yaml
+  /api/ops/projects/sources:
+    $ref: ./paths/ops-projects.sources.yaml
+  /api/ops/projects/discovery-candidates:
+    $ref: ./paths/ops-projects.discovery-candidates.yaml
   /api/ops/projects/managed/root:
     $ref: ./paths/ops-projects.managed-root.yaml
-  /api/ops/projects/create/validate:
+  /api/ops/projects/create/managed/validate:
     $ref: ./paths/ops-projects.create-validate.yaml
-  /api/ops/projects/create:
+  /api/ops/projects/create/managed:
     $ref: ./paths/ops-projects.create.yaml
   /api/ops/projects/{id}:
     $ref: ./paths/ops-projects.detail.yaml
@@ -706,6 +716,16 @@ components:
       $ref: ./components/schemas/enveloped-container-batch-action-response.yaml
     ProjectSourceKind:
       $ref: ./components/schemas/project-source-kind.yaml
+    ProjectSourceEntryType:
+      $ref: ./components/schemas/project-source-entry-type.yaml
+    ProjectSourceEntryStatus:
+      $ref: ./components/schemas/project-source-entry-status.yaml
+    ProjectSourceEntry:
+      $ref: ./components/schemas/project-source-entry.yaml
+    ProjectSourceCatalogResponse:
+      $ref: ./components/schemas/project-source-catalog-response.yaml
+    ProjectSourceMetadata:
+      $ref: ./components/schemas/project-source-metadata.yaml
     ProjectHostScope:
       $ref: ./components/schemas/project-host-scope.yaml
     ProjectOwnershipMode:
@@ -744,6 +764,24 @@ components:
       $ref: ./components/schemas/project-import-validate-response.yaml
     ProjectImportResponse:
       $ref: ./components/schemas/project-import-response.yaml
+    ProjectImportDirectorySource:
+      $ref: ./components/schemas/project-import-directory-source.yaml
+    ProjectImportDirectorySourcesResponse:
+      $ref: ./components/schemas/project-import-directory-sources-response.yaml
+    ProjectImportDirectoryReference:
+      $ref: ./components/schemas/project-import-directory-reference.yaml
+    ProjectImportDirectoryItem:
+      $ref: ./components/schemas/project-import-directory-item.yaml
+    ProjectImportDirectoriesResponse:
+      $ref: ./components/schemas/project-import-directories-response.yaml
+    ProjectImportInspectFileItem:
+      $ref: ./components/schemas/project-import-inspect-file-item.yaml
+    ProjectImportInspectRequest:
+      $ref: ./components/schemas/project-import-inspect-request.yaml
+    ProjectImportInspectResponse:
+      $ref: ./components/schemas/project-import-inspect-response.yaml
+    ProjectImportRequest:
+      $ref: ./components/schemas/project-import-request.yaml
     ProjectConfigurationMetadataResponse:
       $ref: ./components/schemas/project-configuration-metadata-response.yaml
     ProjectConfigurationPreviewResponse:
@@ -756,6 +794,8 @@ components:
       $ref: ./components/schemas/project-action-response.yaml
     EnvelopedProjectListResponse:
       $ref: ./components/schemas/enveloped-project-list-response.yaml
+    EnvelopedProjectSourceCatalogResponse:
+      $ref: ./components/schemas/enveloped-project-source-catalog-response.yaml
     EnvelopedProjectDetailResponse:
       $ref: ./components/schemas/enveloped-project-detail-response.yaml
     EnvelopedProjectServicesResponse:
@@ -770,6 +810,12 @@ components:
       $ref: ./components/schemas/enveloped-project-import-validate-response.yaml
     EnvelopedProjectImportResponse:
       $ref: ./components/schemas/enveloped-project-import-response.yaml
+    EnvelopedProjectImportDirectorySourcesResponse:
+      $ref: ./components/schemas/enveloped-project-import-directory-sources-response.yaml
+    EnvelopedProjectImportDirectoriesResponse:
+      $ref: ./components/schemas/enveloped-project-import-directories-response.yaml
+    EnvelopedProjectImportInspectResponse:
+      $ref: ./components/schemas/enveloped-project-import-inspect-response.yaml
     EnvelopedProjectActionResponse:
       $ref: ./components/schemas/enveloped-project-action-response.yaml
   securitySchemes:

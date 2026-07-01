@@ -24,9 +24,15 @@
         </template>
         <template #actions>
           <t-space size="small" break-line>
-            <t-button theme="primary" variant="outline" @click="navigateToCreate">
-              {{ t('project.list.actions.create') }}
-            </t-button>
+            <project-list-entry-actions
+              :import-label="t('project.list.actions.import')"
+              :create-label="t('project.list.actions.create')"
+              :reset-label="t('project.list.clearFilters')"
+              :show-reset="hasActiveFilters"
+              @import="navigateToImport"
+              @create="navigateToSourceChooser"
+              @reset="resetFilters"
+            />
             <t-button theme="primary" :loading="loading" @click="fetchProjects">
               <template #icon><refresh-icon /></template>
               {{ t('project.list.refresh') }}
@@ -204,14 +210,15 @@
                   "
                 >
                   <template #action>
-                    <t-space size="small" break-line>
-                      <t-button theme="primary" variant="outline" @click="navigateToCreate">
-                        {{ t('project.list.actions.create') }}
-                      </t-button>
-                      <t-button v-if="hasActiveFilters" theme="default" variant="outline" @click="resetFilters">
-                        {{ t('project.list.clearFilters') }}
-                      </t-button>
-                    </t-space>
+                    <project-list-entry-actions
+                      :import-label="t('project.list.actions.import')"
+                      :create-label="t('project.list.actions.create')"
+                      :reset-label="t('project.list.clearFilters')"
+                      :show-reset="hasActiveFilters"
+                      @import="navigateToImport"
+                      @create="navigateToSourceChooser"
+                      @reset="resetFilters"
+                    />
                   </template>
                 </t-empty>
               </div>
@@ -285,6 +292,7 @@ import {
   postProjectUnregister,
   postProjectUp,
 } from '../../api/project';
+import ProjectListEntryActions from '../../components/ProjectListEntryActions.vue';
 import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import {
   formatProjectTime,
@@ -497,7 +505,16 @@ function navigateToDetail(row: ProjectListItem, tab: string) {
   return router.push(target);
 }
 
-function navigateToCreate() {
+function navigateToImport() {
+  const target = {
+    name: PROJECT_BOOTSTRAP_ROUTE.IMPORT.pageRouteName,
+  };
+  const resolved = router.resolve(target);
+  appendResolvedTab(tabsRouterStore, resolved, localizeRouteTitleKey('project.route.import.title'));
+  void router.push(target);
+}
+
+function navigateToSourceChooser() {
   const target = {
     name: PROJECT_BOOTSTRAP_ROUTE.CREATE.pageRouteName,
   };

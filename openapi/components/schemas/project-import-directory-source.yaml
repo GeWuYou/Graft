@@ -1,0 +1,25 @@
+type: object
+required:
+  - provider
+  - root_id
+  - label
+  - path
+  - initial_path
+  - managed
+properties:
+  provider:
+    type: string
+  root_id:
+    type: string
+  label:
+    type: string
+    description: Stable root label shown in the folder picker source selector.
+  path:
+    type: string
+    description: Absolute browse root resolved by the backend for this import source.
+  initial_path:
+    type: string
+    description: Absolute preferred starting path shown first in the folder picker while staying under the source browse root.
+  managed:
+    type: boolean
+    description: Whether this source is the managed-root injection rather than a static allowlisted root.

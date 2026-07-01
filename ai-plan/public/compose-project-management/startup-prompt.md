@@ -67,20 +67,24 @@ Implementation guardrails:
 - 不得让 Overview 变成 runtime dashboard。
 - 不得在 Phase 1 偷渡 managed create、editor、diff、deploy、validate UI、project logs/events backend aggregation。
 
-Current batch plan:
+Current loop state:
 
-1. `phase-1-batch-1-project-contract-and-data-model`
-   - 定义 route space、OpenAPI contract source、项目数据模型、migration 计划、shared boundary 需求
-2. `phase-1-batch-2-server-project-module-import-and-refresh`
-   - 落地 `project` module 骨架、repository、import validate/import/register/refresh
-3. `phase-1-batch-3-server-lifecycle-and-container-aggregation-boundary`
-   - 落地 `up/down/restart/unregister/destroy` 与 container aggregation shared boundary
-4. `phase-1-batch-4-web-project-list-detail-and-readonly-configuration`
-   - 落地项目列表、详情、Overview、Services、Configuration、Activity fan-out UI
-5. `phase-1-batch-5-phase-1-validation-drift-guard-and-governance-sync`
-   - 完成验证、drift guard、文档同步、Phase 1 closeout
-6. `phase-2-managed-create-editor-and-deploy`
-7. `phase-3-discovery-git-template-and-remote-host`
+- completed batches:
+  - `phase-2-batch-5-phase-2-validation-drift-guard-and-governance-sync`
+  - `phase-3-batch-1-git-template-source-contract-and-boundary`
+  - `phase-3-batch-2-directory-scan-and-auto-discovery-candidates`
+- current batch:
+  - `drift-repair-import-primary-entry-and-topic-truth`
+- next batch:
+  - `phase-3-batch-3-remote-host-boundary-and-activity-authority`
+- pending batches:
+  - `drift-repair-import-primary-entry-and-topic-truth`
+  - `phase-3-batch-3-remote-host-boundary-and-activity-authority`
+
+Remaining Phase 3 work after drift repair:
+
+1. `phase-3-batch-3-remote-host-boundary-and-activity-authority`
+   - 收敛 remote host 扩展边界与 project activity backend aggregation authority，再决定后续实现切片
 
 Loop instructions:
 
