@@ -1,5 +1,6 @@
 export const PROJECT_ROUTE_PATH = {
   LIST: '/ops/projects',
+  IMPORT: '/ops/projects/import',
   CREATE: '/ops/projects/create',
   CREATE_DISCOVERY: '/ops/projects/create/discovery',
   CREATE_MANAGED: '/ops/projects/create/managed',
@@ -11,6 +12,8 @@ export const PROJECT_ROUTE_PATH = {
 
 export const PROJECT_API_PATH = {
   LIST: '/api/ops/projects',
+  IMPORT_VALIDATE: '/api/ops/projects/import/validate',
+  IMPORT: '/api/ops/projects/import',
   SOURCES: '/api/ops/projects/sources',
   DISCOVERY_CANDIDATES: '/api/ops/projects/discovery-candidates',
   MANAGED_ROOT: '/api/ops/projects/managed/root',

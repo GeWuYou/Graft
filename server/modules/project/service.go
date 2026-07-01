@@ -405,58 +405,68 @@ func (s *Service) SourceCatalog(ctx context.Context) (SourceCatalogResult, error
 	}
 	items := []generated.ProjectSourceEntry{
 		{
-			Type:           generated.ProjectSourceEntryType("managed"),
-			Status:         generated.ProjectSourceEntryStatus(mapManagedSourceCatalogStatus(managedRoot.Status)),
-			DisplayName:    "Managed Project",
-			HostScope:      generated.ProjectHostScope(projectcontract.HostScopeLocal),
-			RoutePath:      projectcontract.ProjectManagedCreateMenuPath,
-			RouteName:      "ProjectManagedCreate",
-			Permission:     projectcontract.ProjectCreatePermission.String(),
-			MenuGroup:      projectcontract.ProjectMenuPath,
-			Description:    projectcontract.ProjectSourceManagedDescription.String(),
-			MetadataFields: []string{"managed_root_key", "managed_relative_directory", "managed_compose_file_name", "managed_env_file_name"},
-			StatusReason:   managedRoot.StatusReason,
+			Type:            generated.ProjectSourceEntryType("managed"),
+			Status:          generated.ProjectSourceEntryStatus(mapManagedSourceCatalogStatus(managedRoot.Status)),
+			DisplayName:     "Managed Project",
+			TitleKey:        "project.list.sourceKinds.managed",
+			HostScope:       generated.ProjectHostScope(projectcontract.HostScopeLocal),
+			RoutePath:       projectcontract.ProjectManagedCreateMenuPath,
+			RouteName:       "ProjectManagedCreate",
+			Permission:      projectcontract.ProjectCreatePermission.String(),
+			MenuGroup:       projectcontract.ProjectMenuPath,
+			Description:     "Create a managed Compose project under the canonical managed root owned by project authority.",
+			DescriptionKey:  "project.createSource.descriptions.managed",
+			MetadataFields:  []string{"managed_root_key", "managed_relative_directory", "managed_compose_file_name", "managed_env_file_name"},
+			StatusReason:    managedRoot.StatusReason,
+			StatusReasonKey: managedRootStatusReasonKey(managedRoot.Status),
 		},
 		{
-			Type:           generated.ProjectSourceEntryType("git"),
-			Status:         generated.ProjectSourceEntryStatus("planned"),
-			DisplayName:    "Git Project",
-			HostScope:      generated.ProjectHostScope(projectcontract.HostScopeLocal),
-			RoutePath:      projectcontract.ProjectGitCreateMenuPath,
-			RouteName:      "ProjectGitCreate",
-			Permission:     projectcontract.ProjectCreatePermission.String(),
-			MenuGroup:      projectcontract.ProjectMenuPath,
-			Description:    projectcontract.ProjectSourceGitDescription.String(),
-			MetadataFields: []string{"git_repository_url", "git_reference", "git_compose_subpath"},
-			StatusReason:   stringPointer("Phase 3 batch 1 only fixes contract and route ownership; git materialization remains out of scope."),
+			Type:            generated.ProjectSourceEntryType("git"),
+			Status:          generated.ProjectSourceEntryStatus("planned"),
+			DisplayName:     "Git Project",
+			TitleKey:        "project.list.sourceKinds.git",
+			HostScope:       generated.ProjectHostScope(projectcontract.HostScopeLocal),
+			RoutePath:       projectcontract.ProjectGitCreateMenuPath,
+			RouteName:       "ProjectGitCreate",
+			Permission:      projectcontract.ProjectCreatePermission.String(),
+			MenuGroup:       projectcontract.ProjectMenuPath,
+			Description:     "Reserve the canonical git-backed project source boundary without introducing clone, scan, or remote-host execution in this batch.",
+			DescriptionKey:  "project.createSource.descriptions.git",
+			MetadataFields:  []string{"git_repository_url", "git_reference", "git_compose_subpath"},
+			StatusReason:    stringPointer("This source remains planned. Materialization will land in a later bounded batch."),
+			StatusReasonKey: stringPointer("project.createSource.statusReason.planned"),
 		},
 		{
-			Type:           generated.ProjectSourceEntryType("template"),
-			Status:         generated.ProjectSourceEntryStatus("planned"),
-			DisplayName:    "Template Project",
-			HostScope:      generated.ProjectHostScope(projectcontract.HostScopeLocal),
-			RoutePath:      projectcontract.ProjectTemplateCreateMenuPath,
-			RouteName:      "ProjectTemplateCreate",
-			Permission:     projectcontract.ProjectCreatePermission.String(),
-			MenuGroup:      projectcontract.ProjectMenuPath,
-			Description:    projectcontract.ProjectSourceTemplateDescription.String(),
-			MetadataFields: []string{"template_key", "template_version", "template_instance_name"},
-			StatusReason:   stringPointer("Phase 3 batch 1 only fixes contract and route ownership; template instantiation remains out of scope."),
+			Type:            generated.ProjectSourceEntryType("template"),
+			Status:          generated.ProjectSourceEntryStatus("planned"),
+			DisplayName:     "Template Project",
+			TitleKey:        "project.list.sourceKinds.template",
+			HostScope:       generated.ProjectHostScope(projectcontract.HostScopeLocal),
+			RoutePath:       projectcontract.ProjectTemplateCreateMenuPath,
+			RouteName:       "ProjectTemplateCreate",
+			Permission:      projectcontract.ProjectCreatePermission.String(),
+			MenuGroup:       projectcontract.ProjectMenuPath,
+			Description:     "Reserve the canonical template-backed project source boundary without introducing template instantiation, discovery, or remote-host execution in this batch.",
+			DescriptionKey:  "project.createSource.descriptions.template",
+			MetadataFields:  []string{"template_key", "template_version", "template_instance_name"},
+			StatusReason:    stringPointer("This source remains planned. Materialization will land in a later bounded batch."),
+			StatusReasonKey: stringPointer("project.createSource.statusReason.planned"),
 		},
 		{
-			Type:           generated.ProjectSourceEntryType("remote-host"),
-			Status:         generated.ProjectSourceEntryStatus("planned"),
-			DisplayName:    "Remote Host Project",
-			HostScope:      generated.ProjectHostScope(projectcontract.HostScopeRemote),
-			RoutePath:      projectcontract.ProjectRemoteHostCreateMenuPath,
-			RouteName:      "ProjectRemoteHostCreate",
-			Permission:     projectcontract.ProjectCreatePermission.String(),
-			MenuGroup:      projectcontract.ProjectMenuPath,
-			Description:    projectcontract.ProjectSourceRemoteHostDescription.String(),
-			MetadataFields: []string{"remote_host_key", "remote_compose_path", "activity_authority", "activity_rollup_scope"},
-			StatusReason: stringPointer(
-				"Phase 3 batch 3 fixes remote-host and project activity authority boundaries only; remote execution, secret persistence, and backend activity aggregation remain out of scope.",
-			),
+			Type:            generated.ProjectSourceEntryType("remote-host"),
+			Status:          generated.ProjectSourceEntryStatus("planned"),
+			DisplayName:     "Remote Host Project",
+			TitleKey:        "project.list.sourceKinds.remote-host",
+			HostScope:       generated.ProjectHostScope(projectcontract.HostScopeRemote),
+			RoutePath:       projectcontract.ProjectRemoteHostCreateMenuPath,
+			RouteName:       "ProjectRemoteHostCreate",
+			Permission:      projectcontract.ProjectCreatePermission.String(),
+			MenuGroup:       projectcontract.ProjectMenuPath,
+			Description:     "Reserve the canonical remote-host project boundary without introducing remote execution, secret persistence, or runtime ownership in this batch.",
+			DescriptionKey:  "project.createSource.descriptions.remoteHost",
+			MetadataFields:  []string{"remote_host_key", "remote_compose_path", "activity_authority", "activity_rollup_scope"},
+			StatusReason:    stringPointer("This source remains planned. Remote execution and backend activity aggregation are still out of scope."),
+			StatusReasonKey: stringPointer("project.createSource.statusReason.planned"),
 		},
 	}
 	return SourceCatalogResult{Items: items}, nil
@@ -2415,8 +2425,23 @@ func mapManagedSourceCatalogStatus(status string) string {
 	switch strings.TrimSpace(status) {
 	case projectcontract.ManagedRootStatusReady.String():
 		return "ready"
+	case projectcontract.ManagedRootStatusUnconfigured.String(), projectcontract.ManagedRootStatusInvalid.String():
+		return "blocked"
 	default:
-		return "planned"
+		return "blocked"
+	}
+}
+
+func managedRootStatusReasonKey(status string) *string {
+	switch strings.TrimSpace(status) {
+	case projectcontract.ManagedRootStatusReady.String():
+		return nil
+	case projectcontract.ManagedRootStatusUnconfigured.String():
+		return stringPointer("project.createSource.statusReason.managedUnconfigured")
+	case projectcontract.ManagedRootStatusInvalid.String():
+		return stringPointer("project.createSource.statusReason.managedInvalid")
+	default:
+		return stringPointer("project.createSource.statusReason.managedUnknown")
 	}
 }
 

@@ -5284,19 +5284,22 @@ export interface components {
     /** @enum {string} */
     'project-source-entry-type': 'managed' | 'git' | 'template' | 'remote-host';
     /** @enum {string} */
-    'project-source-entry-status': 'ready' | 'planned';
+    'project-source-entry-status': 'ready' | 'blocked' | 'planned';
     'project-source-entry': {
       type: components['schemas']['project-source-entry-type'];
       status: components['schemas']['project-source-entry-status'];
       display_name: string;
+      title_key: string;
       route_path: string;
       route_name: string;
       permission: string;
       menu_group: string;
       description: string;
+      description_key: string;
       metadata_fields: string[];
       host_scope: components['schemas']['project-host-scope'];
       status_reason?: string | null;
+      status_reason_key?: string | null;
     };
     'project-source-catalog-response': {
       items: components['schemas']['project-source-entry'][];

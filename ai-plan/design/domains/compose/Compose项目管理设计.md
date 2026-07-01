@@ -1282,6 +1282,12 @@ Configuration：
   - `/ops/projects/create/managed` 承接现有 managed create 页面
   - `/ops/projects/create/git` 与 `/ops/projects/create/template` 只保留 planned boundary 占位页
 
+IA guardrail:
+
+- `source selector` 只是 Phase 3 boundary inspection surface，不得替代 Phase 1 `Import Existing Project` 主入口。
+- `managed create` 是 Phase 2 的真实入口，应继续由 `/ops/projects/create/managed` 承载。
+- 如果列表页或空态只能给一个主按钮，默认必须先给 `Import Existing Project`，不能默认把用户送进 planned boundary。
+
 当前批次允许的 `source_metadata` 范围：
 
 - managed

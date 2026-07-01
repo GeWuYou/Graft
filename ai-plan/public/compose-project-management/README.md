@@ -6,8 +6,8 @@
 - 当前状态：`active`。
 - 任务分类为 `cross-boundary`，涉及 `ai-plan/design`、future OpenAPI、future `server/modules/project/**`、future `web/src/modules/project/**`，并与现有 `container` runtime authority 协作。
 - Canonical design：`ai-plan/design/domains/compose/Compose项目管理设计.md`。
-- 当前已完成 Phase 0 与 Phase 1。
-- 当前处于同一个 `topic-completion-loop` 下的 Phase 2 batching 重定义后继续执行状态，而不是新主题。
+- 当前已完成 Phase 0、Phase 1、Phase 2 的主要实现，但主题仍处于 `active`，因为产品入口和 topic 完成口径出现了 drift repair 待修复项。
+- 当前处于同一个 `topic-completion-loop` 下继续修复入口 IA、topic truth 与实际可用性之间的偏差，而不是新主题。
 
 ## Recovery Receipt
 
@@ -69,15 +69,16 @@
   - 推荐为 `project` 与 `container` 之间新增 narrow stable shared boundary，而不是直接 import container private service。
   - Phase 1 的 Activity 仍由前端复用现有 container APIs 聚合。
   - Phase 1 的配置页只读。
-  - Phase 2 已在同一 topic 内完成 bounded batches，并通过 managed create/edit/diff/validate/deploy slice 的 archive-readiness check。
-  - Phase 3 继续留在同一 topic 内推进，但必须先拆成安全 bounded batches，不能回退成单个大阶段占位。
-- 当前下一步：按 topic-completion-loop 推进 `phase-3-batch-3-remote-host-boundary-and-activity-authority`。
+  - Phase 2 已在同一 topic 内完成 managed create/edit/diff/validate/deploy 的核心实现，但主入口 IA 被 Phase 3 boundary work 偏移，需要先修复入口 truth。
+  - Phase 3 继续留在同一 topic 内推进，但不得再让 boundary surface 取代 Phase 1 import 或 Phase 2 managed create 主入口。
+- 当前下一步：先执行 `drift-repair-import-primary-entry-and-topic-truth`，再回到剩余 Phase 3 bounded work。
 
 ## Pending Batch Direction
 
 - `phase-3-batch-1-git-template-source-contract-and-boundary`
 - `phase-3-batch-2-directory-scan-and-auto-discovery-candidates`
 - `phase-3-batch-3-remote-host-boundary-and-activity-authority`
+- `drift-repair-import-primary-entry-and-topic-truth`
 
 当前 Phase 3 Batch 1 的 authority 目标：
 

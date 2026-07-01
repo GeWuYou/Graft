@@ -92,7 +92,8 @@ Compose Project Management
 - [x] phase-2-batch-5：Phase 2 validation、drift guard、docs sync、Phase 2 archive-readiness check
 - [x] phase-3-batch-1：git/template source contract、metadata boundary、route/permission owner
 - [x] phase-3-batch-2：directory scan、candidate model、auto discovery bounded authority
-- [x] phase-3-batch-3：remote host boundary、project activity authority decision
+- [ ] phase-3-batch-3：remote host boundary、project activity authority decision
+- [ ] drift-repair：恢复 Phase 1 import 主入口、托管创建次入口、source selector 边界定位，以及 topic truth
 
 ## Phase 1 Acceptance Conditions
 
@@ -135,7 +136,7 @@ Compose Project Management
 - `server/modules/project/**` 已把 managed root 收口为 bounded local scan authority，只返回 candidate preview，不自动注册 project
 - `web/src/modules/project/**` 已在 source selector 下提供 hidden discovery preview surface，不越界到 remote host 或 backend activity aggregation
 
-当前 batch-3 已完成的前置条件：
+当前 batch-3 的当前状态：
 
 - `openapi/**` 已把 `remote-host` 固定为 planned source entry，并为 project list/detail 固定 `activity_authority` contract
 - `server/modules/project/**` 已把 remote-host 收口为 source catalog / route / metadata owner，不引入 remote execution、credential persistence 或 backend activity aggregation
@@ -145,13 +146,12 @@ Compose Project Management
 
 - Phase 1 acceptance conditions：已满足
 - Phase 2 acceptance conditions：已满足
-- Phase 3 acceptance conditions：
-  - git/template/scan/discovery/remote-host 扩展路径：已完成 authority boundary
-  - 后端 project activity aggregation authority：已完成 canonical owner 决议；当前实现继续保持 `frontend-fanout` 为 local authority，future backend aggregation 保持 `backend-planned`
-- 当前 topic 已达到 `archive-ready`：
-  - `Project != Runtime` 与 `Container` runtime authority 边界持续稳定
-  - 未引入 project-level runtime persistence、project-owned container detail、remote execution、credential persistence 或 backend project logs/events aggregation 半实现
-  - Phase 3 batch 3 已把剩余 authority owner 收敛到 design/openapi/server/web
+- Phase 3 acceptance conditions：未满足
+  - git/template/scan/discovery/remote-host 扩展路径目前只完成了部分 authority boundary
+  - 后端 project activity aggregation authority 仍停留在 `backend-planned`
+- 当前 topic 不是 `archive-ready`：
+  - 主入口 IA 已从 Phase 1/2 设计偏移到 Phase 3 boundary surface，必须先修复入口 truth
+  - `compose-project-management` 的 recovery docs 与实际可用性需要重新对齐
 
 ## Loop Batch State
 
@@ -174,10 +174,11 @@ Compose Project Management
     "phase-3-batch-2-directory-scan-and-auto-discovery-candidates"
   ],
   "pending_batches": [
+    "drift-repair-import-primary-entry-and-topic-truth",
     "phase-3-batch-3-remote-host-boundary-and-activity-authority"
   ],
-  "current_batch": "phase-3-batch-2-directory-scan-and-auto-discovery-candidates",
+  "current_batch": "drift-repair-import-primary-entry-and-topic-truth",
   "next_batch": "phase-3-batch-3-remote-host-boundary-and-activity-authority",
-  "closeout_status": "phase-3-batch-2-completed"
+  "closeout_status": "drift-repair-in-progress"
 }
 ```

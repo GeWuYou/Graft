@@ -12,9 +12,13 @@
         "title": "Operations - Projects",
         "breadcrumb": "Projects"
       },
+      "import": {
+        "title": "Import Existing Project",
+        "breadcrumb": "Import Existing Project"
+      },
       "create": {
-        "title": "Create Managed Project",
-        "breadcrumb": "Create Managed Project"
+        "title": "Project Source Boundaries",
+        "breadcrumb": "Project Source Boundaries"
       },
       "createManaged": {
         "title": "Create Managed Project",
@@ -113,6 +117,7 @@
         "services": "Services",
         "configuration": "Configuration",
         "activity": "Activity",
+        "import": "Import Existing Project",
         "create": "Create Managed Project",
         "refresh": "Refresh",
         "up": "Up",
@@ -129,10 +134,56 @@
         "destroyConfirm": "Destroy {name}? This Only Works When Ownership Guard Allows It."
       }
     },
+    "import": {
+      "eyebrow": "Import Project",
+      "description": "Register a Compose project that already exists on the host without copying, moving, or rewriting its layout.",
+      "actions": {
+        "backToList": "Back to List",
+        "validate": "Validate Import Input",
+        "import": "Import and Open Project",
+        "reset": "Reset Form"
+      },
+      "form": {
+        "title": "Import Input",
+        "workingDirectory": "Working Directory",
+        "workingDirectoryPlaceholder": "For Example: /srv/compose/orders-dev",
+        "displayName": "Display Name",
+        "displayNamePlaceholder": "For Example: Orders Service Dev",
+        "canonicalProjectNameOverride": "Canonical Project Name Override",
+        "canonicalProjectNameOverridePlaceholder": "Leave Blank to Derive It Automatically",
+        "composeFiles": "Compose Files",
+        "composeFilesPlaceholder": "One Relative or Absolute Path per Line. Leave Blank to Auto-discover Standard Compose Files.",
+        "envFiles": "Env Files",
+        "envFilesPlaceholder": "One Relative or Absolute Path per Line. Leave Blank to Auto-discover .env"
+      },
+      "validation": {
+        "workingDirectoryRequired": "Working Directory Is Required."
+      },
+      "preview": {
+        "title": "Import Preview",
+        "filesTitle": "Resolved Files",
+        "canonicalProjectName": "Canonical Project Name",
+        "canonicalNameSource": "Canonical Name Source",
+        "serviceCount": "Declared Services",
+        "configHash": "Config Hash",
+        "declaredServices": "Declared Services",
+        "composeFiles": "Compose Files",
+        "envFiles": "Env Files",
+        "empty": "Run Validation First to Inspect the Import Preview.",
+        "noDiagnostics": "No Additional Warnings or Conflicts Were Returned.",
+        "none": "None"
+      },
+      "messages": {
+        "validateSuccess": "Import Input Validated.",
+        "validateFailed": "Import Input Validation Failed.",
+        "importSuccess": "Compose Project Imported.",
+        "importFailed": "Compose Project Import Failed."
+      }
+    },
     "create": {
-      "eyebrow": "Managed Create",
-      "title": "Create Managed Compose Project",
-      "description": "Write Compose and Env Files Under the Managed Root and Register the Result as Project Authority Immediately.",
+      "eyebrow": "Source Boundaries",
+      "title": "Project Source Boundaries",
+      "description": "Inspect Managed, Git, Template, and Remote Host source boundaries. Import and Managed Create remain the real user entrypoints.",
       "actions": {
         "backToList": "Back to List",
         "refreshAuthority": "Refresh Authority",
@@ -208,6 +259,12 @@
       }
     },
     "createSource": {
+      "descriptions": {
+        "managed": "Create a managed Compose project under the canonical managed root owned by project authority.",
+        "git": "Reserve the canonical git-backed project source boundary without introducing clone, scan, or remote-host execution in this batch.",
+        "template": "Reserve the canonical template-backed project source boundary without introducing template instantiation, discovery, or remote-host execution in this batch.",
+        "remoteHost": "Reserve the canonical remote-host project boundary without introducing remote execution, secret persistence, or runtime ownership in this batch."
+      },
       "routePath": "Route Path",
       "permission": "Permission",
       "discovery": "Discovery Candidates",
@@ -215,12 +272,21 @@
       "hostScope": "Host Scope",
       "status": {
         "ready": "Ready",
+        "blocked": "Needs Configuration",
         "planned": "Planned"
+      },
+      "statusReason": {
+        "managedUnconfigured": "Managed Root Is Not Configured Yet. Managed Create Is Implemented, but the Current Environment Cannot Create Projects Directly.",
+        "managedInvalid": "Managed Root Configuration Is Invalid. Repair the Upstream System Config Before Using Managed Create.",
+        "managedUnknown": "Managed Root Status Is Unknown. Review System Config and Refresh Authority First.",
+        "planned": "This Source Only Has Contract and Route Boundaries Today. Materialization Will Land in a Later Bounded Batch."
       },
       "actions": {
         "open": "Open Entry",
+        "configure": "Fix Config First",
         "reviewBoundary": "Review Boundary",
-        "reviewCandidates": "Review Candidates"
+        "reviewCandidates": "Review Candidates",
+        "openImport": "Go to Import"
       },
       "messages": {
         "loadFailed": "Project Source Catalog Could Not Be Loaded."

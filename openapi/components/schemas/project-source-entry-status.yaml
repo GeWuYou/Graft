@@ -1,5 +1,6 @@
 type: string
-enum: [ready, planned]
+enum: [ready, blocked, planned]
 x-enum-varnames:
   - ProjectSourceEntryStatusReady
+  - ProjectSourceEntryStatusBlocked
   - ProjectSourceEntryStatusPlanned

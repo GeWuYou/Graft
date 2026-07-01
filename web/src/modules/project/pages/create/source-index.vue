@@ -5,7 +5,15 @@
         title-key="project.create.title"
         description-key="project.create.description"
         :source="{ labelKey: 'project.create.eyebrow', fallback: t('project.create.eyebrow') }"
-      />
+      >
+        <template #actions>
+          <t-space size="small" break-line>
+            <t-button theme="primary" variant="outline" @click="openImport">
+              {{ t('project.createSource.actions.openImport') }}
+            </t-button>
+          </t-space>
+        </template>
+      </management-page-header>
 
       <t-alert v-if="loadError" theme="warning" :message="loadError" class="project-source-page__notice" />
 
@@ -24,7 +32,7 @@
           </template>
 
           <t-space direction="vertical" size="small" class="project-source-page__body">
-            <p>{{ entry.description }}</p>
+            <p>{{ entryDescription(entry) }}</p>
             <t-descriptions size="small" :column="1" bordered>
               <t-descriptions-item :label="t('project.createSource.hostScope')">
                 <code>{{ entry.host_scope }}</code>
@@ -44,14 +52,15 @@
                 {{ entry.metadata_fields.join(', ') || '-' }}
               </t-descriptions-item>
             </t-descriptions>
-            <t-alert v-if="entry.status_reason" theme="info" :message="entry.status_reason" />
+            <t-alert v-if="entryStatusNotice(entry)" theme="info" :message="entryStatusNotice(entry) ?? undefined" />
             <t-button
               theme="primary"
               :disabled="
-                entry.status !== 'ready' &&
-                entry.type !== 'git' &&
-                entry.type !== 'template' &&
-                entry.type !== 'remote-host'
+                entry.status === 'blocked' ||
+                (entry.status !== 'ready' &&
+                  entry.type !== 'git' &&
+                  entry.type !== 'template' &&
+                  entry.type !== 'remote-host')
               "
               @click="openEntry(entry)"
             >
@@ -104,13 +113,27 @@ async function loadSources() {
 }
 
 function statusLabel(status: ProjectSourceEntry['status']) {
-  return status === 'ready' ? t('project.createSource.status.ready') : t('project.createSource.status.planned');
+  if (status === 'ready') return t('project.createSource.status.ready');
+  if (status === 'blocked') return t('project.createSource.status.blocked');
+  return t('project.createSource.status.planned');
 }
 
 function actionLabel(entry: ProjectSourceEntry) {
   return entry.status === 'ready'
     ? t('project.createSource.actions.open')
-    : t('project.createSource.actions.reviewBoundary');
+    : entry.status === 'blocked'
+      ? t('project.createSource.actions.configure')
+      : t('project.createSource.actions.reviewBoundary');
+}
+
+function entryDescription(entry: ProjectSourceEntry) {
+  return entry.description_key
+    ? t(entry.description_key, entry.display_name ? { name: entry.display_name } : {})
+    : entry.description;
+}
+
+function entryStatusNotice(entry: ProjectSourceEntry) {
+  return entry.status_reason_key ? t(entry.status_reason_key) : entry.status_reason;
 }
 
 function openEntry(entry: ProjectSourceEntry) {
@@ -137,6 +160,17 @@ function openDiscovery() {
   const title: LocalizedTitle = {
     [LOCALE.ZH_CN]: t('project.route.createDiscovery.breadcrumb', {}, { locale: LOCALE.ZH_CN }),
     [LOCALE.EN_US]: t('project.route.createDiscovery.breadcrumb', {}, { locale: LOCALE.EN_US }),
+  };
+  appendResolvedTab(tabsRouterStore, resolved, title);
+  void router.push({ name: routeName });
+}
+
+function openImport() {
+  const routeName = PROJECT_BOOTSTRAP_ROUTE.IMPORT.pageRouteName;
+  const resolved = router.resolve({ name: routeName });
+  const title: LocalizedTitle = {
+    [LOCALE.ZH_CN]: t('project.route.import.breadcrumb', {}, { locale: LOCALE.ZH_CN }),
+    [LOCALE.EN_US]: t('project.route.import.breadcrumb', {}, { locale: LOCALE.EN_US }),
   };
   appendResolvedTab(tabsRouterStore, resolved, title);
   void router.push({ name: routeName });

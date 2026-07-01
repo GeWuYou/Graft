@@ -3,11 +3,13 @@ required:
   - type
   - status
   - display_name
+  - title_key
   - route_path
   - route_name
   - permission
   - menu_group
   - description
+  - description_key
   - metadata_fields
   - host_scope
 properties:
@@ -16,6 +18,8 @@ properties:
   status:
     $ref: ./project-source-entry-status.yaml
   display_name:
+    type: string
+  title_key:
     type: string
   route_path:
     type: string
@@ -27,6 +31,8 @@ properties:
     type: string
   description:
     type: string
+  description_key:
+    type: string
   metadata_fields:
     type: array
     items:
@@ -34,5 +40,8 @@ properties:
   host_scope:
     $ref: ./project-host-scope.yaml
   status_reason:
+    type: string
+    nullable: true
+  status_reason_key:
     type: string
     nullable: true

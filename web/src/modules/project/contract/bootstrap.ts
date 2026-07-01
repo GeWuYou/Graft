@@ -5,6 +5,11 @@ export const PROJECT_BOOTSTRAP_ROUTE = {
     menuPath: PROJECT_ROUTE_PATH.LIST,
     routeName: 'ProjectList',
   },
+  IMPORT: {
+    path: PROJECT_ROUTE_PATH.IMPORT,
+    pageRouteName: 'ProjectImportIndex',
+    routeName: 'ProjectImport',
+  },
   CREATE: {
     path: PROJECT_ROUTE_PATH.CREATE,
     pageRouteName: 'ProjectCreateSourceIndex',

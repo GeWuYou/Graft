@@ -34,6 +34,9 @@ import type {
   ProjectDeployResponse,
   ProjectDetailResponse,
   ProjectDiscoveryCandidatesResponse,
+  ProjectImportResponse,
+  ProjectImportValidateRequest,
+  ProjectImportValidateResponse,
   ProjectListQuery,
   ProjectListResponse,
   ProjectManagedRootResponse,
@@ -101,6 +104,18 @@ type ProjectManagedRootPath = (typeof PROJECT_API_PATH)['MANAGED_ROOT'];
 type GetProjectManagedRootOperation = paths[ProjectManagedRootPath]['get'];
 type GetProjectManagedRootEnvelope = GetProjectManagedRootOperation['responses'][200]['content']['application/json'];
 type GetProjectManagedRootData = NonNullable<GetProjectManagedRootEnvelope['data']>;
+
+type ProjectImportValidatePath = (typeof PROJECT_API_PATH)['IMPORT_VALIDATE'];
+type ProjectImportValidateOperation = paths[ProjectImportValidatePath]['post'];
+type ProjectImportValidateEnvelope = ProjectImportValidateOperation['responses'][200]['content']['application/json'];
+type ProjectImportValidateData = NonNullable<ProjectImportValidateEnvelope['data']>;
+type ProjectImportValidatePayload = ProjectImportValidateOperation['requestBody']['content']['application/json'];
+
+type ProjectImportPath = (typeof PROJECT_API_PATH)['IMPORT'];
+type ProjectImportOperation = paths[ProjectImportPath]['post'];
+type ProjectImportEnvelope = ProjectImportOperation['responses'][201]['content']['application/json'];
+type ProjectImportData = NonNullable<ProjectImportEnvelope['data']>;
+type ProjectImportPayload = ProjectImportOperation['requestBody']['content']['application/json'];
 
 type ProjectSourcesPath = (typeof PROJECT_API_PATH)['SOURCES'];
 type GetProjectSourcesOperation = paths[ProjectSourcesPath]['get'];
@@ -290,6 +305,20 @@ export function getProjectManagedRoot() {
   return request.get<GetProjectManagedRootData>({
     url: PROJECT_API_PATH.MANAGED_ROOT,
   }) as Promise<ProjectManagedRootResponse>;
+}
+
+export function postProjectImportValidate(payload: ProjectImportValidateRequest) {
+  return postProjectAction<ProjectImportValidateData>(
+    PROJECT_API_PATH.IMPORT_VALIDATE,
+    payload as ProjectImportValidatePayload,
+  ) as Promise<ProjectImportValidateResponse>;
+}
+
+export function postProjectImport(payload: ProjectImportValidateRequest) {
+  return postProjectAction<ProjectImportData>(
+    PROJECT_API_PATH.IMPORT,
+    payload as ProjectImportPayload,
+  ) as Promise<ProjectImportResponse>;
 }
 
 export function getProjectSources() {

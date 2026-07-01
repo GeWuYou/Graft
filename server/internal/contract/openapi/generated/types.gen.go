@@ -2534,6 +2534,7 @@ func (e ProjectRuntimeStatus) Valid() bool {
 
 // Defines values for ProjectSourceEntryStatus.
 const (
+	ProjectSourceEntryStatusBlocked ProjectSourceEntryStatus = "blocked"
 	ProjectSourceEntryStatusPlanned ProjectSourceEntryStatus = "planned"
 	ProjectSourceEntryStatusReady   ProjectSourceEntryStatus = "ready"
 )
@@ -2541,6 +2542,8 @@ const (
 // Valid indicates whether the value is a known member of the ProjectSourceEntryStatus enum.
 func (e ProjectSourceEntryStatus) Valid() bool {
 	switch e {
+	case ProjectSourceEntryStatusBlocked:
+		return true
 	case ProjectSourceEntryStatusPlanned:
 		return true
 	case ProjectSourceEntryStatusReady:
@@ -7519,17 +7522,20 @@ type ProjectSourceCatalogResponse struct {
 
 // ProjectSourceEntry defines model for project-source-entry.
 type ProjectSourceEntry struct {
-	Description    string                   `json:"description"`
-	DisplayName    string                   `json:"display_name"`
-	HostScope      ProjectHostScope         `json:"host_scope"`
-	MenuGroup      string                   `json:"menu_group"`
-	MetadataFields []string                 `json:"metadata_fields"`
-	Permission     string                   `json:"permission"`
-	RouteName      string                   `json:"route_name"`
-	RoutePath      string                   `json:"route_path"`
-	Status         ProjectSourceEntryStatus `json:"status"`
-	StatusReason   *string                  `json:"status_reason,omitempty"`
-	Type           ProjectSourceEntryType   `json:"type"`
+	Description     string                   `json:"description"`
+	DescriptionKey  string                   `json:"description_key"`
+	DisplayName     string                   `json:"display_name"`
+	HostScope       ProjectHostScope         `json:"host_scope"`
+	MenuGroup       string                   `json:"menu_group"`
+	MetadataFields  []string                 `json:"metadata_fields"`
+	Permission      string                   `json:"permission"`
+	RouteName       string                   `json:"route_name"`
+	RoutePath       string                   `json:"route_path"`
+	Status          ProjectSourceEntryStatus `json:"status"`
+	StatusReason    *string                  `json:"status_reason,omitempty"`
+	StatusReasonKey *string                  `json:"status_reason_key,omitempty"`
+	TitleKey        string                   `json:"title_key"`
+	Type            ProjectSourceEntryType   `json:"type"`
 }
 
 // ProjectSourceEntryStatus defines model for project-source-entry-status.

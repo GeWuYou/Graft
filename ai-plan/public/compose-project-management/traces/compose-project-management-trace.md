@@ -241,6 +241,12 @@
   - `Container` 继续拥有 runtime state、logs、events、stats、shell、inspect、networks、mounts。
   - remote-host 与 backend activity aggregation 仅保留 canonical planned boundary，没有半实现下游兼容层或 runtime 越权。
 
+## 2026-07-01 Drift repair reopened
+
+- 实机检查 `/ops/projects/create` 发现该页面已被 source selector 占用，并直接向用户暴露 raw i18n key 与内部 Phase 3 batch 文案。
+- 复核 `Compose项目管理设计.md` 后确认 Phase 1 主入口应为 `Import Existing Project`，而不是 Phase 3 boundary surface。
+- 主题从错误的 `archive-ready` 结论回滚到 `active`，先执行 `drift-repair-import-primary-entry-and-topic-truth`。
+
 ## Loop Batch State
 
 ```json
