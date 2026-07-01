@@ -853,7 +853,7 @@ func cleanupManagedCreate(createdDir string, createdFiles []string) {
 	if err != nil {
 		return
 	}
-	defer fsRoot.close()
+	defer closeManagedRootFSQuietly(fsRoot)
 	for i := len(createdFiles) - 1; i >= 0; i-- {
 		relative, relErr := fsRoot.relative(createdFiles[i])
 		if relErr != nil {
@@ -991,15 +991,7 @@ func (s *Service) destroyAfterGuard(
 	guardResults = append(guardResults, guardCode("compose_down_completed"))
 
 	if request.DeleteWorkingDirectory {
-		fsRoot, err := openManagedRootFS(filepath.Clean(aggregate.Project.WorkingDirectory))
-		if err != nil {
-			return ActionResult{}, fmt.Errorf("%w: %v", errProjectUnsupportedLifecycle, err)
-		}
-		if err := fsRoot.root.RemoveAll("."); err != nil {
-			fsRoot.close()
-			return ActionResult{}, fmt.Errorf("%w: %v", errProjectUnsupportedLifecycle, err)
-		}
-		if err := fsRoot.close(); err != nil {
+		if err := deleteManagedWorkingDirectory(aggregate.Project.WorkingDirectory); err != nil {
 			return ActionResult{}, fmt.Errorf("%w: %v", errProjectUnsupportedLifecycle, err)
 		}
 		guardResults = append(guardResults, guardCode("working_directory_deleted"))
@@ -1802,7 +1794,7 @@ func loadManagedDraftContent(aggregate projectstore.ProjectAggregate) (managedDr
 	if err != nil {
 		return managedDraftContent{}, fmt.Errorf("%w: %v", errProjectImportValidation, err)
 	}
-	defer fsRoot.close()
+	defer closeManagedRootFSQuietly(fsRoot)
 	composeRelativePath, err := fsRoot.relative(composeFiles[0].AbsolutePath)
 	if err != nil {
 		return managedDraftContent{}, fmt.Errorf("%w: %v", errProjectImportValidation, err)
@@ -1916,7 +1908,7 @@ func writeManagedDraft(workingDirectory string, proposal managedDraftProposal) (
 	if err != nil {
 		return nil, err
 	}
-	defer fsRoot.close()
+	defer closeManagedRootFSQuietly(fsRoot)
 	restoreItems := make([]managedDraftRestore, 0, len(targets))
 	for _, target := range targets {
 		relative, err := fsRoot.relative(target.path)
@@ -1946,7 +1938,7 @@ func restoreManagedDraft(workingDirectory string, items []managedDraftRestore) {
 	if err != nil {
 		return
 	}
-	defer fsRoot.close()
+	defer closeManagedRootFSQuietly(fsRoot)
 	for index := len(items) - 1; index >= 0; index-- {
 		item := items[index]
 		relative, relErr := fsRoot.relative(item.Path)
@@ -2009,6 +2001,22 @@ func (fsRoot *managedRootFS) close() error {
 		return nil
 	}
 	return fsRoot.root.Close()
+}
+
+func closeManagedRootFSQuietly(fsRoot *managedRootFS) {
+	if fsRoot == nil {
+		return
+	}
+	_ = fsRoot.close()
+}
+
+func deleteManagedWorkingDirectory(workingDirectory string) error {
+	fsRoot, err := openManagedRootFS(filepath.Clean(workingDirectory))
+	if err != nil {
+		return err
+	}
+	defer closeManagedRootFSQuietly(fsRoot)
+	return fsRoot.root.RemoveAll(".")
 }
 
 // buildConfigurationDiffFile 构建配置文件的差异结果，包含内容变更、哈希和统一 diff。
