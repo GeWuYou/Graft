@@ -1,14 +1,18 @@
 export const PROJECT_ROUTE_PATH = {
   LIST: '/ops/projects',
   CREATE: '/ops/projects/create',
+  CREATE_MANAGED: '/ops/projects/create/managed',
+  CREATE_GIT: '/ops/projects/create/git',
+  CREATE_TEMPLATE: '/ops/projects/create/template',
   DETAIL: '/ops/projects/:id',
 } as const;
 
 export const PROJECT_API_PATH = {
   LIST: '/api/ops/projects',
+  SOURCES: '/api/ops/projects/sources',
   MANAGED_ROOT: '/api/ops/projects/managed/root',
-  CREATE_VALIDATE: '/api/ops/projects/create/validate',
-  CREATE: '/api/ops/projects/create',
+  CREATE_VALIDATE: '/api/ops/projects/create/managed/validate',
+  CREATE: '/api/ops/projects/create/managed',
   DETAIL: '/api/ops/projects/{id}',
   SERVICES: '/api/ops/projects/{id}/services',
   CONFIGURATION: '/api/ops/projects/{id}/configuration',

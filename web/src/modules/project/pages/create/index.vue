@@ -204,7 +204,7 @@ import type {
 } from '../../types/project';
 
 defineOptions({
-  name: 'ProjectCreateIndex',
+  name: 'ProjectManagedCreateIndex',
 });
 
 type EditorTab = 'compose' | 'env';

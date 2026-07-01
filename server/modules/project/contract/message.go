@@ -38,6 +38,8 @@ func (c ConfigMessageKey) String() string { return string(c) }
 const (
 	// ProjectMenuTitle identifies the project-management menu title.
 	ProjectMenuTitle MessageKey = "menu.ops.project.title"
+	// ProjectSourceMenuTitle identifies the hidden source-selector route title.
+	ProjectSourceMenuTitle MessageKey = "menu.ops.project.source.title"
 	// ProjectInvalidID identifies path or payload project identifiers that fail validation.
 	ProjectInvalidID ErrorCode = "ops.project.error.invalidProjectId"
 	// ProjectInvalidFileID identifies path file identifiers that fail validation.
@@ -58,6 +60,8 @@ const (
 	ProjectManagedRootInvalid ErrorCode = "ops.project.error.managedRootInvalid"
 	// ProjectManagedFlowUnsupported identifies flows blocked because the project is not a managed project.
 	ProjectManagedFlowUnsupported ErrorCode = "ops.project.error.managedFlowUnsupported"
+	// ProjectSourceUnsupported identifies source-specific flows that are defined but not implemented in the current phase.
+	ProjectSourceUnsupported ErrorCode = "ops.project.error.sourceUnsupported"
 )
 
 const (
@@ -89,6 +93,14 @@ const (
 	ProjectConfigurationValidated MessageKey = "ops.project.configuration.validated"
 	// ProjectDeployCompleted identifies a successful managed configuration deploy response.
 	ProjectDeployCompleted MessageKey = "ops.project.deploy.completed"
+	// ProjectSourceCatalogReady identifies a successful project source catalog response.
+	ProjectSourceCatalogReady MessageKey = "ops.project.source.catalog.ready"
+	// ProjectSourceManagedDescription identifies the managed source catalog description key.
+	ProjectSourceManagedDescription MessageKey = "ops.project.source.managed.description"
+	// ProjectSourceGitDescription identifies the git source catalog description key.
+	ProjectSourceGitDescription MessageKey = "ops.project.source.git.description"
+	// ProjectSourceTemplateDescription identifies the template source catalog description key.
+	ProjectSourceTemplateDescription MessageKey = "ops.project.source.template.description"
 )
 
 const (
@@ -104,6 +116,8 @@ const (
 	ProjectDestroyPermission PermissionCode = "ops.project.destroy"
 	// ProjectCreatePermission identifies managed-create contract and future create execution access.
 	ProjectCreatePermission PermissionCode = "ops.project.create"
+	// ProjectSourceViewPermission identifies access to the Phase 3 source selector and source catalog boundary.
+	ProjectSourceViewPermission PermissionCode = "ops.project.source.view"
 	// ProjectDeployPermission identifies managed configuration diff, validate, and deploy access.
 	ProjectDeployPermission PermissionCode = "ops.project.deploy"
 )

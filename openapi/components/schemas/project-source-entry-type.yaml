@@ -1,0 +1,6 @@
+type: string
+enum: [managed, git, template]
+x-enum-varnames:
+  - ProjectSourceEntryTypeManaged
+  - ProjectSourceEntryTypeGit
+  - ProjectSourceEntryTypeTemplate

@@ -228,11 +228,13 @@ paths:
     $ref: ./paths/ops-projects.import-validate.yaml
   /api/ops/projects/import:
     $ref: ./paths/ops-projects.import.yaml
+  /api/ops/projects/sources:
+    $ref: ./paths/ops-projects.sources.yaml
   /api/ops/projects/managed/root:
     $ref: ./paths/ops-projects.managed-root.yaml
-  /api/ops/projects/create/validate:
+  /api/ops/projects/create/managed/validate:
     $ref: ./paths/ops-projects.create-validate.yaml
-  /api/ops/projects/create:
+  /api/ops/projects/create/managed:
     $ref: ./paths/ops-projects.create.yaml
   /api/ops/projects/{id}:
     $ref: ./paths/ops-projects.detail.yaml
@@ -706,6 +708,16 @@ components:
       $ref: ./components/schemas/enveloped-container-batch-action-response.yaml
     ProjectSourceKind:
       $ref: ./components/schemas/project-source-kind.yaml
+    ProjectSourceEntryType:
+      $ref: ./components/schemas/project-source-entry-type.yaml
+    ProjectSourceEntryStatus:
+      $ref: ./components/schemas/project-source-entry-status.yaml
+    ProjectSourceEntry:
+      $ref: ./components/schemas/project-source-entry.yaml
+    ProjectSourceCatalogResponse:
+      $ref: ./components/schemas/project-source-catalog-response.yaml
+    ProjectSourceMetadata:
+      $ref: ./components/schemas/project-source-metadata.yaml
     ProjectHostScope:
       $ref: ./components/schemas/project-host-scope.yaml
     ProjectOwnershipMode:
@@ -756,6 +768,8 @@ components:
       $ref: ./components/schemas/project-action-response.yaml
     EnvelopedProjectListResponse:
       $ref: ./components/schemas/enveloped-project-list-response.yaml
+    EnvelopedProjectSourceCatalogResponse:
+      $ref: ./components/schemas/enveloped-project-source-catalog-response.yaml
     EnvelopedProjectDetailResponse:
       $ref: ./components/schemas/enveloped-project-detail-response.yaml
     EnvelopedProjectServicesResponse:

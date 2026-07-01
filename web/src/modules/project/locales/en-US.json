@@ -16,6 +16,18 @@
         "title": "Create Managed Project",
         "breadcrumb": "Create Managed Project"
       },
+      "createManaged": {
+        "title": "Create Managed Project",
+        "breadcrumb": "Create Managed Project"
+      },
+      "createGit": {
+        "title": "Git Project Boundary",
+        "breadcrumb": "Git Project Boundary"
+      },
+      "createTemplate": {
+        "title": "Template Project Boundary",
+        "breadcrumb": "Template Project Boundary"
+      },
       "detail": {
         "title": "Project Detail",
         "breadcrumb": "Project Detail"
@@ -185,6 +197,29 @@
         "createSuccess": "Managed Project Created.",
         "createFailed": "Managed Project Creation Failed."
       }
+    },
+    "createSource": {
+      "routePath": "Route Path",
+      "permission": "Permission",
+      "metadataFields": "Metadata Fields",
+      "status": {
+        "ready": "Ready",
+        "planned": "Planned"
+      },
+      "actions": {
+        "open": "Open Entry",
+        "reviewBoundary": "Review Boundary"
+      },
+      "messages": {
+        "loadFailed": "Project Source Catalog Could Not Be Loaded."
+      }
+    },
+    "createPlanned": {
+      "description": "This Source Boundary Is Registered in Phase 3 Batch 1, but Materialization Work Stays in a Later Batch.",
+      "notice": "This Entry Only Fixes Route, Permission, and Metadata Ownership in the Current Batch.",
+      "routePath": "Route Path",
+      "boundary": "Boundary",
+      "boundaryValue": "No Git Clone, Template Instantiation, Directory Scan, Remote Host, or Backend Activity Aggregation Is Executed Here."
     },
     "detail": {
       "ownershipMode": {

@@ -1236,6 +1236,45 @@ Configuration：
   - 先收敛 remote host 扩展边界与 project activity backend aggregation authority
   - 未完成该批之前，不应把 project activity backend aggregation 当作 implementation-ready scope
 
+## 16.4B Phase 3 Batch 1 authority 落地说明
+
+`phase-3-batch-1-git-template-source-contract-and-boundary` 只收敛 source entry authority，不实现 source-specific materialization：
+
+- OpenAPI contract owner：`openapi/**`
+  - 新增 `GET /api/ops/projects/sources` 作为 source catalog authority
+  - `project list/detail`、`managed root`、`managed create validate/create` 增加最小 `source_metadata` / `source_type` 字段
+- Project module owner：`server/modules/project/**`
+  - source catalog 只声明 `managed | git | template` entrypoint、route path、permission、metadata field 列表与当前状态
+  - managed source 继续沿用现有执行逻辑，但路由边界收口到 `/create/managed`
+  - git/template 仅返回 `planned` entry，不执行 clone、模板实例化、目录扫描、remote host 或 backend activity aggregation
+- Web module owner：`web/src/modules/project/**`
+  - `/ops/projects/create` 固定为 source selector
+  - `/ops/projects/create/managed` 承接现有 managed create 页面
+  - `/ops/projects/create/git` 与 `/ops/projects/create/template` 只保留 planned boundary 占位页
+
+当前批次允许的 `source_metadata` 范围：
+
+- managed
+  - `managed_root_key`
+  - `managed_relative_directory`
+  - `managed_compose_file_name`
+  - `managed_env_file_name`
+- git
+  - `git_repository_url`
+  - `git_reference`
+  - `git_compose_subpath`
+- template
+  - `template_key`
+  - `template_version`
+  - `template_instance_name`
+
+禁止把这些 metadata 提前扩大成：
+
+- project-level runtime persistence
+- git clone state / sync state
+- template materialization job state
+- backend project logs/events aggregation state
+
 ## 17. 最终结论
 
 `Compose Project` 在 `Graft` 中的定位应固定为：

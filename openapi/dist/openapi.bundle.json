@@ -10562,14 +10562,63 @@
         }
       }
     },
+    "/api/ops/projects/sources": {
+      "get": {
+        "tags": [
+          "project"
+        ],
+        "summary": "List Compose project source entrypoints",
+        "operationId": "getProjectSources",
+        "description": "Returns the canonical Phase 3 source catalog for managed, git, and template project entrypoints without executing source-specific provisioning flows.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Project source catalog.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-project-source-catalog-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
     "/api/ops/projects/managed/root": {
       "get": {
         "tags": [
           "project"
         ],
-        "summary": "Get managed project root authority",
+        "summary": "Get managed project source authority",
         "operationId": "getProjectManagedRoot",
-        "description": "Returns the canonical managed-root system-config authority used by future managed create flows.",
+        "description": "Returns the canonical managed source authority used by the managed project create flow.",
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -10611,7 +10660,7 @@
         }
       }
     },
-    "/api/ops/projects/create/validate": {
+    "/api/ops/projects/create/managed/validate": {
       "post": {
         "tags": [
           "project"
@@ -10700,7 +10749,7 @@
         }
       }
     },
-    "/api/ops/projects/create": {
+    "/api/ops/projects/create/managed": {
       "post": {
         "tags": [
           "project"
@@ -12742,6 +12791,21 @@
       "ProjectSourceKind": {
         "$ref": "#/components/schemas/project-source-kind"
       },
+      "ProjectSourceEntryType": {
+        "$ref": "#/components/schemas/project-source-entry-type"
+      },
+      "ProjectSourceEntryStatus": {
+        "$ref": "#/components/schemas/project-source-entry-status"
+      },
+      "ProjectSourceEntry": {
+        "$ref": "#/components/schemas/project-source-entry"
+      },
+      "ProjectSourceCatalogResponse": {
+        "$ref": "#/components/schemas/project-source-catalog-response"
+      },
+      "ProjectSourceMetadata": {
+        "$ref": "#/components/schemas/project-source-metadata"
+      },
       "ProjectHostScope": {
         "$ref": "#/components/schemas/project-host-scope"
       },
@@ -12816,6 +12880,9 @@
       },
       "EnvelopedProjectListResponse": {
         "$ref": "#/components/schemas/enveloped-project-list-response"
+      },
+      "EnvelopedProjectSourceCatalogResponse": {
+        "$ref": "#/components/schemas/enveloped-project-source-catalog-response"
       },
       "EnvelopedProjectDetailResponse": {
         "$ref": "#/components/schemas/enveloped-project-detail-response"
@@ -20682,6 +20749,53 @@
           "ProjectCanonicalNameSourceOverride"
         ]
       },
+      "project-source-metadata": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "managed_root_key": {
+            "type": "string",
+            "description": "Canonical config key that owns the managed project root."
+          },
+          "managed_relative_directory": {
+            "type": "string",
+            "description": "Relative directory currently owned by the managed project root."
+          },
+          "managed_compose_file_name": {
+            "type": "string",
+            "description": "Canonical managed compose file name tracked by project authority."
+          },
+          "managed_env_file_name": {
+            "type": "string",
+            "nullable": true,
+            "description": "Optional managed env file name tracked by project authority."
+          },
+          "git_repository_url": {
+            "type": "string",
+            "description": "Planned canonical git repository URL for a future git-backed project source."
+          },
+          "git_reference": {
+            "type": "string",
+            "description": "Planned git branch, tag, or commit ref for a future git-backed project source."
+          },
+          "git_compose_subpath": {
+            "type": "string",
+            "description": "Planned repository-relative compose working directory or file subpath."
+          },
+          "template_key": {
+            "type": "string",
+            "description": "Planned stable template identifier for a future template-backed project source."
+          },
+          "template_version": {
+            "type": "string",
+            "description": "Planned template version or release channel."
+          },
+          "template_instance_name": {
+            "type": "string",
+            "description": "Planned template instance name used to derive a managed working directory."
+          }
+        }
+      },
       "project-host-scope": {
         "type": "string",
         "enum": [
@@ -20773,6 +20887,9 @@
           },
           "source_kind": {
             "$ref": "#/components/schemas/project-source-kind"
+          },
+          "source_metadata": {
+            "$ref": "#/components/schemas/project-source-metadata"
           },
           "host_scope": {
             "$ref": "#/components/schemas/project-host-scope"
@@ -21054,6 +21171,9 @@
               "env_files"
             ],
             "properties": {
+              "source_metadata": {
+                "$ref": "#/components/schemas/project-source-metadata"
+              },
               "last_refresh_error_code": {
                 "type": "string",
                 "description": "Stable error code from the latest failed refresh. Empty string means no recorded failure."
@@ -21139,6 +21259,112 @@
           }
         ]
       },
+      "project-source-entry-type": {
+        "type": "string",
+        "enum": [
+          "managed",
+          "git",
+          "template"
+        ],
+        "x-enum-varnames": [
+          "ProjectSourceEntryTypeManaged",
+          "ProjectSourceEntryTypeGit",
+          "ProjectSourceEntryTypeTemplate"
+        ]
+      },
+      "project-source-entry-status": {
+        "type": "string",
+        "enum": [
+          "ready",
+          "planned"
+        ],
+        "x-enum-varnames": [
+          "ProjectSourceEntryStatusReady",
+          "ProjectSourceEntryStatusPlanned"
+        ]
+      },
+      "project-source-entry": {
+        "type": "object",
+        "required": [
+          "type",
+          "status",
+          "display_name",
+          "route_path",
+          "route_name",
+          "permission",
+          "menu_group",
+          "description",
+          "metadata_fields"
+        ],
+        "properties": {
+          "type": {
+            "$ref": "#/components/schemas/project-source-entry-type"
+          },
+          "status": {
+            "$ref": "#/components/schemas/project-source-entry-status"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "route_path": {
+            "type": "string"
+          },
+          "route_name": {
+            "type": "string"
+          },
+          "permission": {
+            "type": "string"
+          },
+          "menu_group": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "metadata_fields": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "status_reason": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "project-source-catalog-response": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/project-source-entry"
+            }
+          }
+        }
+      },
+      "enveloped-project-source-catalog-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/project-source-catalog-response"
+              }
+            }
+          }
+        ]
+      },
       "project-managed-root-status": {
         "type": "string",
         "enum": [
@@ -21156,6 +21382,7 @@
         "type": "object",
         "required": [
           "status",
+          "source_type",
           "config_key",
           "ownership_mode",
           "create_permission",
@@ -21164,6 +21391,9 @@
         "properties": {
           "status": {
             "$ref": "#/components/schemas/project-managed-root-status"
+          },
+          "source_type": {
+            "$ref": "#/components/schemas/project-source-entry-type"
           },
           "config_key": {
             "type": "string"
@@ -21250,6 +21480,7 @@
         "type": "object",
         "required": [
           "managed_root",
+          "source_type",
           "display_name",
           "canonical_project_name",
           "ownership_mode",
@@ -21260,6 +21491,9 @@
         "properties": {
           "managed_root": {
             "$ref": "#/components/schemas/project-managed-root-response"
+          },
+          "source_type": {
+            "$ref": "#/components/schemas/project-source-entry-type"
           },
           "display_name": {
             "type": "string"
@@ -21286,6 +21520,9 @@
           "env_file_absolute_path": {
             "type": "string",
             "nullable": true
+          },
+          "source_metadata": {
+            "$ref": "#/components/schemas/project-source-metadata"
           },
           "warnings": {
             "type": "array",
@@ -21369,6 +21606,7 @@
         "type": "object",
         "required": [
           "managed_root",
+          "source_type",
           "project_id",
           "action",
           "result",
@@ -21383,6 +21621,9 @@
         "properties": {
           "managed_root": {
             "$ref": "#/components/schemas/project-managed-root-response"
+          },
+          "source_type": {
+            "$ref": "#/components/schemas/project-source-entry-type"
           },
           "project_id": {
             "type": "integer",
@@ -21432,6 +21673,9 @@
           "env_file_absolute_path": {
             "type": "string",
             "nullable": true
+          },
+          "source_metadata": {
+            "$ref": "#/components/schemas/project-source-metadata"
           },
           "snapshot_summary": {
             "type": "object",

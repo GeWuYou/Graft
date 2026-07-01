@@ -1,0 +1,35 @@
+type: object
+required:
+  - type
+  - status
+  - display_name
+  - route_path
+  - route_name
+  - permission
+  - menu_group
+  - description
+  - metadata_fields
+properties:
+  type:
+    $ref: ./project-source-entry-type.yaml
+  status:
+    $ref: ./project-source-entry-status.yaml
+  display_name:
+    type: string
+  route_path:
+    type: string
+  route_name:
+    type: string
+  permission:
+    type: string
+  menu_group:
+    type: string
+  description:
+    type: string
+  metadata_fields:
+    type: array
+    items:
+      type: string
+  status_reason:
+    type: string
+    nullable: true

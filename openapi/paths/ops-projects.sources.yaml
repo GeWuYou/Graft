@@ -1,8 +1,8 @@
 get:
   tags: [project]
-  summary: Get managed project source authority
-  operationId: getProjectManagedRoot
-  description: Returns the canonical managed source authority used by the managed project create flow.
+  summary: List Compose project source entrypoints
+  operationId: getProjectSources
+  description: Returns the canonical Phase 3 source catalog for managed, git, and template project entrypoints without executing source-specific provisioning flows.
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml
@@ -10,14 +10,14 @@ get:
     - bearerAuth: []
   responses:
     '200':
-      description: Managed-root authority status.
+      description: Project source catalog.
       headers:
         X-Request-Id:
           $ref: ../components/headers/request-id.yaml
       content:
         application/json:
           schema:
-            $ref: ../components/schemas/enveloped-project-managed-root-response.yaml
+            $ref: ../components/schemas/enveloped-project-source-catalog-response.yaml
     '401':
       $ref: ../components/responses/unauthorized.yaml
     '403':

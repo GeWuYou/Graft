@@ -17,6 +17,12 @@ func toProjectListResponse(result ListResult) generated.ProjectListResponse {
 	}
 }
 
+func toSourceCatalogResponse(result SourceCatalogResult) generated.ProjectSourceCatalogResponse {
+	return generated.ProjectSourceCatalogResponse{
+		Items: append([]generated.ProjectSourceEntry(nil), result.Items...),
+	}
+}
+
 // 当配置哈希或声明的服务名存在时，会附带归一化预览摘要。
 func toImportValidateResponse(result ImportValidationResult) generated.ProjectImportValidateResponse {
 	response := generated.ProjectImportValidateResponse{
@@ -247,6 +253,7 @@ func toGeneratedGuardResults(items []GuardResult) []generated.ProjectGuardResult
 // 当可配置根目录或状态原因存在时，会将其一并写入响应。
 func toManagedRootResponse(info ManagedRootInfo) generated.ProjectManagedRootResponse {
 	response := generated.ProjectManagedRootResponse{
+		SourceType:            generated.ProjectSourceEntryType(info.SourceType),
 		Status:                generated.ProjectManagedRootStatus(info.Status),
 		ConfigKey:             info.ConfigKey,
 		OwnershipMode:         generated.ProjectOwnershipMode(info.OwnershipMode),
@@ -267,6 +274,7 @@ func toManagedRootResponse(info ManagedRootInfo) generated.ProjectManagedRootRes
 func toManagedCreateValidateResponse(result ManagedProjectCreateValidationResult) generated.ProjectCreateValidateResponse {
 	response := generated.ProjectCreateValidateResponse{
 		ManagedRoot:             toManagedRootResponse(result.ManagedRoot),
+		SourceType:              generated.ProjectSourceEntryType(result.SourceType),
 		DisplayName:             result.DisplayName,
 		CanonicalProjectName:    result.CanonicalProjectName,
 		OwnershipMode:           generated.ProjectOwnershipMode(result.OwnershipMode),
@@ -280,6 +288,9 @@ func toManagedCreateValidateResponse(result ManagedProjectCreateValidationResult
 	if result.EnvFileAbsolutePath != nil {
 		response.EnvFileAbsolutePath = result.EnvFileAbsolutePath
 	}
+	if metadata := toGeneratedSourceMetadata(result.SourceMetadata); metadata != nil {
+		response.SourceMetadata = metadata
+	}
 	if len(result.Warnings) > 0 {
 		warnings := append([]string(nil), result.Warnings...)
 		response.Warnings = &warnings
@@ -292,6 +303,7 @@ func toManagedCreateValidateResponse(result ManagedProjectCreateValidationResult
 func toManagedCreateResponse(result ManagedProjectCreateResult) generated.ProjectCreateResponse {
 	response := generated.ProjectCreateResponse{
 		ManagedRoot:             toManagedRootResponse(result.Validation.ManagedRoot),
+		SourceType:              generated.ProjectSourceEntryType(result.SourceType),
 		ProjectId:               mustGeneratedID(result.ProjectID),
 		DisplayName:             result.Validation.DisplayName,
 		CanonicalProjectName:    result.Validation.CanonicalProjectName,
@@ -321,6 +333,9 @@ func toManagedCreateResponse(result ManagedProjectCreateResult) generated.Projec
 	}
 	if result.Validation.EnvFileAbsolutePath != nil {
 		response.EnvFileAbsolutePath = result.Validation.EnvFileAbsolutePath
+	}
+	if metadata := toGeneratedSourceMetadata(result.Validation.SourceMetadata); metadata != nil {
+		response.SourceMetadata = metadata
 	}
 	if len(result.Validation.Warnings) > 0 {
 		warnings := append([]string(nil), result.Validation.Warnings...)

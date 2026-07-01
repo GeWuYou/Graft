@@ -191,6 +191,20 @@
   - `phase-3-batch-2-directory-scan-and-auto-discovery-candidates`
   - `phase-3-batch-3-remote-host-boundary-and-activity-authority`
 
+## 2026-07-01 Phase 3 Batch 1 git/template source contract and boundary
+
+- 落地 `openapi/**` authority owner：
+  - 新增 `GET /api/ops/projects/sources` source catalog contract。
+  - 为 project list/detail 以及 managed source 响应补充最小 `source_metadata` / `source_type` contract。
+- 落地 `server/modules/project/**` authority owner：
+  - 新增 source catalog service 与 route。
+  - 现有 managed create 路由收口到 `/create/managed`。
+  - git/template 只保留 `planned` source entry，不执行 clone、template instantiate、directory scan、remote host 或 backend activity aggregation。
+- 落地 `web/src/modules/project/**` authority owner：
+  - `/ops/projects/create` 固定为 source selector。
+  - `/ops/projects/create/managed` 承接现有 managed create 页面。
+  - `/ops/projects/create/git` 和 `/ops/projects/create/template` 只保留 planned boundary 占位页。
+
 ## Loop Batch State
 
 ```json
@@ -207,15 +221,15 @@
     "phase-2-batch-2-server-managed-create-and-file-write-path",
     "phase-2-batch-3-web-managed-create-and-editors",
     "phase-2-batch-4-diff-validate-and-deploy-flow",
-    "phase-2-batch-5-phase-2-validation-drift-guard-and-governance-sync"
+    "phase-2-batch-5-phase-2-validation-drift-guard-and-governance-sync",
+    "phase-3-batch-1-git-template-source-contract-and-boundary"
   ],
   "pending_batches": [
-    "phase-3-batch-1-git-template-source-contract-and-boundary",
     "phase-3-batch-2-directory-scan-and-auto-discovery-candidates",
     "phase-3-batch-3-remote-host-boundary-and-activity-authority"
   ],
-  "current_batch": "phase-2-batch-5-phase-2-validation-drift-guard-and-governance-sync",
-  "next_batch": "phase-3-batch-1-git-template-source-contract-and-boundary",
-  "closeout_status": "phase-2-batch-5-completed"
+  "current_batch": "phase-3-batch-1-git-template-source-contract-and-boundary",
+  "next_batch": "phase-3-batch-2-directory-scan-and-auto-discovery-candidates",
+  "closeout_status": "phase-3-batch-1-completed"
 }
 ```

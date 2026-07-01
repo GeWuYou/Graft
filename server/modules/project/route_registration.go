@@ -58,6 +58,7 @@ func registerRoutes(ctx *module.Context, moduleName string, service *Service) er
 	group.GET(projectcontract.ProjectCollectionRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectViewPermission.String(), publisher), routes.handleList)
 	group.POST(projectcontract.ProjectImportValidateRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectImportPermission.String(), publisher), routes.handleImportValidate)
 	group.POST(projectcontract.ProjectImportRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectImportPermission.String(), publisher), routes.handleImport)
+	group.GET(projectcontract.ProjectSourcesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectSourceViewPermission.String(), publisher), routes.handleSources)
 	group.GET(projectcontract.ProjectManagedRootRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectCreatePermission.String(), publisher), routes.handleManagedRoot)
 	group.POST(projectcontract.ProjectCreateValidateRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectCreatePermission.String(), publisher), routes.handleCreateValidate)
 	group.POST(projectcontract.ProjectCreateRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectCreatePermission.String(), publisher), routes.handleCreate)
@@ -124,6 +125,16 @@ func (r routeRuntime) handleImport(ginCtx *gin.Context) {
 		return
 	}
 	httpx.WriteSuccess(ginCtx, http.StatusOK, result)
+}
+
+func (r routeRuntime) handleSources(ginCtx *gin.Context) {
+	projectGeneratedHandler{}.GetProjectSources(bindGetProjectSourcesParams(ginCtx))
+	result, err := r.service.SourceCatalog(ginCtx.Request.Context())
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, toSourceCatalogResponse(result))
 }
 
 func (r routeRuntime) handleManagedRoot(ginCtx *gin.Context) {
@@ -412,6 +423,7 @@ func (r routeRuntime) writeRouteErrorWithAction(ginCtx *gin.Context, err error, 
 type projectGeneratedHandler struct{}
 
 func (projectGeneratedHandler) GetProjects(generated.GetProjectsParams) {}
+func (projectGeneratedHandler) GetProjectSources(generated.GetProjectSourcesParams)             {}
 func (projectGeneratedHandler) PostProjectImportValidate(generated.PostProjectImportValidateParams, generated.PostProjectImportValidateJSONRequestBody) {
 }
 func (projectGeneratedHandler) PostProjectImport(generated.PostProjectImportParams, generated.PostProjectImportJSONRequestBody) {
@@ -577,6 +589,11 @@ func bindCommonParams(ginCtx *gin.Context) generated.PostProjectImportParams {
 func bindImportValidateParams(ginCtx *gin.Context) generated.PostProjectImportValidateParams {
 	locale, requestID := commonHeaders(ginCtx)
 	return generated.PostProjectImportValidateParams{XGraftLocale: locale, XRequestId: requestID}
+}
+
+func bindGetProjectSourcesParams(ginCtx *gin.Context) generated.GetProjectSourcesParams {
+	locale, requestID := commonHeaders(ginCtx)
+	return generated.GetProjectSourcesParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
 // bindGetProjectParams 生成获取项目接口的请求参数，包含语言和请求 ID。

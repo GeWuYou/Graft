@@ -16,6 +16,18 @@
         "title": "创建托管项目",
         "breadcrumb": "创建托管项目"
       },
+      "createManaged": {
+        "title": "创建托管项目",
+        "breadcrumb": "创建托管项目"
+      },
+      "createGit": {
+        "title": "Git 项目边界",
+        "breadcrumb": "Git 项目边界"
+      },
+      "createTemplate": {
+        "title": "模板项目边界",
+        "breadcrumb": "模板项目边界"
+      },
       "detail": {
         "title": "项目详情",
         "breadcrumb": "项目详情"
@@ -185,6 +197,29 @@
         "createSuccess": "托管项目创建成功。",
         "createFailed": "托管项目创建失败。"
       }
+    },
+    "createSource": {
+      "routePath": "路由路径",
+      "permission": "权限",
+      "metadataFields": "元数据字段",
+      "status": {
+        "ready": "已就绪",
+        "planned": "规划中"
+      },
+      "actions": {
+        "open": "打开入口",
+        "reviewBoundary": "查看边界"
+      },
+      "messages": {
+        "loadFailed": "项目来源目录加载失败。"
+      }
+    },
+    "createPlanned": {
+      "description": "当前批次只注册该来源边界；真正的物化执行留到后续 bounded batch。",
+      "notice": "这里仅固定 route、permission 和 metadata owner，不执行 Git clone、模板实例化、目录扫描、remote host 或后端活动聚合。",
+      "routePath": "路由路径",
+      "boundary": "边界说明",
+      "boundaryValue": "当前页面只声明 contract 与 route owner，不执行任何超出 Phase 3 Batch 1 的实现动作。"
     },
     "detail": {
       "ownershipMode": {

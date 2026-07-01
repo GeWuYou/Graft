@@ -1,6 +1,7 @@
 type: object
 required:
   - managed_root
+  - source_type
   - project_id
   - action
   - result
@@ -14,6 +15,8 @@ required:
 properties:
   managed_root:
     $ref: ./project-managed-root-response.yaml
+  source_type:
+    $ref: ./project-source-entry-type.yaml
   project_id:
     type: integer
     format: int64
@@ -46,6 +49,8 @@ properties:
   env_file_absolute_path:
     type: string
     nullable: true
+  source_metadata:
+    $ref: ./project-source-metadata.yaml
   snapshot_summary:
     type: object
     required:

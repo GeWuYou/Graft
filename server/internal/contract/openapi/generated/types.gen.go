@@ -2454,6 +2454,45 @@ func (e ProjectRuntimeStatus) Valid() bool {
 	}
 }
 
+// Defines values for ProjectSourceEntryStatus.
+const (
+	ProjectSourceEntryStatusPlanned ProjectSourceEntryStatus = "planned"
+	ProjectSourceEntryStatusReady   ProjectSourceEntryStatus = "ready"
+)
+
+// Valid indicates whether the value is a known member of the ProjectSourceEntryStatus enum.
+func (e ProjectSourceEntryStatus) Valid() bool {
+	switch e {
+	case ProjectSourceEntryStatusPlanned:
+		return true
+	case ProjectSourceEntryStatusReady:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProjectSourceEntryType.
+const (
+	ProjectSourceEntryTypeGit      ProjectSourceEntryType = "git"
+	ProjectSourceEntryTypeManaged  ProjectSourceEntryType = "managed"
+	ProjectSourceEntryTypeTemplate ProjectSourceEntryType = "template"
+)
+
+// Valid indicates whether the value is a known member of the ProjectSourceEntryType enum.
+func (e ProjectSourceEntryType) Valid() bool {
+	switch e {
+	case ProjectSourceEntryTypeGit:
+		return true
+	case ProjectSourceEntryTypeManaged:
+		return true
+	case ProjectSourceEntryTypeTemplate:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ProjectSourceKind.
 const (
 	ProjectSourceKindGit      ProjectSourceKind = "git"
@@ -6198,6 +6237,26 @@ type EnvelopedProjectServicesResponse struct {
 	TraceId string `json:"traceId"`
 }
 
+// EnvelopedProjectSourceCatalogResponse defines model for enveloped-project-source-catalog-response.
+type EnvelopedProjectSourceCatalogResponse struct {
+	// Code Existing canonical response code.
+	Code string                       `json:"code"`
+	Data ProjectSourceCatalogResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
 // EnvelopedRealtimeSubscriptionResponse defines model for enveloped-realtime-subscription-response.
 type EnvelopedRealtimeSubscriptionResponse struct {
 	// Code Existing canonical response code.
@@ -7051,8 +7110,10 @@ type ProjectCreateResponse struct {
 		DeclaredServiceCount *int      `json:"declared_service_count,omitempty"`
 		RefreshedAt          time.Time `json:"refreshed_at"`
 	} `json:"snapshot_summary"`
-	Warnings         *[]string `json:"warnings,omitempty"`
-	WorkingDirectory string    `json:"working_directory"`
+	SourceMetadata   *ProjectSourceMetadata `json:"source_metadata,omitempty"`
+	SourceType       ProjectSourceEntryType `json:"source_type"`
+	Warnings         *[]string              `json:"warnings,omitempty"`
+	WorkingDirectory string                 `json:"working_directory"`
 }
 
 // ProjectCreateResponseAction defines model for ProjectCreateResponse.Action.
@@ -7082,6 +7143,8 @@ type ProjectCreateValidateResponse struct {
 	EnvFileName             *string                    `json:"env_file_name,omitempty"`
 	ManagedRoot             ProjectManagedRootResponse `json:"managed_root"`
 	OwnershipMode           ProjectOwnershipMode       `json:"ownership_mode"`
+	SourceMetadata          *ProjectSourceMetadata     `json:"source_metadata,omitempty"`
+	SourceType              ProjectSourceEntryType     `json:"source_type"`
 	Warnings                *[]string                  `json:"warnings,omitempty"`
 	WorkingDirectory        string                     `json:"working_directory"`
 }
@@ -7145,10 +7208,11 @@ type ProjectDetailResponse struct {
 	OwnershipMode           ProjectOwnershipMode `json:"ownership_mode"`
 
 	// RuntimeStatus Bounded runtime summary status for overview consumption only. It must not become a replacement for container runtime detail authority.
-	RuntimeStatus    *ProjectRuntimeStatus `json:"runtime_status,omitempty"`
-	ServiceCount     int                   `json:"service_count"`
-	SourceKind       ProjectSourceKind     `json:"source_kind"`
-	WorkingDirectory string                `json:"working_directory"`
+	RuntimeStatus    *ProjectRuntimeStatus  `json:"runtime_status,omitempty"`
+	ServiceCount     int                    `json:"service_count"`
+	SourceKind       ProjectSourceKind      `json:"source_kind"`
+	SourceMetadata   *ProjectSourceMetadata `json:"source_metadata,omitempty"`
+	WorkingDirectory string                 `json:"working_directory"`
 }
 
 // ProjectDriftStatus defines model for project-drift-status.
@@ -7235,10 +7299,11 @@ type ProjectListItem struct {
 	OwnershipMode              ProjectOwnershipMode       `json:"ownership_mode"`
 
 	// RuntimeStatus Bounded runtime summary status for overview consumption only. It must not become a replacement for container runtime detail authority.
-	RuntimeStatus    *ProjectRuntimeStatus `json:"runtime_status,omitempty"`
-	ServiceCount     int                   `json:"service_count"`
-	SourceKind       ProjectSourceKind     `json:"source_kind"`
-	WorkingDirectory string                `json:"working_directory"`
+	RuntimeStatus    *ProjectRuntimeStatus  `json:"runtime_status,omitempty"`
+	ServiceCount     int                    `json:"service_count"`
+	SourceKind       ProjectSourceKind      `json:"source_kind"`
+	SourceMetadata   *ProjectSourceMetadata `json:"source_metadata,omitempty"`
+	WorkingDirectory string                 `json:"working_directory"`
 }
 
 // ProjectListResponse defines model for project-list-response.
@@ -7255,6 +7320,7 @@ type ProjectManagedRootResponse struct {
 	ConfiguredRootDirectory *string                  `json:"configured_root_directory,omitempty"`
 	CreatePermission        string                   `json:"create_permission"`
 	OwnershipMode           ProjectOwnershipMode     `json:"ownership_mode"`
+	SourceType              ProjectSourceEntryType   `json:"source_type"`
 	Status                  ProjectManagedRootStatus `json:"status"`
 	StatusReason            *string                  `json:"status_reason,omitempty"`
 	SupportsManagedCreate   bool                     `json:"supports_managed_create"`
@@ -7296,8 +7362,66 @@ type ProjectServicesResponse struct {
 	ProjectId            int64                `json:"project_id"`
 }
 
+// ProjectSourceCatalogResponse defines model for project-source-catalog-response.
+type ProjectSourceCatalogResponse struct {
+	Items []ProjectSourceEntry `json:"items"`
+}
+
+// ProjectSourceEntry defines model for project-source-entry.
+type ProjectSourceEntry struct {
+	Description    string                   `json:"description"`
+	DisplayName    string                   `json:"display_name"`
+	MenuGroup      string                   `json:"menu_group"`
+	MetadataFields []string                 `json:"metadata_fields"`
+	Permission     string                   `json:"permission"`
+	RouteName      string                   `json:"route_name"`
+	RoutePath      string                   `json:"route_path"`
+	Status         ProjectSourceEntryStatus `json:"status"`
+	StatusReason   *string                  `json:"status_reason,omitempty"`
+	Type           ProjectSourceEntryType   `json:"type"`
+}
+
+// ProjectSourceEntryStatus defines model for project-source-entry-status.
+type ProjectSourceEntryStatus string
+
+// ProjectSourceEntryType defines model for project-source-entry-type.
+type ProjectSourceEntryType string
+
 // ProjectSourceKind defines model for project-source-kind.
 type ProjectSourceKind string
+
+// ProjectSourceMetadata defines model for project-source-metadata.
+type ProjectSourceMetadata struct {
+	// GitComposeSubpath Planned repository-relative compose working directory or file subpath.
+	GitComposeSubpath *string `json:"git_compose_subpath,omitempty"`
+
+	// GitReference Planned git branch, tag, or commit ref for a future git-backed project source.
+	GitReference *string `json:"git_reference,omitempty"`
+
+	// GitRepositoryUrl Planned canonical git repository URL for a future git-backed project source.
+	GitRepositoryUrl *string `json:"git_repository_url,omitempty"`
+
+	// ManagedComposeFileName Canonical managed compose file name tracked by project authority.
+	ManagedComposeFileName *string `json:"managed_compose_file_name,omitempty"`
+
+	// ManagedEnvFileName Optional managed env file name tracked by project authority.
+	ManagedEnvFileName *string `json:"managed_env_file_name,omitempty"`
+
+	// ManagedRelativeDirectory Relative directory currently owned by the managed project root.
+	ManagedRelativeDirectory *string `json:"managed_relative_directory,omitempty"`
+
+	// ManagedRootKey Canonical config key that owns the managed project root.
+	ManagedRootKey *string `json:"managed_root_key,omitempty"`
+
+	// TemplateInstanceName Planned template instance name used to derive a managed working directory.
+	TemplateInstanceName *string `json:"template_instance_name,omitempty"`
+
+	// TemplateKey Planned stable template identifier for a future template-backed project source.
+	TemplateKey *string `json:"template_key,omitempty"`
+
+	// TemplateVersion Planned template version or release channel.
+	TemplateVersion *string `json:"template_version,omitempty"`
+}
 
 // PublishAnnouncementRequest defines model for publish-announcement-request.
 type PublishAnnouncementRequest struct {
@@ -9036,6 +9160,16 @@ type PostProjectImportValidateParams struct {
 
 // GetProjectManagedRootParams defines parameters for GetProjectManagedRoot.
 type GetProjectManagedRootParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetProjectSourcesParams defines parameters for GetProjectSources.
+type GetProjectSourcesParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 

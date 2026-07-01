@@ -25,6 +25,8 @@ properties:
     $ref: ./project-canonical-name-source.yaml
   source_kind:
     $ref: ./project-source-kind.yaml
+  source_metadata:
+    $ref: ./project-source-metadata.yaml
   host_scope:
     $ref: ./project-host-scope.yaml
   ownership_mode:

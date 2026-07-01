@@ -7,8 +7,23 @@ export const PROJECT_BOOTSTRAP_ROUTE = {
   },
   CREATE: {
     path: PROJECT_ROUTE_PATH.CREATE,
-    pageRouteName: 'ProjectCreateIndex',
-    routeName: 'ProjectCreate',
+    pageRouteName: 'ProjectCreateSourceIndex',
+    routeName: 'ProjectCreateSource',
+  },
+  CREATE_MANAGED: {
+    path: PROJECT_ROUTE_PATH.CREATE_MANAGED,
+    pageRouteName: 'ProjectManagedCreateIndex',
+    routeName: 'ProjectManagedCreate',
+  },
+  CREATE_GIT: {
+    path: PROJECT_ROUTE_PATH.CREATE_GIT,
+    pageRouteName: 'ProjectGitCreateIndex',
+    routeName: 'ProjectGitCreate',
+  },
+  CREATE_TEMPLATE: {
+    path: PROJECT_ROUTE_PATH.CREATE_TEMPLATE,
+    pageRouteName: 'ProjectTemplateCreateIndex',
+    routeName: 'ProjectTemplateCreate',
   },
   DETAIL: {
     path: PROJECT_ROUTE_PATH.DETAIL,

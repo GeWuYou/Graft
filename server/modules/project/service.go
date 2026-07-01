@@ -81,6 +81,11 @@ type ListResult struct {
 	Offset int
 }
 
+// SourceCatalogResult returns the bounded project source entrypoints owned by project authority.
+type SourceCatalogResult struct {
+	Items []generated.ProjectSourceEntry
+}
+
 // ImportValidationResult returns the static import validation result.
 type ImportValidationResult struct {
 	CanonicalProjectName       string
@@ -213,6 +218,7 @@ type DestroyRequest struct {
 
 // ManagedRootInfo returns bounded managed-root contract metadata.
 type ManagedRootInfo struct {
+	SourceType              string
 	Status                  string
 	ConfigKey               string
 	ConfiguredRootDirectory *string
@@ -236,6 +242,7 @@ type ManagedProjectCreateRequest struct {
 // ManagedProjectCreateValidationResult returns create-contract validation metadata without writing files.
 type ManagedProjectCreateValidationResult struct {
 	ManagedRoot             ManagedRootInfo
+	SourceType              string
 	DisplayName             string
 	CanonicalProjectName    string
 	OwnershipMode           string
@@ -244,12 +251,14 @@ type ManagedProjectCreateValidationResult struct {
 	EnvFileName             *string
 	ComposeFileAbsolutePath string
 	EnvFileAbsolutePath     *string
+	SourceMetadata          map[string]string
 	Warnings                []string
 }
 
 // ManagedProjectCreateResult returns the created managed project bootstrap after write + persist.
 type ManagedProjectCreateResult struct {
 	Validation           ManagedProjectCreateValidationResult
+	SourceType           string
 	ProjectID            uint64
 	ConfigHash           string
 	DeclaredServiceCount int
@@ -340,6 +349,53 @@ func (s *Service) List(ctx context.Context, query ListQuery) (ListResult, error)
 		items = append(items, toProjectListItem(item, runtimeSummary))
 	}
 	return ListResult{Items: items, Total: storeResult.Total, Limit: normalizeListLimit(query.Limit), Offset: maxInt(query.Offset, 0)}, nil
+}
+
+// SourceCatalog returns the bounded Phase 3 source entrypoints without executing source-specific provisioning.
+func (s *Service) SourceCatalog(ctx context.Context) (SourceCatalogResult, error) {
+	managedRoot, err := s.ManagedRoot(ctx)
+	if err != nil {
+		return SourceCatalogResult{}, err
+	}
+	items := []generated.ProjectSourceEntry{
+		{
+			Type:           generated.ProjectSourceEntryType("managed"),
+			Status:         generated.ProjectSourceEntryStatus(mapManagedSourceCatalogStatus(managedRoot.Status)),
+			DisplayName:    "Managed Project",
+			RoutePath:      projectcontract.ProjectManagedCreateMenuPath,
+			RouteName:      "ProjectManagedCreate",
+			Permission:     projectcontract.ProjectCreatePermission.String(),
+			MenuGroup:      projectcontract.ProjectMenuPath,
+			Description:    projectcontract.ProjectSourceManagedDescription.String(),
+			MetadataFields: []string{"managed_root_key", "managed_relative_directory", "managed_compose_file_name", "managed_env_file_name"},
+			StatusReason:   managedRoot.StatusReason,
+		},
+		{
+			Type:           generated.ProjectSourceEntryType("git"),
+			Status:         generated.ProjectSourceEntryStatus("planned"),
+			DisplayName:    "Git Project",
+			RoutePath:      projectcontract.ProjectGitCreateMenuPath,
+			RouteName:      "ProjectGitCreate",
+			Permission:     projectcontract.ProjectCreatePermission.String(),
+			MenuGroup:      projectcontract.ProjectMenuPath,
+			Description:    projectcontract.ProjectSourceGitDescription.String(),
+			MetadataFields: []string{"git_repository_url", "git_reference", "git_compose_subpath"},
+			StatusReason:   stringPointer("Phase 3 batch 1 only fixes contract and route ownership; git materialization remains out of scope."),
+		},
+		{
+			Type:           generated.ProjectSourceEntryType("template"),
+			Status:         generated.ProjectSourceEntryStatus("planned"),
+			DisplayName:    "Template Project",
+			RoutePath:      projectcontract.ProjectTemplateCreateMenuPath,
+			RouteName:      "ProjectTemplateCreate",
+			Permission:     projectcontract.ProjectCreatePermission.String(),
+			MenuGroup:      projectcontract.ProjectMenuPath,
+			Description:    projectcontract.ProjectSourceTemplateDescription.String(),
+			MetadataFields: []string{"template_key", "template_version", "template_instance_name"},
+			StatusReason:   stringPointer("Phase 3 batch 1 only fixes contract and route ownership; template instantiation remains out of scope."),
+		},
+	}
+	return SourceCatalogResult{Items: items}, nil
 }
 
 // Get returns one project detail payload.
@@ -523,6 +579,7 @@ func (s *Service) Services(ctx context.Context, projectID uint64) (generated.Pro
 func (s *Service) ManagedRoot(ctx context.Context) (ManagedRootInfo, error) {
 	definitionKey := projectcontract.ProjectManagedRootConfig.String()
 	info := ManagedRootInfo{
+		SourceType:            "managed",
 		Status:                projectcontract.ManagedRootStatusUnconfigured.String(),
 		ConfigKey:             definitionKey,
 		OwnershipMode:         projectcontract.OwnershipModeManagedRootDedicated.String(),
@@ -595,6 +652,7 @@ func (s *Service) ValidateManagedCreate(ctx context.Context, request ManagedProj
 
 	return ManagedProjectCreateValidationResult{
 		ManagedRoot:             rootInfo,
+		SourceType:              "managed",
 		DisplayName:             normalized.DisplayName,
 		CanonicalProjectName:    normalized.CanonicalProjectName,
 		OwnershipMode:           projectcontract.OwnershipModeManagedRootDedicated.String(),
@@ -603,6 +661,12 @@ func (s *Service) ValidateManagedCreate(ctx context.Context, request ManagedProj
 		EnvFileName:             normalized.EnvFileName,
 		ComposeFileAbsolutePath: composeFileAbsolutePath,
 		EnvFileAbsolutePath:     envFileAbsolutePath,
+		SourceMetadata: map[string]string{
+			"managed_root_key":           rootInfo.ConfigKey,
+			"managed_relative_directory": normalized.RelativeProjectDirectory,
+			"managed_compose_file_name":  normalized.ComposeFileName,
+			"managed_env_file_name":      stringValue(normalized.EnvFileName),
+		},
 		Warnings:                warnings,
 	}, nil
 }
@@ -677,6 +741,7 @@ func (s *Service) CreateManagedProject(ctx context.Context, request ManagedProje
 
 	return ManagedProjectCreateResult{
 		Validation:           validation,
+		SourceType:           "managed",
 		ProjectID:            aggregate.Project.ID,
 		ConfigHash:           parseResult.ConfigHash,
 		DeclaredServiceCount: len(parseResult.ServiceNames),
@@ -1541,6 +1606,7 @@ func toProjectListItem(
 		CanonicalProjectName:       aggregate.Project.CanonicalProjectName,
 		CanonicalProjectNameSource: generated.ProjectCanonicalNameSource(aggregate.Project.CanonicalProjectNameSource),
 		SourceKind:                 generated.ProjectSourceKind(aggregate.Project.SourceKind),
+		SourceMetadata:             buildListSourceMetadata(aggregate),
 		HostScope:                  generated.ProjectHostScope(aggregate.Project.HostScope),
 		OwnershipMode:              generated.ProjectOwnershipMode(aggregate.Project.OwnershipMode),
 		WorkingDirectory:           aggregate.Project.WorkingDirectory,
@@ -1580,6 +1646,7 @@ func toProjectDetailResponse(
 		LastRefreshStatus:          generated.ProjectRefreshStatus(aggregate.Project.LastRefreshStatus),
 		OwnershipMode:              generated.ProjectOwnershipMode(aggregate.Project.OwnershipMode),
 		SourceKind:                 generated.ProjectSourceKind(aggregate.Project.SourceKind),
+		SourceMetadata:             buildDetailSourceMetadata(aggregate),
 		WorkingDirectory:           aggregate.Project.WorkingDirectory,
 	}
 	if aggregate.Project.LastRefreshErrorCode != "" {
@@ -2147,6 +2214,95 @@ func stringPointer(value string) *string {
 // optionalString 将字符串包装为可选字符串指针。
 func optionalString(value string) *string {
 	return stringPointer(value)
+}
+
+func stringValue(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
+}
+
+func mapManagedSourceCatalogStatus(status string) string {
+	switch strings.TrimSpace(status) {
+	case projectcontract.ManagedRootStatusReady.String():
+		return "ready"
+	default:
+		return "planned"
+	}
+}
+
+func toGeneratedSourceMetadata(metadata map[string]string) *generated.ProjectSourceMetadata {
+	if len(metadata) == 0 {
+		return nil
+	}
+	result := generated.ProjectSourceMetadata{}
+	assignSourceMetadataField(metadata, "managed_root_key", &result.ManagedRootKey)
+	assignSourceMetadataField(metadata, "managed_relative_directory", &result.ManagedRelativeDirectory)
+	assignSourceMetadataField(metadata, "managed_compose_file_name", &result.ManagedComposeFileName)
+	assignSourceMetadataField(metadata, "managed_env_file_name", &result.ManagedEnvFileName)
+	assignSourceMetadataField(metadata, "git_repository_url", &result.GitRepositoryUrl)
+	assignSourceMetadataField(metadata, "git_reference", &result.GitReference)
+	assignSourceMetadataField(metadata, "git_compose_subpath", &result.GitComposeSubpath)
+	assignSourceMetadataField(metadata, "template_key", &result.TemplateKey)
+	assignSourceMetadataField(metadata, "template_version", &result.TemplateVersion)
+	assignSourceMetadataField(metadata, "template_instance_name", &result.TemplateInstanceName)
+	if result == (generated.ProjectSourceMetadata{}) {
+		return nil
+	}
+	return &result
+}
+
+func assignSourceMetadataField(metadata map[string]string, key string, target **string) {
+	value := strings.TrimSpace(metadata[key])
+	if value == "" {
+		return
+	}
+	*target = &value
+}
+
+func buildListSourceMetadata(aggregate projectstore.ProjectAggregate) *generated.ProjectSourceMetadata {
+	switch strings.TrimSpace(aggregate.Project.SourceKind) {
+	case projectcontract.SourceKindManaged.String():
+		return buildManagedSourceMetadata(aggregate)
+	default:
+		return nil
+	}
+}
+
+func buildDetailSourceMetadata(aggregate projectstore.ProjectAggregate) *generated.ProjectSourceMetadata {
+	switch strings.TrimSpace(aggregate.Project.SourceKind) {
+	case projectcontract.SourceKindManaged.String():
+		return buildManagedSourceMetadata(aggregate)
+	default:
+		return nil
+	}
+}
+
+func buildManagedSourceMetadata(aggregate projectstore.ProjectAggregate) *generated.ProjectSourceMetadata {
+	composeFiles := filterFiles(aggregate.Files, projectcontract.FileKindCompose.String())
+	envFiles := filterFiles(aggregate.Files, projectcontract.FileKindEnv.String())
+	metadata := map[string]string{
+		"managed_root_key": projectcontract.ProjectManagedRootConfig.String(),
+	}
+	if relativePath := deriveManagedRelativeDirectory(aggregate.Project.WorkingDirectory); relativePath != "" {
+		metadata["managed_relative_directory"] = relativePath
+	}
+	if len(composeFiles) > 0 {
+		metadata["managed_compose_file_name"] = filepath.Base(composeFiles[0].AbsolutePath)
+	}
+	if len(envFiles) > 0 {
+		metadata["managed_env_file_name"] = filepath.Base(envFiles[0].AbsolutePath)
+	}
+	return toGeneratedSourceMetadata(metadata)
+}
+
+func deriveManagedRelativeDirectory(workingDirectory string) string {
+	cleaned := filepath.Clean(strings.TrimSpace(workingDirectory))
+	if cleaned == "" || cleaned == "." || cleaned == string(filepath.Separator) {
+		return ""
+	}
+	return filepath.Base(cleaned)
 }
 
 // uniqueStrings 返回去重后的字符串切片，保留首次出现的顺序。

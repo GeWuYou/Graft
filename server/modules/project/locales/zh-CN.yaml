@@ -11,7 +11,12 @@ rbac.permissionCatalog.projectDestroy.display: 注销或销毁 Compose 项目
 rbac.permissionCatalog.projectDestroy.description: 对项目记录执行注销和受保护的销毁动作。
 rbac.permissionCatalog.projectCreate.display: 创建受管 Compose 项目
 rbac.permissionCatalog.projectCreate.description: 检查受管根目录 authority，并访问后续的 managed create 工作流。
+rbac.permissionCatalog.projectSourceView.display: 查看项目来源目录
+rbac.permissionCatalog.projectSourceView.description: 查看 Phase 3 的来源目录和 managed、git、template 项目入口路由边界。
 rbac.permissionCatalog.projectDeploy.display: 部署受管 Compose 项目草稿
 rbac.permissionCatalog.projectDeploy.description: 在 bounded project authority 内对受管项目配置草稿执行 diff、validate 和 deploy。
+ops.project.source.managed.description: 在 project authority 拥有的 canonical managed root 下创建受管 Compose 项目。
+ops.project.source.git.description: 预留 canonical git-backed 项目来源边界，但本批次不引入 clone、scan 或 remote-host 执行。
+ops.project.source.template.description: 预留 canonical template-backed 项目来源边界，但本批次不引入模板实例化、发现或 remote-host 执行。
 systemConfig.project.ops.project.managed.root_directory.title: 受管项目根目录
 systemConfig.project.ops.project.managed.root_directory.description: Managed Compose 项目创建流程使用的 canonical 根目录。空字符串表示 managed create 尚未配置。

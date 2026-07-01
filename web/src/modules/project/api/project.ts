@@ -37,6 +37,7 @@ import type {
   ProjectListResponse,
   ProjectManagedRootResponse,
   ProjectServicesResponse,
+  ProjectSourceCatalogResponse,
 } from '../types/project';
 
 type ProjectListPath = (typeof PROJECT_API_PATH)['LIST'];
@@ -99,6 +100,11 @@ type ProjectManagedRootPath = (typeof PROJECT_API_PATH)['MANAGED_ROOT'];
 type GetProjectManagedRootOperation = paths[ProjectManagedRootPath]['get'];
 type GetProjectManagedRootEnvelope = GetProjectManagedRootOperation['responses'][200]['content']['application/json'];
 type GetProjectManagedRootData = NonNullable<GetProjectManagedRootEnvelope['data']>;
+
+type ProjectSourcesPath = (typeof PROJECT_API_PATH)['SOURCES'];
+type GetProjectSourcesOperation = paths[ProjectSourcesPath]['get'];
+type GetProjectSourcesEnvelope = GetProjectSourcesOperation['responses'][200]['content']['application/json'];
+type GetProjectSourcesData = NonNullable<GetProjectSourcesEnvelope['data']>;
 
 type ProjectCreateValidatePath = (typeof PROJECT_API_PATH)['CREATE_VALIDATE'];
 type ProjectCreateValidateOperation = paths[ProjectCreateValidatePath]['post'];
@@ -277,6 +283,12 @@ export function getProjectManagedRoot() {
   return request.get<GetProjectManagedRootData>({
     url: PROJECT_API_PATH.MANAGED_ROOT,
   }) as Promise<ProjectManagedRootResponse>;
+}
+
+export function getProjectSources() {
+  return request.get<GetProjectSourcesData>({
+    url: PROJECT_API_PATH.SOURCES,
+  }) as Promise<ProjectSourceCatalogResponse>;
 }
 
 /**

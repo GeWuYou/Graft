@@ -79,6 +79,12 @@
 - `phase-3-batch-2-directory-scan-and-auto-discovery-candidates`
 - `phase-3-batch-3-remote-host-boundary-and-activity-authority`
 
+当前 Phase 3 Batch 1 的 authority 目标：
+
+- 固定 `managed | git | template` source catalog contract
+- 固定 `/ops/projects/create` source selector 与 `/create/managed|git|template` route boundary
+- 保持 git/template 为 planned entry，不执行 clone、template instantiate、directory scan、remote host 或 backend activity aggregation
+
 ## Validation Targets
 
 当前文档切片：
