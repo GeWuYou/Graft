@@ -1,11 +1,7 @@
 export type TerminalConnectionState = 'idle' | 'connecting' | 'connected' | 'disconnected' | 'error';
 
 export type TerminalLifecycleCloseReason =
-  | 'manual_disconnect'
-  | 'remote_close'
-  | 'component_unmount'
-  | 'connect_error'
-  | 'session_error';
+  'manual_disconnect' | 'remote_close' | 'component_unmount' | 'connect_error' | 'session_error';
 
 export interface TerminalResizePayload {
   cols: number;
@@ -48,12 +44,7 @@ export interface TerminalPongMessage {
 }
 
 export type TerminalServerMessage =
-  | TerminalStatusMessage
-  | TerminalOutputMessage
-  | TerminalErrorMessage
-  | TerminalPongMessage;
+  TerminalStatusMessage | TerminalOutputMessage | TerminalErrorMessage | TerminalPongMessage;
 
 export type TerminalClientMessage =
-  | { type: 'input'; data: string }
-  | { type: 'resize'; cols: number; rows: number }
-  | { type: 'ping' };
+  { type: 'input'; data: string } | { type: 'resize'; cols: number; rows: number } | { type: 'ping' };

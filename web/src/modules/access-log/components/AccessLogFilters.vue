@@ -22,13 +22,7 @@ import { buildAccessLogSortOptions } from '../shared/presentation';
 import type { AccessLogFilterState, AccessLogPathMatch, AccessLogSortBy } from '../types/access-log';
 
 type AccessLogPresetKey =
-  | 'all'
-  | 'todayErrors'
-  | 'status4xx'
-  | 'status5xx'
-  | 'slowRequests'
-  | 'currentUser'
-  | 'lastHour';
+  'all' | 'todayErrors' | 'status4xx' | 'status5xx' | 'slowRequests' | 'currentUser' | 'lastHour';
 type AccessTimeRangeKey = 'startedRange' | 'occurredRange';
 type FilterKey = Exclude<
   keyof AccessLogFilterState,

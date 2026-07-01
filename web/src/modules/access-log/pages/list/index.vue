@@ -110,13 +110,7 @@ defineOptions({
 });
 
 type AccessLogPresetKey =
-  | 'all'
-  | 'todayErrors'
-  | 'status4xx'
-  | 'status5xx'
-  | 'slowRequests'
-  | 'currentUser'
-  | 'lastHour';
+  'all' | 'todayErrors' | 'status4xx' | 'status5xx' | 'slowRequests' | 'currentUser' | 'lastHour';
 const DEFAULT_VISIBLE_COLUMNS = ['started_at', 'method', 'path', 'status_code', 'duration_ms', 'user'];
 const TROUBLESHOOTING_VISIBLE_COLUMNS = [
   'started_at',

@@ -298,7 +298,7 @@ just check
 ```
 
 `just check` includes the authoritative backend completion entrypoint below, then runs the authoritative frontend
-completion entrypoint and the repository quality score command.
+completion entrypoint.
 
 The backend completion entrypoint is:
 
@@ -364,8 +364,7 @@ Optional wrapper:
 just check
 ```
 
-`just check` includes the authoritative frontend completion entrypoint below, together with backend validation and the
-repository quality score command.
+`just check` includes the authoritative frontend completion entrypoint below, together with backend validation.
 
 The frontend completion entrypoint is:
 

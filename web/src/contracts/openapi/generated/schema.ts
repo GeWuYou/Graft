@@ -4220,11 +4220,7 @@ export interface components {
      * @enum {string}
      */
     'notification-navigation-kind':
-      | 'AUDIT_INCIDENT'
-      | 'AUDIT_LOG'
-      | 'SCHEDULER_RUN'
-      | 'SYSTEM_CONFIG_ITEM'
-      | 'MODULE_RUNTIME_ITEM';
+      'AUDIT_INCIDENT' | 'AUDIT_LOG' | 'SCHEDULER_RUN' | 'SYSTEM_CONFIG_ITEM' | 'MODULE_RUNTIME_ITEM';
     'notification-navigation': {
       kind: components['schemas']['notification-navigation-kind'];
       /** @description Structured payload owned by the source module and resolved by the frontend notification module. */
@@ -5612,26 +5608,14 @@ export interface components {
     'container-list-keyword': string;
     /** @description Optional normalized container state filter. */
     'container-list-state':
-      | 'created'
-      | 'running'
-      | 'paused'
-      | 'restarting'
-      | 'removing'
-      | 'exited'
-      | 'dead'
-      | 'unknown';
+      'created' | 'running' | 'paused' | 'restarting' | 'removing' | 'exited' | 'dead' | 'unknown';
     /** @description Optional health filter. Containers whose list row cannot cheaply determine health are excluded when a specific health filter is provided. */
     'container-list-health': 'healthy' | 'unhealthy' | 'starting' | 'none' | 'unavailable';
     /** @description Optional orchestrator source filter resolved by the backend from runtime metadata. */
     'container-list-orchestrator': 'standalone' | 'compose' | 'swarm' | 'kubernetes' | 'unknown';
     /** @description Exact orchestrator source scope kind filter. Must be paired with source_scope and remain compatible with the selected orchestrator type. */
     'container-list-source-scope-kind':
-      | 'compose_project'
-      | 'compose_service'
-      | 'swarm_stack'
-      | 'swarm_task'
-      | 'kubernetes_namespace'
-      | 'kubernetes_pod';
+      'compose_project' | 'compose_service' | 'swarm_stack' | 'swarm_task' | 'kubernetes_namespace' | 'kubernetes_pod';
     /** @description Exact orchestrator source scope value. Must be paired with source_scope_kind. */
     'container-list-source-scope': string;
     /** @description Container id or name. Clients must call encodeURIComponent before placing this value in the path. The backend must PathUnescape the path parameter and reject empty values, slashes, and control characters with ops.container.error.invalidContainerRef. */
@@ -9180,12 +9164,7 @@ export interface operations {
         error?: string;
         /** @description Repeated sort fields encoded as `field:direction`. */
         sort?: (
-          | 'occurred_at:desc'
-          | 'occurred_at:asc'
-          | 'severity:desc'
-          | 'severity:asc'
-          | 'component:desc'
-          | 'component:asc'
+          'occurred_at:desc' | 'occurred_at:asc' | 'severity:desc' | 'severity:asc' | 'component:desc' | 'component:asc'
         )[];
       };
       header?: {
