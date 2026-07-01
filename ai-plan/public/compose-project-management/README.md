@@ -69,13 +69,15 @@
   - 推荐为 `project` 与 `container` 之间新增 narrow stable shared boundary，而不是直接 import container private service。
   - Phase 1 的 Activity 仍由前端复用现有 container APIs 聚合。
   - Phase 1 的配置页只读。
-  - Phase 2 继续在同一 topic 内推进，但必须先拆成安全 bounded batches，而不是直接把整阶段当一个 batch 执行。
-- 当前下一步：按 topic-completion-loop 推进 `phase-2-batch-5-phase-2-validation-drift-guard-and-governance-sync`。
+  - Phase 2 已在同一 topic 内完成 bounded batches，并通过 managed create/edit/diff/validate/deploy slice 的 archive-readiness check。
+  - Phase 3 继续留在同一 topic 内推进，但必须先拆成安全 bounded batches，不能回退成单个大阶段占位。
+- 当前下一步：按 topic-completion-loop 推进 `phase-3-batch-1-git-template-source-contract-and-boundary`。
 
 ## Pending Batch Direction
 
-- `phase-2-batch-5-phase-2-validation-drift-guard-and-governance-sync`
-- `phase-3-discovery-git-template-and-remote-host`
+- `phase-3-batch-1-git-template-source-contract-and-boundary`
+- `phase-3-batch-2-directory-scan-and-auto-discovery-candidates`
+- `phase-3-batch-3-remote-host-boundary-and-activity-authority`
 
 ## Validation Targets
 

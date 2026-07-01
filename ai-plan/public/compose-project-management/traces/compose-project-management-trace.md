@@ -173,6 +173,24 @@
   - `cd web && bun run check`
 - 本批已提交：`beb75a48` `feat(project): add managed diff validate deploy flow`
 
+## 2026-07-01 Phase 2 Batch 5 validation drift guard and governance sync
+
+- 重新运行 Phase 2 closeout validation chain，确认 managed create/edit/diff/validate/deploy slice 与 generated/runtime consumers 没有新增 drift：
+  - `git diff --check`
+  - `node scripts/openapi-bundle.mjs`
+  - `python3 scripts/validate_sql_migrations.py --paths server/modules/project/migrations/202606300002_project_registry_baseline.sql`
+  - `cd server && go run ./cmd/graft validate backend`
+  - `cd web && bun run check`
+- 本批未新增实现 authority owner；本轮只同步 `ai-plan/design/**` 与 active topic recovery materials，记录 Phase 2 acceptance 已可审计、可验收。
+- 完成 Phase 2 archive-readiness check：
+  - managed root create、Compose/Env editor、diff、validate、deploy 路径均已落地并通过完整验证链。
+  - `Project` 与 `Container` authority 边界保持稳定，没有引入 project-level runtime persistence、project-owned container detail 或 backend project logs/events aggregation。
+- Topic 未进入 `archive-ready`，因为 `Phase 3` 仍存在明确后续 bounded work。
+- 将原来的 `phase-3-discovery-git-template-and-remote-host` 重切为安全的 Phase 3 batches：
+  - `phase-3-batch-1-git-template-source-contract-and-boundary`
+  - `phase-3-batch-2-directory-scan-and-auto-discovery-candidates`
+  - `phase-3-batch-3-remote-host-boundary-and-activity-authority`
+
 ## Loop Batch State
 
 ```json
@@ -188,14 +206,16 @@
     "phase-2-batch-1-managed-root-and-create-contracts",
     "phase-2-batch-2-server-managed-create-and-file-write-path",
     "phase-2-batch-3-web-managed-create-and-editors",
-    "phase-2-batch-4-diff-validate-and-deploy-flow"
+    "phase-2-batch-4-diff-validate-and-deploy-flow",
+    "phase-2-batch-5-phase-2-validation-drift-guard-and-governance-sync"
   ],
   "pending_batches": [
-    "phase-2-batch-5-phase-2-validation-drift-guard-and-governance-sync",
-    "phase-3-discovery-git-template-and-remote-host"
+    "phase-3-batch-1-git-template-source-contract-and-boundary",
+    "phase-3-batch-2-directory-scan-and-auto-discovery-candidates",
+    "phase-3-batch-3-remote-host-boundary-and-activity-authority"
   ],
-  "current_batch": "phase-2-batch-4-diff-validate-and-deploy-flow",
-  "next_batch": "phase-2-batch-5-phase-2-validation-drift-guard-and-governance-sync",
-  "closeout_status": "phase-2-batch-4-completed"
+  "current_batch": "phase-2-batch-5-phase-2-validation-drift-guard-and-governance-sync",
+  "next_batch": "phase-3-batch-1-git-template-source-contract-and-boundary",
+  "closeout_status": "phase-2-batch-5-completed"
 }
 ```

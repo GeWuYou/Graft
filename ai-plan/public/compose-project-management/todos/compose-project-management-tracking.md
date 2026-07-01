@@ -63,6 +63,10 @@ Compose Project Management
   - `openapi/**`、`server/modules/project/**`、`web/src/modules/project/**` 已共同落地 managed compose project 的 `diff / validate / deploy` 流程。
   - `Project` 仍只拥有配置草稿、差异、校验和部署编排，没有引入项目级 runtime 持久化，也没有越界到 container 私有实现或后端 project logs/events 聚合。
   - 前端仍在 `project detail` 的 `list-form-detail` 页型中承接 Configuration tab 下的编辑、diff、validate、deploy 流程。
+- Phase 2 Batch 5 已完成：
+  - Phase 2 managed create/edit/diff/validate/deploy slice 的验证链已重新跑通，未发现 contract、generated、validation 或 governance drift 需要额外实现修补。
+  - Phase 2 archive-readiness check 已通过：`Project` 继续只拥有 project registry、draft editor、静态 diff/validate 与 deploy orchestration，没有引入 project-level runtime persistence 或 backend project logs/events aggregation。
+  - 原有过宽的 `phase-3-discovery-git-template-and-remote-host` 已重切为安全 bounded batches，并把下一步前移到 `phase-3-batch-1-git-template-source-contract-and-boundary`。
 - 当前 authority 决议：
   - `Project` 不得持久化容器运行时信息。
   - `Project` 不得新增自己的 container detail。
@@ -85,8 +89,10 @@ Compose Project Management
 - [x] phase-2-batch-2：server managed create、compose/env file write path、snapshot bootstrap
 - [x] phase-2-batch-3：web managed create、compose/env editors
 - [x] phase-2-batch-4：diff、validate、deploy flow
-- [ ] phase-2-batch-5：Phase 2 validation、drift guard、docs sync、Phase 2 archive-readiness check
-- [ ] Phase 3：git/template/scan/discovery/remote-host/backend activity aggregation
+- [x] phase-2-batch-5：Phase 2 validation、drift guard、docs sync、Phase 2 archive-readiness check
+- [ ] phase-3-batch-1：git/template source contract、metadata boundary、route/permission owner
+- [ ] phase-3-batch-2：directory scan、candidate model、auto discovery bounded authority
+- [ ] phase-3-batch-3：remote host boundary、project activity authority decision
 
 ## Phase 1 Acceptance Conditions
 
@@ -105,6 +111,12 @@ Compose Project Management
 - 支持在 managed root 下创建项目
 - 支持 Compose / Env 编辑
 - 支持 diff / validate / deploy
+
+2026-07-01 archive-readiness check：
+
+- 通过完整验证链：`git diff --check`、`node scripts/openapi-bundle.mjs`、`python3 scripts/validate_sql_migrations.py --paths server/modules/project/migrations/202606300002_project_registry_baseline.sql`、`cd server && go run ./cmd/graft validate backend`、`cd web && bun run check`
+- `Project` 与 `Container` authority 边界保持稳定，没有引入 project-level runtime persistence、project-owned container detail 或 backend project logs/events aggregation
+- Topic 未进入 `archive-ready`，因为安全重切后的 Phase 3 bounded work 仍明确存在
 
 ## Phase 3 Acceptance Conditions
 
@@ -126,14 +138,16 @@ Compose Project Management
     "phase-2-batch-1-managed-root-and-create-contracts",
     "phase-2-batch-2-server-managed-create-and-file-write-path",
     "phase-2-batch-3-web-managed-create-and-editors",
-    "phase-2-batch-4-diff-validate-and-deploy-flow"
+    "phase-2-batch-4-diff-validate-and-deploy-flow",
+    "phase-2-batch-5-phase-2-validation-drift-guard-and-governance-sync"
   ],
   "pending_batches": [
-    "phase-2-batch-5-phase-2-validation-drift-guard-and-governance-sync",
-    "phase-3-discovery-git-template-and-remote-host"
+    "phase-3-batch-1-git-template-source-contract-and-boundary",
+    "phase-3-batch-2-directory-scan-and-auto-discovery-candidates",
+    "phase-3-batch-3-remote-host-boundary-and-activity-authority"
   ],
-  "current_batch": "phase-2-batch-4-diff-validate-and-deploy-flow",
-  "next_batch": "phase-2-batch-5-phase-2-validation-drift-guard-and-governance-sync",
-  "closeout_status": "phase-2-batch-4-completed"
+  "current_batch": "phase-2-batch-5-phase-2-validation-drift-guard-and-governance-sync",
+  "next_batch": "phase-3-batch-1-git-template-source-contract-and-boundary",
+  "closeout_status": "phase-2-batch-5-completed"
 }
 ```

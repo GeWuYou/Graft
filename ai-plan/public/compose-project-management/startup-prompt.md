@@ -67,20 +67,25 @@ Implementation guardrails:
 - 不得让 Overview 变成 runtime dashboard。
 - 不得在 Phase 1 偷渡 managed create、editor、diff、deploy、validate UI、project logs/events backend aggregation。
 
-Current batch plan:
+Current loop state:
 
-1. `phase-1-batch-1-project-contract-and-data-model`
-   - 定义 route space、OpenAPI contract source、项目数据模型、migration 计划、shared boundary 需求
-2. `phase-1-batch-2-server-project-module-import-and-refresh`
-   - 落地 `project` module 骨架、repository、import validate/import/register/refresh
-3. `phase-1-batch-3-server-lifecycle-and-container-aggregation-boundary`
-   - 落地 `up/down/restart/unregister/destroy` 与 container aggregation shared boundary
-4. `phase-1-batch-4-web-project-list-detail-and-readonly-configuration`
-   - 落地项目列表、详情、Overview、Services、Configuration、Activity fan-out UI
-5. `phase-1-batch-5-phase-1-validation-drift-guard-and-governance-sync`
-   - 完成验证、drift guard、文档同步、Phase 1 closeout
-6. `phase-2-managed-create-editor-and-deploy`
-7. `phase-3-discovery-git-template-and-remote-host`
+- completed batch:
+  - `phase-2-batch-5-phase-2-validation-drift-guard-and-governance-sync`
+- next batch:
+  - `phase-3-batch-1-git-template-source-contract-and-boundary`
+- pending batches:
+  - `phase-3-batch-1-git-template-source-contract-and-boundary`
+  - `phase-3-batch-2-directory-scan-and-auto-discovery-candidates`
+  - `phase-3-batch-3-remote-host-boundary-and-activity-authority`
+
+Phase 3 rebatching intent:
+
+1. `phase-3-batch-1-git-template-source-contract-and-boundary`
+   - 固定 git/template project source 的 contract、metadata、route/permission/menu boundary，不落 remote host、directory scan 或 backend activity aggregation
+2. `phase-3-batch-2-directory-scan-and-auto-discovery-candidates`
+   - 落地 scan/discovery candidate model 与 bounded authority，不直接注册项目、不改变 runtime authority
+3. `phase-3-batch-3-remote-host-boundary-and-activity-authority`
+   - 收敛 remote host 扩展边界与 project activity backend aggregation authority，再决定后续实现切片
 
 Loop instructions:
 

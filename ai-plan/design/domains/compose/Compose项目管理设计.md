@@ -1193,6 +1193,16 @@ Configuration：
   - 在 `detail -> configuration` 页签内承载 Compose/Env draft editor、diff、validate 和 deploy flow
   - 仍保持 `detail` 页属于 `list-form-detail` page type，不把 Overview 变成 runtime dashboard
 
+## 16.3B Phase 2 archive-readiness check
+
+`phase-2-batch-5-phase-2-validation-drift-guard-and-governance-sync` 完成后，Phase 2 以同一 topic 内的 bounded batches 达到可审计验收状态：
+
+- managed root create、Compose/Env editor、diff、validate、deploy 路径均已落地并通过完整验证链
+- `Project` 继续只拥有 project registry、draft editor、静态 diff/validate 与 deploy orchestration
+- 不新增 project runtime persistence、project logs/events aggregation 或 project-owned container detail
+- `Container` 继续保持 runtime authority
+- Topic 不进入 `archive-ready`，因为 Phase 3 仍需按更小的 bounded batches 继续推进
+
 ## 16.4 Phase 3
 
 Management：
@@ -1211,6 +1221,20 @@ Configuration：
 
 - Multi-file override UX 强化
 - Git / template source metadata 深化
+
+## 16.4A Phase 3 rebatching建议
+
+为保持 `topic-completion-loop` 可继续执行，Phase 3 不应再保留单个大阶段占位，建议至少拆成以下安全 batches：
+
+- `phase-3-batch-1-git-template-source-contract-and-boundary`
+  - 只固定 git/template source metadata、route/permission/menu contract 与 authority boundary
+  - 不落 directory scan、auto discovery、remote host 或 backend activity aggregation
+- `phase-3-batch-2-directory-scan-and-auto-discovery-candidates`
+  - 只落 scan/discovery candidate model、候选结果 contract 与 bounded authority
+  - candidate 只产出发现结果，不直接注册 project，不改变 runtime authority
+- `phase-3-batch-3-remote-host-boundary-and-activity-authority`
+  - 先收敛 remote host 扩展边界与 project activity backend aggregation authority
+  - 未完成该批之前，不应把 project activity backend aggregation 当作 implementation-ready scope
 
 ## 17. 最终结论
 
