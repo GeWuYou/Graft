@@ -1999,6 +1999,46 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/ops/projects/import/runtime-candidates': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List runtime Compose import candidates
+     * @description Returns Compose import candidates derived from container runtime metadata, including both importable and unavailable candidates.
+     */
+    get: operations['getProjectImportRuntimeCandidates'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/projects/import/runtime-inspect': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Inspect one runtime Compose import candidate
+     * @description Resolves one ready runtime candidate into an inspect preview while reusing the project-owned import inspection pipeline.
+     */
+    post: operations['postProjectImportRuntimeInspect'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/ops/projects/import/inspect': {
     parameters: {
       query?: never;
@@ -2010,7 +2050,7 @@ export interface paths {
     put?: never;
     /**
      * Inspect one import directory
-     * @description Discovers compose and env files under the selected directory, parses the Compose project once, and returns a short-lived inspection snapshot for later import confirmation.
+     * @description Discovers compose and env files under the selected directory, parses the Compose project once, and returns a short-lived inspection snapshot for later import confirmation. Previewable naming or ownership conflicts are reported inside the 200 response body rather than as transport-level 409 errors.
      */
     post: operations['postProjectImportInspect'];
     delete?: never;
@@ -5328,13 +5368,35 @@ export interface components {
     'enveloped-project-import-validate-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['project-import-validate-response'];
     };
-    'project-import-directory-reference': {
-      provider: string;
-      root_id: string;
-      path: string;
+    /** @enum {string} */
+    'project-import-runtime-candidate-status':
+      'ready' | 'incomplete_metadata' | 'unsupported_runtime' | 'broken_compose';
+    /** @enum {string} */
+    'project-import-runtime-working-directory-source': 'runtime_label' | 'derived_from_config_files';
+    'project-import-runtime-candidate': {
+      candidate_key: string;
+      canonical_project_name: string;
+      status: components['schemas']['project-import-runtime-candidate-status'];
+      status_reason_codes: string[];
+      importable: boolean;
+      /** @description Future-extensible runtime type resolved by the container runtime authority. */
+      runtime_type: string;
+      runtime_version?: string | null;
+      working_directory: string;
+      working_directory_source: components['schemas']['project-import-runtime-working-directory-source'];
+      config_files: string[];
+      service_names: string[];
+      container_counts: components['schemas']['project-container-counts'];
+      warnings: string[];
     };
-    'project-import-inspect-request': {
-      directory_ref: components['schemas']['project-import-directory-reference'];
+    'project-import-runtime-candidates-response': {
+      items: components['schemas']['project-import-runtime-candidate'][];
+    };
+    'enveloped-project-import-runtime-candidates-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['project-import-runtime-candidates-response'];
+    };
+    'project-import-runtime-inspect-request': {
+      candidate_key: string;
       display_name?: string;
       canonical_project_name_override?: string | null;
     };
@@ -5346,6 +5408,37 @@ export interface components {
       order_index: number;
       exists_on_last_refresh: boolean;
       last_observed_hash?: string | null;
+    };
+    'project-import-runtime-inspect-response': {
+      inspection_id: string;
+      candidate_key: string;
+      resolved_working_directory: string;
+      canonical_project_name: string;
+      canonical_project_name_source: components['schemas']['project-canonical-name-source'];
+      display_name_suggested: string;
+      compose_files: components['schemas']['project-import-inspect-file-item'][];
+      env_files: components['schemas']['project-import-inspect-file-item'][];
+      services: string[];
+      networks: string[];
+      volumes: string[];
+      config_hash: string;
+      warnings: string[];
+      conflicts: string[];
+      /** @enum {string} */
+      validation_status: 'ready' | 'conflict';
+    };
+    'enveloped-project-import-runtime-inspect-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['project-import-runtime-inspect-response'];
+    };
+    'project-import-directory-reference': {
+      provider: string;
+      root_id: string;
+      path: string;
+    };
+    'project-import-inspect-request': {
+      directory_ref: components['schemas']['project-import-directory-reference'];
+      display_name?: string;
+      canonical_project_name_override?: string | null;
     };
     'project-import-inspect-response': {
       inspection_id: string;
@@ -11505,6 +11598,84 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
+  getProjectImportRuntimeCandidates: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Runtime import candidates. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-project-import-runtime-candidates-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postProjectImportRuntimeInspect: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['project-import-runtime-inspect-request'];
+      };
+    };
+    responses: {
+      /** @description Runtime candidate inspection result. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-project-import-runtime-inspect-response'];
+        };
+      };
+      /** @description Invalid runtime candidate inspection request. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
   postProjectImportInspect: {
     parameters: {
       query?: never;
@@ -11548,16 +11719,6 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
-      /** @description Inspection conflicts with existing registry ownership or canonical naming. */
-      409: {
-        headers: {
-          'X-Request-Id': components['headers']['request-id'];
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['error-response'];
-        };
-      };
       500: components['responses']['internal-server-error'];
     };
   };

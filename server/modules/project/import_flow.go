@@ -127,6 +127,61 @@ type ImportInspectResult struct {
 	ValidationStatus           string                   `json:"validation_status"`
 }
 
+// RuntimeImportContainerCounts describes bounded runtime member counts for one import candidate.
+type RuntimeImportContainerCounts struct {
+	Running int `json:"running"`
+	Stopped int `json:"stopped"`
+	Total   int `json:"total"`
+}
+
+// RuntimeImportCandidate describes one runtime-driven Compose import candidate.
+type RuntimeImportCandidate struct {
+	CandidateKey           string                       `json:"candidate_key"`
+	CanonicalProjectName   string                       `json:"canonical_project_name"`
+	Status                 string                       `json:"status"`
+	StatusReasonCodes      []string                     `json:"status_reason_codes"`
+	Importable             bool                         `json:"importable"`
+	RuntimeType            string                       `json:"runtime_type"`
+	RuntimeVersion         *string                      `json:"runtime_version,omitempty"`
+	WorkingDirectory       string                       `json:"working_directory"`
+	WorkingDirectorySource string                       `json:"working_directory_source"`
+	ConfigFiles            []string                     `json:"config_files"`
+	ServiceNames           []string                     `json:"service_names"`
+	ContainerCounts        RuntimeImportContainerCounts `json:"container_counts"`
+	Warnings               []string                     `json:"warnings"`
+}
+
+// RuntimeImportCandidatesResult returns the current runtime import candidates.
+type RuntimeImportCandidatesResult struct {
+	Items []RuntimeImportCandidate `json:"items"`
+}
+
+// RuntimeImportInspectRequest captures one inspect request for a runtime candidate.
+type RuntimeImportInspectRequest struct {
+	CandidateKey                 string  `json:"candidate_key"`
+	DisplayName                  *string `json:"display_name,omitempty"`
+	CanonicalProjectNameOverride *string `json:"canonical_project_name_override,omitempty"`
+}
+
+// RuntimeImportInspectResult returns the inspect preview for one runtime candidate.
+type RuntimeImportInspectResult struct {
+	InspectionID               string     `json:"inspection_id"`
+	CandidateKey               string     `json:"candidate_key"`
+	ResolvedWorkingDirectory   string     `json:"resolved_working_directory"`
+	CanonicalProjectName       string     `json:"canonical_project_name"`
+	CanonicalProjectNameSource string     `json:"canonical_project_name_source"`
+	DisplayNameSuggested       string     `json:"display_name_suggested"`
+	ComposeFiles               []FileView `json:"compose_files"`
+	EnvFiles                   []FileView `json:"env_files"`
+	ServiceNames               []string   `json:"services"`
+	NetworkNames               []string   `json:"networks"`
+	VolumeNames                []string   `json:"volumes"`
+	ConfigHash                 string     `json:"config_hash"`
+	Warnings                   []string   `json:"warnings"`
+	Conflicts                  []string   `json:"conflicts"`
+	ValidationStatus           string     `json:"validation_status"`
+}
+
 // ImportExecuteRequest finalizes an import from a prior inspection snapshot.
 type ImportExecuteRequest struct {
 	InspectionID                 string  `json:"inspection_id"`
@@ -154,6 +209,7 @@ type discoveredImportFiles struct {
 
 type importInspectionSession struct {
 	ID              string
+	CandidateKey    string
 	DirectoryRef    ImportDirectoryReference
 	WorkingDir      string
 	CanonicalName   string
@@ -518,6 +574,14 @@ func discoverImportFiles(workingDirectory string) (discoveredImportFiles, error)
 		envFiles:     discoverEnvFiles(workingDirectory, entries),
 		warnings:     warnings,
 	}, nil
+}
+
+func discoverEnvFilesForWorkingDirectory(workingDirectory string) ([]string, error) {
+	entries, err := os.ReadDir(workingDirectory)
+	if err != nil {
+		return nil, err
+	}
+	return discoverEnvFiles(workingDirectory, entries), nil
 }
 
 // discoverPrimaryComposeFiles 返回工作目录中存在的首选 Compose 文件名列表。

@@ -21,6 +21,10 @@ const (
 	ProjectConfigurationValidateRoute = "/:id/configuration/validate"
 	// ProjectImportValidateRoute identifies the import validation route fragment.
 	ProjectImportValidateRoute = "/import/validate"
+	// ProjectImportRuntimeCandidatesRoute identifies the runtime-driven import candidate list route fragment.
+	ProjectImportRuntimeCandidatesRoute = "/import/runtime-candidates"
+	// ProjectImportRuntimeInspectRoute identifies the runtime-driven import inspection route fragment.
+	ProjectImportRuntimeInspectRoute = "/import/runtime-inspect"
 	// ProjectImportInspectRoute identifies the import inspection route fragment.
 	ProjectImportInspectRoute = "/import/inspect"
 	// ProjectImportRoute identifies the import-and-register route fragment.

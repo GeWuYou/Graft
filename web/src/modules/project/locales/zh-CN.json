@@ -136,23 +136,68 @@
     },
     "import": {
       "eyebrow": "导入项目",
-      "description": "选择服务器目录后自动扫描 Compose 与 Env 文件，完成发现预览后再导入项目。",
+      "description": "先从运行时候选进入，Inspect 可导入的 Compose 项目，再沿用现有预览和导入提交流程。",
       "actions": {
         "backToList": "返回列表",
-        "selectDirectory": "选择目录",
-        "changeDirectory": "更换目录",
+        "refreshCandidates": "刷新候选",
+        "inspectCandidate": "Inspect 候选",
+        "reinspectCandidate": "刷新候选 Inspect",
         "refreshInspect": "刷新发现结果",
         "retryInspect": "重试发现",
         "import": "导入并打开项目",
         "reset": "重置表单"
       },
+      "candidates": {
+        "title": "运行时候选",
+        "summary": "可导入 {ready} 个 / 不可导入 {unavailable} 个",
+        "readyTitle": "可导入候选",
+        "readyDescription": "只有 ready 候选可以进入 Inspect，并继续生成导入会话。",
+        "unavailableTitle": "暂不可导入候选",
+        "unavailableDescription": "这些候选会继续展示，但在运行时原因修复前不会开放 Inspect。",
+        "emptyTitle": "暂无运行时候选",
+        "emptyDescription": "当前运行时 authority 还没有返回可导入或仅供审查的候选项。",
+        "configFiles": "配置文件 Authority",
+        "workingDirectory": "工作目录提示",
+        "workingDirectorySource": "工作目录来源",
+        "runtime": "运行时来源",
+        "serviceNames": "服务列表",
+        "containerCounts": "容器数量",
+        "containerCountsValue": "运行中 {running} / 已停止 {stopped} / 总计 {total}",
+        "status": {
+          "ready": "可导入",
+          "incomplete_metadata": "元数据不完整",
+          "unsupported_runtime": "运行时暂不支持",
+          "broken_compose": "Compose 解析失败"
+        },
+        "workingDirectorySourceValues": {
+          "runtime_label": "来自运行时标签",
+          "derived_from_config_files": "由 config_files 推导"
+        },
+        "reason": {
+          "missing_project_name": "缺少 Compose 项目名元数据",
+          "missing_config_files": "缺少 Compose 配置文件元数据",
+          "invalid_config_files": "Compose 配置文件元数据无效",
+          "conflicting_runtime_metadata": "运行时 Compose 元数据彼此冲突",
+          "unsupported_runtime_type": "当前运行时类型暂不支持导入",
+          "config_files_not_accessible": "Compose 配置文件当前不可访问",
+          "incomplete_metadata": "运行时元数据不完整，当前无法 Inspect",
+          "unsupported_runtime": "当前运行时暂不支持该候选的导入",
+          "broken_compose": "Compose 文件无法通过导入检查",
+          "unavailable": "当前暂不可 Inspect"
+        },
+        "warning": {
+          "working_directory_derived_from_config_files": "working directory 缺失，当前由首个 config_files 路径推导。"
+        }
+      },
       "directory": {
-        "title": "项目目录",
-        "workingDirectory": "已选目录",
-        "readonlyHint": "自动发现"
+        "title": "导入 Authority",
+        "workingDirectory": "推导工作目录",
+        "configFiles": "配置文件 Authority",
+        "readonlyHint": "仅作展示提示"
       },
       "form": {
         "title": "项目信息",
+        "authorityHint": "配置文件是更强的导入 authority；working directory 在 Inspect 后只作为展示提示。",
         "displayName": "展示名",
         "displayNamePlaceholder": "例如：订单服务开发环境",
         "canonicalProjectNameOverride": "Canonical Project Name 覆盖",
@@ -192,15 +237,16 @@
         "none": "无"
       },
       "state": {
-        "awaitingSelectionTitle": "先选择服务器目录",
-        "awaitingSelectionDescription": "目录选择后会自动执行 Inspect，回填可导入的 Compose 项目信息。",
-        "inspectErrorTitle": "目录发现失败"
+        "awaitingSelectionTitle": "先 Inspect 一个 ready 候选",
+        "awaitingSelectionDescription": "从上方选择可导入候选，生成预览和导入会话 authority。",
+        "inspectErrorTitle": "候选 Inspect 失败"
       },
       "messages": {
+        "candidateLoadFailed": "运行时候选加载失败。",
         "directorySourceLoadFailed": "目录来源加载失败。",
         "directoryLoadFailed": "目录列表加载失败。",
-        "inspectSuccess": "目录发现结果已刷新。",
-        "inspectFailed": "目录发现失败。",
+        "inspectSuccess": "候选 Inspect 已刷新。",
+        "inspectFailed": "候选 Inspect 失败。",
         "importSuccess": "Compose 项目导入成功。",
         "importFailed": "Compose 项目导入失败。"
       }

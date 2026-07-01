@@ -57,6 +57,8 @@ func registerRoutes(ctx *module.Context, moduleName string, service *Service) er
 	group.Use(httpx.RequestIDMiddleware())
 	group.GET(projectcontract.ProjectCollectionRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectViewPermission.String(), publisher), routes.handleList)
 	group.POST(projectcontract.ProjectImportValidateRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectImportPermission.String(), publisher), routes.handleImportValidate)
+	group.GET(projectcontract.ProjectImportRuntimeCandidatesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectImportPermission.String(), publisher), routes.handleImportRuntimeCandidates)
+	group.POST(projectcontract.ProjectImportRuntimeInspectRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectImportPermission.String(), publisher), routes.handleImportRuntimeInspect)
 	group.POST(projectcontract.ProjectImportInspectRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectImportPermission.String(), publisher), routes.handleImportInspect)
 	group.POST(projectcontract.ProjectImportRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectImportPermission.String(), publisher), routes.handleImport)
 	group.GET(projectcontract.ProjectImportDirectorySourcesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectImportPermission.String(), publisher), routes.handleImportDirectorySources)
@@ -115,6 +117,34 @@ func (r routeRuntime) handleImportValidate(ginCtx *gin.Context) {
 		return
 	}
 	httpx.WriteSuccess(ginCtx, http.StatusOK, toImportValidateResponse(result))
+}
+
+func (r routeRuntime) handleImportRuntimeCandidates(ginCtx *gin.Context) {
+	projectGeneratedHandler{}.GetProjectImportRuntimeCandidates(bindGetProjectImportRuntimeCandidatesParams(ginCtx))
+	result, err := r.service.ListRuntimeImportCandidates(ginCtx.Request.Context())
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, result)
+}
+
+func (r routeRuntime) handleImportRuntimeInspect(ginCtx *gin.Context) {
+	var request generated.PostProjectImportRuntimeInspectJSONRequestBody
+	if !bindJSON(ginCtx, r.ctx, &request) {
+		return
+	}
+	projectGeneratedHandler{}.PostProjectImportRuntimeInspect(bindPostProjectImportRuntimeInspectParams(ginCtx), request)
+	result, err := r.service.InspectRuntimeCandidate(ginCtx.Request.Context(), RuntimeImportInspectRequest{
+		CandidateKey:                 request.CandidateKey,
+		DisplayName:                  request.DisplayName,
+		CanonicalProjectNameOverride: request.CanonicalProjectNameOverride,
+	})
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, result)
 }
 
 func (r routeRuntime) handleImport(ginCtx *gin.Context) {
@@ -507,7 +537,11 @@ func (projectGeneratedHandler) GetProjects(generated.GetProjectsParams)         
 func (projectGeneratedHandler) GetProjectSources(generated.GetProjectSourcesParams) {}
 func (projectGeneratedHandler) GetProjectDiscoveryCandidates(generated.GetProjectDiscoveryCandidatesParams) {
 }
+func (projectGeneratedHandler) GetProjectImportRuntimeCandidates(generated.GetProjectImportRuntimeCandidatesParams) {
+}
 func (projectGeneratedHandler) PostProjectImportValidate(generated.PostProjectImportValidateParams, generated.PostProjectImportValidateJSONRequestBody) {
+}
+func (projectGeneratedHandler) PostProjectImportRuntimeInspect(generated.PostProjectImportRuntimeInspectParams, generated.PostProjectImportRuntimeInspectJSONRequestBody) {
 }
 func (projectGeneratedHandler) PostProjectImport(generated.PostProjectImportParams, generated.PostProjectImportJSONRequestBody) {
 }
@@ -577,6 +611,22 @@ func bindListParams(ginCtx *gin.Context, ctx *module.Context) (generated.GetProj
 		return generated.GetProjectsParams{}, false
 	}
 	return params, true
+}
+
+func bindGetProjectImportRuntimeCandidatesParams(ginCtx *gin.Context) generated.GetProjectImportRuntimeCandidatesParams {
+	locale, requestID := commonHeaders(ginCtx)
+	return generated.GetProjectImportRuntimeCandidatesParams{
+		XGraftLocale: locale,
+		XRequestId:   requestID,
+	}
+}
+
+func bindPostProjectImportRuntimeInspectParams(ginCtx *gin.Context) generated.PostProjectImportRuntimeInspectParams {
+	locale, requestID := commonHeaders(ginCtx)
+	return generated.PostProjectImportRuntimeInspectParams{
+		XGraftLocale: locale,
+		XRequestId:   requestID,
+	}
 }
 
 // bindProjectConfigurationDiffRequest 绑定配置差异请求及其项目标识。

@@ -3,6 +3,7 @@ package container
 import (
 	"errors"
 	"net/url"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -160,19 +161,21 @@ func dockerOrchestratorFromLabels(labels map[string]string) OrchestratorInfo {
 		info.DisplayName = firstNonEmpty(stack, task, "swarm")
 		info.Confidence = orchestratorConfidenceHigh
 	}
-	if project, service, ok := composeMetadata(labels); ok {
+	if metadata, ok := composeMetadata(labels); ok {
 		typeCount++
 		info.Type = containerOrchestratorCompose
 		info.Managed = true
 		info.GroupScopeKind = composeProjectScopeKind
-		info.GroupValue = project
-		info.GroupDisplayName = project
+		info.GroupValue = metadata.Project
+		info.GroupDisplayName = metadata.Project
 		info.MemberScopeKind = composeServiceScopeKind
-		info.MemberValue = service
-		info.MemberDisplayName = service
-		info.Project = project
-		info.Service = service
-		info.DisplayName = firstNonEmpty(project, service, "compose")
+		info.MemberValue = metadata.Service
+		info.MemberDisplayName = metadata.Service
+		info.Project = metadata.Project
+		info.Service = metadata.Service
+		info.WorkingDir = metadata.WorkingDir
+		info.ConfigFiles = append([]string(nil), metadata.ConfigFiles...)
+		info.DisplayName = firstNonEmpty(metadata.Project, metadata.Service, "compose")
 		info.Confidence = orchestratorConfidenceHigh
 	}
 	if typeCount == 0 {
@@ -215,12 +218,42 @@ func swarmMetadata(labels map[string]string) (stack string, task string, ok bool
 	return stack, task, ok
 }
 
-// composeMetadata 从容器标签中检测 Docker Compose 的项目和服务名称。
-func composeMetadata(labels map[string]string) (project string, service string, ok bool) {
-	project = strings.TrimSpace(labels[composeProjectLabel])
-	service = strings.TrimSpace(labels[composeServiceLabel])
-	ok = project != "" || service != ""
-	return project, service, ok
+type composeOrchestratorMetadata struct {
+	Project     string
+	Service     string
+	WorkingDir  string
+	ConfigFiles []string
+}
+
+// composeMetadata 从容器标签中检测 Docker Compose 的项目来源元数据。
+func composeMetadata(labels map[string]string) (composeOrchestratorMetadata, bool) {
+	metadata := composeOrchestratorMetadata{
+		Project:     strings.TrimSpace(labels[composeProjectLabel]),
+		Service:     strings.TrimSpace(labels[composeServiceLabel]),
+		WorkingDir:  strings.TrimSpace(labels[composeWorkingDirLabel]),
+		ConfigFiles: composeConfigFiles(labels[composeConfigFilesLabel]),
+	}
+	if metadata.WorkingDir == "" && len(metadata.ConfigFiles) > 0 {
+		metadata.WorkingDir = filepath.Dir(metadata.ConfigFiles[0])
+	}
+	ok := metadata.Project != "" || metadata.Service != "" || metadata.WorkingDir != "" || len(metadata.ConfigFiles) > 0
+	return metadata, ok
+}
+
+func composeConfigFiles(raw string) []string {
+	if strings.TrimSpace(raw) == "" {
+		return nil
+	}
+	parts := strings.Split(raw, ",")
+	files := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		files = append(files, filepath.Clean(part))
+	}
+	return normalizedStringSlice(files)
 }
 
 // dockerEnvironmentVariables 将原始环境变量字符串列表解析为 EnvironmentVariable 对象。

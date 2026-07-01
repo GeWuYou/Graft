@@ -10473,6 +10473,129 @@
         }
       }
     },
+    "/api/ops/projects/import/runtime-candidates": {
+      "get": {
+        "tags": [
+          "project"
+        ],
+        "summary": "List runtime Compose import candidates",
+        "operationId": "getProjectImportRuntimeCandidates",
+        "description": "Returns Compose import candidates derived from container runtime metadata, including both importable and unavailable candidates.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Runtime import candidates.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-project-import-runtime-candidates-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/ops/projects/import/runtime-inspect": {
+      "post": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Inspect one runtime Compose import candidate",
+        "operationId": "postProjectImportRuntimeInspect",
+        "description": "Resolves one ready runtime candidate into an inspect preview while reusing the project-owned import inspection pipeline.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/project-import-runtime-inspect-request"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Runtime candidate inspection result.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-project-import-runtime-inspect-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid runtime candidate inspection request.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
     "/api/ops/projects/import/inspect": {
       "post": {
         "tags": [
@@ -21534,33 +21657,145 @@
           }
         ]
       },
-      "project-import-directory-reference": {
+      "project-import-runtime-candidate-status": {
+        "type": "string",
+        "enum": [
+          "ready",
+          "incomplete_metadata",
+          "unsupported_runtime",
+          "broken_compose"
+        ],
+        "x-enum-varnames": [
+          "ProjectImportRuntimeCandidateStatusReady",
+          "ProjectImportRuntimeCandidateStatusIncompleteMetadata",
+          "ProjectImportRuntimeCandidateStatusUnsupportedRuntime",
+          "ProjectImportRuntimeCandidateStatusBrokenCompose"
+        ]
+      },
+      "project-import-runtime-working-directory-source": {
+        "type": "string",
+        "enum": [
+          "runtime_label",
+          "derived_from_config_files"
+        ],
+        "x-enum-varnames": [
+          "ProjectImportRuntimeWorkingDirectorySourceRuntimeLabel",
+          "ProjectImportRuntimeWorkingDirectorySourceDerivedFromConfigFiles"
+        ]
+      },
+      "project-import-runtime-candidate": {
         "type": "object",
         "required": [
-          "provider",
-          "root_id",
-          "path"
+          "candidate_key",
+          "canonical_project_name",
+          "status",
+          "status_reason_codes",
+          "importable",
+          "runtime_type",
+          "working_directory",
+          "working_directory_source",
+          "config_files",
+          "service_names",
+          "container_counts",
+          "warnings"
         ],
         "properties": {
-          "provider": {
+          "candidate_key": {
             "type": "string"
           },
-          "root_id": {
+          "canonical_project_name": {
             "type": "string"
           },
-          "path": {
+          "status": {
+            "$ref": "#/components/schemas/project-import-runtime-candidate-status"
+          },
+          "status_reason_codes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "importable": {
+            "type": "boolean"
+          },
+          "runtime_type": {
+            "type": "string",
+            "description": "Future-extensible runtime type resolved by the container runtime authority."
+          },
+          "runtime_version": {
+            "type": "string",
+            "nullable": true
+          },
+          "working_directory": {
             "type": "string"
+          },
+          "working_directory_source": {
+            "$ref": "#/components/schemas/project-import-runtime-working-directory-source"
+          },
+          "config_files": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "service_names": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "container_counts": {
+            "$ref": "#/components/schemas/project-container-counts"
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         }
       },
-      "project-import-inspect-request": {
+      "project-import-runtime-candidates-response": {
         "type": "object",
         "required": [
-          "directory_ref"
+          "items"
         ],
         "properties": {
-          "directory_ref": {
-            "$ref": "#/components/schemas/project-import-directory-reference"
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/project-import-runtime-candidate"
+            }
+          }
+        }
+      },
+      "enveloped-project-import-runtime-candidates-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/project-import-runtime-candidates-response"
+              }
+            }
+          }
+        ]
+      },
+      "project-import-runtime-inspect-request": {
+        "type": "object",
+        "required": [
+          "candidate_key"
+        ],
+        "properties": {
+          "candidate_key": {
+            "type": "string",
+            "minLength": 1
           },
           "display_name": {
             "type": "string",
@@ -21606,6 +21841,156 @@
           },
           "last_observed_hash": {
             "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "project-import-runtime-inspect-response": {
+        "type": "object",
+        "required": [
+          "inspection_id",
+          "candidate_key",
+          "resolved_working_directory",
+          "canonical_project_name",
+          "canonical_project_name_source",
+          "display_name_suggested",
+          "compose_files",
+          "env_files",
+          "services",
+          "networks",
+          "volumes",
+          "config_hash",
+          "warnings",
+          "conflicts",
+          "validation_status"
+        ],
+        "properties": {
+          "inspection_id": {
+            "type": "string"
+          },
+          "candidate_key": {
+            "type": "string"
+          },
+          "resolved_working_directory": {
+            "type": "string"
+          },
+          "canonical_project_name": {
+            "type": "string"
+          },
+          "canonical_project_name_source": {
+            "$ref": "#/components/schemas/project-canonical-name-source"
+          },
+          "display_name_suggested": {
+            "type": "string"
+          },
+          "compose_files": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/project-import-inspect-file-item"
+            }
+          },
+          "env_files": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/project-import-inspect-file-item"
+            }
+          },
+          "services": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "networks": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "volumes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "config_hash": {
+            "type": "string"
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "conflicts": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "validation_status": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "conflict"
+            ]
+          }
+        }
+      },
+      "enveloped-project-import-runtime-inspect-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/project-import-runtime-inspect-response"
+              }
+            }
+          }
+        ]
+      },
+      "project-import-directory-reference": {
+        "type": "object",
+        "required": [
+          "provider",
+          "root_id",
+          "path"
+        ],
+        "properties": {
+          "provider": {
+            "type": "string"
+          },
+          "root_id": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          }
+        }
+      },
+      "project-import-inspect-request": {
+        "type": "object",
+        "required": [
+          "directory_ref"
+        ],
+        "properties": {
+          "directory_ref": {
+            "$ref": "#/components/schemas/project-import-directory-reference"
+          },
+          "display_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "canonical_project_name_override": {
+            "type": "string",
+            "minLength": 1,
             "nullable": true
           }
         }

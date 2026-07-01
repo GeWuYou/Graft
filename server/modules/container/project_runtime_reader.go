@@ -2,14 +2,51 @@ package container
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
 	"graft/server/internal/moduleapi"
 )
 
+const (
+	projectRuntimeCandidateStatusReady              = "ready"
+	projectRuntimeCandidateStatusIncompleteMetadata = "incomplete_metadata"
+	projectRuntimeCandidateStatusUnsupportedRuntime = "unsupported_runtime"
+
+	projectRuntimeReasonMissingProjectName       = "missing_project_name"
+	projectRuntimeReasonMissingConfigFiles       = "missing_config_files"
+	projectRuntimeReasonInvalidConfigFiles       = "invalid_config_files"
+	projectRuntimeReasonConflictingMetadata      = "conflicting_runtime_metadata"
+	projectRuntimeReasonUnsupportedRuntimeType   = "unsupported_runtime_type"
+	projectRuntimeReasonConfigFilesNotAccessible = "config_files_not_accessible"
+	projectRuntimeWarningWorkingDirDerived       = "working_directory_derived_from_config_files"
+	projectRuntimeWorkingDirSourceRuntimeLabel   = "runtime_label"
+	projectRuntimeWorkingDirSourceDerivedConfig  = "derived_from_config_files"
+	projectRuntimeHostScopeLocal                 = "local"
+)
+
 type containerProjectRuntimeReader struct {
 	service *service
+}
+
+type runtimeCandidateAccumulator struct {
+	canonicalProjectName   string
+	runtimeType            string
+	runtimeVersion         string
+	workingDirectory       string
+	workingDirectorySource string
+	configFiles            []string
+	serviceNames           map[string]struct{}
+	runningCount           int
+	stoppedCount           int
+	warnings               []string
+	reasonCodes            []string
+	metadataConflict       bool
+	unsupportedRuntime     bool
 }
 
 func (r containerProjectRuntimeReader) ListProjectMembers(
@@ -61,6 +98,259 @@ func (r containerProjectRuntimeReader) ListProjectMembers(
 	return summary, nil
 }
 
+func (r containerProjectRuntimeReader) ListImportCandidates(
+	ctx context.Context,
+	hostScope string,
+) ([]moduleapi.ContainerProjectRuntimeCandidate, error) {
+	if r.service == nil {
+		return nil, errRuntimeDisabled
+	}
+	hostScope = strings.TrimSpace(hostScope)
+	if hostScope == "" || hostScope != projectRuntimeHostScopeLocal {
+		return []moduleapi.ContainerProjectRuntimeCandidate{}, nil
+	}
+	runtime, err := r.service.runtimeForRequest()
+	if err != nil {
+		return nil, err
+	}
+	summaries, err := listComposeRuntimeSummaries(ctx, runtime)
+	if err != nil {
+		return nil, err
+	}
+	info, err := runtime.Info(ctx)
+	if err != nil {
+		return nil, err
+	}
+	candidates := runtimeImportCandidatesFromSummaries(hostScope, summaries, info)
+	sortRuntimeCandidates(candidates)
+	return candidates, nil
+}
+
+func listComposeRuntimeSummaries(ctx context.Context, runtime Runtime) ([]Summary, error) {
+	summaries := make([]Summary, 0)
+	offset := 0
+	for {
+		items, err := runtime.List(ctx, ListQuery{
+			Limit:        maxContainerListLimit,
+			Offset:       offset,
+			Orchestrator: containerOrchestratorCompose,
+		})
+		if err != nil {
+			return nil, err
+		}
+		summaries = append(summaries, items...)
+		if len(items) < maxContainerListLimit {
+			return summaries, nil
+		}
+		offset += len(items)
+	}
+}
+
+func runtimeImportCandidatesFromSummaries(
+	hostScope string,
+	summaries []Summary,
+	info RuntimeInfo,
+) []moduleapi.ContainerProjectRuntimeCandidate {
+	accumulators := make(map[string]*runtimeCandidateAccumulator)
+	order := make([]string, 0)
+	for _, item := range summaries {
+		groupKey := runtimeCandidateGroupKey(hostScope, item)
+		accumulator, ok := accumulators[groupKey]
+		if !ok {
+			accumulator = &runtimeCandidateAccumulator{
+				serviceNames: make(map[string]struct{}),
+			}
+			accumulators[groupKey] = accumulator
+			order = append(order, groupKey)
+		}
+		accumulator.absorb(item, info.Runtime, info.ServerVersion)
+	}
+	candidates := make([]moduleapi.ContainerProjectRuntimeCandidate, 0, len(order))
+	for _, key := range order {
+		candidates = append(candidates, accumulators[key].candidate(hostScope))
+	}
+	return candidates
+}
+
+func sortRuntimeCandidates(candidates []moduleapi.ContainerProjectRuntimeCandidate) {
+	sort.Slice(candidates, func(i, j int) bool {
+		if candidates[i].Importable != candidates[j].Importable {
+			return candidates[i].Importable
+		}
+		leftName := strings.ToLower(strings.TrimSpace(candidates[i].CanonicalProjectName))
+		rightName := strings.ToLower(strings.TrimSpace(candidates[j].CanonicalProjectName))
+		if leftName != rightName {
+			return leftName < rightName
+		}
+		return candidates[i].CandidateKey < candidates[j].CandidateKey
+	})
+}
+
+func (a *runtimeCandidateAccumulator) absorb(item Summary, runtimeType string, runtimeVersion string) {
+	projectName := composeProjectName(item)
+	serviceName := composeServiceName(item)
+	workingDirectory, workingDirectorySource, configFiles := a.resolvedWorkingDirectoryMetadata(item)
+	a.mergeCanonicalProjectName(projectName)
+	a.mergeRuntimeInfo(runtimeType, runtimeVersion)
+	a.mergeWorkingDirectory(workingDirectory, workingDirectorySource)
+	a.mergeConfigFiles(configFiles)
+	if serviceName != "" {
+		a.serviceNames[serviceName] = struct{}{}
+	}
+	a.addContainerState(item.State)
+	a.markRuntimeSupport(item, runtimeType)
+	a.warnings = appendUniqueString(a.warnings, item.Orchestrator.Warnings...)
+}
+
+func (a *runtimeCandidateAccumulator) candidate(hostScope string) moduleapi.ContainerProjectRuntimeCandidate {
+	status := a.finalizeStatus()
+	serviceNames := make([]string, 0, len(a.serviceNames))
+	for name := range a.serviceNames {
+		serviceNames = append(serviceNames, name)
+	}
+	sort.Strings(serviceNames)
+
+	normalizedProjectName := strings.TrimSpace(a.canonicalProjectName)
+	candidateKey := runtimeCandidateKey(hostScope, normalizedProjectName, a.runtimeType, a.workingDirectory, a.configFiles)
+	reasonCodes := append([]string(nil), a.reasonCodes...)
+	sort.Strings(reasonCodes)
+	warnings := append([]string(nil), a.warnings...)
+	sort.Strings(warnings)
+
+	return moduleapi.ContainerProjectRuntimeCandidate{
+		CandidateKey:           candidateKey,
+		CanonicalProjectName:   normalizedProjectName,
+		Status:                 status,
+		StatusReasonCodes:      reasonCodes,
+		Importable:             status == projectRuntimeCandidateStatusReady,
+		RuntimeType:            strings.TrimSpace(a.runtimeType),
+		RuntimeVersion:         strings.TrimSpace(a.runtimeVersion),
+		WorkingDirectory:       strings.TrimSpace(a.workingDirectory),
+		WorkingDirectorySource: strings.TrimSpace(a.workingDirectorySource),
+		ConfigFiles:            append([]string(nil), a.configFiles...),
+		ServiceNames:           serviceNames,
+		ContainerCounts: moduleapi.ContainerProjectRuntimeContainerCounts{
+			Running: a.runningCount,
+			Stopped: a.stoppedCount,
+			Total:   a.runningCount + a.stoppedCount,
+		},
+		Warnings: warnings,
+	}
+}
+
+func (a *runtimeCandidateAccumulator) resolvedWorkingDirectoryMetadata(item Summary) (string, string, []string) {
+	workingDirectory := strings.TrimSpace(item.Orchestrator.WorkingDir)
+	workingDirectorySource := projectRuntimeWorkingDirSourceRuntimeLabel
+	configFiles := normalizedStringSlice(item.Orchestrator.ConfigFiles)
+	if workingDirectory == "" && len(configFiles) > 0 {
+		workingDirectory = filepath.Dir(configFiles[0])
+		workingDirectorySource = projectRuntimeWorkingDirSourceDerivedConfig
+		a.addWarning(projectRuntimeWarningWorkingDirDerived)
+	}
+	return workingDirectory, workingDirectorySource, configFiles
+}
+
+func (a *runtimeCandidateAccumulator) mergeCanonicalProjectName(projectName string) {
+	if a.canonicalProjectName == "" {
+		a.canonicalProjectName = projectName
+		return
+	}
+	if projectName != "" && !strings.EqualFold(a.canonicalProjectName, projectName) {
+		a.metadataConflict = true
+	}
+}
+
+func (a *runtimeCandidateAccumulator) mergeRuntimeInfo(runtimeType string, runtimeVersion string) {
+	if a.runtimeType == "" {
+		a.runtimeType = strings.TrimSpace(runtimeType)
+	}
+	if a.runtimeVersion == "" {
+		a.runtimeVersion = strings.TrimSpace(runtimeVersion)
+	}
+}
+
+func (a *runtimeCandidateAccumulator) mergeWorkingDirectory(workingDirectory string, source string) {
+	if a.workingDirectory == "" {
+		a.workingDirectory = workingDirectory
+		a.workingDirectorySource = source
+		return
+	}
+	if workingDirectory != "" && filepath.Clean(a.workingDirectory) != filepath.Clean(workingDirectory) {
+		a.metadataConflict = true
+	}
+}
+
+func (a *runtimeCandidateAccumulator) mergeConfigFiles(configFiles []string) {
+	if len(a.configFiles) == 0 {
+		a.configFiles = append([]string(nil), configFiles...)
+		return
+	}
+	if len(configFiles) > 0 && !sameStringSlice(a.configFiles, configFiles) {
+		a.metadataConflict = true
+	}
+}
+
+func (a *runtimeCandidateAccumulator) addContainerState(state string) {
+	if normalizeContainerState(state) == "running" {
+		a.runningCount++
+		return
+	}
+	a.stoppedCount++
+}
+
+func (a *runtimeCandidateAccumulator) markRuntimeSupport(item Summary, runtimeType string) {
+	if effectiveOrchestratorType(item) != containerOrchestratorCompose || !strings.EqualFold(strings.TrimSpace(runtimeType), runtimeNameDocker) {
+		a.unsupportedRuntime = true
+	}
+}
+
+func (a *runtimeCandidateAccumulator) finalizeStatus() string {
+	a.recordFinalReasons()
+	if a.unsupportedRuntime {
+		return projectRuntimeCandidateStatusUnsupportedRuntime
+	}
+	if len(a.reasonCodes) > 0 {
+		return projectRuntimeCandidateStatusIncompleteMetadata
+	}
+	return projectRuntimeCandidateStatusReady
+}
+
+func (a *runtimeCandidateAccumulator) recordFinalReasons() {
+	if strings.TrimSpace(a.canonicalProjectName) == "" {
+		a.addReason(projectRuntimeReasonMissingProjectName)
+	}
+	if len(a.configFiles) == 0 {
+		a.addReason(projectRuntimeReasonMissingConfigFiles)
+	}
+	if a.metadataConflict {
+		a.addReason(projectRuntimeReasonConflictingMetadata)
+	}
+	if a.unsupportedRuntime {
+		a.addReason(projectRuntimeReasonUnsupportedRuntimeType)
+	}
+	if !a.hasConfigFiles() {
+		return
+	}
+	if !configFilesWithinWorkingDirectory(a.workingDirectory, a.configFiles) {
+		a.addReason(projectRuntimeReasonInvalidConfigFiles)
+	}
+	if !configFilesAccessible(a.configFiles) {
+		a.addReason(projectRuntimeReasonConfigFilesNotAccessible)
+	}
+}
+
+func (a *runtimeCandidateAccumulator) hasConfigFiles() bool {
+	return len(a.configFiles) > 0
+}
+
+func (a *runtimeCandidateAccumulator) addReason(code string) {
+	a.reasonCodes = appendUniqueString(a.reasonCodes, code)
+}
+
+func (a *runtimeCandidateAccumulator) addWarning(code string) {
+	a.warnings = appendUniqueString(a.warnings, code)
+}
+
 // appendProjectMembers 将匹配指定项目的运行时摘要转换为成员列表，并更新运行与停止数量。
 // 仅会追加与 canonicalProjectName 对应的条目；状态为 running 的成员计入运行数，其余成员计入停止数。
 func appendProjectMembers(
@@ -85,15 +375,126 @@ func appendProjectMembers(
 // toProjectMember 将运行时摘要项转换为指定项目的成员信息。
 // 仅当 item 的 ComposeProject 去除空格后与 canonicalProjectName 忽略大小写相等时，才返回转换后的成员信息。
 func toProjectMember(item Summary, canonicalProjectName string) (moduleapi.ContainerProjectMember, bool) {
-	if !strings.EqualFold(strings.TrimSpace(item.ComposeProject), canonicalProjectName) {
+	if !strings.EqualFold(composeProjectName(item), canonicalProjectName) {
 		return moduleapi.ContainerProjectMember{}, false
 	}
 	return moduleapi.ContainerProjectMember{
 		ContainerID:    strings.TrimSpace(item.ID),
 		ContainerName:  strings.TrimSpace(item.Name),
-		ServiceName:    strings.TrimSpace(item.ComposeService),
+		ServiceName:    composeServiceName(item),
 		CanonicalState: normalizeContainerState(item.State),
 	}, true
+}
+
+func composeProjectName(item Summary) string {
+	return firstNonEmpty(strings.TrimSpace(item.Orchestrator.Project), strings.TrimSpace(item.ComposeProject))
+}
+
+func composeServiceName(item Summary) string {
+	return firstNonEmpty(strings.TrimSpace(item.Orchestrator.Service), strings.TrimSpace(item.ComposeService))
+}
+
+func runtimeCandidateGroupKey(hostScope string, item Summary) string {
+	configFiles := normalizedStringSlice(item.Orchestrator.ConfigFiles)
+	if len(configFiles) > 0 {
+		return hostScope + "|config|" + configFilesDigest(configFiles)
+	}
+	projectName := strings.ToLower(composeProjectName(item))
+	workingDirectory := strings.TrimSpace(item.Orchestrator.WorkingDir)
+	switch {
+	case projectName != "" && workingDirectory != "":
+		return hostScope + "|project|" + projectName + "|" + filepath.Clean(workingDirectory)
+	case projectName != "":
+		return hostScope + "|project|" + projectName
+	case workingDirectory != "":
+		return hostScope + "|dir|" + filepath.Clean(workingDirectory)
+	default:
+		return hostScope + "|member|" + strings.TrimSpace(item.ID)
+	}
+}
+
+func runtimeCandidateKey(hostScope string, projectName string, runtimeType string, workingDirectory string, configFiles []string) string {
+	sum := sha256.Sum256([]byte(strings.Join([]string{
+		strings.TrimSpace(hostScope),
+		strings.ToLower(strings.TrimSpace(projectName)),
+		strings.TrimSpace(runtimeType),
+		filepath.Clean(strings.TrimSpace(workingDirectory)),
+		configFilesDigest(configFiles),
+	}, "|")))
+	return "runtime_" + hex.EncodeToString(sum[:12])
+}
+
+func configFilesDigest(configFiles []string) string {
+	normalized := append([]string(nil), normalizedStringSlice(configFiles)...)
+	sort.Strings(normalized)
+	sum := sha256.Sum256([]byte(strings.Join(normalized, "|")))
+	return hex.EncodeToString(sum[:12])
+}
+
+func configFilesWithinWorkingDirectory(workingDirectory string, configFiles []string) bool {
+	workingDirectory = strings.TrimSpace(workingDirectory)
+	if workingDirectory == "" {
+		return false
+	}
+	root := filepath.Clean(workingDirectory)
+	for _, file := range configFiles {
+		file = strings.TrimSpace(file)
+		if file == "" || !filepath.IsAbs(file) {
+			return false
+		}
+		absolute := filepath.Clean(file)
+		relative, err := filepath.Rel(root, absolute)
+		if err != nil || relative == "." || strings.HasPrefix(relative, "..") {
+			return false
+		}
+	}
+	return true
+}
+
+func configFilesAccessible(configFiles []string) bool {
+	for _, file := range configFiles {
+		info, err := os.Stat(file)
+		if err != nil || info.IsDir() {
+			return false
+		}
+	}
+	return true
+}
+
+func sameStringSlice(left []string, right []string) bool {
+	left = normalizedStringSlice(left)
+	right = normalizedStringSlice(right)
+	if len(left) != len(right) {
+		return false
+	}
+	for index := range left {
+		if left[index] != right[index] {
+			return false
+		}
+	}
+	return true
+}
+
+func appendUniqueString(items []string, values ...string) []string {
+	if len(values) == 0 {
+		return items
+	}
+	seen := make(map[string]struct{}, len(items))
+	for _, item := range items {
+		seen[item] = struct{}{}
+	}
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		items = append(items, value)
+	}
+	return items
 }
 
 var _ moduleapi.ContainerProjectRuntimeReader = containerProjectRuntimeReader{}

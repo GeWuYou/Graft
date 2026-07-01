@@ -1,4 +1,4 @@
-import type { paths } from '@/contracts/openapi/generated/schema';
+import type { components, paths } from '@/contracts/openapi/generated/schema';
 
 import type { PROJECT_API_PATH } from '../contract/paths';
 import type { ProjectCanonicalNameSource, ProjectFileKind, ProjectFileRole, ProjectImportResponse } from './project';
@@ -20,10 +20,24 @@ type PostProjectImportInspectEnvelope =
   PostProjectImportInspectOperation['responses'][200]['content']['application/json'];
 type PostProjectImportInspectPayload = PostProjectImportInspectOperation['requestBody']['content']['application/json'];
 
+type ProjectImportRuntimeCandidatesPath = (typeof PROJECT_API_PATH)['IMPORT_RUNTIME_CANDIDATES'];
+type GetProjectImportRuntimeCandidatesOperation = paths[ProjectImportRuntimeCandidatesPath]['get'];
+type GetProjectImportRuntimeCandidatesEnvelope =
+  GetProjectImportRuntimeCandidatesOperation['responses'][200]['content']['application/json'];
+
+type ProjectImportRuntimeInspectPath = (typeof PROJECT_API_PATH)['IMPORT_RUNTIME_INSPECT'];
+type PostProjectImportRuntimeInspectOperation = paths[ProjectImportRuntimeInspectPath]['post'];
+type PostProjectImportRuntimeInspectEnvelope =
+  PostProjectImportRuntimeInspectOperation['responses'][200]['content']['application/json'];
+type PostProjectImportRuntimeInspectPayload =
+  PostProjectImportRuntimeInspectOperation['requestBody']['content']['application/json'];
+
 type ProjectImportPath = (typeof PROJECT_API_PATH)['IMPORT'];
 type PostProjectImportOperation = paths[ProjectImportPath]['post'];
 type PostProjectImportEnvelope = PostProjectImportOperation['responses'][200]['content']['application/json'];
 type PostProjectImportPayload = PostProjectImportOperation['requestBody']['content']['application/json'];
+
+type ProjectSchemas = components['schemas'];
 
 export type ProjectImportDirectoryProvider = string;
 
@@ -44,7 +58,7 @@ export type ProjectImportDirectoryListItem = NonNullable<
 export type ProjectImportDirectoryListResponse = NonNullable<GetProjectImportDirectoriesEnvelope['data']>;
 export type ProjectImportDirectoryListQuery = GetProjectImportDirectoriesQuery;
 
-export type ProjectImportFileEntry = {
+export type ProjectImportDirectoryInspectFileEntry = {
   kind: ProjectFileKind;
   role: ProjectFileRole;
   absolute_path: string;
@@ -54,16 +68,28 @@ export type ProjectImportFileEntry = {
   last_observed_hash?: string | null;
 };
 
-export type ProjectImportInspectRequest = PostProjectImportInspectPayload;
-export type ProjectImportValidationStatus = 'ready' | 'conflict' | string;
-export type ProjectImportInspectResponse = Omit<
+export type ProjectImportDirectoryInspectRequest = PostProjectImportInspectPayload;
+export type ProjectImportDirectoryInspectValidationStatus = 'ready' | 'conflict' | string;
+export type ProjectImportDirectoryInspectResponse = Omit<
   NonNullable<PostProjectImportInspectEnvelope['data']>,
   'compose_files' | 'env_files'
 > & {
   canonical_project_name_source: ProjectCanonicalNameSource;
-  compose_files: ProjectImportFileEntry[];
-  env_files: ProjectImportFileEntry[];
+  compose_files: ProjectImportDirectoryInspectFileEntry[];
+  env_files: ProjectImportDirectoryInspectFileEntry[];
 };
 
 export type ProjectImportExecuteRequest = PostProjectImportPayload;
 export type ProjectImportExecuteResponse = NonNullable<PostProjectImportEnvelope['data']> & ProjectImportResponse;
+
+export type ProjectImportRuntimeCandidateStatus = ProjectSchemas['project-import-runtime-candidate-status'];
+export type ProjectImportRuntimeWorkingDirectorySource =
+  ProjectSchemas['project-import-runtime-working-directory-source'];
+export type ProjectImportRuntimeCandidate = NonNullable<
+  GetProjectImportRuntimeCandidatesEnvelope['data']
+>['items'][number];
+export type ProjectImportRuntimeCandidatesResponse = NonNullable<GetProjectImportRuntimeCandidatesEnvelope['data']>;
+export type ProjectImportRuntimeInspectRequest = PostProjectImportRuntimeInspectPayload;
+export type ProjectImportRuntimeInspectResponse = NonNullable<PostProjectImportRuntimeInspectEnvelope['data']>;
+export type ProjectImportRuntimeCandidateInspectRequest = ProjectImportRuntimeInspectRequest;
+export type ProjectImportInspectResponse = ProjectImportRuntimeInspectResponse;

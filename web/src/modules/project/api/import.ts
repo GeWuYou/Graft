@@ -7,8 +7,9 @@ import type {
   ProjectImportDirectorySourcesResponse,
   ProjectImportExecuteRequest,
   ProjectImportExecuteResponse,
-  ProjectImportInspectRequest,
   ProjectImportInspectResponse,
+  ProjectImportRuntimeCandidatesResponse,
+  ProjectImportRuntimeInspectRequest,
 } from '../types/import';
 
 /**
@@ -19,6 +20,17 @@ import type {
 export function getProjectImportDirectorySources() {
   return request.get<ProjectImportDirectorySourcesResponse>({
     url: PROJECT_API_PATH.IMPORT_DIRECTORY_SOURCES,
+  });
+}
+
+/**
+ * 获取运行时候选导入入口。
+ *
+ * @returns 候选列表与入口 authority 摘要
+ */
+export function getProjectImportRuntimeCandidates() {
+  return request.get<ProjectImportRuntimeCandidatesResponse>({
+    url: PROJECT_API_PATH.IMPORT_RUNTIME_CANDIDATES,
   });
 }
 
@@ -36,14 +48,14 @@ export function getProjectImportDirectories(query: ProjectImportDirectoryListQue
 }
 
 /**
- * 发送导入检查请求。
+ * 根据运行时候选创建导入检查会话。
  *
- * @param payload - 导入检查请求体
+ * @param payload - 候选导入检查请求内容
  * @returns 导入检查结果
  */
-export function postProjectImportInspect(payload: ProjectImportInspectRequest) {
+export function postProjectImportRuntimeInspect(payload: ProjectImportRuntimeInspectRequest) {
   return request.post<ProjectImportInspectResponse>({
-    url: PROJECT_API_PATH.IMPORT_INSPECT,
+    url: PROJECT_API_PATH.IMPORT_RUNTIME_INSPECT,
     data: payload,
   });
 }

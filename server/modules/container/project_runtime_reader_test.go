@@ -2,8 +2,12 @@ package container
 
 import (
 	"context"
+	"os"
+	"path/filepath"
+	"slices"
 	"testing"
 
+	"graft/server/internal/moduleapi"
 	"graft/server/modules/container/terminal"
 )
 
@@ -12,7 +16,7 @@ type stubProjectReaderRuntime struct {
 }
 
 func (s stubProjectReaderRuntime) Info(context.Context) (RuntimeInfo, error) {
-	return RuntimeInfo{}, nil
+	return RuntimeInfo{Runtime: runtimeNameDocker, ServerVersion: "27.0.1"}, nil
 }
 func (s stubProjectReaderRuntime) List(context.Context, ListQuery) ([]Summary, error) {
 	return s.items, nil
@@ -82,7 +86,7 @@ type pagingProjectReaderRuntime struct {
 }
 
 func (s *pagingProjectReaderRuntime) Info(context.Context) (RuntimeInfo, error) {
-	return RuntimeInfo{}, nil
+	return RuntimeInfo{Runtime: runtimeNameDocker, ServerVersion: "27.0.1"}, nil
 }
 func (s *pagingProjectReaderRuntime) List(_ context.Context, query ListQuery) ([]Summary, error) {
 	s.seen = append(s.seen, query)
@@ -165,5 +169,129 @@ func TestContainerProjectRuntimeReaderListsAllPages(t *testing.T) {
 	}
 	if runtime.seen[0].Offset != 0 || runtime.seen[1].Offset != maxContainerListLimit {
 		t.Fatalf("unexpected paging offsets: %#v", runtime.seen)
+	}
+}
+
+func TestContainerProjectRuntimeReaderListsImportCandidates(t *testing.T) {
+	t.Parallel()
+
+	tempDir := t.TempDir()
+	composePath := filepath.Join(tempDir, "compose.yaml")
+	overridePath := filepath.Join(tempDir, "docker-compose.override.yml")
+	if err := os.WriteFile(composePath, []byte("services:\n  web:\n    image: nginx:latest\n"), 0o600); err != nil {
+		t.Fatalf("write compose file: %v", err)
+	}
+	if err := os.WriteFile(overridePath, []byte("services:\n  worker:\n    image: busybox\n"), 0o600); err != nil {
+		t.Fatalf("write override file: %v", err)
+	}
+
+	reader := containerProjectRuntimeReader{
+		service: &service{
+			runtime: stubProjectReaderRuntime{
+				items: []Summary{
+					{
+						ID:             "1",
+						Name:           "demo-web-1",
+						State:          "running",
+						Runtime:        runtimeNameDocker,
+						ComposeProject: "demo",
+						ComposeService: "web",
+						Orchestrator: OrchestratorInfo{
+							Type:        containerOrchestratorCompose,
+							Project:     "demo",
+							Service:     "web",
+							ConfigFiles: []string{composePath, overridePath},
+						},
+					},
+					{
+						ID:             "2",
+						Name:           "demo-worker-1",
+						State:          "exited",
+						Runtime:        runtimeNameDocker,
+						ComposeProject: "demo",
+						ComposeService: "worker",
+						Orchestrator: OrchestratorInfo{
+							Type:        containerOrchestratorCompose,
+							Project:     "demo",
+							Service:     "worker",
+							ConfigFiles: []string{composePath, overridePath},
+						},
+					},
+				},
+			},
+			enabled: true,
+		},
+	}
+
+	candidates, err := reader.ListImportCandidates(context.Background(), "local")
+	if err != nil {
+		t.Fatalf("list import candidates: %v", err)
+	}
+	if len(candidates) != 1 {
+		t.Fatalf("expected 1 candidate, got %d", len(candidates))
+	}
+	candidate := candidates[0]
+	if candidate.Status != projectRuntimeCandidateStatusReady || !candidate.Importable {
+		t.Fatalf("expected ready candidate, got %#v", candidate)
+	}
+	if candidate.WorkingDirectory != tempDir {
+		t.Fatalf("expected derived working directory %q, got %q", tempDir, candidate.WorkingDirectory)
+	}
+	if candidate.WorkingDirectorySource != projectRuntimeWorkingDirSourceDerivedConfig {
+		t.Fatalf("expected derived working directory source, got %q", candidate.WorkingDirectorySource)
+	}
+	if !slices.Equal(candidate.ConfigFiles, []string{composePath, overridePath}) {
+		t.Fatalf("unexpected config files %#v", candidate.ConfigFiles)
+	}
+	if !slices.Equal(candidate.ServiceNames, []string{"web", "worker"}) {
+		t.Fatalf("unexpected service names %#v", candidate.ServiceNames)
+	}
+	if candidate.ContainerCounts != (moduleapi.ContainerProjectRuntimeContainerCounts{Running: 1, Stopped: 1, Total: 2}) {
+		t.Fatalf("unexpected counts %#v", candidate.ContainerCounts)
+	}
+	if !slices.Contains(candidate.Warnings, projectRuntimeWarningWorkingDirDerived) {
+		t.Fatalf("expected derived working directory warning, got %#v", candidate.Warnings)
+	}
+}
+
+func TestContainerProjectRuntimeReaderMarksIncompleteMetadataCandidates(t *testing.T) {
+	t.Parallel()
+
+	reader := containerProjectRuntimeReader{
+		service: &service{
+			runtime: stubProjectReaderRuntime{
+				items: []Summary{
+					{
+						ID:             "1",
+						Name:           "demo-web-1",
+						State:          "running",
+						Runtime:        runtimeNameDocker,
+						ComposeProject: "demo",
+						ComposeService: "web",
+						Orchestrator: OrchestratorInfo{
+							Type:    containerOrchestratorCompose,
+							Project: "demo",
+							Service: "web",
+						},
+					},
+				},
+			},
+			enabled: true,
+		},
+	}
+
+	candidates, err := reader.ListImportCandidates(context.Background(), "local")
+	if err != nil {
+		t.Fatalf("list import candidates: %v", err)
+	}
+	if len(candidates) != 1 {
+		t.Fatalf("expected 1 candidate, got %d", len(candidates))
+	}
+	candidate := candidates[0]
+	if candidate.Status != projectRuntimeCandidateStatusIncompleteMetadata || candidate.Importable {
+		t.Fatalf("expected incomplete metadata candidate, got %#v", candidate)
+	}
+	if !slices.Contains(candidate.StatusReasonCodes, projectRuntimeReasonMissingConfigFiles) {
+		t.Fatalf("expected missing config files reason, got %#v", candidate.StatusReasonCodes)
 	}
 }

@@ -2,6 +2,7 @@ import type {
   ProjectImportDirectoryRef,
   ProjectImportDirectorySource,
   ProjectImportInspectResponse,
+  ProjectImportRuntimeCandidate,
 } from '../types/import';
 
 /**
@@ -106,4 +107,41 @@ export function buildSuggestedDisplayName(result: ProjectImportInspectResponse) 
  */
 export function hasBlockingImportConflicts(result: ProjectImportInspectResponse | null) {
   return Boolean(result?.conflicts?.length);
+}
+
+/**
+ * 判断候选是否处于可执行 inspect 的 ready 状态。
+ *
+ * @param candidate - 运行时候选
+ * @returns `true` 表示可以进入 inspect
+ */
+export function isProjectImportRuntimeCandidateReady(candidate: ProjectImportRuntimeCandidate) {
+  return candidate.importable && candidate.status === 'ready';
+}
+
+/**
+ * 生成候选的稳定原因键。
+ *
+ * @param candidate - 运行时候选
+ * @returns 优先返回首个稳定 reason code；否则回退到状态级原因键
+ */
+export function resolveProjectImportRuntimeCandidateReasonKey(candidate: ProjectImportRuntimeCandidate) {
+  const [primaryReasonCode] = candidate.status_reason_codes;
+  if (primaryReasonCode?.trim()) {
+    return primaryReasonCode.trim();
+  }
+
+  return candidate.status || 'unavailable';
+}
+
+/**
+ * 汇总候选的配置文件 authority 列表。
+ *
+ * `working_directory` 只作为展示 hint；这里返回的 config files 才是更强的导入 authority。
+ *
+ * @param candidate - 运行时候选
+ * @returns 运行时 authority 返回的 config files 列表
+ */
+export function collectProjectImportRuntimeCandidateConfigFiles(candidate: ProjectImportRuntimeCandidate) {
+  return [...candidate.config_files];
 }

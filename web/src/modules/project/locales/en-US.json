@@ -136,23 +136,68 @@
     },
     "import": {
       "eyebrow": "Import Project",
-      "description": "Select a server directory, let the backend inspect it automatically, and confirm the discovered Compose project before import.",
+      "description": "Start from runtime candidates, inspect a ready Compose project, and keep the existing preview and import submission flow after inspection.",
       "actions": {
         "backToList": "Back to List",
-        "selectDirectory": "Select Directory",
-        "changeDirectory": "Change Directory",
+        "refreshCandidates": "Refresh Candidates",
+        "inspectCandidate": "Inspect Candidate",
+        "reinspectCandidate": "Refresh Candidate Inspect",
         "refreshInspect": "Refresh Inspect",
         "retryInspect": "Retry Inspect",
         "import": "Import and Open Project",
         "reset": "Reset"
       },
+      "candidates": {
+        "title": "Runtime Candidates",
+        "summary": "{ready} Ready / {unavailable} Unavailable",
+        "readyTitle": "Importable Candidates",
+        "readyDescription": "Only ready candidates can be inspected and turned into an import session.",
+        "unavailableTitle": "Unavailable Candidates",
+        "unavailableDescription": "These candidates stay visible for review, but inspect remains gated until their runtime reasons are resolved.",
+        "emptyTitle": "No Runtime Candidates",
+        "emptyDescription": "The runtime authority did not return any importable or review-only candidates yet.",
+        "configFiles": "Config Files",
+        "workingDirectory": "Working Directory Hint",
+        "workingDirectorySource": "Working Directory Source",
+        "runtime": "Runtime Source",
+        "serviceNames": "Services",
+        "containerCounts": "Container Counts",
+        "containerCountsValue": "Running {running} / Stopped {stopped} / Total {total}",
+        "status": {
+          "ready": "Ready",
+          "incomplete_metadata": "Incomplete Metadata",
+          "unsupported_runtime": "Unsupported Runtime",
+          "broken_compose": "Broken Compose"
+        },
+        "workingDirectorySourceValues": {
+          "runtime_label": "From Runtime Label",
+          "derived_from_config_files": "Derived from config_files"
+        },
+        "reason": {
+          "missing_project_name": "Missing Compose Project Name Metadata",
+          "missing_config_files": "Missing Compose Config File Metadata",
+          "invalid_config_files": "Compose Config File Metadata Is Invalid",
+          "conflicting_runtime_metadata": "Compose Runtime Metadata Conflicts Across Containers",
+          "unsupported_runtime_type": "The Current Runtime Type Is Not Supported Yet",
+          "config_files_not_accessible": "Compose Config Files Are Not Accessible",
+          "incomplete_metadata": "Runtime Metadata Is Incomplete, so Inspect Is Disabled",
+          "unsupported_runtime": "This Candidate Cannot Be Imported from the Current Runtime Yet",
+          "broken_compose": "The Compose Files Failed Import Inspection",
+          "unavailable": "Not Ready For Inspect"
+        },
+        "warning": {
+          "working_directory_derived_from_config_files": "The working directory label is missing, so it was derived from the first config_files path."
+        }
+      },
       "directory": {
-        "title": "Project Directory",
-        "workingDirectory": "Selected Directory",
-        "readonlyHint": "Auto-discovered"
+        "title": "Import Authority",
+        "workingDirectory": "Resolved Working Directory",
+        "configFiles": "Config File Authority",
+        "readonlyHint": "Display Hint Only"
       },
       "form": {
         "title": "Project Details",
+        "authorityHint": "Config files are the stronger import authority. Working Directory stays a display hint after inspection.",
         "displayName": "Display Name",
         "displayNamePlaceholder": "For Example: Orders Service Dev",
         "canonicalProjectNameOverride": "Canonical Project Name Override",
@@ -192,15 +237,16 @@
         "none": "None"
       },
       "state": {
-        "awaitingSelectionTitle": "Select a Server Directory First",
-        "awaitingSelectionDescription": "Inspect runs automatically after directory selection and fills the import preview for confirmation.",
-        "inspectErrorTitle": "Directory Inspect Failed"
+        "awaitingSelectionTitle": "Inspect a Ready Candidate First",
+        "awaitingSelectionDescription": "Choose a ready runtime candidate above to create the preview and import session authority.",
+        "inspectErrorTitle": "Candidate Inspect Failed"
       },
       "messages": {
+        "candidateLoadFailed": "Runtime Candidates Could Not Be Loaded.",
         "directorySourceLoadFailed": "Directory Sources Could Not Be Loaded.",
         "directoryLoadFailed": "Directory List Could Not Be Loaded.",
-        "inspectSuccess": "Directory Inspect Refreshed.",
-        "inspectFailed": "Directory Inspect Failed.",
+        "inspectSuccess": "Candidate Inspect Refreshed.",
+        "inspectFailed": "Candidate Inspect Failed.",
         "importSuccess": "Compose Project Imported.",
         "importFailed": "Compose Project Import Failed."
       }

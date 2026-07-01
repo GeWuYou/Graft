@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 	"time"
 
@@ -76,7 +77,8 @@ func (s *stubProjectRepository) UnregisterProject(context.Context, projectstore.
 }
 
 type stubRuntimeReader struct {
-	summary moduleapi.ContainerProjectRuntimeSummary
+	summary    moduleapi.ContainerProjectRuntimeSummary
+	candidates []moduleapi.ContainerProjectRuntimeCandidate
 }
 
 type stubSystemConfigResolver struct {
@@ -101,6 +103,10 @@ func (s stubSystemConfigResolver) ResolveDefaultConfig(context.Context, string) 
 
 func (s stubRuntimeReader) ListProjectMembers(context.Context, string, string) (moduleapi.ContainerProjectRuntimeSummary, error) {
 	return s.summary, nil
+}
+
+func (s stubRuntimeReader) ListImportCandidates(context.Context, string) ([]moduleapi.ContainerProjectRuntimeCandidate, error) {
+	return append([]moduleapi.ContainerProjectRuntimeCandidate(nil), s.candidates...), nil
 }
 
 func TestServicesMergesRuntimeMembers(t *testing.T) {
@@ -274,6 +280,117 @@ func TestCreateManagedProjectRejectsManagedRootBaseDirectory(t *testing.T) {
 	}, nil)
 	if !errors.Is(err, errProjectInvalidArgument) {
 		t.Fatalf("expected invalid argument, got %v", err)
+	}
+}
+
+func TestListRuntimeImportCandidatesMarksBrokenCompose(t *testing.T) {
+	t.Parallel()
+
+	tempDir := t.TempDir()
+	composePath := filepath.Join(tempDir, "compose.yaml")
+	if err := os.WriteFile(composePath, []byte("services:\n  web:\n    image: [\n"), 0o600); err != nil {
+		t.Fatalf("write compose file: %v", err)
+	}
+
+	service, err := NewService(&stubProjectRepository{}, WithRuntimeReader(stubRuntimeReader{
+		candidates: []moduleapi.ContainerProjectRuntimeCandidate{
+			{
+				CandidateKey:           "runtime_demo",
+				CanonicalProjectName:   "demo",
+				Status:                 importRuntimeCandidateStatusReady,
+				Importable:             true,
+				RuntimeType:            "docker",
+				WorkingDirectory:       tempDir,
+				WorkingDirectorySource: "runtime_label",
+				ConfigFiles:            []string{composePath},
+				ServiceNames:           []string{"web"},
+				ContainerCounts:        moduleapi.ContainerProjectRuntimeContainerCounts{Running: 1, Total: 1},
+			},
+		},
+	}))
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	result, err := service.ListRuntimeImportCandidates(context.Background())
+	if err != nil {
+		t.Fatalf("list runtime import candidates: %v", err)
+	}
+	if len(result.Items) != 1 {
+		t.Fatalf("expected 1 candidate, got %d", len(result.Items))
+	}
+	candidate := result.Items[0]
+	if candidate.Status != importRuntimeCandidateStatusBrokenCompose || candidate.Importable {
+		t.Fatalf("expected broken compose candidate, got %#v", candidate)
+	}
+	if len(candidate.StatusReasonCodes) != 1 || candidate.StatusReasonCodes[0] != importRuntimeReasonComposeParseFailed {
+		t.Fatalf("unexpected status reason codes %#v", candidate.StatusReasonCodes)
+	}
+}
+
+func TestInspectRuntimeCandidateReusesInspectPipeline(t *testing.T) {
+	t.Parallel()
+
+	tempDir := t.TempDir()
+	composePath := filepath.Join(tempDir, "compose.yaml")
+	envPath := filepath.Join(tempDir, ".env")
+	if err := os.WriteFile(composePath, []byte("services:\n  web:\n    image: nginx:latest\n"), 0o600); err != nil {
+		t.Fatalf("write compose file: %v", err)
+	}
+	if err := os.WriteFile(envPath, []byte("FOO=bar\n"), 0o600); err != nil {
+		t.Fatalf("write env file: %v", err)
+	}
+
+	repo := &stubProjectRepository{
+		aggregate: projectstore.ProjectAggregate{
+			Project: projectstore.Project{ID: 1, CanonicalProjectName: "existing", WorkingDirectory: "/srv/existing"},
+		},
+	}
+	service, err := NewService(repo, WithRuntimeReader(stubRuntimeReader{
+		candidates: []moduleapi.ContainerProjectRuntimeCandidate{
+			{
+				CandidateKey:           "runtime_demo",
+				CanonicalProjectName:   "demo",
+				Status:                 importRuntimeCandidateStatusReady,
+				Importable:             true,
+				RuntimeType:            "docker",
+				RuntimeVersion:         "27.0.1",
+				WorkingDirectory:       tempDir,
+				WorkingDirectorySource: "runtime_label",
+				ConfigFiles:            []string{composePath},
+				ServiceNames:           []string{"web"},
+				ContainerCounts:        moduleapi.ContainerProjectRuntimeContainerCounts{Running: 1, Total: 1},
+				Warnings:               []string{"working_directory_derived_from_config_files"},
+			},
+		},
+	}))
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	result, err := service.InspectRuntimeCandidate(context.Background(), RuntimeImportInspectRequest{
+		CandidateKey: "runtime_demo",
+	})
+	if err != nil {
+		t.Fatalf("inspect runtime candidate: %v", err)
+	}
+	if result.CandidateKey != "runtime_demo" {
+		t.Fatalf("expected candidate key to round-trip, got %#v", result)
+	}
+	if result.ResolvedWorkingDirectory != tempDir {
+		t.Fatalf("expected working directory %q, got %q", tempDir, result.ResolvedWorkingDirectory)
+	}
+	if len(result.ComposeFiles) != 1 || result.ComposeFiles[0].AbsolutePath != composePath {
+		t.Fatalf("unexpected compose files %#v", result.ComposeFiles)
+	}
+	if len(result.EnvFiles) != 1 || result.EnvFiles[0].AbsolutePath != envPath {
+		t.Fatalf("unexpected env files %#v", result.EnvFiles)
+	}
+	if result.ValidationStatus != "ready" {
+		t.Fatalf("expected ready validation status, got %q", result.ValidationStatus)
+	}
+	if !slices.Contains(result.Warnings, "working_directory_derived_from_config_files") {
+		t.Fatalf("expected candidate warning in inspect result, got %#v", result.Warnings)
 	}
 }
 

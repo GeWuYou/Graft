@@ -226,6 +226,10 @@ paths:
     $ref: ./paths/ops-projects.collection.yaml
   /api/ops/projects/import/validate:
     $ref: ./paths/ops-projects.import-validate.yaml
+  /api/ops/projects/import/runtime-candidates:
+    $ref: ./paths/ops-projects.import-runtime-candidates.yaml
+  /api/ops/projects/import/runtime-inspect:
+    $ref: ./paths/ops-projects.import-runtime-inspect.yaml
   /api/ops/projects/import/inspect:
     $ref: ./paths/ops-projects.import-inspect.yaml
   /api/ops/projects/import:
