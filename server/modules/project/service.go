@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"math"
 	"os"
 	"os/exec"
@@ -599,7 +600,7 @@ func (s *Service) InspectImportDirectory(ctx context.Context, request ImportInsp
 	if len(discovered.warnings) > 0 {
 		session.Warnings = append(session.Warnings, discovered.warnings...)
 		if s.inspectCache != nil {
-			s.inspectCache.put(session)
+			s.inspectCache.storeSession(session)
 		}
 	}
 	status := "ready"
@@ -634,7 +635,7 @@ func (s *Service) ImportByInspection(ctx context.Context, request ImportExecuteR
 	if s.inspectCache == nil {
 		return generated.ProjectImportResponse{}, errProjectInspectionExpired
 	}
-	session, ok := s.inspectCache.get(strings.TrimSpace(request.InspectionID))
+	session, ok := s.inspectCache.lookupSession(strings.TrimSpace(request.InspectionID))
 	if !ok {
 		return generated.ProjectImportResponse{}, errProjectInspectionExpired
 	}
@@ -863,7 +864,11 @@ func (s *Service) ValidateManagedCreate(ctx context.Context, request ManagedProj
 }
 
 // CreateManagedProject writes managed project files under the configured managed root and persists the registry bootstrap.
-func (s *Service) CreateManagedProject(ctx context.Context, request ManagedProjectCreateRequest, actorID *uint64) (ManagedProjectCreateResult, error) {
+func (s *Service) CreateManagedProject(
+	ctx context.Context,
+	request ManagedProjectCreateRequest,
+	actorID *uint64,
+) (result ManagedProjectCreateResult, err error) {
 	repository, err := s.repositoryOrErr()
 	if err != nil {
 		return ManagedProjectCreateResult{}, err
@@ -887,7 +892,7 @@ func (s *Service) CreateManagedProject(ctx context.Context, request ManagedProje
 	shouldCleanup := true
 	defer func() {
 		if shouldCleanup {
-			cleanupManagedCreate(createdDir, createdFiles)
+			err = errors.Join(err, cleanupManagedCreate(createdDir, createdFiles))
 		}
 	}()
 
@@ -929,15 +934,15 @@ func (s *Service) CreateManagedProject(ctx context.Context, request ManagedProje
 		return ManagedProjectCreateResult{}, mapStoreError(err)
 	}
 	shouldCleanup = false
-
-	return ManagedProjectCreateResult{
+	result = ManagedProjectCreateResult{
 		Validation:           validation,
 		SourceType:           "managed",
 		ProjectID:            aggregate.Project.ID,
 		ConfigHash:           parseResult.ConfigHash,
 		DeclaredServiceCount: len(parseResult.ServiceNames),
 		RefreshedAt:          now,
-	}, nil
+	}
+	return result, nil
 }
 
 type normalizedManagedCreateRequest struct {
@@ -1033,7 +1038,7 @@ func normalizeManagedOptionalFileName(value *string, label string) (*string, err
 	}
 	fileName, err := normalizeManagedFileName(*value, label)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("normalize %s file name: %w", label, err)
 	}
 	return &fileName, nil
 }
@@ -1081,13 +1086,18 @@ func ensureManagedCreatePathsUnderRoot(validation ManagedProjectCreateValidation
 
 // writeManagedProjectFiles 在受控工作目录中写入 compose 文件和可选的 env 文件，并返回创建的目录与文件路径。
 // 成功时返回清理所需的工作目录和已写入文件列表。
-func writeManagedProjectFiles(validation ManagedProjectCreateValidationResult, normalized normalizedManagedCreateRequest) (string, []string, error) {
-	workingDirectory := filepath.Clean(validation.WorkingDirectory)
+func writeManagedProjectFiles(
+	validation ManagedProjectCreateValidationResult,
+	normalized normalizedManagedCreateRequest,
+) (workingDirectory string, createdFiles []string, err error) {
+	workingDirectory = filepath.Clean(validation.WorkingDirectory)
 	parentRoot, relativeWorkingDirectory, err := openManagedProjectParentRoot(workingDirectory)
 	if err != nil {
-		return "", nil, err
+		return "", nil, fmt.Errorf("open managed project parent root: %w", err)
 	}
-	defer closeManagedRootFSQuietly(parentRoot)
+	defer func() {
+		err = errors.Join(err, closeManagedRootFS(parentRoot))
+	}()
 	if err := parentRoot.root.MkdirAll(relativeWorkingDirectory, managedCreateDirMode); err != nil {
 		return "", nil, fmt.Errorf("create working directory: %w", err)
 	}
@@ -1096,9 +1106,9 @@ func writeManagedProjectFiles(validation ManagedProjectCreateValidationResult, n
 		return workingDirectory, nil, fmt.Errorf("open working directory: %w", err)
 	}
 	defer func() {
-		_ = workingRoot.Close()
+		err = errors.Join(err, workingRoot.Close())
 	}()
-	createdFiles := []string{}
+	createdFiles = []string{}
 	composeRelativePath, err := relativePathWithinRoot(workingDirectory, validation.ComposeFileAbsolutePath)
 	if err != nil {
 		return workingDirectory, createdFiles, fmt.Errorf("resolve compose file path: %w", err)
@@ -1121,28 +1131,36 @@ func writeManagedProjectFiles(validation ManagedProjectCreateValidationResult, n
 }
 
 // cleanupManagedCreate 依次删除已创建的文件，并在目录路径非空时删除创建的目录。
-func cleanupManagedCreate(createdDir string, createdFiles []string) {
+func cleanupManagedCreate(createdDir string, createdFiles []string) (err error) {
 	if len(createdFiles) == 0 && createdDir == "" {
-		return
+		return nil
 	}
 	fsRoot, err := openManagedRootFSForPaths(createdDir, createdFiles...)
 	if err != nil {
-		return
+		return fmt.Errorf("open cleanup root: %w", err)
 	}
-	defer closeManagedRootFSQuietly(fsRoot)
+	defer func() {
+		err = errors.Join(err, closeManagedRootFS(fsRoot))
+	}()
 	for i := len(createdFiles) - 1; i >= 0; i-- {
 		relative, relErr := fsRoot.relative(createdFiles[i])
 		if relErr != nil {
+			err = errors.Join(err, fmt.Errorf("resolve cleanup file %s: %w", createdFiles[i], relErr))
 			continue
 		}
-		_ = fsRoot.root.Remove(relative)
+		if removeErr := fsRoot.root.Remove(relative); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
+			err = errors.Join(err, fmt.Errorf("remove cleanup file %s: %w", createdFiles[i], removeErr))
+		}
 	}
 	if createdDir != "" {
 		relative, relErr := fsRoot.relative(createdDir)
-		if relErr == nil {
-			_ = fsRoot.root.Remove(relative)
+		if relErr != nil {
+			err = errors.Join(err, fmt.Errorf("resolve cleanup directory %s: %w", createdDir, relErr))
+		} else if removeErr := fsRoot.root.Remove(relative); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
+			err = errors.Join(err, fmt.Errorf("remove cleanup directory %s: %w", createdDir, removeErr))
 		}
 	}
+	return err
 }
 
 // managedCreateEnvFileList 返回受管创建流程中的 env 文件路径列表。
@@ -1424,7 +1442,12 @@ func (s *Service) ValidateConfiguration(ctx context.Context, projectID uint64, d
 }
 
 // DeployConfiguration writes one managed draft, refreshes the snapshot, and runs docker compose up -d.
-func (s *Service) DeployConfiguration(ctx context.Context, projectID uint64, draft ConfigurationDraft, actorID *uint64) (DeployResult, error) {
+func (s *Service) DeployConfiguration(
+	ctx context.Context,
+	projectID uint64,
+	draft ConfigurationDraft,
+	actorID *uint64,
+) (result DeployResult, err error) {
 	aggregate, err := s.getAggregate(ctx, projectID)
 	if err != nil {
 		return DeployResult{}, err
@@ -1444,7 +1467,9 @@ func (s *Service) DeployConfiguration(ctx context.Context, projectID uint64, dra
 	if err != nil {
 		return DeployResult{}, fmt.Errorf("%w: %v", errProjectImportValidation, err)
 	}
-	defer restoreManagedDraft(aggregate.Project.WorkingDirectory, restoreItems)
+	defer func() {
+		err = errors.Join(err, restoreManagedDraft(aggregate.Project.WorkingDirectory, restoreItems))
+	}()
 
 	now := time.Now().UTC()
 	if _, err := s.runLifecycleActionWithAggregate(ctx, aggregate, actorID, generated.ProjectActionDeploy, []string{"compose", "up", "-d"}); err != nil {
@@ -1464,7 +1489,7 @@ func (s *Service) DeployConfiguration(ctx context.Context, projectID uint64, dra
 	if len(prepared.Warnings) > 0 {
 		guardResults = append(guardResults, guardDetail("warnings", strings.Join(prepared.Warnings, "|")))
 	}
-	return DeployResult{
+	result = DeployResult{
 		ProjectID:            projectID,
 		Action:               "deploy",
 		Result:               "completed",
@@ -1476,7 +1501,8 @@ func (s *Service) DeployConfiguration(ctx context.Context, projectID uint64, dra
 		MessageKey:           &messageKey,
 		Message:              &messageKey,
 		GuardResults:         guardResults,
-	}, nil
+	}
+	return result, nil
 }
 
 // UnsupportedLifecycleAction returns an explicit batch-2 blocked action result.
@@ -1764,7 +1790,7 @@ func (s *Service) inspectImportRequest(
 	}
 	session.ID = inspectionSessionID(session.DirectoryRef, parseResult.ConfigHash, createdAt)
 	if s.inspectCache != nil {
-		s.inspectCache.put(session)
+		s.inspectCache.storeSession(session)
 	}
 	return session, nil
 }
@@ -2079,7 +2105,7 @@ func sameDisplayName(value *string, existing string) bool {
 func (s *Service) importRootDefinitions(ctx context.Context) ([]importRootDefinition, error) {
 	managedRootInfo, err := s.ManagedRoot(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("resolve managed root info: %w", err)
 	}
 	var managedRoot *string
 	if managedRootInfo.Status == projectcontract.ManagedRootStatusReady.String() {
@@ -2336,10 +2362,16 @@ func digestServiceNames(names []string) string {
 	sort.Strings(normalized)
 	hasher := sha256.New()
 	for _, item := range normalized {
-		hasher.Write([]byte(item))
-		hasher.Write([]byte{0})
+		mustWriteDigestFragment(hasher, []byte(item))
+		mustWriteDigestFragment(hasher, []byte{0})
 	}
 	return hex.EncodeToString(hasher.Sum(nil))
+}
+
+func mustWriteDigestFragment(writer io.Writer, value []byte) {
+	if _, err := writer.Write(value); err != nil {
+		panic(fmt.Sprintf("project digest writer failed: %v", err))
+	}
 }
 
 // buildRefreshProjectInput 组装项目刷新持久化输入，包含刷新状态、快照、文件与操作者信息。
@@ -2419,7 +2451,7 @@ func ensureManagedProjectAggregate(aggregate projectstore.ProjectAggregate) erro
 
 // loadManagedDraftContent 读取托管草案所需的当前 compose 和 env 内容。
 // 它要求至少存在一个 compose 文件，并返回首个 compose 文件的绝对路径、归一化后的文件内容、当前配置哈希，以及可选的 env 文件路径和内容。
-func loadManagedDraftContent(aggregate projectstore.ProjectAggregate) (managedDraftContent, error) {
+func loadManagedDraftContent(aggregate projectstore.ProjectAggregate) (result managedDraftContent, err error) {
 	composeFiles := filterFiles(aggregate.Files, projectcontract.FileKindCompose.String())
 	if len(composeFiles) == 0 {
 		return managedDraftContent{}, fmt.Errorf("%w: missing compose file authority", errProjectImportValidation)
@@ -2428,7 +2460,9 @@ func loadManagedDraftContent(aggregate projectstore.ProjectAggregate) (managedDr
 	if err != nil {
 		return managedDraftContent{}, fmt.Errorf("%w: %v", errProjectImportValidation, err)
 	}
-	defer closeManagedRootFSQuietly(fsRoot)
+	defer func() {
+		err = errors.Join(err, closeManagedRootFS(fsRoot))
+	}()
 	composeRelativePath, err := fsRoot.relative(composeFiles[0].AbsolutePath)
 	if err != nil {
 		return managedDraftContent{}, fmt.Errorf("%w: %v", errProjectImportValidation, err)
@@ -2437,7 +2471,7 @@ func loadManagedDraftContent(aggregate projectstore.ProjectAggregate) (managedDr
 	if err != nil {
 		return managedDraftContent{}, fmt.Errorf("%w: %v", errProjectImportValidation, err)
 	}
-	result := managedDraftContent{
+	result = managedDraftContent{
 		ComposePath:       composeFiles[0].AbsolutePath,
 		ComposeContent:    normalizeTextBlock(string(composeContent)),
 		CurrentConfigHash: aggregate.Project.LastRefreshConfigHash,
@@ -2525,7 +2559,10 @@ func optionalDraftBytes(path string, content *string) []byte {
 
 // writeManagedDraft 写入托管草案的 compose 文件，并在需要时写入 env 文件，同时返回用于恢复原状态的记录。
 // 它会先保存目标文件的原始内容和是否存在，以便后续恢复。
-func writeManagedDraft(workingDirectory string, proposal managedDraftProposal) ([]managedDraftRestore, error) {
+func writeManagedDraft(
+	workingDirectory string,
+	proposal managedDraftProposal,
+) (restoreItems []managedDraftRestore, err error) {
 	targets := []struct {
 		path    string
 		content string
@@ -2540,19 +2577,21 @@ func writeManagedDraft(workingDirectory string, proposal managedDraftProposal) (
 	}
 	fsRoot, err := openManagedRootFS(filepath.Clean(workingDirectory))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("open managed draft root: %w", err)
 	}
-	defer closeManagedRootFSQuietly(fsRoot)
-	restoreItems := make([]managedDraftRestore, 0, len(targets))
+	defer func() {
+		err = errors.Join(err, closeManagedRootFS(fsRoot))
+	}()
+	restoreItems = make([]managedDraftRestore, 0, len(targets))
 	for _, target := range targets {
 		relative, err := fsRoot.relative(target.path)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("resolve managed draft path %s: %w", target.path, err)
 		}
 		original, err := fsRoot.root.ReadFile(relative)
 		exists := err == nil
 		if err != nil && !errors.Is(err, os.ErrNotExist) {
-			return nil, err
+			return nil, fmt.Errorf("read managed draft source %s: %w", target.path, err)
 		}
 		restoreItems = append(restoreItems, managedDraftRestore{
 			Path:    target.path,
@@ -2560,31 +2599,39 @@ func writeManagedDraft(workingDirectory string, proposal managedDraftProposal) (
 			Exists:  exists,
 		})
 		if err := fsRoot.root.WriteFile(relative, []byte(target.content), managedCreateFileMode); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("write managed draft target %s: %w", target.path, err)
 		}
 	}
 	return restoreItems, nil
 }
 
 // restoreManagedDraft 按相反顺序恢复受控草案写入前的文件状态。
-func restoreManagedDraft(workingDirectory string, items []managedDraftRestore) {
+func restoreManagedDraft(workingDirectory string, items []managedDraftRestore) (err error) {
 	fsRoot, err := openManagedRootFS(filepath.Clean(workingDirectory))
 	if err != nil {
-		return
+		return fmt.Errorf("open managed draft restore root: %w", err)
 	}
-	defer closeManagedRootFSQuietly(fsRoot)
+	defer func() {
+		err = errors.Join(err, closeManagedRootFS(fsRoot))
+	}()
 	for index := len(items) - 1; index >= 0; index-- {
 		item := items[index]
 		relative, relErr := fsRoot.relative(item.Path)
 		if relErr != nil {
+			err = errors.Join(err, fmt.Errorf("resolve managed draft restore path %s: %w", item.Path, relErr))
 			continue
 		}
 		if item.Exists {
-			_ = fsRoot.root.WriteFile(relative, item.Content, managedCreateFileMode)
+			if writeErr := fsRoot.root.WriteFile(relative, item.Content, managedCreateFileMode); writeErr != nil {
+				err = errors.Join(err, fmt.Errorf("restore managed draft file %s: %w", item.Path, writeErr))
+			}
 			continue
 		}
-		_ = fsRoot.root.Remove(relative)
+		if removeErr := fsRoot.root.Remove(relative); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
+			err = errors.Join(err, fmt.Errorf("remove managed draft file %s: %w", item.Path, removeErr))
+		}
 	}
+	return err
 }
 
 func openManagedRootFS(rootDir string) (*managedRootFS, error) {
@@ -2594,7 +2641,7 @@ func openManagedRootFS(rootDir string) (*managedRootFS, error) {
 	}
 	root, err := os.OpenRoot(absolute)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("open managed root %s: %w", absolute, err)
 	}
 	return &managedRootFS{root: root, rootDir: absolute}, nil
 }
@@ -2611,7 +2658,7 @@ func openManagedProjectParentRoot(workingDirectory string) (*managedRootFS, stri
 	}
 	fsRoot, err := openManagedRootFS(parentDir)
 	if err != nil {
-		return nil, "", err
+		return nil, "", fmt.Errorf("open managed project parent %s: %w", parentDir, err)
 	}
 	return fsRoot, relativeWorkingDirectory, nil
 }
@@ -2658,27 +2705,35 @@ func relativePathWithinRoot(rootDir string, path string) (string, error) {
 	return relative, nil
 }
 
-func (fsRoot *managedRootFS) close() error {
+func (fsRoot *managedRootFS) release() error {
 	if fsRoot == nil || fsRoot.root == nil {
 		return nil
 	}
 	return fsRoot.root.Close()
 }
 
-func closeManagedRootFSQuietly(fsRoot *managedRootFS) {
+func closeManagedRootFS(fsRoot *managedRootFS) error {
 	if fsRoot == nil {
-		return
+		return nil
 	}
-	_ = fsRoot.close()
+	if err := fsRoot.release(); err != nil {
+		return fmt.Errorf("close managed root %s: %w", fsRoot.rootDir, err)
+	}
+	return nil
 }
 
-func deleteManagedWorkingDirectory(workingDirectory string) error {
+func deleteManagedWorkingDirectory(workingDirectory string) (err error) {
 	fsRoot, err := openManagedRootFS(filepath.Clean(workingDirectory))
 	if err != nil {
-		return err
+		return fmt.Errorf("open managed working directory %s: %w", workingDirectory, err)
 	}
-	defer closeManagedRootFSQuietly(fsRoot)
-	return fsRoot.root.RemoveAll(".")
+	defer func() {
+		err = errors.Join(err, closeManagedRootFS(fsRoot))
+	}()
+	if err := fsRoot.root.RemoveAll("."); err != nil {
+		return fmt.Errorf("remove managed working directory %s: %w", workingDirectory, err)
+	}
+	return nil
 }
 
 // buildConfigurationDiffFile 构建配置文件的差异结果，包含内容变更、哈希和统一 diff。

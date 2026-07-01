@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -185,14 +186,14 @@ func newImportInspectionCache() *importInspectionCache {
 	return &importInspectionCache{sessions: make(map[string]importInspectionSession)}
 }
 
-func (c *importInspectionCache) put(session importInspectionSession) {
+func (c *importInspectionCache) storeSession(session importInspectionSession) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.pruneLocked(time.Now().UTC())
 	c.sessions[session.ID] = session
 }
 
-func (c *importInspectionCache) get(id string) (importInspectionSession, bool) {
+func (c *importInspectionCache) lookupSession(id string) (importInspectionSession, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.pruneLocked(time.Now().UTC())
@@ -203,7 +204,14 @@ func (c *importInspectionCache) get(id string) (importInspectionSession, bool) {
 func (c *importInspectionCache) pruneLocked(now time.Time) {
 	for key, session := range c.sessions {
 		if now.After(session.ExpiresAt) {
-			delete(c.sessions, key)
+			next := make(map[string]importInspectionSession, len(c.sessions)-1)
+			for existingKey, existingSession := range c.sessions {
+				if existingKey == key {
+					continue
+				}
+				next[existingKey] = existingSession
+			}
+			c.sessions = next
 		}
 	}
 }
@@ -326,23 +334,41 @@ func decodeAllowedImportRoots(raw string) ([]importAllowedRootConfig, error) {
 	if trimmed == "" {
 		return nil, nil
 	}
-	var items []importAllowedRootConfig
-	if err := json.Unmarshal([]byte(trimmed), &items); err == nil {
+
+	items, err := decodeAllowedImportRootItems(trimmed)
+	if err == nil {
 		return items, nil
 	}
 
-	var nested string
-	if err := json.Unmarshal([]byte(trimmed), &nested); err != nil {
-		return nil, err
+	nested, nestedErr := decodeAllowedImportRootString(trimmed)
+	if nestedErr != nil {
+		return nil, fmt.Errorf("decode allowed import roots: %w", errors.Join(err, nestedErr))
 	}
 	nested = strings.TrimSpace(nested)
 	if nested == "" {
 		return nil, nil
 	}
-	if err := json.Unmarshal([]byte(nested), &items); err != nil {
-		return nil, err
+	items, nestedItemsErr := decodeAllowedImportRootItems(nested)
+	if nestedItemsErr != nil {
+		return nil, fmt.Errorf("decode allowed import roots: %w", errors.Join(err, nestedItemsErr))
 	}
 	return items, nil
+}
+
+func decodeAllowedImportRootItems(raw string) ([]importAllowedRootConfig, error) {
+	var items []importAllowedRootConfig
+	if err := json.Unmarshal([]byte(raw), &items); err != nil {
+		return nil, fmt.Errorf("decode allowed import roots array: %w", err)
+	}
+	return items, nil
+}
+
+func decodeAllowedImportRootString(raw string) (string, error) {
+	var nested string
+	if err := json.Unmarshal([]byte(raw), &nested); err != nil {
+		return "", fmt.Errorf("decode allowed import roots string: %w", err)
+	}
+	return nested, nil
 }
 
 func normalizeImportRootDefinitions(configured []importAllowedRootConfig, managedRoot *string) []importRootDefinition {
