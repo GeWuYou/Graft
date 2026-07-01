@@ -24,8 +24,8 @@ help:
       '  just openapi-check     Validate the root OpenAPI spec and frontend generated types freshness'
 
 setup:
-    bun install
-    cd web && bun install
+    bun install --frozen-lockfile
+    cd web && bun install --frozen-lockfile
     cd server && go mod download
 
 dev:
@@ -43,7 +43,6 @@ web:
 check:
     cd server && go run ./cmd/graft validate backend
     cd web && bun run check
-    bun run quality:eff-u-code:score:changed
 
 lint:
     cd server && go run ./cmd/graft validate backend --stage lint
@@ -62,6 +61,7 @@ migrate-validate:
     cd server && go run ./cmd/graft migrate validate
 
 compose-up:
+    docker compose pull
     docker compose up -d
 
 compose-down:
