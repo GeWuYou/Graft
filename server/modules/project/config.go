@@ -42,10 +42,8 @@ func configDefinitions() []configregistry.Definition {
 	}
 }
 
-// projectManagedRootDefinition 构建项目托管根目录配置的定义。
 // projectManagedRootDefinition 构造项目创建流程中托管根目录配置的定义。
-/**
-Oops Go comments not block. Need just line comment maybe two lines. Since Go docs are comments directly preceding declarations. Need beginning with element name. We can do two-line comment. Avoid markdown. Let's provide Chinese.
+// 它声明配置键、展示分组、JSON Schema、默认值和写入该配置所需权限。
 func projectManagedRootDefinition() configregistry.Definition {
 	return configregistry.Definition{
 		Key:              projectcontract.ProjectManagedRootConfig.String(),

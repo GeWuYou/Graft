@@ -855,6 +855,10 @@ func TestEmbeddedMigrationRegistryDirsHaveValidAtlasState(t *testing.T) {
 		if !found {
 			t.Fatalf("embedded migration dir %s not found", embedded.Path)
 		}
+		hasSQL, hasAtlasState := migrationFilesState(embedded.Files)
+		if hasSQL && !hasAtlasState {
+			t.Fatalf("embedded migration dir %s has SQL files but no atlas.sum", embedded.Path)
+		}
 		if !source.hasAtlasState {
 			continue
 		}
@@ -908,6 +912,17 @@ func migrationDirState(t *testing.T, absDir string) (bool, bool) {
 		}
 		hasSQL = hasSQL || filepath.Ext(entry.Name()) == ".sql"
 		hasAtlasState = hasAtlasState || entry.Name() == atlasmigrate.HashFileName
+	}
+
+	return hasSQL, hasAtlasState
+}
+
+func migrationFilesState(files []moduleregistry.EmbeddedMigrationFile) (bool, bool) {
+	hasSQL := false
+	hasAtlasState := false
+	for _, file := range files {
+		hasSQL = hasSQL || filepath.Ext(file.Name) == ".sql"
+		hasAtlasState = hasAtlasState || file.Name == atlasmigrate.HashFileName
 	}
 
 	return hasSQL, hasAtlasState

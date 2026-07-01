@@ -12,7 +12,7 @@ help:
       '  just dev-air           Run the server development supervisor with Air notifications' \
       '  just reset-admin       Reset the default admin in local/test environments' \
       '  just web               Start the web development server' \
-      '  just check             Run completion-state server + web + quality checks' \
+      '  just check             Run completion-state server + web checks' \
       '  just lint              Run the highest-value local lint slices' \
       '  just smoke             Run the backend smoke validation entrypoint' \
       '  just migrate-up        Apply pending Atlas migrations' \

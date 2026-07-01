@@ -82,8 +82,8 @@ just compose-up
 Notes:
 
 - `just setup` installs root and `web` Bun dependencies, then warms server Go modules with `go mod download`.
-- `just check` wraps `cd server && go run ./cmd/graft validate backend`, `cd web && bun run check`, and the
-  repository quality score command `bun run quality:eff-u-code:score:changed`.
+- `just check` wraps `cd server && go run ./cmd/graft validate backend` and `cd web && bun run check`.
+- `just quality` runs the repository quality score command `bun run quality:eff-u-code:score:changed`.
 - `just generate` runs `cd server && go generate ./...`, the root OpenAPI bundle script, and frontend OpenAPI type
   generation.
 - `just compose-up` runs `docker compose up -d` from the repository root; compose behavior and deployment authority
