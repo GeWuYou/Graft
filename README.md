@@ -51,6 +51,47 @@ The repository also keeps `.ai/environment/` as generated environment truth:
 - `.ai/environment/tools.raw.yaml` records raw local machine and repository facts.
 - `.ai/environment/tools.ai.yaml` records the condensed inventory used by AI agents and contributors.
 
+## Optional Just Developer Entrypoint
+
+The repository root [Justfile](Justfile) provides an optional contributor-facing entrypoint for common local tasks. It
+is a convenience wrapper, not a new source of truth.
+
+Authority remains with the underlying repository entrypoints:
+
+- Go CLI commands under `server/cmd/graft`
+- `web/package.json` scripts such as `bun run dev` and `bun run check`
+- root and `scripts/**` automation such as `scripts/install-git-hooks.sh` and `scripts/openapi-bundle.mjs`
+- the root `compose.yml` plus normal `docker compose` commands
+
+Recommended first-run path:
+
+```bash
+just setup
+just dev
+just web
+just check
+```
+
+Other common shortcuts:
+
+```bash
+just generate
+just compose-up
+```
+
+Notes:
+
+- `just setup` installs root and `web` Bun dependencies, then warms server Go modules with `go mod download`.
+- `just check` wraps `cd server && go run ./cmd/graft validate backend`, `cd web && bun run check`, and the
+  repository quality score command `bun run quality:eff-u-code:score:changed`.
+- `just generate` runs `cd server && go generate ./...`, the root OpenAPI bundle script, and frontend OpenAPI type
+  generation.
+- `just compose-up` runs `docker compose up -d` from the repository root; compose behavior and deployment authority
+  remain documented below.
+
+The rest of this README keeps the underlying commands visible because those remain the authoritative reference for
+validation, migration, generation, git hooks, and compose behavior.
+
 ## Optional Local Code Quality Check
 
 `eff-u-code` is available in this repository as an optional developer-local code quality helper.
@@ -113,7 +154,13 @@ Minimal startup:
 
 1. Copy `server/.env.example` to `server/.env`.
 2. Set the local auth secrets in `server/.env`.
-3. Run the development entrypoint:
+3. Prefer the optional root shortcut:
+
+```bash
+just dev
+```
+
+4. Or run the authoritative development entrypoint directly:
 
 ```bash
 cd server
@@ -244,6 +291,15 @@ cd server
 
 ## Server Validation
 
+Optional wrapper:
+
+```bash
+just check
+```
+
+`just check` includes the authoritative backend completion entrypoint below, then runs the authoritative frontend
+completion entrypoint and the repository quality score command.
+
 The backend completion entrypoint is:
 
 ```bash
@@ -275,7 +331,13 @@ Minimal startup:
 
 1. In the canonical repository root, copy `web/.env.example` to `web/.env.development`.
 2. Set `VITE_API_TARGET` to the local backend address.
-3. Start Vite:
+3. Prefer the optional root shortcut:
+
+```bash
+just web
+```
+
+4. Or start the authoritative Vite entrypoint directly:
 
 ```bash
 cd web
@@ -295,6 +357,15 @@ Notes:
   worktree initialization flow create relative symlinks instead of copying per-worktree local config.
 
 ## Web Validation
+
+Optional wrapper:
+
+```bash
+just check
+```
+
+`just check` includes the authoritative frontend completion entrypoint below, together with backend validation and the
+repository quality score command.
 
 The frontend completion entrypoint is:
 
@@ -327,8 +398,14 @@ Minimal startup:
 
 1. Copy `compose.env.example` to `.env`.
 2. Set the image coordinates and runtime secrets in `.env`.
-3. Run `docker compose` from the repository root so relative paths resolve against the checked-out deployment files.
-4. Pull and start the stack:
+3. Optional shortcut for the common start path:
+
+```bash
+just compose-up
+```
+
+4. Run `docker compose` from the repository root so relative paths resolve against the checked-out deployment files.
+5. Pull and start the stack with the authoritative commands:
 
 ```bash
 docker compose pull
@@ -429,6 +506,12 @@ The repository Git hooks source of truth is the root `.husky/` directory, not a 
 `web/package.json`.
 
 After initializing a clone or worktree:
+
+```bash
+just setup
+```
+
+`just setup` helps install dependencies, but hook installation authority remains the repository script below:
 
 ```bash
 sh scripts/install-git-hooks.sh
