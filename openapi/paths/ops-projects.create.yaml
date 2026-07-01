@@ -1,0 +1,50 @@
+post:
+  tags: [project]
+  summary: Submit a managed Compose project create request
+  operationId: postProjectCreate
+  description: Creates one managed Compose project under the configured managed root, writes the requested Compose and optional env files, and persists the project registry bootstrap.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../components/schemas/project-create-request.yaml
+  security:
+    - bearerAuth: []
+  responses:
+    '201':
+      description: Managed Compose project created and registered.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-project-create-response.yaml
+    '400':
+      description: Invalid managed create request.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      $ref: ../components/responses/forbidden.yaml
+    '409':
+      description: Managed create request blocked by managed-root authority, ownership, or runtime guard.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml

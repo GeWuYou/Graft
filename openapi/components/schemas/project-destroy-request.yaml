@@ -1,0 +1,15 @@
+type: object
+required:
+  - remove_named_volumes
+  - delete_working_directory
+  - confirm_canonical_project_name
+properties:
+  remove_named_volumes:
+    type: boolean
+    default: false
+  delete_working_directory:
+    type: boolean
+    default: false
+  confirm_canonical_project_name:
+    type: string
+    minLength: 1

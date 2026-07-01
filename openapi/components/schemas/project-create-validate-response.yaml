@@ -1,0 +1,34 @@
+type: object
+required:
+  - managed_root
+  - display_name
+  - canonical_project_name
+  - ownership_mode
+  - working_directory
+  - compose_file_name
+  - compose_file_absolute_path
+properties:
+  managed_root:
+    $ref: ./project-managed-root-response.yaml
+  display_name:
+    type: string
+  canonical_project_name:
+    type: string
+  ownership_mode:
+    $ref: ./project-ownership-mode.yaml
+  working_directory:
+    type: string
+  compose_file_name:
+    type: string
+  env_file_name:
+    type: string
+    nullable: true
+  compose_file_absolute_path:
+    type: string
+  env_file_absolute_path:
+    type: string
+    nullable: true
+  warnings:
+    type: array
+    items:
+      type: string

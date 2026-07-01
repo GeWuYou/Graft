@@ -1,0 +1,29 @@
+type: object
+required:
+  - project_id
+  - canonical_project_name
+  - ownership_mode
+  - proposed_config_hash
+  - normalized_compose_yaml
+  - declared_service_names
+properties:
+  project_id:
+    type: integer
+    format: int64
+    minimum: 1
+  canonical_project_name:
+    type: string
+  ownership_mode:
+    $ref: ./project-ownership-mode.yaml
+  proposed_config_hash:
+    type: string
+  normalized_compose_yaml:
+    type: string
+  declared_service_names:
+    type: array
+    items:
+      type: string
+  warnings:
+    type: array
+    items:
+      type: string

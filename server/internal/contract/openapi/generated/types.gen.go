@@ -1781,13 +1781,13 @@ func (e DashboardWidgetType) Valid() bool {
 
 // Defines values for EnvelopedAuditOverviewResponseSuccess.
 const (
-	True EnvelopedAuditOverviewResponseSuccess = true
+	EnvelopedAuditOverviewResponseSuccessTrue EnvelopedAuditOverviewResponseSuccess = true
 )
 
 // Valid indicates whether the value is a known member of the EnvelopedAuditOverviewResponseSuccess enum.
 func (e EnvelopedAuditOverviewResponseSuccess) Valid() bool {
 	switch e {
-	case True:
+	case EnvelopedAuditOverviewResponseSuccessTrue:
 		return true
 	default:
 		return false
@@ -2121,6 +2121,357 @@ func (e NotificationTargetType) Valid() bool {
 	case NotificationTargetTypeSYSTEM:
 		return true
 	case NotificationTargetTypeUSER:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProjectActionResponseAction.
+const (
+	ProjectActionCreate     ProjectActionResponseAction = "create"
+	ProjectActionDeploy     ProjectActionResponseAction = "deploy"
+	ProjectActionDestroy    ProjectActionResponseAction = "destroy"
+	ProjectActionDown       ProjectActionResponseAction = "down"
+	ProjectActionRefresh    ProjectActionResponseAction = "refresh"
+	ProjectActionRestart    ProjectActionResponseAction = "restart"
+	ProjectActionUnregister ProjectActionResponseAction = "unregister"
+	ProjectActionUp         ProjectActionResponseAction = "up"
+)
+
+// Valid indicates whether the value is a known member of the ProjectActionResponseAction enum.
+func (e ProjectActionResponseAction) Valid() bool {
+	switch e {
+	case ProjectActionCreate:
+		return true
+	case ProjectActionDeploy:
+		return true
+	case ProjectActionDestroy:
+		return true
+	case ProjectActionDown:
+		return true
+	case ProjectActionRefresh:
+		return true
+	case ProjectActionRestart:
+		return true
+	case ProjectActionUnregister:
+		return true
+	case ProjectActionUp:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProjectActionResponseResult.
+const (
+	ProjectActionResultAccepted  ProjectActionResponseResult = "accepted"
+	ProjectActionResultBlocked   ProjectActionResponseResult = "blocked"
+	ProjectActionResultCompleted ProjectActionResponseResult = "completed"
+)
+
+// Valid indicates whether the value is a known member of the ProjectActionResponseResult enum.
+func (e ProjectActionResponseResult) Valid() bool {
+	switch e {
+	case ProjectActionResultAccepted:
+		return true
+	case ProjectActionResultBlocked:
+		return true
+	case ProjectActionResultCompleted:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProjectCanonicalNameSource.
+const (
+	ProjectCanonicalNameSourceComputed ProjectCanonicalNameSource = "computed"
+	ProjectCanonicalNameSourceOverride ProjectCanonicalNameSource = "override"
+)
+
+// Valid indicates whether the value is a known member of the ProjectCanonicalNameSource enum.
+func (e ProjectCanonicalNameSource) Valid() bool {
+	switch e {
+	case ProjectCanonicalNameSourceComputed:
+		return true
+	case ProjectCanonicalNameSourceOverride:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProjectConfigurationFileResponseEncoding.
+const (
+	ProjectConfigurationEncodingUTF8 ProjectConfigurationFileResponseEncoding = "utf-8"
+)
+
+// Valid indicates whether the value is a known member of the ProjectConfigurationFileResponseEncoding enum.
+func (e ProjectConfigurationFileResponseEncoding) Valid() bool {
+	switch e {
+	case ProjectConfigurationEncodingUTF8:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProjectConfigurationFileResponseReadOnly.
+const (
+	ProjectConfigurationFileResponseReadOnlyTrue ProjectConfigurationFileResponseReadOnly = true
+)
+
+// Valid indicates whether the value is a known member of the ProjectConfigurationFileResponseReadOnly enum.
+func (e ProjectConfigurationFileResponseReadOnly) Valid() bool {
+	switch e {
+	case ProjectConfigurationFileResponseReadOnlyTrue:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProjectCreateResponseAction.
+const (
+	ProjectCreateResponseActionCreate ProjectCreateResponseAction = "create"
+)
+
+// Valid indicates whether the value is a known member of the ProjectCreateResponseAction enum.
+func (e ProjectCreateResponseAction) Valid() bool {
+	switch e {
+	case ProjectCreateResponseActionCreate:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProjectCreateResponseResult.
+const (
+	ProjectCreateResponseResultCreated ProjectCreateResponseResult = "created"
+)
+
+// Valid indicates whether the value is a known member of the ProjectCreateResponseResult enum.
+func (e ProjectCreateResponseResult) Valid() bool {
+	switch e {
+	case ProjectCreateResponseResultCreated:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProjectDeployResponseAction.
+const (
+	ProjectDeployResponseActionDeploy ProjectDeployResponseAction = "deploy"
+)
+
+// Valid indicates whether the value is a known member of the ProjectDeployResponseAction enum.
+func (e ProjectDeployResponseAction) Valid() bool {
+	switch e {
+	case ProjectDeployResponseActionDeploy:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProjectDeployResponseResult.
+const (
+	ProjectDeployResponseResultCompleted ProjectDeployResponseResult = "completed"
+)
+
+// Valid indicates whether the value is a known member of the ProjectDeployResponseResult enum.
+func (e ProjectDeployResponseResult) Valid() bool {
+	switch e {
+	case ProjectDeployResponseResultCompleted:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProjectDriftStatus.
+const (
+	ProjectDriftStatusChanged ProjectDriftStatus = "changed"
+	ProjectDriftStatusClean   ProjectDriftStatus = "clean"
+	ProjectDriftStatusMissing ProjectDriftStatus = "missing"
+	ProjectDriftStatusUnknown ProjectDriftStatus = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the ProjectDriftStatus enum.
+func (e ProjectDriftStatus) Valid() bool {
+	switch e {
+	case ProjectDriftStatusChanged:
+		return true
+	case ProjectDriftStatusClean:
+		return true
+	case ProjectDriftStatusMissing:
+		return true
+	case ProjectDriftStatusUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProjectFileKind.
+const (
+	ProjectFileKindCompose ProjectFileKind = "compose"
+	ProjectFileKindEnv     ProjectFileKind = "env"
+)
+
+// Valid indicates whether the value is a known member of the ProjectFileKind enum.
+func (e ProjectFileKind) Valid() bool {
+	switch e {
+	case ProjectFileKindCompose:
+		return true
+	case ProjectFileKindEnv:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProjectFileRole.
+const (
+	ProjectFileRoleEnv      ProjectFileRole = "env"
+	ProjectFileRoleOverride ProjectFileRole = "override"
+	ProjectFileRolePrimary  ProjectFileRole = "primary"
+)
+
+// Valid indicates whether the value is a known member of the ProjectFileRole enum.
+func (e ProjectFileRole) Valid() bool {
+	switch e {
+	case ProjectFileRoleEnv:
+		return true
+	case ProjectFileRoleOverride:
+		return true
+	case ProjectFileRolePrimary:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProjectHostScope.
+const (
+	ProjectHostScopeLocal ProjectHostScope = "local"
+)
+
+// Valid indicates whether the value is a known member of the ProjectHostScope enum.
+func (e ProjectHostScope) Valid() bool {
+	switch e {
+	case ProjectHostScopeLocal:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProjectManagedRootStatus.
+const (
+	ProjectManagedRootStatusInvalid      ProjectManagedRootStatus = "invalid"
+	ProjectManagedRootStatusReady        ProjectManagedRootStatus = "ready"
+	ProjectManagedRootStatusUnconfigured ProjectManagedRootStatus = "unconfigured"
+)
+
+// Valid indicates whether the value is a known member of the ProjectManagedRootStatus enum.
+func (e ProjectManagedRootStatus) Valid() bool {
+	switch e {
+	case ProjectManagedRootStatusInvalid:
+		return true
+	case ProjectManagedRootStatusReady:
+		return true
+	case ProjectManagedRootStatusUnconfigured:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProjectOwnershipMode.
+const (
+	ProjectOwnershipModeExternal             ProjectOwnershipMode = "external"
+	ProjectOwnershipModeManagedRootDedicated ProjectOwnershipMode = "managed-root-dedicated"
+)
+
+// Valid indicates whether the value is a known member of the ProjectOwnershipMode enum.
+func (e ProjectOwnershipMode) Valid() bool {
+	switch e {
+	case ProjectOwnershipModeExternal:
+		return true
+	case ProjectOwnershipModeManagedRootDedicated:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProjectRefreshStatus.
+const (
+	ProjectRefreshStatusFailed  ProjectRefreshStatus = "failed"
+	ProjectRefreshStatusNever   ProjectRefreshStatus = "never"
+	ProjectRefreshStatusSuccess ProjectRefreshStatus = "success"
+)
+
+// Valid indicates whether the value is a known member of the ProjectRefreshStatus enum.
+func (e ProjectRefreshStatus) Valid() bool {
+	switch e {
+	case ProjectRefreshStatusFailed:
+		return true
+	case ProjectRefreshStatusNever:
+		return true
+	case ProjectRefreshStatusSuccess:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProjectRuntimeStatus.
+const (
+	ProjectRuntimeStatusEmpty   ProjectRuntimeStatus = "empty"
+	ProjectRuntimeStatusPartial ProjectRuntimeStatus = "partial"
+	ProjectRuntimeStatusRunning ProjectRuntimeStatus = "running"
+	ProjectRuntimeStatusStopped ProjectRuntimeStatus = "stopped"
+)
+
+// Valid indicates whether the value is a known member of the ProjectRuntimeStatus enum.
+func (e ProjectRuntimeStatus) Valid() bool {
+	switch e {
+	case ProjectRuntimeStatusEmpty:
+		return true
+	case ProjectRuntimeStatusPartial:
+		return true
+	case ProjectRuntimeStatusRunning:
+		return true
+	case ProjectRuntimeStatusStopped:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProjectSourceKind.
+const (
+	ProjectSourceKindGit      ProjectSourceKind = "git"
+	ProjectSourceKindImported ProjectSourceKind = "imported"
+	ProjectSourceKindManaged  ProjectSourceKind = "managed"
+	ProjectSourceKindTemplate ProjectSourceKind = "template"
+)
+
+// Valid indicates whether the value is a known member of the ProjectSourceKind enum.
+func (e ProjectSourceKind) Valid() bool {
+	switch e {
+	case ProjectSourceKindGit:
+		return true
+	case ProjectSourceKindImported:
+		return true
+	case ProjectSourceKindManaged:
+		return true
+	case ProjectSourceKindTemplate:
 		return true
 	default:
 		return false
@@ -5547,6 +5898,306 @@ type EnvelopedPermissionListResponse struct {
 	TraceId string `json:"traceId"`
 }
 
+// EnvelopedProjectActionResponse defines model for enveloped-project-action-response.
+type EnvelopedProjectActionResponse struct {
+	// Code Existing canonical response code.
+	Code string                `json:"code"`
+	Data ProjectActionResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedProjectConfigurationDiffResponse defines model for enveloped-project-configuration-diff-response.
+type EnvelopedProjectConfigurationDiffResponse struct {
+	// Code Existing canonical response code.
+	Code string                           `json:"code"`
+	Data ProjectConfigurationDiffResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedProjectConfigurationFileResponse defines model for enveloped-project-configuration-file-response.
+type EnvelopedProjectConfigurationFileResponse struct {
+	// Code Existing canonical response code.
+	Code string                           `json:"code"`
+	Data ProjectConfigurationFileResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedProjectConfigurationMetadataResponse defines model for enveloped-project-configuration-metadata-response.
+type EnvelopedProjectConfigurationMetadataResponse struct {
+	// Code Existing canonical response code.
+	Code string                               `json:"code"`
+	Data ProjectConfigurationMetadataResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedProjectConfigurationPreviewResponse defines model for enveloped-project-configuration-preview-response.
+type EnvelopedProjectConfigurationPreviewResponse struct {
+	// Code Existing canonical response code.
+	Code string                              `json:"code"`
+	Data ProjectConfigurationPreviewResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedProjectConfigurationValidateResponse defines model for enveloped-project-configuration-validate-response.
+type EnvelopedProjectConfigurationValidateResponse struct {
+	// Code Existing canonical response code.
+	Code string                               `json:"code"`
+	Data ProjectConfigurationValidateResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedProjectCreateResponse defines model for enveloped-project-create-response.
+type EnvelopedProjectCreateResponse struct {
+	// Code Existing canonical response code.
+	Code string                `json:"code"`
+	Data ProjectCreateResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedProjectCreateValidateResponse defines model for enveloped-project-create-validate-response.
+type EnvelopedProjectCreateValidateResponse struct {
+	// Code Existing canonical response code.
+	Code string                        `json:"code"`
+	Data ProjectCreateValidateResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedProjectDeployResponse defines model for enveloped-project-deploy-response.
+type EnvelopedProjectDeployResponse struct {
+	// Code Existing canonical response code.
+	Code string                `json:"code"`
+	Data ProjectDeployResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedProjectDetailResponse defines model for enveloped-project-detail-response.
+type EnvelopedProjectDetailResponse struct {
+	// Code Existing canonical response code.
+	Code string                `json:"code"`
+	Data ProjectDetailResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedProjectImportResponse defines model for enveloped-project-import-response.
+type EnvelopedProjectImportResponse struct {
+	// Code Existing canonical response code.
+	Code string                `json:"code"`
+	Data ProjectImportResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedProjectImportValidateResponse defines model for enveloped-project-import-validate-response.
+type EnvelopedProjectImportValidateResponse struct {
+	// Code Existing canonical response code.
+	Code string                        `json:"code"`
+	Data ProjectImportValidateResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedProjectListResponse defines model for enveloped-project-list-response.
+type EnvelopedProjectListResponse struct {
+	// Code Existing canonical response code.
+	Code string              `json:"code"`
+	Data ProjectListResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedProjectManagedRootResponse defines model for enveloped-project-managed-root-response.
+type EnvelopedProjectManagedRootResponse struct {
+	// Code Existing canonical response code.
+	Code string                     `json:"code"`
+	Data ProjectManagedRootResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedProjectServicesResponse defines model for enveloped-project-services-response.
+type EnvelopedProjectServicesResponse struct {
+	// Code Existing canonical response code.
+	Code string                  `json:"code"`
+	Data ProjectServicesResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
 // EnvelopedRealtimeSubscriptionResponse defines model for enveloped-realtime-subscription-response.
 type EnvelopedRealtimeSubscriptionResponse struct {
 	// Code Existing canonical response code.
@@ -6248,6 +6899,405 @@ type PermissionListItem struct {
 type PermissionListResponse struct {
 	Items []PermissionListItem `json:"items"`
 }
+
+// ProjectActionResponse defines model for project-action-response.
+type ProjectActionResponse struct {
+	Action ProjectActionResponseAction `json:"action"`
+
+	// GuardResults Structured guard outcomes such as ownership blocks or skipped destructive steps.
+	GuardResults *[]ProjectGuardResult       `json:"guard_results,omitempty"`
+	Message      *string                     `json:"message,omitempty"`
+	MessageKey   *string                     `json:"message_key,omitempty"`
+	ProjectId    int64                       `json:"project_id"`
+	Result       ProjectActionResponseResult `json:"result"`
+}
+
+// ProjectActionResponseAction defines model for ProjectActionResponse.Action.
+type ProjectActionResponseAction string
+
+// ProjectActionResponseResult defines model for ProjectActionResponse.Result.
+type ProjectActionResponseResult string
+
+// ProjectCanonicalNameSource defines model for project-canonical-name-source.
+type ProjectCanonicalNameSource string
+
+// ProjectConfigurationDiffFile defines model for project-configuration-diff-file.
+type ProjectConfigurationDiffFile struct {
+	Changed         bool            `json:"changed"`
+	CurrentContent  string          `json:"current_content"`
+	CurrentHash     string          `json:"current_hash"`
+	Kind            ProjectFileKind `json:"kind"`
+	Path            string          `json:"path"`
+	ProposedContent string          `json:"proposed_content"`
+	ProposedHash    string          `json:"proposed_hash"`
+}
+
+// ProjectConfigurationDiffRequest defines model for project-configuration-diff-request.
+type ProjectConfigurationDiffRequest struct {
+	ComposeFileContent string  `json:"compose_file_content"`
+	EnvFileContent     *string `json:"env_file_content,omitempty"`
+}
+
+// ProjectConfigurationDiffResponse defines model for project-configuration-diff-response.
+type ProjectConfigurationDiffResponse struct {
+	CanonicalProjectName string                         `json:"canonical_project_name"`
+	CurrentConfigHash    string                         `json:"current_config_hash"`
+	Files                []ProjectConfigurationDiffFile `json:"files"`
+	HasChanges           bool                           `json:"has_changes"`
+	OwnershipMode        ProjectOwnershipMode           `json:"ownership_mode"`
+	ProjectId            int64                          `json:"project_id"`
+	ProposedConfigHash   string                         `json:"proposed_config_hash"`
+	Warnings             *[]string                      `json:"warnings,omitempty"`
+}
+
+// ProjectConfigurationFileResponse defines model for project-configuration-file-response.
+type ProjectConfigurationFileResponse struct {
+	Content      string                                   `json:"content"`
+	DownloadName string                                   `json:"download_name"`
+	Encoding     ProjectConfigurationFileResponseEncoding `json:"encoding"`
+	FileId       int64                                    `json:"file_id"`
+	Kind         ProjectFileKind                          `json:"kind"`
+	Path         string                                   `json:"path"`
+	ReadOnly     ProjectConfigurationFileResponseReadOnly `json:"read_only"`
+}
+
+// ProjectConfigurationFileResponseEncoding defines model for ProjectConfigurationFileResponse.Encoding.
+type ProjectConfigurationFileResponseEncoding string
+
+// ProjectConfigurationFileResponseReadOnly defines model for ProjectConfigurationFileResponse.ReadOnly.
+type ProjectConfigurationFileResponseReadOnly bool
+
+// ProjectConfigurationMetadataResponse defines model for project-configuration-metadata-response.
+type ProjectConfigurationMetadataResponse struct {
+	ComposeFiles []ProjectFileItem `json:"compose_files"`
+
+	// DiagnosticsSummary Bounded configuration diagnostics summary for readonly UI display.
+	DiagnosticsSummary *[]string            `json:"diagnostics_summary,omitempty"`
+	DriftStatus        ProjectDriftStatus   `json:"drift_status"`
+	EnvFiles           []ProjectFileItem    `json:"env_files"`
+	LastRefreshAt      *time.Time           `json:"last_refresh_at,omitempty"`
+	LastRefreshStatus  ProjectRefreshStatus `json:"last_refresh_status"`
+	OwnershipMode      ProjectOwnershipMode `json:"ownership_mode"`
+	ProjectId          int64                `json:"project_id"`
+}
+
+// ProjectConfigurationPreviewResponse defines model for project-configuration-preview-response.
+type ProjectConfigurationPreviewResponse struct {
+	CanonicalProjectName  string     `json:"canonical_project_name"`
+	ConfigHash            string     `json:"config_hash"`
+	NormalizedComposeYaml string     `json:"normalized_compose_yaml"`
+	ProjectId             int64      `json:"project_id"`
+	RefreshedAt           *time.Time `json:"refreshed_at,omitempty"`
+}
+
+// ProjectConfigurationValidateRequest defines model for project-configuration-validate-request.
+type ProjectConfigurationValidateRequest struct {
+	ComposeFileContent string  `json:"compose_file_content"`
+	EnvFileContent     *string `json:"env_file_content,omitempty"`
+}
+
+// ProjectConfigurationValidateResponse defines model for project-configuration-validate-response.
+type ProjectConfigurationValidateResponse struct {
+	CanonicalProjectName  string               `json:"canonical_project_name"`
+	DeclaredServiceNames  []string             `json:"declared_service_names"`
+	NormalizedComposeYaml string               `json:"normalized_compose_yaml"`
+	OwnershipMode         ProjectOwnershipMode `json:"ownership_mode"`
+	ProjectId             int64                `json:"project_id"`
+	ProposedConfigHash    string               `json:"proposed_config_hash"`
+	Warnings              *[]string            `json:"warnings,omitempty"`
+}
+
+// ProjectContainerCounts defines model for project-container-counts.
+type ProjectContainerCounts struct {
+	Running int `json:"running"`
+	Stopped int `json:"stopped"`
+	Total   int `json:"total"`
+}
+
+// ProjectCreateRequest defines model for project-create-request.
+type ProjectCreateRequest struct {
+	CanonicalProjectName string `json:"canonical_project_name"`
+
+	// ComposeFileContent Initial Compose YAML content to materialize in the managed project directory.
+	ComposeFileContent string `json:"compose_file_content"`
+	ComposeFileName    string `json:"compose_file_name"`
+	DisplayName        string `json:"display_name"`
+
+	// EnvFileContent Optional initial env file content. It is ignored when env_file_name is omitted.
+	EnvFileContent *string `json:"env_file_content,omitempty"`
+	EnvFileName    *string `json:"env_file_name,omitempty"`
+
+	// RelativeProjectDirectory Relative project directory under the canonical managed root.
+	RelativeProjectDirectory string `json:"relative_project_directory"`
+}
+
+// ProjectCreateResponse defines model for project-create-response.
+type ProjectCreateResponse struct {
+	Action                  ProjectCreateResponseAction `json:"action"`
+	CanonicalProjectName    string                      `json:"canonical_project_name"`
+	ComposeFileAbsolutePath string                      `json:"compose_file_absolute_path"`
+	ComposeFileName         string                      `json:"compose_file_name"`
+	DisplayName             string                      `json:"display_name"`
+	EnvFileAbsolutePath     *string                     `json:"env_file_absolute_path,omitempty"`
+	EnvFileName             *string                     `json:"env_file_name,omitempty"`
+	ManagedRoot             ProjectManagedRootResponse  `json:"managed_root"`
+	Message                 *string                     `json:"message,omitempty"`
+	MessageKey              *string                     `json:"message_key,omitempty"`
+	OwnershipMode           ProjectOwnershipMode        `json:"ownership_mode"`
+	ProjectId               int64                       `json:"project_id"`
+	Result                  ProjectCreateResponseResult `json:"result"`
+	SnapshotSummary         struct {
+		ConfigHash           string    `json:"config_hash"`
+		DeclaredServiceCount *int      `json:"declared_service_count,omitempty"`
+		RefreshedAt          time.Time `json:"refreshed_at"`
+	} `json:"snapshot_summary"`
+	Warnings         *[]string `json:"warnings,omitempty"`
+	WorkingDirectory string    `json:"working_directory"`
+}
+
+// ProjectCreateResponseAction defines model for ProjectCreateResponse.Action.
+type ProjectCreateResponseAction string
+
+// ProjectCreateResponseResult defines model for ProjectCreateResponse.Result.
+type ProjectCreateResponseResult string
+
+// ProjectCreateValidateRequest defines model for project-create-validate-request.
+type ProjectCreateValidateRequest struct {
+	CanonicalProjectName string  `json:"canonical_project_name"`
+	ComposeFileName      string  `json:"compose_file_name"`
+	DisplayName          string  `json:"display_name"`
+	EnvFileName          *string `json:"env_file_name,omitempty"`
+
+	// RelativeProjectDirectory Relative project directory under the canonical managed root.
+	RelativeProjectDirectory string `json:"relative_project_directory"`
+}
+
+// ProjectCreateValidateResponse defines model for project-create-validate-response.
+type ProjectCreateValidateResponse struct {
+	CanonicalProjectName    string                     `json:"canonical_project_name"`
+	ComposeFileAbsolutePath string                     `json:"compose_file_absolute_path"`
+	ComposeFileName         string                     `json:"compose_file_name"`
+	DisplayName             string                     `json:"display_name"`
+	EnvFileAbsolutePath     *string                    `json:"env_file_absolute_path,omitempty"`
+	EnvFileName             *string                    `json:"env_file_name,omitempty"`
+	ManagedRoot             ProjectManagedRootResponse `json:"managed_root"`
+	OwnershipMode           ProjectOwnershipMode       `json:"ownership_mode"`
+	Warnings                *[]string                  `json:"warnings,omitempty"`
+	WorkingDirectory        string                     `json:"working_directory"`
+}
+
+// ProjectDeployRequest defines model for project-deploy-request.
+type ProjectDeployRequest struct {
+	ComposeFileContent string  `json:"compose_file_content"`
+	EnvFileContent     *string `json:"env_file_content,omitempty"`
+}
+
+// ProjectDeployResponse defines model for project-deploy-response.
+type ProjectDeployResponse struct {
+	Action               ProjectDeployResponseAction `json:"action"`
+	CanonicalProjectName string                      `json:"canonical_project_name"`
+	ConfigHash           string                      `json:"config_hash"`
+	DeclaredServiceCount *int                        `json:"declared_service_count,omitempty"`
+	GuardResults         *[]ProjectGuardResult       `json:"guard_results,omitempty"`
+	Message              *string                     `json:"message,omitempty"`
+	MessageKey           *string                     `json:"message_key,omitempty"`
+	OwnershipMode        ProjectOwnershipMode        `json:"ownership_mode"`
+	ProjectId            int64                       `json:"project_id"`
+	RefreshedAt          time.Time                   `json:"refreshed_at"`
+	Result               ProjectDeployResponseResult `json:"result"`
+}
+
+// ProjectDeployResponseAction defines model for ProjectDeployResponse.Action.
+type ProjectDeployResponseAction string
+
+// ProjectDeployResponseResult defines model for ProjectDeployResponse.Result.
+type ProjectDeployResponseResult string
+
+// ProjectDestroyRequest defines model for project-destroy-request.
+type ProjectDestroyRequest struct {
+	ConfirmCanonicalProjectName string `json:"confirm_canonical_project_name"`
+	DeleteWorkingDirectory      bool   `json:"delete_working_directory"`
+	RemoveNamedVolumes          bool   `json:"remove_named_volumes"`
+}
+
+// ProjectDetailResponse defines model for project-detail-response.
+type ProjectDetailResponse struct {
+	CanonicalProjectName       string                     `json:"canonical_project_name"`
+	CanonicalProjectNameSource ProjectCanonicalNameSource `json:"canonical_project_name_source"`
+	ComposeFiles               []ProjectFileItem          `json:"compose_files"`
+	ContainerCounts            ProjectContainerCounts     `json:"container_counts"`
+	DisplayName                string                     `json:"display_name"`
+	DriftStatus                ProjectDriftStatus         `json:"drift_status"`
+	EnvFiles                   []ProjectFileItem          `json:"env_files"`
+	HostScope                  ProjectHostScope           `json:"host_scope"`
+	Id                         int64                      `json:"id"`
+	LastDriftCheckedAt         *time.Time                 `json:"last_drift_checked_at,omitempty"`
+	LastObservedConfigHash     *string                    `json:"last_observed_config_hash,omitempty"`
+	LastRefreshAt              *time.Time                 `json:"last_refresh_at,omitempty"`
+	LastRefreshConfigHash      *string                    `json:"last_refresh_config_hash,omitempty"`
+
+	// LastRefreshErrorCode Stable error code from the latest failed refresh. Empty string means no recorded failure.
+	LastRefreshErrorCode *string `json:"last_refresh_error_code,omitempty"`
+
+	// LastRefreshErrorMessage Fallback error message from the latest failed refresh.
+	LastRefreshErrorMessage *string              `json:"last_refresh_error_message,omitempty"`
+	LastRefreshStatus       ProjectRefreshStatus `json:"last_refresh_status"`
+	OwnershipMode           ProjectOwnershipMode `json:"ownership_mode"`
+
+	// RuntimeStatus Bounded runtime summary status for overview consumption only. It must not become a replacement for container runtime detail authority.
+	RuntimeStatus    *ProjectRuntimeStatus `json:"runtime_status,omitempty"`
+	ServiceCount     int                   `json:"service_count"`
+	SourceKind       ProjectSourceKind     `json:"source_kind"`
+	WorkingDirectory string                `json:"working_directory"`
+}
+
+// ProjectDriftStatus defines model for project-drift-status.
+type ProjectDriftStatus string
+
+// ProjectFileItem defines model for project-file-item.
+type ProjectFileItem struct {
+	AbsolutePath        string          `json:"absolute_path"`
+	DisplayPath         string          `json:"display_path"`
+	ExistsOnLastRefresh bool            `json:"exists_on_last_refresh"`
+	Id                  int64           `json:"id"`
+	Kind                ProjectFileKind `json:"kind"`
+
+	// LastObservedHash Most recently observed file hash. Empty string means the system has not observed one yet.
+	LastObservedHash *string         `json:"last_observed_hash,omitempty"`
+	OrderIndex       int             `json:"order_index"`
+	Role             ProjectFileRole `json:"role"`
+}
+
+// ProjectFileKind defines model for project-file-kind.
+type ProjectFileKind string
+
+// ProjectFileRole defines model for project-file-role.
+type ProjectFileRole string
+
+// ProjectGuardResult defines model for project-guard-result.
+type ProjectGuardResult struct {
+	Code       string  `json:"code"`
+	Detail     *string `json:"detail,omitempty"`
+	MessageKey *string `json:"message_key,omitempty"`
+}
+
+// ProjectHostScope defines model for project-host-scope.
+type ProjectHostScope string
+
+// ProjectImportResponse defines model for project-import-response.
+type ProjectImportResponse struct {
+	Project         ProjectDetailResponse `json:"project"`
+	SnapshotSummary struct {
+		ConfigHash           string    `json:"config_hash"`
+		DeclaredServiceCount *int      `json:"declared_service_count,omitempty"`
+		RefreshedAt          time.Time `json:"refreshed_at"`
+	} `json:"snapshot_summary"`
+}
+
+// ProjectImportValidateRequest defines model for project-import-validate-request.
+type ProjectImportValidateRequest struct {
+	CanonicalProjectNameOverride *string `json:"canonical_project_name_override,omitempty"`
+
+	// ComposeFiles Ordered Compose file list. Phase 1 UI may submit one file, but the authority contract stays multi-file.
+	ComposeFiles     *[]string `json:"compose_files,omitempty"`
+	DisplayName      *string   `json:"display_name,omitempty"`
+	EnvFiles         *[]string `json:"env_files,omitempty"`
+	WorkingDirectory string    `json:"working_directory"`
+}
+
+// ProjectImportValidateResponse defines model for project-import-validate-response.
+type ProjectImportValidateResponse struct {
+	CanonicalProjectName       string                     `json:"canonical_project_name"`
+	CanonicalProjectNameSource ProjectCanonicalNameSource `json:"canonical_project_name_source"`
+	ComposeFiles               []ProjectFileItem          `json:"compose_files"`
+	Conflicts                  []string                   `json:"conflicts"`
+	EnvFiles                   []ProjectFileItem          `json:"env_files"`
+	NormalizedPreviewSummary   *struct {
+		ConfigHash           *string   `json:"config_hash,omitempty"`
+		DeclaredServiceNames *[]string `json:"declared_service_names,omitempty"`
+	} `json:"normalized_preview_summary,omitempty"`
+	ServiceCount     int      `json:"service_count"`
+	Warnings         []string `json:"warnings"`
+	WorkingDirectory string   `json:"working_directory"`
+}
+
+// ProjectListItem defines model for project-list-item.
+type ProjectListItem struct {
+	CanonicalProjectName       string                     `json:"canonical_project_name"`
+	CanonicalProjectNameSource ProjectCanonicalNameSource `json:"canonical_project_name_source"`
+	ContainerCounts            ProjectContainerCounts     `json:"container_counts"`
+	DisplayName                string                     `json:"display_name"`
+	DriftStatus                ProjectDriftStatus         `json:"drift_status"`
+	HostScope                  ProjectHostScope           `json:"host_scope"`
+	Id                         int64                      `json:"id"`
+	LastRefreshAt              *time.Time                 `json:"last_refresh_at,omitempty"`
+	LastRefreshStatus          ProjectRefreshStatus       `json:"last_refresh_status"`
+	OwnershipMode              ProjectOwnershipMode       `json:"ownership_mode"`
+
+	// RuntimeStatus Bounded runtime summary status for overview consumption only. It must not become a replacement for container runtime detail authority.
+	RuntimeStatus    *ProjectRuntimeStatus `json:"runtime_status,omitempty"`
+	ServiceCount     int                   `json:"service_count"`
+	SourceKind       ProjectSourceKind     `json:"source_kind"`
+	WorkingDirectory string                `json:"working_directory"`
+}
+
+// ProjectListResponse defines model for project-list-response.
+type ProjectListResponse struct {
+	Items  []ProjectListItem `json:"items"`
+	Limit  int               `json:"limit"`
+	Offset int               `json:"offset"`
+	Total  int               `json:"total"`
+}
+
+// ProjectManagedRootResponse defines model for project-managed-root-response.
+type ProjectManagedRootResponse struct {
+	ConfigKey               string                   `json:"config_key"`
+	ConfiguredRootDirectory *string                  `json:"configured_root_directory,omitempty"`
+	CreatePermission        string                   `json:"create_permission"`
+	OwnershipMode           ProjectOwnershipMode     `json:"ownership_mode"`
+	Status                  ProjectManagedRootStatus `json:"status"`
+	StatusReason            *string                  `json:"status_reason,omitempty"`
+	SupportsManagedCreate   bool                     `json:"supports_managed_create"`
+}
+
+// ProjectManagedRootStatus defines model for project-managed-root-status.
+type ProjectManagedRootStatus string
+
+// ProjectOwnershipMode defines model for project-ownership-mode.
+type ProjectOwnershipMode string
+
+// ProjectRefreshStatus defines model for project-refresh-status.
+type ProjectRefreshStatus string
+
+// ProjectRuntimeStatus Stable bounded runtime summary status for project overview consumers. Unknown or not-yet-derived runtime state should be expressed as null instead of a free-form string.
+type ProjectRuntimeStatus string
+
+// ProjectServiceItem defines model for project-service-item.
+type ProjectServiceItem struct {
+	BuildContext     *string `json:"build_context,omitempty"`
+	ContainerMembers []struct {
+		ContainerId   string `json:"container_id"`
+		ContainerName string `json:"container_name"`
+		State         string `json:"state"`
+	} `json:"container_members"`
+	DeclaredNetworks *[]string `json:"declared_networks,omitempty"`
+	DeclaredPorts    *[]string `json:"declared_ports,omitempty"`
+	DeclaredVolumes  *[]string `json:"declared_volumes,omitempty"`
+	Image            *string   `json:"image,omitempty"`
+	RunningCount     int       `json:"running_count"`
+	ServiceName      string    `json:"service_name"`
+	StoppedCount     int       `json:"stopped_count"`
+}
+
+// ProjectServicesResponse defines model for project-services-response.
+type ProjectServicesResponse struct {
+	CanonicalProjectName string               `json:"canonical_project_name"`
+	Items                []ProjectServiceItem `json:"items"`
+	ProjectId            int64                `json:"project_id"`
+}
+
+// ProjectSourceKind defines model for project-source-kind.
+type ProjectSourceKind string
 
 // PublishAnnouncementRequest defines model for publish-announcement-request.
 type PublishAnnouncementRequest struct {
@@ -7024,6 +8074,27 @@ type ContainerShellTicketQuery = string
 
 // LocaleHeader defines model for locale-header.
 type LocaleHeader = string
+
+// ProjectFileIdPath defines model for project-file-id-path.
+type ProjectFileIdPath = int64
+
+// ProjectIdPath defines model for project-id-path.
+type ProjectIdPath = int64
+
+// ProjectListDriftStatus defines model for project-list-drift-status.
+type ProjectListDriftStatus = ProjectDriftStatus
+
+// ProjectListLimit defines model for project-list-limit.
+type ProjectListLimit = int
+
+// ProjectListOffset defines model for project-list-offset.
+type ProjectListOffset = int
+
+// ProjectListRefreshStatus defines model for project-list-refresh-status.
+type ProjectListRefreshStatus = ProjectRefreshStatus
+
+// ProjectListSourceKind defines model for project-list-source-kind.
+type ProjectListSourceKind = ProjectSourceKind
 
 // RealtimeTicketQuery defines model for realtime-ticket-query.
 type RealtimeTicketQuery = string
@@ -7898,6 +8969,221 @@ type PostContainerStopParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
+// GetProjectsParams defines parameters for GetProjects.
+type GetProjectsParams struct {
+	// Limit Optional maximum number of projects to return. The runtime accepts values from 1 to 100.
+	Limit *ProjectListLimit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Offset Optional zero-based offset for projects.
+	Offset *ProjectListOffset `form:"offset,omitempty" json:"offset,omitempty"`
+
+	// SourceKind Optional project source filter.
+	SourceKind *ProjectListSourceKind `form:"source_kind,omitempty" json:"source_kind,omitempty"`
+
+	// DriftStatus Optional project drift-status filter.
+	DriftStatus *ProjectListDriftStatus `form:"drift_status,omitempty" json:"drift_status,omitempty"`
+
+	// LastRefreshStatus Optional latest-refresh-status filter.
+	LastRefreshStatus *ProjectListRefreshStatus `form:"last_refresh_status,omitempty" json:"last_refresh_status,omitempty"`
+
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostProjectCreateParams defines parameters for PostProjectCreate.
+type PostProjectCreateParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostProjectCreateValidateParams defines parameters for PostProjectCreateValidate.
+type PostProjectCreateValidateParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostProjectImportParams defines parameters for PostProjectImport.
+type PostProjectImportParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostProjectImportValidateParams defines parameters for PostProjectImportValidate.
+type PostProjectImportValidateParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetProjectManagedRootParams defines parameters for GetProjectManagedRoot.
+type GetProjectManagedRootParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetProjectParams defines parameters for GetProject.
+type GetProjectParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetProjectConfigurationParams defines parameters for GetProjectConfiguration.
+type GetProjectConfigurationParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostProjectConfigurationDiffParams defines parameters for PostProjectConfigurationDiff.
+type PostProjectConfigurationDiffParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetProjectConfigurationFileParams defines parameters for GetProjectConfigurationFile.
+type GetProjectConfigurationFileParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetProjectConfigurationPreviewParams defines parameters for GetProjectConfigurationPreview.
+type GetProjectConfigurationPreviewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostProjectConfigurationValidateParams defines parameters for PostProjectConfigurationValidate.
+type PostProjectConfigurationValidateParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostProjectDeployParams defines parameters for PostProjectDeploy.
+type PostProjectDeployParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostProjectDestroyParams defines parameters for PostProjectDestroy.
+type PostProjectDestroyParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostProjectDownParams defines parameters for PostProjectDown.
+type PostProjectDownParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostProjectRefreshParams defines parameters for PostProjectRefresh.
+type PostProjectRefreshParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostProjectRestartParams defines parameters for PostProjectRestart.
+type PostProjectRestartParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetProjectServicesParams defines parameters for GetProjectServices.
+type GetProjectServicesParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostProjectUnregisterParams defines parameters for PostProjectUnregister.
+type PostProjectUnregisterParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostProjectUpParams defines parameters for PostProjectUp.
+type PostProjectUpParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
 // GetPermissionsParams defines parameters for GetPermissions.
 type GetPermissionsParams struct {
 	Keyword  *string `form:"keyword,omitempty" json:"keyword,omitempty"`
@@ -8440,6 +9726,30 @@ type PostContainerRemoveJSONRequestBody = ContainerRemoveRequest
 
 // PostContainerShellSessionJSONRequestBody defines body for PostContainerShellSession for application/json ContentType.
 type PostContainerShellSessionJSONRequestBody = ContainerShellSessionRequest
+
+// PostProjectCreateJSONRequestBody defines body for PostProjectCreate for application/json ContentType.
+type PostProjectCreateJSONRequestBody = ProjectCreateRequest
+
+// PostProjectCreateValidateJSONRequestBody defines body for PostProjectCreateValidate for application/json ContentType.
+type PostProjectCreateValidateJSONRequestBody = ProjectCreateValidateRequest
+
+// PostProjectImportJSONRequestBody defines body for PostProjectImport for application/json ContentType.
+type PostProjectImportJSONRequestBody = ProjectImportValidateRequest
+
+// PostProjectImportValidateJSONRequestBody defines body for PostProjectImportValidate for application/json ContentType.
+type PostProjectImportValidateJSONRequestBody = ProjectImportValidateRequest
+
+// PostProjectConfigurationDiffJSONRequestBody defines body for PostProjectConfigurationDiff for application/json ContentType.
+type PostProjectConfigurationDiffJSONRequestBody = ProjectConfigurationDiffRequest
+
+// PostProjectConfigurationValidateJSONRequestBody defines body for PostProjectConfigurationValidate for application/json ContentType.
+type PostProjectConfigurationValidateJSONRequestBody = ProjectConfigurationValidateRequest
+
+// PostProjectDeployJSONRequestBody defines body for PostProjectDeploy for application/json ContentType.
+type PostProjectDeployJSONRequestBody = ProjectDeployRequest
+
+// PostProjectDestroyJSONRequestBody defines body for PostProjectDestroy for application/json ContentType.
+type PostProjectDestroyJSONRequestBody = ProjectDestroyRequest
 
 // PostRealtimeSubscriptionJSONRequestBody defines body for PostRealtimeSubscription for application/json ContentType.
 type PostRealtimeSubscriptionJSONRequestBody = RealtimeSubscriptionRequest

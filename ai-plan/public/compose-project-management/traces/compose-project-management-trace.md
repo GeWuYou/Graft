@@ -37,25 +37,165 @@
 - Phase 2 再进入 managed create、editor、diff、validate、deploy。
 - Phase 3 再进入 git/template/discovery/remote-host/backend aggregation。
 
+## 2026-06-30 Phase 1 Batch 1 project contract and data model
+
+- 落地 `openapi/**` authority owner：新增 `/api/ops/projects/**` route space，以及 import、detail、services、readonly configuration、refresh、up/down/restart、unregister、destroy 的 canonical contract source。
+- 落地 `server/modules/project/**` authority owner：新增 module-owned route contract、message key、typed model，以及 `202606300002_project_registry_baseline.sql` migration baseline。
+- 落地 `server/internal/moduleapi/container_project.go`：定义后续 `project -> container` 只读聚合所需的最小稳定 shared boundary，避免直接依赖 `server/modules/container/**` 私有实现。
+- 同步 `ai-plan/design/domains/compose/Compose项目管理设计.md`，把 Batch 1 authority owner 和批次边界写回设计文档，避免 topic 设计与实现漂移。
+- 本批验证通过：
+  - `git diff --check`
+  - `node scripts/openapi-bundle.mjs`
+  - `python3 scripts/validate_sql_migrations.py --paths server/modules/project/migrations/202606300002_project_registry_baseline.sql`
+  - `cd server && go run ./cmd/graft validate backend`
+  - `cd web && bun run check`
+- 本批已提交：`8c23dd2e` `feat(project): define phase 1 project contract and data model`
+
+## 2026-06-30 Phase 1 Batch 2 server project module import and refresh
+
+- 落地 `server/modules/project/**` authority owner：建立 module skeleton、SQL repository、Compose loader、import validate/import/register/refresh 服务与 route wiring。
+- 同步 `server/internal/moduleregistry/generated.go`，把 project module 纳入 compile-time registry 派生产物。
+- 在 retry round 中修复 `server/internal/moduleregistry/registry_test.go` 的最小上游 authority drift，把 `modules/project/migrations` 纳入 owner-aligned migration baseline 预期，使 required backend validation 恢复通过。
+- 本批验证通过：
+  - `git diff --check`
+  - `cd server && go test ./modules/project/...`
+  - `cd server && go run ./cmd/graft validate backend`
+  - `cd web && bun run check`
+- 本批已提交：`608a5815` `feat(project): add project import and refresh module`
+
+## 2026-06-30 Phase 1 Batch 3 server lifecycle and runtime aggregation boundary
+
+- 落地 `server/modules/project/**` authority owner：建立 `up/down/restart/unregister/destroy` 生命周期路径、ownership guard、service/runtime summary 映射，以及 repository soft-delete 能力。
+- 落地 `server/modules/container/**` authority owner：新增 `ContainerProjectRuntimeReader` 的最小稳定实现，只暴露 project 聚合所需的 runtime members/counts，保持 container 作为 runtime authority。
+- 继续复用 `server/internal/moduleapi/container_project.go` 作为跨模块稳定边界，没有把 detail/logs/events/stats/shell 私有实现泄漏给 `project` module。
+- 本批验证通过：
+  - `git diff --check`
+  - `cd server && go test ./modules/project/... ./modules/container/...`
+  - `cd server && go run ./cmd/graft validate backend`
+  - `cd web && bun run check`
+- 本批已提交：`f03e4c78` `feat(project): add lifecycle and runtime aggregation boundary`
+
+## 2026-06-30 Phase 1 Batch 4 web project list detail and readonly configuration
+
+- 落地 `web/src/modules/project/**` authority owner：建立 project module registration、typed API consumer、locale owner，以及 `list/detail` 页面。
+- `list` 页承载 project registry list、filters、summary tags、lifecycle actions 与 detail tab 导航。
+- `detail` 页承载 `Overview`、`Services`、`Configuration`、`Activity` 四个页签：
+  - `Overview` 保持 summary，不复制 runtime dashboard。
+  - `Services` 只展示静态服务定义与 container member/count 聚合，并回跳现有 Container Detail。
+  - `Configuration` 保持只读 metadata、preview、single-file content 三段消费。
+  - `Activity` 继续只做前端 fan-out，复用现有 container logs/events API。
+- 在 batch 内修复了 web governance blockers：
+  - 删除未使用 helper。
+  - 抽出 module-local shared helpers 以通过 duplicate-code gate。
+  - 把 fixed spacing 改为 density tokens。
+  - 补齐 ownership mode i18n key，避免可见文案硬编码。
+- 本批验证通过：
+  - `git diff --check`
+  - `cd server && go run ./cmd/graft validate backend`
+  - `cd web && bun run check`
+- 本批已提交：`5c593f9f` `feat(project): add phase 1 project web module`
+
+## 2026-06-30 Phase 1 Batch 5 validation drift guard and governance sync
+
+- 重新运行 Phase 1 closeout validation chain，确认当前 authority owner 与 generated/runtime consumers 无 drift：
+  - `git diff --check`
+  - `node scripts/openapi-bundle.mjs`
+  - `python3 scripts/validate_sql_migrations.py --paths server/modules/project/migrations/202606300002_project_registry_baseline.sql`
+  - `cd server && go run ./cmd/graft validate backend`
+  - `cd web && bun run check`
+- 同步 `ai-plan/design/domains/compose/Compose项目管理设计.md`，补齐 batch 4 前端 authority 落点，避免 design 与运行面漂移。
+- 完成 Phase 1 archive-readiness check：
+  - local import / registry / snapshot / lifecycle / readonly configuration / frontend activity fan-out 路径都已落地。
+  - `Project` 与 `Container` authority 边界保持稳定，没有引入 project-level runtime persistence 或 backend logs/events aggregation。
+- Topic 未进入 `archive-ready`，因为 `Phase 2` 与 `Phase 3` 仍为明确的后续 bounded work。
+
+## 2026-06-30 Phase 2 loop rebatching
+
+- 未接受“Phase 2 仍是大阶段占位符，因此 loop 必须 blocked”这一过早终止结论。
+- 在同一 `topic-completion-loop` 下把 Phase 2 重新拆成可执行 bounded batches：
+  - `phase-2-batch-1-managed-root-and-create-contracts`
+  - `phase-2-batch-2-server-managed-create-and-file-write-path`
+  - `phase-2-batch-3-web-managed-create-and-editors`
+  - `phase-2-batch-4-diff-validate-and-deploy-flow`
+  - `phase-2-batch-5-phase-2-validation-drift-guard-and-governance-sync`
+- 保持同一 active topic，不创建新主题，不切换 recovery source。
+- loop state 前移到 `phase-2-batch-1-managed-root-and-create-contracts`。
+
+## 2026-06-30 Phase 2 Batch 1 managed root and create contracts
+
+- 落地 managed create 的上游 authority owner，而不是下游兼容层：
+  - `openapi/**` 新增 `managed-root`、`create-validate`、`create` canonical contract source。
+  - `server/modules/project/**` 新增 managed root system config、create route/permission/message 合同与模块注册接入。
+  - `web/src/modules/project/contract/**` 只同步最小稳定消费路径常量。
+- 本批明确不实现实际文件写入、editor、diff、validate UI 或 deploy flow。
+- 本批验证通过：
+  - `git diff --check`
+  - `node scripts/openapi-bundle.mjs`
+  - `cd server && go run ./cmd/graft validate backend`
+  - `cd web && bun run check`
+- 本批已提交：`f1f5a72d` `feat(project): define managed create root and contracts`
+
+## 2026-06-30 Phase 2 Batch 2 server managed create and file write path
+
+- 落地 `server/modules/project/**` authority owner：实现 managed create 的服务端 file-write path，在 managed root 下创建 working directory、写 compose/env 文件、解析配置、持久化 registry 与 snapshot bootstrap。
+- 同步 `openapi/**` authority owner：为 `POST /api/ops/projects/create` 增加实际 create request payload，并把 create response 修正为同步创建结果语义，去除 batch 1 阶段遗留的 accepted-only 语义。
+- create 流程在 registry 失败时清理本轮新建目录和文件，避免留下无主目录。
+- 本批验证通过：
+  - `git diff --check`
+  - `node scripts/openapi-bundle.mjs`
+  - `cd server && go test ./modules/project/...`
+  - `cd server && go run ./cmd/graft validate backend`
+  - `cd web && bun run check`
+- 本批已提交：`9ec8da91` `feat(project): add managed create file write path`
+
+## 2026-06-30 Phase 2 Batch 3 web managed create and editors
+
+- 落地 `web/src/modules/project/**` authority owner：建立 managed create route、managed-root/create/create-validate API 消费、create 页面，以及 Compose/Env editor surface。
+- 本批保持在 web authority owner 内，没有进入 diff/deploy flow、remote host、backend runtime-state persistence，也没有改动 `server/**` / `openapi/**`。
+- TDesign MCP preflight 已执行并采用：
+  - components: `Form`, `Input`, `Textarea`, `Button`, `Card`, `Tabs`, `Alert`, `Drawer`, `Dialog`, `Space`, `Descriptions`, `Tag`, `Empty`
+  - queries: `get_component_list`, `get_component_docs`, `get_component_dom`
+- 本批验证通过：
+  - `git diff --check`
+  - `cd web && bun run check`
+  - `cd server && go run ./cmd/graft validate backend`
+- 本批已提交：`db8c4bf1` `feat(project): add managed create web workflow`
+
+## 2026-06-30 Phase 2 Batch 4 diff validate and deploy flow
+
+- 落地 `openapi/**` + `server/modules/project/**` + `web/src/modules/project/**` authority owner：实现 managed compose project 的 `diff / validate / deploy` 流程。
+- `Project` 继续只拥有配置草稿、差异、校验和部署编排，没有引入项目级 runtime 持久化，也没有越界到 container 私有实现或后端 project logs/events 聚合。
+- 前端继续保持 `project detail` 的 `list-form-detail` 页型，在 `Configuration` tab 内承接编辑、diff、validate、deploy 流程。
+- 本批验证通过：
+  - `git diff --check`
+  - `node scripts/openapi-bundle.mjs`
+  - `cd server && go run ./cmd/graft validate backend`
+  - `cd web && bun run check`
+- 本批已提交：`beb75a48` `feat(project): add managed diff validate deploy flow`
+
 ## Loop Batch State
 
 ```json
 {
   "loop_mode": "topic-completion-loop",
   "completed_batches": [
-    "phase-0-design-authority-and-topic-persistence"
-  ],
-  "pending_batches": [
+    "phase-0-design-authority-and-topic-persistence",
     "phase-1-batch-1-project-contract-and-data-model",
     "phase-1-batch-2-server-project-module-import-and-refresh",
     "phase-1-batch-3-server-lifecycle-and-container-aggregation-boundary",
     "phase-1-batch-4-web-project-list-detail-and-readonly-configuration",
     "phase-1-batch-5-phase-1-validation-drift-guard-and-governance-sync",
-    "phase-2-managed-create-editor-and-deploy",
+    "phase-2-batch-1-managed-root-and-create-contracts",
+    "phase-2-batch-2-server-managed-create-and-file-write-path",
+    "phase-2-batch-3-web-managed-create-and-editors",
+    "phase-2-batch-4-diff-validate-and-deploy-flow"
+  ],
+  "pending_batches": [
+    "phase-2-batch-5-phase-2-validation-drift-guard-and-governance-sync",
     "phase-3-discovery-git-template-and-remote-host"
   ],
-  "current_batch": "phase-0-design-authority-and-topic-persistence",
-  "next_batch": "phase-1-batch-1-project-contract-and-data-model",
-  "closeout_status": "phase-0-completed"
+  "current_batch": "phase-2-batch-4-diff-validate-and-deploy-flow",
+  "next_batch": "phase-2-batch-5-phase-2-validation-drift-guard-and-governance-sync",
+  "closeout_status": "phase-2-batch-4-completed"
 }
 ```

@@ -1,0 +1,32 @@
+type: object
+required:
+  - project_id
+  - canonical_project_name
+  - ownership_mode
+  - current_config_hash
+  - proposed_config_hash
+  - has_changes
+  - files
+properties:
+  project_id:
+    type: integer
+    format: int64
+    minimum: 1
+  canonical_project_name:
+    type: string
+  ownership_mode:
+    $ref: ./project-ownership-mode.yaml
+  current_config_hash:
+    type: string
+  proposed_config_hash:
+    type: string
+  has_changes:
+    type: boolean
+  files:
+    type: array
+    items:
+      $ref: ./project-configuration-diff-file.yaml
+  warnings:
+    type: array
+    items:
+      type: string

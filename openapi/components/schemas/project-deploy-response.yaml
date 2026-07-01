@@ -1,0 +1,46 @@
+type: object
+required:
+  - project_id
+  - action
+  - result
+  - canonical_project_name
+  - ownership_mode
+  - config_hash
+  - refreshed_at
+properties:
+  project_id:
+    type: integer
+    format: int64
+    minimum: 1
+  action:
+    type: string
+    enum: [deploy]
+    x-enum-varnames:
+      - ProjectDeployResponseActionDeploy
+  result:
+    type: string
+    enum: [completed]
+    x-enum-varnames:
+      - ProjectDeployResponseResultCompleted
+  canonical_project_name:
+    type: string
+  ownership_mode:
+    $ref: ./project-ownership-mode.yaml
+  config_hash:
+    type: string
+  refreshed_at:
+    type: string
+    format: date-time
+  declared_service_count:
+    type: integer
+    minimum: 0
+  message_key:
+    type: string
+    nullable: true
+  message:
+    type: string
+    nullable: true
+  guard_results:
+    type: array
+    items:
+      $ref: ./project-guard-result.yaml

@@ -1,0 +1,72 @@
+type: object
+required:
+  - managed_root
+  - project_id
+  - action
+  - result
+  - display_name
+  - canonical_project_name
+  - ownership_mode
+  - working_directory
+  - compose_file_name
+  - compose_file_absolute_path
+  - snapshot_summary
+properties:
+  managed_root:
+    $ref: ./project-managed-root-response.yaml
+  project_id:
+    type: integer
+    format: int64
+    minimum: 1
+  action:
+    type: string
+    enum: [create]
+    x-enum-varnames:
+      - ProjectCreateResponseActionCreate
+  result:
+    type: string
+    enum: [created]
+    x-enum-varnames:
+      - ProjectCreateResponseResultCreated
+  display_name:
+    type: string
+  canonical_project_name:
+    type: string
+  ownership_mode:
+    $ref: ./project-ownership-mode.yaml
+  working_directory:
+    type: string
+  compose_file_name:
+    type: string
+  compose_file_absolute_path:
+    type: string
+  env_file_name:
+    type: string
+    nullable: true
+  env_file_absolute_path:
+    type: string
+    nullable: true
+  snapshot_summary:
+    type: object
+    required:
+      - config_hash
+      - refreshed_at
+    properties:
+      config_hash:
+        type: string
+      refreshed_at:
+        type: string
+        format: date-time
+      declared_service_count:
+        type: integer
+        minimum: 0
+  message_key:
+    type: string
+    nullable: true
+  message:
+    type: string
+    nullable: true
+  warnings:
+    type: array
+    items:
+      type: string

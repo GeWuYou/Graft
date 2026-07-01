@@ -1,0 +1,5 @@
+type: string
+enum: [computed, override]
+x-enum-varnames:
+  - ProjectCanonicalNameSourceComputed
+  - ProjectCanonicalNameSourceOverride

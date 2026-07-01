@@ -1,0 +1,30 @@
+type: object
+required:
+  - file_id
+  - kind
+  - path
+  - content
+  - encoding
+  - read_only
+  - download_name
+properties:
+  file_id:
+    type: integer
+    format: int64
+    minimum: 1
+  kind:
+    $ref: ./project-file-kind.yaml
+  path:
+    type: string
+  content:
+    type: string
+  encoding:
+    type: string
+    enum: [utf-8]
+    x-enum-varnames:
+      - ProjectConfigurationEncodingUTF8
+  read_only:
+    type: boolean
+    enum: [true]
+  download_name:
+    type: string

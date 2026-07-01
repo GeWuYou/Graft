@@ -1,0 +1,31 @@
+get:
+  tags: [project]
+  summary: List Compose projects
+  operationId: getProjects
+  description: Returns registered Compose projects without introducing a second runtime authority.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - $ref: ../components/parameters/project-list-limit.yaml
+    - $ref: ../components/parameters/project-list-offset.yaml
+    - $ref: ../components/parameters/project-list-source-kind.yaml
+    - $ref: ../components/parameters/project-list-drift-status.yaml
+    - $ref: ../components/parameters/project-list-refresh-status.yaml
+  security:
+    - bearerAuth: []
+  responses:
+    '200':
+      description: Compose project list.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-project-list-response.yaml
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      $ref: ../components/responses/forbidden.yaml
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml

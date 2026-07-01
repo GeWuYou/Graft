@@ -1,0 +1,45 @@
+get:
+  tags: [project]
+  summary: Get one readonly Compose project file
+  operationId: getProjectConfigurationFile
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - $ref: ../components/parameters/project-id-path.yaml
+    - $ref: ../components/parameters/project-file-id-path.yaml
+  security:
+    - bearerAuth: []
+  responses:
+    '200':
+      description: One readonly configuration file content payload.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-project-configuration-file-response.yaml
+    '400':
+      description: Invalid project or file id.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      $ref: ../components/responses/forbidden.yaml
+    '404':
+      description: Project record or file record not found.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml

@@ -1,0 +1,21 @@
+type: object
+required:
+  - project
+  - snapshot_summary
+properties:
+  project:
+    $ref: ./project-detail-response.yaml
+  snapshot_summary:
+    type: object
+    required:
+      - config_hash
+      - refreshed_at
+    properties:
+      config_hash:
+        type: string
+      refreshed_at:
+        type: string
+        format: date-time
+      declared_service_count:
+        type: integer
+        minimum: 0

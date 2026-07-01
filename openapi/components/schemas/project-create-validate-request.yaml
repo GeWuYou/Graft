@@ -1,0 +1,32 @@
+type: object
+required:
+  - display_name
+  - canonical_project_name
+  - relative_project_directory
+  - compose_file_name
+properties:
+  display_name:
+    type: string
+    minLength: 1
+    maxLength: 120
+  canonical_project_name:
+    type: string
+    minLength: 1
+    maxLength: 120
+  relative_project_directory:
+    type: string
+    minLength: 1
+    maxLength: 255
+    pattern: '^[^./\\\\][^\\\\]*(/[^./\\\\][^\\\\]*)*$'
+    description: Relative project directory under the canonical managed root.
+  compose_file_name:
+    type: string
+    minLength: 1
+    maxLength: 255
+    pattern: '^[^/\\\\]+$'
+  env_file_name:
+    type: string
+    minLength: 1
+    maxLength: 255
+    pattern: '^[^/\\\\]+$'
+    nullable: true

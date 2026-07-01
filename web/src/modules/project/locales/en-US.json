@@ -1,0 +1,331 @@
+{
+  "menu": {
+    "ops": {
+      "project": {
+        "title": "Projects"
+      }
+    }
+  },
+  "project": {
+    "route": {
+      "list": {
+        "title": "Operations - Projects",
+        "breadcrumb": "Projects"
+      },
+      "create": {
+        "title": "Create Managed Project",
+        "breadcrumb": "Create Managed Project"
+      },
+      "detail": {
+        "title": "Project Detail",
+        "breadcrumb": "Project Detail"
+      }
+    },
+    "list": {
+      "eyebrow": "Operations",
+      "title": "Compose Projects",
+      "description": "Manage Imported Compose Projects Without Duplicating Runtime Authority.",
+      "refresh": "Refresh",
+      "retry": "Retry",
+      "tableSummary": "{count} Projects",
+      "tableHint": "Project Registry Owns Files and Lifecycle; Runtime Facts Stay in Container Authority.",
+      "emptyTitle": "No Projects",
+      "emptyDescription": "Import an Existing Compose Project to Start Reviewing Overview, Services, Configuration, and Activity.",
+      "emptyFilteredDescription": "No Projects Match the Current Filters.",
+      "clearFilters": "Clear Filters",
+      "columnSettings": "Column Settings",
+      "columnDrawerTitle": "Project Columns",
+      "projectCount": "Total {count}",
+      "runningContainers": "Running {count}",
+      "stoppedContainers": "Stopped {count}",
+      "warningProjects": "Needs Attention {count}",
+      "filters": {
+        "searchPlaceholder": "Search Display Name, Canonical Name, or Working Directory",
+        "sourceKind": "Source",
+        "driftStatus": "Drift",
+        "refreshStatus": "Refresh",
+        "allSourceKinds": "All Sources",
+        "allDriftStatuses": "All Drift States",
+        "allRefreshStatuses": "All Refresh States",
+        "query": "Query",
+        "reset": "Reset"
+      },
+      "columns": {
+        "name": "Project",
+        "source": "Source",
+        "runtime": "Runtime Summary",
+        "services": "Services",
+        "containers": "Container Counts",
+        "drift": "Drift",
+        "refresh": "Refresh",
+        "workingDirectory": "Working Directory",
+        "updatedAt": "Last Refresh",
+        "operation": "Operation"
+      },
+      "status": {
+        "runtimeUnknown": "Runtime Unknown",
+        "runtimeRunning": "Runtime Running",
+        "runtimePartial": "Runtime Partial",
+        "runtimeStopped": "Runtime Stopped",
+        "runtimeEmpty": "No Members"
+      },
+      "sourceKinds": {
+        "imported": "Imported",
+        "managed": "Managed",
+        "git": "Git",
+        "template": "Template"
+      },
+      "driftStatus": {
+        "unknown": "Unknown",
+        "clean": "Clean",
+        "changed": "Changed",
+        "missing": "Missing"
+      },
+      "refreshStatus": {
+        "never": "Never",
+        "success": "Success",
+        "failed": "Failed"
+      },
+      "actions": {
+        "detail": "Detail",
+        "overview": "Overview",
+        "services": "Services",
+        "configuration": "Configuration",
+        "activity": "Activity",
+        "create": "Create Managed Project",
+        "refresh": "Refresh",
+        "up": "Up",
+        "down": "Down",
+        "restart": "Restart",
+        "unregister": "Unregister",
+        "destroy": "Destroy",
+        "confirm": "Confirm",
+        "cancel": "Cancel",
+        "refreshSuccess": "Project Refreshed.",
+        "actionSuccess": "Project Action Completed.",
+        "actionFailed": "Project Action Failed.",
+        "unregisterConfirm": "Unregister {name}? Runtime Containers Stay Untouched.",
+        "destroyConfirm": "Destroy {name}? This Only Works When Ownership Guard Allows It."
+      }
+    },
+    "create": {
+      "eyebrow": "Managed Create",
+      "title": "Create Managed Compose Project",
+      "description": "Write Compose and Env Files Under the Managed Root and Register the Result as Project Authority Immediately.",
+      "actions": {
+        "backToList": "Back to List",
+        "refreshAuthority": "Refresh Authority",
+        "validate": "Validate Create Input",
+        "create": "Create and Open Project",
+        "reset": "Reset Form"
+      },
+      "root": {
+        "status": {
+          "ready": "Managed Root Ready",
+          "invalid": "Managed Root Invalid",
+          "unconfigured": "Managed Root Unconfigured",
+          "unknown": "Managed Root Unknown"
+        },
+        "readyHint": "This Create Flow Will Materialize Files Under {directory}, and Project Authority Will Own the Working Directory and Snapshot.",
+        "unavailableHint": "The Managed Root Authority Is Not Available Yet. Repair the Upstream System Config Before Creating Projects."
+      },
+      "form": {
+        "title": "Project Basics",
+        "displayName": "Display Name",
+        "displayNamePlaceholder": "Example: Orders Service Dev",
+        "canonicalProjectName": "Canonical Project Name",
+        "canonicalProjectNamePlaceholder": "Example: orders-dev",
+        "relativeProjectDirectory": "Relative Project Directory",
+        "relativeProjectDirectoryPlaceholder": "Example: orders/dev",
+        "composeFileName": "Compose File Name",
+        "composeFileNamePlaceholder": "Example: compose.yaml",
+        "envFileName": "Env File Name",
+        "envFileNamePlaceholder": "Leave Blank to Skip Writing an Env File"
+      },
+      "validation": {
+        "title": "Authority and Path Preview",
+        "rootDirectory": "Managed Root",
+        "configKey": "System Config Key",
+        "createPermission": "Create Permission",
+        "workingDirectory": "Resolved Working Directory",
+        "composePath": "Compose Absolute Path",
+        "envPath": "Env Absolute Path",
+        "noWarnings": "No Additional Warnings Were Returned.",
+        "displayNameRequired": "Display Name Is Required.",
+        "canonicalProjectNameRequired": "Canonical Project Name Is Required.",
+        "canonicalProjectNamePattern": "Canonical Project Name May Only Use Letters, Numbers, Dots, Underscores, and Hyphens.",
+        "relativeDirectoryRequired": "Relative Project Directory Is Required.",
+        "relativeDirectoryPattern": "The Relative Project Directory Must Stay Under the Managed Root and Cannot Traverse Upward.",
+        "composeFileNameRequired": "Compose File Name Is Required.",
+        "envFileNamePattern": "Env File Name Cannot Include Path Separators."
+      },
+      "editors": {
+        "title": "Compose and Env Editors",
+        "composeTab": "Compose",
+        "envTab": "Env",
+        "composeTitle": "Compose File Editor",
+        "composeDescription": "This Editor Owns the Initial Phase 2 Compose YAML Without Pulling in Diff, Deploy, or Runtime Persistence.",
+        "composePlaceholder": "Enter Compose YAML Content",
+        "composeEmpty": "No Compose Content Yet.",
+        "envTitle": "Env File Editor",
+        "envDescription": "The Env File Is Optional. Leave the File Name Blank to Skip Writing It in This Round.",
+        "envPlaceholder": "Enter Env File Content, for Example KEY=value",
+        "envEmpty": "No Env Content Yet. It Can Stay Empty.",
+        "preview": "Preview",
+        "backToEditor": "Back to Editor",
+        "format": "Format Content",
+        "fullscreen": "Fullscreen",
+        "exitFullscreen": "Exit Fullscreen",
+        "resize": "Resize Editor Height"
+      },
+      "messages": {
+        "rootLoadFailed": "Managed Root Authority Could Not Be Loaded.",
+        "validateSuccess": "Create Input Validated.",
+        "validateFailed": "Create Input Validation Failed.",
+        "createSuccess": "Managed Project Created.",
+        "createFailed": "Managed Project Creation Failed."
+      }
+    },
+    "detail": {
+      "ownershipMode": {
+        "managed-root-dedicated": "Managed Root Dedicated",
+        "external": "External"
+      },
+      "eyebrow": "Compose Project",
+      "description": "Project Summary, Runtime Member Links, Read-only Configuration, and Frontend Activity Fan-out.",
+      "refresh": "Refresh Snapshot",
+      "openWorkingDirectory": "Working Directory",
+      "titleFallback": "Project Detail",
+      "tabs": {
+        "overview": "Overview",
+        "services": "Services",
+        "configuration": "Configuration",
+        "activity": "Activity"
+      },
+      "overview": {
+        "summaryTitle": "Registry Summary",
+        "lifecycleTitle": "Lifecycle",
+        "snapshotTitle": "Snapshot",
+        "diagnosticsTitle": "Diagnostics",
+        "canonicalName": "Canonical Project Name",
+        "displayName": "Display Name",
+        "workingDirectory": "Working Directory",
+        "sourceKind": "Source Kind",
+        "ownershipMode": "Ownership Mode",
+        "hostScope": "Host Scope",
+        "serviceCount": "Declared Services",
+        "runtimeStatus": "Runtime Summary",
+        "lastRefreshStatus": "Last Refresh",
+        "lastRefreshAt": "Last Refresh Time",
+        "lastRefreshHash": "Last Refresh Hash",
+        "lastObservedHash": "Observed Hash",
+        "driftStatus": "Drift Status",
+        "lastDriftCheckedAt": "Last Drift Check",
+        "errorCode": "Last Error Code",
+        "errorMessage": "Last Error Message",
+        "containerCounts": "Container Counts",
+        "diagnosticsEmpty": "No Configuration Diagnostics Were Returned."
+      },
+      "services": {
+        "title": "Declared Services",
+        "summary": "{count} Services Declared in the Latest Snapshot.",
+        "emptyTitle": "No Services",
+        "emptyDescription": "Refresh the Project Snapshot to Inspect Declared Services.",
+        "declaredPorts": "Ports",
+        "declaredVolumes": "Volumes",
+        "declaredNetworks": "Networks",
+        "members": "Runtime Members",
+        "runningCount": "Running {count}",
+        "stoppedCount": "Stopped {count}",
+        "openContainer": "Open Container Detail"
+      },
+      "configuration": {
+        "title": "Configuration",
+        "summary": "Phase 2 Keeps Metadata, Draft Editing, Diff, Validate, and Deploy Under Project Authority Without Adding Runtime Persistence.",
+        "composeFiles": "Compose Files",
+        "envFiles": "Env Files",
+        "ownershipMode": "Ownership",
+        "driftStatus": "Drift",
+        "refreshStatus": "Refresh Status",
+        "editorTitle": "Draft Editors",
+        "resetDraft": "Reset Draft",
+        "runDiff": "Run Diff",
+        "runValidate": "Run Validate",
+        "deploy": "Deploy Draft",
+        "composeEditorTab": "Compose Draft",
+        "envEditorTab": "Env Draft",
+        "composeEditorTitle": "Compose Draft Editor",
+        "composeEditorDescription": "Edit the Managed Compose Draft Here. Deploy Writes Back to the Tracked Project Files and Then Refreshes the Snapshot.",
+        "composeEditorPlaceholder": "Enter Compose YAML Content",
+        "composeEditorEmpty": "No Compose Draft Content Yet.",
+        "envEditorTitle": "Env Draft Editor",
+        "envEditorDescription": "Edit the Optional Env Draft Here. The Project Module Still Owns the Tracked File Boundary.",
+        "envEditorPlaceholder": "Enter Env Content",
+        "envEditorEmpty": "No Env Draft Content Yet.",
+        "backToEditor": "Back to Editor",
+        "previewDraft": "Preview Draft",
+        "formatDraft": "Format Draft",
+        "fullscreen": "Fullscreen",
+        "exitFullscreen": "Exit Fullscreen",
+        "resizeEditor": "Resize Editor Height",
+        "diffTitle": "Draft Diff",
+        "diffEmpty": "Run Diff to Compare the Current Managed Files With the Proposed Draft.",
+        "diffHasChanges": "The Draft Diff Contains File Changes.",
+        "diffNoChanges": "The Draft Matches the Current Managed Files.",
+        "diffFileChanged": "Changed",
+        "diffFileUnchanged": "Unchanged",
+        "validationTitle": "Draft Validate",
+        "validationEmpty": "Run Validate to Inspect the Normalized Draft and Declared Services.",
+        "validateSuccess": "Project Draft Validated.",
+        "validateFailed": "Project Draft Validation Failed.",
+        "deploySuccess": "Project Draft Deployed.",
+        "deployFailed": "Project Draft Deployment Failed.",
+        "deployConfirmTitle": "Deploy Managed Project Draft",
+        "deployConfirmDescription": "Deploying this draft will overwrite the tracked managed files, refresh the project snapshot, and run docker compose up -d.",
+        "managedAuthorityHint": "This Is a Managed Project. Draft Editing, Diff, Validate, and Deploy Stay Under Project-owned Configuration Authority.",
+        "externalAuthorityHint": "This Flow Only Applies to Managed Projects. External Projects Stay on the Read-only Configuration Surface.",
+        "currentHash": "Current Hash",
+        "proposedHash": "Proposed Hash",
+        "declaredServices": "Declared Services",
+        "previewTitle": "Normalized Preview",
+        "previewHash": "Config Hash",
+        "previewUpdatedAt": "Preview Refreshed At",
+        "fileContentTitle": "File Content",
+        "downloadName": "Download Name",
+        "copyContent": "Copy Content",
+        "copySuccess": "Configuration Content Copied.",
+        "copyError": "Configuration Content Could Not Be Copied.",
+        "previewEmpty": "No Normalized Preview Is Available Yet.",
+        "fileEmpty": "Select One Compose or Env File to Preview Its Content.",
+        "diffFailed": "Project Draft Diff Failed."
+      },
+      "activity": {
+        "title": "Frontend Activity Fan-out",
+        "summary": "This View Fans Out Existing Container Logs and Events Without Adding Project-level Backend Aggregation.",
+        "emptyTitle": "No Runtime Members",
+        "emptyDescription": "This Project Currently Has No Runtime Container Members to Fan Out.",
+        "eventCount": "{count} Events",
+        "logCount": "{count} Log Lines",
+        "streamLabel": "Stream",
+        "sinceLabel": "Since",
+        "tailLabel": "Tail",
+        "eventSection": "Events",
+        "logSection": "Logs",
+        "loadFailed": "Project Activity Could Not Be Loaded."
+      },
+      "actions": {
+        "up": "Compose Up",
+        "down": "Compose Down",
+        "restart": "Compose Restart",
+        "unregister": "Unregister",
+        "destroy": "Destroy",
+        "copyPath": "Copy Path",
+        "copyPathSuccess": "Path Copied.",
+        "copyPathError": "Path Could Not Be Copied.",
+        "confirmDestroy": "Confirm Canonical Project Name",
+        "removeNamedVolumes": "Also Remove Named Volumes",
+        "deleteWorkingDirectory": "Also Delete Working Directory"
+      }
+    }
+  }
+}

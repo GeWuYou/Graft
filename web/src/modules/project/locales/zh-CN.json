@@ -1,0 +1,331 @@
+{
+  "menu": {
+    "ops": {
+      "project": {
+        "title": "项目管理"
+      }
+    }
+  },
+  "project": {
+    "route": {
+      "list": {
+        "title": "运维管理 - 项目管理",
+        "breadcrumb": "项目管理"
+      },
+      "create": {
+        "title": "创建托管项目",
+        "breadcrumb": "创建托管项目"
+      },
+      "detail": {
+        "title": "项目详情",
+        "breadcrumb": "项目详情"
+      }
+    },
+    "list": {
+      "eyebrow": "运维管理",
+      "title": "Compose 项目管理",
+      "description": "管理已导入的 Compose 项目，同时保持容器运行时 authority 不被复制。",
+      "refresh": "刷新",
+      "retry": "重试",
+      "tableSummary": "共 {count} 个项目",
+      "tableHint": "项目注册拥有文件与生命周期；运行时事实仍由容器 authority 提供。",
+      "emptyTitle": "暂无项目",
+      "emptyDescription": "先导入现有 Compose 项目，再查看 Overview、Services、Configuration 和 Activity。",
+      "emptyFilteredDescription": "当前筛选条件下没有匹配的项目。",
+      "clearFilters": "清除筛选",
+      "columnSettings": "列设置",
+      "columnDrawerTitle": "项目列设置",
+      "projectCount": "总数 {count}",
+      "runningContainers": "运行中 {count}",
+      "stoppedContainers": "已停止 {count}",
+      "warningProjects": "需关注 {count}",
+      "filters": {
+        "searchPlaceholder": "搜索展示名、Canonical 名或工作目录",
+        "sourceKind": "来源",
+        "driftStatus": "漂移状态",
+        "refreshStatus": "刷新状态",
+        "allSourceKinds": "全部来源",
+        "allDriftStatuses": "全部漂移状态",
+        "allRefreshStatuses": "全部刷新状态",
+        "query": "查询",
+        "reset": "重置"
+      },
+      "columns": {
+        "name": "项目",
+        "source": "来源",
+        "runtime": "运行时摘要",
+        "services": "服务数",
+        "containers": "容器数量",
+        "drift": "漂移",
+        "refresh": "刷新",
+        "workingDirectory": "工作目录",
+        "updatedAt": "最近刷新",
+        "operation": "操作"
+      },
+      "status": {
+        "runtimeUnknown": "运行态未知",
+        "runtimeRunning": "运行中",
+        "runtimePartial": "部分运行",
+        "runtimeStopped": "已停止",
+        "runtimeEmpty": "无成员"
+      },
+      "sourceKinds": {
+        "imported": "导入项目",
+        "managed": "受管项目",
+        "git": "Git 项目",
+        "template": "模板项目"
+      },
+      "driftStatus": {
+        "unknown": "未知",
+        "clean": "一致",
+        "changed": "已变更",
+        "missing": "文件缺失"
+      },
+      "refreshStatus": {
+        "never": "未刷新",
+        "success": "成功",
+        "failed": "失败"
+      },
+      "actions": {
+        "detail": "详情",
+        "overview": "概览",
+        "services": "服务",
+        "configuration": "配置",
+        "activity": "活动",
+        "create": "创建托管项目",
+        "refresh": "刷新",
+        "up": "启动项目",
+        "down": "停止项目",
+        "restart": "重启项目",
+        "unregister": "取消注册",
+        "destroy": "销毁",
+        "confirm": "确认",
+        "cancel": "取消",
+        "refreshSuccess": "项目快照已刷新。",
+        "actionSuccess": "项目操作已完成。",
+        "actionFailed": "项目操作失败。",
+        "unregisterConfirm": "确认取消注册 {name}？不会触碰运行中的容器。",
+        "destroyConfirm": "确认销毁 {name}？只有 ownership guard 允许时才会执行。"
+      }
+    },
+    "create": {
+      "eyebrow": "托管创建",
+      "title": "创建托管 Compose 项目",
+      "description": "在受管根目录下写入 Compose 与 Env 文件，并立即注册为 Project authority。",
+      "actions": {
+        "backToList": "返回列表",
+        "refreshAuthority": "刷新 authority",
+        "validate": "校验创建输入",
+        "create": "创建并打开项目",
+        "reset": "重置表单"
+      },
+      "root": {
+        "status": {
+          "ready": "受管根目录就绪",
+          "invalid": "受管根目录异常",
+          "unconfigured": "受管根目录未配置",
+          "unknown": "受管根目录未知"
+        },
+        "readyHint": "当前创建会落到 {directory}，创建后的 working directory 与 snapshot 由 Project authority 持有。",
+        "unavailableHint": "当前 managed root authority 不可用，需先修复上游系统配置后再创建项目。"
+      },
+      "form": {
+        "title": "项目基础信息",
+        "displayName": "展示名",
+        "displayNamePlaceholder": "例如：订单服务开发环境",
+        "canonicalProjectName": "Canonical Project Name",
+        "canonicalProjectNamePlaceholder": "例如：orders-dev",
+        "relativeProjectDirectory": "相对项目目录",
+        "relativeProjectDirectoryPlaceholder": "例如：orders/dev",
+        "composeFileName": "Compose 文件名",
+        "composeFileNamePlaceholder": "例如：compose.yaml",
+        "envFileName": "Env 文件名",
+        "envFileNamePlaceholder": "留空表示本次不写入 Env 文件"
+      },
+      "validation": {
+        "title": "Authority 与路径预览",
+        "rootDirectory": "Managed Root",
+        "configKey": "系统配置键",
+        "createPermission": "创建权限",
+        "workingDirectory": "推导工作目录",
+        "composePath": "Compose 文件绝对路径",
+        "envPath": "Env 文件绝对路径",
+        "noWarnings": "当前没有返回额外警告。",
+        "displayNameRequired": "请输入展示名。",
+        "canonicalProjectNameRequired": "请输入 Canonical Project Name。",
+        "canonicalProjectNamePattern": "Canonical Project Name 只能包含字母、数字、点、下划线和中横线。",
+        "relativeDirectoryRequired": "请输入相对项目目录。",
+        "relativeDirectoryPattern": "相对项目目录必须位于 managed root 下，且不能包含上级回退。",
+        "composeFileNameRequired": "请输入 Compose 文件名。",
+        "envFileNamePattern": "Env 文件名不能包含路径分隔符。"
+      },
+      "editors": {
+        "title": "Compose 与 Env 编辑面",
+        "composeTab": "Compose",
+        "envTab": "Env",
+        "composeTitle": "Compose 文件编辑器",
+        "composeDescription": "这里维护 Phase 2 初始 Compose YAML，不引入 diff / deploy / runtime 持久化。",
+        "composePlaceholder": "输入 Compose YAML 内容",
+        "composeEmpty": "当前还没有 Compose 内容。",
+        "envTitle": "Env 文件编辑器",
+        "envDescription": "Env 文件是可选的；留空文件名时本轮不会写入 Env 文件。",
+        "envPlaceholder": "输入 Env 文件内容，例如 KEY=value",
+        "envEmpty": "当前没有 Env 内容，可保持为空。",
+        "preview": "预览",
+        "backToEditor": "返回编辑",
+        "format": "整理内容",
+        "fullscreen": "全屏",
+        "exitFullscreen": "退出全屏",
+        "resize": "调整编辑器高度"
+      },
+      "messages": {
+        "rootLoadFailed": "受管根目录 authority 加载失败。",
+        "validateSuccess": "创建输入校验通过。",
+        "validateFailed": "创建输入校验失败。",
+        "createSuccess": "托管项目创建成功。",
+        "createFailed": "托管项目创建失败。"
+      }
+    },
+    "detail": {
+      "ownershipMode": {
+        "managed-root-dedicated": "托管根目录专属",
+        "external": "外部项目"
+      },
+      "eyebrow": "Compose 项目",
+      "description": "项目摘要、运行时成员链接、只读配置和前端 Activity fan-out。",
+      "refresh": "刷新快照",
+      "openWorkingDirectory": "工作目录",
+      "titleFallback": "项目详情",
+      "tabs": {
+        "overview": "Overview",
+        "services": "Services",
+        "configuration": "Configuration",
+        "activity": "Activity"
+      },
+      "overview": {
+        "summaryTitle": "注册摘要",
+        "lifecycleTitle": "生命周期",
+        "snapshotTitle": "快照",
+        "diagnosticsTitle": "诊断摘要",
+        "canonicalName": "Canonical Project Name",
+        "displayName": "展示名",
+        "workingDirectory": "工作目录",
+        "sourceKind": "来源类型",
+        "ownershipMode": "所有权模式",
+        "hostScope": "宿主范围",
+        "serviceCount": "声明服务数",
+        "runtimeStatus": "运行时摘要",
+        "lastRefreshStatus": "最近刷新状态",
+        "lastRefreshAt": "最近刷新时间",
+        "lastRefreshHash": "最近刷新哈希",
+        "lastObservedHash": "最近观测哈希",
+        "driftStatus": "漂移状态",
+        "lastDriftCheckedAt": "最近漂移检查",
+        "errorCode": "最近错误码",
+        "errorMessage": "最近错误消息",
+        "containerCounts": "容器数量",
+        "diagnosticsEmpty": "当前没有返回配置诊断摘要。"
+      },
+      "services": {
+        "title": "声明服务",
+        "summary": "最新快照共声明 {count} 个服务。",
+        "emptyTitle": "暂无服务",
+        "emptyDescription": "请先刷新项目快照，再查看声明服务。",
+        "declaredPorts": "端口",
+        "declaredVolumes": "卷",
+        "declaredNetworks": "网络",
+        "members": "运行时成员",
+        "runningCount": "运行中 {count}",
+        "stoppedCount": "已停止 {count}",
+        "openContainer": "打开容器详情"
+      },
+      "configuration": {
+        "title": "配置",
+        "summary": "Phase 2 在 Project authority 下继续承载 metadata、draft editor、diff、validate 和 deploy，但不新增 runtime 持久化。",
+        "composeFiles": "Compose 文件",
+        "envFiles": "Env 文件",
+        "ownershipMode": "所有权",
+        "driftStatus": "漂移状态",
+        "refreshStatus": "刷新状态",
+        "editorTitle": "草稿编辑面",
+        "resetDraft": "重置草稿",
+        "runDiff": "执行 Diff",
+        "runValidate": "执行校验",
+        "deploy": "部署草稿",
+        "composeEditorTab": "Compose 草稿",
+        "envEditorTab": "Env 草稿",
+        "composeEditorTitle": "Compose 草稿编辑器",
+        "composeEditorDescription": "这里编辑托管项目的 Compose 草稿。部署时会写回当前受管文件，并刷新项目快照。",
+        "composeEditorPlaceholder": "输入 Compose YAML 内容",
+        "composeEditorEmpty": "当前还没有 Compose 草稿内容。",
+        "envEditorTitle": "Env 草稿编辑器",
+        "envEditorDescription": "这里编辑可选的 Env 草稿。Tracked file boundary 仍由 Project module 拥有。",
+        "envEditorPlaceholder": "输入 Env 内容",
+        "envEditorEmpty": "当前还没有 Env 草稿内容。",
+        "backToEditor": "返回编辑",
+        "previewDraft": "预览草稿",
+        "formatDraft": "整理草稿",
+        "fullscreen": "全屏",
+        "exitFullscreen": "退出全屏",
+        "resizeEditor": "调整编辑器高度",
+        "diffTitle": "草稿 Diff",
+        "diffEmpty": "先执行 Diff，再比较当前受管文件与草稿内容。",
+        "diffHasChanges": "当前草稿与受管文件存在差异。",
+        "diffNoChanges": "当前草稿与受管文件一致。",
+        "diffFileChanged": "已变更",
+        "diffFileUnchanged": "未变更",
+        "validationTitle": "草稿校验",
+        "validationEmpty": "先执行校验，再查看规范化草稿和声明服务。",
+        "validateSuccess": "项目草稿校验通过。",
+        "validateFailed": "项目草稿校验失败。",
+        "deploySuccess": "项目草稿部署完成。",
+        "deployFailed": "项目草稿部署失败。",
+        "deployConfirmTitle": "部署托管项目草稿",
+        "deployConfirmDescription": "部署会覆盖当前受管文件、刷新项目快照，并执行 docker compose up -d。",
+        "managedAuthorityHint": "当前是受管项目。草稿编辑、Diff、Validate 和 Deploy 都继续落在 Project-owned configuration authority。",
+        "externalAuthorityHint": "这组能力只适用于受管项目。外部项目继续保持只读 Configuration surface。",
+        "currentHash": "当前哈希",
+        "proposedHash": "目标哈希",
+        "declaredServices": "声明服务",
+        "previewTitle": "规范化预览",
+        "previewHash": "配置哈希",
+        "previewUpdatedAt": "预览刷新时间",
+        "fileContentTitle": "文件内容",
+        "downloadName": "下载名",
+        "copyContent": "复制内容",
+        "copySuccess": "配置内容已复制。",
+        "copyError": "配置内容复制失败。",
+        "previewEmpty": "当前还没有可用的规范化预览。",
+        "fileEmpty": "先选择一个 Compose 或 Env 文件查看内容。",
+        "diffFailed": "项目草稿 Diff 失败。"
+      },
+      "activity": {
+        "title": "前端 Activity Fan-out",
+        "summary": "该视图只前端 fan-out 现有 container logs/events，不新增 project 级后端聚合。",
+        "emptyTitle": "暂无运行时成员",
+        "emptyDescription": "当前项目还没有可供 fan-out 的运行时容器成员。",
+        "eventCount": "{count} 条事件",
+        "logCount": "{count} 条日志",
+        "streamLabel": "流",
+        "sinceLabel": "时间范围",
+        "tailLabel": "Tail",
+        "eventSection": "事件",
+        "logSection": "日志",
+        "loadFailed": "项目活动加载失败。"
+      },
+      "actions": {
+        "up": "启动项目",
+        "down": "停止项目",
+        "restart": "重启项目",
+        "unregister": "取消注册",
+        "destroy": "销毁",
+        "copyPath": "复制路径",
+        "copyPathSuccess": "路径已复制。",
+        "copyPathError": "路径复制失败。",
+        "confirmDestroy": "确认 Canonical Project Name",
+        "removeNamedVolumes": "同时移除命名卷",
+        "deleteWorkingDirectory": "同时删除工作目录"
+      }
+    }
+  }
+}

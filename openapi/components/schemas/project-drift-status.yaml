@@ -1,0 +1,7 @@
+type: string
+enum: [unknown, clean, changed, missing]
+x-enum-varnames:
+  - ProjectDriftStatusUnknown
+  - ProjectDriftStatusClean
+  - ProjectDriftStatusChanged
+  - ProjectDriftStatusMissing

@@ -1,0 +1,30 @@
+type: object
+required:
+  - id
+  - kind
+  - role
+  - absolute_path
+  - display_path
+  - order_index
+  - exists_on_last_refresh
+properties:
+  id:
+    type: integer
+    format: int64
+    minimum: 1
+  kind:
+    $ref: ./project-file-kind.yaml
+  role:
+    $ref: ./project-file-role.yaml
+  absolute_path:
+    type: string
+  display_path:
+    type: string
+  order_index:
+    type: integer
+    minimum: 0
+  exists_on_last_refresh:
+    type: boolean
+  last_observed_hash:
+    type: string
+    description: Most recently observed file hash. Empty string means the system has not observed one yet.

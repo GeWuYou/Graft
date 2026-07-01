@@ -639,7 +639,8 @@ Phase 1 规则：
 
 ## 10. API 提案
 
-Phase 1 只提 contract，不在本文件中定义最终 OpenAPI schema。
+Phase 1 的 canonical OpenAPI authority 已收口到 `openapi/**`，本节继续保留 IA 与语义设计真相，不能与
+`openapi/**` 漂移。
 
 ## 10.1 项目列表与详情
 
@@ -685,6 +686,39 @@ Phase 1 只提 contract，不在本文件中定义最终 OpenAPI schema。
 - 项目主记录
 - 快照摘要
 - 初次 refresh 结果
+
+## 10.2A Phase 2 managed root 与 create contract
+
+`phase-2-batch-1-managed-root-and-create-contracts` 只落 authority owner，不落真实 file write create flow。
+
+新增 canonical contract owner：
+
+| Method | Path | 语义 |
+| --- | --- | --- |
+| `GET` | `/api/ops/projects/managed-root` | 返回 managed create 的 system-config authority、ownership mode 与 readiness |
+| `POST` | `/api/ops/projects/create/validate` | 只校验 managed create 输入、目标目录推导与 bounded authority，不写文件 |
+| `POST` | `/api/ops/projects/create` | 在 managed root 下写入 compose/env 文件并注册 managed project |
+
+managed root authority 约束：
+
+- canonical config key 固定为 `ops.project.managed.root_directory`
+- config owner 固定为 `server/modules/project/**`
+- root directory 必须是绝对路径
+- empty string 表示 managed create 尚未配置，不允许把“未配置”降级成 request payload fallback
+- Phase 2 真实 create 只能在该 managed root 下创建 `managed-root-dedicated` 目录
+
+managed create request 建议至少包含：
+
+- `display_name`
+- `canonical_project_name`
+- `relative_project_directory`
+- `compose_file_name`
+- `env_file_name?`
+
+本批次明确不做：
+
+- editor / diff / validate / deploy flow
+- 下游兼容字段或用 import contract 冒充 create contract
 
 ## 10.3 配置
 
@@ -744,6 +778,98 @@ Phase 1 的单文件内容返回建议包含：
 - 不提供 `/api/ops/projects/{id}/events`
 - 不提供项目级 realtime topic
 - 不提供配置编辑保存接口
+
+## 10.6 Batch 1 authority 落地说明
+
+`phase-1-batch-1-project-contract-and-data-model` 已把以下 authority owner 固定到仓库运行面：
+
+- OpenAPI contract owner：`openapi/**`
+  - route space 固定为 `/api/ops/projects/**`
+  - Phase 1 只读 Configuration 固定拆为 metadata、preview、single-file content
+  - 明确保留 lifecycle routes 的 contract owner，但不在本 batch 落 runtime handler
+- Project module contract owner：`server/modules/project/contract/**`
+  - canonical route fragments
+  - source / ownership / drift / refresh / file kind 等 typed contracts
+- Project module data-model owner：`server/modules/project/model.go`
+  - 只定义 registry、file list、snapshot 三类 module-owned persistence model
+  - 不引入容器 logs / events / stats / inspect 等 runtime 字段
+- Project module migration owner：`server/modules/project/migrations/**`
+  - `compose_projects`
+  - `compose_project_files`
+  - `compose_project_snapshots`
+- Narrow shared boundary owner：`server/internal/moduleapi/container_project.go`
+  - 仅为后续 `Services` 聚合预留 project->container 的最小稳定只读边界
+  - 不暴露 container detail、logs、events、stats、shell、inspect 私有实现
+
+本批次仍明确不做：
+
+- `server/modules/project` runtime wiring、handler、repository、service
+- `web/src/modules/project/**`
+- backend project logs/events aggregation
+- managed create / editor / diff / deploy / validate UI
+
+## 10.6A Batch 2.1 authority 落地说明
+
+`phase-2-batch-1-managed-root-and-create-contracts` 已把以下 authority owner 固定到仓库运行面：
+
+- OpenAPI contract owner：`openapi/**`
+  - 新增 `/api/ops/projects/managed-root`
+  - 新增 `/api/ops/projects/create/validate`
+  - 新增 `/api/ops/projects/create`
+- Project module contract owner：`server/modules/project/contract/**`
+  - 新增 managed-root status typed contract
+  - 新增 managed-create permission contract
+  - 新增 managed-root config key contract
+  - 新增 create route fragments
+- Project module config-definition owner：`server/modules/project/config.go`
+  - `ops.project.managed.root_directory` 成为 managed create 的 canonical system-config authority
+  - empty string 表示未配置，而不是隐式回退到仓库路径或用户 home
+
+本批次仍明确不做：
+
+- web managed create UI / editors
+- diff / validate / deploy flow
+
+## 10.6B Batch 2.2 authority 落地说明
+
+`phase-2-batch-2-server-managed-create-and-file-write-path` 已把以下 authority owner 固定到仓库运行面：
+
+- OpenAPI contract owner：`openapi/**`
+  - `POST /api/ops/projects/create` 不再复用 validate request
+  - create request 拥有独立 compose/env file content payload
+  - create response 改为同步创建结果，显式返回 `project_id`、目标文件路径和 snapshot summary
+- Project module execution owner：`server/modules/project/**`
+  - 在 managed root 下创建 bounded working directory
+  - 写入 compose file 与可选 env file
+  - 复用 project-owned parse + snapshot + repository import path 持久化 managed project
+  - 若 registry 持久化失败，回滚本轮新建的 managed directory/file bootstrap，避免留下无主目录
+
+本批次仍明确不做：
+
+- web managed create form / editor 交互
+- diff / validate / deploy flow
+- remote host / git / template source
+
+## 10.7 Batch 4 authority 落地说明
+
+`phase-1-batch-4-web-project-list-detail-and-readonly-configuration` 已把以下前端 authority owner 固定到仓库运行面：
+
+- Frontend module owner：`web/src/modules/project/**`
+  - module registration：`index.ts`、`bootstrap-routes.ts`
+  - route contract consumer：`contract/bootstrap.ts`、`contract/paths.ts`
+  - typed API consumer：`api/project.ts`、`types/project.ts`
+  - locale owner：`locales/en-US.json`、`locales/zh-CN.json`
+  - page owner：`pages/list/index.vue`、`pages/detail/index.vue`
+  - module-local shared UI helpers：`shared/display.ts`、`shared/navigation.ts`
+- List / Detail IA owner：
+  - `list` 页面固定承载 project registry list、筛选、summary、危险动作入口与 detail tab 导航
+  - `detail` 页面固定承载 `Overview`、`Services`、`Configuration`、`Activity` 四个页签
+- Authority guard 已落地：
+  - `Overview` 只承载 summary，不引入 runtime dashboard 指标或 timeline
+  - `Services` 只消费静态定义与 container member/count 聚合，并回跳现有 Container Detail
+  - `Configuration` 保持 metadata、preview、single-file content 三段只读消费
+  - `Activity` 继续只做前端 fan-out，复用现有 container logs/events API
+  - 未新增 backend project logs/events aggregation、managed create/editor/diff/deploy/validate UI
 
 ## 11. UI 信息架构
 
@@ -1050,6 +1176,22 @@ Configuration：
 - Diff
 - Validate
 - Deploy
+
+## 16.3A Batch 2.4 authority 落地说明
+
+`phase-2-batch-4-diff-validate-and-deploy-flow` 把以下 authority owner 固定到仓库运行面：
+
+- OpenAPI contract owner：`openapi/**`
+  - 新增 `POST /api/ops/projects/{id}/configuration/diff`
+  - 新增 `POST /api/ops/projects/{id}/configuration/validate`
+  - 新增 `POST /api/ops/projects/{id}/deploy`
+- Project module execution owner：`server/modules/project/**`
+  - diff 与 validate 只针对 managed project 当前 tracked files 和 draft content 做 bounded 对比与静态解析
+  - deploy 只允许写回当前 tracked managed files、刷新 project snapshot，并复用 project-owned lifecycle 执行 `docker compose up -d`
+  - 不新增 project runtime persistence、project logs/events aggregation 或 project-owned container detail
+- Frontend module owner：`web/src/modules/project/**`
+  - 在 `detail -> configuration` 页签内承载 Compose/Env draft editor、diff、validate 和 deploy flow
+  - 仍保持 `detail` 页属于 `list-form-detail` page type，不把 Overview 变成 runtime dashboard
 
 ## 16.4 Phase 3
 

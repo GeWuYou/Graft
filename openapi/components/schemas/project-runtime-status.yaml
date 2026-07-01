@@ -1,0 +1,10 @@
+type: string
+enum: [running, partial, stopped, empty]
+x-enum-varnames:
+  - ProjectRuntimeStatusRunning
+  - ProjectRuntimeStatusPartial
+  - ProjectRuntimeStatusStopped
+  - ProjectRuntimeStatusEmpty
+description: >
+  Stable bounded runtime summary status for project overview consumers. Unknown or not-yet-derived
+  runtime state should be expressed as null instead of a free-form string.

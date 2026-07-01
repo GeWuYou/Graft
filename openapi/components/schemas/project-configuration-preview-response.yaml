@@ -1,0 +1,21 @@
+type: object
+required:
+  - project_id
+  - canonical_project_name
+  - normalized_compose_yaml
+  - config_hash
+properties:
+  project_id:
+    type: integer
+    format: int64
+    minimum: 1
+  canonical_project_name:
+    type: string
+  normalized_compose_yaml:
+    type: string
+  config_hash:
+    type: string
+  refreshed_at:
+    type: string
+    format: date-time
+    nullable: true

@@ -1,0 +1,36 @@
+type: object
+required:
+  - project_id
+  - compose_files
+  - env_files
+  - ownership_mode
+  - drift_status
+  - last_refresh_status
+properties:
+  project_id:
+    type: integer
+    format: int64
+    minimum: 1
+  compose_files:
+    type: array
+    items:
+      $ref: ./project-file-item.yaml
+  env_files:
+    type: array
+    items:
+      $ref: ./project-file-item.yaml
+  ownership_mode:
+    $ref: ./project-ownership-mode.yaml
+  drift_status:
+    $ref: ./project-drift-status.yaml
+  last_refresh_status:
+    $ref: ./project-refresh-status.yaml
+  last_refresh_at:
+    type: string
+    format: date-time
+    nullable: true
+  diagnostics_summary:
+    type: array
+    items:
+      type: string
+    description: Bounded configuration diagnostics summary for readonly UI display.

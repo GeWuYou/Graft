@@ -1,0 +1,48 @@
+type: object
+required:
+  - service_name
+  - container_members
+  - running_count
+  - stopped_count
+properties:
+  service_name:
+    type: string
+  image:
+    type: string
+    nullable: true
+  build_context:
+    type: string
+    nullable: true
+  declared_ports:
+    type: array
+    items:
+      type: string
+  declared_volumes:
+    type: array
+    items:
+      type: string
+  declared_networks:
+    type: array
+    items:
+      type: string
+  container_members:
+    type: array
+    items:
+      type: object
+      required:
+        - container_id
+        - container_name
+        - state
+      properties:
+        container_id:
+          type: string
+        container_name:
+          type: string
+        state:
+          type: string
+  running_count:
+    type: integer
+    minimum: 0
+  stopped_count:
+    type: integer
+    minimum: 0

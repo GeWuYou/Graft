@@ -1,0 +1,45 @@
+type: object
+required:
+  - working_directory
+  - compose_files
+  - env_files
+  - canonical_project_name
+  - canonical_project_name_source
+  - service_count
+  - warnings
+  - conflicts
+properties:
+  working_directory:
+    type: string
+  compose_files:
+    type: array
+    items:
+      $ref: ./project-file-item.yaml
+  env_files:
+    type: array
+    items:
+      $ref: ./project-file-item.yaml
+  canonical_project_name:
+    type: string
+  canonical_project_name_source:
+    $ref: ./project-canonical-name-source.yaml
+  normalized_preview_summary:
+    type: object
+    properties:
+      config_hash:
+        type: string
+      declared_service_names:
+        type: array
+        items:
+          type: string
+  service_count:
+    type: integer
+    minimum: 0
+  warnings:
+    type: array
+    items:
+      type: string
+  conflicts:
+    type: array
+    items:
+      type: string
