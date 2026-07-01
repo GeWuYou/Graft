@@ -30,6 +30,11 @@ export const PROJECT_BOOTSTRAP_ROUTE = {
     pageRouteName: 'ProjectTemplateCreateIndex',
     routeName: 'ProjectTemplateCreate',
   },
+  CREATE_REMOTE_HOST: {
+    path: PROJECT_ROUTE_PATH.CREATE_REMOTE_HOST,
+    pageRouteName: 'ProjectRemoteHostCreateIndex',
+    routeName: 'ProjectRemoteHostCreate',
+  },
   DETAIL: {
     path: PROJECT_ROUTE_PATH.DETAIL,
     pageRouteName: 'ProjectDetailIndex',

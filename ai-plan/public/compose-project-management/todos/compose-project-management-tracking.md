@@ -92,7 +92,7 @@ Compose Project Management
 - [x] phase-2-batch-5：Phase 2 validation、drift guard、docs sync、Phase 2 archive-readiness check
 - [x] phase-3-batch-1：git/template source contract、metadata boundary、route/permission owner
 - [x] phase-3-batch-2：directory scan、candidate model、auto discovery bounded authority
-- [ ] phase-3-batch-3：remote host boundary、project activity authority decision
+- [x] phase-3-batch-3：remote host boundary、project activity authority decision
 
 ## Phase 1 Acceptance Conditions
 
@@ -134,6 +134,24 @@ Compose Project Management
 - `openapi/**` 已固定 discovery candidate 只读 contract 与 `/api/ops/projects/discovery-candidates` route owner
 - `server/modules/project/**` 已把 managed root 收口为 bounded local scan authority，只返回 candidate preview，不自动注册 project
 - `web/src/modules/project/**` 已在 source selector 下提供 hidden discovery preview surface，不越界到 remote host 或 backend activity aggregation
+
+当前 batch-3 已完成的前置条件：
+
+- `openapi/**` 已把 `remote-host` 固定为 planned source entry，并为 project list/detail 固定 `activity_authority` contract
+- `server/modules/project/**` 已把 remote-host 收口为 source catalog / route / metadata owner，不引入 remote execution、credential persistence 或 backend activity aggregation
+- `web/src/modules/project/**` 已提供 `/ops/projects/create/remote-host` planned boundary，并在 detail 页面显式提示当前 activity authority
+
+## Topic Archive-Readiness Check
+
+- Phase 1 acceptance conditions：已满足
+- Phase 2 acceptance conditions：已满足
+- Phase 3 acceptance conditions：
+  - git/template/scan/discovery/remote-host 扩展路径：已完成 authority boundary
+  - 后端 project activity aggregation authority：已完成 canonical owner 决议；当前实现继续保持 `frontend-fanout` 为 local authority，future backend aggregation 保持 `backend-planned`
+- 当前 topic 已达到 `archive-ready`：
+  - `Project != Runtime` 与 `Container` runtime authority 边界持续稳定
+  - 未引入 project-level runtime persistence、project-owned container detail、remote execution、credential persistence 或 backend project logs/events aggregation 半实现
+  - Phase 3 batch 3 已把剩余 authority owner 收敛到 design/openapi/server/web
 
 ## Loop Batch State
 

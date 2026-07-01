@@ -5160,9 +5160,19 @@ export interface components {
       template_version?: string;
       /** @description Planned template instance name used to derive a managed working directory. */
       template_instance_name?: string;
+      /** @description Planned stable remote host connection identifier owned by future remote-host project authority. */
+      remote_host_key?: string;
+      /** @description Planned remote compose working directory or entry compose file path under the remote-host boundary. */
+      remote_compose_path?: string;
+      /** @description Canonical project activity authority mode. Current bounded values describe whether activity stays frontend fan-out or moves to a future backend aggregation owner. */
+      activity_authority?: string;
+      /** @description Planned bounded summary scope for future project activity authority, such as container-member fan-out or aggregated timeline summary. */
+      activity_rollup_scope?: string;
     };
     /** @enum {string} */
-    'project-host-scope': 'local';
+    'project-activity-authority': 'frontend-fanout' | 'backend-planned';
+    /** @enum {string} */
+    'project-host-scope': 'local' | 'remote';
     /** @enum {string} */
     'project-ownership-mode': 'external' | 'managed-root-dedicated';
     /**
@@ -5183,6 +5193,7 @@ export interface components {
       canonical_project_name_source: components['schemas']['project-canonical-name-source'];
       source_kind: components['schemas']['project-source-kind'];
       source_metadata?: components['schemas']['project-source-metadata'];
+      activity_authority: components['schemas']['project-activity-authority'];
       host_scope: components['schemas']['project-host-scope'];
       ownership_mode: components['schemas']['project-ownership-mode'];
       working_directory: string;
@@ -5271,7 +5282,7 @@ export interface components {
       data: components['schemas']['project-import-response'];
     };
     /** @enum {string} */
-    'project-source-entry-type': 'managed' | 'git' | 'template';
+    'project-source-entry-type': 'managed' | 'git' | 'template' | 'remote-host';
     /** @enum {string} */
     'project-source-entry-status': 'ready' | 'planned';
     'project-source-entry': {
@@ -5284,6 +5295,7 @@ export interface components {
       menu_group: string;
       description: string;
       metadata_fields: string[];
+      host_scope: components['schemas']['project-host-scope'];
       status_reason?: string | null;
     };
     'project-source-catalog-response': {

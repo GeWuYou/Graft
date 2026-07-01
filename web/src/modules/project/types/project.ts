@@ -18,6 +18,7 @@ export type ProjectSourceEntryType = components['schemas']['ProjectSourceEntryTy
 export type ProjectSourceEntryStatus = components['schemas']['ProjectSourceEntryStatus'];
 export type ProjectSourceEntry = components['schemas']['ProjectSourceEntry'];
 export type ProjectSourceCatalogResponse = components['schemas']['ProjectSourceCatalogResponse'];
+export type ProjectActivityAuthority = components['schemas']['project-activity-authority'];
 export type ProjectDiscoveryCandidateKind = components['schemas']['project-discovery-candidate-kind'];
 export type ProjectDiscoveryCandidateStatus = components['schemas']['project-discovery-candidate-status'];
 export type ProjectDiscoveryCandidate = components['schemas']['project-discovery-candidate'];

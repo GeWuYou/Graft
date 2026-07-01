@@ -2184,6 +2184,24 @@ func (e ProjectActionResponseResult) Valid() bool {
 	}
 }
 
+// Defines values for ProjectActivityAuthority.
+const (
+	ProjectActivityAuthorityBackendPlanned ProjectActivityAuthority = "backend-planned"
+	ProjectActivityAuthorityFrontendFanout ProjectActivityAuthority = "frontend-fanout"
+)
+
+// Valid indicates whether the value is a known member of the ProjectActivityAuthority enum.
+func (e ProjectActivityAuthority) Valid() bool {
+	switch e {
+	case ProjectActivityAuthorityBackendPlanned:
+		return true
+	case ProjectActivityAuthorityFrontendFanout:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ProjectCanonicalNameSource.
 const (
 	ProjectCanonicalNameSourceComputed ProjectCanonicalNameSource = "computed"
@@ -2414,13 +2432,16 @@ func (e ProjectFileRole) Valid() bool {
 
 // Defines values for ProjectHostScope.
 const (
-	ProjectHostScopeLocal ProjectHostScope = "local"
+	ProjectHostScopeLocal  ProjectHostScope = "local"
+	ProjectHostScopeRemote ProjectHostScope = "remote"
 )
 
 // Valid indicates whether the value is a known member of the ProjectHostScope enum.
 func (e ProjectHostScope) Valid() bool {
 	switch e {
 	case ProjectHostScopeLocal:
+		return true
+	case ProjectHostScopeRemote:
 		return true
 	default:
 		return false
@@ -2531,9 +2552,10 @@ func (e ProjectSourceEntryStatus) Valid() bool {
 
 // Defines values for ProjectSourceEntryType.
 const (
-	ProjectSourceEntryTypeGit      ProjectSourceEntryType = "git"
-	ProjectSourceEntryTypeManaged  ProjectSourceEntryType = "managed"
-	ProjectSourceEntryTypeTemplate ProjectSourceEntryType = "template"
+	ProjectSourceEntryTypeGit        ProjectSourceEntryType = "git"
+	ProjectSourceEntryTypeManaged    ProjectSourceEntryType = "managed"
+	ProjectSourceEntryTypeRemoteHost ProjectSourceEntryType = "remote-host"
+	ProjectSourceEntryTypeTemplate   ProjectSourceEntryType = "template"
 )
 
 // Valid indicates whether the value is a known member of the ProjectSourceEntryType enum.
@@ -2542,6 +2564,8 @@ func (e ProjectSourceEntryType) Valid() bool {
 	case ProjectSourceEntryTypeGit:
 		return true
 	case ProjectSourceEntryTypeManaged:
+		return true
+	case ProjectSourceEntryTypeRemoteHost:
 		return true
 	case ProjectSourceEntryTypeTemplate:
 		return true
@@ -7054,6 +7078,9 @@ type ProjectActionResponseAction string
 // ProjectActionResponseResult defines model for ProjectActionResponse.Result.
 type ProjectActionResponseResult string
 
+// ProjectActivityAuthority defines model for project-activity-authority.
+type ProjectActivityAuthority string
+
 // ProjectCanonicalNameSource defines model for project-canonical-name-source.
 type ProjectCanonicalNameSource string
 
@@ -7262,6 +7289,7 @@ type ProjectDestroyRequest struct {
 
 // ProjectDetailResponse defines model for project-detail-response.
 type ProjectDetailResponse struct {
+	ActivityAuthority          ProjectActivityAuthority   `json:"activity_authority"`
 	CanonicalProjectName       string                     `json:"canonical_project_name"`
 	CanonicalProjectNameSource ProjectCanonicalNameSource `json:"canonical_project_name_source"`
 	ComposeFiles               []ProjectFileItem          `json:"compose_files"`
@@ -7408,6 +7436,7 @@ type ProjectImportValidateResponse struct {
 
 // ProjectListItem defines model for project-list-item.
 type ProjectListItem struct {
+	ActivityAuthority          ProjectActivityAuthority   `json:"activity_authority"`
 	CanonicalProjectName       string                     `json:"canonical_project_name"`
 	CanonicalProjectNameSource ProjectCanonicalNameSource `json:"canonical_project_name_source"`
 	ContainerCounts            ProjectContainerCounts     `json:"container_counts"`
@@ -7492,6 +7521,7 @@ type ProjectSourceCatalogResponse struct {
 type ProjectSourceEntry struct {
 	Description    string                   `json:"description"`
 	DisplayName    string                   `json:"display_name"`
+	HostScope      ProjectHostScope         `json:"host_scope"`
 	MenuGroup      string                   `json:"menu_group"`
 	MetadataFields []string                 `json:"metadata_fields"`
 	Permission     string                   `json:"permission"`
@@ -7513,6 +7543,12 @@ type ProjectSourceKind string
 
 // ProjectSourceMetadata defines model for project-source-metadata.
 type ProjectSourceMetadata struct {
+	// ActivityAuthority Canonical project activity authority mode. Current bounded values describe whether activity stays frontend fan-out or moves to a future backend aggregation owner.
+	ActivityAuthority *string `json:"activity_authority,omitempty"`
+
+	// ActivityRollupScope Planned bounded summary scope for future project activity authority, such as container-member fan-out or aggregated timeline summary.
+	ActivityRollupScope *string `json:"activity_rollup_scope,omitempty"`
+
 	// GitComposeSubpath Planned repository-relative compose working directory or file subpath.
 	GitComposeSubpath *string `json:"git_compose_subpath,omitempty"`
 
@@ -7533,6 +7569,12 @@ type ProjectSourceMetadata struct {
 
 	// ManagedRootKey Canonical config key that owns the managed project root.
 	ManagedRootKey *string `json:"managed_root_key,omitempty"`
+
+	// RemoteComposePath Planned remote compose working directory or entry compose file path under the remote-host boundary.
+	RemoteComposePath *string `json:"remote_compose_path,omitempty"`
+
+	// RemoteHostKey Planned stable remote host connection identifier owned by future remote-host project authority.
+	RemoteHostKey *string `json:"remote_host_key,omitempty"`
 
 	// TemplateInstanceName Planned template instance name used to derive a managed working directory.
 	TemplateInstanceName *string `json:"template_instance_name,omitempty"`

@@ -87,6 +87,16 @@ type SourceCatalogResult struct {
 	Items []generated.ProjectSourceEntry
 }
 
+// ActivityAuthority identifies the stable project activity authority contract.
+type ActivityAuthority string
+
+const (
+	// ProjectActivityAuthorityFrontendFanout keeps project activity in frontend fan-out over container authority.
+	ProjectActivityAuthorityFrontendFanout ActivityAuthority = "frontend-fanout"
+	// ProjectActivityAuthorityBackendPlanned reserves a future backend aggregation owner without implementing it yet.
+	ProjectActivityAuthorityBackendPlanned ActivityAuthority = "backend-planned"
+)
+
 // DiscoveryCandidateResult returns one bounded directory-scan or auto-discovery preview candidate.
 type DiscoveryCandidateResult struct {
 	CandidateKey              string
@@ -398,6 +408,7 @@ func (s *Service) SourceCatalog(ctx context.Context) (SourceCatalogResult, error
 			Type:           generated.ProjectSourceEntryType("managed"),
 			Status:         generated.ProjectSourceEntryStatus(mapManagedSourceCatalogStatus(managedRoot.Status)),
 			DisplayName:    "Managed Project",
+			HostScope:      generated.ProjectHostScope(projectcontract.HostScopeLocal),
 			RoutePath:      projectcontract.ProjectManagedCreateMenuPath,
 			RouteName:      "ProjectManagedCreate",
 			Permission:     projectcontract.ProjectCreatePermission.String(),
@@ -410,6 +421,7 @@ func (s *Service) SourceCatalog(ctx context.Context) (SourceCatalogResult, error
 			Type:           generated.ProjectSourceEntryType("git"),
 			Status:         generated.ProjectSourceEntryStatus("planned"),
 			DisplayName:    "Git Project",
+			HostScope:      generated.ProjectHostScope(projectcontract.HostScopeLocal),
 			RoutePath:      projectcontract.ProjectGitCreateMenuPath,
 			RouteName:      "ProjectGitCreate",
 			Permission:     projectcontract.ProjectCreatePermission.String(),
@@ -422,6 +434,7 @@ func (s *Service) SourceCatalog(ctx context.Context) (SourceCatalogResult, error
 			Type:           generated.ProjectSourceEntryType("template"),
 			Status:         generated.ProjectSourceEntryStatus("planned"),
 			DisplayName:    "Template Project",
+			HostScope:      generated.ProjectHostScope(projectcontract.HostScopeLocal),
 			RoutePath:      projectcontract.ProjectTemplateCreateMenuPath,
 			RouteName:      "ProjectTemplateCreate",
 			Permission:     projectcontract.ProjectCreatePermission.String(),
@@ -429,6 +442,21 @@ func (s *Service) SourceCatalog(ctx context.Context) (SourceCatalogResult, error
 			Description:    projectcontract.ProjectSourceTemplateDescription.String(),
 			MetadataFields: []string{"template_key", "template_version", "template_instance_name"},
 			StatusReason:   stringPointer("Phase 3 batch 1 only fixes contract and route ownership; template instantiation remains out of scope."),
+		},
+		{
+			Type:           generated.ProjectSourceEntryType("remote-host"),
+			Status:         generated.ProjectSourceEntryStatus("planned"),
+			DisplayName:    "Remote Host Project",
+			HostScope:      generated.ProjectHostScope(projectcontract.HostScopeRemote),
+			RoutePath:      projectcontract.ProjectRemoteHostCreateMenuPath,
+			RouteName:      "ProjectRemoteHostCreate",
+			Permission:     projectcontract.ProjectCreatePermission.String(),
+			MenuGroup:      projectcontract.ProjectMenuPath,
+			Description:    projectcontract.ProjectSourceRemoteHostDescription.String(),
+			MetadataFields: []string{"remote_host_key", "remote_compose_path", "activity_authority", "activity_rollup_scope"},
+			StatusReason: stringPointer(
+				"Phase 3 batch 3 fixes remote-host and project activity authority boundaries only; remote execution, secret persistence, and backend activity aggregation remain out of scope.",
+			),
 		},
 	}
 	return SourceCatalogResult{Items: items}, nil
@@ -1765,6 +1793,7 @@ func toProjectListItem(
 		CanonicalProjectNameSource: generated.ProjectCanonicalNameSource(aggregate.Project.CanonicalProjectNameSource),
 		SourceKind:                 generated.ProjectSourceKind(aggregate.Project.SourceKind),
 		SourceMetadata:             buildListSourceMetadata(aggregate),
+		ActivityAuthority:          generated.ProjectActivityAuthority(resolveActivityAuthority(aggregate)),
 		HostScope:                  generated.ProjectHostScope(aggregate.Project.HostScope),
 		OwnershipMode:              generated.ProjectOwnershipMode(aggregate.Project.OwnershipMode),
 		WorkingDirectory:           aggregate.Project.WorkingDirectory,
@@ -1805,6 +1834,7 @@ func toProjectDetailResponse(
 		OwnershipMode:              generated.ProjectOwnershipMode(aggregate.Project.OwnershipMode),
 		SourceKind:                 generated.ProjectSourceKind(aggregate.Project.SourceKind),
 		SourceMetadata:             buildDetailSourceMetadata(aggregate),
+		ActivityAuthority:          generated.ProjectActivityAuthority(resolveActivityAuthority(aggregate)),
 		WorkingDirectory:           aggregate.Project.WorkingDirectory,
 	}
 	if aggregate.Project.LastRefreshErrorCode != "" {
@@ -2423,6 +2453,8 @@ func buildListSourceMetadata(aggregate projectstore.ProjectAggregate) *generated
 	switch strings.TrimSpace(aggregate.Project.SourceKind) {
 	case projectcontract.SourceKindManaged.String():
 		return buildManagedSourceMetadata(aggregate)
+	case projectcontract.SourceKindRemoteHost.String():
+		return buildRemoteHostSourceMetadata(aggregate)
 	default:
 		return nil
 	}
@@ -2432,6 +2464,8 @@ func buildDetailSourceMetadata(aggregate projectstore.ProjectAggregate) *generat
 	switch strings.TrimSpace(aggregate.Project.SourceKind) {
 	case projectcontract.SourceKindManaged.String():
 		return buildManagedSourceMetadata(aggregate)
+	case projectcontract.SourceKindRemoteHost.String():
+		return buildRemoteHostSourceMetadata(aggregate)
 	default:
 		return nil
 	}
@@ -2453,6 +2487,22 @@ func buildManagedSourceMetadata(aggregate projectstore.ProjectAggregate) *genera
 		metadata["managed_env_file_name"] = filepath.Base(envFiles[0].AbsolutePath)
 	}
 	return toGeneratedSourceMetadata(metadata)
+}
+
+func buildRemoteHostSourceMetadata(aggregate projectstore.ProjectAggregate) *generated.ProjectSourceMetadata {
+	activityAuthority := string(resolveActivityAuthority(aggregate))
+	rollupScope := "planned-remote-summary"
+	return &generated.ProjectSourceMetadata{
+		ActivityAuthority:  &activityAuthority,
+		ActivityRollupScope: &rollupScope,
+	}
+}
+
+func resolveActivityAuthority(aggregate projectstore.ProjectAggregate) ActivityAuthority {
+	if strings.TrimSpace(aggregate.Project.HostScope) == projectcontract.HostScopeRemote.String() {
+		return ProjectActivityAuthorityBackendPlanned
+	}
+	return ProjectActivityAuthorityFrontendFanout
 }
 
 func deriveManagedRelativeDirectory(workingDirectory string) string {

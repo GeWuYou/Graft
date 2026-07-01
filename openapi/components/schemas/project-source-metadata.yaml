@@ -32,3 +32,15 @@ properties:
   template_instance_name:
     type: string
     description: Planned template instance name used to derive a managed working directory.
+  remote_host_key:
+    type: string
+    description: Planned stable remote host connection identifier owned by future remote-host project authority.
+  remote_compose_path:
+    type: string
+    description: Planned remote compose working directory or entry compose file path under the remote-host boundary.
+  activity_authority:
+    type: string
+    description: Canonical project activity authority mode. Current bounded values describe whether activity stays frontend fan-out or moves to a future backend aggregation owner.
+  activity_rollup_scope:
+    type: string
+    description: Planned bounded summary scope for future project activity authority, such as container-member fan-out or aggregated timeline summary.

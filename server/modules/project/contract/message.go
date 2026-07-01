@@ -103,6 +103,8 @@ const (
 	ProjectSourceGitDescription MessageKey = "ops.project.source.git.description"
 	// ProjectSourceTemplateDescription identifies the template source catalog description key.
 	ProjectSourceTemplateDescription MessageKey = "ops.project.source.template.description"
+	// ProjectSourceRemoteHostDescription identifies the remote-host source catalog description key.
+	ProjectSourceRemoteHostDescription MessageKey = "ops.project.source.remoteHost.description"
 )
 
 const (

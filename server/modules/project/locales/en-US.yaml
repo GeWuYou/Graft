@@ -20,6 +20,7 @@ rbac.permissionCatalog.projectDeploy.description: Diff, validate, and deploy man
 ops.project.source.managed.description: Create a managed Compose project under the canonical managed root owned by project authority.
 ops.project.source.git.description: Reserve the canonical git-backed project source boundary without introducing clone, scan, or remote-host execution in this batch.
 ops.project.source.template.description: Reserve the canonical template-backed project source boundary without introducing template instantiation, discovery, or remote-host execution in this batch.
+ops.project.source.remoteHost.description: Reserve the canonical remote-host project boundary without introducing remote execution, secret persistence, or runtime ownership in this batch.
 ops.project.discovery.candidates.ready: Project discovery candidate preview is ready.
 systemConfig.project.ops.project.managed.root_directory.title: Managed Project Root Directory
 systemConfig.project.ops.project.managed.root_directory.description: Canonical root directory used by managed Compose project create workflows. Empty means managed create is not configured yet.

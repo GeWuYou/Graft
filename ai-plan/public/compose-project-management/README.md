@@ -71,7 +71,7 @@
   - Phase 1 的配置页只读。
   - Phase 2 已在同一 topic 内完成 bounded batches，并通过 managed create/edit/diff/validate/deploy slice 的 archive-readiness check。
   - Phase 3 继续留在同一 topic 内推进，但必须先拆成安全 bounded batches，不能回退成单个大阶段占位。
-- 当前下一步：按 topic-completion-loop 推进 `phase-3-batch-2-directory-scan-and-auto-discovery-candidates`。
+- 当前下一步：按 topic-completion-loop 推进 `phase-3-batch-3-remote-host-boundary-and-activity-authority`。
 
 ## Pending Batch Direction
 
@@ -90,6 +90,12 @@
 - 固定 bounded local directory scan 与 auto-discovery preview contract
 - candidate 仅用于 preview/listing，不自动注册 project
 - 继续保持 `Project != Runtime`，不引入 project-level runtime persistence 或 backend project activity aggregation
+
+当前 Phase 3 Batch 3 的 authority 目标：
+
+- 固定 `remote-host` source selector / route / permission / metadata boundary
+- 固定 `activity_authority` canonical contract，明确 local project 继续 `frontend-fanout`
+- 对 future remote-host / backend aggregation 只保留 `backend-planned` boundary，不落 remote execution、credential persistence 或后端聚合实现
 
 ## Validation Targets
 

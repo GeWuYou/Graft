@@ -20842,16 +20842,45 @@
           "template_instance_name": {
             "type": "string",
             "description": "Planned template instance name used to derive a managed working directory."
+          },
+          "remote_host_key": {
+            "type": "string",
+            "description": "Planned stable remote host connection identifier owned by future remote-host project authority."
+          },
+          "remote_compose_path": {
+            "type": "string",
+            "description": "Planned remote compose working directory or entry compose file path under the remote-host boundary."
+          },
+          "activity_authority": {
+            "type": "string",
+            "description": "Canonical project activity authority mode. Current bounded values describe whether activity stays frontend fan-out or moves to a future backend aggregation owner."
+          },
+          "activity_rollup_scope": {
+            "type": "string",
+            "description": "Planned bounded summary scope for future project activity authority, such as container-member fan-out or aggregated timeline summary."
           }
         }
+      },
+      "project-activity-authority": {
+        "type": "string",
+        "enum": [
+          "frontend-fanout",
+          "backend-planned"
+        ],
+        "x-enum-varnames": [
+          "ProjectActivityAuthorityFrontendFanout",
+          "ProjectActivityAuthorityBackendPlanned"
+        ]
       },
       "project-host-scope": {
         "type": "string",
         "enum": [
-          "local"
+          "local",
+          "remote"
         ],
         "x-enum-varnames": [
-          "ProjectHostScopeLocal"
+          "ProjectHostScopeLocal",
+          "ProjectHostScopeRemote"
         ]
       },
       "project-ownership-mode": {
@@ -20911,6 +20940,7 @@
           "canonical_project_name",
           "canonical_project_name_source",
           "source_kind",
+          "activity_authority",
           "host_scope",
           "ownership_mode",
           "working_directory",
@@ -20939,6 +20969,9 @@
           },
           "source_metadata": {
             "$ref": "#/components/schemas/project-source-metadata"
+          },
+          "activity_authority": {
+            "$ref": "#/components/schemas/project-activity-authority"
           },
           "host_scope": {
             "$ref": "#/components/schemas/project-host-scope"
@@ -21313,12 +21346,14 @@
         "enum": [
           "managed",
           "git",
-          "template"
+          "template",
+          "remote-host"
         ],
         "x-enum-varnames": [
           "ProjectSourceEntryTypeManaged",
           "ProjectSourceEntryTypeGit",
-          "ProjectSourceEntryTypeTemplate"
+          "ProjectSourceEntryTypeTemplate",
+          "ProjectSourceEntryTypeRemoteHost"
         ]
       },
       "project-source-entry-status": {
@@ -21343,7 +21378,8 @@
           "permission",
           "menu_group",
           "description",
-          "metadata_fields"
+          "metadata_fields",
+          "host_scope"
         ],
         "properties": {
           "type": {
@@ -21375,6 +21411,9 @@
             "items": {
               "type": "string"
             }
+          },
+          "host_scope": {
+            "$ref": "#/components/schemas/project-host-scope"
           },
           "status_reason": {
             "type": "string",

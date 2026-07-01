@@ -5,6 +5,7 @@ required:
   - canonical_project_name
   - canonical_project_name_source
   - source_kind
+  - activity_authority
   - host_scope
   - ownership_mode
   - working_directory
@@ -27,6 +28,8 @@ properties:
     $ref: ./project-source-kind.yaml
   source_metadata:
     $ref: ./project-source-metadata.yaml
+  activity_authority:
+    $ref: ./project-activity-authority.yaml
   host_scope:
     $ref: ./project-host-scope.yaml
   ownership_mode:

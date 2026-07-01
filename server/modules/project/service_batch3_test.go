@@ -355,3 +355,81 @@ func TestDiscoveryCandidatesMarksConflictWhenProjectAlreadyRegistered(t *testing
 		t.Fatalf("expected conflict details")
 	}
 }
+
+func TestSourceCatalogAddsRemoteHostBoundary(t *testing.T) {
+	t.Parallel()
+
+	managedRoot := t.TempDir()
+	service, err := NewService(&stubProjectRepository{}, WithSystemConfigResolver(stubSystemConfigResolver{value: managedRoot}))
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	result, err := service.SourceCatalog(context.Background())
+	if err != nil {
+		t.Fatalf("source catalog: %v", err)
+	}
+	if len(result.Items) != 4 {
+		t.Fatalf("expected 4 source entries, got %d", len(result.Items))
+	}
+	remote := result.Items[3]
+	if remote.Type != generated.ProjectSourceEntryType("remote-host") {
+		t.Fatalf("expected remote-host source type, got %q", remote.Type)
+	}
+	if remote.HostScope != generated.ProjectHostScope("remote") {
+		t.Fatalf("expected remote host scope, got %q", remote.HostScope)
+	}
+	if remote.RoutePath != "/ops/projects/create/remote-host" {
+		t.Fatalf("unexpected remote-host route path: %q", remote.RoutePath)
+	}
+	if remote.Status != generated.ProjectSourceEntryStatus("planned") {
+		t.Fatalf("expected planned remote-host status, got %q", remote.Status)
+	}
+}
+
+func TestProjectListItemUsesFrontendActivityAuthorityForLocalProjects(t *testing.T) {
+	t.Parallel()
+
+	item := toProjectListItem(projectstore.ProjectAggregate{
+		Project: projectstore.Project{
+			ID:                         1,
+			DisplayName:                "Orders",
+			CanonicalProjectName:       "orders",
+			CanonicalProjectNameSource: "computed",
+			SourceKind:                 "managed",
+			HostScope:                  "local",
+			OwnershipMode:              "managed-root-dedicated",
+			WorkingDirectory:           "/tmp/orders",
+			LastRefreshStatus:          "success",
+			DriftStatus:                "clean",
+		},
+	})
+	if item.ActivityAuthority != generated.ProjectActivityAuthority("frontend-fanout") {
+		t.Fatalf("expected frontend-fanout activity authority, got %q", item.ActivityAuthority)
+	}
+}
+
+func TestProjectDetailUsesBackendPlannedActivityAuthorityForRemoteScope(t *testing.T) {
+	t.Parallel()
+
+	detail := toProjectDetailResponse(projectstore.ProjectAggregate{
+		Project: projectstore.Project{
+			ID:                         2,
+			DisplayName:                "Remote Orders",
+			CanonicalProjectName:       "orders-remote",
+			CanonicalProjectNameSource: "computed",
+			SourceKind:                 "remote-host",
+			HostScope:                  "remote",
+			OwnershipMode:              "external",
+			WorkingDirectory:           "/remote/orders",
+			LastRefreshStatus:          "never",
+			DriftStatus:                "unknown",
+		},
+	})
+	if detail.ActivityAuthority != generated.ProjectActivityAuthority("backend-planned") {
+		t.Fatalf("expected backend-planned activity authority, got %q", detail.ActivityAuthority)
+	}
+	if detail.SourceMetadata == nil || detail.SourceMetadata.ActivityRollupScope == nil {
+		t.Fatalf("expected remote-host source metadata activity rollup scope")
+	}
+}

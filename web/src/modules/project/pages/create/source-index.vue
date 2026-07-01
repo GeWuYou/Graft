@@ -26,6 +26,9 @@
           <t-space direction="vertical" size="small" class="project-source-page__body">
             <p>{{ entry.description }}</p>
             <t-descriptions size="small" :column="1" bordered>
+              <t-descriptions-item :label="t('project.createSource.hostScope')">
+                <code>{{ entry.host_scope }}</code>
+              </t-descriptions-item>
               <t-descriptions-item :label="t('project.createSource.routePath')">
                 <code>{{ entry.route_path }}</code>
               </t-descriptions-item>
@@ -44,7 +47,12 @@
             <t-alert v-if="entry.status_reason" theme="info" :message="entry.status_reason" />
             <t-button
               theme="primary"
-              :disabled="entry.status !== 'ready' && entry.type !== 'git' && entry.type !== 'template'"
+              :disabled="
+                entry.status !== 'ready' &&
+                entry.type !== 'git' &&
+                entry.type !== 'template' &&
+                entry.type !== 'remote-host'
+              "
               @click="openEntry(entry)"
             >
               {{ actionLabel(entry) }}
@@ -111,7 +119,9 @@ function openEntry(entry: ProjectSourceEntry) {
       ? PROJECT_BOOTSTRAP_ROUTE.CREATE_MANAGED.pageRouteName
       : entry.type === 'git'
         ? PROJECT_BOOTSTRAP_ROUTE.CREATE_GIT.pageRouteName
-        : PROJECT_BOOTSTRAP_ROUTE.CREATE_TEMPLATE.pageRouteName;
+        : entry.type === 'template'
+          ? PROJECT_BOOTSTRAP_ROUTE.CREATE_TEMPLATE.pageRouteName
+          : PROJECT_BOOTSTRAP_ROUTE.CREATE_REMOTE_HOST.pageRouteName;
   const resolved = router.resolve({ name: routeName });
   const title: LocalizedTitle = {
     [LOCALE.ZH_CN]: entry.display_name,

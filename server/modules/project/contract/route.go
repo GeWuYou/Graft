@@ -39,6 +39,8 @@ const (
 	ProjectCreateGitRoute = "/create/git"
 	// ProjectCreateTemplateRoute identifies the future template source route fragment.
 	ProjectCreateTemplateRoute = "/create/template"
+	// ProjectCreateRemoteHostRoute identifies the future remote-host source route fragment.
+	ProjectCreateRemoteHostRoute = "/create/remote-host"
 	// ProjectRefreshRoute identifies the static refresh route fragment.
 	ProjectRefreshRoute = "/:id/refresh"
 	// ProjectUpRoute identifies the compose up route fragment.
@@ -65,6 +67,8 @@ const (
 	ProjectGitCreateMenuPath = "/ops/projects/create/git"
 	// ProjectTemplateCreateMenuPath identifies the template source create route path.
 	ProjectTemplateCreateMenuPath = "/ops/projects/create/template"
+	// ProjectRemoteHostCreateMenuPath identifies the remote-host source create route path.
+	ProjectRemoteHostCreateMenuPath = "/ops/projects/create/remote-host"
 	// ProjectDiscoveryCandidatesMenuPath identifies the hidden discovery-candidate preview route path.
 	ProjectDiscoveryCandidatesMenuPath = "/ops/projects/create/discovery"
 )

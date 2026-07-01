@@ -218,6 +218,29 @@
   - 在 source selector 下新增 hidden discovery preview 页面。
   - UI 只展示 authority root、候选状态、建议动作与冲突/文件预览，不越界到 remote host 或 backend activity aggregation。
 
+## 2026-07-01 Phase 3 Batch 3 remote-host boundary and activity authority
+
+- 落地 `openapi/**` authority owner：
+  - source catalog 新增 `remote-host` planned entry，并固定 `host_scope=remote`。
+  - project list/detail 新增 `activity_authority` canonical contract。
+  - `source_metadata` 新增 bounded planned 字段：`remote_host_key`、`remote_compose_path`、`activity_authority`、`activity_rollup_scope`。
+- 落地 `server/modules/project/**` authority owner：
+  - source catalog 新增 remote-host entry，但只保留 route/permission/metadata owner。
+  - 本机 project 的 `activity_authority` 固定为 `frontend-fanout`；future remote / backend aggregation 固定为 `backend-planned`。
+  - 未引入 remote execution、credential persistence、backend project logs/events aggregation 或 project realtime topic。
+- 落地 `web/src/modules/project/**` authority owner：
+  - source selector 展示 `remote-host` planned entry 与 host scope。
+  - `/ops/projects/create/remote-host` 作为 planned boundary 页面接入。
+  - detail 页面显式展示 `activity authority`，并在 Activity tab 提示当前 canonical authority。
+
+## 2026-07-01 Topic archive readiness
+
+- 当前 topic 的 Phase 1、Phase 2、Phase 3 bounded batches 均已完成。
+- 主题达到 `archive-ready`：
+  - `Project` 继续只拥有 registry、configuration、lifecycle、services aggregation 与 activity entry。
+  - `Container` 继续拥有 runtime state、logs、events、stats、shell、inspect、networks、mounts。
+  - remote-host 与 backend activity aggregation 仅保留 canonical planned boundary，没有半实现下游兼容层或 runtime 越权。
+
 ## Loop Batch State
 
 ```json

@@ -5,6 +5,7 @@ export const PROJECT_ROUTE_PATH = {
   CREATE_MANAGED: '/ops/projects/create/managed',
   CREATE_GIT: '/ops/projects/create/git',
   CREATE_TEMPLATE: '/ops/projects/create/template',
+  CREATE_REMOTE_HOST: '/ops/projects/create/remote-host',
   DETAIL: '/ops/projects/:id',
 } as const;
 

@@ -1236,6 +1236,36 @@ Configuration：
   - 先收敛 remote host 扩展边界与 project activity backend aggregation authority
   - 未完成该批之前，不应把 project activity backend aggregation 当作 implementation-ready scope
 
+## 16.4D Phase 3 Batch 3 authority 落地说明
+
+`phase-3-batch-3-remote-host-boundary-and-activity-authority` 只收敛 remote-host 扩展边界与 project activity authority，不直接实现 remote execution 或 backend aggregation：
+
+- OpenAPI contract owner：`openapi/**`
+  - `project source catalog` 增加 `remote-host` planned entry，固定其 `host_scope=remote`
+  - `project list/detail` 固定 `activity_authority` 字段，明确当前是 `frontend-fanout` 还是 `backend-planned`
+  - `source_metadata` 允许的新增 planned 字段仅包括：
+    - `remote_host_key`
+    - `remote_compose_path`
+    - `activity_authority`
+    - `activity_rollup_scope`
+- Project module owner：`server/modules/project/**`
+  - `remote-host` 只作为 source selector / route / permission / metadata owner 进入 source catalog
+  - 不新增 remote host credential persistence、remote command execution、backend project logs/events aggregation、project realtime topic 或 project-level runtime cache
+  - 当前本机 `local` project 的 `activity_authority` 仍固定为 `frontend-fanout`
+  - future `remote` project 或 backend aggregation 只保留 `backend-planned` authority 标识，不视为 implementation-ready
+- Web module owner：`web/src/modules/project/**`
+  - `/ops/projects/create/remote-host` 只保留 planned boundary 页面
+  - project detail 明确展示当前 `activity authority`
+  - 当前 Activity tab 继续只做前端 fan-out；若 authority 为 `backend-planned`，UI 只提示 future boundary，不伪造后端数据
+
+当前 batch 的 hard boundary：
+
+- 不新增 remote host 持久化或连接测试
+- 不执行 remote `docker compose`
+- 不新增 backend project logs/events aggregation endpoint
+- 不新增 project realtime topic
+- 不把 discovery candidate 扩大成 auto-registration 或 unmanaged runtime ownership
+
 ## 16.4B Phase 3 Batch 1 authority 落地说明
 
 `phase-3-batch-1-git-template-source-contract-and-boundary` 只收敛 source entry authority，不实现 source-specific materialization：

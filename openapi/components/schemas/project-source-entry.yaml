@@ -9,6 +9,7 @@ required:
   - menu_group
   - description
   - metadata_fields
+  - host_scope
 properties:
   type:
     $ref: ./project-source-entry-type.yaml
@@ -30,6 +31,8 @@ properties:
     type: array
     items:
       type: string
+  host_scope:
+    $ref: ./project-host-scope.yaml
   status_reason:
     type: string
     nullable: true

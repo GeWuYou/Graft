@@ -70,6 +70,9 @@
               <t-descriptions-item :label="t('project.detail.overview.sourceKind')">
                 {{ sourceKindLabel(detailRecord.source_kind) }}
               </t-descriptions-item>
+              <t-descriptions-item :label="t('project.detail.overview.activityAuthority')">
+                {{ activityAuthorityLabel(detailRecord.activity_authority) }}
+              </t-descriptions-item>
               <t-descriptions-item :label="t('project.detail.overview.ownershipMode')">
                 {{ ownershipModeLabel(detailRecord.ownership_mode) }}
               </t-descriptions-item>
@@ -531,6 +534,11 @@
                     </t-space>
                   </template>
                   <p class="project-inline-head__hint">{{ t('project.detail.activity.summary') }}</p>
+                  <t-alert
+                    theme="info"
+                    :message="activityAuthorityNotice(detailRecord.activity_authority)"
+                    class="project-activity-alert"
+                  />
                   <t-alert v-if="activityError" theme="error" :message="activityError" class="project-activity-alert" />
                   <t-empty
                     v-else-if="!activityMembers.length"
@@ -659,6 +667,7 @@ import {
 import { appendResolvedTab, buildDetailTitleWithFallback } from '../../shared/navigation';
 import type {
   ProjectActionResponse,
+  ProjectActivityAuthority,
   ProjectConfigurationDiffRequest,
   ProjectConfigurationDiffResponse,
   ProjectConfigurationFileResponse,
@@ -807,6 +816,16 @@ function refreshStatusTheme(value?: ProjectDetailResponse['last_refresh_status']
 
 function runtimeStatusLabel(value?: ProjectDetailResponse['runtime_status'] | null) {
   return projectRuntimeStatusLabel(t, value);
+}
+
+function activityAuthorityLabel(value: ProjectActivityAuthority) {
+  return value === 'backend-planned'
+    ? t('project.detail.activity.authorityBackendPlanned')
+    : t('project.detail.activity.authorityFrontendFanout');
+}
+
+function activityAuthorityNotice(value: ProjectActivityAuthority) {
+  return activityAuthorityLabel(value);
 }
 
 function joinList(items?: string[] | null) {

@@ -32,6 +32,10 @@
         "title": "模板项目边界",
         "breadcrumb": "模板项目边界"
       },
+      "createRemoteHost": {
+        "title": "Remote Host 项目边界",
+        "breadcrumb": "Remote Host 项目边界"
+      },
       "detail": {
         "title": "项目详情",
         "breadcrumb": "项目详情"
@@ -89,7 +93,8 @@
         "imported": "导入项目",
         "managed": "受管项目",
         "git": "Git 项目",
-        "template": "模板项目"
+        "template": "模板项目",
+        "remote-host": "Remote Host"
       },
       "driftStatus": {
         "unknown": "未知",
@@ -207,6 +212,7 @@
       "permission": "权限",
       "discovery": "发现候选",
       "metadataFields": "元数据字段",
+      "hostScope": "宿主范围",
       "status": {
         "ready": "已就绪",
         "planned": "规划中"
@@ -252,10 +258,10 @@
     },
     "createPlanned": {
       "description": "当前批次只注册该来源边界；真正的物化执行留到后续 bounded batch。",
-      "notice": "这里仅固定 route、permission 和 metadata owner，不执行 Git clone、模板实例化、目录扫描、remote host 或后端活动聚合。",
+      "notice": "这里仅固定 route、permission 和 metadata owner，不执行 Git clone、模板实例化、目录扫描、remote host 执行、密钥持久化或后端活动聚合。",
       "routePath": "路由路径",
       "boundary": "边界说明",
-      "boundaryValue": "当前页面只声明 contract 与 route owner，不执行任何超出 Phase 3 Batch 1 的实现动作。"
+      "boundaryValue": "当前页面只声明 contract 与 route owner，不执行任何超出当前 bounded batch 的实现动作。"
     },
     "detail": {
       "ownershipMode": {
@@ -284,6 +290,7 @@
         "sourceKind": "来源类型",
         "ownershipMode": "所有权模式",
         "hostScope": "宿主范围",
+        "activityAuthority": "活动 Authority",
         "serviceCount": "声明服务数",
         "runtimeStatus": "运行时摘要",
         "lastRefreshStatus": "最近刷新状态",
@@ -373,6 +380,8 @@
       "activity": {
         "title": "前端 Activity Fan-out",
         "summary": "该视图只前端 fan-out 现有 container logs/events，不新增 project 级后端聚合。",
+        "authorityFrontendFanout": "本机项目继续以前端 fan-out 复用现有 container logs/events，作为当前 canonical activity authority。",
+        "authorityBackendPlanned": "后端 project activity aggregation 仍仅处于 planned 状态；本批不实现 remote-host 或跨容器汇总后端。",
         "emptyTitle": "暂无运行时成员",
         "emptyDescription": "当前项目还没有可供 fan-out 的运行时容器成员。",
         "eventCount": "{count} 条事件",

@@ -40,6 +40,8 @@ const { t } = useI18n();
 const titleKey = computed(() =>
   String(route.name) === 'ProjectGitCreateIndex'
     ? 'project.route.createGit.title'
-    : 'project.route.createTemplate.title',
+    : String(route.name) === 'ProjectRemoteHostCreateIndex'
+      ? 'project.route.createRemoteHost.title'
+      : 'project.route.createTemplate.title',
 );
 </script>

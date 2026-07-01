@@ -32,6 +32,10 @@
         "title": "Template Project Boundary",
         "breadcrumb": "Template Project Boundary"
       },
+      "createRemoteHost": {
+        "title": "Remote Host Project Boundary",
+        "breadcrumb": "Remote Host Project Boundary"
+      },
       "detail": {
         "title": "Project Detail",
         "breadcrumb": "Project Detail"
@@ -89,7 +93,8 @@
         "imported": "Imported",
         "managed": "Managed",
         "git": "Git",
-        "template": "Template"
+        "template": "Template",
+        "remote-host": "Remote Host"
       },
       "driftStatus": {
         "unknown": "Unknown",
@@ -207,6 +212,7 @@
       "permission": "Permission",
       "discovery": "Discovery Candidates",
       "metadataFields": "Metadata Fields",
+      "hostScope": "Host Scope",
       "status": {
         "ready": "Ready",
         "planned": "Planned"
@@ -255,7 +261,7 @@
       "notice": "This Entry Only Fixes Route, Permission, and Metadata Ownership in the Current Batch.",
       "routePath": "Route Path",
       "boundary": "Boundary",
-      "boundaryValue": "No Git Clone, Template Instantiation, Directory Scan, Remote Host, or Backend Activity Aggregation Is Executed Here."
+      "boundaryValue": "No Git Clone, Template Instantiation, Directory Scan, Remote Host Execution, Secret Persistence, or Backend Activity Aggregation Is Executed Here."
     },
     "detail": {
       "ownershipMode": {
@@ -284,6 +290,7 @@
         "sourceKind": "Source Kind",
         "ownershipMode": "Ownership Mode",
         "hostScope": "Host Scope",
+        "activityAuthority": "Activity Authority",
         "serviceCount": "Declared Services",
         "runtimeStatus": "Runtime Summary",
         "lastRefreshStatus": "Last Refresh",
@@ -373,6 +380,8 @@
       "activity": {
         "title": "Frontend Activity Fan-out",
         "summary": "This View Fans Out Existing Container Logs and Events Without Adding Project-level Backend Aggregation.",
+        "authorityFrontendFanout": "Frontend fan-out over existing container logs and events remains the canonical activity authority for local projects.",
+        "authorityBackendPlanned": "Backend project activity aggregation remains planned only. Remote-host and cross-container rollups are not implemented in this batch.",
         "emptyTitle": "No Runtime Members",
         "emptyDescription": "This Project Currently Has No Runtime Container Members to Fan Out.",
         "eventCount": "{count} Events",

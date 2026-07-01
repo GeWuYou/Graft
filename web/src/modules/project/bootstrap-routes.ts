@@ -15,6 +15,8 @@ const createGitRouteTitle = localizeRouteTitleKey('project.route.createGit.title
 const createGitBreadcrumbTitle = localizeRouteTitleKey('project.route.createGit.breadcrumb');
 const createTemplateRouteTitle = localizeRouteTitleKey('project.route.createTemplate.title');
 const createTemplateBreadcrumbTitle = localizeRouteTitleKey('project.route.createTemplate.breadcrumb');
+const createRemoteHostRouteTitle = localizeRouteTitleKey('project.route.createRemoteHost.title');
+const createRemoteHostBreadcrumbTitle = localizeRouteTitleKey('project.route.createRemoteHost.breadcrumb');
 const detailRouteTitle = localizeRouteTitleKey('project.route.detail.title');
 const detailBreadcrumbTitle = localizeRouteTitleKey('project.route.detail.breadcrumb');
 
@@ -122,6 +124,24 @@ export const projectGlobalRouteRegistrations: GlobalRouteRegistration[] = [
       tabTitle: createTemplateRouteTitle,
       title: createTemplateRouteTitle,
       titleKey: 'project.route.createTemplate.title',
+    },
+  },
+  {
+    ...PROJECT_BOOTSTRAP_ROUTE.CREATE_REMOTE_HOST,
+    loadPage: () => import('./pages/create/planned-index.vue'),
+    meta: {
+      hidden: false,
+      hiddenMenu: true,
+      keepAlive: false,
+      pageKind: 'detail',
+      pageSurface: 'form-detail',
+      semanticTitle: createRemoteHostRouteTitle,
+      breadcrumbTitle: createRemoteHostBreadcrumbTitle,
+      domainTitle: listRouteTitle,
+      tabGroup: 'ops',
+      tabTitle: createRemoteHostRouteTitle,
+      title: createRemoteHostRouteTitle,
+      titleKey: 'project.route.createRemoteHost.title',
     },
   },
   {
