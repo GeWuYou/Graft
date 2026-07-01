@@ -827,16 +827,36 @@ func ensureManagedCreatePathsUnderRoot(validation ManagedProjectCreateValidation
 // 成功时返回清理所需的工作目录和已写入文件列表。
 func writeManagedProjectFiles(validation ManagedProjectCreateValidationResult, normalized normalizedManagedCreateRequest) (string, []string, error) {
 	workingDirectory := filepath.Clean(validation.WorkingDirectory)
-	if err := os.MkdirAll(workingDirectory, managedCreateDirMode); err != nil {
+	parentRoot, relativeWorkingDirectory, err := openManagedProjectParentRoot(workingDirectory)
+	if err != nil {
+		return "", nil, err
+	}
+	defer closeManagedRootFSQuietly(parentRoot)
+	if err := parentRoot.root.MkdirAll(relativeWorkingDirectory, managedCreateDirMode); err != nil {
 		return "", nil, fmt.Errorf("create working directory: %w", err)
 	}
+	workingRoot, err := parentRoot.root.OpenRoot(relativeWorkingDirectory)
+	if err != nil {
+		return workingDirectory, nil, fmt.Errorf("open working directory: %w", err)
+	}
+	defer func() {
+		_ = workingRoot.Close()
+	}()
 	createdFiles := []string{}
-	if err := os.WriteFile(validation.ComposeFileAbsolutePath, []byte(normalized.ComposeFileContent), managedCreateFileMode); err != nil {
+	composeRelativePath, err := relativePathWithinRoot(workingDirectory, validation.ComposeFileAbsolutePath)
+	if err != nil {
+		return workingDirectory, createdFiles, fmt.Errorf("resolve compose file path: %w", err)
+	}
+	if err := workingRoot.WriteFile(composeRelativePath, []byte(normalized.ComposeFileContent), managedCreateFileMode); err != nil {
 		return workingDirectory, createdFiles, fmt.Errorf("write compose file: %w", err)
 	}
 	createdFiles = append(createdFiles, validation.ComposeFileAbsolutePath)
 	if validation.EnvFileAbsolutePath != nil && normalized.EnvFileContent != nil {
-		if err := os.WriteFile(*validation.EnvFileAbsolutePath, []byte(*normalized.EnvFileContent), managedCreateFileMode); err != nil {
+		envRelativePath, relErr := relativePathWithinRoot(workingDirectory, *validation.EnvFileAbsolutePath)
+		if relErr != nil {
+			return workingDirectory, createdFiles, fmt.Errorf("resolve env file path: %w", relErr)
+		}
+		if err := workingRoot.WriteFile(envRelativePath, []byte(*normalized.EnvFileContent), managedCreateFileMode); err != nil {
 			return workingDirectory, createdFiles, fmt.Errorf("write env file: %w", err)
 		}
 		createdFiles = append(createdFiles, *validation.EnvFileAbsolutePath)
@@ -1965,6 +1985,23 @@ func openManagedRootFS(rootDir string) (*managedRootFS, error) {
 	return &managedRootFS{root: root, rootDir: absolute}, nil
 }
 
+func openManagedProjectParentRoot(workingDirectory string) (*managedRootFS, string, error) {
+	absolute := filepath.Clean(strings.TrimSpace(workingDirectory))
+	if absolute == "" {
+		return nil, "", fmt.Errorf("working directory is required")
+	}
+	parentDir := filepath.Dir(absolute)
+	relativeWorkingDirectory := filepath.Base(absolute)
+	if relativeWorkingDirectory == "." || relativeWorkingDirectory == string(filepath.Separator) || relativeWorkingDirectory == "" {
+		return nil, "", fmt.Errorf("working directory is invalid")
+	}
+	fsRoot, err := openManagedRootFS(parentDir)
+	if err != nil {
+		return nil, "", err
+	}
+	return fsRoot, relativeWorkingDirectory, nil
+}
+
 func openManagedRootFSForPaths(rootDir string, paths ...string) (*managedRootFS, error) {
 	if strings.TrimSpace(rootDir) != "" {
 		return openManagedRootFS(rootDir)
@@ -1983,7 +2020,18 @@ func (fsRoot *managedRootFS) relative(path string) (string, error) {
 	if fsRoot == nil || fsRoot.root == nil {
 		return "", fmt.Errorf("managed root is unavailable")
 	}
-	relative, err := filepath.Rel(fsRoot.rootDir, filepath.Clean(strings.TrimSpace(path)))
+	relative, err := relativePathWithinRoot(fsRoot.rootDir, path)
+	if err != nil {
+		return "", err
+	}
+	if relative == "." {
+		return ".", nil
+	}
+	return relative, nil
+}
+
+func relativePathWithinRoot(rootDir string, path string) (string, error) {
+	relative, err := filepath.Rel(filepath.Clean(strings.TrimSpace(rootDir)), filepath.Clean(strings.TrimSpace(path)))
 	if err != nil {
 		return "", err
 	}

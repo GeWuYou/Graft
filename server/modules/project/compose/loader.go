@@ -235,7 +235,14 @@ func resolveWorkingDirectory(raw string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("resolve working directory: %w", err)
 	}
-	info, err := os.Stat(absolute)
+	root, err := os.OpenRoot(absolute)
+	if err != nil {
+		return "", fmt.Errorf("open working directory: %w", err)
+	}
+	defer func() {
+		_ = root.Close()
+	}()
+	info, err := root.Stat(".")
 	if err != nil {
 		return "", fmt.Errorf("stat working directory: %w", err)
 	}
