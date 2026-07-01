@@ -17,13 +17,19 @@
 
       <t-alert v-if="loadError" theme="warning" :message="loadError" class="project-discovery-page__notice" />
       <t-alert
+        v-else-if="!loading && !response"
+        theme="info"
+        :message="t('project.discovery.unavailableDescription')"
+        class="project-discovery-page__notice"
+      />
+      <t-alert
         v-else-if="response?.status_reason"
         theme="info"
         :message="response.status_reason"
         class="project-discovery-page__notice"
       />
 
-      <t-card :bordered="true" class="project-discovery-page__summary">
+      <t-card v-if="response" :bordered="true" class="project-discovery-page__summary">
         <t-descriptions size="small" :column="1" bordered>
           <t-descriptions-item :label="t('project.discovery.authorityRoot')">
             <code>{{ response?.authority_root || '-' }}</code>
@@ -78,10 +84,17 @@
       </div>
 
       <management-empty-state
-        v-else
+        v-else-if="!loading && response"
         tone="default"
         :title="t('project.discovery.emptyTitle')"
         :description="t('project.discovery.emptyDescription')"
+      />
+
+      <management-empty-state
+        v-else-if="!loading"
+        tone="default"
+        :title="t('project.discovery.unavailableTitle')"
+        :description="t('project.discovery.unavailableDescription')"
       />
     </management-page-content>
   </div>
@@ -105,7 +118,7 @@ defineOptions({
 });
 
 const { t } = useI18n();
-const loading = ref(false);
+const loading = ref(true);
 const loadError = ref('');
 const response = ref<ProjectDiscoveryCandidatesResponse | null>(null);
 const items = ref<ProjectDiscoveryCandidate[]>([]);
@@ -119,8 +132,8 @@ async function loadCandidates() {
   loadError.value = '';
   try {
     const result = await getProjectDiscoveryCandidates();
-    response.value = result;
-    items.value = result.items;
+    response.value = result ?? null;
+    items.value = result?.items ?? [];
   } catch (error) {
     loadError.value = resolveLocalizedErrorMessage(t, error, t('project.discovery.loadFailed'));
     response.value = null;

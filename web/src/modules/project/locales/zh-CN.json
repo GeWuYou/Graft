@@ -118,7 +118,7 @@
         "configuration": "配置",
         "activity": "活动",
         "import": "导入现有项目",
-        "create": "创建托管项目",
+        "create": "选择项目来源",
         "refresh": "刷新",
         "up": "启动项目",
         "down": "停止项目",
@@ -172,6 +172,7 @@
         "openDirectory": "进入目录",
         "emptyTitle": "当前目录下没有可浏览的子目录",
         "emptyDescription": "可以选择当前目录继续导入，或返回上一级目录查看其他路径。",
+        "truncatedNotice": "当前仅展示前 {count} 个目录，请继续进入子目录浏览更多内容。",
         "confirm": "选择当前目录"
       },
       "preview": {
@@ -331,6 +332,8 @@
       "composeFiles": "Compose 文件",
       "emptyTitle": "暂无候选项",
       "emptyDescription": "当前 authority 根目录下没有可预览的 Compose 项目候选项。",
+      "unavailableTitle": "发现预览暂不可用",
+      "unavailableDescription": "当前没有返回发现预览载荷，请刷新 authority 后重试。",
       "conflictsValue": "冲突字段：{value}",
       "status": {
         "ready": "可导入",

@@ -72,7 +72,12 @@ func cleanupManagedCreate(createdDir string, createdFiles []string) (err error) 
 	if len(createdFiles) == 0 && createdDir == "" {
 		return nil
 	}
-	fsRoot, err := openManagedRootFSForPaths(createdDir, createdFiles...)
+	fsRoot := (*managedRootFS)(nil)
+	if strings.TrimSpace(createdDir) != "" {
+		fsRoot, _, err = openManagedProjectParentRoot(createdDir)
+	} else {
+		fsRoot, err = openManagedRootFSForPaths("", createdFiles...)
+	}
 	if err != nil {
 		return fmt.Errorf("open cleanup root: %w", err)
 	}
@@ -396,14 +401,14 @@ func closeManagedRootFS(fsRoot *managedRootFS) error {
 // deleteManagedWorkingDirectory 删除受管工作目录中的全部内容。
 // 它会打开该工作目录对应的受管根，并移除根下的所有文件和子目录。若打开、删除或关闭过程中发生错误，则返回相应错误。
 func deleteManagedWorkingDirectory(workingDirectory string) (err error) {
-	fsRoot, err := openManagedRootFS(filepath.Clean(workingDirectory))
+	fsRoot, relativeWorkingDirectory, err := openManagedProjectParentRoot(workingDirectory)
 	if err != nil {
 		return fmt.Errorf("open managed working directory %s: %w", workingDirectory, err)
 	}
 	defer func() {
 		err = errors.Join(err, closeManagedRootFS(fsRoot))
 	}()
-	if err := fsRoot.root.RemoveAll("."); err != nil {
+	if err := fsRoot.root.RemoveAll(relativeWorkingDirectory); err != nil {
 		return fmt.Errorf("remove managed working directory %s: %w", workingDirectory, err)
 	}
 	return nil

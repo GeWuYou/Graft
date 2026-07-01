@@ -107,4 +107,67 @@ describe('useProjectImportFlow', () => {
 
     expect(flow.canImport.value).toBe(false);
   });
+
+  it('ignores stale inspect responses when a newer directory selection finishes later', async () => {
+    let resolveFirst: (value: Record<string, unknown>) => void = () => {};
+    let resolveSecond: (value: Record<string, unknown>) => void = () => {};
+
+    mocks.postProjectImportInspect
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveFirst = resolve;
+          }),
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveSecond = resolve;
+          }),
+      );
+
+    const flow = useProjectImportFlow((key: string) => key);
+    const firstSelection = flow.selectDirectory({ provider: 'local', root_id: 'managed-root', path: 'apps/first' });
+    const secondSelection = flow.selectDirectory({ provider: 'local', root_id: 'managed-root', path: 'apps/second' });
+
+    resolveSecond({
+      inspection_id: 'inspect-second',
+      directory_ref: { provider: 'local', root_id: 'managed-root', path: 'apps/second' },
+      resolved_working_directory: '/srv/apps/second',
+      canonical_project_name: 'second',
+      display_name_suggested: 'Second Service',
+      compose_files: [],
+      env_files: [],
+      services: [],
+      network_names: [],
+      volume_names: [],
+      warnings: [],
+      conflicts: [],
+    });
+
+    await expect(secondSelection).resolves.toBe('applied');
+    expect(flow.inspectResult.value?.inspection_id).toBe('inspect-second');
+    expect(flow.displayName.value).toBe('Second Service');
+    expect(flow.selectedDirectory.value?.path).toBe('apps/second');
+
+    resolveFirst({
+      inspection_id: 'inspect-first',
+      directory_ref: { provider: 'local', root_id: 'managed-root', path: 'apps/first' },
+      resolved_working_directory: '/srv/apps/first',
+      canonical_project_name: 'first',
+      display_name_suggested: 'First Service',
+      compose_files: [],
+      env_files: [],
+      services: [],
+      network_names: [],
+      volume_names: [],
+      warnings: [],
+      conflicts: [],
+    });
+
+    await expect(firstSelection).resolves.toBe('stale');
+    expect(flow.inspectResult.value?.inspection_id).toBe('inspect-second');
+    expect(flow.displayName.value).toBe('Second Service');
+    expect(flow.selectedDirectory.value?.path).toBe('apps/second');
+  });
 });

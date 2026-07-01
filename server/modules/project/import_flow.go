@@ -20,7 +20,6 @@ const (
 	importProviderLocal            = "local"
 	importManagedRootSourceID      = "managed-root"
 	importServiceRootSourceID      = "service-root"
-	importFallbackRootPath         = "/"
 	importInspectionSessionTTL     = 5 * time.Minute
 	importDirectoryBrowseMaxLimit  = 200
 	importDirectoryBrowseDefault   = 100
@@ -411,32 +410,39 @@ func injectFallbackImportRoot(roots []importRootDefinition, workingDirectory str
 	if len(roots) > 0 {
 		return roots
 	}
-	initialPath := fallbackImportInitialPath(workingDirectory)
-	if initialPath == "" {
+	fallbackRoot := fallbackImportRootPath(workingDirectory)
+	if fallbackRoot == "" {
 		return roots
 	}
 	return []importRootDefinition{
 		{
-			id:          importServiceRootSourceID,
-			label:       "Local Filesystem",
-			path:        importFallbackRootPath,
-			initialPath: normalizeBrowsePath(initialPath),
-			managed:     false,
+			id:      importServiceRootSourceID,
+			label:   "Local Filesystem",
+			path:    fallbackRoot,
+			managed: false,
 		},
 	}
 }
 
-// fallbackImportInitialPath 返回导入流程的默认初始目录路径。
-// 它优先使用环境变量 `GRAFT_PROJECT_IMPORT_DEFAULT_PATH`，仅在其为绝对路径时生效；
-// 否则使用 workingDirectory，在其为绝对路径时返回规范化后的路径。
-func fallbackImportInitialPath(workingDirectory string) string {
-	if configured := strings.TrimSpace(os.Getenv("GRAFT_PROJECT_IMPORT_DEFAULT_PATH")); configured != "" {
-		cleaned := filepath.Clean(configured)
-		if filepath.IsAbs(cleaned) {
-			return cleaned
-		}
+// fallbackImportRootPath 返回导入流程的默认根目录路径。
+// 它优先使用显式配置的导入根环境变量，仅在其为绝对路径时生效；
+// 否则仅在 workingDirectory 本身是绝对路径时返回规范化后的路径。
+func fallbackImportRootPath(workingDirectory string) string {
+	if configured := absoluteImportRootFromEnv("GRAFT_PROJECT_IMPORT_DEFAULT_PATH"); configured != "" {
+		return configured
 	}
-	trimmed := strings.TrimSpace(workingDirectory)
+	if configured := absoluteImportRootFromEnv("GRAFT_PROJECT_IMPORT_CONTAINER_PATH"); configured != "" {
+		return configured
+	}
+	return absoluteImportRoot(workingDirectory)
+}
+
+func absoluteImportRootFromEnv(name string) string {
+	return absoluteImportRoot(os.Getenv(name))
+}
+
+func absoluteImportRoot(path string) string {
+	trimmed := strings.TrimSpace(path)
 	if trimmed == "" {
 		return ""
 	}
@@ -504,7 +510,7 @@ func discoverImportFiles(workingDirectory string) (discoveredImportFiles, error)
 	if len(foundPrimary) > 1 {
 		warnings = append(warnings, importDirectoryWarningMultiple)
 	}
-	if _, statErr := os.Stat(filepath.Join(workingDirectory, defaultComposeOverrideCandidate)); statErr == nil {
+	if regularFileExists(filepath.Join(workingDirectory, defaultComposeOverrideCandidate)) {
 		composeFiles = append(composeFiles, defaultComposeOverrideCandidate)
 	}
 	return discoveredImportFiles{
@@ -519,7 +525,7 @@ func discoverImportFiles(workingDirectory string) (discoveredImportFiles, error)
 func discoverPrimaryComposeFiles(workingDirectory string) []string {
 	foundPrimary := make([]string, 0, len(defaultPrimaryComposeCandidates))
 	for _, candidate := range defaultPrimaryComposeCandidates {
-		if _, statErr := os.Stat(filepath.Join(workingDirectory, candidate)); statErr == nil {
+		if regularFileExists(filepath.Join(workingDirectory, candidate)) {
 			foundPrimary = append(foundPrimary, candidate)
 		}
 	}
@@ -544,7 +550,7 @@ func discoverEnvFiles(workingDirectory string, entries []os.DirEntry) []string {
 		envSet[name] = struct{}{}
 		envFiles = append(envFiles, name)
 	}
-	if _, statErr := os.Stat(filepath.Join(workingDirectory, ".env")); statErr == nil {
+	if regularFileExists(filepath.Join(workingDirectory, ".env")) {
 		appendEnv(".env")
 	}
 	dotEnvVariants, suffixEnvVariants := collectEnvVariants(entries)
@@ -559,6 +565,15 @@ func discoverEnvFiles(workingDirectory string, entries []os.DirEntry) []string {
 
 // collectEnvVariants 收集目录中的环境变量变体文件名。
 // 第一个返回值包含以 `.env.` 开头的文件名，第二个返回值包含以 `.env` 结尾的文件名；两组结果都会按字典序排序。
+
+// regularFileExists 返回路径存在且为常规文件时的判断结果。
+func regularFileExists(path string) bool {
+	info, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+	return !info.IsDir()
+}
 func collectEnvVariants(entries []os.DirEntry) ([]string, []string) {
 	dotEnvVariants := make([]string, 0)
 	suffixEnvVariants := make([]string, 0)

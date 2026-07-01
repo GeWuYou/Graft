@@ -15,6 +15,8 @@ type Translate = (key: string, params?: Record<string, unknown>) => string;
  * @returns 包含导入流程状态、计算结果和操作方法的对象
  */
 export function useProjectImportFlow(t: Translate) {
+  let latestInspectRequestId = 0;
+
   const selectedDirectory = ref<ProjectImportDirectoryRef | null>(null);
   const inspectLoading = ref(false);
   const importLoading = ref(false);
@@ -54,6 +56,7 @@ export function useProjectImportFlow(t: Translate) {
   }
 
   async function selectDirectory(directory: ProjectImportDirectoryRef) {
+    const requestId = ++latestInspectRequestId;
     selectedDirectory.value = directory;
     clearPreview();
     inspectLoading.value = true;
@@ -61,22 +64,31 @@ export function useProjectImportFlow(t: Translate) {
       const response = await postProjectImportInspect({
         directory_ref: directory,
       });
+      if (requestId !== latestInspectRequestId) {
+        return 'stale' as const;
+      }
       inspectResult.value = response;
       displayName.value = buildSuggestedDisplayName(response);
+      return 'applied' as const;
     } catch (error) {
+      if (requestId !== latestInspectRequestId) {
+        return 'stale' as const;
+      }
       inspectError.value = resolveLocalizedErrorMessage(t, error, t('project.import.messages.inspectFailed'));
       throw error;
     } finally {
-      inspectLoading.value = false;
+      if (requestId === latestInspectRequestId) {
+        inspectLoading.value = false;
+      }
     }
   }
 
   async function refreshInspect() {
     if (!selectedDirectory.value) {
-      return;
+      return 'idle' as const;
     }
 
-    await selectDirectory(selectedDirectory.value);
+    return selectDirectory(selectedDirectory.value);
   }
 
   async function submitImport() {

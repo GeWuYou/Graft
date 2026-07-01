@@ -393,10 +393,11 @@ func (s *Service) List(ctx context.Context, query ListQuery) (ListResult, error)
 	if err != nil {
 		return ListResult{}, mapStoreError(err)
 	}
+	managedRootDirectory := s.readyManagedRootDirectory(ctx)
 	items := make([]generated.ProjectListItem, 0, len(storeResult.Items))
 	for _, item := range storeResult.Items {
 		runtimeSummary, _ := s.runtimeSummary(ctx, item)
-		items = append(items, toProjectListItem(item, runtimeSummary))
+		items = append(items, toProjectListItemWithManagedRoot(item, managedRootDirectory, runtimeSummary))
 	}
 	return ListResult{Items: items, Total: storeResult.Total, Limit: normalizeListLimit(query.Limit), Offset: maxInt(query.Offset, 0)}, nil
 }
@@ -651,7 +652,7 @@ func (s *Service) Get(ctx context.Context, projectID uint64) (generated.ProjectD
 		return generated.ProjectDetailResponse{}, err
 	}
 	runtimeSummary, _ := s.runtimeSummary(ctx, aggregate)
-	return toProjectDetailResponse(aggregate, runtimeSummary), nil
+	return toProjectDetailResponseWithManagedRoot(aggregate, s.readyManagedRootDirectory(ctx), runtimeSummary), nil
 }
 
 // ValidateImport resolves static compose inputs and reports bounded import validation results.
@@ -2006,7 +2007,7 @@ func firstProjectFileDisplayName(items []generated.ProjectFileItem) string {
 }
 
 // displayPathsFromCompose 返回一组 compose 文件投影的显示路径列表。
-// 
+//
 // @returns 按输入顺序提取的显示路径；当输入为空时返回 nil。
 func displayPathsFromCompose(files []projectcompose.FileProjection) []string {
 	if len(files) == 0 {
@@ -2058,11 +2059,7 @@ func (s *Service) importRootDefinitions(ctx context.Context) ([]importRootDefini
 // fallbackImportRoots 尝试为导入根列表补充当前工作目录作为回退根。
 // 如果无法获取当前工作目录，则直接返回原列表。
 func fallbackImportRoots(roots []importRootDefinition) []importRootDefinition {
-	workingDirectory, err := os.Getwd()
-	if err != nil {
-		return roots
-	}
-	return injectFallbackImportRoot(roots, workingDirectory)
+	return injectFallbackImportRoot(roots, "")
 }
 
 func (s *Service) resolveImportRoot(ctx context.Context, provider string, rootID string) (importRootDefinition, error) {
@@ -2088,11 +2085,11 @@ func sameWorkingDirectory(left string, right string) bool {
 	return strings.EqualFold(strings.TrimSpace(left), strings.TrimSpace(right))
 }
 
-// toProjectListItem 将项目聚合转换为列表项，并在提供运行时摘要时补充容器运行统计。
-// toProjectListItem 将聚合信息映射为项目列表项，并在提供运行时摘要时补充容器数量。
+// toProjectListItemWithManagedRoot 将聚合信息映射为项目列表项，并在提供运行时摘要时补充容器数量。
 // 结果包含项目标识、名称、来源、工作目录、声明服务数，以及最近刷新和漂移状态。
-func toProjectListItem(
+func toProjectListItemWithManagedRoot(
 	aggregate projectstore.ProjectAggregate,
+	managedRootDirectory string,
 	runtimeSummary ...moduleapi.ContainerProjectRuntimeSummary,
 ) generated.ProjectListItem {
 	serviceCount := 0
@@ -2111,7 +2108,7 @@ func toProjectListItem(
 		CanonicalProjectName:       aggregate.Project.CanonicalProjectName,
 		CanonicalProjectNameSource: generated.ProjectCanonicalNameSource(aggregate.Project.CanonicalProjectNameSource),
 		SourceKind:                 generated.ProjectSourceKind(aggregate.Project.SourceKind),
-		SourceMetadata:             buildListSourceMetadata(aggregate),
+		SourceMetadata:             buildListSourceMetadataWithManagedRoot(aggregate, managedRootDirectory),
 		ActivityAuthority:          generated.ProjectActivityAuthority(resolveActivityAuthority(aggregate)),
 		HostScope:                  generated.ProjectHostScope(aggregate.Project.HostScope),
 		OwnershipMode:              generated.ProjectOwnershipMode(aggregate.Project.OwnershipMode),
@@ -2130,6 +2127,14 @@ func toProjectListItem(
 // 当聚合包含快照时，会写入服务数；刷新错误信息和配置哈希仅在存在时写入响应。
 func toProjectDetailResponse(
 	aggregate projectstore.ProjectAggregate,
+	runtimeSummary ...moduleapi.ContainerProjectRuntimeSummary,
+) generated.ProjectDetailResponse {
+	return toProjectDetailResponseWithManagedRoot(aggregate, "", runtimeSummary...)
+}
+
+func toProjectDetailResponseWithManagedRoot(
+	aggregate projectstore.ProjectAggregate,
+	managedRootDirectory string,
 	runtimeSummary ...moduleapi.ContainerProjectRuntimeSummary,
 ) generated.ProjectDetailResponse {
 	counts := generated.ProjectContainerCounts{}
@@ -2153,7 +2158,7 @@ func toProjectDetailResponse(
 		LastRefreshStatus:          generated.ProjectRefreshStatus(aggregate.Project.LastRefreshStatus),
 		OwnershipMode:              generated.ProjectOwnershipMode(aggregate.Project.OwnershipMode),
 		SourceKind:                 generated.ProjectSourceKind(aggregate.Project.SourceKind),
-		SourceMetadata:             buildDetailSourceMetadata(aggregate),
+		SourceMetadata:             buildDetailSourceMetadataWithManagedRoot(aggregate, managedRootDirectory),
 		ActivityAuthority:          generated.ProjectActivityAuthority(resolveActivityAuthority(aggregate)),
 		WorkingDirectory:           aggregate.Project.WorkingDirectory,
 	}
@@ -2566,13 +2571,12 @@ func assignSourceMetadataField(metadata map[string]string, key string, target **
 	*target = &value
 }
 
-// buildListSourceMetadata 为项目列表构建来源元数据。
-//
+// buildListSourceMetadataWithManagedRoot 为项目列表构建来源元数据。
 // 当来源类型为受托管根或远程主机时返回对应的来源元数据；其他来源类型返回 nil。
-func buildListSourceMetadata(aggregate projectstore.ProjectAggregate) *generated.ProjectSourceMetadata {
+func buildListSourceMetadataWithManagedRoot(aggregate projectstore.ProjectAggregate, managedRootDirectory string) *generated.ProjectSourceMetadata {
 	switch strings.TrimSpace(aggregate.Project.SourceKind) {
 	case projectcontract.SourceKindManaged.String():
-		return buildManagedSourceMetadata(aggregate)
+		return buildManagedSourceMetadata(aggregate, managedRootDirectory)
 	case projectcontract.SourceKindRemoteHost.String():
 		return buildRemoteHostSourceMetadata(aggregate)
 	default:
@@ -2580,11 +2584,12 @@ func buildListSourceMetadata(aggregate projectstore.ProjectAggregate) *generated
 	}
 }
 
-// 返回项目来源元数据；如果没有可映射的来源信息，则返回 nil。
-func buildDetailSourceMetadata(aggregate projectstore.ProjectAggregate) *generated.ProjectSourceMetadata {
+// buildDetailSourceMetadataWithManagedRoot 返回项目详情来源元数据。
+// 如果没有可映射的来源信息，则返回 nil。
+func buildDetailSourceMetadataWithManagedRoot(aggregate projectstore.ProjectAggregate, managedRootDirectory string) *generated.ProjectSourceMetadata {
 	switch strings.TrimSpace(aggregate.Project.SourceKind) {
 	case projectcontract.SourceKindManaged.String():
-		return buildManagedSourceMetadata(aggregate)
+		return buildManagedSourceMetadata(aggregate, managedRootDirectory)
 	case projectcontract.SourceKindRemoteHost.String():
 		return buildRemoteHostSourceMetadata(aggregate)
 	default:
@@ -2593,15 +2598,14 @@ func buildDetailSourceMetadata(aggregate projectstore.ProjectAggregate) *generat
 }
 
 // buildManagedSourceMetadata 生成托管项目的来源元数据。
-//
 // 结果包含托管根标识、相对目录，以及已登记的 Compose 和环境文件名。
-func buildManagedSourceMetadata(aggregate projectstore.ProjectAggregate) *generated.ProjectSourceMetadata {
+func buildManagedSourceMetadata(aggregate projectstore.ProjectAggregate, managedRootDirectory string) *generated.ProjectSourceMetadata {
 	composeFiles := filterFiles(aggregate.Files, projectcontract.FileKindCompose.String())
 	envFiles := filterFiles(aggregate.Files, projectcontract.FileKindEnv.String())
 	metadata := map[string]string{
 		"managed_root_key": projectcontract.ProjectManagedRootConfig.String(),
 	}
-	if relativePath := deriveManagedRelativeDirectory(aggregate.Project.WorkingDirectory); relativePath != "" {
+	if relativePath := deriveManagedRelativeDirectory(managedRootDirectory, aggregate.Project.WorkingDirectory); relativePath != "" {
 		metadata["managed_relative_directory"] = relativePath
 	}
 	if len(composeFiles) > 0 {
@@ -2633,14 +2637,44 @@ func resolveActivityAuthority(aggregate projectstore.ProjectAggregate) ActivityA
 	return ProjectActivityAuthorityFrontendFanout
 }
 
-// deriveManagedRelativeDirectory 从工作目录推导托管相对目录名。
-// 当输入为空、`.` 或根目录时返回空字符串；否则返回清理后的路径基名。
-func deriveManagedRelativeDirectory(workingDirectory string) string {
+// deriveManagedRelativeDirectory 从工作目录推导托管相对目录。
+// 当存在可用 managed root 时返回其相对路径；否则回退到清理后的路径基名。
+func deriveManagedRelativeDirectory(managedRootDirectory string, workingDirectory string) string {
 	cleaned := filepath.Clean(strings.TrimSpace(workingDirectory))
 	if cleaned == "" || cleaned == "." || cleaned == string(filepath.Separator) {
 		return ""
 	}
+	root := filepath.Clean(strings.TrimSpace(managedRootDirectory))
+	if !hasUsableManagedRoot(root) {
+		return filepath.Base(cleaned)
+	}
+	relative, err := filepath.Rel(root, cleaned)
+	if err == nil && isUsableManagedRelativePath(relative) {
+		return filepath.ToSlash(relative)
+	}
 	return filepath.Base(cleaned)
+}
+
+func hasUsableManagedRoot(root string) bool {
+	return root != "" && root != "." && root != string(filepath.Separator)
+}
+
+func isUsableManagedRelativePath(relative string) bool {
+	if relative == "" || relative == "." || relative == ".." {
+		return false
+	}
+	return !strings.HasPrefix(relative, ".."+string(filepath.Separator))
+}
+
+func (s *Service) readyManagedRootDirectory(ctx context.Context) string {
+	if s == nil {
+		return ""
+	}
+	managedRoot, err := s.ManagedRoot(ctx)
+	if err != nil || managedRoot.Status != projectcontract.ManagedRootStatusReady.String() || managedRoot.ConfiguredRootDirectory == nil {
+		return ""
+	}
+	return filepath.Clean(strings.TrimSpace(*managedRoot.ConfiguredRootDirectory))
 }
 
 // uniqueStrings 返回去重后的字符串切片，保留首次出现的顺序。

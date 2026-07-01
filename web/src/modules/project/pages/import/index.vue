@@ -280,8 +280,10 @@ function formatList(items?: string[]) {
 async function handleDirectoryConfirm(directory: ProjectImportDirectoryRef) {
   pickerVisible.value = false;
   try {
-    await selectDirectory(directory);
-    MessagePlugin.success(t('project.import.messages.inspectSuccess'));
+    const result = await selectDirectory(directory);
+    if (result === 'applied') {
+      MessagePlugin.success(t('project.import.messages.inspectSuccess'));
+    }
   } catch {
     MessagePlugin.error(inspectError.value || t('project.import.messages.inspectFailed'));
   }
@@ -289,8 +291,8 @@ async function handleDirectoryConfirm(directory: ProjectImportDirectoryRef) {
 
 async function handleRefreshInspect() {
   try {
-    await refreshInspect();
-    if (inspectResult.value) {
+    const result = await refreshInspect();
+    if (result === 'applied' && inspectResult.value) {
       MessagePlugin.success(t('project.import.messages.inspectSuccess'));
     }
   } catch {

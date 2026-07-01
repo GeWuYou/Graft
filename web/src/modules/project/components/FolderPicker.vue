@@ -50,7 +50,11 @@
         </div>
       </div>
 
-      <div class="folder-picker__body">
+      <div v-if="directoryListLimited" class="folder-picker__alerts">
+        <t-alert theme="info" :message="t('project.import.picker.truncatedNotice', { count: directoryLimit })" />
+      </div>
+
+      <div class="folder-picker__body graft-scrollbar">
         <t-loading :loading="directoriesLoading || sourcesLoading" size="small">
           <div v-if="showDirectoryEmpty" class="folder-picker__empty">
             <management-empty-state
@@ -96,7 +100,11 @@
         <t-button theme="default" variant="outline" @click="handleClose">
           {{ t('project.list.actions.cancel') }}
         </t-button>
-        <t-button theme="primary" :disabled="!selectionForConfirm" @click="confirmSelection">
+        <t-button
+          theme="primary"
+          :disabled="directoriesLoading || sourcesLoading || !selectionForConfirm"
+          @click="confirmSelection"
+        >
           {{ t('project.import.picker.confirm') }}
         </t-button>
       </t-space>
@@ -148,6 +156,8 @@ const parentPath = ref<string | null>(null);
 const directories = ref<ProjectImportDirectoryListItem[]>([]);
 const highlightedPath = ref('');
 const directoryCache = ref<Record<string, ProjectImportDirectoryListResponse>>({});
+const directoryLimit = ref(200);
+const directoryListLimited = ref(false);
 
 const sourceOptions = computed(() =>
   sources.value.map((item) => ({
@@ -165,7 +175,7 @@ const breadcrumbs = computed(() =>
   activeDirectoryRef.value ? buildDirectoryBreadcrumbs(activeDirectoryRef.value) : [],
 );
 const selectionForConfirm = computed(() => {
-  if (!activeSource.value) {
+  if (!activeSource.value || !activeDirectoryRef.value || directoriesLoading.value || sourcesLoading.value) {
     return null;
   }
 
@@ -210,6 +220,8 @@ function resetState() {
   parentPath.value = null;
   highlightedPath.value = '';
   directoryCache.value = {};
+  directoryLimit.value = 200;
+  directoryListLimited.value = false;
 }
 
 async function initialize() {
@@ -232,21 +244,23 @@ async function initialize() {
   }
 }
 
-function applyDirectoryResponse(response: ProjectImportDirectoryListResponse) {
+function applyDirectoryResponse(response: ProjectImportDirectoryListResponse, directory: ProjectImportDirectoryRef) {
+  activeDirectoryRef.value = directory;
   currentPath.value = normalizeDirectoryPath(response.current_path);
   parentPath.value = response.parent_path ? normalizeDirectoryPath(response.parent_path) : null;
   directories.value = response.directories;
   highlightedPath.value = currentPath.value;
+  directoryLimit.value = response.limit;
+  directoryListLimited.value = response.has_more;
 }
 
 async function loadDirectories(directory: ProjectImportDirectoryRef, forceRefresh = false) {
-  activeDirectoryRef.value = directory;
   const cacheKey = buildDirectoryCacheKey(directory);
   const cached = directoryCache.value[cacheKey];
   if (cached && !forceRefresh) {
     errorMessage.value = '';
-    applyDirectoryResponse(cached);
-    return;
+    applyDirectoryResponse(cached, directory);
+    return true;
   }
   directoriesLoading.value = true;
   errorMessage.value = '';
@@ -261,9 +275,11 @@ async function loadDirectories(directory: ProjectImportDirectoryRef, forceRefres
       ...directoryCache.value,
       [cacheKey]: response,
     };
-    applyDirectoryResponse(response);
+    applyDirectoryResponse(response, directory);
+    return true;
   } catch (error) {
     errorMessage.value = resolveLocalizedErrorMessage(t, error, t('project.import.messages.directoryLoadFailed'));
+    return false;
   } finally {
     directoriesLoading.value = false;
   }
@@ -281,8 +297,12 @@ async function handleSourceChange(value: SelectValue) {
     return;
   }
 
+  const previousKey = activeSourceKey.value;
   activeSourceKey.value = nextKey;
-  await loadDirectories(buildDirectorySelection(nextSource, initialDirectoryPath(nextSource)));
+  const loaded = await loadDirectories(buildDirectorySelection(nextSource, initialDirectoryPath(nextSource)));
+  if (!loaded) {
+    activeSourceKey.value = previousKey;
+  }
 }
 
 function highlightDirectory(path: string) {

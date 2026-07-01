@@ -69,22 +69,21 @@ Implementation guardrails:
 
 Current loop state:
 
-- completed batch:
+- completed batches:
   - `phase-2-batch-5-phase-2-validation-drift-guard-and-governance-sync`
-- next batch:
-  - `phase-3-batch-1-git-template-source-contract-and-boundary`
-- pending batches:
   - `phase-3-batch-1-git-template-source-contract-and-boundary`
   - `phase-3-batch-2-directory-scan-and-auto-discovery-candidates`
+- current batch:
+  - `drift-repair-import-primary-entry-and-topic-truth`
+- next batch:
+  - `phase-3-batch-3-remote-host-boundary-and-activity-authority`
+- pending batches:
+  - `drift-repair-import-primary-entry-and-topic-truth`
   - `phase-3-batch-3-remote-host-boundary-and-activity-authority`
 
-Phase 3 rebatching intent:
+Remaining Phase 3 work after drift repair:
 
-1. `phase-3-batch-1-git-template-source-contract-and-boundary`
-   - 固定 git/template project source 的 contract、metadata、route/permission/menu boundary，不落 remote host、directory scan 或 backend activity aggregation
-2. `phase-3-batch-2-directory-scan-and-auto-discovery-candidates`
-   - 落地 scan/discovery candidate model 与 bounded authority，不直接注册项目、不改变 runtime authority
-3. `phase-3-batch-3-remote-host-boundary-and-activity-authority`
+1. `phase-3-batch-3-remote-host-boundary-and-activity-authority`
    - 收敛 remote host 扩展边界与 project activity backend aggregation authority，再决定后续实现切片
 
 Loop instructions:

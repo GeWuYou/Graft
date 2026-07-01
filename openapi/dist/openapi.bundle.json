@@ -10480,7 +10480,7 @@
         ],
         "summary": "Inspect one import directory",
         "operationId": "postProjectImportInspect",
-        "description": "Discovers compose and env files under the selected directory, parses the Compose project once, and returns a short-lived inspection snapshot for later import confirmation.",
+        "description": "Discovers compose and env files under the selected directory, parses the Compose project once, and returns a short-lived inspection snapshot for later import confirmation. Previewable naming or ownership conflicts are reported inside the 200 response body rather than as transport-level 409 errors.",
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -10540,21 +10540,6 @@
           },
           "403": {
             "$ref": "#/components/responses/forbidden"
-          },
-          "409": {
-            "description": "Inspection conflicts with existing registry ownership or canonical naming.",
-            "headers": {
-              "X-Request-Id": {
-                "$ref": "#/components/headers/request-id"
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/error-response"
-                }
-              }
-            }
           },
           "500": {
             "$ref": "#/components/responses/internal-server-error"

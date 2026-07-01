@@ -33,14 +33,7 @@ func (c *importInspectionCache) lookupSession(id string) (importInspectionSessio
 func (c *importInspectionCache) pruneLocked(now time.Time) {
 	for key, session := range c.sessions {
 		if now.After(session.ExpiresAt) {
-			next := make(map[string]importInspectionSession, len(c.sessions)-1)
-			for existingKey, existingSession := range c.sessions {
-				if existingKey == key {
-					continue
-				}
-				next[existingKey] = existingSession
-			}
-			c.sessions = next
+			delete(c.sessions, key)
 		}
 	}
 }

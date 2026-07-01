@@ -1,4 +1,18 @@
 menu.ops.project.title: Compose Projects
+ops.project.error.invalidProjectId: Invalid project id.
+ops.project.error.invalidFileId: Invalid project file id.
+ops.project.error.invalidArgument: Invalid project request.
+ops.project.error.conflict: Project action is blocked by a conflicting project state.
+ops.project.error.notFound: Project was not found.
+ops.project.error.unsupportedLifecycle: Project lifecycle action is not available for the current project state.
+ops.project.error.importValidationFailed: Project import inspection failed validation.
+ops.project.error.managedRootUnconfigured: Managed project root is not configured.
+ops.project.error.managedRootInvalid: Managed project root is invalid.
+ops.project.error.managedFlowUnsupported: Managed-only project flow is not available for this project.
+ops.project.error.sourceUnsupported: Project source is not supported in the current phase.
+ops.project.error.directoryBrowseForbidden: Project import directory is outside the allowed roots.
+ops.project.error.inspectionExpired: Project import inspection has expired.
+ops.project.error.inspectionStale: Project import inspection no longer matches the filesystem.
 rbac.permissionCatalog.projectView.display: View Compose Projects
 rbac.permissionCatalog.projectView.description: Read registered Compose project summaries and readonly details.
 rbac.permissionCatalog.projectImport.display: Import Compose Projects

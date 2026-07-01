@@ -53,17 +53,7 @@
               </t-descriptions-item>
             </t-descriptions>
             <t-alert v-if="entryStatusNotice(entry)" theme="info" :message="entryStatusNotice(entry) ?? undefined" />
-            <t-button
-              theme="primary"
-              :disabled="
-                entry.status === 'blocked' ||
-                (entry.status !== 'ready' &&
-                  entry.type !== 'git' &&
-                  entry.type !== 'template' &&
-                  entry.type !== 'remote-host')
-              "
-              @click="openEntry(entry)"
-            >
+            <t-button theme="primary" @click="openEntry(entry)">
               {{ actionLabel(entry) }}
             </t-button>
           </t-space>

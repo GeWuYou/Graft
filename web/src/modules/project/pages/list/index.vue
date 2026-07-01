@@ -28,8 +28,10 @@
               :import-label="t('project.list.actions.import')"
               :create-label="t('project.list.actions.create')"
               :reset-label="t('project.list.clearFilters')"
-              @import="navigateToCreate"
-              @create="navigateToManagedCreate"
+              :show-reset="hasActiveFilters"
+              @import="navigateToImport"
+              @create="navigateToSourceChooser"
+              @reset="resetFilters"
             />
             <t-button theme="primary" :loading="loading" @click="fetchProjects">
               <template #icon><refresh-icon /></template>
@@ -213,8 +215,8 @@
                       :create-label="t('project.list.actions.create')"
                       :reset-label="t('project.list.clearFilters')"
                       :show-reset="hasActiveFilters"
-                      @import="navigateToCreate"
-                      @create="navigateToManagedCreate"
+                      @import="navigateToImport"
+                      @create="navigateToSourceChooser"
                       @reset="resetFilters"
                     />
                   </template>
@@ -503,7 +505,7 @@ function navigateToDetail(row: ProjectListItem, tab: string) {
   return router.push(target);
 }
 
-function navigateToCreate() {
+function navigateToImport() {
   const target = {
     name: PROJECT_BOOTSTRAP_ROUTE.IMPORT.pageRouteName,
   };
@@ -512,12 +514,12 @@ function navigateToCreate() {
   void router.push(target);
 }
 
-function navigateToManagedCreate() {
+function navigateToSourceChooser() {
   const target = {
-    name: PROJECT_BOOTSTRAP_ROUTE.CREATE_MANAGED.pageRouteName,
+    name: PROJECT_BOOTSTRAP_ROUTE.CREATE.pageRouteName,
   };
   const resolved = router.resolve(target);
-  appendResolvedTab(tabsRouterStore, resolved, localizeRouteTitleKey('project.route.createManaged.title'));
+  appendResolvedTab(tabsRouterStore, resolved, localizeRouteTitleKey('project.route.create.title'));
   void router.push(target);
 }
 

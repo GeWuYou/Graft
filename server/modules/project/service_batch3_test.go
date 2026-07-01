@@ -11,6 +11,7 @@ import (
 
 	generated "graft/server/internal/contract/openapi/generated"
 	"graft/server/internal/moduleapi"
+	projectcontract "graft/server/modules/project/contract"
 	projectstore "graft/server/modules/project/store"
 )
 
@@ -83,7 +84,9 @@ type stubSystemConfigResolver struct {
 	err   error
 }
 
-func (s stubSystemConfigResolver) IsBooleanConfigEnabled(context.Context, string, bool) bool { return false }
+func (s stubSystemConfigResolver) IsBooleanConfigEnabled(context.Context, string, bool) bool {
+	return false
+}
 
 func (s stubSystemConfigResolver) ResolveDefaultConfig(context.Context, string) (string, error) {
 	if s.err != nil {
@@ -397,7 +400,7 @@ func TestSourceCatalogAddsRemoteHostBoundary(t *testing.T) {
 func TestProjectListItemUsesFrontendActivityAuthorityForLocalProjects(t *testing.T) {
 	t.Parallel()
 
-	item := toProjectListItem(projectstore.ProjectAggregate{
+	item := toProjectListItemWithManagedRoot(projectstore.ProjectAggregate{
 		Project: projectstore.Project{
 			ID:                         1,
 			DisplayName:                "Orders",
@@ -410,7 +413,7 @@ func TestProjectListItemUsesFrontendActivityAuthorityForLocalProjects(t *testing
 			LastRefreshStatus:          "success",
 			DriftStatus:                "clean",
 		},
-	})
+	}, "")
 	if item.ActivityAuthority != generated.ProjectActivityAuthority("frontend-fanout") {
 		t.Fatalf("expected frontend-fanout activity authority, got %q", item.ActivityAuthority)
 	}
@@ -493,11 +496,6 @@ func TestImportDirectorySourcesDecodeSystemConfigStringValue(t *testing.T) {
 func TestImportDirectorySourcesFallbackToCurrentServiceDirectory(t *testing.T) {
 	t.Parallel()
 
-	expectedRoot, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("get working directory: %v", err)
-	}
-
 	service, err := NewService(&stubProjectRepository{})
 	if err != nil {
 		t.Fatalf("new service: %v", err)
@@ -507,18 +505,8 @@ func TestImportDirectorySourcesFallbackToCurrentServiceDirectory(t *testing.T) {
 	if err != nil {
 		t.Fatalf("import directory sources: %v", err)
 	}
-	if len(result.Items) != 1 {
-		t.Fatalf("expected fallback root, got %d items", len(result.Items))
-	}
-	if result.Items[0].RootID != importServiceRootSourceID {
-		t.Fatalf("expected fallback service root id, got %#v", result.Items[0])
-	}
-	if result.Items[0].Path != importFallbackRootPath {
-		t.Fatalf("expected fallback browse root path %q, got %q", importFallbackRootPath, result.Items[0].Path)
-	}
-	expectedInitialPath := normalizeBrowsePath(expectedRoot)
-	if result.Items[0].InitialPath != expectedInitialPath {
-		t.Fatalf("expected fallback initial path %q, got %q", expectedInitialPath, result.Items[0].InitialPath)
+	if len(result.Items) != 0 {
+		t.Fatalf("expected no fallback roots without explicit authority, got %#v", result.Items)
 	}
 }
 
@@ -536,14 +524,149 @@ func TestImportDirectorySourcesFallbackUsesConfiguredDefaultPath(t *testing.T) {
 		t.Fatalf("import directory sources: %v", err)
 	}
 	if len(result.Items) != 1 {
-		t.Fatalf("expected fallback root, got %d items", len(result.Items))
+		t.Fatalf("expected one explicit fallback root, got %d items", len(result.Items))
 	}
-	if result.Items[0].Path != importFallbackRootPath {
-		t.Fatalf("expected fallback browse root path %q, got %q", importFallbackRootPath, result.Items[0].Path)
+	if result.Items[0].RootID != importServiceRootSourceID {
+		t.Fatalf("expected service-root fallback id, got %#v", result.Items[0])
 	}
-	expectedInitialPath := normalizeBrowsePath(customPath)
-	if result.Items[0].InitialPath != expectedInitialPath {
-		t.Fatalf("expected configured initial path %q, got %q", expectedInitialPath, result.Items[0].InitialPath)
+	if result.Items[0].Path != customPath {
+		t.Fatalf("expected configured fallback root path %q, got %q", customPath, result.Items[0].Path)
+	}
+	if result.Items[0].InitialPath != "" {
+		t.Fatalf("expected root-scoped initial path for explicit fallback root, got %q", result.Items[0].InitialPath)
+	}
+}
+
+func TestImportDirectorySourcesFallbackUsesContainerPathWhenDefaultPathMissing(t *testing.T) {
+	t.Setenv("GRAFT_PROJECT_IMPORT_CONTAINER_PATH", filepath.Join(string(filepath.Separator), "srv", "graft-imports"))
+
+	service, err := NewService(&stubProjectRepository{})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	result, err := service.ImportDirectorySources(context.Background())
+	if err != nil {
+		t.Fatalf("import directory sources: %v", err)
+	}
+	if len(result.Items) != 1 {
+		t.Fatalf("expected one explicit fallback root, got %d items", len(result.Items))
+	}
+	if result.Items[0].Path != filepath.Join(string(filepath.Separator), "srv", "graft-imports") {
+		t.Fatalf("unexpected container-path fallback root: %#v", result.Items[0])
+	}
+}
+
+func TestToProjectDetailResponsePreservesNestedManagedRelativeDirectory(t *testing.T) {
+	t.Parallel()
+
+	managedRoot := filepath.Join(string(filepath.Separator), "srv", "managed")
+	aggregate := projectstore.ProjectAggregate{
+		Project: projectstore.Project{
+			ID:                         7,
+			DisplayName:                "Orders",
+			CanonicalProjectName:       "orders",
+			CanonicalProjectNameSource: "computed",
+			SourceKind:                 projectcontract.SourceKindManaged.String(),
+			HostScope:                  projectcontract.HostScopeLocal.String(),
+			OwnershipMode:              projectcontract.OwnershipModeManagedRootDedicated.String(),
+			WorkingDirectory:           filepath.Join(managedRoot, "team-a", "orders"),
+			LastRefreshStatus:          "success",
+			DriftStatus:                "clean",
+		},
+	}
+
+	detail := toProjectDetailResponseWithManagedRoot(aggregate, managedRoot)
+	if detail.SourceMetadata == nil || detail.SourceMetadata.ManagedRelativeDirectory == nil {
+		t.Fatalf("expected managed source metadata with relative directory")
+	}
+	if *detail.SourceMetadata.ManagedRelativeDirectory != "team-a/orders" {
+		t.Fatalf("expected nested managed relative directory, got %q", *detail.SourceMetadata.ManagedRelativeDirectory)
+	}
+}
+
+func TestDiscoverImportFilesExcludesDirectoriesFromComposeCandidates(t *testing.T) {
+	t.Parallel()
+
+	workingDirectory := t.TempDir()
+	if err := os.Mkdir(filepath.Join(workingDirectory, "compose.yaml"), 0o750); err != nil {
+		t.Fatalf("mkdir fake compose dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(workingDirectory, "compose.yml"), []byte("services:\n  api:\n    image: nginx:latest\n"), 0o600); err != nil {
+		t.Fatalf("write compose file: %v", err)
+	}
+
+	discovered, err := discoverImportFiles(workingDirectory)
+	if err != nil {
+		t.Fatalf("discover import files: %v", err)
+	}
+	if len(discovered.composeFiles) != 1 || discovered.composeFiles[0] != "compose.yml" {
+		t.Fatalf("expected only the regular compose file candidate, got %#v", discovered.composeFiles)
+	}
+}
+
+func TestDeleteManagedWorkingDirectoryRemovesOnlyTargetDirectory(t *testing.T) {
+	t.Parallel()
+
+	parent := t.TempDir()
+	workingDirectory := filepath.Join(parent, "orders")
+	sibling := filepath.Join(parent, "shared")
+	if err := os.MkdirAll(filepath.Join(workingDirectory, "nested"), 0o750); err != nil {
+		t.Fatalf("mkdir working tree: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(workingDirectory, "nested", "compose.yaml"), []byte("services:{}\n"), 0o600); err != nil {
+		t.Fatalf("write working file: %v", err)
+	}
+	if err := os.MkdirAll(sibling, 0o750); err != nil {
+		t.Fatalf("mkdir sibling: %v", err)
+	}
+
+	if err := deleteManagedWorkingDirectory(workingDirectory); err != nil {
+		t.Fatalf("delete managed working directory: %v", err)
+	}
+	if _, err := os.Stat(workingDirectory); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("expected working directory removed, got %v", err)
+	}
+	if _, err := os.Stat(parent); err != nil {
+		t.Fatalf("expected parent directory preserved: %v", err)
+	}
+	if _, err := os.Stat(sibling); err != nil {
+		t.Fatalf("expected sibling directory preserved: %v", err)
+	}
+}
+
+func TestCleanupManagedCreateRemovesCreatedDirectoryWithinParentBoundary(t *testing.T) {
+	t.Parallel()
+
+	parent := t.TempDir()
+	createdDir := filepath.Join(parent, "orders")
+	createdFile := filepath.Join(createdDir, "compose.yaml")
+	if err := os.MkdirAll(createdDir, 0o750); err != nil {
+		t.Fatalf("mkdir created dir: %v", err)
+	}
+	if err := os.WriteFile(createdFile, []byte("services:\n  api:\n    image: nginx:latest\n"), 0o600); err != nil {
+		t.Fatalf("write created file: %v", err)
+	}
+
+	if err := cleanupManagedCreate(createdDir, []string{createdFile}); err != nil {
+		t.Fatalf("cleanup managed create: %v", err)
+	}
+	if _, err := os.Stat(createdDir); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("expected created directory removed, got %v", err)
+	}
+	if _, err := os.Stat(parent); err != nil {
+		t.Fatalf("expected parent directory preserved: %v", err)
+	}
+}
+
+func TestProjectErrorMessageKeyUsesProjectCode(t *testing.T) {
+	t.Parallel()
+
+	if got := projectErrorMessageKey(projectcontract.ProjectConflict.String()); got != projectcontract.ProjectConflict.String() {
+		t.Fatalf("expected project code as message key, got %q", got)
+	}
+	if got := projectErrorMessageKey(" "); got != "common.invalid_argument" {
+		t.Fatalf("expected common invalid argument fallback, got %q", got)
 	}
 }
 
@@ -627,7 +750,9 @@ type stubCompositeConfigResolver struct {
 	values map[string]string
 }
 
-func (s stubCompositeConfigResolver) IsBooleanConfigEnabled(context.Context, string, bool) bool { return false }
+func (s stubCompositeConfigResolver) IsBooleanConfigEnabled(context.Context, string, bool) bool {
+	return false
+}
 
 func (s stubCompositeConfigResolver) ResolveDefaultConfig(_ context.Context, key string) (string, error) {
 	value, ok := s.values[key]

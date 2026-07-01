@@ -498,7 +498,7 @@ func (r routeRuntime) writeLocalizedProjectError(ginCtx *gin.Context, status int
 }
 
 func (r routeRuntime) writeLocalizedActionError(ginCtx *gin.Context, status int, code string, details map[string]any) {
-	httpx.WriteLocalizedErrorCode(ginCtx, r.ctx.I18n, status, code, messagecontract.CommonInvalidArgument.String(), details)
+	httpx.WriteLocalizedErrorCode(ginCtx, r.ctx.I18n, status, code, projectErrorMessageKey(code), details)
 }
 
 type projectGeneratedHandler struct{}
@@ -955,6 +955,14 @@ func mapLifecycleErrorCode(err error) string {
 		return projectcontract.ProjectManagedFlowUnsupported.String()
 	}
 	return projectcontract.ProjectUnsupportedLifecycle.String()
+}
+
+func projectErrorMessageKey(code string) string {
+	code = strings.TrimSpace(code)
+	if code == "" {
+		return messagecontract.CommonInvalidArgument.String()
+	}
+	return code
 }
 
 // resolveAuthService 从服务容器中解析 AuthService。
