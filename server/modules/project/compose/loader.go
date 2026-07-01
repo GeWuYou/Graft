@@ -309,8 +309,7 @@ func resolveFileProjection(
 	}
 	content, ok := overrides[absolute]
 	if !ok {
-		// #nosec G304 -- absolute is normalized and constrained by resolveBoundedPath to stay under workingDirectory.
-		content, err = os.ReadFile(absolute)
+		content, err = readFileWithinWorkingDirectory(workingDirectory, absolute)
 		if err != nil {
 			return FileProjection{}, fmt.Errorf("read project file %s: %w", absolute, err)
 		}
@@ -368,6 +367,24 @@ func resolveBoundedPath(workingDirectory string, rawPath string) (string, error)
 		return "", fmt.Errorf("project file path must stay under working directory")
 	}
 	return absolute, nil
+}
+
+func readFileWithinWorkingDirectory(workingDirectory string, absolutePath string) ([]byte, error) {
+	root, err := os.OpenRoot(workingDirectory)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		_ = root.Close()
+	}()
+	relative, err := filepath.Rel(workingDirectory, absolutePath)
+	if err != nil {
+		return nil, err
+	}
+	if relative == "." || relative == "" || strings.HasPrefix(relative, "..") {
+		return nil, fmt.Errorf("project file path must stay under working directory")
+	}
+	return root.ReadFile(relative)
 }
 
 // composeRole 返回 Compose 文件在请求顺序中的角色。
