@@ -1,0 +1,24 @@
+type: object
+required:
+  - source_type
+  - supports_scan
+  - supports_auto_discovery
+  - authority_root
+  - items
+properties:
+  source_type:
+    $ref: ./project-source-entry-type.yaml
+  authority_root:
+    type: string
+    nullable: true
+  supports_scan:
+    type: boolean
+  supports_auto_discovery:
+    type: boolean
+  status_reason:
+    type: string
+    nullable: true
+  items:
+    type: array
+    items:
+      $ref: ./project-discovery-candidate.yaml

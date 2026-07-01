@@ -10,6 +10,11 @@ export const PROJECT_BOOTSTRAP_ROUTE = {
     pageRouteName: 'ProjectCreateSourceIndex',
     routeName: 'ProjectCreateSource',
   },
+  CREATE_DISCOVERY: {
+    path: PROJECT_ROUTE_PATH.CREATE_DISCOVERY,
+    pageRouteName: 'ProjectDiscoveryCandidateIndex',
+    routeName: 'ProjectCreateDiscovery',
+  },
   CREATE_MANAGED: {
     path: PROJECT_ROUTE_PATH.CREATE_MANAGED,
     pageRouteName: 'ProjectManagedCreateIndex',

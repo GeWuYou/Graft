@@ -7,6 +7,8 @@ const listRouteTitle = localizeRouteTitleKey('project.route.list.title');
 const listBreadcrumbTitle = localizeRouteTitleKey('project.route.list.breadcrumb');
 const createRouteTitle = localizeRouteTitleKey('project.route.create.title');
 const createBreadcrumbTitle = localizeRouteTitleKey('project.route.create.breadcrumb');
+const createDiscoveryRouteTitle = localizeRouteTitleKey('project.route.createDiscovery.title');
+const createDiscoveryBreadcrumbTitle = localizeRouteTitleKey('project.route.createDiscovery.breadcrumb');
 const createManagedRouteTitle = localizeRouteTitleKey('project.route.createManaged.title');
 const createManagedBreadcrumbTitle = localizeRouteTitleKey('project.route.createManaged.breadcrumb');
 const createGitRouteTitle = localizeRouteTitleKey('project.route.createGit.title');
@@ -48,6 +50,24 @@ export const projectGlobalRouteRegistrations: GlobalRouteRegistration[] = [
       tabTitle: createRouteTitle,
       title: createRouteTitle,
       titleKey: 'project.route.create.title',
+    },
+  },
+  {
+    ...PROJECT_BOOTSTRAP_ROUTE.CREATE_DISCOVERY,
+    loadPage: () => import('./pages/create/discovery-index.vue'),
+    meta: {
+      hidden: false,
+      hiddenMenu: true,
+      keepAlive: true,
+      pageKind: 'detail',
+      pageSurface: 'form-detail',
+      semanticTitle: createDiscoveryRouteTitle,
+      breadcrumbTitle: createDiscoveryBreadcrumbTitle,
+      domainTitle: listRouteTitle,
+      tabGroup: 'ops',
+      tabTitle: createDiscoveryRouteTitle,
+      title: createDiscoveryRouteTitle,
+      titleKey: 'project.route.createDiscovery.title',
     },
   },
   {

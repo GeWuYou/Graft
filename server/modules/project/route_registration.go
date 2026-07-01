@@ -59,6 +59,7 @@ func registerRoutes(ctx *module.Context, moduleName string, service *Service) er
 	group.POST(projectcontract.ProjectImportValidateRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectImportPermission.String(), publisher), routes.handleImportValidate)
 	group.POST(projectcontract.ProjectImportRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectImportPermission.String(), publisher), routes.handleImport)
 	group.GET(projectcontract.ProjectSourcesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectSourceViewPermission.String(), publisher), routes.handleSources)
+	group.GET(projectcontract.ProjectDiscoveryCandidatesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectDiscoveryViewPermission.String(), publisher), routes.handleDiscoveryCandidates)
 	group.GET(projectcontract.ProjectManagedRootRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectCreatePermission.String(), publisher), routes.handleManagedRoot)
 	group.POST(projectcontract.ProjectCreateValidateRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectCreatePermission.String(), publisher), routes.handleCreateValidate)
 	group.POST(projectcontract.ProjectCreateRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectCreatePermission.String(), publisher), routes.handleCreate)
@@ -135,6 +136,16 @@ func (r routeRuntime) handleSources(ginCtx *gin.Context) {
 		return
 	}
 	httpx.WriteSuccess(ginCtx, http.StatusOK, toSourceCatalogResponse(result))
+}
+
+func (r routeRuntime) handleDiscoveryCandidates(ginCtx *gin.Context) {
+	projectGeneratedHandler{}.GetProjectDiscoveryCandidates(bindGetProjectDiscoveryCandidatesParams(ginCtx))
+	result, err := r.service.DiscoveryCandidates(ginCtx.Request.Context())
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, toDiscoveryCandidatesResponse(result))
 }
 
 func (r routeRuntime) handleManagedRoot(ginCtx *gin.Context) {
@@ -424,6 +435,8 @@ type projectGeneratedHandler struct{}
 
 func (projectGeneratedHandler) GetProjects(generated.GetProjectsParams) {}
 func (projectGeneratedHandler) GetProjectSources(generated.GetProjectSourcesParams)             {}
+func (projectGeneratedHandler) GetProjectDiscoveryCandidates(generated.GetProjectDiscoveryCandidatesParams) {
+}
 func (projectGeneratedHandler) PostProjectImportValidate(generated.PostProjectImportValidateParams, generated.PostProjectImportValidateJSONRequestBody) {
 }
 func (projectGeneratedHandler) PostProjectImport(generated.PostProjectImportParams, generated.PostProjectImportJSONRequestBody) {
@@ -594,6 +607,11 @@ func bindImportValidateParams(ginCtx *gin.Context) generated.PostProjectImportVa
 func bindGetProjectSourcesParams(ginCtx *gin.Context) generated.GetProjectSourcesParams {
 	locale, requestID := commonHeaders(ginCtx)
 	return generated.GetProjectSourcesParams{XGraftLocale: locale, XRequestId: requestID}
+}
+
+func bindGetProjectDiscoveryCandidatesParams(ginCtx *gin.Context) generated.GetProjectDiscoveryCandidatesParams {
+	locale, requestID := commonHeaders(ginCtx)
+	return generated.GetProjectDiscoveryCandidatesParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
 // bindGetProjectParams 生成获取项目接口的请求参数，包含语言和请求 ID。

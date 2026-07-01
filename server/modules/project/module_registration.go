@@ -92,6 +92,15 @@ func permissionItems(moduleName string) []permission.Item {
 			Module:         moduleName,
 		},
 		{
+			Code:           projectcontract.ProjectDiscoveryViewPermission.String(),
+			Name:           "View compose project discovery candidates",
+			DisplayKey:     "rbac.permissionCatalog.projectDiscoveryView.display",
+			Description:    "Inspect bounded local directory-scan and auto-discovery candidate previews without registering projects.",
+			DescriptionKey: "rbac.permissionCatalog.projectDiscoveryView.description",
+			Category:       "api",
+			Module:         moduleName,
+		},
+		{
 			Code:           projectcontract.ProjectDeployPermission.String(),
 			Name:           "Deploy managed compose project drafts",
 			DisplayKey:     "rbac.permissionCatalog.projectDeploy.display",

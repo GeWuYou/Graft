@@ -13,10 +13,13 @@ rbac.permissionCatalog.projectCreate.display: Create Managed Compose Projects
 rbac.permissionCatalog.projectCreate.description: Inspect managed-root authority and access future managed project create workflows.
 rbac.permissionCatalog.projectSourceView.display: View Project Source Catalog
 rbac.permissionCatalog.projectSourceView.description: Inspect the Phase 3 source catalog and source selector routes for managed, git, and template project entrypoints.
+rbac.permissionCatalog.projectDiscoveryView.display: View Project Discovery Candidates
+rbac.permissionCatalog.projectDiscoveryView.description: Inspect bounded local directory-scan and auto-discovery candidate previews without registering projects.
 rbac.permissionCatalog.projectDeploy.display: Deploy Managed Compose Project Drafts
 rbac.permissionCatalog.projectDeploy.description: Diff, validate, and deploy managed project configuration drafts within the bounded project authority.
 ops.project.source.managed.description: Create a managed Compose project under the canonical managed root owned by project authority.
 ops.project.source.git.description: Reserve the canonical git-backed project source boundary without introducing clone, scan, or remote-host execution in this batch.
 ops.project.source.template.description: Reserve the canonical template-backed project source boundary without introducing template instantiation, discovery, or remote-host execution in this batch.
+ops.project.discovery.candidates.ready: Project discovery candidate preview is ready.
 systemConfig.project.ops.project.managed.root_directory.title: Managed Project Root Directory
 systemConfig.project.ops.project.managed.root_directory.description: Canonical root directory used by managed Compose project create workflows. Empty means managed create is not configured yet.

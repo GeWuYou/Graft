@@ -25,6 +25,8 @@ const (
 	ProjectImportRoute = "/import"
 	// ProjectSourcesRoute identifies the project source catalog route fragment.
 	ProjectSourcesRoute = "/sources"
+	// ProjectDiscoveryCandidatesRoute identifies the bounded discovery-candidate preview route fragment.
+	ProjectDiscoveryCandidatesRoute = "/discovery-candidates"
 	// ProjectCreateSourceSelectorRoute identifies the source selector route fragment.
 	ProjectCreateSourceSelectorRoute = "/create"
 	// ProjectManagedRootRoute identifies the managed-root metadata route fragment.
@@ -63,4 +65,6 @@ const (
 	ProjectGitCreateMenuPath = "/ops/projects/create/git"
 	// ProjectTemplateCreateMenuPath identifies the template source create route path.
 	ProjectTemplateCreateMenuPath = "/ops/projects/create/template"
+	// ProjectDiscoveryCandidatesMenuPath identifies the hidden discovery-candidate preview route path.
+	ProjectDiscoveryCandidatesMenuPath = "/ops/projects/create/discovery"
 )

@@ -1,0 +1,6 @@
+type: string
+enum: [ready, conflict, skipped]
+x-enum-varnames:
+  - ProjectDiscoveryCandidateStatusReady
+  - ProjectDiscoveryCandidateStatusConflict
+  - ProjectDiscoveryCandidateStatusSkipped

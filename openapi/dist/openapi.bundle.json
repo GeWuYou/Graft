@@ -10611,6 +10611,55 @@
         }
       }
     },
+    "/api/ops/projects/discovery-candidates": {
+      "get": {
+        "tags": [
+          "project"
+        ],
+        "summary": "List bounded project discovery candidates",
+        "operationId": "getProjectDiscoveryCandidates",
+        "description": "Returns local directory-scan and auto-discovery candidate previews under the current project authority without auto-registering projects or changing runtime ownership.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Project discovery candidate preview list.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-project-discovery-candidates-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
     "/api/ops/projects/managed/root": {
       "get": {
         "tags": [
@@ -21360,6 +21409,196 @@
             "properties": {
               "data": {
                 "$ref": "#/components/schemas/project-source-catalog-response"
+              }
+            }
+          }
+        ]
+      },
+      "project-discovery-candidate-kind": {
+        "type": "string",
+        "enum": [
+          "directory-scan",
+          "auto-discovery"
+        ],
+        "x-enum-varnames": [
+          "ProjectDiscoveryCandidateKindDirectoryScan",
+          "ProjectDiscoveryCandidateKindAutoDiscovery"
+        ]
+      },
+      "project-discovery-candidate-status": {
+        "type": "string",
+        "enum": [
+          "ready",
+          "conflict",
+          "skipped"
+        ],
+        "x-enum-varnames": [
+          "ProjectDiscoveryCandidateStatusReady",
+          "ProjectDiscoveryCandidateStatusConflict",
+          "ProjectDiscoveryCandidateStatusSkipped"
+        ]
+      },
+      "project-discovery-candidate": {
+        "type": "object",
+        "required": [
+          "candidate_key",
+          "candidate_kind",
+          "source_kind",
+          "display_name",
+          "canonical_project_name",
+          "canonical_project_name_source",
+          "working_directory",
+          "ownership_mode",
+          "host_scope",
+          "status",
+          "recommended_action",
+          "compose_files",
+          "env_files",
+          "declared_service_names",
+          "service_count",
+          "config_hash",
+          "warnings",
+          "conflicts"
+        ],
+        "properties": {
+          "candidate_key": {
+            "type": "string"
+          },
+          "candidate_kind": {
+            "$ref": "#/components/schemas/project-discovery-candidate-kind"
+          },
+          "source_kind": {
+            "$ref": "#/components/schemas/project-source-kind"
+          },
+          "source_type": {
+            "$ref": "#/components/schemas/project-source-entry-type"
+          },
+          "source_metadata": {
+            "$ref": "#/components/schemas/project-source-metadata"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "canonical_project_name": {
+            "type": "string"
+          },
+          "canonical_project_name_source": {
+            "$ref": "#/components/schemas/project-canonical-name-source"
+          },
+          "working_directory": {
+            "type": "string"
+          },
+          "ownership_mode": {
+            "$ref": "#/components/schemas/project-ownership-mode"
+          },
+          "host_scope": {
+            "$ref": "#/components/schemas/project-host-scope"
+          },
+          "status": {
+            "$ref": "#/components/schemas/project-discovery-candidate-status"
+          },
+          "recommended_action": {
+            "type": "string",
+            "enum": [
+              "review",
+              "import"
+            ],
+            "x-enum-varnames": [
+              "ProjectDiscoveryCandidateActionReview",
+              "ProjectDiscoveryCandidateActionImport"
+            ]
+          },
+          "status_reason": {
+            "type": "string",
+            "nullable": true
+          },
+          "compose_files": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/project-file-item"
+            }
+          },
+          "env_files": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/project-file-item"
+            }
+          },
+          "declared_service_names": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "service_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "config_hash": {
+            "type": "string"
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "conflicts": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "project-discovery-candidates-response": {
+        "type": "object",
+        "required": [
+          "source_type",
+          "supports_scan",
+          "supports_auto_discovery",
+          "authority_root",
+          "items"
+        ],
+        "properties": {
+          "source_type": {
+            "$ref": "#/components/schemas/project-source-entry-type"
+          },
+          "authority_root": {
+            "type": "string",
+            "nullable": true
+          },
+          "supports_scan": {
+            "type": "boolean"
+          },
+          "supports_auto_discovery": {
+            "type": "boolean"
+          },
+          "status_reason": {
+            "type": "string",
+            "nullable": true
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/project-discovery-candidate"
+            }
+          }
+        }
+      },
+      "enveloped-project-discovery-candidates-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/project-discovery-candidates-response"
               }
             }
           }

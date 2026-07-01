@@ -33,6 +33,7 @@ import type {
   ProjectDeployRequest,
   ProjectDeployResponse,
   ProjectDetailResponse,
+  ProjectDiscoveryCandidatesResponse,
   ProjectListQuery,
   ProjectListResponse,
   ProjectManagedRootResponse,
@@ -105,6 +106,12 @@ type ProjectSourcesPath = (typeof PROJECT_API_PATH)['SOURCES'];
 type GetProjectSourcesOperation = paths[ProjectSourcesPath]['get'];
 type GetProjectSourcesEnvelope = GetProjectSourcesOperation['responses'][200]['content']['application/json'];
 type GetProjectSourcesData = NonNullable<GetProjectSourcesEnvelope['data']>;
+
+type ProjectDiscoveryCandidatesPath = (typeof PROJECT_API_PATH)['DISCOVERY_CANDIDATES'];
+type GetProjectDiscoveryCandidatesOperation = paths[ProjectDiscoveryCandidatesPath]['get'];
+type GetProjectDiscoveryCandidatesEnvelope =
+  GetProjectDiscoveryCandidatesOperation['responses'][200]['content']['application/json'];
+type GetProjectDiscoveryCandidatesData = NonNullable<GetProjectDiscoveryCandidatesEnvelope['data']>;
 
 type ProjectCreateValidatePath = (typeof PROJECT_API_PATH)['CREATE_VALIDATE'];
 type ProjectCreateValidateOperation = paths[ProjectCreateValidatePath]['post'];
@@ -289,6 +296,12 @@ export function getProjectSources() {
   return request.get<GetProjectSourcesData>({
     url: PROJECT_API_PATH.SOURCES,
   }) as Promise<ProjectSourceCatalogResponse>;
+}
+
+export function getProjectDiscoveryCandidates() {
+  return request.get<GetProjectDiscoveryCandidatesData>({
+    url: PROJECT_API_PATH.DISCOVERY_CANDIDATES,
+  }) as Promise<ProjectDiscoveryCandidatesResponse>;
 }
 
 /**

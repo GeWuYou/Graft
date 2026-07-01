@@ -23,6 +23,56 @@ func toSourceCatalogResponse(result SourceCatalogResult) generated.ProjectSource
 	}
 }
 
+func toDiscoveryCandidatesResponse(result DiscoveryCandidatesResult) generated.ProjectDiscoveryCandidatesResponse {
+	items := make([]generated.ProjectDiscoveryCandidate, 0, len(result.Items))
+	for _, item := range result.Items {
+		candidate := generated.ProjectDiscoveryCandidate{
+			CandidateKey:               item.CandidateKey,
+			CandidateKind:              generated.ProjectDiscoveryCandidateKind(item.CandidateKind),
+			SourceKind:                 generated.ProjectSourceKind(item.SourceKind),
+			DisplayName:                item.DisplayName,
+			CanonicalProjectName:       item.CanonicalProjectName,
+			CanonicalProjectNameSource: generated.ProjectCanonicalNameSource(item.CanonicalProjectNameSource),
+			WorkingDirectory:           item.WorkingDirectory,
+			OwnershipMode:              generated.ProjectOwnershipMode(item.OwnershipMode),
+			HostScope:                  generated.ProjectHostScope(item.HostScope),
+			Status:                     generated.ProjectDiscoveryCandidateStatus(item.Status),
+			RecommendedAction:          generated.ProjectDiscoveryCandidateRecommendedAction(item.RecommendedAction),
+			ComposeFiles:               append([]generated.ProjectFileItem(nil), item.ComposeFiles...),
+			EnvFiles:                   append([]generated.ProjectFileItem(nil), item.EnvFiles...),
+			DeclaredServiceNames:       append([]string(nil), item.DeclaredServiceNames...),
+			ServiceCount:               item.ServiceCount,
+			ConfigHash:                 item.ConfigHash,
+			Warnings:                   append([]string(nil), item.Warnings...),
+			Conflicts:                  append([]string(nil), item.Conflicts...),
+		}
+		if metadata := toGeneratedSourceMetadata(item.SourceMetadata); metadata != nil {
+			candidate.SourceMetadata = metadata
+		}
+		if item.SourceType != "" {
+			sourceType := generated.ProjectSourceEntryType(item.SourceType)
+			candidate.SourceType = &sourceType
+		}
+		if item.StatusReason != nil {
+			candidate.StatusReason = item.StatusReason
+		}
+		items = append(items, candidate)
+	}
+	response := generated.ProjectDiscoveryCandidatesResponse{
+		SourceType:            generated.ProjectSourceEntryType(result.SourceType),
+		SupportsScan:          result.SupportsScan,
+		SupportsAutoDiscovery: result.SupportsAutoDiscovery,
+		Items:                 items,
+	}
+	if result.AuthorityRoot != nil {
+		response.AuthorityRoot = result.AuthorityRoot
+	}
+	if result.StatusReason != nil {
+		response.StatusReason = result.StatusReason
+	}
+	return response
+}
+
 // 当配置哈希或声明的服务名存在时，会附带归一化预览摘要。
 func toImportValidateResponse(result ImportValidationResult) generated.ProjectImportValidateResponse {
 	response := generated.ProjectImportValidateResponse{

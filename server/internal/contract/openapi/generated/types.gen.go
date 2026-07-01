@@ -2292,6 +2292,63 @@ func (e ProjectDeployResponseResult) Valid() bool {
 	}
 }
 
+// Defines values for ProjectDiscoveryCandidateRecommendedAction.
+const (
+	ProjectDiscoveryCandidateActionImport ProjectDiscoveryCandidateRecommendedAction = "import"
+	ProjectDiscoveryCandidateActionReview ProjectDiscoveryCandidateRecommendedAction = "review"
+)
+
+// Valid indicates whether the value is a known member of the ProjectDiscoveryCandidateRecommendedAction enum.
+func (e ProjectDiscoveryCandidateRecommendedAction) Valid() bool {
+	switch e {
+	case ProjectDiscoveryCandidateActionImport:
+		return true
+	case ProjectDiscoveryCandidateActionReview:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProjectDiscoveryCandidateKind.
+const (
+	ProjectDiscoveryCandidateKindAutoDiscovery ProjectDiscoveryCandidateKind = "auto-discovery"
+	ProjectDiscoveryCandidateKindDirectoryScan ProjectDiscoveryCandidateKind = "directory-scan"
+)
+
+// Valid indicates whether the value is a known member of the ProjectDiscoveryCandidateKind enum.
+func (e ProjectDiscoveryCandidateKind) Valid() bool {
+	switch e {
+	case ProjectDiscoveryCandidateKindAutoDiscovery:
+		return true
+	case ProjectDiscoveryCandidateKindDirectoryScan:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProjectDiscoveryCandidateStatus.
+const (
+	ProjectDiscoveryCandidateStatusConflict ProjectDiscoveryCandidateStatus = "conflict"
+	ProjectDiscoveryCandidateStatusReady    ProjectDiscoveryCandidateStatus = "ready"
+	ProjectDiscoveryCandidateStatusSkipped  ProjectDiscoveryCandidateStatus = "skipped"
+)
+
+// Valid indicates whether the value is a known member of the ProjectDiscoveryCandidateStatus enum.
+func (e ProjectDiscoveryCandidateStatus) Valid() bool {
+	switch e {
+	case ProjectDiscoveryCandidateStatusConflict:
+		return true
+	case ProjectDiscoveryCandidateStatusReady:
+		return true
+	case ProjectDiscoveryCandidateStatusSkipped:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ProjectDriftStatus.
 const (
 	ProjectDriftStatusChanged ProjectDriftStatus = "changed"
@@ -6137,6 +6194,26 @@ type EnvelopedProjectDetailResponse struct {
 	TraceId string `json:"traceId"`
 }
 
+// EnvelopedProjectDiscoveryCandidatesResponse defines model for enveloped-project-discovery-candidates-response.
+type EnvelopedProjectDiscoveryCandidatesResponse struct {
+	// Code Existing canonical response code.
+	Code string                             `json:"code"`
+	Data ProjectDiscoveryCandidatesResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
 // EnvelopedProjectImportResponse defines model for enveloped-project-import-response.
 type EnvelopedProjectImportResponse struct {
 	// Code Existing canonical response code.
@@ -7213,6 +7290,50 @@ type ProjectDetailResponse struct {
 	SourceKind       ProjectSourceKind      `json:"source_kind"`
 	SourceMetadata   *ProjectSourceMetadata `json:"source_metadata,omitempty"`
 	WorkingDirectory string                 `json:"working_directory"`
+}
+
+// ProjectDiscoveryCandidate defines model for project-discovery-candidate.
+type ProjectDiscoveryCandidate struct {
+	CandidateKey               string                                     `json:"candidate_key"`
+	CandidateKind              ProjectDiscoveryCandidateKind              `json:"candidate_kind"`
+	CanonicalProjectName       string                                     `json:"canonical_project_name"`
+	CanonicalProjectNameSource ProjectCanonicalNameSource                 `json:"canonical_project_name_source"`
+	ComposeFiles               []ProjectFileItem                          `json:"compose_files"`
+	ConfigHash                 string                                     `json:"config_hash"`
+	Conflicts                  []string                                   `json:"conflicts"`
+	DeclaredServiceNames       []string                                   `json:"declared_service_names"`
+	DisplayName                string                                     `json:"display_name"`
+	EnvFiles                   []ProjectFileItem                          `json:"env_files"`
+	HostScope                  ProjectHostScope                           `json:"host_scope"`
+	OwnershipMode              ProjectOwnershipMode                       `json:"ownership_mode"`
+	RecommendedAction          ProjectDiscoveryCandidateRecommendedAction `json:"recommended_action"`
+	ServiceCount               int                                        `json:"service_count"`
+	SourceKind                 ProjectSourceKind                          `json:"source_kind"`
+	SourceMetadata             *ProjectSourceMetadata                     `json:"source_metadata,omitempty"`
+	SourceType                 *ProjectSourceEntryType                    `json:"source_type,omitempty"`
+	Status                     ProjectDiscoveryCandidateStatus            `json:"status"`
+	StatusReason               *string                                    `json:"status_reason,omitempty"`
+	Warnings                   []string                                   `json:"warnings"`
+	WorkingDirectory           string                                     `json:"working_directory"`
+}
+
+// ProjectDiscoveryCandidateRecommendedAction defines model for ProjectDiscoveryCandidate.RecommendedAction.
+type ProjectDiscoveryCandidateRecommendedAction string
+
+// ProjectDiscoveryCandidateKind defines model for project-discovery-candidate-kind.
+type ProjectDiscoveryCandidateKind string
+
+// ProjectDiscoveryCandidateStatus defines model for project-discovery-candidate-status.
+type ProjectDiscoveryCandidateStatus string
+
+// ProjectDiscoveryCandidatesResponse defines model for project-discovery-candidates-response.
+type ProjectDiscoveryCandidatesResponse struct {
+	AuthorityRoot         *string                     `json:"authority_root"`
+	Items                 []ProjectDiscoveryCandidate `json:"items"`
+	SourceType            ProjectSourceEntryType      `json:"source_type"`
+	StatusReason          *string                     `json:"status_reason,omitempty"`
+	SupportsAutoDiscovery bool                        `json:"supports_auto_discovery"`
+	SupportsScan          bool                        `json:"supports_scan"`
 }
 
 // ProjectDriftStatus defines model for project-drift-status.
@@ -9130,6 +9251,16 @@ type PostProjectCreateParams struct {
 
 // PostProjectCreateValidateParams defines parameters for PostProjectCreateValidate.
 type PostProjectCreateValidateParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetProjectDiscoveryCandidatesParams defines parameters for GetProjectDiscoveryCandidates.
+type GetProjectDiscoveryCandidatesParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 

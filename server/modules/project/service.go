@@ -46,6 +46,7 @@ const (
 	defaultProjectListLimit  = 20
 	maxProjectListLimit      = 100
 	projectConflictScanSize  = 100
+	projectDiscoveryScanSize = 8
 	minLifecycleArgCount     = 2
 	maxCommandOutputSummary  = 120
 	managedCreateWarningsCap = 2
@@ -84,6 +85,41 @@ type ListResult struct {
 // SourceCatalogResult returns the bounded project source entrypoints owned by project authority.
 type SourceCatalogResult struct {
 	Items []generated.ProjectSourceEntry
+}
+
+// DiscoveryCandidateResult returns one bounded directory-scan or auto-discovery preview candidate.
+type DiscoveryCandidateResult struct {
+	CandidateKey              string
+	CandidateKind             string
+	SourceKind                string
+	SourceType                string
+	SourceMetadata            map[string]string
+	DisplayName               string
+	CanonicalProjectName      string
+	CanonicalProjectNameSource string
+	WorkingDirectory          string
+	OwnershipMode             string
+	HostScope                 string
+	Status                    string
+	RecommendedAction         string
+	StatusReason              *string
+	ComposeFiles              []generated.ProjectFileItem
+	EnvFiles                  []generated.ProjectFileItem
+	DeclaredServiceNames      []string
+	ServiceCount              int
+	ConfigHash                string
+	Warnings                  []string
+	Conflicts                 []string
+}
+
+// DiscoveryCandidatesResult returns the bounded scan/discovery candidate authority surface.
+type DiscoveryCandidatesResult struct {
+	SourceType           string
+	AuthorityRoot        *string
+	SupportsScan         bool
+	SupportsAutoDiscovery bool
+	StatusReason         *string
+	Items                []DiscoveryCandidateResult
 }
 
 // ImportValidationResult returns the static import validation result.
@@ -396,6 +432,40 @@ func (s *Service) SourceCatalog(ctx context.Context) (SourceCatalogResult, error
 		},
 	}
 	return SourceCatalogResult{Items: items}, nil
+}
+
+// DiscoveryCandidates returns bounded local discovery candidates without auto-registering projects.
+func (s *Service) DiscoveryCandidates(ctx context.Context) (DiscoveryCandidatesResult, error) {
+	managedRoot, err := s.ManagedRoot(ctx)
+	if err != nil {
+		return DiscoveryCandidatesResult{}, err
+	}
+	result := DiscoveryCandidatesResult{
+		SourceType:            string(generated.ProjectSourceEntryTypeManaged),
+		SupportsScan:          false,
+		SupportsAutoDiscovery: false,
+		StatusReason:          managedRoot.StatusReason,
+	}
+	if managedRoot.ConfiguredRootDirectory != nil {
+		root := *managedRoot.ConfiguredRootDirectory
+		result.AuthorityRoot = &root
+	}
+	if managedRoot.Status != projectcontract.ManagedRootStatusReady.String() || managedRoot.ConfiguredRootDirectory == nil {
+		return result, nil
+	}
+	result.SupportsScan = true
+	result.SupportsAutoDiscovery = true
+
+	repository, err := s.repositoryOrErr()
+	if err != nil {
+		return DiscoveryCandidatesResult{}, err
+	}
+	items, err := s.scanDiscoveryCandidates(ctx, repository, *managedRoot.ConfiguredRootDirectory, managedRoot.ConfigKey)
+	if err != nil {
+		return DiscoveryCandidatesResult{}, err
+	}
+	result.Items = items
+	return result, nil
 }
 
 // Get returns one project detail payload.
@@ -1564,6 +1634,94 @@ func (s *Service) computeConflicts(
 	}
 	sort.Strings(conflicts)
 	return uniqueStrings(conflicts), nil
+}
+
+func (s *Service) scanDiscoveryCandidates(
+	ctx context.Context,
+	repository projectstore.Repository,
+	rootDirectory string,
+	configKey string,
+) ([]DiscoveryCandidateResult, error) {
+	entries, err := os.ReadDir(rootDirectory)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", errProjectImportValidation, err)
+	}
+	candidates := make([]DiscoveryCandidateResult, 0, projectDiscoveryScanSize)
+	for _, entry := range entries {
+		if len(candidates) >= projectDiscoveryScanSize {
+			break
+		}
+		if !entry.IsDir() {
+			continue
+		}
+		name := strings.TrimSpace(entry.Name())
+		if name == "" || strings.HasPrefix(name, ".") {
+			continue
+		}
+		workingDirectory := filepath.Join(rootDirectory, name)
+		importRequest := ImportRequest{WorkingDirectory: workingDirectory}
+		parseResult, validation, err := s.parseImportRequest(importRequest)
+		if err != nil {
+			continue
+		}
+		conflicts, err := s.computeConflicts(ctx, repository, importRequest, validation)
+		if err != nil {
+			return nil, err
+		}
+		status := "ready"
+		recommendedAction := "import"
+		var statusReason *string
+		if len(conflicts) > 0 {
+			status = "conflict"
+			recommendedAction = "review"
+			reason := "Existing registry ownership or canonical-name conflicts require review before import."
+			statusReason = &reason
+		}
+		candidates = append(candidates, DiscoveryCandidateResult{
+			CandidateKey:               candidateKeyForWorkingDirectory(workingDirectory),
+			CandidateKind:              "directory-scan",
+			SourceKind:                 projectcontract.SourceKindManaged.String(),
+			SourceType:                 string(generated.ProjectSourceEntryTypeManaged),
+			SourceMetadata: map[string]string{
+				"managed_root_key":           configKey,
+				"managed_relative_directory": name,
+				"managed_compose_file_name":  firstProjectFileDisplayName(validation.ComposeFiles),
+				"managed_env_file_name":      firstProjectFileDisplayName(validation.EnvFiles),
+			},
+			DisplayName:                validation.CanonicalProjectName,
+			CanonicalProjectName:       validation.CanonicalProjectName,
+			CanonicalProjectNameSource: validation.CanonicalProjectNameSource,
+			WorkingDirectory:           validation.WorkingDirectory,
+			OwnershipMode:              projectcontract.OwnershipModeManagedRootDedicated.String(),
+			HostScope:                  projectcontract.HostScopeLocal.String(),
+			Status:                     status,
+			RecommendedAction:          recommendedAction,
+			StatusReason:               statusReason,
+			ComposeFiles:               validation.ComposeFiles,
+			EnvFiles:                   validation.EnvFiles,
+			DeclaredServiceNames:       append([]string(nil), parseResult.ServiceNames...),
+			ServiceCount:               len(parseResult.ServiceNames),
+			ConfigHash:                 parseResult.ConfigHash,
+			Warnings:                   append([]string(nil), parseResult.Warnings...),
+			Conflicts:                  append([]string(nil), conflicts...),
+		})
+	}
+	sort.Slice(candidates, func(i, j int) bool {
+		return strings.Compare(candidates[i].WorkingDirectory, candidates[j].WorkingDirectory) < 0
+	})
+	return candidates, nil
+}
+
+func candidateKeyForWorkingDirectory(workingDirectory string) string {
+	sum := sha256.Sum256([]byte(strings.TrimSpace(workingDirectory)))
+	return "scan:" + hex.EncodeToString(sum[:8])
+}
+
+func firstProjectFileDisplayName(items []generated.ProjectFileItem) string {
+	if len(items) == 0 {
+		return ""
+	}
+	return filepath.Base(items[0].DisplayPath)
 }
 
 // sameDisplayName 判断给定名称与已有名称在去除首尾空白后是否一致。

@@ -91,7 +91,7 @@ Compose Project Management
 - [x] phase-2-batch-4：diff、validate、deploy flow
 - [x] phase-2-batch-5：Phase 2 validation、drift guard、docs sync、Phase 2 archive-readiness check
 - [x] phase-3-batch-1：git/template source contract、metadata boundary、route/permission owner
-- [ ] phase-3-batch-2：directory scan、candidate model、auto discovery bounded authority
+- [x] phase-3-batch-2：directory scan、candidate model、auto discovery bounded authority
 - [ ] phase-3-batch-3：remote host boundary、project activity authority decision
 
 ## Phase 1 Acceptance Conditions
@@ -129,6 +129,12 @@ Compose Project Management
 - source selector 与 `managed/git/template` route boundary 已固定
 - git/template 仍保持 planned，不存在 runtime persistence、directory scan、remote host 或 backend activity aggregation 越界
 
+当前 batch-2 已完成的前置条件：
+
+- `openapi/**` 已固定 discovery candidate 只读 contract 与 `/api/ops/projects/discovery-candidates` route owner
+- `server/modules/project/**` 已把 managed root 收口为 bounded local scan authority，只返回 candidate preview，不自动注册 project
+- `web/src/modules/project/**` 已在 source selector 下提供 hidden discovery preview surface，不越界到 remote host 或 backend activity aggregation
+
 ## Loop Batch State
 
 ```json
@@ -146,14 +152,14 @@ Compose Project Management
     "phase-2-batch-3-web-managed-create-and-editors",
     "phase-2-batch-4-diff-validate-and-deploy-flow",
     "phase-2-batch-5-phase-2-validation-drift-guard-and-governance-sync",
-    "phase-3-batch-1-git-template-source-contract-and-boundary"
+    "phase-3-batch-1-git-template-source-contract-and-boundary",
+    "phase-3-batch-2-directory-scan-and-auto-discovery-candidates"
   ],
   "pending_batches": [
-    "phase-3-batch-2-directory-scan-and-auto-discovery-candidates",
     "phase-3-batch-3-remote-host-boundary-and-activity-authority"
   ],
-  "current_batch": "phase-3-batch-1-git-template-source-contract-and-boundary",
-  "next_batch": "phase-3-batch-2-directory-scan-and-auto-discovery-candidates",
-  "closeout_status": "phase-3-batch-1-completed"
+  "current_batch": "phase-3-batch-2-directory-scan-and-auto-discovery-candidates",
+  "next_batch": "phase-3-batch-3-remote-host-boundary-and-activity-authority",
+  "closeout_status": "phase-3-batch-2-completed"
 }
 ```

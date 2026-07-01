@@ -32,6 +32,11 @@
               <t-descriptions-item :label="t('project.createSource.permission')">
                 <code>{{ entry.permission }}</code>
               </t-descriptions-item>
+              <t-descriptions-item v-if="entry.type === 'managed'" :label="t('project.createSource.discovery')">
+                <t-button variant="text" theme="primary" @click="openDiscovery">
+                  {{ t('project.createSource.actions.reviewCandidates') }}
+                </t-button>
+              </t-descriptions-item>
               <t-descriptions-item :label="t('project.createSource.metadataFields')">
                 {{ entry.metadata_fields.join(', ') || '-' }}
               </t-descriptions-item>
@@ -111,6 +116,17 @@ function openEntry(entry: ProjectSourceEntry) {
   const title: LocalizedTitle = {
     [LOCALE.ZH_CN]: entry.display_name,
     [LOCALE.EN_US]: entry.display_name,
+  };
+  appendResolvedTab(tabsRouterStore, resolved, title);
+  void router.push({ name: routeName });
+}
+
+function openDiscovery() {
+  const routeName = PROJECT_BOOTSTRAP_ROUTE.CREATE_DISCOVERY.pageRouteName;
+  const resolved = router.resolve({ name: routeName });
+  const title: LocalizedTitle = {
+    [LOCALE.ZH_CN]: t('project.route.createDiscovery.breadcrumb', {}, { locale: LOCALE.ZH_CN }),
+    [LOCALE.EN_US]: t('project.route.createDiscovery.breadcrumb', {}, { locale: LOCALE.EN_US }),
   };
   appendResolvedTab(tabsRouterStore, resolved, title);
   void router.push({ name: routeName });

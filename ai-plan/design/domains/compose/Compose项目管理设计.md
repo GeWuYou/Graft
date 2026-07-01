@@ -1275,6 +1275,43 @@ Configuration：
 - template materialization job state
 - backend project logs/events aggregation state
 
+## 16.4C Phase 3 Batch 2 authority 落地说明
+
+`phase-3-batch-2-directory-scan-and-auto-discovery-candidates` 只收敛 discovery candidate authority，不引入 project registry 自动写入或后台发现任务：
+
+- OpenAPI contract owner：`openapi/**`
+  - 新增 `GET /api/ops/projects/discovery-candidates`
+  - 固定 candidate 只读 contract：`candidate_key`、`candidate_kind`、`source_kind/source_type`、`working_directory`、`compose/env file list`、`declared_service_names`、`config_hash`、`warnings`、`conflicts`、`recommended_action`
+- Project module owner：`server/modules/project/**`
+  - 以当前 `managed root` 作为 bounded local scan authority
+  - 本批只做本机受限目录扫描和 auto-discovery preview 结果投影
+  - candidate 只作为 discovery/preview surface，不写 registry、不自动调用 import、不产生 project-level runtime persistence
+  - candidate 冲突只复用现有 registry conflict 规则进行 `review/import` 建议，不新增 compatibility layer
+- Web module owner：`web/src/modules/project/**`
+  - 在 `/ops/projects/create` source selector 下新增 hidden discovery preview surface
+  - UI 只展示 authority root、候选状态、建议动作和冲突/文件预览，不直接注册项目
+
+当前 batch 固定的 candidate 字段语义：
+
+- `candidate_kind`
+  - `directory-scan`
+  - `auto-discovery`
+- `status`
+  - `ready`
+  - `conflict`
+  - `skipped`
+- `recommended_action`
+  - `import`
+  - `review`
+
+当前 batch 的 hard boundary：
+
+- 不自动注册 project
+- 不写数据库 candidate 持久化
+- 不新增后台 auto discovery scheduler / watcher
+- 不扩展到 remote host
+- 不引入 backend project activity aggregation
+
 ## 17. 最终结论
 
 `Compose Project` 在 `Graft` 中的定位应固定为：

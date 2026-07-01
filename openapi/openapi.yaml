@@ -230,6 +230,8 @@ paths:
     $ref: ./paths/ops-projects.import.yaml
   /api/ops/projects/sources:
     $ref: ./paths/ops-projects.sources.yaml
+  /api/ops/projects/discovery-candidates:
+    $ref: ./paths/ops-projects.discovery-candidates.yaml
   /api/ops/projects/managed/root:
     $ref: ./paths/ops-projects.managed-root.yaml
   /api/ops/projects/create/managed/validate:

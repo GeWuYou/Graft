@@ -266,3 +266,92 @@ func TestCreateManagedProjectRejectsManagedRootBaseDirectory(t *testing.T) {
 		t.Fatalf("expected invalid argument, got %v", err)
 	}
 }
+
+func TestDiscoveryCandidatesScansManagedRootWithoutRegistering(t *testing.T) {
+	t.Parallel()
+
+	managedRoot := t.TempDir()
+	projectDir := filepath.Join(managedRoot, "orders")
+	if err := os.MkdirAll(projectDir, 0o750); err != nil {
+		t.Fatalf("mkdir project dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(projectDir, "compose.yaml"), []byte("services:\n  api:\n    image: nginx:latest\n"), 0o600); err != nil {
+		t.Fatalf("write compose file: %v", err)
+	}
+
+	repo := &stubProjectRepository{}
+	service, err := NewService(repo, WithSystemConfigResolver(stubSystemConfigResolver{value: managedRoot}))
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	result, err := service.DiscoveryCandidates(context.Background())
+	if err != nil {
+		t.Fatalf("discovery candidates: %v", err)
+	}
+	if !result.SupportsScan || !result.SupportsAutoDiscovery {
+		t.Fatalf("expected discovery support, got %#v", result)
+	}
+	if len(result.Items) != 1 {
+		t.Fatalf("expected 1 candidate, got %d", len(result.Items))
+	}
+	item := result.Items[0]
+	if item.CandidateKind != "directory-scan" {
+		t.Fatalf("expected directory-scan candidate, got %q", item.CandidateKind)
+	}
+	if item.Status != "ready" {
+		t.Fatalf("expected ready candidate, got %q", item.Status)
+	}
+	if item.RecommendedAction != "import" {
+		t.Fatalf("expected import action, got %q", item.RecommendedAction)
+	}
+	if item.SourceMetadata["managed_relative_directory"] != "orders" {
+		t.Fatalf("expected managed relative directory metadata, got %#v", item.SourceMetadata)
+	}
+}
+
+func TestDiscoveryCandidatesMarksConflictWhenProjectAlreadyRegistered(t *testing.T) {
+	t.Parallel()
+
+	managedRoot := t.TempDir()
+	projectDir := filepath.Join(managedRoot, "orders")
+	if err := os.MkdirAll(projectDir, 0o750); err != nil {
+		t.Fatalf("mkdir project dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(projectDir, "compose.yaml"), []byte("services:\n  api:\n    image: nginx:latest\n"), 0o600); err != nil {
+		t.Fatalf("write compose file: %v", err)
+	}
+
+	repo := &stubProjectRepository{
+		aggregate: projectstore.ProjectAggregate{
+			Project: projectstore.Project{
+				ID:                   1,
+				DisplayName:          "Orders",
+				CanonicalProjectName: "orders",
+				WorkingDirectory:     projectDir,
+			},
+		},
+	}
+	service, err := NewService(repo, WithSystemConfigResolver(stubSystemConfigResolver{value: managedRoot}))
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	result, err := service.DiscoveryCandidates(context.Background())
+	if err != nil {
+		t.Fatalf("discovery candidates: %v", err)
+	}
+	if len(result.Items) != 1 {
+		t.Fatalf("expected 1 candidate, got %d", len(result.Items))
+	}
+	item := result.Items[0]
+	if item.Status != "conflict" {
+		t.Fatalf("expected conflict status, got %q", item.Status)
+	}
+	if item.RecommendedAction != "review" {
+		t.Fatalf("expected review action, got %q", item.RecommendedAction)
+	}
+	if len(item.Conflicts) == 0 {
+		t.Fatalf("expected conflict details")
+	}
+}

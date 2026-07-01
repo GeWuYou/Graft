@@ -20,6 +20,10 @@
         "title": "Create Managed Project",
         "breadcrumb": "Create Managed Project"
       },
+      "createDiscovery": {
+        "title": "Discovery Candidate Preview",
+        "breadcrumb": "Discovery Candidate Preview"
+      },
       "createGit": {
         "title": "Git Project Boundary",
         "breadcrumb": "Git Project Boundary"
@@ -201,6 +205,7 @@
     "createSource": {
       "routePath": "Route Path",
       "permission": "Permission",
+      "discovery": "Discovery Candidates",
       "metadataFields": "Metadata Fields",
       "status": {
         "ready": "Ready",
@@ -208,10 +213,41 @@
       },
       "actions": {
         "open": "Open Entry",
-        "reviewBoundary": "Review Boundary"
+        "reviewBoundary": "Review Boundary",
+        "reviewCandidates": "Review Candidates"
       },
       "messages": {
         "loadFailed": "Project Source Catalog Could Not Be Loaded."
+      }
+    },
+    "discovery": {
+      "description": "Read bounded local directory-scan and auto-discovery candidate previews under the managed root without auto-registering projects or changing runtime authority.",
+      "refresh": "Refresh Candidates",
+      "loadFailed": "Project Discovery Candidates Could Not Be Loaded.",
+      "authorityRoot": "Authority Root",
+      "capabilities": "Capabilities",
+      "capabilitiesReady": "Local Scan and Auto-discovery Preview Are Enabled",
+      "capabilitiesBlocked": "Current Authority Does Not Allow Candidate Scanning",
+      "candidateKind": "Candidate Kind",
+      "recommendedAction": "Recommended Action",
+      "serviceCount": "Declared Services",
+      "workingDirectory": "Working Directory",
+      "composeFiles": "Compose Files",
+      "emptyTitle": "No Candidates",
+      "emptyDescription": "No previewable Compose project candidates were found under the current authority root.",
+      "conflictsValue": "Conflicts: {value}",
+      "status": {
+        "ready": "Import Ready",
+        "conflict": "Needs Review",
+        "skipped": "Skipped"
+      },
+      "kinds": {
+        "directory-scan": "Directory Scan",
+        "auto-discovery": "Auto Discovery"
+      },
+      "actions": {
+        "import": "Recommend Import",
+        "review": "Review First"
       }
     },
     "createPlanned": {

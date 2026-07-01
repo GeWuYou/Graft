@@ -205,6 +205,19 @@
   - `/ops/projects/create/managed` 承接现有 managed create 页面。
   - `/ops/projects/create/git` 和 `/ops/projects/create/template` 只保留 planned boundary 占位页。
 
+## 2026-07-01 Phase 3 Batch 2 directory scan and auto-discovery candidates
+
+- 落地 `openapi/**` authority owner：
+  - 新增 `GET /api/ops/projects/discovery-candidates` 作为 discovery candidate 只读 contract source。
+  - 固定 candidate preview 的字段边界：`candidate_key`、`candidate_kind`、`status`、`recommended_action`、`working_directory`、`compose/env files`、`declared_service_names`、`config_hash`、`warnings`、`conflicts`。
+- 落地 `server/modules/project/**` authority owner：
+  - 以 `managed root` 作为 bounded local directory scan authority。
+  - 只返回 directory-scan / auto-discovery candidate preview，不写 registry、不自动 import、不引入后台发现任务。
+  - 冲突复用现有 registry conflict 规则，仅返回 `review/import` 建议。
+- 落地 `web/src/modules/project/**` authority owner：
+  - 在 source selector 下新增 hidden discovery preview 页面。
+  - UI 只展示 authority root、候选状态、建议动作与冲突/文件预览，不越界到 remote host 或 backend activity aggregation。
+
 ## Loop Batch State
 
 ```json
@@ -222,14 +235,14 @@
     "phase-2-batch-3-web-managed-create-and-editors",
     "phase-2-batch-4-diff-validate-and-deploy-flow",
     "phase-2-batch-5-phase-2-validation-drift-guard-and-governance-sync",
-    "phase-3-batch-1-git-template-source-contract-and-boundary"
+    "phase-3-batch-1-git-template-source-contract-and-boundary",
+    "phase-3-batch-2-directory-scan-and-auto-discovery-candidates"
   ],
   "pending_batches": [
-    "phase-3-batch-2-directory-scan-and-auto-discovery-candidates",
     "phase-3-batch-3-remote-host-boundary-and-activity-authority"
   ],
-  "current_batch": "phase-3-batch-1-git-template-source-contract-and-boundary",
-  "next_batch": "phase-3-batch-2-directory-scan-and-auto-discovery-candidates",
-  "closeout_status": "phase-3-batch-1-completed"
+  "current_batch": "phase-3-batch-2-directory-scan-and-auto-discovery-candidates",
+  "next_batch": "phase-3-batch-3-remote-host-boundary-and-activity-authority",
+  "closeout_status": "phase-3-batch-2-completed"
 }
 ```

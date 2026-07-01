@@ -2039,6 +2039,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/ops/projects/discovery-candidates': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List bounded project discovery candidates
+     * @description Returns local directory-scan and auto-discovery candidate previews under the current project authority without auto-registering projects or changing runtime ownership.
+     */
+    get: operations['getProjectDiscoveryCandidates'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/ops/projects/managed/root': {
     parameters: {
       query?: never;
@@ -5271,6 +5291,45 @@ export interface components {
     };
     'enveloped-project-source-catalog-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['project-source-catalog-response'];
+    };
+    /** @enum {string} */
+    'project-discovery-candidate-kind': 'directory-scan' | 'auto-discovery';
+    /** @enum {string} */
+    'project-discovery-candidate-status': 'ready' | 'conflict' | 'skipped';
+    'project-discovery-candidate': {
+      candidate_key: string;
+      candidate_kind: components['schemas']['project-discovery-candidate-kind'];
+      source_kind: components['schemas']['project-source-kind'];
+      source_type?: components['schemas']['project-source-entry-type'];
+      source_metadata?: components['schemas']['project-source-metadata'];
+      display_name: string;
+      canonical_project_name: string;
+      canonical_project_name_source: components['schemas']['project-canonical-name-source'];
+      working_directory: string;
+      ownership_mode: components['schemas']['project-ownership-mode'];
+      host_scope: components['schemas']['project-host-scope'];
+      status: components['schemas']['project-discovery-candidate-status'];
+      /** @enum {string} */
+      recommended_action: 'review' | 'import';
+      status_reason?: string | null;
+      compose_files: components['schemas']['project-file-item'][];
+      env_files: components['schemas']['project-file-item'][];
+      declared_service_names: string[];
+      service_count: number;
+      config_hash: string;
+      warnings: string[];
+      conflicts: string[];
+    };
+    'project-discovery-candidates-response': {
+      source_type: components['schemas']['project-source-entry-type'];
+      authority_root: string | null;
+      supports_scan: boolean;
+      supports_auto_discovery: boolean;
+      status_reason?: string | null;
+      items: components['schemas']['project-discovery-candidate'][];
+    };
+    'enveloped-project-discovery-candidates-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['project-discovery-candidates-response'];
     };
     /** @enum {string} */
     'project-managed-root-status': 'unconfigured' | 'ready' | 'invalid';
@@ -11356,6 +11415,38 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['enveloped-project-source-catalog-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getProjectDiscoveryCandidates: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Project discovery candidate preview list. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-project-discovery-candidates-response'];
         };
       };
       401: components['responses']['unauthorized'];

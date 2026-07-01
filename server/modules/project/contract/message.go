@@ -95,6 +95,8 @@ const (
 	ProjectDeployCompleted MessageKey = "ops.project.deploy.completed"
 	// ProjectSourceCatalogReady identifies a successful project source catalog response.
 	ProjectSourceCatalogReady MessageKey = "ops.project.source.catalog.ready"
+	// ProjectDiscoveryCandidatesReady identifies a successful discovery-candidate preview response.
+	ProjectDiscoveryCandidatesReady MessageKey = "ops.project.discovery.candidates.ready"
 	// ProjectSourceManagedDescription identifies the managed source catalog description key.
 	ProjectSourceManagedDescription MessageKey = "ops.project.source.managed.description"
 	// ProjectSourceGitDescription identifies the git source catalog description key.
@@ -118,6 +120,8 @@ const (
 	ProjectCreatePermission PermissionCode = "ops.project.create"
 	// ProjectSourceViewPermission identifies access to the Phase 3 source selector and source catalog boundary.
 	ProjectSourceViewPermission PermissionCode = "ops.project.source.view"
+	// ProjectDiscoveryViewPermission identifies access to bounded directory scan and auto-discovery candidate previews.
+	ProjectDiscoveryViewPermission PermissionCode = "ops.project.discovery.view"
 	// ProjectDeployPermission identifies managed configuration diff, validate, and deploy access.
 	ProjectDeployPermission PermissionCode = "ops.project.deploy"
 )

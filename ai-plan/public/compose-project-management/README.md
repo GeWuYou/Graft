@@ -71,7 +71,7 @@
   - Phase 1 的配置页只读。
   - Phase 2 已在同一 topic 内完成 bounded batches，并通过 managed create/edit/diff/validate/deploy slice 的 archive-readiness check。
   - Phase 3 继续留在同一 topic 内推进，但必须先拆成安全 bounded batches，不能回退成单个大阶段占位。
-- 当前下一步：按 topic-completion-loop 推进 `phase-3-batch-1-git-template-source-contract-and-boundary`。
+- 当前下一步：按 topic-completion-loop 推进 `phase-3-batch-2-directory-scan-and-auto-discovery-candidates`。
 
 ## Pending Batch Direction
 
@@ -84,6 +84,12 @@
 - 固定 `managed | git | template` source catalog contract
 - 固定 `/ops/projects/create` source selector 与 `/create/managed|git|template` route boundary
 - 保持 git/template 为 planned entry，不执行 clone、template instantiate、directory scan、remote host 或 backend activity aggregation
+
+当前 Phase 3 Batch 2 的 authority 目标：
+
+- 固定 bounded local directory scan 与 auto-discovery preview contract
+- candidate 仅用于 preview/listing，不自动注册 project
+- 继续保持 `Project != Runtime`，不引入 project-level runtime persistence 或 backend project activity aggregation
 
 ## Validation Targets
 

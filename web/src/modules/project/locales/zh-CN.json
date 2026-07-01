@@ -20,6 +20,10 @@
         "title": "创建托管项目",
         "breadcrumb": "创建托管项目"
       },
+      "createDiscovery": {
+        "title": "发现候选预览",
+        "breadcrumb": "发现候选预览"
+      },
       "createGit": {
         "title": "Git 项目边界",
         "breadcrumb": "Git 项目边界"
@@ -201,6 +205,7 @@
     "createSource": {
       "routePath": "路由路径",
       "permission": "权限",
+      "discovery": "发现候选",
       "metadataFields": "元数据字段",
       "status": {
         "ready": "已就绪",
@@ -208,10 +213,41 @@
       },
       "actions": {
         "open": "打开入口",
-        "reviewBoundary": "查看边界"
+        "reviewBoundary": "查看边界",
+        "reviewCandidates": "查看候选"
       },
       "messages": {
         "loadFailed": "项目来源目录加载失败。"
+      }
+    },
+    "discovery": {
+      "description": "只读展示 managed root 下的目录扫描和自动发现候选预览，不自动注册项目，也不改变 runtime authority。",
+      "refresh": "刷新候选",
+      "loadFailed": "项目发现候选加载失败。",
+      "authorityRoot": "Authority 根目录",
+      "capabilities": "能力状态",
+      "capabilitiesReady": "已启用本机扫描与自动发现预览",
+      "capabilitiesBlocked": "当前 authority 不允许扫描候选",
+      "candidateKind": "候选类型",
+      "recommendedAction": "建议动作",
+      "serviceCount": "声明服务数",
+      "workingDirectory": "工作目录",
+      "composeFiles": "Compose 文件",
+      "emptyTitle": "暂无候选项",
+      "emptyDescription": "当前 authority 根目录下没有可预览的 Compose 项目候选项。",
+      "conflictsValue": "冲突字段：{value}",
+      "status": {
+        "ready": "可导入",
+        "conflict": "需人工审查",
+        "skipped": "已跳过"
+      },
+      "kinds": {
+        "directory-scan": "目录扫描",
+        "auto-discovery": "自动发现"
+      },
+      "actions": {
+        "import": "建议导入",
+        "review": "先审查"
       }
     },
     "createPlanned": {
