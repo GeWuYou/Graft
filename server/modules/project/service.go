@@ -1142,25 +1142,30 @@ func cleanupManagedCreate(createdDir string, createdFiles []string) (err error) 
 	defer func() {
 		err = errors.Join(err, closeManagedRootFS(fsRoot))
 	}()
-	for i := len(createdFiles) - 1; i >= 0; i-- {
-		relative, relErr := fsRoot.relative(createdFiles[i])
-		if relErr != nil {
-			err = errors.Join(err, fmt.Errorf("resolve cleanup file %s: %w", createdFiles[i], relErr))
-			continue
-		}
-		if removeErr := fsRoot.root.Remove(relative); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
-			err = errors.Join(err, fmt.Errorf("remove cleanup file %s: %w", createdFiles[i], removeErr))
-		}
-	}
+	err = errors.Join(err, cleanupManagedCreateFiles(fsRoot, createdFiles))
 	if createdDir != "" {
-		relative, relErr := fsRoot.relative(createdDir)
-		if relErr != nil {
-			err = errors.Join(err, fmt.Errorf("resolve cleanup directory %s: %w", createdDir, relErr))
-		} else if removeErr := fsRoot.root.Remove(relative); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
-			err = errors.Join(err, fmt.Errorf("remove cleanup directory %s: %w", createdDir, removeErr))
-		}
+		err = errors.Join(err, removeManagedCreatePath(fsRoot, createdDir, "directory"))
 	}
 	return err
+}
+
+func cleanupManagedCreateFiles(fsRoot *managedRootFS, createdFiles []string) error {
+	var err error
+	for i := len(createdFiles) - 1; i >= 0; i-- {
+		err = errors.Join(err, removeManagedCreatePath(fsRoot, createdFiles[i], "file"))
+	}
+	return err
+}
+
+func removeManagedCreatePath(fsRoot *managedRootFS, absolutePath string, kind string) error {
+	relative, err := fsRoot.relative(absolutePath)
+	if err != nil {
+		return fmt.Errorf("resolve cleanup %s %s: %w", kind, absolutePath, err)
+	}
+	if removeErr := fsRoot.root.Remove(relative); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
+		return fmt.Errorf("remove cleanup %s %s: %w", kind, absolutePath, removeErr)
+	}
+	return nil
 }
 
 // managedCreateEnvFileList 返回受管创建流程中的 env 文件路径列表。
