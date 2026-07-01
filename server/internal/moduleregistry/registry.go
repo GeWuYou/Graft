@@ -41,7 +41,8 @@ type EmbeddedMigrationDir struct {
 
 // EmbeddedLocaleResources returns compile-time owner-local locale resources.
 // Slice 1 only establishes the runtime slot, so later module migrations can
-// populate this without changing the registration flow again.
+// EmbeddedLocaleResources 返回编译期嵌入的本地化资源集合。
+// 它按固定的模块提供者顺序合并各模块的嵌入资源；任一提供者加载失败时会 panic。
 func EmbeddedLocaleResources() []i18n.EmbeddedLocaleResource {
 	providers := []struct {
 		name string

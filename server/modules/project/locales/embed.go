@@ -13,7 +13,8 @@ import (
 var embeddedLocaleFiles embed.FS
 
 // EmbeddedLocaleResources exposes read-only locale descriptors for the project
-// module. Parsing and registration stay centralized in i18n.
+// EmbeddedLocaleResources 从内嵌文件系统加载项目命名空间的语言资源。
+// 加载失败时返回带上下文的错误。
 func EmbeddedLocaleResources() ([]i18n.EmbeddedLocaleResource, error) {
 	resources, err := i18n.EmbeddedLocaleResourcesFromFS(embeddedLocaleFiles, i18n.Namespace("project"))
 	if err != nil {
