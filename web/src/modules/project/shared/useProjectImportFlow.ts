@@ -1,0 +1,114 @@
+import { computed, ref } from 'vue';
+
+import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
+
+import { postProjectImportExecute, postProjectImportInspect } from '../api/import';
+import type { ProjectImportDirectoryRef, ProjectImportInspectResponse } from '../types/import';
+import { buildSuggestedDisplayName, hasBlockingImportConflicts } from './import';
+
+type Translate = (key: string, params?: Record<string, unknown>) => string;
+
+export function useProjectImportFlow(t: Translate) {
+  const selectedDirectory = ref<ProjectImportDirectoryRef | null>(null);
+  const inspectLoading = ref(false);
+  const importLoading = ref(false);
+  const inspectError = ref('');
+  const importError = ref('');
+  const inspectResult = ref<ProjectImportInspectResponse | null>(null);
+  const displayName = ref('');
+  const canonicalProjectNameOverride = ref('');
+
+  const canImport = computed(
+    () =>
+      Boolean(inspectResult.value?.inspection_id) &&
+      !inspectLoading.value &&
+      !importLoading.value &&
+      !hasBlockingImportConflicts(inspectResult.value),
+  );
+
+  const hasPreview = computed(() => Boolean(inspectResult.value));
+
+  function reset() {
+    selectedDirectory.value = null;
+    inspectLoading.value = false;
+    importLoading.value = false;
+    inspectError.value = '';
+    importError.value = '';
+    inspectResult.value = null;
+    displayName.value = '';
+    canonicalProjectNameOverride.value = '';
+  }
+
+  function clearPreview() {
+    inspectError.value = '';
+    importError.value = '';
+    inspectResult.value = null;
+    displayName.value = '';
+    canonicalProjectNameOverride.value = '';
+  }
+
+  async function selectDirectory(directory: ProjectImportDirectoryRef) {
+    selectedDirectory.value = directory;
+    clearPreview();
+    inspectLoading.value = true;
+    try {
+      const response = await postProjectImportInspect({
+        directory_ref: directory,
+      });
+      inspectResult.value = response;
+      displayName.value = buildSuggestedDisplayName(response);
+    } catch (error) {
+      inspectError.value = resolveLocalizedErrorMessage(t, error, t('project.import.messages.inspectFailed'));
+      throw error;
+    } finally {
+      inspectLoading.value = false;
+    }
+  }
+
+  async function refreshInspect() {
+    if (!selectedDirectory.value) {
+      return;
+    }
+
+    await selectDirectory(selectedDirectory.value);
+  }
+
+  async function submitImport() {
+    if (!inspectResult.value?.inspection_id) {
+      throw new Error('missing inspection authority');
+    }
+
+    importLoading.value = true;
+    importError.value = '';
+    try {
+      return await postProjectImportExecute({
+        inspection_id: inspectResult.value.inspection_id,
+        display_name: displayName.value.trim() || undefined,
+        canonical_project_name_override: canonicalProjectNameOverride.value.trim() || null,
+      });
+    } catch (error) {
+      importError.value = resolveLocalizedErrorMessage(t, error, t('project.import.messages.importFailed'));
+      throw error;
+    } finally {
+      importLoading.value = false;
+    }
+  }
+
+  return {
+    canImport,
+    canonicalProjectNameOverride,
+    clearPreview,
+    displayName,
+    hasPreview,
+    importError,
+    importLoading,
+    inspectError,
+    inspectLoading,
+    inspectResult,
+    refreshInspect,
+    reset,
+    selectDirectory,
+    selectedDirectory,
+    submitImport,
+  };
+}

@@ -62,6 +62,12 @@ const (
 	ProjectManagedFlowUnsupported ErrorCode = "ops.project.error.managedFlowUnsupported"
 	// ProjectSourceUnsupported identifies source-specific flows that are defined but not implemented in the current phase.
 	ProjectSourceUnsupported ErrorCode = "ops.project.error.sourceUnsupported"
+	// ProjectDirectoryBrowseForbidden identifies directory browse requests outside the configured authority roots.
+	ProjectDirectoryBrowseForbidden ErrorCode = "ops.project.error.directoryBrowseForbidden"
+	// ProjectInspectionExpired identifies stale or expired import inspection sessions.
+	ProjectInspectionExpired ErrorCode = "ops.project.error.inspectionExpired"
+	// ProjectInspectionStale identifies import requests whose inspection snapshot no longer matches the filesystem.
+	ProjectInspectionStale ErrorCode = "ops.project.error.inspectionStale"
 )
 
 const (
@@ -97,6 +103,12 @@ const (
 	ProjectSourceCatalogReady MessageKey = "ops.project.source.catalog.ready"
 	// ProjectDiscoveryCandidatesReady identifies a successful discovery-candidate preview response.
 	ProjectDiscoveryCandidatesReady MessageKey = "ops.project.discovery.candidates.ready"
+	// ProjectDirectorySourcesReady identifies a successful import directory-source listing response.
+	ProjectDirectorySourcesReady MessageKey = "ops.project.import.directorySources.ready"
+	// ProjectDirectoryBrowseReady identifies a successful import directory browse response.
+	ProjectDirectoryBrowseReady MessageKey = "ops.project.import.directories.ready"
+	// ProjectImportInspected identifies a successful import inspection response.
+	ProjectImportInspected MessageKey = "ops.project.import.inspected"
 	// ProjectSourceManagedDescription identifies the managed source catalog description key.
 	ProjectSourceManagedDescription MessageKey = "ops.project.source.managed.description"
 	// ProjectSourceGitDescription identifies the git source catalog description key.
@@ -131,6 +143,8 @@ const (
 const (
 	// ProjectManagedRootConfig stores the canonical managed-project root directory.
 	ProjectManagedRootConfig ConfigKey = "ops.project.managed.root_directory"
+	// ProjectImportAllowedRootsConfig stores operator-allowlisted browse roots for import flows.
+	ProjectImportAllowedRootsConfig ConfigKey = "ops.project.import.allowed_roots"
 )
 
 const (
@@ -138,4 +152,8 @@ const (
 	ProjectManagedRootConfigTitle ConfigMessageKey = "systemConfig.project.ops.project.managed.root_directory.title"
 	// ProjectManagedRootConfigDescription identifies the managed-root config description localization key.
 	ProjectManagedRootConfigDescription ConfigMessageKey = "systemConfig.project.ops.project.managed.root_directory.description"
+	// ProjectImportAllowedRootsConfigTitle identifies the allowlisted import roots config title localization key.
+	ProjectImportAllowedRootsConfigTitle ConfigMessageKey = "systemConfig.project.ops.project.import.allowed_roots.title"
+	// ProjectImportAllowedRootsConfigDescription identifies the allowlisted import roots config description localization key.
+	ProjectImportAllowedRootsConfigDescription ConfigMessageKey = "systemConfig.project.ops.project.import.allowed_roots.description"
 )

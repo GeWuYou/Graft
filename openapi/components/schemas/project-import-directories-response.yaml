@@ -1,0 +1,37 @@
+type: object
+required:
+  - provider
+  - root_id
+  - current_path
+  - limit
+  - offset
+  - has_more
+  - sort_by
+  - order
+  - directories
+properties:
+  provider:
+    type: string
+  root_id:
+    type: string
+  current_path:
+    type: string
+  parent_path:
+    type: string
+    nullable: true
+  limit:
+    type: integer
+    minimum: 1
+  offset:
+    type: integer
+    minimum: 0
+  has_more:
+    type: boolean
+  sort_by:
+    type: string
+  order:
+    type: string
+  directories:
+    type: array
+    items:
+      $ref: ./project-import-directory-item.yaml

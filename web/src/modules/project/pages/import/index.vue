@@ -1,5 +1,5 @@
 <template>
-  <div class="project-import-page" data-page-type="editor">
+  <div class="project-import-page" data-page-type="list-form-detail">
     <management-page-content>
       <management-page-header
         title-key="project.route.import.title"
@@ -11,131 +11,202 @@
             <t-button theme="default" variant="outline" @click="goToList">
               {{ t('project.import.actions.backToList') }}
             </t-button>
-            <t-button theme="primary" variant="outline" :loading="validating" @click="runValidate">
-              {{ t('project.import.actions.validate') }}
+            <t-button
+              theme="primary"
+              variant="outline"
+              :disabled="!selectedDirectory"
+              :loading="inspectLoading"
+              @click="handleRefreshInspect"
+            >
+              {{ t('project.import.actions.refreshInspect') }}
             </t-button>
           </t-space>
         </template>
       </management-page-header>
 
+      <folder-picker :visible="pickerVisible" @close="pickerVisible = false" @confirm="handleDirectoryConfirm" />
+
       <div class="project-import-layout">
         <section class="project-import-main">
-          <t-card :bordered="true" :title="t('project.import.form.title')">
-            <t-form
-              ref="formRef"
-              :data="formData"
-              :rules="formRules"
-              label-align="top"
-              scroll-to-first-error="smooth"
-              @submit="handleSubmit"
-            >
-              <div class="project-import-form-grid">
-                <t-form-item :label="t('project.import.form.workingDirectory')" name="working_directory">
-                  <t-input
-                    v-model="formData.working_directory"
-                    :placeholder="t('project.import.form.workingDirectoryPlaceholder')"
-                  />
+          <t-card :bordered="true" :title="t('project.import.directory.title')">
+            <div class="project-import-directory">
+              <t-form label-align="top">
+                <t-form-item :label="t('project.import.directory.workingDirectory')">
+                  <t-input :value="resolvedWorkingDirectory" readonly>
+                    <template #suffixIcon>
+                      <span class="project-import-directory__suffix">{{
+                        t('project.import.directory.readonlyHint')
+                      }}</span>
+                    </template>
+                  </t-input>
                 </t-form-item>
-                <t-form-item :label="t('project.import.form.displayName')" name="display_name">
-                  <t-input
-                    v-model="formData.display_name"
-                    :placeholder="t('project.import.form.displayNamePlaceholder')"
-                  />
-                </t-form-item>
-                <t-form-item
-                  :label="t('project.import.form.canonicalProjectNameOverride')"
-                  name="canonical_project_name_override"
+              </t-form>
+
+              <div class="project-import-directory__actions">
+                <t-button theme="primary" type="button" @click="pickerVisible = true">
+                  {{ t('project.import.actions.selectDirectory') }}
+                </t-button>
+                <t-button
+                  theme="default"
+                  variant="outline"
+                  type="button"
+                  :disabled="!selectedDirectory"
+                  @click="pickerVisible = true"
                 >
-                  <t-input
-                    v-model="canonicalProjectNameOverrideModel"
-                    :placeholder="t('project.import.form.canonicalProjectNameOverridePlaceholder')"
-                  />
-                </t-form-item>
-              </div>
-
-              <div class="project-import-form-grid">
-                <t-form-item :label="t('project.import.form.composeFiles')" name="compose_files">
-                  <t-textarea
-                    v-model="composeFilesText"
-                    :autosize="{ minRows: 3, maxRows: 6 }"
-                    :placeholder="t('project.import.form.composeFilesPlaceholder')"
-                  />
-                </t-form-item>
-                <t-form-item :label="t('project.import.form.envFiles')" name="env_files">
-                  <t-textarea
-                    v-model="envFilesText"
-                    :autosize="{ minRows: 3, maxRows: 6 }"
-                    :placeholder="t('project.import.form.envFilesPlaceholder')"
-                  />
-                </t-form-item>
-              </div>
-
-              <div class="project-import-form-actions">
-                <t-button theme="primary" variant="outline" type="button" :loading="validating" @click="runValidate">
-                  {{ t('project.import.actions.validate') }}
+                  {{ t('project.import.actions.changeDirectory') }}
                 </t-button>
-                <t-button theme="primary" type="submit" :loading="importing">
-                  {{ t('project.import.actions.import') }}
-                </t-button>
-                <t-button theme="default" variant="text" type="button" @click="resetForm">
+                <t-button
+                  theme="default"
+                  variant="text"
+                  type="button"
+                  :disabled="!selectedDirectory && !hasPreview"
+                  @click="handleReset"
+                >
                   {{ t('project.import.actions.reset') }}
                 </t-button>
               </div>
-            </t-form>
+            </div>
+          </t-card>
+
+          <t-card :bordered="true" :title="t('project.import.form.title')">
+            <t-loading :loading="inspectLoading" size="small">
+              <div v-if="inspectError" class="project-import-feedback">
+                <management-empty-state
+                  tone="error"
+                  :title="t('project.import.state.inspectErrorTitle')"
+                  :description="inspectError"
+                >
+                  <template #actions>
+                    <t-button theme="primary" type="button" @click="handleRefreshInspect">
+                      {{ t('project.import.actions.retryInspect') }}
+                    </t-button>
+                  </template>
+                </management-empty-state>
+              </div>
+
+              <div v-else-if="!hasPreview" class="project-import-feedback">
+                <management-empty-state
+                  :title="t('project.import.state.awaitingSelectionTitle')"
+                  :description="t('project.import.state.awaitingSelectionDescription')"
+                >
+                  <template #actions>
+                    <t-button theme="primary" type="button" @click="pickerVisible = true">
+                      {{ t('project.import.actions.selectDirectory') }}
+                    </t-button>
+                  </template>
+                </management-empty-state>
+              </div>
+
+              <t-form
+                v-else
+                ref="formRef"
+                :data="formData"
+                :rules="formRules"
+                label-align="top"
+                scroll-to-first-error="smooth"
+                @submit="handleSubmit"
+              >
+                <div class="project-import-form-grid">
+                  <t-form-item :label="t('project.import.form.displayName')" name="display_name">
+                    <t-input v-model="displayName" :placeholder="t('project.import.form.displayNamePlaceholder')" />
+                  </t-form-item>
+                  <t-form-item
+                    :label="t('project.import.form.canonicalProjectNameOverride')"
+                    name="canonical_project_name_override"
+                  >
+                    <t-input
+                      v-model="canonicalProjectNameOverride"
+                      :placeholder="t('project.import.form.canonicalProjectNameOverridePlaceholder')"
+                    />
+                  </t-form-item>
+                </div>
+
+                <div class="project-import-form-actions">
+                  <t-button theme="primary" type="submit" :disabled="!canImport" :loading="importLoading">
+                    {{ t('project.import.actions.import') }}
+                  </t-button>
+                  <t-button
+                    theme="default"
+                    variant="outline"
+                    type="button"
+                    :disabled="!selectedDirectory"
+                    @click="handleRefreshInspect"
+                  >
+                    {{ t('project.import.actions.refreshInspect') }}
+                  </t-button>
+                </div>
+              </t-form>
+            </t-loading>
           </t-card>
         </section>
 
         <section class="project-import-preview">
           <t-card :bordered="true" :title="t('project.import.preview.title')">
-            <t-descriptions size="small" :column="1" bordered>
+            <div v-if="!inspectResult && inspectLoading" class="project-import-preview__skeleton">
+              <t-skeleton
+                :loading="true"
+                :row-col="[
+                  { type: 'text', width: '96%' },
+                  { type: 'text', width: '88%' },
+                  { type: 'text', width: '92%' },
+                  { type: 'text', width: '76%' },
+                ]"
+              />
+            </div>
+            <t-descriptions v-else size="small" :column="1" bordered>
               <t-descriptions-item :label="t('project.import.preview.canonicalProjectName')">
-                <code>{{ validationResult?.canonical_project_name || '-' }}</code>
+                <code>{{ inspectResult?.canonical_project_name || '-' }}</code>
               </t-descriptions-item>
               <t-descriptions-item :label="t('project.import.preview.canonicalNameSource')">
-                {{ validationResult?.canonical_project_name_source || '-' }}
+                {{ inspectResult?.canonical_project_name_source || '-' }}
+              </t-descriptions-item>
+              <t-descriptions-item :label="t('project.import.preview.validationStatus')">
+                {{ inspectResult?.validation_status || '-' }}
               </t-descriptions-item>
               <t-descriptions-item :label="t('project.import.preview.serviceCount')">
-                {{ validationResult?.service_count ?? '-' }}
+                {{ inspectResult?.services.length ?? '-' }}
               </t-descriptions-item>
               <t-descriptions-item :label="t('project.import.preview.configHash')">
-                <code>{{ validationResult?.normalized_preview_summary?.config_hash || '-' }}</code>
-              </t-descriptions-item>
-              <t-descriptions-item :label="t('project.import.preview.declaredServices')">
-                {{
-                  validationResult?.normalized_preview_summary?.declared_service_names?.join(', ') ||
-                  t('project.import.preview.none')
-                }}
+                <code>{{ inspectResult?.config_hash || '-' }}</code>
               </t-descriptions-item>
             </t-descriptions>
 
             <div class="project-import-preview__alerts">
               <t-alert
-                v-for="(warning, index) in validationWarnings"
+                v-for="(warning, index) in inspectResult?.warnings || []"
                 :key="`warning-${index}-${warning}`"
                 theme="warning"
                 :message="warning"
               />
               <t-alert
-                v-for="(conflict, index) in validationConflicts"
+                v-for="(conflict, index) in inspectResult?.conflicts || []"
                 :key="`conflict-${index}-${conflict}`"
                 theme="error"
                 :message="conflict"
               />
               <t-empty
-                v-if="!validationWarnings.length && !validationConflicts.length && validationResult"
+                v-if="inspectResult && !(inspectResult.warnings.length || inspectResult.conflicts.length)"
                 :description="t('project.import.preview.noDiagnostics')"
               />
-              <t-empty v-else-if="!validationResult" :description="t('project.import.preview.empty')" />
             </div>
           </t-card>
 
-          <t-card :bordered="true" :title="t('project.import.preview.filesTitle')">
+          <t-card :bordered="true" :title="t('project.import.preview.discoveryTitle')">
             <t-descriptions size="small" :column="1" bordered>
               <t-descriptions-item :label="t('project.import.preview.composeFiles')">
-                {{ composeFileSummary }}
+                {{ formatList(inspectResult?.compose_files.map((item) => item.display_path)) }}
               </t-descriptions-item>
               <t-descriptions-item :label="t('project.import.preview.envFiles')">
-                {{ envFileSummary }}
+                {{ formatList(inspectResult?.env_files.map((item) => item.display_path)) }}
+              </t-descriptions-item>
+              <t-descriptions-item :label="t('project.import.preview.services')">
+                {{ formatList(inspectResult?.services) }}
+              </t-descriptions-item>
+              <t-descriptions-item :label="t('project.import.preview.networks')">
+                {{ formatList(inspectResult?.networks) }}
+              </t-descriptions-item>
+              <t-descriptions-item :label="t('project.import.preview.volumes')">
+                {{ formatList(inspectResult?.volumes) }}
               </t-descriptions-item>
             </t-descriptions>
           </t-card>
@@ -145,122 +216,103 @@
   </div>
 </template>
 <script setup lang="ts">
-import type { FormInstanceFunctions, FormProps } from 'tdesign-vue-next';
+import type { FormInstanceFunctions, FormProps, SubmitContext } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { computed, reactive, ref } from 'vue';
 
-import { ManagementPageContent, ManagementPageHeader } from '@/shared/components/management';
-import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
+import { ManagementEmptyState, ManagementPageContent, ManagementPageHeader } from '@/shared/components/management';
 
-import { postProjectImport, postProjectImportValidate } from '../../api/project';
+import FolderPicker from '../../components/FolderPicker.vue';
 import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import { appendResolvedTab, buildDetailTitleWithFallback } from '../../shared/navigation';
 import { useProjectPageContext } from '../../shared/page-context';
-import type {
-  ProjectImportResponse,
-  ProjectImportValidateRequest,
-  ProjectImportValidateResponse,
-} from '../../types/project';
+import { useProjectImportFlow } from '../../shared/useProjectImportFlow';
+import type { ProjectImportDirectoryRef, ProjectImportExecuteResponse } from '../../types/import';
 
 defineOptions({
   name: 'ProjectImportIndex',
 });
 
 const { router, tabsRouterStore, t } = useProjectPageContext();
-
 const formRef = ref<FormInstanceFunctions | null>(null);
-const validating = ref(false);
-const importing = ref(false);
-const validationResult = ref<ProjectImportValidateResponse | null>(null);
+const pickerVisible = ref(false);
 
-const formData = reactive<ProjectImportValidateRequest>({
-  working_directory: '',
-  compose_files: [],
-  env_files: [],
-  display_name: '',
-  canonical_project_name_override: null,
+const {
+  canImport,
+  canonicalProjectNameOverride,
+  displayName,
+  hasPreview,
+  importLoading,
+  inspectError,
+  inspectLoading,
+  inspectResult,
+  refreshInspect,
+  reset,
+  selectDirectory,
+  selectedDirectory,
+  submitImport,
+} = useProjectImportFlow(t);
+
+const formData = reactive({
+  display_name: displayName,
+  canonical_project_name_override: canonicalProjectNameOverride,
 });
 
 const formRules: FormProps['rules'] = {
-  working_directory: [{ required: true, message: t('project.import.validation.workingDirectoryRequired') }],
+  display_name: [{ required: true, message: t('project.import.validation.displayNameRequired') }],
 };
 
-const composeFilesText = computed({
-  get: () => formData.compose_files?.join('\n') || '',
-  set: (value: string) => {
-    formData.compose_files = parseLineArray(value);
-  },
-});
-
-const envFilesText = computed({
-  get: () => formData.env_files?.join('\n') || '',
-  set: (value: string) => {
-    formData.env_files = parseLineArray(value);
-  },
-});
-
-const canonicalProjectNameOverrideModel = computed({
-  get: () => formData.canonical_project_name_override ?? '',
-  set: (value: string) => {
-    const normalized = value.trim();
-    formData.canonical_project_name_override = normalized ? normalized : null;
-  },
-});
-
-const validationWarnings = computed(() => validationResult.value?.warnings ?? []);
-const validationConflicts = computed(() => validationResult.value?.conflicts ?? []);
-const composeFileSummary = computed(
-  () =>
-    validationResult.value?.compose_files.map((item) => item.display_path || item.absolute_path).join(', ') ||
-    t('project.import.preview.none'),
-);
-const envFileSummary = computed(
-  () =>
-    validationResult.value?.env_files.map((item) => item.display_path || item.absolute_path).join(', ') ||
-    t('project.import.preview.none'),
+const resolvedWorkingDirectory = computed(
+  () => inspectResult.value?.resolved_working_directory || renderDirectoryFallback(selectedDirectory.value),
 );
 
-function parseLineArray(value: string) {
-  return value
-    .split('\n')
-    .map((item) => item.trim())
-    .filter(Boolean);
+function renderDirectoryFallback(directory: ProjectImportDirectoryRef | null) {
+  if (!directory) {
+    return '';
+  }
+  return directory.path ? `/${directory.path}` : '/';
 }
 
-async function runValidate() {
-  const valid = await formRef.value?.validate();
-  if (valid !== true) return;
-  validating.value = true;
+function formatList(items?: string[]) {
+  return items?.length ? items.join(', ') : t('project.import.preview.none');
+}
+
+async function handleDirectoryConfirm(directory: ProjectImportDirectoryRef) {
+  pickerVisible.value = false;
   try {
-    validationResult.value = await postProjectImportValidate({ ...formData });
-    MessagePlugin.success(t('project.import.messages.validateSuccess'));
-  } catch (error) {
-    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.import.messages.validateFailed')));
-  } finally {
-    validating.value = false;
+    await selectDirectory(directory);
+    MessagePlugin.success(t('project.import.messages.inspectSuccess'));
+  } catch {
+    MessagePlugin.error(inspectError.value || t('project.import.messages.inspectFailed'));
   }
 }
 
-async function handleSubmit() {
-  await submitImport();
+async function handleRefreshInspect() {
+  try {
+    await refreshInspect();
+    if (inspectResult.value) {
+      MessagePlugin.success(t('project.import.messages.inspectSuccess'));
+    }
+  } catch {
+    MessagePlugin.error(inspectError.value || t('project.import.messages.inspectFailed'));
+  }
 }
 
-async function submitImport() {
-  const valid = await formRef.value?.validate();
-  if (valid !== true) return;
-  importing.value = true;
+async function handleSubmit(context: SubmitContext) {
+  if (context.validateResult !== true) {
+    return;
+  }
+
   try {
-    const response = await postProjectImport({ ...formData });
+    const response = await submitImport();
     MessagePlugin.success(t('project.import.messages.importSuccess'));
     openDetail(response);
-  } catch (error) {
-    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.import.messages.importFailed')));
-  } finally {
-    importing.value = false;
+  } catch {
+    MessagePlugin.error(t('project.import.messages.importFailed'));
   }
 }
 
-function openDetail(response: ProjectImportResponse) {
+function openDetail(response: ProjectImportExecuteResponse) {
   const project = response.project;
   const target = {
     name: PROJECT_BOOTSTRAP_ROUTE.DETAIL.pageRouteName,
@@ -280,25 +332,36 @@ function goToList() {
   void router.push({ name: PROJECT_BOOTSTRAP_ROUTE.LIST.routeName });
 }
 
-function resetForm() {
-  formData.working_directory = '';
-  formData.compose_files = [];
-  formData.env_files = [];
-  formData.display_name = '';
-  formData.canonical_project_name_override = null;
-  validationResult.value = null;
+function handleReset() {
+  pickerVisible.value = false;
+  reset();
 }
 </script>
-<style scoped>
+<style scoped lang="less">
 .project-import-layout,
-.project-import-preview__alerts {
+.project-import-preview,
+.project-import-preview__alerts,
+.project-import-feedback,
+.project-import-directory {
   display: grid;
   gap: var(--graft-density-gap-16);
 }
 
 .project-import-layout {
-  grid-template-columns: minmax(0, 1.4fr) minmax(320px, 1fr);
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 1fr);
   margin-top: var(--graft-density-gap-16);
+}
+
+.project-import-directory__actions,
+.project-import-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--graft-density-gap-12);
+}
+
+.project-import-directory__suffix {
+  color: var(--td-text-color-placeholder);
+  font: var(--td-font-body-small);
 }
 
 .project-import-form-grid {
@@ -307,10 +370,8 @@ function resetForm() {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.project-import-form-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--graft-density-gap-12);
+.project-import-preview__skeleton {
+  padding: var(--graft-density-gap-8) 0;
 }
 
 @media (width <= 1080px) {

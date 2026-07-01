@@ -136,46 +136,70 @@
     },
     "import": {
       "eyebrow": "Import Project",
-      "description": "Register a Compose project that already exists on the host without copying, moving, or rewriting its layout.",
+      "description": "Select a server directory, let the backend inspect it automatically, and confirm the discovered Compose project before import.",
       "actions": {
         "backToList": "Back to List",
-        "validate": "Validate Import Input",
+        "selectDirectory": "Select Directory",
+        "changeDirectory": "Change Directory",
+        "refreshInspect": "Refresh Inspect",
+        "retryInspect": "Retry Inspect",
         "import": "Import and Open Project",
-        "reset": "Reset Form"
+        "reset": "Reset"
+      },
+      "directory": {
+        "title": "Project Directory",
+        "workingDirectory": "Selected Directory",
+        "readonlyHint": "Auto-discovered"
       },
       "form": {
-        "title": "Import Input",
-        "workingDirectory": "Working Directory",
-        "workingDirectoryPlaceholder": "For Example: /srv/compose/orders-dev",
+        "title": "Project Details",
         "displayName": "Display Name",
         "displayNamePlaceholder": "For Example: Orders Service Dev",
         "canonicalProjectNameOverride": "Canonical Project Name Override",
-        "canonicalProjectNameOverridePlaceholder": "Leave Blank to Derive It Automatically",
-        "composeFiles": "Compose Files",
-        "composeFilesPlaceholder": "One Relative or Absolute Path per Line. Leave Blank to Auto-discover Standard Compose Files.",
-        "envFiles": "Env Files",
-        "envFilesPlaceholder": "One Relative or Absolute Path per Line. Leave Blank to Auto-discover .env"
+        "canonicalProjectNameOverridePlaceholder": "Leave Blank to Keep the Inspected Value"
       },
       "validation": {
-        "workingDirectoryRequired": "Working Directory Is Required."
+        "displayNameRequired": "Display Name Is Required."
+      },
+      "picker": {
+        "title": "Select Server Directory",
+        "sourceLabel": "Directory Source",
+        "pathLabel": "Current Path",
+        "actionsLabel": "Actions",
+        "sourceLoading": "Loading Directory Sources…",
+        "refresh": "Refresh Directory",
+        "parentDirectory": "Go to Parent Directory",
+        "openDirectory": "Open Directory",
+        "emptyTitle": "No Child Directories Found Here",
+        "emptyDescription": "You Can Import This Directory as Is or Go Back Up to Browse Another Path.",
+        "confirm": "Use This Directory"
       },
       "preview": {
         "title": "Import Preview",
-        "filesTitle": "Resolved Files",
+        "discoveryTitle": "Discovery Result",
         "canonicalProjectName": "Canonical Project Name",
         "canonicalNameSource": "Canonical Name Source",
+        "validationStatus": "Validation Status",
         "serviceCount": "Declared Services",
         "configHash": "Config Hash",
-        "declaredServices": "Declared Services",
         "composeFiles": "Compose Files",
         "envFiles": "Env Files",
-        "empty": "Run Validation First to Inspect the Import Preview.",
+        "services": "Services",
+        "networks": "Networks",
+        "volumes": "Volumes",
         "noDiagnostics": "No Additional Warnings or Conflicts Were Returned.",
         "none": "None"
       },
+      "state": {
+        "awaitingSelectionTitle": "Select a Server Directory First",
+        "awaitingSelectionDescription": "Inspect runs automatically after directory selection and fills the import preview for confirmation.",
+        "inspectErrorTitle": "Directory Inspect Failed"
+      },
       "messages": {
-        "validateSuccess": "Import Input Validated.",
-        "validateFailed": "Import Input Validation Failed.",
+        "directorySourceLoadFailed": "Directory Sources Could Not Be Loaded.",
+        "directoryLoadFailed": "Directory List Could Not Be Loaded.",
+        "inspectSuccess": "Directory Inspect Refreshed.",
+        "inspectFailed": "Directory Inspect Failed.",
         "importSuccess": "Compose Project Imported.",
         "importFailed": "Compose Project Import Failed."
       }

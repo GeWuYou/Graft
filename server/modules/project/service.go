@@ -40,6 +40,9 @@ var (
 	errProjectFileNotFound         = errors.New("project file not found")
 	errProjectDestroyBlocked       = errors.New("project destroy blocked by ownership guard")
 	errProjectManagedFlow          = errors.New("project managed flow is unsupported")
+	errProjectDirectoryForbidden   = errors.New("project directory browse forbidden")
+	errProjectInspectionExpired    = errors.New("project inspection expired")
+	errProjectInspectionStale      = errors.New("project inspection stale")
 )
 
 const (
@@ -99,37 +102,37 @@ const (
 
 // DiscoveryCandidateResult returns one bounded directory-scan or auto-discovery preview candidate.
 type DiscoveryCandidateResult struct {
-	CandidateKey              string
-	CandidateKind             string
-	SourceKind                string
-	SourceType                string
-	SourceMetadata            map[string]string
-	DisplayName               string
-	CanonicalProjectName      string
+	CandidateKey               string
+	CandidateKind              string
+	SourceKind                 string
+	SourceType                 string
+	SourceMetadata             map[string]string
+	DisplayName                string
+	CanonicalProjectName       string
 	CanonicalProjectNameSource string
-	WorkingDirectory          string
-	OwnershipMode             string
-	HostScope                 string
-	Status                    string
-	RecommendedAction         string
-	StatusReason              *string
-	ComposeFiles              []generated.ProjectFileItem
-	EnvFiles                  []generated.ProjectFileItem
-	DeclaredServiceNames      []string
-	ServiceCount              int
-	ConfigHash                string
-	Warnings                  []string
-	Conflicts                 []string
+	WorkingDirectory           string
+	OwnershipMode              string
+	HostScope                  string
+	Status                     string
+	RecommendedAction          string
+	StatusReason               *string
+	ComposeFiles               []generated.ProjectFileItem
+	EnvFiles                   []generated.ProjectFileItem
+	DeclaredServiceNames       []string
+	ServiceCount               int
+	ConfigHash                 string
+	Warnings                   []string
+	Conflicts                  []string
 }
 
 // DiscoveryCandidatesResult returns the bounded scan/discovery candidate authority surface.
 type DiscoveryCandidatesResult struct {
-	SourceType           string
-	AuthorityRoot        *string
-	SupportsScan         bool
+	SourceType            string
+	AuthorityRoot         *string
+	SupportsScan          bool
 	SupportsAutoDiscovery bool
-	StatusReason         *string
-	Items                []DiscoveryCandidateResult
+	StatusReason          *string
+	Items                 []DiscoveryCandidateResult
 }
 
 // ImportValidationResult returns the static import validation result.
@@ -140,10 +143,13 @@ type ImportValidationResult struct {
 	ComposeFiles               []generated.ProjectFileItem
 	EnvFiles                   []generated.ProjectFileItem
 	ServiceCount               int
+	NetworkNames               []string
+	VolumeNames                []string
 	Warnings                   []string
 	Conflicts                  []string
 	ConfigHash                 string
 	DeclaredServiceNames       []string
+	InspectionID               *string
 }
 
 // ConfigurationMetadataResult returns readonly configuration metadata.
@@ -316,6 +322,7 @@ type Service struct {
 	repository     projectstore.Repository
 	runtimeReader  moduleapi.ContainerProjectRuntimeReader
 	configResolver moduleapi.SystemConfigResolver
+	inspectCache   *importInspectionCache
 }
 
 // NewService 创建项目服务边界并应用可选配置。
@@ -325,7 +332,8 @@ func NewService(repository projectstore.Repository, options ...ServiceOption) (*
 		return nil, errors.New("project repository is unavailable")
 	}
 	service := &Service{
-		repository: repository,
+		repository:   repository,
+		inspectCache: newImportInspectionCache(),
 	}
 	for _, option := range options {
 		if option != nil {
@@ -506,6 +514,140 @@ func (s *Service) DiscoveryCandidates(ctx context.Context) (DiscoveryCandidatesR
 	return result, nil
 }
 
+// ImportDirectorySources returns operator-allowlisted import roots plus managed-root injection.
+func (s *Service) ImportDirectorySources(ctx context.Context) (ImportDirectorySourceResult, error) {
+	roots, err := s.importRootDefinitions(ctx)
+	if err != nil {
+		return ImportDirectorySourceResult{}, err
+	}
+	result := ImportDirectorySourceResult{Items: make([]ImportDirectorySource, 0, len(roots))}
+	for _, root := range roots {
+		result.Items = append(result.Items, ImportDirectorySource{
+			Provider:    importProviderLocal,
+			RootID:      root.id,
+			Label:       root.label,
+			Path:        root.path,
+			InitialPath: normalizeBrowsePath(root.initialPath),
+			Managed:     root.managed,
+		})
+	}
+	return result, nil
+}
+
+// BrowseImportDirectories returns a bounded root-relative directory listing for import flows.
+func (s *Service) BrowseImportDirectories(ctx context.Context, query ImportDirectoryBrowseQuery) (ImportDirectoryBrowseResult, error) {
+	query = normalizeDirectoryBrowseQuery(query)
+	root, err := s.resolveImportRoot(ctx, query.Provider, query.RootID)
+	if err != nil {
+		return ImportDirectoryBrowseResult{}, err
+	}
+	absolute, err := resolveRootPath(root, query.Path)
+	if err != nil {
+		return ImportDirectoryBrowseResult{}, fmt.Errorf("%w: invalid relative path", errProjectDirectoryForbidden)
+	}
+	entries, err := os.ReadDir(absolute)
+	if err != nil {
+		return ImportDirectoryBrowseResult{}, fmt.Errorf("%w: %v", errProjectImportValidation, err)
+	}
+	items := buildImportDirectoryItems(query.Path, entries)
+	sortImportDirectoryItems(items, query.SortBy, query.Order)
+	start := minInt(query.Offset, len(items))
+	end := minInt(start+query.Limit, len(items))
+	resultItems := append([]ImportDirectoryItem(nil), items[start:end]...)
+	return ImportDirectoryBrowseResult{
+		Provider:    query.Provider,
+		RootID:      root.id,
+		CurrentPath: query.Path,
+		ParentPath:  parentBrowsePath(query.Path),
+		Limit:       query.Limit,
+		Offset:      query.Offset,
+		HasMore:     end < len(items),
+		SortBy:      query.SortBy,
+		Order:       query.Order,
+		Items:       resultItems,
+	}, nil
+}
+
+// InspectImportDirectory discovers files, parses compose once, and stores a short-lived inspection session.
+func (s *Service) InspectImportDirectory(ctx context.Context, request ImportInspectRequest) (ImportInspectResult, error) {
+	repository, err := s.repositoryOrErr()
+	if err != nil {
+		return ImportInspectResult{}, err
+	}
+	root, err := s.resolveImportRoot(ctx, request.DirectoryRef.Provider, request.DirectoryRef.RootID)
+	if err != nil {
+		return ImportInspectResult{}, err
+	}
+	absolute, err := resolveRootPath(root, request.DirectoryRef.Path)
+	if err != nil {
+		return ImportInspectResult{}, fmt.Errorf("%w: invalid relative path", errProjectDirectoryForbidden)
+	}
+	discovered, err := discoverImportFiles(absolute)
+	if err != nil {
+		return ImportInspectResult{}, fmt.Errorf("%w: %v", errProjectImportValidation, err)
+	}
+	session, err := s.inspectImportRequest(ctx, repository, ImportRequest{
+		WorkingDirectory:             absolute,
+		ComposeFiles:                 discovered.composeFiles,
+		EnvFiles:                     discovered.envFiles,
+		DisplayName:                  request.DisplayName,
+		CanonicalProjectNameOverride: request.CanonicalProjectNameOverride,
+	})
+	if err != nil {
+		return ImportInspectResult{}, err
+	}
+	if len(discovered.warnings) > 0 {
+		session.Warnings = append(session.Warnings, discovered.warnings...)
+		if s.inspectCache != nil {
+			s.inspectCache.put(session)
+		}
+	}
+	status := "ready"
+	if len(session.Conflicts) > 0 {
+		status = "conflict"
+	}
+	return ImportInspectResult{
+		InspectionID:               session.ID,
+		DirectoryRef:               request.DirectoryRef,
+		ResolvedWorkingDirectory:   session.WorkingDir,
+		CanonicalProjectName:       session.CanonicalName,
+		CanonicalProjectNameSource: session.CanonicalSource,
+		DisplayNameSuggested:       session.DisplayName,
+		ComposeFiles:               toFileViews(session.ParseResult.ComposeFiles),
+		EnvFiles:                   toFileViews(session.ParseResult.EnvFiles),
+		ServiceNames:               append([]string(nil), session.ParseResult.ServiceNames...),
+		NetworkNames:               append([]string(nil), session.ParseResult.NetworkNames...),
+		VolumeNames:                append([]string(nil), session.ParseResult.VolumeNames...),
+		ConfigHash:                 session.ParseResult.ConfigHash,
+		Warnings:                   append([]string(nil), session.Warnings...),
+		Conflicts:                  append([]string(nil), session.Conflicts...),
+		ValidationStatus:           status,
+	}, nil
+}
+
+// ImportByInspection validates inspection freshness and persists the inspected project.
+func (s *Service) ImportByInspection(ctx context.Context, request ImportExecuteRequest) (generated.ProjectImportResponse, error) {
+	repository, err := s.repositoryOrErr()
+	if err != nil {
+		return generated.ProjectImportResponse{}, err
+	}
+	if s.inspectCache == nil {
+		return generated.ProjectImportResponse{}, errProjectInspectionExpired
+	}
+	session, ok := s.inspectCache.get(strings.TrimSpace(request.InspectionID))
+	if !ok {
+		return generated.ProjectImportResponse{}, errProjectInspectionExpired
+	}
+	response, importErr := s.importInspectionSession(ctx, repository, session, request.DisplayName, request.CanonicalProjectNameOverride, request.ActorID)
+	if importErr != nil {
+		if errors.Is(importErr, errProjectConflict) && strings.Contains(importErr.Error(), "file hash mismatch") {
+			return generated.ProjectImportResponse{}, errProjectInspectionStale
+		}
+		return generated.ProjectImportResponse{}, importErr
+	}
+	return response, nil
+}
+
 // Get returns one project detail payload.
 func (s *Service) Get(ctx context.Context, projectID uint64) (generated.ProjectDetailResponse, error) {
 	aggregate, err := s.getAggregate(ctx, projectID)
@@ -522,26 +664,11 @@ func (s *Service) ValidateImport(ctx context.Context, request ImportRequest) (Im
 	if err != nil {
 		return ImportValidationResult{}, err
 	}
-	parseResult, validation, err := s.parseImportRequest(request)
+	session, err := s.inspectImportRequest(ctx, repository, request)
 	if err != nil {
 		return ImportValidationResult{}, err
 	}
-	conflicts, err := s.computeConflicts(ctx, repository, request, validation)
-	if err != nil {
-		return ImportValidationResult{}, err
-	}
-	return ImportValidationResult{
-		CanonicalProjectName:       validation.CanonicalProjectName,
-		CanonicalProjectNameSource: validation.CanonicalProjectNameSource,
-		WorkingDirectory:           parseResult.WorkingDirectory,
-		ComposeFiles:               validation.ComposeFiles,
-		EnvFiles:                   validation.EnvFiles,
-		ServiceCount:               len(parseResult.ServiceNames),
-		Warnings:                   append([]string(nil), parseResult.Warnings...),
-		Conflicts:                  conflicts,
-		ConfigHash:                 parseResult.ConfigHash,
-		DeclaredServiceNames:       append([]string(nil), parseResult.ServiceNames...),
-	}, nil
+	return s.validationResultFromSession(session), nil
 }
 
 // Import validates and registers one project.
@@ -550,55 +677,11 @@ func (s *Service) Import(ctx context.Context, request ImportRequest) (generated.
 	if err != nil {
 		return generated.ProjectImportResponse{}, err
 	}
-	parseResult, validation, err := s.parseImportRequest(request)
+	session, err := s.inspectImportRequest(ctx, repository, request)
 	if err != nil {
 		return generated.ProjectImportResponse{}, err
 	}
-	conflicts, err := s.computeConflicts(ctx, repository, request, validation)
-	if err != nil {
-		return generated.ProjectImportResponse{}, err
-	}
-	if len(conflicts) > 0 {
-		return generated.ProjectImportResponse{}, fmt.Errorf("%w: %s", errProjectConflict, strings.Join(conflicts, ", "))
-	}
-
-	now := time.Now().UTC()
-	aggregate, err := repository.ImportProject(ctx, projectstore.ImportProjectInput{
-		DisplayName:                displayNameOrCanonical(request.DisplayName, validation.CanonicalProjectName),
-		CanonicalProjectName:       validation.CanonicalProjectName,
-		CanonicalProjectNameSource: validation.CanonicalProjectNameSource,
-		SourceKind:                 projectcontract.SourceKindImported.String(),
-		HostScope:                  projectcontract.HostScopeLocal.String(),
-		WorkingDirectory:           parseResult.WorkingDirectory,
-		OwnershipMode:              projectcontract.OwnershipModeExternal.String(),
-		LastRefreshStatus:          projectcontract.RefreshStatusSuccess.String(),
-		LastRefreshAt:              &now,
-		LastRefreshConfigHash:      parseResult.ConfigHash,
-		LastObservedConfigHash:     parseResult.ConfigHash,
-		LastDriftCheckedAt:         &now,
-		DriftStatus:                projectcontract.DriftStatusClean.String(),
-		Files:                      toStoreFiles(parseResult.ComposeFiles, parseResult.EnvFiles),
-		Snapshot: &projectstore.Snapshot{
-			ConfigHash:             parseResult.ConfigHash,
-			NormalizedComposeJSON:  normalizeSnapshotJSON(parseResult.NormalizedComposeJSON),
-			DeclaredServiceCount:   len(parseResult.ServiceNames),
-			DeclaredServicesDigest: digestServiceNames(parseResult.ServiceNames),
-			RefreshedAt:            now,
-		},
-		ActorID: request.ActorID,
-	})
-	if err != nil {
-		return generated.ProjectImportResponse{}, mapStoreError(err)
-	}
-
-	response := generated.ProjectImportResponse{
-		Project: toProjectDetailResponse(aggregate),
-	}
-	response.SnapshotSummary.ConfigHash = parseResult.ConfigHash
-	response.SnapshotSummary.RefreshedAt = now
-	serviceCount := len(parseResult.ServiceNames)
-	response.SnapshotSummary.DeclaredServiceCount = &serviceCount
-	return response, nil
+	return s.importInspectionSession(ctx, repository, session, request.DisplayName, request.CanonicalProjectNameOverride, request.ActorID)
 }
 
 // Refresh reparses and persists the latest static compose snapshot.
@@ -775,7 +858,7 @@ func (s *Service) ValidateManagedCreate(ctx context.Context, request ManagedProj
 			"managed_compose_file_name":  normalized.ComposeFileName,
 			"managed_env_file_name":      stringValue(normalized.EnvFileName),
 		},
-		Warnings:                warnings,
+		Warnings: warnings,
 	}, nil
 }
 
@@ -1649,6 +1732,127 @@ func (s *Service) parseImportRequest(
 	return parseResult, validation, nil
 }
 
+func (s *Service) inspectImportRequest(
+	ctx context.Context,
+	repository projectstore.Repository,
+	request ImportRequest,
+) (importInspectionSession, error) {
+	parseResult, validation, err := s.parseImportRequest(request)
+	if err != nil {
+		return importInspectionSession{}, err
+	}
+	conflicts, err := s.computeConflicts(ctx, repository, request, validation)
+	if err != nil {
+		return importInspectionSession{}, err
+	}
+	createdAt := time.Now().UTC()
+	session := importInspectionSession{
+		DirectoryRef: ImportDirectoryReference{
+			Provider: importProviderLocal,
+			Path:     parseResult.WorkingDirectory,
+		},
+		WorkingDir:      parseResult.WorkingDirectory,
+		CanonicalName:   validation.CanonicalProjectName,
+		CanonicalSource: validation.CanonicalProjectNameSource,
+		DisplayName:     displayNameOrCanonical(request.DisplayName, validation.CanonicalProjectName),
+		ParseResult:     parseResult,
+		Conflicts:       append([]string(nil), conflicts...),
+		Warnings:        append([]string(nil), parseResult.Warnings...),
+		CreatedAt:       createdAt,
+		ExpiresAt:       createdAt.Add(importInspectionSessionTTL),
+		FileHashes:      snapshotFileHashes(parseResult),
+	}
+	session.ID = inspectionSessionID(session.DirectoryRef, parseResult.ConfigHash, createdAt)
+	if s.inspectCache != nil {
+		s.inspectCache.put(session)
+	}
+	return session, nil
+}
+
+func (s *Service) validationResultFromSession(session importInspectionSession) ImportValidationResult {
+	inspectionID := session.ID
+	return ImportValidationResult{
+		CanonicalProjectName:       session.CanonicalName,
+		CanonicalProjectNameSource: session.CanonicalSource,
+		WorkingDirectory:           session.WorkingDir,
+		ComposeFiles:               toGeneratedFilesFromCompose(session.ParseResult.ComposeFiles),
+		EnvFiles:                   toGeneratedFilesFromCompose(session.ParseResult.EnvFiles),
+		ServiceCount:               len(session.ParseResult.ServiceNames),
+		NetworkNames:               append([]string(nil), session.ParseResult.NetworkNames...),
+		VolumeNames:                append([]string(nil), session.ParseResult.VolumeNames...),
+		Warnings:                   append([]string(nil), session.Warnings...),
+		Conflicts:                  append([]string(nil), session.Conflicts...),
+		ConfigHash:                 session.ParseResult.ConfigHash,
+		DeclaredServiceNames:       append([]string(nil), session.ParseResult.ServiceNames...),
+		InspectionID:               &inspectionID,
+	}
+}
+
+func (s *Service) importInspectionSession(
+	ctx context.Context,
+	repository projectstore.Repository,
+	session importInspectionSession,
+	displayName *string,
+	canonicalOverride *string,
+	actorID *uint64,
+) (generated.ProjectImportResponse, error) {
+	if len(session.Conflicts) > 0 {
+		return generated.ProjectImportResponse{}, fmt.Errorf("%w: %s", errProjectConflict, strings.Join(session.Conflicts, ", "))
+	}
+	currentRequest := ImportRequest{
+		WorkingDirectory:             session.WorkingDir,
+		ComposeFiles:                 displayPathsFromCompose(session.ParseResult.ComposeFiles),
+		EnvFiles:                     displayPathsFromCompose(session.ParseResult.EnvFiles),
+		DisplayName:                  displayName,
+		CanonicalProjectNameOverride: canonicalOverride,
+		ActorID:                      actorID,
+	}
+	freshParse, freshValidation, err := s.parseImportRequest(currentRequest)
+	if err != nil {
+		return generated.ProjectImportResponse{}, err
+	}
+	if !sameFileHashes(session.FileHashes, freshParse) {
+		return generated.ProjectImportResponse{}, fmt.Errorf("%w: file hash mismatch", errProjectConflict)
+	}
+	now := time.Now().UTC()
+	aggregate, err := repository.ImportProject(ctx, projectstore.ImportProjectInput{
+		DisplayName:                displayNameOrCanonical(displayName, freshValidation.CanonicalProjectName),
+		CanonicalProjectName:       freshValidation.CanonicalProjectName,
+		CanonicalProjectNameSource: freshValidation.CanonicalProjectNameSource,
+		SourceKind:                 projectcontract.SourceKindImported.String(),
+		HostScope:                  projectcontract.HostScopeLocal.String(),
+		WorkingDirectory:           freshParse.WorkingDirectory,
+		OwnershipMode:              projectcontract.OwnershipModeExternal.String(),
+		LastRefreshStatus:          projectcontract.RefreshStatusSuccess.String(),
+		LastRefreshAt:              &now,
+		LastRefreshConfigHash:      freshParse.ConfigHash,
+		LastObservedConfigHash:     freshParse.ConfigHash,
+		LastDriftCheckedAt:         &now,
+		DriftStatus:                projectcontract.DriftStatusClean.String(),
+		Files:                      toStoreFiles(freshParse.ComposeFiles, freshParse.EnvFiles),
+		Snapshot: &projectstore.Snapshot{
+			ConfigHash:             freshParse.ConfigHash,
+			NormalizedComposeJSON:  normalizeSnapshotJSON(freshParse.NormalizedComposeJSON),
+			DeclaredServiceCount:   len(freshParse.ServiceNames),
+			DeclaredServicesDigest: digestServiceNames(freshParse.ServiceNames),
+			RefreshedAt:            now,
+		},
+		ActorID: actorID,
+	})
+	if err != nil {
+		return generated.ProjectImportResponse{}, mapStoreError(err)
+	}
+
+	response := generated.ProjectImportResponse{
+		Project: toProjectDetailResponse(aggregate),
+	}
+	response.SnapshotSummary.ConfigHash = freshParse.ConfigHash
+	response.SnapshotSummary.RefreshedAt = now
+	serviceCount := len(freshParse.ServiceNames)
+	response.SnapshotSummary.DeclaredServiceCount = &serviceCount
+	return response, nil
+}
+
 func (s *Service) computeConflicts(
 	ctx context.Context,
 	repository projectstore.Repository,
@@ -1689,65 +1893,152 @@ func (s *Service) scanDiscoveryCandidates(
 		if len(candidates) >= projectDiscoveryScanSize {
 			break
 		}
-		if !entry.IsDir() {
+		name, ok := visibleDirectoryEntryName(entry)
+		if !ok {
 			continue
 		}
-		name := strings.TrimSpace(entry.Name())
-		if name == "" || strings.HasPrefix(name, ".") {
-			continue
-		}
-		workingDirectory := filepath.Join(rootDirectory, name)
-		importRequest := ImportRequest{WorkingDirectory: workingDirectory}
-		parseResult, validation, err := s.parseImportRequest(importRequest)
+		candidate, err := s.buildDiscoveryCandidate(ctx, repository, rootDirectory, name, configKey)
 		if err != nil {
 			continue
 		}
-		conflicts, err := s.computeConflicts(ctx, repository, importRequest, validation)
-		if err != nil {
-			return nil, err
-		}
-		status := "ready"
-		recommendedAction := "import"
-		var statusReason *string
-		if len(conflicts) > 0 {
-			status = "conflict"
-			recommendedAction = "review"
-			reason := "Existing registry ownership or canonical-name conflicts require review before import."
-			statusReason = &reason
-		}
-		candidates = append(candidates, DiscoveryCandidateResult{
-			CandidateKey:               candidateKeyForWorkingDirectory(workingDirectory),
-			CandidateKind:              "directory-scan",
-			SourceKind:                 projectcontract.SourceKindManaged.String(),
-			SourceType:                 string(generated.ProjectSourceEntryTypeManaged),
-			SourceMetadata: map[string]string{
-				"managed_root_key":           configKey,
-				"managed_relative_directory": name,
-				"managed_compose_file_name":  firstProjectFileDisplayName(validation.ComposeFiles),
-				"managed_env_file_name":      firstProjectFileDisplayName(validation.EnvFiles),
-			},
-			DisplayName:                validation.CanonicalProjectName,
-			CanonicalProjectName:       validation.CanonicalProjectName,
-			CanonicalProjectNameSource: validation.CanonicalProjectNameSource,
-			WorkingDirectory:           validation.WorkingDirectory,
-			OwnershipMode:              projectcontract.OwnershipModeManagedRootDedicated.String(),
-			HostScope:                  projectcontract.HostScopeLocal.String(),
-			Status:                     status,
-			RecommendedAction:          recommendedAction,
-			StatusReason:               statusReason,
-			ComposeFiles:               validation.ComposeFiles,
-			EnvFiles:                   validation.EnvFiles,
-			DeclaredServiceNames:       append([]string(nil), parseResult.ServiceNames...),
-			ServiceCount:               len(parseResult.ServiceNames),
-			ConfigHash:                 parseResult.ConfigHash,
-			Warnings:                   append([]string(nil), parseResult.Warnings...),
-			Conflicts:                  append([]string(nil), conflicts...),
-		})
+		candidates = append(candidates, candidate)
 	}
 	sort.Slice(candidates, func(i, j int) bool {
 		return strings.Compare(candidates[i].WorkingDirectory, candidates[j].WorkingDirectory) < 0
 	})
 	return candidates, nil
+}
+
+func buildImportDirectoryItems(currentPath string, entries []os.DirEntry) []ImportDirectoryItem {
+	items := make([]ImportDirectoryItem, 0, len(entries))
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		name := strings.TrimSpace(entry.Name())
+		if name == "" {
+			continue
+		}
+		item := ImportDirectoryItem{
+			Name: name,
+			Path: normalizeBrowsePath(filepath.Join(currentPath, name)),
+		}
+		if info, infoErr := entry.Info(); infoErr == nil {
+			modifiedAt := info.ModTime().UTC()
+			item.ModifiedAt = &modifiedAt
+		}
+		items = append(items, item)
+	}
+	return items
+}
+
+func sortImportDirectoryItems(items []ImportDirectoryItem, sortBy string, order string) {
+	sort.Slice(items, func(i, j int) bool {
+		if sortBy == importDirectorySortByModified {
+			if decided, ok := compareModifiedTime(items[i].ModifiedAt, items[j].ModifiedAt, order); ok {
+				return decided
+			}
+		}
+		return compareDirectoryNames(items[i].Name, items[j].Name, order)
+	})
+}
+
+func compareModifiedTime(leftAt *time.Time, rightAt *time.Time, order string) (bool, bool) {
+	left := time.Time{}
+	right := time.Time{}
+	if leftAt != nil {
+		left = *leftAt
+	}
+	if rightAt != nil {
+		right = *rightAt
+	}
+	if left.Equal(right) {
+		return false, false
+	}
+	if order == importDirectoryOrderDesc {
+		return left.After(right), true
+	}
+	return left.Before(right), true
+}
+
+func compareDirectoryNames(left string, right string, order string) bool {
+	if order == importDirectoryOrderDesc {
+		return strings.Compare(left, right) > 0
+	}
+	return strings.Compare(left, right) < 0
+}
+
+func visibleDirectoryEntryName(entry os.DirEntry) (string, bool) {
+	if !entry.IsDir() {
+		return "", false
+	}
+	name := strings.TrimSpace(entry.Name())
+	if name == "" || strings.HasPrefix(name, ".") {
+		return "", false
+	}
+	return name, true
+}
+
+func (s *Service) buildDiscoveryCandidate(
+	ctx context.Context,
+	repository projectstore.Repository,
+	rootDirectory string,
+	name string,
+	configKey string,
+) (DiscoveryCandidateResult, error) {
+	workingDirectory := filepath.Join(rootDirectory, name)
+	discovered, err := discoverImportFiles(workingDirectory)
+	if err != nil {
+		return DiscoveryCandidateResult{}, err
+	}
+	session, err := s.inspectImportRequest(ctx, repository, ImportRequest{
+		WorkingDirectory: workingDirectory,
+		ComposeFiles:     discovered.composeFiles,
+		EnvFiles:         discovered.envFiles,
+	})
+	if err != nil {
+		return DiscoveryCandidateResult{}, err
+	}
+	if len(discovered.warnings) > 0 {
+		session.Warnings = append(session.Warnings, discovered.warnings...)
+	}
+	status, recommendedAction, statusReason := discoveryCandidateStatus(session.Conflicts)
+	return DiscoveryCandidateResult{
+		CandidateKey:  candidateKeyForWorkingDirectory(workingDirectory),
+		CandidateKind: "directory-scan",
+		SourceKind:    projectcontract.SourceKindManaged.String(),
+		SourceType:    string(generated.ProjectSourceEntryTypeManaged),
+		SourceMetadata: map[string]string{
+			"managed_root_key":           configKey,
+			"managed_relative_directory": name,
+			"managed_compose_file_name":  firstProjectFileDisplayName(toGeneratedFilesFromCompose(session.ParseResult.ComposeFiles)),
+			"managed_env_file_name":      firstProjectFileDisplayName(toGeneratedFilesFromCompose(session.ParseResult.EnvFiles)),
+		},
+		DisplayName:                session.CanonicalName,
+		CanonicalProjectName:       session.CanonicalName,
+		CanonicalProjectNameSource: session.CanonicalSource,
+		WorkingDirectory:           session.WorkingDir,
+		OwnershipMode:              projectcontract.OwnershipModeManagedRootDedicated.String(),
+		HostScope:                  projectcontract.HostScopeLocal.String(),
+		Status:                     status,
+		RecommendedAction:          recommendedAction,
+		StatusReason:               statusReason,
+		ComposeFiles:               toGeneratedFilesFromCompose(session.ParseResult.ComposeFiles),
+		EnvFiles:                   toGeneratedFilesFromCompose(session.ParseResult.EnvFiles),
+		DeclaredServiceNames:       append([]string(nil), session.ParseResult.ServiceNames...),
+		ServiceCount:               len(session.ParseResult.ServiceNames),
+		ConfigHash:                 session.ParseResult.ConfigHash,
+		Warnings:                   append([]string(nil), session.Warnings...),
+		Conflicts:                  append([]string(nil), session.Conflicts...),
+	}, nil
+}
+
+func discoveryCandidateStatus(conflicts []string) (string, string, *string) {
+	if len(conflicts) == 0 {
+		return "ready", "import", nil
+	}
+	reason := "Existing registry ownership or canonical-name conflicts require review before import."
+	return "conflict", "review", &reason
 }
 
 func candidateKeyForWorkingDirectory(workingDirectory string) string {
@@ -1762,6 +2053,17 @@ func firstProjectFileDisplayName(items []generated.ProjectFileItem) string {
 	return filepath.Base(items[0].DisplayPath)
 }
 
+func displayPathsFromCompose(files []projectcompose.FileProjection) []string {
+	if len(files) == 0 {
+		return nil
+	}
+	result := make([]string, 0, len(files))
+	for _, file := range files {
+		result = append(result, file.DisplayPath)
+	}
+	return result
+}
+
 // sameDisplayName 判断给定名称与已有名称在去除首尾空白后是否一致。
 //
 // @param value 待比较的名称。
@@ -1772,6 +2074,53 @@ func sameDisplayName(value *string, existing string) bool {
 		return false
 	}
 	return strings.TrimSpace(*value) == strings.TrimSpace(existing)
+}
+
+func (s *Service) importRootDefinitions(ctx context.Context) ([]importRootDefinition, error) {
+	managedRootInfo, err := s.ManagedRoot(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var managedRoot *string
+	if managedRootInfo.Status == projectcontract.ManagedRootStatusReady.String() {
+		managedRoot = managedRootInfo.ConfiguredRootDirectory
+	}
+	if s.configResolver == nil {
+		return fallbackImportRoots(normalizeImportRootDefinitions(nil, managedRoot)), nil
+	}
+	raw, err := s.configResolver.ResolveDefaultConfig(ctx, projectcontract.ProjectImportAllowedRootsConfig.String())
+	if err != nil {
+		return fallbackImportRoots(normalizeImportRootDefinitions(nil, managedRoot)), nil
+	}
+	decoded, decodeErr := decodeAllowedImportRoots(raw)
+	if decodeErr != nil {
+		return nil, fmt.Errorf("%w: invalid import root config", errProjectInvalidArgument)
+	}
+	return fallbackImportRoots(normalizeImportRootDefinitions(decoded, managedRoot)), nil
+}
+
+func fallbackImportRoots(roots []importRootDefinition) []importRootDefinition {
+	workingDirectory, err := os.Getwd()
+	if err != nil {
+		return roots
+	}
+	return injectFallbackImportRoot(roots, workingDirectory)
+}
+
+func (s *Service) resolveImportRoot(ctx context.Context, provider string, rootID string) (importRootDefinition, error) {
+	if strings.TrimSpace(provider) != "" && strings.TrimSpace(provider) != importProviderLocal {
+		return importRootDefinition{}, fmt.Errorf("%w: unsupported provider", errProjectDirectoryForbidden)
+	}
+	roots, err := s.importRootDefinitions(ctx)
+	if err != nil {
+		return importRootDefinition{}, err
+	}
+	for _, root := range roots {
+		if root.id == strings.TrimSpace(rootID) {
+			return root, nil
+		}
+	}
+	return importRootDefinition{}, fmt.Errorf("%w: unknown root", errProjectDirectoryForbidden)
 }
 
 // sameWorkingDirectory 判断两个工作目录在去除首尾空白后是否相同。
@@ -2518,7 +2867,7 @@ func buildRemoteHostSourceMetadata(aggregate projectstore.ProjectAggregate) *gen
 	activityAuthority := string(resolveActivityAuthority(aggregate))
 	rollupScope := "planned-remote-summary"
 	return &generated.ProjectSourceMetadata{
-		ActivityAuthority:  &activityAuthority,
+		ActivityAuthority:   &activityAuthority,
 		ActivityRollupScope: &rollupScope,
 	}
 }

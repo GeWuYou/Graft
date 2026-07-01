@@ -1,0 +1,12 @@
+type: object
+required:
+  - name
+  - path
+properties:
+  name:
+    type: string
+  path:
+    type: string
+  modified_at:
+    type: string
+    format: date-time

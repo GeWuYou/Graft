@@ -1,0 +1,78 @@
+get:
+  tags: [project]
+  summary: Browse import directories under one allowed root
+  operationId: getProjectImportDirectories
+  description: Returns a bounded root-relative directory listing for import flows. The backend only returns directories and rejects traversal outside configured roots.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - name: provider
+      in: query
+      required: false
+      schema:
+        type: string
+      description: Import directory provider key. MVP supports only `local`.
+    - name: root_id
+      in: query
+      required: true
+      schema:
+        type: string
+        minLength: 1
+    - name: path
+      in: query
+      required: false
+      schema:
+        type: string
+      description: Root-relative directory path.
+    - name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 200
+    - name: offset
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 0
+    - name: sort
+      in: query
+      required: false
+      schema:
+        type: string
+        enum: [name, modified_at]
+    - name: order
+      in: query
+      required: false
+      schema:
+        type: string
+        enum: [asc, desc]
+  security:
+    - bearerAuth: []
+  responses:
+    '200':
+      description: Import directory browse result.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-project-import-directories-response.yaml
+    '400':
+      description: Invalid browse query.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      $ref: ../components/responses/forbidden.yaml
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml

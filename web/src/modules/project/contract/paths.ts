@@ -12,6 +12,9 @@ export const PROJECT_ROUTE_PATH = {
 
 export const PROJECT_API_PATH = {
   LIST: '/api/ops/projects',
+  IMPORT_DIRECTORY_SOURCES: '/api/ops/projects/import/directory-sources',
+  IMPORT_DIRECTORIES: '/api/ops/projects/import/directories',
+  IMPORT_INSPECT: '/api/ops/projects/import/inspect',
   IMPORT_VALIDATE: '/api/ops/projects/import/validate',
   IMPORT: '/api/ops/projects/import',
   SOURCES: '/api/ops/projects/sources',
@@ -176,4 +179,13 @@ export function buildProjectRestartApiPath(id: number) {
  */
 export function buildProjectUnregisterApiPath(id: number) {
   return PROJECT_API_PATH.UNREGISTER.replace('{id}', encodeProjectPathParam(id));
+}
+
+/**
+ * 构建项目导入目录浏览接口路径。
+ *
+ * @returns 项目导入目录浏览接口路径
+ */
+export function buildProjectImportDirectoriesApiPath() {
+  return PROJECT_API_PATH.IMPORT_DIRECTORIES;
 }

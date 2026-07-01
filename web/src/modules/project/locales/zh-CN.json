@@ -136,46 +136,70 @@
     },
     "import": {
       "eyebrow": "导入项目",
-      "description": "登记宿主机上已经存在的 Compose 项目，不复制、不移动，也不改写目录布局。",
+      "description": "选择服务器目录后自动扫描 Compose 与 Env 文件，完成发现预览后再导入项目。",
       "actions": {
         "backToList": "返回列表",
-        "validate": "校验导入输入",
+        "selectDirectory": "选择目录",
+        "changeDirectory": "更换目录",
+        "refreshInspect": "刷新发现结果",
+        "retryInspect": "重试发现",
         "import": "导入并打开项目",
         "reset": "重置表单"
       },
+      "directory": {
+        "title": "项目目录",
+        "workingDirectory": "已选目录",
+        "readonlyHint": "自动发现"
+      },
       "form": {
-        "title": "导入信息",
-        "workingDirectory": "工作目录",
-        "workingDirectoryPlaceholder": "例如：/srv/compose/orders-dev",
+        "title": "项目信息",
         "displayName": "展示名",
         "displayNamePlaceholder": "例如：订单服务开发环境",
         "canonicalProjectNameOverride": "Canonical Project Name 覆盖",
-        "canonicalProjectNameOverridePlaceholder": "留空表示自动计算",
-        "composeFiles": "Compose 文件列表",
-        "composeFilesPlaceholder": "每行一个相对或绝对路径；留空表示按标准顺序自动发现",
-        "envFiles": "Env 文件列表",
-        "envFilesPlaceholder": "每行一个相对或绝对路径；留空表示自动发现 .env"
+        "canonicalProjectNameOverridePlaceholder": "留空表示沿用发现结果"
       },
       "validation": {
-        "workingDirectoryRequired": "请输入工作目录。"
+        "displayNameRequired": "请输入展示名。"
+      },
+      "picker": {
+        "title": "选择服务器目录",
+        "sourceLabel": "目录来源",
+        "pathLabel": "当前位置",
+        "actionsLabel": "操作",
+        "sourceLoading": "正在加载目录来源…",
+        "refresh": "刷新目录",
+        "parentDirectory": "返回上级目录",
+        "openDirectory": "进入目录",
+        "emptyTitle": "当前目录下没有可浏览的子目录",
+        "emptyDescription": "可以选择当前目录继续导入，或返回上一级目录查看其他路径。",
+        "confirm": "选择当前目录"
       },
       "preview": {
         "title": "导入预览",
-        "filesTitle": "文件预览",
+        "discoveryTitle": "发现结果",
         "canonicalProjectName": "Canonical Project Name",
         "canonicalNameSource": "名称来源",
+        "validationStatus": "校验状态",
         "serviceCount": "声明服务数",
         "configHash": "配置哈希",
-        "declaredServices": "声明服务",
         "composeFiles": "Compose 文件",
         "envFiles": "Env 文件",
-        "empty": "先执行校验，再查看导入预览。",
+        "services": "服务",
+        "networks": "网络",
+        "volumes": "卷",
         "noDiagnostics": "当前没有额外 warning 或 conflict。",
         "none": "无"
       },
+      "state": {
+        "awaitingSelectionTitle": "先选择服务器目录",
+        "awaitingSelectionDescription": "目录选择后会自动执行 Inspect，回填可导入的 Compose 项目信息。",
+        "inspectErrorTitle": "目录发现失败"
+      },
       "messages": {
-        "validateSuccess": "导入输入校验通过。",
-        "validateFailed": "导入输入校验失败。",
+        "directorySourceLoadFailed": "目录来源加载失败。",
+        "directoryLoadFailed": "目录列表加载失败。",
+        "inspectSuccess": "目录发现结果已刷新。",
+        "inspectFailed": "目录发现失败。",
         "importSuccess": "Compose 项目导入成功。",
         "importFailed": "Compose 项目导入失败。"
       }

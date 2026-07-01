@@ -1,0 +1,12 @@
+type: object
+required:
+  - provider
+  - root_id
+  - path
+properties:
+  provider:
+    type: string
+  root_id:
+    type: string
+  path:
+    type: string

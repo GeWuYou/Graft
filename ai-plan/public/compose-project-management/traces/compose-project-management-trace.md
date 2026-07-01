@@ -238,6 +238,33 @@
 - 当前 topic 的 Phase 1、Phase 2、Phase 3 bounded batches 均已完成。
 - 主题达到 `archive-ready`：
   - `Project` 继续只拥有 registry、configuration、lifecycle、services aggregation 与 activity entry。
+
+## 2026-07-01 Import Existing Project folder-picker and inspect flow sync
+
+- 收口 `openapi/**` authority owner：
+  - 新增 `GET /api/ops/projects/import/directory-sources`
+  - 新增 `GET /api/ops/projects/import/directories`
+  - 新增 `POST /api/ops/projects/import/inspect`
+  - `POST /api/ops/projects/import` contract 改为 `inspection_id + editable overrides`
+- 收口 `server/modules/project/**` authority owner：
+  - 新增 import directory browse / inspect flow
+  - 通过短 TTL inspection cache 复用 inspect parse 结果并校验 file hash freshness
+  - import 阶段不再信任前端回传 working directory / compose / env file 集合
+- 收口 `web/src/modules/project/**` authority owner：
+  - 新增 `FolderPicker.vue`
+  - import 页面改为 `select directory -> inspect -> preview -> import`
+  - compose/env/services/networks/volumes 改为 inspect readonly preview
+- 同步 generated artifacts：
+  - `openapi/dist/openapi.bundle.json`
+  - `server/internal/contract/openapi/generated/types.gen.go`
+  - `server/internal/app/zz_openapi_bundle_generated.go`
+  - `web/src/contracts/openapi/generated/schema.ts`
+- 本轮验证通过：
+  - `node scripts/openapi-bundle.mjs`
+  - `cd server && go generate ./internal/contract/openapi ./internal/app`
+  - `cd server && go test ./modules/project/...`
+  - `cd web && bunx vitest run src/modules/project/shared/useProjectImportFlow.test.ts`
+  - `cd web && bun run typecheck`
   - `Container` 继续拥有 runtime state、logs、events、stats、shell、inspect、networks、mounts。
   - remote-host 与 backend activity aggregation 仅保留 canonical planned boundary，没有半实现下游兼容层或 runtime 越权。
 

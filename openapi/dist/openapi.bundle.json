@@ -10473,6 +10473,95 @@
         }
       }
     },
+    "/api/ops/projects/import/inspect": {
+      "post": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Inspect one import directory",
+        "operationId": "postProjectImportInspect",
+        "description": "Discovers compose and env files under the selected directory, parses the Compose project once, and returns a short-lived inspection snapshot for later import confirmation.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/project-import-inspect-request"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Import inspection result.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-project-import-inspect-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid inspection request.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "409": {
+            "description": "Inspection conflicts with existing registry ownership or canonical naming.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
     "/api/ops/projects/import": {
       "post": {
         "tags": [
@@ -10494,7 +10583,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/project-import-validate-request"
+                "$ref": "#/components/schemas/project-import-request"
               }
             }
           }
@@ -10505,7 +10594,7 @@
           }
         ],
         "responses": {
-          "201": {
+          "200": {
             "description": "Imported and registered project.",
             "headers": {
               "X-Request-Id": {
@@ -10555,6 +10644,189 @@
                 }
               }
             }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/ops/projects/import/directory-sources": {
+      "get": {
+        "tags": [
+          "project"
+        ],
+        "summary": "List allowed import directory roots",
+        "operationId": "getProjectImportDirectorySources",
+        "description": "Returns operator-allowlisted local directory roots plus managed-root injection for the managed project import flow.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Import directory source roots.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-project-import-directory-sources-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/ops/projects/import/directories": {
+      "get": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Browse import directories under one allowed root",
+        "operationId": "getProjectImportDirectories",
+        "description": "Returns a bounded root-relative directory listing for import flows. The backend only returns directories and rejects traversal outside configured roots.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "name": "provider",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Import directory provider key. MVP supports only `local`."
+          },
+          {
+            "name": "root_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "name": "path",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Root-relative directory path."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "name",
+                "modified_at"
+              ]
+            }
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ]
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Import directory browse result.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-project-import-directories-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid browse query.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
           },
           "500": {
             "$ref": "#/components/responses/internal-server-error"
@@ -12912,6 +13184,33 @@
       "ProjectImportResponse": {
         "$ref": "#/components/schemas/project-import-response"
       },
+      "ProjectImportDirectorySource": {
+        "$ref": "#/components/schemas/project-import-directory-source"
+      },
+      "ProjectImportDirectorySourcesResponse": {
+        "$ref": "#/components/schemas/project-import-directory-sources-response"
+      },
+      "ProjectImportDirectoryReference": {
+        "$ref": "#/components/schemas/project-import-directory-reference"
+      },
+      "ProjectImportDirectoryItem": {
+        "$ref": "#/components/schemas/project-import-directory-item"
+      },
+      "ProjectImportDirectoriesResponse": {
+        "$ref": "#/components/schemas/project-import-directories-response"
+      },
+      "ProjectImportInspectFileItem": {
+        "$ref": "#/components/schemas/project-import-inspect-file-item"
+      },
+      "ProjectImportInspectRequest": {
+        "$ref": "#/components/schemas/project-import-inspect-request"
+      },
+      "ProjectImportInspectResponse": {
+        "$ref": "#/components/schemas/project-import-inspect-response"
+      },
+      "ProjectImportRequest": {
+        "$ref": "#/components/schemas/project-import-request"
+      },
       "ProjectConfigurationMetadataResponse": {
         "$ref": "#/components/schemas/project-configuration-metadata-response"
       },
@@ -12953,6 +13252,15 @@
       },
       "EnvelopedProjectImportResponse": {
         "$ref": "#/components/schemas/enveloped-project-import-response"
+      },
+      "EnvelopedProjectImportDirectorySourcesResponse": {
+        "$ref": "#/components/schemas/enveloped-project-import-directory-sources-response"
+      },
+      "EnvelopedProjectImportDirectoriesResponse": {
+        "$ref": "#/components/schemas/enveloped-project-import-directories-response"
+      },
+      "EnvelopedProjectImportInspectResponse": {
+        "$ref": "#/components/schemas/enveloped-project-import-inspect-response"
       },
       "EnvelopedProjectActionResponse": {
         "$ref": "#/components/schemas/enveloped-project-action-response"
@@ -21241,6 +21549,214 @@
           }
         ]
       },
+      "project-import-directory-reference": {
+        "type": "object",
+        "required": [
+          "provider",
+          "root_id",
+          "path"
+        ],
+        "properties": {
+          "provider": {
+            "type": "string"
+          },
+          "root_id": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          }
+        }
+      },
+      "project-import-inspect-request": {
+        "type": "object",
+        "required": [
+          "directory_ref"
+        ],
+        "properties": {
+          "directory_ref": {
+            "$ref": "#/components/schemas/project-import-directory-reference"
+          },
+          "display_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "canonical_project_name_override": {
+            "type": "string",
+            "minLength": 1,
+            "nullable": true
+          }
+        }
+      },
+      "project-import-inspect-file-item": {
+        "type": "object",
+        "required": [
+          "kind",
+          "role",
+          "absolute_path",
+          "display_path",
+          "order_index",
+          "exists_on_last_refresh"
+        ],
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/project-file-kind"
+          },
+          "role": {
+            "$ref": "#/components/schemas/project-file-role"
+          },
+          "absolute_path": {
+            "type": "string"
+          },
+          "display_path": {
+            "type": "string"
+          },
+          "order_index": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "exists_on_last_refresh": {
+            "type": "boolean"
+          },
+          "last_observed_hash": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "project-import-inspect-response": {
+        "type": "object",
+        "required": [
+          "inspection_id",
+          "directory_ref",
+          "resolved_working_directory",
+          "canonical_project_name",
+          "canonical_project_name_source",
+          "display_name_suggested",
+          "compose_files",
+          "env_files",
+          "services",
+          "networks",
+          "volumes",
+          "config_hash",
+          "warnings",
+          "conflicts",
+          "validation_status"
+        ],
+        "properties": {
+          "inspection_id": {
+            "type": "string"
+          },
+          "directory_ref": {
+            "$ref": "#/components/schemas/project-import-directory-reference"
+          },
+          "resolved_working_directory": {
+            "type": "string"
+          },
+          "canonical_project_name": {
+            "type": "string"
+          },
+          "canonical_project_name_source": {
+            "$ref": "#/components/schemas/project-canonical-name-source"
+          },
+          "display_name_suggested": {
+            "type": "string"
+          },
+          "compose_files": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/project-import-inspect-file-item"
+            }
+          },
+          "env_files": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/project-import-inspect-file-item"
+            }
+          },
+          "services": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "networks": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "volumes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "config_hash": {
+            "type": "string"
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "conflicts": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "validation_status": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "conflict"
+            ]
+          }
+        }
+      },
+      "enveloped-project-import-inspect-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/project-import-inspect-response"
+              }
+            }
+          }
+        ]
+      },
+      "project-import-request": {
+        "type": "object",
+        "required": [
+          "inspection_id"
+        ],
+        "properties": {
+          "inspection_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "display_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "canonical_project_name_override": {
+            "type": "string",
+            "minLength": 1,
+            "nullable": true
+          }
+        }
+      },
       "project-detail-response": {
         "allOf": [
           {
@@ -21336,6 +21852,162 @@
             "properties": {
               "data": {
                 "$ref": "#/components/schemas/project-import-response"
+              }
+            }
+          }
+        ]
+      },
+      "project-import-directory-source": {
+        "type": "object",
+        "required": [
+          "provider",
+          "root_id",
+          "label",
+          "path",
+          "initial_path",
+          "managed"
+        ],
+        "properties": {
+          "provider": {
+            "type": "string"
+          },
+          "root_id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string",
+            "description": "Stable root label shown in the folder picker source selector."
+          },
+          "path": {
+            "type": "string",
+            "description": "Absolute browse root resolved by the backend for this import source."
+          },
+          "initial_path": {
+            "type": "string",
+            "description": "Absolute preferred starting path shown first in the folder picker while staying under the source browse root."
+          },
+          "managed": {
+            "type": "boolean",
+            "description": "Whether this source is the managed-root injection rather than a static allowlisted root."
+          }
+        }
+      },
+      "project-import-directory-sources-response": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/project-import-directory-source"
+            }
+          }
+        }
+      },
+      "enveloped-project-import-directory-sources-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/project-import-directory-sources-response"
+              }
+            }
+          }
+        ]
+      },
+      "project-import-directory-item": {
+        "type": "object",
+        "required": [
+          "name",
+          "path"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "modified_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "project-import-directories-response": {
+        "type": "object",
+        "required": [
+          "provider",
+          "root_id",
+          "current_path",
+          "limit",
+          "offset",
+          "has_more",
+          "sort_by",
+          "order",
+          "directories"
+        ],
+        "properties": {
+          "provider": {
+            "type": "string"
+          },
+          "root_id": {
+            "type": "string"
+          },
+          "current_path": {
+            "type": "string"
+          },
+          "parent_path": {
+            "type": "string",
+            "nullable": true
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "has_more": {
+            "type": "boolean"
+          },
+          "sort_by": {
+            "type": "string"
+          },
+          "order": {
+            "type": "string"
+          },
+          "directories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/project-import-directory-item"
+            }
+          }
+        }
+      },
+      "enveloped-project-import-directories-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/project-import-directories-response"
               }
             }
           }

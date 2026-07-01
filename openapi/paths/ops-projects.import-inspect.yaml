@@ -1,8 +1,8 @@
 post:
   tags: [project]
-  summary: Import and register a Compose project
-  operationId: postProjectImport
-  description: Imports an existing Compose project into the Graft project registry.
+  summary: Inspect one import directory
+  operationId: postProjectImportInspect
+  description: Discovers compose and env files under the selected directory, parses the Compose project once, and returns a short-lived inspection snapshot for later import confirmation.
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml
@@ -11,21 +11,21 @@ post:
     content:
       application/json:
         schema:
-          $ref: ../components/schemas/project-import-request.yaml
+          $ref: ../components/schemas/project-import-inspect-request.yaml
   security:
     - bearerAuth: []
   responses:
     '200':
-      description: Imported and registered project.
+      description: Import inspection result.
       headers:
         X-Request-Id:
           $ref: ../components/headers/request-id.yaml
       content:
         application/json:
           schema:
-            $ref: ../components/schemas/enveloped-project-import-response.yaml
+            $ref: ../components/schemas/enveloped-project-import-inspect-response.yaml
     '400':
-      description: Invalid import request.
+      description: Invalid inspection request.
       headers:
         X-Request-Id:
           $ref: ../components/headers/request-id.yaml
@@ -38,7 +38,7 @@ post:
     '403':
       $ref: ../components/responses/forbidden.yaml
     '409':
-      description: Import conflicts with an existing registered project.
+      description: Inspection conflicts with existing registry ownership or canonical naming.
       headers:
         X-Request-Id:
           $ref: ../components/headers/request-id.yaml

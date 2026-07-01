@@ -53,7 +53,14 @@ func (s *stubProjectRepository) ImportProject(_ context.Context, input projectst
 	s.aggregate.Project.LastObservedConfigHash = input.LastObservedConfigHash
 	s.aggregate.Project.LastDriftCheckedAt = input.LastDriftCheckedAt
 	s.aggregate.Project.DriftStatus = input.DriftStatus
-	s.aggregate.Files = input.Files
+	files := append([]projectstore.ProjectFile(nil), input.Files...)
+	for index := range files {
+		if files[index].ID == 0 {
+			files[index].ID = uint64(index + 1)
+		}
+		files[index].ProjectID = s.aggregate.Project.ID
+	}
+	s.aggregate.Files = files
 	s.aggregate.Snapshot = input.Snapshot
 	return s.aggregate, nil
 }
@@ -432,4 +439,200 @@ func TestProjectDetailUsesBackendPlannedActivityAuthorityForRemoteScope(t *testi
 	if detail.SourceMetadata == nil || detail.SourceMetadata.ActivityRollupScope == nil {
 		t.Fatalf("expected remote-host source metadata activity rollup scope")
 	}
+}
+
+func TestImportDirectorySourcesIncludeManagedRootAndAllowlistedRoot(t *testing.T) {
+	t.Parallel()
+
+	managedRoot := t.TempDir()
+	service, err := NewService(&stubProjectRepository{}, WithSystemConfigResolver(stubCompositeConfigResolver{
+		values: map[string]string{
+			"ops.project.managed.root_directory": `"` + managedRoot + `"`,
+			"ops.project.import.allowed_roots":   `[{"id":"srv","label":"Srv","path":"/srv"}]`,
+		},
+	}))
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	result, err := service.ImportDirectorySources(context.Background())
+	if err != nil {
+		t.Fatalf("import directory sources: %v", err)
+	}
+	if len(result.Items) != 2 {
+		t.Fatalf("expected 2 roots, got %d", len(result.Items))
+	}
+	if result.Items[0].RootID != importManagedRootSourceID || !result.Items[0].Managed {
+		t.Fatalf("expected managed root first, got %#v", result.Items[0])
+	}
+}
+
+func TestImportDirectorySourcesDecodeSystemConfigStringValue(t *testing.T) {
+	t.Parallel()
+
+	managedRoot := t.TempDir()
+	service, err := NewService(&stubProjectRepository{}, WithSystemConfigResolver(stubSystemConfigResolver{
+		value: `[{"id":"srv","label":"Srv","path":"` + managedRoot + `"}]`,
+	}))
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	result, err := service.ImportDirectorySources(context.Background())
+	if err != nil {
+		t.Fatalf("import directory sources: %v", err)
+	}
+	if len(result.Items) != 1 {
+		t.Fatalf("expected 1 decoded root, got %d", len(result.Items))
+	}
+	if result.Items[0].RootID != "srv" || result.Items[0].Path != managedRoot {
+		t.Fatalf("unexpected decoded root: %#v", result.Items[0])
+	}
+}
+
+func TestImportDirectorySourcesFallbackToCurrentServiceDirectory(t *testing.T) {
+	t.Parallel()
+
+	expectedRoot, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("get working directory: %v", err)
+	}
+
+	service, err := NewService(&stubProjectRepository{})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	result, err := service.ImportDirectorySources(context.Background())
+	if err != nil {
+		t.Fatalf("import directory sources: %v", err)
+	}
+	if len(result.Items) != 1 {
+		t.Fatalf("expected fallback root, got %d items", len(result.Items))
+	}
+	if result.Items[0].RootID != importServiceRootSourceID {
+		t.Fatalf("expected fallback service root id, got %#v", result.Items[0])
+	}
+	if result.Items[0].Path != importFallbackRootPath {
+		t.Fatalf("expected fallback browse root path %q, got %q", importFallbackRootPath, result.Items[0].Path)
+	}
+	expectedInitialPath := normalizeBrowsePath(expectedRoot)
+	if result.Items[0].InitialPath != expectedInitialPath {
+		t.Fatalf("expected fallback initial path %q, got %q", expectedInitialPath, result.Items[0].InitialPath)
+	}
+}
+
+func TestImportDirectorySourcesFallbackUsesConfiguredDefaultPath(t *testing.T) {
+	customPath := filepath.Join(string(filepath.Separator), "workspace", "compose")
+	t.Setenv("GRAFT_PROJECT_IMPORT_DEFAULT_PATH", customPath)
+
+	service, err := NewService(&stubProjectRepository{})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	result, err := service.ImportDirectorySources(context.Background())
+	if err != nil {
+		t.Fatalf("import directory sources: %v", err)
+	}
+	if len(result.Items) != 1 {
+		t.Fatalf("expected fallback root, got %d items", len(result.Items))
+	}
+	if result.Items[0].Path != importFallbackRootPath {
+		t.Fatalf("expected fallback browse root path %q, got %q", importFallbackRootPath, result.Items[0].Path)
+	}
+	expectedInitialPath := normalizeBrowsePath(customPath)
+	if result.Items[0].InitialPath != expectedInitialPath {
+		t.Fatalf("expected configured initial path %q, got %q", expectedInitialPath, result.Items[0].InitialPath)
+	}
+}
+
+func TestBrowseImportDirectoriesStaysRootRelative(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "apps", "orders"), 0o750); err != nil {
+		t.Fatalf("mkdir nested dir: %v", err)
+	}
+	service, err := NewService(&stubProjectRepository{}, WithSystemConfigResolver(stubCompositeConfigResolver{
+		values: map[string]string{
+			"ops.project.import.allowed_roots": `[{"id":"apps","label":"Apps","path":"` + root + `"}]`,
+		},
+	}))
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	result, err := service.BrowseImportDirectories(context.Background(), ImportDirectoryBrowseQuery{
+		Provider: importProviderLocal,
+		RootID:   "apps",
+		Path:     "apps",
+		Limit:    20,
+	})
+	if err != nil {
+		t.Fatalf("browse import directories: %v", err)
+	}
+	if len(result.Items) != 1 || result.Items[0].Path != "apps/orders" {
+		t.Fatalf("unexpected browse result: %#v", result.Items)
+	}
+}
+
+func TestInspectAndImportByInspection(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	projectDir := filepath.Join(root, "orders")
+	if err := os.MkdirAll(projectDir, 0o750); err != nil {
+		t.Fatalf("mkdir project dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(projectDir, "compose.yaml"), []byte("services:\n  api:\n    image: nginx:latest\nnetworks:\n  default: {}\nvolumes:\n  data: {}\n"), 0o600); err != nil {
+		t.Fatalf("write compose file: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(projectDir, ".env"), []byte("FOO=bar\n"), 0o600); err != nil {
+		t.Fatalf("write env file: %v", err)
+	}
+	repo := &stubProjectRepository{}
+	service, err := NewService(repo, WithSystemConfigResolver(stubCompositeConfigResolver{
+		values: map[string]string{
+			"ops.project.import.allowed_roots": `[{"id":"apps","label":"Apps","path":"` + root + `"}]`,
+		},
+	}))
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	inspect, err := service.InspectImportDirectory(context.Background(), ImportInspectRequest{
+		DirectoryRef: ImportDirectoryReference{Provider: importProviderLocal, RootID: "apps", Path: "orders"},
+	})
+	if err != nil {
+		t.Fatalf("inspect import directory: %v", err)
+	}
+	if inspect.InspectionID == "" || len(inspect.NetworkNames) != 1 || len(inspect.VolumeNames) != 1 {
+		t.Fatalf("unexpected inspect result: %#v", inspect)
+	}
+
+	imported, err := service.ImportByInspection(context.Background(), ImportExecuteRequest{InspectionID: inspect.InspectionID})
+	if err != nil {
+		t.Fatalf("import by inspection: %v", err)
+	}
+	if imported.Project.CanonicalProjectName != "orders" {
+		t.Fatalf("unexpected imported project: %#v", imported.Project)
+	}
+	if repo.importInput == nil {
+		t.Fatalf("expected persisted import input")
+	}
+}
+
+type stubCompositeConfigResolver struct {
+	values map[string]string
+}
+
+func (s stubCompositeConfigResolver) IsBooleanConfigEnabled(context.Context, string, bool) bool { return false }
+
+func (s stubCompositeConfigResolver) ResolveDefaultConfig(_ context.Context, key string) (string, error) {
+	value, ok := s.values[key]
+	if !ok {
+		return `""`, nil
+	}
+	return value, nil
 }

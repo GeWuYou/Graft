@@ -72,6 +72,8 @@ type Result struct {
 	EnvFiles              []FileProjection
 	ServiceNames          []string
 	Services              []ServiceProjection
+	NetworkNames          []string
+	VolumeNames           []string
 	Warnings              []string
 }
 
@@ -92,7 +94,7 @@ func Load(input Input) (Result, error) {
 	}
 
 	configHasher := sha256.New()
-	serviceOrder, serviceMap, err := collectServices(composeFiles, configHasher)
+	collected, err := collectServices(composeFiles, configHasher)
 	if err != nil {
 		return Result{}, err
 	}
@@ -103,14 +105,14 @@ func Load(input Input) (Result, error) {
 	}
 
 	root := map[string]any{
-		"services": renderServicesMap(serviceOrder, serviceMap),
+		"services": renderServicesMap(collected.serviceOrder, collected.serviceMap),
 	}
 	normalizedYAML, normalizedJSON, err := marshalNormalized(root)
 	if err != nil {
 		return Result{}, err
 	}
 
-	services, serviceNames := buildServiceProjections(serviceOrder, serviceMap)
+	services, serviceNames := buildServiceProjections(collected.serviceOrder, collected.serviceMap)
 
 	return Result{
 		WorkingDirectory:      workingDirectory,
@@ -123,7 +125,16 @@ func Load(input Input) (Result, error) {
 		EnvFiles:              envFiles,
 		ServiceNames:          serviceNames,
 		Services:              services,
+		NetworkNames:          collected.networkNames,
+		VolumeNames:           collected.volumeNames,
 	}, nil
+}
+
+type collectedServices struct {
+	serviceOrder []string
+	serviceMap   map[string]ServiceProjection
+	networkNames []string
+	volumeNames  []string
 }
 
 // collectServices 处理已解析的 Compose 文件，汇总服务投影并计算配置哈希。
@@ -137,23 +148,32 @@ func Load(input Input) (Result, error) {
 func collectServices(
 	composeFiles []FileProjection,
 	configHasher hashWriter,
-) ([]string, map[string]ServiceProjection, error) {
+) (collectedServices, error) {
 	serviceOrder := make([]string, 0)
 	serviceSet := make(map[string]struct{})
 	serviceMap := make(map[string]ServiceProjection)
+	networkSet := make(map[string]struct{})
+	volumeSet := make(map[string]struct{})
 
 	for _, file := range composeFiles {
 		if _, err := configHasher.Write(file.Content); err != nil {
-			return nil, nil, fmt.Errorf("hash compose file %s: %w", file.AbsolutePath, err)
+			return collectedServices{}, fmt.Errorf("hash compose file %s: %w", file.AbsolutePath, err)
 		}
 		doc, err := parseComposeDocument(file)
 		if err != nil {
-			return nil, nil, err
+			return collectedServices{}, err
 		}
 		serviceOrder = collectServicesFromDocument(doc, serviceOrder, serviceSet, serviceMap)
+		collectTopLevelKeys(doc, "networks", networkSet)
+		collectTopLevelKeys(doc, "volumes", volumeSet)
 	}
 
-	return serviceOrder, serviceMap, nil
+	return collectedServices{
+		serviceOrder: serviceOrder,
+		serviceMap:   serviceMap,
+		networkNames: sortedKeys(networkSet),
+		volumeNames:  sortedKeys(volumeSet),
+	}, nil
 }
 
 type hashWriter interface {
@@ -220,6 +240,39 @@ func buildServiceProjection(name string, projection ServiceProjection) ServicePr
 	sort.Strings(projection.DeclaredVolumes)
 	sort.Strings(projection.DeclaredNetworks)
 	return projection
+}
+
+func collectTopLevelKeys(doc map[string]any, key string, target map[string]struct{}) {
+	if target == nil {
+		return
+	}
+	raw, ok := doc[key]
+	if !ok {
+		return
+	}
+	items, ok := raw.(map[string]any)
+	if !ok {
+		return
+	}
+	for name := range items {
+		trimmed := strings.TrimSpace(name)
+		if trimmed == "" {
+			continue
+		}
+		target[trimmed] = struct{}{}
+	}
+}
+
+func sortedKeys(items map[string]struct{}) []string {
+	if len(items) == 0 {
+		return nil
+	}
+	result := make([]string, 0, len(items))
+	for item := range items {
+		result = append(result, item)
+	}
+	sort.Strings(result)
+	return result
 }
 
 // resolveWorkingDirectory 解析并校验工作目录路径。

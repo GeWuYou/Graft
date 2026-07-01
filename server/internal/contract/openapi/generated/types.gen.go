@@ -2448,6 +2448,24 @@ func (e ProjectHostScope) Valid() bool {
 	}
 }
 
+// Defines values for ProjectImportInspectResponseValidationStatus.
+const (
+	Conflict ProjectImportInspectResponseValidationStatus = "conflict"
+	Ready    ProjectImportInspectResponseValidationStatus = "ready"
+)
+
+// Valid indicates whether the value is a known member of the ProjectImportInspectResponseValidationStatus enum.
+func (e ProjectImportInspectResponseValidationStatus) Valid() bool {
+	switch e {
+	case Conflict:
+		return true
+	case Ready:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ProjectManagedRootStatus.
 const (
 	ProjectManagedRootStatusInvalid      ProjectManagedRootStatus = "invalid"
@@ -3744,6 +3762,42 @@ func (e GetContainersParamsSourceScopeKind) Valid() bool {
 	case GetContainersParamsSourceScopeKindContainerListSourceScopeKindSwarmStack:
 		return true
 	case GetContainersParamsSourceScopeKindContainerListSourceScopeKindSwarmTask:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetProjectImportDirectoriesParamsSort.
+const (
+	ModifiedAt GetProjectImportDirectoriesParamsSort = "modified_at"
+	Name       GetProjectImportDirectoriesParamsSort = "name"
+)
+
+// Valid indicates whether the value is a known member of the GetProjectImportDirectoriesParamsSort enum.
+func (e GetProjectImportDirectoriesParamsSort) Valid() bool {
+	switch e {
+	case ModifiedAt:
+		return true
+	case Name:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetProjectImportDirectoriesParamsOrder.
+const (
+	Asc  GetProjectImportDirectoriesParamsOrder = "asc"
+	Desc GetProjectImportDirectoriesParamsOrder = "desc"
+)
+
+// Valid indicates whether the value is a known member of the GetProjectImportDirectoriesParamsOrder enum.
+func (e GetProjectImportDirectoriesParamsOrder) Valid() bool {
+	switch e {
+	case Asc:
+		return true
+	case Desc:
 		return true
 	default:
 		return false
@@ -6241,6 +6295,66 @@ type EnvelopedProjectDiscoveryCandidatesResponse struct {
 	TraceId string `json:"traceId"`
 }
 
+// EnvelopedProjectImportDirectoriesResponse defines model for enveloped-project-import-directories-response.
+type EnvelopedProjectImportDirectoriesResponse struct {
+	// Code Existing canonical response code.
+	Code string                           `json:"code"`
+	Data ProjectImportDirectoriesResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedProjectImportDirectorySourcesResponse defines model for enveloped-project-import-directory-sources-response.
+type EnvelopedProjectImportDirectorySourcesResponse struct {
+	// Code Existing canonical response code.
+	Code string                                `json:"code"`
+	Data ProjectImportDirectorySourcesResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedProjectImportInspectResponse defines model for enveloped-project-import-inspect-response.
+type EnvelopedProjectImportInspectResponse struct {
+	// Code Existing canonical response code.
+	Code string                       `json:"code"`
+	Data ProjectImportInspectResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
 // EnvelopedProjectImportResponse defines model for enveloped-project-import-response.
 type EnvelopedProjectImportResponse struct {
 	// Code Existing canonical response code.
@@ -7399,6 +7513,103 @@ type ProjectGuardResult struct {
 
 // ProjectHostScope defines model for project-host-scope.
 type ProjectHostScope string
+
+// ProjectImportDirectoriesResponse defines model for project-import-directories-response.
+type ProjectImportDirectoriesResponse struct {
+	CurrentPath string                       `json:"current_path"`
+	Directories []ProjectImportDirectoryItem `json:"directories"`
+	HasMore     bool                         `json:"has_more"`
+	Limit       int                          `json:"limit"`
+	Offset      int                          `json:"offset"`
+	Order       string                       `json:"order"`
+	ParentPath  *string                      `json:"parent_path,omitempty"`
+	Provider    string                       `json:"provider"`
+	RootId      string                       `json:"root_id"`
+	SortBy      string                       `json:"sort_by"`
+}
+
+// ProjectImportDirectoryItem defines model for project-import-directory-item.
+type ProjectImportDirectoryItem struct {
+	ModifiedAt *time.Time `json:"modified_at,omitempty"`
+	Name       string     `json:"name"`
+	Path       string     `json:"path"`
+}
+
+// ProjectImportDirectoryReference defines model for project-import-directory-reference.
+type ProjectImportDirectoryReference struct {
+	Path     string `json:"path"`
+	Provider string `json:"provider"`
+	RootId   string `json:"root_id"`
+}
+
+// ProjectImportDirectorySource defines model for project-import-directory-source.
+type ProjectImportDirectorySource struct {
+	// InitialPath Absolute preferred starting path shown first in the folder picker while staying under the source browse root.
+	InitialPath string `json:"initial_path"`
+
+	// Label Stable root label shown in the folder picker source selector.
+	Label string `json:"label"`
+
+	// Managed Whether this source is the managed-root injection rather than a static allowlisted root.
+	Managed bool `json:"managed"`
+
+	// Path Absolute browse root resolved by the backend for this import source.
+	Path     string `json:"path"`
+	Provider string `json:"provider"`
+	RootId   string `json:"root_id"`
+}
+
+// ProjectImportDirectorySourcesResponse defines model for project-import-directory-sources-response.
+type ProjectImportDirectorySourcesResponse struct {
+	Items []ProjectImportDirectorySource `json:"items"`
+}
+
+// ProjectImportInspectFileItem defines model for project-import-inspect-file-item.
+type ProjectImportInspectFileItem struct {
+	AbsolutePath        string          `json:"absolute_path"`
+	DisplayPath         string          `json:"display_path"`
+	ExistsOnLastRefresh bool            `json:"exists_on_last_refresh"`
+	Kind                ProjectFileKind `json:"kind"`
+	LastObservedHash    *string         `json:"last_observed_hash,omitempty"`
+	OrderIndex          int             `json:"order_index"`
+	Role                ProjectFileRole `json:"role"`
+}
+
+// ProjectImportInspectRequest defines model for project-import-inspect-request.
+type ProjectImportInspectRequest struct {
+	CanonicalProjectNameOverride *string                         `json:"canonical_project_name_override,omitempty"`
+	DirectoryRef                 ProjectImportDirectoryReference `json:"directory_ref"`
+	DisplayName                  *string                         `json:"display_name,omitempty"`
+}
+
+// ProjectImportInspectResponse defines model for project-import-inspect-response.
+type ProjectImportInspectResponse struct {
+	CanonicalProjectName       string                                       `json:"canonical_project_name"`
+	CanonicalProjectNameSource ProjectCanonicalNameSource                   `json:"canonical_project_name_source"`
+	ComposeFiles               []ProjectImportInspectFileItem               `json:"compose_files"`
+	ConfigHash                 string                                       `json:"config_hash"`
+	Conflicts                  []string                                     `json:"conflicts"`
+	DirectoryRef               ProjectImportDirectoryReference              `json:"directory_ref"`
+	DisplayNameSuggested       string                                       `json:"display_name_suggested"`
+	EnvFiles                   []ProjectImportInspectFileItem               `json:"env_files"`
+	InspectionId               string                                       `json:"inspection_id"`
+	Networks                   []string                                     `json:"networks"`
+	ResolvedWorkingDirectory   string                                       `json:"resolved_working_directory"`
+	Services                   []string                                     `json:"services"`
+	ValidationStatus           ProjectImportInspectResponseValidationStatus `json:"validation_status"`
+	Volumes                    []string                                     `json:"volumes"`
+	Warnings                   []string                                     `json:"warnings"`
+}
+
+// ProjectImportInspectResponseValidationStatus defines model for ProjectImportInspectResponse.ValidationStatus.
+type ProjectImportInspectResponseValidationStatus string
+
+// ProjectImportRequest defines model for project-import-request.
+type ProjectImportRequest struct {
+	CanonicalProjectNameOverride *string `json:"canonical_project_name_override,omitempty"`
+	DisplayName                  *string `json:"display_name,omitempty"`
+	InspectionId                 string  `json:"inspection_id"`
+}
 
 // ProjectImportResponse defines model for project-import-response.
 type ProjectImportResponse struct {
@@ -9327,6 +9538,53 @@ type PostProjectImportParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
+// GetProjectImportDirectoriesParams defines parameters for GetProjectImportDirectories.
+type GetProjectImportDirectoriesParams struct {
+	// Provider Import directory provider key. MVP supports only `local`.
+	Provider *string `form:"provider,omitempty" json:"provider,omitempty"`
+	RootId   string  `form:"root_id" json:"root_id"`
+
+	// Path Root-relative directory path.
+	Path   *string                                 `form:"path,omitempty" json:"path,omitempty"`
+	Limit  *int                                    `form:"limit,omitempty" json:"limit,omitempty"`
+	Offset *int                                    `form:"offset,omitempty" json:"offset,omitempty"`
+	Sort   *GetProjectImportDirectoriesParamsSort  `form:"sort,omitempty" json:"sort,omitempty"`
+	Order  *GetProjectImportDirectoriesParamsOrder `form:"order,omitempty" json:"order,omitempty"`
+
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetProjectImportDirectoriesParamsSort defines parameters for GetProjectImportDirectories.
+type GetProjectImportDirectoriesParamsSort string
+
+// GetProjectImportDirectoriesParamsOrder defines parameters for GetProjectImportDirectories.
+type GetProjectImportDirectoriesParamsOrder string
+
+// GetProjectImportDirectorySourcesParams defines parameters for GetProjectImportDirectorySources.
+type GetProjectImportDirectorySourcesParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostProjectImportInspectParams defines parameters for PostProjectImportInspect.
+type PostProjectImportInspectParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
 // PostProjectImportValidateParams defines parameters for PostProjectImportValidate.
 type PostProjectImportValidateParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -10047,7 +10305,10 @@ type PostProjectCreateJSONRequestBody = ProjectCreateRequest
 type PostProjectCreateValidateJSONRequestBody = ProjectCreateValidateRequest
 
 // PostProjectImportJSONRequestBody defines body for PostProjectImport for application/json ContentType.
-type PostProjectImportJSONRequestBody = ProjectImportValidateRequest
+type PostProjectImportJSONRequestBody = ProjectImportRequest
+
+// PostProjectImportInspectJSONRequestBody defines body for PostProjectImportInspect for application/json ContentType.
+type PostProjectImportInspectJSONRequestBody = ProjectImportInspectRequest
 
 // PostProjectImportValidateJSONRequestBody defines body for PostProjectImportValidate for application/json ContentType.
 type PostProjectImportValidateJSONRequestBody = ProjectImportValidateRequest

@@ -555,21 +555,30 @@ Volume 删除要单独判断：
 
 ## 9.1 输入
 
-Phase 1 导入表单建议包含：
+当前 live import flow 已从手填表单收口为目录选择 + inspect authority：
+
+1. 用户打开 `Import Existing Project`
+2. 用户通过 folder picker 选择一个 import directory
+3. backend 在 allowlisted root / managed-root injection 边界内解析该目录
+4. backend 自动发现 Compose / Env 文件并执行一次静态 inspect
+5. frontend 展示 inspect preview
+6. 用户只允许编辑：
+   - `display_name`
+   - `canonical_project_name_override`
+7. frontend 提交 `inspection_id` 驱动最终 import
+
+当前 import confirmation 表单固定只包含：
+
+- `display_name`
+- `canonical_project_name_override`
+
+当前不再要求用户手填：
 
 - `working_directory`
 - `compose_files[]`
-  - UI 默认自动发现；Phase 1 可只选择一个主文件，但 contract 必须支持有序多文件
 - `env_files[]`
-  - 默认自动识别 `.env`
-- `display_name`
-- `canonical_project_name_override`
-  - 高级选项，可空
 
-说明：
-
-- 如果用户只输入 `working_directory`，系统先尝试自动发现标准 Compose 文件。
-- `display_name` 与 `canonical_project_name` 必须分离，不再使用一个字段混合两种语义。
+这些字段都必须来自 inspect authority，而不是前端二次拼装。
 
 ## 9.2 文件发现
 
@@ -579,24 +588,30 @@ Phase 1 导入表单建议包含：
 2. `compose.yml`
 3. `docker-compose.yaml`
 4. `docker-compose.yml`
+5. `docker-compose.override.yml`
 
-Phase 1 规则：
+当前 live 规则：
 
-- 如果未显式选择文件，按上述顺序自动选取首个存在文件。
-- 如果存在多个候选文件，UI 应允许用户显式确认。
-- 合同层支持有序多文件；若 Phase 1 UI 只落单文件，数据模型也不能被锁死成单文件。
+- inspect 自动扫描：
+  - 上述 compose primary / override candidates
+  - `*.env`
+  - `.env.*`
+- 若发现多个 primary compose candidates，backend 仍按固定优先级选主文件并返回 warning。
+- 合同层继续支持有序多文件；当前 folder-pick import UI 不再暴露手工文件确认。
 
 ## 9.3 校验
 
-导入前必须校验：
+inspect / import 前必须校验：
 
-- `working_directory` 存在且可访问
-- 选定 Compose 文件存在
+- selected directory 在 provider/root allowlist 边界内
+- selected directory 存在且可访问
+- 自动发现的 Compose 文件存在
 - 路径解析后仍在允许边界内
 - Compose 语法与规范化解析成功
 - env file 可读取
 - Canonical Project Name 可计算
 - 唯一性校验通过
+- import 时 inspection snapshot 未过期、未 stale
 
 ## 9.4 冲突检测
 
@@ -604,20 +619,29 @@ Phase 1 规则：
 
 - 同一 `host_scope + canonical_project_name` 已存在
 - 同一 `working_directory + compose file set` 已存在
-- 选定文件缺失
+- inspect 后文件 hash 与 import 时重算结果不一致
+- 自动发现文件缺失
 - 文件内容不是有效 Compose 配置
 
 ## 9.5 导入步骤
 
-1. 解析并规范化输入路径
-2. 自动发现或确认 Compose 文件列表
-3. 读取 env file 集合
-4. 用 `compose-go` 做静态解析、合并与标准化
-5. 计算 `canonical_project_name`、`config_hash`、`normalized_compose_json`
-6. 执行唯一性与 ownership 预检查
-7. 持久化 `compose_projects`、`compose_project_files`、`compose_project_snapshots`
-8. 触发一次初始 `refresh` 结果写回
-9. 返回项目详情摘要
+1. frontend 请求 `GET /api/ops/projects/import/directory-sources`
+2. frontend 在一个 source root 下请求 `GET /api/ops/projects/import/directories`
+3. 用户选择 root-relative directory
+4. frontend 提交 `POST /api/ops/projects/import/inspect`
+5. backend 自动发现 compose/env files，并只解析一次 compose authority
+6. backend 生成：
+   - `inspection_id`
+   - `canonical_project_name`
+   - `display_name_suggested`
+   - `compose_files`
+   - `env_files`
+   - `services / networks / volumes`
+   - `warnings / conflicts`
+7. frontend 只提交 `inspection_id + editable overrides` 到 `POST /api/ops/projects/import`
+8. backend 校验 inspection TTL 与 file hash freshness
+9. backend 持久化 `compose_projects`、`compose_project_files`、`compose_project_snapshots`
+10. 返回项目详情摘要
 
 ## 9.6 输出
 
@@ -669,10 +693,52 @@ Phase 1 的 canonical OpenAPI authority 已收口到 `openapi/**`，本节继续
 
 | Method | Path | 语义 |
 | --- | --- | --- |
+| `GET` | `/api/ops/projects/import/directory-sources` | 返回 import flow 可用的 directory roots |
+| `GET` | `/api/ops/projects/import/directories` | 在一个 allowed root 下分页浏览目录 |
+| `POST` | `/api/ops/projects/import/inspect` | 自动发现并 inspect 一个 selected directory |
 | `POST` | `/api/ops/projects/import/validate` | 只校验输入与 Compose 解析，不持久化 |
 | `POST` | `/api/ops/projects/import` | 导入并注册项目 |
 
-`validate` 返回建议包含：
+`directory-sources` 返回：
+
+- `provider`
+- `root_id`
+- `label`
+- `path`
+- `managed`
+
+`directories` 返回：
+
+- `provider`
+- `root_id`
+- `current_path`
+- `parent_path`
+- `limit`
+- `offset`
+- `has_more`
+- `sort_by`
+- `order`
+- `directories[]`
+
+`inspect` 返回建议包含：
+
+- `inspection_id`
+- `directory_ref`
+- `resolved_working_directory`
+- `canonical_project_name`
+- `canonical_project_name_source`
+- `display_name_suggested`
+- `compose_files`
+- `env_files`
+- `services`
+- `networks`
+- `volumes`
+- `config_hash`
+- `warnings`
+- `conflicts`
+- `validation_status`
+
+legacy `validate` 返回建议包含：
 
 - 自动发现的 compose / env 文件
 - 解析到的 `canonical_project_name`
@@ -685,7 +751,7 @@ Phase 1 的 canonical OpenAPI authority 已收口到 `openapi/**`，本节继续
 
 - 项目主记录
 - 快照摘要
-- 初次 refresh 结果
+- import 使用的 inspect authority 已被消费，不接受前端重复提交 working directory / compose/env file sets
 
 ## 10.2A Phase 2 managed root 与 create contract
 

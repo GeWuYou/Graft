@@ -1999,6 +1999,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/ops/projects/import/inspect': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Inspect one import directory
+     * @description Discovers compose and env files under the selected directory, parses the Compose project once, and returns a short-lived inspection snapshot for later import confirmation.
+     */
+    post: operations['postProjectImportInspect'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/ops/projects/import': {
     parameters: {
       query?: never;
@@ -2013,6 +2033,46 @@ export interface paths {
      * @description Imports an existing Compose project into the Graft project registry.
      */
     post: operations['postProjectImport'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/projects/import/directory-sources': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List allowed import directory roots
+     * @description Returns operator-allowlisted local directory roots plus managed-root injection for the managed project import flow.
+     */
+    get: operations['getProjectImportDirectorySources'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/projects/import/directories': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Browse import directories under one allowed root
+     * @description Returns a bounded root-relative directory listing for import flows. The backend only returns directories and rejects traversal outside configured roots.
+     */
+    get: operations['getProjectImportDirectories'];
+    put?: never;
+    post?: never;
     delete?: never;
     options?: never;
     head?: never;
@@ -2621,6 +2681,15 @@ export interface components {
     ProjectImportValidateRequest: components['schemas']['project-import-validate-request'];
     ProjectImportValidateResponse: components['schemas']['project-import-validate-response'];
     ProjectImportResponse: components['schemas']['project-import-response'];
+    ProjectImportDirectorySource: components['schemas']['project-import-directory-source'];
+    ProjectImportDirectorySourcesResponse: components['schemas']['project-import-directory-sources-response'];
+    ProjectImportDirectoryReference: components['schemas']['project-import-directory-reference'];
+    ProjectImportDirectoryItem: components['schemas']['project-import-directory-item'];
+    ProjectImportDirectoriesResponse: components['schemas']['project-import-directories-response'];
+    ProjectImportInspectFileItem: components['schemas']['project-import-inspect-file-item'];
+    ProjectImportInspectRequest: components['schemas']['project-import-inspect-request'];
+    ProjectImportInspectResponse: components['schemas']['project-import-inspect-response'];
+    ProjectImportRequest: components['schemas']['project-import-request'];
     ProjectConfigurationMetadataResponse: components['schemas']['project-configuration-metadata-response'];
     ProjectConfigurationPreviewResponse: components['schemas']['project-configuration-preview-response'];
     ProjectConfigurationFileResponse: components['schemas']['project-configuration-file-response'];
@@ -2635,6 +2704,9 @@ export interface components {
     EnvelopedProjectConfigurationFileResponse: components['schemas']['enveloped-project-configuration-file-response'];
     EnvelopedProjectImportValidateResponse: components['schemas']['enveloped-project-import-validate-response'];
     EnvelopedProjectImportResponse: components['schemas']['enveloped-project-import-response'];
+    EnvelopedProjectImportDirectorySourcesResponse: components['schemas']['enveloped-project-import-directory-sources-response'];
+    EnvelopedProjectImportDirectoriesResponse: components['schemas']['enveloped-project-import-directories-response'];
+    EnvelopedProjectImportInspectResponse: components['schemas']['enveloped-project-import-inspect-response'];
     EnvelopedProjectActionResponse: components['schemas']['enveloped-project-action-response'];
     'health-response': {
       /** @enum {string} */
@@ -5256,6 +5328,51 @@ export interface components {
     'enveloped-project-import-validate-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['project-import-validate-response'];
     };
+    'project-import-directory-reference': {
+      provider: string;
+      root_id: string;
+      path: string;
+    };
+    'project-import-inspect-request': {
+      directory_ref: components['schemas']['project-import-directory-reference'];
+      display_name?: string;
+      canonical_project_name_override?: string | null;
+    };
+    'project-import-inspect-file-item': {
+      kind: components['schemas']['project-file-kind'];
+      role: components['schemas']['project-file-role'];
+      absolute_path: string;
+      display_path: string;
+      order_index: number;
+      exists_on_last_refresh: boolean;
+      last_observed_hash?: string | null;
+    };
+    'project-import-inspect-response': {
+      inspection_id: string;
+      directory_ref: components['schemas']['project-import-directory-reference'];
+      resolved_working_directory: string;
+      canonical_project_name: string;
+      canonical_project_name_source: components['schemas']['project-canonical-name-source'];
+      display_name_suggested: string;
+      compose_files: components['schemas']['project-import-inspect-file-item'][];
+      env_files: components['schemas']['project-import-inspect-file-item'][];
+      services: string[];
+      networks: string[];
+      volumes: string[];
+      config_hash: string;
+      warnings: string[];
+      conflicts: string[];
+      /** @enum {string} */
+      validation_status: 'ready' | 'conflict';
+    };
+    'enveloped-project-import-inspect-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['project-import-inspect-response'];
+    };
+    'project-import-request': {
+      inspection_id: string;
+      display_name?: string;
+      canonical_project_name_override?: string | null;
+    };
     'project-detail-response': components['schemas']['project-list-item'] & {
       source_metadata?: components['schemas']['project-source-metadata'];
       /** @description Stable error code from the latest failed refresh. Empty string means no recorded failure. */
@@ -5280,6 +5397,45 @@ export interface components {
     };
     'enveloped-project-import-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['project-import-response'];
+    };
+    'project-import-directory-source': {
+      provider: string;
+      root_id: string;
+      /** @description Stable root label shown in the folder picker source selector. */
+      label: string;
+      /** @description Absolute browse root resolved by the backend for this import source. */
+      path: string;
+      /** @description Absolute preferred starting path shown first in the folder picker while staying under the source browse root. */
+      initial_path: string;
+      /** @description Whether this source is the managed-root injection rather than a static allowlisted root. */
+      managed: boolean;
+    };
+    'project-import-directory-sources-response': {
+      items: components['schemas']['project-import-directory-source'][];
+    };
+    'enveloped-project-import-directory-sources-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['project-import-directory-sources-response'];
+    };
+    'project-import-directory-item': {
+      name: string;
+      path: string;
+      /** Format: date-time */
+      modified_at?: string;
+    };
+    'project-import-directories-response': {
+      provider: string;
+      root_id: string;
+      current_path: string;
+      parent_path?: string | null;
+      limit: number;
+      offset: number;
+      has_more: boolean;
+      sort_by: string;
+      order: string;
+      directories: components['schemas']['project-import-directory-item'][];
+    };
+    'enveloped-project-import-directories-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['project-import-directories-response'];
     };
     /** @enum {string} */
     'project-source-entry-type': 'managed' | 'git' | 'template' | 'remote-host';
@@ -11349,6 +11505,62 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
+  postProjectImportInspect: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['project-import-inspect-request'];
+      };
+    };
+    responses: {
+      /** @description Import inspection result. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-project-import-inspect-response'];
+        };
+      };
+      /** @description Invalid inspection request. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Inspection conflicts with existing registry ownership or canonical naming. */
+      409: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
   postProjectImport: {
     parameters: {
       query?: never;
@@ -11366,12 +11578,12 @@ export interface operations {
     };
     requestBody: {
       content: {
-        'application/json': components['schemas']['project-import-validate-request'];
+        'application/json': components['schemas']['project-import-request'];
       };
     };
     responses: {
       /** @description Imported and registered project. */
-      201: {
+      200: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;
@@ -11402,6 +11614,90 @@ export interface operations {
           'application/json': components['schemas']['error-response'];
         };
       };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getProjectImportDirectorySources: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Import directory source roots. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-project-import-directory-sources-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getProjectImportDirectories: {
+    parameters: {
+      query: {
+        /** @description Import directory provider key. MVP supports only `local`. */
+        provider?: string;
+        root_id: string;
+        /** @description Root-relative directory path. */
+        path?: string;
+        limit?: number;
+        offset?: number;
+        sort?: 'name' | 'modified_at';
+        order?: 'asc' | 'desc';
+      };
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Import directory browse result. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-project-import-directories-response'];
+        };
+      };
+      /** @description Invalid browse query. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
       500: components['responses']['internal-server-error'];
     };
   };
