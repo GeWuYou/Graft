@@ -1,0 +1,284 @@
+package project
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"os"
+	"strings"
+
+	generated "graft/server/internal/contract/openapi/generated"
+	projectcontract "graft/server/modules/project/contract"
+)
+
+// SourceCatalog returns the bounded Phase 3 source entrypoints without executing source-specific provisioning.
+func (s *Service) SourceCatalog(ctx context.Context) (SourceCatalogResult, error) {
+	managedRoot, err := s.ManagedRoot(ctx)
+	if err != nil {
+		return SourceCatalogResult{}, err
+	}
+	items := []generated.ProjectSourceEntry{
+		{
+			Type:            generated.ProjectSourceEntryType("managed"),
+			Status:          generated.ProjectSourceEntryStatus(mapManagedSourceCatalogStatus(managedRoot.Status)),
+			DisplayName:     "Managed Project",
+			TitleKey:        "project.list.sourceKinds.managed",
+			HostScope:       generated.ProjectHostScope(projectcontract.HostScopeLocal),
+			RoutePath:       projectcontract.ProjectManagedCreateMenuPath,
+			RouteName:       "ProjectManagedCreate",
+			Permission:      projectcontract.ProjectCreatePermission.String(),
+			MenuGroup:       projectcontract.ProjectMenuPath,
+			Description:     "Create a managed Compose project under the canonical managed root owned by project authority.",
+			DescriptionKey:  "project.createSource.descriptions.managed",
+			MetadataFields:  []string{"managed_root_key", "managed_relative_directory", "managed_compose_file_name", "managed_env_file_name"},
+			StatusReason:    managedRoot.StatusReason,
+			StatusReasonKey: managedRootStatusReasonKey(managedRoot.Status),
+		},
+		{
+			Type:            generated.ProjectSourceEntryType("git"),
+			Status:          generated.ProjectSourceEntryStatus("planned"),
+			DisplayName:     "Git Project",
+			TitleKey:        "project.list.sourceKinds.git",
+			HostScope:       generated.ProjectHostScope(projectcontract.HostScopeLocal),
+			RoutePath:       projectcontract.ProjectGitCreateMenuPath,
+			RouteName:       "ProjectGitCreate",
+			Permission:      projectcontract.ProjectCreatePermission.String(),
+			MenuGroup:       projectcontract.ProjectMenuPath,
+			Description:     "Reserve the canonical git-backed project source boundary without introducing clone, scan, or remote-host execution in this batch.",
+			DescriptionKey:  "project.createSource.descriptions.git",
+			MetadataFields:  []string{"git_repository_url", "git_reference", "git_compose_subpath"},
+			StatusReason:    stringPointer("This source remains planned. Materialization will land in a later bounded batch."),
+			StatusReasonKey: stringPointer("project.createSource.statusReason.planned"),
+		},
+		{
+			Type:            generated.ProjectSourceEntryType("template"),
+			Status:          generated.ProjectSourceEntryStatus("planned"),
+			DisplayName:     "Template Project",
+			TitleKey:        "project.list.sourceKinds.template",
+			HostScope:       generated.ProjectHostScope(projectcontract.HostScopeLocal),
+			RoutePath:       projectcontract.ProjectTemplateCreateMenuPath,
+			RouteName:       "ProjectTemplateCreate",
+			Permission:      projectcontract.ProjectCreatePermission.String(),
+			MenuGroup:       projectcontract.ProjectMenuPath,
+			Description:     "Reserve the canonical template-backed project source boundary without introducing template instantiation, discovery, or remote-host execution in this batch.",
+			DescriptionKey:  "project.createSource.descriptions.template",
+			MetadataFields:  []string{"template_key", "template_version", "template_instance_name"},
+			StatusReason:    stringPointer("This source remains planned. Materialization will land in a later bounded batch."),
+			StatusReasonKey: stringPointer("project.createSource.statusReason.planned"),
+		},
+		{
+			Type:            generated.ProjectSourceEntryType("remote-host"),
+			Status:          generated.ProjectSourceEntryStatus("planned"),
+			DisplayName:     "Remote Host Project",
+			TitleKey:        "project.list.sourceKinds.remote-host",
+			HostScope:       generated.ProjectHostScope(projectcontract.HostScopeRemote),
+			RoutePath:       projectcontract.ProjectRemoteHostCreateMenuPath,
+			RouteName:       "ProjectRemoteHostCreate",
+			Permission:      projectcontract.ProjectCreatePermission.String(),
+			MenuGroup:       projectcontract.ProjectMenuPath,
+			Description:     "Reserve the canonical remote-host project boundary without introducing remote execution, secret persistence, or runtime ownership in this batch.",
+			DescriptionKey:  "project.createSource.descriptions.remoteHost",
+			MetadataFields:  []string{"remote_host_key", "remote_compose_path", "activity_authority", "activity_rollup_scope"},
+			StatusReason:    stringPointer("This source remains planned. Remote execution and backend activity aggregation are still out of scope."),
+			StatusReasonKey: stringPointer("project.createSource.statusReason.planned"),
+		},
+	}
+	return SourceCatalogResult{Items: items}, nil
+}
+
+// DiscoveryCandidates returns bounded local discovery candidates without auto-registering projects.
+func (s *Service) DiscoveryCandidates(ctx context.Context) (DiscoveryCandidatesResult, error) {
+	managedRoot, err := s.ManagedRoot(ctx)
+	if err != nil {
+		return DiscoveryCandidatesResult{}, err
+	}
+	result := DiscoveryCandidatesResult{
+		SourceType:            string(generated.ProjectSourceEntryTypeManaged),
+		SupportsScan:          false,
+		SupportsAutoDiscovery: false,
+		StatusReason:          managedRoot.StatusReason,
+	}
+	if managedRoot.ConfiguredRootDirectory != nil {
+		root := *managedRoot.ConfiguredRootDirectory
+		result.AuthorityRoot = &root
+	}
+	if managedRoot.Status != projectcontract.ManagedRootStatusReady.String() || managedRoot.ConfiguredRootDirectory == nil {
+		return result, nil
+	}
+	result.SupportsScan = true
+	result.SupportsAutoDiscovery = true
+
+	repository, err := s.repositoryOrErr()
+	if err != nil {
+		return DiscoveryCandidatesResult{}, err
+	}
+	items, err := s.scanDiscoveryCandidates(ctx, repository, *managedRoot.ConfiguredRootDirectory, managedRoot.ConfigKey)
+	if err != nil {
+		return DiscoveryCandidatesResult{}, err
+	}
+	result.Items = items
+	return result, nil
+}
+
+// ImportDirectorySources returns operator-allowlisted import roots plus managed-root injection.
+func (s *Service) ImportDirectorySources(ctx context.Context) (ImportDirectorySourceResult, error) {
+	roots, err := s.importRootDefinitions(ctx)
+	if err != nil {
+		return ImportDirectorySourceResult{}, err
+	}
+	result := ImportDirectorySourceResult{Items: make([]ImportDirectorySource, 0, len(roots))}
+	for _, root := range roots {
+		result.Items = append(result.Items, ImportDirectorySource{
+			Provider:    importProviderLocal,
+			RootID:      root.id,
+			Label:       root.label,
+			Path:        root.path,
+			InitialPath: normalizeBrowsePath(root.initialPath),
+			Managed:     root.managed,
+		})
+	}
+	return result, nil
+}
+
+// ListRuntimeImportCandidates returns runtime-driven Compose import candidates while keeping project as the inspect owner.
+func (s *Service) ListRuntimeImportCandidates(
+	ctx context.Context,
+	query RuntimeImportCandidateListQuery,
+) (RuntimeImportCandidatesResult, error) {
+	if s == nil || s.runtimeReader == nil {
+		return RuntimeImportCandidatesResult{}, errProjectServiceUnavailable
+	}
+	rawCandidates, err := s.runtimeReader.ListImportCandidates(ctx, projectcontract.HostScopeLocal.String())
+	if err != nil {
+		return RuntimeImportCandidatesResult{}, err
+	}
+	items := make([]RuntimeImportCandidate, 0, len(rawCandidates))
+	for _, rawCandidate := range rawCandidates {
+		candidate, validateErr := s.validatedRuntimeImportCandidate(rawCandidate)
+		if validateErr != nil {
+			return RuntimeImportCandidatesResult{}, validateErr
+		}
+		items = append(items, candidate)
+	}
+	items = dedupeRuntimeImportCandidates(items)
+	sortRuntimeImportCandidates(items)
+	return buildRuntimeImportCandidatesResult(items, query), nil
+}
+
+// InspectRuntimeCandidate resolves a runtime candidate and reuses the inspect/import pipeline for preview generation.
+func (s *Service) InspectRuntimeCandidate(ctx context.Context, request RuntimeImportInspectRequest) (RuntimeImportInspectResult, error) {
+	repository, err := s.repositoryOrErr()
+	if err != nil {
+		return RuntimeImportInspectResult{}, err
+	}
+	candidate, err := s.runtimeImportCandidateByKey(ctx, request.CandidateKey)
+	if err != nil {
+		return RuntimeImportInspectResult{}, err
+	}
+	if !candidate.Importable || candidate.Status != importRuntimeCandidateStatusReady {
+		return RuntimeImportInspectResult{}, errProjectInvalidArgument
+	}
+	session, err := s.inspectRuntimeCandidateSession(ctx, repository, candidate, request)
+	if err != nil {
+		return RuntimeImportInspectResult{}, err
+	}
+	runtimeMembers, err := s.runtimeImportCandidateMembers(ctx, candidate)
+	if err != nil {
+		return RuntimeImportInspectResult{}, err
+	}
+	return runtimeImportInspectResultFromSession(candidate.CandidateKey, session, runtimeMembers), nil
+}
+
+// BrowseImportDirectories returns a bounded root-relative directory listing for import flows.
+func (s *Service) BrowseImportDirectories(ctx context.Context, query ImportDirectoryBrowseQuery) (ImportDirectoryBrowseResult, error) {
+	query = normalizeDirectoryBrowseQuery(query)
+	root, err := s.resolveImportRoot(ctx, query.Provider, query.RootID)
+	if err != nil {
+		return ImportDirectoryBrowseResult{}, err
+	}
+	absolute, err := resolveRootPath(root, query.Path)
+	if err != nil {
+		return ImportDirectoryBrowseResult{}, fmt.Errorf("%w: invalid relative path", errProjectDirectoryForbidden)
+	}
+	entries, err := os.ReadDir(absolute)
+	if err != nil {
+		return ImportDirectoryBrowseResult{}, fmt.Errorf("%w: %v", errProjectImportValidation, err)
+	}
+	items := buildImportDirectoryItems(query.Path, entries)
+	sortImportDirectoryItems(items, query.SortBy, query.Order)
+	start := minInt(query.Offset, len(items))
+	end := minInt(start+query.Limit, len(items))
+	resultItems := append([]ImportDirectoryItem(nil), items[start:end]...)
+	return ImportDirectoryBrowseResult{
+		Provider:    query.Provider,
+		RootID:      root.id,
+		CurrentPath: query.Path,
+		ParentPath:  parentBrowsePath(query.Path),
+		Limit:       query.Limit,
+		Offset:      query.Offset,
+		HasMore:     end < len(items),
+		SortBy:      query.SortBy,
+		Order:       query.Order,
+		Items:       resultItems,
+	}, nil
+}
+
+// InspectImportDirectory discovers files, parses compose once, and stores a short-lived inspection session.
+func (s *Service) InspectImportDirectory(ctx context.Context, request ImportInspectRequest) (ImportInspectResult, error) {
+	repository, err := s.repositoryOrErr()
+	if err != nil {
+		return ImportInspectResult{}, err
+	}
+	root, err := s.resolveImportRoot(ctx, request.DirectoryRef.Provider, request.DirectoryRef.RootID)
+	if err != nil {
+		return ImportInspectResult{}, err
+	}
+	absolute, err := resolveRootPath(root, request.DirectoryRef.Path)
+	if err != nil {
+		return ImportInspectResult{}, fmt.Errorf("%w: invalid relative path", errProjectDirectoryForbidden)
+	}
+	discovered, err := discoverImportFiles(absolute)
+	if err != nil {
+		return ImportInspectResult{}, fmt.Errorf("%w: %v", errProjectImportValidation, err)
+	}
+	session, err := s.inspectImportRequest(ctx, repository, ImportRequest{
+		WorkingDirectory:             absolute,
+		ComposeFiles:                 discovered.composeFiles,
+		EnvFiles:                     discovered.envFiles,
+		DisplayName:                  request.DisplayName,
+		CanonicalProjectNameOverride: request.CanonicalProjectNameOverride,
+	})
+	if err != nil {
+		return ImportInspectResult{}, err
+	}
+	if len(discovered.warnings) > 0 {
+		session.Warnings = append(session.Warnings, discovered.warnings...)
+		if s.inspectCache != nil {
+			s.inspectCache.storeSession(session)
+		}
+	}
+	return importInspectResultFromSession(request.DirectoryRef, session), nil
+}
+
+// ImportByInspection validates inspection freshness and persists the inspected project.
+func (s *Service) ImportByInspection(ctx context.Context, request ImportExecuteRequest) (generated.ProjectImportResponse, error) {
+	repository, err := s.repositoryOrErr()
+	if err != nil {
+		return generated.ProjectImportResponse{}, err
+	}
+	if s.inspectCache == nil {
+		return generated.ProjectImportResponse{}, errProjectInspectionExpired
+	}
+	session, ok := s.inspectCache.lookupSession(strings.TrimSpace(request.InspectionID))
+	if !ok {
+		return generated.ProjectImportResponse{}, errProjectInspectionExpired
+	}
+	response, importErr := s.importInspectionSession(ctx, repository, session, request.DisplayName, request.CanonicalProjectNameOverride, request.ActorID)
+	if importErr != nil {
+		if errors.Is(importErr, errProjectConflict) && strings.Contains(importErr.Error(), "file hash mismatch") {
+			return generated.ProjectImportResponse{}, errProjectInspectionStale
+		}
+		return generated.ProjectImportResponse{}, importErr
+	}
+	return response, nil
+}
