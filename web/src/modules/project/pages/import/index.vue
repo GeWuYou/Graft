@@ -394,6 +394,7 @@ type CandidateListState = {
 const IMPORT_STEP_QUERY_KEY = 'step';
 const IMPORT_CANDIDATE_QUERY_KEY = 'candidate';
 const CANDIDATE_PAGE_SIZE = 10;
+const ROUTE_RECOVERY_PAGE_SIZE = 50;
 const CANDIDATE_COLUMN_STORAGE_KEY = 'graft.project.import.visibleColumns.v2';
 const DEFAULT_VISIBLE_COLUMNS = [
   'project',
@@ -595,6 +596,8 @@ const wizardStepOptions = computed(() =>
     content: t(step.descriptionKey),
   })),
 );
+let latestCandidateRequestId = 0;
+let latestRouteSyncRequestId = 0;
 
 watch(
   () => [route.query[IMPORT_STEP_QUERY_KEY], route.query[IMPORT_CANDIDATE_QUERY_KEY]],
@@ -680,6 +683,7 @@ function queryString(value: unknown) {
 }
 
 async function syncWizardFromRoute() {
+  const syncRequestId = ++latestRouteSyncRequestId;
   const desiredStep = normalizeWizardStep(route.query[IMPORT_STEP_QUERY_KEY]);
   const candidateKey = queryString(route.query[IMPORT_CANDIDATE_QUERY_KEY]);
 
@@ -694,7 +698,12 @@ async function syncWizardFromRoute() {
     return;
   }
 
-  const candidate = readyCandidates.value.find((item) => item.candidate_key === candidateKey);
+  const candidate =
+    readyCandidates.value.find((item) => item.candidate_key === candidateKey) ??
+    (await findReadyCandidateByKey(candidateKey));
+  if (syncRequestId !== latestRouteSyncRequestId) {
+    return;
+  }
   if (!candidate) {
     currentStep.value = 'select';
     await updateWizardRoute('select', { replace: true });
@@ -704,10 +713,16 @@ async function syncWizardFromRoute() {
   if (inspectResult.value?.candidate_key !== candidateKey || !hasPreview.value) {
     try {
       const result = await inspectCandidate(candidate);
+      if (syncRequestId !== latestRouteSyncRequestId) {
+        return;
+      }
       if (result !== 'applied') {
         return;
       }
     } catch {
+      if (syncRequestId !== latestRouteSyncRequestId) {
+        return;
+      }
       currentStep.value = 'inspect';
       if (desiredStep === 'confirm') {
         await updateWizardRoute('inspect', { candidateKey, replace: true });
@@ -723,6 +738,35 @@ async function syncWizardFromRoute() {
   }
 
   currentStep.value = desiredStep;
+}
+
+async function findReadyCandidateByKey(candidateKey: string) {
+  let offset = 0;
+  let total = 0;
+  let loadedAnyPage = false;
+
+  do {
+    const response = await getProjectImportRuntimeCandidates({
+      availability: 'ready',
+      limit: ROUTE_RECOVERY_PAGE_SIZE,
+      offset,
+    });
+    const nextState = normalizeCandidateListState(response);
+    const candidate = nextState.items.find((item) => item.candidate_key === candidateKey);
+    if (candidate && isProjectImportRuntimeCandidateReady(candidate)) {
+      return candidate;
+    }
+
+    loadedAnyPage = true;
+    total = nextState.total;
+    offset += ROUTE_RECOVERY_PAGE_SIZE;
+
+    if (!nextState.items.length) {
+      break;
+    }
+  } while (!loadedAnyPage || offset < total);
+
+  return null;
 }
 
 function candidateRowClassName(params: { row: ProjectImportRuntimeCandidate }) {
@@ -819,10 +863,14 @@ function candidateDiagnostics(candidate: ProjectImportRuntimeCandidate) {
 }
 
 async function loadCandidates() {
+  const requestId = ++latestCandidateRequestId;
   candidatesLoading.value = true;
   candidatesError.value = '';
   try {
     const response = await getProjectImportRuntimeCandidates(buildCandidateQuery());
+    if (requestId !== latestCandidateRequestId) {
+      return;
+    }
     const nextState = normalizeCandidateListState(response);
     candidates.value = nextState.items;
     candidateListTotal.value = nextState.total;
@@ -837,6 +885,9 @@ async function loadCandidates() {
       await updateWizardRoute('select', { replace: true });
     }
   } catch (error) {
+    if (requestId !== latestCandidateRequestId) {
+      return;
+    }
     candidates.value = [];
     candidateListTotal.value = 0;
     candidateFilterCounts.value = {
@@ -846,7 +897,9 @@ async function loadCandidates() {
     };
     candidatesError.value = resolveLocalizedErrorMessage(t, error, t('project.import.messages.candidateLoadFailed'));
   } finally {
-    candidatesLoading.value = false;
+    if (requestId === latestCandidateRequestId) {
+      candidatesLoading.value = false;
+    }
   }
 }
 

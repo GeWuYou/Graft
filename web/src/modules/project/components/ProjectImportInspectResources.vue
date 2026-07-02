@@ -13,7 +13,12 @@
       >
         <t-button
           v-for="view in resourceViews"
+          :id="resourceTabId(view.value)"
           :key="view.value"
+          role="tab"
+          :aria-controls="resourcePanelId(view.value)"
+          :aria-selected="activeResource === view.value"
+          :tabindex="activeResource === view.value ? 0 : -1"
           :theme="activeResource === view.value ? 'primary' : 'default'"
           :variant="activeResource === view.value ? 'base' : 'outline'"
           @click="activateResource(view.value)"
@@ -44,7 +49,13 @@
         </table-view-toolbar>
       </div>
 
-      <div v-if="activeResource === 'containers'" class="project-import-resources__table">
+      <div
+        v-if="activeResource === 'containers'"
+        :id="resourcePanelId('containers')"
+        class="project-import-resources__table"
+        role="tabpanel"
+        :aria-labelledby="resourceTabId('containers')"
+      >
         <container-resource-table
           v-model:current="resourcePagination.containers.current"
           v-model:page-size="resourcePagination.containers.pageSize"
@@ -70,7 +81,13 @@
         </container-resource-table>
       </div>
 
-      <div v-else-if="activeResource === 'networks'" class="project-import-resources__table">
+      <div
+        v-else-if="activeResource === 'networks'"
+        :id="resourcePanelId('networks')"
+        class="project-import-resources__table"
+        role="tabpanel"
+        :aria-labelledby="resourceTabId('networks')"
+      >
         <management-paged-table
           v-model:current="resourcePagination.networks.current"
           v-model:page-size="resourcePagination.networks.pageSize"
@@ -113,7 +130,13 @@
         </management-paged-table>
       </div>
 
-      <div v-else class="project-import-resources__table">
+      <div
+        v-else
+        :id="resourcePanelId('volumes')"
+        class="project-import-resources__table"
+        role="tabpanel"
+        :aria-labelledby="resourceTabId('volumes')"
+      >
         <management-paged-table
           v-model:current="resourcePagination.volumes.current"
           v-model:page-size="resourcePagination.volumes.pageSize"
@@ -606,6 +629,14 @@ function activateResource(nextResource: ImportInspectResourceKey) {
   activeResource.value = nextResource;
 }
 
+function resourceTabId(resource: ImportInspectResourceKey) {
+  return `project-import-resource-tab-${resource}`;
+}
+
+function resourcePanelId(resource: ImportInspectResourceKey) {
+  return `project-import-resource-panel-${resource}`;
+}
+
 async function refreshActiveResource() {
   if (activeResource.value === 'containers') {
     await loadContainers();
@@ -618,7 +649,9 @@ async function refreshActiveResource() {
 async function loadContainers() {
   const projectName = props.result?.canonical_project_name?.trim();
   if (!projectName) {
+    latestContainerRequestId.value += 1;
     containerRows.value = [];
+    containerLoading.value = false;
     containerError.value = '';
     return;
   }

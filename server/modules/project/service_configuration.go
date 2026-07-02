@@ -164,9 +164,7 @@ func (s *Service) DeployConfiguration(
 	if err != nil {
 		return DeployResult{}, fmt.Errorf("%w: %v", errProjectImportValidation, err)
 	}
-	defer func() {
-		err = errors.Join(err, restoreManagedDraft(aggregate.Project.WorkingDirectory, restoreItems))
-	}()
+	defer restoreManagedDraftOnFailure(aggregate.Project.WorkingDirectory, restoreItems, &err)
 
 	now := time.Now().UTC()
 	if _, err := s.runLifecycleActionWithAggregate(ctx, aggregate, actorID, generated.ProjectActionDeploy, []string{"compose", "up", "-d"}); err != nil {
@@ -200,4 +198,11 @@ func (s *Service) DeployConfiguration(
 		GuardResults:         guardResults,
 	}
 	return result, nil
+}
+
+func restoreManagedDraftOnFailure(workingDirectory string, restoreItems []managedDraftRestore, resultErr *error) {
+	if resultErr == nil || *resultErr == nil {
+		return
+	}
+	*resultErr = errors.Join(*resultErr, restoreManagedDraft(workingDirectory, restoreItems))
 }

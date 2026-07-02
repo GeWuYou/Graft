@@ -21,18 +21,13 @@
   </t-tooltip>
 </template>
 <script setup lang="ts">
+import type { ContainerResourceMetric } from '../shared/resource-table';
+
 defineOptions({
   name: 'ContainerResourceMetricCell',
 });
 defineProps<{
-  metric: {
-    available: boolean;
-    changeClass: Record<string, boolean>;
-    percentage: number;
-    progressStatus: 'success' | 'warning' | undefined;
-    tooltip: string;
-    value: string;
-  };
+  metric: ContainerResourceMetric;
   testId: string;
 }>();
 </script>

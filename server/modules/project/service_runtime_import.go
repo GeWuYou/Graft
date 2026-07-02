@@ -27,7 +27,9 @@ func (s *Service) runtimeImportCandidateByKey(
 		return moduleapi.ContainerProjectRuntimeCandidate{}, err
 	}
 	for _, candidate := range candidates {
-		if candidate.CandidateKey == candidateKey {
+		normalizedCandidateKey := strings.TrimSpace(candidate.CandidateKey)
+		if normalizedCandidateKey == candidateKey {
+			candidate.CandidateKey = normalizedCandidateKey
 			return candidate, nil
 		}
 	}
@@ -36,7 +38,7 @@ func (s *Service) runtimeImportCandidateByKey(
 
 func runtimeImportCandidateFromModuleAPI(candidate moduleapi.ContainerProjectRuntimeCandidate) RuntimeImportCandidate {
 	result := RuntimeImportCandidate{
-		CandidateKey:           candidate.CandidateKey,
+		CandidateKey:           strings.TrimSpace(candidate.CandidateKey),
 		CanonicalProjectName:   candidate.CanonicalProjectName,
 		Status:                 candidate.Status,
 		StatusReasonCodes:      append([]string(nil), candidate.StatusReasonCodes...),
@@ -300,6 +302,7 @@ func (s *Service) inspectRuntimeCandidateSession(
 		return importInspectionSession{}, err
 	}
 	session.CandidateKey = candidate.CandidateKey
+	session.CandidateKey = strings.TrimSpace(session.CandidateKey)
 	session.Warnings = uniqueStrings(append(session.Warnings, candidate.Warnings...))
 	if s.inspectCache != nil {
 		s.inspectCache.storeSession(session)

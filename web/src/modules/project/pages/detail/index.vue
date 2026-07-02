@@ -750,10 +750,12 @@ async function refreshDetail() {
   try {
     detailRecord.value = await getProject(projectId.value);
     updateCurrentTabTitle(buildDetailTitle(detailRecord.value.display_name));
-    await loadConfiguration();
+    await Promise.all([loadConfiguration(), loadActivity()]);
   } catch (error) {
     logger.error('failed to load project detail', error);
     detailRecord.value = null;
+    activityMembers.value = [];
+    activityError.value = '';
     detailError.value = resolveLocalizedErrorMessage(t, error, t('project.list.retry'));
   } finally {
     detailLoading.value = false;

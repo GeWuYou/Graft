@@ -554,7 +554,7 @@ async function refreshContainers() {
     runtime.value = payload.runtime;
     listSummary.value = payload.summary;
     listTotal.value = payload.total;
-    pruneSelectedRows();
+    syncSelectedRowsFromCurrentPage();
   } catch (error) {
     if (requestSeq !== refreshRequestSeq) {
       return;
@@ -581,10 +581,25 @@ async function handleManualRefresh() {
   await refreshContainers();
 }
 
-function pruneSelectedRows() {
-  const availableIds = new Set(rows.value.map((row) => row.id));
-  selectedRowKeys.value = selectedRowKeys.value.filter((key) => availableIds.has(String(key)));
-  selectedRowRecords.value = selectedRowRecords.value.filter((row) => availableIds.has(row.id));
+function syncSelectedRowsFromCurrentPage() {
+  if (!selectedRowKeys.value.length) {
+    selectedRowRecords.value = [];
+    return;
+  }
+
+  const currentPageRowMap = new Map(rows.value.map((row) => [row.id, row]));
+  const nextSelectedRecords = new Map(selectedRowRecords.value.map((row) => [row.id, row]));
+
+  for (const key of selectedRowKeys.value) {
+    const currentRow = currentPageRowMap.get(String(key));
+    if (currentRow) {
+      nextSelectedRecords.set(currentRow.id, currentRow);
+    }
+  }
+
+  selectedRowRecords.value = selectedRowKeys.value
+    .map((key) => nextSelectedRecords.get(String(key)) ?? null)
+    .filter((row): row is ContainerSummaryRecord => Boolean(row));
 }
 
 function acquireListRealtimeSubscription() {
@@ -625,6 +640,7 @@ function applyFilters() {
   filters.keyword = filters.keyword.trim();
   filters.sourceScope = filters.sourceScope.trim();
   syncPendingSourceScopeFilter();
+  clearSelection();
   requestFirstPage();
 }
 
@@ -636,6 +652,7 @@ function resetFilters() {
   filters.status = 'all';
   filters.health = 'all';
   pendingSourceScopeFilter.value = null;
+  clearSelection();
   requestFirstPage();
 }
 
@@ -1031,6 +1048,7 @@ async function executeDangerousAction(row: ContainerSummaryRecord, action: Dange
     const messageKey = response.message_key;
     MessagePlugin.success(messageKey ? t(messageKey) : response.message || t('container.list.actionSuccess'));
     selectedRowKeys.value = selectedRowKeys.value.filter((key) => String(key) !== row.id);
+    selectedRowRecords.value = selectedRowRecords.value.filter((selectedRow) => selectedRow.id !== row.id);
     await refreshContainers();
   } catch (error) {
     logger.warn(`failed to ${action} container`, error);
@@ -1090,10 +1108,13 @@ function clearSelection() {
 
 function handleSelectChange(rowKeys: Array<string | number>) {
   const rowMap = new Map(rows.value.map((row) => [row.id, row]));
-  const normalizedRowKeys = rowKeys.filter((key) => rowMap.has(String(key)));
-  selectedRowKeys.value = normalizedRowKeys;
-  selectedRowRecords.value = normalizedRowKeys
-    .map((key) => rowMap.get(String(key)) ?? null)
+  const currentPageIds = new Set(rowMap.keys());
+  const preservedRowKeys = selectedRowKeys.value.filter((key) => !currentPageIds.has(String(key)));
+  const normalizedCurrentPageKeys = rowKeys.filter((key) => rowMap.has(String(key)));
+
+  selectedRowKeys.value = [...preservedRowKeys, ...normalizedCurrentPageKeys];
+  selectedRowRecords.value = selectedRowKeys.value
+    .map((key) => rowMap.get(String(key)) ?? selectedRowRecords.value.find((row) => row.id === String(key)) ?? null)
     .filter((row): row is ContainerSummaryRecord => Boolean(row));
 }
 
@@ -1305,6 +1326,7 @@ function applySourceQuickFilter(sourceFilter: ContainerSourceQuickFilter) {
   filters.sourceScopeKind = sourceFilter.kind;
   filters.sourceScope = sourceFilter.value;
   pendingSourceScopeFilter.value = sourceFilter;
+  clearSelection();
   requestFirstPage();
 }
 

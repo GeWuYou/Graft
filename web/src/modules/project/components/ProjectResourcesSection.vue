@@ -39,7 +39,7 @@
           </div>
           <table-view-toolbar
             :column-settings-label="t('project.detail.resources.columnSettings')"
-            :refresh-label="t('project.detail.refresh')"
+            :refresh-label="t('project.detail.resources.refresh')"
             @column-settings="columnDrawerVisible = true"
             @refresh="refreshActiveResource"
           />
@@ -190,7 +190,7 @@
 </template>
 <script setup lang="ts">
 import type { TableRowData, TdBaseTableProps } from 'tdesign-vue-next';
-import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { getContainers } from '@/modules/container/api/container';
@@ -471,19 +471,13 @@ const detailDialogTitle = computed(() => {
 });
 
 watch(
-  () => props.projectId,
+  () => [props.projectId, props.canonicalProjectName] as const,
   () => {
     resetResourceState();
+    resourceError.value = '';
     void loadActiveResource();
   },
-);
-
-watch(
-  () => props.canonicalProjectName,
-  () => {
-    resetResourceState();
-    void loadActiveResource();
-  },
+  { immediate: true },
 );
 
 watch(activeResource, async () => {
@@ -500,10 +494,6 @@ watch(
     }
   },
 );
-
-onMounted(async () => {
-  await loadActiveResource();
-});
 
 function resetResourceState() {
   containerRows.value = [];

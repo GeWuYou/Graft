@@ -275,9 +275,10 @@ func (a *runtimeCandidateAccumulator) candidate(hostScope string) moduleapi.Cont
 
 	normalizedProjectName := strings.TrimSpace(a.canonicalProjectName)
 	candidateKey := runtimeCandidateKey(hostScope, normalizedProjectName, a.runtimeType, a.workingDirectory, a.configFiles)
-	reasonCodes := append([]string(nil), a.reasonCodes...)
+	reasonCodes := nonNilStringSlice(a.reasonCodes)
 	sort.Strings(reasonCodes)
-	warnings := append([]string(nil), a.warnings...)
+	configFiles := nonNilStringSlice(a.configFiles)
+	warnings := nonNilStringSlice(a.warnings)
 	sort.Strings(warnings)
 
 	return moduleapi.ContainerProjectRuntimeCandidate{
@@ -290,7 +291,7 @@ func (a *runtimeCandidateAccumulator) candidate(hostScope string) moduleapi.Cont
 		RuntimeVersion:         strings.TrimSpace(a.runtimeVersion),
 		WorkingDirectory:       strings.TrimSpace(a.workingDirectory),
 		WorkingDirectorySource: strings.TrimSpace(a.workingDirectorySource),
-		ConfigFiles:            append([]string(nil), a.configFiles...),
+		ConfigFiles:            configFiles,
 		ServiceNames:           serviceNames,
 		ContainerCounts: moduleapi.ContainerProjectRuntimeContainerCounts{
 			Running: a.runningCount,
@@ -303,12 +304,17 @@ func (a *runtimeCandidateAccumulator) candidate(hostScope string) moduleapi.Cont
 
 func (a *runtimeCandidateAccumulator) resolvedWorkingDirectoryMetadata(item Summary) (string, string, []string) {
 	workingDirectory := strings.TrimSpace(item.Orchestrator.WorkingDir)
-	workingDirectorySource := projectRuntimeWorkingDirSourceRuntimeLabel
+	workingDirectorySource := ""
+	if workingDirectory != "" {
+		workingDirectorySource = projectRuntimeWorkingDirSourceRuntimeLabel
+	}
 	configFiles := normalizedStringSlice(item.Orchestrator.ConfigFiles)
 	if workingDirectory == "" && len(configFiles) > 0 {
-		workingDirectory = filepath.Dir(configFiles[0])
-		workingDirectorySource = projectRuntimeWorkingDirSourceDerivedConfig
-		a.addWarning(projectRuntimeWarningWorkingDirDerived)
+		if derivedWorkingDirectory, ok := derivedWorkingDirectoryFromConfigFile(configFiles[0]); ok {
+			workingDirectory = derivedWorkingDirectory
+			workingDirectorySource = projectRuntimeWorkingDirSourceDerivedConfig
+			a.addWarning(projectRuntimeWarningWorkingDirDerived)
+		}
 	}
 	return workingDirectory, workingDirectorySource, configFiles
 }
@@ -397,7 +403,7 @@ func (a *runtimeCandidateAccumulator) recordFinalReasons() {
 	if !configFilesWithinWorkingDirectory(a.workingDirectory, a.configFiles) {
 		a.addReason(projectRuntimeReasonInvalidConfigFiles)
 	}
-	if !configFilesAccessible(a.configFiles) {
+	if !configFilesAccessible(a.workingDirectory, a.configFiles) {
 		a.addReason(projectRuntimeReasonConfigFilesNotAccessible)
 	}
 }
@@ -527,12 +533,11 @@ func configFilesWithinWorkingDirectory(workingDirectory string, configFiles []st
 		return false
 	}
 	root := filepath.Clean(workingDirectory)
-	for _, file := range configFiles {
-		file = strings.TrimSpace(file)
-		if file == "" || !filepath.IsAbs(file) {
-			return false
-		}
-		absolute := filepath.Clean(file)
+	resolvedConfigFiles, ok := resolveConfigFilesAgainstWorkingDirectory(workingDirectory, configFiles)
+	if !ok {
+		return false
+	}
+	for _, absolute := range resolvedConfigFiles {
 		relative, err := filepath.Rel(root, absolute)
 		if err != nil || relative == "." || strings.HasPrefix(relative, "..") {
 			return false
@@ -541,8 +546,12 @@ func configFilesWithinWorkingDirectory(workingDirectory string, configFiles []st
 	return true
 }
 
-func configFilesAccessible(configFiles []string) bool {
-	for _, file := range configFiles {
+func configFilesAccessible(workingDirectory string, configFiles []string) bool {
+	resolvedConfigFiles, ok := resolveConfigFilesAgainstWorkingDirectory(workingDirectory, configFiles)
+	if !ok {
+		return false
+	}
+	for _, file := range resolvedConfigFiles {
 		info, err := os.Stat(file)
 		if err != nil || info.IsDir() {
 			return false
@@ -552,17 +561,54 @@ func configFilesAccessible(configFiles []string) bool {
 }
 
 func sameStringSlice(left []string, right []string) bool {
-	left = normalizedStringSlice(left)
-	right = normalizedStringSlice(right)
+	left = append([]string(nil), normalizedStringSlice(left)...)
+	right = append([]string(nil), normalizedStringSlice(right)...)
 	if len(left) != len(right) {
 		return false
 	}
+	sort.Strings(left)
+	sort.Strings(right)
 	for index := range left {
 		if left[index] != right[index] {
 			return false
 		}
 	}
 	return true
+}
+
+func derivedWorkingDirectoryFromConfigFile(configFile string) (string, bool) {
+	configFile = strings.TrimSpace(configFile)
+	if configFile == "" || !filepath.IsAbs(configFile) {
+		return "", false
+	}
+	return filepath.Dir(configFile), true
+}
+
+func resolveConfigFilesAgainstWorkingDirectory(workingDirectory string, configFiles []string) ([]string, bool) {
+	normalized := normalizedStringSlice(configFiles)
+	if len(normalized) == 0 {
+		return []string{}, true
+	}
+	workingDirectory = strings.TrimSpace(workingDirectory)
+	resolved := make([]string, 0, len(normalized))
+	for _, file := range normalized {
+		switch {
+		case filepath.IsAbs(file):
+			resolved = append(resolved, filepath.Clean(file))
+		case workingDirectory == "" || !filepath.IsAbs(workingDirectory):
+			return nil, false
+		default:
+			resolved = append(resolved, filepath.Clean(filepath.Join(workingDirectory, file)))
+		}
+	}
+	return resolved, true
+}
+
+func nonNilStringSlice(values []string) []string {
+	if len(values) == 0 {
+		return []string{}
+	}
+	return append([]string(nil), values...)
 }
 
 func appendUniqueString(items []string, values ...string) []string {

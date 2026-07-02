@@ -41,6 +41,7 @@ export function useProjectImportFlow(t: Translate) {
   const hasPreview = computed(() => Boolean(inspectResult.value));
 
   function reset() {
+    latestInspectRequestId += 1;
     selectedCandidateKey.value = '';
     inspectLoading.value = false;
     importLoading.value = false;

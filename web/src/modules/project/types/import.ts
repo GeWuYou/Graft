@@ -1,7 +1,7 @@
 import type { components, paths } from '@/contracts/openapi/generated/schema';
 
 import type { PROJECT_API_PATH } from '../contract/paths';
-import type { ProjectCanonicalNameSource, ProjectFileKind, ProjectFileRole, ProjectImportResponse } from './project';
+import type { ProjectCanonicalNameSource, ProjectImportResponse } from './project';
 
 type ProjectImportDirectorySourcesPath = (typeof PROJECT_API_PATH)['IMPORT_DIRECTORY_SOURCES'];
 type GetProjectImportDirectorySourcesOperation = paths[ProjectImportDirectorySourcesPath]['get'];
@@ -61,15 +61,7 @@ export type ProjectImportDirectoryListItem = NonNullable<
 export type ProjectImportDirectoryListResponse = NonNullable<GetProjectImportDirectoriesEnvelope['data']>;
 export type ProjectImportDirectoryListQuery = GetProjectImportDirectoriesQuery;
 
-export type ProjectImportDirectoryInspectFileEntry = {
-  kind: ProjectFileKind;
-  role: ProjectFileRole;
-  absolute_path: string;
-  display_path: string;
-  order_index: number;
-  exists_on_last_refresh: boolean;
-  last_observed_hash?: string | null;
-};
+export type ProjectImportDirectoryInspectFileEntry = ProjectSchemas['project-import-inspect-file-item'];
 
 export type ProjectImportDirectoryInspectRequest = PostProjectImportInspectPayload;
 export type ProjectImportDirectoryInspectValidationStatus = 'ready' | 'conflict' | string;
@@ -96,25 +88,9 @@ export type ProjectImportRuntimeCandidatesResponse = NonNullable<GetProjectImpor
 export type ProjectImportRuntimeCandidatesQuery = GetProjectImportRuntimeCandidatesQuery;
 export type ProjectImportRuntimeCandidateFilterCounts = ProjectImportRuntimeCandidatesResponse['filter_counts'];
 export type ProjectImportRuntimeInspectRequest = PostProjectImportRuntimeInspectPayload;
-export type ProjectImportRuntimeInspectNetworkResource = {
-  name: string;
-  driver: string;
-  scope: string;
-  internal: boolean | null;
-  containers: string[];
-  container_count: number;
-  services: string[];
-  service_count: number;
-};
-export type ProjectImportRuntimeInspectVolumeResource = {
-  name: string;
-  driver: string;
-  anonymous: boolean;
-  mount_target: string;
-  mounted_by: string[];
-  containers: string[];
-  container_count: number;
-};
+export type ProjectImportRuntimeInspectNetworkResource = ProjectSchemas['project-import-runtime-network-resource'];
+export type ProjectImportRuntimeInspectVolumeResource = ProjectSchemas['project-import-runtime-volume-resource'];
+export type ProjectImportRuntimeMember = ProjectSchemas['project-import-runtime-member'];
 export type ProjectImportRuntimeInspectResponse = Omit<
   NonNullable<PostProjectImportRuntimeInspectEnvelope['data']>,
   'networks' | 'volumes'
@@ -122,6 +98,5 @@ export type ProjectImportRuntimeInspectResponse = Omit<
   networks: Array<ProjectImportRuntimeInspectNetworkResource | string> | null;
   volumes: Array<ProjectImportRuntimeInspectVolumeResource | string> | null;
 };
-export type ProjectImportRuntimeMember = ProjectImportRuntimeInspectResponse['runtime_members'][number];
 export type ProjectImportRuntimeCandidateInspectRequest = ProjectImportRuntimeInspectRequest;
 export type ProjectImportInspectResponse = ProjectImportRuntimeInspectResponse;

@@ -226,19 +226,6 @@ func displayPathsFromCompose(files []projectcompose.FileProjection) []string {
 	return result
 }
 
-// sameDisplayName 判断给定名称与已有名称在去除首尾空白后是否一致。
-//
-// @param value 待比较的名称。
-// @param existing 已存在的名称。
-// sameDisplayName 判断两个显示名称去除首尾空白后是否相等。
-// @returns 两者去除首尾空白后相等时返回 true，否则返回 false。
-func sameDisplayName(value *string, existing string) bool {
-	if value == nil {
-		return false
-	}
-	return strings.TrimSpace(*value) == strings.TrimSpace(existing)
-}
-
 func (s *Service) importRootDefinitions(ctx context.Context) ([]importRootDefinition, error) {
 	managedRootInfo, err := s.ManagedRoot(ctx)
 	if err != nil {

@@ -281,4 +281,49 @@ describe('useProjectImportFlow', () => {
     expect(flow.displayName.value).toBe('Second Service');
     expect(flow.selectedCandidateKey.value).toBe('runtime:second');
   });
+
+  it('invalidates in-flight inspect responses when the flow is reset', async () => {
+    let resolveInspect: (value: Record<string, unknown>) => void = () => {};
+
+    mocks.postProjectImportRuntimeInspect.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveInspect = resolve;
+        }),
+    );
+
+    const flow = useProjectImportFlow((key: string) => key);
+    const pendingInspect = flow.inspectCandidate(
+      buildRuntimeCandidate({
+        candidate_key: 'runtime:reset-me',
+        canonical_project_name: 'reset-me',
+        config_files: ['/srv/apps/reset-me/compose.yaml'],
+        service_names: [],
+        container_counts: { running: 0, stopped: 0, total: 0 },
+        working_directory: '/srv/apps/reset-me',
+      }),
+    );
+
+    flow.reset();
+    resolveInspect({
+      inspection_id: 'inspect-reset',
+      candidate_key: 'runtime:reset-me',
+      directory_ref: { provider: 'local', root_id: 'managed-root', path: 'apps/reset-me' },
+      resolved_working_directory: '/srv/apps/reset-me',
+      canonical_project_name: 'reset-me',
+      display_name_suggested: 'Reset Me',
+      compose_files: [],
+      env_files: [],
+      services: [],
+      networks: [],
+      volumes: [],
+      warnings: [],
+      conflicts: [],
+    });
+
+    await expect(pendingInspect).resolves.toBe('stale');
+    expect(flow.inspectLoading.value).toBe(false);
+    expect(flow.inspectResult.value).toBeNull();
+    expect(flow.selectedCandidateKey.value).toBe('');
+  });
 });

@@ -202,8 +202,10 @@ func (s *Service) runLifecycleActionWithAggregate(
 }
 
 func (s *Service) runComposeCommand(ctx context.Context, aggregate projectstore.ProjectAggregate, args []string) (string, error) {
+	commandCtx, cancel := withComposeCommandTimeout(ctx)
+	defer cancel()
 	// #nosec G204 -- binary is fixed to docker and args are validated command fragments, not shell-expanded input.
-	command := exec.CommandContext(ctx, "docker", args...)
+	command := exec.CommandContext(commandCtx, "docker", args...)
 	command.Dir = aggregate.Project.WorkingDirectory
 	command.Env = os.Environ()
 	var stdout bytes.Buffer
@@ -212,6 +214,13 @@ func (s *Service) runComposeCommand(ctx context.Context, aggregate projectstore.
 	command.Stderr = &stderr
 	err := command.Run()
 	return strings.TrimSpace(stdout.String() + "\n" + stderr.String()), err
+}
+
+func withComposeCommandTimeout(ctx context.Context) (context.Context, context.CancelFunc) {
+	if _, hasDeadline := ctx.Deadline(); hasDeadline {
+		return context.WithCancel(ctx)
+	}
+	return context.WithTimeout(ctx, projectComposeTimeout)
 }
 
 // ensureLifecycleCommandArgs 校验生命周期命令参数。

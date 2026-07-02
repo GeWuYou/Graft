@@ -593,6 +593,7 @@
         "activity": "Activity"
       },
       "resources": {
+        "refresh": "Refresh Resources",
         "tabs": {
           "containers": "Containers",
           "networks": "Networks",

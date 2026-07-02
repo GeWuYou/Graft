@@ -29,6 +29,7 @@ var (
 	errProjectDirectoryForbidden   = errors.New("project directory browse forbidden")
 	errProjectInspectionExpired    = errors.New("project inspection expired")
 	errProjectInspectionStale      = errors.New("project inspection stale")
+	errProjectFileHashMismatch     = errors.New("project file hash mismatch")
 )
 
 const (
@@ -42,6 +43,7 @@ const (
 	draftWarningsCap         = 2
 	managedCreateDirMode     = 0o750
 	managedCreateFileMode    = 0o600
+	projectComposeTimeout    = 5 * time.Minute
 
 	importRuntimeCandidateStatusReady         = "ready"
 	importRuntimeCandidateStatusBrokenCompose = "broken_compose"

@@ -25,6 +25,15 @@ export type ContainerResourceRowAction = {
   value: string;
 };
 
+export type ContainerResourceMetric = {
+  available: boolean;
+  changeClass: Record<string, boolean>;
+  percentage: number;
+  progressStatus: 'success' | 'warning' | undefined;
+  tooltip: string;
+  value: string;
+};
+
 export const CONTAINER_RESOURCE_COLUMN_STORAGE_KEY = 'graft.container.list.visibleColumns';
 export const CONTAINER_RESOURCE_DEFAULT_VISIBLE_COLUMNS = [
   'row-select',

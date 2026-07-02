@@ -395,6 +395,67 @@ func TestListRuntimeImportCandidatesDedupesCandidateKeys(t *testing.T) {
 	}
 }
 
+func TestRuntimeImportCandidateNormalizationTrimsLookupAndOutput(t *testing.T) {
+	t.Parallel()
+
+	tempDir := t.TempDir()
+	composePath := filepath.Join(tempDir, "compose.yaml")
+	envPath := filepath.Join(tempDir, ".env")
+	if err := os.WriteFile(composePath, []byte("services:\n  web:\n    image: nginx:latest\n"), 0o600); err != nil {
+		t.Fatalf("write compose file: %v", err)
+	}
+	if err := os.WriteFile(envPath, []byte("FOO=bar\n"), 0o600); err != nil {
+		t.Fatalf("write env file: %v", err)
+	}
+
+	service, err := NewService(&stubProjectRepository{}, WithRuntimeReader(stubRuntimeReader{
+		candidates: []moduleapi.ContainerProjectRuntimeCandidate{
+			{
+				CandidateKey:           "  runtime_demo  ",
+				CanonicalProjectName:   "demo",
+				Status:                 importRuntimeCandidateStatusReady,
+				Importable:             true,
+				RuntimeType:            "docker",
+				WorkingDirectory:       tempDir,
+				WorkingDirectorySource: "runtime_label",
+				ConfigFiles:            []string{composePath},
+				ServiceNames:           []string{"web"},
+				ContainerCounts:        moduleapi.ContainerProjectRuntimeContainerCounts{Running: 1, Total: 1},
+			},
+		},
+		candidateMembers: []moduleapi.ContainerProjectMember{
+			{ContainerID: "c1", ContainerName: "demo-web-1", ServiceName: "web", CanonicalState: "running"},
+		},
+	}))
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	listResult, err := service.ListRuntimeImportCandidates(context.Background(), RuntimeImportCandidateListQuery{})
+	if err != nil {
+		t.Fatalf("list runtime import candidates: %v", err)
+	}
+	if len(listResult.Items) != 1 || listResult.Items[0].CandidateKey != "runtime_demo" {
+		t.Fatalf("expected trimmed candidate key in list result, got %#v", listResult.Items)
+	}
+
+	inspectResult, err := service.InspectRuntimeCandidate(context.Background(), RuntimeImportInspectRequest{
+		CandidateKey: "runtime_demo",
+	})
+	if err != nil {
+		t.Fatalf("inspect runtime candidate: %v", err)
+	}
+	if inspectResult.CandidateKey != "runtime_demo" {
+		t.Fatalf("expected trimmed candidate key in inspect result, got %#v", inspectResult)
+	}
+	if len(inspectResult.ComposeFiles) != 1 || inspectResult.ComposeFiles[0].AbsolutePath != composePath {
+		t.Fatalf("unexpected compose files %#v", inspectResult.ComposeFiles)
+	}
+	if len(inspectResult.EnvFiles) != 1 || inspectResult.EnvFiles[0].AbsolutePath != envPath {
+		t.Fatalf("unexpected env files %#v", inspectResult.EnvFiles)
+	}
+}
+
 func assertRuntimeInspectResult(
 	t *testing.T,
 	result RuntimeImportInspectResult,
@@ -987,6 +1048,132 @@ func TestProjectErrorMessageKeyUsesProjectCode(t *testing.T) {
 	}
 }
 
+func TestComputeConflictsFlagsIndependentWorkingDirectoryAndCanonicalMatches(t *testing.T) {
+	t.Parallel()
+
+	repo := &stubProjectRepository{
+		aggregate: projectstore.ProjectAggregate{
+			Project: projectstore.Project{
+				ID:                   1,
+				DisplayName:          "Orders",
+				CanonicalProjectName: "orders",
+				WorkingDirectory:     "/srv/orders",
+			},
+		},
+	}
+
+	service := &Service{}
+	conflicts, err := service.computeConflicts(context.Background(), repo, ImportValidationResult{
+		WorkingDirectory:     "/srv/orders",
+		CanonicalProjectName: "orders",
+	})
+	if err != nil {
+		t.Fatalf("compute conflicts: %v", err)
+	}
+	expected := []string{"canonical_project_name", "working_directory"}
+	if !slices.Equal(conflicts, expected) {
+		t.Fatalf("expected conflicts %#v, got %#v", expected, conflicts)
+	}
+}
+
+func TestBuildConfigurationDiffFileKeepsProposedContentAsNormalizedText(t *testing.T) {
+	t.Parallel()
+
+	file := buildConfigurationDiffFile(
+		projectcontract.FileKindCompose.String(),
+		"/srv/orders/compose.yaml",
+		"services:\n  api:\n    image: nginx:latest\n",
+		"services:\n  api:\n    image: caddy:latest\n",
+	)
+	if !file.Changed {
+		t.Fatalf("expected changed diff file, got %#v", file)
+	}
+	want := "services:\n  api:\n    image: caddy:latest\n"
+	if file.ProposedContent != want {
+		t.Fatalf("expected proposed content %q, got %q", want, file.ProposedContent)
+	}
+}
+
+func TestRestoreManagedDraftOnFailureRestoresOnlyWhenErrSet(t *testing.T) {
+	t.Parallel()
+
+	workingDirectory := t.TempDir()
+	composePath := filepath.Join(workingDirectory, "compose.yaml")
+	if err := os.WriteFile(composePath, []byte("services:\n  api:\n    image: nginx:latest\n"), 0o600); err != nil {
+		t.Fatalf("write compose file: %v", err)
+	}
+
+	restoreItems, err := writeManagedDraft(workingDirectory, managedDraftProposal{
+		ComposePath:    composePath,
+		ComposeContent: "services:\n  api:\n    image: caddy:latest\n",
+	})
+	if err != nil {
+		t.Fatalf("write managed draft: %v", err)
+	}
+
+	restoreManagedDraftOnFailure(workingDirectory, restoreItems, nil)
+	// #nosec G304 -- composePath is created from t.TempDir() within this test.
+	content, err := os.ReadFile(composePath)
+	if err != nil {
+		t.Fatalf("read drafted compose file: %v", err)
+	}
+	if string(content) != "services:\n  api:\n    image: caddy:latest\n" {
+		t.Fatalf("expected draft content to remain after nil error, got %q", string(content))
+	}
+
+	resultErr := errors.New("deploy failed")
+	originalErr := resultErr
+	restoreManagedDraftOnFailure(workingDirectory, restoreItems, &resultErr)
+	// #nosec G304 -- composePath is created from t.TempDir() within this test.
+	restoredContent, err := os.ReadFile(composePath)
+	if err != nil {
+		t.Fatalf("read restored compose file: %v", err)
+	}
+	if string(restoredContent) != "services:\n  api:\n    image: nginx:latest\n" {
+		t.Fatalf("expected original content restored on failure, got %q", string(restoredContent))
+	}
+	if !errors.Is(resultErr, originalErr) {
+		t.Fatalf("expected original error to be preserved, got %v", resultErr)
+	}
+}
+
+func TestWithComposeCommandTimeoutAddsFallbackDeadline(t *testing.T) {
+	t.Parallel()
+
+	start := time.Now()
+	ctx, cancel := withComposeCommandTimeout(context.Background())
+	defer cancel()
+
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		t.Fatalf("expected fallback deadline")
+	}
+	if deadline.Before(start.Add(projectComposeTimeout-time.Second)) || deadline.After(start.Add(projectComposeTimeout+time.Second)) {
+		t.Fatalf("expected deadline near fallback timeout, got %v", deadline.Sub(start))
+	}
+}
+
+func TestWithComposeCommandTimeoutPreservesExistingDeadline(t *testing.T) {
+	t.Parallel()
+
+	parent, parentCancel := context.WithTimeout(context.Background(), time.Second)
+	defer parentCancel()
+	parentDeadline, ok := parent.Deadline()
+	if !ok {
+		t.Fatalf("expected parent deadline")
+	}
+
+	ctx, cancel := withComposeCommandTimeout(parent)
+	defer cancel()
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		t.Fatalf("expected derived deadline")
+	}
+	if !deadline.Equal(parentDeadline) {
+		t.Fatalf("expected deadline %v, got %v", parentDeadline, deadline)
+	}
+}
+
 func TestBrowseImportDirectoriesStaysRootRelative(t *testing.T) {
 	t.Parallel()
 
@@ -1060,6 +1247,45 @@ func TestInspectAndImportByInspection(t *testing.T) {
 	}
 	if repo.importInput == nil {
 		t.Fatalf("expected persisted import input")
+	}
+}
+
+func TestImportByInspectionReturnsInspectionStaleOnFileHashMismatch(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	projectDir := filepath.Join(root, "orders")
+	if err := os.MkdirAll(projectDir, 0o750); err != nil {
+		t.Fatalf("mkdir project dir: %v", err)
+	}
+	composePath := filepath.Join(projectDir, "compose.yaml")
+	if err := os.WriteFile(composePath, []byte("services:\n  api:\n    image: nginx:latest\n"), 0o600); err != nil {
+		t.Fatalf("write compose file: %v", err)
+	}
+
+	service, err := NewService(&stubProjectRepository{}, WithSystemConfigResolver(stubCompositeConfigResolver{
+		values: map[string]string{
+			"ops.project.import.allowed_roots": `[{"id":"apps","label":"Apps","path":"` + root + `"}]`,
+		},
+	}))
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	inspect, err := service.InspectImportDirectory(context.Background(), ImportInspectRequest{
+		DirectoryRef: ImportDirectoryReference{Provider: importProviderLocal, RootID: "apps", Path: "orders"},
+	})
+	if err != nil {
+		t.Fatalf("inspect import directory: %v", err)
+	}
+
+	if err := os.WriteFile(composePath, []byte("services:\n  api:\n    image: caddy:latest\n"), 0o600); err != nil {
+		t.Fatalf("rewrite compose file: %v", err)
+	}
+
+	_, err = service.ImportByInspection(context.Background(), ImportExecuteRequest{InspectionID: inspect.InspectionID})
+	if !errors.Is(err, errProjectInspectionStale) {
+		t.Fatalf("expected inspection stale error, got %v", err)
 	}
 }
 

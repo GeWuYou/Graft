@@ -593,6 +593,7 @@
         "activity": "Activity"
       },
       "resources": {
+        "refresh": "刷新资源",
         "tabs": {
           "containers": "Containers",
           "networks": "Networks",

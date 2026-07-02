@@ -1241,6 +1241,35 @@ describe('container list page', () => {
     expect(wrapper.get('[data-testid="container-table"]').attributes('data-size')).toBe('small');
   });
 
+  it('preserves cross-page selection when paginating the server-backed list', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="container-table-select-first-two"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('已选择 2 个容器');
+    expect(wrapper.get('[data-testid="container-table"]').attributes('data-selected-row-keys')).toBe(
+      JSON.stringify(['container-1', 'container-2']),
+    );
+
+    await wrapper.get('[data-testid="pagination-next"]').trigger('click');
+    await flushPromises();
+
+    expect(apiMocks.getContainers).toHaveBeenLastCalledWith({
+      health: undefined,
+      keyword: undefined,
+      limit: 20,
+      offset: 20,
+      orchestrator: undefined,
+      state: undefined,
+    });
+    expect(wrapper.text()).toContain('已选择 2 个容器');
+    expect(wrapper.get('[data-testid="container-table"]').attributes('data-selected-row-keys')).toBe(
+      JSON.stringify(['container-1', 'container-2']),
+    );
+  });
+
   it('applies source quick filters for group and member entry points', async () => {
     const wrapper = mountPage();
     await flushPromises();

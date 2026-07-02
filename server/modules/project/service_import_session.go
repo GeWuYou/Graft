@@ -2,6 +2,7 @@ package project
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -53,7 +54,7 @@ func (s *Service) inspectImportRequest(
 	if err != nil {
 		return importInspectionSession{}, err
 	}
-	conflicts, err := s.computeConflicts(ctx, repository, request, validation)
+	conflicts, err := s.computeConflicts(ctx, repository, validation)
 	if err != nil {
 		return importInspectionSession{}, err
 	}
@@ -124,7 +125,7 @@ func (s *Service) importInspectionSession(
 		return generated.ProjectImportResponse{}, err
 	}
 	if !sameFileHashes(session.FileHashes, freshParse) {
-		return generated.ProjectImportResponse{}, fmt.Errorf("%w: file hash mismatch", errProjectConflict)
+		return generated.ProjectImportResponse{}, errors.Join(errProjectConflict, errProjectFileHashMismatch)
 	}
 	now := time.Now().UTC()
 	aggregate, err := repository.ImportProject(ctx, projectstore.ImportProjectInput{
@@ -168,7 +169,6 @@ func (s *Service) importInspectionSession(
 func (s *Service) computeConflicts(
 	ctx context.Context,
 	repository projectstore.Repository,
-	request ImportRequest,
 	validation ImportValidationResult,
 ) ([]string, error) {
 	existing, err := repository.List(ctx, projectstore.ListQuery{Limit: projectConflictScanSize, Offset: 0})
@@ -179,10 +179,10 @@ func (s *Service) computeConflicts(
 	targetWD := strings.TrimSpace(validation.WorkingDirectory)
 	targetCanonical := strings.TrimSpace(validation.CanonicalProjectName)
 	for _, item := range existing.Items {
-		if strings.EqualFold(item.Project.WorkingDirectory, targetWD) && !sameDisplayName(request.DisplayName, item.Project.DisplayName) {
+		if sameWorkingDirectory(targetWD, item.Project.WorkingDirectory) {
 			conflicts = append(conflicts, "working_directory")
 		}
-		if strings.EqualFold(item.Project.CanonicalProjectName, targetCanonical) && !sameWorkingDirectory(targetWD, item.Project.WorkingDirectory) {
+		if strings.EqualFold(item.Project.CanonicalProjectName, targetCanonical) {
 			conflicts = append(conflicts, "canonical_project_name")
 		}
 	}

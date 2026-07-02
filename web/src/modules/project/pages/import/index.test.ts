@@ -833,6 +833,130 @@ describe('ProjectImportIndex', () => {
     expect(wrapper.text()).toContain('继续确认导入');
   });
 
+  it('recovers a routed ready candidate even when it is outside the current page payload', async () => {
+    routeState.query = {
+      step: 'inspect',
+      candidate: 'runtime:recover-me',
+    };
+
+    const flowState = createFlowState();
+    flowState.inspectCandidate.mockResolvedValue('applied');
+    mocks.useProjectImportFlow.mockImplementation(() => flowState);
+    mocks.getProjectImportRuntimeCandidates
+      .mockResolvedValueOnce({
+        items: [buildCandidate({})],
+        total: 25,
+        limit: 10,
+        offset: 0,
+        filter_counts: {
+          all: 25,
+          ready: 25,
+          unavailable: 0,
+        },
+      })
+      .mockResolvedValueOnce({
+        items: [
+          buildCandidate({
+            candidate_key: 'runtime:recover-me',
+            canonical_project_name: 'recover-me',
+            config_files: ['/srv/recover-me/compose.yaml'],
+            service_names: ['web'],
+            working_directory: '/srv/recover-me',
+          }),
+        ],
+        total: 25,
+        limit: 50,
+        offset: 0,
+        filter_counts: {
+          all: 25,
+          ready: 25,
+          unavailable: 0,
+        },
+      });
+
+    mountPage();
+    await flushPromises();
+    await flushPromises();
+
+    expect(mocks.getProjectImportRuntimeCandidates).toHaveBeenNthCalledWith(2, {
+      availability: 'ready',
+      limit: 50,
+      offset: 0,
+    });
+  });
+
+  it('ignores stale candidate list responses when a newer filter request finishes first', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    let resolveUnavailable: (value: Record<string, unknown>) => void = () => {};
+    let resolveReady: (value: Record<string, unknown>) => void = () => {};
+
+    mocks.getProjectImportRuntimeCandidates
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveUnavailable = resolve;
+          }),
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveReady = resolve;
+          }),
+      );
+
+    await wrapper.get('[data-testid="candidate-status-filter"]').setValue('unavailable');
+    await nextTick();
+    await wrapper.get('[data-testid="candidate-status-filter"]').setValue('ready');
+    await nextTick();
+
+    resolveReady({
+      items: [
+        buildCandidate({
+          candidate_key: 'runtime:latest',
+          canonical_project_name: 'latest',
+        }),
+      ],
+      total: 1,
+      limit: 10,
+      offset: 0,
+      filter_counts: {
+        all: 1,
+        ready: 1,
+        unavailable: 0,
+      },
+    });
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('latest');
+
+    resolveUnavailable({
+      items: [
+        buildCandidate({
+          candidate_key: 'runtime:stale',
+          canonical_project_name: 'stale',
+          importable: false,
+          status: 'broken_compose',
+          status_reason_codes: ['broken_compose'],
+        }),
+      ],
+      total: 1,
+      limit: 10,
+      offset: 0,
+      filter_counts: {
+        all: 1,
+        ready: 0,
+        unavailable: 1,
+      },
+    });
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('latest');
+    expect(wrapper.text()).not.toContain('runtime:stale');
+    expect(wrapper.text()).not.toContain('stale');
+  });
+
   it('does not render visible English Inspect copy in the zh-CN flow', async () => {
     const wrapper = mountPage();
     await flushPromises();

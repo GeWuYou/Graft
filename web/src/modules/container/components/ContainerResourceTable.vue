@@ -187,6 +187,7 @@ import { formatLocaleDateTime } from '@/shared/observability';
 
 import {
   buildContainerResourceColumns,
+  type ContainerResourceMetric,
   type ContainerResourceRowAction,
   type ContainerSourceQuickFilter,
   type ContainerSourceQuickFilterTarget,
@@ -204,15 +205,6 @@ import type {
   ContainerSummaryRecord,
 } from '../types/container';
 import ContainerResourceMetricCell from './ContainerResourceMetricCell.vue';
-
-type ResourceMetric = {
-  available: boolean;
-  changeClass: Record<string, boolean>;
-  percentage: number;
-  progressStatus: 'success' | 'warning' | undefined;
-  tooltip: string;
-  value: string;
-};
 
 const CONTAINER_PORT_VISIBLE_LIMIT = 2;
 const BYTES_PER_MIB = 1024 * 1024;
@@ -382,7 +374,7 @@ function handleSourceFilterClick(
   emitSourceFilter(row, target);
 }
 
-function cpuMetric(row: ContainerSummaryRecord): ResourceMetric & { summaryValue: string } {
+function cpuMetric(row: ContainerSummaryRecord): ContainerResourceMetric & { summaryValue: string } {
   const change = selectContainerStatsChangeState(row.id);
   if (row.resource?.cpu_percent === undefined) {
     return {
@@ -391,7 +383,7 @@ function cpuMetric(row: ContainerSummaryRecord): ResourceMetric & { summaryValue
       percentage: 0,
       progressStatus: metricProgressStatus(change.cpu),
       summaryValue: t('container.list.stats.unavailable'),
-      tooltip: resourceUnavailableSummary(row, 'cpu'),
+      tooltip: resourceUnavailableSummary(row),
       value: t('container.list.stats.unavailable'),
     };
   }
@@ -408,7 +400,7 @@ function cpuMetric(row: ContainerSummaryRecord): ResourceMetric & { summaryValue
   };
 }
 
-function memoryMetric(row: ContainerSummaryRecord): ResourceMetric & { summaryValue: string } {
+function memoryMetric(row: ContainerSummaryRecord): ContainerResourceMetric & { summaryValue: string } {
   const change = selectContainerStatsChangeState(row.id);
   if (row.resource?.memory_usage_bytes === undefined || row.resource?.memory_percent === undefined) {
     return {
@@ -417,7 +409,7 @@ function memoryMetric(row: ContainerSummaryRecord): ResourceMetric & { summaryVa
       percentage: 0,
       progressStatus: metricProgressStatus(change.memory),
       summaryValue: t('container.list.stats.unavailable'),
-      tooltip: resourceUnavailableSummary(row, 'memory'),
+      tooltip: resourceUnavailableSummary(row),
       value: t('container.list.stats.unavailable'),
     };
   }
@@ -471,12 +463,9 @@ function formatBytes(value?: number) {
   return `${(value / BYTES_PER_MIB).toFixed(2)} MiB`;
 }
 
-function resourceUnavailableSummary(row: ContainerSummaryRecord, metric: 'cpu' | 'memory') {
+function resourceUnavailableSummary(row: ContainerSummaryRecord) {
   const reason = localizeResourceUnavailableReason(
-    (metric === 'memory' && row.resource?.memory_usage_bytes === undefined && row.resource?.stats_error_message) ||
-      row.resource?.stats_error_message ||
-      row.resource?.stats_error_key ||
-      row.resource?.unavailable_reason,
+    row.resource?.stats_error_message || row.resource?.stats_error_key || row.resource?.unavailable_reason,
   );
   return reason || t('container.list.stats.unavailable');
 }

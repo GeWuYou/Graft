@@ -2,6 +2,7 @@ package container
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"slices"
@@ -254,6 +255,40 @@ func TestContainerProjectRuntimeReaderListsImportCandidates(t *testing.T) {
 	}
 }
 
+func TestRuntimeCandidateAccumulatorCandidateUsesEmptySlices(t *testing.T) {
+	t.Parallel()
+
+	candidate := (&runtimeCandidateAccumulator{
+		canonicalProjectName: "demo",
+		runtimeType:          runtimeNameDocker,
+		runtimeVersion:       "27.0.1",
+		workingDirectory:     "/tmp/demo",
+		configFiles:          []string{"/tmp/demo/compose.yaml"},
+	}).candidate(projectRuntimeHostScopeLocal)
+
+	if candidate.StatusReasonCodes == nil {
+		t.Fatalf("expected empty status reason codes slice, got nil")
+	}
+	if candidate.Warnings == nil {
+		t.Fatalf("expected empty warnings slice, got nil")
+	}
+	if candidate.ServiceNames == nil {
+		t.Fatalf("expected empty service names slice, got nil")
+	}
+
+	payload, err := json.Marshal(candidate)
+	if err != nil {
+		t.Fatalf("marshal candidate: %v", err)
+	}
+	var decoded moduleapi.ContainerProjectRuntimeCandidate
+	if err := json.Unmarshal(payload, &decoded); err != nil {
+		t.Fatalf("unmarshal candidate: %v", err)
+	}
+	if decoded.StatusReasonCodes == nil || decoded.Warnings == nil || decoded.ServiceNames == nil {
+		t.Fatalf("expected JSON arrays for empty slices, got %#v", decoded)
+	}
+}
+
 func writeProjectReaderComposeFiles(t *testing.T, paths ...string) {
 	t.Helper()
 	for _, path := range paths {
@@ -342,6 +377,89 @@ func TestContainerProjectRuntimeReaderListsImportCandidateMembersByConfigIdentit
 	}
 }
 
+func TestContainerProjectRuntimeReaderAcceptsRelativeConfigFilesWithinWorkingDirectory(t *testing.T) {
+	t.Parallel()
+
+	tempDir := t.TempDir()
+	writeProjectReaderComposeFiles(
+		t,
+		filepath.Join(tempDir, "compose.yaml"),
+		filepath.Join(tempDir, "compose.override.yaml"),
+	)
+
+	reader := containerProjectRuntimeReader{
+		service: &service{
+			runtime: stubProjectReaderRuntime{
+				items: []Summary{
+					demoComposeRuntimeSummary("1", "demo-web-1", "running", "web", tempDir, []string{"compose.yaml", "compose.override.yaml"}),
+					demoComposeRuntimeSummary("2", "demo-worker-1", "exited", "worker", tempDir, []string{"compose.override.yaml", "compose.yaml"}),
+				},
+			},
+			enabled: true,
+		},
+	}
+
+	candidates, err := reader.ListImportCandidates(context.Background(), "local")
+	if err != nil {
+		t.Fatalf("list import candidates: %v", err)
+	}
+	if len(candidates) != 1 {
+		t.Fatalf("expected 1 candidate, got %#v", candidates)
+	}
+	candidate := candidates[0]
+	if candidate.Status != projectRuntimeCandidateStatusReady || !candidate.Importable {
+		t.Fatalf("expected ready candidate, got %#v", candidate)
+	}
+	if candidate.WorkingDirectory != tempDir {
+		t.Fatalf("expected working directory %q, got %q", tempDir, candidate.WorkingDirectory)
+	}
+	if candidate.WorkingDirectorySource != projectRuntimeWorkingDirSourceRuntimeLabel {
+		t.Fatalf("expected runtime label working directory source, got %q", candidate.WorkingDirectorySource)
+	}
+	if !slices.Equal(candidate.ConfigFiles, []string{"compose.yaml", "compose.override.yaml"}) {
+		t.Fatalf("unexpected config files %#v", candidate.ConfigFiles)
+	}
+}
+
+func TestContainerProjectRuntimeReaderDoesNotDeriveWorkingDirectoryFromRelativeConfigFile(t *testing.T) {
+	t.Parallel()
+
+	reader := containerProjectRuntimeReader{
+		service: &service{
+			runtime: stubProjectReaderRuntime{
+				items: []Summary{
+					demoComposeRuntimeSummary("1", "demo-web-1", "running", "web", "", []string{"compose.yaml"}),
+				},
+			},
+			enabled: true,
+		},
+	}
+
+	candidates, err := reader.ListImportCandidates(context.Background(), "local")
+	if err != nil {
+		t.Fatalf("list import candidates: %v", err)
+	}
+	if len(candidates) != 1 {
+		t.Fatalf("expected 1 candidate, got %#v", candidates)
+	}
+	candidate := candidates[0]
+	if candidate.WorkingDirectory != "" {
+		t.Fatalf("expected empty working directory, got %q", candidate.WorkingDirectory)
+	}
+	if candidate.WorkingDirectorySource != "" {
+		t.Fatalf("expected empty working directory source, got %q", candidate.WorkingDirectorySource)
+	}
+	if slices.Contains(candidate.Warnings, projectRuntimeWarningWorkingDirDerived) {
+		t.Fatalf("did not expect derived working directory warning, got %#v", candidate.Warnings)
+	}
+	if candidate.Status != projectRuntimeCandidateStatusIncompleteMetadata {
+		t.Fatalf("expected incomplete metadata candidate, got %#v", candidate)
+	}
+	if !slices.Contains(candidate.StatusReasonCodes, projectRuntimeReasonInvalidConfigFiles) {
+		t.Fatalf("expected invalid config files reason, got %#v", candidate.StatusReasonCodes)
+	}
+}
+
 func TestContainerProjectRuntimeReaderMarksIncompleteMetadataCandidates(t *testing.T) {
 	t.Parallel()
 
@@ -381,5 +499,13 @@ func TestContainerProjectRuntimeReaderMarksIncompleteMetadataCandidates(t *testi
 	}
 	if !slices.Contains(candidate.StatusReasonCodes, projectRuntimeReasonMissingConfigFiles) {
 		t.Fatalf("expected missing config files reason, got %#v", candidate.StatusReasonCodes)
+	}
+}
+
+func TestSameStringSliceIgnoresOrder(t *testing.T) {
+	t.Parallel()
+
+	if !sameStringSlice([]string{"compose.override.yaml", "compose.yaml"}, []string{"compose.yaml", "compose.override.yaml"}) {
+		t.Fatalf("expected sameStringSlice to ignore element order")
 	}
 }

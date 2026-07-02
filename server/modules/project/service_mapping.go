@@ -13,8 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sergi/go-diff/diffmatchpatch"
-
 	generated "graft/server/internal/contract/openapi/generated"
 	"graft/server/internal/moduleapi"
 	projectcompose "graft/server/modules/project/compose"
@@ -369,20 +367,8 @@ func buildConfigurationDiffFile(kind string, path string, current string, propos
 		CurrentHash:     hashString(current),
 		ProposedHash:    hashString(proposed),
 		CurrentContent:  normalizeTextBlock(current),
-		ProposedContent: buildUnifiedDiff(current, proposed),
+		ProposedContent: normalizeTextBlock(proposed),
 	}
-}
-
-// buildUnifiedDiff 生成当前内容与提议内容之间的统一差异文本。
-// 当差异文本为空或仅包含空白字符时，返回规范化后的提议内容。
-func buildUnifiedDiff(current string, proposed string) string {
-	differ := diffmatchpatch.New()
-	patches := differ.PatchMake(current, proposed)
-	text := differ.PatchToText(patches)
-	if strings.TrimSpace(text) == "" {
-		return normalizeTextBlock(proposed)
-	}
-	return text
 }
 
 // hashString 返回归一化文本块的 SHA-256 十六进制摘要。

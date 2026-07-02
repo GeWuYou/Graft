@@ -275,7 +275,7 @@ func (s *Service) ImportByInspection(ctx context.Context, request ImportExecuteR
 	}
 	response, importErr := s.importInspectionSession(ctx, repository, session, request.DisplayName, request.CanonicalProjectNameOverride, request.ActorID)
 	if importErr != nil {
-		if errors.Is(importErr, errProjectConflict) && strings.Contains(importErr.Error(), "file hash mismatch") {
+		if errors.Is(importErr, errProjectConflict) && errors.Is(importErr, errProjectFileHashMismatch) {
 			return generated.ProjectImportResponse{}, errProjectInspectionStale
 		}
 		return generated.ProjectImportResponse{}, importErr

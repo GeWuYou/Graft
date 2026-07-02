@@ -4,6 +4,8 @@ import type {
   ProjectImportDirectorySource,
   ProjectImportInspectResponse,
   ProjectImportRuntimeCandidate,
+  ProjectImportRuntimeInspectNetworkResource,
+  ProjectImportRuntimeInspectVolumeResource,
   ProjectImportRuntimeMember,
 } from '../types/import';
 
@@ -120,7 +122,17 @@ function isProjectImportDirectoryInspectFileEntry(value: unknown): value is Proj
   }
 
   const entry = value as Partial<ProjectImportDirectoryInspectFileEntry>;
-  return typeof entry.display_path === 'string';
+  return (
+    isProjectFileKind(entry.kind) &&
+    isProjectFileRole(entry.role) &&
+    typeof entry.absolute_path === 'string' &&
+    typeof entry.display_path === 'string' &&
+    typeof entry.order_index === 'number' &&
+    typeof entry.exists_on_last_refresh === 'boolean' &&
+    (typeof entry.last_observed_hash === 'string' ||
+      entry.last_observed_hash === null ||
+      typeof entry.last_observed_hash === 'undefined')
+  );
 }
 
 /**
@@ -159,6 +171,58 @@ function normalizeRuntimeMembers(value: unknown): ProjectImportRuntimeMember[] {
   return value.filter(isProjectImportRuntimeMember);
 }
 
+function isProjectFileKind(value: unknown): value is 'compose' | 'env' {
+  return value === 'compose' || value === 'env';
+}
+
+function isProjectFileRole(value: unknown): value is 'primary' | 'override' | 'detected' | 'manual' {
+  return value === 'primary' || value === 'override' || value === 'detected' || value === 'manual';
+}
+
+function isProjectImportRuntimeInspectNetworkResource(
+  value: unknown,
+): value is ProjectImportRuntimeInspectNetworkResource {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const resource = value as Partial<ProjectImportRuntimeInspectNetworkResource>;
+  return typeof resource.name === 'string';
+}
+
+function isProjectImportRuntimeInspectVolumeResource(
+  value: unknown,
+): value is ProjectImportRuntimeInspectVolumeResource {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const resource = value as Partial<ProjectImportRuntimeInspectVolumeResource>;
+  return typeof resource.name === 'string';
+}
+
+function normalizeInspectNetworkResources(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [] as Array<ProjectImportRuntimeInspectNetworkResource | string>;
+  }
+
+  return value.filter(
+    (item): item is ProjectImportRuntimeInspectNetworkResource | string =>
+      typeof item === 'string' || isProjectImportRuntimeInspectNetworkResource(item),
+  );
+}
+
+function normalizeInspectVolumeResources(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [] as Array<ProjectImportRuntimeInspectVolumeResource | string>;
+  }
+
+  return value.filter(
+    (item): item is ProjectImportRuntimeInspectVolumeResource | string =>
+      typeof item === 'string' || isProjectImportRuntimeInspectVolumeResource(item),
+  );
+}
+
 /**
  * 对 inspect 响应中的可空数组字段做统一归一化，避免页面渲染直接消费 null。
  *
@@ -177,8 +241,8 @@ export function normalizeProjectImportInspectResponse(
     compose_files: normalizeInspectFileEntries(result.compose_files),
     env_files: normalizeInspectFileEntries(result.env_files),
     services: normalizeStringArray(result.services),
-    networks: normalizeStringArray(result.networks),
-    volumes: normalizeStringArray(result.volumes),
+    networks: normalizeInspectNetworkResources(result.networks),
+    volumes: normalizeInspectVolumeResources(result.volumes),
     runtime_members: normalizeRuntimeMembers(result.runtime_members),
     warnings: normalizeStringArray(result.warnings),
     conflicts: normalizeStringArray(result.conflicts),
@@ -192,7 +256,7 @@ export function normalizeProjectImportInspectResponse(
  * @returns `true` 如果存在冲突，`false` 否则。
  */
 export function hasBlockingImportConflicts(result: ProjectImportInspectResponse | null) {
-  return Boolean(normalizeProjectImportInspectResponse(result)?.conflicts.length);
+  return Boolean(normalizeProjectImportInspectResponse(result)?.conflicts?.length);
 }
 
 /**
