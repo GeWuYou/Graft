@@ -155,6 +155,48 @@ describe('useProjectImportFlow', () => {
     expect(flow.canImport.value).toBe(false);
   });
 
+  it('normalizes nullable inspect arrays before exposing preview state', async () => {
+    mocks.postProjectImportRuntimeInspect.mockResolvedValue({
+      inspection_id: 'inspect-nullable',
+      candidate_key: 'runtime:nullable',
+      directory_ref: { provider: 'local', root_id: 'managed-root', path: 'nullable' },
+      resolved_working_directory: '/srv/nullable',
+      canonical_project_name: 'nullable',
+      display_name_suggested: 'Nullable Service',
+      compose_files: null,
+      env_files: null,
+      services: null,
+      networks: null,
+      volumes: null,
+      warnings: null,
+      conflicts: null,
+      validation_status: 'ready',
+      config_hash: 'nullable-hash',
+    });
+
+    const flow = useProjectImportFlow((key: string) => key);
+    await flow.inspectCandidate(
+      buildRuntimeCandidate({
+        candidate_key: 'runtime:nullable',
+        canonical_project_name: 'nullable',
+        config_files: ['/srv/nullable/compose.yaml'],
+        service_names: [],
+        container_counts: { running: 0, stopped: 0, total: 0 },
+        working_directory: '/srv/nullable',
+      }),
+    );
+
+    expect(flow.inspectResult.value?.compose_files).toEqual([]);
+    expect(flow.inspectResult.value?.env_files).toEqual([]);
+    expect(flow.inspectResult.value?.services).toEqual([]);
+    expect(flow.inspectResult.value?.networks).toEqual([]);
+    expect(flow.inspectResult.value?.volumes).toEqual([]);
+    expect(flow.inspectResult.value?.warnings).toEqual([]);
+    expect(flow.inspectResult.value?.conflicts).toEqual([]);
+    expect(flow.displayName.value).toBe('Nullable Service');
+    expect(flow.canImport.value).toBe(true);
+  });
+
   it('ignores stale inspect responses when a newer candidate inspect finishes later', async () => {
     let resolveFirst: (value: Record<string, unknown>) => void = () => {};
     let resolveSecond: (value: Record<string, unknown>) => void = () => {};

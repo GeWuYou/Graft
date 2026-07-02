@@ -262,18 +262,18 @@
               </management-empty-state>
             </div>
 
-            <template v-else-if="inspectResult">
+            <template v-else-if="normalizedInspectResult">
               <div class="project-import-step-grid">
                 <t-card :bordered="true" :title="t('project.import.preview.authorityTitle')">
                   <t-descriptions size="small" :column="1" bordered>
                     <t-descriptions-item :label="t('project.import.preview.canonicalProjectName')">
-                      <code>{{ inspectResult.canonical_project_name }}</code>
+                      <code>{{ normalizedInspectResult.canonical_project_name }}</code>
                     </t-descriptions-item>
                     <t-descriptions-item :label="t('project.import.preview.composeFiles')">
-                      {{ formatDisplayPaths(inspectResult.compose_files) }}
+                      {{ formatDisplayPaths(normalizedInspectResult.compose_files) }}
                     </t-descriptions-item>
                     <t-descriptions-item :label="t('project.import.preview.envFiles')">
-                      {{ formatDisplayPaths(inspectResult.env_files) }}
+                      {{ formatDisplayPaths(normalizedInspectResult.env_files) }}
                     </t-descriptions-item>
                     <t-descriptions-item :label="t('project.import.directory.workingDirectory')">
                       <code>{{ resolvedWorkingDirectory || '-' }}</code>
@@ -284,16 +284,16 @@
                 <t-card :bordered="true" :title="t('project.import.preview.summaryTitle')">
                   <t-descriptions size="small" :column="1" bordered>
                     <t-descriptions-item :label="t('project.import.preview.canonicalNameSource')">
-                      {{ inspectResult.canonical_project_name_source }}
+                      {{ normalizedInspectResult.canonical_project_name_source }}
                     </t-descriptions-item>
                     <t-descriptions-item :label="t('project.import.preview.validationStatus')">
-                      {{ inspectResult.validation_status }}
+                      {{ normalizedInspectResult.validation_status }}
                     </t-descriptions-item>
                     <t-descriptions-item :label="t('project.import.preview.serviceCount')">
-                      {{ inspectResult.services.length }}
+                      {{ normalizedInspectResult.services.length }}
                     </t-descriptions-item>
                     <t-descriptions-item :label="t('project.import.preview.configHash')">
-                      <code>{{ inspectResult.config_hash }}</code>
+                      <code>{{ normalizedInspectResult.config_hash }}</code>
                     </t-descriptions-item>
                   </t-descriptions>
                 </t-card>
@@ -302,13 +302,13 @@
               <t-card :bordered="true" :title="t('project.import.preview.discoveryTitle')">
                 <t-descriptions size="small" :column="1" bordered>
                   <t-descriptions-item :label="t('project.import.preview.services')">
-                    {{ formatList(inspectResult.services) }}
+                    {{ formatList(normalizedInspectResult.services) }}
                   </t-descriptions-item>
                   <t-descriptions-item :label="t('project.import.preview.networks')">
-                    {{ formatList(inspectResult.networks) }}
+                    {{ formatList(normalizedInspectResult.networks) }}
                   </t-descriptions-item>
                   <t-descriptions-item :label="t('project.import.preview.volumes')">
-                    {{ formatList(inspectResult.volumes) }}
+                    {{ formatList(normalizedInspectResult.volumes) }}
                   </t-descriptions-item>
                 </t-descriptions>
               </t-card>
@@ -317,20 +317,21 @@
                 <div class="project-import-preview__alerts">
                   <t-alert v-if="!canImport" theme="error" :message="t('project.import.preview.blockedDescription')" />
                   <t-alert
-                    v-for="(conflict, index) in inspectResult.conflicts"
+                    v-for="(conflict, index) in normalizedInspectResult.conflicts"
                     :key="`conflict-${index}-${conflict}`"
                     theme="error"
                     :message="conflict"
                   />
                   <t-alert
-                    v-for="(warning, index) in inspectResult.warnings"
+                    v-for="(warning, index) in normalizedInspectResult.warnings"
                     :key="`warning-${index}-${warning}`"
                     theme="warning"
                     :message="warning"
                   />
                   <t-empty
-                    v-if="!(inspectResult.warnings.length || inspectResult.conflicts.length)"
+                    v-if="!(normalizedInspectResult.warnings.length || normalizedInspectResult.conflicts.length)"
                     :description="t('project.import.preview.noDiagnostics')"
+                    type="empty"
                   />
                 </div>
               </t-card>
@@ -432,6 +433,8 @@ import { getProjectImportRuntimeCandidates } from '../../api/import';
 import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import {
   isProjectImportRuntimeCandidateReady,
+  normalizeProjectImportInspectResponse,
+  normalizeStringArray,
   resolveProjectImportRuntimeCandidateReasonKey,
 } from '../../shared/import';
 import { appendResolvedTab, buildDetailTitleWithFallback } from '../../shared/navigation';
@@ -573,11 +576,12 @@ const readyCandidates = computed(() => candidates.value.filter((item) => isProje
 const selectedCandidate = computed(
   () => candidates.value.find((item) => item.candidate_key === selectedCandidateKey.value) ?? null,
 );
+const normalizedInspectResult = computed(() => normalizeProjectImportInspectResponse(inspectResult.value));
 const selectedCandidateLabel = computed(
-  () => inspectResult.value?.canonical_project_name || selectedCandidate.value?.canonical_project_name || '',
+  () => normalizedInspectResult.value?.canonical_project_name || selectedCandidate.value?.canonical_project_name || '',
 );
 const resolvedWorkingDirectory = computed(
-  () => inspectResult.value?.resolved_working_directory || selectedCandidate.value?.working_directory || '',
+  () => normalizedInspectResult.value?.resolved_working_directory || selectedCandidate.value?.working_directory || '',
 );
 
 const normalizedCandidateSearch = computed(() => candidateSearchKeyword.value.trim());
@@ -978,13 +982,6 @@ function normalizeCandidate(candidate: ProjectImportRuntimeCandidate): ProjectIm
     status_reason_codes: normalizeStringArray(candidate.status_reason_codes),
     warnings: normalizeStringArray(candidate.warnings),
   };
-}
-
-function normalizeStringArray(value: unknown): string[] {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-  return value.filter((item): item is string => typeof item === 'string');
 }
 
 async function updateWizardRoute(

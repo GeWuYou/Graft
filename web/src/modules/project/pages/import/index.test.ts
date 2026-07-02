@@ -600,6 +600,45 @@ describe('ProjectImportIndex', () => {
     expect(wrapper.text()).toContain('Compose 文件无法通过导入检查');
   });
 
+  it('renders inspect preview safely when flow state contains nullable inspect arrays', async () => {
+    routeState.query = {
+      step: 'inspect',
+      candidate: 'runtime:demo',
+    };
+
+    const flowState = createFlowState();
+    flowState.hasPreview.value = true;
+    flowState.canImport.value = true;
+    flowState.inspectResult.value = {
+      inspection_id: 'inspect-null',
+      candidate_key: 'runtime:demo',
+      directory_ref: { provider: 'local', root_id: 'managed-root', path: 'demo' },
+      resolved_working_directory: '/srv/demo',
+      canonical_project_name: 'demo',
+      canonical_project_name_source: 'computed',
+      display_name_suggested: 'Demo',
+      compose_files: null,
+      env_files: null,
+      services: null,
+      networks: null,
+      volumes: null,
+      warnings: null,
+      conflicts: null,
+      validation_status: 'ready',
+      config_hash: 'hash-demo',
+    } as never;
+    flowState.inspectCandidate.mockResolvedValue('applied');
+    mocks.useProjectImportFlow.mockImplementation(() => flowState);
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('demo');
+    expect(wrapper.text()).toContain('无');
+    expect(wrapper.text()).toContain('当前没有额外 warning 或 conflict。');
+    expect(flowState.inspectCandidate).not.toHaveBeenCalled();
+  });
+
   it('does not render visible English Inspect copy in the zh-CN flow', async () => {
     const wrapper = mountPage();
     await flushPromises();

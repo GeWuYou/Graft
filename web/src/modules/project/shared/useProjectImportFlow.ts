@@ -8,7 +8,7 @@ import type {
   ProjectImportRuntimeCandidate,
   ProjectImportRuntimeInspectRequest,
 } from '../types/import';
-import { buildSuggestedDisplayName, hasBlockingImportConflicts } from './import';
+import { buildSuggestedDisplayName, hasBlockingImportConflicts, normalizeProjectImportInspectResponse } from './import';
 
 type Translate = (key: string, params?: Record<string, unknown>) => string;
 
@@ -70,8 +70,9 @@ export function useProjectImportFlow(t: Translate) {
       if (requestId !== latestInspectRequestId) {
         return 'stale' as const;
       }
-      inspectResult.value = response;
-      displayName.value = buildSuggestedDisplayName(response);
+      const normalizedResponse = normalizeProjectImportInspectResponse(response);
+      inspectResult.value = normalizedResponse;
+      displayName.value = normalizedResponse ? buildSuggestedDisplayName(normalizedResponse) : '';
       return 'applied' as const;
     } catch (error) {
       if (requestId !== latestInspectRequestId) {

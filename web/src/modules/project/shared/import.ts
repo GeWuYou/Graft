@@ -1,4 +1,5 @@
 import type {
+  ProjectImportDirectoryInspectFileEntry,
   ProjectImportDirectoryRef,
   ProjectImportDirectorySource,
   ProjectImportInspectResponse,
@@ -100,13 +101,74 @@ export function buildSuggestedDisplayName(result: ProjectImportInspectResponse) 
 }
 
 /**
+ * 将未知输入归一化为字符串数组。
+ *
+ * @param value - 可能来自接口的未知列表字段
+ * @returns 过滤后的字符串数组
+ */
+export function normalizeStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.filter((item): item is string => typeof item === 'string');
+}
+
+function isProjectImportDirectoryInspectFileEntry(value: unknown): value is ProjectImportDirectoryInspectFileEntry {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const entry = value as Partial<ProjectImportDirectoryInspectFileEntry>;
+  return typeof entry.display_path === 'string';
+}
+
+/**
+ * 将未知输入归一化为导入检查文件数组。
+ *
+ * @param value - 可能为 null 的文件列表
+ * @returns 过滤后的检查文件数组
+ */
+function normalizeInspectFileEntries(value: unknown): ProjectImportDirectoryInspectFileEntry[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.filter(isProjectImportDirectoryInspectFileEntry);
+}
+
+/**
+ * 对 inspect 响应中的可空数组字段做统一归一化，避免页面渲染直接消费 null。
+ *
+ * @param result - 原始导入检查结果
+ * @returns 归一化后的检查结果；空输入保持为 null
+ */
+export function normalizeProjectImportInspectResponse(
+  result: ProjectImportInspectResponse | null,
+): ProjectImportInspectResponse | null {
+  if (!result) {
+    return null;
+  }
+
+  return {
+    ...result,
+    compose_files: normalizeInspectFileEntries(result.compose_files),
+    env_files: normalizeInspectFileEntries(result.env_files),
+    services: normalizeStringArray(result.services),
+    networks: normalizeStringArray(result.networks),
+    volumes: normalizeStringArray(result.volumes),
+    warnings: normalizeStringArray(result.warnings),
+    conflicts: normalizeStringArray(result.conflicts),
+  };
+}
+
+/**
  * 判断导入结果是否存在阻塞性冲突。
  *
  * @param result - 导入检索结果
  * @returns `true` 如果存在冲突，`false` 否则。
  */
 export function hasBlockingImportConflicts(result: ProjectImportInspectResponse | null) {
-  return Boolean(result?.conflicts?.length);
+  return Boolean(normalizeProjectImportInspectResponse(result)?.conflicts.length);
 }
 
 /**
