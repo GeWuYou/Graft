@@ -136,33 +136,97 @@
     },
     "import": {
       "eyebrow": "导入项目",
-      "description": "先从运行时候选进入，Inspect 可导入的 Compose 项目，再沿用现有预览和导入提交流程。",
+      "description": "按步骤选择运行中的 Compose 项目、查看检查结果，再确认导入。",
+      "meta": {
+        "step": "步骤 {current} / {total}",
+        "readyCount": "可导入 {count}",
+        "unavailableCount": "暂不可导入 {count}",
+        "selectedCandidate": "当前候选：{name}"
+      },
+      "steps": {
+        "current": "步骤 {current} / {total}",
+        "select": {
+          "shortTitle": "选择项目",
+          "title": "第 1 步 · 选择项目",
+          "description": "先从运行时候选中挑选一个可导入的 Compose 项目。"
+        },
+        "inspect": {
+          "shortTitle": "检查",
+          "title": "第 2 步 · 检查预览",
+          "description": "只查看本次检查的发现结果与诊断信息，不在这一屏填写导入选项。"
+        },
+        "confirm": {
+          "shortTitle": "确认导入",
+          "title": "第 3 步 · 确认导入",
+          "description": "在检查就绪后填写导入选项，并执行最终导入。"
+        }
+      },
       "actions": {
         "backToList": "返回列表",
         "refreshCandidates": "刷新候选",
-        "inspectCandidate": "Inspect 候选",
-        "reinspectCandidate": "刷新候选 Inspect",
-        "refreshInspect": "刷新发现结果",
-        "retryInspect": "重试发现",
+        "inspectCandidate": "检查",
+        "reinspectCandidate": "重新检查",
+        "refreshInspect": "刷新检查",
+        "retryInspect": "重试检查",
+        "viewDiagnostics": "查看诊断",
         "import": "导入并打开项目",
-        "reset": "重置表单"
+        "reset": "重新开始",
+        "clearSearch": "清空搜索",
+        "backToCandidates": "返回选择项目",
+        "continueToConfirm": "继续确认导入",
+        "backToInspect": "返回检查"
       },
       "candidates": {
         "title": "运行时候选",
-        "summary": "可导入 {ready} 个 / 不可导入 {unavailable} 个",
+        "summary": "可导入 {ready} 个 / 暂不可导入 {unavailable} 个",
+        "readyViewLabel": "可导入（{count}）",
+        "unavailableViewLabel": "暂不可导入（{count}）",
         "readyTitle": "可导入候选",
-        "readyDescription": "只有 ready 候选可以进入 Inspect，并继续生成导入会话。",
+        "readyDescription": "只展示当前可以进入检查的候选。",
+        "readyTableSummary": "共 {count} 个可导入候选",
+        "readyTableHint": "一行代表一个 Compose 项目记录；先完成检查，再继续导入。",
+        "unavailableTableSummary": "共 {count} 个暂不可导入候选",
+        "unavailableTableHint": "一行代表一个暂不可导入的 Compose 项目记录；查看诊断以确认当前阻塞原因。",
         "unavailableTitle": "暂不可导入候选",
-        "unavailableDescription": "这些候选会继续展示，但在运行时原因修复前不会开放 Inspect。",
-        "emptyTitle": "暂无运行时候选",
-        "emptyDescription": "当前运行时 authority 还没有返回可导入或仅供审查的候选项。",
-        "configFiles": "配置文件 Authority",
-        "workingDirectory": "工作目录提示",
+        "unavailableDescription": "这些候选会单独保留用于诊断，修复运行时问题后再重新检查。",
+        "emptyTitle": "暂无可导入候选",
+        "emptyDescription": "当前没有发现可立即导入的运行中 Compose 项目。",
+        "searchEmptyDescription": "当前搜索条件没有匹配到可导入候选。",
+        "columnSettings": "列设置",
+        "columnDrawerTitle": "候选列表列设置",
+        "resetColumns": "恢复默认列",
+        "searchPlaceholder": "搜索项目名、工作目录、Compose 文件或服务",
+        "columnProject": "项目",
+        "columnConfigFiles": "Compose 文件",
+        "columnWorkingDirectory": "工作目录",
+        "columnRuntime": "运行时",
+        "columnServices": "服务",
+        "columnStatus": "状态",
+        "columnReason": "阻塞原因",
+        "columnOperation": "操作",
+        "columnOptionLabels": {
+          "project": "项目",
+          "config_files": "Compose 文件",
+          "working_directory": "工作目录",
+          "runtime": "运行时",
+          "services": "服务",
+          "status": "状态",
+          "reason": "阻塞原因",
+          "operation": "操作"
+        },
+        "configFiles": "Compose 文件",
+        "workingDirectory": "工作目录",
         "workingDirectorySource": "工作目录来源",
         "runtime": "运行时来源",
         "serviceNames": "服务列表",
         "containerCounts": "容器数量",
         "containerCountsValue": "运行中 {running} / 已停止 {stopped} / 总计 {total}",
+        "configFileCountValue": "{count} 个配置文件",
+        "serviceCountValue": "{count} 个服务",
+        "additionalConfigFiles": "另有 {count} 个文件",
+        "additionalServices": "另有 {count} 个服务",
+        "selectedMarker": "最近检查",
+        "paginationSummary": "显示第 {start}-{end} 项，共 {total} 项",
         "status": {
           "ready": "可导入",
           "incomplete_metadata": "元数据不完整",
@@ -171,7 +235,7 @@
         },
         "workingDirectorySourceValues": {
           "runtime_label": "来自运行时标签",
-          "derived_from_config_files": "由 config_files 推导"
+          "derived_from_config_files": "由 Compose 文件路径推导"
         },
         "reason": {
           "missing_project_name": "缺少 Compose 项目名元数据",
@@ -180,28 +244,43 @@
           "conflicting_runtime_metadata": "运行时 Compose 元数据彼此冲突",
           "unsupported_runtime_type": "当前运行时类型暂不支持导入",
           "config_files_not_accessible": "Compose 配置文件当前不可访问",
-          "incomplete_metadata": "运行时元数据不完整，当前无法 Inspect",
+          "incomplete_metadata": "运行时元数据不完整，当前无法检查",
           "unsupported_runtime": "当前运行时暂不支持该候选的导入",
           "broken_compose": "Compose 文件无法通过导入检查",
-          "unavailable": "当前暂不可 Inspect"
+          "unavailable": "当前暂不可检查"
         },
         "warning": {
-          "working_directory_derived_from_config_files": "working directory 缺失，当前由首个 config_files 路径推导。"
+          "working_directory_derived_from_config_files": "未提供工作目录标签，已根据首个 Compose 文件路径推导。"
         }
       },
+      "unavailable": {
+        "hint": "保留这些候选用于诊断，避免把导入问题和选择流程混在同一屏。",
+        "primaryReasonTitle": "当前阻塞原因",
+        "diagnosticsTitle": "更多诊断",
+        "emptyTitle": "当前搜索没有匹配到不可导入候选",
+        "emptyDescription": "可以清空搜索后查看全部诊断候选。",
+        "allClearTitle": "当前没有暂不可导入候选",
+        "allClearDescription": "当前所有运行时候选都已经可以进入检查。",
+        "detailTitle": "{name} 的诊断",
+        "noDiagnostics": "当前没有更多诊断。"
+      },
       "directory": {
-        "title": "导入 Authority",
+        "title": "检查工作目录",
         "workingDirectory": "推导工作目录",
-        "configFiles": "配置文件 Authority",
+        "configFiles": "Compose 文件",
         "readonlyHint": "仅作展示提示"
       },
       "form": {
-        "title": "项目信息",
-        "authorityHint": "配置文件是更强的导入 authority；working directory 在 Inspect 后只作为展示提示。",
+        "title": "导入选项",
+        "authorityHint": "Compose 文件会作为导入依据，工作目录只在检查后作为展示提示。",
         "displayName": "展示名",
         "displayNamePlaceholder": "例如：订单服务开发环境",
         "canonicalProjectNameOverride": "Canonical Project Name 覆盖",
         "canonicalProjectNameOverridePlaceholder": "留空表示沿用发现结果"
+      },
+      "confirm": {
+        "title": "确认导入设置",
+        "hint": "将基于当前检查会话导入 {name}，请确认展示名和 Canonical Project Name 覆盖值。"
       },
       "validation": {
         "displayNameRequired": "请输入展示名。"
@@ -221,8 +300,11 @@
         "confirm": "选择当前目录"
       },
       "preview": {
-        "title": "导入预览",
+        "title": "检查预览",
+        "authorityTitle": "配置与目录",
+        "summaryTitle": "检查摘要",
         "discoveryTitle": "发现结果",
+        "diagnosticsTitle": "诊断信息",
         "canonicalProjectName": "Canonical Project Name",
         "canonicalNameSource": "名称来源",
         "validationStatus": "校验状态",
@@ -233,20 +315,21 @@
         "services": "服务",
         "networks": "网络",
         "volumes": "卷",
+        "blockedDescription": "当前检查结果包含冲突，解决后才能继续确认导入。",
         "noDiagnostics": "当前没有额外 warning 或 conflict。",
         "none": "无"
       },
       "state": {
-        "awaitingSelectionTitle": "先 Inspect 一个 ready 候选",
-        "awaitingSelectionDescription": "从上方选择可导入候选，生成预览和导入会话 authority。",
-        "inspectErrorTitle": "候选 Inspect 失败"
+        "awaitingSelectionTitle": "先检查一个可导入候选",
+        "awaitingSelectionDescription": "从上方选择可导入候选，生成预览和导入会话。",
+        "inspectErrorTitle": "候选检查失败"
       },
       "messages": {
         "candidateLoadFailed": "运行时候选加载失败。",
         "directorySourceLoadFailed": "目录来源加载失败。",
         "directoryLoadFailed": "目录列表加载失败。",
-        "inspectSuccess": "候选 Inspect 已刷新。",
-        "inspectFailed": "候选 Inspect 失败。",
+        "inspectSuccess": "检查已完成。",
+        "inspectFailed": "检查失败。",
         "importSuccess": "Compose 项目导入成功。",
         "importFailed": "Compose 项目导入失败。"
       }

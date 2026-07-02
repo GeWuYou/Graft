@@ -19,11 +19,12 @@
       :data-table-mode="tableWidthPolicy.mode"
     >
       <t-table
-        row-key="id"
+        :row-key="rowKey"
         :columns="columns"
         :data="rows"
         :loading="loading"
         :selected-row-keys="selectedRowKeys"
+        :row-class-name="rowClassName"
         table-layout="fixed"
         :table-content-width="tableWidthPolicy.tableContentWidth"
         cell-empty-content="-"
@@ -81,6 +82,8 @@ const props = defineProps<{
   footerSummary: string;
   headLabel: string;
   loading?: boolean;
+  rowClassName?: TdBaseTableProps['rowClassName'];
+  rowKey?: string;
   rows: TableRowData[];
   selectedRowKeys?: Array<string | number>;
   summary?: string;
@@ -103,6 +106,7 @@ const hasHeadContent = computed(() => Boolean(props.description || props.summary
 const { tableHostRef, tableHostWidth } = useTableHostWidth(() => props.columns);
 
 const tableWidthPolicy = computed(() => resolveTableWidthPolicy(props.columns, tableHostWidth.value));
+const rowKey = computed(() => props.rowKey ?? 'id');
 
 function emitRowClick(context: { row: TableRowData }) {
   emit('row-click', context.row);
