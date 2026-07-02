@@ -60,6 +60,20 @@ type ServiceProjection struct {
 	DeclaredNetworks []string
 }
 
+// NetworkProjection stores one static top-level network summary parsed from compose YAML.
+type NetworkProjection struct {
+	Name     string
+	Driver   *string
+	Scope    *string
+	Internal *bool
+}
+
+// VolumeProjection stores one static top-level volume summary parsed from compose YAML.
+type VolumeProjection struct {
+	Name   string
+	Driver *string
+}
+
 // Result stores the bounded phase-1 static compose parse result.
 type Result struct {
 	WorkingDirectory      string
@@ -72,6 +86,8 @@ type Result struct {
 	EnvFiles              []FileProjection
 	ServiceNames          []string
 	Services              []ServiceProjection
+	Networks              []NetworkProjection
+	Volumes               []VolumeProjection
 	NetworkNames          []string
 	VolumeNames           []string
 	Warnings              []string
@@ -128,6 +144,8 @@ func Load(input Input) (Result, error) {
 		EnvFiles:              envFiles,
 		ServiceNames:          serviceNames,
 		Services:              services,
+		Networks:              collected.networks,
+		Volumes:               collected.volumes,
 		NetworkNames:          collected.networkNames,
 		VolumeNames:           collected.volumeNames,
 	}, nil
@@ -136,6 +154,8 @@ func Load(input Input) (Result, error) {
 type collectedServices struct {
 	serviceOrder []string
 	serviceMap   map[string]ServiceProjection
+	networks     []NetworkProjection
+	volumes      []VolumeProjection
 	networkNames []string
 	volumeNames  []string
 }
@@ -158,6 +178,8 @@ func collectServices(
 	serviceMap := make(map[string]ServiceProjection)
 	networkSet := make(map[string]struct{})
 	volumeSet := make(map[string]struct{})
+	networkMap := make(map[string]NetworkProjection)
+	volumeMap := make(map[string]VolumeProjection)
 
 	for _, file := range composeFiles {
 		if _, err := configHasher.Write(file.Content); err != nil {
@@ -168,13 +190,15 @@ func collectServices(
 			return collectedServices{}, err
 		}
 		serviceOrder = collectServicesFromDocument(doc, serviceOrder, serviceSet, serviceMap)
-		collectTopLevelKeys(doc, "networks", networkSet)
-		collectTopLevelKeys(doc, "volumes", volumeSet)
+		collectTopLevelNetworks(doc, networkSet, networkMap)
+		collectTopLevelVolumes(doc, volumeSet, volumeMap)
 	}
 
 	return collectedServices{
 		serviceOrder: serviceOrder,
 		serviceMap:   serviceMap,
+		networks:     sortedNetworkProjections(networkMap),
+		volumes:      sortedVolumeProjections(volumeMap),
 		networkNames: sortedKeys(networkSet),
 		volumeNames:  sortedKeys(volumeSet),
 	}, nil
@@ -246,13 +270,16 @@ func buildServiceProjection(name string, projection ServiceProjection) ServicePr
 	return projection
 }
 
-// collectTopLevelKeys 从指定顶层键收集非空白子键到目标集合中。
-// 当目标集合为 nil、指定键不存在或对应值不是对象时，函数不执行任何操作。
-func collectTopLevelKeys(doc map[string]any, key string, target map[string]struct{}) {
-	if target == nil {
+// collectTopLevelNetworks 从 compose 顶层 networks 节点收集网络名称和可静态识别的元数据。
+func collectTopLevelNetworks(
+	doc map[string]any,
+	target map[string]struct{},
+	projections map[string]NetworkProjection,
+) {
+	if target == nil || projections == nil {
 		return
 	}
-	raw, ok := doc[key]
+	raw, ok := doc["networks"]
 	if !ok {
 		return
 	}
@@ -260,13 +287,106 @@ func collectTopLevelKeys(doc map[string]any, key string, target map[string]struc
 	if !ok {
 		return
 	}
-	for name := range items {
+	for name, definition := range items {
 		trimmed := strings.TrimSpace(name)
 		if trimmed == "" {
 			continue
 		}
 		target[trimmed] = struct{}{}
+		projections[trimmed] = networkProjectionFromDefinition(trimmed, projections[trimmed], definition)
 	}
+}
+
+// collectTopLevelVolumes 从 compose 顶层 volumes 节点收集卷名称和可静态识别的元数据。
+func collectTopLevelVolumes(
+	doc map[string]any,
+	target map[string]struct{},
+	projections map[string]VolumeProjection,
+) {
+	if target == nil || projections == nil {
+		return
+	}
+	raw, ok := doc["volumes"]
+	if !ok {
+		return
+	}
+	items, ok := raw.(map[string]any)
+	if !ok {
+		return
+	}
+	for name, definition := range items {
+		trimmed := strings.TrimSpace(name)
+		if trimmed == "" {
+			continue
+		}
+		target[trimmed] = struct{}{}
+		projection := projections[trimmed]
+		projection.Name = trimmed
+		if node, ok := definition.(map[string]any); ok {
+			if driver, ok := scalarString(node["driver"]); ok {
+				projection.Driver = &driver
+			}
+		}
+		projections[trimmed] = projection
+	}
+}
+
+func sortedNetworkProjections(items map[string]NetworkProjection) []NetworkProjection {
+	if len(items) == 0 {
+		return nil
+	}
+	names := make([]string, 0, len(items))
+	for name := range items {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	result := make([]NetworkProjection, 0, len(names))
+	for _, name := range names {
+		projection := items[name]
+		if projection.Name == "" {
+			projection.Name = name
+		}
+		result = append(result, projection)
+	}
+	return result
+}
+
+func networkProjectionFromDefinition(name string, current NetworkProjection, definition any) NetworkProjection {
+	current.Name = name
+	node, ok := definition.(map[string]any)
+	if !ok {
+		return current
+	}
+	if driver, ok := scalarString(node["driver"]); ok {
+		current.Driver = &driver
+	}
+	if scope, ok := scalarString(node["scope"]); ok {
+		current.Scope = &scope
+	}
+	if internal, ok := scalarBool(node["internal"]); ok {
+		current.Internal = &internal
+	}
+	return current
+}
+
+func sortedVolumeProjections(items map[string]VolumeProjection) []VolumeProjection {
+	if len(items) == 0 {
+		return nil
+	}
+	names := make([]string, 0, len(items))
+	for name := range items {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	result := make([]VolumeProjection, 0, len(names))
+	for _, name := range names {
+		projection := items[name]
+		if projection.Name == "" {
+			projection.Name = name
+		}
+		result = append(result, projection)
+	}
+	return result
 }
 
 // sortedKeys 返回按字典序排序的键名列表。
@@ -510,6 +630,11 @@ func scalarString(raw any) (string, bool) {
 	}
 	trimmed := strings.TrimSpace(value)
 	return trimmed, trimmed != ""
+}
+
+func scalarBool(raw any) (bool, bool) {
+	value, ok := raw.(bool)
+	return value, ok
 }
 
 // listValues 提取列表中的字符串值。

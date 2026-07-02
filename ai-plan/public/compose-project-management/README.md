@@ -70,6 +70,9 @@
   - Phase 1 的 Activity 仍由前端复用现有 container APIs 聚合。
   - Phase 1 的配置页只读。
   - Phase 2 已在同一 topic 内完成 managed create/edit/diff/validate/deploy 的核心实现，但主入口 IA 被 Phase 3 boundary work 偏移，需要先修复入口 truth。
+  - `Import Existing Project` 的主入口应是 runtime candidate，而不是 folder picker。
+  - 当前 import 的 `directory browse / inspect` 能力继续保留，但只作为非主入口 inspect/file-system 复用底座。
+  - `config_files` 是 runtime candidate 的 stronger authority；`working_directory` 是 hint，可在缺少 label 时由 `config_files[0]` 派生。
   - Phase 3 继续留在同一 topic 内推进，但不得再让 boundary surface 取代 Phase 1 import 或 Phase 2 managed create 主入口。
 - 当前下一步：先执行 `drift-repair-import-primary-entry-and-topic-truth`，再回到剩余 Phase 3 bounded work。
 

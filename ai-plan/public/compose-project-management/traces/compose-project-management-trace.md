@@ -274,6 +274,20 @@
 - 复核 `Compose项目管理设计.md` 后确认 Phase 1 主入口应为 `Import Existing Project`，而不是 Phase 3 boundary surface。
 - 主题从错误的 `archive-ready` 结论回滚到 `active`，先执行 `drift-repair-import-primary-entry-and-topic-truth`。
 
+## 2026-07-01 Drift repair narrowed to runtime-candidate primary import
+
+- 收口 `ai-plan/design/domains/compose/Compose项目管理设计.md` authority truth：
+  - `Import Existing Project` 主流程固定为 `runtime candidate -> inspect -> preview -> import`
+  - `directory browse / inspect` 保留为非主入口 inspect/file-system 复用底座，不再定义当前主 IA
+  - runtime candidate 必须同时返回 `ready` 与 `unavailable`
+  - `config_files` 固定为 stronger authority；`working_directory` 只作为 hint，并允许从 `config_files[0]` 派生
+- 收口产品/契约共识：
+  - 不完整 runtime metadata 不能让 candidate 静默消失，必须返回不可导入状态与稳定 reason code
+  - `project` 继续只消费 runtime candidate authority，不直接解析 Docker labels
+- 当前 drift-repair 的实现目标更新为：
+  - `server/openapi`：新增 runtime candidate list/runtime inspect contract，并扩展最小 shared boundary
+  - `web`：`/ops/projects/import` 改为 runtime candidate 列表驱动，Folder Picker 退出主交互
+
 ## Loop Batch State
 
 ```json
@@ -295,10 +309,11 @@
     "phase-3-batch-2-directory-scan-and-auto-discovery-candidates"
   ],
   "pending_batches": [
+    "drift-repair-import-primary-entry-and-topic-truth",
     "phase-3-batch-3-remote-host-boundary-and-activity-authority"
   ],
-  "current_batch": "phase-3-batch-2-directory-scan-and-auto-discovery-candidates",
+  "current_batch": "drift-repair-import-primary-entry-and-topic-truth",
   "next_batch": "phase-3-batch-3-remote-host-boundary-and-activity-authority",
-  "closeout_status": "phase-3-batch-2-completed"
+  "closeout_status": "drift-repair-in-progress"
 }
 ```

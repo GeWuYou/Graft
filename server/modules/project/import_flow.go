@@ -127,6 +127,121 @@ type ImportInspectResult struct {
 	ValidationStatus           string                   `json:"validation_status"`
 }
 
+// RuntimeImportContainerCounts describes bounded runtime member counts for one import candidate.
+type RuntimeImportContainerCounts struct {
+	Running int `json:"running"`
+	Stopped int `json:"stopped"`
+	Total   int `json:"total"`
+}
+
+// RuntimeImportCandidate describes one runtime-driven Compose import candidate.
+type RuntimeImportCandidate struct {
+	CandidateKey           string                       `json:"candidate_key"`
+	CanonicalProjectName   string                       `json:"canonical_project_name"`
+	Status                 string                       `json:"status"`
+	StatusReasonCodes      []string                     `json:"status_reason_codes"`
+	Importable             bool                         `json:"importable"`
+	RuntimeType            string                       `json:"runtime_type"`
+	RuntimeVersion         *string                      `json:"runtime_version,omitempty"`
+	WorkingDirectory       string                       `json:"working_directory"`
+	WorkingDirectorySource string                       `json:"working_directory_source"`
+	ConfigFiles            []string                     `json:"config_files"`
+	ServiceNames           []string                     `json:"service_names"`
+	ContainerCounts        RuntimeImportContainerCounts `json:"container_counts"`
+	Warnings               []string                     `json:"warnings"`
+}
+
+// RuntimeImportCandidateAvailability filters runtime candidates by import readiness.
+type RuntimeImportCandidateAvailability string
+
+const (
+	runtimeImportCandidateAvailabilityReady       RuntimeImportCandidateAvailability = "ready"
+	runtimeImportCandidateAvailabilityUnavailable RuntimeImportCandidateAvailability = "unavailable"
+	runtimeImportCandidatesDefaultLimit                                              = 10
+)
+
+// RuntimeImportCandidateListQuery describes list filters for runtime import candidates.
+type RuntimeImportCandidateListQuery struct {
+	Availability *RuntimeImportCandidateAvailability `json:"availability,omitempty"`
+	Keyword      string                              `json:"keyword,omitempty"`
+	Limit        int                                 `json:"limit"`
+	Offset       int                                 `json:"offset"`
+}
+
+// RuntimeImportCandidateFilterCounts summarizes candidate counts for each availability bucket.
+type RuntimeImportCandidateFilterCounts struct {
+	All         int `json:"all"`
+	Ready       int `json:"ready"`
+	Unavailable int `json:"unavailable"`
+}
+
+// RuntimeImportCandidatesResult returns the current runtime import candidates.
+type RuntimeImportCandidatesResult struct {
+	Items        []RuntimeImportCandidate           `json:"items"`
+	Total        int                                `json:"total"`
+	Limit        int                                `json:"limit"`
+	Offset       int                                `json:"offset"`
+	FilterCounts RuntimeImportCandidateFilterCounts `json:"filter_counts"`
+}
+
+// RuntimeImportInspectRequest captures one inspect request for a runtime candidate.
+type RuntimeImportInspectRequest struct {
+	CandidateKey                 string  `json:"candidate_key"`
+	DisplayName                  *string `json:"display_name,omitempty"`
+	CanonicalProjectNameOverride *string `json:"canonical_project_name_override,omitempty"`
+}
+
+// RuntimeImportMember returns one runtime member row for the inspect preview.
+type RuntimeImportMember struct {
+	ContainerID   string `json:"container_id"`
+	ContainerName string `json:"container_name"`
+	ServiceName   string `json:"service_name"`
+	State         string `json:"state"`
+}
+
+// RuntimeImportNetworkResource returns one structured network resource row for runtime import inspect.
+type RuntimeImportNetworkResource struct {
+	Name           string   `json:"name"`
+	Driver         *string  `json:"driver"`
+	Scope          *string  `json:"scope"`
+	Internal       *bool    `json:"internal"`
+	Containers     []string `json:"containers"`
+	ContainerCount int      `json:"container_count"`
+	Services       []string `json:"services"`
+	ServiceCount   int      `json:"service_count"`
+}
+
+// RuntimeImportVolumeResource returns one structured volume resource row for runtime import inspect.
+type RuntimeImportVolumeResource struct {
+	Name           string   `json:"name"`
+	Driver         *string  `json:"driver"`
+	Anonymous      bool     `json:"anonymous"`
+	MountTarget    string   `json:"mount_target"`
+	MountedBy      []string `json:"mounted_by"`
+	Containers     []string `json:"containers"`
+	ContainerCount int      `json:"container_count"`
+}
+
+// RuntimeImportInspectResult returns the inspect preview for one runtime candidate.
+type RuntimeImportInspectResult struct {
+	InspectionID               string                         `json:"inspection_id"`
+	CandidateKey               string                         `json:"candidate_key"`
+	ResolvedWorkingDirectory   string                         `json:"resolved_working_directory"`
+	CanonicalProjectName       string                         `json:"canonical_project_name"`
+	CanonicalProjectNameSource string                         `json:"canonical_project_name_source"`
+	DisplayNameSuggested       string                         `json:"display_name_suggested"`
+	ComposeFiles               []FileView                     `json:"compose_files"`
+	EnvFiles                   []FileView                     `json:"env_files"`
+	ServiceNames               []string                       `json:"services"`
+	NetworkResources           []RuntimeImportNetworkResource `json:"networks"`
+	VolumeResources            []RuntimeImportVolumeResource  `json:"volumes"`
+	RuntimeMembers             []RuntimeImportMember          `json:"runtime_members"`
+	ConfigHash                 string                         `json:"config_hash"`
+	Warnings                   []string                       `json:"warnings"`
+	Conflicts                  []string                       `json:"conflicts"`
+	ValidationStatus           string                         `json:"validation_status"`
+}
+
 // ImportExecuteRequest finalizes an import from a prior inspection snapshot.
 type ImportExecuteRequest struct {
 	InspectionID                 string  `json:"inspection_id"`
@@ -146,6 +261,26 @@ type FileView struct {
 	LastObservedHash    *string `json:"last_observed_hash,omitempty"`
 }
 
+type runtimeImportNetworkAggregation struct {
+	metadata   projectcompose.NetworkProjection
+	containers map[string]struct{}
+	services   map[string]struct{}
+}
+
+type runtimeImportVolumeAggregation struct {
+	anonymous   bool
+	driver      *string
+	mountTarget string
+	containers  map[string]struct{}
+	mountedBy   map[string]struct{}
+}
+
+type parsedRuntimeVolumeMount struct {
+	anonymous   bool
+	mountTarget string
+	name        string
+}
+
 type discoveredImportFiles struct {
 	composeFiles []string
 	envFiles     []string
@@ -154,6 +289,7 @@ type discoveredImportFiles struct {
 
 type importInspectionSession struct {
 	ID              string
+	CandidateKey    string
 	DirectoryRef    ImportDirectoryReference
 	WorkingDir      string
 	CanonicalName   string
@@ -165,6 +301,385 @@ type importInspectionSession struct {
 	CreatedAt       time.Time
 	ExpiresAt       time.Time
 	FileHashes      map[string]string
+}
+
+func buildRuntimeImportNetworkResources(
+	parseResult projectcompose.Result,
+	runtimeMembers []RuntimeImportMember,
+) []RuntimeImportNetworkResource {
+	metadataByName := runtimeImportNetworkMetadataByName(parseResult.Networks)
+	containerNamesByService := runtimeImportContainerNamesByService(runtimeMembers)
+	aggregations := collectRuntimeImportNetworkAggregations(parseResult.Services, containerNamesByService, metadataByName)
+	return renderRuntimeImportNetworkResources(aggregations)
+}
+
+func buildRuntimeImportVolumeResources(
+	parseResult projectcompose.Result,
+	runtimeMembers []RuntimeImportMember,
+) []RuntimeImportVolumeResource {
+	metadataByName := runtimeImportVolumeMetadataByName(parseResult.Volumes)
+	containerNamesByService := runtimeImportContainerNamesByService(runtimeMembers)
+	aggregations := collectRuntimeImportVolumeAggregations(parseResult.Services, containerNamesByService, metadataByName)
+	return renderRuntimeImportVolumeResources(aggregations)
+}
+
+func runtimeImportNetworkMetadataByName(
+	items []projectcompose.NetworkProjection,
+) map[string]projectcompose.NetworkProjection {
+	result := make(map[string]projectcompose.NetworkProjection, len(items))
+	for _, item := range items {
+		if name := strings.TrimSpace(item.Name); name != "" {
+			result[name] = item
+		}
+	}
+	return result
+}
+
+func collectRuntimeImportNetworkAggregations(
+	services []projectcompose.ServiceProjection,
+	containerNamesByService map[string][]string,
+	metadataByName map[string]projectcompose.NetworkProjection,
+) map[string]*runtimeImportNetworkAggregation {
+	aggregations := make(map[string]*runtimeImportNetworkAggregation)
+	for _, service := range services {
+		addRuntimeImportServiceNetworks(aggregations, service, containerNamesByService, metadataByName)
+	}
+	return aggregations
+}
+
+func addRuntimeImportServiceNetworks(
+	aggregations map[string]*runtimeImportNetworkAggregation,
+	service projectcompose.ServiceProjection,
+	containerNamesByService map[string][]string,
+	metadataByName map[string]projectcompose.NetworkProjection,
+) {
+	serviceName := strings.TrimSpace(service.ServiceName)
+	if serviceName == "" {
+		return
+	}
+	for _, declaredNetwork := range service.DeclaredNetworks {
+		networkName := strings.TrimSpace(declaredNetwork)
+		if networkName == "" {
+			continue
+		}
+		aggregation := ensureRuntimeImportNetworkAggregation(aggregations, networkName, metadataByName[networkName])
+		aggregation.services[serviceName] = struct{}{}
+		addRuntimeImportContainerNames(aggregation.containers, containerNamesByService[serviceName])
+	}
+}
+
+func ensureRuntimeImportNetworkAggregation(
+	aggregations map[string]*runtimeImportNetworkAggregation,
+	networkName string,
+	metadata projectcompose.NetworkProjection,
+) *runtimeImportNetworkAggregation {
+	if aggregation := aggregations[networkName]; aggregation != nil {
+		return aggregation
+	}
+	aggregation := &runtimeImportNetworkAggregation{
+		metadata:   metadata,
+		containers: make(map[string]struct{}),
+		services:   make(map[string]struct{}),
+	}
+	aggregation.metadata.Name = networkName
+	aggregations[networkName] = aggregation
+	return aggregation
+}
+
+func renderRuntimeImportNetworkResources(
+	aggregations map[string]*runtimeImportNetworkAggregation,
+) []RuntimeImportNetworkResource {
+	names := sortedMapKeys(aggregations)
+	resources := make([]RuntimeImportNetworkResource, 0, len(names))
+	for _, name := range names {
+		aggregation := aggregations[name]
+		containers := sortedSetValues(aggregation.containers)
+		services := sortedSetValues(aggregation.services)
+		resources = append(resources, RuntimeImportNetworkResource{
+			Name:           name,
+			Driver:         cloneStringPointer(aggregation.metadata.Driver),
+			Scope:          cloneStringPointer(aggregation.metadata.Scope),
+			Internal:       cloneBoolPointer(aggregation.metadata.Internal),
+			Containers:     containers,
+			ContainerCount: len(containers),
+			Services:       services,
+			ServiceCount:   len(services),
+		})
+	}
+	return resources
+}
+
+func runtimeImportVolumeMetadataByName(
+	items []projectcompose.VolumeProjection,
+) map[string]projectcompose.VolumeProjection {
+	result := make(map[string]projectcompose.VolumeProjection, len(items))
+	for _, item := range items {
+		if name := strings.TrimSpace(item.Name); name != "" {
+			result[name] = item
+		}
+	}
+	return result
+}
+
+func collectRuntimeImportVolumeAggregations(
+	services []projectcompose.ServiceProjection,
+	containerNamesByService map[string][]string,
+	metadataByName map[string]projectcompose.VolumeProjection,
+) map[string]*runtimeImportVolumeAggregation {
+	aggregations := make(map[string]*runtimeImportVolumeAggregation)
+	for _, service := range services {
+		addRuntimeImportServiceVolumes(aggregations, service, containerNamesByService, metadataByName)
+	}
+	return aggregations
+}
+
+func addRuntimeImportServiceVolumes(
+	aggregations map[string]*runtimeImportVolumeAggregation,
+	service projectcompose.ServiceProjection,
+	containerNamesByService map[string][]string,
+	metadataByName map[string]projectcompose.VolumeProjection,
+) {
+	serviceName := strings.TrimSpace(service.ServiceName)
+	if serviceName == "" {
+		return
+	}
+	for _, declaredVolume := range service.DeclaredVolumes {
+		mount := parseRuntimeImportVolumeMount(declaredVolume)
+		if mount == nil {
+			continue
+		}
+		aggregation := ensureRuntimeImportVolumeAggregation(aggregations, mount, metadataByName[mount.name].Driver)
+		aggregation.anonymous = aggregation.anonymous && mount.anonymous
+		aggregation.mountedBy[serviceName] = struct{}{}
+		addRuntimeImportContainerNames(aggregation.containers, containerNamesByService[serviceName])
+	}
+}
+
+func ensureRuntimeImportVolumeAggregation(
+	aggregations map[string]*runtimeImportVolumeAggregation,
+	mount *parsedRuntimeVolumeMount,
+	driver *string,
+) *runtimeImportVolumeAggregation {
+	if aggregation := aggregations[mount.name]; aggregation != nil {
+		return aggregation
+	}
+	aggregation := &runtimeImportVolumeAggregation{
+		anonymous:   mount.anonymous,
+		driver:      cloneStringPointer(driver),
+		mountTarget: mount.mountTarget,
+		containers:  make(map[string]struct{}),
+		mountedBy:   make(map[string]struct{}),
+	}
+	aggregations[mount.name] = aggregation
+	return aggregation
+}
+
+func renderRuntimeImportVolumeResources(
+	aggregations map[string]*runtimeImportVolumeAggregation,
+) []RuntimeImportVolumeResource {
+	names := sortedMapKeys(aggregations)
+	resources := make([]RuntimeImportVolumeResource, 0, len(names))
+	for _, name := range names {
+		aggregation := aggregations[name]
+		containers := sortedSetValues(aggregation.containers)
+		mountedBy := sortedSetValues(aggregation.mountedBy)
+		resources = append(resources, RuntimeImportVolumeResource{
+			Name:           name,
+			Driver:         cloneStringPointer(aggregation.driver),
+			Anonymous:      aggregation.anonymous,
+			MountTarget:    aggregation.mountTarget,
+			MountedBy:      mountedBy,
+			Containers:     containers,
+			ContainerCount: len(containers),
+		})
+	}
+	return resources
+}
+
+func runtimeImportContainerNamesByService(runtimeMembers []RuntimeImportMember) map[string][]string {
+	containerSets := make(map[string]map[string]struct{})
+	for _, item := range runtimeMembers {
+		serviceName := strings.TrimSpace(item.ServiceName)
+		containerName := strings.TrimSpace(item.ContainerName)
+		if serviceName == "" || containerName == "" {
+			continue
+		}
+		if _, ok := containerSets[serviceName]; !ok {
+			containerSets[serviceName] = make(map[string]struct{})
+		}
+		containerSets[serviceName][containerName] = struct{}{}
+	}
+	result := make(map[string][]string, len(containerSets))
+	for serviceName, names := range containerSets {
+		result[serviceName] = sortedSetValues(names)
+	}
+	return result
+}
+
+func addRuntimeImportContainerNames(target map[string]struct{}, containerNames []string) {
+	for _, containerName := range containerNames {
+		target[containerName] = struct{}{}
+	}
+}
+
+func sortedSetValues(items map[string]struct{}) []string {
+	if len(items) == 0 {
+		return nil
+	}
+	values := make([]string, 0, len(items))
+	for item := range items {
+		values = append(values, item)
+	}
+	sort.Strings(values)
+	return values
+}
+
+func sortedMapKeys[T any](items map[string]T) []string {
+	if len(items) == 0 {
+		return nil
+	}
+	keys := make([]string, 0, len(items))
+	for key := range items {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+func parseRuntimeImportVolumeMount(value string) *parsedRuntimeVolumeMount {
+	mount := strings.TrimSpace(value)
+	if mount == "" {
+		return nil
+	}
+	if strings.Contains(mount, "=") {
+		return parseRuntimeImportLongVolumeMount(mount)
+	}
+	return parseRuntimeImportShortVolumeMount(mount)
+}
+
+func parseRuntimeImportLongVolumeMount(value string) *parsedRuntimeVolumeMount {
+	entries := parseRuntimeImportMountEntries(value)
+	if mountType := entries["type"]; mountType != "" && mountType != "volume" {
+		return nil
+	}
+
+	source := firstNonEmptyRuntimeImportEntry(entries, "source", "src")
+	target := firstNonEmptyRuntimeImportEntry(entries, "target", "dst", "destination")
+	if target == "" {
+		return nil
+	}
+	return buildParsedRuntimeVolumeMount(source, target)
+}
+
+func parseRuntimeImportMountEntries(value string) map[string]string {
+	pairs := strings.Split(value, ",")
+	entries := make(map[string]string, len(pairs))
+	for _, pair := range pairs {
+		separator := strings.Index(pair, "=")
+		if separator <= 0 {
+			continue
+		}
+		key := strings.ToLower(strings.TrimSpace(pair[:separator]))
+		entryValue := strings.TrimSpace(pair[separator+1:])
+		if key != "" {
+			entries[key] = entryValue
+		}
+	}
+	return entries
+}
+
+func firstNonEmptyRuntimeImportEntry(entries map[string]string, keys ...string) string {
+	for _, key := range keys {
+		if value := entries[key]; value != "" {
+			return value
+		}
+	}
+	return ""
+}
+
+func buildParsedRuntimeVolumeMount(source string, target string) *parsedRuntimeVolumeMount {
+	if source != "" {
+		if looksLikeRuntimeImportHostPath(source) {
+			return nil
+		}
+		return &parsedRuntimeVolumeMount{
+			anonymous:   false,
+			mountTarget: target,
+			name:        source,
+		}
+	}
+
+	return &parsedRuntimeVolumeMount{
+		anonymous:   true,
+		mountTarget: target,
+		name:        target,
+	}
+}
+
+func parseRuntimeImportShortVolumeMount(value string) *parsedRuntimeVolumeMount {
+	segments := strings.Split(value, ":")
+	if len(segments) == 1 {
+		target := strings.TrimSpace(segments[0])
+		if target == "" || !looksLikeRuntimeImportContainerPath(target) {
+			return nil
+		}
+		return &parsedRuntimeVolumeMount{
+			anonymous:   true,
+			mountTarget: target,
+			name:        target,
+		}
+	}
+
+	source := strings.TrimSpace(segments[0])
+	target := strings.TrimSpace(segments[1])
+	if source == "" || target == "" || !looksLikeRuntimeImportContainerPath(target) {
+		return nil
+	}
+	if looksLikeRuntimeImportHostPath(source) {
+		return nil
+	}
+	return &parsedRuntimeVolumeMount{
+		anonymous:   false,
+		mountTarget: target,
+		name:        source,
+	}
+}
+
+func looksLikeRuntimeImportContainerPath(value string) bool {
+	return strings.HasPrefix(strings.TrimSpace(value), "/")
+}
+
+func looksLikeRuntimeImportHostPath(value string) bool {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return false
+	}
+	if strings.HasPrefix(trimmed, ".") || strings.HasPrefix(trimmed, "~") {
+		return true
+	}
+	if strings.HasPrefix(trimmed, "/") {
+		return true
+	}
+	if len(trimmed) >= 3 && trimmed[1] == ':' && (trimmed[2] == '\\' || trimmed[2] == '/') {
+		return true
+	}
+	return false
+}
+
+func cloneStringPointer(value *string) *string {
+	if value == nil {
+		return nil
+	}
+	cloned := *value
+	return &cloned
+}
+
+func cloneBoolPointer(value *bool) *bool {
+	if value == nil {
+		return nil
+	}
+	cloned := *value
+	return &cloned
 }
 
 type importRootDefinition struct {
@@ -518,6 +1033,14 @@ func discoverImportFiles(workingDirectory string) (discoveredImportFiles, error)
 		envFiles:     discoverEnvFiles(workingDirectory, entries),
 		warnings:     warnings,
 	}, nil
+}
+
+func discoverEnvFilesForWorkingDirectory(workingDirectory string) ([]string, error) {
+	entries, err := os.ReadDir(workingDirectory)
+	if err != nil {
+		return nil, err
+	}
+	return discoverEnvFiles(workingDirectory, entries), nil
 }
 
 // discoverPrimaryComposeFiles 返回工作目录中存在的首选 Compose 文件名列表。

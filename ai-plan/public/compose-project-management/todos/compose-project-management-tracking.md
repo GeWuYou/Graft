@@ -152,6 +152,11 @@ Compose Project Management
 - 当前 topic 不是 `archive-ready`：
   - 主入口 IA 已从 Phase 1/2 设计偏移到 Phase 3 boundary surface，必须先修复入口 truth
   - `compose-project-management` 的 recovery docs 与实际可用性需要重新对齐
+- 当前 drift-repair 口径已固定：
+  - `Import Existing Project` 主入口改为 `runtime candidate -> inspect -> preview -> import`
+  - runtime candidate 必须同时返回 `ready` 与 `unavailable`，不能让不可导入项静默消失
+  - `config_files` 是 stronger authority；`working_directory` 只作为 hint，可由 `config_files[0]` 派生
+  - 现有 `directory browse / inspect` 接口与服务端逻辑保留，但退出当前主入口 IA，只作为 future 文件/终端能力复用底座
 
 ## Loop Batch State
 

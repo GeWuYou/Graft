@@ -136,27 +136,136 @@
     },
     "import": {
       "eyebrow": "Import Project",
-      "description": "Select a server directory, let the backend inspect it automatically, and confirm the discovered Compose project before import.",
+      "description": "Choose a running Compose project first, review the Inspect result next, and confirm the import last.",
+      "meta": {
+        "step": "Step {current} / {total}",
+        "readyCount": "{count} Ready",
+        "unavailableCount": "{count} Unavailable",
+        "selectedCandidate": "Current Candidate: {name}"
+      },
+      "steps": {
+        "current": "Step {current} / {total}",
+        "select": {
+          "shortTitle": "Select Project",
+          "title": "Step 1 · Select Project",
+          "description": "Pick one importable Compose project from the runtime candidate list."
+        },
+        "inspect": {
+          "shortTitle": "Inspect",
+          "title": "Step 2 · Inspect Preview",
+          "description": "Review only the Inspect discovery result and diagnostics before moving forward."
+        },
+        "confirm": {
+          "shortTitle": "Confirm Import",
+          "title": "Step 3 · Confirm Import",
+          "description": "After Inspect is ready, fill in the import options and run the final import."
+        }
+      },
       "actions": {
         "backToList": "Back to List",
-        "selectDirectory": "Select Directory",
-        "changeDirectory": "Change Directory",
+        "refreshCandidates": "Refresh Candidates",
+        "inspectCandidate": "Inspect",
+        "reinspectCandidate": "Inspect Again",
         "refreshInspect": "Refresh Inspect",
         "retryInspect": "Retry Inspect",
         "import": "Import and Open Project",
-        "reset": "Reset"
+        "reset": "Start Over",
+        "clearFilters": "Clear Filters",
+        "backToCandidates": "Back to Project Selection",
+        "continueToConfirm": "Continue to Confirm",
+        "backToInspect": "Back to Inspect"
+      },
+      "candidates": {
+        "title": "Runtime Candidates",
+        "summary": "{ready} Ready / {unavailable} Unavailable",
+        "statusFilter": "Filter Status",
+        "allFilterLabel": "All ({count})",
+        "readyFilterLabel": "Ready ({count})",
+        "unavailableFilterLabel": "Unavailable ({count})",
+        "tableSummary": "{count} Runtime Candidates Match the Current Filters",
+        "tableHint": "Each row is one runtime candidate. Only ready candidates can enter Inspect and continue to import.",
+        "emptyTitle": "No Runtime Candidates",
+        "emptyDescription": "No runtime candidate is currently available for import.",
+        "filteredEmptyTitle": "No candidates match the current filters",
+        "filteredEmptyDescription": "Adjust the search or status filter and try again.",
+        "columnSettings": "Column Settings",
+        "columnDrawerTitle": "Candidate Columns",
+        "resetColumns": "Reset Default Columns",
+        "searchPlaceholder": "Search by project, working directory, Compose file, or service",
+        "columnProject": "Project",
+        "columnConfigFiles": "Compose Files",
+        "columnWorkingDirectory": "Working Directory",
+        "columnRuntime": "Runtime",
+        "columnServices": "Services",
+        "columnStatus": "Status",
+        "columnReason": "Blocking Reason",
+        "columnOperation": "Action",
+        "columnOptionLabels": {
+          "project": "Project",
+          "config_files": "Compose Files",
+          "working_directory": "Working Directory",
+          "runtime": "Runtime",
+          "services": "Services",
+          "status": "Status",
+          "reason": "Blocking Reason",
+          "operation": "Action"
+        },
+        "configFiles": "Compose Files",
+        "workingDirectory": "Working Directory",
+        "workingDirectorySource": "Working Directory Source",
+        "runtime": "Runtime Source",
+        "serviceNames": "Services",
+        "containerCounts": "Container Counts",
+        "containerCountsValue": "Running {running} / Stopped {stopped} / Total {total}",
+        "configFileCountValue": "{count} Config Files",
+        "serviceCountValue": "{count} Services",
+        "additionalConfigFiles": "{count} More Files",
+        "additionalServices": "{count} More Services",
+        "selectedMarker": "Last Inspect",
+        "paginationSummary": "Showing {start}-{end} of {total}",
+        "status": {
+          "ready": "Ready",
+          "incomplete_metadata": "Incomplete Metadata",
+          "unsupported_runtime": "Unsupported Runtime",
+          "broken_compose": "Broken Compose"
+        },
+        "workingDirectorySourceValues": {
+          "runtime_label": "From Runtime Label",
+          "derived_from_config_files": "Derived from Compose File Paths"
+        },
+        "reason": {
+          "missing_project_name": "Missing Compose Project Name Metadata",
+          "missing_config_files": "Missing Compose Config File Metadata",
+          "invalid_config_files": "Compose Config File Metadata Is Invalid",
+          "conflicting_runtime_metadata": "Compose Runtime Metadata Conflicts Across Containers",
+          "unsupported_runtime_type": "The Current Runtime Type Is Not Supported Yet",
+          "config_files_not_accessible": "Compose Config Files Are Not Accessible",
+          "incomplete_metadata": "Runtime Metadata Is Incomplete, so Inspect Is Disabled",
+          "unsupported_runtime": "This Candidate Cannot Be Imported from the Current Runtime Yet",
+          "broken_compose": "The Compose Files Failed Import Inspection",
+          "unavailable": "Inspect Is Not Available Yet"
+        },
+        "warning": {
+          "working_directory_derived_from_config_files": "The working directory label is missing, so the first Compose file path was used."
+        }
       },
       "directory": {
-        "title": "Project Directory",
-        "workingDirectory": "Selected Directory",
-        "readonlyHint": "Auto-discovered"
+        "title": "Inspect Working Directory",
+        "workingDirectory": "Resolved Working Directory",
+        "configFiles": "Compose Files",
+        "readonlyHint": "Display Only"
       },
       "form": {
-        "title": "Project Details",
+        "title": "Import Options",
+        "authorityHint": "Compose files stay as the import source, while the working directory remains a display hint after Inspect.",
         "displayName": "Display Name",
         "displayNamePlaceholder": "For Example: Orders Service Dev",
         "canonicalProjectNameOverride": "Canonical Project Name Override",
         "canonicalProjectNameOverridePlaceholder": "Leave Blank to Keep the Inspected Value"
+      },
+      "confirm": {
+        "title": "Confirm Import Settings",
+        "hint": "This import will use the current Inspect session for {name}. Confirm the Display Name and Canonical Project Name override before continuing."
       },
       "validation": {
         "displayNameRequired": "Display Name Is Required."
@@ -176,8 +285,18 @@
         "confirm": "Use This Directory"
       },
       "preview": {
-        "title": "Import Preview",
+        "title": "Inspect Preview",
+        "overviewTitle": "Overview",
+        "overviewDescription": "Project-level inspect facts and diagnostics stay separate from resource tables.",
+        "resourcesTitle": "Resources",
+        "resourcesDescription": "A single workspace switches between resource tables for the current inspect session.",
+        "authorityTitle": "Config and Directory",
+        "summaryTitle": "Inspect Summary",
         "discoveryTitle": "Discovery Result",
+        "diagnosticsTitle": "Diagnostics",
+        "resourceSearchPlaceholder": "Search Current Resource Table",
+        "resourceColumnSettings": "Column Settings",
+        "resourceResetColumns": "Reset Columns",
         "canonicalProjectName": "Canonical Project Name",
         "canonicalNameSource": "Canonical Name Source",
         "validationStatus": "Validation Status",
@@ -188,19 +307,75 @@
         "services": "Services",
         "networks": "Networks",
         "volumes": "Volumes",
-        "noDiagnostics": "No Additional Warnings or Conflicts Were Returned.",
+        "runtimeMembersTitle": "Runtime Members",
+        "runtimeMembersSummary": "{count} Runtime Containers",
+        "runtimeMembersEmpty": "No Runtime Members Are Available for This Candidate.",
+        "runtimeMembersPagination": "Items {start}-{end} of {total}",
+        "runtimeMemberContainerName": "Container",
+        "runtimeMemberServiceName": "Service",
+        "runtimeMemberState": "State",
+        "runtimeMemberContainerId": "Container ID",
+        "blockedDescription": "The current Inspect result contains conflicts and must be fixed before the import can be confirmed.",
+        "noDiagnostics": "No additional warnings or conflicts were returned.",
+        "resources": {
+          "tabs": {
+            "containers": "Containers",
+            "networks": "Networks",
+            "volumes": "Volumes"
+          },
+          "summary": "{count} {resource} rows.",
+          "paginationSummary": "{start}-{end} of {total}",
+          "loadFailed": "Failed to load resource data.",
+          "descriptions": {
+            "containers": "Reuses the container management table while narrowing row actions to detail access.",
+            "networks": "Network resources move into the same table workspace instead of a stacked summary block.",
+            "volumes": "Volume resources move into the same table workspace and keep interaction consistent with containers."
+          },
+          "empty": {
+            "filteredDescription": "No resources match the current search.",
+            "containers": {
+              "title": "No Containers",
+              "description": "No container resources are available for this candidate."
+            },
+            "networks": {
+              "title": "No Networks",
+              "description": "No network resources are available for this candidate."
+            },
+            "volumes": {
+              "title": "No Volumes",
+              "description": "No volume resources are available for this candidate."
+            }
+          },
+          "columns": {
+            "name": "Name",
+            "driver": "Driver",
+            "scope": "Scope",
+            "internal": "Internal",
+            "containers": "Containers",
+            "anonymous": "Anonymous",
+            "mountedBy": "Mounted By",
+            "mountTarget": "Mount Target"
+          },
+          "internalYes": "Yes",
+          "internalNo": "No",
+          "volumeAnonymousYes": "Yes",
+          "volumeAnonymousNo": "No",
+          "detailServices": "Bound Services",
+          "detailMountedBy": "Mounted By"
+        },
         "none": "None"
       },
       "state": {
-        "awaitingSelectionTitle": "Select a Server Directory First",
-        "awaitingSelectionDescription": "Inspect runs automatically after directory selection and fills the import preview for confirmation.",
-        "inspectErrorTitle": "Directory Inspect Failed"
+        "awaitingSelectionTitle": "Inspect a Ready Candidate First",
+        "awaitingSelectionDescription": "Choose a ready candidate above to create the preview and import session.",
+        "inspectErrorTitle": "Candidate Inspect Failed"
       },
       "messages": {
+        "candidateLoadFailed": "Runtime Candidates Could Not Be Loaded.",
         "directorySourceLoadFailed": "Directory Sources Could Not Be Loaded.",
         "directoryLoadFailed": "Directory List Could Not Be Loaded.",
-        "inspectSuccess": "Directory Inspect Refreshed.",
-        "inspectFailed": "Directory Inspect Failed.",
+        "inspectSuccess": "Inspect Completed.",
+        "inspectFailed": "Inspect Failed.",
         "importSuccess": "Compose Project Imported.",
         "importFailed": "Compose Project Import Failed."
       }
@@ -366,11 +541,111 @@
       "refresh": "Refresh Snapshot",
       "openWorkingDirectory": "Working Directory",
       "titleFallback": "Project Detail",
+      "sections": {
+        "lifecycle": {
+          "title": "Lifecycle",
+          "description": "Project-level up, down, restart, and unregister actions."
+        },
+        "overview": {
+          "title": "Overview",
+          "description": "Project-level configuration, summary, discovery, and diagnostics only. No large resource tables here."
+        },
+        "resources": {
+          "title": "Resources",
+          "description": "A single resource workspace switches between runtime resource tables instead of stacking them."
+        },
+        "workspaces": {
+          "title": "Workspaces",
+          "description": "Secondary configuration and activity workspaces stay available without diluting the main Overview and Resources IA."
+        }
+      },
+      "summary": {
+        "configurationTitle": "Configuration",
+        "summaryTitle": "Summary",
+        "discoveryTitle": "Discovery",
+        "canonicalName": "Canonical Project Name",
+        "composeFiles": "Compose Files",
+        "workingDirectory": "Working Directory",
+        "envFiles": "Env Files",
+        "status": "Status",
+        "services": "Services",
+        "configHash": "Config Hash",
+        "nameSource": "Name Source",
+        "runtimeMembers": "Runtime Members",
+        "runningMembers": "Running Members",
+        "hostScope": "Host Scope",
+        "lastRefreshAt": "Last Refresh",
+        "hostScopeValues": {
+          "local": "Local Host",
+          "remote-host": "Remote Host"
+        },
+        "nameSourceValues": {
+          "explicit": "Explicit",
+          "derived-working-directory": "Derived from Working Directory",
+          "derived-compose-file": "Derived from Compose File",
+          "derived-runtime-label": "Derived from Runtime Label",
+          "fallback-display-name": "Fallback Display Name"
+        }
+      },
       "tabs": {
         "overview": "Overview",
-        "services": "Services",
         "configuration": "Configuration",
         "activity": "Activity"
+      },
+      "resources": {
+        "refresh": "Refresh Resources",
+        "tabs": {
+          "containers": "Containers",
+          "networks": "Networks",
+          "volumes": "Volumes"
+        },
+        "summary": "{count} {resource} rows.",
+        "columnSettings": "Column Settings",
+        "resetColumns": "Reset Columns",
+        "loadFailed": "Failed to load project resources.",
+        "pagination": {
+          "empty": "No resource rows",
+          "summary": "{start}-{end} of {total}"
+        },
+        "descriptions": {
+          "containers": "Reuses container management table behavior while narrowing row actions to detail access.",
+          "networks": "Declared networks use the same table workspace and can later switch to runtime authority.",
+          "volumes": "Declared volumes use the same table workspace and can later switch to runtime authority."
+        },
+        "empty": {
+          "containers": {
+            "title": "No Containers",
+            "description": "This Compose project does not currently expose runtime container members."
+          },
+          "networks": {
+            "title": "No Networks",
+            "description": "This Compose project does not currently declare any networks."
+          },
+          "volumes": {
+            "title": "No Volumes",
+            "description": "This Compose project does not currently declare any volumes."
+          }
+        },
+        "columns": {
+          "status": "Status",
+          "name": "Name",
+          "service": "Service",
+          "image": "Image",
+          "cpu": "CPU",
+          "memory": "Memory",
+          "createdAt": "Created",
+          "driver": "Driver",
+          "scope": "Scope",
+          "services": "Services",
+          "containers": "Containers",
+          "anonymous": "Anonymous",
+          "mountedBy": "Mounted By",
+          "mountTarget": "Mount Target"
+        },
+        "volumeAnonymousYes": "Yes",
+        "volumeAnonymousNo": "No",
+        "detailServices": "Bound Services",
+        "detailMountedBy": "Mounted By"
       },
       "overview": {
         "summaryTitle": "Registry Summary",
@@ -398,16 +673,6 @@
         "diagnosticsEmpty": "No Configuration Diagnostics Were Returned."
       },
       "services": {
-        "title": "Declared Services",
-        "summary": "{count} Services Declared in the Latest Snapshot.",
-        "emptyTitle": "No Services",
-        "emptyDescription": "Refresh the Project Snapshot to Inspect Declared Services.",
-        "declaredPorts": "Ports",
-        "declaredVolumes": "Volumes",
-        "declaredNetworks": "Networks",
-        "members": "Runtime Members",
-        "runningCount": "Running {count}",
-        "stoppedCount": "Stopped {count}",
         "openContainer": "Open Container Detail"
       },
       "configuration": {

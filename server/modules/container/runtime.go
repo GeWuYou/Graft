@@ -68,8 +68,10 @@ const (
 	containerMountUsageStatusTimeout          = "timeout"
 	containerMountUsageStatusError            = "error"
 
-	composeProjectLabel = "com.docker.compose.project"
-	composeServiceLabel = "com.docker.compose.service"
+	composeProjectLabel     = "com.docker.compose.project"
+	composeServiceLabel     = "com.docker.compose.service"
+	composeWorkingDirLabel  = "com.docker.compose.project.working_dir"
+	composeConfigFilesLabel = "com.docker.compose.project.config_files"
 
 	composeProjectScopeKind      = "compose_project"
 	composeServiceScopeKind      = "compose_service"

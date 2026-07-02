@@ -12,6 +12,8 @@ export const PROJECT_ROUTE_PATH = {
 
 export const PROJECT_API_PATH = {
   LIST: '/api/ops/projects',
+  IMPORT_RUNTIME_CANDIDATES: '/api/ops/projects/import/runtime-candidates',
+  IMPORT_RUNTIME_INSPECT: '/api/ops/projects/import/runtime-inspect',
   IMPORT_DIRECTORY_SOURCES: '/api/ops/projects/import/directory-sources',
   IMPORT_DIRECTORIES: '/api/ops/projects/import/directories',
   IMPORT_INSPECT: '/api/ops/projects/import/inspect',

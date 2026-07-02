@@ -931,22 +931,40 @@ func TestDockerRuntimeActionInvalidatesCollectedResourceStats(t *testing.T) {
 	}
 }
 
+type dockerOrchestratorLabelsCase struct {
+	name        string
+	labels      map[string]string
+	wantType    string
+	wantManaged bool
+	wantProject string
+	wantService string
+	wantWD      string
+	wantConfigs []string
+	wantStack   string
+	wantTask    string
+	wantPod     string
+	wantNS      string
+	wantConf    string
+}
+
 func TestDockerOrchestratorFromLabels(t *testing.T) {
 	t.Parallel()
 
-	cases := []struct {
-		name        string
-		labels      map[string]string
-		wantType    string
-		wantManaged bool
-		wantProject string
-		wantService string
-		wantStack   string
-		wantTask    string
-		wantPod     string
-		wantNS      string
-		wantConf    string
-	}{
+	for _, tc := range dockerOrchestratorLabelCases() {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			info := dockerOrchestratorFromLabels(tc.labels)
+			assertDockerOrchestratorBase(t, info, tc)
+			assertDockerOrchestratorMetadata(t, info, tc)
+			assertDockerOrchestratorScopes(t, info, tc)
+		})
+	}
+}
+
+func dockerOrchestratorLabelCases() []dockerOrchestratorLabelsCase {
+	return []dockerOrchestratorLabelsCase{
 		{
 			name:        "standalone",
 			labels:      nil,
@@ -957,13 +975,32 @@ func TestDockerOrchestratorFromLabels(t *testing.T) {
 		{
 			name: "compose",
 			labels: map[string]string{
-				composeProjectLabel: "graft",
-				composeServiceLabel: "web",
+				composeProjectLabel:     "graft",
+				composeServiceLabel:     "web",
+				composeWorkingDirLabel:  "/srv/graft",
+				composeConfigFilesLabel: "/srv/graft/compose.yaml,/srv/graft/docker-compose.override.yml",
 			},
 			wantType:    containerOrchestratorCompose,
 			wantManaged: true,
 			wantProject: "graft",
 			wantService: "web",
+			wantWD:      "/srv/graft",
+			wantConfigs: []string{"/srv/graft/compose.yaml", "/srv/graft/docker-compose.override.yml"},
+			wantConf:    orchestratorConfidenceHigh,
+		},
+		{
+			name: "compose derives working directory from config files",
+			labels: map[string]string{
+				composeProjectLabel:     "graft",
+				composeServiceLabel:     "worker",
+				composeConfigFilesLabel: "/srv/graft/compose.yaml",
+			},
+			wantType:    containerOrchestratorCompose,
+			wantManaged: true,
+			wantProject: "graft",
+			wantService: "worker",
+			wantWD:      "/srv/graft",
+			wantConfigs: []string{"/srv/graft/compose.yaml"},
 			wantConf:    orchestratorConfidenceHigh,
 		},
 		{
@@ -1003,55 +1040,30 @@ func TestDockerOrchestratorFromLabels(t *testing.T) {
 			wantConf:    orchestratorConfidenceLow,
 		},
 	}
-
-	for _, tc := range cases {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			info := dockerOrchestratorFromLabels(tc.labels)
-			assertDockerOrchestratorBase(t, info, tc)
-			assertDockerOrchestratorMetadata(t, info, tc)
-			assertDockerOrchestratorScopes(t, info, tc)
-		})
-	}
 }
 
-func assertDockerOrchestratorBase(t *testing.T, info OrchestratorInfo, tc struct {
-	name        string
-	labels      map[string]string
-	wantType    string
-	wantManaged bool
-	wantProject string
-	wantService string
-	wantStack   string
-	wantTask    string
-	wantPod     string
-	wantNS      string
-	wantConf    string
-}) {
+func assertDockerOrchestratorBase(t *testing.T, info OrchestratorInfo, tc dockerOrchestratorLabelsCase) {
 	t.Helper()
 	if info.Type != tc.wantType || info.Managed != tc.wantManaged || info.Confidence != tc.wantConf {
 		t.Fatalf("unexpected orchestrator info %#v", info)
 	}
 }
 
-func assertDockerOrchestratorMetadata(t *testing.T, info OrchestratorInfo, tc struct {
-	name        string
-	labels      map[string]string
-	wantType    string
-	wantManaged bool
-	wantProject string
-	wantService string
-	wantStack   string
-	wantTask    string
-	wantPod     string
-	wantNS      string
-	wantConf    string
-}) {
+func assertDockerOrchestratorMetadata(t *testing.T, info OrchestratorInfo, tc dockerOrchestratorLabelsCase) {
 	t.Helper()
 	if info.Project != tc.wantProject || info.Service != tc.wantService || info.Stack != tc.wantStack {
 		t.Fatalf("unexpected project/service/stack %#v", info)
+	}
+	if info.WorkingDir != tc.wantWD {
+		t.Fatalf("unexpected working directory %#v", info)
+	}
+	if len(info.ConfigFiles) != len(tc.wantConfigs) {
+		t.Fatalf("unexpected config files %#v", info.ConfigFiles)
+	}
+	for index := range tc.wantConfigs {
+		if info.ConfigFiles[index] != tc.wantConfigs[index] {
+			t.Fatalf("unexpected config files %#v", info.ConfigFiles)
+		}
 	}
 	if info.Task != tc.wantTask {
 		t.Fatalf("unexpected swarm task metadata %#v", info)
@@ -1061,19 +1073,7 @@ func assertDockerOrchestratorMetadata(t *testing.T, info OrchestratorInfo, tc st
 	}
 }
 
-func assertDockerOrchestratorScopes(t *testing.T, info OrchestratorInfo, tc struct {
-	name        string
-	labels      map[string]string
-	wantType    string
-	wantManaged bool
-	wantProject string
-	wantService string
-	wantStack   string
-	wantTask    string
-	wantPod     string
-	wantNS      string
-	wantConf    string
-}) {
+func assertDockerOrchestratorScopes(t *testing.T, info OrchestratorInfo, tc dockerOrchestratorLabelsCase) {
 	t.Helper()
 	if tc.wantType == containerOrchestratorCompose {
 		assertComposeScopeSemantics(t, info, tc.wantProject, tc.wantService)

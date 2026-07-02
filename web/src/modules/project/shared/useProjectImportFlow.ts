@@ -2,14 +2,18 @@ import { computed, ref } from 'vue';
 
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 
-import { postProjectImportExecute, postProjectImportInspect } from '../api/import';
-import type { ProjectImportDirectoryRef, ProjectImportInspectResponse } from '../types/import';
-import { buildSuggestedDisplayName, hasBlockingImportConflicts } from './import';
+import { postProjectImportExecute, postProjectImportRuntimeInspect } from '../api/import';
+import type {
+  ProjectImportInspectResponse,
+  ProjectImportRuntimeCandidate,
+  ProjectImportRuntimeInspectRequest,
+} from '../types/import';
+import { buildSuggestedDisplayName, hasBlockingImportConflicts, normalizeProjectImportInspectResponse } from './import';
 
 type Translate = (key: string, params?: Record<string, unknown>) => string;
 
 /**
- * 管理项目导入流程的目录选择、预览检查和导入提交状态。
+ * 管理项目导入流程的候选 inspect、预览检查和导入提交状态。
  *
  * @param t - 用于生成本地化错误消息的翻译函数
  * @returns 包含导入流程状态、计算结果和操作方法的对象
@@ -17,7 +21,7 @@ type Translate = (key: string, params?: Record<string, unknown>) => string;
 export function useProjectImportFlow(t: Translate) {
   let latestInspectRequestId = 0;
 
-  const selectedDirectory = ref<ProjectImportDirectoryRef | null>(null);
+  const selectedCandidateKey = ref('');
   const inspectLoading = ref(false);
   const importLoading = ref(false);
   const inspectError = ref('');
@@ -37,7 +41,8 @@ export function useProjectImportFlow(t: Translate) {
   const hasPreview = computed(() => Boolean(inspectResult.value));
 
   function reset() {
-    selectedDirectory.value = null;
+    latestInspectRequestId += 1;
+    selectedCandidateKey.value = '';
     inspectLoading.value = false;
     importLoading.value = false;
     inspectError.value = '';
@@ -55,20 +60,20 @@ export function useProjectImportFlow(t: Translate) {
     canonicalProjectNameOverride.value = '';
   }
 
-  async function selectDirectory(directory: ProjectImportDirectoryRef) {
+  async function inspectCandidateByKey(candidateKey: string) {
     const requestId = ++latestInspectRequestId;
-    selectedDirectory.value = directory;
+    selectedCandidateKey.value = candidateKey;
     clearPreview();
     inspectLoading.value = true;
     try {
-      const response = await postProjectImportInspect({
-        directory_ref: directory,
-      });
+      const payload: ProjectImportRuntimeInspectRequest = { candidate_key: candidateKey };
+      const response = await postProjectImportRuntimeInspect(payload);
       if (requestId !== latestInspectRequestId) {
         return 'stale' as const;
       }
-      inspectResult.value = response;
-      displayName.value = buildSuggestedDisplayName(response);
+      const normalizedResponse = normalizeProjectImportInspectResponse(response);
+      inspectResult.value = normalizedResponse;
+      displayName.value = normalizedResponse ? buildSuggestedDisplayName(normalizedResponse) : '';
       return 'applied' as const;
     } catch (error) {
       if (requestId !== latestInspectRequestId) {
@@ -83,12 +88,16 @@ export function useProjectImportFlow(t: Translate) {
     }
   }
 
+  async function inspectCandidate(candidate: ProjectImportRuntimeCandidate) {
+    return inspectCandidateByKey(candidate.candidate_key);
+  }
+
   async function refreshInspect() {
-    if (!selectedDirectory.value) {
+    if (!selectedCandidateKey.value) {
       return 'idle' as const;
     }
 
-    return selectDirectory(selectedDirectory.value);
+    return inspectCandidateByKey(selectedCandidateKey.value);
   }
 
   async function submitImport() {
@@ -120,13 +129,13 @@ export function useProjectImportFlow(t: Translate) {
     hasPreview,
     importError,
     importLoading,
+    inspectCandidate,
     inspectError,
     inspectLoading,
     inspectResult,
     refreshInspect,
     reset,
-    selectDirectory,
-    selectedDirectory,
+    selectedCandidateKey,
     submitImport,
   };
 }

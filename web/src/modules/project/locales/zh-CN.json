@@ -136,27 +136,136 @@
     },
     "import": {
       "eyebrow": "导入项目",
-      "description": "选择服务器目录后自动扫描 Compose 与 Env 文件，完成发现预览后再导入项目。",
+      "description": "按步骤选择运行中的 Compose 项目、查看检查结果，再确认导入。",
+      "meta": {
+        "step": "步骤 {current} / {total}",
+        "readyCount": "可导入 {count}",
+        "unavailableCount": "暂不可导入 {count}",
+        "selectedCandidate": "当前候选：{name}"
+      },
+      "steps": {
+        "current": "步骤 {current} / {total}",
+        "select": {
+          "shortTitle": "选择项目",
+          "title": "第 1 步 · 选择项目",
+          "description": "先从运行时候选中挑选一个可导入的 Compose 项目。"
+        },
+        "inspect": {
+          "shortTitle": "检查",
+          "title": "第 2 步 · 检查预览",
+          "description": "只查看本次检查的发现结果与诊断信息，不在这一屏填写导入选项。"
+        },
+        "confirm": {
+          "shortTitle": "确认导入",
+          "title": "第 3 步 · 确认导入",
+          "description": "在检查就绪后填写导入选项，并执行最终导入。"
+        }
+      },
       "actions": {
         "backToList": "返回列表",
-        "selectDirectory": "选择目录",
-        "changeDirectory": "更换目录",
-        "refreshInspect": "刷新发现结果",
-        "retryInspect": "重试发现",
+        "refreshCandidates": "刷新候选",
+        "inspectCandidate": "检查",
+        "reinspectCandidate": "重新检查",
+        "refreshInspect": "刷新检查",
+        "retryInspect": "重试检查",
         "import": "导入并打开项目",
-        "reset": "重置表单"
+        "reset": "重新开始",
+        "clearFilters": "清除筛选",
+        "backToCandidates": "返回选择项目",
+        "continueToConfirm": "继续确认导入",
+        "backToInspect": "返回检查"
+      },
+      "candidates": {
+        "title": "运行时候选",
+        "summary": "可导入 {ready} 个 / 暂不可导入 {unavailable} 个",
+        "statusFilter": "筛选状态",
+        "allFilterLabel": "全部（{count}）",
+        "readyFilterLabel": "可导入（{count}）",
+        "unavailableFilterLabel": "暂不可导入（{count}）",
+        "tableSummary": "当前筛选显示 {count} 个运行时候选",
+        "tableHint": "一行代表一个 Runtime Candidate；仅可导入候选允许执行检查并进入后续导入流程。",
+        "emptyTitle": "暂无运行时候选",
+        "emptyDescription": "当前没有发现可用于导入的运行时候选。",
+        "filteredEmptyTitle": "当前筛选条件下没有匹配候选",
+        "filteredEmptyDescription": "请调整搜索词或状态筛选后重试。",
+        "columnSettings": "列设置",
+        "columnDrawerTitle": "候选列表列设置",
+        "resetColumns": "恢复默认列",
+        "searchPlaceholder": "搜索项目名、工作目录、Compose 文件或服务",
+        "columnProject": "项目",
+        "columnConfigFiles": "Compose 文件",
+        "columnWorkingDirectory": "工作目录",
+        "columnRuntime": "运行时",
+        "columnServices": "服务",
+        "columnStatus": "状态",
+        "columnReason": "阻塞原因",
+        "columnOperation": "操作",
+        "columnOptionLabels": {
+          "project": "项目",
+          "config_files": "Compose 文件",
+          "working_directory": "工作目录",
+          "runtime": "运行时",
+          "services": "服务",
+          "status": "状态",
+          "reason": "阻塞原因",
+          "operation": "操作"
+        },
+        "configFiles": "Compose 文件",
+        "workingDirectory": "工作目录",
+        "workingDirectorySource": "工作目录来源",
+        "runtime": "运行时来源",
+        "serviceNames": "服务列表",
+        "containerCounts": "容器数量",
+        "containerCountsValue": "运行中 {running} / 已停止 {stopped} / 总计 {total}",
+        "configFileCountValue": "{count} 个配置文件",
+        "serviceCountValue": "{count} 个服务",
+        "additionalConfigFiles": "另有 {count} 个文件",
+        "additionalServices": "另有 {count} 个服务",
+        "selectedMarker": "最近检查",
+        "paginationSummary": "显示第 {start}-{end} 项，共 {total} 项",
+        "status": {
+          "ready": "可导入",
+          "incomplete_metadata": "元数据不完整",
+          "unsupported_runtime": "运行时暂不支持",
+          "broken_compose": "Compose 解析失败"
+        },
+        "workingDirectorySourceValues": {
+          "runtime_label": "来自运行时标签",
+          "derived_from_config_files": "由 Compose 文件路径推导"
+        },
+        "reason": {
+          "missing_project_name": "缺少 Compose 项目名元数据",
+          "missing_config_files": "缺少 Compose 配置文件元数据",
+          "invalid_config_files": "Compose 配置文件元数据无效",
+          "conflicting_runtime_metadata": "运行时 Compose 元数据彼此冲突",
+          "unsupported_runtime_type": "当前运行时类型暂不支持导入",
+          "config_files_not_accessible": "Compose 配置文件当前不可访问",
+          "incomplete_metadata": "运行时元数据不完整，当前无法检查",
+          "unsupported_runtime": "当前运行时暂不支持该候选的导入",
+          "broken_compose": "Compose 文件无法通过导入检查",
+          "unavailable": "当前暂不可检查"
+        },
+        "warning": {
+          "working_directory_derived_from_config_files": "未提供工作目录标签，已根据首个 Compose 文件路径推导。"
+        }
       },
       "directory": {
-        "title": "项目目录",
-        "workingDirectory": "已选目录",
-        "readonlyHint": "自动发现"
+        "title": "检查工作目录",
+        "workingDirectory": "推导工作目录",
+        "configFiles": "Compose 文件",
+        "readonlyHint": "仅作展示提示"
       },
       "form": {
-        "title": "项目信息",
+        "title": "导入选项",
+        "authorityHint": "Compose 文件会作为导入依据，工作目录只在检查后作为展示提示。",
         "displayName": "展示名",
         "displayNamePlaceholder": "例如：订单服务开发环境",
         "canonicalProjectNameOverride": "Canonical Project Name 覆盖",
         "canonicalProjectNameOverridePlaceholder": "留空表示沿用发现结果"
+      },
+      "confirm": {
+        "title": "确认导入设置",
+        "hint": "将基于当前检查会话导入 {name}，请确认展示名和 Canonical Project Name 覆盖值。"
       },
       "validation": {
         "displayNameRequired": "请输入展示名。"
@@ -176,8 +285,18 @@
         "confirm": "选择当前目录"
       },
       "preview": {
-        "title": "导入预览",
+        "title": "检查预览",
+        "overviewTitle": "Overview",
+        "overviewDescription": "项目级检查信息与诊断保持独立，不与资源表混排。",
+        "resourcesTitle": "Resources",
+        "resourcesDescription": "单区域切换当前检查会话的运行时资源表。",
+        "authorityTitle": "配置与目录",
+        "summaryTitle": "检查摘要",
         "discoveryTitle": "发现结果",
+        "diagnosticsTitle": "诊断信息",
+        "resourceSearchPlaceholder": "搜索当前资源表",
+        "resourceColumnSettings": "列设置",
+        "resourceResetColumns": "恢复默认列",
         "canonicalProjectName": "Canonical Project Name",
         "canonicalNameSource": "名称来源",
         "validationStatus": "校验状态",
@@ -188,19 +307,75 @@
         "services": "服务",
         "networks": "网络",
         "volumes": "卷",
+        "runtimeMembersTitle": "运行时成员",
+        "runtimeMembersSummary": "共 {count} 个容器成员",
+        "runtimeMembersEmpty": "当前候选没有可展示的运行时成员。",
+        "runtimeMembersPagination": "第 {start}-{end} 项，共 {total} 项",
+        "runtimeMemberContainerName": "容器",
+        "runtimeMemberServiceName": "服务",
+        "runtimeMemberState": "状态",
+        "runtimeMemberContainerId": "容器 ID",
+        "blockedDescription": "当前检查结果包含冲突，解决后才能继续确认导入。",
         "noDiagnostics": "当前没有额外 warning 或 conflict。",
+        "resources": {
+          "tabs": {
+            "containers": "Containers",
+            "networks": "Networks",
+            "volumes": "Volumes"
+          },
+          "summary": "{resource} 共 {count} 条。",
+          "paginationSummary": "显示第 {start}-{end} 项，共 {total} 项",
+          "loadFailed": "资源加载失败。",
+          "descriptions": {
+            "containers": "复用容器管理表格，仅保留详情入口并保持单区域切换。",
+            "networks": "网络资源使用表格承接，避免继续堆叠摘要块。",
+            "volumes": "卷资源使用表格承接，保持与容器一致的交互结构。"
+          },
+          "empty": {
+            "filteredDescription": "当前搜索条件下没有匹配资源。",
+            "containers": {
+              "title": "暂无容器",
+              "description": "当前候选没有可展示的容器资源。"
+            },
+            "networks": {
+              "title": "暂无网络",
+              "description": "当前候选没有可展示的网络资源。"
+            },
+            "volumes": {
+              "title": "暂无卷",
+              "description": "当前候选没有可展示的卷资源。"
+            }
+          },
+          "columns": {
+            "name": "名称",
+            "driver": "Driver",
+            "scope": "Scope",
+            "internal": "Internal",
+            "containers": "Containers",
+            "anonymous": "Anonymous",
+            "mountedBy": "Mounted By",
+            "mountTarget": "Mount Target"
+          },
+          "internalYes": "是",
+          "internalNo": "否",
+          "volumeAnonymousYes": "是",
+          "volumeAnonymousNo": "否",
+          "detailServices": "关联服务",
+          "detailMountedBy": "挂载服务"
+        },
         "none": "无"
       },
       "state": {
-        "awaitingSelectionTitle": "先选择服务器目录",
-        "awaitingSelectionDescription": "目录选择后会自动执行 Inspect，回填可导入的 Compose 项目信息。",
-        "inspectErrorTitle": "目录发现失败"
+        "awaitingSelectionTitle": "先检查一个可导入候选",
+        "awaitingSelectionDescription": "从上方选择可导入候选，生成预览和导入会话。",
+        "inspectErrorTitle": "候选检查失败"
       },
       "messages": {
+        "candidateLoadFailed": "运行时候选加载失败。",
         "directorySourceLoadFailed": "目录来源加载失败。",
         "directoryLoadFailed": "目录列表加载失败。",
-        "inspectSuccess": "目录发现结果已刷新。",
-        "inspectFailed": "目录发现失败。",
+        "inspectSuccess": "检查已完成。",
+        "inspectFailed": "检查失败。",
         "importSuccess": "Compose 项目导入成功。",
         "importFailed": "Compose 项目导入失败。"
       }
@@ -366,11 +541,111 @@
       "refresh": "刷新快照",
       "openWorkingDirectory": "工作目录",
       "titleFallback": "项目详情",
+      "sections": {
+        "lifecycle": {
+          "title": "Lifecycle",
+          "description": "项目级启动、停止、重启和取消注册操作。"
+        },
+        "overview": {
+          "title": "Overview",
+          "description": "只展示项目级配置、摘要、发现信息与诊断，不在这里堆大型资源表。"
+        },
+        "resources": {
+          "title": "Resources",
+          "description": "单区域切换运行时资源表，避免同屏堆叠多个资源表。"
+        },
+        "workspaces": {
+          "title": "Workspaces",
+          "description": "次级工作区保留配置与活动能力，不再与核心概览/资源信息架构混排。"
+        }
+      },
+      "summary": {
+        "configurationTitle": "配置",
+        "summaryTitle": "摘要",
+        "discoveryTitle": "发现",
+        "canonicalName": "规范项目名",
+        "composeFiles": "Compose 文件",
+        "workingDirectory": "工作目录",
+        "envFiles": "环境文件",
+        "status": "状态",
+        "services": "服务数",
+        "configHash": "配置哈希",
+        "nameSource": "名称来源",
+        "runtimeMembers": "运行时成员",
+        "runningMembers": "运行中成员",
+        "hostScope": "宿主范围",
+        "lastRefreshAt": "最近刷新",
+        "hostScopeValues": {
+          "local": "本机",
+          "remote-host": "远端宿主"
+        },
+        "nameSourceValues": {
+          "explicit": "显式配置",
+          "derived-working-directory": "由工作目录推导",
+          "derived-compose-file": "由 Compose 文件推导",
+          "derived-runtime-label": "由运行时标签推导",
+          "fallback-display-name": "回退展示名"
+        }
+      },
       "tabs": {
         "overview": "Overview",
-        "services": "Services",
         "configuration": "Configuration",
         "activity": "Activity"
+      },
+      "resources": {
+        "refresh": "刷新资源",
+        "tabs": {
+          "containers": "Containers",
+          "networks": "Networks",
+          "volumes": "Volumes"
+        },
+        "summary": "{resource} 共 {count} 条。",
+        "columnSettings": "列设置",
+        "resetColumns": "重置列",
+        "loadFailed": "资源加载失败。",
+        "pagination": {
+          "empty": "暂无资源数据",
+          "summary": "第 {start}-{end} 条，共 {total} 条"
+        },
+        "descriptions": {
+          "containers": "复用容器管理表格能力，仅保留详情入口。",
+          "networks": "声明网络使用统一表格承接，支持未来切换到运行时 authority。",
+          "volumes": "声明卷使用统一表格承接，支持未来切换到运行时 authority。"
+        },
+        "empty": {
+          "containers": {
+            "title": "暂无容器",
+            "description": "当前 Compose 项目还没有可显示的容器成员。"
+          },
+          "networks": {
+            "title": "暂无网络",
+            "description": "当前 Compose 项目还没有声明网络。"
+          },
+          "volumes": {
+            "title": "暂无卷",
+            "description": "当前 Compose 项目还没有声明卷。"
+          }
+        },
+        "columns": {
+          "status": "状态",
+          "name": "名称",
+          "service": "服务",
+          "image": "镜像",
+          "cpu": "CPU",
+          "memory": "内存",
+          "createdAt": "创建时间",
+          "driver": "Driver",
+          "scope": "Scope",
+          "services": "Services",
+          "containers": "Containers",
+          "anonymous": "Anonymous",
+          "mountedBy": "Mounted By",
+          "mountTarget": "Mount Target"
+        },
+        "volumeAnonymousYes": "是",
+        "volumeAnonymousNo": "否",
+        "detailServices": "关联服务",
+        "detailMountedBy": "挂载服务"
       },
       "overview": {
         "summaryTitle": "注册摘要",
@@ -398,16 +673,6 @@
         "diagnosticsEmpty": "当前没有返回配置诊断摘要。"
       },
       "services": {
-        "title": "声明服务",
-        "summary": "最新快照共声明 {count} 个服务。",
-        "emptyTitle": "暂无服务",
-        "emptyDescription": "请先刷新项目快照，再查看声明服务。",
-        "declaredPorts": "端口",
-        "declaredVolumes": "卷",
-        "declaredNetworks": "网络",
-        "members": "运行时成员",
-        "runningCount": "运行中 {count}",
-        "stoppedCount": "已停止 {count}",
         "openContainer": "打开容器详情"
       },
       "configuration": {

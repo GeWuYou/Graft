@@ -1,0 +1,51 @@
+type: object
+required:
+  - candidate_key
+  - canonical_project_name
+  - status
+  - status_reason_codes
+  - importable
+  - runtime_type
+  - working_directory
+  - working_directory_source
+  - config_files
+  - service_names
+  - container_counts
+  - warnings
+properties:
+  candidate_key:
+    type: string
+  canonical_project_name:
+    type: string
+  status:
+    $ref: ./project-import-runtime-candidate-status.yaml
+  status_reason_codes:
+    type: array
+    items:
+      type: string
+  importable:
+    type: boolean
+  runtime_type:
+    type: string
+    description: Future-extensible runtime type resolved by the container runtime authority.
+  runtime_version:
+    type: string
+    nullable: true
+  working_directory:
+    type: string
+  working_directory_source:
+    $ref: ./project-import-runtime-working-directory-source.yaml
+  config_files:
+    type: array
+    items:
+      type: string
+  service_names:
+    type: array
+    items:
+      type: string
+  container_counts:
+    $ref: ./project-container-counts.yaml
+  warnings:
+    type: array
+    items:
+      type: string

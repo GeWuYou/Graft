@@ -2450,16 +2450,94 @@ func (e ProjectHostScope) Valid() bool {
 
 // Defines values for ProjectImportInspectResponseValidationStatus.
 const (
-	Conflict ProjectImportInspectResponseValidationStatus = "conflict"
-	Ready    ProjectImportInspectResponseValidationStatus = "ready"
+	ProjectImportInspectResponseValidationStatusConflict ProjectImportInspectResponseValidationStatus = "conflict"
+	ProjectImportInspectResponseValidationStatusReady    ProjectImportInspectResponseValidationStatus = "ready"
 )
 
 // Valid indicates whether the value is a known member of the ProjectImportInspectResponseValidationStatus enum.
 func (e ProjectImportInspectResponseValidationStatus) Valid() bool {
 	switch e {
-	case Conflict:
+	case ProjectImportInspectResponseValidationStatusConflict:
 		return true
-	case Ready:
+	case ProjectImportInspectResponseValidationStatusReady:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProjectImportRuntimeCandidateAvailability.
+const (
+	ProjectImportRuntimeCandidateAvailabilityReady       ProjectImportRuntimeCandidateAvailability = "ready"
+	ProjectImportRuntimeCandidateAvailabilityUnavailable ProjectImportRuntimeCandidateAvailability = "unavailable"
+)
+
+// Valid indicates whether the value is a known member of the ProjectImportRuntimeCandidateAvailability enum.
+func (e ProjectImportRuntimeCandidateAvailability) Valid() bool {
+	switch e {
+	case ProjectImportRuntimeCandidateAvailabilityReady:
+		return true
+	case ProjectImportRuntimeCandidateAvailabilityUnavailable:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProjectImportRuntimeCandidateStatus.
+const (
+	ProjectImportRuntimeCandidateStatusBrokenCompose      ProjectImportRuntimeCandidateStatus = "broken_compose"
+	ProjectImportRuntimeCandidateStatusIncompleteMetadata ProjectImportRuntimeCandidateStatus = "incomplete_metadata"
+	ProjectImportRuntimeCandidateStatusReady              ProjectImportRuntimeCandidateStatus = "ready"
+	ProjectImportRuntimeCandidateStatusUnsupportedRuntime ProjectImportRuntimeCandidateStatus = "unsupported_runtime"
+)
+
+// Valid indicates whether the value is a known member of the ProjectImportRuntimeCandidateStatus enum.
+func (e ProjectImportRuntimeCandidateStatus) Valid() bool {
+	switch e {
+	case ProjectImportRuntimeCandidateStatusBrokenCompose:
+		return true
+	case ProjectImportRuntimeCandidateStatusIncompleteMetadata:
+		return true
+	case ProjectImportRuntimeCandidateStatusReady:
+		return true
+	case ProjectImportRuntimeCandidateStatusUnsupportedRuntime:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProjectImportRuntimeInspectResponseValidationStatus.
+const (
+	ProjectImportRuntimeInspectResponseValidationStatusConflict ProjectImportRuntimeInspectResponseValidationStatus = "conflict"
+	ProjectImportRuntimeInspectResponseValidationStatusReady    ProjectImportRuntimeInspectResponseValidationStatus = "ready"
+)
+
+// Valid indicates whether the value is a known member of the ProjectImportRuntimeInspectResponseValidationStatus enum.
+func (e ProjectImportRuntimeInspectResponseValidationStatus) Valid() bool {
+	switch e {
+	case ProjectImportRuntimeInspectResponseValidationStatusConflict:
+		return true
+	case ProjectImportRuntimeInspectResponseValidationStatusReady:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProjectImportRuntimeWorkingDirectorySource.
+const (
+	ProjectImportRuntimeWorkingDirectorySourceDerivedFromConfigFiles ProjectImportRuntimeWorkingDirectorySource = "derived_from_config_files"
+	ProjectImportRuntimeWorkingDirectorySourceRuntimeLabel           ProjectImportRuntimeWorkingDirectorySource = "runtime_label"
+)
+
+// Valid indicates whether the value is a known member of the ProjectImportRuntimeWorkingDirectorySource enum.
+func (e ProjectImportRuntimeWorkingDirectorySource) Valid() bool {
+	switch e {
+	case ProjectImportRuntimeWorkingDirectorySourceDerivedFromConfigFiles:
+		return true
+	case ProjectImportRuntimeWorkingDirectorySourceRuntimeLabel:
 		return true
 	default:
 		return false
@@ -6375,6 +6453,46 @@ type EnvelopedProjectImportResponse struct {
 	TraceId string `json:"traceId"`
 }
 
+// EnvelopedProjectImportRuntimeCandidatesResponse defines model for enveloped-project-import-runtime-candidates-response.
+type EnvelopedProjectImportRuntimeCandidatesResponse struct {
+	// Code Existing canonical response code.
+	Code string                                 `json:"code"`
+	Data ProjectImportRuntimeCandidatesResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedProjectImportRuntimeInspectResponse defines model for enveloped-project-import-runtime-inspect-response.
+type EnvelopedProjectImportRuntimeInspectResponse struct {
+	// Code Existing canonical response code.
+	Code string                              `json:"code"`
+	Data ProjectImportRuntimeInspectResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
 // EnvelopedProjectImportValidateResponse defines model for enveloped-project-import-validate-response.
 type EnvelopedProjectImportValidateResponse struct {
 	// Code Existing canonical response code.
@@ -7621,6 +7739,111 @@ type ProjectImportResponse struct {
 	} `json:"snapshot_summary"`
 }
 
+// ProjectImportRuntimeCandidate defines model for project-import-runtime-candidate.
+type ProjectImportRuntimeCandidate struct {
+	CandidateKey         string                 `json:"candidate_key"`
+	CanonicalProjectName string                 `json:"canonical_project_name"`
+	ConfigFiles          []string               `json:"config_files"`
+	ContainerCounts      ProjectContainerCounts `json:"container_counts"`
+	Importable           bool                   `json:"importable"`
+
+	// RuntimeType Future-extensible runtime type resolved by the container runtime authority.
+	RuntimeType            string                                     `json:"runtime_type"`
+	RuntimeVersion         *string                                    `json:"runtime_version,omitempty"`
+	ServiceNames           []string                                   `json:"service_names"`
+	Status                 ProjectImportRuntimeCandidateStatus        `json:"status"`
+	StatusReasonCodes      []string                                   `json:"status_reason_codes"`
+	Warnings               []string                                   `json:"warnings"`
+	WorkingDirectory       string                                     `json:"working_directory"`
+	WorkingDirectorySource ProjectImportRuntimeWorkingDirectorySource `json:"working_directory_source"`
+}
+
+// ProjectImportRuntimeCandidateAvailability defines model for project-import-runtime-candidate-availability.
+type ProjectImportRuntimeCandidateAvailability string
+
+// ProjectImportRuntimeCandidateFilterCounts defines model for project-import-runtime-candidate-filter-counts.
+type ProjectImportRuntimeCandidateFilterCounts struct {
+	All         int `json:"all"`
+	Ready       int `json:"ready"`
+	Unavailable int `json:"unavailable"`
+}
+
+// ProjectImportRuntimeCandidateStatus defines model for project-import-runtime-candidate-status.
+type ProjectImportRuntimeCandidateStatus string
+
+// ProjectImportRuntimeCandidatesResponse defines model for project-import-runtime-candidates-response.
+type ProjectImportRuntimeCandidatesResponse struct {
+	FilterCounts ProjectImportRuntimeCandidateFilterCounts `json:"filter_counts"`
+	Items        []ProjectImportRuntimeCandidate           `json:"items"`
+	Limit        int                                       `json:"limit"`
+	Offset       int                                       `json:"offset"`
+	Total        int                                       `json:"total"`
+}
+
+// ProjectImportRuntimeInspectRequest defines model for project-import-runtime-inspect-request.
+type ProjectImportRuntimeInspectRequest struct {
+	CandidateKey                 string  `json:"candidate_key"`
+	CanonicalProjectNameOverride *string `json:"canonical_project_name_override,omitempty"`
+	DisplayName                  *string `json:"display_name,omitempty"`
+}
+
+// ProjectImportRuntimeInspectResponse defines model for project-import-runtime-inspect-response.
+type ProjectImportRuntimeInspectResponse struct {
+	CandidateKey               string                                              `json:"candidate_key"`
+	CanonicalProjectName       string                                              `json:"canonical_project_name"`
+	CanonicalProjectNameSource ProjectCanonicalNameSource                          `json:"canonical_project_name_source"`
+	ComposeFiles               []ProjectImportInspectFileItem                      `json:"compose_files"`
+	ConfigHash                 string                                              `json:"config_hash"`
+	Conflicts                  []string                                            `json:"conflicts"`
+	DisplayNameSuggested       string                                              `json:"display_name_suggested"`
+	EnvFiles                   []ProjectImportInspectFileItem                      `json:"env_files"`
+	InspectionId               string                                              `json:"inspection_id"`
+	Networks                   []ProjectImportRuntimeNetworkResource               `json:"networks"`
+	ResolvedWorkingDirectory   string                                              `json:"resolved_working_directory"`
+	RuntimeMembers             []ProjectImportRuntimeMember                        `json:"runtime_members"`
+	Services                   []string                                            `json:"services"`
+	ValidationStatus           ProjectImportRuntimeInspectResponseValidationStatus `json:"validation_status"`
+	Volumes                    []ProjectImportRuntimeVolumeResource                `json:"volumes"`
+	Warnings                   []string                                            `json:"warnings"`
+}
+
+// ProjectImportRuntimeInspectResponseValidationStatus defines model for ProjectImportRuntimeInspectResponse.ValidationStatus.
+type ProjectImportRuntimeInspectResponseValidationStatus string
+
+// ProjectImportRuntimeMember defines model for project-import-runtime-member.
+type ProjectImportRuntimeMember struct {
+	ContainerId   string `json:"container_id"`
+	ContainerName string `json:"container_name"`
+	ServiceName   string `json:"service_name"`
+	State         string `json:"state"`
+}
+
+// ProjectImportRuntimeNetworkResource defines model for project-import-runtime-network-resource.
+type ProjectImportRuntimeNetworkResource struct {
+	ContainerCount int      `json:"container_count"`
+	Containers     []string `json:"containers"`
+	Driver         *string  `json:"driver"`
+	Internal       *bool    `json:"internal"`
+	Name           string   `json:"name"`
+	Scope          *string  `json:"scope"`
+	ServiceCount   int      `json:"service_count"`
+	Services       []string `json:"services"`
+}
+
+// ProjectImportRuntimeVolumeResource defines model for project-import-runtime-volume-resource.
+type ProjectImportRuntimeVolumeResource struct {
+	Anonymous      bool     `json:"anonymous"`
+	ContainerCount int      `json:"container_count"`
+	Containers     []string `json:"containers"`
+	Driver         *string  `json:"driver"`
+	MountTarget    string   `json:"mount_target"`
+	MountedBy      []string `json:"mounted_by"`
+	Name           string   `json:"name"`
+}
+
+// ProjectImportRuntimeWorkingDirectorySource defines model for project-import-runtime-working-directory-source.
+type ProjectImportRuntimeWorkingDirectorySource string
+
 // ProjectImportValidateRequest defines model for project-import-validate-request.
 type ProjectImportValidateRequest struct {
 	CanonicalProjectNameOverride *string `json:"canonical_project_name_override,omitempty"`
@@ -8584,6 +8807,18 @@ type ProjectFileIdPath = int64
 
 // ProjectIdPath defines model for project-id-path.
 type ProjectIdPath = int64
+
+// ProjectImportRuntimeCandidateListAvailability defines model for project-import-runtime-candidate-list-availability.
+type ProjectImportRuntimeCandidateListAvailability = ProjectImportRuntimeCandidateAvailability
+
+// ProjectImportRuntimeCandidateListKeyword defines model for project-import-runtime-candidate-list-keyword.
+type ProjectImportRuntimeCandidateListKeyword = string
+
+// ProjectImportRuntimeCandidateListLimit defines model for project-import-runtime-candidate-list-limit.
+type ProjectImportRuntimeCandidateListLimit = int
+
+// ProjectImportRuntimeCandidateListOffset defines model for project-import-runtime-candidate-list-offset.
+type ProjectImportRuntimeCandidateListOffset = int
 
 // ProjectListDriftStatus defines model for project-list-drift-status.
 type ProjectListDriftStatus = ProjectDriftStatus
@@ -9585,6 +9820,38 @@ type PostProjectImportInspectParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
+// GetProjectImportRuntimeCandidatesParams defines parameters for GetProjectImportRuntimeCandidates.
+type GetProjectImportRuntimeCandidatesParams struct {
+	// Keyword Optional case-insensitive keyword matched against project name, working directory, compose files, runtime, service names, and candidate diagnostics.
+	Keyword *ProjectImportRuntimeCandidateListKeyword `form:"keyword,omitempty" json:"keyword,omitempty"`
+
+	// Availability Optional runtime import availability filter.
+	Availability *ProjectImportRuntimeCandidateListAvailability `form:"availability,omitempty" json:"availability,omitempty"`
+
+	// Limit Optional maximum number of runtime import candidates to return. The runtime accepts values from 1 to 100.
+	Limit *ProjectImportRuntimeCandidateListLimit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Offset Optional zero-based offset for runtime import candidates.
+	Offset *ProjectImportRuntimeCandidateListOffset `form:"offset,omitempty" json:"offset,omitempty"`
+
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostProjectImportRuntimeInspectParams defines parameters for PostProjectImportRuntimeInspect.
+type PostProjectImportRuntimeInspectParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
 // PostProjectImportValidateParams defines parameters for PostProjectImportValidate.
 type PostProjectImportValidateParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -10309,6 +10576,9 @@ type PostProjectImportJSONRequestBody = ProjectImportRequest
 
 // PostProjectImportInspectJSONRequestBody defines body for PostProjectImportInspect for application/json ContentType.
 type PostProjectImportInspectJSONRequestBody = ProjectImportInspectRequest
+
+// PostProjectImportRuntimeInspectJSONRequestBody defines body for PostProjectImportRuntimeInspect for application/json ContentType.
+type PostProjectImportRuntimeInspectJSONRequestBody = ProjectImportRuntimeInspectRequest
 
 // PostProjectImportValidateJSONRequestBody defines body for PostProjectImportValidate for application/json ContentType.
 type PostProjectImportValidateJSONRequestBody = ProjectImportValidateRequest

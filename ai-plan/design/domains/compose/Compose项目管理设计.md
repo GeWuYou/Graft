@@ -555,17 +555,19 @@ Volume 删除要单独判断：
 
 ## 9.1 输入
 
-当前 live import flow 已从手填表单收口为目录选择 + inspect authority：
+当前 canonical import flow 应收口为 `runtime candidate -> inspect -> preview -> import`：
 
 1. 用户打开 `Import Existing Project`
-2. 用户通过 folder picker 选择一个 import directory
-3. backend 在 allowlisted root / managed-root injection 边界内解析该目录
-4. backend 自动发现 Compose / Env 文件并执行一次静态 inspect
-5. frontend 展示 inspect preview
-6. 用户只允许编辑：
+2. frontend 请求 runtime candidate 列表
+3. backend 基于 `container` runtime authority 聚合 Compose import candidates
+4. frontend 展示 `ready` 与 `unavailable` candidates
+5. 用户只能选择 `ready` candidate 进入 inspect
+6. backend 基于 candidate authority 执行一次静态 inspect
+7. frontend 展示 inspect preview
+8. 用户只允许编辑：
    - `display_name`
    - `canonical_project_name_override`
-7. frontend 提交 `inspection_id` 驱动最终 import
+9. frontend 提交 `inspection_id` 驱动最终 import
 
 当前 import confirmation 表单固定只包含：
 
@@ -578,9 +580,77 @@ Volume 删除要单独判断：
 - `compose_files[]`
 - `env_files[]`
 
-这些字段都必须来自 inspect authority，而不是前端二次拼装。
+这些字段都必须来自 backend authority，而不是前端二次拼装。
 
-## 9.2 文件发现
+现有 `directory browse / inspect` 能力继续保留，但它的角色是：
+
+- 非主入口的 inspect/file-system 复用底座
+- future 服务器终端或文件能力的可复用基础
+
+它不再是当前 `Import Existing Project` 的 primary IA。
+
+## 9.2 Runtime Candidate Authority
+
+runtime candidate 的 authority owner 固定为 `container`，`project` 只消费其稳定输出，不直接解析 Docker labels。
+
+candidate 至少要固定这些字段语义：
+
+- `candidate_key`
+- `canonical_project_name`
+- `status`
+  - `ready`
+  - `incomplete_metadata`
+  - `unsupported_runtime`
+  - `broken_compose`
+- `status_reason_codes`
+- `importable`
+- `runtime_type`
+- `runtime_version`
+- `working_directory`
+- `working_directory_source`
+- `config_files`
+- `service_names`
+- `container_counts`
+- `warnings`
+
+返回规则：
+
+- runtime candidates 不能只返回 `ready`
+- 对当前 runtime 中可见但不可导入的 Compose project，必须返回 `unavailable` candidate，并给出稳定 reason code
+- frontend 通过 `status + status_reason_codes` 展示不可导入原因，而不是靠候选“消失”表达失败
+
+当前 batch 固定的最小 reason code 集：
+
+- `missing_project_name`
+- `missing_config_files`
+- `invalid_config_files`
+- `conflicting_runtime_metadata`
+- `unsupported_runtime_type`
+- `compose_parse_failed`
+- `config_files_not_accessible`
+
+## 9.3 Metadata Authority Rules
+
+runtime candidate 的 stronger authority 固定为：
+
+- `config_files`
+
+`working_directory` 只作为 hint，不作为 import identity。
+
+规则：
+
+- 若 runtime label 同时提供 `working_directory + config_files`，直接使用
+- 若缺少 `working_directory` 但 `config_files[0]` 可用，允许由 `dirname(config_files[0])` 派生 working directory
+- 上述派生成功时，candidate 仍可为 `ready`，但需返回 warning code 与 `working_directory_source=derived_from_config_files`
+- 只有 `config_files` 缺失、无效、不可访问，或同一 candidate 组内元数据冲突时，candidate 才进入不可导入状态
+
+candidate grouping identity 建议固定为：
+
+- `host_scope + canonical_project_name + normalized config_files digest`
+
+而不是单独依赖 `working_directory`。
+
+## 9.4 文件发现
 
 默认发现顺序：
 
@@ -590,22 +660,21 @@ Volume 删除要单独判断：
 4. `docker-compose.yml`
 5. `docker-compose.override.yml`
 
-当前 live 规则：
+inspect / parse 层继续保留当前 live 规则：
 
 - inspect 自动扫描：
   - 上述 compose primary / override candidates
   - `*.env`
   - `.env.*`
 - 若发现多个 primary compose candidates，backend 仍按固定优先级选主文件并返回 warning。
-- 合同层继续支持有序多文件；当前 folder-pick import UI 不再暴露手工文件确认。
+- 合同层继续支持有序多文件；当前 import UI 不再暴露手工文件确认。
 
-## 9.3 校验
+## 9.5 校验
 
 inspect / import 前必须校验：
 
-- selected directory 在 provider/root allowlist 边界内
-- selected directory 存在且可访问
-- 自动发现的 Compose 文件存在
+- selected runtime candidate 处于 `ready`
+- candidate authority 对应的 Compose 文件存在
 - 路径解析后仍在允许边界内
 - Compose 语法与规范化解析成功
 - env file 可读取
@@ -613,25 +682,31 @@ inspect / import 前必须校验：
 - 唯一性校验通过
 - import 时 inspection snapshot 未过期、未 stale
 
-## 9.4 冲突检测
+保留的 directory browse / inspect path 仍需继续校验：
+
+- selected directory 在 provider/root allowlist 边界内
+- selected directory 存在且可访问
+
+## 9.6 冲突检测
 
 至少检测：
 
 - 同一 `host_scope + canonical_project_name` 已存在
-- 同一 `working_directory + compose file set` 已存在
+- 同一 `config_files digest` 已存在
 - inspect 后文件 hash 与 import 时重算结果不一致
-- 自动发现文件缺失
+- candidate authority 指向的文件缺失
 - 文件内容不是有效 Compose 配置
 
-## 9.5 导入步骤
+## 9.7 导入步骤
 
-1. frontend 请求 `GET /api/ops/projects/import/directory-sources`
-2. frontend 在一个 source root 下请求 `GET /api/ops/projects/import/directories`
-3. 用户选择 root-relative directory
-4. frontend 提交 `POST /api/ops/projects/import/inspect`
-5. backend 自动发现 compose/env files，并只解析一次 compose authority
+1. frontend 请求 `GET /api/ops/projects/import/runtime-candidates`
+2. backend 从 runtime authority 聚合 Compose import candidates，并同时返回 `ready` 与 `unavailable`
+3. 用户选择一个 `ready` candidate
+4. frontend 提交 `POST /api/ops/projects/import/runtime-inspect`
+5. backend 基于 candidate authority 解析 compose/env files，并只解析一次 compose authority
 6. backend 生成：
    - `inspection_id`
+   - `candidate_key`
    - `canonical_project_name`
    - `display_name_suggested`
    - `compose_files`
@@ -643,7 +718,9 @@ inspect / import 前必须校验：
 9. backend 持久化 `compose_projects`、`compose_project_files`、`compose_project_snapshots`
 10. 返回项目详情摘要
 
-## 9.6 输出
+保留的 directory browse / inspect path 继续存在，但不再作为当前主入口 IA。
+
+## 9.8 输出
 
 持久化内容：
 
@@ -693,13 +770,49 @@ Phase 1 的 canonical OpenAPI authority 已收口到 `openapi/**`，本节继续
 
 | Method | Path | 语义 |
 | --- | --- | --- |
+| `GET` | `/api/ops/projects/import/runtime-candidates` | 返回当前 runtime 可见的 Compose import candidates |
+| `POST` | `/api/ops/projects/import/runtime-inspect` | 基于一个 `ready` runtime candidate 执行 inspect |
 | `GET` | `/api/ops/projects/import/directory-sources` | 返回 import flow 可用的 directory roots |
 | `GET` | `/api/ops/projects/import/directories` | 在一个 allowed root 下分页浏览目录 |
 | `POST` | `/api/ops/projects/import/inspect` | 自动发现并 inspect 一个 selected directory |
 | `POST` | `/api/ops/projects/import/validate` | 只校验输入与 Compose 解析，不持久化 |
 | `POST` | `/api/ops/projects/import` | 导入并注册项目 |
 
-`directory-sources` 返回：
+`runtime-candidates` 返回建议包含：
+
+- `candidate_key`
+- `canonical_project_name`
+- `status`
+- `status_reason_codes`
+- `importable`
+- `runtime_type`
+- `runtime_version`
+- `working_directory`
+- `working_directory_source`
+- `config_files`
+- `service_names`
+- `container_counts`
+- `warnings`
+
+`runtime-inspect` 返回建议包含：
+
+- `inspection_id`
+- `candidate_key`
+- `resolved_working_directory`
+- `canonical_project_name`
+- `canonical_project_name_source`
+- `display_name_suggested`
+- `compose_files`
+- `env_files`
+- `services`
+- `networks`
+- `volumes`
+- `config_hash`
+- `warnings`
+- `conflicts`
+- `validation_status`
+
+保留的 `directory-sources` 返回：
 
 - `provider`
 - `root_id`
@@ -720,7 +833,7 @@ Phase 1 的 canonical OpenAPI authority 已收口到 `openapi/**`，本节继续
 - `order`
 - `directories[]`
 
-`inspect` 返回建议包含：
+保留的 `inspect` 返回建议包含：
 
 - `inspection_id`
 - `directory_ref`
@@ -738,7 +851,7 @@ Phase 1 的 canonical OpenAPI authority 已收口到 `openapi/**`，本节继续
 - `conflicts`
 - `validation_status`
 
-legacy `validate` 返回建议包含：
+保留的 legacy `validate` 返回建议包含：
 
 - 自动发现的 compose / env 文件
 - 解析到的 `canonical_project_name`
@@ -752,6 +865,12 @@ legacy `validate` 返回建议包含：
 - 项目主记录
 - 快照摘要
 - import 使用的 inspect authority 已被消费，不接受前端重复提交 working directory / compose/env file sets
+
+`directory-sources` / `directories` / `inspect` 当前保留的理由固定为：
+
+- 支撑非主入口 inspect/file-system 复用能力
+- future 服务器终端或文件能力复用
+- 不能再被误解释为 Phase 1 主 import IA
 
 ## 10.2A Phase 2 managed root 与 create contract
 

@@ -1,0 +1,36 @@
+type: object
+required:
+  - name
+  - driver
+  - scope
+  - internal
+  - containers
+  - container_count
+  - services
+  - service_count
+properties:
+  name:
+    type: string
+  driver:
+    type: string
+    nullable: true
+  scope:
+    type: string
+    nullable: true
+  internal:
+    type: boolean
+    nullable: true
+  containers:
+    type: array
+    items:
+      type: string
+  container_count:
+    type: integer
+    minimum: 0
+  services:
+    type: array
+    items:
+      type: string
+  service_count:
+    type: integer
+    minimum: 0

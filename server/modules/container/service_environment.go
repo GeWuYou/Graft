@@ -138,6 +138,8 @@ func normalizedOrchestratorInfo(info OrchestratorInfo) OrchestratorInfo {
 	info.Managed = info.Type != containerOrchestratorStandalone
 	info.GroupScopeKind = normalizeContainerSourceScopeKind(info.GroupScopeKind)
 	info.MemberScopeKind = normalizeContainerSourceScopeKind(info.MemberScopeKind)
+	info.WorkingDir = strings.TrimSpace(info.WorkingDir)
+	info.ConfigFiles = normalizedStringSlice(info.ConfigFiles)
 	info.GroupValue = strings.TrimSpace(info.GroupValue)
 	info.MemberValue = strings.TrimSpace(info.MemberValue)
 	info.GroupDisplayName = strings.TrimSpace(info.GroupDisplayName)
@@ -203,6 +205,29 @@ func orchestratorWarningsFor(
 		appendWarning(orchestratorWarningBatchBlocked)
 	}
 	return warnings
+}
+
+func normalizedStringSlice(values []string) []string {
+	if len(values) == 0 {
+		return nil
+	}
+	seen := make(map[string]struct{}, len(values))
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		result = append(result, value)
+	}
+	if len(result) == 0 {
+		return nil
+	}
+	return result
 }
 
 // isSensitiveEnvironmentKey 判断环境变量键是否表示敏感值。
