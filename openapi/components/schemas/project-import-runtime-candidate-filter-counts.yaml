@@ -1,0 +1,15 @@
+type: object
+required:
+  - all
+  - ready
+  - unavailable
+properties:
+  all:
+    type: integer
+    minimum: 0
+  ready:
+    type: integer
+    minimum: 0
+  unavailable:
+    type: integer
+    minimum: 0

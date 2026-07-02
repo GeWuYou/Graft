@@ -2466,6 +2466,24 @@ func (e ProjectImportInspectResponseValidationStatus) Valid() bool {
 	}
 }
 
+// Defines values for ProjectImportRuntimeCandidateAvailability.
+const (
+	ProjectImportRuntimeCandidateAvailabilityReady       ProjectImportRuntimeCandidateAvailability = "ready"
+	ProjectImportRuntimeCandidateAvailabilityUnavailable ProjectImportRuntimeCandidateAvailability = "unavailable"
+)
+
+// Valid indicates whether the value is a known member of the ProjectImportRuntimeCandidateAvailability enum.
+func (e ProjectImportRuntimeCandidateAvailability) Valid() bool {
+	switch e {
+	case ProjectImportRuntimeCandidateAvailabilityReady:
+		return true
+	case ProjectImportRuntimeCandidateAvailabilityUnavailable:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ProjectImportRuntimeCandidateStatus.
 const (
 	ProjectImportRuntimeCandidateStatusBrokenCompose      ProjectImportRuntimeCandidateStatus = "broken_compose"
@@ -7740,12 +7758,26 @@ type ProjectImportRuntimeCandidate struct {
 	WorkingDirectorySource ProjectImportRuntimeWorkingDirectorySource `json:"working_directory_source"`
 }
 
+// ProjectImportRuntimeCandidateAvailability defines model for project-import-runtime-candidate-availability.
+type ProjectImportRuntimeCandidateAvailability string
+
+// ProjectImportRuntimeCandidateFilterCounts defines model for project-import-runtime-candidate-filter-counts.
+type ProjectImportRuntimeCandidateFilterCounts struct {
+	All         int `json:"all"`
+	Ready       int `json:"ready"`
+	Unavailable int `json:"unavailable"`
+}
+
 // ProjectImportRuntimeCandidateStatus defines model for project-import-runtime-candidate-status.
 type ProjectImportRuntimeCandidateStatus string
 
 // ProjectImportRuntimeCandidatesResponse defines model for project-import-runtime-candidates-response.
 type ProjectImportRuntimeCandidatesResponse struct {
-	Items []ProjectImportRuntimeCandidate `json:"items"`
+	FilterCounts ProjectImportRuntimeCandidateFilterCounts `json:"filter_counts"`
+	Items        []ProjectImportRuntimeCandidate           `json:"items"`
+	Limit        int                                       `json:"limit"`
+	Offset       int                                       `json:"offset"`
+	Total        int                                       `json:"total"`
 }
 
 // ProjectImportRuntimeInspectRequest defines model for project-import-runtime-inspect-request.
@@ -8743,6 +8775,18 @@ type ProjectFileIdPath = int64
 
 // ProjectIdPath defines model for project-id-path.
 type ProjectIdPath = int64
+
+// ProjectImportRuntimeCandidateListAvailability defines model for project-import-runtime-candidate-list-availability.
+type ProjectImportRuntimeCandidateListAvailability = ProjectImportRuntimeCandidateAvailability
+
+// ProjectImportRuntimeCandidateListKeyword defines model for project-import-runtime-candidate-list-keyword.
+type ProjectImportRuntimeCandidateListKeyword = string
+
+// ProjectImportRuntimeCandidateListLimit defines model for project-import-runtime-candidate-list-limit.
+type ProjectImportRuntimeCandidateListLimit = int
+
+// ProjectImportRuntimeCandidateListOffset defines model for project-import-runtime-candidate-list-offset.
+type ProjectImportRuntimeCandidateListOffset = int
 
 // ProjectListDriftStatus defines model for project-list-drift-status.
 type ProjectListDriftStatus = ProjectDriftStatus
@@ -9746,6 +9790,18 @@ type PostProjectImportInspectParams struct {
 
 // GetProjectImportRuntimeCandidatesParams defines parameters for GetProjectImportRuntimeCandidates.
 type GetProjectImportRuntimeCandidatesParams struct {
+	// Keyword Optional case-insensitive keyword matched against project name, working directory, compose files, runtime, service names, and candidate diagnostics.
+	Keyword *ProjectImportRuntimeCandidateListKeyword `form:"keyword,omitempty" json:"keyword,omitempty"`
+
+	// Availability Optional runtime import availability filter.
+	Availability *ProjectImportRuntimeCandidateListAvailability `form:"availability,omitempty" json:"availability,omitempty"`
+
+	// Limit Optional maximum number of runtime import candidates to return. The runtime accepts values from 1 to 100.
+	Limit *ProjectImportRuntimeCandidateListLimit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Offset Optional zero-based offset for runtime import candidates.
+	Offset *ProjectImportRuntimeCandidateListOffset `form:"offset,omitempty" json:"offset,omitempty"`
+
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 

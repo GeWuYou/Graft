@@ -17,6 +17,42 @@ func toProjectListResponse(result ListResult) generated.ProjectListResponse {
 	}
 }
 
+func toRuntimeImportCandidatesResponse(result RuntimeImportCandidatesResult) generated.ProjectImportRuntimeCandidatesResponse {
+	items := make([]generated.ProjectImportRuntimeCandidate, 0, len(result.Items))
+	for _, item := range result.Items {
+		items = append(items, generated.ProjectImportRuntimeCandidate{
+			CandidateKey:           item.CandidateKey,
+			CanonicalProjectName:   item.CanonicalProjectName,
+			Status:                 generated.ProjectImportRuntimeCandidateStatus(item.Status),
+			StatusReasonCodes:      append([]string(nil), item.StatusReasonCodes...),
+			Importable:             item.Importable,
+			RuntimeType:            item.RuntimeType,
+			RuntimeVersion:         item.RuntimeVersion,
+			WorkingDirectory:       item.WorkingDirectory,
+			WorkingDirectorySource: generated.ProjectImportRuntimeWorkingDirectorySource(item.WorkingDirectorySource),
+			ConfigFiles:            append([]string(nil), item.ConfigFiles...),
+			ServiceNames:           append([]string(nil), item.ServiceNames...),
+			ContainerCounts: generated.ProjectContainerCounts{
+				Running: item.ContainerCounts.Running,
+				Stopped: item.ContainerCounts.Stopped,
+				Total:   item.ContainerCounts.Total,
+			},
+			Warnings: append([]string(nil), item.Warnings...),
+		})
+	}
+	return generated.ProjectImportRuntimeCandidatesResponse{
+		Items:  items,
+		Total:  result.Total,
+		Limit:  result.Limit,
+		Offset: result.Offset,
+		FilterCounts: generated.ProjectImportRuntimeCandidateFilterCounts{
+			All:         result.FilterCounts.All,
+			Ready:       result.FilterCounts.Ready,
+			Unavailable: result.FilterCounts.Unavailable,
+		},
+	}
+}
+
 // toSourceCatalogResponse 将源目录结果转换为源目录响应，并复制条目列表。
 //
 // @return Items 复制后的源目录条目列表。

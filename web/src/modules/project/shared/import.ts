@@ -133,15 +133,3 @@ export function resolveProjectImportRuntimeCandidateReasonKey(candidate: Project
 
   return candidate.status || 'unavailable';
 }
-
-/**
- * 汇总候选的配置文件 authority 列表。
- *
- * `working_directory` 只作为展示 hint；这里返回的 config files 才是更强的导入 authority。
- *
- * @param candidate - 运行时候选
- * @returns 运行时 authority 返回的 config files 列表
- */
-export function collectProjectImportRuntimeCandidateConfigFiles(candidate: ProjectImportRuntimeCandidate) {
-  return [...candidate.config_files];
-}

@@ -12,10 +12,10 @@
               {{ t('project.import.meta.step', { current: currentStepIndex + 1, total: wizardSteps.length }) }}
             </t-tag>
             <t-tag theme="success" variant="light-outline">
-              {{ t('project.import.meta.readyCount', { count: readyCandidates.length }) }}
+              {{ t('project.import.meta.readyCount', { count: candidateFilterCounts.ready }) }}
             </t-tag>
             <t-tag theme="warning" variant="light-outline">
-              {{ t('project.import.meta.unavailableCount', { count: unavailableCandidates.length }) }}
+              {{ t('project.import.meta.unavailableCount', { count: candidateFilterCounts.unavailable }) }}
             </t-tag>
             <t-tag v-if="selectedCandidateLabel" theme="default" variant="light-outline">
               {{ t('project.import.meta.selectedCandidate', { name: selectedCandidateLabel }) }}
@@ -68,15 +68,28 @@
               >
                 <template #prefix-icon><search-icon /></template>
               </t-input>
+              <t-select
+                v-model="candidateStatusFilter"
+                class="management-toolbar__select"
+                data-testid="candidate-status-filter"
+                :placeholder="t('project.import.candidates.statusFilter')"
+              >
+                <t-option
+                  v-for="option in candidateStatusFilterOptions"
+                  :key="option.value"
+                  :value="option.value"
+                  :label="option.label"
+                />
+              </t-select>
             </template>
             <template #actions>
               <t-button
                 theme="default"
                 variant="text"
-                :disabled="!candidateSearchKeyword"
-                @click="clearCandidateSearch"
+                :disabled="!hasActiveCandidateFilters"
+                @click="resetCandidateFilters"
               >
-                {{ t('project.import.actions.clearSearch') }}
+                {{ t('project.import.actions.clearFilters') }}
               </t-button>
             </template>
           </management-toolbar>
@@ -96,21 +109,22 @@
 
           <advanced-query-paged-table
             v-else
+            :key="candidateTableRenderKey"
             v-model:current="candidatePagination.current"
             v-model:page-size="candidatePagination.pageSize"
             :cell-slot-names="candidateCellSlotNames"
             :columns="visibleCandidateColumns"
-            :description="activeCandidateTableHint"
-            :empty-description="activeCandidateEmptyDescription"
-            :empty-title="activeCandidateEmptyTitle"
+            :description="candidateTableHint"
+            :empty-description="candidateEmptyDescription"
+            :empty-title="candidateEmptyTitle"
             :footer-summary="candidatePaginationSummary"
-            :head-label="activeCandidateHeadLabel"
+            :head-label="candidateHeadLabel"
             :loading="candidatesLoading"
             :row-class-name="candidateRowClassName"
             row-key="candidate_key"
-            :rows="pagedCandidates"
-            :summary="activeCandidateTableSummary"
-            :total="activeCandidateCount"
+            :rows="candidates"
+            :summary="candidateTableSummary"
+            :total="candidateListTotal"
           >
             <template #toolbar>
               <table-view-toolbar
@@ -121,11 +135,12 @@
                 @refresh="loadCandidates"
               >
                 <template #before>
-                  <t-radio-group v-model:value="candidateView" size="small" theme="button" variant="default-filled">
-                    <t-radio-button v-for="option in candidateViewOptions" :key="option.value" :value="option.value">
-                      {{ option.label }}
-                    </t-radio-button>
-                  </t-radio-group>
+                  <span class="project-import-section-description">{{
+                    t('project.import.candidates.summary', {
+                      ready: candidateFilterCounts.ready,
+                      unavailable: candidateFilterCounts.unavailable,
+                    })
+                  }}</span>
                 </template>
               </table-view-toolbar>
             </template>
@@ -135,7 +150,7 @@
                 <div class="project-import-candidate-main__title">
                   <strong>{{ row.canonical_project_name }}</strong>
                   <t-tag
-                    v-if="candidateView === 'ready' && row.candidate_key === selectedCandidateKey"
+                    v-if="row.candidate_key === selectedCandidateKey"
                     size="small"
                     theme="primary"
                     variant="light-outline"
@@ -191,95 +206,44 @@
 
             <template #reason="{ row }">
               <div class="project-import-candidate-reason">
-                <strong>{{ candidateUnavailableReason(row) }}</strong>
-                <span v-if="candidateDiagnostics(row).length">
-                  {{ candidateDiagnostics(row)[0] }}
-                </span>
+                <template v-if="isProjectImportRuntimeCandidateReady(row)">
+                  <span>-</span>
+                </template>
+                <template v-else>
+                  <strong>{{ candidateUnavailableReason(row) }}</strong>
+                  <span v-if="candidateDiagnostics(row).length">
+                    {{ candidateDiagnostics(row).join(' · ') }}
+                  </span>
+                </template>
               </div>
             </template>
 
             <template #operation="{ row }">
               <t-button
-                v-if="candidateView === 'ready'"
                 theme="primary"
                 variant="outline"
                 size="small"
                 :loading="inspectLoading && selectedCandidateKey === row.candidate_key"
-                :disabled="inspectLoading && selectedCandidateKey !== row.candidate_key"
+                :disabled="
+                  !isProjectImportRuntimeCandidateReady(row) ||
+                  (inspectLoading && selectedCandidateKey !== row.candidate_key)
+                "
                 @click="handleCandidateInspect(row)"
               >
                 {{ t('project.import.actions.inspectCandidate') }}
-              </t-button>
-              <t-button v-else theme="default" variant="outline" size="small" @click="openUnavailableDiagnostics(row)">
-                {{ t('project.import.actions.viewDiagnostics') }}
               </t-button>
             </template>
           </advanced-query-paged-table>
 
           <advanced-query-column-drawer
-            v-model:selected-keys="activeVisibleColumnKeys"
+            v-model:selected-keys="visibleCandidateColumnKeys"
             v-model:visible="columnDrawerVisible"
-            :columns="activeColumnSettingOptions"
-            :default-selected-keys="activeDefaultVisibleColumnKeys"
+            :columns="candidateColumnSettingOptions"
+            :default-selected-keys="DEFAULT_VISIBLE_COLUMNS"
             :disabled-keys="candidateColumnDisabledKeys"
             :reset-label="t('project.import.candidates.resetColumns')"
             :title="t('project.import.candidates.columnDrawerTitle')"
           />
-
-          <t-drawer
-            v-model:visible="unavailableDetailVisible"
-            :header="
-              t('project.import.unavailable.detailTitle', {
-                name: unavailableDetailCandidate?.canonical_project_name || '-',
-              })
-            "
-            :footer="false"
-            placement="right"
-            size="480px"
-          >
-            <div v-if="unavailableDetailCandidate" class="project-import-unavailable-drawer">
-              <t-alert
-                theme="warning"
-                :title="t('project.import.unavailable.primaryReasonTitle')"
-                :message="candidateUnavailableReason(unavailableDetailCandidate)"
-              />
-
-              <t-descriptions size="small" :column="1" bordered>
-                <t-descriptions-item :label="t('project.import.candidates.configFiles')">
-                  {{ formatPathList(collectCandidateConfigFiles(unavailableDetailCandidate)) }}
-                </t-descriptions-item>
-                <t-descriptions-item :label="t('project.import.candidates.workingDirectory')">
-                  <code>{{ unavailableDetailCandidate.working_directory || '-' }}</code>
-                </t-descriptions-item>
-                <t-descriptions-item :label="t('project.import.candidates.runtime')">
-                  {{
-                    formatRuntimeLabel(
-                      unavailableDetailCandidate.runtime_type,
-                      unavailableDetailCandidate.runtime_version,
-                    )
-                  }}
-                </t-descriptions-item>
-                <t-descriptions-item :label="t('project.import.candidates.serviceNames')">
-                  {{ formatList(unavailableDetailCandidate.service_names) }}
-                </t-descriptions-item>
-              </t-descriptions>
-
-              <div class="project-import-diagnostics">
-                <div class="project-import-diagnostics__title">
-                  {{ t('project.import.unavailable.diagnosticsTitle') }}
-                </div>
-                <ul
-                  v-if="candidateDiagnostics(unavailableDetailCandidate).length"
-                  class="project-import-diagnostics__list"
-                >
-                  <li v-for="diagnostic in candidateDiagnostics(unavailableDetailCandidate)" :key="diagnostic">
-                    {{ diagnostic }}
-                  </li>
-                </ul>
-                <t-empty v-else :description="t('project.import.unavailable.noDiagnostics')" />
-              </div>
-            </div>
-          </t-drawer>
         </section>
 
         <section v-else-if="currentStep === 'inspect'" class="project-import-step">
@@ -467,68 +431,61 @@ import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { getProjectImportRuntimeCandidates } from '../../api/import';
 import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import {
-  collectProjectImportRuntimeCandidateConfigFiles,
   isProjectImportRuntimeCandidateReady,
   resolveProjectImportRuntimeCandidateReasonKey,
 } from '../../shared/import';
 import { appendResolvedTab, buildDetailTitleWithFallback } from '../../shared/navigation';
 import { useProjectPageContext } from '../../shared/page-context';
 import { useProjectImportFlow } from '../../shared/useProjectImportFlow';
-import type { ProjectImportExecuteResponse, ProjectImportRuntimeCandidate } from '../../types/import';
+import type {
+  ProjectImportExecuteResponse,
+  ProjectImportRuntimeCandidate,
+  ProjectImportRuntimeCandidateFilterCounts,
+  ProjectImportRuntimeCandidatesQuery,
+} from '../../types/import';
 
 defineOptions({
   name: 'ProjectImportIndex',
 });
 
 type ImportWizardStep = 'select' | 'inspect' | 'confirm';
-type CandidateView = 'ready' | 'unavailable';
+type CandidateStatusFilter = 'all' | 'ready' | 'unavailable';
 type PaginationState = {
   current: number;
   pageSize: number;
 };
 
+type CandidateListState = {
+  items: ProjectImportRuntimeCandidate[];
+  total: number;
+  filterCounts: ProjectImportRuntimeCandidateFilterCounts;
+};
+
 const IMPORT_STEP_QUERY_KEY = 'step';
 const IMPORT_CANDIDATE_QUERY_KEY = 'candidate';
 const CANDIDATE_PAGE_SIZE = 10;
-const READY_COLUMN_STORAGE_KEY = 'graft.project.import.ready.visibleColumns';
-const UNAVAILABLE_COLUMN_STORAGE_KEY = 'graft.project.import.unavailable.visibleColumns';
-const READY_DEFAULT_VISIBLE_COLUMNS = [
+const CANDIDATE_COLUMN_STORAGE_KEY = 'graft.project.import.visibleColumns.v2';
+const DEFAULT_VISIBLE_COLUMNS = [
   'project',
   'config_files',
   'working_directory',
   'runtime',
   'services',
   'status',
+  'reason',
   'operation',
 ];
-const READY_ALL_COLUMN_KEYS = [
+const ALL_COLUMN_KEYS = [
   'project',
   'config_files',
   'working_directory',
   'runtime',
   'services',
   'status',
-  'operation',
-];
-const UNAVAILABLE_DEFAULT_VISIBLE_COLUMNS = [
-  'project',
-  'config_files',
-  'working_directory',
-  'runtime',
-  'status',
   'reason',
   'operation',
 ];
-const UNAVAILABLE_ALL_COLUMN_KEYS = [
-  'project',
-  'config_files',
-  'working_directory',
-  'runtime',
-  'status',
-  'reason',
-  'operation',
-];
-const CANDIDATE_ALWAYS_VISIBLE_COLUMNS = ['operation'];
+const CANDIDATE_ALWAYS_VISIBLE_COLUMNS = ['reason', 'operation'];
 
 const wizardSteps = [
   {
@@ -562,30 +519,26 @@ const formRef = ref<FormInstanceFunctions | null>(null);
 const candidatesLoading = ref(true);
 const candidatesError = ref('');
 const candidates = ref<ProjectImportRuntimeCandidate[]>([]);
+const candidateListTotal = ref(0);
+const candidateFilterCounts = ref<ProjectImportRuntimeCandidateFilterCounts>({
+  all: 0,
+  ready: 0,
+  unavailable: 0,
+});
 const currentStep = ref<ImportWizardStep>('select');
 const candidatesLoaded = ref(false);
 const candidateSearchKeyword = ref('');
-const candidateView = ref<CandidateView>('ready');
+const candidateStatusFilter = ref<CandidateStatusFilter>('all');
 const candidatePagination = reactive<PaginationState>({
   current: 1,
   pageSize: CANDIDATE_PAGE_SIZE,
 });
 const columnDrawerVisible = ref(false);
-const unavailableDetailVisible = ref(false);
-const unavailableDetailCandidate = ref<ProjectImportRuntimeCandidate | null>(null);
-const visibleReadyColumnKeys = ref<string[]>(
+const visibleCandidateColumnKeys = ref<string[]>(
   loadVisibleColumnKeys(
-    READY_COLUMN_STORAGE_KEY,
-    READY_DEFAULT_VISIBLE_COLUMNS,
-    READY_ALL_COLUMN_KEYS,
-    CANDIDATE_ALWAYS_VISIBLE_COLUMNS,
-  ),
-);
-const visibleUnavailableColumnKeys = ref<string[]>(
-  loadVisibleColumnKeys(
-    UNAVAILABLE_COLUMN_STORAGE_KEY,
-    UNAVAILABLE_DEFAULT_VISIBLE_COLUMNS,
-    UNAVAILABLE_ALL_COLUMN_KEYS,
+    CANDIDATE_COLUMN_STORAGE_KEY,
+    DEFAULT_VISIBLE_COLUMNS,
+    ALL_COLUMN_KEYS,
     CANDIDATE_ALWAYS_VISIBLE_COLUMNS,
   ),
 );
@@ -617,9 +570,6 @@ const formRules: FormProps['rules'] = {
 };
 
 const readyCandidates = computed(() => candidates.value.filter((item) => isProjectImportRuntimeCandidateReady(item)));
-const unavailableCandidates = computed(() =>
-  candidates.value.filter((item) => !isProjectImportRuntimeCandidateReady(item)),
-);
 const selectedCandidate = computed(
   () => candidates.value.find((item) => item.candidate_key === selectedCandidateKey.value) ?? null,
 );
@@ -630,26 +580,22 @@ const resolvedWorkingDirectory = computed(
   () => inspectResult.value?.resolved_working_directory || selectedCandidate.value?.working_directory || '',
 );
 
-const normalizedCandidateSearch = computed(() => candidateSearchKeyword.value.trim().toLowerCase());
-
-const filteredReadyCandidates = computed(() =>
-  readyCandidates.value.filter((candidate) => matchesCandidateSearch(candidate, normalizedCandidateSearch.value)),
+const normalizedCandidateSearch = computed(() => candidateSearchKeyword.value.trim());
+const hasActiveCandidateFilters = computed(
+  () => Boolean(candidateSearchKeyword.value.trim()) || candidateStatusFilter.value !== 'all',
 );
-const filteredUnavailableCandidates = computed(() =>
-  unavailableCandidates.value.filter((candidate) => matchesCandidateSearch(candidate, normalizedCandidateSearch.value)),
-);
-const activeCandidates = computed(() =>
-  candidateView.value === 'ready' ? filteredReadyCandidates.value : filteredUnavailableCandidates.value,
-);
-const pagedCandidates = computed(() => paginateCandidates(activeCandidates.value, candidatePagination));
-const candidateViewOptions = computed(() => [
+const candidateStatusFilterOptions = computed(() => [
+  {
+    value: 'all' as const,
+    label: t('project.import.candidates.allFilterLabel', { count: candidateFilterCounts.value.all }),
+  },
   {
     value: 'ready' as const,
-    label: t('project.import.candidates.readyViewLabel', { count: readyCandidates.value.length }),
+    label: t('project.import.candidates.readyFilterLabel', { count: candidateFilterCounts.value.ready }),
   },
   {
     value: 'unavailable' as const,
-    label: t('project.import.candidates.unavailableViewLabel', { count: unavailableCandidates.value.length }),
+    label: t('project.import.candidates.unavailableFilterLabel', { count: candidateFilterCounts.value.unavailable }),
   },
 ]);
 const candidateCellSlotNames = [
@@ -662,102 +608,53 @@ const candidateCellSlotNames = [
   'reason',
   'operation',
 ];
-const readyCandidateColumns = computed<TdBaseTableProps['columns']>(() => [
-  createMainTextColumn(t('project.import.candidates.columnProject'), 'project', 280),
-  createTechnicalColumn(t('project.import.candidates.columnConfigFiles'), 'config_files', 280),
-  createTechnicalColumn(t('project.import.candidates.columnWorkingDirectory'), 'working_directory', 260),
-  createTechnicalColumn(t('project.import.candidates.columnRuntime'), 'runtime', 150),
-  createTechnicalColumn(t('project.import.candidates.columnServices'), 'services', 180),
-  createStatusColumn(t('project.import.candidates.columnStatus'), 'status', 120),
-  createActionColumn(t('project.import.candidates.columnOperation'), 132),
-]);
-const unavailableCandidateColumns = computed<TdBaseTableProps['columns']>(() => [
+const candidateColumns = computed<TdBaseTableProps['columns']>(() => [
   createMainTextColumn(t('project.import.candidates.columnProject'), 'project', 280),
   createTechnicalColumn(t('project.import.candidates.columnConfigFiles'), 'config_files', 260),
   createTechnicalColumn(t('project.import.candidates.columnWorkingDirectory'), 'working_directory', 240),
   createTechnicalColumn(t('project.import.candidates.columnRuntime'), 'runtime', 150),
+  createTechnicalColumn(t('project.import.candidates.columnServices'), 'services', 180),
   createStatusColumn(t('project.import.candidates.columnStatus'), 'status', 120),
   createMainTextColumn(t('project.import.candidates.columnReason'), 'reason', 320),
   createActionColumn(t('project.import.candidates.columnOperation'), 132),
 ]);
-const readyColumnSettingOptions = computed(() =>
-  READY_ALL_COLUMN_KEYS.map((key) => ({
-    label: t(`project.import.candidates.columnOptionLabels.${key}`),
-    value: key,
-  })),
-);
-const unavailableColumnSettingOptions = computed(() =>
-  UNAVAILABLE_ALL_COLUMN_KEYS.map((key) => ({
+const candidateColumnSettingOptions = computed(() =>
+  ALL_COLUMN_KEYS.map((key) => ({
     label: t(`project.import.candidates.columnOptionLabels.${key}`),
     value: key,
   })),
 );
 const visibleCandidateColumns = computed(() =>
-  candidateView.value === 'ready'
-    ? resolveManagedColumns(readyCandidateColumns.value, visibleReadyColumnKeys.value, CANDIDATE_ALWAYS_VISIBLE_COLUMNS)
-    : resolveManagedColumns(
-        unavailableCandidateColumns.value,
-        visibleUnavailableColumnKeys.value,
-        CANDIDATE_ALWAYS_VISIBLE_COLUMNS,
-      ),
-);
-const activeColumnSettingOptions = computed(() =>
-  candidateView.value === 'ready' ? readyColumnSettingOptions.value : unavailableColumnSettingOptions.value,
-);
-const activeVisibleColumnKeys = computed({
-  get: () => (candidateView.value === 'ready' ? visibleReadyColumnKeys.value : visibleUnavailableColumnKeys.value),
-  set: (keys: string[]) => {
-    if (candidateView.value === 'ready') {
-      visibleReadyColumnKeys.value = keys;
-      return;
-    }
-
-    visibleUnavailableColumnKeys.value = keys;
-  },
-});
-const activeDefaultVisibleColumnKeys = computed(() =>
-  candidateView.value === 'ready' ? READY_DEFAULT_VISIBLE_COLUMNS : UNAVAILABLE_DEFAULT_VISIBLE_COLUMNS,
+  resolveManagedColumns(candidateColumns.value, visibleCandidateColumnKeys.value, CANDIDATE_ALWAYS_VISIBLE_COLUMNS),
 );
 const candidateColumnDisabledKeys = computed(() => [...CANDIDATE_ALWAYS_VISIBLE_COLUMNS]);
-const activeCandidateTableSummary = computed(() =>
-  candidateView.value === 'ready'
-    ? t('project.import.candidates.readyTableSummary', { count: filteredReadyCandidates.value.length })
-    : t('project.import.candidates.unavailableTableSummary', { count: filteredUnavailableCandidates.value.length }),
+const candidateTableSummary = computed(() =>
+  t('project.import.candidates.tableSummary', { count: candidateListTotal.value }),
 );
-const activeCandidateTableHint = computed(() =>
-  candidateView.value === 'ready'
-    ? t('project.import.candidates.readyTableHint')
-    : t('project.import.candidates.unavailableTableHint'),
+const candidateTableHint = computed(() => t('project.import.candidates.tableHint'));
+const candidateHeadLabel = computed(() => 'project-import-candidates-table');
+const candidateTableRenderKey = computed(() =>
+  [
+    candidateStatusFilter.value,
+    candidatePagination.current,
+    candidatePagination.pageSize,
+    candidateListTotal.value,
+    visibleCandidateColumnKeys.value.join('|'),
+  ].join(':'),
 );
-const activeCandidateHeadLabel = computed(() =>
-  candidateView.value === 'ready'
-    ? 'project-import-ready-candidates-table'
-    : 'project-import-unavailable-candidates-table',
-);
-const activeCandidateCount = computed(() => activeCandidates.value.length);
 const candidatePaginationSummary = computed(() =>
-  buildPaginationSummary(activeCandidates.value.length, candidatePagination),
+  buildPaginationSummary(candidateListTotal.value, candidatePagination),
 );
-const activeCandidateEmptyTitle = computed(() => {
-  if (candidateView.value === 'ready') {
-    return t('project.import.candidates.emptyTitle');
-  }
-
-  return candidateSearchKeyword.value
-    ? t('project.import.unavailable.emptyTitle')
-    : t('project.import.unavailable.allClearTitle');
-});
-const activeCandidateEmptyDescription = computed(() => {
-  if (candidateView.value === 'ready') {
-    return candidateSearchKeyword.value
-      ? t('project.import.candidates.searchEmptyDescription')
-      : t('project.import.candidates.emptyDescription');
-  }
-
-  return candidateSearchKeyword.value
-    ? t('project.import.unavailable.emptyDescription')
-    : t('project.import.unavailable.allClearDescription');
-});
+const candidateEmptyTitle = computed(() =>
+  hasActiveCandidateFilters.value
+    ? t('project.import.candidates.filteredEmptyTitle')
+    : t('project.import.candidates.emptyTitle'),
+);
+const candidateEmptyDescription = computed(() =>
+  hasActiveCandidateFilters.value
+    ? t('project.import.candidates.filteredEmptyDescription')
+    : t('project.import.candidates.emptyDescription'),
+);
 
 const currentStepIndex = computed(() => wizardSteps.findIndex((step) => step.key === currentStep.value));
 const currentStepDefinition = computed(() => wizardSteps[currentStepIndex.value] ?? wizardSteps[0]);
@@ -766,17 +663,6 @@ const wizardStepOptions = computed(() =>
     title: t(step.shortTitleKey),
     content: t(step.descriptionKey),
   })),
-);
-
-watch(normalizedCandidateSearch, () => {
-  candidatePagination.current = 1;
-});
-
-watch(
-  () => activeCandidates.value.length,
-  (total) => {
-    clampPagination(total, candidatePagination);
-  },
 );
 
 watch(
@@ -794,40 +680,44 @@ onMounted(() => {
   void initializePage();
 });
 
-watch(candidateView, () => {
+watch([normalizedCandidateSearch, candidateStatusFilter], () => {
   candidatePagination.current = 1;
   columnDrawerVisible.value = false;
-  unavailableDetailVisible.value = false;
+  if (candidatesLoaded.value) {
+    void loadCandidates();
+  }
 });
 
 watch(
-  visibleReadyColumnKeys,
-  (keys) => {
-    const normalizedKeys = normalizeVisibleColumnKeys(keys, READY_ALL_COLUMN_KEYS, CANDIDATE_ALWAYS_VISIBLE_COLUMNS);
-    if (normalizedKeys.join('|') !== keys.join('|')) {
-      visibleReadyColumnKeys.value = normalizedKeys;
-      return;
+  () => [candidatePagination.current, candidatePagination.pageSize],
+  () => {
+    if (candidatesLoaded.value) {
+      void loadCandidates();
     }
-
-    persistVisibleColumnKeys(READY_COLUMN_STORAGE_KEY, normalizedKeys);
   },
-  { deep: true },
 );
 
 watch(
-  visibleUnavailableColumnKeys,
+  () => candidateListTotal.value,
+  (total) => {
+    clampPagination(total, candidatePagination);
+  },
+);
+
+watch(candidateStatusFilter, () => {
+  columnDrawerVisible.value = false;
+});
+
+watch(
+  visibleCandidateColumnKeys,
   (keys) => {
-    const normalizedKeys = normalizeVisibleColumnKeys(
-      keys,
-      UNAVAILABLE_ALL_COLUMN_KEYS,
-      CANDIDATE_ALWAYS_VISIBLE_COLUMNS,
-    );
+    const normalizedKeys = normalizeVisibleColumnKeys(keys, ALL_COLUMN_KEYS, CANDIDATE_ALWAYS_VISIBLE_COLUMNS);
     if (normalizedKeys.join('|') !== keys.join('|')) {
-      visibleUnavailableColumnKeys.value = normalizedKeys;
+      visibleCandidateColumnKeys.value = normalizedKeys;
       return;
     }
 
-    persistVisibleColumnKeys(UNAVAILABLE_COLUMN_STORAGE_KEY, normalizedKeys);
+    persistVisibleColumnKeys(CANDIDATE_COLUMN_STORAGE_KEY, normalizedKeys);
   },
   { deep: true },
 );
@@ -905,36 +795,7 @@ async function syncWizardFromRoute() {
 }
 
 function candidateRowClassName(params: { row: ProjectImportRuntimeCandidate }) {
-  if (candidateView.value !== 'ready') {
-    return '';
-  }
-
   return params.row.candidate_key === selectedCandidateKey.value ? 'project-import-candidate-row--active' : '';
-}
-
-function matchesCandidateSearch(candidate: ProjectImportRuntimeCandidate, keyword: string) {
-  if (!keyword) {
-    return true;
-  }
-
-  const haystack = [
-    candidate.canonical_project_name,
-    candidate.working_directory,
-    candidate.runtime_type,
-    candidate.runtime_version || '',
-    ...candidate.config_files,
-    ...candidate.service_names,
-    ...candidate.status_reason_codes,
-  ]
-    .join(' ')
-    .toLowerCase();
-
-  return haystack.includes(keyword);
-}
-
-function paginateCandidates(items: ProjectImportRuntimeCandidate[], pagination: PaginationState) {
-  const start = (pagination.current - 1) * pagination.pageSize;
-  return items.slice(start, start + pagination.pageSize);
 }
 
 function clampPagination(total: number, pagination: PaginationState) {
@@ -964,10 +825,6 @@ function formatList(items?: string[]) {
 
 function formatDisplayPaths(items?: Array<{ display_path: string }>) {
   return items?.length ? items.map((item) => item.display_path).join(', ') : t('project.import.preview.none');
-}
-
-function formatPathList(items?: string[]) {
-  return items?.length ? items.join(', ') : t('project.import.preview.none');
 }
 
 function firstListItem(items: string[]) {
@@ -1008,10 +865,6 @@ function formatRuntimeCandidateWarning(warningCode: string) {
   return translated === translationKey ? warningCode : translated;
 }
 
-function collectCandidateConfigFiles(candidate: ProjectImportRuntimeCandidate) {
-  return collectProjectImportRuntimeCandidateConfigFiles(candidate);
-}
-
 function candidateStatusTheme(status: ProjectImportRuntimeCandidate['status']) {
   if (status === 'ready') return 'success';
   if (status === 'broken_compose') return 'danger';
@@ -1031,8 +884,8 @@ function candidateUnavailableReason(candidate: ProjectImportRuntimeCandidate) {
 
 function candidateDiagnostics(candidate: ProjectImportRuntimeCandidate) {
   const diagnostics = [
-    ...candidate.status_reason_codes.map((code) => formatRuntimeCandidateReason(code)),
-    ...candidate.warnings.map((code) => formatRuntimeCandidateWarning(code)),
+    ...normalizeStringArray(candidate.status_reason_codes).map((code) => formatRuntimeCandidateReason(code)),
+    ...normalizeStringArray(candidate.warnings).map((code) => formatRuntimeCandidateWarning(code)),
   ];
   const primaryReason = candidateUnavailableReason(candidate);
   return Array.from(new Set(diagnostics)).filter((item) => item && item !== primaryReason);
@@ -1042,8 +895,11 @@ async function loadCandidates() {
   candidatesLoading.value = true;
   candidatesError.value = '';
   try {
-    const response = await getProjectImportRuntimeCandidates();
-    candidates.value = response?.items ?? [];
+    const response = await getProjectImportRuntimeCandidates(buildCandidateQuery());
+    const nextState = normalizeCandidateListState(response);
+    candidates.value = nextState.items;
+    candidateListTotal.value = nextState.total;
+    candidateFilterCounts.value = nextState.filterCounts;
 
     if (
       selectedCandidateKey.value &&
@@ -1053,22 +909,82 @@ async function loadCandidates() {
       currentStep.value = 'select';
       await updateWizardRoute('select', { replace: true });
     }
-
-    if (
-      unavailableDetailCandidate.value &&
-      !unavailableCandidates.value.some(
-        (item) => item.candidate_key === unavailableDetailCandidate.value?.candidate_key,
-      )
-    ) {
-      unavailableDetailCandidate.value = null;
-      unavailableDetailVisible.value = false;
-    }
   } catch (error) {
     candidates.value = [];
+    candidateListTotal.value = 0;
+    candidateFilterCounts.value = {
+      all: 0,
+      ready: 0,
+      unavailable: 0,
+    };
     candidatesError.value = resolveLocalizedErrorMessage(t, error, t('project.import.messages.candidateLoadFailed'));
   } finally {
     candidatesLoading.value = false;
   }
+}
+
+function buildCandidateQuery(): ProjectImportRuntimeCandidatesQuery {
+  return {
+    keyword: normalizedCandidateSearch.value || undefined,
+    availability: resolveCandidateAvailability(candidateStatusFilter.value),
+    limit: candidatePagination.pageSize,
+    offset: (candidatePagination.current - 1) * candidatePagination.pageSize,
+  };
+}
+
+function resolveCandidateAvailability(value: CandidateStatusFilter) {
+  if (value === 'all') {
+    return undefined;
+  }
+  return value;
+}
+
+function normalizeCandidateListState(
+  response?: Partial<CandidateListState> & Record<string, unknown>,
+): CandidateListState {
+  const items = Array.isArray(response?.items)
+    ? response.items.map((candidate) => normalizeCandidate(candidate as ProjectImportRuntimeCandidate))
+    : [];
+  const rawFilterCounts = response?.filter_counts ?? response?.filterCounts;
+  const filterCounts = isCandidateFilterCounts(rawFilterCounts) ? rawFilterCounts : undefined;
+  return {
+    items,
+    total: typeof response?.total === 'number' ? response.total : items.length,
+    filterCounts: {
+      all: typeof filterCounts?.all === 'number' ? filterCounts.all : items.length,
+      ready: typeof filterCounts?.ready === 'number' ? filterCounts.ready : 0,
+      unavailable: typeof filterCounts?.unavailable === 'number' ? filterCounts.unavailable : 0,
+    },
+  };
+}
+
+function isCandidateFilterCounts(value: unknown): value is ProjectImportRuntimeCandidateFilterCounts {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+  const candidate = value as Partial<ProjectImportRuntimeCandidateFilterCounts>;
+  return (
+    typeof candidate.all === 'number' &&
+    typeof candidate.ready === 'number' &&
+    typeof candidate.unavailable === 'number'
+  );
+}
+
+function normalizeCandidate(candidate: ProjectImportRuntimeCandidate): ProjectImportRuntimeCandidate {
+  return {
+    ...candidate,
+    config_files: normalizeStringArray(candidate.config_files),
+    service_names: normalizeStringArray(candidate.service_names),
+    status_reason_codes: normalizeStringArray(candidate.status_reason_codes),
+    warnings: normalizeStringArray(candidate.warnings),
+  };
+}
+
+function normalizeStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.filter((item): item is string => typeof item === 'string');
 }
 
 async function updateWizardRoute(
@@ -1134,6 +1050,10 @@ async function handleRefreshInspect() {
 }
 
 async function handleCandidateInspect(candidate: ProjectImportRuntimeCandidate) {
+  if (!isProjectImportRuntimeCandidateReady(candidate)) {
+    return;
+  }
+
   try {
     const result = await inspectCandidate(candidate);
     if (result === 'applied') {
@@ -1176,13 +1096,9 @@ function openDetail(response: ProjectImportExecuteResponse) {
   void router.push(target);
 }
 
-function clearCandidateSearch() {
+function resetCandidateFilters() {
   candidateSearchKeyword.value = '';
-}
-
-function openUnavailableDiagnostics(candidate: ProjectImportRuntimeCandidate) {
-  unavailableDetailCandidate.value = candidate;
-  unavailableDetailVisible.value = true;
+  candidateStatusFilter.value = 'all';
 }
 
 function handleReset() {

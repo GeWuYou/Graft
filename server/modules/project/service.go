@@ -538,7 +538,10 @@ func (s *Service) ImportDirectorySources(ctx context.Context) (ImportDirectorySo
 }
 
 // ListRuntimeImportCandidates returns runtime-driven Compose import candidates while keeping project as the inspect owner.
-func (s *Service) ListRuntimeImportCandidates(ctx context.Context) (RuntimeImportCandidatesResult, error) {
+func (s *Service) ListRuntimeImportCandidates(
+	ctx context.Context,
+	query RuntimeImportCandidateListQuery,
+) (RuntimeImportCandidatesResult, error) {
 	if s == nil || s.runtimeReader == nil {
 		return RuntimeImportCandidatesResult{}, errProjectServiceUnavailable
 	}
@@ -555,7 +558,7 @@ func (s *Service) ListRuntimeImportCandidates(ctx context.Context) (RuntimeImpor
 		items = append(items, candidate)
 	}
 	sortRuntimeImportCandidates(items)
-	return RuntimeImportCandidatesResult{Items: items}, nil
+	return buildRuntimeImportCandidatesResult(items, query), nil
 }
 
 // InspectRuntimeCandidate resolves a runtime candidate and reuses the inspect/import pipeline for preview generation.
@@ -1873,6 +1876,131 @@ func sortRuntimeImportCandidates(items []RuntimeImportCandidate) {
 		}
 		return items[i].CandidateKey < items[j].CandidateKey
 	})
+}
+
+func buildRuntimeImportCandidatesResult(
+	items []RuntimeImportCandidate,
+	query RuntimeImportCandidateListQuery,
+) RuntimeImportCandidatesResult {
+	normalizedQuery := normalizeRuntimeImportCandidateListQuery(query)
+	keywordFiltered := filterRuntimeImportCandidatesByKeyword(items, normalizedQuery.Keyword)
+	filterCounts := RuntimeImportCandidateFilterCounts{
+		All:         len(keywordFiltered),
+		Ready:       countRuntimeImportCandidatesByAvailability(keywordFiltered, runtimeImportCandidateAvailabilityReady),
+		Unavailable: countRuntimeImportCandidatesByAvailability(keywordFiltered, runtimeImportCandidateAvailabilityUnavailable),
+	}
+	availabilityFiltered := filterRuntimeImportCandidatesByAvailability(keywordFiltered, normalizedQuery.Availability)
+	total := len(availabilityFiltered)
+	page := paginateRuntimeImportCandidates(availabilityFiltered, normalizedQuery.Offset, normalizedQuery.Limit)
+	return RuntimeImportCandidatesResult{
+		Items:        page,
+		Total:        total,
+		Limit:        normalizedQuery.Limit,
+		Offset:       normalizedQuery.Offset,
+		FilterCounts: filterCounts,
+	}
+}
+
+func normalizeRuntimeImportCandidateListQuery(query RuntimeImportCandidateListQuery) RuntimeImportCandidateListQuery {
+	normalized := query
+	normalized.Keyword = strings.TrimSpace(query.Keyword)
+	if normalized.Limit <= 0 {
+		normalized.Limit = runtimeImportCandidatesDefaultLimit
+	}
+	if normalized.Limit > maxProjectListLimit {
+		normalized.Limit = maxProjectListLimit
+	}
+	if normalized.Offset < 0 {
+		normalized.Offset = 0
+	}
+	if normalized.Availability != nil {
+		value := strings.TrimSpace(string(*normalized.Availability))
+		if value == "" {
+			normalized.Availability = nil
+		} else {
+			availability := RuntimeImportCandidateAvailability(value)
+			normalized.Availability = &availability
+		}
+	}
+	return normalized
+}
+
+func filterRuntimeImportCandidatesByKeyword(items []RuntimeImportCandidate, keyword string) []RuntimeImportCandidate {
+	if keyword == "" {
+		return append([]RuntimeImportCandidate(nil), items...)
+	}
+	normalized := strings.ToLower(keyword)
+	filtered := make([]RuntimeImportCandidate, 0, len(items))
+	for _, candidate := range items {
+		haystack := []string{
+			candidate.CanonicalProjectName,
+			candidate.WorkingDirectory,
+			candidate.RuntimeType,
+			strings.TrimSpace(stringValue(candidate.RuntimeVersion)),
+			strings.Join(candidate.ConfigFiles, " "),
+			strings.Join(candidate.ServiceNames, " "),
+			strings.Join(candidate.StatusReasonCodes, " "),
+			strings.Join(candidate.Warnings, " "),
+		}
+		if strings.Contains(strings.ToLower(strings.Join(haystack, " ")), normalized) {
+			filtered = append(filtered, candidate)
+		}
+	}
+	return filtered
+}
+
+func filterRuntimeImportCandidatesByAvailability(
+	items []RuntimeImportCandidate,
+	availability *RuntimeImportCandidateAvailability,
+) []RuntimeImportCandidate {
+	if availability == nil {
+		return append([]RuntimeImportCandidate(nil), items...)
+	}
+	filtered := make([]RuntimeImportCandidate, 0, len(items))
+	for _, candidate := range items {
+		if runtimeImportCandidateMatchesAvailability(candidate, *availability) {
+			filtered = append(filtered, candidate)
+		}
+	}
+	return filtered
+}
+
+func countRuntimeImportCandidatesByAvailability(
+	items []RuntimeImportCandidate,
+	availability RuntimeImportCandidateAvailability,
+) int {
+	count := 0
+	for _, candidate := range items {
+		if runtimeImportCandidateMatchesAvailability(candidate, availability) {
+			count++
+		}
+	}
+	return count
+}
+
+func runtimeImportCandidateMatchesAvailability(
+	candidate RuntimeImportCandidate,
+	availability RuntimeImportCandidateAvailability,
+) bool {
+	ready := candidate.Importable && candidate.Status == importRuntimeCandidateStatusReady
+	if availability == runtimeImportCandidateAvailabilityReady {
+		return ready
+	}
+	if availability == runtimeImportCandidateAvailabilityUnavailable {
+		return !ready
+	}
+	return true
+}
+
+func paginateRuntimeImportCandidates(items []RuntimeImportCandidate, offset int, limit int) []RuntimeImportCandidate {
+	if offset >= len(items) {
+		return []RuntimeImportCandidate{}
+	}
+	end := offset + limit
+	if end > len(items) {
+		end = len(items)
+	}
+	return append([]RuntimeImportCandidate(nil), items[offset:end]...)
 }
 
 func (s *Service) validatedRuntimeImportCandidate(

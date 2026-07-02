@@ -24,6 +24,9 @@ type ProjectImportRuntimeCandidatesPath = (typeof PROJECT_API_PATH)['IMPORT_RUNT
 type GetProjectImportRuntimeCandidatesOperation = paths[ProjectImportRuntimeCandidatesPath]['get'];
 type GetProjectImportRuntimeCandidatesEnvelope =
   GetProjectImportRuntimeCandidatesOperation['responses'][200]['content']['application/json'];
+type GetProjectImportRuntimeCandidatesQuery = NonNullable<
+  GetProjectImportRuntimeCandidatesOperation['parameters']['query']
+>;
 
 type ProjectImportRuntimeInspectPath = (typeof PROJECT_API_PATH)['IMPORT_RUNTIME_INSPECT'];
 type PostProjectImportRuntimeInspectOperation = paths[ProjectImportRuntimeInspectPath]['post'];
@@ -83,12 +86,15 @@ export type ProjectImportExecuteRequest = PostProjectImportPayload;
 export type ProjectImportExecuteResponse = NonNullable<PostProjectImportEnvelope['data']> & ProjectImportResponse;
 
 export type ProjectImportRuntimeCandidateStatus = ProjectSchemas['project-import-runtime-candidate-status'];
+export type ProjectImportRuntimeCandidateAvailability = ProjectSchemas['project-import-runtime-candidate-availability'];
 export type ProjectImportRuntimeWorkingDirectorySource =
   ProjectSchemas['project-import-runtime-working-directory-source'];
 export type ProjectImportRuntimeCandidate = NonNullable<
   GetProjectImportRuntimeCandidatesEnvelope['data']
 >['items'][number];
 export type ProjectImportRuntimeCandidatesResponse = NonNullable<GetProjectImportRuntimeCandidatesEnvelope['data']>;
+export type ProjectImportRuntimeCandidatesQuery = GetProjectImportRuntimeCandidatesQuery;
+export type ProjectImportRuntimeCandidateFilterCounts = ProjectImportRuntimeCandidatesResponse['filter_counts'];
 export type ProjectImportRuntimeInspectRequest = PostProjectImportRuntimeInspectPayload;
 export type ProjectImportRuntimeInspectResponse = NonNullable<PostProjectImportRuntimeInspectEnvelope['data']>;
 export type ProjectImportRuntimeCandidateInspectRequest = ProjectImportRuntimeInspectRequest;

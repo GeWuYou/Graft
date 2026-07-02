@@ -8,6 +8,7 @@ import type {
   ProjectImportExecuteRequest,
   ProjectImportExecuteResponse,
   ProjectImportInspectResponse,
+  ProjectImportRuntimeCandidatesQuery,
   ProjectImportRuntimeCandidatesResponse,
   ProjectImportRuntimeInspectRequest,
 } from '../types/import';
@@ -28,9 +29,10 @@ export function getProjectImportDirectorySources() {
  *
  * @returns 候选列表与入口 authority 摘要
  */
-export function getProjectImportRuntimeCandidates() {
+export function getProjectImportRuntimeCandidates(query?: ProjectImportRuntimeCandidatesQuery) {
   return request.get<ProjectImportRuntimeCandidatesResponse>({
     url: PROJECT_API_PATH.IMPORT_RUNTIME_CANDIDATES,
+    params: query as ProjectImportRuntimeCandidatesQuery | undefined,
   });
 }
 

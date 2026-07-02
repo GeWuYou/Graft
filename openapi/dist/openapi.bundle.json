@@ -10487,6 +10487,18 @@
           },
           {
             "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/project-import-runtime-candidate-list-keyword"
+          },
+          {
+            "$ref": "#/components/parameters/project-import-runtime-candidate-list-availability"
+          },
+          {
+            "$ref": "#/components/parameters/project-import-runtime-candidate-list-limit"
+          },
+          {
+            "$ref": "#/components/parameters/project-import-runtime-candidate-list-offset"
           }
         ],
         "security": [
@@ -21657,6 +21669,17 @@
           }
         ]
       },
+      "project-import-runtime-candidate-availability": {
+        "type": "string",
+        "enum": [
+          "ready",
+          "unavailable"
+        ],
+        "x-enum-varnames": [
+          "ProjectImportRuntimeCandidateAvailabilityReady",
+          "ProjectImportRuntimeCandidateAvailabilityUnavailable"
+        ]
+      },
       "project-import-runtime-candidate-status": {
         "type": "string",
         "enum": [
@@ -21755,10 +21778,36 @@
           }
         }
       },
+      "project-import-runtime-candidate-filter-counts": {
+        "type": "object",
+        "required": [
+          "all",
+          "ready",
+          "unavailable"
+        ],
+        "properties": {
+          "all": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "ready": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "unavailable": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
       "project-import-runtime-candidates-response": {
         "type": "object",
         "required": [
-          "items"
+          "items",
+          "total",
+          "limit",
+          "offset",
+          "filter_counts"
         ],
         "properties": {
           "items": {
@@ -21766,6 +21815,21 @@
             "items": {
               "$ref": "#/components/schemas/project-import-runtime-candidate"
             }
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "filter_counts": {
+            "$ref": "#/components/schemas/project-import-runtime-candidate-filter-counts"
           }
         }
       },
@@ -24737,6 +24801,63 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 512
+        }
+      },
+      "project-import-runtime-candidate-list-keyword": {
+        "name": "keyword",
+        "in": "query",
+        "required": false,
+        "description": "Optional case-insensitive keyword matched against project name, working directory, compose files, runtime, service names, and candidate diagnostics.",
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      "project-import-runtime-candidate-list-availability": {
+        "name": "availability",
+        "in": "query",
+        "required": false,
+        "description": "Optional runtime import availability filter.",
+        "schema": {
+          "$ref": "#/components/schemas/project-import-runtime-candidate-availability"
+        }
+      },
+      "project-import-runtime-candidate-list-limit": {
+        "name": "limit",
+        "in": "query",
+        "required": false,
+        "description": "Optional maximum number of runtime import candidates to return. The runtime accepts values from 1 to 100.",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "examples": {
+          "defaultWindow": {
+            "summary": "Fetch the default runtime import candidate window",
+            "value": 10
+          },
+          "maxWindow": {
+            "summary": "Fetch up to the maximum supported window",
+            "value": 100
+          }
+        }
+      },
+      "project-import-runtime-candidate-list-offset": {
+        "name": "offset",
+        "in": "query",
+        "required": false,
+        "description": "Optional zero-based offset for runtime import candidates.",
+        "schema": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "examples": {
+          "firstPage": {
+            "summary": "Start from the first runtime import candidate",
+            "value": 0
+          }
         }
       }
     },

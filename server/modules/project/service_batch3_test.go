@@ -312,7 +312,7 @@ func TestListRuntimeImportCandidatesMarksBrokenCompose(t *testing.T) {
 		t.Fatalf("new service: %v", err)
 	}
 
-	result, err := service.ListRuntimeImportCandidates(context.Background())
+	result, err := service.ListRuntimeImportCandidates(context.Background(), RuntimeImportCandidateListQuery{})
 	if err != nil {
 		t.Fatalf("list runtime import candidates: %v", err)
 	}

@@ -1,6 +1,6 @@
 import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { defineComponent, h, inject, nextTick, provide, reactive, ref } from 'vue';
+import { defineComponent, h, nextTick, reactive, ref } from 'vue';
 
 import zhProjectLocale from '../../locales/zh-CN.json';
 import type { ProjectImportRuntimeCandidate } from '../../types/import';
@@ -308,8 +308,6 @@ function createFlowState() {
   };
 }
 
-const RadioGroupContextKey = Symbol('radio-group');
-
 const TButtonStub = defineComponent({
   name: 'TButtonStub',
   props: {
@@ -329,37 +327,38 @@ const TButtonStub = defineComponent({
   },
 });
 
-const TRadioGroupStub = defineComponent({
-  name: 'TRadioGroupStub',
+const TSelectStub = defineComponent({
+  name: 'TSelectStub',
   props: {
-    value: { type: String, default: '' },
+    modelValue: { type: String, default: '' },
   },
-  emits: ['update:value'],
-  setup(props, { emit, slots }) {
-    provide(RadioGroupContextKey, {
-      select: (value: string) => emit('update:value', value),
-      value: props.value,
-    });
-    return () => h('div', { class: 't-radio-group-stub' }, slots.default?.());
-  },
-});
-
-const TRadioButtonStub = defineComponent({
-  name: 'TRadioButtonStub',
-  props: {
-    value: { type: String, required: true },
-  },
-  setup(props, { slots }) {
-    const context = inject<{ select: (value: string) => void }>(RadioGroupContextKey);
+  emits: ['update:modelValue', 'change'],
+  setup(props, { emit, slots, attrs }) {
     return () =>
       h(
-        'button',
+        'select',
         {
-          'data-testid': `candidate-view-${props.value}`,
-          onClick: () => context?.select(props.value),
+          ...attrs,
+          value: props.modelValue,
+          onChange: (event: Event) => {
+            const value = (event.target as HTMLSelectElement).value;
+            emit('update:modelValue', value);
+            emit('change', value);
+          },
         },
         slots.default?.(),
       );
+  },
+});
+
+const TOptionStub = defineComponent({
+  name: 'TOptionStub',
+  props: {
+    value: { type: String, required: true },
+    label: { type: String, default: '' },
+  },
+  setup(props, { slots }) {
+    return () => h('option', { value: props.value }, slots.default?.() ?? props.label);
   },
 });
 
@@ -378,18 +377,6 @@ const TInputStub = defineComponent({
           onInput: (event: Event) => emit('update:modelValue', (event.target as HTMLInputElement).value),
         }),
       ]);
-  },
-});
-
-const TDrawerStub = defineComponent({
-  name: 'TDrawerStub',
-  props: {
-    footer: { type: Boolean, default: false },
-    header: { type: String, default: '' },
-    visible: { type: Boolean, default: false },
-  },
-  setup(props, { slots }) {
-    return () => (props.visible ? h('aside', [h('h3', props.header), slots.default?.()]) : null);
   },
 });
 
@@ -452,14 +439,13 @@ function mountPage() {
         't-card': TCardStub,
         't-descriptions': WrapperStub,
         't-descriptions-item': TDescriptionsItemStub,
-        't-drawer': TDrawerStub,
         't-empty': TEmptyStub,
         't-form': WrapperStub,
         't-form-item': WrapperStub,
         't-input': TInputStub,
         't-loading': WrapperStub,
-        't-radio-button': TRadioButtonStub,
-        't-radio-group': TRadioGroupStub,
+        't-option': TOptionStub,
+        't-select': TSelectStub,
         't-space': WrapperStub,
         't-steps': WrapperStub,
         't-tag': WrapperStub,
@@ -493,6 +479,14 @@ describe('ProjectImportIndex', () => {
           working_directory_source: 'derived_from_config_files',
         }),
       ],
+      total: 2,
+      limit: 10,
+      offset: 0,
+      filter_counts: {
+        all: 2,
+        ready: 1,
+        unavailable: 1,
+      },
     });
     mocks.useProjectImportFlow.mockImplementation(() => createFlowState());
   });
@@ -509,11 +503,12 @@ describe('ProjectImportIndex', () => {
     expect(header.text()).not.toContain('刷新候选');
   });
 
-  it('keeps the operation column visible while column settings hide optional ready columns', async () => {
+  it('keeps the reason and operation columns visible while column settings hide optional columns', async () => {
     const wrapper = mountPage();
     await flushPromises();
 
     expect(wrapper.find('th[data-col="services"]').exists()).toBe(true);
+    expect(wrapper.find('th[data-col="reason"]').exists()).toBe(true);
     expect(wrapper.find('th[data-col="operation"]').exists()).toBe(true);
 
     await wrapper.get('[data-testid="table-column-settings"]').trigger('click');
@@ -522,25 +517,87 @@ describe('ProjectImportIndex', () => {
     await nextTick();
 
     expect(wrapper.find('th[data-col="services"]').exists()).toBe(false);
+    expect(wrapper.find('th[data-col="reason"]').exists()).toBe(true);
     expect(wrapper.find('th[data-col="operation"]').exists()).toBe(true);
   });
 
-  it('switches to unavailable candidates and opens the diagnostics drawer from the operation column', async () => {
+  it('reloads runtime candidates from the server when the status filter changes', async () => {
     const wrapper = mountPage();
     await flushPromises();
 
-    await wrapper.get('[data-testid="candidate-view-unavailable"]').trigger('click');
-    await nextTick();
+    expect(mocks.getProjectImportRuntimeCandidates).toHaveBeenNthCalledWith(1, {
+      keyword: undefined,
+      availability: undefined,
+      limit: 10,
+      offset: 0,
+    });
 
-    expect(wrapper.find('th[data-col="reason"]').exists()).toBe(true);
-    const diagnosticsButton = wrapper.findAll('button').find((button) => button.text().includes('查看诊断'));
-    expect(diagnosticsButton).toBeDefined();
+    await wrapper.get('[data-testid="candidate-status-filter"]').setValue('unavailable');
+    await flushPromises();
 
-    await diagnosticsButton!.trigger('click');
-    await nextTick();
+    expect(mocks.getProjectImportRuntimeCandidates).toHaveBeenNthCalledWith(2, {
+      keyword: undefined,
+      availability: 'unavailable',
+      limit: 10,
+      offset: 0,
+    });
 
-    expect(wrapper.text()).toContain('当前阻塞原因');
-    expect(wrapper.text()).toContain('更多诊断');
+    await wrapper.get('[data-testid="candidate-status-filter"]').setValue('ready');
+    await flushPromises();
+
+    expect(mocks.getProjectImportRuntimeCandidates).toHaveBeenNthCalledWith(3, {
+      keyword: undefined,
+      availability: 'ready',
+      limit: 10,
+      offset: 0,
+    });
+  });
+
+  it('disables inspect actions for unavailable candidates while keeping the row visible', async () => {
+    const flowState = createFlowState();
+    mocks.useProjectImportFlow.mockImplementation(() => flowState);
+
+    const wrapper = mountPage();
+    await flushPromises();
+    await wrapper.get('[data-testid="candidate-status-filter"]').setValue('unavailable');
+    await flushPromises();
+
+    const blockedRow = wrapper.findAll('tr').find((row) => row.text().includes('blocked'));
+    const blockedInspectButton = blockedRow?.find('button');
+
+    expect(blockedInspectButton).toBeDefined();
+    expect(blockedInspectButton?.attributes('disabled')).toBeDefined();
+    expect(wrapper.text()).toContain('Compose 文件无法通过导入检查');
+    expect(flowState.inspectCandidate).not.toHaveBeenCalled();
+  });
+
+  it('normalizes nullable diagnostics arrays from the API response', async () => {
+    mocks.getProjectImportRuntimeCandidates.mockResolvedValueOnce({
+      items: [
+        buildCandidate({
+          candidate_key: 'runtime:null-arrays',
+          canonical_project_name: 'null-arrays',
+          importable: false,
+          status: 'broken_compose',
+          status_reason_codes: null as unknown as string[],
+          warnings: null as unknown as string[],
+        }),
+      ],
+      total: 1,
+      limit: 10,
+      offset: 0,
+      filter_counts: {
+        all: 1,
+        ready: 0,
+        unavailable: 1,
+      },
+    });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('null-arrays');
+    expect(wrapper.text()).toContain('Compose 文件无法通过导入检查');
   });
 
   it('does not render visible English Inspect copy in the zh-CN flow', async () => {

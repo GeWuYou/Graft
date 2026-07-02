@@ -151,9 +151,37 @@ type RuntimeImportCandidate struct {
 	Warnings               []string                     `json:"warnings"`
 }
 
+// RuntimeImportCandidateAvailability filters runtime candidates by import readiness.
+type RuntimeImportCandidateAvailability string
+
+const (
+	runtimeImportCandidateAvailabilityReady       RuntimeImportCandidateAvailability = "ready"
+	runtimeImportCandidateAvailabilityUnavailable RuntimeImportCandidateAvailability = "unavailable"
+	runtimeImportCandidatesDefaultLimit                                          = 10
+)
+
+// RuntimeImportCandidateListQuery describes list filters for runtime import candidates.
+type RuntimeImportCandidateListQuery struct {
+	Availability *RuntimeImportCandidateAvailability `json:"availability,omitempty"`
+	Keyword      string                              `json:"keyword,omitempty"`
+	Limit        int                                 `json:"limit"`
+	Offset       int                                 `json:"offset"`
+}
+
+// RuntimeImportCandidateFilterCounts summarizes candidate counts for each availability bucket.
+type RuntimeImportCandidateFilterCounts struct {
+	All         int `json:"all"`
+	Ready       int `json:"ready"`
+	Unavailable int `json:"unavailable"`
+}
+
 // RuntimeImportCandidatesResult returns the current runtime import candidates.
 type RuntimeImportCandidatesResult struct {
-	Items []RuntimeImportCandidate `json:"items"`
+	Items        []RuntimeImportCandidate          `json:"items"`
+	Total        int                               `json:"total"`
+	Limit        int                               `json:"limit"`
+	Offset       int                               `json:"offset"`
+	FilterCounts RuntimeImportCandidateFilterCounts `json:"filter_counts"`
 }
 
 // RuntimeImportInspectRequest captures one inspect request for a runtime candidate.

@@ -120,13 +120,22 @@ func (r routeRuntime) handleImportValidate(ginCtx *gin.Context) {
 }
 
 func (r routeRuntime) handleImportRuntimeCandidates(ginCtx *gin.Context) {
-	projectGeneratedHandler{}.GetProjectImportRuntimeCandidates(bindGetProjectImportRuntimeCandidatesParams(ginCtx))
-	result, err := r.service.ListRuntimeImportCandidates(ginCtx.Request.Context())
+	params, ok := bindGetProjectImportRuntimeCandidatesParams(ginCtx, r.ctx)
+	if !ok {
+		return
+	}
+	projectGeneratedHandler{}.GetProjectImportRuntimeCandidates(params)
+	result, err := r.service.ListRuntimeImportCandidates(ginCtx.Request.Context(), RuntimeImportCandidateListQuery{
+		Availability: runtimeCandidateAvailabilityFromGenerated(params.Availability),
+		Keyword:      stringPtrValue(params.Keyword),
+		Limit:        intPtrValue(params.Limit),
+		Offset:       intPtrValue(params.Offset),
+	})
 	if err != nil {
 		r.writeRouteError(ginCtx, err)
 		return
 	}
-	httpx.WriteSuccess(ginCtx, http.StatusOK, result)
+	httpx.WriteSuccess(ginCtx, http.StatusOK, toRuntimeImportCandidatesResponse(result))
 }
 
 func (r routeRuntime) handleImportRuntimeInspect(ginCtx *gin.Context) {
@@ -613,12 +622,52 @@ func bindListParams(ginCtx *gin.Context, ctx *module.Context) (generated.GetProj
 	return params, true
 }
 
-func bindGetProjectImportRuntimeCandidatesParams(ginCtx *gin.Context) generated.GetProjectImportRuntimeCandidatesParams {
+func bindGetProjectImportRuntimeCandidatesParams(
+	ginCtx *gin.Context,
+	ctx *module.Context,
+) (generated.GetProjectImportRuntimeCandidatesParams, bool) {
 	locale, requestID := commonHeaders(ginCtx)
-	return generated.GetProjectImportRuntimeCandidatesParams{
+	query := ginCtx.Request.URL.Query()
+	params := generated.GetProjectImportRuntimeCandidatesParams{
 		XGraftLocale: locale,
 		XRequestId:   requestID,
 	}
+	if strings.TrimSpace(query.Get("keyword")) != "" {
+		keyword := strings.TrimSpace(query.Get("keyword"))
+		params.Keyword = &keyword
+	}
+	availability, ok := optionalValidatedEnumQuery(
+		query.Get("availability"),
+		generated.ProjectImportRuntimeCandidateAvailability.Valid,
+	)
+	if !ok {
+		abortInvalidQuery(ginCtx, ctx)
+		return generated.GetProjectImportRuntimeCandidatesParams{}, false
+	}
+	params.Availability = availability
+	if params.Limit, ok = optionalIntQuery[generated.ProjectImportRuntimeCandidateListLimit](
+		query.Get("limit"),
+		minimumProjectListLimit,
+		maxProjectListLimit,
+	); !ok {
+		abortInvalidQuery(ginCtx, ctx)
+		return generated.GetProjectImportRuntimeCandidatesParams{}, false
+	}
+	if params.Offset, ok = optionalIntQuery[generated.ProjectImportRuntimeCandidateListOffset](query.Get("offset"), 0, 0); !ok {
+		abortInvalidQuery(ginCtx, ctx)
+		return generated.GetProjectImportRuntimeCandidatesParams{}, false
+	}
+	return params, true
+}
+
+func runtimeCandidateAvailabilityFromGenerated(
+	value *generated.ProjectImportRuntimeCandidateAvailability,
+) *RuntimeImportCandidateAvailability {
+	if value == nil {
+		return nil
+	}
+	availability := RuntimeImportCandidateAvailability(*value)
+	return &availability
 }
 
 func bindPostProjectImportRuntimeInspectParams(ginCtx *gin.Context) generated.PostProjectImportRuntimeInspectParams {

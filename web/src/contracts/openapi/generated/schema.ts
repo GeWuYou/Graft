@@ -5369,6 +5369,8 @@ export interface components {
       data: components['schemas']['project-import-validate-response'];
     };
     /** @enum {string} */
+    'project-import-runtime-candidate-availability': 'ready' | 'unavailable';
+    /** @enum {string} */
     'project-import-runtime-candidate-status':
       'ready' | 'incomplete_metadata' | 'unsupported_runtime' | 'broken_compose';
     /** @enum {string} */
@@ -5389,8 +5391,17 @@ export interface components {
       container_counts: components['schemas']['project-container-counts'];
       warnings: string[];
     };
+    'project-import-runtime-candidate-filter-counts': {
+      all: number;
+      ready: number;
+      unavailable: number;
+    };
     'project-import-runtime-candidates-response': {
       items: components['schemas']['project-import-runtime-candidate'][];
+      total: number;
+      limit: number;
+      offset: number;
+      filter_counts: components['schemas']['project-import-runtime-candidate-filter-counts'];
     };
     'enveloped-project-import-runtime-candidates-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['project-import-runtime-candidates-response'];
@@ -6052,6 +6063,14 @@ export interface components {
     'realtime-ticket-query': string;
     /** @description Canonical realtime topic to subscribe after the server validates the ticket. Topics are authority-owned strings such as `container.stats:<id>`, `container.logs:<id>`, `container.events:<id>`, `audit.events`, and `system.events`. */
     'realtime-topic-query': string;
+    /** @description Optional case-insensitive keyword matched against project name, working directory, compose files, runtime, service names, and candidate diagnostics. */
+    'project-import-runtime-candidate-list-keyword': string;
+    /** @description Optional runtime import availability filter. */
+    'project-import-runtime-candidate-list-availability': components['schemas']['project-import-runtime-candidate-availability'];
+    /** @description Optional maximum number of runtime import candidates to return. The runtime accepts values from 1 to 100. */
+    'project-import-runtime-candidate-list-limit': number;
+    /** @description Optional zero-based offset for runtime import candidates. */
+    'project-import-runtime-candidate-list-offset': number;
   };
   requestBodies: never;
   headers: {
@@ -11600,7 +11619,16 @@ export interface operations {
   };
   getProjectImportRuntimeCandidates: {
     parameters: {
-      query?: never;
+      query?: {
+        /** @description Optional case-insensitive keyword matched against project name, working directory, compose files, runtime, service names, and candidate diagnostics. */
+        keyword?: components['parameters']['project-import-runtime-candidate-list-keyword'];
+        /** @description Optional runtime import availability filter. */
+        availability?: components['parameters']['project-import-runtime-candidate-list-availability'];
+        /** @description Optional maximum number of runtime import candidates to return. The runtime accepts values from 1 to 100. */
+        limit?: components['parameters']['project-import-runtime-candidate-list-limit'];
+        /** @description Optional zero-based offset for runtime import candidates. */
+        offset?: components['parameters']['project-import-runtime-candidate-list-offset'];
+      };
       header?: {
         /** @description Explicit locale override header already supported by the runtime. */
         'X-Graft-Locale'?: components['parameters']['locale-header'];
