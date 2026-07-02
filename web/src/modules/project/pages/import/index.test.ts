@@ -632,7 +632,8 @@ describe('ProjectImportIndex', () => {
         unavailable: 1,
       },
     });
-    mocks.useProjectImportFlow.mockImplementation(() => createFlowState());
+    const flowState = createFlowState();
+    mocks.useProjectImportFlow.mockImplementation(() => flowState);
   });
 
   it('moves refresh and column settings into the table toolbar and removes the list back action', async () => {
@@ -883,6 +884,43 @@ describe('ProjectImportIndex', () => {
       limit: 50,
       offset: 0,
     });
+  });
+
+  it('falls back to select and surfaces an error when routed candidate recovery fails', async () => {
+    routeState.query = {
+      step: 'inspect',
+      candidate: 'runtime:recover-me',
+    };
+
+    const flowState = createFlowState();
+    mocks.useProjectImportFlow.mockImplementation(() => flowState);
+    mocks.getProjectImportRuntimeCandidates
+      .mockResolvedValueOnce({
+        items: [buildCandidate({})],
+        total: 25,
+        limit: 10,
+        offset: 0,
+        filter_counts: {
+          all: 25,
+          ready: 25,
+          unavailable: 0,
+        },
+      })
+      .mockRejectedValueOnce(new Error('route recovery failed'));
+
+    const wrapper = mountPage();
+    await flushPromises();
+    await flushPromises();
+    await nextTick();
+    await flushPromises();
+
+    expect(mocks.replace).toHaveBeenCalledWith({
+      name: 'ProjectImportIndex',
+      params: {},
+      query: {},
+    });
+    expect(flowState.inspectCandidate).not.toHaveBeenCalled();
+    expect(wrapper.text()).toContain('第 1 步 · 选择项目');
   });
 
   it('ignores stale candidate list responses when a newer filter request finishes first', async () => {

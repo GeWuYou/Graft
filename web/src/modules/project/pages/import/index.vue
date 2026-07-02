@@ -698,9 +698,21 @@ async function syncWizardFromRoute() {
     return;
   }
 
-  const candidate =
-    readyCandidates.value.find((item) => item.candidate_key === candidateKey) ??
-    (await findReadyCandidateByKey(candidateKey));
+  let candidate = readyCandidates.value.find((item) => item.candidate_key === candidateKey) ?? null;
+  if (!candidate) {
+    try {
+      candidate = await findReadyCandidateByKey(candidateKey);
+    } catch (error) {
+      if (syncRequestId !== latestRouteSyncRequestId) {
+        return;
+      }
+      reset();
+      candidatesError.value = resolveLocalizedErrorMessage(t, error, t('project.import.messages.candidateLoadFailed'));
+      currentStep.value = 'select';
+      await updateWizardRoute('select', { replace: true });
+      return;
+    }
+  }
   if (syncRequestId !== latestRouteSyncRequestId) {
     return;
   }
