@@ -126,6 +126,32 @@ func (r containerProjectRuntimeReader) ListImportCandidates(
 	return candidates, nil
 }
 
+func (r containerProjectRuntimeReader) ListImportCandidateMembers(
+	ctx context.Context,
+	hostScope string,
+	candidate moduleapi.ContainerProjectRuntimeCandidate,
+) ([]moduleapi.ContainerProjectMember, error) {
+	if r.service == nil {
+		return nil, errRuntimeDisabled
+	}
+	hostScope = strings.TrimSpace(hostScope)
+	if !supportsImportCandidateHostScope(hostScope) {
+		return []moduleapi.ContainerProjectMember{}, nil
+	}
+	if !hasImportCandidateKey(candidate) {
+		return []moduleapi.ContainerProjectMember{}, nil
+	}
+	runtime, err := r.service.runtimeForRequest()
+	if err != nil {
+		return nil, err
+	}
+	summaries, err := listComposeRuntimeSummaries(ctx, runtime)
+	if err != nil {
+		return nil, err
+	}
+	return importCandidateMembersFromSummaries(hostScope, summaries, candidate), nil
+}
+
 func listComposeRuntimeSummaries(ctx context.Context, runtime Runtime) ([]Summary, error) {
 	summaries := make([]Summary, 0)
 	offset := 0
@@ -144,6 +170,43 @@ func listComposeRuntimeSummaries(ctx context.Context, runtime Runtime) ([]Summar
 		}
 		offset += len(items)
 	}
+}
+
+func supportsImportCandidateHostScope(hostScope string) bool {
+	return hostScope == projectRuntimeHostScopeLocal
+}
+
+func hasImportCandidateKey(candidate moduleapi.ContainerProjectRuntimeCandidate) bool {
+	return strings.TrimSpace(candidate.CandidateKey) != ""
+}
+
+func importCandidateMembersFromSummaries(
+	hostScope string,
+	summaries []Summary,
+	candidate moduleapi.ContainerProjectRuntimeCandidate,
+) []moduleapi.ContainerProjectMember {
+	members := make([]moduleapi.ContainerProjectMember, 0)
+	for _, item := range summaries {
+		if !matchesRuntimeCandidate(hostScope, item, candidate) {
+			continue
+		}
+		members = append(members, moduleapi.ContainerProjectMember{
+			ContainerID:    strings.TrimSpace(item.ID),
+			ContainerName:  strings.TrimSpace(item.Name),
+			ServiceName:    composeServiceName(item),
+			CanonicalState: normalizeContainerState(item.State),
+		})
+	}
+	sort.Slice(members, func(i, j int) bool {
+		if members[i].ServiceName == members[j].ServiceName {
+			if members[i].ContainerName == members[j].ContainerName {
+				return members[i].ContainerID < members[j].ContainerID
+			}
+			return members[i].ContainerName < members[j].ContainerName
+		}
+		return members[i].ServiceName < members[j].ServiceName
+	})
+	return members
 }
 
 func runtimeImportCandidatesFromSummaries(
@@ -411,6 +474,33 @@ func runtimeCandidateGroupKey(hostScope string, item Summary) string {
 	default:
 		return hostScope + "|member|" + strings.TrimSpace(item.ID)
 	}
+}
+
+func runtimeCandidateGroupKeyFromCandidate(hostScope string, candidate moduleapi.ContainerProjectRuntimeCandidate) string {
+	configFiles := normalizedStringSlice(candidate.ConfigFiles)
+	if len(configFiles) > 0 {
+		return hostScope + "|config|" + configFilesDigest(configFiles)
+	}
+	projectName := strings.ToLower(strings.TrimSpace(candidate.CanonicalProjectName))
+	workingDirectory := strings.TrimSpace(candidate.WorkingDirectory)
+	switch {
+	case projectName != "" && workingDirectory != "":
+		return hostScope + "|project|" + projectName + "|" + filepath.Clean(workingDirectory)
+	case projectName != "":
+		return hostScope + "|project|" + projectName
+	case workingDirectory != "":
+		return hostScope + "|dir|" + filepath.Clean(workingDirectory)
+	default:
+		return hostScope + "|candidate|" + strings.TrimSpace(candidate.CandidateKey)
+	}
+}
+
+func matchesRuntimeCandidate(
+	hostScope string,
+	item Summary,
+	candidate moduleapi.ContainerProjectRuntimeCandidate,
+) bool {
+	return runtimeCandidateGroupKey(hostScope, item) == runtimeCandidateGroupKeyFromCandidate(hostScope, candidate)
 }
 
 func runtimeCandidateKey(hostScope string, projectName string, runtimeType string, workingDirectory string, configFiles []string) string {

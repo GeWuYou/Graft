@@ -77,8 +77,9 @@ func (s *stubProjectRepository) UnregisterProject(context.Context, projectstore.
 }
 
 type stubRuntimeReader struct {
-	summary    moduleapi.ContainerProjectRuntimeSummary
-	candidates []moduleapi.ContainerProjectRuntimeCandidate
+	summary          moduleapi.ContainerProjectRuntimeSummary
+	candidates       []moduleapi.ContainerProjectRuntimeCandidate
+	candidateMembers []moduleapi.ContainerProjectMember
 }
 
 type stubSystemConfigResolver struct {
@@ -107,6 +108,14 @@ func (s stubRuntimeReader) ListProjectMembers(context.Context, string, string) (
 
 func (s stubRuntimeReader) ListImportCandidates(context.Context, string) ([]moduleapi.ContainerProjectRuntimeCandidate, error) {
 	return append([]moduleapi.ContainerProjectRuntimeCandidate(nil), s.candidates...), nil
+}
+
+func (s stubRuntimeReader) ListImportCandidateMembers(
+	context.Context,
+	string,
+	moduleapi.ContainerProjectRuntimeCandidate,
+) ([]moduleapi.ContainerProjectMember, error) {
+	return append([]moduleapi.ContainerProjectMember(nil), s.candidateMembers...), nil
 }
 
 func TestServicesMergesRuntimeMembers(t *testing.T) {
@@ -328,6 +337,98 @@ func TestListRuntimeImportCandidatesMarksBrokenCompose(t *testing.T) {
 	}
 }
 
+func TestListRuntimeImportCandidatesDedupesCandidateKeys(t *testing.T) {
+	t.Parallel()
+
+	tempDir := t.TempDir()
+	composePath := filepath.Join(tempDir, "compose.yaml")
+	if err := os.WriteFile(composePath, []byte("services:\n  web:\n    image: nginx:latest\n"), 0o600); err != nil {
+		t.Fatalf("write compose file: %v", err)
+	}
+
+	service, err := NewService(&stubProjectRepository{}, WithRuntimeReader(stubRuntimeReader{
+		candidates: []moduleapi.ContainerProjectRuntimeCandidate{
+			{
+				CandidateKey:           "runtime_demo",
+				CanonicalProjectName:   "demo",
+				Status:                 importRuntimeCandidateStatusBrokenCompose,
+				StatusReasonCodes:      []string{importRuntimeReasonComposeParseFailed},
+				Importable:             false,
+				RuntimeType:            "docker",
+				WorkingDirectory:       tempDir,
+				WorkingDirectorySource: "runtime_label",
+				ConfigFiles:            []string{composePath},
+				ServiceNames:           []string{"web"},
+				ContainerCounts:        moduleapi.ContainerProjectRuntimeContainerCounts{Running: 1, Total: 1},
+			},
+			{
+				CandidateKey:           "runtime_demo",
+				CanonicalProjectName:   "demo",
+				Status:                 importRuntimeCandidateStatusBrokenCompose,
+				StatusReasonCodes:      []string{importRuntimeReasonComposeParseFailed},
+				Importable:             false,
+				RuntimeType:            "docker",
+				WorkingDirectory:       tempDir,
+				WorkingDirectorySource: "runtime_label",
+				ConfigFiles:            []string{composePath},
+				ServiceNames:           []string{"web"},
+				ContainerCounts:        moduleapi.ContainerProjectRuntimeContainerCounts{Running: 1, Total: 1},
+			},
+		},
+	}))
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	result, err := service.ListRuntimeImportCandidates(context.Background(), RuntimeImportCandidateListQuery{})
+	if err != nil {
+		t.Fatalf("list runtime import candidates: %v", err)
+	}
+	if len(result.Items) != 1 {
+		t.Fatalf("expected duplicate candidate keys to collapse to 1 item, got %#v", result.Items)
+	}
+	if result.Total != 1 {
+		t.Fatalf("expected deduped total 1, got %d", result.Total)
+	}
+	if result.FilterCounts.All != 1 || result.FilterCounts.Unavailable != 1 {
+		t.Fatalf("expected deduped filter counts, got %#v", result.FilterCounts)
+	}
+}
+
+func assertRuntimeInspectResult(
+	t *testing.T,
+	result RuntimeImportInspectResult,
+	expectedWorkingDirectory string,
+	expectedComposePath string,
+	expectedEnvPath string,
+) {
+	t.Helper()
+	if result.CandidateKey != "runtime_demo" {
+		t.Fatalf("expected candidate key to round-trip, got %#v", result)
+	}
+	if result.ResolvedWorkingDirectory != expectedWorkingDirectory {
+		t.Fatalf("expected working directory %q, got %q", expectedWorkingDirectory, result.ResolvedWorkingDirectory)
+	}
+	if len(result.ComposeFiles) != 1 || result.ComposeFiles[0].AbsolutePath != expectedComposePath {
+		t.Fatalf("unexpected compose files %#v", result.ComposeFiles)
+	}
+	if len(result.EnvFiles) != 1 || result.EnvFiles[0].AbsolutePath != expectedEnvPath {
+		t.Fatalf("unexpected env files %#v", result.EnvFiles)
+	}
+	if result.ValidationStatus != "ready" {
+		t.Fatalf("expected ready validation status, got %q", result.ValidationStatus)
+	}
+	if len(result.RuntimeMembers) != 1 {
+		t.Fatalf("expected one runtime member, got %#v", result.RuntimeMembers)
+	}
+	if result.RuntimeMembers[0].ServiceName != "web" || result.RuntimeMembers[0].ContainerID != "c1" {
+		t.Fatalf("unexpected runtime members %#v", result.RuntimeMembers)
+	}
+	if !slices.Contains(result.Warnings, "working_directory_derived_from_config_files") {
+		t.Fatalf("expected candidate warning in inspect result, got %#v", result.Warnings)
+	}
+}
+
 func TestInspectRuntimeCandidateReusesInspectPipeline(t *testing.T) {
 	t.Parallel()
 
@@ -363,6 +464,9 @@ func TestInspectRuntimeCandidateReusesInspectPipeline(t *testing.T) {
 				Warnings:               []string{"working_directory_derived_from_config_files"},
 			},
 		},
+		candidateMembers: []moduleapi.ContainerProjectMember{
+			{ContainerID: "c1", ContainerName: "demo-web-1", ServiceName: "web", CanonicalState: "running"},
+		},
 	}))
 	if err != nil {
 		t.Fatalf("new service: %v", err)
@@ -374,24 +478,7 @@ func TestInspectRuntimeCandidateReusesInspectPipeline(t *testing.T) {
 	if err != nil {
 		t.Fatalf("inspect runtime candidate: %v", err)
 	}
-	if result.CandidateKey != "runtime_demo" {
-		t.Fatalf("expected candidate key to round-trip, got %#v", result)
-	}
-	if result.ResolvedWorkingDirectory != tempDir {
-		t.Fatalf("expected working directory %q, got %q", tempDir, result.ResolvedWorkingDirectory)
-	}
-	if len(result.ComposeFiles) != 1 || result.ComposeFiles[0].AbsolutePath != composePath {
-		t.Fatalf("unexpected compose files %#v", result.ComposeFiles)
-	}
-	if len(result.EnvFiles) != 1 || result.EnvFiles[0].AbsolutePath != envPath {
-		t.Fatalf("unexpected env files %#v", result.EnvFiles)
-	}
-	if result.ValidationStatus != "ready" {
-		t.Fatalf("expected ready validation status, got %q", result.ValidationStatus)
-	}
-	if !slices.Contains(result.Warnings, "working_directory_derived_from_config_files") {
-		t.Fatalf("expected candidate warning in inspect result, got %#v", result.Warnings)
-	}
+	assertRuntimeInspectResult(t, result, tempDir, composePath, envPath)
 }
 
 func TestDiscoveryCandidatesScansManagedRootWithoutRegistering(t *testing.T) {

@@ -153,7 +153,7 @@ func (r routeRuntime) handleImportRuntimeInspect(ginCtx *gin.Context) {
 		r.writeRouteError(ginCtx, err)
 		return
 	}
-	httpx.WriteSuccess(ginCtx, http.StatusOK, result)
+	httpx.WriteSuccess(ginCtx, http.StatusOK, toRuntimeImportInspectResponse(result))
 }
 
 func (r routeRuntime) handleImport(ginCtx *gin.Context) {

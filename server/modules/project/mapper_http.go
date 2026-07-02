@@ -53,6 +53,19 @@ func toRuntimeImportCandidatesResponse(result RuntimeImportCandidatesResult) gen
 	}
 }
 
+func toRuntimeImportMembers(items []RuntimeImportMember) []generated.ProjectImportRuntimeMember {
+	members := make([]generated.ProjectImportRuntimeMember, 0, len(items))
+	for _, item := range items {
+		members = append(members, generated.ProjectImportRuntimeMember{
+			ContainerId:   item.ContainerID,
+			ContainerName: item.ContainerName,
+			ServiceName:   item.ServiceName,
+			State:         item.State,
+		})
+	}
+	return members
+}
+
 // toSourceCatalogResponse 将源目录结果转换为源目录响应，并复制条目列表。
 //
 // @return Items 复制后的源目录条目列表。
@@ -137,6 +150,43 @@ func toImportValidateResponse(result ImportValidationResult) generated.ProjectIm
 		}
 	}
 	return response
+}
+
+func toRuntimeImportInspectResponse(result RuntimeImportInspectResult) generated.ProjectImportRuntimeInspectResponse {
+	return generated.ProjectImportRuntimeInspectResponse{
+		InspectionId:               result.InspectionID,
+		CandidateKey:               result.CandidateKey,
+		ResolvedWorkingDirectory:   result.ResolvedWorkingDirectory,
+		CanonicalProjectName:       result.CanonicalProjectName,
+		CanonicalProjectNameSource: generated.ProjectCanonicalNameSource(result.CanonicalProjectNameSource),
+		DisplayNameSuggested:       result.DisplayNameSuggested,
+		ComposeFiles:               toGeneratedProjectFiles(result.ComposeFiles),
+		EnvFiles:                   toGeneratedProjectFiles(result.EnvFiles),
+		Services:                   append([]string(nil), result.ServiceNames...),
+		Networks:                   append([]string(nil), result.NetworkNames...),
+		Volumes:                    append([]string(nil), result.VolumeNames...),
+		RuntimeMembers:             toRuntimeImportMembers(result.RuntimeMembers),
+		ConfigHash:                 result.ConfigHash,
+		Warnings:                   append([]string(nil), result.Warnings...),
+		Conflicts:                  append([]string(nil), result.Conflicts...),
+		ValidationStatus:           generated.ProjectImportRuntimeInspectResponseValidationStatus(result.ValidationStatus),
+	}
+}
+
+func toGeneratedProjectFiles(items []FileView) []generated.ProjectImportInspectFileItem {
+	files := make([]generated.ProjectImportInspectFileItem, 0, len(items))
+	for _, item := range items {
+		files = append(files, generated.ProjectImportInspectFileItem{
+			AbsolutePath:        item.AbsolutePath,
+			DisplayPath:         item.DisplayPath,
+			ExistsOnLastRefresh: item.ExistsOnLastRefresh,
+			Kind:                generated.ProjectFileKind(item.Kind),
+			LastObservedHash:    item.LastObservedHash,
+			OrderIndex:          item.OrderIndex,
+			Role:                generated.ProjectFileRole(item.Role),
+		})
+	}
+	return files
 }
 
 // toConfigurationMetadataResponse 将配置元数据结果转换为 OpenAPI 的项目配置元数据响应。

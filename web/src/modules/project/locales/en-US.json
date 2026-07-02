@@ -300,6 +300,14 @@
         "services": "Services",
         "networks": "Networks",
         "volumes": "Volumes",
+        "runtimeMembersTitle": "Runtime Members",
+        "runtimeMembersSummary": "{count} Runtime Containers",
+        "runtimeMembersEmpty": "No Runtime Members Are Available for This Candidate.",
+        "runtimeMembersPagination": "Items {start}-{end} of {total}",
+        "runtimeMemberContainerName": "Container",
+        "runtimeMemberServiceName": "Service",
+        "runtimeMemberState": "State",
+        "runtimeMemberContainerId": "Container ID",
         "blockedDescription": "The current Inspect result contains conflicts and must be fixed before the import can be confirmed.",
         "noDiagnostics": "No additional warnings or conflicts were returned.",
         "none": "None"
@@ -480,11 +488,110 @@
       "refresh": "Refresh Snapshot",
       "openWorkingDirectory": "Working Directory",
       "titleFallback": "Project Detail",
+      "sections": {
+        "lifecycle": {
+          "title": "Lifecycle",
+          "description": "Project-level up, down, restart, and unregister actions."
+        },
+        "overview": {
+          "title": "Overview",
+          "description": "Project-level configuration, summary, discovery, and diagnostics only. No large resource tables here."
+        },
+        "resources": {
+          "title": "Resources",
+          "description": "A single resource workspace switches between runtime resource tables instead of stacking them."
+        },
+        "workspaces": {
+          "title": "Workspaces",
+          "description": "Secondary configuration and activity workspaces stay available without diluting the main Overview and Resources IA."
+        }
+      },
+      "summary": {
+        "configurationTitle": "Configuration",
+        "summaryTitle": "Summary",
+        "discoveryTitle": "Discovery",
+        "canonicalName": "Canonical Project Name",
+        "composeFiles": "Compose Files",
+        "workingDirectory": "Working Directory",
+        "envFiles": "Env Files",
+        "status": "Status",
+        "services": "Services",
+        "configHash": "Config Hash",
+        "nameSource": "Name Source",
+        "runtimeMembers": "Runtime Members",
+        "runningMembers": "Running Members",
+        "hostScope": "Host Scope",
+        "lastRefreshAt": "Last Refresh",
+        "hostScopeValues": {
+          "local": "Local Host",
+          "remote-host": "Remote Host"
+        },
+        "nameSourceValues": {
+          "explicit": "Explicit",
+          "derived-working-directory": "Derived from Working Directory",
+          "derived-compose-file": "Derived from Compose File",
+          "derived-runtime-label": "Derived from Runtime Label",
+          "fallback-display-name": "Fallback Display Name"
+        }
+      },
       "tabs": {
         "overview": "Overview",
-        "services": "Services",
         "configuration": "Configuration",
         "activity": "Activity"
+      },
+      "resources": {
+        "tabs": {
+          "containers": "Containers",
+          "networks": "Networks",
+          "volumes": "Volumes"
+        },
+        "summary": "{count} {resource} rows.",
+        "columnSettings": "Column Settings",
+        "resetColumns": "Reset Columns",
+        "loadFailed": "Failed to load project resources.",
+        "pagination": {
+          "empty": "No resource rows",
+          "summary": "{start}-{end} of {total}"
+        },
+        "descriptions": {
+          "containers": "Reuses container management table behavior while narrowing row actions to detail access.",
+          "networks": "Declared networks use the same table workspace and can later switch to runtime authority.",
+          "volumes": "Declared volumes use the same table workspace and can later switch to runtime authority."
+        },
+        "empty": {
+          "containers": {
+            "title": "No Containers",
+            "description": "This Compose project does not currently expose runtime container members."
+          },
+          "networks": {
+            "title": "No Networks",
+            "description": "This Compose project does not currently declare any networks."
+          },
+          "volumes": {
+            "title": "No Volumes",
+            "description": "This Compose project does not currently declare any volumes."
+          }
+        },
+        "columns": {
+          "status": "Status",
+          "name": "Name",
+          "service": "Service",
+          "image": "Image",
+          "cpu": "CPU",
+          "memory": "Memory",
+          "createdAt": "Created",
+          "driver": "Driver",
+          "scope": "Scope",
+          "services": "Services",
+          "containers": "Containers",
+          "anonymous": "Anonymous",
+          "mountedBy": "Mounted By",
+          "mountTarget": "Mount Target"
+        },
+        "volumeAnonymousYes": "Yes",
+        "volumeAnonymousNo": "No",
+        "detailServices": "Bound Services",
+        "detailMountedBy": "Mounted By"
       },
       "overview": {
         "summaryTitle": "Registry Summary",
@@ -512,16 +619,6 @@
         "diagnosticsEmpty": "No Configuration Diagnostics Were Returned."
       },
       "services": {
-        "title": "Declared Services",
-        "summary": "{count} Services Declared in the Latest Snapshot.",
-        "emptyTitle": "No Services",
-        "emptyDescription": "Refresh the Project Snapshot to Inspect Declared Services.",
-        "declaredPorts": "Ports",
-        "declaredVolumes": "Volumes",
-        "declaredNetworks": "Networks",
-        "members": "Runtime Members",
-        "runningCount": "Running {count}",
-        "stoppedCount": "Stopped {count}",
         "openContainer": "Open Container Detail"
       },
       "configuration": {

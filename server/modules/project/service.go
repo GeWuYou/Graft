@@ -557,6 +557,7 @@ func (s *Service) ListRuntimeImportCandidates(
 		}
 		items = append(items, candidate)
 	}
+	items = dedupeRuntimeImportCandidates(items)
 	sortRuntimeImportCandidates(items)
 	return buildRuntimeImportCandidatesResult(items, query), nil
 }
@@ -578,7 +579,11 @@ func (s *Service) InspectRuntimeCandidate(ctx context.Context, request RuntimeIm
 	if err != nil {
 		return RuntimeImportInspectResult{}, err
 	}
-	return runtimeImportInspectResultFromSession(candidate.CandidateKey, session), nil
+	runtimeMembers, err := s.runtimeImportCandidateMembers(ctx, candidate)
+	if err != nil {
+		return RuntimeImportInspectResult{}, err
+	}
+	return runtimeImportInspectResultFromSession(candidate.CandidateKey, session, runtimeMembers), nil
 }
 
 // BrowseImportDirectories returns a bounded root-relative directory listing for import flows.
@@ -1878,6 +1883,27 @@ func sortRuntimeImportCandidates(items []RuntimeImportCandidate) {
 	})
 }
 
+func dedupeRuntimeImportCandidates(items []RuntimeImportCandidate) []RuntimeImportCandidate {
+	if len(items) == 0 {
+		return nil
+	}
+	seen := make(map[string]struct{}, len(items))
+	result := make([]RuntimeImportCandidate, 0, len(items))
+	for _, item := range items {
+		key := strings.TrimSpace(item.CandidateKey)
+		if key == "" {
+			result = append(result, item)
+			continue
+		}
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		result = append(result, item)
+	}
+	return result
+}
+
 func buildRuntimeImportCandidatesResult(
 	items []RuntimeImportCandidate,
 	query RuntimeImportCandidateListQuery,
@@ -2091,6 +2117,29 @@ func (s *Service) inspectRuntimeCandidateSession(
 	return session, nil
 }
 
+func (s *Service) runtimeImportCandidateMembers(
+	ctx context.Context,
+	candidate moduleapi.ContainerProjectRuntimeCandidate,
+) ([]RuntimeImportMember, error) {
+	if s == nil || s.runtimeReader == nil {
+		return nil, errProjectServiceUnavailable
+	}
+	items, err := s.runtimeReader.ListImportCandidateMembers(ctx, projectcontract.HostScopeLocal.String(), candidate)
+	if err != nil {
+		return nil, err
+	}
+	members := make([]RuntimeImportMember, 0, len(items))
+	for _, item := range items {
+		members = append(members, RuntimeImportMember{
+			ContainerID:   item.ContainerID,
+			ContainerName: item.ContainerName,
+			ServiceName:   item.ServiceName,
+			State:         item.CanonicalState,
+		})
+	}
+	return members, nil
+}
+
 func importInspectResultFromSession(
 	directoryRef ImportDirectoryReference,
 	session importInspectionSession,
@@ -2118,6 +2167,7 @@ func importInspectResultFromSession(
 func runtimeImportInspectResultFromSession(
 	candidateKey string,
 	session importInspectionSession,
+	runtimeMembers []RuntimeImportMember,
 ) RuntimeImportInspectResult {
 	preview := inspectionPreviewFromSession(session)
 	return RuntimeImportInspectResult{
@@ -2132,6 +2182,7 @@ func runtimeImportInspectResultFromSession(
 		ServiceNames:               preview.serviceNames,
 		NetworkNames:               preview.networkNames,
 		VolumeNames:                preview.volumeNames,
+		RuntimeMembers:             append([]RuntimeImportMember(nil), runtimeMembers...),
 		ConfigHash:                 preview.configHash,
 		Warnings:                   preview.warnings,
 		Conflicts:                  preview.conflicts,

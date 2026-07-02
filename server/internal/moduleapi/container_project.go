@@ -55,4 +55,9 @@ type ContainerProjectRuntimeCandidate struct {
 type ContainerProjectRuntimeReader interface {
 	ListProjectMembers(ctx context.Context, hostScope string, canonicalProjectName string) (ContainerProjectRuntimeSummary, error)
 	ListImportCandidates(ctx context.Context, hostScope string) ([]ContainerProjectRuntimeCandidate, error)
+	ListImportCandidateMembers(
+		ctx context.Context,
+		hostScope string,
+		candidate ContainerProjectRuntimeCandidate,
+	) ([]ContainerProjectMember, error)
 }

@@ -5420,6 +5420,12 @@ export interface components {
       exists_on_last_refresh: boolean;
       last_observed_hash?: string | null;
     };
+    'project-import-runtime-member': {
+      container_id: string;
+      container_name: string;
+      service_name: string;
+      state: string;
+    };
     'project-import-runtime-inspect-response': {
       inspection_id: string;
       candidate_key: string;
@@ -5432,6 +5438,7 @@ export interface components {
       services: string[];
       networks: string[];
       volumes: string[];
+      runtime_members: components['schemas']['project-import-runtime-member'][];
       config_hash: string;
       warnings: string[];
       conflicts: string[];

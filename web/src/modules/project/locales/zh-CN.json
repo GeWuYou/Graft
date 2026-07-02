@@ -300,6 +300,14 @@
         "services": "服务",
         "networks": "网络",
         "volumes": "卷",
+        "runtimeMembersTitle": "运行时成员",
+        "runtimeMembersSummary": "共 {count} 个容器成员",
+        "runtimeMembersEmpty": "当前候选没有可展示的运行时成员。",
+        "runtimeMembersPagination": "第 {start}-{end} 项，共 {total} 项",
+        "runtimeMemberContainerName": "容器",
+        "runtimeMemberServiceName": "服务",
+        "runtimeMemberState": "状态",
+        "runtimeMemberContainerId": "容器 ID",
         "blockedDescription": "当前检查结果包含冲突，解决后才能继续确认导入。",
         "noDiagnostics": "当前没有额外 warning 或 conflict。",
         "none": "无"
@@ -480,11 +488,110 @@
       "refresh": "刷新快照",
       "openWorkingDirectory": "工作目录",
       "titleFallback": "项目详情",
+      "sections": {
+        "lifecycle": {
+          "title": "Lifecycle",
+          "description": "项目级启动、停止、重启和取消注册操作。"
+        },
+        "overview": {
+          "title": "Overview",
+          "description": "只展示项目级配置、摘要、发现信息与诊断，不在这里堆大型资源表。"
+        },
+        "resources": {
+          "title": "Resources",
+          "description": "单区域切换运行时资源表，避免同屏堆叠多个资源表。"
+        },
+        "workspaces": {
+          "title": "Workspaces",
+          "description": "次级工作区保留配置与活动能力，不再与核心概览/资源信息架构混排。"
+        }
+      },
+      "summary": {
+        "configurationTitle": "配置",
+        "summaryTitle": "摘要",
+        "discoveryTitle": "发现",
+        "canonicalName": "规范项目名",
+        "composeFiles": "Compose 文件",
+        "workingDirectory": "工作目录",
+        "envFiles": "环境文件",
+        "status": "状态",
+        "services": "服务数",
+        "configHash": "配置哈希",
+        "nameSource": "名称来源",
+        "runtimeMembers": "运行时成员",
+        "runningMembers": "运行中成员",
+        "hostScope": "宿主范围",
+        "lastRefreshAt": "最近刷新",
+        "hostScopeValues": {
+          "local": "本机",
+          "remote-host": "远端宿主"
+        },
+        "nameSourceValues": {
+          "explicit": "显式配置",
+          "derived-working-directory": "由工作目录推导",
+          "derived-compose-file": "由 Compose 文件推导",
+          "derived-runtime-label": "由运行时标签推导",
+          "fallback-display-name": "回退展示名"
+        }
+      },
       "tabs": {
         "overview": "Overview",
-        "services": "Services",
         "configuration": "Configuration",
         "activity": "Activity"
+      },
+      "resources": {
+        "tabs": {
+          "containers": "Containers",
+          "networks": "Networks",
+          "volumes": "Volumes"
+        },
+        "summary": "{resource} 共 {count} 条。",
+        "columnSettings": "列设置",
+        "resetColumns": "重置列",
+        "loadFailed": "资源加载失败。",
+        "pagination": {
+          "empty": "暂无资源数据",
+          "summary": "第 {start}-{end} 条，共 {total} 条"
+        },
+        "descriptions": {
+          "containers": "复用容器管理表格能力，仅保留详情入口。",
+          "networks": "声明网络使用统一表格承接，支持未来切换到运行时 authority。",
+          "volumes": "声明卷使用统一表格承接，支持未来切换到运行时 authority。"
+        },
+        "empty": {
+          "containers": {
+            "title": "暂无容器",
+            "description": "当前 Compose 项目还没有可显示的容器成员。"
+          },
+          "networks": {
+            "title": "暂无网络",
+            "description": "当前 Compose 项目还没有声明网络。"
+          },
+          "volumes": {
+            "title": "暂无卷",
+            "description": "当前 Compose 项目还没有声明卷。"
+          }
+        },
+        "columns": {
+          "status": "状态",
+          "name": "名称",
+          "service": "服务",
+          "image": "镜像",
+          "cpu": "CPU",
+          "memory": "内存",
+          "createdAt": "创建时间",
+          "driver": "Driver",
+          "scope": "Scope",
+          "services": "Services",
+          "containers": "Containers",
+          "anonymous": "Anonymous",
+          "mountedBy": "Mounted By",
+          "mountTarget": "Mount Target"
+        },
+        "volumeAnonymousYes": "是",
+        "volumeAnonymousNo": "否",
+        "detailServices": "关联服务",
+        "detailMountedBy": "挂载服务"
       },
       "overview": {
         "summaryTitle": "注册摘要",
@@ -512,16 +619,6 @@
         "diagnosticsEmpty": "当前没有返回配置诊断摘要。"
       },
       "services": {
-        "title": "声明服务",
-        "summary": "最新快照共声明 {count} 个服务。",
-        "emptyTitle": "暂无服务",
-        "emptyDescription": "请先刷新项目快照，再查看声明服务。",
-        "declaredPorts": "端口",
-        "declaredVolumes": "卷",
-        "declaredNetworks": "网络",
-        "members": "运行时成员",
-        "runningCount": "运行中 {count}",
-        "stoppedCount": "已停止 {count}",
         "openContainer": "打开容器详情"
       },
       "configuration": {

@@ -270,6 +270,14 @@ function translate(key: string, params?: Record<string, unknown>) {
   return value.replace(/\{(\w+)\}/g, (_match, name: string) => String(params?.[name] ?? ''));
 }
 
+function shortenMiddle(value: string, prefixLength: number, suffixLength: number) {
+  if (value.length <= prefixLength + suffixLength + 3) {
+    return value;
+  }
+
+  return `${value.slice(0, prefixLength)}...${value.slice(-suffixLength)}`;
+}
+
 function buildCandidate(overrides: Partial<ProjectImportRuntimeCandidate>): ProjectImportRuntimeCandidate {
   return {
     candidate_key: 'runtime:demo',
@@ -429,6 +437,94 @@ const TDescriptionsItemStub = defineComponent({
   },
 });
 
+const TTooltipStub = defineComponent({
+  name: 'TTooltipStub',
+  props: {
+    content: { type: String, default: '' },
+  },
+  setup(props, { slots }) {
+    return () => h('span', { class: 't-tooltip-stub', 'data-tooltip': props.content }, slots.default?.());
+  },
+});
+
+const TTableStub = defineComponent({
+  name: 'TTableStub',
+  props: {
+    columns: { type: Array, required: true },
+    data: { type: Array, required: true },
+  },
+  setup(props, { slots }) {
+    return () =>
+      h('table', { class: 't-table-stub' }, [
+        h(
+          'thead',
+          h(
+            'tr',
+            (props.columns as Array<Record<string, unknown>>).map((column) =>
+              h('th', { 'data-col': String(column.colKey) }, String(column.title ?? column.colKey)),
+            ),
+          ),
+        ),
+        h(
+          'tbody',
+          (props.data as Array<Record<string, unknown>>).map((row) =>
+            h(
+              'tr',
+              (props.columns as Array<Record<string, unknown>>).map((column) => {
+                const slotName = String(column.colKey);
+                const slot = slots[slotName];
+                return h('td', { 'data-col': slotName }, slot ? slot({ row }) : String(row[slotName] ?? ''));
+              }),
+            ),
+          ),
+        ),
+      ]);
+  },
+});
+
+const TPaginationStub = defineComponent({
+  name: 'TPaginationStub',
+  props: {
+    current: { type: Number, default: 1 },
+    pageSize: { type: Number, default: 10 },
+    total: { type: Number, default: 0 },
+  },
+  emits: ['update:current', 'update:pageSize', 'change'],
+  setup(props, { emit }) {
+    const maxPage = () => Math.max(1, Math.ceil(props.total / props.pageSize));
+    const changePage = (next: number) => {
+      emit('update:current', next);
+      emit('change', { current: next, previous: props.current, pageSize: props.pageSize });
+    };
+    const changePageSize = (next: number) => {
+      emit('update:pageSize', next);
+      emit('change', { current: 1, previous: props.current, pageSize: next });
+    };
+
+    return () =>
+      h('div', { class: 't-pagination-stub' }, [
+        h('span', { 'data-testid': 'runtime-members-page' }, `${props.current}/${maxPage()}`),
+        h(
+          'button',
+          {
+            'data-testid': 'runtime-members-next-page',
+            disabled: props.current >= maxPage(),
+            onClick: () => changePage(Math.min(maxPage(), props.current + 1)),
+          },
+          'next',
+        ),
+        h(
+          'button',
+          {
+            'data-testid': 'runtime-members-page-size-5',
+            onClick: () => changePageSize(5),
+          },
+          'size-5',
+        ),
+      ]);
+  },
+});
+
 function mountPage() {
   return mount(ProjectImportIndex, {
     global: {
@@ -445,10 +541,13 @@ function mountPage() {
         't-input': TInputStub,
         't-loading': WrapperStub,
         't-option': TOptionStub,
+        't-pagination': TPaginationStub,
         't-select': TSelectStub,
         't-space': WrapperStub,
         't-steps': WrapperStub,
+        't-table': TTableStub,
         't-tag': WrapperStub,
+        't-tooltip': TTooltipStub,
       },
     },
   });
@@ -622,6 +721,7 @@ describe('ProjectImportIndex', () => {
       services: null,
       networks: null,
       volumes: null,
+      runtime_members: null,
       warnings: null,
       conflicts: null,
       validation_status: 'ready',
@@ -636,7 +736,85 @@ describe('ProjectImportIndex', () => {
     expect(wrapper.text()).toContain('demo');
     expect(wrapper.text()).toContain('无');
     expect(wrapper.text()).toContain('当前没有额外 warning 或 conflict。');
+    expect(wrapper.text()).toContain('当前候选没有可展示的运行时成员。');
     expect(flowState.inspectCandidate).not.toHaveBeenCalled();
+  });
+
+  it('shortens long technical values, keeps full tooltip content, and paginates runtime members in inspect preview', async () => {
+    routeState.query = {
+      step: 'inspect',
+      candidate: 'runtime:demo',
+    };
+
+    const runtimeMembers = Array.from({ length: 11 }, (_item, index) => ({
+      container_id: `abcdef1234567890${index}`,
+      container_name: `demo-service-${index + 1}`,
+      service_name: index % 2 === 0 ? 'web' : 'worker',
+      state: index === 0 ? 'running' : 'exited',
+    }));
+
+    const flowState = createFlowState();
+    flowState.hasPreview.value = true;
+    flowState.canImport.value = true;
+    flowState.inspectResult.value = {
+      inspection_id: 'inspect-preview',
+      candidate_key: 'runtime:demo',
+      resolved_working_directory: '/srv/projects/import-preview-example/very/long/path/for/compose/runtime/demo',
+      canonical_project_name: 'demo',
+      canonical_project_name_source: 'computed',
+      display_name_suggested: 'Demo',
+      compose_files: [
+        {
+          kind: 'compose',
+          role: 'primary',
+          absolute_path: '/srv/projects/import-preview-example/very/long/path/for/compose/runtime/demo/compose.yaml',
+          display_path: '/srv/projects/import-preview-example/very/long/path/for/compose/runtime/demo/compose.yaml',
+          order_index: 0,
+          exists_on_last_refresh: true,
+        },
+      ],
+      env_files: [],
+      services: ['web', 'worker'],
+      networks: ['default', 'internal'],
+      volumes: ['data', 'cache'],
+      runtime_members: runtimeMembers,
+      warnings: [],
+      conflicts: [],
+      validation_status: 'ready',
+      config_hash: '1234567890abcdef1234567890abcdef',
+    } as never;
+    flowState.inspectCandidate.mockResolvedValue('applied');
+    mocks.useProjectImportFlow.mockImplementation(() => flowState);
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('12345678...90abcdef');
+    expect(wrapper.html()).toContain('data-tooltip="1234567890abcdef1234567890abcdef"');
+    expect(wrapper.text()).toContain(
+      shortenMiddle(
+        '/srv/projects/import-preview-example/very/long/path/for/compose/runtime/demo/compose.yaml',
+        20,
+        20,
+      ),
+    );
+    expect(wrapper.html()).toContain(
+      'data-tooltip="/srv/projects/import-preview-example/very/long/path/for/compose/runtime/demo/compose.yaml"',
+    );
+
+    const refreshButtons = wrapper
+      .findAll('button')
+      .filter((button) => button.text().includes('刷新检查') || button.text().includes('重试检查'));
+    expect(refreshButtons).toHaveLength(1);
+
+    expect(wrapper.text()).toContain('demo-service-1');
+    expect(wrapper.text()).toContain('demo-service-10');
+    expect(wrapper.text()).not.toContain('demo-service-11');
+
+    await wrapper.get('[data-testid="runtime-members-next-page"]').trigger('click');
+    await nextTick();
+
+    expect(wrapper.text()).toContain('demo-service-11');
   });
 
   it('does not render visible English Inspect copy in the zh-CN flow', async () => {

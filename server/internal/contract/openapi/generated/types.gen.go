@@ -7800,6 +7800,7 @@ type ProjectImportRuntimeInspectResponse struct {
 	InspectionId               string                                              `json:"inspection_id"`
 	Networks                   []string                                            `json:"networks"`
 	ResolvedWorkingDirectory   string                                              `json:"resolved_working_directory"`
+	RuntimeMembers             []ProjectImportRuntimeMember                        `json:"runtime_members"`
 	Services                   []string                                            `json:"services"`
 	ValidationStatus           ProjectImportRuntimeInspectResponseValidationStatus `json:"validation_status"`
 	Volumes                    []string                                            `json:"volumes"`
@@ -7808,6 +7809,14 @@ type ProjectImportRuntimeInspectResponse struct {
 
 // ProjectImportRuntimeInspectResponseValidationStatus defines model for ProjectImportRuntimeInspectResponse.ValidationStatus.
 type ProjectImportRuntimeInspectResponseValidationStatus string
+
+// ProjectImportRuntimeMember defines model for project-import-runtime-member.
+type ProjectImportRuntimeMember struct {
+	ContainerId   string `json:"container_id"`
+	ContainerName string `json:"container_name"`
+	ServiceName   string `json:"service_name"`
+	State         string `json:"state"`
+}
 
 // ProjectImportRuntimeWorkingDirectorySource defines model for project-import-runtime-working-directory-source.
 type ProjectImportRuntimeWorkingDirectorySource string

@@ -4,6 +4,7 @@ import type {
   ProjectImportDirectorySource,
   ProjectImportInspectResponse,
   ProjectImportRuntimeCandidate,
+  ProjectImportRuntimeMember,
 } from '../types/import';
 
 /**
@@ -136,6 +137,28 @@ function normalizeInspectFileEntries(value: unknown): ProjectImportDirectoryInsp
   return value.filter(isProjectImportDirectoryInspectFileEntry);
 }
 
+function isProjectImportRuntimeMember(value: unknown): value is ProjectImportRuntimeMember {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const item = value as Partial<ProjectImportRuntimeMember>;
+  return (
+    typeof item.container_id === 'string' &&
+    typeof item.container_name === 'string' &&
+    typeof item.service_name === 'string' &&
+    typeof item.state === 'string'
+  );
+}
+
+function normalizeRuntimeMembers(value: unknown): ProjectImportRuntimeMember[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.filter(isProjectImportRuntimeMember);
+}
+
 /**
  * 对 inspect 响应中的可空数组字段做统一归一化，避免页面渲染直接消费 null。
  *
@@ -156,6 +179,7 @@ export function normalizeProjectImportInspectResponse(
     services: normalizeStringArray(result.services),
     networks: normalizeStringArray(result.networks),
     volumes: normalizeStringArray(result.volumes),
+    runtime_members: normalizeRuntimeMembers(result.runtime_members),
     warnings: normalizeStringArray(result.warnings),
     conflicts: normalizeStringArray(result.conflicts),
   };

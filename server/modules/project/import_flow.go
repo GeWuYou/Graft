@@ -157,7 +157,7 @@ type RuntimeImportCandidateAvailability string
 const (
 	runtimeImportCandidateAvailabilityReady       RuntimeImportCandidateAvailability = "ready"
 	runtimeImportCandidateAvailabilityUnavailable RuntimeImportCandidateAvailability = "unavailable"
-	runtimeImportCandidatesDefaultLimit                                          = 10
+	runtimeImportCandidatesDefaultLimit                                              = 10
 )
 
 // RuntimeImportCandidateListQuery describes list filters for runtime import candidates.
@@ -177,10 +177,10 @@ type RuntimeImportCandidateFilterCounts struct {
 
 // RuntimeImportCandidatesResult returns the current runtime import candidates.
 type RuntimeImportCandidatesResult struct {
-	Items        []RuntimeImportCandidate          `json:"items"`
-	Total        int                               `json:"total"`
-	Limit        int                               `json:"limit"`
-	Offset       int                               `json:"offset"`
+	Items        []RuntimeImportCandidate           `json:"items"`
+	Total        int                                `json:"total"`
+	Limit        int                                `json:"limit"`
+	Offset       int                                `json:"offset"`
 	FilterCounts RuntimeImportCandidateFilterCounts `json:"filter_counts"`
 }
 
@@ -191,23 +191,32 @@ type RuntimeImportInspectRequest struct {
 	CanonicalProjectNameOverride *string `json:"canonical_project_name_override,omitempty"`
 }
 
+// RuntimeImportMember returns one runtime member row for the inspect preview.
+type RuntimeImportMember struct {
+	ContainerID   string `json:"container_id"`
+	ContainerName string `json:"container_name"`
+	ServiceName   string `json:"service_name"`
+	State         string `json:"state"`
+}
+
 // RuntimeImportInspectResult returns the inspect preview for one runtime candidate.
 type RuntimeImportInspectResult struct {
-	InspectionID               string     `json:"inspection_id"`
-	CandidateKey               string     `json:"candidate_key"`
-	ResolvedWorkingDirectory   string     `json:"resolved_working_directory"`
-	CanonicalProjectName       string     `json:"canonical_project_name"`
-	CanonicalProjectNameSource string     `json:"canonical_project_name_source"`
-	DisplayNameSuggested       string     `json:"display_name_suggested"`
-	ComposeFiles               []FileView `json:"compose_files"`
-	EnvFiles                   []FileView `json:"env_files"`
-	ServiceNames               []string   `json:"services"`
-	NetworkNames               []string   `json:"networks"`
-	VolumeNames                []string   `json:"volumes"`
-	ConfigHash                 string     `json:"config_hash"`
-	Warnings                   []string   `json:"warnings"`
-	Conflicts                  []string   `json:"conflicts"`
-	ValidationStatus           string     `json:"validation_status"`
+	InspectionID               string                `json:"inspection_id"`
+	CandidateKey               string                `json:"candidate_key"`
+	ResolvedWorkingDirectory   string                `json:"resolved_working_directory"`
+	CanonicalProjectName       string                `json:"canonical_project_name"`
+	CanonicalProjectNameSource string                `json:"canonical_project_name_source"`
+	DisplayNameSuggested       string                `json:"display_name_suggested"`
+	ComposeFiles               []FileView            `json:"compose_files"`
+	EnvFiles                   []FileView            `json:"env_files"`
+	ServiceNames               []string              `json:"services"`
+	NetworkNames               []string              `json:"networks"`
+	VolumeNames                []string              `json:"volumes"`
+	RuntimeMembers             []RuntimeImportMember `json:"runtime_members"`
+	ConfigHash                 string                `json:"config_hash"`
+	Warnings                   []string              `json:"warnings"`
+	Conflicts                  []string              `json:"conflicts"`
+	ValidationStatus           string                `json:"validation_status"`
 }
 
 // ImportExecuteRequest finalizes an import from a prior inspection snapshot.

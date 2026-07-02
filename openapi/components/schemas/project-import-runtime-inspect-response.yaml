@@ -11,6 +11,7 @@ required:
   - services
   - networks
   - volumes
+  - runtime_members
   - config_hash
   - warnings
   - conflicts
@@ -48,6 +49,10 @@ properties:
     type: array
     items:
       type: string
+  runtime_members:
+    type: array
+    items:
+      $ref: ./project-import-runtime-member.yaml
   config_hash:
     type: string
   warnings:

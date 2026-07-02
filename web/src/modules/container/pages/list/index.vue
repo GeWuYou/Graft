@@ -111,15 +111,30 @@
       </template>
     </management-toolbar>
 
-    <management-table-card>
-      <template #head>
-        <div class="container-table-head">
-          <p class="container-table-head__summary">
-            {{ t('container.list.tableSummary', { count: listTotal }) }}
-          </p>
-          <p>{{ t('container.list.tableHint') }}</p>
-        </div>
-      </template>
+    <container-resource-table
+      v-model:current="pagination.current"
+      v-model:page-size="pagination.pageSize"
+      :always-visible-column-keys="CONTAINER_RESOURCE_ALWAYS_VISIBLE_COLUMNS"
+      :empty-description="
+        hasActiveFilters ? t('container.list.emptyFilteredDescription') : t('container.list.emptyDescription')
+      "
+      :empty-title="t('container.list.emptyTitle')"
+      :footer-summary="footerSummary"
+      :head-description="t('container.list.tableHint')"
+      :head-summary="t('container.list.tableSummary', { count: listTotal })"
+      :loading="tableLoading"
+      :more-actions-label="t('container.list.actions.more')"
+      :row-actions="buildRowActions"
+      :rows="rows"
+      :selected-row-keys="selectedRowKeys"
+      :table-density="tableDensity"
+      :total="listTotal"
+      :visible-column-keys="visibleColumnKeys"
+      @action="handleTableAction"
+      @page-change="handlePageChange"
+      @select-change="handleSelectChange"
+      @source-filter="applySourceQuickFilter"
+    >
       <template #toolbar>
         <div class="container-toolbar-row">
           <table-view-toolbar
@@ -201,282 +216,23 @@
           </div>
         </div>
       </template>
-
-      <t-alert v-if="listError.title" class="container-alert" theme="error" :title="listError.title">
-        <p v-if="listError.hint" class="container-alert__hint">{{ listError.hint }}</p>
-        <template #operation>
-          <t-button theme="danger" variant="text" @click="refreshContainers">
-            {{ t('container.list.retry') }}
-          </t-button>
-        </template>
-      </t-alert>
-
-      <div ref="tableHostRef" class="container-table-host graft-scrollbar" :data-table-mode="tableWidthPolicy.mode">
-        <t-table
-          row-key="id"
-          :columns="visibleColumns"
-          :data="rows"
-          :loading="tableLoading"
-          :size="tableDensity"
-          :table-content-width="tableWidthPolicy.tableContentWidth"
-          cell-empty-content="-"
-          table-layout="fixed"
-          :selected-row-keys="selectedRowKeys"
-          hover
-          @select-change="handleSelectChange"
-        >
-          <template #state="{ row }">
-            <t-tag :theme="stateTheme(row.state)" variant="light-outline">
-              {{ stateLabel(row.state) }}
-            </t-tag>
+      <template #feedback>
+        <t-alert v-if="listError.title" class="container-alert" theme="error" :title="listError.title">
+          <p v-if="listError.hint" class="container-alert__hint">{{ listError.hint }}</p>
+          <template #operation>
+            <t-button theme="danger" variant="text" @click="refreshContainers">
+              {{ t('container.list.retry') }}
+            </t-button>
           </template>
-
-          <template #name="{ row }">
-            <div class="container-identity">
-              <span class="container-identity__name">{{ displayName(row) }}</span>
-              <t-tooltip :content="row.id" placement="top-left">
-                <span class="container-identity__id">{{ row.short_id || shortContainerId(row.id) }}</span>
-              </t-tooltip>
-            </div>
-          </template>
-
-          <template #image="{ row }">
-            <div class="container-image">
-              <span>{{ row.image }}</span>
-              <span v-if="row.runtime" class="container-muted">{{ row.runtime }}</span>
-            </div>
-          </template>
-
-          <template #ports="{ row }">
-            <div v-if="visiblePortLabels(row).length" class="container-port-list">
-              <t-tag v-for="port in visiblePortLabels(row)" :key="port" size="small" theme="default" variant="light">
-                {{ port }}
-              </t-tag>
-              <t-tooltip
-                v-if="hiddenPortLabels(row).length"
-                :content="hiddenPortLabels(row).join(' / ')"
-                placement="top"
-              >
-                <t-tag size="small" theme="primary" variant="light">
-                  {{ t('container.list.morePorts', { count: hiddenPortLabels(row).length }) }}
-                </t-tag>
-              </t-tooltip>
-            </div>
-            <span v-else>-</span>
-          </template>
-
-          <template #runtime_status="{ row }">
-            <div class="container-runtime-status">
-              <span class="container-runtime-status__text">{{ row.status || '-' }}</span>
-              <t-tag
-                v-if="shouldShowHealthTag(row.health)"
-                :theme="healthTheme(row.health)"
-                size="small"
-                variant="light"
-              >
-                {{ healthLabel(row.health) }}
-              </t-tag>
-            </div>
-          </template>
-
-          <template #network="{ row }">
-            <div class="container-runtime-status">
-              <span>{{ row.primary_ip || '-' }}</span>
-              <span>{{ row.network_summary || '-' }}</span>
-            </div>
-          </template>
-
-          <template #source="{ row }">
-            <div class="container-source-cell">
-              <div class="container-source-cell__header">
-                <t-tag :theme="orchestratorTheme(row)" size="small" variant="light-outline">
-                  {{ orchestratorLabel(readOrchestratorType(row)) }}
-                </t-tag>
-              </div>
-              <div v-if="sourceGroupFilter(row)" class="container-source-cell__line">
-                <span class="container-source-cell__label">{{ sourceGroupLabel(row) }}</span>
-                <t-button
-                  data-testid="container-source-group-filter"
-                  size="small"
-                  theme="primary"
-                  variant="text"
-                  @click="applySourceQuickFilter(row, 'group')"
-                >
-                  {{ sourceGroupFilter(row)?.value }}
-                </t-button>
-              </div>
-              <div v-if="sourceMemberFilter(row)" class="container-source-cell__line">
-                <span class="container-source-cell__label">{{ sourceMemberLabel(row) }}</span>
-                <t-button
-                  data-testid="container-source-member-filter"
-                  size="small"
-                  theme="default"
-                  variant="text"
-                  @click="applySourceQuickFilter(row, 'member')"
-                >
-                  {{ sourceMemberFilter(row)?.value }}
-                </t-button>
-              </div>
-              <span v-if="!sourceGroupFilter(row) && !sourceMemberFilter(row)" class="container-muted">
-                {{ orchestratorSummary(row) }}
-              </span>
-            </div>
-          </template>
-
-          <template #cpu="{ row }">
-            <t-tooltip
-              v-for="metric in [cpuMetric(row)]"
-              :key="`cpu:${metric.value}`"
-              :content="metric.tooltip"
-              placement="top"
-            >
-              <div
-                class="container-resource-meter"
-                :class="metric.changeClass"
-                :data-available="metric.available"
-                data-testid="container-cpu-meter"
-              >
-                <t-progress
-                  v-if="metric.available"
-                  theme="circle"
-                  :label="false"
-                  :percentage="metric.percentage"
-                  :size="36"
-                  :status="metric.progressStatus"
-                  :stroke-width="4"
-                />
-                <span v-else class="container-resource-meter__empty"></span>
-                <span>{{ metric.value }}</span>
-              </div>
-            </t-tooltip>
-          </template>
-
-          <template #memory="{ row }">
-            <t-tooltip
-              v-for="metric in [memoryMetric(row)]"
-              :key="`memory:${metric.value}`"
-              :content="metric.tooltip"
-              placement="top"
-            >
-              <div
-                class="container-resource-meter"
-                :class="metric.changeClass"
-                :data-available="metric.available"
-                data-testid="container-memory-meter"
-              >
-                <t-progress
-                  v-if="metric.available"
-                  theme="circle"
-                  :label="false"
-                  :percentage="metric.percentage"
-                  :size="36"
-                  :status="metric.progressStatus"
-                  :stroke-width="4"
-                />
-                <span v-else class="container-resource-meter__empty"></span>
-                <span>{{ metric.value }}</span>
-              </div>
-            </t-tooltip>
-          </template>
-
-          <template #resource="{ row }">
-            <span>{{ resourceSummary(row) }}</span>
-          </template>
-
-          <template #image_id="{ row }">
-            <span>{{ row.image_id || '-' }}</span>
-          </template>
-
-          <template #labels="{ row }">
-            <span>{{ labelSummary(row) }}</span>
-          </template>
-
-          <template #created_at="{ row }">
-            {{ formatTime(row.created_at) }}
-          </template>
-
-          <template #started_at="{ row }">
-            {{ formatTime(row.started_at) }}
-          </template>
-
-          <template #restart_policy="{ row }">
-            {{ row.restart_policy || '-' }}
-          </template>
-
-          <template #operation="{ row }">
-            <div class="container-actions" @click.stop>
-              <t-button
-                v-permission="permissionCodes.DETAIL"
-                data-testid="container-action-detail"
-                theme="default"
-                variant="outline"
-                size="small"
-                @click="openDetail(row)"
-              >
-                {{ t('container.list.actions.detail') }}
-              </t-button>
-              <t-button
-                data-testid="container-action-logs"
-                theme="default"
-                variant="outline"
-                size="small"
-                @click="navigateToDetail(row, 'logs')"
-              >
-                {{ t('container.list.actions.logs') }}
-              </t-button>
-              <t-button
-                v-if="permissionStore.hasPermission(auditPermissionCodes.READ)"
-                data-testid="container-action-audit"
-                theme="default"
-                variant="outline"
-                size="small"
-                @click="openAuditLogs(row)"
-              >
-                {{ t('container.list.actions.viewAudit') }}
-              </t-button>
-              <t-dropdown
-                v-if="moreRowActions(row).length"
-                :options="moreRowActionOptions(row)"
-                trigger="click"
-                @click="(payload, context) => handleMoreRowAction(payload, context, row)"
-              >
-                <t-button data-testid="container-action-more" theme="default" variant="outline" size="small">
-                  {{ t('container.list.actions.more') }}
-                </t-button>
-              </t-dropdown>
-            </div>
-          </template>
-
-          <template #empty>
-            <t-empty
-              :title="t('container.list.emptyTitle')"
-              :description="
-                hasActiveFilters ? t('container.list.emptyFilteredDescription') : t('container.list.emptyDescription')
-              "
-            >
-              <template v-if="hasActiveFilters" #action>
-                <t-button theme="primary" variant="outline" @click="resetFilters">
-                  {{ t('container.list.clearFilters') }}
-                </t-button>
-              </template>
-            </t-empty>
-          </template>
-        </t-table>
-      </div>
-
-      <template #footer>
-        <management-table-pagination :summary="footerSummary">
-          <t-pagination
-            v-model:current="pagination.current"
-            v-model:page-size="pagination.pageSize"
-            :page-size-options="[10, 20, 50, 100]"
-            :show-page-number="true"
-            :total="listTotal"
-            @change="handlePageChange"
-          />
-        </management-table-pagination>
+        </t-alert>
       </template>
-    </management-table-card>
+
+      <template v-if="hasActiveFilters" #empty-action>
+        <t-button theme="primary" variant="outline" @click="resetFilters">
+          {{ t('container.list.clearFilters') }}
+        </t-button>
+      </template>
+    </container-resource-table>
 
     <advanced-query-column-drawer
       v-model:visible="columnDrawerVisible"
@@ -491,7 +247,7 @@
 </template>
 <script setup lang="ts">
 import { SearchIcon } from 'tdesign-icons-vue-next';
-import type { DialogInstance, DropdownOption, TdBaseTableProps } from 'tdesign-vue-next';
+import type { DialogInstance } from 'tdesign-vue-next';
 import { DialogPlugin } from 'tdesign-vue-next/es/dialog';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { NotifyPlugin } from 'tdesign-vue-next/es/notification';
@@ -502,19 +258,9 @@ import { useRouter } from 'vue-router';
 import { LOCALE, type LocalizedTitle } from '@/contracts/i18n/locales';
 import { buildAuditResourceLocation } from '@/modules/audit/contract/deep-link';
 import { AUDIT_PERMISSION_CODE } from '@/modules/audit/contract/permissions';
-import {
-  buildVisibleColumns,
-  ManagementPageHeader,
-  ManagementTableCard,
-  ManagementTablePagination,
-  ManagementToolbar,
-  resolveTableWidthPolicy,
-  TableViewToolbar,
-  useTableHostWidth,
-} from '@/shared/components/management';
+import { ManagementPageHeader, ManagementToolbar, TableViewToolbar } from '@/shared/components/management';
 import { AdvancedQueryColumnDrawer } from '@/shared/components/query-list';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
-import { formatLocaleDateTime } from '@/shared/observability';
 import { usePermissionStore, useTabsRouterStore } from '@/store';
 import { createLogger } from '@/utils/logger';
 import { localizeRouteTitleKey } from '@/utils/route/title';
@@ -528,33 +274,35 @@ import {
   startContainer,
   stopContainer,
 } from '../../api/container';
+import ContainerResourceTable from '../../components/ContainerResourceTable.vue';
 import { CONTAINER_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
-import { CONTAINER_PERMISSION_CODE } from '../../contract/permissions';
+import {
+  buildContainerResourceColumnSettingOptions,
+  CONTAINER_RESOURCE_ALL_COLUMN_KEYS,
+  CONTAINER_RESOURCE_ALWAYS_VISIBLE_COLUMNS,
+  CONTAINER_RESOURCE_COLUMN_STORAGE_KEY,
+  CONTAINER_RESOURCE_DEFAULT_VISIBLE_COLUMNS,
+  type ContainerResourceRowAction,
+  type ContainerSourceQuickFilter,
+  displayContainerName,
+} from '../../shared/resource-table';
 import {
   acquireContainerSummaryCollectionSubscription,
   clearContainerListMetadata,
   releaseContainerSummaryCollectionSubscription,
   seedContainerList,
   selectContainerListViews,
-  selectContainerStatsChangeState,
 } from '../../shared/stats-manager';
-import { metricChangedClass, metricProgressStatus } from '../../shared/stats-visual-state';
 import type {
   ContainerAction,
   ContainerActionLevel,
   ContainerBatchActionItem,
   ContainerBatchActionResponse,
   ContainerFilters,
-  ContainerHealth,
   ContainerListQueryWithOrchestrator,
-  ContainerListSourceScopeKind,
   ContainerListSourceScopeQuery,
   ContainerListSummary,
-  ContainerOrchestratorType,
-  ContainerPort,
   ContainerRuntimeInfo,
-  ContainerSourceGroupKind,
-  ContainerSourceMemberKind,
   ContainerState,
   ContainerSummaryRecord,
 } from '../../types/container';
@@ -563,13 +311,14 @@ defineOptions({
   name: 'ContainerListIndex',
 });
 
-const { locale, t, te } = useI18n();
+const { t } = useI18n();
 const router = useRouter();
 const permissionStore = usePermissionStore();
 const tabsRouterStore = useTabsRouterStore();
 const logger = createLogger('container.list');
 const auditPermissionCodes = AUDIT_PERMISSION_CODE;
-const permissionCodes = CONTAINER_PERMISSION_CODE;
+const DEFAULT_VISIBLE_COLUMNS = CONTAINER_RESOURCE_DEFAULT_VISIBLE_COLUMNS;
+const ALWAYS_VISIBLE_COLUMNS = CONTAINER_RESOURCE_ALWAYS_VISIBLE_COLUMNS;
 
 const statusOptions: ContainerState[] = [
   'created',
@@ -581,69 +330,15 @@ const statusOptions: ContainerState[] = [
   'dead',
   'unknown',
 ];
-const healthOptions: ContainerHealth[] = ['healthy', 'unhealthy', 'starting', 'none', 'unavailable'];
-const orchestratorOptions: ContainerOrchestratorType[] = ['standalone', 'compose', 'swarm', 'kubernetes', 'unknown'];
+const healthOptions = ['healthy', 'unhealthy', 'starting', 'none', 'unavailable'] as const;
+const orchestratorOptions = ['standalone', 'compose', 'swarm', 'kubernetes', 'unknown'] as const;
 const CONTAINER_RUNTIME_DISABLED_MESSAGE_KEY = 'ops.container.error.runtimeDisabled';
-const CONTAINER_COLUMN_STORAGE_KEY = 'graft.container.list.visibleColumns';
-const DEFAULT_VISIBLE_COLUMNS = [
-  'row-select',
-  'state',
-  'name',
-  'image',
-  'source',
-  'cpu',
-  'memory',
-  'ports',
-  'network',
-  'runtime_status',
-  'created_at',
-  'operation',
-];
-const ALWAYS_VISIBLE_COLUMNS = ['row-select', 'state', 'name', 'operation'];
-const ALL_COLUMN_KEYS = [
-  'row-select',
-  'state',
-  'name',
-  'image',
-  'source',
-  'cpu',
-  'memory',
-  'ports',
-  'network',
-  'runtime_status',
-  'created_at',
-  'started_at',
-  'restart_policy',
-  'image_id',
-  'labels',
-  'resource',
-  'operation',
-];
-const CONTAINER_PORT_VISIBLE_LIMIT = 2;
 const CONTAINER_DEFAULT_PAGE_SIZE = 20;
-const BYTES_PER_MIB = 1024 * 1024;
 type ListErrorState = {
   title: string;
   hint: string;
 };
 type DangerousContainerAction = Extract<ContainerAction, 'remove' | 'restart' | 'start' | 'stop'>;
-type RowAction =
-  'copy-id' | 'inspect' | 'remove' | 'restart' | 'start' | 'stop' | 'view-env' | 'view-mounts' | 'view-networks';
-type ResourceMetric = {
-  available: boolean;
-  changeClass: Record<string, boolean>;
-  percentage: number;
-  progressStatus: 'success' | 'warning' | undefined;
-  tooltip: string;
-  value: string;
-};
-type DropdownActionValue = { value?: string | number | Record<string, unknown> } | string | number;
-type DropdownActionContext = { e?: MouseEvent };
-type SourceQuickFilterTarget = 'group' | 'member';
-type SourceQuickFilterValue = {
-  kind: ContainerSourceGroupKind | ContainerSourceMemberKind;
-  value: string;
-};
 
 const tableLoading = ref(false);
 const refreshing = ref(false);
@@ -655,10 +350,11 @@ const columnDrawerVisible = ref(false);
 const visibleColumnKeys = ref<string[]>(loadVisibleColumnKeys());
 const tableDensity = ref<'medium' | 'small'>('medium');
 const selectedRowKeys = ref<Array<string | number>>([]);
+const selectedRowRecords = ref<ContainerSummaryRecord[]>([]);
 const batchActionLoading = ref<DangerousContainerAction | ''>('');
 const activeDangerousDialog = ref<DialogInstance | null>(null);
 const dangerousDialogOpen = ref(false);
-const pendingSourceScopeFilter = ref<SourceQuickFilterValue | null>(null);
+const pendingSourceScopeFilter = ref<ContainerSourceQuickFilter | null>(null);
 const filters = reactive<ContainerFilters>({
   keyword: '',
   orchestrator: 'all',
@@ -674,63 +370,8 @@ const pagination = reactive({
 const rows = computed<ContainerSummaryRecord[]>(() => selectContainerListViews());
 const listRealtimeActive = ref(false);
 let listRealtimeSubscribed = false;
-
-const allColumns = computed<TdBaseTableProps['columns']>(() => [
-  { colKey: 'row-select', type: 'multiple', width: 48, fixed: 'left', align: 'center' },
-  { title: t('container.list.columns.status'), colKey: 'state', width: 104, align: 'center', ellipsis: false },
-  {
-    title: t('container.list.columns.name'),
-    colKey: 'name',
-    minWidth: 260,
-    ellipsis: { theme: 'default', placement: 'top-left' },
-  },
-  {
-    title: t('container.list.columns.image'),
-    colKey: 'image',
-    minWidth: 280,
-    ellipsis: { theme: 'default', placement: 'top-left' },
-  },
-  { title: t('container.list.columns.source'), colKey: 'source', width: 188, ellipsis: false },
-  { title: t('container.list.columns.cpu'), colKey: 'cpu', width: 132, align: 'center', ellipsis: false },
-  { title: t('container.list.columns.memory'), colKey: 'memory', width: 180, align: 'center', ellipsis: false },
-  { title: t('container.list.columns.ports'), colKey: 'ports', width: 220, ellipsis: false },
-  { title: t('container.list.columns.network'), colKey: 'network', width: 176, ellipsis: false },
-  { title: t('container.list.columns.resource'), colKey: 'resource', width: 168, ellipsis: false },
-  {
-    title: t('container.list.columns.runtimeStatus'),
-    colKey: 'runtime_status',
-    minWidth: 220,
-    ellipsis: { theme: 'default', placement: 'top-left' },
-  },
-  { title: t('container.list.columns.createdAt'), colKey: 'created_at', width: 168, align: 'center' },
-  { title: t('container.list.columns.startedAt'), colKey: 'started_at', width: 168, align: 'center' },
-  { title: t('container.list.columns.restartPolicy'), colKey: 'restart_policy', width: 140, align: 'center' },
-  {
-    title: t('container.list.columns.imageId'),
-    colKey: 'image_id',
-    width: 220,
-    ellipsis: { theme: 'default', placement: 'top-left' },
-  },
-  {
-    title: t('container.list.columns.labels'),
-    colKey: 'labels',
-    width: 180,
-    ellipsis: { theme: 'default', placement: 'top-left' },
-  },
-  {
-    title: t('container.list.columns.operation'),
-    colKey: 'operation',
-    width: 288,
-    fixed: 'right',
-    align: 'center',
-    ellipsis: false,
-  },
-]);
-const visibleColumns = computed<TdBaseTableProps['columns']>(() =>
-  buildVisibleColumns(allColumns.value, visibleColumnKeys.value, ALWAYS_VISIBLE_COLUMNS),
-);
 const orchestratorSourceScopeKinds = computed<
-  Record<ContainerOrchestratorType, Array<ContainerSourceGroupKind | ContainerSourceMemberKind>>
+  Record<(typeof orchestratorOptions)[number], Array<ContainerSourceQuickFilter['kind']>>
 >(() => ({
   standalone: [],
   compose: ['compose_project', 'compose_service'],
@@ -738,9 +379,7 @@ const orchestratorSourceScopeKinds = computed<
   kubernetes: ['kubernetes_namespace', 'kubernetes_pod'],
   unknown: [],
 }));
-const { tableHostRef, tableHostWidth } = useTableHostWidth(() => visibleColumns.value);
-const tableWidthPolicy = computed(() => resolveTableWidthPolicy(visibleColumns.value, tableHostWidth.value));
-const availableSourceScopeKinds = computed<Array<ContainerSourceGroupKind | ContainerSourceMemberKind>>(() => {
+const availableSourceScopeKinds = computed<Array<ContainerSourceQuickFilter['kind']>>(() => {
   if (filters.orchestrator === 'all') {
     return [
       'compose_project',
@@ -801,25 +440,7 @@ const runtimeSummary = computed(() => {
 const tableDensityLabel = computed(() =>
   tableDensity.value === 'medium' ? t('container.list.compactDensity') : t('container.list.defaultDensity'),
 );
-const columnSettingOptions = computed(() => [
-  { label: t('container.list.columns.selection'), value: 'row-select' },
-  { label: t('container.list.columns.status'), value: 'state' },
-  { label: t('container.list.columns.name'), value: 'name' },
-  { label: t('container.list.columns.image'), value: 'image' },
-  { label: t('container.list.columns.source'), value: 'source' },
-  { label: t('container.list.columns.cpu'), value: 'cpu' },
-  { label: t('container.list.columns.memory'), value: 'memory' },
-  { label: t('container.list.columns.ports'), value: 'ports' },
-  { label: t('container.list.columns.network'), value: 'network' },
-  { label: t('container.list.columns.resource'), value: 'resource' },
-  { label: t('container.list.columns.runtimeStatus'), value: 'runtime_status' },
-  { label: t('container.list.columns.createdAt'), value: 'created_at' },
-  { label: t('container.list.columns.startedAt'), value: 'started_at' },
-  { label: t('container.list.columns.restartPolicy'), value: 'restart_policy' },
-  { label: t('container.list.columns.imageId'), value: 'image_id' },
-  { label: t('container.list.columns.labels'), value: 'labels' },
-  { label: t('container.list.columns.operation'), value: 'operation' },
-]);
+const columnSettingOptions = computed(() => buildContainerResourceColumnSettingOptions(t));
 const footerSummary = computed(() => {
   if (!listTotal.value) {
     return t('container.list.pagination.empty');
@@ -834,8 +455,15 @@ const footerSummary = computed(() => {
   });
 });
 const selectedRows = computed(() => {
-  const selectedKeySet = new Set(selectedRowKeys.value.map(String));
-  return rows.value.filter((row) => selectedKeySet.has(row.id));
+  const rowMap = new Map(rows.value.map((row) => [row.id, row]));
+  const cachedRowMap = new Map(selectedRowRecords.value.map((row) => [row.id, row]));
+
+  return selectedRowKeys.value
+    .map((key) => {
+      const id = String(key);
+      return rowMap.get(id) ?? cachedRowMap.get(id) ?? null;
+    })
+    .filter((row): row is ContainerSummaryRecord => Boolean(row));
 });
 let refreshRequestSeq = 0;
 
@@ -885,7 +513,7 @@ watch(
       filters.sourceScope = '';
       return;
     }
-    if (availableSourceScopeKinds.value.includes(filters.sourceScopeKind as ContainerListSourceScopeKind)) {
+    if (availableSourceScopeKinds.value.includes(filters.sourceScopeKind as ContainerSourceQuickFilter['kind'])) {
       return;
     }
     filters.sourceScopeKind = defaultSourceScopeKind(nextOrchestrator);
@@ -956,6 +584,7 @@ async function handleManualRefresh() {
 function pruneSelectedRows() {
   const availableIds = new Set(rows.value.map((row) => row.id));
   selectedRowKeys.value = selectedRowKeys.value.filter((key) => availableIds.has(String(key)));
+  selectedRowRecords.value = selectedRowRecords.value.filter((row) => availableIds.has(row.id));
 }
 
 function acquireListRealtimeSubscription() {
@@ -1047,12 +676,13 @@ function syncPendingSourceScopeFilter() {
     filters.sourceScopeKind !== 'all' && filters.sourceScope
       ? {
           kind: filters.sourceScopeKind,
+          orchestrator: filters.orchestrator === 'all' ? 'standalone' : filters.orchestrator,
           value: filters.sourceScope,
         }
       : null;
 }
 
-function defaultSourceScopeKind(orchestrator: ContainerOrchestratorType | 'all'): ContainerListSourceScopeKind | 'all' {
+function defaultSourceScopeKind(orchestrator: (typeof orchestratorOptions)[number] | 'all') {
   if (orchestrator === 'compose') {
     return 'compose_project';
   }
@@ -1070,7 +700,7 @@ function openDetail(row: ContainerSummaryRecord) {
 }
 
 function openAuditLogs(row: ContainerSummaryRecord) {
-  void router.push(buildAuditResourceLocation('container', row.id, displayName(row)));
+  void router.push(buildAuditResourceLocation('container', row.id, displayContainerName(row)));
 }
 
 async function copyContainerId(row: ContainerSummaryRecord) {
@@ -1083,49 +713,63 @@ async function copyContainerId(row: ContainerSummaryRecord) {
   }
 }
 
-function moreRowActions(row: ContainerSummaryRecord) {
-  const actions: Array<{
-    disabled?: boolean;
-    fallbackLabel: string;
-    label: string;
-    testId: string;
-    value: RowAction;
-  }> = [];
+function buildRowActions(row: ContainerSummaryRecord): ContainerResourceRowAction[] {
+  const actions: ContainerResourceRowAction[] = [
+    {
+      fallbackLabel: t('container.list.actions.detail'),
+      label: 'container.list.actions.detail',
+      testId: 'container-action-detail',
+      value: 'detail',
+    },
+    {
+      fallbackLabel: t('container.list.actions.logs'),
+      label: 'container.list.actions.logs',
+      testId: 'container-action-logs',
+      value: 'logs',
+    },
+  ];
 
-  actions.push({
-    fallbackLabel: t('container.list.actions.copyId'),
-    label: 'container.list.actions.copyId',
-    testId: 'container-action-copy-id',
-    value: 'copy-id',
-  });
+  if (permissionStore.hasPermission(auditPermissionCodes.READ)) {
+    actions.push({
+      fallbackLabel: t('container.list.actions.viewAudit'),
+      label: 'container.list.actions.viewAudit',
+      testId: 'container-action-audit',
+      value: 'view-audit',
+    });
+  }
 
-  actions.push({
-    fallbackLabel: t('container.list.actions.inspect'),
-    label: 'container.list.actions.inspect',
-    testId: 'container-action-inspect',
-    value: 'inspect',
-  });
-
-  actions.push({
-    fallbackLabel: t('container.list.actions.viewMounts'),
-    label: 'container.list.actions.viewMounts',
-    testId: 'container-action-view-mounts',
-    value: 'view-mounts',
-  });
-
-  actions.push({
-    fallbackLabel: t('container.list.actions.viewNetworks'),
-    label: 'container.list.actions.viewNetworks',
-    testId: 'container-action-view-networks',
-    value: 'view-networks',
-  });
-
-  actions.push({
-    fallbackLabel: t('container.list.actions.viewEnvironment'),
-    label: 'container.list.actions.viewEnvironment',
-    testId: 'container-action-view-env',
-    value: 'view-env',
-  });
+  actions.push(
+    {
+      fallbackLabel: t('container.list.actions.copyId'),
+      label: 'container.list.actions.copyId',
+      testId: 'container-action-copy-id',
+      value: 'copy-id',
+    },
+    {
+      fallbackLabel: t('container.list.actions.inspect'),
+      label: 'container.list.actions.inspect',
+      testId: 'container-action-inspect',
+      value: 'inspect',
+    },
+    {
+      fallbackLabel: t('container.list.actions.viewMounts'),
+      label: 'container.list.actions.viewMounts',
+      testId: 'container-action-view-mounts',
+      value: 'view-mounts',
+    },
+    {
+      fallbackLabel: t('container.list.actions.viewNetworks'),
+      label: 'container.list.actions.viewNetworks',
+      testId: 'container-action-view-networks',
+      value: 'view-networks',
+    },
+    {
+      fallbackLabel: t('container.list.actions.viewEnvironment'),
+      label: 'container.list.actions.viewEnvironment',
+      testId: 'container-action-view-env',
+      value: 'view-env',
+    },
+  );
 
   if (canRunDangerousAction(row, 'start')) {
     actions.push({
@@ -1167,33 +811,32 @@ function moreRowActions(row: ContainerSummaryRecord) {
   return actions;
 }
 
-function moreRowActionOptions(row: ContainerSummaryRecord): DropdownOption[] {
-  return moreRowActions(row).map((action) => ({
-    content: action.fallbackLabel,
-    disabled: action.disabled,
-    theme: action.value === 'remove' ? 'error' : 'default',
-    title: action.disabled ? t('container.list.actions.dangerousDisabled') : undefined,
-    testId: action.testId,
-    value: action.value,
-  }));
-}
+const stateLabel = (state: ContainerState) => t(`container.list.states.${state}`);
 
-function handleMoreRowAction(
-  payload: DropdownActionValue,
-  context: DropdownActionContext | undefined,
-  row: ContainerSummaryRecord,
-) {
-  context?.e?.stopPropagation();
+const orchestratorLabel = (orchestrator: (typeof orchestratorOptions)[number]) =>
+  t(`container.list.orchestrators.${orchestrator}`);
 
-  const action = typeof payload === 'object' && payload ? payload.value : payload;
-  if (typeof action === 'string') {
-    handleRowAction(action, row);
-  }
-}
+const healthLabel = (health: (typeof healthOptions)[number]) => t(`container.list.health.${health || 'unavailable'}`);
 
-function handleRowAction(action: string, row: ContainerSummaryRecord) {
+function handleTableAction(payload: { action: string; row: ContainerSummaryRecord }) {
+  const { action, row } = payload;
   if (action === 'copy-id') {
     void copyContainerId(row);
+    return;
+  }
+
+  if (action === 'detail') {
+    openDetail(row);
+    return;
+  }
+
+  if (action === 'logs') {
+    void navigateToDetail(row, 'logs');
+    return;
+  }
+
+  if (action === 'view-audit') {
+    openAuditLogs(row);
     return;
   }
 
@@ -1222,7 +865,15 @@ function handleRowAction(action: string, row: ContainerSummaryRecord) {
   }
 }
 
-async function performDangerousAction(row: ContainerSummaryRecord, action: DangerousContainerAction) {
+function handleRowAction(action: string, row: ContainerSummaryRecord) {
+  handleTableAction({ action, row });
+}
+
+defineExpose({
+  handleRowAction,
+});
+
+const performDangerousAction = async (row: ContainerSummaryRecord, action: DangerousContainerAction) => {
   if (isDangerousActionDisabled(row, action)) {
     MessagePlugin.warning(t('container.list.actions.dangerousDisabled'));
     return;
@@ -1232,9 +883,9 @@ async function performDangerousAction(row: ContainerSummaryRecord, action: Dange
   if (force === undefined) return;
 
   await executeDangerousAction(row, action, force);
-}
+};
 
-function confirmRuntimeAction(row: ContainerSummaryRecord, action: Exclude<DangerousContainerAction, 'remove'>) {
+const confirmRuntimeAction = (row: ContainerSummaryRecord, action: Exclude<DangerousContainerAction, 'remove'>) => {
   if (dangerousDialogOpen.value) {
     return Promise.resolve(undefined);
   }
@@ -1246,7 +897,7 @@ function confirmRuntimeAction(row: ContainerSummaryRecord, action: Exclude<Dange
       header: t(actionDialogTitleKey(action)),
       body: () =>
         h('div', { class: 'container-remove-confirm' }, [
-          h('p', t(actionConfirmKey(action), { name: displayName(row) })),
+          h('p', t(actionConfirmKey(action), { name: displayContainerName(row) })),
           rowActionRiskText(row) ? h('p', { class: 'container-remove-confirm__risk' }, rowActionRiskText(row)) : null,
         ]),
       theme: action === 'start' ? 'warning' : 'danger',
@@ -1280,9 +931,9 @@ function confirmRuntimeAction(row: ContainerSummaryRecord, action: Exclude<Dange
     });
     activeDangerousDialog.value = dialog;
   });
-}
+};
 
-function confirmRemoveAction(row: ContainerSummaryRecord) {
+const confirmRemoveAction = (row: ContainerSummaryRecord) => {
   if (dangerousDialogOpen.value) {
     return Promise.resolve(undefined);
   }
@@ -1299,8 +950,8 @@ function confirmRemoveAction(row: ContainerSummaryRecord) {
           h(
             'p',
             running
-              ? t('container.list.actions.confirmRemoveRunning', { name: displayName(row) })
-              : t('container.list.actions.confirmRemove', { name: displayName(row) }),
+              ? t('container.list.actions.confirmRemoveRunning', { name: displayContainerName(row) })
+              : t('container.list.actions.confirmRemove', { name: displayContainerName(row) }),
           ),
           rowActionRiskText(row) ? h('p', { class: 'container-remove-confirm__risk' }, rowActionRiskText(row)) : null,
           running
@@ -1347,7 +998,7 @@ function confirmRemoveAction(row: ContainerSummaryRecord) {
     });
     activeDangerousDialog.value = dialog;
   });
-}
+};
 
 function closeConfirmDialog<T>(
   dialog: DialogInstance,
@@ -1434,10 +1085,16 @@ function batchActionableRows(action: DangerousContainerAction) {
 
 function clearSelection() {
   selectedRowKeys.value = [];
+  selectedRowRecords.value = [];
 }
 
 function handleSelectChange(rowKeys: Array<string | number>) {
-  selectedRowKeys.value = rowKeys.filter((key) => rows.value.some((row) => row.id === String(key)));
+  const rowMap = new Map(rows.value.map((row) => [row.id, row]));
+  const normalizedRowKeys = rowKeys.filter((key) => rowMap.has(String(key)));
+  selectedRowKeys.value = normalizedRowKeys;
+  selectedRowRecords.value = normalizedRowKeys
+    .map((key) => rowMap.get(String(key)) ?? null)
+    .filter((row): row is ContainerSummaryRecord => Boolean(row));
 }
 
 function confirmBatchAction(action: DangerousContainerAction) {
@@ -1607,7 +1264,7 @@ function navigateToDetail(row: ContainerSummaryRecord, tab: string) {
     fullPath: resolved.fullPath,
     query: resolved.query,
     params: resolved.params,
-    title: buildDetailTabTitle(displayName(row)),
+    title: buildDetailTabTitle(displayContainerName(row)),
     name: resolved.name,
     isAlive: true,
     meta: resolved.meta as AppRouteMeta,
@@ -1626,165 +1283,12 @@ function handlePageChange(pageInfo: { current?: number; pageSize?: number }) {
   }
 }
 
-function displayName(row: ContainerSummaryRecord) {
-  return row.name || row.names?.[0] || row.id;
-}
-
 function buildDetailTabTitle(name: string): LocalizedTitle {
   const baseTitle = localizeRouteTitleKey('container.detail.title');
   return {
     [LOCALE.ZH_CN]: `${baseTitle[LOCALE.ZH_CN]} - ${name}`,
     [LOCALE.EN_US]: `${baseTitle[LOCALE.EN_US]} - ${name}`,
   };
-}
-
-function shortContainerId(id: string) {
-  return id.length > 12 ? id.slice(0, 12) : id;
-}
-
-function formatPorts(ports: ContainerPort[]) {
-  return ports.map((port) => {
-    const target = `${port.private_port}/${port.type}`;
-    if (port.public_port === undefined) {
-      return target;
-    }
-    return `${port.ip ? `${port.ip}:` : ''}${port.public_port}->${target}`;
-  });
-}
-
-function visiblePortLabels(row: ContainerSummaryRecord) {
-  return formatPorts(row.ports).slice(0, CONTAINER_PORT_VISIBLE_LIMIT);
-}
-
-function hiddenPortLabels(row: ContainerSummaryRecord) {
-  return formatPorts(row.ports).slice(CONTAINER_PORT_VISIBLE_LIMIT);
-}
-
-function labelSummary(row: ContainerSummaryRecord) {
-  const count = Object.keys(row.labels ?? {}).length;
-  return count ? t('container.list.labelCount', { count }) : '-';
-}
-
-function resourceSummary(row: ContainerSummaryRecord) {
-  const cpu = cpuMetric(row).value;
-  const memory = memoryMetric(row).summaryValue;
-  return `${cpu} / ${memory}`;
-}
-
-function cpuMetric(row: ContainerSummaryRecord): ResourceMetric & { summaryValue: string } {
-  const change = selectContainerStatsChangeState(row.id);
-  if (row.resource?.cpu_percent === undefined) {
-    return {
-      available: false,
-      changeClass: metricChangedClass(change, 'cpu'),
-      percentage: 0,
-      progressStatus: metricProgressStatus(change.cpu),
-      summaryValue: t('container.list.stats.unavailable'),
-      tooltip: resourceUnavailableSummary(row, 'cpu'),
-      value: t('container.list.stats.unavailable'),
-    };
-  }
-
-  const value = formatPercent(row.resource.cpu_percent);
-  return {
-    available: true,
-    changeClass: metricChangedClass(change, 'cpu'),
-    percentage: clampPercentage(row.resource.cpu_percent),
-    progressStatus: metricProgressStatus(change.cpu),
-    summaryValue: value,
-    tooltip: t('container.list.stats.cpuTooltip', { percent: value }),
-    value,
-  };
-}
-
-function memoryMetric(row: ContainerSummaryRecord): ResourceMetric & { summaryValue: string } {
-  const change = selectContainerStatsChangeState(row.id);
-  if (row.resource?.memory_usage_bytes === undefined || row.resource?.memory_percent === undefined) {
-    return {
-      available: false,
-      changeClass: metricChangedClass(change, 'memory'),
-      percentage: 0,
-      progressStatus: metricProgressStatus(change.memory),
-      summaryValue: t('container.list.stats.unavailable'),
-      tooltip: resourceUnavailableSummary(row, 'memory'),
-      value: t('container.list.stats.unavailable'),
-    };
-  }
-
-  const usage = formatBytes(row.resource.memory_usage_bytes);
-  const limit = formatBytes(row.resource.memory_limit_bytes);
-  const percent = formatPercent(row.resource.memory_percent);
-  const value = usage || t('container.list.stats.unavailable');
-
-  return {
-    available: true,
-    changeClass: metricChangedClass(change, 'memory'),
-    percentage: clampPercentage(row.resource.memory_percent),
-    progressStatus: metricProgressStatus(change.memory),
-    summaryValue: percent,
-    tooltip: t('container.list.stats.memoryTooltip', {
-      limit: limit || t('container.list.stats.unavailable'),
-      percent,
-      usage: value,
-    }),
-    value,
-  };
-}
-
-function clampPercentage(value: number) {
-  return Math.min(100, Math.max(0, Number.isFinite(value) ? value : 0));
-}
-
-function formatPercent(value?: number) {
-  if (value === undefined || !Number.isFinite(value)) {
-    return t('container.list.stats.unavailable');
-  }
-
-  return `${value.toFixed(2)}%`;
-}
-
-function resourceUnavailableSummary(row: ContainerSummaryRecord, metric: 'cpu' | 'memory') {
-  const reason = localizeResourceUnavailableReason(
-    (metric === 'memory' && row.resource?.memory_usage_bytes === undefined && row.resource?.stats_error_message) ||
-      row.resource?.stats_error_message ||
-      row.resource?.stats_error_key ||
-      row.resource?.unavailable_reason,
-  );
-  return reason || t('container.list.stats.unavailable');
-}
-
-function localizeResourceUnavailableReason(reason?: string | null) {
-  const normalizedReason = reason?.trim();
-  if (!normalizedReason) {
-    return '';
-  }
-  if (!normalizedReason.startsWith('ops.container.error.') && !normalizedReason.startsWith('container.stats:')) {
-    return normalizedReason;
-  }
-  if (te(normalizedReason)) {
-    return t(normalizedReason);
-  }
-  return t('container.list.stats.unavailableReasonFallback');
-}
-
-function formatBytes(value?: number) {
-  if (value === undefined) {
-    return '';
-  }
-
-  return `${(value / BYTES_PER_MIB).toFixed(2)} MiB`;
-}
-
-function formatTime(value?: string | null) {
-  return formatLocaleDateTime(value, locale);
-}
-
-function stateLabel(state: ContainerState) {
-  return t(`container.list.states.${state}`);
-}
-
-function readOrchestratorType(row: ContainerSummaryRecord): ContainerOrchestratorType {
-  return row.orchestrator?.type || 'standalone';
 }
 
 function orchestratorActionLevel(row: ContainerSummaryRecord): ContainerActionLevel {
@@ -1795,78 +1299,8 @@ function orchestratorActionLevel(row: ContainerSummaryRecord): ContainerActionLe
   return row.can_start || row.can_stop || row.can_restart || row.can_remove ? 'allow' : 'readonly';
 }
 
-function orchestratorLabel(type: ContainerOrchestratorType) {
-  return t(`container.list.orchestrators.${type}`);
-}
-
-function orchestratorTheme(row: ContainerSummaryRecord) {
-  const type = readOrchestratorType(row);
-  if (type === 'standalone') return 'success';
-  if (type === 'compose') return 'warning';
-  if (type === 'unknown') return 'danger';
-  return 'default';
-}
-
-function orchestratorSummary(row: ContainerSummaryRecord) {
-  const group = sourceGroupFilter(row);
-  if (group) {
-    return group.value;
-  }
-
-  const member = sourceMemberFilter(row);
-  if (member) {
-    return member.value;
-  }
-
-  return row.orchestrator?.display_name || t('container.list.sourceUnknownSummary');
-}
-
-function sourceGroupFilter(row: ContainerSummaryRecord): SourceQuickFilterValue | null {
-  return toQuickFilterValue(
-    row.orchestrator?.group_scope_kind || legacyGroupScopeKind(row),
-    row.orchestrator?.group_value || row.orchestrator?.group_display_name || legacyGroupScopeValue(row),
-  );
-}
-
-function sourceMemberFilter(row: ContainerSummaryRecord): SourceQuickFilterValue | null {
-  return toQuickFilterValue(
-    row.orchestrator?.member_scope_kind || legacyMemberScopeKind(row),
-    row.orchestrator?.member_value || row.orchestrator?.member_display_name || legacyMemberScopeValue(row),
-  );
-}
-
-function toQuickFilterValue(
-  kind: ContainerSourceGroupKind | ContainerSourceMemberKind | null | undefined,
-  value?: string | null,
-): SourceQuickFilterValue | null {
-  const normalizedValue = value?.trim();
-  if (!kind || !normalizedValue) {
-    return null;
-  }
-
-  return {
-    kind,
-    value: normalizedValue,
-  };
-}
-
-function sourceGroupLabel(row: ContainerSummaryRecord) {
-  const group = sourceGroupFilter(row);
-  return group ? t(`container.list.sourceKinds.${group.kind}`) : '';
-}
-
-function sourceMemberLabel(row: ContainerSummaryRecord) {
-  const member = sourceMemberFilter(row);
-  return member ? t(`container.list.sourceKinds.${member.kind}`) : '';
-}
-
-function applySourceQuickFilter(row: ContainerSummaryRecord, target: SourceQuickFilterTarget) {
-  const sourceFilter = target === 'group' ? sourceGroupFilter(row) : sourceMemberFilter(row);
-  if (!sourceFilter) {
-    return;
-  }
-
-  filters.orchestrator = readOrchestratorType(row);
+function applySourceQuickFilter(sourceFilter: ContainerSourceQuickFilter) {
+  filters.orchestrator = sourceFilter.orchestrator;
   filters.keyword = '';
   filters.sourceScopeKind = sourceFilter.kind;
   filters.sourceScope = sourceFilter.value;
@@ -1874,65 +1308,11 @@ function applySourceQuickFilter(row: ContainerSummaryRecord, target: SourceQuick
   requestFirstPage();
 }
 
-function legacyGroupScopeKind(row: ContainerSummaryRecord): ContainerSourceGroupKind | null {
-  const orchestratorType = readOrchestratorType(row);
-  if (orchestratorType === 'compose' && (row.orchestrator?.project || row.compose_project)) {
-    return 'compose_project';
-  }
-  if (orchestratorType === 'swarm' && row.orchestrator?.stack) {
-    return 'swarm_stack';
-  }
-  if (orchestratorType === 'kubernetes' && row.orchestrator?.namespace) {
-    return 'kubernetes_namespace';
-  }
-  return null;
-}
-
-function legacyGroupScopeValue(row: ContainerSummaryRecord): string | null | undefined {
-  const orchestratorType = readOrchestratorType(row);
-  if (orchestratorType === 'compose') {
-    return row.orchestrator?.project || row.compose_project;
-  }
-  if (orchestratorType === 'swarm') {
-    return row.orchestrator?.stack;
-  }
-  if (orchestratorType === 'kubernetes') {
-    return row.orchestrator?.namespace;
-  }
-  return null;
-}
-
-function legacyMemberScopeKind(row: ContainerSummaryRecord): ContainerSourceMemberKind | null {
-  const orchestratorType = readOrchestratorType(row);
-  if (orchestratorType === 'compose' && (row.orchestrator?.service || row.compose_service)) {
-    return 'compose_service';
-  }
-  if (orchestratorType === 'swarm' && row.orchestrator?.task) {
-    return 'swarm_task';
-  }
-  if (orchestratorType === 'kubernetes' && row.orchestrator?.pod) {
-    return 'kubernetes_pod';
-  }
-  return null;
-}
-
-function legacyMemberScopeValue(row: ContainerSummaryRecord): string | null | undefined {
-  const orchestratorType = readOrchestratorType(row);
-  if (orchestratorType === 'compose') {
-    return row.orchestrator?.service || row.compose_service;
-  }
-  if (orchestratorType === 'swarm') {
-    return row.orchestrator?.task;
-  }
-  if (orchestratorType === 'kubernetes') {
-    return row.orchestrator?.pod;
-  }
-  return null;
-}
-
 function rowActionRiskText(row: ContainerSummaryRecord) {
   return orchestratorActionLevel(row) === 'warn'
-    ? t('container.list.actions.sourceRisk', { source: orchestratorLabel(readOrchestratorType(row)) })
+    ? t('container.list.actions.sourceRisk', {
+        source: t(`container.list.orchestrators.${row.orchestrator?.type || 'standalone'}`),
+      })
     : '';
 }
 
@@ -1956,52 +1336,30 @@ function isBatchActionEligible(row: ContainerSummaryRecord, action: DangerousCon
   return !isDangerousActionDisabled(row, action) && (row.orchestrator?.batch_action_allowed ?? true);
 }
 
-function healthLabel(health?: ContainerHealth | null) {
-  return t(`container.list.health.${health || 'unavailable'}`);
-}
-
-function shouldShowHealthTag(health?: ContainerHealth | null) {
-  return health === 'healthy' || health === 'unhealthy' || health === 'starting';
-}
-
-function healthTheme(health?: ContainerHealth | null) {
-  if (health === 'healthy') return 'success';
-  if (health === 'unhealthy') return 'danger';
-  if (health === 'starting') return 'warning';
-  return 'default';
-}
-
-function stateTheme(state: ContainerState) {
-  if (state === 'running') return 'success';
-  if (state === 'created' || state === 'paused' || state === 'restarting') return 'warning';
-  if (state === 'dead') return 'danger';
-  return 'default';
-}
-
 function toggleTableDensity() {
   tableDensity.value = tableDensity.value === 'medium' ? 'small' : 'medium';
 }
 
 function loadVisibleColumnKeys() {
   if (typeof window === 'undefined') {
-    return [...DEFAULT_VISIBLE_COLUMNS];
+    return [...CONTAINER_RESOURCE_DEFAULT_VISIBLE_COLUMNS];
   }
 
   try {
-    const stored = window.localStorage.getItem(CONTAINER_COLUMN_STORAGE_KEY);
+    const stored = window.localStorage.getItem(CONTAINER_RESOURCE_COLUMN_STORAGE_KEY);
     if (!stored) {
-      return [...DEFAULT_VISIBLE_COLUMNS];
+      return [...CONTAINER_RESOURCE_DEFAULT_VISIBLE_COLUMNS];
     }
     const parsed = JSON.parse(stored);
     if (!Array.isArray(parsed)) {
-      return [...DEFAULT_VISIBLE_COLUMNS];
+      return [...CONTAINER_RESOURCE_DEFAULT_VISIBLE_COLUMNS];
     }
 
     const normalizedKeys = normalizeVisibleColumnKeys(parsed);
     persistVisibleColumnKeys(normalizedKeys);
     return normalizedKeys;
   } catch {
-    return [...DEFAULT_VISIBLE_COLUMNS];
+    return [...CONTAINER_RESOURCE_DEFAULT_VISIBLE_COLUMNS];
   }
 }
 
@@ -2011,14 +1369,14 @@ function persistVisibleColumnKeys(keys: string[]) {
   }
 
   try {
-    window.localStorage.setItem(CONTAINER_COLUMN_STORAGE_KEY, JSON.stringify(keys));
+    window.localStorage.setItem(CONTAINER_RESOURCE_COLUMN_STORAGE_KEY, JSON.stringify(keys));
   } catch {
     // Column settings are a convenience preference; list rendering must not depend on storage availability.
   }
 }
 
 function normalizeVisibleColumnKeys(keys: unknown[]) {
-  const availableKeySet = new Set(ALL_COLUMN_KEYS);
+  const availableKeySet = new Set(CONTAINER_RESOURCE_ALL_COLUMN_KEYS);
   const nextKeys = new Set<string>();
 
   for (const key of keys) {
@@ -2027,11 +1385,11 @@ function normalizeVisibleColumnKeys(keys: unknown[]) {
     }
   }
 
-  for (const key of ALWAYS_VISIBLE_COLUMNS) {
+  for (const key of CONTAINER_RESOURCE_ALWAYS_VISIBLE_COLUMNS) {
     nextKeys.add(key);
   }
 
-  return ALL_COLUMN_KEYS.filter((key) => nextKeys.has(key));
+  return CONTAINER_RESOURCE_ALL_COLUMN_KEYS.filter((key) => nextKeys.has(key));
 }
 </script>
 <style scoped lang="less">

@@ -22,20 +22,6 @@
             </t-tag>
           </t-space>
         </template>
-        <template #actions>
-          <t-space size="small" break-line>
-            <t-button
-              v-if="currentStep !== 'select'"
-              theme="default"
-              variant="outline"
-              :disabled="!selectedCandidateKey"
-              :loading="inspectLoading"
-              @click="handleRefreshInspect"
-            >
-              {{ t('project.import.actions.refreshInspect') }}
-            </t-button>
-          </t-space>
-        </template>
       </management-page-header>
 
       <div class="project-import-surface">
@@ -267,16 +253,48 @@
                 <t-card :bordered="true" :title="t('project.import.preview.authorityTitle')">
                   <t-descriptions size="small" :column="1" bordered>
                     <t-descriptions-item :label="t('project.import.preview.canonicalProjectName')">
-                      <code>{{ normalizedInspectResult.canonical_project_name }}</code>
+                      <code class="project-import-preview-technical">
+                        {{ normalizedInspectResult.canonical_project_name }}
+                      </code>
                     </t-descriptions-item>
                     <t-descriptions-item :label="t('project.import.preview.composeFiles')">
-                      {{ formatDisplayPaths(normalizedInspectResult.compose_files) }}
+                      <div v-if="normalizedInspectResult.compose_files.length" class="project-import-preview-list">
+                        <div
+                          v-for="item in normalizedInspectResult.compose_files"
+                          :key="`${item.kind}:${item.display_path}:${item.order_index}`"
+                          class="project-import-preview-list__item"
+                        >
+                          <t-tooltip :content="item.display_path" placement="top-left">
+                            <code class="project-import-preview-technical">{{
+                              shortenPathValue(item.display_path)
+                            }}</code>
+                          </t-tooltip>
+                        </div>
+                      </div>
+                      <span v-else>{{ t('project.import.preview.none') }}</span>
                     </t-descriptions-item>
                     <t-descriptions-item :label="t('project.import.preview.envFiles')">
-                      {{ formatDisplayPaths(normalizedInspectResult.env_files) }}
+                      <div v-if="normalizedInspectResult.env_files.length" class="project-import-preview-list">
+                        <div
+                          v-for="item in normalizedInspectResult.env_files"
+                          :key="`${item.kind}:${item.display_path}:${item.order_index}`"
+                          class="project-import-preview-list__item"
+                        >
+                          <t-tooltip :content="item.display_path" placement="top-left">
+                            <code class="project-import-preview-technical">{{
+                              shortenPathValue(item.display_path)
+                            }}</code>
+                          </t-tooltip>
+                        </div>
+                      </div>
+                      <span v-else>{{ t('project.import.preview.none') }}</span>
                     </t-descriptions-item>
                     <t-descriptions-item :label="t('project.import.directory.workingDirectory')">
-                      <code>{{ resolvedWorkingDirectory || '-' }}</code>
+                      <t-tooltip :content="resolvedWorkingDirectory || '-'" placement="top-left">
+                        <code class="project-import-preview-technical">{{
+                          shortenPathValue(resolvedWorkingDirectory)
+                        }}</code>
+                      </t-tooltip>
                     </t-descriptions-item>
                   </t-descriptions>
                 </t-card>
@@ -293,7 +311,11 @@
                       {{ normalizedInspectResult.services.length }}
                     </t-descriptions-item>
                     <t-descriptions-item :label="t('project.import.preview.configHash')">
-                      <code>{{ normalizedInspectResult.config_hash }}</code>
+                      <t-tooltip :content="normalizedInspectResult.config_hash || '-'" placement="top-left">
+                        <code class="project-import-preview-technical">{{
+                          shortenHashValue(normalizedInspectResult.config_hash)
+                        }}</code>
+                      </t-tooltip>
                     </t-descriptions-item>
                   </t-descriptions>
                 </t-card>
@@ -302,15 +324,86 @@
               <t-card :bordered="true" :title="t('project.import.preview.discoveryTitle')">
                 <t-descriptions size="small" :column="1" bordered>
                   <t-descriptions-item :label="t('project.import.preview.services')">
-                    {{ formatList(normalizedInspectResult.services) }}
+                    <div v-if="normalizedInspectResult.services.length" class="project-import-preview-list">
+                      <div
+                        v-for="service in normalizedInspectResult.services"
+                        :key="`service:${service}`"
+                        class="project-import-preview-list__item"
+                      >
+                        <span>{{ service }}</span>
+                      </div>
+                    </div>
+                    <span v-else>{{ t('project.import.preview.none') }}</span>
                   </t-descriptions-item>
                   <t-descriptions-item :label="t('project.import.preview.networks')">
-                    {{ formatList(normalizedInspectResult.networks) }}
+                    <div v-if="normalizedInspectResult.networks.length" class="project-import-preview-list">
+                      <div
+                        v-for="network in normalizedInspectResult.networks"
+                        :key="`network:${network}`"
+                        class="project-import-preview-list__item"
+                      >
+                        <span>{{ network }}</span>
+                      </div>
+                    </div>
+                    <span v-else>{{ t('project.import.preview.none') }}</span>
                   </t-descriptions-item>
                   <t-descriptions-item :label="t('project.import.preview.volumes')">
-                    {{ formatList(normalizedInspectResult.volumes) }}
+                    <div v-if="normalizedInspectResult.volumes.length" class="project-import-preview-list">
+                      <div
+                        v-for="volume in normalizedInspectResult.volumes"
+                        :key="`volume:${volume}`"
+                        class="project-import-preview-list__item"
+                      >
+                        <span>{{ volume }}</span>
+                      </div>
+                    </div>
+                    <span v-else>{{ t('project.import.preview.none') }}</span>
                   </t-descriptions-item>
                 </t-descriptions>
+              </t-card>
+
+              <t-card :bordered="true" :title="t('project.import.preview.runtimeMembersTitle')">
+                <div v-if="runtimeMembers.length" class="project-import-runtime-members">
+                  <p class="project-import-runtime-members__summary">
+                    {{ t('project.import.preview.runtimeMembersSummary', { count: runtimeMembers.length }) }}
+                  </p>
+                  <t-table
+                    :columns="runtimeMemberColumns"
+                    :data="runtimeMemberPageRows"
+                    row-key="container_id"
+                    size="small"
+                    bordered
+                    table-layout="fixed"
+                  >
+                    <template #container_id="{ row }">
+                      <t-tooltip :content="row.container_id" placement="top-left">
+                        <code class="project-import-preview-technical">{{
+                          shortenContainerIdValue(row.container_id)
+                        }}</code>
+                      </t-tooltip>
+                    </template>
+                    <template #state="{ row }">
+                      <t-tag :theme="runtimeMemberStateTheme(row.state)" variant="light-outline">
+                        {{ row.state }}
+                      </t-tag>
+                    </template>
+                  </t-table>
+                  <div class="project-import-runtime-members__pagination">
+                    <span class="project-import-runtime-members__pagination-text">
+                      {{ t('project.import.preview.runtimeMembersPagination', runtimeMemberPaginationRange) }}
+                    </span>
+                    <t-pagination
+                      v-model:current="runtimeMemberPagination.current"
+                      v-model:page-size="runtimeMemberPagination.pageSize"
+                      :page-size-options="[5, 10, 20]"
+                      :show-first-and-last-page-btn="false"
+                      :show-jumper="false"
+                      size="small"
+                      :total="runtimeMembers.length"
+                    />
+                  </div>
+                </div>
+                <t-empty v-else :description="t('project.import.preview.runtimeMembersEmpty')" type="empty" />
               </t-card>
 
               <t-card :bordered="true" :title="t('project.import.preview.diagnosticsTitle')">
@@ -445,6 +538,7 @@ import type {
   ProjectImportRuntimeCandidate,
   ProjectImportRuntimeCandidateFilterCounts,
   ProjectImportRuntimeCandidatesQuery,
+  ProjectImportRuntimeMember,
 } from '../../types/import';
 
 defineOptions({
@@ -467,6 +561,7 @@ type CandidateListState = {
 const IMPORT_STEP_QUERY_KEY = 'step';
 const IMPORT_CANDIDATE_QUERY_KEY = 'candidate';
 const CANDIDATE_PAGE_SIZE = 10;
+const RUNTIME_MEMBER_DEFAULT_PAGE_SIZE = 10;
 const CANDIDATE_COLUMN_STORAGE_KEY = 'graft.project.import.visibleColumns.v2';
 const DEFAULT_VISIBLE_COLUMNS = [
   'project',
@@ -536,6 +631,10 @@ const candidatePagination = reactive<PaginationState>({
   current: 1,
   pageSize: CANDIDATE_PAGE_SIZE,
 });
+const runtimeMemberPagination = reactive<PaginationState>({
+  current: 1,
+  pageSize: RUNTIME_MEMBER_DEFAULT_PAGE_SIZE,
+});
 const columnDrawerVisible = ref(false);
 const visibleCandidateColumnKeys = ref<string[]>(
   loadVisibleColumnKeys(
@@ -577,6 +676,7 @@ const selectedCandidate = computed(
   () => candidates.value.find((item) => item.candidate_key === selectedCandidateKey.value) ?? null,
 );
 const normalizedInspectResult = computed(() => normalizeProjectImportInspectResponse(inspectResult.value));
+const runtimeMembers = computed(() => normalizedInspectResult.value?.runtime_members ?? []);
 const selectedCandidateLabel = computed(
   () => normalizedInspectResult.value?.canonical_project_name || selectedCandidate.value?.canonical_project_name || '',
 );
@@ -649,6 +749,20 @@ const candidateTableRenderKey = computed(() =>
 const candidatePaginationSummary = computed(() =>
   buildPaginationSummary(candidateListTotal.value, candidatePagination),
 );
+const runtimeMemberColumns = computed<TdBaseTableProps['columns']>(() => [
+  createMainTextColumn(t('project.import.preview.runtimeMemberContainerName'), 'container_name', 220),
+  createTechnicalColumn(t('project.import.preview.runtimeMemberServiceName'), 'service_name', 180),
+  createStatusColumn(t('project.import.preview.runtimeMemberState'), 'state', 140),
+  createTechnicalColumn(t('project.import.preview.runtimeMemberContainerId'), 'container_id', 180),
+]);
+const runtimeMemberPageRows = computed<ProjectImportRuntimeMember[]>(() => {
+  const start = (runtimeMemberPagination.current - 1) * runtimeMemberPagination.pageSize;
+  const end = start + runtimeMemberPagination.pageSize;
+  return runtimeMembers.value.slice(start, end);
+});
+const runtimeMemberPaginationRange = computed(() =>
+  buildPaginationRange(runtimeMembers.value.length, runtimeMemberPagination),
+);
 const candidateEmptyTitle = computed(() =>
   hasActiveCandidateFilters.value
     ? t('project.import.candidates.filteredEmptyTitle')
@@ -705,6 +819,20 @@ watch(
   () => candidateListTotal.value,
   (total) => {
     clampPagination(total, candidatePagination);
+  },
+);
+
+watch(
+  () => runtimeMembers.value.length,
+  (total) => {
+    clampPagination(total, runtimeMemberPagination);
+  },
+);
+
+watch(
+  () => normalizedInspectResult.value?.inspection_id,
+  () => {
+    runtimeMemberPagination.current = 1;
   },
 );
 
@@ -810,29 +938,52 @@ function clampPagination(total: number, pagination: PaginationState) {
 }
 
 function buildPaginationSummary(total: number, pagination: PaginationState) {
+  return t('project.import.candidates.paginationSummary', buildPaginationRange(total, pagination));
+}
+
+function buildPaginationRange(total: number, pagination: PaginationState) {
   if (!total) {
-    return t('project.import.candidates.paginationSummary', {
+    return {
       start: 0,
       end: 0,
       total: 0,
-    });
+    };
   }
 
   const start = (pagination.current - 1) * pagination.pageSize + 1;
   const end = Math.min(pagination.current * pagination.pageSize, total);
-  return t('project.import.candidates.paginationSummary', { start, end, total });
-}
-
-function formatList(items?: string[]) {
-  return items?.length ? items.join(', ') : t('project.import.preview.none');
-}
-
-function formatDisplayPaths(items?: Array<{ display_path: string }>) {
-  return items?.length ? items.map((item) => item.display_path).join(', ') : t('project.import.preview.none');
+  return { start, end, total };
 }
 
 function firstListItem(items: string[]) {
   return items[0] || '-';
+}
+
+function shortenMiddle(value: string | null | undefined, prefixLength: number, suffixLength: number) {
+  const trimmed = (value || '').trim();
+  if (!trimmed) {
+    return '-';
+  }
+  if (trimmed.length <= prefixLength + suffixLength + 3) {
+    return trimmed;
+  }
+  return `${trimmed.slice(0, prefixLength)}...${trimmed.slice(-suffixLength)}`;
+}
+
+function shortenPathValue(value: string | null | undefined) {
+  return shortenMiddle(value, 20, 20);
+}
+
+function shortenHashValue(value: string | null | undefined) {
+  return shortenMiddle(value, 8, 8);
+}
+
+function shortenContainerIdValue(value: string | null | undefined) {
+  const trimmed = (value || '').trim();
+  if (!trimmed) {
+    return '-';
+  }
+  return trimmed.length <= 12 ? trimmed : trimmed.slice(0, 12);
 }
 
 function formatServicePreview(items: string[]) {
@@ -874,6 +1025,14 @@ function candidateStatusTheme(status: ProjectImportRuntimeCandidate['status']) {
   if (status === 'broken_compose') return 'danger';
   if (status === 'incomplete_metadata') return 'warning';
   if (status === 'unsupported_runtime') return 'default';
+  return 'default';
+}
+
+function runtimeMemberStateTheme(state: string) {
+  const normalizedState = state.trim().toLowerCase();
+  if (normalizedState === 'running') return 'success';
+  if (normalizedState === 'paused' || normalizedState === 'restarting') return 'warning';
+  if (normalizedState === 'dead') return 'danger';
   return 'default';
 }
 
@@ -1175,7 +1334,9 @@ function normalizeVisibleColumnKeys(keys: unknown[], allKeys: string[], alwaysVi
 .project-import-authority,
 .project-import-form-grid,
 .project-import-preview__alerts,
-.project-import-step-grid {
+.project-import-step-grid,
+.project-import-preview-list,
+.project-import-runtime-members {
   display: grid;
   gap: var(--graft-density-gap-16);
 }
@@ -1289,6 +1450,46 @@ function normalizeVisibleColumnKeys(keys: unknown[], allKeys: string[], alwaysVi
   display: flex;
   flex-wrap: wrap;
   gap: var(--graft-density-gap-12);
+}
+
+.project-import-preview-list__item {
+  min-width: 0;
+}
+
+.project-import-preview-technical {
+  color: var(--td-text-color-primary);
+  display: inline-block;
+  font-family: var(
+    --td-font-family-mono,
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    'Liberation Mono',
+    monospace
+  );
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
+  white-space: nowrap;
+}
+
+.project-import-runtime-members__summary,
+.project-import-runtime-members__pagination-text {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+  margin: 0;
+}
+
+.project-import-runtime-members__pagination {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--graft-density-gap-12);
+  justify-content: space-between;
 }
 
 .project-import-form-grid {

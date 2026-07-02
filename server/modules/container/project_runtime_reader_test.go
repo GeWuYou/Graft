@@ -254,6 +254,94 @@ func TestContainerProjectRuntimeReaderListsImportCandidates(t *testing.T) {
 	}
 }
 
+func writeProjectReaderComposeFiles(t *testing.T, paths ...string) {
+	t.Helper()
+	for _, path := range paths {
+		if err := os.WriteFile(path, []byte("services: {}\n"), 0o600); err != nil {
+			t.Fatalf("write compose file %s: %v", path, err)
+		}
+	}
+}
+
+func demoComposeRuntimeSummary(
+	id string,
+	name string,
+	state string,
+	service string,
+	workingDir string,
+	configFiles []string,
+) Summary {
+	return Summary{
+		ID:             id,
+		Name:           name,
+		State:          state,
+		Runtime:        runtimeNameDocker,
+		ComposeProject: "demo",
+		ComposeService: service,
+		Orchestrator: OrchestratorInfo{
+			Type:        containerOrchestratorCompose,
+			Project:     "demo",
+			Service:     service,
+			WorkingDir:  workingDir,
+			ConfigFiles: configFiles,
+		},
+	}
+}
+
+func TestContainerProjectRuntimeReaderListsImportCandidateMembersByConfigIdentity(t *testing.T) {
+	t.Parallel()
+
+	tempDir := t.TempDir()
+	composePath := filepath.Join(tempDir, "compose.yaml")
+	overridePath := filepath.Join(tempDir, "compose.override.yaml")
+	otherDir := t.TempDir()
+	otherComposePath := filepath.Join(otherDir, "compose.yaml")
+	writeProjectReaderComposeFiles(t, composePath, overridePath, otherComposePath)
+
+	reader := containerProjectRuntimeReader{
+		service: &service{
+			runtime: stubProjectReaderRuntime{
+				items: []Summary{
+					demoComposeRuntimeSummary("1", "demo-web-1", "running", "web", tempDir, []string{composePath, overridePath}),
+					demoComposeRuntimeSummary("2", "demo-worker-1", "exited", "worker", tempDir, []string{composePath, overridePath}),
+					demoComposeRuntimeSummary("3", "demo-api-1", "running", "api", otherDir, []string{otherComposePath}),
+				},
+			},
+			enabled: true,
+		},
+	}
+
+	candidates, err := reader.ListImportCandidates(context.Background(), "local")
+	if err != nil {
+		t.Fatalf("list import candidates: %v", err)
+	}
+	if len(candidates) != 2 {
+		t.Fatalf("expected 2 candidates, got %d", len(candidates))
+	}
+
+	targetIndex := slices.IndexFunc(candidates, func(candidate moduleapi.ContainerProjectRuntimeCandidate) bool {
+		return slices.Equal(candidate.ConfigFiles, []string{composePath, overridePath})
+	})
+	if targetIndex < 0 {
+		t.Fatalf("expected candidate for %v, got %#v", []string{composePath, overridePath}, candidates)
+	}
+	target := candidates[targetIndex]
+	if target.CandidateKey == "" {
+		t.Fatalf("expected candidate key for %v, got %#v", []string{composePath, overridePath}, target)
+	}
+
+	members, err := reader.ListImportCandidateMembers(context.Background(), "local", target)
+	if err != nil {
+		t.Fatalf("list import candidate members: %v", err)
+	}
+	if len(members) != 2 {
+		t.Fatalf("expected 2 members, got %#v", members)
+	}
+	if slices.ContainsFunc(members, func(item moduleapi.ContainerProjectMember) bool { return item.ContainerID == "3" }) {
+		t.Fatalf("unexpected cross-candidate member leakage %#v", members)
+	}
+}
+
 func TestContainerProjectRuntimeReaderMarksIncompleteMetadataCandidates(t *testing.T) {
 	t.Parallel()
 

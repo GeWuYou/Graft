@@ -21909,6 +21909,29 @@
           }
         }
       },
+      "project-import-runtime-member": {
+        "type": "object",
+        "required": [
+          "container_id",
+          "container_name",
+          "service_name",
+          "state"
+        ],
+        "properties": {
+          "container_id": {
+            "type": "string"
+          },
+          "container_name": {
+            "type": "string"
+          },
+          "service_name": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          }
+        }
+      },
       "project-import-runtime-inspect-response": {
         "type": "object",
         "required": [
@@ -21923,6 +21946,7 @@
           "services",
           "networks",
           "volumes",
+          "runtime_members",
           "config_hash",
           "warnings",
           "conflicts",
@@ -21975,6 +21999,12 @@
             "type": "array",
             "items": {
               "type": "string"
+            }
+          },
+          "runtime_members": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/project-import-runtime-member"
             }
           },
           "config_hash": {

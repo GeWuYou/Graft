@@ -97,5 +97,6 @@ export type ProjectImportRuntimeCandidatesQuery = GetProjectImportRuntimeCandida
 export type ProjectImportRuntimeCandidateFilterCounts = ProjectImportRuntimeCandidatesResponse['filter_counts'];
 export type ProjectImportRuntimeInspectRequest = PostProjectImportRuntimeInspectPayload;
 export type ProjectImportRuntimeInspectResponse = NonNullable<PostProjectImportRuntimeInspectEnvelope['data']>;
+export type ProjectImportRuntimeMember = ProjectImportRuntimeInspectResponse['runtime_members'][number];
 export type ProjectImportRuntimeCandidateInspectRequest = ProjectImportRuntimeInspectRequest;
 export type ProjectImportInspectResponse = ProjectImportRuntimeInspectResponse;

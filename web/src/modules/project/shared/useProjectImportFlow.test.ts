@@ -168,6 +168,7 @@ describe('useProjectImportFlow', () => {
       services: null,
       networks: null,
       volumes: null,
+      runtime_members: null,
       warnings: null,
       conflicts: null,
       validation_status: 'ready',
@@ -191,6 +192,7 @@ describe('useProjectImportFlow', () => {
     expect(flow.inspectResult.value?.services).toEqual([]);
     expect(flow.inspectResult.value?.networks).toEqual([]);
     expect(flow.inspectResult.value?.volumes).toEqual([]);
+    expect(flow.inspectResult.value?.runtime_members).toEqual([]);
     expect(flow.inspectResult.value?.warnings).toEqual([]);
     expect(flow.inspectResult.value?.conflicts).toEqual([]);
     expect(flow.displayName.value).toBe('Nullable Service');

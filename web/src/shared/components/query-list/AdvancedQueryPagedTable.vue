@@ -1,77 +1,44 @@
 <template>
-  <management-table-card>
-    <template v-if="hasHeadContent" #head>
-      <section class="advanced-query-paged-table__head" :aria-label="headLabel">
-        <p v-if="description" class="advanced-query-paged-table__description">{{ description }}</p>
-        <p v-if="summary" class="advanced-query-paged-table__summary">{{ summary }}</p>
-      </section>
-    </template>
+  <management-paged-table
+    v-model:current="current"
+    v-model:page-size="pageSize"
+    :cell-slot-names="props.cellSlotNames"
+    :columns="props.columns"
+    :description="props.description"
+    :empty-description="props.emptyDescription"
+    :empty-title="props.emptyTitle"
+    :footer-summary="props.footerSummary"
+    :head-label="props.headLabel"
+    :loading="props.loading"
+    :row-class-name="props.rowClassName"
+    :row-key="props.rowKey"
+    :rows="props.rows"
+    :selected-row-keys="props.selectedRowKeys"
+    :summary="props.summary"
+    :total="props.total"
+    @page-change="$emit('page-change')"
+    @row-click="(row) => emit('row-click', row)"
+    @select-change="(rowKeys) => emit('select-change', rowKeys)"
+  >
     <template v-if="$slots.toolbar" #toolbar>
       <slot name="toolbar" />
     </template>
     <template v-if="$slots.batch" #batch>
       <slot name="batch" />
     </template>
-
-    <div
-      ref="tableHostRef"
-      class="advanced-query-paged-table__table-host graft-scrollbar"
-      :data-table-mode="tableWidthPolicy.mode"
-    >
-      <t-table
-        :row-key="rowKey"
-        :columns="columns"
-        :data="rows"
-        :loading="loading"
-        :selected-row-keys="selectedRowKeys"
-        :row-class-name="rowClassName"
-        table-layout="fixed"
-        :table-content-width="tableWidthPolicy.tableContentWidth"
-        cell-empty-content="-"
-        hover
-        @row-click="emitRowClick"
-        @select-change="emitSelectChange"
-      >
-        <template v-for="slotName in cellSlotNames" #[slotName]="slotProps" :key="slotName">
-          <slot :name="slotName" v-bind="slotProps" />
-        </template>
-        <template v-for="slotName in passthroughTableSlotNames" #[slotName]="slotProps" :key="slotName">
-          <slot :name="slotName" v-bind="slotProps" />
-        </template>
-        <template #empty>
-          <div class="advanced-query-paged-table__empty">
-            <t-empty :title="emptyTitle" :description="emptyDescription" />
-          </div>
-        </template>
-        <template v-if="$slots.pagination" #pagination>
-          <slot name="pagination" />
-        </template>
-      </t-table>
-    </div>
-
-    <template #footer>
-      <management-table-pagination :summary="footerSummary">
-        <t-pagination
-          v-model:current="current"
-          v-model:page-size="pageSize"
-          :total="total"
-          :page-size-options="[10, 20, 50, 100]"
-          @change="$emit('page-change')"
-        />
-      </management-table-pagination>
+    <template v-if="$slots.pagination" #pagination>
+      <slot name="pagination" />
     </template>
-  </management-table-card>
+    <template v-for="slotName in passthroughTableSlotNames" #[slotName]="slotProps" :key="slotName">
+      <slot :name="slotName" v-bind="slotProps" />
+    </template>
+  </management-paged-table>
 </template>
 <script setup lang="ts">
 import type { TableRowData, TdBaseTableProps } from 'tdesign-vue-next';
 import { computed } from 'vue';
 
-import {
-  ManagementTableCard,
-  ManagementTablePagination,
-  resolveTableWidthPolicy,
-  useTableHostWidth,
-} from '@/shared/components/management';
+import { ManagementPagedTable } from '@/shared/components/management';
 
 const props = defineProps<{
   cellSlotNames: string[];
@@ -100,45 +67,8 @@ const current = defineModel<number>('current', { required: true });
 const pageSize = defineModel<number>('pageSize', { required: true });
 
 const passthroughTableSlotNames = computed(() =>
-  ['toolbar'].filter((slotName) => !props.cellSlotNames.includes(slotName)),
+  Array.from(new Set([...props.cellSlotNames, 'empty', 'empty-action'])).filter(
+    (slotName) => slotName !== 'pagination',
+  ),
 );
-const hasHeadContent = computed(() => Boolean(props.description || props.summary));
-const { tableHostRef, tableHostWidth } = useTableHostWidth(() => props.columns);
-
-const tableWidthPolicy = computed(() => resolveTableWidthPolicy(props.columns, tableHostWidth.value));
-const rowKey = computed(() => props.rowKey ?? 'id');
-
-function emitRowClick(context: { row: TableRowData }) {
-  emit('row-click', context.row);
-}
-
-function emitSelectChange(rowKeys: Array<string | number>) {
-  emit('select-change', rowKeys);
-}
 </script>
-<style scoped lang="less">
-.advanced-query-paged-table__summary,
-.advanced-query-paged-table__description {
-  color: var(--td-text-color-secondary);
-  margin: 0;
-}
-
-.advanced-query-paged-table__empty {
-  padding: var(--graft-density-gap-24) 0 var(--graft-density-gap-8);
-}
-
-.advanced-query-paged-table__table-host {
-  max-width: 100%;
-  min-width: 0;
-  overflow-x: hidden;
-  width: 100%;
-}
-
-.advanced-query-paged-table__table-host[data-table-mode='scroll'] {
-  overflow-x: auto;
-}
-
-.advanced-query-paged-table__table-host :deep(.t-table__content) {
-  min-width: 0;
-}
-</style>
