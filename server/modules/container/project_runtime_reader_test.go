@@ -421,6 +421,60 @@ func TestContainerProjectRuntimeReaderAcceptsRelativeConfigFilesWithinWorkingDir
 	}
 }
 
+func TestContainerProjectRuntimeReaderSeparatesRelativeConfigFilesByWorkingDirectory(t *testing.T) {
+	t.Parallel()
+
+	tempDir := t.TempDir()
+	otherDir := t.TempDir()
+	writeProjectReaderComposeFiles(
+		t,
+		filepath.Join(tempDir, "compose.yaml"),
+		filepath.Join(tempDir, "compose.override.yaml"),
+		filepath.Join(otherDir, "compose.yaml"),
+		filepath.Join(otherDir, "compose.override.yaml"),
+	)
+
+	reader := containerProjectRuntimeReader{
+		service: &service{
+			runtime: stubProjectReaderRuntime{
+				items: []Summary{
+					demoComposeRuntimeSummary("1", "demo-web-1", "running", "web", tempDir, []string{"compose.yaml", "compose.override.yaml"}),
+					demoComposeRuntimeSummary("2", "demo-worker-1", "exited", "worker", tempDir, []string{"compose.override.yaml", "compose.yaml"}),
+					demoComposeRuntimeSummary("3", "demo-api-1", "running", "api", otherDir, []string{"compose.yaml", "compose.override.yaml"}),
+				},
+			},
+			enabled: true,
+		},
+	}
+
+	candidates, err := reader.ListImportCandidates(context.Background(), "local")
+	if err != nil {
+		t.Fatalf("list import candidates: %v", err)
+	}
+	if len(candidates) != 2 {
+		t.Fatalf("expected 2 candidates, got %#v", candidates)
+	}
+
+	targetIndex := slices.IndexFunc(candidates, func(candidate moduleapi.ContainerProjectRuntimeCandidate) bool {
+		return candidate.WorkingDirectory == tempDir
+	})
+	if targetIndex < 0 {
+		t.Fatalf("expected candidate for working directory %q, got %#v", tempDir, candidates)
+	}
+	target := candidates[targetIndex]
+
+	members, err := reader.ListImportCandidateMembers(context.Background(), "local", target)
+	if err != nil {
+		t.Fatalf("list import candidate members: %v", err)
+	}
+	if len(members) != 2 {
+		t.Fatalf("expected 2 members, got %#v", members)
+	}
+	if slices.ContainsFunc(members, func(item moduleapi.ContainerProjectMember) bool { return item.ContainerID == "3" }) {
+		t.Fatalf("unexpected cross-candidate member leakage %#v", members)
+	}
+}
+
 func TestContainerProjectRuntimeReaderDoesNotDeriveWorkingDirectoryFromRelativeConfigFile(t *testing.T) {
 	t.Parallel()
 

@@ -303,6 +303,14 @@ func (a *runtimeCandidateAccumulator) candidate(hostScope string) moduleapi.Cont
 }
 
 func (a *runtimeCandidateAccumulator) resolvedWorkingDirectoryMetadata(item Summary) (string, string, []string) {
+	workingDirectory, workingDirectorySource, configFiles := resolveRuntimeCandidateMetadata(item)
+	if workingDirectorySource == projectRuntimeWorkingDirSourceDerivedConfig {
+		a.addWarning(projectRuntimeWarningWorkingDirDerived)
+	}
+	return workingDirectory, workingDirectorySource, configFiles
+}
+
+func resolveRuntimeCandidateMetadata(item Summary) (string, string, []string) {
 	workingDirectory := strings.TrimSpace(item.Orchestrator.WorkingDir)
 	workingDirectorySource := ""
 	if workingDirectory != "" {
@@ -313,7 +321,6 @@ func (a *runtimeCandidateAccumulator) resolvedWorkingDirectoryMetadata(item Summ
 		if derivedWorkingDirectory, ok := derivedWorkingDirectoryFromConfigFile(configFiles[0]); ok {
 			workingDirectory = derivedWorkingDirectory
 			workingDirectorySource = projectRuntimeWorkingDirSourceDerivedConfig
-			a.addWarning(projectRuntimeWarningWorkingDirDerived)
 		}
 	}
 	return workingDirectory, workingDirectorySource, configFiles
@@ -464,12 +471,11 @@ func composeServiceName(item Summary) string {
 }
 
 func runtimeCandidateGroupKey(hostScope string, item Summary) string {
-	configFiles := normalizedStringSlice(item.Orchestrator.ConfigFiles)
+	workingDirectory, _, configFiles := resolveRuntimeCandidateMetadata(item)
 	if len(configFiles) > 0 {
-		return hostScope + "|config|" + configFilesDigest(configFiles)
+		return hostScope + "|config|" + configFilesDigest(runtimeCandidateIdentityConfigFiles(workingDirectory, configFiles))
 	}
 	projectName := strings.ToLower(composeProjectName(item))
-	workingDirectory := strings.TrimSpace(item.Orchestrator.WorkingDir)
 	switch {
 	case projectName != "" && workingDirectory != "":
 		return hostScope + "|project|" + projectName + "|" + filepath.Clean(workingDirectory)
@@ -483,12 +489,12 @@ func runtimeCandidateGroupKey(hostScope string, item Summary) string {
 }
 
 func runtimeCandidateGroupKeyFromCandidate(hostScope string, candidate moduleapi.ContainerProjectRuntimeCandidate) string {
+	workingDirectory := strings.TrimSpace(candidate.WorkingDirectory)
 	configFiles := normalizedStringSlice(candidate.ConfigFiles)
 	if len(configFiles) > 0 {
-		return hostScope + "|config|" + configFilesDigest(configFiles)
+		return hostScope + "|config|" + configFilesDigest(runtimeCandidateIdentityConfigFiles(workingDirectory, configFiles))
 	}
 	projectName := strings.ToLower(strings.TrimSpace(candidate.CanonicalProjectName))
-	workingDirectory := strings.TrimSpace(candidate.WorkingDirectory)
 	switch {
 	case projectName != "" && workingDirectory != "":
 		return hostScope + "|project|" + projectName + "|" + filepath.Clean(workingDirectory)
@@ -515,9 +521,17 @@ func runtimeCandidateKey(hostScope string, projectName string, runtimeType strin
 		strings.ToLower(strings.TrimSpace(projectName)),
 		strings.TrimSpace(runtimeType),
 		filepath.Clean(strings.TrimSpace(workingDirectory)),
-		configFilesDigest(configFiles),
+		configFilesDigest(runtimeCandidateIdentityConfigFiles(workingDirectory, configFiles)),
 	}, "|")))
 	return "runtime_" + hex.EncodeToString(sum[:12])
+}
+
+func runtimeCandidateIdentityConfigFiles(workingDirectory string, configFiles []string) []string {
+	resolved, ok := resolveConfigFilesAgainstWorkingDirectory(workingDirectory, configFiles)
+	if ok {
+		return resolved
+	}
+	return normalizedStringSlice(configFiles)
 }
 
 func configFilesDigest(configFiles []string) string {
