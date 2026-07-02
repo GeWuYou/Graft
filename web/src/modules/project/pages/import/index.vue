@@ -742,10 +742,9 @@ async function syncWizardFromRoute() {
 
 async function findReadyCandidateByKey(candidateKey: string) {
   let offset = 0;
-  let total = 0;
-  let loadedAnyPage = false;
+  let total = Number.POSITIVE_INFINITY;
 
-  do {
+  while (offset < total) {
     const response = await getProjectImportRuntimeCandidates({
       availability: 'ready',
       limit: ROUTE_RECOVERY_PAGE_SIZE,
@@ -757,14 +756,13 @@ async function findReadyCandidateByKey(candidateKey: string) {
       return candidate;
     }
 
-    loadedAnyPage = true;
     total = nextState.total;
     offset += ROUTE_RECOVERY_PAGE_SIZE;
 
     if (!nextState.items.length) {
       break;
     }
-  } while (!loadedAnyPage || offset < total);
+  }
 
   return null;
 }
