@@ -286,10 +286,17 @@
       },
       "preview": {
         "title": "Inspect Preview",
+        "overviewTitle": "Overview",
+        "overviewDescription": "Project-level inspect facts and diagnostics stay separate from resource tables.",
+        "resourcesTitle": "Resources",
+        "resourcesDescription": "A single workspace switches between resource tables for the current inspect session.",
         "authorityTitle": "Config and Directory",
         "summaryTitle": "Inspect Summary",
         "discoveryTitle": "Discovery Result",
         "diagnosticsTitle": "Diagnostics",
+        "resourceSearchPlaceholder": "Search Current Resource Table",
+        "resourceColumnSettings": "Column Settings",
+        "resourceResetColumns": "Reset Columns",
         "canonicalProjectName": "Canonical Project Name",
         "canonicalNameSource": "Canonical Name Source",
         "validationStatus": "Validation Status",
@@ -310,6 +317,52 @@
         "runtimeMemberContainerId": "Container ID",
         "blockedDescription": "The current Inspect result contains conflicts and must be fixed before the import can be confirmed.",
         "noDiagnostics": "No additional warnings or conflicts were returned.",
+        "resources": {
+          "tabs": {
+            "containers": "Containers",
+            "networks": "Networks",
+            "volumes": "Volumes"
+          },
+          "summary": "{count} {resource} rows.",
+          "paginationSummary": "{start}-{end} of {total}",
+          "loadFailed": "Failed to load resource data.",
+          "descriptions": {
+            "containers": "Reuses the container management table while narrowing row actions to detail access.",
+            "networks": "Network resources move into the same table workspace instead of a stacked summary block.",
+            "volumes": "Volume resources move into the same table workspace and keep interaction consistent with containers."
+          },
+          "empty": {
+            "filteredDescription": "No resources match the current search.",
+            "containers": {
+              "title": "No Containers",
+              "description": "No container resources are available for this candidate."
+            },
+            "networks": {
+              "title": "No Networks",
+              "description": "No network resources are available for this candidate."
+            },
+            "volumes": {
+              "title": "No Volumes",
+              "description": "No volume resources are available for this candidate."
+            }
+          },
+          "columns": {
+            "name": "Name",
+            "driver": "Driver",
+            "scope": "Scope",
+            "internal": "Internal",
+            "containers": "Containers",
+            "anonymous": "Anonymous",
+            "mountedBy": "Mounted By",
+            "mountTarget": "Mount Target"
+          },
+          "internalYes": "Yes",
+          "internalNo": "No",
+          "volumeAnonymousYes": "Yes",
+          "volumeAnonymousNo": "No",
+          "detailServices": "Bound Services",
+          "detailMountedBy": "Mounted By"
+        },
         "none": "None"
       },
       "state": {

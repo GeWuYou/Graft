@@ -255,6 +255,59 @@ vi.mock('@/shared/components/query-list', async () => {
   };
 });
 
+vi.mock('../../components/ProjectImportInspectOverview.vue', async () => {
+  const { defineComponent, h } = await import('vue');
+
+  return {
+    default: defineComponent({
+      name: 'ProjectImportInspectOverviewStub',
+      props: {
+        canImport: { type: Boolean, default: false },
+        result: { type: Object, required: true },
+      },
+      setup(props) {
+        return () =>
+          h('section', { 'data-testid': 'inspect-overview-stub' }, [
+            h('h3', translate('project.import.preview.overviewTitle')),
+            h('p', String((props.result as Record<string, unknown>).canonical_project_name ?? '')),
+            h(
+              'p',
+              !props.canImport
+                ? translate('project.import.preview.blockedDescription')
+                : translate('project.import.preview.noDiagnostics'),
+            ),
+          ]);
+      },
+    }),
+  };
+});
+
+vi.mock('../../components/ProjectImportInspectResources.vue', async () => {
+  const { defineComponent, h } = await import('vue');
+
+  return {
+    default: defineComponent({
+      name: 'ProjectImportInspectResourcesStub',
+      props: {
+        result: { type: Object, default: null },
+      },
+      setup(props) {
+        return () =>
+          h('section', { 'data-testid': 'inspect-resources-stub' }, [
+            h('h3', translate('project.import.preview.resourcesTitle')),
+            h(
+              'p',
+              Array.isArray((props.result as Record<string, unknown> | null)?.runtime_members) &&
+                ((props.result as Record<string, unknown>).runtime_members as unknown[]).length === 0
+                ? translate('project.import.preview.resources.empty.containers.description')
+                : translate('project.import.preview.resources.tabs.containers'),
+            ),
+          ]);
+      },
+    }),
+  };
+});
+
 function translate(key: string, params?: Record<string, unknown>) {
   const value = key.split('.').reduce<unknown>((current, segment) => {
     if (current && typeof current === 'object' && segment in current) {
@@ -268,14 +321,6 @@ function translate(key: string, params?: Record<string, unknown>) {
   }
 
   return value.replace(/\{(\w+)\}/g, (_match, name: string) => String(params?.[name] ?? ''));
-}
-
-function shortenMiddle(value: string, prefixLength: number, suffixLength: number) {
-  if (value.length <= prefixLength + suffixLength + 3) {
-    return value;
-  }
-
-  return `${value.slice(0, prefixLength)}...${value.slice(-suffixLength)}`;
 }
 
 function buildCandidate(overrides: Partial<ProjectImportRuntimeCandidate>): ProjectImportRuntimeCandidate {
@@ -734,24 +779,18 @@ describe('ProjectImportIndex', () => {
     await flushPromises();
 
     expect(wrapper.text()).toContain('demo');
-    expect(wrapper.text()).toContain('无');
     expect(wrapper.text()).toContain('当前没有额外 warning 或 conflict。');
-    expect(wrapper.text()).toContain('当前候选没有可展示的运行时成员。');
+    expect(wrapper.text()).toContain('Overview');
+    expect(wrapper.text()).toContain('Resources');
+    expect(wrapper.text()).toContain('当前候选没有可展示的容器资源。');
     expect(flowState.inspectCandidate).not.toHaveBeenCalled();
   });
 
-  it('shortens long technical values, keeps full tooltip content, and paginates runtime members in inspect preview', async () => {
+  it('renders dedicated overview and resources sections in inspect preview', async () => {
     routeState.query = {
       step: 'inspect',
       candidate: 'runtime:demo',
     };
-
-    const runtimeMembers = Array.from({ length: 11 }, (_item, index) => ({
-      container_id: `abcdef1234567890${index}`,
-      container_name: `demo-service-${index + 1}`,
-      service_name: index % 2 === 0 ? 'web' : 'worker',
-      state: index === 0 ? 'running' : 'exited',
-    }));
 
     const flowState = createFlowState();
     flowState.hasPreview.value = true;
@@ -767,8 +806,8 @@ describe('ProjectImportIndex', () => {
         {
           kind: 'compose',
           role: 'primary',
-          absolute_path: '/srv/projects/import-preview-example/very/long/path/for/compose/runtime/demo/compose.yaml',
-          display_path: '/srv/projects/import-preview-example/very/long/path/for/compose/runtime/demo/compose.yaml',
+          absolute_path: '/srv/demo/compose.yaml',
+          display_path: '/srv/demo/compose.yaml',
           order_index: 0,
           exists_on_last_refresh: true,
         },
@@ -777,11 +816,11 @@ describe('ProjectImportIndex', () => {
       services: ['web', 'worker'],
       networks: ['default', 'internal'],
       volumes: ['data', 'cache'],
-      runtime_members: runtimeMembers,
+      runtime_members: [],
       warnings: [],
       conflicts: [],
       validation_status: 'ready',
-      config_hash: '1234567890abcdef1234567890abcdef',
+      config_hash: 'hash-demo',
     } as never;
     flowState.inspectCandidate.mockResolvedValue('applied');
     mocks.useProjectImportFlow.mockImplementation(() => flowState);
@@ -789,32 +828,9 @@ describe('ProjectImportIndex', () => {
     const wrapper = mountPage();
     await flushPromises();
 
-    expect(wrapper.text()).toContain('12345678...90abcdef');
-    expect(wrapper.html()).toContain('data-tooltip="1234567890abcdef1234567890abcdef"');
-    expect(wrapper.text()).toContain(
-      shortenMiddle(
-        '/srv/projects/import-preview-example/very/long/path/for/compose/runtime/demo/compose.yaml',
-        20,
-        20,
-      ),
-    );
-    expect(wrapper.html()).toContain(
-      'data-tooltip="/srv/projects/import-preview-example/very/long/path/for/compose/runtime/demo/compose.yaml"',
-    );
-
-    const refreshButtons = wrapper
-      .findAll('button')
-      .filter((button) => button.text().includes('刷新检查') || button.text().includes('重试检查'));
-    expect(refreshButtons).toHaveLength(1);
-
-    expect(wrapper.text()).toContain('demo-service-1');
-    expect(wrapper.text()).toContain('demo-service-10');
-    expect(wrapper.text()).not.toContain('demo-service-11');
-
-    await wrapper.get('[data-testid="runtime-members-next-page"]').trigger('click');
-    await nextTick();
-
-    expect(wrapper.text()).toContain('demo-service-11');
+    expect(wrapper.get('[data-testid="inspect-overview-stub"]').text()).toContain('Overview');
+    expect(wrapper.get('[data-testid="inspect-resources-stub"]').text()).toContain('Resources');
+    expect(wrapper.text()).toContain('继续确认导入');
   });
 
   it('does not render visible English Inspect copy in the zh-CN flow', async () => {

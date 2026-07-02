@@ -96,7 +96,32 @@ export type ProjectImportRuntimeCandidatesResponse = NonNullable<GetProjectImpor
 export type ProjectImportRuntimeCandidatesQuery = GetProjectImportRuntimeCandidatesQuery;
 export type ProjectImportRuntimeCandidateFilterCounts = ProjectImportRuntimeCandidatesResponse['filter_counts'];
 export type ProjectImportRuntimeInspectRequest = PostProjectImportRuntimeInspectPayload;
-export type ProjectImportRuntimeInspectResponse = NonNullable<PostProjectImportRuntimeInspectEnvelope['data']>;
+export type ProjectImportRuntimeInspectNetworkResource = {
+  name: string;
+  driver: string;
+  scope: string;
+  internal: boolean | null;
+  containers: string[];
+  container_count: number;
+  services: string[];
+  service_count: number;
+};
+export type ProjectImportRuntimeInspectVolumeResource = {
+  name: string;
+  driver: string;
+  anonymous: boolean;
+  mount_target: string;
+  mounted_by: string[];
+  containers: string[];
+  container_count: number;
+};
+export type ProjectImportRuntimeInspectResponse = Omit<
+  NonNullable<PostProjectImportRuntimeInspectEnvelope['data']>,
+  'networks' | 'volumes'
+> & {
+  networks: Array<ProjectImportRuntimeInspectNetworkResource | string> | null;
+  volumes: Array<ProjectImportRuntimeInspectVolumeResource | string> | null;
+};
 export type ProjectImportRuntimeMember = ProjectImportRuntimeInspectResponse['runtime_members'][number];
 export type ProjectImportRuntimeCandidateInspectRequest = ProjectImportRuntimeInspectRequest;
 export type ProjectImportInspectResponse = ProjectImportRuntimeInspectResponse;

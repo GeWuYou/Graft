@@ -99,6 +99,7 @@
             t(`container.list.sourceKinds.${sourceGroupFilter(row)?.kind}`)
           }}</span>
           <t-button
+            v-if="!props.readonlyMode"
             data-testid="container-source-group-filter"
             size="small"
             theme="primary"
@@ -107,12 +108,14 @@
           >
             {{ sourceGroupFilter(row)?.value }}
           </t-button>
+          <span v-else>{{ sourceGroupFilter(row)?.value }}</span>
         </div>
         <div v-if="sourceMemberFilter(row)" class="container-source-cell__line">
           <span class="container-source-cell__label">{{
             t(`container.list.sourceKinds.${sourceMemberFilter(row)?.kind}`)
           }}</span>
           <t-button
+            v-if="!props.readonlyMode"
             data-testid="container-source-member-filter"
             size="small"
             theme="default"
@@ -121,6 +124,7 @@
           >
             {{ sourceMemberFilter(row)?.value }}
           </t-button>
+          <span v-else>{{ sourceMemberFilter(row)?.value }}</span>
         </div>
         <span v-if="!sourceGroupFilter(row) && !sourceMemberFilter(row)" class="container-muted">
           {{ orchestratorSummary(row) }}
@@ -224,6 +228,7 @@ const props = withDefaults(
     loading?: boolean;
     moreActionsLabel?: string;
     paginationProps?: Partial<PaginationProps>;
+    readonlyMode?: boolean;
     rowActions?: (row: ContainerSummaryRecord) => ContainerResourceRowAction[];
     rows: ContainerSummaryRecord[];
     selectedRowKeys?: Array<string | number>;
@@ -239,6 +244,7 @@ const props = withDefaults(
     loading: false,
     moreActionsLabel: '',
     paginationProps: () => ({}),
+    readonlyMode: false,
     rowActions: undefined,
     selectedRowKeys: () => [],
     sort: undefined,
@@ -279,7 +285,10 @@ const cellSlotNames = [
   'operation',
 ];
 const columns = computed<TdBaseTableProps['columns']>(() =>
-  resolveManagedColumns(buildContainerResourceColumns(t), props.visibleColumnKeys, props.alwaysVisibleColumnKeys),
+  (
+    resolveManagedColumns(buildContainerResourceColumns(t), props.visibleColumnKeys, props.alwaysVisibleColumnKeys) ??
+    []
+  ).filter((column) => !props.readonlyMode || column.colKey !== 'row-select'),
 );
 const resolvedMoreActionsLabel = computed(() => props.moreActionsLabel || t('container.list.actions.more'));
 

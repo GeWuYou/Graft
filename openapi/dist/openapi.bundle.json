@@ -21909,6 +21909,99 @@
           }
         }
       },
+      "project-import-runtime-network-resource": {
+        "type": "object",
+        "required": [
+          "name",
+          "driver",
+          "scope",
+          "internal",
+          "containers",
+          "container_count",
+          "services",
+          "service_count"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "driver": {
+            "type": "string",
+            "nullable": true
+          },
+          "scope": {
+            "type": "string",
+            "nullable": true
+          },
+          "internal": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "containers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "container_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "services": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "service_count": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "project-import-runtime-volume-resource": {
+        "type": "object",
+        "required": [
+          "name",
+          "driver",
+          "anonymous",
+          "mount_target",
+          "mounted_by",
+          "containers",
+          "container_count"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "driver": {
+            "type": "string",
+            "nullable": true
+          },
+          "anonymous": {
+            "type": "boolean"
+          },
+          "mount_target": {
+            "type": "string"
+          },
+          "mounted_by": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "containers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "container_count": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
       "project-import-runtime-member": {
         "type": "object",
         "required": [
@@ -21992,13 +22085,13 @@
           "networks": {
             "type": "array",
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/project-import-runtime-network-resource"
             }
           },
           "volumes": {
             "type": "array",
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/project-import-runtime-volume-resource"
             }
           },
           "runtime_members": {

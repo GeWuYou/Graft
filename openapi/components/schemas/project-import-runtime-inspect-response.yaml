@@ -44,11 +44,11 @@ properties:
   networks:
     type: array
     items:
-      type: string
+      $ref: ./project-import-runtime-network-resource.yaml
   volumes:
     type: array
     items:
-      type: string
+      $ref: ./project-import-runtime-volume-resource.yaml
   runtime_members:
     type: array
     items:

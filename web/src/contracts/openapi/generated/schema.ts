@@ -5420,6 +5420,25 @@ export interface components {
       exists_on_last_refresh: boolean;
       last_observed_hash?: string | null;
     };
+    'project-import-runtime-network-resource': {
+      name: string;
+      driver: string | null;
+      scope: string | null;
+      internal: boolean | null;
+      containers: string[];
+      container_count: number;
+      services: string[];
+      service_count: number;
+    };
+    'project-import-runtime-volume-resource': {
+      name: string;
+      driver: string | null;
+      anonymous: boolean;
+      mount_target: string;
+      mounted_by: string[];
+      containers: string[];
+      container_count: number;
+    };
     'project-import-runtime-member': {
       container_id: string;
       container_name: string;
@@ -5436,8 +5455,8 @@ export interface components {
       compose_files: components['schemas']['project-import-inspect-file-item'][];
       env_files: components['schemas']['project-import-inspect-file-item'][];
       services: string[];
-      networks: string[];
-      volumes: string[];
+      networks: components['schemas']['project-import-runtime-network-resource'][];
+      volumes: components['schemas']['project-import-runtime-volume-resource'][];
       runtime_members: components['schemas']['project-import-runtime-member'][];
       config_hash: string;
       warnings: string[];

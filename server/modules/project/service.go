@@ -2170,6 +2170,7 @@ func runtimeImportInspectResultFromSession(
 	runtimeMembers []RuntimeImportMember,
 ) RuntimeImportInspectResult {
 	preview := inspectionPreviewFromSession(session)
+	members := append([]RuntimeImportMember(nil), runtimeMembers...)
 	return RuntimeImportInspectResult{
 		InspectionID:               preview.inspectionID,
 		CandidateKey:               candidateKey,
@@ -2180,9 +2181,9 @@ func runtimeImportInspectResultFromSession(
 		ComposeFiles:               preview.composeFiles,
 		EnvFiles:                   preview.envFiles,
 		ServiceNames:               preview.serviceNames,
-		NetworkNames:               preview.networkNames,
-		VolumeNames:                preview.volumeNames,
-		RuntimeMembers:             append([]RuntimeImportMember(nil), runtimeMembers...),
+		NetworkResources:           buildRuntimeImportNetworkResources(session.ParseResult, members),
+		VolumeResources:            buildRuntimeImportVolumeResources(session.ParseResult, members),
+		RuntimeMembers:             members,
 		ConfigHash:                 preview.configHash,
 		Warnings:                   preview.warnings,
 		Conflicts:                  preview.conflicts,

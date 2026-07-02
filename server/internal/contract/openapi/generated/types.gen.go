@@ -7798,12 +7798,12 @@ type ProjectImportRuntimeInspectResponse struct {
 	DisplayNameSuggested       string                                              `json:"display_name_suggested"`
 	EnvFiles                   []ProjectImportInspectFileItem                      `json:"env_files"`
 	InspectionId               string                                              `json:"inspection_id"`
-	Networks                   []string                                            `json:"networks"`
+	Networks                   []ProjectImportRuntimeNetworkResource               `json:"networks"`
 	ResolvedWorkingDirectory   string                                              `json:"resolved_working_directory"`
 	RuntimeMembers             []ProjectImportRuntimeMember                        `json:"runtime_members"`
 	Services                   []string                                            `json:"services"`
 	ValidationStatus           ProjectImportRuntimeInspectResponseValidationStatus `json:"validation_status"`
-	Volumes                    []string                                            `json:"volumes"`
+	Volumes                    []ProjectImportRuntimeVolumeResource                `json:"volumes"`
 	Warnings                   []string                                            `json:"warnings"`
 }
 
@@ -7816,6 +7816,29 @@ type ProjectImportRuntimeMember struct {
 	ContainerName string `json:"container_name"`
 	ServiceName   string `json:"service_name"`
 	State         string `json:"state"`
+}
+
+// ProjectImportRuntimeNetworkResource defines model for project-import-runtime-network-resource.
+type ProjectImportRuntimeNetworkResource struct {
+	ContainerCount int      `json:"container_count"`
+	Containers     []string `json:"containers"`
+	Driver         *string  `json:"driver"`
+	Internal       *bool    `json:"internal"`
+	Name           string   `json:"name"`
+	Scope          *string  `json:"scope"`
+	ServiceCount   int      `json:"service_count"`
+	Services       []string `json:"services"`
+}
+
+// ProjectImportRuntimeVolumeResource defines model for project-import-runtime-volume-resource.
+type ProjectImportRuntimeVolumeResource struct {
+	Anonymous      bool     `json:"anonymous"`
+	ContainerCount int      `json:"container_count"`
+	Containers     []string `json:"containers"`
+	Driver         *string  `json:"driver"`
+	MountTarget    string   `json:"mount_target"`
+	MountedBy      []string `json:"mounted_by"`
+	Name           string   `json:"name"`
 }
 
 // ProjectImportRuntimeWorkingDirectorySource defines model for project-import-runtime-working-directory-source.

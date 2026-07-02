@@ -418,14 +418,100 @@ func assertRuntimeInspectResult(
 	if result.ValidationStatus != "ready" {
 		t.Fatalf("expected ready validation status, got %q", result.ValidationStatus)
 	}
-	if len(result.RuntimeMembers) != 1 {
-		t.Fatalf("expected one runtime member, got %#v", result.RuntimeMembers)
-	}
-	if result.RuntimeMembers[0].ServiceName != "web" || result.RuntimeMembers[0].ContainerID != "c1" {
-		t.Fatalf("unexpected runtime members %#v", result.RuntimeMembers)
-	}
+	assertRuntimeInspectMembers(t, result.RuntimeMembers)
+	assertRuntimeInspectNetworks(t, result.NetworkResources)
+	assertRuntimeInspectVolumes(t, result.VolumeResources)
 	if !slices.Contains(result.Warnings, "working_directory_derived_from_config_files") {
 		t.Fatalf("expected candidate warning in inspect result, got %#v", result.Warnings)
+	}
+}
+
+func assertRuntimeInspectMembers(t *testing.T, members []RuntimeImportMember) {
+	t.Helper()
+	if len(members) != 2 {
+		t.Fatalf("expected two runtime members, got %#v", members)
+	}
+	if members[0].ServiceName != "web" || members[0].ContainerID != "c1" {
+		t.Fatalf("unexpected runtime members %#v", members)
+	}
+	if members[1].ServiceName != "worker" || members[1].ContainerID != "c2" {
+		t.Fatalf("unexpected runtime members %#v", members)
+	}
+}
+
+func assertRuntimeInspectNetworks(t *testing.T, resources []RuntimeImportNetworkResource) {
+	t.Helper()
+	if len(resources) != 2 {
+		t.Fatalf("expected two network resources, got %#v", resources)
+	}
+	assertBackendNetworkResource(t, resources[0])
+	assertFrontendNetworkResource(t, resources[1])
+}
+
+func assertBackendNetworkResource(t *testing.T, resource RuntimeImportNetworkResource) {
+	t.Helper()
+	if resource.Name != "backend" || resource.ServiceCount != 2 {
+		t.Fatalf("unexpected backend network resource %#v", resource)
+	}
+	if resource.Driver == nil || *resource.Driver != "overlay" {
+		t.Fatalf("expected backend network driver overlay, got %#v", resource.Driver)
+	}
+	if resource.Internal != nil {
+		t.Fatalf("expected backend network internal to remain unknown, got %#v", resource.Internal)
+	}
+	if !slices.Equal(resource.Containers, []string{"demo-web-1", "demo-worker-1"}) {
+		t.Fatalf("unexpected backend network containers %#v", resource.Containers)
+	}
+	if !slices.Equal(resource.Services, []string{"web", "worker"}) {
+		t.Fatalf("unexpected backend network services %#v", resource.Services)
+	}
+}
+
+func assertFrontendNetworkResource(t *testing.T, resource RuntimeImportNetworkResource) {
+	t.Helper()
+	if resource.Name != "frontend" || resource.ServiceCount != 1 {
+		t.Fatalf("unexpected frontend network resource %#v", resource)
+	}
+	if resource.Driver == nil || *resource.Driver != "bridge" {
+		t.Fatalf("expected frontend network driver bridge, got %#v", resource.Driver)
+	}
+	if resource.Internal == nil || !*resource.Internal {
+		t.Fatalf("expected frontend network internal=true, got %#v", resource.Internal)
+	}
+}
+
+func assertRuntimeInspectVolumes(t *testing.T, resources []RuntimeImportVolumeResource) {
+	t.Helper()
+	if len(resources) != 2 {
+		t.Fatalf("expected two volume resources, got %#v", resources)
+	}
+	assertAnonymousVolumeResource(t, resources[0])
+	assertNamedVolumeResource(t, resources[1])
+}
+
+func assertAnonymousVolumeResource(t *testing.T, resource RuntimeImportVolumeResource) {
+	t.Helper()
+	if resource.Name != "/tmp/cache" || !resource.Anonymous {
+		t.Fatalf("unexpected anonymous volume resource %#v", resource)
+	}
+	if !slices.Equal(resource.MountedBy, []string{"web", "worker"}) {
+		t.Fatalf("unexpected anonymous volume mounted_by %#v", resource.MountedBy)
+	}
+}
+
+func assertNamedVolumeResource(t *testing.T, resource RuntimeImportVolumeResource) {
+	t.Helper()
+	if resource.Name != "data" || resource.Anonymous {
+		t.Fatalf("unexpected named volume resource %#v", resource)
+	}
+	if resource.Driver == nil || *resource.Driver != "local" {
+		t.Fatalf("expected named volume driver local, got %#v", resource.Driver)
+	}
+	if resource.MountTarget != "/data" {
+		t.Fatalf("unexpected named volume mount target %#v", resource)
+	}
+	if !slices.Equal(resource.Containers, []string{"demo-web-1", "demo-worker-1"}) {
+		t.Fatalf("unexpected named volume containers %#v", resource.Containers)
 	}
 }
 
@@ -435,7 +521,33 @@ func TestInspectRuntimeCandidateReusesInspectPipeline(t *testing.T) {
 	tempDir := t.TempDir()
 	composePath := filepath.Join(tempDir, "compose.yaml")
 	envPath := filepath.Join(tempDir, ".env")
-	if err := os.WriteFile(composePath, []byte("services:\n  web:\n    image: nginx:latest\n"), 0o600); err != nil {
+	composeContent := "" +
+		"services:\n" +
+		"  web:\n" +
+		"    image: nginx:latest\n" +
+		"    networks:\n" +
+		"      - frontend\n" +
+		"      - backend\n" +
+		"    volumes:\n" +
+		"      - data:/data\n" +
+		"      - /tmp/cache\n" +
+		"  worker:\n" +
+		"    image: busybox:latest\n" +
+		"    networks:\n" +
+		"      - backend\n" +
+		"    volumes:\n" +
+		"      - data:/data\n" +
+		"      - type=volume,target=/tmp/cache\n" +
+		"networks:\n" +
+		"  frontend:\n" +
+		"    driver: bridge\n" +
+		"    internal: true\n" +
+		"  backend:\n" +
+		"    driver: overlay\n" +
+		"volumes:\n" +
+		"  data:\n" +
+		"    driver: local\n"
+	if err := os.WriteFile(composePath, []byte(composeContent), 0o600); err != nil {
 		t.Fatalf("write compose file: %v", err)
 	}
 	if err := os.WriteFile(envPath, []byte("FOO=bar\n"), 0o600); err != nil {
@@ -459,13 +571,14 @@ func TestInspectRuntimeCandidateReusesInspectPipeline(t *testing.T) {
 				WorkingDirectory:       tempDir,
 				WorkingDirectorySource: "runtime_label",
 				ConfigFiles:            []string{composePath},
-				ServiceNames:           []string{"web"},
-				ContainerCounts:        moduleapi.ContainerProjectRuntimeContainerCounts{Running: 1, Total: 1},
+				ServiceNames:           []string{"web", "worker"},
+				ContainerCounts:        moduleapi.ContainerProjectRuntimeContainerCounts{Running: 2, Total: 2},
 				Warnings:               []string{"working_directory_derived_from_config_files"},
 			},
 		},
 		candidateMembers: []moduleapi.ContainerProjectMember{
 			{ContainerID: "c1", ContainerName: "demo-web-1", ServiceName: "web", CanonicalState: "running"},
+			{ContainerID: "c2", ContainerName: "demo-worker-1", ServiceName: "worker", CanonicalState: "running"},
 		},
 	}))
 	if err != nil {

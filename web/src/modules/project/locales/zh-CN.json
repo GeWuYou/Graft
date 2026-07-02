@@ -286,10 +286,17 @@
       },
       "preview": {
         "title": "检查预览",
+        "overviewTitle": "Overview",
+        "overviewDescription": "项目级检查信息与诊断保持独立，不与资源表混排。",
+        "resourcesTitle": "Resources",
+        "resourcesDescription": "单区域切换当前检查会话的运行时资源表。",
         "authorityTitle": "配置与目录",
         "summaryTitle": "检查摘要",
         "discoveryTitle": "发现结果",
         "diagnosticsTitle": "诊断信息",
+        "resourceSearchPlaceholder": "搜索当前资源表",
+        "resourceColumnSettings": "列设置",
+        "resourceResetColumns": "恢复默认列",
         "canonicalProjectName": "Canonical Project Name",
         "canonicalNameSource": "名称来源",
         "validationStatus": "校验状态",
@@ -310,6 +317,52 @@
         "runtimeMemberContainerId": "容器 ID",
         "blockedDescription": "当前检查结果包含冲突，解决后才能继续确认导入。",
         "noDiagnostics": "当前没有额外 warning 或 conflict。",
+        "resources": {
+          "tabs": {
+            "containers": "Containers",
+            "networks": "Networks",
+            "volumes": "Volumes"
+          },
+          "summary": "{resource} 共 {count} 条。",
+          "paginationSummary": "显示第 {start}-{end} 项，共 {total} 项",
+          "loadFailed": "资源加载失败。",
+          "descriptions": {
+            "containers": "复用容器管理表格，仅保留详情入口并保持单区域切换。",
+            "networks": "网络资源使用表格承接，避免继续堆叠摘要块。",
+            "volumes": "卷资源使用表格承接，保持与容器一致的交互结构。"
+          },
+          "empty": {
+            "filteredDescription": "当前搜索条件下没有匹配资源。",
+            "containers": {
+              "title": "暂无容器",
+              "description": "当前候选没有可展示的容器资源。"
+            },
+            "networks": {
+              "title": "暂无网络",
+              "description": "当前候选没有可展示的网络资源。"
+            },
+            "volumes": {
+              "title": "暂无卷",
+              "description": "当前候选没有可展示的卷资源。"
+            }
+          },
+          "columns": {
+            "name": "名称",
+            "driver": "Driver",
+            "scope": "Scope",
+            "internal": "Internal",
+            "containers": "Containers",
+            "anonymous": "Anonymous",
+            "mountedBy": "Mounted By",
+            "mountTarget": "Mount Target"
+          },
+          "internalYes": "是",
+          "internalNo": "否",
+          "volumeAnonymousYes": "是",
+          "volumeAnonymousNo": "否",
+          "detailServices": "关联服务",
+          "detailMountedBy": "挂载服务"
+        },
         "none": "无"
       },
       "state": {

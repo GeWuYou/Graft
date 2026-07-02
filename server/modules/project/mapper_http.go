@@ -163,14 +163,47 @@ func toRuntimeImportInspectResponse(result RuntimeImportInspectResult) generated
 		ComposeFiles:               toGeneratedProjectFiles(result.ComposeFiles),
 		EnvFiles:                   toGeneratedProjectFiles(result.EnvFiles),
 		Services:                   append([]string(nil), result.ServiceNames...),
-		Networks:                   append([]string(nil), result.NetworkNames...),
-		Volumes:                    append([]string(nil), result.VolumeNames...),
+		Networks:                   toRuntimeImportNetworkResources(result.NetworkResources),
+		Volumes:                    toRuntimeImportVolumeResources(result.VolumeResources),
 		RuntimeMembers:             toRuntimeImportMembers(result.RuntimeMembers),
 		ConfigHash:                 result.ConfigHash,
 		Warnings:                   append([]string(nil), result.Warnings...),
 		Conflicts:                  append([]string(nil), result.Conflicts...),
 		ValidationStatus:           generated.ProjectImportRuntimeInspectResponseValidationStatus(result.ValidationStatus),
 	}
+}
+
+func toRuntimeImportNetworkResources(items []RuntimeImportNetworkResource) []generated.ProjectImportRuntimeNetworkResource {
+	resources := make([]generated.ProjectImportRuntimeNetworkResource, 0, len(items))
+	for _, item := range items {
+		resources = append(resources, generated.ProjectImportRuntimeNetworkResource{
+			Name:           item.Name,
+			Driver:         item.Driver,
+			Scope:          item.Scope,
+			Internal:       item.Internal,
+			Containers:     append([]string(nil), item.Containers...),
+			ContainerCount: item.ContainerCount,
+			Services:       append([]string(nil), item.Services...),
+			ServiceCount:   item.ServiceCount,
+		})
+	}
+	return resources
+}
+
+func toRuntimeImportVolumeResources(items []RuntimeImportVolumeResource) []generated.ProjectImportRuntimeVolumeResource {
+	resources := make([]generated.ProjectImportRuntimeVolumeResource, 0, len(items))
+	for _, item := range items {
+		resources = append(resources, generated.ProjectImportRuntimeVolumeResource{
+			Name:           item.Name,
+			Driver:         item.Driver,
+			Anonymous:      item.Anonymous,
+			MountTarget:    item.MountTarget,
+			MountedBy:      append([]string(nil), item.MountedBy...),
+			Containers:     append([]string(nil), item.Containers...),
+			ContainerCount: item.ContainerCount,
+		})
+	}
+	return resources
 }
 
 func toGeneratedProjectFiles(items []FileView) []generated.ProjectImportInspectFileItem {

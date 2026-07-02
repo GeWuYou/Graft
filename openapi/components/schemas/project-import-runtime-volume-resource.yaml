@@ -1,0 +1,30 @@
+type: object
+required:
+  - name
+  - driver
+  - anonymous
+  - mount_target
+  - mounted_by
+  - containers
+  - container_count
+properties:
+  name:
+    type: string
+  driver:
+    type: string
+    nullable: true
+  anonymous:
+    type: boolean
+  mount_target:
+    type: string
+  mounted_by:
+    type: array
+    items:
+      type: string
+  containers:
+    type: array
+    items:
+      type: string
+  container_count:
+    type: integer
+    minimum: 0
