@@ -28,7 +28,7 @@
       <t-card :bordered="true" :title="t('project.import.preview.summaryTitle')">
         <t-descriptions size="small" :column="1" bordered>
           <t-descriptions-item :label="t('project.import.preview.validationStatus')">
-            {{ result.validation_status }}
+            {{ formatValidationStatus(result.validation_status) }}
           </t-descriptions-item>
           <t-descriptions-item :label="t('project.import.preview.serviceCount')">
             {{ result.services.length }}
@@ -39,7 +39,7 @@
             </t-tooltip>
           </t-descriptions-item>
           <t-descriptions-item :label="t('project.import.preview.canonicalNameSource')">
-            {{ result.canonical_project_name_source }}
+            {{ formatCanonicalNameSource(result.canonical_project_name_source) }}
           </t-descriptions-item>
         </t-descriptions>
       </t-card>
@@ -119,6 +119,18 @@ const { t } = useI18n();
 
 const networkCount = computed(() => normalizeImportInspectNetworkRows(props.result).length);
 const volumeCount = computed(() => normalizeImportInspectVolumeRows(props.result).length);
+
+function formatValidationStatus(status: string) {
+  const key = `project.import.preview.validationStatusValues.${status}`;
+  const translated = t(key);
+  return translated === key ? status : translated;
+}
+
+function formatCanonicalNameSource(source: string) {
+  const key = `project.import.preview.canonicalNameSourceValues.${source}`;
+  const translated = t(key);
+  return translated === key ? source : translated;
+}
 </script>
 <style scoped lang="less">
 .project-import-overview,

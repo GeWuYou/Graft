@@ -46,7 +46,7 @@ export const projectGlobalRouteRegistrations: GlobalRouteRegistration[] = [
       hiddenMenu: true,
       keepAlive: true,
       pageKind: 'detail',
-      pageSurface: 'form-detail',
+      pageSurface: 'paged-table',
       semanticTitle: importRouteTitle,
       breadcrumbTitle: importBreadcrumbTitle,
       domainTitle: listRouteTitle,

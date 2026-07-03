@@ -780,9 +780,9 @@ describe('ProjectImportIndex', () => {
     await flushPromises();
 
     expect(wrapper.text()).toContain('demo');
-    expect(wrapper.text()).toContain('当前没有额外 warning 或 conflict。');
-    expect(wrapper.text()).toContain('Overview');
-    expect(wrapper.text()).toContain('Resources');
+    expect(wrapper.text()).toContain('当前没有额外警告或冲突。');
+    expect(wrapper.text()).toContain('检查概览');
+    expect(wrapper.text()).toContain('资源');
     expect(wrapper.text()).toContain('当前候选没有可展示的容器资源。');
     expect(flowState.inspectCandidate).not.toHaveBeenCalled();
   });
@@ -829,9 +829,62 @@ describe('ProjectImportIndex', () => {
     const wrapper = mountPage();
     await flushPromises();
 
-    expect(wrapper.get('[data-testid="inspect-overview-stub"]').text()).toContain('Overview');
-    expect(wrapper.get('[data-testid="inspect-resources-stub"]').text()).toContain('Resources');
+    expect(wrapper.get('[data-testid="inspect-overview-stub"]').text()).toContain('检查概览');
+    expect(wrapper.get('[data-testid="inspect-resources-stub"]').text()).toContain('资源');
     expect(wrapper.text()).toContain('继续确认导入');
+  });
+
+  it('renders a review-focused confirm step from the existing inspect payload without re-inspecting', async () => {
+    routeState.query = {
+      step: 'confirm',
+      candidate: 'runtime:demo',
+    };
+
+    const flowState = createFlowState();
+    flowState.hasPreview.value = true;
+    flowState.canImport.value = true;
+    flowState.displayName.value = 'Demo Project';
+    flowState.inspectResult.value = {
+      inspection_id: 'inspect-confirm',
+      candidate_key: 'runtime:demo',
+      resolved_working_directory: '/srv/demo',
+      canonical_project_name: 'demo',
+      canonical_project_name_source: 'computed',
+      display_name_suggested: 'Demo Project',
+      compose_files: [
+        {
+          kind: 'compose',
+          role: 'primary',
+          absolute_path: '/srv/demo/compose.yaml',
+          display_path: '/srv/demo/compose.yaml',
+          order_index: 0,
+          exists_on_last_refresh: true,
+        },
+      ],
+      env_files: [],
+      services: ['web', 'worker', 'cron', 'redis'],
+      networks: ['default', 'internal'],
+      volumes: ['data', 'cache'],
+      runtime_members: [{ container_id: '1', container_name: 'demo-web-1', service_name: 'web', state: 'running' }],
+      warnings: ['working directory derived from compose metadata'],
+      conflicts: [],
+      validation_status: 'ready',
+      config_hash: 'hash-confirm',
+    } as never;
+    mocks.useProjectImportFlow.mockImplementation(() => flowState);
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('最终确认');
+    expect(wrapper.text()).toContain('项目标识');
+    expect(wrapper.text()).toContain('运行时摘要');
+    expect(wrapper.text()).toContain('检查摘要');
+    expect(wrapper.text()).toContain('项目预览');
+    expect(wrapper.text()).toContain('导入后将执行');
+    expect(wrapper.text()).toContain('inspect-confirm');
+    expect(wrapper.text()).toContain('web, worker, cron 等另外 1 项');
+    expect(flowState.inspectCandidate).not.toHaveBeenCalled();
   });
 
   it('recovers a routed ready candidate even when it is outside the current page payload', async () => {

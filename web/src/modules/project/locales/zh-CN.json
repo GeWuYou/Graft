@@ -158,7 +158,7 @@
         "confirm": {
           "shortTitle": "确认导入",
           "title": "第 3 步 · 确认导入",
-          "description": "在检查就绪后填写导入选项，并执行最终导入。"
+          "description": "复核导入对象、检查摘要和影响说明，再执行最终导入。"
         }
       },
       "actions": {
@@ -229,10 +229,6 @@
           "unsupported_runtime": "运行时暂不支持",
           "broken_compose": "Compose 解析失败"
         },
-        "workingDirectorySourceValues": {
-          "runtime_label": "来自运行时标签",
-          "derived_from_config_files": "由 Compose 文件路径推导"
-        },
         "reason": {
           "missing_project_name": "缺少 Compose 项目名元数据",
           "missing_config_files": "缺少 Compose 配置文件元数据",
@@ -260,12 +256,43 @@
         "authorityHint": "Compose 文件会作为导入依据，工作目录只在检查后作为展示提示。",
         "displayName": "展示名",
         "displayNamePlaceholder": "例如：订单服务开发环境",
-        "canonicalProjectNameOverride": "Canonical Project Name 覆盖",
+        "canonicalProjectNameOverride": "规范项目名覆盖",
         "canonicalProjectNameOverridePlaceholder": "留空表示沿用发现结果"
       },
       "confirm": {
-        "title": "确认导入设置",
-        "hint": "将基于当前检查会话导入 {name}，请确认展示名和 Canonical Project Name 覆盖值。"
+        "title": "最终确认",
+        "description": "最后一步只做复核与确认。展示名仍可调整，但导入依据保持为当前检查快照。",
+        "identityTitle": "项目标识",
+        "identityHint": "请确认项目展示名与可选的 Canonical Project Name 覆盖值；其余信息来自当前检查会话。",
+        "importSource": "导入来源",
+        "importSourceValue": "运行中的 Compose 候选",
+        "candidateKey": "候选键",
+        "inspectionId": "检查会话",
+        "canonicalNameSource": "名称来源",
+        "runtimeLabel": "运行时",
+        "summaryTitle": "运行时摘要",
+        "inspectionTitle": "检查摘要",
+        "inspectionReady": "当前检查结果已就绪，可以继续导入。",
+        "inspectionBlocked": "当前检查结果仍有阻塞项，需返回检查页处理后再继续。",
+        "conflictCount": "冲突 {count}",
+        "warningCount": "警告 {count}",
+        "checks": {
+          "validation": "校验状态：{status}",
+          "composeFiles": "已识别 {count} 个 Compose 文件",
+          "services": "已识别 {count} 个服务",
+          "networks": "已识别 {count} 个网络",
+          "volumes": "已识别 {count} 个卷"
+        },
+        "previewTitle": "项目预览",
+        "previewWithMore": "{preview} 等另外 {count} 项",
+        "effectsTitle": "导入后将执行",
+        "effectsDescription": "这一屏只陈述当前合同可确认的导入结果，不额外承诺运行时副作用。",
+        "effects": {
+          "registerProject": "基于当前检查快照创建并注册一个 Graft 项目记录",
+          "useInspection": "沿用当前检查会话中的 Compose、服务、网络与卷发现结果",
+          "applyOverrides": "应用你在此页填写的展示名和可选规范项目名覆盖",
+          "recordDiscoveredResources": "将发现到的资源拓扑写入项目导入结果并在导入后打开详情页"
+        }
       },
       "validation": {
         "displayNameRequired": "请输入展示名。"
@@ -286,10 +313,10 @@
       },
       "preview": {
         "title": "检查预览",
-        "overviewTitle": "Overview",
-        "overviewDescription": "项目级检查信息与诊断保持独立，不与资源表混排。",
-        "resourcesTitle": "Resources",
-        "resourcesDescription": "单区域切换当前检查会话的运行时资源表。",
+        "overviewTitle": "检查概览",
+        "overviewDescription": "查看项目配置、检查摘要、发现结果与诊断信息。",
+        "resourcesTitle": "资源",
+        "resourcesDescription": "在同一区域切换查看当前检查会话的容器、网络与卷。",
         "authorityTitle": "配置与目录",
         "summaryTitle": "检查摘要",
         "discoveryTitle": "发现结果",
@@ -297,9 +324,19 @@
         "resourceSearchPlaceholder": "搜索当前资源表",
         "resourceColumnSettings": "列设置",
         "resourceResetColumns": "恢复默认列",
-        "canonicalProjectName": "Canonical Project Name",
+        "canonicalProjectName": "规范项目名",
         "canonicalNameSource": "名称来源",
         "validationStatus": "校验状态",
+        "validationStatusValues": {
+          "ready": "就绪",
+          "conflict": "存在冲突"
+        },
+        "canonicalNameSourceValues": {
+          "computed": "自动计算",
+          "runtime_label": "运行时标签",
+          "derived_runtime_label": "运行时标签推导",
+          "fallback_display_name": "展示名回退"
+        },
         "serviceCount": "声明服务数",
         "configHash": "配置哈希",
         "composeFiles": "Compose 文件",
@@ -316,20 +353,20 @@
         "runtimeMemberState": "状态",
         "runtimeMemberContainerId": "容器 ID",
         "blockedDescription": "当前检查结果包含冲突，解决后才能继续确认导入。",
-        "noDiagnostics": "当前没有额外 warning 或 conflict。",
+        "noDiagnostics": "当前没有额外警告或冲突。",
         "resources": {
           "tabs": {
-            "containers": "Containers",
-            "networks": "Networks",
-            "volumes": "Volumes"
+            "containers": "容器",
+            "networks": "网络",
+            "volumes": "卷"
           },
           "summary": "{resource} 共 {count} 条。",
           "paginationSummary": "显示第 {start}-{end} 项，共 {total} 项",
           "loadFailed": "资源加载失败。",
           "descriptions": {
-            "containers": "复用容器管理表格，仅保留详情入口并保持单区域切换。",
-            "networks": "网络资源使用表格承接，避免继续堆叠摘要块。",
-            "volumes": "卷资源使用表格承接，保持与容器一致的交互结构。"
+            "containers": "查看当前项目关联的容器，并可进入容器详情。",
+            "networks": "查看当前项目声明或关联的网络资源。",
+            "volumes": "查看当前项目声明或挂载的卷资源。"
           },
           "empty": {
             "filteredDescription": "当前搜索条件下没有匹配资源。",
@@ -348,13 +385,13 @@
           },
           "columns": {
             "name": "名称",
-            "driver": "Driver",
-            "scope": "Scope",
-            "internal": "Internal",
-            "containers": "Containers",
-            "anonymous": "Anonymous",
-            "mountedBy": "Mounted By",
-            "mountTarget": "Mount Target"
+            "driver": "驱动",
+            "scope": "作用域",
+            "internal": "内部网络",
+            "containers": "容器",
+            "anonymous": "匿名卷",
+            "mountedBy": "挂载服务",
+            "mountTarget": "挂载路径"
           },
           "internalYes": "是",
           "internalNo": "否",

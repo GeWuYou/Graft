@@ -155,7 +155,9 @@
 
             <template #config_files="{ row }">
               <div class="project-import-candidate-code">
-                <code>{{ firstListItem(row.config_files) }}</code>
+                <t-tooltip :content="formatListTooltip(row.config_files)" placement="top-left">
+                  <code :title="formatListTooltip(row.config_files)">{{ firstListItem(row.config_files) }}</code>
+                </t-tooltip>
                 <span v-if="row.config_files.length > 1">
                   {{ t('project.import.candidates.additionalConfigFiles', { count: row.config_files.length - 1 }) }}
                 </span>
@@ -164,10 +166,9 @@
 
             <template #working_directory="{ row }">
               <div class="project-import-candidate-code">
-                <code>{{ row.working_directory || '-' }}</code>
-                <span>
-                  {{ t(`project.import.candidates.workingDirectorySourceValues.${row.working_directory_source}`) }}
-                </span>
+                <t-tooltip :content="row.working_directory || '-'" placement="top-left">
+                  <code :title="row.working_directory || '-'">{{ row.working_directory || '-' }}</code>
+                </t-tooltip>
               </div>
             </template>
 
@@ -277,55 +278,24 @@
         </section>
 
         <section v-else class="project-import-step">
-          <t-card :bordered="true" :title="t('project.import.confirm.title')">
-            <t-form
-              ref="formRef"
-              :data="formData"
-              :rules="formRules"
-              label-align="top"
-              scroll-to-first-error="smooth"
-              @submit="handleSubmit"
-            >
-              <div class="project-import-authority">
-                <t-alert
-                  theme="info"
-                  :message="
-                    t('project.import.confirm.hint', {
-                      name: inspectResult?.canonical_project_name || '-',
-                    })
-                  "
-                />
-                <t-alert v-if="importError" theme="error" :message="importError" />
-              </div>
-
-              <div class="project-import-form-grid">
-                <t-form-item :label="t('project.import.form.displayName')" name="display_name">
-                  <t-input v-model="displayName" :placeholder="t('project.import.form.displayNamePlaceholder')" />
-                </t-form-item>
-                <t-form-item
-                  :label="t('project.import.form.canonicalProjectNameOverride')"
-                  name="canonical_project_name_override"
-                >
-                  <t-input
-                    v-model="canonicalProjectNameOverride"
-                    :placeholder="t('project.import.form.canonicalProjectNameOverridePlaceholder')"
-                  />
-                </t-form-item>
-              </div>
-
-              <div class="project-import-form-actions">
-                <t-button theme="default" variant="outline" type="button" @click="goToStep('inspect', true)">
-                  {{ t('project.import.actions.backToInspect') }}
-                </t-button>
-                <t-button theme="primary" type="submit" :disabled="!canImport" :loading="importLoading">
-                  {{ t('project.import.actions.import') }}
-                </t-button>
-                <t-button theme="default" variant="text" type="button" @click="handleReset">
-                  {{ t('project.import.actions.reset') }}
-                </t-button>
-              </div>
-            </t-form>
-          </t-card>
+          <project-import-confirm-review
+            v-if="normalizedInspectResult"
+            :can-import="canImport"
+            :candidate="selectedCandidate"
+            :canonical-project-name-override="canonicalProjectNameOverride"
+            :display-name="displayName"
+            :form-data="formData"
+            :form-rules="formRules"
+            :import-error="importError"
+            :import-loading="importLoading"
+            :resolved-working-directory="resolvedWorkingDirectory"
+            :result="normalizedInspectResult"
+            @back="goToStep('inspect', true)"
+            @reset="handleReset"
+            @submit="handleSubmit"
+            @update:canonical-project-name-override="canonicalProjectNameOverride = $event"
+            @update:display-name="displayName = $event"
+          />
         </section>
       </div>
     </management-page-content>
@@ -333,7 +303,7 @@
 </template>
 <script setup lang="ts">
 import { SearchIcon } from 'tdesign-icons-vue-next';
-import type { FormInstanceFunctions, FormProps, SubmitContext, TdBaseTableProps } from 'tdesign-vue-next';
+import type { FormProps, SubmitContext, TdBaseTableProps } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import type { LocationQueryRaw } from 'vue-router';
@@ -355,6 +325,7 @@ import { AdvancedQueryColumnDrawer, AdvancedQueryPagedTable } from '@/shared/com
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 
 import { getProjectImportRuntimeCandidates } from '../../api/import';
+import ProjectImportConfirmReview from '../../components/ProjectImportConfirmReview.vue';
 import ProjectImportInspectOverview from '../../components/ProjectImportInspectOverview.vue';
 import ProjectImportInspectResources from '../../components/ProjectImportInspectResources.vue';
 import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
@@ -446,7 +417,6 @@ const wizardSteps = [
 
 const { router, tabsRouterStore, t } = useProjectPageContext();
 const route = useRoute();
-const formRef = ref<FormInstanceFunctions | null>(null);
 const candidatesLoading = ref(true);
 const candidatesError = ref('');
 const candidates = ref<ProjectImportRuntimeCandidate[]>([]);
@@ -812,6 +782,10 @@ function firstListItem(items: string[]) {
   return items[0] || '-';
 }
 
+function formatListTooltip(items: string[]) {
+  return items.length ? items.join('\n') : '-';
+}
+
 function formatServicePreview(items: string[]) {
   if (!items.length) {
     return t('project.import.preview.none');
@@ -1049,8 +1023,8 @@ async function handleCandidateInspect(candidate: ProjectImportRuntimeCandidate) 
   }
 }
 
-async function handleSubmit(context: SubmitContext) {
-  if (context.validateResult !== true) {
+async function handleSubmit(context?: SubmitContext) {
+  if (!context || context.validateResult !== true) {
     return;
   }
 
@@ -1158,8 +1132,6 @@ function normalizeVisibleColumnKeys(keys: unknown[], allKeys: string[], alwaysVi
 .project-import-unavailable,
 .project-import-unavailable-card,
 .project-import-feedback,
-.project-import-authority,
-.project-import-form-grid,
 .project-import-preview__alerts,
 .project-import-step-grid,
 .project-import-preview-list,
@@ -1173,7 +1145,7 @@ function normalizeVisibleColumnKeys(keys: unknown[], allKeys: string[], alwaysVi
 }
 
 .project-import-workflow {
-  padding: var(--graft-density-gap-4);
+  padding: 0;
 }
 
 .project-import-workflow__eyebrow {
@@ -1185,7 +1157,7 @@ function normalizeVisibleColumnKeys(keys: unknown[], allKeys: string[], alwaysVi
 
 .project-import-workflow__title {
   color: var(--td-text-color-primary);
-  font: var(--td-font-title-large);
+  font: var(--td-font-title-medium);
   margin: 0;
 }
 
@@ -1272,8 +1244,7 @@ function normalizeVisibleColumnKeys(keys: unknown[], allKeys: string[], alwaysVi
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.project-import-step-actions,
-.project-import-form-actions {
+.project-import-step-actions {
   display: flex;
   flex-wrap: wrap;
   gap: var(--graft-density-gap-12);
@@ -1319,17 +1290,12 @@ function normalizeVisibleColumnKeys(keys: unknown[], allKeys: string[], alwaysVi
   justify-content: space-between;
 }
 
-.project-import-form-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
 .project-import-step :deep(.project-import-candidate-row--active > td) {
   background: color-mix(in srgb, var(--td-brand-color) 8%, var(--td-bg-color-container));
 }
 
 @media (width <= 1080px) {
-  .project-import-step-grid,
-  .project-import-form-grid {
+  .project-import-step-grid {
     grid-template-columns: 1fr;
   }
 }
