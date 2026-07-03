@@ -147,7 +147,7 @@
                   @click="navigateToDetail(projectRow(row), 'overview')"
                 >
                   <strong>{{ projectRow(row).display_name }}</strong>
-                  <span>{{ projectRow(row).canonical_project_name }}</span>
+                  <span v-if="projectSecondaryName(projectRow(row))">{{ projectSecondaryName(projectRow(row)) }}</span>
                 </button>
                 <code>{{ projectRow(row).working_directory }}</code>
               </div>
@@ -195,8 +195,8 @@
             <template #operation="{ row }">
               <table-action-menu
                 :actions="buildRowActions()"
-                :more-label="t('project.list.actions.detail')"
-                :more-label-fallback="t('project.list.actions.detail')"
+                :more-label="t('project.list.actions.operationMenu')"
+                :more-label-fallback="t('project.list.actions.operationMenu')"
                 @action="(action) => handleRowAction(action, projectRow(row))"
               />
             </template>
@@ -261,9 +261,10 @@
 </template>
 <script setup lang="ts">
 import { RefreshIcon } from 'tdesign-icons-vue-next';
-import type { TableProps } from 'tdesign-vue-next';
+import type { DialogInstance, TableProps } from 'tdesign-vue-next';
+import { DialogPlugin } from 'tdesign-vue-next/es/dialog';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
-import { computed, onMounted, ref } from 'vue';
+import { computed, h, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
@@ -346,20 +347,21 @@ const driftStatusOptions: ProjectDriftStatus[] = ['unknown', 'clean', 'changed',
 const refreshStatusOptions: ProjectRefreshStatus[] = ['never', 'success', 'failed'];
 
 const configurableColumns = computed<TableProps['columns']>(() => [
-  { colKey: 'name', title: t('project.list.columns.name'), width: 320 },
-  { colKey: 'source', title: t('project.list.columns.source'), width: 120 },
-  { colKey: 'runtime', title: t('project.list.columns.runtime'), width: 140 },
-  { colKey: 'services', title: t('project.list.columns.services'), width: 96, align: 'center' },
-  { colKey: 'containers', title: t('project.list.columns.containers'), width: 160, align: 'center' },
-  { colKey: 'drift', title: t('project.list.columns.drift'), width: 120 },
-  { colKey: 'refresh', title: t('project.list.columns.refresh'), width: 180 },
-  { colKey: 'operation', title: t('project.list.columns.operation'), width: 120, fixed: 'right' },
+  { colKey: 'name', title: t('project.list.columns.name'), width: 300 },
+  { colKey: 'source', title: t('project.list.columns.source'), width: 112, align: 'center' },
+  { colKey: 'runtime', title: t('project.list.columns.runtime'), width: 132, align: 'center' },
+  { colKey: 'services', title: t('project.list.columns.services'), width: 88, align: 'center' },
+  { colKey: 'containers', title: t('project.list.columns.containers'), width: 144, align: 'center' },
+  { colKey: 'drift', title: t('project.list.columns.drift'), width: 112, align: 'center' },
+  { colKey: 'refresh', title: t('project.list.columns.refresh'), width: 168, align: 'center' },
+  { colKey: 'operation', title: t('project.list.columns.operation'), width: 152, fixed: 'right', align: 'center' },
 ]);
 const visibleColumnKeys = ref(['name', 'source', 'runtime', 'services', 'containers', 'drift', 'refresh', 'operation']);
 const visibleColumns = computed(() =>
   (configurableColumns.value ?? []).filter((column) => visibleColumnKeys.value.includes(String(column?.colKey))),
 );
 const tableWidthPolicy = computed(() => resolveTableWidthPolicy(visibleColumns.value ?? [], tableHostWidth.value));
+const confirmDialogOpen = ref(false);
 
 const totalCount = computed(() => pagination.value.total);
 const runningContainerCount = computed(() => rows.value.reduce((sum, item) => sum + item.container_counts.running, 0));
@@ -427,6 +429,17 @@ function formatTime(value?: string | null) {
   return formatProjectTime(locale.value, value);
 }
 
+function projectSecondaryName(row: ProjectListItem) {
+  const canonicalName = row.canonical_project_name?.trim() || '';
+  const displayName = row.display_name?.trim() || '';
+
+  if (!canonicalName || canonicalName === displayName) {
+    return '';
+  }
+
+  return t('project.list.canonicalNameValue', { name: canonicalName });
+}
+
 async function fetchProjects() {
   loading.value = true;
   errorMessage.value = '';
@@ -490,11 +503,14 @@ function handlePageChange(pageInfo: { current: number; pageSize: number }) {
   void fetchProjects();
 }
 
-function navigateToDetail(row: ProjectListItem, tab: string) {
+function navigateToDetail(row: ProjectListItem, tab?: string) {
   const target = {
     name: PROJECT_BOOTSTRAP_ROUTE.DETAIL.pageRouteName,
     params: { id: row.id },
-    query: { tab, name: row.display_name },
+    query: {
+      ...(tab ? { tab } : {}),
+      name: row.display_name,
+    },
   };
   const resolved = router.resolve(target);
   appendResolvedTab(
@@ -539,10 +555,7 @@ async function runAction(
 
 function buildRowActions() {
   return [
-    { value: 'overview', label: t('project.list.actions.overview') },
-    { value: 'services', label: t('project.list.actions.services') },
-    { value: 'configuration', label: t('project.list.actions.configuration') },
-    { value: 'activity', label: t('project.list.actions.activity') },
+    { value: 'detail', label: t('project.list.actions.detail') },
     { value: 'refresh', label: t('project.list.actions.refresh') },
     { value: 'up', label: t('project.list.actions.up') },
     { value: 'down', label: t('project.list.actions.down') },
@@ -551,9 +564,59 @@ function buildRowActions() {
   ];
 }
 
+function actionConfirmTitleKey(action: 'up' | 'down' | 'restart' | 'unregister') {
+  return `project.list.actions.confirm${action.charAt(0).toUpperCase()}${action.slice(1)}Title`;
+}
+
+function actionConfirmDescriptionKey(action: 'up' | 'down' | 'restart' | 'unregister') {
+  return `project.list.actions.confirm${action.charAt(0).toUpperCase()}${action.slice(1)}Description`;
+}
+
+function actionConfirmTheme(action: 'up' | 'down' | 'restart' | 'unregister') {
+  return action === 'up' ? ('warning' as const) : ('danger' as const);
+}
+
+function confirmDangerousAction(row: ProjectListItem, action: 'up' | 'down' | 'restart' | 'unregister') {
+  if (confirmDialogOpen.value) {
+    return Promise.resolve(false);
+  }
+
+  return new Promise<boolean>((resolve) => {
+    let settled = false;
+    confirmDialogOpen.value = true;
+
+    const finish = (dialog: DialogInstance, confirmed: boolean) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      confirmDialogOpen.value = false;
+      dialog.destroy();
+      resolve(confirmed);
+    };
+
+    const dialog = DialogPlugin.confirm({
+      header: t(actionConfirmTitleKey(action)),
+      body: () =>
+        h('div', { class: 'project-action-confirm' }, [
+          h('p', t(actionConfirmDescriptionKey(action), { name: row.display_name })),
+        ]),
+      theme: actionConfirmTheme(action),
+      confirmBtn: {
+        content: t('project.list.actions.confirm'),
+        theme: actionConfirmTheme(action),
+      },
+      cancelBtn: t('project.list.actions.cancel'),
+      onCancel: () => finish(dialog, false),
+      onClose: () => finish(dialog, false),
+      onConfirm: () => finish(dialog, true),
+    });
+  });
+}
+
 async function handleRowAction(action: string, row: ProjectListItem) {
-  if (action === 'overview' || action === 'services' || action === 'configuration' || action === 'activity') {
-    await navigateToDetail(row, action);
+  if (action === 'detail') {
+    await navigateToDetail(row);
     return;
   }
   if (action === 'refresh') {
@@ -561,18 +624,30 @@ async function handleRowAction(action: string, row: ProjectListItem) {
     return;
   }
   if (action === 'up') {
+    if (!(await confirmDangerousAction(row, 'up'))) {
+      return;
+    }
     await runAction(postProjectUp, row, t('project.list.actions.actionSuccess'));
     return;
   }
   if (action === 'down') {
+    if (!(await confirmDangerousAction(row, 'down'))) {
+      return;
+    }
     await runAction(postProjectDown, row, t('project.list.actions.actionSuccess'));
     return;
   }
   if (action === 'restart') {
+    if (!(await confirmDangerousAction(row, 'restart'))) {
+      return;
+    }
     await runAction(postProjectRestart, row, t('project.list.actions.actionSuccess'));
     return;
   }
   if (action === 'unregister') {
+    if (!(await confirmDangerousAction(row, 'unregister'))) {
+      return;
+    }
     await runAction(postProjectUnregister, row, t('project.list.actions.actionSuccess'));
   }
 }
@@ -613,7 +688,22 @@ async function handleRowAction(action: string, row: ProjectListItem) {
 }
 
 .project-table-host {
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: hidden;
   width: 100%;
+}
+
+.project-table-host[data-table-mode='scroll'] {
+  overflow-x: auto;
+}
+
+.project-table-host :deep(.t-table__content) {
+  min-width: 0;
+}
+
+.project-table-host :deep(.t-table__content table) {
+  min-width: 100%;
 }
 
 .project-identity {
@@ -665,6 +755,16 @@ async function handleRowAction(action: string, row: ProjectListItem) {
 
 .project-empty {
   padding: var(--graft-density-gap-20) 0;
+}
+
+.project-action-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--graft-density-gap-8);
+}
+
+.project-action-confirm p {
+  margin: 0;
 }
 
 .project-column-drawer {

@@ -40,151 +40,214 @@
       </t-alert>
 
       <template v-else-if="detailRecord">
-        <section class="project-lifecycle-bar">
-          <div class="project-section-heading">
-            <div>
-              <h2>{{ t('project.detail.sections.lifecycle.title') }}</h2>
-              <p>{{ t('project.detail.sections.lifecycle.description') }}</p>
-            </div>
-          </div>
-          <div class="project-detail-action-bar">
-            <t-button
-              theme="primary"
-              variant="outline"
-              :loading="actionLoading === 'up'"
-              @click="runLifecycleAction('up')"
-            >
-              {{ t('project.detail.actions.up') }}
-            </t-button>
-            <t-button
-              theme="warning"
-              variant="outline"
-              :loading="actionLoading === 'down'"
-              @click="runLifecycleAction('down')"
-            >
-              {{ t('project.detail.actions.down') }}
-            </t-button>
-            <t-button
-              theme="warning"
-              variant="outline"
-              :loading="actionLoading === 'restart'"
-              @click="runLifecycleAction('restart')"
-            >
-              {{ t('project.detail.actions.restart') }}
-            </t-button>
-            <t-button
-              theme="default"
-              variant="outline"
-              :loading="actionLoading === 'unregister'"
-              @click="runLifecycleAction('unregister')"
-            >
-              {{ t('project.detail.actions.unregister') }}
-            </t-button>
-          </div>
-        </section>
+        <t-tabs v-model:value="activeDetailTab" class="project-detail-tabs" theme="normal">
+          <t-tab-panel value="overview" :destroy-on-hide="false" :label="t('project.detail.tabs.overview')">
+            <section class="project-section project-tab-panel">
+              <div class="project-section-heading">
+                <div>
+                  <h2>{{ t('project.detail.sections.overview.title') }}</h2>
+                  <p>{{ t('project.detail.sections.overview.description') }}</p>
+                </div>
+              </div>
 
-        <section class="project-section">
-          <div class="project-section-heading">
-            <div>
-              <h2>{{ t('project.detail.sections.overview.title') }}</h2>
-              <p>{{ t('project.detail.sections.overview.description') }}</p>
-            </div>
-          </div>
+              <div class="project-overview-grid">
+                <t-card size="small" :title="t('project.detail.summary.configurationTitle')">
+                  <t-descriptions size="small" :column="1">
+                    <t-descriptions-item :label="t('project.detail.summary.canonicalName')">
+                      <code>{{ detailRecord.canonical_project_name }}</code>
+                    </t-descriptions-item>
+                    <t-descriptions-item :label="t('project.detail.summary.composeFiles')">
+                      {{ detailRecord.compose_files.length }}
+                    </t-descriptions-item>
+                    <t-descriptions-item :label="t('project.detail.summary.workingDirectory')">
+                      <div class="project-detail-copy-row">
+                        <code>{{ detailRecord.working_directory }}</code>
+                        <t-button
+                          size="small"
+                          theme="default"
+                          variant="text"
+                          @click="copyPath(detailRecord.working_directory)"
+                        >
+                          {{ t('project.detail.actions.copyPath') }}
+                        </t-button>
+                      </div>
+                    </t-descriptions-item>
+                    <t-descriptions-item :label="t('project.detail.summary.envFiles')">
+                      {{ detailRecord.env_files.length }}
+                    </t-descriptions-item>
+                  </t-descriptions>
+                </t-card>
 
-          <div class="project-overview-grid">
-            <t-card size="small" :title="t('project.detail.summary.configurationTitle')">
-              <t-descriptions size="small" :column="1">
-                <t-descriptions-item :label="t('project.detail.summary.canonicalName')">
-                  <code>{{ detailRecord.canonical_project_name }}</code>
-                </t-descriptions-item>
-                <t-descriptions-item :label="t('project.detail.summary.composeFiles')">
-                  {{ detailRecord.compose_files.length }}
-                </t-descriptions-item>
-                <t-descriptions-item :label="t('project.detail.summary.workingDirectory')">
-                  <div class="project-detail-copy-row">
-                    <code>{{ detailRecord.working_directory }}</code>
+                <t-card size="small" :title="t('project.detail.summary.summaryTitle')">
+                  <t-descriptions size="small" :column="1">
+                    <t-descriptions-item :label="t('project.detail.summary.status')">
+                      {{ runtimeStatusLabel(detailRecord.runtime_status) }}
+                    </t-descriptions-item>
+                    <t-descriptions-item :label="t('project.detail.summary.services')">
+                      {{ detailRecord.service_count }}
+                    </t-descriptions-item>
+                    <t-descriptions-item :label="t('project.detail.summary.configHash')">
+                      <code>{{
+                        detailRecord.last_refresh_config_hash || detailRecord.last_observed_config_hash || '-'
+                      }}</code>
+                    </t-descriptions-item>
+                    <t-descriptions-item :label="t('project.detail.summary.nameSource')">
+                      {{ projectCanonicalNameSourceLabel(t, detailRecord.canonical_project_name_source) }}
+                    </t-descriptions-item>
+                  </t-descriptions>
+                </t-card>
+
+                <t-card size="small" :title="t('project.detail.summary.discoveryTitle')">
+                  <t-descriptions size="small" :column="1">
+                    <t-descriptions-item :label="t('project.detail.summary.runtimeMembers')">
+                      {{ detailRecord.container_counts.total }}
+                    </t-descriptions-item>
+                    <t-descriptions-item :label="t('project.detail.summary.runningMembers')">
+                      {{ detailRecord.container_counts.running }}
+                    </t-descriptions-item>
+                    <t-descriptions-item :label="t('project.detail.summary.hostScope')">
+                      {{ projectHostScopeLabel(t, detailRecord.host_scope) }}
+                    </t-descriptions-item>
+                    <t-descriptions-item :label="t('project.detail.summary.lastRefreshAt')">
+                      {{ formatTime(detailRecord.last_refresh_at) }}
+                    </t-descriptions-item>
+                  </t-descriptions>
+                </t-card>
+
+                <t-card size="small" :title="t('project.detail.overview.diagnosticsTitle')">
+                  <div v-if="configurationMetadata?.diagnostics_summary?.length" class="project-diagnostics-list">
+                    <t-alert
+                      v-for="(item, index) in configurationMetadata.diagnostics_summary"
+                      :key="`${index}-${item}`"
+                      theme="warning"
+                      :message="item"
+                    />
+                  </div>
+                  <t-empty v-else :description="t('project.detail.overview.diagnosticsEmpty')" />
+                </t-card>
+              </div>
+            </section>
+          </t-tab-panel>
+
+          <t-tab-panel value="services" :destroy-on-hide="false" :label="t('project.detail.tabs.services')">
+            <section class="project-section project-tab-panel">
+              <div class="project-section-heading">
+                <div>
+                  <h2>{{ t('project.detail.services.title') }}</h2>
+                  <p>{{ t('project.detail.services.description') }}</p>
+                </div>
+              </div>
+
+              <t-card size="small">
+                <template #actions>
+                  <t-space size="small">
+                    <t-tag theme="default" variant="light-outline">
+                      {{ t('project.detail.services.summary', { count: serviceRows.length }) }}
+                    </t-tag>
+                    <t-button
+                      theme="primary"
+                      variant="outline"
+                      :loading="serviceLoading"
+                      @click="refreshProjectServices"
+                    >
+                      {{ t('project.detail.services.refresh') }}
+                    </t-button>
+                  </t-space>
+                </template>
+
+                <t-table
+                  row-key="service_name"
+                  :columns="serviceColumns"
+                  :data="serviceRows"
+                  :loading="serviceLoading"
+                  cell-empty-content="-"
+                  hover
+                >
+                  <template #service_name="{ row }">
+                    <div class="project-service-name">
+                      <strong>{{ row.service_name }}</strong>
+                      <span>{{ row.image || '-' }}</span>
+                    </div>
+                  </template>
+
+                  <template #build_context="{ row }">
+                    <code>{{ row.build_context || '-' }}</code>
+                  </template>
+
+                  <template #declared_networks="{ row }">
+                    <span>{{ joinList(row.declared_networks || []) }}</span>
+                  </template>
+
+                  <template #declared_ports="{ row }">
+                    <span>{{ joinList(row.declared_ports || []) }}</span>
+                  </template>
+
+                  <template #declared_volumes="{ row }">
+                    <span>{{ joinList(row.declared_volumes || []) }}</span>
+                  </template>
+
+                  <template #runtime="{ row }">
+                    <div class="project-detail-action-bar">
+                      <t-tag theme="success" variant="light-outline">{{ row.running_count }}</t-tag>
+                      <t-tag theme="warning" variant="light-outline">{{ row.stopped_count }}</t-tag>
+                    </div>
+                  </template>
+
+                  <template #operation="{ row }">
                     <t-button
                       size="small"
                       theme="default"
-                      variant="text"
-                      @click="copyPath(detailRecord.working_directory)"
+                      variant="outline"
+                      :disabled="!row.container_members.length"
+                      @click="openFirstServiceContainer(row)"
                     >
-                      {{ t('project.detail.actions.copyPath') }}
+                      {{ t('project.detail.services.openContainer') }}
                     </t-button>
-                  </div>
-                </t-descriptions-item>
-                <t-descriptions-item :label="t('project.detail.summary.envFiles')">
-                  {{ detailRecord.env_files.length }}
-                </t-descriptions-item>
-              </t-descriptions>
-            </t-card>
+                  </template>
 
-            <t-card size="small" :title="t('project.detail.summary.summaryTitle')">
-              <t-descriptions size="small" :column="1">
-                <t-descriptions-item :label="t('project.detail.summary.status')">
-                  {{ runtimeStatusLabel(detailRecord.runtime_status) }}
-                </t-descriptions-item>
-                <t-descriptions-item :label="t('project.detail.summary.services')">
-                  {{ detailRecord.service_count }}
-                </t-descriptions-item>
-                <t-descriptions-item :label="t('project.detail.summary.configHash')">
-                  <code>{{
-                    detailRecord.last_refresh_config_hash || detailRecord.last_observed_config_hash || '-'
-                  }}</code>
-                </t-descriptions-item>
-                <t-descriptions-item :label="t('project.detail.summary.nameSource')">
-                  {{ projectCanonicalNameSourceLabel(t, detailRecord.canonical_project_name_source) }}
-                </t-descriptions-item>
-              </t-descriptions>
-            </t-card>
+                  <template #empty>
+                    <t-empty
+                      :title="t('project.detail.services.emptyTitle')"
+                      :description="t('project.detail.services.emptyDescription')"
+                    />
+                  </template>
+                </t-table>
+              </t-card>
+            </section>
+          </t-tab-panel>
 
-            <t-card size="small" :title="t('project.detail.summary.discoveryTitle')">
-              <t-descriptions size="small" :column="1">
-                <t-descriptions-item :label="t('project.detail.summary.runtimeMembers')">
-                  {{ detailRecord.container_counts.total }}
-                </t-descriptions-item>
-                <t-descriptions-item :label="t('project.detail.summary.runningMembers')">
-                  {{ detailRecord.container_counts.running }}
-                </t-descriptions-item>
-                <t-descriptions-item :label="t('project.detail.summary.hostScope')">
-                  {{ projectHostScopeLabel(t, detailRecord.host_scope) }}
-                </t-descriptions-item>
-                <t-descriptions-item :label="t('project.detail.summary.lastRefreshAt')">
-                  {{ formatTime(detailRecord.last_refresh_at) }}
-                </t-descriptions-item>
-              </t-descriptions>
-            </t-card>
+          <t-tab-panel value="containers" :destroy-on-hide="false" :label="t('project.detail.tabs.containers')">
+            <project-resources-section
+              :active-resource="'containers'"
+              :canonical-project-name="detailRecord.canonical_project_name"
+              :project-id="detailRecord.id"
+              :show-resource-switcher="false"
+              @open-container-detail="openContainerDetail"
+            />
+          </t-tab-panel>
 
-            <t-card size="small" :title="t('project.detail.overview.diagnosticsTitle')">
-              <div v-if="configurationMetadata?.diagnostics_summary?.length" class="project-diagnostics-list">
-                <t-alert
-                  v-for="(item, index) in configurationMetadata.diagnostics_summary"
-                  :key="`${index}-${item}`"
-                  theme="warning"
-                  :message="item"
-                />
-              </div>
-              <t-empty v-else :description="t('project.detail.overview.diagnosticsEmpty')" />
-            </t-card>
-          </div>
-        </section>
+          <t-tab-panel value="networks" :destroy-on-hide="false" :label="t('project.detail.tabs.networks')">
+            <project-resources-section
+              :active-resource="'networks'"
+              :canonical-project-name="detailRecord.canonical_project_name"
+              :project-id="detailRecord.id"
+              :show-resource-switcher="false"
+              @open-container-detail="openContainerDetail"
+            />
+          </t-tab-panel>
 
-        <project-resources-section
-          :canonical-project-name="detailRecord.canonical_project_name"
-          :project-id="detailRecord.id"
-          @open-container-detail="openContainerDetail"
-        />
+          <t-tab-panel value="volumes" :destroy-on-hide="false" :label="t('project.detail.tabs.volumes')">
+            <project-resources-section
+              :active-resource="'volumes'"
+              :canonical-project-name="detailRecord.canonical_project_name"
+              :project-id="detailRecord.id"
+              :show-resource-switcher="false"
+              @open-container-detail="openContainerDetail"
+            />
+          </t-tab-panel>
 
-        <section class="project-section">
-          <div class="project-section-heading">
-            <div>
-              <h2>{{ t('project.detail.sections.workspaces.title') }}</h2>
-              <p>{{ t('project.detail.sections.workspaces.description') }}</p>
-            </div>
-          </div>
-
-          <t-collapse :value="workspacePanels" @change="handleWorkspacePanelsChange">
-            <t-collapse-panel value="configuration" :header="t('project.detail.tabs.configuration')">
+          <t-tab-panel value="configuration" :destroy-on-hide="false" :label="t('project.detail.tabs.configuration')">
+            <section class="project-section project-tab-panel">
               <div class="project-configuration-grid">
                 <t-card size="small" :title="t('project.detail.configuration.title')">
                   <t-descriptions size="small" :column="1">
@@ -449,9 +512,11 @@
                   <t-empty v-else :description="t('project.detail.configuration.fileEmpty')" />
                 </t-card>
               </div>
-            </t-collapse-panel>
+            </section>
+          </t-tab-panel>
 
-            <t-collapse-panel value="activity" :header="t('project.detail.tabs.activity')">
+          <t-tab-panel value="activity" :destroy-on-hide="false" :label="t('project.detail.tabs.activity')">
+            <section class="project-section project-tab-panel">
               <t-card size="small" :title="t('project.detail.activity.title')">
                 <template #actions>
                   <t-space size="small" align="center">
@@ -550,18 +615,130 @@
                   </t-card>
                 </div>
               </t-card>
-            </t-collapse-panel>
-          </t-collapse>
-        </section>
+            </section>
+          </t-tab-panel>
+
+          <t-tab-panel value="runtime" :destroy-on-hide="false" :label="t('project.detail.tabs.runtime')">
+            <section class="project-section project-tab-panel">
+              <div class="project-section-heading">
+                <div>
+                  <h2>{{ t('project.detail.runtime.title') }}</h2>
+                  <p>{{ t('project.detail.runtime.description') }}</p>
+                </div>
+              </div>
+
+              <section class="project-lifecycle-bar">
+                <div class="project-detail-action-bar">
+                  <t-button
+                    theme="primary"
+                    variant="outline"
+                    :loading="actionLoading === 'up'"
+                    @click="runLifecycleAction('up')"
+                  >
+                    {{ t('project.detail.actions.up') }}
+                  </t-button>
+                  <t-button
+                    theme="warning"
+                    variant="outline"
+                    :loading="actionLoading === 'down'"
+                    @click="runLifecycleAction('down')"
+                  >
+                    {{ t('project.detail.actions.down') }}
+                  </t-button>
+                  <t-button
+                    theme="warning"
+                    variant="outline"
+                    :loading="actionLoading === 'restart'"
+                    @click="runLifecycleAction('restart')"
+                  >
+                    {{ t('project.detail.actions.restart') }}
+                  </t-button>
+                  <t-button
+                    theme="default"
+                    variant="outline"
+                    :loading="actionLoading === 'unregister'"
+                    @click="runLifecycleAction('unregister')"
+                  >
+                    {{ t('project.detail.actions.unregister') }}
+                  </t-button>
+                </div>
+              </section>
+
+              <div class="project-runtime-grid">
+                <t-card size="small" :title="t('project.detail.runtime.statusTitle')">
+                  <t-descriptions size="small" :column="1">
+                    <t-descriptions-item :label="t('project.detail.runtime.runtimeStatus')">
+                      {{ runtimeStatusLabel(detailRecord.runtime_status) }}
+                    </t-descriptions-item>
+                    <t-descriptions-item :label="t('project.detail.runtime.refreshStatus')">
+                      {{ refreshStatusLabel(detailRecord.last_refresh_status) }}
+                    </t-descriptions-item>
+                    <t-descriptions-item :label="t('project.detail.runtime.driftStatus')">
+                      {{ driftStatusLabel(detailRecord.drift_status) }}
+                    </t-descriptions-item>
+                    <t-descriptions-item :label="t('project.detail.runtime.lastRefreshAt')">
+                      {{ formatTime(detailRecord.last_refresh_at) }}
+                    </t-descriptions-item>
+                  </t-descriptions>
+                </t-card>
+
+                <t-card size="small" :title="t('project.detail.runtime.membersTitle')">
+                  <t-descriptions size="small" :column="1">
+                    <t-descriptions-item :label="t('project.detail.runtime.runningMembers')">
+                      {{ detailRecord.container_counts.running }}
+                    </t-descriptions-item>
+                    <t-descriptions-item :label="t('project.detail.runtime.totalMembers')">
+                      {{ detailRecord.container_counts.total }}
+                    </t-descriptions-item>
+                    <t-descriptions-item :label="t('project.detail.runtime.serviceCount')">
+                      {{ detailRecord.service_count }}
+                    </t-descriptions-item>
+                    <t-descriptions-item :label="t('project.detail.runtime.hostScope')">
+                      {{ projectHostScopeLabel(t, detailRecord.host_scope) }}
+                    </t-descriptions-item>
+                  </t-descriptions>
+                </t-card>
+
+                <t-card size="small" :title="t('project.detail.runtime.authorityTitle')">
+                  <t-descriptions size="small" :column="1">
+                    <t-descriptions-item :label="t('project.detail.runtime.activityAuthority')">
+                      {{ activityAuthorityLabel(detailRecord.activity_authority) }}
+                    </t-descriptions-item>
+                    <t-descriptions-item :label="t('project.detail.runtime.workingDirectory')">
+                      <div class="project-detail-copy-row">
+                        <code>{{ detailRecord.working_directory }}</code>
+                        <t-button
+                          size="small"
+                          theme="default"
+                          variant="text"
+                          @click="copyPath(detailRecord.working_directory)"
+                        >
+                          {{ t('project.detail.actions.copyPath') }}
+                        </t-button>
+                      </div>
+                    </t-descriptions-item>
+                    <t-descriptions-item :label="t('project.detail.runtime.canonicalName')">
+                      <code>{{ detailRecord.canonical_project_name }}</code>
+                    </t-descriptions-item>
+                    <t-descriptions-item :label="t('project.detail.runtime.nameSource')">
+                      {{ projectCanonicalNameSourceLabel(t, detailRecord.canonical_project_name_source) }}
+                    </t-descriptions-item>
+                  </t-descriptions>
+                </t-card>
+              </div>
+            </section>
+          </t-tab-panel>
+        </t-tabs>
       </template>
     </section>
   </div>
 </template>
 <script setup lang="ts">
 import { RefreshIcon } from 'tdesign-icons-vue-next';
+import type { TableProps } from 'tdesign-vue-next';
 import { DialogPlugin } from 'tdesign-vue-next/es/dialog';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
@@ -617,6 +794,7 @@ import type {
   ProjectDeployRequest,
   ProjectDetailResponse,
   ProjectServiceContainerMember,
+  ProjectServiceItem,
 } from '../../types/project';
 
 defineOptions({
@@ -629,6 +807,8 @@ type ActivityMember = ProjectServiceContainerMember & {
 };
 type EditorMode = 'edit' | 'preview';
 type ConfigurationEditorTab = 'compose' | 'env';
+type ProjectDetailTab =
+  'overview' | 'services' | 'containers' | 'networks' | 'volumes' | 'configuration' | 'activity' | 'runtime';
 
 const { locale, t } = useI18n();
 const route = useRoute();
@@ -639,6 +819,7 @@ const logger = createLogger('project.detail');
 const detailRecord = ref<ProjectDetailResponse | null>(null);
 const detailLoading = ref(false);
 const detailError = ref('');
+const activeDetailTab = ref<ProjectDetailTab>(normalizeDetailTab(route.query.tab));
 const configurationMetadata = ref<ProjectConfigurationMetadataResponse | null>(null);
 const configurationPreview = ref<ProjectConfigurationPreviewResponse | null>(null);
 const selectedConfigurationFile = ref<ProjectConfigurationFileResponse | null>(null);
@@ -655,8 +836,10 @@ const expandedDiffPanels = ref<Array<string | number>>([]);
 const activityMembers = ref<ActivityMember[]>([]);
 const activityLoading = ref(false);
 const activityError = ref('');
+const serviceRows = ref<ProjectServiceItem[]>([]);
+const serviceLoading = ref(false);
+const servicesLoaded = ref(false);
 const configurationLoadRequestId = ref(0);
-const workspacePanels = ref<Array<string | number>>(['configuration']);
 const actionLoading = ref<ProjectActionResponse['action'] | ''>('');
 const activitySince = ref('1h');
 const activityTail = ref('40');
@@ -697,9 +880,41 @@ const envDraftContent = computed({
     configurationDraft.env_file_content = value;
   },
 });
+const serviceColumns = computed<TableProps['columns']>(() => [
+  { colKey: 'service_name', title: t('project.detail.services.columns.service'), minWidth: 220 },
+  { colKey: 'build_context', title: t('project.detail.services.columns.buildContext'), minWidth: 220 },
+  { colKey: 'declared_networks', title: t('project.detail.services.columns.networks'), minWidth: 220 },
+  { colKey: 'declared_ports', title: t('project.detail.services.columns.ports'), minWidth: 220 },
+  { colKey: 'declared_volumes', title: t('project.detail.services.columns.volumes'), minWidth: 220 },
+  { colKey: 'runtime', title: t('project.detail.services.columns.runtime'), width: 140, align: 'center' },
+  { colKey: 'operation', title: t('project.detail.services.columns.operation'), width: 144, align: 'center' },
+]);
 
 onMounted(async () => {
   await refreshDetail();
+});
+
+watch(
+  () => route.query.tab,
+  (value) => {
+    const nextTab = normalizeDetailTab(value);
+    if (activeDetailTab.value !== nextTab) {
+      activeDetailTab.value = nextTab;
+    }
+  },
+);
+
+watch(activeDetailTab, (value) => {
+  const currentTab = normalizeDetailTab(route.query.tab);
+  if (currentTab === value) {
+    return;
+  }
+  void router.replace({
+    query: {
+      ...route.query,
+      tab: value,
+    },
+  });
 });
 
 function formatTime(value?: string | null) {
@@ -750,7 +965,8 @@ async function refreshDetail() {
   try {
     detailRecord.value = await getProject(projectId.value);
     updateCurrentTabTitle(buildDetailTitle(detailRecord.value.display_name));
-    await Promise.all([loadConfiguration(), loadActivity()]);
+    await Promise.all([loadConfiguration(), loadProjectServices(true)]);
+    await loadActivity();
   } catch (error) {
     logger.error('failed to load project detail', error);
     detailRecord.value = null;
@@ -966,8 +1182,8 @@ async function loadActivity() {
   activityLoading.value = true;
   activityError.value = '';
   try {
-    const response = await getProjectServices(projectId.value);
-    const members = response.items.flatMap((item) => item.container_members);
+    const services = await loadProjectServices();
+    const members = services.flatMap((item) => item.container_members);
     const tail = Number(activityTail.value) || 40;
     const since = activitySince.value.trim() || '1h';
     const fanout = await Promise.all(
@@ -999,8 +1215,39 @@ async function loadActivity() {
   }
 }
 
-function handleWorkspacePanelsChange(value: Array<string | number>) {
-  workspacePanels.value = value;
+async function loadProjectServices(forceRefresh = false) {
+  if (!Number.isFinite(projectId.value)) {
+    serviceRows.value = [];
+    servicesLoaded.value = false;
+    return [];
+  }
+  if (servicesLoaded.value && !forceRefresh) {
+    return serviceRows.value;
+  }
+
+  serviceLoading.value = true;
+  try {
+    const response = await getProjectServices(projectId.value);
+    serviceRows.value = response.items;
+    servicesLoaded.value = true;
+    return response.items;
+  } catch (error) {
+    logger.error('failed to load project services', error);
+    serviceRows.value = [];
+    servicesLoaded.value = false;
+    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.detail.services.loadFailed')));
+    throw error;
+  } finally {
+    serviceLoading.value = false;
+  }
+}
+
+async function refreshProjectServices() {
+  try {
+    await loadProjectServices(true);
+  } catch {
+    // loadProjectServices already reports user-facing feedback.
+  }
 }
 
 function eventSeverityTheme(value: ContainerRuntimeEventRecord['event']['severity']) {
@@ -1016,6 +1263,14 @@ function summarizeEvent(record: ContainerRuntimeEventRecord) {
     .map(([key, value]) => `${key}=${value}`)
     .join(', ');
   return joined || record.event.event_type;
+}
+
+function openFirstServiceContainer(service: ProjectServiceItem) {
+  const member = service.container_members[0];
+  if (!member) {
+    return;
+  }
+  openContainerDetail(member);
 }
 
 async function runLifecycleAction(action: 'up' | 'down' | 'restart' | 'unregister') {
@@ -1059,8 +1314,27 @@ function normalizeTextBlock(value: string) {
   return normalized ? `${normalized}\n` : '';
 }
 
+function joinList(items: string[]) {
+  return items.length > 0 ? items.join(', ') : '-';
+}
+
 function buildDetailTitle(name: string): LocalizedTitle {
   return buildDetailTitleWithFallback('project.route.detail.title', name);
+}
+
+function normalizeDetailTab(value: unknown): ProjectDetailTab {
+  const raw = Array.isArray(value) ? value[0] : value;
+  const tabs: ProjectDetailTab[] = [
+    'overview',
+    'services',
+    'containers',
+    'networks',
+    'volumes',
+    'configuration',
+    'activity',
+    'runtime',
+  ];
+  return typeof raw === 'string' && tabs.includes(raw as ProjectDetailTab) ? (raw as ProjectDetailTab) : 'overview';
 }
 
 function readNameFromTabTitle(title?: LocalizedTitle) {
@@ -1096,10 +1370,13 @@ function openContainerDetail(member: ProjectServiceContainerMember) {
 <style scoped lang="less">
 .project-detail-page,
 .project-detail-body,
+.project-tab-panel,
 .project-overview-grid,
+.project-runtime-grid,
 .project-configuration-grid,
 .project-file-groups,
 .project-detail-copy-row,
+.project-service-name,
 .project-activity-card,
 .project-activity-card__head,
 .project-activity-grid,
@@ -1109,26 +1386,35 @@ function openContainerDetail(member: ProjectServiceContainerMember) {
 }
 
 .project-detail-page,
-.project-detail-body {
+.project-detail-body,
+.project-tab-panel,
+.project-service-name {
   flex-direction: column;
   gap: var(--graft-density-gap-16);
 }
 
 .project-overview-grid,
+.project-runtime-grid,
 .project-configuration-grid,
 .project-activity-grid {
   gap: var(--graft-density-gap-16);
 }
 
 .project-overview-grid,
+.project-runtime-grid,
 .project-configuration-grid {
   align-items: stretch;
 }
 
 .project-overview-grid > .t-card,
+.project-runtime-grid > .t-card,
 .project-configuration-grid > .t-card {
   flex: 1 1 0;
   min-width: 0;
+}
+
+.project-detail-tabs :deep(.t-tabs__content) {
+  padding-top: var(--graft-density-gap-16);
 }
 
 .project-section,
@@ -1181,8 +1467,14 @@ function openContainerDetail(member: ProjectServiceContainerMember) {
 }
 
 .project-file-groups,
+.project-service-name,
 .project-activity-card {
   gap: var(--graft-density-gap-12);
+}
+
+.project-service-name span {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
 }
 
 .project-activity-card__head {
@@ -1281,6 +1573,7 @@ function openContainerDetail(member: ProjectServiceContainerMember) {
 
 @media (width <= 768px) {
   .project-overview-grid,
+  .project-runtime-grid,
   .project-configuration-grid,
   .project-activity-grid {
     flex-direction: column;

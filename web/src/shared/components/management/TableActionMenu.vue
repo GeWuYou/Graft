@@ -108,13 +108,13 @@ function handleMenuClick(payload: DropdownActionPayload, context?: DropdownActio
 .table-action-menu {
   align-items: center;
   display: inline-flex;
-  gap: var(--graft-density-gap-8);
+  gap: var(--graft-density-gap-6);
   justify-content: center;
   width: 100%;
 }
 
 .table-action-menu :deep(.t-button) {
-  min-width: 64px;
+  min-width: 56px;
   white-space: nowrap;
 }
 

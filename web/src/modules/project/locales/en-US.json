@@ -56,6 +56,7 @@
       "emptyTitle": "No Projects",
       "emptyDescription": "Import an Existing Compose Project to Start Reviewing Overview, Services, Configuration, and Activity.",
       "emptyFilteredDescription": "No Projects Match the Current Filters.",
+      "canonicalNameValue": "Runtime Name {name}",
       "clearFilters": "Clear Filters",
       "columnSettings": "Column Settings",
       "columnDrawerTitle": "Project Columns",
@@ -113,10 +114,7 @@
       },
       "actions": {
         "detail": "Detail",
-        "overview": "Overview",
-        "services": "Services",
-        "configuration": "Configuration",
-        "activity": "Activity",
+        "operationMenu": "Actions",
         "import": "Import Existing Project",
         "create": "Choose Project Source",
         "refresh": "Refresh",
@@ -130,6 +128,14 @@
         "refreshSuccess": "Project Refreshed.",
         "actionSuccess": "Project Action Completed.",
         "actionFailed": "Project Action Failed.",
+        "confirmUpTitle": "Confirm Project Start",
+        "confirmUpDescription": "Start {name}? This brings the registered services and containers up with the current Compose configuration.",
+        "confirmDownTitle": "Confirm Project Stop",
+        "confirmDownDescription": "Stop {name}? This stops the running services and containers in the current project.",
+        "confirmRestartTitle": "Confirm Project Restart",
+        "confirmRestartDescription": "Restart {name}? This interrupts the current runtime and starts it again with the current configuration.",
+        "confirmUnregisterTitle": "Confirm Unregister",
+        "confirmUnregisterDescription": "Unregister {name}? This removes the project registry record but leaves runtime containers untouched.",
         "unregisterConfirm": "Unregister {name}? Runtime Containers Stay Untouched.",
         "destroyConfirm": "Destroy {name}? This Only Works When Ownership Guard Allows It."
       }
@@ -626,8 +632,13 @@
       },
       "tabs": {
         "overview": "Overview",
+        "services": "Services",
+        "containers": "Containers",
+        "networks": "Networks",
+        "volumes": "Volumes",
         "configuration": "Configuration",
-        "activity": "Activity"
+        "activity": "Activity",
+        "runtime": "Runtime"
       },
       "resources": {
         "refresh": "Refresh Resources",
@@ -710,7 +721,42 @@
         "diagnosticsEmpty": "No Configuration Diagnostics Were Returned."
       },
       "services": {
+        "title": "Services",
+        "description": "Review service definitions, build contexts, declared resources, and the first runtime member from one workspace.",
+        "refresh": "Refresh Services",
+        "summary": "{count} Services",
+        "loadFailed": "Failed to load services.",
+        "emptyTitle": "No Services",
+        "emptyDescription": "This project does not currently expose service definitions.",
+        "columns": {
+          "service": "Service",
+          "buildContext": "Build Context",
+          "networks": "Declared Networks",
+          "ports": "Declared Ports",
+          "volumes": "Declared Volumes",
+          "runtime": "Running / Stopped",
+          "operation": "Operation"
+        },
         "openContainer": "Open Container Detail"
+      },
+      "runtime": {
+        "title": "Runtime",
+        "description": "Centralize project runtime status, member counts, and lifecycle actions in one workspace.",
+        "statusTitle": "Runtime Status",
+        "membersTitle": "Runtime Members",
+        "authorityTitle": "Runtime Boundary",
+        "runtimeStatus": "Runtime Status",
+        "refreshStatus": "Refresh Status",
+        "driftStatus": "Drift Status",
+        "lastRefreshAt": "Last Refresh",
+        "runningMembers": "Running Members",
+        "totalMembers": "Total Members",
+        "serviceCount": "Service Count",
+        "hostScope": "Host Scope",
+        "activityAuthority": "Activity Authority",
+        "workingDirectory": "Working Directory",
+        "canonicalName": "Canonical Project Name",
+        "nameSource": "Name Source"
       },
       "configuration": {
         "title": "Configuration",

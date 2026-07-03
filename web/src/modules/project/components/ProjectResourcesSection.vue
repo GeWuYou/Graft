@@ -26,7 +26,7 @@
     >
       <template #toolbar>
         <div class="project-resources-toolbar">
-          <div class="project-resource-switcher">
+          <div v-if="showResourceSwitcher" class="project-resource-switcher">
             <t-button
               v-for="view in resourceViews"
               :key="view.value"
@@ -227,10 +227,18 @@ type ResourcePaginationState = {
   pageSize: number;
 };
 
-const props = defineProps<{
-  canonicalProjectName: string;
-  projectId: number;
-}>();
+const props = withDefaults(
+  defineProps<{
+    activeResource?: ProjectResourceKind;
+    canonicalProjectName: string;
+    projectId: number;
+    showResourceSwitcher?: boolean;
+  }>(),
+  {
+    activeResource: undefined,
+    showResourceSwitcher: true,
+  },
+);
 
 const emit = defineEmits<{
   (e: 'open-container-detail', member: ProjectContainerDetailMember): void;
@@ -239,7 +247,8 @@ const emit = defineEmits<{
 const { locale, t } = useI18n();
 const logger = createLogger('project.detail.resources');
 
-const activeResource = ref<ProjectResourceKind>('containers');
+const activeResource = ref<ProjectResourceKind>(props.activeResource ?? 'containers');
+const showResourceSwitcher = computed(() => props.showResourceSwitcher);
 const columnDrawerVisible = ref(false);
 const detailDialogVisible = ref(false);
 const detailDialogType = ref<'network' | 'volume' | ''>('');
@@ -476,6 +485,16 @@ watch(
     resetResourceState();
     resourceError.value = '';
     void loadActiveResource();
+  },
+  { immediate: true },
+);
+
+watch(
+  () => props.activeResource,
+  (value) => {
+    if (value && activeResource.value !== value) {
+      activeResource.value = value;
+    }
   },
   { immediate: true },
 );

@@ -1140,7 +1140,7 @@ describe('container list page', () => {
     expect(apiMocks.getContainerLogs).not.toHaveBeenCalled();
   });
 
-  it('reserves enough operation column width for the explicit audit action button', async () => {
+  it('keeps the operation column width aligned with project management', async () => {
     const wrapper = mountPage();
     await flushPromises();
 
@@ -1162,7 +1162,7 @@ describe('container list page', () => {
 
     expect(operationColumn).toMatchObject({
       colKey: 'operation',
-      width: 288,
+      width: 152,
     });
   });
 

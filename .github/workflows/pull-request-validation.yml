@@ -161,21 +161,22 @@ jobs:
           fi
 
           base_ref="refs/remotes/origin/${base_branch}"
+          base_source="remote-tracking ref"
           if ! git rev-parse --verify "${base_ref}" >/dev/null 2>&1; then
             if ! fetched_sha="$(git rev-parse --verify FETCH_HEAD 2>/dev/null)"; then
               echo "::error title=Quality gate base ref verify failed::Fetched ${base_branch} but neither ${base_ref} nor FETCH_HEAD is available in the current checkout."
               exit 1
             fi
             base_ref="${fetched_sha}"
+            base_source="FETCH_HEAD commit"
           fi
 
+          echo "Resolved quality gate base branch ${base_branch} with base ref ${base_ref} (${base_source}) for HEAD $(git rev-parse HEAD)"
           echo "GRAFT_QUALITY_BASE_SHA=${base_ref}" >> "$GITHUB_ENV"
-          echo "GITHUB_BASE_REF=${base_branch}" >> "$GITHUB_ENV"
+          echo "GRAFT_LINT_BASE_REF=${base_branch}" >> "$GITHUB_ENV"
 
       - name: Run Graft Project Score changed gate
-        run: |
-          bun run quality:eff-u-code:score:changed -- \
-            --base-ref "${GITHUB_BASE_REF}"
+        run: bun run quality:eff-u-code:score:changed
 
       - name: Upload Graft Project Score changed report
         if: always()

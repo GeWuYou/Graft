@@ -37,6 +37,7 @@ const tabsRouterStoreMock = vi.hoisted(() => ({
 
 const routerMocks = vi.hoisted(() => ({
   push: vi.fn(),
+  replace: vi.fn(),
   resolve: vi.fn((target: { params?: { id?: string } }) => ({
     fullPath: `/ops/containers/${target.params?.id ?? ''}`,
     path: `/ops/containers/${target.params?.id ?? ''}`,
