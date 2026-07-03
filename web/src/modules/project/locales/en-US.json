@@ -56,7 +56,7 @@
       "emptyTitle": "No Projects",
       "emptyDescription": "Import an Existing Compose Project to Start Reviewing Overview, Services, Configuration, and Activity.",
       "emptyFilteredDescription": "No Projects Match the Current Filters.",
-      "canonicalNameValue": "Runtime Name {name}",
+      "canonicalNameValue": "Canonical Name {name}",
       "clearFilters": "Clear Filters",
       "columnSettings": "Column Settings",
       "columnDrawerTitle": "Project Columns",
@@ -117,10 +117,10 @@
         "remote-host": "Remote Host"
       },
       "driftStatus": {
-        "unknown": "? Unknown",
+        "unknown": "❓ Unknown",
         "clean": "✓ In Sync",
         "changed": "⚠ Drifted",
-        "missing": "⚠ Drifted"
+        "missing": "⚠ Missing"
       },
       "refreshStatus": {
         "never": "Never",
@@ -851,7 +851,7 @@
       },
       "actions": {
         "up": "Compose Up",
-        "down": "Compose Down",
+        "down": "Compose Stop",
         "restart": "Compose Restart",
         "unregister": "Unregister",
         "destroy": "Destroy",

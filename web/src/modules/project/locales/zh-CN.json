@@ -56,7 +56,7 @@
       "emptyTitle": "暂无项目",
       "emptyDescription": "先导入现有 Compose 项目，再查看 Overview、Services、Configuration 和 Activity。",
       "emptyFilteredDescription": "当前筛选条件下没有匹配的项目。",
-      "canonicalNameValue": "运行名 {name}",
+      "canonicalNameValue": "规范名 {name}",
       "clearFilters": "清除筛选",
       "columnSettings": "列设置",
       "columnDrawerTitle": "项目列设置",

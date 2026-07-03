@@ -102,6 +102,7 @@ import {
   normalizeImportInspectNetworkRows,
   normalizeImportInspectVolumeRows,
 } from '../shared/import-inspect-resources';
+import { formatImportPreviewCanonicalNameSource, formatImportPreviewValidationStatus } from '../shared/import-preview';
 import type { ProjectImportInspectResponse } from '../types/import';
 import ProjectImportSectionHeading from './ProjectImportSectionHeading.vue';
 
@@ -121,15 +122,11 @@ const networkCount = computed(() => normalizeImportInspectNetworkRows(props.resu
 const volumeCount = computed(() => normalizeImportInspectVolumeRows(props.result).length);
 
 function formatValidationStatus(status: string) {
-  const key = `project.import.preview.validationStatusValues.${status}`;
-  const translated = t(key);
-  return translated === key ? status : translated;
+  return formatImportPreviewValidationStatus(t, status);
 }
 
 function formatCanonicalNameSource(source: string) {
-  const key = `project.import.preview.canonicalNameSourceValues.${source}`;
-  const translated = t(key);
-  return translated === key ? source : translated;
+  return formatImportPreviewCanonicalNameSource(t, source);
 }
 </script>
 <style scoped lang="less">

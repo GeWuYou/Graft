@@ -1,6 +1,6 @@
 import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { defineComponent, h, ref } from 'vue';
+import { defineComponent, h, KeepAlive, nextTick, ref } from 'vue';
 
 import ProjectListPage from './index.vue';
 
@@ -52,6 +52,7 @@ const listMessages = {
   'project.list.columns.runtime': 'Status',
   'project.list.columns.source': 'Source',
   'project.list.refresh': 'Refresh',
+  'project.list.projectCount': 'Total {count}',
   'project.list.resources.container': 'Containers',
   'project.list.resources.issue': 'Issue',
   'project.list.resources.running': 'Running',
@@ -60,6 +61,7 @@ const listMessages = {
   'project.list.resources.stopped': 'Stopped',
   'project.list.resources.transitioning': 'Transitioning',
   'project.list.resources.unknown': 'Unknown',
+  'project.list.tableSummary': 'Total {count}',
   'project.list.status.runtimeDegraded': 'Degraded',
   'project.list.status.runtimeRunning': 'Running',
   'project.list.status.runtimeStopped': 'Stopped',
@@ -299,6 +301,52 @@ function mountPage() {
   });
 }
 
+function mountKeepAlivePage() {
+  const visible = ref(true);
+  const wrapper = mount(
+    defineComponent({
+      name: 'ProjectListKeepAliveHost',
+      setup() {
+        return () => h('div', [h(KeepAlive, null, () => (visible.value ? h(ProjectListPage) : null))]);
+      },
+    }),
+    {
+      global: {
+        renderStubDefaultSlot: true,
+        stubs: {
+          'project-list-entry-actions': slotStub('ProjectListEntryActions'),
+          'refresh-icon': true,
+          't-button': TButtonStub,
+          't-checkbox': slotStub('TCheckbox'),
+          't-checkbox-group': slotStub('TCheckboxGroup'),
+          't-drawer': slotStub('TDrawer'),
+          't-empty': slotStub('TEmpty'),
+          't-input': slotStub('TInput'),
+          't-option': slotStub('TOption'),
+          't-pagination': slotStub('TPagination'),
+          't-select': slotStub('TSelect'),
+          't-space': slotStub('TSpace'),
+          't-table': TTableStub,
+          't-tag': slotStub('TTag'),
+          't-tooltip': slotStub('TTooltip'),
+        },
+      },
+    },
+  );
+
+  return {
+    wrapper,
+    async deactivate() {
+      visible.value = false;
+      await nextTick();
+    },
+    async activate() {
+      visible.value = true;
+      await nextTick();
+    },
+  };
+}
+
 describe('Project list page', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -360,12 +408,27 @@ describe('Project list page', () => {
     await flushPromises();
 
     expect(projectApiMocks.getProjects).toHaveBeenCalledTimes(1);
-    expect(wrapper.find('[data-testid="project-status-summary-total"]').exists()).toBe(true);
+    expect(wrapper.get('[data-testid="project-status-summary-total"]').text()).toBe('Total 4');
     expect(wrapper.find('[data-testid="project-status-summary-running"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="project-status-summary-degraded"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="project-status-summary-transitioning"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="project-status-summary-unknown"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="project-status-summary-stopped"]').exists()).toBe(false);
+  });
+
+  it('uses response total for total-like summary copy instead of current page length', async () => {
+    projectApiMocks.getProjects.mockResolvedValueOnce({
+      items: [buildProjectRow({ id: 1 }), buildProjectRow({ id: 2 })],
+      limit: 2,
+      offset: 0,
+      total: 42,
+    });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.get('[data-testid="project-status-summary-total"]').text()).toBe('Total 42');
+    expect(wrapper.get('[data-testid="project-table-summary"]').text()).toBe('Total 42');
   });
 
   it('renders dynamic container resource badges with four-way semantics', async () => {
@@ -419,6 +482,29 @@ describe('Project list page', () => {
     expect(row.find('[data-testid="project-resource-badge-stopped-11"]').exists()).toBe(false);
   });
 
+  it('renders a fallback resource badge when all container counts are zero for known runtime rows', async () => {
+    projectApiMocks.getProjects.mockResolvedValueOnce({
+      items: [
+        buildProjectRow({
+          container_counts: { issue: 0, running: 0, stopped: 0, total: 0, transitioning: 0 },
+          id: 12,
+          runtime_status: 'running',
+        }),
+      ],
+      limit: 20,
+      offset: 0,
+      total: 1,
+    });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const row = wrapper.get('tr[data-row-id="12"]');
+    const badge = row.get('[data-testid="project-resource-badge-running-12"]');
+    expect(badge.text()).toContain('0');
+    expect(badge.attributes('title')).toBe('Running 0');
+  });
+
   it('polls the current page so refreshed timestamps can advance without manual input', async () => {
     vi.useFakeTimers();
     const wrapper = mountPage();
@@ -431,6 +517,21 @@ describe('Project list page', () => {
 
     expect(projectApiMocks.getProjects).toHaveBeenCalledTimes(2);
     wrapper.unmount();
+  });
+
+  it('fetches immediately when the keep-alive page is re-activated', async () => {
+    const page = mountKeepAlivePage();
+    await flushPromises();
+
+    const initialCallCount = projectApiMocks.getProjects.mock.calls.length;
+
+    await page.deactivate();
+    await flushPromises();
+    await page.activate();
+    await flushPromises();
+
+    expect(projectApiMocks.getProjects).toHaveBeenCalledTimes(initialCallCount + 1);
+    page.wrapper.unmount();
   });
 
   it('shows a runtime loading spinner after restart until refreshed status data changes', async () => {

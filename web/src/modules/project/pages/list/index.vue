@@ -9,7 +9,7 @@
         <template #meta>
           <div class="project-header-summary">
             <span class="project-header-summary__total" data-testid="project-status-summary-total">
-              {{ t('project.list.projectCount', { count: totalCount }) }}
+              {{ t('project.list.projectCount', { count: summaryTotalCount }) }}
             </span>
             <t-tooltip v-for="item in headerStatusSummaryItems" :key="item.key" :content="item.tooltip" placement="top">
               <span
@@ -99,7 +99,9 @@
         <template #head>
           <div class="project-table-head">
             <div>
-              <p class="project-table-head__summary">{{ t('project.list.tableSummary', { count: rows.length }) }}</p>
+              <p class="project-table-head__summary" data-testid="project-table-summary">
+                {{ t('project.list.tableSummary', { count: summaryTotalCount }) }}
+              </p>
               <p class="project-table-head__hint">{{ t('project.list.tableHint') }}</p>
             </div>
           </div>
@@ -414,7 +416,7 @@ const refreshLoading = computed(() => tableLoading.value || refreshing.value);
 const realtimeActive = ref(false);
 const pendingRowActions = ref<Record<number, PendingProjectActionState>>({});
 
-const totalCount = computed(() => rows.value.length);
+const summaryTotalCount = computed(() => (pagination.value.total > 0 ? pagination.value.total : rows.value.length));
 const projectStatusCounts = computed<Record<HeaderStatusSummaryKey, number>>(() => {
   const counts: Record<HeaderStatusSummaryKey, number> = {
     running: 0,
@@ -476,6 +478,7 @@ onUnmounted(() => {
 onActivated(() => {
   realtimeActive.value = true;
   startPolling();
+  void fetchProjects();
 });
 
 onDeactivated(() => {
@@ -584,7 +587,24 @@ function projectContainerBadges(row: ProjectListItem): ProjectResourceBadge[] {
       },
     ];
   }
-  return visible;
+  const fallbackKey: ProjectResourceBadgeKey =
+    row.runtime_status === 'running'
+      ? 'running'
+      : row.runtime_status === 'stopped'
+        ? 'stopped'
+        : row.runtime_status === 'transitioning'
+          ? 'transitioning'
+          : row.runtime_status === 'degraded'
+            ? 'issue'
+            : 'unknown';
+  return [
+    {
+      key: fallbackKey,
+      count: 0,
+      label: projectResourceBadgeLabel(fallbackKey, 0),
+      icon: projectResourceBadgeIcon(fallbackKey),
+    },
+  ];
 }
 
 function formatTime(value?: string | null) {
