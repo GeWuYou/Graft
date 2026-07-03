@@ -103,11 +103,11 @@
         "runtimeTransitioning": "🔵 过渡中"
       },
       "statusTooltip": {
-        "runtimeUnknown": "未知",
-        "runtimeRunning": "运行中",
-        "runtimeDegraded": "降级",
-        "runtimeStopped": "已停止",
-        "runtimeTransitioning": "过渡中"
+        "runtimeUnknown": "当前页未知",
+        "runtimeRunning": "当前页运行中",
+        "runtimeDegraded": "当前页降级",
+        "runtimeStopped": "当前页已停止",
+        "runtimeTransitioning": "当前页过渡中"
       },
       "sourceKinds": {
         "imported": "导入项目",

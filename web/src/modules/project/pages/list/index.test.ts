@@ -67,6 +67,11 @@ const listMessages = {
   'project.list.status.runtimeStopped': 'Stopped',
   'project.list.status.runtimeTransitioning': 'Transitioning',
   'project.list.status.runtimeUnknown': 'Unknown',
+  'project.list.statusTooltip.runtimeDegraded': 'Current Page Degraded',
+  'project.list.statusTooltip.runtimeRunning': 'Current Page Running',
+  'project.list.statusTooltip.runtimeStopped': 'Current Page Stopped',
+  'project.list.statusTooltip.runtimeTransitioning': 'Current Page Transitioning',
+  'project.list.statusTooltip.runtimeUnknown': 'Current Page Unknown',
 } as const;
 
 function slotStub(name: string) {

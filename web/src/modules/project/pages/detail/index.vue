@@ -1246,7 +1246,7 @@ async function loadProjectServices(forceRefresh = false) {
     serviceRows.value = [];
     servicesLoaded.value = false;
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.detail.services.loadFailed')));
-    throw error;
+    return [];
   } finally {
     serviceLoading.value = false;
   }

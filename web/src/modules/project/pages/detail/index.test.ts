@@ -340,6 +340,18 @@ describe('Project detail page', () => {
     });
   });
 
+  it('keeps the detail record when loading services fails during refresh', async () => {
+    projectApiMocks.getProjectServices.mockRejectedValueOnce(new Error('service list failed'));
+
+    const wrapper = mountRuntimePage();
+    await flushPromises();
+
+    expect(projectApiMocks.getProject).toHaveBeenCalledWith(7);
+    expect(wrapper.text()).toContain('Compose Demo');
+
+    wrapper.unmount();
+  });
+
   it('uses the same lifecycle visibility rules as the list page', async () => {
     const wrapper = mountRuntimePage();
     await flushPromises();

@@ -103,11 +103,11 @@
         "runtimeTransitioning": "🔵 Transitioning"
       },
       "statusTooltip": {
-        "runtimeUnknown": "Unknown",
-        "runtimeRunning": "Running",
-        "runtimeDegraded": "Degraded",
-        "runtimeStopped": "Stopped",
-        "runtimeTransitioning": "Transitioning"
+        "runtimeUnknown": "Current Page Unknown",
+        "runtimeRunning": "Current Page Running",
+        "runtimeDegraded": "Current Page Degraded",
+        "runtimeStopped": "Current Page Stopped",
+        "runtimeTransitioning": "Current Page Transitioning"
       },
       "sourceKinds": {
         "imported": "Imported",
