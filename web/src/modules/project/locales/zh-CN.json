@@ -66,10 +66,10 @@
       "filters": {
         "searchPlaceholder": "搜索展示名、Canonical 名或工作目录",
         "sourceKind": "来源",
-        "driftStatus": "漂移状态",
+        "driftStatus": "同步状态",
         "refreshStatus": "刷新状态",
         "allSourceKinds": "全部来源",
-        "allDriftStatuses": "全部漂移状态",
+        "allDriftStatuses": "全部同步状态",
         "allRefreshStatuses": "全部刷新状态",
         "query": "查询",
         "reset": "重置"
@@ -79,7 +79,7 @@
         "source": "来源",
         "runtime": "状态",
         "resources": "资源",
-        "drift": "漂移",
+        "drift": "同步状态",
         "refresh": "刷新",
         "workingDirectory": "工作目录",
         "updatedAt": "最近刷新",
@@ -96,6 +96,13 @@
         "runtimeStopped": "⚫ 已停止",
         "runtimeTransitioning": "🔵 过渡中"
       },
+      "statusTooltip": {
+        "runtimeUnknown": "未知",
+        "runtimeRunning": "运行中",
+        "runtimeDegraded": "降级",
+        "runtimeStopped": "已停止",
+        "runtimeTransitioning": "过渡中"
+      },
       "sourceKinds": {
         "imported": "导入项目",
         "managed": "受管项目",
@@ -104,10 +111,10 @@
         "remote-host": "Remote Host"
       },
       "driftStatus": {
-        "unknown": "未知",
-        "clean": "一致",
-        "changed": "已变更",
-        "missing": "文件缺失"
+        "unknown": "? 未知",
+        "clean": "✓ 一致",
+        "changed": "⚠ 已漂移",
+        "missing": "⚠ 已漂移"
       },
       "refreshStatus": {
         "never": "未刷新",

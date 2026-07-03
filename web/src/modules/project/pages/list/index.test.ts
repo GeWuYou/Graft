@@ -130,19 +130,45 @@ describe('Project list page', () => {
           id: 2,
           last_refresh_at: '2026-07-03T10:05:00Z',
           last_refresh_status: 'success',
-          runtime_status: 'stopped',
+          runtime_status: 'degraded',
           service_count: 2,
           source_kind: 'managed',
           working_directory: '/srv/beta',
         },
+        {
+          canonical_project_name: 'gamma',
+          container_counts: { running: 0, stopped: 1, transitioning: 1, issue: 0, total: 2 },
+          display_name: 'Gamma',
+          drift_status: 'clean',
+          id: 3,
+          last_refresh_at: '2026-07-03T10:10:00Z',
+          last_refresh_status: 'failed',
+          runtime_status: 'transitioning',
+          service_count: 2,
+          source_kind: 'git',
+          working_directory: '/srv/gamma',
+        },
+        {
+          canonical_project_name: 'delta',
+          container_counts: { running: 0, stopped: 1, transitioning: 0, issue: 1, total: 1 },
+          display_name: 'Delta',
+          drift_status: 'unknown',
+          id: 4,
+          last_refresh_at: null,
+          last_refresh_status: 'never',
+          runtime_status: 'unknown',
+          service_count: 1,
+          source_kind: 'template',
+          working_directory: '/srv/delta',
+        },
       ],
       limit: 20,
       offset: 0,
-      total: 2,
+      total: 4,
     });
   });
 
-  it('counts header status badges by project runtime status instead of container totals', async () => {
+  it('renders only non-zero runtime summary badges in the header', async () => {
     const wrapper = mount(ProjectListPage, {
       global: {
         renderStubDefaultSlot: true,
@@ -161,6 +187,7 @@ describe('Project list page', () => {
           't-space': slotStub('TSpace'),
           't-table': slotStub('TTable'),
           't-tag': slotStub('TTag'),
+          't-tooltip': slotStub('TTooltip'),
         },
       },
     });
@@ -168,11 +195,11 @@ describe('Project list page', () => {
     await flushPromises();
 
     expect(projectApiMocks.getProjects).toHaveBeenCalledTimes(1);
-    expect(wrapper.text()).toContain('project.list.projectCount');
-    expect(wrapper.text()).toContain('project.list.runningProjects');
-    expect(wrapper.text()).toContain('project.list.stoppedProjects');
-    expect(wrapper.text()).not.toContain('project.list.warningProjects');
-    expect(wrapper.text()).not.toContain('project.list.runningContainers');
-    expect(wrapper.text()).not.toContain('project.list.stoppedContainers');
+    expect(wrapper.find('[data-testid="project-status-summary-total"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="project-status-summary-running"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="project-status-summary-degraded"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="project-status-summary-transitioning"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="project-status-summary-unknown"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="project-status-summary-stopped"]').exists()).toBe(false);
   });
 });

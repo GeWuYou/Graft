@@ -66,10 +66,10 @@
       "filters": {
         "searchPlaceholder": "Search Display Name, Canonical Name, or Working Directory",
         "sourceKind": "Source",
-        "driftStatus": "Drift",
+        "driftStatus": "Sync Status",
         "refreshStatus": "Refresh",
         "allSourceKinds": "All Sources",
-        "allDriftStatuses": "All Drift States",
+        "allDriftStatuses": "All Sync States",
         "allRefreshStatuses": "All Refresh States",
         "query": "Query",
         "reset": "Reset"
@@ -79,7 +79,7 @@
         "source": "Source",
         "runtime": "Status",
         "resources": "Resources",
-        "drift": "Drift",
+        "drift": "Sync Status",
         "refresh": "Refresh",
         "workingDirectory": "Working Directory",
         "updatedAt": "Last Refresh",
@@ -96,6 +96,13 @@
         "runtimeStopped": "⚫ Stopped",
         "runtimeTransitioning": "🔵 Transitioning"
       },
+      "statusTooltip": {
+        "runtimeUnknown": "Unknown",
+        "runtimeRunning": "Running",
+        "runtimeDegraded": "Degraded",
+        "runtimeStopped": "Stopped",
+        "runtimeTransitioning": "Transitioning"
+      },
       "sourceKinds": {
         "imported": "Imported",
         "managed": "Managed",
@@ -104,10 +111,10 @@
         "remote-host": "Remote Host"
       },
       "driftStatus": {
-        "unknown": "Unknown",
-        "clean": "Clean",
-        "changed": "Changed",
-        "missing": "Missing"
+        "unknown": "? Unknown",
+        "clean": "✓ In Sync",
+        "changed": "⚠ Drifted",
+        "missing": "⚠ Drifted"
       },
       "refreshStatus": {
         "never": "Never",

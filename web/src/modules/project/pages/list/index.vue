@@ -7,17 +7,19 @@
         :source="{ labelKey: 'menu.ops.title', fallback: t('project.list.eyebrow') }"
       >
         <template #meta>
-          <t-space break-line size="small">
-            <t-tag theme="default" variant="light-outline">
+          <div class="project-header-summary">
+            <span class="project-header-summary__total" data-testid="project-status-summary-total">
               {{ t('project.list.projectCount', { count: totalCount }) }}
-            </t-tag>
-            <t-tag theme="success" variant="light-outline">
-              {{ t('project.list.runningProjects', { count: runningProjectCount }) }}
-            </t-tag>
-            <t-tag theme="warning" variant="light-outline">
-              {{ t('project.list.stoppedProjects', { count: stoppedProjectCount }) }}
-            </t-tag>
-          </t-space>
+            </span>
+            <t-tooltip v-for="item in headerStatusSummaryItems" :key="item.key" :content="item.tooltip" placement="top">
+              <span
+                :class="['project-header-summary__status', `project-header-summary__status--${item.key}`]"
+                :data-testid="`project-status-summary-${item.key}`"
+              >
+                {{ item.icon }}{{ item.count }}
+              </span>
+            </t-tooltip>
+          </div>
         </template>
         <template #actions>
           <t-space size="small" break-line>
@@ -30,7 +32,7 @@
               @create="navigateToSourceChooser"
               @reset="resetFilters"
             />
-            <t-button theme="primary" :loading="loading" @click="fetchProjects">
+            <t-button theme="primary" :loading="refreshLoading" @click="handleManualRefresh">
               <template #icon><refresh-icon /></template>
               {{ t('project.list.refresh') }}
             </t-button>
@@ -106,20 +108,20 @@
           <table-view-toolbar
             :column-settings-label="t('project.list.columnSettings')"
             :refresh-label="t('project.list.refresh')"
-            :refresh-loading="loading"
+            :refresh-loading="refreshLoading"
             @column-settings="columnDrawerVisible = true"
-            @refresh="fetchProjects"
+            @refresh="handleManualRefresh"
           />
         </template>
 
         <management-empty-state
-          v-if="errorMessage && !loading"
+          v-if="errorMessage && !tableLoading && !refreshing"
           tone="error"
           :title="t('project.list.title')"
           :description="errorMessage"
         >
           <template #actions>
-            <t-button theme="primary" variant="outline" @click="fetchProjects">
+            <t-button theme="primary" variant="outline" @click="handleManualRefresh">
               {{ t('project.list.retry') }}
             </t-button>
           </template>
@@ -130,7 +132,7 @@
             row-key="id"
             :columns="visibleColumns"
             :data="rows"
-            :loading="loading"
+            :loading="tableLoading"
             table-layout="fixed"
             :table-content-width="tableWidthPolicy.tableContentWidth"
             cell-empty-content="-"
@@ -157,9 +159,14 @@
             </template>
 
             <template #runtime="{ row }">
-              <t-tag :theme="runtimeStatusTheme(projectRow(row).runtime_status)" variant="light-outline">
+              <span
+                :class="[
+                  'project-runtime-badge',
+                  `project-runtime-badge--${normalizeRuntimeStatus(projectRow(row).runtime_status)}`,
+                ]"
+              >
                 {{ runtimeStatusLabel(projectRow(row).runtime_status) }}
-              </t-tag>
+              </span>
             </template>
 
             <template #resources="{ row }">
@@ -189,9 +196,14 @@
             </template>
 
             <template #drift="{ row }">
-              <t-tag :theme="driftStatusTheme(projectRow(row).drift_status)" variant="light-outline">
+              <span
+                :class="[
+                  'project-sync-status',
+                  `project-sync-status--${normalizeDriftStatus(projectRow(row).drift_status)}`,
+                ]"
+              >
                 {{ driftStatusLabel(projectRow(row).drift_status) }}
-              </t-tag>
+              </span>
             </template>
 
             <template #refresh="{ row }">
@@ -309,11 +321,9 @@ import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import {
   formatProjectTime,
   projectDriftStatusLabel,
-  projectDriftStatusTheme,
   projectRefreshStatusLabel,
   projectRefreshStatusTheme,
   projectRuntimeStatusLabel,
-  projectRuntimeStatusTheme,
   projectSourceKindLabel,
 } from '../../shared/display';
 import { appendResolvedTab, buildDetailTitleWithFallback } from '../../shared/navigation';
@@ -336,7 +346,11 @@ const router = useRouter();
 const tabsRouterStore = useTabsRouterStore();
 const logger = createLogger('project.list');
 
-const loading = ref(false);
+type HeaderStatusSummaryKey = 'running' | 'degraded' | 'stopped' | 'transitioning' | 'unknown';
+type ProjectListDriftTone = 'clean' | 'drifted' | 'unknown';
+
+const tableLoading = ref(false);
+const refreshing = ref(false);
 const errorMessage = ref('');
 const rows = ref<ProjectListItem[]>([]);
 const pagination = ref({
@@ -362,7 +376,7 @@ const configurableColumns = computed<TableProps['columns']>(() => [
   { colKey: 'source', title: t('project.list.columns.source'), width: 112, align: 'center' },
   { colKey: 'runtime', title: t('project.list.columns.runtime'), width: 148, align: 'center' },
   { colKey: 'resources', title: t('project.list.columns.resources'), width: 220, align: 'center' },
-  { colKey: 'drift', title: t('project.list.columns.drift'), width: 112, align: 'center' },
+  { colKey: 'drift', title: t('project.list.columns.drift'), width: 124, align: 'center' },
   { colKey: 'refresh', title: t('project.list.columns.refresh'), width: 168, align: 'center' },
   { colKey: 'operation', title: t('project.list.columns.operation'), width: 152, fixed: 'right', align: 'center' },
 ]);
@@ -372,10 +386,40 @@ const visibleColumns = computed(() =>
 );
 const tableWidthPolicy = computed(() => resolveTableWidthPolicy(visibleColumns.value ?? [], tableHostWidth.value));
 const confirmDialogOpen = ref(false);
+const refreshLoading = computed(() => tableLoading.value || refreshing.value);
 
-const totalCount = computed(() => pagination.value.total);
-const runningProjectCount = computed(() => rows.value.filter((item) => item.runtime_status === 'running').length);
-const stoppedProjectCount = computed(() => rows.value.filter((item) => item.runtime_status === 'stopped').length);
+const totalCount = computed(() => rows.value.length);
+const projectStatusCounts = computed<Record<HeaderStatusSummaryKey, number>>(() => {
+  const counts: Record<HeaderStatusSummaryKey, number> = {
+    running: 0,
+    degraded: 0,
+    stopped: 0,
+    transitioning: 0,
+    unknown: 0,
+  };
+
+  for (const row of rows.value) {
+    counts[normalizeRuntimeStatus(row.runtime_status)] += 1;
+  }
+
+  return counts;
+});
+const headerStatusSummaryItems = computed(() =>
+  (
+    [
+      { key: 'running', icon: '🟢', tooltip: t('project.list.statusTooltip.runtimeRunning') },
+      { key: 'degraded', icon: '🟡', tooltip: t('project.list.statusTooltip.runtimeDegraded') },
+      { key: 'stopped', icon: '⚫', tooltip: t('project.list.statusTooltip.runtimeStopped') },
+      { key: 'transitioning', icon: '🔵', tooltip: t('project.list.statusTooltip.runtimeTransitioning') },
+      { key: 'unknown', icon: '⚪', tooltip: t('project.list.statusTooltip.runtimeUnknown') },
+    ] as const
+  )
+    .filter((item) => projectStatusCounts.value[item.key] > 0)
+    .map((item) => ({
+      ...item,
+      count: projectStatusCounts.value[item.key],
+    })),
+);
 const hasActiveFilters = computed(
   () =>
     Boolean(filters.value.keyword.trim()) ||
@@ -408,10 +452,6 @@ function driftStatusLabel(value: ProjectDriftStatus) {
   return projectDriftStatusLabel(t, value);
 }
 
-function driftStatusTheme(value: ProjectDriftStatus) {
-  return projectDriftStatusTheme(value);
-}
-
 function refreshStatusLabel(value: ProjectRefreshStatus) {
   return projectRefreshStatusLabel(t, value);
 }
@@ -420,12 +460,28 @@ function refreshStatusTheme(value: ProjectRefreshStatus) {
   return projectRefreshStatusTheme(value);
 }
 
-function runtimeStatusTheme(value?: ProjectRuntimeStatus | null) {
-  return projectRuntimeStatusTheme(value);
-}
-
 function runtimeStatusLabel(value?: ProjectRuntimeStatus | null) {
   return projectRuntimeStatusLabel(t, value);
+}
+
+function normalizeRuntimeStatus(value?: ProjectRuntimeStatus | null): HeaderStatusSummaryKey {
+  if (value === 'running' || value === 'degraded' || value === 'stopped' || value === 'transitioning') {
+    return value;
+  }
+
+  return 'unknown';
+}
+
+function normalizeDriftStatus(value: ProjectDriftStatus): ProjectListDriftTone {
+  if (value === 'clean') {
+    return 'clean';
+  }
+
+  if (value === 'unknown') {
+    return 'unknown';
+  }
+
+  return 'drifted';
 }
 
 function projectContainerWarningCount(row: ProjectListItem) {
@@ -447,8 +503,16 @@ function projectSecondaryName(row: ProjectListItem) {
   return t('project.list.canonicalNameValue', { name: canonicalName });
 }
 
+let refreshRequestSeq = 0;
+
 async function fetchProjects() {
-  loading.value = true;
+  const requestSeq = ++refreshRequestSeq;
+  const shouldBlockTable = rows.value.length === 0 && !tableLoading.value;
+  if (shouldBlockTable) {
+    tableLoading.value = true;
+  } else {
+    refreshing.value = true;
+  }
   errorMessage.value = '';
   try {
     const response = await getProjects({
@@ -458,6 +522,9 @@ async function fetchProjects() {
       ...(filters.value.driftStatus !== 'all' ? { drift_status: filters.value.driftStatus } : {}),
       ...(filters.value.lastRefreshStatus !== 'all' ? { last_refresh_status: filters.value.lastRefreshStatus } : {}),
     });
+    if (requestSeq !== refreshRequestSeq) {
+      return;
+    }
     syncPaginationFromResponse(response);
     const keyword = filters.value.keyword.trim().toLowerCase();
     rows.value = keyword
@@ -468,13 +535,27 @@ async function fetchProjects() {
         )
       : response.items;
   } catch (error) {
+    if (requestSeq !== refreshRequestSeq) {
+      return;
+    }
     logger.error('failed to fetch projects', error);
     rows.value = [];
     pagination.value.total = 0;
     errorMessage.value = resolveLocalizedErrorMessage(t, error, t('project.list.retry'));
   } finally {
-    loading.value = false;
+    if (requestSeq === refreshRequestSeq) {
+      tableLoading.value = false;
+      refreshing.value = false;
+    }
   }
+}
+
+async function handleManualRefresh() {
+  if (refreshLoading.value) {
+    return;
+  }
+
+  await fetchProjects();
 }
 
 function syncPaginationFromResponse(response: { total?: number; limit?: number; offset?: number }) {
@@ -665,7 +746,8 @@ async function handleRowAction(action: string, row: ProjectListItem) {
 .project-resources,
 .project-resource-badges,
 .project-refresh,
-.project-identity {
+.project-identity,
+.project-header-summary {
   display: flex;
 }
 
@@ -693,6 +775,64 @@ async function handleRowAction(action: string, row: ProjectListItem) {
 .project-table-head__hint {
   color: var(--td-text-color-secondary);
   font: var(--td-font-body-small);
+}
+
+.project-header-summary {
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--graft-density-gap-6) var(--graft-density-gap-10);
+}
+
+.project-header-summary__total,
+.project-header-summary__status,
+.project-runtime-badge,
+.project-sync-status {
+  align-items: center;
+  display: inline-flex;
+  font: var(--td-font-body-small);
+  gap: var(--graft-density-gap-4);
+  line-height: 1;
+}
+
+.project-header-summary__total {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-body-medium);
+}
+
+.project-header-summary__status {
+  color: var(--td-text-color-secondary);
+  cursor: default;
+}
+
+.project-header-summary__status--running,
+.project-runtime-badge--running {
+  color: var(--td-success-color-6);
+}
+
+.project-header-summary__status--degraded,
+.project-runtime-badge--degraded,
+.project-sync-status--drifted {
+  color: var(--td-warning-color-6);
+}
+
+.project-header-summary__status--stopped,
+.project-runtime-badge--stopped {
+  color: var(--td-text-color-secondary);
+}
+
+.project-header-summary__status--transitioning,
+.project-runtime-badge--transitioning {
+  color: var(--td-brand-color-6);
+}
+
+.project-header-summary__status--unknown,
+.project-runtime-badge--unknown,
+.project-sync-status--unknown {
+  color: var(--td-text-color-placeholder);
+}
+
+.project-sync-status--clean {
+  color: var(--td-success-color-6);
 }
 
 .project-table-host {
@@ -758,11 +898,13 @@ async function handleRowAction(action: string, row: ProjectListItem) {
 }
 
 .project-resources {
-  align-items: flex-start;
+  align-items: center;
   flex-direction: column;
   gap: var(--graft-density-gap-6);
-  margin: 0 auto;
+  justify-content: center;
   min-width: 0;
+  text-align: center;
+  width: 100%;
 }
 
 .project-resources__item {
@@ -770,7 +912,7 @@ async function handleRowAction(action: string, row: ProjectListItem) {
   display: flex;
   flex-wrap: wrap;
   gap: var(--graft-density-gap-8);
-  justify-content: flex-start;
+  justify-content: center;
 }
 
 .project-resources__label {
@@ -815,7 +957,10 @@ async function handleRowAction(action: string, row: ProjectListItem) {
 
 .project-refresh {
   align-items: center;
-  flex-wrap: wrap;
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+  width: 100%;
 }
 
 .project-empty {
