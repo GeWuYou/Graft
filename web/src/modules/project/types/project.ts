@@ -45,6 +45,11 @@ export type ProjectConfigurationValidateResponse = components['schemas']['projec
 export type ProjectDeployRequest = components['schemas']['project-deploy-request'];
 export type ProjectDeployResponse = components['schemas']['project-deploy-response'];
 export type ProjectActionResponse = components['schemas']['ProjectActionResponse'];
+export type ProjectUpdateDeployRequest = components['schemas']['project-update-deploy-request'];
+export type ProjectBatchActionRequest = components['schemas']['project-batch-action-request'];
+export type ProjectBatchActionItem = components['schemas']['project-batch-action-item'];
+export type ProjectBatchActionResponse = components['schemas']['project-batch-action-response'];
+export type ProjectDestroyRequest = components['schemas']['project-destroy-request'];
 export type ProjectRuntimeStatus = ProjectDetailResponse['runtime_status'];
 
 type ProjectListPath = (typeof PROJECT_API_PATH)['LIST'];
@@ -62,3 +67,5 @@ export type ProjectFilters = {
 export type ProjectActivityStream = 'events' | 'logs';
 
 export type ProjectServiceContainerMember = ProjectServiceItem['container_members'][number];
+
+export type ProjectBatchAction = ProjectBatchActionRequest['action'];

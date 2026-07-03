@@ -59,10 +59,16 @@ const (
 	ProjectDownRoute = "/:id/down"
 	// ProjectRestartRoute identifies the compose restart route fragment.
 	ProjectRestartRoute = "/:id/restart"
+	// ProjectRedeployRoute identifies the compose redeploy route fragment.
+	ProjectRedeployRoute = "/:id/redeploy"
+	// ProjectUpdateDeployRoute identifies the update-deploy route fragment.
+	ProjectUpdateDeployRoute = "/:id/update-deploy"
 	// ProjectUnregisterRoute identifies the unregister route fragment.
 	ProjectUnregisterRoute = "/:id/unregister"
 	// ProjectDestroyRoute identifies the guarded destroy route fragment.
 	ProjectDestroyRoute = "/:id/destroy"
+	// ProjectBatchActionsRoute identifies the batch-action route fragment.
+	ProjectBatchActionsRoute = "/batch-actions"
 	// ProjectDeployRoute identifies the managed configuration deploy route fragment.
 	ProjectDeployRoute = "/:id/deploy"
 	// ProjectMenuRootPath identifies the web menu root path for operations.

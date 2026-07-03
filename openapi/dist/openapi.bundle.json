@@ -12378,6 +12378,299 @@
         }
       }
     },
+    "/api/ops/projects/{id}/redeploy": {
+      "post": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Redeploy a registered project",
+        "operationId": "postProjectRedeploy",
+        "description": "Runs `docker compose down` and then `docker compose up -d` for the selected registered project.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/project-id-path"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Project redeploy action result.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-project-action-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid project id.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Project record not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Redeploy blocked by project lifecycle guards or execution failure.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/ops/projects/{id}/update-deploy": {
+      "post": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Pull and update-deploy a registered project",
+        "operationId": "postProjectUpdateDeploy",
+        "description": "Uses all registered compose files in stored order with repeated `-f` flags, runs `docker compose pull`, then `docker compose up -d`, with optional image prune at the end.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/project-id-path"
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/project-update-deploy-request"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Project update-deploy action result.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-project-action-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid project id or request.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Project record not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Update-deploy blocked by project lifecycle guards or execution failure.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/ops/projects/batch-actions": {
+      "post": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Execute project actions in batch",
+        "operationId": "postProjectBatchActions",
+        "description": "Executes one action for selected project ids and returns per-item results plus aggregate completed, blocked, and skipped counts. Inapplicable projects are skipped instead of failed.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/project-batch-action-request"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Project batch action result.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-project-batch-action-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid batch action request.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "One or more project records not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
     "/api/ops/projects/{id}/unregister": {
       "post": {
         "tags": [
@@ -13343,8 +13636,20 @@
       "ProjectDestroyRequest": {
         "$ref": "#/components/schemas/project-destroy-request"
       },
+      "ProjectUpdateDeployRequest": {
+        "$ref": "#/components/schemas/project-update-deploy-request"
+      },
       "ProjectActionResponse": {
         "$ref": "#/components/schemas/project-action-response"
+      },
+      "ProjectBatchActionRequest": {
+        "$ref": "#/components/schemas/project-batch-action-request"
+      },
+      "ProjectBatchActionItem": {
+        "$ref": "#/components/schemas/project-batch-action-item"
+      },
+      "ProjectBatchActionResponse": {
+        "$ref": "#/components/schemas/project-batch-action-response"
       },
       "EnvelopedProjectListResponse": {
         "$ref": "#/components/schemas/enveloped-project-list-response"
@@ -13384,6 +13689,9 @@
       },
       "EnvelopedProjectActionResponse": {
         "$ref": "#/components/schemas/enveloped-project-action-response"
+      },
+      "EnvelopedProjectBatchActionResponse": {
+        "$ref": "#/components/schemas/enveloped-project-batch-action-response"
       },
       "health-response": {
         "type": "object",
@@ -23910,7 +24218,9 @@
               "unregister",
               "destroy",
               "create",
-              "deploy"
+              "deploy",
+              "redeploy",
+              "update_deploy"
             ],
             "x-enum-varnames": [
               "ProjectActionRefresh",
@@ -23920,7 +24230,9 @@
               "ProjectActionUnregister",
               "ProjectActionDestroy",
               "ProjectActionCreate",
-              "ProjectActionDeploy"
+              "ProjectActionDeploy",
+              "ProjectActionRedeploy",
+              "ProjectActionUpdateDeploy"
             ]
           },
           "result": {
@@ -23969,6 +24281,202 @@
           }
         ]
       },
+      "project-update-deploy-request": {
+        "type": "object",
+        "properties": {
+          "image_prune": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "project-batch-action-request": {
+        "type": "object",
+        "required": [
+          "action",
+          "project_ids"
+        ],
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "start",
+              "stop",
+              "restart",
+              "unregister",
+              "redeploy",
+              "update_deploy",
+              "destroy"
+            ],
+            "x-enum-varnames": [
+              "ProjectBatchActionRequestActionStart",
+              "ProjectBatchActionRequestActionStop",
+              "ProjectBatchActionRequestActionRestart",
+              "ProjectBatchActionRequestActionUnregister",
+              "ProjectBatchActionRequestActionRedeploy",
+              "ProjectBatchActionRequestActionUpdateDeploy",
+              "ProjectBatchActionRequestActionDestroy"
+            ]
+          },
+          "project_ids": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 100,
+            "items": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          },
+          "remove_named_volumes": {
+            "type": "boolean",
+            "default": false
+          },
+          "auto_unregister": {
+            "type": "boolean",
+            "default": false
+          },
+          "image_prune": {
+            "type": "boolean",
+            "default": false
+          },
+          "delete_working_directory": {
+            "type": "boolean",
+            "default": false
+          },
+          "confirm_canonical_project_name": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "project-batch-action-item": {
+        "type": "object",
+        "required": [
+          "project_id",
+          "action",
+          "result",
+          "skipped"
+        ],
+        "properties": {
+          "project_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "refresh",
+              "up",
+              "down",
+              "restart",
+              "unregister",
+              "destroy",
+              "create",
+              "deploy",
+              "redeploy",
+              "update_deploy"
+            ],
+            "x-enum-varnames": [
+              "ProjectActionRefresh",
+              "ProjectActionUp",
+              "ProjectActionDown",
+              "ProjectActionRestart",
+              "ProjectActionUnregister",
+              "ProjectActionDestroy",
+              "ProjectActionCreate",
+              "ProjectActionDeploy",
+              "ProjectActionRedeploy",
+              "ProjectActionUpdateDeploy"
+            ]
+          },
+          "result": {
+            "type": "string",
+            "enum": [
+              "accepted",
+              "completed",
+              "blocked"
+            ],
+            "x-enum-varnames": [
+              "ProjectActionResultAccepted",
+              "ProjectActionResultCompleted",
+              "ProjectActionResultBlocked"
+            ]
+          },
+          "skipped": {
+            "type": "boolean"
+          },
+          "message_key": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "guard_results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/project-guard-result"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "project-batch-action-response": {
+        "type": "object",
+        "required": [
+          "total_count",
+          "completed_count",
+          "blocked_count",
+          "skipped_count",
+          "items"
+        ],
+        "properties": {
+          "total_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "completed_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "blocked_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "skipped_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/project-batch-action-item"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "enveloped-project-batch-action-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/project-batch-action-response"
+              }
+            }
+          }
+        ]
+      },
       "project-destroy-request": {
         "type": "object",
         "required": [
@@ -23978,6 +24486,14 @@
         ],
         "properties": {
           "remove_named_volumes": {
+            "type": "boolean",
+            "default": false
+          },
+          "auto_unregister": {
+            "type": "boolean",
+            "default": false
+          },
+          "image_prune": {
             "type": "boolean",
             "default": false
           },

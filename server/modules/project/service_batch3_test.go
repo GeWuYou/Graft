@@ -216,7 +216,7 @@ func TestDestroyBlocksExternalWorkingDirectoryDeletion(t *testing.T) {
 	if !errors.Is(err, errProjectDestroyBlocked) {
 		t.Fatalf("expected destroy blocked, got %v", err)
 	}
-	if result.Result != generated.ProjectActionResultBlocked {
+	if result.Result != generated.ProjectActionResponseResultProjectActionResultBlocked {
 		t.Fatalf("expected blocked result, got %s", result.Result)
 	}
 	if repo.unregisterCalled {

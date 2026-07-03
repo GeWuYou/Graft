@@ -2435,6 +2435,66 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/ops/projects/{id}/redeploy': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Redeploy a registered project
+     * @description Runs `docker compose down` and then `docker compose up -d` for the selected registered project.
+     */
+    post: operations['postProjectRedeploy'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/projects/{id}/update-deploy': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Pull and update-deploy a registered project
+     * @description Uses all registered compose files in stored order with repeated `-f` flags, runs `docker compose pull`, then `docker compose up -d`, with optional image prune at the end.
+     */
+    post: operations['postProjectUpdateDeploy'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/projects/batch-actions': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Execute project actions in batch
+     * @description Executes one action for selected project ids and returns per-item results plus aggregate completed, blocked, and skipped counts. Inapplicable projects are skipped instead of failed.
+     */
+    post: operations['postProjectBatchActions'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/ops/projects/{id}/unregister': {
     parameters: {
       query?: never;
@@ -2734,7 +2794,11 @@ export interface components {
     ProjectConfigurationPreviewResponse: components['schemas']['project-configuration-preview-response'];
     ProjectConfigurationFileResponse: components['schemas']['project-configuration-file-response'];
     ProjectDestroyRequest: components['schemas']['project-destroy-request'];
+    ProjectUpdateDeployRequest: components['schemas']['project-update-deploy-request'];
     ProjectActionResponse: components['schemas']['project-action-response'];
+    ProjectBatchActionRequest: components['schemas']['project-batch-action-request'];
+    ProjectBatchActionItem: components['schemas']['project-batch-action-item'];
+    ProjectBatchActionResponse: components['schemas']['project-batch-action-response'];
     EnvelopedProjectListResponse: components['schemas']['enveloped-project-list-response'];
     EnvelopedProjectSourceCatalogResponse: components['schemas']['enveloped-project-source-catalog-response'];
     EnvelopedProjectDetailResponse: components['schemas']['enveloped-project-detail-response'];
@@ -2748,6 +2812,7 @@ export interface components {
     EnvelopedProjectImportDirectoriesResponse: components['schemas']['enveloped-project-import-directories-response'];
     EnvelopedProjectImportInspectResponse: components['schemas']['enveloped-project-import-inspect-response'];
     EnvelopedProjectActionResponse: components['schemas']['enveloped-project-action-response'];
+    EnvelopedProjectBatchActionResponse: components['schemas']['enveloped-project-batch-action-response'];
     'health-response': {
       /** @enum {string} */
       status: 'ok';
@@ -5864,7 +5929,17 @@ export interface components {
       /** Format: int64 */
       project_id: number;
       /** @enum {string} */
-      action: 'refresh' | 'up' | 'down' | 'restart' | 'unregister' | 'destroy' | 'create' | 'deploy';
+      action:
+        | 'refresh'
+        | 'up'
+        | 'down'
+        | 'restart'
+        | 'unregister'
+        | 'destroy'
+        | 'create'
+        | 'deploy'
+        | 'redeploy'
+        | 'update_deploy';
       /** @enum {string} */
       result: 'accepted' | 'completed' | 'blocked';
       message_key?: string;
@@ -5875,9 +5950,63 @@ export interface components {
     'enveloped-project-action-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['project-action-response'];
     };
+    'project-update-deploy-request': {
+      /** @default false */
+      image_prune: boolean;
+    };
+    'project-batch-action-request': {
+      /** @enum {string} */
+      action: 'start' | 'stop' | 'restart' | 'unregister' | 'redeploy' | 'update_deploy' | 'destroy';
+      project_ids: number[];
+      /** @default false */
+      remove_named_volumes: boolean;
+      /** @default false */
+      auto_unregister: boolean;
+      /** @default false */
+      image_prune: boolean;
+      /** @default false */
+      delete_working_directory: boolean;
+      confirm_canonical_project_name?: string;
+    };
+    'project-batch-action-item': {
+      /** Format: int64 */
+      project_id: number;
+      /** @enum {string} */
+      action:
+        | 'refresh'
+        | 'up'
+        | 'down'
+        | 'restart'
+        | 'unregister'
+        | 'destroy'
+        | 'create'
+        | 'deploy'
+        | 'redeploy'
+        | 'update_deploy';
+      /** @enum {string} */
+      result: 'accepted' | 'completed' | 'blocked';
+      skipped: boolean;
+      message_key?: string;
+      message?: string;
+      guard_results?: components['schemas']['project-guard-result'][];
+    };
+    'project-batch-action-response': {
+      total_count: number;
+      completed_count: number;
+      blocked_count: number;
+      skipped_count: number;
+      items: components['schemas']['project-batch-action-item'][];
+    };
+    'enveloped-project-batch-action-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['project-batch-action-response'];
+    };
     'project-destroy-request': {
       /** @default false */
       remove_named_volumes: boolean;
+      /** @default false */
+      auto_unregister: boolean;
+      /** @default false */
+      image_prune: boolean;
       /** @default false */
       delete_working_directory: boolean;
       confirm_canonical_project_name: string;
@@ -12849,6 +12978,196 @@ export interface operations {
       };
       /** @description Lifecycle request blocked by ownership, phase scope, or runtime guard. */
       409: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postProjectRedeploy: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
+        id: components['parameters']['project-id-path'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Project redeploy action result. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-project-action-response'];
+        };
+      };
+      /** @description Invalid project id. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Project record not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      /** @description Redeploy blocked by project lifecycle guards or execution failure. */
+      409: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postProjectUpdateDeploy: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
+        id: components['parameters']['project-id-path'];
+      };
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        'application/json': components['schemas']['project-update-deploy-request'];
+      };
+    };
+    responses: {
+      /** @description Project update-deploy action result. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-project-action-response'];
+        };
+      };
+      /** @description Invalid project id or request. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Project record not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      /** @description Update-deploy blocked by project lifecycle guards or execution failure. */
+      409: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postProjectBatchActions: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['project-batch-action-request'];
+      };
+    };
+    responses: {
+      /** @description Project batch action result. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-project-batch-action-response'];
+        };
+      };
+      /** @description Invalid batch action request. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description One or more project records not found. */
+      404: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;

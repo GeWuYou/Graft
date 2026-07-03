@@ -7,6 +7,12 @@ properties:
   remove_named_volumes:
     type: boolean
     default: false
+  auto_unregister:
+    type: boolean
+    default: false
+  image_prune:
+    type: boolean
+    default: false
   delete_working_directory:
     type: boolean
     default: false

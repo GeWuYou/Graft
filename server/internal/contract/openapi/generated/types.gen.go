@@ -2129,34 +2129,40 @@ func (e NotificationTargetType) Valid() bool {
 
 // Defines values for ProjectActionResponseAction.
 const (
-	ProjectActionCreate     ProjectActionResponseAction = "create"
-	ProjectActionDeploy     ProjectActionResponseAction = "deploy"
-	ProjectActionDestroy    ProjectActionResponseAction = "destroy"
-	ProjectActionDown       ProjectActionResponseAction = "down"
-	ProjectActionRefresh    ProjectActionResponseAction = "refresh"
-	ProjectActionRestart    ProjectActionResponseAction = "restart"
-	ProjectActionUnregister ProjectActionResponseAction = "unregister"
-	ProjectActionUp         ProjectActionResponseAction = "up"
+	ProjectActionResponseActionProjectActionCreate       ProjectActionResponseAction = "create"
+	ProjectActionResponseActionProjectActionDeploy       ProjectActionResponseAction = "deploy"
+	ProjectActionResponseActionProjectActionDestroy      ProjectActionResponseAction = "destroy"
+	ProjectActionResponseActionProjectActionDown         ProjectActionResponseAction = "down"
+	ProjectActionResponseActionProjectActionRedeploy     ProjectActionResponseAction = "redeploy"
+	ProjectActionResponseActionProjectActionRefresh      ProjectActionResponseAction = "refresh"
+	ProjectActionResponseActionProjectActionRestart      ProjectActionResponseAction = "restart"
+	ProjectActionResponseActionProjectActionUnregister   ProjectActionResponseAction = "unregister"
+	ProjectActionResponseActionProjectActionUp           ProjectActionResponseAction = "up"
+	ProjectActionResponseActionProjectActionUpdateDeploy ProjectActionResponseAction = "update_deploy"
 )
 
 // Valid indicates whether the value is a known member of the ProjectActionResponseAction enum.
 func (e ProjectActionResponseAction) Valid() bool {
 	switch e {
-	case ProjectActionCreate:
+	case ProjectActionResponseActionProjectActionCreate:
 		return true
-	case ProjectActionDeploy:
+	case ProjectActionResponseActionProjectActionDeploy:
 		return true
-	case ProjectActionDestroy:
+	case ProjectActionResponseActionProjectActionDestroy:
 		return true
-	case ProjectActionDown:
+	case ProjectActionResponseActionProjectActionDown:
 		return true
-	case ProjectActionRefresh:
+	case ProjectActionResponseActionProjectActionRedeploy:
 		return true
-	case ProjectActionRestart:
+	case ProjectActionResponseActionProjectActionRefresh:
 		return true
-	case ProjectActionUnregister:
+	case ProjectActionResponseActionProjectActionRestart:
 		return true
-	case ProjectActionUp:
+	case ProjectActionResponseActionProjectActionUnregister:
+		return true
+	case ProjectActionResponseActionProjectActionUp:
+		return true
+	case ProjectActionResponseActionProjectActionUpdateDeploy:
 		return true
 	default:
 		return false
@@ -2165,19 +2171,19 @@ func (e ProjectActionResponseAction) Valid() bool {
 
 // Defines values for ProjectActionResponseResult.
 const (
-	ProjectActionResultAccepted  ProjectActionResponseResult = "accepted"
-	ProjectActionResultBlocked   ProjectActionResponseResult = "blocked"
-	ProjectActionResultCompleted ProjectActionResponseResult = "completed"
+	ProjectActionResponseResultProjectActionResultAccepted  ProjectActionResponseResult = "accepted"
+	ProjectActionResponseResultProjectActionResultBlocked   ProjectActionResponseResult = "blocked"
+	ProjectActionResponseResultProjectActionResultCompleted ProjectActionResponseResult = "completed"
 )
 
 // Valid indicates whether the value is a known member of the ProjectActionResponseResult enum.
 func (e ProjectActionResponseResult) Valid() bool {
 	switch e {
-	case ProjectActionResultAccepted:
+	case ProjectActionResponseResultProjectActionResultAccepted:
 		return true
-	case ProjectActionResultBlocked:
+	case ProjectActionResponseResultProjectActionResultBlocked:
 		return true
-	case ProjectActionResultCompleted:
+	case ProjectActionResponseResultProjectActionResultCompleted:
 		return true
 	default:
 		return false
@@ -2196,6 +2202,102 @@ func (e ProjectActivityAuthority) Valid() bool {
 	case ProjectActivityAuthorityBackendPlanned:
 		return true
 	case ProjectActivityAuthorityFrontendFanout:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProjectBatchActionItemAction.
+const (
+	ProjectBatchActionItemActionProjectActionCreate       ProjectBatchActionItemAction = "create"
+	ProjectBatchActionItemActionProjectActionDeploy       ProjectBatchActionItemAction = "deploy"
+	ProjectBatchActionItemActionProjectActionDestroy      ProjectBatchActionItemAction = "destroy"
+	ProjectBatchActionItemActionProjectActionDown         ProjectBatchActionItemAction = "down"
+	ProjectBatchActionItemActionProjectActionRedeploy     ProjectBatchActionItemAction = "redeploy"
+	ProjectBatchActionItemActionProjectActionRefresh      ProjectBatchActionItemAction = "refresh"
+	ProjectBatchActionItemActionProjectActionRestart      ProjectBatchActionItemAction = "restart"
+	ProjectBatchActionItemActionProjectActionUnregister   ProjectBatchActionItemAction = "unregister"
+	ProjectBatchActionItemActionProjectActionUp           ProjectBatchActionItemAction = "up"
+	ProjectBatchActionItemActionProjectActionUpdateDeploy ProjectBatchActionItemAction = "update_deploy"
+)
+
+// Valid indicates whether the value is a known member of the ProjectBatchActionItemAction enum.
+func (e ProjectBatchActionItemAction) Valid() bool {
+	switch e {
+	case ProjectBatchActionItemActionProjectActionCreate:
+		return true
+	case ProjectBatchActionItemActionProjectActionDeploy:
+		return true
+	case ProjectBatchActionItemActionProjectActionDestroy:
+		return true
+	case ProjectBatchActionItemActionProjectActionDown:
+		return true
+	case ProjectBatchActionItemActionProjectActionRedeploy:
+		return true
+	case ProjectBatchActionItemActionProjectActionRefresh:
+		return true
+	case ProjectBatchActionItemActionProjectActionRestart:
+		return true
+	case ProjectBatchActionItemActionProjectActionUnregister:
+		return true
+	case ProjectBatchActionItemActionProjectActionUp:
+		return true
+	case ProjectBatchActionItemActionProjectActionUpdateDeploy:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProjectBatchActionItemResult.
+const (
+	ProjectBatchActionItemResultProjectActionResultAccepted  ProjectBatchActionItemResult = "accepted"
+	ProjectBatchActionItemResultProjectActionResultBlocked   ProjectBatchActionItemResult = "blocked"
+	ProjectBatchActionItemResultProjectActionResultCompleted ProjectBatchActionItemResult = "completed"
+)
+
+// Valid indicates whether the value is a known member of the ProjectBatchActionItemResult enum.
+func (e ProjectBatchActionItemResult) Valid() bool {
+	switch e {
+	case ProjectBatchActionItemResultProjectActionResultAccepted:
+		return true
+	case ProjectBatchActionItemResultProjectActionResultBlocked:
+		return true
+	case ProjectBatchActionItemResultProjectActionResultCompleted:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProjectBatchActionRequestAction.
+const (
+	ProjectBatchActionRequestActionDestroy      ProjectBatchActionRequestAction = "destroy"
+	ProjectBatchActionRequestActionRedeploy     ProjectBatchActionRequestAction = "redeploy"
+	ProjectBatchActionRequestActionRestart      ProjectBatchActionRequestAction = "restart"
+	ProjectBatchActionRequestActionStart        ProjectBatchActionRequestAction = "start"
+	ProjectBatchActionRequestActionStop         ProjectBatchActionRequestAction = "stop"
+	ProjectBatchActionRequestActionUnregister   ProjectBatchActionRequestAction = "unregister"
+	ProjectBatchActionRequestActionUpdateDeploy ProjectBatchActionRequestAction = "update_deploy"
+)
+
+// Valid indicates whether the value is a known member of the ProjectBatchActionRequestAction enum.
+func (e ProjectBatchActionRequestAction) Valid() bool {
+	switch e {
+	case ProjectBatchActionRequestActionDestroy:
+		return true
+	case ProjectBatchActionRequestActionRedeploy:
+		return true
+	case ProjectBatchActionRequestActionRestart:
+		return true
+	case ProjectBatchActionRequestActionStart:
+		return true
+	case ProjectBatchActionRequestActionStop:
+		return true
+	case ProjectBatchActionRequestActionUnregister:
+		return true
+	case ProjectBatchActionRequestActionUpdateDeploy:
 		return true
 	default:
 		return false
@@ -6176,6 +6278,26 @@ type EnvelopedProjectActionResponse struct {
 	TraceId string `json:"traceId"`
 }
 
+// EnvelopedProjectBatchActionResponse defines model for enveloped-project-batch-action-response.
+type EnvelopedProjectBatchActionResponse struct {
+	// Code Existing canonical response code.
+	Code string                     `json:"code"`
+	Data ProjectBatchActionResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
 // EnvelopedProjectConfigurationDiffResponse defines model for enveloped-project-configuration-diff-response.
 type EnvelopedProjectConfigurationDiffResponse struct {
 	// Code Existing canonical response code.
@@ -7319,6 +7441,46 @@ type ProjectActionResponseResult string
 // ProjectActivityAuthority defines model for project-activity-authority.
 type ProjectActivityAuthority string
 
+// ProjectBatchActionItem defines model for project-batch-action-item.
+type ProjectBatchActionItem struct {
+	Action       ProjectBatchActionItemAction `json:"action"`
+	GuardResults *[]ProjectGuardResult        `json:"guard_results,omitempty"`
+	Message      *string                      `json:"message,omitempty"`
+	MessageKey   *string                      `json:"message_key,omitempty"`
+	ProjectId    int64                        `json:"project_id"`
+	Result       ProjectBatchActionItemResult `json:"result"`
+	Skipped      bool                         `json:"skipped"`
+}
+
+// ProjectBatchActionItemAction defines model for ProjectBatchActionItem.Action.
+type ProjectBatchActionItemAction string
+
+// ProjectBatchActionItemResult defines model for ProjectBatchActionItem.Result.
+type ProjectBatchActionItemResult string
+
+// ProjectBatchActionRequest defines model for project-batch-action-request.
+type ProjectBatchActionRequest struct {
+	Action                      ProjectBatchActionRequestAction `json:"action"`
+	AutoUnregister              *bool                           `json:"auto_unregister,omitempty"`
+	ConfirmCanonicalProjectName *string                         `json:"confirm_canonical_project_name,omitempty"`
+	DeleteWorkingDirectory      *bool                           `json:"delete_working_directory,omitempty"`
+	ImagePrune                  *bool                           `json:"image_prune,omitempty"`
+	ProjectIds                  []int64                         `json:"project_ids"`
+	RemoveNamedVolumes          *bool                           `json:"remove_named_volumes,omitempty"`
+}
+
+// ProjectBatchActionRequestAction defines model for ProjectBatchActionRequest.Action.
+type ProjectBatchActionRequestAction string
+
+// ProjectBatchActionResponse defines model for project-batch-action-response.
+type ProjectBatchActionResponse struct {
+	BlockedCount   int                      `json:"blocked_count"`
+	CompletedCount int                      `json:"completed_count"`
+	Items          []ProjectBatchActionItem `json:"items"`
+	SkippedCount   int                      `json:"skipped_count"`
+	TotalCount     int                      `json:"total_count"`
+}
+
 // ProjectCanonicalNameSource defines model for project-canonical-name-source.
 type ProjectCanonicalNameSource string
 
@@ -7522,8 +7684,10 @@ type ProjectDeployResponseResult string
 
 // ProjectDestroyRequest defines model for project-destroy-request.
 type ProjectDestroyRequest struct {
+	AutoUnregister              *bool  `json:"auto_unregister,omitempty"`
 	ConfirmCanonicalProjectName string `json:"confirm_canonical_project_name"`
 	DeleteWorkingDirectory      bool   `json:"delete_working_directory"`
+	ImagePrune                  *bool  `json:"image_prune,omitempty"`
 	RemoveNamedVolumes          bool   `json:"remove_named_volumes"`
 }
 
@@ -8029,6 +8193,11 @@ type ProjectSourceMetadata struct {
 
 	// TemplateVersion Planned template version or release channel.
 	TemplateVersion *string `json:"template_version,omitempty"`
+}
+
+// ProjectUpdateDeployRequest defines model for project-update-deploy-request.
+type ProjectUpdateDeployRequest struct {
+	ImagePrune *bool `json:"image_prune,omitempty"`
 }
 
 // PublishAnnouncementRequest defines model for publish-announcement-request.
@@ -9738,6 +9907,16 @@ type GetProjectsParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
+// PostProjectBatchActionsParams defines parameters for PostProjectBatchActions.
+type PostProjectBatchActionsParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
 // PostProjectCreateParams defines parameters for PostProjectCreate.
 type PostProjectCreateParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -9977,6 +10156,16 @@ type PostProjectDownParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
+// PostProjectRedeployParams defines parameters for PostProjectRedeploy.
+type PostProjectRedeployParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
 // PostProjectRefreshParams defines parameters for PostProjectRefresh.
 type PostProjectRefreshParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -10019,6 +10208,16 @@ type PostProjectUnregisterParams struct {
 
 // PostProjectUpParams defines parameters for PostProjectUp.
 type PostProjectUpParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostProjectUpdateDeployParams defines parameters for PostProjectUpdateDeploy.
+type PostProjectUpdateDeployParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
@@ -10570,6 +10769,9 @@ type PostContainerRemoveJSONRequestBody = ContainerRemoveRequest
 // PostContainerShellSessionJSONRequestBody defines body for PostContainerShellSession for application/json ContentType.
 type PostContainerShellSessionJSONRequestBody = ContainerShellSessionRequest
 
+// PostProjectBatchActionsJSONRequestBody defines body for PostProjectBatchActions for application/json ContentType.
+type PostProjectBatchActionsJSONRequestBody = ProjectBatchActionRequest
+
 // PostProjectCreateJSONRequestBody defines body for PostProjectCreate for application/json ContentType.
 type PostProjectCreateJSONRequestBody = ProjectCreateRequest
 
@@ -10599,6 +10801,9 @@ type PostProjectDeployJSONRequestBody = ProjectDeployRequest
 
 // PostProjectDestroyJSONRequestBody defines body for PostProjectDestroy for application/json ContentType.
 type PostProjectDestroyJSONRequestBody = ProjectDestroyRequest
+
+// PostProjectUpdateDeployJSONRequestBody defines body for PostProjectUpdateDeploy for application/json ContentType.
+type PostProjectUpdateDeployJSONRequestBody = ProjectUpdateDeployRequest
 
 // PostRealtimeSubscriptionJSONRequestBody defines body for PostRealtimeSubscription for application/json ContentType.
 type PostRealtimeSubscriptionJSONRequestBody = RealtimeSubscriptionRequest

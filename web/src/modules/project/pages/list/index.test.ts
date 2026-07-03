@@ -6,9 +6,13 @@ import ProjectListPage from './index.vue';
 
 const projectApiMocks = vi.hoisted(() => ({
   getProjects: vi.fn(),
+  postProjectBatchActions: vi.fn(),
+  postProjectDestroy: vi.fn(),
   postProjectDown: vi.fn(),
+  postProjectRedeploy: vi.fn(),
   postProjectRefresh: vi.fn(),
   postProjectRestart: vi.fn(),
+  postProjectUpdateDeploy: vi.fn(),
   postProjectUnregister: vi.fn(),
   postProjectUp: vi.fn(),
 }));
@@ -36,14 +40,40 @@ const listMessages = {
   'project.list.actions.create': 'Choose Project Source',
   'project.list.actions.detail': 'Detail',
   'project.list.actions.down': 'Down',
+  'project.list.actions.destroy': 'Destroy',
   'project.list.actions.import': 'Import Existing Project',
   'project.list.actions.operationMenu': 'Actions',
   'project.list.actions.refresh': 'Refresh',
+  'project.list.actions.redeploy': 'Redeploy',
   'project.list.actions.restart': 'Restart',
   'project.list.actions.unregister': 'Unregister',
+  'project.list.actions.updateDeploy': 'Update Deploy',
   'project.list.actions.up': 'Up',
+  'project.list.batch.cancelSelection': 'Clear Selection',
+  'project.list.batch.destroy': 'Batch Destroy',
+  'project.list.batch.destroyConfirm': 'Destroy {count} selected projects?',
+  'project.list.batch.noActionableSelection': 'No actionable selection',
+  'project.list.batch.noSelection': 'Select projects first.',
+  'project.list.batch.partial': 'Partial {count} {skippedCount} {blockedCount}',
+  'project.list.batch.redeploy': 'Batch Redeploy',
+  'project.list.batch.redeployConfirm': 'Redeploy {count} selected projects?',
+  'project.list.batch.restart': 'Batch Restart',
+  'project.list.batch.restartConfirm': 'Restart {count} selected projects?',
+  'project.list.batch.scope': '{actionableCount} actionable {selectedCount} selected {skippedCount} skipped',
+  'project.list.batch.selected': '{count} Selected',
+  'project.list.batch.skipInapplicable': 'Skipped inapplicable rows.',
+  'project.list.batch.start': 'Batch Start',
+  'project.list.batch.startConfirm': 'Start {count} selected projects?',
+  'project.list.batch.stop': 'Batch Stop',
+  'project.list.batch.stopConfirm': 'Stop {count} selected projects?',
+  'project.list.batch.success': 'Completed {count}, skipped {skippedCount}.',
+  'project.list.batch.unregister': 'Batch Unregister',
+  'project.list.batch.unregisterConfirm': 'Unregister {count} selected projects?',
+  'project.list.batch.updateDeploy': 'Batch Update Deploy',
+  'project.list.batch.updateDeployConfirm': 'Update deploy {count} selected projects?',
   'project.list.clearFilters': 'Clear Filters',
   'project.list.columnSettings': 'Column Settings',
+  'project.list.columns.selection': 'Select',
   'project.list.columns.drift': 'Sync Status',
   'project.list.columns.name': 'Project',
   'project.list.columns.operation': 'Operation',
@@ -85,6 +115,7 @@ function slotStub(name: string) {
           slots.filters?.(),
           slots.head?.(),
           slots.toolbar?.(),
+          slots.batch?.(),
           slots.footer?.(),
           slots.default?.(),
         ]);
@@ -113,12 +144,33 @@ const TButtonStub = defineComponent({
   },
 });
 
+const TCheckboxStub = defineComponent({
+  name: 'TCheckboxStub',
+  props: {
+    checked: { type: Boolean, default: false },
+    disabled: { type: Boolean, default: false },
+  },
+  emits: ['change'],
+  setup(props, { emit, attrs }) {
+    return () =>
+      h('input', {
+        ...attrs,
+        checked: props.checked,
+        disabled: props.disabled,
+        type: 'checkbox',
+        onChange: () => emit('change', !props.checked),
+      });
+  },
+});
+
 const TTableStub = defineComponent({
   name: 'TTableStub',
   props: {
     columns: { type: Array, required: true },
     data: { type: Array, required: true },
+    selectedRowKeys: { type: Array, default: () => [] },
   },
+  emits: ['select-change'],
   setup(props, { slots }) {
     return () =>
       h('table', { class: 't-table-stub' }, [
@@ -152,9 +204,13 @@ const TTableStub = defineComponent({
 
 vi.mock('../../api/project', () => ({
   getProjects: projectApiMocks.getProjects,
+  postProjectBatchActions: projectApiMocks.postProjectBatchActions,
+  postProjectDestroy: projectApiMocks.postProjectDestroy,
   postProjectDown: projectApiMocks.postProjectDown,
+  postProjectRedeploy: projectApiMocks.postProjectRedeploy,
   postProjectRefresh: projectApiMocks.postProjectRefresh,
   postProjectRestart: projectApiMocks.postProjectRestart,
+  postProjectUpdateDeploy: projectApiMocks.postProjectUpdateDeploy,
   postProjectUnregister: projectApiMocks.postProjectUnregister,
   postProjectUp: projectApiMocks.postProjectUp,
 }));
@@ -273,6 +329,7 @@ function buildProjectRow(overrides: Record<string, unknown>) {
     id: 1,
     last_refresh_at: '2026-07-03T10:00:00Z',
     last_refresh_status: 'success',
+    ownership_mode: 'external',
     runtime_status: 'running',
     service_count: 3,
     source_kind: 'imported',
@@ -289,7 +346,7 @@ function mountPage() {
         'project-list-entry-actions': slotStub('ProjectListEntryActions'),
         'refresh-icon': true,
         't-button': TButtonStub,
-        't-checkbox': slotStub('TCheckbox'),
+        't-checkbox': TCheckboxStub,
         't-checkbox-group': slotStub('TCheckboxGroup'),
         't-drawer': slotStub('TDrawer'),
         't-empty': slotStub('TEmpty'),
@@ -322,7 +379,7 @@ function mountKeepAlivePage() {
           'project-list-entry-actions': slotStub('ProjectListEntryActions'),
           'refresh-icon': true,
           't-button': TButtonStub,
-          't-checkbox': slotStub('TCheckbox'),
+          't-checkbox': TCheckboxStub,
           't-checkbox-group': slotStub('TCheckboxGroup'),
           't-drawer': slotStub('TDrawer'),
           't-empty': slotStub('TEmpty'),
@@ -614,5 +671,53 @@ describe('Project list page', () => {
     expect(stoppedRow.find('[data-testid="row-action-restart"]').exists()).toBe(true);
 
     wrapper.unmount();
+  });
+
+  it('adds the new row actions for redeploy, update deploy, and destroy', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const runningRow = wrapper.get('tr[data-row-id="1"]');
+    expect(runningRow.find('[data-testid="row-action-redeploy"]').exists()).toBe(true);
+    expect(runningRow.find('[data-testid="row-action-update_deploy"]').exists()).toBe(true);
+    expect(runningRow.find('[data-testid="row-action-destroy"]').exists()).toBe(true);
+  });
+
+  it('submits only actionable selected rows for batch stop and reports skipped rows', async () => {
+    projectApiMocks.postProjectBatchActions.mockResolvedValueOnce({
+      blocked_count: 0,
+      completed_count: 1,
+      items: [{ action: 'down', message: '', project_id: 2, result: 'completed', skipped: false }],
+      skipped_count: 1,
+      total_count: 2,
+    });
+
+    projectApiMocks.getProjects.mockResolvedValueOnce({
+      items: [
+        buildProjectRow({ id: 1, runtime_status: 'stopped' }),
+        buildProjectRow({ id: 2, runtime_status: 'running' }),
+      ],
+      limit: 20,
+      offset: 0,
+      total: 2,
+    });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    wrapper.getComponent(TTableStub).vm.$emit('select-change', [1, 2]);
+    await flushPromises();
+    await wrapper.get('[data-testid="project-batch-stop"]').trigger('click');
+    await flushPromises();
+
+    expect(projectApiMocks.postProjectBatchActions).toHaveBeenCalledWith({
+      action: 'stop',
+      auto_unregister: false,
+      confirm_canonical_project_name: undefined,
+      delete_working_directory: false,
+      image_prune: false,
+      project_ids: [2],
+      remove_named_volumes: false,
+    });
   });
 });

@@ -12,6 +12,7 @@ export const PROJECT_ROUTE_PATH = {
 
 export const PROJECT_API_PATH = {
   LIST: '/api/ops/projects',
+  BATCH_ACTIONS: '/api/ops/projects/batch-actions',
   IMPORT_RUNTIME_CANDIDATES: '/api/ops/projects/import/runtime-candidates',
   IMPORT_RUNTIME_INSPECT: '/api/ops/projects/import/runtime-inspect',
   IMPORT_DIRECTORY_SOURCES: '/api/ops/projects/import/directory-sources',
@@ -36,7 +37,10 @@ export const PROJECT_API_PATH = {
   UP: '/api/ops/projects/{id}/up',
   DOWN: '/api/ops/projects/{id}/down',
   RESTART: '/api/ops/projects/{id}/restart',
+  REDEPLOY: '/api/ops/projects/{id}/redeploy',
+  UPDATE_DEPLOY: '/api/ops/projects/{id}/update-deploy',
   UNREGISTER: '/api/ops/projects/{id}/unregister',
+  DESTROY: '/api/ops/projects/{id}/destroy',
 } as const;
 
 /**
@@ -174,6 +178,26 @@ export function buildProjectRestartApiPath(id: number) {
 }
 
 /**
+ * 构建项目重新部署接口路径。
+ *
+ * @param id - 项目 ID
+ * @returns 替换了 `id` 占位符的重新部署接口路径
+ */
+export function buildProjectRedeployApiPath(id: number) {
+  return PROJECT_API_PATH.REDEPLOY.replace('{id}', encodeProjectPathParam(id));
+}
+
+/**
+ * 构建项目更新部署接口路径。
+ *
+ * @param id - 项目 ID
+ * @returns 替换了 `id` 占位符的更新部署接口路径
+ */
+export function buildProjectUpdateDeployApiPath(id: number) {
+  return PROJECT_API_PATH.UPDATE_DEPLOY.replace('{id}', encodeProjectPathParam(id));
+}
+
+/**
  * 构建项目注销接口路径。
  *
  * @param id - 项目 ID
@@ -181,6 +205,16 @@ export function buildProjectRestartApiPath(id: number) {
  */
 export function buildProjectUnregisterApiPath(id: number) {
   return PROJECT_API_PATH.UNREGISTER.replace('{id}', encodeProjectPathParam(id));
+}
+
+/**
+ * 构建项目销毁接口路径。
+ *
+ * @param id - 项目 ID
+ * @returns 替换了 `id` 占位符的项目销毁接口路径
+ */
+export function buildProjectDestroyApiPath(id: number) {
+  return PROJECT_API_PATH.DESTROY.replace('{id}', encodeProjectPathParam(id));
 }
 
 /**

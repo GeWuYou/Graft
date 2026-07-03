@@ -1,0 +1,62 @@
+post:
+  tags: [project]
+  summary: Pull and update-deploy a registered project
+  operationId: postProjectUpdateDeploy
+  description: >
+    Uses all registered compose files in stored order with repeated `-f` flags, runs `docker compose pull`, then
+    `docker compose up -d`, with optional image prune at the end.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - $ref: ../components/parameters/project-id-path.yaml
+  requestBody:
+    required: false
+    content:
+      application/json:
+        schema:
+          $ref: ../components/schemas/project-update-deploy-request.yaml
+  security:
+    - bearerAuth: []
+  responses:
+    '200':
+      description: Project update-deploy action result.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-project-action-response.yaml
+    '400':
+      description: Invalid project id or request.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      $ref: ../components/responses/forbidden.yaml
+    '404':
+      description: Project record not found.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '409':
+      description: Update-deploy blocked by project lifecycle guards or execution failure.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml

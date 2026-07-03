@@ -248,6 +248,33 @@ type ActionResult struct {
 	GuardResults []GuardResult
 }
 
+// BatchActionRequest describes one project batch-action execution.
+type BatchActionRequest struct {
+	Action               generated.ProjectBatchActionRequestAction
+	ProjectIDs           []uint64
+	RemoveNamedVolumes   bool
+	AutoUnregister       bool
+	ImagePrune           bool
+	DeleteWorkingDirectory bool
+	ConfirmCanonicalProjectName *string
+	ActorID              *uint64
+}
+
+// BatchActionItemResult returns one per-project batch-action result.
+type BatchActionItemResult struct {
+	ActionResult
+	Skipped bool
+}
+
+// BatchActionResult returns the aggregate batch-action outcome with per-item results.
+type BatchActionResult struct {
+	TotalCount     int
+	CompletedCount int
+	BlockedCount   int
+	SkippedCount   int
+	Items          []BatchActionItemResult
+}
+
 // GuardResult is the stable structured contract for blocked/guarded project actions.
 type GuardResult struct {
 	Code       string
@@ -258,6 +285,8 @@ type GuardResult struct {
 // DestroyRequest describes guarded destroy options.
 type DestroyRequest struct {
 	RemoveNamedVolumes          bool
+	AutoUnregister              bool
+	ImagePrune                  bool
 	DeleteWorkingDirectory      bool
 	ConfirmCanonicalProjectName string
 	ActorID                     *uint64
@@ -466,8 +495,8 @@ func (s *Service) Refresh(ctx context.Context, projectID uint64, actorID *uint64
 	_ = updated
 	return ActionResult{
 		ProjectID:  projectID,
-		Action:     generated.ProjectActionRefresh,
-		Result:     generated.ProjectActionResultCompleted,
+		Action:     generated.ProjectActionResponseActionProjectActionRefresh,
+		Result:     generated.ProjectActionResponseResultProjectActionResultCompleted,
 		MessageKey: stringPointer(projectcontract.ProjectRefreshCompleted.String()),
 		Message:    stringPointer(projectcontract.ProjectRefreshCompleted.String()),
 	}, nil

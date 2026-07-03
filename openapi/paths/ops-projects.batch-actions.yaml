@@ -1,0 +1,52 @@
+post:
+  tags: [project]
+  summary: Execute project actions in batch
+  operationId: postProjectBatchActions
+  description: >
+    Executes one action for selected project ids and returns per-item results plus aggregate completed, blocked,
+    and skipped counts. Inapplicable projects are skipped instead of failed.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../components/schemas/project-batch-action-request.yaml
+  security:
+    - bearerAuth: []
+  responses:
+    '200':
+      description: Project batch action result.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-project-batch-action-response.yaml
+    '400':
+      description: Invalid batch action request.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      $ref: ../components/responses/forbidden.yaml
+    '404':
+      description: One or more project records not found.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml

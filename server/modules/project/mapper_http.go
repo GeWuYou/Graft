@@ -410,6 +410,36 @@ func toActionResponse(result ActionResult) generated.ProjectActionResponse {
 	return response
 }
 
+func toBatchActionResponse(result BatchActionResult) generated.ProjectBatchActionResponse {
+	items := make([]generated.ProjectBatchActionItem, 0, len(result.Items))
+	for _, item := range result.Items {
+		mapped := generated.ProjectBatchActionItem{
+			ProjectId: mustGeneratedID(item.ProjectID),
+			Action:    generated.ProjectBatchActionItemAction(item.Action),
+			Result:    generated.ProjectBatchActionItemResult(item.Result),
+			Skipped:   item.Skipped,
+		}
+		if item.MessageKey != nil {
+			mapped.MessageKey = item.MessageKey
+		}
+		if item.Message != nil {
+			mapped.Message = item.Message
+		}
+		if len(item.GuardResults) > 0 {
+			guards := toGeneratedGuardResults(item.GuardResults)
+			mapped.GuardResults = &guards
+		}
+		items = append(items, mapped)
+	}
+	return generated.ProjectBatchActionResponse{
+		TotalCount:     result.TotalCount,
+		CompletedCount: result.CompletedCount,
+		BlockedCount:   result.BlockedCount,
+		SkippedCount:   result.SkippedCount,
+		Items:          items,
+	}
+}
+
 func toGeneratedGuardResults(items []GuardResult) []generated.ProjectGuardResult {
 	result := make([]generated.ProjectGuardResult, 0, len(items))
 	for _, item := range items {

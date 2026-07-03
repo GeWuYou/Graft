@@ -3,6 +3,7 @@ required:
   - project_id
   - action
   - result
+  - skipped
 properties:
   project_id:
     type: integer
@@ -29,6 +30,8 @@ properties:
       - ProjectActionResultAccepted
       - ProjectActionResultCompleted
       - ProjectActionResultBlocked
+  skipped:
+    type: boolean
   message_key:
     type: string
   message:
@@ -37,4 +40,4 @@ properties:
     type: array
     items:
       $ref: ./project-guard-result.yaml
-    description: Structured guard outcomes such as ownership blocks or skipped destructive steps.
+additionalProperties: false
