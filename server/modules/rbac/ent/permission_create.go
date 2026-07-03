@@ -75,16 +75,16 @@ func (_c *PermissionCreate) SetNillableDescriptionKey(v *string) *PermissionCrea
 	return _c
 }
 
-// SetCategory sets the "category" field.
-func (_c *PermissionCreate) SetCategory(v string) *PermissionCreate {
-	_c.mutation.SetCategory(v)
+// SetModule sets the "module" field.
+func (_c *PermissionCreate) SetModule(v string) *PermissionCreate {
+	_c.mutation.SetModule(v)
 	return _c
 }
 
-// SetNillableCategory sets the "category" field if the given value is not nil.
-func (_c *PermissionCreate) SetNillableCategory(v *string) *PermissionCreate {
+// SetNillableModule sets the "module" field if the given value is not nil.
+func (_c *PermissionCreate) SetNillableModule(v *string) *PermissionCreate {
 	if v != nil {
-		_c.SetCategory(*v)
+		_c.SetModule(*v)
 	}
 	return _c
 }
@@ -223,9 +223,9 @@ func (_c *PermissionCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *PermissionCreate) defaults() {
-	if _, ok := _c.mutation.Category(); !ok {
-		v := permission.DefaultCategory
-		_c.mutation.SetCategory(v)
+	if _, ok := _c.mutation.Module(); !ok {
+		v := permission.DefaultModule
+		_c.mutation.SetModule(v)
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		v := permission.DefaultCreatedAt()
@@ -271,13 +271,8 @@ func (_c *PermissionCreate) check() error {
 			return &ValidationError{Name: "display", err: fmt.Errorf(`ent: validator failed for field "Permission.display": %w`, err)}
 		}
 	}
-	if _, ok := _c.mutation.Category(); !ok {
-		return &ValidationError{Name: "category", err: errors.New(`ent: missing required field "Permission.category"`)}
-	}
-	if v, ok := _c.mutation.Category(); ok {
-		if err := permission.CategoryValidator(v); err != nil {
-			return &ValidationError{Name: "category", err: fmt.Errorf(`ent: validator failed for field "Permission.category": %w`, err)}
-		}
+	if _, ok := _c.mutation.Module(); !ok {
+		return &ValidationError{Name: "module", err: errors.New(`ent: missing required field "Permission.module"`)}
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "Permission.created_at"`)}
@@ -343,9 +338,9 @@ func (_c *PermissionCreate) createSpec() (*Permission, *sqlgraph.CreateSpec) {
 		_spec.SetField(permission.FieldDescriptionKey, field.TypeString, value)
 		_node.DescriptionKey = &value
 	}
-	if value, ok := _c.mutation.Category(); ok {
-		_spec.SetField(permission.FieldCategory, field.TypeString, value)
-		_node.Category = value
+	if value, ok := _c.mutation.Module(); ok {
+		_spec.SetField(permission.FieldModule, field.TypeString, value)
+		_node.Module = value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(permission.FieldCreatedAt, field.TypeTime, value)

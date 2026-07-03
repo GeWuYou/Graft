@@ -30,14 +30,12 @@ func registerAuditPermissions(registry *permission.Registry, moduleName string) 
 		Code:           auditcontract.AuditReadPermission.String(),
 		DisplayKey:     "rbac.permissionCatalog.auditRead.display",
 		DescriptionKey: "rbac.permissionCatalog.auditRead.description",
-		Category:       "api",
 		Module:         moduleName,
 	})
 	registry.Register(permission.Item{
 		Code:           auditcontract.AuditManagePermission.String(),
 		DisplayKey:     "rbac.permissionCatalog.auditManage.display",
 		DescriptionKey: "rbac.permissionCatalog.auditManage.description",
-		Category:       "api",
 		Module:         moduleName,
 	})
 }

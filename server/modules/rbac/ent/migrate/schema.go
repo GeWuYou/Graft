@@ -17,7 +17,7 @@ var (
 		{Name: "display_key", Type: field.TypeString, Nullable: true, Comment: "权限点显示名称本地化 key"},
 		{Name: "description", Type: field.TypeString, Nullable: true, Comment: "权限点描述"},
 		{Name: "description_key", Type: field.TypeString, Nullable: true, Comment: "权限点描述本地化 key"},
-		{Name: "category", Type: field.TypeString, Comment: "权限类别：api 表示接口权限", Default: "api"},
+		{Name: "module", Type: field.TypeString, Comment: "权限归属模块标识，例如 user、rbac、core.httpx", Default: ""},
 		{Name: "created_at", Type: field.TypeTime, Comment: "创建时间"},
 		{Name: "created_by", Type: field.TypeUint64, Comment: "创建人用户 ID，0 表示系统", Default: 0},
 		{Name: "updated_at", Type: field.TypeTime, Comment: "更新时间"},

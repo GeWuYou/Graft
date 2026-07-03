@@ -52,7 +52,6 @@ func registerAccessLogExplorerPermissions(registry *permission.Registry) {
 		Code:           AccessLogReadPermission,
 		DisplayKey:     "rbac.permissionCatalog.accessLogRead.display",
 		DescriptionKey: "rbac.permissionCatalog.accessLogRead.description",
-		Category:       "api",
 		Module:         accessLogModuleOwner,
 	})
 }

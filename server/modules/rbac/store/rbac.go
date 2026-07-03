@@ -64,7 +64,7 @@ type Permission struct {
 	DisplayKey       *string
 	Description      *string
 	DescriptionKey   *string
-	Category         string
+	Module           string
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
 	RoleBindingCount int
@@ -79,8 +79,8 @@ type RoleFilter struct {
 
 // PermissionFilter 描述权限列表读取支持的局部过滤条件。
 type PermissionFilter struct {
-	Category string
-	Query    string
+	Module string
+	Query  string
 }
 
 // RolePermissionBinding 表示角色当前绑定的一条稳定权限关系。
@@ -105,7 +105,7 @@ type EnsurePermissionInput struct {
 	DisplayKey     *string
 	Description    *string
 	DescriptionKey *string
-	Category       string
+	Module         string
 }
 
 // CreateRoleInput 描述一次显式角色创建所需的输入。

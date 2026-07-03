@@ -110,7 +110,6 @@ func permissionItems(moduleName string) []permission.Item {
 			DisplayKey:     "rbac.permissionCatalog.containerView.display",
 			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.containerView.description",
-			Category:       "api",
 			Module:         moduleName,
 		},
 		{
@@ -119,7 +118,6 @@ func permissionItems(moduleName string) []permission.Item {
 			DisplayKey:     "rbac.permissionCatalog.containerDetail.display",
 			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.containerDetail.description",
-			Category:       "api",
 			Module:         moduleName,
 		},
 		{
@@ -128,7 +126,6 @@ func permissionItems(moduleName string) []permission.Item {
 			DisplayKey:     "rbac.permissionCatalog.containerEvents.display",
 			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.containerEvents.description",
-			Category:       "api",
 			Module:         moduleName,
 		},
 		{
@@ -137,7 +134,6 @@ func permissionItems(moduleName string) []permission.Item {
 			DisplayKey:     "rbac.permissionCatalog.containerEnvironment.display",
 			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.containerEnvironment.description",
-			Category:       "api",
 			Module:         moduleName,
 		},
 		{
@@ -146,7 +142,6 @@ func permissionItems(moduleName string) []permission.Item {
 			DisplayKey:     "rbac.permissionCatalog.containerLogs.display",
 			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.containerLogs.description",
-			Category:       "api",
 			Module:         moduleName,
 		},
 		{
@@ -155,7 +150,6 @@ func permissionItems(moduleName string) []permission.Item {
 			DisplayKey:     "rbac.permissionCatalog.containerShell.display",
 			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.containerShell.description",
-			Category:       "api",
 			Module:         moduleName,
 		},
 		{
@@ -164,7 +158,6 @@ func permissionItems(moduleName string) []permission.Item {
 			DisplayKey:     "rbac.permissionCatalog.containerStart.display",
 			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.containerStart.description",
-			Category:       "api",
 			Module:         moduleName,
 		},
 		{
@@ -173,7 +166,6 @@ func permissionItems(moduleName string) []permission.Item {
 			DisplayKey:     "rbac.permissionCatalog.containerStop.display",
 			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.containerStop.description",
-			Category:       "api",
 			Module:         moduleName,
 		},
 		{
@@ -182,7 +174,6 @@ func permissionItems(moduleName string) []permission.Item {
 			DisplayKey:     "rbac.permissionCatalog.containerRestart.display",
 			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.containerRestart.description",
-			Category:       "api",
 			Module:         moduleName,
 		},
 		{
@@ -191,7 +182,6 @@ func permissionItems(moduleName string) []permission.Item {
 			DisplayKey:     "rbac.permissionCatalog.containerRemove.display",
 			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.containerRemove.description",
-			Category:       "api",
 			Module:         moduleName,
 		},
 	}

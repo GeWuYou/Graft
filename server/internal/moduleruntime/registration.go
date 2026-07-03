@@ -98,7 +98,6 @@ func registerPermissions(registry *permission.Registry) {
 		DisplayKey:     "rbac.permissionCatalog.moduleRuntimeRead.display",
 		Description:    "",
 		DescriptionKey: "rbac.permissionCatalog.moduleRuntimeRead.description",
-		Category:       "api",
 		Module:         moduleOwner,
 	})
 }

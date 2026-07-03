@@ -1118,8 +1118,8 @@ func assertUserModuleRegistry(t *testing.T, ctx *module.Context) {
 		t.Fatalf("expected canonical leading user permissions, got %#v", items)
 	}
 	for _, item := range items[:6] {
-		if item.Category != "api" {
-			t.Fatalf("expected leading user permission %s to declare category api, got %#v", item.Code, item)
+		if item.Module != "user" {
+			t.Fatalf("expected leading user permission %s to declare module user, got %#v", item.Code, item)
 		}
 	}
 
@@ -1202,8 +1202,8 @@ func newDefaultAdminBootRBACRepository(t *testing.T, assignedRole *bool) moduleT
 			return rbacstore.Role{ID: 1, Name: input.Name, Display: input.Display}, nil
 		},
 		ensurePermission: func(_ context.Context, input rbacstore.EnsurePermissionInput) (rbacstore.Permission, error) {
-			if input.Category != "api" {
-				t.Fatalf("expected ensured permission %s to carry category api, got %#v", input.Code, input)
+			if input.Module == "" {
+				t.Fatalf("expected ensured permission %s to carry module metadata, got %#v", input.Code, input)
 			}
 			return rbacstore.Permission{ID: 1, Code: input.Code, Display: input.Display}, nil
 		},

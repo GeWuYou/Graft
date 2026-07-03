@@ -294,7 +294,6 @@ func registerMonitorPermissions(registry *permission.Registry, moduleName string
 		DisplayKey:     "rbac.permissionCatalog.monitorServerStatusRead.display",
 		Description:    "",
 		DescriptionKey: "rbac.permissionCatalog.monitorServerStatusRead.description",
-		Category:       "api",
 		Module:         moduleName,
 	})
 }

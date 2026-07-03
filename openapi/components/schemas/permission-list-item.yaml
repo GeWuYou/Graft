@@ -1,5 +1,6 @@
 type: object
-required: [id, code, display, category, created_at, updated_at, role_binding_count]
+required:
+  [id, code, display, module, created_at, updated_at, role_binding_count]
 properties:
   id:
     type: integer
@@ -20,7 +21,7 @@ properties:
   description_key:
     type: string
     description: Stable localization key for the permission description text.
-  category:
+  module:
     type: string
   created_at:
     type: string

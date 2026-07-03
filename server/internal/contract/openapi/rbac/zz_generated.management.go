@@ -1611,8 +1611,8 @@ type refreshCookieContextKey string
 
 // GetPermissionsParams defines parameters for GetPermissions.
 type GetPermissionsParams struct {
-	Keyword  *string `form:"keyword,omitempty" json:"keyword,omitempty"`
-	Category *string `form:"category,omitempty" json:"category,omitempty"`
+	Keyword *string `form:"keyword,omitempty" json:"keyword,omitempty"`
+	Module  *string `form:"module,omitempty" json:"module,omitempty"`
 
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`

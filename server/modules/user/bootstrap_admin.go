@@ -117,7 +117,7 @@ func permissionSeedsFromItems(localizer *i18n.Service, items []permission.Item) 
 			DisplayKey:     item.DisplayKey,
 			Description:    description,
 			DescriptionKey: item.DescriptionKey,
-			Category:       item.Category,
+			Module:         item.Module,
 		})
 	}
 

@@ -7393,8 +7393,6 @@ type PermissionDetailResponse = PermissionListItem
 
 // PermissionListItem defines model for permission-list-item.
 type PermissionListItem struct {
-	Category string `json:"category"`
-
 	// Code Stable permission code contract.
 	Code      string `json:"code"`
 	CreatedAt string `json:"created_at"`
@@ -7411,6 +7409,7 @@ type PermissionListItem struct {
 	// DisplayKey Stable localization key for the permission display text.
 	DisplayKey       *string `json:"display_key,omitempty"`
 	Id               int64   `json:"id"`
+	Module           string  `json:"module"`
 	RoleBindingCount int     `json:"role_binding_count"`
 	UpdatedAt        string  `json:"updated_at"`
 }
@@ -10228,8 +10227,8 @@ type PostProjectUpdateDeployParams struct {
 
 // GetPermissionsParams defines parameters for GetPermissions.
 type GetPermissionsParams struct {
-	Keyword  *string `form:"keyword,omitempty" json:"keyword,omitempty"`
-	Category *string `form:"category,omitempty" json:"category,omitempty"`
+	Keyword *string `form:"keyword,omitempty" json:"keyword,omitempty"`
+	Module  *string `form:"module,omitempty" json:"module,omitempty"`
 
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`

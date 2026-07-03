@@ -3336,7 +3336,7 @@
             }
           },
           {
-            "name": "category",
+            "name": "module",
             "in": "query",
             "required": false,
             "schema": {
@@ -14518,7 +14518,7 @@
           "id",
           "code",
           "display",
-          "category",
+          "module",
           "created_at",
           "updated_at",
           "role_binding_count"
@@ -14549,7 +14549,7 @@
             "type": "string",
             "description": "Stable localization key for the permission description text."
           },
-          "category": {
+          "module": {
             "type": "string"
           },
           "created_at": {

@@ -24,8 +24,8 @@ const (
 	FieldDescription = "description"
 	// FieldDescriptionKey holds the string denoting the description_key field in the database.
 	FieldDescriptionKey = "description_key"
-	// FieldCategory holds the string denoting the category field in the database.
-	FieldCategory = "category"
+	// FieldModule holds the string denoting the module field in the database.
+	FieldModule = "module"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// FieldCreatedBy holds the string denoting the created_by field in the database.
@@ -59,7 +59,7 @@ var Columns = []string{
 	FieldDisplayKey,
 	FieldDescription,
 	FieldDescriptionKey,
-	FieldCategory,
+	FieldModule,
 	FieldCreatedAt,
 	FieldCreatedBy,
 	FieldUpdatedAt,
@@ -83,10 +83,8 @@ var (
 	CodeValidator func(string) error
 	// DisplayValidator is a validator for the "display" field. It is called by the builders before save.
 	DisplayValidator func(string) error
-	// DefaultCategory holds the default value on creation for the "category" field.
-	DefaultCategory string
-	// CategoryValidator is a validator for the "category" field. It is called by the builders before save.
-	CategoryValidator func(string) error
+	// DefaultModule holds the default value on creation for the "module" field.
+	DefaultModule string
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 	// DefaultCreatedBy holds the default value on creation for the "created_by" field.
@@ -136,9 +134,9 @@ func ByDescriptionKey(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldDescriptionKey, opts...).ToFunc()
 }
 
-// ByCategory orders the results by the category field.
-func ByCategory(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldCategory, opts...).ToFunc()
+// ByModule orders the results by the module field.
+func ByModule(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldModule, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.

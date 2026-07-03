@@ -13,8 +13,6 @@ type Item struct {
 	Description string
 	// DescriptionKey 是权限说明的稳定本地化 key。
 	DescriptionKey string
-	// Category 是权限点的稳定分类元数据，由权限声明侧提供 canonical 真值。
-	Category string
 	// Module 标记权限声明来源，便于定位冲突与后续按模块聚合能力。
 	Module string
 }

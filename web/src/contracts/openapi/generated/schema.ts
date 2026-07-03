@@ -3068,7 +3068,7 @@ export interface components {
       description?: string;
       /** @description Stable localization key for the permission description text. */
       description_key?: string;
-      category: string;
+      module: string;
       created_at: string;
       updated_at: string;
       role_binding_count: number;
@@ -7748,7 +7748,7 @@ export interface operations {
     parameters: {
       query?: {
         keyword?: string;
-        category?: string;
+        module?: string;
       };
       header?: {
         /** @description Explicit locale override header already supported by the runtime. */

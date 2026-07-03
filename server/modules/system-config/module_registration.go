@@ -43,7 +43,6 @@ func registerSystemConfigPermissions(registry *permission.Registry, moduleName s
 		DisplayKey:     "rbac.permissionCatalog.systemConfigRead.display",
 		Description:    "",
 		DescriptionKey: "rbac.permissionCatalog.systemConfigRead.description",
-		Category:       "api",
 		Module:         moduleName,
 	})
 	registry.Register(permission.Item{
@@ -52,7 +51,6 @@ func registerSystemConfigPermissions(registry *permission.Registry, moduleName s
 		DisplayKey:     "rbac.permissionCatalog.systemConfigWrite.display",
 		Description:    "",
 		DescriptionKey: "rbac.permissionCatalog.systemConfigWrite.description",
-		Category:       "api",
 		Module:         moduleName,
 	})
 	return nil

@@ -9,7 +9,7 @@ type PermissionSeed struct {
 	DisplayKey     string
 	Description    string
 	DescriptionKey string
-	Category       string
+	Module         string
 }
 
 // RoleSummary 描述跨模块可读的最小角色摘要。

@@ -10,7 +10,7 @@ get:
       required: false
       schema:
         type: string
-    - name: category
+    - name: module
       in: query
       required: false
       schema:
@@ -18,7 +18,7 @@ get:
   security:
     - bearerAuth: []
   responses:
-    '200':
+    "200":
       description: Permission list.
       headers:
         X-Request-Id:
@@ -27,9 +27,9 @@ get:
         application/json:
           schema:
             $ref: ../components/schemas/enveloped-permission-list-response.yaml
-    '401':
+    "401":
       $ref: ../components/responses/unauthorized.yaml
-    '403':
+    "403":
       $ref: ../components/responses/forbidden.yaml
-    '500':
+    "500":
       $ref: ../components/responses/internal-server-error.yaml

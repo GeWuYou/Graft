@@ -34,7 +34,6 @@ func permissionItems(moduleName string) []permission.Item {
 			DisplayKey:     "rbac.permissionCatalog.projectView.display",
 			Description:    "Read registered Compose project summaries and readonly details.",
 			DescriptionKey: "rbac.permissionCatalog.projectView.description",
-			Category:       "api",
 			Module:         moduleName,
 		},
 		{
@@ -43,7 +42,6 @@ func permissionItems(moduleName string) []permission.Item {
 			DisplayKey:     "rbac.permissionCatalog.projectImport.display",
 			Description:    "Validate and import external Compose projects into the project registry.",
 			DescriptionKey: "rbac.permissionCatalog.projectImport.description",
-			Category:       "api",
 			Module:         moduleName,
 		},
 		{
@@ -52,7 +50,6 @@ func permissionItems(moduleName string) []permission.Item {
 			DisplayKey:     "rbac.permissionCatalog.projectRefresh.display",
 			Description:    "Refresh project snapshots and readonly configuration projections.",
 			DescriptionKey: "rbac.permissionCatalog.projectRefresh.description",
-			Category:       "api",
 			Module:         moduleName,
 		},
 		{
@@ -61,7 +58,6 @@ func permissionItems(moduleName string) []permission.Item {
 			DisplayKey:     "rbac.permissionCatalog.projectLifecycle.display",
 			Description:    "Run bounded Compose lifecycle actions such as up, down, and restart.",
 			DescriptionKey: "rbac.permissionCatalog.projectLifecycle.description",
-			Category:       "api",
 			Module:         moduleName,
 		},
 		{
@@ -70,7 +66,6 @@ func permissionItems(moduleName string) []permission.Item {
 			DisplayKey:     "rbac.permissionCatalog.projectDestroy.display",
 			Description:    "Run unregister and guarded destroy actions for project records.",
 			DescriptionKey: "rbac.permissionCatalog.projectDestroy.description",
-			Category:       "api",
 			Module:         moduleName,
 		},
 		{
@@ -79,7 +74,6 @@ func permissionItems(moduleName string) []permission.Item {
 			DisplayKey:     "rbac.permissionCatalog.projectCreate.display",
 			Description:    "Inspect managed-root authority and access future managed project create workflows.",
 			DescriptionKey: "rbac.permissionCatalog.projectCreate.description",
-			Category:       "api",
 			Module:         moduleName,
 		},
 		{
@@ -88,7 +82,6 @@ func permissionItems(moduleName string) []permission.Item {
 			DisplayKey:     "rbac.permissionCatalog.projectSourceView.display",
 			Description:    "Inspect the Phase 3 source catalog and source-selector routes for managed, git, and template project flows.",
 			DescriptionKey: "rbac.permissionCatalog.projectSourceView.description",
-			Category:       "api",
 			Module:         moduleName,
 		},
 		{
@@ -97,7 +90,6 @@ func permissionItems(moduleName string) []permission.Item {
 			DisplayKey:     "rbac.permissionCatalog.projectDiscoveryView.display",
 			Description:    "Inspect bounded local directory-scan and auto-discovery candidate previews without registering projects.",
 			DescriptionKey: "rbac.permissionCatalog.projectDiscoveryView.description",
-			Category:       "api",
 			Module:         moduleName,
 		},
 		{
@@ -106,7 +98,6 @@ func permissionItems(moduleName string) []permission.Item {
 			DisplayKey:     "rbac.permissionCatalog.projectDeploy.display",
 			Description:    "Diff, validate, and deploy managed project configuration drafts.",
 			DescriptionKey: "rbac.permissionCatalog.projectDeploy.description",
-			Category:       "api",
 			Module:         moduleName,
 		},
 	}

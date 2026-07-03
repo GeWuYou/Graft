@@ -1,3 +1,4 @@
-h1:DY49bgFgWIoShySeSUHUvf8xfaJ05KDJaXeYsZ8z6gU=
+h1:2bJwWzOzZrHoX1kmFK0tffC3GvNTAAETsUQj4PeCXsg=
 202605190002_rbac_baseline.sql h1:S1nH9msGCgCCnst6FlRHEKTHezl/SIV4/oAfuaLRSAU=
 202606300001_rbac_role_disabled_at.sql h1:U31CK8thF1EA0CaALgZOcvspuNrP/LGmatbxQMpFmK0=
+202607040001_rbac_permission_module.sql h1:GwFhwe3Bq4QPvQT2iuQA30zEPqOC2mqaSlnrEqaI4Ug=

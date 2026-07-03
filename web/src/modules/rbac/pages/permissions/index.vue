@@ -22,10 +22,10 @@
             :placeholder="t('rbac.permissionList.toolbar.searchPlaceholder')"
           />
           <t-select
-            v-model="filters.category"
+            v-model="filters.module"
             clearable
             class="toolbar__select"
-            :options="categoryOptions"
+            :options="moduleOptions"
             :placeholder="t('rbac.permissionList.toolbar.modulePlaceholder')"
           />
           <t-button theme="default" variant="text" @click="resetFilters">
@@ -90,8 +90,8 @@
               </div>
             </template>
 
-            <template #category="{ row }">
-              <t-tag theme="default" variant="light">{{ row.category || '-' }}</t-tag>
+            <template #module="{ row }">
+              <t-tag theme="default" variant="light">{{ row.module || '-' }}</t-tag>
             </template>
 
             <template #description="{ row }">
@@ -214,7 +214,7 @@
               <p class="detail-header__title">{{ localizedPermissionDisplay(detailRecord) }}</p>
               <p class="detail-header__code">{{ detailRecord.code }}</p>
             </div>
-            <t-tag theme="default" variant="light">{{ detailRecord.category || '-' }}</t-tag>
+            <t-tag theme="default" variant="light">{{ detailRecord.module || '-' }}</t-tag>
           </div>
 
           <div class="detail-grid">
@@ -289,7 +289,7 @@ const router = useRouter();
 
 type PermissionFilterState = {
   keyword: string;
-  category: string;
+  module: string;
 };
 
 type PermissionPageSnapshot = {
@@ -308,10 +308,10 @@ const listError = ref('');
 const permissions = ref<PermissionListItem[]>([]);
 const filters = ref<PermissionFilterState>({
   keyword: '',
-  category: '',
+  module: '',
 });
 const columnDrawerVisible = ref(false);
-const visibleColumnKeys = ref(['permission', 'category', 'code', 'role_count', 'updated_at', 'operation']);
+const visibleColumnKeys = ref(['permission', 'module', 'code', 'role_count', 'updated_at', 'operation']);
 const detailDrawerVisible = ref(false);
 const detailDrawerPermission = ref<PermissionListItem | null>(null);
 const detailRecord = ref<PermissionDetailResponse | null>(null);
@@ -339,16 +339,16 @@ useTabPageSnapshot<PermissionPageSnapshot>({
   },
 });
 
-const categoryOptions = computed(() => {
-  const categories = Array.from(new Set(permissions.value.map((item) => item.category).filter(Boolean))).sort();
-  return categories.map((category) => ({ label: category, value: category }));
+const moduleOptions = computed(() => {
+  const modules = Array.from(new Set(permissions.value.map((item) => item.module).filter(Boolean))).sort();
+  return modules.map((module) => ({ label: module, value: module }));
 });
 
-const hasActiveFilters = computed(() => Boolean(filters.value.keyword.trim() || filters.value.category));
+const hasActiveFilters = computed(() => Boolean(filters.value.keyword.trim() || filters.value.module));
 
 const columnSettingOptions = computed(() => [
   { label: t('rbac.permissionList.columns.permission'), value: 'permission' },
-  { label: t('rbac.permissionList.columns.module'), value: 'category' },
+  { label: t('rbac.permissionList.columns.module'), value: 'module' },
   { label: t('rbac.permissionList.columns.code'), value: 'code' },
   { label: t('rbac.permissionList.columns.description'), value: 'description' },
   { label: t('rbac.permissionList.columns.roleCount'), value: 'role_count' },
@@ -372,7 +372,7 @@ const visibleColumns = computed<TdBaseTableProps['columns']>(() => {
       width: 340,
       fixed: 'left',
     }),
-    createStatusColumn(t('rbac.permissionList.columns.module'), 'category', 100),
+    createStatusColumn(t('rbac.permissionList.columns.module'), 'module', 140),
     createTextColumn(t('rbac.permissionList.columns.code'), 'code', {
       width: 240,
     }),
@@ -401,8 +401,8 @@ async function fetchPermissions(preservePagination = false) {
     if (keyword) {
       requestFilters.keyword = keyword;
     }
-    if (filters.value.category) {
-      requestFilters.category = filters.value.category;
+    if (filters.value.module) {
+      requestFilters.module = filters.value.module;
     }
 
     const permissionResult = await getPermissions(requestFilters);
@@ -423,7 +423,7 @@ async function fetchPermissions(preservePagination = false) {
 function resetFilters() {
   filters.value = {
     keyword: '',
-    category: '',
+    module: '',
   };
   pagination.value.current = 1;
 }
@@ -495,7 +495,7 @@ onMounted(() => {
 });
 
 watch(
-  () => [filters.value.keyword, filters.value.category] as const,
+  () => [filters.value.keyword, filters.value.module] as const,
   () => {
     pagination.value.current = 1;
     fetchPermissions();
