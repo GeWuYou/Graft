@@ -1157,6 +1157,7 @@ func TestRunValidateBackendFullStageWithSmoke(t *testing.T) {
 	originalGoBuildRunner := backendGoBuildRunner
 	originalSmokeRunner := backendSmokeRunner
 	originalMigrationVersionRunner := backendMigrationVersionRunner
+	originalMigrationRegistryFreshnessRunner := backendMigrationRegistryFreshnessRunner
 	originalLocaleOwnershipGuardRunner := backendLocaleOwnershipGuardRunner
 	defer func() {
 		backendLintRunner = originalLintRunner
@@ -1165,10 +1166,15 @@ func TestRunValidateBackendFullStageWithSmoke(t *testing.T) {
 		backendGoBuildRunner = originalGoBuildRunner
 		backendSmokeRunner = originalSmokeRunner
 		backendMigrationVersionRunner = originalMigrationVersionRunner
+		backendMigrationRegistryFreshnessRunner = originalMigrationRegistryFreshnessRunner
 		backendLocaleOwnershipGuardRunner = originalLocaleOwnershipGuardRunner
 	}()
 
 	var steps []string
+	backendMigrationRegistryFreshnessRunner = func() error {
+		steps = append(steps, "migration-registry")
+		return nil
+	}
 	backendMigrationVersionRunner = func(_ *cobra.Command) error {
 		steps = append(steps, "migration")
 		return nil
@@ -1207,6 +1213,7 @@ func TestRunValidateBackendFullStageWithSmoke(t *testing.T) {
 	}
 
 	expected := []string{
+		"migration-registry",
 		"migration",
 		"openapi:" + defaultOpenAPIRootSpec,
 		"locale-ownership-guard",
@@ -1269,6 +1276,7 @@ func TestRunValidateBackendFullStageStopsOnMigrationVersionFailure(t *testing.T)
 	originalGoBuildRunner := backendGoBuildRunner
 	originalSmokeRunner := backendSmokeRunner
 	originalMigrationVersionRunner := backendMigrationVersionRunner
+	originalMigrationRegistryFreshnessRunner := backendMigrationRegistryFreshnessRunner
 	defer func() {
 		backendLintRunner = originalLintRunner
 		backendOpenAPIRunner = originalOpenAPIRunner
@@ -1276,8 +1284,12 @@ func TestRunValidateBackendFullStageStopsOnMigrationVersionFailure(t *testing.T)
 		backendGoBuildRunner = originalGoBuildRunner
 		backendSmokeRunner = originalSmokeRunner
 		backendMigrationVersionRunner = originalMigrationVersionRunner
+		backendMigrationRegistryFreshnessRunner = originalMigrationRegistryFreshnessRunner
 	}()
 
+	backendMigrationRegistryFreshnessRunner = func() error {
+		return nil
+	}
 	expectedErr := errors.New("duplicate migration version")
 	backendMigrationVersionRunner = func(_ *cobra.Command) error {
 		return expectedErr

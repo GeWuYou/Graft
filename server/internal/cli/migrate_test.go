@@ -27,6 +27,7 @@ type migrateTestHooks struct {
 	embeddedMigrationDirByPath func(string) (moduleregistry.EmbeddedMigrationDir, bool)
 	readDir                    func(string) ([]os.DirEntry, error)
 	openExecutor               func(string, atlasmigrate.Dir, atlasmigrate.Logger, bool) (*atlasExecutorHandle, error)
+	embeddedRegistryFreshness  func(string) error
 }
 
 func captureMigrateTestHooks() migrateTestHooks {
@@ -36,6 +37,7 @@ func captureMigrateTestHooks() migrateTestHooks {
 		embeddedMigrationDirByPath: migrateEmbeddedMigrationDirByPath,
 		readDir:                    migrateReadDir,
 		openExecutor:               migrateOpenExecutor,
+		embeddedRegistryFreshness:  migrateEmbeddedRegistryFreshnessRunner,
 	}
 }
 
@@ -45,6 +47,7 @@ func (hooks migrateTestHooks) restore() {
 	migrateEmbeddedMigrationDirByPath = hooks.embeddedMigrationDirByPath
 	migrateReadDir = hooks.readDir
 	migrateOpenExecutor = hooks.openExecutor
+	migrateEmbeddedRegistryFreshnessRunner = hooks.embeddedRegistryFreshness
 }
 
 func setMigrateCommandTestEnv(t *testing.T) {
@@ -1333,6 +1336,9 @@ func TestRunMigrateValidateUsesEmbeddedDefaultChain(t *testing.T) {
 	hooks := captureMigrateTestHooks()
 	defer hooks.restore()
 
+	migrateEmbeddedRegistryFreshnessRunner = func(string) error {
+		return nil
+	}
 	migrateRegistryMigrationDirs = func() ([]string, error) {
 		return []string{"modules/user/migrations"}, nil
 	}
@@ -1361,6 +1367,9 @@ func TestRunMigrateValidateUsesExplicitExternalPath(t *testing.T) {
 	hooks := captureMigrateTestHooks()
 	defer hooks.restore()
 
+	migrateEmbeddedRegistryFreshnessRunner = func(string) error {
+		return nil
+	}
 	root := t.TempDir()
 	externalDir := filepath.Join(root, "tmp-migrations")
 	createMigrationFixture(t, []string{externalDir}, map[string]string{
@@ -1380,6 +1389,9 @@ func TestRunMigrateValidateRejectsRepoOwnedSelectorWithoutEmbeddedAssets(t *test
 	hooks := captureMigrateTestHooks()
 	defer hooks.restore()
 
+	migrateEmbeddedRegistryFreshnessRunner = func(string) error {
+		return nil
+	}
 	migrateEmbeddedMigrationDirByPath = func(string) (moduleregistry.EmbeddedMigrationDir, bool) {
 		return moduleregistry.EmbeddedMigrationDir{}, false
 	}
