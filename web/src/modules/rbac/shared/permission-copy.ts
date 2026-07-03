@@ -8,10 +8,19 @@ type PermissionLocaleKeyFields = {
   display_key?: string | null;
 };
 
+function isLikelyLocaleKey(value?: string | null) {
+  if (!value) return false;
+  return /^[a-z][A-Za-z0-9]*(?:[.-][A-Za-z0-9_]+)+$/.test(value.trim());
+}
+
 function localizedMessage(t: ComposerTranslation, messageKey: string, fallback?: string | null) {
   const translated = t(messageKey);
   if (translated !== messageKey) {
     return translated;
+  }
+
+  if (isLikelyLocaleKey(fallback)) {
+    return '';
   }
 
   return fallback?.trim() || '';
@@ -30,10 +39,10 @@ export function localizedPermissionDisplay(
 
   const copyEntry = PERMISSION_COPY_BY_CODE[permission.code];
   if (!copyEntry) {
-    return permission.display;
+    return isLikelyLocaleKey(permission.display) ? permission.code : permission.display;
   }
 
-  return localizedMessage(t, copyEntry.displayKey, permission.display) || permission.display;
+  return localizedMessage(t, copyEntry.displayKey, permission.display) || permission.code;
 }
 
 export function localizedPermissionDescription(
@@ -54,6 +63,10 @@ export function localizedPermissionDescription(
     if (localized) {
       return localized;
     }
+  }
+
+  if (isLikelyLocaleKey(permission.description)) {
+    return t(emptyDescriptionKey);
   }
 
   return permission.description?.trim() || t(emptyDescriptionKey);

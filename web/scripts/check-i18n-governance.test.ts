@@ -373,6 +373,119 @@ func demoDisplaySchema() []byte {
   });
 });
 
+describe('check-i18n-governance RBAC permission web locale scan', () => {
+  it('requires frontend RBAC locale catalogs for backend permission display keys', async () => {
+    const root = createTempWebRoot('<template><span /></template>');
+    mkdirSync(join(root, '../server/modules/rbac/locales'), { recursive: true });
+    writeFileSync(
+      join(root, '../server/modules/rbac/locales/en-US.yaml'),
+      [
+        'rbac.permissionCatalog.projectImport.display: Import Compose Projects',
+        'rbac.permissionCatalog.projectImport.description: Validate and import external Compose projects into the project registry.',
+      ].join('\n'),
+    );
+    writeFileSync(
+      join(root, '../server/modules/rbac/locales/zh-CN.yaml'),
+      [
+        'rbac.permissionCatalog.projectImport.display: 导入 Compose 项目',
+        'rbac.permissionCatalog.projectImport.description: 校验并导入外部 Compose 项目到项目注册表。',
+      ].join('\n'),
+    );
+    writeServerModule(
+      root,
+      'permission_registration.go',
+      `
+package demo
+
+type permissionRegistration struct {
+  DisplayKey string
+  DescriptionKey string
+}
+
+var permissions = []permissionRegistration{
+  {
+    DisplayKey: "rbac.permissionCatalog.projectImport.display",
+    DescriptionKey: "rbac.permissionCatalog.projectImport.description",
+  },
+}
+`,
+    );
+    const result = spawnSync('bun', ['run', 'scripts/check-i18n-governance.ts'], {
+      cwd: root,
+      encoding: 'utf8',
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.stdout).toContain('no-missing-rbac-permission-catalog-web-locale');
+    expect(result.stdout).toContain(
+      'RBAC permission locale key rbac.permissionCatalog.projectImport.display is missing from web RBAC locale catalogs',
+    );
+    expect(result.stdout).toContain(
+      'RBAC permission locale key rbac.permissionCatalog.projectImport.description is missing from web RBAC locale catalogs',
+    );
+    expect(result.stderr).toBe('');
+  });
+
+  it('allows backend permission display keys when frontend RBAC locale catalogs contain them', async () => {
+    const root = createTempWebRoot('<template><span /></template>');
+    mkdirSync(join(root, 'src/modules/rbac/locales'), { recursive: true });
+    writeFileSync(
+      join(root, 'src/modules/rbac/locales/en-US.json'),
+      JSON.stringify({
+        rbac: {
+          permissionCatalog: {
+            projectImport: {
+              display: 'Import Compose Projects',
+              description: 'Validate and import external Compose projects into the project registry.',
+            },
+          },
+        },
+      }),
+    );
+    writeFileSync(
+      join(root, 'src/modules/rbac/locales/zh-CN.json'),
+      JSON.stringify({
+        rbac: {
+          permissionCatalog: {
+            projectImport: {
+              display: '导入 Compose 项目',
+              description: '校验并导入外部 Compose 项目到项目注册表。',
+            },
+          },
+        },
+      }),
+    );
+    writeServerModule(
+      root,
+      'permission_registration.go',
+      `
+package demo
+
+type permissionRegistration struct {
+  DisplayKey string
+  DescriptionKey string
+}
+
+var permissions = []permissionRegistration{
+  {
+    DisplayKey: "rbac.permissionCatalog.projectImport.display",
+    DescriptionKey: "rbac.permissionCatalog.projectImport.description",
+  },
+}
+`,
+    );
+
+    const result = spawnSync('bun', ['run', 'scripts/check-i18n-governance.ts'], {
+      cwd: root,
+      encoding: 'utf8',
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('No hard-coded UI text or locale governance issues found.');
+    expect(result.stderr).toBe('');
+  });
+});
+
 describe('check-i18n-governance fixture rules', () => {
   const invalidFixtures = [
     {

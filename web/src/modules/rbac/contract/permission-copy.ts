@@ -1,4 +1,5 @@
 import { AUDIT_PERMISSION_CODE } from '@/modules/audit/contract/permissions';
+import { CONTAINER_PERMISSION_CODE } from '@/modules/container/contract/permissions';
 import { MONITOR_PERMISSION_CODE } from '@/modules/monitor/contract/permissions';
 import { USER_PERMISSION_CODE } from '@/modules/user/contract/permissions';
 
@@ -77,5 +78,53 @@ export const PERMISSION_COPY_BY_CODE: Record<string, PermissionCopyEntry> = {
   [AUDIT_PERMISSION_CODE.READ]: {
     displayKey: 'rbac.permissionCatalog.auditRead.display',
     descriptionKey: 'rbac.permissionCatalog.auditRead.description',
+  },
+  [AUDIT_PERMISSION_CODE.MANAGE]: {
+    displayKey: 'rbac.permissionCatalog.auditManage.display',
+    descriptionKey: 'rbac.permissionCatalog.auditManage.description',
+  },
+  [CONTAINER_PERMISSION_CODE.EVENTS]: {
+    displayKey: 'rbac.permissionCatalog.containerEvents.display',
+    descriptionKey: 'rbac.permissionCatalog.containerEvents.description',
+  },
+  ['ops.container.environment']: {
+    displayKey: 'rbac.permissionCatalog.containerEnvironment.display',
+    descriptionKey: 'rbac.permissionCatalog.containerEnvironment.description',
+  },
+  ['ops.project.view']: {
+    displayKey: 'rbac.permissionCatalog.projectView.display',
+    descriptionKey: 'rbac.permissionCatalog.projectView.description',
+  },
+  ['ops.project.import']: {
+    displayKey: 'rbac.permissionCatalog.projectImport.display',
+    descriptionKey: 'rbac.permissionCatalog.projectImport.description',
+  },
+  ['ops.project.refresh']: {
+    displayKey: 'rbac.permissionCatalog.projectRefresh.display',
+    descriptionKey: 'rbac.permissionCatalog.projectRefresh.description',
+  },
+  ['ops.project.lifecycle']: {
+    displayKey: 'rbac.permissionCatalog.projectLifecycle.display',
+    descriptionKey: 'rbac.permissionCatalog.projectLifecycle.description',
+  },
+  ['ops.project.destroy']: {
+    displayKey: 'rbac.permissionCatalog.projectDestroy.display',
+    descriptionKey: 'rbac.permissionCatalog.projectDestroy.description',
+  },
+  ['ops.project.create']: {
+    displayKey: 'rbac.permissionCatalog.projectCreate.display',
+    descriptionKey: 'rbac.permissionCatalog.projectCreate.description',
+  },
+  ['ops.project.source.view']: {
+    displayKey: 'rbac.permissionCatalog.projectSourceView.display',
+    descriptionKey: 'rbac.permissionCatalog.projectSourceView.description',
+  },
+  ['ops.project.discovery.view']: {
+    displayKey: 'rbac.permissionCatalog.projectDiscoveryView.display',
+    descriptionKey: 'rbac.permissionCatalog.projectDiscoveryView.description',
+  },
+  ['ops.project.deploy']: {
+    displayKey: 'rbac.permissionCatalog.projectDeploy.display',
+    descriptionKey: 'rbac.permissionCatalog.projectDeploy.description',
   },
 };

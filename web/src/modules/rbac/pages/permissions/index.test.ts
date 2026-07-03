@@ -12,6 +12,12 @@ const i18nMessages: Record<string, string> = {
   'rbac.permissionCatalog.permissionRead.description': 'Localized permission description',
   'rbac.permissionCatalog.userCreate.display': 'Create Users Localized',
   'rbac.permissionCatalog.userCreate.description': 'Localized create-user description',
+  'rbac.permissionCatalog.projectImport.display': 'Import Compose Projects',
+  'rbac.permissionCatalog.projectImport.description':
+    'Validate and import external Compose projects into the project registry.',
+  'rbac.permissionCatalog.projectRefresh.display': 'Refresh Compose Projects',
+  'rbac.permissionCatalog.projectRefresh.description':
+    'Refresh project snapshots and readonly configuration projections.',
   'rbac.permissionList.detail': 'Permission Details',
   'rbac.permissionList.detailTitle': 'Permission Details',
   'rbac.permissionList.detailLoadFailed': 'Failed to load permission details',
@@ -365,6 +371,31 @@ describe('PermissionPage', () => {
 
     expect(wrapper.text()).toContain('Custom Permission');
     expect(wrapper.text()).toContain('Custom description');
+  });
+
+  it('does not expose raw locale keys when backend fallback fields contain keys', async () => {
+    rbacApiMocks.getPermissions.mockResolvedValue({
+      items: [
+        {
+          id: 1,
+          code: 'ops.project.import',
+          display: 'rbac.permissionCatalog.projectImport.display',
+          description: 'rbac.permissionCatalog.projectImport.description',
+          category: 'project',
+          created_at: '2026-05-22T10:00:00Z',
+          updated_at: '2026-05-23T10:00:00Z',
+          role_binding_count: 0,
+        },
+      ],
+    });
+
+    const wrapper = await mountPermissionPage();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('Import Compose Projects');
+    expect(wrapper.text()).toContain('Validate and import external Compose projects into the project registry.');
+    expect(wrapper.text()).not.toContain('rbac.permissionCatalog.projectImport.display');
+    expect(wrapper.text()).not.toContain('rbac.permissionCatalog.projectImport.description');
   });
 
   it('renders the default empty state without filter actions', async () => {
