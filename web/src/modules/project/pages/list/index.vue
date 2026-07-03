@@ -12,13 +12,10 @@
               {{ t('project.list.projectCount', { count: totalCount }) }}
             </t-tag>
             <t-tag theme="success" variant="light-outline">
-              {{ t('project.list.runningContainers', { count: runningContainerCount }) }}
+              {{ t('project.list.runningProjects', { count: runningProjectCount }) }}
             </t-tag>
             <t-tag theme="warning" variant="light-outline">
-              {{ t('project.list.stoppedContainers', { count: stoppedContainerCount }) }}
-            </t-tag>
-            <t-tag theme="danger" variant="light-outline">
-              {{ t('project.list.warningProjects', { count: warningProjectCount }) }}
+              {{ t('project.list.stoppedProjects', { count: stoppedProjectCount }) }}
             </t-tag>
           </t-space>
         </template>
@@ -377,17 +374,8 @@ const tableWidthPolicy = computed(() => resolveTableWidthPolicy(visibleColumns.v
 const confirmDialogOpen = ref(false);
 
 const totalCount = computed(() => pagination.value.total);
-const runningContainerCount = computed(() => rows.value.reduce((sum, item) => sum + item.container_counts.running, 0));
-const stoppedContainerCount = computed(() => rows.value.reduce((sum, item) => sum + item.container_counts.stopped, 0));
-const warningProjectCount = computed(
-  () =>
-    rows.value.filter(
-      (item) =>
-        item.drift_status !== 'clean' ||
-        item.last_refresh_status === 'failed' ||
-        isProjectAttentionStatus(item.runtime_status),
-    ).length,
-);
+const runningProjectCount = computed(() => rows.value.filter((item) => item.runtime_status === 'running').length);
+const stoppedProjectCount = computed(() => rows.value.filter((item) => item.runtime_status === 'stopped').length);
 const hasActiveFilters = computed(
   () =>
     Boolean(filters.value.keyword.trim()) ||
@@ -438,10 +426,6 @@ function runtimeStatusTheme(value?: ProjectRuntimeStatus | null) {
 
 function runtimeStatusLabel(value?: ProjectRuntimeStatus | null) {
   return projectRuntimeStatusLabel(t, value);
-}
-
-function isProjectAttentionStatus(value?: ProjectRuntimeStatus | null) {
-  return value === 'degraded' || value === 'transitioning' || value === 'unknown';
 }
 
 function projectContainerWarningCount(row: ProjectListItem) {

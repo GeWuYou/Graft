@@ -61,9 +61,8 @@
       "columnSettings": "列设置",
       "columnDrawerTitle": "项目列设置",
       "projectCount": "总数 {count}",
-      "runningContainers": "运行中 {count}",
-      "stoppedContainers": "已停止 {count}",
-      "warningProjects": "需关注 {count}",
+      "runningProjects": "运行中 {count}",
+      "stoppedProjects": "已停止 {count}",
       "filters": {
         "searchPlaceholder": "搜索展示名、Canonical 名或工作目录",
         "sourceKind": "来源",
@@ -91,11 +90,11 @@
         "container": "容器"
       },
       "status": {
-        "runtimeUnknown": "未知",
-        "runtimeRunning": "运行中",
-        "runtimeDegraded": "降级",
-        "runtimeStopped": "已停止",
-        "runtimeTransitioning": "过渡中"
+        "runtimeUnknown": "⚪ 未知",
+        "runtimeRunning": "🟢 运行中",
+        "runtimeDegraded": "🟡 降级",
+        "runtimeStopped": "⚫ 已停止",
+        "runtimeTransitioning": "🔵 过渡中"
       },
       "sourceKinds": {
         "imported": "导入项目",

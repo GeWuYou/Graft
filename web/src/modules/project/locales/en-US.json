@@ -61,9 +61,8 @@
       "columnSettings": "Column Settings",
       "columnDrawerTitle": "Project Columns",
       "projectCount": "Total {count}",
-      "runningContainers": "Running {count}",
-      "stoppedContainers": "Stopped {count}",
-      "warningProjects": "Needs Attention {count}",
+      "runningProjects": "Running {count}",
+      "stoppedProjects": "Stopped {count}",
       "filters": {
         "searchPlaceholder": "Search Display Name, Canonical Name, or Working Directory",
         "sourceKind": "Source",
@@ -91,11 +90,11 @@
         "container": "Containers"
       },
       "status": {
-        "runtimeUnknown": "Unknown",
-        "runtimeRunning": "Running",
-        "runtimeDegraded": "Degraded",
-        "runtimeStopped": "Stopped",
-        "runtimeTransitioning": "Transitioning"
+        "runtimeUnknown": "⚪ Unknown",
+        "runtimeRunning": "🟢 Running",
+        "runtimeDegraded": "🟡 Degraded",
+        "runtimeStopped": "⚫ Stopped",
+        "runtimeTransitioning": "🔵 Transitioning"
       },
       "sourceKinds": {
         "imported": "Imported",
