@@ -29,7 +29,6 @@ export const projectBootstrapRouteRegistrations: BootstrapRouteRegistration[] = 
     meta: {
       tabGroup: 'ops',
       pageKind: 'list',
-      pageSurface: 'form-detail',
       semanticTitle: listRouteTitle,
       breadcrumbTitle: listBreadcrumbTitle,
       tabTitle: listRouteTitle,
