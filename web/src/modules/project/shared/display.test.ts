@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { projectRuntimeStatusLabel, projectRuntimeStatusTheme } from './display';
+import { projectLifecycleActionVisibility, projectRuntimeStatusLabel, projectRuntimeStatusTheme } from './display';
 
 const enUSMessages = {
   'project.list.status.runtimeDegraded': '🟡 Degraded',
@@ -47,5 +47,38 @@ describe('project display helpers', () => {
     expect(projectRuntimeStatusTheme('transitioning')).toBe('primary');
     expect(projectRuntimeStatusTheme('unknown')).toBe('default');
     expect(projectRuntimeStatusTheme()).toBe('default');
+  });
+
+  it('applies the shared lifecycle visibility rules', () => {
+    expect(projectLifecycleActionVisibility('running')).toEqual({
+      up: false,
+      down: true,
+      restart: true,
+      unregister: true,
+    });
+    expect(projectLifecycleActionVisibility('degraded')).toEqual({
+      up: false,
+      down: true,
+      restart: true,
+      unregister: true,
+    });
+    expect(projectLifecycleActionVisibility('stopped')).toEqual({
+      up: true,
+      down: false,
+      restart: true,
+      unregister: true,
+    });
+    expect(projectLifecycleActionVisibility('unknown')).toEqual({
+      up: true,
+      down: true,
+      restart: true,
+      unregister: true,
+    });
+    expect(projectLifecycleActionVisibility('transitioning', { hideLifecycleActions: true })).toEqual({
+      up: false,
+      down: false,
+      restart: false,
+      unregister: true,
+    });
   });
 });

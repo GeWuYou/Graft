@@ -18,9 +18,9 @@ func (s *Service) Up(ctx context.Context, projectID uint64, actorID *uint64) (Ac
 	return s.runLifecycleAction(ctx, projectID, actorID, generated.ProjectActionUp, []string{"compose", "up", "-d"})
 }
 
-// Down executes docker compose down for the registered project without removing volumes by default.
+// Down executes docker compose stop for the registered project so runtime members remain discoverable as stopped containers.
 func (s *Service) Down(ctx context.Context, projectID uint64, actorID *uint64) (ActionResult, error) {
-	return s.runLifecycleAction(ctx, projectID, actorID, generated.ProjectActionDown, []string{"compose", "down"})
+	return s.runLifecycleAction(ctx, projectID, actorID, generated.ProjectActionDown, []string{"compose", "stop"})
 }
 
 // Restart executes docker compose restart for the registered project.

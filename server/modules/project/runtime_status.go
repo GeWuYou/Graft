@@ -37,7 +37,7 @@ func deriveProjectRuntimeStatus(
 		return &status
 	}
 	if summary == nil || len(summary.Members) == 0 {
-		status := generated.ProjectRuntimeStatusStopped
+		status := generated.ProjectRuntimeStatusUnknown
 		return &status
 	}
 

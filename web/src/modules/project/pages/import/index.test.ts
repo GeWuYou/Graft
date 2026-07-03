@@ -7,10 +7,21 @@ import type { ProjectImportRuntimeCandidate } from '../../types/import';
 import ProjectImportIndex from './index.vue';
 
 const mocks = vi.hoisted(() => ({
+  appendResolvedTab: vi.fn(),
+  closeTabsByPredicate: vi.fn(),
   getProjectImportRuntimeCandidates: vi.fn(),
+  setActiveTabKey: vi.fn(),
+  appendTabRouterList: vi.fn(),
   replace: vi.fn(),
   push: vi.fn(),
-  resolve: vi.fn(() => ({ href: '/ops/projects/1' })),
+  resolve: vi.fn(() => ({
+    fullPath: '/ops/projects/1?tab=overview',
+    meta: {},
+    name: 'ProjectDetailIndex',
+    params: { id: '1' },
+    path: '/ops/projects/1',
+    query: { tab: 'overview' },
+  })),
   useProjectImportFlow: vi.fn(),
 }));
 
@@ -35,9 +46,18 @@ vi.mock('../../shared/page-context', () => ({
       replace: mocks.replace,
       resolve: mocks.resolve,
     },
-    tabsRouterStore: {},
+    tabsRouterStore: {
+      appendTabRouterList: mocks.appendTabRouterList,
+      closeTabsByPredicate: mocks.closeTabsByPredicate,
+      setActiveTabKey: mocks.setActiveTabKey,
+    },
     t: translate,
   }),
+}));
+
+vi.mock('../../shared/navigation', () => ({
+  appendResolvedTab: (...args: unknown[]) => mocks.appendResolvedTab(...args),
+  buildDetailTitleWithFallback: (key: string) => key,
 }));
 
 vi.mock('vue-router', async () => {
@@ -440,6 +460,25 @@ const WrapperStub = defineComponent({
   },
 });
 
+const TFormStub = defineComponent({
+  name: 'TFormStub',
+  emits: ['submit'],
+  setup(_props, { emit, slots }) {
+    return () =>
+      h(
+        'form',
+        {
+          'data-testid': 'project-import-submit',
+          onSubmit: (event: Event) => {
+            event.preventDefault();
+            emit('submit', { validateResult: true });
+          },
+        },
+        slots.default?.(),
+      );
+  },
+});
+
 const TCardStub = defineComponent({
   name: 'TCardStub',
   props: {
@@ -581,7 +620,7 @@ function mountPage() {
         't-descriptions': WrapperStub,
         't-descriptions-item': TDescriptionsItemStub,
         't-empty': TEmptyStub,
-        't-form': WrapperStub,
+        't-form': TFormStub,
         't-form-item': WrapperStub,
         't-input': TInputStub,
         't-loading': WrapperStub,
@@ -601,9 +640,15 @@ function mountPage() {
 describe('ProjectImportIndex', () => {
   beforeEach(() => {
     routeState.query = {};
+    routeState.params = {};
     mocks.getProjectImportRuntimeCandidates.mockReset();
+    mocks.appendResolvedTab.mockReset();
+    mocks.appendTabRouterList.mockReset();
+    mocks.closeTabsByPredicate.mockReset();
     mocks.push.mockReset();
     mocks.replace.mockReset();
+    mocks.resolve.mockClear();
+    mocks.setActiveTabKey.mockReset();
     mocks.useProjectImportFlow.mockReset();
     window.localStorage.clear();
 
@@ -1054,5 +1099,57 @@ describe('ProjectImportIndex', () => {
 
     expect(wrapper.text()).not.toContain('Inspect');
     expect(wrapper.text()).toContain('检查');
+  });
+
+  it('closes the import tab after a successful import opens project detail', async () => {
+    routeState.query = {
+      step: 'confirm',
+      candidate: 'runtime:demo',
+    };
+
+    const flowState = createFlowState();
+    flowState.canImport.value = true;
+    flowState.hasPreview.value = true;
+    flowState.displayName.value = 'Demo Project';
+    flowState.inspectResult.value = {
+      inspection_id: 'inspect-confirm',
+      candidate_key: 'runtime:demo',
+      resolved_working_directory: '/srv/demo',
+      canonical_project_name: 'demo',
+      canonical_project_name_source: 'computed',
+      display_name_suggested: 'Demo Project',
+      compose_files: [],
+      env_files: [],
+      services: ['web'],
+      networks: [],
+      volumes: [],
+      runtime_members: [],
+      warnings: [],
+      conflicts: [],
+      validation_status: 'ready',
+      config_hash: 'hash-confirm',
+    } as never;
+    flowState.submitImport.mockResolvedValue({
+      project: {
+        id: 1,
+        display_name: 'Demo Project',
+      },
+    });
+    mocks.useProjectImportFlow.mockImplementation(() => flowState);
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="project-import-submit"]').trigger('submit');
+    await flushPromises();
+
+    expect(flowState.submitImport).toHaveBeenCalledTimes(1);
+    expect(mocks.appendResolvedTab).toHaveBeenCalledTimes(1);
+    expect(mocks.push).toHaveBeenCalledWith({
+      name: 'ProjectDetailIndex',
+      params: { id: 1 },
+      query: { tab: 'overview' },
+    });
+    expect(mocks.closeTabsByPredicate).toHaveBeenCalledTimes(1);
   });
 });

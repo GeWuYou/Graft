@@ -630,6 +630,8 @@
               <section class="project-lifecycle-bar">
                 <div class="project-detail-action-bar">
                   <t-button
+                    v-if="lifecycleActionVisibility.up"
+                    data-testid="project-detail-action-up"
                     theme="primary"
                     variant="outline"
                     :loading="actionLoading === 'up'"
@@ -638,6 +640,8 @@
                     {{ t('project.detail.actions.up') }}
                   </t-button>
                   <t-button
+                    v-if="lifecycleActionVisibility.down"
+                    data-testid="project-detail-action-down"
                     theme="warning"
                     variant="outline"
                     :loading="actionLoading === 'down'"
@@ -646,6 +650,8 @@
                     {{ t('project.detail.actions.down') }}
                   </t-button>
                   <t-button
+                    v-if="lifecycleActionVisibility.restart"
+                    data-testid="project-detail-action-restart"
                     theme="warning"
                     variant="outline"
                     :loading="actionLoading === 'restart'"
@@ -654,6 +660,8 @@
                     {{ t('project.detail.actions.restart') }}
                   </t-button>
                   <t-button
+                    v-if="lifecycleActionVisibility.unregister"
+                    data-testid="project-detail-action-unregister"
                     theme="default"
                     variant="outline"
                     :loading="actionLoading === 'unregister'"
@@ -774,6 +782,7 @@ import {
   projectDriftStatusLabel,
   projectDriftStatusTheme,
   projectHostScopeLabel,
+  projectLifecycleActionVisibility,
   projectOwnershipModeLabel,
   projectRefreshStatusLabel,
   projectRefreshStatusTheme,
@@ -874,6 +883,7 @@ const configurationAuthorityNotice = computed(() => {
   }
   return t('project.detail.configuration.externalAuthorityHint');
 });
+const lifecycleActionVisibility = computed(() => projectLifecycleActionVisibility(detailRecord.value?.runtime_status));
 const envDraftContent = computed({
   get: () => configurationDraft.env_file_content || '',
   set: (value: string) => {

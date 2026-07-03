@@ -1031,14 +1031,16 @@ async function handleSubmit(context?: SubmitContext) {
   try {
     const response = await submitImport();
     MessagePlugin.success(t('project.import.messages.importSuccess'));
-    openDetail(response);
+    await openDetail(response);
   } catch {
     MessagePlugin.error(importError.value || t('project.import.messages.importFailed'));
   }
 }
 
-function openDetail(response: ProjectImportExecuteResponse) {
+async function openDetail(response: ProjectImportExecuteResponse) {
   const project = response.project;
+  const currentTabPath = route.path;
+  const currentTabFullPath = route.fullPath;
   const target = {
     name: PROJECT_BOOTSTRAP_ROUTE.DETAIL.pageRouteName,
     params: { id: project.id },
@@ -1050,7 +1052,8 @@ function openDetail(response: ProjectImportExecuteResponse) {
     resolved,
     buildDetailTitleWithFallback('project.route.detail.title', project.display_name),
   );
-  void router.push(target);
+  await router.push(target);
+  tabsRouterStore.closeTabsByPredicate((tab) => tab.path === currentTabPath || tab.fullPath === currentTabFullPath);
 }
 
 function resetCandidateFilters() {

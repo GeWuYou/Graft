@@ -80,14 +80,20 @@
         "runtime": "状态",
         "resources": "资源",
         "drift": "同步状态",
-        "refresh": "刷新",
+        "refresh": "最近项目刷新",
         "workingDirectory": "工作目录",
-        "updatedAt": "最近刷新",
+        "updatedAt": "最近项目刷新",
         "operation": "操作"
       },
       "resources": {
         "service": "服务",
-        "container": "容器"
+        "container": "容器",
+        "running": "运行中",
+        "stopped": "已停止",
+        "transitioning": "过渡中",
+        "unknown": "未知",
+        "issue": "异常",
+        "statusValue": "{status} {count}"
       },
       "status": {
         "runtimeUnknown": "⚪ 未知",
@@ -626,7 +632,7 @@
         "runtimeMembers": "运行时成员",
         "runningMembers": "运行中成员",
         "hostScope": "宿主范围",
-        "lastRefreshAt": "最近刷新",
+        "lastRefreshAt": "最近项目刷新",
         "hostScopeValues": {
           "local": "本机",
           "remote-host": "远端宿主"
@@ -719,7 +725,7 @@
         "serviceCount": "声明服务数",
         "runtimeStatus": "状态",
         "lastRefreshStatus": "最近刷新状态",
-        "lastRefreshAt": "最近刷新时间",
+        "lastRefreshAt": "最近项目刷新时间",
         "lastRefreshHash": "最近刷新哈希",
         "lastObservedHash": "最近观测哈希",
         "driftStatus": "漂移状态",
@@ -757,7 +763,7 @@
         "runtimeStatus": "项目状态",
         "refreshStatus": "刷新状态",
         "driftStatus": "漂移状态",
-        "lastRefreshAt": "最近刷新",
+        "lastRefreshAt": "最近项目刷新",
         "runningMembers": "运行中成员",
         "totalMembers": "总成员数",
         "serviceCount": "服务数",

@@ -80,14 +80,20 @@
         "runtime": "Status",
         "resources": "Resources",
         "drift": "Sync Status",
-        "refresh": "Refresh",
+        "refresh": "Last Project Refresh",
         "workingDirectory": "Working Directory",
-        "updatedAt": "Last Refresh",
+        "updatedAt": "Last Project Refresh",
         "operation": "Operation"
       },
       "resources": {
         "service": "Services",
-        "container": "Containers"
+        "container": "Containers",
+        "running": "Running",
+        "stopped": "Stopped",
+        "transitioning": "Transitioning",
+        "unknown": "Unknown",
+        "issue": "Issue",
+        "statusValue": "{status} {count}"
       },
       "status": {
         "runtimeUnknown": "⚪ Unknown",
@@ -128,7 +134,7 @@
         "create": "Choose Project Source",
         "refresh": "Refresh",
         "up": "Up",
-        "down": "Down",
+        "down": "Stop",
         "restart": "Restart",
         "unregister": "Unregister",
         "destroy": "Destroy",
@@ -626,7 +632,7 @@
         "runtimeMembers": "Runtime Members",
         "runningMembers": "Running Members",
         "hostScope": "Host Scope",
-        "lastRefreshAt": "Last Refresh",
+        "lastRefreshAt": "Last Project Refresh",
         "hostScopeValues": {
           "local": "Local Host",
           "remote-host": "Remote Host"
@@ -719,7 +725,7 @@
         "serviceCount": "Declared Services",
         "runtimeStatus": "Status",
         "lastRefreshStatus": "Last Refresh",
-        "lastRefreshAt": "Last Refresh Time",
+        "lastRefreshAt": "Last Project Refresh Time",
         "lastRefreshHash": "Last Refresh Hash",
         "lastObservedHash": "Observed Hash",
         "driftStatus": "Drift Status",
@@ -757,7 +763,7 @@
         "runtimeStatus": "Project Status",
         "refreshStatus": "Refresh Status",
         "driftStatus": "Drift Status",
-        "lastRefreshAt": "Last Refresh",
+        "lastRefreshAt": "Last Project Refresh",
         "runningMembers": "Running Members",
         "totalMembers": "Total Members",
         "serviceCount": "Service Count",

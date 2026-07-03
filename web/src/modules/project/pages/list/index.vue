@@ -163,9 +163,18 @@
                 :class="[
                   'project-runtime-badge',
                   `project-runtime-badge--${normalizeRuntimeStatus(projectRow(row).runtime_status)}`,
+                  { 'project-runtime-badge--loading': isRowActionPending(projectRow(row).id) },
                 ]"
+                :data-testid="`project-runtime-status-${projectRow(row).id}`"
               >
-                {{ runtimeStatusLabel(projectRow(row).runtime_status) }}
+                <span
+                  v-if="isRowActionPending(projectRow(row).id)"
+                  class="project-runtime-badge__spinner"
+                  :data-testid="`project-runtime-status-loading-${projectRow(row).id}`"
+                />
+                <template v-else>
+                  {{ runtimeStatusLabel(projectRow(row).runtime_status) }}
+                </template>
               </span>
             </template>
 
@@ -178,17 +187,16 @@
                 <div class="project-resources__item">
                   <span class="project-resources__label">{{ t('project.list.resources.container') }}</span>
                   <div class="project-resource-badges">
-                    <span class="project-resource-badge project-resource-badge--running">
-                      <span class="project-resource-badge__dot" />
-                      {{ projectRow(row).container_counts.running }}
-                    </span>
-                    <span class="project-resource-badge project-resource-badge--stopped">
-                      <span class="project-resource-badge__dot" />
-                      {{ projectContainerWarningCount(projectRow(row)) }}
-                    </span>
-                    <span class="project-resource-badge project-resource-badge--issue">
-                      <span class="project-resource-badge__dot" />
-                      {{ projectRow(row).container_counts.issue }}
+                    <span
+                      v-for="badge in projectContainerBadges(projectRow(row))"
+                      :key="badge.key"
+                      :class="['project-resource-badge', `project-resource-badge--${badge.key}`]"
+                      :aria-label="badge.label"
+                      :data-testid="`project-resource-badge-${badge.key}-${projectRow(row).id}`"
+                      :title="badge.label"
+                    >
+                      <span class="project-resource-badge__icon" aria-hidden="true">{{ badge.icon }}</span>
+                      {{ badge.count }}
                     </span>
                   </div>
                 </div>
@@ -217,7 +225,7 @@
 
             <template #operation="{ row }">
               <table-action-menu
-                :actions="buildRowActions()"
+                :actions="buildRowActions(projectRow(row))"
                 :more-label="t('project.list.actions.operationMenu')"
                 :more-label-fallback="t('project.list.actions.operationMenu')"
                 @action="(action) => handleRowAction(action, projectRow(row))"
@@ -287,7 +295,7 @@ import { RefreshIcon } from 'tdesign-icons-vue-next';
 import type { DialogInstance, TableProps } from 'tdesign-vue-next';
 import { DialogPlugin } from 'tdesign-vue-next/es/dialog';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
-import { computed, h, onMounted, ref } from 'vue';
+import { computed, h, onActivated, onDeactivated, onMounted, onUnmounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
@@ -321,6 +329,7 @@ import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import {
   formatProjectTime,
   projectDriftStatusLabel,
+  projectLifecycleActionVisibility,
   projectRefreshStatusLabel,
   projectRefreshStatusTheme,
   projectRuntimeStatusLabel,
@@ -348,6 +357,21 @@ const logger = createLogger('project.list');
 
 type HeaderStatusSummaryKey = 'running' | 'degraded' | 'stopped' | 'transitioning' | 'unknown';
 type ProjectListDriftTone = 'clean' | 'drifted' | 'unknown';
+type PendingProjectAction = 'up' | 'down' | 'restart';
+type ProjectResourceBadgeKey = 'running' | 'stopped' | 'transitioning' | 'issue' | 'unknown';
+type PendingProjectActionState = {
+  action: PendingProjectAction;
+  lastRefreshAt: string | null;
+  runtimeStatus: ProjectRuntimeStatus | null;
+};
+type ProjectResourceBadge = {
+  key: ProjectResourceBadgeKey;
+  count: number;
+  label: string;
+  icon: string;
+};
+
+const PROJECT_LIST_POLL_INTERVAL_MS = 5000;
 
 const tableLoading = ref(false);
 const refreshing = ref(false);
@@ -375,7 +399,7 @@ const configurableColumns = computed<TableProps['columns']>(() => [
   { colKey: 'name', title: t('project.list.columns.name'), width: 300 },
   { colKey: 'source', title: t('project.list.columns.source'), width: 112, align: 'center' },
   { colKey: 'runtime', title: t('project.list.columns.runtime'), width: 148, align: 'center' },
-  { colKey: 'resources', title: t('project.list.columns.resources'), width: 220, align: 'center' },
+  { colKey: 'resources', title: t('project.list.columns.resources'), width: 236, align: 'center' },
   { colKey: 'drift', title: t('project.list.columns.drift'), width: 124, align: 'center' },
   { colKey: 'refresh', title: t('project.list.columns.refresh'), width: 168, align: 'center' },
   { colKey: 'operation', title: t('project.list.columns.operation'), width: 152, fixed: 'right', align: 'center' },
@@ -387,6 +411,8 @@ const visibleColumns = computed(() =>
 const tableWidthPolicy = computed(() => resolveTableWidthPolicy(visibleColumns.value ?? [], tableHostWidth.value));
 const confirmDialogOpen = ref(false);
 const refreshLoading = computed(() => tableLoading.value || refreshing.value);
+const realtimeActive = ref(false);
+const pendingRowActions = ref<Record<number, PendingProjectActionState>>({});
 
 const totalCount = computed(() => rows.value.length);
 const projectStatusCounts = computed<Record<HeaderStatusSummaryKey, number>>(() => {
@@ -437,7 +463,24 @@ const paginationSummary = computed(() => {
 });
 
 onMounted(() => {
+  realtimeActive.value = true;
+  startPolling();
   void fetchProjects();
+});
+
+onUnmounted(() => {
+  realtimeActive.value = false;
+  stopPolling();
+});
+
+onActivated(() => {
+  realtimeActive.value = true;
+  startPolling();
+});
+
+onDeactivated(() => {
+  realtimeActive.value = false;
+  stopPolling();
 });
 
 function projectRow(row: unknown) {
@@ -484,8 +527,64 @@ function normalizeDriftStatus(value: ProjectDriftStatus): ProjectListDriftTone {
   return 'drifted';
 }
 
-function projectContainerWarningCount(row: ProjectListItem) {
-  return row.container_counts.stopped + row.container_counts.transitioning;
+function projectResourceBadgeLabel(key: ProjectResourceBadgeKey, count: number) {
+  return t('project.list.resources.statusValue', {
+    count,
+    status: t(`project.list.resources.${key}`),
+  });
+}
+
+function projectResourceBadgeIcon(key: ProjectResourceBadgeKey) {
+  if (key === 'running') return '🟢';
+  if (key === 'stopped') return '⚫';
+  if (key === 'transitioning') return '🔵';
+  if (key === 'issue') return '🔴';
+  return '⚪';
+}
+
+function projectContainerBadges(row: ProjectListItem): ProjectResourceBadge[] {
+  const badges: ProjectResourceBadge[] = [
+    {
+      key: 'running',
+      count: row.container_counts.running,
+      label: projectResourceBadgeLabel('running', row.container_counts.running),
+      icon: projectResourceBadgeIcon('running'),
+    },
+    {
+      key: 'stopped',
+      count: row.container_counts.stopped,
+      label: projectResourceBadgeLabel('stopped', row.container_counts.stopped),
+      icon: projectResourceBadgeIcon('stopped'),
+    },
+    {
+      key: 'transitioning',
+      count: row.container_counts.transitioning,
+      label: projectResourceBadgeLabel('transitioning', row.container_counts.transitioning),
+      icon: projectResourceBadgeIcon('transitioning'),
+    },
+    {
+      key: 'issue',
+      count: row.container_counts.issue,
+      label: projectResourceBadgeLabel('issue', row.container_counts.issue),
+      icon: projectResourceBadgeIcon('issue'),
+    },
+  ];
+
+  const visible = badges.filter((badge) => badge.count > 0);
+  if (visible.length > 0) {
+    return visible;
+  }
+  if ((row.runtime_status ?? null) === 'unknown' && row.container_counts.total === 0) {
+    return [
+      {
+        key: 'unknown',
+        count: 0,
+        label: projectResourceBadgeLabel('unknown', 0),
+        icon: projectResourceBadgeIcon('unknown'),
+      },
+    ];
+  }
+  return visible;
 }
 
 function formatTime(value?: string | null) {
@@ -504,6 +603,28 @@ function projectSecondaryName(row: ProjectListItem) {
 }
 
 let refreshRequestSeq = 0;
+let pollTimer: number | undefined;
+
+function startPolling() {
+  stopPolling();
+  if (!realtimeActive.value || typeof window === 'undefined') {
+    return;
+  }
+  pollTimer = window.setInterval(() => {
+    if (tableLoading.value || refreshing.value) {
+      return;
+    }
+    void fetchProjects();
+  }, PROJECT_LIST_POLL_INTERVAL_MS);
+}
+
+function stopPolling() {
+  if (pollTimer === undefined || typeof window === 'undefined') {
+    return;
+  }
+  window.clearInterval(pollTimer);
+  pollTimer = undefined;
+}
 
 async function fetchProjects() {
   const requestSeq = ++refreshRequestSeq;
@@ -527,13 +648,15 @@ async function fetchProjects() {
     }
     syncPaginationFromResponse(response);
     const keyword = filters.value.keyword.trim().toLowerCase();
-    rows.value = keyword
+    const nextRows = keyword
       ? response.items.filter((item) =>
           [item.display_name, item.canonical_project_name, item.working_directory]
             .filter(Boolean)
             .some((candidate) => String(candidate).toLowerCase().includes(keyword)),
         )
       : response.items;
+    rows.value = nextRows;
+    reconcilePendingRowActions(nextRows);
   } catch (error) {
     if (requestSeq !== refreshRequestSeq) {
       return;
@@ -567,6 +690,52 @@ function syncPaginationFromResponse(response: { total?: number; limit?: number; 
   if (typeof response.offset === 'number' && response.offset >= 0) {
     pagination.value.current = Math.floor(response.offset / pagination.value.pageSize) + 1;
   }
+}
+
+function reconcilePendingRowActions(nextRows: ProjectListItem[]) {
+  const nextPending = { ...pendingRowActions.value };
+  const rowMap = new Map(nextRows.map((row) => [row.id, row]));
+
+  for (const [rawId, pending] of Object.entries(nextPending)) {
+    const id = Number(rawId);
+    const row = rowMap.get(id);
+    if (!row) {
+      delete nextPending[id];
+      continue;
+    }
+
+    const runtimeChanged = (row.runtime_status ?? null) !== pending.runtimeStatus;
+    const refreshChanged = (row.last_refresh_at ?? null) !== pending.lastRefreshAt;
+    if (runtimeChanged || refreshChanged) {
+      delete nextPending[id];
+    }
+  }
+
+  pendingRowActions.value = nextPending;
+}
+
+function markPendingRowAction(row: ProjectListItem, action: PendingProjectAction) {
+  pendingRowActions.value = {
+    ...pendingRowActions.value,
+    [row.id]: {
+      action,
+      lastRefreshAt: row.last_refresh_at ?? null,
+      runtimeStatus: row.runtime_status ?? null,
+    },
+  };
+}
+
+function clearPendingRowAction(rowId: number) {
+  if (!pendingRowActions.value[rowId]) {
+    return;
+  }
+  const nextPending = { ...pendingRowActions.value };
+  delete nextPending[rowId];
+  pendingRowActions.value = nextPending;
+}
+
+function isRowActionPending(rowId: number) {
+  return Boolean(pendingRowActions.value[rowId]);
 }
 
 function resetFilters() {
@@ -631,23 +800,32 @@ async function runAction(
   handler: (id: number) => Promise<ProjectDetailResponse | unknown>,
   row: ProjectListItem,
   successMessage: string,
+  pendingAction?: PendingProjectAction,
 ) {
+  if (pendingAction) {
+    markPendingRowAction(row, pendingAction);
+  }
   try {
     await handler(row.id);
     MessagePlugin.success(successMessage);
     await fetchProjects();
   } catch (error) {
+    clearPendingRowAction(row.id);
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.list.actions.actionFailed')));
   }
 }
 
-function buildRowActions() {
+function buildRowActions(row: ProjectListItem) {
+  const visibility = projectLifecycleActionVisibility(row.runtime_status, {
+    hideLifecycleActions: isRowActionPending(row.id),
+  });
+
   return [
     { value: 'detail', label: t('project.list.actions.detail') },
     { value: 'refresh', label: t('project.list.actions.refresh') },
-    { value: 'up', label: t('project.list.actions.up') },
-    { value: 'down', label: t('project.list.actions.down') },
-    { value: 'restart', label: t('project.list.actions.restart') },
+    ...(visibility.up ? [{ value: 'up', label: t('project.list.actions.up') }] : []),
+    ...(visibility.down ? [{ value: 'down', label: t('project.list.actions.down') }] : []),
+    ...(visibility.restart ? [{ value: 'restart', label: t('project.list.actions.restart') }] : []),
     { value: 'unregister', label: t('project.list.actions.unregister') },
   ];
 }
@@ -715,21 +893,21 @@ async function handleRowAction(action: string, row: ProjectListItem) {
     if (!(await confirmDangerousAction(row, 'up'))) {
       return;
     }
-    await runAction(postProjectUp, row, t('project.list.actions.actionSuccess'));
+    await runAction(postProjectUp, row, t('project.list.actions.actionSuccess'), 'up');
     return;
   }
   if (action === 'down') {
     if (!(await confirmDangerousAction(row, 'down'))) {
       return;
     }
-    await runAction(postProjectDown, row, t('project.list.actions.actionSuccess'));
+    await runAction(postProjectDown, row, t('project.list.actions.actionSuccess'), 'down');
     return;
   }
   if (action === 'restart') {
     if (!(await confirmDangerousAction(row, 'restart'))) {
       return;
     }
-    await runAction(postProjectRestart, row, t('project.list.actions.actionSuccess'));
+    await runAction(postProjectRestart, row, t('project.list.actions.actionSuccess'), 'restart');
     return;
   }
   if (action === 'unregister') {
@@ -792,6 +970,22 @@ async function handleRowAction(action: string, row: ProjectListItem) {
   font: var(--td-font-body-small);
   gap: var(--graft-density-gap-4);
   line-height: 1;
+}
+
+.project-runtime-badge--loading {
+  color: var(--td-brand-color-6);
+}
+
+.project-runtime-badge__spinner {
+  animation: project-runtime-spin 0.9s linear infinite;
+  border: 2px solid color-mix(in srgb, currentcolor 18%, transparent);
+  border-radius: 999px;
+  border-right-color: currentcolor;
+  box-sizing: border-box;
+  display: inline-flex;
+  flex: 0 0 auto;
+  height: 12px;
+  width: 12px;
 }
 
 .project-header-summary__total {
@@ -897,6 +1091,16 @@ async function handleRowAction(action: string, row: ProjectListItem) {
   gap: var(--graft-density-gap-8);
 }
 
+@keyframes project-runtime-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .project-resources {
   align-items: center;
   flex-direction: column;
@@ -935,12 +1139,10 @@ async function handleRowAction(action: string, row: ProjectListItem) {
   place-items: center;
 }
 
-.project-resource-badge__dot {
-  background: currentcolor;
-  border-radius: 999px;
+.project-resource-badge__icon {
   display: inline-flex;
-  height: 8px;
-  width: 8px;
+  font-size: inherit;
+  line-height: 1;
 }
 
 .project-resource-badge--running {
@@ -948,11 +1150,19 @@ async function handleRowAction(action: string, row: ProjectListItem) {
 }
 
 .project-resource-badge--stopped {
-  color: var(--td-warning-color-6);
+  color: var(--td-text-color-secondary);
+}
+
+.project-resource-badge--transitioning {
+  color: var(--td-brand-color-6);
 }
 
 .project-resource-badge--issue {
   color: var(--td-error-color-6);
+}
+
+.project-resource-badge--unknown {
+  color: var(--td-text-color-placeholder);
 }
 
 .project-refresh {
