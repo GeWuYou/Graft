@@ -78,21 +78,24 @@
       "columns": {
         "name": "Project",
         "source": "Source",
-        "runtime": "Runtime Summary",
-        "services": "Services",
-        "containers": "Container Counts",
+        "runtime": "Status",
+        "resources": "Resources",
         "drift": "Drift",
         "refresh": "Refresh",
         "workingDirectory": "Working Directory",
         "updatedAt": "Last Refresh",
         "operation": "Operation"
       },
+      "resources": {
+        "service": "Services",
+        "container": "Containers"
+      },
       "status": {
-        "runtimeUnknown": "Runtime Unknown",
-        "runtimeRunning": "Runtime Running",
-        "runtimePartial": "Runtime Partial",
-        "runtimeStopped": "Runtime Stopped",
-        "runtimeEmpty": "No Members"
+        "runtimeUnknown": "Unknown",
+        "runtimeRunning": "Running",
+        "runtimeDegraded": "Degraded",
+        "runtimeStopped": "Stopped",
+        "runtimeTransitioning": "Transitioning"
       },
       "sourceKinds": {
         "imported": "Imported",
@@ -708,7 +711,7 @@
         "hostScope": "Host Scope",
         "activityAuthority": "Activity Authority",
         "serviceCount": "Declared Services",
-        "runtimeStatus": "Runtime Summary",
+        "runtimeStatus": "Status",
         "lastRefreshStatus": "Last Refresh",
         "lastRefreshAt": "Last Refresh Time",
         "lastRefreshHash": "Last Refresh Hash",
@@ -745,7 +748,7 @@
         "statusTitle": "Runtime Status",
         "membersTitle": "Runtime Members",
         "authorityTitle": "Runtime Boundary",
-        "runtimeStatus": "Runtime Status",
+        "runtimeStatus": "Project Status",
         "refreshStatus": "Refresh Status",
         "driftStatus": "Drift Status",
         "lastRefreshAt": "Last Refresh",

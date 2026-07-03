@@ -328,7 +328,7 @@ function buildCandidate(overrides: Partial<ProjectImportRuntimeCandidate>): Proj
     candidate_key: 'runtime:demo',
     canonical_project_name: 'demo',
     config_files: ['/srv/demo/compose.yaml'],
-    container_counts: { running: 1, stopped: 0, total: 1 },
+    container_counts: { running: 1, stopped: 0, transitioning: 0, issue: 0, total: 1 },
     importable: true,
     runtime_type: 'docker',
     runtime_version: '29.2.1',

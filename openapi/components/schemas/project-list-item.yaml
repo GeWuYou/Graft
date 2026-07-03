@@ -40,8 +40,8 @@ properties:
     $ref: ./project-runtime-status.yaml
     nullable: true
     description: >
-      Bounded runtime summary status for overview consumption only. It must not become a replacement
-      for container runtime detail authority.
+      Aggregated project status for overview consumption only. It must not become a replacement for
+      container runtime detail authority.
   service_count:
     type: integer
     minimum: 0

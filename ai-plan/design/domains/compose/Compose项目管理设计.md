@@ -766,6 +766,23 @@ Phase 1 的 canonical OpenAPI authority 已收口到 `openapi/**`，本节继续
 - `last_refresh_status`
 - `drift_status`
 
+其中：
+
+- `runtime_status` 是项目级聚合状态，不是 Docker 原始状态。
+- Phase 1 当前聚合值固定为：
+  - `running`
+  - `degraded`
+  - `stopped`
+  - `transitioning`
+  - `unknown`
+- `container_counts` 至少返回：
+  - `running`
+  - `stopped`
+  - `transitioning`
+  - `issue`
+  - `total`
+- 列表页允许把 `service_count + container_counts` 合并成单列资源摘要，但不得删除 API 里的 canonical fields。
+
 ## 10.2 导入与校验
 
 | Method | Path | 语义 |
@@ -1084,7 +1101,7 @@ Projects
 - Drift 状态
 - Actions
 - Services Count
-- Running / Stopped Count
+- Running / Stopped / Transitioning / Issue Count 的聚合摘要
 
 不应承载：
 

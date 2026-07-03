@@ -29,18 +29,14 @@ func sameWorkingDirectory(left string, right string) bool {
 func toProjectListItemWithManagedRoot(
 	aggregate projectstore.ProjectAggregate,
 	managedRootDirectory string,
-	runtimeSummary ...moduleapi.ContainerProjectRuntimeSummary,
+	runtimeSummary *moduleapi.ContainerProjectRuntimeSummary,
+	runtimeErr error,
 ) generated.ProjectListItem {
 	serviceCount := 0
 	if aggregate.Snapshot != nil {
 		serviceCount = aggregate.Snapshot.DeclaredServiceCount
 	}
-	counts := generated.ProjectContainerCounts{}
-	if len(runtimeSummary) > 0 {
-		counts.Running = runtimeSummary[0].RunningCount
-		counts.Stopped = runtimeSummary[0].StoppedCount
-		counts.Total = runtimeSummary[0].RunningCount + runtimeSummary[0].StoppedCount
-	}
+	counts := buildProjectContainerCounts(runtimeSummary)
 	return generated.ProjectListItem{
 		Id:                         mustGeneratedID(aggregate.Project.ID),
 		DisplayName:                aggregate.Project.DisplayName,
@@ -52,6 +48,7 @@ func toProjectListItemWithManagedRoot(
 		HostScope:                  generated.ProjectHostScope(aggregate.Project.HostScope),
 		OwnershipMode:              generated.ProjectOwnershipMode(aggregate.Project.OwnershipMode),
 		WorkingDirectory:           aggregate.Project.WorkingDirectory,
+		RuntimeStatus:              deriveProjectRuntimeStatus(runtimeSummary, runtimeErr),
 		ServiceCount:               serviceCount,
 		ContainerCounts:            counts,
 		LastRefreshStatus:          generated.ProjectRefreshStatus(aggregate.Project.LastRefreshStatus),
@@ -66,22 +63,19 @@ func toProjectListItemWithManagedRoot(
 // 当聚合包含快照时，会写入服务数；刷新错误信息和配置哈希仅在存在时写入响应。
 func toProjectDetailResponse(
 	aggregate projectstore.ProjectAggregate,
-	runtimeSummary ...moduleapi.ContainerProjectRuntimeSummary,
+	runtimeSummary *moduleapi.ContainerProjectRuntimeSummary,
+	runtimeErr error,
 ) generated.ProjectDetailResponse {
-	return toProjectDetailResponseWithManagedRoot(aggregate, "", runtimeSummary...)
+	return toProjectDetailResponseWithManagedRoot(aggregate, "", runtimeSummary, runtimeErr)
 }
 
 func toProjectDetailResponseWithManagedRoot(
 	aggregate projectstore.ProjectAggregate,
 	managedRootDirectory string,
-	runtimeSummary ...moduleapi.ContainerProjectRuntimeSummary,
+	runtimeSummary *moduleapi.ContainerProjectRuntimeSummary,
+	runtimeErr error,
 ) generated.ProjectDetailResponse {
-	counts := generated.ProjectContainerCounts{}
-	if len(runtimeSummary) > 0 {
-		counts.Running = runtimeSummary[0].RunningCount
-		counts.Stopped = runtimeSummary[0].StoppedCount
-		counts.Total = runtimeSummary[0].RunningCount + runtimeSummary[0].StoppedCount
-	}
+	counts := buildProjectContainerCounts(runtimeSummary)
 	item := generated.ProjectDetailResponse{
 		CanonicalProjectName:       aggregate.Project.CanonicalProjectName,
 		CanonicalProjectNameSource: generated.ProjectCanonicalNameSource(aggregate.Project.CanonicalProjectNameSource),
@@ -96,6 +90,7 @@ func toProjectDetailResponseWithManagedRoot(
 		LastRefreshAt:              aggregate.Project.LastRefreshAt,
 		LastRefreshStatus:          generated.ProjectRefreshStatus(aggregate.Project.LastRefreshStatus),
 		OwnershipMode:              generated.ProjectOwnershipMode(aggregate.Project.OwnershipMode),
+		RuntimeStatus:              deriveProjectRuntimeStatus(runtimeSummary, runtimeErr),
 		SourceKind:                 generated.ProjectSourceKind(aggregate.Project.SourceKind),
 		SourceMetadata:             buildDetailSourceMetadataWithManagedRoot(aggregate, managedRootDirectory),
 		ActivityAuthority:          generated.ProjectActivityAuthority(resolveActivityAuthority(aggregate)),

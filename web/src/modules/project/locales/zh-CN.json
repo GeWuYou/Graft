@@ -78,21 +78,24 @@
       "columns": {
         "name": "项目",
         "source": "来源",
-        "runtime": "运行时摘要",
-        "services": "服务数",
-        "containers": "容器数量",
+        "runtime": "状态",
+        "resources": "资源",
         "drift": "漂移",
         "refresh": "刷新",
         "workingDirectory": "工作目录",
         "updatedAt": "最近刷新",
         "operation": "操作"
       },
+      "resources": {
+        "service": "服务",
+        "container": "容器"
+      },
       "status": {
-        "runtimeUnknown": "运行态未知",
+        "runtimeUnknown": "未知",
         "runtimeRunning": "运行中",
-        "runtimePartial": "部分运行",
+        "runtimeDegraded": "降级",
         "runtimeStopped": "已停止",
-        "runtimeEmpty": "无成员"
+        "runtimeTransitioning": "过渡中"
       },
       "sourceKinds": {
         "imported": "导入项目",
@@ -708,7 +711,7 @@
         "hostScope": "宿主范围",
         "activityAuthority": "活动 Authority",
         "serviceCount": "声明服务数",
-        "runtimeStatus": "运行时摘要",
+        "runtimeStatus": "状态",
         "lastRefreshStatus": "最近刷新状态",
         "lastRefreshAt": "最近刷新时间",
         "lastRefreshHash": "最近刷新哈希",
@@ -745,7 +748,7 @@
         "statusTitle": "运行状态",
         "membersTitle": "运行成员",
         "authorityTitle": "运行边界",
-        "runtimeStatus": "运行状态",
+        "runtimeStatus": "项目状态",
         "refreshStatus": "刷新状态",
         "driftStatus": "漂移状态",
         "lastRefreshAt": "最近刷新",

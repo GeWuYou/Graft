@@ -33,9 +33,11 @@ func toRuntimeImportCandidatesResponse(result RuntimeImportCandidatesResult) gen
 			ConfigFiles:            append([]string(nil), item.ConfigFiles...),
 			ServiceNames:           append([]string(nil), item.ServiceNames...),
 			ContainerCounts: generated.ProjectContainerCounts{
-				Running: item.ContainerCounts.Running,
-				Stopped: item.ContainerCounts.Stopped,
-				Total:   item.ContainerCounts.Total,
+				Running:       item.ContainerCounts.Running,
+				Stopped:       item.ContainerCounts.Stopped,
+				Transitioning: 0,
+				Issue:         0,
+				Total:         item.ContainerCounts.Total,
 			},
 			Warnings: append([]string(nil), item.Warnings...),
 		})

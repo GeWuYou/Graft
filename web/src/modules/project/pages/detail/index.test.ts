@@ -133,7 +133,7 @@ describe('Project detail page', () => {
       canonical_project_name: 'compose-demo',
       canonical_project_name_source: 'explicit',
       compose_files: [],
-      container_counts: { running: 1, total: 1 },
+      container_counts: { running: 1, stopped: 0, transitioning: 0, issue: 0, total: 1 },
       display_name: 'Compose Demo',
       drift_status: 'in-sync',
       env_files: [],

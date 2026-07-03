@@ -5288,13 +5288,15 @@ export interface components {
     /** @enum {string} */
     'project-ownership-mode': 'external' | 'managed-root-dedicated';
     /**
-     * @description Stable bounded runtime summary status for project overview consumers. Unknown or not-yet-derived runtime state should be expressed as null instead of a free-form string.
+     * @description Stable aggregated project status for overview consumers. The value is derived from container-member runtime state and must not be treated as container-detail authority.
      * @enum {string}
      */
-    'project-runtime-status': 'running' | 'partial' | 'stopped' | 'empty';
+    'project-runtime-status': 'running' | 'degraded' | 'stopped' | 'transitioning' | 'unknown';
     'project-container-counts': {
       running: number;
       stopped: number;
+      transitioning: number;
+      issue: number;
       total: number;
     };
     'project-list-item': {
@@ -5309,7 +5311,7 @@ export interface components {
       host_scope: components['schemas']['project-host-scope'];
       ownership_mode: components['schemas']['project-ownership-mode'];
       working_directory: string;
-      /** @description Bounded runtime summary status for overview consumption only. It must not become a replacement for container runtime detail authority. */
+      /** @description Aggregated project status for overview consumption only. It must not become a replacement for container runtime detail authority. */
       runtime_status?: components['schemas']['project-runtime-status'];
       service_count: number;
       container_counts: components['schemas']['project-container-counts'];

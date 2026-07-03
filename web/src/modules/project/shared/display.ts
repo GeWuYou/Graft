@@ -105,9 +105,9 @@ export function projectRefreshStatusTheme(value?: ProjectRefreshStatus) {
  */
 export function projectRuntimeStatusTheme(value?: ProjectRuntimeStatus | null) {
   if (value === 'running') return 'success';
-  if (value === 'partial') return 'warning';
+  if (value === 'degraded') return 'warning';
   if (value === 'stopped') return 'default';
-  if (value === 'empty') return 'default';
+  if (value === 'transitioning') return 'primary';
   return 'default';
 }
 
@@ -119,8 +119,8 @@ export function projectRuntimeStatusTheme(value?: ProjectRuntimeStatus | null) {
  */
 export function projectRuntimeStatusLabel(t: Translate, value?: ProjectRuntimeStatus | null) {
   if (value === 'running') return t('project.list.status.runtimeRunning');
-  if (value === 'partial') return t('project.list.status.runtimePartial');
+  if (value === 'degraded') return t('project.list.status.runtimeDegraded');
   if (value === 'stopped') return t('project.list.status.runtimeStopped');
-  if (value === 'empty') return t('project.list.status.runtimeEmpty');
+  if (value === 'transitioning') return t('project.list.status.runtimeTransitioning');
   return t('project.list.status.runtimeUnknown');
 }

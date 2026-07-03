@@ -157,6 +157,9 @@ Compose Project Management
   - runtime candidate 必须同时返回 `ready` 与 `unavailable`，不能让不可导入项静默消失
   - `config_files` 是 stronger authority；`working_directory` 只作为 hint，可由 `config_files[0]` 派生
   - 现有 `directory browse / inspect` 接口与服务端逻辑保留，但退出当前主入口 IA，只作为 future 文件/终端能力复用底座
+  - project list/detail 的 `runtime_status` 必须是后端返回的聚合状态，不能由前端用 `null -> 运行态未知` 兜底掩盖 authority 缺失
+  - 当前聚合状态固定为 `running | degraded | stopped | transitioning | unknown`
+  - project list 默认把 `service_count + container_counts` 收口为单列资源摘要；API 继续保留 canonical fields
 
 ## Loop Batch State
 

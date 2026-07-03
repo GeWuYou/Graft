@@ -165,15 +165,29 @@
               </t-tag>
             </template>
 
-            <template #services="{ row }">
-              <span>{{ projectRow(row).service_count }}</span>
-            </template>
-
-            <template #containers="{ row }">
-              <div class="project-container-counts">
-                <t-tag theme="success" variant="light">{{ projectRow(row).container_counts.running }}</t-tag>
-                <t-tag theme="warning" variant="light">{{ projectRow(row).container_counts.stopped }}</t-tag>
-                <t-tag theme="default" variant="light">{{ projectRow(row).container_counts.total }}</t-tag>
+            <template #resources="{ row }">
+              <div class="project-resources">
+                <div class="project-resources__item">
+                  <span class="project-resources__label">{{ t('project.list.resources.service') }}</span>
+                  <strong>{{ projectRow(row).service_count }}</strong>
+                </div>
+                <div class="project-resources__item">
+                  <span class="project-resources__label">{{ t('project.list.resources.container') }}</span>
+                  <div class="project-resource-badges">
+                    <span class="project-resource-badge project-resource-badge--running">
+                      <span class="project-resource-badge__dot" />
+                      {{ projectRow(row).container_counts.running }}
+                    </span>
+                    <span class="project-resource-badge project-resource-badge--stopped">
+                      <span class="project-resource-badge__dot" />
+                      {{ projectContainerWarningCount(projectRow(row)) }}
+                    </span>
+                    <span class="project-resource-badge project-resource-badge--issue">
+                      <span class="project-resource-badge__dot" />
+                      {{ projectRow(row).container_counts.issue }}
+                    </span>
+                  </div>
+                </div>
               </div>
             </template>
 
@@ -349,14 +363,13 @@ const refreshStatusOptions: ProjectRefreshStatus[] = ['never', 'success', 'faile
 const configurableColumns = computed<TableProps['columns']>(() => [
   { colKey: 'name', title: t('project.list.columns.name'), width: 300 },
   { colKey: 'source', title: t('project.list.columns.source'), width: 112, align: 'center' },
-  { colKey: 'runtime', title: t('project.list.columns.runtime'), width: 132, align: 'center' },
-  { colKey: 'services', title: t('project.list.columns.services'), width: 88, align: 'center' },
-  { colKey: 'containers', title: t('project.list.columns.containers'), width: 144, align: 'center' },
+  { colKey: 'runtime', title: t('project.list.columns.runtime'), width: 148, align: 'center' },
+  { colKey: 'resources', title: t('project.list.columns.resources'), width: 220, align: 'center' },
   { colKey: 'drift', title: t('project.list.columns.drift'), width: 112, align: 'center' },
   { colKey: 'refresh', title: t('project.list.columns.refresh'), width: 168, align: 'center' },
   { colKey: 'operation', title: t('project.list.columns.operation'), width: 152, fixed: 'right', align: 'center' },
 ]);
-const visibleColumnKeys = ref(['name', 'source', 'runtime', 'services', 'containers', 'drift', 'refresh', 'operation']);
+const visibleColumnKeys = ref(['name', 'source', 'runtime', 'resources', 'drift', 'refresh', 'operation']);
 const visibleColumns = computed(() =>
   (configurableColumns.value ?? []).filter((column) => visibleColumnKeys.value.includes(String(column?.colKey))),
 );
@@ -370,7 +383,9 @@ const warningProjectCount = computed(
   () =>
     rows.value.filter(
       (item) =>
-        item.drift_status !== 'clean' || item.last_refresh_status === 'failed' || item.runtime_status === 'partial',
+        item.drift_status !== 'clean' ||
+        item.last_refresh_status === 'failed' ||
+        isProjectAttentionStatus(item.runtime_status),
     ).length,
 );
 const hasActiveFilters = computed(
@@ -423,6 +438,14 @@ function runtimeStatusTheme(value?: ProjectRuntimeStatus | null) {
 
 function runtimeStatusLabel(value?: ProjectRuntimeStatus | null) {
   return projectRuntimeStatusLabel(t, value);
+}
+
+function isProjectAttentionStatus(value?: ProjectRuntimeStatus | null) {
+  return value === 'degraded' || value === 'transitioning' || value === 'unknown';
+}
+
+function projectContainerWarningCount(row: ProjectListItem) {
+  return row.container_counts.stopped + row.container_counts.transitioning;
 }
 
 function formatTime(value?: string | null) {
@@ -655,7 +678,8 @@ async function handleRowAction(action: string, row: ProjectListItem) {
 <style scoped lang="less">
 .project-page,
 .project-table-head,
-.project-container-counts,
+.project-resources,
+.project-resource-badges,
 .project-refresh,
 .project-identity {
   display: flex;
@@ -742,10 +766,67 @@ async function handleRowAction(action: string, row: ProjectListItem) {
   white-space: nowrap;
 }
 
-.project-container-counts,
+.project-resources,
+.project-resource-badges,
 .project-refresh,
 .project-column-drawer {
   gap: var(--graft-density-gap-8);
+}
+
+.project-resources {
+  align-items: flex-start;
+  flex-direction: column;
+  gap: var(--graft-density-gap-6);
+  margin: 0 auto;
+  min-width: 0;
+}
+
+.project-resources__item {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--graft-density-gap-8);
+  justify-content: flex-start;
+}
+
+.project-resources__label {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+}
+
+.project-resource-badges {
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.project-resource-badge {
+  color: var(--td-text-color-secondary);
+  column-gap: var(--graft-density-gap-4);
+  display: inline-grid;
+  font: var(--td-font-body-small);
+  grid-auto-flow: column;
+  place-items: center;
+}
+
+.project-resource-badge__dot {
+  background: currentcolor;
+  border-radius: 999px;
+  display: inline-flex;
+  height: 8px;
+  width: 8px;
+}
+
+.project-resource-badge--running {
+  color: var(--td-success-color-5);
+}
+
+.project-resource-badge--stopped {
+  color: var(--td-warning-color-6);
+}
+
+.project-resource-badge--issue {
+  color: var(--td-error-color-6);
 }
 
 .project-refresh {

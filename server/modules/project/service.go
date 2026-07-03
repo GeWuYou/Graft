@@ -30,6 +30,7 @@ var (
 	errProjectInspectionExpired    = errors.New("project inspection expired")
 	errProjectInspectionStale      = errors.New("project inspection stale")
 	errProjectFileHashMismatch     = errors.New("project file hash mismatch")
+	errProjectRuntimeUnavailable   = errors.New("project runtime is unavailable")
 )
 
 const (
@@ -394,8 +395,8 @@ func (s *Service) List(ctx context.Context, query ListQuery) (ListResult, error)
 	managedRootDirectory := s.readyManagedRootDirectory(ctx)
 	items := make([]generated.ProjectListItem, 0, len(storeResult.Items))
 	for _, item := range storeResult.Items {
-		runtimeSummary, _ := s.runtimeSummary(ctx, item)
-		items = append(items, toProjectListItemWithManagedRoot(item, managedRootDirectory, runtimeSummary))
+		runtimeSummary, runtimeErr := s.runtimeSummary(ctx, item)
+		items = append(items, toProjectListItemWithManagedRoot(item, managedRootDirectory, &runtimeSummary, runtimeErr))
 	}
 	return ListResult{Items: items, Total: storeResult.Total, Limit: normalizeListLimit(query.Limit), Offset: maxInt(query.Offset, 0)}, nil
 }
@@ -406,8 +407,8 @@ func (s *Service) Get(ctx context.Context, projectID uint64) (generated.ProjectD
 	if err != nil {
 		return generated.ProjectDetailResponse{}, err
 	}
-	runtimeSummary, _ := s.runtimeSummary(ctx, aggregate)
-	return toProjectDetailResponseWithManagedRoot(aggregate, s.readyManagedRootDirectory(ctx), runtimeSummary), nil
+	runtimeSummary, runtimeErr := s.runtimeSummary(ctx, aggregate)
+	return toProjectDetailResponseWithManagedRoot(aggregate, s.readyManagedRootDirectory(ctx), &runtimeSummary, runtimeErr), nil
 }
 
 // ValidateImport resolves static compose inputs and reports bounded import validation results.
@@ -624,7 +625,7 @@ func (s *Service) runtimeSummary(
 		return moduleapi.ContainerProjectRuntimeSummary{
 			CanonicalProjectName: aggregate.Project.CanonicalProjectName,
 			Members:              []moduleapi.ContainerProjectMember{},
-		}, nil
+		}, errProjectRuntimeUnavailable
 	}
 	return s.runtimeReader.ListProjectMembers(ctx, aggregate.Project.HostScope, aggregate.Project.CanonicalProjectName)
 }

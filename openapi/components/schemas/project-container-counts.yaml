@@ -2,12 +2,20 @@ type: object
 required:
   - running
   - stopped
+  - transitioning
+  - issue
   - total
 properties:
   running:
     type: integer
     minimum: 0
   stopped:
+    type: integer
+    minimum: 0
+  transitioning:
+    type: integer
+    minimum: 0
+  issue:
     type: integer
     minimum: 0
   total:
