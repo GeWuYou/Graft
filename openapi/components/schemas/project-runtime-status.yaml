@@ -1,10 +1,11 @@
 type: string
-enum: [running, partial, stopped, empty]
+enum: [running, degraded, stopped, transitioning, unknown]
 x-enum-varnames:
   - ProjectRuntimeStatusRunning
-  - ProjectRuntimeStatusPartial
+  - ProjectRuntimeStatusDegraded
   - ProjectRuntimeStatusStopped
-  - ProjectRuntimeStatusEmpty
+  - ProjectRuntimeStatusTransitioning
+  - ProjectRuntimeStatusUnknown
 description: >
-  Stable bounded runtime summary status for project overview consumers. Unknown or not-yet-derived
-  runtime state should be expressed as null instead of a free-form string.
+  Stable aggregated project status for overview consumers. The value is derived from container-member
+  runtime state and must not be treated as container-detail authority.

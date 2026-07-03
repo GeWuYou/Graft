@@ -21326,23 +21326,27 @@
         "type": "string",
         "enum": [
           "running",
-          "partial",
+          "degraded",
           "stopped",
-          "empty"
+          "transitioning",
+          "unknown"
         ],
         "x-enum-varnames": [
           "ProjectRuntimeStatusRunning",
-          "ProjectRuntimeStatusPartial",
+          "ProjectRuntimeStatusDegraded",
           "ProjectRuntimeStatusStopped",
-          "ProjectRuntimeStatusEmpty"
+          "ProjectRuntimeStatusTransitioning",
+          "ProjectRuntimeStatusUnknown"
         ],
-        "description": "Stable bounded runtime summary status for project overview consumers. Unknown or not-yet-derived runtime state should be expressed as null instead of a free-form string.\n"
+        "description": "Stable aggregated project status for overview consumers. The value is derived from container-member runtime state and must not be treated as container-detail authority.\n"
       },
       "project-container-counts": {
         "type": "object",
         "required": [
           "running",
           "stopped",
+          "transitioning",
+          "issue",
           "total"
         ],
         "properties": {
@@ -21351,6 +21355,14 @@
             "minimum": 0
           },
           "stopped": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "transitioning": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "issue": {
             "type": "integer",
             "minimum": 0
           },
@@ -21413,7 +21425,7 @@
           "runtime_status": {
             "$ref": "#/components/schemas/project-runtime-status",
             "nullable": true,
-            "description": "Bounded runtime summary status for overview consumption only. It must not become a replacement for container runtime detail authority.\n"
+            "description": "Aggregated project status for overview consumption only. It must not become a replacement for container runtime detail authority.\n"
           },
           "service_count": {
             "type": "integer",

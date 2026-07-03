@@ -116,7 +116,7 @@ export function buildContainerResourceColumns(t: Translate): NonNullable<TdPrima
     {
       title: t('container.list.columns.operation'),
       colKey: 'operation',
-      width: 288,
+      width: 152,
       fixed: 'right',
       align: 'center',
       ellipsis: false,

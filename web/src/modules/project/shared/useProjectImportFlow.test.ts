@@ -41,6 +41,8 @@ describe('useProjectImportFlow', () => {
       container_counts: {
         running: 1,
         stopped: 1,
+        transitioning: 0,
+        issue: 0,
         total: 2,
       },
       warnings: [],
@@ -108,7 +110,7 @@ describe('useProjectImportFlow', () => {
         canonical_project_name: 'srv',
         config_files: ['/srv/compose.yaml'],
         service_names: [],
-        container_counts: { running: 0, stopped: 0, total: 0 },
+        container_counts: { running: 0, stopped: 0, transitioning: 0, issue: 0, total: 0 },
         working_directory: '/srv',
       }),
     );
@@ -147,7 +149,7 @@ describe('useProjectImportFlow', () => {
         canonical_project_name: 'conflict',
         config_files: ['/srv/conflict/compose.yaml'],
         service_names: [],
-        container_counts: { running: 0, stopped: 0, total: 0 },
+        container_counts: { running: 0, stopped: 0, transitioning: 0, issue: 0, total: 0 },
         working_directory: '/srv/conflict',
       }),
     );
@@ -182,7 +184,7 @@ describe('useProjectImportFlow', () => {
         canonical_project_name: 'nullable',
         config_files: ['/srv/nullable/compose.yaml'],
         service_names: [],
-        container_counts: { running: 0, stopped: 0, total: 0 },
+        container_counts: { running: 0, stopped: 0, transitioning: 0, issue: 0, total: 0 },
         working_directory: '/srv/nullable',
       }),
     );
@@ -224,7 +226,7 @@ describe('useProjectImportFlow', () => {
         canonical_project_name: 'first',
         config_files: ['/srv/apps/first/compose.yaml'],
         service_names: [],
-        container_counts: { running: 0, stopped: 0, total: 0 },
+        container_counts: { running: 0, stopped: 0, transitioning: 0, issue: 0, total: 0 },
         working_directory: '/srv/apps/first',
       }),
     );
@@ -234,7 +236,7 @@ describe('useProjectImportFlow', () => {
         canonical_project_name: 'second',
         config_files: ['/srv/apps/second/compose.yaml'],
         service_names: [],
-        container_counts: { running: 0, stopped: 0, total: 0 },
+        container_counts: { running: 0, stopped: 0, transitioning: 0, issue: 0, total: 0 },
         working_directory: '/srv/apps/second',
       }),
     );
@@ -299,7 +301,7 @@ describe('useProjectImportFlow', () => {
         canonical_project_name: 'reset-me',
         config_files: ['/srv/apps/reset-me/compose.yaml'],
         service_names: [],
-        container_counts: { running: 0, stopped: 0, total: 0 },
+        container_counts: { running: 0, stopped: 0, transitioning: 0, issue: 0, total: 0 },
         working_directory: '/srv/apps/reset-me',
       }),
     );

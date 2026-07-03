@@ -2606,22 +2606,25 @@ func (e ProjectRefreshStatus) Valid() bool {
 
 // Defines values for ProjectRuntimeStatus.
 const (
-	ProjectRuntimeStatusEmpty   ProjectRuntimeStatus = "empty"
-	ProjectRuntimeStatusPartial ProjectRuntimeStatus = "partial"
-	ProjectRuntimeStatusRunning ProjectRuntimeStatus = "running"
-	ProjectRuntimeStatusStopped ProjectRuntimeStatus = "stopped"
+	ProjectRuntimeStatusDegraded      ProjectRuntimeStatus = "degraded"
+	ProjectRuntimeStatusRunning       ProjectRuntimeStatus = "running"
+	ProjectRuntimeStatusStopped       ProjectRuntimeStatus = "stopped"
+	ProjectRuntimeStatusTransitioning ProjectRuntimeStatus = "transitioning"
+	ProjectRuntimeStatusUnknown       ProjectRuntimeStatus = "unknown"
 )
 
 // Valid indicates whether the value is a known member of the ProjectRuntimeStatus enum.
 func (e ProjectRuntimeStatus) Valid() bool {
 	switch e {
-	case ProjectRuntimeStatusEmpty:
-		return true
-	case ProjectRuntimeStatusPartial:
+	case ProjectRuntimeStatusDegraded:
 		return true
 	case ProjectRuntimeStatusRunning:
 		return true
 	case ProjectRuntimeStatusStopped:
+		return true
+	case ProjectRuntimeStatusTransitioning:
+		return true
+	case ProjectRuntimeStatusUnknown:
 		return true
 	default:
 		return false
@@ -7407,9 +7410,11 @@ type ProjectConfigurationValidateResponse struct {
 
 // ProjectContainerCounts defines model for project-container-counts.
 type ProjectContainerCounts struct {
-	Running int `json:"running"`
-	Stopped int `json:"stopped"`
-	Total   int `json:"total"`
+	Issue         int `json:"issue"`
+	Running       int `json:"running"`
+	Stopped       int `json:"stopped"`
+	Total         int `json:"total"`
+	Transitioning int `json:"transitioning"`
 }
 
 // ProjectCreateRequest defines model for project-create-request.
@@ -7547,7 +7552,7 @@ type ProjectDetailResponse struct {
 	LastRefreshStatus       ProjectRefreshStatus `json:"last_refresh_status"`
 	OwnershipMode           ProjectOwnershipMode `json:"ownership_mode"`
 
-	// RuntimeStatus Bounded runtime summary status for overview consumption only. It must not become a replacement for container runtime detail authority.
+	// RuntimeStatus Aggregated project status for overview consumption only. It must not become a replacement for container runtime detail authority.
 	RuntimeStatus    *ProjectRuntimeStatus  `json:"runtime_status,omitempty"`
 	ServiceCount     int                    `json:"service_count"`
 	SourceKind       ProjectSourceKind      `json:"source_kind"`
@@ -7885,7 +7890,7 @@ type ProjectListItem struct {
 	LastRefreshStatus          ProjectRefreshStatus       `json:"last_refresh_status"`
 	OwnershipMode              ProjectOwnershipMode       `json:"ownership_mode"`
 
-	// RuntimeStatus Bounded runtime summary status for overview consumption only. It must not become a replacement for container runtime detail authority.
+	// RuntimeStatus Aggregated project status for overview consumption only. It must not become a replacement for container runtime detail authority.
 	RuntimeStatus    *ProjectRuntimeStatus  `json:"runtime_status,omitempty"`
 	ServiceCount     int                    `json:"service_count"`
 	SourceKind       ProjectSourceKind      `json:"source_kind"`
@@ -7922,7 +7927,7 @@ type ProjectOwnershipMode string
 // ProjectRefreshStatus defines model for project-refresh-status.
 type ProjectRefreshStatus string
 
-// ProjectRuntimeStatus Stable bounded runtime summary status for project overview consumers. Unknown or not-yet-derived runtime state should be expressed as null instead of a free-form string.
+// ProjectRuntimeStatus Stable aggregated project status for overview consumers. The value is derived from container-member runtime state and must not be treated as container-detail authority.
 type ProjectRuntimeStatus string
 
 // ProjectServiceItem defines model for project-service-item.

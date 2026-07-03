@@ -157,7 +157,7 @@ func (s *Service) importInspectionSession(
 	}
 
 	response := generated.ProjectImportResponse{
-		Project: toProjectDetailResponse(aggregate),
+		Project: toProjectDetailResponse(aggregate, nil, errProjectRuntimeUnavailable),
 	}
 	response.SnapshotSummary.ConfigHash = freshParse.ConfigHash
 	response.SnapshotSummary.RefreshedAt = now

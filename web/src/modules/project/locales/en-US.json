@@ -56,20 +56,20 @@
       "emptyTitle": "No Projects",
       "emptyDescription": "Import an Existing Compose Project to Start Reviewing Overview, Services, Configuration, and Activity.",
       "emptyFilteredDescription": "No Projects Match the Current Filters.",
+      "canonicalNameValue": "Canonical Name {name}",
       "clearFilters": "Clear Filters",
       "columnSettings": "Column Settings",
       "columnDrawerTitle": "Project Columns",
       "projectCount": "Total {count}",
-      "runningContainers": "Running {count}",
-      "stoppedContainers": "Stopped {count}",
-      "warningProjects": "Needs Attention {count}",
+      "runningProjects": "Running {count}",
+      "stoppedProjects": "Stopped {count}",
       "filters": {
         "searchPlaceholder": "Search Display Name, Canonical Name, or Working Directory",
         "sourceKind": "Source",
-        "driftStatus": "Drift",
+        "driftStatus": "Sync Status",
         "refreshStatus": "Refresh",
         "allSourceKinds": "All Sources",
-        "allDriftStatuses": "All Drift States",
+        "allDriftStatuses": "All Sync States",
         "allRefreshStatuses": "All Refresh States",
         "query": "Query",
         "reset": "Reset"
@@ -77,21 +77,37 @@
       "columns": {
         "name": "Project",
         "source": "Source",
-        "runtime": "Runtime Summary",
-        "services": "Services",
-        "containers": "Container Counts",
-        "drift": "Drift",
-        "refresh": "Refresh",
+        "runtime": "Status",
+        "resources": "Resources",
+        "drift": "Sync Status",
+        "refresh": "Last Project Refresh",
         "workingDirectory": "Working Directory",
-        "updatedAt": "Last Refresh",
+        "updatedAt": "Last Project Refresh",
         "operation": "Operation"
       },
+      "resources": {
+        "service": "Services",
+        "container": "Containers",
+        "running": "Running",
+        "stopped": "Stopped",
+        "transitioning": "Transitioning",
+        "unknown": "Unknown",
+        "issue": "Issue",
+        "statusValue": "{status} {count}"
+      },
       "status": {
-        "runtimeUnknown": "Runtime Unknown",
-        "runtimeRunning": "Runtime Running",
-        "runtimePartial": "Runtime Partial",
-        "runtimeStopped": "Runtime Stopped",
-        "runtimeEmpty": "No Members"
+        "runtimeUnknown": "⚪ Unknown",
+        "runtimeRunning": "🟢 Running",
+        "runtimeDegraded": "🟡 Degraded",
+        "runtimeStopped": "⚫ Stopped",
+        "runtimeTransitioning": "🔵 Transitioning"
+      },
+      "statusTooltip": {
+        "runtimeUnknown": "Current Page Unknown",
+        "runtimeRunning": "Current Page Running",
+        "runtimeDegraded": "Current Page Degraded",
+        "runtimeStopped": "Current Page Stopped",
+        "runtimeTransitioning": "Current Page Transitioning"
       },
       "sourceKinds": {
         "imported": "Imported",
@@ -101,10 +117,10 @@
         "remote-host": "Remote Host"
       },
       "driftStatus": {
-        "unknown": "Unknown",
-        "clean": "Clean",
-        "changed": "Changed",
-        "missing": "Missing"
+        "unknown": "❓ Unknown",
+        "clean": "✓ In Sync",
+        "changed": "⚠ Drifted",
+        "missing": "⚠ Missing"
       },
       "refreshStatus": {
         "never": "Never",
@@ -113,15 +129,12 @@
       },
       "actions": {
         "detail": "Detail",
-        "overview": "Overview",
-        "services": "Services",
-        "configuration": "Configuration",
-        "activity": "Activity",
+        "operationMenu": "Actions",
         "import": "Import Existing Project",
         "create": "Choose Project Source",
         "refresh": "Refresh",
         "up": "Up",
-        "down": "Down",
+        "down": "Stop",
         "restart": "Restart",
         "unregister": "Unregister",
         "destroy": "Destroy",
@@ -130,6 +143,14 @@
         "refreshSuccess": "Project Refreshed.",
         "actionSuccess": "Project Action Completed.",
         "actionFailed": "Project Action Failed.",
+        "confirmUpTitle": "Confirm Project Start",
+        "confirmUpDescription": "Start {name}? This brings the registered services and containers up with the current Compose configuration.",
+        "confirmDownTitle": "Confirm Project Stop",
+        "confirmDownDescription": "Stop {name}? This stops the running services and containers in the current project.",
+        "confirmRestartTitle": "Confirm Project Restart",
+        "confirmRestartDescription": "Restart {name}? This interrupts the current runtime and starts it again with the current configuration.",
+        "confirmUnregisterTitle": "Confirm Unregister",
+        "confirmUnregisterDescription": "Unregister {name}? This removes the project registry record but leaves runtime containers untouched.",
         "unregisterConfirm": "Unregister {name}? Runtime Containers Stay Untouched.",
         "destroyConfirm": "Destroy {name}? This Only Works When Ownership Guard Allows It."
       }
@@ -158,7 +179,7 @@
         "confirm": {
           "shortTitle": "Confirm Import",
           "title": "Step 3 · Confirm Import",
-          "description": "After Inspect is ready, fill in the import options and run the final import."
+          "description": "Review the import target, inspection summary, and impact notes before running the final import."
         }
       },
       "actions": {
@@ -229,10 +250,6 @@
           "unsupported_runtime": "Unsupported Runtime",
           "broken_compose": "Broken Compose"
         },
-        "workingDirectorySourceValues": {
-          "runtime_label": "From Runtime Label",
-          "derived_from_config_files": "Derived from Compose File Paths"
-        },
         "reason": {
           "missing_project_name": "Missing Compose Project Name Metadata",
           "missing_config_files": "Missing Compose Config File Metadata",
@@ -264,8 +281,39 @@
         "canonicalProjectNameOverridePlaceholder": "Leave Blank to Keep the Inspected Value"
       },
       "confirm": {
-        "title": "Confirm Import Settings",
-        "hint": "This import will use the current Inspect session for {name}. Confirm the Display Name and Canonical Project Name override before continuing."
+        "title": "Final Review",
+        "description": "Use the last step to review and confirm. The display name is still editable, but the import authority stays bound to the current inspection snapshot.",
+        "identityTitle": "Project Identity",
+        "identityHint": "Confirm the display name and optional Canonical Project Name override. All other fields come from the current inspection session.",
+        "importSource": "Import Source",
+        "importSourceValue": "Running Compose Candidate",
+        "candidateKey": "Candidate Key",
+        "inspectionId": "Inspection Session",
+        "canonicalNameSource": "Name Source",
+        "runtimeLabel": "Runtime",
+        "summaryTitle": "Runtime Summary",
+        "inspectionTitle": "Inspection Summary",
+        "inspectionReady": "The current inspection result is ready, and the import can continue.",
+        "inspectionBlocked": "The current inspection result is still blocked. Return to Inspect before continuing.",
+        "conflictCount": "{count} Conflicts",
+        "warningCount": "{count} Warnings",
+        "checks": {
+          "validation": "Validation Status: {status}",
+          "composeFiles": "{count} Compose Files Detected",
+          "services": "{count} Services Detected",
+          "networks": "{count} Networks Detected",
+          "volumes": "{count} Volumes Detected"
+        },
+        "previewTitle": "Project Preview",
+        "previewWithMore": "{preview} and {count} more",
+        "effectsTitle": "Import Effects",
+        "effectsDescription": "This screen only states outcomes that are contract-safe for the current import flow. It does not promise extra runtime guarantees.",
+        "effects": {
+          "registerProject": "Create and register one Graft project record from the current inspection snapshot",
+          "useInspection": "Reuse the current inspection discovery for Compose, services, networks, and volumes",
+          "applyOverrides": "Apply the display-name edit and optional canonical-name override from this page",
+          "recordDiscoveredResources": "Carry the discovered topology into the import result and open the project detail page afterward"
+        }
       },
       "validation": {
         "displayNameRequired": "Display Name Is Required."
@@ -300,6 +348,16 @@
         "canonicalProjectName": "Canonical Project Name",
         "canonicalNameSource": "Canonical Name Source",
         "validationStatus": "Validation Status",
+        "validationStatusValues": {
+          "ready": "Ready",
+          "conflict": "Conflict"
+        },
+        "canonicalNameSourceValues": {
+          "computed": "Computed",
+          "runtime_label": "Runtime Label",
+          "derived_runtime_label": "Derived Runtime Label",
+          "fallback_display_name": "Fallback Display Name"
+        },
         "serviceCount": "Declared Services",
         "configHash": "Config Hash",
         "composeFiles": "Compose Files",
@@ -574,7 +632,7 @@
         "runtimeMembers": "Runtime Members",
         "runningMembers": "Running Members",
         "hostScope": "Host Scope",
-        "lastRefreshAt": "Last Refresh",
+        "lastRefreshAt": "Last Project Refresh",
         "hostScopeValues": {
           "local": "Local Host",
           "remote-host": "Remote Host"
@@ -589,8 +647,13 @@
       },
       "tabs": {
         "overview": "Overview",
+        "services": "Services",
+        "containers": "Containers",
+        "networks": "Networks",
+        "volumes": "Volumes",
         "configuration": "Configuration",
-        "activity": "Activity"
+        "activity": "Activity",
+        "runtime": "Runtime"
       },
       "resources": {
         "refresh": "Refresh Resources",
@@ -660,9 +723,9 @@
         "hostScope": "Host Scope",
         "activityAuthority": "Activity Authority",
         "serviceCount": "Declared Services",
-        "runtimeStatus": "Runtime Summary",
+        "runtimeStatus": "Status",
         "lastRefreshStatus": "Last Refresh",
-        "lastRefreshAt": "Last Refresh Time",
+        "lastRefreshAt": "Last Project Refresh Time",
         "lastRefreshHash": "Last Refresh Hash",
         "lastObservedHash": "Observed Hash",
         "driftStatus": "Drift Status",
@@ -673,7 +736,42 @@
         "diagnosticsEmpty": "No Configuration Diagnostics Were Returned."
       },
       "services": {
+        "title": "Services",
+        "description": "Review service definitions, build contexts, declared resources, and the first runtime member from one workspace.",
+        "refresh": "Refresh Services",
+        "summary": "{count} Services",
+        "loadFailed": "Failed to load services.",
+        "emptyTitle": "No Services",
+        "emptyDescription": "This project does not currently expose service definitions.",
+        "columns": {
+          "service": "Service",
+          "buildContext": "Build Context",
+          "networks": "Declared Networks",
+          "ports": "Declared Ports",
+          "volumes": "Declared Volumes",
+          "runtime": "Running / Stopped",
+          "operation": "Operation"
+        },
         "openContainer": "Open Container Detail"
+      },
+      "runtime": {
+        "title": "Runtime",
+        "description": "Centralize project runtime status, member counts, and lifecycle actions in one workspace.",
+        "statusTitle": "Runtime Status",
+        "membersTitle": "Runtime Members",
+        "authorityTitle": "Runtime Boundary",
+        "runtimeStatus": "Project Status",
+        "refreshStatus": "Refresh Status",
+        "driftStatus": "Drift Status",
+        "lastRefreshAt": "Last Project Refresh",
+        "runningMembers": "Running Members",
+        "totalMembers": "Total Members",
+        "serviceCount": "Service Count",
+        "hostScope": "Host Scope",
+        "activityAuthority": "Activity Authority",
+        "workingDirectory": "Working Directory",
+        "canonicalName": "Canonical Project Name",
+        "nameSource": "Name Source"
       },
       "configuration": {
         "title": "Configuration",
@@ -753,7 +851,7 @@
       },
       "actions": {
         "up": "Compose Up",
-        "down": "Compose Down",
+        "down": "Compose Stop",
         "restart": "Compose Restart",
         "unregister": "Unregister",
         "destroy": "Destroy",

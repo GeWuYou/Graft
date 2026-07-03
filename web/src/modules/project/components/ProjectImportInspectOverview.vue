@@ -28,7 +28,7 @@
       <t-card :bordered="true" :title="t('project.import.preview.summaryTitle')">
         <t-descriptions size="small" :column="1" bordered>
           <t-descriptions-item :label="t('project.import.preview.validationStatus')">
-            {{ result.validation_status }}
+            {{ formatValidationStatus(result.validation_status) }}
           </t-descriptions-item>
           <t-descriptions-item :label="t('project.import.preview.serviceCount')">
             {{ result.services.length }}
@@ -39,7 +39,7 @@
             </t-tooltip>
           </t-descriptions-item>
           <t-descriptions-item :label="t('project.import.preview.canonicalNameSource')">
-            {{ result.canonical_project_name_source }}
+            {{ formatCanonicalNameSource(result.canonical_project_name_source) }}
           </t-descriptions-item>
         </t-descriptions>
       </t-card>
@@ -102,6 +102,7 @@ import {
   normalizeImportInspectNetworkRows,
   normalizeImportInspectVolumeRows,
 } from '../shared/import-inspect-resources';
+import { formatImportPreviewCanonicalNameSource, formatImportPreviewValidationStatus } from '../shared/import-preview';
 import type { ProjectImportInspectResponse } from '../types/import';
 import ProjectImportSectionHeading from './ProjectImportSectionHeading.vue';
 
@@ -119,6 +120,14 @@ const { t } = useI18n();
 
 const networkCount = computed(() => normalizeImportInspectNetworkRows(props.result).length);
 const volumeCount = computed(() => normalizeImportInspectVolumeRows(props.result).length);
+
+function formatValidationStatus(status: string) {
+  return formatImportPreviewValidationStatus(t, status);
+}
+
+function formatCanonicalNameSource(source: string) {
+  return formatImportPreviewCanonicalNameSource(t, source);
+}
 </script>
 <style scoped lang="less">
 .project-import-overview,

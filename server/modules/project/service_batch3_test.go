@@ -791,7 +791,7 @@ func TestProjectListItemUsesFrontendActivityAuthorityForLocalProjects(t *testing
 			LastRefreshStatus:          "success",
 			DriftStatus:                "clean",
 		},
-	}, "")
+	}, "", nil, nil)
 	if item.ActivityAuthority != generated.ProjectActivityAuthority("frontend-fanout") {
 		t.Fatalf("expected frontend-fanout activity authority, got %q", item.ActivityAuthority)
 	}
@@ -813,7 +813,7 @@ func TestProjectDetailUsesBackendPlannedActivityAuthorityForRemoteScope(t *testi
 			LastRefreshStatus:          "never",
 			DriftStatus:                "unknown",
 		},
-	})
+	}, nil, nil)
 	if detail.ActivityAuthority != generated.ProjectActivityAuthority("backend-planned") {
 		t.Fatalf("expected backend-planned activity authority, got %q", detail.ActivityAuthority)
 	}
@@ -954,7 +954,7 @@ func TestToProjectDetailResponsePreservesNestedManagedRelativeDirectory(t *testi
 		},
 	}
 
-	detail := toProjectDetailResponseWithManagedRoot(aggregate, managedRoot)
+	detail := toProjectDetailResponseWithManagedRoot(aggregate, managedRoot, nil, nil)
 	if detail.SourceMetadata == nil || detail.SourceMetadata.ManagedRelativeDirectory == nil {
 		t.Fatalf("expected managed source metadata with relative directory")
 	}

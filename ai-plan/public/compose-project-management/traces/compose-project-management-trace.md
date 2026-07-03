@@ -258,6 +258,20 @@
   - `openapi/dist/openapi.bundle.json`
   - `server/internal/contract/openapi/generated/types.gen.go`
   - `server/internal/app/zz_openapi_bundle_generated.go`
+
+## 2026-07-03 Drift repair for aggregated project status and resource summary
+
+- 修正 `openapi/**` authority owner：
+  - `project-runtime-status` 从 `running | partial | stopped | empty` 收口为 `running | degraded | stopped | transitioning | unknown`
+  - `project-container-counts` 扩展为 `running / stopped / transitioning / issue / total`
+- 修正 `server/modules/project/**` authority owner：
+  - 新增统一项目聚合状态推导 helper，列表与详情共用
+  - 修复 `runtime_status` 没有写回 `ProjectListItem / ProjectDetailResponse` 的缺口，避免前端长期掉到 `未知`
+  - `project` 继续只消费 `container` shared boundary 的成员状态，不引入 project-owned runtime detail
+- 修正 `web/src/modules/project/**` consumer：
+  - 列表列从 `运行时摘要 + 服务数 + 容器数量` 收口为 `状态 + 资源`
+  - 资源列改为两行聚合摘要，展示服务数与容器聚合计数
+  - 补齐资源列本地化，移除硬编码英文标签
   - `web/src/contracts/openapi/generated/schema.ts`
 - 本轮验证通过：
   - `node scripts/openapi-bundle.mjs`

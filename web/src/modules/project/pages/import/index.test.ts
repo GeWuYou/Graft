@@ -7,10 +7,21 @@ import type { ProjectImportRuntimeCandidate } from '../../types/import';
 import ProjectImportIndex from './index.vue';
 
 const mocks = vi.hoisted(() => ({
+  appendResolvedTab: vi.fn(),
+  closeTabsByPredicate: vi.fn(),
   getProjectImportRuntimeCandidates: vi.fn(),
+  setActiveTabKey: vi.fn(),
+  appendTabRouterList: vi.fn(),
   replace: vi.fn(),
   push: vi.fn(),
-  resolve: vi.fn(() => ({ href: '/ops/projects/1' })),
+  resolve: vi.fn(() => ({
+    fullPath: '/ops/projects/1?tab=overview',
+    meta: {},
+    name: 'ProjectDetailIndex',
+    params: { id: '1' },
+    path: '/ops/projects/1',
+    query: { tab: 'overview' },
+  })),
   useProjectImportFlow: vi.fn(),
 }));
 
@@ -35,9 +46,18 @@ vi.mock('../../shared/page-context', () => ({
       replace: mocks.replace,
       resolve: mocks.resolve,
     },
-    tabsRouterStore: {},
+    tabsRouterStore: {
+      appendTabRouterList: mocks.appendTabRouterList,
+      closeTabsByPredicate: mocks.closeTabsByPredicate,
+      setActiveTabKey: mocks.setActiveTabKey,
+    },
     t: translate,
   }),
+}));
+
+vi.mock('../../shared/navigation', () => ({
+  appendResolvedTab: (...args: unknown[]) => mocks.appendResolvedTab(...args),
+  buildDetailTitleWithFallback: (key: string) => key,
 }));
 
 vi.mock('vue-router', async () => {
@@ -328,7 +348,7 @@ function buildCandidate(overrides: Partial<ProjectImportRuntimeCandidate>): Proj
     candidate_key: 'runtime:demo',
     canonical_project_name: 'demo',
     config_files: ['/srv/demo/compose.yaml'],
-    container_counts: { running: 1, stopped: 0, total: 1 },
+    container_counts: { running: 1, stopped: 0, transitioning: 0, issue: 0, total: 1 },
     importable: true,
     runtime_type: 'docker',
     runtime_version: '29.2.1',
@@ -437,6 +457,25 @@ const WrapperStub = defineComponent({
   name: 'WrapperStub',
   setup(_props, { slots }) {
     return () => h('div', slots.default?.());
+  },
+});
+
+const TFormStub = defineComponent({
+  name: 'TFormStub',
+  emits: ['submit'],
+  setup(_props, { emit, slots }) {
+    return () =>
+      h(
+        'form',
+        {
+          'data-testid': 'project-import-submit',
+          onSubmit: (event: Event) => {
+            event.preventDefault();
+            emit('submit', { validateResult: true });
+          },
+        },
+        slots.default?.(),
+      );
   },
 });
 
@@ -581,7 +620,7 @@ function mountPage() {
         't-descriptions': WrapperStub,
         't-descriptions-item': TDescriptionsItemStub,
         't-empty': TEmptyStub,
-        't-form': WrapperStub,
+        't-form': TFormStub,
         't-form-item': WrapperStub,
         't-input': TInputStub,
         't-loading': WrapperStub,
@@ -601,9 +640,15 @@ function mountPage() {
 describe('ProjectImportIndex', () => {
   beforeEach(() => {
     routeState.query = {};
+    routeState.params = {};
     mocks.getProjectImportRuntimeCandidates.mockReset();
+    mocks.appendResolvedTab.mockReset();
+    mocks.appendTabRouterList.mockReset();
+    mocks.closeTabsByPredicate.mockReset();
     mocks.push.mockReset();
     mocks.replace.mockReset();
+    mocks.resolve.mockClear();
+    mocks.setActiveTabKey.mockReset();
     mocks.useProjectImportFlow.mockReset();
     window.localStorage.clear();
 
@@ -780,9 +825,9 @@ describe('ProjectImportIndex', () => {
     await flushPromises();
 
     expect(wrapper.text()).toContain('demo');
-    expect(wrapper.text()).toContain('当前没有额外 warning 或 conflict。');
-    expect(wrapper.text()).toContain('Overview');
-    expect(wrapper.text()).toContain('Resources');
+    expect(wrapper.text()).toContain('当前没有额外警告或冲突。');
+    expect(wrapper.text()).toContain('检查概览');
+    expect(wrapper.text()).toContain('资源');
     expect(wrapper.text()).toContain('当前候选没有可展示的容器资源。');
     expect(flowState.inspectCandidate).not.toHaveBeenCalled();
   });
@@ -829,9 +874,62 @@ describe('ProjectImportIndex', () => {
     const wrapper = mountPage();
     await flushPromises();
 
-    expect(wrapper.get('[data-testid="inspect-overview-stub"]').text()).toContain('Overview');
-    expect(wrapper.get('[data-testid="inspect-resources-stub"]').text()).toContain('Resources');
+    expect(wrapper.get('[data-testid="inspect-overview-stub"]').text()).toContain('检查概览');
+    expect(wrapper.get('[data-testid="inspect-resources-stub"]').text()).toContain('资源');
     expect(wrapper.text()).toContain('继续确认导入');
+  });
+
+  it('renders a review-focused confirm step from the existing inspect payload without re-inspecting', async () => {
+    routeState.query = {
+      step: 'confirm',
+      candidate: 'runtime:demo',
+    };
+
+    const flowState = createFlowState();
+    flowState.hasPreview.value = true;
+    flowState.canImport.value = true;
+    flowState.displayName.value = 'Demo Project';
+    flowState.inspectResult.value = {
+      inspection_id: 'inspect-confirm',
+      candidate_key: 'runtime:demo',
+      resolved_working_directory: '/srv/demo',
+      canonical_project_name: 'demo',
+      canonical_project_name_source: 'computed',
+      display_name_suggested: 'Demo Project',
+      compose_files: [
+        {
+          kind: 'compose',
+          role: 'primary',
+          absolute_path: '/srv/demo/compose.yaml',
+          display_path: '/srv/demo/compose.yaml',
+          order_index: 0,
+          exists_on_last_refresh: true,
+        },
+      ],
+      env_files: [],
+      services: ['web', 'worker', 'cron', 'redis'],
+      networks: ['default', 'internal'],
+      volumes: ['data', 'cache'],
+      runtime_members: [{ container_id: '1', container_name: 'demo-web-1', service_name: 'web', state: 'running' }],
+      warnings: ['working directory derived from compose metadata'],
+      conflicts: [],
+      validation_status: 'ready',
+      config_hash: 'hash-confirm',
+    } as never;
+    mocks.useProjectImportFlow.mockImplementation(() => flowState);
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('最终确认');
+    expect(wrapper.text()).toContain('项目标识');
+    expect(wrapper.text()).toContain('运行时摘要');
+    expect(wrapper.text()).toContain('检查摘要');
+    expect(wrapper.text()).toContain('项目预览');
+    expect(wrapper.text()).toContain('导入后将执行');
+    expect(wrapper.text()).toContain('inspect-confirm');
+    expect(wrapper.text()).toContain('web, worker, cron 等另外 1 项');
+    expect(flowState.inspectCandidate).not.toHaveBeenCalled();
   });
 
   it('recovers a routed ready candidate even when it is outside the current page payload', async () => {
@@ -1001,5 +1099,57 @@ describe('ProjectImportIndex', () => {
 
     expect(wrapper.text()).not.toContain('Inspect');
     expect(wrapper.text()).toContain('检查');
+  });
+
+  it('closes the import tab after a successful import opens project detail', async () => {
+    routeState.query = {
+      step: 'confirm',
+      candidate: 'runtime:demo',
+    };
+
+    const flowState = createFlowState();
+    flowState.canImport.value = true;
+    flowState.hasPreview.value = true;
+    flowState.displayName.value = 'Demo Project';
+    flowState.inspectResult.value = {
+      inspection_id: 'inspect-confirm',
+      candidate_key: 'runtime:demo',
+      resolved_working_directory: '/srv/demo',
+      canonical_project_name: 'demo',
+      canonical_project_name_source: 'computed',
+      display_name_suggested: 'Demo Project',
+      compose_files: [],
+      env_files: [],
+      services: ['web'],
+      networks: [],
+      volumes: [],
+      runtime_members: [],
+      warnings: [],
+      conflicts: [],
+      validation_status: 'ready',
+      config_hash: 'hash-confirm',
+    } as never;
+    flowState.submitImport.mockResolvedValue({
+      project: {
+        id: 1,
+        display_name: 'Demo Project',
+      },
+    });
+    mocks.useProjectImportFlow.mockImplementation(() => flowState);
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="project-import-submit"]').trigger('submit');
+    await flushPromises();
+
+    expect(flowState.submitImport).toHaveBeenCalledTimes(1);
+    expect(mocks.appendResolvedTab).toHaveBeenCalledTimes(1);
+    expect(mocks.push).toHaveBeenCalledWith({
+      name: 'ProjectDetailIndex',
+      params: { id: 1 },
+      query: { tab: 'overview' },
+    });
+    expect(mocks.closeTabsByPredicate).toHaveBeenCalledTimes(1);
   });
 });

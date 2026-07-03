@@ -105,9 +105,9 @@ export function projectRefreshStatusTheme(value?: ProjectRefreshStatus) {
  */
 export function projectRuntimeStatusTheme(value?: ProjectRuntimeStatus | null) {
   if (value === 'running') return 'success';
-  if (value === 'partial') return 'warning';
+  if (value === 'degraded') return 'warning';
   if (value === 'stopped') return 'default';
-  if (value === 'empty') return 'default';
+  if (value === 'transitioning') return 'primary';
   return 'default';
 }
 
@@ -119,8 +119,62 @@ export function projectRuntimeStatusTheme(value?: ProjectRuntimeStatus | null) {
  */
 export function projectRuntimeStatusLabel(t: Translate, value?: ProjectRuntimeStatus | null) {
   if (value === 'running') return t('project.list.status.runtimeRunning');
-  if (value === 'partial') return t('project.list.status.runtimePartial');
+  if (value === 'degraded') return t('project.list.status.runtimeDegraded');
   if (value === 'stopped') return t('project.list.status.runtimeStopped');
-  if (value === 'empty') return t('project.list.status.runtimeEmpty');
+  if (value === 'transitioning') return t('project.list.status.runtimeTransitioning');
   return t('project.list.status.runtimeUnknown');
+}
+
+export type ProjectLifecycleAction = 'up' | 'down' | 'restart' | 'unregister';
+
+type ProjectLifecycleActionVisibility = Record<ProjectLifecycleAction, boolean>;
+
+type ProjectLifecycleActionVisibilityOptions = {
+  hideLifecycleActions?: boolean;
+};
+
+/**
+ * 根据项目运行态决定 lifecycle 动作是否展示。
+ *
+ * @param value - 项目运行态
+ * @param options - 可选展示裁剪参数
+ * @returns 每个 lifecycle 动作的展示布尔值
+ */
+export function projectLifecycleActionVisibility(
+  value?: ProjectRuntimeStatus | null,
+  options: ProjectLifecycleActionVisibilityOptions = {},
+): ProjectLifecycleActionVisibility {
+  if (options.hideLifecycleActions) {
+    return {
+      up: false,
+      down: false,
+      restart: false,
+      unregister: true,
+    };
+  }
+
+  if (value === 'running' || value === 'degraded') {
+    return {
+      up: false,
+      down: true,
+      restart: true,
+      unregister: true,
+    };
+  }
+
+  if (value === 'stopped') {
+    return {
+      up: true,
+      down: false,
+      restart: true,
+      unregister: true,
+    };
+  }
+
+  return {
+    up: true,
+    down: true,
+    restart: true,
+    unregister: true,
+  };
 }
