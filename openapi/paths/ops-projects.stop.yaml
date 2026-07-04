@@ -1,7 +1,8 @@
 post:
   tags: [project]
-  summary: Run docker compose down for a registered project
-  operationId: postProjectDown
+  summary: Run docker compose stop for a registered project
+  operationId: postProjectStop
+  description: Runs the saved lifecycle configuration `stop` command preview for the selected project.
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml
@@ -10,7 +11,7 @@ post:
     - bearerAuth: []
   responses:
     '200':
-      description: Project down action result.
+      description: Project stop action result.
       headers:
         X-Request-Id:
           $ref: ../components/headers/request-id.yaml

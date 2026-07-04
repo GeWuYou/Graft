@@ -31,7 +31,7 @@
 
 本能力后续实现必须遵守 authority-first：
 
-- Compose 文件、项目注册、导入、刷新、`up/down/restart`、销毁保护，由 `project` module 拥有。
+- Compose 文件、项目注册、导入、刷新、`up/stop/restart`、销毁保护，由 `project` module 拥有。
 - 容器详情、日志、事件、Stats、Shell、Inspect、Network、Mount 仍由 `container` module 拥有。
 - 若 `project` 需要消费容器运行时摘要，必须通过稳定共享边界复用，不得直接依赖 `container` module 私有实现。
 
@@ -41,8 +41,8 @@
 
 - 支持把本机现有 Docker Compose Project 导入 `Graft` 管理。
 - 支持保存项目注册信息、工作目录、Compose 文件选择、环境文件选择与最近一次成功解析快照。
-- 支持项目级 `Overview`、`Services`、`Configuration`、`Activity` 四类信息架构。
-- 支持项目级 `Refresh`、`Up`、`Down`、`Restart`、`Unregister`、`Destroy` 管理动作。
+- 支持项目级 `Overview`、`Services`、`Configuration`、`Lifecycle`、`Activity` 五类信息架构。
+- 支持项目级 `Refresh`、`Up`、`Stop`、`Restart`、`Unregister`、`Destroy` 管理动作。
 - 复用现有容器运行时能力，而不是新增第二套运行时真相。
 - Phase 1 只做本机 `local host`，但模型要为未来远程主机预留边界。
 
@@ -137,7 +137,7 @@ Docker container labels
 | --- | --- | --- | --- |
 | Compose Project detection | `partial` | 已通过 `com.docker.compose.project` / `com.docker.compose.service` labels 识别容器来源 | 复用为项目成员匹配与运行态聚合基础 |
 | Compose parsing | `no` | 仓库内无 Compose 文件解析器、无 `compose-go` 使用 | 新增 `project` module 静态解析能力 |
-| Compose up/down/restart | `no` | 容器 module 仅有单容器动作，没有 `docker compose up/down/restart` 执行层 | 新增项目生命周期执行器 |
+| Compose up/stop/restart | `no` | 容器 module 仅有单容器动作，没有 `docker compose up/stop/restart` 执行层 | 新增项目生命周期执行器 |
 | Compose logs | `indirect yes` | 已有容器日志 API 和流能力，但没有项目级日志 API | Phase 1 通过前端 fan-out 复用 |
 | Compose config | `no` | 无 `docker compose config` 或等价规范化预览接口 | 新增静态规范化快照与预览能力 |
 | Compose events | `indirect yes` | 已有容器事件流，但没有项目级事件聚合 API | Phase 1 通过前端 fan-out 复用 |
@@ -202,7 +202,7 @@ Docker container labels
 理由：
 
 - Compose 文件导入、合并、插值、标准化更适合静态解析库。
-- 真实 `up/down/restart` 语义应尽量复用 Docker Compose CLI 的行为，而不是自己模拟。
+- 真实 `up/stop/restart` 语义应尽量复用 Docker Compose CLI 的行为，而不是自己模拟。
 - 这样可以把“读配置”和“改运行态”分开治理。
 
 ## 6. 推荐架构
@@ -240,7 +240,7 @@ server/modules/project/
 - `compose/loader.go`
   - 使用 `compose-go` 读取、标准化、验证、生成快照。
 - `compose/executor.go`
-  - 使用参数化命令执行 `docker compose up/down/restart`。
+  - 使用参数化命令执行 `docker compose up/stop/restart`，并把 `docker compose down` 保留给 destroy。
 - `fs/`
   - 负责 working directory 解析、文件存在性检查、hash 计算、symlink 安全校验。
 
@@ -354,6 +354,18 @@ web Project Activity tab
 - `last_drift_checked_at`
 - `drift_status`
   - `unknown | clean | changed | missing`
+- `lifecycle_strategy_kind`
+  - 当前固定 `standard`
+- `lifecycle_review_status`
+  - `review_required | confirmed`
+- `lifecycle_config`
+  - `profiles`
+  - `down_before_redeploy`
+  - `pull_before_redeploy`
+  - `build_before_up`
+  - `force_recreate`
+  - `wait_after_up`
+  - `prune_images_after_redeploy`
 
 ### ProjectFile
 
@@ -474,7 +486,7 @@ Phase 1 推荐三张模块自有表：
 
 - Compose 项目在宿主机上已存在。
 - `Graft` 只登记其工作目录、文件集合、运行时身份与快照。
-- `Graft` 可以对它执行 `refresh/up/down/restart` 等管理动作。
+- `Graft` 可以对它执行 `refresh/up/stop/restart` 等管理动作。
 - `Graft` 不复制、不移动、不改写目录布局。
 
 ## 8.3 Refresh Project
@@ -494,26 +506,59 @@ Phase 1 推荐三张模块自有表：
 - 记录 `last_refresh_status=failed`
 - 在 Overview / Configuration 显示错误与“快照已过期”
 
-## 8.4 Up / Down / Restart
+## 8.4 Lifecycle Configuration / Up / Stop / Restart / Redeploy
 
 这些动作属于 `Project Lifecycle`，不属于 `Container`。
+
+Lifecycle Configuration 是本地项目统一的生命周期 authority：
+
+- `managed`
+  - 在 create 时由 `Project` 直接生成并保存默认 lifecycle configuration
+  - 默认进入 `confirmed`
+- `imported`
+  - 只能从 working directory、tracked compose files、canonical project name 推导出可恢复的最小 authority
+  - `profiles`、`pull/build/wait/force-recreate/prune` 等不可从 Docker runtime 历史可靠恢复
+  - 因此导入后必须落一个可编辑的默认 lifecycle configuration，并进入 `review_required`
+- `git`、`template`、`remote-host`
+  - 当前只保留 future-friendly strategy wording，不在本批实现 custom script 或 remote execution
+
+标准策略当前固定为 `standard`：
+
+- `Project` 保存结构化配置，而不是保存一整段原始 shell 命令
+- working directory、ordered compose files、canonical project name 继续由 project registry authority 拥有
+- lifecycle configuration 只保存可编辑的 compose 执行选项
+- UI 可展示 generated command preview，但 preview 是 derived artifact，不是第二套 authority
+- 若项目仍是 `review_required`，`up/stop/restart/redeploy` 必须先被 guard 拦住，直到用户确认或更新配置
 
 语义约束：
 
 - `Up`
-  - 执行 `docker compose up -d`
-- `Down`
-  - 执行安全默认的 `docker compose down`
-  - Phase 1 默认不删除 volumes
+  - 基于已保存 lifecycle configuration 生成 `docker compose up -d` 预览并执行
+- `Stop`
+  - 基于已保存 lifecycle configuration 生成 `docker compose stop` 预览并执行
+  - 仅停止当前项目运行中的服务和容器，不删除容器、网络或卷
 - `Restart`
-  - 执行 `docker compose restart`
+  - 基于已保存 lifecycle configuration 生成 `docker compose restart` 预览并执行
+- `Redeploy`
+  - canonical deploy-style lifecycle action
+  - 标准策略下根据保存配置决定是否先 `down`、是否 `pull`、然后 `up -d`，并可选 image prune
+- `Destroy`
+  - 执行 `docker compose down`
+  - Phase 1 默认不删除 volumes，只有显式 destroy 选项才允许继续破坏性清理
 
 执行时必须显式传入：
 
-- `--project-name`
+- `-p/--project-name`
 - `--project-directory`
 - 有序 `-f` 文件列表
+- 重复 `--profile`
 - 明确 env file 参数
+
+`update-deploy` 不再作为一等动作存在：
+
+- `pull`、`down-before-redeploy`、`prune` 等都收口到 lifecycle configuration
+- `redeploy` 成为统一的 runtime deploy-style lifecycle action
+- managed draft `deploy` 仍保留，但它只负责编排“写回 tracked files + refresh snapshot + 复用 lifecycle configuration 的 final up”
 
 ## 8.5 Remove Project
 
@@ -560,7 +605,7 @@ Volume 删除要单独判断：
 1. 用户打开 `Import Existing Project`
 2. frontend 请求 runtime candidate 列表
 3. backend 基于 `container` runtime authority 聚合 Compose import candidates
-4. frontend 展示 `ready` 与 `unavailable` candidates
+4. frontend 展示 `ready`、`already_imported` 与 `unavailable` candidates
 5. 用户只能选择 `ready` candidate 进入 inspect
 6. backend 基于 candidate authority 执行一次静态 inspect
 7. frontend 展示 inspect preview
@@ -599,6 +644,7 @@ candidate 至少要固定这些字段语义：
 - `canonical_project_name`
 - `status`
   - `ready`
+  - `already_imported`
   - `incomplete_metadata`
   - `unsupported_runtime`
   - `broken_compose`
@@ -616,11 +662,12 @@ candidate 至少要固定这些字段语义：
 返回规则：
 
 - runtime candidates 不能只返回 `ready`
-- 对当前 runtime 中可见但不可导入的 Compose project，必须返回 `unavailable` candidate，并给出稳定 reason code
+- 对当前 runtime 中可见但不可导入的 Compose project，必须返回 `already_imported` 或 `unavailable` candidate，并给出稳定 reason code
 - frontend 通过 `status + status_reason_codes` 展示不可导入原因，而不是靠候选“消失”表达失败
 
 当前 batch 固定的最小 reason code 集：
 
+- `already_imported`
 - `missing_project_name`
 - `missing_config_files`
 - `invalid_config_files`
@@ -735,7 +782,7 @@ inspect / import 前必须校验：
 - Services 聚合
 - Configuration 只读视图
 - Activity 前端聚合入口
-- `Up / Down / Restart / Refresh / Unregister / Destroy` 动作
+- `Up / Stop / Restart / Refresh / Unregister / Destroy` 动作
 - 容器详情跳转入口
 
 ## 10. API 提案
@@ -957,10 +1004,10 @@ Phase 1 的单文件内容返回建议包含：
 | --- | --- | --- |
 | `POST` | `/api/ops/projects/{id}/refresh` | 刷新静态配置与聚合视图 |
 | `POST` | `/api/ops/projects/{id}/up` | 执行 compose up |
-| `POST` | `/api/ops/projects/{id}/down` | 执行 compose down，默认不删 volumes |
+| `POST` | `/api/ops/projects/{id}/stop` | 执行 compose stop，仅停止运行中的服务与容器 |
 | `POST` | `/api/ops/projects/{id}/restart` | 执行 compose restart |
 | `POST` | `/api/ops/projects/{id}/unregister` | 只删注册记录 |
-| `POST` | `/api/ops/projects/{id}/destroy` | 高危销毁；受 ownership 保护 |
+| `POST` | `/api/ops/projects/{id}/destroy` | 执行 compose down 并进入高危销毁收尾；受 ownership 保护 |
 
 `destroy` 请求建议显式字段：
 
@@ -1065,7 +1112,7 @@ Phase 1 的单文件内容返回建议包含：
   - module-local shared UI helpers：`shared/display.ts`、`shared/navigation.ts`
 - List / Detail IA owner：
   - `list` 页面固定承载 project registry list、筛选、summary、危险动作入口与 detail tab 导航
-  - `detail` 页面固定承载 `Overview`、`Services`、`Configuration`、`Activity` 四个页签
+  - `detail` 页面固定承载 `Overview`、`Services`、`Configuration`、`Lifecycle`、`Activity` 五个页签
 - Authority guard 已落地：
   - `Overview` 只承载 summary，不引入 runtime dashboard 指标或 timeline
   - `Services` 只消费静态定义与 container member/count 聚合，并回跳现有 Container Detail
@@ -1083,6 +1130,7 @@ Projects
      -> Overview
      -> Services
      -> Configuration
+     -> Lifecycle
      -> Activity
 ```
 
@@ -1117,7 +1165,7 @@ Projects
 保留 `Overview` 的好处：
 
 - 项目身份、来源、路径、ownership 与高危动作有稳定落点
-- 不必把这些信息散落在 Services / Configuration / Activity 三个页签
+- 不必把这些信息散落在 Services / Configuration / Lifecycle / Activity 四个页签
 - 与“项目只是聚合入口”的定位一致
 
 保留 `Overview` 的代价：
@@ -1148,6 +1196,14 @@ Projects
 - Preview
 - Download
 
+### Lifecycle
+
+- 显示 lifecycle review status
+- 显示 working directory、ordered compose files、canonical project name
+- 编辑标准 Compose lifecycle 选项：profiles、down/pull/build/force-recreate/wait/prune
+- 实时展示 generated command preview
+- custom script 只保留 future strategy boundary，不在当前 batch 实现
+
 ### Activity
 
 - 前端 fan-out 聚合容器日志与事件
@@ -1168,6 +1224,7 @@ Projects
 - Snapshot
 - Drift
 - Lifecycle Actions
+- Lifecycle Configuration
 - Services Aggregation
 
 ## 12.2 Container owns what
@@ -1333,7 +1390,7 @@ Management：
 - Import Existing Project
 - Project Registry
 - Refresh
-- Up / Down / Restart
+- Up / Stop / Restart
 - Unregister
 - Destroy with ownership protection
 
@@ -1387,12 +1444,17 @@ Configuration：
   - 新增 `POST /api/ops/projects/{id}/configuration/diff`
   - 新增 `POST /api/ops/projects/{id}/configuration/validate`
   - 新增 `POST /api/ops/projects/{id}/deploy`
+  - 新增 `PUT /api/ops/projects/{id}/lifecycle-configuration`
+  - 移除 `POST /api/ops/projects/{id}/update-deploy` 作为一等 lifecycle action
 - Project module execution owner：`server/modules/project/**`
   - diff 与 validate 只针对 managed project 当前 tracked files 和 draft content 做 bounded 对比与静态解析
-  - deploy 只允许写回当前 tracked managed files、刷新 project snapshot，并复用 project-owned lifecycle 执行 `docker compose up -d`
+  - 本地项目统一保存 lifecycle configuration：managed 默认 `confirmed`，imported 默认 `review_required`
+  - deploy 只允许写回当前 tracked managed files、刷新 project snapshot，并复用 project-owned lifecycle configuration 做 final compose `up`
+  - redeploy 成为统一 runtime deploy-style lifecycle action；pull/down/prune 等语义都收口到 lifecycle configuration
   - 不新增 project runtime persistence、project logs/events aggregation 或 project-owned container detail
 - Frontend module owner：`web/src/modules/project/**`
-  - 在 `detail -> configuration` 页签内承载 Compose/Env draft editor、diff、validate 和 deploy flow
+  - `detail -> configuration` 继续承载 Compose/Env draft editor、diff、validate 和 managed draft deploy flow
+  - `detail -> lifecycle` 承载 lifecycle configuration 编辑、review 提示和 generated command preview
   - 仍保持 `detail` 页属于 `list-form-detail` page type，不把 Overview 变成 runtime dashboard
 
 ## 16.3B Phase 2 archive-readiness check
@@ -1400,7 +1462,7 @@ Configuration：
 `phase-2-batch-5-phase-2-validation-drift-guard-and-governance-sync` 完成后，Phase 2 以同一 topic 内的 bounded batches 达到可审计验收状态：
 
 - managed root create、Compose/Env editor、diff、validate、deploy 路径均已落地并通过完整验证链
-- `Project` 继续只拥有 project registry、draft editor、静态 diff/validate 与 deploy orchestration
+- `Project` 继续只拥有 project registry、draft editor、静态 diff/validate 与 lifecycle/deploy orchestration
 - 不新增 project runtime persistence、project logs/events aggregation 或 project-owned container detail
 - `Container` 继续保持 runtime authority
 - Topic 不进入 `archive-ready`，因为 Phase 3 仍需按更小的 bounded batches 继续推进

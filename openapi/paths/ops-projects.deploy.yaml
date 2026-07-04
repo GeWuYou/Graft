@@ -4,8 +4,8 @@ post:
   operationId: postProjectDeploy
   description: >
     Writes one managed project draft to the tracked Compose and optional env files, refreshes the project snapshot,
-    and runs `docker compose up -d` through project-owned lifecycle execution without introducing runtime-state
-    persistence in the project module.
+    then reuses the saved project lifecycle configuration for the final compose `up` execution without introducing
+    runtime-state persistence in the project module.
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml
@@ -51,7 +51,7 @@ post:
           schema:
             $ref: ../components/schemas/error-response.yaml
     '409':
-      description: Deploy was blocked by project authority, bounded scope, or lifecycle execution.
+      description: Deploy was blocked by project authority, lifecycle review guards, bounded scope, or lifecycle execution.
       headers:
         X-Request-Id:
           $ref: ../components/headers/request-id.yaml

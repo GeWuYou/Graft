@@ -363,6 +363,14 @@ const filters = reactive<ContainerFilters>({
   status: 'all',
   health: 'all',
 });
+const submittedFilters = ref<ContainerFilters>({
+  keyword: '',
+  orchestrator: 'all',
+  sourceScopeKind: 'all',
+  sourceScope: '',
+  status: 'all',
+  health: 'all',
+});
 const pagination = reactive({
   current: 1,
   pageSize: CONTAINER_DEFAULT_PAGE_SIZE,
@@ -402,15 +410,19 @@ const sourceScopePlaceholder = computed(() => {
     kind: t(`container.list.sourceKinds.${filters.sourceScopeKind}`),
   });
 });
+function hasCommittedFilters(activeFilters: ContainerFilters) {
+  return (
+    Boolean(activeFilters.keyword.trim()) ||
+    activeFilters.orchestrator !== 'all' ||
+    activeFilters.sourceScopeKind !== 'all' ||
+    Boolean(activeFilters.sourceScope.trim()) ||
+    activeFilters.status !== 'all' ||
+    activeFilters.health !== 'all'
+  );
+}
+
 const hasActiveFilters = computed(
-  () =>
-    Boolean(filters.keyword.trim()) ||
-    filters.orchestrator !== 'all' ||
-    filters.sourceScopeKind !== 'all' ||
-    Boolean(filters.sourceScope.trim()) ||
-    filters.status !== 'all' ||
-    filters.health !== 'all' ||
-    Boolean(pendingSourceScopeFilter.value),
+  () => hasCommittedFilters(submittedFilters.value) || Boolean(pendingSourceScopeFilter.value),
 );
 const totalCount = computed(() => listSummary.value?.total ?? listTotal.value);
 const runningCount = computed(() => listSummary.value?.running ?? 0);
@@ -639,7 +651,7 @@ function isApiRequestErrorShape(error: unknown): error is { isApiRequestError: t
 function applyFilters() {
   filters.keyword = filters.keyword.trim();
   filters.sourceScope = filters.sourceScope.trim();
-  syncPendingSourceScopeFilter();
+  commitSubmittedFilters();
   clearSelection();
   requestFirstPage();
 }
@@ -651,7 +663,7 @@ function resetFilters() {
   filters.sourceScope = '';
   filters.status = 'all';
   filters.health = 'all';
-  pendingSourceScopeFilter.value = null;
+  commitSubmittedFilters();
   clearSelection();
   requestFirstPage();
 }
@@ -665,13 +677,14 @@ function requestFirstPage() {
 }
 
 function buildListQuery(): ContainerListQueryWithOrchestrator {
+  const activeFilters = submittedFilters.value;
   return {
     limit: pagination.pageSize,
     offset: (pagination.current - 1) * pagination.pageSize,
-    keyword: filters.keyword.trim() || undefined,
-    orchestrator: filters.orchestrator === 'all' ? undefined : filters.orchestrator,
-    state: filters.status === 'all' ? undefined : filters.status,
-    health: filters.health === 'all' ? undefined : filters.health,
+    keyword: activeFilters.keyword.trim() || undefined,
+    orchestrator: activeFilters.orchestrator === 'all' ? undefined : activeFilters.orchestrator,
+    state: activeFilters.status === 'all' ? undefined : activeFilters.status,
+    health: activeFilters.health === 'all' ? undefined : activeFilters.health,
     ...buildSourceScopeQuery(),
   };
 }
@@ -688,13 +701,25 @@ function buildSourceScopeQuery(): ContainerListSourceScopeQuery {
   };
 }
 
-function syncPendingSourceScopeFilter() {
+function commitSubmittedFilters() {
+  submittedFilters.value = {
+    keyword: filters.keyword,
+    orchestrator: filters.orchestrator,
+    sourceScopeKind: filters.sourceScopeKind,
+    sourceScope: filters.sourceScope,
+    status: filters.status,
+    health: filters.health,
+  };
+  syncPendingSourceScopeFilter(submittedFilters.value);
+}
+
+function syncPendingSourceScopeFilter(activeFilters: ContainerFilters) {
   pendingSourceScopeFilter.value =
-    filters.sourceScopeKind !== 'all' && filters.sourceScope
+    activeFilters.sourceScopeKind !== 'all' && activeFilters.sourceScope
       ? {
-          kind: filters.sourceScopeKind,
-          orchestrator: filters.orchestrator === 'all' ? 'standalone' : filters.orchestrator,
-          value: filters.sourceScope,
+          kind: activeFilters.sourceScopeKind,
+          orchestrator: activeFilters.orchestrator === 'all' ? 'standalone' : activeFilters.orchestrator,
+          value: activeFilters.sourceScope,
         }
       : null;
 }
@@ -1325,7 +1350,7 @@ function applySourceQuickFilter(sourceFilter: ContainerSourceQuickFilter) {
   filters.keyword = '';
   filters.sourceScopeKind = sourceFilter.kind;
   filters.sourceScope = sourceFilter.value;
-  pendingSourceScopeFilter.value = sourceFilter;
+  commitSubmittedFilters();
   clearSelection();
   requestFirstPage();
 }

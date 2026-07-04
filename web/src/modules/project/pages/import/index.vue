@@ -8,15 +8,6 @@
       >
         <template #meta>
           <t-space break-line size="small">
-            <t-tag theme="primary" variant="light-outline">
-              {{ t('project.import.meta.step', { current: currentStepIndex + 1, total: wizardSteps.length }) }}
-            </t-tag>
-            <t-tag theme="success" variant="light-outline">
-              {{ t('project.import.meta.readyCount', { count: candidateFilterCounts.ready }) }}
-            </t-tag>
-            <t-tag theme="warning" variant="light-outline">
-              {{ t('project.import.meta.unavailableCount', { count: candidateFilterCounts.unavailable }) }}
-            </t-tag>
             <t-tag v-if="selectedCandidateLabel" theme="default" variant="light-outline">
               {{ t('project.import.meta.selectedCandidate', { name: selectedCandidateLabel }) }}
             </t-tag>
@@ -120,14 +111,6 @@
                 @column-settings="columnDrawerVisible = true"
                 @refresh="loadCandidates"
               >
-                <template #before>
-                  <span class="project-import-section-description">{{
-                    t('project.import.candidates.summary', {
-                      ready: candidateFilterCounts.ready,
-                      unavailable: candidateFilterCounts.unavailable,
-                    })
-                  }}</span>
-                </template>
               </table-view-toolbar>
             </template>
 
@@ -350,7 +333,7 @@ defineOptions({
 });
 
 type ImportWizardStep = 'select' | 'inspect' | 'confirm';
-type CandidateStatusFilter = 'all' | 'ready' | 'unavailable';
+type CandidateStatusFilter = 'all' | 'ready' | 'imported' | 'unavailable';
 type PaginationState = {
   current: number;
   pageSize: number;
@@ -424,12 +407,13 @@ const candidateListTotal = ref(0);
 const candidateFilterCounts = ref<ProjectImportRuntimeCandidateFilterCounts>({
   all: 0,
   ready: 0,
+  imported: 0,
   unavailable: 0,
 });
 const currentStep = ref<ImportWizardStep>('select');
 const candidatesLoaded = ref(false);
 const candidateSearchKeyword = ref('');
-const candidateStatusFilter = ref<CandidateStatusFilter>('all');
+const candidateStatusFilter = ref<CandidateStatusFilter>('ready');
 const candidatePagination = reactive<PaginationState>({
   current: 1,
   pageSize: CANDIDATE_PAGE_SIZE,
@@ -484,7 +468,7 @@ const resolvedWorkingDirectory = computed(
 
 const normalizedCandidateSearch = computed(() => candidateSearchKeyword.value.trim());
 const hasActiveCandidateFilters = computed(
-  () => Boolean(candidateSearchKeyword.value.trim()) || candidateStatusFilter.value !== 'all',
+  () => Boolean(candidateSearchKeyword.value.trim()) || candidateStatusFilter.value !== 'ready',
 );
 const candidateStatusFilterOptions = computed(() => [
   {
@@ -494,6 +478,10 @@ const candidateStatusFilterOptions = computed(() => [
   {
     value: 'ready' as const,
     label: t('project.import.candidates.readyFilterLabel', { count: candidateFilterCounts.value.ready }),
+  },
+  {
+    value: 'imported' as const,
+    label: t('project.import.candidates.importedFilterLabel', { count: candidateFilterCounts.value.imported }),
   },
   {
     value: 'unavailable' as const,
@@ -877,6 +865,7 @@ async function loadCandidates() {
     candidateFilterCounts.value = {
       all: 0,
       ready: 0,
+      imported: 0,
       unavailable: 0,
     };
     candidatesError.value = resolveLocalizedErrorMessage(t, error, t('project.import.messages.candidateLoadFailed'));
@@ -917,6 +906,7 @@ function normalizeCandidateListState(
     filterCounts: {
       all: typeof filterCounts?.all === 'number' ? filterCounts.all : items.length,
       ready: typeof filterCounts?.ready === 'number' ? filterCounts.ready : 0,
+      imported: typeof filterCounts?.imported === 'number' ? filterCounts.imported : 0,
       unavailable: typeof filterCounts?.unavailable === 'number' ? filterCounts.unavailable : 0,
     },
   };
@@ -930,6 +920,7 @@ function isCandidateFilterCounts(value: unknown): value is ProjectImportRuntimeC
   return (
     typeof candidate.all === 'number' &&
     typeof candidate.ready === 'number' &&
+    typeof candidate.imported === 'number' &&
     typeof candidate.unavailable === 'number'
   );
 }
@@ -1058,7 +1049,7 @@ async function openDetail(response: ProjectImportExecuteResponse) {
 
 function resetCandidateFilters() {
   candidateSearchKeyword.value = '';
-  candidateStatusFilter.value = 'all';
+  candidateStatusFilter.value = 'ready';
 }
 
 function handleReset() {

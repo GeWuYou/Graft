@@ -1,7 +1,6 @@
 package container
 
 import (
-	"context"
 	"errors"
 
 	containerdi "graft/server/internal/container"
@@ -55,15 +54,14 @@ func (m *Module) Boot(ctx *module.Context) error {
 	if m == nil || m.service == nil {
 		return nil
 	}
-	lifecycleCtx := context.Background()
-	if ctx != nil && ctx.LifecycleContext != nil {
-		lifecycleCtx = ctx.LifecycleContext
+	if ctx == nil || ctx.LifecycleContext == nil {
+		return errors.New("container lifecycle context is required")
 	}
-	if err := m.service.startStatsCollector(lifecycleCtx); err != nil {
+	if err := m.service.startStatsCollector(ctx.LifecycleContext); err != nil {
 		return err
 	}
-	if err := m.service.startRuntimeEventManager(lifecycleCtx); err != nil {
-		if stopErr := m.service.stopStatsCollector(lifecycleCtx); stopErr != nil {
+	if err := m.service.startRuntimeEventManager(ctx.LifecycleContext); err != nil {
+		if stopErr := m.service.stopStatsCollector(ctx.LifecycleContext); stopErr != nil {
 			return errors.Join(err, stopErr)
 		}
 		return err
@@ -72,11 +70,14 @@ func (m *Module) Boot(ctx *module.Context) error {
 }
 
 // Shutdown stops module-owned background work and releases the runtime client.
-func (m *Module) Shutdown(_ *module.Context) error {
+func (m *Module) Shutdown(ctx *module.Context) error {
 	if m == nil || m.service == nil {
 		return nil
 	}
-	return m.service.Close()
+	if ctx == nil || ctx.LifecycleContext == nil {
+		return errors.New("container shutdown lifecycle context is required")
+	}
+	return m.service.Close(ctx.LifecycleContext)
 }
 
 // registerModuleServices 向模块服务注册器登记容器项目运行时读取器的单例实现。

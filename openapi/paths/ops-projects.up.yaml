@@ -2,6 +2,7 @@ post:
   tags: [project]
   summary: Run docker compose up for a registered project
   operationId: postProjectUp
+  description: Runs the saved lifecycle configuration `up` command preview for the selected project.
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml

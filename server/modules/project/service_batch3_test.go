@@ -37,7 +37,7 @@ func (s *stubProjectRepository) Get(context.Context, uint64) (projectstore.Proje
 	if s.aggregate.Project.ID == 0 {
 		return projectstore.ProjectAggregate{}, projectstore.ErrProjectNotFound
 	}
-	return s.aggregate, nil
+	return ensureStubProjectAggregateDefaults(s.aggregate), nil
 }
 
 func (s *stubProjectRepository) GetFile(context.Context, uint64, uint64) (projectstore.ProjectFile, error) {
@@ -56,6 +56,9 @@ func (s *stubProjectRepository) ImportProject(_ context.Context, input projectst
 	s.aggregate.Project.HostScope = input.HostScope
 	s.aggregate.Project.WorkingDirectory = input.WorkingDirectory
 	s.aggregate.Project.OwnershipMode = input.OwnershipMode
+	s.aggregate.Project.LifecycleStrategyKind = input.LifecycleStrategyKind
+	s.aggregate.Project.LifecycleReviewStatus = input.LifecycleReviewStatus
+	s.aggregate.Project.LifecycleConfig = input.LifecycleConfig
 	s.aggregate.Project.LastRefreshStatus = input.LastRefreshStatus
 	s.aggregate.Project.LastRefreshAt = input.LastRefreshAt
 	s.aggregate.Project.LastRefreshConfigHash = input.LastRefreshConfigHash
@@ -71,11 +74,21 @@ func (s *stubProjectRepository) ImportProject(_ context.Context, input projectst
 	}
 	s.aggregate.Files = files
 	s.aggregate.Snapshot = input.Snapshot
-	return s.aggregate, nil
+	return ensureStubProjectAggregateDefaults(s.aggregate), nil
 }
 
 func (s *stubProjectRepository) RefreshProject(context.Context, projectstore.RefreshProjectInput) (projectstore.ProjectAggregate, error) {
 	return projectstore.ProjectAggregate{}, errors.New("not implemented")
+}
+
+func (s *stubProjectRepository) UpdateLifecycleConfig(
+	_ context.Context,
+	input projectstore.UpdateLifecycleConfigInput,
+) (projectstore.ProjectAggregate, error) {
+	s.aggregate.Project.LifecycleStrategyKind = input.LifecycleStrategyKind
+	s.aggregate.Project.LifecycleReviewStatus = input.LifecycleReviewStatus
+	s.aggregate.Project.LifecycleConfig = input.LifecycleConfig
+	return ensureStubProjectAggregateDefaults(s.aggregate), nil
 }
 
 func (s *stubProjectRepository) UnregisterProject(_ context.Context, input projectstore.UnregisterProjectInput) error {
@@ -83,6 +96,30 @@ func (s *stubProjectRepository) UnregisterProject(_ context.Context, input proje
 	recorded := input
 	s.unregisterInput = &recorded
 	return s.unregisterErr
+}
+
+func ensureStubProjectAggregateDefaults(aggregate projectstore.ProjectAggregate) projectstore.ProjectAggregate {
+	if aggregate.Project.LifecycleStrategyKind == "" {
+		aggregate.Project.LifecycleStrategyKind = projectcontract.LifecycleStrategyKindStandard.String()
+	}
+	if aggregate.Project.LifecycleReviewStatus == "" {
+		aggregate.Project.LifecycleReviewStatus = projectcontract.LifecycleReviewStatusConfirmed.String()
+	}
+	if len(aggregate.Files) == 0 && aggregate.Project.WorkingDirectory != "" {
+		aggregate.Files = []projectstore.ProjectFile{
+			{
+				ID:                  1,
+				ProjectID:           aggregate.Project.ID,
+				Kind:                projectcontract.FileKindCompose.String(),
+				Role:                projectcontract.FileRolePrimary.String(),
+				AbsolutePath:        filepath.Join(aggregate.Project.WorkingDirectory, "compose.yaml"),
+				DisplayPath:         "compose.yaml",
+				OrderIndex:          0,
+				ExistsOnLastRefresh: true,
+			},
+		}
+	}
+	return aggregate
 }
 
 type capturedAuditBus struct {
@@ -480,6 +517,32 @@ func TestBatchDestroyRequiresExplicitConfirmation(t *testing.T) {
 	}
 	if repo.unregisterCalled {
 		t.Fatalf("destroy without confirmation should not unregister project")
+	}
+}
+
+func TestSkipBatchRestartForStatusAllowsStoppedProjects(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name       string
+		status     generated.ProjectRuntimeStatus
+		wantReason string
+		wantSkip   bool
+	}{
+		{name: "running", status: generated.ProjectRuntimeStatusRunning, wantReason: "", wantSkip: false},
+		{name: "degraded", status: generated.ProjectRuntimeStatusDegraded, wantReason: "", wantSkip: false},
+		{name: "stopped", status: generated.ProjectRuntimeStatusStopped, wantReason: "", wantSkip: false},
+		{name: "transitioning", status: generated.ProjectRuntimeStatusTransitioning, wantReason: "currently_transitioning", wantSkip: true},
+		{name: "unknown", status: generated.ProjectRuntimeStatusUnknown, wantReason: "runtime_status_unknown", wantSkip: true},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			gotReason, gotSkip := skipBatchRestartForStatus(tc.status)
+			if gotReason != tc.wantReason || gotSkip != tc.wantSkip {
+				t.Fatalf("skipBatchRestartForStatus(%q) = (%q, %v), want (%q, %v)", tc.status, gotReason, gotSkip, tc.wantReason, tc.wantSkip)
+			}
+		})
 	}
 }
 
@@ -901,8 +964,109 @@ func TestListRuntimeImportCandidatesDedupesCandidateKeys(t *testing.T) {
 	if result.Total != 1 {
 		t.Fatalf("expected deduped total 1, got %d", result.Total)
 	}
-	if result.FilterCounts.All != 1 || result.FilterCounts.Unavailable != 1 {
+	if result.FilterCounts.All != 1 || result.FilterCounts.Imported != 0 || result.FilterCounts.Unavailable != 1 {
 		t.Fatalf("expected deduped filter counts, got %#v", result.FilterCounts)
+	}
+}
+
+func TestListRuntimeImportCandidatesMarksAlreadyImported(t *testing.T) {
+	t.Parallel()
+
+	tempDir := t.TempDir()
+	composePath := filepath.Join(tempDir, "compose.yaml")
+	if err := os.WriteFile(composePath, []byte("services:\n  web:\n    image: nginx:latest\n"), 0o600); err != nil {
+		t.Fatalf("write compose file: %v", err)
+	}
+
+	repo := &stubProjectRepository{
+		aggregate: projectstore.ProjectAggregate{
+			Project: projectstore.Project{
+				ID:                   42,
+				CanonicalProjectName: "demo",
+				WorkingDirectory:     tempDir,
+			},
+		},
+	}
+	service, err := NewService(repo, WithRuntimeReader(stubRuntimeReader{
+		candidates: []moduleapi.ContainerProjectRuntimeCandidate{
+			{
+				CandidateKey:           "runtime_demo",
+				CanonicalProjectName:   "demo",
+				Status:                 importRuntimeCandidateStatusReady,
+				Importable:             true,
+				RuntimeType:            "docker",
+				WorkingDirectory:       tempDir,
+				WorkingDirectorySource: "runtime_label",
+				ConfigFiles:            []string{composePath},
+				ServiceNames:           []string{"web"},
+				ContainerCounts:        moduleapi.ContainerProjectRuntimeContainerCounts{Running: 1, Total: 1},
+			},
+		},
+	}))
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	result, err := service.ListRuntimeImportCandidates(context.Background(), RuntimeImportCandidateListQuery{})
+	if err != nil {
+		t.Fatalf("list runtime import candidates: %v", err)
+	}
+	if len(result.Items) != 1 {
+		t.Fatalf("expected 1 candidate, got %d", len(result.Items))
+	}
+	candidate := result.Items[0]
+	if candidate.Status != importRuntimeCandidateStatusAlreadyImported || candidate.Importable {
+		t.Fatalf("expected already imported candidate, got %#v", candidate)
+	}
+	if len(candidate.StatusReasonCodes) != 1 || candidate.StatusReasonCodes[0] != importRuntimeReasonAlreadyImported {
+		t.Fatalf("unexpected status reason codes %#v", candidate.StatusReasonCodes)
+	}
+	if result.FilterCounts.Imported != 1 || result.FilterCounts.Ready != 0 || result.FilterCounts.Unavailable != 0 {
+		t.Fatalf("unexpected filter counts %#v", result.FilterCounts)
+	}
+}
+
+func TestInspectRuntimeCandidateRejectsAlreadyImportedCandidate(t *testing.T) {
+	t.Parallel()
+
+	tempDir := t.TempDir()
+	composePath := filepath.Join(tempDir, "compose.yaml")
+	if err := os.WriteFile(composePath, []byte("services:\n  web:\n    image: nginx:latest\n"), 0o600); err != nil {
+		t.Fatalf("write compose file: %v", err)
+	}
+
+	repo := &stubProjectRepository{
+		aggregate: projectstore.ProjectAggregate{
+			Project: projectstore.Project{
+				ID:                   7,
+				CanonicalProjectName: "demo",
+				WorkingDirectory:     tempDir,
+			},
+		},
+	}
+	service, err := NewService(repo, WithRuntimeReader(stubRuntimeReader{
+		candidates: []moduleapi.ContainerProjectRuntimeCandidate{
+			{
+				CandidateKey:           "runtime_demo",
+				CanonicalProjectName:   "demo",
+				Status:                 importRuntimeCandidateStatusReady,
+				Importable:             true,
+				RuntimeType:            "docker",
+				WorkingDirectory:       tempDir,
+				WorkingDirectorySource: "runtime_label",
+				ConfigFiles:            []string{composePath},
+				ServiceNames:           []string{"web"},
+				ContainerCounts:        moduleapi.ContainerProjectRuntimeContainerCounts{Running: 1, Total: 1},
+			},
+		},
+	}))
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	_, err = service.InspectRuntimeCandidate(context.Background(), RuntimeImportInspectRequest{CandidateKey: "runtime_demo"})
+	if !errors.Is(err, errProjectConflict) {
+		t.Fatalf("expected project conflict, got %v", err)
 	}
 }
 

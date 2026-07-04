@@ -21,10 +21,12 @@ func TestSQLRepositoryGetFileSkipsDeletedProject(t *testing.T) {
 
 	mustExec(t, db, `INSERT INTO compose_projects (
 		id, display_name, canonical_project_name, canonical_project_name_source, source_kind, host_scope,
-		working_directory, ownership_mode, last_refresh_status, drift_status, created_at, updated_at, deleted_at
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		working_directory, ownership_mode, lifecycle_strategy_kind, lifecycle_review_status, lifecycle_config_json,
+		last_refresh_status, drift_status, created_at, updated_at, deleted_at
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		1, "demo", "demo", projectcontract.CanonicalProjectNameSourceComputed.String(), projectcontract.SourceKindImported.String(),
 		projectcontract.HostScopeLocal.String(), "/srv/demo", projectcontract.OwnershipModeExternal.String(),
+		projectcontract.LifecycleStrategyKindStandard.String(), projectcontract.LifecycleReviewStatusReviewRequired.String(), `{"profiles":[],"down_before_redeploy":true,"pull_before_redeploy":false,"build_before_up":false,"force_recreate":false,"wait_after_up":false,"prune_images_after_redeploy":false}`,
 		projectcontract.RefreshStatusSuccess.String(), projectcontract.DriftStatusClean.String(), time.Now().UTC(), time.Now().UTC(), 1,
 	)
 	mustExec(t, db, `INSERT INTO compose_project_files (
@@ -146,6 +148,9 @@ func createProjectStoreSchema(t *testing.T, db *sql.DB) {
 		host_scope TEXT NOT NULL,
 		working_directory TEXT NOT NULL,
 		ownership_mode TEXT NOT NULL,
+		lifecycle_strategy_kind TEXT NOT NULL,
+		lifecycle_review_status TEXT NOT NULL,
+		lifecycle_config_json TEXT NOT NULL DEFAULT '{}',
 		last_refresh_status TEXT NOT NULL,
 		last_refresh_at TIMESTAMP NULL,
 		last_refresh_error_code TEXT NOT NULL DEFAULT '',
@@ -188,10 +193,12 @@ func insertProjectRow(t *testing.T, db *sql.DB, id int, name string, updatedAt t
 	t.Helper()
 	mustExec(t, db, `INSERT INTO compose_projects (
 		id, display_name, canonical_project_name, canonical_project_name_source, source_kind, host_scope,
-		working_directory, ownership_mode, last_refresh_status, drift_status, created_at, updated_at, deleted_at
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		working_directory, ownership_mode, lifecycle_strategy_kind, lifecycle_review_status, lifecycle_config_json,
+		last_refresh_status, drift_status, created_at, updated_at, deleted_at
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		id, name, name, projectcontract.CanonicalProjectNameSourceComputed.String(), projectcontract.SourceKindImported.String(),
 		projectcontract.HostScopeLocal.String(), "/srv/"+name, projectcontract.OwnershipModeExternal.String(),
+		projectcontract.LifecycleStrategyKindStandard.String(), projectcontract.LifecycleReviewStatusReviewRequired.String(), `{"profiles":[],"down_before_redeploy":true,"pull_before_redeploy":false,"build_before_up":false,"force_recreate":false,"wait_after_up":false,"prune_images_after_redeploy":false}`,
 		projectcontract.RefreshStatusSuccess.String(), projectcontract.DriftStatusClean.String(), updatedAt, updatedAt, deletedAt,
 	)
 }

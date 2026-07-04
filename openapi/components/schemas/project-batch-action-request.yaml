@@ -5,14 +5,13 @@ required:
 properties:
   action:
     type: string
-    enum: [start, stop, restart, unregister, redeploy, update_deploy, destroy]
+    enum: [start, stop, restart, unregister, redeploy, destroy]
     x-enum-varnames:
       - ProjectBatchActionRequestActionStart
       - ProjectBatchActionRequestActionStop
       - ProjectBatchActionRequestActionRestart
       - ProjectBatchActionRequestActionUnregister
       - ProjectBatchActionRequestActionRedeploy
-      - ProjectBatchActionRequestActionUpdateDeploy
       - ProjectBatchActionRequestActionDestroy
   project_ids:
     type: array

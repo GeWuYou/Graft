@@ -11,8 +11,9 @@ import (
 )
 
 type serveRecorderRuntime struct {
-	runCtx context.Context
-	runErr error
+	buildCtx context.Context
+	runCtx   context.Context
+	runErr   error
 }
 
 type serveTestContextKey struct{}
@@ -34,7 +35,8 @@ func TestRunServeUsesCommandContextWhenPresent(t *testing.T) {
 	expectedCtx := context.WithValue(context.Background(), serveTestContextKey{}, "serve")
 	runtime := &serveRecorderRuntime{}
 
-	serveNewRuntime = func() (runtimeRunner, error) {
+	serveNewRuntime = func(ctx context.Context) (runtimeRunner, error) {
+		runtime.buildCtx = ctx
 		return runtime, nil
 	}
 	serveNotifyContext = func(parent context.Context, _ ...os.Signal) (context.Context, context.CancelFunc) {
@@ -48,6 +50,9 @@ func TestRunServeUsesCommandContextWhenPresent(t *testing.T) {
 		t.Fatalf("run serve: %v", err)
 	}
 
+	if runtime.buildCtx != expectedCtx {
+		t.Fatalf("expected serve to use command context when building runtime")
+	}
 	if runtime.runCtx != expectedCtx {
 		t.Fatalf("expected serve to use command context")
 	}
@@ -60,7 +65,7 @@ func TestRunServeReportsRuntimeConstructionFailure(t *testing.T) {
 		serveNewRuntime = originalNewRuntime
 	}()
 
-	serveNewRuntime = func() (runtimeRunner, error) {
+	serveNewRuntime = func(context.Context) (runtimeRunner, error) {
 		return nil, errors.New("runtime build failed")
 	}
 

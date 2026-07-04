@@ -2,6 +2,7 @@ package store
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -88,6 +89,8 @@ func trimImportInput(input ImportProjectInput) ImportProjectInput {
 	input.HostScope = strings.TrimSpace(input.HostScope)
 	input.WorkingDirectory = strings.TrimSpace(input.WorkingDirectory)
 	input.OwnershipMode = strings.TrimSpace(input.OwnershipMode)
+	input.LifecycleStrategyKind = strings.TrimSpace(input.LifecycleStrategyKind)
+	input.LifecycleReviewStatus = strings.TrimSpace(input.LifecycleReviewStatus)
 	input.LastRefreshStatus = strings.TrimSpace(input.LastRefreshStatus)
 	input.LastRefreshErrorCode = strings.TrimSpace(input.LastRefreshErrorCode)
 	input.LastRefreshErrorMessage = strings.TrimSpace(input.LastRefreshErrorMessage)
@@ -108,6 +111,8 @@ func validateRequiredImportFields(input ImportProjectInput) error {
 		input.HostScope,
 		input.WorkingDirectory,
 		input.OwnershipMode,
+		input.LifecycleStrategyKind,
+		input.LifecycleReviewStatus,
 		input.LastRefreshStatus,
 		input.DriftStatus,
 	}
@@ -159,6 +164,23 @@ func validateUnregisterInput(input UnregisterProjectInput) (UnregisterProjectInp
 	if input.ProjectID == 0 {
 		return UnregisterProjectInput{}, ErrInvalidInput
 	}
+	return input, nil
+}
+
+func validateUpdateLifecycleConfigInput(input UpdateLifecycleConfigInput) (UpdateLifecycleConfigInput, error) {
+	if input.ProjectID == 0 {
+		return UpdateLifecycleConfigInput{}, ErrInvalidInput
+	}
+	input.LifecycleStrategyKind = strings.TrimSpace(input.LifecycleStrategyKind)
+	input.LifecycleReviewStatus = strings.TrimSpace(input.LifecycleReviewStatus)
+	config, err := normalizeLifecycleConfig(input.LifecycleConfig)
+	if err != nil {
+		return UpdateLifecycleConfigInput{}, err
+	}
+	if !isValidLifecycleStrategyKind(input.LifecycleStrategyKind) || !isValidLifecycleReviewStatus(input.LifecycleReviewStatus) {
+		return UpdateLifecycleConfigInput{}, ErrInvalidInput
+	}
+	input.LifecycleConfig = config
 	return input, nil
 }
 
@@ -227,6 +249,24 @@ func normalizeSnapshot(snapshot *Snapshot) (*Snapshot, error) {
 	return snapshot, nil
 }
 
+func normalizeLifecycleConfig(config LifecycleConfig) (LifecycleConfig, error) {
+	normalizedProfiles := make([]string, 0, len(config.Profiles))
+	seen := make(map[string]struct{}, len(config.Profiles))
+	for _, item := range config.Profiles {
+		profile := strings.TrimSpace(item)
+		if profile == "" {
+			return LifecycleConfig{}, ErrInvalidInput
+		}
+		if _, exists := seen[profile]; exists {
+			continue
+		}
+		seen[profile] = struct{}{}
+		normalizedProfiles = append(normalizedProfiles, profile)
+	}
+	config.Profiles = normalizedProfiles
+	return config, nil
+}
+
 // normalizeTemporalPointers 将提供的时间指针统一转换为 UTC。
 //
 // 对每个非 nil 的时间指针，都会将其指向的时间值转换为 UTC 并写回。
@@ -249,6 +289,10 @@ func validateImportContracts(input ImportProjectInput) error {
 	case !isValidHostScope(input.HostScope):
 		return ErrInvalidInput
 	case !isValidOwnershipMode(input.OwnershipMode):
+		return ErrInvalidInput
+	case !isValidLifecycleStrategyKind(input.LifecycleStrategyKind):
+		return ErrInvalidInput
+	case !isValidLifecycleReviewStatus(input.LifecycleReviewStatus):
 		return ErrInvalidInput
 	case !isValidRefreshStatus(input.LastRefreshStatus):
 		return ErrInvalidInput
@@ -282,7 +326,8 @@ func isValidSourceKind(value string) bool {
 	case projectcontract.SourceKindImported.String(),
 		projectcontract.SourceKindManaged.String(),
 		projectcontract.SourceKindGit.String(),
-		projectcontract.SourceKindTemplate.String():
+		projectcontract.SourceKindTemplate.String(),
+		projectcontract.SourceKindRemoteHost.String():
 		return true
 	default:
 		return false
@@ -357,6 +402,20 @@ func isValidFileRole(value string) bool {
 	}
 }
 
+func isValidLifecycleStrategyKind(value string) bool {
+	return value == projectcontract.LifecycleStrategyKindStandard.String()
+}
+
+func isValidLifecycleReviewStatus(value string) bool {
+	switch value {
+	case projectcontract.LifecycleReviewStatusReviewRequired.String(),
+		projectcontract.LifecycleReviewStatusConfirmed.String():
+		return true
+	default:
+		return false
+	}
+}
+
 // closeRows 关闭 rows 并忽略关闭过程中返回的错误。
 func closeRows(rows *sql.Rows) {
 	if rows != nil {
@@ -420,6 +479,7 @@ func scanProject(scanner interface{ Scan(dest ...any) error }) (Project, error) 
 	var createdBy sql.NullInt64
 	var updatedBy sql.NullInt64
 	var deletedBy sql.NullInt64
+	var lifecycleConfigJSON []byte
 	if err := scanner.Scan(
 		&item.ID,
 		&item.DisplayName,
@@ -429,6 +489,9 @@ func scanProject(scanner interface{ Scan(dest ...any) error }) (Project, error) 
 		&item.HostScope,
 		&item.WorkingDirectory,
 		&item.OwnershipMode,
+		&item.LifecycleStrategyKind,
+		&item.LifecycleReviewStatus,
+		&lifecycleConfigJSON,
 		&item.LastRefreshStatus,
 		&lastRefreshAt,
 		&item.LastRefreshErrorCode,
@@ -451,6 +514,11 @@ func scanProject(scanner interface{ Scan(dest ...any) error }) (Project, error) 
 	item.CreatedBy = nullableUint64(createdBy)
 	item.UpdatedBy = nullableUint64(updatedBy)
 	item.DeletedBy = nullableUint64(deletedBy)
+	config, err := decodeLifecycleConfigJSON(lifecycleConfigJSON)
+	if err != nil {
+		return Project{}, err
+	}
+	item.LifecycleConfig = config
 	return item, nil
 }
 
@@ -517,6 +585,29 @@ func nullableUint64(value sql.NullInt64) *uint64 {
 	}
 	v := uint64(value.Int64)
 	return &v
+}
+
+func encodeLifecycleConfigJSON(config LifecycleConfig) ([]byte, error) {
+	normalized, err := normalizeLifecycleConfig(config)
+	if err != nil {
+		return nil, err
+	}
+	encoded, err := json.Marshal(normalized)
+	if err != nil {
+		return nil, ErrInvalidInput
+	}
+	return encoded, nil
+}
+
+func decodeLifecycleConfigJSON(raw []byte) (LifecycleConfig, error) {
+	if len(raw) == 0 {
+		return LifecycleConfig{}, nil
+	}
+	var config LifecycleConfig
+	if err := json.Unmarshal(raw, &config); err != nil {
+		return LifecycleConfig{}, ErrInvalidInput
+	}
+	return normalizeLifecycleConfig(config)
 }
 
 type placeholderStyle int

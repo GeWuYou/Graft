@@ -1159,10 +1159,10 @@ describe('container detail page', () => {
     await wrapper.get('[data-testid="detail-refresh"]').trigger('click');
     await vi.waitFor(() => {
       expect(apiMocks.getContainer).toHaveBeenCalledWith('container-1');
+      expect(apiMocks.getContainerMountUsage).toHaveBeenCalledWith('container-1');
     });
     await flushPromises();
 
-    expect(apiMocks.getContainerMountUsage).toHaveBeenCalledWith('container-1');
     expect(apiMocks.postContainerMountUsageRefresh).not.toHaveBeenCalled();
     expect(findMountCardByDestination(wrapper, '/etc/graft').text()).toContain('3.00 MiB');
     expect(messageMocks.success).toHaveBeenCalledWith('容器详情已刷新');
@@ -1489,16 +1489,16 @@ describe('container detail page', () => {
     apiMocks.postContainerMountUsageRefresh.mockReturnValueOnce(usageRequest.promise);
 
     await findMountCardByDestination(wrapper, '/etc/graft').get('[data-testid="mount-refresh-2"]').trigger('click');
-    await wrapper.vm.$nextTick();
-
-    expect(findMountCardByDestination(wrapper, '/etc/graft').get('[data-testid="mount-refresh-2"]').text()).toContain(
-      '统计中...',
-    );
-    expect(
-      findMountCardByDestination(wrapper, '/etc/graft')
-        .get('[data-testid="mount-refresh-2"]')
-        .attributes('data-loading'),
-    ).toBe('true');
+    await vi.waitFor(() => {
+      expect(findMountCardByDestination(wrapper, '/etc/graft').get('[data-testid="mount-refresh-2"]').text()).toContain(
+        '统计中...',
+      );
+      expect(
+        findMountCardByDestination(wrapper, '/etc/graft')
+          .get('[data-testid="mount-refresh-2"]')
+          .attributes('data-loading'),
+      ).toBe('true');
+    });
     expect(wrapper.get('[data-testid="detail-refresh"]').attributes('data-loading')).toBe('false');
 
     usageRequest.resolve({

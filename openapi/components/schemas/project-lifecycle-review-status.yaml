@@ -1,0 +1,8 @@
+type: string
+description: >
+  Lifecycle configuration review state. Imported projects default to `review_required` until an operator confirms
+  or updates the saved lifecycle configuration.
+enum: [review_required, confirmed]
+x-enum-varnames:
+  - ProjectLifecycleReviewStatusReviewRequired
+  - ProjectLifecycleReviewStatusConfirmed

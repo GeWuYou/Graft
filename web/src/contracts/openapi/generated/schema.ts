@@ -2236,6 +2236,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/ops/projects/{id}/lifecycle-configuration': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /**
+     * Save one project's lifecycle configuration
+     * @description Saves the canonical lifecycle configuration for one registered local project, regenerates lifecycle command previews, and confirms imported-project defaults so later `up`, `stop`, `restart`, and `redeploy` actions can reuse one project-owned compose strategy instead of guessing raw shell commands.
+     */
+    put: operations['putProjectLifecycleConfiguration'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/ops/projects/{id}/services': {
     parameters: {
       query?: never;
@@ -2358,7 +2378,7 @@ export interface paths {
     put?: never;
     /**
      * Deploy a managed project configuration draft
-     * @description Writes one managed project draft to the tracked Compose and optional env files, refreshes the project snapshot, and runs `docker compose up -d` through project-owned lifecycle execution without introducing runtime-state persistence in the project module.
+     * @description Writes one managed project draft to the tracked Compose and optional env files, refreshes the project snapshot, then reuses the saved project lifecycle configuration for the final compose `up` execution without introducing runtime-state persistence in the project module.
      */
     post: operations['postProjectDeploy'];
     delete?: never;
@@ -2393,7 +2413,10 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    /** Run docker compose up for a registered project */
+    /**
+     * Run docker compose up for a registered project
+     * @description Runs the saved lifecycle configuration `up` command preview for the selected project.
+     */
     post: operations['postProjectUp'];
     delete?: never;
     options?: never;
@@ -2401,7 +2424,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/ops/projects/{id}/down': {
+  '/api/ops/projects/{id}/stop': {
     parameters: {
       query?: never;
       header?: never;
@@ -2410,8 +2433,11 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    /** Run docker compose down for a registered project */
-    post: operations['postProjectDown'];
+    /**
+     * Run docker compose stop for a registered project
+     * @description Runs the saved lifecycle configuration `stop` command preview for the selected project.
+     */
+    post: operations['postProjectStop'];
     delete?: never;
     options?: never;
     head?: never;
@@ -2427,7 +2453,10 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    /** Run docker compose restart for a registered project */
+    /**
+     * Run docker compose restart for a registered project
+     * @description Runs the saved lifecycle configuration `restart` command preview for the selected project.
+     */
     post: operations['postProjectRestart'];
     delete?: never;
     options?: never;
@@ -2446,29 +2475,9 @@ export interface paths {
     put?: never;
     /**
      * Redeploy a registered project
-     * @description Runs `docker compose down` and then `docker compose up -d` for the selected registered project.
+     * @description Runs the saved project lifecycle configuration for the selected project. Standard strategy redeploy may include `docker compose down`, `pull`, `up -d`, and optional image prune, based on the stored lifecycle settings.
      */
     post: operations['postProjectRedeploy'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/ops/projects/{id}/update-deploy': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /**
-     * Pull and update-deploy a registered project
-     * @description Uses all registered compose files in stored order with repeated `-f` flags, runs `docker compose pull`, then `docker compose up -d`, with optional image prune at the end.
-     */
-    post: operations['postProjectUpdateDeploy'];
     delete?: never;
     options?: never;
     head?: never;
@@ -2486,7 +2495,7 @@ export interface paths {
     put?: never;
     /**
      * Execute project actions in batch
-     * @description Executes one action for selected project ids and returns per-item results plus aggregate completed, blocked, and skipped counts. Inapplicable projects are skipped instead of failed.
+     * @description Executes one action for selected project ids and returns per-item results plus aggregate completed, blocked, and skipped counts. Nonexistent project_id values fail the request with 404, while skipped applies only to existing projects for which the requested action is not applicable.
      */
     post: operations['postProjectBatchActions'];
     delete?: never;
@@ -2772,6 +2781,13 @@ export interface components {
     ProjectFileItem: components['schemas']['project-file-item'];
     ProjectContainerCounts: components['schemas']['project-container-counts'];
     ProjectRuntimeStatus: components['schemas']['project-runtime-status'];
+    ProjectLifecycleStrategyKind: components['schemas']['project-lifecycle-strategy-kind'];
+    ProjectLifecycleReviewStatus: components['schemas']['project-lifecycle-review-status'];
+    ProjectLifecycleCommandStep: components['schemas']['project-lifecycle-command-step'];
+    ProjectLifecycleGeneratedCommand: components['schemas']['project-lifecycle-generated-command'];
+    ProjectLifecycleConfiguration: components['schemas']['project-lifecycle-configuration'];
+    ProjectLifecycleConfigurationRequest: components['schemas']['project-lifecycle-configuration-request'];
+    ProjectLifecycleConfigurationResponse: components['schemas']['project-lifecycle-configuration-response'];
     ProjectListItem: components['schemas']['project-list-item'];
     ProjectListResponse: components['schemas']['project-list-response'];
     ProjectDetailResponse: components['schemas']['project-detail-response'];
@@ -2794,7 +2810,6 @@ export interface components {
     ProjectConfigurationPreviewResponse: components['schemas']['project-configuration-preview-response'];
     ProjectConfigurationFileResponse: components['schemas']['project-configuration-file-response'];
     ProjectDestroyRequest: components['schemas']['project-destroy-request'];
-    ProjectUpdateDeployRequest: components['schemas']['project-update-deploy-request'];
     ProjectActionResponse: components['schemas']['project-action-response'];
     ProjectBatchActionRequest: components['schemas']['project-batch-action-request'];
     ProjectBatchActionItem: components['schemas']['project-batch-action-item'];
@@ -2802,6 +2817,7 @@ export interface components {
     EnvelopedProjectListResponse: components['schemas']['enveloped-project-list-response'];
     EnvelopedProjectSourceCatalogResponse: components['schemas']['enveloped-project-source-catalog-response'];
     EnvelopedProjectDetailResponse: components['schemas']['enveloped-project-detail-response'];
+    EnvelopedProjectLifecycleConfigurationResponse: components['schemas']['enveloped-project-lifecycle-configuration-response'];
     EnvelopedProjectServicesResponse: components['schemas']['enveloped-project-services-response'];
     EnvelopedProjectConfigurationMetadataResponse: components['schemas']['enveloped-project-configuration-metadata-response'];
     EnvelopedProjectConfigurationPreviewResponse: components['schemas']['enveloped-project-configuration-preview-response'];
@@ -5316,6 +5332,11 @@ export interface components {
     'project-refresh-status': 'never' | 'success' | 'failed';
     /** @enum {string} */
     'project-canonical-name-source': 'computed' | 'override';
+    /**
+     * @description Lifecycle configuration review state. Imported projects default to `review_required` until an operator confirms or updates the saved lifecycle configuration.
+     * @enum {string}
+     */
+    'project-lifecycle-review-status': 'review_required' | 'confirmed';
     'project-source-metadata': {
       /** @description Canonical config key that owns the managed project root. */
       managed_root_key?: string;
@@ -5370,6 +5391,7 @@ export interface components {
       display_name: string;
       canonical_project_name: string;
       canonical_project_name_source: components['schemas']['project-canonical-name-source'];
+      lifecycle_review_status: components['schemas']['project-lifecycle-review-status'];
       source_kind: components['schemas']['project-source-kind'];
       source_metadata?: components['schemas']['project-source-metadata'];
       activity_authority: components['schemas']['project-activity-authority'];
@@ -5436,10 +5458,10 @@ export interface components {
       data: components['schemas']['project-import-validate-response'];
     };
     /** @enum {string} */
-    'project-import-runtime-candidate-availability': 'ready' | 'unavailable';
+    'project-import-runtime-candidate-availability': 'ready' | 'imported' | 'unavailable';
     /** @enum {string} */
     'project-import-runtime-candidate-status':
-      'ready' | 'incomplete_metadata' | 'unsupported_runtime' | 'broken_compose';
+      'ready' | 'already_imported' | 'incomplete_metadata' | 'unsupported_runtime' | 'broken_compose';
     /** @enum {string} */
     'project-import-runtime-working-directory-source': 'runtime_label' | 'derived_from_config_files';
     'project-import-runtime-candidate': {
@@ -5461,6 +5483,7 @@ export interface components {
     'project-import-runtime-candidate-filter-counts': {
       all: number;
       ready: number;
+      imported: number;
       unavailable: number;
     };
     'project-import-runtime-candidates-response': {
@@ -5570,8 +5593,44 @@ export interface components {
       display_name?: string;
       canonical_project_name_override?: string | null;
     };
+    /**
+     * @description Canonical lifecycle execution strategy kind owned by the project module.
+     * @enum {string}
+     */
+    'project-lifecycle-strategy-kind': 'standard';
+    'project-lifecycle-command-step': {
+      /** @enum {string} */
+      kind: 'down' | 'pull' | 'up' | 'stop' | 'restart' | 'prune';
+      argv: string[];
+      /** @description Human-readable command preview derived from the canonical lifecycle configuration. */
+      display_command: string;
+    };
+    'project-lifecycle-generated-command': {
+      /** @enum {string} */
+      action: 'up' | 'stop' | 'restart' | 'redeploy';
+      steps: components['schemas']['project-lifecycle-command-step'][];
+      /** @description Combined preview for the selected lifecycle action. */
+      display_command: string;
+    };
+    'project-lifecycle-configuration': {
+      strategy_kind: components['schemas']['project-lifecycle-strategy-kind'];
+      profiles: string[];
+      down_before_redeploy: boolean;
+      pull_before_redeploy: boolean;
+      build_before_up: boolean;
+      force_recreate: boolean;
+      wait_after_up: boolean;
+      prune_images_after_redeploy: boolean;
+      generated_commands: {
+        up: components['schemas']['project-lifecycle-generated-command'];
+        stop: components['schemas']['project-lifecycle-generated-command'];
+        restart: components['schemas']['project-lifecycle-generated-command'];
+        redeploy: components['schemas']['project-lifecycle-generated-command'];
+      };
+    };
     'project-detail-response': components['schemas']['project-list-item'] & {
       source_metadata?: components['schemas']['project-source-metadata'];
+      lifecycle_configuration: components['schemas']['project-lifecycle-configuration'];
       /** @description Stable error code from the latest failed refresh. Empty string means no recorded failure. */
       last_refresh_error_code?: string;
       /** @description Fallback error message from the latest failed refresh. */
@@ -5785,6 +5844,31 @@ export interface components {
     'enveloped-project-detail-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['project-detail-response'];
     };
+    'project-lifecycle-configuration-request': {
+      strategy_kind: components['schemas']['project-lifecycle-strategy-kind'];
+      profiles: string[];
+      down_before_redeploy: boolean;
+      pull_before_redeploy: boolean;
+      build_before_up: boolean;
+      force_recreate: boolean;
+      wait_after_up: boolean;
+      prune_images_after_redeploy: boolean;
+    };
+    'project-lifecycle-configuration-response': {
+      /** Format: int64 */
+      project_id: number;
+      lifecycle_review_status: components['schemas']['project-lifecycle-review-status'];
+      /** @description Read-only working directory authority reused by lifecycle command generation. */
+      working_directory: string;
+      /** @description Read-only project runtime identity used for explicit `docker compose -p`. */
+      canonical_project_name: string;
+      /** @description Ordered tracked Compose files reused by lifecycle command generation. */
+      compose_files: components['schemas']['project-file-item'][];
+      lifecycle_configuration: components['schemas']['project-lifecycle-configuration'];
+    };
+    'enveloped-project-lifecycle-configuration-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['project-lifecycle-configuration-response'];
+    };
     'project-service-item': {
       service_name: string;
       image?: string | null;
@@ -5929,17 +6013,7 @@ export interface components {
       /** Format: int64 */
       project_id: number;
       /** @enum {string} */
-      action:
-        | 'refresh'
-        | 'up'
-        | 'down'
-        | 'restart'
-        | 'unregister'
-        | 'destroy'
-        | 'create'
-        | 'deploy'
-        | 'redeploy'
-        | 'update_deploy';
+      action: 'refresh' | 'up' | 'stop' | 'restart' | 'unregister' | 'destroy' | 'create' | 'deploy' | 'redeploy';
       /** @enum {string} */
       result: 'accepted' | 'completed' | 'blocked';
       message_key?: string;
@@ -5950,13 +6024,9 @@ export interface components {
     'enveloped-project-action-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['project-action-response'];
     };
-    'project-update-deploy-request': {
-      /** @default false */
-      image_prune: boolean;
-    };
     'project-batch-action-request': {
       /** @enum {string} */
-      action: 'start' | 'stop' | 'restart' | 'unregister' | 'redeploy' | 'update_deploy' | 'destroy';
+      action: 'start' | 'stop' | 'restart' | 'unregister' | 'redeploy' | 'destroy';
       project_ids: number[];
       /** @default false */
       remove_named_volumes: boolean;
@@ -5972,17 +6042,7 @@ export interface components {
       /** Format: int64 */
       project_id: number;
       /** @enum {string} */
-      action:
-        | 'refresh'
-        | 'up'
-        | 'down'
-        | 'restart'
-        | 'unregister'
-        | 'destroy'
-        | 'create'
-        | 'deploy'
-        | 'redeploy'
-        | 'update_deploy';
+      action: 'refresh' | 'up' | 'stop' | 'restart' | 'unregister' | 'destroy' | 'create' | 'deploy' | 'redeploy';
       /** @enum {string} */
       result: 'accepted' | 'completed' | 'blocked';
       skipped: boolean;
@@ -12310,6 +12370,75 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
+  putProjectLifecycleConfiguration: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
+        id: components['parameters']['project-id-path'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['project-lifecycle-configuration-request'];
+      };
+    };
+    responses: {
+      /** @description Saved lifecycle configuration and regenerated command previews. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-project-lifecycle-configuration-response'];
+        };
+      };
+      /** @description Invalid project id or lifecycle configuration payload. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Project record not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      /** @description Lifecycle configuration update blocked by project authority or bounded host-scope guards. */
+      409: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
   getProjectServices: {
     parameters: {
       query?: never;
@@ -12726,7 +12855,7 @@ export interface operations {
           'application/json': components['schemas']['error-response'];
         };
       };
-      /** @description Deploy was blocked by project authority, bounded scope, or lifecycle execution. */
+      /** @description Deploy was blocked by project authority, lifecycle review guards, bounded scope, or lifecycle execution. */
       409: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -12859,7 +12988,7 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
-  postProjectDown: {
+  postProjectStop: {
     parameters: {
       query?: never;
       header?: {
@@ -12879,7 +13008,7 @@ export interface operations {
     };
     requestBody?: never;
     responses: {
-      /** @description Project down action result. */
+      /** @description Project stop action result. */
       200: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -13041,76 +13170,7 @@ export interface operations {
           'application/json': components['schemas']['error-response'];
         };
       };
-      /** @description Redeploy blocked by project lifecycle guards or execution failure. */
-      409: {
-        headers: {
-          'X-Request-Id': components['headers']['request-id'];
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['error-response'];
-        };
-      };
-      500: components['responses']['internal-server-error'];
-    };
-  };
-  postProjectUpdateDeploy: {
-    parameters: {
-      query?: never;
-      header?: {
-        /** @description Explicit locale override header already supported by the runtime. */
-        'X-Graft-Locale'?: components['parameters']['locale-header'];
-        /**
-         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-         *     through the response header and envelope traceId field.
-         */
-        'X-Request-Id'?: components['parameters']['request-id-header'];
-      };
-      path: {
-        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
-        id: components['parameters']['project-id-path'];
-      };
-      cookie?: never;
-    };
-    requestBody?: {
-      content: {
-        'application/json': components['schemas']['project-update-deploy-request'];
-      };
-    };
-    responses: {
-      /** @description Project update-deploy action result. */
-      200: {
-        headers: {
-          'X-Request-Id': components['headers']['request-id'];
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['enveloped-project-action-response'];
-        };
-      };
-      /** @description Invalid project id or request. */
-      400: {
-        headers: {
-          'X-Request-Id': components['headers']['request-id'];
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['error-response'];
-        };
-      };
-      401: components['responses']['unauthorized'];
-      403: components['responses']['forbidden'];
-      /** @description Project record not found. */
-      404: {
-        headers: {
-          'X-Request-Id': components['headers']['request-id'];
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['error-response'];
-        };
-      };
-      /** @description Update-deploy blocked by project lifecycle guards or execution failure. */
+      /** @description Redeploy blocked by lifecycle review guards, project lifecycle guards, or execution failure. */
       409: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -13166,7 +13226,7 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
-      /** @description One or more project records not found. */
+      /** @description One or more requested project_id values do not match an existing project record. */
       404: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];

@@ -239,6 +239,20 @@
 - 主题达到 `archive-ready`：
   - `Project` 继续只拥有 registry、configuration、lifecycle、services aggregation 与 activity entry。
 
+## 2026-07-04 Lifecycle configuration authority and docs sync
+
+- 落地 `openapi/**` authority owner：
+  - 新增 `PUT /api/ops/projects/{id}/lifecycle-configuration`。
+  - 新增 `LifecycleStrategyKind`、`LifecycleReviewStatus`、saved lifecycle configuration 与 generated command preview contract。
+  - 从 project action/batch-action/OpenAPI path 中移除 `update-deploy`；`redeploy` 成为 canonical deploy-style lifecycle action。
+- 落地 `ai-plan/design/**` 与 active topic authority：
+  - `Compose项目管理设计.md` 改为明确本地项目统一保存 `Lifecycle Configuration`，managed 默认 `confirmed`，imported 默认 `review_required`。
+  - detail IA 新增 `Lifecycle` 页签；`Configuration` 继续保留 managed draft editor/diff/validate/deploy flow。
+  - managed draft `deploy` 明确复用已保存 lifecycle configuration 的 final compose `up`，不再假定固定 `docker compose up -d`。
+- 本批验证通过：
+  - `git diff --check`
+- 本批保持在 `openapi/** + ai-plan/**` authority owner 内，没有改动 `server/**` 或 `web/**`，也没有更新 generated artifacts。
+
 ## 2026-07-01 Import Existing Project folder-picker and inspect flow sync
 
 - 收口 `openapi/**` authority owner：

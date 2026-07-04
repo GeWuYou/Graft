@@ -1064,20 +1064,20 @@ describe('container list page', () => {
     await flushPromises();
 
     await wrapper.get('[data-testid="container-action-logs"]').trigger('click');
-    await flushPromises();
-
-    expect(tabsRouterStoreMock.appendTabRouterList).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        fullPath: '/ops/containers/container-1?tab=logs',
-        path: '/ops/containers/container-1',
+    await vi.waitFor(() => {
+      expect(tabsRouterStoreMock.appendTabRouterList).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          fullPath: '/ops/containers/container-1?tab=logs',
+          path: '/ops/containers/container-1',
+          query: { tab: 'logs' },
+          tabKey: '/ops/containers/container-1',
+        }),
+      );
+      expect(routerMocks.push).toHaveBeenCalledWith({
+        name: 'ContainerDetailIndex',
+        params: { id: 'container-1' },
         query: { tab: 'logs' },
-        tabKey: '/ops/containers/container-1',
-      }),
-    );
-    expect(routerMocks.push).toHaveBeenCalledWith({
-      name: 'ContainerDetailIndex',
-      params: { id: 'container-1' },
-      query: { tab: 'logs' },
+      });
     });
 
     await wrapper.get('[data-testid="container-action-audit"]').trigger('click');
@@ -1379,6 +1379,50 @@ describe('container list page', () => {
       source_scope_kind: 'compose_project',
       state: undefined,
     });
+  });
+
+  it('keeps filtered empty-state messaging tied to submitted filters instead of draft edits', async () => {
+    const emptyPayload = {
+      items: [],
+      limit: 20,
+      offset: 0,
+      runtime: {
+        runtime: 'docker',
+        status: 'enabled',
+        endpoint: 'unix:///var/run/docker.sock',
+      },
+      summary: {
+        total: 0,
+        running: 0,
+        stopped: 0,
+        error: 0,
+        unhealthy: 0,
+      },
+      total: 0,
+    };
+    apiMocks.getContainers.mockResolvedValueOnce(emptyPayload).mockResolvedValueOnce(emptyPayload);
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('当前容器运行时未返回容器。');
+    expect(wrapper.text()).not.toContain('清除筛选');
+
+    await wrapper.get('[data-testid="container-filter-status"]').setValue('running');
+    await wrapper.get('[data-testid="container-filter-apply"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('没有符合筛选条件的容器。');
+    expect(wrapper.text()).toContain('清除筛选');
+
+    await wrapper.get('[data-testid="container-filter-status"]').setValue('all');
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('没有符合筛选条件的容器。');
+    expect(wrapper.text()).toContain('清除筛选');
+
+    wrapper.unmount();
+    apiMocks.getContainers.mockReset();
   });
 
   it('clears incompatible toolbar source scope kinds when orchestrator changes', async () => {

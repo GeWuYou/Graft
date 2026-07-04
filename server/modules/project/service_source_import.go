@@ -9,6 +9,7 @@ import (
 
 	generated "graft/server/internal/contract/openapi/generated"
 	projectcontract "graft/server/modules/project/contract"
+	projectstore "graft/server/modules/project/store"
 )
 
 // SourceCatalog returns the bounded Phase 3 source entrypoints without executing source-specific provisioning.
@@ -145,18 +146,29 @@ func (s *Service) ListRuntimeImportCandidates(
 	ctx context.Context,
 	query RuntimeImportCandidateListQuery,
 ) (RuntimeImportCandidatesResult, error) {
-	if s == nil || s.runtimeReader == nil {
+	repository, err := s.repositoryOrErr()
+	if err != nil {
+		return RuntimeImportCandidatesResult{}, err
+	}
+	if s.runtimeReader == nil {
 		return RuntimeImportCandidatesResult{}, errProjectServiceUnavailable
 	}
 	rawCandidates, err := s.runtimeReader.ListImportCandidates(ctx, projectcontract.HostScopeLocal.String())
 	if err != nil {
 		return RuntimeImportCandidatesResult{}, err
 	}
+	existingItems, err := listProjectConflictScanItems(ctx, repository)
+	if err != nil {
+		return RuntimeImportCandidatesResult{}, mapStoreError(err)
+	}
 	items := make([]RuntimeImportCandidate, 0, len(rawCandidates))
 	for _, rawCandidate := range rawCandidates {
 		candidate, validateErr := s.validatedRuntimeImportCandidate(rawCandidate)
 		if validateErr != nil {
 			return RuntimeImportCandidatesResult{}, validateErr
+		}
+		if conflictReason := runtimeImportCandidateExistingConflict(candidate, existingItems); conflictReason != "" {
+			candidate = markAlreadyImportedRuntimeImportCandidate(candidate, conflictReason)
 		}
 		items = append(items, candidate)
 	}
@@ -175,9 +187,21 @@ func (s *Service) InspectRuntimeCandidate(ctx context.Context, request RuntimeIm
 	if err != nil {
 		return RuntimeImportInspectResult{}, err
 	}
-	if !candidate.Importable || candidate.Status != importRuntimeCandidateStatusReady {
+	validatedCandidate, err := s.validatedRuntimeImportCandidate(candidate)
+	if err != nil {
+		return RuntimeImportInspectResult{}, err
+	}
+	existingItems, err := listProjectConflictScanItems(ctx, repository)
+	if err != nil {
+		return RuntimeImportInspectResult{}, mapStoreError(err)
+	}
+	if conflictReason := runtimeImportCandidateExistingConflict(validatedCandidate, existingItems); conflictReason != "" {
+		return RuntimeImportInspectResult{}, errProjectConflict
+	}
+	if !validatedCandidate.Importable || validatedCandidate.Status != importRuntimeCandidateStatusReady {
 		return RuntimeImportInspectResult{}, errProjectInvalidArgument
 	}
+	candidate = candidateFromValidatedRuntimeImportCandidate(candidate, validatedCandidate)
 	session, err := s.inspectRuntimeCandidateSession(ctx, repository, candidate, request)
 	if err != nil {
 		return RuntimeImportInspectResult{}, err
@@ -187,6 +211,25 @@ func (s *Service) InspectRuntimeCandidate(ctx context.Context, request RuntimeIm
 		return RuntimeImportInspectResult{}, err
 	}
 	return runtimeImportInspectResultFromSession(candidate.CandidateKey, session, runtimeMembers), nil
+}
+
+func listProjectConflictScanItems(
+	ctx context.Context,
+	repository projectstore.Repository,
+) ([]projectstore.ProjectAggregate, error) {
+	items := make([]projectstore.ProjectAggregate, 0, projectConflictScanSize)
+	offset := 0
+	for {
+		page, err := repository.List(ctx, projectstore.ListQuery{Limit: projectConflictScanSize, Offset: offset})
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, page.Items...)
+		offset += len(page.Items)
+		if len(page.Items) == 0 || offset >= page.Total {
+			return items, nil
+		}
+	}
 }
 
 // BrowseImportDirectories returns a bounded root-relative directory listing for import flows.

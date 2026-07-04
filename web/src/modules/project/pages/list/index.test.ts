@@ -2,13 +2,14 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, KeepAlive, nextTick, ref } from 'vue';
 
+import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import ProjectListPage from './index.vue';
 
 const projectApiMocks = vi.hoisted(() => ({
   getProjects: vi.fn(),
   postProjectBatchActions: vi.fn(),
   postProjectDestroy: vi.fn(),
-  postProjectDown: vi.fn(),
+  postProjectStop: vi.fn(),
   postProjectRedeploy: vi.fn(),
   postProjectRefresh: vi.fn(),
   postProjectRestart: vi.fn(),
@@ -46,9 +47,11 @@ type BatchActionResponseMock = {
 };
 
 const listMessages = {
+  'project.lifecycle.reviewStatus.confirmed': 'Lifecycle Confirmed',
+  'project.lifecycle.reviewStatus.reviewRequired': 'Review Required',
   'project.list.actions.create': 'Choose Project Source',
   'project.list.actions.detail': 'Detail',
-  'project.list.actions.down': 'Down',
+  'project.list.actions.stop': 'Stop',
   'project.list.actions.destroy': 'Destroy',
   'project.list.actions.import': 'Import Existing Project',
   'project.list.actions.operationMenu': 'Actions',
@@ -56,7 +59,6 @@ const listMessages = {
   'project.list.actions.redeploy': 'Redeploy',
   'project.list.actions.restart': 'Restart',
   'project.list.actions.unregister': 'Unregister',
-  'project.list.actions.updateDeploy': 'Update Deploy',
   'project.list.actions.up': 'Up',
   'project.list.batch.cancelSelection': 'Clear Selection',
   'project.list.batch.destroy': 'Batch Destroy',
@@ -79,8 +81,6 @@ const listMessages = {
   'project.list.batch.success': 'Completed {count}, skipped {skippedCount}.',
   'project.list.batch.unregister': 'Batch Unregister',
   'project.list.batch.unregisterConfirm': 'Unregister {count} selected projects?',
-  'project.list.batch.updateDeploy': 'Batch Update Deploy',
-  'project.list.batch.updateDeployConfirm': 'Update deploy {count} selected projects?',
   'project.list.clearFilters': 'Clear Filters',
   'project.list.columnSettings': 'Column Settings',
   'project.list.columns.selection': 'Select',
@@ -107,6 +107,8 @@ const listMessages = {
   'project.list.status.runtimeStopped': 'Stopped',
   'project.list.status.runtimeTransitioning': 'Transitioning',
   'project.list.status.runtimeUnknown': 'Unknown',
+  'project.list.statusTooltip.lifecycleReviewRequired':
+    'Lifecycle configuration is not confirmed yet. Open project details to complete the review.',
   'project.list.statusTooltip.runtimeDegraded': 'Current Page Degraded',
   'project.list.statusTooltip.runtimeRunning': 'Current Page Running',
   'project.list.statusTooltip.runtimeStopped': 'Current Page Stopped',
@@ -147,6 +149,41 @@ const TButtonStub = defineComponent({
         {
           disabled: props.disabled,
           'data-loading': props.loading ? 'true' : 'false',
+          onClick: (event: MouseEvent) => emit('click', event),
+        },
+        slots.default?.(),
+      );
+  },
+});
+
+const TTooltipStub = defineComponent({
+  name: 'TTooltipStub',
+  props: {
+    content: { type: String, default: '' },
+  },
+  setup(props, { slots }) {
+    return () =>
+      h(
+        'div',
+        {
+          'data-stub': 'TTooltip',
+          'data-tooltip-content': props.content,
+        },
+        slots.default?.(),
+      );
+  },
+});
+
+const TTagStub = defineComponent({
+  name: 'TTagStub',
+  emits: ['click'],
+  setup(_props, { attrs, emit, slots }) {
+    return () =>
+      h(
+        'div',
+        {
+          ...attrs,
+          'data-stub': 'TTag',
           onClick: (event: MouseEvent) => emit('click', event),
         },
         slots.default?.(),
@@ -216,7 +253,7 @@ vi.mock('../../api/project', () => ({
   getProjects: projectApiMocks.getProjects,
   postProjectBatchActions: projectApiMocks.postProjectBatchActions,
   postProjectDestroy: projectApiMocks.postProjectDestroy,
-  postProjectDown: projectApiMocks.postProjectDown,
+  postProjectStop: projectApiMocks.postProjectStop,
   postProjectRedeploy: projectApiMocks.postProjectRedeploy,
   postProjectRefresh: projectApiMocks.postProjectRefresh,
   postProjectRestart: projectApiMocks.postProjectRestart,
@@ -340,6 +377,7 @@ function buildProjectRow(overrides: Record<string, unknown>) {
     id: 1,
     last_refresh_at: '2026-07-03T10:00:00Z',
     last_refresh_status: 'success',
+    lifecycle_review_status: 'confirmed',
     ownership_mode: 'external',
     runtime_status: 'running',
     service_count: 3,
@@ -367,8 +405,8 @@ function mountPage() {
         't-select': slotStub('TSelect'),
         't-space': slotStub('TSpace'),
         't-table': TTableStub,
-        't-tag': slotStub('TTag'),
-        't-tooltip': slotStub('TTooltip'),
+        't-tag': TTagStub,
+        't-tooltip': TTooltipStub,
       },
     },
   });
@@ -400,8 +438,8 @@ function mountKeepAlivePage() {
           't-select': slotStub('TSelect'),
           't-space': slotStub('TSpace'),
           't-table': TTableStub,
-          't-tag': slotStub('TTag'),
-          't-tooltip': slotStub('TTooltip'),
+          't-tag': TTagStub,
+          't-tooltip': TTooltipStub,
         },
       },
     },
@@ -648,6 +686,50 @@ describe('Project list page', () => {
     wrapper.unmount();
   });
 
+  it('clears the runtime loading spinner after 15 seconds when refreshed status data never changes', async () => {
+    vi.useFakeTimers();
+    const restartGate = {} as { resolve?: () => void };
+    projectApiMocks.postProjectRestart.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          restartGate.resolve = resolve;
+        }),
+    );
+    projectApiMocks.getProjects
+      .mockResolvedValueOnce({
+        items: [buildProjectRow({ runtime_status: 'running' })],
+        limit: 20,
+        offset: 0,
+        total: 1,
+      })
+      .mockResolvedValueOnce({
+        items: [buildProjectRow({ runtime_status: 'running' })],
+        limit: 20,
+        offset: 0,
+        total: 1,
+      });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="row-action-restart"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="project-runtime-status-loading-1"]').exists()).toBe(true);
+
+    restartGate.resolve?.();
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="project-runtime-status-loading-1"]').exists()).toBe(true);
+
+    await vi.advanceTimersByTimeAsync(15_000);
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="project-runtime-status-loading-1"]').exists()).toBe(false);
+    expect(wrapper.get('[data-testid="project-runtime-status-1"]').text()).toBe('Running');
+    wrapper.unmount();
+  });
+
   it('renames the refresh column and hides lifecycle actions by runtime status', async () => {
     projectApiMocks.getProjects.mockResolvedValueOnce({
       items: [
@@ -668,37 +750,90 @@ describe('Project list page', () => {
 
     const runningRow = wrapper.get('tr[data-row-id="1"]');
     expect(runningRow.find('[data-testid="row-action-up"]').exists()).toBe(false);
-    expect(runningRow.find('[data-testid="row-action-down"]').exists()).toBe(true);
+    expect(runningRow.find('[data-testid="row-action-stop"]').exists()).toBe(true);
     expect(runningRow.find('[data-testid="row-action-restart"]').exists()).toBe(true);
 
     const degradedRow = wrapper.get('tr[data-row-id="2"]');
     expect(degradedRow.find('[data-testid="row-action-up"]').exists()).toBe(false);
-    expect(degradedRow.find('[data-testid="row-action-down"]').exists()).toBe(true);
+    expect(degradedRow.find('[data-testid="row-action-stop"]').exists()).toBe(true);
     expect(degradedRow.find('[data-testid="row-action-restart"]').exists()).toBe(true);
 
     const stoppedRow = wrapper.get('tr[data-row-id="3"]');
     expect(stoppedRow.find('[data-testid="row-action-up"]').exists()).toBe(true);
-    expect(stoppedRow.find('[data-testid="row-action-down"]').exists()).toBe(false);
+    expect(stoppedRow.find('[data-testid="row-action-stop"]').exists()).toBe(false);
     expect(stoppedRow.find('[data-testid="row-action-restart"]').exists()).toBe(true);
 
     wrapper.unmount();
   });
 
-  it('adds the new row actions for redeploy, update deploy, and destroy', async () => {
+  it('adds the row actions for redeploy and destroy after lifecycle review is confirmed', async () => {
     const wrapper = mountPage();
     await flushPromises();
 
     const runningRow = wrapper.get('tr[data-row-id="1"]');
     expect(runningRow.find('[data-testid="row-action-redeploy"]').exists()).toBe(true);
-    expect(runningRow.find('[data-testid="row-action-update_deploy"]').exists()).toBe(true);
     expect(runningRow.find('[data-testid="row-action-destroy"]').exists()).toBe(true);
+  });
+
+  it('shows a lifecycle review badge and hides compose actions for review-required imported projects', async () => {
+    projectApiMocks.getProjects.mockResolvedValueOnce({
+      items: [buildProjectRow({ id: 9, lifecycle_review_status: 'review_required' })],
+      limit: 20,
+      offset: 0,
+      total: 1,
+    });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const row = wrapper.get('tr[data-row-id="9"]');
+    expect(row.text()).toContain('Review Required');
+    expect(row.get('[data-stub="TTooltip"]').attributes('data-tooltip-content')).toBe(
+      'Lifecycle configuration is not confirmed yet. Open project details to complete the review.',
+    );
+    expect(row.find('[data-testid="row-action-up"]').exists()).toBe(false);
+    expect(row.find('[data-testid="row-action-stop"]').exists()).toBe(false);
+    expect(row.find('[data-testid="row-action-restart"]').exists()).toBe(false);
+    expect(row.find('[data-testid="row-action-redeploy"]').exists()).toBe(false);
+    expect(row.find('[data-testid="row-action-unregister"]').exists()).toBe(true);
+  });
+
+  it('opens the lifecycle tab when the lifecycle review tag is clicked', async () => {
+    projectApiMocks.getProjects.mockResolvedValueOnce({
+      items: [buildProjectRow({ id: 9, display_name: 'Dockge', lifecycle_review_status: 'review_required' })],
+      limit: 20,
+      offset: 0,
+      total: 1,
+    });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.get('tr[data-row-id="9"] [data-testid="project-lifecycle-review-tag"]').trigger('click');
+
+    expect(routerMocks.push).toHaveBeenCalledWith({
+      name: PROJECT_BOOTSTRAP_ROUTE.DETAIL.pageRouteName,
+      params: { id: 9 },
+      query: {
+        name: 'Dockge',
+        tab: 'lifecycle',
+      },
+    });
+  });
+
+  it('does not render the lifecycle review tag for confirmed projects', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const row = wrapper.get('tr[data-row-id="1"]');
+    expect(row.find('[data-testid="project-lifecycle-review-tag"]').exists()).toBe(false);
   });
 
   it('submits only actionable selected rows for batch stop and reports skipped rows', async () => {
     projectApiMocks.postProjectBatchActions.mockResolvedValueOnce({
       blocked_count: 0,
       completed_count: 1,
-      items: [{ action: 'down', message: '', project_id: 2, result: 'completed', skipped: false }],
+      items: [{ action: 'stop', message: '', project_id: 2, result: 'completed', skipped: false }],
       skipped_count: 1,
       total_count: 2,
     });
@@ -730,6 +865,47 @@ describe('Project list page', () => {
       project_ids: [2],
       remove_named_volumes: false,
     });
+  });
+
+  it('shows row-level loading for actionable batch rows while the batch request is running', async () => {
+    let resolveBatchAction!: (value: BatchActionResponseMock) => void;
+    projectApiMocks.postProjectBatchActions.mockReturnValueOnce(
+      new Promise<BatchActionResponseMock>((resolve) => {
+        resolveBatchAction = resolve;
+      }),
+    );
+    projectApiMocks.getProjects.mockResolvedValueOnce({
+      items: [
+        buildProjectRow({ id: 1, runtime_status: 'stopped' }),
+        buildProjectRow({ id: 2, runtime_status: 'running' }),
+      ],
+      limit: 20,
+      offset: 0,
+      total: 2,
+    });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    wrapper.getComponent(TTableStub).vm.$emit('select-change', [1, 2]);
+    await flushPromises();
+    await wrapper.get('[data-testid="project-batch-stop"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.get('[data-testid="project-batch-stop"]').attributes('data-loading')).toBe('true');
+    expect(wrapper.find('[data-testid="project-runtime-status-loading-1"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="project-runtime-status-loading-2"]').exists()).toBe(true);
+
+    resolveBatchAction({
+      blocked_count: 0,
+      completed_count: 1,
+      items: [{ action: 'stop', message: '', project_id: 2, result: 'completed', skipped: false }],
+      skipped_count: 1,
+      total_count: 2,
+    });
+    await flushPromises();
+
+    wrapper.unmount();
   });
 
   it('disables batch destroy when multiple rows are selected', async () => {
@@ -777,7 +953,7 @@ describe('Project list page', () => {
     resolveBatchAction({
       blocked_count: 0,
       completed_count: 1,
-      items: [{ action: 'down', message: '', project_id: 1, result: 'completed', skipped: false }],
+      items: [{ action: 'stop', message: '', project_id: 1, result: 'completed', skipped: false }],
       skipped_count: 0,
       total_count: 1,
     });
@@ -790,15 +966,15 @@ describe('Project list page', () => {
       completed_count: 1,
       items: [
         {
-          action: 'down',
+          action: 'stop',
           message: '',
           message_key: 'project.list.batch.skipInapplicable',
           project_id: 1,
           result: 'blocked',
           skipped: true,
         },
-        { action: 'down', message: '', project_id: 2, result: 'completed', skipped: false },
-        { action: 'down', message: 'docker compose failed', project_id: 3, result: 'blocked', skipped: false },
+        { action: 'stop', message: '', project_id: 2, result: 'completed', skipped: false },
+        { action: 'stop', message: 'docker compose failed', project_id: 3, result: 'blocked', skipped: false },
       ],
       skipped_count: 1,
       total_count: 3,

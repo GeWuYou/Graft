@@ -104,6 +104,7 @@
         "runtimeTransitioning": "🔵 过渡中"
       },
       "statusTooltip": {
+        "lifecycleReviewRequired": "生命周期配置尚未确认，进入详情完成确认。",
         "runtimeUnknown": "当前页未知",
         "runtimeRunning": "当前页运行中",
         "runtimeDegraded": "当前页降级",
@@ -135,7 +136,7 @@
         "create": "选择项目来源",
         "refresh": "刷新",
         "up": "启动项目",
-        "down": "停止项目",
+        "stop": "停止项目",
         "restart": "重启项目",
         "redeploy": "重新部署",
         "updateDeploy": "更新部署",
@@ -153,8 +154,8 @@
         "actionFailed": "项目操作失败。",
         "confirmUpTitle": "确认启动项目",
         "confirmUpDescription": "确认启动 {name}？这会按当前 Compose 配置拉起已注册服务和容器。",
-        "confirmDownTitle": "确认停止项目",
-        "confirmDownDescription": "确认停止 {name}？这会停止当前项目下正在运行的服务和容器。",
+        "confirmStopTitle": "确认停止项目",
+        "confirmStopDescription": "确认停止 {name}？这会停止当前项目下正在运行的服务和容器。",
         "confirmRestartTitle": "确认重启项目",
         "confirmRestartDescription": "确认重启 {name}？这会中断现有运行中的服务，并按当前配置重新启动。",
         "confirmRedeployTitle": "确认重新部署项目",
@@ -220,9 +221,6 @@
       "eyebrow": "导入项目",
       "description": "按步骤选择运行中的 Compose 项目、查看检查结果，再确认导入。",
       "meta": {
-        "step": "步骤 {current} / {total}",
-        "readyCount": "可导入 {count}",
-        "unavailableCount": "暂不可导入 {count}",
         "selectedCandidate": "当前候选：{name}"
       },
       "steps": {
@@ -259,10 +257,10 @@
       },
       "candidates": {
         "title": "运行时候选",
-        "summary": "可导入 {ready} 个 / 暂不可导入 {unavailable} 个",
         "statusFilter": "筛选状态",
         "allFilterLabel": "全部（{count}）",
         "readyFilterLabel": "可导入（{count}）",
+        "importedFilterLabel": "已导入（{count}）",
         "unavailableFilterLabel": "暂不可导入（{count}）",
         "tableSummary": "当前筛选显示 {count} 个运行时候选",
         "tableHint": "一行代表一个 Runtime Candidate；仅可导入候选允许执行检查并进入后续导入流程。",
@@ -307,11 +305,13 @@
         "paginationSummary": "显示第 {start}-{end} 项，共 {total} 项",
         "status": {
           "ready": "可导入",
+          "already_imported": "已导入",
           "incomplete_metadata": "元数据不完整",
           "unsupported_runtime": "运行时暂不支持",
           "broken_compose": "Compose 解析失败"
         },
         "reason": {
+          "already_imported": "该项目已导入 Graft",
           "missing_project_name": "缺少 Compose 项目名元数据",
           "missing_config_files": "缺少 Compose 配置文件元数据",
           "invalid_config_files": "Compose 配置文件元数据无效",
@@ -650,6 +650,12 @@
       "boundary": "边界说明",
       "boundaryValue": "当前页面只声明 contract 与 route owner，不执行任何超出当前 bounded batch 的实现动作。"
     },
+    "lifecycle": {
+      "reviewStatus": {
+        "confirmed": "生命周期已确认",
+        "reviewRequired": "待确认"
+      }
+    },
     "detail": {
       "ownershipMode": {
         "managed-root-dedicated": "托管根目录专属",
@@ -714,7 +720,7 @@
         "volumes": "Volumes",
         "configuration": "Configuration",
         "activity": "Activity",
-        "runtime": "Runtime"
+        "lifecycle": "Lifecycle"
       },
       "resources": {
         "refresh": "刷新资源",
@@ -815,24 +821,55 @@
         },
         "openContainer": "打开容器详情"
       },
-      "runtime": {
-        "title": "Runtime",
-        "description": "项目级运行状态、成员计数与生命周期操作统一收口到 Runtime 工作区。",
-        "statusTitle": "运行状态",
-        "membersTitle": "运行成员",
-        "authorityTitle": "运行边界",
+      "lifecycle": {
+        "title": "Lifecycle",
+        "description": "确认 Graft 将用于本地项目生命周期动作的 Compose 配置，并预览生成命令。",
+        "statusTitle": "生命周期状态",
+        "configurationTitle": "部署配置",
+        "generatedCommandsTitle": "生成命令",
+        "generatedCommandsEmpty": "当前还没有可用的命令预览。",
+        "generatedCommands": {
+          "up": "启动",
+          "stop": "停止",
+          "restart": "重启",
+          "redeploy": "重新部署"
+        },
         "runtimeStatus": "项目状态",
         "refreshStatus": "刷新状态",
         "driftStatus": "漂移状态",
         "lastRefreshAt": "最近项目刷新",
-        "runningMembers": "运行中成员",
-        "totalMembers": "总成员数",
-        "serviceCount": "服务数",
-        "hostScope": "宿主范围",
-        "activityAuthority": "活动 Authority",
+        "reviewStatus": "审查状态",
+        "mode": "部署模式",
+        "modeStandard": "标准 Compose",
         "workingDirectory": "工作目录",
-        "canonicalName": "规范项目名",
-        "nameSource": "名称来源"
+        "projectName": "项目名",
+        "composeFiles": "Compose 文件",
+        "profiles": "Profiles",
+        "profilesPlaceholder": "app, monitoring",
+        "additionalArgs": "附加参数",
+        "additionalArgsPlaceholder": "--wait",
+        "downBeforeRedeploy": "重新部署前先执行 down",
+        "pullBeforeRedeploy": "重新部署前先拉取镜像",
+        "buildBeforeUp": "up 前执行 build",
+        "forceRecreate": "强制重建容器",
+        "waitAfterUp": "up 后等待就绪",
+        "pruneImagesAfterRedeploy": "重新部署后清理镜像",
+        "reset": "重置",
+        "save": "保存配置",
+        "saveSuccess": "生命周期配置已保存。",
+        "saveFailed": "生命周期配置保存失败。",
+        "reviewRequiredTitle": "需要先确认生命周期配置",
+        "reviewRequiredDescription": "导入项目无法自动恢复原始启动参数，请先确认部署配置，再执行 Compose 生命周期动作。",
+        "reviewRequiredActionBlocked": "请先确认生命周期配置，再执行 Compose 生命周期动作。",
+        "step": {
+          "up": "启动",
+          "stop": "停止",
+          "restart": "重启",
+          "pullImages": "拉取镜像",
+          "bringDown": "执行 down",
+          "bringUp": "执行 up",
+          "pruneImages": "清理镜像"
+        }
       },
       "configuration": {
         "title": "配置",
@@ -912,8 +949,9 @@
       },
       "actions": {
         "up": "启动项目",
-        "down": "停止项目",
+        "stop": "停止项目",
         "restart": "重启项目",
+        "redeploy": "重新部署",
         "unregister": "取消注册",
         "destroy": "销毁",
         "copyPath": "复制路径",

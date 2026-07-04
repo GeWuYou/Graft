@@ -1,0 +1,26 @@
+type: object
+required:
+  - kind
+  - argv
+  - display_command
+properties:
+  kind:
+    type: string
+    enum: [down, pull, up, stop, restart, prune]
+    x-enum-varnames:
+      - ProjectLifecycleCommandStepKindDown
+      - ProjectLifecycleCommandStepKindPull
+      - ProjectLifecycleCommandStepKindUp
+      - ProjectLifecycleCommandStepKindStop
+      - ProjectLifecycleCommandStepKindRestart
+      - ProjectLifecycleCommandStepKindPrune
+  argv:
+    type: array
+    minItems: 1
+    items:
+      type: string
+  display_command:
+    type: string
+    minLength: 1
+    description: Human-readable command preview derived from the canonical lifecycle configuration.
+additionalProperties: false

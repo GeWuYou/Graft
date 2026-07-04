@@ -250,6 +250,8 @@ paths:
     $ref: ./paths/ops-projects.create.yaml
   /api/ops/projects/{id}:
     $ref: ./paths/ops-projects.detail.yaml
+  /api/ops/projects/{id}/lifecycle-configuration:
+    $ref: ./paths/ops-projects.lifecycle-configuration.yaml
   /api/ops/projects/{id}/services:
     $ref: ./paths/ops-projects.services.yaml
   /api/ops/projects/{id}/configuration:
@@ -268,14 +270,12 @@ paths:
     $ref: ./paths/ops-projects.refresh.yaml
   /api/ops/projects/{id}/up:
     $ref: ./paths/ops-projects.up.yaml
-  /api/ops/projects/{id}/down:
-    $ref: ./paths/ops-projects.down.yaml
+  /api/ops/projects/{id}/stop:
+    $ref: ./paths/ops-projects.stop.yaml
   /api/ops/projects/{id}/restart:
     $ref: ./paths/ops-projects.restart.yaml
   /api/ops/projects/{id}/redeploy:
     $ref: ./paths/ops-projects.redeploy.yaml
-  /api/ops/projects/{id}/update-deploy:
-    $ref: ./paths/ops-projects.update-deploy.yaml
   /api/ops/projects/batch-actions:
     $ref: ./paths/ops-projects.batch-actions.yaml
   /api/ops/projects/{id}/unregister:
@@ -756,6 +756,20 @@ components:
       $ref: ./components/schemas/project-container-counts.yaml
     ProjectRuntimeStatus:
       $ref: ./components/schemas/project-runtime-status.yaml
+    ProjectLifecycleStrategyKind:
+      $ref: ./components/schemas/project-lifecycle-strategy-kind.yaml
+    ProjectLifecycleReviewStatus:
+      $ref: ./components/schemas/project-lifecycle-review-status.yaml
+    ProjectLifecycleCommandStep:
+      $ref: ./components/schemas/project-lifecycle-command-step.yaml
+    ProjectLifecycleGeneratedCommand:
+      $ref: ./components/schemas/project-lifecycle-generated-command.yaml
+    ProjectLifecycleConfiguration:
+      $ref: ./components/schemas/project-lifecycle-configuration.yaml
+    ProjectLifecycleConfigurationRequest:
+      $ref: ./components/schemas/project-lifecycle-configuration-request.yaml
+    ProjectLifecycleConfigurationResponse:
+      $ref: ./components/schemas/project-lifecycle-configuration-response.yaml
     ProjectListItem:
       $ref: ./components/schemas/project-list-item.yaml
     ProjectListResponse:
@@ -800,8 +814,6 @@ components:
       $ref: ./components/schemas/project-configuration-file-response.yaml
     ProjectDestroyRequest:
       $ref: ./components/schemas/project-destroy-request.yaml
-    ProjectUpdateDeployRequest:
-      $ref: ./components/schemas/project-update-deploy-request.yaml
     ProjectActionResponse:
       $ref: ./components/schemas/project-action-response.yaml
     ProjectBatchActionRequest:
@@ -816,6 +828,8 @@ components:
       $ref: ./components/schemas/enveloped-project-source-catalog-response.yaml
     EnvelopedProjectDetailResponse:
       $ref: ./components/schemas/enveloped-project-detail-response.yaml
+    EnvelopedProjectLifecycleConfigurationResponse:
+      $ref: ./components/schemas/enveloped-project-lifecycle-configuration-response.yaml
     EnvelopedProjectServicesResponse:
       $ref: ./components/schemas/enveloped-project-services-response.yaml
     EnvelopedProjectConfigurationMetadataResponse:

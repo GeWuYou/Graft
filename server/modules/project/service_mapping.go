@@ -43,6 +43,7 @@ func toProjectListItemWithManagedRoot(
 		CanonicalProjectName:       aggregate.Project.CanonicalProjectName,
 		CanonicalProjectNameSource: generated.ProjectCanonicalNameSource(aggregate.Project.CanonicalProjectNameSource),
 		SourceKind:                 generated.ProjectSourceKind(aggregate.Project.SourceKind),
+		LifecycleReviewStatus:      generated.ProjectLifecycleReviewStatus(nonEmptyString(aggregate.Project.LifecycleReviewStatus, projectcontract.LifecycleReviewStatusReviewRequired.String())),
 		SourceMetadata:             buildListSourceMetadataWithManagedRoot(aggregate, managedRootDirectory),
 		ActivityAuthority:          generated.ProjectActivityAuthority(resolveActivityAuthority(aggregate)),
 		HostScope:                  generated.ProjectHostScope(aggregate.Project.HostScope),
@@ -79,6 +80,8 @@ func toProjectDetailResponseWithManagedRoot(
 	item := generated.ProjectDetailResponse{
 		CanonicalProjectName:       aggregate.Project.CanonicalProjectName,
 		CanonicalProjectNameSource: generated.ProjectCanonicalNameSource(aggregate.Project.CanonicalProjectNameSource),
+		LifecycleReviewStatus:      generated.ProjectLifecycleReviewStatus(nonEmptyString(aggregate.Project.LifecycleReviewStatus, projectcontract.LifecycleReviewStatusReviewRequired.String())),
+		LifecycleConfiguration:     toGeneratedProjectLifecycleConfiguration(aggregate),
 		ComposeFiles:               toGeneratedFiles(filterFiles(aggregate.Files, projectcontract.FileKindCompose.String())),
 		ContainerCounts:            counts,
 		DisplayName:                aggregate.Project.DisplayName,
@@ -112,6 +115,141 @@ func toProjectDetailResponseWithManagedRoot(
 		item.ServiceCount = aggregate.Snapshot.DeclaredServiceCount
 	}
 	return item
+}
+
+func toProjectLifecycleConfigurationResponse(
+	aggregate projectstore.ProjectAggregate,
+) generated.ProjectLifecycleConfigurationResponse {
+	config := lifecycleConfigurationFromAggregate(aggregate)
+	return generated.ProjectLifecycleConfigurationResponse{
+		ProjectId:              mustGeneratedID(aggregate.Project.ID),
+		LifecycleReviewStatus:  generated.ProjectLifecycleReviewStatus(nonEmptyString(aggregate.Project.LifecycleReviewStatus, projectcontract.LifecycleReviewStatusReviewRequired.String())),
+		WorkingDirectory:       aggregate.Project.WorkingDirectory,
+		CanonicalProjectName:   aggregate.Project.CanonicalProjectName,
+		ComposeFiles:           toGeneratedFiles(filterFiles(aggregate.Files, projectcontract.FileKindCompose.String())),
+		LifecycleConfiguration: toGeneratedLifecycleConfiguration(config),
+	}
+}
+
+func toGeneratedProjectLifecycleConfiguration(
+	aggregate projectstore.ProjectAggregate,
+) generated.ProjectLifecycleConfiguration {
+	return toGeneratedLifecycleConfiguration(lifecycleConfigurationFromAggregate(aggregate))
+}
+
+func toGeneratedLifecycleConfiguration(config LifecycleConfiguration) generated.ProjectLifecycleConfiguration {
+	return generated.ProjectLifecycleConfiguration{
+		StrategyKind:         generated.ProjectLifecycleStrategyKind(config.StrategyKind),
+		Profiles:             append([]string(nil), config.Standard.Profiles...),
+		DownBeforeRedeploy:   config.Standard.DownBeforeRedeploy,
+		PullBeforeRedeploy:   config.Standard.PullBeforeRedeploy,
+		BuildBeforeUp:        config.Standard.BuildBeforeUp,
+		ForceRecreate:        config.Standard.ForceRecreate,
+		WaitAfterUp:          config.Standard.WaitAfterUp,
+		PruneImagesAfterRedeploy: config.Standard.PruneImagesAfterRedeploy,
+		GeneratedCommands:    toGeneratedLifecycleCommands(config),
+	}
+}
+
+func toGeneratedLifecycleCommands(config LifecycleConfiguration) struct {
+	Redeploy generated.ProjectLifecycleGeneratedCommand `json:"redeploy"`
+	Restart  generated.ProjectLifecycleGeneratedCommand `json:"restart"`
+	Stop     generated.ProjectLifecycleGeneratedCommand `json:"stop"`
+	Up       generated.ProjectLifecycleGeneratedCommand `json:"up"`
+} {
+	return struct {
+		Redeploy generated.ProjectLifecycleGeneratedCommand `json:"redeploy"`
+		Restart  generated.ProjectLifecycleGeneratedCommand `json:"restart"`
+		Stop     generated.ProjectLifecycleGeneratedCommand `json:"stop"`
+		Up       generated.ProjectLifecycleGeneratedCommand `json:"up"`
+	}{
+		Redeploy: buildGeneratedLifecycleCommand(config, "redeploy"),
+		Restart:  buildGeneratedLifecycleCommand(config, "restart"),
+		Stop:     buildGeneratedLifecycleCommand(config, "stop"),
+		Up:       buildGeneratedLifecycleCommand(config, "up"),
+	}
+}
+
+func buildGeneratedLifecycleCommand(
+	config LifecycleConfiguration,
+	action string,
+) generated.ProjectLifecycleGeneratedCommand {
+	steps := buildLifecycleCommandSteps(config, action)
+	displayParts := make([]string, 0, len(steps))
+	for _, item := range steps {
+		displayParts = append(displayParts, item.DisplayCommand)
+	}
+	return generated.ProjectLifecycleGeneratedCommand{
+		Action:         generated.ProjectLifecycleGeneratedCommandAction(action),
+		Steps:          steps,
+		DisplayCommand: strings.Join(displayParts, "\n"),
+	}
+}
+
+func buildLifecycleCommandSteps(
+	config LifecycleConfiguration,
+	action string,
+) []generated.ProjectLifecycleCommandStep {
+	base := buildLifecycleBaseArgv(config)
+	switch action {
+	case "up":
+		return []generated.ProjectLifecycleCommandStep{buildLifecycleCommandStep("up", buildLifecycleUpArgv(base, config.Standard))}
+	case "stop":
+		return []generated.ProjectLifecycleCommandStep{buildLifecycleCommandStep("stop", append(base, "stop"))}
+	case "restart":
+		return []generated.ProjectLifecycleCommandStep{buildLifecycleCommandStep("restart", append(base, "restart"))}
+	case "redeploy":
+		steps := make([]generated.ProjectLifecycleCommandStep, 0, lifecycleRedeployStepCap)
+		if config.Standard.DownBeforeRedeploy {
+			steps = append(steps, buildLifecycleCommandStep("down", append(append([]string(nil), base...), "down")))
+		}
+		if config.Standard.PullBeforeRedeploy {
+			steps = append(steps, buildLifecycleCommandStep("pull", append(append([]string(nil), base...), "pull")))
+		}
+		steps = append(steps, buildLifecycleCommandStep("up", buildLifecycleUpArgv(base, config.Standard)))
+		if config.Standard.PruneImagesAfterRedeploy {
+			steps = append(steps, buildLifecycleCommandStep("prune", []string{"docker", "image", "prune", "-f"}))
+		}
+		return steps
+	default:
+		return []generated.ProjectLifecycleCommandStep{buildLifecycleCommandStep("up", buildLifecycleUpArgv(base, config.Standard))}
+	}
+}
+
+func buildLifecycleBaseArgv(config LifecycleConfiguration) []string {
+	base := []string{"docker", "compose"}
+	for _, file := range config.ComposeFiles {
+		base = append(base, "-f", file)
+	}
+	for _, profile := range config.Standard.Profiles {
+		base = append(base, "--profile", profile)
+	}
+	if strings.TrimSpace(config.ProjectName) != "" {
+		base = append(base, "-p", config.ProjectName)
+	}
+	return base
+}
+
+func buildLifecycleUpArgv(base []string, standard LifecycleStandardConfig) []string {
+	args := append(append([]string(nil), base...), "up", "-d")
+	if standard.BuildBeforeUp {
+		args = append(args, "--build")
+	}
+	if standard.ForceRecreate {
+		args = append(args, "--force-recreate")
+	}
+	if standard.WaitAfterUp {
+		args = append(args, "--wait")
+	}
+	return args
+}
+
+func buildLifecycleCommandStep(kind string, argv []string) generated.ProjectLifecycleCommandStep {
+	return generated.ProjectLifecycleCommandStep{
+		Kind:           generated.ProjectLifecycleCommandStepKind(kind),
+		Argv:           append([]string(nil), argv...),
+		DisplayCommand: strings.Join(argv, " "),
+	}
 }
 
 // toGeneratedFiles 将存储的文件记录转换为生成的文件项列表。

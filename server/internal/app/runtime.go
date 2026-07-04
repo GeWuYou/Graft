@@ -110,45 +110,51 @@ type Runtime struct {
 //
 // NewRuntime 加载配置并构建运行时实例，完成核心资源、服务、路由和模块注册。
 // 任一步骤失败时返回错误，部分失败场景下会尽力回收已创建的核心资源。
-func NewRuntime() (*Runtime, error) {
+func NewRuntime(startupCtx context.Context) (*Runtime, error) {
+	if startupCtx == nil {
+		startupCtx = context.Background()
+	}
+
 	cfg, err := config.Load()
 	if err != nil {
 		return nil, fmt.Errorf("load config: %w", err)
 	}
+	if err := startupCtx.Err(); err != nil {
+		return nil, err
+	}
 
-	runtime, err := newRuntimeCore(cfg)
+	runtime, err := newRuntimeCore(startupCtx, cfg)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := runtime.loadOptionalDocsAssets(); err != nil {
-		_ = runtime.closeCoreResources()
-		return nil, err
+	steps := []func() error{
+		runtime.loadOptionalDocsAssets,
+		runtime.registerCoreServices,
+		runtime.registerCoreConfigDefinitions,
+		runtime.registerRetentionJobs,
+		func() error { return runtime.registerCoreRoutes(runtime.server.Engine()) },
+		func() error { return runtime.registerRuntimeModules(cfg.Modules.Enabled) },
 	}
-
-	if err := runtime.registerCoreServices(); err != nil {
-		_ = runtime.closeCoreResources()
-		return nil, err
-	}
-
-	if err := runtime.registerCoreConfigDefinitions(); err != nil {
-		return nil, err
-	}
-
-	if err := runtime.registerRetentionJobs(); err != nil {
-		return nil, err
-	}
-
-	if err := runtime.registerCoreRoutes(runtime.server.Engine()); err != nil {
-		_ = runtime.closeCoreResources()
-		return nil, err
-	}
-
-	if err := runtime.registerRuntimeModules(cfg.Modules.Enabled); err != nil {
+	if err := runtime.runStartupSteps(startupCtx, steps...); err != nil {
 		return nil, err
 	}
 
 	return runtime, nil
+}
+
+func (r *Runtime) runStartupSteps(startupCtx context.Context, steps ...func() error) error {
+	for _, step := range steps {
+		if err := step(); err != nil {
+			_ = r.closeCoreResources()
+			return err
+		}
+		if err := startupCtx.Err(); err != nil {
+			_ = r.closeCoreResources()
+			return err
+		}
+	}
+	return nil
 }
 
 func (r *Runtime) registerRetentionJobs() error {
@@ -202,15 +208,18 @@ func (r *Runtime) registerRuntimeModules(enabledModules []string) error {
 	return nil
 }
 
-func newRuntimeCore(cfg *config.Config) (*Runtime, error) {
-	return newRuntimeCoreWithDeps(cfg, defaultRuntimeCoreDeps)
+func newRuntimeCore(startupCtx context.Context, cfg *config.Config) (*Runtime, error) {
+	return newRuntimeCoreWithDeps(startupCtx, cfg, defaultRuntimeCoreDeps)
 }
 
 // newRuntimeCoreWithDeps 初始化核心运行时资源，并返回已完成配置且预注册了本地化资源的 Runtime 实例。
 // 它会按顺序创建日志、数据库、Redis、i18n、仓储、缓存管理器、HTTP 服务器以及各类注册表，并在任一步失败时回收已创建资源。
-func newRuntimeCoreWithDeps(cfg *config.Config, deps runtimeCoreDeps) (*Runtime, error) {
+func newRuntimeCoreWithDeps(startupCtx context.Context, cfg *config.Config, deps runtimeCoreDeps) (*Runtime, error) {
 	deps = normalizeRuntimeCoreDeps(deps)
 	applyGinMode(cfg)
+	if startupCtx == nil {
+		startupCtx = context.Background()
+	}
 
 	runtimeLogger, err := logger.New(cfg)
 	if err != nil {
@@ -223,7 +232,7 @@ func newRuntimeCoreWithDeps(cfg *config.Config, deps runtimeCoreDeps) (*Runtime,
 		return nil, fmt.Errorf("open database resources: %w", err)
 	}
 
-	redisClient, err := deps.openRedisClient(context.Background(), cfg.Redis)
+	redisClient, err := deps.openRedisClient(startupCtx, cfg.Redis)
 	if err != nil {
 		_ = database.Close(databaseResources)
 		_ = logger.Close(runtimeLogger)
@@ -473,23 +482,43 @@ func (r *Runtime) runServerAndShutdown(
 	if err := r.ensureLifecycleActive(runCtx, moduleCtx, booted); err != nil {
 		return err
 	}
-	if err := r.server.Run(runCtx, r.config.HTTP.Addr); err != nil {
+	errCh, err := r.server.Start(r.config.HTTP.Addr)
+	if err != nil {
 		return r.cleanupAfterFailure(moduleCtx, booted, err)
 	}
 
-	if err := shutdownModules(moduleCtx, booted); err != nil {
-		r.appLogger().Error(moduleCtx.LifecycleContext, "app runtime shutdown failed",
-			logger.StringField(logger.FieldOperation, "runtime_shutdown"),
-			logger.ErrorField(err),
-		)
-		return r.cleanupAfterFailure(moduleCtx, nil, err)
+	select {
+	case serveErr, ok := <-errCh:
+		if !ok {
+			return r.shutdownRuntime(moduleCtx, booted)
+		}
+		return r.cleanupAfterFailure(moduleCtx, booted, serveErr)
+	case <-runCtx.Done():
+		return joinShutdownServeError(r.shutdownRuntime(moduleCtx, booted), errCh)
+	}
+}
+
+func joinShutdownServeError(shutdownErr error, errCh <-chan error) error {
+	if shutdownErr != nil {
+		select {
+		case serveErr, ok := <-errCh:
+			if !ok {
+				return shutdownErr
+			}
+			return errors.Join(shutdownErr, serveErr)
+		default:
+			return shutdownErr
+		}
 	}
 
-	if err := r.closeCoreResources(); err != nil {
-		return err
+	serveErr, ok := <-errCh
+	if !ok {
+		return shutdownErr
 	}
-
-	return nil
+	if shutdownErr == nil {
+		return serveErr
+	}
+	return errors.Join(shutdownErr, serveErr)
 }
 
 func (r *Runtime) ensureLifecycleActive(

@@ -56,7 +56,7 @@ func permissionItems(moduleName string) []permission.Item {
 			Code:           projectcontract.ProjectLifecyclePermission.String(),
 			Name:           "Manage compose project lifecycle",
 			DisplayKey:     "rbac.permissionCatalog.projectLifecycle.display",
-			Description:    "Run bounded Compose lifecycle actions such as up, down, and restart.",
+			Description:    "Run bounded Compose lifecycle actions such as up, stop, and restart.",
 			DescriptionKey: "rbac.permissionCatalog.projectLifecycle.description",
 			Module:         moduleName,
 		},

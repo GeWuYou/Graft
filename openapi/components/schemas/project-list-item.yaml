@@ -4,6 +4,7 @@ required:
   - display_name
   - canonical_project_name
   - canonical_project_name_source
+  - lifecycle_review_status
   - source_kind
   - activity_authority
   - host_scope
@@ -24,6 +25,8 @@ properties:
     type: string
   canonical_project_name_source:
     $ref: ./project-canonical-name-source.yaml
+  lifecycle_review_status:
+    $ref: ./project-lifecycle-review-status.yaml
   source_kind:
     $ref: ./project-source-kind.yaml
   source_metadata:

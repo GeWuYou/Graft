@@ -259,6 +259,8 @@ Observability authority overlay：
   - 负责释放 `Boot` 启动的所有资源
   - 必须停止 goroutine、ticker、timer、event subscription、scheduler job、外部句柄
   - 不得以 `context.Background()` 逃避关闭语义；优先使用 runtime 注入的生命周期上下文
+  - 模块 `Module` 接收者方法中不得自建独立 shutdown timer 或 `time.After` 关闭窗口来覆盖 runtime 的统一关闭预算；若确需特殊收敛策略，先升级 runtime authority 或同步更新治理与门禁
+  - `server/internal/app` 的生命周期治理测试会扫描 `server/modules/**` 下的 `Module` 接收者方法，阻止重新引入 `context.Background()` 与 `time.After(...)` 这类生命周期漂移
 
 ### 7.2 依赖规则
 

@@ -55,14 +55,14 @@ const (
 	ProjectRefreshRoute = "/:id/refresh"
 	// ProjectUpRoute identifies the compose up route fragment.
 	ProjectUpRoute = "/:id/up"
-	// ProjectDownRoute identifies the compose down route fragment.
-	ProjectDownRoute = "/:id/down"
+	// ProjectStopRoute identifies the compose stop route fragment.
+	ProjectStopRoute = "/:id/stop"
 	// ProjectRestartRoute identifies the compose restart route fragment.
 	ProjectRestartRoute = "/:id/restart"
 	// ProjectRedeployRoute identifies the compose redeploy route fragment.
 	ProjectRedeployRoute = "/:id/redeploy"
-	// ProjectUpdateDeployRoute identifies the update-deploy route fragment.
-	ProjectUpdateDeployRoute = "/:id/update-deploy"
+	// ProjectLifecycleConfigurationRoute identifies the lifecycle configuration route fragment.
+	ProjectLifecycleConfigurationRoute = "/:id/lifecycle-configuration"
 	// ProjectUnregisterRoute identifies the unregister route fragment.
 	ProjectUnregisterRoute = "/:id/unregister"
 	// ProjectDestroyRoute identifies the guarded destroy route fragment.

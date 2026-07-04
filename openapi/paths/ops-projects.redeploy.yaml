@@ -2,7 +2,9 @@ post:
   tags: [project]
   summary: Redeploy a registered project
   operationId: postProjectRedeploy
-  description: Runs `docker compose down` and then `docker compose up -d` for the selected registered project.
+  description: >
+    Runs the saved project lifecycle configuration for the selected project. Standard strategy redeploy may include
+    `docker compose down`, `pull`, `up -d`, and optional image prune, based on the stored lifecycle settings.
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml
@@ -42,7 +44,7 @@ post:
           schema:
             $ref: ../components/schemas/error-response.yaml
     '409':
-      description: Redeploy blocked by project lifecycle guards or execution failure.
+      description: Redeploy blocked by lifecycle review guards, project lifecycle guards, or execution failure.
       headers:
         X-Request-Id:
           $ref: ../components/headers/request-id.yaml

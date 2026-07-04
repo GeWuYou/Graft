@@ -61,6 +61,18 @@ func runtimeImportCandidateFromModuleAPI(candidate moduleapi.ContainerProjectRun
 	return result
 }
 
+func candidateFromValidatedRuntimeImportCandidate(
+	rawCandidate moduleapi.ContainerProjectRuntimeCandidate,
+	validated RuntimeImportCandidate,
+) moduleapi.ContainerProjectRuntimeCandidate {
+	rawCandidate.CandidateKey = validated.CandidateKey
+	rawCandidate.Status = validated.Status
+	rawCandidate.StatusReasonCodes = append([]string(nil), validated.StatusReasonCodes...)
+	rawCandidate.Importable = validated.Importable
+	rawCandidate.Warnings = append([]string(nil), validated.Warnings...)
+	return rawCandidate
+}
+
 func sortRuntimeImportCandidates(items []RuntimeImportCandidate) {
 	sort.Slice(items, func(i, j int) bool {
 		if items[i].Importable != items[j].Importable {
@@ -105,6 +117,7 @@ func buildRuntimeImportCandidatesResult(
 	filterCounts := RuntimeImportCandidateFilterCounts{
 		All:         len(keywordFiltered),
 		Ready:       countRuntimeImportCandidatesByAvailability(keywordFiltered, runtimeImportCandidateAvailabilityReady),
+		Imported:    countRuntimeImportCandidatesByAvailability(keywordFiltered, runtimeImportCandidateAvailabilityImported),
 		Unavailable: countRuntimeImportCandidatesByAvailability(keywordFiltered, runtimeImportCandidateAvailabilityUnavailable),
 	}
 	availabilityFiltered := filterRuntimeImportCandidatesByAvailability(keywordFiltered, normalizedQuery.Availability)
@@ -204,8 +217,11 @@ func runtimeImportCandidateMatchesAvailability(
 	if availability == runtimeImportCandidateAvailabilityReady {
 		return ready
 	}
+	if availability == runtimeImportCandidateAvailabilityImported {
+		return candidate.Status == importRuntimeCandidateStatusAlreadyImported
+	}
 	if availability == runtimeImportCandidateAvailabilityUnavailable {
-		return !ready
+		return !ready && candidate.Status != importRuntimeCandidateStatusAlreadyImported
 	}
 	return true
 }
@@ -415,6 +431,33 @@ func markBrokenRuntimeImportCandidate(candidate RuntimeImportCandidate, reason s
 	candidate.Importable = false
 	candidate.StatusReasonCodes = uniqueStrings(append([]string(nil), reason))
 	return candidate
+}
+
+func markAlreadyImportedRuntimeImportCandidate(candidate RuntimeImportCandidate, reason string) RuntimeImportCandidate {
+	candidate.Status = importRuntimeCandidateStatusAlreadyImported
+	candidate.Importable = false
+	if strings.TrimSpace(reason) == "" {
+		reason = importRuntimeReasonAlreadyImported
+	}
+	candidate.StatusReasonCodes = uniqueStrings(append([]string(nil), reason))
+	return candidate
+}
+
+func runtimeImportCandidateExistingConflict(
+	candidate RuntimeImportCandidate,
+	existing []projectstore.ProjectAggregate,
+) string {
+	targetWD := strings.TrimSpace(candidate.WorkingDirectory)
+	targetCanonical := strings.TrimSpace(candidate.CanonicalProjectName)
+	for _, item := range existing {
+		if sameWorkingDirectory(targetWD, item.Project.WorkingDirectory) {
+			return importRuntimeReasonAlreadyImported
+		}
+		if targetCanonical != "" && strings.EqualFold(item.Project.CanonicalProjectName, targetCanonical) {
+			return importRuntimeReasonAlreadyImported
+		}
+	}
+	return ""
 }
 
 func runtimeCandidateParseReason(err error) string {
