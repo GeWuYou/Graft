@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"sync"
 	"testing"
 	"time"
 
@@ -85,7 +86,10 @@ func (s *stubProjectRepository) UnregisterProject(_ context.Context, input proje
 }
 
 type capturedAuditBus struct {
-	events []moduleapi.AuditEvent
+	mu        sync.Mutex
+	events    []moduleapi.AuditEvent
+	published chan struct{}
+	blocked   <-chan struct{}
 }
 
 func (b *capturedAuditBus) Subscribe(string, eventbus.Handler) error {
@@ -93,12 +97,48 @@ func (b *capturedAuditBus) Subscribe(string, eventbus.Handler) error {
 }
 
 func (b *capturedAuditBus) Publish(_ context.Context, event eventbus.Event) error {
+	if b.blocked != nil {
+		<-b.blocked
+	}
 	auditEvent, ok := event.Payload.(moduleapi.AuditEvent)
 	if !ok {
 		return nil
 	}
+	b.mu.Lock()
 	b.events = append(b.events, auditEvent)
+	b.mu.Unlock()
+	if b.published != nil {
+		select {
+		case b.published <- struct{}{}:
+		default:
+		}
+	}
 	return nil
+}
+
+func (b *capturedAuditBus) snapshot() []moduleapi.AuditEvent {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return append([]moduleapi.AuditEvent(nil), b.events...)
+}
+
+func (b *capturedAuditBus) waitForEvents(t *testing.T, count int, timeout time.Duration) []moduleapi.AuditEvent {
+	t.Helper()
+	deadline := time.After(timeout)
+	for {
+		events := b.snapshot()
+		if len(events) >= count {
+			return events
+		}
+		if b.published == nil {
+			t.Fatalf("expected %d audit events, got %d", count, len(events))
+		}
+		select {
+		case <-b.published:
+		case <-deadline:
+			t.Fatalf("timed out waiting for %d audit events, got %d", count, len(events))
+		}
+	}
 }
 
 func authenticatedProjectActionContext() context.Context {
@@ -295,14 +335,15 @@ func TestUnregisterUsesRequestActorAndPublishesAudit(t *testing.T) {
 	if repo.unregisterInput == nil || repo.unregisterInput.ActorID == nil || *repo.unregisterInput.ActorID != 7 {
 		t.Fatalf("expected unregister actor id 7, got %#v", repo.unregisterInput)
 	}
-	if len(auditBus.events) != 1 {
-		t.Fatalf("expected one audit event, got %d", len(auditBus.events))
+	events := auditBus.snapshot()
+	if len(events) != 1 {
+		t.Fatalf("expected one audit event, got %d", len(events))
 	}
-	if auditBus.events[0].Action != projectcontract.ProjectAuditActionUnregister.String() {
-		t.Fatalf("expected unregister audit action, got %#v", auditBus.events[0])
+	if events[0].Action != projectcontract.ProjectAuditActionUnregister.String() {
+		t.Fatalf("expected unregister audit action, got %#v", events[0])
 	}
-	if auditBus.events[0].Operator == nil || auditBus.events[0].Operator.ID != 7 {
-		t.Fatalf("expected operator id 7, got %#v", auditBus.events[0].Operator)
+	if events[0].Operator == nil || events[0].Operator.ID != 7 {
+		t.Fatalf("expected operator id 7, got %#v", events[0].Operator)
 	}
 }
 
@@ -636,6 +677,61 @@ func TestBatchRedeployReusesLoadedAggregate(t *testing.T) {
 	}
 	if repo.getCalls != 1 {
 		t.Fatalf("expected one aggregate lookup, got %d", repo.getCalls)
+	}
+}
+
+func TestBatchActionDoesNotWaitForBatchAuditPublish(t *testing.T) {
+	t.Parallel()
+
+	repo := &stubProjectRepository{
+		aggregate: projectstore.ProjectAggregate{
+			Project: projectstore.Project{
+				ID:                   1,
+				CanonicalProjectName: "demo",
+				HostScope:            projectcontract.HostScopeLocal.String(),
+				WorkingDirectory:     filepath.Join(t.TempDir(), "missing"),
+				LastRefreshStatus:    projectcontract.RefreshStatusSuccess.String(),
+			},
+		},
+	}
+	service, err := NewService(repo)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	releaseAudit := make(chan struct{})
+	auditBus := &capturedAuditBus{
+		published: make(chan struct{}, 1),
+		blocked:   releaseAudit,
+	}
+	service.SetAuditPublisher(auditBus, nil, moduleID)
+
+	resultCh := make(chan BatchActionResult, 1)
+	errCh := make(chan error, 1)
+	go func() {
+		result, batchErr := service.BatchAction(authenticatedProjectActionContext(), BatchActionRequest{
+			Action:     generated.ProjectBatchActionRequestActionStart,
+			ProjectIDs: []uint64{1},
+		})
+		resultCh <- result
+		errCh <- batchErr
+	}()
+
+	select {
+	case result := <-resultCh:
+		if err := <-errCh; err != nil {
+			t.Fatalf("batch action: %v", err)
+		}
+		if result.BlockedCount != 1 || len(result.Items) != 1 {
+			t.Fatalf("expected one blocked item, got %#v", result)
+		}
+	case <-time.After(200 * time.Millisecond):
+		t.Fatal("batch action should not wait for batch audit publish")
+	}
+
+	close(releaseAudit)
+	events := auditBus.waitForEvents(t, 1, time.Second)
+	if events[0].Action != projectcontract.ProjectAuditActionBatchStart.String() {
+		t.Fatalf("expected batch-start audit action, got %#v", events[0])
 	}
 }
 

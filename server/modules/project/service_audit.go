@@ -12,7 +12,6 @@ import (
 
 	generated "graft/server/internal/contract/openapi/generated"
 	"graft/server/internal/eventbus"
-	"graft/server/internal/httpx"
 	"graft/server/internal/moduleapi"
 	projectcontract "graft/server/modules/project/contract"
 	projectstore "graft/server/modules/project/store"
@@ -22,6 +21,27 @@ const (
 	projectResourceType      = "project"
 	projectBatchResourceType = "project_batch"
 	projectAuditTimeout      = 3 * time.Second
+)
+
+var (
+	projectAuditActions = map[generated.ProjectActionResponseAction]projectcontract.AuditAction{
+		generated.ProjectActionResponseActionProjectActionUp:           projectcontract.ProjectAuditActionUp,
+		generated.ProjectActionResponseActionProjectActionDown:         projectcontract.ProjectAuditActionDown,
+		generated.ProjectActionResponseActionProjectActionRestart:      projectcontract.ProjectAuditActionRestart,
+		generated.ProjectActionResponseActionProjectActionRedeploy:     projectcontract.ProjectAuditActionRedeploy,
+		generated.ProjectActionResponseActionProjectActionUpdateDeploy: projectcontract.ProjectAuditActionUpdateDeploy,
+		generated.ProjectActionResponseActionProjectActionUnregister:   projectcontract.ProjectAuditActionUnregister,
+		generated.ProjectActionResponseActionProjectActionDestroy:      projectcontract.ProjectAuditActionDestroy,
+	}
+	projectBatchAuditActions = map[generated.ProjectBatchActionRequestAction]projectcontract.AuditAction{
+		generated.ProjectBatchActionRequestActionStart:        projectcontract.ProjectAuditActionBatchStart,
+		generated.ProjectBatchActionRequestActionStop:         projectcontract.ProjectAuditActionBatchStop,
+		generated.ProjectBatchActionRequestActionRestart:      projectcontract.ProjectAuditActionBatchRestart,
+		generated.ProjectBatchActionRequestActionRedeploy:     projectcontract.ProjectAuditActionBatchRedeploy,
+		generated.ProjectBatchActionRequestActionUpdateDeploy: projectcontract.ProjectAuditActionBatchUpdateDeploy,
+		generated.ProjectBatchActionRequestActionUnregister:   projectcontract.ProjectAuditActionBatchUnregister,
+		generated.ProjectBatchActionRequestActionDestroy:      projectcontract.ProjectAuditActionBatchDestroy,
+	}
 )
 
 type actionActor struct {
@@ -64,30 +84,24 @@ func (s *Service) publishProjectActionAudit(
 	result ActionResult,
 	actionErr error,
 ) {
-	if s == nil || s.auditBus == nil {
-		return
-	}
-	auditCtx, cancel := s.detachedAuditContext(ctx)
-	defer cancel()
-
 	metadata := projectActionAuditMetadata(aggregate, result)
-	enrichProjectAuditMetadata(auditCtx, metadata)
-	event := moduleapi.AuditEvent{
-		Kind:          moduleapi.AuditEventKindDomain,
-		Operator:      actor.operator,
-		Action:        projectAuditAction(result.Action).String(),
-		ResourceType:  projectResourceType,
-		ResourceID:    strconv.FormatUint(aggregate.Project.ID, 10),
-		ResourceName:  aggregate.Project.CanonicalProjectName,
-		RequestMethod: requestMethodFromContext(auditCtx),
-		RequestPath:   requestPathFromContext(auditCtx),
-		StatusCode:    projectActionAuditStatusCode(result, actionErr),
-		Success:       actionErr == nil && result.Result == generated.ProjectActionResponseResultProjectActionResultCompleted,
-		MessageKey:    trimmedStringValue(result.MessageKey),
-		Message:       trimmedStringValue(result.Message),
-		Metadata:      metadata,
-	}
-	s.publishAuditEvent(auditCtx, event, "publish project audit event failed")
+	s.publishProjectAudit(ctx, false, "publish project audit event failed", func(auditCtx context.Context) moduleapi.AuditEvent {
+		enrichProjectAuditMetadata(auditCtx, metadata)
+		event := newProjectAuditEvent(
+			auditCtx,
+			actor,
+			projectAuditAction(result.Action).String(),
+			projectResourceType,
+			strconv.FormatUint(aggregate.Project.ID, 10),
+			aggregate.Project.CanonicalProjectName,
+		)
+		event.StatusCode = projectActionAuditStatusCode(result, actionErr)
+		event.Success = actionErr == nil && result.Result == generated.ProjectActionResponseResultProjectActionResultCompleted
+		event.MessageKey = trimmedStringValue(result.MessageKey)
+		event.Message = trimmedStringValue(result.Message)
+		event.Metadata = metadata
+		return event
+	})
 }
 
 func (s *Service) publishProjectBatchAudit(
@@ -96,48 +110,42 @@ func (s *Service) publishProjectBatchAudit(
 	request BatchActionRequest,
 	result BatchActionResult,
 ) {
-	if s == nil || s.auditBus == nil {
+	resourceID := batchAuditResourceID(request.Action, time.Now().UTC())
+	metadata := projectBatchAuditMetadata(request, result)
+	s.publishProjectAudit(ctx, true, "publish project batch audit event failed", func(auditCtx context.Context) moduleapi.AuditEvent {
+		enrichProjectAuditMetadata(auditCtx, metadata)
+		event := newProjectAuditEvent(
+			auditCtx,
+			actor,
+			projectBatchAuditAction(request.Action).String(),
+			projectBatchResourceType,
+			resourceID,
+			strings.TrimSpace(string(request.Action))+" x"+strconv.Itoa(result.TotalCount),
+		)
+		event.StatusCode = projectBatchAuditStatusCode(result)
+		event.Success = result.BlockedCount == 0
+		event.Metadata = metadata
+		return event
+	})
+}
+
+func (s *Service) publishProjectAudit(
+	ctx context.Context,
+	async bool,
+	failureMessage string,
+	build func(context.Context) moduleapi.AuditEvent,
+) {
+	auditCtx, cancel, ok := s.prepareAuditContext(ctx)
+	if !ok {
 		return
 	}
-	auditCtx, cancel := s.detachedAuditContext(ctx)
+	event := build(auditCtx)
+	if async {
+		s.publishDetachedAuditEvent(auditCtx, cancel, event, failureMessage)
+		return
+	}
 	defer cancel()
-
-	resourceID := batchAuditResourceID(request.Action, time.Now().UTC())
-	metadata := map[string]any{
-		"batch":                    true,
-		"requested_total":          result.TotalCount,
-		"requested_ids":            append([]uint64(nil), request.ProjectIDs...),
-		"completed_count":          result.CompletedCount,
-		"blocked_count":            result.BlockedCount,
-		"skipped_count":            result.SkippedCount,
-		"blocked_ids":              batchBlockedProjectIDs(result.Items),
-		"skipped_ids":              batchSkippedProjectIDs(result.Items),
-		"remove_named_volumes":     request.RemoveNamedVolumes,
-		"auto_unregister":          request.AutoUnregister,
-		"image_prune":              request.ImagePrune,
-		"delete_working_directory": request.DeleteWorkingDirectory,
-	}
-	if request.ConfirmCanonicalProjectName != nil {
-		metadata["confirm_canonical_project_name"] = strings.TrimSpace(*request.ConfirmCanonicalProjectName)
-	}
-	enrichProjectAuditMetadata(auditCtx, metadata)
-
-	event := moduleapi.AuditEvent{
-		Kind:          moduleapi.AuditEventKindDomain,
-		Operator:      actor.operator,
-		Action:        projectBatchAuditAction(request.Action).String(),
-		ResourceType:  projectBatchResourceType,
-		ResourceID:    resourceID,
-		ResourceName:  strings.TrimSpace(string(request.Action)) + " x" + strconv.Itoa(result.TotalCount),
-		RequestMethod: requestMethodFromContext(auditCtx),
-		RequestPath:   requestPathFromContext(auditCtx),
-		StatusCode:    projectBatchAuditStatusCode(result),
-		Success:       result.BlockedCount == 0,
-		MessageKey:    "",
-		Message:       "",
-		Metadata:      metadata,
-	}
-	s.publishAuditEvent(auditCtx, event, "publish project batch audit event failed")
+	s.publishAuditEvent(auditCtx, event, failureMessage)
 }
 
 func projectActionAuditMetadata(aggregate projectstore.ProjectAggregate, result ActionResult) map[string]any {
@@ -155,6 +163,27 @@ func projectActionAuditMetadata(aggregate projectstore.ProjectAggregate, result 
 	return metadata
 }
 
+func projectBatchAuditMetadata(request BatchActionRequest, result BatchActionResult) map[string]any {
+	metadata := map[string]any{
+		"batch":                    true,
+		"requested_total":          result.TotalCount,
+		"requested_ids":            append([]uint64(nil), request.ProjectIDs...),
+		"completed_count":          result.CompletedCount,
+		"blocked_count":            result.BlockedCount,
+		"skipped_count":            result.SkippedCount,
+		"blocked_ids":              batchBlockedProjectIDs(result.Items),
+		"skipped_ids":              batchSkippedProjectIDs(result.Items),
+		"remove_named_volumes":     request.RemoveNamedVolumes,
+		"auto_unregister":          request.AutoUnregister,
+		"image_prune":              request.ImagePrune,
+		"delete_working_directory": request.DeleteWorkingDirectory,
+	}
+	if request.ConfirmCanonicalProjectName != nil {
+		metadata["confirm_canonical_project_name"] = strings.TrimSpace(*request.ConfirmCanonicalProjectName)
+	}
+	return metadata
+}
+
 func guardResultsAuditMetadata(guards []GuardResult) []map[string]string {
 	items := make([]map[string]string, 0, len(guards))
 	for _, guard := range guards {
@@ -168,19 +197,21 @@ func guardResultsAuditMetadata(guards []GuardResult) []map[string]string {
 }
 
 func batchBlockedProjectIDs(items []BatchActionItemResult) []uint64 {
-	ids := make([]uint64, 0, len(items))
-	for _, item := range items {
-		if item.Result == generated.ProjectActionResponseResultProjectActionResultBlocked {
-			ids = append(ids, item.ProjectID)
-		}
-	}
-	return ids
+	return collectBatchProjectIDs(items, func(item BatchActionItemResult) bool {
+		return item.Result == generated.ProjectActionResponseResultProjectActionResultBlocked
+	})
 }
 
 func batchSkippedProjectIDs(items []BatchActionItemResult) []uint64 {
+	return collectBatchProjectIDs(items, func(item BatchActionItemResult) bool {
+		return item.Skipped
+	})
+}
+
+func collectBatchProjectIDs(items []BatchActionItemResult, include func(BatchActionItemResult) bool) []uint64 {
 	ids := make([]uint64, 0, len(items))
 	for _, item := range items {
-		if item.Skipped {
+		if include(item) {
 			ids = append(ids, item.ProjectID)
 		}
 	}
@@ -219,45 +250,18 @@ func projectBatchAuditStatusCode(result BatchActionResult) int {
 }
 
 func projectAuditAction(action generated.ProjectActionResponseAction) projectcontract.AuditAction {
-	switch action {
-	case generated.ProjectActionResponseActionProjectActionUp:
-		return projectcontract.ProjectAuditActionUp
-	case generated.ProjectActionResponseActionProjectActionDown:
-		return projectcontract.ProjectAuditActionDown
-	case generated.ProjectActionResponseActionProjectActionRestart:
-		return projectcontract.ProjectAuditActionRestart
-	case generated.ProjectActionResponseActionProjectActionRedeploy:
-		return projectcontract.ProjectAuditActionRedeploy
-	case generated.ProjectActionResponseActionProjectActionUpdateDeploy:
-		return projectcontract.ProjectAuditActionUpdateDeploy
-	case generated.ProjectActionResponseActionProjectActionUnregister:
-		return projectcontract.ProjectAuditActionUnregister
-	case generated.ProjectActionResponseActionProjectActionDestroy:
-		return projectcontract.ProjectAuditActionDestroy
-	default:
-		return projectcontract.AuditAction(strings.TrimSpace(string(action)))
-	}
+	return resolveAuditAction(action, projectAuditActions)
 }
 
 func projectBatchAuditAction(action generated.ProjectBatchActionRequestAction) projectcontract.AuditAction {
-	switch action {
-	case generated.ProjectBatchActionRequestActionStart:
-		return projectcontract.ProjectAuditActionBatchStart
-	case generated.ProjectBatchActionRequestActionStop:
-		return projectcontract.ProjectAuditActionBatchStop
-	case generated.ProjectBatchActionRequestActionRestart:
-		return projectcontract.ProjectAuditActionBatchRestart
-	case generated.ProjectBatchActionRequestActionRedeploy:
-		return projectcontract.ProjectAuditActionBatchRedeploy
-	case generated.ProjectBatchActionRequestActionUpdateDeploy:
-		return projectcontract.ProjectAuditActionBatchUpdateDeploy
-	case generated.ProjectBatchActionRequestActionUnregister:
-		return projectcontract.ProjectAuditActionBatchUnregister
-	case generated.ProjectBatchActionRequestActionDestroy:
-		return projectcontract.ProjectAuditActionBatchDestroy
-	default:
-		return projectcontract.AuditAction(strings.TrimSpace(string(action)))
+	return resolveAuditAction(action, projectBatchAuditActions)
+}
+
+func resolveAuditAction[T ~string](action T, mappings map[T]projectcontract.AuditAction) projectcontract.AuditAction {
+	if resolved, ok := mappings[action]; ok {
+		return resolved
 	}
+	return projectcontract.AuditAction(strings.TrimSpace(string(action)))
 }
 
 func (s *Service) publishAuditEvent(ctx context.Context, event moduleapi.AuditEvent, failureMessage string) {
@@ -275,63 +279,4 @@ func (s *Service) publishAuditEvent(ctx context.Context, event moduleapi.AuditEv
 			zap.Error(publishErr),
 		)
 	}
-}
-
-func (s *Service) detachedAuditContext(ctx context.Context) (context.Context, context.CancelFunc) {
-	auditCtx, cancel := context.WithTimeout(context.Background(), projectAuditTimeout)
-	if requestAudit, ok := httpx.RequestAuditContextFromContext(ctx); ok {
-		auditCtx = httpx.WithRequestAuditContext(auditCtx, requestAudit)
-	}
-	if requestAuth, ok := moduleapi.RequestAuthContextFromContext(ctx); ok {
-		auditCtx = moduleapi.WithRequestAuthContext(auditCtx, requestAuth)
-	}
-	return auditCtx, cancel
-}
-
-func (s *Service) auditModuleName() string {
-	if s == nil {
-		return moduleID
-	}
-	if strings.TrimSpace(s.moduleName) == "" {
-		return moduleID
-	}
-	return s.moduleName
-}
-
-func enrichProjectAuditMetadata(ctx context.Context, metadata map[string]any) {
-	if metadata == nil {
-		return
-	}
-	if requestAudit, ok := httpx.RequestAuditContextFromContext(ctx); ok {
-		metadata["requestId"] = requestAudit.RequestID
-		metadata["traceId"] = requestAudit.TraceID
-		metadata["route"] = requestAudit.Route
-		metadata["method"] = requestAudit.Method
-		metadata["client_ip"] = requestAudit.ClientIP
-	}
-}
-
-func requestMethodFromContext(ctx context.Context) string {
-	if requestAudit, ok := httpx.RequestAuditContextFromContext(ctx); ok {
-		return requestAudit.Method
-	}
-	return ""
-}
-
-func requestPathFromContext(ctx context.Context) string {
-	if requestAudit, ok := httpx.RequestAuditContextFromContext(ctx); ok {
-		return requestAudit.Route
-	}
-	return ""
-}
-
-func batchAuditResourceID(action generated.ProjectBatchActionRequestAction, now time.Time) string {
-	return "batch:" + strings.TrimSpace(string(action)) + ":" + strconv.FormatInt(now.UnixNano(), 10)
-}
-
-func trimmedStringValue(value *string) string {
-	if value == nil {
-		return ""
-	}
-	return strings.TrimSpace(*value)
 }
