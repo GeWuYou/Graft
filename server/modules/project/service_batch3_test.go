@@ -22,6 +22,7 @@ type stubProjectRepository struct {
 	aggregate        projectstore.ProjectAggregate
 	unregisterCalled bool
 	unregisterInput  *projectstore.UnregisterProjectInput
+	unregisterErr    error
 	importInput      *projectstore.ImportProjectInput
 	getCalls         int
 }
@@ -80,7 +81,7 @@ func (s *stubProjectRepository) UnregisterProject(_ context.Context, input proje
 	s.unregisterCalled = true
 	recorded := input
 	s.unregisterInput = &recorded
-	return nil
+	return s.unregisterErr
 }
 
 type capturedAuditBus struct {
@@ -477,6 +478,126 @@ func TestBatchDestroyReturnsBlockedItemOnComposeFailure(t *testing.T) {
 		if guard.Code == "compose_down_completed" {
 			t.Fatalf("unexpected success guard on failed destroy: %#v", result.Items[0].GuardResults)
 		}
+	}
+}
+
+func TestBatchDestroyReturnsBlockedItemOnWorkingDirectoryDeleteFailure(t *testing.T) {
+	dockerBinDir := t.TempDir()
+	dockerScript := filepath.Join(dockerBinDir, "docker")
+	if err := os.WriteFile(dockerScript, []byte("#!/bin/sh\nrm -rf \"$(dirname \"$PWD\")\"\nexit 0\n"), 0o755); err != nil {
+		t.Fatalf("write docker stub: %v", err)
+	}
+	t.Setenv("PATH", dockerBinDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	workingDirectory := filepath.Join(t.TempDir(), "managed-root", "demo")
+	if err := os.MkdirAll(workingDirectory, 0o755); err != nil {
+		t.Fatalf("mkdir working directory: %v", err)
+	}
+
+	repo := &stubProjectRepository{
+		aggregate: projectstore.ProjectAggregate{
+			Project: projectstore.Project{
+				ID:                   1,
+				CanonicalProjectName: "demo",
+				HostScope:            projectcontract.HostScopeLocal.String(),
+				WorkingDirectory:     workingDirectory,
+				OwnershipMode:        projectcontract.OwnershipModeManagedRootDedicated.String(),
+				LastRefreshStatus:    projectcontract.RefreshStatusSuccess.String(),
+			},
+		},
+	}
+	service, err := NewService(repo)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	confirmName := "demo"
+
+	result, err := service.BatchAction(authenticatedProjectActionContext(), BatchActionRequest{
+		Action:                      generated.ProjectBatchActionRequestActionDestroy,
+		ProjectIDs:                  []uint64{1},
+		DeleteWorkingDirectory:      true,
+		ConfirmCanonicalProjectName: &confirmName,
+	})
+	if err != nil {
+		t.Fatalf("batch destroy: %v", err)
+	}
+	if result.BlockedCount != 1 || len(result.Items) != 1 {
+		t.Fatalf("expected one blocked destroy item, got %#v", result)
+	}
+	if result.Items[0].Result != generated.ProjectActionResponseResultProjectActionResultBlocked {
+		t.Fatalf("expected blocked destroy result, got %#v", result.Items[0])
+	}
+	if !slices.ContainsFunc(result.Items[0].GuardResults, func(guard GuardResult) bool {
+		return guard.Code == "compose_down_completed"
+	}) {
+		t.Fatalf("expected compose-down guard after partial destroy, got %#v", result.Items[0].GuardResults)
+	}
+	if !slices.ContainsFunc(result.Items[0].GuardResults, func(guard GuardResult) bool {
+		return guard.Code == "working_directory_delete_failed" && guard.Detail != nil && *guard.Detail == "filesystem_error"
+	}) {
+		t.Fatalf("expected working-directory delete failure guard, got %#v", result.Items[0].GuardResults)
+	}
+}
+
+func TestBatchDestroyReturnsBlockedItemOnUnregisterFailure(t *testing.T) {
+	dockerBinDir := t.TempDir()
+	dockerScript := filepath.Join(dockerBinDir, "docker")
+	if err := os.WriteFile(dockerScript, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+		t.Fatalf("write docker stub: %v", err)
+	}
+	t.Setenv("PATH", dockerBinDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	workingDirectory := filepath.Join(t.TempDir(), "demo")
+	if err := os.MkdirAll(workingDirectory, 0o755); err != nil {
+		t.Fatalf("mkdir working directory: %v", err)
+	}
+
+	repo := &stubProjectRepository{
+		aggregate: projectstore.ProjectAggregate{
+			Project: projectstore.Project{
+				ID:                   1,
+				CanonicalProjectName: "demo",
+				HostScope:            projectcontract.HostScopeLocal.String(),
+				WorkingDirectory:     workingDirectory,
+				OwnershipMode:        projectcontract.OwnershipModeExternal.String(),
+				LastRefreshStatus:    projectcontract.RefreshStatusSuccess.String(),
+			},
+		},
+		unregisterErr: projectstore.ErrProjectConflict,
+	}
+	service, err := NewService(repo)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	confirmName := "demo"
+
+	result, err := service.BatchAction(authenticatedProjectActionContext(), BatchActionRequest{
+		Action:                      generated.ProjectBatchActionRequestActionDestroy,
+		ProjectIDs:                  []uint64{1},
+		AutoUnregister:              true,
+		ConfirmCanonicalProjectName: &confirmName,
+	})
+	if err != nil {
+		t.Fatalf("batch destroy: %v", err)
+	}
+	if result.BlockedCount != 1 || len(result.Items) != 1 {
+		t.Fatalf("expected one blocked destroy item, got %#v", result)
+	}
+	if !repo.unregisterCalled {
+		t.Fatalf("expected unregister to be attempted")
+	}
+	if result.Items[0].Result != generated.ProjectActionResponseResultProjectActionResultBlocked {
+		t.Fatalf("expected blocked destroy result, got %#v", result.Items[0])
+	}
+	if !slices.ContainsFunc(result.Items[0].GuardResults, func(guard GuardResult) bool {
+		return guard.Code == "compose_down_completed"
+	}) {
+		t.Fatalf("expected compose-down guard after partial destroy, got %#v", result.Items[0].GuardResults)
+	}
+	if !slices.ContainsFunc(result.Items[0].GuardResults, func(guard GuardResult) bool {
+		return guard.Code == "registry_delete_failed" && guard.Detail != nil && *guard.Detail == "persistence_error"
+	}) {
+		t.Fatalf("expected registry delete failure guard, got %#v", result.Items[0].GuardResults)
 	}
 }
 

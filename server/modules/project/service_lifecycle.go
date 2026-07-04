@@ -170,18 +170,21 @@ func (s *Service) destroyAfterGuard(
 		return downResult, err
 	}
 	guardResults = appendDestroyDownGuards(guardResults, request.RemoveNamedVolumes)
-	guardResults, autoUnregister, err := s.applyDestroyWorkingDirectoryStep(aggregate, request, guardResults)
+	nextGuards, autoUnregister, err := s.applyDestroyWorkingDirectoryStep(aggregate, request, guardResults)
 	if err != nil {
-		return ActionResult{}, err
+		return destroyCleanupBlockedResult(projectID, guardResults, "working_directory_delete_failed", "filesystem_error"), err
 	}
+	guardResults = nextGuards
 	blockedResult, nextGuards, err := s.applyDestroyImagePruneStep(ctx, aggregate, guardResults, request.ImagePrune)
 	if err != nil {
 		return blockedResult, err
 	}
 	guardResults = nextGuards
-	if guardResults, err = s.applyDestroyUnregisterStep(ctx, projectID, actor, guardResults, autoUnregister); err != nil {
-		return ActionResult{}, err
+	nextGuards, err = s.applyDestroyUnregisterStep(ctx, projectID, actor, guardResults, autoUnregister)
+	if err != nil {
+		return destroyCleanupBlockedResult(projectID, guardResults, "registry_delete_failed", "persistence_error"), err
 	}
+	guardResults = nextGuards
 	messageKey := projectcontract.ProjectDestroyCompleted.String()
 	return ActionResult{
 		ProjectID:    projectID,
@@ -323,6 +326,14 @@ func blockedActionResult(projectID uint64, action generated.ProjectActionRespons
 		Message:      &messageKey,
 		GuardResults: append([]GuardResult(nil), guardResults...),
 	}
+}
+
+func destroyCleanupBlockedResult(projectID uint64, guardResults []GuardResult, code string, detail string) ActionResult {
+	return blockedActionResult(
+		projectID,
+		generated.ProjectActionResponseActionProjectActionDestroy,
+		append(append([]GuardResult(nil), guardResults...), guardDetail(code, detail)),
+	)
 }
 
 // lifecycleMessageKey 返回指定生命周期动作对应的完成消息键。
