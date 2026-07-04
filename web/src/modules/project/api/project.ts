@@ -11,6 +11,7 @@ import {
   buildProjectDestroyApiPath,
   buildProjectDetailApiPath,
   buildProjectLifecycleConfigurationApiPath,
+  buildProjectOverviewApiPath,
   buildProjectRedeployApiPath,
   buildProjectRefreshApiPath,
   buildProjectRestartApiPath,
@@ -45,6 +46,7 @@ import type {
   ProjectListQuery,
   ProjectListResponseWithLifecycle,
   ProjectManagedRootResponse,
+  ProjectOverviewResponse,
   ProjectServicesResponse,
   ProjectSourceCatalogResponse,
 } from '../types/project';
@@ -60,6 +62,12 @@ type GetProjectDetailOperation = paths[ProjectDetailPath]['get'];
 type GetProjectDetailEnvelope = GetProjectDetailOperation['responses'][200]['content']['application/json'];
 type GetProjectDetailData = NonNullable<GetProjectDetailEnvelope['data']>;
 type GetProjectDetailPathParams = GetProjectDetailOperation['parameters']['path'];
+
+type ProjectOverviewPath = (typeof PROJECT_API_PATH)['OVERVIEW'];
+type GetProjectOverviewOperation = paths[ProjectOverviewPath]['get'];
+type GetProjectOverviewEnvelope = GetProjectOverviewOperation['responses'][200]['content']['application/json'];
+type GetProjectOverviewData = NonNullable<GetProjectOverviewEnvelope['data']>;
+type GetProjectOverviewPathParams = GetProjectOverviewOperation['parameters']['path'];
 
 type ProjectServicesPath = (typeof PROJECT_API_PATH)['SERVICES'];
 type GetProjectServicesOperation = paths[ProjectServicesPath]['get'];
@@ -217,6 +225,12 @@ export function getProject(id: GetProjectDetailPathParams['id']) {
   return request.get<GetProjectDetailData>({
     url: buildProjectDetailApiPath(id),
   }) as Promise<ProjectDetailResponseWithLifecycle>;
+}
+
+export function getProjectOverview(id: GetProjectOverviewPathParams['id']) {
+  return request.get<GetProjectOverviewData>({
+    url: buildProjectOverviewApiPath(id),
+  }) as Promise<ProjectOverviewResponse>;
 }
 
 /**

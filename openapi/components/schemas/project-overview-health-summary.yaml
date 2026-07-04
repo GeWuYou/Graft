@@ -1,0 +1,31 @@
+type: object
+required:
+  - healthy_service_count
+  - healthy_container_count
+  - unhealthy_container_count
+  - starting_container_count
+  - restart_count
+  - networks_count
+  - volumes_count
+properties:
+  healthy_service_count:
+    type: integer
+    minimum: 0
+  healthy_container_count:
+    type: integer
+    minimum: 0
+  unhealthy_container_count:
+    type: integer
+    minimum: 0
+  starting_container_count:
+    type: integer
+    minimum: 0
+  restart_count:
+    type: integer
+    minimum: 0
+  networks_count:
+    type: integer
+    minimum: 0
+  volumes_count:
+    type: integer
+    minimum: 0

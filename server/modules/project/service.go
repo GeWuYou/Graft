@@ -206,7 +206,7 @@ const (
 	// LifecycleReviewStatusReviewRequired blocks lifecycle execution until the user reviews imported defaults.
 	LifecycleReviewStatusReviewRequired LifecycleReviewStatus = "review_required"
 	// LifecycleReviewStatusConfirmed allows lifecycle execution with the persisted configuration.
-	LifecycleReviewStatusConfirmed      LifecycleReviewStatus = "confirmed"
+	LifecycleReviewStatusConfirmed LifecycleReviewStatus = "confirmed"
 )
 
 // LifecycleStandardConfig stores editable standard compose execution options.
@@ -222,12 +222,12 @@ type LifecycleStandardConfig struct {
 
 // LifecycleConfiguration stores the project-owned lifecycle execution configuration.
 type LifecycleConfiguration struct {
-	StrategyKind  LifecycleStrategyKind
-	ReviewStatus  LifecycleReviewStatus
-	WorkingDir    string
-	ComposeFiles  []string
-	ProjectName   string
-	Standard      LifecycleStandardConfig
+	StrategyKind LifecycleStrategyKind
+	ReviewStatus LifecycleReviewStatus
+	WorkingDir   string
+	ComposeFiles []string
+	ProjectName  string
+	Standard     LifecycleStandardConfig
 }
 
 // ConfigurationDiffFile describes one file-level diff projection.
@@ -392,6 +392,7 @@ type ManagedProjectCreateResult struct {
 type Service struct {
 	repository     projectstore.Repository
 	runtimeReader  moduleapi.ContainerProjectRuntimeReader
+	resourceReader moduleapi.ContainerProjectResourceReader
 	configResolver moduleapi.SystemConfigResolver
 	inspectCache   *importInspectionCache
 	auditBus       eventbus.Bus
@@ -432,6 +433,13 @@ func WithRuntimeReader(reader moduleapi.ContainerProjectRuntimeReader) ServiceOp
 	})
 }
 
+// WithResourceReader 设置项目概览资源读取器。
+func WithResourceReader(reader moduleapi.ContainerProjectResourceReader) ServiceOption {
+	return serviceOptionFunc(func(s *Service) {
+		s.resourceReader = reader
+	})
+}
+
 // WithSystemConfigResolver 注入用于 managed-create 权限校验的系统配置读取边界。
 func WithSystemConfigResolver(resolver moduleapi.SystemConfigResolver) ServiceOption {
 	return serviceOptionFunc(func(s *Service) {
@@ -445,6 +453,14 @@ func (s *Service) SetRuntimeReader(reader moduleapi.ContainerProjectRuntimeReade
 		return
 	}
 	s.runtimeReader = reader
+}
+
+// SetResourceReader injects the resource reader after module registration resolves cross-module services.
+func (s *Service) SetResourceReader(reader moduleapi.ContainerProjectResourceReader) {
+	if s == nil {
+		return
+	}
+	s.resourceReader = reader
 }
 
 // SetSystemConfigResolver injects the system-config resolver after module registration.
@@ -608,6 +624,60 @@ func (s *Service) Services(ctx context.Context, projectID uint64) (generated.Pro
 	}, nil
 }
 
+// Overview returns the project-owned dashboard overview backed by the container module resource aggregate.
+func (s *Service) Overview(ctx context.Context, projectID uint64) (generated.ProjectOverviewResponse, error) {
+	aggregate, err := s.getAggregate(ctx, projectID)
+	if err != nil {
+		return generated.ProjectOverviewResponse{}, err
+	}
+	parseResult, err := s.loadFromAggregate(aggregate)
+	if err != nil {
+		return generated.ProjectOverviewResponse{}, err
+	}
+	resourceSummary, _ := s.projectResourceSummary(ctx, aggregate)
+	serviceResources := make(map[string]moduleapi.ContainerProjectServiceResourceSummary, len(resourceSummary.Services))
+	for _, item := range resourceSummary.Services {
+		serviceResources[item.ServiceName] = item
+	}
+	items := make([]generated.ProjectOverviewServiceItem, 0, len(parseResult.Services))
+	healthyServiceCount := 0
+	for _, item := range parseResult.Services {
+		runtimeItem, ok := serviceResources[item.ServiceName]
+		if !ok {
+			runtimeItem = moduleapi.ContainerProjectServiceResourceSummary{ServiceName: item.ServiceName}
+		}
+		generatedItem, isHealthy := toProjectOverviewServiceItem(item, runtimeItem)
+		if isHealthy {
+			healthyServiceCount++
+		}
+		items = append(items, generatedItem)
+	}
+	return generated.ProjectOverviewResponse{
+		ProjectId:            mustGeneratedID(projectID),
+		CanonicalProjectName: aggregate.Project.CanonicalProjectName,
+		CollectedAt:          optionalRFC3339Time(resourceSummary.CollectedAt),
+		Health: generated.ProjectOverviewHealthSummary{
+			HealthyServiceCount:     healthyServiceCount,
+			HealthyContainerCount:   resourceSummary.HealthyContainerCount,
+			UnhealthyContainerCount: resourceSummary.UnhealthyContainerCount,
+			StartingContainerCount:  resourceSummary.StartingContainerCount,
+			RestartCount:            resourceSummary.RestartCount,
+			NetworksCount:           countDeclaredNetworks(parseResult.Services),
+			VolumesCount:            countDeclaredVolumes(parseResult.Services),
+		},
+		Resources: generated.ProjectOverviewResourceSummary{
+			StatsAvailable:               resourceSummary.StatsAvailable,
+			StatsAvailableContainerCount: resourceSummary.StatsAvailableContainerCount,
+			CpuPercent:                   resourceSummary.CPUPercent,
+			MemoryUsageBytes:             resourceSummary.MemoryUsageBytes,
+			MemoryLimitBytes:             resourceSummary.MemoryLimitBytes,
+			RxBytes:                      resourceSummary.RxBytes,
+			TxBytes:                      resourceSummary.TxBytes,
+		},
+		Services: items,
+	}, nil
+}
+
 // ManagedRoot reports the canonical managed-root authority for future managed-create flows.
 func (s *Service) ManagedRoot(ctx context.Context) (ManagedRootInfo, error) {
 	definitionKey := projectcontract.ProjectManagedRootConfig.String()
@@ -717,6 +787,19 @@ func (s *Service) runtimeSummary(
 		}, errProjectRuntimeUnavailable
 	}
 	return s.runtimeReader.ListProjectMembers(ctx, aggregate.Project.HostScope, aggregate.Project.CanonicalProjectName)
+}
+
+func (s *Service) projectResourceSummary(
+	ctx context.Context,
+	aggregate projectstore.ProjectAggregate,
+) (moduleapi.ContainerProjectResourceSummary, error) {
+	if s == nil || s.resourceReader == nil {
+		return moduleapi.ContainerProjectResourceSummary{
+			CanonicalProjectName: aggregate.Project.CanonicalProjectName,
+			Services:             []moduleapi.ContainerProjectServiceResourceSummary{},
+		}, errProjectRuntimeUnavailable
+	}
+	return s.resourceReader.ReadProjectResourceSummary(ctx, aggregate.Project.HostScope, aggregate.Project.CanonicalProjectName)
 }
 
 // membersByService 按服务名称对容器运行时成员进行分组。

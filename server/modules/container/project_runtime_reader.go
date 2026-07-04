@@ -6,8 +6,10 @@ import (
 	"encoding/hex"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
+	"time"
 
 	"graft/server/internal/moduleapi"
 )
@@ -96,6 +98,80 @@ func (r containerProjectRuntimeReader) ListProjectMembers(
 		return summary.Members[i].ServiceName < summary.Members[j].ServiceName
 	})
 	return summary, nil
+}
+
+func (r containerProjectRuntimeReader) ReadProjectResourceSummary(
+	ctx context.Context,
+	hostScope string,
+	canonicalProjectName string,
+) (moduleapi.ContainerProjectResourceSummary, error) {
+	summary := moduleapi.ContainerProjectResourceSummary{
+		CanonicalProjectName: strings.TrimSpace(canonicalProjectName),
+		Services:             []moduleapi.ContainerProjectServiceResourceSummary{},
+	}
+	if r.service == nil {
+		return summary, errRuntimeDisabled
+	}
+	if strings.TrimSpace(hostScope) == "" || strings.TrimSpace(canonicalProjectName) == "" {
+		return summary, nil
+	}
+	runtime, err := r.service.runtimeForRequest()
+	if err != nil {
+		return summary, err
+	}
+	var latestCollectedAt time.Time
+	if err := r.collectProjectResourceSummary(ctx, runtime, canonicalProjectName, &summary, &latestCollectedAt); err != nil {
+		return summary, err
+	}
+	finalizeProjectResourceSummary(&summary, latestCollectedAt)
+	return summary, nil
+}
+
+func (r containerProjectRuntimeReader) collectProjectResourceSummary(
+	ctx context.Context,
+	runtime Runtime,
+	canonicalProjectName string,
+	summary *moduleapi.ContainerProjectResourceSummary,
+	latestCollectedAt *time.Time,
+) error {
+	serviceIndex := make(map[string]int)
+	offset := 0
+	for {
+		items, err := runtime.List(ctx, ListQuery{
+			Limit:           maxContainerListLimit,
+			Offset:          offset,
+			Orchestrator:    containerOrchestratorCompose,
+			SourceScopeKind: composeProjectScopeKind,
+			SourceScope:     canonicalProjectName,
+		})
+		if err != nil {
+			return err
+		}
+		appendProjectResourceSummary(summary, serviceIndex, items, canonicalProjectName, latestCollectedAt)
+		if len(items) < maxContainerListLimit {
+			return nil
+		}
+		offset += len(items)
+	}
+}
+
+func finalizeProjectResourceSummary(summary *moduleapi.ContainerProjectResourceSummary, latestCollectedAt time.Time) {
+	if summary == nil {
+		return
+	}
+	slices.SortStableFunc(summary.Services, func(left, right moduleapi.ContainerProjectServiceResourceSummary) int {
+		if left.ServiceName == right.ServiceName {
+			return 0
+		}
+		if left.ServiceName < right.ServiceName {
+			return -1
+		}
+		return 1
+	})
+	summary.StatsAvailable = summary.StatsAvailableContainerCount > 0
+	if !latestCollectedAt.IsZero() {
+		summary.CollectedAt = latestCollectedAt.Format(time.RFC3339)
+	}
 }
 
 func (r containerProjectRuntimeReader) ListImportCandidates(
@@ -462,6 +538,154 @@ func toProjectMember(item Summary, canonicalProjectName string) (moduleapi.Conta
 	}, true
 }
 
+func appendProjectResourceSummary(
+	summary *moduleapi.ContainerProjectResourceSummary,
+	serviceIndex map[string]int,
+	items []Summary,
+	canonicalProjectName string,
+	latestCollectedAt *time.Time,
+) {
+	for _, item := range items {
+		if !strings.EqualFold(composeProjectName(item), canonicalProjectName) {
+			continue
+		}
+		accumulateProjectResourceSummary(summary, serviceIndex, item, latestCollectedAt)
+	}
+}
+
+func accumulateProjectResourceSummary(
+	summary *moduleapi.ContainerProjectResourceSummary,
+	serviceIndex map[string]int,
+	item Summary,
+	latestCollectedAt *time.Time,
+) {
+	if summary == nil {
+		return
+	}
+	service := ensureProjectServiceResourceSummary(summary, serviceIndex, composeServiceName(item))
+	service.ContainerCount++
+	accumulateProjectResourceState(service, item)
+	accumulateProjectResourceHealth(summary, service, item.Health)
+	accumulateProjectResourceRestarts(summary, service, item.RestartCount)
+	accumulateProjectResourceMetrics(summary, service, item.Resource)
+	service.StatsAvailable = service.StatsAvailableContainerCount > 0
+	updateLatestProjectResourceCollectedAt(item.Resource.CollectedAt, latestCollectedAt)
+}
+
+func accumulateProjectResourceState(service *moduleapi.ContainerProjectServiceResourceSummary, item Summary) {
+	if service == nil {
+		return
+	}
+	switch normalizeContainerState(item.State) {
+	case "running":
+		service.RunningCount++
+	case "exited":
+		service.StoppedCount++
+	case "created", "restarting", "removing":
+		service.TransitioningCount++
+	default:
+		service.IssueCount++
+	}
+}
+
+func accumulateProjectResourceHealth(
+	summary *moduleapi.ContainerProjectResourceSummary,
+	service *moduleapi.ContainerProjectServiceResourceSummary,
+	health string,
+) {
+	switch strings.TrimSpace(health) {
+	case containerHealthHealthy:
+		summary.HealthyContainerCount++
+		service.HealthyContainerCount++
+	case containerHealthUnhealthy:
+		summary.UnhealthyContainerCount++
+		service.UnhealthyContainerCount++
+	case containerHealthStarting:
+		summary.StartingContainerCount++
+		service.StartingContainerCount++
+	}
+}
+
+func accumulateProjectResourceRestarts(
+	summary *moduleapi.ContainerProjectResourceSummary,
+	service *moduleapi.ContainerProjectServiceResourceSummary,
+	restartCount *int,
+) {
+	if restartCount == nil || *restartCount <= 0 {
+		return
+	}
+	summary.RestartCount += *restartCount
+	service.RestartCount += *restartCount
+}
+
+func accumulateProjectResourceMetrics(
+	summary *moduleapi.ContainerProjectResourceSummary,
+	service *moduleapi.ContainerProjectServiceResourceSummary,
+	resource ResourceSummary,
+) {
+	if resource.StatsAvailable {
+		summary.StatsAvailableContainerCount++
+		service.StatsAvailableContainerCount++
+	}
+	accumulateFloat64Metric(resource.CPUPercent, &summary.CPUPercent, &service.CPUPercent)
+	accumulateInt64Metric(resource.MemoryUsageBytes, &summary.MemoryUsageBytes, &service.MemoryUsageBytes)
+	accumulateInt64Metric(resource.MemoryLimitBytes, &summary.MemoryLimitBytes, &service.MemoryLimitBytes)
+	accumulateInt64Metric(resource.RxBytes, &summary.RxBytes)
+	accumulateInt64Metric(resource.TxBytes, &summary.TxBytes)
+}
+
+func accumulateFloat64Metric(value *float64, targets ...*float64) {
+	if value == nil || *value <= 0 {
+		return
+	}
+	for _, target := range targets {
+		if target != nil {
+			*target += *value
+		}
+	}
+}
+
+func accumulateInt64Metric(value *int64, targets ...*int64) {
+	if value == nil || *value <= 0 {
+		return
+	}
+	for _, target := range targets {
+		if target != nil {
+			*target += *value
+		}
+	}
+}
+
+func ensureProjectServiceResourceSummary(
+	summary *moduleapi.ContainerProjectResourceSummary,
+	serviceIndex map[string]int,
+	serviceName string,
+) *moduleapi.ContainerProjectServiceResourceSummary {
+	normalizedName := strings.TrimSpace(serviceName)
+	if index, ok := serviceIndex[normalizedName]; ok {
+		return &summary.Services[index]
+	}
+	summary.Services = append(summary.Services, moduleapi.ContainerProjectServiceResourceSummary{
+		ServiceName: normalizedName,
+	})
+	index := len(summary.Services) - 1
+	serviceIndex[normalizedName] = index
+	return &summary.Services[index]
+}
+
+func updateLatestProjectResourceCollectedAt(raw string, latest *time.Time) {
+	if latest == nil {
+		return
+	}
+	parsed, err := time.Parse(time.RFC3339, strings.TrimSpace(raw))
+	if err != nil {
+		return
+	}
+	if latest.IsZero() || parsed.After(*latest) {
+		*latest = parsed
+	}
+}
+
 func composeProjectName(item Summary) string {
 	return firstNonEmpty(strings.TrimSpace(item.Orchestrator.Project), strings.TrimSpace(item.ComposeProject))
 }
@@ -648,3 +872,4 @@ func appendUniqueString(items []string, values ...string) []string {
 }
 
 var _ moduleapi.ContainerProjectRuntimeReader = containerProjectRuntimeReader{}
+var _ moduleapi.ContainerProjectResourceReader = containerProjectRuntimeReader{}

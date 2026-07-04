@@ -14,6 +14,7 @@ const projectApiMocks = vi.hoisted(() => ({
   getProjectConfiguration: vi.fn(),
   getProjectConfigurationFile: vi.fn(),
   getProjectConfigurationPreview: vi.fn(),
+  getProjectOverview: vi.fn(),
   getProjectServices: vi.fn(),
   postProjectConfigurationDiff: vi.fn(),
   postProjectConfigurationValidate: vi.fn(),
@@ -52,6 +53,53 @@ const detailMessages = {
   'project.detail.actions.up': 'Up',
   'project.detail.description': 'Project detail description',
   'project.detail.eyebrow': 'Compose Project',
+  'project.detail.overview.activityAuthority': 'Activity Authority',
+  'project.detail.overview.activityEmpty': 'No Recent Activity',
+  'project.detail.overview.activityEvent': 'Event',
+  'project.detail.overview.activityLog': 'Log',
+  'project.detail.overview.activityTitle': 'Recent Activity',
+  'project.detail.overview.allHealthy': 'No unhealthy containers',
+  'project.detail.overview.configurationHash': 'Config Hash',
+  'project.detail.overview.configurationTitle': 'Configuration Summary',
+  'project.detail.overview.cpuUsage': 'CPU',
+  'project.detail.overview.diagnosticConfigDrift': 'Config drift',
+  'project.detail.overview.diagnosticConfigSynced': 'Config synced',
+  'project.detail.overview.diagnosticHealthy': 'Healthy',
+  'project.detail.overview.diagnosticRefreshHealthy': 'Refresh healthy',
+  'project.detail.overview.diagnosticRefreshWarning': 'Refresh warning',
+  'project.detail.overview.diagnosticRestartClear': 'No restart loops',
+  'project.detail.overview.diagnosticRestartWarning': 'Restart warning',
+  'project.detail.overview.diagnosticUnhealthy': 'Unhealthy',
+  'project.detail.overview.diagnosticsTitle': 'Diagnostics',
+  'project.detail.overview.healthTitle': 'Project Health',
+  'project.detail.overview.healthyServices': 'Healthy Services',
+  'project.detail.overview.heroDescription': 'Runtime overview',
+  'project.detail.overview.lastUpdated': 'Last Updated',
+  'project.detail.overview.memoryUsage': 'Memory',
+  'project.detail.overview.metricsCoverage': 'Metrics Coverage',
+  'project.detail.overview.networkRx': 'Network Rx',
+  'project.detail.overview.networkSnapshot': 'Network Snapshot',
+  'project.detail.overview.networkTx': 'Network Tx',
+  'project.detail.overview.resourceSummary': 'Resource Summary',
+  'project.detail.overview.resourceTitle': 'Resource Usage',
+  'project.detail.overview.resourcesCompact': 'Resources',
+  'project.detail.overview.restartClear': 'No restarts',
+  'project.detail.overview.restartCount': 'Restart Count',
+  'project.detail.overview.restartWarning': 'Restart Warning',
+  'project.detail.overview.runtimeMembers': 'Runtime Members',
+  'project.detail.overview.runtimeStatus': 'Runtime Status',
+  'project.detail.overview.serviceCount': 'Service Count',
+  'project.detail.overview.serviceHealthHealthy': 'Healthy',
+  'project.detail.overview.serviceHealthUnknown': 'Unknown',
+  'project.detail.overview.serviceHealthAttention': 'Attention',
+  'project.detail.overview.servicesTitle': 'Service Snapshot',
+  'project.detail.overview.serviceStatusDegraded': 'Degraded',
+  'project.detail.overview.serviceStatusRunning': 'Running',
+  'project.detail.overview.serviceStatusStopped': 'Stopped',
+  'project.detail.overview.startingHint': 'Starting',
+  'project.detail.overview.topologyCaption': 'Topology',
+  'project.detail.overview.topologyTitle': 'Running Members',
+  'project.detail.overview.unhealthyHint': 'Unhealthy Hint',
   'project.detail.refresh': 'Refresh Snapshot',
   'project.detail.runtime.activityAuthority': 'Activity Authority',
   'project.detail.runtime.authorityTitle': 'Runtime Boundary',
@@ -188,6 +236,7 @@ vi.mock('../../api/project', () => ({
   getProjectConfiguration: projectApiMocks.getProjectConfiguration,
   getProjectConfigurationFile: projectApiMocks.getProjectConfigurationFile,
   getProjectConfigurationPreview: projectApiMocks.getProjectConfigurationPreview,
+  getProjectOverview: projectApiMocks.getProjectOverview,
   getProjectServices: projectApiMocks.getProjectServices,
   postProjectConfigurationDiff: projectApiMocks.postProjectConfigurationDiff,
   postProjectConfigurationValidate: projectApiMocks.postProjectConfigurationValidate,
@@ -230,6 +279,9 @@ vi.mock('@/shared/localized-api-error', () => ({
 
 vi.mock('@/shared/observability', () => ({
   copyText: vi.fn(),
+  formatBytes: (value?: number | null) => (typeof value === 'number' ? `${value} B` : '-'),
+  formatPercent: (value?: number | null) => (typeof value === 'number' ? `${value.toFixed(1)}%` : '-'),
+  toProgressPercent: (value?: number | null) => (typeof value === 'number' ? Math.max(0, Math.min(100, value)) : 0),
 }));
 
 vi.mock('@/utils/logger', () => ({
@@ -240,10 +292,8 @@ vi.mock('@/utils/logger', () => ({
 
 vi.mock('../../shared/display', () => ({
   formatProjectTime: (_locale: string, value?: string | null) => value || '-',
-  projectCanonicalNameSourceLabel: () => 'explicit',
   projectDriftStatusLabel: () => 'in-sync',
   projectDriftStatusTheme: () => 'success',
-  projectHostScopeLabel: () => 'local',
   projectLifecycleActionVisibility: (status?: string | null) => ({
     up: status === 'stopped' || status === 'unknown' || status === 'transitioning' || !status,
     stop:
@@ -276,7 +326,7 @@ describe('Project detail page', () => {
       compose_files: [],
       container_counts: { running: 1, stopped: 0, transitioning: 0, issue: 0, total: 1 },
       display_name: 'Compose Demo',
-      drift_status: 'in-sync',
+      drift_status: 'clean',
       env_files: [],
       host_scope: 'local',
       id: 7,
@@ -292,12 +342,57 @@ describe('Project detail page', () => {
     projectApiMocks.getProjectConfiguration.mockResolvedValue({
       compose_files: [],
       diagnostics_summary: [],
-      drift_status: 'in-sync',
+      drift_status: 'clean',
       env_files: [],
       last_refresh_status: 'success',
       ownership_mode: 'external',
     });
     projectApiMocks.getProjectConfigurationPreview.mockResolvedValue(null);
+    projectApiMocks.getProjectOverview.mockResolvedValue({
+      canonical_project_name: 'compose-demo',
+      collected_at: '2026-07-03T10:00:00Z',
+      health: {
+        healthy_service_count: 1,
+        healthy_container_count: 1,
+        networks_count: 1,
+        restart_count: 0,
+        starting_container_count: 0,
+        unhealthy_container_count: 0,
+        volumes_count: 0,
+      },
+      project_id: 7,
+      resources: {
+        cpu_percent: 12.5,
+        memory_limit_bytes: 512,
+        memory_usage_bytes: 128,
+        rx_bytes: 64,
+        stats_available: true,
+        stats_available_container_count: 1,
+        tx_bytes: 32,
+      },
+      services: [
+        {
+          container_count: 1,
+          cpu_percent: 12.5,
+          health: 'healthy',
+          healthy_container_count: 1,
+          image: 'demo:latest',
+          issue_count: 0,
+          memory_limit_bytes: 512,
+          memory_usage_bytes: 128,
+          restart_count: 0,
+          running_count: 1,
+          service_name: 'app',
+          starting_container_count: 0,
+          stats_available: true,
+          stats_available_container_count: 1,
+          status: 'running',
+          stopped_count: 0,
+          transitioning_count: 0,
+          unhealthy_container_count: 0,
+        },
+      ],
+    });
     projectApiMocks.getProjectServices.mockResolvedValue({
       items: [
         {
@@ -328,6 +423,7 @@ describe('Project detail page', () => {
     expect(projectApiMocks.getProject).toHaveBeenCalledWith(7);
     expect(projectApiMocks.getProjectConfiguration).toHaveBeenCalledWith(7);
     expect(projectApiMocks.getProjectConfigurationPreview).toHaveBeenCalledWith(7);
+    expect(projectApiMocks.getProjectOverview).toHaveBeenCalledWith(7);
     expect(projectApiMocks.getProjectServices).toHaveBeenCalledTimes(1);
     expect(projectApiMocks.getProjectServices).toHaveBeenCalledWith(7);
     expect(containerApiMocks.getContainerEvents).toHaveBeenCalledWith('container-1');
@@ -372,7 +468,7 @@ describe('Project detail page', () => {
       compose_files: [],
       container_counts: { running: 0, stopped: 1, transitioning: 0, issue: 0, total: 1 },
       display_name: 'Compose Demo',
-      drift_status: 'in-sync',
+      drift_status: 'clean',
       env_files: [],
       host_scope: 'local',
       id: 7,
@@ -392,7 +488,7 @@ describe('Project detail page', () => {
     expect(wrapper.find('[data-testid="project-detail-action-up"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="project-detail-action-stop"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="project-detail-action-restart"]').exists()).toBe(true);
-    expect(wrapper.text()).toContain('Last Project Refresh');
+    expect(wrapper.text()).toContain('Last Updated');
 
     wrapper.unmount();
 
@@ -403,7 +499,7 @@ describe('Project detail page', () => {
       compose_files: [],
       container_counts: { running: 0, stopped: 0, transitioning: 0, issue: 0, total: 0 },
       display_name: 'Compose Demo',
-      drift_status: 'in-sync',
+      drift_status: 'clean',
       env_files: [],
       host_scope: 'local',
       id: 7,

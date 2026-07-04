@@ -1,0 +1,26 @@
+type: object
+required:
+  - project_id
+  - canonical_project_name
+  - health
+  - resources
+  - services
+properties:
+  project_id:
+    type: integer
+    format: int64
+    minimum: 1
+  canonical_project_name:
+    type: string
+  collected_at:
+    type: string
+    format: date-time
+    nullable: true
+  health:
+    $ref: ./project-overview-health-summary.yaml
+  resources:
+    $ref: ./project-overview-resource-summary.yaml
+  services:
+    type: array
+    items:
+      $ref: ./project-overview-service-item.yaml

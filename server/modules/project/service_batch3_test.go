@@ -199,6 +199,11 @@ type stubRuntimeReader struct {
 	candidateMembers []moduleapi.ContainerProjectMember
 }
 
+type stubResourceReader struct {
+	summary moduleapi.ContainerProjectResourceSummary
+	err     error
+}
+
 type stubSystemConfigResolver struct {
 	value string
 	err   error
@@ -233,6 +238,10 @@ func (s stubRuntimeReader) ListImportCandidateMembers(
 	moduleapi.ContainerProjectRuntimeCandidate,
 ) ([]moduleapi.ContainerProjectMember, error) {
 	return append([]moduleapi.ContainerProjectMember(nil), s.candidateMembers...), nil
+}
+
+func (s stubResourceReader) ReadProjectResourceSummary(context.Context, string, string) (moduleapi.ContainerProjectResourceSummary, error) {
+	return s.summary, s.err
 }
 
 func TestServicesMergesRuntimeMembers(t *testing.T) {
@@ -303,6 +312,103 @@ func TestServicesMergesRuntimeMembers(t *testing.T) {
 	}
 	if result.Items[0].StoppedCount+result.Items[1].StoppedCount != 1 {
 		t.Fatalf("expected one stopped member, got %#v", result.Items)
+	}
+}
+
+func TestOverviewAggregatesRuntimeResources(t *testing.T) {
+	t.Parallel()
+
+	tempDir := t.TempDir()
+	composePath := filepath.Join(tempDir, "compose.yaml")
+	content := []byte("services:\n  web:\n    image: nginx:latest\n    networks:\n      - frontend\n    volumes:\n      - data:/data\n  worker:\n    image: busybox\n    networks:\n      - backend\n")
+	if err := os.WriteFile(composePath, content, 0o600); err != nil {
+		t.Fatalf("write compose file: %v", err)
+	}
+	now := time.Now().UTC()
+	repo := &stubProjectRepository{
+		aggregate: projectstore.ProjectAggregate{
+			Project: projectstore.Project{
+				ID:                   9,
+				CanonicalProjectName: "demo",
+				WorkingDirectory:     tempDir,
+				HostScope:            "local",
+				LastRefreshAt:        &now,
+			},
+			Files: []projectstore.ProjectFile{
+				{Kind: "compose", Role: "primary", AbsolutePath: composePath, DisplayPath: "compose.yaml", OrderIndex: 1},
+			},
+		},
+	}
+	service, err := NewService(
+		repo,
+		WithResourceReader(stubResourceReader{
+			summary: moduleapi.ContainerProjectResourceSummary{
+				CanonicalProjectName:         "demo",
+				CollectedAt:                  now.Format(time.RFC3339),
+				StatsAvailable:               true,
+				StatsAvailableContainerCount: 2,
+				HealthyContainerCount:        1,
+				UnhealthyContainerCount:      1,
+				StartingContainerCount:       0,
+				RestartCount:                 3,
+				CPUPercent:                   12.5,
+				MemoryUsageBytes:             300,
+				MemoryLimitBytes:             600,
+				RxBytes:                      1024,
+				TxBytes:                      2048,
+				Services: []moduleapi.ContainerProjectServiceResourceSummary{
+					{
+						ServiceName:                  "web",
+						ContainerCount:               1,
+						RunningCount:                 1,
+						HealthyContainerCount:        1,
+						StatsAvailable:               true,
+						StatsAvailableContainerCount: 1,
+						CPUPercent:                   10,
+						MemoryUsageBytes:             200,
+						MemoryLimitBytes:             400,
+					},
+					{
+						ServiceName:                  "worker",
+						ContainerCount:               1,
+						IssueCount:                   1,
+						UnhealthyContainerCount:      1,
+						RestartCount:                 3,
+						StatsAvailable:               true,
+						StatsAvailableContainerCount: 1,
+						CPUPercent:                   2.5,
+						MemoryUsageBytes:             100,
+						MemoryLimitBytes:             200,
+					},
+				},
+			},
+		}),
+	)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	response, err := service.Overview(context.Background(), 9)
+	if err != nil {
+		t.Fatalf("overview: %v", err)
+	}
+	if response.Health.HealthyServiceCount != 1 {
+		t.Fatalf("expected one healthy service, got %#v", response.Health)
+	}
+	if response.Health.NetworksCount != 2 || response.Health.VolumesCount != 1 {
+		t.Fatalf("expected derived topology counts, got %#v", response.Health)
+	}
+	if response.Resources.CpuPercent != 12.5 || response.Resources.MemoryUsageBytes != 300 || response.Resources.TxBytes != 2048 {
+		t.Fatalf("unexpected overview resources %#v", response.Resources)
+	}
+	if len(response.Services) != 2 {
+		t.Fatalf("expected two overview services, got %#v", response.Services)
+	}
+	if response.Services[0].ServiceName != "web" || response.Services[0].Status != generated.ProjectOverviewServiceItemStatus("running") {
+		t.Fatalf("unexpected first overview service %#v", response.Services[0])
+	}
+	if response.Services[1].ServiceName != "worker" || response.Services[1].Health != generated.ProjectOverviewServiceItemHealth("attention") {
+		t.Fatalf("unexpected second overview service %#v", response.Services[1])
 	}
 }
 

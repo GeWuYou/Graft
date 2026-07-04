@@ -86,6 +86,7 @@ func registerRoutes(ctx *module.Context, moduleName string, service *Service) er
 	group.POST(projectcontract.ProjectCreateValidateRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectCreatePermission.String(), publisher), routes.handleCreateValidate)
 	group.POST(projectcontract.ProjectCreateRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectCreatePermission.String(), publisher), routes.handleCreate)
 	group.GET(projectcontract.ProjectDetailRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectViewPermission.String(), publisher), routes.handleDetail)
+	group.GET(projectcontract.ProjectOverviewRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectViewPermission.String(), publisher), routes.handleOverview)
 	group.GET(projectcontract.ProjectServicesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectViewPermission.String(), publisher), routes.handleServices)
 	group.GET(projectcontract.ProjectConfigurationRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectViewPermission.String(), publisher), routes.handleConfiguration)
 	group.GET(projectcontract.ProjectConfigurationPreviewRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectViewPermission.String(), publisher), routes.handleConfigurationPreview)
@@ -304,6 +305,20 @@ func (r routeRuntime) handleDetail(ginCtx *gin.Context) {
 	}
 	projectGeneratedHandler{}.GetProject(generatedID, bindGetProjectParams(ginCtx))
 	result, err := r.service.Get(ginCtx.Request.Context(), projectID)
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, result)
+}
+
+func (r routeRuntime) handleOverview(ginCtx *gin.Context) {
+	projectID, generatedID, ok := bindProjectID(ginCtx, r.ctx)
+	if !ok {
+		return
+	}
+	projectGeneratedHandler{}.GetProjectOverview(generatedID, bindGetProjectOverviewParams(ginCtx))
+	result, err := r.service.Overview(ginCtx.Request.Context(), projectID)
 	if err != nil {
 		r.writeRouteError(ginCtx, err)
 		return
@@ -705,6 +720,7 @@ func (projectGeneratedHandler) PostProjectCreateValidate(generated.PostProjectCr
 func (projectGeneratedHandler) PostProjectCreate(generated.PostProjectCreateParams, generated.PostProjectCreateJSONRequestBody) {
 }
 func (projectGeneratedHandler) GetProject(int64, generated.GetProjectParams)                 {}
+func (projectGeneratedHandler) GetProjectOverview(int64, generated.GetProjectOverviewParams) {}
 func (projectGeneratedHandler) GetProjectServices(int64, generated.GetProjectServicesParams) {}
 func (projectGeneratedHandler) GetProjectConfiguration(int64, generated.GetProjectConfigurationParams) {
 }
@@ -983,6 +999,11 @@ func bindGetProjectParams(ginCtx *gin.Context) generated.GetProjectParams {
 func bindGetProjectServicesParams(ginCtx *gin.Context) generated.GetProjectServicesParams {
 	locale, requestID := commonHeaders(ginCtx)
 	return generated.GetProjectServicesParams{XGraftLocale: locale, XRequestId: requestID}
+}
+
+func bindGetProjectOverviewParams(ginCtx *gin.Context) generated.GetProjectOverviewParams {
+	locale, requestID := commonHeaders(ginCtx)
+	return generated.GetProjectOverviewParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
 // bindGetProjectConfigurationParams 组装获取项目配置接口的请求参数。

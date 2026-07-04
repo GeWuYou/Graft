@@ -1,0 +1,75 @@
+type: object
+required:
+  - service_name
+  - status
+  - health
+  - container_count
+  - running_count
+  - stopped_count
+  - transitioning_count
+  - issue_count
+  - healthy_container_count
+  - unhealthy_container_count
+  - starting_container_count
+  - restart_count
+  - stats_available
+  - stats_available_container_count
+  - cpu_percent
+  - memory_usage_bytes
+  - memory_limit_bytes
+properties:
+  service_name:
+    type: string
+  image:
+    type: string
+    nullable: true
+  status:
+    type: string
+    enum: [running, degraded, stopped]
+  health:
+    type: string
+    enum: [healthy, attention, unknown]
+  container_count:
+    type: integer
+    minimum: 0
+  running_count:
+    type: integer
+    minimum: 0
+  stopped_count:
+    type: integer
+    minimum: 0
+  transitioning_count:
+    type: integer
+    minimum: 0
+  issue_count:
+    type: integer
+    minimum: 0
+  healthy_container_count:
+    type: integer
+    minimum: 0
+  unhealthy_container_count:
+    type: integer
+    minimum: 0
+  starting_container_count:
+    type: integer
+    minimum: 0
+  restart_count:
+    type: integer
+    minimum: 0
+  stats_available:
+    type: boolean
+  stats_available_container_count:
+    type: integer
+    minimum: 0
+  cpu_percent:
+    type: number
+    format: double
+    minimum: 0
+  memory_usage_bytes:
+    type: integer
+    format: int64
+    minimum: 0
+  memory_limit_bytes:
+    type: integer
+    format: int64
+    minimum: 0

@@ -27,11 +27,16 @@ func (m *Module) Register(ctx *module.Context) error {
 	if err != nil {
 		return fmt.Errorf("resolve container project runtime reader: %w", err)
 	}
+	resourceReader, err := module.ResolveService[moduleapi.ContainerProjectResourceReader](ctx.Services, (*moduleapi.ContainerProjectResourceReader)(nil))
+	if err != nil {
+		return fmt.Errorf("resolve container project resource reader: %w", err)
+	}
 	configResolver, err := module.ResolveService[moduleapi.SystemConfigResolver](ctx.Services, (*moduleapi.SystemConfigResolver)(nil))
 	if err != nil {
 		return fmt.Errorf("resolve system config resolver: %w", err)
 	}
 	m.service.SetRuntimeReader(runtimeReader)
+	m.service.SetResourceReader(resourceReader)
 	m.service.SetSystemConfigResolver(configResolver)
 	m.service.SetAuditPublisher(ctx.EventBus, ctx.Logger, moduleID)
 	if err := registerPermissions(ctx.PermissionRegistry, moduleID); err != nil {

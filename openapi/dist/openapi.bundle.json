@@ -11360,6 +11360,88 @@
         }
       }
     },
+    "/api/ops/projects/{id}/overview": {
+      "get": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Get Compose project runtime overview",
+        "operationId": "getProjectOverview",
+        "description": "Returns the Project-owned overview dashboard projection backed by the bounded container runtime resource aggregate. Container remains the authority for per-container detail, logs, events, realtime stats topics, and raw runtime inspection.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/project-id-path"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Compose project overview projection.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-project-overview-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid project id.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Project record not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
     "/api/ops/projects/{id}/lifecycle-configuration": {
       "put": {
         "tags": [
@@ -13603,6 +13685,18 @@
       "ProjectDetailResponse": {
         "$ref": "#/components/schemas/project-detail-response"
       },
+      "ProjectOverviewHealthSummary": {
+        "$ref": "#/components/schemas/project-overview-health-summary"
+      },
+      "ProjectOverviewResourceSummary": {
+        "$ref": "#/components/schemas/project-overview-resource-summary"
+      },
+      "ProjectOverviewServiceItem": {
+        "$ref": "#/components/schemas/project-overview-service-item"
+      },
+      "ProjectOverviewResponse": {
+        "$ref": "#/components/schemas/project-overview-response"
+      },
       "ProjectServiceItem": {
         "$ref": "#/components/schemas/project-service-item"
       },
@@ -13680,6 +13774,9 @@
       },
       "EnvelopedProjectDetailResponse": {
         "$ref": "#/components/schemas/enveloped-project-detail-response"
+      },
+      "EnvelopedProjectOverviewResponse": {
+        "$ref": "#/components/schemas/enveloped-project-overview-response"
       },
       "EnvelopedProjectLifecycleConfigurationResponse": {
         "$ref": "#/components/schemas/enveloped-project-lifecycle-configuration-response"
@@ -23798,6 +23895,255 @@
             "properties": {
               "data": {
                 "$ref": "#/components/schemas/project-detail-response"
+              }
+            }
+          }
+        ]
+      },
+      "project-overview-health-summary": {
+        "type": "object",
+        "required": [
+          "healthy_service_count",
+          "healthy_container_count",
+          "unhealthy_container_count",
+          "starting_container_count",
+          "restart_count",
+          "networks_count",
+          "volumes_count"
+        ],
+        "properties": {
+          "healthy_service_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "healthy_container_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "unhealthy_container_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "starting_container_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "restart_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "networks_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "volumes_count": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "project-overview-resource-summary": {
+        "type": "object",
+        "required": [
+          "stats_available",
+          "stats_available_container_count",
+          "cpu_percent",
+          "memory_usage_bytes",
+          "memory_limit_bytes",
+          "rx_bytes",
+          "tx_bytes"
+        ],
+        "properties": {
+          "stats_available": {
+            "type": "boolean",
+            "description": "True when at least one runtime member contributed backend resource stats to this overview snapshot."
+          },
+          "stats_available_container_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "cpu_percent": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0
+          },
+          "memory_usage_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "memory_limit_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "rx_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "tx_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "project-overview-service-item": {
+        "type": "object",
+        "required": [
+          "service_name",
+          "status",
+          "health",
+          "container_count",
+          "running_count",
+          "stopped_count",
+          "transitioning_count",
+          "issue_count",
+          "healthy_container_count",
+          "unhealthy_container_count",
+          "starting_container_count",
+          "restart_count",
+          "stats_available",
+          "stats_available_container_count",
+          "cpu_percent",
+          "memory_usage_bytes",
+          "memory_limit_bytes"
+        ],
+        "properties": {
+          "service_name": {
+            "type": "string"
+          },
+          "image": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "running",
+              "degraded",
+              "stopped"
+            ]
+          },
+          "health": {
+            "type": "string",
+            "enum": [
+              "healthy",
+              "attention",
+              "unknown"
+            ]
+          },
+          "container_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "running_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "stopped_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "transitioning_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "issue_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "healthy_container_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "unhealthy_container_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "starting_container_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "restart_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "stats_available": {
+            "type": "boolean"
+          },
+          "stats_available_container_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "cpu_percent": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0
+          },
+          "memory_usage_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "memory_limit_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "project-overview-response": {
+        "type": "object",
+        "required": [
+          "project_id",
+          "canonical_project_name",
+          "health",
+          "resources",
+          "services"
+        ],
+        "properties": {
+          "project_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "canonical_project_name": {
+            "type": "string"
+          },
+          "collected_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "health": {
+            "$ref": "#/components/schemas/project-overview-health-summary"
+          },
+          "resources": {
+            "$ref": "#/components/schemas/project-overview-resource-summary"
+          },
+          "services": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/project-overview-service-item"
+            }
+          }
+        }
+      },
+      "enveloped-project-overview-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/project-overview-response"
               }
             }
           }

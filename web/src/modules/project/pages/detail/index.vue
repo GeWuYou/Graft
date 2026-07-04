@@ -1,5 +1,5 @@
 <template>
-  <div class="project-detail-page" data-page-type="list-form-detail">
+  <div class="project-detail-page" data-page-type="overview-dashboard">
     <management-page-header
       :title="pageTitle"
       description-key="project.detail.description"
@@ -50,80 +50,215 @@
                 </div>
               </div>
 
+              <t-card size="small" class="project-overview-hero">
+                <div class="project-overview-hero__body">
+                  <div class="project-overview-hero__copy">
+                    <div class="project-overview-hero__heading">
+                      <h3>{{ runtimeStatusLabel(detailRecord.runtime_status) }}</h3>
+                      <t-tag :theme="runtimeStatusTheme(detailRecord.runtime_status)" variant="light-outline">
+                        {{ runtimeStatusLabel(detailRecord.runtime_status) }}
+                      </t-tag>
+                    </div>
+                    <div class="project-overview-hero__meta">
+                      <article v-for="item in overviewHeroStats" :key="item.key">
+                        <span>{{ item.label }}</span>
+                        <strong>{{ item.value }}</strong>
+                      </article>
+                    </div>
+                  </div>
+
+                  <div class="project-overview-hero__actions">
+                    <t-space break-line size="small">
+                      <t-button
+                        v-if="lifecycleActionVisibility.up"
+                        theme="primary"
+                        variant="outline"
+                        :loading="actionLoading === 'up'"
+                        :disabled="lifecycleReviewRequired"
+                        @click="runLifecycleAction('up')"
+                      >
+                        {{ t('project.detail.actions.up') }}
+                      </t-button>
+                      <t-button
+                        v-if="lifecycleActionVisibility.stop"
+                        theme="warning"
+                        variant="outline"
+                        :loading="actionLoading === 'stop'"
+                        :disabled="lifecycleReviewRequired"
+                        @click="runLifecycleAction('stop')"
+                      >
+                        {{ t('project.detail.actions.stop') }}
+                      </t-button>
+                      <t-button
+                        v-if="lifecycleActionVisibility.restart"
+                        theme="warning"
+                        variant="outline"
+                        :loading="actionLoading === 'restart'"
+                        :disabled="lifecycleReviewRequired"
+                        @click="runLifecycleAction('restart')"
+                      >
+                        {{ t('project.detail.actions.restart') }}
+                      </t-button>
+                      <t-button
+                        v-if="lifecycleActionVisibility.redeploy"
+                        theme="default"
+                        variant="outline"
+                        :loading="actionLoading === 'redeploy'"
+                        :disabled="lifecycleReviewRequired"
+                        @click="runLifecycleAction('redeploy')"
+                      >
+                        {{ t('project.detail.actions.redeploy') }}
+                      </t-button>
+                      <t-button theme="primary" :loading="detailLoading" @click="refreshDetail">
+                        <template #icon><refresh-icon /></template>
+                        {{ t('project.detail.refresh') }}
+                      </t-button>
+                    </t-space>
+                    <span class="project-overview-hero__updated-at">
+                      {{ t('project.detail.overview.lastUpdated') }}: {{ formatTime(detailRecord.last_refresh_at) }}
+                    </span>
+                  </div>
+                </div>
+              </t-card>
+
               <div class="project-overview-grid">
-                <t-card size="small" :title="t('project.detail.summary.configurationTitle')">
-                  <t-descriptions size="small" :column="1">
-                    <t-descriptions-item :label="t('project.detail.summary.canonicalName')">
-                      <code>{{ detailRecord.canonical_project_name }}</code>
-                    </t-descriptions-item>
-                    <t-descriptions-item :label="t('project.detail.summary.composeFiles')">
-                      {{ detailRecord.compose_files.length }}
-                    </t-descriptions-item>
-                    <t-descriptions-item :label="t('project.detail.summary.workingDirectory')">
-                      <div class="project-detail-copy-row">
-                        <code>{{ detailRecord.working_directory }}</code>
-                        <t-button
-                          size="small"
-                          theme="default"
-                          variant="text"
-                          @click="copyPath(detailRecord.working_directory)"
-                        >
-                          {{ t('project.detail.actions.copyPath') }}
-                        </t-button>
-                      </div>
-                    </t-descriptions-item>
-                    <t-descriptions-item :label="t('project.detail.summary.envFiles')">
-                      {{ detailRecord.env_files.length }}
-                    </t-descriptions-item>
-                  </t-descriptions>
+                <t-card size="small" :title="t('project.detail.overview.healthTitle')">
+                  <div class="project-overview-stat-list">
+                    <article v-for="item in overviewHealthItems" :key="item.key" class="project-overview-stat-item">
+                      <span>{{ item.label }}</span>
+                      <strong>{{ item.value }}</strong>
+                      <small v-if="item.caption">{{ item.caption }}</small>
+                    </article>
+                  </div>
                 </t-card>
 
-                <t-card size="small" :title="t('project.detail.summary.summaryTitle')">
-                  <t-descriptions size="small" :column="1">
-                    <t-descriptions-item :label="t('project.detail.summary.status')">
-                      {{ runtimeStatusLabel(detailRecord.runtime_status) }}
-                    </t-descriptions-item>
-                    <t-descriptions-item :label="t('project.detail.summary.services')">
-                      {{ detailRecord.service_count }}
-                    </t-descriptions-item>
-                    <t-descriptions-item :label="t('project.detail.summary.configHash')">
-                      <code>{{
-                        detailRecord.last_refresh_config_hash || detailRecord.last_observed_config_hash || '-'
-                      }}</code>
-                    </t-descriptions-item>
-                    <t-descriptions-item :label="t('project.detail.summary.nameSource')">
-                      {{ projectCanonicalNameSourceLabel(t, detailRecord.canonical_project_name_source) }}
-                    </t-descriptions-item>
-                  </t-descriptions>
+                <t-card size="small" :title="t('project.detail.overview.resourceTitle')">
+                  <div class="project-overview-resource-grid">
+                    <article
+                      v-for="item in overviewResourceItems"
+                      :key="item.key"
+                      class="project-overview-metric-item"
+                      :class="{ 'project-overview-metric-item--muted': item.muted }"
+                    >
+                      <header>
+                        <span>{{ item.label }}</span>
+                        <strong>{{ item.value }}</strong>
+                      </header>
+                      <p v-if="item.caption">{{ item.caption }}</p>
+                    </article>
+                  </div>
                 </t-card>
+              </div>
 
-                <t-card size="small" :title="t('project.detail.summary.discoveryTitle')">
-                  <t-descriptions size="small" :column="1">
-                    <t-descriptions-item :label="t('project.detail.summary.runtimeMembers')">
-                      {{ detailRecord.container_counts.total }}
-                    </t-descriptions-item>
-                    <t-descriptions-item :label="t('project.detail.summary.runningMembers')">
-                      {{ detailRecord.container_counts.running }}
-                    </t-descriptions-item>
-                    <t-descriptions-item :label="t('project.detail.summary.hostScope')">
-                      {{ projectHostScopeLabel(t, detailRecord.host_scope) }}
-                    </t-descriptions-item>
-                    <t-descriptions-item :label="t('project.detail.summary.lastRefreshAt')">
-                      {{ formatTime(detailRecord.last_refresh_at) }}
-                    </t-descriptions-item>
-                  </t-descriptions>
+              <div class="project-overview-grid">
+                <t-card
+                  size="small"
+                  :title="t('project.detail.overview.servicesTitle')"
+                  class="project-overview-grid__wide"
+                >
+                  <div v-if="serviceSnapshotCards.length" class="project-service-snapshot-grid">
+                    <article v-for="service in serviceSnapshotCards" :key="service.key" class="project-service-card">
+                      <header class="project-service-card__head">
+                        <div>
+                          <strong>{{ service.name }}</strong>
+                          <p>{{ service.meta }}</p>
+                        </div>
+                        <div class="project-service-card__tags">
+                          <t-tag :theme="service.statusTheme" variant="light-outline">{{ service.statusLabel }}</t-tag>
+                          <t-tag :theme="service.healthTheme" variant="light-outline">{{ service.healthLabel }}</t-tag>
+                        </div>
+                      </header>
+                      <dl class="project-service-card__metrics">
+                        <div>
+                          <dt>{{ t('project.detail.overview.cpuUsage') }}</dt>
+                          <dd>{{ service.cpuValue }}</dd>
+                        </div>
+                        <div>
+                          <dt>{{ t('project.detail.overview.memoryUsage') }}</dt>
+                          <dd>{{ service.memoryValue }}</dd>
+                        </div>
+                        <div>
+                          <dt>{{ t('project.detail.overview.runtimeMembers') }}</dt>
+                          <dd>{{ service.memberValue }}</dd>
+                        </div>
+                        <div>
+                          <dt>{{ t('project.detail.overview.actionLabel') }}</dt>
+                          <dd>
+                            <t-button
+                              size="small"
+                              theme="default"
+                              variant="text"
+                              :disabled="!service.canOpen"
+                              @click="openFirstServiceContainer(service.raw)"
+                            >
+                              {{ t('project.detail.overview.viewService') }}
+                            </t-button>
+                          </dd>
+                        </div>
+                      </dl>
+                    </article>
+                  </div>
+                  <t-empty v-else :description="t('project.detail.services.emptyDescription')" />
+                </t-card>
+              </div>
+
+              <div class="project-overview-grid">
+                <t-card size="small" :title="t('project.detail.overview.activityTitle')">
+                  <div v-if="overviewActivityItems.length" class="project-overview-activity-list">
+                    <article
+                      v-for="item in overviewActivityItems"
+                      :key="item.key"
+                      class="project-overview-activity-item"
+                    >
+                      <header>
+                        <t-tag :theme="item.theme" variant="light-outline">{{ item.kind }}</t-tag>
+                        <span>{{ item.occurredAt }}</span>
+                      </header>
+                      <strong>{{ item.title }}</strong>
+                      <p>{{ item.description }}</p>
+                    </article>
+                  </div>
+                  <t-empty v-else :description="t('project.detail.overview.activityEmpty')" />
+                  <div class="project-overview-footer-link">
+                    <t-button size="small" theme="default" variant="text" @click="switchDetailTab('activity')">
+                      {{ t('project.detail.overview.viewActivity') }}
+                    </t-button>
+                  </div>
                 </t-card>
 
                 <t-card size="small" :title="t('project.detail.overview.diagnosticsTitle')">
-                  <div v-if="configurationMetadata?.diagnostics_summary?.length" class="project-diagnostics-list">
+                  <div class="project-diagnostics-list">
                     <t-alert
-                      v-for="(item, index) in configurationMetadata.diagnostics_summary"
-                      :key="`${index}-${item}`"
-                      theme="warning"
-                      :message="item"
+                      v-for="item in overviewDiagnostics"
+                      :key="item.key"
+                      :theme="item.theme"
+                      :message="item.message"
                     />
                   </div>
-                  <t-empty v-else :description="t('project.detail.overview.diagnosticsEmpty')" />
+                </t-card>
+              </div>
+
+              <div class="project-overview-grid">
+                <t-card
+                  size="small"
+                  :title="t('project.detail.overview.configurationTitle')"
+                  class="project-overview-grid__wide"
+                >
+                  <div class="project-overview-config-grid">
+                    <article
+                      v-for="item in overviewConfigurationItems"
+                      :key="item.key"
+                      class="project-overview-config-item"
+                    >
+                      <span>{{ item.label }}</span>
+                      <strong>{{ item.value }}</strong>
+                    </article>
+                  </div>
+                  <div class="project-overview-footer-link">
+                    <t-button size="small" theme="default" variant="text" @click="switchDetailTab('configuration')">
+                      {{ t('project.detail.overview.viewConfiguration') }}
+                    </t-button>
+                  </div>
                 </t-card>
               </div>
             </section>
@@ -851,7 +986,7 @@ import { CONTAINER_BOOTSTRAP_ROUTE } from '@/modules/container/contract/bootstra
 import type { ContainerLogEntry, ContainerRuntimeEventRecord } from '@/modules/container/types/container';
 import { ManagementPageHeader } from '@/shared/components/management';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
-import { copyText } from '@/shared/observability';
+import { copyText, formatBytes, formatPercent } from '@/shared/observability';
 import { useTabsRouterStore } from '@/store/modules/tabs-router';
 import { createLogger } from '@/utils/logger';
 
@@ -860,6 +995,7 @@ import {
   getProjectConfiguration,
   getProjectConfigurationFile,
   getProjectConfigurationPreview,
+  getProjectOverview,
   getProjectServices,
   postProjectConfigurationDiff,
   postProjectConfigurationValidate,
@@ -875,10 +1011,8 @@ import ProjectFileEditor from '../../components/ProjectFileEditor.vue';
 import ProjectResourcesSection from '../../components/ProjectResourcesSection.vue';
 import {
   formatProjectTime,
-  projectCanonicalNameSourceLabel,
   projectDriftStatusLabel,
   projectDriftStatusTheme,
-  projectHostScopeLabel,
   projectLifecycleActionVisibility,
   projectOwnershipModeLabel,
   projectRefreshStatusLabel,
@@ -908,8 +1042,11 @@ import type {
   ProjectConfigurationValidateResponse,
   ProjectDeployRequest,
   ProjectDetailResponseWithLifecycle,
+  ProjectFileItem,
   ProjectLifecycleConfigurationDraft,
   ProjectLifecycleReviewStatus,
+  ProjectOverviewResponse,
+  ProjectOverviewServiceItem,
   ProjectServiceContainerMember,
   ProjectServiceItem,
 } from '../../types/project';
@@ -926,6 +1063,47 @@ type EditorMode = 'edit' | 'preview';
 type ConfigurationEditorTab = 'compose' | 'env';
 type ProjectDetailTab =
   'overview' | 'services' | 'containers' | 'networks' | 'volumes' | 'configuration' | 'activity' | 'lifecycle';
+type OverviewHealthItem = {
+  key: string;
+  label: string;
+  value: string;
+  caption?: string;
+};
+type OverviewMetricItem = {
+  key: string;
+  label: string;
+  value: string;
+  caption?: string;
+  muted?: boolean;
+};
+type OverviewDiagnostic = {
+  key: string;
+  message: string;
+  theme: 'success' | 'warning' | 'error' | 'info';
+};
+type OverviewActivityItem = {
+  key: string;
+  kind: string;
+  occurredAt: string;
+  title: string;
+  description: string;
+  theme: 'default' | 'primary' | 'warning' | 'danger';
+};
+type ServiceSnapshotCard = {
+  key: string;
+  name: string;
+  image: string;
+  meta: string;
+  statusLabel: string;
+  statusTheme: 'success' | 'warning' | 'danger' | 'default';
+  healthLabel: string;
+  healthTheme: 'success' | 'warning' | 'danger' | 'default';
+  cpuValue: string;
+  memoryValue: string;
+  memberValue: string;
+  canOpen: boolean;
+  raw: ProjectServiceItem;
+};
 
 const { locale, t } = useI18n();
 const route = useRoute();
@@ -954,8 +1132,10 @@ const activityMembers = ref<ActivityMember[]>([]);
 const activityLoading = ref(false);
 const activityError = ref('');
 const serviceRows = ref<ProjectServiceItem[]>([]);
+const projectOverview = ref<ProjectOverviewResponse | null>(null);
 const serviceLoading = ref(false);
 const servicesLoaded = ref(false);
+const projectOverviewLoaded = ref(false);
 const configurationLoadRequestId = ref(0);
 const actionLoading = ref<ProjectActionResponse['action'] | ''>('');
 const lifecycleSaveLoading = ref(false);
@@ -1042,6 +1222,248 @@ const lifecycleCommandPreviewSections = computed(() => [
     steps: resolveLifecycleCommandSteps(lifecycleDraft, 'redeploy'),
   },
 ]);
+const overviewServiceMap = computed(
+  () => new Map((projectOverview.value?.services || []).map((item) => [item.service_name, item])),
+);
+const totalRestartCount = computed(() => projectOverview.value?.health.restart_count ?? 0);
+const unhealthyContainerCount = computed(() => projectOverview.value?.health.unhealthy_container_count ?? 0);
+const startingContainerCount = computed(() => projectOverview.value?.health.starting_container_count ?? 0);
+const availableResourceContainers = computed(
+  () => projectOverview.value?.resources.stats_available_container_count ?? 0,
+);
+const healthyServiceCount = computed(() => projectOverview.value?.health.healthy_service_count ?? 0);
+const cpuTotalPercent = computed(() => projectOverview.value?.resources.cpu_percent ?? 0);
+const memoryUsageBytes = computed(() => projectOverview.value?.resources.memory_usage_bytes ?? 0);
+const memoryLimitBytes = computed(() => projectOverview.value?.resources.memory_limit_bytes ?? 0);
+const memoryPercent = computed(() => {
+  if ((projectOverview.value?.resources.stats_available ?? false) === false || memoryLimitBytes.value <= 0) {
+    return null;
+  }
+  return (memoryUsageBytes.value / memoryLimitBytes.value) * 100;
+});
+const networkRxBytes = computed(() => projectOverview.value?.resources.rx_bytes ?? 0);
+const networkTxBytes = computed(() => projectOverview.value?.resources.tx_bytes ?? 0);
+const healthyServiceRatio = computed(() => {
+  if (detailRecord.value?.service_count) {
+    return `${healthyServiceCount.value}/${detailRecord.value.service_count}`;
+  }
+  return '0/0';
+});
+const configurationComposeFilesLabel = computed(() =>
+  joinProjectFilePaths(configurationMetadata.value?.compose_files ?? detailRecord.value?.compose_files ?? []),
+);
+const configurationEnvFilesLabel = computed(() => joinProjectFilePaths(configurationMetadata.value?.env_files ?? []));
+const overviewConfigurationItems = computed(() => [
+  {
+    key: 'compose',
+    label: t('project.detail.configuration.composeFiles'),
+    value: configurationComposeFilesLabel.value,
+  },
+  {
+    key: 'directory',
+    label: t('project.detail.lifecycle.workingDirectory'),
+    value: detailRecord.value?.working_directory || '-',
+  },
+  {
+    key: 'environment',
+    label: t('project.detail.configuration.envFiles'),
+    value: configurationEnvFilesLabel.value,
+  },
+  {
+    key: 'ownership',
+    label: t('project.detail.configuration.ownershipMode'),
+    value: detailRecord.value ? ownershipModeLabel(detailRecord.value.ownership_mode) : '-',
+  },
+]);
+const overviewHeroStats = computed(() => [
+  {
+    key: 'services',
+    label: t('project.detail.overview.serviceCount'),
+    value: String(detailRecord.value?.service_count ?? 0),
+  },
+  {
+    key: 'containers',
+    label: t('project.detail.overview.runtimeMembers'),
+    value: String(detailRecord.value?.container_counts.total ?? 0),
+  },
+  {
+    key: 'restarts',
+    label: t('project.detail.overview.restartCount'),
+    value: String(totalRestartCount.value),
+  },
+  {
+    key: 'healthy',
+    label: t('project.detail.overview.healthyServices'),
+    value: healthyServiceRatio.value,
+  },
+]);
+const overviewHealthItems = computed<OverviewHealthItem[]>(() => [
+  {
+    key: 'status',
+    label: t('project.detail.overview.runtimeStatus'),
+    value: runtimeStatusLabel(detailRecord.value?.runtime_status),
+    caption: refreshStatusLabel(detailRecord.value?.last_refresh_status ?? 'never'),
+  },
+  {
+    key: 'healthy',
+    label: t('project.detail.overview.healthyServices'),
+    value: healthyServiceRatio.value,
+    caption:
+      unhealthyContainerCount.value > 0
+        ? t('project.detail.overview.unhealthyHint', { count: unhealthyContainerCount.value })
+        : startingContainerCount.value > 0
+          ? t('project.detail.overview.startingHint', { count: startingContainerCount.value })
+          : t('project.detail.overview.allHealthy'),
+  },
+  {
+    key: 'restarts',
+    label: t('project.detail.overview.restartCount'),
+    value: String(totalRestartCount.value),
+    caption:
+      totalRestartCount.value > 0
+        ? t('project.detail.overview.restartWarning', { count: totalRestartCount.value })
+        : t('project.detail.overview.restartClear'),
+  },
+  {
+    key: 'topology',
+    label: t('project.detail.overview.topologyTitle'),
+    value: `${detailRecord.value?.container_counts.running ?? 0}/${detailRecord.value?.container_counts.total ?? 0}`,
+    caption: t('project.detail.overview.topologyCaption', {
+      networks: projectOverview.value?.health.networks_count ?? 0,
+      volumes: projectOverview.value?.health.volumes_count ?? 0,
+    }),
+  },
+]);
+const overviewResourceItems = computed<OverviewMetricItem[]>(() => [
+  {
+    key: 'cpu',
+    label: t('project.detail.overview.cpuUsage'),
+    value: projectOverview.value?.resources.stats_available ? formatPercent(cpuTotalPercent.value) : '-',
+    caption: t('project.detail.overview.metricsCoverage', { count: availableResourceContainers.value }),
+    muted: !projectOverview.value?.resources.stats_available,
+  },
+  {
+    key: 'memory',
+    label: t('project.detail.overview.memoryUsage'),
+    value: !projectOverview.value?.resources.stats_available
+      ? '-'
+      : memoryLimitBytes.value > 0
+        ? `${formatBytes(memoryUsageBytes.value)} / ${formatBytes(memoryLimitBytes.value)}`
+        : formatBytes(memoryUsageBytes.value),
+    caption: formatPercent(memoryPercent.value),
+    muted: !projectOverview.value?.resources.stats_available,
+  },
+  {
+    key: 'rx',
+    label: t('project.detail.overview.networkRx'),
+    value: projectOverview.value?.resources.stats_available ? formatBytes(networkRxBytes.value) : '-',
+    caption: t('project.detail.overview.networkSnapshot'),
+    muted: !projectOverview.value?.resources.stats_available,
+  },
+  {
+    key: 'tx',
+    label: t('project.detail.overview.networkTx'),
+    value: projectOverview.value?.resources.stats_available ? formatBytes(networkTxBytes.value) : '-',
+    caption: t('project.detail.overview.networkSnapshot'),
+    muted: !projectOverview.value?.resources.stats_available,
+  },
+]);
+const serviceSnapshotCards = computed<ServiceSnapshotCard[]>(() =>
+  serviceRows.value.map((service) => {
+    const overviewItem = overviewServiceMap.value.get(service.service_name);
+    const cpuValue = overviewItem?.stats_available ? formatPercent(overviewItem.cpu_percent) : '-';
+    const memoryValue = overviewItem?.stats_available ? formatBytes(overviewItem.memory_usage_bytes) : '-';
+    return {
+      key: service.service_name,
+      name: service.service_name,
+      image: service.image || '-',
+      meta: service.image || '-',
+      statusLabel: overviewServiceStatusLabel(overviewItem?.status),
+      statusTheme: overviewServiceStatusTheme(overviewItem?.status),
+      healthLabel: overviewServiceHealthLabel(overviewItem?.health),
+      healthTheme: overviewServiceHealthTheme(overviewItem?.health),
+      cpuValue,
+      memoryValue,
+      memberValue: `${overviewItem?.running_count ?? service.running_count}/${overviewItem?.container_count ?? service.container_members.length}`,
+      canOpen: service.container_members.length > 0,
+      raw: service,
+    };
+  }),
+);
+const overviewActivityItems = computed<OverviewActivityItem[]>(() => {
+  const items: Array<OverviewActivityItem & { order: number }> = activityMembers.value.flatMap((member) => [
+    ...member.events.map((event, index) => ({
+      key: `${member.container_id}-event-${index}-${event.event.occurred_at}`,
+      kind: t('project.detail.overview.activityEvent'),
+      occurredAt: formatTime(event.event.occurred_at),
+      title: member.container_name,
+      description: summarizeEvent(event),
+      theme: eventSeverityTheme(event.event.severity) as OverviewActivityItem['theme'],
+      order: parseActivityTime(event.event.occurred_at),
+    })),
+    ...member.logs.map((log, index) => ({
+      key: `${member.container_id}-log-${index}-${log.occurred_at}`,
+      kind: t('project.detail.overview.activityLog'),
+      occurredAt: formatTime(log.occurred_at),
+      title: member.container_name,
+      description: truncateActivityText(log.line),
+      theme: (log.stream === 'stderr' ? 'danger' : 'default') as OverviewActivityItem['theme'],
+      order: parseActivityTime(log.occurred_at),
+    })),
+  ]);
+
+  return items
+    .sort((left, right) => right.order - left.order)
+    .slice(0, 5)
+    .map(({ order: _order, ...item }) => item);
+});
+const overviewDiagnostics = computed<OverviewDiagnostic[]>(() => {
+  if (configurationMetadata.value?.diagnostics_summary?.length) {
+    return configurationMetadata.value.diagnostics_summary.map((item, index) => ({
+      key: `config-${index}`,
+      message: item,
+      theme: 'warning',
+    }));
+  }
+  return [
+    {
+      key: 'healthy',
+      message:
+        unhealthyContainerCount.value > 0
+          ? t('project.detail.overview.diagnosticUnhealthy', { count: unhealthyContainerCount.value })
+          : t('project.detail.overview.diagnosticHealthy'),
+      theme: unhealthyContainerCount.value > 0 ? 'warning' : 'success',
+    },
+    {
+      key: 'restart',
+      message:
+        totalRestartCount.value > 0
+          ? t('project.detail.overview.diagnosticRestartWarning', { count: totalRestartCount.value })
+          : t('project.detail.overview.diagnosticRestartClear'),
+      theme: totalRestartCount.value > 0 ? 'warning' : 'success',
+    },
+    {
+      key: 'drift',
+      message:
+        detailRecord.value?.drift_status === 'clean'
+          ? t('project.detail.overview.diagnosticConfigSynced')
+          : t('project.detail.overview.diagnosticConfigDrift', {
+              status: driftStatusLabel(detailRecord.value?.drift_status ?? 'unknown'),
+            }),
+      theme: detailRecord.value?.drift_status === 'clean' ? 'success' : 'info',
+    },
+    {
+      key: 'refresh',
+      message:
+        detailRecord.value?.last_refresh_status === 'success'
+          ? t('project.detail.overview.diagnosticRefreshHealthy')
+          : t('project.detail.overview.diagnosticRefreshWarning', {
+              status: refreshStatusLabel(detailRecord.value?.last_refresh_status ?? 'never'),
+            }),
+      theme: detailRecord.value?.last_refresh_status === 'success' ? 'success' : 'warning',
+    },
+  ];
+});
 const envDraftContent = computed({
   get: () => configurationDraft.env_file_content || '',
   set: (value: string) => {
@@ -1085,6 +1507,10 @@ watch(activeDetailTab, (value) => {
   });
 });
 
+function switchDetailTab(value: ProjectDetailTab) {
+  activeDetailTab.value = value;
+}
+
 function formatTime(value?: string | null) {
   return formatProjectTime(locale.value, value);
 }
@@ -1111,6 +1537,30 @@ function refreshStatusTheme(value?: ProjectDetailResponseWithLifecycle['last_ref
 
 function runtimeStatusLabel(value?: ProjectDetailResponseWithLifecycle['runtime_status'] | null) {
   return projectRuntimeStatusLabel(t, value);
+}
+
+function overviewServiceStatusLabel(value?: ProjectOverviewServiceItem['status']) {
+  if (value === 'degraded') return t('project.detail.overview.serviceStatusDegraded');
+  if (value === 'running') return t('project.detail.overview.serviceStatusRunning');
+  return t('project.detail.overview.serviceStatusStopped');
+}
+
+function overviewServiceStatusTheme(value?: ProjectOverviewServiceItem['status']): ServiceSnapshotCard['statusTheme'] {
+  if (value === 'degraded') return 'warning';
+  if (value === 'running') return 'success';
+  return 'default';
+}
+
+function overviewServiceHealthLabel(value?: ProjectOverviewServiceItem['health']) {
+  if (value === 'attention') return t('project.detail.overview.serviceHealthAttention');
+  if (value === 'healthy') return t('project.detail.overview.serviceHealthHealthy');
+  return t('project.detail.overview.serviceHealthUnknown');
+}
+
+function overviewServiceHealthTheme(value?: ProjectOverviewServiceItem['health']): ServiceSnapshotCard['healthTheme'] {
+  if (value === 'attention') return 'warning';
+  if (value === 'healthy') return 'success';
+  return 'default';
 }
 
 function activityAuthorityLabel(value: ProjectActivityAuthority) {
@@ -1150,12 +1600,14 @@ async function refreshDetail() {
     detailRecord.value = await getProject(projectId.value);
     syncLifecycleDraft(detailRecord.value);
     updateCurrentTabTitle(buildDetailTitle(detailRecord.value.display_name));
-    await Promise.all([loadConfiguration(), loadProjectServices(true)]);
+    await Promise.all([loadConfiguration(), loadProjectServices(true), loadProjectOverview(true)]);
     await loadActivity();
   } catch (error) {
     logger.error('failed to load project detail', error);
     detailRecord.value = null;
     activityMembers.value = [];
+    projectOverview.value = null;
+    projectOverviewLoaded.value = false;
     activityError.value = '';
     detailError.value = resolveLocalizedErrorMessage(t, error, t('project.list.retry'));
   } finally {
@@ -1427,6 +1879,28 @@ async function loadProjectServices(forceRefresh = false) {
   }
 }
 
+async function loadProjectOverview(forceRefresh = false) {
+  if (!Number.isFinite(projectId.value)) {
+    projectOverview.value = null;
+    projectOverviewLoaded.value = false;
+    return null;
+  }
+  if (projectOverviewLoaded.value && !forceRefresh) {
+    return projectOverview.value;
+  }
+  try {
+    const response = await getProjectOverview(projectId.value);
+    projectOverview.value = response;
+    projectOverviewLoaded.value = true;
+    return response;
+  } catch (error) {
+    logger.error('failed to load project overview', error);
+    projectOverview.value = null;
+    projectOverviewLoaded.value = false;
+    return null;
+  }
+}
+
 async function refreshProjectServices() {
   try {
     await loadProjectServices(true);
@@ -1550,6 +2024,27 @@ function joinList(items: string[]) {
   return items.length > 0 ? items.join(', ') : '-';
 }
 
+function joinProjectFilePaths(items: ProjectFileItem[]) {
+  const labels = items.map((item) => item.display_path?.trim()).filter(Boolean) as string[];
+  return labels.length > 0 ? labels.join(', ') : '-';
+}
+
+function parseActivityTime(value?: string | null) {
+  if (!value) {
+    return 0;
+  }
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+function truncateActivityText(value: string, maxLength = 120) {
+  const normalized = value.trim();
+  if (normalized.length <= maxLength) {
+    return normalized;
+  }
+  return `${normalized.slice(0, maxLength - 1)}…`;
+}
+
 function buildDetailTitle(name: string): LocalizedTitle {
   return buildDetailTitleWithFallback('project.route.detail.title', name);
 }
@@ -1607,11 +2102,22 @@ function openContainerDetail(member: ProjectServiceContainerMember) {
 .project-detail-body,
 .project-tab-panel,
 .project-overview-grid,
+.project-overview-hero__body,
+.project-overview-hero__copy,
+.project-overview-hero__actions,
+.project-overview-hero__stats,
+.project-overview-stat-list,
+.project-overview-metric-list,
+.project-overview-activity-list,
 .project-runtime-grid,
 .project-configuration-grid,
 .project-file-groups,
 .project-detail-copy-row,
 .project-service-name,
+.project-service-snapshot-grid,
+.project-service-card,
+.project-service-card__head,
+.project-service-card__tags,
 .project-activity-card,
 .project-activity-card__head,
 .project-activity-grid,
@@ -1623,7 +2129,13 @@ function openContainerDetail(member: ProjectServiceContainerMember) {
 .project-detail-page,
 .project-detail-body,
 .project-tab-panel,
-.project-service-name {
+.project-service-name,
+.project-overview-hero__copy,
+.project-overview-hero__actions,
+.project-overview-stat-list,
+.project-overview-metric-list,
+.project-overview-activity-list,
+.project-service-card {
   flex-direction: column;
   gap: var(--graft-density-gap-16);
 }
@@ -1631,13 +2143,15 @@ function openContainerDetail(member: ProjectServiceContainerMember) {
 .project-overview-grid,
 .project-runtime-grid,
 .project-configuration-grid,
-.project-activity-grid {
+.project-activity-grid,
+.project-service-snapshot-grid {
   gap: var(--graft-density-gap-16);
 }
 
 .project-overview-grid,
 .project-runtime-grid,
-.project-configuration-grid {
+.project-configuration-grid,
+.project-service-snapshot-grid {
   align-items: stretch;
 }
 
@@ -1646,6 +2160,10 @@ function openContainerDetail(member: ProjectServiceContainerMember) {
 .project-configuration-grid > .t-card {
   flex: 1 1 0;
   min-width: 0;
+}
+
+.project-overview-grid__wide {
+  flex-basis: 100%;
 }
 
 .project-detail-tabs :deep(.t-tabs__content) {
@@ -1683,11 +2201,137 @@ function openContainerDetail(member: ProjectServiceContainerMember) {
 
 .project-detail-action-bar,
 .project-detail-copy-row,
-.project-activity-grid__title {
+.project-activity-grid__title,
+.project-overview-hero__heading,
+.project-overview-hero__body,
+.project-service-card__head,
+.project-service-card__tags {
   align-items: center;
   display: flex;
   flex-wrap: wrap;
   gap: var(--graft-density-gap-8);
+}
+
+.project-overview-hero {
+  border-color: color-mix(in srgb, var(--td-brand-color-6) 28%, var(--td-border-level-1-color));
+}
+
+.project-overview-hero__body {
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.project-overview-hero__heading h3 {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-headline-medium);
+  margin: 0;
+}
+
+.project-overview-hero__copy p,
+.project-overview-hero__updated-at,
+.project-overview-stat-item small,
+.project-overview-metric-item p,
+.project-service-card__head p,
+.project-overview-activity-item p {
+  color: var(--td-text-color-secondary);
+  margin: 0;
+}
+
+.project-overview-hero__stats {
+  display: grid;
+  gap: var(--graft-density-gap-12);
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  width: 100%;
+}
+
+.project-overview-hero__stats article,
+.project-overview-stat-item,
+.project-overview-metric-item,
+.project-service-card,
+.project-overview-activity-item {
+  background: var(--td-bg-color-container-hover);
+  border: 1px solid var(--td-border-level-1-color);
+  border-radius: var(--td-radius-medium);
+  padding: var(--graft-density-gap-12);
+}
+
+.project-overview-hero__stats span,
+.project-overview-stat-item span,
+.project-overview-metric-item span {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+}
+
+.project-overview-hero__stats strong,
+.project-overview-stat-item strong,
+.project-overview-metric-item strong,
+.project-overview-activity-item strong {
+  color: var(--td-text-color-primary);
+  display: block;
+  font: var(--td-font-title-medium);
+}
+
+.project-overview-stat-list {
+  display: grid;
+  gap: var(--graft-density-gap-12);
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.project-overview-metric-item header,
+.project-overview-activity-item header {
+  align-items: center;
+  display: flex;
+  gap: var(--graft-density-gap-8);
+  justify-content: space-between;
+}
+
+.project-overview-meter {
+  background: var(--td-gray-color-3);
+  border-radius: 999px;
+  height: 8px;
+  overflow: hidden;
+}
+
+.project-overview-meter span {
+  background: linear-gradient(
+    90deg,
+    var(--td-brand-color-6),
+    color-mix(in srgb, var(--td-brand-color-6) 62%, var(--td-success-color-5))
+  );
+  display: block;
+  height: 100%;
+}
+
+.project-service-snapshot-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.project-service-card__head {
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.project-service-card__metrics {
+  display: grid;
+  gap: var(--graft-density-gap-12);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+}
+
+.project-service-card__metrics dt {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+}
+
+.project-service-card__metrics dd {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-body-medium);
+  margin: var(--graft-density-gap-4) 0 0;
+}
+
+.project-overview-activity-list {
+  gap: var(--graft-density-gap-12);
 }
 
 .project-inline-head,
@@ -1860,8 +2504,13 @@ function openContainerDetail(member: ProjectServiceContainerMember) {
     flex-direction: column;
   }
 
+  .project-overview-hero__body,
   .project-activity-card__head {
     flex-direction: column;
+  }
+
+  .project-service-card__metrics {
+    grid-template-columns: 1fr;
   }
 }
 </style>

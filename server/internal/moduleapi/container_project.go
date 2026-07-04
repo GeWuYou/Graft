@@ -21,6 +21,43 @@ type ContainerProjectRuntimeSummary struct {
 	Members              []ContainerProjectMember
 }
 
+// ContainerProjectServiceResourceSummary describes one bounded per-service runtime resource aggregate.
+type ContainerProjectServiceResourceSummary struct {
+	ServiceName                  string
+	ContainerCount               int
+	RunningCount                 int
+	StoppedCount                 int
+	TransitioningCount           int
+	IssueCount                   int
+	HealthyContainerCount        int
+	UnhealthyContainerCount      int
+	StartingContainerCount       int
+	RestartCount                 int
+	StatsAvailable               bool
+	StatsAvailableContainerCount int
+	CPUPercent                   float64
+	MemoryUsageBytes             int64
+	MemoryLimitBytes             int64
+}
+
+// ContainerProjectResourceSummary describes one bounded project-level runtime resource aggregate.
+type ContainerProjectResourceSummary struct {
+	CanonicalProjectName         string
+	CollectedAt                  string
+	StatsAvailable               bool
+	StatsAvailableContainerCount int
+	HealthyContainerCount        int
+	UnhealthyContainerCount      int
+	StartingContainerCount       int
+	RestartCount                 int
+	CPUPercent                   float64
+	MemoryUsageBytes             int64
+	MemoryLimitBytes             int64
+	RxBytes                      int64
+	TxBytes                      int64
+	Services                     []ContainerProjectServiceResourceSummary
+}
+
 // ContainerProjectRuntimeContainerCounts describes one bounded runtime container aggregate.
 type ContainerProjectRuntimeContainerCounts struct {
 	Running int
@@ -60,4 +97,16 @@ type ContainerProjectRuntimeReader interface {
 		hostScope string,
 		candidate ContainerProjectRuntimeCandidate,
 	) ([]ContainerProjectMember, error)
+}
+
+// ContainerProjectResourceReader exposes the narrow shared boundary for Project-owned overview resource aggregation.
+//
+// Container remains the authority for stats collection, normalization, cache, and realtime topics. Project may only
+// consume this bounded aggregate rather than direct container stats snapshots or runtime internals.
+type ContainerProjectResourceReader interface {
+	ReadProjectResourceSummary(
+		ctx context.Context,
+		hostScope string,
+		canonicalProjectName string,
+	) (ContainerProjectResourceSummary, error)
 }

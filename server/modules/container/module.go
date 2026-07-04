@@ -89,7 +89,12 @@ func registerModuleServices(ctx *module.Context, service *service) error {
 	if service == nil {
 		return errors.New("container runtime reader is unavailable")
 	}
-	return ctx.Services.RegisterSingleton((*moduleapi.ContainerProjectRuntimeReader)(nil), func(_ containerdi.Resolver) (any, error) {
+	if err := ctx.Services.RegisterSingleton((*moduleapi.ContainerProjectRuntimeReader)(nil), func(_ containerdi.Resolver) (any, error) {
+		return containerProjectRuntimeReader{service: service}, nil
+	}); err != nil {
+		return err
+	}
+	return ctx.Services.RegisterSingleton((*moduleapi.ContainerProjectResourceReader)(nil), func(_ containerdi.Resolver) (any, error) {
 		return containerProjectRuntimeReader{service: service}, nil
 	})
 }

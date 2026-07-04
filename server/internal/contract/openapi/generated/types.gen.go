@@ -2751,6 +2751,48 @@ func (e ProjectManagedRootStatus) Valid() bool {
 	}
 }
 
+// Defines values for ProjectOverviewServiceItemHealth.
+const (
+	ProjectOverviewServiceItemHealthAttention ProjectOverviewServiceItemHealth = "attention"
+	ProjectOverviewServiceItemHealthHealthy   ProjectOverviewServiceItemHealth = "healthy"
+	ProjectOverviewServiceItemHealthUnknown   ProjectOverviewServiceItemHealth = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the ProjectOverviewServiceItemHealth enum.
+func (e ProjectOverviewServiceItemHealth) Valid() bool {
+	switch e {
+	case ProjectOverviewServiceItemHealthAttention:
+		return true
+	case ProjectOverviewServiceItemHealthHealthy:
+		return true
+	case ProjectOverviewServiceItemHealthUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProjectOverviewServiceItemStatus.
+const (
+	ProjectOverviewServiceItemStatusDegraded ProjectOverviewServiceItemStatus = "degraded"
+	ProjectOverviewServiceItemStatusRunning  ProjectOverviewServiceItemStatus = "running"
+	ProjectOverviewServiceItemStatusStopped  ProjectOverviewServiceItemStatus = "stopped"
+)
+
+// Valid indicates whether the value is a known member of the ProjectOverviewServiceItemStatus enum.
+func (e ProjectOverviewServiceItemStatus) Valid() bool {
+	switch e {
+	case ProjectOverviewServiceItemStatusDegraded:
+		return true
+	case ProjectOverviewServiceItemStatusRunning:
+		return true
+	case ProjectOverviewServiceItemStatusStopped:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ProjectOwnershipMode.
 const (
 	ProjectOwnershipModeExternal             ProjectOwnershipMode = "external"
@@ -6782,6 +6824,26 @@ type EnvelopedProjectManagedRootResponse struct {
 	TraceId string `json:"traceId"`
 }
 
+// EnvelopedProjectOverviewResponse defines model for enveloped-project-overview-response.
+type EnvelopedProjectOverviewResponse struct {
+	// Code Existing canonical response code.
+	Code string                  `json:"code"`
+	Data ProjectOverviewResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
 // EnvelopedProjectServicesResponse defines model for enveloped-project-services-response.
 type EnvelopedProjectServicesResponse struct {
 	// Code Existing canonical response code.
@@ -8276,6 +8338,68 @@ type ProjectManagedRootResponse struct {
 
 // ProjectManagedRootStatus defines model for project-managed-root-status.
 type ProjectManagedRootStatus string
+
+// ProjectOverviewHealthSummary defines model for project-overview-health-summary.
+type ProjectOverviewHealthSummary struct {
+	HealthyContainerCount   int `json:"healthy_container_count"`
+	HealthyServiceCount     int `json:"healthy_service_count"`
+	NetworksCount           int `json:"networks_count"`
+	RestartCount            int `json:"restart_count"`
+	StartingContainerCount  int `json:"starting_container_count"`
+	UnhealthyContainerCount int `json:"unhealthy_container_count"`
+	VolumesCount            int `json:"volumes_count"`
+}
+
+// ProjectOverviewResourceSummary defines model for project-overview-resource-summary.
+type ProjectOverviewResourceSummary struct {
+	CpuPercent       float64 `json:"cpu_percent"`
+	MemoryLimitBytes int64   `json:"memory_limit_bytes"`
+	MemoryUsageBytes int64   `json:"memory_usage_bytes"`
+	RxBytes          int64   `json:"rx_bytes"`
+
+	// StatsAvailable True when at least one runtime member contributed backend resource stats to this overview snapshot.
+	StatsAvailable               bool  `json:"stats_available"`
+	StatsAvailableContainerCount int   `json:"stats_available_container_count"`
+	TxBytes                      int64 `json:"tx_bytes"`
+}
+
+// ProjectOverviewResponse defines model for project-overview-response.
+type ProjectOverviewResponse struct {
+	CanonicalProjectName string                         `json:"canonical_project_name"`
+	CollectedAt          *time.Time                     `json:"collected_at,omitempty"`
+	Health               ProjectOverviewHealthSummary   `json:"health"`
+	ProjectId            int64                          `json:"project_id"`
+	Resources            ProjectOverviewResourceSummary `json:"resources"`
+	Services             []ProjectOverviewServiceItem   `json:"services"`
+}
+
+// ProjectOverviewServiceItem defines model for project-overview-service-item.
+type ProjectOverviewServiceItem struct {
+	ContainerCount               int                              `json:"container_count"`
+	CpuPercent                   float64                          `json:"cpu_percent"`
+	Health                       ProjectOverviewServiceItemHealth `json:"health"`
+	HealthyContainerCount        int                              `json:"healthy_container_count"`
+	Image                        *string                          `json:"image,omitempty"`
+	IssueCount                   int                              `json:"issue_count"`
+	MemoryLimitBytes             int64                            `json:"memory_limit_bytes"`
+	MemoryUsageBytes             int64                            `json:"memory_usage_bytes"`
+	RestartCount                 int                              `json:"restart_count"`
+	RunningCount                 int                              `json:"running_count"`
+	ServiceName                  string                           `json:"service_name"`
+	StartingContainerCount       int                              `json:"starting_container_count"`
+	StatsAvailable               bool                             `json:"stats_available"`
+	StatsAvailableContainerCount int                              `json:"stats_available_container_count"`
+	Status                       ProjectOverviewServiceItemStatus `json:"status"`
+	StoppedCount                 int                              `json:"stopped_count"`
+	TransitioningCount           int                              `json:"transitioning_count"`
+	UnhealthyContainerCount      int                              `json:"unhealthy_container_count"`
+}
+
+// ProjectOverviewServiceItemHealth defines model for ProjectOverviewServiceItem.Health.
+type ProjectOverviewServiceItemHealth string
+
+// ProjectOverviewServiceItemStatus defines model for ProjectOverviewServiceItem.Status.
+type ProjectOverviewServiceItemStatus string
 
 // ProjectOwnershipMode defines model for project-ownership-mode.
 type ProjectOwnershipMode string
@@ -10335,6 +10459,16 @@ type PostProjectDestroyParams struct {
 
 // PutProjectLifecycleConfigurationParams defines parameters for PutProjectLifecycleConfiguration.
 type PutProjectLifecycleConfigurationParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetProjectOverviewParams defines parameters for GetProjectOverview.
+type GetProjectOverviewParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 

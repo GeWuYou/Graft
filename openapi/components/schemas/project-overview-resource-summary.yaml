@@ -1,0 +1,36 @@
+type: object
+required:
+  - stats_available
+  - stats_available_container_count
+  - cpu_percent
+  - memory_usage_bytes
+  - memory_limit_bytes
+  - rx_bytes
+  - tx_bytes
+properties:
+  stats_available:
+    type: boolean
+    description: True when at least one runtime member contributed backend resource stats to this overview snapshot.
+  stats_available_container_count:
+    type: integer
+    minimum: 0
+  cpu_percent:
+    type: number
+    format: double
+    minimum: 0
+  memory_usage_bytes:
+    type: integer
+    format: int64
+    minimum: 0
+  memory_limit_bytes:
+    type: integer
+    format: int64
+    minimum: 0
+  rx_bytes:
+    type: integer
+    format: int64
+    minimum: 0
+  tx_bytes:
+    type: integer
+    format: int64
+    minimum: 0
