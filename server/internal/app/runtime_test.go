@@ -514,7 +514,7 @@ func TestNewRuntimeCoreWiresAccessLogRepositoryIntoServer(t *testing.T) {
 	runtimeCfg := runtimeTestConfig()
 	runtimeCfg.I18n.FallbackLocale = "zh-CN"
 
-	runtime, err := newRuntimeCoreWithDeps(runtimeCfg, deps)
+	runtime, err := newRuntimeCoreWithDeps(context.Background(), runtimeCfg, deps)
 	if err != nil {
 		t.Fatalf("new runtime core: %v", err)
 	}
@@ -653,7 +653,7 @@ func runtimeTestDeps() runtimeCoreDeps {
 func TestNewRuntimeCorePreregistersOwnerLocaleResources(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	runtime, err := newRuntimeCoreWithDeps(runtimeTestConfig(), runtimeTestDeps())
+	runtime, err := newRuntimeCoreWithDeps(context.Background(), runtimeTestConfig(), runtimeTestDeps())
 	if err != nil {
 		t.Fatalf("new runtime core: %v", err)
 	}
@@ -1352,7 +1352,7 @@ func TestNewRuntimeCoreRegistersAccessLogRetentionJobWithoutRunningCleanup(t *te
 		},
 	}
 
-	runtime, err := newRuntimeCoreWithDeps(&config.Config{
+	runtime, err := newRuntimeCoreWithDeps(context.Background(), &config.Config{
 		App:   config.AppConfig{Name: "graft", Env: "test"},
 		HTTP:  config.HTTPConfig{Addr: ":8080"},
 		HTTPX: config.HTTPXConfig{AccessLogRetention: 3 * 24 * time.Hour},

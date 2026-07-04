@@ -1754,10 +1754,10 @@ func TestServiceCloseStopsCollectorAndClosesRuntimeOnce(t *testing.T) {
 	}
 	service.statsCollector = &statsCollector{}
 
-	if err := service.Close(); err != nil {
+	if err := service.Close(context.Background()); err != nil {
 		t.Fatalf("close service: %v", err)
 	}
-	if err := service.Close(); err != nil {
+	if err := service.Close(context.Background()); err != nil {
 		t.Fatalf("close service second time: %v", err)
 	}
 	if runtime.closeCalls.Load() != 1 {

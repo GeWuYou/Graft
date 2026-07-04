@@ -38,7 +38,6 @@ const (
 	trendSampleInterval            = 5 * time.Second
 	maxTrendRetentionWindow        = time.Hour
 	trendStorageTTL                = 2 * time.Hour
-	samplerShutdownTimeout         = 3 * time.Second
 	millisecondsPerSecond          = 1000
 	latencyPrecisionScale          = 100
 	trendStorageKeyPrefix          = "graft:monitor:server-status:trend"

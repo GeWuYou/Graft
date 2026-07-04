@@ -1,7 +1,6 @@
 package httpx
 
 import (
-	"context"
 	"net/http"
 	"testing"
 	"time"
@@ -18,7 +17,7 @@ func TestRunRejectsConcurrentStart(t *testing.T) {
 		t.Fatalf("bind running server: %v", err)
 	}
 
-	if err := server.Run(context.Background(), "127.0.0.1:0"); err == nil {
+	if _, err := server.Start("127.0.0.1:0"); err == nil {
 		t.Fatal("expected concurrent run to fail")
 	} else if err.Error() != "http server already running" {
 		t.Fatalf("expected already running error, got %v", err)

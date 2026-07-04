@@ -124,8 +124,6 @@ func (p *Module) stopTrendSampler(ctx *module.Context) error {
 		return nil
 	case <-waitCtx.Done():
 		return waitCtx.Err()
-	case <-time.After(samplerShutdownTimeout):
-		return errors.New("monitor trend sampler shutdown timed out")
 	}
 }
 

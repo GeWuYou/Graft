@@ -15,10 +15,7 @@ import (
 	"graft/server/internal/config"
 )
 
-const (
-	defaultServerReadHeaderTimeout = 5 * time.Second
-	defaultServerShutdownTimeout   = 5 * time.Second
-)
+const defaultServerReadHeaderTimeout = 5 * time.Second
 
 // Server 封装运行时使用的 Gin 引擎与 HTTP 服务实例。
 //
@@ -95,52 +92,33 @@ func (s *Server) AccessLogRepository() AccessLogRepository {
 	return s.repo
 }
 
-// Run 启动 HTTP 服务，并把服务生命周期绑定到给定上下文。
+// Start 启动 HTTP 服务，并返回监听 goroutine 的错误通道。
 //
-// 当监听提前失败时直接返回错误；当上下文取消时，Run 会触发一次优雅关闭，
-// 并等待监听 goroutine 退出后再返回。
-func (s *Server) Run(ctx context.Context, addr string) error {
+// 返回通道会在监听 goroutine 退出时关闭；若监听因非正常错误退出，会先写入
+// 一条错误。优雅关闭由上层 runtime 统一编排。
+func (s *Server) Start(addr string) (<-chan error, error) {
 	srv := &http.Server{
 		Addr:              addr,
 		Handler:           s.engine,
 		ReadHeaderTimeout: defaultServerReadHeaderTimeout,
 	}
 	if err := s.bindRunningServer(srv); err != nil {
-		return err
+		return nil, err
 	}
 
 	errCh := make(chan error, 1)
 	go func() {
+		defer s.clearRunningServer(srv)
 		// ListenAndServe 正常关闭时会返回 http.ErrServerClosed，这里把它视为
 		// 生命周期正常收敛，而不是需要继续向上传播的失败。
 		err := srv.ListenAndServe()
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			errCh <- err
+			errCh <- fmt.Errorf("listen and serve: %w", err)
 		}
 		close(errCh)
 	}()
 
-	select {
-	case err, ok := <-errCh:
-		s.clearRunningServer(srv)
-		if !ok {
-			return nil
-		}
-		return fmt.Errorf("listen and serve: %w", err)
-	case <-ctx.Done():
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), defaultServerShutdownTimeout)
-		defer cancel()
-
-		shutdownErr := s.Shutdown(shutdownCtx)
-		listenErr, ok := <-errCh
-		if ok && listenErr != nil {
-			if shutdownErr == nil {
-				return fmt.Errorf("listen and serve: %w", listenErr)
-			}
-			return errors.Join(shutdownErr, fmt.Errorf("listen and serve: %w", listenErr))
-		}
-		return shutdownErr
-	}
+	return errCh, nil
 }
 
 // Shutdown 在服务运行时执行优雅关闭。

@@ -223,46 +223,69 @@ func resolveRealtimeTopicIssuerRegistry(ctx *module.Context) (realtime.TopicIssu
 	return module.ResolveService[realtime.TopicIssuerRegistry](ctx.Services, (*realtime.TopicIssuerRegistry)(nil))
 }
 
-func (s *service) Close() error {
+func (s *service) Close(ctx context.Context) error {
 	if s == nil {
 		return nil
 	}
+	if ctx == nil {
+		return errors.New("container service close context is required")
+	}
 	var closeErr error
+	if err := s.closeLogTopicStreamer(ctx); err != nil {
+		closeErr = errors.Join(closeErr, err)
+	}
+	if err := s.closeStatsCollector(ctx); err != nil {
+		closeErr = errors.Join(closeErr, err)
+	}
+	if err := s.closeRuntimeEventManager(ctx); err != nil {
+		closeErr = errors.Join(closeErr, err)
+	}
+	if err := s.closeRuntime(); err != nil {
+		closeErr = errors.Join(closeErr, err)
+	}
+	return closeErr
+}
+
+func (s *service) closeLogTopicStreamer(ctx context.Context) error {
 	s.logTopicStreamerMu.Lock()
 	logTopicStreamer := s.logTopicStreamer
 	s.logTopicStreamer = nil
 	s.logTopicStreamerMu.Unlock()
 	if logTopicStreamer != nil {
-		if err := logTopicStreamer.Close(context.Background()); err != nil {
-			closeErr = errors.Join(closeErr, err)
-		}
+		return logTopicStreamer.Close(ctx)
 	}
+	return nil
+}
+
+func (s *service) closeStatsCollector(ctx context.Context) error {
 	if s.statsCollector != nil {
-		if err := s.statsCollector.Stop(context.Background()); err != nil {
-			closeErr = errors.Join(closeErr, err)
-		}
+		err := s.statsCollector.Stop(ctx)
 		s.statsCollector = nil
+		return err
 	}
+	return nil
+}
+
+func (s *service) closeRuntimeEventManager(ctx context.Context) error {
 	s.runtimeEventManagerMu.Lock()
 	runtimeEventManager := s.runtimeEventManager
 	s.runtimeEventManager = nil
 	s.runtimeEventManagerMu.Unlock()
 	if runtimeEventManager != nil {
-		if err := runtimeEventManager.Stop(context.Background()); err != nil {
-			closeErr = errors.Join(closeErr, err)
-		}
+		return runtimeEventManager.Stop(ctx)
 	}
+	return nil
+}
+
+func (s *service) closeRuntime() error {
 	s.runtimeMu.Lock()
 	defer s.runtimeMu.Unlock()
 	runtime := s.runtime
 	if runtime == nil {
-		return closeErr
+		return nil
 	}
 	s.runtime = nil
-	if err := runtime.Close(); err != nil {
-		closeErr = errors.Join(closeErr, err)
-	}
-	return closeErr
+	return runtime.Close()
 }
 
 func (s *service) List(ctx context.Context, query ListQuery) (ListResult, error) {

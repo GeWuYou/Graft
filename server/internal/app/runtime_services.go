@@ -280,14 +280,11 @@ func (r *Runtime) registerSingleton(key any, provider func() (any, error)) error
 // 它会为模块停机创建一个带超时的上下文，并继续关闭后续模块，即使前面的模块关闭失败。
 // 返回聚合后的关闭错误；如果全部关闭成功，则返回 nil。
 func shutdownModules(ctx *module.Context, ordered []module.RuntimeModule) error {
-	shutdownCtx, cancel := withModuleShutdownContext(ctx)
-	defer cancel()
-
 	var shutdownErr error
 	for i := len(ordered) - 1; i >= 0; i-- {
 		// 关闭顺序必须与启动顺序相反，避免后启动的依赖还未释放时，上游
 		// 模块先被销毁，导致清理逻辑访问失效资源。
-		if err := ordered[i].Shutdown(shutdownCtx); err != nil {
+		if err := ordered[i].Shutdown(ctx); err != nil {
 			shutdownErr = errors.Join(shutdownErr, fmt.Errorf("shutdown module %s: %w", ordered[i].Name(), err))
 		}
 	}
@@ -326,11 +323,6 @@ func withModuleShutdownContext(ctx *module.Context) (*module.Context, context.Ca
 // 资源的错误掩盖后续必需的清理动作。
 func (r *Runtime) closeCoreResources() error {
 	var closeErr error
-	if err := logger.Close(r.logger); err != nil {
-		closeErr = errors.Join(closeErr, err)
-	}
-	r.logger = nil
-
 	if r.redis != nil {
 		if err := r.redis.Close(); err != nil {
 			closeErr = errors.Join(closeErr, fmt.Errorf("close redis: %w", err))
@@ -345,7 +337,31 @@ func (r *Runtime) closeCoreResources() error {
 		r.database = nil
 	}
 
+	if err := logger.Close(r.logger); err != nil {
+		closeErr = errors.Join(closeErr, err)
+	}
+	r.logger = nil
+
 	return closeErr
+}
+
+func (r *Runtime) shutdownRuntime(ctx *module.Context, booted []module.RuntimeModule) error {
+	shutdownCtx, cancel := withModuleShutdownContext(ctx)
+	defer cancel()
+
+	var shutdownErr error
+	if r.server != nil {
+		if err := r.server.Shutdown(shutdownCtx.LifecycleContext); err != nil {
+			shutdownErr = errors.Join(shutdownErr, err)
+		}
+	}
+	if err := shutdownModules(shutdownCtx, booted); err != nil {
+		shutdownErr = errors.Join(shutdownErr, err)
+	}
+	if err := r.closeCoreResources(); err != nil {
+		shutdownErr = errors.Join(shutdownErr, err)
+	}
+	return shutdownErr
 }
 
 // cleanupAfterFailure 在启动或关闭中途失败后执行统一清理。
@@ -354,10 +370,7 @@ func (r *Runtime) closeCoreResources() error {
 // 返回值中，方便调用方看到完整失败路径。
 func (r *Runtime) cleanupAfterFailure(ctx *module.Context, booted []module.RuntimeModule, cause error) error {
 	err := cause
-	if shutdownErr := shutdownModules(ctx, booted); shutdownErr != nil {
-		err = errors.Join(err, shutdownErr)
-	}
-	if closeErr := r.closeCoreResources(); closeErr != nil {
+	if closeErr := r.shutdownRuntime(ctx, booted); closeErr != nil {
 		err = errors.Join(err, closeErr)
 	}
 	return err
