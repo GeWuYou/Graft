@@ -14,6 +14,8 @@ import (
 	generated "graft/server/internal/contract/openapi/generated"
 	"graft/server/internal/eventbus"
 	"graft/server/internal/moduleapi"
+	"graft/server/internal/realtime"
+	"graft/server/internal/realtimeauth"
 	projectcompose "graft/server/modules/project/compose"
 	projectcontract "graft/server/modules/project/contract"
 	projectstore "graft/server/modules/project/store"
@@ -390,14 +392,21 @@ type ManagedProjectCreateResult struct {
 
 // Service owns project registry, import, and readonly refresh/configuration use cases.
 type Service struct {
-	repository     projectstore.Repository
-	runtimeReader  moduleapi.ContainerProjectRuntimeReader
-	resourceReader moduleapi.ContainerProjectResourceReader
-	configResolver moduleapi.SystemConfigResolver
-	inspectCache   *importInspectionCache
-	auditBus       eventbus.Bus
-	logger         *zap.Logger
-	moduleName     string
+	repository          projectstore.Repository
+	runtimeReader       moduleapi.ContainerProjectRuntimeReader
+	resourceReader      moduleapi.ContainerProjectResourceReader
+	logReader           moduleapi.ContainerProjectLogReader
+	configResolver      moduleapi.SystemConfigResolver
+	authorizer          moduleapi.Authorizer
+	realtimeTickets     realtimeauth.Service
+	realtimeHub         realtime.Hub
+	topicIssuers        realtime.TopicIssuerRegistry
+	detailTopicStreamer *projectDetailTopicStreamer
+	logTopicStreamer    *projectLogTopicStreamer
+	inspectCache        *importInspectionCache
+	auditBus            eventbus.Bus
+	logger              *zap.Logger
+	moduleName          string
 }
 
 // NewService 创建项目服务边界并应用可选配置。
@@ -440,10 +449,37 @@ func WithResourceReader(reader moduleapi.ContainerProjectResourceReader) Service
 	})
 }
 
+// WithLogReader sets the project log reader.
+func WithLogReader(reader moduleapi.ContainerProjectLogReader) ServiceOption {
+	return serviceOptionFunc(func(s *Service) {
+		s.logReader = reader
+	})
+}
+
 // WithSystemConfigResolver 注入用于 managed-create 权限校验的系统配置读取边界。
 func WithSystemConfigResolver(resolver moduleapi.SystemConfigResolver) ServiceOption {
 	return serviceOptionFunc(func(s *Service) {
 		s.configResolver = resolver
+	})
+}
+
+// WithAuthorizer injects the authorization boundary required by realtime topic issuance.
+func WithAuthorizer(authorizer moduleapi.Authorizer) ServiceOption {
+	return serviceOptionFunc(func(s *Service) {
+		s.authorizer = authorizer
+	})
+}
+
+// WithRealtime injects the unified realtime topic issuance dependencies.
+func WithRealtime(
+	tickets realtimeauth.Service,
+	hub realtime.Hub,
+	issuers realtime.TopicIssuerRegistry,
+) ServiceOption {
+	return serviceOptionFunc(func(s *Service) {
+		s.realtimeTickets = tickets
+		s.realtimeHub = hub
+		s.topicIssuers = issuers
 	})
 }
 
@@ -463,12 +499,42 @@ func (s *Service) SetResourceReader(reader moduleapi.ContainerProjectResourceRea
 	s.resourceReader = reader
 }
 
+// SetLogReader injects the log reader after module registration resolves cross-module services.
+func (s *Service) SetLogReader(reader moduleapi.ContainerProjectLogReader) {
+	if s == nil {
+		return
+	}
+	s.logReader = reader
+}
+
 // SetSystemConfigResolver injects the system-config resolver after module registration.
 func (s *Service) SetSystemConfigResolver(resolver moduleapi.SystemConfigResolver) {
 	if s == nil {
 		return
 	}
 	s.configResolver = resolver
+}
+
+// SetAuthorizer injects the authorizer after module registration.
+func (s *Service) SetAuthorizer(authorizer moduleapi.Authorizer) {
+	if s == nil {
+		return
+	}
+	s.authorizer = authorizer
+}
+
+// SetRealtime injects the unified realtime dependencies after module registration.
+func (s *Service) SetRealtime(
+	tickets realtimeauth.Service,
+	hub realtime.Hub,
+	issuers realtime.TopicIssuerRegistry,
+) {
+	if s == nil {
+		return
+	}
+	s.realtimeTickets = tickets
+	s.realtimeHub = hub
+	s.topicIssuers = issuers
 }
 
 // SetAuditPublisher injects the audit event publication dependencies after module registration.

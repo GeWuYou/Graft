@@ -252,6 +252,8 @@ paths:
     $ref: ./paths/ops-projects.detail.yaml
   /api/ops/projects/{id}/overview:
     $ref: ./paths/ops-projects.overview.yaml
+  /api/ops/projects/{id}/logs:
+    $ref: ./paths/ops-projects.logs.yaml
   /api/ops/projects/{id}/lifecycle-configuration:
     $ref: ./paths/ops-projects.lifecycle-configuration.yaml
   /api/ops/projects/{id}/services:
@@ -778,6 +780,14 @@ components:
       $ref: ./components/schemas/project-list-response.yaml
     ProjectDetailResponse:
       $ref: ./components/schemas/project-detail-response.yaml
+    ProjectLogEntryStream:
+      $ref: ./components/schemas/project-log-entry-stream.yaml
+    ProjectLogEntrySource:
+      $ref: ./components/schemas/project-log-entry-source.yaml
+    ProjectLogEntry:
+      $ref: ./components/schemas/project-log-entry.yaml
+    ProjectLogResponse:
+      $ref: ./components/schemas/project-log-response.yaml
     ProjectOverviewHealthSummary:
       $ref: ./components/schemas/project-overview-health-summary.yaml
     ProjectOverviewResourceSummary:
@@ -838,6 +848,8 @@ components:
       $ref: ./components/schemas/enveloped-project-source-catalog-response.yaml
     EnvelopedProjectDetailResponse:
       $ref: ./components/schemas/enveloped-project-detail-response.yaml
+    EnvelopedProjectLogResponse:
+      $ref: ./components/schemas/enveloped-project-log-response.yaml
     EnvelopedProjectOverviewResponse:
       $ref: ./components/schemas/enveloped-project-overview-response.yaml
     EnvelopedProjectLifecycleConfigurationResponse:

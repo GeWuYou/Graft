@@ -19,6 +19,8 @@ const projectApiMocks = vi.hoisted(() => ({
   postProjectConfigurationDiff: vi.fn(),
   postProjectConfigurationValidate: vi.fn(),
   postProjectDeploy: vi.fn(),
+  postProjectDestroy: vi.fn(),
+  postProjectRedeploy: vi.fn(),
   postProjectStop: vi.fn(),
   postProjectRestart: vi.fn(),
   postProjectUnregister: vi.fn(),
@@ -47,20 +49,15 @@ const routerMocks = vi.hoisted(() => ({
 
 const detailMessages = {
   'project.detail.actions.copyPath': 'Copy Path',
+  'project.detail.actions.destroy': 'Destroy',
   'project.detail.actions.stop': 'Stop',
   'project.detail.actions.restart': 'Restart',
   'project.detail.actions.unregister': 'Unregister',
   'project.detail.actions.up': 'Up',
   'project.detail.description': 'Project detail description',
   'project.detail.eyebrow': 'Compose Project',
-  'project.detail.overview.activityAuthority': 'Activity Authority',
-  'project.detail.overview.activityEmpty': 'No Recent Activity',
-  'project.detail.overview.activityEvent': 'Event',
-  'project.detail.overview.activityLog': 'Log',
-  'project.detail.overview.activityTitle': 'Recent Activity',
   'project.detail.overview.allHealthy': 'No unhealthy containers',
-  'project.detail.overview.configurationHash': 'Config Hash',
-  'project.detail.overview.configurationTitle': 'Configuration Summary',
+  'project.detail.overview.containerSnapshotTitle': 'Container Snapshot',
   'project.detail.overview.cpuUsage': 'CPU',
   'project.detail.overview.diagnosticConfigDrift': 'Config drift',
   'project.detail.overview.diagnosticConfigSynced': 'Config synced',
@@ -71,18 +68,19 @@ const detailMessages = {
   'project.detail.overview.diagnosticRestartWarning': 'Restart warning',
   'project.detail.overview.diagnosticUnhealthy': 'Unhealthy',
   'project.detail.overview.diagnosticsTitle': 'Diagnostics',
-  'project.detail.overview.healthTitle': 'Project Health',
-  'project.detail.overview.healthyServices': 'Healthy Services',
-  'project.detail.overview.heroDescription': 'Runtime overview',
+  'project.detail.overview.lastCollectedAt': 'Last Collected',
   'project.detail.overview.lastUpdated': 'Last Updated',
   'project.detail.overview.memoryUsage': 'Memory',
   'project.detail.overview.metricsCoverage': 'Metrics Coverage',
-  'project.detail.overview.networkRx': 'Network Rx',
-  'project.detail.overview.networkSnapshot': 'Network Snapshot',
-  'project.detail.overview.networkTx': 'Network Tx',
-  'project.detail.overview.resourceSummary': 'Resource Summary',
+  'project.detail.overview.networkRealtime': 'Realtime',
+  'project.detail.overview.networkRx': 'Downstream',
+  'project.detail.overview.networkTitle': 'Network I/O',
+  'project.detail.overview.networkTotalRx': 'Total Rx',
+  'project.detail.overview.networkTotalTx': 'Total Tx',
+  'project.detail.overview.networkTx': 'Upstream',
+  'project.detail.overview.notCollected': 'Not Collected',
+  'project.detail.overview.realtimeLabel': 'Current Value',
   'project.detail.overview.resourceTitle': 'Resource Usage',
-  'project.detail.overview.resourcesCompact': 'Resources',
   'project.detail.overview.restartClear': 'No restarts',
   'project.detail.overview.restartCount': 'Restart Count',
   'project.detail.overview.restartWarning': 'Restart Warning',
@@ -92,7 +90,6 @@ const detailMessages = {
   'project.detail.overview.serviceHealthHealthy': 'Healthy',
   'project.detail.overview.serviceHealthUnknown': 'Unknown',
   'project.detail.overview.serviceHealthAttention': 'Attention',
-  'project.detail.overview.servicesTitle': 'Service Snapshot',
   'project.detail.overview.serviceStatusDegraded': 'Degraded',
   'project.detail.overview.serviceStatusRunning': 'Running',
   'project.detail.overview.serviceStatusStopped': 'Stopped',
@@ -100,8 +97,55 @@ const detailMessages = {
   'project.detail.overview.topologyCaption': 'Topology',
   'project.detail.overview.topologyTitle': 'Running Members',
   'project.detail.overview.unhealthyHint': 'Unhealthy Hint',
-  'project.detail.refresh': 'Refresh Snapshot',
-  'project.detail.runtime.activityAuthority': 'Activity Authority',
+  'project.detail.logs.allLevels': 'All Levels',
+  'project.detail.logs.authorityBackendPlanned': 'Backend planned',
+  'project.detail.logs.authorityFrontendFanout': 'Frontend fan-out',
+  'project.detail.logs.autoScroll': 'Auto Scroll',
+  'project.detail.logs.autoScrollTooltip': 'Follow latest log',
+  'project.detail.logs.basicInfo': 'Basic Info',
+  'project.detail.logs.clear': 'Clear',
+  'project.detail.logs.collapseDetail': 'Collapse',
+  'project.detail.logs.copy': 'Copy',
+  'project.detail.logs.copyError': 'Copy failed',
+  'project.detail.logs.copyJson': 'Copy JSON',
+  'project.detail.logs.copyLine': 'Copy Line',
+  'project.detail.logs.copyMessage': 'Copy Message',
+  'project.detail.logs.copySuccess': 'Copied',
+  'project.detail.logs.detailTitle': 'Log Detail',
+  'project.detail.logs.download': 'Download',
+  'project.detail.logs.empty': 'No Logs',
+  'project.detail.logs.emptyDescription': 'No logs yet',
+  'project.detail.logs.exitFullscreen': 'Exit Fullscreen',
+  'project.detail.logs.fullscreen': 'Fullscreen',
+  'project.detail.logs.importantFields': 'Important Fields',
+  'project.detail.logs.jumpBottom': 'Jump Bottom',
+  'project.detail.logs.level': 'Level',
+  'project.detail.logs.levelFilter': 'Level',
+  'project.detail.logs.loadFailed': 'Load failed',
+  'project.detail.logs.logCount': 'Log Count',
+  'project.detail.logs.matchCount': 'Matches',
+  'project.detail.logs.memberCount': 'Sources',
+  'project.detail.logs.message': 'Message',
+  'project.detail.logs.metadata': 'Metadata',
+  'project.detail.logs.operation': 'Operation',
+  'project.detail.logs.pause': 'Pause',
+  'project.detail.logs.raw': 'Raw',
+  'project.detail.logs.refreshAction': 'Refresh Logs',
+  'project.detail.logs.resize': 'Resize',
+  'project.detail.logs.resume': 'Resume',
+  'project.detail.logs.searchPlaceholder': 'Search logs',
+  'project.detail.logs.sinceLabel': 'Since',
+  'project.detail.logs.source': 'Source',
+  'project.detail.logs.stderr': 'STDERR',
+  'project.detail.logs.stdout': 'STDOUT',
+  'project.detail.logs.stream': 'Stream',
+  'project.detail.logs.summary': 'Summary',
+  'project.detail.logs.tailLabel': 'Tail',
+  'project.detail.logs.time': 'Time',
+  'project.detail.logs.title': 'Project Logs',
+  'project.detail.logs.truncated': 'Truncated',
+  'project.detail.logs.viewDetail': 'View Detail',
+  'project.detail.logs.wrap': 'Wrap',
   'project.detail.runtime.authorityTitle': 'Runtime Boundary',
   'project.detail.runtime.canonicalName': 'Canonical Project Name',
   'project.detail.runtime.description': 'Runtime description',
@@ -133,9 +177,9 @@ const detailMessages = {
   'project.detail.summary.status': 'Status',
   'project.detail.summary.summaryTitle': 'Summary',
   'project.detail.summary.workingDirectory': 'Working Directory',
-  'project.detail.tabs.activity': 'Activity',
   'project.detail.tabs.configuration': 'Configuration',
   'project.detail.tabs.containers': 'Containers',
+  'project.detail.tabs.logs': 'Logs',
   'project.detail.tabs.networks': 'Networks',
   'project.detail.tabs.overview': 'Overview',
   'project.detail.tabs.runtime': 'Runtime',
@@ -215,6 +259,7 @@ function mountRuntimePage() {
         't-descriptions-item': slotStub('TDescriptionsItem'),
         't-empty': slotStub('TEmpty'),
         't-input': slotStub('TInput'),
+        't-progress': slotStub('TProgress'),
         't-loading': slotStub('TLoading'),
         't-space': slotStub('TSpace'),
         't-tab-panel': slotStub('TTabPanel'),
@@ -241,6 +286,8 @@ vi.mock('../../api/project', () => ({
   postProjectConfigurationDiff: projectApiMocks.postProjectConfigurationDiff,
   postProjectConfigurationValidate: projectApiMocks.postProjectConfigurationValidate,
   postProjectDeploy: projectApiMocks.postProjectDeploy,
+  postProjectDestroy: projectApiMocks.postProjectDestroy,
+  postProjectRedeploy: projectApiMocks.postProjectRedeploy,
   postProjectStop: projectApiMocks.postProjectStop,
   postProjectRestart: projectApiMocks.postProjectRestart,
   postProjectUnregister: projectApiMocks.postProjectUnregister,
@@ -278,14 +325,29 @@ vi.mock('@/shared/localized-api-error', () => ({
 }));
 
 vi.mock('@/shared/observability', () => ({
+  LogViewer: defineComponent({
+    name: 'LogViewerStub',
+    setup(_props, { slots }) {
+      return () => h('div', { 'data-stub': 'LogViewer' }, [slots.default?.()]);
+    },
+  }),
   copyText: vi.fn(),
   formatBytes: (value?: number | null) => (typeof value === 'number' ? `${value} B` : '-'),
+  normalizeStructuredLogEntry: (value: { line?: string; occurred_at?: string; stream?: string }) =>
+    value?.line
+      ? {
+          line: value.line,
+          occurredAt: value.occurred_at ?? '',
+          stream: value.stream === 'stderr' ? 'stderr' : 'stdout',
+        }
+      : null,
   formatPercent: (value?: number | null) => (typeof value === 'number' ? `${value.toFixed(1)}%` : '-'),
   toProgressPercent: (value?: number | null) => (typeof value === 'number' ? Math.max(0, Math.min(100, value)) : 0),
 }));
 
 vi.mock('@/utils/logger', () => ({
   createLogger: () => ({
+    warn: vi.fn(),
     error: vi.fn(),
   }),
 }));
@@ -296,6 +358,7 @@ vi.mock('../../shared/display', () => ({
   projectDriftStatusTheme: () => 'success',
   projectLifecycleActionVisibility: (status?: string | null) => ({
     up: status === 'stopped' || status === 'unknown' || status === 'transitioning' || !status,
+    redeploy: true,
     stop:
       status === 'running' || status === 'degraded' || status === 'unknown' || status === 'transitioning' || !status,
     restart: true,
@@ -416,7 +479,7 @@ describe('Project detail page', () => {
     });
   });
 
-  it('loads activity fan-out on initial detail refresh', async () => {
+  it('loads detail and overview data on initial refresh without preloading project logs', async () => {
     shallowMount(ProjectDetailPage);
     await flushPromises();
 
@@ -426,14 +489,8 @@ describe('Project detail page', () => {
     expect(projectApiMocks.getProjectOverview).toHaveBeenCalledWith(7);
     expect(projectApiMocks.getProjectServices).toHaveBeenCalledTimes(1);
     expect(projectApiMocks.getProjectServices).toHaveBeenCalledWith(7);
-    expect(containerApiMocks.getContainerEvents).toHaveBeenCalledWith('container-1');
-    expect(containerApiMocks.getContainerLogs).toHaveBeenCalledWith('container-1', {
-      since: '1h',
-      stderr: true,
-      stdout: true,
-      tail: 40,
-      timestamps: true,
-    });
+    expect(containerApiMocks.getContainerEvents).not.toHaveBeenCalled();
+    expect(containerApiMocks.getContainerLogs).not.toHaveBeenCalled();
   });
 
   it('keeps the detail record when loading services fails during refresh', async () => {
@@ -488,7 +545,7 @@ describe('Project detail page', () => {
     expect(wrapper.find('[data-testid="project-detail-action-up"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="project-detail-action-stop"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="project-detail-action-restart"]').exists()).toBe(true);
-    expect(wrapper.text()).toContain('Last Updated');
+    expect(wrapper.text()).toContain('Last Collected');
 
     wrapper.unmount();
 

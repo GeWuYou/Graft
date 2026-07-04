@@ -88,6 +88,7 @@ func registerRoutes(ctx *module.Context, moduleName string, service *Service) er
 	group.GET(projectcontract.ProjectDetailRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectViewPermission.String(), publisher), routes.handleDetail)
 	group.GET(projectcontract.ProjectOverviewRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectViewPermission.String(), publisher), routes.handleOverview)
 	group.GET(projectcontract.ProjectServicesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectViewPermission.String(), publisher), routes.handleServices)
+	group.GET(projectcontract.ProjectLogsRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectViewPermission.String(), publisher), routes.handleLogs)
 	group.GET(projectcontract.ProjectConfigurationRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectViewPermission.String(), publisher), routes.handleConfiguration)
 	group.GET(projectcontract.ProjectConfigurationPreviewRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectViewPermission.String(), publisher), routes.handleConfigurationPreview)
 	group.GET(projectcontract.ProjectConfigurationFileRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectViewPermission.String(), publisher), routes.handleConfigurationFile)
@@ -333,6 +334,30 @@ func (r routeRuntime) handleServices(ginCtx *gin.Context) {
 	}
 	projectGeneratedHandler{}.GetProjectServices(generatedID, bindGetProjectServicesParams(ginCtx))
 	result, err := r.service.Services(ginCtx.Request.Context(), projectID)
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, result)
+}
+
+func (r routeRuntime) handleLogs(ginCtx *gin.Context) {
+	projectID, generatedID, ok := bindProjectID(ginCtx, r.ctx)
+	if !ok {
+		return
+	}
+	params, ok := bindGetProjectLogsParams(ginCtx, r.ctx)
+	if !ok {
+		return
+	}
+	projectGeneratedHandler{}.GetProjectLogs(generatedID, params)
+	result, err := r.service.Logs(ginCtx.Request.Context(), projectID, LogQuery{
+		Tail:       intPtrValue(params.Tail),
+		Since:      stringValue(params.Since),
+		Timestamps: boolValue(params.Timestamps),
+		Stdout:     boolValue(params.Stdout),
+		Stderr:     boolValue(params.Stderr),
+	})
 	if err != nil {
 		r.writeRouteError(ginCtx, err)
 		return
@@ -722,6 +747,7 @@ func (projectGeneratedHandler) PostProjectCreate(generated.PostProjectCreatePara
 func (projectGeneratedHandler) GetProject(int64, generated.GetProjectParams)                 {}
 func (projectGeneratedHandler) GetProjectOverview(int64, generated.GetProjectOverviewParams) {}
 func (projectGeneratedHandler) GetProjectServices(int64, generated.GetProjectServicesParams) {}
+func (projectGeneratedHandler) GetProjectLogs(int64, generated.GetProjectLogsParams)         {}
 func (projectGeneratedHandler) GetProjectConfiguration(int64, generated.GetProjectConfigurationParams) {
 }
 func (projectGeneratedHandler) GetProjectConfigurationPreview(int64, generated.GetProjectConfigurationPreviewParams) {
@@ -1001,6 +1027,39 @@ func bindGetProjectServicesParams(ginCtx *gin.Context) generated.GetProjectServi
 	return generated.GetProjectServicesParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
+func bindGetProjectLogsParams(ginCtx *gin.Context, ctx *module.Context) (generated.GetProjectLogsParams, bool) {
+	locale, requestID := commonHeaders(ginCtx)
+	params := generated.GetProjectLogsParams{XGraftLocale: locale, XRequestId: requestID}
+	if value, ok := optionalIntQuery[generated.ContainerLogsTail](ginCtx.Query("tail"), 1, maxProjectLogsTail); ok {
+		params.Tail = value
+	} else {
+		abortInvalidQuery(ginCtx, ctx)
+		return generated.GetProjectLogsParams{}, false
+	}
+	if value := strings.TrimSpace(ginCtx.Query("since")); value != "" {
+		params.Since = &value
+	}
+	if value, ok := optionalBoolQuery(ginCtx.Query("timestamps")); ok {
+		params.Timestamps = value
+	} else {
+		abortInvalidQuery(ginCtx, ctx)
+		return generated.GetProjectLogsParams{}, false
+	}
+	if value, ok := optionalBoolQuery(ginCtx.Query("stdout")); ok {
+		params.Stdout = value
+	} else {
+		abortInvalidQuery(ginCtx, ctx)
+		return generated.GetProjectLogsParams{}, false
+	}
+	if value, ok := optionalBoolQuery(ginCtx.Query("stderr")); ok {
+		params.Stderr = value
+	} else {
+		abortInvalidQuery(ginCtx, ctx)
+		return generated.GetProjectLogsParams{}, false
+	}
+	return params, true
+}
+
 func bindGetProjectOverviewParams(ginCtx *gin.Context) generated.GetProjectOverviewParams {
 	locale, requestID := commonHeaders(ginCtx)
 	return generated.GetProjectOverviewParams{XGraftLocale: locale, XRequestId: requestID}
@@ -1169,6 +1228,18 @@ func optionalIntQuery[T ~int](raw string, min int, max int) (*T, bool) {
 	}
 	typed := T(value)
 	return &typed, true
+}
+
+func optionalBoolQuery(raw string) (*bool, bool) {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return nil, true
+	}
+	value, err := strconv.ParseBool(trimmed)
+	if err != nil {
+		return nil, false
+	}
+	return &value, true
 }
 
 // abortInvalidQuery 以“查询参数无效”返回本地化的 400 错误并中止请求。

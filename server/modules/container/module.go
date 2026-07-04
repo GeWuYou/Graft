@@ -94,7 +94,15 @@ func registerModuleServices(ctx *module.Context, service *service) error {
 	}); err != nil {
 		return err
 	}
-	return ctx.Services.RegisterSingleton((*moduleapi.ContainerProjectResourceReader)(nil), func(_ containerdi.Resolver) (any, error) {
+	if err := ctx.Services.RegisterSingleton((*moduleapi.ContainerProjectResourceReader)(nil), func(_ containerdi.Resolver) (any, error) {
 		return containerProjectRuntimeReader{service: service}, nil
-	})
+	}); err != nil {
+		return err
+	}
+	if err := ctx.Services.RegisterSingleton((*moduleapi.ContainerProjectLogReader)(nil), func(_ containerdi.Resolver) (any, error) {
+		return containerProjectRuntimeReader{service: service}, nil
+	}); err != nil {
+		return err
+	}
+	return nil
 }

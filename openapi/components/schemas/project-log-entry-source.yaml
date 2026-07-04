@@ -1,0 +1,12 @@
+type: object
+required:
+  - container_id
+  - container_name
+  - service_name
+properties:
+  container_id:
+    type: string
+  container_name:
+    type: string
+  service_name:
+    type: string

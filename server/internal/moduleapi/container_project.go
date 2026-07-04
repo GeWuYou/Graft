@@ -110,3 +110,54 @@ type ContainerProjectResourceReader interface {
 		canonicalProjectName string,
 	) (ContainerProjectResourceSummary, error)
 }
+
+// ContainerProjectLogQuery describes the bounded log query Project may request from Container runtime authority.
+type ContainerProjectLogQuery struct {
+	Tail       int
+	Since      string
+	Timestamps bool
+	Stdout     bool
+	Stderr     bool
+}
+
+// ContainerProjectLogEntry preserves one project-owned log entry with explicit runtime source attribution.
+type ContainerProjectLogEntry struct {
+	ContainerID   string
+	ContainerName string
+	ServiceName   string
+	Line          string
+	Stream        string
+	OccurredAt    string
+}
+
+// ContainerProjectLogSnapshot returns a bounded project log snapshot aggregated from project member containers.
+type ContainerProjectLogSnapshot struct {
+	CanonicalProjectName string
+	Tail                 int
+	Since                *string
+	Timestamps           bool
+	Stdout               bool
+	Stderr               bool
+	Truncated            bool
+	Entries              []ContainerProjectLogEntry
+}
+
+// ContainerProjectLogReader exposes the narrow shared boundary for Project-owned log aggregation and realtime fan-in.
+//
+// Container remains the authority for runtime log transport, normalization, and per-container log semantics. Project
+// may only consume this bounded multi-container projection.
+type ContainerProjectLogReader interface {
+	ReadProjectLogs(
+		ctx context.Context,
+		hostScope string,
+		canonicalProjectName string,
+		query ContainerProjectLogQuery,
+	) (ContainerProjectLogSnapshot, error)
+	StreamProjectLogs(
+		ctx context.Context,
+		hostScope string,
+		canonicalProjectName string,
+		query ContainerProjectLogQuery,
+		emit func(ContainerProjectLogEntry) error,
+	) error
+}

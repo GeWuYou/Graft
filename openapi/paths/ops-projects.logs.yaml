@@ -1,0 +1,53 @@
+get:
+  tags: [project]
+  summary: Read project-owned aggregated logs
+  operationId: getProjectLogs
+  description: >
+    Returns project-owned aggregated log entries sourced from the project's current container members. Container
+    remains the runtime authority for per-container log transport, while Project owns the multi-container aggregation,
+    source attribution, and project detail integration. The canonical realtime companion topic is `project.logs:<id>`.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - $ref: ../components/parameters/project-id-path.yaml
+    - $ref: ../components/parameters/container-logs-tail.yaml
+    - $ref: ../components/parameters/container-logs-since.yaml
+    - $ref: ../components/parameters/container-logs-timestamps.yaml
+    - $ref: ../components/parameters/container-logs-stdout.yaml
+    - $ref: ../components/parameters/container-logs-stderr.yaml
+  security:
+    - bearerAuth: []
+  responses:
+    "200":
+      description: Project aggregated logs.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-project-log-response.yaml
+    "400":
+      description: Invalid project id or log query.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    "401":
+      $ref: ../components/responses/unauthorized.yaml
+    "403":
+      $ref: ../components/responses/forbidden.yaml
+    "404":
+      description: Project record not found.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    "500":
+      $ref: ../components/responses/internal-server-error.yaml

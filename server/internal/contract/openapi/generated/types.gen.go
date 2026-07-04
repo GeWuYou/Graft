@@ -1235,16 +1235,16 @@ func (e ContainerHealthcheckStatus) Valid() bool {
 
 // Defines values for ContainerLogEntryStream.
 const (
-	Stderr ContainerLogEntryStream = "stderr"
-	Stdout ContainerLogEntryStream = "stdout"
+	ContainerLogEntryStreamStderr ContainerLogEntryStream = "stderr"
+	ContainerLogEntryStreamStdout ContainerLogEntryStream = "stdout"
 )
 
 // Valid indicates whether the value is a known member of the ContainerLogEntryStream enum.
 func (e ContainerLogEntryStream) Valid() bool {
 	switch e {
-	case Stderr:
+	case ContainerLogEntryStreamStderr:
 		return true
-	case Stdout:
+	case ContainerLogEntryStreamStdout:
 		return true
 	default:
 		return false
@@ -2724,6 +2724,24 @@ const (
 func (e ProjectLifecycleStrategyKind) Valid() bool {
 	switch e {
 	case ProjectLifecycleStrategyKindStandard:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProjectLogEntryStream.
+const (
+	ProjectLogEntryStreamStderr ProjectLogEntryStream = "stderr"
+	ProjectLogEntryStreamStdout ProjectLogEntryStream = "stdout"
+)
+
+// Valid indicates whether the value is a known member of the ProjectLogEntryStream enum.
+func (e ProjectLogEntryStream) Valid() bool {
+	switch e {
+	case ProjectLogEntryStreamStderr:
+		return true
+	case ProjectLogEntryStreamStdout:
 		return true
 	default:
 		return false
@@ -6804,6 +6822,13 @@ type EnvelopedProjectListResponse struct {
 	TraceId string `json:"traceId"`
 }
 
+// EnvelopedProjectLogResponse defines model for enveloped-project-log-response.
+type EnvelopedProjectLogResponse struct {
+	Code int                `json:"code"`
+	Data ProjectLogResponse `json:"data"`
+	Msg  string             `json:"msg"`
+}
+
 // EnvelopedProjectManagedRootResponse defines model for enveloped-project-managed-root-response.
 type EnvelopedProjectManagedRootResponse struct {
 	// Code Existing canonical response code.
@@ -8322,6 +8347,42 @@ type ProjectListResponse struct {
 	Limit  int               `json:"limit"`
 	Offset int               `json:"offset"`
 	Total  int               `json:"total"`
+}
+
+// ProjectLogEntry defines model for project-log-entry.
+type ProjectLogEntry struct {
+	ContainerId   string                `json:"container_id"`
+	ContainerName string                `json:"container_name"`
+	Line          string                `json:"line"`
+	OccurredAt    time.Time             `json:"occurred_at"`
+	ServiceName   string                `json:"service_name"`
+	Source        ProjectLogEntrySource `json:"source"`
+
+	// Stream Canonical runtime stream that produced the aggregated project log entry.
+	Stream ProjectLogEntryStream `json:"stream"`
+}
+
+// ProjectLogEntrySource defines model for project-log-entry-source.
+type ProjectLogEntrySource struct {
+	ContainerId   string `json:"container_id"`
+	ContainerName string `json:"container_name"`
+	ServiceName   string `json:"service_name"`
+}
+
+// ProjectLogEntryStream Canonical runtime stream that produced the aggregated project log entry.
+type ProjectLogEntryStream string
+
+// ProjectLogResponse defines model for project-log-response.
+type ProjectLogResponse struct {
+	CanonicalProjectName string            `json:"canonical_project_name"`
+	Entries              []ProjectLogEntry `json:"entries"`
+	ProjectId            int64             `json:"project_id"`
+	Since                *string           `json:"since,omitempty"`
+	Stderr               bool              `json:"stderr"`
+	Stdout               bool              `json:"stdout"`
+	Tail                 int               `json:"tail"`
+	Timestamps           bool              `json:"timestamps"`
+	Truncated            bool              `json:"truncated"`
 }
 
 // ProjectManagedRootResponse defines model for project-managed-root-response.
@@ -10459,6 +10520,31 @@ type PostProjectDestroyParams struct {
 
 // PutProjectLifecycleConfigurationParams defines parameters for PutProjectLifecycleConfiguration.
 type PutProjectLifecycleConfigurationParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetProjectLogsParams defines parameters for GetProjectLogs.
+type GetProjectLogsParams struct {
+	// Tail Number of log lines to return from the end of the stream.
+	Tail *ContainerLogsTail `form:"tail,omitempty" json:"tail,omitempty"`
+
+	// Since Optional log lower bound. Accepts an RFC3339 timestamp or a duration such as 10m, 1h, or 24h. Invalid values must return a localized validation error.
+	Since *ContainerLogsSince `form:"since,omitempty" json:"since,omitempty"`
+
+	// Timestamps Whether the runtime should request per-entry timestamps so each returned log entry can preserve canonical occurrence time.
+	Timestamps *ContainerLogsTimestamps `form:"timestamps,omitempty" json:"timestamps,omitempty"`
+
+	// Stdout Whether stdout stream lines should be included.
+	Stdout *ContainerLogsStdout `form:"stdout,omitempty" json:"stdout,omitempty"`
+
+	// Stderr Whether stderr stream lines should be included.
+	Stderr *ContainerLogsStderr `form:"stderr,omitempty" json:"stderr,omitempty"`
+
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 

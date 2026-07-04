@@ -9,6 +9,8 @@ const (
 	ProjectDetailRoute = "/:id"
 	// ProjectServicesRoute identifies the project services aggregation route fragment.
 	ProjectServicesRoute = "/:id/services"
+	// ProjectLogsRoute identifies the project-owned aggregated logs route fragment.
+	ProjectLogsRoute = "/:id/logs"
 	// ProjectOverviewRoute identifies the project runtime overview route fragment.
 	ProjectOverviewRoute = "/:id/overview"
 	// ProjectConfigurationRoute identifies the project configuration metadata route fragment.

@@ -27,6 +27,7 @@ export const PROJECT_API_PATH = {
   CREATE: '/api/ops/projects/create/managed',
   DETAIL: '/api/ops/projects/{id}',
   OVERVIEW: '/api/ops/projects/{id}/overview',
+  LOGS: '/api/ops/projects/{id}/logs',
   SERVICES: '/api/ops/projects/{id}/services',
   CONFIGURATION: '/api/ops/projects/{id}/configuration',
   CONFIGURATION_PREVIEW: '/api/ops/projects/{id}/configuration/preview',
@@ -66,6 +67,10 @@ export function buildProjectDetailApiPath(id: number) {
 
 export function buildProjectOverviewApiPath(id: number) {
   return PROJECT_API_PATH.OVERVIEW.replace('{id}', encodeProjectPathParam(id));
+}
+
+export function buildProjectLogsApiPath(id: number) {
+  return PROJECT_API_PATH.LOGS.replace('{id}', encodeProjectPathParam(id));
 }
 
 /**

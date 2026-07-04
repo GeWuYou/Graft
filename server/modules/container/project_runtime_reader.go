@@ -4,11 +4,13 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"os"
 	"path/filepath"
 	"slices"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"graft/server/internal/moduleapi"
@@ -127,6 +129,146 @@ func (r containerProjectRuntimeReader) ReadProjectResourceSummary(
 	return summary, nil
 }
 
+//nolint:gocognit,cyclop
+func (r containerProjectRuntimeReader) ReadProjectLogs(
+	ctx context.Context,
+	hostScope string,
+	canonicalProjectName string,
+	query moduleapi.ContainerProjectLogQuery,
+) (moduleapi.ContainerProjectLogSnapshot, error) {
+	snapshot := moduleapi.ContainerProjectLogSnapshot{
+		CanonicalProjectName: strings.TrimSpace(canonicalProjectName),
+		Entries:              []moduleapi.ContainerProjectLogEntry{},
+		Stdout:               query.Stdout,
+		Stderr:               query.Stderr,
+		Timestamps:           query.Timestamps,
+		Tail:                 query.Tail,
+	}
+	if strings.TrimSpace(query.Since) != "" {
+		since := strings.TrimSpace(query.Since)
+		snapshot.Since = &since
+	}
+	if r.service == nil {
+		return snapshot, errRuntimeDisabled
+	}
+	if strings.TrimSpace(hostScope) == "" || strings.TrimSpace(canonicalProjectName) == "" {
+		return snapshot, nil
+	}
+	runtime, err := r.service.runtimeForRequest()
+	if err != nil {
+		return snapshot, err
+	}
+	normalizedQuery := normalizeContainerProjectLogQuery(query)
+	snapshot.Stdout = normalizedQuery.Stdout
+	snapshot.Stderr = normalizedQuery.Stderr
+	snapshot.Timestamps = normalizedQuery.Timestamps
+	snapshot.Tail = normalizedQuery.Tail
+	if strings.TrimSpace(normalizedQuery.Since) != "" {
+		since := strings.TrimSpace(normalizedQuery.Since)
+		snapshot.Since = &since
+	}
+	members, err := r.ListProjectMembers(ctx, hostScope, canonicalProjectName)
+	if err != nil {
+		return snapshot, err
+	}
+	entries := make([]moduleapi.ContainerProjectLogEntry, 0, len(members.Members)*normalizedQuery.Tail)
+	truncated := false
+	for _, member := range members.Members {
+		logs, logErr := runtime.Logs(ctx, Ref{Value: member.ContainerID}, toContainerLogQuery(normalizedQuery))
+		if logErr != nil {
+			return snapshot, logErr
+		}
+		truncated = truncated || logs.Truncated
+		for _, entry := range logs.Entries {
+			entries = append(entries, moduleapi.ContainerProjectLogEntry{
+				ContainerID:   member.ContainerID,
+				ContainerName: member.ContainerName,
+				ServiceName:   member.ServiceName,
+				Line:          entry.Line,
+				Stream:        strings.TrimSpace(entry.Stream),
+				OccurredAt:    entry.OccurredAt.UTC().Format(time.RFC3339),
+			})
+		}
+	}
+	sort.SliceStable(entries, func(i, j int) bool {
+		left := parseContainerProjectLogTime(entries[i].OccurredAt)
+		right := parseContainerProjectLogTime(entries[j].OccurredAt)
+		if left.Equal(right) {
+			if entries[i].ServiceName == entries[j].ServiceName {
+				if entries[i].ContainerName == entries[j].ContainerName {
+					return entries[i].Line < entries[j].Line
+				}
+				return entries[i].ContainerName < entries[j].ContainerName
+			}
+			return entries[i].ServiceName < entries[j].ServiceName
+		}
+		return left.Before(right)
+	})
+	snapshot.Truncated = truncated
+	snapshot.Entries = entries
+	return snapshot, nil
+}
+
+func (r containerProjectRuntimeReader) StreamProjectLogs(
+	ctx context.Context,
+	hostScope string,
+	canonicalProjectName string,
+	query moduleapi.ContainerProjectLogQuery,
+	emit func(moduleapi.ContainerProjectLogEntry) error,
+) error {
+	if r.service == nil {
+		return errRuntimeDisabled
+	}
+	if emit == nil {
+		return nil
+	}
+	if strings.TrimSpace(hostScope) == "" || strings.TrimSpace(canonicalProjectName) == "" {
+		return nil
+	}
+	runtime, err := r.service.runtimeForRequest()
+	if err != nil {
+		return err
+	}
+	members, err := r.ListProjectMembers(ctx, hostScope, canonicalProjectName)
+	if err != nil {
+		return err
+	}
+	normalizedQuery := toContainerLogQuery(normalizeContainerProjectLogQuery(query))
+	var (
+		wg      sync.WaitGroup
+		errMu   sync.Mutex
+		errList []error
+		emitMu  sync.Mutex
+	)
+	for _, member := range members.Members {
+		member := member
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			streamErr := runtime.StreamLogs(ctx, Ref{Value: member.ContainerID}, normalizedQuery, func(chunk LogChunk) error {
+				emitMu.Lock()
+				defer emitMu.Unlock()
+				return emit(moduleapi.ContainerProjectLogEntry{
+					ContainerID:   member.ContainerID,
+					ContainerName: member.ContainerName,
+					ServiceName:   member.ServiceName,
+					Line:          chunk.Line,
+					Stream:        strings.TrimSpace(chunk.Stream),
+					OccurredAt:    chunk.Timestamp.UTC().Format(time.RFC3339),
+				})
+			})
+			if streamErr == nil || errors.Is(streamErr, context.Canceled) {
+				return
+			}
+			errMu.Lock()
+			errList = append(errList, streamErr)
+			errMu.Unlock()
+		}()
+	}
+	wg.Wait()
+	return errors.Join(errList...)
+}
+
 func (r containerProjectRuntimeReader) collectProjectResourceSummary(
 	ctx context.Context,
 	runtime Runtime,
@@ -172,6 +314,37 @@ func finalizeProjectResourceSummary(summary *moduleapi.ContainerProjectResourceS
 	if !latestCollectedAt.IsZero() {
 		summary.CollectedAt = latestCollectedAt.Format(time.RFC3339)
 	}
+}
+
+func normalizeContainerProjectLogQuery(query moduleapi.ContainerProjectLogQuery) moduleapi.ContainerProjectLogQuery {
+	normalized := query
+	if normalized.Tail <= 0 {
+		normalized.Tail = defaultContainerLogsDefaultTail
+	}
+	if !normalized.Stdout && !normalized.Stderr {
+		normalized.Stdout = true
+		normalized.Stderr = true
+	}
+	normalized.Since = strings.TrimSpace(normalized.Since)
+	return normalized
+}
+
+func toContainerLogQuery(query moduleapi.ContainerProjectLogQuery) LogQuery {
+	return LogQuery{
+		Tail:       query.Tail,
+		Since:      strings.TrimSpace(query.Since),
+		Timestamps: query.Timestamps,
+		Stdout:     query.Stdout,
+		Stderr:     query.Stderr,
+	}
+}
+
+func parseContainerProjectLogTime(value string) time.Time {
+	parsed, err := time.Parse(time.RFC3339, strings.TrimSpace(value))
+	if err != nil {
+		return time.Time{}
+	}
+	return parsed
 }
 
 func (r containerProjectRuntimeReader) ListImportCandidates(

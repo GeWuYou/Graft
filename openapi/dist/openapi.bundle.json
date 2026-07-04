@@ -11442,6 +11442,103 @@
         }
       }
     },
+    "/api/ops/projects/{id}/logs": {
+      "get": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Read project-owned aggregated logs",
+        "operationId": "getProjectLogs",
+        "description": "Returns project-owned aggregated log entries sourced from the project's current container members. Container remains the runtime authority for per-container log transport, while Project owns the multi-container aggregation, source attribution, and project detail integration. The canonical realtime companion topic is `project.logs:<id>`.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/project-id-path"
+          },
+          {
+            "$ref": "#/components/parameters/container-logs-tail"
+          },
+          {
+            "$ref": "#/components/parameters/container-logs-since"
+          },
+          {
+            "$ref": "#/components/parameters/container-logs-timestamps"
+          },
+          {
+            "$ref": "#/components/parameters/container-logs-stdout"
+          },
+          {
+            "$ref": "#/components/parameters/container-logs-stderr"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Project aggregated logs.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-project-log-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid project id or log query.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Project record not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
     "/api/ops/projects/{id}/lifecycle-configuration": {
       "put": {
         "tags": [
@@ -13685,6 +13782,18 @@
       "ProjectDetailResponse": {
         "$ref": "#/components/schemas/project-detail-response"
       },
+      "ProjectLogEntryStream": {
+        "$ref": "#/components/schemas/project-log-entry-stream"
+      },
+      "ProjectLogEntrySource": {
+        "$ref": "#/components/schemas/project-log-entry-source"
+      },
+      "ProjectLogEntry": {
+        "$ref": "#/components/schemas/project-log-entry"
+      },
+      "ProjectLogResponse": {
+        "$ref": "#/components/schemas/project-log-response"
+      },
       "ProjectOverviewHealthSummary": {
         "$ref": "#/components/schemas/project-overview-health-summary"
       },
@@ -13774,6 +13883,9 @@
       },
       "EnvelopedProjectDetailResponse": {
         "$ref": "#/components/schemas/enveloped-project-detail-response"
+      },
+      "EnvelopedProjectLogResponse": {
+        "$ref": "#/components/schemas/enveloped-project-log-response"
       },
       "EnvelopedProjectOverviewResponse": {
         "$ref": "#/components/schemas/enveloped-project-overview-response"
@@ -24148,6 +24260,137 @@
             }
           }
         ]
+      },
+      "project-log-entry-source": {
+        "type": "object",
+        "required": [
+          "container_id",
+          "container_name",
+          "service_name"
+        ],
+        "properties": {
+          "container_id": {
+            "type": "string"
+          },
+          "container_name": {
+            "type": "string"
+          },
+          "service_name": {
+            "type": "string"
+          }
+        }
+      },
+      "project-log-entry-stream": {
+        "type": "string",
+        "enum": [
+          "stdout",
+          "stderr"
+        ],
+        "description": "Canonical runtime stream that produced the aggregated project log entry."
+      },
+      "project-log-entry": {
+        "type": "object",
+        "required": [
+          "container_id",
+          "container_name",
+          "service_name",
+          "source",
+          "line",
+          "occurred_at",
+          "stream"
+        ],
+        "properties": {
+          "container_id": {
+            "type": "string"
+          },
+          "container_name": {
+            "type": "string"
+          },
+          "service_name": {
+            "type": "string"
+          },
+          "source": {
+            "$ref": "#/components/schemas/project-log-entry-source"
+          },
+          "line": {
+            "type": "string"
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "stream": {
+            "$ref": "#/components/schemas/project-log-entry-stream"
+          }
+        }
+      },
+      "project-log-response": {
+        "type": "object",
+        "required": [
+          "project_id",
+          "canonical_project_name",
+          "entries",
+          "tail",
+          "timestamps",
+          "stdout",
+          "stderr",
+          "truncated"
+        ],
+        "properties": {
+          "project_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "canonical_project_name": {
+            "type": "string"
+          },
+          "entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/project-log-entry"
+            }
+          },
+          "tail": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "since": {
+            "type": "string",
+            "nullable": true
+          },
+          "timestamps": {
+            "type": "boolean"
+          },
+          "stdout": {
+            "type": "boolean"
+          },
+          "stderr": {
+            "type": "boolean"
+          },
+          "truncated": {
+            "type": "boolean"
+          }
+        }
+      },
+      "enveloped-project-log-response": {
+        "type": "object",
+        "required": [
+          "code",
+          "msg",
+          "data"
+        ],
+        "properties": {
+          "code": {
+            "type": "integer"
+          },
+          "msg": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/project-log-response"
+          }
+        }
       },
       "project-lifecycle-configuration-request": {
         "type": "object",
