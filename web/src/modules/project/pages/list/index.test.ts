@@ -61,6 +61,7 @@ const listMessages = {
   'project.list.batch.cancelSelection': 'Clear Selection',
   'project.list.batch.destroy': 'Batch Destroy',
   'project.list.batch.destroyConfirm': 'Destroy {count} selected projects?',
+  'project.list.batch.destroySingleSelection': 'Batch destroy requires exactly one selected project.',
   'project.list.batch.noActionableSelection': 'No actionable selection',
   'project.list.batch.noSelection': 'Select projects first.',
   'project.list.batch.partial': 'Partial {count} {skippedCount} {blockedCount}',
@@ -729,6 +730,22 @@ describe('Project list page', () => {
       project_ids: [2],
       remove_named_volumes: false,
     });
+  });
+
+  it('disables batch destroy when multiple rows are selected', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    wrapper.getComponent(TTableStub).vm.$emit('select-change', [1, 2]);
+    await flushPromises();
+
+    expect(wrapper.get('[data-testid="project-batch-destroy"]').attributes('disabled')).toBeDefined();
+
+    await wrapper.get('[data-testid="project-batch-destroy"]').trigger('click');
+    await flushPromises();
+
+    expect(dialogConfirmMock).not.toHaveBeenCalled();
+    expect(projectApiMocks.postProjectBatchActions).not.toHaveBeenCalled();
   });
 
   it('closes the confirm dialog before the batch request settles', async () => {

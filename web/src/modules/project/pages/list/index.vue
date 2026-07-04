@@ -1024,12 +1024,22 @@ function batchActionableRows(action: ProjectBatchActionUi) {
   return selectedRows.value.filter((row) => isRowBatchEligible(row, action));
 }
 
+function requiresSingleSelection(action: ProjectBatchActionUi) {
+  return action === 'destroy';
+}
+
 function isBatchActionDisabled(action: ProjectBatchActionUi) {
+  if (requiresSingleSelection(action) && selectedRows.value.length !== 1) {
+    return true;
+  }
   return batchActionableRows(action).length === 0;
 }
 
 function batchActionHint(action: ProjectBatchActionUi) {
   if (!selectedRows.value.length) return t('project.list.batch.noSelection');
+  if (requiresSingleSelection(action) && selectedRows.value.length !== 1) {
+    return t('project.list.batch.destroySingleSelection');
+  }
   if (isBatchActionDisabled(action)) return t('project.list.batch.noActionableSelection');
   return t(`project.list.batch.${action === 'update_deploy' ? 'updateDeploy' : action}Hint`, {
     count: batchActionableRows(action).length,
@@ -1189,6 +1199,9 @@ async function executeBatchAction(
   overrides: Partial<ProjectDestroyRequest & ProjectUpdateDeployRequest> = {},
 ) {
   const actionableRows = batchActionableRows(action);
+  if (requiresSingleSelection(action) && actionableRows.length !== 1) {
+    return;
+  }
   if (!actionableRows.length) return;
   batchActionLoading.value = action;
   try {

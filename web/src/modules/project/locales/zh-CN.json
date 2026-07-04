@@ -182,6 +182,7 @@
         "redeploy": "批量重新部署",
         "updateDeploy": "批量更新部署",
         "destroy": "批量销毁",
+        "destroySingleSelection": "批量销毁需要且仅允许选择一个项目。",
         "startHint": "启动选中的 {count} 个项目。",
         "stopHint": "停止选中的 {count} 个项目。",
         "restartHint": "重启选中的 {count} 个项目。",

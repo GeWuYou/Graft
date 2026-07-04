@@ -182,6 +182,7 @@
         "redeploy": "Batch Redeploy",
         "updateDeploy": "Batch Update Deploy",
         "destroy": "Batch Destroy",
+        "destroySingleSelection": "Batch destroy requires exactly one selected project.",
         "startHint": "Start {count} selected projects.",
         "stopHint": "Stop {count} selected projects.",
         "restartHint": "Restart {count} selected projects.",
