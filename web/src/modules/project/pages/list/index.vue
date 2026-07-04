@@ -466,7 +466,10 @@ type ProjectResourceBadgeKey = 'running' | 'stopped' | 'transitioning' | 'issue'
 type ProjectBatchActionUi = ProjectBatchAction;
 type PendingProjectActionState = {
   action: PendingProjectAction;
+  awaitingVisibleChange: boolean;
+  deadlineAt: number | null;
   lastRefreshAt: string | null;
+  lastRefreshStatus: ProjectRefreshStatus | null;
   runtimeStatus: ProjectRuntimeStatus | null;
 };
 type ProjectResourceBadge = {
@@ -597,6 +600,7 @@ onMounted(() => {
 onUnmounted(() => {
   realtimeActive.value = false;
   stopPolling();
+  clearPendingRowActionTimeouts();
 });
 
 onActivated(() => {
@@ -748,6 +752,7 @@ function projectSecondaryName(row: ProjectListItem) {
 
 let refreshRequestSeq = 0;
 let pollTimer: number | undefined;
+const pendingRowTimeouts = new Map<number, number>();
 
 function startPolling() {
   stopPolling();
@@ -845,13 +850,16 @@ function reconcilePendingRowActions(nextRows: ProjectListItem[]) {
     const id = Number(rawId);
     const row = rowMap.get(id);
     if (!row) {
+      clearPendingRowActionTimeout(id);
       delete nextPending[id];
       continue;
     }
 
     const runtimeChanged = (row.runtime_status ?? null) !== pending.runtimeStatus;
     const refreshChanged = (row.last_refresh_at ?? null) !== pending.lastRefreshAt;
-    if (runtimeChanged || refreshChanged) {
+    const refreshStatusChanged = (row.last_refresh_status ?? null) !== pending.lastRefreshStatus;
+    if (pending.awaitingVisibleChange && (runtimeChanged || refreshChanged || refreshStatusChanged)) {
+      clearPendingRowActionTimeout(id);
       delete nextPending[id];
     }
   }
@@ -860,27 +868,156 @@ function reconcilePendingRowActions(nextRows: ProjectListItem[]) {
 }
 
 function markPendingRowAction(row: ProjectListItem, action: PendingProjectAction) {
+  clearPendingRowActionTimeout(row.id);
   pendingRowActions.value = {
     ...pendingRowActions.value,
     [row.id]: {
       action,
+      awaitingVisibleChange: false,
+      deadlineAt: null,
       lastRefreshAt: row.last_refresh_at ?? null,
+      lastRefreshStatus: row.last_refresh_status ?? null,
       runtimeStatus: row.runtime_status ?? null,
     },
   };
+}
+
+function markPendingRowActions(rowsToMark: ProjectListItem[], action: PendingProjectAction) {
+  if (rowsToMark.length === 0) {
+    return;
+  }
+
+  const nextPending = { ...pendingRowActions.value };
+  for (const row of rowsToMark) {
+    clearPendingRowActionTimeout(row.id);
+    nextPending[row.id] = {
+      action,
+      awaitingVisibleChange: false,
+      deadlineAt: null,
+      lastRefreshAt: row.last_refresh_at ?? null,
+      lastRefreshStatus: row.last_refresh_status ?? null,
+      runtimeStatus: row.runtime_status ?? null,
+    };
+  }
+  pendingRowActions.value = nextPending;
+}
+
+function markPendingRowActionAwaitingChange(rowId: number) {
+  const pending = pendingRowActions.value[rowId];
+  if (!pending) {
+    return;
+  }
+
+  const deadlineAt = Date.now() + 15_000;
+  pendingRowActions.value = {
+    ...pendingRowActions.value,
+    [rowId]: {
+      ...pending,
+      awaitingVisibleChange: true,
+      deadlineAt,
+    },
+  };
+  schedulePendingRowActionTimeout(rowId, deadlineAt);
+}
+
+function markPendingRowActionsAwaitingChange(rowIds: number[]) {
+  if (rowIds.length === 0) {
+    return;
+  }
+
+  const deadlineAt = Date.now() + 15_000;
+  const nextPending = { ...pendingRowActions.value };
+  let changed = false;
+
+  for (const rowId of rowIds) {
+    const pending = nextPending[rowId];
+    if (!pending) {
+      continue;
+    }
+    nextPending[rowId] = {
+      ...pending,
+      awaitingVisibleChange: true,
+      deadlineAt,
+    };
+    schedulePendingRowActionTimeout(rowId, deadlineAt);
+    changed = true;
+  }
+
+  if (changed) {
+    pendingRowActions.value = nextPending;
+  }
 }
 
 function clearPendingRowAction(rowId: number) {
   if (!pendingRowActions.value[rowId]) {
     return;
   }
+  clearPendingRowActionTimeout(rowId);
   const nextPending = { ...pendingRowActions.value };
   delete nextPending[rowId];
   pendingRowActions.value = nextPending;
 }
 
+function clearPendingRowActions(rowIds: number[]) {
+  if (rowIds.length === 0) {
+    return;
+  }
+
+  const nextPending = { ...pendingRowActions.value };
+  let changed = false;
+
+  for (const rowId of rowIds) {
+    if (!nextPending[rowId]) {
+      continue;
+    }
+    clearPendingRowActionTimeout(rowId);
+    delete nextPending[rowId];
+    changed = true;
+  }
+
+  if (changed) {
+    pendingRowActions.value = nextPending;
+  }
+}
+
 function isRowActionPending(rowId: number) {
   return Boolean(pendingRowActions.value[rowId]);
+}
+
+function schedulePendingRowActionTimeout(rowId: number, deadlineAt: number) {
+  clearPendingRowActionTimeout(rowId);
+  if (typeof window === 'undefined') {
+    return;
+  }
+  const delay = Math.max(0, deadlineAt - Date.now());
+  const timeoutId = window.setTimeout(() => {
+    clearPendingRowAction(rowId);
+  }, delay);
+  pendingRowTimeouts.set(rowId, timeoutId);
+}
+
+function clearPendingRowActionTimeout(rowId: number) {
+  if (typeof window === 'undefined') {
+    pendingRowTimeouts.delete(rowId);
+    return;
+  }
+  const timeoutId = pendingRowTimeouts.get(rowId);
+  if (timeoutId === undefined) {
+    return;
+  }
+  window.clearTimeout(timeoutId);
+  pendingRowTimeouts.delete(rowId);
+}
+
+function clearPendingRowActionTimeouts() {
+  if (typeof window === 'undefined') {
+    pendingRowTimeouts.clear();
+    return;
+  }
+  for (const timeoutId of pendingRowTimeouts.values()) {
+    window.clearTimeout(timeoutId);
+  }
+  pendingRowTimeouts.clear();
 }
 
 function clearSelection() {
@@ -960,6 +1097,9 @@ async function runAction(
   }
   try {
     await handler(row.id);
+    if (pendingAction) {
+      markPendingRowActionAwaitingChange(row.id);
+    }
     MessagePlugin.success(successMessage);
     await fetchProjects();
   } catch (error) {
@@ -1174,6 +1314,7 @@ async function runUpdateDeploy(row: ProjectListItem, payload?: ProjectUpdateDepl
   markPendingRowAction(row, 'update_deploy');
   try {
     await postProjectUpdateDeploy(row.id, payload);
+    markPendingRowActionAwaitingChange(row.id);
     MessagePlugin.success(t('project.list.actions.actionSuccess'));
     await fetchProjects();
   } catch (error) {
@@ -1186,6 +1327,7 @@ async function runRedeploy(row: ProjectListItem) {
   markPendingRowAction(row, 'redeploy');
   try {
     await postProjectRedeploy(row.id);
+    markPendingRowActionAwaitingChange(row.id);
     MessagePlugin.success(t('project.list.actions.actionSuccess'));
     await fetchProjects();
   } catch (error) {
@@ -1204,6 +1346,15 @@ async function executeBatchAction(
   }
   if (!actionableRows.length) return;
   batchActionLoading.value = action;
+  const pendingAction =
+    action === 'start'
+      ? ('up' as const)
+      : action === 'stop' || action === 'restart' || action === 'redeploy' || action === 'update_deploy'
+        ? action
+        : null;
+  if (pendingAction) {
+    markPendingRowActions(actionableRows, pendingAction);
+  }
   try {
     const response = await postProjectBatchActions({
       action,
@@ -1214,10 +1365,23 @@ async function executeBatchAction(
       project_ids: actionableRows.map((row) => row.id),
       remove_named_volumes: overrides.remove_named_volumes ?? false,
     });
+    if (pendingAction) {
+      const completedRowIds = response.items
+        .filter((item) => !item.skipped && item.result === 'completed')
+        .map((item) => item.project_id);
+      const blockedRowIds = response.items
+        .filter((item) => item.skipped || item.result !== 'completed')
+        .map((item) => item.project_id);
+      markPendingRowActionsAwaitingChange(completedRowIds);
+      clearPendingRowActions(blockedRowIds);
+    }
     handleBatchActionResult(action, response);
     clearSelection();
     await fetchProjects();
   } catch (error) {
+    if (pendingAction) {
+      clearPendingRowActions(actionableRows.map((row) => row.id));
+    }
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.list.batch.failed')));
   } finally {
     batchActionLoading.value = '';

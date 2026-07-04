@@ -1064,20 +1064,20 @@ describe('container list page', () => {
     await flushPromises();
 
     await wrapper.get('[data-testid="container-action-logs"]').trigger('click');
-    await flushPromises();
-
-    expect(tabsRouterStoreMock.appendTabRouterList).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        fullPath: '/ops/containers/container-1?tab=logs',
-        path: '/ops/containers/container-1',
+    await vi.waitFor(() => {
+      expect(tabsRouterStoreMock.appendTabRouterList).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          fullPath: '/ops/containers/container-1?tab=logs',
+          path: '/ops/containers/container-1',
+          query: { tab: 'logs' },
+          tabKey: '/ops/containers/container-1',
+        }),
+      );
+      expect(routerMocks.push).toHaveBeenCalledWith({
+        name: 'ContainerDetailIndex',
+        params: { id: 'container-1' },
         query: { tab: 'logs' },
-        tabKey: '/ops/containers/container-1',
-      }),
-    );
-    expect(routerMocks.push).toHaveBeenCalledWith({
-      name: 'ContainerDetailIndex',
-      params: { id: 'container-1' },
-      query: { tab: 'logs' },
+      });
     });
 
     await wrapper.get('[data-testid="container-action-audit"]').trigger('click');

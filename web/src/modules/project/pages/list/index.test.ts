@@ -648,6 +648,50 @@ describe('Project list page', () => {
     wrapper.unmount();
   });
 
+  it('clears the runtime loading spinner after 15 seconds when refreshed status data never changes', async () => {
+    vi.useFakeTimers();
+    const restartGate = {} as { resolve?: () => void };
+    projectApiMocks.postProjectRestart.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          restartGate.resolve = resolve;
+        }),
+    );
+    projectApiMocks.getProjects
+      .mockResolvedValueOnce({
+        items: [buildProjectRow({ runtime_status: 'running' })],
+        limit: 20,
+        offset: 0,
+        total: 1,
+      })
+      .mockResolvedValueOnce({
+        items: [buildProjectRow({ runtime_status: 'running' })],
+        limit: 20,
+        offset: 0,
+        total: 1,
+      });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="row-action-restart"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="project-runtime-status-loading-1"]').exists()).toBe(true);
+
+    restartGate.resolve?.();
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="project-runtime-status-loading-1"]').exists()).toBe(true);
+
+    await vi.advanceTimersByTimeAsync(15_000);
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="project-runtime-status-loading-1"]').exists()).toBe(false);
+    expect(wrapper.get('[data-testid="project-runtime-status-1"]').text()).toBe('Running');
+    wrapper.unmount();
+  });
+
   it('renames the refresh column and hides lifecycle actions by runtime status', async () => {
     projectApiMocks.getProjects.mockResolvedValueOnce({
       items: [
@@ -730,6 +774,47 @@ describe('Project list page', () => {
       project_ids: [2],
       remove_named_volumes: false,
     });
+  });
+
+  it('shows row-level loading for actionable batch rows while the batch request is running', async () => {
+    let resolveBatchAction!: (value: BatchActionResponseMock) => void;
+    projectApiMocks.postProjectBatchActions.mockReturnValueOnce(
+      new Promise<BatchActionResponseMock>((resolve) => {
+        resolveBatchAction = resolve;
+      }),
+    );
+    projectApiMocks.getProjects.mockResolvedValueOnce({
+      items: [
+        buildProjectRow({ id: 1, runtime_status: 'stopped' }),
+        buildProjectRow({ id: 2, runtime_status: 'running' }),
+      ],
+      limit: 20,
+      offset: 0,
+      total: 2,
+    });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    wrapper.getComponent(TTableStub).vm.$emit('select-change', [1, 2]);
+    await flushPromises();
+    await wrapper.get('[data-testid="project-batch-stop"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.get('[data-testid="project-batch-stop"]').attributes('data-loading')).toBe('true');
+    expect(wrapper.find('[data-testid="project-runtime-status-loading-1"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="project-runtime-status-loading-2"]').exists()).toBe(true);
+
+    resolveBatchAction({
+      blocked_count: 0,
+      completed_count: 1,
+      items: [{ action: 'stop', message: '', project_id: 2, result: 'completed', skipped: false }],
+      skipped_count: 1,
+      total_count: 2,
+    });
+    await flushPromises();
+
+    wrapper.unmount();
   });
 
   it('disables batch destroy when multiple rows are selected', async () => {
