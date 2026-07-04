@@ -33,6 +33,7 @@ func (m *Module) Register(ctx *module.Context) error {
 	}
 	m.service.SetRuntimeReader(runtimeReader)
 	m.service.SetSystemConfigResolver(configResolver)
+	m.service.SetAuditPublisher(ctx.EventBus, ctx.Logger, moduleID)
 	if err := registerPermissions(ctx.PermissionRegistry, moduleID); err != nil {
 		return err
 	}

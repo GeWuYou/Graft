@@ -11,6 +11,8 @@ import (
 	"time"
 
 	generated "graft/server/internal/contract/openapi/generated"
+	"graft/server/internal/eventbus"
+	"graft/server/internal/httpx"
 	"graft/server/internal/moduleapi"
 	projectcontract "graft/server/modules/project/contract"
 	projectstore "graft/server/modules/project/store"
@@ -19,6 +21,7 @@ import (
 type stubProjectRepository struct {
 	aggregate        projectstore.ProjectAggregate
 	unregisterCalled bool
+	unregisterInput  *projectstore.UnregisterProjectInput
 	importInput      *projectstore.ImportProjectInput
 	getCalls         int
 }
@@ -73,9 +76,43 @@ func (s *stubProjectRepository) RefreshProject(context.Context, projectstore.Ref
 	return projectstore.ProjectAggregate{}, errors.New("not implemented")
 }
 
-func (s *stubProjectRepository) UnregisterProject(context.Context, projectstore.UnregisterProjectInput) error {
+func (s *stubProjectRepository) UnregisterProject(_ context.Context, input projectstore.UnregisterProjectInput) error {
 	s.unregisterCalled = true
+	recorded := input
+	s.unregisterInput = &recorded
 	return nil
+}
+
+type capturedAuditBus struct {
+	events []moduleapi.AuditEvent
+}
+
+func (b *capturedAuditBus) Subscribe(string, eventbus.Handler) error {
+	return nil
+}
+
+func (b *capturedAuditBus) Publish(_ context.Context, event eventbus.Event) error {
+	auditEvent, ok := event.Payload.(moduleapi.AuditEvent)
+	if !ok {
+		return nil
+	}
+	b.events = append(b.events, auditEvent)
+	return nil
+}
+
+func authenticatedProjectActionContext() context.Context {
+	ctx := context.Background()
+	ctx = moduleapi.WithRequestAuthContext(ctx, moduleapi.RequestAuthContext{
+		User: &moduleapi.CurrentUser{ID: 7, Username: "alice", DisplayName: "Alice"},
+	})
+	return httpx.WithRequestAuditContext(ctx, httpx.RequestAuditContext{
+		RequestID: "req-project-1",
+		TraceID:   "trace-project-1",
+		Route:     "/api/projects/:id/action",
+		Method:    "POST",
+		ClientIP:  "127.0.0.1",
+		UserAgent: "project-test",
+	})
 }
 
 type stubRuntimeReader struct {
@@ -211,7 +248,7 @@ func TestDestroyBlocksExternalWorkingDirectoryDeletion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new service: %v", err)
 	}
-	result, err := service.Destroy(context.Background(), 1, DestroyRequest{
+	result, err := service.Destroy(authenticatedProjectActionContext(), 1, DestroyRequest{
 		DeleteWorkingDirectory:      true,
 		ConfirmCanonicalProjectName: "demo",
 	})
@@ -223,6 +260,113 @@ func TestDestroyBlocksExternalWorkingDirectoryDeletion(t *testing.T) {
 	}
 	if repo.unregisterCalled {
 		t.Fatalf("unregister should not be called when destroy is blocked")
+	}
+}
+
+func TestUnregisterUsesRequestActorAndPublishesAudit(t *testing.T) {
+	t.Parallel()
+
+	repo := &stubProjectRepository{
+		aggregate: projectstore.ProjectAggregate{
+			Project: projectstore.Project{
+				ID:                   1,
+				CanonicalProjectName: "demo",
+				HostScope:            projectcontract.HostScopeLocal.String(),
+				WorkingDirectory:     t.TempDir(),
+				LastRefreshStatus:    projectcontract.RefreshStatusSuccess.String(),
+			},
+		},
+	}
+	service, err := NewService(repo)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	auditBus := &capturedAuditBus{}
+	service.SetAuditPublisher(auditBus, nil, moduleID)
+
+	result, err := service.Unregister(authenticatedProjectActionContext(), 1, nil)
+	if err != nil {
+		t.Fatalf("unregister: %v", err)
+	}
+	if result.Result != generated.ProjectActionResponseResultProjectActionResultCompleted {
+		t.Fatalf("expected completed result, got %#v", result)
+	}
+	if repo.unregisterInput == nil || repo.unregisterInput.ActorID == nil || *repo.unregisterInput.ActorID != 7 {
+		t.Fatalf("expected unregister actor id 7, got %#v", repo.unregisterInput)
+	}
+	if len(auditBus.events) != 1 {
+		t.Fatalf("expected one audit event, got %d", len(auditBus.events))
+	}
+	if auditBus.events[0].Action != projectcontract.ProjectAuditActionUnregister.String() {
+		t.Fatalf("expected unregister audit action, got %#v", auditBus.events[0])
+	}
+	if auditBus.events[0].Operator == nil || auditBus.events[0].Operator.ID != 7 {
+		t.Fatalf("expected operator id 7, got %#v", auditBus.events[0].Operator)
+	}
+}
+
+func TestUnregisterFailsClosedWithoutRequestActor(t *testing.T) {
+	t.Parallel()
+
+	repo := &stubProjectRepository{
+		aggregate: projectstore.ProjectAggregate{
+			Project: projectstore.Project{
+				ID:                   1,
+				CanonicalProjectName: "demo",
+				HostScope:            projectcontract.HostScopeLocal.String(),
+				WorkingDirectory:     t.TempDir(),
+				LastRefreshStatus:    projectcontract.RefreshStatusSuccess.String(),
+			},
+		},
+	}
+	service, err := NewService(repo)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	actorID := uint64(7)
+
+	result, err := service.Unregister(context.Background(), 1, &actorID)
+	if !errors.Is(err, errProjectActorAttribution) {
+		t.Fatalf("expected actor attribution error, got %v", err)
+	}
+	if result.Result != generated.ProjectActionResponseResultProjectActionResultBlocked {
+		t.Fatalf("expected blocked result, got %#v", result)
+	}
+	if len(result.GuardResults) != 1 || result.GuardResults[0].Code != "actor_attribution_required" {
+		t.Fatalf("expected actor attribution guard, got %#v", result.GuardResults)
+	}
+	if repo.unregisterCalled {
+		t.Fatalf("unregister should fail closed before repository mutation")
+	}
+}
+
+func TestBatchActionFailsClosedWithoutRequestActor(t *testing.T) {
+	t.Parallel()
+
+	service, err := NewService(&stubProjectRepository{})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	actorID := uint64(7)
+
+	result, err := service.BatchAction(context.Background(), BatchActionRequest{
+		Action:     generated.ProjectBatchActionRequestActionStart,
+		ProjectIDs: []uint64{1, 2},
+		ActorID:    &actorID,
+	})
+	if err != nil {
+		t.Fatalf("batch action should fail closed through result semantics, got %v", err)
+	}
+	if result.BlockedCount != 2 || len(result.Items) != 2 {
+		t.Fatalf("expected two blocked items, got %#v", result)
+	}
+	for _, item := range result.Items {
+		if item.Result != generated.ProjectActionResponseResultProjectActionResultBlocked {
+			t.Fatalf("expected blocked item, got %#v", item)
+		}
+		if len(item.GuardResults) != 1 || item.GuardResults[0].Code != "actor_attribution_required" {
+			t.Fatalf("expected actor attribution guard, got %#v", item.GuardResults)
+		}
 	}
 }
 
@@ -245,7 +389,7 @@ func TestBatchActionKeepsBlockedLifecycleItems(t *testing.T) {
 		t.Fatalf("new service: %v", err)
 	}
 
-	result, err := service.BatchAction(context.Background(), BatchActionRequest{
+	result, err := service.BatchAction(authenticatedProjectActionContext(), BatchActionRequest{
 		Action:     generated.ProjectBatchActionRequestActionStart,
 		ProjectIDs: []uint64{1, 1},
 	})
@@ -282,7 +426,7 @@ func TestBatchDestroyRequiresExplicitConfirmation(t *testing.T) {
 		t.Fatalf("new service: %v", err)
 	}
 
-	result, err := service.BatchAction(context.Background(), BatchActionRequest{
+	result, err := service.BatchAction(authenticatedProjectActionContext(), BatchActionRequest{
 		Action:     generated.ProjectBatchActionRequestActionDestroy,
 		ProjectIDs: []uint64{1},
 	})
@@ -318,7 +462,7 @@ func TestBatchDestroyReturnsBlockedItemOnComposeFailure(t *testing.T) {
 	}
 	confirmName := "demo"
 
-	result, err := service.BatchAction(context.Background(), BatchActionRequest{
+	result, err := service.BatchAction(authenticatedProjectActionContext(), BatchActionRequest{
 		Action:                      generated.ProjectBatchActionRequestActionDestroy,
 		ProjectIDs:                  []uint64{1},
 		ConfirmCanonicalProjectName: &confirmName,
@@ -355,7 +499,7 @@ func TestBatchRedeployReusesLoadedAggregate(t *testing.T) {
 		t.Fatalf("new service: %v", err)
 	}
 
-	result, err := service.BatchAction(context.Background(), BatchActionRequest{
+	result, err := service.BatchAction(authenticatedProjectActionContext(), BatchActionRequest{
 		Action:     generated.ProjectBatchActionRequestActionRedeploy,
 		ProjectIDs: []uint64{1},
 	})

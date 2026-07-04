@@ -36,7 +36,13 @@ func (s *Service) Redeploy(ctx context.Context, projectID uint64, actorID *uint6
 	if err != nil {
 		return ActionResult{}, err
 	}
-	return s.redeployWithAggregate(ctx, aggregate, actorID)
+	actor, blocked, err := s.requireActionActor(ctx, projectID, generated.ProjectActionResponseActionProjectActionRedeploy, actorID)
+	if err != nil {
+		return blocked, err
+	}
+	result, actionErr := s.redeployWithActor(ctx, aggregate, actor)
+	s.publishProjectActionAudit(ctx, aggregate, actor, result, actionErr)
+	return result, actionErr
 }
 
 // UpdateDeploy pulls the latest images for all registered compose files and then runs compose up -d.
@@ -45,19 +51,27 @@ func (s *Service) UpdateDeploy(ctx context.Context, projectID uint64, actorID *u
 	if err != nil {
 		return ActionResult{}, err
 	}
-	return s.updateDeployWithAggregate(ctx, aggregate, actorID, imagePrune)
+	actor, blocked, err := s.requireActionActor(ctx, projectID, generated.ProjectActionResponseActionProjectActionUpdateDeploy, actorID)
+	if err != nil {
+		return blocked, err
+	}
+	result, actionErr := s.updateDeployWithActor(ctx, aggregate, actor, imagePrune)
+	s.publishProjectActionAudit(ctx, aggregate, actor, result, actionErr)
+	return result, actionErr
 }
 
 // BatchAction executes one action for multiple projects and returns per-item results.
 func (s *Service) BatchAction(ctx context.Context, request BatchActionRequest) (BatchActionResult, error) {
+	actor, blocked, err := s.requireBatchActor(ctx, request)
+	if err != nil {
+		return blocked, nil
+	}
 	items := make([]BatchActionItemResult, 0, len(request.ProjectIDs))
 	result := BatchActionResult{TotalCount: len(request.ProjectIDs)}
 	for _, projectID := range request.ProjectIDs {
-		item, err := s.batchActionItem(ctx, projectID, request)
-		if err != nil {
-			if !hasBatchActionItemResult(item) {
-				return BatchActionResult{}, err
-			}
+		item, itemErr := s.batchActionItem(ctx, projectID, request, actor)
+		if itemErr != nil && !hasBatchActionItemResult(item) {
+			return BatchActionResult{}, itemErr
 		}
 		items = append(items, item)
 		switch {
@@ -70,37 +84,23 @@ func (s *Service) BatchAction(ctx context.Context, request BatchActionRequest) (
 		}
 	}
 	result.Items = items
+	s.publishProjectBatchAudit(ctx, actor, request, result)
 	return result, nil
 }
 
 // Unregister removes the project registry record without touching host files.
 func (s *Service) Unregister(ctx context.Context, projectID uint64, actorID *uint64) (ActionResult, error) {
-	if _, err := s.getAggregate(ctx, projectID); err != nil {
-		return ActionResult{}, err
-	}
-	repository, err := s.repositoryOrErr()
+	aggregate, err := s.getAggregate(ctx, projectID)
 	if err != nil {
 		return ActionResult{}, err
 	}
-	if err := repository.UnregisterProject(ctx, projectstore.UnregisterProjectInput{
-		ProjectID: projectID,
-		ActorID:   actorID,
-	}); err != nil {
-		return ActionResult{}, mapStoreError(err)
+	actor, blocked, err := s.requireActionActor(ctx, projectID, generated.ProjectActionResponseActionProjectActionUnregister, actorID)
+	if err != nil {
+		return blocked, err
 	}
-	messageKey := projectcontract.ProjectUnregisterCompleted.String()
-	return ActionResult{
-		ProjectID:  projectID,
-		Action:     generated.ProjectActionResponseActionProjectActionUnregister,
-		Result:     generated.ProjectActionResponseResultProjectActionResultCompleted,
-		MessageKey: &messageKey,
-		Message:    &messageKey,
-		GuardResults: []GuardResult{
-			guardCode("registry_deleted"),
-			guardCode("working_directory_preserved"),
-			guardCode("runtime_state_not_persisted"),
-		},
-	}, nil
+	result, actionErr := s.unregisterWithActor(ctx, aggregate, actor)
+	s.publishProjectActionAudit(ctx, aggregate, actor, result, actionErr)
+	return result, actionErr
 }
 
 // Destroy executes guarded teardown steps and then unregisters the project record.
@@ -109,10 +109,17 @@ func (s *Service) Destroy(ctx context.Context, projectID uint64, request Destroy
 	if err != nil {
 		return ActionResult{}, err
 	}
+	actor, blocked, err := s.requireActionActor(ctx, projectID, generated.ProjectActionResponseActionProjectActionDestroy, request.ActorID)
+	if err != nil {
+		return blocked, err
+	}
 	if result, blockErr := validateDestroyRequest(projectID, aggregate, request); blockErr != nil {
+		s.publishProjectActionAudit(ctx, aggregate, actor, result, blockErr)
 		return result, blockErr
 	}
-	return s.destroyAfterGuard(ctx, aggregate, request)
+	result, actionErr := s.destroyAfterGuard(ctx, aggregate, request, actor)
+	s.publishProjectActionAudit(ctx, aggregate, actor, result, actionErr)
+	return result, actionErr
 }
 
 // validateDestroyRequest 校验销毁请求是否允许继续执行，并在违反保护条件时返回阻断结果。
@@ -148,14 +155,14 @@ func (s *Service) destroyAfterGuard(
 	ctx context.Context,
 	aggregate projectstore.ProjectAggregate,
 	request DestroyRequest,
+	actor actionActor,
 ) (ActionResult, error) {
 	projectID := aggregate.Project.ID
 	guardResults := []GuardResult{guardCode("confirm_canonical_project_name_matched")}
 	downArgs := destroyDownArgs(request.RemoveNamedVolumes)
-	downResult, err := s.runLifecycleActionWithAggregate(
+	downResult, err := s.executeLifecycleActionWithAggregate(
 		ctx,
 		aggregate,
-		request.ActorID,
 		generated.ProjectActionResponseActionProjectActionDestroy,
 		downArgs,
 	)
@@ -172,7 +179,7 @@ func (s *Service) destroyAfterGuard(
 		return blockedResult, err
 	}
 	guardResults = nextGuards
-	if guardResults, err = s.applyDestroyUnregisterStep(ctx, projectID, request.ActorID, guardResults, autoUnregister); err != nil {
+	if guardResults, err = s.applyDestroyUnregisterStep(ctx, projectID, actor, guardResults, autoUnregister); err != nil {
 		return ActionResult{}, err
 	}
 	messageKey := projectcontract.ProjectDestroyCompleted.String()
@@ -209,13 +216,18 @@ func (s *Service) runLifecycleAction(
 	if err != nil {
 		return ActionResult{}, err
 	}
-	return s.runLifecycleActionWithAggregate(ctx, aggregate, actorID, action, args)
+	actor, blocked, err := s.requireActionActor(ctx, projectID, action, actorID)
+	if err != nil {
+		return blocked, err
+	}
+	result, actionErr := s.executeLifecycleActionWithAggregate(ctx, aggregate, action, args)
+	s.publishProjectActionAudit(ctx, aggregate, actor, result, actionErr)
+	return result, actionErr
 }
 
-func (s *Service) runLifecycleActionWithAggregate(
+func (s *Service) executeLifecycleActionWithAggregate(
 	ctx context.Context,
 	aggregate projectstore.ProjectAggregate,
-	_ *uint64,
 	action generated.ProjectActionResponseAction,
 	args []string,
 ) (ActionResult, error) {
@@ -337,10 +349,10 @@ func lifecycleMessageKey(action generated.ProjectActionResponseAction) projectco
 	}
 }
 
-func (s *Service) updateDeployWithAggregate(
+func (s *Service) updateDeployWithActor(
 	ctx context.Context,
 	aggregate projectstore.ProjectAggregate,
-	actorID *uint64,
+	_ actionActor,
 	imagePrune bool,
 ) (ActionResult, error) {
 	if err := ensureProjectLifecycleReady(aggregate); err != nil {
@@ -373,7 +385,6 @@ func (s *Service) updateDeployWithAggregate(
 		guards = append(guards, guardCode("image_prune_completed"))
 	}
 	messageKey := lifecycleMessageKey(generated.ProjectActionResponseActionProjectActionUpdateDeploy).String()
-	_ = actorID
 	return ActionResult{
 		ProjectID:    aggregate.Project.ID,
 		Action:       generated.ProjectActionResponseActionProjectActionUpdateDeploy,
@@ -384,15 +395,45 @@ func (s *Service) updateDeployWithAggregate(
 	}, nil
 }
 
-func (s *Service) redeployWithAggregate(
+func (s *Service) redeployWithActor(
 	ctx context.Context,
 	aggregate projectstore.ProjectAggregate,
-	actorID *uint64,
+	_ actionActor,
 ) (ActionResult, error) {
-	if downResult, err := s.runLifecycleActionWithAggregate(ctx, aggregate, actorID, generated.ProjectActionResponseActionProjectActionRedeploy, []string{"compose", "down"}); err != nil {
+	if downResult, err := s.executeLifecycleActionWithAggregate(ctx, aggregate, generated.ProjectActionResponseActionProjectActionRedeploy, []string{"compose", "down"}); err != nil {
 		return downResult, err
 	}
-	return s.runLifecycleActionWithAggregate(ctx, aggregate, actorID, generated.ProjectActionResponseActionProjectActionRedeploy, []string{"compose", "up", "-d"})
+	return s.executeLifecycleActionWithAggregate(ctx, aggregate, generated.ProjectActionResponseActionProjectActionRedeploy, []string{"compose", "up", "-d"})
+}
+
+func (s *Service) unregisterWithActor(
+	ctx context.Context,
+	aggregate projectstore.ProjectAggregate,
+	actor actionActor,
+) (ActionResult, error) {
+	repository, err := s.repositoryOrErr()
+	if err != nil {
+		return ActionResult{}, err
+	}
+	if err := repository.UnregisterProject(ctx, projectstore.UnregisterProjectInput{
+		ProjectID: aggregate.Project.ID,
+		ActorID:   &actor.id,
+	}); err != nil {
+		return blockedActionResult(aggregate.Project.ID, generated.ProjectActionResponseActionProjectActionUnregister, []GuardResult{guardDetail("registry_delete_failed", "persistence_error")}), mapStoreError(err)
+	}
+	messageKey := projectcontract.ProjectUnregisterCompleted.String()
+	return ActionResult{
+		ProjectID:  aggregate.Project.ID,
+		Action:     generated.ProjectActionResponseActionProjectActionUnregister,
+		Result:     generated.ProjectActionResponseResultProjectActionResultCompleted,
+		MessageKey: &messageKey,
+		Message:    &messageKey,
+		GuardResults: []GuardResult{
+			guardCode("registry_deleted"),
+			guardCode("working_directory_preserved"),
+			guardCode("runtime_state_not_persisted"),
+		},
+	}, nil
 }
 
 func composeProjectArgs(aggregate projectstore.ProjectAggregate) ([]string, error) {
@@ -429,17 +470,22 @@ func summarizeCommandOutput(output string) string {
 	return trimmed
 }
 
-func (s *Service) batchActionItem(ctx context.Context, projectID uint64, request BatchActionRequest) (BatchActionItemResult, error) {
+func (s *Service) batchActionItem(
+	ctx context.Context,
+	projectID uint64,
+	request BatchActionRequest,
+	actor actionActor,
+) (BatchActionItemResult, error) {
 	aggregate, err := s.getAggregate(ctx, projectID)
 	if err != nil {
 		return BatchActionItemResult{}, err
 	}
-	if item, ok, err := s.batchLifecycleActionItem(ctx, aggregate, projectID, request); ok {
+	if item, ok, err := s.batchLifecycleActionItem(ctx, aggregate, projectID, request, actor); ok {
 		return item, err
 	}
 	switch request.Action {
 	case generated.ProjectBatchActionRequestActionUnregister:
-		action, err := s.Unregister(ctx, projectID, request.ActorID)
+		action, err := s.unregisterWithActor(ctx, aggregate, actor)
 		return BatchActionItemResult{ActionResult: action}, err
 	case generated.ProjectBatchActionRequestActionDestroy:
 		confirmName := ""
@@ -452,12 +498,12 @@ func (s *Service) batchActionItem(ctx context.Context, projectID uint64, request
 			ImagePrune:                  request.ImagePrune,
 			DeleteWorkingDirectory:      request.DeleteWorkingDirectory,
 			ConfirmCanonicalProjectName: confirmName,
-			ActorID:                     request.ActorID,
+			ActorID:                     &actor.id,
 		}
 		if _, blockErr := validateDestroyRequest(projectID, aggregate, destroyReq); blockErr != nil {
 			return skippedBatchActionResult(projectID, generated.ProjectActionResponseActionProjectActionDestroy, "destroy_not_applicable"), nil
 		}
-		action, err := s.destroyAfterGuard(ctx, aggregate, destroyReq)
+		action, err := s.destroyAfterGuard(ctx, aggregate, destroyReq, actor)
 		return BatchActionItemResult{ActionResult: action}, err
 	default:
 		return BatchActionItemResult{}, errProjectInvalidArgument
@@ -469,6 +515,7 @@ func (s *Service) batchLifecycleActionItem(
 	aggregate projectstore.ProjectAggregate,
 	projectID uint64,
 	request BatchActionRequest,
+	actor actionActor,
 ) (BatchActionItemResult, bool, error) {
 	switch request.Action {
 	case generated.ProjectBatchActionRequestActionStart:
@@ -499,13 +546,13 @@ func (s *Service) batchLifecycleActionItem(
 		if err := ensureProjectLifecycleReady(aggregate); err != nil {
 			return skippedBatchActionResult(projectID, generated.ProjectActionResponseActionProjectActionRedeploy, "refresh_required"), true, nil
 		}
-		action, err := s.redeployWithAggregate(ctx, aggregate, request.ActorID)
+		action, err := s.redeployWithActor(ctx, aggregate, actor)
 		return BatchActionItemResult{ActionResult: action}, true, err
 	case generated.ProjectBatchActionRequestActionUpdateDeploy:
 		if err := ensureProjectLifecycleReady(aggregate); err != nil {
 			return skippedBatchActionResult(projectID, generated.ProjectActionResponseActionProjectActionUpdateDeploy, "refresh_required"), true, nil
 		}
-		action, err := s.updateDeployWithAggregate(ctx, aggregate, request.ActorID, request.ImagePrune)
+		action, err := s.updateDeployWithActor(ctx, aggregate, actor, request.ImagePrune)
 		return BatchActionItemResult{ActionResult: action}, true, err
 	default:
 		return BatchActionItemResult{}, false, nil
@@ -525,7 +572,7 @@ func (s *Service) batchLifecycleItem(
 	if skipReason, shouldSkip := skipBatchLifecycleAction(action, &runtimeSummary, runtimeErr); shouldSkip {
 		return skippedBatchActionResult(aggregate.Project.ID, action, skipReason), nil
 	}
-	result, err := s.runLifecycleActionWithAggregate(ctx, aggregate, nil, action, args)
+	result, err := s.executeLifecycleActionWithAggregate(ctx, aggregate, action, args)
 	return BatchActionItemResult{ActionResult: result}, err
 }
 
@@ -649,7 +696,7 @@ func (s *Service) applyDestroyImagePruneStep(
 func (s *Service) applyDestroyUnregisterStep(
 	ctx context.Context,
 	projectID uint64,
-	actorID *uint64,
+	actor actionActor,
 	guardResults []GuardResult,
 	autoUnregister bool,
 ) ([]GuardResult, error) {
@@ -663,12 +710,62 @@ func (s *Service) applyDestroyUnregisterStep(
 	}
 	if err := repository.UnregisterProject(ctx, projectstore.UnregisterProjectInput{
 		ProjectID: projectID,
-		ActorID:   actorID,
+		ActorID:   &actor.id,
 	}); err != nil {
 		return nil, mapStoreError(err)
 	}
 	guardResults = append(guardResults, guardCode("registry_deleted"))
 	return guardResults, nil
+}
+
+func (s *Service) requireBatchActor(
+	ctx context.Context,
+	request BatchActionRequest,
+) (actionActor, BatchActionResult, error) {
+	requestAuth, ok := moduleapi.RequestAuthContextFromContext(ctx)
+	reason := "actor_request_context_missing"
+	if ok && requestAuth.User != nil {
+		if request.ActorID != nil && *request.ActorID != requestAuth.User.ID {
+			reason = "actor_identity_mismatch"
+		} else {
+			user := *requestAuth.User
+			return actionActor{
+				id:       user.ID,
+				operator: &user,
+			}, BatchActionResult{}, nil
+		}
+	}
+	items := make([]BatchActionItemResult, 0, len(request.ProjectIDs))
+	for _, projectID := range request.ProjectIDs {
+		result := actorAttributionBlockedResult(projectID, batchActionToProjectAction(request.Action), reason)
+		items = append(items, BatchActionItemResult{ActionResult: result})
+	}
+	return actionActor{}, BatchActionResult{
+		TotalCount:   len(request.ProjectIDs),
+		BlockedCount: len(request.ProjectIDs),
+		Items:        items,
+	}, errProjectActorAttribution
+}
+
+func batchActionToProjectAction(action generated.ProjectBatchActionRequestAction) generated.ProjectActionResponseAction {
+	switch action {
+	case generated.ProjectBatchActionRequestActionStart:
+		return generated.ProjectActionResponseActionProjectActionUp
+	case generated.ProjectBatchActionRequestActionStop:
+		return generated.ProjectActionResponseActionProjectActionDown
+	case generated.ProjectBatchActionRequestActionRestart:
+		return generated.ProjectActionResponseActionProjectActionRestart
+	case generated.ProjectBatchActionRequestActionRedeploy:
+		return generated.ProjectActionResponseActionProjectActionRedeploy
+	case generated.ProjectBatchActionRequestActionUpdateDeploy:
+		return generated.ProjectActionResponseActionProjectActionUpdateDeploy
+	case generated.ProjectBatchActionRequestActionUnregister:
+		return generated.ProjectActionResponseActionProjectActionUnregister
+	case generated.ProjectBatchActionRequestActionDestroy:
+		return generated.ProjectActionResponseActionProjectActionDestroy
+	default:
+		return generated.ProjectActionResponseActionProjectActionRestart
+	}
 }
 
 func skippedBatchActionResult(projectID uint64, action generated.ProjectActionResponseAction, reason string) BatchActionItemResult {
