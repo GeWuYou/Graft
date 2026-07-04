@@ -127,6 +127,13 @@ func TestEmbeddedMigrationDirByPathIncludesRbacForwardOnlyDisabledAtMigration(t 
 	}
 }
 
+func TestEmbeddedMigrationRegistryFreshness(t *testing.T) {
+	serverRoot := filepath.Join("..", "..")
+	if err := ValidateEmbeddedMigrationRegistryFreshness(serverRoot); err != nil {
+		t.Fatalf("validate embedded migration registry freshness: %v", err)
+	}
+}
+
 // TestDescriptorsStayAlignedWithModuleDirectories verifies the generated registry
 // still includes every module directory that declares a runtime descriptor.
 func TestDescriptorsStayAlignedWithModuleDirectories(t *testing.T) {

@@ -9,7 +9,10 @@ import (
 	"strings"
 	"time"
 
+	"go.uber.org/zap"
+
 	generated "graft/server/internal/contract/openapi/generated"
+	"graft/server/internal/eventbus"
 	"graft/server/internal/moduleapi"
 	projectcompose "graft/server/modules/project/compose"
 	projectcontract "graft/server/modules/project/contract"
@@ -31,6 +34,7 @@ var (
 	errProjectInspectionStale      = errors.New("project inspection stale")
 	errProjectFileHashMismatch     = errors.New("project file hash mismatch")
 	errProjectRuntimeUnavailable   = errors.New("project runtime is unavailable")
+	errProjectActorAttribution     = errors.New("project actor attribution required")
 )
 
 const (
@@ -248,6 +252,33 @@ type ActionResult struct {
 	GuardResults []GuardResult
 }
 
+// BatchActionRequest describes one project batch-action execution.
+type BatchActionRequest struct {
+	Action                      generated.ProjectBatchActionRequestAction
+	ProjectIDs                  []uint64
+	RemoveNamedVolumes          bool
+	AutoUnregister              bool
+	ImagePrune                  bool
+	DeleteWorkingDirectory      bool
+	ConfirmCanonicalProjectName *string
+	ActorID                     *uint64
+}
+
+// BatchActionItemResult returns one per-project batch-action result.
+type BatchActionItemResult struct {
+	ActionResult
+	Skipped bool
+}
+
+// BatchActionResult returns the aggregate batch-action outcome with per-item results.
+type BatchActionResult struct {
+	TotalCount     int
+	CompletedCount int
+	BlockedCount   int
+	SkippedCount   int
+	Items          []BatchActionItemResult
+}
+
 // GuardResult is the stable structured contract for blocked/guarded project actions.
 type GuardResult struct {
 	Code       string
@@ -258,6 +289,8 @@ type GuardResult struct {
 // DestroyRequest describes guarded destroy options.
 type DestroyRequest struct {
 	RemoveNamedVolumes          bool
+	AutoUnregister              bool
+	ImagePrune                  bool
 	DeleteWorkingDirectory      bool
 	ConfirmCanonicalProjectName string
 	ActorID                     *uint64
@@ -318,6 +351,9 @@ type Service struct {
 	runtimeReader  moduleapi.ContainerProjectRuntimeReader
 	configResolver moduleapi.SystemConfigResolver
 	inspectCache   *importInspectionCache
+	auditBus       eventbus.Bus
+	logger         *zap.Logger
+	moduleName     string
 }
 
 // NewService 创建项目服务边界并应用可选配置。
@@ -374,6 +410,16 @@ func (s *Service) SetSystemConfigResolver(resolver moduleapi.SystemConfigResolve
 		return
 	}
 	s.configResolver = resolver
+}
+
+// SetAuditPublisher injects the audit event publication dependencies after module registration.
+func (s *Service) SetAuditPublisher(bus eventbus.Bus, logger *zap.Logger, moduleName string) {
+	if s == nil {
+		return
+	}
+	s.auditBus = bus
+	s.logger = logger
+	s.moduleName = strings.TrimSpace(moduleName)
 }
 
 // List returns one page of registered projects.
@@ -466,8 +512,8 @@ func (s *Service) Refresh(ctx context.Context, projectID uint64, actorID *uint64
 	_ = updated
 	return ActionResult{
 		ProjectID:  projectID,
-		Action:     generated.ProjectActionRefresh,
-		Result:     generated.ProjectActionResultCompleted,
+		Action:     generated.ProjectActionResponseActionProjectActionRefresh,
+		Result:     generated.ProjectActionResponseResultProjectActionResultCompleted,
 		MessageKey: stringPointer(projectcontract.ProjectRefreshCompleted.String()),
 		Message:    stringPointer(projectcontract.ProjectRefreshCompleted.String()),
 	}, nil

@@ -75,6 +75,12 @@ vi.mock('vue-i18n', async (importOriginal) => {
     'rbac.permissionCatalog.roleUpdate.description': 'Localized update-role description',
     'rbac.permissionCatalog.auditRead.display': 'Read Audit Localized',
     'rbac.permissionCatalog.auditRead.description': 'Localized audit description',
+    'rbac.permissionCatalog.containerEvents.display': 'Container Event Read',
+    'rbac.permissionCatalog.containerEvents.description':
+      'Allows reading bounded container runtime event history and live event streams.',
+    'rbac.permissionCatalog.projectRefresh.display': 'Refresh Compose Projects',
+    'rbac.permissionCatalog.projectRefresh.description':
+      'Refresh project snapshots and readonly configuration projections.',
   };
   return {
     ...actual,
@@ -640,7 +646,7 @@ function createPermissionListResponse() {
         code: 'permission.read',
         display: 'Permission Read',
         description: 'Read permissions',
-        category: 'permission',
+        module: 'permission',
         role_binding_count: 1,
       },
       {
@@ -648,7 +654,7 @@ function createPermissionListResponse() {
         code: 'role.update',
         display: 'Role Update',
         description: 'Update roles',
-        category: 'role',
+        module: 'role',
         role_binding_count: 1,
       },
       {
@@ -656,7 +662,7 @@ function createPermissionListResponse() {
         code: 'audit.read',
         display: 'Audit Read',
         description: 'Read audit logs',
-        category: 'audit',
+        module: 'audit',
         role_binding_count: 1,
       },
     ],
@@ -1171,7 +1177,7 @@ describe('RolePage', () => {
           display_key: 'rbac.permissionCatalog.futureRead.display',
           description: 'Raw permission description',
           description_key: 'rbac.permissionCatalog.futureRead.description',
-          category: 'future',
+          module: 'future',
           role_binding_count: 0,
         },
       ],
@@ -1188,6 +1194,35 @@ describe('RolePage', () => {
     expect(wrapper.text()).toContain('Future description localized');
     expect(wrapper.text()).not.toContain('Raw Permission Name');
     expect(wrapper.text()).not.toContain('Raw permission description');
+  });
+
+  it('uses frontend permission catalog fallback mapping when backend fallback fields contain locale keys', async () => {
+    permissionState.grantedCodes = [RBAC_PERMISSION_CODE.PERMISSION_READ, RBAC_PERMISSION_CODE.ROLE_PERMISSION_ASSIGN];
+    rbacApiMocks.getRoles.mockResolvedValue(createRoleListResponse());
+    rbacApiMocks.getPermissions.mockResolvedValue({
+      items: [
+        {
+          id: 10,
+          code: 'ops.container.events',
+          display: 'rbac.permissionCatalog.containerEvents.display',
+          description: 'rbac.permissionCatalog.containerEvents.description',
+          module: 'container',
+          role_binding_count: 0,
+        },
+      ],
+    });
+    rbacApiMocks.getRolePermissionBindings.mockResolvedValue({ permission_ids: [] });
+
+    const wrapper = mountRolePage();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="role-assign-permissions"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('Container Event Read');
+    expect(wrapper.text()).toContain('Allows reading bounded container runtime event history and live event streams.');
+    expect(wrapper.text()).not.toContain('rbac.permissionCatalog.containerEvents.display');
+    expect(wrapper.text()).not.toContain('rbac.permissionCatalog.containerEvents.description');
   });
 
   it('opens built-in admin permissions in readonly mode', async () => {

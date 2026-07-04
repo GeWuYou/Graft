@@ -468,8 +468,8 @@ func TestRegisterRegistersReadManagementContracts(t *testing.T) {
 	}
 	assertRegisteredPermissionCodes(t, items)
 	for _, item := range items {
-		if item.Category != "api" {
-			t.Fatalf("expected registered permission %s to declare category api, got %#v", item.Code, item)
+		if item.Module != "rbac" {
+			t.Fatalf("expected registered permission %s to declare module rbac, got %#v", item.Code, item)
 		}
 	}
 
@@ -701,7 +701,7 @@ func TestPermissionRoutesListPermissions(t *testing.T) {
 				DisplayKey:       testStringPtr("rbac.permissionCatalog.permissionRead.display"),
 				Description:      testStringPtr("Allows reading permission management data."),
 				DescriptionKey:   testStringPtr("rbac.permissionCatalog.permissionRead.description"),
-				Category:         "api",
+				Module:           "rbac",
 				CreatedAt:        time.Date(2026, time.May, 22, 9, 0, 0, 0, time.UTC),
 				UpdatedAt:        time.Date(2026, time.May, 23, 10, 30, 0, 0, time.UTC),
 				RoleBindingCount: 2,
@@ -724,6 +724,7 @@ func TestPermissionRoutesListPermissions(t *testing.T) {
 	}
 	item := payload.Items[0]
 	if item.Code != rbaccontract.PermissionReadPermission.String() ||
+		item.Module != "rbac" ||
 		item.CreatedAt != "2026-05-22T09:00:00Z" ||
 		item.UpdatedAt != "2026-05-23T10:30:00Z" ||
 		item.RoleBindingCount != 2 {

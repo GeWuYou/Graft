@@ -1169,6 +1169,10 @@ func TestRunValidateBackendFullStageWithSmoke(t *testing.T) {
 	}()
 
 	var steps []string
+	registryFreshnessRunner := func() error {
+		steps = append(steps, "migration-registry")
+		return nil
+	}
 	backendMigrationVersionRunner = func(_ *cobra.Command) error {
 		steps = append(steps, "migration")
 		return nil
@@ -1199,14 +1203,16 @@ func TestRunValidateBackendFullStageWithSmoke(t *testing.T) {
 	}
 
 	err := runValidateBackend(&cobra.Command{}, backendValidateOptions{
-		stage: "full",
-		smoke: true,
+		stage:                            "full",
+		smoke:                            true,
+		migrationRegistryFreshnessRunner: registryFreshnessRunner,
 	})
 	if err != nil {
 		t.Fatalf("run validate backend full stage: %v", err)
 	}
 
 	expected := []string{
+		"migration-registry",
 		"migration",
 		"openapi:" + defaultOpenAPIRootSpec,
 		"locale-ownership-guard",
@@ -1278,6 +1284,9 @@ func TestRunValidateBackendFullStageStopsOnMigrationVersionFailure(t *testing.T)
 		backendMigrationVersionRunner = originalMigrationVersionRunner
 	}()
 
+	registryFreshnessRunner := func() error {
+		return nil
+	}
 	expectedErr := errors.New("duplicate migration version")
 	backendMigrationVersionRunner = func(_ *cobra.Command) error {
 		return expectedErr
@@ -1304,8 +1313,9 @@ func TestRunValidateBackendFullStageStopsOnMigrationVersionFailure(t *testing.T)
 	}
 
 	err := runValidateBackend(&cobra.Command{}, backendValidateOptions{
-		stage: "full",
-		smoke: true,
+		stage:                            "full",
+		smoke:                            true,
+		migrationRegistryFreshnessRunner: registryFreshnessRunner,
 	})
 	if !errors.Is(err, expectedErr) {
 		t.Fatalf("expected migration version failure, got %v", err)

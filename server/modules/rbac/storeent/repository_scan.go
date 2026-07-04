@@ -129,7 +129,7 @@ func scanPermission(scanner permissionScanner) (rbacstore.Permission, error) {
 		displayKey       sql.NullString
 		description      sql.NullString
 		descriptionKey   sql.NullString
-		category         string
+		module           string
 		createdAt        time.Time
 		updatedAt        time.Time
 		roleBindingCount int
@@ -141,11 +141,14 @@ func scanPermission(scanner permissionScanner) (rbacstore.Permission, error) {
 		&displayKey,
 		&description,
 		&descriptionKey,
-		&category,
+		&module,
 		&createdAt,
 		&updatedAt,
 		&roleBindingCount,
 	); err != nil {
+		if migrationErr := wrapPermissionModuleMigrationError("scan permission", err); migrationErr != nil {
+			return rbacstore.Permission{}, migrationErr
+		}
 		return rbacstore.Permission{}, err
 	}
 
@@ -156,7 +159,7 @@ func scanPermission(scanner permissionScanner) (rbacstore.Permission, error) {
 		DisplayKey:       nullStringPtr(displayKey),
 		Description:      nullStringPtr(description),
 		DescriptionKey:   nullStringPtr(descriptionKey),
-		Category:         category,
+		Module:           module,
 		CreatedAt:        createdAt,
 		UpdatedAt:        updatedAt,
 		RoleBindingCount: roleBindingCount,
@@ -188,6 +191,9 @@ func queryAndScanRows[T any](
 ) ([]T, error) {
 	rows, err := db.QueryContext(ctx, query, args...)
 	if err != nil {
+		if migrationErr := wrapPermissionModuleMigrationError(contextLabel, err); migrationErr != nil {
+			return nil, migrationErr
+		}
 		return nil, fmt.Errorf("%s: %w", contextLabel, err)
 	}
 
@@ -445,4 +451,24 @@ func isUniqueViolation(err error) bool {
 		return true
 	}
 	return false
+}
+
+func wrapPermissionModuleMigrationError(contextLabel string, err error) error {
+	if err == nil {
+		return nil
+	}
+
+	type postgresCodeCarrier interface {
+		SQLState() string
+	}
+	var pgErr postgresCodeCarrier
+	if errors.As(err, &pgErr) && pgErr.SQLState() == "42703" && strings.Contains(strings.ToLower(err.Error()), "column \"module\" does not exist") {
+		return fmt.Errorf(
+			"%s: permissions.module column missing; run `cd server && go run ./cmd/graft migrate up` to apply RBAC migration 202607040001_rbac_permission_module: %w",
+			contextLabel,
+			err,
+		)
+	}
+
+	return nil
 }

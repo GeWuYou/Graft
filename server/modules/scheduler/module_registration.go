@@ -52,7 +52,6 @@ func registerSchedulerPermissions(registry *permission.Registry, moduleName stri
 		DisplayKey:     "rbac.permissionCatalog.scheduledTaskRead.display",
 		Description:    "",
 		DescriptionKey: "rbac.permissionCatalog.scheduledTaskRead.description",
-		Category:       "api",
 		Module:         moduleName,
 	})
 	registry.Register(permission.Item{
@@ -61,7 +60,6 @@ func registerSchedulerPermissions(registry *permission.Registry, moduleName stri
 		DisplayKey:     "rbac.permissionCatalog.scheduledTaskCreate.display",
 		Description:    "",
 		DescriptionKey: "rbac.permissionCatalog.scheduledTaskCreate.description",
-		Category:       "api",
 		Module:         moduleName,
 	})
 	registry.Register(permission.Item{
@@ -70,7 +68,6 @@ func registerSchedulerPermissions(registry *permission.Registry, moduleName stri
 		DisplayKey:     "rbac.permissionCatalog.scheduledTaskUpdate.display",
 		Description:    "",
 		DescriptionKey: "rbac.permissionCatalog.scheduledTaskUpdate.description",
-		Category:       "api",
 		Module:         moduleName,
 	})
 	registry.Register(permission.Item{
@@ -79,7 +76,6 @@ func registerSchedulerPermissions(registry *permission.Registry, moduleName stri
 		DisplayKey:     "rbac.permissionCatalog.scheduledTaskDelete.display",
 		Description:    "",
 		DescriptionKey: "rbac.permissionCatalog.scheduledTaskDelete.description",
-		Category:       "api",
 		Module:         moduleName,
 	})
 	registry.Register(permission.Item{
@@ -88,7 +84,6 @@ func registerSchedulerPermissions(registry *permission.Registry, moduleName stri
 		DisplayKey:     "rbac.permissionCatalog.scheduledTaskRun.display",
 		Description:    "",
 		DescriptionKey: "rbac.permissionCatalog.scheduledTaskRun.description",
-		Category:       "api",
 		Module:         moduleName,
 	})
 	registry.Register(permission.Item{
@@ -97,7 +92,6 @@ func registerSchedulerPermissions(registry *permission.Registry, moduleName stri
 		DisplayKey:     "rbac.permissionCatalog.scheduledTaskEnable.display",
 		Description:    "",
 		DescriptionKey: "rbac.permissionCatalog.scheduledTaskEnable.description",
-		Category:       "api",
 		Module:         moduleName,
 	})
 	return nil

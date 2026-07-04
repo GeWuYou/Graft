@@ -55,20 +55,20 @@ const (
 	// AppLogReadPermission constrains read-only App Log Explorer access.
 	AppLogReadPermission = "app_log.read"
 	// AppLogDeletePermission constrains explicit manual deletion of retained App Log rows.
-	AppLogDeletePermission = "app_log.delete"
-	appLogMenuRootPath            = "/logs"
-	appLogMenuListPath            = "/logs/app"
-	appLogMenuCodeRoot            = "log-center.root"
-	appLogMenuCodeList            = "app-log.list"
-	appLogModuleOwner             = "core.logger"
-	appLogRouteGroup              = "/app-log"
-	appLogRouteItemParam          = "id"
-	appLogBatchDeleteRoute        = "/batch-delete"
-	appLogMenuRootOrder           = 210
-	appLogMenuListOrder           = 212
-	appLogSortPartCount           = 2
-	appLogManualDeleteAction      = "app_log.manual_delete"
-	appLogResourceType            = "app_log"
+	AppLogDeletePermission   = "app_log.delete"
+	appLogMenuRootPath       = "/logs"
+	appLogMenuListPath       = "/logs/app"
+	appLogMenuCodeRoot       = "log-center.root"
+	appLogMenuCodeList       = "app-log.list"
+	appLogModuleOwner        = "core.logger"
+	appLogRouteGroup         = "/app-log"
+	appLogRouteItemParam     = "id"
+	appLogBatchDeleteRoute   = "/batch-delete"
+	appLogMenuRootOrder      = 210
+	appLogMenuListOrder      = 212
+	appLogSortPartCount      = 2
+	appLogManualDeleteAction = "app_log.manual_delete"
+	appLogResourceType       = "app_log"
 )
 
 // AppLogExplorerRegistration carries the core registries required by the logger-owned read surface.
@@ -93,14 +93,12 @@ func registerAppLogExplorerPermissions(registry *permission.Registry) {
 		Code:           AppLogReadPermission,
 		DisplayKey:     "rbac.permissionCatalog.appLogRead.display",
 		DescriptionKey: "rbac.permissionCatalog.appLogRead.description",
-		Category:       "api",
 		Module:         appLogModuleOwner,
 	})
 	registry.Register(permission.Item{
 		Code:           AppLogDeletePermission,
 		DisplayKey:     "rbac.permissionCatalog.appLogDelete.display",
 		DescriptionKey: "rbac.permissionCatalog.appLogDelete.description",
-		Category:       "api",
 		Module:         appLogModuleOwner,
 	})
 }

@@ -95,7 +95,24 @@
         </template>
       </management-toolbar>
 
-      <management-table-card>
+      <management-paged-table
+        v-model:current="pagination.current"
+        v-model:page-size="pagination.pageSize"
+        :columns="visibleColumns"
+        :empty-description="
+          hasActiveFilters ? t('project.list.emptyFilteredDescription') : t('project.list.emptyDescription')
+        "
+        :empty-title="t('project.list.emptyTitle')"
+        :footer-summary="paginationSummary"
+        :loading="tableLoading"
+        row-key="id"
+        :rows="rows"
+        :selected-row-keys="selectedRowKeys"
+        :summary="t('project.list.tableSummary', { count: summaryTotalCount })"
+        :total="pagination.total"
+        @page-change="handlePageChange"
+        @select-change="handleSelectChange"
+      >
         <template #head>
           <div class="project-table-head">
             <div>
@@ -115,163 +132,242 @@
             @refresh="handleManualRefresh"
           />
         </template>
-
-        <management-empty-state
-          v-if="errorMessage && !tableLoading && !refreshing"
-          tone="error"
-          :title="t('project.list.title')"
-          :description="errorMessage"
-        >
-          <template #actions>
-            <t-button theme="primary" variant="outline" @click="handleManualRefresh">
-              {{ t('project.list.retry') }}
-            </t-button>
-          </template>
-        </management-empty-state>
-
-        <div v-else ref="tableHostRef" class="project-table-host" :data-table-mode="tableWidthPolicy.mode">
-          <t-table
-            row-key="id"
-            :columns="visibleColumns"
-            :data="rows"
-            :loading="tableLoading"
-            table-layout="fixed"
-            :table-content-width="tableWidthPolicy.tableContentWidth"
-            cell-empty-content="-"
-            hover
-          >
-            <template #name="{ row }">
-              <div class="project-identity">
-                <button
-                  class="project-identity__main"
-                  type="button"
-                  @click="navigateToDetail(projectRow(row), 'overview')"
+        <template v-if="selectedRows.length > 0" #batch>
+          <div class="project-batch-bar">
+            <span data-testid="project-batch-selected">
+              {{ t('project.list.batch.selected', { count: selectedRows.length }) }}
+            </span>
+            <div class="project-batch-bar__actions">
+              <t-tooltip :content="batchActionHint('start')" placement="top">
+                <t-button
+                  data-testid="project-batch-start"
+                  size="small"
+                  theme="primary"
+                  variant="outline"
+                  :disabled="isBatchActionDisabled('start')"
+                  :loading="batchActionLoading === 'start'"
+                  @click="confirmBatchAction('start')"
                 >
-                  <strong>{{ projectRow(row).display_name }}</strong>
-                  <span v-if="projectSecondaryName(projectRow(row))">{{ projectSecondaryName(projectRow(row)) }}</span>
-                </button>
-                <code>{{ projectRow(row).working_directory }}</code>
-              </div>
-            </template>
-
-            <template #source="{ row }">
-              <t-tag theme="default" variant="light-outline">
-                {{ sourceKindLabel(projectRow(row).source_kind) }}
-              </t-tag>
-            </template>
-
-            <template #runtime="{ row }">
-              <span
-                :class="[
-                  'project-runtime-badge',
-                  `project-runtime-badge--${normalizeRuntimeStatus(projectRow(row).runtime_status)}`,
-                  { 'project-runtime-badge--loading': isRowActionPending(projectRow(row).id) },
-                ]"
-                :data-testid="`project-runtime-status-${projectRow(row).id}`"
-              >
-                <span
-                  v-if="isRowActionPending(projectRow(row).id)"
-                  class="project-runtime-badge__spinner"
-                  :data-testid="`project-runtime-status-loading-${projectRow(row).id}`"
-                />
-                <template v-else>
-                  {{ runtimeStatusLabel(projectRow(row).runtime_status) }}
-                </template>
-              </span>
-            </template>
-
-            <template #resources="{ row }">
-              <div class="project-resources">
-                <div class="project-resources__item">
-                  <span class="project-resources__label">{{ t('project.list.resources.service') }}</span>
-                  <strong>{{ projectRow(row).service_count }}</strong>
-                </div>
-                <div class="project-resources__item">
-                  <span class="project-resources__label">{{ t('project.list.resources.container') }}</span>
-                  <div class="project-resource-badges">
-                    <span
-                      v-for="badge in projectContainerBadges(projectRow(row))"
-                      :key="badge.key"
-                      :class="['project-resource-badge', `project-resource-badge--${badge.key}`]"
-                      :aria-label="badge.label"
-                      :data-testid="`project-resource-badge-${badge.key}-${projectRow(row).id}`"
-                      :title="badge.label"
-                    >
-                      <span class="project-resource-badge__icon" aria-hidden="true">{{ badge.icon }}</span>
-                      {{ badge.count }}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </template>
-
-            <template #drift="{ row }">
-              <span
-                :class="[
-                  'project-sync-status',
-                  `project-sync-status--${normalizeDriftStatus(projectRow(row).drift_status)}`,
-                ]"
-              >
-                {{ driftStatusLabel(projectRow(row).drift_status) }}
-              </span>
-            </template>
-
-            <template #refresh="{ row }">
-              <div class="project-refresh">
-                <t-tag :theme="refreshStatusTheme(projectRow(row).last_refresh_status)" variant="light-outline">
-                  {{ refreshStatusLabel(projectRow(row).last_refresh_status) }}
-                </t-tag>
-                <span>{{ formatTime(projectRow(row).last_refresh_at) }}</span>
-              </div>
-            </template>
-
-            <template #operation="{ row }">
-              <table-action-menu
-                :actions="buildRowActions(projectRow(row))"
-                :more-label="t('project.list.actions.operationMenu')"
-                :more-label-fallback="t('project.list.actions.operationMenu')"
-                @action="(action) => handleRowAction(action, projectRow(row))"
-              />
-            </template>
-
-            <template #empty>
-              <div class="project-empty">
-                <t-empty
-                  :title="t('project.list.emptyTitle')"
-                  :description="
-                    hasActiveFilters ? t('project.list.emptyFilteredDescription') : t('project.list.emptyDescription')
-                  "
+                  {{ t('project.list.batch.start') }}
+                </t-button>
+              </t-tooltip>
+              <t-tooltip :content="batchActionHint('stop')" placement="top">
+                <t-button
+                  data-testid="project-batch-stop"
+                  size="small"
+                  theme="warning"
+                  variant="outline"
+                  :disabled="isBatchActionDisabled('stop')"
+                  :loading="batchActionLoading === 'stop'"
+                  @click="confirmBatchAction('stop')"
                 >
-                  <template #action>
-                    <project-list-entry-actions
-                      :import-label="t('project.list.actions.import')"
-                      :create-label="t('project.list.actions.create')"
-                      :reset-label="t('project.list.clearFilters')"
-                      :show-reset="hasActiveFilters"
-                      @import="navigateToImport"
-                      @create="navigateToSourceChooser"
-                      @reset="resetFilters"
-                    />
-                  </template>
-                </t-empty>
-              </div>
-            </template>
-          </t-table>
-        </div>
-
-        <template #footer>
-          <management-table-pagination :summary="paginationSummary">
-            <t-pagination
-              v-model:current="pagination.current"
-              v-model:page-size="pagination.pageSize"
-              :total="pagination.total"
-              :page-size-options="[10, 20, 50, 100]"
-              :show-page-number="true"
-              @change="handlePageChange"
-            />
-          </management-table-pagination>
+                  {{ t('project.list.batch.stop') }}
+                </t-button>
+              </t-tooltip>
+              <t-tooltip :content="batchActionHint('restart')" placement="top">
+                <t-button
+                  data-testid="project-batch-restart"
+                  size="small"
+                  theme="warning"
+                  variant="outline"
+                  :disabled="isBatchActionDisabled('restart')"
+                  :loading="batchActionLoading === 'restart'"
+                  @click="confirmBatchAction('restart')"
+                >
+                  {{ t('project.list.batch.restart') }}
+                </t-button>
+              </t-tooltip>
+              <t-tooltip :content="batchActionHint('unregister')" placement="top">
+                <t-button
+                  data-testid="project-batch-unregister"
+                  size="small"
+                  theme="default"
+                  variant="outline"
+                  :disabled="isBatchActionDisabled('unregister')"
+                  :loading="batchActionLoading === 'unregister'"
+                  @click="confirmBatchAction('unregister')"
+                >
+                  {{ t('project.list.batch.unregister') }}
+                </t-button>
+              </t-tooltip>
+              <t-tooltip :content="batchActionHint('redeploy')" placement="top">
+                <t-button
+                  data-testid="project-batch-redeploy"
+                  size="small"
+                  theme="default"
+                  variant="outline"
+                  :disabled="isBatchActionDisabled('redeploy')"
+                  :loading="batchActionLoading === 'redeploy'"
+                  @click="confirmBatchAction('redeploy')"
+                >
+                  {{ t('project.list.batch.redeploy') }}
+                </t-button>
+              </t-tooltip>
+              <t-tooltip :content="batchActionHint('update_deploy')" placement="top">
+                <t-button
+                  data-testid="project-batch-update-deploy"
+                  size="small"
+                  theme="default"
+                  variant="outline"
+                  :disabled="isBatchActionDisabled('update_deploy')"
+                  :loading="batchActionLoading === 'update_deploy'"
+                  @click="confirmBatchAction('update_deploy')"
+                >
+                  {{ t('project.list.batch.updateDeploy') }}
+                </t-button>
+              </t-tooltip>
+              <t-tooltip :content="batchActionHint('destroy')" placement="top">
+                <t-button
+                  data-testid="project-batch-destroy"
+                  size="small"
+                  theme="danger"
+                  variant="outline"
+                  :disabled="isBatchActionDisabled('destroy')"
+                  :loading="batchActionLoading === 'destroy'"
+                  @click="confirmBatchAction('destroy')"
+                >
+                  {{ t('project.list.batch.destroy') }}
+                </t-button>
+              </t-tooltip>
+              <t-button
+                data-testid="project-batch-clear"
+                size="small"
+                theme="default"
+                variant="text"
+                @click="clearSelection"
+              >
+                {{ t('project.list.batch.cancelSelection') }}
+              </t-button>
+            </div>
+          </div>
         </template>
-      </management-table-card>
+        <template #feedback>
+          <management-empty-state
+            v-if="errorMessage && !tableLoading && !refreshing"
+            tone="error"
+            :title="t('project.list.title')"
+            :description="errorMessage"
+          >
+            <template #actions>
+              <t-button theme="primary" variant="outline" @click="handleManualRefresh">
+                {{ t('project.list.retry') }}
+              </t-button>
+            </template>
+          </management-empty-state>
+        </template>
+        <template #name="{ row }">
+          <div class="project-identity">
+            <button class="project-identity__main" type="button" @click="navigateToDetail(projectRow(row), 'overview')">
+              <strong>{{ projectRow(row).display_name }}</strong>
+              <span v-if="projectSecondaryName(projectRow(row))">{{ projectSecondaryName(projectRow(row)) }}</span>
+            </button>
+            <code>{{ projectRow(row).working_directory }}</code>
+          </div>
+        </template>
+
+        <template #source="{ row }">
+          <t-tag theme="default" variant="light-outline">
+            {{ sourceKindLabel(projectRow(row).source_kind) }}
+          </t-tag>
+        </template>
+
+        <template #runtime="{ row }">
+          <span
+            :class="[
+              'project-runtime-badge',
+              `project-runtime-badge--${normalizeRuntimeStatus(projectRow(row).runtime_status)}`,
+              { 'project-runtime-badge--loading': isRowActionPending(projectRow(row).id) },
+            ]"
+            :data-testid="`project-runtime-status-${projectRow(row).id}`"
+          >
+            <span
+              v-if="isRowActionPending(projectRow(row).id)"
+              class="project-runtime-badge__spinner"
+              :data-testid="`project-runtime-status-loading-${projectRow(row).id}`"
+            />
+            <template v-else>
+              {{ runtimeStatusLabel(projectRow(row).runtime_status) }}
+            </template>
+          </span>
+        </template>
+
+        <template #resources="{ row }">
+          <div class="project-resources">
+            <div class="project-resources__item">
+              <span class="project-resources__label">{{ t('project.list.resources.service') }}</span>
+              <strong>{{ projectRow(row).service_count }}</strong>
+            </div>
+            <div class="project-resources__item">
+              <span class="project-resources__label">{{ t('project.list.resources.container') }}</span>
+              <div class="project-resource-badges">
+                <span
+                  v-for="badge in projectContainerBadges(projectRow(row))"
+                  :key="badge.key"
+                  :class="['project-resource-badge', `project-resource-badge--${badge.key}`]"
+                  :aria-label="badge.label"
+                  :data-testid="`project-resource-badge-${badge.key}-${projectRow(row).id}`"
+                  :title="badge.label"
+                >
+                  <span class="project-resource-badge__icon" aria-hidden="true">{{ badge.icon }}</span>
+                  {{ badge.count }}
+                </span>
+              </div>
+            </div>
+          </div>
+        </template>
+
+        <template #drift="{ row }">
+          <span
+            :class="[
+              'project-sync-status',
+              `project-sync-status--${normalizeDriftStatus(projectRow(row).drift_status)}`,
+            ]"
+          >
+            {{ driftStatusLabel(projectRow(row).drift_status) }}
+          </span>
+        </template>
+
+        <template #refresh="{ row }">
+          <div class="project-refresh">
+            <t-tag :theme="refreshStatusTheme(projectRow(row).last_refresh_status)" variant="light-outline">
+              {{ refreshStatusLabel(projectRow(row).last_refresh_status) }}
+            </t-tag>
+            <span>{{ formatTime(projectRow(row).last_refresh_at) }}</span>
+          </div>
+        </template>
+
+        <template #operation="{ row }">
+          <table-action-menu
+            :actions="buildRowActions(projectRow(row))"
+            :more-label="t('project.list.actions.operationMenu')"
+            :more-label-fallback="t('project.list.actions.operationMenu')"
+            @action="(action) => handleRowAction(action, projectRow(row))"
+          />
+        </template>
+
+        <template #empty>
+          <div v-if="!errorMessage" class="project-empty">
+            <t-empty
+              :title="t('project.list.emptyTitle')"
+              :description="
+                hasActiveFilters ? t('project.list.emptyFilteredDescription') : t('project.list.emptyDescription')
+              "
+            >
+              <template #action>
+                <project-list-entry-actions
+                  :import-label="t('project.list.actions.import')"
+                  :create-label="t('project.list.actions.create')"
+                  :reset-label="t('project.list.clearFilters')"
+                  :show-reset="hasActiveFilters"
+                  @import="navigateToImport"
+                  @create="navigateToSourceChooser"
+                  @reset="resetFilters"
+                />
+              </template>
+            </t-empty>
+          </div>
+        </template>
+      </management-paged-table>
 
       <t-drawer
         v-model:visible="columnDrawerVisible"
@@ -304,14 +400,11 @@ import { useRouter } from 'vue-router';
 import {
   ManagementEmptyState,
   ManagementPageContent,
+  ManagementPagedTable,
   ManagementPageHeader,
-  ManagementTableCard,
-  ManagementTablePagination,
   ManagementToolbar,
-  resolveTableWidthPolicy,
   TableActionMenu,
   TableViewToolbar,
-  useTableHostWidth,
 } from '@/shared/components/management';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { useTabsRouterStore } from '@/store/modules/tabs-router';
@@ -320,11 +413,15 @@ import { localizeRouteTitleKey } from '@/utils/route/title';
 
 import {
   getProjects,
+  postProjectBatchActions,
+  postProjectDestroy,
   postProjectDown,
+  postProjectRedeploy,
   postProjectRefresh,
   postProjectRestart,
   postProjectUnregister,
   postProjectUp,
+  postProjectUpdateDeploy,
 } from '../../api/project';
 import ProjectListEntryActions from '../../components/ProjectListEntryActions.vue';
 import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
@@ -339,6 +436,10 @@ import {
 } from '../../shared/display';
 import { appendResolvedTab, buildDetailTitleWithFallback } from '../../shared/navigation';
 import type {
+  ProjectBatchAction,
+  ProjectBatchActionItem,
+  ProjectBatchActionResponse,
+  ProjectDestroyRequest,
   ProjectDetailResponse,
   ProjectDriftStatus,
   ProjectFilters,
@@ -346,6 +447,7 @@ import type {
   ProjectRefreshStatus,
   ProjectRuntimeStatus,
   ProjectSourceKind,
+  ProjectUpdateDeployRequest,
 } from '../../types/project';
 
 defineOptions({
@@ -359,8 +461,9 @@ const logger = createLogger('project.list');
 
 type HeaderStatusSummaryKey = 'running' | 'degraded' | 'stopped' | 'transitioning' | 'unknown';
 type ProjectListDriftTone = 'clean' | 'drifted' | 'unknown';
-type PendingProjectAction = 'up' | 'down' | 'restart';
+type PendingProjectAction = 'up' | 'down' | 'restart' | 'redeploy' | 'update_deploy';
 type ProjectResourceBadgeKey = 'running' | 'stopped' | 'transitioning' | 'issue' | 'unknown';
+type ProjectBatchActionUi = ProjectBatchAction;
 type PendingProjectActionState = {
   action: PendingProjectAction;
   lastRefreshAt: string | null;
@@ -391,13 +494,20 @@ const filters = ref<ProjectFilters>({
   lastRefreshStatus: 'all',
 });
 const columnDrawerVisible = ref(false);
-const { tableHostRef, tableHostWidth } = useTableHostWidth(() => visibleColumnKeys.value.join(','));
 
 const sourceKindOptions: ProjectSourceKind[] = ['imported', 'managed', 'git', 'template'];
 const driftStatusOptions: ProjectDriftStatus[] = ['unknown', 'clean', 'changed', 'missing'];
 const refreshStatusOptions: ProjectRefreshStatus[] = ['never', 'success', 'failed'];
 
 const configurableColumns = computed<TableProps['columns']>(() => [
+  {
+    colKey: 'row-select',
+    title: t('project.list.columns.selection'),
+    type: 'multiple',
+    width: 48,
+    fixed: 'left',
+    align: 'center',
+  },
   { colKey: 'name', title: t('project.list.columns.name'), width: 300 },
   { colKey: 'source', title: t('project.list.columns.source'), width: 112, align: 'center' },
   { colKey: 'runtime', title: t('project.list.columns.runtime'), width: 148, align: 'center' },
@@ -406,15 +516,25 @@ const configurableColumns = computed<TableProps['columns']>(() => [
   { colKey: 'refresh', title: t('project.list.columns.refresh'), width: 168, align: 'center' },
   { colKey: 'operation', title: t('project.list.columns.operation'), width: 152, fixed: 'right', align: 'center' },
 ]);
-const visibleColumnKeys = ref(['name', 'source', 'runtime', 'resources', 'drift', 'refresh', 'operation']);
+const visibleColumnKeys = ref([
+  'row-select',
+  'name',
+  'source',
+  'runtime',
+  'resources',
+  'drift',
+  'refresh',
+  'operation',
+]);
 const visibleColumns = computed(() =>
   (configurableColumns.value ?? []).filter((column) => visibleColumnKeys.value.includes(String(column?.colKey))),
 );
-const tableWidthPolicy = computed(() => resolveTableWidthPolicy(visibleColumns.value ?? [], tableHostWidth.value));
 const confirmDialogOpen = ref(false);
 const refreshLoading = computed(() => tableLoading.value || refreshing.value);
 const realtimeActive = ref(false);
 const pendingRowActions = ref<Record<number, PendingProjectActionState>>({});
+const selectedRowKeys = ref<number[]>([]);
+const batchActionLoading = ref<ProjectBatchActionUi | ''>('');
 
 const summaryTotalCount = computed(() => (pagination.value.total > 0 ? pagination.value.total : rows.value.length));
 const projectStatusCounts = computed<Record<HeaderStatusSummaryKey, number>>(() => {
@@ -462,6 +582,10 @@ const paginationSummary = computed(() => {
   const start = (pagination.value.current - 1) * pagination.value.pageSize + 1;
   const end = start + rows.value.length - 1;
   return `${start}-${end} / ${pagination.value.total}`;
+});
+const selectedRows = computed(() => {
+  const rowMap = new Map(rows.value.map((row) => [row.id, row]));
+  return selectedRowKeys.value.map((id) => rowMap.get(id)).filter((row): row is ProjectListItem => Boolean(row));
 });
 
 onMounted(() => {
@@ -677,6 +801,7 @@ async function fetchProjects() {
       : response.items;
     rows.value = nextRows;
     reconcilePendingRowActions(nextRows);
+    selectedRowKeys.value = selectedRowKeys.value.filter((id) => nextRows.some((row) => row.id === id));
   } catch (error) {
     if (requestSeq !== refreshRequestSeq) {
       return;
@@ -756,6 +881,14 @@ function clearPendingRowAction(rowId: number) {
 
 function isRowActionPending(rowId: number) {
   return Boolean(pendingRowActions.value[rowId]);
+}
+
+function clearSelection() {
+  selectedRowKeys.value = [];
+}
+
+function handleSelectChange(rowKeys: Array<string | number>) {
+  selectedRowKeys.value = rowKeys.map((key) => Number(key)).filter((key) => Number.isInteger(key) && key > 0);
 }
 
 function resetFilters() {
@@ -846,23 +979,77 @@ function buildRowActions(row: ProjectListItem) {
     ...(visibility.up ? [{ value: 'up', label: t('project.list.actions.up') }] : []),
     ...(visibility.down ? [{ value: 'down', label: t('project.list.actions.down') }] : []),
     ...(visibility.restart ? [{ value: 'restart', label: t('project.list.actions.restart') }] : []),
+    { value: 'redeploy', label: t('project.list.actions.redeploy') },
+    { value: 'update_deploy', label: t('project.list.actions.updateDeploy') },
     { value: 'unregister', label: t('project.list.actions.unregister') },
+    { value: 'destroy', label: t('project.list.actions.destroy') },
   ];
 }
 
-function actionConfirmTitleKey(action: 'up' | 'down' | 'restart' | 'unregister') {
+function actionConfirmTitleKey(
+  action: 'up' | 'down' | 'restart' | 'unregister' | 'redeploy' | 'updateDeploy' | 'destroy',
+) {
   return `project.list.actions.confirm${action.charAt(0).toUpperCase()}${action.slice(1)}Title`;
 }
 
-function actionConfirmDescriptionKey(action: 'up' | 'down' | 'restart' | 'unregister') {
+function actionConfirmDescriptionKey(
+  action: 'up' | 'down' | 'restart' | 'unregister' | 'redeploy' | 'updateDeploy' | 'destroy',
+) {
   return `project.list.actions.confirm${action.charAt(0).toUpperCase()}${action.slice(1)}Description`;
 }
 
-function actionConfirmTheme(action: 'up' | 'down' | 'restart' | 'unregister') {
+function actionConfirmTheme(
+  action: 'up' | 'down' | 'restart' | 'unregister' | 'redeploy' | 'updateDeploy' | 'destroy',
+) {
   return action === 'up' ? ('warning' as const) : ('danger' as const);
 }
 
-function confirmDangerousAction(row: ProjectListItem, action: 'up' | 'down' | 'restart' | 'unregister') {
+function isDeleteWorkingDirectoryAllowed(row: ProjectListItem) {
+  return row.ownership_mode !== 'external';
+}
+
+function isRowBatchEligible(row: ProjectListItem, action: ProjectBatchActionUi) {
+  const visibility = projectLifecycleActionVisibility(row.runtime_status, {
+    hideLifecycleActions: isRowActionPending(row.id),
+  });
+  if (action === 'start') return visibility.up;
+  if (action === 'stop') return visibility.down;
+  if (action === 'restart') return visibility.restart;
+  if (action === 'unregister') return true;
+  if (action === 'redeploy' || action === 'update_deploy') return !isRowActionPending(row.id);
+  return true;
+}
+
+function batchActionableRows(action: ProjectBatchActionUi) {
+  return selectedRows.value.filter((row) => isRowBatchEligible(row, action));
+}
+
+function requiresSingleSelection(action: ProjectBatchActionUi) {
+  return action === 'destroy';
+}
+
+function isBatchActionDisabled(action: ProjectBatchActionUi) {
+  if (requiresSingleSelection(action) && selectedRows.value.length !== 1) {
+    return true;
+  }
+  return batchActionableRows(action).length === 0;
+}
+
+function batchActionHint(action: ProjectBatchActionUi) {
+  if (!selectedRows.value.length) return t('project.list.batch.noSelection');
+  if (requiresSingleSelection(action) && selectedRows.value.length !== 1) {
+    return t('project.list.batch.destroySingleSelection');
+  }
+  if (isBatchActionDisabled(action)) return t('project.list.batch.noActionableSelection');
+  return t(`project.list.batch.${action === 'update_deploy' ? 'updateDeploy' : action}Hint`, {
+    count: batchActionableRows(action).length,
+  });
+}
+
+function confirmDangerousAction(
+  row: ProjectListItem,
+  action: 'up' | 'down' | 'restart' | 'unregister' | 'redeploy' | 'updateDeploy' | 'destroy',
+) {
   if (confirmDialogOpen.value) {
     return Promise.resolve(false);
   }
@@ -870,6 +1057,10 @@ function confirmDangerousAction(row: ProjectListItem, action: 'up' | 'down' | 'r
   return new Promise<boolean>((resolve) => {
     let settled = false;
     confirmDialogOpen.value = true;
+    const imagePrune = ref(false);
+    const deleteWorkingDirectory = ref(false);
+    const autoUnregister = ref(false);
+    const removeNamedVolumes = ref(false);
 
     const finish = (dialog: DialogInstance, confirmed: boolean) => {
       if (settled) {
@@ -886,6 +1077,57 @@ function confirmDangerousAction(row: ProjectListItem, action: 'up' | 'down' | 'r
       body: () =>
         h('div', { class: 'project-action-confirm' }, [
           h('p', t(actionConfirmDescriptionKey(action), { name: row.display_name })),
+          action === 'updateDeploy'
+            ? h('label', { class: 'project-action-confirm__option' }, [
+                h('input', {
+                  checked: imagePrune.value,
+                  type: 'checkbox',
+                  onInput: (event: Event) => {
+                    imagePrune.value = (event.target as HTMLInputElement).checked;
+                  },
+                }),
+                h('span', t('project.list.actions.updateDeployPrune')),
+              ])
+            : null,
+          action === 'updateDeploy' ? h('p', t('project.list.actions.updateDeployWarning')) : null,
+          action === 'destroy'
+            ? h('div', { class: 'project-action-confirm__danger' }, [
+                h('label', { class: 'project-action-confirm__option' }, [
+                  h('input', {
+                    checked: removeNamedVolumes.value,
+                    type: 'checkbox',
+                    onInput: (event: Event) => {
+                      removeNamedVolumes.value = (event.target as HTMLInputElement).checked;
+                    },
+                  }),
+                  h('span', t('project.list.actions.destroyDeleteVolumes')),
+                ]),
+                h('label', { class: 'project-action-confirm__option' }, [
+                  h('input', {
+                    checked: autoUnregister.value,
+                    type: 'checkbox',
+                    onInput: (event: Event) => {
+                      autoUnregister.value = (event.target as HTMLInputElement).checked;
+                    },
+                  }),
+                  h('span', t('project.list.actions.destroyAutoUnregister')),
+                ]),
+                h('label', { class: 'project-action-confirm__option' }, [
+                  h('input', {
+                    checked: deleteWorkingDirectory.value,
+                    disabled: !isDeleteWorkingDirectoryAllowed(row),
+                    type: 'checkbox',
+                    onInput: (event: Event) => {
+                      deleteWorkingDirectory.value = (event.target as HTMLInputElement).checked;
+                      if (deleteWorkingDirectory.value) {
+                        autoUnregister.value = true;
+                      }
+                    },
+                  }),
+                  h('span', t('project.list.actions.destroyDeleteProjectFiles')),
+                ]),
+              ])
+            : null,
         ]),
       theme: actionConfirmTheme(action),
       confirmBtn: {
@@ -895,8 +1137,235 @@ function confirmDangerousAction(row: ProjectListItem, action: 'up' | 'down' | 'r
       cancelBtn: t('project.list.actions.cancel'),
       onCancel: () => finish(dialog, false),
       onClose: () => finish(dialog, false),
-      onConfirm: () => finish(dialog, true),
+      onConfirm: async () => {
+        if (action === 'destroy') {
+          await runDestroy(row, {
+            auto_unregister: autoUnregister.value || deleteWorkingDirectory.value,
+            confirm_canonical_project_name: row.canonical_project_name,
+            delete_working_directory: deleteWorkingDirectory.value,
+            image_prune: false,
+            remove_named_volumes: removeNamedVolumes.value,
+          });
+          finish(dialog, true);
+          return;
+        }
+        if (action === 'updateDeploy') {
+          await runUpdateDeploy(row, { image_prune: imagePrune.value });
+          finish(dialog, true);
+          return;
+        }
+        finish(dialog, true);
+      },
     });
+  });
+}
+
+async function runDestroy(row: ProjectListItem, payload: ProjectDestroyRequest) {
+  try {
+    await postProjectDestroy(row.id, payload);
+    MessagePlugin.success(t('project.list.actions.actionSuccess'));
+    await fetchProjects();
+  } catch (error) {
+    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.list.actions.actionFailed')));
+  }
+}
+
+async function runUpdateDeploy(row: ProjectListItem, payload?: ProjectUpdateDeployRequest) {
+  markPendingRowAction(row, 'update_deploy');
+  try {
+    await postProjectUpdateDeploy(row.id, payload);
+    MessagePlugin.success(t('project.list.actions.actionSuccess'));
+    await fetchProjects();
+  } catch (error) {
+    clearPendingRowAction(row.id);
+    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.list.actions.actionFailed')));
+  }
+}
+
+async function runRedeploy(row: ProjectListItem) {
+  markPendingRowAction(row, 'redeploy');
+  try {
+    await postProjectRedeploy(row.id);
+    MessagePlugin.success(t('project.list.actions.actionSuccess'));
+    await fetchProjects();
+  } catch (error) {
+    clearPendingRowAction(row.id);
+    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.list.actions.actionFailed')));
+  }
+}
+
+async function executeBatchAction(
+  action: ProjectBatchActionUi,
+  overrides: Partial<ProjectDestroyRequest & ProjectUpdateDeployRequest> = {},
+) {
+  const actionableRows = batchActionableRows(action);
+  if (requiresSingleSelection(action) && actionableRows.length !== 1) {
+    return;
+  }
+  if (!actionableRows.length) return;
+  batchActionLoading.value = action;
+  try {
+    const response = await postProjectBatchActions({
+      action,
+      auto_unregister: overrides.auto_unregister ?? false,
+      confirm_canonical_project_name: overrides.confirm_canonical_project_name,
+      delete_working_directory: overrides.delete_working_directory ?? false,
+      image_prune: overrides.image_prune ?? false,
+      project_ids: actionableRows.map((row) => row.id),
+      remove_named_volumes: overrides.remove_named_volumes ?? false,
+    });
+    handleBatchActionResult(action, response);
+    clearSelection();
+    await fetchProjects();
+  } catch (error) {
+    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.list.batch.failed')));
+  } finally {
+    batchActionLoading.value = '';
+  }
+}
+
+function batchFailureSummary(items: ProjectBatchActionItem[]) {
+  return items
+    .filter((item) => !item.skipped && item.result !== 'completed')
+    .map((item) => `${item.project_id}: ${item.message_key ? t(item.message_key) : item.message || '-'}`)
+    .join('\n');
+}
+
+function batchActionLocaleSegment(action: ProjectBatchActionUi) {
+  return action === 'update_deploy' ? 'updateDeploy' : action;
+}
+
+function handleBatchActionResult(action: ProjectBatchActionUi, response: ProjectBatchActionResponse) {
+  const successCount = response.completed_count;
+  const skippedCount = response.skipped_count;
+  const title = t(`project.list.batch.${batchActionLocaleSegment(action)}ResultTitle`);
+  const dialogTheme = 'warning' as const;
+  if (response.blocked_count === 0) {
+    MessagePlugin.success(
+      t('project.list.batch.success', {
+        count: successCount,
+        skippedCount,
+      }),
+    );
+    return;
+  }
+  MessagePlugin.error(
+    t('project.list.batch.partial', {
+      count: successCount,
+      skippedCount,
+      blockedCount: response.blocked_count,
+    }),
+  );
+  DialogPlugin.alert({
+    body: () => h('div', { style: { whiteSpace: 'pre-line' } }, batchFailureSummary(response.items)),
+    confirmBtn: t('project.list.actions.confirm'),
+    header: title,
+    theme: dialogTheme,
+  });
+}
+
+function confirmBatchAction(action: ProjectBatchActionUi) {
+  if (isBatchActionDisabled(action) || confirmDialogOpen.value) {
+    return;
+  }
+  confirmDialogOpen.value = true;
+  const imagePrune = ref(false);
+  const deleteWorkingDirectory = ref(false);
+  const autoUnregister = ref(false);
+  const removeNamedVolumes = ref(false);
+  const selectedCount = selectedRows.value.length;
+  const actionableCount = batchActionableRows(action).length;
+  const skippedCount = selectedCount - actionableCount;
+  const title = t(`project.list.batch.${batchActionLocaleSegment(action)}Title`);
+  const closeDialog = () => {
+    confirmDialogOpen.value = false;
+    dialog.destroy();
+  };
+  const dialog = DialogPlugin.confirm({
+    header: title,
+    body: () =>
+      h('div', { class: 'project-action-confirm' }, [
+        h(
+          'p',
+          t(`project.list.batch.${batchActionLocaleSegment(action)}Confirm`, {
+            count: actionableCount,
+          }),
+        ),
+        h('p', t('project.list.batch.scope', { actionableCount, selectedCount, skippedCount })),
+        skippedCount > 0 ? h('p', t('project.list.batch.skipInapplicable')) : null,
+        action === 'update_deploy'
+          ? h('label', { class: 'project-action-confirm__option' }, [
+              h('input', {
+                checked: imagePrune.value,
+                type: 'checkbox',
+                onInput: (event: Event) => {
+                  imagePrune.value = (event.target as HTMLInputElement).checked;
+                },
+              }),
+              h('span', t('project.list.actions.updateDeployPrune')),
+            ])
+          : null,
+        action === 'update_deploy' ? h('p', t('project.list.actions.updateDeployWarning')) : null,
+        action === 'destroy'
+          ? h('div', { class: 'project-action-confirm__danger' }, [
+              h('label', { class: 'project-action-confirm__option' }, [
+                h('input', {
+                  checked: removeNamedVolumes.value,
+                  type: 'checkbox',
+                  onInput: (event: Event) => {
+                    removeNamedVolumes.value = (event.target as HTMLInputElement).checked;
+                  },
+                }),
+                h('span', t('project.list.actions.destroyDeleteVolumes')),
+              ]),
+              h('label', { class: 'project-action-confirm__option' }, [
+                h('input', {
+                  checked: autoUnregister.value,
+                  type: 'checkbox',
+                  onInput: (event: Event) => {
+                    autoUnregister.value = (event.target as HTMLInputElement).checked;
+                  },
+                }),
+                h('span', t('project.list.actions.destroyAutoUnregister')),
+              ]),
+              h('label', { class: 'project-action-confirm__option' }, [
+                h('input', {
+                  checked: deleteWorkingDirectory.value,
+                  disabled: selectedRows.value.some((row) => !isDeleteWorkingDirectoryAllowed(row)),
+                  type: 'checkbox',
+                  onInput: (event: Event) => {
+                    deleteWorkingDirectory.value = (event.target as HTMLInputElement).checked;
+                    if (deleteWorkingDirectory.value) {
+                      autoUnregister.value = true;
+                    }
+                  },
+                }),
+                h('span', t('project.list.actions.destroyDeleteProjectFiles')),
+              ]),
+            ])
+          : null,
+      ]),
+    cancelBtn: t('project.list.actions.cancel'),
+    confirmBtn: t('project.list.actions.confirm'),
+    onCancel: () => {
+      closeDialog();
+    },
+    onClose: () => {
+      closeDialog();
+    },
+    onConfirm: async () => {
+      closeDialog();
+      await executeBatchAction(action, {
+        auto_unregister: autoUnregister.value || deleteWorkingDirectory.value,
+        confirm_canonical_project_name:
+          action === 'destroy' && selectedRows.value.length === 1
+            ? selectedRows.value[0]?.canonical_project_name
+            : undefined,
+        delete_working_directory: deleteWorkingDirectory.value,
+        image_prune: imagePrune.value,
+        remove_named_volumes: removeNamedVolumes.value,
+      });
+    },
   });
 }
 
@@ -930,11 +1399,30 @@ async function handleRowAction(action: string, row: ProjectListItem) {
     await runAction(postProjectRestart, row, t('project.list.actions.actionSuccess'), 'restart');
     return;
   }
+  if (action === 'redeploy') {
+    if (!(await confirmDangerousAction(row, 'redeploy'))) {
+      return;
+    }
+    await runRedeploy(row);
+    return;
+  }
+  if (action === 'update_deploy') {
+    if (!(await confirmDangerousAction(row, 'updateDeploy'))) {
+      return;
+    }
+    return;
+  }
   if (action === 'unregister') {
     if (!(await confirmDangerousAction(row, 'unregister'))) {
       return;
     }
     await runAction(postProjectUnregister, row, t('project.list.actions.actionSuccess'));
+    return;
+  }
+  if (action === 'destroy') {
+    if (!(await confirmDangerousAction(row, 'destroy'))) {
+      return;
+    }
   }
 }
 </script>
@@ -945,7 +1433,9 @@ async function handleRowAction(action: string, row: ProjectListItem) {
 .project-resource-badges,
 .project-refresh,
 .project-identity,
-.project-header-summary {
+.project-header-summary,
+.project-batch-bar,
+.project-batch-bar__actions {
   display: flex;
 }
 
@@ -958,6 +1448,24 @@ async function handleRowAction(action: string, row: ProjectListItem) {
   align-items: center;
   gap: var(--graft-density-gap-16);
   justify-content: space-between;
+}
+
+.project-batch-bar {
+  align-items: center;
+  gap: var(--graft-density-gap-12);
+  justify-content: space-between;
+  padding: var(--graft-density-gap-8) 0;
+  width: 100%;
+}
+
+.project-batch-bar__actions {
+  flex-wrap: wrap;
+  gap: var(--graft-density-gap-8);
+}
+
+.project-batch-bar > span {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-body-medium);
 }
 
 .project-table-head__summary,
@@ -1107,7 +1615,20 @@ async function handleRowAction(action: string, row: ProjectListItem) {
 .project-resources,
 .project-resource-badges,
 .project-refresh,
-.project-column-drawer {
+.project-column-drawer,
+.project-action-confirm__danger {
+  gap: var(--graft-density-gap-8);
+}
+
+.project-action-confirm__danger {
+  display: flex;
+  flex-direction: column;
+  margin-top: var(--graft-density-gap-8);
+}
+
+.project-action-confirm__option {
+  align-items: center;
+  display: flex;
   gap: var(--graft-density-gap-8);
 }
 

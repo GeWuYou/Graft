@@ -48,7 +48,6 @@ func userPermissionItems(moduleName string) []permission.Item {
 			DisplayKey:     "rbac.permissionCatalog.userRead.display",
 			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.userRead.description",
-			Category:       "api",
 			Module:         moduleName,
 		},
 		{
@@ -57,7 +56,6 @@ func userPermissionItems(moduleName string) []permission.Item {
 			DisplayKey:     "rbac.permissionCatalog.userCreate.display",
 			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.userCreate.description",
-			Category:       "api",
 			Module:         moduleName,
 		},
 		{
@@ -66,7 +64,6 @@ func userPermissionItems(moduleName string) []permission.Item {
 			DisplayKey:     "rbac.permissionCatalog.userUpdate.display",
 			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.userUpdate.description",
-			Category:       "api",
 			Module:         moduleName,
 		},
 		{
@@ -75,7 +72,6 @@ func userPermissionItems(moduleName string) []permission.Item {
 			DisplayKey:     "rbac.permissionCatalog.userDisable.display",
 			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.userDisable.description",
-			Category:       "api",
 			Module:         moduleName,
 		},
 		{
@@ -84,7 +80,6 @@ func userPermissionItems(moduleName string) []permission.Item {
 			DisplayKey:     "rbac.permissionCatalog.userSessionRevoke.display",
 			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.userSessionRevoke.description",
-			Category:       "api",
 			Module:         moduleName,
 		},
 		{
@@ -93,7 +88,6 @@ func userPermissionItems(moduleName string) []permission.Item {
 			DisplayKey:     "rbac.permissionCatalog.userSessionRead.display",
 			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.userSessionRead.description",
-			Category:       "api",
 			Module:         moduleName,
 		},
 	}

@@ -352,6 +352,10 @@
         "display": "读取审计日志",
         "description": "允许查看审计概览与审计日志。"
       },
+      "auditManage": {
+        "display": "审计策略管理",
+        "description": "允许管理审计可见性默认策略和单事件覆盖策略。"
+      },
       "containerView": {
         "display": "查看容器",
         "description": "允许查看容器管理列表。"
@@ -359,6 +363,14 @@
       "containerDetail": {
         "display": "查看容器详情",
         "description": "允许读取容器详情快照。"
+      },
+      "containerEvents": {
+        "display": "容器事件读取",
+        "description": "允许读取有界容器运行时事件历史与实时事件流。"
+      },
+      "containerEnvironment": {
+        "display": "容器环境变量读取",
+        "description": "允许在展示策略允许时读取容器环境变量值。"
       },
       "containerLogs": {
         "display": "查看容器日志",
@@ -383,6 +395,42 @@
       "containerRemove": {
         "display": "删除容器",
         "description": "允许在启用高危操作后删除容器。"
+      },
+      "projectView": {
+        "display": "查看 Compose 项目",
+        "description": "读取已注册 Compose 项目的摘要和只读详情。"
+      },
+      "projectImport": {
+        "display": "导入 Compose 项目",
+        "description": "校验并导入外部 Compose 项目到项目注册表。"
+      },
+      "projectRefresh": {
+        "display": "刷新 Compose 项目",
+        "description": "刷新项目快照和只读配置投影视图。"
+      },
+      "projectLifecycle": {
+        "display": "管理 Compose 项目生命周期",
+        "description": "执行受限的 Compose 生命周期动作，例如 up、down 和 restart。"
+      },
+      "projectDestroy": {
+        "display": "注销或销毁 Compose 项目",
+        "description": "对项目记录执行注销和受保护的销毁动作。"
+      },
+      "projectCreate": {
+        "display": "创建受管 Compose 项目",
+        "description": "查看受管根目录设置，并创建受管 Compose 项目。"
+      },
+      "projectSourceView": {
+        "display": "查看项目来源目录",
+        "description": "查看可用的项目来源，以及 managed、git、template 工作流的入口路由。"
+      },
+      "projectDiscoveryView": {
+        "display": "查看项目发现候选项",
+        "description": "预览本机发现到的 Compose 目录，不直接注册项目。"
+      },
+      "projectDeploy": {
+        "display": "部署受管 Compose 项目草稿",
+        "description": "对受管项目配置草稿执行 diff、validate 和 deploy。"
       },
       "notificationView": {
         "display": "查看通知",

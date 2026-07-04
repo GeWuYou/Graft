@@ -87,6 +87,10 @@ const (
 	ProjectDownCompleted MessageKey = "ops.project.down.completed"
 	// ProjectRestartCompleted identifies a successful compose restart response.
 	ProjectRestartCompleted MessageKey = "ops.project.restart.completed"
+	// ProjectRedeployCompleted identifies a successful compose redeploy response.
+	ProjectRedeployCompleted MessageKey = "ops.project.redeploy.completed"
+	// ProjectUpdateDeployCompleted identifies a successful compose update-deploy response.
+	ProjectUpdateDeployCompleted MessageKey = "ops.project.updateDeploy.completed"
 	// ProjectUnregisterCompleted identifies a successful unregister response.
 	ProjectUnregisterCompleted MessageKey = "ops.project.unregister.completed"
 	// ProjectDestroyCompleted identifies a successful guarded destroy response.

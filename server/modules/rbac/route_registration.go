@@ -88,7 +88,6 @@ func rbacPermissionItems(moduleName string) []permission.Item {
 			DisplayKey:     "rbac.permissionCatalog.roleRead.display",
 			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.roleRead.description",
-			Category:       "api",
 			Module:         moduleName,
 		},
 		{
@@ -97,7 +96,6 @@ func rbacPermissionItems(moduleName string) []permission.Item {
 			DisplayKey:     "rbac.permissionCatalog.roleCreate.display",
 			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.roleCreate.description",
-			Category:       "api",
 			Module:         moduleName,
 		},
 		{
@@ -106,7 +104,6 @@ func rbacPermissionItems(moduleName string) []permission.Item {
 			DisplayKey:     "rbac.permissionCatalog.roleUpdate.display",
 			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.roleUpdate.description",
-			Category:       "api",
 			Module:         moduleName,
 		},
 		{
@@ -115,7 +112,6 @@ func rbacPermissionItems(moduleName string) []permission.Item {
 			DisplayKey:     "rbac.permissionCatalog.roleStatusUpdate.display",
 			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.roleStatusUpdate.description",
-			Category:       "api",
 			Module:         moduleName,
 		},
 		{
@@ -124,7 +120,6 @@ func rbacPermissionItems(moduleName string) []permission.Item {
 			DisplayKey:     "rbac.permissionCatalog.roleDelete.display",
 			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.roleDelete.description",
-			Category:       "api",
 			Module:         moduleName,
 		},
 		{
@@ -133,7 +128,6 @@ func rbacPermissionItems(moduleName string) []permission.Item {
 			DisplayKey:     "rbac.permissionCatalog.rolePermissionAssign.display",
 			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.rolePermissionAssign.description",
-			Category:       "api",
 			Module:         moduleName,
 		},
 		{
@@ -142,7 +136,6 @@ func rbacPermissionItems(moduleName string) []permission.Item {
 			DisplayKey:     "rbac.permissionCatalog.permissionRead.display",
 			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.permissionRead.description",
-			Category:       "api",
 			Module:         moduleName,
 		},
 		{
@@ -151,7 +144,6 @@ func rbacPermissionItems(moduleName string) []permission.Item {
 			DisplayKey:     "rbac.permissionCatalog.userRoleRead.display",
 			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.userRoleRead.description",
-			Category:       "api",
 			Module:         moduleName,
 		},
 		{
@@ -160,7 +152,6 @@ func rbacPermissionItems(moduleName string) []permission.Item {
 			DisplayKey:     "rbac.permissionCatalog.userRoleAssign.display",
 			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.userRoleAssign.description",
-			Category:       "api",
 			Module:         moduleName,
 		},
 	}

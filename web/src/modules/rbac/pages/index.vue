@@ -424,7 +424,7 @@
             :tags="[
               {
                 label: t('rbac.roleList.permissionDialog.categoryBadge', {
-                  category: item.category || t('rbac.roleList.permissionDialog.defaultCategory'),
+                  category: item.module || t('rbac.roleList.permissionDialog.defaultCategory'),
                 }),
               },
             ]"
@@ -1009,7 +1009,7 @@ const filteredPermissionItems = computed(() => {
         return true;
       }
 
-      return `${item.code} ${localizedPermissionDisplay(item)} ${localizedPermissionDescription(item)} ${item.category}`
+      return `${item.code} ${localizedPermissionDisplay(item)} ${localizedPermissionDescription(item)} ${item.module}`
         .toLowerCase()
         .includes(keyword);
     })

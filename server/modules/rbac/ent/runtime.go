@@ -39,12 +39,10 @@ func init() {
 	permissionDescDisplay := permissionFields[1].Descriptor()
 	// permission.DisplayValidator is a validator for the "display" field. It is called by the builders before save.
 	permission.DisplayValidator = permissionDescDisplay.Validators[0].(func(string) error)
-	// permissionDescCategory is the schema descriptor for category field.
-	permissionDescCategory := permissionFields[5].Descriptor()
-	// permission.DefaultCategory holds the default value on creation for the category field.
-	permission.DefaultCategory = permissionDescCategory.Default.(string)
-	// permission.CategoryValidator is a validator for the "category" field. It is called by the builders before save.
-	permission.CategoryValidator = permissionDescCategory.Validators[0].(func(string) error)
+	// permissionDescModule is the schema descriptor for module field.
+	permissionDescModule := permissionFields[5].Descriptor()
+	// permission.DefaultModule holds the default value on creation for the module field.
+	permission.DefaultModule = permissionDescModule.Default.(string)
 	// permissionDescCreatedAt is the schema descriptor for created_at field.
 	permissionDescCreatedAt := permissionFields[6].Descriptor()
 	// permission.DefaultCreatedAt holds the default value on creation for the created_at field.

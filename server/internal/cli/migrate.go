@@ -140,18 +140,56 @@ func runMigrateUp(cmd *cobra.Command, opts migrateUpOptions) (err error) {
 }
 
 type migrateResolveOptions struct {
-	migrationDir string
-	workingDir   string
+	migrationDir                    string
+	workingDir                      string
+	embeddedRegistryFreshnessRunner func(string) error
 }
 
 // runMigrateValidate 验证 Atlas 迁移目录是否有效。
 func runMigrateValidate(opts migrateResolveOptions) error {
+	if shouldValidateEmbeddedMigrationRegistryFreshness(opts.migrationDir) {
+		registryFreshnessRunner := opts.embeddedRegistryFreshnessRunner
+		if registryFreshnessRunner == nil {
+			registryFreshnessRunner = validateEmbeddedMigrationRegistryFreshness
+		}
+		if err := registryFreshnessRunner(opts.workingDir); err != nil {
+			return err
+		}
+	}
 	dir, err := resolveAtlasMigrationDir(opts)
 	if err != nil {
 		return fmt.Errorf("resolve migration dir: %w", err)
 	}
 	if err := atlasmigrate.Validate(dir); err != nil {
 		return fmt.Errorf("validate migration dir: %w", err)
+	}
+	return nil
+}
+
+func shouldValidateEmbeddedMigrationRegistryFreshness(migrationDir string) bool {
+	return !strings.HasPrefix(strings.TrimSpace(migrationDir), externalMigrationDirPrefix)
+}
+
+func validateEmbeddedMigrationRegistryFreshness(workingDir string) error {
+	moduleRoot := workingDir
+	if strings.TrimSpace(moduleRoot) == "" {
+		var err error
+		moduleRoot, err = migrateGetwd()
+		if err != nil {
+			return fmt.Errorf("resolve working directory for embedded migration registry validation: %w", err)
+		}
+	}
+
+	resolvedModuleRoot, matched, err := matchBackendModuleRoot(moduleRoot)
+	if err != nil {
+		return fmt.Errorf("resolve backend module root for embedded migration registry validation: %w", err)
+	}
+	if !matched {
+		return fmt.Errorf("cannot locate server module root for embedded migration registry validation")
+	}
+
+	if err := moduleregistry.ValidateEmbeddedMigrationRegistryFreshness(resolvedModuleRoot); err != nil {
+		return fmt.Errorf("validate embedded migration registry freshness: %w", err)
 	}
 	return nil
 }

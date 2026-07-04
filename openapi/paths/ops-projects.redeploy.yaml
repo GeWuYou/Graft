@@ -1,0 +1,54 @@
+post:
+  tags: [project]
+  summary: Redeploy a registered project
+  operationId: postProjectRedeploy
+  description: Runs `docker compose down` and then `docker compose up -d` for the selected registered project.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - $ref: ../components/parameters/project-id-path.yaml
+  security:
+    - bearerAuth: []
+  responses:
+    '200':
+      description: Project redeploy action result.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-project-action-response.yaml
+    '400':
+      description: Invalid project id.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      $ref: ../components/responses/forbidden.yaml
+    '404':
+      description: Project record not found.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '409':
+      description: Redeploy blocked by project lifecycle guards or execution failure.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml

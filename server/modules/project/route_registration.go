@@ -20,8 +20,9 @@ import (
 )
 
 type routeRuntime struct {
-	ctx     *module.Context
-	service *Service
+	ctx        *module.Context
+	service    *Service
+	authorizer moduleapi.Authorizer
 }
 
 const minimumProjectListLimit = 1
@@ -51,7 +52,7 @@ func registerRoutes(ctx *module.Context, moduleName string, service *Service) er
 		return fmt.Errorf("resolve authorizer: %w", err)
 	}
 
-	routes := routeRuntime{ctx: ctx, service: service}
+	routes := routeRuntime{ctx: ctx, service: service, authorizer: authorizer}
 	publisher := httpx.NewSecurityAuditPublisher(ctx.EventBus, ctx.Logger, moduleName)
 	group := ctx.Router.Group(projectcontract.ProjectAPIGroup)
 	group.Use(httpx.RequestIDMiddleware())
@@ -80,6 +81,9 @@ func registerRoutes(ctx *module.Context, moduleName string, service *Service) er
 	group.POST(projectcontract.ProjectUpRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectLifecyclePermission.String(), publisher), routes.handleUp)
 	group.POST(projectcontract.ProjectDownRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectLifecyclePermission.String(), publisher), routes.handleDown)
 	group.POST(projectcontract.ProjectRestartRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectLifecyclePermission.String(), publisher), routes.handleRestart)
+	group.POST(projectcontract.ProjectRedeployRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectLifecyclePermission.String(), publisher), routes.handleRedeploy)
+	group.POST(projectcontract.ProjectUpdateDeployRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectLifecyclePermission.String(), publisher), routes.handleUpdateDeploy)
+	group.POST(projectcontract.ProjectBatchActionsRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, "", publisher), routes.handleBatchActions)
 	group.POST(projectcontract.ProjectUnregisterRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectDestroyPermission.String(), publisher), routes.handleUnregister)
 	group.POST(projectcontract.ProjectDestroyRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectDestroyPermission.String(), publisher), routes.handleDestroy)
 	return nil
@@ -453,6 +457,122 @@ func (r routeRuntime) handleRestart(ginCtx *gin.Context) {
 	httpx.WriteSuccess(ginCtx, http.StatusOK, toActionResponse(result))
 }
 
+func (r routeRuntime) handleRedeploy(ginCtx *gin.Context) {
+	projectID, generatedID, ok := bindProjectID(ginCtx, r.ctx)
+	if !ok {
+		return
+	}
+	projectGeneratedHandler{}.PostProjectRedeploy(generatedID, bindPostProjectRedeployParams(ginCtx))
+	result, err := r.service.Redeploy(ginCtx.Request.Context(), projectID, currentUserIDPointer(ginCtx))
+	if err != nil {
+		r.writeRouteErrorWithAction(ginCtx, err, result)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, toActionResponse(result))
+}
+
+func (r routeRuntime) handleUpdateDeploy(ginCtx *gin.Context) {
+	projectID, generatedID, ok := bindProjectID(ginCtx, r.ctx)
+	if !ok {
+		return
+	}
+	var request generated.ProjectUpdateDeployRequest
+	if !bindJSON(ginCtx, r.ctx, &request) {
+		return
+	}
+	projectGeneratedHandler{}.PostProjectUpdateDeploy(generatedID, bindPostProjectUpdateDeployParams(ginCtx), request)
+	result, err := r.service.UpdateDeploy(ginCtx.Request.Context(), projectID, currentUserIDPointer(ginCtx), request.ImagePrune != nil && *request.ImagePrune)
+	if err != nil {
+		r.writeRouteErrorWithAction(ginCtx, err, result)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, toActionResponse(result))
+}
+
+func (r routeRuntime) handleBatchActions(ginCtx *gin.Context) {
+	var request generated.ProjectBatchActionRequest
+	if !bindJSON(ginCtx, r.ctx, &request) {
+		return
+	}
+	if !r.authorizeBatchAction(ginCtx, request.Action) {
+		return
+	}
+	projectGeneratedHandler{}.PostProjectBatchActions(bindPostProjectBatchActionsParams(ginCtx), request)
+	projectIDs := make([]uint64, 0, len(request.ProjectIds))
+	for _, item := range request.ProjectIds {
+		if item <= 0 {
+			r.writeRouteError(ginCtx, errProjectInvalidArgument)
+			return
+		}
+		projectIDs = append(projectIDs, uint64(item))
+	}
+	result, err := r.service.BatchAction(ginCtx.Request.Context(), BatchActionRequest{
+		Action:                      request.Action,
+		ProjectIDs:                  projectIDs,
+		RemoveNamedVolumes:          boolValue(request.RemoveNamedVolumes),
+		AutoUnregister:              boolValue(request.AutoUnregister),
+		ImagePrune:                  boolValue(request.ImagePrune),
+		DeleteWorkingDirectory:      boolValue(request.DeleteWorkingDirectory),
+		ConfirmCanonicalProjectName: request.ConfirmCanonicalProjectName,
+		ActorID:                     currentUserIDPointer(ginCtx),
+	})
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, toBatchActionResponse(result))
+}
+
+func (r routeRuntime) authorizeBatchAction(ginCtx *gin.Context, action generated.ProjectBatchActionRequestAction) bool {
+	permission, ok := batchActionPermission(action)
+	if !ok {
+		r.writeRouteError(ginCtx, errProjectInvalidArgument)
+		return false
+	}
+	if strings.TrimSpace(permission) == "" {
+		return true
+	}
+	requestAuth, ok := moduleapi.RequestAuthContextFromContext(ginCtx.Request.Context())
+	if !ok {
+		httpx.AbortLocalizedError(ginCtx, r.ctx.I18n, http.StatusUnauthorized, messagecontract.AuthTokenMissing.String(), nil)
+		return false
+	}
+	if r.authorizer == nil {
+		httpx.AbortLocalizedError(ginCtx, r.ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+		return false
+	}
+	if err := r.authorizer.Authorize(ginCtx.Request.Context(), requestAuth, permission); err != nil {
+		switch {
+		case errors.Is(err, moduleapi.ErrPermissionDenied):
+			httpx.AbortLocalizedError(ginCtx, r.ctx.I18n, http.StatusForbidden, messagecontract.AuthForbidden.String(), nil)
+		case errors.Is(err, moduleapi.ErrInvalidAccessToken):
+			httpx.AbortLocalizedError(ginCtx, r.ctx.I18n, http.StatusUnauthorized, messagecontract.AuthTokenInvalid.String(), nil)
+		case errors.Is(err, moduleapi.ErrUnauthenticated):
+			httpx.AbortLocalizedError(ginCtx, r.ctx.I18n, http.StatusUnauthorized, messagecontract.AuthTokenMissing.String(), nil)
+		default:
+			httpx.AbortLocalizedError(ginCtx, r.ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+		}
+		return false
+	}
+	return true
+}
+
+func batchActionPermission(action generated.ProjectBatchActionRequestAction) (string, bool) {
+	switch action {
+	case generated.ProjectBatchActionRequestActionStart,
+		generated.ProjectBatchActionRequestActionStop,
+		generated.ProjectBatchActionRequestActionRestart,
+		generated.ProjectBatchActionRequestActionRedeploy,
+		generated.ProjectBatchActionRequestActionUpdateDeploy:
+		return projectcontract.ProjectLifecyclePermission.String(), true
+	case generated.ProjectBatchActionRequestActionUnregister,
+		generated.ProjectBatchActionRequestActionDestroy:
+		return projectcontract.ProjectDestroyPermission.String(), true
+	default:
+		return "", false
+	}
+}
+
 func (r routeRuntime) handleUnregister(ginCtx *gin.Context) {
 	projectID, generatedID, ok := bindProjectID(ginCtx, r.ctx)
 	if !ok {
@@ -479,6 +599,8 @@ func (r routeRuntime) handleDestroy(ginCtx *gin.Context) {
 	projectGeneratedHandler{}.PostProjectDestroy(generatedID, bindPostProjectDestroyParams(ginCtx), request)
 	result, err := r.service.Destroy(ginCtx.Request.Context(), projectID, DestroyRequest{
 		RemoveNamedVolumes:          request.RemoveNamedVolumes,
+		AutoUnregister:              boolValue(request.AutoUnregister),
+		ImagePrune:                  boolValue(request.ImagePrune),
 		DeleteWorkingDirectory:      request.DeleteWorkingDirectory,
 		ConfirmCanonicalProjectName: request.ConfirmCanonicalProjectName,
 		ActorID:                     currentUserIDPointer(ginCtx),
@@ -576,9 +698,14 @@ func (projectGeneratedHandler) PostProjectConfigurationValidate(int64, generated
 func (projectGeneratedHandler) PostProjectRefresh(int64, generated.PostProjectRefreshParams) {}
 func (projectGeneratedHandler) PostProjectDeploy(int64, generated.PostProjectDeployParams, generated.ProjectDeployRequest) {
 }
-func (projectGeneratedHandler) PostProjectUp(int64, generated.PostProjectUpParams)           {}
-func (projectGeneratedHandler) PostProjectDown(int64, generated.PostProjectDownParams)       {}
-func (projectGeneratedHandler) PostProjectRestart(int64, generated.PostProjectRestartParams) {}
+func (projectGeneratedHandler) PostProjectUp(int64, generated.PostProjectUpParams)             {}
+func (projectGeneratedHandler) PostProjectDown(int64, generated.PostProjectDownParams)         {}
+func (projectGeneratedHandler) PostProjectRestart(int64, generated.PostProjectRestartParams)   {}
+func (projectGeneratedHandler) PostProjectRedeploy(int64, generated.PostProjectRedeployParams) {}
+func (projectGeneratedHandler) PostProjectUpdateDeploy(int64, generated.PostProjectUpdateDeployParams, generated.ProjectUpdateDeployRequest) {
+}
+func (projectGeneratedHandler) PostProjectBatchActions(generated.PostProjectBatchActionsParams, generated.ProjectBatchActionRequest) {
+}
 func (projectGeneratedHandler) PostProjectUnregister(int64, generated.PostProjectUnregisterParams) {
 }
 func (projectGeneratedHandler) PostProjectDestroy(int64, generated.PostProjectDestroyParams, generated.PostProjectDestroyJSONRequestBody) {
@@ -924,6 +1051,21 @@ func bindPostProjectRestartParams(ginCtx *gin.Context) generated.PostProjectRest
 	return generated.PostProjectRestartParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
+func bindPostProjectRedeployParams(ginCtx *gin.Context) generated.PostProjectRedeployParams {
+	locale, requestID := commonHeaders(ginCtx)
+	return generated.PostProjectRedeployParams{XGraftLocale: locale, XRequestId: requestID}
+}
+
+func bindPostProjectUpdateDeployParams(ginCtx *gin.Context) generated.PostProjectUpdateDeployParams {
+	locale, requestID := commonHeaders(ginCtx)
+	return generated.PostProjectUpdateDeployParams{XGraftLocale: locale, XRequestId: requestID}
+}
+
+func bindPostProjectBatchActionsParams(ginCtx *gin.Context) generated.PostProjectBatchActionsParams {
+	locale, requestID := commonHeaders(ginCtx)
+	return generated.PostProjectBatchActionsParams{XGraftLocale: locale, XRequestId: requestID}
+}
+
 // bindPostProjectUnregisterParams 构造项目取消注册接口的请求参数。
 // 它包含请求语言和请求 ID。
 func bindPostProjectUnregisterParams(ginCtx *gin.Context) generated.PostProjectUnregisterParams {
@@ -1007,6 +1149,10 @@ func stringPtrValue[T ~string](value *T) string {
 		return ""
 	}
 	return string(*value)
+}
+
+func boolValue(value *bool) bool {
+	return value != nil && *value
 }
 
 // toImportRequest 将导入校验请求转换为 ImportRequest。

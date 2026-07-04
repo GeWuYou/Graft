@@ -154,7 +154,7 @@ func TestBootstrapServiceEnsuresDefaultAdminAccess(t *testing.T) {
 			DisplayKey:     "rbac.permissionCatalog.userRead.display",
 			Description:    "  ",
 			DescriptionKey: "rbac.permissionCatalog.userRead.description",
-			Category:       "api",
+			Module:         "user",
 		},
 		{
 			Code:           "user.write",
@@ -162,7 +162,7 @@ func TestBootstrapServiceEnsuresDefaultAdminAccess(t *testing.T) {
 			DisplayKey:     "rbac.permissionCatalog.userCreate.display",
 			Description:    "write users",
 			DescriptionKey: "rbac.permissionCatalog.userCreate.description",
-			Category:       "api",
+			Module:         "user",
 		},
 	}
 
@@ -187,6 +187,9 @@ func assertDefaultAdminBootstrap(t *testing.T, repo *bootstrapServiceTestReposit
 	assertPermissionInputKeys(t, repo.ensurePermissionInputs[0], "rbac.permissionCatalog.userRead.display", "rbac.permissionCatalog.userRead.description")
 	if repo.ensurePermissionInputs[1].Description == nil || *repo.ensurePermissionInputs[1].Description != "write users" {
 		t.Fatalf("expected non-blank permission description to be preserved, got %#v", repo.ensurePermissionInputs[1].Description)
+	}
+	if repo.ensurePermissionInputs[0].Module != "user" || repo.ensurePermissionInputs[1].Module != "user" {
+		t.Fatalf("expected permission module metadata to be preserved, got %#v", repo.ensurePermissionInputs)
 	}
 	if len(repo.assignPermissionsInput.PermissionIDs) != 2 || repo.assignPermissionsInput.RoleID != repo.roleToReturn.ID {
 		t.Fatalf("unexpected permission assignment: %#v", repo.assignPermissionsInput)

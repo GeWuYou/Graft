@@ -352,6 +352,10 @@
         "display": "Read Audit Logs",
         "description": "Allows viewing the audit overview and audit logs."
       },
+      "auditManage": {
+        "display": "Audit Policy Manage",
+        "description": "Allows managing audit visibility defaults and per-event overrides."
+      },
       "containerView": {
         "display": "View Containers",
         "description": "Allows viewing the container management list."
@@ -359,6 +363,14 @@
       "containerDetail": {
         "display": "View Container Details",
         "description": "Allows reading container detail snapshots."
+      },
+      "containerEvents": {
+        "display": "Container Event Read",
+        "description": "Allows reading bounded container runtime event history and live event streams."
+      },
+      "containerEnvironment": {
+        "display": "Container Environment Read",
+        "description": "Allows reading container environment variable values when display policy permits them."
       },
       "containerLogs": {
         "display": "View Container Logs",
@@ -383,6 +395,42 @@
       "containerRemove": {
         "display": "Delete Containers",
         "description": "Allows deleting containers when dangerous actions are enabled."
+      },
+      "projectView": {
+        "display": "View Compose Projects",
+        "description": "Read registered Compose project summaries and readonly details."
+      },
+      "projectImport": {
+        "display": "Import Compose Projects",
+        "description": "Validate and import external Compose projects into the project registry."
+      },
+      "projectRefresh": {
+        "display": "Refresh Compose Projects",
+        "description": "Refresh project snapshots and readonly configuration projections."
+      },
+      "projectLifecycle": {
+        "display": "Manage Compose Project Lifecycle",
+        "description": "Run bounded Compose lifecycle actions such as up, down, and restart."
+      },
+      "projectDestroy": {
+        "display": "Unregister Or Destroy Compose Projects",
+        "description": "Run unregister and guarded destroy actions for project records."
+      },
+      "projectCreate": {
+        "display": "Create Managed Compose Projects",
+        "description": "View managed root settings and create managed Compose projects."
+      },
+      "projectSourceView": {
+        "display": "View Project Source Catalog",
+        "description": "View available project sources and the entry routes for managed, Git, and template workflows."
+      },
+      "projectDiscoveryView": {
+        "display": "View Project Discovery Candidates",
+        "description": "Preview discovered local Compose directories without registering a project."
+      },
+      "projectDeploy": {
+        "display": "Deploy Managed Compose Project Drafts",
+        "description": "Diff, validate, and deploy managed project configuration drafts."
       },
       "notificationView": {
         "display": "View Notifications",

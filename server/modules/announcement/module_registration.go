@@ -43,7 +43,6 @@ func registerAnnouncementPermissions(registry *permission.Registry, moduleName s
 			DisplayKey:     "rbac.permissionCatalog.announcementRead.display",
 			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.announcementRead.description",
-			Category:       "api",
 			Module:         moduleName,
 		},
 		{
@@ -52,7 +51,6 @@ func registerAnnouncementPermissions(registry *permission.Registry, moduleName s
 			DisplayKey:     "rbac.permissionCatalog.announcementCreate.display",
 			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.announcementCreate.description",
-			Category:       "api",
 			Module:         moduleName,
 		},
 		{
@@ -61,7 +59,6 @@ func registerAnnouncementPermissions(registry *permission.Registry, moduleName s
 			DisplayKey:     "rbac.permissionCatalog.announcementUpdate.display",
 			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.announcementUpdate.description",
-			Category:       "api",
 			Module:         moduleName,
 		},
 		{
@@ -70,7 +67,6 @@ func registerAnnouncementPermissions(registry *permission.Registry, moduleName s
 			DisplayKey:     "rbac.permissionCatalog.announcementPublish.display",
 			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.announcementPublish.description",
-			Category:       "api",
 			Module:         moduleName,
 		},
 		{
@@ -79,7 +75,6 @@ func registerAnnouncementPermissions(registry *permission.Registry, moduleName s
 			DisplayKey:     "rbac.permissionCatalog.announcementDelete.display",
 			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.announcementDelete.description",
-			Category:       "api",
 			Module:         moduleName,
 		},
 	} {

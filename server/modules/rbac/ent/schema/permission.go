@@ -48,10 +48,9 @@ func (Permission) Fields() []ent.Field {
 			Comment("权限点描述本地化 key").
 			Optional().
 			Nillable(),
-		field.String("category").
-			Comment("权限类别：api 表示接口权限").
-			NotEmpty().
-			Default("api"),
+		field.String("module").
+			Comment("权限归属模块标识，例如 user、rbac、core.httpx").
+			Default(""),
 		field.Time("created_at").
 			Comment("创建时间").
 			Immutable().

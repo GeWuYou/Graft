@@ -12,6 +12,12 @@ const i18nMessages: Record<string, string> = {
   'rbac.permissionCatalog.permissionRead.description': 'Localized permission description',
   'rbac.permissionCatalog.userCreate.display': 'Create Users Localized',
   'rbac.permissionCatalog.userCreate.description': 'Localized create-user description',
+  'rbac.permissionCatalog.projectImport.display': 'Import Compose Projects',
+  'rbac.permissionCatalog.projectImport.description':
+    'Validate and import external Compose projects into the project registry.',
+  'rbac.permissionCatalog.projectRefresh.display': 'Refresh Compose Projects',
+  'rbac.permissionCatalog.projectRefresh.description':
+    'Refresh project snapshots and readonly configuration projections.',
   'rbac.permissionList.detail': 'Permission Details',
   'rbac.permissionList.detailTitle': 'Permission Details',
   'rbac.permissionList.detailLoadFailed': 'Failed to load permission details',
@@ -175,7 +181,7 @@ const tableStub = defineComponent({
             slots.description?.({ row }),
             slots.operation?.({ row }),
             h('span', { 'data-testid': `permission-code-${index}` }, String(row.code ?? '')),
-            h('span', { 'data-testid': `permission-category-${index}` }, String(row.category ?? '')),
+            h('span', { 'data-testid': `permission-module-${index}` }, String(row.module ?? '')),
             h('span', { 'data-testid': `permission-created-at-${index}` }, String(row.created_at ?? '')),
             h('span', { 'data-testid': `permission-updated-at-${index}` }, String(row.updated_at ?? '')),
             h('span', { 'data-testid': `permission-role-count-${index}` }, String(row.role_binding_count ?? '')),
@@ -287,7 +293,7 @@ describe('PermissionPage', () => {
           code: 'permission.read',
           display: 'Permission Read',
           description: null,
-          category: 'rbac',
+          module: 'rbac',
           created_at: '2026-05-22T10:00:00Z',
           updated_at: '2026-05-23T10:00:00Z',
           role_binding_count: 2,
@@ -317,7 +323,7 @@ describe('PermissionPage', () => {
           code: 'permission.read',
           display: 'Permission Read',
           description: null,
-          category: 'rbac',
+          module: 'rbac',
           created_at: '2026-05-22T10:00:00Z',
           updated_at: '2026-05-23T10:00:00Z',
           role_binding_count: 2,
@@ -327,7 +333,7 @@ describe('PermissionPage', () => {
           code: 'user.create',
           display: 'Create User',
           description: 'Create users',
-          category: 'user',
+          module: 'user',
           created_at: '2026-05-21T10:00:00Z',
           updated_at: '2026-05-23T11:00:00Z',
           role_binding_count: 1,
@@ -352,7 +358,7 @@ describe('PermissionPage', () => {
           code: 'custom.permission',
           display: 'Custom Permission',
           description: 'Custom description',
-          category: 'custom',
+          module: 'custom',
           created_at: '2026-05-22T10:00:00Z',
           updated_at: '2026-05-23T10:00:00Z',
           role_binding_count: 0,
@@ -365,6 +371,31 @@ describe('PermissionPage', () => {
 
     expect(wrapper.text()).toContain('Custom Permission');
     expect(wrapper.text()).toContain('Custom description');
+  });
+
+  it('does not expose raw locale keys when backend fallback fields contain keys', async () => {
+    rbacApiMocks.getPermissions.mockResolvedValue({
+      items: [
+        {
+          id: 1,
+          code: 'ops.project.import',
+          display: 'rbac.permissionCatalog.projectImport.display',
+          description: 'rbac.permissionCatalog.projectImport.description',
+          module: 'project',
+          created_at: '2026-05-22T10:00:00Z',
+          updated_at: '2026-05-23T10:00:00Z',
+          role_binding_count: 0,
+        },
+      ],
+    });
+
+    const wrapper = await mountPermissionPage();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('Import Compose Projects');
+    expect(wrapper.text()).toContain('Validate and import external Compose projects into the project registry.');
+    expect(wrapper.text()).not.toContain('rbac.permissionCatalog.projectImport.display');
+    expect(wrapper.text()).not.toContain('rbac.permissionCatalog.projectImport.description');
   });
 
   it('renders the default empty state without filter actions', async () => {
@@ -386,7 +417,7 @@ describe('PermissionPage', () => {
           code: 'permission.read',
           display: 'Permission Read',
           description: null,
-          category: 'rbac',
+          module: 'rbac',
           created_at: '2026-05-22T10:00:00Z',
           updated_at: '2026-05-23T10:00:00Z',
           role_binding_count: 2,
@@ -422,7 +453,7 @@ describe('PermissionPage', () => {
           code: 'custom.permission',
           display: 'Custom Permission',
           description: null,
-          category: 'custom',
+          module: 'custom',
           created_at: '2026-05-22T10:00:00Z',
           updated_at: '2026-05-23T10:00:00Z',
           role_binding_count: 0,
@@ -444,7 +475,7 @@ describe('PermissionPage', () => {
           code: 'permission.read',
           display: 'Permission Read',
           description: null,
-          category: 'rbac',
+          module: 'rbac',
           created_at: '2026-05-22T10:00:00Z',
           updated_at: '2026-05-23T10:00:00Z',
           role_binding_count: 2,
@@ -456,7 +487,7 @@ describe('PermissionPage', () => {
       code: 'permission.read',
       display: 'Permission Read',
       description: 'Detail description',
-      category: 'rbac',
+      module: 'rbac',
       created_at: '2026-05-22T10:00:00Z',
       updated_at: '2026-05-24T10:00:00Z',
       role_binding_count: 3,
@@ -484,7 +515,7 @@ describe('PermissionPage', () => {
           code: 'custom.permission',
           display: 'Custom Permission',
           description: 'Snapshot description',
-          category: 'custom',
+          module: 'custom',
           created_at: '2026-05-22T10:00:00Z',
           updated_at: '2026-05-23T10:00:00Z',
           role_binding_count: 1,

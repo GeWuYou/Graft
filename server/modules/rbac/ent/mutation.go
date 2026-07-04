@@ -44,7 +44,7 @@ type PermissionMutation struct {
 	display_key             *string
 	description             *string
 	description_key         *string
-	category                *string
+	module                  *string
 	created_at              *time.Time
 	created_by              *uint64
 	addcreated_by           *int64
@@ -381,40 +381,40 @@ func (m *PermissionMutation) ResetDescriptionKey() {
 	delete(m.clearedFields, permission.FieldDescriptionKey)
 }
 
-// SetCategory sets the "category" field.
-func (m *PermissionMutation) SetCategory(s string) {
-	m.category = &s
+// SetModule sets the "module" field.
+func (m *PermissionMutation) SetModule(s string) {
+	m.module = &s
 }
 
-// Category returns the value of the "category" field in the mutation.
-func (m *PermissionMutation) Category() (r string, exists bool) {
-	v := m.category
+// Module returns the value of the "module" field in the mutation.
+func (m *PermissionMutation) Module() (r string, exists bool) {
+	v := m.module
 	if v == nil {
 		return
 	}
 	return *v, true
 }
 
-// OldCategory returns the old "category" field's value of the Permission entity.
+// OldModule returns the old "module" field's value of the Permission entity.
 // If the Permission object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *PermissionMutation) OldCategory(ctx context.Context) (v string, err error) {
+func (m *PermissionMutation) OldModule(ctx context.Context) (v string, err error) {
 	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldCategory is only allowed on UpdateOne operations")
+		return v, errors.New("OldModule is only allowed on UpdateOne operations")
 	}
 	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldCategory requires an ID field in the mutation")
+		return v, errors.New("OldModule requires an ID field in the mutation")
 	}
 	oldValue, err := m.oldValue(ctx)
 	if err != nil {
-		return v, fmt.Errorf("querying old value for OldCategory: %w", err)
+		return v, fmt.Errorf("querying old value for OldModule: %w", err)
 	}
-	return oldValue.Category, nil
+	return oldValue.Module, nil
 }
 
-// ResetCategory resets all changes to the "category" field.
-func (m *PermissionMutation) ResetCategory() {
-	m.category = nil
+// ResetModule resets all changes to the "module" field.
+func (m *PermissionMutation) ResetModule() {
+	m.module = nil
 }
 
 // SetCreatedAt sets the "created_at" field.
@@ -817,8 +817,8 @@ func (m *PermissionMutation) Fields() []string {
 	if m.description_key != nil {
 		fields = append(fields, permission.FieldDescriptionKey)
 	}
-	if m.category != nil {
-		fields = append(fields, permission.FieldCategory)
+	if m.module != nil {
+		fields = append(fields, permission.FieldModule)
 	}
 	if m.created_at != nil {
 		fields = append(fields, permission.FieldCreatedAt)
@@ -856,8 +856,8 @@ func (m *PermissionMutation) Field(name string) (ent.Value, bool) {
 		return m.Description()
 	case permission.FieldDescriptionKey:
 		return m.DescriptionKey()
-	case permission.FieldCategory:
-		return m.Category()
+	case permission.FieldModule:
+		return m.Module()
 	case permission.FieldCreatedAt:
 		return m.CreatedAt()
 	case permission.FieldCreatedBy:
@@ -889,8 +889,8 @@ func (m *PermissionMutation) OldField(ctx context.Context, name string) (ent.Val
 		return m.OldDescription(ctx)
 	case permission.FieldDescriptionKey:
 		return m.OldDescriptionKey(ctx)
-	case permission.FieldCategory:
-		return m.OldCategory(ctx)
+	case permission.FieldModule:
+		return m.OldModule(ctx)
 	case permission.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	case permission.FieldCreatedBy:
@@ -947,12 +947,12 @@ func (m *PermissionMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetDescriptionKey(v)
 		return nil
-	case permission.FieldCategory:
+	case permission.FieldModule:
 		v, ok := value.(string)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
-		m.SetCategory(v)
+		m.SetModule(v)
 		return nil
 	case permission.FieldCreatedAt:
 		v, ok := value.(time.Time)
@@ -1132,8 +1132,8 @@ func (m *PermissionMutation) ResetField(name string) error {
 	case permission.FieldDescriptionKey:
 		m.ResetDescriptionKey()
 		return nil
-	case permission.FieldCategory:
-		m.ResetCategory()
+	case permission.FieldModule:
+		m.ResetModule()
 		return nil
 	case permission.FieldCreatedAt:
 		m.ResetCreatedAt()

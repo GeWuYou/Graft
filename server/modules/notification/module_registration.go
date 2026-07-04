@@ -37,7 +37,6 @@ func registerNotificationPermissions(registry *permission.Registry, moduleName s
 		DisplayKey:     "rbac.permissionCatalog.notificationView.display",
 		Description:    "",
 		DescriptionKey: "rbac.permissionCatalog.notificationView.description",
-		Category:       "api",
 		Module:         moduleName,
 	})
 	registry.Register(permission.Item{
@@ -46,7 +45,6 @@ func registerNotificationPermissions(registry *permission.Registry, moduleName s
 		DisplayKey:     "rbac.permissionCatalog.notificationRead.display",
 		Description:    "",
 		DescriptionKey: "rbac.permissionCatalog.notificationRead.description",
-		Category:       "api",
 		Module:         moduleName,
 	})
 	registry.Register(permission.Item{
@@ -55,7 +53,6 @@ func registerNotificationPermissions(registry *permission.Registry, moduleName s
 		DisplayKey:     "rbac.permissionCatalog.notificationManage.display",
 		Description:    "",
 		DescriptionKey: "rbac.permissionCatalog.notificationManage.description",
-		Category:       "api",
 		Module:         moduleName,
 	})
 	return nil

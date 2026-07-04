@@ -55,7 +55,7 @@ func openTestDB(t *testing.T) *sql.DB {
 			display_key TEXT NULL,
 			description TEXT NULL,
 			description_key TEXT NULL,
-			category TEXT NOT NULL DEFAULT 'api',
+			module TEXT NOT NULL DEFAULT '',
 			created_at DATETIME NOT NULL,
 			updated_at DATETIME NOT NULL,
 			created_by INTEGER NOT NULL DEFAULT 0,
@@ -491,7 +491,7 @@ func TestRepositoryEnsurePermissionAndListPermissionsIncludeTimestamps(t *testin
 		DisplayKey:     stringPtr("rbac.permissionCatalog.userCreate.display"),
 		Description:    stringPtr("Allows creating user management data."),
 		DescriptionKey: stringPtr("rbac.permissionCatalog.userCreate.description"),
-		Category:       "api",
+		Module:         "user",
 	})
 	if err != nil {
 		t.Fatalf("ensure permission: %v", err)
@@ -510,7 +510,7 @@ func TestRepositoryEnsurePermissionAndListPermissionsIncludeTimestamps(t *testin
 		DisplayKey:     stringPtr("rbac.permissionCatalog.userCreate.display"),
 		Description:    stringPtr("Updated description fallback."),
 		DescriptionKey: stringPtr("rbac.permissionCatalog.userCreate.description"),
-		Category:       "api",
+		Module:         "user",
 	})
 	if err != nil {
 		t.Fatalf("reconcile permission metadata: %v", err)
@@ -665,9 +665,9 @@ func seedPermission(t *testing.T, db *sql.DB, code string) int64 {
 
 	now := time.Now().UTC()
 	result, err := db.ExecContext(context.Background(),
-		`INSERT INTO permissions (code, display, display_key, description, description_key, category, created_at, updated_at)
+		`INSERT INTO permissions (code, display, display_key, description, description_key, module, created_at, updated_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		code, code, nil, nil, nil, "api", now, now,
+		code, code, nil, nil, nil, "rbac", now, now,
 	)
 	if err != nil {
 		t.Fatalf("seed permission %s: %v", code, err)

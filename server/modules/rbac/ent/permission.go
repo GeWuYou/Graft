@@ -27,8 +27,8 @@ type Permission struct {
 	Description *string `json:"description,omitempty"`
 	// 权限点描述本地化 key
 	DescriptionKey *string `json:"description_key,omitempty"`
-	// 权限类别：api 表示接口权限
-	Category string `json:"category,omitempty"`
+	// 权限归属模块标识，例如 user、rbac、core.httpx
+	Module string `json:"module,omitempty"`
 	// 创建时间
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// 创建人用户 ID，0 表示系统
@@ -72,7 +72,7 @@ func (*Permission) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case permission.FieldID, permission.FieldCreatedBy, permission.FieldUpdatedBy, permission.FieldDeletedAt, permission.FieldDeletedBy:
 			values[i] = new(sql.NullInt64)
-		case permission.FieldCode, permission.FieldDisplay, permission.FieldDisplayKey, permission.FieldDescription, permission.FieldDescriptionKey, permission.FieldCategory:
+		case permission.FieldCode, permission.FieldDisplay, permission.FieldDisplayKey, permission.FieldDescription, permission.FieldDescriptionKey, permission.FieldModule:
 			values[i] = new(sql.NullString)
 		case permission.FieldCreatedAt, permission.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -130,11 +130,11 @@ func (_m *Permission) assignValues(columns []string, values []any) error {
 				_m.DescriptionKey = new(string)
 				*_m.DescriptionKey = value.String
 			}
-		case permission.FieldCategory:
+		case permission.FieldModule:
 			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field category", values[i])
+				return fmt.Errorf("unexpected type %T for field module", values[i])
 			} else if value.Valid {
-				_m.Category = value.String
+				_m.Module = value.String
 			}
 		case permission.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -234,8 +234,8 @@ func (_m *Permission) String() string {
 		builder.WriteString(*v)
 	}
 	builder.WriteString(", ")
-	builder.WriteString("category=")
-	builder.WriteString(_m.Category)
+	builder.WriteString("module=")
+	builder.WriteString(_m.Module)
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))

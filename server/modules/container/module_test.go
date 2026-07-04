@@ -256,7 +256,7 @@ func assertPermissions(t *testing.T, registry *permission.Registry) {
 	}
 	for _, code := range expectedPermissionCodes() {
 		if !slices.ContainsFunc(items, func(item permission.Item) bool {
-			return item.Code == code && item.Module == moduleID && item.Category == "api" &&
+			return item.Code == code && item.Module == moduleID &&
 				strings.TrimSpace(item.DisplayKey) != "" && strings.TrimSpace(item.DescriptionKey) != ""
 		}) {
 			t.Fatalf("expected registered permission %s in %#v", code, items)

@@ -69,7 +69,7 @@ func ensureRolePermissions(
 			DisplayKey:     stringPtrOrNil(item.DisplayKey),
 			Description:    stringPtrOrNil(item.Description),
 			DescriptionKey: stringPtrOrNil(item.DescriptionKey),
-			Category:       item.Category,
+			Module:         item.Module,
 		})
 		if err != nil {
 			return fmt.Errorf("ensure permission %s: %w", item.Code, err)

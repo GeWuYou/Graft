@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"graft/server/internal/buildinfo"
+	"graft/server/internal/moduleregistry"
 )
 
 // runValidateServerLocaleOwnership 校验服务器本地化所有权守卫。
@@ -50,6 +51,9 @@ func runValidateRelease(_ *cobra.Command) error {
 
 	if err := validateEmbeddedOpenAPIBundleFreshness(repoRoot); err != nil {
 		return err
+	}
+	if err := moduleregistry.ValidateEmbeddedMigrationRegistryFreshness(filepath.Join(repoRoot, "server")); err != nil {
+		return fmt.Errorf("validate embedded migration registry freshness: %w", err)
 	}
 
 	if _, err := buildAtlasMigrationDir(repoRoot, defaultMigrationDir); err != nil {

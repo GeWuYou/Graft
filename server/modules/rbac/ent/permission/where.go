@@ -80,9 +80,9 @@ func DescriptionKey(v string) predicate.Permission {
 	return predicate.Permission(sql.FieldEQ(FieldDescriptionKey, v))
 }
 
-// Category applies equality check predicate on the "category" field. It's identical to CategoryEQ.
-func Category(v string) predicate.Permission {
-	return predicate.Permission(sql.FieldEQ(FieldCategory, v))
+// Module applies equality check predicate on the "module" field. It's identical to ModuleEQ.
+func Module(v string) predicate.Permission {
+	return predicate.Permission(sql.FieldEQ(FieldModule, v))
 }
 
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
@@ -470,69 +470,69 @@ func DescriptionKeyContainsFold(v string) predicate.Permission {
 	return predicate.Permission(sql.FieldContainsFold(FieldDescriptionKey, v))
 }
 
-// CategoryEQ applies the EQ predicate on the "category" field.
-func CategoryEQ(v string) predicate.Permission {
-	return predicate.Permission(sql.FieldEQ(FieldCategory, v))
+// ModuleEQ applies the EQ predicate on the "module" field.
+func ModuleEQ(v string) predicate.Permission {
+	return predicate.Permission(sql.FieldEQ(FieldModule, v))
 }
 
-// CategoryNEQ applies the NEQ predicate on the "category" field.
-func CategoryNEQ(v string) predicate.Permission {
-	return predicate.Permission(sql.FieldNEQ(FieldCategory, v))
+// ModuleNEQ applies the NEQ predicate on the "module" field.
+func ModuleNEQ(v string) predicate.Permission {
+	return predicate.Permission(sql.FieldNEQ(FieldModule, v))
 }
 
-// CategoryIn applies the In predicate on the "category" field.
-func CategoryIn(vs ...string) predicate.Permission {
-	return predicate.Permission(sql.FieldIn(FieldCategory, vs...))
+// ModuleIn applies the In predicate on the "module" field.
+func ModuleIn(vs ...string) predicate.Permission {
+	return predicate.Permission(sql.FieldIn(FieldModule, vs...))
 }
 
-// CategoryNotIn applies the NotIn predicate on the "category" field.
-func CategoryNotIn(vs ...string) predicate.Permission {
-	return predicate.Permission(sql.FieldNotIn(FieldCategory, vs...))
+// ModuleNotIn applies the NotIn predicate on the "module" field.
+func ModuleNotIn(vs ...string) predicate.Permission {
+	return predicate.Permission(sql.FieldNotIn(FieldModule, vs...))
 }
 
-// CategoryGT applies the GT predicate on the "category" field.
-func CategoryGT(v string) predicate.Permission {
-	return predicate.Permission(sql.FieldGT(FieldCategory, v))
+// ModuleGT applies the GT predicate on the "module" field.
+func ModuleGT(v string) predicate.Permission {
+	return predicate.Permission(sql.FieldGT(FieldModule, v))
 }
 
-// CategoryGTE applies the GTE predicate on the "category" field.
-func CategoryGTE(v string) predicate.Permission {
-	return predicate.Permission(sql.FieldGTE(FieldCategory, v))
+// ModuleGTE applies the GTE predicate on the "module" field.
+func ModuleGTE(v string) predicate.Permission {
+	return predicate.Permission(sql.FieldGTE(FieldModule, v))
 }
 
-// CategoryLT applies the LT predicate on the "category" field.
-func CategoryLT(v string) predicate.Permission {
-	return predicate.Permission(sql.FieldLT(FieldCategory, v))
+// ModuleLT applies the LT predicate on the "module" field.
+func ModuleLT(v string) predicate.Permission {
+	return predicate.Permission(sql.FieldLT(FieldModule, v))
 }
 
-// CategoryLTE applies the LTE predicate on the "category" field.
-func CategoryLTE(v string) predicate.Permission {
-	return predicate.Permission(sql.FieldLTE(FieldCategory, v))
+// ModuleLTE applies the LTE predicate on the "module" field.
+func ModuleLTE(v string) predicate.Permission {
+	return predicate.Permission(sql.FieldLTE(FieldModule, v))
 }
 
-// CategoryContains applies the Contains predicate on the "category" field.
-func CategoryContains(v string) predicate.Permission {
-	return predicate.Permission(sql.FieldContains(FieldCategory, v))
+// ModuleContains applies the Contains predicate on the "module" field.
+func ModuleContains(v string) predicate.Permission {
+	return predicate.Permission(sql.FieldContains(FieldModule, v))
 }
 
-// CategoryHasPrefix applies the HasPrefix predicate on the "category" field.
-func CategoryHasPrefix(v string) predicate.Permission {
-	return predicate.Permission(sql.FieldHasPrefix(FieldCategory, v))
+// ModuleHasPrefix applies the HasPrefix predicate on the "module" field.
+func ModuleHasPrefix(v string) predicate.Permission {
+	return predicate.Permission(sql.FieldHasPrefix(FieldModule, v))
 }
 
-// CategoryHasSuffix applies the HasSuffix predicate on the "category" field.
-func CategoryHasSuffix(v string) predicate.Permission {
-	return predicate.Permission(sql.FieldHasSuffix(FieldCategory, v))
+// ModuleHasSuffix applies the HasSuffix predicate on the "module" field.
+func ModuleHasSuffix(v string) predicate.Permission {
+	return predicate.Permission(sql.FieldHasSuffix(FieldModule, v))
 }
 
-// CategoryEqualFold applies the EqualFold predicate on the "category" field.
-func CategoryEqualFold(v string) predicate.Permission {
-	return predicate.Permission(sql.FieldEqualFold(FieldCategory, v))
+// ModuleEqualFold applies the EqualFold predicate on the "module" field.
+func ModuleEqualFold(v string) predicate.Permission {
+	return predicate.Permission(sql.FieldEqualFold(FieldModule, v))
 }
 
-// CategoryContainsFold applies the ContainsFold predicate on the "category" field.
-func CategoryContainsFold(v string) predicate.Permission {
-	return predicate.Permission(sql.FieldContainsFold(FieldCategory, v))
+// ModuleContainsFold applies the ContainsFold predicate on the "module" field.
+func ModuleContainsFold(v string) predicate.Permission {
+	return predicate.Permission(sql.FieldContainsFold(FieldModule, v))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.

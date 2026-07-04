@@ -103,8 +103,8 @@ func handleListPermissions(
 		if params.Keyword != nil {
 			filter.Query = *params.Keyword
 		}
-		if params.Category != nil {
-			filter.Category = *params.Category
+		if params.Module != nil {
+			filter.Module = *params.Module
 		}
 
 		permissions, err := reader.ListPermissions(ginCtx.Request.Context(), filter)
@@ -171,8 +171,8 @@ func bindGeneratedPermissionParams(ginCtx *gin.Context) rbacopenapi.GetPermissio
 	if raw := strings.TrimSpace(ginCtx.Query("keyword")); raw != "" {
 		params.Keyword = &raw
 	}
-	if raw := strings.TrimSpace(ginCtx.Query("category")); raw != "" {
-		params.Category = &raw
+	if raw := strings.TrimSpace(ginCtx.Query("module")); raw != "" {
+		params.Module = &raw
 	}
 	return params
 }

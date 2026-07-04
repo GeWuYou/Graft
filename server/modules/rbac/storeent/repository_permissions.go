@@ -163,22 +163,22 @@ func (r *repository) GetPermissionByID(ctx context.Context, permissionID uint64)
 func (r *repository) ListPermissions(ctx context.Context, filter rbacstore.PermissionFilter) ([]rbacstore.Permission, error) {
 	where := []string{"deleted_at = 0"}
 	var args []any
-	if category := strings.TrimSpace(filter.Category); category != "" {
-		args = append(args, category)
-		where = append(where, fmt.Sprintf("category = $%d", len(args)))
+	if module := strings.TrimSpace(filter.Module); module != "" {
+		args = append(args, module)
+		where = append(where, fmt.Sprintf("module = $%d", len(args)))
 	}
 	if query := strings.TrimSpace(filter.Query); query != "" {
 		args = append(args, "%"+query+"%", "%"+query+"%", "%"+query+"%")
 		codeIndex := len(args) - (permissionSearchFields - 1)
 		displayIndex := len(args) - 1
-		categoryIndex := len(args)
-		where = append(where, fmt.Sprintf("(code ILIKE $%d OR display ILIKE $%d OR category ILIKE $%d)", codeIndex, displayIndex, categoryIndex))
+		moduleIndex := len(args)
+		where = append(where, fmt.Sprintf("(code ILIKE $%d OR display ILIKE $%d OR module ILIKE $%d)", codeIndex, displayIndex, moduleIndex))
 	}
 	return queryAndScanRows(
 		ctx,
 		r.db,
 		"list permissions",
-		fmt.Sprintf(`SELECT id, code, display, display_key, description, description_key, category, created_at, updated_at,
+		fmt.Sprintf(`SELECT id, code, display, display_key, description, description_key, module, created_at, updated_at,
 			(SELECT COUNT(*) FROM role_permissions rp WHERE rp.permission_id = permissions.id) AS role_binding_count
 		FROM permissions
 		WHERE %s
@@ -198,7 +198,7 @@ func (r *repository) ListPermissionsByUserID(ctx context.Context, userID uint64)
 		ctx,
 		r.db,
 		"list permissions by user id",
-		`SELECT DISTINCT p.id, p.code, p.display, p.display_key, p.description, p.description_key, p.category, p.created_at, p.updated_at,
+		`SELECT DISTINCT p.id, p.code, p.display, p.display_key, p.description, p.description_key, p.module, p.created_at, p.updated_at,
 			(SELECT COUNT(*) FROM role_permissions rp WHERE rp.permission_id = p.id) AS role_binding_count
 		FROM user_roles ur
 		INNER JOIN roles r ON r.id = ur.role_id

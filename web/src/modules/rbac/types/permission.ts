@@ -4,7 +4,7 @@ export type PermissionListItem = OpenAPIComponents['schemas']['PermissionListIte
 export type PermissionListResponse = OpenAPIComponents['schemas']['PermissionListResponse'];
 
 export type PermissionFilters = {
-  category?: string;
+  module?: string;
   keyword?: string;
 };
 

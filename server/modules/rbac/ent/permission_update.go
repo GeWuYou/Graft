@@ -117,16 +117,16 @@ func (_u *PermissionUpdate) ClearDescriptionKey() *PermissionUpdate {
 	return _u
 }
 
-// SetCategory sets the "category" field.
-func (_u *PermissionUpdate) SetCategory(v string) *PermissionUpdate {
-	_u.mutation.SetCategory(v)
+// SetModule sets the "module" field.
+func (_u *PermissionUpdate) SetModule(v string) *PermissionUpdate {
+	_u.mutation.SetModule(v)
 	return _u
 }
 
-// SetNillableCategory sets the "category" field if the given value is not nil.
-func (_u *PermissionUpdate) SetNillableCategory(v *string) *PermissionUpdate {
+// SetNillableModule sets the "module" field if the given value is not nil.
+func (_u *PermissionUpdate) SetNillableModule(v *string) *PermissionUpdate {
 	if v != nil {
-		_u.SetCategory(*v)
+		_u.SetModule(*v)
 	}
 	return _u
 }
@@ -289,11 +289,6 @@ func (_u *PermissionUpdate) check() error {
 			return &ValidationError{Name: "display", err: fmt.Errorf(`ent: validator failed for field "Permission.display": %w`, err)}
 		}
 	}
-	if v, ok := _u.mutation.Category(); ok {
-		if err := permission.CategoryValidator(v); err != nil {
-			return &ValidationError{Name: "category", err: fmt.Errorf(`ent: validator failed for field "Permission.category": %w`, err)}
-		}
-	}
 	return nil
 }
 
@@ -333,8 +328,8 @@ func (_u *PermissionUpdate) sqlSave(ctx context.Context) (_node int, err error) 
 	if _u.mutation.DescriptionKeyCleared() {
 		_spec.ClearField(permission.FieldDescriptionKey, field.TypeString)
 	}
-	if value, ok := _u.mutation.Category(); ok {
-		_spec.SetField(permission.FieldCategory, field.TypeString, value)
+	if value, ok := _u.mutation.Module(); ok {
+		_spec.SetField(permission.FieldModule, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(permission.FieldUpdatedAt, field.TypeTime, value)
@@ -510,16 +505,16 @@ func (_u *PermissionUpdateOne) ClearDescriptionKey() *PermissionUpdateOne {
 	return _u
 }
 
-// SetCategory sets the "category" field.
-func (_u *PermissionUpdateOne) SetCategory(v string) *PermissionUpdateOne {
-	_u.mutation.SetCategory(v)
+// SetModule sets the "module" field.
+func (_u *PermissionUpdateOne) SetModule(v string) *PermissionUpdateOne {
+	_u.mutation.SetModule(v)
 	return _u
 }
 
-// SetNillableCategory sets the "category" field if the given value is not nil.
-func (_u *PermissionUpdateOne) SetNillableCategory(v *string) *PermissionUpdateOne {
+// SetNillableModule sets the "module" field if the given value is not nil.
+func (_u *PermissionUpdateOne) SetNillableModule(v *string) *PermissionUpdateOne {
 	if v != nil {
-		_u.SetCategory(*v)
+		_u.SetModule(*v)
 	}
 	return _u
 }
@@ -695,11 +690,6 @@ func (_u *PermissionUpdateOne) check() error {
 			return &ValidationError{Name: "display", err: fmt.Errorf(`ent: validator failed for field "Permission.display": %w`, err)}
 		}
 	}
-	if v, ok := _u.mutation.Category(); ok {
-		if err := permission.CategoryValidator(v); err != nil {
-			return &ValidationError{Name: "category", err: fmt.Errorf(`ent: validator failed for field "Permission.category": %w`, err)}
-		}
-	}
 	return nil
 }
 
@@ -756,8 +746,8 @@ func (_u *PermissionUpdateOne) sqlSave(ctx context.Context) (_node *Permission, 
 	if _u.mutation.DescriptionKeyCleared() {
 		_spec.ClearField(permission.FieldDescriptionKey, field.TypeString)
 	}
-	if value, ok := _u.mutation.Category(); ok {
-		_spec.SetField(permission.FieldCategory, field.TypeString, value)
+	if value, ok := _u.mutation.Module(); ok {
+		_spec.SetField(permission.FieldModule, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(permission.FieldUpdatedAt, field.TypeTime, value)

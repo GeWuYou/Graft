@@ -1,8 +1,13 @@
 package moduleregistry
 
 import (
+	"bytes"
 	"fmt"
+	"os"
+	"path/filepath"
 	"slices"
+	"sort"
+	"strings"
 
 	"graft/server/internal/i18n"
 	"graft/server/internal/module"
@@ -256,6 +261,203 @@ func MigrationDirs() ([]string, error) {
 	}
 
 	return dedupePreserveOrder(dirs), nil
+}
+
+// ValidateEmbeddedMigrationRegistryFreshness checks that the compile-time embedded migration registry
+// stays byte-for-byte aligned with the current live migration directories on disk.
+func ValidateEmbeddedMigrationRegistryFreshness(serverRoot string) error {
+	actualDirs, err := collectLiveMigrationDirs(serverRoot)
+	if err != nil {
+		return err
+	}
+
+	embeddedByPath := make(map[string]EmbeddedMigrationDir, len(generatedEmbeddedMigrationDirs))
+	for _, dir := range generatedEmbeddedMigrationDirs {
+		embeddedByPath[dir.Path] = dir
+	}
+
+	actualPaths := make([]string, 0, len(actualDirs))
+	for path := range actualDirs {
+		actualPaths = append(actualPaths, path)
+	}
+	sort.Strings(actualPaths)
+
+	embeddedPaths := make([]string, 0, len(embeddedByPath))
+	for path := range embeddedByPath {
+		embeddedPaths = append(embeddedPaths, path)
+	}
+	sort.Strings(embeddedPaths)
+
+	if !slices.Equal(actualPaths, embeddedPaths) {
+		return fmt.Errorf(
+			"embedded migration dir set is stale: actual=%v embedded=%v; regenerate with `cd server/internal/moduleregistry && go generate ./...`",
+			actualPaths,
+			embeddedPaths,
+		)
+	}
+
+	for _, path := range actualPaths {
+		if err := compareEmbeddedMigrationDir(path, actualDirs[path], embeddedByPath[path]); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func collectLiveMigrationDirs(serverRoot string) (map[string]EmbeddedMigrationDir, error) {
+	trimmedRoot := strings.TrimSpace(serverRoot)
+	if trimmedRoot == "" {
+		return nil, fmt.Errorf("server root is required for embedded migration registry validation")
+	}
+
+	coreDirs := CoreMigrationDirs()
+	paths := make([]string, 0, len(coreDirs))
+	paths = append(paths, coreDirs...)
+
+	moduleEntries, err := os.ReadDir(filepath.Join(trimmedRoot, "modules"))
+	if err != nil {
+		return nil, fmt.Errorf("read module directories for embedded migration registry validation: %w", err)
+	}
+	for _, entry := range moduleEntries {
+		if !entry.IsDir() {
+			continue
+		}
+		paths = append(paths, filepath.ToSlash(filepath.Join("modules", entry.Name(), "migrations")))
+	}
+
+	result := make(map[string]EmbeddedMigrationDir, len(paths))
+	for _, relativePath := range dedupePreserveOrder(paths) {
+		dir, ok, err := readLiveMigrationDir(trimmedRoot, relativePath)
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			continue
+		}
+		result[relativePath] = dir
+	}
+
+	return result, nil
+}
+
+func readLiveMigrationDir(serverRoot string, relativePath string) (EmbeddedMigrationDir, bool, error) {
+	absDir := filepath.Join(serverRoot, filepath.FromSlash(relativePath))
+	entries, ok, err := readLiveMigrationDirEntries(absDir, relativePath)
+	if err != nil {
+		return EmbeddedMigrationDir{}, false, err
+	}
+	if !ok {
+		return EmbeddedMigrationDir{}, false, nil
+	}
+
+	files := make([]EmbeddedMigrationFile, 0, len(entries))
+	for _, entry := range entries {
+		file, ok, err := readLiveMigrationFile(absDir, relativePath, entry)
+		if err != nil {
+			return EmbeddedMigrationDir{}, false, err
+		}
+		if !ok {
+			continue
+		}
+		files = append(files, file)
+	}
+
+	sort.Slice(files, func(i, j int) bool {
+		left := files[i].Name
+		right := files[j].Name
+		if left == "atlas.sum" {
+			return false
+		}
+		if right == "atlas.sum" {
+			return true
+		}
+		return left < right
+	})
+
+	return EmbeddedMigrationDir{Path: relativePath, Files: files}, true, nil
+}
+
+func readLiveMigrationDirEntries(absDir string, relativePath string) ([]os.DirEntry, bool, error) {
+	info, err := os.Stat(absDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, false, nil
+		}
+		return nil, false, fmt.Errorf("stat live migration dir %s: %w", relativePath, err)
+	}
+	if !info.IsDir() {
+		return nil, false, fmt.Errorf("live migration path %s is not a directory", relativePath)
+	}
+
+	entries, err := os.ReadDir(absDir)
+	if err != nil {
+		return nil, false, fmt.Errorf("read live migration dir %s: %w", relativePath, err)
+	}
+	return entries, true, nil
+}
+
+func readLiveMigrationFile(absDir string, relativePath string, entry os.DirEntry) (EmbeddedMigrationFile, bool, error) {
+	name := entry.Name()
+	if entry.IsDir() || !isTrackedMigrationFileName(name) {
+		return EmbeddedMigrationFile{}, false, nil
+	}
+
+	info, err := entry.Info()
+	if err != nil {
+		return EmbeddedMigrationFile{}, false, fmt.Errorf("stat live migration file %s/%s: %w", relativePath, name, err)
+	}
+	if !info.Mode().IsRegular() {
+		return EmbeddedMigrationFile{}, false, fmt.Errorf("live migration file %s/%s is not a regular file", relativePath, name)
+	}
+
+	contents, err := os.ReadFile(filepath.Join(absDir, name)) //nolint:gosec // name is constrained to atlas.sum or a single .sql basename from os.ReadDir.
+	if err != nil {
+		return EmbeddedMigrationFile{}, false, fmt.Errorf("read live migration file %s/%s: %w", relativePath, name, err)
+	}
+	return EmbeddedMigrationFile{Name: name, Contents: contents}, true, nil
+}
+
+func isTrackedMigrationFileName(name string) bool {
+	if name == "atlas.sum" {
+		return true
+	}
+	if filepath.Base(name) != name {
+		return false
+	}
+	return filepath.Ext(name) == ".sql"
+}
+
+func compareEmbeddedMigrationDir(path string, actual EmbeddedMigrationDir, embedded EmbeddedMigrationDir) error {
+	actualNames := make([]string, 0, len(actual.Files))
+	for _, file := range actual.Files {
+		actualNames = append(actualNames, file.Name)
+	}
+	embeddedNames := make([]string, 0, len(embedded.Files))
+	for _, file := range embedded.Files {
+		embeddedNames = append(embeddedNames, file.Name)
+	}
+	if !slices.Equal(actualNames, embeddedNames) {
+		return fmt.Errorf(
+			"embedded migration dir %s is stale: actual files=%v embedded files=%v; regenerate with `cd server/internal/moduleregistry && go generate ./...`",
+			path,
+			actualNames,
+			embeddedNames,
+		)
+	}
+
+	for index, actualFile := range actual.Files {
+		embeddedFile := embedded.Files[index]
+		if !bytes.Equal(actualFile.Contents, embeddedFile.Contents) {
+			return fmt.Errorf(
+				"embedded migration file %s/%s is stale; regenerate with `cd server/internal/moduleregistry && go generate ./...`",
+				path,
+				actualFile.Name,
+			)
+		}
+	}
+
+	return nil
 }
 
 func dedupePreserveOrder(values []string) []string {

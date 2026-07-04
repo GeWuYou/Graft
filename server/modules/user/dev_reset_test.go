@@ -109,7 +109,7 @@ func (s devResetRBACBootstrapStub) EnsureDefaultAdminAccess(ctx context.Context,
 			Code:        item.Code,
 			Display:     item.Display,
 			Description: devResetStringPtrOrNil(item.Description),
-			Category:    item.Category,
+			Module:      item.Module,
 		})
 		if err != nil {
 			return err

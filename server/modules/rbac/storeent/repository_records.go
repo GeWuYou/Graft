@@ -90,7 +90,7 @@ func (r *repository) setRoleBuiltin(ctx context.Context, id uint64, builtin bool
 func (r *repository) findPermissionByCode(ctx context.Context, code string) (rbacstore.Permission, error) {
 	return scanPermission(r.db.QueryRowContext(
 		ctx,
-		`SELECT id, code, display, display_key, description, description_key, category, created_at, updated_at, 0 AS role_binding_count
+		`SELECT id, code, display, display_key, description, description_key, module, created_at, updated_at, 0 AS role_binding_count
 		FROM permissions
 		WHERE code = $1 AND deleted_at = 0`,
 		strings.TrimSpace(code),
@@ -100,7 +100,7 @@ func (r *repository) findPermissionByCode(ctx context.Context, code string) (rba
 func (r *repository) queryPermissionByID(ctx context.Context, id int64) (rbacstore.Permission, error) {
 	return scanPermission(r.db.QueryRowContext(
 		ctx,
-		`SELECT id, code, display, display_key, description, description_key, category, created_at, updated_at,
+		`SELECT id, code, display, display_key, description, description_key, module, created_at, updated_at,
 			(SELECT COUNT(*) FROM role_permissions rp WHERE rp.permission_id = permissions.id) AS role_binding_count
 		FROM permissions
 		WHERE id = $1 AND deleted_at = 0`,
@@ -112,15 +112,15 @@ func (r *repository) createPermissionRecord(ctx context.Context, input rbacstore
 	now := time.Now().UTC()
 	return scanPermission(r.db.QueryRowContext(
 		ctx,
-		`INSERT INTO permissions (code, display, display_key, description, description_key, category, created_at, created_by, updated_at, updated_by, deleted_at, deleted_by)
+		`INSERT INTO permissions (code, display, display_key, description, description_key, module, created_at, created_by, updated_at, updated_by, deleted_at, deleted_by)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, 0, $8, 0, 0, 0)
-		RETURNING id, code, display, display_key, description, description_key, category, created_at, updated_at, 0 AS role_binding_count`,
+		RETURNING id, code, display, display_key, description, description_key, module, created_at, updated_at, 0 AS role_binding_count`,
 		strings.TrimSpace(input.Code),
 		input.Display,
 		nullableString(input.DisplayKey),
 		nullableString(input.Description),
 		nullableString(input.DescriptionKey),
-		input.Category,
+		input.Module,
 		now,
 		now,
 	))
@@ -156,24 +156,24 @@ type permissionMetadata struct {
 	displayKey     *string
 	description    *string
 	descriptionKey *string
-	category       string
+	module         string
 }
 
 func permissionMetadataFromInput(record rbacstore.Permission, input rbacstore.EnsurePermissionInput) permissionMetadata {
 	display := strings.TrimSpace(input.Display)
-	category := strings.TrimSpace(input.Category)
+	module := strings.TrimSpace(input.Module)
 	if display == "" {
 		display = record.Display
 	}
-	if category == "" {
-		category = record.Category
+	if module == "" {
+		module = record.Module
 	}
 	return permissionMetadata{
 		display:        display,
 		displayKey:     input.DisplayKey,
 		description:    input.Description,
 		descriptionKey: input.DescriptionKey,
-		category:       category,
+		module:         module,
 	}
 }
 
@@ -182,7 +182,7 @@ func permissionMetadataEqual(record rbacstore.Permission, metadata permissionMet
 		stringPtrEqual(record.DisplayKey, metadata.displayKey) &&
 		stringPtrEqual(record.Description, metadata.description) &&
 		stringPtrEqual(record.DescriptionKey, metadata.descriptionKey) &&
-		record.Category == metadata.category
+		record.Module == metadata.module
 }
 
 func (r *repository) updatePermissionMetadata(
@@ -195,13 +195,13 @@ func (r *repository) updatePermissionMetadata(
 	result, err := r.db.ExecContext(
 		ctx,
 		`UPDATE permissions
-		SET display = $1, display_key = $2, description = $3, description_key = $4, category = $5, updated_at = $6, updated_by = 0
+		SET display = $1, display_key = $2, description = $3, description_key = $4, module = $5, updated_at = $6, updated_by = 0
 		WHERE id = $7 AND deleted_at = 0`,
 		metadata.display,
 		nullableString(metadata.displayKey),
 		nullableString(metadata.description),
 		nullableString(metadata.descriptionKey),
-		metadata.category,
+		metadata.module,
 		now,
 		permissionID,
 	)

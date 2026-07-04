@@ -1,0 +1,40 @@
+type: object
+required:
+  - action
+  - project_ids
+properties:
+  action:
+    type: string
+    enum: [start, stop, restart, unregister, redeploy, update_deploy, destroy]
+    x-enum-varnames:
+      - ProjectBatchActionRequestActionStart
+      - ProjectBatchActionRequestActionStop
+      - ProjectBatchActionRequestActionRestart
+      - ProjectBatchActionRequestActionUnregister
+      - ProjectBatchActionRequestActionRedeploy
+      - ProjectBatchActionRequestActionUpdateDeploy
+      - ProjectBatchActionRequestActionDestroy
+  project_ids:
+    type: array
+    minItems: 1
+    maxItems: 100
+    items:
+      type: integer
+      format: int64
+      minimum: 1
+  remove_named_volumes:
+    type: boolean
+    default: false
+  auto_unregister:
+    type: boolean
+    default: false
+  image_prune:
+    type: boolean
+    default: false
+  delete_working_directory:
+    type: boolean
+    default: false
+  confirm_canonical_project_name:
+    type: string
+    minLength: 1
+additionalProperties: false

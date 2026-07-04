@@ -113,7 +113,7 @@ func toPermissionListItem(item rbacstore.Permission) (generated.PermissionListIt
 		DisplayKey:       item.DisplayKey,
 		Description:      item.Description,
 		DescriptionKey:   item.DescriptionKey,
-		Category:         item.Category,
+		Module:           item.Module,
 		CreatedAt:        item.CreatedAt.UTC().Format(time.RFC3339),
 		UpdatedAt:        item.UpdatedAt.UTC().Format(time.RFC3339),
 		RoleBindingCount: item.RoleBindingCount,
