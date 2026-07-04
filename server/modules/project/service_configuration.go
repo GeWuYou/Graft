@@ -9,7 +9,9 @@ import (
 	"time"
 
 	generated "graft/server/internal/contract/openapi/generated"
+	projectcompose "graft/server/modules/project/compose"
 	projectcontract "graft/server/modules/project/contract"
+	projectstore "graft/server/modules/project/store"
 )
 
 // ConfigurationMetadata returns readonly configuration metadata.
@@ -167,11 +169,12 @@ func (s *Service) DeployConfiguration(
 	defer restoreManagedDraftOnFailure(aggregate.Project.WorkingDirectory, restoreItems, &err)
 
 	now := time.Now().UTC()
-	upArgs, err := lifecycleUpArgs(aggregate, lifecycleConfigurationFromAggregate(aggregate))
+	deployAggregate := configurationDeployAggregate(aggregate, prepared.ParseResult)
+	upArgs, err := lifecycleUpArgs(deployAggregate, lifecycleConfigurationFromAggregate(deployAggregate))
 	if err != nil {
 		return DeployResult{}, err
 	}
-	if _, err := s.executeLifecycleActionWithAggregate(ctx, aggregate, generated.ProjectActionResponseActionProjectActionDeploy, upArgs); err != nil {
+	if _, err := s.executeLifecycleActionWithAggregate(ctx, deployAggregate, generated.ProjectActionResponseActionProjectActionDeploy, upArgs); err != nil {
 		return DeployResult{}, err
 	}
 	updated, err := repository.RefreshProject(ctx, buildRefreshProjectInput(projectID, prepared.ParseResult, now, actorID))
@@ -209,4 +212,13 @@ func restoreManagedDraftOnFailure(workingDirectory string, restoreItems []manage
 		return
 	}
 	*resultErr = errors.Join(*resultErr, restoreManagedDraft(workingDirectory, restoreItems))
+}
+
+func configurationDeployAggregate(
+	aggregate projectstore.ProjectAggregate,
+	parseResult projectcompose.Result,
+) projectstore.ProjectAggregate {
+	updated := aggregate
+	updated.Files = toStoreFiles(parseResult.ComposeFiles, parseResult.EnvFiles)
+	return updated
 }

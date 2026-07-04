@@ -12,6 +12,8 @@ import type {
   ProjectSourceKind,
 } from '../types/project';
 
+const lifecycleAdditionalArgsSession = new Map<string, string>();
+
 function normalizeLifecycleFilePath(path: string, workingDirectory: string) {
   const value = path.trim();
   const normalizedWorkingDirectory = workingDirectory.trim().replace(/\/+$/g, '');
@@ -37,6 +39,35 @@ function splitProfiles(value: string) {
 
 function normalizeAdditionalArgs(value: string) {
   return value.trim().split(/\s+/).filter(Boolean);
+}
+
+function buildLifecycleSessionKey(
+  config: Pick<ProjectLifecycleConfigurationDraft, 'canonical_project_name' | 'compose_files' | 'working_directory'>,
+) {
+  return [config.working_directory.trim(), config.canonical_project_name.trim(), ...config.compose_files].join('\n');
+}
+
+function readLifecycleSessionAdditionalArgs(
+  config: Pick<ProjectLifecycleConfigurationDraft, 'canonical_project_name' | 'compose_files' | 'working_directory'>,
+) {
+  return lifecycleAdditionalArgsSession.get(buildLifecycleSessionKey(config)) ?? '';
+}
+
+function persistLifecycleSessionAdditionalArgs(
+  config: Pick<
+    ProjectLifecycleConfigurationDraft,
+    'additional_args' | 'canonical_project_name' | 'compose_files' | 'working_directory'
+  >,
+) {
+  const key = buildLifecycleSessionKey(config);
+  const value = config.additional_args.trim();
+
+  if (!value) {
+    lifecycleAdditionalArgsSession.delete(key);
+    return;
+  }
+
+  lifecycleAdditionalArgsSession.set(key, value);
 }
 
 function buildComposeBaseCommand(config: ProjectLifecycleConfigurationDraft) {
@@ -177,6 +208,11 @@ export function buildLifecycleConfigurationDraft(
   detail: ProjectDetailResponseWithLifecycle,
 ): ProjectLifecycleConfigurationDraft {
   const source = detail.lifecycle_configuration;
+  const sessionAdditionalArgs = readLifecycleSessionAdditionalArgs({
+    canonical_project_name: detail.canonical_project_name,
+    compose_files: normalizeComposeFiles(detail),
+    working_directory: detail.working_directory,
+  });
   const config: ProjectLifecycleConfigurationDraft = {
     strategy_kind: source?.strategy_kind ?? 'standard',
     working_directory: detail.working_directory,
@@ -189,7 +225,7 @@ export function buildLifecycleConfigurationDraft(
     force_recreate: source?.force_recreate ?? false,
     wait_after_up: source?.wait_after_up ?? false,
     prune_images_after_redeploy: source?.prune_images_after_redeploy ?? false,
-    additional_args: '',
+    additional_args: sessionAdditionalArgs,
     review_status: normalizeLifecycleReviewStatus(detail.lifecycle_review_status, detail.source_kind),
     generated_commands: mapGeneratedCommands(source),
   };
@@ -203,6 +239,7 @@ export function buildLifecycleConfigurationDraft(
 export function buildLifecycleConfigurationRequest(
   draft: ProjectLifecycleConfigurationDraft,
 ): ProjectLifecycleConfigurationUpdateRequest {
+  persistLifecycleSessionAdditionalArgs(draft);
   return {
     strategy_kind: draft.strategy_kind,
     profiles: draft.profiles.map((item) => item.trim()).filter(Boolean),
@@ -246,5 +283,9 @@ export function resolveLifecycleCommandSteps(
   config: ProjectLifecycleConfigurationDraft,
   action: ProjectLifecycleActionKey,
 ): ProjectLifecycleCommandStep[] {
+  if (config.additional_args.trim()) {
+    return buildClientGeneratedCommands(config)[action] ?? [];
+  }
+
   return config.generated_commands?.[action] ?? buildClientGeneratedCommands(config)[action] ?? [];
 }

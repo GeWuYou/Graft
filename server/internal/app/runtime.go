@@ -494,16 +494,31 @@ func (r *Runtime) runServerAndShutdown(
 		}
 		return r.cleanupAfterFailure(moduleCtx, booted, serveErr)
 	case <-runCtx.Done():
-		shutdownErr := r.shutdownRuntime(moduleCtx, booted)
-		serveErr, ok := <-errCh
-		if !ok {
+		return joinShutdownServeError(r.shutdownRuntime(moduleCtx, booted), errCh)
+	}
+}
+
+func joinShutdownServeError(shutdownErr error, errCh <-chan error) error {
+	if shutdownErr != nil {
+		select {
+		case serveErr, ok := <-errCh:
+			if !ok {
+				return shutdownErr
+			}
+			return errors.Join(shutdownErr, serveErr)
+		default:
 			return shutdownErr
 		}
-		if shutdownErr == nil {
-			return serveErr
-		}
-		return errors.Join(shutdownErr, serveErr)
 	}
+
+	serveErr, ok := <-errCh
+	if !ok {
+		return shutdownErr
+	}
+	if shutdownErr == nil {
+		return serveErr
+	}
+	return errors.Join(shutdownErr, serveErr)
 }
 
 func (r *Runtime) ensureLifecycleActive(

@@ -5,8 +5,11 @@ import (
 	"go/parser"
 	"go/token"
 	"os"
+	"path"
 	"path/filepath"
 	"runtime"
+	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -62,7 +65,7 @@ func collectModuleLifecycleViolations(fileSet *token.FileSet, path string, entry
 		if !ok || !isModuleLifecycleMethod(funcDecl) {
 			continue
 		}
-		collectLifecycleCallViolations(fileSet, funcDecl, violations)
+		collectLifecycleCallViolations(fileSet, node, funcDecl, violations)
 	}
 
 	return nil
@@ -86,9 +89,10 @@ func isModuleLifecycleMethod(funcDecl *ast.FuncDecl) bool {
 	return isModuleReceiver(funcDecl.Recv.List[0].Type)
 }
 
-func collectLifecycleCallViolations(fileSet *token.FileSet, funcDecl *ast.FuncDecl, violations *[]string) {
+func collectLifecycleCallViolations(fileSet *token.FileSet, file *ast.File, funcDecl *ast.FuncDecl, violations *[]string) {
+	prohibitedImports := prohibitedLifecycleImports(file)
 	ast.Inspect(funcDecl.Body, func(child ast.Node) bool {
-		message := lifecycleViolationMessage(fileSet, child)
+		message := lifecycleViolationMessage(fileSet, child, prohibitedImports)
 		if message != "" {
 			*violations = append(*violations, message)
 		}
@@ -96,7 +100,37 @@ func collectLifecycleCallViolations(fileSet *token.FileSet, funcDecl *ast.FuncDe
 	})
 }
 
-func lifecycleViolationMessage(fileSet *token.FileSet, node ast.Node) string {
+func prohibitedLifecycleImports(file *ast.File) map[string]string {
+	prohibited := make(map[string]string, 2)
+	if file == nil {
+		return prohibited
+	}
+
+	for _, spec := range file.Imports {
+		pathValue, err := strconv.Unquote(spec.Path.Value)
+		if err != nil {
+			continue
+		}
+		if pathValue != "context" && pathValue != "time" {
+			continue
+		}
+
+		importName := ""
+		if spec.Name != nil {
+			importName = spec.Name.Name
+		} else {
+			importName = path.Base(pathValue)
+		}
+		if importName == "." || importName == "_" || importName == "" {
+			continue
+		}
+		prohibited[importName] = pathValue
+	}
+
+	return prohibited
+}
+
+func lifecycleViolationMessage(fileSet *token.FileSet, node ast.Node, prohibitedImports map[string]string) string {
 	call, ok := node.(*ast.CallExpr)
 	if !ok {
 		return ""
@@ -112,9 +146,9 @@ func lifecycleViolationMessage(fileSet *token.FileSet, node ast.Node) string {
 
 	position := fileSet.Position(call.Pos())
 	switch {
-	case pkg.Name == "context" && selector.Sel.Name == "Background":
+	case prohibitedImports[pkg.Name] == "context" && selector.Sel.Name == "Background":
 		return position.String() + ": Module receiver method must not call context.Background()"
-	case pkg.Name == "time" && selector.Sel.Name == "After":
+	case prohibitedImports[pkg.Name] == "time" && selector.Sel.Name == "After":
 		return position.String() + ": Module receiver method must not create a local time.After shutdown window"
 	default:
 		return ""
@@ -131,4 +165,71 @@ func isModuleReceiver(expr ast.Expr) bool {
 	default:
 		return false
 	}
+}
+
+func TestLifecycleViolationMessageRejectsAliasedBackgroundAndAfter(t *testing.T) {
+	t.Parallel()
+
+	source := strings.Join([]string{
+		"package sample",
+		"",
+		"import (",
+		`	ctxpkg "context"`,
+		`	timer "time"`,
+		")",
+		"",
+		"type Module struct{}",
+		"",
+		"func (m *Module) Shutdown() {",
+		"\t_ = ctxpkg.Background()",
+		"\t<-timer.After(5)",
+		"}",
+	}, "\n")
+
+	fileSet := token.NewFileSet()
+	file, err := parser.ParseFile(fileSet, "sample.go", source, 0)
+	if err != nil {
+		t.Fatalf("parse file: %v", err)
+	}
+
+	funcDecl := firstLifecycleFuncDecl(t, file)
+	prohibitedImports := prohibitedLifecycleImports(file)
+	var violations []string
+	collectLifecycleCallViolations(fileSet, file, funcDecl, &violations)
+
+	if len(violations) != 2 {
+		t.Fatalf("expected 2 violations, got %d: %v", len(violations), violations)
+	}
+	if !containsViolation(violations, "must not call context.Background()") {
+		t.Fatalf("expected context.Background violation, got %v", violations)
+	}
+	if !containsViolation(violations, "must not create a local time.After shutdown window") {
+		t.Fatalf("expected time.After violation, got %v", violations)
+	}
+	if prohibitedImports["ctxpkg"] != "context" || prohibitedImports["timer"] != "time" {
+		t.Fatalf("expected aliased imports to map to context/time, got %v", prohibitedImports)
+	}
+}
+
+func firstLifecycleFuncDecl(t *testing.T, file *ast.File) *ast.FuncDecl {
+	t.Helper()
+
+	for _, decl := range file.Decls {
+		funcDecl, ok := decl.(*ast.FuncDecl)
+		if ok && isModuleLifecycleMethod(funcDecl) {
+			return funcDecl
+		}
+	}
+
+	t.Fatal("expected module lifecycle function declaration")
+	return nil
+}
+
+func containsViolation(violations []string, suffix string) bool {
+	for _, violation := range violations {
+		if strings.HasSuffix(violation, suffix) {
+			return true
+		}
+	}
+	return false
 }

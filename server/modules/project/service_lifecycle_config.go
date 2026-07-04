@@ -105,16 +105,17 @@ func (s *Service) UpdateLifecycleConfiguration(
 	if err != nil {
 		return projectstore.ProjectAggregate{}, err
 	}
-	if _, err := repository.UpdateLifecycleConfig(ctx, projectstore.UpdateLifecycleConfigInput{
+	aggregate, err := repository.UpdateLifecycleConfig(ctx, projectstore.UpdateLifecycleConfigInput{
 		ProjectID:             projectID,
 		LifecycleStrategyKind: projectcontract.LifecycleStrategyKindStandard.String(),
 		LifecycleReviewStatus: projectcontract.LifecycleReviewStatusConfirmed.String(),
 		LifecycleConfig:       toStoreLifecycleConfig(normalized),
 		ActorID:               actorID,
-	}); err != nil {
+	})
+	if err != nil {
 		return projectstore.ProjectAggregate{}, mapStoreError(err)
 	}
-	return s.getAggregate(ctx, projectID)
+	return aggregate, nil
 }
 
 func lifecycleReviewGuard(aggregate projectstore.ProjectAggregate) error {

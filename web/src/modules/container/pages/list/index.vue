@@ -410,15 +410,19 @@ const sourceScopePlaceholder = computed(() => {
     kind: t(`container.list.sourceKinds.${filters.sourceScopeKind}`),
   });
 });
+function hasCommittedFilters(activeFilters: ContainerFilters) {
+  return (
+    Boolean(activeFilters.keyword.trim()) ||
+    activeFilters.orchestrator !== 'all' ||
+    activeFilters.sourceScopeKind !== 'all' ||
+    Boolean(activeFilters.sourceScope.trim()) ||
+    activeFilters.status !== 'all' ||
+    activeFilters.health !== 'all'
+  );
+}
+
 const hasActiveFilters = computed(
-  () =>
-    Boolean(filters.keyword.trim()) ||
-    filters.orchestrator !== 'all' ||
-    filters.sourceScopeKind !== 'all' ||
-    Boolean(filters.sourceScope.trim()) ||
-    filters.status !== 'all' ||
-    filters.health !== 'all' ||
-    Boolean(pendingSourceScopeFilter.value),
+  () => hasCommittedFilters(submittedFilters.value) || Boolean(pendingSourceScopeFilter.value),
 );
 const totalCount = computed(() => listSummary.value?.total ?? listTotal.value);
 const runningCount = computed(() => listSummary.value?.running ?? 0);

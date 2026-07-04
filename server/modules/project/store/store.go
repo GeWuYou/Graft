@@ -74,13 +74,13 @@ type Snapshot struct {
 
 // LifecycleConfig stores project-owned lifecycle execution semantics.
 type LifecycleConfig struct {
-	Profiles                 []string
-	DownBeforeRedeploy       bool
-	PullBeforeRedeploy       bool
-	BuildBeforeUp            bool
-	ForceRecreate            bool
-	WaitAfterUp              bool
-	PruneImagesAfterRedeploy bool
+	Profiles                 []string `json:"profiles"`
+	DownBeforeRedeploy       bool     `json:"down_before_redeploy"`
+	PullBeforeRedeploy       bool     `json:"pull_before_redeploy"`
+	BuildBeforeUp            bool     `json:"build_before_up"`
+	ForceRecreate            bool     `json:"force_recreate"`
+	WaitAfterUp              bool     `json:"wait_after_up"`
+	PruneImagesAfterRedeploy bool     `json:"prune_images_after_redeploy"`
 }
 
 // ProjectAggregate joins one project with its files and latest snapshot.
@@ -148,11 +148,11 @@ type RefreshProjectInput struct {
 
 // UpdateLifecycleConfigInput updates the saved lifecycle execution semantics for one project.
 type UpdateLifecycleConfigInput struct {
-	ProjectID              uint64
-	LifecycleStrategyKind  string
-	LifecycleReviewStatus  string
-	LifecycleConfig        LifecycleConfig
-	ActorID                *uint64
+	ProjectID             uint64
+	LifecycleStrategyKind string
+	LifecycleReviewStatus string
+	LifecycleConfig       LifecycleConfig
+	ActorID               *uint64
 }
 
 // UnregisterProjectInput soft-deletes one existing project registry row without touching host files.

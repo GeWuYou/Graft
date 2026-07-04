@@ -157,7 +157,7 @@ func (s *Service) ListRuntimeImportCandidates(
 	if err != nil {
 		return RuntimeImportCandidatesResult{}, err
 	}
-	existing, err := repository.List(ctx, projectstore.ListQuery{Limit: projectConflictScanSize, Offset: 0})
+	existingItems, err := listProjectConflictScanItems(ctx, repository)
 	if err != nil {
 		return RuntimeImportCandidatesResult{}, mapStoreError(err)
 	}
@@ -167,7 +167,7 @@ func (s *Service) ListRuntimeImportCandidates(
 		if validateErr != nil {
 			return RuntimeImportCandidatesResult{}, validateErr
 		}
-		if conflictReason := runtimeImportCandidateExistingConflict(candidate, existing.Items); conflictReason != "" {
+		if conflictReason := runtimeImportCandidateExistingConflict(candidate, existingItems); conflictReason != "" {
 			candidate = markAlreadyImportedRuntimeImportCandidate(candidate, conflictReason)
 		}
 		items = append(items, candidate)
@@ -191,11 +191,11 @@ func (s *Service) InspectRuntimeCandidate(ctx context.Context, request RuntimeIm
 	if err != nil {
 		return RuntimeImportInspectResult{}, err
 	}
-	existing, err := repository.List(ctx, projectstore.ListQuery{Limit: projectConflictScanSize, Offset: 0})
+	existingItems, err := listProjectConflictScanItems(ctx, repository)
 	if err != nil {
 		return RuntimeImportInspectResult{}, mapStoreError(err)
 	}
-	if conflictReason := runtimeImportCandidateExistingConflict(validatedCandidate, existing.Items); conflictReason != "" {
+	if conflictReason := runtimeImportCandidateExistingConflict(validatedCandidate, existingItems); conflictReason != "" {
 		return RuntimeImportInspectResult{}, errProjectConflict
 	}
 	if !validatedCandidate.Importable || validatedCandidate.Status != importRuntimeCandidateStatusReady {
@@ -211,6 +211,25 @@ func (s *Service) InspectRuntimeCandidate(ctx context.Context, request RuntimeIm
 		return RuntimeImportInspectResult{}, err
 	}
 	return runtimeImportInspectResultFromSession(candidate.CandidateKey, session, runtimeMembers), nil
+}
+
+func listProjectConflictScanItems(
+	ctx context.Context,
+	repository projectstore.Repository,
+) ([]projectstore.ProjectAggregate, error) {
+	items := make([]projectstore.ProjectAggregate, 0, projectConflictScanSize)
+	offset := 0
+	for {
+		page, err := repository.List(ctx, projectstore.ListQuery{Limit: projectConflictScanSize, Offset: offset})
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, page.Items...)
+		offset += len(page.Items)
+		if len(page.Items) == 0 || offset >= page.Total {
+			return items, nil
+		}
+	}
 }
 
 // BrowseImportDirectories returns a bounded root-relative directory listing for import flows.

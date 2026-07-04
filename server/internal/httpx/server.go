@@ -15,7 +15,12 @@ import (
 	"graft/server/internal/config"
 )
 
-const defaultServerReadHeaderTimeout = 5 * time.Second
+const (
+	defaultServerReadHeaderTimeout = 5 * time.Second
+	defaultServerReadTimeout       = 30 * time.Second
+	defaultServerWriteTimeout      = 30 * time.Second
+	defaultServerIdleTimeout       = 60 * time.Second
+)
 
 // Server 封装运行时使用的 Gin 引擎与 HTTP 服务实例。
 //
@@ -101,6 +106,9 @@ func (s *Server) Start(addr string) (<-chan error, error) {
 		Addr:              addr,
 		Handler:           s.engine,
 		ReadHeaderTimeout: defaultServerReadHeaderTimeout,
+		ReadTimeout:       defaultServerReadTimeout,
+		WriteTimeout:      defaultServerWriteTimeout,
+		IdleTimeout:       defaultServerIdleTimeout,
 	}
 	if err := s.bindRunningServer(srv); err != nil {
 		return nil, err
