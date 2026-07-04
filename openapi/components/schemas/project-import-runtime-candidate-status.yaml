@@ -1,7 +1,8 @@
 type: string
-enum: [ready, incomplete_metadata, unsupported_runtime, broken_compose]
+enum: [ready, already_imported, incomplete_metadata, unsupported_runtime, broken_compose]
 x-enum-varnames:
   - ProjectImportRuntimeCandidateStatusReady
+  - ProjectImportRuntimeCandidateStatusAlreadyImported
   - ProjectImportRuntimeCandidateStatusIncompleteMetadata
   - ProjectImportRuntimeCandidateStatusUnsupportedRuntime
   - ProjectImportRuntimeCandidateStatusBrokenCompose

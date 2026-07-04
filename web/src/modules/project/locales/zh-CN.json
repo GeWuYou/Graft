@@ -220,9 +220,6 @@
       "eyebrow": "导入项目",
       "description": "按步骤选择运行中的 Compose 项目、查看检查结果，再确认导入。",
       "meta": {
-        "step": "步骤 {current} / {total}",
-        "readyCount": "可导入 {count}",
-        "unavailableCount": "暂不可导入 {count}",
         "selectedCandidate": "当前候选：{name}"
       },
       "steps": {
@@ -259,10 +256,10 @@
       },
       "candidates": {
         "title": "运行时候选",
-        "summary": "可导入 {ready} 个 / 暂不可导入 {unavailable} 个",
         "statusFilter": "筛选状态",
         "allFilterLabel": "全部（{count}）",
         "readyFilterLabel": "可导入（{count}）",
+        "importedFilterLabel": "已导入（{count}）",
         "unavailableFilterLabel": "暂不可导入（{count}）",
         "tableSummary": "当前筛选显示 {count} 个运行时候选",
         "tableHint": "一行代表一个 Runtime Candidate；仅可导入候选允许执行检查并进入后续导入流程。",
@@ -307,11 +304,13 @@
         "paginationSummary": "显示第 {start}-{end} 项，共 {total} 项",
         "status": {
           "ready": "可导入",
+          "already_imported": "已导入",
           "incomplete_metadata": "元数据不完整",
           "unsupported_runtime": "运行时暂不支持",
           "broken_compose": "Compose 解析失败"
         },
         "reason": {
+          "already_imported": "该项目已导入 Graft",
           "missing_project_name": "缺少 Compose 项目名元数据",
           "missing_config_files": "缺少 Compose 配置文件元数据",
           "invalid_config_files": "Compose 配置文件元数据无效",

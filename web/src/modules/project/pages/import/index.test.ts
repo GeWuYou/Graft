@@ -674,6 +674,7 @@ describe('ProjectImportIndex', () => {
       filter_counts: {
         all: 2,
         ready: 1,
+        imported: 0,
         unavailable: 1,
       },
     });
@@ -717,7 +718,7 @@ describe('ProjectImportIndex', () => {
 
     expect(mocks.getProjectImportRuntimeCandidates).toHaveBeenNthCalledWith(1, {
       keyword: undefined,
-      availability: undefined,
+      availability: 'ready',
       limit: 10,
       offset: 0,
     });
@@ -761,6 +762,57 @@ describe('ProjectImportIndex', () => {
     expect(flowState.inspectCandidate).not.toHaveBeenCalled();
   });
 
+  it('disables inspect actions for imported candidates while keeping the row visible', async () => {
+    const flowState = createFlowState();
+    mocks.useProjectImportFlow.mockImplementation(() => flowState);
+    mocks.getProjectImportRuntimeCandidates
+      .mockResolvedValueOnce({
+        items: [buildCandidate({})],
+        total: 1,
+        limit: 10,
+        offset: 0,
+        filter_counts: {
+          all: 1,
+          ready: 1,
+          imported: 1,
+          unavailable: 0,
+        },
+      })
+      .mockResolvedValueOnce({
+        items: [
+          buildCandidate({
+            candidate_key: 'runtime:imported',
+            canonical_project_name: 'imported',
+            importable: false,
+            status: 'already_imported',
+            status_reason_codes: ['already_imported'],
+          }),
+        ],
+        total: 1,
+        limit: 10,
+        offset: 0,
+        filter_counts: {
+          all: 1,
+          ready: 0,
+          imported: 1,
+          unavailable: 0,
+        },
+      });
+
+    const wrapper = mountPage();
+    await flushPromises();
+    await wrapper.get('[data-testid="candidate-status-filter"]').setValue('imported');
+    await flushPromises();
+
+    const importedRow = wrapper.findAll('tr').find((row) => row.text().includes('imported'));
+    const inspectButton = importedRow?.find('button');
+
+    expect(inspectButton).toBeDefined();
+    expect(inspectButton?.attributes('disabled')).toBeDefined();
+    expect(wrapper.text()).toContain('该项目已导入 Graft');
+    expect(flowState.inspectCandidate).not.toHaveBeenCalled();
+  });
+
   it('normalizes nullable diagnostics arrays from the API response', async () => {
     mocks.getProjectImportRuntimeCandidates.mockResolvedValueOnce({
       items: [
@@ -779,6 +831,7 @@ describe('ProjectImportIndex', () => {
       filter_counts: {
         all: 1,
         ready: 0,
+        imported: 0,
         unavailable: 1,
       },
     });
@@ -950,6 +1003,7 @@ describe('ProjectImportIndex', () => {
         filter_counts: {
           all: 25,
           ready: 25,
+          imported: 0,
           unavailable: 0,
         },
       })
@@ -969,6 +1023,7 @@ describe('ProjectImportIndex', () => {
         filter_counts: {
           all: 25,
           ready: 25,
+          imported: 0,
           unavailable: 0,
         },
       });
@@ -1001,6 +1056,7 @@ describe('ProjectImportIndex', () => {
         filter_counts: {
           all: 25,
           ready: 25,
+          imported: 0,
           unavailable: 0,
         },
       })
@@ -1060,6 +1116,7 @@ describe('ProjectImportIndex', () => {
       filter_counts: {
         all: 1,
         ready: 1,
+        imported: 0,
         unavailable: 0,
       },
     });
@@ -1083,6 +1140,7 @@ describe('ProjectImportIndex', () => {
       filter_counts: {
         all: 1,
         ready: 0,
+        imported: 0,
         unavailable: 1,
       },
     });

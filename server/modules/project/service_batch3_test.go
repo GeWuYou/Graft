@@ -901,8 +901,109 @@ func TestListRuntimeImportCandidatesDedupesCandidateKeys(t *testing.T) {
 	if result.Total != 1 {
 		t.Fatalf("expected deduped total 1, got %d", result.Total)
 	}
-	if result.FilterCounts.All != 1 || result.FilterCounts.Unavailable != 1 {
+	if result.FilterCounts.All != 1 || result.FilterCounts.Imported != 0 || result.FilterCounts.Unavailable != 1 {
 		t.Fatalf("expected deduped filter counts, got %#v", result.FilterCounts)
+	}
+}
+
+func TestListRuntimeImportCandidatesMarksAlreadyImported(t *testing.T) {
+	t.Parallel()
+
+	tempDir := t.TempDir()
+	composePath := filepath.Join(tempDir, "compose.yaml")
+	if err := os.WriteFile(composePath, []byte("services:\n  web:\n    image: nginx:latest\n"), 0o600); err != nil {
+		t.Fatalf("write compose file: %v", err)
+	}
+
+	repo := &stubProjectRepository{
+		aggregate: projectstore.ProjectAggregate{
+			Project: projectstore.Project{
+				ID:                   42,
+				CanonicalProjectName: "demo",
+				WorkingDirectory:     tempDir,
+			},
+		},
+	}
+	service, err := NewService(repo, WithRuntimeReader(stubRuntimeReader{
+		candidates: []moduleapi.ContainerProjectRuntimeCandidate{
+			{
+				CandidateKey:           "runtime_demo",
+				CanonicalProjectName:   "demo",
+				Status:                 importRuntimeCandidateStatusReady,
+				Importable:             true,
+				RuntimeType:            "docker",
+				WorkingDirectory:       tempDir,
+				WorkingDirectorySource: "runtime_label",
+				ConfigFiles:            []string{composePath},
+				ServiceNames:           []string{"web"},
+				ContainerCounts:        moduleapi.ContainerProjectRuntimeContainerCounts{Running: 1, Total: 1},
+			},
+		},
+	}))
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	result, err := service.ListRuntimeImportCandidates(context.Background(), RuntimeImportCandidateListQuery{})
+	if err != nil {
+		t.Fatalf("list runtime import candidates: %v", err)
+	}
+	if len(result.Items) != 1 {
+		t.Fatalf("expected 1 candidate, got %d", len(result.Items))
+	}
+	candidate := result.Items[0]
+	if candidate.Status != importRuntimeCandidateStatusAlreadyImported || candidate.Importable {
+		t.Fatalf("expected already imported candidate, got %#v", candidate)
+	}
+	if len(candidate.StatusReasonCodes) != 1 || candidate.StatusReasonCodes[0] != importRuntimeReasonAlreadyImported {
+		t.Fatalf("unexpected status reason codes %#v", candidate.StatusReasonCodes)
+	}
+	if result.FilterCounts.Imported != 1 || result.FilterCounts.Ready != 0 || result.FilterCounts.Unavailable != 0 {
+		t.Fatalf("unexpected filter counts %#v", result.FilterCounts)
+	}
+}
+
+func TestInspectRuntimeCandidateRejectsAlreadyImportedCandidate(t *testing.T) {
+	t.Parallel()
+
+	tempDir := t.TempDir()
+	composePath := filepath.Join(tempDir, "compose.yaml")
+	if err := os.WriteFile(composePath, []byte("services:\n  web:\n    image: nginx:latest\n"), 0o600); err != nil {
+		t.Fatalf("write compose file: %v", err)
+	}
+
+	repo := &stubProjectRepository{
+		aggregate: projectstore.ProjectAggregate{
+			Project: projectstore.Project{
+				ID:                   7,
+				CanonicalProjectName: "demo",
+				WorkingDirectory:     tempDir,
+			},
+		},
+	}
+	service, err := NewService(repo, WithRuntimeReader(stubRuntimeReader{
+		candidates: []moduleapi.ContainerProjectRuntimeCandidate{
+			{
+				CandidateKey:           "runtime_demo",
+				CanonicalProjectName:   "demo",
+				Status:                 importRuntimeCandidateStatusReady,
+				Importable:             true,
+				RuntimeType:            "docker",
+				WorkingDirectory:       tempDir,
+				WorkingDirectorySource: "runtime_label",
+				ConfigFiles:            []string{composePath},
+				ServiceNames:           []string{"web"},
+				ContainerCounts:        moduleapi.ContainerProjectRuntimeContainerCounts{Running: 1, Total: 1},
+			},
+		},
+	}))
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	_, err = service.InspectRuntimeCandidate(context.Background(), RuntimeImportInspectRequest{CandidateKey: "runtime_demo"})
+	if !errors.Is(err, errProjectConflict) {
+		t.Fatalf("expected project conflict, got %v", err)
 	}
 }
 

@@ -50,6 +50,7 @@ func toRuntimeImportCandidatesResponse(result RuntimeImportCandidatesResult) gen
 		FilterCounts: generated.ProjectImportRuntimeCandidateFilterCounts{
 			All:         result.FilterCounts.All,
 			Ready:       result.FilterCounts.Ready,
+			Imported:    result.FilterCounts.Imported,
 			Unavailable: result.FilterCounts.Unavailable,
 		},
 	}

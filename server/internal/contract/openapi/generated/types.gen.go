@@ -2570,6 +2570,7 @@ func (e ProjectImportInspectResponseValidationStatus) Valid() bool {
 
 // Defines values for ProjectImportRuntimeCandidateAvailability.
 const (
+	ProjectImportRuntimeCandidateAvailabilityImported    ProjectImportRuntimeCandidateAvailability = "imported"
 	ProjectImportRuntimeCandidateAvailabilityReady       ProjectImportRuntimeCandidateAvailability = "ready"
 	ProjectImportRuntimeCandidateAvailabilityUnavailable ProjectImportRuntimeCandidateAvailability = "unavailable"
 )
@@ -2577,6 +2578,8 @@ const (
 // Valid indicates whether the value is a known member of the ProjectImportRuntimeCandidateAvailability enum.
 func (e ProjectImportRuntimeCandidateAvailability) Valid() bool {
 	switch e {
+	case ProjectImportRuntimeCandidateAvailabilityImported:
+		return true
 	case ProjectImportRuntimeCandidateAvailabilityReady:
 		return true
 	case ProjectImportRuntimeCandidateAvailabilityUnavailable:
@@ -2588,6 +2591,7 @@ func (e ProjectImportRuntimeCandidateAvailability) Valid() bool {
 
 // Defines values for ProjectImportRuntimeCandidateStatus.
 const (
+	ProjectImportRuntimeCandidateStatusAlreadyImported    ProjectImportRuntimeCandidateStatus = "already_imported"
 	ProjectImportRuntimeCandidateStatusBrokenCompose      ProjectImportRuntimeCandidateStatus = "broken_compose"
 	ProjectImportRuntimeCandidateStatusIncompleteMetadata ProjectImportRuntimeCandidateStatus = "incomplete_metadata"
 	ProjectImportRuntimeCandidateStatusReady              ProjectImportRuntimeCandidateStatus = "ready"
@@ -2597,6 +2601,8 @@ const (
 // Valid indicates whether the value is a known member of the ProjectImportRuntimeCandidateStatus enum.
 func (e ProjectImportRuntimeCandidateStatus) Valid() bool {
 	switch e {
+	case ProjectImportRuntimeCandidateStatusAlreadyImported:
+		return true
 	case ProjectImportRuntimeCandidateStatusBrokenCompose:
 		return true
 	case ProjectImportRuntimeCandidateStatusIncompleteMetadata:
@@ -7932,6 +7938,7 @@ type ProjectImportRuntimeCandidateAvailability string
 // ProjectImportRuntimeCandidateFilterCounts defines model for project-import-runtime-candidate-filter-counts.
 type ProjectImportRuntimeCandidateFilterCounts struct {
 	All         int `json:"all"`
+	Imported    int `json:"imported"`
 	Ready       int `json:"ready"`
 	Unavailable int `json:"unavailable"`
 }

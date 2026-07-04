@@ -2,12 +2,16 @@ type: object
 required:
   - all
   - ready
+  - imported
   - unavailable
 properties:
   all:
     type: integer
     minimum: 0
   ready:
+    type: integer
+    minimum: 0
+  imported:
     type: integer
     minimum: 0
   unavailable:

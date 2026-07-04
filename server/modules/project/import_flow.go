@@ -156,6 +156,7 @@ type RuntimeImportCandidateAvailability string
 
 const (
 	runtimeImportCandidateAvailabilityReady       RuntimeImportCandidateAvailability = "ready"
+	runtimeImportCandidateAvailabilityImported    RuntimeImportCandidateAvailability = "imported"
 	runtimeImportCandidateAvailabilityUnavailable RuntimeImportCandidateAvailability = "unavailable"
 	runtimeImportCandidatesDefaultLimit                                              = 10
 )
@@ -172,6 +173,7 @@ type RuntimeImportCandidateListQuery struct {
 type RuntimeImportCandidateFilterCounts struct {
 	All         int `json:"all"`
 	Ready       int `json:"ready"`
+	Imported    int `json:"imported"`
 	Unavailable int `json:"unavailable"`
 }
 

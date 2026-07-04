@@ -12589,7 +12589,7 @@
         ],
         "summary": "Execute project actions in batch",
         "operationId": "postProjectBatchActions",
-        "description": "Executes one action for selected project ids and returns per-item results plus aggregate completed, blocked, and skipped counts. Inapplicable projects are skipped instead of failed.\n",
+        "description": "Executes one action for selected project ids and returns per-item results plus aggregate completed, blocked, and skipped counts. Nonexistent project_id values fail the request with 404, while skipped applies only to existing projects for which the requested action is not applicable.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -12651,7 +12651,7 @@
             "$ref": "#/components/responses/forbidden"
           },
           "404": {
-            "description": "One or more project records not found.",
+            "description": "One or more requested project_id values do not match an existing project record.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -21993,10 +21993,12 @@
         "type": "string",
         "enum": [
           "ready",
+          "imported",
           "unavailable"
         ],
         "x-enum-varnames": [
           "ProjectImportRuntimeCandidateAvailabilityReady",
+          "ProjectImportRuntimeCandidateAvailabilityImported",
           "ProjectImportRuntimeCandidateAvailabilityUnavailable"
         ]
       },
@@ -22004,12 +22006,14 @@
         "type": "string",
         "enum": [
           "ready",
+          "already_imported",
           "incomplete_metadata",
           "unsupported_runtime",
           "broken_compose"
         ],
         "x-enum-varnames": [
           "ProjectImportRuntimeCandidateStatusReady",
+          "ProjectImportRuntimeCandidateStatusAlreadyImported",
           "ProjectImportRuntimeCandidateStatusIncompleteMetadata",
           "ProjectImportRuntimeCandidateStatusUnsupportedRuntime",
           "ProjectImportRuntimeCandidateStatusBrokenCompose"
@@ -22103,6 +22107,7 @@
         "required": [
           "all",
           "ready",
+          "imported",
           "unavailable"
         ],
         "properties": {
@@ -22111,6 +22116,10 @@
             "minimum": 0
           },
           "ready": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "imported": {
             "type": "integer",
             "minimum": 0
           },

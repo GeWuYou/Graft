@@ -50,9 +50,11 @@ const (
 	managedCreateFileMode    = 0o600
 	projectComposeTimeout    = 5 * time.Minute
 
-	importRuntimeCandidateStatusReady         = "ready"
-	importRuntimeCandidateStatusBrokenCompose = "broken_compose"
+	importRuntimeCandidateStatusReady           = "ready"
+	importRuntimeCandidateStatusAlreadyImported = "already_imported"
+	importRuntimeCandidateStatusBrokenCompose   = "broken_compose"
 
+	importRuntimeReasonAlreadyImported          = "already_imported"
 	importRuntimeReasonComposeParseFailed       = "compose_parse_failed"
 	importRuntimeReasonConfigFilesNotAccessible = "config_files_not_accessible"
 )

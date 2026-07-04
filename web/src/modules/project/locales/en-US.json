@@ -220,9 +220,6 @@
       "eyebrow": "Import Project",
       "description": "Choose a running Compose project first, review the Inspect result next, and confirm the import last.",
       "meta": {
-        "step": "Step {current} / {total}",
-        "readyCount": "{count} Ready",
-        "unavailableCount": "{count} Unavailable",
         "selectedCandidate": "Current Candidate: {name}"
       },
       "steps": {
@@ -259,10 +256,10 @@
       },
       "candidates": {
         "title": "Runtime Candidates",
-        "summary": "{ready} Ready / {unavailable} Unavailable",
         "statusFilter": "Filter Status",
         "allFilterLabel": "All ({count})",
         "readyFilterLabel": "Ready ({count})",
+        "importedFilterLabel": "Imported ({count})",
         "unavailableFilterLabel": "Unavailable ({count})",
         "tableSummary": "{count} Runtime Candidates Match the Current Filters",
         "tableHint": "Each row is one runtime candidate. Only ready candidates can enter Inspect and continue to import.",
@@ -307,11 +304,13 @@
         "paginationSummary": "Showing {start}-{end} of {total}",
         "status": {
           "ready": "Ready",
+          "already_imported": "Imported",
           "incomplete_metadata": "Incomplete Metadata",
           "unsupported_runtime": "Unsupported Runtime",
           "broken_compose": "Broken Compose"
         },
         "reason": {
+          "already_imported": "This Project Is Already Imported In Graft",
           "missing_project_name": "Missing Compose Project Name Metadata",
           "missing_config_files": "Missing Compose Config File Metadata",
           "invalid_config_files": "Compose Config File Metadata Is Invalid",

@@ -2486,7 +2486,7 @@ export interface paths {
     put?: never;
     /**
      * Execute project actions in batch
-     * @description Executes one action for selected project ids and returns per-item results plus aggregate completed, blocked, and skipped counts. Inapplicable projects are skipped instead of failed.
+     * @description Executes one action for selected project ids and returns per-item results plus aggregate completed, blocked, and skipped counts. Nonexistent project_id values fail the request with 404, while skipped applies only to existing projects for which the requested action is not applicable.
      */
     post: operations['postProjectBatchActions'];
     delete?: never;
@@ -5436,10 +5436,10 @@ export interface components {
       data: components['schemas']['project-import-validate-response'];
     };
     /** @enum {string} */
-    'project-import-runtime-candidate-availability': 'ready' | 'unavailable';
+    'project-import-runtime-candidate-availability': 'ready' | 'imported' | 'unavailable';
     /** @enum {string} */
     'project-import-runtime-candidate-status':
-      'ready' | 'incomplete_metadata' | 'unsupported_runtime' | 'broken_compose';
+      'ready' | 'already_imported' | 'incomplete_metadata' | 'unsupported_runtime' | 'broken_compose';
     /** @enum {string} */
     'project-import-runtime-working-directory-source': 'runtime_label' | 'derived_from_config_files';
     'project-import-runtime-candidate': {
@@ -5461,6 +5461,7 @@ export interface components {
     'project-import-runtime-candidate-filter-counts': {
       all: number;
       ready: number;
+      imported: number;
       unavailable: number;
     };
     'project-import-runtime-candidates-response': {
@@ -13166,7 +13167,7 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
-      /** @description One or more project records not found. */
+      /** @description One or more requested project_id values do not match an existing project record. */
       404: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];

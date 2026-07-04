@@ -560,7 +560,7 @@ Volume 删除要单独判断：
 1. 用户打开 `Import Existing Project`
 2. frontend 请求 runtime candidate 列表
 3. backend 基于 `container` runtime authority 聚合 Compose import candidates
-4. frontend 展示 `ready` 与 `unavailable` candidates
+4. frontend 展示 `ready`、`already_imported` 与 `unavailable` candidates
 5. 用户只能选择 `ready` candidate 进入 inspect
 6. backend 基于 candidate authority 执行一次静态 inspect
 7. frontend 展示 inspect preview
@@ -599,6 +599,7 @@ candidate 至少要固定这些字段语义：
 - `canonical_project_name`
 - `status`
   - `ready`
+  - `already_imported`
   - `incomplete_metadata`
   - `unsupported_runtime`
   - `broken_compose`
@@ -616,11 +617,12 @@ candidate 至少要固定这些字段语义：
 返回规则：
 
 - runtime candidates 不能只返回 `ready`
-- 对当前 runtime 中可见但不可导入的 Compose project，必须返回 `unavailable` candidate，并给出稳定 reason code
+- 对当前 runtime 中可见但不可导入的 Compose project，必须返回 `already_imported` 或 `unavailable` candidate，并给出稳定 reason code
 - frontend 通过 `status + status_reason_codes` 展示不可导入原因，而不是靠候选“消失”表达失败
 
 当前 batch 固定的最小 reason code 集：
 
+- `already_imported`
 - `missing_project_name`
 - `missing_config_files`
 - `invalid_config_files`
