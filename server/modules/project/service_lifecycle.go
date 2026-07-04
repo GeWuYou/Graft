@@ -20,9 +20,9 @@ func (s *Service) Up(ctx context.Context, projectID uint64, actorID *uint64) (Ac
 	return s.runLifecycleAction(ctx, projectID, actorID, generated.ProjectActionResponseActionProjectActionUp, []string{"compose", "up", "-d"})
 }
 
-// Down executes docker compose down for the registered project.
-func (s *Service) Down(ctx context.Context, projectID uint64, actorID *uint64) (ActionResult, error) {
-	return s.runLifecycleAction(ctx, projectID, actorID, generated.ProjectActionResponseActionProjectActionDown, []string{"compose", "down"})
+// Stop executes docker compose stop for the registered project.
+func (s *Service) Stop(ctx context.Context, projectID uint64, actorID *uint64) (ActionResult, error) {
+	return s.runLifecycleAction(ctx, projectID, actorID, generated.ProjectActionResponseActionProjectActionStop, []string{"compose", "stop"})
 }
 
 // Restart executes docker compose restart for the registered project.
@@ -341,8 +341,8 @@ func lifecycleMessageKey(action generated.ProjectActionResponseAction) projectco
 	switch action {
 	case generated.ProjectActionResponseActionProjectActionUp:
 		return projectcontract.ProjectUpCompleted
-	case generated.ProjectActionResponseActionProjectActionDown:
-		return projectcontract.ProjectDownCompleted
+	case generated.ProjectActionResponseActionProjectActionStop:
+		return projectcontract.ProjectStopCompleted
 	case generated.ProjectActionResponseActionProjectActionRestart:
 		return projectcontract.ProjectRestartCompleted
 	case generated.ProjectActionResponseActionProjectActionRedeploy:
@@ -541,8 +541,8 @@ func (s *Service) batchLifecycleActionItem(
 		item, err := s.batchLifecycleItem(
 			ctx,
 			aggregate,
-			generated.ProjectActionResponseActionProjectActionDown,
-			[]string{"compose", "down"},
+			generated.ProjectActionResponseActionProjectActionStop,
+			[]string{"compose", "stop"},
 		)
 		return item, true, err
 	case generated.ProjectBatchActionRequestActionRestart:
@@ -599,7 +599,7 @@ func skipBatchLifecycleAction(
 	switch action {
 	case generated.ProjectActionResponseActionProjectActionUp:
 		return skipBatchStartForStatus(*runtimeStatus)
-	case generated.ProjectActionResponseActionProjectActionDown:
+	case generated.ProjectActionResponseActionProjectActionStop:
 		return skipBatchStopForStatus(*runtimeStatus)
 	case generated.ProjectActionResponseActionProjectActionRestart:
 		return skipBatchRestartForStatus(*runtimeStatus)
@@ -634,12 +634,10 @@ func skipBatchStopForStatus(status generated.ProjectRuntimeStatus) (string, bool
 
 func skipBatchRestartForStatus(status generated.ProjectRuntimeStatus) (string, bool) {
 	switch status {
-	case generated.ProjectRuntimeStatusRunning, generated.ProjectRuntimeStatusDegraded:
+	case generated.ProjectRuntimeStatusRunning, generated.ProjectRuntimeStatusDegraded, generated.ProjectRuntimeStatusStopped:
 		return "", false
 	case generated.ProjectRuntimeStatusTransitioning:
 		return "currently_transitioning", true
-	case generated.ProjectRuntimeStatusStopped:
-		return "already_stopped", true
 	case generated.ProjectRuntimeStatusUnknown:
 		return "runtime_status_unknown", true
 	default:
@@ -763,7 +761,7 @@ func batchActionToProjectAction(action generated.ProjectBatchActionRequestAction
 	case generated.ProjectBatchActionRequestActionStart:
 		return generated.ProjectActionResponseActionProjectActionUp
 	case generated.ProjectBatchActionRequestActionStop:
-		return generated.ProjectActionResponseActionProjectActionDown
+		return generated.ProjectActionResponseActionProjectActionStop
 	case generated.ProjectBatchActionRequestActionRestart:
 		return generated.ProjectActionResponseActionProjectActionRestart
 	case generated.ProjectBatchActionRequestActionRedeploy:

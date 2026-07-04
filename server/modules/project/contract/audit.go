@@ -11,8 +11,8 @@ func (a AuditAction) String() string {
 const (
 	// ProjectAuditActionUp identifies single-item compose up auditing.
 	ProjectAuditActionUp AuditAction = "ops.project.action.up"
-	// ProjectAuditActionDown identifies single-item compose down auditing.
-	ProjectAuditActionDown AuditAction = "ops.project.action.down"
+	// ProjectAuditActionStop identifies single-item compose stop auditing.
+	ProjectAuditActionStop AuditAction = "ops.project.action.stop"
 	// ProjectAuditActionRestart identifies single-item compose restart auditing.
 	ProjectAuditActionRestart AuditAction = "ops.project.action.restart"
 	// ProjectAuditActionRedeploy identifies single-item compose redeploy auditing.

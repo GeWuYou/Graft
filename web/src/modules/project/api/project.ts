@@ -10,11 +10,11 @@ import {
   buildProjectDeployApiPath,
   buildProjectDestroyApiPath,
   buildProjectDetailApiPath,
-  buildProjectDownApiPath,
   buildProjectRedeployApiPath,
   buildProjectRefreshApiPath,
   buildProjectRestartApiPath,
   buildProjectServicesApiPath,
+  buildProjectStopApiPath,
   buildProjectUnregisterApiPath,
   buildProjectUpApiPath,
   buildProjectUpdateDeployApiPath,
@@ -148,10 +148,10 @@ type ProjectUpEnvelope = ProjectUpOperation['responses'][200]['content']['applic
 type ProjectUpData = NonNullable<ProjectUpEnvelope['data']>;
 type ProjectUpPathParams = ProjectUpOperation['parameters']['path'];
 
-type ProjectDownOperation = paths[(typeof PROJECT_API_PATH)['DOWN']]['post'];
-type ProjectDownEnvelope = ProjectDownOperation['responses'][200]['content']['application/json'];
-type ProjectDownData = NonNullable<ProjectDownEnvelope['data']>;
-type ProjectDownPathParams = ProjectDownOperation['parameters']['path'];
+type ProjectStopOperation = paths[(typeof PROJECT_API_PATH)['STOP']]['post'];
+type ProjectStopEnvelope = ProjectStopOperation['responses'][200]['content']['application/json'];
+type ProjectStopData = NonNullable<ProjectStopEnvelope['data']>;
+type ProjectStopPathParams = ProjectStopOperation['parameters']['path'];
 
 type ProjectRestartOperation = paths[(typeof PROJECT_API_PATH)['RESTART']]['post'];
 type ProjectRestartEnvelope = ProjectRestartOperation['responses'][200]['content']['application/json'];
@@ -425,8 +425,8 @@ export function postProjectUp(id: ProjectUpPathParams['id']) {
  * @param id - 项目 ID
  * @returns 项目操作响应结果
  */
-export function postProjectDown(id: ProjectDownPathParams['id']) {
-  return postProjectAction<ProjectDownData>(buildProjectDownApiPath(id)) as Promise<ProjectActionResponse>;
+export function postProjectStop(id: ProjectStopPathParams['id']) {
+  return postProjectAction<ProjectStopData>(buildProjectStopApiPath(id)) as Promise<ProjectActionResponse>;
 }
 
 /**

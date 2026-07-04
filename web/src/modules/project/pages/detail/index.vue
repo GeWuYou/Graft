@@ -640,14 +640,14 @@
                     {{ t('project.detail.actions.up') }}
                   </t-button>
                   <t-button
-                    v-if="lifecycleActionVisibility.down"
-                    data-testid="project-detail-action-down"
+                    v-if="lifecycleActionVisibility.stop"
+                    data-testid="project-detail-action-stop"
                     theme="warning"
                     variant="outline"
-                    :loading="actionLoading === 'down'"
-                    @click="runLifecycleAction('down')"
+                    :loading="actionLoading === 'stop'"
+                    @click="runLifecycleAction('stop')"
                   >
-                    {{ t('project.detail.actions.down') }}
+                    {{ t('project.detail.actions.stop') }}
                   </t-button>
                   <t-button
                     v-if="lifecycleActionVisibility.restart"
@@ -769,8 +769,8 @@ import {
   postProjectConfigurationDiff,
   postProjectConfigurationValidate,
   postProjectDeploy,
-  postProjectDown,
   postProjectRestart,
+  postProjectStop,
   postProjectUnregister,
   postProjectUp,
 } from '../../api/project';
@@ -1283,14 +1283,14 @@ function openFirstServiceContainer(service: ProjectServiceItem) {
   openContainerDetail(member);
 }
 
-async function runLifecycleAction(action: 'up' | 'down' | 'restart' | 'unregister') {
+async function runLifecycleAction(action: 'up' | 'stop' | 'restart' | 'unregister') {
   if (!Number.isFinite(projectId.value)) return;
   actionLoading.value = action;
   try {
     if (action === 'up') {
       await postProjectUp(projectId.value);
-    } else if (action === 'down') {
-      await postProjectDown(projectId.value);
+    } else if (action === 'stop') {
+      await postProjectStop(projectId.value);
     } else if (action === 'restart') {
       await postProjectRestart(projectId.value);
     } else {

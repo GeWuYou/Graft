@@ -135,7 +135,7 @@
         "create": "Choose Project Source",
         "refresh": "Refresh",
         "up": "Up",
-        "down": "Stop",
+        "stop": "Stop",
         "restart": "Restart",
         "redeploy": "Redeploy",
         "updateDeploy": "Update Deploy",
@@ -153,8 +153,8 @@
         "actionFailed": "Project Action Failed.",
         "confirmUpTitle": "Confirm Project Start",
         "confirmUpDescription": "Start {name}? This brings the registered services and containers up with the current Compose configuration.",
-        "confirmDownTitle": "Confirm Project Stop",
-        "confirmDownDescription": "Stop {name}? This stops the running services and containers in the current project.",
+        "confirmStopTitle": "Confirm Project Stop",
+        "confirmStopDescription": "Stop {name}? This stops the running services and containers in the current project.",
         "confirmRestartTitle": "Confirm Project Restart",
         "confirmRestartDescription": "Restart {name}? This interrupts the current runtime and starts it again with the current configuration.",
         "confirmRedeployTitle": "Confirm Project Redeploy",
@@ -662,7 +662,7 @@
       "sections": {
         "lifecycle": {
           "title": "Lifecycle",
-          "description": "Project-level up, down, restart, and unregister actions."
+          "description": "Project-level up, stop, restart, and unregister actions."
         },
         "overview": {
           "title": "Overview",
@@ -911,7 +911,7 @@
       },
       "actions": {
         "up": "Compose Up",
-        "down": "Compose Stop",
+        "stop": "Compose Stop",
         "restart": "Compose Restart",
         "unregister": "Unregister",
         "destroy": "Destroy",

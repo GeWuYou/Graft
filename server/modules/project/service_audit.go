@@ -26,7 +26,7 @@ const (
 var (
 	projectAuditActions = map[generated.ProjectActionResponseAction]projectcontract.AuditAction{
 		generated.ProjectActionResponseActionProjectActionUp:           projectcontract.ProjectAuditActionUp,
-		generated.ProjectActionResponseActionProjectActionDown:         projectcontract.ProjectAuditActionDown,
+		generated.ProjectActionResponseActionProjectActionStop:         projectcontract.ProjectAuditActionStop,
 		generated.ProjectActionResponseActionProjectActionRestart:      projectcontract.ProjectAuditActionRestart,
 		generated.ProjectActionResponseActionProjectActionRedeploy:     projectcontract.ProjectAuditActionRedeploy,
 		generated.ProjectActionResponseActionProjectActionUpdateDeploy: projectcontract.ProjectAuditActionUpdateDeploy,

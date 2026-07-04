@@ -415,10 +415,10 @@ import {
   getProjects,
   postProjectBatchActions,
   postProjectDestroy,
-  postProjectDown,
   postProjectRedeploy,
   postProjectRefresh,
   postProjectRestart,
+  postProjectStop,
   postProjectUnregister,
   postProjectUp,
   postProjectUpdateDeploy,
@@ -461,7 +461,7 @@ const logger = createLogger('project.list');
 
 type HeaderStatusSummaryKey = 'running' | 'degraded' | 'stopped' | 'transitioning' | 'unknown';
 type ProjectListDriftTone = 'clean' | 'drifted' | 'unknown';
-type PendingProjectAction = 'up' | 'down' | 'restart' | 'redeploy' | 'update_deploy';
+type PendingProjectAction = 'up' | 'stop' | 'restart' | 'redeploy' | 'update_deploy';
 type ProjectResourceBadgeKey = 'running' | 'stopped' | 'transitioning' | 'issue' | 'unknown';
 type ProjectBatchActionUi = ProjectBatchAction;
 type PendingProjectActionState = {
@@ -977,7 +977,7 @@ function buildRowActions(row: ProjectListItem) {
     { value: 'detail', label: t('project.list.actions.detail') },
     { value: 'refresh', label: t('project.list.actions.refresh') },
     ...(visibility.up ? [{ value: 'up', label: t('project.list.actions.up') }] : []),
-    ...(visibility.down ? [{ value: 'down', label: t('project.list.actions.down') }] : []),
+    ...(visibility.stop ? [{ value: 'stop', label: t('project.list.actions.stop') }] : []),
     ...(visibility.restart ? [{ value: 'restart', label: t('project.list.actions.restart') }] : []),
     { value: 'redeploy', label: t('project.list.actions.redeploy') },
     { value: 'update_deploy', label: t('project.list.actions.updateDeploy') },
@@ -987,19 +987,19 @@ function buildRowActions(row: ProjectListItem) {
 }
 
 function actionConfirmTitleKey(
-  action: 'up' | 'down' | 'restart' | 'unregister' | 'redeploy' | 'updateDeploy' | 'destroy',
+  action: 'up' | 'stop' | 'restart' | 'unregister' | 'redeploy' | 'updateDeploy' | 'destroy',
 ) {
   return `project.list.actions.confirm${action.charAt(0).toUpperCase()}${action.slice(1)}Title`;
 }
 
 function actionConfirmDescriptionKey(
-  action: 'up' | 'down' | 'restart' | 'unregister' | 'redeploy' | 'updateDeploy' | 'destroy',
+  action: 'up' | 'stop' | 'restart' | 'unregister' | 'redeploy' | 'updateDeploy' | 'destroy',
 ) {
   return `project.list.actions.confirm${action.charAt(0).toUpperCase()}${action.slice(1)}Description`;
 }
 
 function actionConfirmTheme(
-  action: 'up' | 'down' | 'restart' | 'unregister' | 'redeploy' | 'updateDeploy' | 'destroy',
+  action: 'up' | 'stop' | 'restart' | 'unregister' | 'redeploy' | 'updateDeploy' | 'destroy',
 ) {
   return action === 'up' ? ('warning' as const) : ('danger' as const);
 }
@@ -1013,7 +1013,7 @@ function isRowBatchEligible(row: ProjectListItem, action: ProjectBatchActionUi) 
     hideLifecycleActions: isRowActionPending(row.id),
   });
   if (action === 'start') return visibility.up;
-  if (action === 'stop') return visibility.down;
+  if (action === 'stop') return visibility.stop;
   if (action === 'restart') return visibility.restart;
   if (action === 'unregister') return true;
   if (action === 'redeploy' || action === 'update_deploy') return !isRowActionPending(row.id);
@@ -1048,7 +1048,7 @@ function batchActionHint(action: ProjectBatchActionUi) {
 
 function confirmDangerousAction(
   row: ProjectListItem,
-  action: 'up' | 'down' | 'restart' | 'unregister' | 'redeploy' | 'updateDeploy' | 'destroy',
+  action: 'up' | 'stop' | 'restart' | 'unregister' | 'redeploy' | 'updateDeploy' | 'destroy',
 ) {
   if (confirmDialogOpen.value) {
     return Promise.resolve(false);
@@ -1385,11 +1385,11 @@ async function handleRowAction(action: string, row: ProjectListItem) {
     await runAction(postProjectUp, row, t('project.list.actions.actionSuccess'), 'up');
     return;
   }
-  if (action === 'down') {
-    if (!(await confirmDangerousAction(row, 'down'))) {
+  if (action === 'stop') {
+    if (!(await confirmDangerousAction(row, 'stop'))) {
       return;
     }
-    await runAction(postProjectDown, row, t('project.list.actions.actionSuccess'), 'down');
+    await runAction(postProjectStop, row, t('project.list.actions.actionSuccess'), 'stop');
     return;
   }
   if (action === 'restart') {

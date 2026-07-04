@@ -2132,10 +2132,10 @@ const (
 	ProjectActionResponseActionProjectActionCreate       ProjectActionResponseAction = "create"
 	ProjectActionResponseActionProjectActionDeploy       ProjectActionResponseAction = "deploy"
 	ProjectActionResponseActionProjectActionDestroy      ProjectActionResponseAction = "destroy"
-	ProjectActionResponseActionProjectActionDown         ProjectActionResponseAction = "down"
 	ProjectActionResponseActionProjectActionRedeploy     ProjectActionResponseAction = "redeploy"
 	ProjectActionResponseActionProjectActionRefresh      ProjectActionResponseAction = "refresh"
 	ProjectActionResponseActionProjectActionRestart      ProjectActionResponseAction = "restart"
+	ProjectActionResponseActionProjectActionStop         ProjectActionResponseAction = "stop"
 	ProjectActionResponseActionProjectActionUnregister   ProjectActionResponseAction = "unregister"
 	ProjectActionResponseActionProjectActionUp           ProjectActionResponseAction = "up"
 	ProjectActionResponseActionProjectActionUpdateDeploy ProjectActionResponseAction = "update_deploy"
@@ -2150,13 +2150,13 @@ func (e ProjectActionResponseAction) Valid() bool {
 		return true
 	case ProjectActionResponseActionProjectActionDestroy:
 		return true
-	case ProjectActionResponseActionProjectActionDown:
-		return true
 	case ProjectActionResponseActionProjectActionRedeploy:
 		return true
 	case ProjectActionResponseActionProjectActionRefresh:
 		return true
 	case ProjectActionResponseActionProjectActionRestart:
+		return true
+	case ProjectActionResponseActionProjectActionStop:
 		return true
 	case ProjectActionResponseActionProjectActionUnregister:
 		return true
@@ -2213,10 +2213,10 @@ const (
 	ProjectBatchActionItemActionProjectActionCreate       ProjectBatchActionItemAction = "create"
 	ProjectBatchActionItemActionProjectActionDeploy       ProjectBatchActionItemAction = "deploy"
 	ProjectBatchActionItemActionProjectActionDestroy      ProjectBatchActionItemAction = "destroy"
-	ProjectBatchActionItemActionProjectActionDown         ProjectBatchActionItemAction = "down"
 	ProjectBatchActionItemActionProjectActionRedeploy     ProjectBatchActionItemAction = "redeploy"
 	ProjectBatchActionItemActionProjectActionRefresh      ProjectBatchActionItemAction = "refresh"
 	ProjectBatchActionItemActionProjectActionRestart      ProjectBatchActionItemAction = "restart"
+	ProjectBatchActionItemActionProjectActionStop         ProjectBatchActionItemAction = "stop"
 	ProjectBatchActionItemActionProjectActionUnregister   ProjectBatchActionItemAction = "unregister"
 	ProjectBatchActionItemActionProjectActionUp           ProjectBatchActionItemAction = "up"
 	ProjectBatchActionItemActionProjectActionUpdateDeploy ProjectBatchActionItemAction = "update_deploy"
@@ -2231,13 +2231,13 @@ func (e ProjectBatchActionItemAction) Valid() bool {
 		return true
 	case ProjectBatchActionItemActionProjectActionDestroy:
 		return true
-	case ProjectBatchActionItemActionProjectActionDown:
-		return true
 	case ProjectBatchActionItemActionProjectActionRedeploy:
 		return true
 	case ProjectBatchActionItemActionProjectActionRefresh:
 		return true
 	case ProjectBatchActionItemActionProjectActionRestart:
+		return true
+	case ProjectBatchActionItemActionProjectActionStop:
 		return true
 	case ProjectBatchActionItemActionProjectActionUnregister:
 		return true
@@ -10152,16 +10152,6 @@ type PostProjectDestroyParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
-// PostProjectDownParams defines parameters for PostProjectDown.
-type PostProjectDownParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
 // PostProjectRedeployParams defines parameters for PostProjectRedeploy.
 type PostProjectRedeployParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -10194,6 +10184,16 @@ type PostProjectRestartParams struct {
 
 // GetProjectServicesParams defines parameters for GetProjectServices.
 type GetProjectServicesParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostProjectStopParams defines parameters for PostProjectStop.
+type PostProjectStopParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 

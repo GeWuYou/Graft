@@ -483,6 +483,32 @@ func TestBatchDestroyRequiresExplicitConfirmation(t *testing.T) {
 	}
 }
 
+func TestSkipBatchRestartForStatusAllowsStoppedProjects(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name       string
+		status     generated.ProjectRuntimeStatus
+		wantReason string
+		wantSkip   bool
+	}{
+		{name: "running", status: generated.ProjectRuntimeStatusRunning, wantReason: "", wantSkip: false},
+		{name: "degraded", status: generated.ProjectRuntimeStatusDegraded, wantReason: "", wantSkip: false},
+		{name: "stopped", status: generated.ProjectRuntimeStatusStopped, wantReason: "", wantSkip: false},
+		{name: "transitioning", status: generated.ProjectRuntimeStatusTransitioning, wantReason: "currently_transitioning", wantSkip: true},
+		{name: "unknown", status: generated.ProjectRuntimeStatusUnknown, wantReason: "runtime_status_unknown", wantSkip: true},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			gotReason, gotSkip := skipBatchRestartForStatus(tc.status)
+			if gotReason != tc.wantReason || gotSkip != tc.wantSkip {
+				t.Fatalf("skipBatchRestartForStatus(%q) = (%q, %v), want (%q, %v)", tc.status, gotReason, gotSkip, tc.wantReason, tc.wantSkip)
+			}
+		})
+	}
+}
+
 func TestBatchDestroyReturnsBlockedItemOnComposeFailure(t *testing.T) {
 	t.Parallel()
 

@@ -12186,13 +12186,13 @@
         }
       }
     },
-    "/api/ops/projects/{id}/down": {
+    "/api/ops/projects/{id}/stop": {
       "post": {
         "tags": [
           "project"
         ],
-        "summary": "Run docker compose down for a registered project",
-        "operationId": "postProjectDown",
+        "summary": "Run docker compose stop for a registered project",
+        "operationId": "postProjectStop",
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -12211,7 +12211,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Project down action result.",
+            "description": "Project stop action result.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -24222,7 +24222,7 @@
             "enum": [
               "refresh",
               "up",
-              "down",
+              "stop",
               "restart",
               "unregister",
               "destroy",
@@ -24234,7 +24234,7 @@
             "x-enum-varnames": [
               "ProjectActionRefresh",
               "ProjectActionUp",
-              "ProjectActionDown",
+              "ProjectActionStop",
               "ProjectActionRestart",
               "ProjectActionUnregister",
               "ProjectActionDestroy",
@@ -24380,7 +24380,7 @@
             "enum": [
               "refresh",
               "up",
-              "down",
+              "stop",
               "restart",
               "unregister",
               "destroy",
@@ -24392,7 +24392,7 @@
             "x-enum-varnames": [
               "ProjectActionRefresh",
               "ProjectActionUp",
-              "ProjectActionDown",
+              "ProjectActionStop",
               "ProjectActionRestart",
               "ProjectActionUnregister",
               "ProjectActionDestroy",

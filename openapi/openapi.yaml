@@ -268,8 +268,8 @@ paths:
     $ref: ./paths/ops-projects.refresh.yaml
   /api/ops/projects/{id}/up:
     $ref: ./paths/ops-projects.up.yaml
-  /api/ops/projects/{id}/down:
-    $ref: ./paths/ops-projects.down.yaml
+  /api/ops/projects/{id}/stop:
+    $ref: ./paths/ops-projects.stop.yaml
   /api/ops/projects/{id}/restart:
     $ref: ./paths/ops-projects.restart.yaml
   /api/ops/projects/{id}/redeploy:

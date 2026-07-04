@@ -18,7 +18,7 @@ const projectApiMocks = vi.hoisted(() => ({
   postProjectConfigurationDiff: vi.fn(),
   postProjectConfigurationValidate: vi.fn(),
   postProjectDeploy: vi.fn(),
-  postProjectDown: vi.fn(),
+  postProjectStop: vi.fn(),
   postProjectRestart: vi.fn(),
   postProjectUnregister: vi.fn(),
   postProjectUp: vi.fn(),
@@ -46,7 +46,7 @@ const routerMocks = vi.hoisted(() => ({
 
 const detailMessages = {
   'project.detail.actions.copyPath': 'Copy Path',
-  'project.detail.actions.down': 'Down',
+  'project.detail.actions.stop': 'Stop',
   'project.detail.actions.restart': 'Restart',
   'project.detail.actions.unregister': 'Unregister',
   'project.detail.actions.up': 'Up',
@@ -192,7 +192,7 @@ vi.mock('../../api/project', () => ({
   postProjectConfigurationDiff: projectApiMocks.postProjectConfigurationDiff,
   postProjectConfigurationValidate: projectApiMocks.postProjectConfigurationValidate,
   postProjectDeploy: projectApiMocks.postProjectDeploy,
-  postProjectDown: projectApiMocks.postProjectDown,
+  postProjectStop: projectApiMocks.postProjectStop,
   postProjectRestart: projectApiMocks.postProjectRestart,
   postProjectUnregister: projectApiMocks.postProjectUnregister,
   postProjectUp: projectApiMocks.postProjectUp,
@@ -246,7 +246,7 @@ vi.mock('../../shared/display', () => ({
   projectHostScopeLabel: () => 'local',
   projectLifecycleActionVisibility: (status?: string | null) => ({
     up: status === 'stopped' || status === 'unknown' || status === 'transitioning' || !status,
-    down:
+    stop:
       status === 'running' || status === 'degraded' || status === 'unknown' || status === 'transitioning' || !status,
     restart: true,
     unregister: true,
@@ -357,7 +357,7 @@ describe('Project detail page', () => {
     await flushPromises();
 
     expect(wrapper.find('[data-testid="project-detail-action-up"]').exists()).toBe(false);
-    expect(wrapper.find('[data-testid="project-detail-action-down"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="project-detail-action-stop"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="project-detail-action-restart"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="project-detail-action-unregister"]').exists()).toBe(true);
 
@@ -390,7 +390,7 @@ describe('Project detail page', () => {
     await flushPromises();
 
     expect(wrapper.find('[data-testid="project-detail-action-up"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="project-detail-action-down"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="project-detail-action-stop"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="project-detail-action-restart"]').exists()).toBe(true);
     expect(wrapper.text()).toContain('Last Project Refresh');
 
@@ -421,7 +421,7 @@ describe('Project detail page', () => {
     await flushPromises();
 
     expect(wrapper.find('[data-testid="project-detail-action-up"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="project-detail-action-down"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="project-detail-action-stop"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="project-detail-action-restart"]').exists()).toBe(true);
 
     wrapper.unmount();

@@ -125,7 +125,7 @@ export function projectRuntimeStatusLabel(t: Translate, value?: ProjectRuntimeSt
   return t('project.list.status.runtimeUnknown');
 }
 
-export type ProjectLifecycleAction = 'up' | 'down' | 'restart' | 'unregister';
+export type ProjectLifecycleAction = 'up' | 'stop' | 'restart' | 'unregister';
 
 type ProjectLifecycleActionVisibility = Record<ProjectLifecycleAction, boolean>;
 
@@ -147,7 +147,7 @@ export function projectLifecycleActionVisibility(
   if (options.hideLifecycleActions) {
     return {
       up: false,
-      down: false,
+      stop: false,
       restart: false,
       unregister: true,
     };
@@ -156,7 +156,7 @@ export function projectLifecycleActionVisibility(
   if (value === 'running' || value === 'degraded') {
     return {
       up: false,
-      down: true,
+      stop: true,
       restart: true,
       unregister: true,
     };
@@ -165,7 +165,7 @@ export function projectLifecycleActionVisibility(
   if (value === 'stopped') {
     return {
       up: true,
-      down: false,
+      stop: false,
       restart: true,
       unregister: true,
     };
@@ -173,7 +173,7 @@ export function projectLifecycleActionVisibility(
 
   return {
     up: true,
-    down: true,
+    stop: true,
     restart: true,
     unregister: true,
   };

@@ -35,7 +35,7 @@ export const PROJECT_API_PATH = {
   REFRESH: '/api/ops/projects/{id}/refresh',
   DEPLOY: '/api/ops/projects/{id}/deploy',
   UP: '/api/ops/projects/{id}/up',
-  DOWN: '/api/ops/projects/{id}/down',
+  STOP: '/api/ops/projects/{id}/stop',
   RESTART: '/api/ops/projects/{id}/restart',
   REDEPLOY: '/api/ops/projects/{id}/redeploy',
   UPDATE_DEPLOY: '/api/ops/projects/{id}/update-deploy',
@@ -163,8 +163,8 @@ export function buildProjectUpApiPath(id: number) {
  * @param id - 项目 ID
  * @returns 替换了 `id` 占位符的下线 API 路径
  */
-export function buildProjectDownApiPath(id: number) {
-  return PROJECT_API_PATH.DOWN.replace('{id}', encodeProjectPathParam(id));
+export function buildProjectStopApiPath(id: number) {
+  return PROJECT_API_PATH.STOP.replace('{id}', encodeProjectPathParam(id));
 }
 
 /**

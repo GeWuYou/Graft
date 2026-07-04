@@ -52,31 +52,31 @@ describe('project display helpers', () => {
   it('applies the shared lifecycle visibility rules', () => {
     expect(projectLifecycleActionVisibility('running')).toEqual({
       up: false,
-      down: true,
+      stop: true,
       restart: true,
       unregister: true,
     });
     expect(projectLifecycleActionVisibility('degraded')).toEqual({
       up: false,
-      down: true,
+      stop: true,
       restart: true,
       unregister: true,
     });
     expect(projectLifecycleActionVisibility('stopped')).toEqual({
       up: true,
-      down: false,
+      stop: false,
       restart: true,
       unregister: true,
     });
     expect(projectLifecycleActionVisibility('unknown')).toEqual({
       up: true,
-      down: true,
+      stop: true,
       restart: true,
       unregister: true,
     });
     expect(projectLifecycleActionVisibility('transitioning', { hideLifecycleActions: true })).toEqual({
       up: false,
-      down: false,
+      stop: false,
       restart: false,
       unregister: true,
     });

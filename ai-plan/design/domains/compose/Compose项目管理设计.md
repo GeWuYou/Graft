@@ -31,7 +31,7 @@
 
 本能力后续实现必须遵守 authority-first：
 
-- Compose 文件、项目注册、导入、刷新、`up/down/restart`、销毁保护，由 `project` module 拥有。
+- Compose 文件、项目注册、导入、刷新、`up/stop/restart`、销毁保护，由 `project` module 拥有。
 - 容器详情、日志、事件、Stats、Shell、Inspect、Network、Mount 仍由 `container` module 拥有。
 - 若 `project` 需要消费容器运行时摘要，必须通过稳定共享边界复用，不得直接依赖 `container` module 私有实现。
 
@@ -42,7 +42,7 @@
 - 支持把本机现有 Docker Compose Project 导入 `Graft` 管理。
 - 支持保存项目注册信息、工作目录、Compose 文件选择、环境文件选择与最近一次成功解析快照。
 - 支持项目级 `Overview`、`Services`、`Configuration`、`Activity` 四类信息架构。
-- 支持项目级 `Refresh`、`Up`、`Down`、`Restart`、`Unregister`、`Destroy` 管理动作。
+- 支持项目级 `Refresh`、`Up`、`Stop`、`Restart`、`Unregister`、`Destroy` 管理动作。
 - 复用现有容器运行时能力，而不是新增第二套运行时真相。
 - Phase 1 只做本机 `local host`，但模型要为未来远程主机预留边界。
 
@@ -137,7 +137,7 @@ Docker container labels
 | --- | --- | --- | --- |
 | Compose Project detection | `partial` | 已通过 `com.docker.compose.project` / `com.docker.compose.service` labels 识别容器来源 | 复用为项目成员匹配与运行态聚合基础 |
 | Compose parsing | `no` | 仓库内无 Compose 文件解析器、无 `compose-go` 使用 | 新增 `project` module 静态解析能力 |
-| Compose up/down/restart | `no` | 容器 module 仅有单容器动作，没有 `docker compose up/down/restart` 执行层 | 新增项目生命周期执行器 |
+| Compose up/stop/restart | `no` | 容器 module 仅有单容器动作，没有 `docker compose up/stop/restart` 执行层 | 新增项目生命周期执行器 |
 | Compose logs | `indirect yes` | 已有容器日志 API 和流能力，但没有项目级日志 API | Phase 1 通过前端 fan-out 复用 |
 | Compose config | `no` | 无 `docker compose config` 或等价规范化预览接口 | 新增静态规范化快照与预览能力 |
 | Compose events | `indirect yes` | 已有容器事件流，但没有项目级事件聚合 API | Phase 1 通过前端 fan-out 复用 |
@@ -202,7 +202,7 @@ Docker container labels
 理由：
 
 - Compose 文件导入、合并、插值、标准化更适合静态解析库。
-- 真实 `up/down/restart` 语义应尽量复用 Docker Compose CLI 的行为，而不是自己模拟。
+- 真实 `up/stop/restart` 语义应尽量复用 Docker Compose CLI 的行为，而不是自己模拟。
 - 这样可以把“读配置”和“改运行态”分开治理。
 
 ## 6. 推荐架构
@@ -240,7 +240,7 @@ server/modules/project/
 - `compose/loader.go`
   - 使用 `compose-go` 读取、标准化、验证、生成快照。
 - `compose/executor.go`
-  - 使用参数化命令执行 `docker compose up/down/restart`。
+  - 使用参数化命令执行 `docker compose up/stop/restart`，并把 `docker compose down` 保留给 destroy。
 - `fs/`
   - 负责 working directory 解析、文件存在性检查、hash 计算、symlink 安全校验。
 
@@ -474,7 +474,7 @@ Phase 1 推荐三张模块自有表：
 
 - Compose 项目在宿主机上已存在。
 - `Graft` 只登记其工作目录、文件集合、运行时身份与快照。
-- `Graft` 可以对它执行 `refresh/up/down/restart` 等管理动作。
+- `Graft` 可以对它执行 `refresh/up/stop/restart` 等管理动作。
 - `Graft` 不复制、不移动、不改写目录布局。
 
 ## 8.3 Refresh Project
@@ -494,7 +494,7 @@ Phase 1 推荐三张模块自有表：
 - 记录 `last_refresh_status=failed`
 - 在 Overview / Configuration 显示错误与“快照已过期”
 
-## 8.4 Up / Down / Restart
+## 8.4 Up / Stop / Restart
 
 这些动作属于 `Project Lifecycle`，不属于 `Container`。
 
@@ -502,11 +502,14 @@ Phase 1 推荐三张模块自有表：
 
 - `Up`
   - 执行 `docker compose up -d`
-- `Down`
-  - 执行安全默认的 `docker compose down`
-  - Phase 1 默认不删除 volumes
+- `Stop`
+  - 执行 `docker compose stop`
+  - 仅停止当前项目运行中的服务和容器，不删除容器、网络或卷
 - `Restart`
   - 执行 `docker compose restart`
+- `Destroy`
+  - 执行 `docker compose down`
+  - Phase 1 默认不删除 volumes，只有显式 destroy 选项才允许继续破坏性清理
 
 执行时必须显式传入：
 
@@ -737,7 +740,7 @@ inspect / import 前必须校验：
 - Services 聚合
 - Configuration 只读视图
 - Activity 前端聚合入口
-- `Up / Down / Restart / Refresh / Unregister / Destroy` 动作
+- `Up / Stop / Restart / Refresh / Unregister / Destroy` 动作
 - 容器详情跳转入口
 
 ## 10. API 提案
@@ -959,10 +962,10 @@ Phase 1 的单文件内容返回建议包含：
 | --- | --- | --- |
 | `POST` | `/api/ops/projects/{id}/refresh` | 刷新静态配置与聚合视图 |
 | `POST` | `/api/ops/projects/{id}/up` | 执行 compose up |
-| `POST` | `/api/ops/projects/{id}/down` | 执行 compose down，默认不删 volumes |
+| `POST` | `/api/ops/projects/{id}/stop` | 执行 compose stop，仅停止运行中的服务与容器 |
 | `POST` | `/api/ops/projects/{id}/restart` | 执行 compose restart |
 | `POST` | `/api/ops/projects/{id}/unregister` | 只删注册记录 |
-| `POST` | `/api/ops/projects/{id}/destroy` | 高危销毁；受 ownership 保护 |
+| `POST` | `/api/ops/projects/{id}/destroy` | 执行 compose down 并进入高危销毁收尾；受 ownership 保护 |
 
 `destroy` 请求建议显式字段：
 
@@ -1335,7 +1338,7 @@ Management：
 - Import Existing Project
 - Project Registry
 - Refresh
-- Up / Down / Restart
+- Up / Stop / Restart
 - Unregister
 - Destroy with ownership protection
 

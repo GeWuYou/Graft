@@ -2401,7 +2401,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/ops/projects/{id}/down': {
+  '/api/ops/projects/{id}/stop': {
     parameters: {
       query?: never;
       header?: never;
@@ -2410,8 +2410,8 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    /** Run docker compose down for a registered project */
-    post: operations['postProjectDown'];
+    /** Run docker compose stop for a registered project */
+    post: operations['postProjectStop'];
     delete?: never;
     options?: never;
     head?: never;
@@ -5933,7 +5933,7 @@ export interface components {
       action:
         | 'refresh'
         | 'up'
-        | 'down'
+        | 'stop'
         | 'restart'
         | 'unregister'
         | 'destroy'
@@ -5976,7 +5976,7 @@ export interface components {
       action:
         | 'refresh'
         | 'up'
-        | 'down'
+        | 'stop'
         | 'restart'
         | 'unregister'
         | 'destroy'
@@ -12860,7 +12860,7 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
-  postProjectDown: {
+  postProjectStop: {
     parameters: {
       query?: never;
       header?: {
@@ -12880,7 +12880,7 @@ export interface operations {
     };
     requestBody?: never;
     responses: {
-      /** @description Project down action result. */
+      /** @description Project stop action result. */
       200: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];

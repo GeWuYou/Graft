@@ -79,7 +79,7 @@ func registerRoutes(ctx *module.Context, moduleName string, service *Service) er
 	group.POST(projectcontract.ProjectRefreshRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectRefreshPermission.String(), publisher), routes.handleRefresh)
 	group.POST(projectcontract.ProjectDeployRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectDeployPermission.String(), publisher), routes.handleDeploy)
 	group.POST(projectcontract.ProjectUpRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectLifecyclePermission.String(), publisher), routes.handleUp)
-	group.POST(projectcontract.ProjectDownRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectLifecyclePermission.String(), publisher), routes.handleDown)
+	group.POST(projectcontract.ProjectStopRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectLifecyclePermission.String(), publisher), routes.handleStop)
 	group.POST(projectcontract.ProjectRestartRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectLifecyclePermission.String(), publisher), routes.handleRestart)
 	group.POST(projectcontract.ProjectRedeployRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectLifecyclePermission.String(), publisher), routes.handleRedeploy)
 	group.POST(projectcontract.ProjectUpdateDeployRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectLifecyclePermission.String(), publisher), routes.handleUpdateDeploy)
@@ -429,13 +429,13 @@ func (r routeRuntime) handleUp(ginCtx *gin.Context) {
 	httpx.WriteSuccess(ginCtx, http.StatusOK, toActionResponse(result))
 }
 
-func (r routeRuntime) handleDown(ginCtx *gin.Context) {
+func (r routeRuntime) handleStop(ginCtx *gin.Context) {
 	projectID, generatedID, ok := bindProjectID(ginCtx, r.ctx)
 	if !ok {
 		return
 	}
-	projectGeneratedHandler{}.PostProjectDown(generatedID, bindPostProjectDownParams(ginCtx))
-	result, err := r.service.Down(ginCtx.Request.Context(), projectID, currentUserIDPointer(ginCtx))
+	projectGeneratedHandler{}.PostProjectStop(generatedID, bindPostProjectStopParams(ginCtx))
+	result, err := r.service.Stop(ginCtx.Request.Context(), projectID, currentUserIDPointer(ginCtx))
 	if err != nil {
 		r.writeRouteErrorWithAction(ginCtx, err, result)
 		return
@@ -699,7 +699,7 @@ func (projectGeneratedHandler) PostProjectRefresh(int64, generated.PostProjectRe
 func (projectGeneratedHandler) PostProjectDeploy(int64, generated.PostProjectDeployParams, generated.ProjectDeployRequest) {
 }
 func (projectGeneratedHandler) PostProjectUp(int64, generated.PostProjectUpParams)             {}
-func (projectGeneratedHandler) PostProjectDown(int64, generated.PostProjectDownParams)         {}
+func (projectGeneratedHandler) PostProjectStop(int64, generated.PostProjectStopParams)         {}
 func (projectGeneratedHandler) PostProjectRestart(int64, generated.PostProjectRestartParams)   {}
 func (projectGeneratedHandler) PostProjectRedeploy(int64, generated.PostProjectRedeployParams) {}
 func (projectGeneratedHandler) PostProjectUpdateDeploy(int64, generated.PostProjectUpdateDeployParams, generated.ProjectUpdateDeployRequest) {
@@ -1037,11 +1037,11 @@ func bindPostProjectUpParams(ginCtx *gin.Context) generated.PostProjectUpParams 
 	return generated.PostProjectUpParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
-// bindPostProjectDownParams 组装项目下线接口的公共请求参数。
+// bindPostProjectStopParams 组装项目停止接口的公共请求参数。
 // 它包含请求的语言标识和请求 ID。
-func bindPostProjectDownParams(ginCtx *gin.Context) generated.PostProjectDownParams {
+func bindPostProjectStopParams(ginCtx *gin.Context) generated.PostProjectStopParams {
 	locale, requestID := commonHeaders(ginCtx)
-	return generated.PostProjectDownParams{XGraftLocale: locale, XRequestId: requestID}
+	return generated.PostProjectStopParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
 // bindPostProjectRestartParams 构造重启项目接口的公共请求参数。
