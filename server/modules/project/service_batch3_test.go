@@ -20,6 +20,7 @@ type stubProjectRepository struct {
 	aggregate        projectstore.ProjectAggregate
 	unregisterCalled bool
 	importInput      *projectstore.ImportProjectInput
+	getCalls         int
 }
 
 func (s *stubProjectRepository) List(context.Context, projectstore.ListQuery) (projectstore.ListResult, error) {
@@ -27,6 +28,7 @@ func (s *stubProjectRepository) List(context.Context, projectstore.ListQuery) (p
 }
 
 func (s *stubProjectRepository) Get(context.Context, uint64) (projectstore.ProjectAggregate, error) {
+	s.getCalls++
 	if s.aggregate.Project.ID == 0 {
 		return projectstore.ProjectAggregate{}, projectstore.ErrProjectNotFound
 	}
@@ -221,6 +223,150 @@ func TestDestroyBlocksExternalWorkingDirectoryDeletion(t *testing.T) {
 	}
 	if repo.unregisterCalled {
 		t.Fatalf("unregister should not be called when destroy is blocked")
+	}
+}
+
+func TestBatchActionKeepsBlockedLifecycleItems(t *testing.T) {
+	t.Parallel()
+
+	repo := &stubProjectRepository{
+		aggregate: projectstore.ProjectAggregate{
+			Project: projectstore.Project{
+				ID:                   1,
+				CanonicalProjectName: "demo",
+				HostScope:            projectcontract.HostScopeLocal.String(),
+				WorkingDirectory:     filepath.Join(t.TempDir(), "missing"),
+				LastRefreshStatus:    projectcontract.RefreshStatusSuccess.String(),
+			},
+		},
+	}
+	service, err := NewService(repo)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	result, err := service.BatchAction(context.Background(), BatchActionRequest{
+		Action:     generated.ProjectBatchActionRequestActionStart,
+		ProjectIDs: []uint64{1, 1},
+	})
+	if err != nil {
+		t.Fatalf("batch action: %v", err)
+	}
+	if result.BlockedCount != 2 || len(result.Items) != 2 {
+		t.Fatalf("expected two blocked items, got %#v", result)
+	}
+	for _, item := range result.Items {
+		if item.Result != generated.ProjectActionResponseResultProjectActionResultBlocked {
+			t.Fatalf("expected blocked item, got %#v", item)
+		}
+	}
+}
+
+func TestBatchDestroyRequiresExplicitConfirmation(t *testing.T) {
+	t.Parallel()
+
+	repo := &stubProjectRepository{
+		aggregate: projectstore.ProjectAggregate{
+			Project: projectstore.Project{
+				ID:                   1,
+				CanonicalProjectName: "demo",
+				HostScope:            projectcontract.HostScopeLocal.String(),
+				WorkingDirectory:     t.TempDir(),
+				OwnershipMode:        projectcontract.OwnershipModeExternal.String(),
+				LastRefreshStatus:    projectcontract.RefreshStatusSuccess.String(),
+			},
+		},
+	}
+	service, err := NewService(repo)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	result, err := service.BatchAction(context.Background(), BatchActionRequest{
+		Action:     generated.ProjectBatchActionRequestActionDestroy,
+		ProjectIDs: []uint64{1},
+	})
+	if err != nil {
+		t.Fatalf("batch destroy: %v", err)
+	}
+	if !result.Items[0].Skipped {
+		t.Fatalf("expected skipped destroy item, got %#v", result.Items[0])
+	}
+	if repo.unregisterCalled {
+		t.Fatalf("destroy without confirmation should not unregister project")
+	}
+}
+
+func TestBatchDestroyReturnsBlockedItemOnComposeFailure(t *testing.T) {
+	t.Parallel()
+
+	repo := &stubProjectRepository{
+		aggregate: projectstore.ProjectAggregate{
+			Project: projectstore.Project{
+				ID:                   1,
+				CanonicalProjectName: "demo",
+				HostScope:            projectcontract.HostScopeLocal.String(),
+				WorkingDirectory:     filepath.Join(t.TempDir(), "missing"),
+				OwnershipMode:        projectcontract.OwnershipModeExternal.String(),
+				LastRefreshStatus:    projectcontract.RefreshStatusSuccess.String(),
+			},
+		},
+	}
+	service, err := NewService(repo)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	confirmName := "demo"
+
+	result, err := service.BatchAction(context.Background(), BatchActionRequest{
+		Action:                      generated.ProjectBatchActionRequestActionDestroy,
+		ProjectIDs:                  []uint64{1},
+		ConfirmCanonicalProjectName: &confirmName,
+	})
+	if err != nil {
+		t.Fatalf("batch destroy: %v", err)
+	}
+	if result.BlockedCount != 1 || len(result.Items) != 1 {
+		t.Fatalf("expected one blocked destroy item, got %#v", result)
+	}
+	for _, guard := range result.Items[0].GuardResults {
+		if guard.Code == "compose_down_completed" {
+			t.Fatalf("unexpected success guard on failed destroy: %#v", result.Items[0].GuardResults)
+		}
+	}
+}
+
+func TestBatchRedeployReusesLoadedAggregate(t *testing.T) {
+	t.Parallel()
+
+	repo := &stubProjectRepository{
+		aggregate: projectstore.ProjectAggregate{
+			Project: projectstore.Project{
+				ID:                   1,
+				CanonicalProjectName: "demo",
+				HostScope:            projectcontract.HostScopeLocal.String(),
+				WorkingDirectory:     filepath.Join(t.TempDir(), "missing"),
+				LastRefreshStatus:    projectcontract.RefreshStatusSuccess.String(),
+			},
+		},
+	}
+	service, err := NewService(repo)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	result, err := service.BatchAction(context.Background(), BatchActionRequest{
+		Action:     generated.ProjectBatchActionRequestActionRedeploy,
+		ProjectIDs: []uint64{1},
+	})
+	if err != nil {
+		t.Fatalf("batch redeploy: %v", err)
+	}
+	if result.BlockedCount != 1 {
+		t.Fatalf("expected blocked redeploy result, got %#v", result)
+	}
+	if repo.getCalls != 1 {
+		t.Fatalf("expected one aggregate lookup, got %d", repo.getCalls)
 	}
 }
 

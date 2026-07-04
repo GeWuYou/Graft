@@ -29,7 +29,6 @@ var migrateRegistryMigrationDirs = moduleregistry.MigrationDirs
 var migrateEmbeddedMigrationDirByPath = moduleregistry.EmbeddedMigrationDirByPath
 var migrateReadDir = os.ReadDir
 var migrateOpenExecutor = openAtlasExecutor
-var migrateEmbeddedRegistryFreshnessRunner = validateEmbeddedMigrationRegistryFreshness
 
 // migrateUpOptions 封装一次显式迁移执行所需的输入。
 type migrateUpOptions struct {
@@ -141,14 +140,21 @@ func runMigrateUp(cmd *cobra.Command, opts migrateUpOptions) (err error) {
 }
 
 type migrateResolveOptions struct {
-	migrationDir string
-	workingDir   string
+	migrationDir                    string
+	workingDir                      string
+	embeddedRegistryFreshnessRunner func(string) error
 }
 
 // runMigrateValidate 验证 Atlas 迁移目录是否有效。
 func runMigrateValidate(opts migrateResolveOptions) error {
-	if err := migrateEmbeddedRegistryFreshnessRunner(opts.workingDir); err != nil {
-		return err
+	if shouldValidateEmbeddedMigrationRegistryFreshness(opts.migrationDir) {
+		registryFreshnessRunner := opts.embeddedRegistryFreshnessRunner
+		if registryFreshnessRunner == nil {
+			registryFreshnessRunner = validateEmbeddedMigrationRegistryFreshness
+		}
+		if err := registryFreshnessRunner(opts.workingDir); err != nil {
+			return err
+		}
 	}
 	dir, err := resolveAtlasMigrationDir(opts)
 	if err != nil {
@@ -158,6 +164,10 @@ func runMigrateValidate(opts migrateResolveOptions) error {
 		return fmt.Errorf("validate migration dir: %w", err)
 	}
 	return nil
+}
+
+func shouldValidateEmbeddedMigrationRegistryFreshness(migrationDir string) bool {
+	return !strings.HasPrefix(strings.TrimSpace(migrationDir), externalMigrationDirPrefix)
 }
 
 func validateEmbeddedMigrationRegistryFreshness(workingDir string) error {

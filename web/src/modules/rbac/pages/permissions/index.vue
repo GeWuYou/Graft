@@ -340,7 +340,9 @@ useTabPageSnapshot<PermissionPageSnapshot>({
 });
 
 const moduleOptions = computed(() => {
-  const modules = Array.from(new Set(permissions.value.map((item) => item.module).filter(Boolean))).sort();
+  const modules = Array.from(
+    new Set(permissions.value.map((item) => item.module).filter((module): module is string => Boolean(module))),
+  ).sort();
   return modules.map((module) => ({ label: module, value: module }));
 });
 

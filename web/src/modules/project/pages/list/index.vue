@@ -1213,7 +1213,7 @@ async function executeBatchAction(
 
 function batchFailureSummary(items: ProjectBatchActionItem[]) {
   return items
-    .filter((item) => item.result !== 'completed' || item.skipped)
+    .filter((item) => !item.skipped && item.result !== 'completed')
     .map((item) => `${item.project_id}: ${item.message_key ? t(item.message_key) : item.message || '-'}`)
     .join('\n');
 }
@@ -1244,7 +1244,7 @@ function handleBatchActionResult(action: ProjectBatchActionUi, response: Project
     }),
   );
   DialogPlugin.alert({
-    body: batchFailureSummary(response.items),
+    body: () => h('div', { style: { whiteSpace: 'pre-line' } }, batchFailureSummary(response.items)),
     confirmBtn: t('project.list.actions.confirm'),
     header: title,
     theme: dialogTheme,
@@ -1264,6 +1264,10 @@ function confirmBatchAction(action: ProjectBatchActionUi) {
   const actionableCount = batchActionableRows(action).length;
   const skippedCount = selectedCount - actionableCount;
   const title = t(`project.list.batch.${batchActionLocaleSegment(action)}Title`);
+  const closeDialog = () => {
+    confirmDialogOpen.value = false;
+    dialog.destroy();
+  };
   const dialog = DialogPlugin.confirm({
     header: title,
     body: () =>
@@ -1331,14 +1335,13 @@ function confirmBatchAction(action: ProjectBatchActionUi) {
     cancelBtn: t('project.list.actions.cancel'),
     confirmBtn: t('project.list.actions.confirm'),
     onCancel: () => {
-      confirmDialogOpen.value = false;
-      dialog.destroy();
+      closeDialog();
     },
     onClose: () => {
-      confirmDialogOpen.value = false;
-      dialog.destroy();
+      closeDialog();
     },
     onConfirm: async () => {
+      closeDialog();
       await executeBatchAction(action, {
         auto_unregister: autoUnregister.value || deleteWorkingDirectory.value,
         confirm_canonical_project_name:
@@ -1349,8 +1352,6 @@ function confirmBatchAction(action: ProjectBatchActionUi) {
         image_prune: imagePrune.value,
         remove_named_volumes: removeNamedVolumes.value,
       });
-      confirmDialogOpen.value = false;
-      dialog.destroy();
     },
   });
 }

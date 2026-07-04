@@ -5,6 +5,12 @@ import type { I18nGovernanceRule, RuleViolation } from '../types';
 
 const PERMISSION_KEY_PREFIX = 'rbac.permissionCatalog.';
 const RBAC_WEB_LOCALE_PATHS = ['src/modules/rbac/locales/zh-CN.json', 'src/modules/rbac/locales/en-US.json'] as const;
+const RBAC_PERMISSION_SOURCE_PATH_FRAGMENTS = [
+  '/permission',
+  '/module_registration',
+  '/route_registration',
+  '/bootstrap',
+];
 const PERMISSION_KEY_FIELD_PATTERN =
   /\b(?:DisplayKey|DescriptionKey|displayKey|descriptionKey|display_key|description_key)\s*:\s*"([^"$]+)"/g;
 
@@ -26,7 +32,7 @@ export const noMissingRbacPermissionCatalogWebLocaleRule: I18nGovernanceRule = {
 
     const requiredKeys = new Set<string>();
     for (const file of context.serverFiles) {
-      if (!file.relativePath.includes('/permission') && !file.relativePath.includes('/module_registration')) {
+      if (!RBAC_PERMISSION_SOURCE_PATH_FRAGMENTS.some((fragment) => file.relativePath.includes(fragment))) {
         continue;
       }
       for (const match of file.source.matchAll(PERMISSION_KEY_FIELD_PATTERN)) {

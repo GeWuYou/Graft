@@ -53,12 +53,13 @@ type smokeValidateOptions struct {
 
 // backendValidateOptions 封装后端统一质量链的显式输入。
 type backendValidateOptions struct {
-	stage          string
-	lintConfig     string
-	testLintConfig string
-	testTargets    []string
-	smoke          bool
-	openapiSpec    string
+	stage                            string
+	lintConfig                       string
+	testLintConfig                   string
+	testTargets                      []string
+	smoke                            bool
+	openapiSpec                      string
+	migrationRegistryFreshnessRunner func() error
 }
 
 var smokeMigrateRunner = func(cmd *cobra.Command, migrationDir string) error {
@@ -77,9 +78,6 @@ var backendOpenAPIFreshnessRunner = func(cmd *cobra.Command) error {
 	return runValidateOpenAPIFreshness(cmd)
 }
 var backendMigrationVersionRunner = runValidateMigrationVersions
-var backendMigrationRegistryFreshnessRunner = func() error {
-	return validateEmbeddedMigrationRegistryFreshness("")
-}
 var backendReleaseRunner = runValidateRelease
 var buildReleaseInfoSnapshot = buildinfo.Current
 var backendLocaleOwnershipGuardRunner = runValidateServerLocaleOwnership
@@ -262,7 +260,13 @@ func validateBackendStageOptions(stage string, smoke bool) error {
 // @param opts 后端校验所用的配置，包括 OpenAPI 规范、lint 配置、测试目标和烟雾测试开关。
 // @returns 执行过程中任一步骤失败时返回对应错误。
 func runFullBackendValidation(cmd *cobra.Command, opts backendValidateOptions) error {
-	if err := backendMigrationRegistryFreshnessRunner(); err != nil {
+	registryFreshnessRunner := opts.migrationRegistryFreshnessRunner
+	if registryFreshnessRunner == nil {
+		registryFreshnessRunner = func() error {
+			return validateEmbeddedMigrationRegistryFreshness("")
+		}
+	}
+	if err := registryFreshnessRunner(); err != nil {
 		return err
 	}
 	if err := backendMigrationVersionRunner(cmd); err != nil {

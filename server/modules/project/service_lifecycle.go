@@ -36,10 +36,7 @@ func (s *Service) Redeploy(ctx context.Context, projectID uint64, actorID *uint6
 	if err != nil {
 		return ActionResult{}, err
 	}
-	if _, err := s.runLifecycleActionWithAggregate(ctx, aggregate, actorID, generated.ProjectActionResponseActionProjectActionRedeploy, []string{"compose", "down"}); err != nil {
-		return ActionResult{}, err
-	}
-	return s.runLifecycleActionWithAggregate(ctx, aggregate, actorID, generated.ProjectActionResponseActionProjectActionRedeploy, []string{"compose", "up", "-d"})
+	return s.redeployWithAggregate(ctx, aggregate, actorID)
 }
 
 // UpdateDeploy pulls the latest images for all registered compose files and then runs compose up -d.
@@ -58,7 +55,9 @@ func (s *Service) BatchAction(ctx context.Context, request BatchActionRequest) (
 	for _, projectID := range request.ProjectIDs {
 		item, err := s.batchActionItem(ctx, projectID, request)
 		if err != nil {
-			return BatchActionResult{}, err
+			if !hasBatchActionItemResult(item) {
+				return BatchActionResult{}, err
+			}
 		}
 		items = append(items, item)
 		switch {
@@ -152,16 +151,18 @@ func (s *Service) destroyAfterGuard(
 ) (ActionResult, error) {
 	projectID := aggregate.Project.ID
 	guardResults := []GuardResult{guardCode("confirm_canonical_project_name_matched")}
-	downArgs, guardResults := destroyDownArgsAndGuards(guardResults, request.RemoveNamedVolumes)
-	if _, err := s.runLifecycleActionWithAggregate(
+	downArgs := destroyDownArgs(request.RemoveNamedVolumes)
+	downResult, err := s.runLifecycleActionWithAggregate(
 		ctx,
 		aggregate,
 		request.ActorID,
 		generated.ProjectActionResponseActionProjectActionDestroy,
 		downArgs,
-	); err != nil {
-		return ActionResult{}, err
+	)
+	if err != nil {
+		return downResult, err
 	}
+	guardResults = appendDestroyDownGuards(guardResults, request.RemoveNamedVolumes)
 	guardResults, autoUnregister, err := s.applyDestroyWorkingDirectoryStep(aggregate, request, guardResults)
 	if err != nil {
 		return ActionResult{}, err
@@ -383,6 +384,17 @@ func (s *Service) updateDeployWithAggregate(
 	}, nil
 }
 
+func (s *Service) redeployWithAggregate(
+	ctx context.Context,
+	aggregate projectstore.ProjectAggregate,
+	actorID *uint64,
+) (ActionResult, error) {
+	if downResult, err := s.runLifecycleActionWithAggregate(ctx, aggregate, actorID, generated.ProjectActionResponseActionProjectActionRedeploy, []string{"compose", "down"}); err != nil {
+		return downResult, err
+	}
+	return s.runLifecycleActionWithAggregate(ctx, aggregate, actorID, generated.ProjectActionResponseActionProjectActionRedeploy, []string{"compose", "up", "-d"})
+}
+
 func composeProjectArgs(aggregate projectstore.ProjectAggregate) ([]string, error) {
 	composeFiles := filterFiles(aggregate.Files, projectcontract.FileKindCompose.String())
 	if len(composeFiles) == 0 {
@@ -430,8 +442,8 @@ func (s *Service) batchActionItem(ctx context.Context, projectID uint64, request
 		action, err := s.Unregister(ctx, projectID, request.ActorID)
 		return BatchActionItemResult{ActionResult: action}, err
 	case generated.ProjectBatchActionRequestActionDestroy:
-		confirmName := aggregate.Project.CanonicalProjectName
-		if request.ConfirmCanonicalProjectName != nil && strings.TrimSpace(*request.ConfirmCanonicalProjectName) != "" {
+		confirmName := ""
+		if request.ConfirmCanonicalProjectName != nil {
 			confirmName = strings.TrimSpace(*request.ConfirmCanonicalProjectName)
 		}
 		destroyReq := DestroyRequest{
@@ -487,7 +499,7 @@ func (s *Service) batchLifecycleActionItem(
 		if err := ensureProjectLifecycleReady(aggregate); err != nil {
 			return skippedBatchActionResult(projectID, generated.ProjectActionResponseActionProjectActionRedeploy, "refresh_required"), true, nil
 		}
-		action, err := s.Redeploy(ctx, projectID, request.ActorID)
+		action, err := s.redeployWithAggregate(ctx, aggregate, request.ActorID)
 		return BatchActionItemResult{ActionResult: action}, true, err
 	case generated.ProjectBatchActionRequestActionUpdateDeploy:
 		if err := ensureProjectLifecycleReady(aggregate); err != nil {
@@ -577,19 +589,20 @@ func skipBatchRestartForStatus(status generated.ProjectRuntimeStatus) (string, b
 	}
 }
 
-func destroyDownArgsAndGuards(
-	guardResults []GuardResult,
-	removeNamedVolumes bool,
-) ([]string, []GuardResult) {
+func destroyDownArgs(removeNamedVolumes bool) []string {
 	downArgs := []string{"compose", "down"}
 	if removeNamedVolumes {
 		downArgs = append(downArgs, "--volumes")
 	}
+	return downArgs
+}
+
+func appendDestroyDownGuards(guardResults []GuardResult, removeNamedVolumes bool) []GuardResult {
 	guardResults = append(guardResults, guardCode("compose_down_completed"))
 	if removeNamedVolumes {
 		guardResults = append(guardResults, guardCode("named_volumes_removed"))
 	}
-	return downArgs, guardResults
+	return guardResults
 }
 
 func (s *Service) applyDestroyWorkingDirectoryStep(
@@ -673,4 +686,8 @@ func skippedBatchActionResult(projectID uint64, action generated.ProjectActionRe
 		},
 		Skipped: true,
 	}
+}
+
+func hasBatchActionItemResult(item BatchActionItemResult) bool {
+	return strings.TrimSpace(string(item.Action)) != ""
 }

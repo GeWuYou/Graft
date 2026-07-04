@@ -484,6 +484,52 @@ var permissions = []permissionRegistration{
     expect(result.stdout).toContain('No hard-coded UI text or locale governance issues found.');
     expect(result.stderr).toBe('');
   });
+
+  it('scans route registration files for missing RBAC permission locale keys', async () => {
+    const root = createTempWebRoot('<template><span /></template>');
+    mkdirSync(join(root, 'src/modules/rbac/locales'), { recursive: true });
+    writeFileSync(
+      join(root, 'src/modules/rbac/locales/en-US.json'),
+      JSON.stringify({ rbac: { permissionCatalog: {} } }),
+    );
+    writeFileSync(
+      join(root, 'src/modules/rbac/locales/zh-CN.json'),
+      JSON.stringify({ rbac: { permissionCatalog: {} } }),
+    );
+    writeServerModule(
+      root,
+      'route_registration.go',
+      `
+package demo
+
+type permissionRegistration struct {
+  DisplayKey string
+  DescriptionKey string
+}
+
+var permissions = []permissionRegistration{
+  {
+    DisplayKey: "rbac.permissionCatalog.routeScoped.display",
+    DescriptionKey: "rbac.permissionCatalog.routeScoped.description",
+  },
+}
+`,
+    );
+
+    const result = spawnSync('bun', ['run', 'scripts/check-i18n-governance.ts'], {
+      cwd: root,
+      encoding: 'utf8',
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.stdout).toContain(
+      'RBAC permission locale key rbac.permissionCatalog.routeScoped.display is missing from web RBAC locale catalogs',
+    );
+    expect(result.stdout).toContain(
+      'RBAC permission locale key rbac.permissionCatalog.routeScoped.description is missing from web RBAC locale catalogs',
+    );
+    expect(result.stderr).toBe('');
+  });
 });
 
 describe('check-i18n-governance fixture rules', () => {

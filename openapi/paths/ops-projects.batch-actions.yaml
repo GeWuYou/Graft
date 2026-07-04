@@ -4,7 +4,8 @@ post:
   operationId: postProjectBatchActions
   description: >
     Executes one action for selected project ids and returns per-item results plus aggregate completed, blocked,
-    and skipped counts. Inapplicable projects are skipped instead of failed.
+    and skipped counts. Nonexistent project_id values fail the request with 404, while skipped applies only to
+    existing projects for which the requested action is not applicable.
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml
@@ -40,7 +41,7 @@ post:
     '403':
       $ref: ../components/responses/forbidden.yaml
     '404':
-      description: One or more project records not found.
+      description: One or more requested project_id values do not match an existing project record.
       headers:
         X-Request-Id:
           $ref: ../components/headers/request-id.yaml

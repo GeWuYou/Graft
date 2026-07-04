@@ -1157,7 +1157,6 @@ func TestRunValidateBackendFullStageWithSmoke(t *testing.T) {
 	originalGoBuildRunner := backendGoBuildRunner
 	originalSmokeRunner := backendSmokeRunner
 	originalMigrationVersionRunner := backendMigrationVersionRunner
-	originalMigrationRegistryFreshnessRunner := backendMigrationRegistryFreshnessRunner
 	originalLocaleOwnershipGuardRunner := backendLocaleOwnershipGuardRunner
 	defer func() {
 		backendLintRunner = originalLintRunner
@@ -1166,12 +1165,11 @@ func TestRunValidateBackendFullStageWithSmoke(t *testing.T) {
 		backendGoBuildRunner = originalGoBuildRunner
 		backendSmokeRunner = originalSmokeRunner
 		backendMigrationVersionRunner = originalMigrationVersionRunner
-		backendMigrationRegistryFreshnessRunner = originalMigrationRegistryFreshnessRunner
 		backendLocaleOwnershipGuardRunner = originalLocaleOwnershipGuardRunner
 	}()
 
 	var steps []string
-	backendMigrationRegistryFreshnessRunner = func() error {
+	registryFreshnessRunner := func() error {
 		steps = append(steps, "migration-registry")
 		return nil
 	}
@@ -1205,8 +1203,9 @@ func TestRunValidateBackendFullStageWithSmoke(t *testing.T) {
 	}
 
 	err := runValidateBackend(&cobra.Command{}, backendValidateOptions{
-		stage: "full",
-		smoke: true,
+		stage:                            "full",
+		smoke:                            true,
+		migrationRegistryFreshnessRunner: registryFreshnessRunner,
 	})
 	if err != nil {
 		t.Fatalf("run validate backend full stage: %v", err)
@@ -1276,7 +1275,6 @@ func TestRunValidateBackendFullStageStopsOnMigrationVersionFailure(t *testing.T)
 	originalGoBuildRunner := backendGoBuildRunner
 	originalSmokeRunner := backendSmokeRunner
 	originalMigrationVersionRunner := backendMigrationVersionRunner
-	originalMigrationRegistryFreshnessRunner := backendMigrationRegistryFreshnessRunner
 	defer func() {
 		backendLintRunner = originalLintRunner
 		backendOpenAPIRunner = originalOpenAPIRunner
@@ -1284,10 +1282,9 @@ func TestRunValidateBackendFullStageStopsOnMigrationVersionFailure(t *testing.T)
 		backendGoBuildRunner = originalGoBuildRunner
 		backendSmokeRunner = originalSmokeRunner
 		backendMigrationVersionRunner = originalMigrationVersionRunner
-		backendMigrationRegistryFreshnessRunner = originalMigrationRegistryFreshnessRunner
 	}()
 
-	backendMigrationRegistryFreshnessRunner = func() error {
+	registryFreshnessRunner := func() error {
 		return nil
 	}
 	expectedErr := errors.New("duplicate migration version")
@@ -1316,8 +1313,9 @@ func TestRunValidateBackendFullStageStopsOnMigrationVersionFailure(t *testing.T)
 	}
 
 	err := runValidateBackend(&cobra.Command{}, backendValidateOptions{
-		stage: "full",
-		smoke: true,
+		stage:                            "full",
+		smoke:                            true,
+		migrationRegistryFreshnessRunner: registryFreshnessRunner,
 	})
 	if !errors.Is(err, expectedErr) {
 		t.Fatalf("expected migration version failure, got %v", err)

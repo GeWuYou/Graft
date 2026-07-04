@@ -35,6 +35,15 @@ const tabsRouterStoreMock = vi.hoisted(() => ({
 }));
 
 const dialogConfirmMock = vi.hoisted(() => vi.fn());
+const dialogAlertMock = vi.hoisted(() => vi.fn());
+
+type BatchActionResponseMock = {
+  blocked_count: number;
+  completed_count: number;
+  items: Array<{ action: string; message: string; project_id: number; result: string; skipped: boolean }>;
+  skipped_count: number;
+  total_count: number;
+};
 
 const listMessages = {
   'project.list.actions.create': 'Choose Project Source',
@@ -267,6 +276,7 @@ vi.mock('../../shared/navigation', () => ({
 
 vi.mock('tdesign-vue-next/es/dialog', () => ({
   DialogPlugin: {
+    alert: (...args: unknown[]) => dialogAlertMock(...args),
     confirm: (...args: unknown[]) => dialogConfirmMock(...args),
   },
 }));
@@ -719,5 +729,80 @@ describe('Project list page', () => {
       project_ids: [2],
       remove_named_volumes: false,
     });
+  });
+
+  it('closes the confirm dialog before the batch request settles', async () => {
+    let resolveBatchAction!: (value: BatchActionResponseMock) => void;
+    projectApiMocks.postProjectBatchActions.mockReturnValueOnce(
+      new Promise<BatchActionResponseMock>((resolve) => {
+        resolveBatchAction = resolve;
+      }),
+    );
+
+    const destroySpy = vi.fn();
+    dialogConfirmMock.mockImplementationOnce((options: Record<string, (...args: never[]) => void>) => {
+      const dialog = { destroy: destroySpy };
+      queueMicrotask(() => options.onConfirm?.());
+      return dialog;
+    });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    wrapper.getComponent(TTableStub).vm.$emit('select-change', [1]);
+    await flushPromises();
+    await wrapper.get('[data-testid="project-batch-stop"]').trigger('click');
+    await flushPromises();
+
+    expect(destroySpy).toHaveBeenCalledTimes(1);
+    expect(dialogAlertMock).not.toHaveBeenCalled();
+
+    resolveBatchAction({
+      blocked_count: 0,
+      completed_count: 1,
+      items: [{ action: 'down', message: '', project_id: 1, result: 'completed', skipped: false }],
+      skipped_count: 0,
+      total_count: 1,
+    });
+    await flushPromises();
+  });
+
+  it('renders only blocked batch items in the alert summary with preserved line breaks', async () => {
+    projectApiMocks.postProjectBatchActions.mockResolvedValueOnce({
+      blocked_count: 1,
+      completed_count: 1,
+      items: [
+        {
+          action: 'down',
+          message: '',
+          message_key: 'project.list.batch.skipInapplicable',
+          project_id: 1,
+          result: 'blocked',
+          skipped: true,
+        },
+        { action: 'down', message: '', project_id: 2, result: 'completed', skipped: false },
+        { action: 'down', message: 'docker compose failed', project_id: 3, result: 'blocked', skipped: false },
+      ],
+      skipped_count: 1,
+      total_count: 3,
+    });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    wrapper.getComponent(TTableStub).vm.$emit('select-change', [1, 2, 3]);
+    await flushPromises();
+    await wrapper.get('[data-testid="project-batch-stop"]').trigger('click');
+    await flushPromises();
+
+    expect(dialogAlertMock).toHaveBeenCalledTimes(1);
+    const [options] = dialogAlertMock.mock.calls[0] as [{ body: () => ReturnType<typeof h> }];
+    expect(typeof options.body).toBe('function');
+
+    const bodyVNode = options.body();
+    expect(bodyVNode.props?.style).toEqual({ whiteSpace: 'pre-line' });
+    expect(bodyVNode.children).toBe('3: docker compose failed');
+
+    wrapper.unmount();
   });
 });
