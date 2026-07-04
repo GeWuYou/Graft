@@ -483,18 +483,17 @@ func TestBatchDestroyReturnsBlockedItemOnComposeFailure(t *testing.T) {
 
 func TestBatchDestroyReturnsBlockedItemOnWorkingDirectoryDeleteFailure(t *testing.T) {
 	dockerBinDir := t.TempDir()
-	dockerScript := filepath.Join(dockerBinDir, "docker")
-	if err := os.WriteFile(dockerScript, []byte("#!/bin/sh\nrm -rf \"$(dirname \"$PWD\")\"\nexit 0\n"), 0o600); err != nil {
-		t.Fatalf("write docker stub: %v", err)
-	}
-	if err := os.Chmod(dockerScript, 0o700); err != nil {
-		t.Fatalf("write docker stub: %v", err)
+	if err := os.Symlink("/bin/sh", filepath.Join(dockerBinDir, "docker")); err != nil {
+		t.Fatalf("symlink docker stub: %v", err)
 	}
 	t.Setenv("PATH", dockerBinDir+string(os.PathListSeparator)+os.Getenv("PATH"))
 
 	workingDirectory := filepath.Join(t.TempDir(), "managed-root", "demo")
 	if err := os.MkdirAll(workingDirectory, 0o750); err != nil {
 		t.Fatalf("mkdir working directory: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(workingDirectory, "compose"), []byte("rm -rf \"$(dirname \"$PWD\")\"\nexit 0\n"), 0o600); err != nil {
+		t.Fatalf("write compose stub: %v", err)
 	}
 
 	repo := &stubProjectRepository{
@@ -544,18 +543,17 @@ func TestBatchDestroyReturnsBlockedItemOnWorkingDirectoryDeleteFailure(t *testin
 
 func TestBatchDestroyReturnsBlockedItemOnUnregisterFailure(t *testing.T) {
 	dockerBinDir := t.TempDir()
-	dockerScript := filepath.Join(dockerBinDir, "docker")
-	if err := os.WriteFile(dockerScript, []byte("#!/bin/sh\nexit 0\n"), 0o600); err != nil {
-		t.Fatalf("write docker stub: %v", err)
-	}
-	if err := os.Chmod(dockerScript, 0o700); err != nil {
-		t.Fatalf("write docker stub: %v", err)
+	if err := os.Symlink("/bin/sh", filepath.Join(dockerBinDir, "docker")); err != nil {
+		t.Fatalf("symlink docker stub: %v", err)
 	}
 	t.Setenv("PATH", dockerBinDir+string(os.PathListSeparator)+os.Getenv("PATH"))
 
 	workingDirectory := filepath.Join(t.TempDir(), "demo")
 	if err := os.MkdirAll(workingDirectory, 0o750); err != nil {
 		t.Fatalf("mkdir working directory: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(workingDirectory, "compose"), []byte("exit 0\n"), 0o600); err != nil {
+		t.Fatalf("write compose stub: %v", err)
 	}
 
 	repo := &stubProjectRepository{
