@@ -54,30 +54,35 @@ describe('project display helpers', () => {
       up: false,
       stop: true,
       restart: true,
+      redeploy: true,
       unregister: true,
     });
     expect(projectLifecycleActionVisibility('degraded')).toEqual({
       up: false,
       stop: true,
       restart: true,
+      redeploy: true,
       unregister: true,
     });
     expect(projectLifecycleActionVisibility('stopped')).toEqual({
       up: true,
       stop: false,
       restart: true,
+      redeploy: true,
       unregister: true,
     });
     expect(projectLifecycleActionVisibility('unknown')).toEqual({
       up: true,
       stop: true,
       restart: true,
+      redeploy: true,
       unregister: true,
     });
     expect(projectLifecycleActionVisibility('transitioning', { hideLifecycleActions: true })).toEqual({
       up: false,
       stop: false,
       restart: false,
+      redeploy: false,
       unregister: true,
     });
   });

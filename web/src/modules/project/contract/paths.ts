@@ -32,13 +32,13 @@ export const PROJECT_API_PATH = {
   CONFIGURATION_FILE: '/api/ops/projects/{id}/configuration/files/{fileId}',
   CONFIGURATION_DIFF: '/api/ops/projects/{id}/configuration/diff',
   CONFIGURATION_VALIDATE: '/api/ops/projects/{id}/configuration/validate',
+  LIFECYCLE_CONFIGURATION: '/api/ops/projects/{id}/lifecycle-configuration',
   REFRESH: '/api/ops/projects/{id}/refresh',
   DEPLOY: '/api/ops/projects/{id}/deploy',
   UP: '/api/ops/projects/{id}/up',
   STOP: '/api/ops/projects/{id}/stop',
   RESTART: '/api/ops/projects/{id}/restart',
   REDEPLOY: '/api/ops/projects/{id}/redeploy',
-  UPDATE_DEPLOY: '/api/ops/projects/{id}/update-deploy',
   UNREGISTER: '/api/ops/projects/{id}/unregister',
   DESTROY: '/api/ops/projects/{id}/destroy',
 } as const;
@@ -127,6 +127,10 @@ export function buildProjectConfigurationValidateApiPath(id: number) {
   return PROJECT_API_PATH.CONFIGURATION_VALIDATE.replace('{id}', encodeProjectPathParam(id));
 }
 
+export function buildProjectLifecycleConfigurationApiPath(id: number) {
+  return PROJECT_API_PATH.LIFECYCLE_CONFIGURATION.replace('{id}', encodeProjectPathParam(id));
+}
+
 /**
  * 构建项目刷新接口路径。
  *
@@ -185,16 +189,6 @@ export function buildProjectRestartApiPath(id: number) {
  */
 export function buildProjectRedeployApiPath(id: number) {
   return PROJECT_API_PATH.REDEPLOY.replace('{id}', encodeProjectPathParam(id));
-}
-
-/**
- * 构建项目更新部署接口路径。
- *
- * @param id - 项目 ID
- * @returns 替换了 `id` 占位符的更新部署接口路径
- */
-export function buildProjectUpdateDeployApiPath(id: number) {
-  return PROJECT_API_PATH.UPDATE_DEPLOY.replace('{id}', encodeProjectPathParam(id));
 }
 
 /**

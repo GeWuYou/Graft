@@ -11360,6 +11360,113 @@
         }
       }
     },
+    "/api/ops/projects/{id}/lifecycle-configuration": {
+      "put": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Save one project's lifecycle configuration",
+        "operationId": "putProjectLifecycleConfiguration",
+        "description": "Saves the canonical lifecycle configuration for one registered local project, regenerates lifecycle command previews, and confirms imported-project defaults so later `up`, `stop`, `restart`, and `redeploy` actions can reuse one project-owned compose strategy instead of guessing raw shell commands.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/project-id-path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/project-lifecycle-configuration-request"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Saved lifecycle configuration and regenerated command previews.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-project-lifecycle-configuration-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid project id or lifecycle configuration payload.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Project record not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Lifecycle configuration update blocked by project authority or bounded host-scope guards.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
     "/api/ops/projects/{id}/services": {
       "get": {
         "tags": [
@@ -11909,7 +12016,7 @@
         ],
         "summary": "Deploy a managed project configuration draft",
         "operationId": "postProjectDeploy",
-        "description": "Writes one managed project draft to the tracked Compose and optional env files, refreshes the project snapshot, and runs `docker compose up -d` through project-owned lifecycle execution without introducing runtime-state persistence in the project module.\n",
+        "description": "Writes one managed project draft to the tracked Compose and optional env files, refreshes the project snapshot, then reuses the saved project lifecycle configuration for the final compose `up` execution without introducing runtime-state persistence in the project module.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -11989,7 +12096,7 @@
             }
           },
           "409": {
-            "description": "Deploy was blocked by project authority, bounded scope, or lifecycle execution.",
+            "description": "Deploy was blocked by project authority, lifecycle review guards, bounded scope, or lifecycle execution.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -12097,6 +12204,7 @@
         ],
         "summary": "Run docker compose up for a registered project",
         "operationId": "postProjectUp",
+        "description": "Runs the saved lifecycle configuration `up` command preview for the selected project.",
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -12193,6 +12301,7 @@
         ],
         "summary": "Run docker compose stop for a registered project",
         "operationId": "postProjectStop",
+        "description": "Runs the saved lifecycle configuration `stop` command preview for the selected project.",
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -12289,6 +12398,7 @@
         ],
         "summary": "Run docker compose restart for a registered project",
         "operationId": "postProjectRestart",
+        "description": "Runs the saved lifecycle configuration `restart` command preview for the selected project.",
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -12385,7 +12495,7 @@
         ],
         "summary": "Redeploy a registered project",
         "operationId": "postProjectRedeploy",
-        "description": "Runs `docker compose down` and then `docker compose up -d` for the selected registered project.",
+        "description": "Runs the saved project lifecycle configuration for the selected project. Standard strategy redeploy may include `docker compose down`, `pull`, `up -d`, and optional image prune, based on the stored lifecycle settings.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -12455,114 +12565,7 @@
             }
           },
           "409": {
-            "description": "Redeploy blocked by project lifecycle guards or execution failure.",
-            "headers": {
-              "X-Request-Id": {
-                "$ref": "#/components/headers/request-id"
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/error-response"
-                }
-              }
-            }
-          },
-          "500": {
-            "$ref": "#/components/responses/internal-server-error"
-          }
-        }
-      }
-    },
-    "/api/ops/projects/{id}/update-deploy": {
-      "post": {
-        "tags": [
-          "project"
-        ],
-        "summary": "Pull and update-deploy a registered project",
-        "operationId": "postProjectUpdateDeploy",
-        "description": "Uses all registered compose files in stored order with repeated `-f` flags, runs `docker compose pull`, then `docker compose up -d`, with optional image prune at the end.\n",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/locale-header"
-          },
-          {
-            "$ref": "#/components/parameters/request-id-header"
-          },
-          {
-            "$ref": "#/components/parameters/project-id-path"
-          }
-        ],
-        "requestBody": {
-          "required": false,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/project-update-deploy-request"
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Project update-deploy action result.",
-            "headers": {
-              "X-Request-Id": {
-                "$ref": "#/components/headers/request-id"
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/enveloped-project-action-response"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid project id or request.",
-            "headers": {
-              "X-Request-Id": {
-                "$ref": "#/components/headers/request-id"
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/error-response"
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/unauthorized"
-          },
-          "403": {
-            "$ref": "#/components/responses/forbidden"
-          },
-          "404": {
-            "description": "Project record not found.",
-            "headers": {
-              "X-Request-Id": {
-                "$ref": "#/components/headers/request-id"
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/error-response"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Update-deploy blocked by project lifecycle guards or execution failure.",
+            "description": "Redeploy blocked by lifecycle review guards, project lifecycle guards, or execution failure.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -13570,6 +13573,27 @@
       "ProjectRuntimeStatus": {
         "$ref": "#/components/schemas/project-runtime-status"
       },
+      "ProjectLifecycleStrategyKind": {
+        "$ref": "#/components/schemas/project-lifecycle-strategy-kind"
+      },
+      "ProjectLifecycleReviewStatus": {
+        "$ref": "#/components/schemas/project-lifecycle-review-status"
+      },
+      "ProjectLifecycleCommandStep": {
+        "$ref": "#/components/schemas/project-lifecycle-command-step"
+      },
+      "ProjectLifecycleGeneratedCommand": {
+        "$ref": "#/components/schemas/project-lifecycle-generated-command"
+      },
+      "ProjectLifecycleConfiguration": {
+        "$ref": "#/components/schemas/project-lifecycle-configuration"
+      },
+      "ProjectLifecycleConfigurationRequest": {
+        "$ref": "#/components/schemas/project-lifecycle-configuration-request"
+      },
+      "ProjectLifecycleConfigurationResponse": {
+        "$ref": "#/components/schemas/project-lifecycle-configuration-response"
+      },
       "ProjectListItem": {
         "$ref": "#/components/schemas/project-list-item"
       },
@@ -13636,9 +13660,6 @@
       "ProjectDestroyRequest": {
         "$ref": "#/components/schemas/project-destroy-request"
       },
-      "ProjectUpdateDeployRequest": {
-        "$ref": "#/components/schemas/project-update-deploy-request"
-      },
       "ProjectActionResponse": {
         "$ref": "#/components/schemas/project-action-response"
       },
@@ -13659,6 +13680,9 @@
       },
       "EnvelopedProjectDetailResponse": {
         "$ref": "#/components/schemas/enveloped-project-detail-response"
+      },
+      "EnvelopedProjectLifecycleConfigurationResponse": {
+        "$ref": "#/components/schemas/enveloped-project-lifecycle-configuration-response"
       },
       "EnvelopedProjectServicesResponse": {
         "$ref": "#/components/schemas/enveloped-project-services-response"
@@ -21534,6 +21558,18 @@
           "ProjectCanonicalNameSourceOverride"
         ]
       },
+      "project-lifecycle-review-status": {
+        "type": "string",
+        "description": "Lifecycle configuration review state. Imported projects default to `review_required` until an operator confirms or updates the saved lifecycle configuration.\n",
+        "enum": [
+          "review_required",
+          "confirmed"
+        ],
+        "x-enum-varnames": [
+          "ProjectLifecycleReviewStatusReviewRequired",
+          "ProjectLifecycleReviewStatusConfirmed"
+        ]
+      },
       "project-source-metadata": {
         "type": "object",
         "additionalProperties": false,
@@ -21687,6 +21723,7 @@
           "display_name",
           "canonical_project_name",
           "canonical_project_name_source",
+          "lifecycle_review_status",
           "source_kind",
           "activity_authority",
           "host_scope",
@@ -21711,6 +21748,9 @@
           },
           "canonical_project_name_source": {
             "$ref": "#/components/schemas/project-canonical-name-source"
+          },
+          "lifecycle_review_status": {
+            "$ref": "#/components/schemas/project-lifecycle-review-status"
           },
           "source_kind": {
             "$ref": "#/components/schemas/project-source-kind"
@@ -22643,6 +22683,166 @@
           }
         }
       },
+      "project-lifecycle-strategy-kind": {
+        "type": "string",
+        "description": "Canonical lifecycle execution strategy kind owned by the project module.",
+        "enum": [
+          "standard"
+        ],
+        "x-enum-varnames": [
+          "ProjectLifecycleStrategyKindStandard"
+        ]
+      },
+      "project-lifecycle-command-step": {
+        "type": "object",
+        "required": [
+          "kind",
+          "argv",
+          "display_command"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "down",
+              "pull",
+              "up",
+              "stop",
+              "restart",
+              "prune"
+            ],
+            "x-enum-varnames": [
+              "ProjectLifecycleCommandStepKindDown",
+              "ProjectLifecycleCommandStepKindPull",
+              "ProjectLifecycleCommandStepKindUp",
+              "ProjectLifecycleCommandStepKindStop",
+              "ProjectLifecycleCommandStepKindRestart",
+              "ProjectLifecycleCommandStepKindPrune"
+            ]
+          },
+          "argv": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string"
+            }
+          },
+          "display_command": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Human-readable command preview derived from the canonical lifecycle configuration."
+          }
+        },
+        "additionalProperties": false
+      },
+      "project-lifecycle-generated-command": {
+        "type": "object",
+        "required": [
+          "action",
+          "steps",
+          "display_command"
+        ],
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "up",
+              "stop",
+              "restart",
+              "redeploy"
+            ],
+            "x-enum-varnames": [
+              "ProjectLifecycleGeneratedCommandActionUp",
+              "ProjectLifecycleGeneratedCommandActionStop",
+              "ProjectLifecycleGeneratedCommandActionRestart",
+              "ProjectLifecycleGeneratedCommandActionRedeploy"
+            ]
+          },
+          "steps": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/components/schemas/project-lifecycle-command-step"
+            }
+          },
+          "display_command": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Combined preview for the selected lifecycle action."
+          }
+        },
+        "additionalProperties": false
+      },
+      "project-lifecycle-configuration": {
+        "type": "object",
+        "required": [
+          "strategy_kind",
+          "profiles",
+          "down_before_redeploy",
+          "pull_before_redeploy",
+          "build_before_up",
+          "force_recreate",
+          "wait_after_up",
+          "prune_images_after_redeploy",
+          "generated_commands"
+        ],
+        "properties": {
+          "strategy_kind": {
+            "$ref": "#/components/schemas/project-lifecycle-strategy-kind"
+          },
+          "profiles": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uniqueItems": true
+          },
+          "down_before_redeploy": {
+            "type": "boolean"
+          },
+          "pull_before_redeploy": {
+            "type": "boolean"
+          },
+          "build_before_up": {
+            "type": "boolean"
+          },
+          "force_recreate": {
+            "type": "boolean"
+          },
+          "wait_after_up": {
+            "type": "boolean"
+          },
+          "prune_images_after_redeploy": {
+            "type": "boolean"
+          },
+          "generated_commands": {
+            "type": "object",
+            "required": [
+              "up",
+              "stop",
+              "restart",
+              "redeploy"
+            ],
+            "properties": {
+              "up": {
+                "$ref": "#/components/schemas/project-lifecycle-generated-command"
+              },
+              "stop": {
+                "$ref": "#/components/schemas/project-lifecycle-generated-command"
+              },
+              "restart": {
+                "$ref": "#/components/schemas/project-lifecycle-generated-command"
+              },
+              "redeploy": {
+                "$ref": "#/components/schemas/project-lifecycle-generated-command"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
       "project-detail-response": {
         "allOf": [
           {
@@ -22651,12 +22851,16 @@
           {
             "type": "object",
             "required": [
+              "lifecycle_configuration",
               "compose_files",
               "env_files"
             ],
             "properties": {
               "source_metadata": {
                 "$ref": "#/components/schemas/project-source-metadata"
+              },
+              "lifecycle_configuration": {
+                "$ref": "#/components/schemas/project-lifecycle-configuration"
               },
               "last_refresh_error_code": {
                 "type": "string",
@@ -23599,6 +23803,109 @@
           }
         ]
       },
+      "project-lifecycle-configuration-request": {
+        "type": "object",
+        "required": [
+          "strategy_kind",
+          "profiles",
+          "down_before_redeploy",
+          "pull_before_redeploy",
+          "build_before_up",
+          "force_recreate",
+          "wait_after_up",
+          "prune_images_after_redeploy"
+        ],
+        "properties": {
+          "strategy_kind": {
+            "$ref": "#/components/schemas/project-lifecycle-strategy-kind"
+          },
+          "profiles": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uniqueItems": true
+          },
+          "down_before_redeploy": {
+            "type": "boolean"
+          },
+          "pull_before_redeploy": {
+            "type": "boolean"
+          },
+          "build_before_up": {
+            "type": "boolean"
+          },
+          "force_recreate": {
+            "type": "boolean"
+          },
+          "wait_after_up": {
+            "type": "boolean"
+          },
+          "prune_images_after_redeploy": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "project-lifecycle-configuration-response": {
+        "type": "object",
+        "required": [
+          "project_id",
+          "lifecycle_review_status",
+          "working_directory",
+          "canonical_project_name",
+          "compose_files",
+          "lifecycle_configuration"
+        ],
+        "properties": {
+          "project_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "lifecycle_review_status": {
+            "$ref": "#/components/schemas/project-lifecycle-review-status"
+          },
+          "working_directory": {
+            "type": "string",
+            "description": "Read-only working directory authority reused by lifecycle command generation."
+          },
+          "canonical_project_name": {
+            "type": "string",
+            "description": "Read-only project runtime identity used for explicit `docker compose -p`."
+          },
+          "compose_files": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/project-file-item"
+            },
+            "description": "Ordered tracked Compose files reused by lifecycle command generation."
+          },
+          "lifecycle_configuration": {
+            "$ref": "#/components/schemas/project-lifecycle-configuration"
+          }
+        },
+        "additionalProperties": false
+      },
+      "enveloped-project-lifecycle-configuration-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/project-lifecycle-configuration-response"
+              }
+            }
+          }
+        ]
+      },
       "project-service-item": {
         "type": "object",
         "required": [
@@ -24228,8 +24535,7 @@
               "destroy",
               "create",
               "deploy",
-              "redeploy",
-              "update_deploy"
+              "redeploy"
             ],
             "x-enum-varnames": [
               "ProjectActionRefresh",
@@ -24240,8 +24546,7 @@
               "ProjectActionDestroy",
               "ProjectActionCreate",
               "ProjectActionDeploy",
-              "ProjectActionRedeploy",
-              "ProjectActionUpdateDeploy"
+              "ProjectActionRedeploy"
             ]
           },
           "result": {
@@ -24290,16 +24595,6 @@
           }
         ]
       },
-      "project-update-deploy-request": {
-        "type": "object",
-        "properties": {
-          "image_prune": {
-            "type": "boolean",
-            "default": false
-          }
-        },
-        "additionalProperties": false
-      },
       "project-batch-action-request": {
         "type": "object",
         "required": [
@@ -24315,7 +24610,6 @@
               "restart",
               "unregister",
               "redeploy",
-              "update_deploy",
               "destroy"
             ],
             "x-enum-varnames": [
@@ -24324,7 +24618,6 @@
               "ProjectBatchActionRequestActionRestart",
               "ProjectBatchActionRequestActionUnregister",
               "ProjectBatchActionRequestActionRedeploy",
-              "ProjectBatchActionRequestActionUpdateDeploy",
               "ProjectBatchActionRequestActionDestroy"
             ]
           },
@@ -24386,8 +24679,7 @@
               "destroy",
               "create",
               "deploy",
-              "redeploy",
-              "update_deploy"
+              "redeploy"
             ],
             "x-enum-varnames": [
               "ProjectActionRefresh",
@@ -24398,8 +24690,7 @@
               "ProjectActionDestroy",
               "ProjectActionCreate",
               "ProjectActionDeploy",
-              "ProjectActionRedeploy",
-              "ProjectActionUpdateDeploy"
+              "ProjectActionRedeploy"
             ]
           },
           "result": {

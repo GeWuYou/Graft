@@ -203,19 +203,6 @@
                   {{ t('project.list.batch.redeploy') }}
                 </t-button>
               </t-tooltip>
-              <t-tooltip :content="batchActionHint('update_deploy')" placement="top">
-                <t-button
-                  data-testid="project-batch-update-deploy"
-                  size="small"
-                  theme="default"
-                  variant="outline"
-                  :disabled="isBatchActionDisabled('update_deploy')"
-                  :loading="batchActionLoading === 'update_deploy'"
-                  @click="confirmBatchAction('update_deploy')"
-                >
-                  {{ t('project.list.batch.updateDeploy') }}
-                </t-button>
-              </t-tooltip>
               <t-tooltip :content="batchActionHint('destroy')" placement="top">
                 <t-button
                   data-testid="project-batch-destroy"
@@ -257,10 +244,34 @@
         </template>
         <template #name="{ row }">
           <div class="project-identity">
-            <button class="project-identity__main" type="button" @click="navigateToDetail(projectRow(row), 'overview')">
-              <strong>{{ projectRow(row).display_name }}</strong>
+            <div class="project-identity__title-row">
+              <button
+                class="project-identity__main"
+                type="button"
+                @click="navigateToDetail(projectRow(row), 'overview')"
+              >
+                <strong>{{ projectRow(row).display_name }}</strong>
+              </button>
+              <t-tooltip
+                v-if="projectRequiresLifecycleReview(projectRow(row))"
+                :content="t('project.list.statusTooltip.lifecycleReviewRequired')"
+                placement="top"
+                theme="default"
+              >
+                <t-tag
+                  size="small"
+                  :theme="projectLifecycleReviewStatusTheme(projectRow(row).lifecycle_review_status)"
+                  variant="light-outline"
+                  data-testid="project-lifecycle-review-tag"
+                  @click="navigateToDetail(projectRow(row), 'lifecycle')"
+                >
+                  {{ projectLifecycleReviewStatusLabel(t, projectRow(row).lifecycle_review_status) }}
+                </t-tag>
+              </t-tooltip>
+            </div>
+            <div class="project-identity__meta">
               <span v-if="projectSecondaryName(projectRow(row))">{{ projectSecondaryName(projectRow(row)) }}</span>
-            </button>
+            </div>
             <code>{{ projectRow(row).working_directory }}</code>
           </div>
         </template>
@@ -421,7 +432,6 @@ import {
   postProjectStop,
   postProjectUnregister,
   postProjectUp,
-  postProjectUpdateDeploy,
 } from '../../api/project';
 import ProjectListEntryActions from '../../components/ProjectListEntryActions.vue';
 import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
@@ -434,6 +444,11 @@ import {
   projectRuntimeStatusLabel,
   projectSourceKindLabel,
 } from '../../shared/display';
+import {
+  projectLifecycleReviewStatusLabel,
+  projectLifecycleReviewStatusTheme,
+  projectRequiresLifecycleReview,
+} from '../../shared/lifecycle';
 import { appendResolvedTab, buildDetailTitleWithFallback } from '../../shared/navigation';
 import type {
   ProjectBatchAction,
@@ -443,11 +458,10 @@ import type {
   ProjectDetailResponse,
   ProjectDriftStatus,
   ProjectFilters,
-  ProjectListItem,
+  ProjectListItemWithLifecycle,
   ProjectRefreshStatus,
   ProjectRuntimeStatus,
   ProjectSourceKind,
-  ProjectUpdateDeployRequest,
 } from '../../types/project';
 
 defineOptions({
@@ -461,7 +475,7 @@ const logger = createLogger('project.list');
 
 type HeaderStatusSummaryKey = 'running' | 'degraded' | 'stopped' | 'transitioning' | 'unknown';
 type ProjectListDriftTone = 'clean' | 'drifted' | 'unknown';
-type PendingProjectAction = 'up' | 'stop' | 'restart' | 'redeploy' | 'update_deploy';
+type PendingProjectAction = 'up' | 'stop' | 'restart' | 'redeploy';
 type ProjectResourceBadgeKey = 'running' | 'stopped' | 'transitioning' | 'issue' | 'unknown';
 type ProjectBatchActionUi = ProjectBatchAction;
 type PendingProjectActionState = {
@@ -484,7 +498,7 @@ const PROJECT_LIST_POLL_INTERVAL_MS = 5000;
 const tableLoading = ref(false);
 const refreshing = ref(false);
 const errorMessage = ref('');
-const rows = ref<ProjectListItem[]>([]);
+const rows = ref<ProjectListItemWithLifecycle[]>([]);
 const pagination = ref({
   current: 1,
   pageSize: 20,
@@ -588,7 +602,9 @@ const paginationSummary = computed(() => {
 });
 const selectedRows = computed(() => {
   const rowMap = new Map(rows.value.map((row) => [row.id, row]));
-  return selectedRowKeys.value.map((id) => rowMap.get(id)).filter((row): row is ProjectListItem => Boolean(row));
+  return selectedRowKeys.value
+    .map((id) => rowMap.get(id))
+    .filter((row): row is ProjectListItemWithLifecycle => Boolean(row));
 });
 
 onMounted(() => {
@@ -615,7 +631,7 @@ onDeactivated(() => {
 });
 
 function projectRow(row: unknown) {
-  return row as ProjectListItem;
+  return row as ProjectListItemWithLifecycle;
 }
 
 function sourceKindLabel(value: ProjectSourceKind) {
@@ -673,7 +689,7 @@ function projectResourceBadgeIcon(key: ProjectResourceBadgeKey) {
   return '⚪';
 }
 
-function projectContainerBadges(row: ProjectListItem): ProjectResourceBadge[] {
+function projectContainerBadges(row: ProjectListItemWithLifecycle): ProjectResourceBadge[] {
   const badges: ProjectResourceBadge[] = [
     {
       key: 'running',
@@ -739,7 +755,7 @@ function formatTime(value?: string | null) {
   return formatProjectTime(locale.value, value);
 }
 
-function projectSecondaryName(row: ProjectListItem) {
+function projectSecondaryName(row: ProjectListItemWithLifecycle) {
   const canonicalName = row.canonical_project_name?.trim() || '';
   const displayName = row.display_name?.trim() || '';
 
@@ -842,7 +858,7 @@ function syncPaginationFromResponse(response: { total?: number; limit?: number; 
   }
 }
 
-function reconcilePendingRowActions(nextRows: ProjectListItem[]) {
+function reconcilePendingRowActions(nextRows: ProjectListItemWithLifecycle[]) {
   const nextPending = { ...pendingRowActions.value };
   const rowMap = new Map(nextRows.map((row) => [row.id, row]));
 
@@ -867,7 +883,7 @@ function reconcilePendingRowActions(nextRows: ProjectListItem[]) {
   pendingRowActions.value = nextPending;
 }
 
-function markPendingRowAction(row: ProjectListItem, action: PendingProjectAction) {
+function markPendingRowAction(row: ProjectListItemWithLifecycle, action: PendingProjectAction) {
   clearPendingRowActionTimeout(row.id);
   pendingRowActions.value = {
     ...pendingRowActions.value,
@@ -882,7 +898,7 @@ function markPendingRowAction(row: ProjectListItem, action: PendingProjectAction
   };
 }
 
-function markPendingRowActions(rowsToMark: ProjectListItem[], action: PendingProjectAction) {
+function markPendingRowActions(rowsToMark: ProjectListItemWithLifecycle[], action: PendingProjectAction) {
   if (rowsToMark.length === 0) {
     return;
   }
@@ -1050,7 +1066,7 @@ function handlePageChange(pageInfo: { current: number; pageSize: number }) {
   void fetchProjects();
 }
 
-function navigateToDetail(row: ProjectListItem, tab?: string) {
+function navigateToDetail(row: ProjectListItemWithLifecycle, tab?: string) {
   const target = {
     name: PROJECT_BOOTSTRAP_ROUTE.DETAIL.pageRouteName,
     params: { id: row.id },
@@ -1088,7 +1104,7 @@ function navigateToSourceChooser() {
 
 async function runAction(
   handler: (id: number) => Promise<ProjectDetailResponse | unknown>,
-  row: ProjectListItem,
+  row: ProjectListItemWithLifecycle,
   successMessage: string,
   pendingAction?: PendingProjectAction,
 ) {
@@ -1108,47 +1124,48 @@ async function runAction(
   }
 }
 
-function buildRowActions(row: ProjectListItem) {
+function buildRowActions(row: ProjectListItemWithLifecycle) {
   const visibility = projectLifecycleActionVisibility(row.runtime_status, {
     hideLifecycleActions: isRowActionPending(row.id),
   });
+  const lifecycleBlocked = projectRequiresLifecycleReview(row);
 
   return [
     { value: 'detail', label: t('project.list.actions.detail') },
     { value: 'refresh', label: t('project.list.actions.refresh') },
-    ...(visibility.up ? [{ value: 'up', label: t('project.list.actions.up') }] : []),
-    ...(visibility.stop ? [{ value: 'stop', label: t('project.list.actions.stop') }] : []),
-    ...(visibility.restart ? [{ value: 'restart', label: t('project.list.actions.restart') }] : []),
-    { value: 'redeploy', label: t('project.list.actions.redeploy') },
-    { value: 'update_deploy', label: t('project.list.actions.updateDeploy') },
+    ...(!lifecycleBlocked && visibility.up ? [{ value: 'up', label: t('project.list.actions.up') }] : []),
+    ...(!lifecycleBlocked && visibility.stop ? [{ value: 'stop', label: t('project.list.actions.stop') }] : []),
+    ...(!lifecycleBlocked && visibility.restart
+      ? [{ value: 'restart', label: t('project.list.actions.restart') }]
+      : []),
+    ...(!lifecycleBlocked && visibility.redeploy
+      ? [{ value: 'redeploy', label: t('project.list.actions.redeploy') }]
+      : []),
     { value: 'unregister', label: t('project.list.actions.unregister') },
     { value: 'destroy', label: t('project.list.actions.destroy') },
   ];
 }
 
-function actionConfirmTitleKey(
-  action: 'up' | 'stop' | 'restart' | 'unregister' | 'redeploy' | 'updateDeploy' | 'destroy',
-) {
+function actionConfirmTitleKey(action: 'up' | 'stop' | 'restart' | 'unregister' | 'redeploy' | 'destroy') {
   return `project.list.actions.confirm${action.charAt(0).toUpperCase()}${action.slice(1)}Title`;
 }
 
-function actionConfirmDescriptionKey(
-  action: 'up' | 'stop' | 'restart' | 'unregister' | 'redeploy' | 'updateDeploy' | 'destroy',
-) {
+function actionConfirmDescriptionKey(action: 'up' | 'stop' | 'restart' | 'unregister' | 'redeploy' | 'destroy') {
   return `project.list.actions.confirm${action.charAt(0).toUpperCase()}${action.slice(1)}Description`;
 }
 
-function actionConfirmTheme(
-  action: 'up' | 'stop' | 'restart' | 'unregister' | 'redeploy' | 'updateDeploy' | 'destroy',
-) {
+function actionConfirmTheme(action: 'up' | 'stop' | 'restart' | 'unregister' | 'redeploy' | 'destroy') {
   return action === 'up' ? ('warning' as const) : ('danger' as const);
 }
 
-function isDeleteWorkingDirectoryAllowed(row: ProjectListItem) {
+function isDeleteWorkingDirectoryAllowed(row: ProjectListItemWithLifecycle) {
   return row.ownership_mode !== 'external';
 }
 
-function isRowBatchEligible(row: ProjectListItem, action: ProjectBatchActionUi) {
+function isRowBatchEligible(row: ProjectListItemWithLifecycle, action: ProjectBatchActionUi) {
+  if (projectRequiresLifecycleReview(row) && ['start', 'stop', 'restart', 'redeploy'].includes(action)) {
+    return false;
+  }
   const visibility = projectLifecycleActionVisibility(row.runtime_status, {
     hideLifecycleActions: isRowActionPending(row.id),
   });
@@ -1156,7 +1173,7 @@ function isRowBatchEligible(row: ProjectListItem, action: ProjectBatchActionUi) 
   if (action === 'stop') return visibility.stop;
   if (action === 'restart') return visibility.restart;
   if (action === 'unregister') return true;
-  if (action === 'redeploy' || action === 'update_deploy') return !isRowActionPending(row.id);
+  if (action === 'redeploy') return !isRowActionPending(row.id);
   return true;
 }
 
@@ -1181,14 +1198,14 @@ function batchActionHint(action: ProjectBatchActionUi) {
     return t('project.list.batch.destroySingleSelection');
   }
   if (isBatchActionDisabled(action)) return t('project.list.batch.noActionableSelection');
-  return t(`project.list.batch.${action === 'update_deploy' ? 'updateDeploy' : action}Hint`, {
+  return t(`project.list.batch.${action}Hint`, {
     count: batchActionableRows(action).length,
   });
 }
 
 function confirmDangerousAction(
-  row: ProjectListItem,
-  action: 'up' | 'stop' | 'restart' | 'unregister' | 'redeploy' | 'updateDeploy' | 'destroy',
+  row: ProjectListItemWithLifecycle,
+  action: 'up' | 'stop' | 'restart' | 'unregister' | 'redeploy' | 'destroy',
 ) {
   if (confirmDialogOpen.value) {
     return Promise.resolve(false);
@@ -1197,7 +1214,6 @@ function confirmDangerousAction(
   return new Promise<boolean>((resolve) => {
     let settled = false;
     confirmDialogOpen.value = true;
-    const imagePrune = ref(false);
     const deleteWorkingDirectory = ref(false);
     const autoUnregister = ref(false);
     const removeNamedVolumes = ref(false);
@@ -1217,19 +1233,6 @@ function confirmDangerousAction(
       body: () =>
         h('div', { class: 'project-action-confirm' }, [
           h('p', t(actionConfirmDescriptionKey(action), { name: row.display_name })),
-          action === 'updateDeploy'
-            ? h('label', { class: 'project-action-confirm__option' }, [
-                h('input', {
-                  checked: imagePrune.value,
-                  type: 'checkbox',
-                  onInput: (event: Event) => {
-                    imagePrune.value = (event.target as HTMLInputElement).checked;
-                  },
-                }),
-                h('span', t('project.list.actions.updateDeployPrune')),
-              ])
-            : null,
-          action === 'updateDeploy' ? h('p', t('project.list.actions.updateDeployWarning')) : null,
           action === 'destroy'
             ? h('div', { class: 'project-action-confirm__danger' }, [
                 h('label', { class: 'project-action-confirm__option' }, [
@@ -1289,18 +1292,13 @@ function confirmDangerousAction(
           finish(dialog, true);
           return;
         }
-        if (action === 'updateDeploy') {
-          await runUpdateDeploy(row, { image_prune: imagePrune.value });
-          finish(dialog, true);
-          return;
-        }
         finish(dialog, true);
       },
     });
   });
 }
 
-async function runDestroy(row: ProjectListItem, payload: ProjectDestroyRequest) {
+async function runDestroy(row: ProjectListItemWithLifecycle, payload: ProjectDestroyRequest) {
   try {
     await postProjectDestroy(row.id, payload);
     MessagePlugin.success(t('project.list.actions.actionSuccess'));
@@ -1310,20 +1308,7 @@ async function runDestroy(row: ProjectListItem, payload: ProjectDestroyRequest) 
   }
 }
 
-async function runUpdateDeploy(row: ProjectListItem, payload?: ProjectUpdateDeployRequest) {
-  markPendingRowAction(row, 'update_deploy');
-  try {
-    await postProjectUpdateDeploy(row.id, payload);
-    markPendingRowActionAwaitingChange(row.id);
-    MessagePlugin.success(t('project.list.actions.actionSuccess'));
-    await fetchProjects();
-  } catch (error) {
-    clearPendingRowAction(row.id);
-    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.list.actions.actionFailed')));
-  }
-}
-
-async function runRedeploy(row: ProjectListItem) {
+async function runRedeploy(row: ProjectListItemWithLifecycle) {
   markPendingRowAction(row, 'redeploy');
   try {
     await postProjectRedeploy(row.id);
@@ -1336,10 +1321,7 @@ async function runRedeploy(row: ProjectListItem) {
   }
 }
 
-async function executeBatchAction(
-  action: ProjectBatchActionUi,
-  overrides: Partial<ProjectDestroyRequest & ProjectUpdateDeployRequest> = {},
-) {
+async function executeBatchAction(action: ProjectBatchActionUi, overrides: Partial<ProjectDestroyRequest> = {}) {
   const actionableRows = batchActionableRows(action);
   if (requiresSingleSelection(action) && actionableRows.length !== 1) {
     return;
@@ -1349,7 +1331,7 @@ async function executeBatchAction(
   const pendingAction =
     action === 'start'
       ? ('up' as const)
-      : action === 'stop' || action === 'restart' || action === 'redeploy' || action === 'update_deploy'
+      : action === 'stop' || action === 'restart' || action === 'redeploy'
         ? action
         : null;
   if (pendingAction) {
@@ -1396,7 +1378,7 @@ function batchFailureSummary(items: ProjectBatchActionItem[]) {
 }
 
 function batchActionLocaleSegment(action: ProjectBatchActionUi) {
-  return action === 'update_deploy' ? 'updateDeploy' : action;
+  return action;
 }
 
 function handleBatchActionResult(action: ProjectBatchActionUi, response: ProjectBatchActionResponse) {
@@ -1433,7 +1415,6 @@ function confirmBatchAction(action: ProjectBatchActionUi) {
     return;
   }
   confirmDialogOpen.value = true;
-  const imagePrune = ref(false);
   const deleteWorkingDirectory = ref(false);
   const autoUnregister = ref(false);
   const removeNamedVolumes = ref(false);
@@ -1457,19 +1438,6 @@ function confirmBatchAction(action: ProjectBatchActionUi) {
         ),
         h('p', t('project.list.batch.scope', { actionableCount, selectedCount, skippedCount })),
         skippedCount > 0 ? h('p', t('project.list.batch.skipInapplicable')) : null,
-        action === 'update_deploy'
-          ? h('label', { class: 'project-action-confirm__option' }, [
-              h('input', {
-                checked: imagePrune.value,
-                type: 'checkbox',
-                onInput: (event: Event) => {
-                  imagePrune.value = (event.target as HTMLInputElement).checked;
-                },
-              }),
-              h('span', t('project.list.actions.updateDeployPrune')),
-            ])
-          : null,
-        action === 'update_deploy' ? h('p', t('project.list.actions.updateDeployWarning')) : null,
         action === 'destroy'
           ? h('div', { class: 'project-action-confirm__danger' }, [
               h('label', { class: 'project-action-confirm__option' }, [
@@ -1526,14 +1494,14 @@ function confirmBatchAction(action: ProjectBatchActionUi) {
             ? selectedRows.value[0]?.canonical_project_name
             : undefined,
         delete_working_directory: deleteWorkingDirectory.value,
-        image_prune: imagePrune.value,
+        image_prune: false,
         remove_named_volumes: removeNamedVolumes.value,
       });
     },
   });
 }
 
-async function handleRowAction(action: string, row: ProjectListItem) {
+async function handleRowAction(action: string, row: ProjectListItemWithLifecycle) {
   if (action === 'detail') {
     await navigateToDetail(row);
     return;
@@ -1568,12 +1536,6 @@ async function handleRowAction(action: string, row: ProjectListItem) {
       return;
     }
     await runRedeploy(row);
-    return;
-  }
-  if (action === 'update_deploy') {
-    if (!(await confirmDangerousAction(row, 'updateDeploy'))) {
-      return;
-    }
     return;
   }
   if (action === 'unregister') {
@@ -1746,6 +1708,18 @@ async function handleRowAction(action: string, row: ProjectListItem) {
   min-width: 0;
 }
 
+.project-identity__title-row {
+  align-items: center;
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--graft-density-gap-6);
+  min-width: 0;
+}
+
+.project-identity__meta {
+  min-width: 0;
+}
+
 .project-identity__main {
   align-items: flex-start;
   background: transparent;
@@ -1763,7 +1737,11 @@ async function handleRowAction(action: string, row: ProjectListItem) {
   color: var(--td-text-color-primary);
 }
 
-.project-identity__main span,
+.project-identity__title-row :deep(.t-tag) {
+  cursor: pointer;
+}
+
+.project-identity__meta span,
 .project-refresh span,
 .project-identity code {
   color: var(--td-text-color-secondary);

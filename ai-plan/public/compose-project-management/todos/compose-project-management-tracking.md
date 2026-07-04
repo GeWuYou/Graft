@@ -74,6 +74,9 @@ Compose Project Management
   - Phase 1 Configuration 只读。
   - `Canonical Project Name` 与 `Display Name` 必须分离。
   - `Unregister` 是安全默认；`Destroy` 是显式高危动作。
+  - 本地项目统一保存结构化 `Lifecycle Configuration`，而不是原始部署脚本或裸命令串。
+  - `managed` 项目默认 `lifecycle_review_status=confirmed`；`imported` 项目默认 `review_required`，在确认前禁止执行 compose lifecycle actions。
+  - `update-deploy` 已从一等动作移除；`redeploy` 是 canonical deploy-style lifecycle action，pull/down/prune 语义收口到 lifecycle configuration。
 
 ## Task Checklist
 
@@ -160,6 +163,8 @@ Compose Project Management
   - project list/detail 的 `runtime_status` 必须是后端返回的聚合状态，不能由前端用 `null -> 运行态未知` 兜底掩盖 authority 缺失
   - 当前聚合状态固定为 `running | degraded | stopped | transitioning | unknown`
   - project list 默认把 `service_count + container_counts` 收口为单列资源摘要；API 继续保留 canonical fields
+  - project detail 新增 `Lifecycle` authority surface；`Configuration` 继续承接 managed draft editor/diff/validate，lifecycle settings 与 generated command preview 不再混入 `Configuration`
+  - `PUT /api/ops/projects/{id}/lifecycle-configuration` 是统一 lifecycle settings update route；draft `deploy` 复用该配置做 final `up`
 
 ## Loop Batch State
 

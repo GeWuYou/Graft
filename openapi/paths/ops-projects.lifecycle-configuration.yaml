@@ -1,34 +1,35 @@
-post:
+put:
   tags: [project]
-  summary: Pull and update-deploy a registered project
-  operationId: postProjectUpdateDeploy
+  summary: Save one project's lifecycle configuration
+  operationId: putProjectLifecycleConfiguration
   description: >
-    Uses all registered compose files in stored order with repeated `-f` flags, runs `docker compose pull`, then
-    `docker compose up -d`, with optional image prune at the end.
+    Saves the canonical lifecycle configuration for one registered local project, regenerates lifecycle command
+    previews, and confirms imported-project defaults so later `up`, `stop`, `restart`, and `redeploy` actions can
+    reuse one project-owned compose strategy instead of guessing raw shell commands.
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml
     - $ref: ../components/parameters/project-id-path.yaml
   requestBody:
-    required: false
+    required: true
     content:
       application/json:
         schema:
-          $ref: ../components/schemas/project-update-deploy-request.yaml
+          $ref: ../components/schemas/project-lifecycle-configuration-request.yaml
   security:
     - bearerAuth: []
   responses:
     '200':
-      description: Project update-deploy action result.
+      description: Saved lifecycle configuration and regenerated command previews.
       headers:
         X-Request-Id:
           $ref: ../components/headers/request-id.yaml
       content:
         application/json:
           schema:
-            $ref: ../components/schemas/enveloped-project-action-response.yaml
+            $ref: ../components/schemas/enveloped-project-lifecycle-configuration-response.yaml
     '400':
-      description: Invalid project id or request.
+      description: Invalid project id or lifecycle configuration payload.
       headers:
         X-Request-Id:
           $ref: ../components/headers/request-id.yaml
@@ -50,7 +51,7 @@ post:
           schema:
             $ref: ../components/schemas/error-response.yaml
     '409':
-      description: Update-deploy blocked by project lifecycle guards or execution failure.
+      description: Lifecycle configuration update blocked by project authority or bounded host-scope guards.
       headers:
         X-Request-Id:
           $ref: ../components/headers/request-id.yaml

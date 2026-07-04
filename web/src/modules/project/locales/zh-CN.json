@@ -104,6 +104,7 @@
         "runtimeTransitioning": "🔵 过渡中"
       },
       "statusTooltip": {
+        "lifecycleReviewRequired": "生命周期配置尚未确认，进入详情完成确认。",
         "runtimeUnknown": "当前页未知",
         "runtimeRunning": "当前页运行中",
         "runtimeDegraded": "当前页降级",
@@ -649,6 +650,12 @@
       "boundary": "边界说明",
       "boundaryValue": "当前页面只声明 contract 与 route owner，不执行任何超出当前 bounded batch 的实现动作。"
     },
+    "lifecycle": {
+      "reviewStatus": {
+        "confirmed": "生命周期已确认",
+        "reviewRequired": "待确认"
+      }
+    },
     "detail": {
       "ownershipMode": {
         "managed-root-dedicated": "托管根目录专属",
@@ -713,7 +720,7 @@
         "volumes": "Volumes",
         "configuration": "Configuration",
         "activity": "Activity",
-        "runtime": "Runtime"
+        "lifecycle": "Lifecycle"
       },
       "resources": {
         "refresh": "刷新资源",
@@ -814,24 +821,55 @@
         },
         "openContainer": "打开容器详情"
       },
-      "runtime": {
-        "title": "Runtime",
-        "description": "项目级运行状态、成员计数与生命周期操作统一收口到 Runtime 工作区。",
-        "statusTitle": "运行状态",
-        "membersTitle": "运行成员",
-        "authorityTitle": "运行边界",
+      "lifecycle": {
+        "title": "Lifecycle",
+        "description": "确认 Graft 将用于本地项目生命周期动作的 Compose 配置，并预览生成命令。",
+        "statusTitle": "生命周期状态",
+        "configurationTitle": "部署配置",
+        "generatedCommandsTitle": "生成命令",
+        "generatedCommandsEmpty": "当前还没有可用的命令预览。",
+        "generatedCommands": {
+          "up": "启动",
+          "stop": "停止",
+          "restart": "重启",
+          "redeploy": "重新部署"
+        },
         "runtimeStatus": "项目状态",
         "refreshStatus": "刷新状态",
         "driftStatus": "漂移状态",
         "lastRefreshAt": "最近项目刷新",
-        "runningMembers": "运行中成员",
-        "totalMembers": "总成员数",
-        "serviceCount": "服务数",
-        "hostScope": "宿主范围",
-        "activityAuthority": "活动 Authority",
+        "reviewStatus": "审查状态",
+        "mode": "部署模式",
+        "modeStandard": "标准 Compose",
         "workingDirectory": "工作目录",
-        "canonicalName": "规范项目名",
-        "nameSource": "名称来源"
+        "projectName": "项目名",
+        "composeFiles": "Compose 文件",
+        "profiles": "Profiles",
+        "profilesPlaceholder": "app, monitoring",
+        "additionalArgs": "附加参数",
+        "additionalArgsPlaceholder": "--wait",
+        "downBeforeRedeploy": "重新部署前先执行 down",
+        "pullBeforeRedeploy": "重新部署前先拉取镜像",
+        "buildBeforeUp": "up 前执行 build",
+        "forceRecreate": "强制重建容器",
+        "waitAfterUp": "up 后等待就绪",
+        "pruneImagesAfterRedeploy": "重新部署后清理镜像",
+        "reset": "重置",
+        "save": "保存配置",
+        "saveSuccess": "生命周期配置已保存。",
+        "saveFailed": "生命周期配置保存失败。",
+        "reviewRequiredTitle": "需要先确认生命周期配置",
+        "reviewRequiredDescription": "导入项目无法自动恢复原始启动参数，请先确认部署配置，再执行 Compose 生命周期动作。",
+        "reviewRequiredActionBlocked": "请先确认生命周期配置，再执行 Compose 生命周期动作。",
+        "step": {
+          "up": "启动",
+          "stop": "停止",
+          "restart": "重启",
+          "pullImages": "拉取镜像",
+          "bringDown": "执行 down",
+          "bringUp": "执行 up",
+          "pruneImages": "清理镜像"
+        }
       },
       "configuration": {
         "title": "配置",
@@ -913,6 +951,7 @@
         "up": "启动项目",
         "stop": "停止项目",
         "restart": "重启项目",
+        "redeploy": "重新部署",
         "unregister": "取消注册",
         "destroy": "销毁",
         "copyPath": "复制路径",

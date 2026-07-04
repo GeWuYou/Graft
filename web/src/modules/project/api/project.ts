@@ -10,6 +10,7 @@ import {
   buildProjectDeployApiPath,
   buildProjectDestroyApiPath,
   buildProjectDetailApiPath,
+  buildProjectLifecycleConfigurationApiPath,
   buildProjectRedeployApiPath,
   buildProjectRefreshApiPath,
   buildProjectRestartApiPath,
@@ -17,7 +18,6 @@ import {
   buildProjectStopApiPath,
   buildProjectUnregisterApiPath,
   buildProjectUpApiPath,
-  buildProjectUpdateDeployApiPath,
   PROJECT_API_PATH,
 } from '../contract/paths';
 import type {
@@ -38,14 +38,15 @@ import type {
   ProjectDeployRequest,
   ProjectDeployResponse,
   ProjectDestroyRequest,
-  ProjectDetailResponse,
+  ProjectDetailResponseWithLifecycle,
   ProjectDiscoveryCandidatesResponse,
+  ProjectLifecycleConfigurationSavedResponse,
+  ProjectLifecycleConfigurationUpdateRequest,
   ProjectListQuery,
-  ProjectListResponse,
+  ProjectListResponseWithLifecycle,
   ProjectManagedRootResponse,
   ProjectServicesResponse,
   ProjectSourceCatalogResponse,
-  ProjectUpdateDeployRequest,
 } from '../types/project';
 
 type ProjectListPath = (typeof PROJECT_API_PATH)['LIST'];
@@ -163,14 +164,6 @@ type ProjectRedeployEnvelope = ProjectRedeployOperation['responses'][200]['conte
 type ProjectRedeployData = NonNullable<ProjectRedeployEnvelope['data']>;
 type ProjectRedeployPathParams = ProjectRedeployOperation['parameters']['path'];
 
-type ProjectUpdateDeployOperation = paths[(typeof PROJECT_API_PATH)['UPDATE_DEPLOY']]['post'];
-type ProjectUpdateDeployEnvelope = ProjectUpdateDeployOperation['responses'][200]['content']['application/json'];
-type ProjectUpdateDeployData = NonNullable<ProjectUpdateDeployEnvelope['data']>;
-type ProjectUpdateDeployPayload = NonNullable<
-  ProjectUpdateDeployOperation['requestBody']
->['content']['application/json'];
-type ProjectUpdateDeployPathParams = ProjectUpdateDeployOperation['parameters']['path'];
-
 type ProjectUnregisterOperation = paths[(typeof PROJECT_API_PATH)['UNREGISTER']]['post'];
 type ProjectUnregisterEnvelope = ProjectUnregisterOperation['responses'][200]['content']['application/json'];
 type ProjectUnregisterData = NonNullable<ProjectUnregisterEnvelope['data']>;
@@ -211,7 +204,7 @@ export function getProjects(query?: ProjectListQuery) {
   return request.get<GetProjectListData>({
     url: PROJECT_API_PATH.LIST,
     params: normalizeProjectListQuery(query),
-  }) as Promise<ProjectListResponse>;
+  }) as Promise<ProjectListResponseWithLifecycle>;
 }
 
 /**
@@ -223,7 +216,7 @@ export function getProjects(query?: ProjectListQuery) {
 export function getProject(id: GetProjectDetailPathParams['id']) {
   return request.get<GetProjectDetailData>({
     url: buildProjectDetailApiPath(id),
-  }) as Promise<ProjectDetailResponse>;
+  }) as Promise<ProjectDetailResponseWithLifecycle>;
 }
 
 /**
@@ -449,18 +442,11 @@ export function postProjectRedeploy(id: ProjectRedeployPathParams['id']) {
   return postProjectAction<ProjectRedeployData>(buildProjectRedeployApiPath(id)) as Promise<ProjectActionResponse>;
 }
 
-/**
- * 更新部署指定项目。
- *
- * @param id - 项目 ID
- * @param payload - 更新部署请求体
- * @returns 更新部署操作结果
- */
-export function postProjectUpdateDeploy(id: ProjectUpdateDeployPathParams['id'], payload?: ProjectUpdateDeployRequest) {
-  return postProjectAction<ProjectUpdateDeployData>(
-    buildProjectUpdateDeployApiPath(id),
-    payload as ProjectUpdateDeployPayload | undefined,
-  ) as Promise<ProjectActionResponse>;
+export function putProjectLifecycleConfiguration(id: number, payload: ProjectLifecycleConfigurationUpdateRequest) {
+  return request.put<ProjectLifecycleConfigurationSavedResponse>({
+    url: buildProjectLifecycleConfigurationApiPath(id),
+    data: payload,
+  }) as Promise<ProjectLifecycleConfigurationSavedResponse>;
 }
 
 /**

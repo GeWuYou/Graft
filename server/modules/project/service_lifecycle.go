@@ -3,6 +3,7 @@ package project
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -17,17 +18,17 @@ import (
 
 // Up executes docker compose up -d within the project's registered working directory.
 func (s *Service) Up(ctx context.Context, projectID uint64, actorID *uint64) (ActionResult, error) {
-	return s.runLifecycleAction(ctx, projectID, actorID, generated.ProjectActionResponseActionProjectActionUp, []string{"compose", "up", "-d"})
+	return s.runLifecycleAction(ctx, projectID, actorID, generated.ProjectActionResponseActionProjectActionUp)
 }
 
 // Stop executes docker compose stop for the registered project.
 func (s *Service) Stop(ctx context.Context, projectID uint64, actorID *uint64) (ActionResult, error) {
-	return s.runLifecycleAction(ctx, projectID, actorID, generated.ProjectActionResponseActionProjectActionStop, []string{"compose", "stop"})
+	return s.runLifecycleAction(ctx, projectID, actorID, generated.ProjectActionResponseActionProjectActionStop)
 }
 
 // Restart executes docker compose restart for the registered project.
 func (s *Service) Restart(ctx context.Context, projectID uint64, actorID *uint64) (ActionResult, error) {
-	return s.runLifecycleAction(ctx, projectID, actorID, generated.ProjectActionResponseActionProjectActionRestart, []string{"compose", "restart"})
+	return s.runLifecycleAction(ctx, projectID, actorID, generated.ProjectActionResponseActionProjectActionRestart)
 }
 
 // Redeploy executes docker compose down then docker compose up -d for the registered project.
@@ -41,21 +42,6 @@ func (s *Service) Redeploy(ctx context.Context, projectID uint64, actorID *uint6
 		return blocked, err
 	}
 	result, actionErr := s.redeployWithActor(ctx, aggregate, actor)
-	s.publishProjectActionAudit(ctx, aggregate, actor, result, actionErr)
-	return result, actionErr
-}
-
-// UpdateDeploy pulls the latest images for all registered compose files and then runs compose up -d.
-func (s *Service) UpdateDeploy(ctx context.Context, projectID uint64, actorID *uint64, imagePrune bool) (ActionResult, error) {
-	aggregate, err := s.getAggregate(ctx, projectID)
-	if err != nil {
-		return ActionResult{}, err
-	}
-	actor, blocked, err := s.requireActionActor(ctx, projectID, generated.ProjectActionResponseActionProjectActionUpdateDeploy, actorID)
-	if err != nil {
-		return blocked, err
-	}
-	result, actionErr := s.updateDeployWithActor(ctx, aggregate, actor, imagePrune)
 	s.publishProjectActionAudit(ctx, aggregate, actor, result, actionErr)
 	return result, actionErr
 }
@@ -159,7 +145,10 @@ func (s *Service) destroyAfterGuard(
 ) (ActionResult, error) {
 	projectID := aggregate.Project.ID
 	guardResults := []GuardResult{guardCode("confirm_canonical_project_name_matched")}
-	downArgs := destroyDownArgs(request.RemoveNamedVolumes)
+	downArgs, err := destroyDownArgs(aggregate, request.RemoveNamedVolumes)
+	if err != nil {
+		return lifecycleBlockedResult(aggregate, generated.ProjectActionResponseActionProjectActionDestroy, err), err
+	}
 	downResult, err := s.executeLifecycleActionWithAggregate(
 		ctx,
 		aggregate,
@@ -213,7 +202,6 @@ func (s *Service) runLifecycleAction(
 	projectID uint64,
 	actorID *uint64,
 	action generated.ProjectActionResponseAction,
-	args []string,
 ) (ActionResult, error) {
 	aggregate, err := s.getAggregate(ctx, projectID)
 	if err != nil {
@@ -222,6 +210,12 @@ func (s *Service) runLifecycleAction(
 	actor, blocked, err := s.requireActionActor(ctx, projectID, action, actorID)
 	if err != nil {
 		return blocked, err
+	}
+	args, err := lifecycleCommandArgs(aggregate, action)
+	if err != nil {
+		result := lifecycleBlockedResult(aggregate, action, err)
+		s.publishProjectActionAudit(ctx, aggregate, actor, result, err)
+		return result, err
 	}
 	result, actionErr := s.executeLifecycleActionWithAggregate(ctx, aggregate, action, args)
 	s.publishProjectActionAudit(ctx, aggregate, actor, result, actionErr)
@@ -235,7 +229,7 @@ func (s *Service) executeLifecycleActionWithAggregate(
 	args []string,
 ) (ActionResult, error) {
 	if err := ensureProjectLifecycleReady(aggregate); err != nil {
-		return blockedActionResult(aggregate.Project.ID, action, []GuardResult{guardDetail("lifecycle_blocked", "refresh_required")}), err
+		return lifecycleBlockedResult(aggregate, action, err), err
 	}
 	if err := ensureLifecycleCommandArgs(args); err != nil {
 		return blockedActionResult(aggregate.Project.ID, action, []GuardResult{guardDetail("lifecycle_blocked", "invalid_command")}), err
@@ -307,6 +301,9 @@ func ensureProjectLifecycleReady(aggregate projectstore.ProjectAggregate) error 
 	if aggregate.Project.LastRefreshStatus != projectcontract.RefreshStatusSuccess.String() {
 		return errProjectUnsupportedLifecycle
 	}
+	if err := lifecycleReviewGuard(aggregate); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -347,8 +344,6 @@ func lifecycleMessageKey(action generated.ProjectActionResponseAction) projectco
 		return projectcontract.ProjectRestartCompleted
 	case generated.ProjectActionResponseActionProjectActionRedeploy:
 		return projectcontract.ProjectRedeployCompleted
-	case generated.ProjectActionResponseActionProjectActionUpdateDeploy:
-		return projectcontract.ProjectUpdateDeployCompleted
 	case generated.ProjectActionResponseActionProjectActionDestroy:
 		return projectcontract.ProjectDestroyCompleted
 	case generated.ProjectActionResponseActionProjectActionDeploy:
@@ -360,45 +355,50 @@ func lifecycleMessageKey(action generated.ProjectActionResponseAction) projectco
 	}
 }
 
-func (s *Service) updateDeployWithActor(
+func (s *Service) redeployWithActor(
 	ctx context.Context,
 	aggregate projectstore.ProjectAggregate,
 	_ actionActor,
-	imagePrune bool,
 ) (ActionResult, error) {
 	if err := ensureProjectLifecycleReady(aggregate); err != nil {
-		return blockedActionResult(aggregate.Project.ID, generated.ProjectActionResponseActionProjectActionUpdateDeploy, []GuardResult{guardDetail("lifecycle_blocked", "refresh_required")}), err
+		return lifecycleBlockedResult(aggregate, generated.ProjectActionResponseActionProjectActionRedeploy, err), err
 	}
-	args, err := composeProjectArgs(aggregate)
+	config := lifecycleConfigurationFromAggregate(aggregate)
+	guards := []GuardResult{guardDetail("host_scope", aggregate.Project.HostScope)}
+	if config.Standard.DownBeforeRedeploy {
+		var err error
+		guards, err = s.runRedeployComposeStep(ctx, aggregate, config, guards, lifecycleRedeployDownArgs, "compose_down_completed")
+		if err != nil {
+			return blockedActionResult(aggregate.Project.ID, generated.ProjectActionResponseActionProjectActionRedeploy, guards), err
+		}
+	}
+	if config.Standard.PullBeforeRedeploy {
+		var err error
+		guards, err = s.runRedeployComposeStep(ctx, aggregate, config, guards, lifecyclePullArgs, "compose_pull_completed")
+		if err != nil {
+			return blockedActionResult(aggregate.Project.ID, generated.ProjectActionResponseActionProjectActionRedeploy, guards), err
+		}
+	}
+	upArgs, err := lifecycleUpArgs(aggregate, config)
 	if err != nil {
-		return blockedActionResult(aggregate.Project.ID, generated.ProjectActionResponseActionProjectActionUpdateDeploy, []GuardResult{guardDetail("lifecycle_blocked", "compose_files_missing")}), err
+		return lifecycleBlockedResult(aggregate, generated.ProjectActionResponseActionProjectActionRedeploy, err), err
 	}
-	pullArgs := append(append([]string(nil), args...), "pull")
-	output, err := s.runComposeCommand(ctx, aggregate, pullArgs)
+	output, err := s.runComposeCommand(ctx, aggregate, upArgs)
 	if err != nil {
-		return blockedActionResult(aggregate.Project.ID, generated.ProjectActionResponseActionProjectActionUpdateDeploy, []GuardResult{guardDetail("lifecycle_failed", summarizeCommandOutput(output))}), fmt.Errorf("%w: %v", errProjectUnsupportedLifecycle, err)
+		return blockedActionResult(aggregate.Project.ID, generated.ProjectActionResponseActionProjectActionRedeploy, append(guards, guardDetail("lifecycle_failed", summarizeCommandOutput(output)))), fmt.Errorf("%w: %v", errProjectUnsupportedLifecycle, err)
 	}
-	upArgs := append(append([]string(nil), args...), "up", "-d")
-	output, err = s.runComposeCommand(ctx, aggregate, upArgs)
-	if err != nil {
-		return blockedActionResult(aggregate.Project.ID, generated.ProjectActionResponseActionProjectActionUpdateDeploy, []GuardResult{guardDetail("lifecycle_failed", summarizeCommandOutput(output))}), fmt.Errorf("%w: %v", errProjectUnsupportedLifecycle, err)
-	}
-	guards := []GuardResult{
-		guardDetail("command", strings.Join(upArgs, " ")),
-		guardDetail("host_scope", aggregate.Project.HostScope),
-		guardCode("compose_pull_completed"),
-	}
-	if imagePrune {
+	guards = append(guards, guardDetail("command", strings.Join(upArgs, " ")))
+	if config.Standard.PruneImagesAfterRedeploy {
 		output, err = s.runDockerCommand(ctx, aggregate.Project.WorkingDirectory, []string{"image", "prune", "-f"})
 		if err != nil {
-			return blockedActionResult(aggregate.Project.ID, generated.ProjectActionResponseActionProjectActionUpdateDeploy, append(guards, guardDetail("image_prune_failed", summarizeCommandOutput(output)))), fmt.Errorf("%w: %v", errProjectUnsupportedLifecycle, err)
+			return blockedActionResult(aggregate.Project.ID, generated.ProjectActionResponseActionProjectActionRedeploy, append(guards, guardDetail("image_prune_failed", summarizeCommandOutput(output)))), fmt.Errorf("%w: %v", errProjectUnsupportedLifecycle, err)
 		}
 		guards = append(guards, guardCode("image_prune_completed"))
 	}
-	messageKey := lifecycleMessageKey(generated.ProjectActionResponseActionProjectActionUpdateDeploy).String()
+	messageKey := lifecycleMessageKey(generated.ProjectActionResponseActionProjectActionRedeploy).String()
 	return ActionResult{
 		ProjectID:    aggregate.Project.ID,
-		Action:       generated.ProjectActionResponseActionProjectActionUpdateDeploy,
+		Action:       generated.ProjectActionResponseActionProjectActionRedeploy,
 		Result:       generated.ProjectActionResponseResultProjectActionResultCompleted,
 		MessageKey:   &messageKey,
 		Message:      &messageKey,
@@ -406,15 +406,30 @@ func (s *Service) updateDeployWithActor(
 	}, nil
 }
 
-func (s *Service) redeployWithActor(
+func (s *Service) runRedeployComposeStep(
 	ctx context.Context,
 	aggregate projectstore.ProjectAggregate,
-	_ actionActor,
-) (ActionResult, error) {
-	if downResult, err := s.executeLifecycleActionWithAggregate(ctx, aggregate, generated.ProjectActionResponseActionProjectActionRedeploy, []string{"compose", "down"}); err != nil {
-		return downResult, err
+	config LifecycleConfiguration,
+	guards []GuardResult,
+	argsBuilder func(projectstore.ProjectAggregate, LifecycleConfiguration) ([]string, error),
+	successCode string,
+) ([]GuardResult, error) {
+	args, err := argsBuilder(aggregate, config)
+	if err != nil {
+		return lifecycleBlockedGuardResults(guards, err), err
 	}
-	return s.executeLifecycleActionWithAggregate(ctx, aggregate, generated.ProjectActionResponseActionProjectActionRedeploy, []string{"compose", "up", "-d"})
+	output, err := s.runComposeCommand(ctx, aggregate, args)
+	if err != nil {
+		return append(guards, guardDetail("lifecycle_failed", summarizeCommandOutput(output))), fmt.Errorf("%w: %v", errProjectUnsupportedLifecycle, err)
+	}
+	return append(guards, guardCode(successCode)), nil
+}
+
+func lifecycleBlockedGuardResults(guards []GuardResult, err error) []GuardResult {
+	if err == nil {
+		return append([]GuardResult(nil), guards...)
+	}
+	return append(append([]GuardResult(nil), guards...), guardDetail("lifecycle_blocked", err.Error()))
 }
 
 func (s *Service) unregisterWithActor(
@@ -447,7 +462,7 @@ func (s *Service) unregisterWithActor(
 	}, nil
 }
 
-func composeProjectArgs(aggregate projectstore.ProjectAggregate) ([]string, error) {
+func composeProjectArgs(aggregate projectstore.ProjectAggregate, config LifecycleConfiguration) ([]string, error) {
 	composeFiles := filterFiles(aggregate.Files, projectcontract.FileKindCompose.String())
 	if len(composeFiles) == 0 {
 		return nil, errProjectInvalidArgument
@@ -463,7 +478,89 @@ func composeProjectArgs(aggregate projectstore.ProjectAggregate) ([]string, erro
 		}
 		base = append(base, "-f", path)
 	}
+	for _, profile := range config.Standard.Profiles {
+		base = append(base, "--profile", profile)
+	}
+	if strings.TrimSpace(config.ProjectName) == "" {
+		return nil, errProjectInvalidArgument
+	}
+	base = append(base, "-p", config.ProjectName)
 	return base, nil
+}
+
+func lifecycleCommandArgs(aggregate projectstore.ProjectAggregate, action generated.ProjectActionResponseAction) ([]string, error) {
+	config := lifecycleConfigurationFromAggregate(aggregate)
+	switch action {
+	case generated.ProjectActionResponseActionProjectActionUp:
+		return lifecycleUpArgs(aggregate, config)
+	case generated.ProjectActionResponseActionProjectActionStop:
+		base, err := composeProjectArgs(aggregate, config)
+		if err != nil {
+			return nil, err
+		}
+		return append(base, "stop"), nil
+	case generated.ProjectActionResponseActionProjectActionRestart:
+		base, err := composeProjectArgs(aggregate, config)
+		if err != nil {
+			return nil, err
+		}
+		return append(base, "restart"), nil
+	default:
+		return nil, errProjectInvalidArgument
+	}
+}
+
+func lifecycleUpArgs(aggregate projectstore.ProjectAggregate, config LifecycleConfiguration) ([]string, error) {
+	base, err := composeProjectArgs(aggregate, config)
+	if err != nil {
+		return nil, err
+	}
+	args := append(base, "up", "-d")
+	if config.Standard.BuildBeforeUp {
+		args = append(args, "--build")
+	}
+	if config.Standard.ForceRecreate {
+		args = append(args, "--force-recreate")
+	}
+	if config.Standard.WaitAfterUp {
+		args = append(args, "--wait")
+	}
+	return args, nil
+}
+
+func lifecyclePullArgs(aggregate projectstore.ProjectAggregate, config LifecycleConfiguration) ([]string, error) {
+	base, err := composeProjectArgs(aggregate, config)
+	if err != nil {
+		return nil, err
+	}
+	return append(base, "pull"), nil
+}
+
+func lifecycleRedeployDownArgs(aggregate projectstore.ProjectAggregate, config LifecycleConfiguration) ([]string, error) {
+	base, err := composeProjectArgs(aggregate, config)
+	if err != nil {
+		return nil, err
+	}
+	return append(base, "down"), nil
+}
+
+func lifecycleBlockedResult(
+	aggregate projectstore.ProjectAggregate,
+	action generated.ProjectActionResponseAction,
+	err error,
+) ActionResult {
+	return blockedActionResult(aggregate.Project.ID, action, []GuardResult{guardDetail("lifecycle_blocked", lifecycleBlockedReason(err))})
+}
+
+func lifecycleBlockedReason(err error) string {
+	switch {
+	case errors.Is(err, errProjectLifecycleReview):
+		return "review_required"
+	case errors.Is(err, errProjectInvalidArgument):
+		return "invalid_command"
+	default:
+		return "refresh_required"
+	}
 }
 
 // summarizeCommandOutput 归一化并截断命令输出摘要。
@@ -534,7 +631,6 @@ func (s *Service) batchLifecycleActionItem(
 			ctx,
 			aggregate,
 			generated.ProjectActionResponseActionProjectActionUp,
-			[]string{"compose", "up", "-d"},
 		)
 		return item, true, err
 	case generated.ProjectBatchActionRequestActionStop:
@@ -542,7 +638,6 @@ func (s *Service) batchLifecycleActionItem(
 			ctx,
 			aggregate,
 			generated.ProjectActionResponseActionProjectActionStop,
-			[]string{"compose", "stop"},
 		)
 		return item, true, err
 	case generated.ProjectBatchActionRequestActionRestart:
@@ -550,20 +645,13 @@ func (s *Service) batchLifecycleActionItem(
 			ctx,
 			aggregate,
 			generated.ProjectActionResponseActionProjectActionRestart,
-			[]string{"compose", "restart"},
 		)
 		return item, true, err
 	case generated.ProjectBatchActionRequestActionRedeploy:
 		if err := ensureProjectLifecycleReady(aggregate); err != nil {
-			return skippedBatchActionResult(projectID, generated.ProjectActionResponseActionProjectActionRedeploy, "refresh_required"), true, nil
+			return skippedBatchActionResult(projectID, generated.ProjectActionResponseActionProjectActionRedeploy, lifecycleBlockedReason(err)), true, nil
 		}
 		action, err := s.redeployWithActor(ctx, aggregate, actor)
-		return BatchActionItemResult{ActionResult: action}, true, err
-	case generated.ProjectBatchActionRequestActionUpdateDeploy:
-		if err := ensureProjectLifecycleReady(aggregate); err != nil {
-			return skippedBatchActionResult(projectID, generated.ProjectActionResponseActionProjectActionUpdateDeploy, "refresh_required"), true, nil
-		}
-		action, err := s.updateDeployWithActor(ctx, aggregate, actor, request.ImagePrune)
 		return BatchActionItemResult{ActionResult: action}, true, err
 	default:
 		return BatchActionItemResult{}, false, nil
@@ -574,14 +662,17 @@ func (s *Service) batchLifecycleItem(
 	ctx context.Context,
 	aggregate projectstore.ProjectAggregate,
 	action generated.ProjectActionResponseAction,
-	args []string,
 ) (BatchActionItemResult, error) {
 	if err := ensureProjectLifecycleReady(aggregate); err != nil {
-		return skippedBatchActionResult(aggregate.Project.ID, action, "refresh_required"), nil
+		return BatchActionItemResult{ActionResult: lifecycleBlockedResult(aggregate, action, err)}, nil
 	}
 	runtimeSummary, runtimeErr := s.runtimeSummary(ctx, aggregate)
 	if skipReason, shouldSkip := skipBatchLifecycleAction(action, &runtimeSummary, runtimeErr); shouldSkip {
 		return skippedBatchActionResult(aggregate.Project.ID, action, skipReason), nil
+	}
+	args, err := lifecycleCommandArgs(aggregate, action)
+	if err != nil {
+		return BatchActionItemResult{ActionResult: lifecycleBlockedResult(aggregate, action, err)}, nil
 	}
 	result, err := s.executeLifecycleActionWithAggregate(ctx, aggregate, action, args)
 	return BatchActionItemResult{ActionResult: result}, err
@@ -645,12 +736,16 @@ func skipBatchRestartForStatus(status generated.ProjectRuntimeStatus) (string, b
 	}
 }
 
-func destroyDownArgs(removeNamedVolumes bool) []string {
-	downArgs := []string{"compose", "down"}
+func destroyDownArgs(aggregate projectstore.ProjectAggregate, removeNamedVolumes bool) ([]string, error) {
+	base, err := composeProjectArgs(aggregate, lifecycleConfigurationFromAggregate(aggregate))
+	if err != nil {
+		return nil, err
+	}
+	downArgs := append(base, "down")
 	if removeNamedVolumes {
 		downArgs = append(downArgs, "--volumes")
 	}
-	return downArgs
+	return downArgs, nil
 }
 
 func appendDestroyDownGuards(guardResults []GuardResult, removeNamedVolumes bool) []GuardResult {
@@ -766,8 +861,6 @@ func batchActionToProjectAction(action generated.ProjectBatchActionRequestAction
 		return generated.ProjectActionResponseActionProjectActionRestart
 	case generated.ProjectBatchActionRequestActionRedeploy:
 		return generated.ProjectActionResponseActionProjectActionRedeploy
-	case generated.ProjectBatchActionRequestActionUpdateDeploy:
-		return generated.ProjectActionResponseActionProjectActionUpdateDeploy
 	case generated.ProjectBatchActionRequestActionUnregister:
 		return generated.ProjectActionResponseActionProjectActionUnregister
 	case generated.ProjectBatchActionRequestActionDestroy:

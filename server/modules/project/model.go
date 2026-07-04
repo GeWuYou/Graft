@@ -16,6 +16,9 @@ type Record struct {
 	HostScope                  string
 	WorkingDirectory           string
 	OwnershipMode              string
+	LifecycleStrategyKind      string
+	LifecycleReviewStatus      string
+	LifecycleConfigJSON        []byte
 	LastRefreshStatus          string
 	LastRefreshAt              *time.Time
 	LastRefreshErrorCode       string

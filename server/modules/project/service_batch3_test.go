@@ -37,7 +37,7 @@ func (s *stubProjectRepository) Get(context.Context, uint64) (projectstore.Proje
 	if s.aggregate.Project.ID == 0 {
 		return projectstore.ProjectAggregate{}, projectstore.ErrProjectNotFound
 	}
-	return s.aggregate, nil
+	return ensureStubProjectAggregateDefaults(s.aggregate), nil
 }
 
 func (s *stubProjectRepository) GetFile(context.Context, uint64, uint64) (projectstore.ProjectFile, error) {
@@ -56,6 +56,9 @@ func (s *stubProjectRepository) ImportProject(_ context.Context, input projectst
 	s.aggregate.Project.HostScope = input.HostScope
 	s.aggregate.Project.WorkingDirectory = input.WorkingDirectory
 	s.aggregate.Project.OwnershipMode = input.OwnershipMode
+	s.aggregate.Project.LifecycleStrategyKind = input.LifecycleStrategyKind
+	s.aggregate.Project.LifecycleReviewStatus = input.LifecycleReviewStatus
+	s.aggregate.Project.LifecycleConfig = input.LifecycleConfig
 	s.aggregate.Project.LastRefreshStatus = input.LastRefreshStatus
 	s.aggregate.Project.LastRefreshAt = input.LastRefreshAt
 	s.aggregate.Project.LastRefreshConfigHash = input.LastRefreshConfigHash
@@ -71,11 +74,21 @@ func (s *stubProjectRepository) ImportProject(_ context.Context, input projectst
 	}
 	s.aggregate.Files = files
 	s.aggregate.Snapshot = input.Snapshot
-	return s.aggregate, nil
+	return ensureStubProjectAggregateDefaults(s.aggregate), nil
 }
 
 func (s *stubProjectRepository) RefreshProject(context.Context, projectstore.RefreshProjectInput) (projectstore.ProjectAggregate, error) {
 	return projectstore.ProjectAggregate{}, errors.New("not implemented")
+}
+
+func (s *stubProjectRepository) UpdateLifecycleConfig(
+	_ context.Context,
+	input projectstore.UpdateLifecycleConfigInput,
+) (projectstore.ProjectAggregate, error) {
+	s.aggregate.Project.LifecycleStrategyKind = input.LifecycleStrategyKind
+	s.aggregate.Project.LifecycleReviewStatus = input.LifecycleReviewStatus
+	s.aggregate.Project.LifecycleConfig = input.LifecycleConfig
+	return ensureStubProjectAggregateDefaults(s.aggregate), nil
 }
 
 func (s *stubProjectRepository) UnregisterProject(_ context.Context, input projectstore.UnregisterProjectInput) error {
@@ -83,6 +96,30 @@ func (s *stubProjectRepository) UnregisterProject(_ context.Context, input proje
 	recorded := input
 	s.unregisterInput = &recorded
 	return s.unregisterErr
+}
+
+func ensureStubProjectAggregateDefaults(aggregate projectstore.ProjectAggregate) projectstore.ProjectAggregate {
+	if aggregate.Project.LifecycleStrategyKind == "" {
+		aggregate.Project.LifecycleStrategyKind = projectcontract.LifecycleStrategyKindStandard.String()
+	}
+	if aggregate.Project.LifecycleReviewStatus == "" {
+		aggregate.Project.LifecycleReviewStatus = projectcontract.LifecycleReviewStatusConfirmed.String()
+	}
+	if len(aggregate.Files) == 0 && aggregate.Project.WorkingDirectory != "" {
+		aggregate.Files = []projectstore.ProjectFile{
+			{
+				ID:                  1,
+				ProjectID:           aggregate.Project.ID,
+				Kind:                projectcontract.FileKindCompose.String(),
+				Role:                projectcontract.FileRolePrimary.String(),
+				AbsolutePath:        filepath.Join(aggregate.Project.WorkingDirectory, "compose.yaml"),
+				DisplayPath:         "compose.yaml",
+				OrderIndex:          0,
+				ExistsOnLastRefresh: true,
+			},
+		}
+	}
+	return aggregate
 }
 
 type capturedAuditBus struct {

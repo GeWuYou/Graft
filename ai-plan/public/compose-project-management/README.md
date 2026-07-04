@@ -6,7 +6,7 @@
 - 当前状态：`active`。
 - 任务分类为 `cross-boundary`，涉及 `ai-plan/design`、future OpenAPI、future `server/modules/project/**`、future `web/src/modules/project/**`，并与现有 `container` runtime authority 协作。
 - Canonical design：`ai-plan/design/domains/compose/Compose项目管理设计.md`。
-- 当前已完成 Phase 0、Phase 1、Phase 2 的主要实现，但主题仍处于 `active`，因为产品入口和 topic 完成口径出现了 drift repair 待修复项。
+- 当前已完成 Phase 0、Phase 1、Phase 2 的主要实现，但主题仍处于 `active`，因为产品入口、lifecycle authority 和 topic 完成口径出现了 drift repair 待修复项。
 - 当前处于同一个 `topic-completion-loop` 下继续修复入口 IA、topic truth 与实际可用性之间的偏差，而不是新主题。
 
 ## Recovery Receipt
@@ -42,7 +42,7 @@
 
 1. `Project` 是 Compose Project 的管理与聚合层，不是新的 Runtime。
 2. `Container` 是 Runtime Authority。
-3. `Project` 只拥有 registry、ownership、compose files、lifecycle、services aggregation、activity aggregation entry。
+3. `Project` 只拥有 registry、ownership、compose files、lifecycle configuration、lifecycle actions、services aggregation、activity aggregation entry。
 4. `Container` 继续拥有 runtime state、stats、logs、events、shell、inspect、networks、mounts。
 5. Phase 1 的 Activity 继续复用现有 container logs/events，由前端做 fan-out 聚合。
 6. Phase 1 的 Configuration 保持只读，且 API 拆为 metadata/list、preview、single-file content 三类。
@@ -73,6 +73,8 @@
   - `Import Existing Project` 的主入口应是 runtime candidate，而不是 folder picker。
   - 当前 import 的 `directory browse / inspect` 能力继续保留，但只作为非主入口 inspect/file-system 复用底座。
   - `config_files` 是 runtime candidate 的 stronger authority；`working_directory` 是 hint，可在缺少 label 时由 `config_files[0]` 派生。
+  - 本地项目统一收口到保存型 `Lifecycle Configuration` authority：managed 默认 `confirmed`，imported 默认 `review_required`。
+  - `update-deploy` 不再作为一等动作保留；`redeploy` 成为唯一 deploy-style lifecycle action，pull/down/prune 等语义统一由 lifecycle configuration 持有。
   - Phase 3 继续留在同一 topic 内推进，但不得再让 boundary surface 取代 Phase 1 import 或 Phase 2 managed create 主入口。
 - 当前下一步：先执行 `drift-repair-import-primary-entry-and-topic-truth`，再回到剩余 Phase 3 bounded work。
 

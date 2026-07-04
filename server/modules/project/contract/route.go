@@ -61,8 +61,8 @@ const (
 	ProjectRestartRoute = "/:id/restart"
 	// ProjectRedeployRoute identifies the compose redeploy route fragment.
 	ProjectRedeployRoute = "/:id/redeploy"
-	// ProjectUpdateDeployRoute identifies the update-deploy route fragment.
-	ProjectUpdateDeployRoute = "/:id/update-deploy"
+	// ProjectLifecycleConfigurationRoute identifies the lifecycle configuration route fragment.
+	ProjectLifecycleConfigurationRoute = "/:id/lifecycle-configuration"
 	// ProjectUnregisterRoute identifies the unregister route fragment.
 	ProjectUnregisterRoute = "/:id/unregister"
 	// ProjectDestroyRoute identifies the guarded destroy route fragment.

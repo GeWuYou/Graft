@@ -28,6 +28,9 @@ type Project struct {
 	HostScope                  string
 	WorkingDirectory           string
 	OwnershipMode              string
+	LifecycleStrategyKind      string
+	LifecycleReviewStatus      string
+	LifecycleConfig            LifecycleConfig
 	LastRefreshStatus          string
 	LastRefreshAt              *time.Time
 	LastRefreshErrorCode       string
@@ -69,6 +72,17 @@ type Snapshot struct {
 	RefreshedAt            time.Time
 }
 
+// LifecycleConfig stores project-owned lifecycle execution semantics.
+type LifecycleConfig struct {
+	Profiles                 []string
+	DownBeforeRedeploy       bool
+	PullBeforeRedeploy       bool
+	BuildBeforeUp            bool
+	ForceRecreate            bool
+	WaitAfterUp              bool
+	PruneImagesAfterRedeploy bool
+}
+
 // ProjectAggregate joins one project with its files and latest snapshot.
 type ProjectAggregate struct {
 	Project  Project
@@ -100,6 +114,9 @@ type ImportProjectInput struct {
 	HostScope                  string
 	WorkingDirectory           string
 	OwnershipMode              string
+	LifecycleStrategyKind      string
+	LifecycleReviewStatus      string
+	LifecycleConfig            LifecycleConfig
 	LastRefreshStatus          string
 	LastRefreshAt              *time.Time
 	LastRefreshErrorCode       string
@@ -129,6 +146,15 @@ type RefreshProjectInput struct {
 	ActorID                 *uint64
 }
 
+// UpdateLifecycleConfigInput updates the saved lifecycle execution semantics for one project.
+type UpdateLifecycleConfigInput struct {
+	ProjectID              uint64
+	LifecycleStrategyKind  string
+	LifecycleReviewStatus  string
+	LifecycleConfig        LifecycleConfig
+	ActorID                *uint64
+}
+
 // UnregisterProjectInput soft-deletes one existing project registry row without touching host files.
 type UnregisterProjectInput struct {
 	ProjectID uint64
@@ -142,5 +168,6 @@ type Repository interface {
 	GetFile(ctx context.Context, projectID uint64, fileID uint64) (ProjectFile, error)
 	ImportProject(ctx context.Context, input ImportProjectInput) (ProjectAggregate, error)
 	RefreshProject(ctx context.Context, input RefreshProjectInput) (ProjectAggregate, error)
+	UpdateLifecycleConfig(ctx context.Context, input UpdateLifecycleConfigInput) (ProjectAggregate, error)
 	UnregisterProject(ctx context.Context, input UnregisterProjectInput) error
 }

@@ -29,6 +29,12 @@ type FileKind string
 // FileRole identifies the stable project file role contract.
 type FileRole string
 
+// LifecycleStrategyKind identifies the stable project lifecycle execution strategy contract.
+type LifecycleStrategyKind string
+
+// LifecycleReviewStatus identifies the stable lifecycle configuration review-state contract.
+type LifecycleReviewStatus string
+
 const (
 	// SourceKindImported marks an externally created Compose project imported into Graft.
 	SourceKindImported SourceKind = "imported"
@@ -90,6 +96,14 @@ const (
 	FileRoleOverride FileRole = "override"
 	// FileRoleEnv marks an environment file consumed during parsing.
 	FileRoleEnv FileRole = "env"
+
+	// LifecycleStrategyKindStandard identifies the project-owned standard compose lifecycle strategy.
+	LifecycleStrategyKindStandard LifecycleStrategyKind = "standard"
+
+	// LifecycleReviewStatusReviewRequired identifies imported or changed lifecycle configs that still need operator confirmation.
+	LifecycleReviewStatusReviewRequired LifecycleReviewStatus = "review_required"
+	// LifecycleReviewStatusConfirmed identifies lifecycle configs that can execute compose actions.
+	LifecycleReviewStatusConfirmed LifecycleReviewStatus = "confirmed"
 )
 
 // String returns the wire-format value.
@@ -118,3 +132,9 @@ func (v FileKind) String() string { return string(v) }
 
 // String returns the wire-format value.
 func (v FileRole) String() string { return string(v) }
+
+// String returns the wire-format value.
+func (v LifecycleStrategyKind) String() string { return string(v) }
+
+// String returns the wire-format value.
+func (v LifecycleReviewStatus) String() string { return string(v) }

@@ -25,22 +25,20 @@ const (
 
 var (
 	projectAuditActions = map[generated.ProjectActionResponseAction]projectcontract.AuditAction{
-		generated.ProjectActionResponseActionProjectActionUp:           projectcontract.ProjectAuditActionUp,
-		generated.ProjectActionResponseActionProjectActionStop:         projectcontract.ProjectAuditActionStop,
-		generated.ProjectActionResponseActionProjectActionRestart:      projectcontract.ProjectAuditActionRestart,
-		generated.ProjectActionResponseActionProjectActionRedeploy:     projectcontract.ProjectAuditActionRedeploy,
-		generated.ProjectActionResponseActionProjectActionUpdateDeploy: projectcontract.ProjectAuditActionUpdateDeploy,
-		generated.ProjectActionResponseActionProjectActionUnregister:   projectcontract.ProjectAuditActionUnregister,
-		generated.ProjectActionResponseActionProjectActionDestroy:      projectcontract.ProjectAuditActionDestroy,
+		generated.ProjectActionResponseActionProjectActionUp:         projectcontract.ProjectAuditActionUp,
+		generated.ProjectActionResponseActionProjectActionStop:       projectcontract.ProjectAuditActionStop,
+		generated.ProjectActionResponseActionProjectActionRestart:    projectcontract.ProjectAuditActionRestart,
+		generated.ProjectActionResponseActionProjectActionRedeploy:   projectcontract.ProjectAuditActionRedeploy,
+		generated.ProjectActionResponseActionProjectActionUnregister: projectcontract.ProjectAuditActionUnregister,
+		generated.ProjectActionResponseActionProjectActionDestroy:    projectcontract.ProjectAuditActionDestroy,
 	}
 	projectBatchAuditActions = map[generated.ProjectBatchActionRequestAction]projectcontract.AuditAction{
-		generated.ProjectBatchActionRequestActionStart:        projectcontract.ProjectAuditActionBatchStart,
-		generated.ProjectBatchActionRequestActionStop:         projectcontract.ProjectAuditActionBatchStop,
-		generated.ProjectBatchActionRequestActionRestart:      projectcontract.ProjectAuditActionBatchRestart,
-		generated.ProjectBatchActionRequestActionRedeploy:     projectcontract.ProjectAuditActionBatchRedeploy,
-		generated.ProjectBatchActionRequestActionUpdateDeploy: projectcontract.ProjectAuditActionBatchUpdateDeploy,
-		generated.ProjectBatchActionRequestActionUnregister:   projectcontract.ProjectAuditActionBatchUnregister,
-		generated.ProjectBatchActionRequestActionDestroy:      projectcontract.ProjectAuditActionBatchDestroy,
+		generated.ProjectBatchActionRequestActionStart:      projectcontract.ProjectAuditActionBatchStart,
+		generated.ProjectBatchActionRequestActionStop:       projectcontract.ProjectAuditActionBatchStop,
+		generated.ProjectBatchActionRequestActionRestart:    projectcontract.ProjectAuditActionBatchRestart,
+		generated.ProjectBatchActionRequestActionRedeploy:   projectcontract.ProjectAuditActionBatchRedeploy,
+		generated.ProjectBatchActionRequestActionUnregister: projectcontract.ProjectAuditActionBatchUnregister,
+		generated.ProjectBatchActionRequestActionDestroy:    projectcontract.ProjectAuditActionBatchDestroy,
 	}
 )
 

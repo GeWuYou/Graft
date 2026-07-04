@@ -33,6 +33,22 @@ type boundProjectConfigurationDraft[T any] struct {
 	request     T
 }
 
+func bindProjectRequest[T any](ginCtx *gin.Context, ctx *module.Context) (boundProjectConfigurationDraft[T], bool) {
+	projectID, generatedID, ok := bindProjectID(ginCtx, ctx)
+	if !ok {
+		return boundProjectConfigurationDraft[T]{}, false
+	}
+	var request T
+	if !bindJSON(ginCtx, ctx, &request) {
+		return boundProjectConfigurationDraft[T]{}, false
+	}
+	return boundProjectConfigurationDraft[T]{
+		projectID:   projectID,
+		generatedID: generatedID,
+		request:     request,
+	}, true
+}
+
 // registerRoutes 为项目模块注册路由并挂载权限校验与请求追踪中间件。
 // 当路由器不可用时直接返回；当服务缺失时返回错误。
 // 当上下文或路由器为空时直接返回；当服务或权限依赖无法解析时返回错误。
@@ -82,7 +98,7 @@ func registerRoutes(ctx *module.Context, moduleName string, service *Service) er
 	group.POST(projectcontract.ProjectStopRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectLifecyclePermission.String(), publisher), routes.handleStop)
 	group.POST(projectcontract.ProjectRestartRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectLifecyclePermission.String(), publisher), routes.handleRestart)
 	group.POST(projectcontract.ProjectRedeployRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectLifecyclePermission.String(), publisher), routes.handleRedeploy)
-	group.POST(projectcontract.ProjectUpdateDeployRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectLifecyclePermission.String(), publisher), routes.handleUpdateDeploy)
+	group.PUT(projectcontract.ProjectLifecycleConfigurationRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectLifecyclePermission.String(), publisher), routes.handleLifecycleConfiguration)
 	group.POST(projectcontract.ProjectBatchActionsRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, "", publisher), routes.handleBatchActions)
 	group.POST(projectcontract.ProjectUnregisterRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectDestroyPermission.String(), publisher), routes.handleUnregister)
 	group.POST(projectcontract.ProjectDestroyRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectDestroyPermission.String(), publisher), routes.handleDestroy)
@@ -398,16 +414,17 @@ func (r routeRuntime) handleRefresh(ginCtx *gin.Context) {
 }
 
 func (r routeRuntime) handleDeploy(ginCtx *gin.Context) {
-	projectID, generatedID, ok := bindProjectID(ginCtx, r.ctx)
+	bound, ok := bindProjectRequest[generated.ProjectDeployRequest](ginCtx, r.ctx)
 	if !ok {
 		return
 	}
-	var request generated.ProjectDeployRequest
-	if !bindJSON(ginCtx, r.ctx, &request) {
-		return
-	}
-	projectGeneratedHandler{}.PostProjectDeploy(generatedID, bindPostProjectDeployParams(ginCtx), request)
-	result, err := r.service.DeployConfiguration(ginCtx.Request.Context(), projectID, toDeployRequest(request), currentUserIDPointer(ginCtx))
+	projectGeneratedHandler{}.PostProjectDeploy(bound.generatedID, bindPostProjectDeployParams(ginCtx), bound.request)
+	result, err := r.service.DeployConfiguration(
+		ginCtx.Request.Context(),
+		bound.projectID,
+		toDeployRequest(bound.request),
+		currentUserIDPointer(ginCtx),
+	)
 	if err != nil {
 		r.writeRouteError(ginCtx, err)
 		return
@@ -471,22 +488,27 @@ func (r routeRuntime) handleRedeploy(ginCtx *gin.Context) {
 	httpx.WriteSuccess(ginCtx, http.StatusOK, toActionResponse(result))
 }
 
-func (r routeRuntime) handleUpdateDeploy(ginCtx *gin.Context) {
-	projectID, generatedID, ok := bindProjectID(ginCtx, r.ctx)
+func (r routeRuntime) handleLifecycleConfiguration(ginCtx *gin.Context) {
+	bound, ok := bindProjectRequest[generated.ProjectLifecycleConfigurationRequest](ginCtx, r.ctx)
 	if !ok {
 		return
 	}
-	var request generated.ProjectUpdateDeployRequest
-	if !bindJSON(ginCtx, r.ctx, &request) {
-		return
-	}
-	projectGeneratedHandler{}.PostProjectUpdateDeploy(generatedID, bindPostProjectUpdateDeployParams(ginCtx), request)
-	result, err := r.service.UpdateDeploy(ginCtx.Request.Context(), projectID, currentUserIDPointer(ginCtx), request.ImagePrune != nil && *request.ImagePrune)
+	projectGeneratedHandler{}.PutProjectLifecycleConfiguration(
+		bound.generatedID,
+		bindPutProjectLifecycleConfigurationParams(ginCtx),
+		bound.request,
+	)
+	result, err := r.service.UpdateLifecycleConfiguration(
+		ginCtx.Request.Context(),
+		bound.projectID,
+		toLifecycleConfigurationRequest(bound.request),
+		currentUserIDPointer(ginCtx),
+	)
 	if err != nil {
-		r.writeRouteErrorWithAction(ginCtx, err, result)
+		r.writeRouteError(ginCtx, err)
 		return
 	}
-	httpx.WriteSuccess(ginCtx, http.StatusOK, toActionResponse(result))
+	httpx.WriteSuccess(ginCtx, http.StatusOK, toProjectLifecycleConfigurationResponse(result))
 }
 
 func (r routeRuntime) handleBatchActions(ginCtx *gin.Context) {
@@ -562,8 +584,7 @@ func batchActionPermission(action generated.ProjectBatchActionRequestAction) (st
 	case generated.ProjectBatchActionRequestActionStart,
 		generated.ProjectBatchActionRequestActionStop,
 		generated.ProjectBatchActionRequestActionRestart,
-		generated.ProjectBatchActionRequestActionRedeploy,
-		generated.ProjectBatchActionRequestActionUpdateDeploy:
+		generated.ProjectBatchActionRequestActionRedeploy:
 		return projectcontract.ProjectLifecyclePermission.String(), true
 	case generated.ProjectBatchActionRequestActionUnregister,
 		generated.ProjectBatchActionRequestActionDestroy:
@@ -702,7 +723,7 @@ func (projectGeneratedHandler) PostProjectUp(int64, generated.PostProjectUpParam
 func (projectGeneratedHandler) PostProjectStop(int64, generated.PostProjectStopParams)         {}
 func (projectGeneratedHandler) PostProjectRestart(int64, generated.PostProjectRestartParams)   {}
 func (projectGeneratedHandler) PostProjectRedeploy(int64, generated.PostProjectRedeployParams) {}
-func (projectGeneratedHandler) PostProjectUpdateDeploy(int64, generated.PostProjectUpdateDeployParams, generated.ProjectUpdateDeployRequest) {
+func (projectGeneratedHandler) PutProjectLifecycleConfiguration(int64, generated.PutProjectLifecycleConfigurationParams, generated.ProjectLifecycleConfigurationRequest) {
 }
 func (projectGeneratedHandler) PostProjectBatchActions(generated.PostProjectBatchActionsParams, generated.ProjectBatchActionRequest) {
 }
@@ -1056,9 +1077,9 @@ func bindPostProjectRedeployParams(ginCtx *gin.Context) generated.PostProjectRed
 	return generated.PostProjectRedeployParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
-func bindPostProjectUpdateDeployParams(ginCtx *gin.Context) generated.PostProjectUpdateDeployParams {
+func bindPutProjectLifecycleConfigurationParams(ginCtx *gin.Context) generated.PutProjectLifecycleConfigurationParams {
 	locale, requestID := commonHeaders(ginCtx)
-	return generated.PostProjectUpdateDeployParams{XGraftLocale: locale, XRequestId: requestID}
+	return generated.PutProjectLifecycleConfigurationParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
 func bindPostProjectBatchActionsParams(ginCtx *gin.Context) generated.PostProjectBatchActionsParams {

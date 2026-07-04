@@ -26,6 +26,7 @@ var (
 	errProjectConflict             = errors.New("project conflict")
 	errProjectImportValidation     = errors.New("project import validation failed")
 	errProjectUnsupportedLifecycle = errors.New("project lifecycle is unsupported")
+	errProjectLifecycleReview      = errors.New("project lifecycle configuration review required")
 	errProjectFileNotFound         = errors.New("project file not found")
 	errProjectDestroyBlocked       = errors.New("project destroy blocked by ownership guard")
 	errProjectManagedFlow          = errors.New("project managed flow is unsupported")
@@ -49,6 +50,7 @@ const (
 	managedCreateDirMode     = 0o750
 	managedCreateFileMode    = 0o600
 	projectComposeTimeout    = 5 * time.Minute
+	lifecycleRedeployStepCap = 4
 
 	importRuntimeCandidateStatusReady           = "ready"
 	importRuntimeCandidateStatusAlreadyImported = "already_imported"
@@ -187,6 +189,45 @@ type ConfigurationFileResult struct {
 type ConfigurationDraft struct {
 	ComposeFileContent string
 	EnvFileContent     *string
+}
+
+// LifecycleStrategyKind identifies the internal lifecycle strategy owner.
+type LifecycleStrategyKind string
+
+const (
+	// LifecycleStrategyKindStandard runs bounded docker compose commands from project authority.
+	LifecycleStrategyKindStandard LifecycleStrategyKind = "standard"
+)
+
+// LifecycleReviewStatus identifies whether a lifecycle config can execute.
+type LifecycleReviewStatus string
+
+const (
+	// LifecycleReviewStatusReviewRequired blocks lifecycle execution until the user reviews imported defaults.
+	LifecycleReviewStatusReviewRequired LifecycleReviewStatus = "review_required"
+	// LifecycleReviewStatusConfirmed allows lifecycle execution with the persisted configuration.
+	LifecycleReviewStatusConfirmed      LifecycleReviewStatus = "confirmed"
+)
+
+// LifecycleStandardConfig stores editable standard compose execution options.
+type LifecycleStandardConfig struct {
+	Profiles                 []string
+	DownBeforeRedeploy       bool
+	PullBeforeRedeploy       bool
+	BuildBeforeUp            bool
+	ForceRecreate            bool
+	WaitAfterUp              bool
+	PruneImagesAfterRedeploy bool
+}
+
+// LifecycleConfiguration stores the project-owned lifecycle execution configuration.
+type LifecycleConfiguration struct {
+	StrategyKind  LifecycleStrategyKind
+	ReviewStatus  LifecycleReviewStatus
+	WorkingDir    string
+	ComposeFiles  []string
+	ProjectName   string
+	Standard      LifecycleStandardConfig
 }
 
 // ConfigurationDiffFile describes one file-level diff projection.

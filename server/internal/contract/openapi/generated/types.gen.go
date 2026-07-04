@@ -2129,16 +2129,15 @@ func (e NotificationTargetType) Valid() bool {
 
 // Defines values for ProjectActionResponseAction.
 const (
-	ProjectActionResponseActionProjectActionCreate       ProjectActionResponseAction = "create"
-	ProjectActionResponseActionProjectActionDeploy       ProjectActionResponseAction = "deploy"
-	ProjectActionResponseActionProjectActionDestroy      ProjectActionResponseAction = "destroy"
-	ProjectActionResponseActionProjectActionRedeploy     ProjectActionResponseAction = "redeploy"
-	ProjectActionResponseActionProjectActionRefresh      ProjectActionResponseAction = "refresh"
-	ProjectActionResponseActionProjectActionRestart      ProjectActionResponseAction = "restart"
-	ProjectActionResponseActionProjectActionStop         ProjectActionResponseAction = "stop"
-	ProjectActionResponseActionProjectActionUnregister   ProjectActionResponseAction = "unregister"
-	ProjectActionResponseActionProjectActionUp           ProjectActionResponseAction = "up"
-	ProjectActionResponseActionProjectActionUpdateDeploy ProjectActionResponseAction = "update_deploy"
+	ProjectActionResponseActionProjectActionCreate     ProjectActionResponseAction = "create"
+	ProjectActionResponseActionProjectActionDeploy     ProjectActionResponseAction = "deploy"
+	ProjectActionResponseActionProjectActionDestroy    ProjectActionResponseAction = "destroy"
+	ProjectActionResponseActionProjectActionRedeploy   ProjectActionResponseAction = "redeploy"
+	ProjectActionResponseActionProjectActionRefresh    ProjectActionResponseAction = "refresh"
+	ProjectActionResponseActionProjectActionRestart    ProjectActionResponseAction = "restart"
+	ProjectActionResponseActionProjectActionStop       ProjectActionResponseAction = "stop"
+	ProjectActionResponseActionProjectActionUnregister ProjectActionResponseAction = "unregister"
+	ProjectActionResponseActionProjectActionUp         ProjectActionResponseAction = "up"
 )
 
 // Valid indicates whether the value is a known member of the ProjectActionResponseAction enum.
@@ -2161,8 +2160,6 @@ func (e ProjectActionResponseAction) Valid() bool {
 	case ProjectActionResponseActionProjectActionUnregister:
 		return true
 	case ProjectActionResponseActionProjectActionUp:
-		return true
-	case ProjectActionResponseActionProjectActionUpdateDeploy:
 		return true
 	default:
 		return false
@@ -2210,16 +2207,15 @@ func (e ProjectActivityAuthority) Valid() bool {
 
 // Defines values for ProjectBatchActionItemAction.
 const (
-	ProjectBatchActionItemActionProjectActionCreate       ProjectBatchActionItemAction = "create"
-	ProjectBatchActionItemActionProjectActionDeploy       ProjectBatchActionItemAction = "deploy"
-	ProjectBatchActionItemActionProjectActionDestroy      ProjectBatchActionItemAction = "destroy"
-	ProjectBatchActionItemActionProjectActionRedeploy     ProjectBatchActionItemAction = "redeploy"
-	ProjectBatchActionItemActionProjectActionRefresh      ProjectBatchActionItemAction = "refresh"
-	ProjectBatchActionItemActionProjectActionRestart      ProjectBatchActionItemAction = "restart"
-	ProjectBatchActionItemActionProjectActionStop         ProjectBatchActionItemAction = "stop"
-	ProjectBatchActionItemActionProjectActionUnregister   ProjectBatchActionItemAction = "unregister"
-	ProjectBatchActionItemActionProjectActionUp           ProjectBatchActionItemAction = "up"
-	ProjectBatchActionItemActionProjectActionUpdateDeploy ProjectBatchActionItemAction = "update_deploy"
+	ProjectBatchActionItemActionProjectActionCreate     ProjectBatchActionItemAction = "create"
+	ProjectBatchActionItemActionProjectActionDeploy     ProjectBatchActionItemAction = "deploy"
+	ProjectBatchActionItemActionProjectActionDestroy    ProjectBatchActionItemAction = "destroy"
+	ProjectBatchActionItemActionProjectActionRedeploy   ProjectBatchActionItemAction = "redeploy"
+	ProjectBatchActionItemActionProjectActionRefresh    ProjectBatchActionItemAction = "refresh"
+	ProjectBatchActionItemActionProjectActionRestart    ProjectBatchActionItemAction = "restart"
+	ProjectBatchActionItemActionProjectActionStop       ProjectBatchActionItemAction = "stop"
+	ProjectBatchActionItemActionProjectActionUnregister ProjectBatchActionItemAction = "unregister"
+	ProjectBatchActionItemActionProjectActionUp         ProjectBatchActionItemAction = "up"
 )
 
 // Valid indicates whether the value is a known member of the ProjectBatchActionItemAction enum.
@@ -2242,8 +2238,6 @@ func (e ProjectBatchActionItemAction) Valid() bool {
 	case ProjectBatchActionItemActionProjectActionUnregister:
 		return true
 	case ProjectBatchActionItemActionProjectActionUp:
-		return true
-	case ProjectBatchActionItemActionProjectActionUpdateDeploy:
 		return true
 	default:
 		return false
@@ -2273,13 +2267,12 @@ func (e ProjectBatchActionItemResult) Valid() bool {
 
 // Defines values for ProjectBatchActionRequestAction.
 const (
-	ProjectBatchActionRequestActionDestroy      ProjectBatchActionRequestAction = "destroy"
-	ProjectBatchActionRequestActionRedeploy     ProjectBatchActionRequestAction = "redeploy"
-	ProjectBatchActionRequestActionRestart      ProjectBatchActionRequestAction = "restart"
-	ProjectBatchActionRequestActionStart        ProjectBatchActionRequestAction = "start"
-	ProjectBatchActionRequestActionStop         ProjectBatchActionRequestAction = "stop"
-	ProjectBatchActionRequestActionUnregister   ProjectBatchActionRequestAction = "unregister"
-	ProjectBatchActionRequestActionUpdateDeploy ProjectBatchActionRequestAction = "update_deploy"
+	ProjectBatchActionRequestActionDestroy    ProjectBatchActionRequestAction = "destroy"
+	ProjectBatchActionRequestActionRedeploy   ProjectBatchActionRequestAction = "redeploy"
+	ProjectBatchActionRequestActionRestart    ProjectBatchActionRequestAction = "restart"
+	ProjectBatchActionRequestActionStart      ProjectBatchActionRequestAction = "start"
+	ProjectBatchActionRequestActionStop       ProjectBatchActionRequestAction = "stop"
+	ProjectBatchActionRequestActionUnregister ProjectBatchActionRequestAction = "unregister"
 )
 
 // Valid indicates whether the value is a known member of the ProjectBatchActionRequestAction enum.
@@ -2296,8 +2289,6 @@ func (e ProjectBatchActionRequestAction) Valid() bool {
 	case ProjectBatchActionRequestActionStop:
 		return true
 	case ProjectBatchActionRequestActionUnregister:
-		return true
-	case ProjectBatchActionRequestActionUpdateDeploy:
 		return true
 	default:
 		return false
@@ -2646,6 +2637,93 @@ func (e ProjectImportRuntimeWorkingDirectorySource) Valid() bool {
 	case ProjectImportRuntimeWorkingDirectorySourceDerivedFromConfigFiles:
 		return true
 	case ProjectImportRuntimeWorkingDirectorySourceRuntimeLabel:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProjectLifecycleCommandStepKind.
+const (
+	ProjectLifecycleCommandStepKindDown    ProjectLifecycleCommandStepKind = "down"
+	ProjectLifecycleCommandStepKindPrune   ProjectLifecycleCommandStepKind = "prune"
+	ProjectLifecycleCommandStepKindPull    ProjectLifecycleCommandStepKind = "pull"
+	ProjectLifecycleCommandStepKindRestart ProjectLifecycleCommandStepKind = "restart"
+	ProjectLifecycleCommandStepKindStop    ProjectLifecycleCommandStepKind = "stop"
+	ProjectLifecycleCommandStepKindUp      ProjectLifecycleCommandStepKind = "up"
+)
+
+// Valid indicates whether the value is a known member of the ProjectLifecycleCommandStepKind enum.
+func (e ProjectLifecycleCommandStepKind) Valid() bool {
+	switch e {
+	case ProjectLifecycleCommandStepKindDown:
+		return true
+	case ProjectLifecycleCommandStepKindPrune:
+		return true
+	case ProjectLifecycleCommandStepKindPull:
+		return true
+	case ProjectLifecycleCommandStepKindRestart:
+		return true
+	case ProjectLifecycleCommandStepKindStop:
+		return true
+	case ProjectLifecycleCommandStepKindUp:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProjectLifecycleGeneratedCommandAction.
+const (
+	ProjectLifecycleGeneratedCommandActionRedeploy ProjectLifecycleGeneratedCommandAction = "redeploy"
+	ProjectLifecycleGeneratedCommandActionRestart  ProjectLifecycleGeneratedCommandAction = "restart"
+	ProjectLifecycleGeneratedCommandActionStop     ProjectLifecycleGeneratedCommandAction = "stop"
+	ProjectLifecycleGeneratedCommandActionUp       ProjectLifecycleGeneratedCommandAction = "up"
+)
+
+// Valid indicates whether the value is a known member of the ProjectLifecycleGeneratedCommandAction enum.
+func (e ProjectLifecycleGeneratedCommandAction) Valid() bool {
+	switch e {
+	case ProjectLifecycleGeneratedCommandActionRedeploy:
+		return true
+	case ProjectLifecycleGeneratedCommandActionRestart:
+		return true
+	case ProjectLifecycleGeneratedCommandActionStop:
+		return true
+	case ProjectLifecycleGeneratedCommandActionUp:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProjectLifecycleReviewStatus.
+const (
+	ProjectLifecycleReviewStatusConfirmed      ProjectLifecycleReviewStatus = "confirmed"
+	ProjectLifecycleReviewStatusReviewRequired ProjectLifecycleReviewStatus = "review_required"
+)
+
+// Valid indicates whether the value is a known member of the ProjectLifecycleReviewStatus enum.
+func (e ProjectLifecycleReviewStatus) Valid() bool {
+	switch e {
+	case ProjectLifecycleReviewStatusConfirmed:
+		return true
+	case ProjectLifecycleReviewStatusReviewRequired:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProjectLifecycleStrategyKind.
+const (
+	ProjectLifecycleStrategyKindStandard ProjectLifecycleStrategyKind = "standard"
+)
+
+// Valid indicates whether the value is a known member of the ProjectLifecycleStrategyKind enum.
+func (e ProjectLifecycleStrategyKind) Valid() bool {
+	switch e {
+	case ProjectLifecycleStrategyKindStandard:
 		return true
 	default:
 		return false
@@ -6644,6 +6722,26 @@ type EnvelopedProjectImportValidateResponse struct {
 	TraceId string `json:"traceId"`
 }
 
+// EnvelopedProjectLifecycleConfigurationResponse defines model for enveloped-project-lifecycle-configuration-response.
+type EnvelopedProjectLifecycleConfigurationResponse struct {
+	// Code Existing canonical response code.
+	Code string                                `json:"code"`
+	Data ProjectLifecycleConfigurationResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
 // EnvelopedProjectListResponse defines model for enveloped-project-list-response.
 type EnvelopedProjectListResponse struct {
 	// Code Existing canonical response code.
@@ -7717,9 +7815,13 @@ type ProjectDetailResponse struct {
 	LastRefreshErrorCode *string `json:"last_refresh_error_code,omitempty"`
 
 	// LastRefreshErrorMessage Fallback error message from the latest failed refresh.
-	LastRefreshErrorMessage *string              `json:"last_refresh_error_message,omitempty"`
-	LastRefreshStatus       ProjectRefreshStatus `json:"last_refresh_status"`
-	OwnershipMode           ProjectOwnershipMode `json:"ownership_mode"`
+	LastRefreshErrorMessage *string                       `json:"last_refresh_error_message,omitempty"`
+	LastRefreshStatus       ProjectRefreshStatus          `json:"last_refresh_status"`
+	LifecycleConfiguration  ProjectLifecycleConfiguration `json:"lifecycle_configuration"`
+
+	// LifecycleReviewStatus Lifecycle configuration review state. Imported projects default to `review_required` until an operator confirms or updates the saved lifecycle configuration.
+	LifecycleReviewStatus ProjectLifecycleReviewStatus `json:"lifecycle_review_status"`
+	OwnershipMode         ProjectOwnershipMode         `json:"ownership_mode"`
 
 	// RuntimeStatus Aggregated project status for overview consumption only. It must not become a replacement for container runtime detail authority.
 	RuntimeStatus    *ProjectRuntimeStatus  `json:"runtime_status,omitempty"`
@@ -8046,6 +8148,87 @@ type ProjectImportValidateResponse struct {
 	WorkingDirectory string   `json:"working_directory"`
 }
 
+// ProjectLifecycleCommandStep defines model for project-lifecycle-command-step.
+type ProjectLifecycleCommandStep struct {
+	Argv []string `json:"argv"`
+
+	// DisplayCommand Human-readable command preview derived from the canonical lifecycle configuration.
+	DisplayCommand string                          `json:"display_command"`
+	Kind           ProjectLifecycleCommandStepKind `json:"kind"`
+}
+
+// ProjectLifecycleCommandStepKind defines model for ProjectLifecycleCommandStep.Kind.
+type ProjectLifecycleCommandStepKind string
+
+// ProjectLifecycleConfiguration defines model for project-lifecycle-configuration.
+type ProjectLifecycleConfiguration struct {
+	BuildBeforeUp      bool `json:"build_before_up"`
+	DownBeforeRedeploy bool `json:"down_before_redeploy"`
+	ForceRecreate      bool `json:"force_recreate"`
+	GeneratedCommands  struct {
+		Redeploy ProjectLifecycleGeneratedCommand `json:"redeploy"`
+		Restart  ProjectLifecycleGeneratedCommand `json:"restart"`
+		Stop     ProjectLifecycleGeneratedCommand `json:"stop"`
+		Up       ProjectLifecycleGeneratedCommand `json:"up"`
+	} `json:"generated_commands"`
+	Profiles                 []string `json:"profiles"`
+	PruneImagesAfterRedeploy bool     `json:"prune_images_after_redeploy"`
+	PullBeforeRedeploy       bool     `json:"pull_before_redeploy"`
+
+	// StrategyKind Canonical lifecycle execution strategy kind owned by the project module.
+	StrategyKind ProjectLifecycleStrategyKind `json:"strategy_kind"`
+	WaitAfterUp  bool                         `json:"wait_after_up"`
+}
+
+// ProjectLifecycleConfigurationRequest defines model for project-lifecycle-configuration-request.
+type ProjectLifecycleConfigurationRequest struct {
+	BuildBeforeUp            bool     `json:"build_before_up"`
+	DownBeforeRedeploy       bool     `json:"down_before_redeploy"`
+	ForceRecreate            bool     `json:"force_recreate"`
+	Profiles                 []string `json:"profiles"`
+	PruneImagesAfterRedeploy bool     `json:"prune_images_after_redeploy"`
+	PullBeforeRedeploy       bool     `json:"pull_before_redeploy"`
+
+	// StrategyKind Canonical lifecycle execution strategy kind owned by the project module.
+	StrategyKind ProjectLifecycleStrategyKind `json:"strategy_kind"`
+	WaitAfterUp  bool                         `json:"wait_after_up"`
+}
+
+// ProjectLifecycleConfigurationResponse defines model for project-lifecycle-configuration-response.
+type ProjectLifecycleConfigurationResponse struct {
+	// CanonicalProjectName Read-only project runtime identity used for explicit `docker compose -p`.
+	CanonicalProjectName string `json:"canonical_project_name"`
+
+	// ComposeFiles Ordered tracked Compose files reused by lifecycle command generation.
+	ComposeFiles           []ProjectFileItem             `json:"compose_files"`
+	LifecycleConfiguration ProjectLifecycleConfiguration `json:"lifecycle_configuration"`
+
+	// LifecycleReviewStatus Lifecycle configuration review state. Imported projects default to `review_required` until an operator confirms or updates the saved lifecycle configuration.
+	LifecycleReviewStatus ProjectLifecycleReviewStatus `json:"lifecycle_review_status"`
+	ProjectId             int64                        `json:"project_id"`
+
+	// WorkingDirectory Read-only working directory authority reused by lifecycle command generation.
+	WorkingDirectory string `json:"working_directory"`
+}
+
+// ProjectLifecycleGeneratedCommand defines model for project-lifecycle-generated-command.
+type ProjectLifecycleGeneratedCommand struct {
+	Action ProjectLifecycleGeneratedCommandAction `json:"action"`
+
+	// DisplayCommand Combined preview for the selected lifecycle action.
+	DisplayCommand string                        `json:"display_command"`
+	Steps          []ProjectLifecycleCommandStep `json:"steps"`
+}
+
+// ProjectLifecycleGeneratedCommandAction defines model for ProjectLifecycleGeneratedCommand.Action.
+type ProjectLifecycleGeneratedCommandAction string
+
+// ProjectLifecycleReviewStatus Lifecycle configuration review state. Imported projects default to `review_required` until an operator confirms or updates the saved lifecycle configuration.
+type ProjectLifecycleReviewStatus string
+
+// ProjectLifecycleStrategyKind Canonical lifecycle execution strategy kind owned by the project module.
+type ProjectLifecycleStrategyKind string
+
 // ProjectListItem defines model for project-list-item.
 type ProjectListItem struct {
 	ActivityAuthority          ProjectActivityAuthority   `json:"activity_authority"`
@@ -8058,7 +8241,10 @@ type ProjectListItem struct {
 	Id                         int64                      `json:"id"`
 	LastRefreshAt              *time.Time                 `json:"last_refresh_at,omitempty"`
 	LastRefreshStatus          ProjectRefreshStatus       `json:"last_refresh_status"`
-	OwnershipMode              ProjectOwnershipMode       `json:"ownership_mode"`
+
+	// LifecycleReviewStatus Lifecycle configuration review state. Imported projects default to `review_required` until an operator confirms or updates the saved lifecycle configuration.
+	LifecycleReviewStatus ProjectLifecycleReviewStatus `json:"lifecycle_review_status"`
+	OwnershipMode         ProjectOwnershipMode         `json:"ownership_mode"`
 
 	// RuntimeStatus Aggregated project status for overview consumption only. It must not become a replacement for container runtime detail authority.
 	RuntimeStatus    *ProjectRuntimeStatus  `json:"runtime_status,omitempty"`
@@ -8199,11 +8385,6 @@ type ProjectSourceMetadata struct {
 
 	// TemplateVersion Planned template version or release channel.
 	TemplateVersion *string `json:"template_version,omitempty"`
-}
-
-// ProjectUpdateDeployRequest defines model for project-update-deploy-request.
-type ProjectUpdateDeployRequest struct {
-	ImagePrune *bool `json:"image_prune,omitempty"`
 }
 
 // PublishAnnouncementRequest defines model for publish-announcement-request.
@@ -10152,6 +10333,16 @@ type PostProjectDestroyParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
+// PutProjectLifecycleConfigurationParams defines parameters for PutProjectLifecycleConfiguration.
+type PutProjectLifecycleConfigurationParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
 // PostProjectRedeployParams defines parameters for PostProjectRedeploy.
 type PostProjectRedeployParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -10214,16 +10405,6 @@ type PostProjectUnregisterParams struct {
 
 // PostProjectUpParams defines parameters for PostProjectUp.
 type PostProjectUpParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// PostProjectUpdateDeployParams defines parameters for PostProjectUpdateDeploy.
-type PostProjectUpdateDeployParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
@@ -10808,8 +10989,8 @@ type PostProjectDeployJSONRequestBody = ProjectDeployRequest
 // PostProjectDestroyJSONRequestBody defines body for PostProjectDestroy for application/json ContentType.
 type PostProjectDestroyJSONRequestBody = ProjectDestroyRequest
 
-// PostProjectUpdateDeployJSONRequestBody defines body for PostProjectUpdateDeploy for application/json ContentType.
-type PostProjectUpdateDeployJSONRequestBody = ProjectUpdateDeployRequest
+// PutProjectLifecycleConfigurationJSONRequestBody defines body for PutProjectLifecycleConfiguration for application/json ContentType.
+type PutProjectLifecycleConfigurationJSONRequestBody = ProjectLifecycleConfigurationRequest
 
 // PostRealtimeSubscriptionJSONRequestBody defines body for PostRealtimeSubscription for application/json ContentType.
 type PostRealtimeSubscriptionJSONRequestBody = RealtimeSubscriptionRequest

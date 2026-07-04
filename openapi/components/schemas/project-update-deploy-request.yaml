@@ -1,6 +1,0 @@
-type: object
-properties:
-  image_prune:
-    type: boolean
-    default: false
-additionalProperties: false

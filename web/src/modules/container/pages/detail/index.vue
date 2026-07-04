@@ -999,7 +999,7 @@
                       data-testid="detail-refresh"
                       theme="default"
                       variant="outline"
-                      :loading="detailRefreshing"
+                      :loading="detailRefreshButtonLoading"
                       @click="handleManualRefresh"
                     >
                       <template #icon>
@@ -1465,7 +1465,7 @@
 <script setup lang="ts">
 import type { TableProps } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
-import { computed, onActivated, onDeactivated, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, nextTick, onActivated, onDeactivated, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
@@ -1745,6 +1745,7 @@ const containerPermissionCodes = CONTAINER_PERMISSION_CODE;
 
 const detail = ref<ContainerDetailRecord | null>(null);
 const detailRefreshing = ref(false);
+const manualDetailRefreshPending = ref(false);
 const error = ref('');
 const logLineLimit = ref(DEFAULT_LOG_QUERY.tail);
 const activeTab = ref<DetailTab>(normalizeTab(route.query.tab));
@@ -1785,6 +1786,7 @@ let logsRealtimeBatcher = new ContainerLogRealtimeBatcher({
   },
 });
 const logsRouteSpinnerActive = computed(() => routeLoading.value && !logsHasVisibleContent.value);
+const detailRefreshButtonLoading = computed(() => detailRefreshing.value || manualDetailRefreshPending.value);
 const logsHasStarted = computed(
   () => logsHasSnapshot.value || logsBootstrapRequested.value || logsRecoveryLoadRequested.value || logsLoading.value,
 );
@@ -2669,9 +2671,19 @@ watch(logLineLimit, () => {
 });
 
 async function handleManualRefresh() {
-  await refreshContainerDetail();
-  if (!error.value) {
-    MessagePlugin.success(t('container.detail.refreshSuccess'));
+  if (manualDetailRefreshPending.value || detailRefreshing.value) {
+    return;
+  }
+
+  manualDetailRefreshPending.value = true;
+  await nextTick();
+  try {
+    await refreshContainerDetail();
+    if (!error.value) {
+      MessagePlugin.success(t('container.detail.refreshSuccess'));
+    }
+  } finally {
+    manualDetailRefreshPending.value = false;
   }
 }
 

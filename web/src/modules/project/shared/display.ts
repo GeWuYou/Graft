@@ -125,7 +125,7 @@ export function projectRuntimeStatusLabel(t: Translate, value?: ProjectRuntimeSt
   return t('project.list.status.runtimeUnknown');
 }
 
-export type ProjectLifecycleAction = 'up' | 'stop' | 'restart' | 'unregister';
+export type ProjectLifecycleAction = 'up' | 'stop' | 'restart' | 'redeploy' | 'unregister';
 
 type ProjectLifecycleActionVisibility = Record<ProjectLifecycleAction, boolean>;
 
@@ -149,6 +149,7 @@ export function projectLifecycleActionVisibility(
       up: false,
       stop: false,
       restart: false,
+      redeploy: false,
       unregister: true,
     };
   }
@@ -158,6 +159,7 @@ export function projectLifecycleActionVisibility(
       up: false,
       stop: true,
       restart: true,
+      redeploy: true,
       unregister: true,
     };
   }
@@ -167,6 +169,7 @@ export function projectLifecycleActionVisibility(
       up: true,
       stop: false,
       restart: true,
+      redeploy: true,
       unregister: true,
     };
   }
@@ -175,6 +178,7 @@ export function projectLifecycleActionVisibility(
     up: true,
     stop: true,
     restart: true,
+    redeploy: true,
     unregister: true,
   };
 }

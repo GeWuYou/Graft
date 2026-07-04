@@ -1,0 +1,50 @@
+type: object
+required:
+  - strategy_kind
+  - profiles
+  - down_before_redeploy
+  - pull_before_redeploy
+  - build_before_up
+  - force_recreate
+  - wait_after_up
+  - prune_images_after_redeploy
+  - generated_commands
+properties:
+  strategy_kind:
+    $ref: ./project-lifecycle-strategy-kind.yaml
+  profiles:
+    type: array
+    items:
+      type: string
+      minLength: 1
+    uniqueItems: true
+  down_before_redeploy:
+    type: boolean
+  pull_before_redeploy:
+    type: boolean
+  build_before_up:
+    type: boolean
+  force_recreate:
+    type: boolean
+  wait_after_up:
+    type: boolean
+  prune_images_after_redeploy:
+    type: boolean
+  generated_commands:
+    type: object
+    required:
+      - up
+      - stop
+      - restart
+      - redeploy
+    properties:
+      up:
+        $ref: ./project-lifecycle-generated-command.yaml
+      stop:
+        $ref: ./project-lifecycle-generated-command.yaml
+      restart:
+        $ref: ./project-lifecycle-generated-command.yaml
+      redeploy:
+        $ref: ./project-lifecycle-generated-command.yaml
+    additionalProperties: false
+additionalProperties: false

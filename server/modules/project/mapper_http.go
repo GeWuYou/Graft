@@ -391,6 +391,18 @@ func toDeployResponse(result DeployResult) generated.ProjectDeployResponse {
 	return response
 }
 
+func toLifecycleConfigurationRequest(request generated.ProjectLifecycleConfigurationRequest) LifecycleStandardConfig {
+	return LifecycleStandardConfig{
+		Profiles:                 append([]string(nil), request.Profiles...),
+		DownBeforeRedeploy:       request.DownBeforeRedeploy,
+		PullBeforeRedeploy:       request.PullBeforeRedeploy,
+		BuildBeforeUp:            request.BuildBeforeUp,
+		ForceRecreate:            request.ForceRecreate,
+		WaitAfterUp:              request.WaitAfterUp,
+		PruneImagesAfterRedeploy: request.PruneImagesAfterRedeploy,
+	}
+}
+
 // toActionResponse 将动作结果转换为项目动作响应，并在需要时包含消息键、消息和守卫结果。
 func toActionResponse(result ActionResult) generated.ProjectActionResponse {
 	response := generated.ProjectActionResponse{

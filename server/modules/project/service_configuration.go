@@ -167,7 +167,11 @@ func (s *Service) DeployConfiguration(
 	defer restoreManagedDraftOnFailure(aggregate.Project.WorkingDirectory, restoreItems, &err)
 
 	now := time.Now().UTC()
-	if _, err := s.runLifecycleAction(ctx, projectID, actorID, generated.ProjectActionResponseActionProjectActionDeploy, []string{"compose", "up", "-d"}); err != nil {
+	upArgs, err := lifecycleUpArgs(aggregate, lifecycleConfigurationFromAggregate(aggregate))
+	if err != nil {
+		return DeployResult{}, err
+	}
+	if _, err := s.executeLifecycleActionWithAggregate(ctx, aggregate, generated.ProjectActionResponseActionProjectActionDeploy, upArgs); err != nil {
 		return DeployResult{}, err
 	}
 	updated, err := repository.RefreshProject(ctx, buildRefreshProjectInput(projectID, prepared.ParseResult, now, actorID))
@@ -178,7 +182,7 @@ func (s *Service) DeployConfiguration(
 	guardResults := []GuardResult{
 		guardCode("managed_project"),
 		guardCode("draft_written"),
-		guardDetail("command", "docker compose up -d"),
+		guardDetail("command", strings.Join(upArgs, " ")),
 		guardCode("snapshot_refreshed"),
 	}
 	if len(prepared.Warnings) > 0 {

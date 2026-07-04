@@ -104,6 +104,7 @@
         "runtimeTransitioning": "🔵 Transitioning"
       },
       "statusTooltip": {
+        "lifecycleReviewRequired": "Lifecycle configuration is not confirmed yet. Open project details to complete the review.",
         "runtimeUnknown": "Current Page Unknown",
         "runtimeRunning": "Current Page Running",
         "runtimeDegraded": "Current Page Degraded",
@@ -649,6 +650,12 @@
       "boundary": "Boundary",
       "boundaryValue": "No Git Clone, Template Instantiation, Directory Scan, Remote Host Execution, Secret Persistence, or Backend Activity Aggregation Is Executed Here."
     },
+    "lifecycle": {
+      "reviewStatus": {
+        "confirmed": "Lifecycle Confirmed",
+        "reviewRequired": "Review Required"
+      }
+    },
     "detail": {
       "ownershipMode": {
         "managed-root-dedicated": "Managed Root Dedicated",
@@ -713,7 +720,7 @@
         "volumes": "Volumes",
         "configuration": "Configuration",
         "activity": "Activity",
-        "runtime": "Runtime"
+        "lifecycle": "Lifecycle"
       },
       "resources": {
         "refresh": "Refresh Resources",
@@ -814,24 +821,55 @@
         },
         "openContainer": "Open Container Detail"
       },
-      "runtime": {
-        "title": "Runtime",
-        "description": "Centralize project runtime status, member counts, and lifecycle actions in one workspace.",
-        "statusTitle": "Runtime Status",
-        "membersTitle": "Runtime Members",
-        "authorityTitle": "Runtime Boundary",
+      "lifecycle": {
+        "title": "Lifecycle",
+        "description": "Review and confirm the compose lifecycle configuration that Graft will reuse for local project actions.",
+        "statusTitle": "Lifecycle Status",
+        "configurationTitle": "Deployment Configuration",
+        "generatedCommandsTitle": "Generated Commands",
+        "generatedCommandsEmpty": "No command preview is available yet.",
+        "generatedCommands": {
+          "up": "Up",
+          "stop": "Stop",
+          "restart": "Restart",
+          "redeploy": "Redeploy"
+        },
         "runtimeStatus": "Project Status",
         "refreshStatus": "Refresh Status",
         "driftStatus": "Drift Status",
         "lastRefreshAt": "Last Project Refresh",
-        "runningMembers": "Running Members",
-        "totalMembers": "Total Members",
-        "serviceCount": "Service Count",
-        "hostScope": "Host Scope",
-        "activityAuthority": "Activity Authority",
+        "reviewStatus": "Review Status",
+        "mode": "Deployment Mode",
+        "modeStandard": "Standard Compose",
         "workingDirectory": "Working Directory",
-        "canonicalName": "Canonical Project Name",
-        "nameSource": "Name Source"
+        "projectName": "Project Name",
+        "composeFiles": "Compose Files",
+        "profiles": "Profiles",
+        "profilesPlaceholder": "App, Monitoring",
+        "additionalArgs": "Additional Args",
+        "additionalArgsPlaceholder": "--wait",
+        "downBeforeRedeploy": "Down Before Redeploy",
+        "pullBeforeRedeploy": "Pull Images Before Redeploy",
+        "buildBeforeUp": "Build Before Up",
+        "forceRecreate": "Force Recreate",
+        "waitAfterUp": "Wait After Up",
+        "pruneImagesAfterRedeploy": "Prune Images After Redeploy",
+        "reset": "Reset",
+        "save": "Save Configuration",
+        "saveSuccess": "Lifecycle configuration saved.",
+        "saveFailed": "Lifecycle configuration could not be saved.",
+        "reviewRequiredTitle": "Lifecycle Confirmation Required",
+        "reviewRequiredDescription": "Imported projects must confirm deployment settings before Compose lifecycle actions can run.",
+        "reviewRequiredActionBlocked": "Confirm lifecycle settings before running Compose lifecycle actions.",
+        "step": {
+          "up": "Up",
+          "stop": "Stop",
+          "restart": "Restart",
+          "pullImages": "Pull Images",
+          "bringDown": "Bring Down",
+          "bringUp": "Bring Up",
+          "pruneImages": "Prune Images"
+        }
       },
       "configuration": {
         "title": "Configuration",
@@ -913,6 +951,7 @@
         "up": "Compose Up",
         "stop": "Compose Stop",
         "restart": "Compose Restart",
+        "redeploy": "Redeploy",
         "unregister": "Unregister",
         "destroy": "Destroy",
         "copyPath": "Copy Path",

@@ -45,12 +45,48 @@ export type ProjectConfigurationValidateResponse = components['schemas']['projec
 export type ProjectDeployRequest = components['schemas']['project-deploy-request'];
 export type ProjectDeployResponse = components['schemas']['project-deploy-response'];
 export type ProjectActionResponse = components['schemas']['ProjectActionResponse'];
-export type ProjectUpdateDeployRequest = components['schemas']['project-update-deploy-request'];
 export type ProjectBatchActionRequest = components['schemas']['project-batch-action-request'];
 export type ProjectBatchActionItem = components['schemas']['project-batch-action-item'];
 export type ProjectBatchActionResponse = components['schemas']['project-batch-action-response'];
 export type ProjectDestroyRequest = components['schemas']['project-destroy-request'];
 export type ProjectRuntimeStatus = ProjectDetailResponse['runtime_status'];
+export type ProjectLifecycleReviewStatus = components['schemas']['project-lifecycle-review-status'];
+export type ProjectLifecycleStrategyKind = components['schemas']['project-lifecycle-strategy-kind'];
+export type ProjectLifecycleActionKey = 'up' | 'stop' | 'restart' | 'redeploy';
+export type ProjectLifecycleGeneratedCommand = components['schemas']['project-lifecycle-generated-command'];
+export type ProjectLifecycleConfigurationModel = components['schemas']['project-lifecycle-configuration'];
+export type ProjectLifecycleConfigurationUpdateRequest =
+  components['schemas']['project-lifecycle-configuration-request'];
+export type ProjectLifecycleConfigurationSavedResponse =
+  components['schemas']['project-lifecycle-configuration-response'];
+
+export type ProjectLifecycleCommandStep = {
+  title_key: string;
+  command: string;
+};
+
+export type ProjectLifecycleCommandPreview = Partial<Record<ProjectLifecycleActionKey, ProjectLifecycleCommandStep[]>>;
+
+export type ProjectLifecycleConfigurationDraft = {
+  strategy_kind: ProjectLifecycleStrategyKind;
+  working_directory: string;
+  compose_files: string[];
+  canonical_project_name: string;
+  profiles: string[];
+  down_before_redeploy: boolean;
+  pull_before_redeploy: boolean;
+  build_before_up: boolean;
+  force_recreate: boolean;
+  wait_after_up: boolean;
+  prune_images_after_redeploy: boolean;
+  additional_args: string;
+  review_status?: ProjectLifecycleReviewStatus | null;
+  generated_commands?: ProjectLifecycleCommandPreview | null;
+};
+
+export type ProjectListItemWithLifecycle = ProjectListItem;
+export type ProjectListResponseWithLifecycle = ProjectListResponse;
+export type ProjectDetailResponseWithLifecycle = ProjectDetailResponse;
 
 type ProjectListPath = (typeof PROJECT_API_PATH)['LIST'];
 type GetProjectListOperation = paths[ProjectListPath]['get'];
