@@ -15,6 +15,7 @@ import (
 	"graft/server/internal/eventbus"
 	"graft/server/internal/httpx"
 	"graft/server/internal/moduleapi"
+	projectcompose "graft/server/modules/project/compose"
 	projectcontract "graft/server/modules/project/contract"
 	projectstore "graft/server/modules/project/store"
 )
@@ -204,6 +205,11 @@ type stubResourceReader struct {
 	err     error
 }
 
+type stubLogReader struct {
+	snapshot moduleapi.ContainerProjectLogSnapshot
+	err      error
+}
+
 type stubSystemConfigResolver struct {
 	value string
 	err   error
@@ -242,6 +248,20 @@ func (s stubRuntimeReader) ListImportCandidateMembers(
 
 func (s stubResourceReader) ReadProjectResourceSummary(context.Context, string, string) (moduleapi.ContainerProjectResourceSummary, error) {
 	return s.summary, s.err
+}
+
+func (s stubLogReader) ReadProjectLogs(context.Context, string, string, moduleapi.ContainerProjectLogQuery) (moduleapi.ContainerProjectLogSnapshot, error) {
+	return s.snapshot, s.err
+}
+
+func (s stubLogReader) StreamProjectLogs(
+	context.Context,
+	string,
+	string,
+	moduleapi.ContainerProjectLogQuery,
+	func(moduleapi.ContainerProjectLogEntry) error,
+) error {
+	return s.err
 }
 
 func TestServicesMergesRuntimeMembers(t *testing.T) {
@@ -1600,6 +1620,39 @@ func TestProjectDetailUsesBackendPlannedActivityAuthorityForRemoteScope(t *testi
 	}
 	if detail.SourceMetadata == nil || detail.SourceMetadata.ActivityRollupScope == nil {
 		t.Fatalf("expected remote-host source metadata activity rollup scope")
+	}
+}
+
+func TestProjectOverviewHealthyServiceCountIgnoresAttentionHealth(t *testing.T) {
+	t.Parallel()
+
+	item, healthy := toProjectOverviewServiceItem(
+		projectcompose.ServiceProjection{ServiceName: "web"},
+		moduleapi.ContainerProjectServiceResourceSummary{
+			ServiceName:            "web",
+			ContainerCount:         2,
+			RunningCount:           1,
+			StartingContainerCount: 1,
+		},
+	)
+	if item.Status != generated.ProjectOverviewServiceItemStatus("running") {
+		t.Fatalf("expected running status, got %#v", item)
+	}
+	if item.Health != generated.ProjectOverviewServiceItemHealth("attention") {
+		t.Fatalf("expected attention health, got %#v", item)
+	}
+	if healthy {
+		t.Fatalf("expected attention health not to count as healthy")
+	}
+}
+
+func TestProjectLogsNilServiceReturnsRuntimeUnavailable(t *testing.T) {
+	t.Parallel()
+
+	var service *Service
+	_, err := service.Logs(context.Background(), 1, LogQuery{})
+	if !errors.Is(err, errProjectRuntimeUnavailable) {
+		t.Fatalf("expected runtime unavailable, got %v", err)
 	}
 }
 

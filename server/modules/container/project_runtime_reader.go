@@ -144,10 +144,7 @@ func (r containerProjectRuntimeReader) ReadProjectLogs(
 		Timestamps:           query.Timestamps,
 		Tail:                 query.Tail,
 	}
-	if strings.TrimSpace(query.Since) != "" {
-		since := strings.TrimSpace(query.Since)
-		snapshot.Since = &since
-	}
+	applyProjectLogSnapshotQuery(&snapshot, query)
 	if r.service == nil {
 		return snapshot, errRuntimeDisabled
 	}
@@ -159,14 +156,7 @@ func (r containerProjectRuntimeReader) ReadProjectLogs(
 		return snapshot, err
 	}
 	normalizedQuery := normalizeContainerProjectLogQuery(query)
-	snapshot.Stdout = normalizedQuery.Stdout
-	snapshot.Stderr = normalizedQuery.Stderr
-	snapshot.Timestamps = normalizedQuery.Timestamps
-	snapshot.Tail = normalizedQuery.Tail
-	if strings.TrimSpace(normalizedQuery.Since) != "" {
-		since := strings.TrimSpace(normalizedQuery.Since)
-		snapshot.Since = &since
-	}
+	applyProjectLogSnapshotQuery(&snapshot, normalizedQuery)
 	members, err := r.ListProjectMembers(ctx, hostScope, canonicalProjectName)
 	if err != nil {
 		return snapshot, err
@@ -204,9 +194,37 @@ func (r containerProjectRuntimeReader) ReadProjectLogs(
 		}
 		return left.Before(right)
 	})
+	entries, truncated = trimProjectLogEntries(entries, normalizedQuery.Tail, truncated)
 	snapshot.Truncated = truncated
 	snapshot.Entries = entries
 	return snapshot, nil
+}
+
+func applyProjectLogSnapshotQuery(snapshot *moduleapi.ContainerProjectLogSnapshot, query moduleapi.ContainerProjectLogQuery) {
+	if snapshot == nil {
+		return
+	}
+	snapshot.Stdout = query.Stdout
+	snapshot.Stderr = query.Stderr
+	snapshot.Timestamps = query.Timestamps
+	snapshot.Tail = query.Tail
+	if strings.TrimSpace(query.Since) == "" {
+		snapshot.Since = nil
+		return
+	}
+	since := strings.TrimSpace(query.Since)
+	snapshot.Since = &since
+}
+
+func trimProjectLogEntries(
+	entries []moduleapi.ContainerProjectLogEntry,
+	tail int,
+	truncated bool,
+) ([]moduleapi.ContainerProjectLogEntry, bool) {
+	if tail <= 0 || len(entries) <= tail {
+		return entries, truncated
+	}
+	return append([]moduleapi.ContainerProjectLogEntry(nil), entries[len(entries)-tail:]...), true
 }
 
 func (r containerProjectRuntimeReader) StreamProjectLogs(

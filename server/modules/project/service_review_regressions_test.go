@@ -4,9 +4,12 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"sync"
+	"sync/atomic"
 	"testing"
 
 	"graft/server/internal/moduleapi"
+	"graft/server/internal/realtime"
 	projectcompose "graft/server/modules/project/compose"
 	projectcontract "graft/server/modules/project/contract"
 	projectstore "graft/server/modules/project/store"
@@ -157,6 +160,88 @@ func TestListRuntimeImportCandidatesMarksAlreadyImportedBeyondFirstPage(t *testi
 	}
 	if result.Items[0].Status != importRuntimeCandidateStatusAlreadyImported {
 		t.Fatalf("expected paged conflict to mark candidate imported, got %#v", result.Items[0])
+	}
+}
+
+type countingTopicMonitorHub struct {
+	realtime.Hub
+	detailRegisters atomic.Int32
+	logRegisters    atomic.Int32
+}
+
+func newCountingTopicMonitorHub() *countingTopicMonitorHub {
+	return &countingTopicMonitorHub{Hub: realtime.NewHub()}
+}
+
+func (h *countingTopicMonitorHub) RegisterTopicObserver(
+	topic string,
+	onActive func(string),
+	onInactive func(string),
+) (func(), error) {
+	switch topic {
+	case "projects.detail.1":
+		h.detailRegisters.Add(1)
+	case "projects.logs.1":
+		h.logRegisters.Add(1)
+	}
+	monitor, ok := h.Hub.(realtime.TopicSubscriptionMonitor)
+	if !ok {
+		return nil, nil
+	}
+	return monitor.RegisterTopicObserver(topic, onActive, onInactive)
+}
+
+func TestRealtimeTopicStreamingInitializersRegisterObserverOnce(t *testing.T) {
+	t.Parallel()
+
+	repo := &stubProjectRepository{
+		aggregate: projectstore.ProjectAggregate{
+			Project: projectstore.Project{
+				ID:                   1,
+				CanonicalProjectName: "demo",
+				HostScope:            "local",
+				WorkingDirectory:     "/srv/demo",
+			},
+		},
+	}
+	hub := newCountingTopicMonitorHub()
+	service, err := NewService(
+		repo,
+		WithLogReader(stubLogReader{}),
+	)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	service.realtimeHub = hub
+
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	for range 16 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			if err := service.ensureProjectDetailTopicStreaming("projects.detail.1", 1); err != nil {
+				t.Errorf("ensure detail topic: %v", err)
+			}
+		}()
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			if err := service.ensureProjectLogsTopicStreaming("projects.logs.1", 1, LogQuery{Tail: 10, Stdout: true}); err != nil {
+				t.Errorf("ensure logs topic: %v", err)
+			}
+		}()
+	}
+	close(start)
+	wg.Wait()
+
+	if got := hub.detailRegisters.Load(); got != 1 {
+		t.Fatalf("expected one detail observer registration, got %d", got)
+	}
+	if got := hub.logRegisters.Load(); got != 1 {
+		t.Fatalf("expected one log observer registration, got %d", got)
 	}
 }
 

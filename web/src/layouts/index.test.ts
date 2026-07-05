@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, reactive } from 'vue';
 import type { RouteLocationNormalizedLoaded } from 'vue-router';
 
@@ -156,6 +156,10 @@ describe('App layout route effects', () => {
     document.body.innerHTML = '<div class="tdesign-starter-layout"></div>';
     const layout = document.querySelector('.tdesign-starter-layout') as HTMLDivElement;
     layout.scrollTo = scrollToMock;
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('updates tab route state without scrolling for same-page query changes', async () => {

@@ -25,6 +25,9 @@ type LogQuery struct {
 
 // Logs returns a project-owned aggregated log snapshot with explicit source attribution.
 func (s *Service) Logs(ctx context.Context, projectID uint64, query LogQuery) (generated.ProjectLogResponse, error) {
+	if s == nil || s.logReader == nil {
+		return generated.ProjectLogResponse{}, errProjectRuntimeUnavailable
+	}
 	aggregate, err := s.getAggregate(ctx, projectID)
 	if err != nil {
 		return generated.ProjectLogResponse{}, err
@@ -32,9 +35,6 @@ func (s *Service) Logs(ctx context.Context, projectID uint64, query LogQuery) (g
 	logQuery, err := normalizeProjectLogQuery(query)
 	if err != nil {
 		return generated.ProjectLogResponse{}, err
-	}
-	if s == nil || s.logReader == nil {
-		return generated.ProjectLogResponse{}, errProjectRuntimeUnavailable
 	}
 	snapshot, err := s.logReader.ReadProjectLogs(ctx, aggregate.Project.HostScope, aggregate.Project.CanonicalProjectName, toContainerProjectLogQuery(logQuery))
 	if err != nil {

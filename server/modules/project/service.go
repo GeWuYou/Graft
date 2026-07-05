@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"go.uber.org/zap"
@@ -401,6 +402,7 @@ type Service struct {
 	realtimeTickets     realtimeauth.Service
 	realtimeHub         realtime.Hub
 	topicIssuers        realtime.TopicIssuerRegistry
+	streamersMu         sync.Mutex
 	detailTopicStreamer *projectDetailTopicStreamer
 	logTopicStreamer    *projectLogTopicStreamer
 	inspectCache        *importInspectionCache

@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"slices"
 	"testing"
+	"time"
 
 	"graft/server/internal/moduleapi"
 	"graft/server/modules/container/terminal"
@@ -14,6 +15,7 @@ import (
 
 type stubProjectReaderRuntime struct {
 	items []Summary
+	logs  map[string]Logs
 }
 
 func (s stubProjectReaderRuntime) Info(context.Context) (RuntimeInfo, error) {
@@ -27,8 +29,11 @@ func (s stubProjectReaderRuntime) Mounts(context.Context, Ref) ([]Mount, error) 
 func (s stubProjectReaderRuntime) MountUsage(context.Context, Ref, string) (MountUsage, error) {
 	return MountUsage{}, nil
 }
-func (s stubProjectReaderRuntime) Logs(context.Context, Ref, LogQuery) (Logs, error) {
-	return Logs{}, nil
+func (s stubProjectReaderRuntime) Logs(_ context.Context, ref Ref, _ LogQuery) (Logs, error) {
+	if s.logs == nil {
+		return Logs{}, nil
+	}
+	return s.logs[ref.Value], nil
 }
 func (s stubProjectReaderRuntime) StreamLogs(context.Context, Ref, LogQuery, func(LogChunk) error) error {
 	return nil
@@ -173,6 +178,53 @@ func TestContainerProjectRuntimeReaderListsAllPages(t *testing.T) {
 	}
 }
 
+func TestContainerProjectRuntimeReaderAppliesTailAcrossProject(t *testing.T) {
+	t.Parallel()
+
+	reader := containerProjectRuntimeReader{
+		service: &service{
+			runtime: stubProjectReaderRuntime{
+				items: []Summary{
+					{ID: "1", Name: "demo-web-1", State: "running", ComposeProject: "demo", ComposeService: "web"},
+					{ID: "2", Name: "demo-worker-1", State: "running", ComposeProject: "demo", ComposeService: "worker"},
+				},
+				logs: map[string]Logs{
+					"1": {
+						Entries: []LogEntry{
+							{Line: "web-1", OccurredAt: mustProjectReaderLogTime(t, "2026-07-06T10:00:00Z")},
+							{Line: "web-2", OccurredAt: mustProjectReaderLogTime(t, "2026-07-06T10:00:02Z")},
+						},
+					},
+					"2": {
+						Entries: []LogEntry{
+							{Line: "worker-1", OccurredAt: mustProjectReaderLogTime(t, "2026-07-06T10:00:01Z")},
+							{Line: "worker-2", OccurredAt: mustProjectReaderLogTime(t, "2026-07-06T10:00:03Z")},
+						},
+					},
+				},
+			},
+			enabled: true,
+		},
+	}
+
+	snapshot, err := reader.ReadProjectLogs(context.Background(), "local", "demo", moduleapi.ContainerProjectLogQuery{
+		Tail:   2,
+		Stdout: true,
+	})
+	if err != nil {
+		t.Fatalf("read project logs: %v", err)
+	}
+	if !snapshot.Truncated {
+		t.Fatalf("expected project-level tail truncation, got %#v", snapshot)
+	}
+	if len(snapshot.Entries) != 2 {
+		t.Fatalf("expected two retained entries, got %#v", snapshot.Entries)
+	}
+	if snapshot.Entries[0].Line != "web-2" || snapshot.Entries[1].Line != "worker-2" {
+		t.Fatalf("expected latest project-wide entries, got %#v", snapshot.Entries)
+	}
+}
+
 func TestContainerProjectRuntimeReaderListsImportCandidates(t *testing.T) {
 	t.Parallel()
 
@@ -253,6 +305,15 @@ func TestContainerProjectRuntimeReaderListsImportCandidates(t *testing.T) {
 	if !slices.Contains(candidate.Warnings, projectRuntimeWarningWorkingDirDerived) {
 		t.Fatalf("expected derived working directory warning, got %#v", candidate.Warnings)
 	}
+}
+
+func mustProjectReaderLogTime(t *testing.T, value string) time.Time {
+	t.Helper()
+	parsed, err := time.Parse(time.RFC3339, value)
+	if err != nil {
+		t.Fatalf("parse log time %q: %v", value, err)
+	}
+	return parsed
 }
 
 func TestRuntimeCandidateAccumulatorCandidateUsesEmptySlices(t *testing.T) {

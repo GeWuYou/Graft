@@ -847,14 +847,16 @@ import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
 import { LOCALE, type LocalizedTitle } from '@/contracts/i18n/locales';
-import { batchContainerActions, getContainers } from '@/modules/container/api/container';
 import { CONTAINER_BOOTSTRAP_ROUTE } from '@/modules/container/contract/bootstrap';
-import type {
-  ContainerBatchActionItem,
-  ContainerBatchActionRequest,
-  ContainerBatchActionResponse,
-  ContainerSummaryRecord,
-} from '@/modules/container/types/container';
+import {
+  batchContainerActions,
+  getContainers,
+  type ProjectContainerAction,
+  type ProjectContainerActionResult,
+  type ProjectContainerActionResultItem,
+  type ProjectContainerActionSubmission,
+  type ProjectContainerSummary,
+} from '@/modules/container/contract/project';
 import {
   createActionColumn,
   createMainTextColumn,
@@ -958,7 +960,7 @@ type OverviewDiagnostic = {
   message: string;
   theme: 'success' | 'warning' | 'error' | 'info';
 };
-type ServiceRowAction = 'detail' | Extract<ContainerBatchActionRequest['action'], 'start' | 'stop' | 'restart'>;
+type ServiceRowAction = 'detail' | ProjectContainerAction;
 type ServiceTableRow = {
   healthLabel: string;
   healthTheme: 'success' | 'warning' | 'danger' | 'default';
@@ -1714,6 +1716,8 @@ async function loadProjectLogs() {
     projectLogsRecoveryLoadRequested.value = false;
   } catch (error) {
     logger.error('failed to load project logs', error);
+    projectLogsBootstrapRequested.value = false;
+    projectLogsRecoveryLoadRequested.value = false;
     projectLogError.value = resolveLocalizedErrorMessage(t, error, t('project.detail.logs.loadFailed'));
   } finally {
     projectLogLoading.value = false;
@@ -2017,10 +2021,7 @@ async function handleServiceAction(action: string, row: ServiceTableRow) {
   await runServiceContainerAction(action, row.raw);
 }
 
-async function runServiceContainerAction(
-  action: Extract<ContainerBatchActionRequest['action'], 'start' | 'stop' | 'restart'>,
-  service: ProjectServiceItem,
-) {
+async function runServiceContainerAction(action: ProjectContainerAction, service: ProjectServiceItem) {
   const ids = service.container_members.map((member) => member.container_id).filter(Boolean);
   if (!ids.length) {
     return;
@@ -2032,7 +2033,7 @@ async function runServiceContainerAction(
       action,
       force: false,
       ids,
-    });
+    } satisfies ProjectContainerActionSubmission);
     handleServiceBatchActionResult(response);
     try {
       await refreshProjectRuntimeSurface();
@@ -2048,7 +2049,7 @@ async function runServiceContainerAction(
   }
 }
 
-function handleServiceBatchActionResult(response: ContainerBatchActionResponse) {
+function handleServiceBatchActionResult(response: ProjectContainerActionResult) {
   if (response.failed_count === 0) {
     MessagePlugin.success(t('project.detail.services.batch.success', { count: response.success_count }));
     return;
@@ -2073,7 +2074,7 @@ function handleServiceBatchActionResult(response: ContainerBatchActionResponse) 
   });
 }
 
-function batchFailureSummary(items: ContainerBatchActionItem[]) {
+function batchFailureSummary(items: ProjectContainerActionResultItem[]) {
   const failedItems = items.filter((item) => !item.success);
   if (!failedItems.length) {
     return t('project.detail.services.batch.noFailureDetail');
@@ -2393,11 +2394,11 @@ function joinList(items: string[]) {
   return items.length > 0 ? items.join(', ') : '-';
 }
 
-function readContainerComposeService(container: ContainerSummaryRecord) {
+function readContainerComposeService(container: ProjectContainerSummary) {
   return container.orchestrator?.service || container.compose_service || '';
 }
 
-function formatRuntimePortLabel(port: ContainerSummaryRecord['ports'][number]) {
+function formatRuntimePortLabel(port: ProjectContainerSummary['ports'][number]) {
   if (typeof port.public_port !== 'number') {
     return '';
   }
@@ -2407,7 +2408,7 @@ function formatRuntimePortLabel(port: ContainerSummaryRecord['ports'][number]) {
 
 function buildServiceRuntimePortSummaries(
   services: ProjectServiceItem[],
-  containers: ContainerSummaryRecord[],
+  containers: ProjectContainerSummary[],
 ): Record<string, string> {
   const labelsByService = new Map<string, Set<string>>();
 

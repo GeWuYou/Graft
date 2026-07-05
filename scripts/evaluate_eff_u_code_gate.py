@@ -795,7 +795,7 @@ def recover_unreported_file(
     """
     candidate = pathlib.PurePosixPath(candidate_path)
     candidate_parent = candidate.parent.as_posix()
-    target_path = candidate_parent or scope_root(scope, gate_config)
+    target_path = candidate.as_posix()
     scope_relative_name = candidate.name
 
     recovery_config = build_eff_u_code_overrides(base_eff_config, gate_config, {scope: [candidate_path]}, [scope])

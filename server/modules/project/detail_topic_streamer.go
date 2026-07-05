@@ -229,14 +229,24 @@ func (s *Service) ensureProjectDetailTopicStreaming(topic string, projectID uint
 	if s.realtimeHub == nil {
 		return errors.New("realtime hub is unavailable")
 	}
+	streamer, err := s.projectDetailTopicStreamer()
+	if err != nil {
+		return err
+	}
+	return streamer.EnsureTopic(topic, projectID)
+}
+
+func (s *Service) projectDetailTopicStreamer() (*projectDetailTopicStreamer, error) {
+	s.streamersMu.Lock()
+	defer s.streamersMu.Unlock()
 	if s.detailTopicStreamer == nil {
 		streamer, err := newProjectDetailTopicStreamer(s.realtimeHub, s.logger, s)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		s.detailTopicStreamer = streamer
 	}
-	return s.detailTopicStreamer.EnsureTopic(topic, projectID)
+	return s.detailTopicStreamer, nil
 }
 
 func (s *Service) buildProjectDetailRealtimePayload(

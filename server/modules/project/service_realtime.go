@@ -68,12 +68,16 @@ func (s *Service) Close(ctx context.Context) error {
 	if s == nil {
 		return nil
 	}
+	s.streamersMu.Lock()
+	detailStreamer := s.detailTopicStreamer
+	logStreamer := s.logTopicStreamer
+	s.streamersMu.Unlock()
 	var closeErr error
-	if s.detailTopicStreamer != nil {
-		closeErr = errors.Join(closeErr, s.detailTopicStreamer.Close(ctx))
+	if detailStreamer != nil {
+		closeErr = errors.Join(closeErr, detailStreamer.Close(ctx))
 	}
-	if s.logTopicStreamer != nil {
-		closeErr = errors.Join(closeErr, s.logTopicStreamer.Close(ctx))
+	if logStreamer != nil {
+		closeErr = errors.Join(closeErr, logStreamer.Close(ctx))
 	}
 	return closeErr
 }

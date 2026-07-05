@@ -213,14 +213,24 @@ func (s *Service) ensureProjectLogsTopicStreaming(topic string, projectID uint64
 	if _, err := normalizeProjectLogQuery(query); err != nil {
 		return err
 	}
+	streamer, err := s.projectLogTopicStreamer()
+	if err != nil {
+		return err
+	}
+	return streamer.EnsureTopic(topic, projectID, query)
+}
+
+func (s *Service) projectLogTopicStreamer() (*projectLogTopicStreamer, error) {
+	s.streamersMu.Lock()
+	defer s.streamersMu.Unlock()
 	if s.logTopicStreamer == nil {
 		streamer, err := newProjectLogTopicStreamer(s.realtimeHub, s.logger, s)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		s.logTopicStreamer = streamer
 	}
-	return s.logTopicStreamer.EnsureTopic(topic, projectID, query)
+	return s.logTopicStreamer, nil
 }
 
 func (s *Service) streamProjectLogs(ctx context.Context, topic string, projectID uint64, query LogQuery) error {

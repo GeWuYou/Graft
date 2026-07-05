@@ -657,7 +657,7 @@ func projectOverviewServiceHealth(runtime moduleapi.ContainerProjectServiceResou
 }
 
 func projectOverviewServiceIsHealthy(runtime moduleapi.ContainerProjectServiceResourceSummary) bool {
-	return strings.EqualFold(projectOverviewServiceStatus(runtime), "running")
+	return strings.EqualFold(projectOverviewServiceHealth(runtime), "healthy")
 }
 
 func countDeclaredNetworks(items []projectcompose.ServiceProjection) int {

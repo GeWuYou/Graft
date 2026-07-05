@@ -967,9 +967,7 @@
       "logs": {
         "title": "项目日志",
         "summary": "日志由项目后端聚合输出，并保留服务与容器来源字段。",
-        "authorityProjectOwned": "当前日志视图由 project 后端聚合提供，容器仍是运行时日志事实来源。",
-        "authorityFrontendFanout": "当前项目日志 authority 仍为前端 fan-out，来源于容器日志 owner。",
-        "authorityBackendPlanned": "后端项目日志聚合仍处于规划阶段；当前视图不伪装为项目级后端日志中心。",
+        "authorityProjectOwned": "当前日志流展示来自当前容器聚合后的项目日志。",
         "emptyTitle": "暂无运行时成员",
         "emptyDescription": "当前项目还没有可供拉取日志的运行时容器成员。",
         "memberCount": "{count} 个来源",

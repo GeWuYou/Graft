@@ -967,9 +967,7 @@
       "logs": {
         "title": "Project Logs",
         "summary": "Logs are aggregated by the project backend and keep explicit service and container source attribution.",
-        "authorityProjectOwned": "This log view is aggregated by the project backend, while containers remain the runtime log authority.",
-        "authorityFrontendFanout": "Project log authority still uses frontend fan-out over the container log owner.",
-        "authorityBackendPlanned": "Backend project log aggregation is still only planned. This view does not pretend a backend project log authority already exists.",
+        "authorityProjectOwned": "Use this stream to review project logs aggregated from the current containers.",
         "emptyTitle": "No Runtime Members",
         "emptyDescription": "This project does not currently have runtime container members that can provide logs.",
         "memberCount": "{count} Sources",
