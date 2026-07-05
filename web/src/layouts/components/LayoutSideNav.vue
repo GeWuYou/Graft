@@ -6,7 +6,9 @@
     :is-fixed="settingStore.isSidebarFixed"
     :menu="sideMenu"
     :theme="settingStore.displaySideMode"
-    :is-compact="settingStore.isSidebarCompact"
+    :is-compact="widthCompact"
+    :render-compact="renderCompact"
+    :motion-phase="motionPhase"
   />
 </template>
 <script setup lang="ts">
@@ -16,6 +18,12 @@ import { useRoute } from 'vue-router';
 
 import { usePermissionStore, useSettingStore } from '@/store';
 import type { MenuRoute } from '@/utils/types';
+
+defineProps<{
+  renderCompact: boolean;
+  widthCompact: boolean;
+  motionPhase: 'expanded' | 'collapsing-text' | 'collapsing-width' | 'compact' | 'expanding-width' | 'expanding-text';
+}>();
 
 import LSideNav from './SideNav.vue';
 

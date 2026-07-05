@@ -6,7 +6,7 @@
     :layout="settingStore.layout"
     :is-fixed="settingStore.isHeaderFixed"
     :menu="headerMenu"
-    :is-compact="settingStore.isSidebarCompact"
+    :is-compact="renderCompact"
   />
 </template>
 <script setup lang="ts">
@@ -16,6 +16,10 @@ import { computed } from 'vue';
 import { flattenMixHeaderMenus } from '@/layouts/layout-navigation';
 import { usePermissionStore, useSettingStore } from '@/store';
 import type { MenuRoute } from '@/utils/types';
+
+defineProps<{
+  renderCompact: boolean;
+}>();
 
 import LHeader from './Header.vue';
 

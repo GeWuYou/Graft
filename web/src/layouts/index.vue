@@ -2,9 +2,17 @@
   <div class="app-shell" v-bind="shellSurfaceAttrs">
     <template v-if="setting.layout.value === 'side'">
       <t-layout key="side" :class="['app-shell__layout', mainLayoutCls]">
-        <t-aside><layout-side-nav /></t-aside>
+        <t-aside>
+          <layout-side-nav
+            :render-compact="sidebarRenderCompact"
+            :width-compact="sidebarWidthCompact"
+            :motion-phase="sidebarMotionPhase"
+          />
+        </t-aside>
         <t-layout class="app-shell__main">
-          <t-header class="app-shell__header"><layout-header /></t-header>
+          <t-header class="app-shell__header">
+            <layout-header :render-compact="sidebarWidthCompact" />
+          </t-header>
           <t-content class="app-shell__content"><layout-content /></t-content>
         </t-layout>
       </t-layout>
@@ -12,9 +20,15 @@
 
     <template v-else>
       <t-layout key="no-side" class="app-shell__layout">
-        <t-header class="app-shell__header"><layout-header /> </t-header>
+        <t-header class="app-shell__header">
+          <layout-header :render-compact="sidebarWidthCompact" />
+        </t-header>
         <t-layout :class="['app-shell__main', mainLayoutCls]">
-          <layout-side-nav />
+          <layout-side-nav
+            :render-compact="sidebarRenderCompact"
+            :width-compact="sidebarWidthCompact"
+            :motion-phase="sidebarMotionPhase"
+          />
           <layout-content />
         </t-layout>
       </t-layout>
@@ -26,7 +40,7 @@
 import '@/style/layout.less';
 
 import { storeToRefs } from 'pinia';
-import { computed, onMounted, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import { prefix } from '@/config/global';
@@ -41,17 +55,31 @@ import LayoutContent from './components/LayoutContent.vue';
 import LayoutHeader from './components/LayoutHeader.vue';
 import LayoutSideNav from './components/LayoutSideNav.vue';
 
+type SidebarMotionPhase =
+  'expanded' | 'collapsing-text' | 'collapsing-width' | 'compact' | 'expanding-width' | 'expanding-text';
+
+const SIDEBAR_TEXT_FADE_MS = 120;
+const SIDEBAR_WIDTH_TRANSITION_MS = 180;
+
 const route = useRoute();
 const router = useRouter();
 const settingStore = useSettingStore();
 const tabsRouterStore = useTabsRouterStore();
 const setting = storeToRefs(settingStore);
 const logger = createLogger('layout.tabs');
+const sidebarRenderCompact = ref(settingStore.isSidebarCompact);
+const sidebarWidthCompact = ref(settingStore.isSidebarCompact);
+const sidebarMotionPhase = ref<SidebarMotionPhase>(settingStore.isSidebarCompact ? 'compact' : 'expanded');
+const sidebarMotionTimers = new Set<number>();
 
 const shellSurfaceAttrs = computed(() => ({
   'data-layout-mode': settingStore.layout,
   'data-page-type': 'shell',
-  'data-sidebar-compact': String(settingStore.isSidebarCompact),
+  'data-sidebar-compact': String(sidebarWidthCompact.value),
+  'data-sidebar-motion-phase': sidebarMotionPhase.value,
+  'data-sidebar-render-compact': String(sidebarRenderCompact.value),
+  'data-sidebar-width-compact': String(sidebarWidthCompact.value),
+  'data-sidebar-target-compact': String(settingStore.isSidebarCompact),
   'data-theme-mode': settingStore.displayMode,
 }));
 
@@ -60,6 +88,51 @@ const mainLayoutCls = computed(() => [
     't-layout--with-sider': settingStore.showSidebar,
   },
 ]);
+
+const clearSidebarMotionTimers = () => {
+  sidebarMotionTimers.forEach((timerId) => {
+    window.clearTimeout(timerId);
+  });
+  sidebarMotionTimers.clear();
+};
+
+const scheduleSidebarMotion = (callback: () => void, delay: number) => {
+  const timerId = window.setTimeout(() => {
+    sidebarMotionTimers.delete(timerId);
+    callback();
+  }, delay);
+  sidebarMotionTimers.add(timerId);
+};
+
+const startSidebarMotion = (targetCompact: boolean) => {
+  clearSidebarMotionTimers();
+
+  if (targetCompact) {
+    sidebarRenderCompact.value = false;
+    sidebarWidthCompact.value = false;
+    sidebarMotionPhase.value = 'collapsing-text';
+    scheduleSidebarMotion(() => {
+      sidebarMotionPhase.value = 'collapsing-width';
+      sidebarWidthCompact.value = true;
+      scheduleSidebarMotion(() => {
+        sidebarRenderCompact.value = true;
+        sidebarMotionPhase.value = 'compact';
+      }, SIDEBAR_WIDTH_TRANSITION_MS);
+    }, SIDEBAR_TEXT_FADE_MS);
+    return;
+  }
+
+  sidebarRenderCompact.value = true;
+  sidebarWidthCompact.value = false;
+  sidebarMotionPhase.value = 'expanding-width';
+  scheduleSidebarMotion(() => {
+    sidebarRenderCompact.value = false;
+    sidebarMotionPhase.value = 'expanding-text';
+    scheduleSidebarMotion(() => {
+      sidebarMotionPhase.value = 'expanded';
+    }, SIDEBAR_TEXT_FADE_MS);
+  }, SIDEBAR_WIDTH_TRANSITION_MS);
+};
 
 const appendNewRoute = () => {
   const {
@@ -104,6 +177,10 @@ onMounted(() => {
   appendNewRoute();
 });
 
+onBeforeUnmount(() => {
+  clearSidebarMotionTimers();
+});
+
 watch(
   () => route.fullPath,
   (_, previousFullPath) => {
@@ -112,6 +189,17 @@ watch(
     if (previousPath && previousPath !== route.path) {
       document.querySelector(`.${prefix}-layout`)?.scrollTo({ top: 0, behavior: 'smooth' });
     }
+  },
+);
+
+watch(
+  () => settingStore.isSidebarCompact,
+  (nextCompact, previousCompact) => {
+    if (nextCompact === previousCompact) {
+      return;
+    }
+
+    startSidebarMotion(nextCompact);
   },
 );
 </script>
@@ -130,7 +218,7 @@ watch(
   overflow: hidden;
 }
 
-.app-shell[data-sidebar-compact='true'] {
+.app-shell[data-sidebar-width-compact='true'] {
   --graft-shell-sidebar-current-width: var(--graft-shell-sidebar-width-compact);
 }
 
@@ -164,10 +252,10 @@ watch(
   max-width: var(--graft-shell-sidebar-current-width);
   min-width: var(--graft-shell-sidebar-current-width);
   transition:
-    flex-basis 0.3s cubic-bezier(0.38, 0, 0.24, 1),
-    max-width 0.3s cubic-bezier(0.38, 0, 0.24, 1),
-    min-width 0.3s cubic-bezier(0.38, 0, 0.24, 1),
-    width 0.3s cubic-bezier(0.38, 0, 0.24, 1);
+    flex-basis 0.18s cubic-bezier(0.38, 0, 0.24, 1),
+    max-width 0.18s cubic-bezier(0.38, 0, 0.24, 1),
+    min-width 0.18s cubic-bezier(0.38, 0, 0.24, 1),
+    width 0.18s cubic-bezier(0.38, 0, 0.24, 1);
   width: var(--graft-shell-sidebar-current-width);
 }
 </style>
