@@ -772,6 +772,58 @@ def run_eff_u_code(scope: str, *, output_dir: pathlib.Path, eff_config_override:
     return output_dir / f"eff-u-code-{scope}.json"
 
 
+def recover_unreported_file(
+    scope: str,
+    candidate_path: str,
+    *,
+    gate_config: dict[str, Any],
+    base_eff_config: dict[str, Any],
+    output_dir: pathlib.Path,
+) -> dict[str, Any] | None:
+    """
+    对主扫描未收录的候选文件执行定向补扫，并返回该文件的 eff-u-code 报告。
+
+    Parameters:
+        scope (str): 候选文件所属 scope。
+        candidate_path (str): 仓库相对路径。
+        gate_config (dict[str, Any]): 评分门禁配置。
+        base_eff_config (dict[str, Any]): eff-u-code 基础配置。
+        output_dir (pathlib.Path): 补扫输出目录。
+
+    Returns:
+        dict[str, Any] | None: 找回时返回该文件的报告对象，否则返回 `None`。
+    """
+    candidate = pathlib.PurePosixPath(candidate_path)
+    candidate_parent = candidate.parent.as_posix()
+    target_path = candidate_parent or scope_root(scope, gate_config)
+    scope_relative_name = candidate.name
+
+    recovery_config = build_eff_u_code_overrides(base_eff_config, gate_config, {scope: [candidate_path]}, [scope])
+    recovery_target = require_dict(recovery_config["targets"], scope, context="recovery_config.targets")
+    recovery_target["path"] = target_path
+    recovery_target["top"] = max(positive_int(recovery_target.get("top")), 20)
+
+    recovery_dir = output_dir / "coverage-recovery" / scope / candidate_parent.replace("/", "__")
+    recovery_dir.mkdir(parents=True, exist_ok=True)
+    recovery_config_path = recovery_dir / "eff-u-code.recovery.override.json"
+    recovery_config_path.write_text(
+        json.dumps(recovery_config, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+    try:
+        recovery_report_path = run_eff_u_code(
+            scope,
+            output_dir=recovery_dir,
+            eff_config_override=recovery_config_path,
+        )
+        recovery_report = load_report(recovery_report_path)
+    except RuntimeError:
+        return None
+
+    return build_file_index(recovery_report).get(scope_relative_name)
+
+
 def export_git_snapshot(revision: str, destination: pathlib.Path) -> pathlib.Path:
     """
     将指定 Git 修订版本导出为快照目录。
@@ -1843,8 +1895,16 @@ def main() -> int:
                 relative = relative_path_for_scope(candidate_path, scope, gate_config)
                 current_file = head_index.get(relative)
                 if current_file is None:
-                    unreported_files.append(candidate_path)
-                    continue
+                    current_file = recover_unreported_file(
+                        scope,
+                        candidate_path,
+                        gate_config=gate_config,
+                        base_eff_config=base_eff_config,
+                        output_dir=report_dir,
+                    )
+                    if current_file is None:
+                        unreported_files.append(candidate_path)
+                        continue
                 baseline_file = base_index.get(relative) if args.scan_mode == "changed" else None
                 current_metrics = metric_scores(current_file)
                 baseline_metrics = metric_scores(baseline_file) if baseline_file is not None else {}
