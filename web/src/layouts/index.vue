@@ -56,10 +56,10 @@ import LayoutHeader from './components/LayoutHeader.vue';
 import LayoutSideNav from './components/LayoutSideNav.vue';
 
 type SidebarMotionPhase =
-  'expanded' | 'collapsing-text' | 'collapsing-width' | 'compact' | 'expanding-width' | 'expanding-text';
+  'expanded' | 'collapsing-width' | 'collapsing-text' | 'compact' | 'expanding-width' | 'expanding-text';
 
-const SIDEBAR_TEXT_FADE_MS = 120;
-const SIDEBAR_WIDTH_TRANSITION_MS = 180;
+const SIDEBAR_TEXT_FADE_MS = 110;
+const SIDEBAR_WIDTH_TRANSITION_MS = 220;
 
 const route = useRoute();
 const router = useRouter();
@@ -110,23 +110,22 @@ const startSidebarMotion = (targetCompact: boolean) => {
   if (targetCompact) {
     sidebarRenderCompact.value = false;
     sidebarWidthCompact.value = false;
-    sidebarMotionPhase.value = 'collapsing-text';
+    sidebarMotionPhase.value = 'collapsing-width';
+    sidebarWidthCompact.value = true;
     scheduleSidebarMotion(() => {
-      sidebarMotionPhase.value = 'collapsing-width';
-      sidebarWidthCompact.value = true;
-      scheduleSidebarMotion(() => {
-        sidebarRenderCompact.value = true;
-        sidebarMotionPhase.value = 'compact';
-      }, SIDEBAR_WIDTH_TRANSITION_MS);
-    }, SIDEBAR_TEXT_FADE_MS);
+      sidebarMotionPhase.value = 'collapsing-text';
+    }, SIDEBAR_WIDTH_TRANSITION_MS - SIDEBAR_TEXT_FADE_MS);
+    scheduleSidebarMotion(() => {
+      sidebarRenderCompact.value = true;
+      sidebarMotionPhase.value = 'compact';
+    }, SIDEBAR_WIDTH_TRANSITION_MS);
     return;
   }
 
-  sidebarRenderCompact.value = true;
+  sidebarRenderCompact.value = false;
   sidebarWidthCompact.value = false;
   sidebarMotionPhase.value = 'expanding-width';
   scheduleSidebarMotion(() => {
-    sidebarRenderCompact.value = false;
     sidebarMotionPhase.value = 'expanding-text';
     scheduleSidebarMotion(() => {
       sidebarMotionPhase.value = 'expanded';

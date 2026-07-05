@@ -199,16 +199,15 @@ describe('App layout route effects', () => {
     settingStoreProxy.value!.isSidebarCompact = true;
     await wrapper.vm.$nextTick();
 
-    expect(wrapper.get('.app-shell').attributes('data-sidebar-compact')).toBe('false');
-    expect(wrapper.get('.app-shell').attributes('data-sidebar-target-compact')).toBe('true');
-    expect(wrapper.get('.app-shell').attributes('data-sidebar-motion-phase')).toBe('collapsing-text');
-
-    vi.advanceTimersByTime(120);
-    await wrapper.vm.$nextTick();
     expect(wrapper.get('.app-shell').attributes('data-sidebar-compact')).toBe('true');
+    expect(wrapper.get('.app-shell').attributes('data-sidebar-target-compact')).toBe('true');
     expect(wrapper.get('.app-shell').attributes('data-sidebar-motion-phase')).toBe('collapsing-width');
 
-    vi.advanceTimersByTime(180);
+    vi.advanceTimersByTime(110);
+    await wrapper.vm.$nextTick();
+    expect(wrapper.get('.app-shell').attributes('data-sidebar-motion-phase')).toBe('collapsing-text');
+
+    vi.advanceTimersByTime(110);
     await wrapper.vm.$nextTick();
     expect(wrapper.get('.app-shell').attributes('data-sidebar-motion-phase')).toBe('compact');
   });
@@ -225,11 +224,11 @@ describe('App layout route effects', () => {
     expect(wrapper.get('.app-shell').attributes('data-sidebar-motion-phase')).toBe('expanding-width');
     expect(wrapper.get('.app-shell').attributes('data-sidebar-compact')).toBe('false');
 
-    vi.advanceTimersByTime(180);
+    vi.advanceTimersByTime(220);
     await wrapper.vm.$nextTick();
     expect(wrapper.get('.app-shell').attributes('data-sidebar-motion-phase')).toBe('expanding-text');
 
-    vi.advanceTimersByTime(120);
+    vi.advanceTimersByTime(110);
     await wrapper.vm.$nextTick();
     expect(wrapper.get('.app-shell').attributes('data-sidebar-motion-phase')).toBe('expanded');
   });

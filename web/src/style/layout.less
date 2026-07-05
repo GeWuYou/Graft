@@ -391,15 +391,19 @@
 .app-shell .t-default-menu.@{starter-prefix}-side-nav {
   :is(.t-menu__content, .t-fake-arrow) {
     opacity: 1;
-    transform: translateX(0);
     transition:
-      opacity 0.12s cubic-bezier(0.38, 0, 0.24, 1),
-      transform 0.12s cubic-bezier(0.38, 0, 0.24, 1);
+      opacity 0.11s cubic-bezier(0.38, 0, 0.24, 1),
+      transform 0.11s cubic-bezier(0.38, 0, 0.24, 1);
+  }
+
+  .t-menu__logo > * {
+    transform: translateX(0);
+    transition: transform 0.11s cubic-bezier(0.38, 0, 0.24, 1);
   }
 
   .t-menu__item .t-icon {
     transform: translateX(0);
-    transition: transform 0.18s cubic-bezier(0.38, 0, 0.24, 1);
+    transition: transform 0.11s cubic-bezier(0.38, 0, 0.24, 1);
   }
 }
 
@@ -408,12 +412,18 @@
   :is(.t-menu__content, .t-fake-arrow) {
     opacity: 0;
     pointer-events: none;
-    transform: translateX(-6px);
   }
 
   .version-container {
     opacity: 0;
-    transform: translateX(-6px);
+  }
+
+  .t-menu__logo > * {
+    transform: translateX(4px);
+  }
+
+  .t-menu__item .t-icon {
+    transform: translateX(4px);
   }
 }
 
