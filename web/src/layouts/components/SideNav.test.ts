@@ -6,18 +6,18 @@ import SideNav from './SideNav.vue';
 
 const updateConfigMock = vi.fn();
 
-const settingStoreProxy = vi.hoisted(() => ({
+const settingStoreProxy = {
   value: null as null | {
     isSidebarCompact: boolean;
     menuAutoCollapsed: boolean;
     updateConfig: typeof updateConfigMock;
   },
-}));
+};
 
-const settingStoreState = vi.hoisted(() => ({
+const settingStoreState = {
   isSidebarCompact: false,
   menuAutoCollapsed: false,
-}));
+};
 
 vi.mock('@/store', () => ({
   useSettingStore: () => {
@@ -32,8 +32,12 @@ vi.mock('@/store', () => ({
   },
 }));
 
+const activePathState = {
+  value: '/server/runtime',
+};
+
 vi.mock('@/router', () => ({
-  getActive: () => '/server/runtime',
+  getActive: () => activePathState.value,
 }));
 
 vi.mock('@/layouts/useShellNavigation', () => ({
@@ -125,6 +129,7 @@ function mountSideNav() {
 describe('SideNav', () => {
   beforeEach(() => {
     updateConfigMock.mockReset();
+    activePathState.value = '/server/runtime';
     settingStoreProxy.value ??= reactive({
       ...settingStoreState,
       updateConfig: updateConfigMock,
@@ -159,10 +164,10 @@ describe('SideNav', () => {
     const wrapper = mountSideNav();
     await nextTick();
 
-    expect(wrapper.get('[data-menu-expanded]').attributes('data-menu-expanded')).toBe('["/server","/server/runtime"]');
+    expect(wrapper.get('[data-menu-expanded]').attributes('data-menu-expanded')).toBe('["/server"]');
 
     await wrapper.setProps({
-      motionPhase: 'collapsing-text',
+      motionPhase: 'collapsing-submenu',
     });
     expect(wrapper.get('[data-menu-expanded]').attributes('data-menu-expanded')).toBe('[]');
 
@@ -174,8 +179,63 @@ describe('SideNav', () => {
 
     await wrapper.setProps({
       isCompact: false,
-      motionPhase: 'expanding-width',
+      motionPhase: 'expanding-submenu',
     });
-    expect(wrapper.get('[data-menu-expanded]').attributes('data-menu-expanded')).toBe('["/server","/server/runtime"]');
+    expect(wrapper.get('[data-menu-expanded]').attributes('data-menu-expanded')).toBe('["/server"]');
+  });
+
+  it('keeps the active route branch expanded when the menu emits an empty expanded set', async () => {
+    const wrapper = mountSideNav();
+    await nextTick();
+
+    wrapper.findComponent(menuStub).vm.$emit('expand', []);
+    await nextTick();
+
+    expect(wrapper.get('[data-menu-expanded]').attributes('data-menu-expanded')).toBe('["/server"]');
+  });
+
+  it('expands the owning parent menu for descendant routes outside the literal menu path chain', async () => {
+    activePathState.value = '/ops/containers/container-1';
+    const wrapper = mount(SideNav, {
+      props: {
+        isCompact: false,
+        isFixed: true,
+        layout: 'side',
+        menu: [
+          {
+            path: '/ops',
+            meta: {
+              title: {
+                'zh-CN': '运维',
+                'en-US': 'Operations',
+              },
+            },
+            children: [
+              {
+                path: 'containers',
+                meta: {
+                  title: {
+                    'zh-CN': '容器',
+                    'en-US': 'Containers',
+                  },
+                },
+              },
+            ],
+          },
+        ],
+        motionPhase: 'expanded',
+        showLogo: true,
+        theme: 'light',
+      },
+      global: {
+        stubs: {
+          't-menu': menuStub,
+        },
+      },
+    });
+
+    await nextTick();
+
+    expect(wrapper.get('[data-menu-expanded]').attributes('data-menu-expanded')).toBe('["/ops"]');
   });
 });

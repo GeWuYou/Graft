@@ -22,7 +22,15 @@ import type { MenuRoute } from '@/utils/types';
 defineProps<{
   renderCompact: boolean;
   widthCompact: boolean;
-  motionPhase: 'expanded' | 'collapsing-text' | 'collapsing-width' | 'compact' | 'expanding-width' | 'expanding-text';
+  motionPhase:
+    | 'expanded'
+    | 'collapsing-width'
+    | 'collapsing-submenu'
+    | 'collapsing-topmenu'
+    | 'compact'
+    | 'expanding-width'
+    | 'expanding-topmenu'
+    | 'expanding-submenu';
 }>();
 
 import LSideNav from './SideNav.vue';

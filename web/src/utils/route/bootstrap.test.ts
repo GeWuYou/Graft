@@ -80,6 +80,7 @@ describe('transformBootstrapMenusToRoutes', () => {
     expect(routes[0]?.children?.[1]?.meta?.titleKey).toBe('menu.access_control.users.title');
     expect(routes[0]?.children?.[1]?.meta?.icon).toBe('usergroup');
     expect(routes[0]?.children?.[1]?.meta?.pageKind).toBe('list');
+    expect(routes[0]?.children?.[1]?.meta?.tabTitle?.['zh-CN']).toBe('访问控制 - 用户管理');
     expect(routes[0]?.children?.[2]?.path).toBe('roles');
     expect(routes[0]?.children?.[2]?.name).toBe('RoleListIndex');
     expect(routes[0]?.children?.[2]?.meta?.titleKey).toBe('menu.access_control.roles.title');
@@ -265,8 +266,8 @@ describe('transformBootstrapMenusToRoutes', () => {
     expect(routes[0]?.children?.[0]?.meta?.titleKey).toBe('menu.accessLog.title');
     expect(routes[0]?.children?.[0]?.meta?.pageKind).toBe('list');
     expect(routes[0]?.children?.[0]?.meta?.breadcrumbTitle?.['zh-CN']).toBe('访问日志');
-    expect(routes[0]?.children?.[0]?.meta?.tabTitle?.['zh-CN']).toBe('访问日志');
-    expect(routes[0]?.children?.[0]?.meta?.tabTitle?.['en-US']).toBe('Access Logs');
+    expect(routes[0]?.children?.[0]?.meta?.tabTitle?.['zh-CN']).toBe('日志中心 - 访问日志');
+    expect(routes[0]?.children?.[0]?.meta?.tabTitle?.['en-US']).toBe('Log Center - Access Logs');
   });
 
   it('规范化尾随斜杠后仍能正确挂载父子菜单', () => {
@@ -352,8 +353,8 @@ describe('transformBootstrapMenusToRoutes', () => {
     expect(routes[0]?.children?.[0]?.name).toBe('AnnouncementManagementIndex');
     expect(routes[0]?.children?.[0]?.meta?.titleKey).toBe('menu.server.announcements.title');
     expect(routes[0]?.children?.[0]?.meta?.breadcrumbTitle?.['zh-CN']).toBe('公告管理');
-    expect(routes[0]?.children?.[0]?.meta?.tabTitle?.['zh-CN']).toBe('公告管理');
-    expect(routes[0]?.children?.[0]?.meta?.tabTitle?.['en-US']).toBe('Announcements');
+    expect(routes[0]?.children?.[0]?.meta?.tabTitle?.['zh-CN']).toBe('服务管理 - 公告管理');
+    expect(routes[0]?.children?.[0]?.meta?.tabTitle?.['en-US']).toBe('Service Management - Announcements');
   });
 
   it('registers menu-hidden global routes at their canonical URL without index redirects', () => {

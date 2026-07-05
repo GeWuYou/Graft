@@ -203,11 +203,15 @@ describe('App layout route effects', () => {
     expect(wrapper.get('.app-shell').attributes('data-sidebar-target-compact')).toBe('true');
     expect(wrapper.get('.app-shell').attributes('data-sidebar-motion-phase')).toBe('collapsing-width');
 
-    vi.advanceTimersByTime(110);
+    vi.advanceTimersByTime(124);
     await wrapper.vm.$nextTick();
-    expect(wrapper.get('.app-shell').attributes('data-sidebar-motion-phase')).toBe('collapsing-text');
+    expect(wrapper.get('.app-shell').attributes('data-sidebar-motion-phase')).toBe('collapsing-submenu');
 
-    vi.advanceTimersByTime(110);
+    vi.advanceTimersByTime(84);
+    await wrapper.vm.$nextTick();
+    expect(wrapper.get('.app-shell').attributes('data-sidebar-motion-phase')).toBe('collapsing-topmenu');
+
+    vi.advanceTimersByTime(112);
     await wrapper.vm.$nextTick();
     expect(wrapper.get('.app-shell').attributes('data-sidebar-motion-phase')).toBe('compact');
   });
@@ -224,11 +228,15 @@ describe('App layout route effects', () => {
     expect(wrapper.get('.app-shell').attributes('data-sidebar-motion-phase')).toBe('expanding-width');
     expect(wrapper.get('.app-shell').attributes('data-sidebar-compact')).toBe('false');
 
-    vi.advanceTimersByTime(220);
+    vi.advanceTimersByTime(128);
     await wrapper.vm.$nextTick();
-    expect(wrapper.get('.app-shell').attributes('data-sidebar-motion-phase')).toBe('expanding-text');
+    expect(wrapper.get('.app-shell').attributes('data-sidebar-motion-phase')).toBe('expanding-topmenu');
 
-    vi.advanceTimersByTime(110);
+    vi.advanceTimersByTime(96);
+    await wrapper.vm.$nextTick();
+    expect(wrapper.get('.app-shell').attributes('data-sidebar-motion-phase')).toBe('expanding-submenu');
+
+    vi.advanceTimersByTime(96);
     await wrapper.vm.$nextTick();
     expect(wrapper.get('.app-shell').attributes('data-sidebar-motion-phase')).toBe('expanded');
   });

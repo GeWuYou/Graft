@@ -56,10 +56,20 @@ import LayoutHeader from './components/LayoutHeader.vue';
 import LayoutSideNav from './components/LayoutSideNav.vue';
 
 type SidebarMotionPhase =
-  'expanded' | 'collapsing-width' | 'collapsing-text' | 'compact' | 'expanding-width' | 'expanding-text';
+  | 'expanded'
+  | 'collapsing-width'
+  | 'collapsing-submenu'
+  | 'collapsing-topmenu'
+  | 'compact'
+  | 'expanding-width'
+  | 'expanding-topmenu'
+  | 'expanding-submenu';
 
-const SIDEBAR_TEXT_FADE_MS = 110;
-const SIDEBAR_WIDTH_TRANSITION_MS = 220;
+const SIDEBAR_WIDTH_TRANSITION_MS = 320;
+const SIDEBAR_COLLAPSE_SUBMENU_DELAY_MS = 124;
+const SIDEBAR_COLLAPSE_TOPLEVEL_DELAY_MS = 208;
+const SIDEBAR_EXPAND_TOPLEVEL_DELAY_MS = 128;
+const SIDEBAR_EXPAND_SUBMENU_DELAY_MS = 224;
 
 const route = useRoute();
 const router = useRouter();
@@ -113,8 +123,11 @@ const startSidebarMotion = (targetCompact: boolean) => {
     sidebarMotionPhase.value = 'collapsing-width';
     sidebarWidthCompact.value = true;
     scheduleSidebarMotion(() => {
-      sidebarMotionPhase.value = 'collapsing-text';
-    }, SIDEBAR_WIDTH_TRANSITION_MS - SIDEBAR_TEXT_FADE_MS);
+      sidebarMotionPhase.value = 'collapsing-submenu';
+    }, SIDEBAR_COLLAPSE_SUBMENU_DELAY_MS);
+    scheduleSidebarMotion(() => {
+      sidebarMotionPhase.value = 'collapsing-topmenu';
+    }, SIDEBAR_COLLAPSE_TOPLEVEL_DELAY_MS);
     scheduleSidebarMotion(() => {
       sidebarRenderCompact.value = true;
       sidebarMotionPhase.value = 'compact';
@@ -126,10 +139,13 @@ const startSidebarMotion = (targetCompact: boolean) => {
   sidebarWidthCompact.value = false;
   sidebarMotionPhase.value = 'expanding-width';
   scheduleSidebarMotion(() => {
-    sidebarMotionPhase.value = 'expanding-text';
-    scheduleSidebarMotion(() => {
-      sidebarMotionPhase.value = 'expanded';
-    }, SIDEBAR_TEXT_FADE_MS);
+    sidebarMotionPhase.value = 'expanding-topmenu';
+  }, SIDEBAR_EXPAND_TOPLEVEL_DELAY_MS);
+  scheduleSidebarMotion(() => {
+    sidebarMotionPhase.value = 'expanding-submenu';
+  }, SIDEBAR_EXPAND_SUBMENU_DELAY_MS);
+  scheduleSidebarMotion(() => {
+    sidebarMotionPhase.value = 'expanded';
   }, SIDEBAR_WIDTH_TRANSITION_MS);
 };
 
@@ -251,10 +267,11 @@ watch(
   max-width: var(--graft-shell-sidebar-current-width);
   min-width: var(--graft-shell-sidebar-current-width);
   transition:
-    flex-basis 0.18s cubic-bezier(0.38, 0, 0.24, 1),
-    max-width 0.18s cubic-bezier(0.38, 0, 0.24, 1),
-    min-width 0.18s cubic-bezier(0.38, 0, 0.24, 1),
-    width 0.18s cubic-bezier(0.38, 0, 0.24, 1);
+    flex-basis 0.32s cubic-bezier(0.38, 0, 0.24, 1),
+    max-width 0.32s cubic-bezier(0.38, 0, 0.24, 1),
+    min-width 0.32s cubic-bezier(0.38, 0, 0.24, 1),
+    width 0.32s cubic-bezier(0.38, 0, 0.24, 1);
   width: var(--graft-shell-sidebar-current-width);
+  will-change: flex-basis, max-width, min-width, width;
 }
 </style>
