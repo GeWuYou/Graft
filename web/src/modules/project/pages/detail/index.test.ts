@@ -6,6 +6,7 @@ import ProjectDetailPage from './index.vue';
 
 const containerApiMocks = vi.hoisted(() => ({
   batchContainerActions: vi.fn(),
+  getContainers: vi.fn(),
   getContainerEvents: vi.fn(),
   getContainerLogs: vi.fn(),
 }));
@@ -132,9 +133,9 @@ const detailMessages = {
   'project.detail.overview.serviceStatusRunning': 'Running',
   'project.detail.overview.serviceStatusStopped': 'Stopped',
   'project.detail.overview.viewService': 'View Service',
-  'project.detail.services.actions.restart': 'Restart Service',
-  'project.detail.services.actions.start': 'Start Service',
-  'project.detail.services.actions.stop': 'Stop Service',
+  'project.detail.services.actions.restart': 'Restart',
+  'project.detail.services.actions.start': 'Start',
+  'project.detail.services.actions.stop': 'Stop',
   'project.detail.services.batch.failed': 'Service action failed.',
   'project.detail.services.batch.failureDetailTitle': 'Failure Details',
   'project.detail.services.batch.noFailureDetail': 'No failure detail.',
@@ -392,6 +393,35 @@ function buildProjectServices() {
   };
 }
 
+function buildRuntimeContainers() {
+  return {
+    items: [
+      {
+        compose_project: 'compose-demo',
+        compose_service: 'app',
+        id: 'container-1',
+        image: 'demo:latest',
+        names: ['compose-demo-1'],
+        ports: [{ ip: '0.0.0.0', private_port: 8080, public_port: 8316, type: 'tcp' }],
+        runtime: 'docker',
+        state: 'running',
+        status: 'Up 1 minute',
+      },
+      {
+        compose_project: 'compose-demo',
+        compose_service: 'worker',
+        id: 'worker-1',
+        image: 'worker:latest',
+        names: ['worker-1'],
+        ports: [],
+        runtime: 'docker',
+        state: 'created',
+        status: 'Created',
+      },
+    ],
+  };
+}
+
 function mountPage() {
   return mount(ProjectDetailPage, {
     global: {
@@ -427,6 +457,7 @@ function mountPage() {
 
 vi.mock('@/modules/container/api/container', () => ({
   batchContainerActions: containerApiMocks.batchContainerActions,
+  getContainers: containerApiMocks.getContainers,
   getContainerEvents: containerApiMocks.getContainerEvents,
   getContainerLogs: containerApiMocks.getContainerLogs,
 }));
@@ -573,6 +604,7 @@ describe('Project detail service tab', () => {
     projectApiMocks.getProjectLogs.mockResolvedValue({ entries: [] });
     projectApiMocks.getProjectOverview.mockResolvedValue(buildProjectOverview());
     projectApiMocks.getProjectServices.mockResolvedValue(buildProjectServices());
+    containerApiMocks.getContainers.mockResolvedValue(buildRuntimeContainers());
     containerApiMocks.batchContainerActions.mockResolvedValue({
       failed_count: 0,
       items: [],
@@ -614,6 +646,22 @@ describe('Project detail service tab', () => {
     expect(wrapper.text()).not.toContain('Containers');
     expect(wrapper.text()).not.toContain('Networks');
     expect(wrapper.text()).not.toContain('Volumes');
+  });
+
+  it('renders runtime published ports instead of declared compose mappings', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(containerApiMocks.getContainers).toHaveBeenCalledWith({
+      limit: 200,
+      offset: 0,
+      orchestrator: 'compose',
+      source_scope: 'compose-demo',
+      source_scope_kind: 'compose_project',
+    });
+    expect(wrapper.find('[data-row="app"]').text()).toContain('8316:8080 TCP');
+    expect(wrapper.find('[data-row="app"]').text()).not.toContain('127.0.0.1:8080:8080');
+    expect(wrapper.find('[data-row="worker"]').text()).toContain('-');
   });
 
   it('prefers the first running member when opening service detail', async () => {

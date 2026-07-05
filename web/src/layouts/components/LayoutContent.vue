@@ -102,7 +102,7 @@
     <t-content :class="`${prefix}-content-layout`">
       <div :class="`${prefix}-content-layout__body`">
         <page-container :show-footer="showFooter" :footer-text="footerText" :surface="pageSurfaceType">
-          <l-content @page-surface-enter="handlePageSurfaceEnter" />
+          <l-content @page-surface-ready="handlePageSurfaceReady" />
         </page-container>
       </div>
     </t-content>
@@ -227,7 +227,7 @@ const handleRemove = (options: TTabRemoveOptions) => {
 };
 
 const renderTitle = (title?: LocalizedTitle) => renderLocalizedTitle(title, locale.value);
-const handlePageSurfaceEnter = (surface: PageSurfaceType) => {
+const handlePageSurfaceReady = (surface: PageSurfaceType) => {
   pageSurfaceType.value = surface;
 };
 

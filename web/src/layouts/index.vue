@@ -51,6 +51,7 @@ const logger = createLogger('layout.tabs');
 const shellSurfaceAttrs = computed(() => ({
   'data-layout-mode': settingStore.layout,
   'data-page-type': 'shell',
+  'data-sidebar-compact': String(settingStore.isSidebarCompact),
   'data-theme-mode': settingStore.displayMode,
 }));
 
@@ -116,6 +117,10 @@ watch(
 </script>
 <style lang="less" scoped>
 .app-shell {
+  --graft-shell-sidebar-width: 232px;
+  --graft-shell-sidebar-width-compact: 72px;
+  --graft-shell-sidebar-current-width: var(--graft-shell-sidebar-width);
+
   background: var(--graft-shell-bg);
   color: var(--td-text-color-primary);
   display: flex;
@@ -123,6 +128,10 @@ watch(
   height: 100%;
   min-height: 0;
   overflow: hidden;
+}
+
+.app-shell[data-sidebar-compact='true'] {
+  --graft-shell-sidebar-current-width: var(--graft-shell-sidebar-width-compact);
 }
 
 .app-shell__layout,
@@ -148,5 +157,17 @@ watch(
 .app-shell :deep(.t-layout),
 .app-shell :deep(.t-layout__content) {
   min-height: 0;
+}
+
+.app-shell[data-layout-mode='side'] :deep(.t-layout__sider) {
+  flex: 0 0 var(--graft-shell-sidebar-current-width);
+  max-width: var(--graft-shell-sidebar-current-width);
+  min-width: var(--graft-shell-sidebar-current-width);
+  transition:
+    flex-basis 0.3s cubic-bezier(0.38, 0, 0.24, 1),
+    max-width 0.3s cubic-bezier(0.38, 0, 0.24, 1),
+    min-width 0.3s cubic-bezier(0.38, 0, 0.24, 1),
+    width 0.3s cubic-bezier(0.38, 0, 0.24, 1);
+  width: var(--graft-shell-sidebar-current-width);
 }
 </style>

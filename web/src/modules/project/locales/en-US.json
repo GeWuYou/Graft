@@ -841,9 +841,9 @@
           "operation": "Operation"
         },
         "actions": {
-          "start": "Start Service",
-          "stop": "Stop Service",
-          "restart": "Restart Service"
+          "start": "Start",
+          "stop": "Stop",
+          "restart": "Restart"
         },
         "batch": {
           "success": "Service action completed for {count} containers.",

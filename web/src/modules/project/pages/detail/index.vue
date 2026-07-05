@@ -847,12 +847,13 @@ import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
 import { LOCALE, type LocalizedTitle } from '@/contracts/i18n/locales';
-import { batchContainerActions } from '@/modules/container/api/container';
+import { batchContainerActions, getContainers } from '@/modules/container/api/container';
 import { CONTAINER_BOOTSTRAP_ROUTE } from '@/modules/container/contract/bootstrap';
 import type {
   ContainerBatchActionItem,
   ContainerBatchActionRequest,
   ContainerBatchActionResponse,
+  ContainerSummaryRecord,
 } from '@/modules/container/types/container';
 import {
   createActionColumn,
@@ -1023,6 +1024,8 @@ const serviceRows = ref<ProjectServiceItem[]>([]);
 const projectOverview = ref<ProjectOverviewResponse | null>(null);
 const serviceActionKey = ref('');
 const serviceLoading = ref(false);
+const serviceRuntimePortSummaries = ref<Record<string, string>>({});
+const serviceRuntimePortsRequestId = ref(0);
 const serviceTableCurrent = ref(1);
 const serviceTablePageSize = ref(20);
 const servicesLoaded = ref(false);
@@ -1206,7 +1209,7 @@ const serviceTableRows = computed<ServiceTableRow[]>(() =>
       hasMembers: service.container_members.length > 0,
       image: service.image || '-',
       name: service.service_name,
-      portsSummary: joinList(service.declared_ports || []),
+      portsSummary: serviceRuntimePortSummaries.value[service.service_name] || '-',
       raw: service,
       runningCount: service.running_count,
       service_name: service.service_name,
@@ -1723,6 +1726,7 @@ async function loadProjectLogs() {
 async function loadProjectServices(forceRefresh = false) {
   if (!Number.isFinite(projectId.value)) {
     serviceRows.value = [];
+    serviceRuntimePortSummaries.value = {};
     servicesLoaded.value = false;
     return [];
   }
@@ -1734,11 +1738,13 @@ async function loadProjectServices(forceRefresh = false) {
   try {
     const response = await getProjectServices(projectId.value);
     serviceRows.value = response.items;
+    await syncServiceRuntimePortSummaries(response.items);
     servicesLoaded.value = true;
     return response.items;
   } catch (error) {
     logger.error('failed to load project services', error);
     serviceRows.value = [];
+    serviceRuntimePortSummaries.value = {};
     servicesLoaded.value = false;
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.detail.services.loadFailed')));
     return [];
@@ -1842,6 +1848,7 @@ function applyProjectRealtimeSnapshot(payload: {
   updateCurrentTabTitle(buildDetailTitle(payload.detail.display_name));
   detailError.value = '';
   serviceRows.value = payload.services.items;
+  void syncServiceRuntimePortSummaries(payload.services.items);
   servicesLoaded.value = true;
   updateProjectOverviewTrends(projectOverview.value, payload.overview);
   projectOverview.value = payload.overview;
@@ -2384,6 +2391,80 @@ function normalizeTextBlock(value: string) {
 
 function joinList(items: string[]) {
   return items.length > 0 ? items.join(', ') : '-';
+}
+
+function readContainerComposeService(container: ContainerSummaryRecord) {
+  return container.orchestrator?.service || container.compose_service || '';
+}
+
+function formatRuntimePortLabel(port: ContainerSummaryRecord['ports'][number]) {
+  if (typeof port.public_port !== 'number') {
+    return '';
+  }
+  const host = port.ip && port.ip !== '0.0.0.0' && port.ip !== '::' ? `${port.ip}:` : '';
+  return `${host}${port.public_port}:${port.private_port} ${port.type.toUpperCase()}`;
+}
+
+function buildServiceRuntimePortSummaries(
+  services: ProjectServiceItem[],
+  containers: ContainerSummaryRecord[],
+): Record<string, string> {
+  const labelsByService = new Map<string, Set<string>>();
+
+  for (const service of services) {
+    labelsByService.set(service.service_name, new Set());
+  }
+
+  for (const container of containers) {
+    const serviceName = readContainerComposeService(container);
+    if (!serviceName || !labelsByService.has(serviceName)) {
+      continue;
+    }
+    const portLabels = container.ports.map(formatRuntimePortLabel).filter(Boolean);
+    const labelSet = labelsByService.get(serviceName);
+    if (!labelSet) {
+      continue;
+    }
+    for (const label of portLabels) {
+      labelSet.add(label);
+    }
+  }
+
+  return Object.fromEntries(
+    Array.from(labelsByService.entries()).map(([serviceName, labels]) => [serviceName, joinList(Array.from(labels))]),
+  );
+}
+
+async function syncServiceRuntimePortSummaries(services: ProjectServiceItem[]) {
+  const requestId = serviceRuntimePortsRequestId.value + 1;
+  serviceRuntimePortsRequestId.value = requestId;
+
+  const canonicalProjectName = (detailRecord.value?.canonical_project_name || fallbackCanonicalName.value).trim();
+  if (!canonicalProjectName || services.length === 0) {
+    if (requestId === serviceRuntimePortsRequestId.value) {
+      serviceRuntimePortSummaries.value = {};
+    }
+    return;
+  }
+
+  try {
+    const response = await getContainers({
+      limit: 200,
+      offset: 0,
+      orchestrator: 'compose',
+      source_scope: canonicalProjectName,
+      source_scope_kind: 'compose_project',
+    });
+    if (requestId !== serviceRuntimePortsRequestId.value) {
+      return;
+    }
+    serviceRuntimePortSummaries.value = buildServiceRuntimePortSummaries(services, response.items);
+  } catch (error) {
+    logger.warn('failed to load runtime ports for project services', error);
+    if (requestId === serviceRuntimePortsRequestId.value) {
+      serviceRuntimePortSummaries.value = {};
+    }
+  }
 }
 
 function parseActivityTime(value?: string | null) {

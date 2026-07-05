@@ -33,6 +33,7 @@ const routerMock = vi.hoisted(() => ({
 const storeState = vi.hoisted(() => ({
   settingStore: {
     displayMode: 'light',
+    isSidebarCompact: false,
     layout: { value: 'side' },
     showSidebar: true,
   },
@@ -166,5 +167,16 @@ describe('App layout route effects', () => {
     await wrapper.vm.$nextTick();
 
     expect(scrollToMock).toHaveBeenCalledWith({ behavior: 'smooth', top: 0 });
+  });
+
+  it('exposes the sidebar compact state on the shell surface', async () => {
+    storeState.settingStore.isSidebarCompact = false;
+    const wrapper = mountAppLayout();
+
+    expect(wrapper.get('.app-shell').attributes('data-sidebar-compact')).toBe('false');
+
+    storeState.settingStore.isSidebarCompact = true;
+    const compactWrapper = mountAppLayout();
+    expect(compactWrapper.get('.app-shell').attributes('data-sidebar-compact')).toBe('true');
   });
 });

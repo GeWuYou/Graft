@@ -841,9 +841,9 @@
           "operation": "操作"
         },
         "actions": {
-          "start": "启动 Service",
-          "stop": "停止 Service",
-          "restart": "重启 Service"
+          "start": "启动",
+          "stop": "停止",
+          "restart": "重启"
         },
         "batch": {
           "success": "服务操作已完成，成功 {count} 个容器。",
