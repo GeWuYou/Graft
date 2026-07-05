@@ -714,9 +714,6 @@
       "tabs": {
         "overview": "概览",
         "services": "服务",
-        "containers": "容器",
-        "networks": "网络",
-        "volumes": "卷",
         "configuration": "配置",
         "logs": "日志",
         "lifecycle": "生命周期"
@@ -829,7 +826,7 @@
       },
       "services": {
         "title": "服务",
-        "description": "服务定义、构建上下文、声明资源和首个运行成员入口统一在这里查看。",
+        "description": "服务定义、运行状态、健康情况与全部成员操作统一在这里查看。",
         "refresh": "刷新服务",
         "summary": "共 {count} 个服务",
         "loadFailed": "服务列表加载失败。",
@@ -837,14 +834,25 @@
         "emptyDescription": "当前项目还没有可展示的服务定义。",
         "columns": {
           "service": "服务",
-          "buildContext": "构建上下文",
-          "networks": "声明网络",
+          "status": "状态",
+          "image": "镜像",
+          "health": "健康",
           "ports": "声明端口",
-          "volumes": "声明卷",
-          "runtime": "运行中 / 已停止",
           "operation": "操作"
         },
-        "openContainer": "打开容器详情"
+        "actions": {
+          "start": "启动 Service",
+          "stop": "停止 Service",
+          "restart": "重启 Service"
+        },
+        "batch": {
+          "success": "服务操作已完成，成功 {count} 个容器。",
+          "failed": "服务操作失败。",
+          "partialTitle": "服务操作部分成功",
+          "failureDetailTitle": "查看服务操作失败明细",
+          "noFailureDetail": "暂无失败明细。",
+          "refreshWarning": "服务操作已提交，但项目详情刷新失败，请手动刷新。"
+        }
       },
       "lifecycle": {
         "title": "生命周期",

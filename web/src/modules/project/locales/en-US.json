@@ -714,9 +714,6 @@
       "tabs": {
         "overview": "Overview",
         "services": "Services",
-        "containers": "Containers",
-        "networks": "Networks",
-        "volumes": "Volumes",
         "configuration": "Configuration",
         "logs": "Logs",
         "lifecycle": "Lifecycle"
@@ -829,7 +826,7 @@
       },
       "services": {
         "title": "Services",
-        "description": "Review service definitions, build contexts, declared resources, and the first runtime member from one workspace.",
+        "description": "Review service definitions, runtime status, health, and actions for all service members from one workspace.",
         "refresh": "Refresh Services",
         "summary": "{count} Services",
         "loadFailed": "Failed to load services.",
@@ -837,14 +834,25 @@
         "emptyDescription": "This project does not currently expose service definitions.",
         "columns": {
           "service": "Service",
-          "buildContext": "Build Context",
-          "networks": "Declared Networks",
+          "status": "Status",
+          "image": "Image",
+          "health": "Health",
           "ports": "Declared Ports",
-          "volumes": "Declared Volumes",
-          "runtime": "Running / Stopped",
           "operation": "Operation"
         },
-        "openContainer": "Open Container Detail"
+        "actions": {
+          "start": "Start Service",
+          "stop": "Stop Service",
+          "restart": "Restart Service"
+        },
+        "batch": {
+          "success": "Service action completed for {count} containers.",
+          "failed": "Service action failed.",
+          "partialTitle": "Service Action Partially Succeeded",
+          "failureDetailTitle": "View Service Action Failure Details",
+          "noFailureDetail": "No failure details are available.",
+          "refreshWarning": "The service action was submitted, but project detail refresh failed. Refresh manually."
+        }
       },
       "lifecycle": {
         "title": "Lifecycle",

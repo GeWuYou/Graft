@@ -1093,7 +1093,9 @@ describe('container detail page', () => {
     expect(mountCardText).not.toContain(fullSource);
 
     await wrapper.get('[data-testid="mount-source-copy-0"]').trigger('click');
-    await wrapper.get('[data-testid="mount-destination-copy-0"]').trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-testid="mount-destination-field-copy-0"]').trigger('click');
+    await flushPromises();
 
     expect(copyText).toHaveBeenCalledWith(fullSource);
     expect(copyText).toHaveBeenCalledWith('/app');
@@ -3538,17 +3540,13 @@ function mountPage(component: object = ContainerDetailPage) {
           setup:
             (props, { attrs, emit, slots }) =>
             () => {
-              const label = slots
-                .default?.()
-                .map((node) => String(node.children ?? ''))
-                .join('');
               return h(
                 'button',
                 {
                   ...attrs,
                   disabled: Boolean(props.disabled),
                   'data-loading': String(Boolean(props.loading)),
-                  'data-testid': attrs['data-testid'] ?? (label === '刷新' ? 'detail-refresh' : undefined),
+                  'data-testid': attrs['data-testid'],
                   onClick: () => {
                     if (!props.disabled) {
                       emit('click');

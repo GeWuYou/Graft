@@ -261,112 +261,63 @@
                 </div>
               </div>
 
-              <t-card size="small">
-                <template #actions>
-                  <t-space size="small">
-                    <t-tag theme="default" variant="light-outline">
-                      {{ t('project.detail.services.summary', { count: serviceRows.length }) }}
-                    </t-tag>
-                    <t-button
-                      theme="primary"
-                      variant="outline"
-                      :loading="serviceLoading"
-                      @click="refreshProjectServices"
-                    >
-                      {{ t('project.detail.services.refresh') }}
-                    </t-button>
-                  </t-space>
+              <management-paged-table
+                v-model:current="serviceTableCurrent"
+                v-model:page-size="serviceTablePageSize"
+                :cell-slot-names="['name', 'status', 'health', 'ports', 'operation']"
+                :columns="serviceColumns"
+                :description="t('project.detail.services.description')"
+                :empty-description="t('project.detail.services.emptyDescription')"
+                :empty-title="t('project.detail.services.emptyTitle')"
+                :footer-summary="t('project.detail.services.summary', { count: serviceTableRows.length })"
+                head-label="project-detail-services-table"
+                :loading="serviceLoading || serviceActionLoading"
+                :pagination-visible="false"
+                row-key="service_name"
+                :rows="serviceTableRows"
+                :summary="t('project.detail.services.summary', { count: serviceTableRows.length })"
+                :total="serviceTableRows.length"
+              >
+                <template #toolbar>
+                  <t-button
+                    theme="primary"
+                    variant="outline"
+                    :loading="serviceLoading"
+                    :disabled="serviceActionLoading"
+                    @click="refreshProjectServices"
+                  >
+                    {{ t('project.detail.services.refresh') }}
+                  </t-button>
                 </template>
 
-                <t-table
-                  row-key="service_name"
-                  :columns="serviceColumns"
-                  :data="serviceRows"
-                  :loading="serviceLoading"
-                  cell-empty-content="-"
-                  hover
-                >
-                  <template #service_name="{ row }">
-                    <div class="project-service-name">
-                      <strong>{{ row.service_name }}</strong>
-                      <span>{{ row.image || '-' }}</span>
-                    </div>
-                  </template>
+                <template #name="{ row }">
+                  <div class="project-service-name">
+                    <strong>{{ row.name }}</strong>
+                    <span>{{ row.image }}</span>
+                  </div>
+                </template>
 
-                  <template #build_context="{ row }">
-                    <code>{{ row.build_context || '-' }}</code>
-                  </template>
+                <template #status="{ row }">
+                  <t-tag :theme="row.statusTheme" variant="light-outline">
+                    {{ row.statusLabel }}
+                  </t-tag>
+                </template>
 
-                  <template #declared_networks="{ row }">
-                    <span>{{ joinList(row.declared_networks || []) }}</span>
-                  </template>
+                <template #health="{ row }">
+                  <t-tag :theme="row.healthTheme" variant="light-outline">
+                    {{ row.healthLabel }}
+                  </t-tag>
+                </template>
 
-                  <template #declared_ports="{ row }">
-                    <span>{{ joinList(row.declared_ports || []) }}</span>
-                  </template>
+                <template #ports="{ row }">
+                  <span>{{ row.portsSummary }}</span>
+                </template>
 
-                  <template #declared_volumes="{ row }">
-                    <span>{{ joinList(row.declared_volumes || []) }}</span>
-                  </template>
-
-                  <template #runtime="{ row }">
-                    <div class="project-detail-action-bar">
-                      <t-tag theme="success" variant="light-outline">{{ row.running_count }}</t-tag>
-                      <t-tag theme="warning" variant="light-outline">{{ row.stopped_count }}</t-tag>
-                    </div>
-                  </template>
-
-                  <template #operation="{ row }">
-                    <t-button
-                      size="small"
-                      theme="default"
-                      variant="outline"
-                      :disabled="!row.container_members.length"
-                      @click="openFirstServiceContainer(row)"
-                    >
-                      {{ t('project.detail.services.openContainer') }}
-                    </t-button>
-                  </template>
-
-                  <template #empty>
-                    <t-empty
-                      :title="t('project.detail.services.emptyTitle')"
-                      :description="t('project.detail.services.emptyDescription')"
-                    />
-                  </template>
-                </t-table>
-              </t-card>
+                <template #operation="{ row }">
+                  <table-action-menu :actions="serviceActionOptions(row)" @action="handleServiceAction($event, row)" />
+                </template>
+              </management-paged-table>
             </section>
-          </t-tab-panel>
-
-          <t-tab-panel value="containers" :destroy-on-hide="false" :label="t('project.detail.tabs.containers')">
-            <project-resources-section
-              :active-resource="'containers'"
-              :canonical-project-name="detailRecord.canonical_project_name"
-              :project-id="detailRecord.id"
-              :show-resource-switcher="false"
-              @open-container-detail="openContainerDetail"
-            />
-          </t-tab-panel>
-
-          <t-tab-panel value="networks" :destroy-on-hide="false" :label="t('project.detail.tabs.networks')">
-            <project-resources-section
-              :active-resource="'networks'"
-              :canonical-project-name="detailRecord.canonical_project_name"
-              :project-id="detailRecord.id"
-              :show-resource-switcher="false"
-              @open-container-detail="openContainerDetail"
-            />
-          </t-tab-panel>
-
-          <t-tab-panel value="volumes" :destroy-on-hide="false" :label="t('project.detail.tabs.volumes')">
-            <project-resources-section
-              :active-resource="'volumes'"
-              :canonical-project-name="detailRecord.canonical_project_name"
-              :project-id="detailRecord.id"
-              :show-resource-switcher="false"
-              @open-container-detail="openContainerDetail"
-            />
           </t-tab-panel>
 
           <t-tab-panel value="configuration" :destroy-on-hide="false" :label="t('project.detail.tabs.configuration')">
@@ -890,13 +841,28 @@
 import type { TableProps } from 'tdesign-vue-next';
 import { DialogPlugin } from 'tdesign-vue-next/es/dialog';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
+import { NotifyPlugin } from 'tdesign-vue-next/es/notification';
 import { computed, h, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
 import { LOCALE, type LocalizedTitle } from '@/contracts/i18n/locales';
+import { batchContainerActions } from '@/modules/container/api/container';
 import { CONTAINER_BOOTSTRAP_ROUTE } from '@/modules/container/contract/bootstrap';
-import { ManagementPageHeader } from '@/shared/components/management';
+import type {
+  ContainerBatchActionItem,
+  ContainerBatchActionRequest,
+  ContainerBatchActionResponse,
+} from '@/modules/container/types/container';
+import {
+  createActionColumn,
+  createMainTextColumn,
+  createStatusColumn,
+  createTextColumn,
+  ManagementPagedTable,
+  ManagementPageHeader,
+  TableActionMenu,
+} from '@/shared/components/management';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import {
   copyText,
@@ -985,12 +951,25 @@ defineOptions({
 
 type EditorMode = 'edit' | 'preview';
 type ConfigurationEditorTab = 'compose' | 'env';
-type ProjectDetailTab =
-  'overview' | 'services' | 'containers' | 'networks' | 'volumes' | 'configuration' | 'logs' | 'lifecycle';
+type ProjectDetailTab = 'overview' | 'services' | 'configuration' | 'logs' | 'lifecycle';
 type OverviewDiagnostic = {
   key: string;
   message: string;
   theme: 'success' | 'warning' | 'error' | 'info';
+};
+type ServiceRowAction = 'detail' | Extract<ContainerBatchActionRequest['action'], 'start' | 'stop' | 'restart'>;
+type ServiceTableRow = {
+  healthLabel: string;
+  healthTheme: 'success' | 'warning' | 'danger' | 'default';
+  hasMembers: boolean;
+  image: string;
+  name: string;
+  portsSummary: string;
+  raw: ProjectServiceItem;
+  runningCount: number;
+  service_name: string;
+  statusLabel: string;
+  statusTheme: 'success' | 'warning' | 'danger' | 'default';
 };
 type ServiceSnapshotCard = {
   key: string;
@@ -1042,7 +1021,10 @@ const pendingProjectLogEntries = ref<ProjectLogEntry[]>([]);
 const projectLogContentVersion = ref(0);
 const serviceRows = ref<ProjectServiceItem[]>([]);
 const projectOverview = ref<ProjectOverviewResponse | null>(null);
+const serviceActionKey = ref('');
 const serviceLoading = ref(false);
+const serviceTableCurrent = ref(1);
+const serviceTablePageSize = ref(20);
 const servicesLoaded = ref(false);
 const projectOverviewLoaded = ref(false);
 const configurationLoadRequestId = ref(0);
@@ -1214,6 +1196,25 @@ const projectLogSourceCount = computed(() => {
   const entries = projectLogResponse.value?.entries ?? [];
   return new Set(entries.map((entry) => `${entry.container_id}:${entry.service_name}`)).size;
 });
+const serviceActionLoading = computed(() => serviceActionKey.value.length > 0);
+const serviceTableRows = computed<ServiceTableRow[]>(() =>
+  serviceRows.value.map((service) => {
+    const overviewItem = overviewServiceMap.value.get(service.service_name);
+    return {
+      healthLabel: overviewServiceHealthLabel(overviewItem?.health),
+      healthTheme: overviewServiceHealthTheme(overviewItem?.health),
+      hasMembers: service.container_members.length > 0,
+      image: service.image || '-',
+      name: service.service_name,
+      portsSummary: joinList(service.declared_ports || []),
+      raw: service,
+      runningCount: service.running_count,
+      service_name: service.service_name,
+      statusLabel: overviewServiceStatusLabel(overviewItem?.status),
+      statusTheme: overviewServiceStatusTheme(overviewItem?.status),
+    };
+  }),
+);
 const serviceSnapshotCards = computed<ServiceSnapshotCard[]>(() =>
   serviceRows.value.map((service) => {
     const overviewItem = overviewServiceMap.value.get(service.service_name);
@@ -1310,16 +1311,16 @@ const envDraftContent = computed({
   },
 });
 const serviceColumns = computed<TableProps['columns']>(() => [
-  { colKey: 'service_name', title: t('project.detail.services.columns.service'), minWidth: 220 },
-  { colKey: 'build_context', title: t('project.detail.services.columns.buildContext'), minWidth: 220 },
-  { colKey: 'declared_networks', title: t('project.detail.services.columns.networks'), minWidth: 220 },
-  { colKey: 'declared_ports', title: t('project.detail.services.columns.ports'), minWidth: 220 },
-  { colKey: 'declared_volumes', title: t('project.detail.services.columns.volumes'), minWidth: 220 },
-  { colKey: 'runtime', title: t('project.detail.services.columns.runtime'), width: 140, align: 'center' },
-  { colKey: 'operation', title: t('project.detail.services.columns.operation'), width: 144, align: 'center' },
+  createMainTextColumn(t('project.detail.services.columns.service'), 'name', 220),
+  createStatusColumn(t('project.detail.services.columns.status'), 'status', 120),
+  createTextColumn(t('project.detail.services.columns.image'), 'image', { minWidth: 220 }),
+  createStatusColumn(t('project.detail.services.columns.health'), 'health', 120),
+  createTextColumn(t('project.detail.services.columns.ports'), 'ports', { minWidth: 220 }),
+  createActionColumn(t('project.detail.services.columns.operation'), 136),
 ]);
 
 onMounted(async () => {
+  syncCanonicalDetailTabQuery(route.query.tab);
   await refreshDetail();
   syncProjectDetailRealtimeSubscription();
   syncProjectLogsRealtimeSubscription();
@@ -1337,6 +1338,7 @@ watch(
     if (activeDetailTab.value !== nextTab) {
       activeDetailTab.value = nextTab;
     }
+    syncCanonicalDetailTabQuery(value);
   },
 );
 
@@ -1952,11 +1954,142 @@ async function refreshProjectServices() {
 }
 
 function openFirstServiceContainer(service: ProjectServiceItem) {
-  const member = service.container_members[0];
+  const member = resolveServiceDetailMember(service);
   if (!member) {
     return;
   }
   openContainerDetail(member);
+}
+
+function serviceActionOptions(row: ServiceTableRow) {
+  const rowLoading = serviceActionKey.value.startsWith(`${row.service_name}:`);
+  const actions: Array<{ disabled?: boolean; label: string; value: ServiceRowAction }> = [
+    {
+      disabled: rowLoading || !row.hasMembers,
+      label: 'components.commonTable.detail',
+      value: 'detail',
+    },
+  ];
+
+  if (row.hasMembers && row.runningCount === 0) {
+    actions.push({
+      disabled: rowLoading,
+      label: 'project.detail.services.actions.start',
+      value: 'start',
+    });
+  }
+
+  if (row.runningCount > 0) {
+    actions.push(
+      {
+        disabled: rowLoading,
+        label: 'project.detail.services.actions.stop',
+        value: 'stop',
+      },
+      {
+        disabled: rowLoading,
+        label: 'project.detail.services.actions.restart',
+        value: 'restart',
+      },
+    );
+  }
+
+  return actions;
+}
+
+async function handleServiceAction(action: string, row: ServiceTableRow) {
+  if (action === 'detail') {
+    openFirstServiceContainer(row.raw);
+    return;
+  }
+
+  if (action !== 'start' && action !== 'stop' && action !== 'restart') {
+    return;
+  }
+
+  await runServiceContainerAction(action, row.raw);
+}
+
+async function runServiceContainerAction(
+  action: Extract<ContainerBatchActionRequest['action'], 'start' | 'stop' | 'restart'>,
+  service: ProjectServiceItem,
+) {
+  const ids = service.container_members.map((member) => member.container_id).filter(Boolean);
+  if (!ids.length) {
+    return;
+  }
+
+  serviceActionKey.value = `${service.service_name}:${action}`;
+  try {
+    const response = await batchContainerActions({
+      action,
+      force: false,
+      ids,
+    });
+    handleServiceBatchActionResult(response);
+    try {
+      await refreshProjectRuntimeSurface();
+    } catch (error) {
+      logger.warn('failed to refresh project runtime surface after service action', error);
+      MessagePlugin.warning(t('project.detail.services.batch.refreshWarning'));
+    }
+  } catch (error) {
+    logger.warn(`failed to ${action} service containers`, error);
+    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.detail.services.batch.failed')));
+  } finally {
+    serviceActionKey.value = '';
+  }
+}
+
+function handleServiceBatchActionResult(response: ContainerBatchActionResponse) {
+  if (response.failed_count === 0) {
+    MessagePlugin.success(t('project.detail.services.batch.success', { count: response.success_count }));
+    return;
+  }
+
+  if (response.success_count > 0) {
+    void NotifyPlugin.warning({
+      closeBtn: true,
+      content: batchFailureSummary(response.items),
+      duration: 0,
+      title: t('project.detail.services.batch.partialTitle'),
+    });
+    return;
+  }
+
+  MessagePlugin.error(t('project.detail.services.batch.failed'));
+  DialogPlugin.alert({
+    body: batchFailureSummary(response.items),
+    confirmBtn: t('project.list.actions.confirm'),
+    header: t('project.detail.services.batch.failureDetailTitle'),
+    theme: 'danger',
+  });
+}
+
+function batchFailureSummary(items: ContainerBatchActionItem[]) {
+  const failedItems = items.filter((item) => !item.success);
+  if (!failedItems.length) {
+    return t('project.detail.services.batch.noFailureDetail');
+  }
+
+  return failedItems
+    .slice(0, 5)
+    .map((item) => `${item.name || item.id}: ${item.message_key ? t(item.message_key) : item.message || '-'}`)
+    .join('\n');
+}
+
+async function refreshProjectRuntimeSurface() {
+  if (!Number.isFinite(projectId.value)) {
+    return;
+  }
+
+  const nextDetail = await getProject(projectId.value);
+  detailRecord.value = nextDetail;
+  syncLifecycleDraft(nextDetail);
+  updateCurrentTabTitle(buildDetailTitle(nextDetail.display_name));
+  await Promise.all([loadProjectServices(true), loadProjectOverview(true)]);
+  syncProjectDetailRealtimeSubscription();
+  syncProjectLogsRealtimeSubscription();
 }
 
 function pauseProjectLogs() {
@@ -2270,17 +2403,24 @@ function normalizeDetailTab(value: unknown): ProjectDetailTab {
   if (raw === 'runtime') {
     return 'lifecycle';
   }
-  const tabs: ProjectDetailTab[] = [
-    'overview',
-    'services',
-    'containers',
-    'networks',
-    'volumes',
-    'configuration',
-    'logs',
-    'lifecycle',
-  ];
+  if (raw === 'containers' || raw === 'networks' || raw === 'volumes') {
+    return 'services';
+  }
+  const tabs: ProjectDetailTab[] = ['overview', 'services', 'configuration', 'logs', 'lifecycle'];
   return typeof raw === 'string' && tabs.includes(raw as ProjectDetailTab) ? (raw as ProjectDetailTab) : 'overview';
+}
+
+function syncCanonicalDetailTabQuery(value: unknown) {
+  const raw = Array.isArray(value) ? value[0] : value;
+  const nextTab = normalizeDetailTab(value);
+  if (typeof raw === 'string' && ['runtime', 'containers', 'networks', 'volumes'].includes(raw) && raw !== nextTab) {
+    void router.replace({
+      query: {
+        ...route.query,
+        tab: nextTab,
+      },
+    });
+  }
 }
 
 function readNameFromTabTitle(title?: LocalizedTitle) {
@@ -2296,6 +2436,10 @@ function updateCurrentTabTitle(title: LocalizedTitle) {
   tabsRouterStore.tabRouterList = tabsRouterStore.tabRouterList.map((tab) =>
     tab.tabKey === routePath || tab.path === routePath || tab.fullPath === routeFullPath ? { ...tab, title } : tab,
   );
+}
+
+function resolveServiceDetailMember(service: ProjectServiceItem) {
+  return service.container_members.find((member) => member.state === 'running') ?? service.container_members[0];
 }
 
 function openContainerDetail(member: ProjectServiceContainerMember) {
