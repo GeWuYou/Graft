@@ -9,7 +9,9 @@ import type {
 export { batchContainerActions, getContainers };
 
 export type ProjectContainerAction = Extract<ContainerBatchActionRequest['action'], 'start' | 'stop' | 'restart'>;
-export type ProjectContainerActionSubmission = Pick<ContainerBatchActionRequest, 'action' | 'force' | 'ids'>;
+export type ProjectContainerActionSubmission = Omit<ContainerBatchActionRequest, 'action'> & {
+  action: ProjectContainerAction;
+};
 export type ProjectContainerActionResult = ContainerBatchActionResponse;
 export type ProjectContainerActionResultItem = ContainerBatchActionItem;
 export type ProjectContainerSummary = ContainerSummaryRecord;
