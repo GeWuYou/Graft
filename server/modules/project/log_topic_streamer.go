@@ -33,6 +33,33 @@ type projectLogTopicStream struct {
 	runID              uint64
 }
 
+func markProjectLogTopicStreamDone(done chan struct{}) {
+	if done == nil {
+		return
+	}
+	select {
+	case done <- struct{}{}:
+	default:
+	}
+}
+
+func omitProjectLogTopicStream(
+	streams map[string]*projectLogTopicStream,
+	topic string,
+) map[string]*projectLogTopicStream {
+	if len(streams) == 0 {
+		return streams
+	}
+	next := make(map[string]*projectLogTopicStream, len(streams))
+	for key, stream := range streams {
+		if key == topic {
+			continue
+		}
+		next[key] = stream
+	}
+	return next
+}
+
 //nolint:dupl
 func newProjectLogTopicStreamer(hub realtime.Hub, logger *zap.Logger, service *Service) (*projectLogTopicStreamer, error) {
 	if hub == nil {
@@ -79,7 +106,7 @@ func (s *projectLogTopicStreamer) EnsureTopic(topic string, projectID uint64, qu
 	})
 	if err != nil {
 		s.mu.Lock()
-		delete(s.streams, topic)
+		s.streams = omitProjectLogTopicStream(s.streams, topic)
 		s.mu.Unlock()
 		return err
 	}
@@ -103,7 +130,7 @@ func (s *projectLogTopicStreamer) Close(ctx context.Context) error {
 		closeErr = errors.Join(closeErr, s.stop(ctx, topic))
 		s.mu.Lock()
 		stream := s.streams[topic]
-		delete(s.streams, topic)
+		s.streams = omitProjectLogTopicStream(s.streams, topic)
 		s.mu.Unlock()
 		if stream != nil && stream.unregisterObserver != nil {
 			stream.unregisterObserver()
@@ -121,7 +148,7 @@ func (s *projectLogTopicStreamer) start(topic string) {
 	}
 	runCtx, cancel := context.WithCancel(context.Background())
 	stream.cancel = cancel
-	stream.done = make(chan struct{})
+	stream.done = make(chan struct{}, 1)
 	stream.runID++
 	runID := stream.runID
 	projectID := stream.projectID
@@ -130,7 +157,7 @@ func (s *projectLogTopicStreamer) start(topic string) {
 	s.mu.Unlock()
 
 	go func() {
-		defer close(done)
+		defer markProjectLogTopicStreamDone(done)
 		if err := s.service.streamProjectLogs(runCtx, topic, projectID, query); err != nil && !errors.Is(err, context.Canceled) {
 			s.logger.Warn("project log stream stopped with error", zap.String("topic", logsafe.SanitizeText(topic)), zap.Error(err))
 		}

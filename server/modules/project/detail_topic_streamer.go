@@ -31,6 +31,33 @@ type projectDetailTopicStream struct {
 	runID              uint64
 }
 
+func markProjectDetailTopicStreamDone(done chan struct{}) {
+	if done == nil {
+		return
+	}
+	select {
+	case done <- struct{}{}:
+	default:
+	}
+}
+
+func omitProjectDetailTopicStream(
+	streams map[string]*projectDetailTopicStream,
+	topic string,
+) map[string]*projectDetailTopicStream {
+	if len(streams) == 0 {
+		return streams
+	}
+	next := make(map[string]*projectDetailTopicStream, len(streams))
+	for key, stream := range streams {
+		if key == topic {
+			continue
+		}
+		next[key] = stream
+	}
+	return next
+}
+
 //nolint:dupl
 func newProjectDetailTopicStreamer(hub realtime.Hub, logger *zap.Logger, service *Service) (*projectDetailTopicStreamer, error) {
 	if hub == nil {
@@ -77,7 +104,7 @@ func (s *projectDetailTopicStreamer) EnsureTopic(topic string, projectID uint64)
 	})
 	if err != nil {
 		s.mu.Lock()
-		delete(s.streams, topic)
+		s.streams = omitProjectDetailTopicStream(s.streams, topic)
 		s.mu.Unlock()
 		return err
 	}
@@ -101,7 +128,7 @@ func (s *projectDetailTopicStreamer) Close(ctx context.Context) error {
 		closeErr = errors.Join(closeErr, s.stop(ctx, topic))
 		s.mu.Lock()
 		stream := s.streams[topic]
-		delete(s.streams, topic)
+		s.streams = omitProjectDetailTopicStream(s.streams, topic)
 		s.mu.Unlock()
 		if stream != nil && stream.unregisterObserver != nil {
 			stream.unregisterObserver()
@@ -119,7 +146,7 @@ func (s *projectDetailTopicStreamer) start(topic string) {
 	}
 	runCtx, cancel := context.WithCancel(context.Background())
 	stream.cancel = cancel
-	stream.done = make(chan struct{})
+	stream.done = make(chan struct{}, 1)
 	stream.runID++
 	runID := stream.runID
 	projectID := stream.projectID
@@ -127,7 +154,7 @@ func (s *projectDetailTopicStreamer) start(topic string) {
 	s.mu.Unlock()
 
 	go func() {
-		defer close(done)
+		defer markProjectDetailTopicStreamDone(done)
 		s.publish(topic, projectID)
 		ticker := time.NewTicker(projectDetailTopicRefreshInterval)
 		defer ticker.Stop()
