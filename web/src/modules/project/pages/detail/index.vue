@@ -272,11 +272,13 @@
                 :footer-summary="t('project.detail.services.summary', { count: serviceTableRows.length })"
                 head-label="project-detail-services-table"
                 :loading="serviceLoading || serviceActionLoading"
-                :pagination-visible="false"
+                :pagination-visible="true"
                 row-key="service_name"
-                :rows="serviceTableRows"
+                :rows="pagedServiceTableRows"
+                :selected-row-keys="selectedServiceRowKeys"
                 :summary="t('project.detail.services.summary', { count: serviceTableRows.length })"
                 :total="serviceTableRows.length"
+                @select-change="handleServiceSelectChange"
               >
                 <template #toolbar>
                   <t-button
@@ -288,6 +290,51 @@
                   >
                     {{ t('project.detail.services.refresh') }}
                   </t-button>
+                </template>
+                <template v-if="selectedServiceRows.length > 0" #batch>
+                  <div class="project-service-batch-bar">
+                    <span>{{
+                      t('project.detail.services.batch.selected', { count: selectedServiceRows.length })
+                    }}</span>
+                    <div class="project-service-batch-bar__actions">
+                      <t-button
+                        data-testid="project-service-batch-start"
+                        size="small"
+                        theme="primary"
+                        variant="outline"
+                        :disabled="isServiceBatchActionDisabled('start')"
+                        :loading="serviceBatchActionLoading === 'start'"
+                        @click="confirmServiceBatchAction('start')"
+                      >
+                        {{ t('project.detail.services.batch.start') }}
+                      </t-button>
+                      <t-button
+                        data-testid="project-service-batch-stop"
+                        size="small"
+                        theme="warning"
+                        variant="outline"
+                        :disabled="isServiceBatchActionDisabled('stop')"
+                        :loading="serviceBatchActionLoading === 'stop'"
+                        @click="confirmServiceBatchAction('stop')"
+                      >
+                        {{ t('project.detail.services.batch.stop') }}
+                      </t-button>
+                      <t-button
+                        data-testid="project-service-batch-restart"
+                        size="small"
+                        theme="warning"
+                        variant="outline"
+                        :disabled="isServiceBatchActionDisabled('restart')"
+                        :loading="serviceBatchActionLoading === 'restart'"
+                        @click="confirmServiceBatchAction('restart')"
+                      >
+                        {{ t('project.detail.services.batch.restart') }}
+                      </t-button>
+                      <t-button size="small" theme="default" variant="text" @click="clearSelectedServices">
+                        {{ t('project.detail.services.batch.cancelSelection') }}
+                      </t-button>
+                    </div>
+                  </div>
                 </template>
 
                 <template #name="{ row }">
@@ -850,7 +897,6 @@ import { LOCALE, type LocalizedTitle } from '@/contracts/i18n/locales';
 import { CONTAINER_BOOTSTRAP_ROUTE } from '@/modules/container/contract/bootstrap';
 import {
   batchContainerActions,
-  getContainers,
   type ProjectContainerAction,
   type ProjectContainerActionResult,
   type ProjectContainerActionResultItem,
@@ -909,6 +955,7 @@ import {
   parseProjectDetailRealtimePayload,
   parseProjectLogsRealtimePayload,
 } from '../../contract/realtime';
+import { paginateProjectResourceRows } from '../../shared/detail-resources';
 import {
   formatProjectTime,
   projectDriftStatusLabel,
@@ -930,6 +977,7 @@ import {
   updateLifecycleDraftProfiles,
 } from '../../shared/lifecycle';
 import { appendResolvedTab, buildDetailTitleWithFallback } from '../../shared/navigation';
+import { fetchProjectRuntimeContainers } from '../../shared/runtime-containers';
 import type {
   ProjectActionResponse,
   ProjectConfigurationDiffRequest,
@@ -1029,11 +1077,13 @@ const projectLogContentVersion = ref(0);
 const serviceRows = ref<ProjectServiceItem[]>([]);
 const projectOverview = ref<ProjectOverviewResponse | null>(null);
 const serviceActionKey = ref('');
+const serviceBatchActionLoading = ref<ProjectContainerAction | ''>('');
 const serviceLoading = ref(false);
 const serviceRuntimePortSummaries = ref<Record<string, string>>({});
 const serviceRuntimePortsRequestId = ref(0);
 const serviceTableCurrent = ref(1);
 const serviceTablePageSize = ref(20);
+const selectedServiceRowKeys = ref<Array<string | number>>([]);
 const servicesLoaded = ref(false);
 const projectOverviewLoaded = ref(false);
 const configurationLoadRequestId = ref(0);
@@ -1215,6 +1265,7 @@ const projectLogSourceCount = computed(() => {
   return new Set(entries.map((entry) => `${entry.container_id}:${entry.service_name}`)).size;
 });
 const serviceActionLoading = computed(() => serviceActionKey.value.length > 0);
+const serviceActionBusy = computed(() => serviceActionLoading.value || serviceBatchActionLoading.value.length > 0);
 const serviceTableRows = computed<ServiceTableRow[]>(() =>
   serviceRows.value.map((service) => {
     const overviewItem = overviewServiceMap.value.get(service.service_name);
@@ -1232,6 +1283,15 @@ const serviceTableRows = computed<ServiceTableRow[]>(() =>
       statusTheme: overviewServiceStatusTheme(overviewItem?.status),
     };
   }),
+);
+const pagedServiceTableRows = computed<ServiceTableRow[]>(() =>
+  paginateProjectResourceRows(serviceTableRows.value, serviceTableCurrent.value, serviceTablePageSize.value),
+);
+const serviceRowMap = computed(() => new Map(serviceTableRows.value.map((row) => [row.service_name, row])));
+const selectedServiceRows = computed<ServiceTableRow[]>(() =>
+  selectedServiceRowKeys.value
+    .map((key) => serviceRowMap.value.get(String(key)))
+    .filter((row): row is ServiceTableRow => Boolean(row)),
 );
 const serviceSnapshotCards = computed<ServiceSnapshotCard[]>(() =>
   serviceRows.value.map((service) => {
@@ -1329,6 +1389,14 @@ const envDraftContent = computed({
   },
 });
 const serviceColumns = computed<TableProps['columns']>(() => [
+  {
+    align: 'center',
+    colKey: 'row-select',
+    fixed: 'left',
+    title: t('project.list.columns.selection'),
+    type: 'multiple',
+    width: 48,
+  },
   createMainTextColumn(t('project.detail.services.columns.service'), 'name', 220),
   createStatusColumn(t('project.detail.services.columns.status'), 'status', 120),
   createTextColumn(t('project.detail.services.columns.image'), 'image', { minWidth: 220 }),
@@ -1373,6 +1441,21 @@ watch(activeDetailTab, (value) => {
   }
 
   syncProjectLogsRealtimeSubscription();
+});
+
+watch(
+  () => [serviceTableRows.value.length, serviceTablePageSize.value],
+  () => {
+    const maxPage = Math.max(1, Math.ceil(serviceTableRows.value.length / serviceTablePageSize.value));
+    if (serviceTableCurrent.value > maxPage) {
+      serviceTableCurrent.value = maxPage;
+    }
+  },
+);
+
+watch(serviceTableRows, (rows) => {
+  const availableKeys = new Set(rows.map((row) => row.service_name));
+  selectedServiceRowKeys.value = selectedServiceRowKeys.value.filter((key) => availableKeys.has(String(key)));
 });
 
 watch(projectId, () => {
@@ -1750,6 +1833,7 @@ async function loadProjectServices(forceRefresh = false) {
   try {
     const response = await getProjectServices(projectId.value);
     serviceRows.value = response.items;
+    serviceTableCurrent.value = 1;
     await syncServiceRuntimePortSummaries(response.items);
     servicesLoaded.value = true;
     return response.items;
@@ -1980,8 +2064,37 @@ function openFirstServiceContainer(service: ProjectServiceItem) {
   openContainerDetail(member);
 }
 
+function handleServiceSelectChange(rowKeys: Array<string | number>) {
+  const currentPageKeys = new Set(pagedServiceTableRows.value.map((row) => row.service_name));
+  const preservedKeys = selectedServiceRowKeys.value.filter((key) => !currentPageKeys.has(String(key)));
+  const normalizedCurrentKeys = rowKeys.filter((key) => currentPageKeys.has(String(key)));
+  selectedServiceRowKeys.value = [...preservedKeys, ...normalizedCurrentKeys];
+}
+
+function clearSelectedServices() {
+  selectedServiceRowKeys.value = [];
+}
+
+function isServiceBatchActionEligible(row: ServiceTableRow, action: ProjectContainerAction) {
+  if (!row.hasMembers) {
+    return false;
+  }
+  if (action === 'start') {
+    return row.runningCount === 0;
+  }
+  return row.runningCount > 0;
+}
+
+function serviceBatchActionableRows(action: ProjectContainerAction) {
+  return selectedServiceRows.value.filter((row) => isServiceBatchActionEligible(row, action));
+}
+
+function isServiceBatchActionDisabled(action: ProjectContainerAction) {
+  return serviceActionBusy.value || serviceBatchActionableRows(action).length === 0;
+}
+
 function serviceActionOptions(row: ServiceTableRow) {
-  const rowLoading = serviceActionKey.value.startsWith(`${row.service_name}:`);
+  const rowLoading = serviceActionBusy.value || serviceActionKey.value.startsWith(`${row.service_name}:`);
   const actions: Array<{ disabled?: boolean; label: string; value: ServiceRowAction }> = [
     {
       disabled: rowLoading || !row.hasMembers,
@@ -2026,16 +2139,59 @@ async function handleServiceAction(action: string, row: ServiceTableRow) {
     return;
   }
 
-  await runServiceContainerAction(action, row.raw);
+  await runServiceContainerAction(action, [row.raw], `${row.service_name}:${action}`);
 }
 
-async function runServiceContainerAction(action: ProjectContainerAction, service: ProjectServiceItem) {
-  const ids = service.container_members.map((member) => member.container_id).filter(Boolean);
+function confirmServiceBatchAction(action: ProjectContainerAction) {
+  if (isServiceBatchActionDisabled(action)) {
+    MessagePlugin.warning(t('project.detail.services.batch.noSelection'));
+    return;
+  }
+
+  const actionableRows = serviceBatchActionableRows(action);
+  const dialog = DialogPlugin.confirm({
+    header: t(`project.detail.services.batch.confirm${capitalizeAction(action)}Title`),
+    body: t(`project.detail.services.batch.confirm${capitalizeAction(action)}`, {
+      count: actionableRows.length,
+    }),
+    confirmBtn: t('project.list.actions.confirm'),
+    cancelBtn: t('project.list.actions.cancel'),
+    theme: action === 'start' ? 'warning' : 'danger',
+    onConfirm: async () => {
+      dialog.setConfirmLoading(true);
+      try {
+        await runServiceContainerAction(
+          action,
+          actionableRows.map((row) => row.raw),
+          `batch:${action}`,
+        );
+      } finally {
+        dialog.setConfirmLoading(false);
+        dialog.destroy();
+      }
+    },
+  });
+}
+
+async function runServiceContainerAction(
+  action: ProjectContainerAction,
+  services: ProjectServiceItem[],
+  actionKey: string,
+) {
+  const ids = Array.from(
+    new Set(
+      services.flatMap((service) => service.container_members.map((member) => member.container_id).filter(Boolean)),
+    ),
+  );
   if (!ids.length) {
     return;
   }
 
-  serviceActionKey.value = `${service.service_name}:${action}`;
+  if (actionKey.startsWith('batch:')) {
+    serviceBatchActionLoading.value = action;
+  } else {
+    serviceActionKey.value = actionKey;
+  }
   try {
     const response = await batchContainerActions({
       action,
@@ -2053,7 +2209,11 @@ async function runServiceContainerAction(action: ProjectContainerAction, service
     logger.warn(`failed to ${action} service containers`, error);
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.detail.services.batch.failed')));
   } finally {
-    serviceActionKey.value = '';
+    if (actionKey.startsWith('batch:')) {
+      serviceBatchActionLoading.value = '';
+    } else {
+      serviceActionKey.value = '';
+    }
   }
 }
 
@@ -2092,6 +2252,10 @@ function batchFailureSummary(items: ProjectContainerActionResultItem[]) {
     .slice(0, 5)
     .map((item) => `${item.name || item.id}: ${item.message_key ? t(item.message_key) : item.message || '-'}`)
     .join('\n');
+}
+
+function capitalizeAction(action: ProjectContainerAction) {
+  return `${action.charAt(0).toUpperCase()}${action.slice(1)}`;
 }
 
 async function refreshProjectRuntimeSurface() {
@@ -2457,17 +2621,11 @@ async function syncServiceRuntimePortSummaries(services: ProjectServiceItem[]) {
   }
 
   try {
-    const response = await getContainers({
-      limit: 200,
-      offset: 0,
-      orchestrator: 'compose',
-      source_scope: canonicalProjectName,
-      source_scope_kind: 'compose_project',
-    });
+    const containers = await fetchProjectRuntimeContainers(canonicalProjectName);
     if (requestId !== serviceRuntimePortsRequestId.value) {
       return;
     }
-    serviceRuntimePortSummaries.value = buildServiceRuntimePortSummaries(services, response.items);
+    serviceRuntimePortSummaries.value = buildServiceRuntimePortSummaries(services, containers);
   } catch (error) {
     logger.warn('failed to load runtime ports for project services', error);
     if (requestId === serviceRuntimePortsRequestId.value) {
@@ -2655,11 +2813,23 @@ function openContainerDetail(member: ProjectServiceContainerMember) {
 .project-overview-hero__heading,
 .project-overview-hero__body,
 .project-service-card__head,
-.project-service-card__tags {
+.project-service-card__tags,
+.project-service-batch-bar,
+.project-service-batch-bar__actions {
   align-items: center;
   display: flex;
   flex-wrap: wrap;
   gap: var(--graft-density-gap-8);
+}
+
+.project-service-batch-bar {
+  justify-content: space-between;
+  width: 100%;
+}
+
+.project-service-batch-bar > span {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-body-medium);
 }
 
 .project-overview-hero {

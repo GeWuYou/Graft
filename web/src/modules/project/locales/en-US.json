@@ -837,7 +837,7 @@
           "status": "Status",
           "image": "Image",
           "health": "Health",
-          "ports": "Declared Ports",
+          "ports": "Ports",
           "operation": "Operation"
         },
         "actions": {
@@ -846,6 +846,18 @@
           "restart": "Restart"
         },
         "batch": {
+          "selected": "{count} Services Selected",
+          "cancelSelection": "Clear Selection",
+          "noSelection": "Select actionable services first.",
+          "start": "Batch Start",
+          "stop": "Batch Stop",
+          "restart": "Batch Restart",
+          "confirmStartTitle": "Confirm Batch Service Start",
+          "confirmStart": "Start the {count} selected services?",
+          "confirmStopTitle": "Confirm Batch Service Stop",
+          "confirmStop": "Stop the {count} selected services?",
+          "confirmRestartTitle": "Confirm Batch Service Restart",
+          "confirmRestart": "Restart the {count} selected services?",
           "success": "Service action completed for {count} containers.",
           "failed": "Service action failed.",
           "partialTitle": "Service Action Partially Succeeded",

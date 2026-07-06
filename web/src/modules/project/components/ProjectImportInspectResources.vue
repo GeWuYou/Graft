@@ -270,7 +270,6 @@ import type { TableSort, TdBaseTableProps } from 'tdesign-vue-next';
 import { computed, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { getContainers } from '@/modules/container/api/container';
 import ContainerResourceTable from '@/modules/container/components/ContainerResourceTable.vue';
 import { CONTAINER_BOOTSTRAP_ROUTE } from '@/modules/container/contract/bootstrap';
 import {
@@ -301,6 +300,7 @@ import {
 } from '../shared/import-inspect-resources';
 import { appendResolvedTab, buildDetailTitleWithFallback } from '../shared/navigation';
 import { useProjectPageContext } from '../shared/page-context';
+import { fetchProjectRuntimeContainers } from '../shared/runtime-containers';
 import type { ProjectImportInspectResponse } from '../types/import';
 import ProjectImportSectionHeading from './ProjectImportSectionHeading.vue';
 
@@ -662,32 +662,12 @@ async function loadContainers() {
   containerError.value = '';
 
   try {
-    const rows: ContainerSummaryRecord[] = [];
-    const pageSize = 100;
-    let offset = 0;
-    let total = 0;
+    const rows = await fetchProjectRuntimeContainers(projectName);
+    if (requestId !== latestContainerRequestId.value) {
+      return;
+    }
 
-    do {
-      const payload = await getContainers({
-        limit: pageSize,
-        offset,
-        orchestrator: 'compose',
-        source_scope_kind: 'compose_project',
-        source_scope: projectName,
-      });
-      if (requestId !== latestContainerRequestId.value) {
-        return;
-      }
-
-      rows.push(...payload.items);
-      total = payload.total;
-      offset += payload.items.length;
-      if (!payload.items.length) {
-        break;
-      }
-    } while (rows.length < total);
-
-    containerRows.value = rows;
+    containerRows.value = rows as ContainerSummaryRecord[];
   } catch (error) {
     if (requestId !== latestContainerRequestId.value) {
       return;

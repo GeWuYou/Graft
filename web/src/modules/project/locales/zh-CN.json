@@ -776,7 +776,7 @@
       "overview": {
         "lastUpdated": "最后刷新",
         "resourceTitle": "资源使用",
-        "networkTitle": "Network I/O",
+        "networkTitle": "网络 I/O",
         "containerSnapshotTitle": "容器快照",
         "diagnosticsTitle": "诊断摘要",
         "configurationHash": "配置哈希",
@@ -837,7 +837,7 @@
           "status": "状态",
           "image": "镜像",
           "health": "健康",
-          "ports": "声明端口",
+          "ports": "端口",
           "operation": "操作"
         },
         "actions": {
@@ -846,6 +846,18 @@
           "restart": "重启"
         },
         "batch": {
+          "selected": "已选择 {count} 个服务",
+          "cancelSelection": "取消选择",
+          "noSelection": "请先选择可操作的服务。",
+          "start": "批量启动",
+          "stop": "批量停止",
+          "restart": "批量重启",
+          "confirmStartTitle": "确认批量启动服务",
+          "confirmStart": "确认启动选中的 {count} 个服务？",
+          "confirmStopTitle": "确认批量停止服务",
+          "confirmStop": "确认停止选中的 {count} 个服务？",
+          "confirmRestartTitle": "确认批量重启服务",
+          "confirmRestart": "确认重启选中的 {count} 个服务？",
           "success": "服务操作已完成，成功 {count} 个容器。",
           "failed": "服务操作失败。",
           "partialTitle": "服务操作部分成功",
