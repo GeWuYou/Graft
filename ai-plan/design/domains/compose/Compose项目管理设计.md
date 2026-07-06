@@ -54,7 +54,7 @@
 - 不在 `Project` 下新增第二套容器详情页。
 - 不在 `Project` 层持久化容器日志、事件、Stats 或运行时快照。
 - Phase 1 不做 Git Project、Template、目录扫描、自动发现、远程主机。
-- Phase 1 不做 Configuration 编辑器、Diff、Deploy、Validate UI。
+- Phase 1 不做基于项目根目录文件工作台的 Configuration 编辑器、Diff、Deploy、Validate UI。
 - Phase 1 不做 Project Events API、project-owned container detail，且不持久化项目运行时日志或实时缓存。
 - Phase 1 的项目详情实时快照与项目日志聚合只提供 bounded backend aggregation surface，不复制容器运行时 authority。
 
@@ -430,8 +430,13 @@ Phase 1 推荐三张模块自有表：
 
 用途：
 
-- 保存 Compose 文件与 Env 文件清单
-- 支持未来多文件、有序 `-f` 合并与独立文件内容读取
+- 保存 Lifecycle authority 使用的 Compose 文件与 Env 文件清单
+- 支持未来多文件、有序 `-f` 合并与独立文件读取
+
+边界：
+
+- 它不是 Configuration 工作台左侧文件树的数据源。
+- Configuration 工作台必须来自 `working_directory` 的真实目录浏览接口，而不是从这里推断文件列表。
 
 ### `compose_project_snapshots`
 
@@ -972,32 +977,76 @@ managed create request 建议至少包含：
 
 ## 10.3 配置
 
-为支持未来 Monaco / Diff / Download / Version，Configuration API 建议拆分：
+Configuration workspace 的 authority 需要拆成两层：
 
-| Method | Path                                                  | 语义                                             |
-| ------ | ----------------------------------------------------- | ------------------------------------------------ |
-| `GET`  | `/api/ops/projects/{id}/configuration`                | 文件列表、元数据、ownership、diagnostics summary |
-| `GET`  | `/api/ops/projects/{id}/configuration/preview`        | 规范化 Compose preview                           |
-| `GET`  | `/api/ops/projects/{id}/configuration/files/{fileId}` | 单文件内容                                       |
+- Project registry authority
+  - 继续保存 lifecycle 执行所需的 `compose_files`、`env_files`、`working_directory`、`canonical_project_name`
+- Workspace file-tree authority
+  - 左侧文件树、编辑器文件打开、保存能力全部来自 `working_directory` 的真实目录浏览/读写接口
+  - 不允许从 `lifecycle_configuration`、`compose_files` 或固定文件名推断工作台文件列表
 
-Phase 1 的 `configuration` 返回建议包含：
+建议 API 拆分：
 
-- Compose 文件列表
-- Env 文件列表
-- 文件 metadata
+| Method | Path                                           | 语义                                                  |
+| ------ | ---------------------------------------------- | ----------------------------------------------------- |
+| `GET`  | `/api/ops/projects/{id}/configuration`         | 项目级 configuration summary 与 workspace 状态摘要    |
+| `GET`  | `/api/ops/projects/{id}/configuration/preview` | 规范化 Compose preview                                |
+| `GET`  | `/api/ops/projects/{id}/files`                 | 基于 `working_directory` 懒加载浏览真实目录树         |
+| `GET`  | `/api/ops/projects/{id}/files/content`         | 基于相对路径读取单文件内容                            |
+| `PUT`  | `/api/ops/projects/{id}/files/content`         | 基于相对路径保存单文件内容，只写回 `working_directory` |
+
+`configuration` 返回建议包含：
+
+- lifecycle authority summary
+  - `working_directory`
+  - `compose_files`
+  - `env_files`
+  - `canonical_project_name`
 - ownership summary
 - drift summary
 - last refresh summary
+- workspace status summary
+  - `show_hidden_supported`
+  - `hidden_directories_config_key`
+  - `has_unsaved_changes`（frontend session state 的回显位可选）
 
-Phase 1 的单文件内容返回建议包含：
+`files` 返回建议包含：
 
-- `file_id`
-- `kind`
-- `path`
-- `content`
+- `root_path`
+- `current_path`
+- `parent_path`
+- `items[]`
+  - `name`
+  - `relative_path`
+  - `node_type`
+  - `file_kind`
+  - `editable`
+  - `language_hint`
+  - `size_bytes`
+  - `hidden_by_default`
+  - `has_children`
+
+约束：
+
+- 目录树必须支持懒加载与任意层级，不做一次性全量递归。
+- 默认隐藏重目录，隐藏策略来自 `ops.project.workspace.hidden_directories`；前端只消费接口返回与 `show hidden` 开关能力。
+- `compose_project_files` 继续服务 lifecycle authority，但不能再充当 workspace tree authority。
+
+`files/content` 返回建议包含：
+
+- `relative_path`
+- `file_kind`
+- `editable`
+- `language_hint`
 - `encoding`
-- `read_only=true`
-- `download_name`
+- `content`
+- `size_bytes`
+
+保存语义固定为：
+
+- `PUT /files/content` 只把当前文件内容写回 `working_directory`
+- 保存不隐含“立即生效”“自动 refresh”或“自动 deploy”
+- 编辑器按文件驱动，允许同时打开多个文件；保存作用域默认只限当前文件
 
 ## 10.4 生命周期动作
 
@@ -1007,6 +1056,9 @@ Phase 1 的单文件内容返回建议包含：
 | `POST` | `/api/ops/projects/{id}/up`         | 执行 compose up                                         |
 | `POST` | `/api/ops/projects/{id}/stop`       | 执行 compose stop，仅停止运行中的服务与容器             |
 | `POST` | `/api/ops/projects/{id}/restart`    | 执行 compose restart                                    |
+| `POST` | `/api/ops/projects/{id}/diff`       | 基于当前已保存磁盘状态执行项目级差异比较                |
+| `POST` | `/api/ops/projects/{id}/validate`   | 基于当前已保存磁盘状态执行项目级配置校验                |
+| `POST` | `/api/ops/projects/{id}/deploy`     | 基于当前已保存磁盘状态执行项目级部署                    |
 | `POST` | `/api/ops/projects/{id}/unregister` | 只删注册记录                                            |
 | `POST` | `/api/ops/projects/{id}/destroy`    | 执行 compose down 并进入高危销毁收尾；受 ownership 保护 |
 
@@ -1022,10 +1074,21 @@ Phase 1 的单文件内容返回建议包含：
 - 哪些步骤被 ownership guard 拒绝
 - 最终是否已注销
 
+项目级操作语义固定为：
+
+- `diff`、`validate`、`deploy` 读取的都是当前已保存到磁盘的项目状态，而不是前端内存草稿
+- 若前端存在未保存文件，必须先提示用户是否保存
+- `deploy` 的未保存提示固定为“检测到未保存的修改，是否先保存？”，并提供 `保存`、`继续使用磁盘版本部署`、`取消`
+- 其中“保存”只把当前未保存内容写回 `working_directory`，不隐含立即生效
+- `deploy` 始终是独立的显式项目级动作，保存不会隐式触发部署
+
 ## 10.5 Phase 1 明确不提供的 API
 
 - 不提供 `/api/ops/projects/{id}/events`
-- 不提供配置编辑保存接口
+- 不提供 `/api/ops/projects/{id}/files`
+- 不提供 `/api/ops/projects/{id}/files/content`
+- 不提供 `PUT` 配置编辑保存接口
+- 不提供项目级 `diff` / `validate` / `deploy` API
 
 ## 10.6 Batch 1 authority 落地说明
 
@@ -1190,10 +1253,11 @@ Projects
 
 ### Configuration
 
-- Compose Files
-- Env Files
-- Preview
-- Download
+- 基于项目根目录真实目录树的文件工作台
+- 多文件 Monaco 编辑
+- Compose Preview
+- 项目级 Diff / Validate / Deploy 入口
+- Lifecycle authority 摘要
 
 ### Lifecycle
 
@@ -1401,8 +1465,9 @@ Observability：
 
 Configuration：
 
-- Compose / Env file metadata
-- Read-only file content
+- Lifecycle authority metadata
+- Real file-tree browse/read/write API
+- Read-only / editable file classification
 - Normalized preview
 - Download
 
@@ -1429,8 +1494,8 @@ Observability：
 
 Configuration：
 
-- Compose Editor
-- Env Editor
+- 文件工作台
+- 多文件编辑
 - Diff
 - Validate
 - Deploy
@@ -1440,19 +1505,25 @@ Configuration：
 `phase-2-batch-4-diff-validate-and-deploy-flow` 把以下 authority owner 固定到仓库运行面：
 
 - OpenAPI contract owner：`openapi/**`
-  - 新增 `POST /api/ops/projects/{id}/configuration/diff`
-  - 新增 `POST /api/ops/projects/{id}/configuration/validate`
+  - 新增 `GET /api/ops/projects/{id}/files`
+  - 新增 `GET /api/ops/projects/{id}/files/content`
+  - 新增 `PUT /api/ops/projects/{id}/files/content`
+  - 新增 `POST /api/ops/projects/{id}/diff`
+  - 新增 `POST /api/ops/projects/{id}/validate`
   - 新增 `POST /api/ops/projects/{id}/deploy`
   - 新增 `PUT /api/ops/projects/{id}/lifecycle-configuration`
   - 移除 `POST /api/ops/projects/{id}/update-deploy` 作为一等 lifecycle action
 - Project module execution owner：`server/modules/project/**`
-  - diff 与 validate 只针对 managed project 当前 tracked files 和 draft content 做 bounded 对比与静态解析
+  - Configuration workspace 左侧文件树 authority 改为 `working_directory` 的真实目录扫描，不再从 tracked files 推断
+  - `files` / `files/content` 使用 path-based browse/read/write contract，并统一做相对路径与根目录边界约束
+  - diff 与 validate 只针对当前已保存磁盘状态做 bounded 对比与静态解析，不消费前端未保存草稿
   - 本地项目统一保存 lifecycle configuration：managed 默认 `confirmed`，imported 默认 `review_required`
-  - deploy 只允许写回当前 tracked managed files、刷新 project snapshot，并复用 project-owned lifecycle configuration 做 final compose `up`
+  - 保存只允许写回 `working_directory` 的可编辑文件；保存本身不触发 refresh 或 deploy
+  - deploy 只读取当前已保存磁盘状态、刷新 project snapshot，并复用 project-owned lifecycle configuration 做 final compose `up`
   - redeploy 成为统一 runtime deploy-style lifecycle action；pull/down/prune 等语义都收口到 lifecycle configuration
   - 不新增 project runtime persistence、project logs/events aggregation 或 project-owned container detail
 - Frontend module owner：`web/src/modules/project/**`
-  - `detail -> configuration` 继续承载 Compose/Env draft editor、diff、validate 和 managed draft deploy flow
+  - `detail -> configuration` 承载基于真实目录树的文件工作台、多文件编辑、diff、validate 与 deploy 入口
   - `detail -> lifecycle` 承载 lifecycle configuration 编辑、review 提示和 generated command preview
   - 仍保持 `detail` 页属于 `list-form-detail` page type，不把 Overview 变成 runtime dashboard
 

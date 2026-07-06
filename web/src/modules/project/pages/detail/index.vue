@@ -53,6 +53,14 @@
             {{ t('project.detail.actions.redeploy') }}
           </t-button>
           <t-button
+            data-testid="project-detail-action-open-configuration-workspace"
+            theme="default"
+            variant="outline"
+            @click="openConfigurationWorkspace"
+          >
+            {{ t('project.detail.actions.openConfigurationWorkspace') }}
+          </t-button>
+          <t-button
             v-if="lifecycleActionVisibility.unregister"
             data-testid="project-detail-action-unregister"
             theme="danger"
@@ -272,11 +280,13 @@
                 :footer-summary="t('project.detail.services.summary', { count: serviceTableRows.length })"
                 head-label="project-detail-services-table"
                 :loading="serviceLoading || serviceActionLoading"
-                :pagination-visible="false"
+                :pagination-visible="true"
                 row-key="service_name"
-                :rows="serviceTableRows"
+                :rows="pagedServiceTableRows"
+                :selected-row-keys="selectedServiceRowKeys"
                 :summary="t('project.detail.services.summary', { count: serviceTableRows.length })"
                 :total="serviceTableRows.length"
+                @select-change="handleServiceSelectChange"
               >
                 <template #toolbar>
                   <t-button
@@ -288,6 +298,51 @@
                   >
                     {{ t('project.detail.services.refresh') }}
                   </t-button>
+                </template>
+                <template v-if="selectedServiceRows.length > 0" #batch>
+                  <div class="project-service-batch-bar">
+                    <span>{{
+                      t('project.detail.services.batch.selected', { count: selectedServiceRows.length })
+                    }}</span>
+                    <div class="project-service-batch-bar__actions">
+                      <t-button
+                        data-testid="project-service-batch-start"
+                        size="small"
+                        theme="primary"
+                        variant="outline"
+                        :disabled="isServiceBatchActionDisabled('start')"
+                        :loading="serviceBatchActionLoading === 'start'"
+                        @click="confirmServiceBatchAction('start')"
+                      >
+                        {{ t('project.detail.services.batch.start') }}
+                      </t-button>
+                      <t-button
+                        data-testid="project-service-batch-stop"
+                        size="small"
+                        theme="warning"
+                        variant="outline"
+                        :disabled="isServiceBatchActionDisabled('stop')"
+                        :loading="serviceBatchActionLoading === 'stop'"
+                        @click="confirmServiceBatchAction('stop')"
+                      >
+                        {{ t('project.detail.services.batch.stop') }}
+                      </t-button>
+                      <t-button
+                        data-testid="project-service-batch-restart"
+                        size="small"
+                        theme="warning"
+                        variant="outline"
+                        :disabled="isServiceBatchActionDisabled('restart')"
+                        :loading="serviceBatchActionLoading === 'restart'"
+                        @click="confirmServiceBatchAction('restart')"
+                      >
+                        {{ t('project.detail.services.batch.restart') }}
+                      </t-button>
+                      <t-button size="small" theme="default" variant="text" @click="clearSelectedServices">
+                        {{ t('project.detail.services.batch.cancelSelection') }}
+                      </t-button>
+                    </div>
+                  </div>
                 </template>
 
                 <template #name="{ row }">
@@ -317,275 +372,6 @@
                   <table-action-menu :actions="serviceActionOptions(row)" @action="handleServiceAction($event, row)" />
                 </template>
               </management-paged-table>
-            </section>
-          </t-tab-panel>
-
-          <t-tab-panel value="configuration" :destroy-on-hide="false" :label="t('project.detail.tabs.configuration')">
-            <section class="project-section project-tab-panel">
-              <div class="project-configuration-grid">
-                <t-card size="small" :title="t('project.detail.configuration.title')">
-                  <t-descriptions size="small" :column="1">
-                    <t-descriptions-item :label="t('project.detail.configuration.composeFiles')">
-                      {{ configurationMetadata?.compose_files.length || 0 }}
-                    </t-descriptions-item>
-                    <t-descriptions-item :label="t('project.detail.configuration.envFiles')">
-                      {{ configurationMetadata?.env_files.length || 0 }}
-                    </t-descriptions-item>
-                    <t-descriptions-item :label="t('project.detail.configuration.ownershipMode')">
-                      {{ configurationMetadata ? ownershipModeLabel(configurationMetadata.ownership_mode) : '-' }}
-                    </t-descriptions-item>
-                    <t-descriptions-item :label="t('project.detail.configuration.driftStatus')">
-                      {{ configurationMetadata ? driftStatusLabel(configurationMetadata.drift_status) : '-' }}
-                    </t-descriptions-item>
-                    <t-descriptions-item :label="t('project.detail.configuration.refreshStatus')">
-                      {{ configurationMetadata ? refreshStatusLabel(configurationMetadata.last_refresh_status) : '-' }}
-                    </t-descriptions-item>
-                  </t-descriptions>
-                  <div class="project-file-groups">
-                    <section>
-                      <strong>{{ t('project.detail.configuration.composeFiles') }}</strong>
-                      <t-space direction="vertical" size="small">
-                        <t-button
-                          v-for="file in configurationMetadata?.compose_files || []"
-                          :key="file.id"
-                          theme="default"
-                          variant="text"
-                          size="small"
-                          @click="selectConfigurationFile(file.id)"
-                        >
-                          {{ file.display_path }}
-                        </t-button>
-                      </t-space>
-                    </section>
-                    <section>
-                      <strong>{{ t('project.detail.configuration.envFiles') }}</strong>
-                      <t-space direction="vertical" size="small">
-                        <t-button
-                          v-for="file in configurationMetadata?.env_files || []"
-                          :key="file.id"
-                          theme="default"
-                          variant="text"
-                          size="small"
-                          @click="selectConfigurationFile(file.id)"
-                        >
-                          {{ file.display_path }}
-                        </t-button>
-                      </t-space>
-                    </section>
-                  </div>
-                </t-card>
-
-                <t-card size="small" :title="t('project.detail.configuration.previewTitle')">
-                  <div v-if="configurationPreview?.normalized_compose_yaml" class="project-code-panel">
-                    <div class="project-code-panel__meta">
-                      <t-tag theme="default" variant="light-outline">
-                        {{ t('project.detail.configuration.previewHash') }}: {{ configurationPreview.config_hash }}
-                      </t-tag>
-                      <span>
-                        {{ t('project.detail.configuration.previewUpdatedAt') }}:
-                        {{ formatTime(configurationPreview.refreshed_at) }}
-                      </span>
-                    </div>
-                    <pre>{{ configurationPreview.normalized_compose_yaml }}</pre>
-                  </div>
-                  <t-empty v-else :description="t('project.detail.configuration.previewEmpty')" />
-                </t-card>
-
-                <t-card size="small" :title="t('project.detail.configuration.editorTitle')">
-                  <template #actions>
-                    <t-space size="small" break-line>
-                      <t-button
-                        size="small"
-                        theme="default"
-                        variant="outline"
-                        :loading="configurationLoading"
-                        @click="resetDraftFromCurrent"
-                      >
-                        {{ t('project.detail.configuration.resetDraft') }}
-                      </t-button>
-                      <t-button
-                        size="small"
-                        theme="primary"
-                        variant="outline"
-                        :loading="configurationDiffLoading"
-                        :disabled="!managedConfigurationEnabled"
-                        @click="runConfigurationDiff"
-                      >
-                        {{ t('project.detail.configuration.runDiff') }}
-                      </t-button>
-                      <t-button
-                        size="small"
-                        theme="primary"
-                        variant="outline"
-                        :loading="configurationValidateLoading"
-                        :disabled="!managedConfigurationEnabled"
-                        @click="runConfigurationValidate"
-                      >
-                        {{ t('project.detail.configuration.runValidate') }}
-                      </t-button>
-                      <t-button
-                        size="small"
-                        theme="primary"
-                        :loading="configurationDeployLoading"
-                        :disabled="!managedConfigurationEnabled"
-                        @click="runConfigurationDeploy"
-                      >
-                        {{ t('project.detail.configuration.deploy') }}
-                      </t-button>
-                    </t-space>
-                  </template>
-                  <t-alert
-                    v-if="configurationAuthorityNotice"
-                    :theme="managedConfigurationEnabled ? 'info' : 'warning'"
-                    :message="configurationAuthorityNotice"
-                    class="project-configuration-alert"
-                  />
-                  <t-tabs v-model:value="configurationEditorTab" theme="card">
-                    <t-tab-panel value="compose" :label="t('project.detail.configuration.composeEditorTab')">
-                      <project-file-editor
-                        v-model="configurationDraft.compose_file_content"
-                        v-model:mode="composeEditorMode"
-                        :title="t('project.detail.configuration.composeEditorTitle')"
-                        :description="t('project.detail.configuration.composeEditorDescription')"
-                        :placeholder="t('project.detail.configuration.composeEditorPlaceholder')"
-                        :empty-label="t('project.detail.configuration.composeEditorEmpty')"
-                        :edit-label="t('project.detail.configuration.backToEditor')"
-                        :preview-label="t('project.detail.configuration.previewDraft')"
-                        :format-label="t('project.detail.configuration.formatDraft')"
-                        :fullscreen-label="t('project.detail.configuration.fullscreen')"
-                        :exit-fullscreen-label="t('project.detail.configuration.exitFullscreen')"
-                        :resize-handle-label="t('project.detail.configuration.resizeEditor')"
-                        storage-key="graft.project.detail.compose.editor.height"
-                        @format="formatComposeDraft"
-                      />
-                    </t-tab-panel>
-                    <t-tab-panel value="env" :label="t('project.detail.configuration.envEditorTab')">
-                      <project-file-editor
-                        v-model="envDraftContent"
-                        v-model:mode="envEditorMode"
-                        :title="t('project.detail.configuration.envEditorTitle')"
-                        :description="t('project.detail.configuration.envEditorDescription')"
-                        :placeholder="t('project.detail.configuration.envEditorPlaceholder')"
-                        :empty-label="t('project.detail.configuration.envEditorEmpty')"
-                        :edit-label="t('project.detail.configuration.backToEditor')"
-                        :preview-label="t('project.detail.configuration.previewDraft')"
-                        :format-label="t('project.detail.configuration.formatDraft')"
-                        :fullscreen-label="t('project.detail.configuration.fullscreen')"
-                        :exit-fullscreen-label="t('project.detail.configuration.exitFullscreen')"
-                        :resize-handle-label="t('project.detail.configuration.resizeEditor')"
-                        storage-key="graft.project.detail.env.editor.height"
-                        @format="formatEnvDraft"
-                      />
-                    </t-tab-panel>
-                  </t-tabs>
-                </t-card>
-
-                <t-card size="small" :title="t('project.detail.configuration.diffTitle')">
-                  <t-loading :loading="configurationDiffLoading">
-                    <div v-if="configurationDiffResult" class="project-diff-list">
-                      <t-alert
-                        :theme="configurationDiffResult.has_changes ? 'warning' : 'success'"
-                        :message="
-                          configurationDiffResult.has_changes
-                            ? t('project.detail.configuration.diffHasChanges')
-                            : t('project.detail.configuration.diffNoChanges')
-                        "
-                      />
-                      <t-space break-line size="small">
-                        <t-tag theme="default" variant="light-outline">
-                          {{ t('project.detail.configuration.currentHash') }}:
-                          {{ configurationDiffResult.current_config_hash }}
-                        </t-tag>
-                        <t-tag theme="primary" variant="light-outline">
-                          {{ t('project.detail.configuration.proposedHash') }}:
-                          {{ configurationDiffResult.proposed_config_hash }}
-                        </t-tag>
-                      </t-space>
-                      <t-collapse :value="expandedDiffPanels" @change="handleDiffPanelChange">
-                        <t-collapse-panel
-                          v-for="file in configurationDiffResult.files"
-                          :key="`${file.kind}-${file.path}`"
-                          :value="file.path"
-                          :header="file.path"
-                        >
-                          <template #headerRightContent>
-                            <t-tag :theme="file.changed ? 'warning' : 'success'" variant="light-outline">
-                              {{
-                                file.changed
-                                  ? t('project.detail.configuration.diffFileChanged')
-                                  : t('project.detail.configuration.diffFileUnchanged')
-                              }}
-                            </t-tag>
-                          </template>
-                          <div class="project-diff-panel">
-                            <div class="project-diff-meta">
-                              <span>{{ t('project.detail.configuration.currentHash') }}: {{ file.current_hash }}</span>
-                              <span
-                                >{{ t('project.detail.configuration.proposedHash') }}: {{ file.proposed_hash }}</span
-                              >
-                            </div>
-                            <pre>{{ file.proposed_content }}</pre>
-                          </div>
-                        </t-collapse-panel>
-                      </t-collapse>
-                      <div v-if="configurationDiffResult.warnings?.length" class="project-configuration-warning-list">
-                        <t-alert
-                          v-for="warning in configurationDiffResult.warnings"
-                          :key="warning"
-                          theme="warning"
-                          :message="warning"
-                        />
-                      </div>
-                    </div>
-                    <t-empty v-else :description="t('project.detail.configuration.diffEmpty')" />
-                  </t-loading>
-                </t-card>
-
-                <t-card size="small" :title="t('project.detail.configuration.validationTitle')">
-                  <t-loading :loading="configurationValidateLoading">
-                    <div v-if="configurationValidateResult" class="project-code-panel">
-                      <div class="project-code-panel__meta">
-                        <t-tag theme="primary" variant="light-outline">
-                          {{ t('project.detail.configuration.proposedHash') }}:
-                          {{ configurationValidateResult.proposed_config_hash }}
-                        </t-tag>
-                        <span>
-                          {{ t('project.detail.configuration.declaredServices') }}:
-                          {{ configurationValidateResult.declared_service_names.join(', ') || '-' }}
-                        </span>
-                      </div>
-                      <pre>{{ configurationValidateResult.normalized_compose_yaml }}</pre>
-                      <div
-                        v-if="configurationValidateResult.warnings?.length"
-                        class="project-configuration-warning-list"
-                      >
-                        <t-alert
-                          v-for="warning in configurationValidateResult.warnings"
-                          :key="warning"
-                          theme="warning"
-                          :message="warning"
-                        />
-                      </div>
-                    </div>
-                    <t-empty v-else :description="t('project.detail.configuration.validationEmpty')" />
-                  </t-loading>
-                </t-card>
-
-                <t-card size="small" :title="t('project.detail.configuration.fileContentTitle')">
-                  <div v-if="selectedConfigurationFile?.content" class="project-code-panel">
-                    <div class="project-code-panel__meta">
-                      <t-tag theme="default" variant="light-outline">
-                        {{ selectedConfigurationFile.download_name }}
-                      </t-tag>
-                      <t-button size="small" theme="default" variant="text" @click="copyConfigurationContent">
-                        {{ t('project.detail.configuration.copyContent') }}
-                      </t-button>
-                    </div>
-                    <pre>{{ selectedConfigurationFile.content }}</pre>
-                  </div>
-                  <t-empty v-else :description="t('project.detail.configuration.fileEmpty')" />
-                </t-card>
-              </div>
             </section>
           </t-tab-panel>
 
@@ -850,7 +636,6 @@ import { LOCALE, type LocalizedTitle } from '@/contracts/i18n/locales';
 import { CONTAINER_BOOTSTRAP_ROUTE } from '@/modules/container/contract/bootstrap';
 import {
   batchContainerActions,
-  getContainers,
   type ProjectContainerAction,
   type ProjectContainerActionResult,
   type ProjectContainerActionResultItem,
@@ -875,21 +660,20 @@ import {
   normalizeStructuredLogEntry,
   toProgressPercent,
 } from '@/shared/observability';
-import { openRealtimeTopicSocket, type RealtimeTopicSocketController } from '@/shared/realtime';
+import {
+  createRealtimeSnapshotGate,
+  openRealtimeTopicSocket,
+  type RealtimeTopicSocketController,
+} from '@/shared/realtime';
 import { useTabsRouterStore } from '@/store/modules/tabs-router';
 import { createLogger } from '@/utils/logger';
 
 import {
   getProject,
   getProjectConfiguration,
-  getProjectConfigurationFile,
-  getProjectConfigurationPreview,
   getProjectLogs,
   getProjectOverview,
   getProjectServices,
-  postProjectConfigurationDiff,
-  postProjectConfigurationValidate,
-  postProjectDeploy,
   postProjectDestroy,
   postProjectRedeploy,
   postProjectRestart,
@@ -898,19 +682,19 @@ import {
   postProjectUp,
   putProjectLifecycleConfiguration,
 } from '../../api/project';
-import ProjectFileEditor from '../../components/ProjectFileEditor.vue';
+import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import {
   buildProjectDetailTopicName,
   buildProjectLogsTopicName,
   parseProjectDetailRealtimePayload,
   parseProjectLogsRealtimePayload,
 } from '../../contract/realtime';
+import { paginateProjectResourceRows } from '../../shared/detail-resources';
 import {
   formatProjectTime,
   projectDriftStatusLabel,
   projectDriftStatusTheme,
   projectLifecycleActionVisibility,
-  projectOwnershipModeLabel,
   projectRefreshStatusLabel,
   projectRefreshStatusTheme,
   projectRuntimeStatusLabel,
@@ -926,16 +710,10 @@ import {
   updateLifecycleDraftProfiles,
 } from '../../shared/lifecycle';
 import { appendResolvedTab, buildDetailTitleWithFallback } from '../../shared/navigation';
+import { fetchProjectRuntimeContainers } from '../../shared/runtime-containers';
 import type {
   ProjectActionResponse,
-  ProjectConfigurationDiffRequest,
-  ProjectConfigurationDiffResponse,
-  ProjectConfigurationFileResponse,
   ProjectConfigurationMetadataResponse,
-  ProjectConfigurationPreviewResponse,
-  ProjectConfigurationValidateRequest,
-  ProjectConfigurationValidateResponse,
-  ProjectDeployRequest,
   ProjectDestroyRequest,
   ProjectDetailResponseWithLifecycle,
   ProjectLifecycleConfigurationDraft,
@@ -952,9 +730,7 @@ defineOptions({
   name: 'ProjectDetailIndex',
 });
 
-type EditorMode = 'edit' | 'preview';
-type ConfigurationEditorTab = 'compose' | 'env';
-type ProjectDetailTab = 'overview' | 'services' | 'configuration' | 'logs' | 'lifecycle';
+type ProjectDetailTab = 'overview' | 'services' | 'logs' | 'lifecycle';
 type OverviewDiagnostic = {
   key: string;
   message: string;
@@ -1004,18 +780,6 @@ const detailLoading = ref(false);
 const detailError = ref('');
 const activeDetailTab = ref<ProjectDetailTab>(normalizeDetailTab(route.query.tab));
 const configurationMetadata = ref<ProjectConfigurationMetadataResponse | null>(null);
-const configurationPreview = ref<ProjectConfigurationPreviewResponse | null>(null);
-const selectedConfigurationFile = ref<ProjectConfigurationFileResponse | null>(null);
-const configurationDiffResult = ref<ProjectConfigurationDiffResponse | null>(null);
-const configurationValidateResult = ref<ProjectConfigurationValidateResponse | null>(null);
-const configurationEditorTab = ref<ConfigurationEditorTab>('compose');
-const composeEditorMode = ref<EditorMode>('edit');
-const envEditorMode = ref<EditorMode>('edit');
-const configurationLoading = ref(false);
-const configurationDiffLoading = ref(false);
-const configurationValidateLoading = ref(false);
-const configurationDeployLoading = ref(false);
-const expandedDiffPanels = ref<Array<string | number>>([]);
 const projectLogResponse = ref<ProjectLogResponse | null>(null);
 const projectLogLoading = ref(false);
 const projectLogError = ref('');
@@ -1025,22 +789,19 @@ const projectLogContentVersion = ref(0);
 const serviceRows = ref<ProjectServiceItem[]>([]);
 const projectOverview = ref<ProjectOverviewResponse | null>(null);
 const serviceActionKey = ref('');
+const serviceBatchActionLoading = ref<ProjectContainerAction | ''>('');
 const serviceLoading = ref(false);
 const serviceRuntimePortSummaries = ref<Record<string, string>>({});
 const serviceRuntimePortsRequestId = ref(0);
 const serviceTableCurrent = ref(1);
 const serviceTablePageSize = ref(20);
+const selectedServiceRowKeys = ref<Array<string | number>>([]);
 const servicesLoaded = ref(false);
 const projectOverviewLoaded = ref(false);
-const configurationLoadRequestId = ref(0);
 const actionLoading = ref<ProjectActionResponse['action'] | 'destroy' | ''>('');
 const lifecycleSaveLoading = ref(false);
 const projectLogSince = ref('1h');
 const projectLogTail = ref('200');
-const configurationDraft = reactive<ProjectDeployRequest>({
-  compose_file_content: '',
-  env_file_content: '',
-});
 const lifecycleDraft = reactive<ProjectLifecycleConfigurationDraft>({
   strategy_kind: 'standard',
   working_directory: '',
@@ -1080,6 +841,15 @@ let projectLogsRealtimeController: RealtimeTopicSocketController | null = null;
 let projectDetailRealtimeTopic = '';
 let projectLogsRealtimeTopic = '';
 const projectLogSeenKeys = new Set<string>();
+const projectDetailRealtimeGate = createRealtimeSnapshotGate({
+  apply: (message: {
+    detail: ProjectDetailResponseWithLifecycle;
+    overview: ProjectOverviewResponse;
+    services: { items: ProjectServiceItem[] };
+  }) => {
+    applyProjectRealtimeSnapshot(message);
+  },
+});
 
 const projectId = computed(() => Number(route.params.id));
 const activeTabRoute = computed(() =>
@@ -1097,16 +867,6 @@ const fallbackCanonicalName = computed(() => fallbackDisplayName.value);
 const pageTitle = computed(
   () => detailRecord.value?.display_name || fallbackDisplayName.value || t('project.detail.titleFallback'),
 );
-const managedConfigurationEnabled = computed(() => detailRecord.value?.ownership_mode === 'managed-root-dedicated');
-const configurationAuthorityNotice = computed(() => {
-  if (!detailRecord.value) {
-    return '';
-  }
-  if (managedConfigurationEnabled.value) {
-    return t('project.detail.configuration.managedAuthorityHint');
-  }
-  return t('project.detail.configuration.externalAuthorityHint');
-});
 const lifecycleActionVisibility = computed(() => projectLifecycleActionVisibility(detailRecord.value?.runtime_status));
 const lifecycleReviewStatus = computed<ProjectLifecycleReviewStatus>(() => {
   if (!detailRecord.value) {
@@ -1202,6 +962,7 @@ const projectLogSourceCount = computed(() => {
   return new Set(entries.map((entry) => `${entry.container_id}:${entry.service_name}`)).size;
 });
 const serviceActionLoading = computed(() => serviceActionKey.value.length > 0);
+const serviceActionBusy = computed(() => serviceActionLoading.value || serviceBatchActionLoading.value.length > 0);
 const serviceTableRows = computed<ServiceTableRow[]>(() =>
   serviceRows.value.map((service) => {
     const overviewItem = overviewServiceMap.value.get(service.service_name);
@@ -1219,6 +980,15 @@ const serviceTableRows = computed<ServiceTableRow[]>(() =>
       statusTheme: overviewServiceStatusTheme(overviewItem?.status),
     };
   }),
+);
+const pagedServiceTableRows = computed<ServiceTableRow[]>(() =>
+  paginateProjectResourceRows(serviceTableRows.value, serviceTableCurrent.value, serviceTablePageSize.value),
+);
+const serviceRowMap = computed(() => new Map(serviceTableRows.value.map((row) => [row.service_name, row])));
+const selectedServiceRows = computed<ServiceTableRow[]>(() =>
+  selectedServiceRowKeys.value
+    .map((key) => serviceRowMap.value.get(String(key)))
+    .filter((row): row is ServiceTableRow => Boolean(row)),
 );
 const serviceSnapshotCards = computed<ServiceSnapshotCard[]>(() =>
   serviceRows.value.map((service) => {
@@ -1309,13 +1079,15 @@ const overviewDiagnostics = computed<OverviewDiagnostic[]>(() => {
     },
   ];
 });
-const envDraftContent = computed({
-  get: () => configurationDraft.env_file_content || '',
-  set: (value: string) => {
-    configurationDraft.env_file_content = value;
-  },
-});
 const serviceColumns = computed<TableProps['columns']>(() => [
+  {
+    align: 'center',
+    colKey: 'row-select',
+    fixed: 'left',
+    title: t('project.list.columns.selection'),
+    type: 'multiple',
+    width: 48,
+  },
   createMainTextColumn(t('project.detail.services.columns.service'), 'name', 220),
   createStatusColumn(t('project.detail.services.columns.status'), 'status', 120),
   createTextColumn(t('project.detail.services.columns.image'), 'image', { minWidth: 220 }),
@@ -1325,6 +1097,9 @@ const serviceColumns = computed<TableProps['columns']>(() => [
 ]);
 
 onMounted(async () => {
+  if (redirectLegacyConfigurationTab()) {
+    return;
+  }
   syncCanonicalDetailTabQuery(route.query.tab);
   await refreshDetail();
   syncProjectDetailRealtimeSubscription();
@@ -1334,11 +1109,15 @@ onMounted(async () => {
 onUnmounted(() => {
   releaseProjectDetailRealtimeSubscription();
   releaseProjectLogsRealtimeSubscription();
+  projectDetailRealtimeGate.dispose();
 });
 
 watch(
   () => route.query.tab,
   (value) => {
+    if (redirectLegacyConfigurationTab()) {
+      return;
+    }
     const nextTab = normalizeDetailTab(value);
     if (activeDetailTab.value !== nextTab) {
       activeDetailTab.value = nextTab;
@@ -1361,8 +1140,24 @@ watch(activeDetailTab, (value) => {
   syncProjectLogsRealtimeSubscription();
 });
 
+watch(
+  () => [serviceTableRows.value.length, serviceTablePageSize.value],
+  () => {
+    const maxPage = Math.max(1, Math.ceil(serviceTableRows.value.length / serviceTablePageSize.value));
+    if (serviceTableCurrent.value > maxPage) {
+      serviceTableCurrent.value = maxPage;
+    }
+  },
+);
+
+watch(serviceTableRows, (rows) => {
+  const availableKeys = new Set(rows.map((row) => row.service_name));
+  selectedServiceRowKeys.value = selectedServiceRowKeys.value.filter((key) => availableKeys.has(String(key)));
+});
+
 watch(projectId, () => {
   resetProjectLogsState();
+  projectDetailRealtimeGate.clear();
   releaseProjectDetailRealtimeSubscription();
   releaseProjectLogsRealtimeSubscription();
   syncProjectDetailRealtimeSubscription();
@@ -1399,10 +1194,6 @@ function buildProjectMetricClass(metric: 'cpu' | 'memory') {
     'project-live-metric--pulse-b': direction !== 'none' && pulse === 1,
     'project-live-metric--up': direction === 'up',
   };
-}
-
-function ownershipModeLabel(value: ProjectDetailResponseWithLifecycle['ownership_mode']) {
-  return projectOwnershipModeLabel(t, value);
 }
 
 function driftStatusLabel(value: ProjectDetailResponseWithLifecycle['drift_status']) {
@@ -1476,7 +1267,7 @@ async function refreshDetail() {
     detailRecord.value = await getProject(projectId.value);
     syncLifecycleDraft(detailRecord.value);
     updateCurrentTabTitle(buildDetailTitle(detailRecord.value.display_name));
-    await Promise.all([loadConfiguration(), loadProjectServices(true), loadProjectOverview(true)]);
+    await Promise.all([loadConfigurationSummary(), loadProjectServices(true), loadProjectOverview(true)]);
     if (activeDetailTab.value === 'logs' && projectLogsHasSnapshot.value) {
       await loadProjectLogs();
     }
@@ -1495,203 +1286,15 @@ async function refreshDetail() {
   }
 }
 
-async function loadConfiguration() {
+async function loadConfigurationSummary() {
   if (!Number.isFinite(projectId.value)) return;
-  const requestId = configurationLoadRequestId.value + 1;
-  configurationLoadRequestId.value = requestId;
-  configurationLoading.value = true;
-  resetConfigurationState();
   try {
-    const [metadata, preview] = await Promise.all([
-      getProjectConfiguration(projectId.value),
-      getProjectConfigurationPreview(projectId.value),
-    ]);
-    if (requestId !== configurationLoadRequestId.value) {
-      return;
-    }
-    configurationMetadata.value = metadata;
-    configurationPreview.value = preview;
-    const firstFile = metadata.compose_files[0]?.id ?? metadata.env_files[0]?.id;
-    if (typeof firstFile === 'number') {
-      await selectConfigurationFile(firstFile, requestId);
-    }
-    await hydrateDraftFromCurrent(metadata, requestId);
+    configurationMetadata.value = await getProjectConfiguration(projectId.value);
   } catch (error) {
     logger.error('failed to load project configuration', error);
-    if (requestId === configurationLoadRequestId.value) {
-      resetConfigurationState();
-    }
-    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.list.retry')));
-  } finally {
-    if (requestId === configurationLoadRequestId.value) {
-      configurationLoading.value = false;
-    }
-  }
-}
-
-async function selectConfigurationFile(fileId: number, requestId?: number) {
-  if (!Number.isFinite(projectId.value)) return;
-  try {
-    const response = await getProjectConfigurationFile(projectId.value, fileId);
-    if (typeof requestId === 'number' && requestId !== configurationLoadRequestId.value) {
-      return;
-    }
-    selectedConfigurationFile.value = response;
-  } catch (error) {
-    logger.error('failed to load project configuration file', error);
-    if (typeof requestId !== 'number' || requestId === configurationLoadRequestId.value) {
-      selectedConfigurationFile.value = null;
-    }
+    configurationMetadata.value = null;
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.list.retry')));
   }
-}
-
-async function copyConfigurationContent() {
-  if (!selectedConfigurationFile.value?.content) return;
-  try {
-    await copyText(selectedConfigurationFile.value.content);
-    MessagePlugin.success(t('project.detail.configuration.copySuccess'));
-  } catch {
-    MessagePlugin.error(t('project.detail.configuration.copyError'));
-  }
-}
-
-async function hydrateDraftFromCurrent(metadata: ProjectConfigurationMetadataResponse, requestId?: number) {
-  const composeFileId = metadata.compose_files[0]?.id;
-  const envFileId = metadata.env_files[0]?.id;
-  try {
-    const [composeResponse, envResponse] = await Promise.all([
-      typeof composeFileId === 'number'
-        ? getProjectConfigurationFile(projectId.value, composeFileId)
-        : Promise.resolve(null),
-      typeof envFileId === 'number' ? getProjectConfigurationFile(projectId.value, envFileId) : Promise.resolve(null),
-    ]);
-    if (typeof requestId === 'number' && requestId !== configurationLoadRequestId.value) {
-      return;
-    }
-    configurationDraft.compose_file_content = composeResponse?.content || '';
-    configurationDraft.env_file_content = envResponse?.content || '';
-  } catch (error) {
-    resetConfigurationState();
-    logger.error('failed to hydrate project draft', error);
-    throw error;
-  }
-}
-
-function resetConfigurationState() {
-  configurationMetadata.value = null;
-  configurationPreview.value = null;
-  selectedConfigurationFile.value = null;
-  configurationDiffResult.value = null;
-  configurationValidateResult.value = null;
-  expandedDiffPanels.value = [];
-  configurationDraft.compose_file_content = '';
-  configurationDraft.env_file_content = '';
-}
-
-function resetDraftFromCurrent() {
-  if (configurationMetadata.value) {
-    void hydrateDraftFromCurrent(configurationMetadata.value);
-  }
-  configurationDiffResult.value = null;
-  configurationValidateResult.value = null;
-  expandedDiffPanels.value = [];
-  configurationEditorTab.value = 'compose';
-  composeEditorMode.value = 'edit';
-  envEditorMode.value = 'edit';
-}
-
-function buildConfigurationDraftRequest(): ProjectConfigurationDiffRequest &
-  ProjectConfigurationValidateRequest &
-  ProjectDeployRequest {
-  return {
-    compose_file_content: normalizeTextBlock(configurationDraft.compose_file_content || ''),
-    env_file_content: normalizeTextBlock(configurationDraft.env_file_content || ''),
-  };
-}
-
-function formatComposeDraft() {
-  configurationDraft.compose_file_content = normalizeTextBlock(configurationDraft.compose_file_content || '');
-}
-
-function formatEnvDraft() {
-  configurationDraft.env_file_content = normalizeTextBlock(configurationDraft.env_file_content || '');
-}
-
-async function runConfigurationDiff() {
-  if (!Number.isFinite(projectId.value) || !managedConfigurationEnabled.value) {
-    MessagePlugin.warning(configurationAuthorityNotice.value);
-    return;
-  }
-  configurationDiffLoading.value = true;
-  try {
-    configurationDiffResult.value = await postProjectConfigurationDiff(
-      projectId.value,
-      buildConfigurationDraftRequest(),
-    );
-    expandedDiffPanels.value = configurationDiffResult.value.files
-      .filter((item) => item.changed)
-      .map((item) => item.path);
-  } catch (error) {
-    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.detail.configuration.diffFailed')));
-  } finally {
-    configurationDiffLoading.value = false;
-  }
-}
-
-async function runConfigurationValidate() {
-  if (!Number.isFinite(projectId.value) || !managedConfigurationEnabled.value) {
-    MessagePlugin.warning(configurationAuthorityNotice.value);
-    return;
-  }
-  configurationValidateLoading.value = true;
-  try {
-    configurationValidateResult.value = await postProjectConfigurationValidate(
-      projectId.value,
-      buildConfigurationDraftRequest(),
-    );
-    MessagePlugin.success(t('project.detail.configuration.validateSuccess'));
-  } catch (error) {
-    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.detail.configuration.validateFailed')));
-  } finally {
-    configurationValidateLoading.value = false;
-  }
-}
-
-async function runConfigurationDeploy() {
-  if (!Number.isFinite(projectId.value) || !managedConfigurationEnabled.value) {
-    MessagePlugin.warning(configurationAuthorityNotice.value);
-    return;
-  }
-  const dialog = DialogPlugin.confirm({
-    header: t('project.detail.configuration.deployConfirmTitle'),
-    body: t('project.detail.configuration.deployConfirmDescription'),
-    confirmBtn: {
-      content: t('project.detail.configuration.deploy'),
-      theme: 'primary',
-    },
-    cancelBtn: t('project.list.actions.cancel'),
-    onConfirm: async () => {
-      configurationDeployLoading.value = true;
-      try {
-        const response = await postProjectDeploy(projectId.value, buildConfigurationDraftRequest());
-        MessagePlugin.success(response.message || t('project.detail.configuration.deploySuccess'));
-        configurationDiffResult.value = null;
-        configurationValidateResult.value = null;
-        await refreshDetail();
-        await loadConfiguration();
-      } catch (error) {
-        MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.detail.configuration.deployFailed')));
-      } finally {
-        configurationDeployLoading.value = false;
-        dialog.destroy();
-      }
-    },
-  });
-}
-
-function handleDiffPanelChange(value: Array<string | number>) {
-  expandedDiffPanels.value = value;
 }
 
 async function loadProjectLogs() {
@@ -1736,6 +1339,7 @@ async function loadProjectServices(forceRefresh = false) {
   try {
     const response = await getProjectServices(projectId.value);
     serviceRows.value = response.items;
+    serviceTableCurrent.value = 1;
     await syncServiceRuntimePortSummaries(response.items);
     servicesLoaded.value = true;
     return response.items;
@@ -1868,7 +1472,7 @@ function syncProjectDetailRealtimeSubscription() {
     topic: nextTopic,
     parseMessage: parseProjectDetailRealtimePayload,
     onMessage: (message) => {
-      applyProjectRealtimeSnapshot(message);
+      projectDetailRealtimeGate.commit(message);
     },
     onStateChange: (state) => {
       projectDetailSocketState.value = state;
@@ -1966,8 +1570,44 @@ function openFirstServiceContainer(service: ProjectServiceItem) {
   openContainerDetail(member);
 }
 
+function handleServiceSelectChange(rowKeys: Array<string | number>) {
+  const currentPageKeys = new Set(pagedServiceTableRows.value.map((row) => row.service_name));
+  const preservedKeys = selectedServiceRowKeys.value.filter((key) => !currentPageKeys.has(String(key)));
+  const normalizedCurrentKeys = rowKeys.filter((key) => currentPageKeys.has(String(key)));
+  selectedServiceRowKeys.value = [...preservedKeys, ...normalizedCurrentKeys];
+}
+
+function clearSelectedServices() {
+  selectedServiceRowKeys.value = [];
+}
+
+function canRunServiceContainerAction(
+  row: Pick<ServiceTableRow, 'hasMembers' | 'runningCount'>,
+  action: ProjectContainerAction,
+) {
+  if (!row.hasMembers) {
+    return false;
+  }
+  if (action === 'start') {
+    return row.runningCount === 0;
+  }
+  return row.runningCount > 0;
+}
+
+function isServiceBatchActionEligible(row: ServiceTableRow, action: ProjectContainerAction) {
+  return canRunServiceContainerAction(row, action);
+}
+
+function serviceBatchActionableRows(action: ProjectContainerAction) {
+  return selectedServiceRows.value.filter((row) => isServiceBatchActionEligible(row, action));
+}
+
+function isServiceBatchActionDisabled(action: ProjectContainerAction) {
+  return serviceActionBusy.value || serviceBatchActionableRows(action).length === 0;
+}
+
 function serviceActionOptions(row: ServiceTableRow) {
-  const rowLoading = serviceActionKey.value.startsWith(`${row.service_name}:`);
+  const rowLoading = serviceActionBusy.value || serviceActionKey.value.startsWith(`${row.service_name}:`);
   const actions: Array<{ disabled?: boolean; label: string; value: ServiceRowAction }> = [
     {
       disabled: rowLoading || !row.hasMembers,
@@ -1976,7 +1616,7 @@ function serviceActionOptions(row: ServiceTableRow) {
     },
   ];
 
-  if (row.hasMembers && row.runningCount === 0) {
+  if (canRunServiceContainerAction(row, 'start')) {
     actions.push({
       disabled: rowLoading,
       label: 'project.detail.services.actions.start',
@@ -1984,7 +1624,7 @@ function serviceActionOptions(row: ServiceTableRow) {
     });
   }
 
-  if (row.runningCount > 0) {
+  if (canRunServiceContainerAction(row, 'stop')) {
     actions.push(
       {
         disabled: rowLoading,
@@ -2012,16 +1652,59 @@ async function handleServiceAction(action: string, row: ServiceTableRow) {
     return;
   }
 
-  await runServiceContainerAction(action, row.raw);
+  await runServiceContainerAction(action, [row.raw], `${row.service_name}:${action}`);
 }
 
-async function runServiceContainerAction(action: ProjectContainerAction, service: ProjectServiceItem) {
-  const ids = service.container_members.map((member) => member.container_id).filter(Boolean);
+function confirmServiceBatchAction(action: ProjectContainerAction) {
+  if (isServiceBatchActionDisabled(action)) {
+    MessagePlugin.warning(t('project.detail.services.batch.noSelection'));
+    return;
+  }
+
+  const actionableRows = serviceBatchActionableRows(action);
+  const dialog = DialogPlugin.confirm({
+    header: t(`project.detail.services.batch.confirm${capitalizeAction(action)}Title`),
+    body: t(`project.detail.services.batch.confirm${capitalizeAction(action)}`, {
+      count: actionableRows.length,
+    }),
+    confirmBtn: t('project.list.actions.confirm'),
+    cancelBtn: t('project.list.actions.cancel'),
+    theme: action === 'start' ? 'warning' : 'danger',
+    onConfirm: async () => {
+      dialog.setConfirmLoading(true);
+      try {
+        await runServiceContainerAction(
+          action,
+          actionableRows.map((row) => row.raw),
+          `batch:${action}`,
+        );
+      } finally {
+        dialog.setConfirmLoading(false);
+        dialog.destroy();
+      }
+    },
+  });
+}
+
+async function runServiceContainerAction(
+  action: ProjectContainerAction,
+  services: ProjectServiceItem[],
+  actionKey: string,
+) {
+  const ids = Array.from(
+    new Set(
+      services.flatMap((service) => service.container_members.map((member) => member.container_id).filter(Boolean)),
+    ),
+  );
   if (!ids.length) {
     return;
   }
 
-  serviceActionKey.value = `${service.service_name}:${action}`;
+  if (actionKey.startsWith('batch:')) {
+    serviceBatchActionLoading.value = action;
+  } else {
+    serviceActionKey.value = actionKey;
+  }
   try {
     const response = await batchContainerActions({
       action,
@@ -2039,7 +1722,11 @@ async function runServiceContainerAction(action: ProjectContainerAction, service
     logger.warn(`failed to ${action} service containers`, error);
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.detail.services.batch.failed')));
   } finally {
-    serviceActionKey.value = '';
+    if (actionKey.startsWith('batch:')) {
+      serviceBatchActionLoading.value = '';
+    } else {
+      serviceActionKey.value = '';
+    }
   }
 }
 
@@ -2078,6 +1765,10 @@ function batchFailureSummary(items: ProjectContainerActionResultItem[]) {
     .slice(0, 5)
     .map((item) => `${item.name || item.id}: ${item.message_key ? t(item.message_key) : item.message || '-'}`)
     .join('\n');
+}
+
+function capitalizeAction(action: ProjectContainerAction) {
+  return `${action.charAt(0).toUpperCase()}${action.slice(1)}`;
 }
 
 async function refreshProjectRuntimeSurface() {
@@ -2374,16 +2065,6 @@ async function copyPath(path: string) {
   }
 }
 
-function normalizeTextBlock(value: string) {
-  const normalized = String(value ?? '')
-    .replace(/\r\n/g, '\n')
-    .split('\n')
-    .map((line) => line.replace(/\s+$/g, ''))
-    .join('\n')
-    .trim();
-  return normalized ? `${normalized}\n` : '';
-}
-
 function joinList(items: string[]) {
   return items.length > 0 ? items.join(', ') : '-';
 }
@@ -2443,17 +2124,11 @@ async function syncServiceRuntimePortSummaries(services: ProjectServiceItem[]) {
   }
 
   try {
-    const response = await getContainers({
-      limit: 200,
-      offset: 0,
-      orchestrator: 'compose',
-      source_scope: canonicalProjectName,
-      source_scope_kind: 'compose_project',
-    });
+    const containers = await fetchProjectRuntimeContainers(canonicalProjectName);
     if (requestId !== serviceRuntimePortsRequestId.value) {
       return;
     }
-    serviceRuntimePortSummaries.value = buildServiceRuntimePortSummaries(services, response.items);
+    serviceRuntimePortSummaries.value = buildServiceRuntimePortSummaries(services, containers);
   } catch (error) {
     logger.warn('failed to load runtime ports for project services', error);
     if (requestId === serviceRuntimePortsRequestId.value) {
@@ -2474,6 +2149,24 @@ function buildDetailTitle(name: string): LocalizedTitle {
   return buildDetailTitleWithFallback('project.route.detail.title', name);
 }
 
+function buildConfigurationWorkspaceTitle(name: string): LocalizedTitle {
+  return buildDetailTitleWithFallback('project.route.configurationWorkspace.title', name);
+}
+
+function redirectLegacyConfigurationTab() {
+  const raw = Array.isArray(route.query.tab) ? route.query.tab[0] : route.query.tab;
+  if (raw !== 'configuration') {
+    return false;
+  }
+  const { tab: _tab, ...query } = route.query;
+  void router.replace({
+    name: PROJECT_BOOTSTRAP_ROUTE.CONFIGURATION_WORKSPACE.pageRouteName,
+    params: route.params,
+    query,
+  });
+  return true;
+}
+
 function normalizeDetailTab(value: unknown): ProjectDetailTab {
   const raw = Array.isArray(value) ? value[0] : value;
   if (raw === 'runtime') {
@@ -2482,7 +2175,7 @@ function normalizeDetailTab(value: unknown): ProjectDetailTab {
   if (raw === 'containers' || raw === 'networks' || raw === 'volumes') {
     return 'services';
   }
-  const tabs: ProjectDetailTab[] = ['overview', 'services', 'configuration', 'logs', 'lifecycle'];
+  const tabs: ProjectDetailTab[] = ['overview', 'services', 'logs', 'lifecycle'];
   return typeof raw === 'string' && tabs.includes(raw as ProjectDetailTab) ? (raw as ProjectDetailTab) : 'overview';
 }
 
@@ -2512,6 +2205,17 @@ function updateCurrentTabTitle(title: LocalizedTitle) {
   tabsRouterStore.tabRouterList = tabsRouterStore.tabRouterList.map((tab) =>
     tab.tabKey === routePath || tab.path === routePath || tab.fullPath === routeFullPath ? { ...tab, title } : tab,
   );
+}
+
+function openConfigurationWorkspace() {
+  const target = {
+    name: PROJECT_BOOTSTRAP_ROUTE.CONFIGURATION_WORKSPACE.pageRouteName,
+    params: { id: String(projectId.value) },
+    query: fallbackDisplayName.value ? { name: fallbackDisplayName.value } : undefined,
+  };
+  const resolved = router.resolve(target);
+  appendResolvedTab(tabsRouterStore, resolved, buildConfigurationWorkspaceTitle(pageTitle.value));
+  void router.push(target);
 }
 
 function resolveServiceDetailMember(service: ProjectServiceItem) {
@@ -2641,11 +2345,23 @@ function openContainerDetail(member: ProjectServiceContainerMember) {
 .project-overview-hero__heading,
 .project-overview-hero__body,
 .project-service-card__head,
-.project-service-card__tags {
+.project-service-card__tags,
+.project-service-batch-bar,
+.project-service-batch-bar__actions {
   align-items: center;
   display: flex;
   flex-wrap: wrap;
   gap: var(--graft-density-gap-8);
+}
+
+.project-service-batch-bar {
+  justify-content: space-between;
+  width: 100%;
+}
+
+.project-service-batch-bar > span {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-body-medium);
 }
 
 .project-overview-hero {

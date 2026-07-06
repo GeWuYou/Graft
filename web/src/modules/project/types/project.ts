@@ -45,13 +45,6 @@ export type ProjectCreateValidateRequest = components['schemas']['project-create
 export type ProjectCreateValidateResponse = components['schemas']['project-create-validate-response'];
 export type ProjectConfigurationMetadataResponse = components['schemas']['ProjectConfigurationMetadataResponse'];
 export type ProjectConfigurationPreviewResponse = components['schemas']['ProjectConfigurationPreviewResponse'];
-export type ProjectConfigurationFileResponse = components['schemas']['ProjectConfigurationFileResponse'];
-export type ProjectConfigurationDiffRequest = components['schemas']['project-configuration-diff-request'];
-export type ProjectConfigurationDiffResponse = components['schemas']['project-configuration-diff-response'];
-export type ProjectConfigurationValidateRequest = components['schemas']['project-configuration-validate-request'];
-export type ProjectConfigurationValidateResponse = components['schemas']['project-configuration-validate-response'];
-export type ProjectDeployRequest = components['schemas']['project-deploy-request'];
-export type ProjectDeployResponse = components['schemas']['project-deploy-response'];
 export type ProjectActionResponse = components['schemas']['ProjectActionResponse'];
 export type ProjectBatchActionRequest = components['schemas']['project-batch-action-request'];
 export type ProjectBatchActionItem = components['schemas']['project-batch-action-item'];
@@ -113,3 +106,114 @@ export type ProjectActivityStream = 'events' | 'logs';
 export type ProjectServiceContainerMember = ProjectServiceItem['container_members'][number];
 
 export type ProjectBatchAction = ProjectBatchActionRequest['action'];
+
+export type ProjectConfigurationFileResponse = {
+  content: string;
+  download_name: string;
+  encoding?: string | null;
+  file_id: number;
+  kind: ProjectFileKind;
+  path: string;
+  read_only?: boolean;
+};
+
+export type ProjectConfigurationDiffRequest = {
+  compose_file_content?: string;
+  env_file_content?: string;
+};
+
+export type ProjectConfigurationDiffResponse = {
+  canonical_project_name: string;
+  current_config_hash: string;
+  files: Array<{
+    changed: boolean;
+    current_content: string;
+    current_hash: string;
+    kind: string;
+    path: string;
+    proposed_content: string;
+    proposed_hash: string;
+  }>;
+  has_changes: boolean;
+  ownership_mode: ProjectOwnershipMode | string;
+  project_id: number;
+  proposed_config_hash: string;
+  warnings: string[];
+};
+
+export type ProjectConfigurationValidateRequest = {
+  compose_file_content?: string;
+  env_file_content?: string;
+};
+
+export type ProjectConfigurationValidateResponse = {
+  canonical_project_name: string;
+  declared_service_names: string[];
+  normalized_compose_yaml: string;
+  ownership_mode: ProjectOwnershipMode | string;
+  project_id: number;
+  proposed_config_hash: string;
+  warnings: string[];
+};
+
+export type ProjectDeployRequest = {
+  compose_file_content?: string;
+  env_file_content?: string;
+};
+
+export type ProjectDeployResponse = ProjectActionResponse;
+
+export type ProjectWorkspaceNodeType = 'file' | 'directory';
+export type ProjectWorkspaceFileKind = 'directory' | 'compose' | 'env' | 'config' | 'text' | 'binary' | 'unsupported';
+export type ProjectWorkspaceLanguageHint =
+  'yaml' | 'json' | 'dotenv' | 'ini' | 'toml' | 'properties' | 'shell' | 'dockerfile' | 'plaintext' | (string & {});
+
+export type ProjectWorkspaceTreeItem = {
+  name: string;
+  relative_path: string;
+  node_type: ProjectWorkspaceNodeType;
+  file_kind: ProjectWorkspaceFileKind;
+  editable: boolean;
+  language_hint?: ProjectWorkspaceLanguageHint | null;
+  size_bytes?: number | null;
+  hidden_by_default?: boolean;
+  has_children?: boolean;
+};
+
+export type ProjectWorkspaceFilesResponse = {
+  root_path: string;
+  current_path: string;
+  parent_path?: string | null;
+  items: ProjectWorkspaceTreeItem[];
+  has_more_hidden?: boolean;
+};
+
+export type ProjectWorkspaceFilesQuery = {
+  path?: string;
+  show_hidden?: boolean;
+};
+
+export type ProjectWorkspaceFileContentResponse = {
+  relative_path: string;
+  file_kind: ProjectWorkspaceFileKind;
+  language_hint?: ProjectWorkspaceLanguageHint | null;
+  editable: boolean;
+  encoding?: string | null;
+  content: string;
+  size_bytes?: number | null;
+};
+
+export type ProjectWorkspaceFileContentQuery = {
+  path: string;
+};
+
+export type ProjectWorkspaceFileSaveRequest = {
+  content: string;
+};
+
+export type ProjectWorkspaceFileSaveResponse = {
+  relative_path: string;
+  saved_at?: string | null;
+  content_hash?: string | null;
+  size_bytes?: number | null;
+};

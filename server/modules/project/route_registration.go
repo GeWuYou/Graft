@@ -27,28 +27,6 @@ type routeRuntime struct {
 
 const minimumProjectListLimit = 1
 
-type boundProjectConfigurationDraft[T any] struct {
-	projectID   uint64
-	generatedID int64
-	request     T
-}
-
-func bindProjectRequest[T any](ginCtx *gin.Context, ctx *module.Context) (boundProjectConfigurationDraft[T], bool) {
-	projectID, generatedID, ok := bindProjectID(ginCtx, ctx)
-	if !ok {
-		return boundProjectConfigurationDraft[T]{}, false
-	}
-	var request T
-	if !bindJSON(ginCtx, ctx, &request) {
-		return boundProjectConfigurationDraft[T]{}, false
-	}
-	return boundProjectConfigurationDraft[T]{
-		projectID:   projectID,
-		generatedID: generatedID,
-		request:     request,
-	}, true
-}
-
 // registerRoutes 为项目模块注册路由并挂载权限校验与请求追踪中间件。
 // 当路由器不可用时直接返回；当服务缺失时返回错误。
 // 当上下文或路由器为空时直接返回；当服务或权限依赖无法解析时返回错误。
@@ -91,7 +69,9 @@ func registerRoutes(ctx *module.Context, moduleName string, service *Service) er
 	group.GET(projectcontract.ProjectLogsRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectViewPermission.String(), publisher), routes.handleLogs)
 	group.GET(projectcontract.ProjectConfigurationRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectViewPermission.String(), publisher), routes.handleConfiguration)
 	group.GET(projectcontract.ProjectConfigurationPreviewRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectViewPermission.String(), publisher), routes.handleConfigurationPreview)
-	group.GET(projectcontract.ProjectConfigurationFileRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectViewPermission.String(), publisher), routes.handleConfigurationFile)
+	group.GET(projectcontract.ProjectWorkspaceFilesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectViewPermission.String(), publisher), routes.handleProjectWorkspaceFiles)
+	group.GET(projectcontract.ProjectWorkspaceFileContentRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectViewPermission.String(), publisher), routes.handleProjectWorkspaceFileContent)
+	group.PUT(projectcontract.ProjectWorkspaceFileContentRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectDeployPermission.String(), publisher), routes.handleSaveProjectWorkspaceFileContent)
 	group.POST(projectcontract.ProjectConfigurationDiffRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectDeployPermission.String(), publisher), routes.handleConfigurationDiff)
 	group.POST(projectcontract.ProjectConfigurationValidateRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectDeployPermission.String(), publisher), routes.handleConfigurationValidate)
 	group.POST(projectcontract.ProjectRefreshRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ProjectRefreshPermission.String(), publisher), routes.handleRefresh)
@@ -393,31 +373,73 @@ func (r routeRuntime) handleConfigurationPreview(ginCtx *gin.Context) {
 	httpx.WriteSuccess(ginCtx, http.StatusOK, toConfigurationPreviewResponse(result))
 }
 
-func (r routeRuntime) handleConfigurationFile(ginCtx *gin.Context) {
-	projectID, generatedProjectID, ok := bindProjectID(ginCtx, r.ctx)
+func (r routeRuntime) handleProjectWorkspaceFiles(ginCtx *gin.Context) {
+	projectID, generatedID, ok := bindProjectID(ginCtx, r.ctx)
 	if !ok {
 		return
 	}
-	fileID, generatedFileID, ok := bindProjectFileID(ginCtx, r.ctx)
+	query, ok := bindProjectWorkspaceFilesQuery(ginCtx, r.ctx)
 	if !ok {
 		return
 	}
-	projectGeneratedHandler{}.GetProjectConfigurationFile(generatedProjectID, generatedFileID, bindGetProjectConfigurationFileParams(ginCtx))
-	result, err := r.service.ConfigurationFile(ginCtx.Request.Context(), projectID, fileID)
+	projectGeneratedHandler{}.GetProjectFiles(generatedID, bindGetProjectFilesParams(ginCtx, query))
+	result, err := r.service.browseProjectFiles(ginCtx.Request.Context(), projectID, query)
 	if err != nil {
 		r.writeRouteError(ginCtx, err)
 		return
 	}
-	httpx.WriteSuccess(ginCtx, http.StatusOK, toConfigurationFileResponse(result))
+	httpx.WriteSuccess(ginCtx, http.StatusOK, toProjectWorkspaceFilesResponse(result))
 }
 
-func (r routeRuntime) handleConfigurationDiff(ginCtx *gin.Context) {
-	bound, ok := bindProjectConfigurationDiffRequest(ginCtx, r)
+func (r routeRuntime) handleProjectWorkspaceFileContent(ginCtx *gin.Context) {
+	projectID, generatedID, ok := bindProjectID(ginCtx, r.ctx)
 	if !ok {
 		return
 	}
-	projectGeneratedHandler{}.PostProjectConfigurationDiff(bound.generatedID, bindPostProjectConfigurationDiffParams(ginCtx), bound.request)
-	result, err := r.service.DiffConfiguration(ginCtx.Request.Context(), bound.projectID, toConfigurationDiffRequest(bound.request))
+	path, ok := bindProjectWorkspaceFilePath(ginCtx, r.ctx)
+	if !ok {
+		return
+	}
+	projectGeneratedHandler{}.GetProjectFileContent(generatedID, bindGetProjectFileContentParams(ginCtx, path))
+	result, err := r.service.projectFileContent(ginCtx.Request.Context(), projectID, path)
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, toProjectWorkspaceFileContentResponse(result))
+}
+
+func (r routeRuntime) handleSaveProjectWorkspaceFileContent(ginCtx *gin.Context) {
+	projectID, generatedID, ok := bindProjectID(ginCtx, r.ctx)
+	if !ok {
+		return
+	}
+	path, ok := bindProjectWorkspaceFilePath(ginCtx, r.ctx)
+	if !ok {
+		return
+	}
+	var request generated.PutProjectFileContentJSONRequestBody
+	if !bindJSON(ginCtx, r.ctx, &request) {
+		return
+	}
+	projectGeneratedHandler{}.PutProjectFileContent(generatedID, bindPutProjectFileContentParams(ginCtx, path), request)
+	result, err := r.service.saveProjectFileContent(ginCtx.Request.Context(), projectID, path, workspaceFileSaveRequest{
+		Content: request.Content,
+	})
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, toProjectWorkspaceFileSaveResponse(result))
+}
+
+func (r routeRuntime) handleConfigurationDiff(ginCtx *gin.Context) {
+	projectID, generatedID, ok := bindProjectID(ginCtx, r.ctx)
+	if !ok {
+		return
+	}
+	projectGeneratedHandler{}.PostProjectConfigurationDiff(generatedID, bindPostProjectConfigurationDiffParams(ginCtx))
+	result, err := r.service.DiffConfiguration(ginCtx.Request.Context(), projectID)
 	if err != nil {
 		r.writeRouteError(ginCtx, err)
 		return
@@ -426,12 +448,12 @@ func (r routeRuntime) handleConfigurationDiff(ginCtx *gin.Context) {
 }
 
 func (r routeRuntime) handleConfigurationValidate(ginCtx *gin.Context) {
-	bound, ok := bindProjectConfigurationValidateRequest(ginCtx, r)
+	projectID, generatedID, ok := bindProjectID(ginCtx, r.ctx)
 	if !ok {
 		return
 	}
-	projectGeneratedHandler{}.PostProjectConfigurationValidate(bound.generatedID, bindPostProjectConfigurationValidateParams(ginCtx), bound.request)
-	result, err := r.service.ValidateConfiguration(ginCtx.Request.Context(), bound.projectID, toConfigurationValidateRequest(bound.request))
+	projectGeneratedHandler{}.PostProjectConfigurationValidate(generatedID, bindPostProjectConfigurationValidateParams(ginCtx))
+	result, err := r.service.ValidateConfiguration(ginCtx.Request.Context(), projectID)
 	if err != nil {
 		r.writeRouteError(ginCtx, err)
 		return
@@ -454,15 +476,14 @@ func (r routeRuntime) handleRefresh(ginCtx *gin.Context) {
 }
 
 func (r routeRuntime) handleDeploy(ginCtx *gin.Context) {
-	bound, ok := bindProjectRequest[generated.ProjectDeployRequest](ginCtx, r.ctx)
+	projectID, generatedID, ok := bindProjectID(ginCtx, r.ctx)
 	if !ok {
 		return
 	}
-	projectGeneratedHandler{}.PostProjectDeploy(bound.generatedID, bindPostProjectDeployParams(ginCtx), bound.request)
+	projectGeneratedHandler{}.PostProjectDeploy(generatedID, bindPostProjectDeployParams(ginCtx))
 	result, err := r.service.DeployConfiguration(
 		ginCtx.Request.Context(),
-		bound.projectID,
-		toDeployRequest(bound.request),
+		projectID,
 		currentUserIDPointer(ginCtx),
 	)
 	if err != nil {
@@ -529,19 +550,23 @@ func (r routeRuntime) handleRedeploy(ginCtx *gin.Context) {
 }
 
 func (r routeRuntime) handleLifecycleConfiguration(ginCtx *gin.Context) {
-	bound, ok := bindProjectRequest[generated.ProjectLifecycleConfigurationRequest](ginCtx, r.ctx)
+	projectID, generatedID, ok := bindProjectID(ginCtx, r.ctx)
 	if !ok {
 		return
 	}
+	var request generated.ProjectLifecycleConfigurationRequest
+	if !bindJSON(ginCtx, r.ctx, &request) {
+		return
+	}
 	projectGeneratedHandler{}.PutProjectLifecycleConfiguration(
-		bound.generatedID,
+		generatedID,
 		bindPutProjectLifecycleConfigurationParams(ginCtx),
-		bound.request,
+		request,
 	)
 	result, err := r.service.UpdateLifecycleConfiguration(
 		ginCtx.Request.Context(),
-		bound.projectID,
-		toLifecycleConfigurationRequest(bound.request),
+		projectID,
+		toLifecycleConfigurationRequest(request),
 		currentUserIDPointer(ginCtx),
 	)
 	if err != nil {
@@ -678,19 +703,19 @@ func (r routeRuntime) writeRouteError(ginCtx *gin.Context, err error) {
 }
 
 func (r routeRuntime) writeRouteErrorWithAction(ginCtx *gin.Context, err error, action ActionResult) {
+	if !r.writeHandledRouteError(ginCtx, err, action) {
+		httpx.WriteLocalizedErrorCode(ginCtx, r.ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), messagecontract.CommonInternalError.String(), nil)
+	}
+	ginCtx.Abort()
+}
+
+func (r routeRuntime) writeHandledRouteError(ginCtx *gin.Context, err error, action ActionResult) bool {
 	switch {
-	case errors.Is(err, errProjectInvalidArgument), errors.Is(err, errProjectImportValidation), errors.Is(err, errProjectFileNotFound):
-		r.writeInvalidArgumentError(ginCtx, err)
-	case errors.Is(err, errProjectNotFound):
-		r.writeLocalizedProjectError(ginCtx, http.StatusNotFound, projectcontract.ProjectNotFound.String())
-	case errors.Is(err, errProjectConflict):
-		r.writeLocalizedProjectError(ginCtx, http.StatusConflict, projectcontract.ProjectConflict.String())
-	case errors.Is(err, errProjectDirectoryForbidden):
-		r.writeLocalizedProjectError(ginCtx, http.StatusForbidden, projectcontract.ProjectDirectoryBrowseForbidden.String())
-	case errors.Is(err, errProjectInspectionExpired):
-		r.writeLocalizedProjectError(ginCtx, http.StatusConflict, projectcontract.ProjectInspectionExpired.String())
-	case errors.Is(err, errProjectInspectionStale):
-		r.writeLocalizedProjectError(ginCtx, http.StatusConflict, projectcontract.ProjectInspectionStale.String())
+	case errors.Is(err, errProjectFileNotFound):
+		r.writeFileNotFoundError(ginCtx)
+	case errors.Is(err, errProjectInvalidArgument), errors.Is(err, errProjectImportValidation):
+		r.writeInvalidArgumentError(ginCtx)
+	case r.writeProjectConflictError(ginCtx, err):
 	case errors.Is(err, errProjectDestroyBlocked):
 		r.writeLocalizedActionError(ginCtx, http.StatusConflict, projectcontract.ProjectConflict.String(), map[string]any{
 			"code":         projectcontract.ProjectConflict.String(),
@@ -702,17 +727,35 @@ func (r routeRuntime) writeRouteErrorWithAction(ginCtx *gin.Context, err error, 
 			"actionResult": toActionResponse(action),
 		})
 	default:
-		httpx.WriteLocalizedErrorCode(ginCtx, r.ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), messagecontract.CommonInternalError.String(), nil)
+		return false
 	}
-	ginCtx.Abort()
+	return true
 }
 
-func (r routeRuntime) writeInvalidArgumentError(ginCtx *gin.Context, err error) {
-	code := projectcontract.ProjectInvalidArgument.String()
-	if errors.Is(err, errProjectFileNotFound) {
-		code = projectcontract.ProjectInvalidFileID.String()
+func (r routeRuntime) writeProjectConflictError(ginCtx *gin.Context, err error) bool {
+	switch {
+	case errors.Is(err, errProjectNotFound):
+		r.writeLocalizedProjectError(ginCtx, http.StatusNotFound, projectcontract.ProjectNotFound.String())
+	case errors.Is(err, errProjectConflict):
+		r.writeLocalizedProjectError(ginCtx, http.StatusConflict, projectcontract.ProjectConflict.String())
+	case errors.Is(err, errProjectDirectoryForbidden):
+		r.writeLocalizedProjectError(ginCtx, http.StatusForbidden, projectcontract.ProjectDirectoryBrowseForbidden.String())
+	case errors.Is(err, errProjectInspectionExpired):
+		r.writeLocalizedProjectError(ginCtx, http.StatusConflict, projectcontract.ProjectInspectionExpired.String())
+	case errors.Is(err, errProjectInspectionStale):
+		r.writeLocalizedProjectError(ginCtx, http.StatusConflict, projectcontract.ProjectInspectionStale.String())
+	default:
+		return false
 	}
-	r.writeLocalizedActionError(ginCtx, http.StatusBadRequest, projectcontract.ProjectInvalidArgument.String(), map[string]any{"code": code})
+	return true
+}
+
+func (r routeRuntime) writeInvalidArgumentError(ginCtx *gin.Context) {
+	r.writeLocalizedActionError(ginCtx, http.StatusBadRequest, projectcontract.ProjectInvalidArgument.String(), map[string]any{"code": projectcontract.ProjectInvalidArgument.String()})
+}
+
+func (r routeRuntime) writeFileNotFoundError(ginCtx *gin.Context) {
+	r.writeLocalizedActionError(ginCtx, http.StatusNotFound, projectcontract.ProjectInvalidFileID.String(), map[string]any{"code": projectcontract.ProjectInvalidFileID.String()})
 }
 
 func (r routeRuntime) writeLocalizedProjectError(ginCtx *gin.Context, status int, code string) {
@@ -752,15 +795,16 @@ func (projectGeneratedHandler) GetProjectConfiguration(int64, generated.GetProje
 }
 func (projectGeneratedHandler) GetProjectConfigurationPreview(int64, generated.GetProjectConfigurationPreviewParams) {
 }
-func (projectGeneratedHandler) GetProjectConfigurationFile(int64, int64, generated.GetProjectConfigurationFileParams) {
+func (projectGeneratedHandler) GetProjectFiles(int64, generated.GetProjectFilesParams)             {}
+func (projectGeneratedHandler) GetProjectFileContent(int64, generated.GetProjectFileContentParams) {}
+func (projectGeneratedHandler) PutProjectFileContent(int64, generated.PutProjectFileContentParams, generated.PutProjectFileContentJSONRequestBody) {
 }
-func (projectGeneratedHandler) PostProjectConfigurationDiff(int64, generated.PostProjectConfigurationDiffParams, generated.ProjectConfigurationDiffRequest) {
+func (projectGeneratedHandler) PostProjectConfigurationDiff(int64, generated.PostProjectConfigurationDiffParams) {
 }
-func (projectGeneratedHandler) PostProjectConfigurationValidate(int64, generated.PostProjectConfigurationValidateParams, generated.ProjectConfigurationValidateRequest) {
+func (projectGeneratedHandler) PostProjectConfigurationValidate(int64, generated.PostProjectConfigurationValidateParams) {
 }
-func (projectGeneratedHandler) PostProjectRefresh(int64, generated.PostProjectRefreshParams) {}
-func (projectGeneratedHandler) PostProjectDeploy(int64, generated.PostProjectDeployParams, generated.ProjectDeployRequest) {
-}
+func (projectGeneratedHandler) PostProjectRefresh(int64, generated.PostProjectRefreshParams)   {}
+func (projectGeneratedHandler) PostProjectDeploy(int64, generated.PostProjectDeployParams)     {}
 func (projectGeneratedHandler) PostProjectUp(int64, generated.PostProjectUpParams)             {}
 func (projectGeneratedHandler) PostProjectStop(int64, generated.PostProjectStopParams)         {}
 func (projectGeneratedHandler) PostProjectRestart(int64, generated.PostProjectRestartParams)   {}
@@ -868,49 +912,6 @@ func bindPostProjectImportRuntimeInspectParams(ginCtx *gin.Context) generated.Po
 	}
 }
 
-// bindProjectConfigurationDiffRequest 绑定配置差异请求及其项目标识。
-// 成功时返回包含项目 ID、生成 ID 和请求体的结果；绑定失败时返回 false。
-func bindProjectConfigurationDiffRequest(ginCtx *gin.Context, r routeRuntime) (boundProjectConfigurationDraft[generated.ProjectConfigurationDiffRequest], bool) {
-	var request generated.ProjectConfigurationDiffRequest
-	projectID, generatedID, ok := bindProjectConfigurationDraftRequest(ginCtx, r, &request)
-	if !ok {
-		return boundProjectConfigurationDraft[generated.ProjectConfigurationDiffRequest]{}, false
-	}
-	return boundProjectConfigurationDraft[generated.ProjectConfigurationDiffRequest]{
-		projectID:   projectID,
-		generatedID: generatedID,
-		request:     request,
-	}, true
-}
-
-// bindProjectConfigurationValidateRequest 绑定项目配置校验请求及其路径标识。
-// 成功时返回包含 projectID、generatedID 和请求体的绑定结果；绑定失败时返回 false。
-func bindProjectConfigurationValidateRequest(ginCtx *gin.Context, r routeRuntime) (boundProjectConfigurationDraft[generated.ProjectConfigurationValidateRequest], bool) {
-	var request generated.ProjectConfigurationValidateRequest
-	projectID, generatedID, ok := bindProjectConfigurationDraftRequest(ginCtx, r, &request)
-	if !ok {
-		return boundProjectConfigurationDraft[generated.ProjectConfigurationValidateRequest]{}, false
-	}
-	return boundProjectConfigurationDraft[generated.ProjectConfigurationValidateRequest]{
-		projectID:   projectID,
-		generatedID: generatedID,
-		request:     request,
-	}, true
-}
-
-// bindProjectConfigurationDraftRequest 绑定项目标识和配置草稿请求体。
-// 成功时返回项目 ID、生成 ID 和 true。
-func bindProjectConfigurationDraftRequest[T any](ginCtx *gin.Context, r routeRuntime, request *T) (uint64, int64, bool) {
-	projectID, generatedID, ok := bindProjectID(ginCtx, r.ctx)
-	if !ok {
-		return 0, 0, false
-	}
-	if !bindJSON(ginCtx, r.ctx, request) {
-		return 0, 0, false
-	}
-	return projectID, generatedID, true
-}
-
 // bindJSON 绑定请求体中的 JSON 到目标对象。
 //
 // 绑定失败时，会中止当前请求并返回 400 Bad Request 的本地化参数错误，错误字段为 `body`。
@@ -934,22 +935,6 @@ func bindProjectID(ginCtx *gin.Context, ctx *module.Context) (uint64, int64, boo
 	}
 	if value > math.MaxInt64 {
 		httpx.WriteLocalizedErrorCode(ginCtx, ctx.I18n, http.StatusBadRequest, projectcontract.ProjectInvalidID.String(), messagecontract.CommonInvalidArgument.String(), map[string]any{"field": "id", "code": projectcontract.ProjectInvalidID.String()})
-		ginCtx.Abort()
-		return 0, 0, false
-	}
-	return value, int64(value), true
-}
-
-// bindProjectFileID 解析并校验路由参数中的文件 ID。
-// bindProjectFileID 提取并校验路径中的文件 ID。
-// 成功时返回文件 ID 及其 int64 形式；当参数无效时写入本地化错误并中止请求。
-//
-// @return 成功时返回文件 ID、其 int64 形式以及 true；校验失败时返回 0、0 和 false。
-func bindProjectFileID(ginCtx *gin.Context, ctx *module.Context) (uint64, int64, bool) {
-	raw := strings.TrimSpace(ginCtx.Param("fileId"))
-	value, err := strconv.ParseUint(raw, 10, 64)
-	if err != nil || value == 0 || value > math.MaxInt64 {
-		httpx.WriteLocalizedErrorCode(ginCtx, ctx.I18n, http.StatusBadRequest, projectcontract.ProjectInvalidFileID.String(), messagecontract.CommonInvalidArgument.String(), map[string]any{"field": "fileId", "code": projectcontract.ProjectInvalidFileID.String()})
 		ginCtx.Abort()
 		return 0, 0, false
 	}
@@ -1080,11 +1065,51 @@ func bindGetProjectConfigurationPreviewParams(ginCtx *gin.Context) generated.Get
 	return generated.GetProjectConfigurationPreviewParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
-// bindGetProjectConfigurationFileParams 构造获取项目配置文件接口的请求参数。
-// 该参数包含语言环境和请求 ID。
-func bindGetProjectConfigurationFileParams(ginCtx *gin.Context) generated.GetProjectConfigurationFileParams {
+func bindProjectWorkspaceFilesQuery(ginCtx *gin.Context, ctx *module.Context) (workspaceFileBrowseQuery, bool) {
+	query := ginCtx.Request.URL.Query()
+	showHidden, ok := optionalBoolQuery(query.Get("show_hidden"))
+	if !ok {
+		abortInvalidQuery(ginCtx, ctx)
+		return workspaceFileBrowseQuery{}, false
+	}
+	return workspaceFileBrowseQuery{
+		Path:       strings.TrimSpace(query.Get("path")),
+		ShowHidden: boolValue(showHidden),
+	}, true
+}
+
+func bindProjectWorkspaceFilePath(ginCtx *gin.Context, ctx *module.Context) (string, bool) {
+	path := strings.TrimSpace(ginCtx.Query("path"))
+	if path == "" {
+		abortInvalidQuery(ginCtx, ctx)
+		return "", false
+	}
+	return path, true
+}
+
+func bindGetProjectFilesParams(ginCtx *gin.Context, query workspaceFileBrowseQuery) generated.GetProjectFilesParams {
 	locale, requestID := commonHeaders(ginCtx)
-	return generated.GetProjectConfigurationFileParams{XGraftLocale: locale, XRequestId: requestID}
+	params := generated.GetProjectFilesParams{XGraftLocale: locale, XRequestId: requestID}
+	if trimmed := strings.TrimSpace(query.Path); trimmed != "" {
+		params.Path = &trimmed
+	}
+	if query.ShowHidden {
+		showHidden := true
+		params.ShowHidden = &showHidden
+	}
+	return params
+}
+
+func bindGetProjectFileContentParams(ginCtx *gin.Context, path string) generated.GetProjectFileContentParams {
+	locale, requestID := commonHeaders(ginCtx)
+	queryPath := generated.ProjectWorkspacePathQuery(path)
+	return generated.GetProjectFileContentParams{XGraftLocale: locale, XRequestId: requestID, Path: &queryPath}
+}
+
+func bindPutProjectFileContentParams(ginCtx *gin.Context, path string) generated.PutProjectFileContentParams {
+	locale, requestID := commonHeaders(ginCtx)
+	queryPath := generated.ProjectWorkspacePathQuery(path)
+	return generated.PutProjectFileContentParams{XGraftLocale: locale, XRequestId: requestID, Path: &queryPath}
 }
 
 // bindPostProjectConfigurationDiffParams 组装项目配置 diff 请求的公共请求头参数。

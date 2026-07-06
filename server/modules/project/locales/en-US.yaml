@@ -38,3 +38,5 @@ ops.project.source.remoteHost.description: Remote host project creation is not a
 ops.project.discovery.candidates.ready: Project discovery candidate preview is ready.
 systemConfig.project.ops.project.managed.root_directory.title: Managed Project Root Directory
 systemConfig.project.ops.project.managed.root_directory.description: Root directory used for managed Compose project creation. Leave empty to keep managed creation unavailable.
+systemConfig.project.ops.project.workspace.hidden_directories.title: Workspace Hidden Directories
+systemConfig.project.ops.project.workspace.hidden_directories.description: JSON array string of directory basenames hidden by default in the project configuration workspace tree.

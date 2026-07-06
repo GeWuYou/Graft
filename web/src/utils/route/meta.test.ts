@@ -22,6 +22,7 @@ describe('route meta helpers', () => {
     expect(resolvePageSurfaceType({ dashboard: true, pageKind: 'overview', pageSurface: 'paged-table' })).toBe(
       'paged-table',
     );
+    expect(resolvePageSurfaceType({ pageKind: 'detail', pageSurface: 'editor' })).toBe('editor');
     expect(resolvePageSurfaceType({ dashboard: true, pageKind: 'overview' })).toBe('overview-dashboard');
     expect(resolvePageSurfaceType({ pageKind: 'overview' })).toBe('overview-dashboard');
     expect(resolvePageSurfaceType({ pageKind: 'list' })).toBe('paged-table');

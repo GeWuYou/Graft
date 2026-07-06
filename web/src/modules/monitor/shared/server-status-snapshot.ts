@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n';
 import type { RefreshControlStatus } from '@/shared/components/refresh';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { formatLocaleDateTime } from '@/shared/observability';
+import { useRealtimeSchedulerStore } from '@/store';
 
 import { getServerStatus } from '../api/server-status';
 import { useMonitorRefreshPreferences } from '../composables/use-monitor-refresh-preferences';
@@ -21,6 +22,7 @@ export type DependencyDisplayStatus = 'healthy' | 'abnormal' | 'notConfigured' |
  */
 export function useServerStatusSnapshot() {
   const { t } = useI18n();
+  const realtimeSchedulerStore = useRealtimeSchedulerStore();
   const {
     autoRefreshEnabled,
     refreshIntervalOptions,
@@ -108,20 +110,37 @@ export function useServerStatusSnapshot() {
     return 'running';
   });
 
-  function handleVisibilityChange() {
-    isPageVisible.value = document.visibilityState === 'visible';
+  function canRunAutoRefreshCycle() {
+    return (
+      autoRefreshEnabled.value &&
+      isPageVisible.value &&
+      selectedRefreshInterval.value > 0 &&
+      realtimeSchedulerStore.allowPolling
+    );
+  }
 
-    if (isPageVisible.value && autoRefreshEnabled.value && selectedRefreshInterval.value > 0) {
-      void refreshSnapshot();
-      return;
-    }
-
+  function clearRefreshSchedule() {
     stopRefreshTick();
     remainingRefreshSeconds.value = null;
   }
 
+  function handleVisibilityChange() {
+    isPageVisible.value = document.visibilityState === 'visible';
+
+    if (canRunAutoRefreshCycle()) {
+      void refreshSnapshot();
+      return;
+    }
+
+    clearRefreshSchedule();
+  }
+
   onMounted(() => {
-    void refreshSnapshot();
+    if (realtimeSchedulerStore.allowPolling) {
+      void refreshSnapshot();
+    } else {
+      clearRefreshSchedule();
+    }
     document.addEventListener('visibilitychange', handleVisibilityChange, false);
   });
 
@@ -134,10 +153,26 @@ export function useServerStatusSnapshot() {
     scheduleNextRefresh();
   });
 
+  watch(
+    () => realtimeSchedulerStore.allowPolling,
+    (allowPolling) => {
+      if (!allowPolling) {
+        clearRefreshSchedule();
+        return;
+      }
+
+      if (!initialized.value && !serverStatus.value) {
+        void refreshSnapshot();
+        return;
+      }
+      scheduleNextRefresh();
+    },
+  );
+
   function scheduleNextRefresh() {
     stopRefreshTick();
 
-    if (!autoRefreshEnabled.value || !isPageVisible.value || selectedRefreshInterval.value <= 0) {
+    if (!canRunAutoRefreshCycle()) {
       remainingRefreshSeconds.value = null;
       return;
     }
@@ -168,13 +203,12 @@ export function useServerStatusSnapshot() {
   function toggleAutoRefresh() {
     toggleSharedAutoRefresh();
 
-    if (autoRefreshEnabled.value && isPageVisible.value && selectedRefreshInterval.value > 0) {
+    if (canRunAutoRefreshCycle()) {
       void refreshSnapshot();
       return;
     }
 
-    stopRefreshTick();
-    remainingRefreshSeconds.value = null;
+    clearRefreshSchedule();
   }
 
   function updateRemainingRefreshSeconds() {

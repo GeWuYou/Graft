@@ -40,6 +40,10 @@ const settingStoreProxy = vi.hoisted(() => ({
 }));
 
 const storeState = vi.hoisted(() => ({
+  realtimeSchedulerStore: {
+    freeze: vi.fn(() => 1),
+    release: vi.fn(),
+  },
   settingStore: {
     displayMode: 'light',
     isSidebarCompact: false,
@@ -89,6 +93,7 @@ vi.mock('pinia', async (importOriginal) => ({
 }));
 
 vi.mock('@/store', () => ({
+  useRealtimeSchedulerStore: () => storeState.realtimeSchedulerStore,
   useSettingStore: () => {
     if (!settingStoreProxy.value) {
       settingStoreProxy.value = reactive(storeState.settingStore);
@@ -151,6 +156,8 @@ describe('App layout route effects', () => {
     storeState.tabsRouterStore.appendTabRouterList.mockClear();
     storeState.tabsRouterStore.healPersistedRoutes.mockClear();
     storeState.tabsRouterStore.setActiveRoute.mockClear();
+    storeState.realtimeSchedulerStore.freeze.mockClear();
+    storeState.realtimeSchedulerStore.release.mockClear();
     routerMock.resolve.mockClear();
     scrollToMock.mockClear();
     document.body.innerHTML = '<div class="tdesign-starter-layout"></div>';
@@ -218,6 +225,7 @@ describe('App layout route effects', () => {
     vi.advanceTimersByTime(112);
     await wrapper.vm.$nextTick();
     expect(wrapper.get('.app-shell').attributes('data-sidebar-motion-phase')).toBe('compact');
+    expect(storeState.realtimeSchedulerStore.freeze).toHaveBeenCalledWith('shell-sidebar-motion');
   });
 
   it('runs the reverse sidebar motion when expanding back out', async () => {

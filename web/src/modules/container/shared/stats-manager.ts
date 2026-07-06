@@ -1,4 +1,4 @@
-import { openRealtimeTopicSocket } from '@/shared/realtime';
+import { createRealtimeSnapshotGate, openRealtimeTopicSocket } from '@/shared/realtime';
 
 import { mapContainerDashboardSummary } from '../api/dashboard-summary';
 import type { ContainerDashboardSummary } from '../contract/dashboard-summary';
@@ -44,6 +44,37 @@ export type {
   ContainerStatsChangeState,
   ContainerStatsSnapshot,
 } from './stats-manager-state';
+
+let statsSnapshotGate: ReturnType<typeof createRealtimeSnapshotGate<Record<string, ContainerResourceSummary>>> | null =
+  null;
+let dashboardSummarySnapshotGate: ReturnType<typeof createRealtimeSnapshotGate<ContainerDashboardSummary>> | null =
+  null;
+
+function getStatsSnapshotGate() {
+  statsSnapshotGate ??= createRealtimeSnapshotGate({
+    apply(snapshot) {
+      Object.entries(snapshot).forEach(([containerId, resource]) => {
+        upsertStatsSnapshot(containerId, resource, 'realtime');
+      });
+    },
+    coalesce(current, next) {
+      return {
+        ...current,
+        ...next,
+      };
+    },
+  });
+  return statsSnapshotGate;
+}
+
+function getDashboardSummarySnapshotGate() {
+  dashboardSummarySnapshotGate ??= createRealtimeSnapshotGate({
+    apply(summary) {
+      upsertDashboardSummarySnapshot(summary, 'realtime');
+    },
+  });
+  return dashboardSummarySnapshotGate;
+}
 
 /**
  * 更新容器的统计快照。
@@ -361,6 +392,8 @@ export function resetContainerStatsManager() {
   state.listTopicSubscription.refCount = 0;
   state.listTopicSubscription.idleTimer = null;
   state.listTopicSubscription.state = 'idle';
+  statsSnapshotGate?.clear();
+  dashboardSummarySnapshotGate?.clear();
 }
 
 /**
@@ -373,6 +406,10 @@ export function seedContainerDashboardSummary(
   summary: ContainerDashboardSummary,
   source: StatsSnapshotSource = 'http-seed',
 ) {
+  if (source === 'realtime') {
+    getDashboardSummarySnapshotGate().commit(summary);
+    return;
+  }
   upsertDashboardSummarySnapshot(summary, source);
 }
 
@@ -453,7 +490,10 @@ export function clearContainerSummaryCollection(collectionKey: string) {
  * @returns 最新的统计快照；如果传入数据未更新现有快照，则返回现有快照
  */
 export function applyContainerRealtimeStats(containerId: string, resource: ContainerResourceSummary) {
-  return upsertStatsSnapshot(containerId, resource, 'realtime');
+  getStatsSnapshotGate().commit({
+    [containerId]: resource,
+  });
+  return state.statsById.get(containerId)?.snapshot ?? null;
 }
 
 /**

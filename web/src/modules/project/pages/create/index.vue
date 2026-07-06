@@ -191,6 +191,7 @@ import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { getProjectManagedRoot, postProjectCreate, postProjectCreateValidate } from '../../api/project';
 import ProjectFileEditor from '../../components/ProjectFileEditor.vue';
 import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
+import { normalizeTextBlock } from '../../shared/configuration-workspace';
 import { appendResolvedTab, buildDetailTitleWithFallback } from '../../shared/navigation';
 import { useProjectPageContext } from '../../shared/page-context';
 import type {
@@ -420,31 +421,21 @@ function formatEnvContent() {
 
 function openCreatedProject(response: ProjectCreateResponse) {
   const target = {
-    name: PROJECT_BOOTSTRAP_ROUTE.DETAIL.pageRouteName,
+    name: PROJECT_BOOTSTRAP_ROUTE.CONFIGURATION_WORKSPACE.pageRouteName,
     params: { id: response.project_id },
-    query: { tab: 'configuration', name: response.display_name },
+    query: { name: response.display_name },
   };
   const resolved = router.resolve(target);
   appendResolvedTab(
     tabsRouterStore,
     resolved,
-    buildDetailTitleWithFallback('project.route.detail.title', response.display_name),
+    buildDetailTitleWithFallback('project.route.configurationWorkspace.title', response.display_name),
   );
   void router.push(target);
 }
 
 function defaultComposeContent() {
   return ['services:', '  app:', '    image: nginx:alpine', '    ports:', "      - '8080:80'"].join('\n');
-}
-
-function normalizeTextBlock(value: string) {
-  const normalized = String(value ?? '')
-    .replace(/\r\n/g, '\n')
-    .split('\n')
-    .map((line) => line.replace(/\s+$/g, ''))
-    .join('\n')
-    .trim();
-  return normalized ? `${normalized}\n` : '';
 }
 </script>
 <style scoped lang="less">

@@ -4,12 +4,13 @@ import { request } from '@/utils/request';
 import {
   buildProjectConfigurationApiPath,
   buildProjectConfigurationDiffApiPath,
-  buildProjectConfigurationFileApiPath,
   buildProjectConfigurationPreviewApiPath,
   buildProjectConfigurationValidateApiPath,
   buildProjectDeployApiPath,
   buildProjectDestroyApiPath,
   buildProjectDetailApiPath,
+  buildProjectFilesApiPath,
+  buildProjectFilesContentApiPath,
   buildProjectLifecycleConfigurationApiPath,
   buildProjectLogsApiPath,
   buildProjectOverviewApiPath,
@@ -26,18 +27,14 @@ import type {
   ProjectActionResponse,
   ProjectBatchActionRequest,
   ProjectBatchActionResponse,
-  ProjectConfigurationDiffRequest,
   ProjectConfigurationDiffResponse,
-  ProjectConfigurationFileResponse,
   ProjectConfigurationMetadataResponse,
   ProjectConfigurationPreviewResponse,
-  ProjectConfigurationValidateRequest,
   ProjectConfigurationValidateResponse,
   ProjectCreateRequest,
   ProjectCreateResponse,
   ProjectCreateValidateRequest,
   ProjectCreateValidateResponse,
-  ProjectDeployRequest,
   ProjectDeployResponse,
   ProjectDestroyRequest,
   ProjectDetailResponseWithLifecycle,
@@ -51,6 +48,12 @@ import type {
   ProjectOverviewResponse,
   ProjectServicesResponse,
   ProjectSourceCatalogResponse,
+  ProjectWorkspaceFileContentQuery,
+  ProjectWorkspaceFileContentResponse,
+  ProjectWorkspaceFileSaveRequest,
+  ProjectWorkspaceFileSaveResponse,
+  ProjectWorkspaceFilesQuery,
+  ProjectWorkspaceFilesResponse,
 } from '../types/project';
 
 type ProjectListPath = (typeof PROJECT_API_PATH)['LIST'];
@@ -98,19 +101,11 @@ type GetProjectConfigurationPreviewEnvelope =
 type GetProjectConfigurationPreviewData = NonNullable<GetProjectConfigurationPreviewEnvelope['data']>;
 type GetProjectConfigurationPreviewPathParams = GetProjectConfigurationPreviewOperation['parameters']['path'];
 
-type ProjectConfigurationFilePath = (typeof PROJECT_API_PATH)['CONFIGURATION_FILE'];
-type GetProjectConfigurationFileOperation = paths[ProjectConfigurationFilePath]['get'];
-type GetProjectConfigurationFileEnvelope =
-  GetProjectConfigurationFileOperation['responses'][200]['content']['application/json'];
-type GetProjectConfigurationFileData = NonNullable<GetProjectConfigurationFileEnvelope['data']>;
-type GetProjectConfigurationFilePathParams = GetProjectConfigurationFileOperation['parameters']['path'];
-
 type ProjectConfigurationDiffPath = (typeof PROJECT_API_PATH)['CONFIGURATION_DIFF'];
 type ProjectConfigurationDiffOperation = paths[ProjectConfigurationDiffPath]['post'];
 type ProjectConfigurationDiffEnvelope =
   ProjectConfigurationDiffOperation['responses'][200]['content']['application/json'];
 type ProjectConfigurationDiffData = NonNullable<ProjectConfigurationDiffEnvelope['data']>;
-type ProjectConfigurationDiffPayload = ProjectConfigurationDiffOperation['requestBody']['content']['application/json'];
 type ProjectConfigurationDiffPathParams = ProjectConfigurationDiffOperation['parameters']['path'];
 
 type ProjectConfigurationValidatePath = (typeof PROJECT_API_PATH)['CONFIGURATION_VALIDATE'];
@@ -118,8 +113,6 @@ type ProjectConfigurationValidateOperation = paths[ProjectConfigurationValidateP
 type ProjectConfigurationValidateEnvelope =
   ProjectConfigurationValidateOperation['responses'][200]['content']['application/json'];
 type ProjectConfigurationValidateData = NonNullable<ProjectConfigurationValidateEnvelope['data']>;
-type ProjectConfigurationValidatePayload =
-  ProjectConfigurationValidateOperation['requestBody']['content']['application/json'];
 type ProjectConfigurationValidatePathParams = ProjectConfigurationValidateOperation['parameters']['path'];
 
 type ProjectManagedRootPath = (typeof PROJECT_API_PATH)['MANAGED_ROOT'];
@@ -158,7 +151,6 @@ type ProjectRefreshPathParams = ProjectRefreshOperation['parameters']['path'];
 type ProjectDeployOperation = paths[(typeof PROJECT_API_PATH)['DEPLOY']]['post'];
 type ProjectDeployEnvelope = ProjectDeployOperation['responses'][200]['content']['application/json'];
 type ProjectDeployData = NonNullable<ProjectDeployEnvelope['data']>;
-type ProjectDeployPayload = ProjectDeployOperation['requestBody']['content']['application/json'];
 type ProjectDeployPathParams = ProjectDeployOperation['parameters']['path'];
 
 type ProjectUpOperation = paths[(typeof PROJECT_API_PATH)['UP']]['post'];
@@ -285,36 +277,41 @@ export function getProjectConfigurationPreview(id: GetProjectConfigurationPrevie
   }) as Promise<ProjectConfigurationPreviewResponse>;
 }
 
-/**
- * 获取项目配置文件。
- *
- * @param id - 项目 ID
- * @param fileId - 配置文件 ID
- * @returns 项目配置文件信息
- */
-export function getProjectConfigurationFile(
-  id: GetProjectConfigurationFilePathParams['id'],
-  fileId: GetProjectConfigurationFilePathParams['fileId'],
+export function getProjectFiles(id: number, query?: ProjectWorkspaceFilesQuery) {
+  return request.get<ProjectWorkspaceFilesResponse>({
+    url: buildProjectFilesApiPath(id),
+    params: query,
+  }) as Promise<ProjectWorkspaceFilesResponse>;
+}
+
+export function getProjectFileContent(id: number, query: ProjectWorkspaceFileContentQuery) {
+  return request.get<ProjectWorkspaceFileContentResponse>({
+    url: buildProjectFilesContentApiPath(id),
+    params: query,
+  }) as Promise<ProjectWorkspaceFileContentResponse>;
+}
+
+export function putProjectFileContent(
+  id: number,
+  query: ProjectWorkspaceFileContentQuery,
+  payload: ProjectWorkspaceFileSaveRequest,
 ) {
-  return request.get<GetProjectConfigurationFileData>({
-    url: buildProjectConfigurationFileApiPath(id, fileId),
-  }) as Promise<ProjectConfigurationFileResponse>;
+  return request.put<ProjectWorkspaceFileSaveResponse>({
+    url: buildProjectFilesContentApiPath(id),
+    params: query,
+    data: payload,
+  }) as Promise<ProjectWorkspaceFileSaveResponse>;
 }
 
 /**
  * 提交项目配置差异计算请求。
  *
  * @param id - 项目 ID
- * @param payload - 用于生成配置差异的请求内容
  * @returns 配置差异结果
  */
-export function postProjectConfigurationDiff(
-  id: ProjectConfigurationDiffPathParams['id'],
-  payload: ProjectConfigurationDiffRequest,
-) {
+export function postProjectConfigurationDiff(id: ProjectConfigurationDiffPathParams['id']) {
   return postProjectAction<ProjectConfigurationDiffData>(
     buildProjectConfigurationDiffApiPath(id),
-    payload as ProjectConfigurationDiffPayload,
   ) as Promise<ProjectConfigurationDiffResponse>;
 }
 
@@ -322,16 +319,11 @@ export function postProjectConfigurationDiff(
  * 校验指定项目的配置。
  *
  * @param id - 项目 ID
- * @param payload - 配置校验请求内容
  * @returns 配置校验结果
  */
-export function postProjectConfigurationValidate(
-  id: ProjectConfigurationValidatePathParams['id'],
-  payload: ProjectConfigurationValidateRequest,
-) {
+export function postProjectConfigurationValidate(id: ProjectConfigurationValidatePathParams['id']) {
   return postProjectAction<ProjectConfigurationValidateData>(
     buildProjectConfigurationValidateApiPath(id),
-    payload as ProjectConfigurationValidatePayload,
   ) as Promise<ProjectConfigurationValidateResponse>;
 }
 
@@ -422,14 +414,10 @@ export function postProjectRefresh(id: ProjectRefreshPathParams['id']) {
  * 部署指定项目。
  *
  * @param id - 项目 ID
- * @param payload - 部署请求参数
  * @returns 部署操作的响应结果
  */
-export function postProjectDeploy(id: ProjectDeployPathParams['id'], payload: ProjectDeployRequest) {
-  return postProjectAction<ProjectDeployData>(
-    buildProjectDeployApiPath(id),
-    payload as ProjectDeployPayload,
-  ) as Promise<ProjectDeployResponse>;
+export function postProjectDeploy(id: ProjectDeployPathParams['id']) {
+  return postProjectAction<ProjectDeployData>(buildProjectDeployApiPath(id)) as Promise<ProjectDeployResponse>;
 }
 
 /**

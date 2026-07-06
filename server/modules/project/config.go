@@ -10,19 +10,23 @@ import (
 )
 
 const (
-	projectConfigDomain          = "ops"
-	projectConfigDomainLabel     = "Operations"
-	projectConfigGroupCreate     = "ops.project.create"
-	projectConfigGroupCreateDesc = "Managed project create authority and root workflow."
-	projectConfigGroupImport     = "ops.project.import"
-	projectConfigGroupImportDesc = "Import authority roots and bounded directory browsing."
-	projectConfigOrderBase       = 7100
-	maxManagedRootLength         = 1024
-	maxImportRootsLength         = 8192
+	projectConfigDomain             = "ops"
+	projectConfigDomainLabel        = "Operations"
+	projectConfigGroupCreate        = "ops.project.create"
+	projectConfigGroupCreateDesc    = "Managed project create authority and root workflow."
+	projectConfigGroupImport        = "ops.project.import"
+	projectConfigGroupImportDesc    = "Import authority roots and bounded directory browsing."
+	projectConfigGroupWorkspace     = "ops.project.workspace"
+	projectConfigGroupWorkspaceDesc = "Configuration workspace file-tree defaults and editor browse behavior."
+	projectConfigOrderBase          = 7100
+	maxManagedRootLength            = 1024
+	maxImportRootsLength            = 8192
+	maxWorkspaceHiddenDirsLength    = 4096
 )
 
 const defaultManagedRootDirectory = ""
 const defaultImportAllowedRoots = "[]"
+const defaultWorkspaceHiddenDirectories = `[".git",".github","node_modules","vendor","target","build","dist","coverage","data","logs","tmp","cache",".idea",".vscode"]`
 
 // registerConfig 注册本模块定义的配置项，并按基础顺序为每项设置排序。
 // 当 registry 为空时返回错误；任一配置注册失败时返回包装后的错误。
@@ -44,6 +48,7 @@ func configDefinitions() []configregistry.Definition {
 	return []configregistry.Definition{
 		projectManagedRootDefinition(),
 		projectImportAllowedRootsDefinition(),
+		projectWorkspaceHiddenDirectoriesDefinition(),
 	}
 }
 
@@ -97,6 +102,28 @@ func projectImportAllowedRootsDefinition() configregistry.Definition {
 	}
 }
 
+func projectWorkspaceHiddenDirectoriesDefinition() configregistry.Definition {
+	return configregistry.Definition{
+		Key:              projectcontract.ProjectWorkspaceHiddenDirectoriesConfig.String(),
+		Module:           moduleID,
+		Domain:           projectConfigDomain,
+		DomainLabel:      projectConfigDomainLabel,
+		Group:            projectConfigGroupWorkspace,
+		GroupLabel:       "Project Workspace",
+		GroupDescription: projectConfigGroupWorkspaceDesc,
+		TitleKey:         projectcontract.ProjectWorkspaceHiddenDirectoriesConfigTitle.String(),
+		DescriptionKey:   projectcontract.ProjectWorkspaceHiddenDirectoriesConfigDescription.String(),
+		Type:             configregistry.ValueTypeString,
+		Schema:           json.RawMessage(projectWorkspaceHiddenDirectoriesSchema()),
+		DefaultValue:     mustRawJSON(defaultWorkspaceHiddenDirectories),
+		RuntimeApplyMode: configregistry.RuntimeApplyModeRuntimeHot,
+		Permission:       projectcontract.ProjectViewPermission.String(),
+		RestartRequired:  false,
+		Required:         false,
+		Sensitive:        false,
+	}
+}
+
 // projectManagedRootSchema 返回项目托管根目录配置的 JSON Schema 字符串。
 // projectManagedRootSchema 返回用于项目创建流程托管根目录配置的 JSON Schema。
 // 该 Schema 约束值为字符串，并包含最大长度限制；空值表示托管创建在显式配置前不可用。
@@ -112,6 +139,13 @@ func projectImportAllowedRootsSchema() string {
 	return fmt.Sprintf(
 		`{"type":"string","minLength":2,"maxLength":%d,"description":"JSON array string for import browse roots. Each item should include stable id, operator label, and absolute local path.","examples":["[{\"id\":\"srv\",\"label\":\"/srv\",\"path\":\"/srv\"}]"]}`,
 		maxImportRootsLength,
+	)
+}
+
+func projectWorkspaceHiddenDirectoriesSchema() string {
+	return fmt.Sprintf(
+		`{"type":"string","minLength":2,"maxLength":%d,"description":"JSON array string for configuration workspace directories hidden by default. Each item is a directory basename such as node_modules or .git.","examples":["[\".git\",\"node_modules\",\"dist\"]"]}`,
+		maxWorkspaceHiddenDirsLength,
 	)
 }
 

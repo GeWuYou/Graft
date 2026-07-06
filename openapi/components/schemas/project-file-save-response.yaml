@@ -1,0 +1,24 @@
+type: object
+required:
+  - project_id
+  - relative_path
+  - saved_at
+  - content_hash
+  - size_bytes
+properties:
+  project_id:
+    type: integer
+    format: int64
+    minimum: 1
+  relative_path:
+    type: string
+  saved_at:
+    type: string
+    format: date-time
+  content_hash:
+    type: string
+  size_bytes:
+    type: integer
+    format: int64
+    minimum: 0
+

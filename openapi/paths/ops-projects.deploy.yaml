@@ -1,26 +1,19 @@
 post:
   tags: [project]
-  summary: Deploy a managed project configuration draft
+  summary: Deploy current saved project configuration state
   operationId: postProjectDeploy
   description: >
-    Writes one managed project draft to the tracked Compose and optional env files, refreshes the project snapshot,
-    then reuses the saved project lifecycle configuration for the final compose `up` execution without introducing
-    runtime-state persistence in the project module.
+    Reuses the current saved working_directory state, refreshes the project snapshot, then executes the final compose
+    `up` flow using the saved lifecycle configuration. This route does not save editor buffers for the caller.
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml
     - $ref: ../components/parameters/project-id-path.yaml
-  requestBody:
-    required: true
-    content:
-      application/json:
-        schema:
-          $ref: ../components/schemas/project-deploy-request.yaml
   security:
     - bearerAuth: []
   responses:
     '200':
-      description: Managed project draft deployed.
+      description: Saved project configuration state deployed.
       headers:
         X-Request-Id:
           $ref: ../components/headers/request-id.yaml
@@ -29,7 +22,7 @@ post:
           schema:
             $ref: ../components/schemas/enveloped-project-deploy-response.yaml
     '400':
-      description: Invalid project id or deploy payload.
+      description: Invalid project id.
       headers:
         X-Request-Id:
           $ref: ../components/headers/request-id.yaml

@@ -21,6 +21,8 @@ const createRemoteHostRouteTitle = localizeRouteTitleKey('project.route.createRe
 const createRemoteHostBreadcrumbTitle = localizeRouteTitleKey('project.route.createRemoteHost.breadcrumb');
 const detailRouteTitle = localizeRouteTitleKey('project.route.detail.title');
 const detailBreadcrumbTitle = localizeRouteTitleKey('project.route.detail.breadcrumb');
+const configurationWorkspaceRouteTitle = localizeRouteTitleKey('project.route.configurationWorkspace.title');
+const configurationWorkspaceBreadcrumbTitle = localizeRouteTitleKey('project.route.configurationWorkspace.breadcrumb');
 
 export const projectBootstrapRouteRegistrations: BootstrapRouteRegistration[] = [
   {
@@ -179,6 +181,24 @@ export const projectGlobalRouteRegistrations: GlobalRouteRegistration[] = [
       tabTitle: detailRouteTitle,
       title: detailRouteTitle,
       titleKey: 'project.route.detail.title',
+    },
+  },
+  {
+    ...PROJECT_BOOTSTRAP_ROUTE.CONFIGURATION_WORKSPACE,
+    loadPage: () => import('./pages/configuration-workspace/index.vue'),
+    meta: {
+      hidden: false,
+      hiddenMenu: true,
+      keepAlive: true,
+      pageKind: 'detail',
+      pageSurface: 'editor',
+      semanticTitle: configurationWorkspaceRouteTitle,
+      breadcrumbTitle: configurationWorkspaceBreadcrumbTitle,
+      domainTitle: listRouteTitle,
+      tabGroup: 'ops',
+      tabTitle: configurationWorkspaceRouteTitle,
+      title: configurationWorkspaceRouteTitle,
+      titleKey: 'project.route.configurationWorkspace.title',
     },
   },
 ];

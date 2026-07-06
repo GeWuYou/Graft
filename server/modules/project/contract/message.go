@@ -147,6 +147,8 @@ const (
 	ProjectManagedRootConfig ConfigKey = "ops.project.managed.root_directory"
 	// ProjectImportAllowedRootsConfig stores operator-allowlisted browse roots for import flows.
 	ProjectImportAllowedRootsConfig ConfigKey = "ops.project.import.allowed_roots"
+	// ProjectWorkspaceHiddenDirectoriesConfig stores default-hidden heavy directories for the configuration workspace tree.
+	ProjectWorkspaceHiddenDirectoriesConfig ConfigKey = "ops.project.workspace.hidden_directories"
 )
 
 const (
@@ -158,4 +160,8 @@ const (
 	ProjectImportAllowedRootsConfigTitle ConfigMessageKey = "systemConfig.project.ops.project.import.allowed_roots.title"
 	// ProjectImportAllowedRootsConfigDescription identifies the allowlisted import roots config description localization key.
 	ProjectImportAllowedRootsConfigDescription ConfigMessageKey = "systemConfig.project.ops.project.import.allowed_roots.description"
+	// ProjectWorkspaceHiddenDirectoriesConfigTitle identifies the workspace hidden-directory config title localization key.
+	ProjectWorkspaceHiddenDirectoriesConfigTitle ConfigMessageKey = "systemConfig.project.ops.project.workspace.hidden_directories.title"
+	// ProjectWorkspaceHiddenDirectoriesConfigDescription identifies the workspace hidden-directory config description localization key.
+	ProjectWorkspaceHiddenDirectoriesConfigDescription ConfigMessageKey = "systemConfig.project.ops.project.workspace.hidden_directories.description"
 )

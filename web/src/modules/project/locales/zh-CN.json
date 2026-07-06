@@ -43,6 +43,58 @@
       "detail": {
         "title": "项目详情",
         "breadcrumb": "项目详情"
+      },
+      "configurationWorkspace": {
+        "title": "配置工作台",
+        "breadcrumb": "配置工作台"
+      }
+    },
+    "configurationWorkspace": {
+      "copy": {
+        "cancelAction": "取消",
+        "continueWithDiskAction": "继续使用磁盘版本",
+        "deployAction": "部署项目",
+        "deployContinueWithDiskAction": "继续使用磁盘版本部署",
+        "deployDirtyBody": "检测到未保存的修改，是否先保存？",
+        "deployDirtyTitle": "未保存修改",
+        "diffAction": "执行差异比较",
+        "diffViewerAriaLabel": "项目配置差异查看器",
+        "dirtyCloseBody": "当前文件有未保存的修改，关闭前请选择处理方式。",
+        "dirtyCloseTitle": "关闭前保存修改",
+        "dirtyProjectActionBody": "检测到未保存的修改，是否先保存后继续当前项目级操作？",
+        "dirtyProjectActionTitle": "存在未保存修改",
+        "discardAction": "放弃",
+        "editorAriaLabel": "项目文件编辑器",
+        "envRedeployHint": "修改环境变量后通常需要重新部署项目才能生效。",
+        "feedbackHint": "校验和差异结果会在这里保留，不会覆盖文件编辑上下文。",
+        "feedbackTitle": "反馈工作区",
+        "fileTreeHint": "按项目根目录加载真实文件结构，仅展示接口返回的目录与文件。",
+        "fileTreeTitle": "项目文件",
+        "filesEmpty": "当前目录没有可浏览的文件。",
+        "hideHiddenAction": "隐藏默认目录",
+        "loadingFile": "正在加载文件内容…",
+        "readonlyHint": "当前文件只读，可查看但不能保存。",
+        "reloadAction": "重新加载",
+        "reloadConfirmBody": "重新加载会丢弃当前文件未保存的修改。",
+        "reloadConfirmTitle": "重新加载文件",
+        "saveAction": "保存",
+        "saveAndContinueAction": "保存并继续",
+        "saveFailed": "文件保存失败。",
+        "saveSuccess": "文件已保存到工作目录。",
+        "saveThenContinueAction": "保存",
+        "savingAction": "保存中",
+        "selectDiffFile": "选择一个文件查看差异详情",
+        "selectFileToStart": "选择左侧文件开始浏览或编辑。",
+        "showHiddenAction": "显示默认隐藏目录",
+        "snapshotAction": "查看当前快照",
+        "snapshotDrawerTitle": "当前快照",
+        "snapshotViewerAriaLabel": "项目当前快照查看器",
+        "summaryDescription": "工作台以项目根目录为准，支持文件浏览、编辑、保存，以及基于磁盘状态执行差异、校验和部署。",
+        "summaryOpenTabsLabel": "已打开标签",
+        "summaryTitle": "工作台摘要",
+        "summaryWorkingDirectoryLabel": "工作目录",
+        "tabsEmpty": "当前还没有打开文件。",
+        "validateAction": "执行校验"
       }
     },
     "list": {
@@ -662,7 +714,7 @@
         "external": "外部项目"
       },
       "eyebrow": "Compose 项目",
-      "description": "项目摘要、运行时成员链接、只读配置和前端 Activity fan-out。",
+      "description": "项目摘要、运行时成员链接、生命周期操作与 Activity fan-out。",
       "openWorkingDirectory": "工作目录",
       "titleFallback": "项目详情",
       "sections": {
@@ -776,7 +828,7 @@
       "overview": {
         "lastUpdated": "最后刷新",
         "resourceTitle": "资源使用",
-        "networkTitle": "Network I/O",
+        "networkTitle": "网络 I/O",
         "containerSnapshotTitle": "容器快照",
         "diagnosticsTitle": "诊断摘要",
         "configurationHash": "配置哈希",
@@ -837,7 +889,7 @@
           "status": "状态",
           "image": "镜像",
           "health": "健康",
-          "ports": "声明端口",
+          "ports": "端口",
           "operation": "操作"
         },
         "actions": {
@@ -846,6 +898,18 @@
           "restart": "重启"
         },
         "batch": {
+          "selected": "已选择 {count} 个服务",
+          "cancelSelection": "取消选择",
+          "noSelection": "请先选择可操作的服务。",
+          "start": "批量启动",
+          "stop": "批量停止",
+          "restart": "批量重启",
+          "confirmStartTitle": "确认批量启动服务",
+          "confirmStart": "确认启动选中的 {count} 个服务？",
+          "confirmStopTitle": "确认批量停止服务",
+          "confirmStop": "确认停止选中的 {count} 个服务？",
+          "confirmRestartTitle": "确认批量重启服务",
+          "confirmRestart": "确认重启选中的 {count} 个服务？",
           "success": "服务操作已完成，成功 {count} 个容器。",
           "failed": "服务操作失败。",
           "partialTitle": "服务操作部分成功",
@@ -906,7 +970,7 @@
       },
       "configuration": {
         "title": "配置",
-        "summary": "当前工作区继续承载元数据、草稿编辑、Diff、校验与部署，不额外增加运行时持久化。",
+        "summary": "在一个工作区里查看当前配置状态、编辑草稿、比较差异、执行校验并完成部署。",
         "composeFiles": "Compose 文件",
         "envFiles": "环境文件",
         "ownershipMode": "所有权",
@@ -1020,6 +1084,7 @@
         "stop": "停止项目",
         "restart": "重启项目",
         "redeploy": "重新部署",
+        "openConfigurationWorkspace": "配置工作台",
         "unregister": "取消注册",
         "destroy": "销毁",
         "copyPath": "复制路径",

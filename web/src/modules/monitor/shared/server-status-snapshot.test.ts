@@ -28,6 +28,10 @@ const tabsRouterStoreMock = vi.hoisted(() => ({
   ],
 }));
 
+const realtimeSchedulerStoreMock = vi.hoisted(() => ({
+  store: null as { allowPolling: boolean } | null,
+}));
+
 vi.mock('../api/server-status', () => ({
   getServerStatus: apiMocks.getServerStatus,
 }));
@@ -81,9 +85,17 @@ vi.mock('vue-router', () => ({
   useRoute: () => routeMocks.route,
 }));
 
-vi.mock('@/store', () => ({
-  useTabsRouterStore: () => tabsRouterStoreMock,
-}));
+vi.mock('@/store', async () => {
+  const { reactive } = await vi.importActual<typeof import('vue')>('vue');
+  const store = reactive({
+    allowPolling: true,
+  });
+  realtimeSchedulerStoreMock.store = store;
+  return {
+    useRealtimeSchedulerStore: () => store,
+    useTabsRouterStore: () => tabsRouterStoreMock,
+  };
+});
 
 vi.mock('@/shared/localized-api-error', () => ({
   resolveLocalizedErrorMessage: vi.fn(() => 'Failed to load server status'),
@@ -113,6 +125,9 @@ function createResponse() {
 describe('useServerStatusSnapshot', () => {
   afterEach(() => {
     resetMonitorRefreshPreferencesForTests();
+    if (realtimeSchedulerStoreMock.store) {
+      realtimeSchedulerStoreMock.store.allowPolling = true;
+    }
     vi.useRealTimers();
     vi.clearAllMocks();
     setVisibilityState('visible');
@@ -145,6 +160,33 @@ describe('useServerStatusSnapshot', () => {
     await flushPromises();
 
     expect(apiMocks.getServerStatus).toHaveBeenCalledTimes(1);
+
+    wrapper.unmount();
+  });
+
+  it('blocks the initial fetch until polling is allowed', async () => {
+    vi.useFakeTimers();
+    apiMocks.getServerStatus.mockResolvedValue(createResponse());
+    if (!realtimeSchedulerStoreMock.store) {
+      throw new Error('realtime scheduler store mock is unavailable');
+    }
+
+    realtimeSchedulerStoreMock.store.allowPolling = false;
+
+    const wrapper = mount(Harness);
+    await flushPromises();
+    await nextTick();
+
+    expect(apiMocks.getServerStatus).not.toHaveBeenCalled();
+    expect(wrapper.vm.initialized).toBe(false);
+    expect(wrapper.vm.remainingRefreshSeconds).toBeNull();
+
+    realtimeSchedulerStoreMock.store.allowPolling = true;
+    await nextTick();
+    await flushPromises();
+
+    expect(apiMocks.getServerStatus).toHaveBeenCalledTimes(1);
+    expect(wrapper.vm.initialized).toBe(true);
 
     wrapper.unmount();
   });

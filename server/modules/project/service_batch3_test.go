@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"slices"
@@ -11,9 +13,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gin-gonic/gin"
+
 	generated "graft/server/internal/contract/openapi/generated"
 	"graft/server/internal/eventbus"
 	"graft/server/internal/httpx"
+	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
 	projectcompose "graft/server/modules/project/compose"
 	projectcontract "graft/server/modules/project/contract"
@@ -26,6 +31,9 @@ type stubProjectRepository struct {
 	unregisterInput  *projectstore.UnregisterProjectInput
 	unregisterErr    error
 	importInput      *projectstore.ImportProjectInput
+	refreshInput     *projectstore.RefreshProjectInput
+	refreshErr       error
+	refreshFn        func(projectstore.RefreshProjectInput) (projectstore.ProjectAggregate, error)
 	getCalls         int
 }
 
@@ -78,8 +86,26 @@ func (s *stubProjectRepository) ImportProject(_ context.Context, input projectst
 	return ensureStubProjectAggregateDefaults(s.aggregate), nil
 }
 
-func (s *stubProjectRepository) RefreshProject(context.Context, projectstore.RefreshProjectInput) (projectstore.ProjectAggregate, error) {
-	return projectstore.ProjectAggregate{}, errors.New("not implemented")
+func (s *stubProjectRepository) RefreshProject(_ context.Context, input projectstore.RefreshProjectInput) (projectstore.ProjectAggregate, error) {
+	recorded := input
+	s.refreshInput = &recorded
+	if s.refreshFn != nil {
+		return s.refreshFn(input)
+	}
+	if s.refreshErr != nil {
+		return projectstore.ProjectAggregate{}, s.refreshErr
+	}
+	s.aggregate.Project.LastRefreshStatus = input.LastRefreshStatus
+	s.aggregate.Project.LastRefreshAt = input.LastRefreshAt
+	s.aggregate.Project.LastRefreshErrorCode = input.LastRefreshErrorCode
+	s.aggregate.Project.LastRefreshErrorMessage = input.LastRefreshErrorMessage
+	s.aggregate.Project.LastRefreshConfigHash = input.LastRefreshConfigHash
+	s.aggregate.Project.LastObservedConfigHash = input.LastObservedConfigHash
+	s.aggregate.Project.LastDriftCheckedAt = input.LastDriftCheckedAt
+	s.aggregate.Project.DriftStatus = input.DriftStatus
+	s.aggregate.Files = append([]projectstore.ProjectFile(nil), input.Files...)
+	s.aggregate.Snapshot = input.Snapshot
+	return ensureStubProjectAggregateDefaults(s.aggregate), nil
 }
 
 func (s *stubProjectRepository) UpdateLifecycleConfig(
@@ -1925,6 +1951,182 @@ func TestBuildConfigurationDiffFileKeepsProposedContentAsNormalizedText(t *testi
 	want := "services:\n  api:\n    image: caddy:latest\n"
 	if file.ProposedContent != want {
 		t.Fatalf("expected proposed content %q, got %q", want, file.ProposedContent)
+	}
+}
+
+func TestConfigurationDiffWarningsDoNotDuplicateSnapshotFallback(t *testing.T) {
+	t.Parallel()
+
+	warnings := configurationDiffWarnings(projectstore.ProjectAggregate{}, 1)
+	if len(warnings) != 1 {
+		t.Fatalf("expected one snapshot fallback warning, got %#v", warnings)
+	}
+}
+
+func TestDeployConfigurationRefreshesBeforeComposeUp(t *testing.T) {
+	workingDirectory := t.TempDir()
+	composePath := filepath.Join(workingDirectory, "compose.yaml")
+	if err := os.WriteFile(composePath, []byte("services:\n  api:\n    image: nginx:latest\n"), 0o600); err != nil {
+		t.Fatalf("write compose file: %v", err)
+	}
+
+	markerPath := filepath.Join(workingDirectory, "refresh.marker")
+	dockerBinDir := t.TempDir()
+	dockerPath := filepath.Join(dockerBinDir, "docker")
+	if err := os.WriteFile(dockerPath, []byte("#!/bin/sh\n[ -f \"$REFRESH_MARKER\" ] || exit 42\nexit 0\n"), 0o600); err != nil {
+		t.Fatalf("write docker stub: %v", err)
+	}
+	// #nosec G302 -- test stub must be executable so the PATH-injected docker command can run.
+	if err := os.Chmod(dockerPath, 0o755); err != nil {
+		t.Fatalf("write docker stub: %v", err)
+	}
+	t.Setenv("REFRESH_MARKER", markerPath)
+	t.Setenv("PATH", dockerBinDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	repo := &stubProjectRepository{
+		aggregate: projectstore.ProjectAggregate{
+			Project: projectstore.Project{
+				ID:                    1,
+				CanonicalProjectName:  "demo",
+				HostScope:             projectcontract.HostScopeLocal.String(),
+				WorkingDirectory:      workingDirectory,
+				OwnershipMode:         projectcontract.OwnershipModeExternal.String(),
+				LastRefreshStatus:     projectcontract.RefreshStatusSuccess.String(),
+				LifecycleReviewStatus: projectcontract.LifecycleReviewStatusConfirmed.String(),
+			},
+			Files: []projectstore.ProjectFile{
+				{
+					ID:                  1,
+					ProjectID:           1,
+					Kind:                projectcontract.FileKindCompose.String(),
+					Role:                projectcontract.FileRolePrimary.String(),
+					AbsolutePath:        composePath,
+					DisplayPath:         "compose.yaml",
+					OrderIndex:          0,
+					ExistsOnLastRefresh: true,
+				},
+			},
+		},
+	}
+	repo.refreshFn = func(input projectstore.RefreshProjectInput) (projectstore.ProjectAggregate, error) {
+		if err := os.WriteFile(markerPath, []byte("ready"), 0o600); err != nil {
+			return projectstore.ProjectAggregate{}, err
+		}
+		repo.aggregate.Project.LastRefreshStatus = input.LastRefreshStatus
+		repo.aggregate.Project.LastRefreshAt = input.LastRefreshAt
+		repo.aggregate.Project.LastRefreshConfigHash = input.LastRefreshConfigHash
+		repo.aggregate.Project.LastObservedConfigHash = input.LastObservedConfigHash
+		repo.aggregate.Project.LastDriftCheckedAt = input.LastDriftCheckedAt
+		repo.aggregate.Project.DriftStatus = input.DriftStatus
+		repo.aggregate.Files = append([]projectstore.ProjectFile(nil), input.Files...)
+		repo.aggregate.Snapshot = input.Snapshot
+		return ensureStubProjectAggregateDefaults(repo.aggregate), nil
+	}
+
+	service, err := NewService(repo)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	result, err := service.DeployConfiguration(context.Background(), 1, nil)
+	if err != nil {
+		t.Fatalf("deploy configuration: %v", err)
+	}
+	if repo.refreshInput == nil {
+		t.Fatalf("expected refresh input to be recorded")
+	}
+	if result.Result != "completed" {
+		t.Fatalf("expected completed deploy result, got %#v", result)
+	}
+}
+
+func TestBrowseProjectFilesReturnsFileNotFoundForMissingDirectory(t *testing.T) {
+	t.Parallel()
+
+	repo := &stubProjectRepository{
+		aggregate: projectstore.ProjectAggregate{
+			Project: projectstore.Project{
+				ID:               1,
+				WorkingDirectory: t.TempDir(),
+			},
+		},
+	}
+	service, err := NewService(repo)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	_, err = service.browseProjectFiles(context.Background(), 1, workspaceFileBrowseQuery{Path: "missing"})
+	if !errors.Is(err, errProjectFileNotFound) {
+		t.Fatalf("expected file not found, got %v", err)
+	}
+}
+
+func TestSaveProjectFileContentRejectsDirectoryPath(t *testing.T) {
+	t.Parallel()
+
+	workingDirectory := t.TempDir()
+	if err := os.Mkdir(filepath.Join(workingDirectory, "config.yaml"), 0o750); err != nil {
+		t.Fatalf("mkdir config directory: %v", err)
+	}
+	repo := &stubProjectRepository{
+		aggregate: projectstore.ProjectAggregate{
+			Project: projectstore.Project{
+				ID:               1,
+				WorkingDirectory: workingDirectory,
+			},
+		},
+	}
+	service, err := NewService(repo)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	_, err = service.saveProjectFileContent(context.Background(), 1, "config.yaml", workspaceFileSaveRequest{Content: "key: value\n"})
+	if !errors.Is(err, errProjectInvalidArgument) {
+		t.Fatalf("expected invalid argument for directory save, got %v", err)
+	}
+}
+
+func TestWorkspaceHiddenDirectoriesFallsBackToDefaultOnInvalidConfig(t *testing.T) {
+	t.Parallel()
+
+	service, err := NewService(&stubProjectRepository{}, WithSystemConfigResolver(stubCompositeConfigResolver{
+		values: map[string]string{
+			projectcontract.ProjectWorkspaceHiddenDirectoriesConfig.String(): `invalid-json`,
+		},
+	}))
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	hiddenDirectories, err := service.workspaceHiddenDirectories(context.Background())
+	if err != nil {
+		t.Fatalf("workspace hidden directories: %v", err)
+	}
+	if !slices.Contains(hiddenDirectories, "node_modules") || !slices.Contains(hiddenDirectories, ".git") {
+		t.Fatalf("expected default hidden directories fallback, got %#v", hiddenDirectories)
+	}
+}
+
+func TestWriteRouteErrorMapsProjectFileNotFoundTo404(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	recorder := httptest.NewRecorder()
+	ginCtx, _ := gin.CreateTestContext(recorder)
+	ginCtx.Request = httptest.NewRequest(http.MethodGet, "/api/projects/1/files?path=missing", nil)
+
+	runtime := routeRuntime{ctx: &module.Context{}}
+	runtime.writeRouteError(ginCtx, errProjectFileNotFound)
+
+	if recorder.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d", recorder.Code)
+	}
+	var response httpx.ErrorResponse
+	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+		t.Fatalf("decode error response: %v", err)
+	}
+	if response.Code != projectcontract.ProjectInvalidFileID.String() {
+		t.Fatalf("expected file-not-found code %q, got %#v", projectcontract.ProjectInvalidFileID.String(), response)
 	}
 }
 

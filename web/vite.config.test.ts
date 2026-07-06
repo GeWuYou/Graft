@@ -35,4 +35,19 @@ describe('createViteConfig', () => {
     expect(typeof apiProxy).toBe('object');
     expect(apiProxy && 'ws' in apiProxy ? apiProxy.ws : undefined).toBe(true);
   });
+
+  it('splits monaco dependencies into a dedicated vendor chunk', () => {
+    const config = createViteConfig('development');
+    const manualChunks = config.build?.rollupOptions?.output;
+
+    expect(manualChunks).toBeDefined();
+    if (!manualChunks || Array.isArray(manualChunks) || typeof manualChunks.manualChunks !== 'function') {
+      throw new Error('expected manualChunks function to be configured');
+    }
+
+    expect(manualChunks.manualChunks('/tmp/node_modules/monaco-editor/esm/vs/editor/editor.api.js')).toBe(
+      'vendor-monaco',
+    );
+    expect(manualChunks.manualChunks('/tmp/node_modules/monaco-yaml/lib/esm/index.js')).toBe('vendor-monaco');
+  });
 });

@@ -4,6 +4,7 @@ import { defineComponent, h, KeepAlive, nextTick, ref } from 'vue';
 
 import { LOCALE } from '@/contracts/i18n/locales';
 
+import type { ContainerListResponse } from '../../api/container';
 import { applyContainerRealtimeStats, resetContainerStatsManager } from '../../shared/stats-manager';
 import ContainerListPage from './index.vue';
 
@@ -382,6 +383,12 @@ vi.mock('@/shared/observability', async () => {
 });
 
 vi.mock('@/shared/realtime', () => ({
+  createRealtimeSnapshotGate: ({ apply }: { apply: (snapshot: unknown) => void }) => ({
+    clear: vi.fn(),
+    commit: (snapshot: unknown) => apply(snapshot),
+    dispose: vi.fn(),
+    flush: vi.fn(),
+  }),
   openRealtimeTopicSocket: realtimeMocks.openRealtimeTopicSocket,
 }));
 
@@ -394,6 +401,7 @@ vi.mock('@/utils/route/title', () => ({
 
 describe('container list page', () => {
   beforeEach(() => {
+    vi.useRealTimers();
     vi.clearAllMocks();
     realtimeMocks.controllers = [];
     resetContainerStatsManager();
@@ -1223,7 +1231,7 @@ describe('container list page', () => {
     await wrapper.get('[data-testid="pagination-next"]').trigger('click');
     await flushPromises();
 
-    expect(apiMocks.getContainers).toHaveBeenLastCalledWith({
+    expect(apiMocks.getContainers).toHaveBeenCalledWith({
       health: undefined,
       keyword: undefined,
       limit: 20,
@@ -1595,6 +1603,78 @@ describe('container list page', () => {
       }),
     );
     expect(dialogMocks.instances.at(-1)?.setConfirmLoading).toHaveBeenLastCalledWith(false);
+  });
+
+  it('drops successfully removed rows from the batch selection before the refresh completes', async () => {
+    let resolveRefresh: (value: ContainerListResponse) => void = () => {
+      throw new Error('refresh resolver not initialized');
+    };
+    apiMocks.batchContainerActions.mockResolvedValueOnce({
+      failed_count: 1,
+      items: [
+        {
+          action: 'remove',
+          id: 'container-1',
+          name: 'graft-web',
+          success: true,
+        },
+        {
+          action: 'remove',
+          id: 'container-2',
+          message: 'runtime rejected removal',
+          success: false,
+        },
+      ],
+      success_count: 1,
+      total: 2,
+    });
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="container-table-select-first-two"]').trigger('click');
+    await flushPromises();
+
+    apiMocks.getContainers.mockImplementationOnce(
+      () =>
+        new Promise<ContainerListResponse>((resolve) => {
+          resolveRefresh = resolve;
+        }),
+    );
+
+    await wrapper.get('[data-testid="container-batch-remove"]').trigger('click');
+    await flushPromises();
+
+    const confirmPromise = dialogMocks.confirm.mock.calls.at(-1)?.[0].onConfirm();
+    await flushPromises();
+
+    expect(wrapper.get('[data-testid="container-table"]').attributes('data-selected-row-keys')).toBe(
+      JSON.stringify(['container-2']),
+    );
+
+    resolveRefresh({
+      items: createContainerRows(20, 1) as ContainerListResponse['items'],
+      limit: 20,
+      offset: 0,
+      runtime: {
+        runtime: 'first-adapter',
+        status: 'enabled',
+        endpoint: 'unix:///var/run/docker.sock',
+        containers_running: 1,
+        containers_total: 25,
+      },
+      summary: {
+        total: 25,
+        running: 1,
+        stopped: 24,
+        error: 0,
+        healthy: 1,
+        unhealthy: 0,
+        health_unavailable: 24,
+      },
+      total: 25,
+    });
+    await confirmPromise;
+    await flushPromises();
   });
 
   it('enables batch actions when any selected row is actionable and skips inapplicable rows', async () => {

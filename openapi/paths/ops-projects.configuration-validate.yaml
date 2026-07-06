@@ -1,25 +1,19 @@
 post:
   tags: [project]
-  summary: Validate a managed project configuration draft
+  summary: Validate current saved project configuration state
   operationId: postProjectConfigurationValidate
   description: >
-    Validates one managed project draft against the current project authority without writing tracked files or changing
+    Validates the current saved working_directory state for the project without mutating tracked files or changing
     runtime state.
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml
     - $ref: ../components/parameters/project-id-path.yaml
-  requestBody:
-    required: true
-    content:
-      application/json:
-        schema:
-          $ref: ../components/schemas/project-configuration-validate-request.yaml
   security:
     - bearerAuth: []
   responses:
     '200':
-      description: Managed project configuration draft validated.
+      description: Saved project configuration state validated.
       headers:
         X-Request-Id:
           $ref: ../components/headers/request-id.yaml
@@ -28,7 +22,7 @@ post:
           schema:
             $ref: ../components/schemas/enveloped-project-configuration-validate-response.yaml
     '400':
-      description: Invalid project id or draft payload.
+      description: Invalid project id.
       headers:
         X-Request-Id:
           $ref: ../components/headers/request-id.yaml
@@ -42,15 +36,6 @@ post:
       $ref: ../components/responses/forbidden.yaml
     '404':
       description: Project record not found.
-      headers:
-        X-Request-Id:
-          $ref: ../components/headers/request-id.yaml
-      content:
-        application/json:
-          schema:
-            $ref: ../components/schemas/error-response.yaml
-    '409':
-      description: The project is outside the bounded managed validate flow.
       headers:
         X-Request-Id:
           $ref: ../components/headers/request-id.yaml

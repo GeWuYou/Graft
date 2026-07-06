@@ -1,0 +1,7 @@
+name: path
+in: query
+required: false
+description: Relative path under the project's working_directory. Omit or pass an empty value to browse the root directory.
+schema:
+  type: string
+  minLength: 0

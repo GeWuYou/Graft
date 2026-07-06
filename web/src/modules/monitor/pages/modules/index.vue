@@ -329,6 +329,7 @@ import {
 } from '@/shared/components/management';
 import { AdvancedQueryColumnDrawer } from '@/shared/components/query-list';
 import { RefreshControlBar } from '@/shared/components/refresh';
+import { useRealtimeSchedulerStore } from '@/store';
 import { createLogger } from '@/utils/logger';
 
 import { getModuleRuntimeDetail, getModuleRuntimeSnapshot } from '../../api/module-runtime';
@@ -348,6 +349,7 @@ import type {
 
 const { t } = useI18n();
 const moduleRuntimeLogger = createLogger('monitor.module-runtime.page');
+const realtimeSchedulerStore = useRealtimeSchedulerStore();
 const {
   autoRefreshEnabled,
   refreshIntervalOptions,
@@ -550,6 +552,18 @@ watch(selectedRefreshInterval, () => {
   scheduleNextRefresh();
 });
 
+watch(
+  () => realtimeSchedulerStore.allowPolling,
+  (allowPolling) => {
+    if (!allowPolling) {
+      stopRefreshTick();
+      remainingRefreshSeconds.value = null;
+      return;
+    }
+    scheduleNextRefresh();
+  },
+);
+
 async function refreshSnapshot() {
   stopRefreshTick();
   const blockPage = !initialized.value && !snapshot.value;
@@ -583,6 +597,10 @@ function toggleAutoRefresh() {
   toggleSharedAutoRefresh();
 
   if (autoRefreshEnabled.value && isPageVisible.value) {
+    if (!realtimeSchedulerStore.allowPolling) {
+      scheduleNextRefresh();
+      return;
+    }
     void refreshSnapshot();
     return;
   }
@@ -595,6 +613,11 @@ function handleVisibilityChange() {
   isPageVisible.value = document.visibilityState === 'visible';
 
   if (isPageVisible.value && autoRefreshEnabled.value) {
+    if (!realtimeSchedulerStore.allowPolling) {
+      stopRefreshTick();
+      remainingRefreshSeconds.value = null;
+      return;
+    }
     void refreshSnapshot();
     return;
   }
@@ -606,7 +629,12 @@ function handleVisibilityChange() {
 function scheduleNextRefresh() {
   stopRefreshTick();
 
-  if (!autoRefreshEnabled.value || !isPageVisible.value || selectedRefreshInterval.value <= 0) {
+  if (
+    !autoRefreshEnabled.value ||
+    !isPageVisible.value ||
+    selectedRefreshInterval.value <= 0 ||
+    !realtimeSchedulerStore.allowPolling
+  ) {
     remainingRefreshSeconds.value = null;
     return;
   }

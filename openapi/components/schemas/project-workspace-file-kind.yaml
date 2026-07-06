@@ -1,0 +1,18 @@
+type: string
+enum:
+  - directory
+  - compose
+  - env
+  - config
+  - text
+  - binary
+  - unsupported
+x-enum-varnames:
+  - ProjectWorkspaceFileKindDirectory
+  - ProjectWorkspaceFileKindCompose
+  - ProjectWorkspaceFileKindEnv
+  - ProjectWorkspaceFileKindConfig
+  - ProjectWorkspaceFileKindText
+  - ProjectWorkspaceFileKindBinary
+  - ProjectWorkspaceFileKindUnsupported
+

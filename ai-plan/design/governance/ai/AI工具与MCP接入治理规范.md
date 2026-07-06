@@ -145,39 +145,6 @@ workflow 级 thin skill 也不得定义第二套 intake truth；如果存在 `gr
     - Headroom memory 仅允许作为受控本地试点写入 `.ai/headroom/memory/**`，该目录必须由 `.gitignore` 排除，且不得替代 `ai-plan/public/**` 的 topic recovery 真值。
     - `headroom learn` 仅允许作为候选 lesson 生成器试点写入 `.ai/headroom/learn/**`，该目录必须由 `.gitignore` 排除；learn 输出不能直接写入 `AGENTS.md`、设计文档或 `ai-plan/lessons/**`，必须人工 review 后再走 `graft-lessons-learned` 或对应治理路径。
 
-### 4.2.1 Optional Local Developer Tools
-
-- `eff-u-code` / `fuck-u-code`
-  - 等级：`L1`
-  - 定位：developer-local optional code quality helper
-  - 用途：对 `server` 与 `web/src` 做手动热点扫描，辅助发现大文件、重复、复杂度和结构问题
-  - 接入方式：仓库根级项目依赖安装；当前项目级入口：
-
-    ```bash
-    bun install
-    bun run quality:eff-u-code -- all
-    ```
-
-  - 仓库入口：通过 `bun run quality:eff-u-code -- <scope>` 调用本地安装的 `fuck-u-code analyze ...`
-  - 仓库策略入口：通过 `bun run quality:eff-u-code:gate -- ...` 调用仓库自定义评估器；`eff-u-code` 只提供原始 JSON 质量信号，真正的 Gate owner 是 `Graft Quality Policy`
-  - 本地集中治理入口：通过 `bun run quality:eff-u-code:gate:server`、`bun run quality:eff-u-code:gate:web`、`bun run quality:eff-u-code:gate:all` 运行可选的全项目扫描
-  - hook / CI 评分入口：通过 `bun run quality:eff-u-code:score:changed`、`bun run quality:eff-u-code:score:server`、`bun run quality:eff-u-code:score:web`、`bun run quality:eff-u-code:score:all` 运行仓库派生的 Scope / Project Score gate
-  - 约束：
-    - not part of the formal validation flow
-    - 不是正式 validation flow 的一部分。
-    - 不得把 upstream `eff-u-code` 原始总分直接接入 `graft validate backend`、`bun run check`、完成态或 blocking gate。
-    - 如需进入 PR 级门禁，只允许“基于 eff-u-code 的仓库自定义评估器”进入独立 CI job；不得把工具原始分数当成 acceptance contract。
-    - 不得加入 `server/go.mod`、`web/package.json`、runtime 脚本或部署流程。
-    - 仓库只采纳本地 `analyze` 能力；`mcp-install`、`ai-review`、`update`、`uninstall` 不属于仓库工作流。
-    - 输出只作为本地热点线索，不得替代真实 lint/test/authority 结论。
-    - `Curated Score` 仅用于展示，不参与阻断；阻断必须完全由仓库规则集决定。
-    - 仓库可以基于文件级 `Curated Score` 再派生 Scope / Project Score 作为 hook / CI gate，但 acceptance contract 仍然属于仓库自定义评估器，而不是 upstream `eff-u-code` 原始总分。
-    - 文档 / 治理 Gate 必须独立于 `eff-u-code`：README、ADR、Contract、OpenAPI、Public API Comment 等结构化治理规则属于 `Graft`，不是 `eff-u-code` 的一部分。
-    - PR 门禁默认使用 changed / incremental 语义；本地全项目扫描是可选的集中治理入口，不得把二者混成同一套阻断语义。
-    - PR 门禁应优先拦截可操作的高价值问题；对仓库已接受的声明式镜像、扫描器/映射器对称实现、受治理允许的结构性重复，应通过仓库规则集显式降噪，而不是让其长期作为阻断噪声存在。
-    - 全项目扫描应至少支持 `server`、`web` 和 `all` 三个本地入口，便于按前后端分治或集中治理。
-    - Project Score Gate 的终端输出应采用 layered diagnostics：默认先给 Scope / Project Score、Threshold、Coverage、Top Contributors、Rule Category Summary、Severity Summary 和 Potential Score Gain，再按 Top N 展开详情；避免直接输出“最差代码排行榜”或全量规则刷屏。
-
 ### 4.3 Rejected By Default
 
 - `filesystem` / `git` MCP
@@ -243,7 +210,7 @@ Python helper 用于仓库自动化和 AI 辅助验证时：
 
 ```text
 AI tooling evidence:
-- tools: codegraph / tdesign / context7 / github / playwright / headroom / eff-u-code / none
+- tools: codegraph / tdesign / context7 / github / playwright / headroom / none
 - mcp_queried: yes | no | fallback
 - risk_level: L0 | L1 | L2 | L3 | not-applicable
 - adoption: adopted | partially_adopted | not_adopted
@@ -263,7 +230,6 @@ AI tooling evidence:
 - 是否与 `.ai/environment/tools.ai.yaml` 的工具事实冲突。
 - 是否能在 MCP 不可用时退回 `rg`、真实文件读取、官方文档或现有 CLI。
 - 是否有结构性验证覆盖新增文档或 skill。
-- 对于 `eff-u-code` 这类本地 helper，是否明确写明它不属于正式 validation flow。
 
 评审 AI guardrail 治理变更时至少追加检查：
 

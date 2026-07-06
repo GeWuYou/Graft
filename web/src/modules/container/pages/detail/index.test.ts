@@ -640,6 +640,12 @@ vi.mock('@/shared/observability', async () => {
 });
 
 vi.mock('@/shared/realtime', () => ({
+  createRealtimeSnapshotGate: ({ apply }: { apply: (snapshot: unknown) => void }) => ({
+    clear: vi.fn(),
+    commit: (snapshot: unknown) => apply(snapshot),
+    dispose: vi.fn(),
+    flush: vi.fn(),
+  }),
   openRealtimeTopicSocket: realtimeMocks.openRealtimeTopicSocket,
 }));
 

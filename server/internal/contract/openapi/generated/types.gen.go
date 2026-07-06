@@ -1781,13 +1781,13 @@ func (e DashboardWidgetType) Valid() bool {
 
 // Defines values for EnvelopedAuditOverviewResponseSuccess.
 const (
-	EnvelopedAuditOverviewResponseSuccessTrue EnvelopedAuditOverviewResponseSuccess = true
+	True EnvelopedAuditOverviewResponseSuccess = true
 )
 
 // Valid indicates whether the value is a known member of the EnvelopedAuditOverviewResponseSuccess enum.
 func (e EnvelopedAuditOverviewResponseSuccess) Valid() bool {
 	switch e {
-	case EnvelopedAuditOverviewResponseSuccessTrue:
+	case True:
 		return true
 	default:
 		return false
@@ -2313,36 +2313,6 @@ func (e ProjectCanonicalNameSource) Valid() bool {
 	}
 }
 
-// Defines values for ProjectConfigurationFileResponseEncoding.
-const (
-	ProjectConfigurationEncodingUTF8 ProjectConfigurationFileResponseEncoding = "utf-8"
-)
-
-// Valid indicates whether the value is a known member of the ProjectConfigurationFileResponseEncoding enum.
-func (e ProjectConfigurationFileResponseEncoding) Valid() bool {
-	switch e {
-	case ProjectConfigurationEncodingUTF8:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ProjectConfigurationFileResponseReadOnly.
-const (
-	ProjectConfigurationFileResponseReadOnlyTrue ProjectConfigurationFileResponseReadOnly = true
-)
-
-// Valid indicates whether the value is a known member of the ProjectConfigurationFileResponseReadOnly enum.
-func (e ProjectConfigurationFileResponseReadOnly) Valid() bool {
-	switch e {
-	case ProjectConfigurationFileResponseReadOnlyTrue:
-		return true
-	default:
-		return false
-	}
-}
-
 // Defines values for ProjectCreateResponseAction.
 const (
 	ProjectCreateResponseActionCreate ProjectCreateResponseAction = "create"
@@ -2484,6 +2454,21 @@ func (e ProjectDriftStatus) Valid() bool {
 	}
 }
 
+// Defines values for ProjectFileContentResponseEncoding.
+const (
+	ProjectFileContentResponseEncodingUtf8 ProjectFileContentResponseEncoding = "utf-8"
+)
+
+// Valid indicates whether the value is a known member of the ProjectFileContentResponseEncoding enum.
+func (e ProjectFileContentResponseEncoding) Valid() bool {
+	switch e {
+	case ProjectFileContentResponseEncodingUtf8:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ProjectFileKind.
 const (
 	ProjectFileKindCompose ProjectFileKind = "compose"
@@ -2517,6 +2502,24 @@ func (e ProjectFileRole) Valid() bool {
 	case ProjectFileRoleOverride:
 		return true
 	case ProjectFileRolePrimary:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProjectFileTreeNodeType.
+const (
+	ProjectFileTreeNodeTypeDirectory ProjectFileTreeNodeType = "directory"
+	ProjectFileTreeNodeTypeFile      ProjectFileTreeNodeType = "file"
+)
+
+// Valid indicates whether the value is a known member of the ProjectFileTreeNodeType enum.
+func (e ProjectFileTreeNodeType) Valid() bool {
+	switch e {
+	case ProjectFileTreeNodeTypeDirectory:
+		return true
+	case ProjectFileTreeNodeTypeFile:
 		return true
 	default:
 		return false
@@ -2940,6 +2943,39 @@ func (e ProjectSourceKind) Valid() bool {
 	case ProjectSourceKindManaged:
 		return true
 	case ProjectSourceKindTemplate:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProjectWorkspaceFileKind.
+const (
+	ProjectWorkspaceFileKindBinary      ProjectWorkspaceFileKind = "binary"
+	ProjectWorkspaceFileKindCompose     ProjectWorkspaceFileKind = "compose"
+	ProjectWorkspaceFileKindConfig      ProjectWorkspaceFileKind = "config"
+	ProjectWorkspaceFileKindDirectory   ProjectWorkspaceFileKind = "directory"
+	ProjectWorkspaceFileKindEnv         ProjectWorkspaceFileKind = "env"
+	ProjectWorkspaceFileKindText        ProjectWorkspaceFileKind = "text"
+	ProjectWorkspaceFileKindUnsupported ProjectWorkspaceFileKind = "unsupported"
+)
+
+// Valid indicates whether the value is a known member of the ProjectWorkspaceFileKind enum.
+func (e ProjectWorkspaceFileKind) Valid() bool {
+	switch e {
+	case ProjectWorkspaceFileKindBinary:
+		return true
+	case ProjectWorkspaceFileKindCompose:
+		return true
+	case ProjectWorkspaceFileKindConfig:
+		return true
+	case ProjectWorkspaceFileKindDirectory:
+		return true
+	case ProjectWorkspaceFileKindEnv:
+		return true
+	case ProjectWorkspaceFileKindText:
+		return true
+	case ProjectWorkspaceFileKindUnsupported:
 		return true
 	default:
 		return false
@@ -6462,26 +6498,6 @@ type EnvelopedProjectConfigurationDiffResponse struct {
 	TraceId string `json:"traceId"`
 }
 
-// EnvelopedProjectConfigurationFileResponse defines model for enveloped-project-configuration-file-response.
-type EnvelopedProjectConfigurationFileResponse struct {
-	// Code Existing canonical response code.
-	Code string                           `json:"code"`
-	Data ProjectConfigurationFileResponse `json:"data"`
-
-	// Locale Present on localized error flows and omitted on normal success.
-	Locale *string `json:"locale,omitempty"`
-
-	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
-	Message string `json:"message"`
-
-	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
-	MessageKey *string `json:"messageKey,omitempty"`
-	Success    bool    `json:"success"`
-
-	// TraceId Mirrors the request id contract used by the current runtime.
-	TraceId string `json:"traceId"`
-}
-
 // EnvelopedProjectConfigurationMetadataResponse defines model for enveloped-project-configuration-metadata-response.
 type EnvelopedProjectConfigurationMetadataResponse struct {
 	// Code Existing canonical response code.
@@ -6640,6 +6656,21 @@ type EnvelopedProjectDiscoveryCandidatesResponse struct {
 
 	// TraceId Mirrors the request id contract used by the current runtime.
 	TraceId string `json:"traceId"`
+}
+
+// EnvelopedProjectFileContentResponse defines model for enveloped-project-file-content-response.
+type EnvelopedProjectFileContentResponse struct {
+	Data ProjectFileContentResponse `json:"data"`
+}
+
+// EnvelopedProjectFileSaveResponse defines model for enveloped-project-file-save-response.
+type EnvelopedProjectFileSaveResponse struct {
+	Data ProjectFileSaveResponse `json:"data"`
+}
+
+// EnvelopedProjectFilesResponse defines model for enveloped-project-files-response.
+type EnvelopedProjectFilesResponse struct {
+	Data ProjectFilesResponse `json:"data"`
 }
 
 // EnvelopedProjectImportDirectoriesResponse defines model for enveloped-project-import-directories-response.
@@ -7685,12 +7716,6 @@ type ProjectConfigurationDiffFile struct {
 	ProposedHash    string          `json:"proposed_hash"`
 }
 
-// ProjectConfigurationDiffRequest defines model for project-configuration-diff-request.
-type ProjectConfigurationDiffRequest struct {
-	ComposeFileContent string  `json:"compose_file_content"`
-	EnvFileContent     *string `json:"env_file_content,omitempty"`
-}
-
 // ProjectConfigurationDiffResponse defines model for project-configuration-diff-response.
 type ProjectConfigurationDiffResponse struct {
 	CanonicalProjectName string                         `json:"canonical_project_name"`
@@ -7702,23 +7727,6 @@ type ProjectConfigurationDiffResponse struct {
 	ProposedConfigHash   string                         `json:"proposed_config_hash"`
 	Warnings             *[]string                      `json:"warnings,omitempty"`
 }
-
-// ProjectConfigurationFileResponse defines model for project-configuration-file-response.
-type ProjectConfigurationFileResponse struct {
-	Content      string                                   `json:"content"`
-	DownloadName string                                   `json:"download_name"`
-	Encoding     ProjectConfigurationFileResponseEncoding `json:"encoding"`
-	FileId       int64                                    `json:"file_id"`
-	Kind         ProjectFileKind                          `json:"kind"`
-	Path         string                                   `json:"path"`
-	ReadOnly     ProjectConfigurationFileResponseReadOnly `json:"read_only"`
-}
-
-// ProjectConfigurationFileResponseEncoding defines model for ProjectConfigurationFileResponse.Encoding.
-type ProjectConfigurationFileResponseEncoding string
-
-// ProjectConfigurationFileResponseReadOnly defines model for ProjectConfigurationFileResponse.ReadOnly.
-type ProjectConfigurationFileResponseReadOnly bool
 
 // ProjectConfigurationMetadataResponse defines model for project-configuration-metadata-response.
 type ProjectConfigurationMetadataResponse struct {
@@ -7741,12 +7749,6 @@ type ProjectConfigurationPreviewResponse struct {
 	NormalizedComposeYaml string     `json:"normalized_compose_yaml"`
 	ProjectId             int64      `json:"project_id"`
 	RefreshedAt           *time.Time `json:"refreshed_at,omitempty"`
-}
-
-// ProjectConfigurationValidateRequest defines model for project-configuration-validate-request.
-type ProjectConfigurationValidateRequest struct {
-	ComposeFileContent string  `json:"compose_file_content"`
-	EnvFileContent     *string `json:"env_file_content,omitempty"`
 }
 
 // ProjectConfigurationValidateResponse defines model for project-configuration-validate-response.
@@ -7843,12 +7845,6 @@ type ProjectCreateValidateResponse struct {
 	SourceType              ProjectSourceEntryType     `json:"source_type"`
 	Warnings                *[]string                  `json:"warnings,omitempty"`
 	WorkingDirectory        string                     `json:"working_directory"`
-}
-
-// ProjectDeployRequest defines model for project-deploy-request.
-type ProjectDeployRequest struct {
-	ComposeFileContent string  `json:"compose_file_content"`
-	EnvFileContent     *string `json:"env_file_content,omitempty"`
 }
 
 // ProjectDeployResponse defines model for project-deploy-response.
@@ -7965,6 +7961,21 @@ type ProjectDiscoveryCandidatesResponse struct {
 // ProjectDriftStatus defines model for project-drift-status.
 type ProjectDriftStatus string
 
+// ProjectFileContentResponse defines model for project-file-content-response.
+type ProjectFileContentResponse struct {
+	Content      string                             `json:"content"`
+	Editable     bool                               `json:"editable"`
+	Encoding     ProjectFileContentResponseEncoding `json:"encoding"`
+	FileKind     ProjectWorkspaceFileKind           `json:"file_kind"`
+	LanguageHint string                             `json:"language_hint"`
+	ProjectId    int64                              `json:"project_id"`
+	RelativePath string                             `json:"relative_path"`
+	SizeBytes    int64                              `json:"size_bytes"`
+}
+
+// ProjectFileContentResponseEncoding defines model for ProjectFileContentResponse.Encoding.
+type ProjectFileContentResponseEncoding string
+
 // ProjectFileItem defines model for project-file-item.
 type ProjectFileItem struct {
 	AbsolutePath        string          `json:"absolute_path"`
@@ -7984,6 +7995,46 @@ type ProjectFileKind string
 
 // ProjectFileRole defines model for project-file-role.
 type ProjectFileRole string
+
+// ProjectFileSaveRequest defines model for project-file-save-request.
+type ProjectFileSaveRequest struct {
+	Content string `json:"content"`
+}
+
+// ProjectFileSaveResponse defines model for project-file-save-response.
+type ProjectFileSaveResponse struct {
+	ContentHash  string    `json:"content_hash"`
+	ProjectId    int64     `json:"project_id"`
+	RelativePath string    `json:"relative_path"`
+	SavedAt      time.Time `json:"saved_at"`
+	SizeBytes    int64     `json:"size_bytes"`
+}
+
+// ProjectFileTreeItem defines model for project-file-tree-item.
+type ProjectFileTreeItem struct {
+	Editable        bool                     `json:"editable"`
+	FileKind        ProjectWorkspaceFileKind `json:"file_kind"`
+	HasChildren     bool                     `json:"has_children"`
+	HiddenByDefault bool                     `json:"hidden_by_default"`
+	LanguageHint    string                   `json:"language_hint"`
+	Name            string                   `json:"name"`
+	NodeType        ProjectFileTreeNodeType  `json:"node_type"`
+	RelativePath    string                   `json:"relative_path"`
+	SizeBytes       int64                    `json:"size_bytes"`
+}
+
+// ProjectFileTreeNodeType defines model for project-file-tree-node-type.
+type ProjectFileTreeNodeType string
+
+// ProjectFilesResponse defines model for project-files-response.
+type ProjectFilesResponse struct {
+	CurrentPath   string                `json:"current_path"`
+	HasMoreHidden bool                  `json:"has_more_hidden"`
+	Items         []ProjectFileTreeItem `json:"items"`
+	ParentPath    *string               `json:"parent_path,omitempty"`
+	ProjectId     int64                 `json:"project_id"`
+	RootPath      string                `json:"root_path"`
+}
 
 // ProjectGuardResult defines model for project-guard-result.
 type ProjectGuardResult struct {
@@ -8571,6 +8622,9 @@ type ProjectSourceMetadata struct {
 	// TemplateVersion Planned template version or release channel.
 	TemplateVersion *string `json:"template_version,omitempty"`
 }
+
+// ProjectWorkspaceFileKind defines model for project-workspace-file-kind.
+type ProjectWorkspaceFileKind string
 
 // PublishAnnouncementRequest defines model for publish-announcement-request.
 type PublishAnnouncementRequest struct {
@@ -9348,9 +9402,6 @@ type ContainerShellTicketQuery = string
 // LocaleHeader defines model for locale-header.
 type LocaleHeader = string
 
-// ProjectFileIdPath defines model for project-file-id-path.
-type ProjectFileIdPath = int64
-
 // ProjectIdPath defines model for project-id-path.
 type ProjectIdPath = int64
 
@@ -9380,6 +9431,12 @@ type ProjectListRefreshStatus = ProjectRefreshStatus
 
 // ProjectListSourceKind defines model for project-list-source-kind.
 type ProjectListSourceKind = ProjectSourceKind
+
+// ProjectWorkspacePathQuery defines model for project-workspace-path-query.
+type ProjectWorkspacePathQuery = string
+
+// ProjectWorkspaceShowHiddenQuery defines model for project-workspace-show-hidden-query.
+type ProjectWorkspaceShowHiddenQuery = bool
 
 // RealtimeTicketQuery defines model for realtime-ticket-query.
 type RealtimeTicketQuery = string
@@ -10468,16 +10525,6 @@ type PostProjectConfigurationDiffParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
-// GetProjectConfigurationFileParams defines parameters for GetProjectConfigurationFile.
-type GetProjectConfigurationFileParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
 // GetProjectConfigurationPreviewParams defines parameters for GetProjectConfigurationPreview.
 type GetProjectConfigurationPreviewParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -10510,6 +10557,48 @@ type PostProjectDeployParams struct {
 
 // PostProjectDestroyParams defines parameters for PostProjectDestroy.
 type PostProjectDestroyParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetProjectFilesParams defines parameters for GetProjectFiles.
+type GetProjectFilesParams struct {
+	// Path Relative path under the project's working_directory. Omit or pass an empty value to browse the root directory.
+	Path *ProjectWorkspacePathQuery `form:"path,omitempty" json:"path,omitempty"`
+
+	// ShowHidden Whether the workspace should include directories and dot entries hidden by default.
+	ShowHidden *ProjectWorkspaceShowHiddenQuery `form:"show_hidden,omitempty" json:"show_hidden,omitempty"`
+
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetProjectFileContentParams defines parameters for GetProjectFileContent.
+type GetProjectFileContentParams struct {
+	// Path Relative path under the project's working_directory. Omit or pass an empty value to browse the root directory.
+	Path *ProjectWorkspacePathQuery `form:"path,omitempty" json:"path,omitempty"`
+
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PutProjectFileContentParams defines parameters for PutProjectFileContent.
+type PutProjectFileContentParams struct {
+	// Path Relative path under the project's working_directory. Omit or pass an empty value to browse the root directory.
+	Path *ProjectWorkspacePathQuery `form:"path,omitempty" json:"path,omitempty"`
+
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
@@ -11197,17 +11286,11 @@ type PostProjectImportRuntimeInspectJSONRequestBody = ProjectImportRuntimeInspec
 // PostProjectImportValidateJSONRequestBody defines body for PostProjectImportValidate for application/json ContentType.
 type PostProjectImportValidateJSONRequestBody = ProjectImportValidateRequest
 
-// PostProjectConfigurationDiffJSONRequestBody defines body for PostProjectConfigurationDiff for application/json ContentType.
-type PostProjectConfigurationDiffJSONRequestBody = ProjectConfigurationDiffRequest
-
-// PostProjectConfigurationValidateJSONRequestBody defines body for PostProjectConfigurationValidate for application/json ContentType.
-type PostProjectConfigurationValidateJSONRequestBody = ProjectConfigurationValidateRequest
-
-// PostProjectDeployJSONRequestBody defines body for PostProjectDeploy for application/json ContentType.
-type PostProjectDeployJSONRequestBody = ProjectDeployRequest
-
 // PostProjectDestroyJSONRequestBody defines body for PostProjectDestroy for application/json ContentType.
 type PostProjectDestroyJSONRequestBody = ProjectDestroyRequest
+
+// PutProjectFileContentJSONRequestBody defines body for PutProjectFileContent for application/json ContentType.
+type PutProjectFileContentJSONRequestBody = ProjectFileSaveRequest
 
 // PutProjectLifecycleConfigurationJSONRequestBody defines body for PutProjectLifecycleConfiguration for application/json ContentType.
 type PutProjectLifecycleConfigurationJSONRequestBody = ProjectLifecycleConfigurationRequest

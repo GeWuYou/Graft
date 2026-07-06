@@ -139,15 +139,15 @@ func toGeneratedProjectLifecycleConfiguration(
 
 func toGeneratedLifecycleConfiguration(config LifecycleConfiguration) generated.ProjectLifecycleConfiguration {
 	return generated.ProjectLifecycleConfiguration{
-		StrategyKind:         generated.ProjectLifecycleStrategyKind(config.StrategyKind),
-		Profiles:             append([]string(nil), config.Standard.Profiles...),
-		DownBeforeRedeploy:   config.Standard.DownBeforeRedeploy,
-		PullBeforeRedeploy:   config.Standard.PullBeforeRedeploy,
-		BuildBeforeUp:        config.Standard.BuildBeforeUp,
-		ForceRecreate:        config.Standard.ForceRecreate,
-		WaitAfterUp:          config.Standard.WaitAfterUp,
+		StrategyKind:             generated.ProjectLifecycleStrategyKind(config.StrategyKind),
+		Profiles:                 append([]string(nil), config.Standard.Profiles...),
+		DownBeforeRedeploy:       config.Standard.DownBeforeRedeploy,
+		PullBeforeRedeploy:       config.Standard.PullBeforeRedeploy,
+		BuildBeforeUp:            config.Standard.BuildBeforeUp,
+		ForceRecreate:            config.Standard.ForceRecreate,
+		WaitAfterUp:              config.Standard.WaitAfterUp,
 		PruneImagesAfterRedeploy: config.Standard.PruneImagesAfterRedeploy,
-		GeneratedCommands:    toGeneratedLifecycleCommands(config),
+		GeneratedCommands:        toGeneratedLifecycleCommands(config),
 	}
 }
 
@@ -429,69 +429,15 @@ func displayNameOrCanonical(displayName *string, canonical string) string {
 	return canonical
 }
 
-// fileName 返回路径的最后一个段。
-// 它按正斜杠分割路径并取最后一项。
-func fileName(path string) string {
-	parts := strings.Split(path, "/")
-	return parts[len(parts)-1]
+// hashString 返回归一化文本块的 SHA-256 十六进制摘要。
+func hashString(value string) string {
+	sum := sha256.Sum256([]byte(normalizeTextBlock(value)))
+	return hex.EncodeToString(sum[:])
 }
 
-// ensureManagedProjectAggregate 仅允许受控根目录专用归属模式的项目进入受控草案流程。
-// ensureManagedProjectAggregate 检查聚合是否处于 managed-root-dedicated 归属模式，并在不满足时返回 errProjectManagedFlow。
-func ensureManagedProjectAggregate(aggregate projectstore.ProjectAggregate) error {
-	if aggregate.Project.OwnershipMode != projectcontract.OwnershipModeManagedRootDedicated.String() {
-		return errProjectManagedFlow
-	}
-	return nil
-}
-
-func (s *Service) prepareConfigurationDraft(
-	aggregate projectstore.ProjectAggregate,
-	draft ConfigurationDraft,
-) (preparedConfigurationDraft, error) {
-	current, err := loadManagedDraftContent(aggregate)
-	if err != nil {
-		return preparedConfigurationDraft{}, err
-	}
-	composeContent := normalizeTextBlock(draft.ComposeFileContent)
-	if strings.TrimSpace(composeContent) == "" {
-		return preparedConfigurationDraft{}, errProjectInvalidArgument
-	}
-	proposal := managedDraftProposal{
-		ComposePath:    current.ComposePath,
-		ComposeContent: composeContent,
-		EnvPath:        current.EnvPath,
-	}
-	if draft.EnvFileContent != nil {
-		content := normalizeTextBlock(*draft.EnvFileContent)
-		proposal.EnvContent = &content
-	} else if current.EnvPath != "" {
-		content := current.EnvContent
-		proposal.EnvContent = &content
-	}
-	draftInput, err := buildManagedDraftInput(aggregate.Project.WorkingDirectory, proposal)
-	if err != nil {
-		return preparedConfigurationDraft{}, err
-	}
-	parseResult, err := projectcompose.Load(draftInput)
-	if err != nil {
-		return preparedConfigurationDraft{}, err
-	}
-	warnings := make([]string, 0, draftWarningsCap)
-	if strings.TrimSpace(current.ComposeContent) == strings.TrimSpace(proposal.ComposeContent) &&
-		strings.TrimSpace(current.EnvContent) == strings.TrimSpace(derefString(proposal.EnvContent)) {
-		warnings = append(warnings, "Draft matches the current tracked managed project files.")
-	}
-	return preparedConfigurationDraft{
-		Proposal:    proposal,
-		ParseResult: parseResult,
-		Warnings:    warnings,
-	}, nil
-}
-
-// buildConfigurationDiffFile 构建配置文件的差异结果，包含内容变更、哈希和统一 diff。
+// buildConfigurationDiffFile 构建规范化后的配置文件差异结果。
 //
-// 返回的结果会反映当前内容与提议内容的归一化比较，并保留对应的文件类型和路径。
+//nolint:unused // Retained for direct test coverage of diff normalization semantics.
 func buildConfigurationDiffFile(kind string, path string, current string, proposed string) ConfigurationDiffFile {
 	return ConfigurationDiffFile{
 		Kind:            kind,
@@ -502,12 +448,6 @@ func buildConfigurationDiffFile(kind string, path string, current string, propos
 		CurrentContent:  normalizeTextBlock(current),
 		ProposedContent: normalizeTextBlock(proposed),
 	}
-}
-
-// hashString 返回归一化文本块的 SHA-256 十六进制摘要。
-func hashString(value string) string {
-	sum := sha256.Sum256([]byte(normalizeTextBlock(value)))
-	return hex.EncodeToString(sum[:])
 }
 
 // normalizeTextBlock 规范化文本块的换行、行尾空白和整体边界，并在非空时补充结尾换行符。
@@ -522,15 +462,6 @@ func normalizeTextBlock(value string) string {
 		return ""
 	}
 	return joined + "\n"
-}
-
-// derefString 返回指针指向的字符串值。
-// 如果指针为空，则返回空字符串。
-func derefString(value *string) string {
-	if value == nil {
-		return ""
-	}
-	return *value
 }
 
 // nonEmptyString 在 primary 为空白时返回 fallback。

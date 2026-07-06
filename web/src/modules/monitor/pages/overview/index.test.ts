@@ -91,6 +91,10 @@ const tabsRouterStoreMock = vi.hoisted(() => ({
   ],
 }));
 
+const realtimeSchedulerStoreMock = vi.hoisted(() => ({
+  store: null as { allowPolling: boolean } | null,
+}));
+
 const translations = vi.hoisted((): Record<string, string> => ({
   'app.refreshControl.labels.interval': 'Auto refresh',
   'app.refreshControl.labels.trendWindow': 'Trend window',
@@ -304,10 +308,18 @@ vi.mock('../../api/server-status', () => ({
   getServerStatus: monitorApiMocks.getServerStatus,
 }));
 
-vi.mock('@/store', () => ({
-  useSettingStore: () => settingStoreMock,
-  useTabsRouterStore: () => tabsRouterStoreMock,
-}));
+vi.mock('@/store', async () => {
+  const { reactive } = await vi.importActual<typeof import('vue')>('vue');
+  const store = reactive({
+    allowPolling: true,
+  });
+  realtimeSchedulerStoreMock.store = store;
+  return {
+    useRealtimeSchedulerStore: () => store,
+    useSettingStore: () => settingStoreMock,
+    useTabsRouterStore: () => tabsRouterStoreMock,
+  };
+});
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
@@ -763,6 +775,10 @@ describe('MonitorPage', () => {
     resizeObserverMocks.observe.mockClear();
     resizeObserverMocks.unobserve.mockClear();
     resizeObserverMocks.disconnect.mockClear();
+    if (!realtimeSchedulerStoreMock.store) {
+      throw new Error('realtime scheduler store mock is unavailable');
+    }
+    realtimeSchedulerStoreMock.store.allowPolling = true;
     settingStoreMock.brandTheme = '#0052D9';
     tabsRouterStoreMock.activeTabKey = '/server/overview';
     tabsRouterStoreMock.tabRouters = [
@@ -1363,6 +1379,30 @@ describe('MonitorPage', () => {
     await flushPromises();
 
     expect(monitorApiMocks.getServerStatus).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows auto refresh as paused and clears the countdown when polling is disabled', async () => {
+    vi.useFakeTimers();
+    monitorApiMocks.getServerStatus.mockResolvedValue(createServerStatusResponse());
+
+    const wrapper = mountMonitorPage();
+    await flushPromises();
+    await nextTick();
+
+    expect(wrapper.find('[data-refresh-countdown="true"]').exists()).toBe(true);
+    expect(sidebarGroupText(wrapper, 'sampling')).toContain('Auto refresh');
+    expect(sidebarGroupText(wrapper, 'sampling')).toContain('5 sec');
+
+    if (!realtimeSchedulerStoreMock.store) {
+      throw new Error('realtime scheduler store mock is unavailable');
+    }
+    realtimeSchedulerStoreMock.store.allowPolling = false;
+    await nextTick();
+    await flushPromises();
+
+    expect(wrapper.find('[data-refresh-countdown="true"]').exists()).toBe(false);
+    expect(wrapper.text()).toContain('Auto refresh paused');
+    expect(sidebarGroupText(wrapper, 'sampling')).toContain('Paused');
   });
 
   it('backs off the retry cadence after a failed auto refresh', async () => {

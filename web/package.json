@@ -49,6 +49,8 @@
     "echarts": "6.1.0",
     "lodash": "^4.17.23",
     "markdown-it": "^14.3.0",
+    "monaco-editor": "^0.55.1",
+    "monaco-yaml": "^5.5.1",
     "nprogress": "^0.2.0",
     "pinia": "^3.0.4",
     "pinia-plugin-persistedstate": "^4.7.1",

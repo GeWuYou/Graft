@@ -1,0 +1,8 @@
+name: show_hidden
+in: query
+required: false
+description: Whether the workspace should include directories and dot entries hidden by default.
+schema:
+  type: boolean
+  default: false
+

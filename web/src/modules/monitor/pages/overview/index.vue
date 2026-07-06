@@ -443,7 +443,7 @@ import { buildAuditEvidenceTargetLocation } from '@/modules/audit/contract/deep-
 import { openCorrelationErrorNotification, requestIdFromError } from '@/modules/audit/shared/correlation-actions';
 import { RefreshControlBar } from '@/shared/components/refresh';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
-import { useSettingStore } from '@/store';
+import { useRealtimeSchedulerStore, useSettingStore } from '@/store';
 
 import { getServerStatus } from '../../api/server-status';
 import MetricUsageBar from '../../components/MetricUsageBar.vue';
@@ -565,6 +565,7 @@ interface DependencyPoolView {
 
 const { t, locale } = useI18n();
 const settingStore = useSettingStore();
+const realtimeSchedulerStore = useRealtimeSchedulerStore();
 const {
   autoRefreshEnabled,
   refreshIntervalOptions,
@@ -1028,9 +1029,11 @@ const samplingStatusItems = computed<StatusSidebarSummaryItem[]>(() => [
   {
     key: 'autoRefresh',
     label: t('monitor.serverStatus.runtimeStatusAutoRefreshLabel'),
-    value: autoRefreshEnabled.value
+    value: canRunAutoRefreshCycle()
       ? t('monitor.serverStatus.runtimeStatusRefreshValue')
-      : t('monitor.serverStatus.runtimeStatusPaused'),
+      : selectedRefreshInterval.value <= 0
+        ? t('app.refreshControl.status.off')
+        : t('monitor.serverStatus.runtimeStatusPaused'),
   },
   {
     key: 'timeRange',
@@ -1062,14 +1065,25 @@ const toolbarStatus = computed<ServerStatusTone>(() => {
 });
 
 const refreshControlStatus = computed(() => {
-  if (selectedRefreshInterval.value <= 0) {
-    return 'off' as const;
+  if (canRunAutoRefreshCycle()) {
+    return 'running' as const;
   }
-  if (!autoRefreshEnabled.value || !isPageVisible.value) {
-    return 'paused' as const;
-  }
-  return 'running' as const;
+  return selectedRefreshInterval.value <= 0 ? ('off' as const) : ('paused' as const);
 });
+
+function canRunAutoRefreshCycle() {
+  return (
+    autoRefreshEnabled.value &&
+    isPageVisible.value &&
+    selectedRefreshInterval.value > 0 &&
+    realtimeSchedulerStore.allowPolling
+  );
+}
+
+function clearRefreshSchedule() {
+  stopRefreshTick();
+  remainingRefreshSeconds.value = null;
+}
 
 async function fetchServerStatus(options: { manual?: boolean } = {}) {
   const requestedTrendRange = selectedTrendRange.value;
@@ -1119,19 +1133,18 @@ async function fetchServerStatus(options: { manual?: boolean } = {}) {
 function toggleAutoRefresh() {
   toggleSharedAutoRefresh();
 
-  if (autoRefreshEnabled.value && isPageVisible.value && selectedRefreshInterval.value > 0) {
+  if (canRunAutoRefreshCycle()) {
     void fetchServerStatus({ manual: true });
     return;
   }
 
-  stopRefreshTick();
-  remainingRefreshSeconds.value = null;
+  clearRefreshSchedule();
 }
 
 function scheduleNextRefresh() {
   stopRefreshTick();
-  if (!autoRefreshEnabled.value || !isPageVisible.value || selectedRefreshInterval.value <= 0) {
-    remainingRefreshSeconds.value = null;
+  if (!canRunAutoRefreshCycle()) {
+    clearRefreshSchedule();
     return;
   }
 
@@ -1168,13 +1181,12 @@ function stopRefreshTick() {
 
 function handleVisibilityChange() {
   isPageVisible.value = document.visibilityState === 'visible';
-  if (isPageVisible.value && autoRefreshEnabled.value && selectedRefreshInterval.value > 0) {
+  if (canRunAutoRefreshCycle()) {
     void fetchServerStatus();
     return;
   }
 
-  stopRefreshTick();
-  remainingRefreshSeconds.value = null;
+  clearRefreshSchedule();
 }
 
 function handleRefreshIntervalChange(value: number | string) {
@@ -2011,6 +2023,17 @@ watch(selectedRefreshInterval, (nextValue, previousValue) => {
 
   scheduleNextRefresh();
 });
+
+watch(
+  () => realtimeSchedulerStore.allowPolling,
+  (allowPolling) => {
+    if (!allowPolling) {
+      clearRefreshSchedule();
+      return;
+    }
+    scheduleNextRefresh();
+  },
+);
 
 onMounted(async () => {
   await fetchServerStatus();

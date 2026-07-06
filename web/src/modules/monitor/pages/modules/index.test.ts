@@ -1,7 +1,8 @@
 import { flushPromises, mount } from '@vue/test-utils';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { defineComponent, h } from 'vue';
+import { defineComponent, h, nextTick } from 'vue';
 
+import { resetMonitorRefreshPreferencesForTests } from '../../composables/use-monitor-refresh-preferences';
 import ModulesPage from './index.vue';
 
 const moduleRuntimeApiMocks = vi.hoisted(() => ({
@@ -29,6 +30,10 @@ const tabsRouterStoreMock = vi.hoisted(() => ({
       tabKey: '/server/modules',
     },
   ],
+}));
+
+const realtimeSchedulerStoreMock = vi.hoisted(() => ({
+  store: null as { allowPolling: boolean } | null,
 }));
 
 const translations = vi.hoisted((): Record<string, string> => ({
@@ -172,9 +177,17 @@ vi.mock('vue-router', () => ({
   useRoute: () => routeMocks.route,
 }));
 
-vi.mock('@/store', () => ({
-  useTabsRouterStore: () => tabsRouterStoreMock,
-}));
+vi.mock('@/store', async () => {
+  const { reactive } = await vi.importActual<typeof import('vue')>('vue');
+  const store = reactive({
+    allowPolling: true,
+  });
+  realtimeSchedulerStoreMock.store = store;
+  return {
+    useRealtimeSchedulerStore: () => store,
+    useTabsRouterStore: () => tabsRouterStoreMock,
+  };
+});
 
 const shellStub = defineComponent({
   name: 'ServerStatusPageShellStub',
@@ -460,9 +473,14 @@ function mountModulesPage() {
 }
 
 afterEach(() => {
+  resetMonitorRefreshPreferencesForTests();
+  if (realtimeSchedulerStoreMock.store) {
+    realtimeSchedulerStoreMock.store.allowPolling = true;
+  }
   moduleRuntimeApiMocks.getModuleRuntimeSnapshot.mockReset();
   moduleRuntimeApiMocks.getModuleRuntimeDetail.mockReset();
   loggerMocks.error.mockReset();
+  vi.useRealTimers();
 });
 
 function createSnapshot() {
@@ -616,6 +634,43 @@ describe('monitor module runtime page', () => {
     await flushPromises();
 
     expect(moduleRuntimeApiMocks.getModuleRuntimeSnapshot).toHaveBeenCalledTimes(2);
+  });
+
+  it('stops scheduled polling when allowPolling is disabled and resumes after it is re-enabled', async () => {
+    vi.useFakeTimers();
+    moduleRuntimeApiMocks.getModuleRuntimeSnapshot.mockResolvedValue(createSnapshot());
+    if (!realtimeSchedulerStoreMock.store) {
+      throw new Error('realtime scheduler store mock is unavailable');
+    }
+
+    const wrapper = mountModulesPage();
+    const pageVm = wrapper.vm as unknown as { remainingRefreshSeconds: number | null };
+    await flushPromises();
+
+    expect(moduleRuntimeApiMocks.getModuleRuntimeSnapshot).toHaveBeenCalledTimes(1);
+    expect(pageVm.remainingRefreshSeconds).toBeTypeOf('number');
+
+    realtimeSchedulerStoreMock.store.allowPolling = false;
+    await nextTick();
+    await flushPromises();
+
+    await vi.advanceTimersByTimeAsync(6000);
+    await flushPromises();
+    expect(moduleRuntimeApiMocks.getModuleRuntimeSnapshot).toHaveBeenCalledTimes(1);
+    expect(pageVm.remainingRefreshSeconds).toBeNull();
+
+    realtimeSchedulerStoreMock.store.allowPolling = true;
+    await nextTick();
+    await flushPromises();
+
+    expect(pageVm.remainingRefreshSeconds).toBeTypeOf('number');
+
+    const resumedCountdown = pageVm.remainingRefreshSeconds;
+    await vi.advanceTimersByTimeAsync(1000);
+    await flushPromises();
+    expect(pageVm.remainingRefreshSeconds).toBeLessThanOrEqual((resumedCountdown as number) - 1);
+
+    wrapper.unmount();
   });
 
   it('keeps table content stable during refresh instead of re-entering blocking table loading', async () => {

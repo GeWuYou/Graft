@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { projectBootstrapRouteRegistrations } from './bootstrap-routes';
+import { projectBootstrapRouteRegistrations, projectGlobalRouteRegistrations } from './bootstrap-routes';
 import { PROJECT_ROUTE_PATH } from './contract/paths';
 
 describe('project bootstrap route registrations', () => {
@@ -14,5 +14,22 @@ describe('project bootstrap route registrations', () => {
       }),
     });
     expect(projectBootstrapRouteRegistrations[0]?.meta?.pageSurface).toBeUndefined();
+  });
+
+  it('registers the configuration workspace as a hidden editor route', () => {
+    expect(projectGlobalRouteRegistrations).toContainEqual(
+      expect.objectContaining({
+        path: PROJECT_ROUTE_PATH.CONFIGURATION_WORKSPACE,
+        routeName: 'ProjectConfigurationWorkspace',
+        pageRouteName: 'ProjectConfigurationWorkspaceIndex',
+        meta: expect.objectContaining({
+          hiddenMenu: true,
+          keepAlive: true,
+          pageKind: 'detail',
+          pageSurface: 'editor',
+          titleKey: 'project.route.configurationWorkspace.title',
+        }),
+      }),
+    );
   });
 });

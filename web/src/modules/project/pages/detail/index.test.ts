@@ -58,13 +58,23 @@ const routeState = vi.hoisted(() => ({
 const routerMocks = vi.hoisted(() => ({
   push: vi.fn(),
   replace: vi.fn(),
-  resolve: vi.fn((target: { params?: { id?: string }; query?: Record<string, unknown> }) => ({
-    fullPath: `/ops/containers/${target.params?.id ?? ''}`,
-    name: 'ops:container-detail',
-    params: target.params ?? {},
-    path: `/ops/containers/${target.params?.id ?? ''}`,
-    query: target.query ?? {},
-  })),
+  resolve: vi.fn((target: { name?: string; params?: { id?: string }; query?: Record<string, unknown> }) =>
+    target.name === 'ProjectConfigurationWorkspaceIndex'
+      ? {
+          fullPath: `/ops/projects/${target.params?.id ?? ''}/configuration`,
+          name: target.name,
+          params: target.params ?? {},
+          path: `/ops/projects/${target.params?.id ?? ''}/configuration`,
+          query: target.query ?? {},
+        }
+      : {
+          fullPath: `/ops/containers/${target.params?.id ?? ''}`,
+          name: 'ops:container-detail',
+          params: target.params ?? {},
+          path: `/ops/containers/${target.params?.id ?? ''}`,
+          query: target.query ?? {},
+        },
+  ),
 }));
 
 const tabsRouterStoreMock = vi.hoisted(() => ({
@@ -83,21 +93,12 @@ const tabsRouterStoreMock = vi.hoisted(() => ({
 const detailMessages = {
   'components.commonTable.detail': 'Detail',
   'project.detail.actions.destroy': 'Destroy',
+  'project.detail.actions.openConfigurationWorkspace': 'Configuration Workspace',
   'project.detail.actions.redeploy': 'Redeploy',
   'project.detail.actions.restart': 'Restart',
   'project.detail.actions.stop': 'Stop',
   'project.detail.actions.unregister': 'Unregister',
   'project.detail.actions.up': 'Up',
-  'project.detail.configuration.composeFiles': 'Compose Files',
-  'project.detail.configuration.driftStatus': 'Drift Status',
-  'project.detail.configuration.envFiles': 'Env Files',
-  'project.detail.configuration.externalAuthorityHint': 'External authority',
-  'project.detail.configuration.managedAuthorityHint': 'Managed authority',
-  'project.detail.configuration.ownershipMode': 'Ownership Mode',
-  'project.detail.configuration.previewEmpty': 'No Preview',
-  'project.detail.configuration.previewTitle': 'Preview',
-  'project.detail.configuration.refreshStatus': 'Refresh Status',
-  'project.detail.configuration.title': 'Configuration',
   'project.detail.description': 'Project detail description',
   'project.detail.eyebrow': 'Compose Project',
   'project.detail.logs.authorityProjectOwned': 'Project-owned logs',
@@ -136,11 +137,23 @@ const detailMessages = {
   'project.detail.services.actions.restart': 'Restart',
   'project.detail.services.actions.start': 'Start',
   'project.detail.services.actions.stop': 'Stop',
+  'project.detail.services.batch.cancelSelection': 'Clear Selection',
+  'project.detail.services.batch.confirmRestart': 'Restart the {count} selected services?',
+  'project.detail.services.batch.confirmRestartTitle': 'Confirm Batch Service Restart',
+  'project.detail.services.batch.confirmStart': 'Start the {count} selected services?',
+  'project.detail.services.batch.confirmStartTitle': 'Confirm Batch Service Start',
+  'project.detail.services.batch.confirmStop': 'Stop the {count} selected services?',
+  'project.detail.services.batch.confirmStopTitle': 'Confirm Batch Service Stop',
   'project.detail.services.batch.failed': 'Service action failed.',
   'project.detail.services.batch.failureDetailTitle': 'Failure Details',
+  'project.detail.services.batch.noSelection': 'Select actionable services first.',
   'project.detail.services.batch.noFailureDetail': 'No failure detail.',
   'project.detail.services.batch.partialTitle': 'Partial Service Action',
   'project.detail.services.batch.refreshWarning': 'Refresh warning',
+  'project.detail.services.batch.restart': 'Batch Restart',
+  'project.detail.services.batch.selected': '{count} Services Selected',
+  'project.detail.services.batch.start': 'Batch Start',
+  'project.detail.services.batch.stop': 'Batch Stop',
   'project.detail.services.batch.success': 'Service action success {count}',
   'project.detail.services.columns.health': 'Health',
   'project.detail.services.columns.image': 'Image',
@@ -155,16 +168,17 @@ const detailMessages = {
   'project.detail.services.refresh': 'Refresh Services',
   'project.detail.services.summary': '{count} Services',
   'project.detail.services.title': 'Services',
-  'project.detail.tabs.configuration': 'Configuration',
   'project.detail.tabs.lifecycle': 'Lifecycle',
   'project.detail.tabs.logs': 'Logs',
   'project.detail.tabs.overview': 'Overview',
   'project.detail.tabs.services': 'Services',
   'project.detail.titleFallback': 'Project Detail',
+  'project.route.configurationWorkspace.title': 'Configuration Workspace',
   'project.list.actions.actionFailed': 'Action Failed',
   'project.list.actions.actionSuccess': 'Action Success',
   'project.list.actions.cancel': 'Cancel',
   'project.list.actions.confirm': 'Confirm',
+  'project.list.columns.selection': 'Selection',
   'project.list.retry': 'Retry',
 } as const;
 
@@ -221,17 +235,28 @@ const ManagementPagedTableStub = defineComponent({
     columns: { type: Array, default: () => [] },
     paginationVisible: { type: Boolean, default: true },
     rows: { type: Array, default: () => [] },
+    selectedRowKeys: { type: Array, default: () => [] },
     summary: { type: String, default: '' },
   },
-  setup(props, { slots }) {
+  emits: ['select-change'],
+  setup(props, { emit, slots }) {
     return () =>
       h('div', { 'data-stub': 'ManagementPagedTable' }, [
         h('div', { 'data-columns': JSON.stringify(props.columns) }),
         h('div', { 'data-pagination-visible': String(props.paginationVisible) }),
         h('div', { 'data-summary': props.summary }),
         slots.toolbar?.(),
+        slots.batch?.(),
         ...(props.rows as Array<Record<string, unknown>>).map((row) =>
           h('div', { key: String(row.service_name), 'data-row': String(row.service_name) }, [
+            h(
+              'button',
+              {
+                'data-select-row': String(row.service_name),
+                onClick: () => emit('select-change', [row.service_name]),
+              },
+              'select',
+            ),
             slots.name?.({ row }),
             slots.status?.({ row }),
             slots.health?.({ row }),
@@ -455,7 +480,7 @@ function mountPage() {
   });
 }
 
-vi.mock('@/modules/container/api/container', () => ({
+vi.mock('@/modules/container/contract/project', () => ({
   batchContainerActions: containerApiMocks.batchContainerActions,
   getContainers: containerApiMocks.getContainers,
   getContainerEvents: containerApiMocks.getContainerEvents,
@@ -465,14 +490,9 @@ vi.mock('@/modules/container/api/container', () => ({
 vi.mock('../../api/project', () => ({
   getProject: projectApiMocks.getProject,
   getProjectConfiguration: projectApiMocks.getProjectConfiguration,
-  getProjectConfigurationFile: projectApiMocks.getProjectConfigurationFile,
-  getProjectConfigurationPreview: projectApiMocks.getProjectConfigurationPreview,
   getProjectLogs: projectApiMocks.getProjectLogs,
   getProjectOverview: projectApiMocks.getProjectOverview,
   getProjectServices: projectApiMocks.getProjectServices,
-  postProjectConfigurationDiff: projectApiMocks.postProjectConfigurationDiff,
-  postProjectConfigurationValidate: projectApiMocks.postProjectConfigurationValidate,
-  postProjectDeploy: projectApiMocks.postProjectDeploy,
   postProjectDestroy: projectApiMocks.postProjectDestroy,
   postProjectRedeploy: projectApiMocks.postProjectRedeploy,
   postProjectRestart: projectApiMocks.postProjectRestart,
@@ -534,6 +554,12 @@ vi.mock('@/shared/observability', () => ({
 }));
 
 vi.mock('@/shared/realtime', () => ({
+  createRealtimeSnapshotGate: ({ apply }: { apply: (snapshot: unknown) => void }) => ({
+    clear: vi.fn(),
+    commit: (snapshot: unknown) => apply(snapshot),
+    dispose: vi.fn(),
+    flush: vi.fn(),
+  }),
   openRealtimeTopicSocket: vi.fn(() => ({ close: vi.fn() })),
 }));
 
@@ -563,7 +589,6 @@ vi.mock('../../shared/display', () => ({
     unregister: true,
     up: status === 'stopped' || status === 'unknown' || status === 'transitioning' || !status,
   }),
-  projectOwnershipModeLabel: () => 'external',
   projectRefreshStatusLabel: () => 'success',
   projectRefreshStatusTheme: () => 'success',
   projectRuntimeStatusLabel: (value?: string | null) => value || 'running',
@@ -600,7 +625,6 @@ describe('Project detail service tab', () => {
       last_refresh_status: 'success',
       ownership_mode: 'external',
     });
-    projectApiMocks.getProjectConfigurationPreview.mockResolvedValue(null);
     projectApiMocks.getProjectLogs.mockResolvedValue({ entries: [] });
     projectApiMocks.getProjectOverview.mockResolvedValue(buildProjectOverview());
     projectApiMocks.getProjectServices.mockResolvedValue(buildProjectServices());
@@ -627,6 +651,20 @@ describe('Project detail service tab', () => {
     });
   });
 
+  it('redirects the legacy configuration tab query to the configuration workspace route', async () => {
+    routeState.value.query = { name: 'Compose Demo', tab: 'configuration' };
+
+    mountPage();
+    await flushPromises();
+
+    expect(routerMocks.replace).toHaveBeenCalledWith({
+      name: 'ProjectConfigurationWorkspaceIndex',
+      params: { id: '7' },
+      query: { name: 'Compose Demo' },
+    });
+    expect(projectApiMocks.getProject).not.toHaveBeenCalled();
+  });
+
   it('does not retry project logs bootstrap in a tight loop after a failed logs request', async () => {
     routeState.value.query = { tab: 'logs' };
     projectApiMocks.getProjectLogs.mockRejectedValue(new Error('boom'));
@@ -639,7 +677,7 @@ describe('Project detail service tab', () => {
     expect(messageMocks.error).not.toHaveBeenCalled();
   });
 
-  it('renders compact service columns without pagination', async () => {
+  it('renders service columns with shared pagination chrome', async () => {
     const wrapper = mountPage();
     await flushPromises();
 
@@ -647,6 +685,7 @@ describe('Project detail service tab', () => {
     const columns = table.props('columns') as Array<{ title: string }>;
 
     expect(columns.map((column) => column.title)).toEqual([
+      'Selection',
       'Service',
       'Status',
       'Image',
@@ -654,10 +693,22 @@ describe('Project detail service tab', () => {
       'Ports',
       'Operation',
     ]);
-    expect(table.props('paginationVisible')).toBe(false);
+    expect(table.props('paginationVisible')).toBe(true);
     expect(wrapper.text()).not.toContain('Containers');
     expect(wrapper.text()).not.toContain('Networks');
     expect(wrapper.text()).not.toContain('Volumes');
+  });
+
+  it('does not render the retired configuration tab label in detail tabs', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const tabLabels = wrapper
+      .findAll('[data-stub="TTabPanel"]')
+      .map((item) => item.text().trim())
+      .filter(Boolean);
+
+    expect(tabLabels).not.toContain('Configuration');
   });
 
   it('renders runtime published ports instead of declared compose mappings', async () => {
@@ -665,7 +716,7 @@ describe('Project detail service tab', () => {
     await flushPromises();
 
     expect(containerApiMocks.getContainers).toHaveBeenCalledWith({
-      limit: 200,
+      limit: 100,
       offset: 0,
       orchestrator: 'compose',
       source_scope: 'compose-demo',
@@ -674,6 +725,73 @@ describe('Project detail service tab', () => {
     expect(wrapper.find('[data-row="app"]').text()).toContain('8316:8080 TCP');
     expect(wrapper.find('[data-row="app"]').text()).not.toContain('127.0.0.1:8080:8080');
     expect(wrapper.find('[data-row="worker"]').text()).toContain('-');
+  });
+
+  it('paginates service rows locally while preserving the project-service summary', async () => {
+    projectApiMocks.getProjectServices.mockResolvedValueOnce({
+      items: Array.from({ length: 21 }, (_, index) => ({
+        build_context: null,
+        container_members: [],
+        declared_networks: [],
+        declared_ports: [],
+        declared_volumes: [],
+        image: `svc-${index + 1}:latest`,
+        running_count: 0,
+        service_name: `service-${index + 1}`,
+        stopped_count: 1,
+      })),
+    });
+    containerApiMocks.getContainers.mockResolvedValueOnce({ items: [], total: 0 });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.findAll('[data-row]').map((item) => item.attributes('data-row'))).toHaveLength(20);
+    expect(wrapper.find('[data-summary]').attributes('data-summary')).toBe('21 Services');
+  });
+
+  it('supports batch service restart from the selection bar', async () => {
+    const dialogInstance = {
+      destroy: vi.fn(),
+      setConfirmLoading: vi.fn(),
+    };
+    dialogMocks.confirm.mockReturnValueOnce(dialogInstance);
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.get('[data-select-row="app"]').trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-testid="project-service-batch-restart"]').trigger('click');
+    await flushPromises();
+
+    expect(dialogMocks.confirm).toHaveBeenCalledTimes(1);
+    const [dialogOptions] = dialogMocks.confirm.mock.calls[0] as [
+      {
+        onConfirm?: () => Promise<void> | void;
+      },
+    ];
+    await dialogOptions.onConfirm?.();
+    await flushPromises();
+
+    expect(containerApiMocks.batchContainerActions).toHaveBeenCalledWith({
+      action: 'restart',
+      force: false,
+      ids: ['container-1', 'container-2'],
+    });
+    expect(dialogInstance.setConfirmLoading).toHaveBeenNthCalledWith(1, true);
+    expect(dialogInstance.setConfirmLoading).toHaveBeenNthCalledWith(2, false);
+    expect(dialogInstance.destroy).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders the service batch selection bar with dedicated action alignment wrappers', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.get('[data-select-row="app"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.find('.project-service-batch-bar').exists()).toBe(true);
+    expect(wrapper.find('.project-service-batch-bar__actions').exists()).toBe(true);
   });
 
   it('prefers the first running member when opening service detail', async () => {
@@ -688,6 +806,30 @@ describe('Project detail service tab', () => {
         query: { name: 'compose-demo-2' },
       }),
     );
+  });
+
+  it('opens the configuration workspace from the detail page action area', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="project-detail-action-open-configuration-workspace"]').trigger('click');
+
+    expect(routerMocks.resolve).toHaveBeenCalledWith({
+      name: 'ProjectConfigurationWorkspaceIndex',
+      params: { id: '7' },
+      query: undefined,
+    });
+    expect(tabsRouterStoreMock.appendTabRouterList).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fullPath: '/ops/projects/7/configuration',
+        path: '/ops/projects/7/configuration',
+      }),
+    );
+    expect(routerMocks.push).toHaveBeenCalledWith({
+      name: 'ProjectConfigurationWorkspaceIndex',
+      params: { id: '7' },
+      query: undefined,
+    });
   });
 
   it('shows mutually exclusive service actions by running state', async () => {

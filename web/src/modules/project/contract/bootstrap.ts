@@ -45,4 +45,9 @@ export const PROJECT_BOOTSTRAP_ROUTE = {
     pageRouteName: 'ProjectDetailIndex',
     routeName: 'ProjectDetail',
   },
+  CONFIGURATION_WORKSPACE: {
+    path: PROJECT_ROUTE_PATH.CONFIGURATION_WORKSPACE,
+    pageRouteName: 'ProjectConfigurationWorkspaceIndex',
+    routeName: 'ProjectConfigurationWorkspace',
+  },
 } as const;
