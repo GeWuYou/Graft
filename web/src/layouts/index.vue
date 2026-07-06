@@ -54,16 +54,7 @@ import ForcePasswordChangeDialog from './components/ForcePasswordChangeDialog.vu
 import LayoutContent from './components/LayoutContent.vue';
 import LayoutHeader from './components/LayoutHeader.vue';
 import LayoutSideNav from './components/LayoutSideNav.vue';
-
-type SidebarMotionPhase =
-  | 'expanded'
-  | 'collapsing-width'
-  | 'collapsing-submenu'
-  | 'collapsing-topmenu'
-  | 'compact'
-  | 'expanding-width'
-  | 'expanding-topmenu'
-  | 'expanding-submenu';
+import type { SidebarMotionPhase } from './layout-navigation';
 
 const SIDEBAR_WIDTH_TRANSITION_MS = 320;
 const SIDEBAR_COLLAPSE_SUBMENU_DELAY_MS = 124;

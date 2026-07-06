@@ -1349,15 +1349,14 @@ watch(
 
 watch(activeDetailTab, (value) => {
   const currentTab = normalizeDetailTab(route.query.tab);
-  if (currentTab === value) {
-    return;
+  if (currentTab !== value) {
+    void router.replace({
+      query: {
+        ...route.query,
+        tab: value,
+      },
+    });
   }
-  void router.replace({
-    query: {
-      ...route.query,
-      tab: value,
-    },
-  });
 
   if (value === 'logs' && !(projectLogResponse.value?.entries.length ?? 0) && !projectLogLoading.value) {
     void loadProjectLogs();
@@ -2283,7 +2282,7 @@ function confirmDangerousAction(action: 'unregister' | 'destroy') {
               ])
             : null,
         ]),
-      theme: action === 'destroy' ? 'danger' : 'danger',
+      theme: 'danger',
       confirmBtn: {
         content: t('project.list.actions.confirm'),
         theme: 'danger',

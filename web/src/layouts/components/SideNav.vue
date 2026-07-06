@@ -34,7 +34,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import AssetLogoFull from '@/assets/assets-logo-full.svg?component';
 import AssetLogo from '@/assets/assets-t-logo.svg?component';
 import { prefix } from '@/config/global';
-import { findExpandedMenuPaths } from '@/layouts/layout-navigation';
+import { findExpandedMenuPaths, type SidebarMotionPhase } from '@/layouts/layout-navigation';
 import { useShellNavigation } from '@/layouts/useShellNavigation';
 import { t } from '@/locales';
 import { getActive } from '@/router';
@@ -46,16 +46,6 @@ import MenuContent from './MenuContent.vue';
 
 const appVersion = 'version' in pgk ? String(pgk.version) : '';
 const menuWidth = ['var(--graft-shell-sidebar-current-width)', 'var(--graft-shell-sidebar-current-width)'];
-
-type SidebarMotionPhase =
-  | 'expanded'
-  | 'collapsing-width'
-  | 'collapsing-submenu'
-  | 'collapsing-topmenu'
-  | 'compact'
-  | 'expanding-width'
-  | 'expanding-topmenu'
-  | 'expanding-submenu';
 
 const { menu, showLogo, isFixed, layout, theme, isCompact, renderCompact, motionPhase } = defineProps({
   menu: {

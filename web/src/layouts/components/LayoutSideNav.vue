@@ -16,24 +16,17 @@ import { storeToRefs } from 'pinia';
 import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 
+import type { SidebarMotionPhase } from '@/layouts/layout-navigation';
 import { usePermissionStore, useSettingStore } from '@/store';
 import type { MenuRoute } from '@/utils/types';
+
+import LSideNav from './SideNav.vue';
 
 defineProps<{
   renderCompact: boolean;
   widthCompact: boolean;
-  motionPhase:
-    | 'expanded'
-    | 'collapsing-width'
-    | 'collapsing-submenu'
-    | 'collapsing-topmenu'
-    | 'compact'
-    | 'expanding-width'
-    | 'expanding-topmenu'
-    | 'expanding-submenu';
+  motionPhase: SidebarMotionPhase;
 }>();
-
-import LSideNav from './SideNav.vue';
 
 const route = useRoute();
 const permissionStore = usePermissionStore();

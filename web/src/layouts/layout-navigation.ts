@@ -1,5 +1,15 @@
 import type { MenuRoute } from '@/utils/types';
 
+export type SidebarMotionPhase =
+  | 'expanded'
+  | 'collapsing-width'
+  | 'collapsing-submenu'
+  | 'collapsing-topmenu'
+  | 'compact'
+  | 'expanding-width'
+  | 'expanding-topmenu'
+  | 'expanding-submenu';
+
 export function flattenMixHeaderMenus(menus: MenuRoute[]): MenuRoute[] {
   return menus.map((menu) => ({
     ...menu,

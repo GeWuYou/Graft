@@ -1024,9 +1024,7 @@ Phase 1 的单文件内容返回建议包含：
 
 ## 10.5 Phase 1 明确不提供的 API
 
-- 不提供 `/api/ops/projects/{id}/logs`
 - 不提供 `/api/ops/projects/{id}/events`
-- 不提供项目级 realtime topic
 - 不提供配置编辑保存接口
 
 ## 10.6 Batch 1 authority 落地说明
