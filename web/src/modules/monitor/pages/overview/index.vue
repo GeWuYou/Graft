@@ -443,7 +443,7 @@ import { buildAuditEvidenceTargetLocation } from '@/modules/audit/contract/deep-
 import { openCorrelationErrorNotification, requestIdFromError } from '@/modules/audit/shared/correlation-actions';
 import { RefreshControlBar } from '@/shared/components/refresh';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
-import { useSettingStore } from '@/store';
+import { useRealtimeSchedulerStore, useSettingStore } from '@/store';
 
 import { getServerStatus } from '../../api/server-status';
 import MetricUsageBar from '../../components/MetricUsageBar.vue';
@@ -565,6 +565,7 @@ interface DependencyPoolView {
 
 const { t, locale } = useI18n();
 const settingStore = useSettingStore();
+const realtimeSchedulerStore = useRealtimeSchedulerStore();
 const {
   autoRefreshEnabled,
   refreshIntervalOptions,
@@ -1120,6 +1121,10 @@ function toggleAutoRefresh() {
   toggleSharedAutoRefresh();
 
   if (autoRefreshEnabled.value && isPageVisible.value && selectedRefreshInterval.value > 0) {
+    if (!realtimeSchedulerStore.allowPolling) {
+      scheduleNextRefresh();
+      return;
+    }
     void fetchServerStatus({ manual: true });
     return;
   }
@@ -1130,7 +1135,12 @@ function toggleAutoRefresh() {
 
 function scheduleNextRefresh() {
   stopRefreshTick();
-  if (!autoRefreshEnabled.value || !isPageVisible.value || selectedRefreshInterval.value <= 0) {
+  if (
+    !autoRefreshEnabled.value ||
+    !isPageVisible.value ||
+    selectedRefreshInterval.value <= 0 ||
+    !realtimeSchedulerStore.allowPolling
+  ) {
     remainingRefreshSeconds.value = null;
     return;
   }
@@ -1169,6 +1179,11 @@ function stopRefreshTick() {
 function handleVisibilityChange() {
   isPageVisible.value = document.visibilityState === 'visible';
   if (isPageVisible.value && autoRefreshEnabled.value && selectedRefreshInterval.value > 0) {
+    if (!realtimeSchedulerStore.allowPolling) {
+      stopRefreshTick();
+      remainingRefreshSeconds.value = null;
+      return;
+    }
     void fetchServerStatus();
     return;
   }
@@ -2011,6 +2026,18 @@ watch(selectedRefreshInterval, (nextValue, previousValue) => {
 
   scheduleNextRefresh();
 });
+
+watch(
+  () => realtimeSchedulerStore.allowPolling,
+  (allowPolling) => {
+    if (!allowPolling) {
+      stopRefreshTick();
+      remainingRefreshSeconds.value = null;
+      return;
+    }
+    scheduleNextRefresh();
+  },
+);
 
 onMounted(async () => {
   await fetchServerStatus();

@@ -150,6 +150,9 @@ vi.mock('vue-router', () => ({
 }));
 
 vi.mock('@/store', () => ({
+  useRealtimeSchedulerStore: () => ({
+    allowPolling: true,
+  }),
   useTabsRouterStore: () => tabsRouterStoreMock,
 }));
 

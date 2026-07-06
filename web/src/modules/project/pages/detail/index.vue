@@ -875,7 +875,11 @@ import {
   normalizeStructuredLogEntry,
   toProgressPercent,
 } from '@/shared/observability';
-import { openRealtimeTopicSocket, type RealtimeTopicSocketController } from '@/shared/realtime';
+import {
+  createRealtimeSnapshotGate,
+  openRealtimeTopicSocket,
+  type RealtimeTopicSocketController,
+} from '@/shared/realtime';
 import { useTabsRouterStore } from '@/store/modules/tabs-router';
 import { createLogger } from '@/utils/logger';
 
@@ -1080,6 +1084,15 @@ let projectLogsRealtimeController: RealtimeTopicSocketController | null = null;
 let projectDetailRealtimeTopic = '';
 let projectLogsRealtimeTopic = '';
 const projectLogSeenKeys = new Set<string>();
+const projectDetailRealtimeGate = createRealtimeSnapshotGate({
+  apply: (message: {
+    detail: ProjectDetailResponseWithLifecycle;
+    overview: ProjectOverviewResponse;
+    services: { items: ProjectServiceItem[] };
+  }) => {
+    applyProjectRealtimeSnapshot(message);
+  },
+});
 
 const projectId = computed(() => Number(route.params.id));
 const activeTabRoute = computed(() =>
@@ -1334,6 +1347,7 @@ onMounted(async () => {
 onUnmounted(() => {
   releaseProjectDetailRealtimeSubscription();
   releaseProjectLogsRealtimeSubscription();
+  projectDetailRealtimeGate.dispose();
 });
 
 watch(
@@ -1868,7 +1882,7 @@ function syncProjectDetailRealtimeSubscription() {
     topic: nextTopic,
     parseMessage: parseProjectDetailRealtimePayload,
     onMessage: (message) => {
-      applyProjectRealtimeSnapshot(message);
+      projectDetailRealtimeGate.commit(message);
     },
     onStateChange: (state) => {
       projectDetailSocketState.value = state;

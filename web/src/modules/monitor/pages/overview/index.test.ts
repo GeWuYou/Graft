@@ -305,6 +305,9 @@ vi.mock('../../api/server-status', () => ({
 }));
 
 vi.mock('@/store', () => ({
+  useRealtimeSchedulerStore: () => ({
+    allowPolling: true,
+  }),
   useSettingStore: () => settingStoreMock,
   useTabsRouterStore: () => tabsRouterStoreMock,
 }));

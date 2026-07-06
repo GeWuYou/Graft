@@ -404,7 +404,7 @@ import { RefreshIcon } from 'tdesign-icons-vue-next';
 import type { DialogInstance, TableProps } from 'tdesign-vue-next';
 import { DialogPlugin } from 'tdesign-vue-next/es/dialog';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
-import { computed, h, onActivated, onDeactivated, onMounted, onUnmounted, ref } from 'vue';
+import { computed, h, onActivated, onDeactivated, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
@@ -418,6 +418,7 @@ import {
   TableViewToolbar,
 } from '@/shared/components/management';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
+import { useRealtimeSchedulerStore } from '@/store';
 import { useTabsRouterStore } from '@/store/modules/tabs-router';
 import { createLogger } from '@/utils/logger';
 import { localizeRouteTitleKey } from '@/utils/route/title';
@@ -470,6 +471,7 @@ defineOptions({
 
 const { locale, t } = useI18n();
 const router = useRouter();
+const realtimeSchedulerStore = useRealtimeSchedulerStore();
 const tabsRouterStore = useTabsRouterStore();
 const logger = createLogger('project.list');
 
@@ -630,6 +632,19 @@ onDeactivated(() => {
   stopPolling();
 });
 
+watch(
+  () => realtimeSchedulerStore.allowPolling,
+  (allowPolling) => {
+    if (!allowPolling) {
+      stopPolling();
+      return;
+    }
+    if (realtimeActive.value) {
+      startPolling();
+    }
+  },
+);
+
 function projectRow(row: unknown) {
   return row as ProjectListItemWithLifecycle;
 }
@@ -772,7 +787,7 @@ const pendingRowTimeouts = new Map<number, number>();
 
 function startPolling() {
   stopPolling();
-  if (!realtimeActive.value || typeof window === 'undefined') {
+  if (!realtimeActive.value || typeof window === 'undefined' || !realtimeSchedulerStore.allowPolling) {
     return;
   }
   pollTimer = window.setInterval(() => {

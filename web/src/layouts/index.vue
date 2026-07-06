@@ -45,7 +45,7 @@ import { useRoute, useRouter } from 'vue-router';
 
 import { prefix } from '@/config/global';
 import { LOCALE } from '@/contracts/i18n/locales';
-import { useSettingStore, useTabsRouterStore } from '@/store';
+import { useRealtimeSchedulerStore, useSettingStore, useTabsRouterStore } from '@/store';
 import { createLogger } from '@/utils/logger';
 import { resolveRouteLocalizedTitle, toLocalizedTitle } from '@/utils/route/meta';
 import type { AppRouteMeta } from '@/utils/types';
@@ -65,6 +65,7 @@ const SIDEBAR_EXPAND_SUBMENU_DELAY_MS = 224;
 const route = useRoute();
 const router = useRouter();
 const settingStore = useSettingStore();
+const realtimeSchedulerStore = useRealtimeSchedulerStore();
 const tabsRouterStore = useTabsRouterStore();
 const setting = storeToRefs(settingStore);
 const logger = createLogger('layout.tabs');
@@ -72,6 +73,9 @@ const sidebarRenderCompact = ref(settingStore.isSidebarCompact);
 const sidebarWidthCompact = ref(settingStore.isSidebarCompact);
 const sidebarMotionPhase = ref<SidebarMotionPhase>(settingStore.isSidebarCompact ? 'compact' : 'expanded');
 const sidebarMotionTimers = new Set<number>();
+let sidebarFreezeToken: number | null = null;
+let sidebarResumeFrameId: number | null = null;
+let sidebarResumeNestedFrameId: number | null = null;
 
 const shellSurfaceAttrs = computed(() => ({
   'data-layout-mode': settingStore.layout,
@@ -97,6 +101,44 @@ const clearSidebarMotionTimers = () => {
   sidebarMotionTimers.clear();
 };
 
+const clearSidebarResumeFrames = () => {
+  if (sidebarResumeFrameId !== null) {
+    window.cancelAnimationFrame(sidebarResumeFrameId);
+    sidebarResumeFrameId = null;
+  }
+  if (sidebarResumeNestedFrameId !== null) {
+    window.cancelAnimationFrame(sidebarResumeNestedFrameId);
+    sidebarResumeNestedFrameId = null;
+  }
+};
+
+const acquireSidebarFreeze = () => {
+  clearSidebarResumeFrames();
+  if (sidebarFreezeToken !== null) {
+    return;
+  }
+  sidebarFreezeToken = realtimeSchedulerStore.freeze('shell-sidebar-motion');
+};
+
+const releaseSidebarFreeze = () => {
+  if (sidebarFreezeToken === null) {
+    return;
+  }
+  realtimeSchedulerStore.release(sidebarFreezeToken);
+  sidebarFreezeToken = null;
+};
+
+const scheduleSidebarFreezeRelease = () => {
+  clearSidebarResumeFrames();
+  sidebarResumeFrameId = window.requestAnimationFrame(() => {
+    sidebarResumeFrameId = null;
+    sidebarResumeNestedFrameId = window.requestAnimationFrame(() => {
+      sidebarResumeNestedFrameId = null;
+      releaseSidebarFreeze();
+    });
+  });
+};
+
 const scheduleSidebarMotion = (callback: () => void, delay: number) => {
   const timerId = window.setTimeout(() => {
     sidebarMotionTimers.delete(timerId);
@@ -107,6 +149,7 @@ const scheduleSidebarMotion = (callback: () => void, delay: number) => {
 
 const startSidebarMotion = (targetCompact: boolean) => {
   clearSidebarMotionTimers();
+  acquireSidebarFreeze();
 
   if (targetCompact) {
     sidebarRenderCompact.value = false;
@@ -122,6 +165,7 @@ const startSidebarMotion = (targetCompact: boolean) => {
     scheduleSidebarMotion(() => {
       sidebarRenderCompact.value = true;
       sidebarMotionPhase.value = 'compact';
+      scheduleSidebarFreezeRelease();
     }, SIDEBAR_WIDTH_TRANSITION_MS);
     return;
   }
@@ -137,6 +181,7 @@ const startSidebarMotion = (targetCompact: boolean) => {
   }, SIDEBAR_EXPAND_SUBMENU_DELAY_MS);
   scheduleSidebarMotion(() => {
     sidebarMotionPhase.value = 'expanded';
+    scheduleSidebarFreezeRelease();
   }, SIDEBAR_WIDTH_TRANSITION_MS);
 };
 
@@ -185,6 +230,8 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   clearSidebarMotionTimers();
+  clearSidebarResumeFrames();
+  releaseSidebarFreeze();
 });
 
 watch(

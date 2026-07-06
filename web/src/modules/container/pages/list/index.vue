@@ -149,8 +149,8 @@
         </div>
       </template>
       <template #batch>
-        <div v-if="selectedRows.length > 0" class="container-batch-bar">
-          <span>{{ t('container.list.batch.selected', { count: selectedRows.length }) }}</span>
+        <div v-if="selectedRowKeys.length > 0" class="container-batch-bar">
+          <span>{{ t('container.list.batch.selected', { count: selectedRowKeys.length }) }}</span>
           <div class="container-batch-bar__actions">
             <t-tooltip :content="batchActionHint('start')" placement="top">
               <t-button
@@ -466,14 +466,22 @@ const footerSummary = computed(() => {
     total: listTotal.value,
   });
 });
+
+function buildSelectedRowMap() {
+  const selectedRowMap = new Map(selectedRowRecords.value.map((row) => [row.id, row]));
+  rows.value.forEach((row) => {
+    selectedRowMap.set(row.id, row);
+  });
+  return selectedRowMap;
+}
+
 const selectedRows = computed(() => {
-  const rowMap = new Map(rows.value.map((row) => [row.id, row]));
-  const cachedRowMap = new Map(selectedRowRecords.value.map((row) => [row.id, row]));
+  const rowMap = buildSelectedRowMap();
 
   return selectedRowKeys.value
     .map((key) => {
       const id = String(key);
-      return rowMap.get(id) ?? cachedRowMap.get(id) ?? null;
+      return rowMap.get(id) ?? null;
     })
     .filter((row): row is ContainerSummaryRecord => Boolean(row));
 });
@@ -599,18 +607,9 @@ function syncSelectedRowsFromCurrentPage() {
     return;
   }
 
-  const currentPageRowMap = new Map(rows.value.map((row) => [row.id, row]));
-  const nextSelectedRecords = new Map(selectedRowRecords.value.map((row) => [row.id, row]));
-
-  for (const key of selectedRowKeys.value) {
-    const currentRow = currentPageRowMap.get(String(key));
-    if (currentRow) {
-      nextSelectedRecords.set(currentRow.id, currentRow);
-    }
-  }
-
+  const rowMap = buildSelectedRowMap();
   selectedRowRecords.value = selectedRowKeys.value
-    .map((key) => nextSelectedRecords.get(String(key)) ?? null)
+    .map((key) => rowMap.get(String(key)) ?? null)
     .filter((row): row is ContainerSummaryRecord => Boolean(row));
 }
 
@@ -1138,9 +1137,7 @@ function handleSelectChange(rowKeys: Array<string | number>) {
   const normalizedCurrentPageKeys = rowKeys.filter((key) => rowMap.has(String(key)));
 
   selectedRowKeys.value = [...preservedRowKeys, ...normalizedCurrentPageKeys];
-  selectedRowRecords.value = selectedRowKeys.value
-    .map((key) => rowMap.get(String(key)) ?? selectedRowRecords.value.find((row) => row.id === String(key)) ?? null)
-    .filter((row): row is ContainerSummaryRecord => Boolean(row));
+  syncSelectedRowsFromCurrentPage();
 }
 
 function confirmBatchAction(action: DangerousContainerAction) {

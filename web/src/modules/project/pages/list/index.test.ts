@@ -293,6 +293,12 @@ vi.mock('@/store/modules/tabs-router', () => ({
   useTabsRouterStore: () => tabsRouterStoreMock,
 }));
 
+vi.mock('@/store', () => ({
+  useRealtimeSchedulerStore: () => ({
+    allowPolling: true,
+  }),
+}));
+
 vi.mock('@/shared/localized-api-error', () => ({
   resolveLocalizedErrorMessage: (_t: unknown, _error: unknown, fallback: string) => fallback,
 }));
