@@ -5,7 +5,11 @@
 import type * as Monaco from 'monaco-editor';
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
-import { buildProjectMonacoModelUri, ensureProjectMonacoConfigured } from '../shared/project-monaco';
+import {
+  buildProjectMonacoModelUri,
+  createProjectMonacoModelUriSuffix,
+  ensureProjectMonacoConfigured,
+} from '../shared/project-monaco';
 
 type MonacoEditorSurfaceOptions = Monaco.editor.IStandaloneEditorConstructionOptions;
 
@@ -31,6 +35,7 @@ const emit = defineEmits<{
 }>();
 
 const containerRef = ref<HTMLElement | null>(null);
+const modelUriSuffix = createProjectMonacoModelUriSuffix();
 let monaco: typeof Monaco | null = null;
 let editor: Monaco.editor.IStandaloneCodeEditor | null = null;
 let model: Monaco.editor.ITextModel | null = null;
@@ -73,9 +78,10 @@ watch(
     if (!monaco || !editor) {
       return;
     }
+    editor.setModel(null);
+    model?.dispose();
     const nextModel = createModel(monaco);
     editor.setModel(nextModel);
-    model?.dispose();
     model = nextModel;
   },
 );
@@ -143,7 +149,7 @@ function createModel(monacoInstance: typeof Monaco) {
   return monacoInstance.editor.createModel(
     String(props.modelValue ?? ''),
     props.language,
-    buildProjectMonacoModelUri(props.modelKey, props.language),
+    buildProjectMonacoModelUri(props.modelKey, props.language, modelUriSuffix),
   );
 }
 </script>

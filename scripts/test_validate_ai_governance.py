@@ -58,6 +58,17 @@ class AiToolingDocTests(unittest.TestCase):
     def test_ai_tooling_doc_is_currently_satisfied(self) -> None:
         self.assertEqual(MODULE.validate_ai_tooling_doc(), [])
 
+    def test_ai_tooling_doc_reports_missing_required_term(self) -> None:
+        current_text = MODULE.read_text(MODULE.AI_TOOLING_DOC)
+        mutated_text = current_text.replace("headroom_stats", "", 1)
+
+        self.assertNotEqual(current_text, mutated_text)
+
+        with mock.patch.object(MODULE, "read_text", return_value=mutated_text):
+            findings = MODULE.validate_ai_tooling_doc()
+
+        self.assertTrue(any("missing AI tooling governance term 'headroom_stats'" == finding.message for finding in findings))
+
 
 class PushBranchGovernanceTests(unittest.TestCase):
     def test_push_branch_governance_is_currently_satisfied(self) -> None:

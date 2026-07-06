@@ -5,7 +5,11 @@
 import type * as Monaco from 'monaco-editor';
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
-import { buildProjectMonacoModelUri, ensureProjectMonacoConfigured } from '../shared/project-monaco';
+import {
+  buildProjectMonacoModelUri,
+  createProjectMonacoModelUriSuffix,
+  ensureProjectMonacoConfigured,
+} from '../shared/project-monaco';
 
 const props = withDefaults(
   defineProps<{
@@ -23,6 +27,7 @@ const props = withDefaults(
 );
 
 const containerRef = ref<HTMLElement | null>(null);
+const modelUriSuffix = createProjectMonacoModelUriSuffix();
 let monaco: typeof Monaco | null = null;
 let editor: Monaco.editor.IStandaloneDiffEditor | null = null;
 let originalModel: Monaco.editor.ITextModel | null = null;
@@ -100,27 +105,29 @@ function bindModels(monacoInstance: typeof Monaco, disposeExisting: boolean) {
     return;
   }
 
+  if (disposeExisting) {
+    editor.setModel(null);
+    originalModel?.dispose();
+    modifiedModel?.dispose();
+    originalModel = null;
+    modifiedModel = null;
+  }
+
   const nextOriginal = monacoInstance.editor.createModel(
     props.originalValue,
     props.language,
-    buildProjectMonacoModelUri(props.originalKey, props.language),
+    buildProjectMonacoModelUri(props.originalKey, props.language, `${modelUriSuffix}-original`),
   );
   const nextModified = monacoInstance.editor.createModel(
     props.modifiedValue,
     props.language,
-    buildProjectMonacoModelUri(props.modifiedKey, props.language),
+    buildProjectMonacoModelUri(props.modifiedKey, props.language, `${modelUriSuffix}-modified`),
   );
 
   editor.setModel({
     modified: nextModified,
     original: nextOriginal,
   });
-
-  if (disposeExisting) {
-    originalModel?.dispose();
-    modifiedModel?.dispose();
-  }
-
   originalModel = nextOriginal;
   modifiedModel = nextModified;
 }

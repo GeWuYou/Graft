@@ -23,6 +23,9 @@ describe('configuration workspace helpers', () => {
     ).toBe('yaml');
     expect(resolveWorkspaceMonacoLanguage({ fileKind: 'env', languageHint: 'dotenv', path: '.env' })).toBe('ini');
     expect(resolveWorkspaceMonacoLanguage({ fileKind: 'config', languageHint: 'json', path: 'app.json' })).toBe('json');
+    expect(resolveWorkspaceMonacoLanguage({ fileKind: 'config', languageHint: null, path: 'Dockerfile' })).toBe(
+      'dockerfile',
+    );
   });
 
   it('extracts a presentable file name from a relative path', () => {

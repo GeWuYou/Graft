@@ -27,17 +27,14 @@ import type {
   ProjectActionResponse,
   ProjectBatchActionRequest,
   ProjectBatchActionResponse,
-  ProjectConfigurationDiffRequest,
   ProjectConfigurationDiffResponse,
   ProjectConfigurationMetadataResponse,
   ProjectConfigurationPreviewResponse,
-  ProjectConfigurationValidateRequest,
   ProjectConfigurationValidateResponse,
   ProjectCreateRequest,
   ProjectCreateResponse,
   ProjectCreateValidateRequest,
   ProjectCreateValidateResponse,
-  ProjectDeployRequest,
   ProjectDeployResponse,
   ProjectDestroyRequest,
   ProjectDetailResponseWithLifecycle,
@@ -310,16 +307,11 @@ export function putProjectFileContent(
  * 提交项目配置差异计算请求。
  *
  * @param id - 项目 ID
- * @param payload - 用于生成配置差异的请求内容
  * @returns 配置差异结果
  */
-export function postProjectConfigurationDiff(
-  id: ProjectConfigurationDiffPathParams['id'],
-  payload?: ProjectConfigurationDiffRequest,
-) {
+export function postProjectConfigurationDiff(id: ProjectConfigurationDiffPathParams['id']) {
   return postProjectAction<ProjectConfigurationDiffData>(
     buildProjectConfigurationDiffApiPath(id),
-    payload,
   ) as Promise<ProjectConfigurationDiffResponse>;
 }
 
@@ -327,16 +319,11 @@ export function postProjectConfigurationDiff(
  * 校验指定项目的配置。
  *
  * @param id - 项目 ID
- * @param payload - 配置校验请求内容
  * @returns 配置校验结果
  */
-export function postProjectConfigurationValidate(
-  id: ProjectConfigurationValidatePathParams['id'],
-  payload?: ProjectConfigurationValidateRequest,
-) {
+export function postProjectConfigurationValidate(id: ProjectConfigurationValidatePathParams['id']) {
   return postProjectAction<ProjectConfigurationValidateData>(
     buildProjectConfigurationValidateApiPath(id),
-    payload,
   ) as Promise<ProjectConfigurationValidateResponse>;
 }
 
@@ -427,11 +414,10 @@ export function postProjectRefresh(id: ProjectRefreshPathParams['id']) {
  * 部署指定项目。
  *
  * @param id - 项目 ID
- * @param payload - 部署请求参数
  * @returns 部署操作的响应结果
  */
-export function postProjectDeploy(id: ProjectDeployPathParams['id'], payload?: ProjectDeployRequest) {
-  return postProjectAction<ProjectDeployData>(buildProjectDeployApiPath(id), payload) as Promise<ProjectDeployResponse>;
+export function postProjectDeploy(id: ProjectDeployPathParams['id']) {
+  return postProjectAction<ProjectDeployData>(buildProjectDeployApiPath(id)) as Promise<ProjectDeployResponse>;
 }
 
 /**

@@ -110,25 +110,37 @@ export function useServerStatusSnapshot() {
     return 'running';
   });
 
-  function handleVisibilityChange() {
-    isPageVisible.value = document.visibilityState === 'visible';
+  function canRunAutoRefreshCycle() {
+    return (
+      autoRefreshEnabled.value &&
+      isPageVisible.value &&
+      selectedRefreshInterval.value > 0 &&
+      realtimeSchedulerStore.allowPolling
+    );
+  }
 
-    if (isPageVisible.value && autoRefreshEnabled.value && selectedRefreshInterval.value > 0) {
-      if (!realtimeSchedulerStore.allowPolling) {
-        stopRefreshTick();
-        remainingRefreshSeconds.value = null;
-        return;
-      }
-      void refreshSnapshot();
-      return;
-    }
-
+  function clearRefreshSchedule() {
     stopRefreshTick();
     remainingRefreshSeconds.value = null;
   }
 
+  function handleVisibilityChange() {
+    isPageVisible.value = document.visibilityState === 'visible';
+
+    if (canRunAutoRefreshCycle()) {
+      void refreshSnapshot();
+      return;
+    }
+
+    clearRefreshSchedule();
+  }
+
   onMounted(() => {
-    void refreshSnapshot();
+    if (realtimeSchedulerStore.allowPolling) {
+      void refreshSnapshot();
+    } else {
+      clearRefreshSchedule();
+    }
     document.addEventListener('visibilitychange', handleVisibilityChange, false);
   });
 
@@ -145,8 +157,12 @@ export function useServerStatusSnapshot() {
     () => realtimeSchedulerStore.allowPolling,
     (allowPolling) => {
       if (!allowPolling) {
-        stopRefreshTick();
-        remainingRefreshSeconds.value = null;
+        clearRefreshSchedule();
+        return;
+      }
+
+      if (!initialized.value && !serverStatus.value) {
+        void refreshSnapshot();
         return;
       }
       scheduleNextRefresh();
@@ -156,12 +172,7 @@ export function useServerStatusSnapshot() {
   function scheduleNextRefresh() {
     stopRefreshTick();
 
-    if (
-      !autoRefreshEnabled.value ||
-      !isPageVisible.value ||
-      selectedRefreshInterval.value <= 0 ||
-      !realtimeSchedulerStore.allowPolling
-    ) {
+    if (!canRunAutoRefreshCycle()) {
       remainingRefreshSeconds.value = null;
       return;
     }
@@ -192,17 +203,12 @@ export function useServerStatusSnapshot() {
   function toggleAutoRefresh() {
     toggleSharedAutoRefresh();
 
-    if (autoRefreshEnabled.value && isPageVisible.value && selectedRefreshInterval.value > 0) {
-      if (!realtimeSchedulerStore.allowPolling) {
-        scheduleNextRefresh();
-        return;
-      }
+    if (canRunAutoRefreshCycle()) {
       void refreshSnapshot();
       return;
     }
 
-    stopRefreshTick();
-    remainingRefreshSeconds.value = null;
+    clearRefreshSchedule();
   }
 
   function updateRemainingRefreshSeconds() {

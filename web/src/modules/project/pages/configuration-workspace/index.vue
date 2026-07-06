@@ -571,7 +571,7 @@ const readonlyOptions = {
   wordWrap: 'off' as const,
 };
 
-const workspaceCopy = computed(() => resolveConfigurationWorkspaceCopy(locale.value));
+const workspaceCopy = computed(() => resolveConfigurationWorkspaceCopy((key) => String(t(key))));
 const projectId = computed(() => Number(route.params.id));
 const fallbackDisplayName = computed(() => {
   const queryName = typeof route.query.name === 'string' ? route.query.name.trim() : '';

@@ -1072,6 +1072,20 @@ const refreshControlStatus = computed(() => {
   return 'running' as const;
 });
 
+function canRunAutoRefreshCycle() {
+  return (
+    autoRefreshEnabled.value &&
+    isPageVisible.value &&
+    selectedRefreshInterval.value > 0 &&
+    realtimeSchedulerStore.allowPolling
+  );
+}
+
+function clearRefreshSchedule() {
+  stopRefreshTick();
+  remainingRefreshSeconds.value = null;
+}
+
 async function fetchServerStatus(options: { manual?: boolean } = {}) {
   const requestedTrendRange = selectedTrendRange.value;
   if (loading.value) {
@@ -1120,28 +1134,18 @@ async function fetchServerStatus(options: { manual?: boolean } = {}) {
 function toggleAutoRefresh() {
   toggleSharedAutoRefresh();
 
-  if (autoRefreshEnabled.value && isPageVisible.value && selectedRefreshInterval.value > 0) {
-    if (!realtimeSchedulerStore.allowPolling) {
-      scheduleNextRefresh();
-      return;
-    }
+  if (canRunAutoRefreshCycle()) {
     void fetchServerStatus({ manual: true });
     return;
   }
 
-  stopRefreshTick();
-  remainingRefreshSeconds.value = null;
+  clearRefreshSchedule();
 }
 
 function scheduleNextRefresh() {
   stopRefreshTick();
-  if (
-    !autoRefreshEnabled.value ||
-    !isPageVisible.value ||
-    selectedRefreshInterval.value <= 0 ||
-    !realtimeSchedulerStore.allowPolling
-  ) {
-    remainingRefreshSeconds.value = null;
+  if (!canRunAutoRefreshCycle()) {
+    clearRefreshSchedule();
     return;
   }
 
@@ -1178,18 +1182,12 @@ function stopRefreshTick() {
 
 function handleVisibilityChange() {
   isPageVisible.value = document.visibilityState === 'visible';
-  if (isPageVisible.value && autoRefreshEnabled.value && selectedRefreshInterval.value > 0) {
-    if (!realtimeSchedulerStore.allowPolling) {
-      stopRefreshTick();
-      remainingRefreshSeconds.value = null;
-      return;
-    }
+  if (canRunAutoRefreshCycle()) {
     void fetchServerStatus();
     return;
   }
 
-  stopRefreshTick();
-  remainingRefreshSeconds.value = null;
+  clearRefreshSchedule();
 }
 
 function handleRefreshIntervalChange(value: number | string) {

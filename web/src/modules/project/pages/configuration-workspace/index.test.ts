@@ -29,6 +29,20 @@ const pageContextState = reactive({
   locale: 'en-US',
 });
 
+const workspaceCopyMessages = {
+  'en-US': {
+    'project.configurationWorkspace.copy.deployAction': 'Deploy Project',
+    'project.configurationWorkspace.copy.saveAction': 'Save',
+    'project.configurationWorkspace.copy.saveThenContinueAction': 'Save',
+  },
+  'zh-CN': {
+    'project.configurationWorkspace.copy.deployAction': '部署项目',
+    'project.configurationWorkspace.copy.deployDirtyBody': '检测到未保存的修改，是否先保存？',
+    'project.configurationWorkspace.copy.saveAction': '保存',
+    'project.configurationWorkspace.copy.saveThenContinueAction': '保存',
+  },
+} as const;
+
 vi.mock('../../api/project', () => ({
   getProject: mocks.getProject,
   getProjectConfiguration: mocks.getProjectConfiguration,
@@ -44,7 +58,10 @@ vi.mock('../../api/project', () => ({
 vi.mock('../../shared/page-context', () => ({
   useProjectPageContext: () => ({
     locale: computed(() => pageContextState.locale),
-    t: mocks.t,
+    t: (key: string) =>
+      workspaceCopyMessages[pageContextState.locale as keyof typeof workspaceCopyMessages]?.[
+        key as keyof (typeof workspaceCopyMessages)[keyof typeof workspaceCopyMessages]
+      ] ?? mocks.t(key),
   }),
 }));
 

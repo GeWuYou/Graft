@@ -1157,6 +1157,7 @@ watch(serviceTableRows, (rows) => {
 
 watch(projectId, () => {
   resetProjectLogsState();
+  projectDetailRealtimeGate.clear();
   releaseProjectDetailRealtimeSubscription();
   releaseProjectLogsRealtimeSubscription();
   syncProjectDetailRealtimeSubscription();
@@ -1580,7 +1581,10 @@ function clearSelectedServices() {
   selectedServiceRowKeys.value = [];
 }
 
-function isServiceBatchActionEligible(row: ServiceTableRow, action: ProjectContainerAction) {
+function canRunServiceContainerAction(
+  row: Pick<ServiceTableRow, 'hasMembers' | 'runningCount'>,
+  action: ProjectContainerAction,
+) {
   if (!row.hasMembers) {
     return false;
   }
@@ -1588,6 +1592,10 @@ function isServiceBatchActionEligible(row: ServiceTableRow, action: ProjectConta
     return row.runningCount === 0;
   }
   return row.runningCount > 0;
+}
+
+function isServiceBatchActionEligible(row: ServiceTableRow, action: ProjectContainerAction) {
+  return canRunServiceContainerAction(row, action);
 }
 
 function serviceBatchActionableRows(action: ProjectContainerAction) {
@@ -1608,7 +1616,7 @@ function serviceActionOptions(row: ServiceTableRow) {
     },
   ];
 
-  if (row.hasMembers && row.runningCount === 0) {
+  if (canRunServiceContainerAction(row, 'start')) {
     actions.push({
       disabled: rowLoading,
       label: 'project.detail.services.actions.start',
@@ -1616,7 +1624,7 @@ function serviceActionOptions(row: ServiceTableRow) {
     });
   }
 
-  if (row.runningCount > 0) {
+  if (canRunServiceContainerAction(row, 'stop')) {
     actions.push(
       {
         disabled: rowLoading,

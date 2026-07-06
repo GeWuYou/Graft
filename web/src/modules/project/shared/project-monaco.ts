@@ -20,6 +20,7 @@ declare global {
 }
 
 let monacoConfigured = false;
+let modelUriSuffixSeed = 0;
 
 function buildWorker(label: string) {
   switch (label) {
@@ -53,10 +54,18 @@ export function ensureProjectMonacoConfigured() {
   return monaco;
 }
 
-export function buildProjectMonacoModelUri(key: string, language: string) {
+export function createProjectMonacoModelUriSuffix() {
+  modelUriSuffixSeed += 1;
+  return `model-${modelUriSuffixSeed}`;
+}
+
+export function buildProjectMonacoModelUri(key: string, language: string, suffix?: string) {
   const normalizedKey = key.replace(/[^a-z0-9/_.-]/giu, '-');
   const extension = resolveLanguageExtension(language);
-  return monaco.Uri.parse(`inmemory://project-configuration-workspace/${normalizedKey}.${extension}`);
+  const normalizedSuffix = suffix ? `-${suffix.replace(/[^a-z0-9/_.-]/giu, '-')}` : '';
+  return monaco.Uri.parse(
+    `inmemory://project-configuration-workspace/${normalizedKey}${normalizedSuffix}.${extension}`,
+  );
 }
 
 function resolveLanguageExtension(language: string) {

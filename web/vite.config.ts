@@ -125,7 +125,9 @@ export function createViteConfig(mode: string): UserConfig {
   return {
     base,
     build: {
-      chunkSizeWarningLimit: 1600,
+      // Monaco and YAML worker code is intentionally isolated into a dedicated vendor chunk.
+      // Keep the warning visible for unusually large bundles while avoiding noise from this known split.
+      chunkSizeWarningLimit: 2200,
       rollupOptions: {
         onwarn(warning, warn) {
           // `@vueuse/core` 当前版本产物会触发 Rollup 对 `#__PURE__` 注释位置的已知噪音，
