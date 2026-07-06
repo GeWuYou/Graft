@@ -131,9 +131,6 @@ def build_ai_inventory(raw: dict[str, Any]) -> dict[str, Any]:
     has_docker = available_tool(raw, "project_tools", "docker")
     has_gh = optional_bool_value(raw, False, "project_tools", "gh", "installed")
     has_gh_authenticated = optional_bool_value(raw, False, "project_tools", "gh", "authenticated")
-    has_eff_u_code = optional_bool_value(raw, False, "ai_tools", "eff_u_code", "installed")
-    eff_u_code_path = optional_string_value(raw, "", "ai_tools", "eff_u_code", "path")
-    eff_u_code_version = optional_string_value(raw, "not-installed", "ai_tools", "eff_u_code", "version")
     has_headroom = optional_bool_value(raw, False, "ai_tools", "headroom", "installed")
     headroom_path = optional_string_value(raw, "", "ai_tools", "headroom", "path")
     headroom_mcp_command = optional_string_value(raw, "", "ai_tools", "headroom", "mcp_command")
@@ -279,16 +276,6 @@ def build_ai_inventory(raw: dict[str, Any]) -> dict[str, Any]:
             "server_build_and_test": server_build_and_test,
         },
         "ai_tools": {
-            "eff_u_code": {
-                "installed": has_eff_u_code,
-                "risk_level": "L1",
-                "use_for": "Optional developer-local code quality hotspot inspection and raw JSON input for a repository-owned quality policy evaluator outside the formal validation flow.",
-                "default_command": "bun run quality:eff-u-code --",
-                "gate_entrypoint": "bun run quality:eff-u-code:gate --",
-                "score_entrypoint": "bun run quality:eff-u-code:score:changed",
-                "version": eff_u_code_version,
-                "guardrail": "Keep eff-u-code as a local helper and raw JSON source; the repository root package.json wrapper and repository-owned evaluator are allowed, but do not add eff-u-code directly to server/go.mod, web/package.json, runtime scripts, deployment flows, or completion gates, and do not use the upstream total score as the gate contract.",
-            },
             "headroom": {
                 "installed": has_headroom,
                 "risk_level": "L1",
@@ -365,7 +352,6 @@ def build_ai_inventory(raw: dict[str, Any]) -> dict[str, Any]:
             "Prefer gh-authenticated access for GitHub PR automation when gh is installed and logged in.",
             "Prefer python3 over complex bash for non-trivial scripting when python3 is available.",
             "Prefer bun for web installs when web/bun.lock exists; otherwise fall back to npm.",
-            "Keep eff-u-code as an optional developer-local helper and raw JSON source; when quality gating is needed, gate through a repository-owned evaluator rather than the upstream total score.",
             "Use graft-web-browser-agent for AI-assisted frontend screenshots and interactions; do not treat it as the web validation entrypoint.",
             "Use Playwright MCP only as a browser exploration aid; keep graft-web-browser-agent artifacts as auditable evidence.",
             "Use Context7 MCP for current third-party library documentation when repository truth is insufficient.",

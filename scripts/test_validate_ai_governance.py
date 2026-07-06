@@ -54,94 +54,9 @@ class EnvironmentInventoryTests(unittest.TestCase):
     def test_environment_inventory_covers_adopted_and_pilot_mcp_servers(self) -> None:
         self.assertEqual(MODULE.validate_environment_inventory(), [])
 
-    def test_environment_inventory_covers_eff_u_code_optional_helper(self) -> None:
-        self.assertEqual(MODULE.validate_environment_inventory(), [])
-
-    def test_environment_inventory_rejects_overbroad_eff_u_code_manifest_guardrail(self) -> None:
-        text = MODULE.read_text(MODULE.TOOLS_AI).replace(
-            "Keep eff-u-code as a local helper and raw JSON source; the repository root package.json wrapper and repository-owned evaluator are allowed, but do not add eff-u-code directly to server/go.mod, web/package.json, runtime scripts, deployment flows, or completion gates, and do not use the upstream total score as the gate contract.",
-            "Keep eff-u-code developer-local only; do not add it to package manifests, CI, hooks, or completion gates.",
-            1,
-        )
-
-        with mock.patch.object(MODULE, "read_text", return_value=text):
-            findings = MODULE.validate_environment_inventory()
-
-        self.assertTrue(any("package.json wrapper" in finding.message for finding in findings))
-
-    def test_environment_inventory_requires_eff_u_code_repo_wrapper_command(self) -> None:
-        text = MODULE.read_text(MODULE.TOOLS_AI).replace(
-            'default_command: "bun run quality:eff-u-code --"',
-            'default_command: "/root/.bun/bin/fuck-u-code"',
-            1,
-        )
-
-        with mock.patch.object(MODULE, "read_text", return_value=text):
-            findings = MODULE.validate_environment_inventory()
-
-        self.assertTrue(any("bun run quality:eff-u-code --" in finding.message for finding in findings))
-
-    def test_environment_inventory_requires_structured_score_entrypoint(self) -> None:
-        text = MODULE.read_text(MODULE.TOOLS_AI).replace(
-            'score_entrypoint: "bun run quality:eff-u-code:score:changed"',
-            'quality:eff-u-code:score:changed',
-            1,
-        )
-
-        with mock.patch.object(MODULE, "read_text", return_value=text):
-            findings = MODULE.validate_environment_inventory()
-
-        self.assertTrue(any('score_entrypoint: "bun run quality:eff-u-code:score:changed"' in finding.message for finding in findings))
-
-    def test_environment_inventory_rejects_stale_never_gate_rule(self) -> None:
-        text = MODULE.read_text(MODULE.TOOLS_AI).replace(
-            "Keep eff-u-code as an optional developer-local helper and raw JSON source; when a repository quality gate or CI job is enabled, the repository-owned evaluator owns the gate contract rather than the upstream total score.",
-            "Keep eff-u-code as an optional developer-local helper; never treat it as a repository validation gate.",
-            1,
-        )
-
-        with mock.patch.object(MODULE, "read_text", return_value=text):
-            findings = MODULE.validate_environment_inventory()
-
-        self.assertTrue(any("stale" in finding.message for finding in findings))
-
-    def test_environment_inventory_requires_split_repository_gate_role(self) -> None:
-        text = MODULE.read_text(MODULE.TOOLS_AI).replace(
-            'repository_gate_role: "When quality gating is enabled, the repository-owned evaluator and CI job own the gate contract; eff-u-code remains a raw JSON source only and is not itself the acceptance contract."\n',
-            "",
-            1,
-        )
-
-        with mock.patch.object(MODULE, "read_text", return_value=text):
-            findings = MODULE.validate_environment_inventory()
-
-        self.assertTrue(any("repository_gate_role" in finding.message or "split local helper and repository gate roles" in finding.message for finding in findings))
-
-
 class AiToolingDocTests(unittest.TestCase):
-    def test_ai_tooling_doc_requires_explicit_eff_u_code_independence_boundary(self) -> None:
-        text = MODULE.read_text(MODULE.AI_TOOLING_DOC).replace(
-            "文档 / 治理 Gate 必须独立于 `eff-u-code`：README、ADR、Contract、OpenAPI、Public API Comment 等结构化治理规则属于 `Graft`，不是 `eff-u-code` 的一部分。",
-            "README、ADR、Contract、OpenAPI、Public API Comment 等结构化治理规则由仓库维护。",
-            1,
-        )
-
-        with mock.patch.object(MODULE, "read_text", return_value=text):
-            findings = MODULE.validate_ai_tooling_doc()
-
-        self.assertTrue(any("independent from eff-u-code" in finding.message for finding in findings))
-
-    def test_ai_tooling_doc_requires_score_gate_layered_diagnostics(self) -> None:
-        text = MODULE.read_text(MODULE.AI_TOOLING_DOC).replace(
-            "Project Score Gate 的终端输出应采用 layered diagnostics：默认先给 Scope / Project Score、Threshold、Coverage、Top Contributors、Rule Category Summary、Severity Summary 和 Potential Score Gain，再按 Top N 展开详情；避免直接输出“最差代码排行榜”或全量规则刷屏。",
-            "",
-            1,
-        )
-
-        with mock.patch.object(MODULE, "read_text", return_value=text):
-            findings = MODULE.validate_ai_tooling_doc()
-
-        self.assertTrue(any("layered diagnostics" in finding.message for finding in findings))
+    def test_ai_tooling_doc_is_currently_satisfied(self) -> None:
+        self.assertEqual(MODULE.validate_ai_tooling_doc(), [])
 
 
 class PushBranchGovernanceTests(unittest.TestCase):

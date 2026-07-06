@@ -83,7 +83,8 @@ Notes:
 
 - `just setup` installs root and `web` Bun dependencies, then warms server Go modules with `go mod download`.
 - `just check` wraps `cd server && go run ./cmd/graft validate backend` and `cd web && bun run check`.
-- `just quality` runs the repository quality score command `bun run quality:eff-u-code:score:changed`.
+- `just check-server` and `just check-web` expose the authoritative backend and frontend completion entrypoints separately.
+- `just check-changed` picks the smallest local check for the current diff, then escalates to `just check` for shared governance, contract, or cross-boundary changes.
 - `just generate` runs `cd server && go generate ./...`, the root OpenAPI bundle script, and frontend OpenAPI type
   generation.
 - `just compose-up` runs `docker compose up -d` from the repository root; compose behavior and deployment authority
@@ -92,57 +93,36 @@ Notes:
 The rest of this README keeps the underlying commands visible because those remain the authoritative reference for
 validation, migration, generation, git hooks, and compose behavior.
 
-## Optional Local Code Quality Check
+## Local Quality Entry Points
 
-`eff-u-code` is available in this repository as an optional developer-local code quality helper.
-
-Guardrails:
-
-- It is not part of the formal validation flow.
-- It does not replace `graft validate backend` or `bun run check`.
-- It must not be added directly to `server/go.mod`, `web/package.json`, runtime dependencies, or deployment flows.
-- The approved repository entrypoint is the root `package.json` wrapper plus the corresponding project-local install.
-- Only the local `analyze` workflow is adopted here; do not use its `mcp-install`, `ai-review`, `update`, or `uninstall`
-  commands as part of repository workflow.
-- When the repository needs a blocking quality decision, the blocking unit is the repository-owned evaluator and `Graft Quality Policy`, not the upstream `eff-u-code` total score.
-
-Recommended usage:
+The repository keeps one local completion command and a few narrower diagnostics:
 
 ```bash
-python3 scripts/run_eff_u_code.py server
-python3 scripts/run_eff_u_code.py web
-python3 scripts/run_eff_u_code.py all
-bun run quality:eff-u-code:gate -- --output-json .tmp/eff-u-code-gate/report.json
-bun run quality:eff-u-code:gate:server
-bun run quality:eff-u-code:gate:web
-bun run quality:eff-u-code:gate:all
-bun run quality:eff-u-code:score:changed
-bun run quality:eff-u-code:score:server
-bun run quality:eff-u-code:score:web
-bun run quality:eff-u-code:score:all
+just check
+just check-server
+just check-web
+just check-changed
+just lint-server
+just buildtest-server
+just lint-web
+just test-web
+just check-path server/modules/project/service.go
+just check-path web/src/modules/project/pages/detail/index.test.ts
 ```
 
-Local configuration:
+Command map:
 
-- The tracked template is `scripts/eff-u-code.example.json`.
-- The optional local override file is `.eff-u-code.local.json`.
-- The tracked repository gate policy is `scripts/eff-u-code.gate.json`.
-- To create the local override file:
+- `just check` is the default local completion path for contributors and agents.
+- `just check-server` and `just check-web` keep the backend and frontend completion chains explicit.
+- `just check-changed` is the preferred incremental local command when the current diff stays within one side.
+- `just check-path <path>` is a focused diagnostic helper, not a completion-state substitute.
 
-```bash
-python3 scripts/run_eff_u_code.py --init-config
-```
+Authoritative validation truth remains unchanged:
 
-- If `.eff-u-code.local.json` is missing, the helper falls back to the tracked recommended defaults.
-- Keep `.eff-u-code.local.json` untracked.
-- Gate thresholds and regression windows belong in `scripts/eff-u-code.gate.json`; they must stay configurable instead of being hard-coded in the evaluator.
-- `bun run quality:eff-u-code:gate -- ...` defaults to `--scan-mode changed`, which is the PR/incremental gate semantic.
-- `bun run quality:eff-u-code:gate:server`, `:web`, and `:all` are optional full-project local governance scans.
-- Full-project scans are for concentrated debt cleanup. They evaluate all in-scope files for the selected scope and do not replace the PR incremental gate.
-- `bun run quality:eff-u-code:score:changed` is the repository-owned changed-file score gate used by hooks and CI.
-- `bun run quality:eff-u-code:score:server`, `:web`, and `:all` are repository-owned Project Score gate entrypoints for full scans.
-- The score gate keeps file-level `Curated Score` as a display ingredient, then derives scope/project gate scores from the repository evaluator instead of using the upstream total score.
-- Project Score output uses layered diagnostics by default: summary first, then Top Contributors, category impact, severity aggregation, and estimated score gain; full rule detail remains in the JSON report.
+- backend completion: `cd server && go run ./cmd/graft validate backend`
+- backend lint stage: `cd server && go run ./cmd/graft validate backend --stage lint`
+- backend build/test stage: `cd server && go run ./cmd/graft validate backend --stage buildtest`
+- frontend completion: `cd web && bun run check`
 
 ## Local Server
 
@@ -381,8 +361,6 @@ format:check -> typecheck -> openapi:frontend-governance:check -> lint:i18n -> l
 
 Focused commands are fine during development, but completion, handoff, and merge readiness should use `bun run check`
 unless the task explicitly reports why a narrower validation was used.
-
-`eff-u-code` remains outside this flow and is not a direct acceptance contract even when it is installed locally. Blocking quality decisions, when enabled, must go through the repository-owned `Graft Quality Policy` evaluator instead of the upstream total score.
 
 ## Container Deployment
 
