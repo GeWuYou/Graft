@@ -179,7 +179,7 @@ describe('SideNav', () => {
     const wrapper = mountSideNav();
 
     expect(wrapper.get('[data-menu-width]').attributes('data-menu-width')).toBe(
-      '["var(--graft-shell-sidebar-current-width)","var(--graft-shell-sidebar-current-width)"]',
+      '["var(--graft-shell-sidebar-surface-width)","var(--graft-shell-sidebar-surface-width)"]',
     );
     expect(wrapper.get('[data-menu-collapsed]').attributes('data-menu-collapsed')).toBe('false');
     expect(wrapper.get('[data-brand-label]').attributes('data-brand-label')).toBe('common.appName');

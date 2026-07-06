@@ -44,7 +44,7 @@ import type { MenuRoute, ModeType } from '@/utils/types';
 
 import MenuContent from './MenuContent.vue';
 
-const menuWidth = ['var(--graft-shell-sidebar-current-width)', 'var(--graft-shell-sidebar-current-width)'];
+const menuWidth = ['var(--graft-shell-sidebar-surface-width)', 'var(--graft-shell-sidebar-surface-width)'];
 
 const { menu, showLogo, isFixed, layout, theme, isCompact, renderCompact, motionPhase } = defineProps({
   menu: {

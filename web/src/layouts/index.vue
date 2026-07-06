@@ -45,6 +45,7 @@ import { useRoute, useRouter } from 'vue-router';
 
 import { prefix } from '@/config/global';
 import { LOCALE } from '@/contracts/i18n/locales';
+import { CONTAINER_ROUTE_PATH } from '@/modules/container/contract/paths';
 import { useRealtimeSchedulerStore, useSettingStore, useTabsRouterStore } from '@/store';
 import { createLogger } from '@/utils/logger';
 import { resolveRouteLocalizedTitle, toLocalizedTitle } from '@/utils/route/meta';
@@ -82,6 +83,7 @@ const shellSurfaceAttrs = computed(() => ({
   'data-page-type': 'shell',
   'data-sidebar-compact': String(sidebarWidthCompact.value),
   'data-sidebar-motion-phase': sidebarMotionPhase.value,
+  'data-sidebar-overlay-mode': String(route.path === CONTAINER_ROUTE_PATH.LIST),
   'data-sidebar-render-compact': String(sidebarRenderCompact.value),
   'data-sidebar-width-compact': String(sidebarWidthCompact.value),
   'data-sidebar-target-compact': String(settingStore.isSidebarCompact),
@@ -171,8 +173,11 @@ const startSidebarMotion = (targetCompact: boolean) => {
   }
 
   sidebarRenderCompact.value = false;
-  sidebarWidthCompact.value = false;
+  sidebarWidthCompact.value = true;
   sidebarMotionPhase.value = 'expanding-width';
+  scheduleSidebarMotion(() => {
+    sidebarWidthCompact.value = false;
+  }, 0);
   scheduleSidebarMotion(() => {
     sidebarMotionPhase.value = 'expanding-topmenu';
   }, SIDEBAR_EXPAND_TOPLEVEL_DELAY_MS);
@@ -261,6 +266,9 @@ watch(
   --graft-shell-sidebar-width: 232px;
   --graft-shell-sidebar-width-compact: 72px;
   --graft-shell-sidebar-current-width: var(--graft-shell-sidebar-width);
+  --graft-shell-sidebar-reserved-width: var(--graft-shell-sidebar-current-width);
+  --graft-shell-sidebar-surface-width: var(--graft-shell-sidebar-current-width);
+  --graft-shell-sidebar-translate-x: 0px;
 
   background: var(--graft-shell-bg);
   color: var(--td-text-color-primary);
@@ -273,6 +281,26 @@ watch(
 
 .app-shell[data-sidebar-width-compact='true'] {
   --graft-shell-sidebar-current-width: var(--graft-shell-sidebar-width-compact);
+}
+
+.app-shell[data-sidebar-overlay-mode='true'] {
+  --graft-shell-sidebar-surface-width: var(--graft-shell-sidebar-width);
+}
+
+.app-shell[data-sidebar-overlay-mode='true'][data-sidebar-width-compact='true'] {
+  --graft-shell-sidebar-translate-x: calc(var(--graft-shell-sidebar-width-compact) - var(--graft-shell-sidebar-width));
+}
+
+.app-shell[data-sidebar-overlay-mode='true'][data-sidebar-motion-phase='compact'] {
+  --graft-shell-sidebar-reserved-width: var(--graft-shell-sidebar-width-compact);
+  --graft-shell-sidebar-surface-width: var(--graft-shell-sidebar-width-compact);
+  --graft-shell-sidebar-translate-x: 0;
+}
+
+.app-shell[data-sidebar-overlay-mode='true'][data-sidebar-motion-phase='expanding-width'],
+.app-shell[data-sidebar-overlay-mode='true'][data-sidebar-motion-phase='expanding-topmenu'],
+.app-shell[data-sidebar-overlay-mode='true'][data-sidebar-motion-phase='expanding-submenu'] {
+  --graft-shell-sidebar-reserved-width: var(--graft-shell-sidebar-width-compact);
 }
 
 .app-shell__layout,
@@ -301,15 +329,20 @@ watch(
 }
 
 .app-shell[data-layout-mode='side'] :deep(.t-layout__sider) {
-  flex: 0 0 var(--graft-shell-sidebar-current-width);
-  max-width: var(--graft-shell-sidebar-current-width);
-  min-width: var(--graft-shell-sidebar-current-width);
+  flex: 0 0 var(--graft-shell-sidebar-reserved-width);
+  max-width: var(--graft-shell-sidebar-reserved-width);
+  min-width: var(--graft-shell-sidebar-reserved-width);
   transition:
     flex-basis 0.32s cubic-bezier(0.38, 0, 0.24, 1),
     max-width 0.32s cubic-bezier(0.38, 0, 0.24, 1),
     min-width 0.32s cubic-bezier(0.38, 0, 0.24, 1),
     width 0.32s cubic-bezier(0.38, 0, 0.24, 1);
-  width: var(--graft-shell-sidebar-current-width);
+  width: var(--graft-shell-sidebar-reserved-width);
   will-change: flex-basis, max-width, min-width, width;
+}
+
+.app-shell[data-layout-mode='side'][data-sidebar-overlay-mode='true'] :deep(.t-layout__sider) {
+  transition: none;
+  will-change: auto;
 }
 </style>

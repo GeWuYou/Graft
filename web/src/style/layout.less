@@ -268,8 +268,12 @@
     min-height: 100%;
     position: fixed;
     top: 0;
-    transition: width 0.32s cubic-bezier(0.38, 0, 0.24, 1);
-    will-change: width;
+    transform: translate3d(var(--graft-shell-sidebar-translate-x, 0), 0, 0);
+    transition:
+      transform 0.32s cubic-bezier(0.38, 0, 0.24, 1),
+      width 0.32s cubic-bezier(0.38, 0, 0.24, 1);
+    width: var(--graft-shell-sidebar-surface-width, var(--graft-shell-sidebar-current-width));
+    will-change: transform;
     z-index: 200;
 
     &-mix {
@@ -320,16 +324,16 @@
   }
 
   &-side-nav-placeholder {
-    flex: 1 1 232px;
-    min-width: 232px;
+    flex: 0 0 var(--graft-shell-sidebar-reserved-width, 232px);
+    min-width: var(--graft-shell-sidebar-reserved-width, 232px);
     transition:
       flex-basis 0.32s cubic-bezier(0.38, 0, 0.24, 1),
       min-width 0.32s cubic-bezier(0.38, 0, 0.24, 1);
     will-change: flex-basis, min-width;
 
     &-hidden {
-      flex: 1 1 72px;
-      min-width: 72px;
+      flex: 0 0 var(--graft-shell-sidebar-reserved-width, 72px);
+      min-width: var(--graft-shell-sidebar-reserved-width, 72px);
       transition:
         flex-basis 0.32s cubic-bezier(0.38, 0, 0.24, 1),
         min-width 0.32s cubic-bezier(0.38, 0, 0.24, 1);
@@ -352,6 +356,12 @@
 .app-shell .t-default-menu.@{starter-prefix}-side-nav {
   position: fixed;
   top: 0;
+}
+
+.app-shell[data-sidebar-overlay-mode='true'] .t-default-menu.@{starter-prefix}-side-nav {
+  transition:
+    transform 0.32s cubic-bezier(0.38, 0, 0.24, 1),
+    opacity 0.12s cubic-bezier(0.38, 0, 0.24, 1);
 }
 
 .app-shell .t-default-menu.@{starter-prefix}-side-nav.@{starter-prefix}-side-nav-mix-fixed {
