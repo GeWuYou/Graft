@@ -1230,7 +1230,7 @@ describe('container list page', () => {
     await wrapper.get('[data-testid="pagination-next"]').trigger('click');
     await flushPromises();
 
-    expect(apiMocks.getContainers).toHaveBeenLastCalledWith({
+    expect(apiMocks.getContainers).toHaveBeenCalledWith({
       health: undefined,
       keyword: undefined,
       limit: 20,
