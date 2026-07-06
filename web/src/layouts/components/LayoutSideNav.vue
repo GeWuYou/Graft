@@ -6,7 +6,9 @@
     :is-fixed="settingStore.isSidebarFixed"
     :menu="sideMenu"
     :theme="settingStore.displaySideMode"
-    :is-compact="settingStore.isSidebarCompact"
+    :is-compact="widthCompact"
+    :render-compact="renderCompact"
+    :motion-phase="motionPhase"
   />
 </template>
 <script setup lang="ts">
@@ -14,10 +16,17 @@ import { storeToRefs } from 'pinia';
 import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 
+import type { SidebarMotionPhase } from '@/layouts/layout-navigation';
 import { usePermissionStore, useSettingStore } from '@/store';
 import type { MenuRoute } from '@/utils/types';
 
 import LSideNav from './SideNav.vue';
+
+defineProps<{
+  renderCompact: boolean;
+  widthCompact: boolean;
+  motionPhase: SidebarMotionPhase;
+}>();
 
 const route = useRoute();
 const permissionStore = usePermissionStore();

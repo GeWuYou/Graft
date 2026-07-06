@@ -1,12 +1,29 @@
-import { flushPromises, mount, shallowMount } from '@vue/test-utils';
+import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, ref } from 'vue';
 
 import ProjectDetailPage from './index.vue';
 
 const containerApiMocks = vi.hoisted(() => ({
+  batchContainerActions: vi.fn(),
+  getContainers: vi.fn(),
   getContainerEvents: vi.fn(),
   getContainerLogs: vi.fn(),
+}));
+
+const dialogMocks = vi.hoisted(() => ({
+  alert: vi.fn(),
+  confirm: vi.fn(),
+}));
+
+const messageMocks = vi.hoisted(() => ({
+  error: vi.fn(),
+  success: vi.fn(),
+  warning: vi.fn(),
+}));
+
+const notifyMocks = vi.hoisted(() => ({
+  warning: vi.fn(),
 }));
 
 const projectApiMocks = vi.hoisted(() => ({
@@ -14,17 +31,45 @@ const projectApiMocks = vi.hoisted(() => ({
   getProjectConfiguration: vi.fn(),
   getProjectConfigurationFile: vi.fn(),
   getProjectConfigurationPreview: vi.fn(),
+  getProjectLogs: vi.fn(),
+  getProjectOverview: vi.fn(),
   getProjectServices: vi.fn(),
   postProjectConfigurationDiff: vi.fn(),
   postProjectConfigurationValidate: vi.fn(),
   postProjectDeploy: vi.fn(),
-  postProjectStop: vi.fn(),
+  postProjectDestroy: vi.fn(),
+  postProjectRedeploy: vi.fn(),
   postProjectRestart: vi.fn(),
+  postProjectStop: vi.fn(),
   postProjectUnregister: vi.fn(),
   postProjectUp: vi.fn(),
+  putProjectLifecycleConfiguration: vi.fn(),
+}));
+
+const routeState = vi.hoisted(() => ({
+  value: {
+    fullPath: '/ops/projects/7',
+    params: { id: '7' },
+    path: '/ops/projects/7',
+    query: {} as Record<string, unknown>,
+  },
+}));
+
+const routerMocks = vi.hoisted(() => ({
+  push: vi.fn(),
+  replace: vi.fn(),
+  resolve: vi.fn((target: { params?: { id?: string }; query?: Record<string, unknown> }) => ({
+    fullPath: `/ops/containers/${target.params?.id ?? ''}`,
+    name: 'ops:container-detail',
+    params: target.params ?? {},
+    path: `/ops/containers/${target.params?.id ?? ''}`,
+    query: target.query ?? {},
+  })),
 }));
 
 const tabsRouterStoreMock = vi.hoisted(() => ({
+  appendTabRouterList: vi.fn(),
+  setActiveTabKey: vi.fn(),
   tabRouterList: [
     {
       fullPath: '/ops/projects/7',
@@ -35,65 +80,91 @@ const tabsRouterStoreMock = vi.hoisted(() => ({
   ],
 }));
 
-const routerMocks = vi.hoisted(() => ({
-  push: vi.fn(),
-  replace: vi.fn(),
-  resolve: vi.fn((target: { params?: { id?: string } }) => ({
-    fullPath: `/ops/containers/${target.params?.id ?? ''}`,
-    path: `/ops/containers/${target.params?.id ?? ''}`,
-  })),
-}));
-
 const detailMessages = {
-  'project.detail.actions.copyPath': 'Copy Path',
-  'project.detail.actions.stop': 'Stop',
+  'components.commonTable.detail': 'Detail',
+  'project.detail.actions.destroy': 'Destroy',
+  'project.detail.actions.redeploy': 'Redeploy',
   'project.detail.actions.restart': 'Restart',
+  'project.detail.actions.stop': 'Stop',
   'project.detail.actions.unregister': 'Unregister',
   'project.detail.actions.up': 'Up',
+  'project.detail.configuration.composeFiles': 'Compose Files',
+  'project.detail.configuration.driftStatus': 'Drift Status',
+  'project.detail.configuration.envFiles': 'Env Files',
+  'project.detail.configuration.externalAuthorityHint': 'External authority',
+  'project.detail.configuration.managedAuthorityHint': 'Managed authority',
+  'project.detail.configuration.ownershipMode': 'Ownership Mode',
+  'project.detail.configuration.previewEmpty': 'No Preview',
+  'project.detail.configuration.previewTitle': 'Preview',
+  'project.detail.configuration.refreshStatus': 'Refresh Status',
+  'project.detail.configuration.title': 'Configuration',
   'project.detail.description': 'Project detail description',
   'project.detail.eyebrow': 'Compose Project',
-  'project.detail.refresh': 'Refresh Snapshot',
-  'project.detail.runtime.activityAuthority': 'Activity Authority',
-  'project.detail.runtime.authorityTitle': 'Runtime Boundary',
-  'project.detail.runtime.canonicalName': 'Canonical Project Name',
-  'project.detail.runtime.description': 'Runtime description',
-  'project.detail.runtime.driftStatus': 'Drift Status',
-  'project.detail.runtime.hostScope': 'Host Scope',
-  'project.detail.runtime.lastRefreshAt': 'Last Project Refresh',
-  'project.detail.runtime.membersTitle': 'Runtime Members',
-  'project.detail.runtime.nameSource': 'Name Source',
-  'project.detail.runtime.refreshStatus': 'Refresh Status',
-  'project.detail.runtime.runningMembers': 'Running Members',
-  'project.detail.runtime.runtimeStatus': 'Project Status',
-  'project.detail.runtime.serviceCount': 'Service Count',
-  'project.detail.runtime.statusTitle': 'Runtime Status',
-  'project.detail.runtime.title': 'Runtime',
-  'project.detail.runtime.totalMembers': 'Total Members',
-  'project.detail.runtime.workingDirectory': 'Working Directory',
-  'project.detail.summary.canonicalName': 'Canonical Project Name',
-  'project.detail.summary.composeFiles': 'Compose Files',
-  'project.detail.summary.configHash': 'Config Hash',
-  'project.detail.summary.configurationTitle': 'Configuration',
-  'project.detail.summary.discoveryTitle': 'Discovery',
-  'project.detail.summary.envFiles': 'Env Files',
-  'project.detail.summary.hostScope': 'Host Scope',
-  'project.detail.summary.lastRefreshAt': 'Last Project Refresh',
-  'project.detail.summary.nameSource': 'Name Source',
-  'project.detail.summary.runningMembers': 'Running Members',
-  'project.detail.summary.runtimeMembers': 'Runtime Members',
-  'project.detail.summary.services': 'Services',
-  'project.detail.summary.status': 'Status',
-  'project.detail.summary.summaryTitle': 'Summary',
-  'project.detail.summary.workingDirectory': 'Working Directory',
-  'project.detail.tabs.activity': 'Activity',
+  'project.detail.logs.authorityProjectOwned': 'Project-owned logs',
+  'project.detail.logs.loadFailed': 'Load failed',
+  'project.detail.overview.actionLabel': 'Action',
+  'project.detail.overview.containerSnapshotTitle': 'Container Snapshot',
+  'project.detail.overview.cpuUsage': 'CPU',
+  'project.detail.overview.diagnosticConfigDrift': 'Config drift',
+  'project.detail.overview.diagnosticConfigSynced': 'Config synced',
+  'project.detail.overview.diagnosticHealthy': 'Healthy',
+  'project.detail.overview.diagnosticRefreshHealthy': 'Refresh healthy',
+  'project.detail.overview.diagnosticRefreshWarning': 'Refresh warning',
+  'project.detail.overview.diagnosticRestartClear': 'No restart loops',
+  'project.detail.overview.diagnosticRestartWarning': 'Restart warning',
+  'project.detail.overview.diagnosticUnhealthy': 'Unhealthy',
+  'project.detail.overview.diagnosticsTitle': 'Diagnostics',
+  'project.detail.overview.lastCollectedAt': 'Last Collected',
+  'project.detail.overview.memoryUsage': 'Memory',
+  'project.detail.overview.metricsCoverage': 'Metrics Coverage',
+  'project.detail.overview.networkRealtime': 'Realtime',
+  'project.detail.overview.networkRx': 'Downstream',
+  'project.detail.overview.networkTitle': 'Network I/O',
+  'project.detail.overview.networkTotalRx': 'Total Rx {value}',
+  'project.detail.overview.networkTotalTx': 'Total Tx {value}',
+  'project.detail.overview.networkTx': 'Upstream',
+  'project.detail.overview.notCollected': 'Not Collected',
+  'project.detail.overview.realtimeLabel': 'Current Value',
+  'project.detail.overview.resourceTitle': 'Resource Usage',
+  'project.detail.overview.serviceHealthAttention': 'Attention',
+  'project.detail.overview.serviceHealthHealthy': 'Healthy',
+  'project.detail.overview.serviceHealthUnknown': 'Unknown',
+  'project.detail.overview.serviceStatusDegraded': 'Degraded',
+  'project.detail.overview.serviceStatusRunning': 'Running',
+  'project.detail.overview.serviceStatusStopped': 'Stopped',
+  'project.detail.overview.viewService': 'View Service',
+  'project.detail.services.actions.restart': 'Restart',
+  'project.detail.services.actions.start': 'Start',
+  'project.detail.services.actions.stop': 'Stop',
+  'project.detail.services.batch.failed': 'Service action failed.',
+  'project.detail.services.batch.failureDetailTitle': 'Failure Details',
+  'project.detail.services.batch.noFailureDetail': 'No failure detail.',
+  'project.detail.services.batch.partialTitle': 'Partial Service Action',
+  'project.detail.services.batch.refreshWarning': 'Refresh warning',
+  'project.detail.services.batch.success': 'Service action success {count}',
+  'project.detail.services.columns.health': 'Health',
+  'project.detail.services.columns.image': 'Image',
+  'project.detail.services.columns.operation': 'Operation',
+  'project.detail.services.columns.ports': 'Ports',
+  'project.detail.services.columns.service': 'Service',
+  'project.detail.services.columns.status': 'Status',
+  'project.detail.services.description': 'Service description',
+  'project.detail.services.emptyDescription': 'No services yet',
+  'project.detail.services.emptyTitle': 'No Services',
+  'project.detail.services.loadFailed': 'Failed to load services.',
+  'project.detail.services.refresh': 'Refresh Services',
+  'project.detail.services.summary': '{count} Services',
+  'project.detail.services.title': 'Services',
   'project.detail.tabs.configuration': 'Configuration',
-  'project.detail.tabs.containers': 'Containers',
-  'project.detail.tabs.networks': 'Networks',
+  'project.detail.tabs.lifecycle': 'Lifecycle',
+  'project.detail.tabs.logs': 'Logs',
   'project.detail.tabs.overview': 'Overview',
-  'project.detail.tabs.runtime': 'Runtime',
   'project.detail.tabs.services': 'Services',
-  'project.detail.tabs.volumes': 'Volumes',
-  'project.list.refresh': 'Refresh',
+  'project.detail.titleFallback': 'Project Detail',
+  'project.list.actions.actionFailed': 'Action Failed',
+  'project.list.actions.actionSuccess': 'Action Success',
+  'project.list.actions.cancel': 'Cancel',
+  'project.list.actions.confirm': 'Confirm',
   'project.list.retry': 'Retry',
 } as const;
 
@@ -101,20 +172,22 @@ function slotStub(name: string) {
   return defineComponent({
     name,
     props: {
-      label: { type: String, default: '' },
-      title: { type: String, default: '' },
-      value: { type: [String, Number, Array], default: undefined },
+      label: { default: '' },
+      title: { default: '' },
+      value: { default: undefined },
     },
-    emits: ['change', 'update:value', 'click'],
+    emits: ['change', 'click', 'update:value'],
     setup(props, { slots }) {
       return () =>
         h('div', { 'data-stub': name }, [
-          props.title ? h('div', { 'data-title': name }, props.title) : null,
-          props.label ? h('div', { 'data-label': name }, props.label) : null,
+          props.label ? h('span', props.label as string) : null,
+          props.title ? h('span', props.title as string) : null,
           slots.actions?.(),
           slots.meta?.(),
           slots.operation?.(),
           slots.default?.(),
+          slots.toolbar?.(),
+          slots.panel?.(),
         ]);
     },
   });
@@ -127,7 +200,7 @@ const TButtonStub = defineComponent({
     loading: { type: Boolean, default: false },
   },
   emits: ['click'],
-  setup(props, { emit, slots, attrs }) {
+  setup(props, { attrs, emit, slots }) {
     return () =>
       h(
         'button',
@@ -142,22 +215,226 @@ const TButtonStub = defineComponent({
   },
 });
 
-const TTableStub = defineComponent({
-  name: 'TTableStub',
-  setup(_props, { slots }) {
-    return () => h('div', { 'data-stub': 'TTable' }, [slots.empty?.()]);
+const ManagementPagedTableStub = defineComponent({
+  name: 'ManagementPagedTable',
+  props: {
+    columns: { type: Array, default: () => [] },
+    paginationVisible: { type: Boolean, default: true },
+    rows: { type: Array, default: () => [] },
+    summary: { type: String, default: '' },
+  },
+  setup(props, { slots }) {
+    return () =>
+      h('div', { 'data-stub': 'ManagementPagedTable' }, [
+        h('div', { 'data-columns': JSON.stringify(props.columns) }),
+        h('div', { 'data-pagination-visible': String(props.paginationVisible) }),
+        h('div', { 'data-summary': props.summary }),
+        slots.toolbar?.(),
+        ...(props.rows as Array<Record<string, unknown>>).map((row) =>
+          h('div', { key: String(row.service_name), 'data-row': String(row.service_name) }, [
+            slots.name?.({ row }),
+            slots.status?.({ row }),
+            slots.health?.({ row }),
+            slots.ports?.({ row }),
+            slots.operation?.({ row }),
+          ]),
+        ),
+      ]);
   },
 });
 
-function mountRuntimePage() {
+const TableActionMenuStub = defineComponent({
+  name: 'TableActionMenu',
+  props: {
+    actions: { type: Array, default: () => [] },
+  },
+  emits: ['action'],
+  setup(props, { emit }) {
+    return () =>
+      h(
+        'div',
+        { 'data-stub': 'TableActionMenu' },
+        (props.actions as Array<{ disabled?: boolean; label: string; value: string }>).map((action) =>
+          h(
+            'button',
+            {
+              key: action.value,
+              'data-action': action.value,
+              disabled: action.disabled,
+              onClick: () => emit('action', action.value),
+            },
+            action.label,
+          ),
+        ),
+      );
+  },
+});
+
+function buildProjectDetail(runtimeStatus: string = 'running') {
+  return {
+    activity_authority: 'frontend-fanout',
+    canonical_project_name: 'compose-demo',
+    canonical_project_name_source: 'explicit',
+    compose_files: [],
+    container_counts: { issue: 0, running: 1, stopped: 0, total: 1, transitioning: 0 },
+    display_name: 'Compose Demo',
+    drift_status: 'clean',
+    env_files: [],
+    host_scope: 'local',
+    id: 7,
+    last_observed_config_hash: null,
+    last_refresh_at: '2026-07-03T10:00:00Z',
+    last_refresh_config_hash: null,
+    last_refresh_status: 'success',
+    ownership_mode: 'external',
+    runtime_status: runtimeStatus,
+    service_count: 2,
+    working_directory: '/srv/compose-demo',
+  };
+}
+
+function buildProjectOverview() {
+  return {
+    canonical_project_name: 'compose-demo',
+    collected_at: '2026-07-03T10:00:00Z',
+    health: {
+      healthy_container_count: 2,
+      healthy_service_count: 2,
+      networks_count: 0,
+      restart_count: 0,
+      starting_container_count: 0,
+      unhealthy_container_count: 0,
+      volumes_count: 0,
+    },
+    project_id: 7,
+    resources: {
+      cpu_percent: 12.5,
+      memory_limit_bytes: 512,
+      memory_usage_bytes: 128,
+      rx_bytes: 64,
+      stats_available: true,
+      stats_available_container_count: 2,
+      tx_bytes: 32,
+    },
+    services: [
+      {
+        container_count: 2,
+        cpu_percent: 12.5,
+        health: 'healthy',
+        healthy_container_count: 2,
+        image: 'demo:latest',
+        issue_count: 0,
+        memory_limit_bytes: 512,
+        memory_usage_bytes: 128,
+        restart_count: 0,
+        running_count: 1,
+        service_name: 'app',
+        starting_container_count: 0,
+        stats_available: true,
+        stats_available_container_count: 2,
+        status: 'running',
+        stopped_count: 1,
+        transitioning_count: 0,
+        unhealthy_container_count: 0,
+      },
+      {
+        container_count: 1,
+        cpu_percent: 0,
+        health: 'unknown',
+        healthy_container_count: 0,
+        image: 'worker:latest',
+        issue_count: 0,
+        memory_limit_bytes: 0,
+        memory_usage_bytes: 0,
+        restart_count: 0,
+        running_count: 0,
+        service_name: 'worker',
+        starting_container_count: 0,
+        stats_available: false,
+        stats_available_container_count: 0,
+        status: 'stopped',
+        stopped_count: 1,
+        transitioning_count: 0,
+        unhealthy_container_count: 0,
+      },
+    ],
+  };
+}
+
+function buildProjectServices() {
+  return {
+    items: [
+      {
+        build_context: null,
+        container_members: [
+          { container_id: 'container-1', container_name: 'compose-demo-1', state: 'exited' },
+          { container_id: 'container-2', container_name: 'compose-demo-2', state: 'running' },
+        ],
+        declared_networks: [],
+        declared_ports: ['127.0.0.1:8080:8080', '8443:8443'],
+        declared_volumes: [],
+        image: 'demo:latest',
+        running_count: 1,
+        service_name: 'app',
+        stopped_count: 1,
+      },
+      {
+        build_context: null,
+        container_members: [{ container_id: 'worker-1', container_name: 'worker-1', state: 'created' }],
+        declared_networks: [],
+        declared_ports: [],
+        declared_volumes: [],
+        image: 'worker:latest',
+        running_count: 0,
+        service_name: 'worker',
+        stopped_count: 1,
+      },
+    ],
+  };
+}
+
+function buildRuntimeContainers() {
+  return {
+    items: [
+      {
+        compose_project: 'compose-demo',
+        compose_service: 'app',
+        id: 'container-1',
+        image: 'demo:latest',
+        names: ['compose-demo-1'],
+        ports: [{ ip: '0.0.0.0', private_port: 8080, public_port: 8316, type: 'tcp' }],
+        runtime: 'docker',
+        state: 'running',
+        status: 'Up 1 minute',
+      },
+      {
+        compose_project: 'compose-demo',
+        compose_service: 'worker',
+        id: 'worker-1',
+        image: 'worker:latest',
+        names: ['worker-1'],
+        ports: [],
+        runtime: 'docker',
+        state: 'created',
+        status: 'Created',
+      },
+    ],
+  };
+}
+
+function mountPage() {
   return mount(ProjectDetailPage, {
     global: {
       renderStubDefaultSlot: true,
       stubs: {
-        'management-page-header': slotStub('ManagementPageHeader'),
-        'project-file-editor': slotStub('ProjectFileEditor'),
-        'project-resources-section': slotStub('ProjectResourcesSection'),
-        'refresh-icon': true,
+        ManagementPageHeader: slotStub('ManagementPageHeader'),
+        ManagementPagedTable: ManagementPagedTableStub,
+        ProjectFileEditor: slotStub('ProjectFileEditor'),
+        TableActionMenu: TableActionMenuStub,
+        'management-page-header': slotStub('management-page-header'),
+        'management-paged-table': ManagementPagedTableStub,
+        'project-file-editor': slotStub('project-file-editor'),
+        'table-action-menu': TableActionMenuStub,
         't-alert': slotStub('TAlert'),
         't-button': TButtonStub,
         't-card': slotStub('TCard'),
@@ -168,10 +445,10 @@ function mountRuntimePage() {
         't-empty': slotStub('TEmpty'),
         't-input': slotStub('TInput'),
         't-loading': slotStub('TLoading'),
+        't-progress': slotStub('TProgress'),
         't-space': slotStub('TSpace'),
         't-tab-panel': slotStub('TTabPanel'),
         't-tabs': slotStub('TTabs'),
-        't-table': TTableStub,
         't-tag': slotStub('TTag'),
       },
     },
@@ -179,6 +456,8 @@ function mountRuntimePage() {
 }
 
 vi.mock('@/modules/container/api/container', () => ({
+  batchContainerActions: containerApiMocks.batchContainerActions,
+  getContainers: containerApiMocks.getContainers,
   getContainerEvents: containerApiMocks.getContainerEvents,
   getContainerLogs: containerApiMocks.getContainerLogs,
 }));
@@ -188,14 +467,19 @@ vi.mock('../../api/project', () => ({
   getProjectConfiguration: projectApiMocks.getProjectConfiguration,
   getProjectConfigurationFile: projectApiMocks.getProjectConfigurationFile,
   getProjectConfigurationPreview: projectApiMocks.getProjectConfigurationPreview,
+  getProjectLogs: projectApiMocks.getProjectLogs,
+  getProjectOverview: projectApiMocks.getProjectOverview,
   getProjectServices: projectApiMocks.getProjectServices,
   postProjectConfigurationDiff: projectApiMocks.postProjectConfigurationDiff,
   postProjectConfigurationValidate: projectApiMocks.postProjectConfigurationValidate,
   postProjectDeploy: projectApiMocks.postProjectDeploy,
-  postProjectStop: projectApiMocks.postProjectStop,
+  postProjectDestroy: projectApiMocks.postProjectDestroy,
+  postProjectRedeploy: projectApiMocks.postProjectRedeploy,
   postProjectRestart: projectApiMocks.postProjectRestart,
+  postProjectStop: projectApiMocks.postProjectStop,
   postProjectUnregister: projectApiMocks.postProjectUnregister,
   postProjectUp: projectApiMocks.postProjectUp,
+  putProjectLifecycleConfiguration: projectApiMocks.putProjectLifecycleConfiguration,
 }));
 
 vi.mock('vue-i18n', async (importOriginal) => {
@@ -205,18 +489,18 @@ vi.mock('vue-i18n', async (importOriginal) => {
     ...actual,
     useI18n: () => ({
       locale,
-      t: (key: string) => detailMessages[key as keyof typeof detailMessages] ?? key,
+      t: (key: string, params?: Record<string, unknown>) => {
+        const template = detailMessages[key as keyof typeof detailMessages] ?? key;
+        return typeof template === 'string'
+          ? template.replace(/\{(\w+)\}/g, (_, token) => String(params?.[token] ?? `{${token}}`))
+          : key;
+      },
     }),
   };
 });
 
 vi.mock('vue-router', () => ({
-  useRoute: () => ({
-    fullPath: '/ops/projects/7',
-    params: { id: '7' },
-    path: '/ops/projects/7',
-    query: {},
-  }),
+  useRoute: () => routeState.value,
   useRouter: () => routerMocks,
 }));
 
@@ -229,38 +513,75 @@ vi.mock('@/shared/localized-api-error', () => ({
 }));
 
 vi.mock('@/shared/observability', () => ({
+  LogViewer: defineComponent({
+    name: 'LogViewerStub',
+    setup(_props, { slots }) {
+      return () => h('div', { 'data-stub': 'LogViewer' }, slots.default?.());
+    },
+  }),
   copyText: vi.fn(),
+  formatBytes: (value?: number | null) => (typeof value === 'number' ? `${value} B` : '-'),
+  formatPercent: (value?: number | null) => (typeof value === 'number' ? `${value.toFixed(1)}%` : '-'),
+  normalizeStructuredLogEntry: (value: { line?: string; occurred_at?: string; stream?: string }) =>
+    value?.line
+      ? {
+          line: value.line,
+          occurredAt: value.occurred_at ?? '',
+          stream: value.stream === 'stderr' ? 'stderr' : 'stdout',
+        }
+      : null,
+  toProgressPercent: (value?: number | null) => (typeof value === 'number' ? Math.max(0, Math.min(100, value)) : 0),
+}));
+
+vi.mock('@/shared/realtime', () => ({
+  openRealtimeTopicSocket: vi.fn(() => ({ close: vi.fn() })),
 }));
 
 vi.mock('@/utils/logger', () => ({
   createLogger: () => ({
     error: vi.fn(),
+    warn: vi.fn(),
   }),
+}));
+
+vi.mock('tdesign-vue-next/es/dialog', () => ({
+  DialogPlugin: {
+    alert: dialogMocks.alert,
+    confirm: dialogMocks.confirm,
+  },
 }));
 
 vi.mock('../../shared/display', () => ({
   formatProjectTime: (_locale: string, value?: string | null) => value || '-',
-  projectCanonicalNameSourceLabel: () => 'explicit',
   projectDriftStatusLabel: () => 'in-sync',
   projectDriftStatusTheme: () => 'success',
-  projectHostScopeLabel: () => 'local',
   projectLifecycleActionVisibility: (status?: string | null) => ({
-    up: status === 'stopped' || status === 'unknown' || status === 'transitioning' || !status,
+    redeploy: true,
+    restart: true,
     stop:
       status === 'running' || status === 'degraded' || status === 'unknown' || status === 'transitioning' || !status,
-    restart: true,
     unregister: true,
+    up: status === 'stopped' || status === 'unknown' || status === 'transitioning' || !status,
   }),
   projectOwnershipModeLabel: () => 'external',
   projectRefreshStatusLabel: () => 'success',
   projectRefreshStatusTheme: () => 'success',
-  projectRuntimeStatusLabel: () => 'running',
+  projectRuntimeStatusLabel: (value?: string | null) => value || 'running',
   projectRuntimeStatusTheme: () => 'success',
 }));
 
-describe('Project detail page', () => {
+vi.mock('tdesign-vue-next/es/message', () => ({
+  MessagePlugin: messageMocks,
+}));
+
+vi.mock('tdesign-vue-next/es/notification', () => ({
+  NotifyPlugin: notifyMocks,
+}));
+
+describe('Project detail service tab', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    routeState.value.query = {};
     tabsRouterStoreMock.tabRouterList = [
       {
         fullPath: '/ops/projects/7',
@@ -269,161 +590,134 @@ describe('Project detail page', () => {
         title: { 'en-US': 'Project Detail', 'zh-CN': '项目详情' },
       },
     ];
-    projectApiMocks.getProject.mockResolvedValue({
-      activity_authority: 'frontend-fanout',
-      canonical_project_name: 'compose-demo',
-      canonical_project_name_source: 'explicit',
-      compose_files: [],
-      container_counts: { running: 1, stopped: 0, transitioning: 0, issue: 0, total: 1 },
-      display_name: 'Compose Demo',
-      drift_status: 'in-sync',
-      env_files: [],
-      host_scope: 'local',
-      id: 7,
-      last_observed_config_hash: null,
-      last_refresh_at: '2026-07-03T10:00:00Z',
-      last_refresh_config_hash: null,
-      last_refresh_status: 'success',
-      ownership_mode: 'external',
-      runtime_status: 'running',
-      service_count: 1,
-      working_directory: '/srv/compose-demo',
-    });
+    tabsRouterStoreMock.setActiveTabKey.mockReset();
+    projectApiMocks.getProject.mockResolvedValue(buildProjectDetail());
     projectApiMocks.getProjectConfiguration.mockResolvedValue({
       compose_files: [],
       diagnostics_summary: [],
-      drift_status: 'in-sync',
+      drift_status: 'clean',
       env_files: [],
       last_refresh_status: 'success',
       ownership_mode: 'external',
     });
     projectApiMocks.getProjectConfigurationPreview.mockResolvedValue(null);
-    projectApiMocks.getProjectServices.mockResolvedValue({
-      items: [
-        {
-          build_context: null,
-          container_members: [{ container_id: 'container-1', container_name: 'compose-demo-1', state: 'running' }],
-          declared_networks: [],
-          declared_ports: [],
-          declared_volumes: [],
-          image: 'demo:latest',
-          running_count: 1,
-          service_name: 'app',
-          stopped_count: 0,
-        },
-      ],
-    });
-    containerApiMocks.getContainerEvents.mockResolvedValue({
+    projectApiMocks.getProjectLogs.mockResolvedValue({ entries: [] });
+    projectApiMocks.getProjectOverview.mockResolvedValue(buildProjectOverview());
+    projectApiMocks.getProjectServices.mockResolvedValue(buildProjectServices());
+    containerApiMocks.getContainers.mockResolvedValue(buildRuntimeContainers());
+    containerApiMocks.batchContainerActions.mockResolvedValue({
+      failed_count: 0,
       items: [],
+      success_count: 2,
     });
-    containerApiMocks.getContainerLogs.mockResolvedValue({
-      entries: [],
+    containerApiMocks.getContainerEvents.mockResolvedValue({ items: [] });
+    containerApiMocks.getContainerLogs.mockResolvedValue({ entries: [] });
+  });
+
+  it('normalizes legacy container tabs to services on mount', async () => {
+    routeState.value.query = { tab: 'containers' };
+
+    mountPage();
+    await flushPromises();
+
+    expect(routerMocks.replace).toHaveBeenCalledWith({
+      query: {
+        tab: 'services',
+      },
     });
   });
 
-  it('loads activity fan-out on initial detail refresh', async () => {
-    shallowMount(ProjectDetailPage);
+  it('does not retry project logs bootstrap in a tight loop after a failed logs request', async () => {
+    routeState.value.query = { tab: 'logs' };
+    projectApiMocks.getProjectLogs.mockRejectedValue(new Error('boom'));
+
+    mountPage();
+    await flushPromises();
     await flushPromises();
 
-    expect(projectApiMocks.getProject).toHaveBeenCalledWith(7);
-    expect(projectApiMocks.getProjectConfiguration).toHaveBeenCalledWith(7);
-    expect(projectApiMocks.getProjectConfigurationPreview).toHaveBeenCalledWith(7);
-    expect(projectApiMocks.getProjectServices).toHaveBeenCalledTimes(1);
-    expect(projectApiMocks.getProjectServices).toHaveBeenCalledWith(7);
-    expect(containerApiMocks.getContainerEvents).toHaveBeenCalledWith('container-1');
-    expect(containerApiMocks.getContainerLogs).toHaveBeenCalledWith('container-1', {
-      since: '1h',
-      stderr: true,
-      stdout: true,
-      tail: 40,
-      timestamps: true,
-    });
+    expect(projectApiMocks.getProjectLogs).toHaveBeenCalledTimes(1);
+    expect(messageMocks.error).not.toHaveBeenCalled();
   });
 
-  it('keeps the detail record when loading services fails during refresh', async () => {
-    projectApiMocks.getProjectServices.mockRejectedValueOnce(new Error('service list failed'));
-
-    const wrapper = mountRuntimePage();
+  it('renders compact service columns without pagination', async () => {
+    const wrapper = mountPage();
     await flushPromises();
 
-    expect(projectApiMocks.getProject).toHaveBeenCalledWith(7);
-    expect(wrapper.text()).toContain('Compose Demo');
+    const table = wrapper.findComponent(ManagementPagedTableStub);
+    const columns = table.props('columns') as Array<{ title: string }>;
 
-    wrapper.unmount();
+    expect(columns.map((column) => column.title)).toEqual([
+      'Service',
+      'Status',
+      'Image',
+      'Health',
+      'Ports',
+      'Operation',
+    ]);
+    expect(table.props('paginationVisible')).toBe(false);
+    expect(wrapper.text()).not.toContain('Containers');
+    expect(wrapper.text()).not.toContain('Networks');
+    expect(wrapper.text()).not.toContain('Volumes');
   });
 
-  it('uses the same lifecycle visibility rules as the list page', async () => {
-    const wrapper = mountRuntimePage();
+  it('renders runtime published ports instead of declared compose mappings', async () => {
+    const wrapper = mountPage();
     await flushPromises();
 
-    expect(wrapper.find('[data-testid="project-detail-action-up"]').exists()).toBe(false);
-    expect(wrapper.find('[data-testid="project-detail-action-stop"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="project-detail-action-restart"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="project-detail-action-unregister"]').exists()).toBe(true);
-
-    wrapper.unmount();
+    expect(containerApiMocks.getContainers).toHaveBeenCalledWith({
+      limit: 200,
+      offset: 0,
+      orchestrator: 'compose',
+      source_scope: 'compose-demo',
+      source_scope_kind: 'compose_project',
+    });
+    expect(wrapper.find('[data-row="app"]').text()).toContain('8316:8080 TCP');
+    expect(wrapper.find('[data-row="app"]').text()).not.toContain('127.0.0.1:8080:8080');
+    expect(wrapper.find('[data-row="worker"]').text()).toContain('-');
   });
 
-  it('shows stopped and unknown lifecycle visibility variants and project refresh labels', async () => {
-    projectApiMocks.getProject.mockResolvedValueOnce({
-      activity_authority: 'frontend-fanout',
-      canonical_project_name: 'compose-demo',
-      canonical_project_name_source: 'explicit',
-      compose_files: [],
-      container_counts: { running: 0, stopped: 1, transitioning: 0, issue: 0, total: 1 },
-      display_name: 'Compose Demo',
-      drift_status: 'in-sync',
-      env_files: [],
-      host_scope: 'local',
-      id: 7,
-      last_observed_config_hash: null,
-      last_refresh_at: '2026-07-03T10:00:00Z',
-      last_refresh_config_hash: null,
-      last_refresh_status: 'success',
-      ownership_mode: 'external',
-      runtime_status: 'stopped',
-      service_count: 1,
-      working_directory: '/srv/compose-demo',
-    });
-
-    let wrapper = mountRuntimePage();
+  it('prefers the first running member when opening service detail', async () => {
+    const wrapper = mountPage();
     await flushPromises();
 
-    expect(wrapper.find('[data-testid="project-detail-action-up"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="project-detail-action-stop"]').exists()).toBe(false);
-    expect(wrapper.find('[data-testid="project-detail-action-restart"]').exists()).toBe(true);
-    expect(wrapper.text()).toContain('Last Project Refresh');
+    await wrapper.find('[data-row="app"] [data-action="detail"]').trigger('click');
 
-    wrapper.unmount();
+    expect(routerMocks.push).toHaveBeenCalledWith(
+      expect.objectContaining({
+        params: { id: 'container-2' },
+        query: { name: 'compose-demo-2' },
+      }),
+    );
+  });
 
-    projectApiMocks.getProject.mockResolvedValueOnce({
-      activity_authority: 'frontend-fanout',
-      canonical_project_name: 'compose-demo',
-      canonical_project_name_source: 'explicit',
-      compose_files: [],
-      container_counts: { running: 0, stopped: 0, transitioning: 0, issue: 0, total: 0 },
-      display_name: 'Compose Demo',
-      drift_status: 'in-sync',
-      env_files: [],
-      host_scope: 'local',
-      id: 7,
-      last_observed_config_hash: null,
-      last_refresh_at: '2026-07-03T10:00:00Z',
-      last_refresh_config_hash: null,
-      last_refresh_status: 'success',
-      ownership_mode: 'external',
-      runtime_status: 'unknown',
-      service_count: 0,
-      working_directory: '/srv/compose-demo',
-    });
-
-    wrapper = mountRuntimePage();
+  it('shows mutually exclusive service actions by running state', async () => {
+    const wrapper = mountPage();
     await flushPromises();
 
-    expect(wrapper.find('[data-testid="project-detail-action-up"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="project-detail-action-stop"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="project-detail-action-restart"]').exists()).toBe(true);
+    expect(wrapper.find('[data-row="app"] [data-action="stop"]').exists()).toBe(true);
+    expect(wrapper.find('[data-row="app"] [data-action="restart"]').exists()).toBe(true);
+    expect(wrapper.find('[data-row="app"] [data-action="start"]').exists()).toBe(false);
 
-    wrapper.unmount();
+    expect(wrapper.find('[data-row="worker"] [data-action="start"]').exists()).toBe(true);
+    expect(wrapper.find('[data-row="worker"] [data-action="stop"]').exists()).toBe(false);
+    expect(wrapper.find('[data-row="worker"] [data-action="restart"]').exists()).toBe(false);
+  });
+
+  it('runs service actions against all container members and refreshes detail state', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.find('[data-row="app"] [data-action="stop"]').trigger('click');
+    await flushPromises();
+
+    expect(containerApiMocks.batchContainerActions).toHaveBeenCalledWith({
+      action: 'stop',
+      force: false,
+      ids: ['container-1', 'container-2'],
+    });
+    expect(projectApiMocks.getProject).toHaveBeenCalledTimes(2);
+    expect(projectApiMocks.getProjectOverview).toHaveBeenCalledTimes(2);
+    expect(projectApiMocks.getProjectServices).toHaveBeenCalledTimes(2);
+    expect(messageMocks.success).toHaveBeenCalledWith('Service action success 2');
   });
 });

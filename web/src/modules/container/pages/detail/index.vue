@@ -4590,6 +4590,8 @@ function portLabel(port: ContainerDetail['ports'][number]) {
 }
 </script>
 <style scoped lang="less">
+@import '@/shared/components/management/card-surface.less';
+
 .container-detail-page {
   display: flex;
   flex: 1;
@@ -4664,8 +4666,8 @@ function portLabel(port: ContainerDetail['ports'][number]) {
 }
 
 .container-detail-summary-card {
-  background: color-mix(in srgb, var(--td-bg-color-container) 92%, transparent);
-  border: 1px solid color-mix(in srgb, var(--td-component-stroke) 64%, transparent);
+  .management-card-surface();
+
   height: 100%;
   min-width: 0;
 }
@@ -5693,8 +5695,8 @@ function portLabel(port: ContainerDetail['ports'][number]) {
 
 .container-health-summary-card,
 .container-health-info-card {
-  background: var(--td-bg-color-container);
-  border: 1px solid color-mix(in srgb, var(--td-component-stroke) 64%, transparent);
+  .management-card-surface();
+
   min-width: 0;
 }
 

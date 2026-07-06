@@ -205,12 +205,12 @@ const navToHelper = () => {
     &-side {
       left: 232px;
       right: 0;
-      transition: all 0.3s;
+      transition: left 0.32s cubic-bezier(0.38, 0, 0.24, 1);
       width: auto;
       z-index: 10;
 
       &-compact {
-        left: 64px;
+        left: 72px;
       }
     }
   }

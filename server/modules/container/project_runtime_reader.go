@@ -4,10 +4,14 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
+	"sync"
+	"time"
 
 	"graft/server/internal/moduleapi"
 )
@@ -96,6 +100,269 @@ func (r containerProjectRuntimeReader) ListProjectMembers(
 		return summary.Members[i].ServiceName < summary.Members[j].ServiceName
 	})
 	return summary, nil
+}
+
+func (r containerProjectRuntimeReader) ReadProjectResourceSummary(
+	ctx context.Context,
+	hostScope string,
+	canonicalProjectName string,
+) (moduleapi.ContainerProjectResourceSummary, error) {
+	summary := moduleapi.ContainerProjectResourceSummary{
+		CanonicalProjectName: strings.TrimSpace(canonicalProjectName),
+		Services:             []moduleapi.ContainerProjectServiceResourceSummary{},
+	}
+	if r.service == nil {
+		return summary, errRuntimeDisabled
+	}
+	if strings.TrimSpace(hostScope) == "" || strings.TrimSpace(canonicalProjectName) == "" {
+		return summary, nil
+	}
+	runtime, err := r.service.runtimeForRequest()
+	if err != nil {
+		return summary, err
+	}
+	var latestCollectedAt time.Time
+	if err := r.collectProjectResourceSummary(ctx, runtime, canonicalProjectName, &summary, &latestCollectedAt); err != nil {
+		return summary, err
+	}
+	finalizeProjectResourceSummary(&summary, latestCollectedAt)
+	return summary, nil
+}
+
+//nolint:gocognit,cyclop
+func (r containerProjectRuntimeReader) ReadProjectLogs(
+	ctx context.Context,
+	hostScope string,
+	canonicalProjectName string,
+	query moduleapi.ContainerProjectLogQuery,
+) (moduleapi.ContainerProjectLogSnapshot, error) {
+	snapshot := moduleapi.ContainerProjectLogSnapshot{
+		CanonicalProjectName: strings.TrimSpace(canonicalProjectName),
+		Entries:              []moduleapi.ContainerProjectLogEntry{},
+		Stdout:               query.Stdout,
+		Stderr:               query.Stderr,
+		Timestamps:           query.Timestamps,
+		Tail:                 query.Tail,
+	}
+	applyProjectLogSnapshotQuery(&snapshot, query)
+	if r.service == nil {
+		return snapshot, errRuntimeDisabled
+	}
+	if strings.TrimSpace(hostScope) == "" || strings.TrimSpace(canonicalProjectName) == "" {
+		return snapshot, nil
+	}
+	runtime, err := r.service.runtimeForRequest()
+	if err != nil {
+		return snapshot, err
+	}
+	normalizedQuery := normalizeContainerProjectLogQuery(query)
+	applyProjectLogSnapshotQuery(&snapshot, normalizedQuery)
+	members, err := r.ListProjectMembers(ctx, hostScope, canonicalProjectName)
+	if err != nil {
+		return snapshot, err
+	}
+	entries := make([]moduleapi.ContainerProjectLogEntry, 0, len(members.Members)*normalizedQuery.Tail)
+	truncated := false
+	for _, member := range members.Members {
+		logs, logErr := runtime.Logs(ctx, Ref{Value: member.ContainerID}, toContainerLogQuery(normalizedQuery))
+		if logErr != nil {
+			return snapshot, logErr
+		}
+		truncated = truncated || logs.Truncated
+		for _, entry := range logs.Entries {
+			entries = append(entries, moduleapi.ContainerProjectLogEntry{
+				ContainerID:   member.ContainerID,
+				ContainerName: member.ContainerName,
+				ServiceName:   member.ServiceName,
+				Line:          entry.Line,
+				Stream:        strings.TrimSpace(entry.Stream),
+				OccurredAt:    entry.OccurredAt.UTC().Format(time.RFC3339),
+			})
+		}
+	}
+	sort.SliceStable(entries, func(i, j int) bool {
+		left := parseContainerProjectLogTime(entries[i].OccurredAt)
+		right := parseContainerProjectLogTime(entries[j].OccurredAt)
+		if left.Equal(right) {
+			if entries[i].ServiceName == entries[j].ServiceName {
+				if entries[i].ContainerName == entries[j].ContainerName {
+					return entries[i].Line < entries[j].Line
+				}
+				return entries[i].ContainerName < entries[j].ContainerName
+			}
+			return entries[i].ServiceName < entries[j].ServiceName
+		}
+		return left.Before(right)
+	})
+	entries, truncated = trimProjectLogEntries(entries, normalizedQuery.Tail, truncated)
+	snapshot.Truncated = truncated
+	snapshot.Entries = entries
+	return snapshot, nil
+}
+
+func applyProjectLogSnapshotQuery(snapshot *moduleapi.ContainerProjectLogSnapshot, query moduleapi.ContainerProjectLogQuery) {
+	if snapshot == nil {
+		return
+	}
+	snapshot.Stdout = query.Stdout
+	snapshot.Stderr = query.Stderr
+	snapshot.Timestamps = query.Timestamps
+	snapshot.Tail = query.Tail
+	if strings.TrimSpace(query.Since) == "" {
+		snapshot.Since = nil
+		return
+	}
+	since := strings.TrimSpace(query.Since)
+	snapshot.Since = &since
+}
+
+func trimProjectLogEntries(
+	entries []moduleapi.ContainerProjectLogEntry,
+	tail int,
+	truncated bool,
+) ([]moduleapi.ContainerProjectLogEntry, bool) {
+	if tail <= 0 || len(entries) <= tail {
+		return entries, truncated
+	}
+	return append([]moduleapi.ContainerProjectLogEntry(nil), entries[len(entries)-tail:]...), true
+}
+
+func (r containerProjectRuntimeReader) StreamProjectLogs(
+	ctx context.Context,
+	hostScope string,
+	canonicalProjectName string,
+	query moduleapi.ContainerProjectLogQuery,
+	emit func(moduleapi.ContainerProjectLogEntry) error,
+) error {
+	if r.service == nil {
+		return errRuntimeDisabled
+	}
+	if emit == nil {
+		return nil
+	}
+	if strings.TrimSpace(hostScope) == "" || strings.TrimSpace(canonicalProjectName) == "" {
+		return nil
+	}
+	runtime, err := r.service.runtimeForRequest()
+	if err != nil {
+		return err
+	}
+	members, err := r.ListProjectMembers(ctx, hostScope, canonicalProjectName)
+	if err != nil {
+		return err
+	}
+	normalizedQuery := toContainerLogQuery(normalizeContainerProjectLogQuery(query))
+	var (
+		wg      sync.WaitGroup
+		errMu   sync.Mutex
+		errList []error
+		emitMu  sync.Mutex
+	)
+	for _, member := range members.Members {
+		member := member
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			streamErr := runtime.StreamLogs(ctx, Ref{Value: member.ContainerID}, normalizedQuery, func(chunk LogChunk) error {
+				emitMu.Lock()
+				defer emitMu.Unlock()
+				return emit(moduleapi.ContainerProjectLogEntry{
+					ContainerID:   member.ContainerID,
+					ContainerName: member.ContainerName,
+					ServiceName:   member.ServiceName,
+					Line:          chunk.Line,
+					Stream:        strings.TrimSpace(chunk.Stream),
+					OccurredAt:    chunk.Timestamp.UTC().Format(time.RFC3339),
+				})
+			})
+			if streamErr == nil || errors.Is(streamErr, context.Canceled) {
+				return
+			}
+			errMu.Lock()
+			errList = append(errList, streamErr)
+			errMu.Unlock()
+		}()
+	}
+	wg.Wait()
+	return errors.Join(errList...)
+}
+
+func (r containerProjectRuntimeReader) collectProjectResourceSummary(
+	ctx context.Context,
+	runtime Runtime,
+	canonicalProjectName string,
+	summary *moduleapi.ContainerProjectResourceSummary,
+	latestCollectedAt *time.Time,
+) error {
+	serviceIndex := make(map[string]int)
+	offset := 0
+	for {
+		items, err := runtime.List(ctx, ListQuery{
+			Limit:           maxContainerListLimit,
+			Offset:          offset,
+			Orchestrator:    containerOrchestratorCompose,
+			SourceScopeKind: composeProjectScopeKind,
+			SourceScope:     canonicalProjectName,
+		})
+		if err != nil {
+			return err
+		}
+		appendProjectResourceSummary(summary, serviceIndex, items, canonicalProjectName, latestCollectedAt)
+		if len(items) < maxContainerListLimit {
+			return nil
+		}
+		offset += len(items)
+	}
+}
+
+func finalizeProjectResourceSummary(summary *moduleapi.ContainerProjectResourceSummary, latestCollectedAt time.Time) {
+	if summary == nil {
+		return
+	}
+	slices.SortStableFunc(summary.Services, func(left, right moduleapi.ContainerProjectServiceResourceSummary) int {
+		if left.ServiceName == right.ServiceName {
+			return 0
+		}
+		if left.ServiceName < right.ServiceName {
+			return -1
+		}
+		return 1
+	})
+	summary.StatsAvailable = summary.StatsAvailableContainerCount > 0
+	if !latestCollectedAt.IsZero() {
+		summary.CollectedAt = latestCollectedAt.Format(time.RFC3339)
+	}
+}
+
+func normalizeContainerProjectLogQuery(query moduleapi.ContainerProjectLogQuery) moduleapi.ContainerProjectLogQuery {
+	normalized := query
+	if normalized.Tail <= 0 {
+		normalized.Tail = defaultContainerLogsDefaultTail
+	}
+	if !normalized.Stdout && !normalized.Stderr {
+		normalized.Stdout = true
+		normalized.Stderr = true
+	}
+	normalized.Since = strings.TrimSpace(normalized.Since)
+	return normalized
+}
+
+func toContainerLogQuery(query moduleapi.ContainerProjectLogQuery) LogQuery {
+	return LogQuery{
+		Tail:       query.Tail,
+		Since:      strings.TrimSpace(query.Since),
+		Timestamps: query.Timestamps,
+		Stdout:     query.Stdout,
+		Stderr:     query.Stderr,
+	}
+}
+
+func parseContainerProjectLogTime(value string) time.Time {
+	parsed, err := time.Parse(time.RFC3339, strings.TrimSpace(value))
+	if err != nil {
+		return time.Time{}
+	}
+	return parsed
 }
 
 func (r containerProjectRuntimeReader) ListImportCandidates(
@@ -462,6 +729,154 @@ func toProjectMember(item Summary, canonicalProjectName string) (moduleapi.Conta
 	}, true
 }
 
+func appendProjectResourceSummary(
+	summary *moduleapi.ContainerProjectResourceSummary,
+	serviceIndex map[string]int,
+	items []Summary,
+	canonicalProjectName string,
+	latestCollectedAt *time.Time,
+) {
+	for _, item := range items {
+		if !strings.EqualFold(composeProjectName(item), canonicalProjectName) {
+			continue
+		}
+		accumulateProjectResourceSummary(summary, serviceIndex, item, latestCollectedAt)
+	}
+}
+
+func accumulateProjectResourceSummary(
+	summary *moduleapi.ContainerProjectResourceSummary,
+	serviceIndex map[string]int,
+	item Summary,
+	latestCollectedAt *time.Time,
+) {
+	if summary == nil {
+		return
+	}
+	service := ensureProjectServiceResourceSummary(summary, serviceIndex, composeServiceName(item))
+	service.ContainerCount++
+	accumulateProjectResourceState(service, item)
+	accumulateProjectResourceHealth(summary, service, item.Health)
+	accumulateProjectResourceRestarts(summary, service, item.RestartCount)
+	accumulateProjectResourceMetrics(summary, service, item.Resource)
+	service.StatsAvailable = service.StatsAvailableContainerCount > 0
+	updateLatestProjectResourceCollectedAt(item.Resource.CollectedAt, latestCollectedAt)
+}
+
+func accumulateProjectResourceState(service *moduleapi.ContainerProjectServiceResourceSummary, item Summary) {
+	if service == nil {
+		return
+	}
+	switch normalizeContainerState(item.State) {
+	case "running":
+		service.RunningCount++
+	case "exited":
+		service.StoppedCount++
+	case "created", "restarting", "removing":
+		service.TransitioningCount++
+	default:
+		service.IssueCount++
+	}
+}
+
+func accumulateProjectResourceHealth(
+	summary *moduleapi.ContainerProjectResourceSummary,
+	service *moduleapi.ContainerProjectServiceResourceSummary,
+	health string,
+) {
+	switch strings.TrimSpace(health) {
+	case containerHealthHealthy:
+		summary.HealthyContainerCount++
+		service.HealthyContainerCount++
+	case containerHealthUnhealthy:
+		summary.UnhealthyContainerCount++
+		service.UnhealthyContainerCount++
+	case containerHealthStarting:
+		summary.StartingContainerCount++
+		service.StartingContainerCount++
+	}
+}
+
+func accumulateProjectResourceRestarts(
+	summary *moduleapi.ContainerProjectResourceSummary,
+	service *moduleapi.ContainerProjectServiceResourceSummary,
+	restartCount *int,
+) {
+	if restartCount == nil || *restartCount <= 0 {
+		return
+	}
+	summary.RestartCount += *restartCount
+	service.RestartCount += *restartCount
+}
+
+func accumulateProjectResourceMetrics(
+	summary *moduleapi.ContainerProjectResourceSummary,
+	service *moduleapi.ContainerProjectServiceResourceSummary,
+	resource ResourceSummary,
+) {
+	if resource.StatsAvailable {
+		summary.StatsAvailableContainerCount++
+		service.StatsAvailableContainerCount++
+	}
+	accumulateFloat64Metric(resource.CPUPercent, &summary.CPUPercent, &service.CPUPercent)
+	accumulateInt64Metric(resource.MemoryUsageBytes, &summary.MemoryUsageBytes, &service.MemoryUsageBytes)
+	accumulateInt64Metric(resource.MemoryLimitBytes, &summary.MemoryLimitBytes, &service.MemoryLimitBytes)
+	accumulateInt64Metric(resource.RxBytes, &summary.RxBytes)
+	accumulateInt64Metric(resource.TxBytes, &summary.TxBytes)
+}
+
+func accumulateFloat64Metric(value *float64, targets ...*float64) {
+	if value == nil || *value <= 0 {
+		return
+	}
+	for _, target := range targets {
+		if target != nil {
+			*target += *value
+		}
+	}
+}
+
+func accumulateInt64Metric(value *int64, targets ...*int64) {
+	if value == nil || *value <= 0 {
+		return
+	}
+	for _, target := range targets {
+		if target != nil {
+			*target += *value
+		}
+	}
+}
+
+func ensureProjectServiceResourceSummary(
+	summary *moduleapi.ContainerProjectResourceSummary,
+	serviceIndex map[string]int,
+	serviceName string,
+) *moduleapi.ContainerProjectServiceResourceSummary {
+	normalizedName := strings.TrimSpace(serviceName)
+	if index, ok := serviceIndex[normalizedName]; ok {
+		return &summary.Services[index]
+	}
+	summary.Services = append(summary.Services, moduleapi.ContainerProjectServiceResourceSummary{
+		ServiceName: normalizedName,
+	})
+	index := len(summary.Services) - 1
+	serviceIndex[normalizedName] = index
+	return &summary.Services[index]
+}
+
+func updateLatestProjectResourceCollectedAt(raw string, latest *time.Time) {
+	if latest == nil {
+		return
+	}
+	parsed, err := time.Parse(time.RFC3339, strings.TrimSpace(raw))
+	if err != nil {
+		return
+	}
+	if latest.IsZero() || parsed.After(*latest) {
+		*latest = parsed
+	}
+}
+
 func composeProjectName(item Summary) string {
 	return firstNonEmpty(strings.TrimSpace(item.Orchestrator.Project), strings.TrimSpace(item.ComposeProject))
 }
@@ -648,3 +1063,4 @@ func appendUniqueString(items []string, values ...string) []string {
 }
 
 var _ moduleapi.ContainerProjectRuntimeReader = containerProjectRuntimeReader{}
+var _ moduleapi.ContainerProjectResourceReader = containerProjectRuntimeReader{}

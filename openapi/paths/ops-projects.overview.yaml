@@ -1,0 +1,48 @@
+get:
+  tags: [project]
+  summary: Get Compose project runtime overview
+  operationId: getProjectOverview
+  description: >
+    Returns the Project-owned overview dashboard projection backed by the bounded container runtime resource
+    aggregate. Container remains the authority for per-container detail, logs, events, realtime stats topics,
+    and raw runtime inspection.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - $ref: ../components/parameters/project-id-path.yaml
+  security:
+    - bearerAuth: []
+  responses:
+    '200':
+      description: Compose project overview projection.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-project-overview-response.yaml
+    '400':
+      description: Invalid project id.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      $ref: ../components/responses/forbidden.yaml
+    '404':
+      description: Project record not found.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml

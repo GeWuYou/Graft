@@ -118,6 +118,27 @@ function handleMenuClick(payload: DropdownActionPayload, context?: DropdownActio
   white-space: nowrap;
 }
 
+.table-action-menu :deep(.t-button.t-button--variant-outline.t-button--theme-default) {
+  background: color-mix(in srgb, var(--graft-card-elevated-bg) 88%, var(--td-bg-color-page));
+  border-color: color-mix(in srgb, var(--graft-card-border-color) 92%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--graft-card-bg) 88%, transparent);
+  color: var(--td-text-color-primary);
+}
+
+.table-action-menu :deep(.t-button.t-button--variant-outline.t-button--theme-default:hover),
+.table-action-menu :deep(.t-button.t-button--variant-outline.t-button--theme-default:focus-visible) {
+  background: color-mix(in srgb, var(--td-brand-color) 5%, var(--graft-card-elevated-bg));
+  border-color: color-mix(in srgb, var(--td-brand-color) 20%, var(--graft-card-border-color));
+}
+
+.table-action-menu :deep(.t-button.t-button--variant-outline.t-button--theme-default:disabled) {
+  background: color-mix(in srgb, var(--graft-card-bg) 82%, var(--td-bg-color-page));
+  border-color: color-mix(in srgb, var(--graft-card-border-color) 76%, transparent);
+  box-shadow: none;
+  color: var(--td-text-color-disabled);
+  opacity: 1;
+}
+
 .table-action-menu :deep(.t-dropdown) {
   flex: none;
 }

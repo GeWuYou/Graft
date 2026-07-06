@@ -41,7 +41,7 @@
 
 - 支持把本机现有 Docker Compose Project 导入 `Graft` 管理。
 - 支持保存项目注册信息、工作目录、Compose 文件选择、环境文件选择与最近一次成功解析快照。
-- 支持项目级 `Overview`、`Services`、`Configuration`、`Lifecycle`、`Activity` 五类信息架构。
+- 支持项目级 `Overview`、`Services`、`Configuration`、`Lifecycle`、`Logs` 五类信息架构。
 - 支持项目级 `Refresh`、`Up`、`Stop`、`Restart`、`Unregister`、`Destroy` 管理动作。
 - 复用现有容器运行时能力，而不是新增第二套运行时真相。
 - Phase 1 只做本机 `local host`，但模型要为未来远程主机预留边界。
@@ -55,7 +55,8 @@
 - 不在 `Project` 层持久化容器日志、事件、Stats 或运行时快照。
 - Phase 1 不做 Git Project、Template、目录扫描、自动发现、远程主机。
 - Phase 1 不做 Configuration 编辑器、Diff、Deploy、Validate UI。
-- Phase 1 不做 Project Logs API、Project Events API 或 Project Realtime Topic。
+- Phase 1 不做 Project Events API、project-owned container detail，且不持久化项目运行时日志或实时缓存。
+- Phase 1 的项目详情实时快照与项目日志聚合只提供 bounded backend aggregation surface，不复制容器运行时 authority。
 
 ## 2.3 术语
 
@@ -78,19 +79,19 @@
 
 ## 3.1 现有模块与职责清单
 
-| 领域 | 现有路径 | 当前职责 | 对 Compose Project 的意义 |
-| --- | --- | --- | --- |
-| Project | 无专用 module | 仓库当前没有项目注册或 Compose Project 管理模块 | 必须新增 `server/modules/project/**` 与 `web/src/modules/project/**` |
-| Container backend | `server/modules/container/**` | 容器列表、详情、日志、Shell、start/stop/restart/remove、资源摘要、运行时事件、Compose 来源识别 | 当前唯一可复用的 Runtime Authority |
-| Container frontend | `web/src/modules/container/**` | 容器列表页、详情页、日志、运行时交互 | `Project -> Services -> Container Detail` 的现成落点 |
-| Docker provider | `server/modules/container/docker_runtime.go` | Docker Runtime adapter；读取容器元数据、labels、日志、stats、事件 | 当前对 Compose 的认知仅限容器 labels |
-| Runtime orchestration | `server/modules/container/service.go` | 容器用例编排、权限、审计、系统配置消费、实时 topic 注册 | 当前是 HTTP-first、module-private，用于复用时需要稳定共享边界 |
-| Realtime / events | `server/modules/container/runtime_events*.go`、`log_topic_streamer.go`、`resource_stats_cache.go` | 容器事件流、日志 topic、资源采集与缓存 | 可复用为 Activity 的底层事实来源，但 Phase 1 不新增项目级聚合 API |
-| Filesystem access | `server/modules/container/mount_usage.go`、`server/internal/config/config.go` | 挂载扫描、`.env` 与仓库根路径发现、基础文件系统读写 | 有基础文件系统经验，但没有 Compose 文件读取抽象 |
-| Configuration core | `server/internal/config/**`、`server/modules/container/config.go` | Viper 配置、系统配置定义与读取 | 可复用系统配置框架承载 `Managed Projects Root` 等配置 |
-| Database persistence pattern | `server/modules/notification/store/sql_repository.go`、`server/modules/announcement/store/sql_repository.go` | 模块自有 `database/sql` repository + migration pattern | `project` module 推荐沿用该模式，而不是先回到 Ent 中央仓储 |
-| Module runtime / DI | `server/internal/module/**`、`server/internal/container/**`、`server/internal/moduleapi/**` | 模块生命周期、服务注册、跨模块稳定接口 | `project` 需要在这里定义最小稳定共享边界 |
-| OpenAPI / generated schema | `openapi/**`、`web/src/contracts/openapi/generated/schema.ts` | 服务端与前端共享 wire contract | `project` 的 REST contract 必须走同一路径 |
+| 领域                         | 现有路径                                                                                                     | 当前职责                                                                                       | 对 Compose Project 的意义                                            |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| Project                      | 无专用 module                                                                                                | 仓库当前没有项目注册或 Compose Project 管理模块                                                | 必须新增 `server/modules/project/**` 与 `web/src/modules/project/**` |
+| Container backend            | `server/modules/container/**`                                                                                | 容器列表、详情、日志、Shell、start/stop/restart/remove、资源摘要、运行时事件、Compose 来源识别 | 当前唯一可复用的 Runtime Authority                                   |
+| Container frontend           | `web/src/modules/container/**`                                                                               | 容器列表页、详情页、日志、运行时交互                                                           | `Project -> Services -> Container Detail` 的现成落点                 |
+| Docker provider              | `server/modules/container/docker_runtime.go`                                                                 | Docker Runtime adapter；读取容器元数据、labels、日志、stats、事件                              | 当前对 Compose 的认知仅限容器 labels                                 |
+| Runtime orchestration        | `server/modules/container/service.go`                                                                        | 容器用例编排、权限、审计、系统配置消费、实时 topic 注册                                        | 当前是 HTTP-first、module-private，用于复用时需要稳定共享边界        |
+| Realtime / events            | `server/modules/container/runtime_events*.go`、`log_topic_streamer.go`、`resource_stats_cache.go`            | 容器事件流、日志 topic、资源采集与缓存                                                         | 可复用为 Activity 的底层事实来源，但 Phase 1 不新增项目级聚合 API    |
+| Filesystem access            | `server/modules/container/mount_usage.go`、`server/internal/config/config.go`                                | 挂载扫描、`.env` 与仓库根路径发现、基础文件系统读写                                            | 有基础文件系统经验，但没有 Compose 文件读取抽象                      |
+| Configuration core           | `server/internal/config/**`、`server/modules/container/config.go`                                            | Viper 配置、系统配置定义与读取                                                                 | 可复用系统配置框架承载 `Managed Projects Root` 等配置                |
+| Database persistence pattern | `server/modules/notification/store/sql_repository.go`、`server/modules/announcement/store/sql_repository.go` | 模块自有 `database/sql` repository + migration pattern                                         | `project` module 推荐沿用该模式，而不是先回到 Ent 中央仓储           |
+| Module runtime / DI          | `server/internal/module/**`、`server/internal/container/**`、`server/internal/moduleapi/**`                  | 模块生命周期、服务注册、跨模块稳定接口                                                         | `project` 需要在这里定义最小稳定共享边界                             |
+| OpenAPI / generated schema   | `openapi/**`、`web/src/contracts/openapi/generated/schema.ts`                                                | 服务端与前端共享 wire contract                                                                 | `project` 的 REST contract 必须走同一路径                            |
 
 ## 3.2 当前依赖图
 
@@ -133,14 +134,14 @@ Docker container labels
 
 ## 4. 现有能力盘点
 
-| 能力 | 当前状态 | 证据结论 | 可复用建议 |
-| --- | --- | --- | --- |
-| Compose Project detection | `partial` | 已通过 `com.docker.compose.project` / `com.docker.compose.service` labels 识别容器来源 | 复用为项目成员匹配与运行态聚合基础 |
-| Compose parsing | `no` | 仓库内无 Compose 文件解析器、无 `compose-go` 使用 | 新增 `project` module 静态解析能力 |
-| Compose up/stop/restart | `no` | 容器 module 仅有单容器动作，没有 `docker compose up/stop/restart` 执行层 | 新增项目生命周期执行器 |
-| Compose logs | `indirect yes` | 已有容器日志 API 和流能力，但没有项目级日志 API | Phase 1 通过前端 fan-out 复用 |
-| Compose config | `no` | 无 `docker compose config` 或等价规范化预览接口 | 新增静态规范化快照与预览能力 |
-| Compose events | `indirect yes` | 已有容器事件流，但没有项目级事件聚合 API | Phase 1 通过前端 fan-out 复用 |
+| 能力                      | 当前状态       | 证据结论                                                                               | 可复用建议                                  |
+| ------------------------- | -------------- | -------------------------------------------------------------------------------------- | ------------------------------------------- |
+| Compose Project detection | `partial`      | 已通过 `com.docker.compose.project` / `com.docker.compose.service` labels 识别容器来源 | 复用为项目成员匹配与运行态聚合基础          |
+| Compose parsing           | `no`           | 仓库内无 Compose 文件解析器、无 `compose-go` 使用                                      | 新增 `project` module 静态解析能力          |
+| Compose up/stop/restart   | `no`           | 容器 module 仅有单容器动作，没有 `docker compose up/stop/restart` 执行层               | 新增项目生命周期执行器                      |
+| Compose logs              | `yes`          | 已有容器日志 API / 流能力，且项目侧补充了 project-owned 聚合读取与实时 topic           | Phase 1 由 `project` 聚合并显式保留来源字段 |
+| Compose config            | `no`           | 无 `docker compose config` 或等价规范化预览接口                                        | 新增静态规范化快照与预览能力                |
+| Compose events            | `indirect yes` | 已有容器事件流，但当前仍没有项目级事件聚合 API                                         | 继续保持容器 authority，后续按需扩展        |
 
 ## 4.1 可直接复用的组件
 
@@ -792,11 +793,11 @@ Phase 1 的 canonical OpenAPI authority 已收口到 `openapi/**`，本节继续
 
 ## 10.1 项目列表与详情
 
-| Method | Path | 语义 |
-| --- | --- | --- |
-| `GET` | `/api/ops/projects` | 项目列表 |
-| `GET` | `/api/ops/projects/{id}` | 项目详情 summary |
-| `GET` | `/api/ops/projects/{id}/services` | 项目服务聚合 |
+| Method | Path                              | 语义             |
+| ------ | --------------------------------- | ---------------- |
+| `GET`  | `/api/ops/projects`               | 项目列表         |
+| `GET`  | `/api/ops/projects/{id}`          | 项目详情 summary |
+| `GET`  | `/api/ops/projects/{id}/services` | 项目服务聚合     |
 
 建议列表返回：
 
@@ -832,15 +833,15 @@ Phase 1 的 canonical OpenAPI authority 已收口到 `openapi/**`，本节继续
 
 ## 10.2 导入与校验
 
-| Method | Path | 语义 |
-| --- | --- | --- |
-| `GET` | `/api/ops/projects/import/runtime-candidates` | 返回当前 runtime 可见的 Compose import candidates |
-| `POST` | `/api/ops/projects/import/runtime-inspect` | 基于一个 `ready` runtime candidate 执行 inspect |
-| `GET` | `/api/ops/projects/import/directory-sources` | 返回 import flow 可用的 directory roots |
-| `GET` | `/api/ops/projects/import/directories` | 在一个 allowed root 下分页浏览目录 |
-| `POST` | `/api/ops/projects/import/inspect` | 自动发现并 inspect 一个 selected directory |
-| `POST` | `/api/ops/projects/import/validate` | 只校验输入与 Compose 解析，不持久化 |
-| `POST` | `/api/ops/projects/import` | 导入并注册项目 |
+| Method | Path                                          | 语义                                              |
+| ------ | --------------------------------------------- | ------------------------------------------------- |
+| `GET`  | `/api/ops/projects/import/runtime-candidates` | 返回当前 runtime 可见的 Compose import candidates |
+| `POST` | `/api/ops/projects/import/runtime-inspect`    | 基于一个 `ready` runtime candidate 执行 inspect   |
+| `GET`  | `/api/ops/projects/import/directory-sources`  | 返回 import flow 可用的 directory roots           |
+| `GET`  | `/api/ops/projects/import/directories`        | 在一个 allowed root 下分页浏览目录                |
+| `POST` | `/api/ops/projects/import/inspect`            | 自动发现并 inspect 一个 selected directory        |
+| `POST` | `/api/ops/projects/import/validate`           | 只校验输入与 Compose 解析，不持久化               |
+| `POST` | `/api/ops/projects/import`                    | 导入并注册项目                                    |
 
 `runtime-candidates` 返回建议包含：
 
@@ -942,11 +943,11 @@ Phase 1 的 canonical OpenAPI authority 已收口到 `openapi/**`，本节继续
 
 新增 canonical contract owner：
 
-| Method | Path | 语义 |
-| --- | --- | --- |
-| `GET` | `/api/ops/projects/managed-root` | 返回 managed create 的 system-config authority、ownership mode 与 readiness |
-| `POST` | `/api/ops/projects/create/validate` | 只校验 managed create 输入、目标目录推导与 bounded authority，不写文件 |
-| `POST` | `/api/ops/projects/create` | 在 managed root 下写入 compose/env 文件并注册 managed project |
+| Method | Path                                | 语义                                                                        |
+| ------ | ----------------------------------- | --------------------------------------------------------------------------- |
+| `GET`  | `/api/ops/projects/managed-root`    | 返回 managed create 的 system-config authority、ownership mode 与 readiness |
+| `POST` | `/api/ops/projects/create/validate` | 只校验 managed create 输入、目标目录推导与 bounded authority，不写文件      |
+| `POST` | `/api/ops/projects/create`          | 在 managed root 下写入 compose/env 文件并注册 managed project               |
 
 managed root authority 约束：
 
@@ -973,11 +974,11 @@ managed create request 建议至少包含：
 
 为支持未来 Monaco / Diff / Download / Version，Configuration API 建议拆分：
 
-| Method | Path | 语义 |
-| --- | --- | --- |
-| `GET` | `/api/ops/projects/{id}/configuration` | 文件列表、元数据、ownership、diagnostics summary |
-| `GET` | `/api/ops/projects/{id}/configuration/preview` | 规范化 Compose preview |
-| `GET` | `/api/ops/projects/{id}/configuration/files/{fileId}` | 单文件内容 |
+| Method | Path                                                  | 语义                                             |
+| ------ | ----------------------------------------------------- | ------------------------------------------------ |
+| `GET`  | `/api/ops/projects/{id}/configuration`                | 文件列表、元数据、ownership、diagnostics summary |
+| `GET`  | `/api/ops/projects/{id}/configuration/preview`        | 规范化 Compose preview                           |
+| `GET`  | `/api/ops/projects/{id}/configuration/files/{fileId}` | 单文件内容                                       |
 
 Phase 1 的 `configuration` 返回建议包含：
 
@@ -1000,14 +1001,14 @@ Phase 1 的单文件内容返回建议包含：
 
 ## 10.4 生命周期动作
 
-| Method | Path | 语义 |
-| --- | --- | --- |
-| `POST` | `/api/ops/projects/{id}/refresh` | 刷新静态配置与聚合视图 |
-| `POST` | `/api/ops/projects/{id}/up` | 执行 compose up |
-| `POST` | `/api/ops/projects/{id}/stop` | 执行 compose stop，仅停止运行中的服务与容器 |
-| `POST` | `/api/ops/projects/{id}/restart` | 执行 compose restart |
-| `POST` | `/api/ops/projects/{id}/unregister` | 只删注册记录 |
-| `POST` | `/api/ops/projects/{id}/destroy` | 执行 compose down 并进入高危销毁收尾；受 ownership 保护 |
+| Method | Path                                | 语义                                                    |
+| ------ | ----------------------------------- | ------------------------------------------------------- |
+| `POST` | `/api/ops/projects/{id}/refresh`    | 刷新静态配置与聚合视图                                  |
+| `POST` | `/api/ops/projects/{id}/up`         | 执行 compose up                                         |
+| `POST` | `/api/ops/projects/{id}/stop`       | 执行 compose stop，仅停止运行中的服务与容器             |
+| `POST` | `/api/ops/projects/{id}/restart`    | 执行 compose restart                                    |
+| `POST` | `/api/ops/projects/{id}/unregister` | 只删注册记录                                            |
+| `POST` | `/api/ops/projects/{id}/destroy`    | 执行 compose down 并进入高危销毁收尾；受 ownership 保护 |
 
 `destroy` 请求建议显式字段：
 
@@ -1023,9 +1024,7 @@ Phase 1 的单文件内容返回建议包含：
 
 ## 10.5 Phase 1 明确不提供的 API
 
-- 不提供 `/api/ops/projects/{id}/logs`
 - 不提供 `/api/ops/projects/{id}/events`
-- 不提供项目级 realtime topic
 - 不提供配置编辑保存接口
 
 ## 10.6 Batch 1 authority 落地说明
@@ -1360,17 +1359,17 @@ Phase 1 处理：
 
 ## 15. 未来扩展评估
 
-| 方向 | 是否兼容当前模型 | 设计说明 |
-| --- | --- | --- |
-| Git-based Projects | `yes` | 在 `source_kind` 上扩展 `git`，并追加 source metadata |
-| Templates | `yes` | Template 实质上是 future `Managed Create` 的输入源 |
-| Directory Scan | `yes` | 扫描只产出 candidates，不直接注册 |
-| Auto Discovery | `yes` | 后台发现只更新 candidate / drift，不改变 runtime authority |
-| Multiple Compose Files | `yes` | `compose_project_files` 的 `order_index` 已为有序 `-f` 预留 |
-| Compose Override | `yes` | 通过 `role=override` 与有序文件列表支持 |
-| Environment Files | `yes` | `kind=env` + file list 可扩展多个 env file |
-| Remote Host | `partial` | 需在 `host_scope` 与连接配置上再扩展，但 registry 模型可保留 |
-| Project Activity backend aggregation | `future yes` | 需要单独定义 observability authority，Phase 1 不做 |
+| 方向                                 | 是否兼容当前模型 | 设计说明                                                     |
+| ------------------------------------ | ---------------- | ------------------------------------------------------------ |
+| Git-based Projects                   | `yes`            | 在 `source_kind` 上扩展 `git`，并追加 source metadata        |
+| Templates                            | `yes`            | Template 实质上是 future `Managed Create` 的输入源           |
+| Directory Scan                       | `yes`            | 扫描只产出 candidates，不直接注册                            |
+| Auto Discovery                       | `yes`            | 后台发现只更新 candidate / drift，不改变 runtime authority   |
+| Multiple Compose Files               | `yes`            | `compose_project_files` 的 `order_index` 已为有序 `-f` 预留  |
+| Compose Override                     | `yes`            | 通过 `role=override` 与有序文件列表支持                      |
+| Environment Files                    | `yes`            | `kind=env` + file list 可扩展多个 env file                   |
+| Remote Host                          | `partial`        | 需在 `host_scope` 与连接配置上再扩展，但 registry 模型可保留 |
+| Project Activity backend aggregation | `future yes`     | 需要单独定义 observability authority，Phase 1 不做           |
 
 ## 16. 分阶段实施路线
 

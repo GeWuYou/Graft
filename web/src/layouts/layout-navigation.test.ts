@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { MenuRoute } from '@/utils/types';
 
-import { flattenMixHeaderMenus, resolveMenuNavigationPath } from './layout-navigation';
+import { findExpandedMenuPaths, flattenMixHeaderMenus, resolveMenuNavigationPath } from './layout-navigation';
 
 describe('layout navigation helpers', () => {
   it('resolves a grouped monitor menu to the first visible leaf page', () => {
@@ -67,5 +67,48 @@ describe('layout navigation helpers', () => {
     expect(menus[0]?.children).toEqual([]);
     expect(menus[0]?.redirect).toBeUndefined();
     expect(menus[0]?.meta?.single).toBe(true);
+  });
+
+  it('derives expanded submenu ancestors from the menu tree', () => {
+    const expanded = findExpandedMenuPaths(
+      [
+        {
+          path: '/audit',
+          children: [
+            {
+              path: 'logs',
+              children: [
+                {
+                  path: 'access',
+                  meta: { titleKey: 'menu.accessLog.title' },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      '/audit/logs/access',
+    );
+
+    expect(expanded).toEqual(['/audit', '/audit/logs']);
+  });
+
+  it('keeps grouped parent menus expanded for descendant detail routes', () => {
+    const expanded = findExpandedMenuPaths(
+      [
+        {
+          path: '/ops',
+          children: [
+            {
+              path: 'containers',
+              meta: { titleKey: 'menu.container.title' },
+            },
+          ],
+        },
+      ],
+      '/ops/containers/container-1',
+    );
+
+    expect(expanded).toEqual(['/ops']);
   });
 });

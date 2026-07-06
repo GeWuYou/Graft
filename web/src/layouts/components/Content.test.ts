@@ -38,6 +38,10 @@ const RouteContentProbe = markRaw({
 const TransitionStub = defineComponent({
   name: 'Transition',
   props: {
+    onAfterLeave: {
+      type: Function,
+      default: undefined,
+    },
     onBeforeEnter: {
       type: Function,
       default: undefined,
@@ -46,6 +50,7 @@ const TransitionStub = defineComponent({
   setup(props, { slots }) {
     return () => {
       props.onBeforeEnter?.();
+      props.onAfterLeave?.();
       return h('div', slots.default?.());
     };
   },
@@ -225,10 +230,9 @@ describe('Content', () => {
     expect(wrapper.findComponent({ name: 'RolesIndex' }).exists()).toBe(true);
   });
 
-  it('emits the entering route surface from transition timing', () => {
+  it('emits the target page surface only after the leaving view finishes', () => {
     routeState.meta = {
-      dashboard: true,
-      pageSurface: 'paged-table',
+      pageSurface: 'form-detail',
     };
 
     const wrapper = mount(Content, {
@@ -254,7 +258,7 @@ describe('Content', () => {
       },
     });
 
-    expect(wrapper.emitted('page-surface-enter')).toEqual([['paged-table']]);
+    expect(wrapper.emitted('page-surface-ready')).toEqual([['form-detail']]);
   });
 
   it('keeps route content mounted while tab refresh only raises the loading state', async () => {

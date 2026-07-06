@@ -32,6 +32,7 @@ const routeState = vi.hoisted(() => ({
   path: '/server/runtime',
   fullPath: '/server/runtime',
 }));
+const routeProxy = reactive(routeState);
 
 const routerMock = vi.hoisted(() => ({
   currentRoute: {
@@ -90,7 +91,7 @@ const storeState = vi.hoisted(() => ({
 }));
 
 vi.mock('vue-router', () => ({
-  useRoute: () => routeState,
+  useRoute: () => routeProxy,
   useRouter: () => routerMock,
 }));
 
@@ -218,7 +219,7 @@ const TDialogStub = defineComponent({
 
 const LContentStub = defineComponent({
   name: 'LContent',
-  emits: ['page-surface-enter'],
+  emits: ['page-surface-ready'],
   setup() {
     return () =>
       h('div', { class: 'route-view-host route-loading-host', 'data-testid': 'route-view-host' }, [
@@ -323,8 +324,8 @@ async function clickRefreshItemForTab(wrapper: ReturnType<typeof mountLayoutCont
 
 describe('LayoutContent', () => {
   beforeEach(() => {
-    routeState.meta = {};
-    routeState.matched = [
+    routeProxy.meta = {};
+    routeProxy.matched = [
       {
         meta: {
           breadcrumbTitle: {
@@ -335,9 +336,9 @@ describe('LayoutContent', () => {
         path: '/server',
       },
     ];
-    routeState.path = '/server/runtime';
-    routeState.fullPath = '/server/runtime';
-    routerMock.currentRoute.value = routeState;
+    routeProxy.path = '/server/runtime';
+    routeProxy.fullPath = '/server/runtime';
+    routerMock.currentRoute.value = routeProxy;
     routerMock.push.mockClear();
     routerMock.resolve.mockClear();
     storeState.settingStore.isUseTabsRouter = true;
@@ -385,8 +386,8 @@ describe('LayoutContent', () => {
     expect(storeState.tabsRouterStore.closeAllClosableTabs).not.toHaveBeenCalled();
   });
 
-  it('keeps the leaving page surface until the entering view reports its surface', async () => {
-    routeState.meta = {
+  it('keeps the leaving page surface until the previous view has fully left', async () => {
+    routeProxy.meta = {
       pageKind: 'list',
     };
     const wrapper = mountLayoutContent();
@@ -395,7 +396,7 @@ describe('LayoutContent', () => {
       'tdesign-starter-page-container--paged-table',
     );
 
-    routeState.meta = {
+    routeProxy.meta = {
       pageSurface: 'form-detail',
     };
     await nextTick();
@@ -404,7 +405,7 @@ describe('LayoutContent', () => {
       'tdesign-starter-page-container--paged-table',
     );
 
-    wrapper.findComponent({ name: 'LContent' }).vm.$emit('page-surface-enter', 'form-detail');
+    wrapper.findComponent({ name: 'LContent' }).vm.$emit('page-surface-ready', 'form-detail');
     await nextTick();
 
     expect(wrapper.get('.tdesign-starter-page-container').classes()).toContain(

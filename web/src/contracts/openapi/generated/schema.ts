@@ -2236,6 +2236,46 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/ops/projects/{id}/overview': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Compose project runtime overview
+     * @description Returns the Project-owned overview dashboard projection backed by the bounded container runtime resource aggregate. Container remains the authority for per-container detail, logs, events, realtime stats topics, and raw runtime inspection.
+     */
+    get: operations['getProjectOverview'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/projects/{id}/logs': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Read project-owned aggregated logs
+     * @description Returns project-owned aggregated log entries sourced from the project's current container members. Container remains the runtime authority for per-container log transport, while Project owns the multi-container aggregation, source attribution, and project detail integration. The canonical realtime companion topic is `project.logs:<id>`.
+     */
+    get: operations['getProjectLogs'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/ops/projects/{id}/lifecycle-configuration': {
     parameters: {
       query?: never;
@@ -2791,6 +2831,14 @@ export interface components {
     ProjectListItem: components['schemas']['project-list-item'];
     ProjectListResponse: components['schemas']['project-list-response'];
     ProjectDetailResponse: components['schemas']['project-detail-response'];
+    ProjectLogEntryStream: components['schemas']['project-log-entry-stream'];
+    ProjectLogEntrySource: components['schemas']['project-log-entry-source'];
+    ProjectLogEntry: components['schemas']['project-log-entry'];
+    ProjectLogResponse: components['schemas']['project-log-response'];
+    ProjectOverviewHealthSummary: components['schemas']['project-overview-health-summary'];
+    ProjectOverviewResourceSummary: components['schemas']['project-overview-resource-summary'];
+    ProjectOverviewServiceItem: components['schemas']['project-overview-service-item'];
+    ProjectOverviewResponse: components['schemas']['project-overview-response'];
     ProjectServiceItem: components['schemas']['project-service-item'];
     ProjectServicesResponse: components['schemas']['project-services-response'];
     ProjectCreateRequest: components['schemas']['project-create-request'];
@@ -2817,6 +2865,8 @@ export interface components {
     EnvelopedProjectListResponse: components['schemas']['enveloped-project-list-response'];
     EnvelopedProjectSourceCatalogResponse: components['schemas']['enveloped-project-source-catalog-response'];
     EnvelopedProjectDetailResponse: components['schemas']['enveloped-project-detail-response'];
+    EnvelopedProjectLogResponse: components['schemas']['enveloped-project-log-response'];
+    EnvelopedProjectOverviewResponse: components['schemas']['enveloped-project-overview-response'];
     EnvelopedProjectLifecycleConfigurationResponse: components['schemas']['enveloped-project-lifecycle-configuration-response'];
     EnvelopedProjectServicesResponse: components['schemas']['enveloped-project-services-response'];
     EnvelopedProjectConfigurationMetadataResponse: components['schemas']['enveloped-project-configuration-metadata-response'];
@@ -5843,6 +5893,105 @@ export interface components {
     };
     'enveloped-project-detail-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['project-detail-response'];
+    };
+    'project-overview-health-summary': {
+      healthy_service_count: number;
+      healthy_container_count: number;
+      unhealthy_container_count: number;
+      starting_container_count: number;
+      restart_count: number;
+      networks_count: number;
+      volumes_count: number;
+    };
+    'project-overview-resource-summary': {
+      /** @description True when at least one runtime member contributed backend resource stats to this overview snapshot. */
+      stats_available: boolean;
+      stats_available_container_count: number;
+      /** Format: double */
+      cpu_percent: number;
+      /** Format: int64 */
+      memory_usage_bytes: number;
+      /** Format: int64 */
+      memory_limit_bytes: number;
+      /** Format: int64 */
+      rx_bytes: number;
+      /** Format: int64 */
+      tx_bytes: number;
+    };
+    'project-overview-service-item': {
+      service_name: string;
+      image?: string | null;
+      /** @enum {string} */
+      status: 'running' | 'degraded' | 'stopped';
+      /** @enum {string} */
+      health: 'healthy' | 'attention' | 'unknown';
+      container_count: number;
+      running_count: number;
+      stopped_count: number;
+      transitioning_count: number;
+      issue_count: number;
+      healthy_container_count: number;
+      unhealthy_container_count: number;
+      starting_container_count: number;
+      restart_count: number;
+      stats_available: boolean;
+      stats_available_container_count: number;
+      /** Format: double */
+      cpu_percent: number;
+      /** Format: int64 */
+      memory_usage_bytes: number;
+      /** Format: int64 */
+      memory_limit_bytes: number;
+    };
+    'project-overview-response': {
+      /** Format: int64 */
+      project_id: number;
+      canonical_project_name: string;
+      /** Format: date-time */
+      collected_at?: string | null;
+      health: components['schemas']['project-overview-health-summary'];
+      resources: components['schemas']['project-overview-resource-summary'];
+      services: components['schemas']['project-overview-service-item'][];
+    };
+    'enveloped-project-overview-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['project-overview-response'];
+    };
+    'project-log-entry-source': {
+      container_id: string;
+      container_name: string;
+      service_name: string;
+    };
+    /**
+     * @description Canonical runtime stream that produced the aggregated project log entry.
+     * @enum {string}
+     */
+    'project-log-entry-stream': 'stdout' | 'stderr';
+    'project-log-entry': {
+      container_id: string;
+      container_name: string;
+      service_name: string;
+      source: components['schemas']['project-log-entry-source'];
+      line: string;
+      /** Format: date-time */
+      occurred_at: string;
+      stream: components['schemas']['project-log-entry-stream'];
+    };
+    'project-log-response': {
+      /** Format: int64 */
+      project_id: number;
+      canonical_project_name: string;
+      entries: components['schemas']['project-log-entry'][];
+      tail: number;
+      since?: string | null;
+      timestamps: boolean;
+      stdout: boolean;
+      stderr: boolean;
+      truncated: boolean;
+    };
+    'enveloped-project-log-response': {
+      code: number;
+      msg: string;
+      data: components['schemas']['project-log-response'];
     };
     'project-lifecycle-configuration-request': {
       strategy_kind: components['schemas']['project-lifecycle-strategy-kind'];
@@ -12346,6 +12495,127 @@ export interface operations {
         };
       };
       /** @description Invalid project id. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Project record not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getProjectOverview: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
+        id: components['parameters']['project-id-path'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Compose project overview projection. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-project-overview-response'];
+        };
+      };
+      /** @description Invalid project id. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Project record not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getProjectLogs: {
+    parameters: {
+      query?: {
+        /** @description Number of log lines to return from the end of the stream. */
+        tail?: components['parameters']['container-logs-tail'];
+        /** @description Optional log lower bound. Accepts an RFC3339 timestamp or a duration such as 10m, 1h, or 24h. Invalid values must return a localized validation error. */
+        since?: components['parameters']['container-logs-since'];
+        /** @description Whether the runtime should request per-entry timestamps so each returned log entry can preserve canonical occurrence time. */
+        timestamps?: components['parameters']['container-logs-timestamps'];
+        /** @description Whether stdout stream lines should be included. */
+        stdout?: components['parameters']['container-logs-stdout'];
+        /** @description Whether stderr stream lines should be included. */
+        stderr?: components['parameters']['container-logs-stderr'];
+      };
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
+        id: components['parameters']['project-id-path'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Project aggregated logs. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-project-log-response'];
+        };
+      };
+      /** @description Invalid project id or log query. */
       400: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];

@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, reactive } from 'vue';
 import type { RouteLocationNormalizedLoaded } from 'vue-router';
 
@@ -30,9 +30,19 @@ const routerMock = vi.hoisted(() => ({
   })),
 }));
 
+const settingStoreProxy = vi.hoisted(() => ({
+  value: null as null | {
+    displayMode: string;
+    isSidebarCompact: boolean;
+    layout: { value: string };
+    showSidebar: boolean;
+  },
+}));
+
 const storeState = vi.hoisted(() => ({
   settingStore: {
     displayMode: 'light',
+    isSidebarCompact: false,
     layout: { value: 'side' },
     showSidebar: true,
   },
@@ -79,7 +89,12 @@ vi.mock('pinia', async (importOriginal) => ({
 }));
 
 vi.mock('@/store', () => ({
-  useSettingStore: () => reactive(storeState.settingStore),
+  useSettingStore: () => {
+    if (!settingStoreProxy.value) {
+      settingStoreProxy.value = reactive(storeState.settingStore);
+    }
+    return settingStoreProxy.value;
+  },
   useTabsRouterStore: () => storeState.tabsRouterStore,
 }));
 
@@ -122,6 +137,12 @@ function mountAppLayout() {
 
 describe('App layout route effects', () => {
   beforeEach(() => {
+    vi.useFakeTimers();
+    settingStoreProxy.value ??= reactive(storeState.settingStore);
+    settingStoreProxy.value.displayMode = 'light';
+    settingStoreProxy.value.isSidebarCompact = false;
+    settingStoreProxy.value.layout = { value: 'side' };
+    settingStoreProxy.value.showSidebar = true;
     routeProxy.value!.fullPath = '/ops/containers/container-1?tab=overview';
     routeProxy.value!.path = '/ops/containers/container-1';
     routeProxy.value!.name = 'ContainerDetail';
@@ -135,6 +156,10 @@ describe('App layout route effects', () => {
     document.body.innerHTML = '<div class="tdesign-starter-layout"></div>';
     const layout = document.querySelector('.tdesign-starter-layout') as HTMLDivElement;
     layout.scrollTo = scrollToMock;
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('updates tab route state without scrolling for same-page query changes', async () => {
@@ -166,5 +191,57 @@ describe('App layout route effects', () => {
     await wrapper.vm.$nextTick();
 
     expect(scrollToMock).toHaveBeenCalledWith({ behavior: 'smooth', top: 0 });
+  });
+
+  it('exposes the sidebar compact state on the shell surface', async () => {
+    settingStoreProxy.value!.isSidebarCompact = false;
+    const wrapper = mountAppLayout();
+
+    expect(wrapper.get('.app-shell').attributes('data-sidebar-compact')).toBe('false');
+    expect(wrapper.get('.app-shell').attributes('data-sidebar-motion-phase')).toBe('expanded');
+
+    settingStoreProxy.value!.isSidebarCompact = true;
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.get('.app-shell').attributes('data-sidebar-compact')).toBe('true');
+    expect(wrapper.get('.app-shell').attributes('data-sidebar-target-compact')).toBe('true');
+    expect(wrapper.get('.app-shell').attributes('data-sidebar-motion-phase')).toBe('collapsing-width');
+
+    vi.advanceTimersByTime(124);
+    await wrapper.vm.$nextTick();
+    expect(wrapper.get('.app-shell').attributes('data-sidebar-motion-phase')).toBe('collapsing-submenu');
+
+    vi.advanceTimersByTime(84);
+    await wrapper.vm.$nextTick();
+    expect(wrapper.get('.app-shell').attributes('data-sidebar-motion-phase')).toBe('collapsing-topmenu');
+
+    vi.advanceTimersByTime(112);
+    await wrapper.vm.$nextTick();
+    expect(wrapper.get('.app-shell').attributes('data-sidebar-motion-phase')).toBe('compact');
+  });
+
+  it('runs the reverse sidebar motion when expanding back out', async () => {
+    settingStoreProxy.value!.isSidebarCompact = true;
+    const wrapper = mountAppLayout();
+
+    expect(wrapper.get('.app-shell').attributes('data-sidebar-motion-phase')).toBe('compact');
+
+    settingStoreProxy.value!.isSidebarCompact = false;
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.get('.app-shell').attributes('data-sidebar-motion-phase')).toBe('expanding-width');
+    expect(wrapper.get('.app-shell').attributes('data-sidebar-compact')).toBe('false');
+
+    vi.advanceTimersByTime(128);
+    await wrapper.vm.$nextTick();
+    expect(wrapper.get('.app-shell').attributes('data-sidebar-motion-phase')).toBe('expanding-topmenu');
+
+    vi.advanceTimersByTime(96);
+    await wrapper.vm.$nextTick();
+    expect(wrapper.get('.app-shell').attributes('data-sidebar-motion-phase')).toBe('expanding-submenu');
+
+    vi.advanceTimersByTime(96);
+    await wrapper.vm.$nextTick();
+    expect(wrapper.get('.app-shell').attributes('data-sidebar-motion-phase')).toBe('expanded');
   });
 });

@@ -243,10 +243,12 @@ function buildDerivedTitleMeta(title: LocalizedTitle, parentTitle?: LocalizedTit
     return {};
   }
 
+  const combinedTitle = combineLocalizedTitles(parentTitle, title);
+
   return {
-    semanticTitle: combineLocalizedTitles(parentTitle, title),
+    semanticTitle: combinedTitle,
     breadcrumbTitle: title,
-    tabTitle: title,
+    tabTitle: combinedTitle,
   };
 }
 

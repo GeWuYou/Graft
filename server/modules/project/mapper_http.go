@@ -1,9 +1,12 @@
 package project
 
 import (
+	"strings"
 	"time"
 
 	generated "graft/server/internal/contract/openapi/generated"
+	"graft/server/internal/moduleapi"
+	projectcompose "graft/server/modules/project/compose"
 	projectcontract "graft/server/modules/project/contract"
 )
 
@@ -603,6 +606,94 @@ func toManagedCreateExecuteRequest(request generated.PostProjectCreateJSONReques
 		EnvFileName:              envFileName,
 		EnvFileContent:           envFileContent,
 	}
+}
+
+func toProjectOverviewServiceItem(
+	item projectcompose.ServiceProjection,
+	runtime moduleapi.ContainerProjectServiceResourceSummary,
+) (generated.ProjectOverviewServiceItem, bool) {
+	status := projectOverviewServiceStatus(runtime)
+	health := projectOverviewServiceHealth(runtime)
+	return generated.ProjectOverviewServiceItem{
+		ServiceName:                  item.ServiceName,
+		Image:                        item.Image,
+		Status:                       generated.ProjectOverviewServiceItemStatus(status),
+		Health:                       generated.ProjectOverviewServiceItemHealth(health),
+		ContainerCount:               runtime.ContainerCount,
+		RunningCount:                 runtime.RunningCount,
+		StoppedCount:                 runtime.StoppedCount,
+		TransitioningCount:           runtime.TransitioningCount,
+		IssueCount:                   runtime.IssueCount,
+		HealthyContainerCount:        runtime.HealthyContainerCount,
+		UnhealthyContainerCount:      runtime.UnhealthyContainerCount,
+		StartingContainerCount:       runtime.StartingContainerCount,
+		RestartCount:                 runtime.RestartCount,
+		StatsAvailable:               runtime.StatsAvailable,
+		StatsAvailableContainerCount: runtime.StatsAvailableContainerCount,
+		CpuPercent:                   runtime.CPUPercent,
+		MemoryUsageBytes:             runtime.MemoryUsageBytes,
+		MemoryLimitBytes:             runtime.MemoryLimitBytes,
+	}, projectOverviewServiceIsHealthy(runtime)
+}
+
+func projectOverviewServiceStatus(runtime moduleapi.ContainerProjectServiceResourceSummary) string {
+	if runtime.UnhealthyContainerCount > 0 || runtime.TransitioningCount > 0 || runtime.IssueCount > 0 {
+		return "degraded"
+	}
+	if runtime.RunningCount > 0 {
+		return "running"
+	}
+	return "stopped"
+}
+
+func projectOverviewServiceHealth(runtime moduleapi.ContainerProjectServiceResourceSummary) string {
+	if runtime.UnhealthyContainerCount > 0 || runtime.StartingContainerCount > 0 || runtime.TransitioningCount > 0 || runtime.IssueCount > 0 {
+		return "attention"
+	}
+	if runtime.RunningCount > 0 {
+		return "healthy"
+	}
+	return "unknown"
+}
+
+func projectOverviewServiceIsHealthy(runtime moduleapi.ContainerProjectServiceResourceSummary) bool {
+	return strings.EqualFold(projectOverviewServiceHealth(runtime), "healthy")
+}
+
+func countDeclaredNetworks(items []projectcompose.ServiceProjection) int {
+	names := make(map[string]struct{})
+	for _, item := range items {
+		for _, network := range item.DeclaredNetworks {
+			network = strings.TrimSpace(network)
+			if network == "" {
+				continue
+			}
+			names[network] = struct{}{}
+		}
+	}
+	return len(names)
+}
+
+func countDeclaredVolumes(items []projectcompose.ServiceProjection) int {
+	names := make(map[string]struct{})
+	for _, item := range items {
+		for _, volume := range item.DeclaredVolumes {
+			volume = strings.TrimSpace(volume)
+			if volume == "" {
+				continue
+			}
+			names[volume] = struct{}{}
+		}
+	}
+	return len(names)
+}
+
+func optionalRFC3339Time(value string) *time.Time {
+	parsed, err := time.Parse(time.RFC3339, strings.TrimSpace(value))
+	if err != nil {
+		return nil
+	}
+	return &parsed
 }
 
 // optionalStringSlice 在切片非空时返回其拷贝指针。

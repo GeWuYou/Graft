@@ -8,8 +8,8 @@
       :text="t('layout.routeLoading')"
     >
       <div class="route-view-shell">
-        <router-view v-if="!isFramePage" v-slot="{ Component, route: viewRoute }">
-          <transition name="fade" mode="out-in" @before-enter="() => handleBeforeEnter(viewRoute)">
+        <router-view v-if="!isFramePage" v-slot="{ Component }">
+          <transition name="fade" mode="out-in" @after-leave="handleAfterLeave">
             <keep-alive v-if="shouldKeepActiveViewAlive">
               <component :is="Component" :key="activeViewKey" />
             </keep-alive>
@@ -25,7 +25,6 @@
 import isBoolean from 'lodash/isBoolean';
 import isUndefined from 'lodash/isUndefined';
 import { computed } from 'vue';
-import type { RouteLocationNormalizedLoaded } from 'vue-router';
 import { useRoute } from 'vue-router';
 
 import FramePage from '@/layouts/frame/index.vue';
@@ -35,7 +34,7 @@ import { useTabsRouterStore } from '@/store';
 import { resolvePageSurfaceType } from '@/utils/route/meta';
 
 const emit = defineEmits<{
-  'page-surface-enter': [surface: ReturnType<typeof resolvePageSurfaceType>];
+  'page-surface-ready': [surface: ReturnType<typeof resolvePageSurfaceType>];
 }>();
 
 // <suspense>标签属于实验性功能，请谨慎使用
@@ -87,8 +86,8 @@ const isFramePage = computed(() => {
   return !!route.meta?.frameSrc;
 });
 
-const handleBeforeEnter = (viewRoute?: RouteLocationNormalizedLoaded) => {
-  emit('page-surface-enter', resolvePageSurfaceType(viewRoute?.meta));
+const handleAfterLeave = () => {
+  emit('page-surface-ready', resolvePageSurfaceType(route.meta));
 };
 </script>
 <style lang="less" scoped>

@@ -3,9 +3,7 @@ import type { ComposerTranslation } from 'vue-i18n';
 import { formatCompactDateTime } from '@/shared/components/management';
 
 import type {
-  ProjectCanonicalNameSource,
   ProjectDriftStatus,
-  ProjectHostScope,
   ProjectOwnershipMode,
   ProjectRefreshStatus,
   ProjectRuntimeStatus,
@@ -33,14 +31,6 @@ export function formatProjectTime(locale: string, value?: string | null) {
  */
 export function projectSourceKindLabel(t: Translate, value: ProjectSourceKind) {
   return t(`project.list.sourceKinds.${value}`);
-}
-
-export function projectCanonicalNameSourceLabel(t: Translate, value: ProjectCanonicalNameSource) {
-  return t(`project.detail.summary.nameSourceValues.${value}`);
-}
-
-export function projectHostScopeLabel(t: Translate, value: ProjectHostScope) {
-  return t(`project.detail.summary.hostScopeValues.${value}`);
 }
 
 /**

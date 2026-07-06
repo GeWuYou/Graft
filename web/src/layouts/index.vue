@@ -2,9 +2,17 @@
   <div class="app-shell" v-bind="shellSurfaceAttrs">
     <template v-if="setting.layout.value === 'side'">
       <t-layout key="side" :class="['app-shell__layout', mainLayoutCls]">
-        <t-aside><layout-side-nav /></t-aside>
+        <t-aside>
+          <layout-side-nav
+            :render-compact="sidebarRenderCompact"
+            :width-compact="sidebarWidthCompact"
+            :motion-phase="sidebarMotionPhase"
+          />
+        </t-aside>
         <t-layout class="app-shell__main">
-          <t-header class="app-shell__header"><layout-header /></t-header>
+          <t-header class="app-shell__header">
+            <layout-header :render-compact="sidebarWidthCompact" />
+          </t-header>
           <t-content class="app-shell__content"><layout-content /></t-content>
         </t-layout>
       </t-layout>
@@ -12,9 +20,15 @@
 
     <template v-else>
       <t-layout key="no-side" class="app-shell__layout">
-        <t-header class="app-shell__header"><layout-header /> </t-header>
+        <t-header class="app-shell__header">
+          <layout-header :render-compact="sidebarWidthCompact" />
+        </t-header>
         <t-layout :class="['app-shell__main', mainLayoutCls]">
-          <layout-side-nav />
+          <layout-side-nav
+            :render-compact="sidebarRenderCompact"
+            :width-compact="sidebarWidthCompact"
+            :motion-phase="sidebarMotionPhase"
+          />
           <layout-content />
         </t-layout>
       </t-layout>
@@ -26,7 +40,7 @@
 import '@/style/layout.less';
 
 import { storeToRefs } from 'pinia';
-import { computed, onMounted, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import { prefix } from '@/config/global';
@@ -40,6 +54,13 @@ import ForcePasswordChangeDialog from './components/ForcePasswordChangeDialog.vu
 import LayoutContent from './components/LayoutContent.vue';
 import LayoutHeader from './components/LayoutHeader.vue';
 import LayoutSideNav from './components/LayoutSideNav.vue';
+import type { SidebarMotionPhase } from './layout-navigation';
+
+const SIDEBAR_WIDTH_TRANSITION_MS = 320;
+const SIDEBAR_COLLAPSE_SUBMENU_DELAY_MS = 124;
+const SIDEBAR_COLLAPSE_TOPLEVEL_DELAY_MS = 208;
+const SIDEBAR_EXPAND_TOPLEVEL_DELAY_MS = 128;
+const SIDEBAR_EXPAND_SUBMENU_DELAY_MS = 224;
 
 const route = useRoute();
 const router = useRouter();
@@ -47,10 +68,19 @@ const settingStore = useSettingStore();
 const tabsRouterStore = useTabsRouterStore();
 const setting = storeToRefs(settingStore);
 const logger = createLogger('layout.tabs');
+const sidebarRenderCompact = ref(settingStore.isSidebarCompact);
+const sidebarWidthCompact = ref(settingStore.isSidebarCompact);
+const sidebarMotionPhase = ref<SidebarMotionPhase>(settingStore.isSidebarCompact ? 'compact' : 'expanded');
+const sidebarMotionTimers = new Set<number>();
 
 const shellSurfaceAttrs = computed(() => ({
   'data-layout-mode': settingStore.layout,
   'data-page-type': 'shell',
+  'data-sidebar-compact': String(sidebarWidthCompact.value),
+  'data-sidebar-motion-phase': sidebarMotionPhase.value,
+  'data-sidebar-render-compact': String(sidebarRenderCompact.value),
+  'data-sidebar-width-compact': String(sidebarWidthCompact.value),
+  'data-sidebar-target-compact': String(settingStore.isSidebarCompact),
   'data-theme-mode': settingStore.displayMode,
 }));
 
@@ -59,6 +89,56 @@ const mainLayoutCls = computed(() => [
     't-layout--with-sider': settingStore.showSidebar,
   },
 ]);
+
+const clearSidebarMotionTimers = () => {
+  sidebarMotionTimers.forEach((timerId) => {
+    window.clearTimeout(timerId);
+  });
+  sidebarMotionTimers.clear();
+};
+
+const scheduleSidebarMotion = (callback: () => void, delay: number) => {
+  const timerId = window.setTimeout(() => {
+    sidebarMotionTimers.delete(timerId);
+    callback();
+  }, delay);
+  sidebarMotionTimers.add(timerId);
+};
+
+const startSidebarMotion = (targetCompact: boolean) => {
+  clearSidebarMotionTimers();
+
+  if (targetCompact) {
+    sidebarRenderCompact.value = false;
+    sidebarWidthCompact.value = false;
+    sidebarMotionPhase.value = 'collapsing-width';
+    sidebarWidthCompact.value = true;
+    scheduleSidebarMotion(() => {
+      sidebarMotionPhase.value = 'collapsing-submenu';
+    }, SIDEBAR_COLLAPSE_SUBMENU_DELAY_MS);
+    scheduleSidebarMotion(() => {
+      sidebarMotionPhase.value = 'collapsing-topmenu';
+    }, SIDEBAR_COLLAPSE_TOPLEVEL_DELAY_MS);
+    scheduleSidebarMotion(() => {
+      sidebarRenderCompact.value = true;
+      sidebarMotionPhase.value = 'compact';
+    }, SIDEBAR_WIDTH_TRANSITION_MS);
+    return;
+  }
+
+  sidebarRenderCompact.value = false;
+  sidebarWidthCompact.value = false;
+  sidebarMotionPhase.value = 'expanding-width';
+  scheduleSidebarMotion(() => {
+    sidebarMotionPhase.value = 'expanding-topmenu';
+  }, SIDEBAR_EXPAND_TOPLEVEL_DELAY_MS);
+  scheduleSidebarMotion(() => {
+    sidebarMotionPhase.value = 'expanding-submenu';
+  }, SIDEBAR_EXPAND_SUBMENU_DELAY_MS);
+  scheduleSidebarMotion(() => {
+    sidebarMotionPhase.value = 'expanded';
+  }, SIDEBAR_WIDTH_TRANSITION_MS);
+};
 
 const appendNewRoute = () => {
   const {
@@ -103,6 +183,10 @@ onMounted(() => {
   appendNewRoute();
 });
 
+onBeforeUnmount(() => {
+  clearSidebarMotionTimers();
+});
+
 watch(
   () => route.fullPath,
   (_, previousFullPath) => {
@@ -113,9 +197,24 @@ watch(
     }
   },
 );
+
+watch(
+  () => settingStore.isSidebarCompact,
+  (nextCompact, previousCompact) => {
+    if (nextCompact === previousCompact) {
+      return;
+    }
+
+    startSidebarMotion(nextCompact);
+  },
+);
 </script>
 <style lang="less" scoped>
 .app-shell {
+  --graft-shell-sidebar-width: 232px;
+  --graft-shell-sidebar-width-compact: 72px;
+  --graft-shell-sidebar-current-width: var(--graft-shell-sidebar-width);
+
   background: var(--graft-shell-bg);
   color: var(--td-text-color-primary);
   display: flex;
@@ -123,6 +222,10 @@ watch(
   height: 100%;
   min-height: 0;
   overflow: hidden;
+}
+
+.app-shell[data-sidebar-width-compact='true'] {
+  --graft-shell-sidebar-current-width: var(--graft-shell-sidebar-width-compact);
 }
 
 .app-shell__layout,
@@ -148,5 +251,18 @@ watch(
 .app-shell :deep(.t-layout),
 .app-shell :deep(.t-layout__content) {
   min-height: 0;
+}
+
+.app-shell[data-layout-mode='side'] :deep(.t-layout__sider) {
+  flex: 0 0 var(--graft-shell-sidebar-current-width);
+  max-width: var(--graft-shell-sidebar-current-width);
+  min-width: var(--graft-shell-sidebar-current-width);
+  transition:
+    flex-basis 0.32s cubic-bezier(0.38, 0, 0.24, 1),
+    max-width 0.32s cubic-bezier(0.38, 0, 0.24, 1),
+    min-width 0.32s cubic-bezier(0.38, 0, 0.24, 1),
+    width 0.32s cubic-bezier(0.38, 0, 0.24, 1);
+  width: var(--graft-shell-sidebar-current-width);
+  will-change: flex-basis, max-width, min-width, width;
 }
 </style>

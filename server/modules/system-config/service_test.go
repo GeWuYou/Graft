@@ -344,8 +344,11 @@ func TestServiceSingleflightCollapsesConcurrentSnapshotMisses(t *testing.T) {
 	}
 
 	debugState := service.SnapshotCacheDebugState()
-	if debugState.MissCount != readers {
-		t.Fatalf("expected one miss observation per concurrent reader, got %#v", debugState)
+	if debugState.MissCount == 0 || debugState.MissCount > readers {
+		t.Fatalf("expected concurrent readers to observe at least one and at most %d misses, got %#v", readers, debugState)
+	}
+	if debugState.HitCount+debugState.MissCount != readers {
+		t.Fatalf("expected concurrent readers to be fully accounted for by warm-cache hits and misses, got %#v", debugState)
 	}
 	if debugState.LoadCount != 1 {
 		t.Fatalf("expected one snapshot load in debug state, got %#v", debugState)

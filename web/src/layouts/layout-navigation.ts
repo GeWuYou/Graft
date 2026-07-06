@@ -1,5 +1,15 @@
 import type { MenuRoute } from '@/utils/types';
 
+export type SidebarMotionPhase =
+  | 'expanded'
+  | 'collapsing-width'
+  | 'collapsing-submenu'
+  | 'collapsing-topmenu'
+  | 'compact'
+  | 'expanding-width'
+  | 'expanding-topmenu'
+  | 'expanding-submenu';
+
 export function flattenMixHeaderMenus(menus: MenuRoute[]): MenuRoute[] {
   return menus.map((menu) => ({
     ...menu,
@@ -33,6 +43,57 @@ export function resolveMenuNavigationPath(menu: MenuRoute, parentPath = ''): str
   }
 
   return fullPath;
+}
+
+export function findExpandedMenuPaths(menus: MenuRoute[], activePath: string, parentPath = ''): string[] {
+  return findExpandedMenuMatch(menus, activePath, parentPath).expandedPaths;
+}
+
+function findExpandedMenuMatch(
+  menus: MenuRoute[],
+  activePath: string,
+  parentPath: string,
+): { matched: boolean; expandedPaths: string[] } {
+  if (!activePath) {
+    return { matched: false, expandedPaths: [] };
+  }
+
+  for (const menu of menus) {
+    if (menu.meta?.hidden === true) {
+      continue;
+    }
+
+    const fullPath = normalizeMenuPath(parentPath, menu.path);
+    const visibleChildren = (menu.children ?? []).filter((child) => child.meta?.hidden !== true);
+    const childMatch =
+      visibleChildren.length > 0
+        ? findExpandedMenuMatch(visibleChildren, activePath, fullPath)
+        : { matched: false, expandedPaths: [] };
+
+    if (childMatch.matched) {
+      return {
+        matched: true,
+        expandedPaths: menu.meta?.single ? childMatch.expandedPaths : [fullPath, ...childMatch.expandedPaths],
+      };
+    }
+
+    const navigationPath = resolveMenuNavigationPath(menu, parentPath);
+    const isExpandableMenu = visibleChildren.length > 0 && menu.meta?.single !== true;
+    const matchesCurrentMenu =
+      activePath === fullPath ||
+      activePath === navigationPath ||
+      activePath.startsWith(`${fullPath}/`) ||
+      activePath.startsWith(`${navigationPath}/`);
+
+    if (matchesCurrentMenu) {
+      return {
+        matched: true,
+        expandedPaths: isExpandableMenu ? [fullPath] : [],
+      };
+    }
+  }
+
+  return { matched: false, expandedPaths: [] };
 }
 
 function normalizeMenuPath(parentPath: string, routePath: string) {

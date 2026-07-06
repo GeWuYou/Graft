@@ -4,9 +4,12 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"sync"
+	"sync/atomic"
 	"testing"
 
 	"graft/server/internal/moduleapi"
+	"graft/server/internal/realtime"
 	projectcompose "graft/server/modules/project/compose"
 	projectcontract "graft/server/modules/project/contract"
 	projectstore "graft/server/modules/project/store"
@@ -157,6 +160,171 @@ func TestListRuntimeImportCandidatesMarksAlreadyImportedBeyondFirstPage(t *testi
 	}
 	if result.Items[0].Status != importRuntimeCandidateStatusAlreadyImported {
 		t.Fatalf("expected paged conflict to mark candidate imported, got %#v", result.Items[0])
+	}
+}
+
+type countingTopicMonitorHub struct {
+	realtime.Hub
+	detailRegisters atomic.Int32
+	logRegisters    atomic.Int32
+}
+
+func newCountingTopicMonitorHub() *countingTopicMonitorHub {
+	return &countingTopicMonitorHub{Hub: realtime.NewHub()}
+}
+
+func (h *countingTopicMonitorHub) RegisterTopicObserver(
+	topic string,
+	onActive func(string),
+	onInactive func(string),
+) (func(), error) {
+	switch topic {
+	case "projects.detail.1":
+		h.detailRegisters.Add(1)
+	case "projects.logs.1":
+		h.logRegisters.Add(1)
+	}
+	monitor, ok := h.Hub.(realtime.TopicSubscriptionMonitor)
+	if !ok {
+		return nil, nil
+	}
+	return monitor.RegisterTopicObserver(topic, onActive, onInactive)
+}
+
+func TestRealtimeTopicStreamingInitializersRegisterObserverOnce(t *testing.T) {
+	t.Parallel()
+
+	repo := &stubProjectRepository{
+		aggregate: projectstore.ProjectAggregate{
+			Project: projectstore.Project{
+				ID:                   1,
+				CanonicalProjectName: "demo",
+				HostScope:            "local",
+				WorkingDirectory:     "/srv/demo",
+			},
+		},
+	}
+	hub := newCountingTopicMonitorHub()
+	service, err := NewService(
+		repo,
+		WithLogReader(stubLogReader{}),
+	)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	service.realtimeHub = hub
+
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	for range 16 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			if err := service.ensureProjectDetailTopicStreaming("projects.detail.1", 1); err != nil {
+				t.Errorf("ensure detail topic: %v", err)
+			}
+		}()
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			if err := service.ensureProjectLogsTopicStreaming("projects.logs.1", 1, LogQuery{Tail: 10, Stdout: true}); err != nil {
+				t.Errorf("ensure logs topic: %v", err)
+			}
+		}()
+	}
+	close(start)
+	wg.Wait()
+
+	if got := hub.detailRegisters.Load(); got != 1 {
+		t.Fatalf("expected one detail observer registration, got %d", got)
+	}
+	if got := hub.logRegisters.Load(); got != 1 {
+		t.Fatalf("expected one log observer registration, got %d", got)
+	}
+}
+
+type blockingTopicMonitorHub struct {
+	realtime.Hub
+	registerStarted chan struct{}
+	releaseRegister chan struct{}
+	unregisterCalls atomic.Int32
+}
+
+func newBlockingTopicMonitorHub() *blockingTopicMonitorHub {
+	return &blockingTopicMonitorHub{
+		Hub:             realtime.NewHub(),
+		registerStarted: make(chan struct{}),
+		releaseRegister: make(chan struct{}),
+	}
+}
+
+func (h *blockingTopicMonitorHub) RegisterTopicObserver(
+	_ string,
+	_ func(string),
+	_ func(string),
+) (func(), error) {
+	close(h.registerStarted)
+	<-h.releaseRegister
+	return func() {
+		h.unregisterCalls.Add(1)
+	}, nil
+}
+
+func TestProjectDetailTopicStreamerCloseUnregistersLateObserver(t *testing.T) {
+	t.Parallel()
+
+	hub := newBlockingTopicMonitorHub()
+	streamer, err := newProjectDetailTopicStreamer(hub, nil, &Service{})
+	if err != nil {
+		t.Fatalf("new detail topic streamer: %v", err)
+	}
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- streamer.EnsureTopic("projects.detail.1", 1)
+	}()
+
+	<-hub.registerStarted
+	if err := streamer.Close(context.Background()); err != nil {
+		t.Fatalf("close detail topic streamer: %v", err)
+	}
+	close(hub.releaseRegister)
+
+	if err := <-errCh; err != nil {
+		t.Fatalf("ensure detail topic: %v", err)
+	}
+	if got := hub.unregisterCalls.Load(); got != 1 {
+		t.Fatalf("expected one late unregister for detail topic, got %d", got)
+	}
+}
+
+func TestProjectLogTopicStreamerCloseUnregistersLateObserver(t *testing.T) {
+	t.Parallel()
+
+	hub := newBlockingTopicMonitorHub()
+	streamer, err := newProjectLogTopicStreamer(hub, nil, &Service{})
+	if err != nil {
+		t.Fatalf("new log topic streamer: %v", err)
+	}
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- streamer.EnsureTopic("projects.logs.1", 1, LogQuery{Tail: 10, Stdout: true})
+	}()
+
+	<-hub.registerStarted
+	if err := streamer.Close(context.Background()); err != nil {
+		t.Fatalf("close log topic streamer: %v", err)
+	}
+	close(hub.releaseRegister)
+
+	if err := <-errCh; err != nil {
+		t.Fatalf("ensure log topic: %v", err)
+	}
+	if got := hub.unregisterCalls.Load(); got != 1 {
+		t.Fatalf("expected one late unregister for log topic, got %d", got)
 	}
 }
 

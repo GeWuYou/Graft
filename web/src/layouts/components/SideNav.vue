@@ -20,7 +20,7 @@
         <span :class="versionCls"> {{ !collapsed ? t('common.appName') : '' }} {{ appVersion }} </span>
       </template>
     </t-menu>
-    <div :class="`${prefix}-side-nav-placeholder${collapsed ? '-hidden' : ''}`"></div>
+    <div :class="`${prefix}-side-nav-placeholder${isCompact ? '-hidden' : ''}`"></div>
   </div>
 </template>
 <script setup lang="ts">
@@ -34,6 +34,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import AssetLogoFull from '@/assets/assets-logo-full.svg?component';
 import AssetLogo from '@/assets/assets-t-logo.svg?component';
 import { prefix } from '@/config/global';
+import { findExpandedMenuPaths, type SidebarMotionPhase } from '@/layouts/layout-navigation';
 import { useShellNavigation } from '@/layouts/useShellNavigation';
 import { t } from '@/locales';
 import { getActive } from '@/router';
@@ -44,9 +45,9 @@ import pgk from '../../../package.json';
 import MenuContent from './MenuContent.vue';
 
 const appVersion = 'version' in pgk ? String(pgk.version) : '';
-const menuWidth = ['232px', '64px'];
+const menuWidth = ['var(--graft-shell-sidebar-current-width)', 'var(--graft-shell-sidebar-current-width)'];
 
-const { menu, showLogo, isFixed, layout, theme, isCompact } = defineProps({
+const { menu, showLogo, isFixed, layout, theme, isCompact, renderCompact, motionPhase } = defineProps({
   menu: {
     type: Array as PropType<MenuRoute[]>,
     default: () => [],
@@ -75,21 +76,32 @@ const { menu, showLogo, isFixed, layout, theme, isCompact } = defineProps({
     type: Boolean as PropType<boolean>,
     default: false,
   },
+  renderCompact: {
+    type: Boolean as PropType<boolean>,
+    default: false,
+  },
+  motionPhase: {
+    type: String as PropType<SidebarMotionPhase>,
+    default: 'expanded',
+  },
 });
 
 const MIN_POINT = 992 - 1;
 
-const collapsed = computed(() => useSettingStore().isSidebarCompact);
+const collapsed = computed(() => renderCompact);
 const menuAutoCollapsed = computed(() => useSettingStore().menuAutoCollapsed);
 
 const active = computed(() => getActive());
 
 const expanded = ref<MenuValue[]>([]);
+const expandedBeforeCompact = ref<MenuValue[]>([]);
+
+const buildExpandedFromActive = () => {
+  return findExpandedMenuPaths(menu, getActive());
+};
 
 const getExpanded = () => {
-  const path = getActive();
-  const parts = path.split('/').slice(1);
-  const result = parts.map((_, index) => `/${parts.slice(0, index + 1).join('/')}`);
+  const result = buildExpandedFromActive();
 
   expanded.value = menuAutoCollapsed.value ? result : union(result, expanded.value);
 };
@@ -97,14 +109,73 @@ const getExpanded = () => {
 watch(
   () => active.value,
   () => {
+    if (
+      collapsed.value ||
+      motionPhase === 'collapsing-width' ||
+      motionPhase === 'collapsing-submenu' ||
+      motionPhase === 'collapsing-topmenu' ||
+      motionPhase === 'expanding-width' ||
+      motionPhase === 'expanding-topmenu'
+    ) {
+      return;
+    }
     getExpanded();
   },
 );
 
+watch(
+  () => menu,
+  () => {
+    if (
+      collapsed.value ||
+      motionPhase === 'collapsing-width' ||
+      motionPhase === 'collapsing-submenu' ||
+      motionPhase === 'collapsing-topmenu' ||
+      motionPhase === 'expanding-width' ||
+      motionPhase === 'expanding-topmenu'
+    ) {
+      return;
+    }
+    getExpanded();
+  },
+  { deep: true },
+);
+
+watch(
+  () => motionPhase,
+  (nextPhase, previousPhase) => {
+    if (nextPhase === previousPhase) {
+      return;
+    }
+
+    if (nextPhase === 'collapsing-submenu') {
+      expandedBeforeCompact.value = [...expanded.value];
+      expanded.value = [];
+      return;
+    }
+
+    if (nextPhase === 'compact') {
+      expanded.value = [];
+      return;
+    }
+
+    if (nextPhase === 'expanding-submenu') {
+      const routeExpanded = buildExpandedFromActive();
+      expanded.value = menuAutoCollapsed.value ? routeExpanded : union(routeExpanded, expandedBeforeCompact.value);
+    }
+  },
+);
+
 const onExpanded = (value: MenuValue[]) => {
+  const requiredExpanded = buildExpandedFromActive();
   const currentOperationMenu = difference(expanded.value, value);
-  const allExpanded = union(value, expanded.value);
+  const allExpanded = union(value, expanded.value, requiredExpanded);
   remove(allExpanded, (item) => currentOperationMenu.includes(item));
+  requiredExpanded.forEach((item) => {
+    if (!allExpanded.includes(item)) {
+      allExpanded.push(item);
+    }
+  });
   expanded.value = allExpanded;
 };
 
@@ -119,9 +190,10 @@ const sideNavCls = computed(() => {
     },
   ];
 });
+const logoCollapsed = computed(() => collapsed.value);
 const logoCls = computed(() => {
   return [
-    `${prefix}-side-nav-logo-${collapsed.value ? 't' : 'tdesign'}-logo`,
+    `${prefix}-side-nav-logo-${logoCollapsed.value ? 't' : 'tdesign'}-logo`,
     {
       [`${prefix}-side-nav-dark`]: sideMode.value,
     },
@@ -172,7 +244,7 @@ const goHome = () => {
 };
 
 const getLogo = () => {
-  if (collapsed.value) return AssetLogo;
+  if (logoCollapsed.value) return AssetLogo;
   return AssetLogoFull;
 };
 </script>

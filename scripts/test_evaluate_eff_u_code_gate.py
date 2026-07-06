@@ -1578,6 +1578,178 @@ class MainFlowTests(unittest.TestCase):
             self.assertEqual(payload["summary"]["coverageFailures"], 1)
             self.assertEqual(payload["scopes"]["server"]["unreportedFiles"], ["server/extra.go"])
 
+    def test_gate_recovers_unreported_candidate_via_targeted_rescan(self) -> None:
+        gate_config = {
+            "changedFiles": {"mode": "git-diff", "diffFilter": "ACMR"},
+            "targets": {
+                "server": {
+                    "root": "server",
+                    "include": ["server/*.go", "server/**/*.go"],
+                    "exclude": [],
+                }
+            },
+            "gateRules": {
+                "complexity": {
+                    "metrics": ["cyclomatic_complexity"],
+                    "threshold": 75,
+                    "regression": 5,
+                    "newFileThreshold": 75,
+                }
+            },
+            "curatedScore": {"participatesInGate": False, "weights": {"complexity": 1.0}},
+            "scoreGate": {
+                "profiles": {
+                    "score-changed": {
+                        "enabled": True,
+                        "enabledScanModes": ["changed"],
+                        "threshold": 90,
+                    }
+                }
+            },
+        }
+        report = {"files": []}
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            config_path = Path(tmp_dir) / "gate.json"
+            eff_path = Path(tmp_dir) / "eff.json"
+            report_path = Path(tmp_dir) / "report.json"
+            config_path.write_text(json.dumps(gate_config), encoding="utf-8")
+            eff_path.write_text(
+                json.dumps({"defaults": {"locale": "zh", "format": "console", "top": 20}, "targets": {"server": {"path": "server", "exclude": []}}}),
+                encoding="utf-8",
+            )
+
+            def fake_run(scope: str, *, output_dir: Path, eff_config_override: Path | None, base_ref: str | None = None) -> Path:
+                path = output_dir / f"eff-u-code-{scope}.json"
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(json.dumps(report), encoding="utf-8")
+                return path
+
+            def fake_run_git(args: list[str]) -> str:
+                if args[:2] == ["rev-parse", "HEAD"]:
+                    return "head-sha"
+                raise RuntimeError("skip base")
+
+            with mock.patch.object(
+                MODULE,
+                "resolve_changed_mode_files",
+                return_value=(
+                    ["server/cmd/graft/main.go"],
+                    MODULE.ChangedBaselineResolution(None, "HEAD", "", "", "", "local-changes"),
+                ),
+            ), \
+                mock.patch.object(MODULE, "run_eff_u_code", side_effect=fake_run), \
+                mock.patch.object(MODULE, "recover_unreported_file", return_value=make_file("cmd/graft/main.go", [make_metric("cyclomatic_complexity", 100)])), \
+                mock.patch.object(MODULE, "run_git", side_effect=fake_run_git), \
+                mock.patch.object(MODULE, "export_git_snapshot", return_value=Path(tmp_dir) / "baseline-snapshot"):
+                (Path(tmp_dir) / "baseline-snapshot").mkdir(parents=True, exist_ok=True)
+                argv = [
+                    "evaluate_eff_u_code_gate.py",
+                    "--config",
+                    str(config_path),
+                    "--eff-u-code-config",
+                    str(eff_path),
+                    "--gate-profile",
+                    "score-changed",
+                    "--output-json",
+                    str(report_path),
+                    "--scopes",
+                    "server",
+                ]
+                with mock.patch.object(sys, "argv", argv):
+                    result = MODULE.main()
+
+            self.assertEqual(result, 0)
+            payload = json.loads(report_path.read_text(encoding="utf-8"))
+            self.assertEqual(payload["status"], "pass")
+            self.assertEqual(payload["summary"]["coverageFailures"], 0)
+            self.assertEqual(payload["scopes"]["server"]["unreportedFiles"], [])
+            self.assertEqual(payload["scopes"]["server"]["coverageStatus"], "pass")
+
+    def test_recover_unreported_file_runs_targeted_scan_and_returns_candidate(self) -> None:
+        gate_config = {
+            "targets": {
+                "server": {
+                    "root": "server",
+                    "include": ["server/*.go", "server/**/*.go"],
+                    "exclude": [],
+                }
+            },
+            "scoreGate": {"profiles": {"score-changed": {"enabled": True, "threshold": 90}}},
+        }
+        eff_config = {
+            "defaults": {"locale": "zh", "format": "json", "top": 5},
+            "targets": {"server": {"path": "server", "exclude": []}},
+        }
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            output_dir = Path(tmp_dir)
+            captured: dict[str, object] = {}
+
+            def fake_run(
+                scope: str,
+                *,
+                output_dir: Path,
+                eff_config_override: Path | None,
+                base_ref: str | None = None,
+            ) -> Path:
+                del base_ref
+                captured["scope"] = scope
+                captured["output_dir"] = output_dir
+                captured["override"] = json.loads(eff_config_override.read_text(encoding="utf-8")) if eff_config_override else {}
+                report_path = output_dir / "eff-u-code-server.json"
+                report_path.write_text("{}", encoding="utf-8")
+                return report_path
+
+            with mock.patch.object(MODULE, "run_eff_u_code", side_effect=fake_run), mock.patch.object(
+                MODULE,
+                "load_report",
+                return_value={"files": [make_file("main.go", [make_metric("cyclomatic_complexity", 100)])]},
+            ):
+                recovered = MODULE.recover_unreported_file(
+                    "server",
+                    "server/cmd/graft/main.go",
+                    gate_config=gate_config,
+                    base_eff_config=eff_config,
+                    output_dir=output_dir,
+                )
+
+            self.assertIsNotNone(recovered)
+            assert recovered is not None
+            self.assertEqual(recovered["path"], "main.go")
+            self.assertEqual(captured["scope"], "server")
+            self.assertEqual(captured["output_dir"], output_dir / "coverage-recovery" / "server" / "server__cmd__graft")
+            self.assertEqual(captured["override"]["targets"]["server"]["path"], "server/cmd/graft/main.go")
+            self.assertEqual(captured["override"]["targets"]["server"]["top"], 20)
+
+    def test_recover_unreported_file_returns_none_when_targeted_scan_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir, mock.patch.object(
+            MODULE,
+            "run_eff_u_code",
+            side_effect=RuntimeError("boom"),
+        ):
+            recovered = MODULE.recover_unreported_file(
+                "server",
+                "server/cmd/graft/main.go",
+                gate_config={
+                    "targets": {
+                        "server": {
+                            "root": "server",
+                            "include": ["server/*.go", "server/**/*.go"],
+                            "exclude": [],
+                        }
+                    },
+                    "scoreGate": {"profiles": {"score-changed": {"enabled": True, "threshold": 90}}},
+                },
+                base_eff_config={
+                    "defaults": {"locale": "zh", "format": "json", "top": 5},
+                    "targets": {"server": {"path": "server", "exclude": []}},
+                },
+                output_dir=Path(tmp_dir),
+            )
+
+        self.assertIsNone(recovered)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,4 +1,5 @@
 import type { components } from '@/contracts/openapi/generated/schema';
+import { isRealtimePayloadObject, parseRealtimeEnvelopeData } from '@/shared/realtime';
 
 export const CONTAINER_REALTIME_TOPIC = {
   DASHBOARD_SUMMARY: 'container.dashboard.summary',
@@ -103,10 +104,6 @@ export type ContainerEventsRealtimePayload = {
  * @param value - 待检查的值
  * @returns `true` if `value` 为真值且类型为 `object`，`false` otherwise.
  */
-function isObject(value: unknown): value is Record<string, unknown> {
-  return Boolean(value && typeof value === 'object');
-}
-
 /**
  * 解析容器事件实时载荷。
  *
@@ -114,30 +111,22 @@ function isObject(value: unknown): value is Record<string, unknown> {
  * @returns 解析并通过字段校验后的载荷；解析失败或校验失败时返回 `null`
  */
 export function parseContainerEventsPayload(raw: unknown): ContainerEventsRealtimePayload | null {
-  if (typeof raw !== 'string') {
+  const data = parseRealtimeEnvelopeData(raw);
+  if (!isRealtimePayloadObject(data)) {
     return null;
   }
-  try {
-    const parsed = JSON.parse(raw) as { data?: unknown };
-    if (!isObject(parsed) || !isObject(parsed.data)) {
-      return null;
-    }
-    const data = parsed.data;
-    if (
-      typeof data.topic !== 'string' ||
-      typeof data.resource_id !== 'string' ||
-      !isObject(data.context) ||
-      typeof data.context.runtime !== 'string' ||
-      !isObject(data.record) ||
-      typeof data.record.seq !== 'number' ||
-      !isObject(data.record.event)
-    ) {
-      return null;
-    }
-    return data as ContainerEventsRealtimePayload;
-  } catch {
+  if (
+    typeof data.topic !== 'string' ||
+    typeof data.resource_id !== 'string' ||
+    !isRealtimePayloadObject(data.context) ||
+    typeof data.context.runtime !== 'string' ||
+    !isRealtimePayloadObject(data.record) ||
+    typeof data.record.seq !== 'number' ||
+    !isRealtimePayloadObject(data.record.event)
+  ) {
     return null;
   }
+  return data as ContainerEventsRealtimePayload;
 }
 
 /**

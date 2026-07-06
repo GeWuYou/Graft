@@ -2,24 +2,42 @@
   <div>
     <template v-for="item in list" :key="item.path">
       <template v-if="!item.children || !item.children.length || item.meta?.single">
-        <t-menu-item v-if="getHref(item)" :name="item.path" :value="getMenuValue(item)" @click="openHref(item)">
+        <t-menu-item
+          v-if="getHref(item)"
+          :class="depthClass"
+          :name="item.path"
+          :value="getMenuValue(item)"
+          @click="openHref(item)"
+        >
           <template #icon>
             <component :is="menuIcon(item)" class="t-icon"></component>
           </template>
           {{ renderMenuTitle(item.title ?? item.meta?.title) }}
         </t-menu-item>
-        <t-menu-item v-else :name="item.path" :value="getMenuValue(item)" @click="handleMenuItemClick(item)">
+        <t-menu-item
+          v-else
+          :class="depthClass"
+          :name="item.path"
+          :value="getMenuValue(item)"
+          @click="handleMenuItemClick(item)"
+        >
           <template #icon>
             <component :is="menuIcon(item)" class="t-icon"></component>
           </template>
           {{ renderMenuTitle(item.title ?? item.meta?.title) }}
         </t-menu-item>
       </template>
-      <t-submenu v-else :name="item.path" :value="item.path" :title="renderMenuTitle(item.title ?? item.meta?.title)">
+      <t-submenu
+        v-else
+        :class="depthClass"
+        :name="item.path"
+        :value="item.path"
+        :title="renderMenuTitle(item.title ?? item.meta?.title)"
+      >
         <template #icon>
           <component :is="menuIcon(item)" class="t-icon"></component>
         </template>
-        <menu-content v-if="item.children" :nav-data="item.children" />
+        <menu-content v-if="item.children" :nav-data="item.children" :depth="depth + 1" />
       </t-submenu>
     </template>
   </div>
@@ -38,10 +56,14 @@ import type { MenuRoute } from '@/utils/types';
 
 type ListItemType = MenuRoute;
 
-const { navData } = defineProps({
+const { navData, depth } = defineProps({
   navData: {
     type: Array as PropType<MenuRoute[]>,
     default: () => [],
+  },
+  depth: {
+    type: Number,
+    default: 1,
   },
 });
 
@@ -49,6 +71,7 @@ const active = computed(() => getActive());
 const router = useRouter();
 
 const { locale } = useLocale();
+const depthClass = computed(() => `graft-menu-depth-${depth}`);
 
 const list = computed(() => {
   return getMenuList(navData);
