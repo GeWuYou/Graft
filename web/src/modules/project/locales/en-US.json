@@ -43,6 +43,10 @@
       "detail": {
         "title": "Project Detail",
         "breadcrumb": "Project Detail"
+      },
+      "configurationWorkspace": {
+        "title": "Configuration Workspace",
+        "breadcrumb": "Configuration Workspace"
       }
     },
     "list": {
@@ -662,7 +666,7 @@
         "external": "External"
       },
       "eyebrow": "Compose Project",
-      "description": "Project Summary, Runtime Member Links, Read-only Configuration, and Frontend Activity Fan-out.",
+      "description": "Project Summary, Runtime Member Links, Lifecycle Controls, and Activity Fan-out.",
       "openWorkingDirectory": "Working Directory",
       "titleFallback": "Project Detail",
       "sections": {
@@ -918,7 +922,7 @@
       },
       "configuration": {
         "title": "Configuration",
-        "summary": "Phase 2 Keeps Metadata, Draft Editing, Diff, Validate, and Deploy Under Project Authority Without Adding Runtime Persistence.",
+        "summary": "Review current configuration status, edit drafts, compare changes, validate the result, and deploy from one workspace.",
         "composeFiles": "Compose Files",
         "envFiles": "Env Files",
         "ownershipMode": "Ownership",
@@ -951,7 +955,7 @@
         "diffNoChanges": "The Draft Matches the Current Managed Files.",
         "diffFileChanged": "Changed",
         "diffFileUnchanged": "Unchanged",
-        "validationTitle": "Draft Validate",
+        "validationTitle": "Validation",
         "validationEmpty": "Run Validate to Inspect the Normalized Draft and Declared Services.",
         "validateSuccess": "Project Draft Validated.",
         "validateFailed": "Project Draft Validation Failed.",
@@ -959,8 +963,8 @@
         "deployFailed": "Project Draft Deployment Failed.",
         "deployConfirmTitle": "Deploy Managed Project Draft",
         "deployConfirmDescription": "Deploying this draft will overwrite the tracked managed files, refresh the project snapshot, and run docker compose up -d.",
-        "managedAuthorityHint": "This Is a Managed Project. Draft Editing, Diff, Validate, and Deploy Stay Under Project-owned Configuration Authority.",
-        "externalAuthorityHint": "This Flow Only Applies to Managed Projects. External Projects Stay on the Read-only Configuration Surface.",
+        "managedAuthorityHint": "This is a managed project. Draft editing, diff, validation, and deploy actions stay under project-owned configuration authority.",
+        "externalAuthorityHint": "These actions only apply to managed projects. External projects remain on a read-only configuration surface.",
         "currentHash": "Current Hash",
         "proposedHash": "Proposed Hash",
         "declaredServices": "Declared Services",
@@ -1032,6 +1036,7 @@
         "stop": "Compose Stop",
         "restart": "Compose Restart",
         "redeploy": "Redeploy",
+        "openConfigurationWorkspace": "Configuration Workspace",
         "unregister": "Unregister",
         "destroy": "Destroy",
         "copyPath": "Copy Path",

@@ -43,6 +43,10 @@
       "detail": {
         "title": "项目详情",
         "breadcrumb": "项目详情"
+      },
+      "configurationWorkspace": {
+        "title": "配置工作台",
+        "breadcrumb": "配置工作台"
       }
     },
     "list": {
@@ -662,7 +666,7 @@
         "external": "外部项目"
       },
       "eyebrow": "Compose 项目",
-      "description": "项目摘要、运行时成员链接、只读配置和前端 Activity fan-out。",
+      "description": "项目摘要、运行时成员链接、生命周期操作与 Activity fan-out。",
       "openWorkingDirectory": "工作目录",
       "titleFallback": "项目详情",
       "sections": {
@@ -918,7 +922,7 @@
       },
       "configuration": {
         "title": "配置",
-        "summary": "当前工作区继续承载元数据、草稿编辑、Diff、校验与部署，不额外增加运行时持久化。",
+        "summary": "在一个工作区里查看当前配置状态、编辑草稿、比较差异、执行校验并完成部署。",
         "composeFiles": "Compose 文件",
         "envFiles": "环境文件",
         "ownershipMode": "所有权",
@@ -1032,6 +1036,7 @@
         "stop": "停止项目",
         "restart": "重启项目",
         "redeploy": "重新部署",
+        "openConfigurationWorkspace": "配置工作台",
         "unregister": "取消注册",
         "destroy": "销毁",
         "copyPath": "复制路径",

@@ -7,7 +7,7 @@ export type ModeType = 'light' | 'dark';
 export type PageFooterContent = string | LocalizedTitle;
 export type GovernanceDomain = 'rbac' | 'audit' | 'monitor';
 export type AppRoutePageKind = 'overview' | 'list' | 'detail' | 'runtime' | 'investigation';
-export type AppRoutePageSurface = 'shell' | 'overview-dashboard' | 'paged-table' | 'form-detail';
+export type AppRoutePageSurface = 'shell' | 'overview-dashboard' | 'paged-table' | 'form-detail' | 'editor';
 
 export interface PageFooterMeta {
   visible?: boolean;

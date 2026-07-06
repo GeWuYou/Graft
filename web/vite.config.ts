@@ -147,6 +147,10 @@ export function createViteConfig(mode: string): UserConfig {
               return undefined;
             }
 
+            if (id.includes('/node_modules/monaco-editor/') || id.includes('/node_modules/monaco-yaml/')) {
+              return 'vendor-monaco';
+            }
+
             if (id.includes('/node_modules/tdesign-icons-vue-next/')) {
               return 'vendor-tdesign-icons';
             }

@@ -8,6 +8,7 @@ export const PROJECT_ROUTE_PATH = {
   CREATE_TEMPLATE: '/ops/projects/create/template',
   CREATE_REMOTE_HOST: '/ops/projects/create/remote-host',
   DETAIL: '/ops/projects/:id',
+  CONFIGURATION_WORKSPACE: '/ops/projects/:id/configuration',
 } as const;
 
 export const PROJECT_API_PATH = {

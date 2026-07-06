@@ -58,13 +58,23 @@ const routeState = vi.hoisted(() => ({
 const routerMocks = vi.hoisted(() => ({
   push: vi.fn(),
   replace: vi.fn(),
-  resolve: vi.fn((target: { params?: { id?: string }; query?: Record<string, unknown> }) => ({
-    fullPath: `/ops/containers/${target.params?.id ?? ''}`,
-    name: 'ops:container-detail',
-    params: target.params ?? {},
-    path: `/ops/containers/${target.params?.id ?? ''}`,
-    query: target.query ?? {},
-  })),
+  resolve: vi.fn((target: { name?: string; params?: { id?: string }; query?: Record<string, unknown> }) =>
+    target.name === 'ProjectConfigurationWorkspaceIndex'
+      ? {
+          fullPath: `/ops/projects/${target.params?.id ?? ''}/configuration`,
+          name: target.name,
+          params: target.params ?? {},
+          path: `/ops/projects/${target.params?.id ?? ''}/configuration`,
+          query: target.query ?? {},
+        }
+      : {
+          fullPath: `/ops/containers/${target.params?.id ?? ''}`,
+          name: 'ops:container-detail',
+          params: target.params ?? {},
+          path: `/ops/containers/${target.params?.id ?? ''}`,
+          query: target.query ?? {},
+        },
+  ),
 }));
 
 const tabsRouterStoreMock = vi.hoisted(() => ({
@@ -83,21 +93,12 @@ const tabsRouterStoreMock = vi.hoisted(() => ({
 const detailMessages = {
   'components.commonTable.detail': 'Detail',
   'project.detail.actions.destroy': 'Destroy',
+  'project.detail.actions.openConfigurationWorkspace': 'Configuration Workspace',
   'project.detail.actions.redeploy': 'Redeploy',
   'project.detail.actions.restart': 'Restart',
   'project.detail.actions.stop': 'Stop',
   'project.detail.actions.unregister': 'Unregister',
   'project.detail.actions.up': 'Up',
-  'project.detail.configuration.composeFiles': 'Compose Files',
-  'project.detail.configuration.driftStatus': 'Drift Status',
-  'project.detail.configuration.envFiles': 'Env Files',
-  'project.detail.configuration.externalAuthorityHint': 'External authority',
-  'project.detail.configuration.managedAuthorityHint': 'Managed authority',
-  'project.detail.configuration.ownershipMode': 'Ownership Mode',
-  'project.detail.configuration.previewEmpty': 'No Preview',
-  'project.detail.configuration.previewTitle': 'Preview',
-  'project.detail.configuration.refreshStatus': 'Refresh Status',
-  'project.detail.configuration.title': 'Configuration',
   'project.detail.description': 'Project detail description',
   'project.detail.eyebrow': 'Compose Project',
   'project.detail.logs.authorityProjectOwned': 'Project-owned logs',
@@ -167,12 +168,12 @@ const detailMessages = {
   'project.detail.services.refresh': 'Refresh Services',
   'project.detail.services.summary': '{count} Services',
   'project.detail.services.title': 'Services',
-  'project.detail.tabs.configuration': 'Configuration',
   'project.detail.tabs.lifecycle': 'Lifecycle',
   'project.detail.tabs.logs': 'Logs',
   'project.detail.tabs.overview': 'Overview',
   'project.detail.tabs.services': 'Services',
   'project.detail.titleFallback': 'Project Detail',
+  'project.route.configurationWorkspace.title': 'Configuration Workspace',
   'project.list.actions.actionFailed': 'Action Failed',
   'project.list.actions.actionSuccess': 'Action Success',
   'project.list.actions.cancel': 'Cancel',
@@ -489,14 +490,9 @@ vi.mock('@/modules/container/contract/project', () => ({
 vi.mock('../../api/project', () => ({
   getProject: projectApiMocks.getProject,
   getProjectConfiguration: projectApiMocks.getProjectConfiguration,
-  getProjectConfigurationFile: projectApiMocks.getProjectConfigurationFile,
-  getProjectConfigurationPreview: projectApiMocks.getProjectConfigurationPreview,
   getProjectLogs: projectApiMocks.getProjectLogs,
   getProjectOverview: projectApiMocks.getProjectOverview,
   getProjectServices: projectApiMocks.getProjectServices,
-  postProjectConfigurationDiff: projectApiMocks.postProjectConfigurationDiff,
-  postProjectConfigurationValidate: projectApiMocks.postProjectConfigurationValidate,
-  postProjectDeploy: projectApiMocks.postProjectDeploy,
   postProjectDestroy: projectApiMocks.postProjectDestroy,
   postProjectRedeploy: projectApiMocks.postProjectRedeploy,
   postProjectRestart: projectApiMocks.postProjectRestart,
@@ -593,7 +589,6 @@ vi.mock('../../shared/display', () => ({
     unregister: true,
     up: status === 'stopped' || status === 'unknown' || status === 'transitioning' || !status,
   }),
-  projectOwnershipModeLabel: () => 'external',
   projectRefreshStatusLabel: () => 'success',
   projectRefreshStatusTheme: () => 'success',
   projectRuntimeStatusLabel: (value?: string | null) => value || 'running',
@@ -630,7 +625,6 @@ describe('Project detail service tab', () => {
       last_refresh_status: 'success',
       ownership_mode: 'external',
     });
-    projectApiMocks.getProjectConfigurationPreview.mockResolvedValue(null);
     projectApiMocks.getProjectLogs.mockResolvedValue({ entries: [] });
     projectApiMocks.getProjectOverview.mockResolvedValue(buildProjectOverview());
     projectApiMocks.getProjectServices.mockResolvedValue(buildProjectServices());
@@ -655,6 +649,20 @@ describe('Project detail service tab', () => {
         tab: 'services',
       },
     });
+  });
+
+  it('redirects the legacy configuration tab query to the configuration workspace route', async () => {
+    routeState.value.query = { name: 'Compose Demo', tab: 'configuration' };
+
+    mountPage();
+    await flushPromises();
+
+    expect(routerMocks.replace).toHaveBeenCalledWith({
+      name: 'ProjectConfigurationWorkspaceIndex',
+      params: { id: '7' },
+      query: { name: 'Compose Demo' },
+    });
+    expect(projectApiMocks.getProject).not.toHaveBeenCalled();
   });
 
   it('does not retry project logs bootstrap in a tight loop after a failed logs request', async () => {
@@ -689,6 +697,18 @@ describe('Project detail service tab', () => {
     expect(wrapper.text()).not.toContain('Containers');
     expect(wrapper.text()).not.toContain('Networks');
     expect(wrapper.text()).not.toContain('Volumes');
+  });
+
+  it('does not render the retired configuration tab label in detail tabs', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const tabLabels = wrapper
+      .findAll('[data-stub="TTabPanel"]')
+      .map((item) => item.text().trim())
+      .filter(Boolean);
+
+    expect(tabLabels).not.toContain('Configuration');
   });
 
   it('renders runtime published ports instead of declared compose mappings', async () => {
@@ -786,6 +806,30 @@ describe('Project detail service tab', () => {
         query: { name: 'compose-demo-2' },
       }),
     );
+  });
+
+  it('opens the configuration workspace from the detail page action area', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="project-detail-action-open-configuration-workspace"]').trigger('click');
+
+    expect(routerMocks.resolve).toHaveBeenCalledWith({
+      name: 'ProjectConfigurationWorkspaceIndex',
+      params: { id: '7' },
+      query: undefined,
+    });
+    expect(tabsRouterStoreMock.appendTabRouterList).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fullPath: '/ops/projects/7/configuration',
+        path: '/ops/projects/7/configuration',
+      }),
+    );
+    expect(routerMocks.push).toHaveBeenCalledWith({
+      name: 'ProjectConfigurationWorkspaceIndex',
+      params: { id: '7' },
+      query: undefined,
+    });
   });
 
   it('shows mutually exclusive service actions by running state', async () => {

@@ -4,7 +4,6 @@ import { formatCompactDateTime } from '@/shared/components/management';
 
 import type {
   ProjectDriftStatus,
-  ProjectOwnershipMode,
   ProjectRefreshStatus,
   ProjectRuntimeStatus,
   ProjectSourceKind,
@@ -31,17 +30,6 @@ export function formatProjectTime(locale: string, value?: string | null) {
  */
 export function projectSourceKindLabel(t: Translate, value: ProjectSourceKind) {
   return t(`project.list.sourceKinds.${value}`);
-}
-
-/**
- * 获取项目所有权模式的本地化文案。
- *
- * @param t - 翻译函数
- * @param value - 项目所有权模式值
- * @returns 对应 `project.detail.ownershipMode.${value}` 的翻译结果
- */
-export function projectOwnershipModeLabel(t: Translate, value: ProjectOwnershipMode) {
-  return t(`project.detail.ownershipMode.${value}`);
 }
 
 /**
