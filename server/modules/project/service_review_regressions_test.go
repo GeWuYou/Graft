@@ -245,6 +245,89 @@ func TestRealtimeTopicStreamingInitializersRegisterObserverOnce(t *testing.T) {
 	}
 }
 
+type blockingTopicMonitorHub struct {
+	realtime.Hub
+	registerStarted chan struct{}
+	releaseRegister chan struct{}
+	unregisterCalls atomic.Int32
+}
+
+func newBlockingTopicMonitorHub() *blockingTopicMonitorHub {
+	return &blockingTopicMonitorHub{
+		Hub:             realtime.NewHub(),
+		registerStarted: make(chan struct{}),
+		releaseRegister: make(chan struct{}),
+	}
+}
+
+func (h *blockingTopicMonitorHub) RegisterTopicObserver(
+	_ string,
+	_ func(string),
+	_ func(string),
+) (func(), error) {
+	close(h.registerStarted)
+	<-h.releaseRegister
+	return func() {
+		h.unregisterCalls.Add(1)
+	}, nil
+}
+
+func TestProjectDetailTopicStreamerCloseUnregistersLateObserver(t *testing.T) {
+	t.Parallel()
+
+	hub := newBlockingTopicMonitorHub()
+	streamer, err := newProjectDetailTopicStreamer(hub, nil, &Service{})
+	if err != nil {
+		t.Fatalf("new detail topic streamer: %v", err)
+	}
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- streamer.EnsureTopic("projects.detail.1", 1)
+	}()
+
+	<-hub.registerStarted
+	if err := streamer.Close(context.Background()); err != nil {
+		t.Fatalf("close detail topic streamer: %v", err)
+	}
+	close(hub.releaseRegister)
+
+	if err := <-errCh; err != nil {
+		t.Fatalf("ensure detail topic: %v", err)
+	}
+	if got := hub.unregisterCalls.Load(); got != 1 {
+		t.Fatalf("expected one late unregister for detail topic, got %d", got)
+	}
+}
+
+func TestProjectLogTopicStreamerCloseUnregistersLateObserver(t *testing.T) {
+	t.Parallel()
+
+	hub := newBlockingTopicMonitorHub()
+	streamer, err := newProjectLogTopicStreamer(hub, nil, &Service{})
+	if err != nil {
+		t.Fatalf("new log topic streamer: %v", err)
+	}
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- streamer.EnsureTopic("projects.logs.1", 1, LogQuery{Tail: 10, Stdout: true})
+	}()
+
+	<-hub.registerStarted
+	if err := streamer.Close(context.Background()); err != nil {
+		t.Fatalf("close log topic streamer: %v", err)
+	}
+	close(hub.releaseRegister)
+
+	if err := <-errCh; err != nil {
+		t.Fatalf("ensure log topic: %v", err)
+	}
+	if got := hub.unregisterCalls.Load(); got != 1 {
+		t.Fatalf("expected one late unregister for log topic, got %d", got)
+	}
+}
+
 type pagedConflictRepository struct {
 	total     int
 	override  map[int]projectstore.ProjectAggregate

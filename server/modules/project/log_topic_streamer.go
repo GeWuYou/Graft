@@ -110,7 +110,15 @@ func (s *projectLogTopicStreamer) EnsureTopic(topic string, projectID uint64, qu
 		s.mu.Unlock()
 		return err
 	}
-	stream.unregisterObserver = unregister
+	s.mu.Lock()
+	current := s.streams[topic]
+	if current == stream {
+		current.unregisterObserver = unregister
+		s.mu.Unlock()
+		return nil
+	}
+	s.mu.Unlock()
+	unregister()
 	return nil
 }
 
