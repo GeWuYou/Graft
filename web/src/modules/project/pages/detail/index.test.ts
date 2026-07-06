@@ -627,6 +627,18 @@ describe('Project detail service tab', () => {
     });
   });
 
+  it('does not retry project logs bootstrap in a tight loop after a failed logs request', async () => {
+    routeState.value.query = { tab: 'logs' };
+    projectApiMocks.getProjectLogs.mockRejectedValue(new Error('boom'));
+
+    mountPage();
+    await flushPromises();
+    await flushPromises();
+
+    expect(projectApiMocks.getProjectLogs).toHaveBeenCalledTimes(1);
+    expect(messageMocks.error).not.toHaveBeenCalled();
+  });
+
   it('renders compact service columns without pagination', async () => {
     const wrapper = mountPage();
     await flushPromises();

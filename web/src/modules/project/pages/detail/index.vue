@@ -1358,9 +1358,6 @@ watch(activeDetailTab, (value) => {
     });
   }
 
-  if (value === 'logs' && !(projectLogResponse.value?.entries.length ?? 0) && !projectLogLoading.value) {
-    void loadProjectLogs();
-  }
   syncProjectLogsRealtimeSubscription();
 });
 
@@ -1480,7 +1477,7 @@ async function refreshDetail() {
     syncLifecycleDraft(detailRecord.value);
     updateCurrentTabTitle(buildDetailTitle(detailRecord.value.display_name));
     await Promise.all([loadConfiguration(), loadProjectServices(true), loadProjectOverview(true)]);
-    if (activeDetailTab.value === 'logs') {
+    if (activeDetailTab.value === 'logs' && projectLogsHasSnapshot.value) {
       await loadProjectLogs();
     }
     syncProjectDetailRealtimeSubscription();
@@ -1715,8 +1712,6 @@ async function loadProjectLogs() {
     projectLogsRecoveryLoadRequested.value = false;
   } catch (error) {
     logger.error('failed to load project logs', error);
-    projectLogsBootstrapRequested.value = false;
-    projectLogsRecoveryLoadRequested.value = false;
     projectLogError.value = resolveLocalizedErrorMessage(t, error, t('project.detail.logs.loadFailed'));
   } finally {
     projectLogLoading.value = false;
