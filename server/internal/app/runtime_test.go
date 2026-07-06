@@ -1463,6 +1463,9 @@ func assertDocsHTMLResponse(t *testing.T, engine *gin.Engine) {
 	if !strings.Contains(recorder.Body.String(), `data-url="/openapi.json"`) {
 		t.Fatalf("%s: expected body to contain Scalar spec url", openapiDocsPath)
 	}
+	if !strings.Contains(recorder.Body.String(), `href="/favicon.svg?v=3"`) {
+		t.Fatalf("%s: expected body to contain graft favicon link", openapiDocsPath)
+	}
 	if !strings.Contains(recorder.Body.String(), `src="`+scalarDocsScriptURL+`"`) {
 		t.Fatalf("%s: expected body to pin the Scalar docs script url", openapiDocsPath)
 	}

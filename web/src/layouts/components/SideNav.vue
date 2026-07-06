@@ -12,13 +12,15 @@
     >
       <template #logo>
         <span v-if="showLogo" :class="`${prefix}-side-nav-logo-wrapper`" @click="goHome">
-          <component :is="getLogo()" :class="logoCls" />
+          <brand-identity
+            :compact="logoCompact"
+            :label-hidden="logoLabelHidden"
+            :class="logoCls"
+            :label="t('common.appName')"
+          />
         </span>
       </template>
       <menu-content :nav-data="menu" />
-      <template #operations>
-        <span :class="versionCls"> {{ !collapsed ? t('common.appName') : '' }} {{ appVersion }} </span>
-      </template>
     </t-menu>
     <div :class="`${prefix}-side-nav-placeholder${isCompact ? '-hidden' : ''}`"></div>
   </div>
@@ -31,20 +33,17 @@ import type { MenuValue } from 'tdesign-vue-next';
 import type { PropType } from 'vue';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 
-import AssetLogoFull from '@/assets/assets-logo-full.svg?component';
-import AssetLogo from '@/assets/assets-t-logo.svg?component';
 import { prefix } from '@/config/global';
 import { findExpandedMenuPaths, type SidebarMotionPhase } from '@/layouts/layout-navigation';
 import { useShellNavigation } from '@/layouts/useShellNavigation';
 import { t } from '@/locales';
 import { getActive } from '@/router';
+import { BrandIdentity } from '@/shared/components/brand';
 import { useSettingStore } from '@/store';
 import type { MenuRoute, ModeType } from '@/utils/types';
 
-import pgk from '../../../package.json';
 import MenuContent from './MenuContent.vue';
 
-const appVersion = 'version' in pgk ? String(pgk.version) : '';
 const menuWidth = ['var(--graft-shell-sidebar-current-width)', 'var(--graft-shell-sidebar-current-width)'];
 
 const { menu, showLogo, isFixed, layout, theme, isCompact, renderCompact, motionPhase } = defineProps({
@@ -190,18 +189,18 @@ const sideNavCls = computed(() => {
     },
   ];
 });
-const logoCollapsed = computed(() => collapsed.value);
+const logoCompact = computed(() => collapsed.value);
+const logoLabelHidden = computed(
+  () =>
+    collapsed.value ||
+    motionPhase === 'collapsing-width' ||
+    motionPhase === 'collapsing-submenu' ||
+    motionPhase === 'collapsing-topmenu' ||
+    motionPhase === 'compact',
+);
 const logoCls = computed(() => {
   return [
-    `${prefix}-side-nav-logo-${logoCollapsed.value ? 't' : 'tdesign'}-logo`,
-    {
-      [`${prefix}-side-nav-dark`]: sideMode.value,
-    },
-  ];
-});
-const versionCls = computed(() => {
-  return [
-    `version-container`,
+    `${prefix}-side-nav-brand`,
     {
       [`${prefix}-side-nav-dark`]: sideMode.value,
     },
@@ -241,11 +240,6 @@ onUnmounted(() => {
 
 const goHome = () => {
   void shellNavigation.goHome();
-};
-
-const getLogo = () => {
-  if (logoCollapsed.value) return AssetLogo;
-  return AssetLogoFull;
 };
 </script>
 <style lang="less" scoped></style>

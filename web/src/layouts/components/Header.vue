@@ -3,7 +3,7 @@
     <t-head-menu :class="menuCls" :theme="menuTheme" expand-type="popup" :value="active">
       <template #logo>
         <span v-if="showLogo" class="header-logo-container" @click="goHome">
-          <logo-full class="t-logo" />
+          <brand-identity class="t-logo" :label="t('common.appName')" />
         </span>
         <div v-else class="header-operate-left">
           <t-button theme="default" shape="square" variant="text" @click="changeCollapsed">
@@ -86,7 +86,6 @@ import type { PropType } from 'vue';
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
 
-import LogoFull from '@/assets/assets-logo-full.svg?component';
 import { prefix } from '@/config/global';
 import { useShellNavigation } from '@/layouts/useShellNavigation';
 import { t } from '@/locales';
@@ -94,6 +93,7 @@ import { AUTH_ROUTE_PATH } from '@/modules/auth/contract/routes';
 import { useAuthSessionStore } from '@/modules/auth/store';
 import { USER_ROUTE_PATH } from '@/modules/user/contract/paths';
 import { getActive } from '@/router';
+import { BrandIdentity } from '@/shared/components/brand';
 import LanguageSwitcher from '@/shared/components/LanguageSwitcher.vue';
 import { useSettingStore } from '@/store';
 import type { MenuRoute, ModeType } from '@/utils/types';
@@ -304,9 +304,9 @@ const navToHelper = () => {
 .header-logo-container {
   color: var(--td-text-color-primary);
   display: flex;
-  height: 26px;
+  height: 32px;
   margin-left: var(--graft-density-gap-24);
-  width: 184px;
+  width: 168px;
 
   .t-logo {
     height: 100%;

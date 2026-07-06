@@ -447,6 +447,10 @@ function mountPage() {
   });
 }
 
+function getAnnouncementTitleInput(wrapper: ReturnType<typeof mountPage>) {
+  return wrapper.get('input[placeholder="Enter announcement title"]');
+}
+
 describe('announcement management page', () => {
   beforeEach(() => {
     vi.useRealTimers();
@@ -659,13 +663,7 @@ describe('announcement management page', () => {
 
     await wrapper.get('[data-testid="announcement-create"]').trigger('click');
     await nextTick();
-    const titleInput = wrapper
-      .findAll('input')
-      .find(
-        (input) => input.attributes('value') === '' && input.attributes('placeholder') !== 'Search title or content',
-      );
-    expect(titleInput).toBeTruthy();
-    await titleInput!.setValue('Title');
+    await getAnnouncementTitleInput(wrapper).setValue('Title');
     await wrapper.get('textarea').setValue('Body');
     const inputs = wrapper.findAll('input');
     await inputs.at(-2)?.setValue('2026-06-12 10:00:00');
@@ -688,13 +686,7 @@ describe('announcement management page', () => {
 
     await wrapper.get('[data-testid="announcement-create"]').trigger('click');
     await nextTick();
-    const titleInput = wrapper
-      .findAll('input')
-      .find(
-        (input) => input.attributes('value') === '' && input.attributes('placeholder') !== 'Search title or content',
-      );
-    expect(titleInput).toBeTruthy();
-    await titleInput!.setValue('Title');
+    await getAnnouncementTitleInput(wrapper).setValue('Title');
     await wrapper.get('textarea').setValue('Body');
     await wrapper.findAll('input').at(-1)?.setValue('2026-06-13 15:17:18');
     await wrapper.get('form').trigger('submit');
@@ -717,13 +709,7 @@ describe('announcement management page', () => {
 
     await wrapper.get('[data-testid="announcement-create"]').trigger('click');
     await nextTick();
-    const titleInput = wrapper
-      .findAll('input')
-      .find(
-        (input) => input.attributes('value') === '' && input.attributes('placeholder') !== 'Search title or content',
-      );
-    expect(titleInput).toBeTruthy();
-    await titleInput!.setValue('Title');
+    await getAnnouncementTitleInput(wrapper).setValue('Title');
     await wrapper.get('textarea').setValue('Body');
     const inputs = wrapper.findAll('input');
     const publishInput = inputs.at(-2)!;
@@ -779,13 +765,7 @@ describe('announcement management page', () => {
 
     await wrapper.get('[data-testid="announcement-create"]').trigger('click');
     await nextTick();
-    const titleInput = wrapper
-      .findAll('input')
-      .find(
-        (input) => input.attributes('value') === '' && input.attributes('placeholder') !== 'Search title or content',
-      );
-    expect(titleInput).toBeTruthy();
-    await titleInput!.setValue('Title');
+    await getAnnouncementTitleInput(wrapper).setValue('Title');
     await wrapper.get('textarea').setValue('**Body**');
     await wrapper.get('form').trigger('submit');
     await flushPromises();
@@ -852,12 +832,7 @@ describe('announcement management page', () => {
 
     await wrapper.get('[data-testid="announcement-create"]').trigger('click');
     await nextTick();
-    const titleInput = wrapper
-      .findAll('input')
-      .find(
-        (input) => input.attributes('value') === '' && input.attributes('placeholder') !== 'Search title or content',
-      );
-    await titleInput!.setValue('Preview Title');
+    await getAnnouncementTitleInput(wrapper).setValue('Preview Title');
     await wrapper.get('textarea').setValue('Full **body**');
     await wrapper
       .findAll('button')

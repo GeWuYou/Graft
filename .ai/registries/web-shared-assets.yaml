@@ -220,6 +220,22 @@ assets:
     validation_commands:
       - "cd web && bun run check"
 
+  - name: "brand-identity"
+    type: "frontend-component"
+    path: "web/src/shared/components/brand"
+    owner: "web/shared"
+    purpose: "Reusable brand mark and shell identity component for sidebar, header, and auth surfaces with token-driven currentColor theming."
+    use_when:
+      - "Rendering the shared Graft brand identity in shell-owned or auth-owned UI surfaces."
+    do_not_use_when:
+      - "The surface needs module-private business imagery or a non-brand status icon."
+    examples:
+      - "web/src/layouts/components/SideNav.vue"
+      - "web/src/layouts/components/Header.vue"
+      - "web/src/modules/auth/pages/components/Header.vue"
+    validation_commands:
+      - "cd web && bun run check"
+
   - name: "frontend-i18n-governance"
     type: "frontend-contract"
     path: "web/src/locales"

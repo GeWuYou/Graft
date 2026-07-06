@@ -21,6 +21,7 @@ var scalarDocsPageTemplate = template.Must(template.New("scalar-docs").Parse(`<!
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=3">
     <title>Graft API Docs</title>
     <style>
       body { margin: 0; }

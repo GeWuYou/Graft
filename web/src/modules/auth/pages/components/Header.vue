@@ -1,6 +1,6 @@
 <template>
   <header class="login-header">
-    <logo-full-icon class="logo" />
+    <brand-identity class="logo" :label="t('common.appName')" />
     <div class="operations-container">
       <t-button theme="default" shape="square" variant="text" @click="navToGitHub">
         <t-icon name="logo-github" class="icon" />
@@ -19,7 +19,8 @@
   </header>
 </template>
 <script setup lang="ts">
-import LogoFullIcon from '@/assets/assets-logo-full.svg?component';
+import { t } from '@/locales';
+import { BrandIdentity } from '@/shared/components/brand';
 import LanguageSwitcher from '@/shared/components/LanguageSwitcher.vue';
 import { useSettingStore } from '@/store';
 
@@ -52,8 +53,8 @@ const navToHelper = () => {
   padding: 0 var(--td-comp-paddingLR-xl);
 
   .logo {
-    height: var(--td-comp-size-s);
-    width: 178px;
+    height: 32px;
+    width: 168px;
   }
 
   .operations-container {

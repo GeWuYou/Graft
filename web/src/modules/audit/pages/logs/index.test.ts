@@ -1157,7 +1157,7 @@ describe('AuditLogsPage', () => {
       path: '/audit/logs',
       query: {
         resource_type: 'user',
-        resource_name: 'Graft Admin',
+        resource_name: 'Graft',
         resource_id: '1',
       },
     });
@@ -1166,18 +1166,18 @@ describe('AuditLogsPage', () => {
     expect(router.currentRoute.value.path).toBe('/audit/logs');
     expect(router.currentRoute.value.query).toMatchObject({
       resource_type: 'user',
-      resource_name: 'Graft Admin',
+      resource_name: 'Graft',
       resource_id: '1',
     });
     expect(wrapper.get('[data-testid="audit-filter-model"]').text()).toContain('"resourceType":"user"');
-    expect(wrapper.get('[data-testid="audit-filter-model"]').text()).toContain('"resourceName":"Graft Admin"');
+    expect(wrapper.get('[data-testid="audit-filter-model"]').text()).toContain('"resourceName":"Graft"');
     expect(wrapper.get('[data-testid="audit-filter-model"]').text()).toContain('"resourceId":"1"');
     expect(getAuditLogsMock).toHaveBeenLastCalledWith({
       page: 1,
       page_size: 10,
       visibility_scope: 'default',
       resource_type: 'user',
-      resource_name: 'Graft Admin',
+      resource_name: 'Graft',
       resource_id: '1',
       sort: ['created_at:desc'],
     });

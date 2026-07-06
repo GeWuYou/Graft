@@ -294,6 +294,7 @@
       align-items: center;
       display: flex;
       justify-content: center;
+      overflow: hidden;
       width: 100%;
 
       &:hover {
@@ -301,22 +302,16 @@
       }
     }
 
-    &-logo-t-logo {
-      height: var(--td-comp-size-s);
+    &-brand {
+      align-items: center;
+      display: inline-flex;
+      justify-content: flex-start;
+      min-height: 32px;
+      overflow: hidden;
+      transition:
+        justify-content 0.2s cubic-bezier(0.38, 0, 0.24, 1),
+        transform 0.12s cubic-bezier(0.38, 0, 0.24, 1);
       width: 100%;
-    }
-
-    &-logo-tdesign-logo {
-      color: var(--td-text-color-primary);
-      height: var(--td-comp-size-s);
-      margin-right: var(--td-comp-margin-xxxl);
-      width: 100%;
-    }
-
-    &-logo-normal {
-      color: var(--td-brand-color);
-      font: var(--td-font-body-large);
-      transition: all 0.3s;
     }
   }
 
@@ -373,21 +368,6 @@
   }
 }
 
-.logo-container {
-  cursor: pointer;
-  display: inline-flex;
-  margin-left: var(--graft-density-gap-24);
-}
-
-.version-container {
-  color: var(--td-text-color-primary);
-  opacity: 0.4;
-  transform: translateX(0);
-  transition:
-    opacity 0.12s cubic-bezier(0.38, 0, 0.24, 1),
-    transform 0.12s cubic-bezier(0.38, 0, 0.24, 1);
-}
-
 .t-menu__popup {
   z-index: 1000;
 }
@@ -397,9 +377,12 @@
 }
 
 .app-shell .t-default-menu.@{starter-prefix}-side-nav {
+  .t-menu__logo {
+    overflow: hidden;
+  }
+
   .t-menu__content,
-  .t-fake-arrow,
-  .version-container {
+  .t-fake-arrow {
     opacity: 1;
     transition: opacity 0.12s cubic-bezier(0.38, 0, 0.24, 1);
     will-change: opacity;
@@ -438,11 +421,6 @@
     }
   }
 
-  .version-container {
-    opacity: 0;
-    pointer-events: none;
-  }
-
   .t-menu__logo > * {
     transform: translateX(4px);
   }
@@ -462,6 +440,14 @@
 .app-shell[data-sidebar-render-compact='true'] .t-default-menu.@{starter-prefix}-side-nav {
   .t-menu__logo > * {
     margin-left: 0;
+  }
+
+  .@{starter-prefix}-side-nav-logo-wrapper {
+    justify-content: center;
+  }
+
+  .@{starter-prefix}-side-nav-brand {
+    justify-content: center;
   }
 
   .t-menu__item {
