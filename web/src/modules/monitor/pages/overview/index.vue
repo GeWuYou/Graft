@@ -1029,9 +1029,11 @@ const samplingStatusItems = computed<StatusSidebarSummaryItem[]>(() => [
   {
     key: 'autoRefresh',
     label: t('monitor.serverStatus.runtimeStatusAutoRefreshLabel'),
-    value: autoRefreshEnabled.value
+    value: canRunAutoRefreshCycle()
       ? t('monitor.serverStatus.runtimeStatusRefreshValue')
-      : t('monitor.serverStatus.runtimeStatusPaused'),
+      : selectedRefreshInterval.value <= 0
+        ? t('app.refreshControl.status.off')
+        : t('monitor.serverStatus.runtimeStatusPaused'),
   },
   {
     key: 'timeRange',
@@ -1063,13 +1065,10 @@ const toolbarStatus = computed<ServerStatusTone>(() => {
 });
 
 const refreshControlStatus = computed(() => {
-  if (selectedRefreshInterval.value <= 0) {
-    return 'off' as const;
+  if (canRunAutoRefreshCycle()) {
+    return 'running' as const;
   }
-  if (!autoRefreshEnabled.value || !isPageVisible.value) {
-    return 'paused' as const;
-  }
-  return 'running' as const;
+  return selectedRefreshInterval.value <= 0 ? ('off' as const) : ('paused' as const);
 });
 
 function canRunAutoRefreshCycle() {
@@ -2029,8 +2028,7 @@ watch(
   () => realtimeSchedulerStore.allowPolling,
   (allowPolling) => {
     if (!allowPolling) {
-      stopRefreshTick();
-      remainingRefreshSeconds.value = null;
+      clearRefreshSchedule();
       return;
     }
     scheduleNextRefresh();
