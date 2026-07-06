@@ -29,7 +29,7 @@ require (
 	github.com/jackc/pgx/v5 v5.10.0
 
 	// Cobra 提供显式的 serve / migrate CLI 入口。
-	github.com/shirou/gopsutil/v4 v4.26.5
+	github.com/shirou/gopsutil/v4 v4.26.6
 	github.com/spf13/cobra v1.10.2
 )
 
