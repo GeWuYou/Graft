@@ -4,5 +4,4 @@ required: false
 description: Relative path under the project's working_directory. Omit or pass an empty value to browse the root directory.
 schema:
   type: string
-  minLength: 1
-
+  minLength: 0

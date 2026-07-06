@@ -1245,6 +1245,7 @@ async function executeBatchAction(
   batchActionLoading.value = action;
   try {
     const response = await batchContainerActions({ action, ids, force: action === 'remove' ? force : false });
+    syncSelectionAfterBatchAction(action, response, ids);
     handleBatchActionResult(response);
     await refreshContainers();
     return true;
@@ -1255,6 +1256,32 @@ async function executeBatchAction(
   } finally {
     batchActionLoading.value = '';
   }
+}
+
+function syncSelectionAfterBatchAction(
+  action: DangerousContainerAction,
+  response: ContainerBatchActionResponse,
+  attemptedIds: string[],
+) {
+  if (action !== 'remove') {
+    return;
+  }
+
+  const removedIds = new Set(
+    response.items
+      .filter((item) => item.success)
+      .map((item) => item.id)
+      .filter((id): id is string => Boolean(id)),
+  );
+  if (!removedIds.size && response.failed_count === 0) {
+    attemptedIds.forEach((id) => removedIds.add(id));
+  }
+  if (!removedIds.size) {
+    return;
+  }
+
+  selectedRowKeys.value = selectedRowKeys.value.filter((key) => !removedIds.has(String(key)));
+  selectedRowRecords.value = selectedRowRecords.value.filter((row) => !removedIds.has(row.id));
 }
 
 function handleBatchActionResult(response: ContainerBatchActionResponse) {

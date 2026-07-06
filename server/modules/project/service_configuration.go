@@ -6,7 +6,6 @@ import (
 	"time"
 
 	generated "graft/server/internal/contract/openapi/generated"
-	projectcompose "graft/server/modules/project/compose"
 	projectcontract "graft/server/modules/project/contract"
 	projectstore "graft/server/modules/project/store"
 )
@@ -65,9 +64,6 @@ func (s *Service) DiffConfiguration(ctx context.Context, projectID uint64) (Conf
 		return ConfigurationDiffResult{}, err
 	}
 	warnings := configurationDiffWarnings(aggregate, len(files))
-	if aggregate.Snapshot == nil {
-		warnings = append(warnings, "No refreshed project snapshot is available yet; file-level diff falls back to last observed file hashes only.")
-	}
 	return ConfigurationDiffResult{
 		ProjectID:            projectID,
 		CanonicalProjectName: aggregate.Project.CanonicalProjectName,
@@ -120,17 +116,16 @@ func (s *Service) DeployConfiguration(
 		return DeployResult{}, err
 	}
 	now := time.Now().UTC()
-	deployAggregate := configurationDeployAggregate(aggregate, parseResult)
-	upArgs, err := lifecycleUpArgs(deployAggregate, lifecycleConfigurationFromAggregate(deployAggregate))
-	if err != nil {
-		return DeployResult{}, err
-	}
-	if _, err := s.executeLifecycleActionWithAggregate(ctx, deployAggregate, generated.ProjectActionResponseActionProjectActionDeploy, upArgs); err != nil {
-		return DeployResult{}, err
-	}
 	updated, err := repository.RefreshProject(ctx, buildRefreshProjectInput(projectID, parseResult, now, actorID))
 	if err != nil {
 		return DeployResult{}, mapStoreError(err)
+	}
+	upArgs, err := lifecycleUpArgs(updated, lifecycleConfigurationFromAggregate(updated))
+	if err != nil {
+		return DeployResult{}, err
+	}
+	if _, err := s.executeLifecycleActionWithAggregate(ctx, updated, generated.ProjectActionResponseActionProjectActionDeploy, upArgs); err != nil {
+		return DeployResult{}, err
 	}
 	messageKey := projectcontract.ProjectDeployCompleted.String()
 	result = DeployResult{
@@ -151,15 +146,6 @@ func (s *Service) DeployConfiguration(
 		},
 	}
 	return result, nil
-}
-
-func configurationDeployAggregate(
-	aggregate projectstore.ProjectAggregate,
-	parseResult projectcompose.Result,
-) projectstore.ProjectAggregate {
-	updated := aggregate
-	updated.Files = toStoreFiles(parseResult.ComposeFiles, parseResult.EnvFiles)
-	return updated
 }
 
 func buildConfigurationDiffFiles(aggregate projectstore.ProjectAggregate) ([]ConfigurationDiffFile, bool, error) {

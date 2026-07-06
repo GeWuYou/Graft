@@ -505,6 +505,7 @@ type WorkspaceOpenFile = {
   error: string;
   fileKind: ProjectWorkspaceFileKind;
   language: ProjectWorkspaceMonacoLanguage;
+  loaded: boolean;
   loading: boolean;
   name: string;
   path: string;
@@ -764,7 +765,8 @@ async function openWorkspaceFile(path: string, source?: WorkspaceTreeNode) {
         languageHint: source?.language_hint,
         path,
       }),
-      loading: true,
+      loaded: false,
+      loading: false,
       name: resolveWorkspaceFileName(path),
       path,
       savedContent: '',
@@ -781,7 +783,7 @@ async function openWorkspaceFile(path: string, source?: WorkspaceTreeNode) {
 
 async function ensureWorkspaceFileLoaded(path: string, source?: WorkspaceTreeNode) {
   const current = openFileMap.get(path);
-  if (!current || (!current.loading && (current.content || current.savedContent || current.error))) {
+  if (!current || current.loading || current.loaded) {
     return;
   }
 
@@ -815,6 +817,7 @@ function hydrateOpenFileFromResponse(
         languageHint: response.language_hint,
         path,
       }),
+      loaded: false,
       loading: false,
       name: resolveWorkspaceFileName(path),
       path,
@@ -831,6 +834,7 @@ function hydrateOpenFileFromResponse(
     languageHint: response.language_hint ?? source?.language_hint,
     path,
   });
+  current.loaded = true;
   current.loading = false;
   current.name = resolveWorkspaceFileName(path);
   current.path = path;

@@ -3,6 +3,7 @@ package project
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -39,32 +40,22 @@ func (s *Service) browseProjectFiles(
 	if err != nil {
 		return workspaceFilesResult{}, err
 	}
-	entries, err := os.ReadDir(filepath.Join(rootDir, currentPath))
+	browsePath := filepath.Join(rootDir, currentPath)
+	if err := ensureWorkspaceBrowsePath(browsePath); err != nil {
+		return workspaceFilesResult{}, err
+	}
+	entries, err := os.ReadDir(browsePath)
 	if err != nil {
-		return workspaceFilesResult{}, fmt.Errorf("%w: %v", errProjectImportValidation, err)
+		return workspaceFilesResult{}, mapWorkspacePathError(err)
 	}
 	hiddenDirectories, err := s.workspaceHiddenDirectories(ctx)
 	if err != nil {
 		return workspaceFilesResult{}, err
 	}
 	trackedKinds := trackedProjectFileKinds(rootDir, aggregate.Files)
-	items := make([]workspaceFileItem, 0, len(entries))
-	hasMoreHidden := false
-	for _, entry := range entries {
-		name := strings.TrimSpace(entry.Name())
-		if name == "" {
-			continue
-		}
-		if !query.ShowHidden && shouldHideWorkspaceEntry(name, hiddenDirectories) {
-			hasMoreHidden = true
-			continue
-		}
-		relativePath := normalizeWorkspaceRelative(filepath.Join(currentPath, name))
-		item, buildErr := buildProjectWorkspaceFileItem(relativePath, entry, trackedKinds, hiddenDirectories)
-		if buildErr != nil {
-			return workspaceFilesResult{}, buildErr
-		}
-		items = append(items, item)
+	items, hasMoreHidden, err := buildVisibleWorkspaceItems(entries, currentPath, trackedKinds, hiddenDirectories, query.ShowHidden)
+	if err != nil {
+		return workspaceFilesResult{}, err
 	}
 	parentPath := workspaceParentPath(currentPath)
 	return workspaceFilesResult{
@@ -137,8 +128,12 @@ func (s *Service) saveProjectFileContent(
 		return workspaceFileSaveResult{}, err
 	}
 	fileKind, _, editable := classifyWorkspaceFile(relativePath, trackedProjectFileKinds(rootDir, aggregate.Files))
-	if !editable || fileKind == "binary" || fileKind == "unsupported" || fileKind == "directory" {
+	if !editable || fileKind == "unsupported" {
 		return workspaceFileSaveResult{}, errProjectInvalidArgument
+	}
+	absolutePath := filepath.Join(rootDir, relativePath)
+	if err := ensureWorkspaceSaveTarget(absolutePath); err != nil {
+		return workspaceFileSaveResult{}, err
 	}
 	fsRoot, err := openManagedRootFS(rootDir)
 	if err != nil {
@@ -312,6 +307,63 @@ func normalizeWorkspaceRelative(path string) string {
 	return strings.TrimPrefix(normalized, "./")
 }
 
+func buildVisibleWorkspaceItems(
+	entries []os.DirEntry,
+	currentPath string,
+	trackedKinds map[string]string,
+	hiddenDirectories []string,
+	showHidden bool,
+) ([]workspaceFileItem, bool, error) {
+	items := make([]workspaceFileItem, 0, len(entries))
+	hasMoreHidden := false
+	for _, entry := range entries {
+		name := strings.TrimSpace(entry.Name())
+		if name == "" {
+			continue
+		}
+		if !showHidden && shouldHideWorkspaceEntry(name, hiddenDirectories) {
+			hasMoreHidden = true
+			continue
+		}
+		relativePath := normalizeWorkspaceRelative(filepath.Join(currentPath, name))
+		item, err := buildProjectWorkspaceFileItem(relativePath, entry, trackedKinds, hiddenDirectories)
+		if err != nil {
+			return nil, false, err
+		}
+		items = append(items, item)
+	}
+	return items, hasMoreHidden, nil
+}
+
+func ensureWorkspaceBrowsePath(path string) error {
+	info, err := os.Stat(path)
+	if err != nil {
+		return mapWorkspacePathError(err)
+	}
+	if !info.IsDir() {
+		return errProjectInvalidArgument
+	}
+	return nil
+}
+
+func ensureWorkspaceSaveTarget(path string) error {
+	info, err := os.Stat(path)
+	if err == nil && info.IsDir() {
+		return errProjectInvalidArgument
+	}
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return mapWorkspacePathError(err)
+	}
+	return nil
+}
+
+func mapWorkspacePathError(err error) error {
+	if os.IsNotExist(err) {
+		return errProjectFileNotFound
+	}
+	return fmt.Errorf("%w: %v", errProjectImportValidation, err)
+}
+
 func workspaceParentPath(currentPath string) *string {
 	normalized := normalizeWorkspaceRelative(currentPath)
 	if normalized == "" {
@@ -340,7 +392,11 @@ func (s *Service) workspaceHiddenDirectories(ctx context.Context) ([]string, err
 	if unmarshalErr := json.Unmarshal([]byte(raw), &encoded); unmarshalErr != nil {
 		encoded = raw
 	}
-	return decodeWorkspaceHiddenDirectories(encoded)
+	hiddenDirectories, decodeErr := decodeWorkspaceHiddenDirectories(encoded)
+	if decodeErr == nil {
+		return hiddenDirectories, nil
+	}
+	return decodeWorkspaceHiddenDirectories(defaultWorkspaceHiddenDirectories)
 }
 
 func decodeWorkspaceHiddenDirectories(raw string) ([]string, error) {

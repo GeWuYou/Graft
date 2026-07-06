@@ -410,6 +410,31 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     expect((wrapper.get('[data-testid="workspace-monaco-editor"]').element as HTMLTextAreaElement).value).toBe('');
   });
 
+  it('does not refetch a loaded empty file when reopening the tab with unsaved edits', async () => {
+    const wrapper = mountWorkspace();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="tree-expand-config"]').trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-testid="tree-node-config-env"]').trigger('click');
+    await flushPromises();
+
+    const initialCalls = mocks.getProjectFileContent.mock.calls.filter(
+      ([, query]) => query.path === 'config/.env',
+    ).length;
+    expect(initialCalls).toBe(1);
+
+    await wrapper.get('[data-testid="workspace-monaco-editor"]').setValue('EDITOR_ONLY=true\n');
+    await wrapper.get('[data-testid="tree-node-config-env"]').trigger('click');
+    await flushPromises();
+
+    const nextCalls = mocks.getProjectFileContent.mock.calls.filter(([, query]) => query.path === 'config/.env').length;
+    expect(nextCalls).toBe(1);
+    expect((wrapper.get('[data-testid="workspace-monaco-editor"]').element as HTMLTextAreaElement).value).toBe(
+      'EDITOR_ONLY=true\n',
+    );
+  });
+
   it('saves the active file buffer without deploying the project', async () => {
     const wrapper = mountWorkspace();
     await flushPromises();

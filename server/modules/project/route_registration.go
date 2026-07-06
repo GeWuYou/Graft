@@ -703,19 +703,19 @@ func (r routeRuntime) writeRouteError(ginCtx *gin.Context, err error) {
 }
 
 func (r routeRuntime) writeRouteErrorWithAction(ginCtx *gin.Context, err error, action ActionResult) {
+	if !r.writeHandledRouteError(ginCtx, err, action) {
+		httpx.WriteLocalizedErrorCode(ginCtx, r.ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), messagecontract.CommonInternalError.String(), nil)
+	}
+	ginCtx.Abort()
+}
+
+func (r routeRuntime) writeHandledRouteError(ginCtx *gin.Context, err error, action ActionResult) bool {
 	switch {
-	case errors.Is(err, errProjectInvalidArgument), errors.Is(err, errProjectImportValidation), errors.Is(err, errProjectFileNotFound):
-		r.writeInvalidArgumentError(ginCtx, err)
-	case errors.Is(err, errProjectNotFound):
-		r.writeLocalizedProjectError(ginCtx, http.StatusNotFound, projectcontract.ProjectNotFound.String())
-	case errors.Is(err, errProjectConflict):
-		r.writeLocalizedProjectError(ginCtx, http.StatusConflict, projectcontract.ProjectConflict.String())
-	case errors.Is(err, errProjectDirectoryForbidden):
-		r.writeLocalizedProjectError(ginCtx, http.StatusForbidden, projectcontract.ProjectDirectoryBrowseForbidden.String())
-	case errors.Is(err, errProjectInspectionExpired):
-		r.writeLocalizedProjectError(ginCtx, http.StatusConflict, projectcontract.ProjectInspectionExpired.String())
-	case errors.Is(err, errProjectInspectionStale):
-		r.writeLocalizedProjectError(ginCtx, http.StatusConflict, projectcontract.ProjectInspectionStale.String())
+	case errors.Is(err, errProjectFileNotFound):
+		r.writeFileNotFoundError(ginCtx)
+	case errors.Is(err, errProjectInvalidArgument), errors.Is(err, errProjectImportValidation):
+		r.writeInvalidArgumentError(ginCtx)
+	case r.writeProjectConflictError(ginCtx, err):
 	case errors.Is(err, errProjectDestroyBlocked):
 		r.writeLocalizedActionError(ginCtx, http.StatusConflict, projectcontract.ProjectConflict.String(), map[string]any{
 			"code":         projectcontract.ProjectConflict.String(),
@@ -727,17 +727,35 @@ func (r routeRuntime) writeRouteErrorWithAction(ginCtx *gin.Context, err error, 
 			"actionResult": toActionResponse(action),
 		})
 	default:
-		httpx.WriteLocalizedErrorCode(ginCtx, r.ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), messagecontract.CommonInternalError.String(), nil)
+		return false
 	}
-	ginCtx.Abort()
+	return true
 }
 
-func (r routeRuntime) writeInvalidArgumentError(ginCtx *gin.Context, err error) {
-	code := projectcontract.ProjectInvalidArgument.String()
-	if errors.Is(err, errProjectFileNotFound) {
-		code = projectcontract.ProjectInvalidFileID.String()
+func (r routeRuntime) writeProjectConflictError(ginCtx *gin.Context, err error) bool {
+	switch {
+	case errors.Is(err, errProjectNotFound):
+		r.writeLocalizedProjectError(ginCtx, http.StatusNotFound, projectcontract.ProjectNotFound.String())
+	case errors.Is(err, errProjectConflict):
+		r.writeLocalizedProjectError(ginCtx, http.StatusConflict, projectcontract.ProjectConflict.String())
+	case errors.Is(err, errProjectDirectoryForbidden):
+		r.writeLocalizedProjectError(ginCtx, http.StatusForbidden, projectcontract.ProjectDirectoryBrowseForbidden.String())
+	case errors.Is(err, errProjectInspectionExpired):
+		r.writeLocalizedProjectError(ginCtx, http.StatusConflict, projectcontract.ProjectInspectionExpired.String())
+	case errors.Is(err, errProjectInspectionStale):
+		r.writeLocalizedProjectError(ginCtx, http.StatusConflict, projectcontract.ProjectInspectionStale.String())
+	default:
+		return false
 	}
-	r.writeLocalizedActionError(ginCtx, http.StatusBadRequest, projectcontract.ProjectInvalidArgument.String(), map[string]any{"code": code})
+	return true
+}
+
+func (r routeRuntime) writeInvalidArgumentError(ginCtx *gin.Context) {
+	r.writeLocalizedActionError(ginCtx, http.StatusBadRequest, projectcontract.ProjectInvalidArgument.String(), map[string]any{"code": projectcontract.ProjectInvalidArgument.String()})
+}
+
+func (r routeRuntime) writeFileNotFoundError(ginCtx *gin.Context) {
+	r.writeLocalizedActionError(ginCtx, http.StatusNotFound, projectcontract.ProjectInvalidFileID.String(), map[string]any{"code": projectcontract.ProjectInvalidFileID.String()})
 }
 
 func (r routeRuntime) writeLocalizedProjectError(ginCtx *gin.Context, status int, code string) {

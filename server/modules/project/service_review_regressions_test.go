@@ -47,7 +47,8 @@ func TestConfigurationDeployAggregateUsesPreparedComposeFiles(t *testing.T) {
 		},
 	}
 
-	deployAggregate := configurationDeployAggregate(aggregate, parseResult)
+	deployAggregate := aggregate
+	deployAggregate.Files = toStoreFiles(parseResult.ComposeFiles, parseResult.EnvFiles)
 	args, err := lifecycleUpArgs(deployAggregate, lifecycleConfigurationFromAggregate(deployAggregate))
 	if err != nil {
 		t.Fatalf("build deploy lifecycle args: %v", err)
