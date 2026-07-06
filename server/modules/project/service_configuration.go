@@ -2,7 +2,6 @@ package project
 
 import (
 	"context"
-	"errors"
 	"strings"
 	"time"
 
@@ -207,12 +206,4 @@ func configurationDiffWarnings(aggregate projectstore.ProjectAggregate, fileCoun
 		warnings = append(warnings, "No tracked compose or env files are registered for the project.")
 	}
 	return warnings
-}
-
-//nolint:unused // Test-only helper retained for managed-root restore coverage.
-func restoreManagedDraftOnFailure(workingDirectory string, restoreItems []managedDraftRestore, resultErr *error) {
-	if resultErr == nil || *resultErr == nil {
-		return
-	}
-	*resultErr = errors.Join(*resultErr, restoreManagedDraft(workingDirectory, restoreItems))
 }
