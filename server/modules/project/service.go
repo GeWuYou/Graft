@@ -17,7 +17,6 @@ import (
 	"graft/server/internal/moduleapi"
 	"graft/server/internal/realtime"
 	"graft/server/internal/realtimeauth"
-	projectcompose "graft/server/modules/project/compose"
 	projectcontract "graft/server/modules/project/contract"
 	projectstore "graft/server/modules/project/store"
 )
@@ -188,10 +187,59 @@ type ConfigurationFileResult struct {
 	DownloadName string
 }
 
-// ConfigurationDraft describes one Phase 2.4 managed configuration draft.
-type ConfigurationDraft struct {
-	ComposeFileContent string
-	EnvFileContent     *string
+// workspaceFileBrowseQuery describes one lazy-loaded project-root directory browse request.
+type workspaceFileBrowseQuery struct {
+	Path       string
+	ShowHidden bool
+}
+
+// workspaceFileItem describes one file-tree row returned by the project workspace authority.
+type workspaceFileItem struct {
+	Name            string
+	RelativePath    string
+	NodeType        string
+	FileKind        string
+	Editable        bool
+	LanguageHint    string
+	SizeBytes       int64
+	HiddenByDefault bool
+	HasChildren     bool
+}
+
+// workspaceFilesResult returns one bounded project-root directory page.
+type workspaceFilesResult struct {
+	ProjectID     uint64
+	RootPath      string
+	CurrentPath   string
+	ParentPath    *string
+	HasMoreHidden bool
+	Items         []workspaceFileItem
+}
+
+// workspaceFileContentResult returns one path-based project file payload.
+type workspaceFileContentResult struct {
+	ProjectID    uint64
+	RelativePath string
+	FileKind     string
+	LanguageHint string
+	Editable     bool
+	Encoding     string
+	Content      string
+	SizeBytes    int64
+}
+
+// workspaceFileSaveRequest describes one writable project file update request.
+type workspaceFileSaveRequest struct {
+	Content string
+}
+
+// workspaceFileSaveResult returns the saved file projection after one write.
+type workspaceFileSaveResult struct {
+	ProjectID    uint64
+	RelativePath string
+	SavedAt      time.Time
+	ContentHash  string
+	SizeBytes    int64
 }
 
 // LifecycleStrategyKind identifies the internal lifecycle strategy owner.
@@ -280,12 +328,6 @@ type DeployResult struct {
 	MessageKey           *string
 	Message              *string
 	GuardResults         []GuardResult
-}
-
-type preparedConfigurationDraft struct {
-	Proposal    managedDraftProposal
-	ParseResult projectcompose.Result
-	Warnings    []string
 }
 
 // ActionResult returns bounded phase-1 action status.

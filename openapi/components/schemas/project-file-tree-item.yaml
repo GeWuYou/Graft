@@ -1,0 +1,33 @@
+type: object
+required:
+  - name
+  - relative_path
+  - node_type
+  - file_kind
+  - editable
+  - language_hint
+  - size_bytes
+  - hidden_by_default
+  - has_children
+properties:
+  name:
+    type: string
+  relative_path:
+    type: string
+  node_type:
+    $ref: ./project-file-tree-node-type.yaml
+  file_kind:
+    $ref: ./project-workspace-file-kind.yaml
+  editable:
+    type: boolean
+  language_hint:
+    type: string
+  size_bytes:
+    type: integer
+    format: int64
+    minimum: 0
+  hidden_by_default:
+    type: boolean
+  has_children:
+    type: boolean
+

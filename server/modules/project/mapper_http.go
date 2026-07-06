@@ -261,29 +261,54 @@ func toConfigurationPreviewResponse(result ConfigurationPreviewResult) generated
 }
 
 // toConfigurationFileResponse 返回配置文件响应，包含文件标识、类型、路径、内容和下载名称，并固定为 UTF-8 编码且只读。
-func toConfigurationFileResponse(result ConfigurationFileResult) generated.ProjectConfigurationFileResponse {
-	return generated.ProjectConfigurationFileResponse{
-		FileId:       mustGeneratedID(result.FileID),
-		Kind:         generated.ProjectFileKind(result.Kind),
-		Path:         result.Path,
+func toProjectWorkspaceFilesResponse(result workspaceFilesResult) generated.ProjectFilesResponse {
+	items := make([]generated.ProjectFileTreeItem, 0, len(result.Items))
+	for _, item := range result.Items {
+		items = append(items, generated.ProjectFileTreeItem{
+			Name:            item.Name,
+			RelativePath:    item.RelativePath,
+			NodeType:        generated.ProjectFileTreeNodeType(item.NodeType),
+			FileKind:        generated.ProjectWorkspaceFileKind(item.FileKind),
+			Editable:        item.Editable,
+			LanguageHint:    item.LanguageHint,
+			SizeBytes:       item.SizeBytes,
+			HiddenByDefault: item.HiddenByDefault,
+			HasChildren:     item.HasChildren,
+		})
+	}
+	response := generated.ProjectFilesResponse{
+		ProjectId:     mustGeneratedID(result.ProjectID),
+		RootPath:      result.RootPath,
+		CurrentPath:   result.CurrentPath,
+		HasMoreHidden: result.HasMoreHidden,
+		Items:         items,
+	}
+	if result.ParentPath != nil {
+		response.ParentPath = result.ParentPath
+	}
+	return response
+}
+
+func toProjectWorkspaceFileContentResponse(result workspaceFileContentResult) generated.ProjectFileContentResponse {
+	return generated.ProjectFileContentResponse{
+		ProjectId:    mustGeneratedID(result.ProjectID),
+		RelativePath: result.RelativePath,
+		FileKind:     generated.ProjectWorkspaceFileKind(result.FileKind),
+		LanguageHint: result.LanguageHint,
+		Editable:     result.Editable,
+		Encoding:     generated.ProjectFileContentResponseEncoding(result.Encoding),
 		Content:      result.Content,
-		Encoding:     generated.ProjectConfigurationFileResponseEncoding("utf-8"),
-		ReadOnly:     true,
-		DownloadName: result.DownloadName,
+		SizeBytes:    result.SizeBytes,
 	}
 }
 
-// toConfigurationDiffRequest 将配置差异请求转换为内部的 ConfigurationDraft。
-// 它复制 ComposeFileContent，并在 EnvFileContent 存在时生成其独立副本。
-func toConfigurationDiffRequest(request generated.ProjectConfigurationDiffRequest) ConfigurationDraft {
-	var envFileContent *string
-	if request.EnvFileContent != nil {
-		value := *request.EnvFileContent
-		envFileContent = &value
-	}
-	return ConfigurationDraft{
-		ComposeFileContent: request.ComposeFileContent,
-		EnvFileContent:     envFileContent,
+func toProjectWorkspaceFileSaveResponse(result workspaceFileSaveResult) generated.ProjectFileSaveResponse {
+	return generated.ProjectFileSaveResponse{
+		ProjectId:    mustGeneratedID(result.ProjectID),
+		RelativePath: result.RelativePath,
+		SavedAt:      result.SavedAt,
+		ContentHash:  result.ContentHash,
+		SizeBytes:    result.SizeBytes,
 	}
 }
 
@@ -318,21 +343,6 @@ func toConfigurationDiffResponse(result ConfigurationDiffResult) generated.Proje
 	return response
 }
 
-// toConfigurationValidateRequest 将配置校验请求转换为内部的 ConfigurationDraft。
-//
-// 它会复制组合文件内容，并在请求包含环境文件内容时创建新的字符串指针。
-func toConfigurationValidateRequest(request generated.ProjectConfigurationValidateRequest) ConfigurationDraft {
-	var envFileContent *string
-	if request.EnvFileContent != nil {
-		value := *request.EnvFileContent
-		envFileContent = &value
-	}
-	return ConfigurationDraft{
-		ComposeFileContent: request.ComposeFileContent,
-		EnvFileContent:     envFileContent,
-	}
-}
-
 // toConfigurationValidateResponse 将配置校验结果转换为项目配置校验响应。
 // 返回包含项目 ID、规范化项目名、所有权模式、建议配置哈希、规范化 Compose YAML 和声明的服务名称的响应；当存在警告时，还会附加警告列表。
 func toConfigurationValidateResponse(result ConfigurationValidateResult) generated.ProjectConfigurationValidateResponse {
@@ -349,21 +359,6 @@ func toConfigurationValidateResponse(result ConfigurationValidateResult) generat
 		response.Warnings = &warnings
 	}
 	return response
-}
-
-// toDeployRequest 将部署请求转换为配置草稿，并在存在时复制环境文件内容。
-//
-// 返回包含请求中的 `ComposeFileContent` 和可选 `EnvFileContent` 的 `ConfigurationDraft`。
-func toDeployRequest(request generated.ProjectDeployRequest) ConfigurationDraft {
-	var envFileContent *string
-	if request.EnvFileContent != nil {
-		value := *request.EnvFileContent
-		envFileContent = &value
-	}
-	return ConfigurationDraft{
-		ComposeFileContent: request.ComposeFileContent,
-		EnvFileContent:     envFileContent,
-	}
 }
 
 // toDeployResponse 将部署结果映射为项目部署响应，保留可选消息、守卫结果和声明服务数等字段。

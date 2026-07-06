@@ -11890,13 +11890,13 @@
         }
       }
     },
-    "/api/ops/projects/{id}/configuration/files/{fileId}": {
+    "/api/ops/projects/{id}/files": {
       "get": {
         "tags": [
           "project"
         ],
-        "summary": "Get one readonly Compose project file",
-        "operationId": "getProjectConfigurationFile",
+        "summary": "Browse project working_directory files",
+        "operationId": "getProjectFiles",
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -11908,7 +11908,10 @@
             "$ref": "#/components/parameters/project-id-path"
           },
           {
-            "$ref": "#/components/parameters/project-file-id-path"
+            "$ref": "#/components/parameters/project-workspace-path-query"
+          },
+          {
+            "$ref": "#/components/parameters/project-workspace-show-hidden-query"
           }
         ],
         "security": [
@@ -11918,7 +11921,7 @@
         ],
         "responses": {
           "200": {
-            "description": "One readonly configuration file content payload.",
+            "description": "Project working_directory file tree page.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -11927,13 +11930,13 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/enveloped-project-configuration-file-response"
+                  "$ref": "#/components/schemas/enveloped-project-files-response"
                 }
               }
             }
           },
           "400": {
-            "description": "Invalid project or file id.",
+            "description": "Invalid project id or path query.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -11954,7 +11957,183 @@
             "$ref": "#/components/responses/forbidden"
           },
           "404": {
-            "description": "Project record or file record not found.",
+            "description": "Project record not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/ops/projects/{id}/files/content": {
+      "get": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Read one project working_directory file",
+        "operationId": "getProjectFileContent",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/project-id-path"
+          },
+          {
+            "$ref": "#/components/parameters/project-workspace-path-query"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Project file content response.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-project-file-content-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid project id or file path.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Project record or target file not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Save one project working_directory file",
+        "operationId": "putProjectFileContent",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/project-id-path"
+          },
+          {
+            "$ref": "#/components/parameters/project-workspace-path-query"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/project-file-save-request"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Project file saved to working_directory.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-project-file-save-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid project id, file path, or save payload.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Project record or target file not found.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -11979,9 +12158,9 @@
         "tags": [
           "project"
         ],
-        "summary": "Diff a managed project configuration draft",
+        "summary": "Diff current saved project configuration state",
         "operationId": "postProjectConfigurationDiff",
-        "description": "Compares one managed project draft against the current tracked Compose and optional env files without writing files, changing runtime state, or introducing project-level runtime persistence.\n",
+        "description": "Compares the current saved working_directory state with the latest refreshed project snapshot baseline without mutating files or changing runtime state.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -11993,16 +12172,6 @@
             "$ref": "#/components/parameters/project-id-path"
           }
         ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/project-configuration-diff-request"
-              }
-            }
-          }
-        },
         "security": [
           {
             "bearerAuth": []
@@ -12010,7 +12179,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Managed project configuration diff generated.",
+            "description": "Project configuration diff generated from saved disk state.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -12025,7 +12194,7 @@
             }
           },
           "400": {
-            "description": "Invalid project id or draft payload.",
+            "description": "Invalid project id.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -12047,21 +12216,6 @@
           },
           "404": {
             "description": "Project record not found.",
-            "headers": {
-              "X-Request-Id": {
-                "$ref": "#/components/headers/request-id"
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/error-response"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "The project is outside the bounded managed diff flow.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -12086,9 +12240,9 @@
         "tags": [
           "project"
         ],
-        "summary": "Validate a managed project configuration draft",
+        "summary": "Validate current saved project configuration state",
         "operationId": "postProjectConfigurationValidate",
-        "description": "Validates one managed project draft against the current project authority without writing tracked files or changing runtime state.\n",
+        "description": "Validates the current saved working_directory state for the project without mutating tracked files or changing runtime state.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -12100,16 +12254,6 @@
             "$ref": "#/components/parameters/project-id-path"
           }
         ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/project-configuration-validate-request"
-              }
-            }
-          }
-        },
         "security": [
           {
             "bearerAuth": []
@@ -12117,7 +12261,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Managed project configuration draft validated.",
+            "description": "Saved project configuration state validated.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -12132,7 +12276,7 @@
             }
           },
           "400": {
-            "description": "Invalid project id or draft payload.",
+            "description": "Invalid project id.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -12167,21 +12311,6 @@
               }
             }
           },
-          "409": {
-            "description": "The project is outside the bounded managed validate flow.",
-            "headers": {
-              "X-Request-Id": {
-                "$ref": "#/components/headers/request-id"
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/error-response"
-                }
-              }
-            }
-          },
           "500": {
             "$ref": "#/components/responses/internal-server-error"
           }
@@ -12193,9 +12322,9 @@
         "tags": [
           "project"
         ],
-        "summary": "Deploy a managed project configuration draft",
+        "summary": "Deploy current saved project configuration state",
         "operationId": "postProjectDeploy",
-        "description": "Writes one managed project draft to the tracked Compose and optional env files, refreshes the project snapshot, then reuses the saved project lifecycle configuration for the final compose `up` execution without introducing runtime-state persistence in the project module.\n",
+        "description": "Reuses the current saved working_directory state, refreshes the project snapshot, then executes the final compose `up` flow using the saved lifecycle configuration. This route does not save editor buffers for the caller.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -12207,16 +12336,6 @@
             "$ref": "#/components/parameters/project-id-path"
           }
         ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/project-deploy-request"
-              }
-            }
-          }
-        },
         "security": [
           {
             "bearerAuth": []
@@ -12224,7 +12343,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Managed project draft deployed.",
+            "description": "Saved project configuration state deployed.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -12239,7 +12358,7 @@
             }
           },
           "400": {
-            "description": "Invalid project id or deploy payload.",
+            "description": "Invalid project id.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -13857,8 +13976,26 @@
       "ProjectConfigurationPreviewResponse": {
         "$ref": "#/components/schemas/project-configuration-preview-response"
       },
-      "ProjectConfigurationFileResponse": {
-        "$ref": "#/components/schemas/project-configuration-file-response"
+      "ProjectFileTreeNodeType": {
+        "$ref": "#/components/schemas/project-file-tree-node-type"
+      },
+      "ProjectWorkspaceFileKind": {
+        "$ref": "#/components/schemas/project-workspace-file-kind"
+      },
+      "ProjectFileTreeItem": {
+        "$ref": "#/components/schemas/project-file-tree-item"
+      },
+      "ProjectFilesResponse": {
+        "$ref": "#/components/schemas/project-files-response"
+      },
+      "ProjectFileContentResponse": {
+        "$ref": "#/components/schemas/project-file-content-response"
+      },
+      "ProjectFileSaveRequest": {
+        "$ref": "#/components/schemas/project-file-save-request"
+      },
+      "ProjectFileSaveResponse": {
+        "$ref": "#/components/schemas/project-file-save-response"
       },
       "ProjectDestroyRequest": {
         "$ref": "#/components/schemas/project-destroy-request"
@@ -13902,8 +14039,14 @@
       "EnvelopedProjectConfigurationPreviewResponse": {
         "$ref": "#/components/schemas/enveloped-project-configuration-preview-response"
       },
-      "EnvelopedProjectConfigurationFileResponse": {
-        "$ref": "#/components/schemas/enveloped-project-configuration-file-response"
+      "EnvelopedProjectFilesResponse": {
+        "$ref": "#/components/schemas/enveloped-project-files-response"
+      },
+      "EnvelopedProjectFileContentResponse": {
+        "$ref": "#/components/schemas/enveloped-project-file-content-response"
+      },
+      "EnvelopedProjectFileSaveResponse": {
+        "$ref": "#/components/schemas/enveloped-project-file-save-response"
       },
       "EnvelopedProjectImportValidateResponse": {
         "$ref": "#/components/schemas/enveloped-project-import-validate-response"
@@ -24724,31 +24867,159 @@
           }
         ]
       },
-      "project-configuration-file-response": {
+      "project-file-tree-node-type": {
+        "type": "string",
+        "enum": [
+          "file",
+          "directory"
+        ],
+        "x-enum-varnames": [
+          "ProjectFileTreeNodeTypeFile",
+          "ProjectFileTreeNodeTypeDirectory"
+        ]
+      },
+      "project-workspace-file-kind": {
+        "type": "string",
+        "enum": [
+          "directory",
+          "compose",
+          "env",
+          "config",
+          "text",
+          "binary",
+          "unsupported"
+        ],
+        "x-enum-varnames": [
+          "ProjectWorkspaceFileKindDirectory",
+          "ProjectWorkspaceFileKindCompose",
+          "ProjectWorkspaceFileKindEnv",
+          "ProjectWorkspaceFileKindConfig",
+          "ProjectWorkspaceFileKindText",
+          "ProjectWorkspaceFileKindBinary",
+          "ProjectWorkspaceFileKindUnsupported"
+        ]
+      },
+      "project-file-tree-item": {
         "type": "object",
         "required": [
-          "file_id",
-          "kind",
-          "path",
-          "content",
-          "encoding",
-          "read_only",
-          "download_name"
+          "name",
+          "relative_path",
+          "node_type",
+          "file_kind",
+          "editable",
+          "language_hint",
+          "size_bytes",
+          "hidden_by_default",
+          "has_children"
         ],
         "properties": {
-          "file_id": {
+          "name": {
+            "type": "string"
+          },
+          "relative_path": {
+            "type": "string"
+          },
+          "node_type": {
+            "$ref": "#/components/schemas/project-file-tree-node-type"
+          },
+          "file_kind": {
+            "$ref": "#/components/schemas/project-workspace-file-kind"
+          },
+          "editable": {
+            "type": "boolean"
+          },
+          "language_hint": {
+            "type": "string"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "hidden_by_default": {
+            "type": "boolean"
+          },
+          "has_children": {
+            "type": "boolean"
+          }
+        }
+      },
+      "project-files-response": {
+        "type": "object",
+        "required": [
+          "project_id",
+          "root_path",
+          "current_path",
+          "has_more_hidden",
+          "items"
+        ],
+        "properties": {
+          "project_id": {
             "type": "integer",
             "format": "int64",
             "minimum": 1
           },
-          "kind": {
-            "$ref": "#/components/schemas/project-file-kind"
-          },
-          "path": {
+          "root_path": {
             "type": "string"
           },
-          "content": {
+          "current_path": {
             "type": "string"
+          },
+          "parent_path": {
+            "type": "string",
+            "nullable": true
+          },
+          "has_more_hidden": {
+            "type": "boolean"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/project-file-tree-item"
+            }
+          }
+        }
+      },
+      "enveloped-project-files-response": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/project-files-response"
+          }
+        }
+      },
+      "project-file-content-response": {
+        "type": "object",
+        "required": [
+          "project_id",
+          "relative_path",
+          "file_kind",
+          "language_hint",
+          "editable",
+          "encoding",
+          "content",
+          "size_bytes"
+        ],
+        "properties": {
+          "project_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "relative_path": {
+            "type": "string"
+          },
+          "file_kind": {
+            "$ref": "#/components/schemas/project-workspace-file-kind"
+          },
+          "language_hint": {
+            "type": "string"
+          },
+          "editable": {
+            "type": "boolean"
           },
           "encoding": {
             "type": "string",
@@ -24756,51 +25027,81 @@
               "utf-8"
             ],
             "x-enum-varnames": [
-              "ProjectConfigurationEncodingUTF8"
+              "ProjectFileContentResponseEncodingUtf8"
             ]
           },
-          "read_only": {
-            "type": "boolean",
-            "enum": [
-              true
-            ]
+          "content": {
+            "type": "string"
           },
-          "download_name": {
+          "size_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "enveloped-project-file-content-response": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/project-file-content-response"
+          }
+        }
+      },
+      "project-file-save-request": {
+        "type": "object",
+        "required": [
+          "content"
+        ],
+        "properties": {
+          "content": {
             "type": "string"
           }
         }
       },
-      "enveloped-project-configuration-file-response": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/api-envelope"
-          },
-          {
-            "type": "object",
-            "required": [
-              "data"
-            ],
-            "properties": {
-              "data": {
-                "$ref": "#/components/schemas/project-configuration-file-response"
-              }
-            }
-          }
-        ]
-      },
-      "project-configuration-diff-request": {
+      "project-file-save-response": {
         "type": "object",
         "required": [
-          "compose_file_content"
+          "project_id",
+          "relative_path",
+          "saved_at",
+          "content_hash",
+          "size_bytes"
         ],
         "properties": {
-          "compose_file_content": {
-            "type": "string",
-            "minLength": 1
+          "project_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
           },
-          "env_file_content": {
+          "relative_path": {
+            "type": "string"
+          },
+          "saved_at": {
             "type": "string",
-            "nullable": true
+            "format": "date-time"
+          },
+          "content_hash": {
+            "type": "string"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "enveloped-project-file-save-response": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/project-file-save-response"
           }
         }
       },
@@ -24903,22 +25204,6 @@
           }
         ]
       },
-      "project-configuration-validate-request": {
-        "type": "object",
-        "required": [
-          "compose_file_content"
-        ],
-        "properties": {
-          "compose_file_content": {
-            "type": "string",
-            "minLength": 1
-          },
-          "env_file_content": {
-            "type": "string",
-            "nullable": true
-          }
-        }
-      },
       "project-configuration-validate-response": {
         "type": "object",
         "required": [
@@ -24978,22 +25263,6 @@
             }
           }
         ]
-      },
-      "project-deploy-request": {
-        "type": "object",
-        "required": [
-          "compose_file_content"
-        ],
-        "properties": {
-          "compose_file_content": {
-            "type": "string",
-            "minLength": 1
-          },
-          "env_file_content": {
-            "type": "string",
-            "nullable": true
-          }
-        }
       },
       "project-guard-result": {
         "type": "object",
@@ -26222,21 +26491,24 @@
           }
         }
       },
-      "project-file-id-path": {
-        "name": "fileId",
-        "in": "path",
-        "required": true,
-        "description": "Project file record id returned by the configuration metadata endpoint.\n",
+      "project-workspace-path-query": {
+        "name": "path",
+        "in": "query",
+        "required": false,
+        "description": "Relative path under the project's working_directory. Omit or pass an empty value to browse the root directory.",
         "schema": {
-          "type": "integer",
-          "format": "int64",
-          "minimum": 1
-        },
-        "examples": {
-          "fileId": {
-            "summary": "Compose file record id",
-            "value": 101
-          }
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "project-workspace-show-hidden-query": {
+        "name": "show_hidden",
+        "in": "query",
+        "required": false,
+        "description": "Whether the workspace should include directories and dot entries hidden by default.",
+        "schema": {
+          "type": "boolean",
+          "default": false
         }
       },
       "container-logs-tail": {

@@ -35,6 +35,8 @@ export const PROJECT_API_PATH = {
   CONFIGURATION_FILE: '/api/ops/projects/{id}/configuration/files/{fileId}',
   CONFIGURATION_DIFF: '/api/ops/projects/{id}/configuration/diff',
   CONFIGURATION_VALIDATE: '/api/ops/projects/{id}/configuration/validate',
+  FILES: '/api/ops/projects/{id}/files',
+  FILES_CONTENT: '/api/ops/projects/{id}/files/content',
   LIFECYCLE_CONFIGURATION: '/api/ops/projects/{id}/lifecycle-configuration',
   REFRESH: '/api/ops/projects/{id}/refresh',
   DEPLOY: '/api/ops/projects/{id}/deploy',
@@ -105,20 +107,6 @@ export function buildProjectConfigurationPreviewApiPath(id: number) {
 }
 
 /**
- * 构建项目配置文件的 API 路径。
- *
- * @param id - 项目 ID
- * @param fileId - 配置文件 ID
- * @returns 替换为编码后的 `id` 和 `fileId` 的配置文件 API 路径
- */
-export function buildProjectConfigurationFileApiPath(id: number, fileId: number) {
-  return PROJECT_API_PATH.CONFIGURATION_FILE.replace('{id}', encodeProjectPathParam(id)).replace(
-    '{fileId}',
-    encodeProjectPathParam(fileId),
-  );
-}
-
-/**
  * 构建项目配置差异接口路径。
  *
  * @param id - 项目 ID
@@ -136,6 +124,14 @@ export function buildProjectConfigurationDiffApiPath(id: number) {
  */
 export function buildProjectConfigurationValidateApiPath(id: number) {
   return PROJECT_API_PATH.CONFIGURATION_VALIDATE.replace('{id}', encodeProjectPathParam(id));
+}
+
+export function buildProjectFilesApiPath(id: number) {
+  return PROJECT_API_PATH.FILES.replace('{id}', encodeProjectPathParam(id));
+}
+
+export function buildProjectFilesContentApiPath(id: number) {
+  return PROJECT_API_PATH.FILES_CONTENT.replace('{id}', encodeProjectPathParam(id));
 }
 
 export function buildProjectLifecycleConfigurationApiPath(id: number) {

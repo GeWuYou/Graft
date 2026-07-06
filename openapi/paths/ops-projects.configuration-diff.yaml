@@ -1,25 +1,19 @@
 post:
   tags: [project]
-  summary: Diff a managed project configuration draft
+  summary: Diff current saved project configuration state
   operationId: postProjectConfigurationDiff
   description: >
-    Compares one managed project draft against the current tracked Compose and optional env files without writing
-    files, changing runtime state, or introducing project-level runtime persistence.
+    Compares the current saved working_directory state with the latest refreshed project snapshot baseline without
+    mutating files or changing runtime state.
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml
     - $ref: ../components/parameters/project-id-path.yaml
-  requestBody:
-    required: true
-    content:
-      application/json:
-        schema:
-          $ref: ../components/schemas/project-configuration-diff-request.yaml
   security:
     - bearerAuth: []
   responses:
     '200':
-      description: Managed project configuration diff generated.
+      description: Project configuration diff generated from saved disk state.
       headers:
         X-Request-Id:
           $ref: ../components/headers/request-id.yaml
@@ -28,7 +22,7 @@ post:
           schema:
             $ref: ../components/schemas/enveloped-project-configuration-diff-response.yaml
     '400':
-      description: Invalid project id or draft payload.
+      description: Invalid project id.
       headers:
         X-Request-Id:
           $ref: ../components/headers/request-id.yaml
@@ -42,15 +36,6 @@ post:
       $ref: ../components/responses/forbidden.yaml
     '404':
       description: Project record not found.
-      headers:
-        X-Request-Id:
-          $ref: ../components/headers/request-id.yaml
-      content:
-        application/json:
-          schema:
-            $ref: ../components/schemas/error-response.yaml
-    '409':
-      description: The project is outside the bounded managed diff flow.
       headers:
         X-Request-Id:
           $ref: ../components/headers/request-id.yaml

@@ -2350,16 +2350,34 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/ops/projects/{id}/configuration/files/{fileId}': {
+  '/api/ops/projects/{id}/files': {
     parameters: {
       query?: never;
       header?: never;
       path?: never;
       cookie?: never;
     };
-    /** Get one readonly Compose project file */
-    get: operations['getProjectConfigurationFile'];
+    /** Browse project working_directory files */
+    get: operations['getProjectFiles'];
     put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/projects/{id}/files/content': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Read one project working_directory file */
+    get: operations['getProjectFileContent'];
+    /** Save one project working_directory file */
+    put: operations['putProjectFileContent'];
     post?: never;
     delete?: never;
     options?: never;
@@ -2377,8 +2395,8 @@ export interface paths {
     get?: never;
     put?: never;
     /**
-     * Diff a managed project configuration draft
-     * @description Compares one managed project draft against the current tracked Compose and optional env files without writing files, changing runtime state, or introducing project-level runtime persistence.
+     * Diff current saved project configuration state
+     * @description Compares the current saved working_directory state with the latest refreshed project snapshot baseline without mutating files or changing runtime state.
      */
     post: operations['postProjectConfigurationDiff'];
     delete?: never;
@@ -2397,8 +2415,8 @@ export interface paths {
     get?: never;
     put?: never;
     /**
-     * Validate a managed project configuration draft
-     * @description Validates one managed project draft against the current project authority without writing tracked files or changing runtime state.
+     * Validate current saved project configuration state
+     * @description Validates the current saved working_directory state for the project without mutating tracked files or changing runtime state.
      */
     post: operations['postProjectConfigurationValidate'];
     delete?: never;
@@ -2417,8 +2435,8 @@ export interface paths {
     get?: never;
     put?: never;
     /**
-     * Deploy a managed project configuration draft
-     * @description Writes one managed project draft to the tracked Compose and optional env files, refreshes the project snapshot, then reuses the saved project lifecycle configuration for the final compose `up` execution without introducing runtime-state persistence in the project module.
+     * Deploy current saved project configuration state
+     * @description Reuses the current saved working_directory state, refreshes the project snapshot, then executes the final compose `up` flow using the saved lifecycle configuration. This route does not save editor buffers for the caller.
      */
     post: operations['postProjectDeploy'];
     delete?: never;
@@ -2856,7 +2874,13 @@ export interface components {
     ProjectImportRequest: components['schemas']['project-import-request'];
     ProjectConfigurationMetadataResponse: components['schemas']['project-configuration-metadata-response'];
     ProjectConfigurationPreviewResponse: components['schemas']['project-configuration-preview-response'];
-    ProjectConfigurationFileResponse: components['schemas']['project-configuration-file-response'];
+    ProjectFileTreeNodeType: components['schemas']['project-file-tree-node-type'];
+    ProjectWorkspaceFileKind: components['schemas']['project-workspace-file-kind'];
+    ProjectFileTreeItem: components['schemas']['project-file-tree-item'];
+    ProjectFilesResponse: components['schemas']['project-files-response'];
+    ProjectFileContentResponse: components['schemas']['project-file-content-response'];
+    ProjectFileSaveRequest: components['schemas']['project-file-save-request'];
+    ProjectFileSaveResponse: components['schemas']['project-file-save-response'];
     ProjectDestroyRequest: components['schemas']['project-destroy-request'];
     ProjectActionResponse: components['schemas']['project-action-response'];
     ProjectBatchActionRequest: components['schemas']['project-batch-action-request'];
@@ -2871,7 +2895,9 @@ export interface components {
     EnvelopedProjectServicesResponse: components['schemas']['enveloped-project-services-response'];
     EnvelopedProjectConfigurationMetadataResponse: components['schemas']['enveloped-project-configuration-metadata-response'];
     EnvelopedProjectConfigurationPreviewResponse: components['schemas']['enveloped-project-configuration-preview-response'];
-    EnvelopedProjectConfigurationFileResponse: components['schemas']['enveloped-project-configuration-file-response'];
+    EnvelopedProjectFilesResponse: components['schemas']['enveloped-project-files-response'];
+    EnvelopedProjectFileContentResponse: components['schemas']['enveloped-project-file-content-response'];
+    EnvelopedProjectFileSaveResponse: components['schemas']['enveloped-project-file-save-response'];
     EnvelopedProjectImportValidateResponse: components['schemas']['enveloped-project-import-validate-response'];
     EnvelopedProjectImportResponse: components['schemas']['enveloped-project-import-response'];
     EnvelopedProjectImportDirectorySourcesResponse: components['schemas']['enveloped-project-import-directory-sources-response'];
@@ -6070,24 +6096,65 @@ export interface components {
     'enveloped-project-configuration-preview-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['project-configuration-preview-response'];
     };
-    'project-configuration-file-response': {
+    /** @enum {string} */
+    'project-file-tree-node-type': 'file' | 'directory';
+    /** @enum {string} */
+    'project-workspace-file-kind': 'directory' | 'compose' | 'env' | 'config' | 'text' | 'binary' | 'unsupported';
+    'project-file-tree-item': {
+      name: string;
+      relative_path: string;
+      node_type: components['schemas']['project-file-tree-node-type'];
+      file_kind: components['schemas']['project-workspace-file-kind'];
+      editable: boolean;
+      language_hint: string;
       /** Format: int64 */
-      file_id: number;
-      kind: components['schemas']['project-file-kind'];
-      path: string;
-      content: string;
+      size_bytes: number;
+      hidden_by_default: boolean;
+      has_children: boolean;
+    };
+    'project-files-response': {
+      /** Format: int64 */
+      project_id: number;
+      root_path: string;
+      current_path: string;
+      parent_path?: string | null;
+      has_more_hidden: boolean;
+      items: components['schemas']['project-file-tree-item'][];
+    };
+    'enveloped-project-files-response': {
+      data: components['schemas']['project-files-response'];
+    };
+    'project-file-content-response': {
+      /** Format: int64 */
+      project_id: number;
+      relative_path: string;
+      file_kind: components['schemas']['project-workspace-file-kind'];
+      language_hint: string;
+      editable: boolean;
       /** @enum {string} */
       encoding: 'utf-8';
-      /** @enum {boolean} */
-      read_only: true;
-      download_name: string;
+      content: string;
+      /** Format: int64 */
+      size_bytes: number;
     };
-    'enveloped-project-configuration-file-response': components['schemas']['api-envelope'] & {
-      data: components['schemas']['project-configuration-file-response'];
+    'enveloped-project-file-content-response': {
+      data: components['schemas']['project-file-content-response'];
     };
-    'project-configuration-diff-request': {
-      compose_file_content: string;
-      env_file_content?: string | null;
+    'project-file-save-request': {
+      content: string;
+    };
+    'project-file-save-response': {
+      /** Format: int64 */
+      project_id: number;
+      relative_path: string;
+      /** Format: date-time */
+      saved_at: string;
+      content_hash: string;
+      /** Format: int64 */
+      size_bytes: number;
+    };
+    'enveloped-project-file-save-response': {
+      data: components['schemas']['project-file-save-response'];
     };
     'project-configuration-diff-file': {
       kind: components['schemas']['project-file-kind'];
@@ -6112,10 +6179,6 @@ export interface components {
     'enveloped-project-configuration-diff-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['project-configuration-diff-response'];
     };
-    'project-configuration-validate-request': {
-      compose_file_content: string;
-      env_file_content?: string | null;
-    };
     'project-configuration-validate-response': {
       /** Format: int64 */
       project_id: number;
@@ -6128,10 +6191,6 @@ export interface components {
     };
     'enveloped-project-configuration-validate-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['project-configuration-validate-response'];
-    };
-    'project-deploy-request': {
-      compose_file_content: string;
-      env_file_content?: string | null;
     };
     'project-guard-result': {
       code: string;
@@ -6411,8 +6470,10 @@ export interface components {
     'project-list-refresh-status': components['schemas']['project-refresh-status'];
     /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
     'project-id-path': number;
-    /** @description Project file record id returned by the configuration metadata endpoint. */
-    'project-file-id-path': number;
+    /** @description Relative path under the project's working_directory. Omit or pass an empty value to browse the root directory. */
+    'project-workspace-path-query': string;
+    /** @description Whether the workspace should include directories and dot entries hidden by default. */
+    'project-workspace-show-hidden-query': boolean;
     /** @description Number of log lines to return from the end of the stream. */
     'container-logs-tail': number;
     /** @description Optional log lower bound. Accepts an RFC3339 timestamp or a duration such as 10m, 1h, or 24h. Invalid values must return a localized validation error. */
@@ -12874,9 +12935,14 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
-  getProjectConfigurationFile: {
+  getProjectFiles: {
     parameters: {
-      query?: never;
+      query?: {
+        /** @description Relative path under the project's working_directory. Omit or pass an empty value to browse the root directory. */
+        path?: components['parameters']['project-workspace-path-query'];
+        /** @description Whether the workspace should include directories and dot entries hidden by default. */
+        show_hidden?: components['parameters']['project-workspace-show-hidden-query'];
+      };
       header?: {
         /** @description Explicit locale override header already supported by the runtime. */
         'X-Graft-Locale'?: components['parameters']['locale-header'];
@@ -12889,24 +12955,22 @@ export interface operations {
       path: {
         /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
         id: components['parameters']['project-id-path'];
-        /** @description Project file record id returned by the configuration metadata endpoint. */
-        fileId: components['parameters']['project-file-id-path'];
       };
       cookie?: never;
     };
     requestBody?: never;
     responses: {
-      /** @description One readonly configuration file content payload. */
+      /** @description Project working_directory file tree page. */
       200: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-project-configuration-file-response'];
+          'application/json': components['schemas']['enveloped-project-files-response'];
         };
       };
-      /** @description Invalid project or file id. */
+      /** @description Invalid project id or path query. */
       400: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -12918,7 +12982,127 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
-      /** @description Project record or file record not found. */
+      /** @description Project record not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getProjectFileContent: {
+    parameters: {
+      query?: {
+        /** @description Relative path under the project's working_directory. Omit or pass an empty value to browse the root directory. */
+        path?: components['parameters']['project-workspace-path-query'];
+      };
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
+        id: components['parameters']['project-id-path'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Project file content response. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-project-file-content-response'];
+        };
+      };
+      /** @description Invalid project id or file path. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Project record or target file not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  putProjectFileContent: {
+    parameters: {
+      query?: {
+        /** @description Relative path under the project's working_directory. Omit or pass an empty value to browse the root directory. */
+        path?: components['parameters']['project-workspace-path-query'];
+      };
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Project registry id. This is the Graft project record identifier, not the Docker Compose canonical project name. */
+        id: components['parameters']['project-id-path'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['project-file-save-request'];
+      };
+    };
+    responses: {
+      /** @description Project file saved to working_directory. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-project-file-save-response'];
+        };
+      };
+      /** @description Invalid project id, file path, or save payload. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Project record or target file not found. */
       404: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -12949,13 +13133,9 @@ export interface operations {
       };
       cookie?: never;
     };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['project-configuration-diff-request'];
-      };
-    };
+    requestBody?: never;
     responses: {
-      /** @description Managed project configuration diff generated. */
+      /** @description Project configuration diff generated from saved disk state. */
       200: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -12965,7 +13145,7 @@ export interface operations {
           'application/json': components['schemas']['enveloped-project-configuration-diff-response'];
         };
       };
-      /** @description Invalid project id or draft payload. */
+      /** @description Invalid project id. */
       400: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -12979,16 +13159,6 @@ export interface operations {
       403: components['responses']['forbidden'];
       /** @description Project record not found. */
       404: {
-        headers: {
-          'X-Request-Id': components['headers']['request-id'];
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['error-response'];
-        };
-      };
-      /** @description The project is outside the bounded managed diff flow. */
-      409: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;
@@ -13018,13 +13188,9 @@ export interface operations {
       };
       cookie?: never;
     };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['project-configuration-validate-request'];
-      };
-    };
+    requestBody?: never;
     responses: {
-      /** @description Managed project configuration draft validated. */
+      /** @description Saved project configuration state validated. */
       200: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -13034,7 +13200,7 @@ export interface operations {
           'application/json': components['schemas']['enveloped-project-configuration-validate-response'];
         };
       };
-      /** @description Invalid project id or draft payload. */
+      /** @description Invalid project id. */
       400: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -13048,16 +13214,6 @@ export interface operations {
       403: components['responses']['forbidden'];
       /** @description Project record not found. */
       404: {
-        headers: {
-          'X-Request-Id': components['headers']['request-id'];
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['error-response'];
-        };
-      };
-      /** @description The project is outside the bounded managed validate flow. */
-      409: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;
@@ -13087,13 +13243,9 @@ export interface operations {
       };
       cookie?: never;
     };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['project-deploy-request'];
-      };
-    };
+    requestBody?: never;
     responses: {
-      /** @description Managed project draft deployed. */
+      /** @description Saved project configuration state deployed. */
       200: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -13103,7 +13255,7 @@ export interface operations {
           'application/json': components['schemas']['enveloped-project-deploy-response'];
         };
       };
-      /** @description Invalid project id or deploy payload. */
+      /** @description Invalid project id. */
       400: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];

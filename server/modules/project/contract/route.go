@@ -17,8 +17,10 @@ const (
 	ProjectConfigurationRoute = "/:id/configuration"
 	// ProjectConfigurationPreviewRoute identifies the normalized configuration preview route fragment.
 	ProjectConfigurationPreviewRoute = "/:id/configuration/preview"
-	// ProjectConfigurationFileRoute identifies the single-file content route fragment.
-	ProjectConfigurationFileRoute = "/:id/configuration/files/:fileId"
+	// ProjectWorkspaceFilesRoute identifies the lazy-loaded project-root file tree route fragment.
+	ProjectWorkspaceFilesRoute = "/:id/files"
+	// ProjectWorkspaceFileContentRoute identifies the path-based project file read/write route fragment.
+	ProjectWorkspaceFileContentRoute = "/:id/files/content"
 	// ProjectConfigurationDiffRoute identifies the managed configuration draft diff route fragment.
 	ProjectConfigurationDiffRoute = "/:id/configuration/diff"
 	// ProjectConfigurationValidateRoute identifies the managed configuration draft validate route fragment.

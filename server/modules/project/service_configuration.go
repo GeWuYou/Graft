@@ -3,8 +3,6 @@ package project
 import (
 	"context"
 	"errors"
-	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -13,6 +11,8 @@ import (
 	projectcontract "graft/server/modules/project/contract"
 	projectstore "graft/server/modules/project/store"
 )
+
+const configurationDiffWarningsCapacity = 2
 
 // ConfigurationMetadata returns readonly configuration metadata.
 func (s *Service) ConfigurationMetadata(ctx context.Context, projectID uint64) (ConfigurationMetadataResult, error) {
@@ -51,81 +51,43 @@ func (s *Service) ConfigurationPreview(ctx context.Context, projectID uint64) (C
 	}, nil
 }
 
-// ConfigurationFile returns one readonly configuration file content payload.
-func (s *Service) ConfigurationFile(ctx context.Context, projectID uint64, fileID uint64) (ConfigurationFileResult, error) {
-	repository, err := s.repositoryOrErr()
-	if err != nil {
-		return ConfigurationFileResult{}, err
-	}
-	file, err := repository.GetFile(ctx, projectID, fileID)
-	if err != nil {
-		return ConfigurationFileResult{}, mapStoreError(err)
-	}
-	content, err := os.ReadFile(file.AbsolutePath)
-	if err != nil {
-		return ConfigurationFileResult{}, fmt.Errorf("%w: %v", errProjectImportValidation, err)
-	}
-	return ConfigurationFileResult{
-		FileID:       file.ID,
-		Kind:         file.Kind,
-		Path:         file.AbsolutePath,
-		Content:      string(content),
-		DownloadName: fileName(file.AbsolutePath),
-	}, nil
-}
-
-// DiffConfiguration compares a managed draft against current tracked project files without writing persistent changes.
-func (s *Service) DiffConfiguration(ctx context.Context, projectID uint64, draft ConfigurationDraft) (ConfigurationDiffResult, error) {
+// DiffConfiguration compares the current saved project files with the latest refreshed snapshot baseline.
+func (s *Service) DiffConfiguration(ctx context.Context, projectID uint64) (ConfigurationDiffResult, error) {
 	aggregate, err := s.getAggregate(ctx, projectID)
 	if err != nil {
 		return ConfigurationDiffResult{}, err
 	}
-	if err := ensureManagedProjectAggregate(aggregate); err != nil {
-		return ConfigurationDiffResult{}, err
-	}
-	current, err := loadManagedDraftContent(aggregate)
+	files, hasFileChanges, err := buildConfigurationDiffFiles(aggregate)
 	if err != nil {
 		return ConfigurationDiffResult{}, err
 	}
-	prepared, err := s.prepareConfigurationDraft(aggregate, draft)
+	parseResult, err := s.loadFromAggregate(aggregate)
 	if err != nil {
 		return ConfigurationDiffResult{}, err
 	}
-	files := []ConfigurationDiffFile{
-		buildConfigurationDiffFile(projectcontract.FileKindCompose.String(), current.ComposePath, current.ComposeContent, prepared.Proposal.ComposeContent),
-	}
-	if current.EnvPath != "" || prepared.Proposal.EnvPath != "" {
-		files = append(files, buildConfigurationDiffFile(projectcontract.FileKindEnv.String(), nonEmptyString(current.EnvPath, prepared.Proposal.EnvPath), current.EnvContent, derefString(prepared.Proposal.EnvContent)))
-	}
-	hasChanges := false
-	for _, item := range files {
-		if item.Changed {
-			hasChanges = true
-			break
-		}
+	warnings := configurationDiffWarnings(aggregate, len(files))
+	if aggregate.Snapshot == nil {
+		warnings = append(warnings, "No refreshed project snapshot is available yet; file-level diff falls back to last observed file hashes only.")
 	}
 	return ConfigurationDiffResult{
 		ProjectID:            projectID,
 		CanonicalProjectName: aggregate.Project.CanonicalProjectName,
 		OwnershipMode:        aggregate.Project.OwnershipMode,
-		CurrentConfigHash:    nonEmptyString(aggregate.Project.LastRefreshConfigHash, current.CurrentConfigHash),
-		ProposedConfigHash:   prepared.ParseResult.ConfigHash,
-		HasChanges:           hasChanges,
+		CurrentConfigHash:    aggregate.Project.LastRefreshConfigHash,
+		ProposedConfigHash:   parseResult.ConfigHash,
+		HasChanges:           hasFileChanges || aggregate.Project.LastRefreshConfigHash != parseResult.ConfigHash,
 		Files:                files,
-		Warnings:             prepared.Warnings,
+		Warnings:             warnings,
 	}, nil
 }
 
-// ValidateConfiguration validates a managed draft without persisting any file changes.
-func (s *Service) ValidateConfiguration(ctx context.Context, projectID uint64, draft ConfigurationDraft) (ConfigurationValidateResult, error) {
+// ValidateConfiguration validates the current saved project files without mutating them.
+func (s *Service) ValidateConfiguration(ctx context.Context, projectID uint64) (ConfigurationValidateResult, error) {
 	aggregate, err := s.getAggregate(ctx, projectID)
 	if err != nil {
 		return ConfigurationValidateResult{}, err
 	}
-	if err := ensureManagedProjectAggregate(aggregate); err != nil {
-		return ConfigurationValidateResult{}, err
-	}
-	prepared, err := s.prepareConfigurationDraft(aggregate, draft)
+	parseResult, err := s.loadFromAggregate(aggregate)
 	if err != nil {
 		return ConfigurationValidateResult{}, err
 	}
@@ -133,28 +95,24 @@ func (s *Service) ValidateConfiguration(ctx context.Context, projectID uint64, d
 		ProjectID:             projectID,
 		CanonicalProjectName:  aggregate.Project.CanonicalProjectName,
 		OwnershipMode:         aggregate.Project.OwnershipMode,
-		ProposedConfigHash:    prepared.ParseResult.ConfigHash,
-		NormalizedComposeYAML: prepared.ParseResult.NormalizedComposeYAML,
-		DeclaredServiceNames:  append([]string(nil), prepared.ParseResult.ServiceNames...),
-		Warnings:              prepared.Warnings,
+		ProposedConfigHash:    parseResult.ConfigHash,
+		NormalizedComposeYAML: parseResult.NormalizedComposeYAML,
+		DeclaredServiceNames:  append([]string(nil), parseResult.ServiceNames...),
+		Warnings:              nil,
 	}, nil
 }
 
-// DeployConfiguration writes one managed draft, refreshes the snapshot, and runs docker compose up -d.
+// DeployConfiguration refreshes the saved project state and executes docker compose up -d using the current disk files.
 func (s *Service) DeployConfiguration(
 	ctx context.Context,
 	projectID uint64,
-	draft ConfigurationDraft,
 	actorID *uint64,
 ) (result DeployResult, err error) {
 	aggregate, err := s.getAggregate(ctx, projectID)
 	if err != nil {
 		return DeployResult{}, err
 	}
-	if err := ensureManagedProjectAggregate(aggregate); err != nil {
-		return DeployResult{}, err
-	}
-	prepared, err := s.prepareConfigurationDraft(aggregate, draft)
+	parseResult, err := s.loadFromAggregate(aggregate)
 	if err != nil {
 		return DeployResult{}, err
 	}
@@ -162,14 +120,8 @@ func (s *Service) DeployConfiguration(
 	if err != nil {
 		return DeployResult{}, err
 	}
-	restoreItems, err := writeManagedDraft(aggregate.Project.WorkingDirectory, prepared.Proposal)
-	if err != nil {
-		return DeployResult{}, fmt.Errorf("%w: %v", errProjectImportValidation, err)
-	}
-	defer restoreManagedDraftOnFailure(aggregate.Project.WorkingDirectory, restoreItems, &err)
-
 	now := time.Now().UTC()
-	deployAggregate := configurationDeployAggregate(aggregate, prepared.ParseResult)
+	deployAggregate := configurationDeployAggregate(aggregate, parseResult)
 	upArgs, err := lifecycleUpArgs(deployAggregate, lifecycleConfigurationFromAggregate(deployAggregate))
 	if err != nil {
 		return DeployResult{}, err
@@ -177,41 +129,29 @@ func (s *Service) DeployConfiguration(
 	if _, err := s.executeLifecycleActionWithAggregate(ctx, deployAggregate, generated.ProjectActionResponseActionProjectActionDeploy, upArgs); err != nil {
 		return DeployResult{}, err
 	}
-	updated, err := repository.RefreshProject(ctx, buildRefreshProjectInput(projectID, prepared.ParseResult, now, actorID))
+	updated, err := repository.RefreshProject(ctx, buildRefreshProjectInput(projectID, parseResult, now, actorID))
 	if err != nil {
 		return DeployResult{}, mapStoreError(err)
 	}
 	messageKey := projectcontract.ProjectDeployCompleted.String()
-	guardResults := []GuardResult{
-		guardCode("managed_project"),
-		guardCode("draft_written"),
-		guardDetail("command", strings.Join(upArgs, " ")),
-		guardCode("snapshot_refreshed"),
-	}
-	if len(prepared.Warnings) > 0 {
-		guardResults = append(guardResults, guardDetail("warnings", strings.Join(prepared.Warnings, "|")))
-	}
 	result = DeployResult{
 		ProjectID:            projectID,
 		Action:               "deploy",
 		Result:               "completed",
 		CanonicalProjectName: updated.Project.CanonicalProjectName,
 		OwnershipMode:        updated.Project.OwnershipMode,
-		ConfigHash:           prepared.ParseResult.ConfigHash,
+		ConfigHash:           parseResult.ConfigHash,
 		RefreshedAt:          now,
-		DeclaredServiceCount: len(prepared.ParseResult.ServiceNames),
+		DeclaredServiceCount: len(parseResult.ServiceNames),
 		MessageKey:           &messageKey,
 		Message:              &messageKey,
-		GuardResults:         guardResults,
+		GuardResults: []GuardResult{
+			guardDetail("command", strings.Join(upArgs, " ")),
+			guardCode("saved_disk_state_used"),
+			guardCode("snapshot_refreshed"),
+		},
 	}
 	return result, nil
-}
-
-func restoreManagedDraftOnFailure(workingDirectory string, restoreItems []managedDraftRestore, resultErr *error) {
-	if resultErr == nil || *resultErr == nil {
-		return
-	}
-	*resultErr = errors.Join(*resultErr, restoreManagedDraft(workingDirectory, restoreItems))
 }
 
 func configurationDeployAggregate(
@@ -221,4 +161,58 @@ func configurationDeployAggregate(
 	updated := aggregate
 	updated.Files = toStoreFiles(parseResult.ComposeFiles, parseResult.EnvFiles)
 	return updated
+}
+
+func buildConfigurationDiffFiles(aggregate projectstore.ProjectAggregate) ([]ConfigurationDiffFile, bool, error) {
+	currentFiles, err := loadTrackedFileContents(aggregate)
+	if err != nil {
+		return nil, false, err
+	}
+	files := make([]ConfigurationDiffFile, 0, len(currentFiles))
+	hasChanges := false
+	for _, item := range currentFiles {
+		fileDiff := configurationDiffFileFromTracked(item)
+		if fileDiff.Changed {
+			hasChanges = true
+		}
+		files = append(files, fileDiff)
+	}
+	return files, hasChanges, nil
+}
+
+func configurationDiffFileFromTracked(item trackedWorkspaceFile) ConfigurationDiffFile {
+	baselineHash := item.LastObservedHash
+	currentHash := hashString(item.Content)
+	changed := baselineHash != currentHash
+	if baselineHash == "" && currentHash == "" {
+		changed = false
+	}
+	return ConfigurationDiffFile{
+		Kind:            item.Kind,
+		Path:            item.Path,
+		Changed:         changed,
+		CurrentHash:     baselineHash,
+		ProposedHash:    currentHash,
+		CurrentContent:  item.BaselineContent,
+		ProposedContent: item.Content,
+	}
+}
+
+func configurationDiffWarnings(aggregate projectstore.ProjectAggregate, fileCount int) []string {
+	warnings := make([]string, 0, configurationDiffWarningsCapacity)
+	if aggregate.Snapshot == nil {
+		warnings = append(warnings, "No refreshed project snapshot is available yet; file-level diff falls back to last observed file hashes only.")
+	}
+	if fileCount == 0 {
+		warnings = append(warnings, "No tracked compose or env files are registered for the project.")
+	}
+	return warnings
+}
+
+//nolint:unused // Test-only helper retained for managed-root restore coverage.
+func restoreManagedDraftOnFailure(workingDirectory string, restoreItems []managedDraftRestore, resultErr *error) {
+	if resultErr == nil || *resultErr == nil {
+		return
+	}
+	*resultErr = errors.Join(*resultErr, restoreManagedDraft(workingDirectory, restoreItems))
 }

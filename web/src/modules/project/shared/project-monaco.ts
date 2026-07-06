@@ -1,3 +1,5 @@
+import 'monaco-editor/esm/vs/basic-languages/dockerfile/dockerfile.contribution';
+import 'monaco-editor/esm/vs/basic-languages/ini/ini.contribution';
 import 'monaco-editor/esm/vs/basic-languages/shell/shell.contribution';
 import 'monaco-editor/min/vs/editor/editor.main.css';
 
@@ -72,6 +74,12 @@ function resolveLanguageExtension(language: string) {
   }
   if (language === 'shell') {
     return 'sh';
+  }
+  if (language === 'dockerfile') {
+    return 'Dockerfile';
+  }
+  if (language === 'ini') {
+    return 'ini';
   }
   return 'txt';
 }

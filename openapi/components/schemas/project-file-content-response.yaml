@@ -1,0 +1,35 @@
+type: object
+required:
+  - project_id
+  - relative_path
+  - file_kind
+  - language_hint
+  - editable
+  - encoding
+  - content
+  - size_bytes
+properties:
+  project_id:
+    type: integer
+    format: int64
+    minimum: 1
+  relative_path:
+    type: string
+  file_kind:
+    $ref: ./project-workspace-file-kind.yaml
+  language_hint:
+    type: string
+  editable:
+    type: boolean
+  encoding:
+    type: string
+    enum: [utf-8]
+    x-enum-varnames:
+      - ProjectFileContentResponseEncodingUtf8
+  content:
+    type: string
+  size_bytes:
+    type: integer
+    format: int64
+    minimum: 0
+

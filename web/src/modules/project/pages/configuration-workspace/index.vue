@@ -1,5 +1,5 @@
 <template>
-  <div class="project-configuration-workspace" data-page-type="editor">
+  <div ref="workspaceRootRef" class="project-configuration-workspace" data-page-type="editor">
     <management-page-content>
       <management-page-header compact :title="pageHeaderTitle" :description="workspaceCopy.summaryDescription">
         <template #meta>
@@ -14,23 +14,16 @@
               {{ refreshLabel }}
             </t-tag>
             <t-tag theme="default" variant="light-outline">
-              {{ metadata?.ownership_mode || detailRecord?.ownership_mode || '-' }}
+              {{ detailRecord?.ownership_mode || '-' }}
             </t-tag>
           </t-space>
         </template>
       </management-page-header>
 
-      <t-alert
-        v-if="authorityNotice"
-        class="project-configuration-workspace__notice"
-        :theme="managedConfigurationEnabled ? 'info' : 'warning'"
-        :message="authorityNotice"
-      />
-
       <t-loading :loading="workspaceLoading" size="small">
         <template v-if="workspaceReady">
           <section class="project-configuration-workspace__summary-strip">
-            <t-card :bordered="true">
+            <t-card bordered>
               <template #header>
                 <div class="project-configuration-workspace__section-head">
                   <div>
@@ -41,22 +34,16 @@
                     <t-button theme="default" variant="outline" @click="openSnapshotDrawer">
                       {{ workspaceCopy.snapshotAction }}
                     </t-button>
-                    <t-button theme="default" variant="outline" @click="openSourceDrawer">
-                      {{ workspaceCopy.sourceAction }}
-                    </t-button>
                   </t-space>
                 </div>
               </template>
 
               <t-descriptions bordered size="small" :column="5">
-                <t-descriptions-item :label="t('project.detail.configuration.composeFiles')">
-                  {{ metadata?.compose_files.length || 0 }}
-                </t-descriptions-item>
-                <t-descriptions-item :label="t('project.detail.configuration.envFiles')">
-                  {{ metadata?.env_files.length || 0 }}
-                </t-descriptions-item>
                 <t-descriptions-item :label="t('project.detail.configuration.ownershipMode')">
-                  {{ metadata?.ownership_mode || '-' }}
+                  {{ detailRecord?.ownership_mode || '-' }}
+                </t-descriptions-item>
+                <t-descriptions-item :label="workspaceCopy.summaryWorkingDirectoryLabel">
+                  <code>{{ detailRecord?.working_directory || '-' }}</code>
                 </t-descriptions-item>
                 <t-descriptions-item :label="t('project.detail.configuration.driftStatus')">
                   {{ driftLabel }}
@@ -64,38 +51,86 @@
                 <t-descriptions-item :label="t('project.detail.configuration.refreshStatus')">
                   {{ refreshLabel }}
                 </t-descriptions-item>
+                <t-descriptions-item :label="workspaceCopy.summaryOpenTabsLabel">
+                  {{ openTabs.length }}
+                </t-descriptions-item>
               </t-descriptions>
             </t-card>
           </section>
 
           <section class="project-configuration-workspace__main-grid">
-            <t-card class="project-configuration-workspace__drafts-nav" :bordered="true">
+            <t-card class="project-configuration-workspace__tree-card" bordered>
               <template #header>
                 <div class="project-configuration-workspace__section-head">
                   <div>
-                    <h2>{{ workspaceCopy.draftsTitle }}</h2>
-                    <p>{{ workspaceCopy.draftsHint }}</p>
+                    <h2>{{ workspaceCopy.fileTreeTitle }}</h2>
+                    <p>{{ workspaceCopy.fileTreeHint }}</p>
                   </div>
+                  <t-button theme="default" variant="outline" size="small" @click="showHiddenFiles = !showHiddenFiles">
+                    {{ showHiddenFiles ? workspaceCopy.hideHiddenAction : workspaceCopy.showHiddenAction }}
+                  </t-button>
                 </div>
               </template>
 
-              <div class="project-configuration-workspace__draft-list" role="list">
-                <button
-                  v-for="item in draftItems"
-                  :key="item.value"
-                  class="project-configuration-workspace__draft-item"
-                  :class="{ 'project-configuration-workspace__draft-item--active': activeDraft === item.value }"
-                  :aria-current="activeDraft === item.value ? 'true' : undefined"
-                  role="listitem"
-                  type="button"
-                  @click="activeDraft = item.value"
+              <t-alert
+                v-if="treeError"
+                class="project-configuration-workspace__tree-alert"
+                theme="error"
+                :message="treeError"
+              />
+
+              <t-loading :loading="treeLoading" size="small">
+                <t-tree
+                  v-if="treeData.length"
+                  :data="treeData"
+                  :actived="activeTreeValues"
+                  :expanded="expandedTreeKeys"
+                  :empty="workspaceCopy.filesEmpty"
+                  activable
+                  hover
+                  lazy
+                  line
+                  expand-on-click-node
+                  :load="treeLoadHandler"
+                  @active="treeActiveHandler"
+                  @expand="handleTreeExpand"
                 >
-                  <span class="project-configuration-workspace__draft-item-main">
-                    <span class="project-configuration-workspace__draft-item-icon" aria-hidden="true" />
-                    <span class="project-configuration-workspace__draft-item-title">{{ item.fileName }}</span>
-                  </span>
-                </button>
-              </div>
+                  <template #label="{ node }">
+                    <div
+                      class="project-configuration-workspace__tree-node"
+                      :class="{
+                        'project-configuration-workspace__tree-node--readonly':
+                          !node.data.editable && node.data.node_type === 'file',
+                      }"
+                    >
+                      <span class="project-configuration-workspace__tree-node-icon" aria-hidden="true">
+                        <folder-icon v-if="node.data.node_type === 'directory'" />
+                        <span
+                          v-else-if="node.data.file_kind === 'compose'"
+                          class="project-configuration-workspace__docker-icon"
+                        >
+                          <svg viewBox="0 0 24 24" role="presentation">
+                            <path
+                              d="M9.3 7.2h2.3v2.1H9.3zm2.7 0h2.3v2.1H12zm-5.4 3h2.3v2.1H6.6zm2.7 0h2.3v2.1H9.3zm2.7 0h2.3v2.1H12zm2.7 0h2.3v2.1h-2.3zm-1.2 3.2c.9 0 1.7-.2 2.4-.6.4.8 1.1 1.4 2 1.7 1.7.7 3.7.2 5-1.3-1-.4-1.7-1.4-1.7-2.6 0-1.2.7-2.2 1.7-2.6-.5-.7-1.4-1.2-2.4-1.2-.6 0-1.2.2-1.7.5-.6-1.4-1.9-2.4-3.5-2.6l-.8 1.3.7 1.1c-.2 0-.5-.1-.7-.1H5.4v4.4c0 1.2.5 2.4 1.4 3.2 1 .9 2.3 1.4 3.7 1.4h2z"
+                              fill="currentColor"
+                            />
+                          </svg>
+                        </span>
+                        <command-icon v-else-if="node.data.file_kind === 'env'" />
+                        <file-code-icon
+                          v-else-if="node.data.file_kind === 'config' || node.data.file_kind === 'text'"
+                        />
+                        <file-icon v-else />
+                      </span>
+                      <span class="project-configuration-workspace__tree-node-main">
+                        <span class="project-configuration-workspace__tree-node-title">{{ node.data.name }}</span>
+                        <small>{{ node.data.relative_path || '.' }}</small>
+                      </span>
+                    </div>
+                  </template>
+                </t-tree>
+                <t-empty v-else :description="workspaceCopy.filesEmpty" />
+              </t-loading>
             </t-card>
 
             <div class="project-configuration-workspace__editor-column">
@@ -110,81 +145,103 @@
                 <template #header>
                   <div class="project-configuration-workspace__editor-head">
                     <div>
-                      <strong>{{ activeDraftItem.label }}</strong>
-                      <p>{{ activeDraftDescription }}</p>
+                      <strong>{{ activeBuffer?.name || workspaceCopy.fileTreeTitle }}</strong>
+                      <p>{{ activeBuffer?.path || workspaceCopy.selectFileToStart }}</p>
                     </div>
                   </div>
                 </template>
 
                 <template #header-actions>
                   <t-space size="small" break-line>
-                    <t-button theme="default" variant="outline" @click="resetDraftFromCurrent">
-                      {{ t('project.detail.configuration.resetDraft') }}
+                    <t-button theme="default" variant="outline" :disabled="!activeBuffer" @click="reloadActiveFile">
+                      {{ workspaceCopy.reloadAction }}
                     </t-button>
                     <t-button
                       theme="default"
                       variant="outline"
-                      :disabled="!managedConfigurationEnabled"
-                      @click="formatActiveDraft"
+                      :loading="activeBuffer?.saving"
+                      :disabled="!canSaveActiveBuffer"
+                      @click="saveActiveFile"
                     >
-                      {{ t('project.detail.configuration.formatDraft') }}
+                      {{ workspaceCopy.saveAction }}
                     </t-button>
-                    <t-button
-                      theme="default"
-                      variant="outline"
-                      :loading="diffLoading"
-                      :disabled="!managedConfigurationEnabled"
-                      @click="runConfigurationDiff"
-                    >
-                      {{ t('project.detail.configuration.runDiff') }}
+                    <t-button theme="default" variant="outline" :loading="diffLoading" @click="runProjectDiff">
+                      {{ workspaceCopy.diffAction }}
                     </t-button>
-                    <t-button
-                      theme="default"
-                      variant="outline"
-                      :loading="validateLoading"
-                      :disabled="!managedConfigurationEnabled"
-                      @click="runConfigurationValidate"
-                    >
-                      {{ t('project.detail.configuration.runValidate') }}
+                    <t-button theme="default" variant="outline" :loading="validateLoading" @click="runProjectValidate">
+                      {{ workspaceCopy.validateAction }}
                     </t-button>
-                    <t-button
-                      theme="primary"
-                      :loading="deployLoading"
-                      :disabled="!managedConfigurationEnabled"
-                      @click="runConfigurationDeploy"
-                    >
-                      {{ t('project.detail.configuration.deploy') }}
+                    <t-button theme="primary" :loading="deployLoading" @click="runProjectDeploy">
+                      {{ workspaceCopy.deployAction }}
                     </t-button>
                   </t-space>
                 </template>
 
                 <div class="project-configuration-workspace__editor-surface">
-                  <project-monaco-surface
-                    v-if="activeDraft === 'compose'"
-                    v-model="draft.compose_file_content"
-                    class="project-configuration-workspace__monaco-editor"
-                    :editor-aria-label="workspaceCopy.composeEditorAriaLabel"
-                    language="yaml"
-                    model-key="compose-draft"
-                    :options="editorOptions"
-                    :read-only="!managedConfigurationEnabled"
-                    test-id="compose-monaco-editor"
+                  <t-tabs
+                    v-if="openTabBuffers.length"
+                    v-model:value="activeTabPath"
+                    class="project-configuration-workspace__tabs"
+                    theme="card"
+                  >
+                    <t-tab-panel
+                      v-for="tab in openTabBuffers"
+                      :key="tab.path"
+                      :value="tab.path"
+                      removable
+                      @remove="handleCloseTab(tab.path)"
+                    >
+                      <template #label>
+                        <span class="project-configuration-workspace__tab-label">
+                          <span v-if="isFileDirty(tab.path)" class="project-configuration-workspace__tab-dirty">●</span>
+                          <span>{{ tab.name }}</span>
+                        </span>
+                      </template>
+                    </t-tab-panel>
+                  </t-tabs>
+
+                  <t-alert
+                    v-if="activeBuffer && !activeBuffer.editable"
+                    class="project-configuration-workspace__editor-alert"
+                    theme="warning"
+                    :message="workspaceCopy.readonlyHint"
                   />
-                  <project-monaco-surface
-                    v-else
-                    v-model="envDraftContent"
-                    class="project-configuration-workspace__monaco-editor"
-                    :editor-aria-label="workspaceCopy.envEditorAriaLabel"
-                    language="shell"
-                    model-key="env-draft"
-                    :options="editorOptions"
-                    :read-only="!managedConfigurationEnabled"
-                    test-id="env-monaco-editor"
+                  <t-alert
+                    v-if="activeBuffer?.fileKind === 'env'"
+                    class="project-configuration-workspace__editor-alert"
+                    theme="info"
+                    :message="workspaceCopy.envRedeployHint"
                   />
+                  <t-alert
+                    v-if="activeBuffer?.error"
+                    class="project-configuration-workspace__editor-alert"
+                    theme="error"
+                    :message="activeBuffer.error"
+                  />
+
+                  <t-loading
+                    v-if="activeBuffer"
+                    class="project-configuration-workspace__editor-loading"
+                    :loading="activeBuffer.loading"
+                    size="small"
+                  >
+                    <project-monaco-surface
+                      v-if="!activeBuffer.error"
+                      v-model="activeBuffer.content"
+                      class="project-configuration-workspace__monaco-editor"
+                      :editor-aria-label="workspaceCopy.editorAriaLabel"
+                      :language="activeBuffer.language"
+                      :model-key="activeBuffer.path"
+                      :options="editorOptions"
+                      :read-only="!activeBuffer.editable"
+                      test-id="workspace-monaco-editor"
+                    />
+                  </t-loading>
+                  <t-empty v-else :description="workspaceCopy.tabsEmpty" />
                 </div>
               </content-viewer-frame>
 
-              <t-card class="project-configuration-workspace__feedback" :bordered="true">
+              <t-card class="project-configuration-workspace__feedback" bordered>
                 <template #header>
                   <div class="project-configuration-workspace__section-head">
                     <div>
@@ -258,10 +315,10 @@
                             <project-monaco-diff-surface
                               v-if="selectedDiffFile"
                               :editor-aria-label="workspaceCopy.diffViewerAriaLabel"
-                              :language="resolveFileLanguage(selectedDiffFile.kind)"
-                              :modified-key="`diff-modified-${selectedDiffFile.kind}-${selectedDiffFile.path}`"
+                              :language="resolveDiffFileLanguage(selectedDiffFile.kind, selectedDiffFile.path)"
+                              :modified-key="`diff-modified-${selectedDiffFile.path}`"
                               :modified-value="selectedDiffFile.proposed_content"
-                              :original-key="`diff-original-${selectedDiffFile.kind}-${selectedDiffFile.path}`"
+                              :original-key="`diff-original-${selectedDiffFile.path}`"
                               :original-value="selectedDiffFile.current_content"
                               test-id="configuration-diff-viewer"
                             />
@@ -298,7 +355,7 @@
                           <project-monaco-surface
                             class="project-configuration-workspace__monaco-viewer"
                             :model-value="validateResult.normalized_compose_yaml"
-                            :editor-aria-label="workspaceCopy.normalizedPreviewAriaLabel"
+                            :editor-aria-label="workspaceCopy.snapshotViewerAriaLabel"
                             language="yaml"
                             model-key="validation-normalized-yaml"
                             :options="readonlyOptions"
@@ -348,83 +405,62 @@
       </t-loading>
     </t-drawer>
 
-    <t-drawer v-model:visible="sourceDrawerVisible" :header="workspaceCopy.sourceDrawerTitle" size="760px">
-      <template v-if="sourceFiles.length">
-        <t-tabs
-          v-model:value="selectedSourceFileTab"
-          class="project-configuration-workspace__source-tabs"
-          @change="handleSourceFileChange"
-        >
-          <t-tab-panel
-            v-for="file in sourceFiles"
-            :key="String(file.id)"
-            :value="String(file.id)"
-            :label="file.display_path.split('/').at(-1) || file.display_path"
-          />
-        </t-tabs>
-        <t-loading :loading="sourceFileLoading" size="small">
-          <template v-if="selectedSourceFileResponse">
-            <t-descriptions bordered size="small" :column="1">
-              <t-descriptions-item :label="t('project.detail.configuration.fileContentTitle')">
-                {{ selectedSourceFileResponse.path }}
-              </t-descriptions-item>
-              <t-descriptions-item :label="t('project.detail.configuration.downloadName')">
-                {{ selectedSourceFileResponse.download_name }}
-              </t-descriptions-item>
-            </t-descriptions>
-            <div class="project-configuration-workspace__drawer-actions">
-              <t-button theme="default" variant="outline" @click="copySelectedSourceFile">
-                {{ t('project.detail.configuration.copyContent') }}
-              </t-button>
-            </div>
-            <div class="project-configuration-workspace__drawer-viewer">
-              <project-monaco-surface
-                class="project-configuration-workspace__monaco-viewer"
-                :model-value="selectedSourceFileResponse.content"
-                :editor-aria-label="workspaceCopy.sourceViewerAriaLabel"
-                :language="resolveFileLanguage(selectedSourceFile.kind)"
-                :model-key="`source-${selectedSourceFile.id}`"
-                :options="readonlyOptions"
-                read-only
-                test-id="source-monaco-viewer"
-              />
-            </div>
-          </template>
-          <t-empty v-else :description="t('project.detail.configuration.fileEmpty')" />
-        </t-loading>
+    <t-dialog
+      v-model:visible="dialogState.visible"
+      :header="dialogState.title"
+      :close-on-overlay-click="false"
+      :close-on-esc-keydown="true"
+      @close="resolveDialog('cancel')"
+    >
+      <p class="project-configuration-workspace__dialog-body">{{ dialogState.body }}</p>
+      <template #footer>
+        <t-space size="small" break-line>
+          <t-button
+            v-for="button in dialogState.buttons"
+            :key="button.result"
+            :theme="button.theme"
+            :variant="button.variant"
+            @click="resolveDialog(button.result)"
+          >
+            {{ button.label }}
+          </t-button>
+        </t-space>
       </template>
-      <t-empty v-else :description="workspaceCopy.noSourceFiles" />
-    </t-drawer>
+    </t-dialog>
   </div>
 </template>
 <script setup lang="ts">
-import { DialogPlugin } from 'tdesign-vue-next/es/dialog';
+import { CommandIcon, FileCodeIcon, FileIcon, FolderIcon } from 'tdesign-icons-vue-next';
+import type { TreeNodeValue, TreeProps } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 
-import type { components } from '@/contracts/openapi/generated/schema';
 import { ManagementPageContent, ManagementPageHeader } from '@/shared/components/management';
 import ContentViewerFrame from '@/shared/components/viewer/ContentViewerFrame.vue';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
-import { copyText } from '@/shared/observability/copy';
 import { createLogger } from '@/utils/logger';
 
 import {
   getProject,
   getProjectConfiguration,
-  getProjectConfigurationFile,
   getProjectConfigurationPreview,
+  getProjectFileContent,
+  getProjectFiles,
   postProjectConfigurationDiff,
   postProjectConfigurationValidate,
   postProjectDeploy,
+  putProjectFileContent,
 } from '../../api/project';
 import ProjectMonacoDiffSurface from '../../components/ProjectMonacoDiffSurface.vue';
 import ProjectMonacoSurface from '../../components/ProjectMonacoSurface.vue';
 import {
-  buildConfigurationDraftRequest,
-  normalizeTextBlock,
-  type ProjectConfigurationDraft,
+  canOpenWorkspaceFile,
+  hasWorkspaceUnsavedChanges,
+  normalizeWorkspaceContent,
+  type ProjectWorkspaceMonacoLanguage,
+  resolveWorkspaceFileName,
+  resolveWorkspaceMonacoLanguage,
 } from '../../shared/configuration-workspace';
 import {
   formatProjectTime,
@@ -436,46 +472,88 @@ import {
   projectRuntimeStatusTheme,
 } from '../../shared/display';
 import { useProjectPageContext } from '../../shared/page-context';
+import type {
+  ProjectConfigurationDiffResponse,
+  ProjectConfigurationPreviewResponse,
+  ProjectConfigurationValidateResponse,
+  ProjectDetailResponseWithLifecycle,
+  ProjectWorkspaceFileContentResponse,
+  ProjectWorkspaceFileKind,
+  ProjectWorkspaceTreeItem,
+} from '../../types/project';
 import { resolveConfigurationWorkspaceCopy } from './workspace-copy';
 
 defineOptions({
   name: 'ProjectConfigurationWorkspaceIndex',
 });
 
-type ProjectFileKind = components['schemas']['project-file-kind'];
-type DraftTab = 'compose' | 'env';
 type FeedbackTab = 'diff' | 'validation';
+type DialogResult = 'cancel' | 'continue-disk' | 'discard' | 'save' | 'save-and-continue';
+type WorkspaceDialogButton = {
+  label: string;
+  result: DialogResult;
+  theme: 'default' | 'primary';
+  variant: 'base' | 'outline';
+};
+type WorkspaceTreeNode = ProjectWorkspaceTreeItem & {
+  children?: WorkspaceTreeNode[] | boolean;
+  value: string;
+};
+type WorkspaceOpenFile = {
+  content: string;
+  editable: boolean;
+  error: string;
+  fileKind: ProjectWorkspaceFileKind;
+  language: ProjectWorkspaceMonacoLanguage;
+  loading: boolean;
+  name: string;
+  path: string;
+  savedContent: string;
+  saving: boolean;
+  sizeBytes?: number | null;
+};
 
 const logger = createLogger('project.configuration-workspace');
 const route = useRoute();
 const { locale, t } = useProjectPageContext();
 
+const workspaceRootRef = ref<HTMLElement | null>(null);
 const workspaceLoading = ref(false);
 const workspaceError = ref('');
-const detailRecord = ref<Awaited<ReturnType<typeof getProject>> | null>(null);
+const workspaceReady = computed(() => Boolean(detailRecord.value && metadata.value && !workspaceError.value));
+const treeLoading = ref(false);
+const treeError = ref('');
+const showHiddenFiles = ref(false);
+const treeData = ref<WorkspaceTreeNode[]>([]);
+const expandedTreeKeys = ref<TreeNodeValue[]>([]);
+const activeTreeValues = ref<TreeNodeValue[]>([]);
+const detailRecord = ref<ProjectDetailResponseWithLifecycle | null>(null);
 const metadata = ref<Awaited<ReturnType<typeof getProjectConfiguration>> | null>(null);
-const snapshotPreview = ref<Awaited<ReturnType<typeof getProjectConfigurationPreview>> | null>(null);
-const sourceFileCache = reactive(new Map<number, Awaited<ReturnType<typeof getProjectConfigurationFile>>>());
-const activeDraft = ref<DraftTab>('compose');
+const snapshotPreview = ref<ProjectConfigurationPreviewResponse | null>(null);
+const snapshotLoading = ref(false);
+const snapshotDrawerVisible = ref(false);
 const feedbackTab = ref<FeedbackTab>('diff');
-const diffResult = ref<Awaited<ReturnType<typeof postProjectConfigurationDiff>> | null>(null);
-const validateResult = ref<Awaited<ReturnType<typeof postProjectConfigurationValidate>> | null>(null);
+const diffResult = ref<ProjectConfigurationDiffResponse | null>(null);
+const validateResult = ref<ProjectConfigurationValidateResponse | null>(null);
 const diffLoading = ref(false);
 const validateLoading = ref(false);
 const deployLoading = ref(false);
-const snapshotLoading = ref(false);
-const sourceFileLoading = ref(false);
-const snapshotDrawerVisible = ref(false);
-const sourceDrawerVisible = ref(false);
 const selectedDiffFilePath = ref('');
-const selectedSourceFileTab = ref('');
-const originalDraft = reactive<ProjectConfigurationDraft>({
-  compose_file_content: '',
-  env_file_content: '',
-});
-const draft = reactive<ProjectConfigurationDraft>({
-  compose_file_content: '',
-  env_file_content: '',
+const openTabs = ref<string[]>([]);
+const activeTabPath = ref('');
+const openFileMap = reactive(new Map<string, WorkspaceOpenFile>());
+const dialogState = reactive<{
+  body: string;
+  buttons: WorkspaceDialogButton[];
+  resolver: ((result: DialogResult) => void) | null;
+  title: string;
+  visible: boolean;
+}>({
+  body: '',
+  buttons: [],
+  resolver: null,
+  title: '',
+  visible: false,
 });
 
 const editorOptions = {
@@ -516,52 +594,14 @@ const refreshTheme = computed(() => projectRefreshStatusTheme(metadata.value?.la
 const refreshLabel = computed(() =>
   metadata.value?.last_refresh_status ? projectRefreshStatusLabel(t, metadata.value.last_refresh_status) : '-',
 );
-const managedConfigurationEnabled = computed(() => detailRecord.value?.ownership_mode === 'managed-root-dedicated');
-const authorityNotice = computed(() => {
-  if (!detailRecord.value) {
-    return '';
-  }
-  return managedConfigurationEnabled.value
-    ? t('project.detail.configuration.managedAuthorityHint')
-    : t('project.detail.configuration.externalAuthorityHint');
-});
-const sourceFiles = computed(() => [...(metadata.value?.compose_files || []), ...(metadata.value?.env_files || [])]);
-const selectedSourceFile = computed(
-  () =>
-    sourceFiles.value.find((file) => String(file.id) === selectedSourceFileTab.value) ?? sourceFiles.value[0] ?? null,
+const openTabBuffers = computed(
+  () => openTabs.value.map((path) => openFileMap.get(path)).filter(Boolean) as WorkspaceOpenFile[],
 );
-const selectedSourceFileResponse = computed(() =>
-  selectedSourceFile.value ? (sourceFileCache.get(selectedSourceFile.value.id) ?? null) : null,
+const activeBuffer = computed(() => (activeTabPath.value ? (openFileMap.get(activeTabPath.value) ?? null) : null));
+const canSaveActiveBuffer = computed(() => Boolean(activeBuffer.value?.editable && !activeBuffer.value.saving));
+const hasDirtyFiles = computed(() =>
+  openTabBuffers.value.some((tab) => tab.editable && hasWorkspaceUnsavedChanges(tab.content, tab.savedContent)),
 );
-const envDraftContent = computed({
-  get: () => draft.env_file_content,
-  set: (value: string) => {
-    draft.env_file_content = value;
-  },
-});
-const workspaceReady = computed(() => Boolean(detailRecord.value && metadata.value && !workspaceError.value));
-const composeDraftFilePath = computed(() => metadata.value?.compose_files[0]?.display_path || 'compose.yaml');
-const envDraftFilePath = computed(() => metadata.value?.env_files[0]?.display_path || '.env');
-const activeDraftItem = computed(() => {
-  return activeDraft.value === 'compose'
-    ? { label: t('project.detail.configuration.composeEditorTab'), path: composeDraftFilePath.value }
-    : { label: t('project.detail.configuration.envEditorTab'), path: envDraftFilePath.value };
-});
-const activeDraftDescription = computed(() =>
-  activeDraft.value === 'compose'
-    ? t('project.detail.configuration.composeEditorDescription')
-    : t('project.detail.configuration.envEditorDescription'),
-);
-const draftItems = computed(() => [
-  {
-    fileName: resolveFileName(composeDraftFilePath.value),
-    value: 'compose' as const,
-  },
-  {
-    fileName: resolveFileName(envDraftFilePath.value),
-    value: 'env' as const,
-  },
-]);
 const hasFeedback = computed(() => Boolean(diffResult.value || validateResult.value));
 const selectedDiffFile = computed(
   () =>
@@ -569,10 +609,38 @@ const selectedDiffFile = computed(
     diffResult.value?.files[0] ??
     null,
 );
+const treeActiveHandler: NonNullable<TreeProps['onActive']> = (value, context) => {
+  handleTreeActive(value, context as unknown as { node: { data: WorkspaceTreeNode } });
+};
+const treeLoadHandler: NonNullable<TreeProps['load']> = (node) =>
+  loadWorkspaceTreeChildren(node as unknown as { data: WorkspaceTreeNode });
 
 onMounted(() => {
+  window.addEventListener('keydown', handleWorkspaceKeydown);
   void loadWorkspace();
 });
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handleWorkspaceKeydown);
+});
+
+watch(showHiddenFiles, () => {
+  void loadWorkspaceTreeRoot();
+});
+
+watch(
+  openTabs,
+  (nextTabs) => {
+    if (!nextTabs.length) {
+      activeTabPath.value = '';
+      return;
+    }
+    if (!nextTabs.includes(activeTabPath.value)) {
+      activeTabPath.value = nextTabs[nextTabs.length - 1];
+    }
+  },
+  { deep: true },
+);
 
 async function loadWorkspace() {
   if (!Number.isFinite(projectId.value)) {
@@ -589,10 +657,7 @@ async function loadWorkspace() {
     ]);
     detailRecord.value = detail;
     metadata.value = configurationMetadata;
-    await hydrateDraftFromCurrent(configurationMetadata);
-    if (sourceFiles.value[0]) {
-      selectedSourceFileTab.value = String(sourceFiles.value[0].id);
-    }
+    await loadWorkspaceTreeRoot();
   } catch (error) {
     logger.error('failed to load project configuration workspace', error);
     workspaceError.value = resolveLocalizedErrorMessage(t, error, t('project.list.retry'));
@@ -602,56 +667,312 @@ async function loadWorkspace() {
   }
 }
 
-async function hydrateDraftFromCurrent(configurationMetadata: NonNullable<typeof metadata.value>) {
-  const composeFileId = configurationMetadata.compose_files[0]?.id;
-  const envFileId = configurationMetadata.env_files[0]?.id;
-  const [composeResponse, envResponse] = await Promise.all([
-    typeof composeFileId === 'number' ? ensureFileLoaded(composeFileId) : Promise.resolve(null),
-    typeof envFileId === 'number' ? ensureFileLoaded(envFileId) : Promise.resolve(null),
-  ]);
-
-  originalDraft.compose_file_content = composeResponse?.content || '';
-  originalDraft.env_file_content = envResponse?.content || '';
-  draft.compose_file_content = originalDraft.compose_file_content;
-  draft.env_file_content = originalDraft.env_file_content;
-}
-
-async function ensureFileLoaded(fileId: number) {
-  const cached = sourceFileCache.get(fileId);
-  if (cached) {
-    return cached;
+async function loadWorkspaceTreeRoot() {
+  treeLoading.value = true;
+  treeError.value = '';
+  try {
+    const response = await getProjectFiles(projectId.value, {
+      show_hidden: showHiddenFiles.value,
+    });
+    treeData.value = normalizeTreeItems(response.items);
+    expandedTreeKeys.value = [];
+    activeTreeValues.value = [];
+    if (!activeTabPath.value) {
+      const firstFile = findFirstFilePath(treeData.value);
+      if (firstFile) {
+        await openWorkspaceFile(firstFile);
+      }
+    }
+  } catch (error) {
+    treeError.value = resolveLocalizedErrorMessage(t, error, t('project.list.retry'));
+    MessagePlugin.error(treeError.value);
+  } finally {
+    treeLoading.value = false;
   }
-
-  const response = await getProjectConfigurationFile(projectId.value, fileId);
-  sourceFileCache.set(fileId, response);
-  return response;
 }
 
-function resetDraftFromCurrent() {
-  draft.compose_file_content = originalDraft.compose_file_content;
-  draft.env_file_content = originalDraft.env_file_content;
-  diffResult.value = null;
-  validateResult.value = null;
-  selectedDiffFilePath.value = '';
-  feedbackTab.value = 'diff';
+function normalizeTreeItems(items: ProjectWorkspaceTreeItem[]) {
+  return items.map<WorkspaceTreeNode>((item) => ({
+    ...item,
+    children: item.node_type === 'directory' ? (item.has_children ? true : []) : undefined,
+    value: item.relative_path,
+  }));
 }
 
-function formatActiveDraft() {
-  if (activeDraft.value === 'compose') {
-    draft.compose_file_content = normalizeTextBlock(draft.compose_file_content);
+function findFirstFilePath(nodes: WorkspaceTreeNode[]): string {
+  for (const node of nodes) {
+    if (node.node_type === 'file') {
+      return node.relative_path;
+    }
+  }
+  return '';
+}
+
+async function loadWorkspaceTreeChildren(node: { data: WorkspaceTreeNode }) {
+  const currentNode = node.data;
+  const response = await getProjectFiles(projectId.value, {
+    path: currentNode.relative_path,
+    show_hidden: showHiddenFiles.value,
+  });
+  const children = normalizeTreeItems(response.items);
+  treeData.value = replaceTreeChildren(treeData.value, currentNode.relative_path, children);
+  return children;
+}
+
+function replaceTreeChildren(
+  nodes: WorkspaceTreeNode[],
+  path: string,
+  children: WorkspaceTreeNode[],
+): WorkspaceTreeNode[] {
+  return nodes.map((node) => {
+    if (node.relative_path === path) {
+      return { ...node, children };
+    }
+    if (Array.isArray(node.children)) {
+      return { ...node, children: replaceTreeChildren(node.children, path, children) };
+    }
+    return node;
+  });
+}
+
+function handleTreeActive(value: TreeNodeValue[], context: { node: { data: WorkspaceTreeNode } }) {
+  activeTreeValues.value = value;
+  const target = context.node.data;
+  if (!canOpenWorkspaceFile(target)) {
     return;
   }
-  draft.env_file_content = normalizeTextBlock(draft.env_file_content);
+  void openWorkspaceFile(target.relative_path, target);
 }
 
-async function runConfigurationDiff() {
-  if (!Number.isFinite(projectId.value) || !managedConfigurationEnabled.value) {
-    MessagePlugin.warning(authorityNotice.value);
+function handleTreeExpand(value: TreeNodeValue[]) {
+  expandedTreeKeys.value = value;
+}
+
+async function openWorkspaceFile(path: string, source?: WorkspaceTreeNode) {
+  if (!path) {
     return;
   }
+
+  if (!openFileMap.has(path)) {
+    openFileMap.set(path, {
+      content: '',
+      editable: Boolean(source?.editable),
+      error: '',
+      fileKind: source?.file_kind || 'text',
+      language: resolveWorkspaceMonacoLanguage({
+        fileKind: source?.file_kind,
+        languageHint: source?.language_hint,
+        path,
+      }),
+      loading: true,
+      name: resolveWorkspaceFileName(path),
+      path,
+      savedContent: '',
+      saving: false,
+      sizeBytes: source?.size_bytes ?? null,
+    });
+    openTabs.value = [...openTabs.value, path];
+  }
+
+  activeTabPath.value = path;
+  activeTreeValues.value = [path];
+  await ensureWorkspaceFileLoaded(path, source);
+}
+
+async function ensureWorkspaceFileLoaded(path: string, source?: WorkspaceTreeNode) {
+  const current = openFileMap.get(path);
+  if (!current || (!current.loading && (current.content || current.savedContent || current.error))) {
+    return;
+  }
+
+  current.loading = true;
+  current.error = '';
+  try {
+    const response = await getProjectFileContent(projectId.value, { path });
+    hydrateOpenFileFromResponse(path, response, source);
+  } catch (error) {
+    current.error = resolveLocalizedErrorMessage(t, error, t('project.list.retry'));
+  } finally {
+    current.loading = false;
+  }
+}
+
+function hydrateOpenFileFromResponse(
+  requestedPath: string,
+  response: ProjectWorkspaceFileContentResponse,
+  source?: WorkspaceTreeNode,
+) {
+  const path = response.relative_path || requestedPath;
+  const current =
+    openFileMap.get(requestedPath) ??
+    ({
+      content: '',
+      editable: response.editable,
+      error: '',
+      fileKind: response.file_kind,
+      language: resolveWorkspaceMonacoLanguage({
+        fileKind: response.file_kind,
+        languageHint: response.language_hint,
+        path,
+      }),
+      loading: false,
+      name: resolveWorkspaceFileName(path),
+      path,
+      savedContent: '',
+      saving: false,
+    } satisfies WorkspaceOpenFile);
+
+  current.content = normalizeWorkspaceContent(response.content);
+  current.editable = response.editable;
+  current.error = '';
+  current.fileKind = response.file_kind || source?.file_kind || 'text';
+  current.language = resolveWorkspaceMonacoLanguage({
+    fileKind: current.fileKind,
+    languageHint: response.language_hint ?? source?.language_hint,
+    path,
+  });
+  current.loading = false;
+  current.name = resolveWorkspaceFileName(path);
+  current.path = path;
+  current.savedContent = normalizeWorkspaceContent(response.content);
+  current.sizeBytes = response.size_bytes ?? source?.size_bytes ?? null;
+  openFileMap.set(path, current);
+
+  if (path !== requestedPath) {
+    openFileMap.delete(requestedPath);
+    openTabs.value = openTabs.value.map((item) => (item === requestedPath ? path : item));
+    if (activeTabPath.value === requestedPath) {
+      activeTabPath.value = path;
+    }
+  }
+}
+
+function isFileDirty(path: string) {
+  const current = openFileMap.get(path);
+  return current ? hasWorkspaceUnsavedChanges(current.content, current.savedContent) : false;
+}
+
+async function saveActiveFile() {
+  if (!activeBuffer.value) {
+    return;
+  }
+  await saveWorkspaceFile(activeBuffer.value.path);
+}
+
+async function saveWorkspaceFile(path: string, options?: { silent?: boolean }) {
+  const current = openFileMap.get(path);
+  if (!current || !current.editable || current.saving) {
+    return false;
+  }
+
+  current.saving = true;
+  try {
+    const normalizedContent = normalizeWorkspaceContent(current.content);
+    await putProjectFileContent(projectId.value, { path }, { content: normalizedContent });
+    current.content = normalizedContent;
+    current.savedContent = normalizedContent;
+    if (!options?.silent) {
+      MessagePlugin.success(workspaceCopy.value.saveSuccess);
+    }
+    return true;
+  } catch (error) {
+    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, workspaceCopy.value.saveFailed));
+    return false;
+  } finally {
+    current.saving = false;
+  }
+}
+
+async function saveDirtyFiles() {
+  const dirtyPaths = openTabBuffers.value
+    .filter((tab) => tab.editable && hasWorkspaceUnsavedChanges(tab.content, tab.savedContent))
+    .map((tab) => tab.path);
+  if (!dirtyPaths.length) {
+    return true;
+  }
+
+  for (const path of dirtyPaths) {
+    const saved = await saveWorkspaceFile(path, { silent: true });
+    if (!saved) {
+      return false;
+    }
+  }
+  MessagePlugin.success(workspaceCopy.value.saveSuccess);
+  return true;
+}
+
+async function reloadActiveFile() {
+  if (!activeBuffer.value) {
+    return;
+  }
+
+  const buffer = activeBuffer.value;
+  if (isFileDirty(buffer.path)) {
+    const action = await openDialog({
+      body: workspaceCopy.value.reloadConfirmBody,
+      buttons: [
+        { label: workspaceCopy.value.discardAction, result: 'discard', theme: 'primary', variant: 'base' },
+        { label: workspaceCopy.value.cancelAction, result: 'cancel', theme: 'default', variant: 'outline' },
+      ],
+      title: workspaceCopy.value.reloadConfirmTitle,
+    });
+    if (action !== 'discard') {
+      return;
+    }
+  }
+
+  buffer.loading = true;
+  buffer.error = '';
+  try {
+    const response = await getProjectFileContent(projectId.value, { path: buffer.path });
+    hydrateOpenFileFromResponse(buffer.path, response);
+  } catch (error) {
+    buffer.error = resolveLocalizedErrorMessage(t, error, t('project.list.retry'));
+  } finally {
+    buffer.loading = false;
+  }
+}
+
+async function handleCloseTab(path: string) {
+  const current = openFileMap.get(path);
+  if (!current) {
+    return;
+  }
+
+  if (isFileDirty(path)) {
+    const action = await openDialog({
+      body: workspaceCopy.value.dirtyCloseBody,
+      buttons: [
+        { label: workspaceCopy.value.saveAction, result: 'save', theme: 'primary', variant: 'base' },
+        { label: workspaceCopy.value.discardAction, result: 'discard', theme: 'default', variant: 'outline' },
+        { label: workspaceCopy.value.cancelAction, result: 'cancel', theme: 'default', variant: 'outline' },
+      ],
+      title: workspaceCopy.value.dirtyCloseTitle,
+    });
+    if (action === 'cancel') {
+      return;
+    }
+    if (action === 'save') {
+      const saved = await saveWorkspaceFile(path);
+      if (!saved) {
+        return;
+      }
+    }
+  }
+
+  openFileMap.delete(path);
+  openTabs.value = openTabs.value.filter((item) => item !== path);
+}
+
+async function runProjectDiff() {
+  const proceed = await resolveProjectActionDirtyState('diff');
+  if (!proceed) {
+    return;
+  }
+
   diffLoading.value = true;
   try {
-    diffResult.value = await postProjectConfigurationDiff(projectId.value, buildConfigurationDraftRequest(draft));
+    diffResult.value = await postProjectConfigurationDiff(projectId.value);
     selectedDiffFilePath.value = diffResult.value.files[0]?.path || '';
     feedbackTab.value = 'diff';
   } catch (error) {
@@ -661,17 +982,15 @@ async function runConfigurationDiff() {
   }
 }
 
-async function runConfigurationValidate() {
-  if (!Number.isFinite(projectId.value) || !managedConfigurationEnabled.value) {
-    MessagePlugin.warning(authorityNotice.value);
+async function runProjectValidate() {
+  const proceed = await resolveProjectActionDirtyState('validate');
+  if (!proceed) {
     return;
   }
+
   validateLoading.value = true;
   try {
-    validateResult.value = await postProjectConfigurationValidate(
-      projectId.value,
-      buildConfigurationDraftRequest(draft),
-    );
+    validateResult.value = await postProjectConfigurationValidate(projectId.value);
     feedbackTab.value = 'validation';
     MessagePlugin.success(t('project.detail.configuration.validateSuccess'));
   } catch (error) {
@@ -681,38 +1000,76 @@ async function runConfigurationValidate() {
   }
 }
 
-function runConfigurationDeploy() {
-  if (!Number.isFinite(projectId.value) || !managedConfigurationEnabled.value) {
-    MessagePlugin.warning(authorityNotice.value);
+async function runProjectDeploy() {
+  const proceed = await resolveProjectActionDirtyState('deploy');
+  if (!proceed) {
     return;
   }
 
-  const dialog = DialogPlugin.confirm({
-    body: t('project.detail.configuration.deployConfirmDescription'),
-    cancelBtn: t('project.list.actions.cancel'),
-    confirmBtn: {
-      content: t('project.detail.configuration.deploy'),
-      theme: 'primary',
-    },
-    header: t('project.detail.configuration.deployConfirmTitle'),
-    onConfirm: async () => {
-      deployLoading.value = true;
-      try {
-        const response = await postProjectDeploy(projectId.value, buildConfigurationDraftRequest(draft));
-        MessagePlugin.success(response.message || t('project.detail.configuration.deploySuccess'));
-        diffResult.value = null;
-        validateResult.value = null;
-        snapshotPreview.value = null;
-        sourceFileCache.clear();
-        await loadWorkspace();
-      } catch (error) {
-        MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.detail.configuration.deployFailed')));
-      } finally {
-        deployLoading.value = false;
-        dialog.destroy();
-      }
-    },
-  });
+  deployLoading.value = true;
+  try {
+    const response = await postProjectDeploy(projectId.value);
+    MessagePlugin.success(response.message || t('project.detail.configuration.deploySuccess'));
+    diffResult.value = null;
+    validateResult.value = null;
+    snapshotPreview.value = null;
+    await loadWorkspaceTreeRoot();
+  } catch (error) {
+    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.detail.configuration.deployFailed')));
+  } finally {
+    deployLoading.value = false;
+  }
+}
+
+async function resolveProjectActionDirtyState(action: 'deploy' | 'diff' | 'validate') {
+  if (!hasDirtyFiles.value) {
+    return true;
+  }
+
+  const dialogResult = await openDialog(
+    action === 'deploy'
+      ? {
+          body: workspaceCopy.value.deployDirtyBody,
+          buttons: [
+            { label: workspaceCopy.value.saveThenContinueAction, result: 'save', theme: 'primary', variant: 'base' },
+            {
+              label: workspaceCopy.value.deployContinueWithDiskAction,
+              result: 'continue-disk',
+              theme: 'default',
+              variant: 'outline',
+            },
+            { label: workspaceCopy.value.cancelAction, result: 'cancel', theme: 'default', variant: 'outline' },
+          ],
+          title: workspaceCopy.value.deployDirtyTitle,
+        }
+      : {
+          body: workspaceCopy.value.dirtyProjectActionBody,
+          buttons: [
+            {
+              label: workspaceCopy.value.saveAndContinueAction,
+              result: 'save-and-continue',
+              theme: 'primary',
+              variant: 'base',
+            },
+            {
+              label: workspaceCopy.value.continueWithDiskAction,
+              result: 'continue-disk',
+              theme: 'default',
+              variant: 'outline',
+            },
+            { label: workspaceCopy.value.cancelAction, result: 'cancel', theme: 'default', variant: 'outline' },
+          ],
+          title: workspaceCopy.value.dirtyProjectActionTitle,
+        },
+  );
+
+  if (dialogResult === 'cancel') {
+    return false;
+  }
+  if (dialogResult === 'continue-disk') {
+    return true;
+  }
+  return saveDirtyFiles();
 }
 
 async function openSnapshotDrawer() {
@@ -730,64 +1087,62 @@ async function openSnapshotDrawer() {
   }
 }
 
-async function openSourceDrawer() {
-  sourceDrawerVisible.value = true;
-  if (!selectedSourceFile.value) {
+function resolveDiffFileLanguage(kind: string | undefined, path: string) {
+  return resolveWorkspaceMonacoLanguage({
+    fileKind: kind === 'compose' || kind === 'env' ? kind : 'config',
+    path,
+  });
+}
+
+function openDialog(config: { body: string; buttons: WorkspaceDialogButton[]; title: string }) {
+  if (dialogState.resolver) {
+    dialogState.resolver('cancel');
+  }
+
+  dialogState.body = config.body;
+  dialogState.buttons = config.buttons;
+  dialogState.title = config.title;
+  dialogState.visible = true;
+
+  return new Promise<DialogResult>((resolve) => {
+    dialogState.resolver = resolve;
+  });
+}
+
+function resolveDialog(result: DialogResult) {
+  if (!dialogState.resolver) {
     return;
   }
-  await ensureSelectedSourceFileLoaded();
+
+  const resolver = dialogState.resolver;
+  dialogState.body = '';
+  dialogState.buttons = [];
+  dialogState.title = '';
+  dialogState.visible = false;
+  dialogState.resolver = null;
+  resolver(result);
 }
 
-async function handleSourceFileChange(value: string | number) {
-  selectedSourceFileTab.value = String(value);
-  await ensureSelectedSourceFileLoaded();
-}
-
-async function ensureSelectedSourceFileLoaded() {
-  if (!selectedSourceFile.value) {
+function handleWorkspaceKeydown(event: KeyboardEvent) {
+  const root = workspaceRootRef.value;
+  if (!root || !activeBuffer.value || !canSaveActiveBuffer.value) {
     return;
   }
-  sourceFileLoading.value = true;
-  try {
-    await ensureFileLoaded(selectedSourceFile.value.id);
-  } catch (error) {
-    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.list.retry')));
-  } finally {
-    sourceFileLoading.value = false;
-  }
-}
 
-async function copySelectedSourceFile() {
-  if (!selectedSourceFileResponse.value?.content) {
+  const target = event.target;
+  if (!(target instanceof Node) || !root.contains(target)) {
     return;
   }
-  const copied = await copyText(selectedSourceFileResponse.value.content);
-  if (copied) {
-    MessagePlugin.success(t('project.detail.configuration.copySuccess'));
-    return;
-  }
-  MessagePlugin.error(t('project.detail.configuration.copyError'));
-}
 
-function resolveFileLanguage(kind: ProjectFileKind | undefined) {
-  return kind === 'compose' ? 'yaml' : 'shell';
-}
-
-function resolveFileName(path: string) {
-  const normalized = String(path || '').trim();
-  if (!normalized) {
-    return 'untitled';
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
+    event.preventDefault();
+    void saveActiveFile();
   }
-  return normalized.split('/').at(-1) || normalized;
 }
 </script>
 <style scoped lang="less">
 .project-configuration-workspace {
   min-width: 0;
-}
-
-.project-configuration-workspace__notice {
-  margin-block: var(--graft-density-gap-16);
 }
 
 .project-configuration-workspace__summary-strip,
@@ -817,10 +1172,10 @@ function resolveFileName(path: string) {
 .project-configuration-workspace__main-grid {
   display: grid;
   gap: var(--graft-density-gap-16);
-  grid-template-columns: minmax(220px, 260px) minmax(0, 1fr);
+  grid-template-columns: minmax(260px, 300px) minmax(0, 1fr);
 }
 
-.project-configuration-workspace__drafts-nav,
+.project-configuration-workspace__tree-card,
 .project-configuration-workspace__editor-column,
 .project-configuration-workspace__feedback-panel,
 .project-configuration-workspace__diff-layout,
@@ -831,88 +1186,67 @@ function resolveFileName(path: string) {
   min-width: 0;
 }
 
-.project-configuration-workspace__editor-column {
-  display: grid;
-  gap: var(--graft-density-gap-16);
-  min-width: 0;
+.project-configuration-workspace__tree-alert,
+.project-configuration-workspace__editor-alert {
+  margin-bottom: var(--graft-density-gap-12);
 }
 
-.project-configuration-workspace__editor-surface {
-  block-size: 100%;
-  min-block-size: 560px;
-  min-inline-size: 0;
-}
-
-.project-configuration-workspace__draft-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--graft-density-gap-4);
-}
-
-.project-configuration-workspace__draft-item,
-.project-configuration-workspace__diff-file {
-  background: var(--td-bg-color-container);
-  border: 1px solid transparent;
-  border-radius: var(--td-radius-default);
-  color: inherit;
-  cursor: pointer;
-  padding: var(--graft-density-gap-10) var(--graft-density-gap-12);
-  text-align: left;
-  transition:
-    border-color 0.2s ease,
-    background-color 0.2s ease;
-}
-
-.project-configuration-workspace__draft-item:hover,
-.project-configuration-workspace__diff-file:hover {
-  border-color: var(--td-brand-color-5);
-}
-
-.project-configuration-workspace__draft-item--active,
-.project-configuration-workspace__diff-file--active {
-  background: var(--td-brand-color-1);
-  border-color: var(--td-brand-color-6);
-}
-
-.project-configuration-workspace__draft-item-main {
+.project-configuration-workspace__tree-node {
   align-items: center;
   display: flex;
-  gap: var(--graft-density-gap-10);
+  gap: var(--graft-density-gap-8);
   min-width: 0;
 }
 
-.project-configuration-workspace__draft-item-icon {
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--td-brand-color) 16%, transparent), transparent),
-    var(--td-bg-color-component);
-  border: 1px solid color-mix(in srgb, var(--td-brand-color) 28%, var(--td-component-border));
-  border-radius: var(--td-radius-small);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--td-brand-color) 10%, transparent);
-  flex: 0 0 14px;
+.project-configuration-workspace__tree-node--readonly {
+  opacity: 0.6;
+}
+
+.project-configuration-workspace__tree-node-icon {
+  align-items: center;
+  color: var(--td-text-color-secondary);
+  display: inline-flex;
+  flex: 0 0 auto;
+  justify-content: center;
+}
+
+.project-configuration-workspace__docker-icon {
+  color: #2496ed;
+  display: inline-flex;
   height: 16px;
-  position: relative;
-  width: 14px;
+  width: 16px;
 }
 
-.project-configuration-workspace__draft-item-icon::before {
-  background: color-mix(in srgb, var(--td-brand-color) 58%, transparent);
-  border-radius: 1px;
-  content: '';
-  height: 2px;
-  left: 3px;
-  position: absolute;
-  top: 4px;
-  width: 8px;
+.project-configuration-workspace__docker-icon svg {
+  fill: currentcolor;
+  height: 100%;
+  width: 100%;
 }
 
-.project-configuration-workspace__draft-item-title {
-  color: var(--td-text-color-primary);
+.project-configuration-workspace__tree-node-main {
+  display: flex;
   flex: 1 1 auto;
-  font: var(--td-font-body-medium);
+  flex-direction: column;
   min-width: 0;
+}
+
+.project-configuration-workspace__tree-node-title {
+  color: var(--td-text-color-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.project-configuration-workspace__tree-node-main small {
+  color: var(--td-text-color-placeholder);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-configuration-workspace__editor-column {
+  display: grid;
+  gap: var(--graft-density-gap-16);
 }
 
 .project-configuration-workspace__editor-head strong {
@@ -925,37 +1259,45 @@ function resolveFileName(path: string) {
   color: var(--td-text-color-secondary);
   font: var(--td-font-body-small);
   margin: var(--graft-density-gap-4) 0 0;
+  word-break: break-all;
 }
 
-.project-configuration-workspace__warning-list,
-.project-configuration-workspace__drawer-actions {
-  display: flex;
-  gap: var(--graft-density-gap-12);
+.project-configuration-workspace__editor-surface {
+  block-size: 100%;
+  min-block-size: 560px;
+  min-inline-size: 0;
 }
 
-.project-configuration-workspace__drawer-actions {
+.project-configuration-workspace__tabs {
+  margin-bottom: var(--graft-density-gap-12);
+}
+
+.project-configuration-workspace__tab-label {
   align-items: center;
+  display: inline-flex;
+  gap: var(--graft-density-gap-4);
 }
 
-.project-configuration-workspace__feedback-panel,
-.project-configuration-workspace__warning-list {
-  display: flex;
-  flex-direction: column;
+.project-configuration-workspace__tab-dirty {
+  color: var(--td-warning-color-6);
+  font: var(--td-font-body-small);
+  line-height: 1;
 }
 
-.project-configuration-workspace__feedback-panel,
-.project-configuration-workspace__warning-list,
-.project-configuration-workspace__diff-viewer {
-  gap: var(--graft-density-gap-12);
-}
-
+.project-configuration-workspace__editor-loading,
 .project-configuration-workspace__monaco-editor,
 .project-configuration-workspace__monaco-viewer {
   block-size: 100%;
   display: block;
-  flex: 1 1 auto;
   min-block-size: 0;
   min-inline-size: 0;
+}
+
+.project-configuration-workspace__warning-list,
+.project-configuration-workspace__feedback-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--graft-density-gap-12);
 }
 
 .project-configuration-workspace__diff-layout {
@@ -974,9 +1316,34 @@ function resolveFileName(path: string) {
 
 .project-configuration-workspace__diff-file {
   align-items: center;
+  background: var(--td-bg-color-container);
+  border: 1px solid transparent;
+  border-radius: var(--td-radius-default);
+  color: inherit;
+  cursor: pointer;
   display: flex;
   gap: var(--graft-density-gap-8);
   justify-content: space-between;
+  padding: var(--graft-density-gap-10) var(--graft-density-gap-12);
+  text-align: left;
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease;
+}
+
+.project-configuration-workspace__diff-file:hover {
+  border-color: var(--td-brand-color-5);
+}
+
+.project-configuration-workspace__diff-file--active {
+  background: var(--td-brand-color-1);
+  border-color: var(--td-brand-color-6);
+}
+
+.project-configuration-workspace__diff-viewer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--graft-density-gap-12);
 }
 
 .project-configuration-workspace__diff-meta {
@@ -993,8 +1360,8 @@ function resolveFileName(path: string) {
   margin-top: var(--graft-density-gap-12);
 }
 
-.project-configuration-workspace__source-tabs {
-  margin-bottom: var(--graft-density-gap-12);
+.project-configuration-workspace__dialog-body {
+  margin: 0;
 }
 
 @media (width <= 1024px) {

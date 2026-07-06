@@ -262,8 +262,10 @@ paths:
     $ref: ./paths/ops-projects.configuration.yaml
   /api/ops/projects/{id}/configuration/preview:
     $ref: ./paths/ops-projects.configuration-preview.yaml
-  /api/ops/projects/{id}/configuration/files/{fileId}:
-    $ref: ./paths/ops-projects.configuration-file.yaml
+  /api/ops/projects/{id}/files:
+    $ref: ./paths/ops-projects.files.yaml
+  /api/ops/projects/{id}/files/content:
+    $ref: ./paths/ops-projects.file-content.yaml
   /api/ops/projects/{id}/configuration/diff:
     $ref: ./paths/ops-projects.configuration-diff.yaml
   /api/ops/projects/{id}/configuration/validate:
@@ -830,8 +832,20 @@ components:
       $ref: ./components/schemas/project-configuration-metadata-response.yaml
     ProjectConfigurationPreviewResponse:
       $ref: ./components/schemas/project-configuration-preview-response.yaml
-    ProjectConfigurationFileResponse:
-      $ref: ./components/schemas/project-configuration-file-response.yaml
+    ProjectFileTreeNodeType:
+      $ref: ./components/schemas/project-file-tree-node-type.yaml
+    ProjectWorkspaceFileKind:
+      $ref: ./components/schemas/project-workspace-file-kind.yaml
+    ProjectFileTreeItem:
+      $ref: ./components/schemas/project-file-tree-item.yaml
+    ProjectFilesResponse:
+      $ref: ./components/schemas/project-files-response.yaml
+    ProjectFileContentResponse:
+      $ref: ./components/schemas/project-file-content-response.yaml
+    ProjectFileSaveRequest:
+      $ref: ./components/schemas/project-file-save-request.yaml
+    ProjectFileSaveResponse:
+      $ref: ./components/schemas/project-file-save-response.yaml
     ProjectDestroyRequest:
       $ref: ./components/schemas/project-destroy-request.yaml
     ProjectActionResponse:
@@ -860,8 +874,12 @@ components:
       $ref: ./components/schemas/enveloped-project-configuration-metadata-response.yaml
     EnvelopedProjectConfigurationPreviewResponse:
       $ref: ./components/schemas/enveloped-project-configuration-preview-response.yaml
-    EnvelopedProjectConfigurationFileResponse:
-      $ref: ./components/schemas/enveloped-project-configuration-file-response.yaml
+    EnvelopedProjectFilesResponse:
+      $ref: ./components/schemas/enveloped-project-files-response.yaml
+    EnvelopedProjectFileContentResponse:
+      $ref: ./components/schemas/enveloped-project-file-content-response.yaml
+    EnvelopedProjectFileSaveResponse:
+      $ref: ./components/schemas/enveloped-project-file-save-response.yaml
     EnvelopedProjectImportValidateResponse:
       $ref: ./components/schemas/enveloped-project-import-validate-response.yaml
     EnvelopedProjectImportResponse:
@@ -940,8 +958,10 @@ components:
       $ref: ./components/parameters/project-list-refresh-status.yaml
     project-id-path:
       $ref: ./components/parameters/project-id-path.yaml
-    project-file-id-path:
-      $ref: ./components/parameters/project-file-id-path.yaml
+    project-workspace-path-query:
+      $ref: ./components/parameters/project-workspace-path-query.yaml
+    project-workspace-show-hidden-query:
+      $ref: ./components/parameters/project-workspace-show-hidden-query.yaml
     container-logs-tail:
       $ref: ./components/parameters/container-logs-tail.yaml
     container-logs-since:

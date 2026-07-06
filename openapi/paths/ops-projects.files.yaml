@@ -1,28 +1,27 @@
-post:
+get:
   tags: [project]
-  summary: Deploy current saved project configuration state
-  operationId: postProjectDeploy
-  description: >
-    Reuses the current saved working_directory state, refreshes the project snapshot, then executes the final compose
-    `up` flow using the saved lifecycle configuration. This route does not save editor buffers for the caller.
+  summary: Browse project working_directory files
+  operationId: getProjectFiles
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml
     - $ref: ../components/parameters/project-id-path.yaml
+    - $ref: ../components/parameters/project-workspace-path-query.yaml
+    - $ref: ../components/parameters/project-workspace-show-hidden-query.yaml
   security:
     - bearerAuth: []
   responses:
     '200':
-      description: Saved project configuration state deployed.
+      description: Project working_directory file tree page.
       headers:
         X-Request-Id:
           $ref: ../components/headers/request-id.yaml
       content:
         application/json:
           schema:
-            $ref: ../components/schemas/enveloped-project-deploy-response.yaml
+            $ref: ../components/schemas/enveloped-project-files-response.yaml
     '400':
-      description: Invalid project id.
+      description: Invalid project id or path query.
       headers:
         X-Request-Id:
           $ref: ../components/headers/request-id.yaml
@@ -43,14 +42,6 @@ post:
         application/json:
           schema:
             $ref: ../components/schemas/error-response.yaml
-    '409':
-      description: Deploy was blocked by project authority, lifecycle review guards, bounded scope, or lifecycle execution.
-      headers:
-        X-Request-Id:
-          $ref: ../components/headers/request-id.yaml
-      content:
-        application/json:
-          schema:
-            $ref: ../components/schemas/error-response.yaml
     '500':
       $ref: ../components/responses/internal-server-error.yaml
+

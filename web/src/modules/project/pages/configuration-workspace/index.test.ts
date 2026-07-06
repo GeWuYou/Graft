@@ -5,18 +5,19 @@ import { computed, defineComponent, h, reactive } from 'vue';
 import ProjectConfigurationWorkspaceIndex from './index.vue';
 
 const mocks = vi.hoisted(() => ({
-  confirm: vi.fn(),
-  copyText: vi.fn(),
   error: vi.fn(),
   getProject: vi.fn(),
   getProjectConfiguration: vi.fn(),
-  getProjectConfigurationFile: vi.fn(),
   getProjectConfigurationPreview: vi.fn(),
+  getProjectFileContent: vi.fn(),
+  getProjectFiles: vi.fn(),
   postProjectConfigurationDiff: vi.fn(),
   postProjectConfigurationValidate: vi.fn(),
   postProjectDeploy: vi.fn(),
+  putProjectFileContent: vi.fn(),
   success: vi.fn(),
   t: vi.fn((key: string) => key),
+  warning: vi.fn(),
 }));
 
 const routeState = reactive({
@@ -24,29 +25,31 @@ const routeState = reactive({
   query: { name: 'sub2api' },
 });
 
+const pageContextState = reactive({
+  locale: 'en-US',
+});
+
 vi.mock('../../api/project', () => ({
   getProject: mocks.getProject,
   getProjectConfiguration: mocks.getProjectConfiguration,
-  getProjectConfigurationFile: mocks.getProjectConfigurationFile,
   getProjectConfigurationPreview: mocks.getProjectConfigurationPreview,
+  getProjectFileContent: mocks.getProjectFileContent,
+  getProjectFiles: mocks.getProjectFiles,
   postProjectConfigurationDiff: mocks.postProjectConfigurationDiff,
   postProjectConfigurationValidate: mocks.postProjectConfigurationValidate,
   postProjectDeploy: mocks.postProjectDeploy,
+  putProjectFileContent: mocks.putProjectFileContent,
 }));
 
 vi.mock('../../shared/page-context', () => ({
   useProjectPageContext: () => ({
-    locale: computed(() => 'en-US'),
+    locale: computed(() => pageContextState.locale),
     t: mocks.t,
   }),
 }));
 
 vi.mock('@/shared/localized-api-error', () => ({
   resolveLocalizedErrorMessage: (_t: unknown, _error: unknown, fallback: string) => fallback,
-}));
-
-vi.mock('@/shared/observability/copy', () => ({
-  copyText: mocks.copyText,
 }));
 
 vi.mock('vue-router', async () => {
@@ -61,13 +64,7 @@ vi.mock('tdesign-vue-next/es/message', () => ({
   MessagePlugin: {
     error: (...args: unknown[]) => mocks.error(...args),
     success: (...args: unknown[]) => mocks.success(...args),
-    warning: vi.fn(),
-  },
-}));
-
-vi.mock('tdesign-vue-next/es/dialog', () => ({
-  DialogPlugin: {
-    confirm: (...args: unknown[]) => mocks.confirm(...args),
+    warning: (...args: unknown[]) => mocks.warning(...args),
   },
 }));
 
@@ -91,7 +88,6 @@ vi.mock('@/shared/components/management', () => ({
           h('h1', props.title),
           h('p', props.description),
           h('div', slots.meta?.()),
-          h('div', slots.actions?.()),
         ]);
     },
   }),
@@ -105,7 +101,6 @@ vi.mock('@/shared/components/viewer/ContentViewerFrame.vue', () => ({
         h('section', { class: 'content-viewer-frame-stub' }, [
           h('div', { class: 'content-viewer-header' }, slots.header?.()),
           h('div', { class: 'content-viewer-header-actions' }, slots['header-actions']?.()),
-          h('div', { class: 'content-viewer-toolbar' }, slots.toolbar?.()),
           h('div', { class: 'content-viewer-body' }, slots.default?.()),
         ]);
     },
@@ -157,32 +152,22 @@ function createTStub(name: string) {
     props: {
       description: { type: String, default: '' },
       header: { type: String, default: '' },
-      label: { type: String, default: '' },
       loading: { type: Boolean, default: false },
       message: { type: String, default: '' },
-      theme: { type: String, default: '' },
       title: { type: String, default: '' },
-      value: { type: [String, Number, Boolean], default: '' },
       visible: { type: Boolean, default: false },
     },
-    emits: ['click', 'change', 'update:value', 'update:visible'],
-    setup(props, { emit, slots }) {
+    setup(props, { slots }) {
       return () =>
         h(
           'div',
           {
             'data-stub': name,
-            'data-header': props.header,
             'data-message': props.message,
+            'data-title': props.title || props.header,
             'data-visible': props.visible,
-            onClick: () => emit('click'),
           },
-          [
-            h('div', slots.header?.()),
-            h('div', slots.meta?.()),
-            h('div', slots.actions?.()),
-            h('div', slots.default?.()),
-          ],
+          [h('div', slots.header?.()), h('div', slots.default?.()), h('div', slots.footer?.())],
         );
     },
   });
@@ -190,13 +175,17 @@ function createTStub(name: string) {
 
 const TButtonStub = defineComponent({
   name: 'TButtonStub',
+  props: {
+    disabled: { type: Boolean, default: false },
+  },
   emits: ['click'],
-  setup(_props, { emit, slots }) {
+  setup(props, { emit, slots }) {
     return () =>
       h(
         'button',
         {
-          onClick: () => emit('click'),
+          disabled: props.disabled,
+          onClick: () => !props.disabled && emit('click'),
         },
         slots.default?.(),
       );
@@ -208,7 +197,6 @@ const TTabsStub = defineComponent({
   props: {
     value: { type: String, default: '' },
   },
-  emits: ['change', 'update:value'],
   setup(_props, { slots }) {
     return () => h('div', { class: 't-tabs-stub' }, slots.default?.());
   },
@@ -217,71 +205,149 @@ const TTabsStub = defineComponent({
 const TTabPanelStub = defineComponent({
   name: 'TTabPanelStub',
   props: {
-    label: { type: String, default: '' },
     value: { type: String, default: '' },
   },
-  setup(props, { slots }) {
-    return () => h('section', { 'data-tab-panel': props.value }, [h('h3', props.label), slots.default?.()]);
+  emits: ['remove'],
+  setup(_props, { emit, slots }) {
+    return () =>
+      h('section', { class: 't-tab-panel-stub' }, [
+        h('div', { class: 't-tab-panel-label' }, slots.label?.()),
+        h(
+          'button',
+          {
+            class: 't-tab-panel-remove',
+            onClick: () => emit('remove'),
+          },
+          'x',
+        ),
+        slots.default?.(),
+      ]);
+  },
+});
+
+const TTreeStub = defineComponent({
+  name: 'TTree',
+  props: {
+    data: { type: Array, default: () => [] },
+    load: { type: Function, default: undefined },
+  },
+  emits: ['active', 'expand'],
+  setup(props, { emit, slots }) {
+    const renderNode = (node: any) => {
+      const id = node.value.replace(/[^a-z0-9]+/gi, '-');
+      return h('div', { class: 'tree-node', key: node.value }, [
+        h(
+          'button',
+          {
+            'data-testid': `tree-node-${id}`,
+            onClick: () => emit('active', [node.value], { node: { data: node } }),
+          },
+          slots.label ? slots.label({ node: { data: node } }) : node.name,
+        ),
+        node.node_type === 'directory' && node.children === true
+          ? h(
+              'button',
+              {
+                'data-testid': `tree-expand-${id}`,
+                onClick: async () => {
+                  await props.load?.({ data: node });
+                  emit('expand', [node.value], { node: { data: node } });
+                },
+              },
+              'expand',
+            )
+          : null,
+        Array.isArray(node.children) ? h('div', { class: 'tree-children' }, node.children.map(renderNode)) : null,
+      ]);
+    };
+
+    return () => h('div', { class: 't-tree-stub' }, (props.data as any[]).map(renderNode));
   },
 });
 
 describe('ProjectConfigurationWorkspaceIndex', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    pageContextState.locale = 'en-US';
     mocks.getProject.mockResolvedValue({
       canonical_project_name: 'sub2api',
       display_name: 'sub2api',
       id: 1,
       ownership_mode: 'managed-root-dedicated',
       runtime_status: 'running',
+      working_directory: '/srv/sub2api',
     });
     mocks.getProjectConfiguration.mockResolvedValue({
-      compose_files: [
-        {
-          absolute_path: '/srv/sub2api/docker-compose.yml',
-          display_path: '/srv/sub2api/docker-compose.yml',
-          exists_on_last_refresh: true,
-          id: 11,
-          kind: 'compose',
-          last_observed_hash: 'compose-hash',
-          order_index: 0,
-          role: 'primary',
-        },
-      ],
-      diagnostics_summary: [],
       drift_status: 'clean',
-      env_files: [
-        {
-          absolute_path: '/srv/sub2api/.env',
-          display_path: '/srv/sub2api/.env',
-          exists_on_last_refresh: true,
-          id: 12,
-          kind: 'env',
-          last_observed_hash: 'env-hash',
-          order_index: 0,
-          role: 'env',
-        },
-      ],
-      last_refresh_at: '2026-07-03T13:12:38Z',
       last_refresh_status: 'success',
       ownership_mode: 'managed-root-dedicated',
       project_id: 1,
     });
-    mocks.getProjectConfigurationFile.mockImplementation(async (_id: number, fileId: number) => ({
-      content: fileId === 11 ? 'services:\n  api:\n    image: app\n' : 'APP_ENV=prod\n',
-      download_name: fileId === 11 ? 'docker-compose.yml' : '.env',
-      encoding: 'utf-8',
-      file_id: fileId,
-      kind: fileId === 11 ? 'compose' : 'env',
-      path: fileId === 11 ? '/srv/sub2api/docker-compose.yml' : '/srv/sub2api/.env',
-      read_only: true,
-    }));
     mocks.getProjectConfigurationPreview.mockResolvedValue({
       canonical_project_name: 'sub2api',
       config_hash: 'preview-hash',
       normalized_compose_yaml: 'services:\n  api:\n    image: app\n',
       project_id: 1,
       refreshed_at: '2026-07-03T13:12:38Z',
+    });
+    mocks.getProjectFiles.mockImplementation(async (_id: number, query?: { path?: string; show_hidden?: boolean }) => {
+      if (query?.path === 'config') {
+        return {
+          current_path: 'config',
+          items: [
+            {
+              editable: true,
+              file_kind: 'env',
+              has_children: false,
+              language_hint: 'dotenv',
+              name: '.env',
+              node_type: 'file',
+              relative_path: 'config/.env',
+              size_bytes: 0,
+            },
+          ],
+          root_path: '/srv/sub2api',
+        };
+      }
+      return {
+        current_path: '',
+        items: [
+          {
+            editable: true,
+            file_kind: 'compose',
+            has_children: false,
+            language_hint: 'yaml',
+            name: 'docker-compose.yml',
+            node_type: 'file',
+            relative_path: 'docker-compose.yml',
+            size_bytes: 32,
+          },
+          {
+            editable: false,
+            file_kind: 'directory',
+            has_children: true,
+            name: 'config',
+            node_type: 'directory',
+            relative_path: 'config',
+          },
+        ],
+        root_path: '/srv/sub2api',
+      };
+    });
+    mocks.getProjectFileContent.mockImplementation(async (_id: number, query: { path: string }) => ({
+      content: query.path === 'docker-compose.yml' ? 'services:\n  api:\n    image: app\n' : '',
+      editable: query.path !== 'notes.txt',
+      encoding: 'utf-8',
+      file_kind: query.path === 'docker-compose.yml' ? 'compose' : 'env',
+      language_hint: query.path === 'docker-compose.yml' ? 'yaml' : 'dotenv',
+      relative_path: query.path,
+      size_bytes: query.path === 'docker-compose.yml' ? 32 : 0,
+    }));
+    mocks.putProjectFileContent.mockResolvedValue({
+      content_hash: 'saved-hash',
+      relative_path: 'docker-compose.yml',
+      saved_at: '2026-07-06T10:00:00Z',
+      size_bytes: 40,
     });
     mocks.postProjectConfigurationDiff.mockResolvedValue({
       canonical_project_name: 'sub2api',
@@ -292,7 +358,7 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
           current_content: 'services:\n  api:\n    image: old\n',
           current_hash: 'old-hash',
           kind: 'compose',
-          path: '/srv/sub2api/docker-compose.yml',
+          path: 'docker-compose.yml',
           proposed_content: 'services:\n  api:\n    image: app\n',
           proposed_hash: 'new-hash',
         },
@@ -312,59 +378,84 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
       proposed_config_hash: 'validated-hash',
       warnings: [],
     });
-    mocks.copyText.mockResolvedValue(true);
-    mocks.confirm.mockImplementation(({ onConfirm }: { onConfirm: () => Promise<void> }) => {
-      void onConfirm();
-      return { destroy: vi.fn() };
+    mocks.postProjectDeploy.mockResolvedValue({
+      message: 'deployed',
     });
   });
 
-  it('loads current files into the draft editors', async () => {
+  it('loads the root file tree and opens the first file buffer', async () => {
     const wrapper = mountWorkspace();
-
     await flushPromises();
 
-    expect(mocks.getProject).toHaveBeenCalledWith(1);
-    expect(mocks.getProjectConfiguration).toHaveBeenCalledWith(1);
-    expect(mocks.getProjectConfigurationFile).toHaveBeenCalledWith(1, 11);
-    expect(mocks.getProjectConfigurationFile).toHaveBeenCalledWith(1, 12);
-    expect((wrapper.get('[data-testid="compose-monaco-editor"]').element as HTMLTextAreaElement).value).toBe(
+    expect(mocks.getProjectFiles).toHaveBeenCalledWith(1, { show_hidden: false });
+    expect(mocks.getProjectFileContent).toHaveBeenCalledWith(1, { path: 'docker-compose.yml' });
+    expect((wrapper.get('[data-testid="workspace-monaco-editor"]').element as HTMLTextAreaElement).value).toBe(
       'services:\n  api:\n    image: app\n',
     );
   });
 
-  it('runs diff with normalized draft content', async () => {
+  it('lazy loads nested directories and opens empty file content without a blank editor failure', async () => {
     const wrapper = mountWorkspace();
     await flushPromises();
 
-    await wrapper.get('[data-testid="compose-monaco-editor"]').setValue('services:\n  api:\n    image: app   \n');
+    await wrapper.get('[data-testid="tree-expand-config"]').trigger('click');
+    await flushPromises();
+    expect(mocks.getProjectFiles).toHaveBeenCalledWith(1, { path: 'config', show_hidden: false });
+
+    await wrapper.get('[data-testid="tree-node-config-env"]').trigger('click');
+    await flushPromises();
+
+    expect(mocks.getProjectFileContent).toHaveBeenCalledWith(1, { path: 'config/.env' });
+    expect(wrapper.find('[data-testid="workspace-monaco-editor"]').exists()).toBe(true);
+    expect((wrapper.get('[data-testid="workspace-monaco-editor"]').element as HTMLTextAreaElement).value).toBe('');
+  });
+
+  it('saves the active file buffer without deploying the project', async () => {
+    const wrapper = mountWorkspace();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="workspace-monaco-editor"]').setValue('services:\n  api:\n    image: newer\n');
     await wrapper
       .findAll('button')
-      .find((button) => button.text().includes('project.detail.configuration.runDiff'))
+      .find((button) => button.text().trim() === 'Save')
       ?.trigger('click');
     await flushPromises();
 
-    expect(mocks.postProjectConfigurationDiff).toHaveBeenCalledWith(1, {
-      compose_file_content: 'services:\n  api:\n    image: app\n',
-      env_file_content: 'APP_ENV=prod\n',
-    });
-    expect(wrapper.get('[data-testid="configuration-diff-viewer"]').text()).toContain('image: old');
-    expect(wrapper.get('[data-testid="configuration-diff-viewer"]').text()).toContain('image: app');
+    expect(mocks.putProjectFileContent).toHaveBeenCalledWith(
+      1,
+      { path: 'docker-compose.yml' },
+      { content: 'services:\n  api:\n    image: newer\n' },
+    );
+    expect(mocks.postProjectDeploy).not.toHaveBeenCalled();
   });
 
-  it('loads snapshot lazily when the snapshot action is used', async () => {
+  it('shows the deploy dirty prompt and saves before deploying when requested', async () => {
+    pageContextState.locale = 'zh-CN';
     const wrapper = mountWorkspace();
     await flushPromises();
 
-    const snapshotButton = wrapper.findAll('button').find((button) => button.text().includes('View Current Snapshot'));
-    expect(snapshotButton).toBeTruthy();
-    await snapshotButton!.trigger('click');
+    await wrapper.get('[data-testid="workspace-monaco-editor"]').setValue('services:\n  api:\n    image: newer\n');
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().trim() === '部署项目')
+      ?.trigger('click');
     await flushPromises();
 
-    expect(mocks.getProjectConfigurationPreview).toHaveBeenCalledWith(1);
-    expect((wrapper.get('[data-testid="snapshot-monaco-viewer"]').element as HTMLTextAreaElement).value).toBe(
-      'services:\n  api:\n    image: app\n',
+    expect(wrapper.text()).toContain('检测到未保存的修改，是否先保存？');
+
+    await wrapper
+      .findAll('button')
+      .filter((button) => button.text().trim() === '保存')
+      .at(-1)
+      ?.trigger('click');
+    await flushPromises();
+
+    expect(mocks.putProjectFileContent).toHaveBeenCalledWith(
+      1,
+      { path: 'docker-compose.yml' },
+      { content: 'services:\n  api:\n    image: newer\n' },
     );
+    expect(mocks.postProjectDeploy).toHaveBeenCalledWith(1);
   });
 });
 
@@ -373,17 +464,19 @@ function mountWorkspace() {
     global: {
       stubs: {
         TAlert: createTStub('TAlert'),
+        TButton: TButtonStub,
         TCard: createTStub('TCard'),
         TDescriptions: createTStub('TDescriptions'),
         TDescriptionsItem: createTStub('TDescriptionsItem'),
+        TDialog: createTStub('TDialog'),
         TDrawer: createTStub('TDrawer'),
         TEmpty: createTStub('TEmpty'),
         TLoading: createTStub('TLoading'),
         TSpace: createTStub('TSpace'),
-        TTag: createTStub('TTag'),
-        TTabs: TTabsStub,
         TTabPanel: TTabPanelStub,
-        TButton: TButtonStub,
+        TTabs: TTabsStub,
+        TTag: createTStub('TTag'),
+        TTree: TTreeStub,
       },
     },
   });
