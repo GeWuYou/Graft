@@ -8,6 +8,7 @@ import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
 import { configureMonacoYaml } from 'monaco-yaml';
 import { nextTick, onBeforeUnmount, onMounted } from 'vue';
 
+import { toMonacoColor } from './project-monaco-color';
 import yamlWorker from './project-yaml.worker?worker';
 
 export type MonacoEditorModule = typeof monaco;
@@ -231,26 +232,7 @@ function resolveCssColor(host: HTMLElement, value: string, fallback: string) {
   host.appendChild(probe);
   const resolved = getComputedStyle(probe).color;
   probe.remove();
-  return toMonacoColor(resolved || fallback);
-}
-
-function toMonacoColor(color: string) {
-  if (color.startsWith('#')) {
-    return color;
-  }
-
-  const matches = color.match(/[\d.]+/g);
-  if (!matches || matches.length < 3) {
-    return color;
-  }
-
-  const [red, green, blue, alpha] = matches.map(Number);
-  const alphaChannel = Number.isFinite(alpha) ? Math.round(alpha * 255) : null;
-
-  return `#${[red, green, blue, alphaChannel]
-    .filter((channel): channel is number => Number.isFinite(channel))
-    .map((channel) => Math.max(0, Math.min(255, channel)).toString(16).padStart(2, '0'))
-    .join('')}`;
+  return toMonacoColor(resolved, fallback);
 }
 
 export function createProjectMonacoModelUriSuffix() {

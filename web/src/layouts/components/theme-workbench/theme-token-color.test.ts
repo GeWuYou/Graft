@@ -21,6 +21,11 @@ describe('theme-token-color', () => {
       alpha: 0.42,
       hex: '#e37327',
     });
+
+    expect(parseThemeTokenColor('color(srgb 0.1379 0.197 0.2236 / 1)')).toMatchObject({
+      alpha: 1,
+      hex: '#233239',
+    });
   });
 
   it('builds canonical output values from hex plus opacity', () => {
