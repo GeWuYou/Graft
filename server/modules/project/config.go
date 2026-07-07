@@ -10,23 +10,32 @@ import (
 )
 
 const (
-	projectConfigDomain             = "ops"
-	projectConfigDomainLabel        = "Operations"
-	projectConfigGroupCreate        = "ops.project.create"
-	projectConfigGroupCreateDesc    = "Managed project create authority and root workflow."
-	projectConfigGroupImport        = "ops.project.import"
-	projectConfigGroupImportDesc    = "Import authority roots and bounded directory browsing."
-	projectConfigGroupWorkspace     = "ops.project.workspace"
-	projectConfigGroupWorkspaceDesc = "Configuration workspace file-tree defaults and editor browse behavior."
-	projectConfigOrderBase          = 7100
-	maxManagedRootLength            = 1024
-	maxImportRootsLength            = 8192
-	maxWorkspaceHiddenDirsLength    = 4096
+	projectConfigDomain          = "ops"
+	projectConfigGroupCreate     = "ops.project.create"
+	projectConfigGroupImport     = "ops.project.import"
+	projectConfigGroupWorkspace  = "ops.project.workspace"
+	projectConfigOrderBase       = 7100
+	maxManagedRootLength         = 1024
+	maxImportRootsLength         = 8192
+	maxWorkspaceHiddenDirsLength = 4096
 )
 
 const defaultManagedRootDirectory = ""
 const defaultImportAllowedRoots = "[]"
 const defaultWorkspaceHiddenDirectories = `[".git",".github","node_modules","vendor","target","build","dist","coverage","data","logs","tmp","cache",".idea",".vscode"]`
+const projectConfigDomainKey = "systemConfig.domains.ops"
+
+type projectConfigDefinitionSpec struct {
+	key                 string
+	group               string
+	groupKey            string
+	groupDescriptionKey string
+	titleKey            string
+	descriptionKey      string
+	schema              string
+	defaultValue        any
+	permission          string
+}
 
 // registerConfig 注册本模块定义的配置项，并按基础顺序为每项设置排序。
 // 当 registry 为空时返回错误；任一配置注册失败时返回包装后的错误。
@@ -52,75 +61,70 @@ func configDefinitions() []configregistry.Definition {
 	}
 }
 
-// projectManagedRootDefinition 构造项目创建流程中托管根目录配置的定义。
-// projectManagedRootDefinition 构造并返回项目创建流程所使用的受管根目录配置定义。
-// 该定义包含配置键、展示分组、JSON Schema、默认值以及写入该配置所需权限。
 func projectManagedRootDefinition() configregistry.Definition {
-	return configregistry.Definition{
-		Key:              projectcontract.ProjectManagedRootConfig.String(),
-		Module:           moduleID,
-		Domain:           projectConfigDomain,
-		DomainLabel:      projectConfigDomainLabel,
-		Group:            projectConfigGroupCreate,
-		GroupLabel:       "Project Create",
-		GroupDescription: projectConfigGroupCreateDesc,
-		TitleKey:         projectcontract.ProjectManagedRootConfigTitle.String(),
-		DescriptionKey:   projectcontract.ProjectManagedRootConfigDescription.String(),
-		Type:             configregistry.ValueTypeString,
-		Schema:           json.RawMessage(projectManagedRootSchema()),
-		DefaultValue:     mustRawJSON(defaultManagedRootDirectory),
-		RuntimeApplyMode: configregistry.RuntimeApplyModeRuntimeHot,
-		Permission:       projectcontract.ProjectCreatePermission.String(),
-		RestartRequired:  false,
-		Required:         false,
-		Sensitive:        false,
-	}
+	return buildProjectConfigDefinition(projectConfigDefinitionSpec{
+		key:                 projectcontract.ProjectManagedRootConfig.String(),
+		group:               projectConfigGroupCreate,
+		groupKey:            projectcontract.ProjectCreateConfigGroupTitle.String(),
+		groupDescriptionKey: projectcontract.ProjectCreateConfigGroupDescription.String(),
+		titleKey:            projectcontract.ProjectManagedRootConfigTitle.String(),
+		descriptionKey:      projectcontract.ProjectManagedRootConfigDescription.String(),
+		schema:              projectManagedRootSchema(),
+		defaultValue:        defaultManagedRootDirectory,
+		permission:          projectcontract.ProjectCreatePermission.String(),
+	})
 }
 
-// projectImportAllowedRootsDefinition 构造项目导入浏览允许根目录配置的定义。
-// projectImportAllowedRootsDefinition 构造项目导入允许根目录的配置定义。
-// 该配置以字符串形式存储 JSON 数组，数组元素包含稳定的 id、label 和绝对本地路径。
 func projectImportAllowedRootsDefinition() configregistry.Definition {
-	return configregistry.Definition{
-		Key:              projectcontract.ProjectImportAllowedRootsConfig.String(),
-		Module:           moduleID,
-		Domain:           projectConfigDomain,
-		DomainLabel:      projectConfigDomainLabel,
-		Group:            projectConfigGroupImport,
-		GroupLabel:       "Project Import",
-		GroupDescription: projectConfigGroupImportDesc,
-		TitleKey:         projectcontract.ProjectImportAllowedRootsConfigTitle.String(),
-		DescriptionKey:   projectcontract.ProjectImportAllowedRootsConfigDescription.String(),
-		Type:             configregistry.ValueTypeString,
-		Schema:           json.RawMessage(projectImportAllowedRootsSchema()),
-		DefaultValue:     mustRawJSON(defaultImportAllowedRoots),
-		RuntimeApplyMode: configregistry.RuntimeApplyModeRuntimeHot,
-		Permission:       projectcontract.ProjectImportPermission.String(),
-		RestartRequired:  false,
-		Required:         false,
-		Sensitive:        false,
-	}
+	return buildProjectConfigDefinition(projectConfigDefinitionSpec{
+		key:                 projectcontract.ProjectImportAllowedRootsConfig.String(),
+		group:               projectConfigGroupImport,
+		groupKey:            projectcontract.ProjectImportConfigGroupTitle.String(),
+		groupDescriptionKey: projectcontract.ProjectImportConfigGroupDescription.String(),
+		titleKey:            projectcontract.ProjectImportAllowedRootsConfigTitle.String(),
+		descriptionKey:      projectcontract.ProjectImportAllowedRootsConfigDescription.String(),
+		schema:              projectImportAllowedRootsSchema(),
+		defaultValue:        defaultImportAllowedRoots,
+		permission:          projectcontract.ProjectImportPermission.String(),
+	})
 }
 
 func projectWorkspaceHiddenDirectoriesDefinition() configregistry.Definition {
+	return buildProjectConfigDefinition(projectConfigDefinitionSpec{
+		key:                 projectcontract.ProjectWorkspaceHiddenDirectoriesConfig.String(),
+		group:               projectConfigGroupWorkspace,
+		groupKey:            projectcontract.ProjectWorkspaceConfigGroupTitle.String(),
+		groupDescriptionKey: projectcontract.ProjectWorkspaceConfigGroupDescription.String(),
+		titleKey:            projectcontract.ProjectWorkspaceHiddenDirectoriesConfigTitle.String(),
+		descriptionKey:      projectcontract.ProjectWorkspaceHiddenDirectoriesConfigDescription.String(),
+		schema:              projectWorkspaceHiddenDirectoriesSchema(),
+		defaultValue:        defaultWorkspaceHiddenDirectories,
+		permission:          projectcontract.ProjectViewPermission.String(),
+	})
+}
+
+func buildProjectConfigDefinition(spec projectConfigDefinitionSpec) configregistry.Definition {
 	return configregistry.Definition{
-		Key:              projectcontract.ProjectWorkspaceHiddenDirectoriesConfig.String(),
-		Module:           moduleID,
-		Domain:           projectConfigDomain,
-		DomainLabel:      projectConfigDomainLabel,
-		Group:            projectConfigGroupWorkspace,
-		GroupLabel:       "Project Workspace",
-		GroupDescription: projectConfigGroupWorkspaceDesc,
-		TitleKey:         projectcontract.ProjectWorkspaceHiddenDirectoriesConfigTitle.String(),
-		DescriptionKey:   projectcontract.ProjectWorkspaceHiddenDirectoriesConfigDescription.String(),
-		Type:             configregistry.ValueTypeString,
-		Schema:           json.RawMessage(projectWorkspaceHiddenDirectoriesSchema()),
-		DefaultValue:     mustRawJSON(defaultWorkspaceHiddenDirectories),
-		RuntimeApplyMode: configregistry.RuntimeApplyModeRuntimeHot,
-		Permission:       projectcontract.ProjectViewPermission.String(),
-		RestartRequired:  false,
-		Required:         false,
-		Sensitive:        false,
+		Key:                 spec.key,
+		Module:              moduleID,
+		Domain:              projectConfigDomain,
+		DomainKey:           projectConfigDomainKey,
+		DomainLabel:         "",
+		Group:               spec.group,
+		GroupKey:            spec.groupKey,
+		GroupLabel:          "",
+		GroupDescription:    "",
+		GroupDescriptionKey: spec.groupDescriptionKey,
+		TitleKey:            spec.titleKey,
+		DescriptionKey:      spec.descriptionKey,
+		Type:                configregistry.ValueTypeString,
+		Schema:              json.RawMessage(spec.schema),
+		DefaultValue:        mustRawJSON(spec.defaultValue),
+		RuntimeApplyMode:    configregistry.RuntimeApplyModeRuntimeHot,
+		Permission:          spec.permission,
+		RestartRequired:     false,
+		Required:            false,
+		Sensitive:           false,
 	}
 }
 
@@ -144,8 +148,10 @@ func projectImportAllowedRootsSchema() string {
 
 func projectWorkspaceHiddenDirectoriesSchema() string {
 	return fmt.Sprintf(
-		`{"type":"string","minLength":2,"maxLength":%d,"description":"JSON array string for configuration workspace directories hidden by default. Each item is a directory basename such as node_modules or .git.","examples":["[\".git\",\"node_modules\",\"dist\"]"]}`,
+		`{"type":"string","minLength":2,"maxLength":%d,"description":"JSON array string for configuration workspace directories hidden by default. Each item is a directory basename such as node_modules or .git.","examples":["[\".git\",\"node_modules\",\"dist\"]"],"x-i18n":{"descriptionKey":"%s","placeholderKey":"%s"},"x-graft":{"editor":"string-array-json-list"}}`,
 		maxWorkspaceHiddenDirsLength,
+		projectcontract.ProjectWorkspaceHiddenDirectoriesConfigDescription.String(),
+		projectcontract.ProjectWorkspaceHiddenDirectoriesPlaceholder.String(),
 	)
 }
 

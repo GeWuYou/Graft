@@ -49,6 +49,15 @@
         :disabled="disabled"
         @change="(value) => updateObjectField(field.key, value)"
       />
+      <t-tag-input
+        v-else-if="rendererKind(field) === 'string-array-list'"
+        :value="stringListValue(objectValue[field.key])"
+        :placeholder="fieldPlaceholder(field, labels.stringPlaceholder)"
+        :disabled="disabled"
+        clearable
+        excess-tags-display-type="break-line"
+        @change="(value) => updateObjectField(field.key, serializeStringList(value))"
+      />
       <t-textarea
         v-else-if="rendererKind(field) === 'json-textarea'"
         :model-value="formatJsonValue(objectValue[field.key])"
@@ -117,6 +126,15 @@
       :model-value="Boolean(modelValue)"
       :disabled="disabled"
       @change="(value) => emit('update:modelValue', value)"
+    />
+    <t-tag-input
+      v-else-if="rootRendererKind === 'string-array-list'"
+      :value="stringListValue(modelValue)"
+      :placeholder="rootPlaceholder(labels.stringPlaceholder)"
+      :disabled="disabled"
+      clearable
+      excess-tags-display-type="break-line"
+      @change="(value) => emit('update:modelValue', serializeStringList(value))"
     />
     <t-textarea
       v-else-if="rootRendererKind === 'json-textarea'"
@@ -254,6 +272,26 @@ function stringValue(value: unknown) {
 
 function selectValue(value: unknown) {
   return typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean' ? value : undefined;
+}
+
+function stringListValue(value: unknown) {
+  if (typeof value !== 'string') {
+    return [];
+  }
+  const parsed = parseJsonValue(value);
+  if (!Array.isArray(parsed)) {
+    return [];
+  }
+  return parsed
+    .filter((item): item is string | number => typeof item === 'string' || typeof item === 'number')
+    .map((item) => String(item));
+}
+
+function serializeStringList(value: unknown) {
+  if (!Array.isArray(value)) {
+    return '[]';
+  }
+  return JSON.stringify(value.map((item) => String(item).trim()).filter((item) => item.length > 0));
 }
 
 function handleJsonChange(value: string | number) {

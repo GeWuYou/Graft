@@ -209,7 +209,7 @@ func buildProjectWorkspaceFileItem(
 		Editable:        editable,
 		LanguageHint:    languageHint,
 		SizeBytes:       info.Size(),
-		HiddenByDefault: shouldHideWorkspaceEntry(entry.Name(), hiddenDirectories),
+		HiddenByDefault: shouldHideWorkspaceEntry(entry.Name(), entry.IsDir(), hiddenDirectories),
 		HasChildren:     nodeType == "directory",
 	}, nil
 }
@@ -321,7 +321,7 @@ func buildVisibleWorkspaceItems(
 		if name == "" {
 			continue
 		}
-		if !showHidden && shouldHideWorkspaceEntry(name, hiddenDirectories) {
+		if !showHidden && shouldHideWorkspaceEntry(name, entry.IsDir(), hiddenDirectories) {
 			hasMoreHidden = true
 			continue
 		}
@@ -373,11 +373,11 @@ func workspaceParentPath(currentPath string) *string {
 	return &parent
 }
 
-func shouldHideWorkspaceEntry(name string, extraHidden []string) bool {
-	if strings.HasPrefix(name, ".") {
+func shouldHideWorkspaceEntry(name string, isDirectory bool, extraHidden []string) bool {
+	if isDirectory && strings.HasPrefix(name, ".") {
 		return true
 	}
-	return slices.Contains(extraHidden, name)
+	return isDirectory && slices.Contains(extraHidden, name)
 }
 
 func (s *Service) workspaceHiddenDirectories(ctx context.Context) ([]string, error) {

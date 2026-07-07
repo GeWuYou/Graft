@@ -3,12 +3,14 @@
 </template>
 <script setup lang="ts">
 import type * as Monaco from 'monaco-editor';
-import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { ref, watch } from 'vue';
 
 import {
   buildProjectMonacoModelUri,
   createProjectMonacoModelUriSuffix,
   ensureProjectMonacoConfigured,
+  scheduleProjectMonacoLayout,
+  useProjectMonacoLifecycle,
 } from '../shared/project-monaco';
 
 const props = withDefaults(
@@ -33,18 +35,17 @@ let editor: Monaco.editor.IStandaloneDiffEditor | null = null;
 let originalModel: Monaco.editor.ITextModel | null = null;
 let modifiedModel: Monaco.editor.ITextModel | null = null;
 
-onMounted(() => {
-  monaco = ensureProjectMonacoConfigured();
-  void createEditor();
-});
-
-onBeforeUnmount(() => {
-  editor?.dispose();
-  editor = null;
-  originalModel?.dispose();
-  modifiedModel?.dispose();
-  originalModel = null;
-  modifiedModel = null;
+const { applyTheme } = useProjectMonacoLifecycle({
+  createEditor,
+  disposeEditor() {
+    editor?.dispose();
+    editor = null;
+    originalModel?.dispose();
+    modifiedModel?.dispose();
+    originalModel = null;
+    modifiedModel = null;
+  },
+  getMonaco: () => monaco,
 });
 
 watch(
@@ -78,10 +79,12 @@ watch(
 );
 
 async function createEditor() {
-  if (!monaco || !containerRef.value) {
+  monaco = ensureProjectMonacoConfigured();
+  if (!containerRef.value) {
     return;
   }
 
+  applyTheme();
   editor = monaco.editor.createDiffEditor(containerRef.value, {
     ariaLabel: props.editorAriaLabel,
     automaticLayout: true,
@@ -94,8 +97,7 @@ async function createEditor() {
   });
 
   bindModels(monaco, false);
-  await nextTick();
-  requestAnimationFrame(() => {
+  await scheduleProjectMonacoLayout(() => {
     editor?.layout();
   });
 }

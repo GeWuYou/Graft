@@ -242,46 +242,6 @@ const TTabPanelStub = defineComponent({
   },
 });
 
-const TTreeStub = defineComponent({
-  name: 'TTree',
-  props: {
-    data: { type: Array, default: () => [] },
-    load: { type: Function, default: undefined },
-  },
-  emits: ['active', 'expand'],
-  setup(props, { emit, slots }) {
-    const renderNode = (node: any) => {
-      const id = node.value.replace(/[^a-z0-9]+/gi, '-');
-      return h('div', { class: 'tree-node', key: node.value }, [
-        h(
-          'button',
-          {
-            'data-testid': `tree-node-${id}`,
-            onClick: () => emit('active', [node.value], { node: { data: node } }),
-          },
-          slots.label ? slots.label({ node: { data: node } }) : node.name,
-        ),
-        node.node_type === 'directory' && node.children === true
-          ? h(
-              'button',
-              {
-                'data-testid': `tree-expand-${id}`,
-                onClick: async () => {
-                  await props.load?.({ data: node });
-                  emit('expand', [node.value], { node: { data: node } });
-                },
-              },
-              'expand',
-            )
-          : null,
-        Array.isArray(node.children) ? h('div', { class: 'tree-children' }, node.children.map(renderNode)) : null,
-      ]);
-    };
-
-    return () => h('div', { class: 't-tree-stub' }, (props.data as any[]).map(renderNode));
-  },
-});
-
 describe('ProjectConfigurationWorkspaceIndex', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -400,7 +360,7 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     });
   });
 
-  it('loads the root file tree and opens the first file buffer', async () => {
+  it('loads the root file list and opens the first file buffer', async () => {
     const wrapper = mountWorkspace();
     await flushPromises();
 
@@ -411,15 +371,15 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     );
   });
 
-  it('lazy loads nested directories and opens empty file content without a blank editor failure', async () => {
+  it('navigates into nested directories and opens empty file content without a blank editor failure', async () => {
     const wrapper = mountWorkspace();
     await flushPromises();
 
-    await wrapper.get('[data-testid="tree-expand-config"]').trigger('click');
+    await wrapper.get('[data-testid="workspace-entry-config"]').trigger('click');
     await flushPromises();
     expect(mocks.getProjectFiles).toHaveBeenCalledWith(1, { path: 'config', show_hidden: false });
 
-    await wrapper.get('[data-testid="tree-node-config-env"]').trigger('click');
+    await wrapper.get('[data-testid="workspace-entry-config-env"]').trigger('click');
     await flushPromises();
 
     expect(mocks.getProjectFileContent).toHaveBeenCalledWith(1, { path: 'config/.env' });
@@ -427,13 +387,24 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     expect((wrapper.get('[data-testid="workspace-monaco-editor"]').element as HTMLTextAreaElement).value).toBe('');
   });
 
+  it('keeps .env visible during directory browsing without enabling show_hidden', async () => {
+    const wrapper = mountWorkspace();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="workspace-entry-config"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="workspace-entry-config-env"]').exists()).toBe(true);
+    expect(mocks.getProjectFiles).toHaveBeenNthCalledWith(2, 1, { path: 'config', show_hidden: false });
+  });
+
   it('does not refetch a loaded empty file when reopening the tab with unsaved edits', async () => {
     const wrapper = mountWorkspace();
     await flushPromises();
 
-    await wrapper.get('[data-testid="tree-expand-config"]').trigger('click');
+    await wrapper.get('[data-testid="workspace-entry-config"]').trigger('click');
     await flushPromises();
-    await wrapper.get('[data-testid="tree-node-config-env"]').trigger('click');
+    await wrapper.get('[data-testid="workspace-entry-config-env"]').trigger('click');
     await flushPromises();
 
     const initialCalls = mocks.getProjectFileContent.mock.calls.filter(
@@ -442,7 +413,7 @@ describe('ProjectConfigurationWorkspaceIndex', () => {
     expect(initialCalls).toBe(1);
 
     await wrapper.get('[data-testid="workspace-monaco-editor"]').setValue('EDITOR_ONLY=true\n');
-    await wrapper.get('[data-testid="tree-node-config-env"]').trigger('click');
+    await wrapper.get('[data-testid="workspace-entry-config-env"]').trigger('click');
     await flushPromises();
 
     const nextCalls = mocks.getProjectFileContent.mock.calls.filter(([, query]) => query.path === 'config/.env').length;
@@ -518,7 +489,6 @@ function mountWorkspace() {
         TTabPanel: TTabPanelStub,
         TTabs: TTabsStub,
         TTag: createTStub('TTag'),
-        TTree: TTreeStub,
       },
     },
   });

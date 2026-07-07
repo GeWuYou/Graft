@@ -41,6 +41,12 @@ const translations = vi.hoisted((): Record<string, string> => ({
   'systemConfig.groups.notification.general.description': '控制通知中心的基础行为。',
   'systemConfig.groups.ops.container.general': '容器管理',
   'systemConfig.groups.ops.container.general.description': '控制容器管理能力的基础开关。',
+  'systemConfig.groups.ops.project.create': '项目创建',
+  'systemConfig.groups.ops.project.create.description': '管理受管项目创建流程的 authority 和根目录入口。',
+  'systemConfig.groups.ops.project.import': '项目导入',
+  'systemConfig.groups.ops.project.import.description': '管理导入流程允许浏览的根目录与边界。',
+  'systemConfig.groups.ops.project.workspace': '项目工作台',
+  'systemConfig.groups.ops.project.workspace.description': '管理配置工作台的目录过滤与文件浏览默认行为。',
   'systemConfig.items.appLogRetentionCleanup.description': '应用日志保留清理任务的默认配置。',
   'systemConfig.items.appLogRetentionCleanup.title': '应用日志保留清理',
   'systemConfig.items.accessLogRetentionCleanup.description': '访问日志保留清理任务的默认配置。',
@@ -169,6 +175,11 @@ const translations = vi.hoisted((): Record<string, string> => ({
   'systemConfig.units.days': '天',
   'systemConfig.units.rows': '行',
   'systemConfig.units.seconds': '秒',
+  'systemConfig.project.ops.project.workspace.hidden_directories.title': '工作台默认隐藏目录',
+  'systemConfig.project.ops.project.workspace.hidden_directories.description':
+    '配置工作台目录树默认隐藏的目录名 JSON 数组字符串，例如 node_modules、.git。',
+  'systemConfig.project.ops.project.workspace.hidden_directories.placeholder':
+    '输入目录名后回车，例如 node_modules、.git',
 }));
 
 vi.mock('../../api/system-config', () => ({
@@ -704,6 +715,104 @@ describe('system config list page', () => {
     expect(wrapper.find('[data-test-id="schema-switch"]').exists()).toBe(false);
   });
 
+  it('localizes project config groups and renders hidden directories as list tags with a tag-input editor', async () => {
+    apiMocks.getSystemConfigs.mockResolvedValue({
+      items: [
+        projectConfigItem({
+          key: 'ops.project.import.allowed_roots',
+          group: 'ops.project.import',
+          groupKey: 'systemConfig.groups.ops.project.import',
+          groupLabel: 'Project Import',
+          groupDescriptionKey: 'systemConfig.groups.ops.project.import.description',
+          groupDescription: 'Import authority roots and bounded directory browsing.',
+          titleKey: 'systemConfig.project.ops.project.import.allowed_roots.title',
+          title: 'Import Allowed Roots',
+          descriptionKey: 'systemConfig.project.ops.project.import.allowed_roots.description',
+          description: 'Allowed import roots.',
+          configSchema: {
+            type: 'string',
+          },
+          effectiveValue: '["/srv/projects"]',
+          defaultValue: '[]',
+          order: 7101,
+        }),
+        projectConfigItem({
+          key: 'ops.project.workspace.hidden_directories',
+          group: 'ops.project.workspace',
+          groupKey: 'systemConfig.groups.ops.project.workspace',
+          groupLabel: 'Project Workspace',
+          groupDescriptionKey: 'systemConfig.groups.ops.project.workspace.description',
+          groupDescription: 'Configuration workspace file-list defaults and editor browse behavior.',
+          titleKey: 'systemConfig.project.ops.project.workspace.hidden_directories.title',
+          title: 'Workspace Hidden Directories',
+          descriptionKey: 'systemConfig.project.ops.project.workspace.hidden_directories.description',
+          description:
+            'JSON array string of directory basenames hidden by default in the project configuration workspace tree.',
+          configSchema: {
+            type: 'string',
+            title: 'Workspace Hidden Directories',
+            description:
+              'JSON array string of directory basenames hidden by default in the project configuration workspace tree.',
+            'x-i18n': {
+              titleKey: 'systemConfig.project.ops.project.workspace.hidden_directories.title',
+              descriptionKey: 'systemConfig.project.ops.project.workspace.hidden_directories.description',
+              placeholderKey: 'systemConfig.project.ops.project.workspace.hidden_directories.placeholder',
+            },
+            'x-graft': {
+              editor: 'string-array-json-list',
+            },
+          },
+          effectiveValue: '[".git","node_modules",".idea"]',
+          defaultValue: '[".git","node_modules"]',
+          order: 7099,
+        }),
+        projectConfigItem({
+          key: 'ops.project.create.managed_root_directory',
+          group: 'ops.project.create',
+          groupKey: 'systemConfig.groups.ops.project.create',
+          groupLabel: 'Project Create',
+          groupDescriptionKey: 'systemConfig.groups.ops.project.create.description',
+          groupDescription: 'Managed project create authority and root workflow.',
+          titleKey: 'systemConfig.project.ops.project.managed.root_directory.title',
+          title: 'Managed Root Directory',
+          descriptionKey: 'systemConfig.project.ops.project.managed.root_directory.description',
+          description: 'Managed Compose project create root directory.',
+          configSchema: {
+            type: 'string',
+          },
+          effectiveValue: '"/srv/projects"',
+          defaultValue: '""',
+          order: 7100,
+        }),
+      ],
+      total: 2,
+    });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('运维管理');
+    expect(wrapper.text()).toContain('项目创建');
+    expect(wrapper.text()).toContain('项目导入');
+    expect(wrapper.text()).toContain('项目工作台');
+    expect(wrapper.text()).toContain('管理配置工作台的目录过滤与文件浏览默认行为。');
+    expect(wrapper.text()).toContain('工作台默认隐藏目录');
+    expect(wrapper.text()).toContain('.git');
+    expect(wrapper.text()).toContain('node_modules');
+    expect(wrapper.text()).toContain('.idea');
+    expect(wrapper.text()).not.toContain('Project Workspace');
+
+    await wrapper.find('button[data-test-id="edit-button"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.find('[data-test-id="schema-tag-input"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test-id="schema-input"]').exists()).toBe(false);
+    expect(wrapper.find('[data-test-id="schema-textarea"]').exists()).toBe(false);
+    expect(wrapper.find('[data-test-id="schema-tag-input"]').attributes('data-placeholder')).toBe(
+      '输入目录名后回车，例如 node_modules、.git',
+    );
+  });
+
   it('localizes root scalar schema labels before falling back to backend schema copy', async () => {
     const wrapper = mountPage();
     await flushPromises();
@@ -1181,6 +1290,21 @@ function mountPage() {
           },
         }),
         TTag: textStub('span'),
+        TTagInput: defineComponent({
+          name: 'TTagInput',
+          props: ['value', 'placeholder'],
+          setup(props) {
+            return () =>
+              h(
+                'div',
+                {
+                  'data-placeholder': String(props.placeholder ?? ''),
+                  'data-test-id': 'schema-tag-input',
+                },
+                Array.isArray(props.value) ? props.value.join('|') : '',
+              );
+          },
+        }),
         TTextarea: defineComponent({
           name: 'TTextarea',
           setup() {
@@ -1510,6 +1634,53 @@ function containerConfigItem(input: {
     restart_required: false,
     runtime_apply_mode: 'unknown',
     status: input.hasOverride ? 'modified' : 'default',
+    order: input.order,
+  };
+}
+
+function projectConfigItem(input: {
+  key: string;
+  group?: string;
+  groupKey: string;
+  groupLabel: string;
+  groupDescriptionKey: string;
+  groupDescription: string;
+  titleKey: string;
+  title: string;
+  descriptionKey: string;
+  description: string;
+  configSchema: Record<string, unknown>;
+  effectiveValue: string;
+  defaultValue: string;
+  order: number;
+}) {
+  return {
+    key: input.key,
+    module: 'project',
+    domain: 'ops',
+    domain_key: 'systemConfig.domains.ops',
+    domain_label: 'Operations',
+    group: input.group ?? 'ops.project.workspace',
+    group_key: input.groupKey,
+    group_label: input.groupLabel,
+    group_description_key: input.groupDescriptionKey,
+    group_description: input.groupDescription,
+    title_key: input.titleKey,
+    title: input.title,
+    description_key: input.descriptionKey,
+    description: input.description,
+    tags: ['ops', 'project', input.group ?? 'ops.project.workspace'],
+    type: 'string',
+    config_schema: input.configSchema,
+    default_value: input.defaultValue,
+    effective_value: input.effectiveValue,
+    override_value: null,
+    has_override: false,
+    sensitive: false,
+    masked: false,
+    restart_required: false,
+    runtime_apply_mode: 'unknown',
+    status: 'default',
     order: input.order,
   };
 }

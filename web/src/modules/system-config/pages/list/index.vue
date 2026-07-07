@@ -113,7 +113,20 @@
                       <template v-for="row in valueSection.rows" :key="row.key">
                         <dt>{{ row.label }}</dt>
                         <dd>
+                          <template v-if="row.displayItems?.length">
+                            <div class="system-config-value__tag-list">
+                              <t-tag
+                                v-for="itemValue in row.displayItems"
+                                :key="`${row.key}-${itemValue}`"
+                                theme="default"
+                                variant="light-outline"
+                              >
+                                {{ itemValue }}
+                              </t-tag>
+                            </div>
+                          </template>
                           <config-value-renderer
+                            v-else
                             :value="row.rawValue"
                             :schema="row.schema"
                             :unit="row.unit"
@@ -157,7 +170,20 @@
                           <template v-for="row in valueSection.extraRows" :key="row.key">
                             <dt>{{ row.label }}</dt>
                             <dd>
+                              <template v-if="row.displayItems?.length">
+                                <div class="system-config-value__tag-list">
+                                  <t-tag
+                                    v-for="itemValue in row.displayItems"
+                                    :key="`${row.key}-${itemValue}`"
+                                    theme="default"
+                                    variant="light-outline"
+                                  >
+                                    {{ itemValue }}
+                                  </t-tag>
+                                </div>
+                              </template>
                               <config-value-renderer
+                                v-else
                                 :value="row.rawValue"
                                 :schema="row.schema"
                                 :unit="row.unit"
@@ -404,6 +430,7 @@ type ConfigValueField = 'effective_value' | 'default_value';
 
 type ConfigValueRow = {
   key: string;
+  displayItems?: string[];
   label: string;
   rawValue: unknown;
   schema?: ConfigSchemaProperty;
@@ -558,7 +585,9 @@ const editorDrawerVisible = computed({
 const editorTitle = computed(() =>
   editingItem.value ? t('systemConfig.list.editorTitle', { title: configTitle(editingItem.value) }) : '',
 );
-const editorPreview = computed(() => formatJsonValue(editorForm.value) || t('systemConfig.list.emptyValue'));
+const editorPreview = computed(
+  () => formatEditorPreview(editingSchema.value, editorForm.value) || t('systemConfig.list.emptyValue'),
+);
 
 onMounted(refreshConfigs);
 
@@ -818,8 +847,8 @@ function buildConfigCard(item: SystemConfigItem): ConfigCardVM {
       buildValueSection(item, 'default_value', t('systemConfig.list.values.default'), schema, fields),
     ],
     advanced: {
-      currentJson: jsonPreviewFromRaw(item.effective_value),
-      defaultJson: jsonPreviewFromRaw(item.default_value),
+      currentJson: jsonPreviewFromRaw(item.effective_value, schema),
+      defaultJson: jsonPreviewFromRaw(item.default_value, schema),
       schemaSummary: schemaSummary(item, schema, fields),
     },
     canReset: hasConfigOverride(item),
@@ -851,6 +880,7 @@ function buildValueSection(
       : [
           {
             key: field,
+            displayItems: stringArrayDisplayItems(schema, parsed),
             label: schema.title
               ? resolveI18nText(schema.xI18n?.titleKey, schema.title, configTitle(item))
               : configTitle(item),
@@ -871,6 +901,7 @@ function structuredValueRows(value: Record<string, unknown>, fields: ConfigSchem
   return fields.map((field) => {
     return {
       key: field.key,
+      displayItems: stringArrayDisplayItems(field.schema, value[field.key]),
       label: schemaFieldTitle(field),
       rawValue: value[field.key],
       schema: field.schema,
@@ -883,9 +914,21 @@ function booleanStateLabel(value: boolean) {
   return value ? t('systemConfig.list.boolean.enabled') : t('systemConfig.list.boolean.disabled');
 }
 
-function jsonPreviewFromRaw(raw?: string | null) {
+function jsonPreviewFromRaw(raw?: string | null, schema?: ConfigSchema) {
   const parsed = parseJsonValue(raw);
+  if (schema && isStringArrayJsonSchema(schema) && typeof parsed === 'string') {
+    const nested = parseJsonValue(parsed);
+    return nested === undefined ? parsed : formatJsonValue(nested);
+  }
   return parsed === undefined ? '' : formatJsonValue(parsed);
+}
+
+function formatEditorPreview(schema: ConfigSchema, value: unknown) {
+  if (isStringArrayJsonSchema(schema) && typeof value === 'string') {
+    const parsed = parseJsonValue(value);
+    return parsed === undefined ? value : formatJsonValue(parsed);
+  }
+  return formatJsonValue(value);
 }
 
 function schemaSummary(item: SystemConfigItem, schema: ConfigSchema, fields: ConfigSchemaField[]) {
@@ -952,6 +995,24 @@ function schemaFieldPlaceholder(field: ConfigSchemaField) {
 
 function schemaFieldUnit(field: ConfigSchemaField) {
   return resolveI18nText(field.schema.xI18n?.unitKey, undefined, '');
+}
+
+function isStringArrayJsonSchema(schema?: ConfigSchemaProperty | null) {
+  return schema?.xGraft?.editor === 'string-array-json-list';
+}
+
+function stringArrayDisplayItems(schema: ConfigSchemaProperty | undefined, value: unknown) {
+  if (!schema || !isStringArrayJsonSchema(schema) || typeof value !== 'string') {
+    return [];
+  }
+  const parsed = parseJsonValue(value);
+  if (!Array.isArray(parsed)) {
+    return [];
+  }
+  return parsed
+    .filter((item): item is string | number => typeof item === 'string' || typeof item === 'number')
+    .map((item) => String(item).trim())
+    .filter((item) => item.length > 0);
 }
 
 function schemaOptionLabel(field: ConfigSchemaField, option: string | number | boolean) {
@@ -1250,6 +1311,12 @@ function readableError(error: unknown, fallback: string) {
   gap: var(--graft-density-gap-4);
   margin: 0;
   min-width: 0;
+}
+
+.system-config-value__tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--graft-density-gap-6);
 }
 
 .system-config-value__display {

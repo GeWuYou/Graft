@@ -51,6 +51,9 @@
                 <t-descriptions-item :label="t('project.detail.configuration.refreshStatus')">
                   {{ refreshLabel }}
                 </t-descriptions-item>
+                <t-descriptions-item :label="workspaceCopy.summaryCurrentPathLabel">
+                  <code>{{ currentWorkspacePathLabel }}</code>
+                </t-descriptions-item>
                 <t-descriptions-item :label="workspaceCopy.summaryOpenTabsLabel">
                   {{ openTabs.length }}
                 </t-descriptions-item>
@@ -59,7 +62,7 @@
           </section>
 
           <section class="project-configuration-workspace__main-grid">
-            <t-card class="project-configuration-workspace__tree-card" bordered>
+            <t-card class="project-configuration-workspace__browser-card" bordered>
               <template #header>
                 <div class="project-configuration-workspace__section-head">
                   <div>
@@ -73,62 +76,89 @@
               </template>
 
               <t-alert
-                v-if="treeError"
-                class="project-configuration-workspace__tree-alert"
+                v-if="browserError"
+                class="project-configuration-workspace__browser-alert"
                 theme="error"
-                :message="treeError"
+                :message="browserError"
               />
 
-              <t-loading :loading="treeLoading" size="small">
-                <t-tree
-                  v-if="treeData.length"
-                  :data="treeData"
-                  :actived="activeTreeValues"
-                  :expanded="expandedTreeKeys"
-                  :empty="workspaceCopy.filesEmpty"
-                  activable
-                  hover
-                  lazy
-                  line
-                  expand-on-click-node
-                  :load="treeLoadHandler"
-                  @active="treeActiveHandler"
-                  @expand="handleTreeExpand"
-                >
-                  <template #label="{ node }">
-                    <div
-                      class="project-configuration-workspace__tree-node"
-                      :class="{
-                        'project-configuration-workspace__tree-node--readonly':
-                          !node.data.editable && node.data.node_type === 'file',
-                      }"
+              <t-loading :loading="browserLoading" size="small">
+                <div class="project-configuration-workspace__browser-toolbar">
+                  <t-button
+                    theme="default"
+                    variant="outline"
+                    size="small"
+                    :disabled="!parentWorkspacePath"
+                    @click="goToParentDirectory"
+                  >
+                    {{ workspaceCopy.upAction }}
+                  </t-button>
+                  <div class="project-configuration-workspace__browser-breadcrumbs">
+                    <button
+                      class="project-configuration-workspace__browser-crumb"
+                      type="button"
+                      @click="loadWorkspaceDirectory('')"
                     >
-                      <span class="project-configuration-workspace__tree-node-icon" aria-hidden="true">
-                        <folder-icon v-if="node.data.node_type === 'directory'" />
-                        <span
-                          v-else-if="node.data.file_kind === 'compose'"
-                          class="project-configuration-workspace__docker-icon"
-                        >
-                          <svg viewBox="0 0 24 24" role="presentation">
-                            <path
-                              d="M9.3 7.2h2.3v2.1H9.3zm2.7 0h2.3v2.1H12zm-5.4 3h2.3v2.1H6.6zm2.7 0h2.3v2.1H9.3zm2.7 0h2.3v2.1H12zm2.7 0h2.3v2.1h-2.3zm-1.2 3.2c.9 0 1.7-.2 2.4-.6.4.8 1.1 1.4 2 1.7 1.7.7 3.7.2 5-1.3-1-.4-1.7-1.4-1.7-2.6 0-1.2.7-2.2 1.7-2.6-.5-.7-1.4-1.2-2.4-1.2-.6 0-1.2.2-1.7.5-.6-1.4-1.9-2.4-3.5-2.6l-.8 1.3.7 1.1c-.2 0-.5-.1-.7-.1H5.4v4.4c0 1.2.5 2.4 1.4 3.2 1 .9 2.3 1.4 3.7 1.4h2z"
-                              fill="currentColor"
-                            />
-                          </svg>
-                        </span>
-                        <command-icon v-else-if="node.data.file_kind === 'env'" />
-                        <file-code-icon
-                          v-else-if="node.data.file_kind === 'config' || node.data.file_kind === 'text'"
-                        />
-                        <file-icon v-else />
+                      {{ workspaceCopy.workspaceRootLabel }}
+                    </button>
+                    <template v-for="segment in workspacePathSegments" :key="segment.path">
+                      <span class="project-configuration-workspace__browser-separator">/</span>
+                      <button
+                        class="project-configuration-workspace__browser-crumb"
+                        type="button"
+                        @click="loadWorkspaceDirectory(segment.path)"
+                      >
+                        {{ segment.label }}
+                      </button>
+                    </template>
+                  </div>
+                </div>
+                <t-alert
+                  v-if="hasMoreHiddenEntries && !showHiddenFiles"
+                  class="project-configuration-workspace__browser-alert"
+                  theme="info"
+                  :message="workspaceCopy.hiddenItemsHint"
+                />
+                <div v-if="workspaceItems.length" class="project-configuration-workspace__browser-list">
+                  <button
+                    v-for="item in workspaceItems"
+                    :key="item.relative_path || item.name"
+                    class="project-configuration-workspace__browser-entry"
+                    :class="{
+                      'project-configuration-workspace__browser-entry--active': item.relative_path === activeTabPath,
+                      'project-configuration-workspace__browser-entry--readonly':
+                        !item.editable && item.node_type === 'file',
+                    }"
+                    type="button"
+                    :data-testid="workspaceEntryTestId(item)"
+                    @click="handleWorkspaceEntry(item)"
+                  >
+                    <span class="project-configuration-workspace__browser-icon" aria-hidden="true">
+                      <folder-icon v-if="item.node_type === 'directory'" />
+                      <span
+                        v-else-if="item.file_kind === 'compose'"
+                        class="project-configuration-workspace__docker-icon"
+                      >
+                        <svg viewBox="0 0 24 24" role="presentation">
+                          <path
+                            d="M9.3 7.2h2.3v2.1H9.3zm2.7 0h2.3v2.1H12zm-5.4 3h2.3v2.1H6.6zm2.7 0h2.3v2.1H9.3zm2.7 0h2.3v2.1H12zm2.7 0h2.3v2.1h-2.3zm-1.2 3.2c.9 0 1.7-.2 2.4-.6.4.8 1.1 1.4 2 1.7 1.7.7 3.7.2 5-1.3-1-.4-1.7-1.4-1.7-2.6 0-1.2.7-2.2 1.7-2.6-.5-.7-1.4-1.2-2.4-1.2-.6 0-1.2.2-1.7.5-.6-1.4-1.9-2.4-3.5-2.6l-.8 1.3.7 1.1c-.2 0-.5-.1-.7-.1H5.4v4.4c0 1.2.5 2.4 1.4 3.2 1 .9 2.3 1.4 3.7 1.4h2z"
+                            fill="currentColor"
+                          />
+                        </svg>
                       </span>
-                      <span class="project-configuration-workspace__tree-node-main">
-                        <span class="project-configuration-workspace__tree-node-title">{{ node.data.name }}</span>
-                        <small>{{ node.data.relative_path || '.' }}</small>
+                      <command-icon v-else-if="item.file_kind === 'env'" />
+                      <file-code-icon v-else-if="item.file_kind === 'config' || item.file_kind === 'text'" />
+                      <file-icon v-else />
+                    </span>
+                    <span class="project-configuration-workspace__browser-main">
+                      <span class="project-configuration-workspace__browser-title">{{ item.name }}</span>
+                      <span class="project-configuration-workspace__browser-meta">
+                        <span>{{ workspaceItemKindLabel(item) }}</span>
+                        <span v-if="item.hidden_by_default">{{ workspaceCopy.hiddenBadge }}</span>
                       </span>
-                    </div>
-                  </template>
-                </t-tree>
+                    </span>
+                  </button>
+                </div>
                 <t-empty v-else :description="workspaceCopy.filesEmpty" />
               </t-loading>
             </t-card>
@@ -431,7 +461,6 @@
 </template>
 <script setup lang="ts">
 import { CommandIcon, FileCodeIcon, FileIcon, FolderIcon } from 'tdesign-icons-vue-next';
-import type { TreeNodeValue, TreeProps } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
@@ -455,7 +484,6 @@ import {
 import ProjectMonacoDiffSurface from '../../components/ProjectMonacoDiffSurface.vue';
 import ProjectMonacoSurface from '../../components/ProjectMonacoSurface.vue';
 import {
-  canOpenWorkspaceFile,
   hasWorkspaceUnsavedChanges,
   normalizeWorkspaceContent,
   type ProjectWorkspaceMonacoLanguage,
@@ -495,10 +523,7 @@ type WorkspaceDialogButton = {
   theme: 'default' | 'primary';
   variant: 'base' | 'outline';
 };
-type WorkspaceTreeNode = ProjectWorkspaceTreeItem & {
-  children?: WorkspaceTreeNode[] | boolean;
-  value: string;
-};
+type WorkspaceListItem = ProjectWorkspaceTreeItem;
 type WorkspaceOpenFile = {
   content: string;
   editable: boolean;
@@ -522,12 +547,13 @@ const workspaceRootRef = ref<HTMLElement | null>(null);
 const workspaceLoading = ref(false);
 const workspaceError = ref('');
 const workspaceReady = computed(() => Boolean(detailRecord.value && metadata.value && !workspaceError.value));
-const treeLoading = ref(false);
-const treeError = ref('');
+const browserLoading = ref(false);
+const browserError = ref('');
 const showHiddenFiles = ref(false);
-const treeData = ref<WorkspaceTreeNode[]>([]);
-const expandedTreeKeys = ref<TreeNodeValue[]>([]);
-const activeTreeValues = ref<TreeNodeValue[]>([]);
+const workspaceItems = ref<WorkspaceListItem[]>([]);
+const currentWorkspacePath = ref('');
+const parentWorkspacePath = ref<string | null>(null);
+const hasMoreHiddenEntries = ref(false);
 const detailRecord = ref<ProjectDetailResponseWithLifecycle | null>(null);
 const metadata = ref<Awaited<ReturnType<typeof getProjectConfiguration>> | null>(null);
 const snapshotPreview = ref<ProjectConfigurationPreviewResponse | null>(null);
@@ -600,6 +626,7 @@ const openTabBuffers = computed(
 );
 const activeBuffer = computed(() => (activeTabPath.value ? (openFileMap.get(activeTabPath.value) ?? null) : null));
 const canSaveActiveBuffer = computed(() => Boolean(activeBuffer.value?.editable && !activeBuffer.value.saving));
+const currentWorkspacePathLabel = computed(() => currentWorkspacePath.value || workspaceCopy.value.workspaceRootLabel);
 const hasDirtyFiles = computed(() =>
   openTabBuffers.value.some((tab) => tab.editable && hasWorkspaceUnsavedChanges(tab.content, tab.savedContent)),
 );
@@ -610,11 +637,14 @@ const selectedDiffFile = computed(
     diffResult.value?.files[0] ??
     null,
 );
-const treeActiveHandler: NonNullable<TreeProps['onActive']> = (value, context) => {
-  handleTreeActive(value, context as unknown as { node: { data: WorkspaceTreeNode } });
-};
-const treeLoadHandler: NonNullable<TreeProps['load']> = (node) =>
-  loadWorkspaceTreeChildren(node as unknown as { data: WorkspaceTreeNode });
+const workspacePathSegments = computed(() =>
+  currentWorkspacePath.value
+    ? currentWorkspacePath.value.split('/').map((label, index, segments) => ({
+        label,
+        path: segments.slice(0, index + 1).join('/'),
+      }))
+    : [],
+);
 
 onMounted(() => {
   window.addEventListener('keydown', handleWorkspaceKeydown);
@@ -626,7 +656,7 @@ onBeforeUnmount(() => {
 });
 
 watch(showHiddenFiles, () => {
-  void loadWorkspaceTreeRoot();
+  void loadWorkspaceDirectory(currentWorkspacePath.value);
 });
 
 watch(
@@ -658,7 +688,7 @@ async function loadWorkspace() {
     ]);
     detailRecord.value = detail;
     metadata.value = configurationMetadata;
-    await loadWorkspaceTreeRoot();
+    await loadWorkspaceDirectory('');
   } catch (error) {
     logger.error('failed to load project configuration workspace', error);
     workspaceError.value = resolveLocalizedErrorMessage(t, error, t('project.list.retry'));
@@ -668,88 +698,86 @@ async function loadWorkspace() {
   }
 }
 
-async function loadWorkspaceTreeRoot() {
-  treeLoading.value = true;
-  treeError.value = '';
+async function loadWorkspaceDirectory(path: string) {
+  browserLoading.value = true;
+  browserError.value = '';
   try {
     const response = await getProjectFiles(projectId.value, {
+      path: path || undefined,
       show_hidden: showHiddenFiles.value,
     });
-    treeData.value = normalizeTreeItems(response.items);
-    expandedTreeKeys.value = [];
-    activeTreeValues.value = [];
+    workspaceItems.value = sortWorkspaceItems(response.items ?? []);
+    currentWorkspacePath.value = response.current_path || '';
+    parentWorkspacePath.value = response.parent_path || null;
+    hasMoreHiddenEntries.value = Boolean(response.has_more_hidden);
     if (!activeTabPath.value) {
-      const firstFile = findFirstFilePath(treeData.value);
+      const firstFile = workspaceItems.value.find((item) => item.node_type === 'file')?.relative_path;
       if (firstFile) {
         await openWorkspaceFile(firstFile);
       }
     }
   } catch (error) {
-    treeError.value = resolveLocalizedErrorMessage(t, error, t('project.list.retry'));
-    MessagePlugin.error(treeError.value);
+    browserError.value = resolveLocalizedErrorMessage(t, error, t('project.list.retry'));
+    MessagePlugin.error(browserError.value);
   } finally {
-    treeLoading.value = false;
+    browserLoading.value = false;
   }
 }
 
-function normalizeTreeItems(items: ProjectWorkspaceTreeItem[]) {
-  return items.map<WorkspaceTreeNode>((item) => ({
-    ...item,
-    children: item.node_type === 'directory' ? (item.has_children ? true : []) : undefined,
-    value: item.relative_path,
-  }));
-}
-
-function findFirstFilePath(nodes: WorkspaceTreeNode[]): string {
-  for (const node of nodes) {
-    if (node.node_type === 'file') {
-      return node.relative_path;
+function sortWorkspaceItems(items: ProjectWorkspaceTreeItem[]) {
+  return [...items].sort((left, right) => {
+    if (left.node_type !== right.node_type) {
+      return left.node_type === 'directory' ? -1 : 1;
     }
-  }
-  return '';
-}
-
-async function loadWorkspaceTreeChildren(node: { data: WorkspaceTreeNode }) {
-  const currentNode = node.data;
-  const response = await getProjectFiles(projectId.value, {
-    path: currentNode.relative_path,
-    show_hidden: showHiddenFiles.value,
-  });
-  const children = normalizeTreeItems(response.items);
-  treeData.value = replaceTreeChildren(treeData.value, currentNode.relative_path, children);
-  return children;
-}
-
-function replaceTreeChildren(
-  nodes: WorkspaceTreeNode[],
-  path: string,
-  children: WorkspaceTreeNode[],
-): WorkspaceTreeNode[] {
-  return nodes.map((node) => {
-    if (node.relative_path === path) {
-      return { ...node, children };
-    }
-    if (Array.isArray(node.children)) {
-      return { ...node, children: replaceTreeChildren(node.children, path, children) };
-    }
-    return node;
+    return left.name.localeCompare(right.name, undefined, { sensitivity: 'base' });
   });
 }
 
-function handleTreeActive(value: TreeNodeValue[], context: { node: { data: WorkspaceTreeNode } }) {
-  activeTreeValues.value = value;
-  const target = context.node.data;
-  if (!canOpenWorkspaceFile(target)) {
+function goToParentDirectory() {
+  if (!parentWorkspacePath.value) {
     return;
   }
-  void openWorkspaceFile(target.relative_path, target);
+  void loadWorkspaceDirectory(parentWorkspacePath.value);
 }
 
-function handleTreeExpand(value: TreeNodeValue[]) {
-  expandedTreeKeys.value = value;
+function handleWorkspaceEntry(item: WorkspaceListItem) {
+  if (item.node_type === 'directory') {
+    void loadWorkspaceDirectory(item.relative_path);
+    return;
+  }
+  void openWorkspaceFile(item.relative_path, item);
 }
 
-async function openWorkspaceFile(path: string, source?: WorkspaceTreeNode) {
+function workspaceItemKindLabel(item: WorkspaceListItem) {
+  switch (item.node_type === 'directory' ? 'directory' : item.file_kind) {
+    case 'directory':
+      return workspaceCopy.value.kindDirectory;
+    case 'compose':
+      return workspaceCopy.value.kindCompose;
+    case 'env':
+      return workspaceCopy.value.kindEnv;
+    case 'config':
+      return workspaceCopy.value.kindConfig;
+    case 'text':
+      return workspaceCopy.value.kindText;
+    case 'binary':
+      return workspaceCopy.value.kindBinary;
+    default:
+      return workspaceCopy.value.kindUnsupported;
+  }
+}
+
+function workspaceEntryTestId(item: WorkspaceListItem) {
+  const raw = item.relative_path || item.name || 'root';
+  return `workspace-entry-${
+    raw
+      .replace(/[^a-z0-9]+/gi, '-')
+      .replace(/^-+|-+$/g, '')
+      .toLowerCase() || 'root'
+  }`;
+}
+
+async function openWorkspaceFile(path: string, source?: WorkspaceListItem) {
   if (!path) {
     return;
   }
@@ -777,11 +805,10 @@ async function openWorkspaceFile(path: string, source?: WorkspaceTreeNode) {
   }
 
   activeTabPath.value = path;
-  activeTreeValues.value = [path];
   await ensureWorkspaceFileLoaded(path, source);
 }
 
-async function ensureWorkspaceFileLoaded(path: string, source?: WorkspaceTreeNode) {
+async function ensureWorkspaceFileLoaded(path: string, source?: WorkspaceListItem) {
   const current = openFileMap.get(path);
   if (!current || current.loading || current.loaded) {
     return;
@@ -802,7 +829,7 @@ async function ensureWorkspaceFileLoaded(path: string, source?: WorkspaceTreeNod
 function hydrateOpenFileFromResponse(
   requestedPath: string,
   response: ProjectWorkspaceFileContentResponse,
-  source?: WorkspaceTreeNode,
+  source?: WorkspaceListItem,
 ) {
   const path = response.relative_path || requestedPath;
   const current =
@@ -1017,7 +1044,7 @@ async function runProjectDeploy() {
     diffResult.value = null;
     validateResult.value = null;
     snapshotPreview.value = null;
-    await loadWorkspaceTreeRoot();
+    await loadWorkspaceDirectory(currentWorkspacePath.value);
   } catch (error) {
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.detail.configuration.deployFailed')));
   } finally {
@@ -1179,7 +1206,7 @@ function handleWorkspaceKeydown(event: KeyboardEvent) {
   grid-template-columns: minmax(260px, 300px) minmax(0, 1fr);
 }
 
-.project-configuration-workspace__tree-card,
+.project-configuration-workspace__browser-card,
 .project-configuration-workspace__editor-column,
 .project-configuration-workspace__feedback-panel,
 .project-configuration-workspace__diff-layout,
@@ -1190,23 +1217,102 @@ function handleWorkspaceKeydown(event: KeyboardEvent) {
   min-width: 0;
 }
 
-.project-configuration-workspace__tree-alert,
+.project-configuration-workspace__browser-alert,
 .project-configuration-workspace__editor-alert {
   margin-bottom: var(--graft-density-gap-12);
 }
 
-.project-configuration-workspace__tree-node {
+.project-configuration-workspace__browser-card {
+  background:
+    radial-gradient(circle at top left, color-mix(in srgb, var(--td-brand-color-6) 7%, transparent), transparent 38%),
+    var(--td-bg-color-container);
+}
+
+.project-configuration-workspace__browser-toolbar {
   align-items: center;
   display: flex;
+  flex-wrap: wrap;
   gap: var(--graft-density-gap-8);
+  margin-bottom: var(--graft-density-gap-12);
+}
+
+.project-configuration-workspace__browser-breadcrumbs {
+  align-items: center;
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  gap: var(--graft-density-gap-4);
   min-width: 0;
 }
 
-.project-configuration-workspace__tree-node--readonly {
+.project-configuration-workspace__browser-crumb {
+  background: transparent;
+  border: 0;
+  border-radius: var(--td-radius-default);
+  color: var(--td-text-color-secondary);
+  cursor: pointer;
+  font: var(--td-font-body-small);
+  min-width: 0;
+  padding: 0;
+}
+
+.project-configuration-workspace__browser-crumb:hover {
+  color: var(--td-brand-color-6);
+}
+
+.project-configuration-workspace__browser-separator {
+  color: var(--td-text-color-placeholder);
+  font: var(--td-font-body-small);
+}
+
+.project-configuration-workspace__browser-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--graft-density-gap-8);
+}
+
+.project-configuration-workspace__browser-entry {
+  align-items: center;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--td-bg-color-container) 94%, var(--td-brand-color-6) 6%),
+    var(--td-bg-color-container)
+  );
+  border: 1px solid color-mix(in srgb, var(--td-border-level-1-color) 88%, transparent);
+  border-radius: calc(var(--td-radius-default) + 2px);
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  gap: var(--graft-density-gap-8);
+  min-width: 0;
+  padding: var(--graft-density-gap-10) var(--graft-density-gap-12);
+  text-align: left;
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease,
+    box-shadow 0.2s ease;
+  width: 100%;
+}
+
+.project-configuration-workspace__browser-entry:hover {
+  border-color: color-mix(in srgb, var(--td-brand-color-6) 42%, var(--td-border-level-1-color));
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--td-brand-color-6) 10%, transparent);
+}
+
+.project-configuration-workspace__browser-entry--active {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--td-brand-color-1) 86%, var(--td-brand-color-6) 14%),
+    var(--td-brand-color-1)
+  );
+  border-color: var(--td-brand-color-6);
+}
+
+.project-configuration-workspace__browser-entry--readonly {
   opacity: 0.6;
 }
 
-.project-configuration-workspace__tree-node-icon {
+.project-configuration-workspace__browser-icon {
   align-items: center;
   color: var(--td-text-color-secondary);
   display: inline-flex;
@@ -1227,25 +1333,27 @@ function handleWorkspaceKeydown(event: KeyboardEvent) {
   width: 100%;
 }
 
-.project-configuration-workspace__tree-node-main {
+.project-configuration-workspace__browser-main {
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
   min-width: 0;
 }
 
-.project-configuration-workspace__tree-node-title {
+.project-configuration-workspace__browser-title {
   color: var(--td-text-color-primary);
+  font: var(--td-font-body-medium);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.project-configuration-workspace__tree-node-main small {
+.project-configuration-workspace__browser-meta {
   color: var(--td-text-color-placeholder);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: flex;
+  flex-wrap: wrap;
+  font: var(--td-font-body-small);
+  gap: var(--graft-density-gap-8);
 }
 
 .project-configuration-workspace__editor-column {

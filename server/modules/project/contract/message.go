@@ -156,12 +156,26 @@ const (
 	ProjectManagedRootConfigTitle ConfigMessageKey = "systemConfig.project.ops.project.managed.root_directory.title"
 	// ProjectManagedRootConfigDescription identifies the managed-root config description localization key.
 	ProjectManagedRootConfigDescription ConfigMessageKey = "systemConfig.project.ops.project.managed.root_directory.description"
+	// ProjectCreateConfigGroupTitle identifies the project-create config group title localization key.
+	ProjectCreateConfigGroupTitle ConfigMessageKey = "systemConfig.groups.ops.project.create"
+	// ProjectCreateConfigGroupDescription identifies the project-create config group description localization key.
+	ProjectCreateConfigGroupDescription ConfigMessageKey = "systemConfig.groups.ops.project.create.description"
 	// ProjectImportAllowedRootsConfigTitle identifies the allowlisted import roots config title localization key.
 	ProjectImportAllowedRootsConfigTitle ConfigMessageKey = "systemConfig.project.ops.project.import.allowed_roots.title"
 	// ProjectImportAllowedRootsConfigDescription identifies the allowlisted import roots config description localization key.
 	ProjectImportAllowedRootsConfigDescription ConfigMessageKey = "systemConfig.project.ops.project.import.allowed_roots.description"
+	// ProjectImportConfigGroupTitle identifies the project-import config group title localization key.
+	ProjectImportConfigGroupTitle ConfigMessageKey = "systemConfig.groups.ops.project.import"
+	// ProjectImportConfigGroupDescription identifies the project-import config group description localization key.
+	ProjectImportConfigGroupDescription ConfigMessageKey = "systemConfig.groups.ops.project.import.description"
 	// ProjectWorkspaceHiddenDirectoriesConfigTitle identifies the workspace hidden-directory config title localization key.
 	ProjectWorkspaceHiddenDirectoriesConfigTitle ConfigMessageKey = "systemConfig.project.ops.project.workspace.hidden_directories.title"
 	// ProjectWorkspaceHiddenDirectoriesConfigDescription identifies the workspace hidden-directory config description localization key.
 	ProjectWorkspaceHiddenDirectoriesConfigDescription ConfigMessageKey = "systemConfig.project.ops.project.workspace.hidden_directories.description"
+	// ProjectWorkspaceConfigGroupTitle identifies the workspace config group title localization key.
+	ProjectWorkspaceConfigGroupTitle ConfigMessageKey = "systemConfig.groups.ops.project.workspace"
+	// ProjectWorkspaceConfigGroupDescription identifies the workspace config group description localization key.
+	ProjectWorkspaceConfigGroupDescription ConfigMessageKey = "systemConfig.groups.ops.project.workspace.description"
+	// ProjectWorkspaceHiddenDirectoriesPlaceholder identifies the workspace hidden-directory editor placeholder key.
+	ProjectWorkspaceHiddenDirectoriesPlaceholder ConfigMessageKey = "systemConfig.project.ops.project.workspace.hidden_directories.placeholder"
 )

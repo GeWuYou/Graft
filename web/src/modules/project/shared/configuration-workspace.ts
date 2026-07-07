@@ -1,8 +1,4 @@
-import type {
-  ProjectWorkspaceFileKind,
-  ProjectWorkspaceLanguageHint,
-  ProjectWorkspaceTreeItem,
-} from '../types/project';
+import type { ProjectWorkspaceFileKind, ProjectWorkspaceLanguageHint } from '../types/project';
 
 export type ProjectWorkspaceMonacoLanguage = 'dockerfile' | 'ini' | 'json' | 'plaintext' | 'shell' | 'yaml';
 
@@ -101,8 +97,4 @@ export function resolveWorkspaceMonacoLanguage(options: {
   }
 
   return 'plaintext';
-}
-
-export function canOpenWorkspaceFile(item: Pick<ProjectWorkspaceTreeItem, 'node_type'>) {
-  return item.node_type === 'file';
 }

@@ -3,12 +3,14 @@
 </template>
 <script setup lang="ts">
 import type * as Monaco from 'monaco-editor';
-import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { ref, watch } from 'vue';
 
 import {
   buildProjectMonacoModelUri,
   createProjectMonacoModelUriSuffix,
   ensureProjectMonacoConfigured,
+  scheduleProjectMonacoLayout,
+  useProjectMonacoLifecycle,
 } from '../shared/project-monaco';
 
 type MonacoEditorSurfaceOptions = Monaco.editor.IStandaloneEditorConstructionOptions;
@@ -42,16 +44,15 @@ let model: Monaco.editor.ITextModel | null = null;
 let syncingFromEditor = false;
 let syncingFromProps = false;
 
-onMounted(() => {
-  monaco = ensureProjectMonacoConfigured();
-  void createEditor();
-});
-
-onBeforeUnmount(() => {
-  editor?.dispose();
-  editor = null;
-  model?.dispose();
-  model = null;
+const { applyTheme } = useProjectMonacoLifecycle({
+  createEditor,
+  disposeEditor() {
+    editor?.dispose();
+    editor = null;
+    model?.dispose();
+    model = null;
+  },
+  getMonaco: () => monaco,
 });
 
 watch(
@@ -102,10 +103,12 @@ watch(
 );
 
 async function createEditor() {
-  if (!monaco || !containerRef.value) {
+  monaco = ensureProjectMonacoConfigured();
+  if (!containerRef.value) {
     return;
   }
 
+  applyTheme();
   model = createModel(monaco);
   editor = monaco.editor.create(containerRef.value, {
     ariaLabel: props.editorAriaLabel,
@@ -139,8 +142,7 @@ async function createEditor() {
     syncingFromEditor = false;
   });
 
-  await nextTick();
-  requestAnimationFrame(() => {
+  await scheduleProjectMonacoLayout(() => {
     editor?.layout();
   });
 }

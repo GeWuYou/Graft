@@ -6,6 +6,7 @@ import 'monaco-editor/min/vs/editor/editor.main.css';
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
 import { configureMonacoYaml } from 'monaco-yaml';
+import { nextTick, onBeforeUnmount, onMounted } from 'vue';
 
 import yamlWorker from './project-yaml.worker?worker';
 
@@ -21,6 +22,8 @@ declare global {
 
 let monacoConfigured = false;
 let modelUriSuffixSeed = 0;
+
+export type ProjectMonacoTheme = 'vs' | 'vs-dark';
 
 function buildWorker(label: string) {
   switch (label) {
@@ -52,6 +55,66 @@ export function ensureProjectMonacoConfigured() {
 
   monacoConfigured = true;
   return monaco;
+}
+
+function resolveProjectMonacoTheme(): ProjectMonacoTheme {
+  return document.documentElement.getAttribute('theme-mode') === 'dark' ? 'vs-dark' : 'vs';
+}
+
+function applyProjectMonacoTheme(monacoInstance: MonacoEditorModule) {
+  monacoInstance.editor.setTheme(resolveProjectMonacoTheme());
+}
+
+export function scheduleProjectMonacoLayout(layout: () => void) {
+  return nextTick().then(() => {
+    requestAnimationFrame(layout);
+  });
+}
+
+export function useProjectMonacoLifecycle(options: {
+  createEditor: () => void | Promise<void>;
+  disposeEditor: () => void;
+  getMonaco: () => MonacoEditorModule | null;
+}) {
+  let themeModeObserver: MutationObserver | null = null;
+
+  const applyTheme = () => {
+    const monacoInstance = options.getMonaco();
+    if (!monacoInstance) {
+      return;
+    }
+    applyProjectMonacoTheme(monacoInstance);
+  };
+
+  const observeThemeMode = () => {
+    if (typeof MutationObserver === 'undefined') {
+      return;
+    }
+    themeModeObserver?.disconnect();
+    themeModeObserver = new MutationObserver(() => {
+      applyTheme();
+    });
+    themeModeObserver.observe(document.documentElement, {
+      attributeFilter: ['theme-mode'],
+      attributes: true,
+    });
+  };
+
+  onMounted(() => {
+    applyTheme();
+    observeThemeMode();
+    void options.createEditor();
+  });
+
+  onBeforeUnmount(() => {
+    themeModeObserver?.disconnect();
+    themeModeObserver = null;
+    options.disposeEditor();
+  });
+
+  return {
+    applyTheme,
+  };
 }
 
 export function createProjectMonacoModelUriSuffix() {
