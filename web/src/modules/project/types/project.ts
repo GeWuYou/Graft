@@ -166,7 +166,21 @@ export type ProjectDeployResponse = ProjectActionResponse;
 export type ProjectWorkspaceNodeType = 'file' | 'directory';
 export type ProjectWorkspaceFileKind = 'directory' | 'compose' | 'env' | 'config' | 'text' | 'binary' | 'unsupported';
 export type ProjectWorkspaceLanguageHint =
-  'yaml' | 'json' | 'dotenv' | 'ini' | 'toml' | 'properties' | 'shell' | 'dockerfile' | 'plaintext' | (string & {});
+  | 'yaml'
+  | 'json'
+  | 'dotenv'
+  | 'ini'
+  | 'toml'
+  | 'properties'
+  | 'xml'
+  | 'sql'
+  | 'markdown'
+  | 'shell'
+  | 'dockerfile'
+  | 'hcl'
+  | 'powershell'
+  | 'plaintext'
+  | (string & {});
 
 export type ProjectWorkspaceTreeItem = {
   name: string;

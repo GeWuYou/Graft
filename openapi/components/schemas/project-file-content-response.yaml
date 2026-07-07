@@ -19,6 +19,9 @@ properties:
     $ref: ./project-workspace-file-kind.yaml
   language_hint:
     type: string
+    description: >
+      Backend-owned language hint for workspace rendering. Current values may include yaml, json, dotenv, ini, toml,
+      properties, xml, sql, markdown, shell, dockerfile, hcl, powershell, and plaintext.
   editable:
     type: boolean
   encoding:
@@ -32,4 +35,3 @@ properties:
     type: integer
     format: int64
     minimum: 0
-

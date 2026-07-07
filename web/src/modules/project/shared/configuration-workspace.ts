@@ -1,6 +1,64 @@
 import type { ProjectWorkspaceFileKind, ProjectWorkspaceLanguageHint } from '../types/project';
 
-export type ProjectWorkspaceMonacoLanguage = 'dockerfile' | 'ini' | 'json' | 'plaintext' | 'shell' | 'yaml';
+export type ProjectWorkspaceMonacoLanguage =
+  'dockerfile' | 'hcl' | 'ini' | 'json' | 'markdown' | 'plaintext' | 'powershell' | 'shell' | 'sql' | 'xml' | 'yaml';
+
+const WORKSPACE_LANGUAGE_HINT_TO_MONACO_LANGUAGE: Partial<
+  Record<ProjectWorkspaceLanguageHint, ProjectWorkspaceMonacoLanguage>
+> = {
+  dockerfile: 'dockerfile',
+  dotenv: 'ini',
+  hcl: 'hcl',
+  ini: 'ini',
+  json: 'json',
+  markdown: 'markdown',
+  plaintext: 'plaintext',
+  powershell: 'powershell',
+  properties: 'ini',
+  shell: 'shell',
+  sql: 'sql',
+  toml: 'ini',
+  xml: 'xml',
+  yaml: 'yaml',
+};
+
+const WORKSPACE_FILE_NAME_TO_MONACO_LANGUAGE: Record<string, ProjectWorkspaceMonacoLanguage> = {
+  '.editorconfig': 'ini',
+  '.gitattributes': 'plaintext',
+  '.gitconfig': 'ini',
+  '.gitignore': 'plaintext',
+  caddyfile: 'plaintext',
+  dockerfile: 'dockerfile',
+  makefile: 'plaintext',
+};
+
+const WORKSPACE_EXTENSION_TO_MONACO_LANGUAGE: Record<string, ProjectWorkspaceMonacoLanguage> = {
+  bash: 'shell',
+  cfg: 'ini',
+  conf: 'ini',
+  dockerfile: 'dockerfile',
+  hcl: 'hcl',
+  ini: 'ini',
+  json: 'json',
+  jsonc: 'json',
+  log: 'plaintext',
+  markdown: 'markdown',
+  md: 'markdown',
+  properties: 'ini',
+  ps1: 'powershell',
+  psd1: 'powershell',
+  psm1: 'powershell',
+  sh: 'shell',
+  sql: 'sql',
+  tf: 'hcl',
+  tfvars: 'hcl',
+  toml: 'ini',
+  txt: 'plaintext',
+  xml: 'xml',
+  yaml: 'yaml',
+  yml: 'yaml',
+  zsh: 'shell',
+};
 
 export function normalizeWorkspaceContent(value: string) {
   return String(value ?? '').replace(/\r\n/g, '\n');
@@ -36,6 +94,7 @@ export function resolveWorkspaceMonacoLanguage(options: {
   const hint = String(options.languageHint || '')
     .trim()
     .toLowerCase();
+  const fileName = resolveWorkspaceFileName(options.path || '').toLowerCase();
   const extension = String(options.path || '')
     .split('.')
     .at(-1)
@@ -45,17 +104,14 @@ export function resolveWorkspaceMonacoLanguage(options: {
   if (hint === 'yaml' || hint === 'yml') {
     return 'yaml';
   }
-  if (hint === 'json') {
-    return 'json';
-  }
-  if (hint === 'shell' || hint === 'sh' || hint === 'bash') {
+  if (hint === 'shell' || hint === 'sh' || hint === 'bash' || hint === 'zsh') {
     return 'shell';
   }
-  if (hint === 'dockerfile') {
-    return 'dockerfile';
-  }
-  if (hint === 'dotenv' || hint === 'ini' || hint === 'toml' || hint === 'properties' || hint === 'conf') {
+  if (hint === 'conf' || hint === 'cfg') {
     return 'ini';
+  }
+  if (hint && WORKSPACE_LANGUAGE_HINT_TO_MONACO_LANGUAGE[hint as ProjectWorkspaceLanguageHint]) {
+    return WORKSPACE_LANGUAGE_HINT_TO_MONACO_LANGUAGE[hint as ProjectWorkspaceLanguageHint]!;
   }
 
   if (options.fileKind === 'compose') {
@@ -65,35 +121,23 @@ export function resolveWorkspaceMonacoLanguage(options: {
     return 'ini';
   }
   if (options.fileKind === 'config') {
-    if (extension === 'json') {
-      return 'json';
+    if (WORKSPACE_FILE_NAME_TO_MONACO_LANGUAGE[fileName]) {
+      return WORKSPACE_FILE_NAME_TO_MONACO_LANGUAGE[fileName];
     }
-    if (extension === 'sh') {
-      return 'shell';
-    }
-    if (extension === 'dockerfile') {
-      return 'dockerfile';
+    if (WORKSPACE_EXTENSION_TO_MONACO_LANGUAGE[extension || '']) {
+      return WORKSPACE_EXTENSION_TO_MONACO_LANGUAGE[extension || ''];
     }
     return 'ini';
   }
 
-  if (extension === 'json') {
-    return 'json';
-  }
-  if (extension === 'yaml' || extension === 'yml') {
-    return 'yaml';
-  }
-  if (
-    extension === 'env' ||
-    extension === 'ini' ||
-    extension === 'toml' ||
-    extension === 'properties' ||
-    extension === 'conf'
-  ) {
+  if (fileName === '.env' || fileName.startsWith('.env.')) {
     return 'ini';
   }
-  if (extension === 'sh') {
-    return 'shell';
+  if (WORKSPACE_FILE_NAME_TO_MONACO_LANGUAGE[fileName]) {
+    return WORKSPACE_FILE_NAME_TO_MONACO_LANGUAGE[fileName];
+  }
+  if (WORKSPACE_EXTENSION_TO_MONACO_LANGUAGE[extension || '']) {
+    return WORKSPACE_EXTENSION_TO_MONACO_LANGUAGE[extension || ''];
   }
 
   return 'plaintext';

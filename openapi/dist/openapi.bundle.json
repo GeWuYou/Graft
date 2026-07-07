@@ -25029,7 +25029,8 @@
             "type": "boolean"
           },
           "language_hint": {
-            "type": "string"
+            "type": "string",
+            "description": "Backend-owned language hint for workspace rendering. Current values may include yaml, json, dotenv, ini, toml, properties, xml, sql, markdown, shell, dockerfile, hcl, powershell, and plaintext.\n"
           },
           "size_bytes": {
             "type": "integer",
@@ -25048,6 +25049,10 @@
           },
           "tooltip_source": {
             "type": "string",
+            "enum": [
+              "project-note",
+              "default-rule"
+            ],
             "nullable": true
           },
           "project_note": {
@@ -25128,7 +25133,8 @@
             "$ref": "#/components/schemas/project-workspace-file-kind"
           },
           "language_hint": {
-            "type": "string"
+            "type": "string",
+            "description": "Backend-owned language hint for workspace rendering. Current values may include yaml, json, dotenv, ini, toml, properties, xml, sql, markdown, shell, dockerfile, hcl, powershell, and plaintext.\n"
           },
           "editable": {
             "type": "boolean"
@@ -25222,6 +25228,7 @@
         "properties": {
           "annotation": {
             "type": "string",
+            "maxLength": 500,
             "nullable": true
           }
         }

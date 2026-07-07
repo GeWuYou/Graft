@@ -1,4 +1,5 @@
 import EditorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
+import JsonWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker';
 
 import { createProjectMonacoDebugLogger } from './project-monaco-debug';
 import YamlWorker from './project-yaml.worker?worker';
@@ -7,6 +8,7 @@ type MonacoWorkerFactory = () => Worker;
 
 type ProjectMonacoWorkerFactories = {
   createEditorWorker: MonacoWorkerFactory;
+  createJsonWorker: MonacoWorkerFactory;
   createYamlWorker: MonacoWorkerFactory;
 };
 
@@ -21,6 +23,12 @@ function createEditorWorker() {
 function createYamlWorker() {
   return new YamlWorker({
     name: 'yaml',
+  });
+}
+
+function createJsonWorker() {
+  return new JsonWorker({
+    name: 'json',
   });
 }
 
@@ -58,6 +66,7 @@ export function buildProjectMonacoWorker(
   label: string,
   factories: ProjectMonacoWorkerFactories = {
     createEditorWorker,
+    createJsonWorker,
     createYamlWorker,
   },
 ) {
@@ -66,6 +75,8 @@ export function buildProjectMonacoWorker(
   });
 
   switch (label) {
+    case 'json':
+      return attachProjectMonacoWorkerDebug(factories.createJsonWorker(), label, 'json');
     case 'yaml':
       return attachProjectMonacoWorkerDebug(factories.createYamlWorker(), label, 'yaml');
     case 'editorWorkerService':

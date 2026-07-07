@@ -22,6 +22,9 @@ properties:
     type: boolean
   language_hint:
     type: string
+    description: >
+      Backend-owned language hint for workspace rendering. Current values may include yaml, json, dotenv, ini, toml,
+      properties, xml, sql, markdown, shell, dockerfile, hcl, powershell, and plaintext.
   size_bytes:
     type: integer
     format: int64

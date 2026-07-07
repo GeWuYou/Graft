@@ -26,6 +26,28 @@ describe('configuration workspace helpers', () => {
     expect(resolveWorkspaceMonacoLanguage({ fileKind: 'config', languageHint: null, path: 'Dockerfile' })).toBe(
       'dockerfile',
     );
+    expect(resolveWorkspaceMonacoLanguage({ fileKind: 'config', languageHint: null, path: 'terraform/main.tf' })).toBe(
+      'hcl',
+    );
+    expect(resolveWorkspaceMonacoLanguage({ fileKind: 'config', languageHint: null, path: 'scripts/app.ps1' })).toBe(
+      'powershell',
+    );
+    expect(resolveWorkspaceMonacoLanguage({ fileKind: 'config', languageHint: null, path: 'config/app.xml' })).toBe(
+      'xml',
+    );
+    expect(resolveWorkspaceMonacoLanguage({ fileKind: 'config', languageHint: null, path: 'queries/seed.sql' })).toBe(
+      'sql',
+    );
+    expect(resolveWorkspaceMonacoLanguage({ fileKind: 'text', languageHint: null, path: 'docs/README.md' })).toBe(
+      'markdown',
+    );
+    expect(resolveWorkspaceMonacoLanguage({ fileKind: 'config', languageHint: null, path: '.editorconfig' })).toBe(
+      'ini',
+    );
+    expect(resolveWorkspaceMonacoLanguage({ fileKind: 'text', languageHint: null, path: '.gitignore' })).toBe(
+      'plaintext',
+    );
+    expect(resolveWorkspaceMonacoLanguage({ fileKind: 'config', languageHint: null, path: 'app.jsonc' })).toBe('json');
   });
 
   it('extracts a presentable file name from a relative path', () => {

@@ -29,12 +29,28 @@ describe('project-monaco color normalization', () => {
 });
 
 describe('project-monaco worker routing', () => {
+  it('routes json models to the json worker factory', () => {
+    const editorWorker = { kind: 'editor-worker' } as unknown as Worker;
+    const jsonWorker = { kind: 'json-worker' } as unknown as Worker;
+    const yamlWorker = { kind: 'yaml-worker' } as unknown as Worker;
+
+    const worker = buildProjectMonacoWorker('json', {
+      createEditorWorker: () => editorWorker,
+      createJsonWorker: () => jsonWorker,
+      createYamlWorker: () => yamlWorker,
+    });
+
+    expect(worker).toBe(jsonWorker);
+  });
+
   it('routes yaml models to the yaml worker factory', () => {
     const editorWorker = { kind: 'editor-worker' } as unknown as Worker;
+    const jsonWorker = { kind: 'json-worker' } as unknown as Worker;
     const yamlWorker = { kind: 'yaml-worker' } as unknown as Worker;
 
     const worker = buildProjectMonacoWorker('yaml', {
       createEditorWorker: () => editorWorker,
+      createJsonWorker: () => jsonWorker,
       createYamlWorker: () => yamlWorker,
     });
 
@@ -43,10 +59,12 @@ describe('project-monaco worker routing', () => {
 
   it('routes non-yaml models to the editor worker factory', () => {
     const editorWorker = { kind: 'editor-worker' } as unknown as Worker;
+    const jsonWorker = { kind: 'json-worker' } as unknown as Worker;
     const yamlWorker = { kind: 'yaml-worker' } as unknown as Worker;
 
     const worker = buildProjectMonacoWorker('editorWorkerService', {
       createEditorWorker: () => editorWorker,
+      createJsonWorker: () => jsonWorker,
       createYamlWorker: () => yamlWorker,
     });
 
@@ -55,10 +73,11 @@ describe('project-monaco worker routing', () => {
 });
 
 describe('project-monaco language registration', () => {
-  it('keeps yaml contribution import wired into the shared monaco setup', () => {
+  it('keeps yaml and json contributions wired into the shared monaco setup', () => {
     const source = readFileSync('src/modules/project/shared/project-monaco.ts', 'utf8');
 
     expect(source).toContain('monaco-editor/esm/vs/basic-languages/yaml/yaml.contribution');
+    expect(source).toContain('monaco-editor/esm/vs/language/json/monaco.contribution');
   });
 });
 

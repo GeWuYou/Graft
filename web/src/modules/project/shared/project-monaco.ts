@@ -1,7 +1,13 @@
 import 'monaco-editor/esm/vs/basic-languages/dockerfile/dockerfile.contribution';
+import 'monaco-editor/esm/vs/basic-languages/hcl/hcl.contribution';
 import 'monaco-editor/esm/vs/basic-languages/ini/ini.contribution';
+import 'monaco-editor/esm/vs/basic-languages/markdown/markdown.contribution';
+import 'monaco-editor/esm/vs/basic-languages/powershell/powershell.contribution';
 import 'monaco-editor/esm/vs/basic-languages/shell/shell.contribution';
+import 'monaco-editor/esm/vs/basic-languages/sql/sql.contribution';
+import 'monaco-editor/esm/vs/basic-languages/xml/xml.contribution';
 import 'monaco-editor/esm/vs/basic-languages/yaml/yaml.contribution';
+import 'monaco-editor/esm/vs/language/json/monaco.contribution';
 import 'monaco-editor/min/vs/editor/editor.main.css';
 
 import { createWebWorker as createMonacoLabelAwareWebWorker } from 'monaco-editor/esm/vs/common/workers.js';
