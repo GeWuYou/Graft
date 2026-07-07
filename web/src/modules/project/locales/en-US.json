@@ -71,6 +71,8 @@
         "fileTreeHint": "Show the API-backed files and directories for the current path, while applying default-hide rules only to directories.",
         "fileTreeTitle": "Project Files",
         "filesEmpty": "No files are available in this directory.",
+        "exitFullscreenAction": "Exit Fullscreen",
+        "fullscreenAction": "Fullscreen",
         "hiddenBadge": "Default Hidden",
         "hiddenItemsHint": "This directory still contains default-hidden folders. Enable them to browse more entries.",
         "hideHiddenAction": "Hide Default Hidden Directories",

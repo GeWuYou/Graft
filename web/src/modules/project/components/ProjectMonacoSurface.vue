@@ -53,6 +53,7 @@ const { applyTheme } = useProjectMonacoLifecycle({
     model = null;
   },
   getMonaco: () => monaco,
+  getThemeHost: () => containerRef.value,
 });
 
 watch(

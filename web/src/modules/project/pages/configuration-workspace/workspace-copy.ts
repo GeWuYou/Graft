@@ -19,6 +19,8 @@ type WorkspaceCopy = {
   fileTreeHint: string;
   fileTreeTitle: string;
   filesEmpty: string;
+  exitFullscreenAction: string;
+  fullscreenAction: string;
   hiddenBadge: string;
   hiddenItemsHint: string;
   hideHiddenAction: string;
@@ -81,6 +83,8 @@ const workspaceCopyKeyMap: Record<WorkspaceCopyKey, string> = {
   fileTreeHint: 'project.configurationWorkspace.copy.fileTreeHint',
   fileTreeTitle: 'project.configurationWorkspace.copy.fileTreeTitle',
   filesEmpty: 'project.configurationWorkspace.copy.filesEmpty',
+  exitFullscreenAction: 'project.configurationWorkspace.copy.exitFullscreenAction',
+  fullscreenAction: 'project.configurationWorkspace.copy.fullscreenAction',
   hiddenBadge: 'project.configurationWorkspace.copy.hiddenBadge',
   hiddenItemsHint: 'project.configurationWorkspace.copy.hiddenItemsHint',
   hideHiddenAction: 'project.configurationWorkspace.copy.hideHiddenAction',

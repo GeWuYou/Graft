@@ -71,6 +71,8 @@
         "fileTreeHint": "按当前目录展示接口返回的目录和文件，仅对目录应用默认隐藏规则。",
         "fileTreeTitle": "项目文件",
         "filesEmpty": "当前目录没有可浏览的文件。",
+        "exitFullscreenAction": "退出全屏",
+        "fullscreenAction": "全屏",
         "hiddenBadge": "默认隐藏",
         "hiddenItemsHint": "当前目录还有默认隐藏的目录，开启显示后可浏览。",
         "hideHiddenAction": "隐藏默认目录",

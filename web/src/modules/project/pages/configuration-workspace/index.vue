@@ -88,7 +88,7 @@
                     theme="default"
                     variant="outline"
                     size="small"
-                    :disabled="!parentWorkspacePath"
+                    :disabled="!canGoToParentDirectory"
                     @click="goToParentDirectory"
                   >
                     {{ workspaceCopy.upAction }}
@@ -165,8 +165,8 @@
 
             <div class="project-configuration-workspace__editor-column">
               <content-viewer-frame
-                exit-fullscreen-label="Exit Fullscreen"
-                fullscreen-label="Fullscreen"
+                :exit-fullscreen-label="workspaceCopy.exitFullscreenAction"
+                :fullscreen-label="workspaceCopy.fullscreenAction"
                 fullscreen-surface-padding="none"
                 resize-handle-label="Resize Editor Height"
                 storage-key="graft.project.configuration-workspace.editor.height"
@@ -282,7 +282,11 @@
                 </template>
 
                 <template v-if="hasFeedback">
-                  <t-tabs v-model:value="feedbackTab" theme="card">
+                  <t-tabs
+                    v-model:value="feedbackTab"
+                    class="project-configuration-workspace__feedback-tabs"
+                    theme="card"
+                  >
                     <t-tab-panel value="diff" :label="t('project.detail.configuration.diffTitle')">
                       <div v-if="diffResult" class="project-configuration-workspace__feedback-panel">
                         <t-alert
@@ -627,6 +631,7 @@ const openTabBuffers = computed(
 const activeBuffer = computed(() => (activeTabPath.value ? (openFileMap.get(activeTabPath.value) ?? null) : null));
 const canSaveActiveBuffer = computed(() => Boolean(activeBuffer.value?.editable && !activeBuffer.value.saving));
 const currentWorkspacePathLabel = computed(() => currentWorkspacePath.value || workspaceCopy.value.workspaceRootLabel);
+const canGoToParentDirectory = computed(() => parentWorkspacePath.value !== null);
 const hasDirtyFiles = computed(() =>
   openTabBuffers.value.some((tab) => tab.editable && hasWorkspaceUnsavedChanges(tab.content, tab.savedContent)),
 );
@@ -708,7 +713,7 @@ async function loadWorkspaceDirectory(path: string) {
     });
     workspaceItems.value = sortWorkspaceItems(response.items ?? []);
     currentWorkspacePath.value = response.current_path || '';
-    parentWorkspacePath.value = response.parent_path || null;
+    parentWorkspacePath.value = response.parent_path ?? null;
     hasMoreHiddenEntries.value = Boolean(response.has_more_hidden);
     if (!activeTabPath.value) {
       const firstFile = workspaceItems.value.find((item) => item.node_type === 'file')?.relative_path;
@@ -734,7 +739,7 @@ function sortWorkspaceItems(items: ProjectWorkspaceTreeItem[]) {
 }
 
 function goToParentDirectory() {
-  if (!parentWorkspacePath.value) {
+  if (parentWorkspacePath.value === null) {
     return;
   }
   void loadWorkspaceDirectory(parentWorkspacePath.value);
@@ -1174,6 +1179,51 @@ function handleWorkspaceKeydown(event: KeyboardEvent) {
 <style scoped lang="less">
 .project-configuration-workspace {
   min-width: 0;
+
+  --graft-workspace-editor-surface: color-mix(
+    in srgb,
+    var(--td-bg-color-container) 84%,
+    var(--graft-shell-content-bg, var(--td-bg-color-page)) 16%
+  );
+  --graft-workspace-editor-surface-raised: color-mix(
+    in srgb,
+    var(--graft-workspace-editor-surface) 82%,
+    var(--td-bg-color-container-hover) 18%
+  );
+  --graft-workspace-editor-surface-muted: color-mix(
+    in srgb,
+    var(--graft-workspace-editor-surface) 78%,
+    var(--graft-shell-content-bg, var(--td-bg-color-page)) 22%
+  );
+  --graft-workspace-editor-border: color-mix(in srgb, var(--td-component-stroke) 70%, transparent);
+  --graft-workspace-editor-foreground: var(--td-text-color-primary);
+  --graft-workspace-editor-foreground-muted: color-mix(
+    in srgb,
+    var(--td-text-color-secondary) 92%,
+    var(--td-text-color-primary)
+  );
+  --graft-workspace-editor-foreground-subtle: color-mix(in srgb, var(--td-text-color-placeholder) 78%, transparent);
+  --graft-workspace-editor-accent: var(--td-brand-color-6);
+  --graft-workspace-editor-line-highlight: color-mix(in srgb, var(--td-brand-color-6) 13%, transparent);
+  --graft-workspace-editor-selection: color-mix(in srgb, var(--td-brand-color-6) 28%, transparent);
+  --graft-workspace-editor-selection-inactive: color-mix(in srgb, var(--td-brand-color-6) 18%, transparent);
+  --graft-workspace-editor-indent-guide: color-mix(in srgb, var(--td-text-color-placeholder) 24%, transparent);
+  --graft-workspace-editor-indent-guide-active: color-mix(
+    in srgb,
+    var(--td-brand-color-6) 30%,
+    var(--td-component-stroke)
+  );
+  --graft-workspace-editor-find-match: color-mix(in srgb, var(--td-brand-color-6) 24%, var(--td-warning-color-1));
+  --graft-workspace-editor-find-match-border: color-mix(
+    in srgb,
+    var(--td-brand-color-6) 52%,
+    var(--td-component-stroke)
+  );
+  --graft-workspace-editor-diff-added: color-mix(in srgb, var(--td-success-color-5) 18%, transparent);
+  --graft-workspace-editor-diff-removed: color-mix(in srgb, var(--td-error-color-5) 18%, transparent);
+  --graft-workspace-tab-indicator: var(--td-brand-color-6);
+  --graft-workspace-tab-hover: color-mix(in srgb, var(--td-brand-color-6) 8%, transparent);
+  --graft-workspace-feedback-separator: color-mix(in srgb, var(--td-component-stroke) 72%, transparent);
 }
 
 .project-configuration-workspace__summary-strip,
@@ -1225,7 +1275,9 @@ function handleWorkspaceKeydown(event: KeyboardEvent) {
 .project-configuration-workspace__browser-card {
   background:
     radial-gradient(circle at top left, color-mix(in srgb, var(--td-brand-color-6) 7%, transparent), transparent 38%),
-    var(--td-bg-color-container);
+    var(--graft-workspace-editor-surface-muted);
+  border-color: var(--graft-workspace-editor-border);
+  box-shadow: none;
 }
 
 .project-configuration-workspace__browser-toolbar {
@@ -1275,10 +1327,10 @@ function handleWorkspaceKeydown(event: KeyboardEvent) {
   align-items: center;
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, var(--td-bg-color-container) 94%, var(--td-brand-color-6) 6%),
-    var(--td-bg-color-container)
+    var(--graft-workspace-editor-surface-raised),
+    var(--graft-workspace-editor-surface)
   );
-  border: 1px solid color-mix(in srgb, var(--td-border-level-1-color) 88%, transparent);
+  border: 1px solid var(--graft-workspace-editor-border);
   border-radius: calc(var(--td-radius-default) + 2px);
   color: inherit;
   cursor: pointer;
@@ -1296,16 +1348,16 @@ function handleWorkspaceKeydown(event: KeyboardEvent) {
 
 .project-configuration-workspace__browser-entry:hover {
   border-color: color-mix(in srgb, var(--td-brand-color-6) 42%, var(--td-border-level-1-color));
-  box-shadow: 0 10px 24px color-mix(in srgb, var(--td-brand-color-6) 10%, transparent);
+  box-shadow: 0 12px 22px color-mix(in srgb, var(--td-brand-color-6) 9%, transparent);
 }
 
 .project-configuration-workspace__browser-entry--active {
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, var(--td-brand-color-1) 86%, var(--td-brand-color-6) 14%),
-    var(--td-brand-color-1)
+    color-mix(in srgb, var(--td-brand-color-6) 12%, var(--graft-workspace-editor-surface-raised)),
+    var(--graft-workspace-editor-surface)
   );
-  border-color: var(--td-brand-color-6);
+  border-color: color-mix(in srgb, var(--td-brand-color-6) 42%, var(--graft-workspace-editor-border));
 }
 
 .project-configuration-workspace__browser-entry--readonly {
@@ -1358,7 +1410,28 @@ function handleWorkspaceKeydown(event: KeyboardEvent) {
 
 .project-configuration-workspace__editor-column {
   display: grid;
-  gap: var(--graft-density-gap-16);
+  gap: 0;
+}
+
+.project-configuration-workspace__editor-column :deep(.content-viewer-frame__panel) {
+  background: var(--graft-workspace-editor-surface);
+  border-bottom: 0;
+  border-color: var(--graft-workspace-editor-border);
+  border-radius: var(--td-radius-large) var(--td-radius-large) 0 0;
+  box-shadow: 0 18px 34px color-mix(in srgb, var(--td-brand-color-6) 5%, transparent);
+}
+
+.project-configuration-workspace__editor-column :deep(.content-viewer-frame__header) {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--td-brand-color-6) 6%, transparent), transparent 72%);
+  border-bottom-color: var(--graft-workspace-editor-border);
+}
+
+.project-configuration-workspace__editor-column :deep(.content-viewer-frame__surface) {
+  background: var(--graft-workspace-editor-surface);
+}
+
+.project-configuration-workspace__editor-column :deep(.content-viewer-frame__resize-grip) {
+  background: color-mix(in srgb, var(--td-text-color-placeholder) 42%, transparent);
 }
 
 .project-configuration-workspace__editor-head strong {
@@ -1375,13 +1448,68 @@ function handleWorkspaceKeydown(event: KeyboardEvent) {
 }
 
 .project-configuration-workspace__editor-surface {
+  background: var(--graft-workspace-editor-surface);
   block-size: 100%;
+  display: flex;
+  flex-direction: column;
   min-block-size: 560px;
   min-inline-size: 0;
 }
 
-.project-configuration-workspace__tabs {
-  margin-bottom: var(--graft-density-gap-12);
+.project-configuration-workspace__tabs,
+.project-configuration-workspace__feedback-tabs {
+  margin-bottom: 0;
+
+  :deep(.t-tabs__header) {
+    background: linear-gradient(180deg, color-mix(in srgb, var(--td-brand-color-6) 4%, transparent), transparent);
+    border-bottom: 1px solid var(--graft-workspace-editor-border);
+    margin: 0;
+    padding: 0 var(--graft-density-gap-8);
+  }
+
+  :deep(.t-tabs__nav) {
+    align-items: stretch;
+  }
+
+  :deep(.t-tabs__bar) {
+    display: none;
+  }
+
+  :deep(.t-tabs__nav-item) {
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    border-top: 2px solid transparent;
+    color: var(--td-text-color-secondary);
+    margin: 0;
+    min-height: 42px;
+    padding: 0 var(--graft-density-gap-12);
+    transition:
+      color 0.2s ease,
+      background-color 0.2s ease,
+      border-color 0.2s ease;
+  }
+
+  :deep(.t-tabs__nav-item:hover) {
+    background: var(--graft-workspace-tab-hover);
+    color: var(--td-text-color-primary);
+  }
+
+  :deep(.t-tabs__nav-item.t-is-active) {
+    background: color-mix(in srgb, var(--td-brand-color-6) 6%, transparent);
+    border-top-color: var(--graft-workspace-tab-indicator);
+    color: var(--td-text-color-primary);
+  }
+
+  :deep(.t-tabs__nav-item + .t-tabs__nav-item) {
+    box-shadow: inset 1px 0 0 color-mix(in srgb, var(--graft-workspace-editor-border) 72%, transparent);
+  }
+}
+
+.project-configuration-workspace__feedback-tabs {
+  :deep(.t-tabs__content) {
+    padding: var(--graft-density-gap-12) var(--graft-density-gap-16) var(--graft-density-gap-16);
+  }
 }
 
 .project-configuration-workspace__tab-label {
@@ -1399,10 +1527,31 @@ function handleWorkspaceKeydown(event: KeyboardEvent) {
 .project-configuration-workspace__editor-loading,
 .project-configuration-workspace__monaco-editor,
 .project-configuration-workspace__monaco-viewer {
+  background: var(--graft-workspace-editor-surface);
   block-size: 100%;
   display: block;
   min-block-size: 0;
   min-inline-size: 0;
+}
+
+.project-configuration-workspace__editor-loading {
+  display: flex;
+  flex: 1 1 auto;
+  min-block-size: 0;
+  padding: 0 var(--graft-density-gap-12) var(--graft-density-gap-12);
+}
+
+.project-configuration-workspace__monaco-editor,
+.project-configuration-workspace__monaco-viewer {
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+
+.project-configuration-workspace__monaco-editor :deep(.monaco-editor),
+.project-configuration-workspace__monaco-editor :deep(.monaco-diff-editor),
+.project-configuration-workspace__monaco-viewer :deep(.monaco-editor),
+.project-configuration-workspace__monaco-viewer :deep(.monaco-diff-editor) {
+  background: var(--graft-workspace-editor-surface);
 }
 
 .project-configuration-workspace__warning-list,
@@ -1428,8 +1577,8 @@ function handleWorkspaceKeydown(event: KeyboardEvent) {
 
 .project-configuration-workspace__diff-file {
   align-items: center;
-  background: var(--td-bg-color-container);
-  border: 1px solid transparent;
+  background: var(--graft-workspace-editor-surface-muted);
+  border: 1px solid var(--graft-workspace-editor-border);
   border-radius: var(--td-radius-default);
   color: inherit;
   cursor: pointer;
@@ -1444,12 +1593,12 @@ function handleWorkspaceKeydown(event: KeyboardEvent) {
 }
 
 .project-configuration-workspace__diff-file:hover {
-  border-color: var(--td-brand-color-5);
+  border-color: color-mix(in srgb, var(--td-brand-color-6) 38%, var(--graft-workspace-editor-border));
 }
 
 .project-configuration-workspace__diff-file--active {
-  background: var(--td-brand-color-1);
-  border-color: var(--td-brand-color-6);
+  background: color-mix(in srgb, var(--td-brand-color-6) 10%, var(--graft-workspace-editor-surface-muted));
+  border-color: color-mix(in srgb, var(--td-brand-color-6) 48%, var(--graft-workspace-editor-border));
 }
 
 .project-configuration-workspace__diff-viewer {
@@ -1468,8 +1617,33 @@ function handleWorkspaceKeydown(event: KeyboardEvent) {
 
 .project-configuration-workspace__readonly-viewer,
 .project-configuration-workspace__drawer-viewer {
+  background: var(--graft-workspace-editor-surface-muted);
   block-size: 480px;
+  border: 1px solid var(--graft-workspace-editor-border);
+  border-radius: var(--td-radius-large);
   margin-top: var(--graft-density-gap-12);
+  overflow: hidden;
+}
+
+.project-configuration-workspace__feedback {
+  background: var(--graft-workspace-editor-surface);
+  border: 0;
+  border-radius: 0 0 var(--td-radius-large) var(--td-radius-large);
+  border-top: 1px solid var(--graft-workspace-feedback-separator);
+  box-shadow: none;
+}
+
+.project-configuration-workspace__feedback :deep(.t-card__header) {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--td-brand-color-6) 4%, transparent), transparent);
+  border-bottom: 1px solid var(--graft-workspace-editor-border);
+}
+
+.project-configuration-workspace__feedback :deep(.t-card__body) {
+  background: var(--graft-workspace-editor-surface);
+}
+
+.project-configuration-workspace__feedback :deep(.t-empty) {
+  min-block-size: 220px;
 }
 
 .project-configuration-workspace__dialog-body {
