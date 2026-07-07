@@ -1,7 +1,6 @@
 import EditorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
 
-import { createLogger } from '@/utils/logger';
-
+import { createProjectMonacoDebugLogger } from './project-monaco-debug';
 import YamlWorker from './project-yaml.worker?worker';
 
 type MonacoWorkerFactory = () => Worker;
@@ -11,8 +10,7 @@ type ProjectMonacoWorkerFactories = {
   createYamlWorker: MonacoWorkerFactory;
 };
 
-const PROJECT_MONACO_DEBUG_KEY = '__GRAFT_MONACO_DEBUG__';
-const logger = createLogger('project.monaco.worker');
+const logProjectMonacoWorkerDebug = createProjectMonacoDebugLogger('project.monaco.worker');
 
 function createEditorWorker() {
   return new EditorWorker({
@@ -24,32 +22,6 @@ function createYamlWorker() {
   return new YamlWorker({
     name: 'yaml',
   });
-}
-
-function isProjectMonacoDebugEnabled() {
-  const debugFlag = (globalThis as typeof globalThis & Record<string, unknown>)[PROJECT_MONACO_DEBUG_KEY];
-
-  if (debugFlag === true) {
-    return true;
-  }
-
-  if (typeof localStorage === 'undefined') {
-    return false;
-  }
-
-  try {
-    return localStorage.getItem(PROJECT_MONACO_DEBUG_KEY) === 'true';
-  } catch {
-    return false;
-  }
-}
-
-function logProjectMonacoWorkerDebug(event: string, detail: Record<string, unknown>) {
-  if (!isProjectMonacoDebugEnabled()) {
-    return;
-  }
-
-  logger.debug(`[ProjectMonaco] ${event}`, detail);
 }
 
 function attachProjectMonacoWorkerDebug(worker: Worker, label: string, kind: string) {

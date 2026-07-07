@@ -11,6 +11,7 @@ import { nextTick, onBeforeUnmount, onMounted } from 'vue';
 import { createLogger } from '@/utils/logger';
 
 import { toMonacoColor } from './project-monaco-color';
+import { createProjectMonacoDebugLogger } from './project-monaco-debug';
 import { buildProjectMonacoWorker } from './project-monaco-worker';
 
 export type MonacoEditorModule = typeof monaco;
@@ -27,40 +28,14 @@ let monacoConfigured = false;
 let monacoYamlConfigured = false;
 let monacoYamlConfigurationFailed = false;
 let modelUriSuffixSeed = 0;
-const PROJECT_MONACO_DEBUG_KEY = '__GRAFT_MONACO_DEBUG__';
 let monacoCreateWebWorkerPatched = false;
 const logger = createLogger('project.monaco');
+const logProjectMonacoDebug = createProjectMonacoDebugLogger('project.monaco');
 
 const PROJECT_MONACO_THEME_LIGHT = 'graft-project-workspace-light';
 const PROJECT_MONACO_THEME_DARK = 'graft-project-workspace-dark';
 
 export type ProjectMonacoTheme = typeof PROJECT_MONACO_THEME_LIGHT | typeof PROJECT_MONACO_THEME_DARK;
-
-function isProjectMonacoDebugEnabled() {
-  const debugFlag = (globalThis as typeof globalThis & Record<string, unknown>)[PROJECT_MONACO_DEBUG_KEY];
-
-  if (debugFlag === true) {
-    return true;
-  }
-
-  if (typeof localStorage === 'undefined') {
-    return false;
-  }
-
-  try {
-    return localStorage.getItem(PROJECT_MONACO_DEBUG_KEY) === 'true';
-  } catch {
-    return false;
-  }
-}
-
-function logProjectMonacoDebug(event: string, detail: Record<string, unknown>) {
-  if (!isProjectMonacoDebugEnabled()) {
-    return;
-  }
-
-  logger.debug(`[ProjectMonaco] ${event}`, detail);
-}
 
 function installProjectMonacoCreateWebWorkerPatch() {
   if (monacoCreateWebWorkerPatched) {

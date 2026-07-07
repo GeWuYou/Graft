@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { toMonacoColor } from './project-monaco-color';
+import { isProjectMonacoDebugEnabled } from './project-monaco-debug';
 import { buildProjectMonacoWorker } from './project-monaco-worker';
 
 describe('project-monaco color normalization', () => {
@@ -48,5 +49,22 @@ describe('project-monaco worker routing', () => {
     });
 
     expect(worker).toBe(editorWorker);
+  });
+});
+
+describe('project-monaco debug toggle', () => {
+  it('reads the explicit global debug flag before localStorage', () => {
+    const previousValue = (globalThis as typeof globalThis & Record<string, unknown>).__GRAFT_MONACO_DEBUG__;
+
+    (globalThis as typeof globalThis & Record<string, unknown>).__GRAFT_MONACO_DEBUG__ = true;
+
+    expect(isProjectMonacoDebugEnabled()).toBe(true);
+
+    if (typeof previousValue === 'undefined') {
+      delete (globalThis as typeof globalThis & Record<string, unknown>).__GRAFT_MONACO_DEBUG__;
+      return;
+    }
+
+    (globalThis as typeof globalThis & Record<string, unknown>).__GRAFT_MONACO_DEBUG__ = previousValue;
   });
 });

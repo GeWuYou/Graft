@@ -1,4 +1,4 @@
-import { flushPromises, mount } from '@vue/test-utils';
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, KeepAlive, nextTick, ref } from 'vue';
 
@@ -87,6 +87,8 @@ const tabsRouterStoreMock = vi.hoisted(() => ({
 const permissionStoreMock = vi.hoisted(() => ({
   hasPermission: vi.fn(() => true),
 }));
+
+let mountedWrappers: Array<VueWrapper<unknown>> = [];
 
 const translations = vi.hoisted((): Record<string, string> => ({
   'container.list.actionFailed': '容器操作失败。',
@@ -403,6 +405,7 @@ describe('container list page', () => {
   beforeEach(() => {
     vi.useRealTimers();
     vi.clearAllMocks();
+    mountedWrappers = [];
     realtimeMocks.controllers = [];
     resetContainerStatsManager();
     tabsRouterStoreMock.activeTabKey = '/ops/containers';
@@ -572,6 +575,9 @@ describe('container list page', () => {
   });
 
   afterEach(() => {
+    while (mountedWrappers.length > 0) {
+      mountedWrappers.pop()?.unmount();
+    }
     resetContainerStatsManager();
     vi.useRealTimers();
   });
@@ -1954,7 +1960,7 @@ function createContainerRows(count: number, startOrdinal = 1) {
 }
 
 function mountPage(component: object = ContainerListPage) {
-  return mount(component, {
+  const wrapper = mount(component, {
     global: {
       directives: {
         permission: () => undefined,
@@ -2345,4 +2351,7 @@ function mountPage(component: object = ContainerListPage) {
       },
     },
   });
+
+  mountedWrappers.push(wrapper as VueWrapper<unknown>);
+  return wrapper;
 }
